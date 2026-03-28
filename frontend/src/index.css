@@ -1,0 +1,193 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* ============================================================
+   * 安心法务 — 统一色彩系统 v3 (琥珀橙)
+   *
+   * 设计哲学（参考 Apple HIG / Linear / Vercel / Stripe）:
+   * - 浅色模式：纯净白底 + 琥珀橙品牌色 + 微妙灰色层次
+   * - 深色模式：分层深灰（非纯黑）+ 降饱和暖橙 + 柔和边界
+   * - 品牌感：温暖 · 守护 · 专业
+   * ============================================================ */
+
+  :root {
+    /* --- 基础表面 --- */
+    --background: 0 0% 100%;
+    --foreground: 20 14% 10%;
+
+    /* --- 卡片 & 弹出 --- */
+    --card: 0 0% 100%;
+    --card-foreground: 20 14% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 14% 10%;
+
+    /* --- 品牌琥珀橙 --- */
+    --primary: 25 95% 53%;
+    --primary-foreground: 0 0% 100%;
+
+    /* --- 辅助色 --- */
+    --secondary: 30 14% 96%;
+    --secondary-foreground: 20 14% 10%;
+    --muted: 30 14% 96%;
+    --muted-foreground: 20 9% 46%;
+    --accent: 35 100% 96%;
+    --accent-foreground: 20 14% 10%;
+
+    /* --- 状态色 --- */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* --- 边框 & 输入 --- */
+    --border: 30 13% 91%;
+    --input: 30 13% 91%;
+    --ring: 25 95% 53% / 0.15;
+    --radius: 0.5rem;
+
+    /* --- 琥珀橙色阶 --- */
+    --primary-50: 33 100% 97%;
+    --primary-100: 34 100% 92%;
+    --primary-200: 32 98% 83%;
+    --primary-300: 28 97% 72%;
+    --primary-400: 25 96% 60%;
+    --primary-500: 25 95% 53%;
+    --primary-600: 21 90% 48%;
+    --primary-700: 17 88% 40%;
+    --primary-800: 15 80% 33%;
+    --primary-900: 15 75% 27%;
+
+    /* --- 登录页专用 --- */
+    --login-brand-from: 25 95% 53%;
+    --login-brand-via: 20 90% 46%;
+    --login-brand-to: 15 85% 38%;
+  }
+
+  .dark {
+    /* --- 基础表面（Apple 风格分层灰）--- */
+    --background: 20 16% 8%;         /* 暖灰深底 */
+    --foreground: 30 13% 91%;        /* 暖白文本 */
+
+    /* --- 卡片 & 弹出（上浮层比背景略亮）--- */
+    --card: 20 15% 11%;
+    --card-foreground: 30 13% 91%;
+    --popover: 20 15% 13%;
+    --popover-foreground: 30 13% 91%;
+
+    /* --- 琥珀橙（深色下降饱和 + 适度亮度）--- */
+    --primary: 25 85% 55%;           /* 比浅色模式更柔和 */
+    --primary-foreground: 0 0% 100%;
+
+    /* --- 辅助色 --- */
+    --secondary: 20 14% 14%;
+    --secondary-foreground: 30 13% 85%;
+    --muted: 20 14% 14%;
+    --muted-foreground: 20 9% 55%;
+    --accent: 25 20% 17%;
+    --accent-foreground: 30 13% 91%;
+
+    /* --- 状态色（深色下降饱和度）--- */
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* --- 边框 & 输入（微妙的分割线）--- */
+    --border: 20 13% 18%;
+    --input: 20 13% 18%;
+    --ring: 25 85% 55% / 0.25;
+
+    /* --- 深色琥珀橙色阶 --- */
+    --primary-50: 20 30% 11%;
+    --primary-100: 22 30% 14%;
+    --primary-200: 23 35% 19%;
+    --primary-300: 24 45% 28%;
+    --primary-400: 25 60% 40%;
+    --primary-500: 25 85% 55%;
+    --primary-600: 28 80% 62%;
+    --primary-700: 30 75% 72%;
+    --primary-800: 32 70% 82%;
+    --primary-900: 34 65% 92%;
+
+    /* --- 登录页专用（深色下融入背景）--- */
+    --login-brand-from: 20 25% 10%;
+    --login-brand-via: 22 30% 13%;
+    --login-brand-to: 20 25% 10%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    font-family: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* 主题切换过渡动画 */
+.theme-transition,
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition: background-color 0.3s ease, color 0.2s ease, border-color 0.3s ease, box-shadow 0.3s ease !important;
+}
+
+/* 法律服务阴影（浅色用品牌蓝光晕，深色用自然暗影） */
+.shadow-legal-sm { box-shadow: 0 1px 2px 0 rgb(0 101 255 / 0.05); }
+.shadow-legal { box-shadow: 0 1px 3px 0 rgb(0 101 255 / 0.08), 0 1px 2px -1px rgb(0 101 255 / 0.06); }
+.shadow-legal-md { box-shadow: 0 4px 6px -1px rgb(0 101 255 / 0.08), 0 2px 4px -2px rgb(0 101 255 / 0.06); }
+.shadow-legal-lg { box-shadow: 0 10px 15px -3px rgb(0 101 255 / 0.08), 0 4px 6px -4px rgb(0 101 255 / 0.06); }
+
+.dark .shadow-legal-sm { box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4); }
+.dark .shadow-legal { box-shadow: 0 2px 4px 0 rgb(0 0 0 / 0.35), 0 1px 2px -1px rgb(0 0 0 / 0.3); }
+.dark .shadow-legal-md { box-shadow: 0 4px 8px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.35); }
+.dark .shadow-legal-lg { box-shadow: 0 12px 20px -4px rgb(0 0 0 / 0.5), 0 4px 8px -4px rgb(0 0 0 / 0.4); }
+
+/* 深色模式专用：微妙的上浮高光（Apple 风格）*/
+.dark .card-elevated {
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.04), 0 2px 4px 0 rgb(0 0 0 / 0.3);
+}
+
+/* 滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(220 10% 50% / 0.15);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(220 10% 50% / 0.3);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: hsl(220 10% 60% / 0.12);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: hsl(220 10% 60% / 0.22);
+}
+
+/* 隐藏滚动条（横向滑动） */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* iOS safe area */
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}

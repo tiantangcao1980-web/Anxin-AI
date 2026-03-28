@@ -1,0 +1,403 @@
+/**
+ * icons.ts - 统一图标导出映射
+ *
+ * ===== Lucide React SVG 图标统一管理 =====
+ * 全站使用 lucide-react 作为唯一图标库（1000+ SVG 图标）
+ * 所有组件必须通过此文件导入图标，禁止直接导入 lucide-react
+ *
+ * 使用方式：
+ *   import { icons } from '@/lib/icons'
+ *   <icons.Chat className="w-5 h-5" />
+ *
+ * 图标来源：https://lucide.dev（MIT 协议，24x24 SVG）
+ */
+
+import {
+  Mail,
+  MessageSquare,
+  MessagesSquare,
+  FileCheck,
+  BarChart3,
+  PieChart,
+  Briefcase,
+  FileText,
+  FolderOpen,
+  Folder,
+  Users,
+  UserCircle,
+  Signal,
+  Newspaper,
+  Search,
+  Database,
+  GraduationCap,
+  BookOpen,
+  Settings,
+  Bell,
+  User,
+  Users2,
+  Menu,
+  X,
+  XCircle,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  Plus,
+  Minus,
+  Pencil,
+  PenSquare,
+  Trash2,
+  RefreshCw,
+  Check,
+  CheckCircle,
+  CheckCircle2,
+  CheckCheck,
+  AlertTriangle,
+  AlertCircle,
+  Info,
+  HelpCircle,
+  ShieldCheck,
+  ShieldAlert,
+  Cpu,
+  Eye,
+  EyeOff,
+  LogOut,
+  Home,
+  Sparkles,
+  Copy,
+  UploadCloud,
+  Cloud,
+  Filter,
+  Calendar,
+  Clock,
+  Tag,
+  Link,
+  ExternalLink,
+  Share2,
+  Globe,
+  Building,
+  Building2,
+  Scale,
+  Terminal,
+  Code,
+  List,
+  ArrowLeft,
+  ArrowRight,
+  Star,
+  Sun,
+  Moon,
+  Image,
+  Mic,
+  Paperclip,
+  Send,
+  Code2,
+  ThumbsUp,
+  ThumbsDown,
+  TrendingUp,
+  TrendingDown,
+  Lock,
+  MapPin,
+  Phone,
+  Wrench,
+  Zap,
+  Trophy,
+  Gift,
+  Lightbulb,
+  DollarSign,
+  Calculator,
+  Table,
+  FileSearch,
+  FileOutput,
+  FileSignature,
+  ClipboardList,
+  ClipboardCheck,
+  Download,
+  Upload,
+  Bookmark,
+  MoreHorizontal,
+  MoreVertical,
+  Play,
+  Square,
+  SkipForward,
+  SlidersHorizontal,
+  Archive,
+  LayoutGrid,
+  Columns,
+  Presentation,
+  Heart,
+  Flag,
+  Ban,
+  Key,
+  Banknote,
+  Landmark,
+  LayoutDashboard,
+  GlobeIcon,
+  Fingerprint,
+  Megaphone,
+  Rocket,
+  WifiOff,
+  Wifi,
+  PlusSquare,
+  Undo,
+  Redo,
+  ListOrdered,
+  FileCode,
+  Box,
+  Grid3X3,
+  Layers,
+  RotateCcw,
+  Focus,
+  Server,
+  Loader2,
+  Bot,
+  Brain,
+  Network,
+  PanelLeft,
+  Wand2,
+  Camera,
+  Paintbrush,
+  GripVertical,
+  Hash,
+  LifeBuoy,
+  Activity,
+  CircleDot,
+  Maximize,
+  type LucideIcon,
+} from 'lucide-react'
+
+// ===== 按业务语义分组导出 =====
+// 每个图标只对应一个业务含义，不会混用
+
+export const icons = {
+  // ===== 导航 - AI法务 =====
+  /** 智能对话 */
+  Chat: MessagesSquare,
+  /** 合同审查 */
+  ContractReview: FileCheck,
+  /** 智能中台/仪表盘 */
+  Dashboard: BarChart3,
+
+  // ===== 导航 - 智能协作 =====
+  /** 案件管理 */
+  Cases: Briefcase,
+  /** 智能文档 */
+  Documents: FolderOpen,
+  /** 合同管理 */
+  Contracts: FileText,
+  /** 在线协作 */
+  Collaboration: Users,
+  /** 律师精英 */
+  Experts: UserCircle,
+  /** 案源管理 */
+  Leads: Signal,
+
+  // ===== 导航 - 信息中心 =====
+  /** 司法资讯 */
+  News: Newspaper,
+  /** 尽职调查 */
+  DueDiligence: Search,
+
+  // ===== 导航 - 法律智库 =====
+  /** 智慧搜索 */
+  Search: Search,
+  /** 知识图谱 */
+  KnowledgeGraph: Database,
+  /** 司法智库 */
+  KnowledgeBase: BookOpen,
+  /** 司法学院 */
+  Academy: GraduationCap,
+
+  // ===== 导航 - 业务域组图标 =====
+  /** AI法务域 */
+  AILegal: Sparkles,
+  /** 智能协作域 */
+  CollaborationGroup: Users,
+  /** 信息中心域 */
+  InfoCenter: Newspaper,
+  /** 法律智库域 */
+  KnowledgeGroup: BookOpen,
+
+  // ===== 系统功能 =====
+  Settings: Settings,
+  Notification: Bell,
+  User: User,
+  Users: Users2,
+  Menu: Menu,
+  Close: X,
+  Key: Key,
+  Logo: Scale,
+  Home: Home,
+  Tasks: ClipboardList,
+  ClipboardCheck: ClipboardCheck,
+
+  // ===== 方向箭头 =====
+  ChevronDown: ChevronDown,
+  ChevronUp: ChevronUp,
+  ChevronLeft: ChevronLeft,
+  ChevronRight: ChevronRight,
+  ArrowLeft: ArrowLeft,
+  ArrowRight: ArrowRight,
+
+  // ===== 通用操作 =====
+  Add: Plus,
+  Plus: Plus,
+  Minus: Minus,
+  Edit: Pencil,
+  Edit3: PenSquare,
+  Delete: Trash2,
+  Trash2: Trash2,
+  Refresh: RefreshCw,
+  RefreshCw: RefreshCw,
+  Check: Check,
+  CheckCircle: CheckCircle,
+  CheckCircle2: CheckCircle2,
+  CheckCheck: CheckCheck,
+  Warning: AlertTriangle,
+  AlertTriangle: AlertTriangle,
+  AlertCircle: AlertCircle,
+  Info: Info,
+  HelpCircle: HelpCircle,
+  Shield: ShieldCheck,
+  ShieldCheck: ShieldCheck,
+  ShieldAlert: ShieldAlert,
+  Hardware: Cpu,
+  Cpu: Cpu,
+  Eye: Eye,
+  EyeOff: EyeOff,
+  Logout: LogOut,
+  LogOut: LogOut,
+  AI: Sparkles,
+  Sparkles: Sparkles,
+  Copy: Copy,
+  Upload: Upload,
+  Download: Download,
+  Filter: Filter,
+  Calendar: Calendar,
+  Clock: Clock,
+  Tag: Tag,
+  Link: Link,
+  ExternalLink: ExternalLink,
+  Share: Share2,
+  Share2: Share2,
+  Globe: Globe,
+  Organization: Building,
+  Building: Building,
+  Building2: Building2,
+  Legal: Scale,
+  Scale: Scale,
+  Gavel: Scale,
+  Terminal: Terminal,
+  Code: Code,
+  List: List,
+
+  // ===== 文档相关 =====
+  FileText: FileText,
+  FileCheck: FileCheck,
+  FileSearch: FileSearch,
+  FileOutput: FileOutput,
+  FileSignature: FileSignature,
+  FileStack: ClipboardList,
+  FileWarning: AlertTriangle,
+  Folder: Folder,
+  FolderOpen: FolderOpen,
+  Save: UploadCloud,
+  BookOpen: BookOpen,
+  BookMarked: Bookmark,
+  Bookmark: Bookmark,
+
+  // ===== 通信相关 =====
+  MessageSquare: MessageSquare,
+  MessageCircle: MessagesSquare,
+  Bell: Bell,
+  Send: Send,
+  Paperclip: Paperclip,
+  Mic: Mic,
+  Mail: Mail,
+  Phone: Phone,
+
+  // ===== 数据可视化 =====
+  BarChart3: BarChart3,
+  PieChart: PieChart,
+  Activity: Activity,
+  TrendingUp: TrendingUp,
+  TrendingDown: TrendingDown,
+  Target: SlidersHorizontal,
+  Percent: Hash,
+
+  // ===== 状态指示 =====
+  Circle: Square,
+  CircleDot: CircleDot,
+  Star: Star,
+  Sun: Sun,
+  Moon: Moon,
+  Loader2: Loader2,
+  Zap: Zap,
+  Lightbulb: Lightbulb,
+  Lock: Lock,
+
+  // ===== 人物角色 =====
+  Bot: Bot,
+  Brain: Brain,
+  Award: Trophy,
+  Trophy: Trophy,
+  GraduationCap: GraduationCap,
+  Briefcase: Briefcase,
+
+  // ===== 位置与导航 =====
+  MapPin: MapPin,
+  Landmark: Landmark,
+  LayoutDashboard: LayoutDashboard,
+  Network: Network,
+
+  // ===== 编辑器 =====
+  Bold: Paintbrush,
+  Italic: Paintbrush,
+  Heading1: List,
+  Heading2: List,
+  Table: Table,
+  Image: Image,
+  PenTool: PenSquare,
+  GripVertical: GripVertical,
+
+  // ===== 更多 =====
+  MoreHorizontal: MoreHorizontal,
+  MoreVertical: MoreVertical,
+  X: X,
+  XCircle: XCircle,
+  Cloud: Cloud,
+  Database: Database,
+  DollarSign: DollarSign,
+  Calculator: Calculator,
+  Wrench: Wrench,
+  Gift: Gift,
+  GitBranch: Code2,
+  Wifi: Wifi,
+  WifiOff: WifiOff,
+  Newspaper: Newspaper,
+  PanelLeft: PanelLeft,
+  SkipForward: SkipForward,
+  Wand2: Wand2,
+  Camera: Camera,
+  ThumbsUp: ThumbsUp,
+  ThumbsDown: ThumbsDown,
+
+  // ===== 补充映射 =====
+  Undo: Undo,
+  Redo: Redo,
+  ListOrdered: ListOrdered,
+  FileCode: FileCode,
+  Archive: Archive,
+  Box: Box,
+  Grid3x3: Grid3X3,
+  Layers: Layers,
+  RotateCcw: RotateCcw,
+  Focus: Focus,
+  Server: Server,
+} as const
+
+// 导出图标类型，便于类型约束
+export type IconName = keyof typeof icons
+export type IconComponent = (typeof icons)[IconName]
+
+// 导出 LucideIcon 类型供外部使用
+export type { LucideIcon }

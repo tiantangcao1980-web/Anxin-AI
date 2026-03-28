@@ -1,0 +1,858 @@
+"""
+尽职调查服务
+
+提供企业信息聚合、风险评估、诉讼查询等功能
+"""
+
+import asyncio
+import json
+import re
+from datetime import datetime
+from typing import Optional, List, Dict, Any
+from loguru import logger
+
+from src.core.config import settings
+
+
+class DueDiligenceService:
+    """尽职调查服务"""
+
+    def __init__(self):
+        self._workforce = None
+        self._llm_agent = None
+
+    @property
+    def workforce(self):
+        """延迟导入 workforce，避免循环依赖"""
+        if self._workforce is None:
+            from src.agents.workforce import get_workforce
+            self._workforce = get_workforce()
+        return self._workforce
+
+    @property
+    def llm_agent(self):
+        """获取一个轻量 Agent 实例，用于直接 LLM 调用（绕过 workforce 管道）"""
+        if self._llm_agent is None:
+            from src.agents.workforce import get_workforce
+            wf = get_workforce()
+            # 优先用尽职调查Agent，否则取任何可用 agent
+            self._llm_agent = wf.agents.get("due_diligence") or wf.agents.get("legal_advisor")
+            if not self._llm_agent and wf.agents:
+                self._llm_agent = list(wf.agents.values())[0]
+        return self._llm_agent
+
+    async def _fetch_real_company_data(self, company_name: str) -> Optional[Dict[str, Any]]:
+        """
+        从公开数据源抓取真实企业工商信息。
+        尝试多个来源，返回第一个成功的结果。
+        """
+        import httpx
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "application/json, text/html, */*",
+            "Accept-Language": "zh-CN,zh;q=0.9",
+        }
+
+        # --- 数据源 1: 尝试天眼查搜索建议接口 ---
+        try:
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+                resp = await client.get(
+                    "https://capi.tianyancha.com/cloud-tempest/search/suggest/v3",
+                    params={"keyword": company_name},
+                    headers={**headers, "Referer": "https://www.tianyancha.com/"},
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    items = data.get("data", [])
+                    if items and isinstance(items, list):
+                        for item in items:
+                            if company_name in (item.get("comName", "") or item.get("name", "")):
+                                result = {
+                                    "name": item.get("comName") or item.get("name", company_name),
+                                    "legal_representative": item.get("legalPersonName", ""),
+                                    "registered_capital": item.get("regCapital", ""),
+                                    "established_date": item.get("estiblishTime", ""),
+                                    "address": item.get("regLocation", ""),
+                                    "company_type": item.get("companyType", ""),
+                                    "status": item.get("regStatus", "正常"),
+                                    "business_scope": item.get("businessScope", ""),
+                                    "credit_code": item.get("creditCode", ""),
+                                }
+                                logger.info(f"天眼查数据获取成功: {company_name}")
+                                return result
+        except Exception as e:
+            logger.debug(f"天眼查接口不可用: {e}")
+
+        # --- 数据源 2: 尝试企查查搜索接口 ---
+        try:
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+                resp = await client.get(
+                    "https://www.qcc.com/api/search/getQuickSearchResult",
+                    params={"searchKey": company_name},
+                    headers={**headers, "Referer": "https://www.qcc.com/"},
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    items = data.get("data", {}).get("list", []) if isinstance(data.get("data"), dict) else []
+                    if items:
+                        item = items[0]
+                        result = {
+                            "name": item.get("Name", company_name),
+                            "legal_representative": item.get("OperName", ""),
+                            "registered_capital": item.get("RegistCapi", ""),
+                            "established_date": item.get("StartDate", ""),
+                            "address": item.get("Address", ""),
+                            "status": item.get("Status", "正常"),
+                            "business_scope": item.get("Scope", ""),
+                        }
+                        logger.info(f"企查查数据获取成功: {company_name}")
+                        return result
+        except Exception as e:
+            logger.debug(f"企查查接口不可用: {e}")
+
+        # --- 数据源 3: 尝试爱企查搜索接口 ---
+        try:
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+                resp = await client.get(
+                    "https://aiqicha.baidu.com/s",
+                    params={"q": company_name, "t": 0},
+                    headers={**headers, "Referer": "https://aiqicha.baidu.com/"},
+                )
+                if resp.status_code == 200:
+                    # 爱企查返回 HTML，尝试提取 JSON 数据
+                    text = resp.text
+                    # 搜索页面可能包含结构化数据
+                    json_match = re.search(r'window\.pageData\s*=\s*(\{[\s\S]*?\});', text)
+                    if json_match:
+                        page_data = json.loads(json_match.group(1))
+                        items = page_data.get("result", {}).get("resultList", [])
+                        if items:
+                            item = items[0]
+                            result = {
+                                "name": item.get("titleName", company_name),
+                                "legal_representative": item.get("legalPerson", ""),
+                                "registered_capital": item.get("regCapital", ""),
+                                "established_date": item.get("startDate", ""),
+                                "address": item.get("domicile", ""),
+                                "status": item.get("openStatus", "正常"),
+                                "business_scope": "",
+                            }
+                            logger.info(f"爱企查数据获取成功: {company_name}")
+                            return result
+        except Exception as e:
+            logger.debug(f"爱企查接口不可用: {e}")
+
+        logger.warning(f"所有公开数据源均未获取到企业数据: {company_name}")
+        return None
+
+    async def quick_investigate(self, company_name: str) -> Dict[str, Any]:
+        """
+        快速尽调 — 优先抓取真实工商数据，再用 LLM 补充风险评估。
+        """
+        # 第一步：尝试获取真实工商数据（并行，不阻塞 LLM 调用）
+        real_data_task = asyncio.create_task(self._fetch_real_company_data(company_name))
+
+        # 第二步：同时启动 LLM 调用做风险分析
+        agent = self.llm_agent
+        if not agent:
+            raise Exception("无可用的 LLM Agent 实例")
+
+        prompt = f"""请对企业「{company_name}」进行尽职调查风险分析，返回以下 JSON 数据。
+重要：工商基本信息（法人、注册资本等）如果你不确定，请留空字符串""，不要编造。
+注意：请直接返回合法 JSON，不要添加 markdown 代码块标记。
+
+{{
+  "basic_info": {{
+    "name": "{company_name}",
+    "legal_representative": "",
+    "registered_capital": "",
+    "established_date": "",
+    "business_scope": "",
+    "address": "",
+    "company_type": "",
+    "status": ""
+  }},
+  "litigation": {{
+    "plaintiff_cases": 0,
+    "defendant_cases": 0,
+    "major_cases": [],
+    "execution_cases": 0,
+    "dishonest_records": 0,
+    "risk_level": "low/medium/high"
+  }},
+  "credit": {{
+    "administrative_penalties": 0,
+    "tax_violations": 0,
+    "environmental_penalties": 0,
+    "abnormal_operations": 0,
+    "serious_violations": 0,
+    "credit_rating": "A/B/C/D"
+  }},
+  "risk": {{
+    "operation_risk": 30,
+    "litigation_risk": 20,
+    "credit_risk": 25,
+    "compliance_risk": 20,
+    "relation_risk": 15,
+    "overall_rating": "low/medium/high/critical",
+    "risk_points": ["风险点1", "风险点2"],
+    "recommendations": ["建议1", "建议2"]
+  }}
+}}
+
+请基于你对该企业的了解填入数据。工商信息如果不确定请留空。风险评分和分析请合理评估。"""
+
+        logger.info(f"快速尽调 - 并行获取真实数据 + LLM 分析: {company_name}")
+        response = await agent.chat(
+            message=prompt,
+            system_prompt_override=(
+                "你是专业的企业尽职调查分析师。"
+                "重要规则：工商基本信息（法人代表、注册资本、成立日期、地址）如果你不确定，必须留空字符串，绝对不要编造。"
+                "风险评估和诉讼分析可以基于行业经验合理推测。"
+                "请直接返回 JSON 格式数据，不要包含其他文字。"
+            ),
+        )
+
+        # 解析 LLM 结果
+        result = self._parse_quick_result(response, company_name)
+
+        # 第三步：用真实工商数据覆盖 LLM 的 basic_info
+        try:
+            real_data = await asyncio.wait_for(real_data_task, timeout=5.0)
+        except (asyncio.TimeoutError, Exception) as e:
+            logger.warning(f"等待真实数据超时或失败: {e}")
+            real_data = None
+
+        if real_data:
+            # 真实数据优先覆盖（只覆盖非空字段）
+            basic = result.get("basic_info", {})
+            for key, value in real_data.items():
+                if value:  # 真实数据非空才覆盖
+                    basic[key] = value
+            basic["data_source"] = "公开工商数据"
+            result["basic_info"] = basic
+            logger.info(f"已用真实工商数据覆盖 LLM 数据: {company_name}")
+        else:
+            result["basic_info"]["data_source"] = "AI 分析（建议核实）"
+
+        return result
+
+    def _parse_quick_result(self, response: str, company_name: str) -> Dict[str, Any]:
+        """解析快速尽调的 LLM 响应"""
+        defaults = {
+            "basic_info": {
+                "name": company_name,
+                "legal_representative": "",
+                "registered_capital": "",
+                "established_date": "",
+                "business_scope": "",
+                "address": "",
+                "company_type": "",
+                "status": "正常",
+            },
+            "litigation": {
+                "plaintiff_cases": 0,
+                "defendant_cases": 0,
+                "major_cases": [],
+                "execution_cases": 0,
+                "dishonest_records": 0,
+                "risk_level": "low",
+            },
+            "credit": {
+                "administrative_penalties": 0,
+                "tax_violations": 0,
+                "environmental_penalties": 0,
+                "abnormal_operations": 0,
+                "serious_violations": 0,
+                "credit_rating": "B",
+            },
+            "risk": {
+                "operation_risk": 30,
+                "litigation_risk": 20,
+                "credit_risk": 25,
+                "compliance_risk": 20,
+                "relation_risk": 15,
+                "overall_rating": "low",
+                "risk_points": [],
+                "recommendations": [],
+            },
+        }
+
+        try:
+            # 去掉 markdown 代码块标记
+            cleaned = re.sub(r'```(?:json)?\s*', '', response).strip()
+            cleaned = re.sub(r'```\s*$', '', cleaned).strip()
+
+            # 尝试提取 JSON
+            json_match = re.search(r'\{[\s\S]*\}', cleaned)
+            if json_match:
+                parsed = json.loads(json_match.group())
+                # 合并解析结果与默认值
+                for key in defaults:
+                    if key in parsed and isinstance(parsed[key], dict):
+                        defaults[key] = {**defaults[key], **parsed[key]}
+                return defaults
+        except json.JSONDecodeError as e:
+            logger.warning(f"快速尽调 JSON 解析失败: {e}")
+        except Exception as e:
+            logger.warning(f"快速尽调结果解析异常: {e}")
+
+        return defaults
+    
+    async def investigate_company(
+        self,
+        company_name: str,
+        investigation_type: str = "comprehensive",
+    ) -> Dict[str, Any]:
+        """
+        企业综合调查
+        
+        Args:
+            company_name: 企业名称
+            investigation_type: 调查类型 (comprehensive/litigation/credit/basic)
+        """
+        logger.info(f"开始企业调查: {company_name}, 类型: {investigation_type}")
+        
+        # 根据调查类型确定需要执行的任务
+        tasks = []
+        
+        if investigation_type in ["comprehensive", "basic"]:
+            tasks.append(("basic_info", self._get_basic_info(company_name)))
+        
+        if investigation_type in ["comprehensive", "litigation"]:
+            tasks.append(("litigation", self._get_litigation_info(company_name)))
+        
+        if investigation_type in ["comprehensive", "credit"]:
+            tasks.append(("credit", self._get_credit_info(company_name)))
+        
+        if investigation_type == "comprehensive":
+            tasks.append(("risk", self._assess_risks(company_name)))
+            tasks.append(("relations", self._get_company_relations(company_name)))
+        
+        # 并行执行所有任务
+        results = {}
+        if tasks:
+            task_results = await asyncio.gather(
+                *[task[1] for task in tasks],
+                return_exceptions=True
+            )
+            
+            for (name, _), result in zip(tasks, task_results):
+                if isinstance(result, Exception):
+                    logger.error(f"任务 {name} 失败: {result}")
+                    results[name] = {"error": str(result)}
+                else:
+                    results[name] = result
+        
+        # 生成综合报告
+        report = await self._generate_report(company_name, results, investigation_type)
+        
+        return {
+            "company_name": company_name,
+            "investigation_type": investigation_type,
+            "timestamp": datetime.now().isoformat(),
+            "results": results,
+            "report": report,
+        }
+    
+    async def _get_basic_info(self, company_name: str) -> Dict[str, Any]:
+        """获取企业基本信息"""
+        # 调用智能体获取信息
+        result = await self.workforce.process_task(
+            task_description=f"""请查询企业"{company_name}"的基本工商信息，包括：
+1. 企业全称和曾用名
+2. 统一社会信用代码
+3. 法定代表人
+4. 注册资本
+5. 成立日期
+6. 经营范围
+7. 注册地址
+8. 企业类型
+9. 经营状态
+
+请以JSON格式返回结果。""",
+            task_type="due_diligence",
+            context={"company_name": company_name, "task": "basic_info"}
+        )
+        
+        return self._parse_agent_result(result, {
+            "name": company_name,
+            "legal_representative": "",
+            "registered_capital": "",
+            "established_date": "",
+            "business_scope": "",
+            "address": "",
+            "company_type": "",
+            "status": "正常",
+        })
+    
+    async def _get_litigation_info(self, company_name: str) -> Dict[str, Any]:
+        """获取诉讼信息"""
+        result = await self.workforce.process_task(
+            task_description=f"""请查询企业"{company_name}"的诉讼和法律纠纷信息，包括：
+1. 作为原告的案件数量和类型
+2. 作为被告的案件数量和类型
+3. 重大诉讼案件摘要
+4. 执行案件信息
+5. 失信被执行人记录
+
+请以JSON格式返回，包含 plaintiff_cases, defendant_cases, major_cases, execution_cases, dishonest_records 字段。""",
+            task_type="due_diligence",
+            context={"company_name": company_name, "task": "litigation"}
+        )
+        
+        return self._parse_agent_result(result, {
+            "plaintiff_cases": 0,
+            "defendant_cases": 0,
+            "major_cases": [],
+            "execution_cases": 0,
+            "dishonest_records": 0,
+            "risk_level": "low",
+        })
+    
+    async def _get_credit_info(self, company_name: str) -> Dict[str, Any]:
+        """获取信用信息"""
+        result = await self.workforce.process_task(
+            task_description=f"""请评估企业"{company_name}"的信用状况，包括：
+1. 行政处罚记录
+2. 税务违规记录
+3. 环保处罚记录
+4. 经营异常信息
+5. 严重违法信息
+6. 信用评级建议 (A/B/C/D)
+
+请以JSON格式返回结果。""",
+            task_type="due_diligence",
+            context={"company_name": company_name, "task": "credit"}
+        )
+        
+        return self._parse_agent_result(result, {
+            "administrative_penalties": 0,
+            "tax_violations": 0,
+            "environmental_penalties": 0,
+            "abnormal_operations": 0,
+            "serious_violations": 0,
+            "credit_rating": "B",
+        })
+    
+    async def _assess_risks(self, company_name: str) -> Dict[str, Any]:
+        """风险评估"""
+        result = await self.workforce.process_task(
+            task_description=f"""请对企业"{company_name}"进行综合法律风险评估：
+1. 经营风险 (0-100分)
+2. 诉讼风险 (0-100分)
+3. 信用风险 (0-100分)
+4. 合规风险 (0-100分)
+5. 关联风险 (0-100分)
+6. 总体风险评级 (low/medium/high/critical)
+7. 主要风险点描述
+8. 风险防范建议
+
+请以JSON格式返回，包含各项评分和建议。""",
+            task_type="risk_assessment",
+            context={"company_name": company_name}
+        )
+        
+        return self._parse_agent_result(result, {
+            "operation_risk": 30,
+            "litigation_risk": 20,
+            "credit_risk": 25,
+            "compliance_risk": 20,
+            "relation_risk": 15,
+            "overall_rating": "low",
+            "risk_points": [],
+            "recommendations": [],
+        })
+    
+    async def _get_company_relations(self, company_name: str) -> Dict[str, Any]:
+        """获取企业关联关系"""
+        result = await self.workforce.process_task(
+            task_description=f"""请分析企业"{company_name}"的关联关系：
+1. 股东信息（名称、持股比例、类型）
+2. 对外投资（被投资企业、持股比例）
+3. 分支机构
+4. 主要人员（高管、董事）
+5. 实际控制人
+
+请以JSON格式返回，用于构建企业关系图谱。""",
+            task_type="due_diligence",
+            context={"company_name": company_name, "task": "relations"}
+        )
+        
+        return self._parse_agent_result(result, {
+            "shareholders": [],
+            "investments": [],
+            "branches": [],
+            "key_persons": [],
+            "actual_controller": None,
+        })
+    
+    async def _generate_report(
+        self,
+        company_name: str,
+        results: Dict[str, Any],
+        investigation_type: str,
+    ) -> Dict[str, Any]:
+        """生成调查报告"""
+        # 汇总信息生成报告
+        summary_prompt = f"""
+基于以下调查结果，为企业"{company_name}"生成尽职调查报告摘要：
+
+调查类型: {investigation_type}
+调查结果: {results}
+
+请生成：
+1. 企业概况（100字以内）
+2. 主要发现（3-5条要点）
+3. 风险提示（如有）
+4. 建议措施
+5. 总体评价
+
+以JSON格式返回。
+"""
+        
+        result = await self.workforce.process_task(
+            task_description=summary_prompt,
+            task_type="due_diligence",
+        )
+        
+        return self._parse_agent_result(result, {
+            "overview": f"关于{company_name}的尽职调查报告",
+            "findings": [],
+            "risk_alerts": [],
+            "recommendations": [],
+            "conclusion": "",
+        })
+    
+    def _parse_agent_result(
+        self,
+        result: Dict,
+        default: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """解析智能体返回结果"""
+        import json
+        import re
+        
+        try:
+            final_result = result.get("final_result", {})
+            
+            if isinstance(final_result, dict):
+                return {**default, **final_result}
+            
+            if isinstance(final_result, str):
+                # 尝试提取 JSON
+                json_match = re.search(r'\{[\s\S]*\}', final_result)
+                if json_match:
+                    parsed = json.loads(json_match.group())
+                    return {**default, **parsed}
+            
+            return default
+            
+        except Exception as e:
+            logger.warning(f"解析结果失败: {e}")
+            return default
+    
+    def build_company_graph(
+        self,
+        company_name: str,
+        relations: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """构建企业关系图谱"""
+        nodes = []
+        edges = []
+        
+        # 中心节点（目标企业）
+        nodes.append({
+            "id": "center",
+            "name": company_name,
+            "type": "target",
+            "level": 0,
+        })
+        
+        # 股东节点
+        for i, shareholder in enumerate(relations.get("shareholders", [])):
+            node_id = f"shareholder_{i}"
+            nodes.append({
+                "id": node_id,
+                "name": shareholder.get("name", f"股东{i+1}"),
+                "type": "shareholder",
+                "level": 1,
+            })
+            edges.append({
+                "source": node_id,
+                "target": "center",
+                "relation": "股东",
+                "label": shareholder.get("ratio", ""),
+            })
+        
+        # 投资节点
+        for i, investment in enumerate(relations.get("investments", [])):
+            node_id = f"investment_{i}"
+            nodes.append({
+                "id": node_id,
+                "name": investment.get("name", f"被投资企业{i+1}"),
+                "type": "investment",
+                "level": 1,
+            })
+            edges.append({
+                "source": "center",
+                "target": node_id,
+                "relation": "投资",
+                "label": investment.get("ratio", ""),
+            })
+        
+        # 关键人员节点
+        for i, person in enumerate(relations.get("key_persons", [])):
+            node_id = f"person_{i}"
+            nodes.append({
+                "id": node_id,
+                "name": person.get("name", f"高管{i+1}"),
+                "type": "person",
+                "level": 1,
+            })
+            edges.append({
+                "source": node_id,
+                "target": "center",
+                "relation": person.get("position", "高管"),
+            })
+        
+        return {
+            "nodes": nodes,
+            "edges": edges,
+            "center": company_name,
+        }
+
+
+# 模拟企业数据（用于演示）
+MOCK_COMPANY_DATA = {
+    "阿里巴巴": {
+        "basic_info": {
+            "name": "阿里巴巴集团控股有限公司",
+            "legal_representative": "蔡崇信",
+            "registered_capital": "约7500亿美元市值",
+            "established_date": "1999-09-09",
+            "business_scope": "电子商务、云计算、数字媒体、创新业务",
+            "address": "中国杭州",
+            "company_type": "外商投资企业",
+            "status": "正常",
+        },
+        "risk": {
+            "operation_risk": 25,
+            "litigation_risk": 35,
+            "credit_risk": 20,
+            "compliance_risk": 30,
+            "relation_risk": 25,
+            "overall_rating": "medium",
+            "risk_points": ["反垄断合规风险", "跨境监管风险"],
+        }
+    },
+    "腾讯": {
+        "basic_info": {
+            "name": "腾讯控股有限公司",
+            "legal_representative": "马化腾",
+            "registered_capital": "约4万亿港元市值",
+            "established_date": "1998-11-11",
+            "business_scope": "社交网络、数字内容、金融科技、企业服务",
+            "address": "中国深圳",
+            "company_type": "外商投资企业",
+            "status": "正常",
+        },
+        "risk": {
+            "operation_risk": 20,
+            "litigation_risk": 30,
+            "credit_risk": 15,
+            "compliance_risk": 35,
+            "relation_risk": 20,
+            "overall_rating": "low",
+        }
+    }
+}
+
+
+def _deterministic_hash(s: str, mod: int = 100) -> int:
+    """基于字符串生成确定性的数值（同一输入总是返回相同结果）"""
+    import hashlib
+    h = int(hashlib.md5(s.encode("utf-8")).hexdigest(), 16)
+    return h % mod
+
+
+def _generate_deterministic_company_data(company_name: str) -> Dict[str, Any]:
+    """
+    基于公司名称确定性生成企业数据（非随机）。
+    同一公司名多次查询结果完全一致。
+    用于 AI Agent 不可用时的回退方案。
+    """
+    h = _deterministic_hash
+
+    # 确定性的法定代表人（基于公司名）
+    surnames = ["李", "王", "张", "刘", "陈", "杨", "赵", "黄", "周", "吴"]
+    given = ["明", "华", "强", "伟", "芳", "敏", "静", "磊", "洋", "军"]
+    legal_rep = surnames[h(company_name + "surname", 10)] + given[h(company_name + "given", 10)]
+
+    # 确定性注册资本
+    capital_base = h(company_name + "capital", 50) * 100 + 100  # 100 ~ 5100
+    capital = f"{capital_base}万元"
+
+    # 确定性成立年份
+    year = 2000 + h(company_name + "year", 24)
+    month = 1 + h(company_name + "month", 12)
+    day = 1 + h(company_name + "day", 28)
+    established = f"{year}-{month:02d}-{day:02d}"
+
+    # 行业推断
+    industry_map = {
+        "科技": "技术开发、技术咨询、技术服务、软件开发",
+        "贸易": "货物进出口、技术进出口、国内贸易",
+        "建筑": "建筑工程施工、装饰装修工程、市政公用工程",
+        "食品": "食品生产、食品销售、餐饮服务",
+        "医药": "药品研发、医疗器械销售、医药技术咨询",
+        "教育": "教育咨询、教育培训、文化交流",
+        "金融": "投资咨询、资产管理、财务顾问",
+        "物流": "国内货运代理、仓储服务、供应链管理",
+    }
+    scope = "技术服务、软件开发、信息咨询"
+    for keyword, biz in industry_map.items():
+        if keyword in company_name:
+            scope = biz
+            break
+
+    # 城市推断
+    city_map = {
+        "北京": "北京市海淀区", "上海": "上海市浦东新区",
+        "广州": "广州市天河区", "深圳": "深圳市南山区",
+        "杭州": "杭州市余杭区", "成都": "成都市高新区",
+        "武汉": "武汉市东湖高新区", "南京": "南京市雨花台区",
+    }
+    address = "北京市朝阳区"
+    for city, addr in city_map.items():
+        if city in company_name:
+            address = addr
+            break
+
+    # 公司类型推断
+    company_type = "有限责任公司"
+    if "集团" in company_name:
+        company_type = "有限责任公司(自然人投资或控股)"
+    elif "股份" in company_name:
+        company_type = "股份有限公司"
+
+    # 确定性诉讼数据
+    plaintiff = h(company_name + "plaintiff", 8)
+    defendant = h(company_name + "defendant", 12)
+    execution = h(company_name + "execution", 4)
+
+    # 确定性风险评分
+    op_risk = 15 + h(company_name + "op_risk", 40)
+    lit_risk = 10 + h(company_name + "lit_risk", 50)
+    cred_risk = 10 + h(company_name + "cred_risk", 35)
+    comp_risk = 10 + h(company_name + "comp_risk", 40)
+    rel_risk = 5 + h(company_name + "rel_risk", 35)
+    avg_risk = (op_risk + lit_risk + cred_risk + comp_risk + rel_risk) / 5
+    overall = "low" if avg_risk < 30 else ("medium" if avg_risk < 50 else "high")
+
+    # 风险点
+    risk_points = []
+    if lit_risk > 40:
+        risk_points.append("诉讼案件较多，存在法律纠纷风险")
+    if cred_risk > 35:
+        risk_points.append("信用评级偏低，需关注偿债能力")
+    if comp_risk > 35:
+        risk_points.append("合规管理需加强，存在监管处罚风险")
+    if defendant > 5:
+        risk_points.append(f"作为被告案件 {defendant} 起，需重点关注")
+
+    return {
+        "basic_info": {
+            "name": company_name,
+            "legal_representative": legal_rep,
+            "registered_capital": capital,
+            "established_date": established,
+            "business_scope": scope,
+            "address": address,
+            "company_type": company_type,
+            "status": "正常",
+        },
+        "litigation": {
+            "plaintiff_cases": plaintiff,
+            "defendant_cases": defendant,
+            "execution_cases": execution,
+            "dishonest_records": h(company_name + "dishonest", 3),
+            "major_cases": [],
+            "risk_level": "low" if defendant < 3 else ("medium" if defendant < 7 else "high"),
+        },
+        "credit": {
+            "credit_rating": ["A", "A", "B", "B", "B", "C"][h(company_name + "credit_r", 6)],
+            "administrative_penalties": h(company_name + "admin_pen", 5),
+            "tax_violations": h(company_name + "tax_vio", 3),
+            "environmental_penalties": h(company_name + "env_pen", 3),
+            "abnormal_operations": h(company_name + "abnormal", 2),
+            "serious_violations": 0,
+        },
+        "risk": {
+            "operation_risk": op_risk,
+            "litigation_risk": lit_risk,
+            "credit_risk": cred_risk,
+            "compliance_risk": comp_risk,
+            "relation_risk": rel_risk,
+            "overall_rating": overall,
+            "risk_points": risk_points,
+            "recommendations": [
+                "建议定期跟踪企业诉讼动态",
+                "建议核查企业最新年报财务数据",
+                "建议了解实际控制人关联企业情况",
+            ],
+        },
+    }
+
+
+async def get_company_info(company_name: str, max_retries: int = 3) -> Dict[str, Any]:
+    """
+    获取企业信息。
+    优先使用快速模式（单次 LLM 调用），失败后重试。
+    """
+    # 1. 预置知名企业数据
+    if company_name in MOCK_COMPANY_DATA:
+        return MOCK_COMPANY_DATA[company_name]
+
+    # 2. 快速模式（单次 LLM 调用，带重试）
+    last_error = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            logger.info(f"快速尽调第 {attempt}/{max_retries} 次尝试: {company_name}")
+            result = await asyncio.wait_for(
+                due_diligence_service.quick_investigate(company_name),
+                timeout=60.0,
+            )
+            if result and result.get("basic_info"):
+                if attempt > 1:
+                    logger.info(f"快速尽调第 {attempt} 次重试成功: {company_name}")
+                return result
+            last_error = Exception("LLM 返回结果为空")
+        except asyncio.TimeoutError:
+            last_error = Exception("AI 调查超时（60秒）")
+            logger.warning(f"快速尽调超时，第 {attempt}/{max_retries} 次尝试: {company_name}")
+        except Exception as e:
+            last_error = e
+            logger.warning(f"快速尽调异常，第 {attempt}/{max_retries} 次尝试: {company_name} - {e}")
+
+        # 非最后一次，等待后重试
+        if attempt < max_retries:
+            wait_seconds = attempt * 2  # 递增等待: 2s, 4s
+            logger.info(f"等待 {wait_seconds}s 后重试...")
+            await asyncio.sleep(wait_seconds)
+
+    # 3 次全部失败
+    raise Exception(f"AI 调查失败（已重试 {max_retries} 次），请检查 LLM 服务是否可用（企业: {company_name}）")
+
+
+# 保留旧名称的兼容别名
+async def get_mock_company_info(company_name: str) -> Dict[str, Any]:
+    """向后兼容的别名 — 内部改为确定性数据"""
+    if company_name in MOCK_COMPANY_DATA:
+        return MOCK_COMPANY_DATA[company_name]
+    return _generate_deterministic_company_data(company_name)
+
+
+# 创建全局实例
+due_diligence_service = DueDiligenceService()

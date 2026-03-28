@@ -1,0 +1,105 @@
+# ============================================================
+# 安心法务 - 私有化部署管理
+# ============================================================
+# 使用方式: make <目标>
+# 查看帮助: make help
+# ============================================================
+
+.PHONY: help up down restart logs status health backup restore init seed clean migrate build dev
+
+# 默认 Docker Compose 文件
+COMPOSE := docker compose
+COMPOSE_DEV := docker compose -f docker-compose.dev.yml
+
+# 备份目录
+BACKUP_DIR ?= ./backups/$(shell date +%Y-%m-%d_%H-%M)
+
+help: ## 显示所有可用命令
+	@echo ""
+	@echo "  安心法务 - 部署管理命令"
+	@echo "  ========================="
+	@echo ""
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+	@echo ""
+
+up: ## 启动所有服务（后台运行）
+	@echo ">>> 启动所有服务..."
+	$(COMPOSE) --profile app up -d
+	@echo ">>> 服务已启动，使用 'make logs' 查看日志"
+
+down: ## 停止所有服务
+	@echo ">>> 停止所有服务..."
+	$(COMPOSE) --profile app down
+	@echo ">>> 服务已停止"
+
+restart: ## 重启所有服务
+	@echo ">>> 重启所有服务..."
+	$(COMPOSE) --profile app restart
+	@echo ">>> 服务已重启"
+
+logs: ## 查看服务日志（实时跟踪）
+	$(COMPOSE) logs -f --tail=100
+
+status: ## 查看服务运行状态
+	@echo ">>> 服务状态："
+	$(COMPOSE) ps -a
+
+health: ## 执行健康检查
+	@echo ">>> 执行健康检查..."
+	@curl -sf http://localhost:$${BACKEND_PORT:-8001}/health | python3 -m json.tool 2>/dev/null || echo "后端服务不可达"
+
+backup: ## 备份数据库和 Redis（自动清理 7 天前备份）
+	@echo ">>> 开始备份..."
+	@bash scripts/backup.sh
+
+restore: ## 从备份恢复（用法: make restore BACKUP_DIR=./backups/2026-01-01_12-00）
+	@if [ -z "$(BACKUP_DIR)" ]; then \
+		echo "错误: 请指定备份目录，用法: make restore BACKUP_DIR=./backups/xxx"; \
+		exit 1; \
+	fi
+	@bash scripts/restore.sh $(BACKUP_DIR)
+
+init: ## 首次初始化（复制配置 + 启动服务 + 运行迁移）
+	@echo ">>> 首次初始化..."
+	@if [ ! -f .env ]; then \
+		cp .env.template .env; \
+		echo ">>> 已创建 .env 文件，请编辑后重新运行 make init"; \
+		exit 0; \
+	fi
+	@echo ">>> 启动基础设施服务..."
+	$(COMPOSE) up -d postgres redis qdrant neo4j minio
+	@echo ">>> 等待服务就绪..."
+	@sleep 10
+	@echo ">>> 运行数据库迁移..."
+	$(COMPOSE) --profile app run --rm backend alembic upgrade head || echo "迁移跳过（可能尚未配置）"
+	@echo ">>> 启动应用服务..."
+	$(COMPOSE) --profile app up -d
+	@echo ">>> 初始化完成！访问 http://localhost:$${FRONTEND_PORT:-80}"
+
+seed: ## 填充测试数据
+	@echo ">>> 填充测试数据..."
+	$(COMPOSE) --profile app exec backend python -m backend.scripts.seed_all || \
+	$(COMPOSE) --profile app exec backend python scripts/seed_all.py || \
+	echo "测试数据填充跳过（脚本未找到）"
+
+clean: ## 清理所有容器和数据卷（危险操作！）
+	@echo ">>> 警告: 此操作将删除所有数据！"
+	@read -p "请输入 'DELETE-ALL' 确认: " confirm && [ "$$confirm" = "DELETE-ALL" ] || (echo "已取消" && exit 1)
+	$(COMPOSE) --profile app down -v
+	@docker image prune -f
+	@echo ">>> 清理完成"
+
+migrate: ## 运行数据库迁移
+	@echo ">>> 运行数据库迁移..."
+	$(COMPOSE) --profile app exec backend alembic upgrade head
+	@echo ">>> 迁移完成"
+
+build: ## 重新构建镜像
+	@echo ">>> 构建镜像..."
+	$(COMPOSE) --profile app build
+	@echo ">>> 构建完成"
+
+dev: ## 启动开发环境（使用 docker-compose.dev.yml）
+	@echo ">>> 启动开发环境..."
+	$(COMPOSE_DEV) up -d
+	@echo ">>> 开发环境已启动"

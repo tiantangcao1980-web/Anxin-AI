@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <!-- ===== [S-12] 安全头 ===== -->
+    <!-- X-Frame-Options: 防止页面被嵌入 iframe（点击劫持防护） -->
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+    <!-- Referrer-Policy: 控制 HTTP Referrer 头，防止敏感 URL 泄露到第三方 -->
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <!-- X-Content-Type-Options: 禁止浏览器 MIME 嗅探 -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta name="theme-color" content="#ffffff" />
+    <title>AI法务智能体系统</title>
+    <!-- 防闪烁：在 React 加载前立即应用主题 -->
+    <script>
+      ;(function() {
+        try {
+          var stored = JSON.parse(localStorage.getItem('ui-storage') || '{}')
+          var theme = (stored.state && stored.state.theme) || 'system'
+          var isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+          if (isDark) {
+            document.documentElement.classList.add('dark')
+            var meta = document.querySelector('meta[name="theme-color"]')
+            if (meta) meta.setAttribute('content', '#0a0f1e')
+          }
+        } catch(e) {}
+      })()
+    </script>
+    <script type="module" crossorigin src="/assets/index-Blpg7lMn.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/vendor-react-l91MQFub.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-ui-BaPgCSSg.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-markdown-uWEgzHHb.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-recharts-QaiuiRX4.js">
+    <link rel="modulepreload" crossorigin href="/assets/chat-components-CEck85a9.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-radix-DK8YCcCh.js">
+    <link rel="stylesheet" crossorigin href="/assets/chat-components-Fd0xVSp_.css">
+    <link rel="stylesheet" crossorigin href="/assets/index-D78pFhqe.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

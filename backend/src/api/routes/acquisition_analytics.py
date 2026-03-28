@@ -1,0 +1,81 @@
+# -*- coding: utf-8 -*-
+"""
+获客分析 API 路由
+"""
+
+from typing import Optional
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.core.database import get_db
+from src.core.deps import require_permission, Permission
+from src.core.responses import UnifiedResponse
+from src.models.user import User
+from src.services.acquisition_analytics_service import AcquisitionAnalyticsService
+
+router = APIRouter(prefix="/acquisition", tags=["获客分析"])
+
+
+@router.get("/funnel")
+async def get_lead_funnel(
+    days: int = Query(30, ge=1, le=365),
+    org_id: Optional[str] = None,
+    user: User = Depends(require_permission(Permission.VIEW_ANALYTICS)),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取线索漏斗数据"""
+    service = AcquisitionAnalyticsService(db)
+    data = await service.get_lead_funnel(org_id=org_id, days=days)
+    return UnifiedResponse.success(data=data)
+
+
+@router.get("/conversion")
+async def get_conversion_rates(
+    days: int = Query(30, ge=1, le=365),
+    org_id: Optional[str] = None,
+    user: User = Depends(require_permission(Permission.VIEW_ANALYTICS)),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取各阶段转化率"""
+    service = AcquisitionAnalyticsService(db)
+    data = await service.get_conversion_rates(org_id=org_id, days=days)
+    return UnifiedResponse.success(data=data)
+
+
+@router.get("/sources")
+async def get_lead_sources(
+    days: int = Query(30, ge=1, le=365),
+    org_id: Optional[str] = None,
+    user: User = Depends(require_permission(Permission.VIEW_ANALYTICS)),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取线索来源分布"""
+    service = AcquisitionAnalyticsService(db)
+    data = await service.get_lead_sources(org_id=org_id, days=days)
+    return UnifiedResponse.success(data=data)
+
+
+@router.get("/lawyer-performance")
+async def get_lawyer_performance(
+    days: int = Query(30, ge=1, le=365),
+    org_id: Optional[str] = None,
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
+    user: User = Depends(require_permission(Permission.VIEW_ANALYTICS)),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取律师业绩排名"""
+    service = AcquisitionAnalyticsService(db)
+    data = await service.get_lawyer_performance(org_id=org_id, days=days)
+    # 按 total_delegations 降序排列
+    if isinstance(data, list):
+        data.sort(key=lambda x: x.get("total_delegations", 0), reverse=True)
+    total = len(data) if isinstance(data, list) else 0
+    start = (page - 1) * page_size
+    items = data[start: start + page_size] if isinstance(data, list) else data
+    return UnifiedResponse.success(data={
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    })
