@@ -1,0 +1,202 @@
+# ============================================================
+# AI法务智能体系统 - 阿里云单服务器自动部署
+# ============================================================
+# 触发条件: 推送到 master / main / dev 分支
+# 流程:
+#   1. 检测变更范围 (前端 / 后端 / 都变了)
+#   2. SSH 到阿里云服务器
+#   3. git pull 拉取最新代码
+#   4. docker compose build 重建变更的服务
+#   5. docker compose up -d 重启变更的服务 (不影响数据库等基础设施)
+#   6. 健康检查 + 清理旧镜像
+# ============================================================
+# 所需 GitHub Secrets (共 4 个，在 Settings > Secrets and variables > Actions 配置):
+#
+#   DEPLOY_HOST     阿里云服务器公网 IP (如 47.100.xx.xx)
+#   DEPLOY_USER     SSH 用户名 (如 root)
+#   DEPLOY_SSH_KEY  SSH 私钥 (完整内容，包含 BEGIN/END 行)
+#   DEPLOY_PATH     服务器上项目目录 (如 /opt/AILegalAgent)
+#
+# ============================================================
+
+name: 自动部署
+
+on:
+  push:
+    branches: [master, main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'skills/**'
+      - '.gitignore'
+      - 'LICENSE'
+
+# 同一分支的新推送会取消正在进行的旧部署，避免排队
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: 部署到阿里云
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      # ========== 1. 检出代码 (用于变更检测) ==========
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # 需要上一次提交来做 diff
+
+      # ========== 2. 检测变更范围 ==========
+      - name: 检测变更范围
+        id: changes
+        run: |
+          # 对比当前提交和上一次提交，判断哪些目录有变化
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "")
+
+          echo "变更文件列表:"
+          echo "$CHANGED_FILES"
+
+          BACKEND_CHANGED="false"
+          FRONTEND_CHANGED="false"
+
+          if echo "$CHANGED_FILES" | grep -q "^backend/"; then
+            BACKEND_CHANGED="true"
+          fi
+
+          if echo "$CHANGED_FILES" | grep -q "^frontend/"; then
+            FRONTEND_CHANGED="true"
+          fi
+
+          # docker-compose.yml 变了则两个都重建
+          if echo "$CHANGED_FILES" | grep -q "^docker-compose.yml"; then
+            BACKEND_CHANGED="true"
+            FRONTEND_CHANGED="true"
+          fi
+
+          echo "backend_changed=$BACKEND_CHANGED" >> $GITHUB_OUTPUT
+          echo "frontend_changed=$FRONTEND_CHANGED" >> $GITHUB_OUTPUT
+          echo ""
+          echo "检测结果: backend=$BACKEND_CHANGED, frontend=$FRONTEND_CHANGED"
+
+      # ========== 3. SSH 到服务器执行部署 ==========
+      - name: SSH 部署
+        if: steps.changes.outputs.backend_changed == 'true' || steps.changes.outputs.frontend_changed == 'true'
+        uses: appleboy/ssh-action@v1
+        env:
+          BACKEND_CHANGED: ${{ steps.changes.outputs.backend_changed }}
+          FRONTEND_CHANGED: ${{ steps.changes.outputs.frontend_changed }}
+          BRANCH: ${{ github.ref_name }}
+          COMMIT_SHA: ${{ github.sha }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: BACKEND_CHANGED,FRONTEND_CHANGED,BRANCH,COMMIT_SHA
+          command_timeout: 30m
+          script: |
+            set -e
+
+            echo "================================================"
+            echo "  开始部署 - 分支: $BRANCH"
+            echo "  提交: $COMMIT_SHA"
+            echo "  时间: $(date '+%Y-%m-%d %H:%M:%S')"
+            echo "================================================"
+
+            cd ${{ secrets.DEPLOY_PATH }}
+
+            # ---------- 拉取最新代码 ----------
+            echo ""
+            echo "[1/5] 拉取最新代码..."
+            git fetch origin $BRANCH
+            git checkout $BRANCH
+            git pull origin $BRANCH
+            echo "当前版本: $(git log -1 --format='%h %s')"
+
+            # ---------- 确定要部署的服务 ----------
+            SERVICES=""
+            if [ "$BACKEND_CHANGED" = "true" ]; then
+              SERVICES="$SERVICES backend"
+            fi
+            if [ "$FRONTEND_CHANGED" = "true" ]; then
+              SERVICES="$SERVICES frontend"
+            fi
+            echo ""
+            echo "[2/5] 需要重建的服务: $SERVICES"
+
+            # ---------- 构建镜像 ----------
+            echo ""
+            echo "[3/5] 构建 Docker 镜像..."
+            # DOCKER_BUILDKIT=1 启用 BuildKit，支持 --mount=type=cache 缓存加速
+            DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose build $SERVICES
+
+            # ---------- 重启服务 (不影响数据库等基础设施) ----------
+            echo ""
+            echo "[4/5] 重启服务..."
+            docker compose up -d --no-deps --force-recreate $SERVICES
+
+            # ---------- 健康检查 ----------
+            echo ""
+            echo "[5/5] 健康检查..."
+            sleep 8
+
+            # 检查容器是否运行
+            FAILED=""
+            for svc in $SERVICES; do
+              STATUS=$(docker compose ps $svc --format '{{.Status}}' 2>/dev/null || echo "unknown")
+              if echo "$STATUS" | grep -qi "up"; then
+                echo "  ✅ $svc - 运行中 ($STATUS)"
+              else
+                echo "  ❌ $svc - 异常 ($STATUS)"
+                echo "  最后20行日志:"
+                docker compose logs --tail=20 $svc
+                FAILED="$FAILED $svc"
+              fi
+            done
+
+            # 后端额外检查 /health 接口
+            if [ "$BACKEND_CHANGED" = "true" ]; then
+              echo ""
+              echo "  检查后端 /health 接口..."
+              for i in 1 2 3 4 5 6; do
+                if curl -sf http://localhost:8001/health > /dev/null 2>&1; then
+                  echo "  ✅ 后端健康检查通过"
+                  break
+                fi
+                if [ $i -eq 6 ]; then
+                  echo "  ⚠️  后端健康检查超时 (可能仍在启动)"
+                fi
+                sleep 5
+              done
+            fi
+
+            # ---------- 清理旧镜像 ----------
+            echo ""
+            echo "清理旧镜像..."
+            docker image prune -f
+
+            # ---------- 最终状态 ----------
+            echo ""
+            echo "================================================"
+            if [ -z "$FAILED" ]; then
+              echo "  ✅ 部署成功!"
+            else
+              echo "  ⚠️  部分服务异常: $FAILED"
+              echo "  请手动检查: docker compose logs $FAILED"
+            fi
+            echo "  分支: $BRANCH"
+            echo "  提交: $(git log -1 --format='%h %s')"
+            echo "  时间: $(date '+%Y-%m-%d %H:%M:%S')"
+            echo "================================================"
+
+            # 如果有失败的服务，以非零退出码结束，让 GitHub Actions 标记为失败
+            if [ -n "$FAILED" ]; then
+              exit 1
+            fi
+
+      # ========== 4. 无变更时跳过 ==========
+      - name: 无需部署
+        if: steps.changes.outputs.backend_changed != 'true' && steps.changes.outputs.frontend_changed != 'true'
+        run: echo "前端和后端代码无变更，跳过部署"

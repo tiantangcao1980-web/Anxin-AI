@@ -116,26 +116,33 @@ async def check_exists(session, model, **kwargs):
 
 
 # ==================== 用户 ====================
+# ⚠️ 用户账号已统一由 seed_test_roles.py 管理，此处仅为业务数据关联创建兼容用户
 async def seed_users(session):
     from src.models.user import User
+    from src.core.security import get_password_hash
 
-    # 预计算的 bcrypt hash for "password123"
-    hashed = "$2b$12$kS874dYr3sXLewjGsUAfL.A16o2g/Do5VIx/WPEjjrDN35EzzkgdK"
+    hashed = get_password_hash("Anxin2026!Law")
 
     users = [
-        {"id": USER_IDS["lawyer1"], "email": "zhangwei@example.com", "name": "张伟", "role": "lawyer"},
-        {"id": USER_IDS["lawyer2"], "email": "lina@example.com", "name": "李娜", "role": "lawyer"},
-        {"id": USER_IDS["lawyer3"], "email": "wangqiang@example.com", "name": "王强", "role": "lawyer"},
-        {"id": USER_IDS["paralegal1"], "email": "zhaoli@example.com", "name": "赵丽", "role": "paralegal"},
-        {"id": USER_IDS["paralegal2"], "email": "sunming@example.com", "name": "孙明", "role": "paralegal"},
+        {"id": USER_IDS["lawyer1"], "email": "lawyer.zhang@anxin.test", "name": "张伟律师", "role": "lawyer", "user_type": "platform_lawyer"},
+        {"id": USER_IDS["lawyer2"], "email": "lawyer.li@anxin.test", "name": "李娜律师", "role": "lawyer", "user_type": "platform_lawyer"},
+        {"id": USER_IDS["lawyer3"], "email": "lawyer.wang@anxin.test", "name": "王强律师", "role": "lawyer", "user_type": "platform_lawyer"},
+        {"id": USER_IDS["paralegal1"], "email": "assistant@mingde.test", "name": "律师助理-刘芳", "role": "member", "user_type": "internal"},
+        {"id": USER_IDS["paralegal2"], "email": "intern@mingde.test", "name": "实习生-赵磊", "role": "viewer", "user_type": "internal"},
     ]
 
     for u in users:
         existing = await check_exists(session, User, id=u["id"])
         if not existing:
+            # 检查邮箱是否已存在（可能由 seed_test_roles 创建）
+            email_result = await session.execute(select(User).where(User.email == u["email"]))
+            if email_result.scalar_one_or_none():
+                print(f"  = 用户: {u['name']}（邮箱已存在，跳过）")
+                continue
             session.add(User(
                 id=u["id"], email=u["email"], name=u["name"],
                 hashed_password=hashed, role=u["role"],
+                user_type=u.get("user_type", "internal"),
                 org_id=ORG_ID, is_active=True,
             ))
             print(f"  + 用户: {u['name']} ({u['role']})")

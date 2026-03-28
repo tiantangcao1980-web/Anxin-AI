@@ -168,8 +168,8 @@ async def test_admin(db_session: AsyncSession, test_organization: Organization) 
     """创建测试管理员"""
     admin = User(
         id=str(uuid4()),
-        email="admin@example.com",
-        name="管理员",
+        email="admin@anxin.test",
+        name="超级管理员",
         hashed_password="hashed_password",
         org_id=test_organization.id,
         is_active=True,

@@ -55,7 +55,10 @@ export const FEATURE_FLAGS: Record<string, FeatureStatus> = {
   // 开发中
   compliance_check: 'released',
   lawyer_matching: 'beta',
-  lawyer_onboarding: 'hidden',
+  lawyer_onboarding: 'beta',
+  lawyer_dashboard: 'beta',
+  pricing: 'released',
+  my_subscription: 'released',
   customer_acquisition: 'beta',
   collaboration_groups: 'hidden',
   private_deployment: 'released',

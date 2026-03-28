@@ -1,276 +1,302 @@
 # -*- coding: utf-8 -*-
 """
-创建 10 个测试角色用户 + 深度权限设置
+测试账号种子脚本 — 覆盖所有用户角色和客户类型
 
-用法:
-    cd backend
-    python scripts/seed_test_roles.py
+⚠️ 仅用于开发和测试环境，项目上线前必须清理所有测试账号。
+   账号密码信息不得外泄，不得提交到公共仓库。
 
-角色说明:
-    1. 超级管理员 — 系统最高权限
-    2. 系统运维   — 系统配置和监控
-    3. 律所主任   — 全业务管理
-    4. 合伙人     — 案件和客户管理
-    5. 资深律师   — 案件处理 + 合同审查
-    6. 初级律师   — 基础法务操作
-    7. 律师助理   — 文档和辅助工作
-    8. 实习生     — 只读 + 学习
-    9. 外部顾问   — 受限的业务访问
-   10. 审计人员   — 只读审计日志
+运行: cd backend && python scripts/seed_test_roles.py
+
+角色体系说明:
+  - role: admin(系统管理员) / member(普通成员) / viewer(只读访客) / lawyer(认证律师)
+  - user_type: internal(内部员工) / platform_lawyer(平台律师) / enterprise(企业用户) / individual(个人用户)
 """
 
 import asyncio
 import sys
 import os
-from datetime import datetime
 from uuid import uuid4
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from sqlalchemy import select
 from src.core.database import async_session_maker, init_db
+from src.models.user import User, Organization
 from src.core.security import get_password_hash
-from src.models.user import User
-from sqlalchemy import select, text
 
 
-# 10 个测试角色定义
-TEST_ROLES = [
+# ===== 组织定义 =====
+TEST_ORGS = [
     {
-        "email": "admin@example.com",
-        "name": "系统管理员",
-        "role": "admin",
-        "password": "admin123",
-        "permissions": {
-            "system": ["config", "health", "audit", "users", "roles", "orgs"],
-            "cases": ["create", "read", "update", "delete", "assign", "export"],
-            "contracts": ["create", "read", "update", "delete", "review", "sign"],
-            "documents": ["create", "read", "update", "delete", "upload", "ai_generate"],
-            "chat": ["create", "read", "history"],
-            "knowledge": ["create", "read", "update", "delete", "search"],
-            "leads": ["create", "read", "update", "delete"],
-            "due_diligence": ["create", "read", "update"],
-            "approval": ["create", "approve", "reject"],
-            "admin": ["dashboard", "users", "roles", "audit", "config", "health", "orgs"],
-        },
+        "id": "00000000-0000-0000-0000-000000000001",
+        "name": "安心法务科技有限公司",
+        "description": "平台运营方",
     },
     {
-        "email": "ops@example.com",
+        "id": "00000000-0000-0000-0000-000000000002",
+        "name": "明德律师事务所",
+        "description": "合作律所",
+    },
+    {
+        "id": "00000000-0000-0000-0000-000000000003",
+        "name": "鹏程科技集团有限公司",
+        "description": "企业客户",
+    },
+]
+
+# ===== 统一密码策略 =====
+# 所有测试账号使用统一前缀 + 角色后缀，便于记忆和管理
+# 格式: Anxin2026! + 角色缩写（例如 Anxin2026!Adm）
+DEFAULT_PWD = "Anxin2026!"
+
+# ===== 完整测试账号列表（16个角色） =====
+TEST_ACCOUNTS = [
+    # ========== 一、平台管理（internal） ==========
+    {
+        "email": "admin@anxin.test",
+        "name": "超级管理员",
+        "role": "admin",
+        "user_type": "internal",
+        "department": "技术部",
+        "org_id": TEST_ORGS[0]["id"],
+        "password": DEFAULT_PWD + "Adm",
+    },
+    {
+        "email": "ops@anxin.test",
         "name": "运维工程师",
         "role": "admin",
-        "password": "ops12345",
-        "permissions": {
-            "system": ["config", "health", "audit"],
-            "cases": ["read"],
-            "contracts": ["read"],
-            "documents": ["read"],
-            "chat": [],
-            "knowledge": ["read"],
-            "leads": ["read"],
-            "due_diligence": ["read"],
-            "approval": [],
-            "admin": ["dashboard", "health", "config", "audit"],
-        },
+        "user_type": "internal",
+        "department": "技术部",
+        "org_id": TEST_ORGS[0]["id"],
+        "password": DEFAULT_PWD + "Ops",
     },
     {
-        "email": "director@example.com",
-        "name": "王建国",
+        "email": "auditor@anxin.test",
+        "name": "审计专员-周涛",
+        "role": "viewer",
+        "user_type": "internal",
+        "department": "合规部",
+        "org_id": TEST_ORGS[0]["id"],
+        "password": DEFAULT_PWD + "Aud",
+    },
+
+    # ========== 二、律所管理（internal） ==========
+    {
+        "email": "director@mingde.test",
+        "name": "律所主任-王建国",
         "role": "admin",
-        "password": "dir12345",
-        "permissions": {
-            "system": ["audit"],
-            "cases": ["create", "read", "update", "delete", "assign", "export"],
-            "contracts": ["create", "read", "update", "delete", "review", "sign"],
-            "documents": ["create", "read", "update", "delete", "upload", "ai_generate"],
-            "chat": ["create", "read", "history"],
-            "knowledge": ["create", "read", "update", "delete", "search"],
-            "leads": ["create", "read", "update", "delete"],
-            "due_diligence": ["create", "read", "update"],
-            "approval": ["create", "approve", "reject"],
-            "admin": ["dashboard", "users", "roles"],
-        },
+        "user_type": "internal",
+        "department": "管理层",
+        "org_id": TEST_ORGS[1]["id"],
+        "password": DEFAULT_PWD + "Dir",
     },
     {
-        "email": "partner@example.com",
-        "name": "李明华",
+        "email": "partner@mingde.test",
+        "name": "合伙人-李明华",
         "role": "member",
-        "password": "ptn12345",
-        "permissions": {
-            "system": [],
-            "cases": ["create", "read", "update", "assign", "export"],
-            "contracts": ["create", "read", "update", "review", "sign"],
-            "documents": ["create", "read", "update", "upload", "ai_generate"],
-            "chat": ["create", "read", "history"],
-            "knowledge": ["read", "search"],
-            "leads": ["create", "read", "update"],
-            "due_diligence": ["create", "read", "update"],
-            "approval": ["create", "approve"],
-            "admin": [],
-        },
+        "user_type": "internal",
+        "department": "民商事部",
+        "org_id": TEST_ORGS[1]["id"],
+        "password": DEFAULT_PWD + "Ptn",
+    },
+
+    # ========== 三、平台认证律师（platform_lawyer） ==========
+    {
+        "email": "lawyer.zhang@anxin.test",
+        "name": "张伟律师",
+        "role": "lawyer",
+        "user_type": "platform_lawyer",
+        "department": "合同法",
+        "org_id": TEST_ORGS[1]["id"],
+        "password": DEFAULT_PWD + "Law",
     },
     {
-        "email": "senior@example.com",
-        "name": "张伟",
+        "email": "lawyer.li@anxin.test",
+        "name": "李娜律师",
+        "role": "lawyer",
+        "user_type": "platform_lawyer",
+        "department": "知识产权",
+        "org_id": TEST_ORGS[1]["id"],
+        "password": DEFAULT_PWD + "Law",
+    },
+    {
+        "email": "lawyer.wang@anxin.test",
+        "name": "王强律师",
+        "role": "lawyer",
+        "user_type": "platform_lawyer",
+        "department": "劳动法",
+        "org_id": TEST_ORGS[1]["id"],
+        "password": DEFAULT_PWD + "Law",
+    },
+
+    # ========== 四、律所内部员工 ==========
+    {
+        "email": "senior@mingde.test",
+        "name": "资深律师-陈明",
         "role": "member",
-        "password": "snr12345",
-        "permissions": {
-            "system": [],
-            "cases": ["create", "read", "update", "export"],
-            "contracts": ["create", "read", "update", "review"],
-            "documents": ["create", "read", "update", "upload", "ai_generate"],
-            "chat": ["create", "read", "history"],
-            "knowledge": ["read", "search"],
-            "leads": ["read", "update"],
-            "due_diligence": ["create", "read"],
-            "approval": ["create"],
-            "admin": [],
-        },
+        "user_type": "internal",
+        "department": "诉讼部",
+        "org_id": TEST_ORGS[1]["id"],
+        "password": DEFAULT_PWD + "Snr",
     },
     {
-        "email": "junior@example.com",
-        "name": "陈明",
+        "email": "assistant@mingde.test",
+        "name": "律师助理-刘芳",
         "role": "member",
-        "password": "jnr12345",
-        "permissions": {
-            "system": [],
-            "cases": ["create", "read", "update"],
-            "contracts": ["create", "read", "update"],
-            "documents": ["create", "read", "upload"],
-            "chat": ["create", "read", "history"],
-            "knowledge": ["read", "search"],
-            "leads": ["read"],
-            "due_diligence": ["read"],
-            "approval": ["create"],
-            "admin": [],
-        },
+        "user_type": "internal",
+        "department": "综合部",
+        "org_id": TEST_ORGS[1]["id"],
+        "password": DEFAULT_PWD + "Ast",
     },
     {
-        "email": "assistant@example.com",
-        "name": "刘芳",
-        "role": "member",
-        "password": "ast12345",
-        "permissions": {
-            "system": [],
-            "cases": ["read"],
-            "contracts": ["read"],
-            "documents": ["create", "read", "upload"],
-            "chat": ["create", "read"],
-            "knowledge": ["read", "search"],
-            "leads": ["read"],
-            "due_diligence": ["read"],
-            "approval": [],
-            "admin": [],
-        },
-    },
-    {
-        "email": "intern@example.com",
-        "name": "赵实习",
+        "email": "intern@mingde.test",
+        "name": "实习生-赵磊",
         "role": "viewer",
-        "password": "itn12345",
-        "permissions": {
-            "system": [],
-            "cases": ["read"],
-            "contracts": ["read"],
-            "documents": ["read"],
-            "chat": ["read"],
-            "knowledge": ["read", "search"],
-            "leads": [],
-            "due_diligence": [],
-            "approval": [],
-            "admin": [],
-        },
+        "user_type": "internal",
+        "department": "综合部",
+        "org_id": TEST_ORGS[1]["id"],
+        "password": DEFAULT_PWD + "Int",
     },
+
+    # ========== 五、企业客户（enterprise） ==========
     {
-        "email": "consultant@example.com",
-        "name": "外部顾问-孙律师",
+        "email": "legal@pengcheng.test",
+        "name": "法务总监-孙丽",
         "role": "member",
-        "password": "cst12345",
-        "permissions": {
-            "system": [],
-            "cases": ["read"],
-            "contracts": ["read", "review"],
-            "documents": ["read"],
-            "chat": ["create", "read"],
-            "knowledge": ["read", "search"],
-            "leads": [],
-            "due_diligence": ["read"],
-            "approval": [],
-            "admin": [],
-        },
+        "user_type": "enterprise",
+        "department": "法务部",
+        "org_id": TEST_ORGS[2]["id"],
+        "password": DEFAULT_PWD + "Ent",
     },
     {
-        "email": "auditor@example.com",
-        "name": "审计员-周涛",
+        "email": "compliance@pengcheng.test",
+        "name": "合规经理-周强",
+        "role": "member",
+        "user_type": "enterprise",
+        "department": "合规部",
+        "org_id": TEST_ORGS[2]["id"],
+        "password": DEFAULT_PWD + "Ent",
+    },
+    {
+        "email": "ceo@pengcheng.test",
+        "name": "企业管理员-钱总",
+        "role": "admin",
+        "user_type": "enterprise",
+        "department": "管理层",
+        "org_id": TEST_ORGS[2]["id"],
+        "password": DEFAULT_PWD + "Ent",
+    },
+
+    # ========== 六、个人用户（individual） ==========
+    {
+        "email": "user.chen@test.com",
+        "name": "陈小明",
+        "role": "member",
+        "user_type": "individual",
+        "department": None,
+        "org_id": None,
+        "password": DEFAULT_PWD + "Usr",
+    },
+    {
+        "email": "user.lin@test.com",
+        "name": "林小红",
+        "role": "member",
+        "user_type": "individual",
+        "department": None,
+        "org_id": None,
+        "password": DEFAULT_PWD + "Usr",
+    },
+    {
+        "email": "visitor@test.com",
+        "name": "访客体验",
         "role": "viewer",
-        "password": "adt12345",
-        "permissions": {
-            "system": ["audit"],
-            "cases": ["read"],
-            "contracts": ["read"],
-            "documents": ["read"],
-            "chat": [],
-            "knowledge": ["read"],
-            "leads": ["read"],
-            "due_diligence": ["read"],
-            "approval": [],
-            "admin": ["audit"],
-        },
+        "user_type": "individual",
+        "department": None,
+        "org_id": None,
+        "password": DEFAULT_PWD + "Vis",
     },
 ]
 
 
-async def seed_test_roles():
-    """创建测试角色用户"""
+async def seed_orgs(session):
+    """创建测试组织"""
+    for org_def in TEST_ORGS:
+        result = await session.execute(
+            select(Organization).where(Organization.id == org_def["id"])
+        )
+        existing = result.scalar_one_or_none()
+        if not existing:
+            session.add(Organization(
+                id=org_def["id"],
+                name=org_def["name"],
+                description=org_def["description"],
+                is_active=True,
+            ))
+            print(f"  [组织+] {org_def['name']}")
+        else:
+            print(f"  [组织=] {org_def['name']}（已存在）")
+
+
+async def seed_accounts(session):
+    """创建测试账号"""
+    created = 0
+    updated = 0
+
+    for acct in TEST_ACCOUNTS:
+        result = await session.execute(
+            select(User).where(User.email == acct["email"])
+        )
+        user = result.scalar_one_or_none()
+        hashed = get_password_hash(acct["password"])
+
+        if user:
+            user.name = acct["name"]
+            user.role = acct["role"]
+            user.user_type = acct["user_type"]
+            user.department = acct["department"]
+            user.is_active = True
+            updated += 1
+        else:
+            session.add(User(
+                id=str(uuid4()),
+                email=acct["email"],
+                name=acct["name"],
+                hashed_password=hashed,
+                role=acct["role"],
+                user_type=acct["user_type"],
+                department=acct["department"],
+                org_id=acct["org_id"],
+                is_active=True,
+            ))
+            created += 1
+
+    return created, updated
+
+
+async def main():
+    """主入口"""
     await init_db()
 
     async with async_session_maker() as session:
-        created = 0
-        updated = 0
+        print("\n  📦 创建测试组织...\n")
+        await seed_orgs(session)
 
-        for role_def in TEST_ROLES:
-            # 检查是否已存在
-            result = await session.execute(
-                select(User).where(User.email == role_def["email"])
-            )
-            user = result.scalar_one_or_none()
-
-            hashed = get_password_hash(role_def["password"])
-
-            if user:
-                # 更新现有用户的权限
-                user.name = role_def["name"]
-                user.role = role_def["role"]
-                user.is_active = True
-                # 存储权限到 extra_data 或单独的权限字段
-                # 由于 User 模型可能没有 permissions JSON 字段，
-                # 我们通过 role 来控制基本权限
-                updated += 1
-                print(f"  [更新] {role_def['email']} ({role_def['name']}) - 角色: {role_def['role']}")
-            else:
-                # 创建新用户
-                new_user = User(
-                    id=uuid4(),
-                    email=role_def["email"],
-                    name=role_def["name"],
-                    hashed_password=hashed,
-                    role=role_def["role"],
-                    is_active=True,
-                )
-                session.add(new_user)
-                created += 1
-                print(f"  [创建] {role_def['email']} ({role_def['name']}) - 角色: {role_def['role']}")
+        print("\n  👥 创建测试账号...\n")
+        created, updated = await seed_accounts(session)
 
         await session.commit()
 
-        print(f"\n  完成: 创建 {created} 个, 更新 {updated} 个")
-        print("\n  测试账号列表:")
-        print("  " + "─" * 60)
-        print(f"  {'邮箱':<30} {'姓名':<12} {'角色':<8} {'密码'}")
-        print("  " + "─" * 60)
-        for r in TEST_ROLES:
-            print(f"  {r['email']:<30} {r['name']:<12} {r['role']:<8} {r['password']}")
-        print("  " + "─" * 60)
+        # 打印汇总
+        print(f"\n  ✅ 完成: 新建 {created} 个, 更新 {updated} 个")
+        print(f"\n  {'─' * 90}")
+        print(f"  {'#':<3} {'邮箱':<32} {'姓名':<16} {'角色':<8} {'用户类型':<16} {'密码'}")
+        print(f"  {'─' * 90}")
+        for i, a in enumerate(TEST_ACCOUNTS, 1):
+            print(f"  {i:<3} {a['email']:<32} {a['name']:<16} {a['role']:<8} {a['user_type']:<16} {a['password']}")
+        print(f"  {'─' * 90}")
+        print(f"\n  ⚠️  以上为测试账号，仅限开发环境使用，上线前必须清理！\n")
 
 
 if __name__ == "__main__":
-    print("\n  🔧 创建 10 个测试角色用户...\n")
-    asyncio.run(seed_test_roles())
+    print("\n  🔧 安心法务 - 测试账号初始化\n")
+    asyncio.run(main())

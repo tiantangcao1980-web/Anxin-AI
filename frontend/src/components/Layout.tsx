@@ -68,6 +68,8 @@ const navGroups: NavGroup[] = [
       { id: 'leads', path: '/leads', label: '案源管理', icon: icons.Leads },
       { id: 'acquisition', path: '/acquisition', label: '获客看板', icon: icons.BarChart3 },
       { id: 'firm', path: '/firm', label: '律所管理', icon: icons.Building },
+      { id: 'pricing', path: '/pricing', label: '套餐定价', icon: icons.DollarSign },
+      { id: 'lawyer-dashboard', path: '/lawyer-dashboard', label: '律师工作台', icon: icons.Dashboard },
     ],
   },
   {

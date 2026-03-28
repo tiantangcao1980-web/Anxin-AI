@@ -42,6 +42,7 @@ from src.models.review import LawyerReview
 from src.models.firm_management import Team, TeamMember, CaseAssignment, TimeEntry, Invoice
 from src.models.lawyer_certification import LawyerCertification, LawyerServiceConfig
 from src.models.billing import BillingPlan, Subscription, Refund
+from src.models.ai_assistant import AIAssistantConfig, ConversationSummary, AIAssistantFeedback
 
 from src.models.sentiment import (
 
@@ -203,5 +204,9 @@ __all__ = [
     "BillingPlan",
     "Subscription",
     "Refund",
+    # AI 助手
+    "AIAssistantConfig",
+    "ConversationSummary",
+    "AIAssistantFeedback",
 ]
 

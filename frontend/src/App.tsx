@@ -59,6 +59,10 @@ const Messages = lazy(() => import('@/pages/Messages'))
 const LawyerProfile = lazy(() => import('@/pages/LawyerProfile'))
 const AcquisitionDashboard = lazy(() => import('@/pages/AcquisitionDashboard'))
 const FirmManagement = lazy(() => import('@/pages/FirmManagement'))
+const LawyerOnboarding = lazy(() => import('@/pages/LawyerOnboarding'))
+const LawyerDashboard = lazy(() => import('@/pages/LawyerDashboard'))
+const Pricing = lazy(() => import('@/pages/Pricing'))
+const MySubscription = lazy(() => import('@/pages/MySubscription'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
 
 // 登录页
@@ -74,6 +78,8 @@ const AdminConfig = lazy(() => import('@/pages/admin/AdminConfig'))
 const AdminHealth = lazy(() => import('@/pages/admin/AdminHealth'))
 const AdminOrgs = lazy(() => import('@/pages/admin/AdminOrgs'))
 const AdminFeatureFlags = lazy(() => import('@/pages/admin/AdminFeatureFlags'))
+const AdminLawyerVerify = lazy(() => import('@/pages/admin/AdminLawyerVerify'))
+const AdminBilling = lazy(() => import('@/pages/admin/AdminBilling'))
 
 function App() {
   return (
@@ -97,6 +103,8 @@ function App() {
                 <Route path="health" element={<AdminHealth />} />
                 <Route path="orgs" element={<AdminOrgs />} />
                 <Route path="feature-flags" element={<AdminFeatureFlags />} />
+                <Route path="lawyer-verify" element={<AdminLawyerVerify />} />
+                <Route path="billing" element={<AdminBilling />} />
               </Route>
 
               {/* 受保护的业务路由 */}
@@ -135,6 +143,14 @@ function App() {
 
                 {/* ===== 律所管理 ===== */}
                 <Route path="firm" element={<FirmManagement />} />
+
+                {/* ===== 律师入驻 ===== */}
+                <Route path="lawyer-onboarding" element={<LawyerOnboarding />} />
+                <Route path="lawyer-dashboard" element={<LawyerDashboard />} />
+
+                {/* ===== 计费系统 ===== */}
+                <Route path="pricing" element={<Pricing />} />
+                <Route path="my-subscription" element={<MySubscription />} />
 
                 {/* ===== 系统（审批已整合进任务中心，系统设置仅保留个人中心） ===== */}
                 <Route path="settings" element={<Settings />} />

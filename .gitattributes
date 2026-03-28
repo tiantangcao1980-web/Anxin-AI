@@ -1,0 +1,68 @@
+# ============================================================
+# Git 属性配置 — GitHub Desktop 兼容性 + 跨平台一致性
+# ============================================================
+
+# 默认：自动检测文本文件并统一换行符
+* text=auto
+
+# ==================== 源代码 ====================
+*.ts       text eol=lf diff=typescript
+*.tsx      text eol=lf diff=typescript
+*.js       text eol=lf
+*.jsx      text eol=lf
+*.json     text eol=lf
+*.css      text eol=lf
+*.scss     text eol=lf
+*.html     text eol=lf
+*.xml      text eol=lf
+*.svg      text eol=lf
+*.py       text eol=lf diff=python
+*.sql      text eol=lf
+
+# ==================== 配置文件 ====================
+*.yml      text eol=lf
+*.yaml     text eol=lf
+*.toml     text eol=lf
+*.cfg      text eol=lf
+*.ini      text eol=lf
+*.conf     text eol=lf
+*.env.*    text eol=lf
+Makefile   text eol=lf
+Dockerfile text eol=lf
+*.dockerignore text eol=lf
+
+# ==================== 文档 ====================
+*.md       text eol=lf diff=markdown
+*.txt      text eol=lf
+*.rst      text eol=lf
+LICENSE    text eol=lf
+
+# ==================== Shell 脚本 ====================
+*.sh       text eol=lf
+*.bash     text eol=lf
+*.zsh      text eol=lf
+
+# ==================== 二进制文件（不做换行符转换） ====================
+*.png      binary
+*.jpg      binary
+*.jpeg     binary
+*.gif      binary
+*.ico      binary
+*.webp     binary
+*.woff     binary
+*.woff2    binary
+*.ttf      binary
+*.eot      binary
+*.pdf      binary
+*.zip      binary
+*.gz       binary
+*.tar      binary
+*.docx     binary
+*.xlsx     binary
+*.pptx     binary
+
+# ==================== GitHub Linguist ====================
+# 优化 GitHub Desktop 中的语言检测和 diff 显示
+docs/**    linguist-documentation
+*.lock     linguist-generated
+dist/**    linguist-generated

@@ -141,6 +141,9 @@ class Permission(str, Enum):
     MANAGE_REFUNDS = "manage:refunds"       # 管理退款
     VIEW_REPORTS = "view:reports"           # 查看报表
 
+    # AI 助手管理
+    MANAGE_AI_ASSISTANT = "manage:ai_assistant"  # 管理 AI 私有助手配置
+
 
 # ========== 角色权限映射 ==========
 
@@ -168,6 +171,7 @@ ROLE_PERMISSIONS: dict[str, Set[Permission]] = {
         Permission.VIEW_AUDIT_LOGS, Permission.EXPORT_DATA,
         Permission.CREATE_APPROVAL, Permission.REVIEW_APPROVAL,
         Permission.VIEW_ANALYTICS,
+        Permission.MANAGE_AI_ASSISTANT,
     },
 
     # ===== 业务层 =====
@@ -184,6 +188,7 @@ ROLE_PERMISSIONS: dict[str, Set[Permission]] = {
         Permission.VIEW_AUDIT_LOGS, Permission.EXPORT_DATA, Permission.MANAGE_LLM_CONFIG,
         Permission.CREATE_APPROVAL, Permission.REVIEW_APPROVAL, Permission.MANAGE_APPROVALS,
         Permission.VIEW_ANALYTICS, Permission.MANAGE_TIMESHEET, Permission.MANAGE_BILLING, Permission.MANAGE_CRM,
+        Permission.MANAGE_AI_ASSISTANT,
         Permission.VIEW_REPORTS,
     },
 

@@ -5,7 +5,7 @@
 提供团队管理、工时管理、账单管理接口。
 """
 
-from datetime import date
+from datetime import date as DateType
 from typing import Literal, Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -45,7 +45,7 @@ class AddMemberRequest(BaseModel):
 
 
 class CreateTimeEntryRequest(BaseModel):
-    date: date = Field(..., description="工时日期")
+    date: DateType = Field(..., description="工时日期")
     minutes: int = Field(..., gt=0, le=1440, description="工时（分钟），最大1440（24小时）")
     description: Optional[str] = Field(None, max_length=500, description="工时说明")
     billable: bool = Field(True, description="是否可计费")
