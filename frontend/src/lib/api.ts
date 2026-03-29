@@ -1120,6 +1120,52 @@ export const knowledgeApi = {
   // 向量存储信息
   getVectorStoreInfo: () =>
     request<{ available: boolean; embedding: any; collections: any[] }>('/knowledge/vector-store/info'),
+
+  // 编辑知识库
+  updateBase: (id: string, data: { name?: string; description?: string; knowledge_type?: string; is_public?: boolean }) =>
+    request<KnowledgeBase>(`/knowledge/bases/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  // 删除知识库
+  deleteBase: (id: string) =>
+    request(`/knowledge/bases/${id}`, { method: 'DELETE' }),
+
+  // 获取文档完整内容
+  getDocument: (docId: string) =>
+    request<KnowledgeDocument & { content: string; source_url?: string; chunk_count?: number; law_category?: string; effective_date?: string; issuing_authority?: string }>(`/knowledge/documents/${docId}`),
+
+  // 更新文档
+  updateDocument: (docId: string, data: { title?: string; content?: string; source?: string; tags?: string[]; law_category?: string; effective_date?: string; issuing_authority?: string }) =>
+    request<KnowledgeDocument>(`/knowledge/documents/${docId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  // 知识库统计
+  getBaseStats: (kbId: string) =>
+    request<{ kb_id: string; name: string; doc_count: number; processed_count: number; total_chunks: number; categories: Record<string, number> }>(`/knowledge/bases/${kbId}/stats`),
+
+  // 导出知识库
+  exportBase: (kbId: string) =>
+    request<{ knowledge_base: any; documents: any[]; exported_at: string; total_documents: number }>(`/knowledge/bases/${kbId}/export`, { method: 'POST' }),
+
+  // 批量上传
+  batchUpload: (kbId: string, files: File[]) => {
+    const formData = new FormData()
+    files.forEach(f => formData.append('files', f))
+    const token = localStorage.getItem('access_token')
+    const headers: Record<string, string> = {}
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    return fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8003/api/v1'}/knowledge/bases/${kbId}/batch-upload`, {
+      method: 'POST', headers, body: formData,
+    }).then(async res => {
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.message || '上传失败')
+      return json.data || json
+    })
+  },
 }
 
 // ============ 知识中心 API (经验记忆 + 图谱 + 自进化) ============
@@ -1208,6 +1254,55 @@ export const knowledgeCenterApi = {
 
   getEntityRelations: (entityName: string, depth: number = 1) =>
     request<GraphData>(`/knowledge-center/graph/entity/${encodeURIComponent(entityName)}?depth=${depth}`),
+
+  // 图谱实体 CRUD
+  createEntity: (data: { name: string; entity_type?: string; properties?: Record<string, any> }) =>
+    request('/knowledge-center/graph/entity', { method: 'POST', body: JSON.stringify(data) }),
+
+  updateEntity: (name: string, properties: Record<string, any>) =>
+    request(`/knowledge-center/graph/entity/${encodeURIComponent(name)}`, {
+      method: 'PUT', body: JSON.stringify({ properties }),
+    }),
+
+  deleteEntity: (name: string) =>
+    request(`/knowledge-center/graph/entity/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+
+  // 图谱关系 CRUD
+  createRelation: (data: { subject: string; predicate: string; object: string }) =>
+    request('/knowledge-center/graph/relation', { method: 'POST', body: JSON.stringify(data) }),
+
+  deleteRelation: (data: { subject: string; predicate: string; object: string }) =>
+    request('/knowledge-center/graph/relation', { method: 'DELETE', body: JSON.stringify(data) }),
+
+  // 导出图谱
+  exportGraph: (entityType?: string, limit?: number) => {
+    const params = new URLSearchParams()
+    if (entityType) params.append('entity_type', entityType)
+    if (limit) params.append('limit', limit.toString())
+    return request<{ triples: any[]; total: number }>(`/knowledge-center/graph/export?${params}`, { method: 'POST' })
+  },
+
+  // LLM实体抽取
+  extractEntities: (text: string, autoImport: boolean = false) =>
+    request<{ entities: any[]; relations: any[]; imported_entities?: number; imported_relations?: number }>('/knowledge-center/graph/extract', {
+      method: 'POST', body: JSON.stringify({ text, auto_import: autoImport }),
+    }),
+
+  // 获取图谱实体类型
+  getEntityTypes: () =>
+    request<{ type: string; count: number; color: string }[]>('/knowledge-center/graph/types'),
+
+  // 最短路径
+  getShortestPath: (from: string, to: string) =>
+    request<{ path_length: number; nodes: any[]; relationships: any[]; found: boolean }>(`/knowledge-center/graph/path?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
+
+  // 子图
+  getSubgraph: (entityName: string, depth?: number, maxNodes?: number) => {
+    const params = new URLSearchParams()
+    if (depth) params.append('depth', depth.toString())
+    if (maxNodes) params.append('max_nodes', maxNodes.toString())
+    return request<{ center: string; nodes: any[]; edges: any[] }>(`/knowledge-center/graph/subgraph/${encodeURIComponent(entityName)}?${params}`)
+  },
 }
 
 // ============ LLM配置 API ============

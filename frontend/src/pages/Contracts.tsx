@@ -101,7 +101,7 @@ export default function Contracts() {
       }
     >
       {/* 统计卡片 */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className={cardStyle.compact}>
           <div className="flex items-center justify-between">
             <p className={heading.muted}>待审核</p>
@@ -176,42 +176,46 @@ export default function Contracts() {
               const RiskIcon = riskLevel?.icon
               
               return (
-                <div key={contract.id} className="p-4 hover:bg-muted/30 transition-colors">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3">
-                      <div className={`p-2 ${radius.button} bg-muted`}>
+                <div
+                  key={contract.id}
+                  onClick={() => handleReview(contract)}
+                  className="p-4 hover:bg-muted/30 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <div className={`p-2 ${radius.button} bg-muted shrink-0`}>
                         <icons.FileText className={`${iconSize.md} text-muted-foreground`} />
                       </div>
-                      <div>
-                        <h3 className={heading.card}>{contract.title}</h3>
-                        <div className={`flex items-center gap-2 mt-1 ${heading.micro}`}>
-                          <span>{contract.contract_number || '-'}</span>
+                      <div className="min-w-0">
+                        <h3 className={`${heading.card} truncate`}>{contract.title}</h3>
+                        <div className={`flex items-center gap-2 mt-1 ${heading.micro} flex-wrap`}>
+                          <span className="truncate">{contract.contract_number || '-'}</span>
                           <span>·</span>
-                          <span>{CONTRACT_TYPES.find(t => t.value === contract.contract_type)?.label || contract.contract_type}</span>
+                          <span className="whitespace-nowrap">{CONTRACT_TYPES.find(t => t.value === contract.contract_type)?.label || contract.contract_type}</span>
                           {contract.amount && (
                             <>
                               <span>·</span>
-                              <span>¥{contract.amount.toLocaleString()}</span>
+                              <span className="whitespace-nowrap">¥{contract.amount.toLocaleString()}</span>
                             </>
                           )}
                         </div>
                       </div>
                     </div>
-                    
-                    <div className="flex items-center gap-3">
+
+                    <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
                       {riskLevel && (
                         <div className={`flex items-center gap-1 ${riskLevel.color}`}>
                           {RiskIcon && <RiskIcon className={iconSize.sm} />}
-                          <span className="text-sm">{riskLevel.label}</span>
+                          <span className="text-sm whitespace-nowrap">{riskLevel.label}</span>
                         </div>
                       )}
-                      
-                      <span className={`px-2 py-1 ${radius.badge} text-xs ${status.color}`}>
+
+                      <span className={`px-2 py-1 ${radius.badge} text-xs whitespace-nowrap ${status.color}`}>
                         {status.label}
                       </span>
-                      
+
                       <button
-                        onClick={() => handleReview(contract)}
+                        onClick={(e) => { e.stopPropagation(); handleReview(contract); }}
                         className={buttonStyle.icon}
                       >
                         <icons.Eye className={iconSize.sm} />

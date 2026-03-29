@@ -1756,7 +1756,7 @@ export default function Chat() {
             animate={{ width: sidebarWidth, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.2, ease: 'easeInOut' }}
-            className="h-full flex-shrink-0 bg-background flex flex-col overflow-hidden border-r border-border max-md:!w-full max-md:absolute max-md:inset-0 max-md:z-20"
+            className="h-full flex-shrink-0 bg-background flex flex-col overflow-hidden max-md:!w-full max-md:absolute max-md:inset-0 max-md:z-20 max-md:border-r max-md:border-border"
           >
             <div className="h-12 px-3 flex items-center gap-2 border-b border-border/50 shrink-0">
               <div className="flex items-center justify-between flex-1">
@@ -1896,7 +1896,7 @@ export default function Chat() {
       {/* 对话列表 ↔ 聊天区 拖拽分隔条 */}
       {chatSidebarOpen && !isMobile && (
         <div
-          className="w-1 hover:w-1.5 bg-transparent hover:bg-primary/20 cursor-col-resize transition-all shrink-0 group relative"
+          className="w-[6px] cursor-col-resize shrink-0 group relative flex items-center justify-center before:absolute before:inset-y-0 before:left-1/2 before:-translate-x-1/2 before:w-px before:bg-border hover:before:bg-primary/40 before:transition-colors"
           onMouseDown={(e) => {
             e.preventDefault();
             const startX = e.clientX;
@@ -1913,7 +1913,7 @@ export default function Chat() {
             document.addEventListener('mouseup', onUp);
           }}
         >
-          <div className="absolute inset-y-0 left-0 right-0 opacity-0 group-hover:opacity-100 bg-primary/30 transition-opacity" />
+          <div className="w-1 h-5 rounded-full bg-border group-hover:bg-primary/50 transition-colors" />
         </div>
       )}
 
@@ -2042,7 +2042,7 @@ export default function Chat() {
 
             {/* 消息区 ↔ 输入区 拖拽分隔条 */}
             <div
-              className="h-1 hover:h-1.5 bg-transparent hover:bg-primary/20 cursor-row-resize transition-all shrink-0 group relative"
+              className="h-[6px] cursor-row-resize shrink-0 group relative flex items-center justify-center before:absolute before:inset-x-0 before:top-1/2 before:-translate-y-1/2 before:h-px before:bg-border hover:before:bg-primary/40 before:transition-colors"
               onMouseDown={(e) => {
                 e.preventDefault();
                 const container = e.currentTarget.parentElement;
@@ -2064,15 +2064,15 @@ export default function Chat() {
                 document.addEventListener('mouseup', onUp);
               }}
             >
-              <div className="absolute inset-x-0 top-0 bottom-0 opacity-0 group-hover:opacity-100 bg-primary/30 transition-opacity" />
+              <div className="h-1 w-6 rounded-full bg-border group-hover:bg-primary/50 transition-colors" />
             </div>
 
             {/* Input Area — v3 豆包风格 */}
             <div
-              className="p-3 bg-background shrink-0 overflow-hidden"
+              className="p-3 bg-background shrink-0 flex flex-col"
               style={inputAreaHeight ? { height: inputAreaHeight } : undefined}
             >
-              <div className="max-w-4xl mx-auto">
+              <div className="flex-1 flex flex-col min-h-0">
                 <AnimatePresence>
                   {pendingFile && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-2">
@@ -2110,7 +2110,7 @@ export default function Chat() {
                 />
 
                 {/* 输入框容器 — 一体式设计 */}
-                <div className="relative flex items-end bg-muted/50 rounded-2xl border border-border focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 transition-all">
+                <div className="relative flex bg-muted/50 rounded-2xl border border-border focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 transition-all flex-1 min-h-0">
                   {/* 斜杠命令面板 — 输入框上方浮层 */}
                   <SlashCommandPalette
                     inputValue={input}
@@ -2140,7 +2140,7 @@ export default function Chat() {
                     }}
                     accept=".pdf,.doc,.docx,.txt,image/*" />
                   <button onClick={() => fileInputRef.current?.click()} disabled={isProcessing}
-                    className="p-2.5 text-muted-foreground hover:text-primary transition-colors disabled:opacity-50 flex-shrink-0"
+                    className="p-2.5 text-muted-foreground hover:text-primary transition-colors disabled:opacity-50 flex-shrink-0 self-end"
                     title="上传文件">
                     <icons.Paperclip className="w-4.5 h-4.5" />
                   </button>
@@ -2156,14 +2156,14 @@ export default function Chat() {
                     }}
                     onKeyPress={handleKeyPress}
                     placeholder={dynamicPlaceholder}
-                    className="flex-1 py-2.5 bg-transparent border-none resize-none focus:outline-none text-foreground placeholder:text-muted-foreground text-sm leading-relaxed"
-                    style={{ minHeight: '40px', maxHeight: '120px' }}
+                    className="flex-1 py-2.5 bg-transparent border-none resize-none focus:outline-none text-foreground placeholder:text-muted-foreground text-sm leading-relaxed self-stretch"
+                    style={{ minHeight: '40px', maxHeight: inputAreaHeight ? 'none' : '300px', height: inputAreaHeight ? '100%' : undefined }}
                     disabled={isProcessing}
                     rows={1}
                   />
 
                   {/* 右侧功能按钮组：深度思考 + 发送 */}
-                  <div className="flex items-center gap-0.5 flex-shrink-0">
+                  <div className="flex items-center gap-0.5 flex-shrink-0 self-end">
                     {/* 深度思考开关 — 输入框内右侧 */}
                     <DeepModeToggle
                       isActive={quickActionMode === 'deep_analysis'}
@@ -2201,7 +2201,7 @@ export default function Chat() {
           {/* 聊天区 ↔ 智能工作台 拖拽分隔条 */}
           {!isMobile && rightPanelOpen && (
             <div
-              className="w-1 hover:w-1.5 bg-transparent hover:bg-primary/20 cursor-col-resize transition-all shrink-0 group relative z-10"
+              className="w-[5px] bg-transparent hover:bg-primary/15 cursor-col-resize transition-colors shrink-0 group relative z-10 flex items-center justify-center"
               onMouseDown={(e) => {
                 e.preventDefault();
                 const container = e.currentTarget.parentElement;
@@ -2222,7 +2222,7 @@ export default function Chat() {
                 document.addEventListener('mouseup', onUp);
               }}
             >
-              <div className="absolute inset-y-0 left-0 right-0 opacity-0 group-hover:opacity-100 bg-primary/30 transition-opacity" />
+              <div className="w-1 h-5 rounded-full bg-border group-hover:bg-primary/50 transition-colors" />
             </div>
           )}
 

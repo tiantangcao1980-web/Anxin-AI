@@ -407,3 +407,119 @@ class KnowledgeService:
             source=file_name or file_path,
             metadata=doc_metadata
         )
+
+    async def update_knowledge_base(self, kb_id: str, **kwargs) -> Optional[KnowledgeBase]:
+        """更新知识库"""
+        kb = await self.get_knowledge_base(kb_id)
+        if not kb:
+            return None
+        for key, value in kwargs.items():
+            if key == "knowledge_type" and isinstance(value, str):
+                value = KnowledgeType(value) if value in [e.value for e in KnowledgeType] else kb.knowledge_type
+            if hasattr(kb, key):
+                setattr(kb, key, value)
+        await self.db.flush()
+        return kb
+
+    async def delete_knowledge_base(self, kb_id: str) -> bool:
+        """删除知识库及其所有文档和向量"""
+        kb = await self.get_knowledge_base(kb_id)
+        if not kb:
+            return False
+        # 删除向量集合
+        if kb.vector_collection and vector_store.is_available:
+            try:
+                await vector_store.delete_collection(kb.vector_collection)
+            except Exception as e:
+                logger.warning(f"删除向量集合失败: {e}")
+        await self.db.delete(kb)
+        return True
+
+    async def get_document(self, doc_id: str) -> Optional[KnowledgeDocument]:
+        """获取文档完整内容"""
+        result = await self.db.execute(select(KnowledgeDocument).where(KnowledgeDocument.id == doc_id))
+        return result.scalar_one_or_none()
+
+    async def update_document(self, doc_id: str, **kwargs) -> Optional[KnowledgeDocument]:
+        """更新文档"""
+        doc = await self.get_document(doc_id)
+        if not doc:
+            return None
+        for key, value in kwargs.items():
+            if hasattr(doc, key):
+                setattr(doc, key, value)
+        await self.db.flush()
+        return doc
+
+    async def get_kb_stats_detail(self, kb_id: str) -> Dict[str, Any]:
+        """获取知识库详细统计"""
+        kb = await self.get_knowledge_base(kb_id)
+        if not kb:
+            return {"error": "not found"}
+
+        doc_count = await self.db.scalar(
+            select(func.count(KnowledgeDocument.id)).where(KnowledgeDocument.knowledge_base_id == kb_id)
+        )
+        processed_count = await self.db.scalar(
+            select(func.count(KnowledgeDocument.id)).where(
+                and_(KnowledgeDocument.knowledge_base_id == kb_id, KnowledgeDocument.is_processed == True)
+            )
+        )
+        total_chunks = await self.db.scalar(
+            select(func.sum(KnowledgeDocument.chunk_count)).where(KnowledgeDocument.knowledge_base_id == kb_id)
+        ) or 0
+
+        # 法律类别分布
+        category_result = await self.db.execute(
+            select(KnowledgeDocument.law_category, func.count(KnowledgeDocument.id))
+            .where(KnowledgeDocument.knowledge_base_id == kb_id)
+            .group_by(KnowledgeDocument.law_category)
+        )
+        categories = {row[0] or "未分类": row[1] for row in category_result.all()}
+
+        return {
+            "kb_id": kb_id,
+            "name": kb.name,
+            "doc_count": doc_count or 0,
+            "processed_count": processed_count or 0,
+            "total_chunks": total_chunks,
+            "categories": categories,
+            "vector_collection": kb.vector_collection,
+            "embedding_model": kb.embedding_model,
+        }
+
+    async def export_knowledge_base(self, kb_id: str) -> Optional[Dict[str, Any]]:
+        """导出知识库为JSON"""
+        kb = await self.get_knowledge_base(kb_id)
+        if not kb:
+            return None
+
+        docs_result = await self.db.execute(
+            select(KnowledgeDocument).where(KnowledgeDocument.knowledge_base_id == kb_id)
+        )
+        docs = docs_result.scalars().all()
+
+        return {
+            "knowledge_base": {
+                "name": kb.name,
+                "description": kb.description,
+                "knowledge_type": kb.knowledge_type.value,
+                "is_public": kb.is_public,
+            },
+            "documents": [
+                {
+                    "title": d.title,
+                    "content": d.content,
+                    "source": d.source,
+                    "source_url": d.source_url,
+                    "summary": d.summary,
+                    "tags": d.tags,
+                    "law_category": d.law_category,
+                    "effective_date": d.effective_date,
+                    "issuing_authority": d.issuing_authority,
+                }
+                for d in docs
+            ],
+            "exported_at": datetime.now().isoformat(),
+            "total_documents": len(docs),
+        }

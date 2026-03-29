@@ -409,3 +409,156 @@ async def get_entity_types(
 
     result = await graph_service.get_entity_types()
     return UnifiedResponse.success(data=result)
+
+
+# ============ 图谱实体/关系 CRUD ============
+
+class EntityCreate(BaseModel):
+    """创建实体"""
+    name: str = Field(..., description="实体名称")
+    entity_type: str = Field("Entity", description="实体类型（Neo4j标签）")
+    properties: Optional[dict] = Field(None, description="实体属性")
+
+
+class EntityUpdate(BaseModel):
+    """更新实体"""
+    properties: dict = Field(..., description="要更新的属性")
+
+
+class RelationCreate(BaseModel):
+    """创建关系"""
+    subject: str = Field(..., description="主体实体名称")
+    predicate: str = Field(..., description="关系类型")
+    object: str = Field(..., description="客体实体名称")
+
+
+class RelationDelete(BaseModel):
+    """删除关系"""
+    subject: str
+    predicate: str
+    object: str
+
+
+class EntityExtractRequest(BaseModel):
+    """LLM实体抽取请求"""
+    text: str = Field(..., description="待抽取的文本内容")
+    auto_import: bool = Field(False, description="是否自动导入到图谱")
+
+
+@router.post("/graph/entity")
+async def create_entity(
+    request: EntityCreate,
+    user: User = Depends(get_current_user_required),
+):
+    """创建图谱实体"""
+    from src.services.graph_service import graph_service
+    result = await graph_service.create_entity(
+        name=request.name, entity_type=request.entity_type, properties=request.properties
+    )
+    if not result.get("success"):
+        return UnifiedResponse.error(message=result.get("error", "创建失败"))
+    return UnifiedResponse.success(data=result, message="实体创建成功")
+
+
+@router.put("/graph/entity/{entity_name}")
+async def update_entity(
+    entity_name: str,
+    request: EntityUpdate,
+    user: User = Depends(get_current_user_required),
+):
+    """更新图谱实体属性"""
+    from src.services.graph_service import graph_service
+    result = await graph_service.update_entity(entity_name, request.properties)
+    if not result.get("success"):
+        return UnifiedResponse.error(message=result.get("error", "更新失败"))
+    return UnifiedResponse.success(data=result, message="实体更新成功")
+
+
+@router.delete("/graph/entity/{entity_name}")
+async def delete_entity(
+    entity_name: str,
+    user: User = Depends(get_current_user_required),
+):
+    """删除图谱实体（DETACH DELETE）"""
+    from src.services.graph_service import graph_service
+    result = await graph_service.delete_entity(entity_name)
+    if not result.get("success"):
+        return UnifiedResponse.error(message=result.get("error", "删除失败"))
+    return UnifiedResponse.success(data=result, message="实体已删除")
+
+
+@router.post("/graph/relation")
+async def create_relation(
+    request: RelationCreate,
+    user: User = Depends(get_current_user_required),
+):
+    """创建图谱关系"""
+    from src.services.graph_service import graph_service
+    result = await graph_service.create_relation(
+        subject=request.subject, predicate=request.predicate, obj=request.object
+    )
+    if not result.get("success"):
+        return UnifiedResponse.error(message=result.get("error", "创建失败"))
+    return UnifiedResponse.success(data=result, message="关系创建成功")
+
+
+@router.delete("/graph/relation")
+async def delete_relation(
+    request: RelationDelete,
+    user: User = Depends(get_current_user_required),
+):
+    """删除图谱关系"""
+    from src.services.graph_service import graph_service
+    result = await graph_service.delete_relation(
+        subject=request.subject, predicate=request.predicate, obj=request.object
+    )
+    if not result.get("success"):
+        return UnifiedResponse.error(message=result.get("error", "删除失败"))
+    return UnifiedResponse.success(data=result, message="关系已删除")
+
+
+@router.post("/graph/export")
+async def export_graph(
+    entity_type: Optional[str] = Query(None, description="按实体类型过滤"),
+    limit: int = Query(10000, ge=1, le=50000, description="导出上限"),
+    user: User = Depends(get_current_user_required),
+):
+    """导出图谱三元组（CSV格式数据）"""
+    from src.services.graph_service import graph_service
+    triples = await graph_service.export_triples(entity_type=entity_type, limit=limit)
+    return UnifiedResponse.success(data={
+        "triples": triples,
+        "total": len(triples),
+        "format": "subject,predicate,object"
+    })
+
+
+@router.post("/graph/extract")
+async def extract_entities(
+    request: EntityExtractRequest,
+    user: User = Depends(get_current_user_required),
+):
+    """LLM智能实体关系抽取"""
+    from src.services.entity_extraction_service import entity_extraction_service
+    from src.services.graph_service import graph_service
+
+    result = await entity_extraction_service.extract(request.text)
+
+    if request.auto_import and result.get("entities"):
+        # 自动导入到图谱
+        imported = 0
+        for entity in result.get("entities", []):
+            r = await graph_service.create_entity(
+                name=entity["name"], entity_type=entity.get("type", "Entity"),
+                properties=entity.get("properties")
+            )
+            if r.get("success"):
+                imported += 1
+        for rel in result.get("relations", []):
+            await graph_service.create_relation(
+                subject=rel["subject"], predicate=rel["predicate"], obj=rel["object"]
+            )
+        result["imported_entities"] = imported
+        result["imported_relations"] = len(result.get("relations", []))
+
+    return UnifiedResponse.success(data=result)

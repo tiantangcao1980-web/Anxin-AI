@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { LottieIcon } from '../ui/LottieIcon';
 import { casesApi, documentsApi, Document } from '@/lib/api';
 import { toast } from 'sonner';
+import ReactMarkdown from 'react-markdown';
 
 interface CaseDetailProps {
   case: Case;
@@ -70,8 +71,46 @@ export function CaseDetail({ case: caseItem, onClose }: CaseDetailProps) {
         setShowBriefing(true);
         toast.success('简报生成成功');
     } catch (error) {
-        console.error('生成简报失败', error);
-        toast.error('生成简报失败，请稍后重试');
+        console.error('生成简报失败，使用模板简报', error);
+        // API 失败时生成模板化的简报内容作为 fallback
+        const fallbackBriefing = `# 律师交接简报
+
+## 案件基本信息
+- **案件名称**: ${caseItem.title}
+- **案件编号**: ${caseItem.caseNumber || '未编号'}
+- **案件类型**: ${caseItem.type || '未分类'}
+- **案件状态**: ${statusLabels[caseItem.status] || caseItem.status}
+- **负责律师**: ${caseItem.lawyer || '未指定'}
+
+## 案件概要
+${caseItem.description || '暂无案件描述信息。'}
+
+## 案件进展
+- 当前进度: ${caseItem.progress}%
+- 关键节点: 请参阅活动记录
+
+## 客户信息
+- **客户名称**: ${caseItem.client || '未指定'}
+- **标的金额**: ${caseItem.amount || '未设置'}
+- **截止日期**: ${caseItem.deadline ? new Date(caseItem.deadline).toLocaleDateString() : '未设置'}
+
+## 相关文档
+${documents.length > 0 ? documents.map(doc => `- ${doc.name}（${doc.doc_type}）`).join('\n') : '- 暂无关联文档'}
+
+## 活动记录
+${activities.length > 0 ? activities.slice(0, 5).map(a => `- [${new Date(a.time).toLocaleDateString()}] ${a.content}`).join('\n') : '- 暂无活动记录'}
+
+## 待办事项
+- 需要继续跟进的事项（请根据实际情况补充）
+
+## 风险提示
+- 需要注意的风险点（请根据实际情况补充）
+
+---
+*此简报由系统模板自动生成，仅供参考。建议根据实际情况补充完善。*`;
+        setBriefingContent(fallbackBriefing);
+        setShowBriefing(true);
+        toast.warning('API 不可用，已生成模板简报');
     } finally {
         setIsGenerating(false);
     }
@@ -101,8 +140,12 @@ export function CaseDetail({ case: caseItem, onClose }: CaseDetailProps) {
                 </button>
              </div>
              
-             <div className="flex-1 overflow-y-auto bg-muted/50 rounded-xl p-6 border border-border font-mono text-sm leading-relaxed whitespace-pre-wrap">
-                {briefingContent}
+             <div className="flex-1 overflow-y-auto bg-muted/50 rounded-xl p-6 border border-border text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+                {briefingContent ? (
+                  <ReactMarkdown>{briefingContent}</ReactMarkdown>
+                ) : (
+                  <p className="text-muted-foreground text-center py-8">简报内容为空</p>
+                )}
              </div>
 
              <div className="mt-6 flex gap-4 justify-end">
@@ -139,7 +182,7 @@ export function CaseDetail({ case: caseItem, onClose }: CaseDetailProps) {
         </div>
 
         {/* Quick Info */}
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <div className="bg-background/60 backdrop-blur-sm rounded-lg p-3">
             <div className="flex items-center gap-2 mb-1">
               <icons.User className="w-4 h-4 text-primary" />

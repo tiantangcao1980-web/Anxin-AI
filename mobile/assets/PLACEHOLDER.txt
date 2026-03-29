@@ -1,0 +1,8 @@
+This directory contains app assets.
+
+Required files:
+- icon.png: App icon (1024x1024 px)
+- splash.png: Splash screen image (optional)
+- adaptive-icon.png: Android adaptive icon foreground (optional)
+
+Please replace this file with actual asset files before building.

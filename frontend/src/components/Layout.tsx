@@ -4,7 +4,7 @@
  * ===== 顶部导航栏设计 =====
  * 受 Apple.com / Insta360.com 启发的顶部导航
  * - 固定顶栏 60px，Logo 左置，四大业务域下拉菜单居中，系统功能右置
- * - 移动端：汉堡菜单 -> 全屏下拉菜单
+ * - 移动端：底部 Tab 栏 + 顶部二级水平滚动导航
  * - 内容区域全宽，无侧边栏占用水平空间
  *
  * 导航分组（对应 PRD 四大业务域）：
@@ -23,6 +23,7 @@ import { PrivacyToggle } from './ui/PrivacyToggle'
 import { notificationsApi } from '../lib/api'
 import { useAuthStore } from '@/lib/store'
 
+import { toast } from 'sonner'
 import { icons } from '@/lib/icons'
 import { iconSize, buttonStyle, heading } from '@/lib/design-tokens'
 
@@ -47,7 +48,6 @@ const navGroups: { id: string; label: string; path: string }[] = [
 
 // 系统功能（右侧图标按钮）— 审批已整合进任务中心，系统设置已整合进后台管理
 const systemItems: NavChild[] = [
-  { id: 'messages', path: '/messages', label: '消息', icon: icons.Chat },
   { id: 'tasks', path: '/tasks', label: '任务中心', icon: icons.Tasks },
 ]
 
@@ -191,7 +191,7 @@ export default function Layout() {
   const [showNotifications, setShowNotifications] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
 
   // 通知轮询
   useEffect(() => {
@@ -208,20 +208,25 @@ export default function Layout() {
     return () => clearInterval(interval)
   }, [])
 
-  // 路由变化时关闭移动端菜单
+  // 路由变化时关闭更多菜单
   useEffect(() => {
-    setMobileMenuOpen(false)
+    setShowMoreMenu(false)
   }, [location.pathname])
 
   const handleNavClick = useCallback(
     (path: string) => {
       navigate(path)
-      setMobileMenuOpen(false)
+      setShowMoreMenu(false)
     },
     [navigate]
   )
 
   const currentPath = location.pathname
+
+  // 获取当前模块配置（用于移动端二级导航）
+  const currentModule = moduleSidebarConfig.find(m =>
+    m.paths.some(p => currentPath === p || currentPath.startsWith(p + '/'))
+  )
 
   return (
     <div className="h-screen bg-muted/30 flex flex-col overflow-hidden">
@@ -259,9 +264,9 @@ export default function Layout() {
           </nav>
 
           {/* 右侧：系统功能 + 用户区 */}
-          <div className="flex items-center gap-1 ml-auto">
-            {/* 桌面端系统功能图标按钮 */}
-            <div className="hidden lg:flex items-center gap-0.5">
+          <div className="flex items-center gap-1.5 ml-auto">
+            {/* 桌面端系统功能（图标+文字按钮） */}
+            <div className="hidden lg:flex items-center gap-1">
               {systemItems.map((item) => {
                 const Icon = item.icon
                 const isActive = isPathActive(item.path, currentPath)
@@ -269,38 +274,44 @@ export default function Layout() {
                   <button
                     key={item.id}
                     onClick={() => handleNavClick(item.path)}
-                    title={item.label}
-                    className={`${buttonStyle.icon} ${
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                       isActive
                         ? 'text-primary bg-primary/10'
-                        : ''
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
                     }`}
                   >
-                    <Icon className={iconSize.md} />
+                    <Icon className="w-4 h-4" />
+                    <span>{item.label}</span>
                   </button>
                 )
               })}
-
-              {/* 后台管理入口已迁移到用户面板中 */}
             </div>
 
             {/* 分隔线 */}
-            <div className="hidden lg:block h-5 w-px bg-border/60 mx-1.5" />
+            <div className="hidden lg:block h-5 w-px bg-border/60 mx-1" />
 
-            {/* 硬件状态 & 隐私开关（仅桌面端） */}
+            {/* AI 私有助手 & 隐私开关 */}
             <div className="hidden lg:flex items-center gap-1">
               <HardwareStatus />
               <PrivacyToggle />
             </div>
-
-            <div className="hidden lg:block h-5 w-px bg-border/60 mx-1.5" />
-
-            {/* 通知按钮 */}
+            {/* 移动/Web端 AI 助手占位（灰色图标，提示仅桌面端可用） */}
             <button
-              onClick={() => setShowNotifications(!showNotifications)}
-              className={`relative ${buttonStyle.icon}`}
+              className="lg:hidden p-2 text-muted-foreground/40 hover:text-muted-foreground/60 transition-colors"
+              onClick={() => toast.info('AI 私有助手目前仅支持桌面端使用，您可以通过消息与桌面端远程协作', { duration: 4000 })}
+              title="AI 私有助手（仅桌面端）"
             >
-              <icons.Notification className={`${iconSize.md} text-muted-foreground`} />
+              <icons.Cpu className={iconSize.md} />
+            </button>
+
+            <div className="hidden lg:block h-5 w-px bg-border/60 mx-1" />
+
+            {/* 消息入口（整合通知） */}
+            <button
+              onClick={() => navigate('/messages')}
+              className={`relative ${buttonStyle.icon} ${currentPath === '/messages' ? 'text-primary' : ''}`}
+            >
+              <icons.Chat className={`${iconSize.md} ${currentPath === '/messages' ? 'text-primary' : 'text-muted-foreground'}`} />
               {unreadCount > 0 && (
                 <span className="absolute top-1 right-1 min-w-[16px] h-[16px] bg-primary text-white text-[10px] font-bold flex items-center justify-center rounded-full px-1 border-2 border-background">
                   {unreadCount}
@@ -318,97 +329,39 @@ export default function Layout() {
               </div>
             </button>
 
-            {/* 移动端汉堡菜单按钮 */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className={`lg:hidden ${buttonStyle.icon} ml-1`}
-            >
-              {mobileMenuOpen ? (
-                <icons.Close className={`${iconSize.md} text-foreground`} />
-              ) : (
-                <icons.Menu className={`${iconSize.md} text-muted-foreground`} />
-              )}
-            </button>
           </div>
         </div>
 
-        {/* ===== 移动端下拉全屏菜单 ===== */}
-        {mobileMenuOpen && (
-          <>
-            {/* 遮罩 */}
-            <div
-              className="lg:hidden fixed inset-0 top-[60px] bg-black/30 z-40"
-              onClick={() => {
-                setMobileMenuOpen(false)
-              }}
-            />
-            {/* 菜单面板 */}
-            <div className="lg:hidden absolute top-[60px] left-0 right-0 bg-background border-b border-border shadow-xl z-50 max-h-[calc(100vh-60px)] overflow-y-auto animate-in slide-in-from-top-2 duration-200">
-              <div className="px-4 py-3 space-y-1">
-                {/* 四大业务域直达链接 */}
-                {navGroups.map((group) => (
+        {/* ===== 移动端二级导航栏（顶栏下方水平滚动） ===== */}
+        {currentModule && (
+          <div className="lg:hidden border-t border-border/30 overflow-x-auto scrollbar-hide">
+            <div className="flex items-center gap-1 px-3 py-1.5 min-w-max">
+              {currentModule.items.map((item) => {
+                const ItemIcon = item.icon
+                const itemActive = isPathActive(item.path, currentPath)
+                return (
                   <button
-                    key={group.id}
-                    onClick={() => handleNavClick(group.path)}
-                    className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium transition-colors text-left ${
-                      isModuleActive(group.id, currentPath)
-                        ? 'text-primary bg-primary/5'
-                        : 'text-foreground hover:bg-muted/60'
+                    key={item.path}
+                    onClick={() => navigate(item.path)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                      itemActive
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted-foreground hover:bg-muted/60'
                     }`}
                   >
-                    <span className="flex-1">{group.label}</span>
+                    <ItemIcon className="w-3.5 h-3.5" />
+                    <span>{item.label}</span>
                   </button>
-                ))}
-
-                {/* 分隔线 */}
-                <div className="h-px bg-border/50 my-2" />
-
-                {/* 系统功能 */}
-                {systemItems.map((item) => {
-                  const Icon = item.icon
-                  const isActive = isPathActive(item.path, currentPath)
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => handleNavClick(item.path)}
-                      className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] transition-colors ${
-                        isActive
-                          ? 'text-primary bg-primary/5 font-medium'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                      }`}
-                    >
-                      <Icon className="w-5 h-5 shrink-0" />
-                      <span>{item.label}</span>
-                    </button>
-                  )
-                })}
-
-                {/* 管理员入口 */}
-                {isAdmin && (
-                  <button
-                    onClick={() => {
-                      navigate('/admin')
-                      setMobileMenuOpen(false)
-                    }}
-                    className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] transition-colors ${
-                      currentPath.startsWith('/admin')
-                        ? 'text-amber-600 bg-amber-500/10 font-medium'
-                        : 'text-amber-500/80 hover:text-amber-600 hover:bg-amber-500/10'
-                    }`}
-                  >
-                    <icons.Shield className="w-5 h-5 shrink-0" />
-                    <span>后台管理</span>
-                  </button>
-                )}
-              </div>
+                )
+              })}
             </div>
-          </>
+          </div>
         )}
       </header>
 
-      {/* ===== 页面内容区（顶部留出导航栏高度） ===== */}
-      <div className="flex-1 pt-[60px] overflow-hidden flex">
-        {/* 模块侧边栏（Chat 页面有自己的内部侧边栏，不显示） */}
+      {/* ===== 页面内容区（顶部留出导航栏高度，移动端底部留出 Tab 栏高度） ===== */}
+      <div className={`flex-1 overflow-hidden flex pb-14 lg:pb-0 ${currentModule ? 'pt-[100px] lg:pt-[60px]' : 'pt-[60px]'}`}>
+        {/* 模块侧边栏（Chat 页面有自己的内部侧边栏，不显示；移动端已通过 ModuleSidebar 内部 hidden lg:flex 隐藏） */}
         {!currentPath.startsWith('/chat') && !currentPath.startsWith('/messages') && !currentPath.startsWith('/tasks') && !currentPath.startsWith('/settings') && (
           <ModuleSidebar currentPath={currentPath} onNavigate={handleNavClick} />
         )}
@@ -416,6 +369,89 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+
+      {/* ===== 移动端底部 Tab 栏 ===== */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border/50" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="flex items-center justify-around h-14">
+          {navGroups.map((group) => {
+            const isActive = isModuleActive(group.id, currentPath)
+            const groupIcons: Record<string, typeof icons.Chat> = {
+              'ai-legal': icons.Chat,
+              'collaboration': icons.Cases,
+              'info-center': icons.News,
+              'knowledge': icons.KnowledgeGraph,
+            }
+            const GroupIcon = groupIcons[group.id] || icons.Chat
+            return (
+              <button
+                key={group.id}
+                onClick={() => handleNavClick(group.path)}
+                className={`flex flex-col items-center gap-0.5 px-3 py-1 min-w-[60px] ${
+                  isActive ? 'text-primary' : 'text-muted-foreground'
+                }`}
+              >
+                <GroupIcon className="w-5 h-5" />
+                <span className="text-[10px] font-medium">{group.label}</span>
+              </button>
+            )
+          })}
+          {/* 更多按钮 */}
+          <button
+            onClick={() => setShowMoreMenu(!showMoreMenu)}
+            className={`flex flex-col items-center gap-0.5 px-3 py-1 min-w-[60px] ${
+              showMoreMenu ? 'text-primary' : 'text-muted-foreground'
+            }`}
+          >
+            <icons.MoreHorizontal className="w-5 h-5" />
+            <span className="text-[10px] font-medium">更多</span>
+          </button>
+        </div>
+      </nav>
+
+      {/* ===== 移动端"更多"弹出面板 ===== */}
+      {showMoreMenu && (
+        <>
+          <div
+            className="lg:hidden fixed inset-0 z-40"
+            onClick={() => setShowMoreMenu(false)}
+          />
+          <div className="lg:hidden fixed bottom-14 left-0 right-0 z-50 bg-background border-t border-border/50 shadow-lg rounded-t-2xl animate-in slide-in-from-bottom-2 duration-200" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+            <div className="px-4 py-3 space-y-1">
+              {systemItems.map((item) => {
+                const Icon = item.icon
+                const isActive = isPathActive(item.path, currentPath)
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleNavClick(item.path)}
+                    className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] transition-colors ${
+                      isActive
+                        ? 'text-primary bg-primary/5 font-medium'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5 shrink-0" />
+                    <span>{item.label}</span>
+                  </button>
+                )
+              })}
+              {isAdmin && (
+                <button
+                  onClick={() => handleNavClick('/admin')}
+                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] transition-colors ${
+                    currentPath.startsWith('/admin')
+                      ? 'text-amber-600 bg-amber-500/10 font-medium'
+                      : 'text-amber-500/80 hover:text-amber-600 hover:bg-amber-500/10'
+                  }`}
+                >
+                  <icons.Shield className="w-5 h-5 shrink-0" />
+                  <span>后台管理</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* 通知中心 */}
       {showNotifications && (

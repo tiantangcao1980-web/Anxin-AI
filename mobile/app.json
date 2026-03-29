@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "安心法务",
+    "slug": "anxin-legal",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "anxinlegal",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anxin.legal"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#D4A574"
+      },
+      "package": "com.anxin.legal"
+    },
+    "plugins": ["expo-router", "expo-secure-store"]
+  }
+}

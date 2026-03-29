@@ -537,3 +537,185 @@ async def get_vector_store_info(user: User = Depends(get_current_user_required))
         "collections": collections,
     }
     return UnifiedResponse.success(data=data)
+
+
+class KnowledgeBaseUpdate(BaseModel):
+    """更新知识库"""
+    name: Optional[str] = None
+    description: Optional[str] = None
+    knowledge_type: Optional[str] = None
+    is_public: Optional[bool] = None
+
+
+class DocumentUpdate(BaseModel):
+    """更新文档"""
+    title: Optional[str] = None
+    content: Optional[str] = None
+    source: Optional[str] = None
+    tags: Optional[list] = None
+    law_category: Optional[str] = None
+    effective_date: Optional[str] = None
+    issuing_authority: Optional[str] = None
+
+
+class DocumentDetailResponse(BaseModel):
+    """文档详情响应（含内容）"""
+    id: str
+    title: str
+    content: str
+    source: Optional[str] = None
+    source_url: Optional[str] = None
+    summary: Optional[str] = None
+    is_processed: bool
+    chunk_count: int = 0
+    tags: Optional[list] = None
+    law_category: Optional[str] = None
+    effective_date: Optional[str] = None
+    issuing_authority: Optional[str] = None
+    created_at: datetime
+
+
+@router.put("/bases/{kb_id}")
+async def update_knowledge_base(
+    kb_id: str,
+    update: KnowledgeBaseUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
+    """更新知识库"""
+    service = KnowledgeService(db)
+    update_data = update.model_dump(exclude_none=True)
+    if not update_data:
+        return UnifiedResponse.error(message="未提供更新字段")
+
+    kb = await service.update_knowledge_base(kb_id, **update_data)
+    if not kb:
+        return UnifiedResponse.error(code=404, message="知识库不存在")
+
+    data = KnowledgeBaseResponse(
+        id=kb.id, name=kb.name, knowledge_type=kb.knowledge_type.value,
+        description=kb.description, doc_count=kb.doc_count,
+        is_public=kb.is_public, created_at=kb.created_at,
+    )
+    return UnifiedResponse.success(data=data, message="更新成功")
+
+
+@router.delete("/bases/{kb_id}")
+async def delete_knowledge_base(
+    kb_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
+    """删除知识库"""
+    service = KnowledgeService(db)
+    success = await service.delete_knowledge_base(kb_id)
+    if not success:
+        return UnifiedResponse.error(code=404, message="知识库不存在")
+    return UnifiedResponse.success(message="知识库已删除")
+
+
+@router.get("/documents/{doc_id}")
+async def get_document_detail(
+    doc_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
+    """获取文档完整内容"""
+    service = KnowledgeService(db)
+    doc = await service.get_document(doc_id)
+    if not doc:
+        return UnifiedResponse.error(code=404, message="文档不存在")
+
+    data = DocumentDetailResponse(
+        id=doc.id, title=doc.title, content=doc.content,
+        source=doc.source, source_url=doc.source_url, summary=doc.summary,
+        is_processed=doc.is_processed, chunk_count=doc.chunk_count,
+        tags=doc.tags, law_category=doc.law_category,
+        effective_date=doc.effective_date, issuing_authority=doc.issuing_authority,
+        created_at=doc.created_at,
+    )
+    return UnifiedResponse.success(data=data)
+
+
+@router.put("/documents/{doc_id}")
+async def update_document(
+    doc_id: str,
+    update: DocumentUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
+    """更新文档"""
+    service = KnowledgeService(db)
+    update_data = update.model_dump(exclude_none=True)
+    if not update_data:
+        return UnifiedResponse.error(message="未提供更新字段")
+
+    doc = await service.update_document(doc_id, **update_data)
+    if not doc:
+        return UnifiedResponse.error(code=404, message="文档不存在")
+
+    data = KnowledgeDocumentResponse(
+        id=doc.id, title=doc.title, source=doc.source,
+        summary=doc.summary, is_processed=doc.is_processed,
+        tags=doc.tags, created_at=doc.created_at,
+    )
+    return UnifiedResponse.success(data=data, message="更新成功")
+
+
+@router.get("/bases/{kb_id}/stats")
+async def get_kb_stats(
+    kb_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
+    """获取知识库统计"""
+    service = KnowledgeService(db)
+    stats = await service.get_kb_stats_detail(kb_id)
+    if stats.get("error"):
+        return UnifiedResponse.error(code=404, message="知识库不存在")
+    return UnifiedResponse.success(data=stats)
+
+
+@router.post("/bases/{kb_id}/export")
+async def export_knowledge_base(
+    kb_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
+    """导出知识库为JSON"""
+    service = KnowledgeService(db)
+    result = await service.export_knowledge_base(kb_id)
+    if not result:
+        return UnifiedResponse.error(code=404, message="知识库不存在")
+    return UnifiedResponse.success(data=result)
+
+
+@router.post("/bases/{kb_id}/batch-upload")
+async def batch_upload_documents(
+    kb_id: str,
+    files: List[UploadFile] = File(...),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
+    """批量上传文件到知识库"""
+    service = KnowledgeService(db)
+    kb = await service.get_knowledge_base(kb_id)
+    if not kb:
+        return UnifiedResponse.error(code=404, message="知识库不存在")
+
+    results = []
+    for file in files:
+        content = await file.read()
+        result = await service.index_file(
+            kb_id=kb_id,
+            file_content=content,
+            file_name=file.filename,
+            metadata={"uploaded_by": user.id}
+        )
+        results.append({"filename": file.filename, **result})
+
+    success_count = sum(1 for r in results if r.get("success"))
+    return UnifiedResponse.success(
+        data={"results": results, "total": len(files), "success": success_count},
+        message=f"已处理 {len(files)} 个文件，成功 {success_count} 个"
+    )

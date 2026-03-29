@@ -1063,6 +1063,8 @@ interface DetailPanelProps {
   onExpandInGraph: () => void
   collapsed: boolean
   onToggleCollapse: () => void
+  onDeleteEntity?: (name: string) => void
+  onEditEntity?: (name: string) => void
 }
 
 function DetailPanel({
@@ -1073,6 +1075,8 @@ function DetailPanel({
   onExpandInGraph,
   collapsed,
   onToggleCollapse,
+  onDeleteEntity,
+  onEditEntity,
 }: DetailPanelProps) {
   if (collapsed) {
     return (
@@ -1221,13 +1225,35 @@ function DetailPanel({
             )}
 
             {/* 操作按钮 */}
-            <button
-              onClick={onExpandInGraph}
-              className={`${buttonStyle.secondary} w-full justify-center flex items-center gap-1.5`}
-            >
-              <icons.Network className={iconSize.sm} />
-              在图谱中展开
-            </button>
+            <div className="space-y-2">
+              <button
+                onClick={onExpandInGraph}
+                className={`${buttonStyle.secondary} w-full justify-center flex items-center gap-1.5`}
+              >
+                <icons.Network className={iconSize.sm} />
+                在图谱中展开
+              </button>
+              <div className="flex gap-2">
+                {onEditEntity && (
+                  <button
+                    onClick={() => onEditEntity(detail.name)}
+                    className={`${buttonStyle.ghost} flex-1 justify-center flex items-center gap-1.5`}
+                  >
+                    <icons.Edit className={iconSize.sm} />
+                    编辑
+                  </button>
+                )}
+                {onDeleteEntity && (
+                  <button
+                    onClick={() => onDeleteEntity(detail.name)}
+                    className="flex-1 justify-center flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                  >
+                    <icons.Trash2 className={iconSize.sm} />
+                    删除
+                  </button>
+                )}
+              </div>
+            </div>
           </>
         ) : (
           <EmptyState message="点击图谱节点查看详情" />
@@ -1332,6 +1358,33 @@ export default function KnowledgeGraph() {
 
   const [graphLoading, setGraphLoading] = useState(false)
   const [graphError, setGraphError] = useState<string | null>(null)
+
+  // --- 弹窗状态 ---
+  const [showAddEntity, setShowAddEntity] = useState(false)
+  const [showAddRelation, setShowAddRelation] = useState(false)
+  const [showImportExport, setShowImportExport] = useState(false)
+  const [showAIExtract, setShowAIExtract] = useState(false)
+
+  // --- 添加实体表单 ---
+  const [newEntityName, setNewEntityName] = useState('')
+  const [newEntityType, setNewEntityType] = useState('Entity')
+  const [newEntityProps, setNewEntityProps] = useState<{ key: string; value: string }[]>([])
+
+  // --- 添加关系表单 ---
+  const [newRelSubject, setNewRelSubject] = useState('')
+  const [newRelPredicate, setNewRelPredicate] = useState('INVOLVED_IN')
+  const [newRelObject, setNewRelObject] = useState('')
+
+  // --- 导入/导出 ---
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importPreview, setImportPreview] = useState<{ subject: string; predicate: string; object: string }[]>([])
+  const [exportLoading, setExportLoading] = useState(false)
+  const [importLoading, setImportLoading] = useState(false)
+
+  // --- AI 抽取 ---
+  const [extractText, setExtractText] = useState('')
+  const [extractLoading, setExtractLoading] = useState(false)
+  const [extractResult, setExtractResult] = useState<{ entities: any[]; relations: any[] } | null>(null)
 
   // --- 视口 ---
   const containerRef = useRef<HTMLDivElement>(null!)
@@ -1707,6 +1760,194 @@ export default function KnowledgeGraph() {
   }
 
   // ============================================================
+  // 管理操作：实体/关系 CRUD、导入导出、AI抽取
+  // ============================================================
+
+  async function handleCreateEntity() {
+    if (!newEntityName.trim()) {
+      toast.error('请输入实体名称')
+      return
+    }
+    try {
+      const properties: Record<string, any> = {}
+      newEntityProps.forEach((p) => {
+        if (p.key.trim()) properties[p.key.trim()] = p.value
+      })
+      await knowledgeCenterApi.createEntity({
+        name: newEntityName.trim(),
+        entity_type: newEntityType,
+        properties,
+      })
+      toast.success(`实体 "${newEntityName}" 创建成功`)
+      setShowAddEntity(false)
+      setNewEntityName('')
+      setNewEntityType('Entity')
+      setNewEntityProps([])
+      // 刷新图谱
+      loadSubgraph(newEntityName.trim(), 1)
+      loadStats()
+    } catch (err: any) {
+      toast.error(`创建实体失败: ${err?.message || '未知错误'}`)
+    }
+  }
+
+  async function handleDeleteEntity(name: string) {
+    if (!confirm(`确认删除实体 "${name}" 及其所有关系？此操作不可撤销。`)) return
+    try {
+      await knowledgeCenterApi.deleteEntity(name)
+      toast.success(`实体 "${name}" 已删除`)
+      // 从图谱中移除
+      setGraphNodes((prev) => prev.filter((n) => n.name !== name))
+      setGraphEdges((prev) => prev.filter((e) => e.source !== name && e.target !== name))
+      setSelectedNodeId(null)
+      setEntityDetail(null)
+      loadStats()
+    } catch (err: any) {
+      toast.error(`删除失败: ${err?.message || '未知错误'}`)
+    }
+  }
+
+  async function handleCreateRelation() {
+    if (!newRelSubject.trim() || !newRelObject.trim()) {
+      toast.error('请输入主体和客体名称')
+      return
+    }
+    try {
+      await knowledgeCenterApi.createRelation({
+        subject: newRelSubject.trim(),
+        predicate: newRelPredicate,
+        object: newRelObject.trim(),
+      })
+      toast.success('关系创建成功')
+      setShowAddRelation(false)
+      setNewRelSubject('')
+      setNewRelPredicate('INVOLVED_IN')
+      setNewRelObject('')
+      // 刷新
+      loadSubgraph(newRelSubject.trim(), 1)
+      loadStats()
+    } catch (err: any) {
+      toast.error(`创建关系失败: ${err?.message || '未知错误'}`)
+    }
+  }
+
+  async function handleExportGraph() {
+    setExportLoading(true)
+    try {
+      const data = await knowledgeCenterApi.exportGraph()
+      // 将三元组数据转为 CSV
+      const triples = data.triples || []
+      const header = 'subject,predicate,object'
+      const rows = triples.map((t: any) => `"${t.subject || t[0]}","${t.predicate || t[1]}","${t.object || t[2]}"`)
+      const csv = [header, ...rows].join('\n')
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `knowledge_graph_export_${new Date().toISOString().slice(0, 10)}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success(`导出成功，共 ${triples.length} 条三元组`)
+    } catch (err: any) {
+      toast.error(`导出失败: ${err?.message || '未知错误'}`)
+    } finally {
+      setExportLoading(false)
+    }
+  }
+
+  function handleImportFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImportFile(file)
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string
+      const lines = text.split('\n').filter((l) => l.trim())
+      // 跳过表头
+      const dataLines = lines[0]?.toLowerCase().includes('subject') ? lines.slice(1) : lines
+      const parsed = dataLines.map((line) => {
+        // 支持带引号和不带引号的CSV
+        const match = line.match(/^"?([^",]*)"?,\s*"?([^",]*)"?,\s*"?([^",]*)"?$/)
+        if (match) return { subject: match[1], predicate: match[2], object: match[3] }
+        const parts = line.split(',').map((s) => s.trim().replace(/^"|"$/g, ''))
+        return { subject: parts[0] || '', predicate: parts[1] || '', object: parts[2] || '' }
+      }).filter((t) => t.subject && t.predicate && t.object)
+      setImportPreview(parsed)
+    }
+    reader.readAsText(file)
+  }
+
+  async function handleImportConfirm() {
+    if (importPreview.length === 0) {
+      toast.error('没有可导入的数据')
+      return
+    }
+    setImportLoading(true)
+    let successCount = 0
+    let failCount = 0
+    try {
+      for (const triple of importPreview) {
+        try {
+          await knowledgeCenterApi.createRelation({
+            subject: triple.subject,
+            predicate: triple.predicate,
+            object: triple.object,
+          })
+          successCount++
+        } catch {
+          failCount++
+        }
+      }
+      toast.success(`导入完成：成功 ${successCount} 条${failCount > 0 ? `，失败 ${failCount} 条` : ''}`)
+      setShowImportExport(false)
+      setImportFile(null)
+      setImportPreview([])
+      loadStats()
+    } catch (err: any) {
+      toast.error(`导入失败: ${err?.message || '未知错误'}`)
+    } finally {
+      setImportLoading(false)
+    }
+  }
+
+  async function handleAIExtract() {
+    if (!extractText.trim()) {
+      toast.error('请输入要抽取的文本')
+      return
+    }
+    setExtractLoading(true)
+    setExtractResult(null)
+    try {
+      const result = await knowledgeCenterApi.extractEntities(extractText, false)
+      setExtractResult({ entities: result.entities || [], relations: result.relations || [] })
+      toast.success(`抽取完成：${result.entities?.length || 0} 个实体，${result.relations?.length || 0} 条关系`)
+    } catch (err: any) {
+      toast.error(`AI抽取失败: ${err?.message || '未知错误'}`)
+    } finally {
+      setExtractLoading(false)
+    }
+  }
+
+  async function handleAIExtractImport() {
+    if (!extractText.trim()) return
+    setExtractLoading(true)
+    try {
+      const result = await knowledgeCenterApi.extractEntities(extractText, true)
+      toast.success(
+        `已导入 ${result.imported_entities || 0} 个实体，${result.imported_relations || 0} 条关系`
+      )
+      setShowAIExtract(false)
+      setExtractText('')
+      setExtractResult(null)
+      loadStats()
+    } catch (err: any) {
+      toast.error(`导入失败: ${err?.message || '未知错误'}`)
+    } finally {
+      setExtractLoading(false)
+    }
+  }
+
+  // ============================================================
   // 渲染
   // ============================================================
 
@@ -1717,7 +1958,24 @@ export default function KnowledgeGraph() {
       scrollable={false}
       fullHeight
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <button onClick={() => setShowAddEntity(true)} className={buttonStyle.ghost} title="添加实体">
+            <icons.Plus className={iconSize.sm} />
+            <span className="hidden sm:inline text-xs ml-1">实体</span>
+          </button>
+          <button onClick={() => setShowAddRelation(true)} className={buttonStyle.ghost} title="添加关系">
+            <icons.Link className={iconSize.sm} />
+            <span className="hidden sm:inline text-xs ml-1">关系</span>
+          </button>
+          <button onClick={() => setShowImportExport(true)} className={buttonStyle.ghost} title="导入/导出">
+            <icons.Download className={iconSize.sm} />
+            <span className="hidden sm:inline text-xs ml-1">导入导出</span>
+          </button>
+          <button onClick={() => setShowAIExtract(true)} className={buttonStyle.ghost} title="AI抽取">
+            <icons.Sparkles className={iconSize.sm} />
+            <span className="hidden sm:inline text-xs ml-1">AI抽取</span>
+          </button>
+          <div className="w-px h-5 bg-border mx-1 hidden sm:block" />
           {graphNodes.length > 0 && (
             <>
               <button
@@ -1830,6 +2088,17 @@ export default function KnowledgeGraph() {
             onExpandInGraph={handleExpandInGraph}
             collapsed={detailCollapsed}
             onToggleCollapse={() => setDetailCollapsed(!detailCollapsed)}
+            onDeleteEntity={handleDeleteEntity}
+            onEditEntity={(name) => {
+              setNewEntityName(name)
+              setNewEntityType(entityDetail?.type || 'Entity')
+              setNewEntityProps(
+                entityDetail?.properties
+                  ? Object.entries(entityDetail.properties).map(([key, value]) => ({ key, value }))
+                  : []
+              )
+              setShowAddEntity(true)
+            }}
           />
         )}
       </div>
@@ -1844,6 +2113,389 @@ export default function KnowledgeGraph() {
         }}
         onClickRelation={handleClickRelation}
       />
+
+      {/* ============================================================ */}
+      {/* 弹窗：添加实体 */}
+      {/* ============================================================ */}
+      {showAddEntity && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-background border border-border rounded-2xl shadow-xl w-full max-w-md mx-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <h3 className={heading.section}>添加实体</h3>
+              <button onClick={() => setShowAddEntity(false)} className={buttonStyle.icon}>
+                <icons.X className={iconSize.sm} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              {/* 名称 */}
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1.5 block">
+                  名称 <span className="text-destructive">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newEntityName}
+                  onChange={(e) => setNewEntityName(e.target.value)}
+                  placeholder="输入实体名称"
+                  className={`${inputStyle.search} w-full`}
+                />
+              </div>
+              {/* 类型 */}
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1.5 block">类型</label>
+                <select
+                  value={newEntityType}
+                  onChange={(e) => setNewEntityType(e.target.value)}
+                  className={`${inputStyle.search} w-full`}
+                >
+                  {['Entity', 'Person', 'Court', 'Law', 'Company', 'Case', 'Provision'].map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+              {/* 属性 */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-medium text-foreground">属性</label>
+                  <button
+                    onClick={() => setNewEntityProps((prev) => [...prev, { key: '', value: '' }])}
+                    className={`${buttonStyle.ghost} text-xs`}
+                  >
+                    <icons.Plus className={iconSize.xs} />
+                    添加
+                  </button>
+                </div>
+                {newEntityProps.map((prop, idx) => (
+                  <div key={idx} className="flex gap-2 mb-2">
+                    <input
+                      type="text"
+                      value={prop.key}
+                      onChange={(e) => {
+                        const updated = [...newEntityProps]
+                        updated[idx].key = e.target.value
+                        setNewEntityProps(updated)
+                      }}
+                      placeholder="属性名"
+                      className={`${inputStyle.search} flex-1`}
+                    />
+                    <input
+                      type="text"
+                      value={prop.value}
+                      onChange={(e) => {
+                        const updated = [...newEntityProps]
+                        updated[idx].value = e.target.value
+                        setNewEntityProps(updated)
+                      }}
+                      placeholder="属性值"
+                      className={`${inputStyle.search} flex-1`}
+                    />
+                    <button
+                      onClick={() => setNewEntityProps((prev) => prev.filter((_, i) => i !== idx))}
+                      className={buttonStyle.icon}
+                    >
+                      <icons.X className={iconSize.xs} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 p-5 border-t border-border">
+              <button onClick={() => setShowAddEntity(false)} className={buttonStyle.secondary}>
+                取消
+              </button>
+              <button onClick={handleCreateEntity} className={buttonStyle.primary}>
+                创建实体
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* 弹窗：添加关系 */}
+      {/* ============================================================ */}
+      {showAddRelation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-background border border-border rounded-2xl shadow-xl w-full max-w-md mx-4">
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <h3 className={heading.section}>添加关系</h3>
+              <button onClick={() => setShowAddRelation(false)} className={buttonStyle.icon}>
+                <icons.X className={iconSize.sm} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1.5 block">
+                  主体名称 <span className="text-destructive">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newRelSubject}
+                  onChange={(e) => setNewRelSubject(e.target.value)}
+                  placeholder="输入主体实体名称"
+                  className={`${inputStyle.search} w-full`}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1.5 block">关系类型</label>
+                <select
+                  value={newRelPredicate}
+                  onChange={(e) => setNewRelPredicate(e.target.value)}
+                  className={`${inputStyle.search} w-full`}
+                >
+                  {[
+                    'INVOLVED_IN', 'HEARD_BY', 'REFERENCES', 'REPRESENTS',
+                    'APPLIES_TO', 'RELATED_TO', 'CITES', 'AMENDS',
+                    'REPEALS', 'SUPPLEMENTS', 'CONTRADICTS',
+                  ].map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1.5 block">
+                  客体名称 <span className="text-destructive">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newRelObject}
+                  onChange={(e) => setNewRelObject(e.target.value)}
+                  placeholder="输入客体实体名称"
+                  className={`${inputStyle.search} w-full`}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 p-5 border-t border-border">
+              <button onClick={() => setShowAddRelation(false)} className={buttonStyle.secondary}>
+                取消
+              </button>
+              <button onClick={handleCreateRelation} className={buttonStyle.primary}>
+                创建关系
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* 弹窗：导入/导出 */}
+      {/* ============================================================ */}
+      {showImportExport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-background border border-border rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <h3 className={heading.section}>导入 / 导出</h3>
+              <button onClick={() => { setShowImportExport(false); setImportFile(null); setImportPreview([]) }} className={buttonStyle.icon}>
+                <icons.X className={iconSize.sm} />
+              </button>
+            </div>
+            <div className="p-5 space-y-5">
+              {/* 导出区域 */}
+              <div>
+                <h4 className={`${heading.card} mb-2`}>导出图谱</h4>
+                <p className="text-xs text-muted-foreground mb-3">
+                  将当前知识图谱中所有三元组导出为 CSV 文件（subject, predicate, object 格式）
+                </p>
+                <button
+                  onClick={handleExportGraph}
+                  disabled={exportLoading}
+                  className={`${buttonStyle.secondary} flex items-center gap-1.5`}
+                >
+                  {exportLoading ? (
+                    <icons.Loader2 className={`${iconSize.sm} animate-spin`} />
+                  ) : (
+                    <icons.Download className={iconSize.sm} />
+                  )}
+                  {exportLoading ? '导出中...' : '导出 CSV'}
+                </button>
+              </div>
+
+              <div className="border-t border-border" />
+
+              {/* 导入区域 */}
+              <div>
+                <h4 className={`${heading.card} mb-2`}>导入三元组</h4>
+                <p className="text-xs text-muted-foreground mb-3">
+                  上传 CSV 文件，格式：subject, predicate, object（每行一条三元组）
+                </p>
+                <input
+                  type="file"
+                  accept=".csv,.txt"
+                  onChange={handleImportFileChange}
+                  className="block w-full text-xs text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border file:border-border file:text-xs file:font-medium file:bg-muted file:text-foreground hover:file:bg-muted/80 file:cursor-pointer"
+                />
+                {importFile && importPreview.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-xs text-foreground font-medium mb-2">
+                      预览（共 {importPreview.length} 条三元组）
+                    </p>
+                    <div className="border border-border rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+                      <table className="w-full text-[11px]">
+                        <thead>
+                          <tr className="bg-muted/50">
+                            <th className="px-2 py-1 text-left text-muted-foreground font-medium">主体</th>
+                            <th className="px-2 py-1 text-left text-muted-foreground font-medium">关系</th>
+                            <th className="px-2 py-1 text-left text-muted-foreground font-medium">客体</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {importPreview.slice(0, 20).map((t, i) => (
+                            <tr key={i} className="border-t border-border">
+                              <td className="px-2 py-1 text-foreground">{t.subject}</td>
+                              <td className="px-2 py-1 text-primary">{t.predicate}</td>
+                              <td className="px-2 py-1 text-foreground">{t.object}</td>
+                            </tr>
+                          ))}
+                          {importPreview.length > 20 && (
+                            <tr className="border-t border-border">
+                              <td colSpan={3} className="px-2 py-1 text-center text-muted-foreground">
+                                ... 还有 {importPreview.length - 20} 条
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                    <button
+                      onClick={handleImportConfirm}
+                      disabled={importLoading}
+                      className={`${buttonStyle.primary} mt-3 flex items-center gap-1.5`}
+                    >
+                      {importLoading ? (
+                        <icons.Loader2 className={`${iconSize.sm} animate-spin`} />
+                      ) : (
+                        <icons.Upload className={iconSize.sm} />
+                      )}
+                      {importLoading ? '导入中...' : `确认导入 ${importPreview.length} 条`}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* 弹窗：AI 实体抽取 */}
+      {/* ============================================================ */}
+      {showAIExtract && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-background border border-border rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <h3 className={heading.section}>AI 实体抽取</h3>
+              <button onClick={() => { setShowAIExtract(false); setExtractText(''); setExtractResult(null) }} className={buttonStyle.icon}>
+                <icons.X className={iconSize.sm} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1.5 block">
+                  输入文本
+                </label>
+                <textarea
+                  value={extractText}
+                  onChange={(e) => setExtractText(e.target.value)}
+                  placeholder="粘贴法律文本，AI 将自动抽取实体和关系..."
+                  rows={6}
+                  className={`${inputStyle.search} w-full resize-none`}
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  支持合同文本、裁判文书、法规条文等
+                </p>
+              </div>
+
+              <button
+                onClick={handleAIExtract}
+                disabled={extractLoading || !extractText.trim()}
+                className={`${buttonStyle.primary} flex items-center gap-1.5`}
+              >
+                {extractLoading ? (
+                  <icons.Loader2 className={`${iconSize.sm} animate-spin`} />
+                ) : (
+                  <icons.Sparkles className={iconSize.sm} />
+                )}
+                {extractLoading ? '抽取中...' : '开始抽取'}
+              </button>
+
+              {/* 抽取结果预览 */}
+              {extractResult && (
+                <div className="space-y-3">
+                  <div className="border-t border-border pt-3" />
+
+                  {/* 实体列表 */}
+                  {extractResult.entities.length > 0 && (
+                    <div>
+                      <h4 className={`${heading.card} mb-2`}>
+                        抽取到的实体
+                        <span className="text-muted-foreground font-normal ml-1">
+                          ({extractResult.entities.length})
+                        </span>
+                      </h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {extractResult.entities.map((ent: any, i: number) => (
+                          <span
+                            key={i}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-muted text-xs text-foreground"
+                          >
+                            <span
+                              className="w-1.5 h-1.5 rounded-full"
+                              style={{ backgroundColor: getNodeColor(ent.type || ent.entity_type || '') }}
+                            />
+                            {ent.name || ent.label}
+                            <span className="text-[10px] text-muted-foreground">
+                              {ent.type || ent.entity_type || ''}
+                            </span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 关系列表 */}
+                  {extractResult.relations.length > 0 && (
+                    <div>
+                      <h4 className={`${heading.card} mb-2`}>
+                        抽取到的关系
+                        <span className="text-muted-foreground font-normal ml-1">
+                          ({extractResult.relations.length})
+                        </span>
+                      </h4>
+                      <div className="border border-border rounded-lg overflow-hidden max-h-40 overflow-y-auto">
+                        <table className="w-full text-[11px]">
+                          <tbody>
+                            {extractResult.relations.map((rel: any, i: number) => (
+                              <tr key={i} className="border-b border-border last:border-b-0">
+                                <td className="px-2 py-1 text-foreground">{rel.subject || rel.source}</td>
+                                <td className="px-2 py-1 text-primary font-medium">{rel.predicate || rel.relation}</td>
+                                <td className="px-2 py-1 text-foreground">{rel.object || rel.target}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 导入按钮 */}
+                  <button
+                    onClick={handleAIExtractImport}
+                    disabled={extractLoading}
+                    className={`${buttonStyle.primary} w-full justify-center flex items-center gap-1.5`}
+                  >
+                    {extractLoading ? (
+                      <icons.Loader2 className={`${iconSize.sm} animate-spin`} />
+                    ) : (
+                      <icons.Upload className={iconSize.sm} />
+                    )}
+                    {extractLoading ? '导入中...' : '确认导入到图谱'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </PageContainer>
   )
 }

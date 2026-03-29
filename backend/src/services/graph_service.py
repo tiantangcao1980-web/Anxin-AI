@@ -642,5 +642,118 @@ class GraphService:
                 node_type = "document"
         return node_type
 
+    async def create_entity(self, name: str, entity_type: str = "Entity", properties: Optional[Dict[str, Any]] = None) -> dict:
+        """创建实体节点"""
+        if not self.graph:
+            return {"success": False, "error": "图数据库未连接"}
+        try:
+            props = properties or {}
+            props["name"] = name
+            props_str = ", ".join([f"n.{k} = ${k}" for k in props.keys()])
+            query = f"CREATE (n:{entity_type}) SET {props_str} RETURN n.name as name, labels(n) as labels"
+            result = self.query_graph(query, params=props)
+            self._invalidate_cache()
+            return {"success": True, "name": name, "type": entity_type}
+        except Exception as e:
+            logger.error(f"创建实体失败: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def update_entity(self, name: str, properties: Dict[str, Any]) -> dict:
+        """更新实体属性"""
+        if not self.graph:
+            return {"success": False, "error": "图数据库未连接"}
+        try:
+            set_clauses = []
+            params = {"name": name}
+            for k, v in properties.items():
+                if k == "name":
+                    continue
+                param_key = f"prop_{k}"
+                set_clauses.append(f"n.{k} = ${param_key}")
+                params[param_key] = v
+            if not set_clauses:
+                return {"success": True, "message": "无需更新"}
+            query = f"MATCH (n) WHERE n.name = $name SET {', '.join(set_clauses)} RETURN n.name as name"
+            result = self.query_graph(query, params=params)
+            self._invalidate_cache()
+            return {"success": bool(result), "name": name}
+        except Exception as e:
+            logger.error(f"更新实体失败: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def delete_entity(self, name: str) -> dict:
+        """删除实体及其所有关系"""
+        if not self.graph:
+            return {"success": False, "error": "图数据库未连接"}
+        try:
+            # 先获取关联数
+            count_query = "MATCH (n {name: $name})-[r]-() RETURN count(r) as cnt"
+            count_result = self.query_graph(count_query, params={"name": name})
+            relation_count = count_result[0]["cnt"] if count_result else 0
+
+            query = "MATCH (n {name: $name}) DETACH DELETE n RETURN count(*) as deleted"
+            result = self.query_graph(query, params={"name": name})
+            deleted = result[0]["deleted"] if result else 0
+            self._invalidate_cache()
+            return {"success": deleted > 0, "deleted_relations": relation_count}
+        except Exception as e:
+            logger.error(f"删除实体失败: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def create_relation(self, subject: str, predicate: str, obj: str, properties: Optional[Dict[str, Any]] = None) -> dict:
+        """创建关系"""
+        if not self.graph:
+            return {"success": False, "error": "图数据库未连接"}
+        try:
+            self.graph.add_triplet(subject, predicate, obj)
+            self._invalidate_cache()
+            return {"success": True, "subject": subject, "predicate": predicate, "object": obj}
+        except Exception as e:
+            logger.error(f"创建关系失败: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def delete_relation(self, subject: str, predicate: str, obj: str) -> dict:
+        """删除指定关系"""
+        if not self.graph:
+            return {"success": False, "error": "图数据库未连接"}
+        try:
+            query = """
+            MATCH (a {name: $subject})-[r]->(b {name: $object})
+            WHERE type(r) = $predicate
+            DELETE r
+            RETURN count(*) as deleted
+            """
+            result = self.query_graph(query, params={"subject": subject, "predicate": predicate, "object": obj})
+            deleted = result[0]["deleted"] if result else 0
+            self._invalidate_cache()
+            return {"success": deleted > 0, "deleted": deleted}
+        except Exception as e:
+            logger.error(f"删除关系失败: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def export_triples(self, entity_type: Optional[str] = None, limit: int = 10000) -> List[Dict[str, str]]:
+        """导出所有三元组为列表"""
+        if not self.graph:
+            return []
+        try:
+            safe_limit = max(1, min(int(limit), 50000))
+            if entity_type:
+                query = f"""
+                MATCH (a:{entity_type})-[r]->(b)
+                RETURN a.name as subject, type(r) as predicate, b.name as object
+                LIMIT {safe_limit}
+                """
+            else:
+                query = f"""
+                MATCH (a)-[r]->(b)
+                RETURN a.name as subject, type(r) as predicate, b.name as object
+                LIMIT {safe_limit}
+                """
+            results = self.query_graph(query)
+            return [{"subject": r["subject"], "predicate": r["predicate"], "object": r["object"]} for r in results if r.get("subject") and r.get("object")]
+        except Exception as e:
+            logger.error(f"导出三元组失败: {e}")
+            return []
+
 # 全局单例
 graph_service = GraphService()
