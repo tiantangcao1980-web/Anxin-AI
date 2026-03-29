@@ -250,7 +250,7 @@ export default function Leads() {
         ) : (
           <div className="space-y-2">
             {leads.map(lead => (
-              <div key={lead.id} onClick={() => setSelectedLead(lead)} className={cardStyle.interactive + ' flex items-center gap-4'}>
+              <div key={lead.id} onClick={() => setSelectedLead(lead)} className={cardStyle.interactive + ' flex items-center gap-3 sm:gap-4'}>
                 <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${stageConfig[lead.stage].color}`}>
                   {stageConfig[lead.stage].label}
                 </span>
@@ -258,9 +258,9 @@ export default function Leads() {
                   <p className={heading.card + ' truncate'}>{lead.clientName}</p>
                   <p className="text-xs text-muted-foreground">{lead.caseType}</p>
                 </div>
-                <span className="text-xs text-muted-foreground flex-shrink-0">{lead.source}</span>
+                <span className="text-xs text-muted-foreground flex-shrink-0 hidden sm:inline">{lead.source}</span>
                 <span className="text-xs font-medium text-foreground flex-shrink-0">{lead.estimatedAmount.toLocaleString()}元</span>
-                <span className="text-xs text-muted-foreground flex-shrink-0">{lead.assignee}</span>
+                <span className="text-xs text-muted-foreground flex-shrink-0 hidden sm:inline">{lead.assignee}</span>
               </div>
             ))}
           </div>

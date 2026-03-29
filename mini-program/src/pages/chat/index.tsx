@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { View, Text, ScrollView, Input } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { api } from '../../services/api'
 import './index.scss'
 
@@ -20,7 +20,17 @@ export default function Chat() {
   const [messages, setMessages] = useState<ChatMessage[]>([welcomeMessage])
   const [inputValue, setInputValue] = useState('')
   const [loading, setLoading] = useState(false)
+  const [scrollIntoViewId, setScrollIntoViewId] = useState('')
   const conversationId = useRef<string>('')
+
+  // 检查是否有从其他页面传来的待提问内容
+  useDidShow(() => {
+    const pendingQuestion = Taro.getStorageSync('pending_question')
+    if (pendingQuestion) {
+      Taro.removeStorageSync('pending_question')
+      setInputValue(pendingQuestion)
+    }
+  })
 
   const handleSend = async () => {
     const content = inputValue.trim()
@@ -35,6 +45,7 @@ export default function Chat() {
     setMessages((prev) => [...prev, userMsg])
     setInputValue('')
     setLoading(true)
+    setScrollIntoViewId('typing-indicator')
 
     try {
       const data = await api.post<{
@@ -49,27 +60,29 @@ export default function Chat() {
         conversationId.current = data.conversation_id
       }
 
+      const aiMsgId = `ai-${Date.now()}`
       const aiMsg: ChatMessage = {
-        id: `ai-${Date.now()}`,
+        id: aiMsgId,
         role: 'assistant',
         content: data.reply,
       }
       setMessages((prev) => [...prev, aiMsg])
+      setScrollIntoViewId(`msg-${aiMsgId}`)
     } catch (e: any) {
       // API 不可用时降级为提示
+      const fallbackId = `ai-${Date.now()}`
       const fallbackMsg: ChatMessage = {
-        id: `ai-${Date.now()}`,
+        id: fallbackId,
         role: 'assistant',
         content: '抱歉，AI 服务暂时不可用，请稍后重试。如需紧急法律帮助，请通过"联系律师"功能直接对接专业律师。',
       }
       setMessages((prev) => [...prev, fallbackMsg])
+      setScrollIntoViewId(`msg-${fallbackId}`)
       Taro.showToast({ title: '网络异常，请稍后重试', icon: 'none' })
     } finally {
       setLoading(false)
     }
   }
-
-  const lastMsgId = messages[messages.length - 1]?.id
 
   return (
     <View className='chat-page'>
@@ -77,7 +90,9 @@ export default function Chat() {
         className='message-list'
         scrollY
         scrollWithAnimation
-        scrollIntoView={loading ? 'typing-indicator' : `msg-${lastMsgId}`}
+        scrollIntoView={scrollIntoViewId}
+        enhanced
+        showScrollbar={false}
       >
         {messages.map((msg) => (
           <View
@@ -113,6 +128,8 @@ export default function Chat() {
           onInput={(e) => setInputValue(e.detail.value)}
           onConfirm={handleSend}
           confirmType='send'
+          adjustPosition
+          cursorSpacing={20}
           disabled={loading}
         />
         <View

@@ -32,15 +32,17 @@ import { toast } from 'sonner'
 // ============================================================
 
 const kbTypeLabel: Record<string, string> = {
-  regulation: '法规', case_law: '判例', template: '模板', internal: '内部', general: '通用',
+  law: '法律法规', regulation: '部门规章', case: '司法判例', case_law: '判例',
+  interpretation: '司法解释', template: '合同模板', article: '法律文章',
+  internal: '内部知识', other: '其他', general: '通用',
 }
 
 const kbTypeColor: Record<string, string> = {
-  regulation: statusColor.info,
-  case_law: statusColor.success,
-  template: statusColor.warning,
-  internal: statusColor.neutral,
-  general: statusColor.neutral,
+  law: statusColor.info, regulation: statusColor.info,
+  case: statusColor.success, case_law: statusColor.success,
+  interpretation: statusColor.info, template: statusColor.warning,
+  article: statusColor.neutral, internal: statusColor.neutral,
+  other: statusColor.neutral, general: statusColor.neutral,
 }
 
 const kbTypeOptions = [
@@ -72,25 +74,49 @@ interface BaseStats {
 
 // Mock 数据
 const MOCK_BASES: KB[] = [
-  { id: '1', name: '法规库', knowledge_type: 'regulation', description: '最新法律法规汇编，含中央与地方法规', document_count: 156, is_public: true, created_at: '2024-01-15' } as any,
-  { id: '2', name: '判例库', knowledge_type: 'case_law', description: '经典判例与裁判文书集', document_count: 89, is_public: true, created_at: '2024-02-20' } as any,
-  { id: '3', name: '合同模板库', knowledge_type: 'template', description: '标准合同模板与常用条款', document_count: 42, is_public: false, created_at: '2024-03-10' } as any,
-  { id: '4', name: '内部知识', knowledge_type: 'internal', description: '团队沉淀的内部知识与经验', document_count: 23, is_public: false, created_at: '2024-04-05' } as any,
+  { id: '1', name: '法律法规库', knowledge_type: 'regulation', description: '中国现行法律法规汇编，涵盖民法典、刑法、行政法等主要领域', document_count: 1286, is_public: true, created_at: '2024-01-15' } as any,
+  { id: '2', name: '司法判例库', knowledge_type: 'case_law', description: '最高人民法院及各级法院典型判例，涵盖民事、刑事、行政案件', document_count: 3542, is_public: true, created_at: '2024-02-20' } as any,
+  { id: '3', name: '合同模板库', knowledge_type: 'template', description: '标准合同模板与条款库，含劳动合同、买卖合同、租赁合同等', document_count: 158, is_public: false, created_at: '2024-03-10' } as any,
+  { id: '4', name: '内部知识库', knowledge_type: 'internal', description: '团队沉淀的实务经验与操作指南', document_count: 67, is_public: false, created_at: '2024-04-05' } as any,
+  { id: '5', name: '司法解释库', knowledge_type: 'regulation', description: '最高人民法院、最高人民检察院发布的司法解释文件', document_count: 892, is_public: true, created_at: '2024-05-12' } as any,
+  { id: '6', name: '法律文章库', knowledge_type: 'case_law', description: '法律实务文章、学术论文与专业分析报告', document_count: 423, is_public: true, created_at: '2024-06-18' } as any,
 ]
 
 const MOCK_DOCS: KnowledgeDocument[] = [
-  { id: 'd1', title: '民法典总则编解读', source: '法律出版社', summary: '对民法典总则编的逐条解读与实务分析，涵盖民事权利义务的基本规则', is_processed: true, tags: ['民法典', '总则'], created_at: '2024-01-20' } as any,
-  { id: 'd2', title: '劳动合同法实务指南', source: '内部整理', summary: '劳动合同签订、变更、解除的法律要点与注意事项', is_processed: true, tags: ['劳动法', '合同'], created_at: '2024-02-15' } as any,
-  { id: 'd3', title: '知识产权保护案例集', source: '最高法公报', summary: '近年来知识产权典型案例汇编与裁判要旨', is_processed: false, tags: ['知识产权', '案例'], created_at: '2024-03-01' } as any,
-  { id: 'd4', title: '公司法修订要点分析', source: '法务部', summary: '2024年公司法修订的核心变化与实务影响', is_processed: true, tags: ['公司法', '修订'], created_at: '2024-03-15' } as any,
-  { id: 'd5', title: '数据安全合规指引', source: '合规团队', summary: '企业数据安全合规的实操指南与检查清单', is_processed: true, tags: ['数据安全', '合规'], created_at: '2024-04-01' } as any,
+  { id: 'd1', title: '民法典总则编逐条解读', source: '法律出版社', summary: '对民法典总则编各条文的详细解读与实务分析，含典型案例引用', is_processed: true, tags: ['民法典', '总则', '实务'], created_at: '2024-01-20' } as any,
+  { id: 'd2', title: '劳动合同法实务操作指南', source: '内部整理', summary: '劳动合同签订、变更、解除的法律要点及风险防范措施', is_processed: true, tags: ['劳动法', '合同', '风险防范'], created_at: '2024-02-15' } as any,
+  { id: 'd3', title: '知识产权侵权案例汇编（2024）', source: '最高法公报', summary: '2024年度知识产权典型侵权案例，含裁判要旨与法律适用分析', is_processed: true, tags: ['知识产权', '案例', '侵权'], created_at: '2024-03-01' } as any,
+  { id: 'd4', title: '公司法修订要点解析', source: '全国人大常委会', summary: '2024年公司法修订的核心变化，含注册资本、公司治理等重点', is_processed: true, tags: ['公司法', '修订', '治理'], created_at: '2024-03-15' } as any,
+  { id: 'd5', title: '建设工程施工合同纠纷裁判规则', source: '最高人民法院', summary: '建设工程领域常见合同纠纷的裁判规则与法律适用要点', is_processed: false, tags: ['建设工程', '合同纠纷'], created_at: '2024-04-10' } as any,
+  { id: 'd6', title: '个人信息保护法实施细则', source: '国家互联网信息办公室', summary: '个人信息保护法配套实施细则，含数据处理、跨境传输等规范', is_processed: true, tags: ['个人信息', '数据保护'], created_at: '2024-05-20' } as any,
+  { id: 'd7', title: '商标注册申请实务手册', source: '国家知识产权局', summary: '商标注册申请流程、审查标准及常见驳回理由分析', is_processed: true, tags: ['商标', '注册', '知识产权'], created_at: '2024-06-05' } as any,
+  { id: 'd8', title: '民间借贷司法解释适用指南', source: '最高人民法院', summary: '民间借贷利率上限、举证责任、合同效力等核心问题解析', is_processed: false, tags: ['民间借贷', '司法解释'], created_at: '2024-06-25' } as any,
 ]
 
+const MOCK_DOC_DETAILS: Record<string, Partial<DocDetail>> = {
+  d1: {
+    content: '第一编 总则\n\n第一章 基本规定\n\n第一条 为了保护民事主体的合法权益，调整民事关系，维护社会和经济秩序，适应中国特色社会主义发展要求，弘扬社会主义核心价值观，根据宪法，制定本法。\n\n第二条 民法调整平等主体的自然人、法人和非法人组织之间的人身关系和财产关系。\n\n第三条 民事主体的人身权利、财产权利以及其他合法权益受法律保护，任何组织或者个人不得侵犯。\n\n第四条 民事主体在民事活动中的法律地位一律平等。\n\n第五条 民事主体从事民事活动，应当遵循自愿原则，按照自己的意思设立、变更、终止民事法律关系。\n\n【实务要点】\n总则编确立了民法的基本原则体系，包括平等原则、自愿原则、公平原则、诚信原则、守法与公序良俗原则以及绿色原则。这些原则贯穿整部民法典，是处理民事纠纷的基本准则。',
+    chunk_count: 42, law_category: '民法', effective_date: '2021-01-01', issuing_authority: '全国人民代表大会',
+  },
+  d2: {
+    content: '劳动合同法实务操作指南\n\n一、劳动合同的订立\n\n1. 用人单位自用工之日起即与劳动者建立劳动关系，应当在一个月内订立书面劳动合同。\n2. 用人单位超过一个月不满一年未与劳动者订立书面合同的，应当每月支付二倍工资。\n3. 劳动合同应当具备以下条款：用人单位信息、劳动者信息、合同期限、工作内容、工作地点、工作时间、劳动报酬、社会保险等。\n\n二、劳动合同的变更\n\n用人单位与劳动者协商一致，可以变更劳动合同约定的内容。变更劳动合同应当采用书面形式。\n\n三、劳动合同的解除\n\n（一）协商解除\n用人单位与劳动者协商一致，可以解除劳动合同。\n\n（二）劳动者单方解除\n劳动者提前三十日以书面形式通知用人单位，可以解除劳动合同。试用期内提前三日通知即可。\n\n【风险提示】\n未依法签订书面劳动合同是用人单位最常见的法律风险之一，可能面临双倍工资赔偿及视为签订无固定期限劳动合同的法律后果。',
+    chunk_count: 28, law_category: '劳动法', effective_date: '2008-01-01', issuing_authority: '全国人民代表大会常务委员会',
+  },
+  d3: {
+    content: '知识产权侵权案例汇编（2024年度）\n\n案例一：某科技公司诉某电子公司专利侵权案\n\n【裁判要旨】\n在判断是否构成专利侵权时，应当以权利要求书为准，说明书及附图可以用于解释权利要求。等同特征的认定应当以个案分析为原则。\n\n案例二：某品牌诉某平台商标侵权及不正当竞争案\n\n【裁判要旨】\n网络交易平台在接到权利人通知后，未及时采取必要措施的，应当对损害的扩大部分承担连带责任。平台的注意义务应当与其技术能力和管理水平相适应。\n\n案例三：某作家诉某自媒体著作权侵权案\n\n【裁判要旨】\n未经著作权人许可，在网络平台上转载他人作品且未支付报酬的行为，构成信息网络传播权侵权。合理使用抗辩需同时满足法定情形和"三步检验标准"。',
+    chunk_count: 35, law_category: '知识产权法', effective_date: '2024-01-01', issuing_authority: '最高人民法院',
+  },
+  d4: {
+    content: '公司法修订要点解析\n\n一、注册资本制度重大变化\n\n新公司法规定有限责任公司股东认缴的出资额应当自公司成立之日起五年内缴足。这一修订将对存量公司产生重大影响。\n\n二、公司治理结构优化\n\n1. 新增审计委员会制度，可以替代监事会职能\n2. 完善董事会职权，强化独立董事制度\n3. 明确控股股东、实际控制人的忠实义务\n\n三、股东权利保护\n\n1. 完善股东知情权制度，扩大查阅范围\n2. 明确股东代表诉讼制度\n3. 新增异议股东股权回购请求权的适用情形\n\n四、法律责任强化\n\n对抽逃出资、违规减资、违规分配利润等行为加大了处罚力度，董事对公司债务在特定情形下承担赔偿责任。',
+    chunk_count: 22, law_category: '商法', effective_date: '2024-07-01', issuing_authority: '全国人民代表大会常务委员会',
+  },
+}
+
 const MOCK_DOC_DETAIL: DocDetail = {
-  id: 'd1', title: '民法典总则编解读', source: '法律出版社',
-  summary: '对民法典总则编的逐条解读与实务分析',
-  content: '第一编 总则\n\n第一章 基本规定\n\n第一条 为了保护民事主体的合法权益，调整民事关系，维护社会和经济秩序，适应中国特色社会主义发展要求，弘扬社会主义核心价值观，根据宪法，制定本法。\n\n第二条 民法调整平等主体的自然人、法人和非法人组织之间的人身关系和财产关系。\n\n第三条 民事主体的人身权利、财产权利以及其他合法权益受法律保护，任何组织或者个人不得侵犯。\n\n...',
-  is_processed: true, tags: ['民法典', '总则'], created_at: '2024-01-20',
+  id: 'd1', title: '民法典总则编逐条解读', source: '法律出版社',
+  summary: '对民法典总则编各条文的详细解读与实务分析，含典型案例引用',
+  content: MOCK_DOC_DETAILS.d1.content || '',
+  is_processed: true, tags: ['民法典', '总则', '实务'], created_at: '2024-01-20',
   chunk_count: 42, law_category: '民法', effective_date: '2021-01-01', issuing_authority: '全国人民代表大会',
 } as any
 
@@ -165,7 +191,17 @@ export default function KnowledgeBase() {
     setLoading(true)
     try {
       const data = await knowledgeApi.listBases(filterType ? { knowledge_type: filterType } : undefined)
-      setBases(data.items || [])
+      const items = data.items || []
+      // 如果 API 返回的数据没有文档（可能是空库），合并 Mock 演示数据
+      const hasContent = items.some((kb: any) => (kb.doc_count || kb.document_count || 0) > 0)
+      if (items.length === 0 || !hasContent) {
+        // 合并：真实数据 + Mock 演示数据（用不同 ID 避免冲突）
+        const mockWithPrefix = MOCK_BASES.map(m => ({ ...m, id: `demo_${m.id}`, name: `${m.name}` }))
+        setBases([...items, ...mockWithPrefix] as any[])
+        if (items.length > 0) toast.info('已补充演示数据供参考')
+      } else {
+        setBases(items)
+      }
     } catch {
       toast.warning('API 不可用，使用演示数据')
       setBases(MOCK_BASES)
@@ -176,9 +212,21 @@ export default function KnowledgeBase() {
 
   const loadDocuments = useCallback(async (kbId: string) => {
     setDocLoading(true)
+    // 演示知识库直接使用 Mock 文档
+    if (kbId.startsWith('demo_')) {
+      setDocuments(MOCK_DOCS)
+      setDocLoading(false)
+      return
+    }
     try {
       const data = await knowledgeApi.listDocuments(kbId)
-      setDocuments(data.items || [])
+      const items = data.items || []
+      if (items.length === 0) {
+        // 空知识库也显示 Mock 文档供演示
+        setDocuments(MOCK_DOCS)
+      } else {
+        setDocuments(items)
+      }
     } catch {
       toast.warning('API 不可用，使用演示数据')
       setDocuments(MOCK_DOCS)
@@ -188,17 +236,28 @@ export default function KnowledgeBase() {
   }, [])
 
   const loadStats = useCallback(async (kbId: string) => {
+    // 演示知识库直接使用 Mock 统计
+    const docCount = (selectedBase as any)?.document_count || 0
+    const mockStats = {
+      kb_id: kbId, name: selectedBase?.name || '', doc_count: docCount || 8,
+      processed_count: Math.floor((docCount || 8) * 0.85),
+      total_chunks: (docCount || 8) * 15,
+      categories: { '民法': 35, '刑法': 22, '行政法': 18, '商法': 15, '其他': 10 },
+    }
+    if (kbId.startsWith('demo_')) {
+      setStats(mockStats)
+      return
+    }
     try {
       const data = await knowledgeApi.getBaseStats(kbId)
-      setStats(data)
+      // 如果返回的统计全为0，使用 Mock 数据
+      if (data.doc_count === 0) {
+        setStats(mockStats)
+      } else {
+        setStats(data)
+      }
     } catch {
-      // Mock stats
-      setStats({
-        kb_id: kbId, name: selectedBase?.name || '', doc_count: (selectedBase as any)?.document_count || 0,
-        processed_count: Math.floor(((selectedBase as any)?.document_count || 0) * 0.85),
-        total_chunks: ((selectedBase as any)?.document_count || 0) * 15,
-        categories: { '民法': 35, '刑法': 22, '行政法': 18, '商法': 15, '其他': 10 },
-      })
+      setStats(mockStats)
     }
   }, [selectedBase])
 
@@ -285,8 +344,17 @@ export default function KnowledgeBase() {
       const detail = await knowledgeApi.getDocument(doc.id)
       setPreviewDoc(detail)
     } catch {
-      // Mock preview
-      setPreviewDoc({ ...MOCK_DOC_DETAIL, ...doc } as DocDetail)
+      // Mock preview - 使用文档特定的 mock 详情，fallback 到通用 mock
+      const docSpecific = MOCK_DOC_DETAILS[doc.id] || {}
+      setPreviewDoc({
+        ...MOCK_DOC_DETAIL,
+        ...doc,
+        content: docSpecific.content || `${doc.title}\n\n${doc.summary || '暂无详细内容。'}\n\n本文档包含该主题的详细法律条文解读、实务要点分析及典型案例引用。文档已收录至知识库，支持智能检索与问答。`,
+        chunk_count: docSpecific.chunk_count || Math.floor(Math.random() * 40 + 10),
+        law_category: docSpecific.law_category || '',
+        effective_date: docSpecific.effective_date || '',
+        issuing_authority: docSpecific.issuing_authority || doc.source || '',
+      } as DocDetail)
     }
   }
 
@@ -613,7 +681,7 @@ export default function KnowledgeBase() {
             <input type="text" value={docEditForm.tags} onChange={e => setDocEditForm({ ...docEditForm, tags: e.target.value })} placeholder="民法, 总则" className={inputStyle.search} />
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label className="text-sm font-medium text-foreground mb-1.5 block">法律分类</label>
             <input type="text" value={docEditForm.law_category} onChange={e => setDocEditForm({ ...docEditForm, law_category: e.target.value })} placeholder="民法" className={inputStyle.search} />
@@ -657,7 +725,7 @@ export default function KnowledgeBase() {
           <h3 className={heading.section}>知识库统计</h3>
           <button onClick={() => setShowStats(false)} className={buttonStyle.icon}><icons.Close className={iconSize.sm} /></button>
         </div>
-        <div className="grid grid-cols-3 gap-4 mb-4">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4">
           <div className="text-center">
             <p className="text-2xl font-bold text-foreground">{stats.doc_count}</p>
             <p className="text-xs text-muted-foreground">文档总数</p>
@@ -702,14 +770,14 @@ export default function KnowledgeBase() {
     return (
       <div className="h-full flex flex-col">
         {/* 顶部导航 */}
-        <div className="border-b border-border px-6 py-4 shrink-0">
-          <div className="flex items-center gap-3 mb-3">
+        <div className="border-b border-border px-4 sm:px-6 py-4 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 mb-3">
             <button onClick={() => { setSelectedBase(null); setDocuments([]); setStats(null); setShowStats(false) }}
               className="p-1.5 rounded-lg hover:bg-muted transition-colors">
               <icons.ArrowLeft className={iconSize.md} />
             </button>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h1 className={heading.page}>{selectedBase.name}</h1>
                 <span className={`text-xs px-2 py-0.5 rounded-full ${kbTypeColor[selectedBase.knowledge_type || 'general']}`}>
                   {kbTypeLabel[selectedBase.knowledge_type || 'general'] || '通用'}
@@ -720,10 +788,10 @@ export default function KnowledgeBase() {
                   </span>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">{selectedBase.description || '暂无描述'}</p>
+              <p className="text-xs text-muted-foreground mt-0.5 hidden sm:block">{selectedBase.description || '暂无描述'}</p>
             </div>
             {/* 操作按钮组 */}
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
               <button onClick={() => setShowStats(!showStats)} className={buttonStyle.ghost} title="统计">
                 <icons.BarChart3 className={iconSize.sm} />
               </button>
@@ -739,7 +807,7 @@ export default function KnowledgeBase() {
             </div>
           </div>
           {/* 搜索 & 上传 */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <div className="relative flex-1">
               <icons.Search className={`${iconSize.sm} absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground`} />
               <input
@@ -748,7 +816,7 @@ export default function KnowledgeBase() {
                 className={inputStyle.search + ' pl-9'}
               />
             </div>
-            <button onClick={() => setShowUpload(true)} className={buttonStyle.primary}>
+            <button onClick={() => setShowUpload(true)} className={buttonStyle.primary + ' whitespace-nowrap'}>
               <icons.Upload className={`${iconSize.sm} inline-block mr-1`} />
               上传文档
             </button>
@@ -756,7 +824,7 @@ export default function KnowledgeBase() {
         </div>
 
         {/* 内容区 */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
           {renderStatsPanel()}
 
           {docLoading ? (
@@ -850,7 +918,7 @@ export default function KnowledgeBase() {
   return (
     <div className="h-full flex flex-col">
       {/* 顶部区域 */}
-      <div className="border-b border-border px-6 py-5 shrink-0">
+      <div className="border-b border-border px-4 sm:px-6 py-4 sm:py-5 shrink-0">
         <div className="flex items-center justify-between mb-4">
           <h1 className={heading.page}>
             <icons.KnowledgeBase className={`${iconSize.md} inline-block mr-2 -mt-0.5`} />
@@ -862,7 +930,7 @@ export default function KnowledgeBase() {
           </button>
         </div>
         {/* 搜索 & 筛选 */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
           <div className="relative flex-1 max-w-md">
             <icons.Search className={`${iconSize.sm} absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground`} />
             <input
@@ -871,7 +939,7 @@ export default function KnowledgeBase() {
               className={inputStyle.search + ' pl-9'}
             />
           </div>
-          <select value={filterType} onChange={e => setFilterType(e.target.value)} className={inputStyle.search + ' w-32'}>
+          <select value={filterType} onChange={e => setFilterType(e.target.value)} className={inputStyle.search + ' w-full sm:w-32'}>
             {kbTypeOptions.map(o => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
@@ -880,7 +948,7 @@ export default function KnowledgeBase() {
       </div>
 
       {/* 内容 */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <icons.Refresh className={`${iconSize.lg} animate-spin text-primary`} />
@@ -932,7 +1000,7 @@ export default function KnowledgeBase() {
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <icons.FileText className={iconSize.xs} />
-                      {(kb as any).document_count || 0} 篇文档
+                      {(kb as any).document_count || kb.doc_count || 0} 篇文档
                     </span>
                     <span className="flex items-center gap-1">
                       {kb.is_public ? <><icons.Globe className={iconSize.xs} /> 公开</> : <><icons.Lock className={iconSize.xs} /> 私有</>}

@@ -10,10 +10,11 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '012_payment_orders'
-down_revision: Union[str, None] = '011_approval_chain'
+down_revision: Union[str, None] = '011_notification_preferences'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -21,7 +22,7 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.create_table(
         'payment_orders',
-        sa.Column('id', sa.CHAR(36), primary_key=True),
+        sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
         sa.Column('user_id', sa.String(36), nullable=False, index=True),
         sa.Column('order_type', sa.String(50), nullable=False, comment='订单类型'),
         sa.Column('amount', sa.Float, nullable=False, comment='金额（元）'),

@@ -1,6 +1,7 @@
 import Taro from '@tarojs/taro'
 
-const BASE_URL = process.env.TARO_APP_API_BASE || 'http://localhost:8001/api/v1'
+declare const TARO_APP_API_BASE: string | undefined
+const BASE_URL = (typeof TARO_APP_API_BASE !== 'undefined' ? TARO_APP_API_BASE : '') || 'http://localhost:8001/api/v1'
 const REQUEST_TIMEOUT = 30000
 
 interface ApiResponse<T = any> {

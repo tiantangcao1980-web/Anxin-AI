@@ -102,13 +102,20 @@ export default function Profile() {
     })
   }
 
+  // tabBar 页面路径列表
+  const tabBarPaths = ['/pages/index/index', '/pages/chat/index', '/pages/profile/index']
+
   const handleMenuClick = (item: typeof menuItems[0]) => {
     if (!isLoggedIn) {
       Taro.showToast({ title: '请先登录', icon: 'none' })
       return
     }
     if (item.path) {
-      Taro.navigateTo({ url: item.path })
+      if (tabBarPaths.includes(item.path)) {
+        Taro.switchTab({ url: item.path })
+      } else {
+        Taro.navigateTo({ url: item.path })
+      }
     } else {
       Taro.showToast({ title: `${item.title} - 功能开发中`, icon: 'none' })
     }

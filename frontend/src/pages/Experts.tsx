@@ -103,7 +103,7 @@ export default function Experts() {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-3 sm:gap-4 gap-2 mb-6">
             <div className={cardStyle.base + ' text-center'}>
               <p className="text-2xl font-bold text-foreground">{selectedExpert.yearsOfExperience}</p>
               <p className="text-xs text-muted-foreground">执业年限</p>

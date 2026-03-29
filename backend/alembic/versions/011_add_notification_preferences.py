@@ -16,7 +16,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
 
 revision: str = '011_notification_preferences'
-down_revision: Union[str, None] = '010_lawyer_matching'
+down_revision: Union[str, None] = '011_approval_chain_templates'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

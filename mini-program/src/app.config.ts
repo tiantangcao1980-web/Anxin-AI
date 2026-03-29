@@ -1,3 +1,4 @@
+// 注意: tabBar 图标文件需要先运行 node scripts/generate-icons.js 生成
 export default defineAppConfig({
   pages: [
     'pages/index/index',
@@ -5,10 +6,12 @@ export default defineAppConfig({
     'pages/profile/index',
   ],
   window: {
-    backgroundTextStyle: 'light',
+    backgroundTextStyle: 'dark',
     navigationBarBackgroundColor: '#D4A574',
     navigationBarTitleText: '安心法务',
     navigationBarTextStyle: 'white',
+    enablePullDownRefresh: false,
+    backgroundColor: '#F5F5F5',
   },
   tabBar: {
     color: '#999999',

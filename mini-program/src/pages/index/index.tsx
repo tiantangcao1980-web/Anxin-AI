@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { View, Text, Input, Image } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { usePullDownRefresh } from '@tarojs/taro'
 import { api } from '../../services/api'
 import './index.scss'
 
@@ -33,6 +33,13 @@ export default function Index() {
     loadNews()
   }, [])
 
+  // 下拉刷新
+  usePullDownRefresh(() => {
+    loadNews().finally(() => {
+      Taro.stopPullDownRefresh()
+    })
+  })
+
   const loadNews = async () => {
     setNewsLoading(true)
     try {
@@ -47,17 +54,16 @@ export default function Index() {
   }
 
   const handleSearch = () => {
-    Taro.navigateTo({ url: '/pages/chat/index' })
+    Taro.switchTab({ url: '/pages/chat/index' })
   }
+
+  // tabBar 页面路径列表，用于判断跳转方式
+  const tabBarPaths = ['/pages/index/index', '/pages/chat/index', '/pages/profile/index']
 
   const handleQuickAction = (action: typeof quickActions[0]) => {
     if (action.path) {
-      // chat 页面是 tabBar 页面则用 switchTab，否则 navigateTo
-      if (action.path.includes('/pages/chat/')) {
-        Taro.switchTab({ url: action.path }).catch(() => {
-          // switchTab 失败则尝试 navigateTo（可能不是 tabBar 页面）
-          Taro.navigateTo({ url: action.path })
-        })
+      if (tabBarPaths.includes(action.path)) {
+        Taro.switchTab({ url: action.path })
       } else {
         Taro.navigateTo({ url: action.path })
       }
@@ -67,7 +73,9 @@ export default function Index() {
   }
 
   const handleNewsClick = (item: NewsItem) => {
-    Taro.navigateTo({ url: `/pages/chat/index?question=${encodeURIComponent(item.title)}` })
+    // tabBar 页不支持 navigateTo 传参，通过 storage 中转
+    Taro.setStorageSync('pending_question', item.title)
+    Taro.switchTab({ url: '/pages/chat/index' })
   }
 
   return (

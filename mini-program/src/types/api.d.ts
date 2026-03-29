@@ -48,3 +48,35 @@ export interface PaginatedResponse<T> {
   page: number
   page_size: number
 }
+
+/** API 通用响应 */
+export interface ApiResponse<T = any> {
+  code: number
+  data: T
+  message: string
+  request_id: string
+}
+
+/** 登录响应 */
+export interface LoginResponse {
+  access_token: string
+  refresh_token?: string
+  user: {
+    nickname: string
+    avatar_url: string
+  }
+}
+
+/** 聊天发送响应 */
+export interface ChatSendResponse {
+  reply: string
+  conversation_id?: string
+}
+
+/** 资讯条目 */
+export interface NewsItem {
+  id: string
+  title: string
+  date: string
+  tag: string
+}

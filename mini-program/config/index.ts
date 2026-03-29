@@ -30,7 +30,10 @@ export default defineConfig(async (merge) => {
       postcss: {
         pxtransform: {
           enable: true,
-          config: {},
+          config: {
+            // 样式文件已使用 rpx 单位，此处仅转换第三方库中可能使用的 px
+            selectorBlackList: ['body'],
+          },
         },
         url: {
           enable: true,
