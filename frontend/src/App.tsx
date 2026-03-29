@@ -14,10 +14,11 @@
  * 添加 404 兜底路由
  */
 
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import Layout from '@/components/Layout'
+// ModuleLayout is used inside Layout.tsx based on current route
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { PageSkeleton } from '@/components/PageSkeleton'
 import { PrivacyProvider } from '@/context/PrivacyContext'
@@ -44,10 +45,8 @@ const News = lazy(() => import('@/pages/News'))
 const DueDiligence = lazy(() => import('@/pages/DueDiligence'))
 
 // 法律智库
-const Search = lazy(() => import('@/pages/Search'))
 const KnowledgeGraph = lazy(() => import('@/pages/KnowledgeGraph'))
 const KnowledgeBase = lazy(() => import('@/pages/KnowledgeBase'))
-const Academy = lazy(() => import('@/pages/Academy'))
 
 // 系统
 const Settings = lazy(() => import('@/pages/Settings'))
@@ -63,6 +62,10 @@ const LawyerOnboarding = lazy(() => import('@/pages/LawyerOnboarding'))
 const LawyerDashboard = lazy(() => import('@/pages/LawyerDashboard'))
 const Pricing = lazy(() => import('@/pages/Pricing'))
 const MySubscription = lazy(() => import('@/pages/MySubscription'))
+const AIAssistantSettings = lazy(() => import('@/pages/AIAssistantSettings'))
+const PrivateLLMSetup = lazy(() => import('@/pages/PrivateLLMSetup'))
+const ConversationInsights = lazy(() => import('@/pages/ConversationInsights'))
+const AgentWorkflow = lazy(() => import('@/pages/AgentWorkflow'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
 
 // 登录页
@@ -80,8 +83,21 @@ const AdminOrgs = lazy(() => import('@/pages/admin/AdminOrgs'))
 const AdminFeatureFlags = lazy(() => import('@/pages/admin/AdminFeatureFlags'))
 const AdminLawyerVerify = lazy(() => import('@/pages/admin/AdminLawyerVerify'))
 const AdminBilling = lazy(() => import('@/pages/admin/AdminBilling'))
+const AdminFirm = lazy(() => import('@/pages/admin/AdminFirm'))
+const AdminEnterprise = lazy(() => import('@/pages/admin/AdminEnterprise'))
+const AdminAcquisition = lazy(() => import('@/pages/admin/AdminAcquisition'))
 
 function App() {
+  // 全局监听 auth:redirect 事件，统一处理页面跳转
+  // 在 Tauri 桌面端可替换为 Tauri 路由方式，Web 端保持 window.location 行为
+  useEffect(() => {
+    const handler = (e: CustomEvent) => {
+      window.location.href = e.detail
+    }
+    window.addEventListener('auth:redirect', handler as EventListener)
+    return () => window.removeEventListener('auth:redirect', handler as EventListener)
+  }, [])
+
   return (
     <ErrorBoundary>
       <ThemeProvider>
@@ -105,6 +121,9 @@ function App() {
                 <Route path="feature-flags" element={<AdminFeatureFlags />} />
                 <Route path="lawyer-verify" element={<AdminLawyerVerify />} />
                 <Route path="billing" element={<AdminBilling />} />
+                <Route path="firm" element={<AdminFirm />} />
+                <Route path="enterprise" element={<AdminEnterprise />} />
+                <Route path="acquisition" element={<AdminAcquisition />} />
               </Route>
 
               {/* 受保护的业务路由 */}
@@ -129,20 +148,14 @@ function App() {
                 <Route path="due-diligence" element={<DueDiligence />} />
 
                 {/* ===== 法律智库 ===== */}
-                <Route path="search" element={<Search />} />
                 <Route path="knowledge-graph" element={<KnowledgeGraph />} />
                 <Route path="knowledge-base" element={<KnowledgeBase />} />
-                <Route path="academy" element={<Academy />} />
 
                 {/* ===== IM 即时通讯 ===== */}
                 <Route path="messages" element={<Messages />} />
 
-                {/* ===== 获客系统 ===== */}
+                {/* ===== 律师资料 ===== */}
                 <Route path="lawyer/:profileId" element={<LawyerProfile />} />
-                <Route path="acquisition" element={<AcquisitionDashboard />} />
-
-                {/* ===== 律所管理 ===== */}
-                <Route path="firm" element={<FirmManagement />} />
 
                 {/* ===== 律师入驻 ===== */}
                 <Route path="lawyer-onboarding" element={<LawyerOnboarding />} />
@@ -151,6 +164,12 @@ function App() {
                 {/* ===== 计费系统 ===== */}
                 <Route path="pricing" element={<Pricing />} />
                 <Route path="my-subscription" element={<MySubscription />} />
+
+                {/* ===== AI 配置已迁移到后台管理 ===== */}
+                <Route path="ai-assistant-settings" element={<Navigate to="/admin/ai-config" replace />} />
+                <Route path="private-llm" element={<Navigate to="/admin/ai-config" replace />} />
+                <Route path="conversation-insights" element={<Navigate to="/admin" replace />} />
+                <Route path="agent-workflow" element={<Navigate to="/admin" replace />} />
 
                 {/* ===== 系统（审批已整合进任务中心，系统设置仅保留个人中心） ===== */}
                 <Route path="settings" element={<Settings />} />
@@ -166,6 +185,10 @@ function App() {
                 <Route path="documents" element={<Navigate to="/collaboration" replace />} />
                 <Route path="experts" element={<Navigate to="/find-lawyer" replace />} />
                 <Route path="approvals" element={<Navigate to="/tasks" replace />} />
+                <Route path="search" element={<Navigate to="/due-diligence" replace />} />
+                <Route path="academy" element={<Navigate to="/knowledge-base" replace />} />
+                <Route path="firm" element={<Navigate to="/admin/firm" replace />} />
+                <Route path="acquisition" element={<Navigate to="/admin/acquisition" replace />} />
 
                 {/* ===== 404 兜底 ===== */}
                 <Route path="*" element={<NotFound />} />

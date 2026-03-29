@@ -41,7 +41,7 @@ export const FEATURE_FLAGS: Record<string, FeatureStatus> = {
   news: 'released',
   search: 'released',
   knowledge_graph: 'released',
-  academy: 'released',
+  academy: 'hidden',
   experts: 'released',
   leads: 'released',
   collaboration: 'released',
@@ -67,6 +67,11 @@ export const FEATURE_FLAGS: Record<string, FeatureStatus> = {
   billing: 'beta',
   firm_management: 'beta',
   feature_flags_admin: 'beta',
+  ai_assistant: 'beta',
+  private_llm: 'beta',
+  conversation_insights: 'beta',
+  agent_workflow: 'beta',
+  enterprise_management: 'beta',
 };
 
 // ===== 角色层级（用于判断管理权限）=====

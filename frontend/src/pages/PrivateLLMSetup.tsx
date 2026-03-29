@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { icons } from '@/lib/icons'
 import { toast } from 'sonner'
-import { cardStyle, buttonStyle, heading, iconSize, statusBadge, statusColor } from '@/lib/design-tokens'
+import { cardStyle, buttonStyle, heading, iconSize, inputStyle, statusBadge, statusColor } from '@/lib/design-tokens'
 import { PageContainer, PageSection } from '@/components/ui/PageContainer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

@@ -15,18 +15,54 @@ interface NavItem {
   icon: HeroIcon
 }
 
-// 后台管理导航 — 包含原系统设置（模型配置、服务集成、安全设置）和原系统配置
-const navItems: NavItem[] = [
-  { path: '/admin', label: '管理概览', icon: icons.Dashboard },
-  { path: '/admin/users', label: '用户管理', icon: icons.Users },
-  { path: '/admin/roles', label: '角色权限', icon: icons.Shield },
-  { path: '/admin/orgs', label: '组织管理', icon: icons.Building },
-  { path: '/admin/config', label: '系统配置', icon: icons.Settings },
-  { path: '/admin/security', label: '安全设置', icon: icons.Lock },
-  { path: '/admin/audit', label: '审计日志', icon: icons.FileText },
-  { path: '/admin/health', label: '系统监控', icon: icons.Server },
-  { path: '/admin/feature-flags', label: '功能开关', icon: icons.Target },
+// 后台管理导航 — 按功能分组
+interface NavGroup {
+  label: string
+  items: NavItem[]
+}
+
+const navGroups: NavGroup[] = [
+  {
+    label: '',
+    items: [
+      { path: '/admin', label: '管理概览', icon: icons.Dashboard },
+    ],
+  },
+  {
+    label: '用户与权限',
+    items: [
+      { path: '/admin/users', label: '用户管理', icon: icons.Users },
+      { path: '/admin/roles', label: '角色权限', icon: icons.Shield },
+      { path: '/admin/orgs', label: '组织管理', icon: icons.Building },
+    ],
+  },
+  {
+    label: '系统运维',
+    items: [
+      { path: '/admin/config', label: '系统配置', icon: icons.Settings },
+      { path: '/admin/ai-config', label: 'AI 配置', icon: icons.Cpu },
+      { path: '/admin/health', label: '系统监控', icon: icons.Server },
+    ],
+  },
+  {
+    label: '业务管理',
+    items: [
+      { path: '/admin/lawyer-verify', label: '律师认证', icon: icons.CheckCircle },
+      { path: '/admin/billing', label: '计费管理', icon: icons.DollarSign },
+    ],
+  },
+  {
+    label: '安全与合规',
+    items: [
+      { path: '/admin/security', label: '安全设置', icon: icons.Lock },
+      { path: '/admin/audit', label: '审计日志', icon: icons.FileText },
+      { path: '/admin/feature-flags', label: '功能开关', icon: icons.Target },
+    ],
+  },
 ]
+
+// 扁平化用于面包屑查找
+const allNavItems = navGroups.flatMap(g => g.items)
 
 export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false)
@@ -36,11 +72,11 @@ export default function AdminLayout() {
   const { user } = useAuthStore()
 
   // 面包屑
-  const currentNav = navItems.find(
+  const currentNav = allNavItems.find(
     (item) =>
       item.path === location.pathname ||
       (item.path !== '/admin' && location.pathname.startsWith(item.path))
-  ) || navItems[0]
+  ) || allNavItems[0]
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
@@ -55,7 +91,7 @@ export default function AdminLayout() {
       {/* 侧边栏 — 使用主题系统颜色 */}
       <motion.aside
         initial={false}
-        animate={{ width: collapsed ? 64 : 240 }}
+        animate={{ width: collapsed ? 56 : 220 }}
         transition={{ duration: 0.2, ease: 'easeInOut' }}
         className={`flex flex-col border-r border-border bg-card text-card-foreground shrink-0 ${
           mobileMenuOpen
@@ -83,43 +119,61 @@ export default function AdminLayout() {
           </AnimatePresence>
         </div>
 
-        {/* 导航列表 */}
-        <nav className="flex-1 py-4 space-y-1 overflow-y-auto">
-          {navItems.map((item) => {
-            const isActive =
-              item.path === '/admin'
-                ? location.pathname === '/admin'
-                : location.pathname.startsWith(item.path)
-            const Icon = item.icon
+        {/* 导航列表（分组） */}
+        <nav className="flex-1 py-2 overflow-y-auto">
+          {navGroups.map((group, gi) => (
+            <div key={gi}>
+              {/* 分组标题 */}
+              {group.label && !collapsed && (
+                <div className="px-4 pt-4 pb-1">
+                  <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">
+                    {group.label}
+                  </span>
+                </div>
+              )}
+              {group.label && collapsed && gi > 0 && (
+                <div className="mx-3 my-2 h-px bg-border/50" />
+              )}
 
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg transition-colors ${
-                  isActive
-                    ? 'bg-primary/10 text-primary font-medium'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                }`}
-                title={collapsed ? item.label : undefined}
-              >
-                <Icon className="w-5 h-5 shrink-0" />
-                <AnimatePresence>
-                  {!collapsed && (
-                    <motion.span
-                      initial={{ opacity: 0, width: 0 }}
-                      animate={{ opacity: 1, width: 'auto' }}
-                      exit={{ opacity: 0, width: 0 }}
-                      className="text-sm font-medium overflow-hidden whitespace-nowrap"
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  const isActive =
+                    item.path === '/admin'
+                      ? location.pathname === '/admin'
+                      : location.pathname.startsWith(item.path)
+                  const Icon = item.icon
+
+                  return (
+                    <NavLink
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`flex items-center gap-3 mx-2 px-3 py-2 rounded-lg transition-colors ${
+                        isActive
+                          ? 'bg-primary/10 text-primary font-medium'
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      }`}
+                      title={collapsed ? item.label : undefined}
                     >
-                      {item.label}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </NavLink>
-            )
-          })}
+                      <Icon className="w-4.5 h-4.5 shrink-0" />
+                      <AnimatePresence>
+                        {!collapsed && (
+                          <motion.span
+                            initial={{ opacity: 0, width: 0 }}
+                            animate={{ opacity: 1, width: 'auto' }}
+                            exit={{ opacity: 0, width: 0 }}
+                            className="text-[13px] font-medium overflow-hidden whitespace-nowrap"
+                          >
+                            {item.label}
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
+                    </NavLink>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
 
         {/* 折叠按钮 */}

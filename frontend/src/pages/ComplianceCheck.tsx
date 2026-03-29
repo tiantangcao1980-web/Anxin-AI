@@ -813,7 +813,7 @@ export default function ComplianceCheck() {
                     重新检测
                   </button>
                   <button
-                    onClick={() => (window.location.href = '/chat')}
+                    onClick={() => window.dispatchEvent(new CustomEvent('auth:redirect', { detail: '/chat' }))}
                     className={`${buttonStyle.primary} w-full sm:flex-1 flex items-center justify-center gap-2`}
                   >
                     <icons.Chat className={iconSize.sm} />

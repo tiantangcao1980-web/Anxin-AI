@@ -97,6 +97,9 @@ class DocumentSession(Base, TimestampMixin):
     edits: Mapped[list["DocumentEdit"]] = relationship(
         "DocumentEdit", back_populates="session", cascade="all, delete-orphan"
     )
+    snapshots: Mapped[list["DocumentSnapshot"]] = relationship(
+        "DocumentSnapshot", back_populates="session", cascade="all, delete-orphan"
+    )
 
 
 class DocumentCollaborator(Base, TimestampMixin):
@@ -191,3 +194,29 @@ class DocumentEdit(Base, TimestampMixin):
     collaborator: Mapped[Optional["DocumentCollaborator"]] = relationship(
         "DocumentCollaborator", back_populates="edits"
     )
+
+
+class DocumentSnapshot(Base, TimestampMixin):
+    """文档版本快照"""
+    __tablename__ = "document_snapshots"
+
+    session_id: Mapped[str] = mapped_column(
+        GUID(), ForeignKey("document_sessions.id", ondelete="CASCADE"), index=True
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    title: Mapped[Optional[str]] = mapped_column(String(200))
+    snapshot_type: Mapped[str] = mapped_column(
+        String(20), default="auto"  # auto | manual | restore
+    )
+    created_by: Mapped[Optional[str]] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="SET NULL")
+    )
+    description: Mapped[Optional[str]] = mapped_column(String(500))
+    byte_size: Mapped[int] = mapped_column(Integer, default=0)
+
+    # 关系
+    session: Mapped["DocumentSession"] = relationship(
+        "DocumentSession", back_populates="snapshots"
+    )
+    creator: Mapped[Optional["User"]] = relationship("User", foreign_keys=[created_by])

@@ -65,9 +65,9 @@ interface RightPanelProps {
   onWorkspaceAction?: (actionId: string, payload?: any) => void;
 }
 
+// 文档功能已整合到智能工作台内，不再作为独立 Tab
 const tabs: { id: RightPanelTab; label: string; icon: React.ElementType }[] = [
   { id: 'smart', label: '智能工作台', icon: icons.LayoutDashboard },
-  { id: 'document', label: '文档', icon: icons.FileText },
 ];
 
 export const RightPanel = memo(function RightPanel(props: RightPanelProps) {
@@ -82,37 +82,16 @@ export const RightPanel = memo(function RightPanel(props: RightPanelProps) {
 
   return (
     <div className="h-full flex flex-col bg-muted/30">
-      {/* Tab 导航栏 */}
-      <div className="flex items-center px-3 py-2 bg-background border-b border-border flex-shrink-0">
-        <div className="flex items-center gap-1 flex-1 bg-muted rounded-xl p-0.5">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            const hasDot = (tab.id === 'document' && hasDocument) || (tab.id === 'smart' && hasActivity);
-            
-            return (
-              <button
-                key={tab.id}
-                onClick={() => onTabChange(tab.id)}
-                className={`relative flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg transition-all ${
-                  isActive
-                    ? 'bg-background text-primary shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Icon className={iconSize.sm} />
-                <span>{tab.label}</span>
-                {hasDot && !isActive && (
-                  <span className="absolute top-1 right-2 w-1.5 h-1.5 bg-primary rounded-full" />
-                )}
-              </button>
-            );
-          })}
+      {/* 标题栏 */}
+      <div className="h-12 flex items-center px-4 bg-background border-b border-border flex-shrink-0">
+        <div className="flex items-center gap-2 flex-1">
+          <icons.LayoutDashboard className={`${iconSize.sm} text-primary`} />
+          <span className="text-sm font-semibold text-foreground">智能工作台</span>
         </div>
 
         {/* LIVE 指示灯 */}
         {isLive && (
-          <div className="flex items-center gap-1.5 ml-2 flex-shrink-0">
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 dark:bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 dark:bg-emerald-400" />
@@ -122,41 +101,23 @@ export const RightPanel = memo(function RightPanel(props: RightPanelProps) {
         )}
       </div>
 
-      {/* 内容区 */}
+      {/* 内容区 — 智能工作台（Agent + 文档 + 律师协作统一视图） */}
       <div className="flex-1 overflow-hidden relative">
-        <AnimatePresence mode="wait">
-          {/* ========== 智能面板 ========== */}
-          {activeTab === 'smart' && (
-            <motion.div
-              key="smart"
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 10 }}
-              transition={{ duration: 0.15 }}
-              className="h-full"
-            >
-              <AgentWorkspace
-                agentResults={props.agentResults}
-                thinkingSteps={props.thinkingSteps}
-                requirementAnalysis={props.requirementAnalysis}
-                a2uiData={props.a2uiData}
-                isProcessing={props.isProcessing}
-                onWorkspaceConfirm={props.onWorkspaceConfirm}
-                onWorkspaceAction={props.onWorkspaceAction}
-              />
-            </motion.div>
-          )}
+        <div className="h-full overflow-y-auto">
+          {/* Agent 工作区 */}
+          <AgentWorkspace
+            agentResults={props.agentResults}
+            thinkingSteps={props.thinkingSteps}
+            requirementAnalysis={props.requirementAnalysis}
+            a2uiData={props.a2uiData}
+            isProcessing={props.isProcessing}
+            onWorkspaceConfirm={props.onWorkspaceConfirm}
+            onWorkspaceAction={props.onWorkspaceAction}
+          />
 
-          {/* ========== 文档面板 ========== */}
-          {activeTab === 'document' && (
-            <motion.div
-              key="document"
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 10 }}
-              transition={{ duration: 0.15 }}
-              className="h-full relative"
-            >
+          {/* 文档编辑区（有文档内容时显示） */}
+          {props.canvasContent && (
+            <div className="border-t border-border">
               <CanvasEditor
                 canvas={props.canvasContent}
                 onContentChange={props.onCanvasContentChange}
@@ -170,36 +131,36 @@ export const RightPanel = memo(function RightPanel(props: RightPanelProps) {
                 isSaved={props.canvasSaved}
                 isOptimizing={props.isProcessing}
               />
+            </div>
+          )}
+        </div>
 
-              {/* 律师协助浮层 */}
-              <AnimatePresence>
-                {documentOverlay === 'lawyer' && (
-                  <motion.div
-                    initial={{ x: '100%' }}
-                    animate={{ x: 0 }}
-                    exit={{ x: '100%' }}
-                    transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                    className="absolute inset-0 bg-background z-20 shadow-xl"
-                  >
-                    <LawyerAssistPanel />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+        {/* 律师协助浮层 */}
+        <AnimatePresence>
+          {documentOverlay === 'lawyer' && (
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="absolute inset-0 bg-background z-20 shadow-xl"
+            >
+              <LawyerAssistPanel />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-              {/* 签约工作流浮层 */}
-              <AnimatePresence>
-                {documentOverlay === 'signing' && (
-                  <motion.div
-                    initial={{ x: '100%' }}
-                    animate={{ x: 0 }}
-                    exit={{ x: '100%' }}
-                    transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                    className="absolute inset-0 bg-background z-20 shadow-xl"
-                  >
-                    <SigningWorkflow />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+        {/* 签约工作流浮层 */}
+        <AnimatePresence>
+          {documentOverlay === 'signing' && (
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="absolute inset-0 bg-background z-20 shadow-xl"
+            >
+              <SigningWorkflow />
             </motion.div>
           )}
         </AnimatePresence>

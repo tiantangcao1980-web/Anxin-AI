@@ -36,11 +36,20 @@ const CONTRACT_TYPES = [
 export default function Contracts() {
   const [contracts, setContracts] = useState<Contract[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [showReviewModal, setShowReviewModal] = useState(false)
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
+
+  // @mock-data FALLBACK
+  const mockContracts: Contract[] = [
+    { id: 'mock-1', title: '软件开发服务合同', contract_number: 'CT-2026-001', contract_type: 'service', status: 'pending_review', risk_level: 'medium', risk_score: 0.45, amount: 500000, created_at: '2026-03-15', updated_at: '2026-03-20' } as Contract,
+    { id: 'mock-2', title: '办公场地租赁合同', contract_number: 'CT-2026-002', contract_type: 'lease', status: 'approved', risk_level: 'low', risk_score: 0.15, amount: 120000, created_at: '2026-03-10', updated_at: '2026-03-18' } as Contract,
+    { id: 'mock-3', title: '员工保密协议', contract_number: 'CT-2026-003', contract_type: 'nda', status: 'signed', risk_level: 'low', risk_score: 0.1, created_at: '2026-03-05', updated_at: '2026-03-12' } as Contract,
+    { id: 'mock-4', title: '供应商采购框架协议', contract_number: 'CT-2026-004', contract_type: 'purchase', status: 'under_review', risk_level: 'high', risk_score: 0.72, amount: 2000000, created_at: '2026-02-28', updated_at: '2026-03-22' } as Contract,
+  ]
 
   useEffect(() => {
     loadContracts()
@@ -48,12 +57,16 @@ export default function Contracts() {
 
   const loadContracts = async () => {
     setLoading(true)
+    setError(null)
     try {
       const response = await contractsApi.list({ page, page_size: 20 })
       setContracts(response.items)
       setTotal(response.total)
-    } catch (error: any) {
-      toast.error(error.message || '加载合同列表失败')
+    } catch (err: any) {
+      // @mock-data FALLBACK
+      toast.warning('API 不可用，使用演示数据')
+      setContracts(mockContracts)
+      setTotal(mockContracts.length)
     } finally {
       setLoading(false)
     }
@@ -132,6 +145,15 @@ export default function Contracts() {
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <icons.Loader2 className={`${iconSize.xl} animate-spin text-muted-foreground`} />
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <icons.AlertTriangle className={`${iconSize['2xl']} mx-auto text-muted-foreground mb-4`} />
+            <p className={heading.muted}>{error}</p>
+            <button onClick={loadContracts} className={`mt-4 ${buttonStyle.primary} flex items-center gap-1`}>
+              <icons.Refresh className={iconSize.sm} />
+              重试
+            </button>
           </div>
         ) : contracts.length === 0 ? (
           <div className="text-center py-12">

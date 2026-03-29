@@ -11,15 +11,18 @@ export default function KnowledgeBase() {
   const [loading, setLoading] = useState(false)
   const [docLoading, setDocLoading] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [newBase, setNewBase] = useState({ name: '', description: '', knowledge_type: 'general' })
 
   const loadBases = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
       const data = await knowledgeApi.listBases()
       setBases(data.items || [])
     } catch {
-      // Mock 数据回退
+      // @mock-data FALLBACK
+      toast.warning('API 不可用，使用演示数据')
       setBases([
         { id: '1', name: '法规库', knowledge_type: 'regulation', description: '最新法律法规汇编', document_count: 156, is_public: true, created_at: '2024-01-15' },
         { id: '2', name: '判例库', knowledge_type: 'case_law', description: '经典判例与裁判文书', document_count: 89, is_public: true, created_at: '2024-02-20' },
@@ -37,6 +40,8 @@ export default function KnowledgeBase() {
       const data = await knowledgeApi.listDocuments(kbId)
       setDocuments(data.items || [])
     } catch {
+      // @mock-data FALLBACK
+      toast.warning('API 不可用，使用演示数据')
       setDocuments([
         { id: 'd1', title: '民法典总则编解读', source: '法律出版社', summary: '对民法典总则编的逐条解读与实务分析', is_processed: true, tags: ['民法典', '总则'], created_at: '2024-01-20' },
         { id: 'd2', title: '劳动合同法实务指南', source: '内部整理', summary: '劳动合同签订、变更、解除的法律要点', is_processed: true, tags: ['劳动法', '合同'], created_at: '2024-02-15' },
@@ -175,6 +180,15 @@ export default function KnowledgeBase() {
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <icons.Refresh className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+            <icons.AlertTriangle className="w-12 h-12 mb-3 opacity-30" />
+            <p className="text-sm mb-3">{error}</p>
+            <button onClick={loadBases} className={buttonStyle.primary}>
+              <icons.Refresh className="w-4 h-4 inline-block mr-1" />
+              重试
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

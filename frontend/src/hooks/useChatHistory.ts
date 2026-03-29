@@ -82,7 +82,7 @@ export function useChatHistory(options: UseChatHistoryOptions): UseChatHistoryRe
   const loadHistory = useCallback(async (convId: string) => {
     if (!convId || historyLoaded) return;
 
-    let cancelled = false;
+    const cancelled = false;
     setIsLoadingHistory(true);
 
     try {

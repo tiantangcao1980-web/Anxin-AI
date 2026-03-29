@@ -63,7 +63,7 @@ async function request<T>(
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
     if (!window.location.pathname.startsWith('/login')) {
-      window.location.href = '/login'
+      window.dispatchEvent(new CustomEvent('auth:redirect', { detail: '/login' }))
     }
     throw new Error('登录已过期，请重新登录')
   }

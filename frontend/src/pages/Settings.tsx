@@ -214,6 +214,22 @@ function ProfilePanel() {
               </SelectContent>
             </Select>
           </div>
+          <Separator />
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">语言设置</p>
+              <p className="text-xs text-muted-foreground">选择系统界面语言</p>
+            </div>
+            <Select value="zh-CN" onValueChange={() => toast.info('目前仅支持简体中文')}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="zh-CN">简体中文</SelectItem>
+                <SelectItem value="en" disabled>English (即将支持)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardContent>
       </Card>
 

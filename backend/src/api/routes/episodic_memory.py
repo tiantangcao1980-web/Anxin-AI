@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 情景记忆/经验中心 API 路由
 提供经验记忆的 CRUD、评分、检索功能
@@ -9,7 +10,7 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from loguru import logger
 
-from src.core.deps import get_current_user_required
+from src.core.deps import get_current_user_required, require_permission, Permission
 from src.core.responses import UnifiedResponse
 from src.services.episodic_memory_service import episodic_memory
 from src.models.user import User
@@ -229,25 +230,36 @@ async def search_graph_entities(
     query: str = Query(..., description="实体名称或关键词"),
     depth: int = Query(1, ge=1, le=3, description="关系深度"),
     limit: int = Query(30, ge=1, le=100, description="返回结果限制"),
+    skip: int = Query(0, ge=0, description="分页偏移量"),
+    entity_type: Optional[str] = Query(None, description="实体类型过滤"),
     user: User = Depends(get_current_user_required),
 ):
     """
     搜索知识图谱中的实体及其关联关系
+    支持分页和实体类型过滤
     """
     from src.services.graph_service import graph_service
 
-    result = graph_service.search_entities(query, depth=depth, limit=limit)
+    # 如果传入了 skip 或 entity_type，使用分页搜索
+    if skip > 0 or entity_type:
+        result = await graph_service.search_with_pagination(
+            keyword=query, skip=skip, limit=limit, entity_type=entity_type
+        )
+    else:
+        result = graph_service.search_entities(query, depth=depth, limit=limit)
     return UnifiedResponse.success(data=result)
 
 
 @router.get("/graph/entity/{entity_name}")
 async def get_entity_relations(
     entity_name: str,
-    depth: int = Query(1, ge=1, le=3),
+    depth: int = Query(1, ge=1, le=3, description="关系深度"),
+    max_nodes: int = Query(50, ge=10, le=200, description="最大节点数"),
     user: User = Depends(get_current_user_required),
 ):
     """
     获取指定实体的关联实体和关系（用于图谱展开）
+    支持深度和最大节点数限制
     """
     from src.services.graph_service import graph_service
 
@@ -269,14 +281,14 @@ async def get_entity_relations(
         target = rel.get("target", "")
         relation = rel.get("relation", "")
 
-        if source and source not in nodes:
+        if source and source not in nodes and len(nodes) < max_nodes:
             node_type = _infer_node_type(source, relation)
             nodes[source] = {"id": source, "label": source, "type": node_type}
-        if target and target not in nodes:
+        if target and target not in nodes and len(nodes) < max_nodes:
             node_type = _infer_node_type(target, relation)
             nodes[target] = {"id": target, "label": target, "type": node_type}
 
-        if source and target:
+        if source and target and source in nodes and target in nodes:
             edges.append({
                 "source": source,
                 "target": target,
@@ -288,6 +300,7 @@ async def get_entity_relations(
         "nodes": list(nodes.values()),
         "edges": edges,
         "center_entity": entity_name,
+        "max_nodes": max_nodes,
     }
     return UnifiedResponse.success(data=data)
 
@@ -306,3 +319,93 @@ def _infer_node_type(name: str, relation: str) -> str:
     if "法院" in name or "仲裁" in name:
         return "entity"
     return "entity"
+
+
+# ============ 图谱增强端点 ============
+
+
+@router.get("/graph/entity/{entity_name}/detail")
+async def get_entity_detail(
+    entity_name: str,
+    user: User = Depends(get_current_user_required),
+):
+    """
+    获取实体详情 + 所有出入关系
+    """
+    from src.services.graph_service import graph_service
+
+    result = await graph_service.get_entity_detail(entity_name)
+    if result.get("entity") is None:
+        return UnifiedResponse.error(message=f"实体 '{entity_name}' 未找到")
+    return UnifiedResponse.success(data=result)
+
+
+@router.get("/graph/path")
+async def get_shortest_path(
+    from_entity: str = Query(..., alias="from", description="起始实体名称"),
+    to_entity: str = Query(..., alias="to", description="目标实体名称"),
+    max_depth: int = Query(10, ge=1, le=20, description="最大搜索深度"),
+    user: User = Depends(get_current_user_required),
+):
+    """
+    查询两个实体间的最短路径
+    """
+    from src.services.graph_service import graph_service
+
+    result = await graph_service.get_shortest_path(from_entity, to_entity, max_depth=max_depth)
+    if not result.get("found", False):
+        return UnifiedResponse.success(
+            data=result,
+            message=f"未找到 '{from_entity}' 到 '{to_entity}' 的路径"
+        )
+    return UnifiedResponse.success(data=result)
+
+
+@router.get("/graph/subgraph/{entity_name}")
+async def get_subgraph(
+    entity_name: str,
+    depth: int = Query(2, ge=1, le=5, description="子图深度"),
+    max_nodes: int = Query(50, ge=10, le=200, description="最大节点数"),
+    user: User = Depends(get_current_user_required),
+):
+    """
+    提取实体子图（限制节点数防止数据爆炸）
+    """
+    from src.services.graph_service import graph_service
+
+    result = await graph_service.get_subgraph(entity_name, depth=depth, max_nodes=max_nodes)
+    return UnifiedResponse.success(data=result)
+
+
+@router.post("/graph/import")
+async def batch_import(
+    entities: List[dict],
+    user: User = Depends(require_permission(Permission.WRITE_KNOWLEDGE)),
+):
+    """
+    批量导入实体三元组
+    每条记录格式: {subject, predicate, object, properties?}
+    """
+    from src.services.graph_service import graph_service
+
+    if not entities:
+        return UnifiedResponse.error(message="导入列表不能为空")
+
+    if len(entities) > 1000:
+        return UnifiedResponse.error(message="单次导入不能超过 1000 条")
+
+    result = await graph_service.batch_import_entities(entities)
+    return UnifiedResponse.success(data=result, message=f"成功导入 {result['imported']} 条")
+
+
+@router.get("/graph/types")
+async def get_entity_types(
+    user: User = Depends(get_current_user_required),
+):
+    """
+    获取所有实体类型列表及统计
+    """
+    from src.services.graph_service import graph_service
+
+    result = await graph_service.get_entity_types()
+    return UnifiedResponse.success(data=result)

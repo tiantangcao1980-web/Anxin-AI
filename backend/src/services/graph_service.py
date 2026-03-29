@@ -1,17 +1,39 @@
+# -*- coding: utf-8 -*-
 """
 图数据库服务
 使用 CAMEL-AI 的 Neo4jGraph 进行图谱管理
 """
 
-from typing import List, Dict, Any, Optional
+import time
+from typing import ClassVar, List, Dict, Any, Optional
 from loguru import logger
 
 from camel.storages import Neo4jGraph
 from src.core.config import settings
 
+
 class GraphService:
     """法务知识图谱服务"""
-    
+
+    # ---- 进程内缓存 ----
+    _cache: ClassVar[dict] = {}
+    _cache_ts: ClassVar[dict] = {}
+    _CACHE_TTL = 300  # 5 分钟
+
+    def _get_cached(self, key: str):
+        if key in self._cache and time.time() - self._cache_ts.get(key, 0) < self._CACHE_TTL:
+            return self._cache[key]
+        return None
+
+    def _set_cache(self, key: str, value):
+        self._cache[key] = value
+        self._cache_ts[key] = time.time()
+
+    def _invalidate_cache(self):
+        """清除全部缓存（写操作后调用）"""
+        self._cache.clear()
+        self._cache_ts.clear()
+
     def __init__(self):
         self.graph = None
         self._init_graph()
@@ -68,11 +90,13 @@ class GraphService:
         except Exception as e:
             logger.error(f"存入图数据库失败: {e}")
 
-    def query_graph(self, cypher_query: str) -> List[Dict[str, Any]]:
-        """执行 Cypher 查询"""
+    def query_graph(self, cypher_query: str, params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """执行 Cypher 查询（支持参数化）"""
         if not self.graph:
             return []
         try:
+            if params:
+                return self.graph.query(cypher_query, params=params)
             return self.graph.query(cypher_query)
         except Exception as e:
             logger.error(f"Cypher 查询失败: {e}")
@@ -82,23 +106,26 @@ class GraphService:
         """获取实体的关联实体及关系"""
         if not self.graph:
             return []
-            
-        # 构造 Cypher 查询获取 1-depth 步的关系
-        query = f"""
-        MATCH (n)-[r]-(m)
-        WHERE n.name = '{entity_name}'
-        RETURN n.name as source, type(r) as relation, m.name as target
-        LIMIT 20
-        """
-        if depth > 1:
+
+        # 参数化查询防止 Cypher 注入
+        if depth <= 1:
+            query = """
+            MATCH (n)-[r]-(m)
+            WHERE n.name = $entity_name
+            RETURN n.name as source, type(r) as relation, m.name as target
+            LIMIT 20
+            """
+            return self.query_graph(query, params={"entity_name": entity_name})
+        else:
+            # depth 为整数，安全拼接；entity_name 走参数化
+            safe_depth = max(1, min(int(depth), 10))
             query = f"""
-            MATCH (n)-[r*1..{depth}]-(m)
-            WHERE n.name = '{entity_name}'
+            MATCH (n)-[r*1..{safe_depth}]-(m)
+            WHERE n.name = $entity_name
             RETURN n.name as source, type(r[-1]) as relation, m.name as target
             LIMIT 50
             """
-            
-        return self.query_graph(query)
+            return self.query_graph(query, params={"entity_name": entity_name})
 
     def get_context_from_graph(self, entities: List[str]) -> str:
         """从图谱中提取实体及其关系的文本上下文"""
@@ -126,7 +153,7 @@ class GraphService:
         return context
 
     def get_graph_stats(self) -> Dict[str, Any]:
-        """获取图谱统计信息"""
+        """获取图谱统计信息（带缓存）"""
         if not self.graph:
             return {
                 "available": False,
@@ -135,6 +162,10 @@ class GraphService:
                 "node_types": {},
                 "relation_types": {},
             }
+
+        cached = self._get_cached("graph_stats")
+        if cached is not None:
+            return cached
 
         try:
             # 节点总数
@@ -157,13 +188,15 @@ class GraphService:
             )
             relation_types = {r["rel_type"]: r["cnt"] for r in rel_result if r.get("rel_type")}
 
-            return {
+            result = {
                 "available": True,
                 "total_nodes": total_nodes,
                 "total_edges": total_edges,
                 "node_types": node_types,
                 "relation_types": relation_types,
             }
+            self._set_cache("graph_stats", result)
+            return result
         except Exception as e:
             logger.error(f"获取图谱统计失败: {e}")
             return {
@@ -176,34 +209,41 @@ class GraphService:
             }
 
     def search_entities(self, keyword: str, depth: int = 1, limit: int = 30) -> Dict[str, Any]:
-        """搜索实体及其关联（用于图谱可视化）"""
+        """搜索实体及其关联（用于图谱可视化，带缓存）"""
         if not self.graph:
             return {"nodes": [], "edges": [], "total": 0}
 
+        cache_key = f"search:{keyword}:{depth}:{limit}"
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return cached
+
         try:
-            # 模糊搜索包含关键词的实体
+            # 参数化查询防止 Cypher 注入
+            safe_limit = max(1, min(int(limit), 200))
             if depth <= 1:
                 query = f"""
                 MATCH (n)-[r]-(m)
-                WHERE n.name CONTAINS '{keyword}' OR m.name CONTAINS '{keyword}'
-                RETURN n.name as source, labels(n)[0] as source_label, 
-                       type(r) as relation, 
+                WHERE n.name CONTAINS $keyword OR m.name CONTAINS $keyword
+                RETURN n.name as source, labels(n)[0] as source_label,
+                       type(r) as relation,
                        m.name as target, labels(m)[0] as target_label
-                LIMIT {limit}
+                LIMIT {safe_limit}
                 """
+                results = self.query_graph(query, params={"keyword": keyword})
             else:
+                safe_depth = max(1, min(int(depth), 10))
                 query = f"""
-                MATCH path = (n)-[r*1..{depth}]-(m)
-                WHERE n.name CONTAINS '{keyword}'
+                MATCH path = (n)-[r*1..{safe_depth}]-(m)
+                WHERE n.name CONTAINS $keyword
                 WITH relationships(path) as rels, nodes(path) as ns
                 UNWIND range(0, size(rels)-1) as i
                 RETURN ns[i].name as source, labels(ns[i])[0] as source_label,
                        type(rels[i]) as relation,
                        ns[i+1].name as target, labels(ns[i+1])[0] as target_label
-                LIMIT {limit}
+                LIMIT {safe_limit}
                 """
-
-            results = self.query_graph(query)
+                results = self.query_graph(query, params={"keyword": keyword})
 
             nodes = {}
             edges = []
@@ -234,14 +274,354 @@ class GraphService:
                         "label": relation,
                     })
 
-            return {
+            result = {
                 "nodes": list(nodes.values()),
                 "edges": edges,
                 "total": len(nodes),
             }
+            self._set_cache(cache_key, result)
+            return result
         except Exception as e:
             logger.error(f"图谱搜索失败: {e}")
             return {"nodes": [], "edges": [], "total": 0, "error": str(e)}
+
+    # ================================================================
+    # 搜索增强方法
+    # ================================================================
+
+    async def search_with_pagination(
+        self, keyword: str, skip: int = 0, limit: int = 20, entity_type: Optional[str] = None
+    ) -> dict:
+        """分页搜索实体"""
+        if not self.graph:
+            return {"items": [], "total": 0, "skip": skip, "limit": limit}
+
+        cache_key = f"search_page:{keyword}:{skip}:{limit}:{entity_type}"
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return cached
+
+        try:
+            safe_skip = max(0, int(skip))
+            safe_limit = max(1, min(int(limit), 200))
+
+            # 构造 WHERE 条件
+            where_clause = "WHERE n.name CONTAINS $keyword"
+            if entity_type:
+                where_clause += " AND $entity_type IN labels(n)"
+
+            # 查询总数
+            count_query = f"MATCH (n) {where_clause} RETURN count(n) as total"
+            count_params: Dict[str, Any] = {"keyword": keyword}
+            if entity_type:
+                count_params["entity_type"] = entity_type
+            count_result = self.query_graph(count_query, params=count_params)
+            total = count_result[0]["total"] if count_result else 0
+
+            # 查询实体
+            data_query = f"""
+            MATCH (n) {where_clause}
+            RETURN n.name as name, labels(n) as labels, properties(n) as props
+            ORDER BY n.name
+            SKIP {safe_skip} LIMIT {safe_limit}
+            """
+            data_result = self.query_graph(data_query, params=count_params)
+
+            items = []
+            for r in data_result:
+                item_labels = r.get("labels", [])
+                items.append({
+                    "name": r.get("name", ""),
+                    "type": item_labels[0] if item_labels else "Entity",
+                    "labels": item_labels,
+                    "properties": r.get("props", {}),
+                })
+
+            result = {"items": items, "total": total, "skip": safe_skip, "limit": safe_limit}
+            self._set_cache(cache_key, result)
+            return result
+        except Exception as e:
+            logger.error(f"分页搜索失败: {e}")
+            return {"items": [], "total": 0, "skip": skip, "limit": limit, "error": str(e)}
+
+    async def get_entity_detail(self, entity_name: str) -> dict:
+        """获取实体详情（属性 + 所有关系 + 关联文档）"""
+        if not self.graph:
+            return {"entity": None, "incoming_relations": [], "outgoing_relations": []}
+
+        try:
+            # 查询实体属性
+            prop_query = """
+            MATCH (n) WHERE n.name = $name
+            RETURN n.name as name, labels(n) as labels, properties(n) as props
+            LIMIT 1
+            """
+            prop_result = self.query_graph(prop_query, params={"name": entity_name})
+            if not prop_result:
+                return {"entity": None, "incoming_relations": [], "outgoing_relations": []}
+
+            entity_data = prop_result[0]
+            entity_labels = entity_data.get("labels", [])
+            entity = {
+                "name": entity_data.get("name", ""),
+                "type": entity_labels[0] if entity_labels else "Entity",
+                "labels": entity_labels,
+                "properties": entity_data.get("props", {}),
+            }
+
+            # 查询出关系
+            out_query = """
+            MATCH (n)-[r]->(m) WHERE n.name = $name
+            RETURN type(r) as relation, m.name as target, labels(m) as target_labels,
+                   properties(r) as rel_props
+            LIMIT 100
+            """
+            out_result = self.query_graph(out_query, params={"name": entity_name})
+            outgoing = []
+            for r in out_result:
+                t_labels = r.get("target_labels", [])
+                outgoing.append({
+                    "relation": r.get("relation", ""),
+                    "target": r.get("target", ""),
+                    "target_type": t_labels[0] if t_labels else "Entity",
+                    "properties": r.get("rel_props", {}),
+                })
+
+            # 查询入关系
+            in_query = """
+            MATCH (m)-[r]->(n) WHERE n.name = $name
+            RETURN type(r) as relation, m.name as source, labels(m) as source_labels,
+                   properties(r) as rel_props
+            LIMIT 100
+            """
+            in_result = self.query_graph(in_query, params={"name": entity_name})
+            incoming = []
+            for r in in_result:
+                s_labels = r.get("source_labels", [])
+                incoming.append({
+                    "relation": r.get("relation", ""),
+                    "source": r.get("source", ""),
+                    "source_type": s_labels[0] if s_labels else "Entity",
+                    "properties": r.get("rel_props", {}),
+                })
+
+            return {
+                "entity": entity,
+                "incoming_relations": incoming,
+                "outgoing_relations": outgoing,
+            }
+        except Exception as e:
+            logger.error(f"获取实体详情失败: {e}")
+            return {"entity": None, "incoming_relations": [], "outgoing_relations": [], "error": str(e)}
+
+    async def get_shortest_path(self, entity_a: str, entity_b: str, max_depth: int = 10) -> dict:
+        """最短路径查询"""
+        if not self.graph:
+            return {"path_length": 0, "nodes": [], "relationships": []}
+
+        try:
+            safe_depth = max(1, min(int(max_depth), 20))
+            query = f"""
+            MATCH (a), (b)
+            WHERE a.name = $name_a AND b.name = $name_b
+            MATCH p = shortestPath((a)-[*..{safe_depth}]-(b))
+            RETURN nodes(p) as path_nodes, relationships(p) as path_rels
+            LIMIT 1
+            """
+            result = self.query_graph(query, params={"name_a": entity_a, "name_b": entity_b})
+            if not result:
+                return {"path_length": 0, "nodes": [], "relationships": [], "found": False}
+
+            row = result[0]
+            path_nodes_raw = row.get("path_nodes", [])
+            path_rels_raw = row.get("path_rels", [])
+
+            nodes = []
+            for n in path_nodes_raw:
+                if isinstance(n, dict):
+                    nodes.append({
+                        "name": n.get("name", ""),
+                        "labels": n.get("labels", []),
+                    })
+                else:
+                    nodes.append({"name": str(n)})
+
+            relationships = []
+            for r in path_rels_raw:
+                if isinstance(r, dict):
+                    relationships.append({
+                        "type": r.get("type", ""),
+                        "properties": {k: v for k, v in r.items() if k != "type"},
+                    })
+                else:
+                    relationships.append({"type": str(r)})
+
+            return {
+                "path_length": len(relationships),
+                "nodes": nodes,
+                "relationships": relationships,
+                "found": True,
+            }
+        except Exception as e:
+            logger.error(f"最短路径查询失败: {e}")
+            return {"path_length": 0, "nodes": [], "relationships": [], "error": str(e)}
+
+    async def get_subgraph(self, entity_name: str, depth: int = 2, max_nodes: int = 50) -> dict:
+        """子图提取（限制节点数防爆炸）"""
+        if not self.graph:
+            return {"center": entity_name, "nodes": [], "edges": []}
+
+        try:
+            safe_depth = max(1, min(int(depth), 5))
+            safe_max = max(10, min(int(max_nodes), 200))
+
+            query = f"""
+            MATCH (center) WHERE center.name = $name
+            CALL {{
+                WITH center
+                MATCH (center)-[r*1..{safe_depth}]-(m)
+                RETURN DISTINCT m, r
+                LIMIT {safe_max}
+            }}
+            WITH center, collect(DISTINCT m) as neighbors
+            UNWIND neighbors as neighbor
+            OPTIONAL MATCH (neighbor)-[rel]-(other)
+            WHERE other = center OR other IN neighbors
+            RETURN center.name as center_name, labels(center) as center_labels,
+                   neighbor.name as node_name, labels(neighbor) as node_labels,
+                   type(rel) as rel_type,
+                   startNode(rel).name as rel_source, endNode(rel).name as rel_target
+            LIMIT {safe_max * 3}
+            """
+            results = self.query_graph(query, params={"name": entity_name})
+
+            # 回退方案：简化查询
+            if not results:
+                fallback_query = f"""
+                MATCH (n {{name: $name}})-[r*1..{safe_depth}]-(m)
+                WITH DISTINCT m, r
+                LIMIT {safe_max}
+                MATCH (m)-[rel]-(other)
+                WHERE other.name = $name OR other = m
+                RETURN m.name as node_name, labels(m) as node_labels,
+                       type(rel) as rel_type,
+                       startNode(rel).name as rel_source, endNode(rel).name as rel_target
+                LIMIT {safe_max * 3}
+                """
+                results = self.query_graph(fallback_query, params={"name": entity_name})
+
+            nodes_map: Dict[str, dict] = {
+                entity_name: {
+                    "id": entity_name,
+                    "label": entity_name,
+                    "type": "entity",
+                    "is_center": True,
+                }
+            }
+            edges_set: set = set()
+            edges: list = []
+
+            for r in results:
+                node_name = r.get("node_name", "")
+                node_labels = r.get("node_labels", [])
+                if node_name and node_name not in nodes_map:
+                    nodes_map[node_name] = {
+                        "id": node_name,
+                        "label": node_name,
+                        "type": self._label_to_type(node_labels[0] if node_labels else "", node_name),
+                    }
+
+                rel_src = r.get("rel_source", "")
+                rel_tgt = r.get("rel_target", "")
+                rel_type = r.get("rel_type", "")
+                if rel_src and rel_tgt and rel_type:
+                    edge_key = f"{rel_src}-{rel_type}->{rel_tgt}"
+                    if edge_key not in edges_set:
+                        edges_set.add(edge_key)
+                        edges.append({
+                            "source": rel_src,
+                            "target": rel_tgt,
+                            "relation": rel_type,
+                            "label": rel_type,
+                        })
+
+            return {
+                "center": entity_name,
+                "nodes": list(nodes_map.values()),
+                "edges": edges,
+            }
+        except Exception as e:
+            logger.error(f"子图提取失败: {e}")
+            return {"center": entity_name, "nodes": [], "edges": [], "error": str(e)}
+
+    async def batch_import_entities(self, entities: List[dict]) -> dict:
+        """批量导入三元组"""
+        if not self.graph:
+            return {"imported": 0, "errors": ["图数据库未连接"]}
+
+        imported = 0
+        errors = []
+        try:
+            for idx, ent in enumerate(entities):
+                subject = ent.get("subject", "").strip()
+                predicate = ent.get("predicate", "").strip()
+                obj = ent.get("object", "").strip()
+
+                if not subject or not predicate or not obj:
+                    errors.append(f"第 {idx + 1} 条三元组缺少 subject/predicate/object")
+                    continue
+
+                try:
+                    self.graph.add_triplet(subject, predicate, obj)
+                    imported += 1
+                except Exception as inner_e:
+                    errors.append(f"第 {idx + 1} 条导入失败: {str(inner_e)}")
+
+            # 写操作后清缓存
+            self._invalidate_cache()
+            logger.info(f"批量导入完成: 成功 {imported} 条, 失败 {len(errors)} 条")
+            return {"imported": imported, "errors": errors}
+        except Exception as e:
+            logger.error(f"批量导入失败: {e}")
+            return {"imported": imported, "errors": errors + [str(e)]}
+
+    async def get_entity_types(self) -> List[dict]:
+        """获取所有实体类型列表（带缓存）"""
+        if not self.graph:
+            return []
+
+        cached = self._get_cached("entity_types")
+        if cached is not None:
+            return cached
+
+        try:
+            query = """
+            MATCH (n)
+            WITH labels(n)[0] as label
+            WHERE label IS NOT NULL
+            RETURN label as type, count(*) as count
+            ORDER BY count DESC
+            """
+            results = self.query_graph(query)
+
+            # 为每种类型分配颜色
+            color_palette = [
+                "#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6",
+                "#06b6d4", "#ec4899", "#14b8a6", "#f97316", "#6366f1",
+            ]
+            types_list = []
+            for idx, r in enumerate(results):
+                types_list.append({
+                    "type": r.get("type", "Unknown"),
+                    "count": r.get("count", 0),
+                    "color": color_palette[idx % len(color_palette)],
+                })
+
+            self._set_cache("entity_types", types_list)
+            return types_list
+        except Exception as e:
+            logger.error(f"获取实体类型失败: {e}")
+            return []
 
     def _label_to_type(self, label: str, name: str = "") -> str:
         """将 Neo4j 标签转换为前端节点类型"""

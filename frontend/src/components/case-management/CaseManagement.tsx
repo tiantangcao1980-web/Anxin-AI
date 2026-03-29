@@ -286,25 +286,34 @@ export function CaseManagement() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [cases, setCases] = useState<Case[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // @mock-data FALLBACK
+  const mockCases: Case[] = [
+    { id: 'mock-1', title: '张某劳动争议纠纷案', case_number: 'CASE-2026-001', case_type: 'labor', status: 'in-progress', priority: 'high', description: '劳动合同解除争议', parties: { client: '张某' }, created_at: '2026-03-10', updated_at: '2026-03-25', client: '张某', lawyer: '李律师', progress: 50, caseNumber: 'CASE-2026-001', type: '劳动争议', createdAt: '2026-03-10', updatedAt: '2026-03-25' } as Case,
+    { id: 'mock-2', title: '某科技公司合同纠纷', case_number: 'CASE-2026-002', case_type: 'contract', status: 'pending', priority: 'medium', description: '软件开发合同违约', parties: { client: '某科技公司' }, created_at: '2026-03-15', updated_at: '2026-03-20', client: '某科技公司', lawyer: '未分配', progress: 0, caseNumber: 'CASE-2026-002', type: '合同纠纷', createdAt: '2026-03-15', updatedAt: '2026-03-20' } as Case,
+    { id: 'mock-3', title: '知识产权侵权案', case_number: 'CASE-2026-003', case_type: 'ip', status: 'completed', priority: 'low', description: '商标侵权索赔', parties: { client: '王某' }, created_at: '2026-02-01', updated_at: '2026-03-18', client: '王某', lawyer: '赵律师', progress: 100, caseNumber: 'CASE-2026-003', type: '知识产权', createdAt: '2026-02-01', updatedAt: '2026-03-18' } as Case,
+  ];
+
+  // 案件类型中文映射
+  const typeLabels: Record<string, string> = {
+    contract: '合同纠纷', labor: '劳动争议', ip: '知识产权',
+    corporate: '公司治理', litigation: '民事诉讼', compliance: '合规审查',
+    due_diligence: '尽职调查', criminal: '刑事案件', other: '其他',
+  };
+  // 状态归一化：后端返回大写枚举名 → 前端小写
+  const normalizeStatus = (s: string) => (s || '').toLowerCase().replace(/_/g, '-');
+  const progressMap: Record<string, number> = {
+    'pending': 0, 'under-review': 25, 'in-progress': 50, 'completed': 100, 'closed': 100,
+  };
 
   // 加载案件列表
   const loadCases = async () => {
     setIsLoading(true);
+    setLoadError(null);
     try {
       const response = await casesApi.list({ page_size: 100 });
       // 转换数据格式
-      // 案件类型中文映射
-      const typeLabels: Record<string, string> = {
-        contract: '合同纠纷', labor: '劳动争议', ip: '知识产权',
-        corporate: '公司治理', litigation: '民事诉讼', compliance: '合规审查',
-        due_diligence: '尽职调查', criminal: '刑事案件', other: '其他',
-      };
-      // 状态归一化：后端返回大写枚举名 → 前端小写
-      const normalizeStatus = (s: string) => (s || '').toLowerCase().replace(/_/g, '-');
-      const progressMap: Record<string, number> = {
-        'pending': 0, 'under-review': 25, 'in-progress': 50, 'completed': 100, 'closed': 100,
-      };
-
       const mappedCases: Case[] = response.items.map(item => {
         const status = normalizeStatus(item.status);
         return {
@@ -323,7 +332,9 @@ export function CaseManagement() {
       setCases(mappedCases);
     } catch (error) {
       console.error('加载案件失败:', error);
-      toast.error('加载案件列表失败');
+      // @mock-data FALLBACK
+      toast.warning('API 不可用，使用演示数据');
+      setCases(mockCases);
     } finally {
       setIsLoading(false);
     }
@@ -362,6 +373,15 @@ export function CaseManagement() {
             {isLoading ? (
               <div className="flex-1 flex items-center justify-center">
                 <icons.Loader2 className={`${iconSize.xl} animate-spin text-primary`} />
+              </div>
+            ) : loadError ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
+                <icons.AlertTriangle className={`${iconSize['2xl']} mb-3 opacity-30`} />
+                <p className="text-sm mb-3">{loadError}</p>
+                <button onClick={loadCases} className={`${buttonStyle.primary} flex items-center gap-1`}>
+                  <icons.Refresh className={iconSize.sm} />
+                  重试
+                </button>
               </div>
             ) : (
               <CaseList

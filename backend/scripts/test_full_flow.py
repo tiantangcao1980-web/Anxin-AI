@@ -6,8 +6,8 @@ import json
 
 # 配置
 API_BASE_URL = "http://localhost:8001/api/v1"
-ADMIN_EMAIL = "admin@anxin.test"
-ADMIN_PASSWORD = "Anxin2026!Adm"
+ADMIN_EMAIL = "admin@anxinfawu.com"
+ADMIN_PASSWORD = "admin888"
 
 async def run_test():
     print(f"开始全流程测试 - 连接至 {API_BASE_URL}")

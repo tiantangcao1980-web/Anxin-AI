@@ -184,30 +184,100 @@ async def document_collaboration_websocket(
                     selection=msg_data.get("selection")
                 )
 
-            elif msg_type == "comment":
-                # 添加评论
+            elif msg_type in ("comment", "comment_add"):
+                # 添加评论（支持行号范围 start_line/end_line）
+                position = msg_data.get("position", {})
+                # 兼容行号范围参数
+                if "start_line" in msg_data:
+                    position["start_line"] = msg_data["start_line"]
+                if "end_line" in msg_data:
+                    position["end_line"] = msg_data["end_line"]
+
                 result = await collaboration_service.add_comment(
                     document_id=document_id,
                     user_id=user_id,
                     user_name=user_name,
                     content=msg_data.get("content", ""),
-                    position=msg_data.get("position", {})
+                    position=position,
                 )
                 await websocket.send_json({
-                    "type": "comment_ack",
-                    "data": result
+                    "type": "comment_add_ack",
+                    "data": result,
                 })
 
-            elif msg_type == "resolve_comment":
+            elif msg_type == "comment_reply":
+                # 回复评论
+                parent_id = msg_data.get("parent_id") or msg_data.get("comment_id")
+                reply_content = msg_data.get("content", "")
+
+                if not parent_id:
+                    await websocket.send_json({
+                        "type": "error",
+                        "data": {"message": "缺少 parent_id 参数"},
+                    })
+                else:
+                    # 使用 add_comment 并附带 parent_id
+                    result = await collaboration_service.add_comment(
+                        document_id=document_id,
+                        user_id=user_id,
+                        user_name=user_name,
+                        content=reply_content,
+                        position={"parent_id": parent_id},
+                    )
+                    await websocket.send_json({
+                        "type": "comment_reply_ack",
+                        "data": {**result, "parent_id": parent_id},
+                    })
+
+            elif msg_type in ("resolve_comment", "comment_resolve"):
                 # 解决评论
                 result = await collaboration_service.resolve_comment(
                     document_id=document_id,
-                    comment_id=msg_data.get("comment_id")
+                    comment_id=msg_data.get("comment_id"),
                 )
                 await websocket.send_json({
-                    "type": "resolve_comment_ack",
-                    "data": result
+                    "type": "comment_resolve_ack",
+                    "data": result,
                 })
+
+            elif msg_type == "comment_delete":
+                # 删除评论
+                comment_id = msg_data.get("comment_id")
+                if not comment_id:
+                    await websocket.send_json({
+                        "type": "error",
+                        "data": {"message": "缺少 comment_id 参数"},
+                    })
+                else:
+                    session = collaboration_service.manager.get_session(document_id)
+                    if session and comment_id in session.comments:
+                        # 仅评论作者可删除
+                        comment_obj = session.comments[comment_id]
+                        if comment_obj.user_id != user_id:
+                            await websocket.send_json({
+                                "type": "error",
+                                "data": {"message": "只能删除自己的评论"},
+                            })
+                        else:
+                            del session.comments[comment_id]
+                            # 广播删除
+                            await collaboration_service.manager.broadcast_to_document(
+                                document_id,
+                                {
+                                    "type": "comment_deleted",
+                                    "comment_id": comment_id,
+                                    "user_id": user_id,
+                                },
+                            )
+                            await websocket.send_json({
+                                "type": "comment_delete_ack",
+                                "data": {"success": True, "comment_id": comment_id},
+                            })
+                    else:
+                        await websocket.send_json({
+                            "type": "error",
+                            "data": {"message": "评论不存在"},
+                        })
 
             elif msg_type == "save":
                 # 保存文档

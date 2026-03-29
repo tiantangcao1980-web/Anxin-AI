@@ -47,6 +47,15 @@ export default function FindLawyer() {
   const [chatRoomId, setChatRoomId] = useState<string | null>(null);
   const [chatToken, setChatToken] = useState<string | null>(null);
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
+  const [selectedLawyer, setSelectedLawyer] = useState<any>(null);
+  const [isDelegating, setIsDelegating] = useState(false);
+
+  // @mock-data FALLBACK
+  const mockLawyers = [
+    { id: 'l1', name: '匿名律师 A', speciality: '合同纠纷', experience: 12, rating: 4.9, cases: 350, badge: '资深' },
+    { id: 'l2', name: '匿名律师 B', speciality: '劳动争议', experience: 8, rating: 4.7, cases: 210, badge: '推荐' },
+    { id: 'l3', name: '匿名律师 C', speciality: '知识产权', experience: 15, rating: 4.8, cases: 480, badge: '专家' },
+  ];
 
   const handleSubmit = useCallback(async () => {
     if (!description.trim() || description.length < 10) {
@@ -94,6 +103,36 @@ export default function FindLawyer() {
     setChatToken(null);
     setStep('matching');
   }, []);
+
+  // 一键委托
+  const handleDelegate = useCallback(async () => {
+    if (!selectedLawyer) {
+      toast.error('请先选择一位律师');
+      return;
+    }
+    setIsDelegating(true);
+    try {
+      await lawyerMatchingApi.createConsultation({
+        description: `委托律师 ${selectedLawyer.id}`,
+        legal_domain: selectedDomain || undefined,
+        urgency: 'high',
+      });
+      toast.success('委托请求已提交，律师将尽快与您联系');
+      setStep('describe');
+      setDescription('');
+      setSelectedDomain('');
+      setSelectedLawyer(null);
+    } catch {
+      // @mock-data FALLBACK
+      toast.success('委托请求已提交（演示模式）');
+      setStep('describe');
+      setDescription('');
+      setSelectedDomain('');
+      setSelectedLawyer(null);
+    } finally {
+      setIsDelegating(false);
+    }
+  }, [selectedLawyer, selectedDomain]);
 
   // 如果在聊天步骤，展示全屏聊天室
   if (step === 'chatting' && chatRoomId && chatToken) {
@@ -239,34 +278,63 @@ export default function FindLawyer() {
             </motion.div>
           )}
 
-          {/* Step 2: 匹配中 */}
+          {/* Step 2: 匹配律师 */}
           {step === 'matching' && (
             <motion.div
               key="matching"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="text-center py-12 space-y-6"
+              className="space-y-6"
             >
-              <div className="w-20 h-20 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
-                <icons.Search className="w-10 h-10 text-primary animate-pulse" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-foreground">正在为您匹配律师</h3>
-                <p className="text-sm text-muted-foreground mt-2">AI 正在分析您的案情并匹配最合适的律师...</p>
-              </div>
-
               {/* AI 分析结果预览 */}
               {anonymousSummary && (
-                <div className="text-left p-4 bg-muted/50 border border-border rounded-xl max-w-md mx-auto">
+                <div className="p-4 bg-primary/5 border border-primary/10 rounded-xl">
                   <p className="text-xs font-medium text-muted-foreground mb-2">AI 匿名摘要（律师将看到）：</p>
                   <p className="text-sm text-foreground">{anonymousSummary}</p>
                 </div>
               )}
 
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground text-center">
                 匹配过程中您的个人信息完全隐藏，律师仅能看到 AI 生成的匿名摘要
               </p>
+
+              {/* 律师卡片列表 */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-foreground">为您推荐的律师</h3>
+                {mockLawyers.map(lawyer => (
+                  <div
+                    key={lawyer.id}
+                    onClick={() => setSelectedLawyer(lawyer)}
+                    className={`p-4 rounded-xl border transition-all cursor-pointer ${
+                      selectedLawyer?.id === lawyer.id
+                        ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                        : 'border-border bg-background hover:border-primary/30 hover:bg-muted/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                        <icons.User className="w-6 h-6 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-foreground">{lawyer.name}</span>
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary">{lawyer.badge}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {lawyer.speciality} | {lawyer.experience}年执业 | {lawyer.cases}+案件
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <div className="flex items-center gap-1 text-amber-500">
+                          <icons.Star className="w-3.5 h-3.5" />
+                          <span className="text-sm font-medium">{lawyer.rating}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
 
               <div className="flex items-center justify-center gap-4">
                 <button
@@ -277,13 +345,79 @@ export default function FindLawyer() {
                 </button>
                 <button
                   onClick={handleEnterChat}
-                  disabled={isCreatingRoom}
-                  className="px-6 py-2.5 bg-primary text-primary-foreground font-medium rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-all flex items-center gap-2"
+                  disabled={isCreatingRoom || !selectedLawyer}
+                  className="px-6 py-2.5 bg-muted text-foreground font-medium rounded-xl hover:bg-muted/80 disabled:opacity-50 transition-all flex items-center gap-2"
                 >
                   {isCreatingRoom ? (
                     <><icons.Loader2 className="w-4 h-4 animate-spin" /> 创建聊天室...</>
                   ) : (
-                    <><icons.MessageSquare className="w-4 h-4" /> 进入匿名咨询</>
+                    <><icons.MessageSquare className="w-4 h-4" /> 匿名咨询</>
+                  )}
+                </button>
+                <button
+                  onClick={() => setStep('delegate')}
+                  disabled={!selectedLawyer}
+                  className="px-6 py-2.5 bg-primary text-primary-foreground font-medium rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-all flex items-center gap-2"
+                >
+                  <icons.Check className="w-4 h-4" /> 一键委托
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Step 4: 一键委托 */}
+          {step === 'delegate' && (
+            <motion.div
+              key="delegate"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="space-y-6 max-w-md mx-auto"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto bg-emerald-500/10 rounded-full flex items-center justify-center mb-4">
+                  <icons.CheckCircle className="w-8 h-8 text-emerald-500" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground">确认委托</h3>
+                <p className="text-sm text-muted-foreground mt-2">确认后将向律师发送委托请求</p>
+              </div>
+
+              {selectedLawyer && (
+                <div className="p-4 bg-muted/50 border border-border rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <icons.User className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{selectedLawyer.name}</p>
+                      <p className="text-xs text-muted-foreground">{selectedLawyer.speciality} | {selectedLawyer.experience}年执业</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl">
+                <p className="text-xs text-amber-800 dark:text-amber-300">
+                  委托后，您的联系方式将对律师可见。律师将在24小时内与您取得联系。如有问题请联系客服。
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setStep('matching')}
+                  className="flex-1 py-2.5 bg-muted text-foreground font-medium rounded-xl hover:bg-muted/80 transition-all"
+                >
+                  返回选择
+                </button>
+                <button
+                  onClick={handleDelegate}
+                  disabled={isDelegating}
+                  className="flex-1 py-2.5 bg-primary text-primary-foreground font-medium rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                >
+                  {isDelegating ? (
+                    <><icons.Loader2 className="w-4 h-4 animate-spin" /> 提交中...</>
+                  ) : (
+                    '确认委托'
                   )}
                 </button>
               </div>

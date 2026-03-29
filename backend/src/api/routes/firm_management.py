@@ -69,7 +69,7 @@ class CreateInvoiceRequest(BaseModel):
     client_name: str = Field(..., min_length=1, max_length=200, description="客户名称")
     items: List[InvoiceItem] = Field(..., min_length=1, description="发票明细")
     case_id: Optional[str] = Field(None, description="关联案件ID")
-    due_date: Optional[date] = Field(None, description="到期日")
+    due_date: Optional[DateType] = Field(None, description="到期日")
     notes: Optional[str] = Field(None, description="备注")
 
 
@@ -188,8 +188,8 @@ async def remove_team_member(
 @router.get("/timesheet")
 async def list_timesheet(
     user_id: Optional[str] = Query(None, description="用户ID"),
-    date_from: Optional[date] = Query(None, description="开始日期"),
-    date_to: Optional[date] = Query(None, description="结束日期"),
+    date_from: Optional[DateType] = Query(None, description="开始日期"),
+    date_to: Optional[DateType] = Query(None, description="结束日期"),
     status: Optional[str] = Query(None, description="状态"),
     case_id: Optional[str] = Query(None, description="案件ID"),
     page: int = Query(1, ge=1, description="页码"),
@@ -275,8 +275,8 @@ async def reject_time_entries(
 
 @router.get("/timesheet/summary")
 async def get_timesheet_summary(
-    date_from: Optional[date] = Query(None, description="开始日期"),
-    date_to: Optional[date] = Query(None, description="结束日期"),
+    date_from: Optional[DateType] = Query(None, description="开始日期"),
+    date_to: Optional[DateType] = Query(None, description="结束日期"),
     user: User = Depends(require_permission(Permission.MANAGE_TIMESHEET)),
     db: AsyncSession = Depends(get_db),
 ):
@@ -353,8 +353,8 @@ async def update_invoice_status(
 
 @router.get("/revenue-report")
 async def get_revenue_report(
-    date_from: Optional[date] = Query(None, description="开始日期"),
-    date_to: Optional[date] = Query(None, description="结束日期"),
+    date_from: Optional[DateType] = Query(None, description="开始日期"),
+    date_to: Optional[DateType] = Query(None, description="结束日期"),
     user: User = Depends(require_permission(Permission.MANAGE_BILLING)),
     db: AsyncSession = Depends(get_db),
 ):

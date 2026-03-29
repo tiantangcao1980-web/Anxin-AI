@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from loguru import logger
 
-from src.models.collaboration import DocumentSession, DocumentEdit, DocumentCollaborator, SessionStatus
+from src.models.collaboration import DocumentSession, DocumentEdit, DocumentCollaborator, DocumentSnapshot, SessionStatus
 from src.models.document import Document
 
 
@@ -483,3 +483,208 @@ class CollaborationService:
         for char in name:
             hash_val = ord(char) + ((hash_val << 5) - hash_val)
         return colors[abs(hash_val) % len(colors)]
+
+    # ==================== 版本快照管理 ====================
+
+    async def create_snapshot(
+        self,
+        session_id: str,
+        content: str,
+        user_id: str = None,
+        snapshot_type: str = "manual",
+        description: str = None,
+    ) -> dict:
+        """创建版本快照"""
+        try:
+            result = await self.db.execute(
+                select(DocumentSession).where(DocumentSession.id == session_id)
+            )
+            session = result.scalar_one_or_none()
+            if not session:
+                return {"success": False, "error": "会话不存在"}
+
+            snapshot = DocumentSnapshot(
+                session_id=session_id,
+                version=session.current_version,
+                content=content,
+                snapshot_type=snapshot_type,
+                created_by=user_id,
+                description=description,
+                byte_size=len(content.encode("utf-8")),
+            )
+            self.db.add(snapshot)
+            await self.db.flush()
+
+            logger.info(f"创建快照: session={session_id}, version={session.current_version}, type={snapshot_type}")
+
+            return {
+                "success": True,
+                "id": snapshot.id,
+                "version": snapshot.version,
+                "snapshot_type": snapshot_type,
+                "byte_size": snapshot.byte_size,
+                "created_at": snapshot.created_at.isoformat() if snapshot.created_at else None,
+            }
+        except Exception as e:
+            logger.error(f"创建快照失败: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def list_snapshots(self, session_id: str, limit: int = 20) -> list[dict]:
+        """获取快照列表"""
+        from sqlalchemy import desc
+
+        result = await self.db.execute(
+            select(DocumentSnapshot)
+            .where(DocumentSnapshot.session_id == session_id)
+            .order_by(desc(DocumentSnapshot.version))
+            .limit(limit)
+        )
+        snapshots = list(result.scalars().all())
+
+        return [
+            {
+                "id": s.id,
+                "version": s.version,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+                "created_by": s.created_by,
+                "snapshot_type": s.snapshot_type,
+                "description": s.description,
+                "byte_size": s.byte_size,
+            }
+            for s in snapshots
+        ]
+
+    async def restore_snapshot(self, session_id: str, snapshot_id: str, user_id: str) -> dict:
+        """回滚到某版本"""
+        try:
+            # 读取目标快照
+            snap_result = await self.db.execute(
+                select(DocumentSnapshot).where(DocumentSnapshot.id == snapshot_id)
+            )
+            target_snapshot = snap_result.scalar_one_or_none()
+            if not target_snapshot:
+                return {"success": False, "error": "快照不存在"}
+
+            if target_snapshot.session_id != session_id:
+                return {"success": False, "error": "快照不属于该会话"}
+
+            # 获取当前会话
+            sess_result = await self.db.execute(
+                select(DocumentSession).where(DocumentSession.id == session_id)
+            )
+            session = sess_result.scalar_one_or_none()
+            if not session:
+                return {"success": False, "error": "会话不存在"}
+
+            # 先创建当前内容的快照（type=restore），记录回滚前状态
+            current_content = session.current_content or ""
+            restore_backup = DocumentSnapshot(
+                session_id=session_id,
+                version=session.current_version,
+                content=current_content,
+                snapshot_type="restore",
+                created_by=user_id,
+                description=f"回滚前备份（回滚至版本 {target_snapshot.version}）",
+                byte_size=len(current_content.encode("utf-8")),
+            )
+            self.db.add(restore_backup)
+
+            # 更新会话内容为快照内容
+            session.current_content = target_snapshot.content
+            session.current_version += 1
+            session.last_activity_at = datetime.utcnow()
+
+            await self.db.flush()
+
+            logger.info(f"回滚快照: session={session_id}, 恢复至版本 {target_snapshot.version}")
+
+            # 广播给所有协作者
+            await self.manager.broadcast_to_document(session.document_id, {
+                "type": "snapshot_restored",
+                "version": session.current_version,
+                "content": target_snapshot.content,
+                "restored_from_version": target_snapshot.version,
+                "user_id": user_id,
+            })
+
+            return {
+                "success": True,
+                "new_version": session.current_version,
+                "restored_from_version": target_snapshot.version,
+            }
+        except Exception as e:
+            logger.error(f"回滚快照失败: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def diff_snapshots(self, snapshot_id_a: str, snapshot_id_b: str) -> dict:
+        """版本对比"""
+        try:
+            result_a = await self.db.execute(
+                select(DocumentSnapshot).where(DocumentSnapshot.id == snapshot_id_a)
+            )
+            snap_a = result_a.scalar_one_or_none()
+
+            result_b = await self.db.execute(
+                select(DocumentSnapshot).where(DocumentSnapshot.id == snapshot_id_b)
+            )
+            snap_b = result_b.scalar_one_or_none()
+
+            if not snap_a or not snap_b:
+                return {"success": False, "error": "快照不存在"}
+
+            # 逐行 diff
+            lines_a = (snap_a.content or "").splitlines(keepends=True)
+            lines_b = (snap_b.content or "").splitlines(keepends=True)
+
+            diff_lines = []
+            line_num = 0
+            for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, lines_a, lines_b).get_opcodes():
+                if tag == "equal":
+                    for idx in range(i1, i2):
+                        line_num += 1
+                        diff_lines.append({
+                            "type": "equal",
+                            "content": lines_a[idx].rstrip("\n"),
+                            "line_number": line_num,
+                        })
+                elif tag == "delete":
+                    for idx in range(i1, i2):
+                        line_num += 1
+                        diff_lines.append({
+                            "type": "delete",
+                            "content": lines_a[idx].rstrip("\n"),
+                            "line_number": line_num,
+                        })
+                elif tag == "insert":
+                    for idx in range(j1, j2):
+                        line_num += 1
+                        diff_lines.append({
+                            "type": "add",
+                            "content": lines_b[idx].rstrip("\n"),
+                            "line_number": line_num,
+                        })
+                elif tag == "replace":
+                    for idx in range(i1, i2):
+                        line_num += 1
+                        diff_lines.append({
+                            "type": "delete",
+                            "content": lines_a[idx].rstrip("\n"),
+                            "line_number": line_num,
+                        })
+                    for idx in range(j1, j2):
+                        line_num += 1
+                        diff_lines.append({
+                            "type": "add",
+                            "content": lines_b[idx].rstrip("\n"),
+                            "line_number": line_num,
+                        })
+
+            return {
+                "success": True,
+                "snapshot_a": {"id": snap_a.id, "version": snap_a.version},
+                "snapshot_b": {"id": snap_b.id, "version": snap_b.version},
+                "lines": diff_lines,
+            }
+        except Exception as e:
+            logger.error(f"版本对比失败: {e}")
+            return {"success": False, "error": str(e)}

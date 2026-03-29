@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { icons } from '@/lib/icons'
 import { cardStyle, heading, statusBadge, buttonStyle, iconSize } from '@/lib/design-tokens'
 import { sentimentApi, type SentimentRecord } from '@/lib/api'
+import { toast } from 'sonner'
 import { PageContainer } from '@/components/ui/PageContainer'
 
 type NewsCategory = 'all' | 'regulation' | 'case_law' | 'policy' | 'industry'
@@ -24,6 +25,7 @@ const categoryConfig: Record<string, { label: string; badge: string }> = {
   industry: { label: '行业资讯', badge: statusBadge.neutral },
 }
 
+// @mock-data FALLBACK
 const mockNews: NewsItem[] = [
   { id: '1', title: '最高人民法院发布民法典合同编司法解释（二）', summary: '针对合同效力、合同履行、合同解除等方面的法律适用问题作出详细规定，进一步明确了违约责任的认定标准。', source: '最高人民法院', category: 'regulation', publishedAt: '2026-03-17', tags: ['民法典', '合同'], isImportant: true },
   { id: '2', title: '知名互联网企业竞业限制纠纷案终审判决', summary: '法院认定竞业限制补偿金过低不影响协议效力，但可作为违约金调整的参考因素。', source: '北京高院', category: 'case_law', publishedAt: '2026-03-16', tags: ['劳动法', '竞业限制'], isImportant: true },
@@ -170,17 +172,23 @@ export default function News() {
   const [category, setCategory] = useState<NewsCategory>('all')
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const loadNews = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
       const data = await sentimentApi.listRecords({ page: 1, page_size: 50 })
       if (data.items?.length > 0) {
         setNews(data.items.map(recordToNewsItem))
       } else {
+        // @mock-data FALLBACK
+        toast.warning('API 不可用，使用演示数据')
         setNews(mockNews)
       }
     } catch {
+      // @mock-data FALLBACK
+      toast.warning('API 不可用，使用演示数据')
       setNews(mockNews)
     } finally {
       setLoading(false)
@@ -206,6 +214,15 @@ export default function News() {
         <div className="flex items-center justify-center py-20">
           <icons.Refresh className={`${iconSize.lg} animate-spin text-primary`} />
           <span className="ml-2 text-sm text-muted-foreground">加载资讯...</span>
+        </div>
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+          <icons.AlertTriangle className={`${iconSize['2xl']} mb-3 opacity-30`} />
+          <p className="text-sm mb-3">{error}</p>
+          <button onClick={loadNews} className={buttonStyle.primary}>
+            <icons.Refresh className={`${iconSize.sm} inline-block mr-1`} />
+            重试
+          </button>
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">

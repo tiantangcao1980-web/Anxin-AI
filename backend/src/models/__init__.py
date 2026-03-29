@@ -54,7 +54,7 @@ from src.models.sentiment import (
 
 from src.models.collaboration import (
 
-    DocumentSession, DocumentCollaborator, DocumentEdit,
+    DocumentSession, DocumentCollaborator, DocumentEdit, DocumentSnapshot,
 
     SessionStatus, CollaboratorRole, EditOperation
 
@@ -157,6 +157,7 @@ __all__ = [
     "CollaboratorRole",
 
     "EditOperation",
+    "DocumentSnapshot",
     "Asset",
     "Notification",
     "NotificationPreference",

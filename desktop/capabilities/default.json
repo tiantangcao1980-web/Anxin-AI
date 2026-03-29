@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nickel-org/nickel.rs/master/docs/schema/permissions.json",
+  "identifier": "default",
+  "description": "安心法务桌面端默认权限",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "shell:allow-open",
+    "http:default",
+    "fs:allow-read-text-file",
+    "fs:allow-write-text-file",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "dialog:allow-message",
+    "dialog:allow-ask",
+    "clipboard-manager:allow-read-text",
+    "clipboard-manager:allow-write-text"
+  ]
+}

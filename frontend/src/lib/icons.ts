@@ -210,6 +210,8 @@ export const icons = {
   // ===== 导航 - 业务域组图标 =====
   /** AI法务域 */
   AILegal: Sparkles,
+  /** 温和/喜爱 */
+  Heart: Heart,
   /** 智能协作域 */
   CollaborationGroup: Users,
   /** 信息中心域 */

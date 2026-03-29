@@ -143,6 +143,12 @@ export default function Chat() {
   const [showContextPanel, setShowContextPanel] = useState(false);
   // 右侧面板默认收起，只在有任务触发时展开
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
+  // 左侧对话列表宽度（可拖拽调整）
+  const [sidebarWidth, setSidebarWidth] = useState(220);
+  // 右侧面板宽度百分比（可拖拽调整）
+  const [rightPanelWidth, setRightPanelWidth] = useState(50);
+  // 输入区高度（可拖拽调整，与消息区联动）
+  const [inputAreaHeight, setInputAreaHeight] = useState<number | null>(null);
   const [input, setInput] = useState('');
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   // 内联 Agent 思考状态指示器
@@ -155,6 +161,7 @@ export default function Chat() {
   const { streams: streamingA2UIMap, activeStreams, handleStreamEvent: handleA2UIStreamEvent } = useStreamingA2UI();
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
 
   // 侧边栏
   const [editingConvId, setEditingConvId] = useState<string | null>(null);
@@ -1097,9 +1104,12 @@ export default function Chat() {
     // 连接成功后重置重连计数
     ws.addEventListener('open', () => {
       reconnectAttemptRef.current = 0;
+      setWsConnected(true);
+    });
+    ws.addEventListener('close', () => {
+      setWsConnected(false);
     });
     return ws;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 不依赖任何变化的回调 — 通过 ref 间接引用
 
   useEffect(() => {
@@ -1118,7 +1128,6 @@ export default function Chat() {
       }
       wsRef.current = null;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]); // 只在 conversationId 变化时重建连接
 
   // ========== 发送消息超时保护 ==========
@@ -1150,7 +1159,6 @@ export default function Chat() {
     return () => {
       if (processingTimeoutRef.current) clearTimeout(processingTimeoutRef.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isProcessing]);
 
   // ========== 发送消息 ==========
@@ -1745,13 +1753,13 @@ export default function Chat() {
         {chatSidebarOpen && (
           <motion.div
             initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 280, opacity: 1 }}
+            animate={{ width: sidebarWidth, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.2, ease: 'easeInOut' }}
             className="h-full flex-shrink-0 bg-background flex flex-col overflow-hidden border-r border-border max-md:!w-full max-md:absolute max-md:inset-0 max-md:z-20"
           >
-            <div className="p-3 flex flex-col gap-2 border-b border-border/50">
-              <div className="flex items-center justify-between">
+            <div className="h-12 px-3 flex items-center gap-2 border-b border-border/50 shrink-0">
+              <div className="flex items-center justify-between flex-1">
                 {!batchMode ? (
                   <>
                     <button onClick={handleNewConversation}
@@ -1759,12 +1767,12 @@ export default function Chat() {
                       <icons.Plus className="w-4 h-4" /> 新建对话
                     </button>
                     <button onClick={handleToggleBatchMode}
-                      className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-lg transition-colors" title="批量管理">
-                      <icons.Check className="w-4 h-4" />
+                      className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors" title="批量管理">
+                      <icons.MoreHorizontal className="w-4 h-4" />
                     </button>
                     <button onClick={() => setChatSidebarOpen(false)}
-                      className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors" title="收起侧边栏">
-                      <icons.PanelLeft className="w-4 h-4" />
+                      className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors" title="收起侧边栏">
+                      <icons.ChevronLeft className="w-4 h-4" />
                     </button>
                   </>
                 ) : (
@@ -1779,28 +1787,28 @@ export default function Chat() {
                   </>
                 )}
               </div>
-              {batchMode && (
-                <div className="flex items-center gap-2">
-                  <button onClick={handleSelectAll}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-lg border border-border transition-colors">
-                    {selectedConvIds.size === conversations.length ? (
-                      <><icons.Check className="w-3.5 h-3.5" /> 取消全选</>
-                    ) : (
-                      <><icons.Circle className="w-3.5 h-3.5" /> 全选</>
-                    )}
-                  </button>
-                  <button onClick={handleBatchDelete}
-                    disabled={selectedConvIds.size === 0 || isBatchDeleting}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white bg-destructive hover:bg-destructive/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors flex-1 justify-center shadow-sm">
-                    {isBatchDeleting ? (
-                      <><icons.Loader2 className="w-3.5 h-3.5 animate-spin" /> 删除中...</>
-                    ) : (
-                      <><icons.Trash2 className="w-3.5 h-3.5" /> 删除所选 ({selectedConvIds.size})</>
-                    )}
-                  </button>
-                </div>
-              )}
             </div>
+            {batchMode && (
+              <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border/50 bg-muted/30 shrink-0">
+                <button onClick={handleSelectAll}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-lg border border-border transition-colors">
+                  {selectedConvIds.size === conversations.length ? (
+                    <><icons.Check className="w-3.5 h-3.5" /> 取消全选</>
+                  ) : (
+                    <><icons.Circle className="w-3.5 h-3.5" /> 全选</>
+                  )}
+                </button>
+                <button onClick={handleBatchDelete}
+                  disabled={selectedConvIds.size === 0 || isBatchDeleting}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white bg-destructive hover:bg-destructive/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors flex-1 justify-center shadow-sm">
+                  {isBatchDeleting ? (
+                    <><icons.Loader2 className="w-3.5 h-3.5 animate-spin" /> 删除中...</>
+                  ) : (
+                    <><icons.Trash2 className="w-3.5 h-3.5" /> 删除所选 ({selectedConvIds.size})</>
+                  )}
+                </button>
+              </div>
+            )}
 
             <div className="flex-1 overflow-y-auto py-2">
               {conversations.length === 0 ? (
@@ -1885,27 +1893,55 @@ export default function Chat() {
         )}
       </AnimatePresence>
 
+      {/* 对话列表 ↔ 聊天区 拖拽分隔条 */}
+      {chatSidebarOpen && !isMobile && (
+        <div
+          className="w-1 hover:w-1.5 bg-transparent hover:bg-primary/20 cursor-col-resize transition-all shrink-0 group relative"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            const startX = e.clientX;
+            const startWidth = sidebarWidth;
+            const onMove = (ev: MouseEvent) => {
+              const delta = ev.clientX - startX;
+              setSidebarWidth(Math.min(400, Math.max(200, startWidth + delta)));
+            };
+            const onUp = () => {
+              document.removeEventListener('mousemove', onMove);
+              document.removeEventListener('mouseup', onUp);
+            };
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+          }}
+        >
+          <div className="absolute inset-y-0 left-0 right-0 opacity-0 group-hover:opacity-100 bg-primary/30 transition-opacity" />
+        </div>
+      )}
+
       {/* ========== 主内容区 ========== */}
       <div className="flex-1 flex flex-col min-w-0 relative">
         <div className="flex-1 flex overflow-hidden">
           {/* 左侧聊天区 — 自适应宽度 */}
           <div
             className="flex flex-col bg-background transition-all duration-300 ease-in-out"
-            style={{ width: rightPanelOpen && !isMobile ? '50%' : '100%', minWidth: 0 }}
+            style={{ width: rightPanelOpen && !isMobile ? `${100 - rightPanelWidth}%` : '100%', minWidth: 0 }}
           >
             {/* Header — v3 紧凑版 */}
-            <div className="px-4 py-2 border-b border-border flex items-center gap-2.5 bg-background/80 backdrop-blur-sm">
+            <div className="h-12 px-4 border-b border-border flex items-center gap-2.5 bg-background/80 backdrop-blur-sm shrink-0">
               {!chatSidebarOpen && (
                 <button onClick={() => setChatSidebarOpen(true)}
                   className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors" title="展开对话列表">
-                  <icons.PanelLeft className="w-4.5 h-4.5" />
+                  <icons.ChevronRight className="w-4 h-4" />
                 </button>
               )}
               <div className="flex items-center gap-2">
                 <span className="font-bold text-base text-foreground">AI 法务助手</span>
-                <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-1.5 py-0.5 rounded-full font-medium border border-emerald-200 dark:border-emerald-800">
-                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                  在线
+                <span className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-medium border ${
+                  wsConnected
+                    ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800'
+                    : 'text-muted-foreground bg-muted border-border'
+                }`}>
+                  <div className={`w-1.5 h-1.5 rounded-full ${wsConnected ? 'bg-emerald-500' : 'bg-muted-foreground'}`} />
+                  {wsConnected ? '在线' : '连接中'}
                 </span>
               </div>
               <div className="flex-1" />
@@ -1924,7 +1960,7 @@ export default function Chat() {
                   }`}
                   title={rightPanelOpen ? '收起智能工作台' : '展开智能工作台'}
                 >
-                  {rightPanelOpen ? <icons.PanelLeft className="w-4.5 h-4.5" /> : <icons.PanelLeft className="w-4.5 h-4.5" />}
+                  {rightPanelOpen ? <icons.ChevronRight className="w-4 h-4" /> : <icons.LayoutDashboard className="w-4 h-4" />}
                 </button>
               )}
             </div>
@@ -2004,8 +2040,38 @@ export default function Chat() {
               )}
             </AnimatePresence>
 
+            {/* 消息区 ↔ 输入区 拖拽分隔条 */}
+            <div
+              className="h-1 hover:h-1.5 bg-transparent hover:bg-primary/20 cursor-row-resize transition-all shrink-0 group relative"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                const container = e.currentTarget.parentElement;
+                if (!container) return;
+                const startY = e.clientY;
+                const containerH = container.offsetHeight;
+                const inputEl = e.currentTarget.nextElementSibling as HTMLElement;
+                const startH = inputEl?.offsetHeight || 160;
+                const onMove = (ev: MouseEvent) => {
+                  const delta = startY - ev.clientY;
+                  const newH = Math.min(containerH * 0.6, Math.max(100, startH + delta));
+                  setInputAreaHeight(newH);
+                };
+                const onUp = () => {
+                  document.removeEventListener('mousemove', onMove);
+                  document.removeEventListener('mouseup', onUp);
+                };
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+              }}
+            >
+              <div className="absolute inset-x-0 top-0 bottom-0 opacity-0 group-hover:opacity-100 bg-primary/30 transition-opacity" />
+            </div>
+
             {/* Input Area — v3 豆包风格 */}
-            <div className="p-3 bg-background border-t border-border">
+            <div
+              className="p-3 bg-background shrink-0 overflow-hidden"
+              style={inputAreaHeight ? { height: inputAreaHeight } : undefined}
+            >
               <div className="max-w-4xl mx-auto">
                 <AnimatePresence>
                   {pendingFile && (
@@ -2132,20 +2198,48 @@ export default function Chat() {
             </div>
           </div>
 
+          {/* 聊天区 ↔ 智能工作台 拖拽分隔条 */}
+          {!isMobile && rightPanelOpen && (
+            <div
+              className="w-1 hover:w-1.5 bg-transparent hover:bg-primary/20 cursor-col-resize transition-all shrink-0 group relative z-10"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                const container = e.currentTarget.parentElement;
+                if (!container) return;
+                const containerWidth = container.offsetWidth;
+                const startX = e.clientX;
+                const startPct = rightPanelWidth;
+                const onMove = (ev: MouseEvent) => {
+                  const deltaPx = startX - ev.clientX;
+                  const deltaPct = (deltaPx / containerWidth) * 100;
+                  setRightPanelWidth(Math.min(70, Math.max(25, startPct + deltaPct)));
+                };
+                const onUp = () => {
+                  document.removeEventListener('mousemove', onMove);
+                  document.removeEventListener('mouseup', onUp);
+                };
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+              }}
+            >
+              <div className="absolute inset-y-0 left-0 right-0 opacity-0 group-hover:opacity-100 bg-primary/30 transition-opacity" />
+            </div>
+          )}
+
           {/* ========== 右侧面板 — 默认收起,任务触发展开 ========== */}
           <AnimatePresence>
             {!isMobile && rightPanelOpen && (
               <motion.div
                 initial={{ width: 0, opacity: 0 }}
-                animate={{ width: '50%', opacity: 1 }}
+                animate={{ width: `${rightPanelWidth}%`, opacity: 1 }}
                 exit={{ width: 0, opacity: 0 }}
                 transition={{ duration: 0.3, ease: 'easeInOut' }}
-                className="bg-muted overflow-hidden border-l border-border relative"
+                className="bg-muted overflow-hidden relative"
               >
                 {/* 关闭按钮 */}
                 <button
                   onClick={closeRightPanel}
-                  className="absolute top-2 right-2 z-10 p-1 text-muted-foreground hover:text-foreground hover:bg-background/60 rounded-lg transition-colors"
+                  className="absolute top-3 right-3 z-10 p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
                   title="收起面板"
                 >
                   <icons.X className="w-4 h-4" />

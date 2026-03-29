@@ -5,11 +5,12 @@
 # 查看帮助: make help
 # ============================================================
 
-.PHONY: help up down restart logs status health backup restore init seed clean migrate build dev
+.PHONY: help up down restart logs status health backup restore init seed clean migrate build dev verify verify-frontend verify-backend verify-backend-full sync-backend-dev tauri-dev tauri-build
 
 # 默认 Docker Compose 文件
 COMPOSE := docker compose
 COMPOSE_DEV := docker compose -f docker-compose.dev.yml
+BACKEND_SMOKE_TESTS := tests/test_advanced_features.py tests/test_traceability.py tests/test_oa_integration.py tests/test_business_agents.py
 
 # 备份目录
 BACKUP_DIR ?= ./backups/$(shell date +%Y-%m-%d_%H-%M)
@@ -103,3 +104,45 @@ dev: ## 启动开发环境（使用 docker-compose.dev.yml）
 	@echo ">>> 启动开发环境..."
 	$(COMPOSE_DEV) up -d
 	@echo ">>> 开发环境已启动"
+
+sync-backend-dev: ## 同步后端开发依赖（pytest/ruff 等）
+	@echo ">>> 同步后端开发依赖..."
+	cd backend && UV_CACHE_DIR=/tmp/uv-cache uv sync --frozen --extra dev
+	@echo ">>> 后端开发依赖已同步"
+
+verify-frontend: ## 验证前端（lint + build）
+	@echo ">>> 验证前端..."
+	cd frontend && npm run lint
+	cd frontend && npm run build
+	@echo ">>> 前端验证通过"
+
+verify-backend: ## 验证后端 smoke 基线（导入 + smoke tests）
+	@echo ">>> 验证后端..."
+	@test -x backend/.venv/bin/python || (echo "错误: 后端虚拟环境未就绪，请先运行 'make sync-backend-dev'" && exit 1)
+	@test -x backend/.venv/bin/pytest || (echo "错误: pytest 未安装，请先运行 'make sync-backend-dev'" && exit 1)
+	cd backend && ./.venv/bin/python -c "import src.api.main; print('backend_import_ok')"
+	cd backend && ./.venv/bin/pytest -q $(BACKEND_SMOKE_TESTS)
+	@echo ">>> 后端验证通过"
+
+verify-backend-full: ## 运行后端全量检查（当前可能失败，供排查用）
+	@echo ">>> 运行后端全量检查..."
+	@test -x backend/.venv/bin/python || (echo "错误: 后端虚拟环境未就绪，请先运行 'make sync-backend-dev'" && exit 1)
+	@test -x backend/.venv/bin/pytest || (echo "错误: pytest 未安装，请先运行 'make sync-backend-dev'" && exit 1)
+	@test -x backend/.venv/bin/ruff || (echo "错误: ruff 未安装，请先运行 'make sync-backend-dev'" && exit 1)
+	cd backend && ./.venv/bin/ruff check src tests
+	cd backend && ./.venv/bin/pytest -q
+
+verify: ## 执行前后端最小校验
+	@$(MAKE) verify-frontend
+	@$(MAKE) verify-backend
+
+# ==================== Tauri 桌面端 ====================
+
+tauri-dev: ## 启动 Tauri 开发环境
+	@echo "🖥️  启动安心法务桌面客户端..."
+	cd desktop && cargo tauri dev
+
+tauri-build: ## 构建桌面应用安装包
+	@echo "📦 构建桌面应用..."
+	cd desktop && cargo tauri build
+	@echo "✅ 构建完成，安装包位于 desktop/target/release/bundle/"

@@ -21,6 +21,7 @@ from src.api.routes import acquisition_analytics
 from src.api.routes import firm_management
 from src.api.routes import lawyer_onboarding
 from src.api.routes import billing
+from src.api.routes import ai_assistant
 
 api_router = APIRouter()
 
@@ -60,3 +61,4 @@ api_router.include_router(acquisition_analytics.router, tags=["获客分析"])
 api_router.include_router(firm_management.router, tags=["律所管理"])
 api_router.include_router(lawyer_onboarding.router, tags=["律师入驻"])
 api_router.include_router(billing.router, tags=["计费系统"])
+api_router.include_router(ai_assistant.router, tags=["AI私有助手"])
