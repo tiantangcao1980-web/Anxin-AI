@@ -70,8 +70,6 @@ export function ChatCanvas() {
   }, [sessionId]);
 
   const handleWebSocketMessage = (data: any) => {
-    console.log('WS Message:', data);
-    
     switch (data.type) {
       case 'agent_thinking':
         setIsProcessing(true);

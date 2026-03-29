@@ -1281,7 +1281,7 @@ function MobileDetailDrawer({
   if (!detail && !loading) return null
 
   return (
-    <div className="lg:hidden fixed inset-x-0 bottom-0 z-50 bg-background border-t border-border rounded-t-2xl shadow-xl max-h-[50vh] overflow-y-auto">
+    <div className="lg:hidden fixed inset-x-0 bottom-14 z-50 bg-background border-t border-border rounded-t-2xl shadow-xl max-h-[50vh] overflow-y-auto">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border sticky top-0 bg-background">
         <h3 className={heading.section}>{loading ? '加载中...' : detail?.name}</h3>
         <button onClick={onClose} className={buttonStyle.icon}>

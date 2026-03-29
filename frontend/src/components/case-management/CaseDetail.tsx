@@ -310,7 +310,7 @@ ${activities.length > 0 ? activities.slice(0, 5).map(a => `- [${new Date(a.time)
       </div>
 
       {/* Footer Actions */}
-      <div className="p-4 border-t border-border bg-muted/50">
+      <div className="p-4 pb-4 lg:pb-4 border-t border-border bg-muted/50" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
         <div className="flex gap-2">
           <button 
             onClick={handleGenerateBriefing}

@@ -28,7 +28,6 @@ export function CrawlProgressBar({ taskId, onComplete }: CrawlProgressBarProps) 
 
     socket.onopen = () => {
       setIsConnected(true);
-      console.log('LIC WebSocket connected');
     };
 
     socket.onmessage = (event) => {
@@ -46,7 +45,6 @@ export function CrawlProgressBar({ taskId, onComplete }: CrawlProgressBarProps) 
 
     socket.onclose = () => {
       setIsConnected(false);
-      console.log('LIC WebSocket disconnected');
     };
 
     return () => {

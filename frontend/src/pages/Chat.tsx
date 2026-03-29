@@ -1487,8 +1487,6 @@ export default function Chat() {
   }), []);
 
   const handleA2UIEvent = useCallback((event: A2UIEvent) => {
-    console.log('[A2UI Event]', event);
-
     // 特殊处理：快捷意图按钮 → 直接作为用户消息发送
     if (event.actionId === 'quick_intent' && event.payload?.query) {
       handleSendMessage(event.payload.query);

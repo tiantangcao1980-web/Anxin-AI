@@ -180,7 +180,7 @@ export default function FindLawyer() {
               <span className={`text-xs font-medium hidden sm:inline ${
                 step === s.key ? 'text-foreground' : 'text-muted-foreground'
               }`}>{s.label}</span>
-              {i < 3 && <div className="w-8 h-px bg-border" />}
+              {i < 3 && <div className="w-4 sm:w-8 h-px bg-border shrink-0" />}
             </div>
           ))}
         </div>

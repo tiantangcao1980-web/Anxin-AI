@@ -57,6 +57,14 @@ export default defineConfig(({ mode }) => {
             if (id.includes('/node_modules/lottie-web/')) {
               return 'vendor-lottie'
             }
+            // framer-motion 动画库（被大量 chat 组件引用，独立拆分以利用缓存）
+            if (id.includes('/node_modules/framer-motion/') || id.includes('/node_modules/motion/')) {
+              return 'vendor-framer-motion'
+            }
+            // reactflow（仅 KnowledgeGraphView 使用，独立拆分避免污染 chat chunk）
+            if (id.includes('/node_modules/reactflow/') || id.includes('/node_modules/@reactflow/')) {
+              return 'vendor-reactflow'
+            }
             // chat 子组件（不含 Chat.tsx 主页面）
             if (id.includes('/src/components/chat/') && !id.endsWith('/pages/Chat.tsx')) {
               return 'chat-components'
@@ -68,8 +76,8 @@ export default defineConfig(({ mode }) => {
           },
         },
       },
-      // 提升警告阈值，Chat 页面暂时较大
-      chunkSizeWarningLimit: 600,
+      // chat-components 含 39 个组件约 692KB，暂时提高阈值
+      chunkSizeWarningLimit: 700,
     },
     server: {
       port: 3001,

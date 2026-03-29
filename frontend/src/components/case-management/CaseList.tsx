@@ -72,12 +72,12 @@ export function CaseList({ cases, selectedCase, onSelectCase, onCreateCase }: Ca
         </div>
 
         {/* Filters */}
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
           {['all', 'pending', 'in-progress', 'under-review', 'completed', 'closed'].map((status) => (
             <button
               key={status}
               onClick={() => setFilterStatus(status)}
-              className={`${buttonStyle.sm} transition-colors ${
+              className={`${buttonStyle.sm} transition-colors whitespace-nowrap shrink-0 ${
                 filterStatus === status
                   ? 'bg-primary/10 text-primary'
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'

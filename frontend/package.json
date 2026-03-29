@@ -9,7 +9,10 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "tauri:dev": "cd ../desktop && cargo tauri dev",
-    "tauri:build": "cd ../desktop && cargo tauri build"
+    "tauri:build": "cd ../desktop && cargo tauri build",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:mobile": "playwright test --project=mobile"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

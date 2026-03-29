@@ -172,12 +172,12 @@ function SearchTab({ keyword }: { keyword: string }) {
       </div>
 
       {/* 模式切换 */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
         {SEARCH_MODES.map(m => (
           <button
             key={m.key}
             onClick={() => setMode(m.key)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap shrink-0 ${
               mode === m.key
                 ? 'bg-primary text-white'
                 : 'bg-muted text-muted-foreground hover:text-foreground'

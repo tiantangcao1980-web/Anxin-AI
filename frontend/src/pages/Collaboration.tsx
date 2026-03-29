@@ -323,7 +323,6 @@ export default function Collaboration() {
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      console.log('WebSocket连接成功');
       setConnected(true);
       setError(null);
       reconnectCountRef.current = 0;
@@ -351,7 +350,6 @@ export default function Collaboration() {
     };
 
     ws.onclose = () => {
-      console.log('WebSocket连接关闭');
       setConnected(false);
 
       // 指数退避重连（最大 30 秒）
@@ -359,7 +357,6 @@ export default function Collaboration() {
         const delay = Math.min(1000 * Math.pow(2, reconnectCountRef.current), 30000);
         reconnectCountRef.current += 1;
         reconnectTimeoutRef.current = setTimeout(() => {
-          console.log(`尝试重连（第 ${reconnectCountRef.current} 次）...`);
           connectWebSocket(sessionId);
         }, delay);
       }

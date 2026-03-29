@@ -82,17 +82,17 @@ export default function Contracts() {
       title="合同审查"
       description="AI智能审查合同，识别风险条款"
       actions={
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => setShowCreateModal(true)}
-            className={`${buttonStyle.secondary} flex items-center gap-2`}
+            className={`${buttonStyle.secondary} flex items-center gap-2 whitespace-nowrap`}
           >
             <icons.Plus className={iconSize.sm} />
             新建合同
           </button>
           <button
             onClick={() => setShowReviewModal(true)}
-            className={`${buttonStyle.primary} flex items-center gap-2`}
+            className={`${buttonStyle.primary} flex items-center gap-2 whitespace-nowrap`}
           >
             <icons.Upload className={iconSize.sm} />
             上传审查
@@ -333,7 +333,7 @@ function ReviewModal({
           {result ? (
             <div className="space-y-6">
               {/* 审查结果概览 */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className={cardStyle.compact}>
                   <p className={heading.muted}>风险等级</p>
                   <p className={`text-lg font-bold ${
