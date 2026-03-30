@@ -11,6 +11,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+from migration_utils import safe_create_index, safe_create_table
 
 # revision identifiers, used by Alembic.
 revision: str = '019_ai_assistant'
@@ -21,7 +22,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # ===== AI 助手配置表 =====
-    op.create_table(
+    safe_create_table(
         'ai_assistant_configs',
         sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
         sa.Column('org_id', postgresql.UUID(as_uuid=False), sa.ForeignKey('organizations.id', ondelete='CASCADE'), nullable=True),
@@ -42,11 +43,11 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index('ix_ai_assistant_configs_org_id', 'ai_assistant_configs', ['org_id'])
-    op.create_index('ix_ai_assistant_configs_is_active', 'ai_assistant_configs', ['is_active'])
+    safe_create_index('ix_ai_assistant_configs_org_id', 'ai_assistant_configs', ['org_id'])
+    safe_create_index('ix_ai_assistant_configs_is_active', 'ai_assistant_configs', ['is_active'])
 
     # ===== 对话摘要表 =====
-    op.create_table(
+    safe_create_table(
         'conversation_summaries',
         sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
         sa.Column('conversation_id', postgresql.UUID(as_uuid=False),
@@ -63,11 +64,11 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index('ix_conversation_summaries_user_id', 'conversation_summaries', ['user_id'])
-    op.create_index('ix_conversation_summaries_conversation_id', 'conversation_summaries', ['conversation_id'])
+    safe_create_index('ix_conversation_summaries_user_id', 'conversation_summaries', ['user_id'])
+    safe_create_index('ix_conversation_summaries_conversation_id', 'conversation_summaries', ['conversation_id'])
 
     # ===== AI 助手反馈表 =====
-    op.create_table(
+    safe_create_table(
         'ai_assistant_feedbacks',
         sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
         sa.Column('assistant_config_id', postgresql.UUID(as_uuid=False),
@@ -83,9 +84,9 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index('ix_ai_assistant_feedbacks_user_id', 'ai_assistant_feedbacks', ['user_id'])
-    op.create_index('ix_ai_assistant_feedbacks_config_id', 'ai_assistant_feedbacks', ['assistant_config_id'])
-    op.create_index('ix_ai_assistant_feedbacks_conversation_id', 'ai_assistant_feedbacks', ['conversation_id'])
+    safe_create_index('ix_ai_assistant_feedbacks_user_id', 'ai_assistant_feedbacks', ['user_id'])
+    safe_create_index('ix_ai_assistant_feedbacks_config_id', 'ai_assistant_feedbacks', ['assistant_config_id'])
+    safe_create_index('ix_ai_assistant_feedbacks_conversation_id', 'ai_assistant_feedbacks', ['conversation_id'])
 
 
 def downgrade() -> None:

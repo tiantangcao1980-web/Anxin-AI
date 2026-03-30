@@ -11,6 +11,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+from migration_utils import safe_create_index, safe_create_table
 
 # revision identifiers, used by Alembic.
 revision: str = '018_billing_tables'
@@ -21,7 +22,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # ===== 计费方案表 =====
-    op.create_table(
+    safe_create_table(
         'billing_plans',
         sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
         sa.Column('name', sa.String(100), nullable=False, comment='方案名称'),
@@ -42,12 +43,12 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index('ix_billing_plans_code', 'billing_plans', ['code'])
-    op.create_index('ix_billing_plans_is_active', 'billing_plans', ['is_active'])
-    op.create_index('ix_billing_plans_sort_order', 'billing_plans', ['sort_order'])
+    safe_create_index('ix_billing_plans_code', 'billing_plans', ['code'])
+    safe_create_index('ix_billing_plans_is_active', 'billing_plans', ['is_active'])
+    safe_create_index('ix_billing_plans_sort_order', 'billing_plans', ['sort_order'])
 
     # ===== 订阅表 =====
-    op.create_table(
+    safe_create_table(
         'subscriptions',
         sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
         sa.Column('user_id', postgresql.UUID(as_uuid=False),
@@ -71,14 +72,14 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index('ix_subscriptions_user_id', 'subscriptions', ['user_id'])
-    op.create_index('ix_subscriptions_plan_id', 'subscriptions', ['plan_id'])
-    op.create_index('ix_subscriptions_org_id', 'subscriptions', ['org_id'])
-    op.create_index('ix_subscriptions_status', 'subscriptions', ['status'])
-    op.create_index('ix_subscriptions_next_billing', 'subscriptions', ['next_billing_date'])
+    safe_create_index('ix_subscriptions_user_id', 'subscriptions', ['user_id'])
+    safe_create_index('ix_subscriptions_plan_id', 'subscriptions', ['plan_id'])
+    safe_create_index('ix_subscriptions_org_id', 'subscriptions', ['org_id'])
+    safe_create_index('ix_subscriptions_status', 'subscriptions', ['status'])
+    safe_create_index('ix_subscriptions_next_billing', 'subscriptions', ['next_billing_date'])
 
     # ===== 退款表 =====
-    op.create_table(
+    safe_create_table(
         'refunds',
         sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
         sa.Column('order_id', postgresql.UUID(as_uuid=False),
@@ -101,9 +102,9 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index('ix_refunds_order_id', 'refunds', ['order_id'])
-    op.create_index('ix_refunds_user_id', 'refunds', ['user_id'])
-    op.create_index('ix_refunds_status', 'refunds', ['status'])
+    safe_create_index('ix_refunds_order_id', 'refunds', ['order_id'])
+    safe_create_index('ix_refunds_user_id', 'refunds', ['user_id'])
+    safe_create_index('ix_refunds_status', 'refunds', ['status'])
 
 
 def downgrade() -> None:

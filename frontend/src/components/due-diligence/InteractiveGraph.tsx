@@ -235,73 +235,75 @@ export function InteractiveGraph({ companyName, onEntityClick, showKnowledgeLink
             </div>
           ) : (
             <div className="relative h-[400px]">
-              {/* SVG 力导向图 - 简化实现 */}
               <svg width="100%" height="100%" viewBox="0 0 600 400" className="bg-muted/20 rounded-lg">
                 {/* 连线 */}
-                {filteredLinks.map((link, i) => {
-                  const srcNode = filteredNodes.find(n => n.id === (typeof link.source === 'object' ? (link.source as any).id : link.source))
-                  const tgtNode = filteredNodes.find(n => n.id === (typeof link.target === 'object' ? (link.target as any).id : link.target))
-                  if (!srcNode || !tgtNode) return null
+                {(() => {
+                  const cx = 300, cy = 200
+                  const peripherals = filteredNodes.filter(n => n.type !== 'target')
+                  const peripheralCount = peripherals.length
+                  const radius = Math.min(160, 80 + peripheralCount * 12)
 
-                  const srcIdx = filteredNodes.indexOf(srcNode)
-                  const tgtIdx = filteredNodes.indexOf(tgtNode)
-                  const totalNodes = filteredNodes.length
-
-                  // 圆形布局
-                  const cx = 300, cy = 200, r = 150
-                  const srcAngle = srcNode.type === 'target' ? 0 : (srcIdx / totalNodes) * Math.PI * 2
-                  const tgtAngle = tgtNode.type === 'target' ? 0 : (tgtIdx / totalNodes) * Math.PI * 2
-                  const sx = srcNode.type === 'target' ? cx : cx + r * Math.cos(srcAngle)
-                  const sy = srcNode.type === 'target' ? cy : cy + r * Math.sin(srcAngle)
-                  const tx = tgtNode.type === 'target' ? cx : cx + r * Math.cos(tgtAngle)
-                  const ty = tgtNode.type === 'target' ? cy : cy + r * Math.sin(tgtAngle)
+                  const getPos = (node: GraphNode) => {
+                    if (node.type === 'target') return { x: cx, y: cy }
+                    const pIdx = peripherals.indexOf(node)
+                    const startAngle = -Math.PI / 2
+                    const angle = startAngle + (pIdx / Math.max(peripheralCount, 1)) * Math.PI * 2
+                    return { x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) }
+                  }
 
                   return (
-                    <g key={i}>
-                      <line x1={sx} y1={sy} x2={tx} y2={ty} stroke={link.color || '#E5E5EA'} strokeWidth={1.5} opacity={0.6} />
-                      <text x={(sx + tx) / 2} y={(sy + ty) / 2 - 4} textAnchor="middle" fontSize={8} fill="hsl(var(--muted-foreground))" opacity={0.8}>
-                        {link.relation}
-                      </text>
-                    </g>
-                  )
-                })}
+                    <>
+                      {filteredLinks.map((link, i) => {
+                        const srcNode = filteredNodes.find(n => n.id === (typeof link.source === 'object' ? (link.source as any).id : link.source))
+                        const tgtNode = filteredNodes.find(n => n.id === (typeof link.target === 'object' ? (link.target as any).id : link.target))
+                        if (!srcNode || !tgtNode) return null
 
-                {/* 节点 */}
-                {filteredNodes.map((node, i) => {
-                  const totalNodes = filteredNodes.length
-                  const cx = 300, cy = 200, r = 150
-                  const angle = node.type === 'target' ? 0 : (i / totalNodes) * Math.PI * 2
-                  const x = node.type === 'target' ? cx : cx + r * Math.cos(angle)
-                  const y = node.type === 'target' ? cy : cy + r * Math.sin(angle)
-                  const nodeR = node.type === 'target' ? 28 : 18
-                  const isHighlighted = highlightedId === node.id
-                  const isSelected = selectedNode?.id === node.id
+                        const s = getPos(srcNode)
+                        const t = getPos(tgtNode)
+                        const mx = (s.x + t.x) / 2
+                        const my = (s.y + t.y) / 2 - 6
 
-                  return (
-                    <g
-                      key={node.id}
-                      className="cursor-pointer"
-                      onClick={() => handleNodeClick(node)}
-                    >
-                      {(isHighlighted || isSelected) && (
-                        <circle cx={x} cy={y} r={nodeR + 4} fill="none" stroke={node.color} strokeWidth={2} opacity={0.5}>
-                          <animate attributeName="r" from={nodeR + 2} to={nodeR + 6} dur="1s" repeatCount="indefinite" />
-                          <animate attributeName="opacity" from="0.5" to="0.1" dur="1s" repeatCount="indefinite" />
-                        </circle>
-                      )}
-                      <circle cx={x} cy={y} r={nodeR} fill={node.color || TYPE_COLORS.default} opacity={0.9} />
-                      <text x={x} y={y + 1} textAnchor="middle" dominantBaseline="central" fontSize={node.type === 'target' ? 10 : 8} fill="white" fontWeight="600">
-                        {node.name.length > 4 ? node.name.slice(0, 4) + '..' : node.name}
-                      </text>
-                      <text x={x} y={y + nodeR + 12} textAnchor="middle" fontSize={9} fill="hsl(var(--foreground))" opacity={0.7}>
-                        {node.name.length > 6 ? node.name.slice(0, 6) + '...' : node.name}
-                      </text>
-                    </g>
+                        return (
+                          <g key={`link-${i}`}>
+                            <line x1={s.x} y1={s.y} x2={t.x} y2={t.y} stroke={link.color || 'hsl(var(--border))'} strokeWidth={1.5} opacity={0.5} />
+                            <text x={mx} y={my} textAnchor="middle" fontSize={7} fill="hsl(var(--muted-foreground))" opacity={0.7}>
+                              {link.relation}
+                            </text>
+                          </g>
+                        )
+                      })}
+
+                      {filteredNodes.map((node) => {
+                        const pos = getPos(node)
+                        const nodeR = node.type === 'target' ? 30 : 20
+                        const isHighlighted = highlightedId === node.id
+                        const isSelected = selectedNode?.id === node.id
+                        const labelMaxLen = node.type === 'target' ? 6 : 5
+                        const innerLabel = node.name.length > labelMaxLen ? node.name.slice(0, labelMaxLen - 1) + '..' : node.name
+
+                        return (
+                          <g key={node.id} className="cursor-pointer" onClick={() => handleNodeClick(node)}>
+                            {(isHighlighted || isSelected) && (
+                              <circle cx={pos.x} cy={pos.y} r={nodeR + 5} fill="none" stroke={node.color} strokeWidth={2} opacity={0.4}>
+                                <animate attributeName="r" from={nodeR + 3} to={nodeR + 7} dur="1.2s" repeatCount="indefinite" />
+                                <animate attributeName="opacity" from="0.4" to="0.05" dur="1.2s" repeatCount="indefinite" />
+                              </circle>
+                            )}
+                            <circle cx={pos.x} cy={pos.y} r={nodeR} fill={node.color || TYPE_COLORS.default} opacity={0.9} />
+                            <text x={pos.x} y={pos.y + 1} textAnchor="middle" dominantBaseline="central" fontSize={node.type === 'target' ? 11 : 9} fill="white" fontWeight="600">
+                              {innerLabel}
+                            </text>
+                            <text x={pos.x} y={pos.y + nodeR + 14} textAnchor="middle" fontSize={10} fill="hsl(var(--foreground))" opacity={0.8} fontWeight="500">
+                              {node.name.length > 8 ? node.name.slice(0, 7) + '…' : node.name}
+                            </text>
+                          </g>
+                        )
+                      })}
+                    </>
                   )
-                })}
+                })()}
               </svg>
 
-              {/* 统计 */}
               <div className="absolute bottom-2 left-2 text-[10px] text-muted-foreground bg-background/80 px-2 py-1 rounded">
                 {filteredNodes.length} 节点 · {filteredLinks.length} 关系
               </div>

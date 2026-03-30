@@ -11,6 +11,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+from migration_utils import safe_create_index, safe_create_table, safe_create_unique_constraint
 
 # revision identifiers, used by Alembic.
 revision: str = '016_firm_management'
@@ -21,7 +22,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # ===== 团队表 =====
-    op.create_table(
+    safe_create_table(
         'teams',
         sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
         sa.Column('org_id', postgresql.UUID(as_uuid=False), sa.ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False),
@@ -31,10 +32,10 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index('ix_teams_org_id', 'teams', ['org_id'])
+    safe_create_index('ix_teams_org_id', 'teams', ['org_id'])
 
     # ===== 团队成员表 =====
-    op.create_table(
+    safe_create_table(
         'team_members',
         sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
         sa.Column('team_id', postgresql.UUID(as_uuid=False), sa.ForeignKey('teams.id', ondelete='CASCADE'), nullable=False),
@@ -43,12 +44,12 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index('ix_team_members_team_id', 'team_members', ['team_id'])
-    op.create_index('ix_team_members_user_id', 'team_members', ['user_id'])
-    op.create_unique_constraint('uq_team_members_team_user', 'team_members', ['team_id', 'user_id'])
+    safe_create_index('ix_team_members_team_id', 'team_members', ['team_id'])
+    safe_create_index('ix_team_members_user_id', 'team_members', ['user_id'])
+    safe_create_unique_constraint('uq_team_members_team_user', 'team_members', ['team_id', 'user_id'])
 
     # ===== 案件分配表 =====
-    op.create_table(
+    safe_create_table(
         'case_assignments',
         sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
         sa.Column('case_id', postgresql.UUID(as_uuid=False), sa.ForeignKey('cases.id', ondelete='CASCADE'), nullable=False),
@@ -60,11 +61,11 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index('ix_case_assignments_case_id', 'case_assignments', ['case_id'])
-    op.create_index('ix_case_assignments_assignee_id', 'case_assignments', ['assignee_id'])
+    safe_create_index('ix_case_assignments_case_id', 'case_assignments', ['case_id'])
+    safe_create_index('ix_case_assignments_assignee_id', 'case_assignments', ['assignee_id'])
 
     # ===== 工时记录表 =====
-    op.create_table(
+    safe_create_table(
         'time_entries',
         sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
         sa.Column('user_id', postgresql.UUID(as_uuid=False), sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False),
@@ -80,12 +81,12 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index('ix_time_entries_user_id', 'time_entries', ['user_id'])
-    op.create_index('ix_time_entries_case_id', 'time_entries', ['case_id'])
-    op.create_index('ix_time_entries_user_date', 'time_entries', ['user_id', 'date'])
+    safe_create_index('ix_time_entries_user_id', 'time_entries', ['user_id'])
+    safe_create_index('ix_time_entries_case_id', 'time_entries', ['case_id'])
+    safe_create_index('ix_time_entries_user_date', 'time_entries', ['user_id', 'date'])
 
     # ===== 发票表 =====
-    op.create_table(
+    safe_create_table(
         'invoices',
         sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
         sa.Column('org_id', postgresql.UUID(as_uuid=False), sa.ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False),
@@ -101,9 +102,9 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index('ix_invoices_org_id', 'invoices', ['org_id'])
-    op.create_index('ix_invoices_case_id', 'invoices', ['case_id'])
-    op.create_index('ix_invoices_status', 'invoices', ['status'])
+    safe_create_index('ix_invoices_org_id', 'invoices', ['org_id'])
+    safe_create_index('ix_invoices_case_id', 'invoices', ['case_id'])
+    safe_create_index('ix_invoices_status', 'invoices', ['status'])
 
 
 def downgrade() -> None:

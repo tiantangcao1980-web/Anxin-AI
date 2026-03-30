@@ -9,6 +9,7 @@ Create Date: 2026-03-28
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
+from migration_utils import safe_create_index, safe_create_table
 
 # revision identifiers, used by Alembic.
 revision = "014_im_tables"
@@ -19,7 +20,7 @@ depends_on = None
 
 def upgrade() -> None:
     # ===== im_conversations =====
-    op.create_table(
+    safe_create_table(
         "im_conversations",
         sa.Column("id", sa.CHAR(36), primary_key=True),
         sa.Column("type", sa.String(20), nullable=False, comment="对话类型: private|group|case|contract"),
@@ -54,13 +55,13 @@ def upgrade() -> None:
             nullable=False,
         ),
     )
-    op.create_index("ix_im_conversations_type", "im_conversations", ["type"])
-    op.create_index("ix_im_conversations_last_message_at", "im_conversations", ["last_message_at"])
-    op.create_index("ix_im_conversations_case_id", "im_conversations", ["case_id"])
-    op.create_index("ix_im_conversations_contract_id", "im_conversations", ["contract_id"])
+    safe_create_index("ix_im_conversations_type", "im_conversations", ["type"])
+    safe_create_index("ix_im_conversations_last_message_at", "im_conversations", ["last_message_at"])
+    safe_create_index("ix_im_conversations_case_id", "im_conversations", ["case_id"])
+    safe_create_index("ix_im_conversations_contract_id", "im_conversations", ["contract_id"])
 
     # ===== im_participants =====
-    op.create_table(
+    safe_create_table(
         "im_participants",
         sa.Column("id", sa.CHAR(36), primary_key=True),
         sa.Column(
@@ -99,9 +100,9 @@ def upgrade() -> None:
             nullable=False,
         ),
     )
-    op.create_index("ix_im_participants_conversation_id", "im_participants", ["conversation_id"])
-    op.create_index("ix_im_participants_user_id", "im_participants", ["user_id"])
-    op.create_index(
+    safe_create_index("ix_im_participants_conversation_id", "im_participants", ["conversation_id"])
+    safe_create_index("ix_im_participants_user_id", "im_participants", ["user_id"])
+    safe_create_index(
         "uq_im_participants_conv_user",
         "im_participants",
         ["conversation_id", "user_id"],
@@ -109,7 +110,7 @@ def upgrade() -> None:
     )
 
     # ===== im_messages =====
-    op.create_table(
+    safe_create_table(
         "im_messages",
         sa.Column("id", sa.CHAR(36), primary_key=True),
         sa.Column(
@@ -148,10 +149,10 @@ def upgrade() -> None:
             nullable=False,
         ),
     )
-    op.create_index("ix_im_messages_conversation_id", "im_messages", ["conversation_id"])
-    op.create_index("ix_im_messages_sender_id", "im_messages", ["sender_id"])
-    op.create_index("ix_im_messages_created_at", "im_messages", ["created_at"])
-    op.create_index(
+    safe_create_index("ix_im_messages_conversation_id", "im_messages", ["conversation_id"])
+    safe_create_index("ix_im_messages_sender_id", "im_messages", ["sender_id"])
+    safe_create_index("ix_im_messages_created_at", "im_messages", ["created_at"])
+    safe_create_index(
         "ix_im_messages_conv_created",
         "im_messages",
         ["conversation_id", "created_at"],

@@ -70,7 +70,13 @@ function deriveOverview(data?: SentimentDashboardProps['investigationData']): Se
   return { positive, neutral, negative, total: positive + neutral + negative }
 }
 
-/** 基于概览生成7天趋势数据 */
+/** 确定性伪随机：基于种子生成稳定抖动，避免重渲染时数据跳变 */
+function seededJitter(seed: number): number {
+  const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453
+  return Math.round((x - Math.floor(x) - 0.5) * 6)
+}
+
+/** 基于概览生成7天趋势数据（确定性） */
 function deriveTimeline(overview: SentimentOverview): SentimentTimelinePoint[] {
   const days = 7
   const result: SentimentTimelinePoint[] = []
@@ -80,12 +86,12 @@ function deriveTimeline(overview: SentimentOverview): SentimentTimelinePoint[] {
     const d = new Date(now)
     d.setDate(d.getDate() - i)
     const dateStr = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    const jitter = () => Math.round((Math.random() - 0.5) * 6)
+    const seed = i * 3
     result.push({
       date: dateStr,
-      positive: Math.max(0, Math.round(overview.positive / days) + jitter()),
-      neutral: Math.max(0, Math.round(overview.neutral / days) + jitter()),
-      negative: Math.max(0, Math.round(overview.negative / days) + jitter()),
+      positive: Math.max(0, Math.round(overview.positive / days) + seededJitter(seed)),
+      neutral: Math.max(0, Math.round(overview.neutral / days) + seededJitter(seed + 1)),
+      negative: Math.max(0, Math.round(overview.negative / days) + seededJitter(seed + 2)),
     })
   }
   return result

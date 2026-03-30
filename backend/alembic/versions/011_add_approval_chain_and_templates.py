@@ -14,6 +14,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+from migration_utils import safe_add_column, safe_create_index, safe_create_table
 
 # revision identifiers, used by Alembic.
 revision: str = '011_approval_chain_templates'
@@ -24,21 +25,21 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # ---------- approvals 表新增列 ----------
-    op.add_column('approvals', sa.Column(
+    safe_add_column('approvals', sa.Column(
         'approval_chain', sa.JSON(), nullable=True,
         comment='审批链配置JSON'
     ))
-    op.add_column('approvals', sa.Column(
+    safe_add_column('approvals', sa.Column(
         'current_step', sa.Integer(), nullable=False,
         server_default='0', comment='当前审批步骤'
     ))
-    op.add_column('approvals', sa.Column(
+    safe_add_column('approvals', sa.Column(
         'template_id', postgresql.UUID(as_uuid=False), nullable=True,
         comment='关联审批模板ID'
     ))
 
     # ---------- approval_templates 表 ----------
-    op.create_table(
+    safe_create_table(
         'approval_templates',
         sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
         sa.Column('name', sa.String(200), nullable=False, comment='模板名称'),
@@ -57,8 +58,8 @@ def upgrade() -> None:
         sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False,
                   server_default=sa.func.now()),
     )
-    op.create_index('ix_approval_templates_type', 'approval_templates', ['type'])
-    op.create_index('ix_approval_templates_created_by', 'approval_templates', ['created_by'])
+    safe_create_index('ix_approval_templates_type', 'approval_templates', ['type'])
+    safe_create_index('ix_approval_templates_created_by', 'approval_templates', ['created_by'])
 
 
 def downgrade() -> None:

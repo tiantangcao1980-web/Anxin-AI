@@ -11,6 +11,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+from migration_utils import safe_create_index, safe_create_table
 
 # revision identifiers, used by Alembic.
 revision: str = '017_lawyer_certification'
@@ -21,7 +22,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # ===== 律师认证表 =====
-    op.create_table(
+    safe_create_table(
         'lawyer_certifications',
         sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
         sa.Column('lawyer_profile_id', postgresql.UUID(as_uuid=False),
@@ -42,11 +43,11 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index('ix_lawyer_certifications_status', 'lawyer_certifications', ['status'])
-    op.create_index('ix_lawyer_certifications_expiry', 'lawyer_certifications', ['license_expiry_date'])
+    safe_create_index('ix_lawyer_certifications_status', 'lawyer_certifications', ['status'])
+    safe_create_index('ix_lawyer_certifications_expiry', 'lawyer_certifications', ['license_expiry_date'])
 
     # ===== 律师接单配置表 =====
-    op.create_table(
+    safe_create_table(
         'lawyer_service_configs',
         sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
         sa.Column('lawyer_profile_id', postgresql.UUID(as_uuid=False),

@@ -10,6 +10,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from migration_utils import safe_create_table
 
 # revision identifiers, used by Alembic.
 revision: str = '1f5e1455247f'
@@ -19,7 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_table('courses',
+    safe_create_table('courses',
         sa.Column('title', sa.String(length=255), nullable=False),
         sa.Column('instructor', sa.String(length=100), nullable=True),
         sa.Column('category', sa.String(length=50), nullable=False),
@@ -38,7 +39,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id')
     )
 
-    op.create_table('experts',
+    safe_create_table('experts',
         sa.Column('name', sa.String(length=100), nullable=False),
         sa.Column('title', sa.String(length=100), nullable=True),
         sa.Column('specialty', sa.JSON(), nullable=True),
@@ -57,7 +58,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id')
     )
 
-    op.create_table('leads',
+    safe_create_table('leads',
         sa.Column('client_name', sa.String(length=255), nullable=False),
         sa.Column('contact_info', sa.String(length=255), nullable=True),
         sa.Column('source', sa.String(length=100), nullable=True),
@@ -77,7 +78,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id')
     )
 
-    op.create_table('tasks',
+    safe_create_table('tasks',
         sa.Column('title', sa.String(length=255), nullable=False),
         sa.Column('description', sa.Text(), nullable=True),
         sa.Column('status', sa.String(length=20), nullable=False),
@@ -98,7 +99,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id')
     )
 
-    op.create_table('course_progress',
+    safe_create_table('course_progress',
         sa.Column('user_id', sa.UUID(), nullable=False),
         sa.Column('course_id', sa.UUID(), nullable=False),
         sa.Column('progress', sa.Integer(), nullable=False),

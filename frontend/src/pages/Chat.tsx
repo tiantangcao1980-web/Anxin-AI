@@ -124,6 +124,53 @@ interface Message {
   a2ui?: A2UIMessage;
   /** RAG 引用来源 */
   sources?: { id: string; type: string; title: string; content_snippet?: string; source?: string; relevance_score?: number; url?: string }[];
+  /** 后续引导建议（AI 回复后的推荐问题） */
+  suggestions?: string[];
+}
+
+/**
+ * 根据 AI 回复内容和上下文生成后续引导建议
+ * 基于关键词匹配和内容分析，提供 2-3 条有针对性的推荐问题
+ */
+function generateFollowUpSuggestions(aiContent: string, userContent: string): string[] {
+  const content = aiContent.toLowerCase();
+  const suggestions: string[] = [];
+
+  if (/合同|协议|条款|合约/.test(content)) {
+    suggestions.push('这份合同有哪些主要风险点？');
+    if (/风险|注意/.test(content)) {
+      suggestions.push('请给出修改建议和替代条款');
+    } else {
+      suggestions.push('请逐条解读关键条款的法律含义');
+    }
+    suggestions.push('帮我生成一份修改版合同');
+  } else if (/合规|法规|法律|条文|法条/.test(content)) {
+    suggestions.push('有没有相关的司法解释或案例？');
+    suggestions.push('这在不同地区的适用是否有差异？');
+    suggestions.push('请帮我整理一份合规检查清单');
+  } else if (/尽职调查|尽调|工商|股权/.test(content)) {
+    suggestions.push('有哪些需要重点关注的风险事项？');
+    suggestions.push('请帮我生成尽调报告模板');
+    suggestions.push('类似项目的常见风险有哪些？');
+  } else if (/证据|举证|证明/.test(content)) {
+    suggestions.push('证据链是否完整？还需要补充什么？');
+    suggestions.push('对方可能提出哪些抗辩？');
+    suggestions.push('请帮我整理证据目录和说明');
+  } else if (/起草|草拟|文书|函件/.test(content)) {
+    suggestions.push('请帮我优化文书的措辞和格式');
+    suggestions.push('有没有需要补充的法律条款引用？');
+    suggestions.push('请生成配套的送达回执模板');
+  } else if (/案例|判决|裁判|判例/.test(content)) {
+    suggestions.push('有没有相反观点的判例？');
+    suggestions.push('这个裁判思路在近年有变化吗？');
+    suggestions.push('请帮我总结可援引的裁判要旨');
+  } else {
+    suggestions.push('请进一步展开分析');
+    suggestions.push('有哪些实操层面的注意事项？');
+    suggestions.push('请帮我整理一份行动清单');
+  }
+
+  return suggestions.slice(0, 3);
 }
 
 /** 欢迎消息标记 — 渲染时替换为品牌视觉组件 */
@@ -184,6 +231,8 @@ export default function Chat() {
   const [selectedConvIds, setSelectedConvIds] = useState<Set<string>>(new Set());
   const [isBatchDeleting, setIsBatchDeleting] = useState(false);
 
+  // 拖拽状态标记 — 拖拽时禁用 CSS transition 以避免卡顿
+  const [isDragging, setIsDragging] = useState(false);
   // 智能滚动：用户主动向上滚动时暂停自动滚动
   const [userScrolledUp, setUserScrolledUp] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -967,20 +1016,23 @@ export default function Chat() {
           const streamAgent = store.streamingAgent || data.agent || '';
           store.finalizeStream();
 
+          const lastUserContent = [...messages].reverse().find(m => m.type === 'user')?.content || '';
           const aiMessage: Message = {
             id: uuidv4(), type: 'ai', content: finalContent,
             timestamp: new Date(), agent: streamAgent,
             memory_id: data.memory_id,
             sources: data.sources,
+            suggestions: generateFollowUpSuggestions(finalContent, lastUserContent),
           };
           setMessages(prev => [...prev, aiMessage]);
         } else if (data.content) {
-          // 非流式模式（多 Agent 汇总结果）
+          const lastUserContent = [...messages].reverse().find(m => m.type === 'user')?.content || '';
           const aiMessage: Message = {
             id: uuidv4(), type: 'ai', content: data.content,
             timestamp: new Date(), agent: data.agent,
             memory_id: data.memory_id,
             sources: data.sources,
+            suggestions: generateFollowUpSuggestions(data.content, lastUserContent),
           };
           setMessages(prev => [...prev, aiMessage]);
         }
@@ -1942,6 +1994,34 @@ export default function Chat() {
               )}
             </div>
           )}
+
+          {/* 后续引导建议 — 仅在最后一条 AI 消息下方显示，类似豆包/千问 */}
+          {!isUser && message.suggestions && message.suggestions.length > 0 &&
+            message.id === [...messages].reverse().find(m => m.type === 'ai')?.id && !isProcessing && (
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.3 }}
+              className="flex flex-wrap gap-2 mt-3 ml-0.5"
+            >
+              {message.suggestions.map((suggestion, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setInput(suggestion);
+                    setTimeout(() => {
+                      chatInputRef.current?.focus();
+                      handleSendMessage(suggestion);
+                    }, 50);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-foreground/70 bg-background border border-border/80 rounded-full hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all shadow-sm active:scale-95"
+                >
+                  <icons.Sparkles className="w-3 h-3 text-primary/50" />
+                  <span>{suggestion}</span>
+                </button>
+              ))}
+            </motion.div>
+          )}
         </div>
       </motion.div>
     );
@@ -2102,6 +2182,7 @@ export default function Chat() {
           className="w-[2px] cursor-col-resize shrink-0 group relative flex items-center justify-center before:absolute before:inset-y-0 before:left-1/2 before:-translate-x-1/2 before:w-px before:bg-border hover:before:bg-primary/40 before:transition-colors"
           onMouseDown={(e) => {
             e.preventDefault();
+            setIsDragging(true);
             const startX = e.clientX;
             const startWidth = sidebarWidth;
             const onMove = (ev: MouseEvent) => {
@@ -2109,6 +2190,7 @@ export default function Chat() {
               setSidebarWidth(Math.min(400, Math.max(200, startWidth + delta)));
             };
             const onUp = () => {
+              setIsDragging(false);
               document.removeEventListener('mousemove', onMove);
               document.removeEventListener('mouseup', onUp);
             };
@@ -2121,9 +2203,9 @@ export default function Chat() {
       {/* ========== 主内容区 ========== */}
       <div className="flex-1 flex flex-col min-w-0 relative">
         <div className="flex-1 flex overflow-hidden">
-          {/* 左侧聊天区 — 自适应宽度 */}
+          {/* 左侧聊天区 — 自适应宽度，拖拽时禁用动画防止卡顿 */}
           <div
-            className="flex flex-col bg-background transition-all duration-300 ease-in-out"
+            className={`flex flex-col bg-background ${isDragging ? '' : 'transition-all duration-300 ease-in-out'}`}
             style={{ width: rightPanelOpen && !isMobile ? `${100 - rightPanelWidth}%` : '100%', minWidth: 0 }}
           >
             {/* Header — v3 紧凑版 */}
@@ -2246,6 +2328,7 @@ export default function Chat() {
               className="h-[2px] cursor-row-resize shrink-0 group relative flex items-center justify-center before:absolute before:inset-x-0 before:top-1/2 before:-translate-y-1/2 before:h-px before:bg-border hover:before:bg-primary/40 before:transition-colors"
               onMouseDown={(e) => {
                 e.preventDefault();
+                setIsDragging(true);
                 const container = e.currentTarget.parentElement;
                 if (!container) return;
                 const startY = e.clientY;
@@ -2258,6 +2341,7 @@ export default function Chat() {
                   setInputAreaHeight(newH);
                 };
                 const onUp = () => {
+                  setIsDragging(false);
                   document.removeEventListener('mousemove', onMove);
                   document.removeEventListener('mouseup', onUp);
                 };
@@ -2375,9 +2459,9 @@ export default function Chat() {
                     onKeyPress={handleKeyPress}
                     placeholder={dynamicPlaceholder}
                     className="flex-1 py-2.5 bg-transparent border-none resize-none focus:outline-none text-foreground placeholder:text-muted-foreground text-sm leading-relaxed self-stretch"
-                    style={{ minHeight: '40px', maxHeight: inputAreaHeight ? 'none' : '300px', height: inputAreaHeight ? '100%' : undefined }}
+                    style={{ minHeight: '56px', maxHeight: inputAreaHeight ? 'none' : '300px', height: inputAreaHeight ? '100%' : undefined }}
                     disabled={isProcessing}
-                    rows={1}
+                    rows={2}
                   />
 
                   {/* 右侧功能按钮组：深度思考 + 发送 */}
@@ -2422,6 +2506,7 @@ export default function Chat() {
               className="w-[2px] cursor-col-resize shrink-0 group relative z-10 flex items-center justify-center before:absolute before:inset-y-0 before:left-1/2 before:-translate-x-1/2 before:w-px before:bg-border hover:before:bg-primary/40 before:transition-colors"
               onMouseDown={(e) => {
                 e.preventDefault();
+                setIsDragging(true);
                 const container = e.currentTarget.parentElement;
                 if (!container) return;
                 const containerWidth = container.offsetWidth;
@@ -2433,6 +2518,7 @@ export default function Chat() {
                   setRightPanelWidth(Math.min(70, Math.max(25, startPct + deltaPct)));
                 };
                 const onUp = () => {
+                  setIsDragging(false);
                   document.removeEventListener('mousemove', onMove);
                   document.removeEventListener('mouseup', onUp);
                 };

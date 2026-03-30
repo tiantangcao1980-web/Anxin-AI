@@ -143,7 +143,7 @@ export function CollaborativeEditor({
         history: false, // Disabled when using Collaboration
       }),
       Placeholder.configure({
-        placeholder: 'Start typing...',
+        placeholder: '开始输入内容...',
       }),
       Link.configure({
         openOnClick: false,
@@ -429,7 +429,7 @@ export function CollaborativeEditor({
       <div className="flex-1 flex overflow-hidden">
         <div className={cn('flex-1 overflow-auto', showComments && 'pr-80')}>
           <div className={cn(
-            'max-w-4xl mx-auto p-8',
+            minimal ? 'p-4' : 'max-w-4xl mx-auto p-8',
             showPreview && 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl mx-auto'
           )}>
             <AnimatePresence>
@@ -453,7 +453,10 @@ export function CollaborativeEditor({
                 editor={editor}
                 className={cn(
                   'min-h-full focus:outline-none',
-                  !showPreview && 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl max-w-none'
+                  !showPreview && (minimal
+                    ? 'prose prose-sm max-w-none'
+                    : 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl max-w-none'
+                  )
                 )}
               />
             )}
@@ -543,7 +546,7 @@ export interface SimpleEditorProps {
 export function SimpleEditor({
   content,
   onChange,
-  placeholder = 'Start typing...',
+  placeholder = '开始输入内容...',
   readOnly = false,
   onSave,
 }: SimpleEditorProps) {

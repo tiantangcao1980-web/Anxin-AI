@@ -11,6 +11,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+from migration_utils import safe_create_index, safe_create_table
 
 revision: str = '013_feature_flags'
 down_revision: Union[str, None] = '012_payment_orders'
@@ -19,7 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_table(
+    safe_create_table(
         'feature_flags',
         sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
         sa.Column('key', sa.String(100), nullable=False, unique=True),
@@ -34,8 +35,8 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index('ix_feature_flags_key', 'feature_flags', ['key'], unique=True)
-    op.create_index('ix_feature_flags_enabled', 'feature_flags', ['enabled'])
+    safe_create_index('ix_feature_flags_key', 'feature_flags', ['key'], unique=True)
+    safe_create_index('ix_feature_flags_enabled', 'feature_flags', ['enabled'])
 
 
 def downgrade() -> None:

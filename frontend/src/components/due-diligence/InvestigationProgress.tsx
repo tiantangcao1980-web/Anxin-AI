@@ -2,11 +2,12 @@
  * InvestigationProgress - 多阶段调查进度可视化
  *
  * 三个阶段：数据采集 → 交叉验证 → 综合分析
- * 支持新的 SSE 事件类型：stage, agent_start, agent_result, conflict, consensus
+ * 包含超时自动 fallback、手动跳过、耗时计时等机制
  */
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { icons } from '@/lib/icons'
-import { cardStyle, heading, iconSize } from '@/lib/design-tokens'
+import { cardStyle, heading, iconSize, buttonStyle } from '@/lib/design-tokens'
 import { CrawlProgressBar } from '../lic/CrawlProgressBar'
 
 export interface InvestigationStage {
@@ -34,6 +35,12 @@ interface InvestigationProgressProps {
   conflicts: ConflictInfo[]
   consensus?: { risk_level: string; confidence: number; debate_summary: string }
   licTaskId?: string
+  /** 手动跳过调查，触发 fallback */
+  onSkip?: () => void
+  /** 取消调查 */
+  onCancel?: () => void
+  /** 调查开始的时间戳 */
+  startTime?: number
 }
 
 const stageIcons = {
@@ -42,15 +49,47 @@ const stageIcons = {
   synthesis: icons.Sparkles,
 }
 
+const AGENT_DESCRIPTIONS: Record<string, string> = {
+  due_diligence: '正在检索工商登记、股权结构等基础信息...',
+  risk_assessor: '正在分析经营异常、行政处罚等风险信号...',
+  compliance: '正在核验信用评级、合规记录...',
+}
+
+const SKIP_THRESHOLD_SEC = 15
+
 export function InvestigationProgress({
   companyName,
   stages,
   conflicts,
   consensus,
   licTaskId,
+  onSkip,
+  onCancel,
+  startTime,
 }: InvestigationProgressProps) {
   const currentStage = stages.find(s => s.status === 'active') || stages[0]
   const completedCount = stages.filter(s => s.status === 'done').length
+
+  // 耗时计时
+  const [elapsed, setElapsed] = useState(0)
+  const timerRef = useRef<ReturnType<typeof setInterval>>()
+  const effectiveStart = startTime || Date.now()
+
+  useEffect(() => {
+    timerRef.current = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - effectiveStart) / 1000))
+    }, 1000)
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [effectiveStart])
+
+  const showSkip = elapsed >= SKIP_THRESHOLD_SEC && onSkip
+  const isLongWait = elapsed >= 30
+
+  const formatElapsed = (s: number) => {
+    const min = Math.floor(s / 60)
+    const sec = s % 60
+    return min > 0 ? `${min}:${sec.toString().padStart(2, '0')}` : `${sec}s`
+  }
 
   return (
     <div className="flex items-center justify-center py-6 lg:py-10">
@@ -63,6 +102,7 @@ export function InvestigationProgress({
           <h3 className={`${heading.section} text-lg`}>正在调查: {companyName}</h3>
           <p className="text-xs text-muted-foreground mt-1">
             多 Agent 协同调查引擎 · {completedCount}/{stages.length} 阶段完成
+            <span className="ml-2 text-muted-foreground/60">已耗时 {formatElapsed(elapsed)}</span>
           </p>
         </div>
 
@@ -105,9 +145,7 @@ export function InvestigationProgress({
 
         {/* LIC 爬取进度 */}
         {licTaskId && (
-          <div className={`${cardStyle.compact} rounded-xl`}>
-            <CrawlProgressBar taskId={licTaskId} />
-          </div>
+          <CrawlProgressBar taskId={licTaskId} />
         )}
 
         {/* 当前阶段 Agent 详情 */}
@@ -159,11 +197,56 @@ export function InvestigationProgress({
                       {agent.label}
                     </p>
                     {agent.status === 'loading' && (
-                      <p className="text-[10px] text-muted-foreground">正在分析数据...</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {AGENT_DESCRIPTIONS[agent.name] || '正在分析数据...'}
+                      </p>
+                    )}
+                    {agent.status === 'done' && (
+                      <p className="text-[10px] text-emerald-500">分析完成</p>
                     )}
                   </div>
                 </motion.div>
               ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* 长时间等待提示 + 跳过 / 取消按钮 */}
+        <AnimatePresence>
+          {showSkip && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="bg-muted/50 border border-border rounded-xl p-4"
+            >
+              <div className="flex items-start gap-3">
+                <icons.Clock className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0 space-y-2">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {isLongWait
+                      ? 'AI 调查耗时较长，可能是 LLM 服务响应较慢。您可以跳过流式查询，改用快速查询模式获取结果。'
+                      : '等待中... 如果长时间无响应，可以切换为快速查询模式。'}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={onSkip}
+                      className={`${buttonStyle.primary} text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5`}
+                    >
+                      <icons.Zap className="w-3 h-3" />
+                      快速查询模式
+                    </button>
+                    {onCancel && (
+                      <button
+                        onClick={onCancel}
+                        className={`${buttonStyle.ghost} text-xs px-3 py-1.5 rounded-lg`}
+                      >
+                        取消调查
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

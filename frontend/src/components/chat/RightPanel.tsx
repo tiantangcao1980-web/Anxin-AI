@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { icons } from '@/lib/icons';
 import { cardStyle, heading, buttonStyle, iconSize, chatBubble } from '@/lib/design-tokens';
 import { useChatStore } from '@/lib/store';
+import { cn } from '@/lib/utils';
 import type {
   RightPanelTab,
   DocumentOverlay,
@@ -86,13 +87,6 @@ const SigningWorkflow = lazy(async () => {
   return { default: module.SigningWorkflow }
 })
 
-/** 文档快捷操作定义（参考豆包工具栏） */
-const DOCUMENT_ACTIONS = [
-  { id: 'summarize', label: '生成摘要', icon: icons.Wand2, description: '为当前文档生成结构化摘要' },
-  { id: 'translate', label: '翻译全文', icon: icons.Globe, description: '将文档翻译为目标语言' },
-  { id: 'optimize', label: 'AI 润色', icon: icons.Sparkles, description: '优化文档措辞和结构' },
-  { id: 'risk_check', label: '风险检查', icon: icons.Shield, description: '识别文档中的法律风险点' },
-] as const;
 
 export const RightPanel = memo(function RightPanel(props: RightPanelProps) {
   const { activeTab, onTabChange, isLive } = props;
@@ -270,7 +264,10 @@ export const RightPanel = memo(function RightPanel(props: RightPanelProps) {
           )}
         </AnimatePresence>
 
-        <div className="h-full overflow-y-auto">
+        <div className={cn(
+          'h-full',
+          hasDocument ? 'flex flex-col overflow-hidden' : 'overflow-y-auto'
+        )}>
           {/* 统一空状态：无 Agent 活动且无文档时 */}
           {!hasActivity && !hasDocument && !props.isProcessing ? (
             <div className="h-full flex flex-col items-center justify-center px-8 py-12 text-center">
@@ -319,58 +316,25 @@ export const RightPanel = memo(function RightPanel(props: RightPanelProps) {
           ) : (
             <>
               {/* Agent 工作区 */}
-              <Suspense fallback={panelFallback}>
-                <AgentWorkspace
-                  agentResults={props.agentResults}
-                  thinkingSteps={props.thinkingSteps}
-                  requirementAnalysis={props.requirementAnalysis}
-                  a2uiData={props.a2uiData}
-                  isProcessing={props.isProcessing}
-                  onWorkspaceConfirm={props.onWorkspaceConfirm}
-                  onWorkspaceAction={props.onWorkspaceAction}
-                />
-              </Suspense>
+              <div className={cn(
+                hasDocument ? 'max-h-[40%] overflow-y-auto shrink-0' : ''
+              )}>
+                <Suspense fallback={panelFallback}>
+                  <AgentWorkspace
+                    agentResults={props.agentResults}
+                    thinkingSteps={props.thinkingSteps}
+                    requirementAnalysis={props.requirementAnalysis}
+                    a2uiData={props.a2uiData}
+                    isProcessing={props.isProcessing}
+                    onWorkspaceConfirm={props.onWorkspaceConfirm}
+                    onWorkspaceAction={props.onWorkspaceAction}
+                  />
+                </Suspense>
+              </div>
 
               {/* 文档编辑区 */}
               {hasDocument && (
-                <div className="border-t border-border">
-                  {/* 文档快捷操作工具栏 */}
-                  <div className="flex items-center gap-1 px-3 py-2 bg-background/80 border-b border-border/50 overflow-x-auto scrollbar-none">
-                    {DOCUMENT_ACTIONS.map((action) => {
-                      const Icon = action.icon;
-                      return (
-                        <button
-                          key={action.id}
-                          onClick={() => handleDocAction(action.id)}
-                          disabled={props.isProcessing}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-lg transition-colors whitespace-nowrap disabled:opacity-40 flex-shrink-0"
-                          title={action.description}
-                        >
-                          <Icon className="w-3.5 h-3.5" />
-                          <span>{action.label}</span>
-                        </button>
-                      );
-                    })}
-
-                    <div className="flex-1" />
-
-                    <button
-                      onClick={handleSaveToList}
-                      className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-lg transition-colors flex-shrink-0"
-                      title="保存到文档库"
-                    >
-                      <icons.Save className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={handleCloseDocument}
-                      className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors flex-shrink-0"
-                      title="关闭文档"
-                    >
-                      <icons.X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  {/* 编辑器 */}
+                <div className="flex-1 min-h-0 border-t border-border">
                   <Suspense fallback={panelFallback}>
                     <CanvasEditor
                       canvas={props.canvasContent!}
@@ -382,7 +346,11 @@ export const RightPanel = memo(function RightPanel(props: RightPanelProps) {
                       onForwardToLawyer={props.onForwardToLawyer}
                       onInitiateSigning={props.onInitiateSigning}
                       onSaveAsDocument={props.onCanvasSaveAsDocument}
+                      onDocumentAction={handleDocAction}
+                      onSaveToList={handleSaveToList}
+                      onCloseDocument={handleCloseDocument}
                       isSaved={props.canvasSaved}
+                      isProcessing={props.isProcessing}
                       isOptimizing={props.isProcessing}
                     />
                   </Suspense>

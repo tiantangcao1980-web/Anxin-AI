@@ -7,19 +7,19 @@
  * 数据流：搜索 → SSE 流式调查 → 结果分发到各模块
  * 联动法律智库知识图谱
  */
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { icons } from '@/lib/icons'
-import { cardStyle, heading, buttonStyle, inputStyle, iconSize } from '@/lib/design-tokens'
+import { cardStyle, heading, buttonStyle, inputStyle } from '@/lib/design-tokens'
 import { dueDiligenceApi, licApi, knowledgeApi, InvestigationStreamEvent } from '@/lib/api'
 import { toast } from 'sonner'
 import { v4 as uuidv4 } from 'uuid'
 
 // 子组件
-import { InvestigationSidebar, type InvestigationSection } from '@/components/due-diligence/InvestigationSidebar'
+import { type InvestigationSection } from '@/components/due-diligence/InvestigationSidebar'
 import { InvestigationOverview } from '@/components/due-diligence/InvestigationOverview'
-import { InvestigationProgress, type InvestigationStage, type AgentStatus, type ConflictInfo } from '@/components/due-diligence/InvestigationProgress'
+import { InvestigationProgress, type InvestigationStage, type ConflictInfo } from '@/components/due-diligence/InvestigationProgress'
 import { CompanyProfile } from '@/components/due-diligence/CompanyProfile'
 import { SentimentAnalysis } from '@/components/due-diligence/SentimentAnalysis'
 import { LegalCases } from '@/components/due-diligence/LegalCases'
@@ -30,8 +30,6 @@ import { InteractiveGraph } from '@/components/due-diligence/InteractiveGraph'
 import { ScenarioSimulation } from '@/components/due-diligence/ScenarioSimulation'
 import { InvestigationReport } from '@/components/due-diligence/InvestigationReport'
 
-// recharts 仅在子组件中使用，主页面不需要
-
 // ===== 类型 =====
 type SearchMode = 'hybrid' | 'keyword' | 'vector' | 'rag'
 
@@ -41,6 +39,63 @@ interface InvestigationData {
   litigation: any
   credit: any
   risk: any
+}
+
+// ===== 示例数据：未调查时供功能预览 =====
+const DEMO_DATA: InvestigationData = {
+  companyName: '示例科技有限公司',
+  basicInfo: {
+    name: '示例科技有限公司',
+    legal_representative: '张明',
+    registered_capital: '5000 万元人民币',
+    established_date: '2015-03-18',
+    status: '存续',
+    business_scope: '软件开发、信息技术咨询、数据处理服务',
+    address: '北京市海淀区中关村科技园区',
+    company_type: '有限责任公司',
+    data_source: '示例数据',
+  },
+  litigation: {
+    total_cases: 7,
+    as_plaintiff: 3,
+    as_defendant: 4,
+    execution_cases: 1,
+    dishonest_records: 0,
+    major_cases: [
+      { case_no: '(2024)京0108民初12345号', case_type: '合同纠纷', role: '被告', status: '审理中', result: '待判决', amount: '120万元', date: '2024-06-15' },
+      { case_no: '(2024)京0108民初23456号', case_type: '知识产权', role: '原告', status: '已结案', result: '胜诉', amount: '80万元', date: '2024-03-20' },
+      { case_no: '(2023)京0108民初34567号', case_type: '劳动争议', role: '被告', status: '已结案', result: '调解结案', amount: '15万元', date: '2023-11-08' },
+      { case_no: '(2023)京0108民初45678号', case_type: '买卖合同', role: '原告', status: '已结案', result: '胜诉', amount: '200万元', date: '2023-08-25' },
+    ],
+  },
+  credit: {
+    credit_rating: 'BBB',
+    administrative_penalties: 1,
+    tax_violations: 0,
+    environmental_penalties: 0,
+    abnormal_operations: 0,
+    serious_violations: 0,
+    dishonest_records: 0,
+  },
+  risk: {
+    operation_risk: 35,
+    litigation_risk: 48,
+    credit_risk: 28,
+    compliance_risk: 42,
+    relation_risk: 22,
+    overall_rating: 'medium',
+    risk_points: [
+      '近一年涉诉案件增加，需关注合同履约能力',
+      '存在行政处罚记录，合规管理有待加强',
+      '部分关联企业经营状况异常，存在风险传导可能',
+    ],
+    recommendations: [
+      '加强合同审查流程，降低合同纠纷风险',
+      '建立常态化合规审查机制',
+      '定期监控关联企业经营状况',
+      '完善应收账款管理，控制信用风险敞口',
+    ],
+  },
 }
 
 interface SearchResult {
@@ -230,9 +285,45 @@ export default function DueDiligence() {
   const [conflicts, setConflicts] = useState<ConflictInfo[]>([])
   const [consensus, setConsensus] = useState<any>(null)
   const [licTaskId, setLicTaskId] = useState('')
+  const [investigateStartTime, setInvestigateStartTime] = useState(0)
 
   // 是否显示搜索模式（未开始调查时）
   const [showSearch, setShowSearch] = useState(false)
+
+  // SSE 中断控制
+  const sseAbortRef = useRef<AbortController | null>(null)
+  const inactivityTimerRef = useRef<ReturnType<typeof setTimeout>>()
+  const collectedDataRef = useRef<any>(null)
+
+  // 45 秒无新事件则自动 fallback
+  const INACTIVITY_TIMEOUT = 45_000
+
+  const resetInactivityTimer = useCallback((name: string) => {
+    if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
+    inactivityTimerRef.current = setTimeout(() => {
+      toast.info('AI 调查响应超时，正在切换查询方式...')
+      sseAbortRef.current?.abort()
+      fallbackInvestigate(name, collectedDataRef.current || { companyName: name })
+    }, INACTIVITY_TIMEOUT)
+  }, [])
+
+  /** 手动跳过 SSE，降级到 REST */
+  const handleSkipToFallback = useCallback(() => {
+    sseAbortRef.current?.abort()
+    if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
+    const name = companyName
+    toast.info('正在切换为快速查询模式...')
+    fallbackInvestigate(name, collectedDataRef.current || { companyName: name })
+  }, [companyName])
+
+  /** 取消调查 */
+  const handleCancelInvestigation = useCallback(() => {
+    sseAbortRef.current?.abort()
+    if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
+    setIsSearching(false)
+    setStages([])
+    toast.info('调查已取消')
+  }, [])
 
   // 开始调查
   const handleInvestigate = useCallback(async (name: string) => {
@@ -245,15 +336,12 @@ export default function DueDiligence() {
     setConflicts([])
     setConsensus(null)
     setActiveSection('overview')
+    setInvestigateStartTime(Date.now())
 
-    // 启动 LIC 爬取
+    // 启动 LIC 爬取（fire-and-forget，不阻塞核心流程）
     const taskId = uuidv4()
     setLicTaskId(taskId)
-    try {
-      void licApi.startCrawl({ url: 'https://www.tianyancha.com', keyword: name, task_id: taskId })
-    } catch (error) {
-      console.error('启动 LIC 任务失败', error)
-    }
+    licApi.startCrawl({ url: 'https://www.tianyancha.com', keyword: name, task_id: taskId }).catch(() => {})
 
     // 初始化三阶段
     const initialStages: InvestigationStage[] = [
@@ -263,8 +351,8 @@ export default function DueDiligence() {
         status: 'active',
         agents: [
           { name: 'due_diligence', label: '企业背景调查', status: 'loading' },
-          { name: 'risk_assessor', label: '风险评估分析', status: 'pending' },
-          { name: 'compliance', label: '合规审查', status: 'pending' },
+          { name: 'risk_assessor', label: '风险评估分析', status: 'loading' },
+          { name: 'compliance', label: '合规审查', status: 'loading' },
         ],
       },
       { id: 'verification', label: '交叉验证', status: 'pending', agents: [] },
@@ -273,14 +361,24 @@ export default function DueDiligence() {
     setStages(initialStages)
 
     const collectedData: any = { companyName: name }
+    collectedDataRef.current = collectedData
+
+    // 初始化 SSE 中断控制器
+    if (sseAbortRef.current) sseAbortRef.current.abort()
+    sseAbortRef.current = new AbortController()
+
+    // 启动无活动超时计时器
+    resetInactivityTimer(name)
 
     try {
       await dueDiligenceApi.streamInvestigate(
         name,
         'comprehensive',
         (event: InvestigationStreamEvent) => {
+          // 每收到一个事件都重置无活动计时器
+          resetInactivityTimer(name)
+
           if (event.type === 'step') {
-            // 映射旧事件到 agent 状态
             setStages(prev => prev.map(stage => {
               if (stage.id !== 'collection') return stage
               return {
@@ -299,7 +397,6 @@ export default function DueDiligence() {
             if (event.step === 'credit') { collectedData.credit = event.data }
             if (event.step === 'risk') { collectedData.risk = event.data }
 
-            // 更新 agent 状态
             setStages(prev => prev.map(stage => {
               if (stage.id !== 'collection') return stage
               return {
@@ -313,7 +410,6 @@ export default function DueDiligence() {
               }
             }))
           } else if (event.type === 'stage') {
-            // 新的阶段事件
             setStages(prev => prev.map(s => {
               if (s.id === event.step) return { ...s, status: 'active' }
               if (s.status === 'active' && s.id !== event.step) return { ...s, status: 'done' }
@@ -324,29 +420,50 @@ export default function DueDiligence() {
           } else if (event.type === 'consensus') {
             setConsensus(event.data)
           } else if (event.type === 'done') {
+            if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
             setStages(prev => prev.map(s => ({ ...s, status: 'done' as const })))
             setInvestigationData(collectedData)
             setIsSearching(false)
             setHasResults(true)
             toast.success('尽职调查完成')
           } else if (event.type === 'error') {
-            toast.error(event.message || '调查失败')
-            setIsSearching(false)
+            if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
+            // 如果已收集到部分数据，尝试用 fallback 补全
+            const hasPartialData = collectedData.basicInfo || collectedData.litigation || collectedData.risk
+            if (hasPartialData) {
+              toast.info('部分数据已获取，正在补全...')
+              fallbackInvestigate(name, collectedData)
+            } else {
+              toast.info('正在切换查询方式...')
+              fallbackInvestigate(name, collectedData)
+            }
           }
         },
         () => {
-          // 降级到非流式调用
+          if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
           toast.info('正在切换查询方式...')
           fallbackInvestigate(name, collectedData)
         }
       )
     } catch {
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
       toast.info('正在切换查询方式...')
       fallbackInvestigate(name, collectedData)
     }
-  }, [])
+  }, [resetInactivityTimer])
 
   const fallbackInvestigate = async (name: string, collectedData: any) => {
+    // 更新进度状态为"快速查询"
+    setStages([
+      { id: 'collection', label: '数据采集', status: 'active', agents: [
+        { name: 'due_diligence', label: '企业背景调查', status: 'loading' },
+        { name: 'risk_assessor', label: '风险评估分析', status: 'loading' },
+        { name: 'compliance', label: '合规审查', status: 'loading' },
+      ]},
+      { id: 'verification', label: '交叉验证', status: 'pending', agents: [] },
+      { id: 'synthesis', label: '综合分析', status: 'pending', agents: [] },
+    ])
+
     try {
       const [profile, risks, litigation] = await Promise.all([
         dueDiligenceApi.getCompanyProfile(name),
@@ -354,7 +471,6 @@ export default function DueDiligence() {
         dueDiligenceApi.getCompanyLitigation(name),
       ])
       collectedData.basicInfo = profile.profile
-      // 将 REST API 嵌套结构展平，保持与 SSE 流数据形状一致
       const litSummary = litigation.summary || {}
       collectedData.litigation = {
         total_cases: litSummary.total_cases || 0,
@@ -364,8 +480,14 @@ export default function DueDiligence() {
         dishonest_records: litSummary.dishonest_records || 0,
         major_cases: litigation.major_cases || [],
       }
-      collectedData.credit = { credit_rating: 'B' }
-      // REST risks API 返回 breakdown 结构，需要展平
+      collectedData.credit = {
+        credit_rating: risks.risk_score ? (risks.risk_score > 80 ? 'AA' : risks.risk_score > 60 ? 'A' : risks.risk_score > 40 ? 'BBB' : 'B') : 'B',
+        administrative_penalties: 0,
+        tax_violations: 0,
+        environmental_penalties: 0,
+        abnormal_operations: 0,
+        serious_violations: 0,
+      }
       collectedData.risk = {
         operation_risk: risks.breakdown?.operation_risk?.score || 0,
         litigation_risk: risks.breakdown?.litigation_risk?.score || 0,
@@ -393,10 +515,14 @@ export default function DueDiligence() {
     navigate(`/knowledge-graph?search=${encodeURIComponent(entityName)}`)
   }, [navigate])
 
-  // 渲染当前活跃的内容区域
+  // 是否处于示例数据模式
+  const isDemo = !hasResults && !isSearching
+  const activeData = investigationData || DEMO_DATA
+  const activeName = companyName || DEMO_DATA.companyName
+
+  // 渲染当前活跃的内容区域（同时支持真实数据和示例数据）
   const renderContent = () => {
-    if (!investigationData) return null
-    const data = investigationData
+    const data = activeData
 
     switch (activeSection) {
       case 'overview':
@@ -408,7 +534,7 @@ export default function DueDiligence() {
               litigation: data.litigation,
               credit: data.credit,
             }}
-            companyName={companyName}
+            companyName={activeName}
             onNavigate={(s) => setActiveSection(s as InvestigationSection)}
             onGenerateReport={() => setActiveSection('report')}
           />
@@ -423,19 +549,22 @@ export default function DueDiligence() {
       case 'litigation':
         return <LegalCases data={data.litigation} />
       case 'compliance':
-        return <ComplianceReport data={data.credit} />
+        return <ComplianceReport data={{
+          ...data.credit,
+          dishonest_records: data.litigation?.dishonest_records || data.credit?.dishonest_records || 0,
+        }} />
       case 'graph':
         return (
           <InteractiveGraph
-            companyName={companyName}
+            companyName={activeName}
             onEntityClick={handleEntityClick}
-            showKnowledgeLink
+            showKnowledgeLink={!isDemo}
           />
         )
       case 'sentiment':
         return (
           <SentimentDashboard
-            companyName={companyName}
+            companyName={activeName}
             onEntityClick={handleEntityClick}
             investigationData={{
               risk: data.risk,
@@ -447,14 +576,14 @@ export default function DueDiligence() {
       case 'simulation':
         return (
           <ScenarioSimulation
-            companyName={companyName}
+            companyName={activeName}
             currentRisk={data.risk}
           />
         )
       case 'report':
         return (
           <InvestigationReport
-            companyName={companyName}
+            companyName={activeName}
             investigationData={data}
           />
         )
@@ -466,7 +595,7 @@ export default function DueDiligence() {
   return (
     <div className="h-full flex flex-col min-h-0">
       {/* 顶部搜索栏 */}
-      <div className="shrink-0 p-4 sm:p-5 lg:p-6 pb-0 space-y-4">
+      <div className="shrink-0 p-4 sm:p-5 lg:p-6 pb-0 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <h1 className={`${heading.page} tracking-tight flex flex-wrap items-end`}>智能调查</h1>
@@ -474,7 +603,7 @@ export default function DueDiligence() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => { setShowSearch(!showSearch); setHasResults(false); setIsSearching(false) }}
+              onClick={() => { setShowSearch(!showSearch) }}
               className={`${showSearch ? buttonStyle.primary : buttonStyle.ghost} text-xs flex items-center gap-1.5`}
             >
               <icons.Search className="w-3.5 h-3.5" />
@@ -483,7 +612,7 @@ export default function DueDiligence() {
           </div>
         </div>
 
-        {/* 调查搜索框 */}
+        {/* 调查搜索框 — 始终显示（非知识搜索模式下） */}
         {!showSearch && (
           <div className="flex gap-3 items-center">
             <div className="flex-1 relative">
@@ -509,8 +638,8 @@ export default function DueDiligence() {
           </div>
         )}
 
-        {/* 快速开始 */}
-        {!showSearch && !hasResults && !isSearching && (
+        {/* 快速开始 — 仅在示例模式下显示 */}
+        {!showSearch && isDemo && (
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">快速开始：</span>
             {['阿里巴巴', '腾讯', '华为', '字节跳动'].map(name => (
@@ -544,17 +673,40 @@ export default function DueDiligence() {
               conflicts={conflicts}
               consensus={consensus}
               licTaskId={licTaskId}
+              onSkip={handleSkipToFallback}
+              onCancel={handleCancelInvestigation}
+              startTime={investigateStartTime}
             />
           </div>
         )}
 
-        {/* 调查结果 — 左侧导航由 Layout 提供，此处只渲染内容 */}
-        {!showSearch && hasResults && investigationData && (
+        {/* 模块内容 — 示例模式 或 真实数据模式 */}
+        {!showSearch && !isSearching && (
           <div className="h-full overflow-y-auto">
-            <div className="p-4 sm:p-5 lg:p-6 space-y-6">
+            <div className="p-4 sm:p-5 lg:p-6 space-y-4">
+              {/* 示例数据提示横幅 */}
+              {isDemo && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800"
+                >
+                  <icons.Info className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <p className="text-xs text-amber-700 dark:text-amber-300 flex-1">
+                    当前展示为<span className="font-semibold">示例数据</span>，在上方搜索框输入真实企业名称即可启动 AI 调查
+                  </p>
+                  <button
+                    onClick={() => document.querySelector<HTMLInputElement>('input[placeholder*="企业名称"]')?.focus()}
+                    className="text-xs font-medium text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-100 whitespace-nowrap px-2 py-1 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+                  >
+                    立即调查 →
+                  </button>
+                </motion.div>
+              )}
+
               {/* 企业概况 Hero */}
               {activeSection === 'overview' && (
-                <CompanyProfile data={investigationData.basicInfo} companyName={companyName} riskData={investigationData.risk} />
+                <CompanyProfile data={activeData.basicInfo} companyName={activeName} riskData={activeData.risk} />
               )}
 
               {/* 动态内容 */}
@@ -569,37 +721,6 @@ export default function DueDiligence() {
                   {renderContent()}
                 </motion.div>
               </AnimatePresence>
-            </div>
-          </div>
-        )}
-
-        {/* 空状态 */}
-        {!showSearch && !hasResults && !isSearching && (
-          <div className="h-full flex flex-col items-center justify-center px-6">
-            <div className="w-16 h-16 rounded-2xl bg-primary/5 flex items-center justify-center mb-5">
-              <icons.Search className={`${iconSize['2xl']} text-primary/40`} />
-            </div>
-            <h3 className={`${heading.section} mb-1.5`}>智能尽职调查</h3>
-            <p className={`${heading.muted} mb-6 max-w-[280px] text-center leading-relaxed`}>
-              输入企业名称，AI 多 Agent 协同进行全方位调查
-            </p>
-            <div className="flex flex-col gap-2 w-full max-w-xs">
-              {[
-                { icon: icons.Database, label: '数据采集', desc: '自动采集工商、诉讼、信用等多维数据' },
-                { icon: icons.CheckCheck, label: '交叉验证', desc: '多 Agent 交叉验证，发现数据矛盾' },
-                { icon: icons.Sparkles, label: '智能分析', desc: '辩论式综合分析，生成专业调查报告' },
-              ].map((item, i) => {
-                const Icon = item.icon
-                return (
-                  <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                    <Icon className={`${iconSize.md} text-primary shrink-0 mt-0.5`} />
-                    <div>
-                      <p className={heading.card}>{item.label}</p>
-                      <p className={heading.muted}>{item.desc}</p>
-                    </div>
-                  </div>
-                )
-              })}
             </div>
           </div>
         )}

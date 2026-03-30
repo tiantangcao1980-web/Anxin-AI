@@ -11,6 +11,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+from migration_utils import safe_create_index, safe_create_table
 
 # revision identifiers, used by Alembic.
 revision: str = '020_document_snapshots'
@@ -20,7 +21,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_table(
+    safe_create_table(
         'document_snapshots',
         sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
         sa.Column('session_id', postgresql.UUID(as_uuid=False),
@@ -39,9 +40,9 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index('ix_document_snapshots_session_id', 'document_snapshots', ['session_id'])
-    op.create_index('ix_document_snapshots_version', 'document_snapshots', ['session_id', 'version'])
-    op.create_index('ix_document_snapshots_created_by', 'document_snapshots', ['created_by'])
+    safe_create_index('ix_document_snapshots_session_id', 'document_snapshots', ['session_id'])
+    safe_create_index('ix_document_snapshots_version', 'document_snapshots', ['session_id', 'version'])
+    safe_create_index('ix_document_snapshots_created_by', 'document_snapshots', ['created_by'])
 
 
 def downgrade() -> None:

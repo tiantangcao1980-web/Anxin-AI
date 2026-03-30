@@ -121,7 +121,14 @@ interface CanvasEditorProps {
   onForwardToLawyer?: () => void;
   onInitiateSigning?: () => void;
   onSaveAsDocument?: () => void;
+  /** 文档快捷操作（生成摘要、翻译全文、风险检查等） */
+  onDocumentAction?: (actionId: string, payload?: { content?: string }) => void;
+  /** 保存到文档库 */
+  onSaveToList?: () => void;
+  /** 关闭文档 */
+  onCloseDocument?: () => void;
   isSaved?: boolean;
+  isProcessing?: boolean;
   isOptimizing?: boolean;
   /** 当前用户ID */
   userId?: string;
@@ -139,7 +146,11 @@ export const CanvasEditor = memo(function CanvasEditor({
   onForwardToLawyer,
   onInitiateSigning,
   onSaveAsDocument,
+  onDocumentAction,
+  onSaveToList,
+  onCloseDocument,
   isSaved = true,
+  isProcessing = false,
   isOptimizing = false,
   userId = 'user-1',
   conversationId,
@@ -315,10 +326,10 @@ export const CanvasEditor = memo(function CanvasEditor({
       'h-full flex flex-col bg-background',
       isFullscreen && 'fixed inset-0 z-50'
     )}>
-      {/* 顶部工具栏 */}
-      <div className="border-b border-border bg-background flex-shrink-0">
-        {/* 第一行：标题 */}
-        <div className="flex items-center gap-2 px-3 pt-2 pb-1">
+      {/* 统一工具栏 */}
+      <div className="border-b border-border bg-background flex-shrink-0 px-3 py-2 space-y-1.5">
+        {/* 第一行：标题 + 状态 + 操作 */}
+        <div className="flex items-center gap-2">
           <icons.FileText className="w-4 h-4 text-primary flex-shrink-0" />
           <input
             type="text"
@@ -327,20 +338,37 @@ export const CanvasEditor = memo(function CanvasEditor({
             className="flex-1 min-w-0 text-sm font-semibold text-foreground bg-transparent border-none focus:outline-none truncate"
             placeholder="文档标题..."
           />
-          {/* 编辑状态 */}
           <span className={`text-[10px] flex items-center gap-1 flex-shrink-0 ${isSaved ? 'text-emerald-600' : 'text-amber-500'}`}>
             {isSaved ? <><icons.CheckCircle2 className="w-3 h-3" />已同步</> : '编辑中...'}
           </span>
+          {onSaveToList && (
+            <button
+              onClick={onSaveToList}
+              className="p-1 rounded-md text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors flex-shrink-0"
+              title="保存到文档库"
+            >
+              <icons.Save className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {onCloseDocument && (
+            <button
+              onClick={onCloseDocument}
+              className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex-shrink-0"
+              title="关闭文档"
+            >
+              <icons.X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
-        {/* 第二行：操作工具栏 */}
-        <div className="flex items-center gap-1.5 px-3 pb-1.5 flex-wrap">
-          {/* 模式切换 */}
+        {/* 第二行：所有操作按钮 */}
+        <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
+          {/* 编辑模式切换 */}
           <div className="flex items-center bg-muted rounded-md p-0.5 flex-shrink-0">
             <button
               onClick={() => setEditorMode('rich')}
               className={cn(
-                'px-2 py-1 rounded text-xs font-medium transition-all',
+                'px-2 py-0.5 rounded text-xs font-medium transition-all',
                 editorMode === 'rich'
                   ? 'bg-background text-primary shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
@@ -351,7 +379,7 @@ export const CanvasEditor = memo(function CanvasEditor({
             <button
               onClick={() => setEditorMode('markdown')}
               className={cn(
-                'px-2 py-1 rounded text-xs font-medium transition-all',
+                'px-2 py-0.5 rounded text-xs font-medium transition-all',
                 editorMode === 'markdown'
                   ? 'bg-background text-primary shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
@@ -361,14 +389,51 @@ export const CanvasEditor = memo(function CanvasEditor({
             </button>
           </div>
 
-          {/* 建议数量 */}
+          <div className="w-px h-3.5 bg-border flex-shrink-0" />
+
+          {/* AI 文档操作 */}
+          {onDocumentAction && (
+            <>
+              {[
+                { id: 'summarize', label: '摘要', icon: icons.Wand2, desc: '生成结构化摘要' },
+                { id: 'translate', label: '翻译', icon: icons.Globe, desc: '翻译为目标语言' },
+                { id: 'risk_check', label: '风险', icon: icons.Shield, desc: '识别法律风险点' },
+              ].map((action) => {
+                const Icon = action.icon;
+                return (
+                  <button
+                    key={action.id}
+                    onClick={() => onDocumentAction(action.id, { content: canvas.content })}
+                    disabled={isProcessing}
+                    className="flex items-center gap-1 px-1.5 py-1 text-xs text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-md transition-colors whitespace-nowrap disabled:opacity-40 flex-shrink-0"
+                    title={action.desc}
+                  >
+                    <Icon className="w-3 h-3" />
+                    <span>{action.label}</span>
+                  </button>
+                );
+              })}
+            </>
+          )}
+
+          {/* AI 优化 */}
+          <button
+            onClick={onAIOptimize}
+            disabled={isOptimizing || isProcessing}
+            className="flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-md hover:bg-primary/15 transition-all disabled:opacity-50 text-xs font-medium flex-shrink-0"
+          >
+            <icons.Sparkles className={cn('w-3 h-3', isOptimizing && 'animate-spin')} />
+            {isOptimizing ? '优化中' : '润色'}
+          </button>
+
+          {/* 待处理建议 */}
           {pendingSuggestions.length > 0 && (
             <button
               onClick={() => onSuggestionAction(pendingSuggestions[0].id, 'accept')}
-              className="flex items-center gap-1 px-1.5 py-1 bg-yellow-50 text-yellow-700 rounded-md border border-yellow-200 text-xs hover:bg-yellow-100 flex-shrink-0"
+              className="flex items-center gap-1 px-1.5 py-1 bg-yellow-50 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-300 rounded-md border border-yellow-200 dark:border-yellow-800 text-xs hover:bg-yellow-100 dark:hover:bg-yellow-900/30 flex-shrink-0"
             >
               <icons.Sparkles className="w-3 h-3" />
-              {pendingSuggestions.length} 建议
+              {pendingSuggestions.length}
             </button>
           )}
 
@@ -376,7 +441,7 @@ export const CanvasEditor = memo(function CanvasEditor({
           <button
             onClick={() => setShowHistory(!showHistory)}
             className={cn(
-              'p-1.5 rounded-md transition-colors flex-shrink-0',
+              'p-1 rounded-md transition-colors flex-shrink-0',
               showHistory ? 'bg-primary/10 text-primary' : 'hover:bg-muted text-muted-foreground'
             )}
             title="版本历史"
@@ -384,32 +449,20 @@ export const CanvasEditor = memo(function CanvasEditor({
             <icons.Clock className="w-3.5 h-3.5" />
           </button>
 
-          {/* AI 优化 */}
-          <button
-            onClick={onAIOptimize}
-            disabled={isOptimizing}
-            className="flex items-center gap-1 px-2.5 py-1 bg-primary text-white rounded-md hover:bg-primary/90 transition-all disabled:opacity-50 text-xs font-medium flex-shrink-0"
-          >
-            <icons.Sparkles className={cn('w-3 h-3', isOptimizing && 'animate-spin')} />
-            {isOptimizing ? '优化中' : 'AI 优化'}
-          </button>
+          <div className="flex-1 min-w-1" />
 
-          <div className="w-px h-4 bg-border flex-shrink-0" />
-
-          {/* 下载 — 格式选择下拉 */}
+          {/* 下载 */}
           <div className="relative flex-shrink-0">
             <button
               onClick={() => setShowDownloadMenu(!showDownloadMenu)}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-md hover:bg-muted text-muted-foreground transition-colors text-xs"
+              className="flex items-center gap-1 px-1.5 py-1 rounded-md hover:bg-muted text-muted-foreground transition-colors text-xs"
               title="下载文件"
             >
               <icons.Download className="w-3.5 h-3.5" />
-              <span>下载</span>
-              <icons.ChevronDown className="w-3 h-3" />
+              <icons.ChevronDown className="w-2.5 h-2.5" />
             </button>
             {showDownloadMenu && (
               <>
-                {/* 点击外部关闭 */}
                 <div className="fixed inset-0 z-10" onClick={() => setShowDownloadMenu(false)} />
                 <div className="absolute right-0 top-full mt-1 bg-background border border-border rounded-lg shadow-lg py-1 w-max z-20">
                   <button
@@ -433,16 +486,13 @@ export const CanvasEditor = memo(function CanvasEditor({
 
           {/* 转律师 */}
           {onForwardToLawyer && (
-            <>
-              <div className="w-px h-4 bg-border flex-shrink-0" />
-              <button
-                onClick={onForwardToLawyer}
-                className="flex items-center gap-1 px-2 py-1 bg-primary/5 text-primary rounded-md hover:bg-primary/10 text-xs font-medium transition-colors flex-shrink-0"
-              >
-                <icons.Users className="w-3.5 h-3.5" />
-                转律师
-              </button>
-            </>
+            <button
+              onClick={onForwardToLawyer}
+              className="flex items-center gap-1 px-2 py-1 bg-primary/5 text-primary rounded-md hover:bg-primary/10 text-xs font-medium transition-colors flex-shrink-0"
+            >
+              <icons.Users className="w-3 h-3" />
+              转律师
+            </button>
           )}
         </div>
       </div>

@@ -4,6 +4,30 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8003/api/v1'
 
+function trimTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, '')
+}
+
+export function getWebSocketBaseUrl(): string {
+  const configuredWsBase = import.meta.env.VITE_WS_URL
+  if (configuredWsBase) {
+    return trimTrailingSlash(configuredWsBase)
+  }
+
+  if (/^https?:\/\//.test(API_BASE_URL)) {
+    return trimTrailingSlash(API_BASE_URL.replace(/^http/, 'ws'))
+  }
+
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const relativeApiBase = API_BASE_URL.startsWith('/') ? API_BASE_URL : `/${API_BASE_URL}`
+  return `${protocol}//${window.location.host}${trimTrailingSlash(relativeApiBase)}`
+}
+
+export function buildWebSocketUrl(path: string): string {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  return `${getWebSocketBaseUrl()}${normalizedPath}`
+}
+
 // 通用响应结构
 export interface UnifiedResponse<T> {
   code: number
@@ -308,8 +332,7 @@ export const chatApi = {
     onError?: (error: Event) => void,
     onClose?: (event: CloseEvent) => void,
   ) => {
-    const baseUrl = API_BASE_URL.replace(/^http/, 'ws');
-    const wsUrl = `${baseUrl}/chat/ws/${sessionId}`;
+    const wsUrl = buildWebSocketUrl(`/chat/ws/${sessionId}`);
     
     const ws = new WebSocket(wsUrl);
     
@@ -323,8 +346,11 @@ export const chatApi = {
     };
     
     ws.onerror = (event) => {
-      // 降级为 warn，避免开发环境大量 console.error 噪音
-      console.warn('[WebSocket] 连接失败，实时功能暂不可用');
+      // React StrictMode 下 effect 会重复挂载/清理，连接尚未建立就被主动关闭时会触发误报。
+      // 这类“预连接期”错误交给 onClose 统一处理，避免开发环境噪音掩盖真实异常。
+      if (ws.readyState === WebSocket.OPEN) {
+        console.warn('[WebSocket] 连接失败，实时功能暂不可用');
+      }
       onError?.(event);
     };
     
@@ -1722,9 +1748,7 @@ export const collaborationApi = {
   // 原因：Token 在 URL 参数中会被记录到服务器日志、浏览器历史、代理日志
   // 修复方式：URL 中不再携带 token，改为连接建立后通过首条 auth 消息发送
   connectWebSocket: (documentId: string, userId?: string, userName?: string) => {
-    const wsUrl = import.meta.env.VITE_WS_URL
-      || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/v1`
-    const ws = new WebSocket(`${wsUrl}/collaboration/ws/document/${documentId}`)
+    const ws = new WebSocket(buildWebSocketUrl(`/collaboration/ws/document/${documentId}`))
 
     return {
       ws,

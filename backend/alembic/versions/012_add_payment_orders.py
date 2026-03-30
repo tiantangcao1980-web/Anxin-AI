@@ -11,6 +11,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+from migration_utils import safe_create_index, safe_create_table
 
 # revision identifiers, used by Alembic.
 revision: str = '012_payment_orders'
@@ -20,7 +21,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_table(
+    safe_create_table(
         'payment_orders',
         sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
         sa.Column('user_id', sa.String(36), nullable=False, index=True),
@@ -41,8 +42,8 @@ def upgrade() -> None:
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
     # 状态索引加速查询
-    op.create_index('ix_payment_orders_status', 'payment_orders', ['status'])
-    op.create_index('ix_payment_orders_user_status', 'payment_orders', ['user_id', 'status'])
+    safe_create_index('ix_payment_orders_status', 'payment_orders', ['status'])
+    safe_create_index('ix_payment_orders_user_status', 'payment_orders', ['user_id', 'status'])
 
 
 def downgrade() -> None:

@@ -13,6 +13,7 @@ interface ComplianceReportProps {
     environmental_penalties?: number;
     abnormal_operations?: number;
     serious_violations?: number;
+    dishonest_records?: number;
   };
 }
 
@@ -73,6 +74,11 @@ export function ComplianceReport({ data }: ComplianceReportProps) {
       category: '严重违法',
       status: ((data.serious_violations || 0) > 0 ? 'fail' : 'pass') as 'pass' | 'warning' | 'fail',
       detail: (data.serious_violations || 0) > 0 ? `严重违法 ${data.serious_violations} 条` : '无违法记录',
+    },
+    {
+      category: '失信被执行',
+      status: ((data.dishonest_records || 0) > 0 ? 'fail' : 'pass') as 'pass' | 'warning' | 'fail',
+      detail: (data.dishonest_records || 0) > 0 ? `失信记录 ${data.dishonest_records} 条` : '无失信记录',
     },
   ] : defaultComplianceItems;
 

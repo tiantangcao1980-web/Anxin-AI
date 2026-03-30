@@ -91,6 +91,7 @@ export function QuickActionsBar({
 }: QuickActionsBarProps) {
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
+  const portalRef = useRef<HTMLDivElement>(null);
   const moreBtnRef = useRef<HTMLButtonElement>(null);
   const [popupPos, setPopupPos] = useState<{ x: number; y: number } | null>(null);
 
@@ -98,14 +99,16 @@ export function QuickActionsBar({
   const primaryActions = quickActions.filter((action) => action.quickGroup !== 'secondary');
   const secondaryActions = quickActions.filter((action) => action.quickGroup === 'secondary');
 
-  // 桌面显示全部 primary，移动端只显示前 4 个
   const visiblePrimary = isMobile ? primaryActions.slice(0, 4) : primaryActions;
 
-  // 点击外部关闭更多面板
   useEffect(() => {
     if (!moreOpen) return;
     const handler = (e: MouseEvent) => {
-      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        moreRef.current && !moreRef.current.contains(target) &&
+        portalRef.current && !portalRef.current.contains(target)
+      ) {
         setMoreOpen(false);
       }
     };
@@ -180,50 +183,51 @@ export function QuickActionsBar({
 
                 {/* Portal 弹出面板 */}
                 {moreOpen && createPortal(
-                  <AnimatePresence>
-                    <motion.div
-                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                      transition={{ duration: 0.15 }}
-                      style={popupPos ? { position: 'fixed', right: window.innerWidth - popupPos.x, bottom: window.innerHeight - popupPos.y + 8 } : undefined}
-                      className="bg-background border border-border rounded-xl shadow-xl py-1.5 min-w-[160px] z-[9999]"
-                    >
-                      {secondaryActions.map((action) => {
-                        const Icon = icons[action.iconKey];
-                        return (
-                          <button
-                            key={action.id}
-                            onClick={() => handleQuickAction(action)}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-foreground/80 hover:bg-muted/50 hover:text-primary transition-colors"
-                          >
-                            <Icon className="w-4 h-4 text-muted-foreground" />
-                            <span>{action.label}</span>
-                          </button>
-                        );
-                      })}
+                  <div ref={portalRef}>
+                    <AnimatePresence>
+                      <motion.div
+                        initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                        transition={{ duration: 0.15 }}
+                        style={popupPos ? { position: 'fixed', right: window.innerWidth - popupPos.x, bottom: window.innerHeight - popupPos.y + 8 } : undefined}
+                        className="bg-background border border-border rounded-xl shadow-xl py-1.5 min-w-[160px] z-[9999]"
+                      >
+                        {secondaryActions.map((action) => {
+                          const Icon = icons[action.iconKey];
+                          return (
+                            <button
+                              key={action.id}
+                              onClick={() => handleQuickAction(action)}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-foreground/80 hover:bg-muted/50 hover:text-primary transition-colors"
+                            >
+                              <Icon className="w-4 h-4 text-muted-foreground" />
+                              <span>{action.label}</span>
+                            </button>
+                          );
+                        })}
 
-                      {/* 移动端：把溢出的 primary 也放到更多面板 */}
-                      {isMobile && primaryActions.length > 4 && (
-                        <>
-                          <div className="h-px bg-border my-1" />
-                          {primaryActions.slice(4).map((action) => {
-                            const Icon = icons[action.iconKey];
-                            return (
-                              <button
-                                key={action.id}
-                                onClick={() => handleQuickAction(action)}
-                                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-foreground/80 hover:bg-muted/50 hover:text-primary transition-colors"
-                              >
-                                <Icon className="w-4 h-4 text-muted-foreground" />
-                                <span>{action.label}</span>
-                              </button>
-                            );
-                          })}
-                        </>
-                      )}
-                    </motion.div>
-                  </AnimatePresence>,
+                        {isMobile && primaryActions.length > 4 && (
+                          <>
+                            <div className="h-px bg-border my-1" />
+                            {primaryActions.slice(4).map((action) => {
+                              const Icon = icons[action.iconKey];
+                              return (
+                                <button
+                                  key={action.id}
+                                  onClick={() => handleQuickAction(action)}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-foreground/80 hover:bg-muted/50 hover:text-primary transition-colors"
+                                >
+                                  <Icon className="w-4 h-4 text-muted-foreground" />
+                                  <span>{action.label}</span>
+                                </button>
+                              );
+                            })}
+                          </>
+                        )}
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>,
                   document.body
                 )}
               </div>
