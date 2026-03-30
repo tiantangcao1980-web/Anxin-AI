@@ -94,10 +94,10 @@ export function LegalCases({ data }: LegalCasesProps) {
         </div>
         <div className="flex gap-2">
           <span className="px-2 py-1 bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-300 rounded text-xs font-medium">
-            被告 2 起
+            被告 {summary.as_defendant || cases.filter(c => c.role === '被告').length} 起
           </span>
           <span className="px-2 py-1 bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 rounded text-xs font-medium">
-            原告 1 起
+            原告 {summary.as_plaintiff || cases.filter(c => c.role === '原告').length} 起
           </span>
         </div>
       </div>

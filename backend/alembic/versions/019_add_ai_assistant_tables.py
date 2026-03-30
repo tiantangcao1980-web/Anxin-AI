@@ -10,6 +10,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '019_ai_assistant'
@@ -22,8 +23,8 @@ def upgrade() -> None:
     # ===== AI 助手配置表 =====
     op.create_table(
         'ai_assistant_configs',
-        sa.Column('id', sa.CHAR(36), primary_key=True),
-        sa.Column('org_id', sa.CHAR(36), sa.ForeignKey('organizations.id', ondelete='CASCADE'), nullable=True),
+        sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
+        sa.Column('org_id', postgresql.UUID(as_uuid=False), sa.ForeignKey('organizations.id', ondelete='CASCADE'), nullable=True),
         sa.Column('name', sa.String(100), nullable=False, server_default='安心法务助手', comment='助手名称'),
         sa.Column('description', sa.Text, nullable=True, comment='助手描述'),
         sa.Column('avatar_url', sa.String(500), nullable=True, comment='助手头像'),
@@ -47,11 +48,11 @@ def upgrade() -> None:
     # ===== 对话摘要表 =====
     op.create_table(
         'conversation_summaries',
-        sa.Column('id', sa.CHAR(36), primary_key=True),
-        sa.Column('conversation_id', sa.String(36),
+        sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
+        sa.Column('conversation_id', postgresql.UUID(as_uuid=False),
                   sa.ForeignKey('conversations.id', ondelete='CASCADE'),
                   unique=True, nullable=False),
-        sa.Column('user_id', sa.CHAR(36), sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('user_id', postgresql.UUID(as_uuid=False), sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False),
         sa.Column('summary', sa.Text, nullable=False, comment='AI 生成的摘要'),
         sa.Column('key_topics', sa.JSON, nullable=True, comment='关键话题'),
         sa.Column('action_items', sa.JSON, nullable=True, comment='待办事项'),
@@ -68,11 +69,11 @@ def upgrade() -> None:
     # ===== AI 助手反馈表 =====
     op.create_table(
         'ai_assistant_feedbacks',
-        sa.Column('id', sa.CHAR(36), primary_key=True),
-        sa.Column('assistant_config_id', sa.CHAR(36),
+        sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
+        sa.Column('assistant_config_id', postgresql.UUID(as_uuid=False),
                   sa.ForeignKey('ai_assistant_configs.id', ondelete='SET NULL'),
                   nullable=True),
-        sa.Column('user_id', sa.CHAR(36), sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('user_id', postgresql.UUID(as_uuid=False), sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False),
         sa.Column('conversation_id', sa.String(36), nullable=True, comment='对话 ID'),
         sa.Column('message_id', sa.String(36), nullable=True, comment='消息 ID'),
         sa.Column('rating', sa.Integer, nullable=False, comment='评分 1-5'),

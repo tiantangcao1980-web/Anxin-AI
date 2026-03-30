@@ -9,7 +9,12 @@ import {
   DropdownMenuTrigger,
 } from './dropdown-menu';
 
-export const PrivacyToggle = () => {
+interface PrivacyToggleProps {
+  /** false 时顶栏仅显示模式图标，文案见 title */
+  showLabel?: boolean;
+}
+
+export const PrivacyToggle = ({ showLabel = true }: PrivacyToggleProps) => {
   const { mode, setMode, hardwareStatus } = usePrivacy();
 
   const isHardwareConnected = hardwareStatus === HardwareStatus.CONNECTED;
@@ -46,13 +51,22 @@ export const PrivacyToggle = () => {
   const currentInfo = getModeInfo(mode);
   const Icon = currentInfo.icon;
 
+  const triggerTitle = `${currentInfo.label}：${currentInfo.desc}`;
+
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="outline-none">
-        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${currentInfo.bg} ${currentInfo.color} border-transparent hover:border-current/20`}>
-          <Icon className="w-4 h-4" />
-          <span className="text-sm font-medium">{currentInfo.label}</span>
-        </div>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          title={triggerTitle}
+          aria-label={currentInfo.label}
+          className={`outline-none shrink-0 flex items-center rounded-lg border transition-all ${currentInfo.bg} ${currentInfo.color} border-transparent hover:border-current/20 ${
+            showLabel ? 'gap-2 px-3 py-1.5' : 'p-2 justify-center'
+          }`}
+        >
+          <Icon className="w-4 h-4 shrink-0" />
+          {showLabel && <span className="text-sm font-medium whitespace-nowrap">{currentInfo.label}</span>}
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel>数据隐私保护级别</DropdownMenuLabel>

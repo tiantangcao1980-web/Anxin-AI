@@ -154,26 +154,57 @@ function MessageContent({ message }: { message: IMMessage }) {
         <img
           src={message.metadata_?.url || message.content}
           alt="图片消息"
-          className="max-w-[240px] rounded-lg"
+          className="max-w-[240px] rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+          onClick={() => window.open(message.metadata_?.url || message.content, '_blank')}
         />
       )
     case 'file':
       return (
-        <div className="flex items-center gap-2">
-          <icons.FileText className="w-5 h-5 shrink-0" />
-          <span className="text-sm truncate">
-            {message.metadata_?.filename || '文件'}
-          </span>
+        <div className="flex items-center gap-3 min-w-[180px]">
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <icons.FileText className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">
+              {message.metadata_?.filename || '文件'}
+            </p>
+            {message.metadata_?.size && (
+              <p className="text-[10px] text-muted-foreground">
+                {formatFileSize(message.metadata_.size)}
+              </p>
+            )}
+          </div>
+          {message.metadata_?.url && (
+            <button
+              onClick={() => window.open(message.metadata_?.url, '_blank')}
+              className="p-1.5 rounded-md hover:bg-primary/10 transition-colors shrink-0"
+            >
+              <icons.Download className="w-4 h-4 text-primary" />
+            </button>
+          )}
         </div>
       )
     case 'card':
       return (
-        <div className="text-sm">
+        <div className="text-sm min-w-[200px]">
           <div className="font-medium">{message.metadata_?.title || '卡片消息'}</div>
-          <div className="text-muted-foreground mt-1">{message.content}</div>
+          <div className="text-muted-foreground mt-1 text-xs">{message.content}</div>
+          {message.metadata_?.link && (
+            <div className="mt-2 pt-2 border-t border-border/50">
+              <span className="text-xs text-primary cursor-pointer hover:underline">
+                查看详情 →
+              </span>
+            </div>
+          )}
         </div>
       )
     default:
       return <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
   }
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
 }

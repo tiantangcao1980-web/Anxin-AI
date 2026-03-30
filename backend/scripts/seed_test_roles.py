@@ -32,23 +32,23 @@ TEST_ACCOUNTS = [
     {"email": "ops@anxinfawu.com",        "name": "运维工程师",        "role": "admin",  "user_type": "internal",        "department": "技术部",   "org_id": TEST_ORGS[0]["id"], "password": "ops888"},
     {"email": "auditor@anxinfawu.com",    "name": "审计专员-周涛",     "role": "viewer", "user_type": "internal",        "department": "合规部",   "org_id": TEST_ORGS[0]["id"], "password": "audit888"},
     # 律所管理
-    {"email": "director@anxinfawu.com",   "name": "律所主任-王建国",   "role": "admin",  "user_type": "internal",        "department": "管理层",   "org_id": TEST_ORGS[1]["id"], "password": "dir888"},
-    {"email": "partner@anxinfawu.com",    "name": "合伙人-李明华",     "role": "member", "user_type": "internal",        "department": "民商事部", "org_id": TEST_ORGS[1]["id"], "password": "partner888"},
+    {"email": "director@anxinfawu.com",   "name": "律所主任-王建国",   "role": "org_admin", "user_type": "internal",     "department": "管理层",   "org_id": TEST_ORGS[1]["id"], "password": "dir888"},
+    {"email": "partner@anxinfawu.com",    "name": "合伙人-李明华",     "role": "partner", "user_type": "internal",        "department": "民商事部", "org_id": TEST_ORGS[1]["id"], "password": "partner888"},
     # 平台律师
-    {"email": "zhangwei@anxinfawu.com",   "name": "张伟律师",          "role": "lawyer", "user_type": "platform_lawyer", "department": "合同法",   "org_id": TEST_ORGS[1]["id"], "password": "lawyer888"},
-    {"email": "lina@anxinfawu.com",       "name": "李娜律师",          "role": "lawyer", "user_type": "platform_lawyer", "department": "知识产权", "org_id": TEST_ORGS[1]["id"], "password": "lawyer888"},
-    {"email": "wangqiang@anxinfawu.com",  "name": "王强律师",          "role": "lawyer", "user_type": "platform_lawyer", "department": "劳动法",   "org_id": TEST_ORGS[1]["id"], "password": "lawyer888"},
+    {"email": "zhangwei@anxinfawu.com",   "name": "张伟律师",          "role": "platform_lawyer", "user_type": "platform_lawyer", "department": "合同法",   "org_id": TEST_ORGS[1]["id"], "password": "lawyer888"},
+    {"email": "lina@anxinfawu.com",       "name": "李娜律师",          "role": "platform_lawyer", "user_type": "platform_lawyer", "department": "知识产权", "org_id": TEST_ORGS[1]["id"], "password": "lawyer888"},
+    {"email": "wangqiang@anxinfawu.com",  "name": "王强律师",          "role": "platform_lawyer", "user_type": "platform_lawyer", "department": "劳动法",   "org_id": TEST_ORGS[1]["id"], "password": "lawyer888"},
     # 律所员工
-    {"email": "chenming@anxinfawu.com",   "name": "资深律师-陈明",     "role": "member", "user_type": "internal",        "department": "诉讼部",   "org_id": TEST_ORGS[1]["id"], "password": "senior888"},
-    {"email": "liufang@anxinfawu.com",    "name": "律师助理-刘芳",     "role": "member", "user_type": "internal",        "department": "综合部",   "org_id": TEST_ORGS[1]["id"], "password": "assist888"},
+    {"email": "chenming@anxinfawu.com",   "name": "资深律师-陈明",     "role": "lawyer", "user_type": "internal",        "department": "诉讼部",   "org_id": TEST_ORGS[1]["id"], "password": "senior888"},
+    {"email": "liufang@anxinfawu.com",    "name": "律师助理-刘芳",     "role": "paralegal", "user_type": "internal",     "department": "综合部",   "org_id": TEST_ORGS[1]["id"], "password": "assist888"},
     {"email": "zhaolei@anxinfawu.com",    "name": "实习生-赵磊",       "role": "viewer", "user_type": "internal",        "department": "综合部",   "org_id": TEST_ORGS[1]["id"], "password": "intern888"},
     # 企业客户
-    {"email": "sunli@anxinfawu.com",      "name": "法务总监-孙丽",     "role": "member", "user_type": "enterprise",      "department": "法务部",   "org_id": TEST_ORGS[2]["id"], "password": "enter888"},
-    {"email": "zhouqiang@anxinfawu.com",  "name": "合规经理-周强",     "role": "member", "user_type": "enterprise",      "department": "合规部",   "org_id": TEST_ORGS[2]["id"], "password": "enter888"},
-    {"email": "boss@anxinfawu.com",       "name": "企业管理员-钱总",   "role": "admin",  "user_type": "enterprise",      "department": "管理层",   "org_id": TEST_ORGS[2]["id"], "password": "enter888"},
+    {"email": "sunli@anxinfawu.com",      "name": "法务总监-孙丽",     "role": "enterprise_user", "user_type": "enterprise", "department": "法务部",   "org_id": TEST_ORGS[2]["id"], "password": "enter888"},
+    {"email": "zhouqiang@anxinfawu.com",  "name": "合规经理-周强",     "role": "enterprise_user", "user_type": "enterprise", "department": "合规部",   "org_id": TEST_ORGS[2]["id"], "password": "enter888"},
+    {"email": "boss@anxinfawu.com",       "name": "企业管理员-钱总",   "role": "org_admin", "user_type": "enterprise",   "department": "管理层",   "org_id": TEST_ORGS[2]["id"], "password": "enter888"},
     # 个人用户
-    {"email": "xiaoming@anxinfawu.com",   "name": "陈小明",            "role": "member", "user_type": "individual",      "department": None,       "org_id": None,               "password": "user888"},
-    {"email": "xiaohong@anxinfawu.com",   "name": "林小红",            "role": "member", "user_type": "individual",      "department": None,       "org_id": None,               "password": "user888"},
+    {"email": "xiaoming@anxinfawu.com",   "name": "陈小明",            "role": "individual_user", "user_type": "individual", "department": None,       "org_id": None,               "password": "user888"},
+    {"email": "xiaohong@anxinfawu.com",   "name": "林小红",            "role": "individual_user", "user_type": "individual", "department": None,       "org_id": None,               "password": "user888"},
     {"email": "visitor@anxinfawu.com",    "name": "访客体验",          "role": "viewer", "user_type": "individual",      "department": None,       "org_id": None,               "password": "visit888"},
 ]
 

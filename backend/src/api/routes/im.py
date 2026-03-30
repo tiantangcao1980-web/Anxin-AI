@@ -12,6 +12,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
+from sqlalchemy import or_, select as sa_select
+
 from src.core.database import get_db
 from src.core.deps import get_current_user_required, Permission, require_permission
 from src.core.responses import UnifiedResponse
@@ -66,6 +68,39 @@ class CreateConversationRequest(BaseModel):
 
 
 # ===== REST API =====
+
+
+@router.get("/users/search")
+async def search_users_for_im(
+    q: str = Query("", description="搜索关键词（姓名/邮箱）"),
+    limit: int = Query(20, ge=1, le=50),
+    user: User = Depends(require_permission(Permission.USE_CHAT)),
+    db: AsyncSession = Depends(get_db),
+):
+    """搜索用户（用于创建对话时选择成员），排除当前用户"""
+    query = sa_select(User).where(User.is_active == True, User.id != user.id)
+
+    if q.strip():
+        pattern = f"%{q.strip()}%"
+        query = query.where(
+            or_(User.name.ilike(pattern), User.email.ilike(pattern))
+        )
+
+    query = query.order_by(User.name).limit(limit)
+    result = await db.execute(query)
+    users = result.scalars().all()
+
+    return UnifiedResponse.success(data=[
+        {
+            "id": str(u.id),
+            "name": u.name,
+            "email": u.email,
+            "avatar_url": u.avatar_url,
+            "department": u.department,
+            "role": u.role,
+        }
+        for u in users
+    ])
 
 
 @router.get("/conversations")
@@ -172,6 +207,7 @@ async def im_websocket(
     - { type: "typing", conversation_id, user_id }
     - { type: "read_receipt", conversation_id, user_id }
     - { type: "recall", message_id, conversation_id }
+    - { type: "notification", notification: {...} }
     - { type: "error", message: "..." }
     """
     # 验证 JWT

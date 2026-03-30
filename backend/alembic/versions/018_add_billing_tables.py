@@ -10,6 +10,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '018_billing_tables'
@@ -22,7 +23,7 @@ def upgrade() -> None:
     # ===== 计费方案表 =====
     op.create_table(
         'billing_plans',
-        sa.Column('id', sa.CHAR(36), primary_key=True),
+        sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
         sa.Column('name', sa.String(100), nullable=False, comment='方案名称'),
         sa.Column('code', sa.String(50), unique=True, nullable=False, comment='方案代码'),
         sa.Column('description', sa.Text, nullable=True, comment='方案描述'),
@@ -48,14 +49,14 @@ def upgrade() -> None:
     # ===== 订阅表 =====
     op.create_table(
         'subscriptions',
-        sa.Column('id', sa.CHAR(36), primary_key=True),
-        sa.Column('user_id', sa.CHAR(36),
+        sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
+        sa.Column('user_id', postgresql.UUID(as_uuid=False),
                    sa.ForeignKey('users.id', ondelete='CASCADE'),
                    nullable=False, comment='用户ID'),
-        sa.Column('plan_id', sa.CHAR(36),
+        sa.Column('plan_id', postgresql.UUID(as_uuid=False),
                    sa.ForeignKey('billing_plans.id', ondelete='CASCADE'),
                    nullable=False, comment='计费方案ID'),
-        sa.Column('org_id', sa.CHAR(36),
+        sa.Column('org_id', postgresql.UUID(as_uuid=False),
                    sa.ForeignKey('organizations.id', ondelete='SET NULL'),
                    nullable=True, comment='企业订阅关联组织'),
         sa.Column('status', sa.String(20), nullable=False, server_default='active',
@@ -79,18 +80,18 @@ def upgrade() -> None:
     # ===== 退款表 =====
     op.create_table(
         'refunds',
-        sa.Column('id', sa.CHAR(36), primary_key=True),
-        sa.Column('order_id', sa.String(36),
+        sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
+        sa.Column('order_id', postgresql.UUID(as_uuid=False),
                    sa.ForeignKey('payment_orders.id', ondelete='CASCADE'),
                    nullable=False, comment='支付订单ID'),
-        sa.Column('user_id', sa.CHAR(36),
+        sa.Column('user_id', postgresql.UUID(as_uuid=False),
                    sa.ForeignKey('users.id', ondelete='CASCADE'),
                    nullable=False, comment='申请人ID'),
         sa.Column('amount', sa.Float, nullable=False, comment='退款金额'),
         sa.Column('reason', sa.String(500), nullable=False, comment='退款原因'),
         sa.Column('status', sa.String(20), nullable=False, server_default='pending',
                    comment='退款状态: pending/approved/rejected/processed'),
-        sa.Column('approved_by', sa.CHAR(36),
+        sa.Column('approved_by', postgresql.UUID(as_uuid=False),
                    sa.ForeignKey('users.id', ondelete='SET NULL'),
                    nullable=True, comment='审批人ID'),
         sa.Column('approved_at', sa.DateTime(timezone=True), nullable=True, comment='审批时间'),

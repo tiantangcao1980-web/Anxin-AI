@@ -117,11 +117,22 @@ export function ConversationList({ onSelect, onNewConversation }: ConversationLi
             </Button>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-            <icons.MessageSquare className={`${iconSize.xl} mb-2 opacity-30`} />
-            <p className="text-sm">{search ? '未找到匹配对话' : '暂无消息'}</p>
+          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+            <div className="w-14 h-14 rounded-2xl bg-primary/5 flex items-center justify-center mb-3">
+              <icons.MessageSquare className={`${iconSize.xl} text-primary/30`} />
+            </div>
+            <p className="text-sm font-medium">{search ? '未找到匹配对话' : '暂无消息'}</p>
+            <p className="text-xs mt-1 text-muted-foreground/60 text-center max-w-[200px]">
+              {search ? '请尝试其他关键词' : '点击右上角新建按钮，开始一段对话'}
+            </p>
             {!search && (
-              <p className="text-xs mt-1 text-muted-foreground/60">点击右上角开始新对话</p>
+              <button
+                onClick={onNewConversation}
+                className="mt-4 flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+              >
+                <icons.Add className={iconSize.sm} />
+                新建对话
+              </button>
             )}
           </div>
         ) : (
@@ -161,6 +172,9 @@ function ConversationItem({
     ? formatRelativeTime(conversation.last_message_at)
     : ''
 
+  // 对话类型图标
+  const typeIcon = getConversationTypeIcon(conversation.type)
+
   return (
     <div
       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all ${
@@ -169,19 +183,38 @@ function ConversationItem({
       onClick={onClick}
     >
       {/* 头像 */}
-      <Avatar className="w-10 h-10 shrink-0">
-        <AvatarFallback className="text-sm bg-primary/10 text-primary">
-          {initial}
-        </AvatarFallback>
-      </Avatar>
+      <div className="relative shrink-0">
+        <Avatar className="w-10 h-10">
+          <AvatarFallback
+            className={`text-sm ${
+              conversation.type === 'group'
+                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'
+                : conversation.type === 'case'
+                  ? 'bg-primary/10 text-primary'
+                  : conversation.type === 'contract'
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
+                    : 'bg-primary/10 text-primary'
+            }`}
+          >
+            {typeIcon || initial}
+          </AvatarFallback>
+        </Avatar>
+        {conversation.type === 'group' && (
+          <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-background rounded-full flex items-center justify-center">
+            <icons.Users className="w-2.5 h-2.5 text-muted-foreground" />
+          </div>
+        )}
+      </div>
 
       {/* 中间信息 */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-foreground truncate">{title}</span>
+          <span className={`text-sm truncate ${conversation.unread_count > 0 ? 'font-semibold text-foreground' : 'font-medium text-foreground'}`}>
+            {title}
+          </span>
           <span className="text-[10px] text-muted-foreground shrink-0 ml-2">{time}</span>
         </div>
-        <p className="text-xs text-muted-foreground truncate mt-0.5">
+        <p className={`text-xs truncate mt-0.5 ${conversation.unread_count > 0 ? 'text-foreground/70' : 'text-muted-foreground'}`}>
           {conversation.last_message_preview || '暂无消息'}
         </p>
       </div>
@@ -197,6 +230,15 @@ function ConversationItem({
       )}
     </div>
   )
+}
+
+function getConversationTypeIcon(type: string): string | null {
+  switch (type) {
+    case 'case': return '⚖️'
+    case 'contract': return '📄'
+    case 'group': return null
+    default: return null
+  }
 }
 
 // ===== 工具函数 =====

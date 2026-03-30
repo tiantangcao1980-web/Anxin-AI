@@ -126,17 +126,18 @@ export const buttonStyle = {
 } as const
 
 // ===== 页面标题样式 =====
+// 紧凑层级：page(14px) ≥ section(14px) > card(13px) > muted(12px) > micro(11px)
 export const heading = {
-  /** 页面主标题 */
-  page: 'text-xl font-semibold text-foreground',
-  /** 区块标题 */
-  section: 'text-base font-semibold text-foreground',
-  /** 卡片标题 */
-  card: 'text-sm font-medium text-foreground',
-  /** 辅助文本 */
-  muted: 'text-sm text-muted-foreground',
-  /** 微标签 */
-  micro: 'text-xs text-muted-foreground',
+  /** 页面主标题 - 14px */
+  page: 'text-sm font-semibold text-foreground',
+  /** 区块标题 - 14px（与 page 同级，通过上下文区分） */
+  section: 'text-sm font-semibold text-foreground',
+  /** 卡片标题 - 13px */
+  card: 'text-[13px] font-medium text-foreground',
+  /** 辅助文本 - 12px */
+  muted: 'text-xs text-muted-foreground',
+  /** 微标签 - 11px */
+  micro: 'text-[11px] text-muted-foreground',
 } as const
 
 // ===== 状态颜色 =====
@@ -186,6 +187,18 @@ export const inputStyle = {
 export const proseStyle = {
   /** 聊天消息中的 Markdown */
   chat: 'prose prose-sm max-w-none prose-headings:text-foreground prose-headings:font-semibold prose-p:text-foreground prose-p:leading-relaxed prose-strong:text-foreground prose-ul:text-foreground/80 prose-ol:text-foreground/80 prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-[13px] prose-pre:bg-foreground prose-pre:text-background dark:prose-invert',
+} as const
+
+// ===== 侧边栏导航 =====
+export const sidebarNav = {
+  /** 模块标题 */
+  title: 'text-sm font-bold text-foreground',
+  /** 导航项字号 - 14px */
+  itemText: 'text-sm',
+  /** 导航项激活态 */
+  itemActive: 'bg-primary/10 text-primary font-medium',
+  /** 导航项默认态 */
+  itemDefault: 'text-muted-foreground hover:bg-muted hover:text-foreground',
 } as const
 
 // ===== 侧边栏列表项 =====

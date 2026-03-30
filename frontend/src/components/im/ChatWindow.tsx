@@ -205,17 +205,30 @@ export function ChatWindow({ conversationId, onBack }: ChatWindowProps) {
             </div>
           )}
 
-          {/* 消息列表 */}
-          {messages.map((msg) => (
-            <MessageItem
-              key={msg.id}
-              message={msg}
-              senderName={getSenderName(msg.sender_id, conversation)}
-              replyToMessage={findReplyMessage(msg.reply_to_id)}
-              onReply={(m) => setReplyTo(m)}
-              onRecall={handleRecall}
-            />
-          ))}
+          {/* 消息列表（含时间分割线） */}
+          {messages.map((msg, idx) => {
+            const prev = idx > 0 ? messages[idx - 1] : null
+            const showTimeDivider = shouldShowTimeDivider(prev?.created_at, msg.created_at)
+
+            return (
+              <div key={msg.id}>
+                {showTimeDivider && (
+                  <div className="flex items-center justify-center py-2">
+                    <span className="text-[10px] text-muted-foreground/50 bg-muted/50 px-3 py-0.5 rounded-full">
+                      {formatTimeDivider(msg.created_at)}
+                    </span>
+                  </div>
+                )}
+                <MessageItem
+                  message={msg}
+                  senderName={getSenderName(msg.sender_id, conversation)}
+                  replyToMessage={findReplyMessage(msg.reply_to_id)}
+                  onReply={(m) => setReplyTo(m)}
+                  onRecall={handleRecall}
+                />
+              </div>
+            )
+          })}
 
           {/* 正在输入 */}
           {typingUsers.length > 0 && (
@@ -311,4 +324,32 @@ function getSenderName(
   if (!conversation) return senderId.slice(0, 8)
   const participant = conversation.participants?.find((p) => p.user_id === senderId)
   return participant?.nickname || senderId.slice(0, 8)
+}
+
+/**
+ * 判断是否需要显示时间分割线
+ * 两条消息间隔超过 5 分钟则显示
+ */
+function shouldShowTimeDivider(prevTime?: string, currTime?: string): boolean {
+  if (!prevTime || !currTime) return !!currTime
+  const diff = new Date(currTime).getTime() - new Date(prevTime).getTime()
+  return diff > 5 * 60 * 1000
+}
+
+function formatTimeDivider(isoStr: string): string {
+  const date = new Date(isoStr)
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const msgDay = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+
+  const time = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+
+  if (msgDay.getTime() === today.getTime()) return time
+  if (msgDay.getTime() === today.getTime() - 86400000) return `昨天 ${time}`
+
+  const isThisYear = date.getFullYear() === now.getFullYear()
+  if (isThisYear) {
+    return `${date.getMonth() + 1}月${date.getDate()}日 ${time}`
+  }
+  return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} ${time}`
 }

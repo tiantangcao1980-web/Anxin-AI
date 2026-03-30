@@ -41,65 +41,41 @@ export const HardwareStatus = () => {
     toggleHardwareConnection();
   };
 
+  /** 顶栏仅图标：完整状态写入 title / aria-label */
+  const statusTitle = !openClawInstalled
+    ? 'AI 私有助手 · 点击配置'
+    : isConnected
+      ? `${hardwareName} · 已连接 · 算力 ${Math.round(secureComputeUsage)}%`
+      : 'AI 私有助手（离线）· 点击连接';
+
   return (
     <>
-      <div
-        className={`flex items-center gap-3 px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${
+      <button
+        type="button"
+        onClick={handleClick}
+        title={statusTitle}
+        aria-label={statusTitle}
+        className={`relative shrink-0 flex items-center justify-center p-2 rounded-lg border transition-all ${
           isConnected
             ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-950/50'
             : !openClawInstalled
               ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/50'
-              : 'bg-muted border-border text-muted-foreground hover:bg-muted'
+              : 'bg-muted border-border text-muted-foreground hover:bg-muted/80'
         }`}
-        onClick={handleClick}
-        title={
-          !openClawInstalled
-            ? '点击配置 AI 私有助手'
-            : isConnected
-              ? '点击管理 AI 私有助手'
-              : '点击连接 AI 私有助手'
-        }
       >
-        <div
-          className={`p-1 rounded-md ${
-            isConnected
-              ? 'bg-emerald-200 dark:bg-emerald-800'
-              : !openClawInstalled
-                ? 'bg-amber-200 dark:bg-amber-800'
-                : 'bg-muted'
-          }`}
-        >
-          <icons.Cpu className="w-4 h-4" />
-        </div>
-
-        <div className="flex flex-col">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold whitespace-nowrap">
-              {!openClawInstalled ? 'AI私有助手' : isConnected ? hardwareName : 'AI私有助手（离线）'}
-            </span>
-            {!openClawInstalled ? (
-              <icons.Download className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-            ) : isConnected ? (
-              <icons.Wifi className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-            ) : (
-              <icons.WifiOff className="w-3 h-3 text-muted-foreground" />
-            )}
-          </div>
-
-          {isConnected && openClawInstalled && (
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <icons.Activity className="w-3 h-3" />
-              <div className="w-16 h-1.5 bg-emerald-200 dark:bg-emerald-800 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-emerald-500 transition-all duration-1000"
-                  style={{ width: `${secureComputeUsage}%` }}
-                />
-              </div>
-              <span className="text-[10px] font-mono leading-none">{Math.round(secureComputeUsage)}%</span>
-            </div>
-          )}
-        </div>
-      </div>
+        <icons.Cpu className="w-4 h-4" />
+        {isConnected ? (
+          <span
+            className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-background"
+            aria-hidden
+          />
+        ) : !openClawInstalled ? (
+          <span
+            className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500 ring-2 ring-background"
+            aria-hidden
+          />
+        ) : null}
+      </button>
 
       {/* 使用 Portal 渲染弹窗到 body，避免被父元素 overflow 裁剪 */}
       {showSetupGuide && createPortal(

@@ -19,6 +19,7 @@ class GraphService:
     _cache: ClassVar[dict] = {}
     _cache_ts: ClassVar[dict] = {}
     _CACHE_TTL = 300  # 5 分钟
+    _INIT_RETRY_INTERVAL = 30  # 秒
 
     def _get_cached(self, key: str):
         if key in self._cache and time.time() - self._cache_ts.get(key, 0) < self._CACHE_TTL:
@@ -35,8 +36,17 @@ class GraphService:
         self._cache_ts.clear()
 
     def __init__(self):
-        self.graph = None
-        self._init_graph()
+        self._graph = None
+        self._last_init_attempt = 0.0
+
+    @property
+    def graph(self):
+        self._ensure_graph()
+        return self._graph
+
+    @graph.setter
+    def graph(self, value):
+        self._graph = value
         
     def _init_graph(self):
         """初始化 Neo4j 客户端"""
@@ -52,8 +62,24 @@ class GraphService:
             )
             logger.info(f"Neo4j 图数据库初始化成功: {settings.NEO4J_URI}")
         except Exception as e:
-            logger.error(f"Neo4j 初始化失败: {e}")
+            logger.warning(f"Neo4j 当前不可用，图数据库功能将降级: {e}")
             self.graph = None
+
+    def _ensure_graph(self) -> bool:
+        """按需初始化 Neo4j 连接，失败时限流重试。"""
+        if self._graph is not None:
+            return True
+
+        if not settings.NEO4J_URI:
+            return False
+
+        now = time.time()
+        if now - self._last_init_attempt < self._INIT_RETRY_INTERVAL:
+            return False
+
+        self._last_init_attempt = now
+        self._init_graph()
+        return self._graph is not None
 
     def add_legal_entities(self, case_info: Dict[str, Any], doc_id: str):
         """将清洗后的案件信息存入图谱"""

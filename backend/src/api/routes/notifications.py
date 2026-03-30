@@ -66,23 +66,33 @@ class PreferencesResponse(BaseModel):
 async def get_notifications(
     limit: int = 50,
     unread_only: bool = False,
+    event_type: Optional[str] = None,
     current_user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    获取当前用户的通知列表
-    """
+    """获取当前用户的通知列表，支持按事件类型筛选"""
     notifications = await NotificationService.get_user_notifications(
         db,
         current_user.id,
         limit=limit,
-        unread_only=unread_only
+        unread_only=unread_only,
+        event_type=event_type,
     )
 
     return NotificationResponse(
         data=notifications,
-        total=len(notifications) # Note: For pagination we might want a count query, but for now this is fine
+        total=len(notifications)
     )
+
+
+@router.get("/unread-count")
+async def get_unread_count(
+    current_user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取当前用户未读通知总数（轻量接口）"""
+    count = await NotificationService.get_unread_count(db, current_user.id)
+    return {"count": count}
 
 @router.post("/{notification_id}/read", response_model=NotificationSchema)
 async def mark_as_read(

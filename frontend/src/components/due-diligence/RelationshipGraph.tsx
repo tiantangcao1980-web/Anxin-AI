@@ -66,7 +66,7 @@ export function RelationshipGraph({ companyName }: RelationshipGraphProps) {
             <div className="w-32 h-32 bg-primary rounded-2xl flex items-center justify-center shadow-lg">
               <div className="text-center text-white">
                 <icons.Building2 className="w-8 h-8 mx-auto mb-2" />
-                <p className="text-sm font-medium">科技有限公司</p>
+                <p className="text-sm font-medium">{companyName ? (companyName.length > 6 ? companyName.slice(0, 6) + '...' : companyName) : '目标企业'}</p>
               </div>
             </div>
             {/* Pulse effect */}

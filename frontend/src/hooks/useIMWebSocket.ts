@@ -6,7 +6,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useIMStore } from '@/lib/store'
+import { useIMStore, useNotificationStore } from '@/lib/store'
 
 // 模块级单例状态
 let imSocket: WebSocket | null = null
@@ -26,6 +26,8 @@ export function useIMWebSocket() {
     updateReadReceipt,
   } = useIMStore()
 
+  const { addNotification } = useNotificationStore()
+
   // 保存 store 方法的引用，避免闭包过期
   const storeRef = useRef({
     addMessage,
@@ -33,6 +35,7 @@ export function useIMWebSocket() {
     clearTyping,
     recallMessage,
     updateReadReceipt,
+    addNotification,
   })
   useEffect(() => {
     storeRef.current = {
@@ -41,8 +44,9 @@ export function useIMWebSocket() {
       clearTyping,
       recallMessage,
       updateReadReceipt,
+      addNotification,
     }
-  }, [addMessage, setTyping, clearTyping, recallMessage, updateReadReceipt])
+  }, [addMessage, setTyping, clearTyping, recallMessage, updateReadReceipt, addNotification])
 
   /**
    * 建立 WebSocket 连接
@@ -59,7 +63,11 @@ export function useIMWebSocket() {
       return
     }
 
-    const wsBase = import.meta.env.VITE_WS_URL || 'ws://localhost:8003'
+    // 通过 Vite 代理或当前页面地址构建 WebSocket URL
+    // 开发环境：ws://localhost:3001/api/v1/im/ws（经由 Vite proxy 转发到后端）
+    // 生产环境：根据当前域名自动构建
+    const wsBase = import.meta.env.VITE_WS_URL
+      || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
     const wsUrl = `${wsBase}/api/v1/im/ws?token=${encodeURIComponent(token)}`
 
     const ws = new WebSocket(wsUrl)
@@ -154,6 +162,7 @@ function _routeMessage(
     clearTyping: (convId: string, userId: string) => void
     recallMessage: (messageId: string) => void
     updateReadReceipt: (convId: string, userId: string) => void
+    addNotification: (item: any) => void
   }
 ) {
   const type = data.type as string
@@ -170,7 +179,6 @@ function _routeMessage(
       const userId = data.user_id as string
       if (convId && userId) {
         store.setTyping(convId, userId)
-        // 3 秒后自动清除输入状态
         setTimeout(() => store.clearTyping(convId, userId), 3000)
       }
       break
@@ -189,6 +197,13 @@ function _routeMessage(
       const messageId = data.message_id as string
       if (messageId) {
         store.recallMessage(messageId)
+      }
+      break
+    }
+
+    case 'notification': {
+      if (data.notification) {
+        store.addNotification(data.notification as any)
       }
       break
     }

@@ -13,6 +13,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '011_approval_chain_templates'
@@ -32,21 +33,21 @@ def upgrade() -> None:
         server_default='0', comment='当前审批步骤'
     ))
     op.add_column('approvals', sa.Column(
-        'template_id', sa.CHAR(36), nullable=True,
+        'template_id', postgresql.UUID(as_uuid=False), nullable=True,
         comment='关联审批模板ID'
     ))
 
     # ---------- approval_templates 表 ----------
     op.create_table(
         'approval_templates',
-        sa.Column('id', sa.CHAR(36), primary_key=True),
+        sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
         sa.Column('name', sa.String(200), nullable=False, comment='模板名称'),
         sa.Column('description', sa.Text(), nullable=True, comment='模板说明'),
         sa.Column('type', sa.String(100), nullable=False,
                   server_default='custom', comment='适用审批类型'),
         sa.Column('chain_config', sa.JSON(), nullable=True,
                   comment='审批链配置JSON'),
-        sa.Column('created_by', sa.CHAR(36),
+        sa.Column('created_by', postgresql.UUID(as_uuid=False),
                   sa.ForeignKey('users.id', ondelete='CASCADE'),
                   nullable=False, comment='创建人ID'),
         sa.Column('enabled', sa.Boolean(), nullable=False,

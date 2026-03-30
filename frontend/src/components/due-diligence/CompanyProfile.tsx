@@ -1,3 +1,7 @@
+/**
+ * CompanyProfile - 企业概况 Hero 卡片
+ * 展示企业基本信息与动态综合评分
+ */
 import { motion } from 'framer-motion';
 import { icons } from '@/lib/icons';
 
@@ -14,9 +18,52 @@ interface CompanyProfileProps {
     data_source?: string;
   };
   companyName?: string;
+  /** 五维风险数据，用于计算综合评分 */
+  riskData?: {
+    operation_risk?: number;
+    litigation_risk?: number;
+    credit_risk?: number;
+    compliance_risk?: number;
+    relation_risk?: number;
+  };
 }
 
-export function CompanyProfile({ data, companyName }: CompanyProfileProps) {
+/**
+ * 综合评分 = 100 - 平均风险分
+ * 风险分越高，综合评分越低
+ */
+function computeOverallScore(risk?: CompanyProfileProps['riskData']): number {
+  if (!risk) return 0;
+  const scores = [
+    risk.operation_risk ?? 0,
+    risk.litigation_risk ?? 0,
+    risk.credit_risk ?? 0,
+    risk.compliance_risk ?? 0,
+    risk.relation_risk ?? 0,
+  ];
+  const validScores = scores.filter(s => s > 0);
+  if (validScores.length === 0) return 0;
+  const avgRisk = validScores.reduce((a, b) => a + b, 0) / validScores.length;
+  return Math.max(0, Math.min(100, Math.round(100 - avgRisk)));
+}
+
+function scoreLabel(score: number): string {
+  if (score >= 80) return '优秀';
+  if (score >= 60) return '良好';
+  if (score >= 40) return '一般';
+  return '较差';
+}
+
+function scoreColor(score: number): string {
+  if (score >= 80) return 'text-emerald-400';
+  if (score >= 60) return 'text-white';
+  if (score >= 40) return 'text-amber-400';
+  return 'text-red-400';
+}
+
+export function CompanyProfile({ data, companyName, riskData }: CompanyProfileProps) {
+  const overallScore = computeOverallScore(riskData);
+
   const companyData = {
     name: data?.name || companyName || '-',
     legalPerson: data?.legal_representative || '-',
@@ -68,7 +115,12 @@ export function CompanyProfile({ data, companyName }: CompanyProfileProps) {
         </div>
         <div className="text-right">
           <p className="text-white/70 text-sm mb-1">综合评分</p>
-          <p className="text-4xl font-bold">78</p>
+          <p className={`text-4xl font-bold ${scoreColor(overallScore)}`}>
+            {overallScore > 0 ? overallScore : '-'}
+          </p>
+          {overallScore > 0 && (
+            <p className="text-xs text-white/60 mt-0.5">{scoreLabel(overallScore)}</p>
+          )}
         </div>
       </div>
 
@@ -87,7 +139,7 @@ export function CompanyProfile({ data, companyName }: CompanyProfileProps) {
                 <Icon className="w-4 h-4 text-white/70" />
                 <span className="text-xs text-white/70">{item.label}</span>
               </div>
-              <p className={`text-sm font-medium ${item.highlight ? 'text-emerald-500' : ''}`}>
+              <p className={`text-sm font-medium ${item.highlight ? 'text-emerald-400' : ''}`}>
                 {item.value}
               </p>
             </motion.div>

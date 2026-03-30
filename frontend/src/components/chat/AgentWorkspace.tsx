@@ -60,44 +60,19 @@ export const AgentWorkspace = memo(function AgentWorkspace({
   const contractReviewVisible = store.contractReviewVisible;
 
   if (isEmpty && !isProcessing && !contractReviewVisible) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-center space-y-4 px-8">
-          <div className="w-16 h-16 mx-auto bg-primary/10 rounded-2xl flex items-center justify-center shadow-sm">
-            <icons.LayoutDashboard className={`${iconSize.xl} text-primary`} />
-          </div>
-          <div>
-            <h3 className="font-semibold text-foreground mb-1.5">智能工作台</h3>
-            <p className={`${heading.micro} leading-relaxed`}>
-              发送消息后，此区域将实时展示<br />
-              需求分析、Agent 协作进度和处理结果
-            </p>
-          </div>
-          <div className="pt-2 flex flex-wrap gap-1.5 justify-center">
-            {['需求确认', '多Agent协作', '进度追踪', '智能交互'].map(tag => (
-              <span key={tag} className={`px-2.5 py-1 bg-background ${radius.button} text-[11px] text-muted-foreground border border-border shadow-xs`}>
-                {tag}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
+    return null;
   }
 
-  // 空闲但有合同审查卡片弹出
   if (isEmpty && !isProcessing && contractReviewVisible) {
     return (
-      <div className="h-full overflow-y-auto">
-        <div className="p-4 space-y-4">
-          <ContractReviewCard />
-        </div>
+      <div className="p-4 space-y-4">
+        <ContractReviewCard />
       </div>
     );
   }
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div>
       <div className="p-4 space-y-4">
         {/* ===== 1. 需求分析卡片 ===== */}
         <AnimatePresence>

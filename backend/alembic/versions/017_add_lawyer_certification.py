@@ -10,6 +10,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '017_lawyer_certification'
@@ -22,8 +23,8 @@ def upgrade() -> None:
     # ===== 律师认证表 =====
     op.create_table(
         'lawyer_certifications',
-        sa.Column('id', sa.CHAR(36), primary_key=True),
-        sa.Column('lawyer_profile_id', sa.CHAR(36),
+        sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
+        sa.Column('lawyer_profile_id', postgresql.UUID(as_uuid=False),
                    sa.ForeignKey('lawyer_profiles.id', ondelete='CASCADE'),
                    unique=True, nullable=False, comment='律师档案ID'),
         sa.Column('license_image_url', sa.String(500), nullable=False, comment='执业证照片URL'),
@@ -34,7 +35,7 @@ def upgrade() -> None:
         sa.Column('status', sa.String(20), nullable=False, server_default='pending',
                    comment='认证状态: pending/approved/rejected/expired'),
         sa.Column('rejection_reason', sa.Text, nullable=True, comment='驳回原因'),
-        sa.Column('verified_by', sa.CHAR(36),
+        sa.Column('verified_by', postgresql.UUID(as_uuid=False),
                    sa.ForeignKey('users.id', ondelete='SET NULL'),
                    nullable=True, comment='审核人ID'),
         sa.Column('verified_at', sa.DateTime(timezone=True), nullable=True, comment='审核时间'),
@@ -47,8 +48,8 @@ def upgrade() -> None:
     # ===== 律师接单配置表 =====
     op.create_table(
         'lawyer_service_configs',
-        sa.Column('id', sa.CHAR(36), primary_key=True),
-        sa.Column('lawyer_profile_id', sa.CHAR(36),
+        sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
+        sa.Column('lawyer_profile_id', postgresql.UUID(as_uuid=False),
                    sa.ForeignKey('lawyer_profiles.id', ondelete='CASCADE'),
                    unique=True, nullable=False, comment='律师档案ID'),
         sa.Column('service_types', sa.JSON, nullable=True, comment='服务类型列表'),

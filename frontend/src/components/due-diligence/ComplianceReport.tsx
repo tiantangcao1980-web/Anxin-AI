@@ -1,3 +1,7 @@
+/**
+ * ComplianceReport - 信用合规检查面板
+ * 展示六项核心合规指标及合规率
+ */
 import { motion } from 'framer-motion';
 import { icons } from '@/lib/icons';
 
@@ -5,21 +9,73 @@ interface ComplianceReportProps {
   data?: {
     credit_rating?: string;
     administrative_penalties?: number;
+    tax_violations?: number;
+    environmental_penalties?: number;
     abnormal_operations?: number;
+    serious_violations?: number;
   };
 }
 
+const CREDIT_RATING_ORDER = ['AAA', 'AA', 'A', 'BBB', 'BB', 'B', 'CCC', 'CC', 'C', 'D'];
+
+/** 正确的信用评级比较：返回评级在序列中的位置，越小越好 */
+function ratingRank(rating?: string): number {
+  if (!rating) return -1;
+  const idx = CREDIT_RATING_ORDER.indexOf(rating.toUpperCase());
+  return idx === -1 ? CREDIT_RATING_ORDER.length : idx;
+}
+
+function ratingStatus(rating?: string): 'pass' | 'warning' | 'fail' {
+  const rank = ratingRank(rating);
+  if (rank < 0) return 'pass';
+  if (rank <= 2) return 'pass';     // AAA, AA, A
+  if (rank <= 5) return 'warning';  // BBB, BB, B
+  return 'fail';                     // CCC 及以下
+}
+
 const defaultComplianceItems = [
-  { category: '工商登记', status: 'pass', detail: '信息完整，无异常' },
-  { category: '税务合规', status: 'pass', detail: '纳税正常' },
-  { category: '社保缴纳', status: 'warning', detail: '存在1个月欠缴' },
-  { category: '环保资质', status: 'pass', detail: '资质齐全' },
-  { category: '安全生产', status: 'fail', detail: '2023年1起安全事故' },
-  { category: '知识产权', status: 'pass', detail: '无侵权记录' },
+  { category: '工商登记', status: 'pass' as const, detail: '信息完整，无异常' },
+  { category: '税务合规', status: 'pass' as const, detail: '纳税正常' },
+  { category: '社保缴纳', status: 'warning' as const, detail: '存在1个月欠缴' },
+  { category: '环保资质', status: 'pass' as const, detail: '资质齐全' },
+  { category: '安全生产', status: 'fail' as const, detail: '2023年1起安全事故' },
+  { category: '知识产权', status: 'pass' as const, detail: '无侵权记录' },
 ];
 
 export function ComplianceReport({ data }: ComplianceReportProps) {
-  const complianceItems = defaultComplianceItems;
+  const complianceItems = data ? [
+    {
+      category: '工商登记',
+      status: ((data.abnormal_operations || 0) > 0 ? 'warning' : 'pass') as 'pass' | 'warning' | 'fail',
+      detail: (data.abnormal_operations || 0) > 0 ? `经营异常 ${data.abnormal_operations} 条` : '信息完整，无异常',
+    },
+    {
+      category: '税务合规',
+      status: ((data.tax_violations || 0) > 0 ? 'fail' : 'pass') as 'pass' | 'warning' | 'fail',
+      detail: (data.tax_violations || 0) > 0 ? `税务违规 ${data.tax_violations} 条` : '纳税正常',
+    },
+    {
+      category: '信用评级',
+      status: ratingStatus(data.credit_rating),
+      detail: `信用评级 ${data.credit_rating || '-'}`,
+    },
+    {
+      category: '行政处罚',
+      status: ((data.administrative_penalties || 0) > 0 ? 'fail' : 'pass') as 'pass' | 'warning' | 'fail',
+      detail: (data.administrative_penalties || 0) > 0 ? `行政处罚 ${data.administrative_penalties} 条` : '无处罚记录',
+    },
+    {
+      category: '环保合规',
+      status: ((data.environmental_penalties || 0) > 0 ? 'fail' : 'pass') as 'pass' | 'warning' | 'fail',
+      detail: (data.environmental_penalties || 0) > 0 ? `环保处罚 ${data.environmental_penalties} 条` : '资质齐全',
+    },
+    {
+      category: '严重违法',
+      status: ((data.serious_violations || 0) > 0 ? 'fail' : 'pass') as 'pass' | 'warning' | 'fail',
+      detail: (data.serious_violations || 0) > 0 ? `严重违法 ${data.serious_violations} 条` : '无违法记录',
+    },
+  ] : defaultComplianceItems;
+
   const statusConfig = {
     pass: {
       icon: icons.CheckCircle,
@@ -44,6 +100,18 @@ export function ComplianceReport({ data }: ComplianceReportProps) {
   const passCount = complianceItems.filter((item) => item.status === 'pass').length;
   const complianceRate = Math.round((passCount / complianceItems.length) * 100);
 
+  const rateColor = complianceRate >= 80
+    ? 'text-emerald-600 dark:text-emerald-400'
+    : complianceRate >= 50
+      ? 'text-amber-600 dark:text-amber-400'
+      : 'text-red-600 dark:text-red-400';
+
+  const rateBg = complianceRate >= 80
+    ? 'from-emerald-50 to-emerald-100 dark:from-emerald-950/30 dark:to-emerald-900/20 border-emerald-200 dark:border-emerald-800'
+    : complianceRate >= 50
+      ? 'from-amber-50 to-amber-100 dark:from-amber-950/30 dark:to-amber-900/20 border-amber-200 dark:border-amber-800'
+      : 'from-red-50 to-red-100 dark:from-red-950/30 dark:to-red-900/20 border-red-200 dark:border-red-800';
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
@@ -55,25 +123,23 @@ export function ComplianceReport({ data }: ComplianceReportProps) {
         <icons.FileCheck className="w-5 h-5 text-muted-foreground" />
         <div>
           <h3 className="font-semibold text-foreground">合规检查</h3>
-          <p className="text-sm text-muted-foreground">6项核心指标</p>
+          <p className="text-sm text-muted-foreground">{complianceItems.length} 项核心指标</p>
         </div>
       </div>
 
-      {/* Overall Score */}
-      <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/30 dark:to-emerald-900/20 rounded-lg p-4 mb-4 border border-emerald-200 dark:border-emerald-800">
+      <div className={`bg-gradient-to-br ${rateBg} rounded-lg p-4 mb-4 border`}>
         <div className="text-center">
-          <p className="text-sm text-emerald-700 dark:text-emerald-300 mb-1">合规率</p>
-          <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{complianceRate}%</p>
-          <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+          <p className={`text-sm ${rateColor} mb-1`}>合规率</p>
+          <p className={`text-3xl font-bold ${rateColor}`}>{complianceRate}%</p>
+          <p className={`text-xs ${rateColor} mt-1 opacity-80`}>
             {passCount}/{complianceItems.length} 项通过
           </p>
         </div>
       </div>
 
-      {/* Items */}
       <div className="space-y-2">
         {complianceItems.map((item, index) => {
-          const config = statusConfig[item.status as keyof typeof statusConfig];
+          const config = statusConfig[item.status];
           const Icon = config.icon;
 
           return (

@@ -86,6 +86,14 @@ class IMConnectionManager:
             if uid != exclude_user:
                 await self.send_to_user(uid, message)
 
+    async def push_notification(self, user_id: str, notification: dict) -> None:
+        """通过 WebSocket 推送通知给用户"""
+        payload = {
+            "type": "notification",
+            "notification": notification,
+        }
+        await self.send_to_user(user_id, payload)
+
 
 # 全局单例
 im_manager = IMConnectionManager()

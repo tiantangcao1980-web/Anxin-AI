@@ -61,7 +61,7 @@ class ConversationSummary(Base, TimestampMixin):
     __tablename__ = "conversation_summaries"
 
     conversation_id: Mapped[str] = mapped_column(
-        String(36),
+        GUID(),
         ForeignKey("conversations.id", ondelete="CASCADE"),
         unique=True,
         nullable=False,

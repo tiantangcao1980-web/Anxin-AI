@@ -27,9 +27,14 @@ import { LottieIcon } from '@/components/ui/LottieIcon';
 import { RightPanel } from '@/components/chat/RightPanel';
 import { StreamingMessage } from '@/components/chat/StreamingMessage';
 import { ThinkingChain } from '@/components/chat/ThinkingChain';
-import { QuickActionsBar, DeepModeToggle, type QuickActionMode } from '@/components/chat/QuickActionsBar';
+import { QuickActionsBar, DeepModeToggle, type QuickActionFillPayload } from '@/components/chat/QuickActionsBar';
 import { SlashCommandPalette, useSlashCommand, type SlashCommand } from '@/components/chat/SlashCommandPalette';
 import { ThinkingIndicator, type ThinkingStatus } from '@/components/chat/ThinkingIndicator';
+import {
+  getWorkflowPlaceholder,
+  inferAttachmentWorkflow,
+  type QuickActionMode,
+} from '@/components/chat/workflowConfig';
 import { A2UIRenderer, StreamingA2UIRenderer, useStreamingA2UI } from '@/components/a2ui';
 import { MobileA2UIAdapter } from '@/components/a2ui/MobileA2UIAdapter';
 import type { A2UIMessage, A2UIEvent, A2UIStreamEvent, A2UIComponent } from '@/components/a2ui';
@@ -121,12 +126,12 @@ interface Message {
   sources?: { id: string; type: string; title: string; content_snippet?: string; source?: string; relevance_score?: number; url?: string }[];
 }
 
+/** 欢迎消息标记 — 渲染时替换为品牌视觉组件 */
 const WELCOME_MESSAGE: Message = {
   id: '1',
-  type: 'ai',
-  content: '您好！我是您的 **AI 法务助手**，可以帮您处理合同审查、文书起草、律师委托、风险评估等各类法律事务。\n\n有什么可以帮您的？直接输入问题，或使用下方快捷操作开始。',
+  type: 'system',
+  content: '__WELCOME__',
   timestamp: new Date(),
-  agent: 'AI 法务助手',
 };
 
 // ========== 主组件 ==========
@@ -156,6 +161,7 @@ export default function Chat() {
   // 模式切换 + 斜杠命令 + 快捷操作选中态
   const [quickActionMode, setQuickActionMode] = useState<QuickActionMode>('chat');
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
+  const [actionModeOverride, setActionModeOverride] = useState<QuickActionMode | null>(null);
   const [slashPaletteOpen, setSlashPaletteOpen] = useState(false);
   // 流式 A2UI 状态管理（StreamObject 协议 — 骨架屏 + 渐进渲染）
   const { streams: streamingA2UIMap, activeStreams, handleStreamEvent: handleA2UIStreamEvent } = useStreamingA2UI();
@@ -167,6 +173,11 @@ export default function Chat() {
   const [editingConvId, setEditingConvId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+
+  // 消息编辑模式（参考千问：点击用户消息可编辑并重新生成）
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingMessageContent, setEditingMessageContent] = useState('');
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // 批量选择模式
   const [batchMode, setBatchMode] = useState(false);
@@ -240,6 +251,9 @@ export default function Chat() {
     setPendingFile(null);
     setActiveActionId(null);
     store.resetWorkspace();
+    // 新对话收起右面板，聊天区占满宽度
+    setRightPanelOpen(false);
+    setChatWidth(100);
     setTimeout(() => chatInputRef.current?.focus(), 100);
     toast.success('已创建新对话');
   }, [closeCurrentWs, setConversationId, store]);
@@ -972,6 +986,26 @@ export default function Chat() {
         }
         // 对话完成后刷新对话列表（更新消息数、标题等）
         loadConversationsRef.current();
+
+        // === 智能文书检测：AI 回复中包含法律文书/合同内容时，自动推送到工作台 ===
+        const responseContent = data.content || store.streamingContent || '';
+        if (responseContent.length > 500) {
+          // 检测文书特征：标题、条款、甲乙方、签署日期等
+          const isLegalDoc = /^#\s*.{2,}|第[一二三四五六七八九十]+条|甲方|乙方|合同|协议|法律意见|律师函|起诉状|答辩状|仲裁|签署日期/m.test(responseContent);
+          if (isLegalDoc && !store.canvasContent) {
+            // 提取标题
+            const titleMatch = responseContent.match(/^#\s*(.+)$/m);
+            const title = titleMatch ? titleMatch[1].trim() : '法律文书';
+            const isContract = /合同|协议|contract|agreement/i.test(responseContent);
+            store.setCanvasContent({
+              type: isContract ? 'contract' : 'document',
+              title: cleanCanvasTitle(title),
+              content: cleanCanvasContent(responseContent),
+              suggestions: [],
+            });
+            openRightPanel('document');
+          }
+        }
         break;
       }
 
@@ -1187,6 +1221,7 @@ export default function Chat() {
     setInput('');
     setPendingFile(null);
     setActiveActionId(null); // 发送后取消快捷操作高亮
+    setActionModeOverride(null);
     setIsProcessing(true);
     setUserScrolledUp(false); // 发送消息时重置滚动状态，自动跟随新内容
     store.resetWorkspace();
@@ -1231,7 +1266,7 @@ export default function Chat() {
         privacy_mode: mode,
         has_attachments: !!attachedFile,
         document_id: uploadedDocId,
-        mode: quickActionMode,  // 功能模式药丸 → 传递给后端 Coordinator
+        mode: actionModeOverride ?? quickActionMode,  // 快捷技能优先，其次是深度思考开关
       }));
       if (conversationId && !conversations.find(c => c.id === conversationId)) {
         const title = messageContent.slice(0, 30) + (messageContent.length > 30 ? '...' : '');
@@ -1273,6 +1308,41 @@ export default function Chat() {
     } catch { toast.error('反馈提交失败'); }
   };
 
+  // ========== 消息编辑 & 重新生成（参考千问设计）==========
+
+  const handleStartEditMessage = useCallback((message: Message) => {
+    setEditingMessageId(message.id);
+    setEditingMessageContent(message.content);
+    setTimeout(() => {
+      const el = editTextareaRef.current;
+      if (el) {
+        el.focus();
+        el.setSelectionRange(message.content.length, message.content.length);
+        // 自适应高度
+        el.style.height = 'auto';
+        el.style.height = el.scrollHeight + 'px';
+      }
+    }, 50);
+  }, []);
+
+  const handleCancelEditMessage = useCallback(() => {
+    setEditingMessageId(null);
+    setEditingMessageContent('');
+  }, []);
+
+  const handleConfirmEditMessage = useCallback(() => {
+    if (!editingMessageId || !editingMessageContent.trim() || isProcessing) return;
+    const editedContent = editingMessageContent.trim();
+    // 找到被编辑消息的索引，删除该消息及之后的所有消息
+    const msgIndex = messages.findIndex(m => m.id === editingMessageId);
+    if (msgIndex === -1) return;
+    setMessages(prev => prev.slice(0, msgIndex));
+    setEditingMessageId(null);
+    setEditingMessageContent('');
+    // 重新发送编辑后的内容
+    setTimeout(() => handleSendMessage(editedContent), 100);
+  }, [editingMessageId, editingMessageContent, isProcessing, messages, handleSendMessage]);
+
   // 斜杠命令检测
   const { isSlashMode } = useSlashCommand(input);
 
@@ -1285,10 +1355,18 @@ export default function Chat() {
   const handleSlashCommandSelect = useCallback((cmd: SlashCommand) => {
     setSlashPaletteOpen(false);
     if (cmd.query) {
-      setInput('');
-      handleSendMessage(cmd.query);
+      setActiveActionId(cmd.actionId ?? null);
+      setActionModeOverride(cmd.mode ?? null);
+      setInput(cmd.query);
+      setTimeout(() => {
+        const el = chatInputRef.current;
+        if (el) {
+          el.focus();
+          el.setSelectionRange(cmd.query.length, cmd.query.length);
+        }
+      }, 50);
     }
-  }, [handleSendMessage]);
+  }, []);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     // 斜杠命令模式下，Enter 由 SlashCommandPalette 处理
@@ -1296,12 +1374,14 @@ export default function Chat() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); }
   };
 
-  // 动态 placeholder — 根据功能模式切换显示不同提示文本
+  // 动态 placeholder — 根据当前业务快捷动作切换提示文本
   const dynamicPlaceholder = useMemo(() => {
     if (pendingFile) return `描述您对「${pendingFile.name}」的需求...`;
     if (quickActionMode === 'deep_analysis') return '描述您需要深度分析的法律问题...';
+    const workflowPlaceholder = getWorkflowPlaceholder(activeActionId);
+    if (workflowPlaceholder) return workflowPlaceholder;
     return '发送消息或输入 / 选择技能';
-  }, [pendingFile, quickActionMode]);
+  }, [pendingFile, quickActionMode, activeActionId]);
 
   // ========== Canvas 操作 ==========
 
@@ -1369,6 +1449,25 @@ export default function Chat() {
     );
     store.setCanvasContent({ ...store.canvasContent, suggestions: updated });
   }, [store]);
+
+  // ========== 文档快捷操作（参考豆包：翻译/摘要/润色/风险检查）==========
+  const handleDocumentAction = useCallback((action: string, payload?: any) => {
+    if (!store.canvasContent || !wsRef.current) return;
+    const content = store.canvasContent.content;
+    const title = store.canvasContent.title;
+
+    const actionMessages: Record<string, string> = {
+      summarize: `请为以下文档生成结构化摘要，包含主要内容、关键条款和核心结论：\n\n---\n${content.slice(0, 10000)}`,
+      translate: `请将以下文档翻译为英文（保留原格式）：\n\n---\n${content.slice(0, 10000)}`,
+      optimize: `请对以下法律文档进行措辞润色和结构优化：\n\n---\n${content.slice(0, 10000)}`,
+      risk_check: `请检查以下文档中的法律风险点，标出有风险的条款并给出修改建议：\n\n---\n${content.slice(0, 10000)}`,
+    };
+
+    const message = actionMessages[action];
+    if (message) {
+      handleSendMessage(message);
+    }
+  }, [store.canvasContent, handleSendMessage]);
 
   // ========== 转发律师 ==========
   const handleForwardToLawyer = useCallback(() => {
@@ -1531,6 +1630,56 @@ export default function Chat() {
   }, [messages]);
 
   const renderMessage = (message: Message) => {
+    // ========== 品牌视觉欢迎页（参考千问标题图像风格）==========
+    if (message.content === '__WELCOME__') {
+      return (
+        <motion.div
+          key={message.id}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="w-full min-h-[60vh] flex flex-col items-center justify-center mx-auto"
+        >
+          {/* 品牌 Logo + 标语（参考千问） */}
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/80 to-primary flex items-center justify-center shadow-lg shadow-primary/20">
+              <icons.Scale className="w-8 h-8 text-white" />
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight mt-3">安心 AI 法务</h1>
+          <p className="text-sm text-muted-foreground mt-1.5">让法律服务更智能、更可靠</p>
+
+          {/* 核心能力卡片 — 千问风格网格 */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-8 w-full max-w-2xl px-4">
+            {[
+              { icon: icons.FileCheck, label: '合同审查', desc: '风险识别与修改建议', query: '请帮我审查以下合同内容，标出风险点、缺失条款和修改建议：' },
+              { icon: icons.PenTool, label: '文书起草', desc: '专业法律文书生成', query: '请帮我起草一份适合法务协作与内部评审的文本：' },
+              { icon: icons.ShieldCheck, label: '合规检查', desc: '法规依据与整改建议', query: '请帮我进行合规检查，输出主要风险、法规依据和整改建议：' },
+              { icon: icons.Search, label: '尽职调查', desc: '企业背景与风险排查', query: '请帮我制定一份尽职调查清单，并标出需要重点核验的风险事项：' },
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.label}
+                  onClick={() => {
+                    setInput(item.query);
+                    setTimeout(() => chatInputRef.current?.focus(), 50);
+                  }}
+                  className="flex flex-col items-center gap-2.5 p-4 rounded-2xl bg-background border border-border/60 hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all group cursor-pointer"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-primary/5 group-hover:bg-primary/10 flex items-center justify-center transition-colors">
+                    <Icon className="w-5 h-5 text-primary/60 group-hover:text-primary transition-colors" />
+                  </div>
+                  <span className="text-sm font-semibold text-foreground">{item.label}</span>
+                  <span className="text-[11px] text-muted-foreground leading-tight text-center">{item.desc}</span>
+                </button>
+              );
+            })}
+          </div>
+        </motion.div>
+      );
+    }
+
     // A2UI 消息 — 结构化 UI 组件
     if (message.type === 'a2ui' && message.a2ui) {
       return (
@@ -1634,6 +1783,7 @@ export default function Chat() {
     }
 
     const isUser = message.type === 'user';
+    const isEditing = editingMessageId === message.id;
 
     return (
       <motion.div
@@ -1654,29 +1804,67 @@ export default function Chat() {
           {/* 消息气泡 */}
           <div className={`rounded-2xl leading-relaxed text-sm ${
             isUser
-              ? 'bg-primary text-white px-4 py-2.5 rounded-br-md'
+              ? isEditing
+                ? 'bg-primary/10 border-2 border-primary/40 text-foreground px-4 py-2.5 rounded-br-md'
+                : 'bg-primary text-white px-4 py-2.5 rounded-br-md'
               : 'bg-background border border-border/50 text-foreground px-4 py-3 rounded-bl-md shadow-sm'
           }`}>
             {/* 附件 */}
             {message.attachment && (
               <div className={`flex items-center gap-2.5 mb-2.5 p-2 rounded-lg ${
-                isUser ? 'bg-white/15' : 'bg-muted/50 border border-border/50'
+                isUser ? (isEditing ? 'bg-primary/5 border border-primary/10' : 'bg-white/15') : 'bg-muted/50 border border-border/50'
               }`}>
-                <div className={`p-1.5 rounded ${isUser ? 'bg-white/20' : 'bg-background shadow-sm'}`}>
-                  <icons.FileText className={`w-4 h-4 ${isUser ? 'text-white' : 'text-primary'}`} />
+                <div className={`p-1.5 rounded ${isUser ? (isEditing ? 'bg-primary/10' : 'bg-white/20') : 'bg-background shadow-sm'}`}>
+                  <icons.FileText className={`w-4 h-4 ${isUser ? (isEditing ? 'text-primary' : 'text-white') : 'text-primary'}`} />
                 </div>
                 <div className="flex flex-col min-w-0">
                   <span className="text-xs font-medium truncate">{message.attachment.name}</span>
                   {message.attachment.size && (
-                    <span className={`text-[10px] ${isUser ? 'text-white/70' : 'text-muted-foreground'}`}>{message.attachment.size}</span>
+                    <span className={`text-[10px] ${isUser ? (isEditing ? 'text-muted-foreground' : 'text-white/70') : 'text-muted-foreground'}`}>{message.attachment.size}</span>
                   )}
                 </div>
               </div>
             )}
 
-            {/* 消息内容 */}
+            {/* 消息内容 — 编辑模式 vs 展示模式 */}
             {isUser ? (
-              <p className="whitespace-pre-wrap">{message.content}</p>
+              isEditing ? (
+                <div className="flex flex-col gap-2">
+                  <textarea
+                    ref={editTextareaRef}
+                    value={editingMessageContent}
+                    onChange={(e) => {
+                      setEditingMessageContent(e.target.value);
+                      e.target.style.height = 'auto';
+                      e.target.style.height = e.target.scrollHeight + 'px';
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleConfirmEditMessage(); }
+                      if (e.key === 'Escape') handleCancelEditMessage();
+                    }}
+                    className="w-full bg-transparent border-none resize-none focus:outline-none text-foreground text-sm leading-relaxed"
+                    style={{ minHeight: '24px' }}
+                  />
+                  <div className="flex items-center gap-2 justify-end">
+                    <button
+                      onClick={handleCancelEditMessage}
+                      className="px-3 py-1 text-xs font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors"
+                    >
+                      取消
+                    </button>
+                    <button
+                      onClick={handleConfirmEditMessage}
+                      disabled={!editingMessageContent.trim() || isProcessing}
+                      className="px-3 py-1 text-xs font-medium text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1"
+                    >
+                      <icons.Send className="w-3 h-3" />
+                      重新发送
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="whitespace-pre-wrap">{message.content}</p>
+              )
             ) : (
               <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-headings:font-semibold prose-p:text-foreground prose-p:leading-relaxed prose-strong:text-foreground prose-ul:text-foreground/80 prose-ol:text-foreground/80 prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-[13px] prose-pre:bg-foreground prose-pre:text-background">
                 <ReactMarkdown>{message.content}</ReactMarkdown>
@@ -1702,6 +1890,23 @@ export default function Chat() {
                   isMobile={isMobile}
                 />
               )}
+            </div>
+          )}
+
+          {/* 用户消息底部操作栏 — 编辑 + 时间戳 */}
+          {isUser && !isEditing && (
+            <div className="flex items-center gap-2 mt-1.5 mr-0.5 justify-end opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <span className="text-[10px] text-muted-foreground/50">
+                {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+              <button
+                onClick={() => handleStartEditMessage(message)}
+                disabled={isProcessing}
+                className="p-1 rounded-md text-muted-foreground/50 hover:text-primary hover:bg-primary/5 transition-colors disabled:opacity-30"
+                title="编辑消息并重新生成"
+              >
+                <icons.Edit className="w-3 h-3" />
+              </button>
             </div>
           )}
 
@@ -1894,7 +2099,7 @@ export default function Chat() {
       {/* 对话列表 ↔ 聊天区 拖拽分隔条 */}
       {chatSidebarOpen && !isMobile && (
         <div
-          className="w-[6px] cursor-col-resize shrink-0 group relative flex items-center justify-center before:absolute before:inset-y-0 before:left-1/2 before:-translate-x-1/2 before:w-px before:bg-border hover:before:bg-primary/40 before:transition-colors"
+          className="w-[2px] cursor-col-resize shrink-0 group relative flex items-center justify-center before:absolute before:inset-y-0 before:left-1/2 before:-translate-x-1/2 before:w-px before:bg-border hover:before:bg-primary/40 before:transition-colors"
           onMouseDown={(e) => {
             e.preventDefault();
             const startX = e.clientX;
@@ -1910,9 +2115,7 @@ export default function Chat() {
             document.addEventListener('mousemove', onMove);
             document.addEventListener('mouseup', onUp);
           }}
-        >
-          <div className="w-1 h-5 rounded-full bg-border group-hover:bg-primary/50 transition-colors" />
-        </div>
+        />
       )}
 
       {/* ========== 主内容区 ========== */}
@@ -1932,7 +2135,7 @@ export default function Chat() {
                 </button>
               )}
               <div className="flex items-center gap-2">
-                <span className="font-bold text-base text-foreground">AI 法务助手</span>
+                <span className="font-bold text-sm text-foreground">AI 法务助手</span>
                 <span className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-medium border ${
                   wsConnected
                     ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800'
@@ -2040,7 +2243,7 @@ export default function Chat() {
 
             {/* 消息区 ↔ 输入区 拖拽分隔条 */}
             <div
-              className="h-[6px] cursor-row-resize shrink-0 group relative flex items-center justify-center before:absolute before:inset-x-0 before:top-1/2 before:-translate-y-1/2 before:h-px before:bg-border hover:before:bg-primary/40 before:transition-colors"
+              className="h-[2px] cursor-row-resize shrink-0 group relative flex items-center justify-center before:absolute before:inset-x-0 before:top-1/2 before:-translate-y-1/2 before:h-px before:bg-border hover:before:bg-primary/40 before:transition-colors"
               onMouseDown={(e) => {
                 e.preventDefault();
                 const container = e.currentTarget.parentElement;
@@ -2061,11 +2264,9 @@ export default function Chat() {
                 document.addEventListener('mousemove', onMove);
                 document.addEventListener('mouseup', onUp);
               }}
-            >
-              <div className="h-1 w-6 rounded-full bg-border group-hover:bg-primary/50 transition-colors" />
-            </div>
+            />
 
-            {/* Input Area — v3 豆包风格 */}
+            {/* Input Area — 工作台一体化输入区 */}
             <div
               className="p-3 bg-background shrink-0 flex flex-col"
               style={inputAreaHeight ? { height: inputAreaHeight } : undefined}
@@ -2090,9 +2291,10 @@ export default function Chat() {
 
                 {/* 快捷操作工具栏 — 常驻输入框上方 */}
                 <QuickActionsBar
-                  onFillInput={(text: string, actionId?: string) => {
+                  onFillInput={({ text, actionId, mode: filledMode }: QuickActionFillPayload) => {
                     setInput(text);
                     setActiveActionId(actionId ?? null);
+                    setActionModeOverride(filledMode ?? null);
                     // 填充后自动聚焦输入框，光标移到末尾
                     setTimeout(() => {
                       const el = chatInputRef.current;
@@ -2105,10 +2307,12 @@ export default function Chat() {
                   isProcessing={isProcessing}
                   isMobile={isMobile}
                   activeActionId={activeActionId}
+                  attachmentName={pendingFile?.name ?? null}
+                  onTriggerUpload={() => fileInputRef.current?.click()}
                 />
 
                 {/* 输入框容器 — 一体式设计 */}
-                <div className="relative flex bg-muted/50 rounded-2xl border border-border focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 transition-all flex-1 min-h-0">
+                <div className={`relative flex bg-muted/50 rounded-2xl border border-border focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 transition-all ${inputAreaHeight ? 'flex-1 min-h-0' : ''}`}>
                   {/* 斜杠命令面板 — 输入框上方浮层 */}
                   <SlashCommandPalette
                     inputValue={input}
@@ -2121,18 +2325,31 @@ export default function Chat() {
                     onChange={(e) => {
                       const f = e.target.files?.[0];
                       if (f) {
+                        const workflow = inferAttachmentWorkflow(f);
                         setPendingFile(f);
-                        toast.success(`已附加: ${f.name}`);
-                        chatInputRef.current?.focus();
+                        setActiveActionId(workflow.actionId);
+                        setActionModeOverride(workflow.mode);
+                        setSlashPaletteOpen(false);
+                        setInput((prev) => (prev.trim() ? prev : workflow.prompt));
+                        toast.success(`已附加: ${f.name}，已切换到${workflow.label}`);
 
-                        // 检测合同类文件，自动弹出合同审查卡片
-                        const contractExts = /\.(pdf|docx?|txt|md)$/i;
-                        const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(f.name);
-                        if (contractExts.test(f.name) && !isImage) {
+                        if (workflow.triggerContractReview) {
                           store.setContractReviewFile(f);
                           store.setContractReviewVisible(true);
+                        }
+                        if (workflow.openSmartPanel) {
                           openRightPanel('smart');
                         }
+
+                        setTimeout(() => {
+                          const el = chatInputRef.current;
+                          if (!el) return;
+                          el.focus();
+                          if (!input.trim()) {
+                            const nextValue = workflow.prompt;
+                            el.setSelectionRange(nextValue.length, nextValue.length);
+                          }
+                        }, 50);
                       }
                       if (e.target) e.target.value = '';
                     }}
@@ -2150,7 +2367,10 @@ export default function Chat() {
                     onChange={(e) => {
                       setInput(e.target.value);
                       // 用户手动编辑/清空输入框时取消快捷操作高亮
-                      if (!e.target.value.trim()) setActiveActionId(null);
+                      if (!e.target.value.trim()) {
+                        setActiveActionId(null);
+                        setActionModeOverride(null);
+                      }
                     }}
                     onKeyPress={handleKeyPress}
                     placeholder={dynamicPlaceholder}
@@ -2199,7 +2419,7 @@ export default function Chat() {
           {/* 聊天区 ↔ 智能工作台 拖拽分隔条 */}
           {!isMobile && rightPanelOpen && (
             <div
-              className="w-[5px] bg-transparent hover:bg-primary/15 cursor-col-resize transition-colors shrink-0 group relative z-10 flex items-center justify-center"
+              className="w-[2px] cursor-col-resize shrink-0 group relative z-10 flex items-center justify-center before:absolute before:inset-y-0 before:left-1/2 before:-translate-x-1/2 before:w-px before:bg-border hover:before:bg-primary/40 before:transition-colors"
               onMouseDown={(e) => {
                 e.preventDefault();
                 const container = e.currentTarget.parentElement;
@@ -2219,9 +2439,7 @@ export default function Chat() {
                 document.addEventListener('mousemove', onMove);
                 document.addEventListener('mouseup', onUp);
               }}
-            >
-              <div className="w-1 h-5 rounded-full bg-border group-hover:bg-primary/50 transition-colors" />
-            </div>
+            />
           )}
 
           {/* ========== 右侧面板 — 默认收起,任务触发展开 ========== */}
@@ -2234,17 +2452,10 @@ export default function Chat() {
                 transition={{ duration: 0.3, ease: 'easeInOut' }}
                 className="bg-muted overflow-hidden relative"
               >
-                {/* 关闭按钮 */}
-                <button
-                  onClick={closeRightPanel}
-                  className="absolute top-3 right-3 z-10 p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
-                  title="收起面板"
-                >
-                  <icons.X className="w-4 h-4" />
-                </button>
                 <RightPanel
                   activeTab={store.rightPanelTab}
                   onTabChange={store.setRightPanelTab}
+                  onClosePanel={closeRightPanel}
                   isLive={isProcessing}
                   agentResults={store.agentResults}
                   thinkingSteps={store.thinkingSteps}
@@ -2264,6 +2475,7 @@ export default function Chat() {
                   analysisData={store.analysisData}
                   onWorkspaceConfirm={handleWorkspaceConfirm}
                   onWorkspaceAction={handleWorkspaceAction}
+                  onDocumentAction={handleDocumentAction}
                 />
               </motion.div>
             )}
@@ -2327,6 +2539,7 @@ export default function Chat() {
                     analysisData={store.analysisData}
                     onWorkspaceConfirm={handleWorkspaceConfirm}
                     onWorkspaceAction={handleWorkspaceAction}
+                    onDocumentAction={handleDocumentAction}
                   />
                 </div>
               </motion.div>

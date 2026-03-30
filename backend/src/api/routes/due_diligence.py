@@ -383,3 +383,208 @@ async def search_companies(
         "results": results[:limit],
     }
     return UnifiedResponse.success(data=data)
+
+
+# ===== 多 Agent 协同调查 (阶段二) =====
+
+@router.post("/company/orchestrated-stream")
+async def orchestrated_stream_investigate(
+    request: CompanyInvestigateRequest,
+    user: User = Depends(get_current_user_required),
+):
+    """多 Agent 协同流式调查 — 支持增强 SSE 事件"""
+
+    async def generate_stream():
+        try:
+            from src.services.investigation_orchestrator import investigation_orchestrator
+            async for event in investigation_orchestrator.orchestrate_investigation(
+                company_name=request.company_name,
+                investigation_type=request.investigation_type,
+                user_id=str(user.id) if user else None,
+            ):
+                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            logger.error(f"协同调查失败: {e}")
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
+    )
+
+
+# ===== 调查历史 =====
+
+@router.get("/investigations")
+async def list_investigations(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
+    """获取调查历史列表"""
+    try:
+        from sqlalchemy import select, desc
+        from src.models.investigation import Investigation
+        stmt = (
+            select(Investigation)
+            .where(Investigation.user_id == str(user.id))
+            .order_by(desc(Investigation.created_at))
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        result = await db.execute(stmt)
+        investigations = result.scalars().all()
+        return UnifiedResponse.success(data=[inv.to_dict() for inv in investigations])
+    except Exception as e:
+        logger.debug(f"查询调查历史失败（表可能未创建）: {e}")
+        return UnifiedResponse.success(data=[])
+
+
+@router.get("/investigations/{investigation_id}")
+async def get_investigation(
+    investigation_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
+    """获取单条调查详情"""
+    try:
+        from src.models.investigation import Investigation
+        result = await db.get(Investigation, investigation_id)
+        if result:
+            return UnifiedResponse.success(data=result.to_dict())
+    except Exception as e:
+        logger.debug(f"获取调查详情失败: {e}")
+    return UnifiedResponse.error(message="调查记录不存在")
+
+
+# ===== 调查报告 (阶段四) =====
+
+class ReportRequest(BaseModel):
+    """报告生成请求"""
+    format: str = "html"  # html / json
+
+
+@router.post("/investigations/{investigation_id}/report")
+async def generate_investigation_report(
+    investigation_id: str,
+    request: ReportRequest = ReportRequest(),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
+    """生成调查报告"""
+    try:
+        from src.services.report_engine import report_engine
+        from src.models.investigation import Investigation
+
+        inv = await db.get(Investigation, investigation_id)
+        if not inv:
+            return UnifiedResponse.error(message="调查记录不存在")
+
+        investigation_data = {
+            "company_name": inv.company_name,
+            "basic_info": inv.basic_info or {},
+            "risk": inv.risk or {},
+            "litigation": inv.litigation or {},
+            "credit": inv.credit or {},
+            "consensus": inv.consensus_result or {},
+            "conflicts": inv.conflicts or [],
+        }
+
+        report = await report_engine.generate_report(investigation_data, request.format)
+        return UnifiedResponse.success(data=report)
+    except Exception as e:
+        logger.error(f"报告生成失败: {e}")
+        return UnifiedResponse.error(message=str(e))
+
+
+@router.post("/report/generate")
+async def generate_report_direct(
+    request: CompanyInvestigateRequest,
+    user: User = Depends(get_current_user_required),
+):
+    """直接根据企业名生成报告（无需先保存调查）"""
+    try:
+        from src.services.report_engine import report_engine
+
+        company_data = await get_company_info(request.company_name)
+        investigation_data = {
+            "company_name": request.company_name,
+            "basic_info": company_data.get("basic_info", {}),
+            "risk": company_data.get("risk", {}),
+            "litigation": company_data.get("litigation", {}),
+            "credit": company_data.get("credit", {}),
+        }
+        report = await report_engine.generate_report(investigation_data, "html")
+        return UnifiedResponse.success(data=report)
+    except Exception as e:
+        logger.error(f"报告生成失败: {e}")
+        return UnifiedResponse.error(message=str(e))
+
+
+# ===== 风险场景推演 (阶段四) =====
+
+class SimulationRequest(BaseModel):
+    """场景推演请求"""
+    scenario_id: str
+    company_name: str
+    current_risk: Optional[dict] = None
+
+
+@router.post("/simulate")
+async def simulate_scenario(
+    request: SimulationRequest,
+    user: User = Depends(get_current_user_required),
+):
+    """执行风险场景推演"""
+    try:
+        from src.services.scenario_simulation import scenario_simulation_service
+        result = await scenario_simulation_service.simulate_scenario(
+            scenario_id=request.scenario_id,
+            company_name=request.company_name,
+            current_risk=request.current_risk,
+        )
+        return UnifiedResponse.success(data=result)
+    except Exception as e:
+        logger.error(f"场景推演失败: {e}")
+        return UnifiedResponse.error(message=str(e))
+
+
+@router.post("/simulate/stream")
+async def simulate_scenario_stream(
+    request: SimulationRequest,
+    user: User = Depends(get_current_user_required),
+):
+    """流式风险场景推演"""
+
+    async def generate_stream():
+        try:
+            from src.services.scenario_simulation import scenario_simulation_service
+            async for event in scenario_simulation_service.simulate_stream(
+                scenario_id=request.scenario_id,
+                company_name=request.company_name,
+                current_risk=request.current_risk,
+            ):
+                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
+    )
+
+
+@router.get("/simulate/scenarios")
+async def list_simulation_scenarios(
+    user: User = Depends(get_current_user_required),
+):
+    """列出可用的推演场景"""
+    try:
+        from src.services.scenario_simulation import scenario_simulation_service
+        scenarios = scenario_simulation_service.list_scenarios()
+        return UnifiedResponse.success(data=scenarios)
+    except Exception as e:
+        return UnifiedResponse.error(message=str(e))

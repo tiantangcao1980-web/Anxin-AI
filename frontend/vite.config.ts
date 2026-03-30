@@ -65,14 +65,6 @@ export default defineConfig(({ mode }) => {
             if (id.includes('/node_modules/reactflow/') || id.includes('/node_modules/@reactflow/')) {
               return 'vendor-reactflow'
             }
-            // chat 子组件（不含 Chat.tsx 主页面）
-            if (id.includes('/src/components/chat/') && !id.endsWith('/pages/Chat.tsx')) {
-              return 'chat-components'
-            }
-            // a2ui 组件
-            if (id.includes('/src/components/a2ui/')) {
-              return 'a2ui-components'
-            }
           },
         },
       },

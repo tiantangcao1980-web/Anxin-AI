@@ -109,6 +109,7 @@ import {
   FileSearch,
   FileOutput,
   FileSignature,
+  FilePlus,
   ClipboardList,
   ClipboardCheck,
   Download,
@@ -214,10 +215,12 @@ export const icons = {
   Heart: Heart,
   /** 智能协作域 */
   CollaborationGroup: Users,
-  /** 信息中心域 */
-  InfoCenter: Newspaper,
+  /** 智能调查域 */
+  InfoCenter: Search,
   /** 法律智库域 */
   KnowledgeGroup: BookOpen,
+  /** 舆情/信号 */
+  Signal: Signal,
 
   // ===== 系统功能 =====
   Settings: Settings,
@@ -298,6 +301,7 @@ export const icons = {
   FileSearch: FileSearch,
   FileOutput: FileOutput,
   FileSignature: FileSignature,
+  FilePlus: FilePlus,
   FileStack: ClipboardList,
   FileWarning: AlertTriangle,
   Folder: Folder,

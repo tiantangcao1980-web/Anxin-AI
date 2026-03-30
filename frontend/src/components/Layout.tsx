@@ -10,7 +10,7 @@
  * 导航分组（对应 PRD 四大业务域）：
  * - AI法务：直达智能对话（无下拉菜单，左侧为对话列表）
  * - 智能协作：案件管理、合同管理（含审查）、在线协作（含文档+工作台）、找律师（含律师精英）、合规自检、案源管理
- * - 信息中心：司法资讯、尽职调查
+ * - 智能调查：尽职调查（司法资讯 v2.0 启用）
  * - 法律智库：智慧搜索、知识图谱、司法智库、司法学院
  */
 
@@ -18,14 +18,12 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { NotificationCenter } from './NotificationCenter'
 import { UserProfile } from './UserProfile'
-import { HardwareStatus } from './ui/HardwareStatus'
-import { PrivacyToggle } from './ui/PrivacyToggle'
 import { notificationsApi } from '../lib/api'
-import { useAuthStore } from '@/lib/store'
+import { useAuthStore, useIMStore, useNotificationStore } from '@/lib/store'
+import { usePermission } from '@/hooks/usePermission'
 
-import { toast } from 'sonner'
 import { icons } from '@/lib/icons'
-import { iconSize, buttonStyle, heading } from '@/lib/design-tokens'
+import { iconSize, buttonStyle, heading, sidebarNav } from '@/lib/design-tokens'
 
 // Heroicons 组件类型
 type HeroIcon = React.ComponentType<React.SVGProps<SVGSVGElement>>
@@ -42,7 +40,7 @@ interface NavChild {
 const navGroups: { id: string; label: string; path: string }[] = [
   { id: 'ai-legal', label: 'AI法务', path: '/chat' },
   { id: 'collaboration', label: '智能协作', path: '/cases' },
-  { id: 'info-center', label: '信息中心', path: '/news' },
+  { id: 'info-center', label: '智能调查', path: '/due-diligence' },
   { id: 'knowledge', label: '法律智库', path: '/knowledge-graph' },
 ]
 
@@ -56,6 +54,7 @@ interface SidebarItem {
   path: string
   label: string
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
+  feature?: string
 }
 
 const moduleSidebarConfig: { id: string; title: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>>; paths: string[]; items: SidebarItem[] }[] = [
@@ -65,22 +64,29 @@ const moduleSidebarConfig: { id: string; title: string; icon: React.ComponentTyp
     icon: icons.CollaborationGroup,
     paths: ['/cases', '/contracts', '/collaboration', '/find-lawyer', '/compliance-check', '/leads', '/firm', '/lawyer-dashboard', '/acquisition'],
     items: [
-      { path: '/cases', label: '案件管理', icon: icons.Cases },
-      { path: '/contracts', label: '合同管理', icon: icons.Contracts },
-      { path: '/collaboration', label: '在线协作', icon: icons.Collaboration },
-      { path: '/find-lawyer', label: '找律师', icon: icons.Scale },
-      { path: '/compliance-check', label: '合规自检', icon: icons.ShieldCheck },
-      { path: '/leads', label: '案源管理', icon: icons.Leads },
+      { path: '/cases', label: '案件管理', icon: icons.Cases, feature: 'case_management' },
+      { path: '/contracts', label: '合同管理', icon: icons.Contracts, feature: 'contract_management' },
+      { path: '/collaboration', label: '在线协作', icon: icons.Collaboration, feature: 'collaboration' },
+      { path: '/find-lawyer', label: '找律师', icon: icons.Scale, feature: 'lawyer_matching' },
+      { path: '/compliance-check', label: '合规自检', icon: icons.ShieldCheck, feature: 'compliance_check' },
+      { path: '/leads', label: '案源管理', icon: icons.Leads, feature: 'leads' },
     ],
   },
   {
     id: 'info-center',
-    title: '信息中心',
-    icon: icons.InfoCenter,
-    paths: ['/news', '/due-diligence'],
+    title: '智能调查',
+    icon: icons.DueDiligence,
+    paths: ['/due-diligence', '/due-diligence/risk', '/due-diligence/litigation', '/due-diligence/compliance', '/due-diligence/graph', '/due-diligence/sentiment', '/due-diligence/simulation', '/due-diligence/report'],
     items: [
-      { path: '/news', label: '司法资讯', icon: icons.News },
-      { path: '/due-diligence', label: '尽职调查', icon: icons.DueDiligence },
+      { path: '/due-diligence', label: '调查概览', icon: icons.BarChart3 },
+      { path: '/due-diligence/risk', label: '风险评估', icon: icons.ShieldAlert },
+      { path: '/due-diligence/litigation', label: '诉讼分析', icon: icons.Scale },
+      { path: '/due-diligence/compliance', label: '信用合规', icon: icons.FileCheck },
+      { path: '/due-diligence/graph', label: '关系图谱', icon: icons.Network },
+      { path: '/due-diligence/sentiment', label: '舆情监控', icon: icons.Signal },
+      { path: '/due-diligence/simulation', label: '风险推演', icon: icons.Cpu },
+      { path: '/due-diligence/report', label: '调查报告', icon: icons.FileText },
+      // { path: '/news', label: '司法资讯', icon: icons.News },  // v2.0 版本启用
     ],
   },
   {
@@ -97,6 +103,7 @@ const moduleSidebarConfig: { id: string; title: string; icon: React.ComponentTyp
 
 function ModuleSidebar({ currentPath, onNavigate }: { currentPath: string; onNavigate: (path: string) => void }) {
   const [collapsed, setCollapsed] = useState(false)
+  const { canAccess } = usePermission()
 
   // 根据当前路由找到对应的模块
   const currentModule = moduleSidebarConfig.find(m =>
@@ -104,6 +111,12 @@ function ModuleSidebar({ currentPath, onNavigate }: { currentPath: string; onNav
   )
 
   if (!currentModule) return null
+
+  const visibleItems = currentModule.items.filter((item) =>
+    item.feature ? canAccess(item.feature) : true
+  )
+
+  if (visibleItems.length === 0) return null
 
   const TitleIcon = currentModule.icon
 
@@ -116,7 +129,7 @@ function ModuleSidebar({ currentPath, onNavigate }: { currentPath: string; onNav
       <div className="flex items-center gap-2.5 px-3 h-12 border-b border-border shrink-0">
         <TitleIcon className="w-5 h-5 text-primary shrink-0" />
         {!collapsed && (
-          <span className="text-sm font-bold text-foreground whitespace-nowrap">
+          <span className={`${sidebarNav.title} whitespace-nowrap`}>
             {currentModule.title}
           </span>
         )}
@@ -124,17 +137,19 @@ function ModuleSidebar({ currentPath, onNavigate }: { currentPath: string; onNav
 
       {/* 导航列表 */}
       <nav className="flex-1 py-2 space-y-0.5 overflow-y-auto">
-        {currentModule.items.map((item) => {
-          const isActive = currentPath === item.path || currentPath.startsWith(item.path + '/')
+        {visibleItems.map((item) => {
+          // 精确匹配：避免 /due-diligence 匹配所有 /due-diligence/* 子路径
+          const hasSubItems = visibleItems.some(other => other.path !== item.path && other.path.startsWith(item.path + '/'))
+          const isActive = hasSubItems ? currentPath === item.path : (currentPath === item.path || currentPath.startsWith(item.path + '/'))
           const Icon = item.icon
           return (
             <button
               key={item.path}
               onClick={() => onNavigate(item.path)}
-              className={`w-full flex items-center gap-2.5 mx-1.5 px-2.5 py-2 rounded-lg text-[13px] transition-colors ${
+              className={`w-full flex items-center gap-2.5 mx-1.5 px-2.5 py-2 rounded-lg ${sidebarNav.itemText} transition-colors ${
                 isActive
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  ? sidebarNav.itemActive
+                  : sidebarNav.itemDefault
               }`}
               title={collapsed ? item.label : undefined}
               style={{ width: `calc(100% - ${collapsed ? '8px' : '12px'})` }}
@@ -170,7 +185,7 @@ function ModuleSidebar({ currentPath, onNavigate }: { currentPath: string; onNav
 const modulePathMap: Record<string, string[]> = {
   'ai-legal': ['/chat'],
   'collaboration': ['/cases', '/contracts', '/collaboration', '/find-lawyer', '/compliance-check', '/leads', '/acquisition', '/firm', '/lawyer-dashboard'],
-  'info-center': ['/news', '/due-diligence'],
+  'info-center': ['/due-diligence'],  // 子路径 /due-diligence/* 自动匹配
   'knowledge': ['/search', '/knowledge-graph', '/knowledge-base', '/academy'],
 }
 
@@ -183,17 +198,48 @@ function isPathActive(path: string, pathname: string): boolean {
   return pathname === path || pathname.startsWith(path + '/')
 }
 
+const HEADER_ACTION_LABELS_KEY = 'anxin-header-action-labels'
+
+function readHeaderActionLabels(): boolean {
+  try {
+    const v = localStorage.getItem(HEADER_ACTION_LABELS_KEY)
+    if (v === null) return true
+    return v === '1'
+  } catch {
+    return true
+  }
+}
+
 export default function Layout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user } = useAuthStore()
+  const { canAccess } = usePermission()
   const isAdmin = user?.role === 'admin'
   const [showNotifications, setShowNotifications] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
+  const [headerActionLabels, setHeaderActionLabels] = useState(readHeaderActionLabels)
 
-  // 通知轮询
+  const toggleHeaderActionLabels = useCallback(() => {
+    setHeaderActionLabels((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem(HEADER_ACTION_LABELS_KEY, next ? '1' : '0')
+      } catch {
+        /* 隐私模式等场景下忽略 */
+      }
+      return next
+    })
+  }, [])
+
+  // IM 未读数来自 store
+  const imUnreadTotal = useIMStore((s) => s.unreadTotal)
+  const notifUnreadCount = useNotificationStore((s) => s.unreadCount)
+  const setNotifStore = useNotificationStore((s) => s.setNotifications)
+
+  // 通知轮询：同时更新 notificationStore
   useEffect(() => {
     const fetchUnreadCount = async () => {
       try {
@@ -207,6 +253,9 @@ export default function Layout() {
     const interval = setInterval(fetchUnreadCount, 120000)
     return () => clearInterval(interval)
   }, [])
+
+  // 合并 IM + 通知未读数
+  const combinedUnread = imUnreadTotal + notifUnreadCount
 
   // 路由变化时关闭更多菜单
   useEffect(() => {
@@ -224,9 +273,14 @@ export default function Layout() {
   const currentPath = location.pathname
 
   // 获取当前模块配置（用于移动端二级导航）
-  const currentModule = moduleSidebarConfig.find(m =>
-    m.paths.some(p => currentPath === p || currentPath.startsWith(p + '/'))
-  )
+  const currentModule = moduleSidebarConfig
+    .map((module) => ({
+      ...module,
+      items: module.items.filter((item) => (item.feature ? canAccess(item.feature) : true)),
+    }))
+    .find((module) =>
+      module.paths.some(p => currentPath === p || currentPath.startsWith(p + '/'))
+    )
 
   return (
     <div className="h-screen bg-muted/30 flex flex-col overflow-hidden">
@@ -235,13 +289,14 @@ export default function Layout() {
         <div className="h-[60px] px-4 lg:px-6 flex items-center">
           {/* 左侧：Logo */}
           <button
+            type="button"
             onClick={() => handleNavClick('/chat')}
-            className="flex items-center gap-2.5 shrink-0 mr-6 lg:mr-10"
+            className="flex items-center justify-start gap-2.5 shrink-0 mr-6 lg:mr-10 w-[196px]"
           >
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
               <icons.Legal className="w-[18px] h-[18px] text-white" />
             </div>
-            <span className={`${heading.section} tracking-tight hidden sm:block`}>
+            <span className="text-xl font-semibold text-foreground tracking-tight hidden sm:block">
               安心法务
             </span>
           </button>
@@ -252,7 +307,7 @@ export default function Layout() {
               <button
                 key={group.id}
                 onClick={() => handleNavClick(group.path)}
-                className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`px-3.5 py-2 rounded-lg text-base font-medium transition-colors ${
                   isModuleActive(group.id, currentPath)
                     ? 'text-primary'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
@@ -265,6 +320,27 @@ export default function Layout() {
 
           {/* 右侧：系统功能 + 用户区 */}
           <div className="flex items-center gap-1.5 ml-auto">
+            {/* 消息入口（合并 IM + 通知未读数） */}
+            <button
+              onClick={() => navigate('/messages')}
+              title={!headerActionLabels ? '消息' : undefined}
+              className={`relative flex items-center rounded-lg text-sm font-medium transition-colors ${
+                headerActionLabels ? 'gap-1.5 px-2.5 py-1.5' : 'p-2 justify-center'
+              } ${
+                currentPath === '/messages'
+                  ? 'text-primary bg-primary/10'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+              }`}
+            >
+              <icons.Chat className="h-4 w-4 shrink-0" />
+              {headerActionLabels && <span>消息</span>}
+              {(combinedUnread > 0 || unreadCount > 0) && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] bg-destructive text-white text-[10px] font-bold flex items-center justify-center rounded-full px-1 border-2 border-background">
+                  {(combinedUnread || unreadCount) > 99 ? '99+' : (combinedUnread || unreadCount)}
+                </span>
+              )}
+            </button>
+
             {/* 桌面端系统功能（图标+文字按钮） */}
             <div className="hidden lg:flex items-center gap-1">
               {systemItems.map((item) => {
@@ -273,61 +349,51 @@ export default function Layout() {
                 return (
                   <button
                     key={item.id}
+                    type="button"
+                    title={!headerActionLabels ? item.label : undefined}
                     onClick={() => handleNavClick(item.path)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    className={`flex items-center rounded-lg text-sm font-medium transition-colors ${
+                      headerActionLabels ? 'gap-1.5 px-2.5 py-1.5' : 'p-2 justify-center'
+                    } ${
                       isActive
                         ? 'text-primary bg-primary/10'
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
                     }`}
                   >
-                    <Icon className="w-4 h-4" />
-                    <span>{item.label}</span>
+                    <Icon className="h-4 w-4 shrink-0" />
+                    {headerActionLabels && <span>{item.label}</span>}
                   </button>
                 )
               })}
             </div>
 
-            {/* 分隔线 */}
             <div className="hidden lg:block h-5 w-px bg-border/60 mx-1" />
 
-            {/* AI 私有助手 & 隐私开关 */}
-            <div className="hidden lg:flex items-center gap-1">
-              <HardwareStatus />
-              <PrivacyToggle />
+            {/* 用户头像（含视图切换指示器） */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowProfile(!showProfile)}
+                className={buttonStyle.icon}
+              >
+                <div className={`${iconSize.xl} bg-primary/90 rounded-full flex items-center justify-center`}>
+                  <icons.User className={`${iconSize.sm} text-white`} />
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={toggleHeaderActionLabels}
+                className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-background rounded-full flex items-center justify-center border border-border shadow-sm hover:bg-muted transition-colors"
+                title={headerActionLabels ? '切换为仅图标' : '切换为图标与文字'}
+                aria-pressed={headerActionLabels}
+              >
+                {headerActionLabels ? (
+                  <icons.Grid3x3 className="w-2.5 h-2.5 text-muted-foreground" />
+                ) : (
+                  <icons.List className="w-2.5 h-2.5 text-muted-foreground" />
+                )}
+              </button>
             </div>
-            {/* 移动/Web端 AI 助手占位（灰色图标，提示仅桌面端可用） */}
-            <button
-              className="lg:hidden p-2 text-muted-foreground/40 hover:text-muted-foreground/60 transition-colors"
-              onClick={() => toast.info('AI 私有助手目前仅支持桌面端使用，您可以通过消息与桌面端远程协作', { duration: 4000 })}
-              title="AI 私有助手（仅桌面端）"
-            >
-              <icons.Cpu className={iconSize.md} />
-            </button>
-
-            <div className="hidden lg:block h-5 w-px bg-border/60 mx-1" />
-
-            {/* 消息入口（整合通知） */}
-            <button
-              onClick={() => navigate('/messages')}
-              className={`relative ${buttonStyle.icon} ${currentPath === '/messages' ? 'text-primary' : ''}`}
-            >
-              <icons.Chat className={`${iconSize.md} ${currentPath === '/messages' ? 'text-primary' : 'text-muted-foreground'}`} />
-              {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 min-w-[16px] h-[16px] bg-primary text-white text-[10px] font-bold flex items-center justify-center rounded-full px-1 border-2 border-background">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
-
-            {/* 用户头像 */}
-            <button
-              onClick={() => setShowProfile(!showProfile)}
-              className={buttonStyle.icon}
-            >
-              <div className={`${iconSize.xl} bg-primary/90 rounded-full flex items-center justify-center`}>
-                <icons.User className={`${iconSize.sm} text-white`} />
-              </div>
-            </button>
 
           </div>
         </div>
@@ -378,7 +444,7 @@ export default function Layout() {
             const groupIcons: Record<string, typeof icons.Chat> = {
               'ai-legal': icons.Chat,
               'collaboration': icons.Cases,
-              'info-center': icons.News,
+              'info-center': icons.DueDiligence,
               'knowledge': icons.KnowledgeGraph,
             }
             const GroupIcon = groupIcons[group.id] || icons.Chat

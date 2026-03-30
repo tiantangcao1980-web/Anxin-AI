@@ -10,6 +10,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '020_document_snapshots'
@@ -21,8 +22,8 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.create_table(
         'document_snapshots',
-        sa.Column('id', sa.CHAR(36), primary_key=True),
-        sa.Column('session_id', sa.CHAR(36),
+        sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
+        sa.Column('session_id', postgresql.UUID(as_uuid=False),
                   sa.ForeignKey('document_sessions.id', ondelete='CASCADE'),
                   nullable=False),
         sa.Column('version', sa.Integer, nullable=False),
@@ -30,7 +31,7 @@ def upgrade() -> None:
         sa.Column('title', sa.String(200), nullable=True),
         sa.Column('snapshot_type', sa.String(20), nullable=False, server_default='auto',
                   comment='快照类型: auto | manual | restore'),
-        sa.Column('created_by', sa.CHAR(36),
+        sa.Column('created_by', postgresql.UUID(as_uuid=False),
                   sa.ForeignKey('users.id', ondelete='SET NULL'),
                   nullable=True),
         sa.Column('description', sa.String(500), nullable=True),

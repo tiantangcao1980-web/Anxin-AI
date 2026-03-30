@@ -14,6 +14,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { icons } from '@/lib/icons'
 import {
   cardStyle,
@@ -151,6 +152,7 @@ function Overlay({ open, onClose, title, wide, children }: {
 // ============================================================
 
 export default function KnowledgeBase() {
+  const navigate = useNavigate()
   // ---- 列表视图状态 ----
   const [bases, setBases] = useState<KB[]>([])
   const [loading, setLoading] = useState(false)
@@ -924,10 +926,20 @@ export default function KnowledgeBase() {
             <icons.KnowledgeBase className={`${iconSize.md} inline-block mr-2 -mt-0.5`} />
             司法智库
           </h1>
-          <button onClick={() => { setBaseForm({ name: '', description: '', knowledge_type: 'general', is_public: false }); setShowCreate(true) }} className={buttonStyle.primary}>
-            <icons.Plus className={`${iconSize.sm} inline-block mr-1`} />
-            新建知识库
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => navigate('/knowledge-graph')} className={buttonStyle.ghost} title="知识图谱">
+              <icons.Network className={iconSize.sm} />
+              <span className="hidden sm:inline text-xs ml-1">图谱</span>
+            </button>
+            <button onClick={() => navigate('/due-diligence')} className={buttonStyle.ghost} title="智能调查">
+              <icons.Search className={iconSize.sm} />
+              <span className="hidden sm:inline text-xs ml-1">调查</span>
+            </button>
+            <button onClick={() => { setBaseForm({ name: '', description: '', knowledge_type: 'general', is_public: false }); setShowCreate(true) }} className={buttonStyle.primary}>
+              <icons.Plus className={`${iconSize.sm} inline-block mr-1`} />
+              新建知识库
+            </button>
+          </div>
         </div>
         {/* 搜索 & 筛选 */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
@@ -967,6 +979,25 @@ export default function KnowledgeBase() {
           </div>
         ) : (
           <>
+            {/* 统计摘要 */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              {[
+                { label: '知识库', value: filteredBases.length, icon: icons.BookOpen, color: 'text-primary' },
+                { label: '总文档', value: filteredBases.reduce((sum, kb) => sum + ((kb as any).document_count || kb.doc_count || 0), 0), icon: icons.FileText, color: 'text-emerald-600 dark:text-emerald-400' },
+                { label: '类型', value: new Set(filteredBases.map(kb => kb.knowledge_type)).size, icon: icons.Tag, color: 'text-amber-600 dark:text-amber-400' },
+                { label: '公开', value: filteredBases.filter(kb => kb.is_public).length, icon: icons.Globe, color: 'text-muted-foreground' },
+              ].map(stat => {
+                const Icon = stat.icon
+                return (
+                  <div key={stat.label} className={cardStyle.compact + ' text-center'}>
+                    <Icon className={`w-4 h-4 mx-auto mb-1 ${stat.color}`} />
+                    <p className={`text-lg font-bold ${stat.color}`}>{stat.value}</p>
+                    <p className="text-[10px] text-muted-foreground">{stat.label}</p>
+                  </div>
+                )
+              })}
+            </div>
+
             <p className="text-xs text-muted-foreground mb-3">
               共 {filteredBases.length} 个知识库
               {searchQuery && ` (搜索: "${searchQuery}")`}

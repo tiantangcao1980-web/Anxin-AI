@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy import text
 from sqlalchemy.pool import NullPool
 from loguru import logger
 
@@ -49,12 +50,37 @@ async_session_maker = async_sessionmaker(
 )
 
 
+async def _ensure_additive_schema_columns() -> None:
+    """补齐旧数据库缺失的增量字段。
+
+    本项目当前启动流程依赖 ``create_all``，它能创建缺失的表，但不会为已有表补新列。
+    对于已经存在的开发数据库，这会导致代码升级后出现“模型里有字段、库里没字段”的运行时错误。
+    这里先对已知高频问题做轻量自修复，避免本地联调被 schema 漂移阻塞。
+    """
+    if not settings.DATABASE_URL.startswith("postgresql"):
+        return
+
+    ddl_statements = [
+        "ALTER TABLE notifications ADD COLUMN IF NOT EXISTS event_type VARCHAR(50)",
+        "ALTER TABLE approvals ADD COLUMN IF NOT EXISTS approval_chain JSON",
+        "ALTER TABLE approvals ADD COLUMN IF NOT EXISTS current_step INTEGER DEFAULT 0 NOT NULL",
+        "ALTER TABLE approvals ADD COLUMN IF NOT EXISTS template_id UUID",
+    ]
+
+    async with engine.begin() as conn:
+        for ddl in ddl_statements:
+            await conn.execute(text(ddl))
+
+    logger.info("数据库增量字段兼容检查完成")
+
+
 async def init_db() -> None:
     """初始化数据库表"""
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         logger.info("数据库表结构同步完成")
+        await _ensure_additive_schema_columns()
         
         # 创建默认数据
         async with async_session_maker() as session:

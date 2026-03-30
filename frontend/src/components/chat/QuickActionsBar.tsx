@@ -1,48 +1,32 @@
 /**
- * QuickActionsBar — 快捷操作工具栏 (v5)
- * 
- * 设计理念：
- * - 深度思考开关：独立导出为 DeepModeToggle 组件，由父组件放置到输入框内右侧
- * - 快捷操作按钮：
- *   - 点击后 **填充到输入框** 并聚焦，用户可补充需求后再发送
- *   - 点击后按钮高亮显示，用户发送/清空后自动取消高亮
- *   - 默认只显示一行（桌面 5 个，移动 3 个），多余收起到"更多"
- * - 按钮列表未来可从后端/设置动态加载（预留 actions prop）
- * - 处理中时淡出隐藏
+ * QuickActionsBar — 项目业务快捷操作工具栏
+ *
+ * 设计目标：
+ * - 围绕当前项目已落地的法务能力做输入加速
+ * - 点击后填充输入框提示文本，用户可继续补充后发送
+ * - 一级展示高频业务动作，二级收纳扩展能力
+ * - 深度思考开关独立，放在输入框内
  */
 
-import { useState, useCallback, memo } from 'react';
+import { useState, useCallback, useRef, useEffect, memo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { icons } from '@/lib/icons';
-import { iconSize, buttonStyle, radius } from '@/lib/design-tokens';
+import { iconSize, radius } from '@/lib/design-tokens';
+import {
+  QUICK_WORKFLOW_ACTIONS,
+  getWorkflowPrompt,
+  type QuickActionMode,
+  type WorkflowActionDefinition,
+} from '@/components/chat/workflowConfig';
 
-/** 功能模式（传给后端 context.mode） */
-export type QuickActionMode = 'chat' | 'deep_analysis' | 'contract' | 'document' | 'research';
-
-/** 快捷操作定义 */
-export interface QuickAction {
-  id: string;
-  label: string;
-  icon: React.ElementType;
-  /** 点击后填充到输入框的提示文本 */
-  query: string;
+export interface QuickActionFillPayload {
+  text: string;
+  actionId?: string;
+  mode?: QuickActionMode | null;
 }
 
-/**
- * 默认快捷操作列表
- * 
- * 未来可通过 props.actions 从后端/设置页面动态注入
- */
-const DEFAULT_QUICK_ACTIONS: QuickAction[] = [
-  { id: 'qa-consult',    label: '法律咨询', icon: icons.MessageCircle, query: '我有一个法律问题想咨询：' },
-  { id: 'qa-contract',   label: '合同审查', icon: icons.FileText,      query: '请帮我审查以下合同：' },
-  { id: 'qa-draft',      label: '文书起草', icon: icons.PenTool,       query: '请帮我起草一份' },
-  { id: 'qa-risk',       label: '风险评估', icon: icons.Shield,        query: '请帮我评估以下风险：' },
-  { id: 'qa-dd',         label: '尽职调查', icon: icons.Search,        query: '请帮我调查以下企业的背景：' },
-  { id: 'qa-lawyer',     label: '找律师',   icon: icons.Users,         query: '我想找一位擅长' },
-  { id: 'qa-regulation', label: '法规查询', icon: icons.BookOpen,      query: '请帮我查询关于' },
-  { id: 'qa-case',       label: '案例检索', icon: icons.Briefcase,     query: '请帮我检索与' },
-];
+export type QuickAction = WorkflowActionDefinition;
 
 // ========== 深度思考开关（独立组件，由 Chat.tsx 放到输入框内） ==========
 
@@ -54,8 +38,6 @@ interface DeepModeToggleProps {
 
 /**
  * 深度思考开关按钮 — 放在输入框内部（发送按钮左侧）
- * 
- * 紧凑设计：仅图标 + 圆点指示器，hover 显示 tooltip
  */
 export const DeepModeToggle = memo(function DeepModeToggle({
   isActive,
@@ -89,14 +71,13 @@ export const DeepModeToggle = memo(function DeepModeToggle({
 // ========== 快捷操作工具栏 ==========
 
 interface QuickActionsBarProps {
-  /** 用户点击快捷操作后：填充文本到输入框（不直接发送），同时传回 actionId 用于高亮 */
-  onFillInput: (text: string, actionId?: string) => void;
+  onFillInput: (payload: QuickActionFillPayload) => void;
   isProcessing: boolean;
   isMobile: boolean;
-  /** 当前选中的快捷操作 ID（用于高亮显示） */
   activeActionId?: string | null;
-  /** 外部传入的动态操作列表（未来从后端/设置加载），不传则使用默认 */
-  actions?: QuickAction[];
+  actions?: WorkflowActionDefinition[];
+  attachmentName?: string | null;
+  onTriggerUpload?: () => void;
 }
 
 export function QuickActionsBar({
@@ -105,20 +86,41 @@ export function QuickActionsBar({
   isMobile,
   activeActionId = null,
   actions,
+  attachmentName = null,
+  onTriggerUpload,
 }: QuickActionsBarProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+  const moreBtnRef = useRef<HTMLButtonElement>(null);
+  const [popupPos, setPopupPos] = useState<{ x: number; y: number } | null>(null);
 
-  const quickActions = actions || DEFAULT_QUICK_ACTIONS;
+  const quickActions = actions || QUICK_WORKFLOW_ACTIONS;
+  const primaryActions = quickActions.filter((action) => action.quickGroup !== 'secondary');
+  const secondaryActions = quickActions.filter((action) => action.quickGroup === 'secondary');
+
+  // 桌面显示全部 primary，移动端只显示前 4 个
+  const visiblePrimary = isMobile ? primaryActions.slice(0, 4) : primaryActions;
+
+  // 点击外部关闭更多面板
+  useEffect(() => {
+    if (!moreOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setMoreOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [moreOpen]);
 
   const handleQuickAction = useCallback((action: QuickAction) => {
-    // 填充到输入框 + 传回 actionId 供父组件高亮
-    onFillInput(action.query, action.id);
-  }, [onFillInput]);
-
-  // 默认显示数量：桌面 5 个（一行刚好），移动 3 个
-  const defaultVisibleCount = isMobile ? 3 : 5;
-  const visibleActions = expanded ? quickActions : quickActions.slice(0, defaultVisibleCount);
-  const hasMore = quickActions.length > defaultVisibleCount;
+    const text = getWorkflowPrompt(action.id, {
+      hasAttachment: !!attachmentName,
+      attachmentName,
+    });
+    onFillInput({ text, actionId: action.id, mode: action.mode });
+    setMoreOpen(false);
+  }, [attachmentName, onFillInput]);
 
   return (
     <AnimatePresence>
@@ -130,44 +132,101 @@ export function QuickActionsBar({
           transition={{ duration: 0.2 }}
           className="overflow-hidden"
         >
-          {/* 快捷操作按钮 — 点击填充输入框 + 选中高亮 */}
-          <div className="flex flex-wrap items-center gap-1.5 mb-2">
-            <AnimatePresence mode="popLayout">
-              {visibleActions.map((action) => {
-                const Icon = action.icon;
+          {/* 业务快捷入口：图标+文字紧凑横排 */}
+          <div className="flex items-center gap-1.5 mb-2">
+            {/* 可滚动区域：主操作按钮 */}
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+              {visiblePrimary.map((action) => {
+                const Icon = icons[action.iconKey];
                 const isSelected = activeActionId === action.id;
                 return (
-                  <motion.button
+                  <button
                     key={action.id}
-                    layout
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ duration: 0.15 }}
                     onClick={() => handleQuickAction(action)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-all active:scale-95 shadow-sm border ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-all active:scale-95 flex-shrink-0 border ${
                       isSelected
-                        ? 'bg-primary/5 text-primary border-primary/30 ring-1 ring-primary/20'
-                        : 'text-muted-foreground bg-background border-border hover:border-primary/30 hover:text-primary hover:bg-primary/5'
+                        ? 'text-primary bg-primary/5 border-primary/30 shadow-sm'
+                        : 'text-foreground/70 bg-background border-border/80 hover:border-primary/40 hover:text-primary hover:bg-primary/5 shadow-sm'
                     }`}
                   >
-                    <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-primary' : ''}`} />
+                    <Icon className="w-3.5 h-3.5" />
                     <span>{action.label}</span>
-                  </motion.button>
+                  </button>
                 );
               })}
-            </AnimatePresence>
-            {hasMore && (
-              <button
-                onClick={() => setExpanded(!expanded)}
-                className={`inline-flex items-center gap-1 px-2.5 py-1.5 ${buttonStyle.sm} text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors`}
-              >
-                {expanded ? (
-                  <>收起 <icons.ChevronUp className="w-3 h-3" /></>
-                ) : (
-                  <>更多 <icons.ChevronDown className="w-3 h-3" /></>
+            </div>
+
+            {/* "更多"按钮 — 弹出面板通过 Portal 渲染到 body 以突破 overflow:hidden */}
+            {secondaryActions.length > 0 && (
+              <div className="relative flex-shrink-0" ref={moreRef}>
+                <button
+                  ref={moreBtnRef}
+                  onClick={() => {
+                    if (!moreOpen && moreBtnRef.current) {
+                      const rect = moreBtnRef.current.getBoundingClientRect();
+                      setPopupPos({ x: rect.right, y: rect.top });
+                    }
+                    setMoreOpen(!moreOpen);
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-all border ${
+                    moreOpen
+                      ? 'text-primary bg-primary/5 border-primary/30 shadow-sm'
+                      : 'text-foreground/70 bg-background border-border/80 hover:border-primary/40 hover:text-primary hover:bg-primary/5 shadow-sm'
+                  }`}
+                >
+                  <icons.MoreHorizontal className="w-3.5 h-3.5" />
+                  <span>更多</span>
+                </button>
+
+                {/* Portal 弹出面板 */}
+                {moreOpen && createPortal(
+                  <AnimatePresence>
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      style={popupPos ? { position: 'fixed', right: window.innerWidth - popupPos.x, bottom: window.innerHeight - popupPos.y + 8 } : undefined}
+                      className="bg-background border border-border rounded-xl shadow-xl py-1.5 min-w-[160px] z-[9999]"
+                    >
+                      {secondaryActions.map((action) => {
+                        const Icon = icons[action.iconKey];
+                        return (
+                          <button
+                            key={action.id}
+                            onClick={() => handleQuickAction(action)}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-foreground/80 hover:bg-muted/50 hover:text-primary transition-colors"
+                          >
+                            <Icon className="w-4 h-4 text-muted-foreground" />
+                            <span>{action.label}</span>
+                          </button>
+                        );
+                      })}
+
+                      {/* 移动端：把溢出的 primary 也放到更多面板 */}
+                      {isMobile && primaryActions.length > 4 && (
+                        <>
+                          <div className="h-px bg-border my-1" />
+                          {primaryActions.slice(4).map((action) => {
+                            const Icon = icons[action.iconKey];
+                            return (
+                              <button
+                                key={action.id}
+                                onClick={() => handleQuickAction(action)}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-foreground/80 hover:bg-muted/50 hover:text-primary transition-colors"
+                              >
+                                <Icon className="w-4 h-4 text-muted-foreground" />
+                                <span>{action.label}</span>
+                              </button>
+                            );
+                          })}
+                        </>
+                      )}
+                    </motion.div>
+                  </AnimatePresence>,
+                  document.body
                 )}
-              </button>
+              </div>
             )}
           </div>
         </motion.div>

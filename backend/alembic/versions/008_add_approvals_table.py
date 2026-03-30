@@ -12,6 +12,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '008_add_approvals'
@@ -23,14 +24,14 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.create_table(
         'approvals',
-        sa.Column('id', sa.CHAR(36), primary_key=True),
+        sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
         sa.Column('title', sa.String(255), nullable=False, comment='审批标题'),
         sa.Column('type', sa.String(50), nullable=False, server_default='custom', comment='审批类型'),
         sa.Column('status', sa.String(50), nullable=False, server_default='pending', comment='审批状态'),
         sa.Column('description', sa.Text(), nullable=True, comment='审批说明'),
-        sa.Column('requester_id', sa.CHAR(36), sa.ForeignKey('users.id'), nullable=False, comment='发起人ID'),
+        sa.Column('requester_id', postgresql.UUID(as_uuid=False), sa.ForeignKey('users.id'), nullable=False, comment='发起人ID'),
         sa.Column('requester_name', sa.String(255), nullable=True, comment='发起人姓名'),
-        sa.Column('approver_id', sa.CHAR(36), sa.ForeignKey('users.id'), nullable=True, comment='审批人ID'),
+        sa.Column('approver_id', postgresql.UUID(as_uuid=False), sa.ForeignKey('users.id'), nullable=True, comment='审批人ID'),
         sa.Column('approver_name', sa.String(255), nullable=True, comment='审批人姓名'),
         sa.Column('resource_type', sa.String(50), nullable=True, comment='关联资源类型'),
         sa.Column('resource_id', sa.String(255), nullable=True, comment='关联资源ID'),

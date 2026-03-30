@@ -10,6 +10,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 revision: str = '015_add_reviews'
 down_revision: Union[str, None] = '014_im_tables'
@@ -20,11 +21,11 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.create_table(
         'lawyer_reviews',
-        sa.Column('id', sa.CHAR(36), primary_key=True),
-        sa.Column('lawyer_profile_id', sa.CHAR(36), sa.ForeignKey('lawyer_profiles.id', ondelete='CASCADE'), nullable=False),
-        sa.Column('reviewer_id', sa.CHAR(36), sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False),
-        sa.Column('consultation_id', sa.CHAR(36), sa.ForeignKey('consultations.id', ondelete='SET NULL'), nullable=True),
-        sa.Column('delegation_id', sa.CHAR(36), sa.ForeignKey('delegations.id', ondelete='SET NULL'), nullable=True),
+        sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
+        sa.Column('lawyer_profile_id', postgresql.UUID(as_uuid=False), sa.ForeignKey('lawyer_profiles.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('reviewer_id', postgresql.UUID(as_uuid=False), sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('consultation_id', postgresql.UUID(as_uuid=False), sa.ForeignKey('consultations.id', ondelete='SET NULL'), nullable=True),
+        sa.Column('delegation_id', postgresql.UUID(as_uuid=False), sa.ForeignKey('delegations.id', ondelete='SET NULL'), nullable=True),
         sa.Column('rating', sa.Integer(), nullable=False),
         sa.Column('content', sa.Text(), nullable=True),
         sa.Column('tags', sa.JSON(), nullable=True),

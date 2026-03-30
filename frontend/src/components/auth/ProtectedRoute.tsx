@@ -8,9 +8,12 @@
 
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/lib/store'
+import { usePermission } from '@/hooks/usePermission'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
+  feature?: string
+  fallbackPath?: string
 }
 
 function isTokenExpired(token: string): boolean {
@@ -22,9 +25,14 @@ function isTokenExpired(token: string): boolean {
   }
 }
 
-export function ProtectedRoute({ children }: ProtectedRouteProps) {
+export function ProtectedRoute({
+  children,
+  feature,
+  fallbackPath = '/chat',
+}: ProtectedRouteProps) {
   const { token, logout } = useAuthStore()
   const location = useLocation()
+  const { canAccess } = usePermission()
 
   const storedToken = token || localStorage.getItem('access_token')
 
@@ -34,6 +42,10 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       logout()
     }
     return <Navigate to="/login" state={{ from: location.pathname }} replace />
+  }
+
+  if (feature && !canAccess(feature)) {
+    return <Navigate to={fallbackPath} replace />
   }
 
   return <>{children}</>

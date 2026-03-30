@@ -3,11 +3,12 @@
  * KnowledgeGraph.tsx - 商业级交互式知识图谱页面
  *
  * 功能：
- * - SVG 力导向图可视化（原生实现，无 d3 依赖）
- * - 节点拖拽、缩放、平移
+ * - react-force-graph 2D/3D 图谱可视化（ForceGraphCanvas 组件）
  * - 搜索、过滤、路径查询
- * - 实体详情面板
+ * - 实体详情抽屉（GraphDetailDrawer）
+ * - 浮动工具栏 + 图例
  * - 统计面板（recharts PieChart）
+ * - 实体/关系 CRUD、导入导出、AI 抽取
  */
 
 import {
@@ -17,8 +18,8 @@ import {
   useRef,
   useMemo,
   type ReactNode,
-  type MouseEvent as ReactMouseEvent,
 } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { icons } from '@/lib/icons'
 import {
   cardStyle,
@@ -33,24 +34,28 @@ import { PageContainer } from '@/components/ui/PageContainer'
 import { knowledgeCenterApi, type GraphData, type GraphEdge } from '@/lib/api'
 import { toast } from 'sonner'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
+import {
+  ForceGraphCanvas,
+  GraphLegend,
+  GraphToolbar,
+  GraphDetailDrawer,
+} from '@/components/knowledge-graph'
+import type { ForceGraphNode, ForceGraphEdge } from '@/components/knowledge-graph'
 
 // ============================================================
 // 类型定义
 // ============================================================
 
+/** 页面内部节点（兼容 ForceGraphNode，无物理字段） */
 interface ForceNode {
   id: string
   name: string
   type: string
-  x: number
-  y: number
-  vx: number
-  vy: number
   relationCount: number
-  fixed?: boolean
   properties?: Record<string, string>
 }
 
+/** 页面内部边（同 ForceGraphEdge） */
 interface ForceEdge {
   source: string
   target: string
@@ -131,7 +136,6 @@ const MOCK_STATS: GraphOverviewStats = {
 
 // @mock-data FALLBACK
 function generateMockSearchResults(keyword: string): SearchResult[] {
-  const types = ['法规', '案例', '当事人', '机构', '律师']
   return [
     { id: 'm1', name: `${keyword}相关法规`, type: '法规' },
     { id: 'm2', name: `${keyword}典型案例`, type: '案例' },
@@ -144,22 +148,21 @@ function generateMockSearchResults(keyword: string): SearchResult[] {
 // @mock-data FALLBACK
 function generateMockSubgraph(centerName: string): { nodes: ForceNode[]; edges: ForceEdge[] } {
   const center: ForceNode = {
-    id: 'c0', name: centerName, type: '案例',
-    x: 0, y: 0, vx: 0, vy: 0, relationCount: 7,
+    id: 'c0', name: centerName, type: '案例', relationCount: 7,
   }
   const satellites: ForceNode[] = [
-    { id: 's1', name: '民法典', type: '法规', x: 0, y: 0, vx: 0, vy: 0, relationCount: 5 },
-    { id: 's2', name: '合同法', type: '法规', x: 0, y: 0, vx: 0, vy: 0, relationCount: 4 },
-    { id: 's3', name: '张某', type: '当事人', x: 0, y: 0, vx: 0, vy: 0, relationCount: 3 },
-    { id: 's4', name: '李某', type: '当事人', x: 0, y: 0, vx: 0, vy: 0, relationCount: 2 },
-    { id: 's5', name: '北京市高级人民法院', type: '机构', x: 0, y: 0, vx: 0, vy: 0, relationCount: 6 },
-    { id: 's6', name: '王律师', type: '律师', x: 0, y: 0, vx: 0, vy: 0, relationCount: 3 },
-    { id: 's7', name: '侵权责任法', type: '法规', x: 0, y: 0, vx: 0, vy: 0, relationCount: 4 },
-    { id: 's8', name: '合同效力争议', type: '案例', x: 0, y: 0, vx: 0, vy: 0, relationCount: 2 },
-    { id: 's9', name: '刘律师', type: '律师', x: 0, y: 0, vx: 0, vy: 0, relationCount: 1 },
-    { id: 's10', name: '赵某', type: '当事人', x: 0, y: 0, vx: 0, vy: 0, relationCount: 2 },
-    { id: 's11', name: '损害赔偿', type: '其他', x: 0, y: 0, vx: 0, vy: 0, relationCount: 3 },
-    { id: 's12', name: '违约金', type: '其他', x: 0, y: 0, vx: 0, vy: 0, relationCount: 2 },
+    { id: 's1', name: '民法典', type: '法规', relationCount: 5 },
+    { id: 's2', name: '合同法', type: '法规', relationCount: 4 },
+    { id: 's3', name: '张某', type: '当事人', relationCount: 3 },
+    { id: 's4', name: '李某', type: '当事人', relationCount: 2 },
+    { id: 's5', name: '北京市高级人民法院', type: '机构', relationCount: 6 },
+    { id: 's6', name: '王律师', type: '律师', relationCount: 3 },
+    { id: 's7', name: '侵权责任法', type: '法规', relationCount: 4 },
+    { id: 's8', name: '合同效力争议', type: '案例', relationCount: 2 },
+    { id: 's9', name: '刘律师', type: '律师', relationCount: 1 },
+    { id: 's10', name: '赵某', type: '当事人', relationCount: 2 },
+    { id: 's11', name: '损害赔偿', type: '其他', relationCount: 3 },
+    { id: 's12', name: '违约金', type: '其他', relationCount: 2 },
   ]
   const edges: ForceEdge[] = [
     { source: 'c0', target: 's1', label: '适用' },
@@ -183,10 +186,10 @@ function generateMockSubgraph(centerName: string): { nodes: ForceNode[]; edges: 
 // @mock-data FALLBACK
 function generateMockPath(from: string, to: string): { nodes: ForceNode[]; edges: ForceEdge[] } {
   const nodes: ForceNode[] = [
-    { id: 'p0', name: from, type: '案例', x: 0, y: 0, vx: 0, vy: 0, relationCount: 3 },
-    { id: 'p1', name: '合同法', type: '法规', x: 0, y: 0, vx: 0, vy: 0, relationCount: 5 },
-    { id: 'p2', name: '民法典', type: '法规', x: 0, y: 0, vx: 0, vy: 0, relationCount: 8 },
-    { id: 'p3', name: to, type: '当事人', x: 0, y: 0, vx: 0, vy: 0, relationCount: 2 },
+    { id: 'p0', name: from, type: '案例', relationCount: 3 },
+    { id: 'p1', name: '合同法', type: '法规', relationCount: 5 },
+    { id: 'p2', name: '民法典', type: '法规', relationCount: 8 },
+    { id: 'p3', name: to, type: '当事人', relationCount: 2 },
   ]
   const edges: ForceEdge[] = [
     { source: 'p0', target: 'p1', label: '适用' },
@@ -241,10 +244,6 @@ function getNodeLabel(type: string): string {
   return NODE_TYPE_LABELS[type] || type
 }
 
-function getNodeRadius(relationCount: number): number {
-  return Math.min(Math.max(relationCount * 3 + 14, 20), 50) / 2
-}
-
 function convertApiData(data: GraphData): { nodes: ForceNode[]; edges: ForceEdge[] } {
   const edgeCountMap: Record<string, number> = {}
   data.edges.forEach((e) => {
@@ -255,10 +254,6 @@ function convertApiData(data: GraphData): { nodes: ForceNode[]; edges: ForceEdge
     id: n.id,
     name: n.label,
     type: n.type,
-    x: 0,
-    y: 0,
-    vx: 0,
-    vy: 0,
     relationCount: edgeCountMap[n.id] || 1,
   }))
   const edges: ForceEdge[] = data.edges.map((e) => ({
@@ -283,187 +278,6 @@ function useDebounce<T>(value: T, delay: number): T {
   return debounced
 }
 
-/** 力导向布局 Hook */
-function useForceLayout(
-  inputNodes: ForceNode[],
-  inputEdges: ForceEdge[],
-  width: number,
-  height: number
-) {
-  const nodesRef = useRef<ForceNode[]>([])
-  const edgesRef = useRef<ForceEdge[]>([])
-  const rafRef = useRef<number>(0)
-  const tickRef = useRef(0)
-  const [renderTick, setRenderTick] = useState(0)
-  const alphaRef = useRef(1)
-  const stableRef = useRef(false)
-
-  // 初始化节点位置
-  useEffect(() => {
-    if (inputNodes.length === 0) {
-      nodesRef.current = []
-      edgesRef.current = []
-      stableRef.current = true
-      setRenderTick((t) => t + 1)
-      return
-    }
-
-    const cx = width / 2
-    const cy = height / 2
-    const radius = Math.min(width, height) * 0.35
-
-    const initialized = inputNodes.map((n, i) => {
-      const angle = (2 * Math.PI * i) / inputNodes.length
-      return {
-        ...n,
-        x: n.x !== 0 ? n.x : cx + radius * Math.cos(angle) + (Math.random() - 0.5) * 30,
-        y: n.y !== 0 ? n.y : cy + radius * Math.sin(angle) + (Math.random() - 0.5) * 30,
-        vx: 0,
-        vy: 0,
-      }
-    })
-
-    nodesRef.current = initialized
-    edgesRef.current = inputEdges
-    alphaRef.current = 1
-    stableRef.current = false
-    tickRef.current = 0
-  }, [inputNodes, inputEdges, width, height])
-
-  // 力计算循环
-  useEffect(() => {
-    if (stableRef.current || nodesRef.current.length === 0) return
-
-    const simulate = () => {
-      const nodes = nodesRef.current
-      const edges = edgesRef.current
-      const alpha = alphaRef.current
-
-      if (alpha < 0.005 || tickRef.current > 300) {
-        stableRef.current = true
-        setRenderTick((t) => t + 1)
-        return
-      }
-
-      const n = nodes.length
-      const cx = width / 2
-      const cy = height / 2
-
-      // 库仑排斥力
-      const repulsionStrength = 800
-      for (let i = 0; i < n; i++) {
-        for (let j = i + 1; j < n; j++) {
-          const dx = nodes[j].x - nodes[i].x
-          const dy = nodes[j].y - nodes[i].y
-          let dist = Math.sqrt(dx * dx + dy * dy) || 1
-          if (dist < 1) dist = 1
-          const force = (repulsionStrength * alpha) / (dist * dist)
-          const fx = (dx / dist) * force
-          const fy = (dy / dist) * force
-          if (!nodes[i].fixed) {
-            nodes[i].vx -= fx
-            nodes[i].vy -= fy
-          }
-          if (!nodes[j].fixed) {
-            nodes[j].vx += fx
-            nodes[j].vy += fy
-          }
-        }
-      }
-
-      // 弹簧吸引力
-      const springStrength = 0.05
-      const idealLength = 120
-      const nodeMap = new Map(nodes.map((nd) => [nd.id, nd]))
-      for (const edge of edges) {
-        const s = nodeMap.get(edge.source)
-        const t = nodeMap.get(edge.target)
-        if (!s || !t) continue
-        const dx = t.x - s.x
-        const dy = t.y - s.y
-        const dist = Math.sqrt(dx * dx + dy * dy) || 1
-        const displacement = dist - idealLength
-        const force = springStrength * displacement * alpha
-        const fx = (dx / dist) * force
-        const fy = (dy / dist) * force
-        if (!s.fixed) {
-          s.vx += fx
-          s.vy += fy
-        }
-        if (!t.fixed) {
-          t.vx -= fx
-          t.vy -= fy
-        }
-      }
-
-      // 中心引力
-      const centerStrength = 0.01
-      for (const node of nodes) {
-        if (node.fixed) continue
-        node.vx += (cx - node.x) * centerStrength * alpha
-        node.vy += (cy - node.y) * centerStrength * alpha
-      }
-
-      // 速度衰减 + 位置更新
-      const damping = 0.6
-      for (const node of nodes) {
-        if (node.fixed) continue
-        node.vx *= damping
-        node.vy *= damping
-        node.x += node.vx
-        node.y += node.vy
-        // 边界约束
-        const r = getNodeRadius(node.relationCount)
-        node.x = Math.max(r, Math.min(width - r, node.x))
-        node.y = Math.max(r, Math.min(height - r, node.y))
-      }
-
-      alphaRef.current *= 0.99
-      tickRef.current++
-
-      // 每 3 帧触发一次渲染
-      if (tickRef.current % 3 === 0) {
-        setRenderTick((t) => t + 1)
-      }
-
-      rafRef.current = requestAnimationFrame(simulate)
-    }
-
-    rafRef.current = requestAnimationFrame(simulate)
-    return () => cancelAnimationFrame(rafRef.current)
-  }, [inputNodes, inputEdges, width, height])
-
-  const setNodePosition = useCallback((id: string, x: number, y: number, fixed: boolean) => {
-    const node = nodesRef.current.find((n) => n.id === id)
-    if (node) {
-      node.x = x
-      node.y = y
-      node.vx = 0
-      node.vy = 0
-      node.fixed = fixed
-      if (!fixed) {
-        alphaRef.current = 0.3
-        stableRef.current = false
-      }
-      setRenderTick((t) => t + 1)
-    }
-  }, [])
-
-  const reheat = useCallback(() => {
-    alphaRef.current = 0.5
-    stableRef.current = false
-    tickRef.current = 0
-  }, [])
-
-  return {
-    nodes: nodesRef.current,
-    edges: edgesRef.current,
-    renderTick,
-    setNodePosition,
-    reheat,
-  }
-}
-
 // ============================================================
 // 子组件
 // ============================================================
@@ -471,16 +285,6 @@ function useForceLayout(
 /** Skeleton 占位 */
 function Skeleton({ className = '' }: { className?: string }) {
   return <div className={`animate-pulse bg-muted rounded ${className}`} />
-}
-
-/** 空状态 */
-function EmptyState({ message, icon }: { message: string; icon?: ReactNode }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-      {icon || <icons.Search className={`${iconSize.xl} mb-3 opacity-30`} />}
-      <p className="text-sm">{message}</p>
-    </div>
-  )
 }
 
 /** 类型 Badge */
@@ -542,6 +346,8 @@ function LeftPanel({
   stats,
   statsLoading,
 }: LeftPanelProps) {
+  const navigate = useNavigate()
+
   const pieData = useMemo(() => {
     if (!stats) return []
     return Object.entries(stats.node_types).map(([name, value]) => ({
@@ -552,7 +358,7 @@ function LeftPanel({
   }, [stats])
 
   return (
-    <div className="w-64 border-r border-border flex flex-col h-full overflow-hidden shrink-0 hidden lg:flex">
+    <div className="hidden lg:flex w-64 border-r border-border flex-col h-full overflow-hidden shrink-0">
       {/* 搜索 */}
       <div className="p-4 border-b border-border space-y-3 shrink-0">
         <h3 className={heading.section}>搜索</h3>
@@ -656,7 +462,7 @@ function LeftPanel({
         </div>
 
         {/* 统计面板 */}
-        <div className="p-4 space-y-3">
+        <div className="p-4 border-b border-border space-y-3">
           <h3 className={heading.card}>图谱统计</h3>
           {statsLoading ? (
             <div className="space-y-2">
@@ -729,599 +535,26 @@ function LeftPanel({
             </>
           ) : null}
         </div>
-      </div>
-    </div>
-  )
-}
 
-// ============================================================
-// 中间 SVG 图谱
-// ============================================================
-
-interface GraphCanvasProps {
-  nodes: ForceNode[]
-  edges: ForceEdge[]
-  activeTypes: Set<string>
-  selectedNodeId: string | null
-  hoveredNodeId: string | null
-  onSelectNode: (id: string | null) => void
-  onHoverNode: (id: string | null) => void
-  onDoubleClickNode: (id: string) => void
-  onDragStart: (id: string, e: ReactMouseEvent) => void
-  zoom: number
-  pan: { x: number; y: number }
-  onWheel: (e: React.WheelEvent) => void
-  onPanStart: (e: ReactMouseEvent) => void
-  containerRef: React.RefObject<HTMLDivElement>
-  width: number
-  height: number
-  tooManyNodes: boolean
-}
-
-function GraphCanvas({
-  nodes,
-  edges,
-  activeTypes,
-  selectedNodeId,
-  hoveredNodeId,
-  onSelectNode,
-  onHoverNode,
-  onDoubleClickNode,
-  onDragStart,
-  zoom,
-  pan,
-  onWheel,
-  onPanStart,
-  containerRef,
-  width,
-  height,
-  tooManyNodes,
-}: GraphCanvasProps) {
-  const visibleNodes = useMemo(
-    () => nodes.filter((n) => activeTypes.has(n.type)),
-    [nodes, activeTypes]
-  )
-  const visibleNodeIds = useMemo(() => new Set(visibleNodes.map((n) => n.id)), [visibleNodes])
-  const visibleEdges = useMemo(
-    () => edges.filter((e) => visibleNodeIds.has(e.source) && visibleNodeIds.has(e.target)),
-    [edges, visibleNodeIds]
-  )
-
-  const nodeMap = useMemo(() => new Map(visibleNodes.map((n) => [n.id, n])), [visibleNodes])
-
-  // 选中节点的直接关系边
-  const highlightedEdges = useMemo(() => {
-    if (!selectedNodeId) return new Set<number>()
-    const set = new Set<number>()
-    visibleEdges.forEach((e, i) => {
-      if (e.source === selectedNodeId || e.target === selectedNodeId) set.add(i)
-    })
-    return set
-  }, [selectedNodeId, visibleEdges])
-
-  const highlightedNodes = useMemo(() => {
-    if (!selectedNodeId) return new Set<string>()
-    const set = new Set<string>([selectedNodeId])
-    visibleEdges.forEach((e) => {
-      if (e.source === selectedNodeId) set.add(e.target)
-      if (e.target === selectedNodeId) set.add(e.source)
-    })
-    return set
-  }, [selectedNodeId, visibleEdges])
-
-  if (tooManyNodes) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center">
-          <icons.AlertTriangle className={`${iconSize.xl} mx-auto mb-3 text-amber-500`} />
-          <p className="text-sm font-medium text-foreground mb-1">
-            节点数量超过 {MAX_VISIBLE_NODES}
-          </p>
-          <p className="text-xs text-muted-foreground">请缩小搜索范围或使用过滤器减少显示节点</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (visibleNodes.length === 0) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center text-muted-foreground">
-          <icons.Network className="w-16 h-16 mx-auto mb-4 opacity-20" />
-          <p className="text-sm">输入关键词探索知识图谱</p>
-          <p className="text-xs mt-1 opacity-60">可视化法规、案件、主体间的关系网络</p>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div
-      ref={containerRef}
-      className="flex-1 relative overflow-hidden bg-muted/20 cursor-grab active:cursor-grabbing"
-      onWheel={onWheel}
-      onMouseDown={(e) => {
-        if ((e.target as HTMLElement).tagName === 'svg' || (e.target as HTMLElement).tagName === 'rect') {
-          onPanStart(e)
-        }
-      }}
-    >
-      <svg width={width} height={height} className="select-none">
-        <defs>
-          <marker
-            id="arrowhead"
-            viewBox="0 0 10 7"
-            refX="10"
-            refY="3.5"
-            markerWidth="8"
-            markerHeight="6"
-            orient="auto"
+        {/* 快捷链接 */}
+        <div className="p-4 space-y-2">
+          <button
+            onClick={() => navigate('/due-diligence')}
+            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-primary hover:bg-primary/5 transition-colors border border-primary/20"
           >
-            <polygon points="0 0, 10 3.5, 0 7" fill="currentColor" className="text-border" />
-          </marker>
-          <marker
-            id="arrowhead-highlight"
-            viewBox="0 0 10 7"
-            refX="10"
-            refY="3.5"
-            markerWidth="8"
-            markerHeight="6"
-            orient="auto"
-          >
-            <polygon points="0 0, 10 3.5, 0 7" fill="hsl(var(--primary))" />
-          </marker>
-        </defs>
-
-        <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
-          {/* 边 */}
-          {visibleEdges.map((edge, i) => {
-            const s = nodeMap.get(edge.source)
-            const t = nodeMap.get(edge.target)
-            if (!s || !t) return null
-            const isHighlighted = highlightedEdges.has(i)
-            const dimmed = selectedNodeId && !isHighlighted
-            const sr = getNodeRadius(s.relationCount)
-            const tr = getNodeRadius(t.relationCount)
-            // 缩短线到节点边缘
-            const dx = t.x - s.x
-            const dy = t.y - s.y
-            const dist = Math.sqrt(dx * dx + dy * dy) || 1
-            const ux = dx / dist
-            const uy = dy / dist
-            const x1 = s.x + ux * sr
-            const y1 = s.y + uy * sr
-            const x2 = t.x - ux * (tr + 8)
-            const y2 = t.y - uy * (tr + 8)
-            const mx = (s.x + t.x) / 2
-            const my = (s.y + t.y) / 2
-
-            return (
-              <g key={`edge-${i}`} opacity={dimmed ? 0.15 : 1}>
-                <line
-                  x1={x1}
-                  y1={y1}
-                  x2={x2}
-                  y2={y2}
-                  stroke={isHighlighted ? 'hsl(var(--primary))' : 'var(--border)'}
-                  strokeWidth={isHighlighted ? 2 : 1}
-                  markerEnd={isHighlighted ? 'url(#arrowhead-highlight)' : 'url(#arrowhead)'}
-                />
-                {zoom > 0.5 && (
-                  <text
-                    x={mx}
-                    y={my - 6}
-                    textAnchor="middle"
-                    fontSize={10}
-                    fill={isHighlighted ? 'hsl(var(--primary))' : 'var(--muted-foreground)'}
-                    fontWeight={isHighlighted ? 600 : 400}
-                    className="pointer-events-none"
-                  >
-                    {edge.label}
-                  </text>
-                )}
-              </g>
-            )
-          })}
-
-          {/* 节点 */}
-          {visibleNodes.map((node) => {
-            const r = getNodeRadius(node.relationCount)
-            const color = getNodeColor(node.type)
-            const isSelected = selectedNodeId === node.id
-            const isHovered = hoveredNodeId === node.id
-            const dimmed = selectedNodeId && !highlightedNodes.has(node.id)
-
-            return (
-              <g
-                key={node.id}
-                transform={`translate(${node.x}, ${node.y})`}
-                opacity={dimmed ? 0.2 : 1}
-                className="cursor-pointer"
-                onMouseDown={(e) => {
-                  e.stopPropagation()
-                  onDragStart(node.id, e)
-                }}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onSelectNode(selectedNodeId === node.id ? null : node.id)
-                }}
-                onDoubleClick={(e) => {
-                  e.stopPropagation()
-                  onDoubleClickNode(node.id)
-                }}
-                onMouseEnter={() => onHoverNode(node.id)}
-                onMouseLeave={() => onHoverNode(null)}
-              >
-                {/* 选中光环 */}
-                {isSelected && (
-                  <circle
-                    r={r + 5}
-                    fill="none"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2}
-                    opacity={0.5}
-                  />
-                )}
-                {/* 悬停光环 */}
-                {isHovered && !isSelected && (
-                  <circle
-                    r={r + 3}
-                    fill="none"
-                    stroke={color}
-                    strokeWidth={1.5}
-                    opacity={0.4}
-                  />
-                )}
-                {/* 节点圆 */}
-                <circle
-                  r={r}
-                  fill={color + '20'}
-                  stroke={isSelected ? 'hsl(var(--primary))' : color}
-                  strokeWidth={isSelected ? 2.5 : 1.5}
-                />
-                {/* 内部文字（类型首字） */}
-                <text
-                  textAnchor="middle"
-                  dy="0.35em"
-                  fontSize={r > 12 ? 11 : 9}
-                  fontWeight={600}
-                  fill={color}
-                  className="pointer-events-none"
-                >
-                  {getNodeLabel(node.type)?.[0] || '?'}
-                </text>
-                {/* 节点名称（下方） */}
-                {zoom > 0.4 && (
-                  <text
-                    textAnchor="middle"
-                    y={r + 14}
-                    fontSize={11}
-                    fill="var(--foreground)"
-                    fontWeight={isSelected || isHovered ? 600 : 400}
-                    className="pointer-events-none"
-                  >
-                    {node.name.length > 8 ? node.name.slice(0, 8) + '...' : node.name}
-                  </text>
-                )}
-              </g>
-            )
-          })}
-        </g>
-
-        {/* 背景可点击区域（用于取消选中） */}
-        <rect
-          width={width}
-          height={height}
-          fill="transparent"
-          className="pointer-events-none"
-        />
-      </svg>
-
-      {/* Tooltip */}
-      {hoveredNodeId && !selectedNodeId && (() => {
-        const hNode = nodes.find((n) => n.id === hoveredNodeId)
-        if (!hNode) return null
-        const sx = hNode.x * zoom + pan.x
-        const sy = hNode.y * zoom + pan.y
-        return (
-          <div
-            className="absolute pointer-events-none bg-background border border-border rounded-lg shadow-lg px-3 py-2 z-10"
-            style={{
-              left: sx + 20,
-              top: sy - 10,
-              maxWidth: 200,
-            }}
-          >
-            <p className="text-sm font-medium text-foreground">{hNode.name}</p>
-            <div className="flex items-center gap-1.5 mt-1">
-              <TypeBadge type={hNode.type} />
-              <span className="text-[10px] text-muted-foreground">
-                {hNode.relationCount} 条关系
-              </span>
-            </div>
-          </div>
-        )
-      })()}
-
-      {/* 缩放信息 */}
-      <div className="absolute bottom-3 left-3 text-[10px] text-muted-foreground bg-background/80 border border-border rounded px-2 py-1">
-        {Math.round(zoom * 100)}% | {visibleNodes.length} 节点 | {visibleEdges.length} 关系
-      </div>
-    </div>
-  )
-}
-
-// ============================================================
-// 右侧详情面板
-// ============================================================
-
-interface DetailPanelProps {
-  detail: EntityDetail | null
-  loading: boolean
-  onClose: () => void
-  onClickRelation: (name: string) => void
-  onExpandInGraph: () => void
-  collapsed: boolean
-  onToggleCollapse: () => void
-  onDeleteEntity?: (name: string) => void
-  onEditEntity?: (name: string) => void
-}
-
-function DetailPanel({
-  detail,
-  loading,
-  onClose,
-  onClickRelation,
-  onExpandInGraph,
-  collapsed,
-  onToggleCollapse,
-  onDeleteEntity,
-  onEditEntity,
-}: DetailPanelProps) {
-  if (collapsed) {
-    return (
-      <button
-        onClick={onToggleCollapse}
-        className="w-10 border-l border-border flex items-center justify-center hover:bg-muted transition-colors shrink-0 hidden lg:flex"
-        title="展开详情"
-      >
-        <icons.ChevronLeft className={iconSize.sm} />
-      </button>
-    )
-  }
-
-  return (
-    <div className="w-80 border-l border-border flex flex-col h-full overflow-hidden shrink-0 hidden lg:flex">
-      <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
-        <h3 className={heading.section}>实体详情</h3>
-        <div className="flex items-center gap-1">
-          <button onClick={onToggleCollapse} className={buttonStyle.icon} title="收起">
-            <icons.ChevronRight className={iconSize.sm} />
+            <icons.Search className={iconSize.sm} />
+            <span>智能调查</span>
+            <icons.ArrowRight className={`${iconSize.xs} ml-auto`} />
           </button>
-          <button onClick={onClose} className={buttonStyle.icon} title="关闭">
-            <icons.X className={iconSize.sm} />
+          <button
+            onClick={() => navigate('/knowledge-base')}
+            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:bg-muted/50 transition-colors border border-border"
+          >
+            <icons.BookOpen className={iconSize.sm} />
+            <span>司法智库</span>
+            <icons.ArrowRight className={`${iconSize.xs} ml-auto`} />
           </button>
         </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {loading ? (
-          <div className="space-y-3">
-            <Skeleton className="h-8 w-2/3" />
-            <Skeleton className="h-4 w-1/3" />
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-20 w-full" />
-          </div>
-        ) : detail ? (
-          <>
-            {/* 名称 + 类型 */}
-            <div>
-              <h4 className="text-base font-semibold text-foreground mb-1.5">{detail.name}</h4>
-              <TypeBadge type={detail.type} size="md" />
-            </div>
-
-            {/* 属性列表 */}
-            {Object.keys(detail.properties).length > 0 && (
-              <div>
-                <h5 className={`${heading.card} mb-2`}>属性</h5>
-                <div className="border border-border rounded-lg overflow-hidden">
-                  <table className="w-full text-xs">
-                    <tbody>
-                      {Object.entries(detail.properties).map(([k, v]) => (
-                        <tr key={k} className="border-b border-border last:border-b-0">
-                          <td className="px-3 py-1.5 bg-muted/50 text-muted-foreground font-medium w-24">
-                            {k}
-                          </td>
-                          <td className="px-3 py-1.5 text-foreground">{v}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* 出边关系 */}
-            {detail.outEdges.length > 0 && (
-              <div>
-                <h5 className={`${heading.card} mb-2`}>
-                  出边关系
-                  <span className="text-muted-foreground font-normal ml-1">
-                    ({detail.outEdges.length})
-                  </span>
-                </h5>
-                <div className="space-y-1">
-                  {detail.outEdges.map((edge, i) => (
-                    <button
-                      key={i}
-                      onClick={() => onClickRelation(edge.target)}
-                      className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-muted transition-colors group"
-                    >
-                      <span className="text-xs text-foreground truncate flex-1">
-                        {detail.name}
-                      </span>
-                      <span className={`${statusBadge.info} text-[10px] px-1.5 py-0 rounded`}>
-                        {edge.label}
-                      </span>
-                      <icons.ArrowRight className={`${iconSize.xs} text-muted-foreground`} />
-                      <span className="text-xs text-primary group-hover:underline truncate flex-1">
-                        {edge.target}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 入边关系 */}
-            {detail.inEdges.length > 0 && (
-              <div>
-                <h5 className={`${heading.card} mb-2`}>
-                  入边关系
-                  <span className="text-muted-foreground font-normal ml-1">
-                    ({detail.inEdges.length})
-                  </span>
-                </h5>
-                <div className="space-y-1">
-                  {detail.inEdges.map((edge, i) => (
-                    <button
-                      key={i}
-                      onClick={() => onClickRelation(edge.source)}
-                      className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-muted transition-colors group"
-                    >
-                      <span className="text-xs text-primary group-hover:underline truncate flex-1">
-                        {edge.source}
-                      </span>
-                      <icons.ArrowRight className={`${iconSize.xs} text-muted-foreground`} />
-                      <span className={`${statusBadge.info} text-[10px] px-1.5 py-0 rounded`}>
-                        {edge.label}
-                      </span>
-                      <icons.ArrowRight className={`${iconSize.xs} text-muted-foreground`} />
-                      <span className="text-xs text-foreground truncate flex-1">
-                        {detail.name}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 关联文档 */}
-            {detail.documents && detail.documents.length > 0 && (
-              <div>
-                <h5 className={`${heading.card} mb-2`}>关联文档</h5>
-                <div className="space-y-1">
-                  {detail.documents.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-muted transition-colors cursor-pointer"
-                    >
-                      <icons.FileText className={`${iconSize.sm} text-muted-foreground`} />
-                      <span className="text-xs text-primary truncate">{doc.title}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 操作按钮 */}
-            <div className="space-y-2">
-              <button
-                onClick={onExpandInGraph}
-                className={`${buttonStyle.secondary} w-full justify-center flex items-center gap-1.5`}
-              >
-                <icons.Network className={iconSize.sm} />
-                在图谱中展开
-              </button>
-              <div className="flex gap-2">
-                {onEditEntity && (
-                  <button
-                    onClick={() => onEditEntity(detail.name)}
-                    className={`${buttonStyle.ghost} flex-1 justify-center flex items-center gap-1.5`}
-                  >
-                    <icons.Edit className={iconSize.sm} />
-                    编辑
-                  </button>
-                )}
-                {onDeleteEntity && (
-                  <button
-                    onClick={() => onDeleteEntity(detail.name)}
-                    className="flex-1 justify-center flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-destructive hover:bg-destructive/10 transition-colors"
-                  >
-                    <icons.Trash2 className={iconSize.sm} />
-                    删除
-                  </button>
-                )}
-              </div>
-            </div>
-          </>
-        ) : (
-          <EmptyState message="点击图谱节点查看详情" />
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ============================================================
-// 移动端底部抽屉
-// ============================================================
-
-function MobileDetailDrawer({
-  detail,
-  loading,
-  onClose,
-  onClickRelation,
-}: {
-  detail: EntityDetail | null
-  loading: boolean
-  onClose: () => void
-  onClickRelation: (name: string) => void
-}) {
-  if (!detail && !loading) return null
-
-  return (
-    <div className="lg:hidden fixed inset-x-0 bottom-14 z-50 bg-background border-t border-border rounded-t-2xl shadow-xl max-h-[50vh] overflow-y-auto">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border sticky top-0 bg-background">
-        <h3 className={heading.section}>{loading ? '加载中...' : detail?.name}</h3>
-        <button onClick={onClose} className={buttonStyle.icon}>
-          <icons.X className={iconSize.sm} />
-        </button>
-      </div>
-      <div className="p-4 space-y-3">
-        {loading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-6 w-1/2" />
-            <Skeleton className="h-20 w-full" />
-          </div>
-        ) : detail ? (
-          <>
-            <TypeBadge type={detail.type} size="md" />
-            {Object.keys(detail.properties).length > 0 && (
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                {Object.entries(detail.properties).map(([k, v]) => (
-                  <div key={k}>
-                    <span className="text-muted-foreground">{k}: </span>
-                    <span className="text-foreground font-medium">{v}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {detail.outEdges.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {detail.outEdges.map((e, i) => (
-                  <button
-                    key={i}
-                    onClick={() => onClickRelation(e.target)}
-                    className="text-[10px] px-2 py-1 rounded bg-muted text-primary hover:underline"
-                  >
-                    {e.label} {e.target}
-                  </button>
-                ))}
-              </div>
-            )}
-          </>
-        ) : null}
       </div>
     </div>
   )
@@ -1332,6 +565,7 @@ function MobileDetailDrawer({
 // ============================================================
 
 export default function KnowledgeGraph() {
+  const navigate = useNavigate()
   // --- 数据状态 ---
   const [stats, setStats] = useState<GraphOverviewStats | null>(null)
   const [statsLoading, setStatsLoading] = useState(false)
@@ -1347,10 +581,8 @@ export default function KnowledgeGraph() {
   const [searchLoading, setSearchLoading] = useState(false)
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
-  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null)
   const [entityDetail, setEntityDetail] = useState<EntityDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
-  const [detailCollapsed, setDetailCollapsed] = useState(false)
 
   const [pathFrom, setPathFrom] = useState('')
   const [pathTo, setPathTo] = useState('')
@@ -1359,10 +591,17 @@ export default function KnowledgeGraph() {
   const [graphLoading, setGraphLoading] = useState(false)
   const [graphError, setGraphError] = useState<string | null>(null)
 
+  // --- 视图控制 ---
+  const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d')
+  const [showLabels, setShowLabels] = useState(true)
+  const [autoRotate, setAutoRotate] = useState(false)
+  const graphRef = useRef<any>(null)
+
   // --- 弹窗状态 ---
   const [showAddEntity, setShowAddEntity] = useState(false)
   const [showAddRelation, setShowAddRelation] = useState(false)
-  const [showImportExport, setShowImportExport] = useState(false)
+  const [showImport, setShowImport] = useState(false)
+  const [showExport, setShowExport] = useState(false)
   const [showAIExtract, setShowAIExtract] = useState(false)
 
   // --- 添加实体表单 ---
@@ -1386,45 +625,12 @@ export default function KnowledgeGraph() {
   const [extractLoading, setExtractLoading] = useState(false)
   const [extractResult, setExtractResult] = useState<{ entities: any[]; relations: any[] } | null>(null)
 
-  // --- 视口 ---
-  const containerRef = useRef<HTMLDivElement>(null!)
-  const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 })
-  const [zoom, setZoom] = useState(1)
-  const [pan, setPan] = useState({ x: 0, y: 0 })
-  const panStartRef = useRef<{ x: number; y: number; px: number; py: number } | null>(null)
-  const dragRef = useRef<{ nodeId: string; startX: number; startY: number } | null>(null)
-
-  // --- 力导向布局 ---
-  const { nodes, edges, renderTick, setNodePosition, reheat } = useForceLayout(
-    graphNodes,
-    graphEdges,
-    canvasSize.width,
-    canvasSize.height
-  )
-
-  const tooManyNodes = graphNodes.length > MAX_VISIBLE_NODES
-
   // --- 初始化 ---
   useEffect(() => {
     loadStats()
     loadTypes()
+    loadInitialDemoGraph()
   }, [])
-
-  // --- 画布尺寸监听 ---
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const { width, height } = entry.contentRect
-        if (width > 0 && height > 0) {
-          setCanvasSize({ width, height })
-        }
-      }
-    })
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [graphNodes.length])
 
   // --- 搜索防抖 ---
   useEffect(() => {
@@ -1441,7 +647,7 @@ export default function KnowledgeGraph() {
       setEntityDetail(null)
       return
     }
-    const node = nodes.find((n) => n.id === selectedNodeId)
+    const node = graphNodes.find((n) => n.id === selectedNodeId)
     if (node) {
       loadEntityDetail(node.name, node.type)
     }
@@ -1450,6 +656,82 @@ export default function KnowledgeGraph() {
   // ============================================================
   // API 调用
   // ============================================================
+
+  /** 初始加载：尝试从 API 获取图谱，失败则加载 Mock 演示数据 */
+  async function loadInitialDemoGraph() {
+    try {
+      const data = await knowledgeCenterApi.searchGraph('法', 1, 50)
+      if (data && data.nodes && data.nodes.length > 0) {
+        const { nodes: n, edges: e } = convertApiData(data)
+        mergeGraph(n, e)
+        return
+      }
+    } catch {
+      // API 不可用，使用演示数据
+    }
+    // @mock-data FALLBACK — 构建一个丰富的法律知识图谱演示
+    const demoNodes: ForceNode[] = [
+      // 案例
+      { id: 'demo_c1', name: '劳动合同纠纷案', type: '案例', relationCount: 6 },
+      { id: 'demo_c2', name: '工伤赔偿案', type: '案例', relationCount: 4 },
+      { id: 'demo_c3', name: '知识产权侵权案', type: '案例', relationCount: 5 },
+      // 法规
+      { id: 'demo_l1', name: '民法典', type: '法规', relationCount: 8 },
+      { id: 'demo_l2', name: '劳动合同法', type: '法规', relationCount: 6 },
+      { id: 'demo_l3', name: '劳动法', type: '法规', relationCount: 4 },
+      { id: 'demo_l4', name: '工伤保险条例', type: '法规', relationCount: 3 },
+      { id: 'demo_l5', name: '著作权法', type: '法规', relationCount: 3 },
+      { id: 'demo_l6', name: '公司法', type: '法规', relationCount: 2 },
+      // 当事人
+      { id: 'demo_p1', name: '张三', type: '当事人', relationCount: 3 },
+      { id: 'demo_p2', name: '李四', type: '当事人', relationCount: 3 },
+      { id: 'demo_p3', name: '王五', type: '当事人', relationCount: 2 },
+      { id: 'demo_p4', name: '某科技有限公司', type: '当事人', relationCount: 4 },
+      // 机构
+      { id: 'demo_o1', name: '北京市第一中级人民法院', type: '机构', relationCount: 4 },
+      { id: 'demo_o2', name: '朝阳区劳动仲裁委员会', type: '机构', relationCount: 3 },
+      // 律师
+      { id: 'demo_a1', name: '陈律师', type: '律师', relationCount: 3 },
+      { id: 'demo_a2', name: '刘律师', type: '律师', relationCount: 2 },
+      // 其他
+      { id: 'demo_x1', name: '经济补偿金', type: '其他', relationCount: 2 },
+      { id: 'demo_x2', name: '违约责任', type: '其他', relationCount: 2 },
+    ]
+    const demoEdges: ForceEdge[] = [
+      // 劳动合同纠纷案
+      { source: 'demo_c1', target: 'demo_l2', label: '适用' },
+      { source: 'demo_c1', target: 'demo_l3', label: '适用' },
+      { source: 'demo_p1', target: 'demo_c1', label: '原告' },
+      { source: 'demo_p4', target: 'demo_c1', label: '被告' },
+      { source: 'demo_o1', target: 'demo_c1', label: '审理' },
+      { source: 'demo_a1', target: 'demo_p1', label: '代理' },
+      { source: 'demo_c1', target: 'demo_x1', label: '判决' },
+      // 工伤赔偿案
+      { source: 'demo_c2', target: 'demo_l4', label: '适用' },
+      { source: 'demo_c2', target: 'demo_l3', label: '适用' },
+      { source: 'demo_p2', target: 'demo_c2', label: '原告' },
+      { source: 'demo_p4', target: 'demo_c2', label: '被告' },
+      { source: 'demo_o2', target: 'demo_c2', label: '仲裁' },
+      // 知识产权侵权案
+      { source: 'demo_c3', target: 'demo_l5', label: '适用' },
+      { source: 'demo_c3', target: 'demo_l1', label: '适用' },
+      { source: 'demo_p3', target: 'demo_c3', label: '原告' },
+      { source: 'demo_p4', target: 'demo_c3', label: '被告' },
+      { source: 'demo_o1', target: 'demo_c3', label: '审理' },
+      { source: 'demo_a2', target: 'demo_p3', label: '代理' },
+      { source: 'demo_c3', target: 'demo_x2', label: '判决' },
+      // 法规间引用
+      { source: 'demo_l2', target: 'demo_l3', label: '引用' },
+      { source: 'demo_l1', target: 'demo_l6', label: '引用' },
+      { source: 'demo_l1', target: 'demo_l2', label: '引用' },
+      { source: 'demo_l4', target: 'demo_l3', label: '依据' },
+      // 公司关联
+      { source: 'demo_p4', target: 'demo_l6', label: '适用' },
+    ]
+    setGraphNodes(demoNodes)
+    setGraphEdges(demoEdges)
+    toast.info('已加载演示数据，可搜索探索更多')
+  }
 
   async function loadStats() {
     setStatsLoading(true)
@@ -1466,10 +748,11 @@ export default function KnowledgeGraph() {
 
   async function loadTypes() {
     try {
-      const resp = await fetch('/api/knowledge-center/graph/types')
-      if (resp.ok) {
-        const data = await resp.json()
-        const types: string[] = data.types || data
+      const data = await knowledgeCenterApi.getEntityTypes()
+      const types = Array.isArray(data)
+        ? data.map((item: any) => item.type).filter(Boolean)
+        : []
+      if (types.length > 0) {
         setEntityTypes(types)
         setActiveTypes(new Set(types))
         return
@@ -1486,19 +769,14 @@ export default function KnowledgeGraph() {
   async function handleSearch(keyword: string) {
     setSearchLoading(true)
     try {
-      const resp = await fetch(
-        `/api/knowledge-center/graph/search?keyword=${encodeURIComponent(keyword)}&limit=50`
-      )
-      if (resp.ok) {
-        const data = await resp.json()
-        const results: SearchResult[] = (data.nodes || data.results || data).map((n: any) => ({
-          id: n.id || n.name,
-          name: n.name || n.label,
-          type: n.type,
-        }))
-        setSearchResults(results)
-        return
-      }
+      const data = await knowledgeCenterApi.searchGraph(keyword, 1, 50)
+      const results: SearchResult[] = (data.nodes || []).map((n: any) => ({
+        id: n.id || n.name,
+        name: n.name || n.label,
+        type: n.type,
+      }))
+      setSearchResults(results)
+      return
     } catch {
       // fallback
     }
@@ -1511,19 +789,10 @@ export default function KnowledgeGraph() {
     setGraphLoading(true)
     setGraphError(null)
     try {
-      const resp = await fetch(
-        `/api/knowledge-center/graph/subgraph/${encodeURIComponent(name)}?depth=${depth}&max_nodes=100`
-      )
-      if (resp.ok) {
-        const data = await resp.json()
-        const { nodes: n, edges: e } = convertApiData(data)
-        mergeGraph(n, e)
-        return
-      }
-      // 尝试旧 API
-      const data = await knowledgeCenterApi.searchGraph(name, depth, 100)
+      const data = await knowledgeCenterApi.getSubgraph(name, depth, 100)
       const { nodes: n, edges: e } = convertApiData(data)
       mergeGraph(n, e)
+      return
     } catch {
       // @mock-data FALLBACK
       const { nodes: n, edges: e } = generateMockSubgraph(name)
@@ -1536,14 +805,9 @@ export default function KnowledgeGraph() {
   async function loadEntityDetail(name: string, type: string) {
     setDetailLoading(true)
     try {
-      const resp = await fetch(
-        `/api/knowledge-center/graph/entity/${encodeURIComponent(name)}/detail`
-      )
-      if (resp.ok) {
-        const data = await resp.json()
-        setEntityDetail(data)
-        return
-      }
+      const data = await knowledgeCenterApi.getEntityDetail(name)
+      setEntityDetail(data)
+      return
     } catch {
       // fallback
     }
@@ -1557,18 +821,21 @@ export default function KnowledgeGraph() {
     setPathLoading(true)
     setGraphError(null)
     try {
-      const resp = await fetch(
-        `/api/knowledge-center/graph/path?from=${encodeURIComponent(pathFrom)}&to=${encodeURIComponent(pathTo)}`
-      )
-      if (resp.ok) {
-        const data = await resp.json()
-        const { nodes: n, edges: e } = convertApiData(data)
-        setGraphNodes(n)
-        setGraphEdges(e)
-        setSelectedNodeId(null)
-        toast.success(`找到从 "${pathFrom}" 到 "${pathTo}" 的路径`)
-        return
-      }
+      const data = await knowledgeCenterApi.getShortestPath(pathFrom, pathTo)
+      const { nodes: n, edges: e } = convertApiData({
+        nodes: data.nodes || [],
+        edges: (data.relationships || []).map((rel: any) => ({
+          source: rel.source,
+          target: rel.target,
+          relation: rel.relation || rel.label || '',
+          label: rel.label,
+        })),
+      })
+      setGraphNodes(n)
+      setGraphEdges(e)
+      setSelectedNodeId(null)
+      toast.success(`找到从 "${pathFrom}" 到 "${pathTo}" 的路径`)
+      return
     } catch {
       // fallback
     }
@@ -1631,14 +898,9 @@ export default function KnowledgeGraph() {
   function handleSelectSearchResult(result: SearchResult) {
     loadSubgraph(result.name)
     // 尝试定位到节点
-    const existing = nodes.find((n) => n.name === result.name)
+    const existing = graphNodes.find((n) => n.name === result.name)
     if (existing) {
       setSelectedNodeId(existing.id)
-      // 居中到该节点
-      setPan({
-        x: canvasSize.width / 2 - existing.x * zoom,
-        y: canvasSize.height / 2 - existing.y * zoom,
-      })
     }
   }
 
@@ -1655,91 +917,18 @@ export default function KnowledgeGraph() {
   }
 
   function handleDoubleClickNode(id: string) {
-    const node = nodes.find((n) => n.id === id)
+    const node = graphNodes.find((n) => n.id === id)
     if (node) {
       loadSubgraph(node.name, 1)
       toast.info(`展开 "${node.name}" 的子图`)
     }
   }
 
-  function handleDragStart(nodeId: string, e: ReactMouseEvent) {
-    e.preventDefault()
-    dragRef.current = { nodeId, startX: e.clientX, startY: e.clientY }
-    setNodePosition(nodeId, nodes.find((n) => n.id === nodeId)!.x, nodes.find((n) => n.id === nodeId)!.y, true)
-
-    const onMove = (ev: globalThis.MouseEvent) => {
-      if (!dragRef.current) return
-      const node = nodes.find((n) => n.id === dragRef.current!.nodeId)
-      if (!node) return
-      const dx = (ev.clientX - dragRef.current.startX) / zoom
-      const dy = (ev.clientY - dragRef.current.startY) / zoom
-      dragRef.current.startX = ev.clientX
-      dragRef.current.startY = ev.clientY
-      setNodePosition(dragRef.current.nodeId, node.x + dx, node.y + dy, true)
-    }
-
-    const onUp = () => {
-      if (dragRef.current) {
-        setNodePosition(dragRef.current.nodeId, nodes.find((n) => n.id === dragRef.current!.nodeId)!.x, nodes.find((n) => n.id === dragRef.current!.nodeId)!.y, false)
-        dragRef.current = null
-      }
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
-    }
-
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-  }
-
-  function handleWheel(e: React.WheelEvent) {
-    e.preventDefault()
-    const delta = e.deltaY > 0 ? 0.92 : 1.08
-    const newZoom = Math.min(Math.max(zoom * delta, 0.1), 5)
-    // 缩放对准鼠标位置
-    const rect = containerRef.current?.getBoundingClientRect()
-    if (rect) {
-      const mx = e.clientX - rect.left
-      const my = e.clientY - rect.top
-      const scale = newZoom / zoom
-      setPan({
-        x: mx - (mx - pan.x) * scale,
-        y: my - (my - pan.y) * scale,
-      })
-    }
-    setZoom(newZoom)
-  }
-
-  function handlePanStart(e: ReactMouseEvent) {
-    if (e.button !== 0) return
-    panStartRef.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y }
-
-    const onMove = (ev: globalThis.MouseEvent) => {
-      if (!panStartRef.current) return
-      setPan({
-        x: panStartRef.current.px + (ev.clientX - panStartRef.current.x),
-        y: panStartRef.current.py + (ev.clientY - panStartRef.current.y),
-      })
-    }
-
-    const onUp = () => {
-      panStartRef.current = null
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
-    }
-
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-  }
-
   function handleClickRelation(name: string) {
     // 尝试选中已有节点
-    const existing = nodes.find((n) => n.name === name)
+    const existing = graphNodes.find((n) => n.name === name)
     if (existing) {
       setSelectedNodeId(existing.id)
-      setPan({
-        x: canvasSize.width / 2 - existing.x * zoom,
-        y: canvasSize.height / 2 - existing.y * zoom,
-      })
     } else {
       // 加载子图
       loadSubgraph(name, 1)
@@ -1757,6 +946,11 @@ export default function KnowledgeGraph() {
     if (graphNodes.length === 0) {
       loadStats()
     }
+  }
+
+  function handleQuickSearch(keyword: string) {
+    setSearchQuery(keyword)
+    loadSubgraph(keyword, 2)
   }
 
   // ============================================================
@@ -1899,7 +1093,7 @@ export default function KnowledgeGraph() {
         }
       }
       toast.success(`导入完成：成功 ${successCount} 条${failCount > 0 ? `，失败 ${failCount} 条` : ''}`)
-      setShowImportExport(false)
+      setShowImport(false)
       setImportFile(null)
       setImportPreview([])
       loadStats()
@@ -1948,93 +1142,22 @@ export default function KnowledgeGraph() {
   }
 
   // ============================================================
+  // 快捷搜索标签
+  // ============================================================
+
+  const quickTags = ['合同法', '知识产权', '劳动争议', '民法典', '公司法', '刑法']
+
+  // ============================================================
   // 渲染
   // ============================================================
 
   return (
-    <PageContainer
-      title="知识图谱"
-      description="可视化法规、案件、主体间的关系网络"
-      scrollable={false}
-      fullHeight
-      actions={
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <button onClick={() => setShowAddEntity(true)} className={buttonStyle.ghost} title="添加实体">
-            <icons.Plus className={iconSize.sm} />
-            <span className="hidden sm:inline text-xs ml-1">实体</span>
-          </button>
-          <button onClick={() => setShowAddRelation(true)} className={buttonStyle.ghost} title="添加关系">
-            <icons.Link className={iconSize.sm} />
-            <span className="hidden sm:inline text-xs ml-1">关系</span>
-          </button>
-          <button onClick={() => setShowImportExport(true)} className={buttonStyle.ghost} title="导入/导出">
-            <icons.Download className={iconSize.sm} />
-            <span className="hidden sm:inline text-xs ml-1">导入导出</span>
-          </button>
-          <button onClick={() => setShowAIExtract(true)} className={buttonStyle.ghost} title="AI抽取">
-            <icons.Sparkles className={iconSize.sm} />
-            <span className="hidden sm:inline text-xs ml-1">AI抽取</span>
-          </button>
-          <div className="w-px h-5 bg-border mx-1 hidden sm:block" />
-          {graphNodes.length > 0 && (
-            <>
-              <button
-                onClick={() => {
-                  setZoom(1)
-                  setPan({ x: 0, y: 0 })
-                }}
-                className={buttonStyle.ghost}
-                title="重置视图"
-              >
-                <icons.Focus className={iconSize.sm} />
-              </button>
-              <button onClick={reheat} className={buttonStyle.ghost} title="重新布局">
-                <icons.RefreshCw className={iconSize.sm} />
-              </button>
-              <button
-                onClick={() => {
-                  setGraphNodes([])
-                  setGraphEdges([])
-                  setSelectedNodeId(null)
-                  setEntityDetail(null)
-                  setPan({ x: 0, y: 0 })
-                  setZoom(1)
-                }}
-                className={buttonStyle.ghost}
-                title="清除图谱"
-              >
-                <icons.Trash2 className={iconSize.sm} />
-              </button>
-            </>
-          )}
-        </div>
-      }
-    >
-      <div className="flex-1 flex min-h-0 -mx-4 sm:-mx-5 lg:-mx-6 -mb-4 sm:-mb-5 lg:-mb-6">
-        {/* 左侧工具栏 */}
-        <LeftPanel
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          searchResults={searchResults}
-          searchLoading={searchLoading}
-          onSelectResult={handleSelectSearchResult}
-          entityTypes={entityTypes}
-          activeTypes={activeTypes}
-          onToggleType={handleToggleType}
-          pathFrom={pathFrom}
-          setPathFrom={setPathFrom}
-          pathTo={pathTo}
-          setPathTo={setPathTo}
-          onQueryPath={handlePathQuery}
-          pathLoading={pathLoading}
-          stats={stats}
-          statsLoading={statsLoading}
-        />
-
-        {/* 中间图谱 */}
-        <div className="flex-1 flex flex-col min-w-0 relative">
+    <div className="h-full flex flex-col">
+      {/* 图谱全屏画布 */}
+      <div className="flex-1 relative min-h-0">
+          {/* 加载覆盖层 */}
           {graphLoading && (
-            <div className="absolute inset-0 bg-background/60 backdrop-blur-sm z-20 flex items-center justify-center">
+            <div className="absolute inset-0 bg-background/60 backdrop-blur-sm z-30 flex items-center justify-center">
               <div className="flex items-center gap-3 bg-background border border-border rounded-xl px-5 py-3 shadow-lg">
                 <icons.Loader2 className={`${iconSize.md} animate-spin text-primary`} />
                 <span className="text-sm text-foreground">加载图谱数据...</span>
@@ -2042,8 +1165,77 @@ export default function KnowledgeGraph() {
             </div>
           )}
 
+          {/* ====== 浮动搜索栏 (顶部居中) ====== */}
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 w-full max-w-xl px-4">
+            <div className="flex items-center gap-2 bg-background/90 backdrop-blur-md border border-border rounded-xl shadow-lg px-3 py-2">
+              <icons.Search className="w-4 h-4 text-muted-foreground shrink-0" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="搜索实体：法律法规、案件、企业、当事人..."
+                className="flex-1 bg-transparent border-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="p-0.5 rounded text-muted-foreground hover:text-foreground">
+                  <icons.X className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {/* 操作按钮 */}
+              <div className="flex items-center gap-0.5 border-l border-border pl-2 ml-1">
+                <button onClick={() => setShowAddEntity(true)} className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors" title="添加实体">
+                  <icons.Plus className="w-4 h-4" />
+                </button>
+                <button onClick={() => setShowAddRelation(true)} className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors" title="添加关系">
+                  <icons.Link className="w-4 h-4" />
+                </button>
+                <button onClick={() => setShowImport(true)} className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors" title="导入">
+                  <icons.Upload className="w-4 h-4" />
+                </button>
+                <button onClick={() => setShowExport(true)} className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors" title="导出">
+                  <icons.Download className="w-4 h-4" />
+                </button>
+                <button onClick={() => setShowAIExtract(true)} className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors" title="AI 智能抽取">
+                  <icons.Sparkles className="w-4 h-4" />
+                </button>
+                {graphNodes.length > 0 && (
+                  <button onClick={() => { setGraphNodes([]); setGraphEdges([]); setSelectedNodeId(null); setEntityDetail(null) }}
+                    className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors" title="清除图谱">
+                    <icons.Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+            {/* 搜索结果下拉 */}
+            {(searchLoading || (searchResults.length > 0 && searchQuery.trim())) && (
+              <div className="mt-1.5 bg-background/95 backdrop-blur-md border border-border rounded-xl shadow-lg overflow-hidden max-h-60 overflow-y-auto">
+                {searchLoading ? (
+                  <div className="p-3 flex items-center gap-2 text-xs text-muted-foreground">
+                    <icons.Loader2 className="w-3.5 h-3.5 animate-spin" /> 搜索中...
+                  </div>
+                ) : (
+                  searchResults.map((r) => (
+                    <button
+                      key={r.id}
+                      onClick={() => { handleSelectSearchResult(r); setSearchQuery('') }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted/50 transition-colors text-left border-b border-border/50 last:border-b-0"
+                    >
+                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: getNodeColor(r.type) }} />
+                      <span className="truncate flex-1 text-foreground">{r.name}</span>
+                      <TypeBadge type={r.type} />
+                    </button>
+                  ))
+                )}
+                {!searchLoading && searchQuery.trim() && searchResults.length === 0 && (
+                  <div className="p-3 text-xs text-muted-foreground text-center">无匹配结果</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 错误状态 */}
           {graphError ? (
-            <div className="flex-1 flex items-center justify-center">
+            <div className="flex-1 h-full flex items-center justify-center">
               <div className="text-center">
                 <icons.AlertCircle className={`${iconSize.xl} mx-auto mb-3 text-destructive`} />
                 <p className="text-sm text-foreground mb-3">{graphError}</p>
@@ -2052,32 +1244,96 @@ export default function KnowledgeGraph() {
                 </button>
               </div>
             </div>
+          ) : graphNodes.length === 0 ? (
+            /* 空状态 */
+            <div className="h-full flex items-center justify-center">
+              <div className="text-center max-w-md px-6">
+                <icons.Network className="w-16 h-16 mx-auto mb-5 text-muted-foreground/20" />
+                <h3 className="text-lg font-semibold text-foreground mb-2">探索知识图谱</h3>
+                <p className="text-sm text-muted-foreground mb-6">
+                  输入关键词搜索，可视化法规、案件、主体间的关系网络
+                </p>
+                {/* 快捷搜索标签 */}
+                <div className="flex flex-wrap justify-center gap-2 mb-6">
+                  {quickTags.map((tag) => (
+                    <button
+                      key={tag}
+                      onClick={() => handleQuickSearch(tag)}
+                      className="px-3 py-1.5 rounded-full text-xs font-medium bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors border border-transparent hover:border-primary/20"
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+                {/* 统计摘要 */}
+                {stats && (
+                  <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground">
+                    <span>
+                      <span className="text-foreground font-semibold">{stats.total_nodes.toLocaleString()}</span> 个节点
+                    </span>
+                    <span>
+                      <span className="text-foreground font-semibold">{stats.total_edges.toLocaleString()}</span> 条关系
+                    </span>
+                    <span>
+                      <span className="text-foreground font-semibold">{Object.keys(stats.node_types).length}</span> 种类型
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
           ) : (
-            <GraphCanvas
-              nodes={nodes}
-              edges={edges}
-              activeTypes={activeTypes}
-              selectedNodeId={selectedNodeId}
-              hoveredNodeId={hoveredNodeId}
-              onSelectNode={setSelectedNodeId}
-              onHoverNode={setHoveredNodeId}
-              onDoubleClickNode={handleDoubleClickNode}
-              onDragStart={handleDragStart}
-              zoom={zoom}
-              pan={pan}
-              onWheel={handleWheel}
-              onPanStart={handlePanStart}
-              containerRef={containerRef}
-              width={canvasSize.width}
-              height={canvasSize.height}
-              tooManyNodes={tooManyNodes}
-            />
-          )}
-        </div>
+            /* 图谱画布 + 浮动控件 */
+            <>
+              <ForceGraphCanvas
+                nodes={graphNodes as ForceGraphNode[]}
+                edges={graphEdges as ForceGraphEdge[]}
+                activeTypes={activeTypes}
+                selectedNodeId={selectedNodeId}
+                onSelectNode={setSelectedNodeId}
+                onDoubleClickNode={handleDoubleClickNode}
+                viewMode={viewMode}
+                showLabels={showLabels}
+              />
 
-        {/* 右侧详情面板 (桌面) */}
-        {(selectedNodeId || entityDetail || detailLoading) && (
-          <DetailPanel
+              {/* 浮动工具栏 */}
+              <div className="absolute top-4 left-4 z-10">
+                <GraphToolbar
+                  viewMode={viewMode}
+                  onViewModeChange={setViewMode}
+                  showLabels={showLabels}
+                  onToggleLabels={() => setShowLabels((v) => !v)}
+                  autoRotate={autoRotate}
+                  onToggleAutoRotate={() => setAutoRotate((v) => !v)}
+                  onResetView={() => {
+                    // GraphCanvas handles this internally via ref if needed
+                  }}
+                  onZoomToFit={() => {
+                    // GraphCanvas handles this internally via ref if needed
+                  }}
+                />
+              </div>
+
+              {/* 浮动图例 */}
+              <div className="absolute bottom-4 left-4 z-10">
+                <GraphLegend
+                  nodeCount={graphNodes.length}
+                  edgeCount={graphEdges.length}
+                  viewMode={viewMode}
+                />
+              </div>
+
+              {/* 节点数量警告 */}
+              {graphNodes.length > MAX_VISIBLE_NODES && (
+                <div className="absolute top-4 right-4 z-10 bg-amber-500/10 border border-amber-500/30 text-amber-600 rounded-lg px-3 py-2 text-xs flex items-center gap-2">
+                  <icons.AlertTriangle className={iconSize.sm} />
+                  节点数量较多（{graphNodes.length}），建议使用过滤器
+                </div>
+              )}
+            </>
+          )}
+
+          {/* 详情抽屉 */}
+          <GraphDetailDrawer
             detail={entityDetail}
             loading={detailLoading}
             onClose={() => {
@@ -2086,33 +1342,28 @@ export default function KnowledgeGraph() {
             }}
             onClickRelation={handleClickRelation}
             onExpandInGraph={handleExpandInGraph}
-            collapsed={detailCollapsed}
-            onToggleCollapse={() => setDetailCollapsed(!detailCollapsed)}
-            onDeleteEntity={handleDeleteEntity}
-            onEditEntity={(name) => {
-              setNewEntityName(name)
-              setNewEntityType(entityDetail?.type || 'Entity')
-              setNewEntityProps(
-                entityDetail?.properties
-                  ? Object.entries(entityDetail.properties).map(([key, value]) => ({ key, value }))
-                  : []
-              )
-              setShowAddEntity(true)
+            onEditEntity={() => {
+              if (entityDetail) {
+                setNewEntityName(entityDetail.name)
+                setNewEntityType(entityDetail.type || 'Entity')
+                setNewEntityProps(
+                  entityDetail.properties
+                    ? Object.entries(entityDetail.properties).map(([key, value]) => ({ key, value }))
+                    : []
+                )
+                setShowAddEntity(true)
+              }
+            }}
+            onInvestigate={(entityName) => {
+              navigate(`/due-diligence?company=${encodeURIComponent(entityName)}`)
+            }}
+            onDeleteEntity={() => {
+              if (entityDetail) {
+                handleDeleteEntity(entityDetail.name)
+              }
             }}
           />
-        )}
-      </div>
-
-      {/* 移动端底部抽屉 */}
-      <MobileDetailDrawer
-        detail={entityDetail}
-        loading={detailLoading}
-        onClose={() => {
-          setSelectedNodeId(null)
-          setEntityDetail(null)
-        }}
-        onClickRelation={handleClickRelation}
-      />
+        </div>
 
       {/* ============================================================ */}
       {/* 弹窗：添加实体 */}
@@ -2278,99 +1529,106 @@ export default function KnowledgeGraph() {
       )}
 
       {/* ============================================================ */}
-      {/* 弹窗：导入/导出 */}
+      {/* 弹窗：导入 */}
       {/* ============================================================ */}
-      {showImportExport && (
+      {showImport && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-background border border-border rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between p-5 border-b border-border">
-              <h3 className={heading.section}>导入 / 导出</h3>
-              <button onClick={() => { setShowImportExport(false); setImportFile(null); setImportPreview([]) }} className={buttonStyle.icon}>
+              <h3 className={heading.section}>导入三元组</h3>
+              <button onClick={() => { setShowImport(false); setImportFile(null); setImportPreview([]) }} className={buttonStyle.icon}>
                 <icons.X className={iconSize.sm} />
               </button>
             </div>
-            <div className="p-5 space-y-5">
-              {/* 导出区域 */}
-              <div>
-                <h4 className={`${heading.card} mb-2`}>导出图谱</h4>
-                <p className="text-xs text-muted-foreground mb-3">
-                  将当前知识图谱中所有三元组导出为 CSV 文件（subject, predicate, object 格式）
-                </p>
-                <button
-                  onClick={handleExportGraph}
-                  disabled={exportLoading}
-                  className={`${buttonStyle.secondary} flex items-center gap-1.5`}
-                >
-                  {exportLoading ? (
-                    <icons.Loader2 className={`${iconSize.sm} animate-spin`} />
-                  ) : (
-                    <icons.Download className={iconSize.sm} />
-                  )}
-                  {exportLoading ? '导出中...' : '导出 CSV'}
-                </button>
-              </div>
-
-              <div className="border-t border-border" />
-
-              {/* 导入区域 */}
-              <div>
-                <h4 className={`${heading.card} mb-2`}>导入三元组</h4>
-                <p className="text-xs text-muted-foreground mb-3">
-                  上传 CSV 文件，格式：subject, predicate, object（每行一条三元组）
-                </p>
-                <input
-                  type="file"
-                  accept=".csv,.txt"
-                  onChange={handleImportFileChange}
-                  className="block w-full text-xs text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border file:border-border file:text-xs file:font-medium file:bg-muted file:text-foreground hover:file:bg-muted/80 file:cursor-pointer"
-                />
-                {importFile && importPreview.length > 0 && (
-                  <div className="mt-3">
-                    <p className="text-xs text-foreground font-medium mb-2">
-                      预览（共 {importPreview.length} 条三元组）
-                    </p>
-                    <div className="border border-border rounded-lg overflow-hidden max-h-48 overflow-y-auto">
-                      <table className="w-full text-[11px]">
-                        <thead>
-                          <tr className="bg-muted/50">
-                            <th className="px-2 py-1 text-left text-muted-foreground font-medium">主体</th>
-                            <th className="px-2 py-1 text-left text-muted-foreground font-medium">关系</th>
-                            <th className="px-2 py-1 text-left text-muted-foreground font-medium">客体</th>
+            <div className="p-5 space-y-4">
+              <p className="text-xs text-muted-foreground">
+                上传 CSV 文件，格式：subject, predicate, object（每行一条三元组）
+              </p>
+              <input
+                type="file"
+                accept=".csv,.txt"
+                onChange={handleImportFileChange}
+                className="block w-full text-xs text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border file:border-border file:text-xs file:font-medium file:bg-muted file:text-foreground hover:file:bg-muted/80 file:cursor-pointer"
+              />
+              {importFile && importPreview.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-xs text-foreground font-medium mb-2">
+                    预览（共 {importPreview.length} 条三元组）
+                  </p>
+                  <div className="border border-border rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+                    <table className="w-full text-[11px]">
+                      <thead>
+                        <tr className="bg-muted/50">
+                          <th className="px-2 py-1 text-left text-muted-foreground font-medium">主体</th>
+                          <th className="px-2 py-1 text-left text-muted-foreground font-medium">关系</th>
+                          <th className="px-2 py-1 text-left text-muted-foreground font-medium">客体</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importPreview.slice(0, 20).map((t, i) => (
+                          <tr key={i} className="border-t border-border">
+                            <td className="px-2 py-1 text-foreground">{t.subject}</td>
+                            <td className="px-2 py-1 text-primary">{t.predicate}</td>
+                            <td className="px-2 py-1 text-foreground">{t.object}</td>
                           </tr>
-                        </thead>
-                        <tbody>
-                          {importPreview.slice(0, 20).map((t, i) => (
-                            <tr key={i} className="border-t border-border">
-                              <td className="px-2 py-1 text-foreground">{t.subject}</td>
-                              <td className="px-2 py-1 text-primary">{t.predicate}</td>
-                              <td className="px-2 py-1 text-foreground">{t.object}</td>
-                            </tr>
-                          ))}
-                          {importPreview.length > 20 && (
-                            <tr className="border-t border-border">
-                              <td colSpan={3} className="px-2 py-1 text-center text-muted-foreground">
-                                ... 还有 {importPreview.length - 20} 条
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                    <button
-                      onClick={handleImportConfirm}
-                      disabled={importLoading}
-                      className={`${buttonStyle.primary} mt-3 flex items-center gap-1.5`}
-                    >
-                      {importLoading ? (
-                        <icons.Loader2 className={`${iconSize.sm} animate-spin`} />
-                      ) : (
-                        <icons.Upload className={iconSize.sm} />
-                      )}
-                      {importLoading ? '导入中...' : `确认导入 ${importPreview.length} 条`}
-                    </button>
+                        ))}
+                        {importPreview.length > 20 && (
+                          <tr className="border-t border-border">
+                            <td colSpan={3} className="px-2 py-1 text-center text-muted-foreground">
+                              ... 还有 {importPreview.length - 20} 条
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
                   </div>
+                  <button
+                    onClick={handleImportConfirm}
+                    disabled={importLoading}
+                    className={`${buttonStyle.primary} mt-3 flex items-center gap-1.5`}
+                  >
+                    {importLoading ? (
+                      <icons.Loader2 className={`${iconSize.sm} animate-spin`} />
+                    ) : (
+                      <icons.Upload className={iconSize.sm} />
+                    )}
+                    {importLoading ? '导入中...' : `确认导入 ${importPreview.length} 条`}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* 弹窗：导出 */}
+      {/* ============================================================ */}
+      {showExport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-background border border-border rounded-2xl shadow-xl w-full max-w-md mx-4">
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <h3 className={heading.section}>导出图谱</h3>
+              <button onClick={() => setShowExport(false)} className={buttonStyle.icon}>
+                <icons.X className={iconSize.sm} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-xs text-muted-foreground">
+                将当前知识图谱中所有三元组导出为 CSV 文件（subject, predicate, object 格式）
+              </p>
+              <button
+                onClick={handleExportGraph}
+                disabled={exportLoading}
+                className={`${buttonStyle.primary} flex items-center gap-1.5`}
+              >
+                {exportLoading ? (
+                  <icons.Loader2 className={`${iconSize.sm} animate-spin`} />
+                ) : (
+                  <icons.Download className={iconSize.sm} />
                 )}
-              </div>
+                {exportLoading ? '导出中...' : '导出 CSV'}
+              </button>
             </div>
           </div>
         </div>
@@ -2496,6 +1754,6 @@ export default function KnowledgeGraph() {
           </div>
         </div>
       )}
-    </PageContainer>
+    </div>
   )
 }

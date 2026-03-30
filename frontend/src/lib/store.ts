@@ -312,6 +312,12 @@ interface ChatState {
   setCanvasContent: (content: CanvasContent | null) => void
   updateCanvasText: (text: string) => void
 
+  // 文档列表（工作台内管理的历史文档）
+  documentList: { id: string; title: string; type: CanvasContent['type']; updatedAt: number; preview?: string }[]
+  addDocumentToList: (doc: { id: string; title: string; type: CanvasContent['type']; preview?: string }) => void
+  removeDocumentFromList: (id: string) => void
+  clearDocumentList: () => void
+
   // 分析数据
   analysisData: AnalysisData
   setAnalysisItem: (key: keyof AnalysisData, data: any) => void
@@ -427,6 +433,19 @@ export const useChatStore = create<ChatState>()(
         set((s) => ({
           canvasContent: s.canvasContent ? { ...s.canvasContent, content: text } : null,
         })),
+
+      // 文档列表
+      documentList: [],
+      addDocumentToList: (doc) =>
+        set((s) => ({
+          documentList: [
+            { ...doc, updatedAt: Date.now() },
+            ...s.documentList.filter((d) => d.id !== doc.id),
+          ],
+        })),
+      removeDocumentFromList: (id) =>
+        set((s) => ({ documentList: s.documentList.filter((d) => d.id !== id) })),
+      clearDocumentList: () => set({ documentList: [] }),
 
       // 分析
       analysisData: { riskRadar: null, documentDiff: null, knowledgeGraph: null },
@@ -823,6 +842,102 @@ export const useIMStore = create<IMState>()(
       name: 'im-storage',
       partialize: (state) => ({
         activeConversationId: state.activeConversationId,
+      }),
+    }
+  )
+)
+
+// ========== 通知 Store ==========
+
+export interface NotificationItem {
+  id: string
+  type: 'urgent' | 'warning' | 'info' | 'success'
+  title: string
+  message: string
+  is_read: boolean
+  related_link?: string
+  event_type?: string
+  created_at: string
+}
+
+interface NotificationState {
+  notifications: NotificationItem[]
+  unreadCount: number
+  loading: boolean
+  activeTab: 'messages' | 'notifications'
+  notificationFilter: 'all' | 'unread' | 'approval' | 'case' | 'system' | 'contract'
+
+  setNotifications: (items: NotificationItem[]) => void
+  addNotification: (item: NotificationItem) => void
+  markNotificationRead: (id: string) => void
+  markAllNotificationsRead: () => void
+  removeNotification: (id: string) => void
+  setLoading: (loading: boolean) => void
+  setActiveTab: (tab: 'messages' | 'notifications') => void
+  setNotificationFilter: (filter: NotificationState['notificationFilter']) => void
+  setUnreadCount: (count: number) => void
+}
+
+export const useNotificationStore = create<NotificationState>()(
+  persist(
+    (set) => ({
+      notifications: [],
+      unreadCount: 0,
+      loading: false,
+      activeTab: 'messages',
+      notificationFilter: 'all',
+
+      setNotifications: (items) => {
+        const unread = items.filter((n) => !n.is_read).length
+        set({ notifications: items, unreadCount: unread })
+      },
+
+      addNotification: (item) =>
+        set((s) => {
+          if (s.notifications.some((n) => n.id === item.id)) return {}
+          const updated = [item, ...s.notifications]
+          return {
+            notifications: updated,
+            unreadCount: item.is_read ? s.unreadCount : s.unreadCount + 1,
+          }
+        }),
+
+      markNotificationRead: (id) =>
+        set((s) => {
+          const target = s.notifications.find((n) => n.id === id)
+          if (!target || target.is_read) return {}
+          return {
+            notifications: s.notifications.map((n) =>
+              n.id === id ? { ...n, is_read: true } : n
+            ),
+            unreadCount: Math.max(0, s.unreadCount - 1),
+          }
+        }),
+
+      markAllNotificationsRead: () =>
+        set((s) => ({
+          notifications: s.notifications.map((n) => ({ ...n, is_read: true })),
+          unreadCount: 0,
+        })),
+
+      removeNotification: (id) =>
+        set((s) => {
+          const target = s.notifications.find((n) => n.id === id)
+          return {
+            notifications: s.notifications.filter((n) => n.id !== id),
+            unreadCount: target && !target.is_read ? Math.max(0, s.unreadCount - 1) : s.unreadCount,
+          }
+        }),
+
+      setLoading: (loading) => set({ loading }),
+      setActiveTab: (tab) => set({ activeTab: tab }),
+      setNotificationFilter: (filter) => set({ notificationFilter: filter }),
+      setUnreadCount: (count) => set({ unreadCount: count }),
+    }),
+    {
+      name: 'notification-storage',
+      partialize: (state) => ({
+        activeTab: state.activeTab,
       }),
     }
   )

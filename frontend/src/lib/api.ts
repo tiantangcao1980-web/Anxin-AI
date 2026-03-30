@@ -912,9 +912,11 @@ export interface CompanyGraph {
 }
 
 export interface InvestigationStreamEvent {
-  type: 'start' | 'step' | 'result' | 'step_error' | 'done' | 'error'
+  type: 'start' | 'step' | 'result' | 'step_error' | 'done' | 'error' | 'stage' | 'agent_start' | 'agent_result' | 'conflict' | 'consensus'
   message?: string
   step?: string
+  agent?: string
+  task?: string
   data?: any
 }
 
@@ -1015,7 +1017,32 @@ export const dueDiligenceApi = {
         status: string
       }>
     }>(`/due-diligence/search?keyword=${encodeURIComponent(keyword)}&limit=${limit}`),
+
+  // 调查历史
+  getInvestigationHistory: (page: number = 1, pageSize: number = 20) =>
+    request<any[]>(`/due-diligence/investigations?page=${page}&page_size=${pageSize}`),
+
+  getInvestigation: (id: string) =>
+    request<any>(`/due-diligence/investigations/${id}`),
+
+  // 报告生成
+  generateReport: (companyName: string) =>
+    request<any>('/due-diligence/report/generate', {
+      method: 'POST',
+      body: JSON.stringify({ company_name: companyName }),
+    }),
+
+  // 场景推演
+  simulateScenario: (scenarioId: string, companyName: string, currentRisk?: any) =>
+    request<any>('/due-diligence/simulate', {
+      method: 'POST',
+      body: JSON.stringify({ scenario_id: scenarioId, company_name: companyName, current_risk: currentRisk }),
+    }),
+
+  listScenarios: () =>
+    request<any[]>('/due-diligence/simulate/scenarios'),
 }
+
 
 // ============ 知识库 API ============
 
@@ -1254,6 +1281,9 @@ export const knowledgeCenterApi = {
 
   getEntityRelations: (entityName: string, depth: number = 1) =>
     request<GraphData>(`/knowledge-center/graph/entity/${encodeURIComponent(entityName)}?depth=${depth}`),
+
+  getEntityDetail: (entityName: string) =>
+    request<any>(`/knowledge-center/graph/entity/${encodeURIComponent(entityName)}/detail`),
 
   // 图谱实体 CRUD
   createEntity: (data: { name: string; entity_type?: string; properties?: Record<string, any> }) =>
@@ -1692,7 +1722,8 @@ export const collaborationApi = {
   // 原因：Token 在 URL 参数中会被记录到服务器日志、浏览器历史、代理日志
   // 修复方式：URL 中不再携带 token，改为连接建立后通过首条 auth 消息发送
   connectWebSocket: (documentId: string, userId?: string, userName?: string) => {
-    const wsUrl = import.meta.env.VITE_WS_URL || `ws://localhost:8003/api/v1`
+    const wsUrl = import.meta.env.VITE_WS_URL
+      || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/v1`
     const ws = new WebSocket(`${wsUrl}/collaboration/ws/document/${documentId}`)
 
     return {
@@ -1913,16 +1944,23 @@ export interface Notification {
   message: string
   is_read: boolean
   related_link?: string
+  event_type?: string
   created_at: string
 }
 
 export const notificationsApi = {
-  list: (params?: { limit?: number; unread_only?: boolean }) => {
+  /** 获取通知列表，支持按事件类型筛选 */
+  list: (params?: { limit?: number; unread_only?: boolean; event_type?: string }) => {
     const query = new URLSearchParams()
     if (params?.limit) query.append('limit', params.limit.toString())
     if (params?.unread_only) query.append('unread_only', params.unread_only.toString())
+    if (params?.event_type) query.append('event_type', params.event_type)
     return request<{ data: Notification[]; total: number }>(`/notifications/?${query}`)
   },
+
+  /** 获取未读通知总数（轻量接口） */
+  getUnreadCount: () =>
+    request<{ count: number }>('/notifications/unread-count'),
 
   markAsRead: (id: string) =>
     request<Notification>(`/notifications/${id}/read`, { method: 'POST' }),
@@ -2282,7 +2320,11 @@ export const complianceApi = {
 // ===== IM 即时通讯 API =====
 
 export const imApi = {
-  // 获取对话列表
+  /** 搜索用户（创建对话时使用） */
+  searchUsers: (q: string = '', limit: number = 20) =>
+    request<any>(`/im/users/search?q=${encodeURIComponent(q)}&limit=${limit}`),
+
+  /** 获取对话列表 */
   getConversations: (params?: { limit?: number; offset?: number }) => {
     const qs = new URLSearchParams()
     if (params?.limit) qs.set('limit', String(params.limit))

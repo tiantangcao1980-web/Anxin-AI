@@ -40,8 +40,8 @@ const Contracts = lazy(() => import('@/pages/Contracts'))
 const Collaboration = lazy(() => import('@/pages/Collaboration'))
 const Leads = lazy(() => import('@/pages/Leads'))
 
-// 信息中心
-const News = lazy(() => import('@/pages/News'))
+// 智能调查
+// const News = lazy(() => import('@/pages/News'))  // v2.0 版本启用
 const DueDiligence = lazy(() => import('@/pages/DueDiligence'))
 
 // 法律智库
@@ -134,18 +134,19 @@ function App() {
                 <Route path="chat" element={<Chat />} />
 
                 {/* ===== 智能协作 ===== */}
-                <Route path="cases" element={<Cases />} />
-                <Route path="cases/:id" element={<CaseDetail />} />
+                <Route path="cases" element={<ProtectedRoute feature="case_management"><Cases /></ProtectedRoute>} />
+                <Route path="cases/:id" element={<ProtectedRoute feature="case_management"><CaseDetail /></ProtectedRoute>} />
                 <Route path="contracts" element={<Contracts />} />
                 <Route path="collaboration" element={<Collaboration />} />
                 <Route path="collaboration/:sessionId" element={<Collaboration />} />
-                <Route path="find-lawyer" element={<FindLawyer />} />
+                <Route path="find-lawyer" element={<ProtectedRoute feature="lawyer_matching"><FindLawyer /></ProtectedRoute>} />
                 <Route path="compliance-check" element={<ComplianceCheck />} />
-                <Route path="leads" element={<Leads />} />
+                <Route path="leads" element={<ProtectedRoute feature="leads"><Leads /></ProtectedRoute>} />
 
-                {/* ===== 信息中心 ===== */}
-                <Route path="news" element={<News />} />
+                {/* ===== 智能调查 ===== */}
+                {/* <Route path="news" element={<News />} /> */}{/* v2.0 版本启用 */}
                 <Route path="due-diligence" element={<DueDiligence />} />
+                <Route path="due-diligence/:section" element={<DueDiligence />} />
 
                 {/* ===== 法律智库 ===== */}
                 <Route path="knowledge-graph" element={<KnowledgeGraph />} />

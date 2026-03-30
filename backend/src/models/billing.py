@@ -139,7 +139,7 @@ class Refund(Base, TimestampMixin):
     __tablename__ = "refunds"
 
     order_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("payment_orders.id", ondelete="CASCADE"),
+        GUID(), ForeignKey("payment_orders.id", ondelete="CASCADE"),
         nullable=False, comment="支付订单ID"
     )
     user_id: Mapped[str] = mapped_column(

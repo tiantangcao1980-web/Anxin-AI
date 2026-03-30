@@ -5,7 +5,7 @@
 # 查看帮助: make help
 # ============================================================
 
-.PHONY: help up down restart logs status health backup restore init seed clean migrate build dev verify verify-frontend verify-backend verify-backend-full sync-backend-dev tauri-dev tauri-build
+.PHONY: help up down restart logs status health backup restore init seed clean migrate build dev verify verify-frontend verify-backend verify-backend-full sync-backend-dev reconcile-backend-db tauri-dev tauri-build
 
 # 默认 Docker Compose 文件
 COMPOSE := docker compose
@@ -131,6 +131,12 @@ verify-backend-full: ## 运行后端全量检查（当前可能失败，供排�
 	@test -x backend/.venv/bin/ruff || (echo "错误: ruff 未安装，请先运行 'make sync-backend-dev'" && exit 1)
 	cd backend && ./.venv/bin/ruff check src tests
 	cd backend && ./.venv/bin/pytest -q
+
+reconcile-backend-db: ## 对齐开发库 schema 与 Alembic 版本状态
+	@echo ">>> 检查并对齐后端开发数据库..."
+	@test -x backend/.venv/bin/python || (echo "错误: 后端虚拟环境未就绪，请先运行 'make sync-backend-dev'" && exit 1)
+	cd backend && ./.venv/bin/python scripts/reconcile_alembic_dev.py --apply
+	@echo ">>> 后端开发数据库已对齐"
 
 verify: ## 执行前后端最小校验
 	@$(MAKE) verify-frontend

@@ -2,7 +2,7 @@
 import logging
 from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, update, delete, func
 from src.models.notification import (
     Notification, NotificationPreference,
     NotificationChannel, NotificationEventType
@@ -95,17 +95,34 @@ class NotificationService:
         session: AsyncSession,
         user_id: str,
         limit: int = 50,
-        unread_only: bool = False
+        unread_only: bool = False,
+        event_type: Optional[str] = None,
     ) -> List[Notification]:
         query = select(Notification).where(Notification.user_id == user_id)
 
         if unread_only:
             query = query.where(Notification.is_read == False)
 
+        if event_type:
+            query = query.where(Notification.event_type == event_type)
+
         query = query.order_by(Notification.created_at.desc()).limit(limit)
 
         result = await session.execute(query)
         return result.scalars().all()
+
+    @staticmethod
+    async def get_unread_count(
+        session: AsyncSession,
+        user_id: str,
+    ) -> int:
+        """获取用户未读通知总数"""
+        query = (
+            select(func.count(Notification.id))
+            .where(Notification.user_id == user_id, Notification.is_read == False)
+        )
+        result = await session.execute(query)
+        return result.scalar() or 0
 
     @staticmethod
     async def mark_as_read(
@@ -252,6 +269,7 @@ class NotificationService:
     ) -> Optional[Notification]:
         """根据模板和用户偏好，向所有启用的渠道分发通知
 
+        站内信创建后会通过 WebSocket 实时推送给在线用户。
         返回站内信 Notification 对象（如果创建了的话），否则返回 None。
         """
         template = NOTIFICATION_TEMPLATES.get(template_key)
@@ -284,6 +302,22 @@ class NotificationService:
                     related_link=related_link,
                     event_type=event_type,
                 )
+                # 通过 WebSocket 实时推送给在线用户
+                try:
+                    from src.services.im_hub import im_manager
+                    await im_manager.push_notification(user_id, {
+                        "id": str(site_notification.id),
+                        "type": site_notification.type,
+                        "title": site_notification.title,
+                        "message": site_notification.message,
+                        "is_read": False,
+                        "related_link": site_notification.related_link,
+                        "event_type": site_notification.event_type,
+                        "created_at": site_notification.created_at.isoformat() if site_notification.created_at else None,
+                    })
+                except Exception as e:
+                    logger.warning("WebSocket 推送通知失败: %s", e)
+
             elif channel == NotificationChannel.EMAIL:
                 await NotificationService._send_email(user_id, title, message)
             elif channel == NotificationChannel.WECHAT:
