@@ -58,7 +58,7 @@
 - [x] P1 Prompt 模板化管理：创建 `backend/src/prompts/` 模块（加载器 + 20 个 .txt 模板文件），17 个 Agent + Coordinator 改为文件加载，支持热更新和版本管理
 - [x] P2 拆分 WebSocket handler：`websocket_chat` 从 1534 行降到 1040 行，提取 6 个独立 handler 模块（A2UI/工作台/Canvas/尽调/RAG/共享上下文）
 - [x] P1 Prompt 模板化管理收尾：Coordinator `merged_intent_analysis` 抽取为模板文件，`requirement_analyst` 路径统一到 `agents/` 目录，全部 Agent + Coordinator prompt 均已模板化
-- [ ] P2 实施：拆分 WebSocket handler、统一 Service 层消除三重重复
+- [x] P2 统一 Service 层消除三重重复：提取 `_ChatContext` + `_decide_route()` + `_prepare_chat_context()` + `_execute_due_diligence()` + `_execute_rag()` + `_finalize_response()` 共享编排层，`chat()` 和 `stream_chat()` 复用同一套路由决策和前后处理
 
 ### 对话入口与研究模式统一
 - [x] Chat 请求协议补充 `mode` 与 `knowledge_base_ids`，普通对话、快捷动作和知识库研究模式统一走同一聊天入口

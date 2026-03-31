@@ -251,3 +251,36 @@ async def evaluate_compliance(
         report["upgrade_hint"] = "登录后查看完整合规报告和整改建议"
 
     return report
+
+
+# ===== 报告生成 =====
+
+class ReportRequest(BaseModel):
+    """报告生成请求"""
+    evaluation: dict = Field(..., description="评估结果数据")
+    company_name: str = Field("被检企业", description="企业名称")
+
+
+@router.post("/report")
+async def generate_compliance_report(
+    req: ReportRequest,
+    user: User = Depends(get_current_user),
+):
+    """生成合规检查 HTML 报告"""
+    from src.services.compliance_service import compliance_service
+    result = await compliance_service.generate_report(
+        evaluation_result=req.evaluation,
+        company_name=req.company_name,
+    )
+    return result
+
+
+@router.post("/compare")
+async def compare_evaluations(
+    current: dict,
+    previous: dict,
+):
+    """对比两次合规检查结果"""
+    from src.services.compliance_service import compliance_service
+    result = await compliance_service.compare_evaluations(current, previous)
+    return result
