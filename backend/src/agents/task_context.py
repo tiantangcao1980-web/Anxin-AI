@@ -263,25 +263,27 @@ class AgentLifecycleManager:
         Returns:
             AgentResponse 或降级响应
         """
-        from src.agents.base import AgentResponse, _task_llm_config_var
-        
+        from src.agents.base import AgentResponse, _task_llm_config_var, _task_history_var
+
         for attempt in range(MAX_TASK_RETRIES + 1):
             try:
                 agent_context.status = "working"
                 agent_context.retry_count = attempt
                 agent_context.add_reasoning(f"开始执行 (尝试 {attempt + 1})")
-                
+
                 timeout = self._get_timeout(agent_name, attempt)
-                
-                # 设置 LLM 配置上下文
+
+                # 设置 LLM 配置和对话历史上下文
                 llm_config = context.get("llm_config")
+                history = context.get("history")
                 token = _task_llm_config_var.set(llm_config)
-                
+                token_hist = _task_history_var.set(history)
+
                 try:
                     agent_obj = self.agents.get(agent_name)
                     if not agent_obj:
                         raise Exception(f"未找到 Agent: {agent_name}")
-                    
+
                     result = await asyncio.wait_for(
                         agent_obj.process({
                             "description": task_info.get("instruction", ""),
@@ -293,7 +295,8 @@ class AgentLifecycleManager:
                     )
                 finally:
                     _task_llm_config_var.reset(token)
-                
+                    _task_history_var.reset(token_hist)
+
                 # 检查结果
                 if isinstance(result, AgentResponse) and not result.metadata.get("error"):
                     agent_context.status = "completed"
@@ -358,6 +361,7 @@ class AgentLifecycleManager:
                         replacement_obj = self.agents.get(replacement)
                         if replacement_obj:
                             token2 = _task_llm_config_var.set(llm_config)
+                            token2_hist = _task_history_var.set(history)
                             try:
                                 takeover_instruction = (
                                     task_info.get("instruction", "")
@@ -376,6 +380,7 @@ class AgentLifecycleManager:
                                 return replacement_result
                             finally:
                                 _task_llm_config_var.reset(token2)
+                                _task_history_var.reset(token2_hist)
                     except Exception as rep_err:
                         logger.error(f"替代 Agent {replacement} 也失败: {rep_err}")
                 

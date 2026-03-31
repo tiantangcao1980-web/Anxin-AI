@@ -3,7 +3,10 @@ LLM配置服务
 管理大模型API配置的CRUD操作和连接测试
 """
 
-from typing import List, Optional, Dict, Any
+import asyncio
+import copy
+import time
+from typing import List, Optional, Dict, Any, Tuple
 from uuid import uuid4
 import httpx
 from loguru import logger
@@ -13,6 +16,7 @@ from cryptography.fernet import Fernet
 import base64
 
 from src.core.config import settings
+from src.core.llm_helper import LLMConfigResult
 from src.models.llm_config import LLMConfig, LLM_PROVIDER_CONFIGS
 
 
@@ -22,6 +26,8 @@ class LLMService:
     # 用于加密API密钥的密钥（从settings获取，如果没有配置则自动生成）
     _encryption_key = None
     _fernet = None
+    _default_config_cache: Dict[str, Tuple[float, LLMConfigResult]] = {}
+    _default_config_cache_lock: asyncio.Lock = asyncio.Lock()
     
     @classmethod
     def _get_encryption_key(cls) -> str:
@@ -86,6 +92,95 @@ class LLMService:
         if not api_key or len(api_key) < 12:
             return "****"
         return f"{api_key[:4]}...{api_key[-4:]}"
+
+    @classmethod
+    def invalidate_default_config_cache(cls, config_type: Optional[str] = None) -> None:
+        """失效默认/有效 LLM 配置缓存"""
+        if config_type:
+            cls._default_config_cache.pop(config_type, None)
+            logger.debug(f"LLM 默认配置缓存已失效: {config_type}")
+            return
+
+        cls._default_config_cache.clear()
+        logger.debug("LLM 默认配置缓存已全部失效")
+
+    @classmethod
+    def _to_config_snapshot(cls, config: Optional[LLMConfig]) -> Optional[LLMConfigResult]:
+        """将 ORM 配置转为可跨会话复用的只读快照"""
+        if not config or not config.is_active:
+            return None
+
+        api_key = cls.decrypt_api_key(config.api_key) if config.api_key else ""
+        return LLMConfigResult(
+            provider=config.provider,
+            api_key=api_key,
+            api_base_url=config.api_base_url or "",
+            model_name=config.model_name,
+            temperature=config.temperature,
+            max_tokens=config.max_tokens,
+            config_id=getattr(config, "id", None),
+            source="db",
+            extra_params=copy.deepcopy(config.extra_params) if config.extra_params else None,
+        )
+
+    @classmethod
+    async def _fetch_effective_config_snapshot(
+        cls,
+        db: AsyncSession,
+        config_type: str = "llm",
+    ) -> Optional[LLMConfigResult]:
+        """从数据库加载有效配置快照，优先默认配置，其次最近更新的启用配置"""
+        config = await cls.get_default_config(db, config_type)
+
+        if not config:
+            result = await db.execute(
+                select(LLMConfig)
+                .where(LLMConfig.config_type == config_type)
+                .where(LLMConfig.is_active == True)
+                .order_by(LLMConfig.updated_at.desc())
+                .limit(1)
+            )
+            config = result.scalar_one_or_none()
+
+        return cls._to_config_snapshot(config)
+
+    @classmethod
+    async def _load_effective_config_snapshot_from_db(
+        cls,
+        config_type: str = "llm",
+    ) -> Optional[LLMConfigResult]:
+        """打开独立会话并加载有效配置快照"""
+        from src.core.database import async_session_maker
+
+        async with async_session_maker() as db:
+            return await cls._fetch_effective_config_snapshot(db, config_type)
+
+    @classmethod
+    async def get_cached_effective_config(
+        cls,
+        config_type: str = "llm",
+    ) -> Optional[LLMConfigResult]:
+        """获取带 TTL 的有效配置快照，供热路径复用"""
+        ttl = max(0, settings.LLM_DEFAULT_CONFIG_CACHE_TTL_SECONDS)
+        now = time.monotonic()
+        cached = cls._default_config_cache.get(config_type)
+
+        if cached and (now - cached[0]) < ttl:
+            return copy.deepcopy(cached[1])
+
+        async with cls._default_config_cache_lock:
+            cached = cls._default_config_cache.get(config_type)
+            now = time.monotonic()
+            if cached and (now - cached[0]) < ttl:
+                return copy.deepcopy(cached[1])
+
+            snapshot = await cls._load_effective_config_snapshot_from_db(config_type)
+            if snapshot is None:
+                cls._default_config_cache.pop(config_type, None)
+                return None
+
+            cls._default_config_cache[config_type] = (now, snapshot)
+            return copy.deepcopy(snapshot)
     
     @staticmethod
     async def create_config(
@@ -144,6 +239,7 @@ class LLMService:
         db.add(config)
         await db.commit()
         await db.refresh(config)
+        LLMService.invalidate_default_config_cache(config_type)
         
         logger.info(f"创建LLM配置: {name} ({provider}/{model_name})")
         return config
@@ -242,6 +338,7 @@ class LLMService:
         
         await db.commit()
         await db.refresh(config)
+        LLMService.invalidate_default_config_cache(config.config_type)
         
         logger.info(f"更新LLM配置: {config.name}")
         return config
@@ -257,6 +354,7 @@ class LLMService:
             delete(LLMConfig).where(LLMConfig.id == config_id)
         )
         await db.commit()
+        LLMService.invalidate_default_config_cache(config.config_type)
         
         logger.info(f"删除LLM配置: {config.name}")
         return True
@@ -382,6 +480,7 @@ class LLMService:
         config.is_default = True
         await db.commit()
         await db.refresh(config)
+        LLMService.invalidate_default_config_cache(config.config_type)
         
         return config
     
@@ -395,6 +494,7 @@ class LLMService:
         config.is_active = not config.is_active
         await db.commit()
         await db.refresh(config)
+        LLMService.invalidate_default_config_cache(config.config_type)
         
         return config
     

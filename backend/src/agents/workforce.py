@@ -583,12 +583,14 @@ class LegalWorkforce:
         
         try:
             llm_config = context.get("llm_config")
-            
-            # 通过 contextvars 设置任务级 LLM 配置
+            history = context.get("history")
+
+            # 通过 contextvars 设置任务级 LLM 配置和对话历史
             # 这样所有子 Agent 的 chat() 调用都能自动获取，无需修改每个 Agent
-            from src.agents.base import _task_llm_config_var
-            token = _task_llm_config_var.set(llm_config)
-            
+            from src.agents.base import _task_llm_config_var, _task_history_var
+            token_cfg = _task_llm_config_var.set(llm_config)
+            token_hist = _task_history_var.set(history)
+
             try:
                 result = await asyncio.wait_for(
                     self.agents[agent_name].process({
@@ -602,7 +604,8 @@ class LegalWorkforce:
                 return result
             finally:
                 # 恢复 contextvars
-                _task_llm_config_var.reset(token)
+                _task_llm_config_var.reset(token_cfg)
+                _task_history_var.reset(token_hist)
 
         except asyncio.TimeoutError:
             logger.error(f"智能体 {agent_name} 执行超时 ({TASK_TIMEOUT_SECONDS}s)")
@@ -675,11 +678,12 @@ class LegalWorkforce:
             回复内容
         """
         llm_config = context.get("llm_config") if context else None
+        history = context.get("history") if context else None
         
         if agent_name and agent_name in self.agents:
-            return await self.agents[agent_name].chat(message, llm_config=llm_config)
+            return await self.agents[agent_name].chat(message, llm_config=llm_config, history=history)
         else:
-            return await self.agents["legal_advisor"].chat(message, llm_config=llm_config)
+            return await self.agents["legal_advisor"].chat(message, llm_config=llm_config, history=history)
     
     def get_agents_info(self) -> List[Dict[str, Any]]:
         """获取所有智能体信息"""

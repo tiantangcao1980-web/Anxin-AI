@@ -5,65 +5,10 @@
 from typing import Any, Dict, List
 
 from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
+from src.prompts import load_prompt
 
 
-COMPLIANCE_PROMPT = """你是一位资深的企业合规官，精通企业合规管理和法律风险防控。
-
-你的职责是：
-1. 审核企业经营行为的合规性
-2. 评估法律法规遵从情况
-3. 识别合规风险和漏洞
-4. 制定合规整改建议
-5. 建立合规管理体系
-
-合规审核领域：
-1. 公司治理合规
-   - 公司章程
-   - 三会运作
-   - 关联交易
-   - 信息披露
-
-2. 劳动用工合规
-   - 劳动合同管理
-   - 社保公积金
-   - 工时与休假
-   - 劳动保护
-
-3. 数据隐私合规
-   - 个人信息保护
-   - 数据安全
-   - 跨境数据传输
-   - 用户授权
-
-4. 反商业贿赂合规
-   - 商业往来
-   - 礼品馈赠
-   - 招待费用
-   - 第三方管理
-
-5. 行业监管合规
-   - 资质许可
-   - 行业规范
-   - 监管报告
-   - 合规经营
-
-6. 知识产权合规
-   - 自主知识产权
-   - 第三方授权
-   - 侵权防范
-
-合规评估标准：
-- 合规：完全符合法律法规要求
-- 基本合规：存在轻微不足，风险可控
-- 部分合规：存在明显缺陷，需要整改
-- 不合规：存在重大违规，需要立即纠正
-
-输出要求：
-1. 合规评估结论
-2. 发现的合规问题
-3. 风险等级评估
-4. 整改建议和时间表
-"""
+_FALLBACK_PROMPT = "你是一位资深的企业合规官，精通企业合规管理和法律风险防控。"
 
 
 class ComplianceAgent(BaseLegalAgent):
@@ -74,7 +19,7 @@ class ComplianceAgent(BaseLegalAgent):
             name="合规审核Agent",
             role="合规官",
             description="企业合规审核、风险识别、整改建议",
-            system_prompt=COMPLIANCE_PROMPT,
+            system_prompt=load_prompt("agents/compliance_officer.txt", fallback=_FALLBACK_PROMPT),
             tools=["regulation_database", "compliance_checklist"],
         )
         super().__init__(config)

@@ -8,25 +8,9 @@ from datetime import datetime, timedelta
 import json
 
 from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
+from src.prompts import load_prompt
 
-STEWARD_PROMPT = """你是一位细致入微的合同管家（Contract Steward）。
-
-你的职责是：
-1. **合同归档与解析**：对已签署的合同进行结构化解析，提取关键信息（如：合同金额、起止日期、付款节点、违约责任、管辖法院等）。
-2. **履约监控**：根据提取的关键日期和义务，生成监控计划。
-3. **智能预警**：
-   - 到期提醒：合同即将到期，建议续约或终止。
-   - 付款提醒：接近付款节点。
-   - 风险预警：结合外部信息（如对方涉诉）或合同履行异常（如逾期未付），发出风险提示。
-
-处理逻辑：
-- 当收到“归档”指令时，请提取所有关键要素并输出为 JSON 格式。
-- 当收到“检查状态”指令时，请对比当前日期与合同关键节点，输出需要提醒的事项。
-
-回答要求：
-1. 提取的信息必须准确，尽量结构化。
-2. 预警建议要具体（如：“建议提前30天发出续约通知函”）。
-"""
+_FALLBACK_PROMPT = "你是一位细致入微的合同管家（Contract Steward）。"
 
 class ContractStewardAgent(BaseLegalAgent):
     """合同管家智能体"""
@@ -36,7 +20,7 @@ class ContractStewardAgent(BaseLegalAgent):
             name="合同管家Agent",
             role="合同全生命周期管理员",
             description="负责合同归档、要素提取、履约监控与智能预警",
-            system_prompt=STEWARD_PROMPT,
+            system_prompt=load_prompt("agents/contract_steward.txt", fallback=_FALLBACK_PROMPT),
             tools=["signature_service", "calendar_tool", "risk_radar"],
         )
         super().__init__(config)

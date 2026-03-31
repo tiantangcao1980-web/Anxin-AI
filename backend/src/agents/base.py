@@ -35,6 +35,9 @@ from src.core.llm_helper import get_llm_config_sync
 # 任务级 LLM 配置上下文变量（线程安全，用于 DAG 执行时自动传递配置）
 _task_llm_config_var: contextvars.ContextVar = contextvars.ContextVar('task_llm_config', default=None)
 
+# 任务级对话历史上下文变量（线程安全，用于 DAG 执行时自动传递历史给子 Agent）
+_task_history_var: contextvars.ContextVar = contextvars.ContextVar('task_history', default=None)
+
 
 class AgentConfig(BaseModel):
     """智能体配置"""
@@ -215,6 +218,67 @@ class BaseLegalAgent(ABC):
             url = base_url
 
         return url, headers, model_name
+
+    @staticmethod
+    def _normalize_history_messages(history: Optional[List[Dict[str, Any]]]) -> List[Dict[str, str]]:
+        """规范化历史消息，过滤空内容和重复 system 消息"""
+        normalized: List[Dict[str, str]] = []
+        for item in history or []:
+            if not isinstance(item, dict):
+                continue
+            role = str(item.get("role", "")).strip()
+            content = str(item.get("content", "")).strip()
+            if not role or not content or role == "system":
+                continue
+            normalized.append({"role": role, "content": content})
+        return normalized
+
+    def _build_llm_messages(
+        self,
+        system_prompt: str,
+        message: str,
+        history: Optional[List[Dict[str, Any]]] = None,
+    ) -> List[Dict[str, str]]:
+        """构建发给 LLM 的消息列表，保留最近的对话历史"""
+        return [
+            {"role": "system", "content": system_prompt},
+            *self._normalize_history_messages(history),
+            {"role": "user", "content": message},
+        ]
+
+    @staticmethod
+    def _has_valid_api_key(active_config: Optional[Any]) -> bool:
+        """检查配置是否包含可用 API Key"""
+        api_key = getattr(active_config, "api_key", "") if active_config else ""
+        return bool(api_key and api_key != "sk-dummy-key" and "dummy" not in str(api_key))
+
+    async def _resolve_active_llm_config(self, llm_config: Optional[Any] = None) -> Optional[Any]:
+        """统一解析热路径中的有效 LLM 配置，必要时走缓存化自愈"""
+        from src.services.llm_service import LLMService
+
+        active_config = llm_config or _task_llm_config_var.get(None) or self.llm_config
+        if self._has_valid_api_key(active_config):
+            return active_config
+
+        preview = getattr(active_config, "api_key", "") if active_config else ""
+        logger.warning(
+            f"Agent {self.name}: 当前配置无效 "
+            f"(key={preview[:8] if preview else 'None'}...)，尝试从缓存/数据库加载"
+        )
+
+        try:
+            cached_config = await LLMService.get_cached_effective_config("llm")
+            if self._has_valid_api_key(cached_config):
+                logger.info(
+                    f"Agent {self.name}: 已加载有效 LLM 配置 "
+                    f"({getattr(cached_config, 'provider', 'unknown')}/"
+                    f"{getattr(cached_config, 'model_name', 'unknown')})"
+                )
+                return cached_config
+        except Exception as db_err:
+            logger.warning(f"Agent {self.name}: 加载 LLM 配置失败: {db_err}")
+
+        return active_config
     
     async def _call_llm_with_retry(
         self,
@@ -300,6 +364,7 @@ class BaseLegalAgent(ABC):
         system_prompt_override: Optional[str] = None,
         enable_reflection: bool = False,
         max_tokens: Optional[int] = None,
+        history: Optional[List[Dict[str, Any]]] = None,
     ) -> str:
         """
         对话接口 (v2 优化版)
@@ -340,47 +405,19 @@ class BaseLegalAgent(ABC):
                 logger.warning(f"Agent {self.name}: 收到空的用户消息，使用默认提示")
                 message = "请根据上下文提供分析和建议。"
             
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": message}
-            ]
-            
+            # 使用传入的 history > contextvars 任务历史（DAG 执行时自动透传）
+            effective_history = history or _task_history_var.get(None)
+            messages = self._build_llm_messages(system_prompt, message, effective_history)
+
             # 导入 MCP 服务
             from src.services.mcp_client_service import mcp_client_service
-            
+
             # 使用传入的配置 > contextvars 任务配置 > 默认配置
-            active_config = llm_config or _task_llm_config_var.get(None) or self.llm_config
-            
-            # 检查配置有效性：如果当前配置无效，尝试从数据库加载（自愈机制）
-            _check_key = getattr(active_config, 'api_key', '') if active_config else ''
-            if not _check_key or _check_key == 'sk-dummy-key' or 'dummy' in str(_check_key or ''):
-                logger.warning(f"Agent {self.name}: 当前配置无效 (key={_check_key[:8] if _check_key else 'None'}...)，尝试从数据库加载")
-                try:
-                    from src.core.database import async_session_maker
-                    from src.services.llm_service import LLMService
-                    async with async_session_maker() as _db:
-                        _db_cfg = await LLMService.get_default_config(_db)
-                        if not _db_cfg:
-                            from src.models.llm_config import LLMConfig
-                            from sqlalchemy import select as _sel
-                            _r = await _db.execute(
-                                _sel(LLMConfig)
-                                .where(LLMConfig.config_type == "llm")
-                                .where(LLMConfig.is_active == True)
-                                .order_by(LLMConfig.updated_at.desc())
-                                .limit(1)
-                            )
-                            _db_cfg = _r.scalar_one_or_none()
-                        if _db_cfg and getattr(_db_cfg, 'api_key', None):
-                            active_config = _db_cfg
-                            _check_key = getattr(active_config, 'api_key', '')
-                            logger.info(f"Agent {self.name}: 从数据库成功加载 LLM 配置: {getattr(_db_cfg, 'name', 'unknown')}")
-                except Exception as _db_err:
-                    logger.warning(f"Agent {self.name}: 数据库加载 LLM 配置失败: {_db_err}")
-            
+            active_config = await self._resolve_active_llm_config(llm_config)
+
             # 最终校验：如果仍然无效，返回提示
             _final_key = getattr(active_config, 'api_key', '') if active_config else ''
-            if not _final_key or _final_key == 'sk-dummy-key' or 'dummy' in str(_final_key or ''):
+            if not self._has_valid_api_key(active_config):
                 logger.warning(f"Agent {self.name}: 没有有效的 API Key，请在设置页面配置 LLM 模型")
                 return ("尚未配置有效的大语言模型 API Key。\n\n"
                         "请按以下步骤操作：\n"
@@ -574,6 +611,8 @@ class BaseLegalAgent(ABC):
         message: str,
         llm_config: Optional[Any] = None,
         system_prompt_override: Optional[str] = None,
+        history: Optional[List[Dict[str, Any]]] = None,
+        max_tokens: Optional[int] = None,
     ) -> asyncio.Queue:
         """
         流式对话接口 — 真正的 token-by-token 流式输出
@@ -594,32 +633,13 @@ class BaseLegalAgent(ABC):
         async def _stream_worker():
             try:
                 system_prompt = system_prompt_override or self.system_prompt
-                active_config = llm_config or _task_llm_config_var.get(None) or self.llm_config
-                
-                # 自愈：如果当前配置无效，尝试从数据库加载
-                _sk = getattr(active_config, 'api_key', '') if active_config else ''
-                if not _sk or _sk == 'sk-dummy-key' or 'dummy' in str(_sk or ''):
-                    try:
-                        from src.core.database import async_session_maker
-                        from src.services.llm_service import LLMService
-                        async with async_session_maker() as _db:
-                            _db_cfg = await LLMService.get_default_config(_db)
-                            if not _db_cfg:
-                                from src.models.llm_config import LLMConfig
-                                from sqlalchemy import select as _sel
-                                _r = await _db.execute(
-                                    _sel(LLMConfig)
-                                    .where(LLMConfig.config_type == "llm")
-                                    .where(LLMConfig.is_active == True)
-                                    .order_by(LLMConfig.updated_at.desc())
-                                    .limit(1)
-                                )
-                                _db_cfg = _r.scalar_one_or_none()
-                            if _db_cfg and getattr(_db_cfg, 'api_key', None):
-                                active_config = _db_cfg
-                                logger.info(f"Agent {self.name} stream_chat: 从数据库加载 LLM 配置")
-                    except Exception as _e:
-                        logger.warning(f"Agent {self.name} stream_chat: DB配置加载失败: {_e}")
+                active_config = await self._resolve_active_llm_config(llm_config)
+                if not self._has_valid_api_key(active_config):
+                    await queue.put(
+                        "尚未配置有效的大语言模型 API Key。请前往设置 > 模型配置 (LLM) 完成配置后再试。"
+                    )
+                    await queue.put(None)
+                    return
                 
                 url, headers, model_name = self._prepare_llm_request(active_config)
                 
@@ -635,17 +655,30 @@ class BaseLegalAgent(ABC):
                 if not user_message or not user_message.strip():
                     logger.warning(f"Agent {self.name}: stream_chat 收到空的用户消息，使用默认提示")
                     user_message = "请根据上下文提供分析和建议。"
-                
+
+                # 使用传入的 history > contextvars 任务历史
+                effective_history = history or _task_history_var.get(None)
+                messages = self._build_llm_messages(system_prompt, user_message, effective_history)
+
                 # 检测是否为本地模型 API
                 _api_base = getattr(active_config, "api_base_url", "")
                 _is_local = self._is_local_model_api(_api_base)
 
                 if _is_local:
                     # 本地模型服务：使用非流式调用，一次性返回结果
-                    input_text = f"[系统指令] {system_prompt}\n\n{user_message}"
+                    input_text = ""
+                    for msg in messages:
+                        role = msg.get("role", "")
+                        msg_content = msg.get("content", "")
+                        if role == "system":
+                            input_text += f"[系统指令] {msg_content}\n\n"
+                        elif role == "user":
+                            input_text += f"{msg_content}\n"
+                        elif role == "assistant":
+                            input_text += f"[助手回复] {msg_content}\n"
                     payload = {
                         "model": model_name,
-                        "input": input_text,
+                        "input": input_text.strip(),
                         "stream": False,
                     }
 
@@ -673,13 +706,12 @@ class BaseLegalAgent(ABC):
                 else:
                     payload = {
                         "model": model_name,
-                        "messages": [
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": user_message}
-                        ],
+                        "messages": messages,
                         "temperature": temperature,
                         "stream": True,
                     }
+                    if max_tokens:
+                        payload["max_tokens"] = max_tokens
 
                     client = await self.get_http_client()
 

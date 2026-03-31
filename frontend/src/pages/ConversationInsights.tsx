@@ -9,34 +9,33 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { aiAssistantApi } from '@/lib/api'
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend,
 } from 'recharts'
 
-// ====================================================================
-// @mock-data FALLBACK: 后端就绪后从 API 获取
-// ====================================================================
-
 interface ConversationSummary {
   id: string
-  title: string
-  date: string
-  topics: string[]
+  conversation_id?: string
+  created_at?: string
+  key_topics?: string[]
   summary: string
-  fullSummary: string
+  action_items?: string[]
   sentiment: 'positive' | 'neutral' | 'negative'
-  todoCount: number
-  todos: string[]
-  legalDomains: string[]
+  legal_domains?: string[]
 }
 
-interface FeedbackItem {
-  id: string
-  date: string
-  rating: number
-  type: string
-  content: string
+interface FeedbackStats {
+  total_feedbacks: number
+  avg_rating: number
+  rating_distribution: Record<string, number>
+  type_distribution: Record<string, number>
+  trend: Array<{
+    date: string
+    avg_rating: number
+    count: number
+  }>
 }
 
 interface StatsCard {
@@ -47,110 +46,15 @@ interface StatsCard {
   trendUp?: boolean
 }
 
-const mockStats: StatsCard[] = [
-  { label: '总对话数', value: '2,846', icon: 'Chat', trend: '+12%', trendUp: true },
-  { label: '本月新增', value: '342', icon: 'Calendar', trend: '+8%', trendUp: true },
-  { label: '平均满意度', value: '4.6', icon: 'Star', trend: '+0.2', trendUp: true },
-  { label: '待办事项', value: 28, icon: 'Tasks', trend: '-3', trendUp: false },
-]
-
-const mockSummaries: ConversationSummary[] = [
-  {
-    id: 'conv-001',
-    title: '劳动合同解除咨询',
-    date: '2026-03-28',
-    topics: ['劳动法', '合同解除', '经济补偿'],
-    summary: '客户咨询关于员工不胜任工作的合同解除流程，涉及N+1补偿标准和合规操作步骤...',
-    fullSummary: '客户咨询关于员工不胜任工作的合同解除流程。AI 助手详细说明了《劳动合同法》第40条相关规定，包括培训或调岗义务、经济补偿N+1标准、解除通知要求等。建议客户保留完整的绩效考核记录和培训记录。',
-    sentiment: 'neutral',
-    todoCount: 3,
-    todos: ['整理员工绩效考核记录', '准备培训方案文件', '咨询法律顾问确认流程'],
-    legalDomains: ['劳动法', '人力资源'],
-  },
-  {
-    id: 'conv-002',
-    title: '股权架构设计咨询',
-    date: '2026-03-27',
-    topics: ['公司法', '股权结构', '期权池'],
-    summary: '初创企业咨询 A 轮融资前的股权架构设计，包括期权池设置和投资者权利...',
-    fullSummary: '初创企业咨询 A 轮融资前的股权架构设计方案。AI 助手分析了创始人持股比例、期权池大小（建议10-15%）、投资者优先权条款等关键议题，并提供了标准 Term Sheet 的主要条款解读。',
-    sentiment: 'positive',
-    todoCount: 2,
-    todos: ['起草期权激励方案', '审查现有股东协议'],
-    legalDomains: ['公司法', '投融资'],
-  },
-  {
-    id: 'conv-003',
-    title: '合同违约纠纷分析',
-    date: '2026-03-26',
-    topics: ['合同法', '违约责任', '损害赔偿'],
-    summary: '供应商延迟交货构成违约，分析违约金与实际损失的赔偿方案...',
-    fullSummary: '客户反映供应商延迟交货30天构成违约。AI 助手分析了合同中的违约金条款（日千分之三），计算违约金总额，评估了违约金是否过高的法律风险，并建议发送正式催告函。',
-    sentiment: 'negative',
-    todoCount: 4,
-    todos: ['计算违约金总额', '起草催告函', '收集损失证据', '评估诉讼成本'],
-    legalDomains: ['合同法', '民事诉讼'],
-  },
-  {
-    id: 'conv-004',
-    title: '数据隐私合规审查',
-    date: '2026-03-25',
-    topics: ['数据保护', 'PIPL', '隐私政策'],
-    summary: '企业数据处理流程的隐私合规审查，涉及个人信息保护法合规...',
-    fullSummary: '企业委托对其 APP 数据处理流程进行隐私合规审查。AI 助手检查了隐私政策、用户同意机制、数据跨境传输、第三方 SDK 数据收集等合规要点，指出了三处需整改的问题。',
-    sentiment: 'neutral',
-    todoCount: 3,
-    todos: ['修改隐私政策文本', '增加明示同意弹窗', '审查第三方 SDK 清单'],
-    legalDomains: ['数据保护', '网络安全'],
-  },
-  {
-    id: 'conv-005',
-    title: '商标侵权分析',
-    date: '2026-03-24',
-    topics: ['知识产权', '商标法', '侵权认定'],
-    summary: '竞品使用近似商标的侵权可能性分析及维权建议...',
-    fullSummary: '客户发现竞品使用与自己注册商标高度近似的标识。AI 助手从商标近似度、商品类别、消费者混淆可能性等角度进行了分析，建议收集侵权证据并考虑向市场监管局投诉。',
-    sentiment: 'positive',
-    todoCount: 2,
-    todos: ['收集侵权证据截图', '委托代理人发送律师函'],
-    legalDomains: ['知识产权', '商标法'],
-  },
-]
-
-const mockRatingDistribution = [
-  { rating: '1星', count: 12 },
-  { rating: '2星', count: 28 },
-  { rating: '3星', count: 56 },
-  { rating: '4星', count: 189 },
-  { rating: '5星', count: 245 },
-]
-
-const mockFeedbackTypes = [
-  { name: '非常有帮助', value: 420, color: chartColors[1] },
-  { name: '基本满意', value: 180, color: chartColors[0] },
-  { name: '回答不够详细', value: 65, color: chartColors[2] },
-  { name: '回答有误', value: 23, color: chartColors[4] },
-  { name: '响应太慢', value: 18, color: chartColors[3] },
-  { name: '其他', value: 34, color: chartColors[5] },
-]
-
-const mockSatisfactionTrend = Array.from({ length: 30 }, (_, i) => ({
-  date: `03/${String(i + 1).padStart(2, '0')}`,
-  满意度: +(3.8 + Math.random() * 1.2).toFixed(1),
-}))
-
-const mockFeedbackList: FeedbackItem[] = [
-  { id: 'fb-1', date: '2026-03-28', rating: 5, type: '非常有帮助', content: '合同审查建议非常专业，帮我发现了好几个风险点' },
-  { id: 'fb-2', date: '2026-03-27', rating: 4, type: '基本满意', content: '法律咨询回答详细，但希望能引用更多具体法条' },
-  { id: 'fb-3', date: '2026-03-27', rating: 5, type: '非常有帮助', content: '尽职调查报告质量很高，节省了大量时间' },
-  { id: 'fb-4', date: '2026-03-26', rating: 3, type: '回答不够详细', content: '对于跨境交易的法律分析还需要更详细' },
-  { id: 'fb-5', date: '2026-03-26', rating: 2, type: '回答有误', content: '引用的法条已经修订，需要更新知识库' },
-  { id: 'fb-6', date: '2026-03-25', rating: 4, type: '基本满意', content: '劳动仲裁方面的建议很实用' },
-]
-
-// ====================================================================
-
 type PageState = 'loading' | 'error' | 'ready'
+
+const feedbackTypeLabels: Record<string, string> = {
+  helpful: '非常有帮助',
+  unhelpful: '帮助有限',
+  incorrect: '回答有误',
+  offensive: '内容不当',
+  other: '其他',
+}
 
 const sentimentConfig = {
   positive: { label: '积极', color: 'bg-emerald-500' },
@@ -162,22 +66,93 @@ export default function ConversationInsights() {
   const [state, setState] = useState<PageState>('loading')
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [error, setError] = useState('')
+  const [summaries, setSummaries] = useState<ConversationSummary[]>([])
+  const [feedbackStats, setFeedbackStats] = useState<FeedbackStats | null>(null)
 
   useEffect(() => {
-    const timer = setTimeout(() => setState('ready'), 600)
-    return () => clearTimeout(timer)
+    loadData()
   }, [])
 
+  const loadData = async () => {
+    setState('loading')
+    setError('')
+    try {
+      const [summaryData, statsData] = await Promise.all([
+        aiAssistantApi.listSummaries({ page: 1, page_size: 50 }),
+        aiAssistantApi.getFeedbackStats(30),
+      ])
+      setSummaries(summaryData || [])
+      setFeedbackStats(statsData || null)
+      setState('ready')
+    } catch (e: any) {
+      setSummaries([])
+      setFeedbackStats(null)
+      setError(e.message || '无法加载对话洞察数据')
+      setState('error')
+    }
+  }
+
+  const statsCards = useMemo<StatsCard[]>(() => {
+    const currentMonth = new Date().toISOString().slice(0, 7)
+    const monthlyNewCount = summaries.filter(item => item.created_at?.startsWith(currentMonth)).length
+    const todoCount = summaries.reduce((count, item) => count + (item.action_items?.length || 0), 0)
+    const avgRating = feedbackStats?.avg_rating ?? 0
+    const totalFeedbacks = feedbackStats?.total_feedbacks ?? 0
+    const helpfulCount = feedbackStats?.type_distribution?.helpful ?? 0
+    const helpfulRate = totalFeedbacks > 0 ? Math.round((helpfulCount / totalFeedbacks) * 100) : 0
+
+    return [
+      { label: '总摘要数', value: summaries.length, icon: 'Chat' },
+      { label: '本月新增', value: monthlyNewCount, icon: 'Calendar' },
+      { label: '平均满意度', value: avgRating ? avgRating.toFixed(1) : '0.0', icon: 'Star' },
+      { label: '待办事项', value: todoCount, icon: 'Tasks', trend: `${helpfulRate}%`, trendUp: true },
+    ]
+  }, [feedbackStats, summaries])
+
   const filteredSummaries = useMemo(() => {
-    if (!searchQuery.trim()) return mockSummaries
+    if (!searchQuery.trim()) return summaries
     const q = searchQuery.toLowerCase()
-    return mockSummaries.filter(
+    return summaries.filter(
       s =>
-        s.title.toLowerCase().includes(q) ||
+        (s.conversation_id || '').toLowerCase().includes(q) ||
         s.summary.toLowerCase().includes(q) ||
-        s.topics.some(t => t.toLowerCase().includes(q))
+        (s.key_topics || []).some(t => t.toLowerCase().includes(q))
     )
-  }, [searchQuery])
+  }, [searchQuery, summaries])
+
+  const ratingDistribution = useMemo(
+    () =>
+      Array.from({ length: 5 }, (_, index) => {
+        const rating = index + 1
+        return {
+          rating: `${rating}星`,
+          count: feedbackStats?.rating_distribution?.[String(rating)] ?? feedbackStats?.rating_distribution?.[rating] ?? 0,
+        }
+      }),
+    [feedbackStats]
+  )
+
+  const feedbackTypes = useMemo(
+    () =>
+      Object.entries(feedbackStats?.type_distribution || {}).map(([key, value], index) => ({
+        key,
+        name: feedbackTypeLabels[key] || key,
+        value,
+        color: chartColors[index % chartColors.length],
+      })),
+    [feedbackStats]
+  )
+
+  const satisfactionTrend = useMemo(
+    () =>
+      (feedbackStats?.trend || []).map(item => ({
+        date: item.date.slice(5).replace('-', '/'),
+        满意度: item.avg_rating,
+        count: item.count,
+      })),
+    [feedbackStats]
+  )
 
   if (state === 'loading') {
     return (
@@ -198,7 +173,8 @@ export default function ConversationInsights() {
         <div className={`${cardStyle.base} flex flex-col items-center justify-center py-16`}>
           <icons.AlertCircle className={`${iconSize.xl} text-destructive mb-3`} />
           <p className={heading.section}>加载失败</p>
-          <Button className="mt-4" onClick={() => setState('loading')}>
+          <p className={`${heading.muted} mt-1`}>{error}</p>
+          <Button className="mt-4" onClick={loadData}>
             <icons.Refresh className={iconSize.sm} />
             重试
           </Button>
@@ -211,7 +187,7 @@ export default function ConversationInsights() {
     <PageContainer title="对话洞察" description="AI 对话分析与反馈统计">
       {/* ===== 顶部统计卡片 ===== */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {mockStats.map(stat => {
+        {statsCards.map(stat => {
           const Icon = icons[stat.icon]
           return (
             <div key={stat.label} className={cardStyle.base}>
@@ -270,6 +246,13 @@ export default function ConversationInsights() {
             {filteredSummaries.map(conv => {
               const isExpanded = expandedId === conv.id
               const sentCfg = sentimentConfig[conv.sentiment]
+              const date = conv.created_at?.slice(0, 10) || '—'
+              const title = conv.key_topics?.[0]
+                ? `${conv.key_topics[0]}咨询摘要`
+                : `对话摘要 ${conv.conversation_id?.slice(0, 8) || conv.id.slice(0, 8)}`
+              const todos = conv.action_items || []
+              const topics = conv.key_topics || []
+              const legalDomains = conv.legal_domains || []
               return (
                 <div key={conv.id} className={cardStyle.base}>
                   <button
@@ -280,17 +263,17 @@ export default function ConversationInsights() {
                       <div className={`w-2.5 h-2.5 rounded-full mt-1.5 shrink-0 ${sentCfg.color}`} title={sentCfg.label} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className={heading.card}>{conv.title}</p>
-                          <span className={heading.micro}>{conv.date}</span>
-                          {conv.todoCount > 0 && (
+                          <p className={heading.card}>{title}</p>
+                          <span className={heading.micro}>{date}</span>
+                          {todos.length > 0 && (
                             <Badge variant="secondary" className="text-xs">
                               <icons.Tasks className="w-3 h-3 mr-1" />
-                              {conv.todoCount}
+                              {todos.length}
                             </Badge>
                           )}
                         </div>
                         <div className="flex flex-wrap gap-1 mt-1.5">
-                          {conv.topics.map(topic => (
+                          {topics.map(topic => (
                             <Badge key={topic} variant="outline" className="text-xs">{topic}</Badge>
                           ))}
                         </div>
@@ -306,13 +289,13 @@ export default function ConversationInsights() {
                     <div className="mt-4 pt-4 border-t border-border space-y-3 ml-5.5">
                       <div>
                         <p className={heading.card + ' mb-1'}>完整摘要</p>
-                        <p className="text-sm text-foreground/80 leading-relaxed">{conv.fullSummary}</p>
+                        <p className="text-sm text-foreground/80 leading-relaxed">{conv.summary}</p>
                       </div>
-                      {conv.todos.length > 0 && (
+                      {todos.length > 0 && (
                         <div>
                           <p className={heading.card + ' mb-1'}>待办事项</p>
                           <ul className="space-y-1">
-                            {conv.todos.map((todo, i) => (
+                            {todos.map((todo, i) => (
                               <li key={i} className="flex items-center gap-2 text-sm text-foreground/80">
                                 <icons.Circle className="w-3 h-3 text-muted-foreground shrink-0" />
                                 {todo}
@@ -322,7 +305,7 @@ export default function ConversationInsights() {
                         </div>
                       )}
                       <div className="flex flex-wrap gap-1">
-                        {conv.legalDomains.map(domain => (
+                        {legalDomains.map(domain => (
                           <Badge key={domain} className={statusBadge.info + ' text-xs'}>{domain}</Badge>
                         ))}
                       </div>
@@ -349,7 +332,7 @@ export default function ConversationInsights() {
               <PageSection title="评分分布">
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={mockRatingDistribution}>
+                    <BarChart data={ratingDistribution}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                       <XAxis dataKey="rating" tick={{ fontSize: 12 }} />
                       <YAxis tick={{ fontSize: 12 }} />
@@ -375,7 +358,7 @@ export default function ConversationInsights() {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={mockFeedbackTypes}
+                        data={feedbackTypes}
                         cx="50%"
                         cy="50%"
                         innerRadius={50}
@@ -386,7 +369,7 @@ export default function ConversationInsights() {
                         label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                         labelLine={false}
                       >
-                        {mockFeedbackTypes.map((entry, i) => (
+                        {feedbackTypes.map((entry, i) => (
                           <Cell key={i} fill={entry.color} />
                         ))}
                       </Pie>
@@ -410,7 +393,7 @@ export default function ConversationInsights() {
             <PageSection title="满意度趋势（近30天）">
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={mockSatisfactionTrend}>
+                  <LineChart data={satisfactionTrend}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} interval={4} />
                     <YAxis domain={[3, 5]} tick={{ fontSize: 12 }} />
@@ -436,41 +419,40 @@ export default function ConversationInsights() {
             </PageSection>
           </div>
 
-          {/* 最新反馈列表 */}
+          {/* 反馈类型明细 */}
           <div className={cardStyle.base}>
-            <PageSection title="最新反馈">
+            <PageSection title="反馈类型明细">
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[100px]">日期</TableHead>
-                      <TableHead className="w-[80px]">评分</TableHead>
-                      <TableHead className="w-[120px]">类型</TableHead>
-                      <TableHead>内容</TableHead>
+                      <TableHead className="w-[160px]">反馈类型</TableHead>
+                      <TableHead className="w-[120px]">数量</TableHead>
+                      <TableHead>占比</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {mockFeedbackList.map(fb => (
-                      <TableRow key={fb.id}>
-                        <TableCell className="text-sm text-muted-foreground">{fb.date}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-0.5">
-                            {Array.from({ length: 5 }, (_, i) => (
-                              <icons.Star
-                                key={i}
-                                className={`w-3.5 h-3.5 ${
-                                  i < fb.rating ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground/30'
-                                }`}
-                              />
-                            ))}
-                          </div>
+                    {feedbackTypes.length > 0 ? (
+                      feedbackTypes.map(type => (
+                        <TableRow key={type.key}>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">{type.name}</Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-foreground/80">{type.value}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {feedbackStats && feedbackStats.total_feedbacks > 0
+                              ? `${((type.value / feedbackStats.total_feedbacks) * 100).toFixed(1)}%`
+                              : '0%'}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                          暂无反馈统计数据
                         </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs">{fb.type}</Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-foreground/80">{fb.content}</TableCell>
                       </TableRow>
-                    ))}
+                    )}
                   </TableBody>
                 </Table>
               </div>

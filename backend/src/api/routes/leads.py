@@ -68,7 +68,7 @@ def lead_to_response(lead) -> LeadResponse:
         caseType=lead.case_type,
         estimatedAmount=lead.estimated_amount,
         stage=lead.stage,
-        assignee=None,
+        assignee=getattr(getattr(lead, "assignee", None), "name", None),
         followUps=lead.follow_ups or [],
         createdAt=lead.created_at.isoformat() if lead.created_at else None,
     )

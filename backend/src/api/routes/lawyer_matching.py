@@ -75,15 +75,20 @@ async def create_consultation(
     db: AsyncSession = Depends(get_db),
 ):
     """发起咨询请求 — AI 预分析并生成匿名摘要"""
-    # TODO: 调用 AI 服务进行案情分析和自动脱敏
-    # 目前使用简单的占位逻辑
-    anonymous_summary = f"[AI 分析摘要] {req.description[:200]}..."
+    from src.services.lawyer_matching_service import lawyer_matching_service
+
+    # AI 案情分析：领域识别 + 脱敏 + 要素提取
+    analysis = await lawyer_matching_service.analyze_case(
+        description=req.description,
+        user_domain=req.legal_domain,
+    )
 
     consultation = Consultation(
         user_id=user.id,
         original_description=req.description,
-        anonymous_summary=anonymous_summary,
-        legal_domain=req.legal_domain or "待分析",
+        anonymous_summary=analysis["anonymous_summary"],
+        legal_domain=analysis["legal_domain"],
+        legal_tags=analysis.get("recommended_specializations", []),
         urgency=req.urgency,
         status=ConsultationStatus.PENDING.value,
         privacy_level=PrivacyLevel.ANONYMOUS.value,
@@ -92,14 +97,18 @@ async def create_consultation(
     await db.commit()
     await db.refresh(consultation)
 
-    logger.info(f"用户 {user.id} 发起咨询请求 {consultation.id}")
+    logger.info(f"用户 {user.id} 发起咨询请求 {consultation.id}，领域={analysis['domain_label']}，风险={analysis['risk_level']}")
 
     return {
         "consultation_id": consultation.id,
         "status": consultation.status,
         "anonymous_summary": consultation.anonymous_summary,
         "legal_domain": consultation.legal_domain,
-        "message": "咨询请求已创建，正在为您匹配律师",
+        "domain_label": analysis["domain_label"],
+        "domain_confidence": analysis["domain_confidence"],
+        "risk_level": analysis["risk_level"],
+        "legal_elements": analysis.get("legal_elements", {}),
+        "message": "AI 已完成案情分析，正在为您匹配律师",
     }
 
 
@@ -196,7 +205,23 @@ async def list_lawyers(
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ):
-    """律师列表（公开信息）"""
+    """律师列表 — 支持智能匹配排序"""
+    from src.services.lawyer_matching_service import lawyer_matching_service
+
+    # 如果指定了领域，使用智能匹配
+    if domain:
+        matched = await lawyer_matching_service.match_lawyers(
+            db=db,
+            domain=domain,
+            city=city,
+            limit=page_size,
+        )
+        return {
+            "items": matched,
+            "total": len(matched),
+        }
+
+    # 通用列表查询
     query = select(LawyerProfile).where(
         LawyerProfile.is_verified == True
     )

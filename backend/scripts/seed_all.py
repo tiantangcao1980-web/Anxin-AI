@@ -70,9 +70,17 @@ async def seed():
     print("✅ 数据库表结构同步完成")
 
     async with async_session_maker() as session:
+        await seed_organization(session)
+        await session.commit()
+        print("✅ 组织数据种子完成")
+
         await seed_users(session)
         await session.commit()
         print("✅ 用户数据种子完成")
+
+        await seed_lawyer_onboarding(session)
+        await session.commit()
+        print("✅ 律师入驻数据种子完成")
 
         await seed_cases(session)
         await session.commit()
@@ -114,6 +122,10 @@ async def seed():
         await session.commit()
         print("✅ 舆情数据种子完成")
 
+        await seed_approvals(session)
+        await session.commit()
+        print("✅ 审批流数据种子完成")
+
         await seed_billing(session)
         await session.commit()
         print("✅ 计费套餐+订阅数据种子完成")
@@ -140,6 +152,24 @@ async def check_exists(session, model, **kwargs):
 
 # ==================== 用户 ====================
 # ⚠️ 用户账号已统一由 seed_test_roles.py 管理，此处仅为业务数据关联创建兼容用户
+async def seed_organization(session):
+    from src.models.user import Organization
+
+    existing = await check_exists(session, Organization, id=ORG_ID)
+    if existing:
+        print("  组织已有数据，跳过")
+        return
+
+    session.add(Organization(
+        id=ORG_ID,
+        name="明德律师事务所",
+        description="用于联调与演示的测试律所组织",
+        logo_url=None,
+        is_active=True,
+    ))
+    print("  + 测试组织: 明德律师事务所")
+
+
 async def seed_users(session):
     from src.models.user import User
     from src.core.security import get_password_hash
@@ -147,6 +177,7 @@ async def seed_users(session):
     hashed = get_password_hash("Anxin2026!Law")
 
     users = [
+        {"id": ADMIN_ID, "email": "admin@test.anxinfawu.com", "name": "系统管理员", "role": "admin", "user_type": "internal"},
         {"id": USER_IDS["lawyer1"], "email": "lawyer.zhang@test.anxinfawu.com", "name": "张伟律师", "role": "lawyer", "user_type": "platform_lawyer"},
         {"id": USER_IDS["lawyer2"], "email": "lawyer.li@test.anxinfawu.com", "name": "李娜律师", "role": "lawyer", "user_type": "platform_lawyer"},
         {"id": USER_IDS["lawyer3"], "email": "lawyer.wang@test.anxinfawu.com", "name": "王强律师", "role": "lawyer", "user_type": "platform_lawyer"},
@@ -169,6 +200,147 @@ async def seed_users(session):
                 org_id=ORG_ID, is_active=True,
             ))
             print(f"  + 用户: {u['name']} ({u['role']})")
+
+
+# ==================== 律师入驻 ====================
+async def seed_lawyer_onboarding(session):
+    from src.models.lawyer_matching import LawyerProfile
+    from src.models.lawyer_certification import LawyerCertification, LawyerServiceConfig
+
+    profiles = [
+        {
+            "user_id": USER_IDS["lawyer1"],
+            "real_name": "张伟律师",
+            "license_number": "13101202010123456",
+            "law_firm": "北京明德律师事务所",
+            "years_of_practice": 8,
+            "city": "北京",
+            "province": "北京",
+            "specializations": ["合同纠纷", "公司法务", "知识产权"],
+            "bio": "专注企业并购、合同审查与重大交易结构设计。",
+            "hourly_rate_min": 1200,
+            "hourly_rate_max": 2000,
+            "is_verified": False,
+            "is_accepting": True,
+        },
+        {
+            "user_id": USER_IDS["lawyer2"],
+            "real_name": "李娜律师",
+            "license_number": "13101202015654321",
+            "law_firm": "上海明德律师事务所",
+            "years_of_practice": 6,
+            "city": "上海",
+            "province": "上海",
+            "specializations": ["劳动争议", "合规咨询"],
+            "bio": "擅长劳动仲裁、用工合规与规章制度搭建。",
+            "hourly_rate_min": 900,
+            "hourly_rate_max": 1500,
+            "is_verified": False,
+            "is_accepting": True,
+        },
+        {
+            "user_id": USER_IDS["lawyer3"],
+            "real_name": "王强律师",
+            "license_number": "13101202012345678",
+            "law_firm": "广州明德律师事务所",
+            "years_of_practice": 10,
+            "city": "广州",
+            "province": "广东",
+            "specializations": ["刑事辩护", "行政诉讼"],
+            "bio": "长期处理重大争议解决案件与行政合规项目。",
+            "hourly_rate_min": 1000,
+            "hourly_rate_max": 1800,
+            "is_verified": True,
+            "is_accepting": True,
+        },
+    ]
+
+    profile_ids = {}
+    added_profiles = 0
+    for item in profiles:
+        existing = await session.execute(
+            select(LawyerProfile).where(LawyerProfile.user_id == item["user_id"])
+        )
+        profile = existing.scalar_one_or_none()
+        if not profile:
+            profile = LawyerProfile(id=uid(), **item)
+            session.add(profile)
+            await session.flush()
+            added_profiles += 1
+        profile_ids[item["user_id"]] = profile.id
+    print(f"  + {added_profiles} 个律师档案")
+
+    certifications = [
+        {
+            "lawyer_profile_id": profile_ids[USER_IDS["lawyer1"]],
+            "license_image_url": "https://example.com/licenses/zhang-wei.jpg",
+            "license_issue_date": date(2020, 6, 1),
+            "license_expiry_date": date(2030, 6, 1),
+            "bar_association": "北京市律师协会",
+            "status": "pending",
+        },
+        {
+            "lawyer_profile_id": profile_ids[USER_IDS["lawyer2"]],
+            "license_image_url": "https://example.com/licenses/li-na.jpg",
+            "license_issue_date": date(2019, 3, 15),
+            "license_expiry_date": date(2029, 3, 15),
+            "bar_association": "上海市律师协会",
+            "status": "pending",
+        },
+        {
+            "lawyer_profile_id": profile_ids[USER_IDS["lawyer3"]],
+            "license_image_url": "https://example.com/licenses/wang-qiang.jpg",
+            "license_issue_date": date(2018, 9, 1),
+            "license_expiry_date": date(2028, 9, 1),
+            "bar_association": "广州市律师协会",
+            "status": "approved",
+            "verified_by": ADMIN_ID,
+            "verified_at": datetime.now() - timedelta(days=15),
+        },
+    ]
+
+    added_certs = 0
+    for item in certifications:
+        existing = await session.execute(
+            select(LawyerCertification).where(
+                LawyerCertification.lawyer_profile_id == item["lawyer_profile_id"]
+            )
+        )
+        if not existing.scalar_one_or_none():
+            session.add(LawyerCertification(id=uid(), **item))
+            added_certs += 1
+    print(f"  + {added_certs} 条律师认证记录")
+
+    service_configs = [
+        {
+            "lawyer_profile_id": profile_ids[USER_IDS["lawyer1"]],
+            "service_types": ["instant_consultation", "case_delegation"],
+            "auto_accept": False,
+            "max_concurrent_cases": 8,
+            "response_time_hours": 4,
+            "min_case_amount": 5000,
+        },
+        {
+            "lawyer_profile_id": profile_ids[USER_IDS["lawyer3"]],
+            "service_types": ["instant_consultation", "appointment", "case_delegation"],
+            "auto_accept": True,
+            "max_concurrent_cases": 12,
+            "response_time_hours": 2,
+            "min_case_amount": 8000,
+        },
+    ]
+
+    added_configs = 0
+    for item in service_configs:
+        existing = await session.execute(
+            select(LawyerServiceConfig).where(
+                LawyerServiceConfig.lawyer_profile_id == item["lawyer_profile_id"]
+            )
+        )
+        if not existing.scalar_one_or_none():
+            session.add(LawyerServiceConfig(id=uid(), **item))
+            added_configs += 1
+    print(f"  + {added_configs} 条接单配置")
 
 
 # ==================== 案件 ====================
@@ -1039,6 +1211,480 @@ async def seed_sentiment(session):
             org_id=ORG_ID, monitor_id=a.get("monitor_id"),
         ))
     print(f"  + {len(alerts_data)} 条舆情预警")
+
+
+# ==================== 审批流 ====================
+async def seed_approvals(session):
+    from src.models.approval import Approval, ApprovalStatus, ApprovalType
+
+    existing_count = (await session.execute(select(func.count()).select_from(Approval))).scalar()
+    if existing_count and existing_count > 0:
+        print("  审批流已有数据，跳过")
+        return
+
+    now = datetime.now()
+    approvals = [
+        {
+            "title": "甲方供应链合同审批",
+            "approval_type": ApprovalType.contract.value,
+            "status": ApprovalStatus.pending.value,
+            "description": "需审批甲方供应链合同第三章违约条款修订",
+            "requester_id": USER_IDS["lawyer1"],
+            "approver_id": ADMIN_ID,
+            "resolution_note": None,
+            "resolved_at": None,
+            "payload": {"priority": 3},
+        },
+        {
+            "title": "尽调报告文档审批",
+            "approval_type": ApprovalType.document.value,
+            "status": ApprovalStatus.pending.value,
+            "description": "乙公司并购案尽调报告终稿审批",
+            "requester_id": USER_IDS["paralegal1"],
+            "approver_id": USER_IDS["lawyer1"],
+            "resolution_note": None,
+            "resolved_at": None,
+            "payload": {"priority": 2},
+        },
+        {
+            "title": "王某劳动仲裁案件分配",
+            "approval_type": ApprovalType.case_assign.value,
+            "status": ApprovalStatus.approved.value,
+            "description": "将王某劳动仲裁案分配给李律师团队",
+            "requester_id": USER_IDS["lawyer1"],
+            "approver_id": ADMIN_ID,
+            "resolution_note": "同意分配",
+            "resolved_at": now - timedelta(days=2),
+            "payload": {"priority": 1},
+        },
+        {
+            "title": "差旅费用报销",
+            "approval_type": ApprovalType.expense.value,
+            "status": ApprovalStatus.rejected.value,
+            "description": "庭审出差差旅费用报销申请",
+            "requester_id": USER_IDS["lawyer2"],
+            "approver_id": ADMIN_ID,
+            "resolution_note": "超出预算额度，请重新提交",
+            "resolved_at": now - timedelta(days=3),
+            "payload": {"priority": 1},
+        },
+        {
+            "title": "年假申请",
+            "approval_type": ApprovalType.leave.value,
+            "status": ApprovalStatus.withdrawn.value,
+            "description": "申请3月28日-29日年假两天",
+            "requester_id": USER_IDS["paralegal1"],
+            "approver_id": USER_IDS["lawyer1"],
+            "resolution_note": None,
+            "resolved_at": None,
+            "payload": {"priority": 1},
+        },
+    ]
+
+    for item in approvals:
+        session.add(Approval(
+            id=uid(),
+            title=item["title"],
+            approval_type=item["approval_type"],
+            status=item["status"],
+            description=item["description"],
+            requester_id=item["requester_id"],
+            org_id=ORG_ID,
+            approver_id=item["approver_id"],
+            resolution_note=item["resolution_note"],
+            resolved_at=item["resolved_at"],
+            payload=item["payload"],
+            risk_level="low",
+            created_at=now - timedelta(days=random.randint(1, 7)),
+            updated_at=now - timedelta(hours=random.randint(1, 48)),
+        ))
+    print(f"  + {len(approvals)} 条审批记录")
+
+
+# ==================== 计费/订阅 ====================
+async def seed_billing(session):
+    from src.models.billing import BillingPlan, Subscription, Refund
+    from src.models.payment import PaymentOrder
+
+    plans = [
+        {
+            "id": PLAN_IDS["trial"],
+            "name": "体验版",
+            "code": "trial",
+            "description": "适合试用的轻量套餐",
+            "billing_mode": "monthly",
+            "base_price": 0.0,
+            "original_price": 99.0,
+            "features": [{"name": "AI咨询", "quota": 20}, {"name": "知识库检索", "quota": 50}],
+            "ai_quota": 20,
+            "storage_gb": 2,
+            "max_team_members": 1,
+            "sort_order": 1,
+            "badge": "试用",
+            "highlight": False,
+        },
+        {
+            "id": PLAN_IDS["basic"],
+            "name": "基础版",
+            "code": "basic",
+            "description": "适合单律师或小团队",
+            "billing_mode": "monthly",
+            "base_price": 299.0,
+            "original_price": 399.0,
+            "features": [{"name": "AI咨询", "quota": 200}, {"name": "合同审查", "quota": 50}],
+            "ai_quota": 200,
+            "storage_gb": 20,
+            "max_team_members": 3,
+            "sort_order": 2,
+            "badge": None,
+            "highlight": False,
+        },
+        {
+            "id": PLAN_IDS["professional"],
+            "name": "专业版",
+            "code": "professional",
+            "description": "适合事务所核心团队",
+            "billing_mode": "monthly",
+            "base_price": 999.0,
+            "original_price": 1299.0,
+            "features": [{"name": "AI咨询", "quota": 1200}, {"name": "尽调分析", "quota": 100}],
+            "ai_quota": 1200,
+            "storage_gb": 100,
+            "max_team_members": 20,
+            "sort_order": 3,
+            "badge": "推荐",
+            "highlight": True,
+        },
+        {
+            "id": PLAN_IDS["enterprise"],
+            "name": "企业版",
+            "code": "enterprise",
+            "description": "适合大型法务团队与集团客户",
+            "billing_mode": "yearly",
+            "base_price": 9999.0,
+            "original_price": 12999.0,
+            "features": [{"name": "AI咨询", "quota": 20000}, {"name": "私有部署", "quota": 1}],
+            "ai_quota": 20000,
+            "storage_gb": 1024,
+            "max_team_members": 200,
+            "sort_order": 4,
+            "badge": "企业首选",
+            "highlight": True,
+        },
+    ]
+
+    added_plans = 0
+    for plan in plans:
+        if not await check_exists(session, BillingPlan, code=plan["code"]):
+            session.add(BillingPlan(**plan, currency="CNY", is_active=True))
+            added_plans += 1
+    await session.flush()
+    print(f"  + {added_plans} 个计费方案")
+
+    subscriptions = [
+        {
+            "user_id": USER_IDS["lawyer1"],
+            "plan_id": PLAN_IDS["professional"],
+            "status": "active",
+            "current_period_start": date.today() - timedelta(days=10),
+            "current_period_end": date.today() + timedelta(days=20),
+            "auto_renew": True,
+            "cancelled_at": None,
+            "cancellation_reason": None,
+        },
+        {
+            "user_id": USER_IDS["lawyer2"],
+            "plan_id": PLAN_IDS["basic"],
+            "status": "active",
+            "current_period_start": date.today() - timedelta(days=5),
+            "current_period_end": date.today() + timedelta(days=25),
+            "auto_renew": True,
+            "cancelled_at": None,
+            "cancellation_reason": None,
+        },
+        {
+            "user_id": USER_IDS["lawyer3"],
+            "plan_id": PLAN_IDS["trial"],
+            "status": "cancelled",
+            "current_period_start": date.today() - timedelta(days=35),
+            "current_period_end": date.today() - timedelta(days=5),
+            "auto_renew": False,
+            "cancelled_at": datetime.now() - timedelta(days=7),
+            "cancellation_reason": "体验结束，准备升级正式套餐",
+        },
+    ]
+
+    added_subscriptions = 0
+    created_subscriptions = []
+    for item in subscriptions:
+        existing = await session.execute(
+            select(Subscription).where(
+                Subscription.user_id == item["user_id"],
+                Subscription.plan_id == item["plan_id"],
+            )
+        )
+        subscription = existing.scalar_one_or_none()
+        if not subscription:
+            subscription = Subscription(
+                id=uid(),
+                user_id=item["user_id"],
+                plan_id=item["plan_id"],
+                org_id=ORG_ID,
+                status=item["status"],
+                current_period_start=item["current_period_start"],
+                current_period_end=item["current_period_end"],
+                auto_renew=item["auto_renew"],
+                cancelled_at=item["cancelled_at"],
+                cancellation_reason=item["cancellation_reason"],
+                next_billing_date=item["current_period_end"] if item["status"] == "active" else None,
+            )
+            session.add(subscription)
+            await session.flush()
+            added_subscriptions += 1
+        created_subscriptions.append(subscription)
+
+        order_exists = await session.execute(
+            select(PaymentOrder).where(PaymentOrder.related_id == subscription.id)
+        )
+        if not order_exists.scalar_one_or_none():
+            plan = next(p for p in plans if p["id"] == item["plan_id"])
+            order = PaymentOrder(
+                user_id=item["user_id"],
+                order_type="subscription",
+                amount=plan["base_price"],
+                status="paid" if item["status"] != "cancelled" else "refunded",
+                description=f"{plan['name']}订阅费用",
+                related_id=subscription.id,
+                payment_provider="mock",
+                paid_at=datetime.now() - timedelta(days=3) if item["status"] != "cancelled" else datetime.now() - timedelta(days=20),
+                expires_at=datetime.now() + timedelta(days=2),
+            )
+            session.add(order)
+            await session.flush()
+            subscription.last_payment_id = order.id
+
+    print(f"  + {added_subscriptions} 条订阅记录")
+
+    refunded_order = await session.execute(
+        select(PaymentOrder).where(PaymentOrder.related_id == created_subscriptions[-1].id)
+    )
+    refunded_order = refunded_order.scalar_one_or_none()
+    added_refunds = 0
+    if refunded_order:
+        existing_refund = await session.execute(
+            select(Refund).where(Refund.order_id == refunded_order.id)
+        )
+        if not existing_refund.scalar_one_or_none():
+            session.add(Refund(
+                id=uid(),
+                order_id=refunded_order.id,
+                user_id=USER_IDS["lawyer3"],
+                amount=0.0,
+                reason="试用套餐体验结束后退款演示",
+                status="approved",
+                approved_by=ADMIN_ID,
+                approved_at=datetime.now() - timedelta(days=5),
+                processed_at=datetime.now() - timedelta(days=4),
+                processor_transaction_id=f"refund_{uid()[:8]}",
+            ))
+            added_refunds += 1
+    print(f"  + {added_refunds} 条退款记录")
+
+
+# ==================== 律所管理 ====================
+async def seed_firm(session):
+    from src.models.firm_management import Team, TeamMember, TimeEntry, Invoice, CaseAssignment
+
+    teams = [
+        {"id": TEAM_IDS[0], "name": "并购与尽调组", "description": "负责并购、投融资与尽职调查项目", "leader_id": USER_IDS["lawyer1"]},
+        {"id": TEAM_IDS[1], "name": "劳动争议组", "description": "负责劳动法与用工合规案件", "leader_id": USER_IDS["lawyer2"]},
+        {"id": TEAM_IDS[2], "name": "知识产权组", "description": "负责知产诉讼与非诉业务", "leader_id": USER_IDS["lawyer3"]},
+    ]
+
+    added_teams = 0
+    for team in teams:
+        if not await check_exists(session, Team, id=team["id"]):
+            session.add(Team(org_id=ORG_ID, **team))
+            added_teams += 1
+    await session.flush()
+    print(f"  + {added_teams} 个团队")
+
+    members = [
+        (TEAM_IDS[0], USER_IDS["lawyer1"], "leader"),
+        (TEAM_IDS[0], USER_IDS["paralegal1"], "member"),
+        (TEAM_IDS[1], USER_IDS["lawyer2"], "leader"),
+        (TEAM_IDS[1], USER_IDS["paralegal2"], "member"),
+        (TEAM_IDS[2], USER_IDS["lawyer3"], "leader"),
+    ]
+    added_members = 0
+    for team_id, user_id, role in members:
+        existing = await session.execute(
+            select(TeamMember).where(TeamMember.team_id == team_id, TeamMember.user_id == user_id)
+        )
+        if not existing.scalar_one_or_none():
+            session.add(TeamMember(id=uid(), team_id=team_id, user_id=user_id, role=role))
+            added_members += 1
+    print(f"  + {added_members} 个团队成员")
+
+    assignments = [
+        (CASE_IDS[0], USER_IDS["lawyer1"], "lead", 24.0),
+        (CASE_IDS[1], USER_IDS["lawyer2"], "lead", 12.0),
+        (CASE_IDS[2], USER_IDS["lawyer1"], "review", 16.0),
+        (CASE_IDS[3], USER_IDS["lawyer3"], "lead", 8.0),
+    ]
+    added_assignments = 0
+    for case_id, assignee_id, role, hours_estimated in assignments:
+        existing = await session.execute(
+            select(CaseAssignment).where(
+                CaseAssignment.case_id == case_id,
+                CaseAssignment.assignee_id == assignee_id,
+            )
+        )
+        if not existing.scalar_one_or_none():
+            session.add(CaseAssignment(
+                id=uid(),
+                case_id=case_id,
+                assignee_id=assignee_id,
+                assigned_by=ADMIN_ID,
+                role=role,
+                hours_estimated=hours_estimated,
+                status="active",
+            ))
+            added_assignments += 1
+    print(f"  + {added_assignments} 条案件分配")
+
+    time_entries = [
+        (USER_IDS["lawyer1"], CASE_IDS[0], date.today() - timedelta(days=2), 360, "并购尽调底稿复核", True, 1800, "approved"),
+        (USER_IDS["lawyer1"], CASE_IDS[2], date.today() - timedelta(days=1), 240, "股权转让风险意见书", True, 2000, "submitted"),
+        (USER_IDS["lawyer2"], CASE_IDS[1], date.today() - timedelta(days=3), 300, "劳动仲裁证据整理", True, 1200, "approved"),
+        (USER_IDS["lawyer2"], None, date.today(), 120, "客户回访与方案沟通", False, 0, "draft"),
+        (USER_IDS["paralegal1"], CASE_IDS[0], date.today() - timedelta(days=1), 180, "资料目录与尽调清单整理", True, 600, "submitted"),
+    ]
+    added_entries = 0
+    for user_id, case_id, entry_date, minutes, description, billable, rate, status in time_entries:
+        existing = await session.execute(
+            select(TimeEntry).where(
+                TimeEntry.user_id == user_id,
+                TimeEntry.date == entry_date,
+                TimeEntry.description == description,
+            )
+        )
+        if not existing.scalar_one_or_none():
+            session.add(TimeEntry(
+                id=uid(),
+                user_id=user_id,
+                case_id=case_id,
+                date=entry_date,
+                minutes=minutes,
+                description=description,
+                billable=billable,
+                rate=rate,
+                status=status,
+                approved_by=ADMIN_ID if status == "approved" else None,
+                approved_at=datetime.now() - timedelta(days=1) if status == "approved" else None,
+            ))
+            added_entries += 1
+    print(f"  + {added_entries} 条工时记录")
+
+    invoices = [
+        {
+            "number": "INV-2026-001",
+            "client_name": "XX科技发展有限公司",
+            "case_id": CASE_IDS[0],
+            "total_amount": 108000.0,
+            "status": "sent",
+            "due_date": date.today() + timedelta(days=10),
+            "items": [{"description": "尽职调查专项服务", "hours": 60, "rate": 1800, "amount": 108000}],
+            "notes": "请于到期日前完成付款。",
+            "paid_at": None,
+        },
+        {
+            "number": "INV-2026-002",
+            "client_name": "AA投资集团",
+            "case_id": CASE_IDS[2],
+            "total_amount": 64000.0,
+            "status": "paid",
+            "due_date": date.today() - timedelta(days=5),
+            "items": [{"description": "股权转让法律服务", "hours": 32, "rate": 2000, "amount": 64000}],
+            "notes": "已结清。",
+            "paid_at": datetime.now() - timedelta(days=6),
+        },
+    ]
+
+    added_invoices = 0
+    for invoice in invoices:
+        if not await check_exists(session, Invoice, number=invoice["number"]):
+            session.add(Invoice(
+                id=uid(),
+                org_id=ORG_ID,
+                number=invoice["number"],
+                client_name=invoice["client_name"],
+                case_id=invoice["case_id"],
+                total_amount=invoice["total_amount"],
+                status=invoice["status"],
+                due_date=invoice["due_date"],
+                items=invoice["items"],
+                notes=invoice["notes"],
+                paid_at=invoice["paid_at"],
+            ))
+            added_invoices += 1
+    print(f"  + {added_invoices} 张发票")
+
+
+# ==================== AI 助手 ====================
+async def seed_ai_assistant(session):
+    from src.models.ai_assistant import AIAssistantConfig, AIAssistantFeedback
+
+    config = await session.execute(
+        select(AIAssistantConfig).where(AIAssistantConfig.org_id == ORG_ID)
+    )
+    config = config.scalar_one_or_none()
+    if not config:
+        config = AIAssistantConfig(
+            id=uid(),
+            org_id=ORG_ID,
+            name="明德法务 AI 助手",
+            description="事务所内部联调用的企业专属助手",
+            welcome_message="您好，我可以协助处理合同审查、尽调、合规与知识检索。",
+            system_prompt="你是明德律师事务所的内部 AI 助手，回答要专业、准确、简洁。",
+            personality={"style": "professional", "tone": "formal", "language": "zh-CN"},
+            enabled_agents=["legal_advisor", "contract_reviewer", "due_diligence", "compliance_officer"],
+            knowledge_base_ids=KB_IDS[:3],
+            max_context_turns=12,
+            temperature=0.4,
+            is_active=True,
+        )
+        session.add(config)
+        await session.flush()
+        print("  + 1 条 AI 助手配置")
+    else:
+        print("  AI 助手配置已有数据，沿用现有配置")
+
+    feedback_rows = [
+        (USER_IDS["lawyer1"], 5, "helpful", "合同审查建议较完整，可直接用于初审。"),
+        (USER_IDS["lawyer2"], 4, "helpful", "劳动争议问答准确，但还可以补充裁判口径。"),
+        (USER_IDS["paralegal1"], 3, "other", "知识库引用可以再细一点。"),
+    ]
+
+    added_feedback = 0
+    for user_id, rating, feedback_type, feedback_text in feedback_rows:
+        existing = await session.execute(
+            select(AIAssistantFeedback).where(
+                AIAssistantFeedback.user_id == user_id,
+                AIAssistantFeedback.feedback_text == feedback_text,
+            )
+        )
+        if not existing.scalar_one_or_none():
+            session.add(AIAssistantFeedback(
+                id=uid(),
+                assistant_config_id=config.id,
+                user_id=user_id,
+                rating=rating,
+                feedback_type=feedback_type,
+                feedback_text=feedback_text,
+            ))
+            added_feedback += 1
+    print(f"  + {added_feedback} 条 AI 助手反馈")
 
 
 if __name__ == "__main__":

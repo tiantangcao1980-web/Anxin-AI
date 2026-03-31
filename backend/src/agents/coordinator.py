@@ -15,6 +15,7 @@ import hashlib
 import time
 
 from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
+from src.prompts import load_prompt
 
 
 # 意图代码 → 中文标签映射
@@ -35,91 +36,9 @@ INTENT_LABELS: Dict[str, str] = {
     "COMPLEX_TASK": "复合任务",
 }
 
-# 意图分类 Prompt
-INTENT_CLASSIFICATION_PROMPT = """你是一个专业的法务意图识别专家。请分析用户的输入，判断其最符合的意图类型。
+_FALLBACK_INTENT_PROMPT = "你是一个专业的法务意图识别专家。"
 
-可选的意图类型：
-1. **QA_CONSULTATION**: 简单的法律问答、咨询、概念解释。不需要复杂的多步骤处理。
-   - 示例："违反劳动法怎么赔偿？", "什么是不可抗力？"
-2. **CONTRACT_REVIEW**: 需要审查合同、协议、条款。
-   - 示例："帮我看看这个合同有没有坑", "审查附件中的租房协议"
-3. **DUE_DILIGENCE**: 需要调查公司背景、风险、信用。
-   - 示例："查一下腾讯公司的背景", "这家公司有诉讼记录吗"
-4. **DOCUMENT_DRAFTING**: 需要起草、撰写法律文书。
-   - 示例："帮我写一份离婚协议书", "起草律师函"
-5. **COMPLEX_TASK**: 复杂的、混合的、不确定的任务，需要多步规划。
-   - 示例："我想起诉这家公司，帮我评估风险并准备材料，还要查一下他们的资产"
-6. **LITIGATION_STRATEGY**: 需要制定诉讼策略、分析胜诉率。
-   - 示例："这案子胜算多大", "我想起诉，有什么策略", "对方反诉了怎么办"
-7. **IP_PROTECTION**: 知识产权相关的查询、侵权分析。
-   - 示例："对方侵犯了我的专利", "申请商标需要什么", "这个设计算侵权吗"
-8. **REGULATORY_MONITORING**: 政策法规监测与解读。
-   - 示例："最近有什么关于数据出境的新规", "解读一下最新的反垄断法"
-9. **TAX_FINANCE**: 财税、发票、财务合规相关。
-   - 示例："这笔报销合规吗", "怎么做研发费用加计扣除", "股权转让怎么避税"
-10. **LABOR_HR**: 劳动人事、员工管理相关。
-   - 示例："辞退员工要赔多少钱", "帮我审一下员工手册", "试用期不合格怎么处理"
-11. **EVIDENCE_PROCESSING**: 涉及具体的证据材料处理（图片、音频等）或证据链分析。
-   - 示例："帮我分析这段录音", "把这个合同扫描件转成文字并分析", "这些证据能证明他违约吗"
-12. **E_SIGNATURE**: 电子签约相关请求。
-   - 示例："把这个合同发给张三签字", "发起签约", "我要签这个文件"
-13. **CONTRACT_MANAGEMENT**: 合同归档、查询状态、履约提醒。
-   - 示例："把这个合同归档", "提醒我什么时候收钱", "这个合同快到期了吗"
-14. **POLICY_DISTRIBUTION**: 规章制度、公告的发布与全员签收。
-   - 示例："发布新的考勤制度", "通知全员签署员工手册", "发个放假公告", "查看谁还没签收"
-
-输出格式 (严格JSON):
-{
-  "intent": "QA_CONSULTATION" | "CONTRACT_REVIEW" | "DUE_DILIGENCE" | "DOCUMENT_DRAFTING" | "LITIGATION_STRATEGY" | "IP_PROTECTION" | "REGULATORY_MONITORING" | "TAX_FINANCE" | "LABOR_HR" | "EVIDENCE_PROCESSING" | "E_SIGNATURE" | "CONTRACT_MANAGEMENT" | "POLICY_DISTRIBUTION" | "COMPLEX_TASK",
-  "confidence": 0.95,
-  "reasoning": "用户..."
-}
-"""
-
-# 核心规划 Prompt (支持历史经验)
-COORDINATOR_PROMPT_V2 = """你是AI法务系统的核心协调调度专家。
-
-### 你的任务
-基于用户需求和（可选的）历史类似案件经验，制定高效的执行计划 (DAG)。
-
-### 可用的专业智能体
-- `legal_advisor`: 法律顾问 (通用咨询, 案件初步分析)
-- `contract_reviewer`: 合同审查专家 (风险识别, 条款审核)
-- `due_diligence`: 尽调专家 (企业背景, 信用检索)
-- `legal_researcher`: 法规研究员 (查法条, 找案例)
-- `document_drafter`: 文书专家 (起草文书)
-- `compliance_officer`: 合规官 (合规检查)
-- `risk_assessor`: 风险评估专家 (综合评分)
-- `litigation_strategist`: 诉讼策略专家 (制定诉讼方案, 庭审准备)
-- `ip_specialist`: 知识产权专家 (IP侵权分析, 维权)
-- `regulatory_monitor`: 监管合规监测 (政策解读, 合规预警)
-- `tax_compliance`: 财税合规专家 (税务合规, 财务风险)
-- `labor_compliance`: 劳动人事专家 (员工关系, 规章制度)
-- `evidence_analyst`: 证据分析专家 (OCR/ASR多模态处理, 证据链分析)
-- `contract_steward`: 合同管家 (归档, 履约监控, 智能提醒)
-
-### 历史经验参考
-{similar_cases_context}
-
-### 输出格式 (严格JSON)
-{{
-  "analysis": "任务深度解析...",
-  "plan": [
-    {{
-      "id": "task_1",
-      "agent": "agent_name",
-      "instruction": "具体指令...",
-      "depends_on": [] 
-    }}
-  ],
-  "reasoning": "规划理由...",
-  "priority": "normal"
-}}
-
-注意：
-1. 如果有历史经验，**优先参考**历史经验中的有效路径。
-2. 保持计划尽可能并行化。
-"""
+_FALLBACK_COORDINATOR_PROMPT = "你是AI法务系统的核心协调调度专家。"
 
 # ========== 意图到 Agent 的模板化快速路径映射 ==========
 # 这些意图可以不经过 LLM DAG 规划，直接生成固定计划
@@ -231,19 +150,27 @@ class CoordinatorAgent(BaseLegalAgent):
         if intent_hint:
             logger.info(f"  辅助意图提示: {intent_hint}")
         
-        # --- Stage 1: 意图识别（极速路径优先 → 缓存 → LLM 兜底）---
-        # 1a) 关键词规则引擎：0ms 级别匹配，覆盖 80% 常见场景
-        intent_data = self._fast_keyword_intent(description)
-        if intent_data and intent_data.get("confidence", 0) >= 0.8:
-            intent = intent_data["intent"]
-            confidence = intent_data["confidence"]
-            logger.info(f"⚡ 极速意图(关键词): {intent} (置信度: {confidence})")
+        # --- Stage 1: 意图识别（预注入 → 极速路径 → 缓存 → LLM 兜底）---
+        # 1a) 检查 context 中是否已有预分析的 intent（来自 analyze_and_classify 合并调用）
+        pre_intent = context.get("pre_intent")
+        pre_confidence = context.get("pre_confidence", 0)
+        if pre_intent and pre_confidence >= 0.7:
+            intent = pre_intent
+            confidence = pre_confidence
+            logger.info(f"⚡ 极速意图(预注入): {intent} (置信度: {confidence})")
         else:
-            # 1b) LLM 意图分类（带缓存，仅复杂/模糊消息）
-            intent_data = await self._classify_intent(description)
-            intent = intent_data.get("intent", "COMPLEX_TASK")
-            confidence = intent_data.get("confidence", 0.0)
-            logger.info(f"意图识别结果(LLM): {intent} (置信度: {confidence})")
+            # 1b) 关键词规则引擎：0ms 级别匹配，覆盖 80% 常见场景
+            intent_data = self._fast_keyword_intent(description)
+            if intent_data and intent_data.get("confidence", 0) >= 0.8:
+                intent = intent_data["intent"]
+                confidence = intent_data["confidence"]
+                logger.info(f"⚡ 极速意图(关键词): {intent} (置信度: {confidence})")
+            else:
+                # 1c) LLM 意图分类（带缓存，仅复杂/模糊消息）
+                intent_data = await self._classify_intent(description)
+                intent = intent_data.get("intent", "COMPLEX_TASK")
+                confidence = intent_data.get("confidence", 0.0)
+                logger.info(f"意图识别结果(LLM): {intent} (置信度: {confidence})")
 
         hint_mapping = {
             "find_lawyer": "QA_CONSULTATION",
@@ -567,10 +494,104 @@ class CoordinatorAgent(BaseLegalAgent):
         (["新规", "政策", "法规解读", "监管"], "REGULATORY_MONITORING", 0.85),
     ]
     
+    async def analyze_and_classify(
+        self,
+        description: str,
+        has_attachments: bool = False,
+        llm_config=None,
+    ) -> Dict[str, Any]:
+        """
+        合并需求分析 + 意图识别为单次 LLM 调用（节省 ~2s 延迟）。
+
+        先尝试关键词快速路径。仅在关键词未命中时才调用 LLM。
+        返回格式兼容原 requirement_analyst.analyze_requirement() 的结果，
+        同时额外包含 intent、confidence 字段。
+        """
+        # 快速路径：关键词命中
+        keyword_result = self._fast_keyword_intent(description)
+        if keyword_result and keyword_result.get("confidence", 0) >= 0.8:
+            intent = keyword_result["intent"]
+            logger.info(f"⚡ 合并分析-关键词命中: {intent}")
+            return {
+                "is_complete": True,
+                "completeness_score": 0.85,
+                "summary": description[:100],
+                "complexity": "simple" if intent == "QA_CONSULTATION" else "moderate",
+                "intent": intent,
+                "confidence": keyword_result["confidence"],
+                "guidance_questions": [],
+                "missing_elements": [],
+                "suggested_agents": [FAST_PATH_ROUTES.get(intent, [{}])[0].get("agent", "legal_advisor")],
+            }
+
+        # LLM 合并调用（缓存检查）
+        cache_key = hashlib.md5(f"merged:{description}".encode()).hexdigest()
+        if cache_key in self._intent_cache:
+            cached_result, cached_time = self._intent_cache[cache_key]
+            if time.time() - cached_time < self.INTENT_CACHE_TTL:
+                logger.debug(f"合并分析命中缓存: {cached_result.get('intent')}")
+                return cached_result
+
+        attachment_hint = "[注意：用户已上传附件文件]" if has_attachments else ""
+        merged_prompt = load_prompt(
+            "coordinator/merged_intent_analysis.txt",
+            fallback="你是一位专业的法务意图识别与需求分析师。",
+            attachment_hint=attachment_hint,
+            description=description,
+        )
+
+        merged_system = load_prompt(
+            "coordinator/merged_intent_system.txt",
+            fallback="你是AI法务系统的意图识别与需求分析专家。请精准分析并输出JSON。",
+        )
+
+        try:
+            response_text = await self.chat(
+                merged_prompt,
+                system_prompt_override=merged_system,
+                max_tokens=512,
+                llm_config=llm_config,
+            )
+            result = self._parse_json(response_text)
+
+            if result:
+                # 确保必需字段
+                result.setdefault("intent", "QA_CONSULTATION")
+                result.setdefault("confidence", 0.7)
+                result.setdefault("is_complete", True)
+                result.setdefault("completeness_score", 0.8)
+                result.setdefault("summary", description[:100])
+                result.setdefault("complexity", "simple")
+                result.setdefault("missing_elements", [])
+                result.setdefault("guidance_questions", [])
+                result.setdefault("suggested_agents", ["legal_advisor"])
+
+                # 写入缓存
+                self._intent_cache[cache_key] = (result, time.time())
+                self._cleanup_intent_cache()
+
+                logger.info(f"合并分析(LLM): intent={result['intent']}, complete={result['is_complete']}, complexity={result['complexity']}")
+                return result
+        except Exception as e:
+            logger.warning(f"合并分析失败，降级到分离模式: {e}")
+
+        # 降级：返回默认值
+        return {
+            "is_complete": True,
+            "completeness_score": 0.8,
+            "summary": description[:100],
+            "complexity": "simple",
+            "intent": "QA_CONSULTATION",
+            "confidence": 0.5,
+            "guidance_questions": [],
+            "missing_elements": [],
+            "suggested_agents": ["legal_advisor"],
+        }
+
     def _fast_keyword_intent(self, description: str) -> Optional[Dict[str, Any]]:
         """
         基于关键词的极速意图匹配（无 LLM 调用，< 1ms）。
-        
+
         覆盖 80% 的常见法务场景，仅在匹配置信度 >= 0.8 时使用。
         仅匹配前 200 字符（用户实际问题），避免合同/文书正文中的关键词造成误匹配。
         """
@@ -610,7 +631,7 @@ class CoordinatorAgent(BaseLegalAgent):
             # 使用 system_prompt_override + max_tokens 限制，加速意图分类响应
             response_text = await self.chat(
                 prompt,
-                system_prompt_override=INTENT_CLASSIFICATION_PROMPT,
+                system_prompt_override=load_prompt("coordinator/intent_classification.txt", fallback=_FALLBACK_INTENT_PROMPT),
                 max_tokens=256,  # 意图分类只需要短 JSON，限制输出长度加速响应
             )
             
@@ -686,7 +707,7 @@ class CoordinatorAgent(BaseLegalAgent):
             similar_cases_text = "\n\n".join(cases_str)
             logger.info("已注入历史经验上下文用于规划")
 
-        final_prompt_sys = COORDINATOR_PROMPT_V2.format(similar_cases_context=similar_cases_text)
+        final_prompt_sys = load_prompt("coordinator/task_planning.txt", fallback=_FALLBACK_COORDINATOR_PROMPT, similar_cases_context=similar_cases_text)
         user_prompt = f"需求描述：{description}\n识别意图：{intent}\n上下文信息：{str(context)[:500]}"
         
         try:

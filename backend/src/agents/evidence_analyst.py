@@ -5,28 +5,10 @@
 from typing import Any, Dict, List
 
 from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
+from src.prompts import load_prompt
 
 
-EVIDENCE_ANALYST_PROMPT = """你是一位专业的证据分析专家与多模态数据处理专员。
-
-你的职责是：
-1. **多模态证据处理**：
-   - 文本：提取关键信息、实体关系、时间线。
-   - 图片/扫描件：识别（OCR）文档内容、印章、手写签名，并转化为结构化文本。
-   - 音频/视频：提取对话内容（ASR），识别情绪，标记关键事件时间点。
-2. **证据关联性分析**：分析不同证据之间的逻辑联系，构建证据链（Evidence Chain）。
-3. **证明力评估**：评估证据的真实性、合法性、关联性（三性），指出证据瑕疵。
-4. **证据整理**：生成证据清单，分类归档。
-
-处理逻辑：
-- 收到非文本数据（File Token/Path）时，首先模拟调用相应的提取工具（如 OCR, ASR）获取文本内容。
-- 然后对提取出的文本进行法律层面的分析。
-
-输出要求：
-1. 清晰区分“原始内容”与“分析结论”。
-2. 对于多模态内容，注明来源类型（如：[录音转录]、[合同扫描件OCR]）。
-3. 构建证据图谱，说明证据A如何佐证事实B。
-"""
+_FALLBACK_PROMPT = "你是一位专业的证据分析专家与多模态数据处理专员。"
 
 
 class EvidenceAnalystAgent(BaseLegalAgent):
@@ -37,7 +19,7 @@ class EvidenceAnalystAgent(BaseLegalAgent):
             name="证据分析Agent",
             role="取证分析师",
             description="处理文本、图片、音视频等多模态证据，分析关联性与证明力",
-            system_prompt=EVIDENCE_ANALYST_PROMPT,
+            system_prompt=load_prompt("agents/evidence_analyst.txt", fallback=_FALLBACK_PROMPT),
             tools=["ocr_tool", "asr_tool", "image_analysis", "entity_extraction"],
         )
         super().__init__(config)

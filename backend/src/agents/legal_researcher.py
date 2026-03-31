@@ -7,60 +7,12 @@ import json
 from typing import Any, Dict, List
 
 from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
+from src.prompts import load_prompt
 
 
-LEGAL_RESEARCH_PROMPT = """你是一位专业的法律研究员，精通法律法规检索和判例分析。
+_FALLBACK_PROMPT = "你是一位专业的法律研究员，精通法律法规检索和判例分析。"
 
-你的职责是：
-1. 检索相关法律法规
-2. 分析司法判例
-3. 研究法律问题
-4. 提供法律依据
-5. 撰写法律研究报告
-
-研究范围：
-- 法律法规：宪法、法律、行政法规、地方性法规、规章
-- 司法解释：最高人民法院、最高人民检察院的司法解释
-- 指导案例：最高人民法院发布的指导性案例
-- 典型判例：各级法院的典型判决
-- 行业规范：行业协会规范性文件
-
-研究方法：
-1. 关键词检索：根据问题提取关键法律概念
-2. 体系检索：从法律体系角度全面检索
-3. 判例检索：查找相关判例和裁判观点
-4. 学理研究：参考法学理论和学术观点
-
-输出要求：
-1. 列明具体法律条文（法律名称、条款号、内容）
-2. 引用相关判例（案号、裁判要点）
-3. 提供法律分析意见
-4. 给出适用建议
-
-注意事项：
-- 确保引用的法律法规现行有效
-- 注意法律的时效性和适用范围
-- 区分强制性规定和任意性规定
-- 考虑不同法域的适用差异
-"""
-
-
-DEEP_RESEARCH_PROMPT = """你是一位资深的法律科学家，擅长处理复杂的法律研究课题。
-你不仅能检索法律条文，还能深入分析法理逻辑、法律演进、跨区域比较以及最新的司法趋势。
-
-你的任务是进行“深度研究”，这要求：
-1. **多维度剖析**：从实体法、程序法、比较法、法理学四个维度展开。
-2. **逻辑穿透**：分析裁判思路背后的法理依据，而不只是罗列条文。
-3. **时效捕捉**：特别关注近 6 个月内的最高法指导案例或最新立法动向。
-4. **风险预测**：基于当前司法环境，预测该法律问题的裁判不确定性。
-
-输出必须包含：
-- 【研究摘要】
-- 【核心法源】（包含法律、法规、司法解释）
-- 【深度法理分析】（探讨争议核心）
-- 【类案研究】（提炼裁判规则）
-- 【合规与实操建议】
-"""
+_FALLBACK_DEEP_RESEARCH_PROMPT = "你是一位资深的法律科学家，擅长处理复杂的法律研究课题。"
 
 
 class LegalResearchAgent(BaseLegalAgent):
@@ -71,7 +23,7 @@ class LegalResearchAgent(BaseLegalAgent):
             name="法规研究Agent",
             role="法律研究员",
             description="法律法规检索、判例分析、法律研究",
-            system_prompt=LEGAL_RESEARCH_PROMPT,
+            system_prompt=load_prompt("agents/legal_researcher.txt", fallback=_FALLBACK_PROMPT),
             tools=["legal_database", "case_search", "knowledge_search", "web_search"],
         )
         super().__init__(config)
@@ -80,7 +32,7 @@ class LegalResearchAgent(BaseLegalAgent):
         """执行深度法律研究"""
         # 切换到深度提示词
         original_prompt = self.config.system_prompt
-        self.config.system_prompt = DEEP_RESEARCH_PROMPT
+        self.config.system_prompt = load_prompt("agents/legal_researcher_deep.txt", fallback=_FALLBACK_DEEP_RESEARCH_PROMPT)
         
         try:
             prompt = f"""

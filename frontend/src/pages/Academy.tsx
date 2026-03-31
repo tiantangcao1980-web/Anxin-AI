@@ -32,17 +32,6 @@ const levelColor: Record<string, string> = {
   '高级': statusColor.error,
 }
 
-const mockCourses: Course[] = [
-  { id: '1', title: '民法典合同编实务精讲', instructor: '张明远', category: 'regulation', duration: '12小时', lessons: 24, progress: 75, description: '系统讲解民法典合同编核心条文，结合最新司法解释和典型案例。', level: '进阶', tags: ['民法典', '合同'] },
-  { id: '2', title: '劳动争议案件代理实务', instructor: '李婉清', category: 'practice', duration: '8小时', lessons: 16, progress: 100, description: '从接案到庭审的全流程实操训练，含仲裁和诉讼两条路径。', level: '进阶', tags: ['劳动法', '仲裁'] },
-  { id: '3', title: '刑事辩护技巧入门', instructor: '王浩然', category: 'case_study', duration: '10小时', lessons: 20, progress: 30, description: '以真实案例为教材，教授会见、阅卷、质证、辩护的核心技巧。', level: '入门', tags: ['刑辩', '辩护技巧'] },
-  { id: '4', title: '知识产权诉讼攻防策略', instructor: '陈思涵', category: 'case_study', duration: '6小时', lessons: 12, progress: 0, description: '专利、商标、著作权诉讼的攻防要点与举证策略。', level: '高级', tags: ['知产', '诉讼'] },
-  { id: '5', title: '公司法修订要点解读', instructor: '张明远', category: 'regulation', duration: '4小时', lessons: 8, progress: 50, description: '全面解析2024公司法修订的重大变化及对企业的影响。', level: '入门', tags: ['公司法', '法规'] },
-  { id: '6', title: '法律职业资格考试冲刺', instructor: '综合讲师团', category: 'exam', duration: '40小时', lessons: 60, progress: 15, description: '涵盖主客观题全科目的高效备考课程。', level: '入门', tags: ['法考', '备考'] },
-  { id: '7', title: '合同审查与风险防控', instructor: '刘雅琳', category: 'practice', duration: '6小时', lessons: 12, progress: 0, description: '教你快速识别合同风险点，掌握条款修改和谈判策略。', level: '进阶', tags: ['合同审查', '风控'] },
-  { id: '8', title: '建设工程纠纷裁判规则', instructor: '刘雅琳', category: 'case_study', duration: '8小时', lessons: 16, progress: 0, description: '结合最高法指导案例，解读建设工程合同纠纷的裁判思路。', level: '高级', tags: ['建工', '裁判规则'] },
-]
-
 function apiToCourse(item: CourseItem): Course {
   return {
     id: item.id,
@@ -59,22 +48,21 @@ function apiToCourse(item: CourseItem): Course {
 }
 
 export default function Academy() {
-  const [courses, setCourses] = useState<Course[]>(mockCourses)
+  const [courses, setCourses] = useState<Course[]>([])
   const [category, setCategory] = useState<CourseCategory>('all')
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const loadCourses = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
       const data = await coursesApi.list({ page_size: 100 })
-      if (data.items?.length > 0) {
-        setCourses(data.items.map(apiToCourse))
-      } else {
-        setCourses(mockCourses)
-      }
-    } catch {
-      setCourses(mockCourses)
+      setCourses((data.items || []).map(apiToCourse))
+    } catch (err) {
+      setCourses([])
+      setError(err instanceof Error ? err.message : '加载课程失败')
     } finally {
       setLoading(false)
     }
@@ -189,6 +177,21 @@ export default function Academy() {
           <div className="flex items-center justify-center py-20">
             <icons.Refresh className="w-6 h-6 animate-spin text-primary" />
             <span className="ml-2 text-sm text-muted-foreground">加载课程...</span>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <icons.AlertTriangle className="w-10 h-10 text-destructive/60 mb-3" />
+            <p className="text-sm text-foreground mb-1">课程数据加载失败</p>
+            <p className="text-xs text-muted-foreground mb-4">{error}</p>
+            <button onClick={() => void loadCourses()} className="px-4 py-2 rounded-lg bg-primary text-white text-sm">
+              重新加载
+            </button>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <icons.Academy className="w-10 h-10 text-muted-foreground/50 mb-3" />
+            <p className="text-sm text-foreground mb-1">暂无课程数据</p>
+            <p className="text-xs text-muted-foreground">运行种子数据后即可验证司法学院页面。</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

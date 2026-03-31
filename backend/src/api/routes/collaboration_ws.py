@@ -12,6 +12,7 @@
 import asyncio
 import json
 import uuid
+from dataclasses import asdict
 from typing import Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -360,6 +361,37 @@ async def create_document_comment(
     )
 
     return result
+
+
+@router.get("/document/{document_id}/comments")
+async def list_document_comments(
+    document_id: str,
+):
+    """获取文档当前评论列表（内存态）"""
+    from src.services.collaboration_service import collaboration_manager
+
+    session = collaboration_manager.get_session(document_id)
+    if not session:
+        return {"comments": []}
+
+    comments = []
+    for comment in session.comments.values():
+        item = asdict(comment)
+        item["timestamp"] = comment.timestamp.isoformat() if comment.timestamp else None
+        comments.append(item)
+
+    return {"comments": comments}
+
+
+@router.post("/document/{document_id}/comments/{comment_id}/resolve")
+async def resolve_document_comment(
+    document_id: str,
+    comment_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """标记评论为已解决"""
+    service = CollaborationService(db)
+    return await service.resolve_comment(document_id=document_id, comment_id=comment_id)
 
 
 @router.get("/document/{document_id}/active-users")

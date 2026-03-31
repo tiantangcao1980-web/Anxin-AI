@@ -288,6 +288,10 @@ class LawyerOnboardingService:
                 "lawyer_name": profile.real_name if profile else None,
                 "license_number": profile.license_number if profile else None,
                 "law_firm": profile.law_firm if profile else None,
+                "specializations": profile.specializations if profile else [],
+                "years_of_practice": profile.years_of_practice if profile else None,
+                "province": profile.province if profile else None,
+                "city": profile.city if profile else None,
                 "user_email": user.email if user else None,
             })
 

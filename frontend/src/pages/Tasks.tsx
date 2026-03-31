@@ -39,16 +39,6 @@ const columns: { key: TaskStatus; label: string }[] = [
   { key: 'done', label: '已完成' },
 ]
 
-const mockTasks: Task[] = [
-  { id: '1', title: '审查甲方合同条款', description: '检查合同第三章违约条款是否合规', status: 'todo', priority: 'high', dueDate: '2026-03-20', assignee: '张律师', caseTitle: '甲方供应链合同纠纷', tags: ['合同审查'] },
-  { id: '2', title: '准备庭审材料', description: '整理证据清单和代理词', status: 'todo', priority: 'high', dueDate: '2026-03-22', assignee: '李律师', caseTitle: '王某劳动仲裁案', tags: ['庭审准备'] },
-  { id: '3', title: '更新知识库法规', description: '将最新修订的民法典司法解释录入系统', status: 'in_progress', priority: 'medium', dueDate: '2026-03-25', assignee: '陈助理', tags: ['知识库'] },
-  { id: '4', title: '客户尽职调查报告', description: '完成乙公司的背景调查并出具报告', status: 'in_progress', priority: 'high', dueDate: '2026-03-19', assignee: '张律师', caseTitle: '乙公司并购案', tags: ['尽调'] },
-  { id: '5', title: '合同模板更新', description: '根据新法规修订标准劳动合同模板', status: 'done', priority: 'medium', dueDate: '2026-03-15', assignee: '李律师', tags: ['模板'] },
-  { id: '6', title: '案件风险评估', description: '完成丙案件的风险等级评估', status: 'done', priority: 'low', dueDate: '2026-03-14', assignee: '陈助理', caseTitle: '丙公司知产案', tags: ['风险评估'] },
-  { id: '7', title: '提交行政复议申请', description: '准备并提交行政复议文书', status: 'todo', priority: 'medium', dueDate: '2026-03-28', assignee: '张律师', tags: ['行政法'] },
-]
-
 function apiToTask(item: TaskItem): Task {
   return {
     id: item.id,
@@ -64,22 +54,21 @@ function apiToTask(item: TaskItem): Task {
 }
 
 export default function Tasks() {
-  const [tasks, setTasks] = useState<Task[]>(mockTasks)
+  const [tasks, setTasks] = useState<Task[]>([])
   const [viewMode, setViewMode] = useState<ViewMode>('board')
   const [filterPriority, setFilterPriority] = useState<TaskPriority | 'all'>('all')
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const loadTasks = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
       const data = await tasksApi.list({ page_size: 100 })
-      if (data.items?.length > 0) {
-        setTasks(data.items.map(apiToTask))
-      } else {
-        setTasks(mockTasks)
-      }
-    } catch {
-      setTasks(mockTasks)
+      setTasks((data.items || []).map(apiToTask))
+    } catch (err) {
+      setTasks([])
+      setError(err instanceof Error ? err.message : '加载任务失败')
     } finally {
       setLoading(false)
     }
@@ -172,6 +161,21 @@ export default function Tasks() {
           <div className="flex items-center justify-center py-20">
             <icons.Refresh className="w-6 h-6 animate-spin text-primary" />
             <span className="ml-2 text-sm text-muted-foreground">加载任务...</span>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <icons.AlertTriangle className="w-10 h-10 text-destructive/60 mb-3" />
+            <p className="text-sm text-foreground mb-1">任务数据加载失败</p>
+            <p className="text-xs text-muted-foreground mb-4">{error}</p>
+            <button onClick={() => void loadTasks()} className={buttonStyle.primary}>
+              重新加载
+            </button>
+          </div>
+        ) : filteredTasks.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <icons.Tasks className="w-10 h-10 text-muted-foreground/50 mb-3" />
+            <p className="text-sm text-foreground mb-1">暂无任务数据</p>
+            <p className="text-xs text-muted-foreground">运行种子数据后即可验证任务看板。</p>
           </div>
         ) : viewMode === 'board' ? (
           <div className="flex gap-4 h-full min-w-[768px]">

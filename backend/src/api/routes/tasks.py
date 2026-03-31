@@ -62,9 +62,9 @@ def task_to_response(task) -> TaskResponse:
         status=task.status,
         priority=task.priority,
         dueDate=str(task.due_date) if task.due_date else None,
-        assignee=None,
+        assignee=getattr(getattr(task, "assignee", None), "name", None),
         caseId=task.case_id,
-        caseTitle=None,
+        caseTitle=getattr(getattr(task, "case", None), "title", None),
         tags=task.tags or [],
         createdAt=task.created_at.isoformat() if task.created_at else None,
     )
@@ -171,3 +171,58 @@ async def delete_task(
     if not success:
         return UnifiedResponse.error(code=404, message="任务不存在")
     return UnifiedResponse.success(message="删除成功")
+
+
+# ===== 看板操作 =====
+
+class StatusTransitionRequest(BaseModel):
+    """状态转换"""
+    status: str
+
+
+class BatchUpdateRequest(BaseModel):
+    """批量更新"""
+    updates: list  # [{"task_id": "xxx", "status": "in_progress", "sort_order": 0}]
+
+
+@router.put("/{task_id}/transition")
+async def transition_task_status(
+    task_id: str,
+    req: StatusTransitionRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
+    """状态转换（带校验）"""
+    service = TaskService(db)
+    try:
+        task = await service.transition_status(task_id, req.status, org_id=user.org_id)
+        if not task:
+            return UnifiedResponse.error(code=404, message="任务不存在")
+        await db.commit()
+        return UnifiedResponse.success(data=task_to_response(task))
+    except ValueError as e:
+        return UnifiedResponse.error(code=400, message=str(e))
+
+
+@router.post("/batch-update")
+async def batch_update_tasks(
+    req: BatchUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
+    """批量更新任务状态（看板拖拽）"""
+    service = TaskService(db)
+    result = await service.batch_update_status(req.updates, org_id=user.org_id)
+    await db.commit()
+    return UnifiedResponse.success(data=result)
+
+
+@router.get("/kanban/stats")
+async def get_kanban_stats(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
+    """获取看板统计"""
+    service = TaskService(db)
+    stats = await service.get_kanban_stats(org_id=user.org_id)
+    return UnifiedResponse.success(data=stats)

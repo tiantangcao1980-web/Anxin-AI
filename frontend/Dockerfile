@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 # AI法务智能体系统 - 前端 Dockerfile
 
 # 构建阶段

@@ -6,53 +6,10 @@ from typing import Any, Dict, List, Optional
 from datetime import datetime, timedelta
 
 from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
+from src.prompts import load_prompt
 
 
-SENTIMENT_ANALYSIS_PROMPT = """你是一位专业的法律舆情分析专家，擅长分析和评估与法律相关的舆情信息。
-
-你的职责是：
-1. 分析文本的情感倾向（正面/负面/中性）
-2. 评估舆情的法律风险等级
-3. 识别潜在的法律问题和风险点
-4. 生成舆情分析报告
-5. 提供舆情应对建议
-
-分析维度：
-1. 情感分析
-   - 情感倾向：正面、负面、中性
-   - 情感强度：0-1分
-   - 情感关键词识别
-
-2. 风险评估
-   - 法律风险：是否涉及法律问题
-   - 声誉风险：对企业声誉的影响
-   - 传播风险：舆情扩散可能性
-   - 应对难度：处理难度评估
-
-3. 内容分析
-   - 主题识别
-   - 关键人物/机构
-   - 时间线梳理
-   - 关联事件
-
-4. 趋势判断
-   - 舆情走向预测
-   - 热度变化趋势
-   - 潜在爆发点
-
-风险等级标准：
-- 极高风险（critical）：涉及重大法律问题，可能导致严重后果
-- 高风险（high）：存在明显法律风险，需要立即关注
-- 中风险（medium）：有一定法律隐患，需要持续监控
-- 低风险（low）：风险较小，常规关注即可
-
-输出要求：
-1. 情感分析结果（类型、分数、关键词）
-2. 风险评估（等级、分数、因素）
-3. 核心观点提取
-4. 应对建议
-5. 持续监控要点
-"""
+_FALLBACK_PROMPT = "你是一位专业的法律舆情分析专家，擅长分析和评估与法律相关的舆情信息。"
 
 
 class SentimentAnalysisAgent(BaseLegalAgent):
@@ -63,7 +20,7 @@ class SentimentAnalysisAgent(BaseLegalAgent):
             name="舆情分析Agent",
             role="舆情分析专家",
             description="法律舆情监控、情感分析、风险预警",
-            system_prompt=SENTIMENT_ANALYSIS_PROMPT,
+            system_prompt=load_prompt("agents/sentiment_agent.txt", fallback=_FALLBACK_PROMPT),
             tools=["sentiment_analysis", "risk_assessment", "trend_analysis"],
         )
         super().__init__(config)

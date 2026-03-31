@@ -2,7 +2,7 @@
  * LawyerOnboarding - 律师入驻引导页
  *
  * 4 步 Stepper 流程：基本资料 → 执业证上传 → 接单设置 → 提交审核
- * 使用 design-tokens 统一样式，全部 mock 数据
+ * 使用 design-tokens 统一样式，联调真实 API
  */
 
 import { useState, useEffect } from 'react'
@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { lawyerApi } from '@/lib/api'
 
 // ============ 类型定义 ============
 
@@ -64,6 +65,15 @@ interface ReviewResult {
   reviewedAt?: string
 }
 
+interface OnboardingStatusResponse {
+  current_step: number
+  steps: Array<{
+    name: string
+    status: string
+    detail?: Record<string, any> | null
+  }>
+}
+
 // ============ 常量 ============
 
 const STEPS = [
@@ -102,6 +112,8 @@ const PROVINCES = [
 export default function LawyerOnboarding() {
   const [loading, setLoading] = useState(true)
   const [step, setStep] = useState(0)
+  const [submitting, setSubmitting] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   // Step 1: 基本资料
   const [profile, setProfile] = useState<LawyerProfile>({
@@ -141,10 +153,54 @@ export default function LawyerOnboarding() {
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
-    // 模拟加载已有数据
-    const timer = setTimeout(() => setLoading(false), 600)
-    return () => clearTimeout(timer)
+    loadStatus()
   }, [])
+
+  async function loadStatus() {
+    setLoading(true)
+    setLoadError(null)
+    try {
+      const status: OnboardingStatusResponse = await lawyerApi.getOnboardingStatus()
+      applyStatus(status)
+    } catch (e: any) {
+      setLoadError(e.message || '无法加载入驻进度')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function applyStatus(status: OnboardingStatusResponse) {
+    const certification = status.steps.find(item => item.name === 'certification')
+    const certificationStatus = certification?.status
+
+    if (certificationStatus === 'pending') {
+      setReviewResult({ status: 'pending' })
+      setStep(3)
+      return
+    }
+
+    if (certificationStatus === 'approved') {
+      setReviewResult({
+        status: 'approved',
+        reviewedAt: certification?.detail?.verified_at as string | undefined,
+      })
+      setStep(3)
+      return
+    }
+
+    if (certificationStatus === 'rejected') {
+      setReviewResult({
+        status: 'rejected',
+        reason: certification?.detail?.rejection_reason as string | undefined,
+        reviewedAt: certification?.detail?.verified_at as string | undefined,
+      })
+      setStep(3)
+      return
+    }
+
+    setReviewResult(null)
+    setStep(Math.max(0, Math.min((status.current_step || 1) - 1, STEPS.length - 1)))
+  }
 
   // ===== 验证 =====
 
@@ -160,11 +216,94 @@ export default function LawyerOnboarding() {
     return Object.keys(newErrors).length === 0
   }
 
-  function handleNext() {
-    if (step === 0 && !validateStep1()) {
-      toast.error('请完善必填信息')
-      return
+  function validateStep2(): boolean {
+    const newErrors: Record<string, string> = {}
+    if (!license.uploaded) {
+      newErrors.licenseUpload = '请上传执业证照片'
     }
+    if (!license.validFrom) {
+      newErrors.validFrom = '请选择执业证签发日期'
+    }
+    if (!license.validTo) {
+      newErrors.validTo = '请选择执业证到期日期'
+    }
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  function validateStep3(): boolean {
+    const newErrors: Record<string, string> = {}
+    if (orderSettings.serviceTypes.length === 0) {
+      newErrors.serviceTypes = '请至少选择一种服务类型'
+    }
+    if (!orderSettings.maxConcurrent || orderSettings.maxConcurrent < 1) {
+      newErrors.maxConcurrent = '最大并发案件数至少为 1'
+    }
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  async function handleNext() {
+    if (step === 0) {
+      if (!validateStep1()) {
+        toast.error('请完善必填信息')
+        return
+      }
+      setSubmitting(true)
+      try {
+        await lawyerApi.createOrUpdateProfile({
+          real_name: profile.name.trim(),
+          license_number: profile.licenseNo.trim(),
+          law_firm: profile.lawFirm.trim() || undefined,
+          years_of_practice: Number(profile.practiceYears || 0),
+          province: profile.province || undefined,
+          city: profile.city.trim() || undefined,
+          specializations: profile.specialties,
+          bio: profile.bio.trim() || undefined,
+          hourly_rate_min: profile.hourlyRateMin === '' ? undefined : Number(profile.hourlyRateMin),
+          hourly_rate_max: profile.hourlyRateMax === '' ? undefined : Number(profile.hourlyRateMax),
+        })
+        toast.success('基本资料已保存')
+      } catch (e: any) {
+        toast.error(e.message || '保存基本资料失败')
+        setSubmitting(false)
+        return
+      } finally {
+        setSubmitting(false)
+      }
+    }
+
+    if (step === 1) {
+      if (!validateStep2()) {
+        toast.error('请完善执业证信息')
+        return
+      }
+    }
+
+    if (step === 2) {
+      if (!validateStep3()) {
+        toast.error('请完善接单设置')
+        return
+      }
+      setSubmitting(true)
+      try {
+        await lawyerApi.updateServiceConfig({
+          service_types: orderSettings.serviceTypes,
+          auto_accept: orderSettings.autoAccept,
+          max_concurrent_cases: Number(orderSettings.maxConcurrent || 1),
+          response_time_hours: Number(orderSettings.responseTime.replace('h', '')),
+          min_case_amount: orderSettings.minCaseAmount === '' ? undefined : Number(orderSettings.minCaseAmount),
+        })
+        toast.success('接单设置已保存')
+      } catch (e: any) {
+        toast.error(e.message || '保存接单设置失败')
+        setSubmitting(false)
+        return
+      } finally {
+        setSubmitting(false)
+      }
+    }
+
     if (step < STEPS.length - 1) {
       setStep(step + 1)
       setErrors({})
@@ -178,10 +317,30 @@ export default function LawyerOnboarding() {
     }
   }
 
-  function handleSubmit() {
-    // @mock-data FALLBACK: 后端就绪后调用 API 提交
-    toast.success('入驻申请已提交，请耐心等待审核')
-    setReviewResult({ status: 'pending' })
+  async function handleSubmit() {
+    if (!validateStep2()) {
+      setStep(1)
+      toast.error('请先完善执业证信息')
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      await lawyerApi.submitCertification({
+        // 当前环境暂无正式文件上传链路，使用联调占位 URL 验证后端认证流程。
+        license_image_url: `https://files.anxin.test/licenses/${encodeURIComponent(profile.licenseNo || 'pending')}.jpg`,
+        id_card_image_url: `https://files.anxin.test/id-cards/${encodeURIComponent(profile.licenseNo || 'pending')}.jpg`,
+        license_issue_date: license.validFrom,
+        license_expiry_date: license.validTo,
+        bar_association: license.barAssociation || undefined,
+      })
+      toast.success('入驻申请已提交，请耐心等待审核')
+      await loadStatus()
+    } catch (e: any) {
+      toast.error(e.message || '提交审核失败')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   function toggleSpecialty(s: string) {
@@ -210,6 +369,22 @@ export default function LawyerOnboarding() {
         <div className="space-y-4">
           <Skeleton className="h-12 w-full" />
           <Skeleton className="h-64 w-full" />
+        </div>
+      </PageContainer>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <PageContainer title="律师入驻" description="完善资料，开始接案">
+        <div className={`${cardStyle.base} flex flex-col items-center justify-center py-12 text-center`}>
+          <icons.AlertCircle className={`${iconSize.xl} text-destructive mb-3`} />
+          <p className={heading.section}>入驻进度加载失败</p>
+          <p className={`${heading.muted} mt-1`}>{loadError}</p>
+          <Button className="mt-4 gap-2" onClick={loadStatus}>
+            <icons.RefreshCw className={iconSize.sm} />
+            重新加载
+          </Button>
         </div>
       </PageContainer>
     )
@@ -254,8 +429,8 @@ export default function LawyerOnboarding() {
       {/* 步骤内容 */}
       <div className={cardStyle.base}>
         {step === 0 && <Step1Basic profile={profile} setProfile={setProfile} errors={errors} toggleSpecialty={toggleSpecialty} />}
-        {step === 1 && <Step2License license={license} setLicense={setLicense} />}
-        {step === 2 && <Step3Settings settings={orderSettings} setSettings={setOrderSettings} toggleServiceType={toggleServiceType} />}
+        {step === 1 && <Step2License license={license} setLicense={setLicense} errors={errors} />}
+        {step === 2 && <Step3Settings settings={orderSettings} setSettings={setOrderSettings} toggleServiceType={toggleServiceType} errors={errors} />}
         {step === 3 && (
           <Step4Submit
             profile={profile}
@@ -273,21 +448,21 @@ export default function LawyerOnboarding() {
           <Button
             variant="outline"
             onClick={handlePrev}
-            disabled={step === 0}
+            disabled={step === 0 || submitting}
             className="gap-2"
           >
             <icons.ChevronLeft className={iconSize.sm} />
             上一步
           </Button>
           {step < STEPS.length - 1 ? (
-            <Button onClick={handleNext} className="gap-2">
-              下一步
-              <icons.ChevronRight className={iconSize.sm} />
+            <Button onClick={handleNext} className="gap-2" disabled={submitting}>
+              {submitting ? '保存中...' : '下一步'}
+              {!submitting && <icons.ChevronRight className={iconSize.sm} />}
             </Button>
           ) : (
-            <Button onClick={handleSubmit} className="gap-2">
-              <icons.CheckCircle className={iconSize.sm} />
-              提交审核
+            <Button onClick={handleSubmit} className="gap-2" disabled={submitting}>
+              {submitting ? <icons.Loader2 className={`${iconSize.sm} animate-spin`} /> : <icons.CheckCircle className={iconSize.sm} />}
+              {submitting ? '提交中...' : '提交审核'}
             </Button>
           )}
         </div>
@@ -451,9 +626,11 @@ function Step1Basic({
 function Step2License({
   license,
   setLicense,
+  errors,
 }: {
   license: LicenseInfo
   setLicense: React.Dispatch<React.SetStateAction<LicenseInfo>>
+  errors: Record<string, string>
 }) {
   return (
     <div className="space-y-5">
@@ -485,6 +662,7 @@ function Step2License({
             </div>
           )}
         </div>
+        {errors.licenseUpload && <p className="text-xs text-destructive">{errors.licenseUpload}</p>}
       </div>
 
       {/* 有效期 */}
@@ -495,7 +673,9 @@ function Step2License({
             type="date"
             value={license.validFrom}
             onChange={e => setLicense(p => ({ ...p, validFrom: e.target.value }))}
+            className={errors.validFrom ? 'border-destructive' : ''}
           />
+          {errors.validFrom && <p className="text-xs text-destructive">{errors.validFrom}</p>}
         </div>
         <div className="space-y-1.5">
           <Label className="text-sm font-medium">有效期截止日</Label>
@@ -503,7 +683,9 @@ function Step2License({
             type="date"
             value={license.validTo}
             onChange={e => setLicense(p => ({ ...p, validTo: e.target.value }))}
+            className={errors.validTo ? 'border-destructive' : ''}
           />
+          {errors.validTo && <p className="text-xs text-destructive">{errors.validTo}</p>}
         </div>
       </div>
 
@@ -526,10 +708,12 @@ function Step3Settings({
   settings,
   setSettings,
   toggleServiceType,
+  errors,
 }: {
   settings: OrderSettings
   setSettings: React.Dispatch<React.SetStateAction<OrderSettings>>
   toggleServiceType: (val: string) => void
+  errors: Record<string, string>
 }) {
   return (
     <div className="space-y-5">
@@ -553,6 +737,7 @@ function Step3Settings({
             </button>
           ))}
         </div>
+        {errors.serviceTypes && <p className="text-xs text-destructive">{errors.serviceTypes}</p>}
       </div>
 
       {/* 自动接单 */}
@@ -579,7 +764,9 @@ function Step3Settings({
             max={50}
             value={settings.maxConcurrent}
             onChange={e => setSettings(p => ({ ...p, maxConcurrent: e.target.value ? Number(e.target.value) : '' }))}
+            className={errors.maxConcurrent ? 'border-destructive' : ''}
           />
+          {errors.maxConcurrent && <p className="text-xs text-destructive">{errors.maxConcurrent}</p>}
         </div>
 
         {/* 承诺响应时间 */}

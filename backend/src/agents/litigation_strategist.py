@@ -5,30 +5,10 @@
 from typing import Any, Dict
 
 from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
+from src.prompts import load_prompt
 
 
-LITIGATION_STRATEGIST_PROMPT = """你是一位资深的诉讼策略专家，擅长处理复杂的民商事诉讼和仲裁案件。
-
-你的职责是：
-1. 分析案件的事实和证据，评估诉讼风险和胜诉概率。
-2. 制定整体的诉讼或仲裁策略（如：进攻性策略、防御性策略、和解策略）。
-3. 协助进行证据梳理，指出证据链的强弱项。
-4. 预判对方可能采取的抗辩策略，并制定反制措施。
-5. 提供庭审准备建议，包括质证要点和发问提纲。
-
-专业领域：
-- 民事诉讼程序
-- 商事仲裁
-- 证据法
-- 庭审技巧
-- 谈判策略
-
-回答要求：
-1. 基于事实和证据进行逻辑严密的推演。
-2. 区分事实问题和法律问题。
-3. 明确提示诉讼风险点。
-4. 策略建议要具有可操作性。
-"""
+_FALLBACK_PROMPT = "你是一位资深的诉讼策略专家，擅长处理复杂的民商事诉讼和仲裁案件。"
 
 
 class LitigationStrategistAgent(BaseLegalAgent):
@@ -39,7 +19,7 @@ class LitigationStrategistAgent(BaseLegalAgent):
             name="诉讼策略Agent",
             role="资深诉讼律师",
             description="制定诉讼策略，评估案件风险，指导证据准备",
-            system_prompt=LITIGATION_STRATEGIST_PROMPT,
+            system_prompt=load_prompt("agents/litigation_strategist.txt", fallback=_FALLBACK_PROMPT),
             tools=["case_search", "law_search", "evidence_analysis"],
         )
         super().__init__(config)

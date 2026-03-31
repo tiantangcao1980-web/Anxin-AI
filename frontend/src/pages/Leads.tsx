@@ -38,26 +38,6 @@ const stageConfig: Record<LeadStage, { label: string; color: string }> = {
 
 const stages: LeadStage[] = ['new', 'contacted', 'qualified', 'proposal', 'won']
 
-const mockLeads: Lead[] = [
-  { id: '1', clientName: '华泰科技有限公司', contactInfo: '王经理 138****5678', source: '转介绍', caseType: '合同纠纷', estimatedAmount: 50000, stage: 'new', assignee: '张律师', followUps: [], createdAt: '2026-03-15' },
-  { id: '2', clientName: '李某某', contactInfo: '李先生 139****1234', source: '线上咨询', caseType: '劳动仲裁', estimatedAmount: 20000, stage: 'contacted', assignee: '李律师',
-    followUps: [{ id: 'f1', date: '2026-03-16', content: '电话沟通初步了解案情，劳动合同解除赔偿问题', type: '电话' }], createdAt: '2026-03-14' },
-  { id: '3', clientName: '远景投资集团', contactInfo: '陈总 137****9876', source: '主动拓展', caseType: '并购重组', estimatedAmount: 200000, stage: 'qualified', assignee: '张律师',
-    followUps: [
-      { id: 'f2', date: '2026-03-10', content: '初次面谈，了解并购标的基本情况', type: '面谈' },
-      { id: 'f3', date: '2026-03-13', content: '发送服务方案及报价初稿', type: '邮件' },
-    ], createdAt: '2026-03-08' },
-  { id: '4', clientName: '绿源环保科技', contactInfo: '刘经理 136****4321', source: '电话咨询', caseType: '知识产权', estimatedAmount: 80000, stage: 'proposal', assignee: '陈律师',
-    followUps: [
-      { id: 'f4', date: '2026-03-05', content: '电话了解专利侵权基本情况', type: '电话' },
-      { id: 'f5', date: '2026-03-08', content: '现场查看证据材料', type: '面谈' },
-      { id: 'f6', date: '2026-03-12', content: '发送正式报价方案', type: '邮件' },
-    ], createdAt: '2026-03-03' },
-  { id: '5', clientName: '鑫达建设集团', contactInfo: '赵总 135****8765', source: '转介绍', caseType: '建设工程', estimatedAmount: 150000, stage: 'won', assignee: '张律师',
-    followUps: [{ id: 'f7', date: '2026-03-01', content: '签订委托代理合同', type: '面谈' }], createdAt: '2026-02-20' },
-  { id: '6', clientName: '小微商贸', contactInfo: '孙老板 133****6543', source: '线上咨询', caseType: '债务纠纷', estimatedAmount: 10000, stage: 'lost', assignee: '李律师', followUps: [], createdAt: '2026-03-01' },
-]
-
 function apiToLead(item: LeadItem): Lead {
   return {
     id: item.id,
@@ -74,22 +54,21 @@ function apiToLead(item: LeadItem): Lead {
 }
 
 export default function Leads() {
-  const [leads, setLeads] = useState<Lead[]>(mockLeads)
+  const [leads, setLeads] = useState<Lead[]>([])
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
   const [viewMode, setViewMode] = useState<'pipeline' | 'list'>('pipeline')
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const loadLeads = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
       const data = await leadsApi.list({ page_size: 100 })
-      if (data.items?.length > 0) {
-        setLeads(data.items.map(apiToLead))
-      } else {
-        setLeads(mockLeads)
-      }
-    } catch {
-      setLeads(mockLeads)
+      setLeads((data.items || []).map(apiToLead))
+    } catch (err) {
+      setLeads([])
+      setError(err instanceof Error ? err.message : '加载线索失败')
     } finally {
       setLoading(false)
     }
@@ -217,6 +196,21 @@ export default function Leads() {
           <div className="flex items-center justify-center py-20">
             <icons.Refresh className="w-6 h-6 animate-spin text-primary" />
             <span className="ml-2 text-sm text-muted-foreground">加载线索...</span>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <icons.AlertTriangle className="w-10 h-10 text-destructive/60 mb-3" />
+            <p className="text-sm text-foreground mb-1">线索数据加载失败</p>
+            <p className="text-xs text-muted-foreground mb-4">{error}</p>
+            <button onClick={() => void loadLeads()} className={buttonStyle.primary}>
+              重新加载
+            </button>
+          </div>
+        ) : leads.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <icons.Leads className="w-10 h-10 text-muted-foreground/50 mb-3" />
+            <p className="text-sm text-foreground mb-1">暂无线索数据</p>
+            <p className="text-xs text-muted-foreground">运行种子数据后即可验证真实案源流程。</p>
           </div>
         ) : viewMode === 'pipeline' ? (
           <div className="flex gap-4 h-full overflow-x-auto pb-2 min-w-0 md:min-w-[960px]">

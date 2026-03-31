@@ -23,6 +23,9 @@ class TestChatAPIResponses:
         # Mock智能体团队
         mock_workforce = MagicMock()
         mock_workforce.chat = AsyncMock(return_value="这是AI的回复")
+        mock_workforce.process_task = AsyncMock(
+            return_value={"final_result": {"summary": "这是AI的回复"}}
+        )
         mock_get_workforce.return_value = mock_workforce
 
         response = await auth_client.post(
@@ -36,7 +39,8 @@ class TestChatAPIResponses:
         assert response.status_code == 200
         resp = response.json()
         data = resp.get("data", resp)
-        assert "reply" in data or "message" in data
+        assert "content" in data
+        assert data["content"] == "这是AI的回复"
 
     @pytest.mark.asyncio
     async def test_chat_endpoint_empty_message(self, auth_client: AsyncClient):
@@ -211,6 +215,7 @@ class TestChatAPIErrorHandling:
         """测试智能体错误处理"""
         mock_workforce = MagicMock()
         mock_workforce.chat = AsyncMock(side_effect=Exception("Agent处理失败"))
+        mock_workforce.process_task = AsyncMock(side_effect=Exception("Agent处理失败"))
         mock_get_workforce.return_value = mock_workforce
 
         response = await auth_client.post(

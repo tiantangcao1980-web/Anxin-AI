@@ -8,15 +8,56 @@
 
 **v0.9.0-beta** | 预计上线：2026-04-01（第一版客户测试）
 
+## 最近更新（2026-03-31 续）
+
+### 找律师 — AI 核心能力实现
+- [x] 新建 `lawyer_matching_service.py`：AI 案情分析 + 自动脱敏 + 领域识别 + 风险评估 + 法律要素提取
+- [x] 文本脱敏引擎：手机号/身份证/邮箱/银行卡/中文姓名/地址/公司名 正则清洗
+- [x] 法律领域自动识别：10 大领域关键词匹配 + 置信度评分
+- [x] 智能律师匹配算法：领域匹配(40%) + 评分(25%) + 活跃度(20%) + 紧急加权
+- [x] LLM 增强分析：调用大模型生成专业匿名案情摘要（失败降级到规则引擎）
+- [x] 升级 `create_consultation` 路由：接入 AI 分析服务替代原有占位逻辑
+- [x] 升级 `list_lawyers` 路由：支持按领域智能匹配排序
+
+### 合规自检 — 报告生成与 AI 增强
+- [x] 新建 `compliance_service.py`：合规报告生成 + AI 增强整改建议 + 历史对比
+- [x] HTML 报告模板：评分卡片 + 风险明细表格 + 整改建议列表
+- [x] AI 增强整改建议：调用 LLM 为不合规项生成专业整改建议
+- [x] 新增 `/compliance-check/report` 端点：生成完整 HTML 报告
+- [x] 新增 `/compliance-check/compare` 端点：对比两次检查结果
+
+### 任务中心 — 看板操作增强
+- [x] 任务状态机：定义合法状态转换规则（pending→in_progress→completed 等）
+- [x] 看板拖拽批量更新：`batch_update_status()` 支持多任务同时状态变更
+- [x] 看板统计：`get_kanban_stats()` 各状态任务数量统计
+- [x] 新增 `/tasks/{id}/transition` 端点：带校验的状态转换
+- [x] 新增 `/tasks/batch-update` 端点：看板拖拽批量操作
+- [x] 新增 `/tasks/kanban/stats` 端点：看板统计数据
+
 ## 最近更新（2026-03-31）
+
+### 知识图谱 Canvas 文本渲染性能优化
+- [x] 新增 `textMeasureCache.ts` 文本测量缓存工具：measureAndCache（宽度缓存）、truncateToWidth（像素级智能截断，替代朴素 slice）、setFontIfChanged（字体指纹比对，避免每帧重复 ctx.font 赋值）、LRU 淘汰防内存泄漏
+- [x] 改造 `ForceGraphCanvas.tsx` 2D 渲染回调（nodeCanvasObject / linkCanvasObject）使用缓存，消除 60fps×N 节点的重复 measureText 和字体切换开销
+- [x] 改造 `KnowledgeGraphExplorer.tsx` 2D 节点渲染使用缓存，中英文混排标签截断从字符计数升级为像素宽度二分查找
+- [x] 借鉴 pretext "预处理+缓存"架构思想，不引入外部依赖，轻量实现
 
 ### AI 生成管线性能分析与优化规划
 - [x] 深度分析 [chenglou/pretext](https://github.com/chenglou/pretext) 项目架构，验证"几百倍性能提升"属实（Chrome 468x，Safari 1,296x）
 - [x] 完成当前 AI 生成管线全链路瓶颈诊断（多 Agent 串行阻塞、3 次串行 LLM、无对话历史等 8 项问题）
 - [x] 输出技术分析文档：`docs/2026-03-31_Pretext技术分析与性能优化借鉴.md`
 - [x] 输出优化方案文档：`docs/2026-03-31_AI生成管线性能优化方案.md`
-- [ ] P0 实施：LLM Config 内存缓存、WebSocket 补对话历史、合并意图+需求分析、真流式多 Agent
-- [ ] P1 实施：动态 max_tokens、Prompt 模板化管理
+- [x] P0 小步落地（第一批）：`LLMService` 默认配置 TTL 缓存（60s）+ Agent 热路径统一自愈入口，避免 `chat/stream_chat` 重复回库
+- [x] P0 小步落地（第一批）：聊天入口新增空消息校验，阻断无效请求进入多 Agent/LLM 链路
+- [x] P0 小步落地（第二批）：单 Agent 流式链路与 WebSocket 单 Agent 回复补齐最近 10 条历史透传
+- [x] 回归基线修复：补充 `backend/tests/test_llm_service_cache.py`，并修正 `backend/tests/test_chat.py` 中与当前接口契约不一致的断言与 mock
+- [x] P0 小步落地（第三批）：多 Agent DAG 链路通过 `_task_history_var` contextvars 自动透传对话历史，覆盖 workforce + lifecycle manager 两条执行路径
+- [x] P0 小步落地（第四批）：合并意图识别+需求分析为单次 LLM 调用（`CoordinatorAgent.analyze_and_classify`），复杂消息路径减少 1 次串行 LLM
+- [x] P0 小步落地（第五批）：单 Agent 意图（11 种）走真流式 `stream_chat` 快速路径，绕过 `process_task` DAG，首 token 延迟从数十秒降到 ~2s
+- [x] P1 动态 max_tokens：根据复杂度和意图自动分档（512/2048/4096），`stream_chat` 新增 `max_tokens` 参数
+- [x] P1 Prompt 模板化管理：创建 `backend/src/prompts/` 模块（加载器 + 20 个 .txt 模板文件），17 个 Agent + Coordinator 改为文件加载，支持热更新和版本管理
+- [x] P2 拆分 WebSocket handler：`websocket_chat` 从 1534 行降到 1040 行，提取 6 个独立 handler 模块（A2UI/工作台/Canvas/尽调/RAG/共享上下文）
+- [x] P1 Prompt 模板化管理收尾：Coordinator `merged_intent_analysis` 抽取为模板文件，`requirement_analyst` 路径统一到 `agents/` 目录，全部 Agent + Coordinator prompt 均已模板化
 - [ ] P2 实施：拆分 WebSocket handler、统一 Service 层消除三重重复
 
 ### 对话入口与研究模式统一
@@ -98,8 +139,8 @@
 | 案件管理 | 90% | 95% | 可用 |
 | 合同管理 | 85% | 90% | 可用 |
 | 在线协作 | 80% | 70% | 基本可用 |
-| 找律师 | 80% | 70% | 对话入口可用 |
-| 合规自检 | 75% | 60% | 对话入口可用 |
+| 找律师 | 80% | 85% | 可用（AI脱敏+智能匹配已实现） |
+| 合规自检 | 85% | 80% | 可用（报告生成+AI建议已实现） |
 | 智能调查（尽职调查） | 96% | 92% | 可用（支持尽调强路由与 A2UI 表单闭环） |
 | 司法资讯 | 80% | 70% | 已隐藏（v2.0启用） |
 | 知识图谱 | 85% | 75% | 可用（2D/3D 控制与主题适配增强） |

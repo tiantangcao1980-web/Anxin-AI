@@ -139,7 +139,7 @@ services:
       - legal-dev-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:6333/healthz || exit 1"]
+      test: ["CMD-SHELL", "grep -q ':18BD' /proc/net/tcp || grep -q ':18BD' /proc/net/tcp6"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -161,11 +161,11 @@ services:
       - legal-dev-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "cypher-shell -u neo4j -p password 'RETURN 1' || exit 1"]
+      test: ["CMD-SHELL", "bash -lc 'exec 3<>/dev/tcp/127.0.0.1/7687'"]
       interval: 15s
       timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 90s
 
   # ==================== MinIO 对象存储 (可选) ====================
   minio:

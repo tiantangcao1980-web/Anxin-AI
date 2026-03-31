@@ -14,13 +14,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { toast } from 'sonner';
 import { icons } from '@/lib/icons';
-import { collaborationApi, documentsApi, type CollaborationSession, type Collaborator } from '@/lib/api';
+import { collaborationApi, documentsApi, type CollaborationSession, type Collaborator, type CollaborationSnapshot } from '@/lib/api';
 import { cardStyle, heading, iconSize, statusBadge, statusColor, buttonStyle, spacing } from '@/lib/design-tokens';
 import { PageContainer } from '@/components/ui/PageContainer';
 
 // WebSocket消息类型
 interface WSMessage {
-  type: 'init' | 'join' | 'leave' | 'edit' | 'edit_ack' | 'conflict' | 'cursor' | 'pong' | 'session_closed' | 'editing_status' | 'comment_added' | 'comment_resolved';
+  type: 'init' | 'join' | 'leave' | 'edit' | 'edit_ack' | 'conflict' | 'cursor' | 'pong' | 'session_closed' | 'editing_status' | 'comment_added' | 'comment_resolved' | 'collaborator_role_updated';
   user_id?: string;
   nickname?: string;
   color?: string;
@@ -50,12 +50,11 @@ interface EditOperation {
 interface VersionSnapshot {
   id: string;
   version: number;
-  content: string;
   description: string;
   created_by: string;
   created_by_name: string;
   created_at: string;
-  type: 'manual' | 'auto';
+  type: 'manual' | 'auto' | 'restore';
 }
 
 // 评论
@@ -111,6 +110,35 @@ const collaboratorColors = [
   '#FFEAA7', '#DFE6E9', '#74B9FF', '#A29BFE',
   '#FD79A8', '#00B894', '#E17055', '#6C5CE7',
 ];
+
+function mapSnapshot(snapshot: CollaborationSnapshot): VersionSnapshot {
+  return {
+    id: snapshot.id,
+    version: snapshot.version,
+    description: snapshot.description || `版本 ${snapshot.version}`,
+    created_by: snapshot.created_by || '',
+    created_by_name: snapshot.created_by?.slice(0, 8) || '系统',
+    created_at: snapshot.created_at,
+    type: (snapshot.snapshot_type as 'manual' | 'auto' | 'restore') || 'manual',
+  };
+}
+
+function mapComment(comment: any): CollabComment {
+  return {
+    id: comment.id,
+    content: comment.content || '',
+    author_id: comment.user_id || '',
+    author_name: comment.user_name || '协作者',
+    author_color: collaboratorColors[0],
+    line_start: comment.position?.line_start || comment.position?.start || 1,
+    line_end: comment.position?.line_end || comment.position?.end || 1,
+    selected_text: comment.position?.selected_text || '',
+    created_at: comment.timestamp || new Date().toISOString(),
+    resolved: !!comment.resolved,
+    resolved_by: comment.resolved ? '系统' : undefined,
+    replies: [],
+  };
+}
 
 export default function Collaboration() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -239,6 +267,26 @@ export default function Collaboration() {
     }
   };
 
+  const loadVersionHistory = useCallback(async (id: string) => {
+    try {
+      const snapshots = await collaborationApi.listSnapshots(id, 50);
+      setVersionHistory((snapshots || []).map(mapSnapshot));
+    } catch (error) {
+      console.error('加载版本历史失败:', error);
+      setVersionHistory([]);
+    }
+  }, []);
+
+  const loadComments = useCallback(async (documentId: string) => {
+    try {
+      const response = await collaborationApi.listComments(documentId);
+      setComments((response.comments || []).map(mapComment));
+    } catch (error) {
+      console.error('加载评论失败:', error);
+      setComments([]);
+    }
+  }, []);
+
   const loadSession = async (id: string) => {
     setLoading(true);
     setError(null);
@@ -249,64 +297,10 @@ export default function Collaboration() {
 
       const collabs = await collaborationApi.getCollaborators(id);
       setCollaborators(collabs);
-
-      // @mock-data FALLBACK - 版本历史
-      const verCount = session.current_version || 1;
-      const mockVersionHistory: VersionSnapshot[] = Array.from(
-        { length: verCount },
-        (_, i) => ({
-          id: `ver_${i + 1}`,
-          version: i + 1,
-          content: i === 0 ? '初始版本内容...' : `版本 ${i + 1} 的内容...`,
-          description: i === 0 ? '创建文档' : `第 ${i + 1} 次修订`,
-          created_by: i % 2 === 0 ? userId.current : 'user_other',
-          created_by_name: i % 2 === 0 ? nickname.current : '协作者A',
-          created_at: new Date(Date.now() - (verCount - i) * 3600000).toISOString(),
-          type: (i % 3 === 0 ? 'auto' : 'manual') as 'auto' | 'manual',
-        })
-      );
-      setVersionHistory(mockVersionHistory);
-
-      // @mock-data FALLBACK - 评论
-      const mockComments: CollabComment[] = [
-        {
-          id: 'comment_1',
-          content: '这一段的法律引用需要更新到最新版本',
-          author_id: 'user_other',
-          author_name: '协作者A',
-          author_color: '#4ECDC4',
-          line_start: 3,
-          line_end: 5,
-          selected_text: '根据民法典第一百四十三条',
-          created_at: new Date(Date.now() - 7200000).toISOString(),
-          resolved: false,
-          replies: [
-            {
-              id: 'reply_1',
-              content: '已更新，请确认',
-              author_id: userId.current,
-              author_name: nickname.current,
-              author_color: userColor.current,
-              created_at: new Date(Date.now() - 3600000).toISOString(),
-            },
-          ],
-        },
-        {
-          id: 'comment_2',
-          content: '格式不统一，建议统一使用全角标点',
-          author_id: 'user_other2',
-          author_name: '协作者B',
-          author_color: '#45B7D1',
-          line_start: 10,
-          line_end: 10,
-          selected_text: '第二条,甲方应当...',
-          created_at: new Date(Date.now() - 1800000).toISOString(),
-          resolved: true,
-          resolved_by: '协作者B',
-          replies: [],
-        },
-      ];
-      setComments(mockComments);
+      await Promise.all([
+        loadVersionHistory(id),
+        loadComments(session.document_id),
+      ]);
     } catch (err: any) {
       setError(err.message || '加载会话失败');
       toast.error('加载会话失败');
@@ -434,15 +428,21 @@ export default function Collaboration() {
         break;
 
       case 'comment_added':
-        if (message.comment) {
-          setComments((prev) => [...prev, message.comment!]);
+        if (currentSession?.document_id) {
+          loadComments(currentSession.document_id);
           toast.info(`${message.nickname} 添加了新评论`);
         }
         break;
 
       case 'comment_resolved':
-        if (message.comment) {
-          setComments((prev) => prev.map((c) => c.id === message.comment!.id ? { ...c, resolved: true, resolved_by: message.nickname } : c));
+        if (currentSession?.document_id) {
+          loadComments(currentSession.document_id);
+        }
+        break;
+
+      case 'collaborator_role_updated':
+        if (message.collaborators) {
+          setCollaborators(message.collaborators as Collaborator[]);
         }
         break;
 
@@ -627,36 +627,6 @@ export default function Collaboration() {
 
   // ===== 版本管理功能 =====
 
-  const computeDiff = useCallback((oldText: string, newText: string): DiffLine[] => {
-    const oldLines = oldText.split('\n');
-    const newLines = newText.split('\n');
-    const result: DiffLine[] = [];
-    let oldIdx = 0;
-    let newIdx = 0;
-
-    while (oldIdx < oldLines.length || newIdx < newLines.length) {
-      if (oldIdx < oldLines.length && newIdx < newLines.length) {
-        if (oldLines[oldIdx] === newLines[newIdx]) {
-          result.push({ type: 'unchanged', content: oldLines[oldIdx], oldLineNo: oldIdx + 1, newLineNo: newIdx + 1 });
-          oldIdx++;
-          newIdx++;
-        } else {
-          result.push({ type: 'removed', content: oldLines[oldIdx], oldLineNo: oldIdx + 1 });
-          result.push({ type: 'added', content: newLines[newIdx], newLineNo: newIdx + 1 });
-          oldIdx++;
-          newIdx++;
-        }
-      } else if (oldIdx < oldLines.length) {
-        result.push({ type: 'removed', content: oldLines[oldIdx], oldLineNo: oldIdx + 1 });
-        oldIdx++;
-      } else {
-        result.push({ type: 'added', content: newLines[newIdx], newLineNo: newIdx + 1 });
-        newIdx++;
-      }
-    }
-    return result;
-  }, []);
-
   const handleCreateSnapshot = async () => {
     if (!snapshotDescription.trim()) {
       toast.error('请输入快照描述');
@@ -664,23 +634,15 @@ export default function Collaboration() {
     }
     setIsCommitting(true);
     try {
-      // @mock-data FALLBACK
-      const newVersion = localVersion + 1;
-      const snapshot: VersionSnapshot = {
-        id: `ver_${newVersion}`,
-        version: newVersion,
-        content: content,
+      if (!sessionId) throw new Error('会话不存在');
+      await collaborationApi.createSnapshot(sessionId, {
+        content,
         description: snapshotDescription,
-        created_by: userId.current,
-        created_by_name: nickname.current,
-        created_at: new Date().toISOString(),
-        type: 'manual',
-      };
-      setVersionHistory((prev) => [...prev, snapshot]);
-      setLocalVersion(newVersion);
+      });
+      await loadVersionHistory(sessionId);
       setSaveStatus('saved');
       setLastSavedAt(new Date());
-      toast.success(`快照 v${newVersion} 创建成功`);
+      toast.success('快照创建成功');
       setShowSnapshotDialog(false);
       setSnapshotDescription('');
     } catch (err: any) {
@@ -690,20 +652,30 @@ export default function Collaboration() {
     }
   };
 
-  const openDiffView = (left: VersionSnapshot, right: VersionSnapshot) => {
-    const lines = computeDiff(left.content, right.content);
-    setDiffVersions({ left, right });
-    setDiffLines(lines);
-    setShowDiffDialog(true);
+  const openDiffView = async (left: VersionSnapshot, right: VersionSnapshot) => {
+    if (!sessionId) return;
+    try {
+      const result = await collaborationApi.diffSnapshots(sessionId, left.id, right.id);
+      const lines: DiffLine[] = (result.lines || []).map((line: any) => ({
+        type: line.type === 'add' ? 'added' : line.type === 'delete' ? 'removed' : 'unchanged',
+        content: line.content,
+        oldLineNo: line.type === 'add' ? undefined : line.line_number,
+        newLineNo: line.type === 'delete' ? undefined : line.line_number,
+      }));
+      setDiffVersions({ left, right });
+      setDiffLines(lines);
+      setShowDiffDialog(true);
+    } catch (err: any) {
+      toast.error(err.message || '版本对比失败');
+    }
   };
 
   const handleRollback = async () => {
-    if (!rollbackTarget) return;
+    if (!rollbackTarget || !sessionId) return;
     setIsRollingBack(true);
     try {
-      // @mock-data FALLBACK
-      setContent(rollbackTarget.content);
-      setLocalVersion(rollbackTarget.version);
+      await collaborationApi.restoreSnapshot(sessionId, rollbackTarget.id);
+      await loadSession(sessionId);
       toast.success(`已回滚到 v${rollbackTarget.version}`);
       setShowRollbackConfirm(false);
       setRollbackTarget(null);
@@ -716,56 +688,53 @@ export default function Collaboration() {
 
   // ===== 评论功能 =====
 
-  const handleAddComment = () => {
+  const handleAddComment = async () => {
     if (!newCommentContent.trim()) {
       toast.error('请输入评论内容');
       return;
     }
-    // @mock-data FALLBACK
-    const newComment: CollabComment = {
-      id: `comment_${Date.now()}`,
-      content: newCommentContent,
-      author_id: userId.current,
-      author_name: nickname.current,
-      author_color: userColor.current,
-      line_start: selectedLineRange?.start || 1,
-      line_end: selectedLineRange?.end || 1,
-      selected_text: selectedText,
-      created_at: new Date().toISOString(),
-      resolved: false,
-      replies: [],
-    };
-    setComments((prev) => [...prev, newComment]);
-    setNewCommentContent('');
-    setShowAddCommentDialog(false);
-    setSelectedText('');
-    setSelectedLineRange(null);
-    toast.success('评论已添加');
-
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'comment_added', comment: newComment, nickname: nickname.current }));
+    if (!currentSession?.document_id) {
+      toast.error('当前文档不存在');
+      return;
+    }
+    try {
+      await collaborationApi.addComment(currentSession.document_id, {
+        user_id: userId.current,
+        user_name: nickname.current,
+        content: newCommentContent,
+        position: {
+          line_start: selectedLineRange?.start || 1,
+          line_end: selectedLineRange?.end || 1,
+          selected_text: selectedText,
+        },
+      });
+      await loadComments(currentSession.document_id);
+      setNewCommentContent('');
+      setShowAddCommentDialog(false);
+      setSelectedText('');
+      setSelectedLineRange(null);
+      toast.success('评论已添加');
+    } catch (err: any) {
+      toast.error(err.message || '添加评论失败');
     }
   };
 
   const handleReplyComment = (commentId: string) => {
     if (!replyContent.trim()) return;
-    const reply: CollabCommentReply = {
-      id: `reply_${Date.now()}`,
-      content: replyContent,
-      author_id: userId.current,
-      author_name: nickname.current,
-      author_color: userColor.current,
-      created_at: new Date().toISOString(),
-    };
-    setComments((prev) => prev.map((c) => c.id === commentId ? { ...c, replies: [...c.replies, reply] } : c));
+    toast.info('当前后端暂未开放评论回复接口');
     setReplyContent('');
     setReplyingTo(null);
-    toast.success('回复已发送');
   };
 
-  const handleResolveComment = (commentId: string) => {
-    setComments((prev) => prev.map((c) => c.id === commentId ? { ...c, resolved: true, resolved_by: nickname.current } : c));
-    toast.success('评论已标记为已解决');
+  const handleResolveComment = async (commentId: string) => {
+    if (!currentSession?.document_id) return;
+    try {
+      await collaborationApi.resolveComment(currentSession.document_id, commentId);
+      await loadComments(currentSession.document_id);
+      toast.success('评论已标记为已解决');
+    } catch (err: any) {
+      toast.error(err.message || '解决评论失败');
+    }
   };
 
   const handleTextSelection = () => {
@@ -790,15 +759,14 @@ export default function Collaboration() {
   const handleChangeRole = async () => {
     if (!selectedCollaborator || !sessionId) return;
     try {
-      // @mock-data FALLBACK
-      setCollaborators((prev) =>
-        prev.map((c) => c.user_id === selectedCollaborator.user_id ? { ...c, role: newRole } : c)
-      );
+      await collaborationApi.updateCollaboratorRole(sessionId, selectedCollaborator.user_id || '', newRole);
+      const collabs = await collaborationApi.getCollaborators(sessionId);
+      setCollaborators(collabs);
       toast.success(`已将 ${selectedCollaborator.nickname} 的角色更改为 ${newRole === 'editor' ? '编辑者' : newRole === 'commenter' ? '评论者' : '查看者'}`);
       setShowRoleDialog(false);
       setSelectedCollaborator(null);
     } catch (err: any) {
-      toast.error('角色更改失败');
+      toast.error(err.message || '角色更改失败');
     }
   };
 

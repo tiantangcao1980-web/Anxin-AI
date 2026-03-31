@@ -6,6 +6,7 @@
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 
 from src.models.lead import Lead
 
@@ -21,7 +22,7 @@ class LeadService:
         page: int = 1,
         page_size: int = 50,
     ) -> tuple[List[Lead], int]:
-        query = select(Lead)
+        query = select(Lead).options(selectinload(Lead.assignee))
         if org_id:
             query = query.where(Lead.org_id == org_id)
         if stage:
@@ -35,7 +36,11 @@ class LeadService:
         return list(result.scalars().all()), total
 
     async def get_lead(self, lead_id: str) -> Optional[Lead]:
-        result = await self.db.execute(select(Lead).where(Lead.id == lead_id))
+        result = await self.db.execute(
+            select(Lead)
+            .options(selectinload(Lead.assignee))
+            .where(Lead.id == lead_id)
+        )
         return result.scalar_one_or_none()
 
     async def create_lead(self, **kwargs) -> Lead:

@@ -90,12 +90,8 @@ function ProfilePanel() {
       const updated = await authApi.updateProfile({ name: form.name })
       setUser(updated)
       toast.success('个人信息已更新')
-    } catch {
-      // 本地更新 fallback
-      if (user) {
-        setUser({ ...user, name: form.name })
-      }
-      toast.success('个人信息已保存（离线模式）')
+    } catch (e: any) {
+      toast.error(e.message || '个人信息更新失败')
     } finally {
       setSaving(false)
     }
@@ -278,38 +274,11 @@ function ProfilePanel() {
 
 // ============ LLM设置面板组件 ============
 
-const mockLlmConfigs: LLMConfig[] = [
-  {
-    id: 'mock-1', name: 'GPT-4o', provider: 'openai', model_name: 'gpt-4o',
-    api_base_url: 'https://api.openai.com/v1', config_type: 'llm',
-    max_tokens: 4096, temperature: 0.7, is_active: true, is_default: true,
-    total_calls: 1256, created_at: '2026-02-01T00:00:00Z', updated_at: '2026-03-15T00:00:00Z',
-  },
-  {
-    id: 'mock-2', name: '通义千问', provider: 'dashscope', model_name: 'qwen-max',
-    api_base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1', config_type: 'llm',
-    max_tokens: 8192, temperature: 0.7, is_active: true, is_default: false,
-    total_calls: 523, created_at: '2026-02-10T00:00:00Z', updated_at: '2026-03-10T00:00:00Z',
-  },
-  {
-    id: 'mock-3', name: 'Embedding模型', provider: 'openai', model_name: 'text-embedding-3-small',
-    api_base_url: 'https://api.openai.com/v1', config_type: 'embedding',
-    max_tokens: 8191, temperature: 0, is_active: true, is_default: false,
-    total_calls: 8920, created_at: '2026-02-01T00:00:00Z', updated_at: '2026-03-15T00:00:00Z',
-  },
-]
-
-const mockProviders: Record<string, LLMProvider> = {
-  openai: { name: 'OpenAI', base_url: 'https://api.openai.com/v1', models: { llm: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'], embedding: ['text-embedding-3-small', 'text-embedding-3-large'] }, supports_streaming: true, api_key_required: true },
-  dashscope: { name: '通义千问 (DashScope)', base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1', models: { llm: ['qwen-max', 'qwen-plus', 'qwen-turbo'] }, supports_streaming: true, api_key_required: true, note: '需要阿里云 DashScope API Key' },
-  deepseek: { name: 'DeepSeek', base_url: 'https://api.deepseek.com', models: { llm: ['deepseek-chat', 'deepseek-coder'] }, supports_streaming: true, api_key_required: true },
-  zhipu: { name: '智谱AI (GLM)', base_url: 'https://open.bigmodel.cn/api/paas/v4', models: { llm: ['glm-4', 'glm-4-flash'] }, supports_streaming: true, api_key_required: true },
-}
-
 function LlmSettingsPanel() {
   const [configs, setConfigs] = useState<LLMConfig[]>([])
   const [providers, setProviders] = useState<Record<string, LLMProvider>>({})
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [showDialog, setShowDialog] = useState(false)
   const [editingConfig, setEditingConfig] = useState<LLMConfig | null>(null)
 
@@ -319,16 +288,18 @@ function LlmSettingsPanel() {
 
   const loadData = async () => {
     setLoading(true)
+    setError(null)
     try {
       const [configsData, providersData] = await Promise.all([
         llmApi.listConfigs(),
         llmApi.getProviders()
       ])
-      setConfigs(configsData.items?.length > 0 ? configsData.items : mockLlmConfigs)
-      setProviders(Object.keys(providersData).length > 0 ? providersData : mockProviders)
-    } catch {
-      setConfigs(mockLlmConfigs)
-      setProviders(mockProviders)
+      setConfigs(configsData.items || [])
+      setProviders(providersData || {})
+    } catch (e: any) {
+      setConfigs([])
+      setProviders({})
+      setError(e.message || '无法加载模型配置')
     } finally {
       setLoading(false)
     }
@@ -340,19 +311,18 @@ function LlmSettingsPanel() {
       await llmApi.deleteConfig(id)
       toast.success('配置已删除')
       loadData()
-    } catch {
-      // 本地删除 fallback
-      setConfigs(prev => prev.filter(c => c.id !== id))
-      toast.success('配置已删除（离线模式）')
+    } catch (e: any) {
+      toast.error(e.message || '删除失败')
     }
   }
 
   const handleToggleActive = async (id: string) => {
     try {
       await llmApi.toggleActive(id)
+      toast.success('配置状态已更新')
       loadData()
-    } catch {
-      setConfigs(prev => prev.map(c => c.id === id ? { ...c, is_active: !c.is_active } : c))
+    } catch (e: any) {
+      toast.error(e.message || '更新状态失败')
     }
   }
 
@@ -361,9 +331,8 @@ function LlmSettingsPanel() {
       await llmApi.setDefault(id)
       toast.success('已设置为默认模型')
       loadData()
-    } catch {
-      setConfigs(prev => prev.map(c => ({ ...c, is_default: c.id === id })))
-      toast.success('已设置为默认模型（离线模式）')
+    } catch (e: any) {
+      toast.error(e.message || '设置默认模型失败')
     }
   }
 
@@ -371,6 +340,20 @@ function LlmSettingsPanel() {
     return (
       <div className={`${cardStyle.base} flex items-center justify-center py-12`}>
         <icons.Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className={`${cardStyle.base} flex flex-col items-center justify-center py-12 text-center`}>
+        <icons.AlertCircle className="h-8 w-8 text-destructive mb-3" />
+        <p className={heading.section}>模型配置加载失败</p>
+        <p className={`${heading.muted} mt-1`}>{error}</p>
+        <Button className="mt-4" onClick={loadData}>
+          <icons.Refresh className="h-4 w-4 mr-2" />
+          重新加载
+        </Button>
       </div>
     )
   }
@@ -757,26 +740,10 @@ const MCP_TEMPLATES = [
   }
 ]
 
-const mockMcpServers: McpServerConfig[] = [
-  {
-    id: 'mock-mcp-1', name: 'brave-search', description: 'Brave Search web search capability',
-    type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-brave-search'],
-    env: { BRAVE_API_KEY: '***' }, url: '', is_enabled: true,
-    cached_tools: [{ name: 'brave_web_search' }, { name: 'brave_local_search' }],
-    created_at: '2026-03-01T00:00:00Z',
-  },
-  {
-    id: 'mock-mcp-2', name: 'amap-maps', description: '高德地图 - 路线规划与POI搜索',
-    type: 'stdio', command: 'npx', args: ['-y', '@amap/amap-maps-mcp-server'],
-    env: { AMAP_MAPS_API_KEY: '***' }, url: '', is_enabled: true,
-    cached_tools: [{ name: 'maps_direction' }, { name: 'maps_poi_search' }, { name: 'maps_geocode' }],
-    created_at: '2026-03-01T00:00:00Z',
-  },
-]
-
 function McpSettingsPanel() {
   const [servers, setServers] = useState<McpServerConfig[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [editingServer, setEditingServer] = useState<McpServerConfig | null>(null)
   const [connecting, setConnecting] = useState<string | null>(null)
@@ -787,11 +754,13 @@ function McpSettingsPanel() {
 
   const loadData = async () => {
     setLoading(true)
+    setError(null)
     try {
       const data = await mcpApi.listServers()
-      setServers(data?.length > 0 ? data : mockMcpServers)
-    } catch {
-      setServers(mockMcpServers)
+      setServers(data || [])
+    } catch (e: any) {
+      setServers([])
+      setError(e.message || '无法加载服务集成配置')
     } finally {
       setLoading(false)
     }
@@ -816,9 +785,8 @@ function McpSettingsPanel() {
       await mcpApi.delete(id)
       toast.success('服务已删除')
       loadData()
-    } catch {
-      setServers(prev => prev.filter(s => s.id !== id))
-      toast.success('服务已删除（离线模式）')
+    } catch (e: any) {
+      toast.error(e.message || '删除失败')
     }
   }
 
@@ -826,6 +794,20 @@ function McpSettingsPanel() {
     return (
       <div className={`${cardStyle.base} flex items-center justify-center py-12`}>
         <icons.Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className={`${cardStyle.base} flex flex-col items-center justify-center py-12 text-center`}>
+        <icons.AlertCircle className="h-8 w-8 text-destructive mb-3" />
+        <p className={heading.section}>服务集成加载失败</p>
+        <p className={`${heading.muted} mt-1`}>{error}</p>
+        <Button className="mt-4" onClick={loadData}>
+          <icons.Refresh className="h-4 w-4 mr-2" />
+          重新加载
+        </Button>
       </div>
     )
   }

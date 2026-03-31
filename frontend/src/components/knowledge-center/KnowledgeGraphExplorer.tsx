@@ -12,6 +12,7 @@ import { knowledgeCenterApi, type GraphData, type GraphStats, type GraphNode } f
 import { toast } from 'sonner'
 import * as THREE from 'three'
 import SpriteText from 'three-spritetext'
+import { truncateToWidth, setFontIfChanged } from '../knowledge-graph/textMeasureCache'
 
 // 节点颜色与图标配置
 const NODE_CONFIG: Record<string, { color: string; emissive: string; icon: string; label: string }> = {
@@ -249,7 +250,8 @@ export function KnowledgeGraphExplorer() {
     return group
   }, [showLabels, isDark])
 
-  // 2D 节点绘制
+  // 2D 节点绘制（使用文本测量缓存）
+  const lastFontRef2D = useRef('')
   const nodeCanvasObject = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
     const cfg = NODE_CONFIG[node.type] || NODE_CONFIG.entity
     const r = (node.val || 6) * 1.2
@@ -271,14 +273,16 @@ export function KnowledgeGraphExplorer() {
     ctx.lineWidth = 1.5
     ctx.stroke()
 
-    // 文字
+    // 文字 —— 基于像素宽度智能截断，替代朴素 slice(0,12)
     if (showLabels && globalScale > 0.5) {
       const fontSize = Math.max(10 / globalScale, 3)
-      ctx.font = `600 ${fontSize}px "Inter", "SF Pro", system-ui, sans-serif`
+      const labelFont = `600 ${fontSize}px "Inter", "SF Pro", system-ui, sans-serif`
+      lastFontRef2D.current = setFontIfChanged(ctx, labelFont, lastFontRef2D.current)
       ctx.textAlign = 'center'
       ctx.textBaseline = 'top'
       ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#334155'
-      const label = node.name.length > 12 ? node.name.slice(0, 12) + '…' : node.name
+      const maxLabelWidth = r * 6
+      const label = truncateToWidth(node.name, labelFont, maxLabelWidth)
       ctx.fillText(label, x, y + r + 3)
     }
   }, [showLabels])

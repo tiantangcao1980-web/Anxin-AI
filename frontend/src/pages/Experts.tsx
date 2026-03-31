@@ -27,15 +27,6 @@ const specialtyConfig: Record<string, { label: string; color: string }> = {
   admin: { label: '行政法', color: statusColor.neutral },
 }
 
-const mockExperts: Expert[] = [
-  { id: '1', name: '张明远', title: '高级合伙人', specialty: ['corporate', 'civil'], yearsOfExperience: 18, rating: 4.9, casesHandled: 326, description: '专注于公司并购重组、股权纠纷领域，曾主导多起大型并购交易的法律服务。', achievements: ['全国优秀律师', '十大公司法律师', '50+亿级并购项目'] },
-  { id: '2', name: '李婉清', title: '合伙人', specialty: ['labor', 'civil'], yearsOfExperience: 12, rating: 4.8, casesHandled: 215, description: '劳动争议领域专家，为多家知名企业提供劳动用工合规服务。', achievements: ['劳动法专业委员会委员', '年度最佳劳动法律师'] },
-  { id: '3', name: '王浩然', title: '高级合伙人', specialty: ['criminal'], yearsOfExperience: 20, rating: 4.9, casesHandled: 180, description: '刑事辩护领域资深律师，擅长经济犯罪、职务犯罪辩护。', achievements: ['刑辩委员会副主任', '无罪辩护成功率35%'] },
-  { id: '4', name: '陈思涵', title: '合伙人', specialty: ['ip', 'corporate'], yearsOfExperience: 10, rating: 4.7, casesHandled: 156, description: '知识产权诉讼与非诉专家，服务于科技、文化创意产业。', achievements: ['知识产权专业律师', '代理200+专利案件'] },
-  { id: '5', name: '赵志刚', title: '资深律师', specialty: ['admin', 'civil'], yearsOfExperience: 15, rating: 4.6, casesHandled: 198, description: '行政法与政府法律顾问专家，在行政复议、行政诉讼方面经验丰富。', achievements: ['政府法律顾问', '行政法委员会委员'] },
-  { id: '6', name: '刘雅琳', title: '合伙人', specialty: ['civil', 'corporate'], yearsOfExperience: 14, rating: 4.8, casesHandled: 245, description: '房地产与建设工程领域专家，代理多起标的额过亿的建设工程纠纷案件。', achievements: ['建工法专业委员会委员', '地产法务十佳律师'] },
-]
-
 function apiToExpert(item: ExpertItem): Expert {
   return {
     id: item.id,
@@ -51,22 +42,21 @@ function apiToExpert(item: ExpertItem): Expert {
 }
 
 export default function Experts() {
-  const [experts, setExperts] = useState<Expert[]>(mockExperts)
+  const [experts, setExperts] = useState<Expert[]>([])
   const [filter, setFilter] = useState<Specialty>('all')
   const [selectedExpert, setSelectedExpert] = useState<Expert | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const loadExperts = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
       const data = await expertsApi.list({ page_size: 100 })
-      if (data.items?.length > 0) {
-        setExperts(data.items.map(apiToExpert))
-      } else {
-        setExperts(mockExperts)
-      }
-    } catch {
-      setExperts(mockExperts)
+      setExperts((data.items || []).map(apiToExpert))
+    } catch (err) {
+      setExperts([])
+      setError(err instanceof Error ? err.message : '加载律师数据失败')
     } finally {
       setLoading(false)
     }
@@ -166,6 +156,21 @@ export default function Experts() {
           <div className="flex items-center justify-center py-20">
             <icons.Refresh className="w-6 h-6 animate-spin text-primary" />
             <span className="ml-2 text-sm text-muted-foreground">加载律师数据...</span>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <icons.AlertTriangle className="w-10 h-10 text-destructive/60 mb-3" />
+            <p className="text-sm text-foreground mb-1">律师数据加载失败</p>
+            <p className="text-xs text-muted-foreground mb-4">{error}</p>
+            <button onClick={() => void loadExperts()} className="px-4 py-2 rounded-lg bg-primary text-white text-sm">
+              重新加载
+            </button>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <icons.Experts className="w-10 h-10 text-muted-foreground/50 mb-3" />
+            <p className="text-sm text-foreground mb-1">暂无律师数据</p>
+            <p className="text-xs text-muted-foreground">运行种子数据后即可验证律师列表。</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

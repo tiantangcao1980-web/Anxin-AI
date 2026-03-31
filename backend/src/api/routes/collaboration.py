@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Optional, Dict, List, Any
 from fastapi import APIRouter, HTTPException, Query, Depends, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from loguru import logger
@@ -509,6 +509,11 @@ class AddCollaboratorRequest(BaseModel):
     nickname: Optional[str] = None
 
 
+class UpdateCollaboratorRoleRequest(BaseModel):
+    """更新协作者角色请求"""
+    role: str = Field(..., description="owner | editor | viewer | commenter")
+
+
 @router.post("/sessions/{session_id}/collaborators", response_model=UnifiedResponse)
 async def add_collaborator(
     session_id: str,
@@ -607,6 +612,63 @@ async def remove_collaborator(
     )
 
     return UnifiedResponse.success(message="协作者已移除")
+
+
+@router.put("/sessions/{session_id}/collaborators/{collaborator_user_id}/role", response_model=UnifiedResponse)
+async def update_collaborator_role(
+    session_id: str,
+    collaborator_user_id: str,
+    request: UpdateCollaboratorRoleRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """更新协作者角色（仅 owner 可操作）"""
+    owner_result = await db.execute(
+        select(DocumentCollaborator).where(
+            DocumentCollaborator.session_id == session_id,
+            DocumentCollaborator.user_id == user.id,
+            DocumentCollaborator.role == CollaboratorRole.OWNER
+        )
+    )
+    if not owner_result.scalar_one_or_none():
+        return UnifiedResponse.error(code=403, message="仅会话所有者可管理协作者")
+
+    collab_result = await db.execute(
+        select(DocumentCollaborator).where(
+            DocumentCollaborator.session_id == session_id,
+            DocumentCollaborator.user_id == collaborator_user_id
+        )
+    )
+    collaborator = collab_result.scalar_one_or_none()
+    if not collaborator:
+        return UnifiedResponse.error(code=404, message="协作者不存在")
+
+    if collaborator.user_id == str(user.id):
+        return UnifiedResponse.error(code=400, message="不能修改自己的角色")
+
+    try:
+        collaborator.role = CollaboratorRole(request.role)
+    except ValueError:
+        return UnifiedResponse.error(code=400, message=f"无效角色: {request.role}")
+
+    collaborator.last_seen_at = datetime.now()
+    await db.flush()
+
+    await manager.broadcast(
+        session_id=session_id,
+        message={
+            "type": "collaborator_role_updated",
+            "user_id": collaborator_user_id,
+            "role": collaborator.role.value,
+            "collaborators": manager.get_collaborators(session_id),
+        }
+    )
+
+    return UnifiedResponse.success(data={
+        "id": collaborator.id,
+        "user_id": collaborator.user_id,
+        "role": collaborator.role.value,
+    }, message="协作者角色已更新")
 
 
 # ============ 版本快照路由 ============

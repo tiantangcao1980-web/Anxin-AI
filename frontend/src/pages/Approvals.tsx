@@ -49,16 +49,6 @@ const typeOptions = [
   { value: 'custom', label: '自定义' },
 ]
 
-// ===== Mock 数据 =====
-const mockApprovals: ApprovalItem[] = [
-  { id: '1', title: '甲方供应链合同审批', type: 'contract', status: 'pending', description: '需审批甲方供应链合同第三章违约条款修订', requester_id: 'u1', requester_name: '张律师', approver_name: '李主任', priority: 3, created_at: '2026-03-25T10:30:00Z', updated_at: '2026-03-25T10:30:00Z' },
-  { id: '2', title: '尽调报告文档审批', type: 'document', status: 'pending', description: '乙公司并购案尽调报告终稿审批', requester_id: 'u2', requester_name: '陈助理', approver_name: '张律师', priority: 2, created_at: '2026-03-24T14:00:00Z', updated_at: '2026-03-24T14:00:00Z' },
-  { id: '3', title: '王某劳动仲裁案件分配', type: 'case_assign', status: 'approved', description: '将王某劳动仲裁案分配给李律师团队', requester_id: 'u1', requester_name: '张律师', approver_name: '李主任', priority: 1, created_at: '2026-03-23T09:00:00Z', updated_at: '2026-03-23T16:00:00Z', approved_at: '2026-03-23T16:00:00Z', comment: '同意分配' },
-  { id: '4', title: '差旅费用报销', type: 'expense', status: 'rejected', description: '庭审出差差旅费用报销申请', requester_id: 'u3', requester_name: '李律师', approver_name: '财务部', priority: 1, created_at: '2026-03-22T11:00:00Z', updated_at: '2026-03-22T17:00:00Z', comment: '超出预算额度，请重新提交' },
-  { id: '5', title: '年假申请', type: 'leave', status: 'withdrawn', description: '申请3月28日-29日年假两天', requester_id: 'u2', requester_name: '陈助理', priority: 1, created_at: '2026-03-21T08:00:00Z', updated_at: '2026-03-21T12:00:00Z' },
-  { id: '6', title: '标准劳动合同模板更新', type: 'contract', status: 'pending', description: '根据新法规修订标准劳动合同模板', requester_id: 'u3', requester_name: '李律师', approver_name: '张律师', priority: 1, created_at: '2026-03-20T15:00:00Z', updated_at: '2026-03-20T15:00:00Z' },
-]
-
 // ===== 时间格式化 =====
 function timeAgo(dateStr: string): string {
   const now = new Date()
@@ -75,8 +65,9 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function Approvals() {
-  const [approvals, setApprovals] = useState<ApprovalItem[]>(mockApprovals)
+  const [approvals, setApprovals] = useState<ApprovalItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<FilterTab>('all')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [showCreateDialog, setShowCreateDialog] = useState(false)
@@ -92,17 +83,15 @@ export default function Approvals() {
 
   const loadApprovals = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
       const params: { status?: string; type?: string; page_size?: number } = { page_size: 50 }
       if (statusFilter !== 'all') params.status = statusFilter
       const data = await approvalsApi.list(params)
-      if (data.items?.length > 0) {
-        setApprovals(data.items)
-      } else {
-        setApprovals(mockApprovals)
-      }
-    } catch {
-      setApprovals(mockApprovals)
+      setApprovals(data.items || [])
+    } catch (err) {
+      setApprovals([])
+      setError(err instanceof Error ? err.message : '加载审批记录失败')
     } finally {
       setLoading(false)
     }
@@ -118,10 +107,7 @@ export default function Approvals() {
         withdrawn: data.withdrawn || 0,
       })
     } catch {
-      // Use mock stats
-      const counts = { pending: 0, approved: 0, rejected: 0, withdrawn: 0 }
-      mockApprovals.forEach((a) => { counts[a.status]++ })
-      setStats(counts)
+      setStats({ pending: 0, approved: 0, rejected: 0, withdrawn: 0 })
     }
   }, [])
 
@@ -144,12 +130,8 @@ export default function Approvals() {
       toast.success('审批已通过')
       loadApprovals()
       loadStats()
-    } catch {
-      // Mock: update locally
-      setApprovals((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, status: 'approved' as const, approved_at: new Date().toISOString() } : a))
-      )
-      toast.success('审批已通过')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '审批失败')
     }
   }
 
@@ -165,13 +147,8 @@ export default function Approvals() {
       setRejectComment('')
       loadApprovals()
       loadStats()
-    } catch {
-      setApprovals((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, status: 'rejected' as const, comment: rejectComment } : a))
-      )
-      toast.success('审批已驳回')
-      setRejectDialogId(null)
-      setRejectComment('')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '驳回失败')
     }
   }
 
@@ -192,24 +169,8 @@ export default function Approvals() {
       resetForm()
       loadApprovals()
       loadStats()
-    } catch {
-      // Mock: add locally
-      const newItem: ApprovalItem = {
-        id: String(Date.now()),
-        title: formTitle,
-        type: formType,
-        status: 'pending',
-        description: formDescription,
-        requester_id: 'current',
-        requester_name: '当前用户',
-        priority: formPriority,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }
-      setApprovals((prev) => [newItem, ...prev])
-      toast.success('审批已提交')
-      setShowCreateDialog(false)
-      resetForm()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '提交审批失败')
     }
   }
 
@@ -305,6 +266,15 @@ export default function Approvals() {
               <div className="h-3 bg-muted rounded w-2/3" />
             </div>
           ))}
+        </div>
+      ) : error ? (
+        <div className={`${cardStyle.base} text-center py-16`}>
+          <icons.AlertTriangle className="w-12 h-12 text-destructive/60 mx-auto mb-3" />
+          <p className="text-sm text-foreground mb-1">审批数据加载失败</p>
+          <p className="text-xs text-muted-foreground mb-4">{error}</p>
+          <button onClick={() => void loadApprovals()} className={buttonStyle.primary}>
+            重新加载
+          </button>
         </div>
       ) : filteredApprovals.length === 0 ? (
         <div className={`${cardStyle.base} text-center py-16`}>

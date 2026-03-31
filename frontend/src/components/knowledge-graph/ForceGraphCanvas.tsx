@@ -10,6 +10,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo, forwardRef, useImperativeHandle } from 'react'
 import * as THREE from 'three'
 import SpriteText from 'three-spritetext'
+import { measureAndCache, truncateToWidth, setFontIfChanged } from './textMeasureCache'
 
 // 节点类型配置（颜色 + 发光 + 图标 + 中文标签）
 const NODE_CONFIG: Record<string, { color: string; emissive: string; char: string; label: string }> = {
@@ -253,7 +254,8 @@ export const ForceGraphCanvas = forwardRef<ForceGraphCanvasHandle, Props>(functi
     return group
   }, [showLabels, selectedNodeId, highlightIds, isDark])
 
-  // ---- 2D 节点渲染 ----
+  // ---- 2D 节点渲染（使用文本测量缓存） ----
+  const lastFontRef = useRef('')
   const nodeCanvasObject = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
     const cfg = getCfg(node.type)
     const r = (node.val || 6) * 1.2
@@ -279,22 +281,25 @@ export const ForceGraphCanvas = forwardRef<ForceGraphCanvasHandle, Props>(functi
     ctx.lineWidth = 1.5
     ctx.stroke()
 
-    // 类型首字（白色）
+    // 类型首字（白色）—— 字体缓存避免每帧重复 ctx.font 赋值
     const charSize = Math.max(r * 0.9, 5)
-    ctx.font = `bold ${charSize}px "Inter", "SF Pro", system-ui, sans-serif`
+    const charFont = `bold ${charSize}px "Inter", "SF Pro", system-ui, sans-serif`
+    lastFontRef.current = setFontIfChanged(ctx, charFont, lastFontRef.current)
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = '#ffffff'
     ctx.fillText(cfg.char, x, y)
 
-    // 名称标签
+    // 名称标签 —— 基于像素宽度智能截断，替代朴素 slice(0,10)
     if (showLabels && globalScale > 0.4) {
       const fontSize = Math.max(10 / globalScale, 3)
-      ctx.font = `600 ${fontSize}px "Inter", "SF Pro", system-ui, sans-serif`
+      const labelFont = `600 ${fontSize}px "Inter", "SF Pro", system-ui, sans-serif`
+      lastFontRef.current = setFontIfChanged(ctx, labelFont, lastFontRef.current)
       ctx.textAlign = 'center'
       ctx.textBaseline = 'top'
       ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#334155'
-      const label = node.name.length > 10 ? node.name.slice(0, 10) + '…' : node.name
+      const maxLabelWidth = r * 6
+      const label = truncateToWidth(node.name, labelFont, maxLabelWidth)
       ctx.fillText(label, x, y + r + 3)
     }
 
@@ -310,7 +315,8 @@ export const ForceGraphCanvas = forwardRef<ForceGraphCanvasHandle, Props>(functi
     ctx.fill()
   }, [])
 
-  // 2D 边标签绘制
+  // 2D 边标签绘制（使用文本测量缓存）
+  const linkLastFontRef = useRef('')
   const linkCanvasObject = useCallback((link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
     if (globalScale < 0.6) return // 缩放太小不绘制标签
     const src = link.source
@@ -319,8 +325,9 @@ export const ForceGraphCanvas = forwardRef<ForceGraphCanvasHandle, Props>(functi
     const mx = (src.x + tgt.x) / 2
     const my = (src.y + tgt.y) / 2
     const fontSize = Math.max(8 / globalScale, 2.5)
+    const linkFont = `500 ${fontSize}px "Inter", system-ui, sans-serif`
 
-    ctx.font = `500 ${fontSize}px "Inter", system-ui, sans-serif`
+    linkLastFontRef.current = setFontIfChanged(ctx, linkFont, linkLastFontRef.current)
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = document.documentElement.classList.contains('dark') ? 'rgba(148,163,184,0.7)' : 'rgba(100,116,139,0.7)'

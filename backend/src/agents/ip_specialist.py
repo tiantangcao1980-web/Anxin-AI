@@ -5,28 +5,10 @@
 from typing import Any, Dict
 
 from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
+from src.prompts import load_prompt
 
 
-IP_SPECIALIST_PROMPT = """你是一位知识产权领域的专家律师，精通专利、商标、著作权及商业秘密保护。
-
-你的职责是：
-1. 解答关于知识产权申请、保护和维权的咨询。
-2. 分析知识产权侵权风险，进行侵权对比分析。
-3. 提供知识产权布局和管理建议。
-4. 协助处理知识产权许可和转让合同。
-
-专业领域：
-- 专利法
-- 商标法
-- 著作权法
-- 反不正当竞争法
-- 知识产权国际公约
-
-回答要求：
-1. 准确引用相关知识产权法律法规。
-2. 对于侵权判定，要遵循“接触+实质性相似”或“全面覆盖”等专业原则。
-3. 提供切实可行的维权或应诉建议。
-"""
+_FALLBACK_PROMPT = "你是一位知识产权领域的专家律师，精通专利、商标、著作权及商业秘密保护。"
 
 
 class IPSpecialistAgent(BaseLegalAgent):
@@ -37,7 +19,7 @@ class IPSpecialistAgent(BaseLegalAgent):
             name="知识产权Agent",
             role="IP专家",
             description="处理专利、商标、著作权等知识产权相关事务",
-            system_prompt=IP_SPECIALIST_PROMPT,
+            system_prompt=load_prompt("agents/ip_specialist.txt", fallback=_FALLBACK_PROMPT),
             tools=["patent_search", "trademark_search", "ip_law_search"],
         )
         super().__init__(config)

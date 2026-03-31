@@ -62,14 +62,18 @@ class ApprovalResponse(BaseModel):
     status: str
     description: Optional[str] = None
     requester_id: str
+    requester_name: Optional[str] = None
     approver_id: Optional[str] = None
+    approver_name: Optional[str] = None
     resource_type: Optional[str] = None
     resource_id: Optional[str] = None
     comment: Optional[str] = None
+    priority: int = 1
     risk_level: str = "low"
     created_at: datetime
     updated_at: datetime
     resolved_at: Optional[datetime] = None
+    approved_at: Optional[datetime] = None
     # 审批链字段
     approval_chain: Optional[dict] = None
     current_step: int = 0
@@ -160,7 +164,16 @@ class BatchApprovalResponse(BaseModel):
 
 # ========== 辅助函数 ==========
 
-def _to_response(a: Approval) -> ApprovalResponse:
+def _extract_priority(a: Approval) -> int:
+    if isinstance(a.payload, dict):
+        try:
+            return max(1, min(3, int(a.payload.get("priority", 1) or 1)))
+        except (TypeError, ValueError):
+            return 1
+    return 1
+
+
+def _to_response(a: Approval, user_map: Optional[dict[str, str]] = None) -> ApprovalResponse:
     return ApprovalResponse(
         id=str(a.id),
         title=a.title,
@@ -168,14 +181,18 @@ def _to_response(a: Approval) -> ApprovalResponse:
         status=a.status,
         description=a.description,
         requester_id=str(a.requester_id),
+        requester_name=(user_map or {}).get(str(a.requester_id)),
         approver_id=str(a.approver_id) if a.approver_id else None,
+        approver_name=(user_map or {}).get(str(a.approver_id)) if a.approver_id else None,
         resource_type=a.resource_type,
         resource_id=a.resource_id,
         comment=a.resolution_note,
+        priority=_extract_priority(a),
         risk_level=a.risk_level,
         created_at=a.created_at,
         updated_at=a.updated_at,
         resolved_at=a.resolved_at,
+        approved_at=a.resolved_at if a.status == ApprovalStatus.approved.value else None,
         approval_chain=a.approval_chain,
         current_step=a.current_step if a.current_step is not None else 0,
         template_id=str(a.template_id) if a.template_id else None,
@@ -194,6 +211,15 @@ def _to_template_response(t: ApprovalTemplate) -> TemplateResponse:
         created_at=t.created_at,
         updated_at=t.updated_at,
     )
+
+
+async def _load_user_name_map(db: AsyncSession, user_ids: list[str]) -> dict[str, str]:
+    cleaned_ids = sorted({uid for uid in user_ids if uid})
+    if not cleaned_ids:
+        return {}
+
+    result = await db.execute(select(User.id, User.name).where(User.id.in_(cleaned_ids)))
+    return {str(user_id): name for user_id, name in result.all()}
 
 
 def _advance_chain(approval: Approval, user_id: str, action: str, comment: Optional[str]) -> bool:
@@ -607,9 +633,13 @@ async def list_approvals(
             .offset(offset).limit(page_size)
         )
         items = result.scalars().all()
+        user_map = await _load_user_name_map(
+            db,
+            [str(a.requester_id) for a in items] + [str(a.approver_id) for a in items if a.approver_id],
+        )
 
         data = ApprovalListResponse(
-            items=[_to_response(a) for a in items],
+            items=[_to_response(a, user_map) for a in items],
             total=total, page=page, page_size=page_size,
         )
         return UnifiedResponse.success(data=data)
@@ -659,6 +689,7 @@ async def create_approval(
             approver_id=first_approver_id,
             resource_type=body.resource_type,
             resource_id=body.resource_id,
+            payload={"priority": body.priority},
             risk_level="low",
             status=ApprovalStatus.pending.value,
             approval_chain=chain_data,
@@ -670,7 +701,11 @@ async def create_approval(
         db.add(approval)
         await db.commit()
         await db.refresh(approval)
-        return UnifiedResponse.success(data=_to_response(approval), message="审批已创建")
+        user_map = await _load_user_name_map(
+            db,
+            [str(approval.requester_id), str(approval.approver_id) if approval.approver_id else ""],
+        )
+        return UnifiedResponse.success(data=_to_response(approval, user_map), message="审批已创建")
     except Exception as e:
         logger.error(f"创建审批失败: {e}")
         await db.rollback()
@@ -688,7 +723,11 @@ async def get_approval(
     approval = result.scalar_one_or_none()
     if not approval:
         return UnifiedResponse.error(code=404, message="审批记录不存在")
-    return UnifiedResponse.success(data=_to_response(approval))
+    user_map = await _load_user_name_map(
+        db,
+        [str(approval.requester_id), str(approval.approver_id) if approval.approver_id else ""],
+    )
+    return UnifiedResponse.success(data=_to_response(approval, user_map))
 
 
 @router.put("/{approval_id}/approve", response_model=UnifiedResponse)
@@ -720,13 +759,17 @@ async def approve_approval(
 
         await db.commit()
         await db.refresh(approval)
+        user_map = await _load_user_name_map(
+            db,
+            [str(approval.requester_id), str(approval.approver_id) if approval.approver_id else ""],
+        )
 
         if chain_done:
             msg = "审批已通过"
         else:
             msg = f"当前步骤已通过，已推进至第 {approval.current_step + 1} 步"
 
-        return UnifiedResponse.success(data=_to_response(approval), message=msg)
+        return UnifiedResponse.success(data=_to_response(approval, user_map), message=msg)
     except Exception as e:
         logger.error(f"审批通过失败: {e}")
         await db.rollback()
@@ -759,7 +802,11 @@ async def reject_approval(
 
         await db.commit()
         await db.refresh(approval)
-        return UnifiedResponse.success(data=_to_response(approval), message="审批已驳回")
+        user_map = await _load_user_name_map(
+            db,
+            [str(approval.requester_id), str(approval.approver_id) if approval.approver_id else ""],
+        )
+        return UnifiedResponse.success(data=_to_response(approval, user_map), message="审批已驳回")
     except Exception as e:
         logger.error(f"驳回审批失败: {e}")
         await db.rollback()
@@ -786,7 +833,11 @@ async def withdraw_approval(
         approval.status = ApprovalStatus.withdrawn.value
         await db.commit()
         await db.refresh(approval)
-        return UnifiedResponse.success(data=_to_response(approval), message="审批已撤回")
+        user_map = await _load_user_name_map(
+            db,
+            [str(approval.requester_id), str(approval.approver_id) if approval.approver_id else ""],
+        )
+        return UnifiedResponse.success(data=_to_response(approval, user_map), message="审批已撤回")
     except Exception as e:
         logger.error(f"撤回审批失败: {e}")
         await db.rollback()

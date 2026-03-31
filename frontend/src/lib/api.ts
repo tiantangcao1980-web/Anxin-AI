@@ -1711,6 +1711,16 @@ export interface Collaborator {
   last_seen_at: string
 }
 
+export interface CollaborationSnapshot {
+  id: string
+  version: number
+  created_at: string
+  created_by?: string
+  snapshot_type: string
+  description?: string
+  byte_size?: number
+}
+
 export const collaborationApi = {
   // 会话管理
   listSessions: (params?: { document_id?: string; status?: string; page?: number; page_size?: number }) => {
@@ -1736,12 +1746,49 @@ export const collaborationApi = {
   // 协作者
   getCollaborators: (sessionId: string) =>
     request<Collaborator[]>(`/collaboration/sessions/${sessionId}/collaborators`),
+
+  updateCollaboratorRole: (sessionId: string, collaboratorUserId: string, role: string) =>
+    request<any>(`/collaboration/sessions/${sessionId}/collaborators/${collaboratorUserId}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    }),
   
   // 新增: 提交版本
   commit: (sessionId: string, message: string) =>
     request<any>(`/collaboration/sessions/${sessionId}/commit`, {
       method: 'POST',
       body: JSON.stringify({ session_id: sessionId, message }),
+    }),
+
+  listSnapshots: (sessionId: string, limit: number = 20) =>
+    request<CollaborationSnapshot[]>(`/collaboration/sessions/${sessionId}/snapshots?limit=${limit}`),
+
+  createSnapshot: (sessionId: string, data: { content: string; description?: string }) =>
+    request<any>(`/collaboration/sessions/${sessionId}/snapshots`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  restoreSnapshot: (sessionId: string, snapshotId: string) =>
+    request<any>(`/collaboration/sessions/${sessionId}/snapshots/${snapshotId}/restore`, {
+      method: 'POST',
+    }),
+
+  diffSnapshots: (sessionId: string, snapshotA: string, snapshotB: string) =>
+    request<any>(`/collaboration/sessions/${sessionId}/snapshots/diff?snapshot_a=${encodeURIComponent(snapshotA)}&snapshot_b=${encodeURIComponent(snapshotB)}`),
+
+  listComments: (documentId: string) =>
+    request<{ comments: any[] }>(`/collaboration/document/${documentId}/comments`),
+
+  addComment: (documentId: string, data: { user_id: string; user_name: string; content: string; position: Record<string, any> }) =>
+    request<any>(`/collaboration/document/${documentId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  resolveComment: (documentId: string, commentId: string) =>
+    request<any>(`/collaboration/document/${documentId}/comments/${commentId}/resolve`, {
+      method: 'POST',
     }),
 
   // 新增: 获取配置
@@ -2502,6 +2549,15 @@ export const aiAssistantApi = {
   updateConfig: (data: any) =>
     request<any>('/ai-assistant/config', { method: 'POST', body: JSON.stringify(data) }),
   listAgents: () => request<any>('/ai-assistant/agents'),
+  listSummaries: (params?: { page?: number; page_size?: number }) => {
+    const qs = new URLSearchParams()
+    if (params?.page) qs.set('page', String(params.page))
+    if (params?.page_size) qs.set('page_size', String(params.page_size))
+    const query = qs.toString()
+    return request<any[]>(`/ai-assistant/summaries${query ? `?${query}` : ''}`)
+  },
+  getFeedbackStats: (days = 30) =>
+    request<any>(`/ai-assistant/feedback/stats?days=${days}`),
   // 私有LLM
   detectLocalLLM: () => request<any>('/ai-assistant/private-llm/detect'),
   testConnection: (data: { endpoint: string; model?: string }) =>
@@ -2523,6 +2579,16 @@ export const lawyerApi = {
     request<any>('/lawyer/onboarding/service-config', { method: 'PUT', body: JSON.stringify(data) }),
   // 工作台
   getDashboard: () => request<any>('/lawyer/dashboard'),
+  // 管理端审核
+  listPendingCertifications: (params?: { page?: number; page_size?: number }) => {
+    const qs = new URLSearchParams()
+    if (params?.page) qs.set('page', String(params.page))
+    if (params?.page_size) qs.set('page_size', String(params.page_size))
+    const query = qs.toString()
+    return request<any>(`/lawyer/admin/lawyer/pending${query ? `?${query}` : ''}`)
+  },
+  verifyCertification: (certId: string, data: { approved: boolean; rejection_reason?: string }) =>
+    request<any>(`/lawyer/admin/lawyer/${certId}/verify`, { method: 'POST', body: JSON.stringify(data) }),
 }
 
 // 所有 API 已通过命名导出（export const xxxApi）提供，无需默认导出

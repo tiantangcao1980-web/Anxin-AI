@@ -10,6 +10,7 @@ import { icons } from '@/lib/icons'
 import { toast } from 'sonner'
 import { cardStyle, heading, statusBadge, iconSize, inputStyle } from '@/lib/design-tokens'
 import { PageContainer } from '@/components/ui/PageContainer'
+import { lawyerApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -45,91 +46,35 @@ interface LawyerApplication {
   rejectReason?: string
 }
 
-// ============ Mock 数据 ============
-
-// @mock-data FALLBACK: 后端就绪后从 API 获取
-const MOCK_APPLICATIONS: LawyerApplication[] = [
-  {
-    id: '1',
-    name: '张明远',
-    licenseNo: '13101202010123456',
-    lawFirm: '北京金杜律师事务所',
-    specialties: ['合同纠纷', '公司法务', '知识产权'],
-    submittedAt: '2026-03-27 14:30',
-    status: 'pending',
-    licenseImageUrl: '/placeholder-license.jpg',
-    licenseValidFrom: '2020-06-01',
-    licenseValidTo: '2030-06-01',
-    barAssociation: '北京市律师协会',
-    practiceYears: 8,
-    province: '北京',
-    city: '北京',
-  },
-  {
-    id: '2',
-    name: '李婷婷',
-    licenseNo: '13101202015654321',
-    lawFirm: '上海大成律师事务所',
-    specialties: ['劳动争议', '婚姻家庭'],
-    submittedAt: '2026-03-27 09:15',
-    status: 'pending',
-    licenseImageUrl: '/placeholder-license.jpg',
-    licenseValidFrom: '2019-03-15',
-    licenseValidTo: '2029-03-15',
-    barAssociation: '上海市律师协会',
-    practiceYears: 6,
-    province: '上海',
-    city: '上海',
-  },
-  {
-    id: '3',
-    name: '王建国',
-    licenseNo: '13101202012345678',
-    lawFirm: '广州中伦律师事务所',
-    specialties: ['刑事辩护', '行政诉讼'],
-    submittedAt: '2026-03-26 16:00',
-    status: 'pending',
-    licenseImageUrl: '/placeholder-license.jpg',
-    licenseValidFrom: '2018-09-01',
-    licenseValidTo: '2028-09-01',
-    practiceYears: 10,
-    province: '广东',
-    city: '广州',
-  },
-  {
-    id: '4',
-    name: '赵晓晓',
-    licenseNo: '13101202019876543',
-    lawFirm: '深圳华商律师事务所',
-    specialties: ['房产纠纷', '债权债务', '金融证券'],
-    submittedAt: '2026-03-25 11:20',
-    status: 'approved',
-    licenseValidFrom: '2021-01-10',
-    licenseValidTo: '2031-01-10',
-    barAssociation: '深圳市律师协会',
-    practiceYears: 5,
-    province: '广东',
-    city: '深圳',
-  },
-  {
-    id: '5',
-    name: '刘文博',
-    licenseNo: '13101202011122334',
-    lawFirm: '成都泰和泰律师事务所',
-    specialties: ['税务法律'],
-    submittedAt: '2026-03-24 08:45',
-    status: 'rejected',
-    practiceYears: 3,
-    province: '四川',
-    city: '成都',
-    rejectReason: '执业证照片模糊，无法辨识信息',
-  },
-]
-
 const STATUS_MAP: Record<string, { label: string; badge: string }> = {
   pending: { label: '待审核', badge: statusBadge.warning },
   approved: { label: '已通过', badge: statusBadge.success },
   rejected: { label: '已驳回', badge: statusBadge.error },
+}
+
+function formatDateTime(value?: string) {
+  if (!value) return '-'
+  return new Date(value).toLocaleString('zh-CN', { hour12: false })
+}
+
+function apiToApplication(item: any): LawyerApplication {
+  return {
+    id: item.id,
+    name: item.lawyer_name || '未知律师',
+    licenseNo: item.license_number || '',
+    lawFirm: item.law_firm || '-',
+    specialties: item.specializations || [],
+    submittedAt: formatDateTime(item.created_at),
+    status: (item.status as LawyerApplication['status']) || 'pending',
+    licenseImageUrl: item.license_image_url,
+    licenseValidFrom: item.license_issue_date,
+    licenseValidTo: item.license_expiry_date,
+    barAssociation: item.bar_association,
+    practiceYears: item.years_of_practice,
+    province: item.province,
+    city: item.city,
+    rejectReason: item.rejection_reason,
+  }
 }
 
 // ============ 主组件 ============
@@ -137,6 +82,7 @@ const STATUS_MAP: Record<string, { label: string; badge: string }> = {
 export default function AdminLawyerVerify() {
   const [loading, setLoading] = useState(true)
   const [applications, setApplications] = useState<LawyerApplication[]>([])
+  const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
@@ -145,13 +91,22 @@ export default function AdminLawyerVerify() {
   const [rejectDialog, setRejectDialog] = useState<{ open: boolean; id: string }>({ open: false, id: '' })
   const [rejectReason, setRejectReason] = useState('')
 
-  useEffect(() => {
-    // @mock-data FALLBACK: 后端就绪后从 API 获取
-    const timer = setTimeout(() => {
-      setApplications(MOCK_APPLICATIONS)
+  async function loadApplications() {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await lawyerApi.listPendingCertifications({ page_size: 100 })
+      setApplications((data.items || []).map(apiToApplication))
+    } catch (err) {
+      setApplications([])
+      setError(err instanceof Error ? err.message : '加载待审核律师失败')
+    } finally {
       setLoading(false)
-    }, 600)
-    return () => clearTimeout(timer)
+    }
+  }
+
+  useEffect(() => {
+    void loadApplications()
   }, [])
 
   // 搜索过滤
@@ -164,29 +119,34 @@ export default function AdminLawyerVerify() {
     )
   })
 
-  function handleApprove() {
-    setApplications(prev =>
-      prev.map(a => (a.id === approveDialog.id ? { ...a, status: 'approved' as const } : a))
-    )
-    setApproveDialog({ open: false, id: '' })
-    toast.success('审核已通过')
+  async function handleApprove() {
+    try {
+      await lawyerApi.verifyCertification(approveDialog.id, { approved: true })
+      setApproveDialog({ open: false, id: '' })
+      toast.success('审核已通过')
+      await loadApplications()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '审核失败')
+    }
   }
 
-  function handleReject() {
+  async function handleReject() {
     if (!rejectReason.trim()) {
       toast.error('请填写驳回原因')
       return
     }
-    setApplications(prev =>
-      prev.map(a =>
-        a.id === rejectDialog.id
-          ? { ...a, status: 'rejected' as const, rejectReason: rejectReason }
-          : a
-      )
-    )
-    setRejectDialog({ open: false, id: '' })
-    setRejectReason('')
-    toast.success('已驳回申请')
+    try {
+      await lawyerApi.verifyCertification(rejectDialog.id, {
+        approved: false,
+        rejection_reason: rejectReason,
+      })
+      setRejectDialog({ open: false, id: '' })
+      setRejectReason('')
+      toast.success('已驳回申请')
+      await loadApplications()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '驳回失败')
+    }
   }
 
   if (loading) {
@@ -200,6 +160,20 @@ export default function AdminLawyerVerify() {
 
   return (
     <PageContainer title="律师审核" description="审核律师入驻申请">
+      {error && (
+        <div className={`${cardStyle.base} border-destructive/20 bg-destructive/5`}>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-foreground">待审核律师数据加载失败</p>
+              <p className="text-xs text-muted-foreground mt-1">{error}</p>
+            </div>
+            <Button variant="outline" onClick={() => void loadApplications()}>
+              重试
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* 搜索栏 */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-md">
@@ -235,7 +209,7 @@ export default function AdminLawyerVerify() {
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-12">
                   <icons.Search className={`${iconSize.xl} text-muted-foreground mx-auto mb-2`} />
-                  <p className={heading.muted}>没有匹配的申请记录</p>
+                  <p className={heading.muted}>{error ? '暂无可展示的待审核申请' : '没有匹配的申请记录'}</p>
                 </TableCell>
               </TableRow>
             ) : (

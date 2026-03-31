@@ -101,7 +101,7 @@ services:
       - legal-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:6333/healthz || exit 1"]
+      test: ["CMD-SHELL", "grep -q ':18BD' /proc/net/tcp || grep -q ':18BD' /proc/net/tcp6"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -124,11 +124,11 @@ services:
     restart: unless-stopped
     # ===== [Phase 6] 添加健康检查 =====
     healthcheck:
-      test: ["CMD-SHELL", "cypher-shell -u neo4j -p password 'RETURN 1' || exit 1"]
+      test: ["CMD-SHELL", "bash -lc 'exec 3<>/dev/tcp/127.0.0.1/7687'"]
       interval: 15s
       timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 90s
 
   # ==================== MinIO对象存储 ====================
   # ===== [Phase 6] 锁定版本 + 添加健康检查 =====

@@ -7,7 +7,7 @@
  * 3. 满意 → 一键委托 → 签约 → 支付
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { icons } from '@/lib/icons';
 import { lawyerMatchingApi, anonymousChatApi } from '@/lib/api';
@@ -49,13 +49,32 @@ export default function FindLawyer() {
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
   const [selectedLawyer, setSelectedLawyer] = useState<any>(null);
   const [isDelegating, setIsDelegating] = useState(false);
+  const [lawyers, setLawyers] = useState<any[]>([]);
+  const [loadingLawyers, setLoadingLawyers] = useState(false);
+  const [lawyerLoadError, setLawyerLoadError] = useState('');
 
-  // @mock-data FALLBACK
-  const mockLawyers = [
-    { id: 'l1', name: '匿名律师 A', speciality: '合同纠纷', experience: 12, rating: 4.9, cases: 350, badge: '资深' },
-    { id: 'l2', name: '匿名律师 B', speciality: '劳动争议', experience: 8, rating: 4.7, cases: 210, badge: '推荐' },
-    { id: 'l3', name: '匿名律师 C', speciality: '知识产权', experience: 15, rating: 4.8, cases: 480, badge: '专家' },
-  ];
+  const loadLawyers = useCallback(async () => {
+    if (step !== 'matching' || !consultationId) return;
+    setLoadingLawyers(true);
+    setLawyerLoadError('');
+    try {
+      const result = await lawyerMatchingApi.listLawyers({
+        domain: selectedDomain || undefined,
+        page: 1,
+        page_size: 20,
+      });
+      setLawyers(result.items || []);
+    } catch (e: any) {
+      setLawyers([]);
+      setLawyerLoadError(e.message || '律师列表加载失败');
+    } finally {
+      setLoadingLawyers(false);
+    }
+  }, [consultationId, selectedDomain, step]);
+
+  useEffect(() => {
+    loadLawyers();
+  }, [loadLawyers]);
 
   const handleSubmit = useCallback(async () => {
     if (!description.trim() || description.length < 10) {
@@ -86,6 +105,7 @@ export default function FindLawyer() {
     try {
       const result = await anonymousChatApi.createRoom({
         consultation_id: consultationId || undefined,
+        lawyer_name: selectedLawyer?.real_name,
       });
       setChatRoomId(result.room_id);
       setChatToken(result.user_token);
@@ -112,27 +132,28 @@ export default function FindLawyer() {
     }
     setIsDelegating(true);
     try {
-      await lawyerMatchingApi.createConsultation({
-        description: `委托律师 ${selectedLawyer.id}`,
-        legal_domain: selectedDomain || undefined,
-        urgency: 'high',
+      if (!consultationId) {
+        throw new Error('咨询记录不存在，请重新发起咨询');
+      }
+      await lawyerMatchingApi.createDelegation(consultationId, {
+        title: `${selectedLawyer.real_name} 委托申请`,
+        description: anonymousSummary || description,
+        service_type: 'instant',
       });
       toast.success('委托请求已提交，律师将尽快与您联系');
       setStep('describe');
       setDescription('');
       setSelectedDomain('');
       setSelectedLawyer(null);
-    } catch {
-      // @mock-data FALLBACK
-      toast.success('委托请求已提交（演示模式）');
-      setStep('describe');
-      setDescription('');
-      setSelectedDomain('');
-      setSelectedLawyer(null);
+      setConsultationId(null);
+      setAnonymousSummary('');
+      setLawyers([]);
+    } catch (e: any) {
+      toast.error(e.message || '委托提交失败，当前需要律师先完成接单');
     } finally {
       setIsDelegating(false);
     }
-  }, [selectedLawyer, selectedDomain]);
+  }, [anonymousSummary, consultationId, description, selectedDomain, selectedLawyer]);
 
   // 如果在聊天步骤，展示全屏聊天室
   if (step === 'chatting' && chatRoomId && chatToken) {
@@ -302,38 +323,63 @@ export default function FindLawyer() {
               {/* 律师卡片列表 */}
               <div className="space-y-3">
                 <h3 className="text-sm font-semibold text-foreground">为您推荐的律师</h3>
-                {mockLawyers.map(lawyer => (
-                  <div
-                    key={lawyer.id}
-                    onClick={() => setSelectedLawyer(lawyer)}
-                    className={`p-4 rounded-xl border transition-all cursor-pointer ${
-                      selectedLawyer?.id === lawyer.id
-                        ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
-                        : 'border-border bg-background hover:border-primary/30 hover:bg-muted/50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                        <icons.User className="w-6 h-6 text-muted-foreground" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-foreground">{lawyer.name}</span>
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary">{lawyer.badge}</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {lawyer.speciality} | {lawyer.experience}年执业 | {lawyer.cases}+案件
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <div className="flex items-center gap-1 text-amber-500">
-                          <icons.Star className="w-3.5 h-3.5" />
-                          <span className="text-sm font-medium">{lawyer.rating}</span>
-                        </div>
-                      </div>
-                    </div>
+                {loadingLawyers ? (
+                  <div className="p-6 rounded-xl border border-border bg-background text-sm text-muted-foreground flex items-center justify-center gap-2">
+                    <icons.Loader2 className="w-4 h-4 animate-spin" />
+                    正在加载律师列表...
                   </div>
-                ))}
+                ) : lawyerLoadError ? (
+                  <div className="p-6 rounded-xl border border-destructive/20 bg-destructive/5 text-sm text-destructive">
+                    <p>{lawyerLoadError}</p>
+                    <button onClick={loadLawyers} className="mt-3 text-sm font-medium underline underline-offset-4">
+                      重新加载
+                    </button>
+                  </div>
+                ) : lawyers.length === 0 ? (
+                  <div className="p-6 rounded-xl border border-border bg-background text-sm text-muted-foreground">
+                    暂无符合条件的律师，您可以返回修改领域后重试。
+                  </div>
+                ) : (
+                  lawyers.map(lawyer => {
+                    const badge = lawyer.is_online ? '在线' : lawyer.is_verified ? '已认证' : '待确认';
+                    const speciality = lawyer.specializations?.[0] || selectedDomain || '综合法务';
+                    return (
+                      <div
+                        key={lawyer.id}
+                        onClick={() => setSelectedLawyer(lawyer)}
+                        className={`p-4 rounded-xl border transition-all cursor-pointer ${
+                          selectedLawyer?.id === lawyer.id
+                            ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                            : 'border-border bg-background hover:border-primary/30 hover:bg-muted/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                            <icons.User className="w-6 h-6 text-muted-foreground" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-foreground">{lawyer.real_name}</span>
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary">{badge}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {speciality} | {lawyer.years_of_practice || 0}年执业 | {lawyer.total_cases || 0}+案件
+                            </p>
+                            {lawyer.law_firm && (
+                              <p className="text-xs text-muted-foreground mt-1">{lawyer.law_firm}</p>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <div className="flex items-center gap-1 text-amber-500">
+                              <icons.Star className="w-3.5 h-3.5" />
+                              <span className="text-sm font-medium">{(lawyer.rating || 0).toFixed(1)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
 
               <div className="flex items-center justify-center gap-4">
@@ -389,8 +435,10 @@ export default function FindLawyer() {
                       <icons.User className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-foreground">{selectedLawyer.name}</p>
-                      <p className="text-xs text-muted-foreground">{selectedLawyer.speciality} | {selectedLawyer.experience}年执业</p>
+                      <p className="text-sm font-medium text-foreground">{selectedLawyer.real_name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {selectedLawyer.specializations?.[0] || '综合法务'} | {selectedLawyer.years_of_practice || 0}年执业
+                      </p>
                     </div>
                   </div>
                 </div>

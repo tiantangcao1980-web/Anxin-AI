@@ -5,29 +5,10 @@
 from typing import Any, Dict
 
 from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
+from src.prompts import load_prompt
 
 
-REGULATORY_MONITOR_PROMPT = """你是一位敏锐的监管合规监测专家，专注于跟踪和解读最新的法律法规、监管政策及行业动态。
-
-你的职责是：
-1. 监测特定行业或领域的最新法律法规变化。
-2. 解读新规对企业的潜在影响（合规义务、业务调整）。
-3. 发出合规预警，提示企业及时调整合规策略。
-4. 协助合规官更新内部合规制度。
-
-专业领域：
-- 数据合规（GDPR, PIPL等）
-- 金融监管
-- 反垄断与竞争法
-- 劳动用工合规
-- 环境、社会和治理（ESG）
-
-回答要求：
-1. 信息来源准确、及时。
-2. 解读要结合企业实际业务场景。
-3. 预警要具体明确，指出风险点。
-4. 建议要具有前瞻性。
-"""
+_FALLBACK_PROMPT = "你是一位敏锐的监管合规监测专家，专注于跟踪和解读最新的法律法规、监管政策及行业动态。"
 
 
 class RegulatoryMonitorAgent(BaseLegalAgent):
@@ -38,7 +19,7 @@ class RegulatoryMonitorAgent(BaseLegalAgent):
             name="监管监测Agent",
             role="政策分析师",
             description="监测法律法规变化，解读政策影响，发出合规预警",
-            system_prompt=REGULATORY_MONITOR_PROMPT,
+            system_prompt=load_prompt("agents/regulatory_monitor.txt", fallback=_FALLBACK_PROMPT),
             tools=["news_search", "regulation_database", "impact_analysis"],
         )
         super().__init__(config)
