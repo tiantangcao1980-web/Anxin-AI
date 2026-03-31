@@ -9,9 +9,11 @@ import { toast } from 'sonner'
 
 interface UserProfileProps {
   onClose: () => void
+  headerActionLabels?: boolean
+  onToggleHeaderActionLabels?: () => void
 }
 
-export function UserProfile({ onClose }: UserProfileProps) {
+export function UserProfile({ onClose, headerActionLabels = true, onToggleHeaderActionLabels }: UserProfileProps) {
   const navigate = useNavigate()
   const { theme, setTheme } = useUIStore()
   const { user: storeUser, logout: storeLogout } = useAuthStore()
@@ -196,6 +198,32 @@ export function UserProfile({ onClose }: UserProfileProps) {
                 />
               </button>
             </div>
+
+            {/* 导航栏显示文字 */}
+            {onToggleHeaderActionLabels && (
+              <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-3">
+                  {headerActionLabels ? (
+                    <icons.List className={`${iconSize.md} text-muted-foreground`} />
+                  ) : (
+                    <icons.Grid3x3 className={`${iconSize.md} text-muted-foreground`} />
+                  )}
+                  <span className={heading.card}>导航栏显示文字</span>
+                </div>
+                <button
+                  onClick={onToggleHeaderActionLabels}
+                  className={`w-11 h-6 rounded-full transition-colors ${
+                    headerActionLabels ? 'bg-primary' : 'bg-border'
+                  }`}
+                >
+                  <div
+                    className={`w-5 h-5 bg-background rounded-full my-0.5 shadow-sm transition-transform ${
+                      headerActionLabels ? 'translate-x-[22px]' : 'translate-x-0.5'
+                    }`}
+                  />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* AI 私有助手 + 数据隐私保护级别 */}

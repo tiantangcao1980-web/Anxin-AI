@@ -55,42 +55,70 @@ class KnowledgeService:
         logger.info(f"知识库创建成功: {name}")
         return kb
     
-    async def get_knowledge_base(self, kb_id: str) -> Optional[KnowledgeBase]:
-        """获取知识库"""
+    @staticmethod
+    def _check_kb_access(kb: 'KnowledgeBase', user_id: Optional[str] = None, org_id: Optional[str] = None) -> bool:
+        """检查用户是否有权访问知识库"""
+        if kb.is_public:
+            return True
+        if user_id and str(kb.created_by) == str(user_id):
+            return True
+        if org_id and kb.org_id and str(kb.org_id) == str(org_id):
+            return True
+        return False
+
+    async def get_knowledge_base(
+        self, kb_id: str, user_id: Optional[str] = None, org_id: Optional[str] = None
+    ) -> Optional[KnowledgeBase]:
+        """获取知识库（含权限校验）"""
         result = await self.db.execute(
             select(KnowledgeBase)
             .options(selectinload(KnowledgeBase.documents))
             .where(KnowledgeBase.id == kb_id)
         )
-        return result.scalar_one_or_none()
+        kb = result.scalar_one_or_none()
+        if kb and user_id and not self._check_kb_access(kb, user_id, org_id):
+            logger.warning(f"用户 {user_id} 无权访问知识库 {kb_id}")
+            return None
+        return kb
 
     async def list_knowledge_bases(
         self,
         org_id: Optional[str] = None,
         knowledge_type: Optional[str] = None,
+        user_id: Optional[str] = None,
         page: int = 1,
         page_size: int = 20,
     ) -> tuple[List[KnowledgeBase], int]:
-        """获取知识库列表"""
+        """获取知识库列表（含权限过滤）"""
         query = select(KnowledgeBase)
         count_query = select(func.count(KnowledgeBase.id))
-        
-        conditions = []
+
+        # 权限过滤：公开 OR 本人创建 OR 同组织
+        access_conditions = [KnowledgeBase.is_public == True]
+        if user_id:
+            access_conditions.append(KnowledgeBase.created_by == user_id)
         if org_id:
-            conditions.append(KnowledgeBase.org_id == org_id)
+            access_conditions.append(KnowledgeBase.org_id == org_id)
+        access_filter = or_(*access_conditions)
+
+        type_conditions = []
         if knowledge_type:
-            conditions.append(KnowledgeBase.knowledge_type == KnowledgeType(knowledge_type))
-        
-        if conditions:
-            query = query.where(and_(*conditions))
-            count_query = count_query.where(and_(*conditions))
-        
+            type_conditions.append(KnowledgeBase.knowledge_type == KnowledgeType(knowledge_type))
+
+        if type_conditions:
+            combined = and_(access_filter, *type_conditions)
+        else:
+            combined = access_filter
+
+        query = query.where(combined)
+        count_query = count_query.where(combined)
+
         total_result = await self.db.execute(count_query)
         total = total_result.scalar() or 0
-        
+
         query = query.order_by(KnowledgeBase.created_at.desc())
         query = query.offset((page - 1) * page_size).limit(page_size)
-        
+
         result = await self.db.execute(query)
         return list(result.scalars().all()), total
 
@@ -303,16 +331,31 @@ class KnowledgeService:
         query: str,
         kb_ids: Optional[List[str]] = None,
         system_prompt: Optional[str] = None,
+        user_id: Optional[str] = None,
+        org_id: Optional[str] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """
-        RAG 智能问答：统一转发给高级 RAG 服务
+        RAG 智能问答：统一转发给高级 RAG 服务（含权限校验）
         """
         if not kb_ids:
             collection_names = [settings.QDRANT_COLLECTION_NAME]
         else:
             kbs_result = await self.db.execute(select(KnowledgeBase).where(KnowledgeBase.id.in_(kb_ids)))
-            collection_names = [kb.vector_collection for kb in kbs_result.scalars().all()]
+            kbs = list(kbs_result.scalars().all())
+            # 权限过滤：只搜索用户有权访问的知识库
+            if user_id:
+                kbs = [kb for kb in kbs if self._check_kb_access(kb, user_id, org_id)]
+            # 空知识库过滤：跳过没有文档的知识库
+            empty_kbs = [kb.name for kb in kbs if kb.doc_count == 0]
+            kbs = [kb for kb in kbs if kb.doc_count > 0]
+            collection_names = [kb.vector_collection for kb in kbs]
+            if not collection_names:
+                return {
+                    "answer": f"选中的知识库暂无可检索文档。{'（' + '、'.join(empty_kbs) + ' 为空）' if empty_kbs else ''}请先上传文档或选择其他知识库。",
+                    "sources": [],
+                    "confidence": 0,
+                }
 
         response = await rag_service.query(
             query=query,
@@ -321,19 +364,43 @@ class KnowledgeService:
         )
         return response.to_dict()
 
-    async def search(self, query: str, kb_ids: Optional[List[str]] = None, top_k: int = 10) -> List[dict]:
-        """语义搜索转发"""
+    async def search(
+        self, query: str, kb_ids: Optional[List[str]] = None, top_k: int = 10,
+        user_id: Optional[str] = None, org_id: Optional[str] = None,
+    ) -> List[dict]:
+        """语义搜索转发（支持多知识库）"""
         if kb_ids:
             kbs_result = await self.db.execute(select(KnowledgeBase).where(KnowledgeBase.id.in_(kb_ids)))
-            collection_names = [kb.vector_collection for kb in kbs_result.scalars().all()]
+            kbs = list(kbs_result.scalars().all())
+            if user_id:
+                kbs = [kb for kb in kbs if self._check_kb_access(kb, user_id, org_id)]
+            collection_names = [kb.vector_collection for kb in kbs if kb.doc_count > 0]
         else:
             collection_names = [settings.QDRANT_COLLECTION_NAME]
-            
-        return await vector_store.search(
-            collection_name=collection_names[0], 
-            query=query, 
-            top_k=top_k
-        )
+
+        if not collection_names:
+            return []
+
+        if len(collection_names) == 1:
+            return await vector_store.search(
+                collection_name=collection_names[0],
+                query=query,
+                top_k=top_k
+            )
+        else:
+            # 多知识库搜索：遍历所有 collection 合并结果
+            all_results = []
+            for cname in collection_names:
+                try:
+                    results = await vector_store.search(
+                        collection_name=cname, query=query, top_k=top_k
+                    )
+                    all_results.extend(results)
+                except Exception as e:
+                    logger.warning(f"搜索 collection {cname} 失败: {e}")
+            # 按相关度排序后截取 top_k
+            all_results.sort(key=lambda x: x.get('score', 0), reverse=True)
+            return all_results[:top_k]
 
     async def get_kb_stats(self, kb_id: str) -> Dict[str, Any]:
         """获取知识库统计"""

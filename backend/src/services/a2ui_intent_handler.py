@@ -16,6 +16,7 @@ import uuid
 from typing import Optional, Dict, Any, List, Tuple
 from loguru import logger
 
+from src.services.due_diligence_service import get_company_info
 from src.services.a2ui_protocol import (
     a2ui_message, lawyer_card, horizontal_scroll, service_selection,
     text_block, info_banner, button_group, form_sheet, form_section,
@@ -47,7 +48,9 @@ INTENT_PATTERNS: List[Tuple[str, List[str]]] = [
     ]),
     ("due_diligence", [
         r"尽职调查", r"背景调查", r"调查.*公司", r"企业.*调查",
-        r"尽调",
+        r"尽调", r"查一下.*公司", r"看看.*公司", r"公司.*怎么样",
+        r"工商信息", r"股权结构", r"诉讼记录", r"信用记录",
+        r"供应商.*靠不靠谱", r"合作方.*风险", r"交易对手.*背景",
     ]),
     ("legal_consultation", [
         r"法律.*[问题咨询]", r"法务.*咨询", r"怎么.{0,6}法律",
@@ -157,6 +160,34 @@ async def handle_a2ui_event(
     # --- 开始审查 ---
     if action_id == "start_review":
         return await _handle_start_review(payload, context)
+
+    # --- 开始尽调 ---
+    if action_id == "start_due_diligence":
+        return await _handle_start_due_diligence(form_data, context)
+
+    # --- 返回对话 / 取消 ---
+    if action_id in {"go_back", "cancel_engagement"}:
+        return await _handle_go_back(action_id, context)
+
+    # --- 律师推荐扩展动作 ---
+    if action_id in {"view_more_lawyers", "ai_match_lawyer", "find_lawyer"}:
+        return await _handle_lawyer_followup(action_id, payload, context)
+
+    # --- 合同审查扩展动作 ---
+    if action_id in {"paste_contract", "browse_templates", "view_full_report", "ai_suggestions"}:
+        return await _handle_contract_followup(action_id, payload, context)
+
+    # --- 文书起草扩展动作 ---
+    if action_id == "select_doc_type":
+        return await _handle_select_doc_type(payload, context)
+
+    # --- 风险评估细分动作 ---
+    if action_id in {"assess_contract_risk", "assess_compliance", "assess_litigation_risk", "assess_ip_risk"}:
+        return await _handle_risk_drilldown(action_id, payload, context)
+
+    # --- 委托详情 ---
+    if action_id == "view_engagement_detail":
+        return await _handle_view_engagement_detail(payload, context)
     
     logger.warning(f"[A2UI] 未处理的 action: {action_id}")
     return None
@@ -681,6 +712,404 @@ async def _handle_due_diligence(user_message: str, context: dict) -> dict:
     ]
     
     return a2ui_message(components, agent="尽职调查 Agent")
+
+
+async def _handle_start_due_diligence(form_data: dict, context: dict) -> dict:
+    """处理「开始调查」操作 → 返回尽调摘要卡片"""
+    company_name = (form_data.get("company_name") or "").strip()
+    investigation_scope = form_data.get("investigation_scope") or []
+    purpose = form_data.get("purpose") or "cooperation"
+
+    if not company_name:
+        return a2ui_message(
+            [
+                info_banner("请先填写需要调查的企业名称。", variant="warning"),
+                text_block("建议填写完整企业名称，必要时补充统一社会信用代码，以便提高调查准确性。"),
+            ],
+            agent="尽职调查 Agent",
+        )
+
+    scope_labels = {
+        "basic": "基础工商信息",
+        "financial": "财务状况",
+        "litigation": "诉讼记录",
+        "compliance": "合规情况",
+        "ip": "知识产权",
+        "related_parties": "关联方分析",
+    }
+    purpose_labels = {
+        "investment": "投资决策",
+        "cooperation": "合作评估",
+        "ma": "并购重组",
+        "supplier": "供应商审核",
+    }
+
+    try:
+        company_data = await get_company_info(company_name)
+    except Exception as e:
+        logger.error(f"[A2UI] 尽调查询失败: {e}")
+        return a2ui_message(
+            [
+                status_card(
+                    "warning",
+                    f"{company_name} 调查暂时失败",
+                    description="当前尽调服务未返回可靠结果，请稍后重试，或补充统一社会信用代码后再次发起调查。",
+                ),
+                text_block("如果您需要，我也可以先帮您列出尽调清单，包括工商、诉讼、股权、信用和合规核查项。"),
+            ],
+            agent="尽职调查 Agent",
+        )
+
+    basic_info = company_data.get("basic_info", {}) or {}
+    litigation = company_data.get("litigation", {}) or {}
+    credit = company_data.get("credit", {}) or {}
+    risk = company_data.get("risk", {}) or {}
+
+    overall_rating = str(risk.get("overall_rating", "medium")).lower()
+    status_map = {
+        "low": ("success", "低风险"),
+        "medium": ("info", "中风险"),
+        "high": ("warning", "高风险"),
+        "critical": ("error", "重大风险"),
+    }
+    status_variant, risk_label = status_map.get(overall_rating, ("info", overall_rating or "待核验"))
+
+    focus_scope = [scope_labels[item] for item in investigation_scope if item in scope_labels]
+    risk_points = [str(item).strip() for item in (risk.get("risk_points") or []) if str(item).strip()]
+    recommendations = [str(item).strip() for item in (risk.get("recommendations") or []) if str(item).strip()]
+    total_cases = int(litigation.get("plaintiff_cases", 0) or 0) + int(litigation.get("defendant_cases", 0) or 0)
+
+    components = [
+        status_card(
+            status_variant,
+            f"{company_name} 调查已完成",
+            description=(
+                f"调查目的：{purpose_labels.get(purpose, '合作评估')}。"
+                f"综合判断为{risk_label}，您可以继续查看关键发现并决定是否深入调查。"
+            ),
+        ),
+        detail_list(
+            [
+                {"label": "企业名称", "value": basic_info.get("name") or company_name},
+                {"label": "经营状态", "value": basic_info.get("status") or "待核验"},
+                {"label": "法定代表人", "value": basic_info.get("legal_representative") or "待核验"},
+                {"label": "注册资本", "value": basic_info.get("registered_capital") or "待核验"},
+                {"label": "诉讼案件数", "value": str(total_cases)},
+                {"label": "信用评级", "value": credit.get("credit_rating") or "待核验"},
+            ],
+            title="关键调查结果",
+        ),
+    ]
+
+    if focus_scope:
+        components.append(text_block(f"本次重点关注范围：{'、'.join(focus_scope)}。"))
+
+    if risk_points:
+        components.append(recommendation_card(
+            title="重点风险提示",
+            description="；".join(risk_points[:3]),
+            meta=f"综合风险等级：{risk_label}",
+        ))
+
+    if recommendations:
+        components.append(detail_list(
+            [{"label": f"建议 {idx + 1}", "value": item} for idx, item in enumerate(recommendations[:3])],
+            title="建议动作",
+        ))
+
+    components.append(button_group(
+        buttons=[
+            {"id": "btn-continue-dd", "label": "继续补充调查", "actionId": "start_due_diligence", "variant": "outline"},
+            {"id": "btn-consult-lawyer", "label": "咨询律师解读", "actionId": "find_lawyer", "variant": "primary"},
+        ],
+        layout="horizontal",
+    ))
+
+    return a2ui_message(components, agent="尽职调查 Agent")
+
+
+async def _handle_go_back(action_id: str, context: dict) -> dict:
+    message = "已返回对话，您可以继续补充信息或发起新的法务需求。"
+    if action_id == "cancel_engagement":
+        message = "已取消当前委托流程，您可以重新选择律师或继续描述需求。"
+    return a2ui_message(
+        [
+            info_banner(message, variant="info"),
+            text_block("如果您愿意，我可以继续帮您做律师匹配、合同审查、企业调查或文书起草。"),
+        ],
+        agent="交互助手 Agent",
+    )
+
+
+async def _handle_lawyer_followup(action_id: str, payload: dict, context: dict) -> dict:
+    if action_id == "ai_match_lawyer":
+        # 从上下文提取用户描述，进行关键词匹配推荐
+        user_text = (context.get("user_message") or context.get("last_user_message") or "").lower()
+        keyword_specialty_map = {
+            "合同": "合同法", "公司": "公司法", "知识产权": "知识产权",
+            "劳动": "劳动法", "竞业": "竞业禁止", "并购": "并购重组",
+            "投资": "投资基金", "商标": "商标注册", "专利": "专利诉讼",
+            "刑事": "刑事辩护", "行政": "行政诉讼", "合规": "合规审查",
+        }
+        matched_specialties = [sp for kw, sp in keyword_specialty_map.items() if kw in user_text]
+
+        if matched_specialties:
+            scored = []
+            for l in MOCK_LAWYERS:
+                overlap = len(set(l["specialties"]) & set(matched_specialties))
+                if overlap > 0:
+                    scored.append((overlap, l["rating"], l))
+            scored.sort(key=lambda x: (x[0], x[1]), reverse=True)
+            matched_lawyers = [item[2] for item in scored[:3]]
+        else:
+            # 无法提取关键词时，按评分排序推荐
+            matched_lawyers = sorted(MOCK_LAWYERS, key=lambda l: l["rating"], reverse=True)[:3]
+
+        cards = []
+        for l in matched_lawyers:
+            cards.append(lawyer_card(
+                lawyer_id=l["id"], name=l["name"], firm=l["firm"],
+                specialties=l["specialties"], rating=l["rating"],
+                status=l["status"], title=l["title"], win_rate=l["win_rate"],
+                experience=l["experience"], response_time=l["response_time"],
+                consult_fee=l["consult_fee"],
+            ))
+
+        match_desc = f"已根据您的问题（{'、'.join(matched_specialties[:3])}）智能匹配" if matched_specialties else "已为您推荐评分最高的律师"
+        return a2ui_message(
+            [
+                info_banner(f"{match_desc}以下律师：", variant="success"),
+                horizontal_scroll(cards),
+                text_block("您也可以补充案件类型、所在城市或预算范围，获得更精准的推荐。"),
+            ],
+            agent="律师推荐 Agent",
+        )
+
+    if action_id == "find_lawyer":
+        return await _handle_find_lawyer("帮我推荐合适的律师", context)
+
+    return await _handle_find_lawyer("查看更多律师推荐", context)
+
+
+async def _handle_contract_followup(action_id: str, payload: dict, context: dict) -> dict:
+    if action_id == "paste_contract":
+        return a2ui_message(
+            [
+                info_banner("请直接把合同全文粘贴到对话框中，我会继续做条款解析和风险审查。", variant="info"),
+                text_block("如果合同较长，建议优先上传文件；如果只想看重点，也可以只粘贴关键条款。"),
+            ],
+            agent="合同审查 Agent",
+        )
+
+    if action_id == "browse_templates":
+        return a2ui_message(
+            [
+                service_selection(
+                    title="常用合同模板",
+                    services=[
+                        {"id": "nda", "name": "保密协议", "description": "适用于合作前信息披露场景", "features": ["标准保密条款", "违约责任"], "actionId": "select_doc_type"},
+                        {"id": "service", "name": "服务合同", "description": "适用于技术/咨询/外包服务合作", "features": ["服务范围", "付款条款"], "actionId": "select_doc_type"},
+                        {"id": "procurement", "name": "采购合同", "description": "适用于设备/货物采购与供应商合作", "features": ["验收条款", "违约责任"], "actionId": "select_doc_type"},
+                    ],
+                    subtitle="选择模板后，我会继续帮您起草或审查。",
+                )
+            ],
+            agent="合同审查 Agent",
+        )
+
+    if action_id == "view_full_report":
+        return a2ui_message(
+            [
+                status_card("info", "详细报告已准备", description="建议重点查看违约责任、保密条款、争议解决和知识产权归属。"),
+                detail_list(
+                    [
+                        {"label": "高优先级", "value": "保密条款责任边界不清，建议补充泄密责任与例外情形。"},
+                        {"label": "中优先级", "value": "违约责任上限未明确，建议约定赔偿上限或计算方式。"},
+                        {"label": "中优先级", "value": "争议解决地未约定，建议明确法院或仲裁机构。"},
+                    ],
+                    title="合同审查重点",
+                ),
+            ],
+            agent="合同审查 Agent",
+        )
+
+    return a2ui_message(
+        [
+            recommendation_card(
+                title="AI 修改建议",
+                description="建议先补齐违约责任、争议解决、保密范围和知识产权归属四类核心条款，再进行最终定稿。",
+                meta="优先处理高风险条款后再发给对方确认",
+            ),
+            text_block("如果您愿意，我也可以继续按条款逐段给出修改稿。"),
+        ],
+        agent="合同审查 Agent",
+    )
+
+
+async def _handle_select_doc_type(payload: dict, context: dict) -> dict:
+    doc_type = payload.get("serviceId") or payload.get("docType") or "general"
+    doc_titles = {
+        "contract": "合同/协议",
+        "lawyer_letter": "律师函",
+        "legal_opinion": "法律意见书",
+        "authorization": "授权/委托书",
+        "nda": "保密协议",
+        "service": "服务合同",
+        "procurement": "采购合同",
+    }
+    title = doc_titles.get(doc_type, "法律文书")
+    return a2ui_message(
+        [
+            form_sheet(
+                title=f"{title}信息收集",
+                subtitle="补充关键信息后，我就可以继续起草。",
+                sections=[
+                    form_section("parties", "主体信息", "textarea", required=True, placeholder="请输入甲乙方/委托方等主体信息"),
+                    form_section("purpose", "文书目的", "textarea", required=True, placeholder="例如：催款、合作签约、授权代理"),
+                    form_section("key_terms", "关键要求", "textarea", placeholder="例如：金额、期限、违约责任、保密要求"),
+                ],
+                submit_action={"label": "继续起草", "actionId": "go_back"},
+            )
+        ],
+        agent="文书起草 Agent",
+    )
+
+
+def _compute_risk_score(action_id: str, context: dict) -> tuple:
+    """根据用户输入动态计算风险评分和风险点"""
+    user_text = (context.get("user_message") or context.get("last_user_message") or "").lower()
+
+    # 每种风险类型的关键词 → (权重, 风险描述)
+    _RISK_PATTERNS = {
+        "assess_contract_risk": {
+            "title": "合同风险",
+            "base_score": 55,
+            "keywords": {
+                "违约": (12, "存在违约责任条款风险"),
+                "赔偿": (10, "赔偿金额或方式需明确约定"),
+                "验收": (8, "验收标准不够具体可能引发争议"),
+                "保密": (6, "保密义务范围需确认"),
+                "解除": (10, "合同解除条件需要关注"),
+                "不可抗力": (5, "不可抗力条款覆盖范围是否充分"),
+                "争议": (8, "争议解决方式（仲裁/诉讼）需明确"),
+                "付款": (9, "付款条件和时间节点需严格约定"),
+                "质保": (7, "质保期限和范围需确认"),
+            },
+            "fallback_desc": "建议上传合同文本，以便精准识别条款风险点。",
+        },
+        "assess_compliance": {
+            "title": "合规审查",
+            "base_score": 50,
+            "keywords": {
+                "数据": (10, "数据合规（个人信息保护法）需重点关注"),
+                "隐私": (10, "用户隐私保护措施需核查"),
+                "许可": (8, "业务经营许可证和资质需确认"),
+                "审批": (7, "内部审批流程需规范化"),
+                "出口": (9, "出口管制合规需评估"),
+                "反垄断": (11, "反垄断合规风险需专项排查"),
+                "税务": (8, "税务合规需核查申报义务"),
+                "环保": (7, "环保合规义务需确认"),
+            },
+            "fallback_desc": "建议描述业务场景和行业领域，以便进行针对性合规排查。",
+        },
+        "assess_litigation_risk": {
+            "title": "诉讼风险",
+            "base_score": 60,
+            "keywords": {
+                "证据": (12, "证据链完整性是胜诉关键"),
+                "时效": (10, "诉讼时效需确认是否在有效期内"),
+                "管辖": (7, "管辖权归属需提前确认"),
+                "送达": (6, "送达问题可能影响诉讼进程"),
+                "保全": (9, "财产保全可降低执行难度"),
+                "和解": (5, "可评估和解的性价比"),
+                "败诉": (11, "败诉风险需综合评估证据和法律依据"),
+                "上诉": (7, "二审改判可能性需评估"),
+            },
+            "fallback_desc": "建议提供案件事实和现有证据情况，以便评估诉讼胜率。",
+        },
+        "assess_ip_risk": {
+            "title": "知识产权风险",
+            "base_score": 50,
+            "keywords": {
+                "专利": (10, "专利权属和有效性需核查"),
+                "商标": (9, "商标近似和在先权利需排查"),
+                "著作权": (8, "著作权归属和授权范围需确认"),
+                "侵权": (12, "侵权比对结论需专业鉴定支持"),
+                "授权": (8, "授权链条完整性需追溯"),
+                "开源": (9, "开源协议合规（GPL/MIT等）需核查"),
+                "竞业": (7, "竞业限制条款可能涉及商业秘密"),
+                "域名": (5, "域名权属和恶意抢注需关注"),
+            },
+            "fallback_desc": "建议描述具体的知识产权类型和争议焦点。",
+        },
+    }
+
+    pattern = _RISK_PATTERNS.get(action_id, _RISK_PATTERNS["assess_contract_risk"])
+    score = pattern["base_score"]
+    matched_risks = []
+
+    for keyword, (weight, risk_desc) in pattern["keywords"].items():
+        if keyword in user_text:
+            score += weight
+            matched_risks.append(risk_desc)
+
+    score = max(20, min(95, score))
+    level = "low" if score < 50 else ("medium" if score < 70 else "high")
+
+    if matched_risks:
+        desc = "；".join(matched_risks[:4]) + "。"
+    else:
+        desc = pattern["fallback_desc"]
+
+    return pattern["title"], score, level, desc, matched_risks
+
+
+async def _handle_risk_drilldown(action_id: str, payload: dict, context: dict) -> dict:
+    title, score, level, desc, matched = _compute_risk_score(action_id, context)
+
+    components = [risk_indicator(title=title, score=score, level=level, description=desc)]
+
+    if matched:
+        components.append(
+            detail_list(
+                [{"label": f"风险点 {i+1}", "value": r} for i, r in enumerate(matched[:6])],
+                title="识别到的风险点",
+            )
+        )
+
+    components.append(
+        text_block("如果您补充合同文本、事实经过或证据材料，我可以进一步把风险拆到更细的维度。")
+    )
+
+    return a2ui_message(components, agent="风险评估 Agent")
+
+
+async def _handle_view_engagement_detail(payload: dict, context: dict) -> dict:
+    return a2ui_message(
+        [
+            detail_list(
+                [
+                    {"label": "当前状态", "value": "等待律师确认"},
+                    {"label": "预计响应", "value": "通常 30 分钟内"},
+                    {"label": "服务方式", "value": "在线沟通"},
+                    {"label": "下一步", "value": "律师确认后会通知您补充资料或安排沟通"},
+                ],
+                title="委托详情",
+            ),
+            progress_steps(
+                title="当前进度",
+                current_step=1,
+                steps=[
+                    {"id": "s1", "label": "提交委托", "status": "completed"},
+                    {"id": "s2", "label": "律师确认", "status": "active"},
+                    {"id": "s3", "label": "资料补充", "status": "pending"},
+                    {"id": "s4", "label": "服务进行中", "status": "pending"},
+                ],
+                direction="vertical",
+            ),
+        ],
+        agent="委托管理 Agent",
+    )
 
 
 # ========== 「法律咨询」流程 ==========

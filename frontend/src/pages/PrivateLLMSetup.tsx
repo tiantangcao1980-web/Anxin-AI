@@ -9,9 +9,10 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Progress } from '@/components/ui/progress'
+import { aiAssistantApi } from '@/lib/api'
 
 // ====================================================================
-// @mock-data FALLBACK: 后端就绪后从 API 获取
+// 类型定义
 // ====================================================================
 
 interface DetectedService {
@@ -44,136 +45,152 @@ interface DeployGuide {
   steps: string[]
 }
 
-const mockDetectedServices: DetectedService[] = [
-  { id: 'ollama', name: 'Ollama', icon: 'Terminal', status: 'running', port: 11434 },
-  { id: 'vllm', name: 'vLLM', icon: 'Server', status: 'not_found', installUrl: 'https://docs.vllm.ai/' },
-  { id: 'localai', name: 'LocalAI', icon: 'Cpu', status: 'not_found', installUrl: 'https://localai.io/' },
-  { id: 'lmstudio', name: 'LM Studio', icon: 'Brain', status: 'running', port: 1234 },
-]
-
-const mockRecommendedModels: RecommendedModel[] = [
-  {
-    id: 'qwen2.5-7b',
-    name: 'Qwen2.5-7B',
-    vram: '4GB VRAM',
-    size: '4.4GB',
-    description: '通用法律场景，性能与资源平衡',
-    installCommand: 'ollama pull qwen2.5:7b',
-  },
-  {
-    id: 'qwen2.5-14b',
-    name: 'Qwen2.5-14B',
-    vram: '8GB VRAM',
-    size: '8.9GB',
-    description: '高质量法律分析，更强推理能力',
-    installCommand: 'ollama pull qwen2.5:14b',
-  },
-  {
-    id: 'glm-4-9b',
-    name: 'GLM-4-9B',
-    vram: '6GB VRAM',
-    size: '5.5GB',
-    description: '中文优化，适合中文法律场景',
-    installCommand: 'ollama pull glm4:9b',
-  },
-  {
-    id: 'deepseek-v2-lite',
-    name: 'DeepSeek-V2-Lite',
-    vram: '4GB VRAM',
-    size: '3.8GB',
-    description: '高效推理，低资源消耗',
-    installCommand: 'ollama pull deepseek-v2:lite',
-  },
-  {
-    id: 'yi-34b',
-    name: 'Yi-34B',
-    vram: '20GB VRAM',
-    size: '19.5GB',
-    description: '最高精度，适合复杂法律分析',
-    installCommand: 'ollama pull yi:34b',
-  },
-]
-
-const mockDeployGuides: DeployGuide[] = [
-  {
-    provider: 'Ollama',
-    steps: [
-      'curl -fsSL https://ollama.com/install.sh | sh',
-      'ollama serve',
-      'ollama pull qwen2.5:7b',
-      'curl http://localhost:11434/api/generate -d \'{"model":"qwen2.5:7b","prompt":"你好"}\'',
-    ],
-  },
-  {
-    provider: 'vLLM',
-    steps: [
-      'pip install vllm',
-      'python -m vllm.entrypoints.openai.api_server --model Qwen/Qwen2.5-7B --port 8000',
-      'curl http://localhost:8000/v1/models',
-    ],
-  },
-  {
-    provider: 'LM Studio',
-    steps: [
-      '从 https://lmstudio.ai/ 下载安装 LM Studio',
-      '在模型库中搜索并下载 Qwen2.5-7B',
-      '启动本地服务器（端口 1234）',
-      '在安心法务中配置端点: http://localhost:1234/v1',
-    ],
-  },
-]
-
 // ====================================================================
 
 type PageState = 'loading' | 'error' | 'ready'
 
 export default function PrivateLLMSetup() {
   const [state, setState] = useState<PageState>('loading')
+  const [errorMsg, setErrorMsg] = useState<string>('')
   const [currentStep, setCurrentStep] = useState(0)
   const [services, setServices] = useState<DetectedService[]>([])
+  const [models, setModels] = useState<RecommendedModel[]>([])
+  const [deployGuides, setDeployGuides] = useState<DeployGuide[]>([])
   const [selectedModel, setSelectedModel] = useState<string>('')
   const [endpoint, setEndpoint] = useState('http://localhost:11434')
   const [modelName, setModelName] = useState('')
   const [testResult, setTestResult] = useState<TestResult>({ status: 'idle' })
   const [showGuide, setShowGuide] = useState(false)
-  const [guideProvider, setGuideProvider] = useState('Ollama')
+  const [guideProvider, setGuideProvider] = useState('')
   const [detecting, setDetecting] = useState(false)
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setServices(mockDetectedServices)
-      setState('ready')
-    }, 600)
-    return () => clearTimeout(timer)
+    let cancelled = false
+    async function fetchData() {
+      setState('loading')
+      try {
+        const [detectData, modelsData] = await Promise.all([
+          aiAssistantApi.detectLocalLLM(),
+          aiAssistantApi.getRecommendedModels(),
+        ])
+        if (cancelled) return
+
+        // 检测到的服务
+        const svcList = Array.isArray(detectData) ? detectData : detectData?.services || []
+        setServices(svcList.map((s: any) => ({
+          id: s.id || '',
+          name: s.name || '',
+          icon: s.icon || 'Terminal',
+          status: s.status || 'not_found',
+          port: s.port,
+          installUrl: s.install_url || s.installUrl,
+        })))
+
+        // 推荐模型
+        const modelList = Array.isArray(modelsData) ? modelsData : modelsData?.models || []
+        setModels(modelList.map((m: any) => ({
+          id: m.id || '',
+          name: m.name || '',
+          vram: m.vram || '',
+          description: m.description || '',
+          installCommand: m.install_command || m.installCommand || '',
+          size: m.size || '',
+        })))
+
+        setState('ready')
+      } catch (err: any) {
+        if (!cancelled) {
+          console.error('私有LLM配置加载失败:', err)
+          setErrorMsg(err?.message || '数据加载失败，请稍后重试')
+          setState('error')
+        }
+      }
+    }
+    fetchData()
+    return () => { cancelled = true }
   }, [])
 
   const handleDetect = async () => {
     setDetecting(true)
-    // @mock-data FALLBACK: 模拟检测
-    await new Promise(r => setTimeout(r, 1500))
-    setServices(mockDetectedServices)
-    setDetecting(false)
-    toast.success('环境检测完成')
+    try {
+      const detectData = await aiAssistantApi.detectLocalLLM()
+      const svcList = Array.isArray(detectData) ? detectData : detectData?.services || []
+      setServices(svcList.map((s: any) => ({
+        id: s.id || '',
+        name: s.name || '',
+        icon: s.icon || 'Terminal',
+        status: s.status || 'not_found',
+        port: s.port,
+        installUrl: s.install_url || s.installUrl,
+      })))
+      toast.success('环境检测完成')
+    } catch (err: any) {
+      toast.error(err?.message || '检测失败，请稍后重试')
+    } finally {
+      setDetecting(false)
+    }
   }
 
   const handleTestConnection = async () => {
     setTestResult({ status: 'testing' })
-    // @mock-data FALLBACK: 模拟测试
-    await new Promise(r => setTimeout(r, 2000))
-    setTestResult({
-      status: 'success',
-      latency: 128,
-      modelInfo: `${modelName || 'qwen2.5:7b'} · 7B params · Q4_K_M`,
-    })
-    toast.success('连接测试成功')
+    try {
+      const result = await aiAssistantApi.testConnection({
+        endpoint,
+        model: modelName || undefined,
+      })
+      setTestResult({
+        status: 'success',
+        latency: result?.latency || result?.response_time,
+        modelInfo: result?.model_info || result?.modelInfo || `${modelName || 'unknown'} connected`,
+      })
+      toast.success('连接测试成功')
+    } catch (err: any) {
+      setTestResult({
+        status: 'failed',
+        error: err?.message || '无法连接到指定端点',
+      })
+      toast.error('连接测试失败')
+    }
   }
 
   const handleSave = async () => {
-    // @mock-data FALLBACK
-    toast.success('私有 LLM 配置已保存')
+    try {
+      await aiAssistantApi.updateConfig({
+        private_llm: {
+          endpoint,
+          model: modelName,
+        },
+      })
+      toast.success('私有 LLM 配置已保存')
+    } catch (err: any) {
+      toast.error(err?.message || '保存失败，请稍后重试')
+    }
+  }
+
+  const handleShowGuide = async (provider: string) => {
+    setGuideProvider(provider)
+    // 如果还没有加载该 provider 的指南，就从 API 获取
+    const existing = deployGuides.find(g => g.provider === provider)
+    if (!existing) {
+      try {
+        const guideData = await aiAssistantApi.getDeploymentGuide(provider.toLowerCase())
+        const steps = guideData?.steps || []
+        setDeployGuides(prev => [...prev, { provider, steps }])
+      } catch {
+        // 如果加载失败，添加空指南
+        setDeployGuides(prev => [...prev, { provider, steps: ['暂无部署指南'] }])
+      }
+    }
   }
 
   const steps = ['环境检测', '选择模型', '测试连接']
+
+  // 初始化 guideProvider
+  useEffect(() => {
+    if (services.length > 0 && !guideProvider) {
+      setGuideProvider(services[0]?.name || 'Ollama')
+    }
+  }, [services, guideProvider])
 
   if (state === 'loading') {
     return (
@@ -193,7 +210,7 @@ export default function PrivateLLMSetup() {
         <div className={`${cardStyle.base} flex flex-col items-center justify-center py-16`}>
           <icons.AlertCircle className={`${iconSize.xl} text-destructive mb-3`} />
           <p className={heading.section}>加载失败</p>
-          <p className={heading.muted}>请检查网络后重试</p>
+          <p className={heading.muted}>{errorMsg || '请检查网络后重试'}</p>
           <Button className="mt-4" onClick={() => setState('loading')}>
             <icons.Refresh className={iconSize.sm} />
             重试
@@ -255,42 +272,46 @@ export default function PrivateLLMSetup() {
                 </Button>
               }
             >
-              <div className="space-y-2">
-                {services.map(svc => {
-                  const Icon = icons[svc.icon]
-                  const isRunning = svc.status === 'running'
-                  return (
-                    <div
-                      key={svc.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg border ${
-                        isRunning ? 'border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/20' : 'border-border bg-muted/30'
-                      }`}
-                    >
-                      <Icon className={`${iconSize.md} ${isRunning ? 'text-emerald-600' : 'text-muted-foreground'}`} />
-                      <div className="flex-1 min-w-0">
-                        <p className={heading.card}>{svc.name}</p>
-                        {isRunning && svc.port && (
-                          <p className={heading.micro}>端口: {svc.port}</p>
+              {services.length > 0 ? (
+                <div className="space-y-2">
+                  {services.map(svc => {
+                    const Icon = icons[svc.icon] || icons.Terminal
+                    const isRunning = svc.status === 'running'
+                    return (
+                      <div
+                        key={svc.id}
+                        className={`flex items-center gap-3 p-3 rounded-lg border ${
+                          isRunning ? 'border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/20' : 'border-border bg-muted/30'
+                        }`}
+                      >
+                        <Icon className={`${iconSize.md} ${isRunning ? 'text-emerald-600' : 'text-muted-foreground'}`} />
+                        <div className="flex-1 min-w-0">
+                          <p className={heading.card}>{svc.name}</p>
+                          {isRunning && svc.port && (
+                            <p className={heading.micro}>端口: {svc.port}</p>
+                          )}
+                        </div>
+                        <Badge className={isRunning ? statusBadge.success : statusBadge.neutral}>
+                          {isRunning ? '运行中' : '未检测到'}
+                        </Badge>
+                        {!isRunning && svc.installUrl && (
+                          <a
+                            href={svc.installUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-primary hover:underline flex items-center gap-1"
+                          >
+                            安装指南
+                            <icons.ExternalLink className="w-3 h-3" />
+                          </a>
                         )}
                       </div>
-                      <Badge className={isRunning ? statusBadge.success : statusBadge.neutral}>
-                        {isRunning ? '运行中' : '未检测到'}
-                      </Badge>
-                      {!isRunning && svc.installUrl && (
-                        <a
-                          href={svc.installUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-primary hover:underline flex items-center gap-1"
-                        >
-                          安装指南
-                          <icons.ExternalLink className="w-3 h-3" />
-                        </a>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="py-8 text-center text-sm text-muted-foreground">未检测到本地 LLM 服务</div>
+              )}
 
               <div className="flex justify-end pt-4">
                 <Button className={buttonStyle.primary} onClick={() => setCurrentStep(1)}>
@@ -306,39 +327,45 @@ export default function PrivateLLMSetup() {
         {currentStep === 1 && (
           <div className={cardStyle.base}>
             <PageSection title="选择模型" description="推荐适合法律场景的本地模型">
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {mockRecommendedModels.map(model => {
-                  const isSelected = selectedModel === model.id
-                  return (
-                    <button
-                      key={model.id}
-                      onClick={() => {
-                        setSelectedModel(model.id)
-                        setModelName(model.name.toLowerCase().replace('-', ':'))
-                      }}
-                      className={`p-4 rounded-xl border text-left transition-all ${
-                        isSelected
-                          ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
-                          : 'border-border hover:border-primary/30 hover:bg-muted/50'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <p className="text-sm font-semibold text-foreground">{model.name}</p>
-                        <Badge variant="secondary" className="text-xs shrink-0 ml-2">{model.size}</Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground mb-2">{model.description}</p>
-                      <div className="flex items-center gap-2 mb-3">
-                        <Badge className={statusBadge.info}>{model.vram}</Badge>
-                      </div>
-                      <div className="bg-foreground/5 rounded-lg p-2">
-                        <code className="text-xs font-mono text-foreground/80 break-all">
-                          {model.installCommand}
-                        </code>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
+              {models.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {models.map(model => {
+                    const isSelected = selectedModel === model.id
+                    return (
+                      <button
+                        key={model.id}
+                        onClick={() => {
+                          setSelectedModel(model.id)
+                          setModelName(model.name.toLowerCase().replace('-', ':'))
+                        }}
+                        className={`p-4 rounded-xl border text-left transition-all ${
+                          isSelected
+                            ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                            : 'border-border hover:border-primary/30 hover:bg-muted/50'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <p className="text-sm font-semibold text-foreground">{model.name}</p>
+                          <Badge variant="secondary" className="text-xs shrink-0 ml-2">{model.size}</Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-2">{model.description}</p>
+                        <div className="flex items-center gap-2 mb-3">
+                          <Badge className={statusBadge.info}>{model.vram}</Badge>
+                        </div>
+                        {model.installCommand && (
+                          <div className="bg-foreground/5 rounded-lg p-2">
+                            <code className="text-xs font-mono text-foreground/80 break-all">
+                              {model.installCommand}
+                            </code>
+                          </div>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="py-8 text-center text-sm text-muted-foreground">暂无推荐模型</div>
+              )}
 
               <div className="flex justify-between pt-4">
                 <Button variant="outline" onClick={() => setCurrentStep(0)}>
@@ -400,8 +427,8 @@ export default function PrivateLLMSetup() {
                       <p className="text-sm font-semibold">连接成功</p>
                     </div>
                     <div className="space-y-1 text-sm">
-                      <p>延迟: <span className="font-mono">{testResult.latency}ms</span></p>
-                      <p>模型: {testResult.modelInfo}</p>
+                      {testResult.latency && <p>延迟: <span className="font-mono">{testResult.latency}ms</span></p>}
+                      {testResult.modelInfo && <p>模型: {testResult.modelInfo}</p>}
                     </div>
                   </div>
                 )}
@@ -436,7 +463,12 @@ export default function PrivateLLMSetup() {
         {/* ===== 底部折叠: 部署指南 ===== */}
         <div className={cardStyle.base}>
           <button
-            onClick={() => setShowGuide(!showGuide)}
+            onClick={() => {
+              setShowGuide(!showGuide)
+              if (!showGuide && guideProvider) {
+                handleShowGuide(guideProvider)
+              }
+            }}
             className="flex items-center gap-2 w-full text-left"
           >
             {showGuide ? (
@@ -445,27 +477,30 @@ export default function PrivateLLMSetup() {
               <icons.ChevronDown className={iconSize.sm + ' text-muted-foreground'} />
             )}
             <span className={heading.section}>部署指南</span>
-            <span className={heading.micro}>— 按提供商查看分步安装命令</span>
+            <span className={heading.micro}>-- 按提供商查看分步安装命令</span>
           </button>
 
           {showGuide && (
             <div className="mt-4 space-y-4">
               {/* Provider 切换 */}
               <div className="flex gap-2">
-                {mockDeployGuides.map(guide => (
+                {(services.length > 0
+                  ? [...new Set(services.map(s => s.name))]
+                  : ['Ollama', 'vLLM', 'LM Studio']
+                ).map(provider => (
                   <Button
-                    key={guide.provider}
-                    variant={guideProvider === guide.provider ? 'default' : 'outline'}
+                    key={provider}
+                    variant={guideProvider === provider ? 'default' : 'outline'}
                     size="sm"
-                    onClick={() => setGuideProvider(guide.provider)}
+                    onClick={() => handleShowGuide(provider)}
                   >
-                    {guide.provider}
+                    {provider}
                   </Button>
                 ))}
               </div>
 
               {/* 步骤 */}
-              {mockDeployGuides
+              {deployGuides
                 .filter(g => g.provider === guideProvider)
                 .map(guide => (
                   <div key={guide.provider} className="space-y-3">
@@ -483,6 +518,13 @@ export default function PrivateLLMSetup() {
                     ))}
                   </div>
                 ))}
+
+              {deployGuides.filter(g => g.provider === guideProvider).length === 0 && (
+                <div className="py-4 text-center text-sm text-muted-foreground">
+                  <icons.Loader2 className={`${iconSize.sm} animate-spin inline mr-2`} />
+                  加载部署指南中...
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -41,6 +41,17 @@ KB_IDS = [f"00000000-0000-0000-0003-{str(i).zfill(12)}" for i in range(1, 5)]
 # 预定义监控 ID
 MONITOR_IDS = [f"00000000-0000-0000-0004-{str(i).zfill(12)}" for i in range(1, 3)]
 
+# 预定义计费方案 ID
+PLAN_IDS = {
+    "trial": "00000000-0000-0000-0006-000000000001",
+    "basic": "00000000-0000-0000-0006-000000000002",
+    "professional": "00000000-0000-0000-0006-000000000003",
+    "enterprise": "00000000-0000-0000-0006-000000000004",
+}
+
+# 预定义团队 ID
+TEAM_IDS = [f"00000000-0000-0000-0007-{str(i).zfill(12)}" for i in range(1, 5)]
+
 # 预定义课程 ID
 COURSE_IDS = [f"00000000-0000-0000-0005-{str(i).zfill(12)}" for i in range(1, 9)]
 
@@ -102,6 +113,18 @@ async def seed():
         await seed_sentiment(session)
         await session.commit()
         print("✅ 舆情数据种子完成")
+
+        await seed_billing(session)
+        await session.commit()
+        print("✅ 计费套餐+订阅数据种子完成")
+
+        await seed_firm(session)
+        await session.commit()
+        print("✅ 律所管理数据种子完成")
+
+        await seed_ai_assistant(session)
+        await session.commit()
+        print("✅ AI助手配置数据种子完成")
 
     print("\n🎉 所有种子数据填充完成！")
 

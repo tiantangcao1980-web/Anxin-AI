@@ -10,6 +10,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+from migration_utils import safe_create_index, safe_create_table
 
 # revision identifiers, used by Alembic.
 revision: str = '004_add_sentiment_collaboration'
@@ -18,21 +19,91 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _ensure_enum_types() -> dict[str, postgresql.ENUM]:
+    bind = op.get_bind()
+    enum_types = {
+        'source_type': postgresql.ENUM(
+            'news',
+            'social_media',
+            'forum',
+            'blog',
+            'official',
+            'other',
+            name='sourcetype',
+            create_type=False,
+        ),
+        'sentiment_type': postgresql.ENUM(
+            'positive',
+            'negative',
+            'neutral',
+            name='sentimenttype',
+            create_type=False,
+        ),
+        'risk_level': postgresql.ENUM(
+            'low',
+            'medium',
+            'high',
+            'critical',
+            name='risklevel',
+            create_type=False,
+        ),
+        'alert_type': postgresql.ENUM(
+            'negative_surge',
+            'high_risk',
+            'keyword_match',
+            'trend_anomaly',
+            'reputation_risk',
+            name='alerttype',
+            create_type=False,
+        ),
+        'alert_level': postgresql.ENUM(
+            'info',
+            'warning',
+            'danger',
+            'critical',
+            name='alertlevel',
+            create_type=False,
+        ),
+        'session_status': postgresql.ENUM(
+            'active',
+            'paused',
+            'closed',
+            name='sessionstatus',
+            create_type=False,
+        ),
+        'collaborator_role': postgresql.ENUM(
+            'owner',
+            'editor',
+            'viewer',
+            'commenter',
+            name='collaboratorrole',
+            create_type=False,
+        ),
+        'edit_operation': postgresql.ENUM(
+            'insert',
+            'delete',
+            'replace',
+            'format',
+            'comment',
+            'cursor',
+            name='editoperation',
+            create_type=False,
+        ),
+    }
+
+    for enum_type in enum_types.values():
+        enum_type.create(bind, checkfirst=True)
+
+    return enum_types
+
+
 def upgrade() -> None:
-    # 显式删除已存在的枚举类型（清理历史遗留）
-    op.execute('DROP TYPE IF EXISTS editoperation CASCADE')
-    op.execute('DROP TYPE IF EXISTS collaboratorrole CASCADE')
-    op.execute('DROP TYPE IF EXISTS sessionstatus CASCADE')
-    op.execute('DROP TYPE IF EXISTS alerttype CASCADE')
-    op.execute('DROP TYPE IF EXISTS alertlevel CASCADE')
-    op.execute('DROP TYPE IF EXISTS risklevel CASCADE')
-    op.execute('DROP TYPE IF EXISTS sentimenttype CASCADE')
-    op.execute('DROP TYPE IF EXISTS sourcetype CASCADE')
+    enum_types = _ensure_enum_types()
 
     # ============ 舆情监控表 ============
     
     # 舆情监控配置表
-    op.create_table(
+    safe_create_table(
         'sentiment_monitors',
         sa.Column('id', postgresql.UUID(as_uuid=False), nullable=False),
         sa.Column('name', sa.String(100), nullable=False),
@@ -59,17 +130,17 @@ def upgrade() -> None:
     )
     
     # 舆情记录表
-    op.create_table(
+    safe_create_table(
         'sentiment_records',
         sa.Column('id', postgresql.UUID(as_uuid=False), nullable=False),
         sa.Column('title', sa.String(500), nullable=True),
         sa.Column('content', sa.Text(), nullable=False),
         sa.Column('keyword', sa.String(100), nullable=False),
         sa.Column('source', sa.String(255), nullable=True),
-        sa.Column('source_type', sa.Enum('news', 'social_media', 'forum', 'blog', 'official', 'other', name='sourcetype'), nullable=False, default='other'),
-        sa.Column('sentiment_type', sa.Enum('positive', 'negative', 'neutral', name='sentimenttype'), nullable=False, default='neutral'),
+        sa.Column('source_type', enum_types['source_type'], nullable=False, default='other'),
+        sa.Column('sentiment_type', enum_types['sentiment_type'], nullable=False, default='neutral'),
         sa.Column('sentiment_score', sa.Float(), nullable=False, default=0.0),
-        sa.Column('risk_level', sa.Enum('low', 'medium', 'high', 'critical', name='risklevel'), nullable=False, default='low'),
+        sa.Column('risk_level', enum_types['risk_level'], nullable=False, default='low'),
         sa.Column('risk_score', sa.Float(), nullable=False, default=0.0),
         sa.Column('risk_factors', postgresql.JSONB(), nullable=True),
         sa.Column('ai_analysis', postgresql.JSONB(), nullable=True),
@@ -85,14 +156,14 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(['monitor_id'], ['sentiment_monitors.id'], ondelete='SET NULL'),
         sa.PrimaryKeyConstraint('id')
     )
-    op.create_index('ix_sentiment_records_keyword', 'sentiment_records', ['keyword'])
+    safe_create_index('ix_sentiment_records_keyword', 'sentiment_records', ['keyword'])
     
     # 舆情预警表
-    op.create_table(
+    safe_create_table(
         'sentiment_alerts',
         sa.Column('id', postgresql.UUID(as_uuid=False), nullable=False),
-        sa.Column('alert_type', sa.Enum('negative_surge', 'high_risk', 'keyword_match', 'trend_anomaly', 'reputation_risk', name='alerttype'), nullable=False),
-        sa.Column('alert_level', sa.Enum('info', 'warning', 'danger', 'critical', name='alertlevel'), nullable=False, default='info'),
+        sa.Column('alert_type', enum_types['alert_type'], nullable=False),
+        sa.Column('alert_level', enum_types['alert_level'], nullable=False, default='info'),
         sa.Column('title', sa.String(255), nullable=False),
         sa.Column('message', sa.Text(), nullable=False),
         sa.Column('is_read', sa.Boolean(), nullable=False, default=False),
@@ -115,11 +186,11 @@ def upgrade() -> None:
     # ============ 协作编辑表 ============
     
     # 文档协作会话表
-    op.create_table(
+    safe_create_table(
         'document_sessions',
         sa.Column('id', postgresql.UUID(as_uuid=False), nullable=False),
         sa.Column('name', sa.String(255), nullable=True),
-        sa.Column('status', sa.Enum('active', 'paused', 'closed', name='sessionstatus'), nullable=False, default='active'),
+        sa.Column('status', enum_types['session_status'], nullable=False, default='active'),
         sa.Column('max_collaborators', sa.Integer(), nullable=False, default=10),
         sa.Column('allow_anonymous', sa.Boolean(), nullable=False, default=False),
         sa.Column('require_approval', sa.Boolean(), nullable=False, default=False),
@@ -142,10 +213,10 @@ def upgrade() -> None:
     )
     
     # 文档协作者表
-    op.create_table(
+    safe_create_table(
         'document_collaborators',
         sa.Column('id', postgresql.UUID(as_uuid=False), nullable=False),
-        sa.Column('role', sa.Enum('owner', 'editor', 'viewer', 'commenter', name='collaboratorrole'), nullable=False, default='editor'),
+        sa.Column('role', enum_types['collaborator_role'], nullable=False, default='editor'),
         sa.Column('nickname', sa.String(50), nullable=True),
         sa.Column('color', sa.String(20), nullable=True),
         sa.Column('is_online', sa.Boolean(), nullable=False, default=False),
@@ -165,10 +236,10 @@ def upgrade() -> None:
     )
     
     # 文档编辑记录表
-    op.create_table(
+    safe_create_table(
         'document_edits',
         sa.Column('id', postgresql.UUID(as_uuid=False), nullable=False),
-        sa.Column('operation', sa.Enum('insert', 'delete', 'replace', 'format', 'comment', 'cursor', name='editoperation'), nullable=False),
+        sa.Column('operation', enum_types['edit_operation'], nullable=False),
         sa.Column('version', sa.Integer(), nullable=False),
         sa.Column('position', postgresql.JSONB(), nullable=False),
         sa.Column('content', sa.Text(), nullable=True),

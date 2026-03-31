@@ -32,6 +32,10 @@ interface AgentWorkspaceProps {
   isProcessing: boolean;
   onWorkspaceConfirm?: (confirmationId: string, selectedIds: string[]) => void;
   onWorkspaceAction?: (actionId: string, payload?: any) => void;
+  /** 切换到文档模式的回调（用于"查看完整文档"按钮） */
+  onSwitchToDocument?: () => void;
+  /** 是否存在文档内容 */
+  hasDocument?: boolean;
 }
 
 export const AgentWorkspace = memo(function AgentWorkspace({
@@ -42,6 +46,8 @@ export const AgentWorkspace = memo(function AgentWorkspace({
   isProcessing,
   onWorkspaceConfirm,
   onWorkspaceAction,
+  onSwitchToDocument,
+  hasDocument,
 }: AgentWorkspaceProps) {
   const store = useChatStore();
   const { workspaceConfirmations, workspaceActions, agentTasks } = store;
@@ -141,6 +147,21 @@ export const AgentWorkspace = memo(function AgentWorkspace({
               />
             ))}
           </div>
+        )}
+
+        {/* ===== 4.5 查看完整文档入口 ===== */}
+        {hasDocument && onSwitchToDocument && completedResults.length > 0 && !isProcessing && (
+          <motion.button
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            type="button"
+            onClick={onSwitchToDocument}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-primary/20 bg-primary/5 text-primary text-xs font-medium hover:bg-primary/10 transition-colors"
+          >
+            <icons.FileText className="w-3.5 h-3.5" />
+            查看完整文档
+            <icons.ArrowRight className="w-3 h-3" />
+          </motion.button>
         )}
 
         {/* ===== 5. 动作按钮区 ===== */}

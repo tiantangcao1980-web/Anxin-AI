@@ -133,6 +133,7 @@ class SentimentService:
             return False
         
         await self.db.delete(monitor)
+        await self.db.flush()
         return True
     
     async def toggle_monitor(self, monitor_id: str, is_active: bool) -> Optional[SentimentMonitor]:

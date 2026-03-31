@@ -7,7 +7,7 @@
  * - 节点点击聚焦、右键展开、拖拽交互
  */
 
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo, forwardRef, useImperativeHandle } from 'react'
 import * as THREE from 'three'
 import SpriteText from 'three-spritetext'
 
@@ -55,6 +55,12 @@ interface Props {
   onDoubleClickNode: (id: string) => void
   viewMode: '2d' | '3d'
   showLabels: boolean
+  autoRotate?: boolean
+}
+
+export interface ForceGraphCanvasHandle {
+  zoomToFit: () => void
+  resetView: () => void
 }
 
 // ---- 内部数据格式 ----
@@ -100,12 +106,47 @@ function toFGData(nodes: ForceGraphNode[], edges: ForceGraphEdge[], activeTypes:
 
 // ---- 组件 ----
 
-export function ForceGraphCanvas({
-  nodes, edges, activeTypes, selectedNodeId, onSelectNode, onDoubleClickNode, viewMode, showLabels,
-}: Props) {
+export const ForceGraphCanvas = forwardRef<ForceGraphCanvasHandle, Props>(function ForceGraphCanvas({
+  nodes, edges, activeTypes, selectedNodeId, onSelectNode, onDoubleClickNode, viewMode, showLabels, autoRotate = false,
+}, ref) {
   const graphRef = useRef<any>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 })
+
+  useImperativeHandle(ref, () => ({
+    zoomToFit: () => {
+      graphRef.current?.zoomToFit?.(400, 40)
+    },
+    resetView: () => {
+      if (viewMode === '3d') {
+        graphRef.current?.cameraPosition?.({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 800)
+      } else {
+        graphRef.current?.centerAt?.(0, 0, 400)
+        graphRef.current?.zoom?.(1, 400)
+      }
+    },
+  }), [viewMode])
+
+  // 跟随系统深色/浅色模式
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'))
+  useEffect(() => {
+    const root = document.documentElement
+    const observer = new MutationObserver(() => {
+      setIsDark(root.classList.contains('dark'))
+    })
+    observer.observe(root, { attributes: true, attributeFilter: ['class'] })
+    return () => observer.disconnect()
+  }, [])
+
+  // 3D 自动旋转：通过 OrbitControls 的 autoRotate 属性实现
+  useEffect(() => {
+    if (viewMode !== '3d' || !graphRef.current) return
+    const controls = graphRef.current.controls?.()
+    if (controls) {
+      controls.autoRotate = autoRotate
+      controls.autoRotateSpeed = 1.5
+    }
+  }, [autoRotate, viewMode])
 
   // 动态导入 react-force-graph
   const [FG3D, setFG3D] = useState<any>(null)
@@ -181,14 +222,14 @@ export function ForceGraphCanvas({
     // 发光球体
     const geo = new THREE.SphereGeometry(r, 24, 24)
     const mat = new THREE.MeshPhongMaterial({
-      color: cfg.color, emissive: cfg.emissive, emissiveIntensity: 0.3,
+      color: cfg.color, emissive: cfg.emissive, emissiveIntensity: isDark ? 0.3 : 0.15,
       shininess: 100, transparent: true, opacity: 0.92,
     })
     group.add(new THREE.Mesh(geo, mat))
 
     // 外层光晕
     const glowGeo = new THREE.SphereGeometry(r * 1.3, 16, 16)
-    const glowMat = new THREE.MeshBasicMaterial({ color: cfg.color, transparent: true, opacity: 0.08 })
+    const glowMat = new THREE.MeshBasicMaterial({ color: cfg.color, transparent: true, opacity: isDark ? 0.08 : 0.12 })
     group.add(new THREE.Mesh(glowGeo, glowMat))
 
     // 选中高亮
@@ -200,17 +241,17 @@ export function ForceGraphCanvas({
     // 文字标签
     if (showLabels) {
       const sprite = new SpriteText(node.name)
-      sprite.color = '#e2e8f0'
+      sprite.color = isDark ? '#e2e8f0' : '#334155'
       sprite.textHeight = 3.5
       sprite.fontWeight = '600'
-      sprite.backgroundColor = 'rgba(15, 23, 42, 0.75)'
+      sprite.backgroundColor = isDark ? 'rgba(15, 23, 42, 0.75)' : 'rgba(255, 255, 255, 0.85)'
       sprite.padding = [2, 4] as any
       sprite.borderRadius = 3
       sprite.position.y = -r - 5
       group.add(sprite)
     }
     return group
-  }, [showLabels, selectedNodeId, highlightIds])
+  }, [showLabels, selectedNodeId, highlightIds, isDark])
 
   // ---- 2D 节点渲染 ----
   const nodeCanvasObject = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
@@ -322,7 +363,9 @@ export function ForceGraphCanvas({
     )
   }
 
-  const bgColor = viewMode === '3d' ? '#0f172a' : (document.documentElement.classList.contains('dark') ? '#1e1e1e' : '#fafafa')
+  const bgColor = isDark
+    ? (viewMode === '3d' ? '#0f172a' : '#1e1e1e')
+    : (viewMode === '3d' ? '#f8fafc' : '#fafafa')
 
   return (
     <div ref={containerRef} className="w-full h-full relative" style={{ background: bgColor }}>
@@ -338,14 +381,14 @@ export function ForceGraphCanvas({
           onNodeClick={handleNodeClick}
           onNodeRightClick={handleRightClick}
           onBackgroundClick={() => onSelectNode(null)}
-          linkColor={(l: any) => l.color || 'rgba(148,163,184,0.3)'}
+          linkColor={(l: any) => l.color || (isDark ? 'rgba(148,163,184,0.3)' : 'rgba(100,116,139,0.35)')}
           linkWidth={1.2}
-          linkOpacity={0.5}
+          linkOpacity={isDark ? 0.5 : 0.6}
           linkDirectionalParticles={2}
           linkDirectionalParticleWidth={1.5}
           linkDirectionalParticleColor={() => '#818cf8'}
           linkDirectionalParticleSpeed={0.004}
-          linkLabel={(l: any) => `<span style="color:#e2e8f0;font-size:11px;background:rgba(15,23,42,0.8);padding:2px 6px;border-radius:4px">${l.label}</span>`}
+          linkLabel={(l: any) => `<span style="color:${isDark ? '#e2e8f0' : '#334155'};font-size:11px;background:${isDark ? 'rgba(15,23,42,0.8)' : 'rgba(255,255,255,0.9)'};padding:2px 6px;border-radius:4px;${isDark ? '' : 'box-shadow:0 1px 3px rgba(0,0,0,0.1)'}">${l.label}</span>`}
           enableNodeDrag
           enableNavigationControls
           showNavInfo={false}
@@ -382,4 +425,4 @@ export function ForceGraphCanvas({
       )}
     </div>
   )
-}
+})

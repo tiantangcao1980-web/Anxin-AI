@@ -41,58 +41,63 @@ export function CrawlProgressBar({ taskId, onComplete }: CrawlProgressBarProps) 
     if (!taskId) return;
 
     let socket: WebSocket | null = null;
+    let connectTimeout: ReturnType<typeof setTimeout> | null = null;
 
-    try {
-      const wsUrl = buildWebSocketUrl(`/lic/ws/${taskId}`);
-      socket = new WebSocket(wsUrl);
-    } catch {
-      setHidden(true);
-      return;
-    }
-
-    const connectTimeout = setTimeout(() => {
-      if (!isConnected) setHidden(true);
-    }, 8000);
-
-    socket.onopen = () => {
-      clearTimeout(connectTimeout);
-      setIsConnected(true);
-    };
-
-    socket.onmessage = (event) => {
+    const connectTimer = window.setTimeout(() => {
       try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'lic_progress') {
-          const friendlyMsg = sanitizeMessage(data.message || '', data.status || '');
-          setProgress(data.progress);
-          setStatus(data.status);
-          setMessage(friendlyMsg);
+        const wsUrl = buildWebSocketUrl(`/lic/ws/${taskId}`);
+        socket = new WebSocket(wsUrl);
+      } catch {
+        setHidden(true);
+        return;
+      }
 
-          if (data.status === 'completed') {
-            onComplete?.();
+      connectTimeout = setTimeout(() => {
+        setHidden((prevHidden) => prevHidden || !socket || socket.readyState !== WebSocket.OPEN);
+      }, 8000);
+
+      socket.onopen = () => {
+        if (connectTimeout) clearTimeout(connectTimeout);
+        setIsConnected(true);
+      };
+
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'lic_progress') {
+            const friendlyMsg = sanitizeMessage(data.message || '', data.status || '');
+            setProgress(data.progress);
+            setStatus(data.status);
+            setMessage(friendlyMsg);
+
+            if (data.status === 'completed') {
+              onComplete?.();
+            }
+
+            if (data.status === 'error' || data.status === 'failed') {
+              errorTimerRef.current = setTimeout(() => setHidden(true), 5000);
+            }
           }
+        } catch { /* 忽略解析错误 */ }
+      };
 
-          if (data.status === 'error' || data.status === 'failed') {
-            errorTimerRef.current = setTimeout(() => setHidden(true), 5000);
-          }
-        }
-      } catch { /* 忽略解析错误 */ }
-    };
+      socket.onerror = () => {
+        if (connectTimeout) clearTimeout(connectTimeout);
+        setHidden(true);
+      };
 
-    socket.onerror = () => {
-      clearTimeout(connectTimeout);
-      setHidden(true);
-    };
+      socket.onclose = () => {
+        setIsConnected(false);
+      };
+    }, 0);
 
-    socket.onclose = () => {
-      setIsConnected(false);
-    };
-
-    const ws = socket;
     return () => {
-      clearTimeout(connectTimeout);
+      clearTimeout(connectTimer);
+      if (connectTimeout) clearTimeout(connectTimeout);
       if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
-      ws.close();
+      if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+        socket.close(1000, 'component cleanup');
+      }
     };
   }, [taskId, onComplete]);
 

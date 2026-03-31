@@ -28,6 +28,11 @@ from src.services.episodic_memory_service import episodic_memory
 from src.services.event_bus import event_bus
 from src.services.compute_router_service import compute_router
 from src.services.pii_service import pii_service
+from src.services.due_diligence_service import (
+    detect_company_due_diligence_request,
+    format_due_diligence_chat_response,
+    get_company_info,
+)
 from src.core.privacy import InferenceRequest, SensitivityLevel
 
 router = APIRouter()
@@ -40,6 +45,8 @@ class ChatMessage(BaseModel):
     case_id: Optional[str] = None
     agent_name: Optional[str] = None
     privacy_mode: Optional[str] = "HYBRID"
+    mode: Optional[str] = "chat"
+    knowledge_base_ids: Optional[List[str]] = None
 
 
 class ChatResponse(BaseModel):
@@ -61,6 +68,7 @@ class MessageItem(BaseModel):
     content: str
     agent_name: Optional[str] = None
     created_at: str
+    sources: list = []
 
 
 @router.post("/", response_model=UnifiedResponse)
@@ -80,6 +88,8 @@ async def send_message(
         user_id=user.id if user else None,
         case_id=message.case_id,
         agent_name=message.agent_name,
+        mode=message.mode,
+        knowledge_base_ids=message.knowledge_base_ids,
     )
     
     # 记录审计日志
@@ -122,6 +132,7 @@ async def get_chat_history(
                     content=m.content,
                     agent_name=m.agent_name,
                     created_at=m.created_at.isoformat(),
+                    sources=m.citations or [],
                 )
                 for m in messages
             ],
@@ -477,7 +488,7 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
 
     _save_lock = asyncio.Lock()  # 串行化消息保存，防止竞态
 
-    async def _save_message(role: str, content: str, agent_name: str = None):
+    async def _save_message(role: str, content: str, agent_name: str = None, citations: Optional[list] = None):
         if not conversation_id:
             return
         async with _save_lock:
@@ -487,6 +498,7 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                     await svc.add_message(
                         conversation_id=conversation_id, role=role,
                         content=content, agent_name=agent_name,
+                        citations=citations,
                     )
                     # 第一条用户消息时，自动更新对话标题（检查是否仍是默认标题）
                     if role == "user":
@@ -809,6 +821,161 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
             await _save_message("user", content)
             _session_message_count += 1
             _last_user_content = content
+
+            # === 企业调查强路由：避免“调查公司”掉回通用闲聊 ===
+            _due_diligence_request = detect_company_due_diligence_request(content) if not agent_name else {"matched": False}
+            if _due_diligence_request.get("matched"):
+                used_agent = "尽职调查Agent"
+                company_name = _due_diligence_request.get("company_name")
+
+                await _send("agent_thinking", {
+                    "agent": used_agent,
+                    "message": "正在识别调查对象并准备企业尽调结果...",
+                })
+
+                if not company_name:
+                    response_text = (
+                        "我已识别到您是在发起企业调查/尽调请求，但当前还缺少关键对象。"
+                        "请提供目标企业的完整名称，最好再补充您重点关注的范围，例如工商信息、诉讼记录、股权结构、信用情况或合作风险。"
+                    )
+                else:
+                    try:
+                        company_data = await get_company_info(company_name)
+                        response_text = format_due_diligence_chat_response(company_name, company_data)
+                    except Exception as dd_err:
+                        logger.error(f"企业调查强路由失败: {dd_err}")
+                        response_text = (
+                            f"我已识别到您要调查企业“{company_name}”，但当前尽调服务暂时无法返回可靠结果。"
+                            "请稍后重试，或补充统一社会信用代码和关注范围（工商/诉讼/股权/信用），我会继续按尽调流程处理。"
+                        )
+
+                if recovery_map:
+                    response_text = pii_service.restore(response_text, recovery_map)
+                    response_text += "\n\n*(注：本回复基于脱敏数据生成，敏感信息已在本地自动还原)*"
+
+                panel_data = build_response_a2ui(used_agent, response_text, content)
+                if panel_data:
+                    await _send("context_update", {"context_type": "a2ui", "data": panel_data})
+
+                await _stream_response_tokens(response_text, used_agent)
+                ws_sources = extract_citations(response_text)
+                await _send("done", {
+                    "agent": used_agent,
+                    "content": response_text,
+                    "memory_id": None,
+                    "conversation_id": conversation_id,
+                    "sources": [s.model_dump() for s in ws_sources],
+                })
+                await _save_message(
+                    "assistant",
+                    response_text,
+                    used_agent,
+                    citations=[s.model_dump() for s in ws_sources],
+                )
+                continue
+
+            # === 知识库研究模式：在聊天内直接执行 RAG ===
+            _selected_kb_ids = [
+                kb_id
+                for kb_id in (data.get("knowledge_base_ids") or [])
+                if isinstance(kb_id, str) and kb_id
+            ]
+            _frontend_mode = data.get("mode", "chat")
+            if (_frontend_mode == "research" or _selected_kb_ids) and not agent_name:
+                await _send("agent_thinking", {
+                    "agent": "知识库检索Agent",
+                    "message": "正在检索知识库并整理答案...",
+                })
+
+                try:
+                    async with async_session_maker() as db_session:
+                        from sqlalchemy import select as sa_select
+                        from src.models.knowledge import KnowledgeBase
+                        from src.services.knowledge_service import KnowledgeService
+
+                        kb_name_map = {}
+                        if _selected_kb_ids:
+                            kb_result = await db_session.execute(
+                                sa_select(KnowledgeBase).where(KnowledgeBase.id.in_(_selected_kb_ids))
+                            )
+                            kb_name_map = {
+                                str(kb.id): kb.name
+                                for kb in kb_result.scalars().all()
+                            }
+
+                        knowledge_service = KnowledgeService(db_session)
+                        rag_result = await knowledge_service.rag_query(
+                            query=content,
+                            kb_ids=_selected_kb_ids or None,
+                            user_id=user_id,
+                            org_id=getattr(current_user, 'org_id', None) if current_user else None,
+                        )
+
+                    response_text = (rag_result or {}).get("answer", "").strip()
+                    if not response_text:
+                        raise ValueError("知识库未返回有效回答")
+
+                    raw_sources = (rag_result or {}).get("sources", []) or []
+                    max_score = max(
+                        (
+                            float(source.get("score", 0) or 0)
+                            for source in raw_sources
+                            if isinstance(source, dict)
+                        ),
+                        default=0.0,
+                    )
+
+                    ws_sources = []
+                    for kb_id in _selected_kb_ids:
+                        kb_name = kb_name_map.get(kb_id)
+                        if not kb_name:
+                            continue
+                        ws_sources.append({
+                            "id": f"knowledge-base-{kb_id}",
+                            "type": "knowledge_base",
+                            "title": kb_name,
+                            "source": kb_name,
+                            "relevance_score": max_score,
+                        })
+
+                    default_source_label = next(iter(kb_name_map.values()), "知识库检索")
+                    for idx, source in enumerate(raw_sources, start=1):
+                        if not isinstance(source, dict):
+                            continue
+                        ws_sources.append({
+                            "id": source.get("id") or f"knowledge-source-{idx}",
+                            "type": "knowledge",
+                            "title": source.get("title") or f"知识片段 {idx}",
+                            "source": source.get("source") or default_source_label,
+                            "content_snippet": source.get("content_snippet") or "",
+                            "relevance_score": float(source.get("score", 0) or 0),
+                        })
+
+                    if recovery_map:
+                        response_text = pii_service.restore(response_text, recovery_map)
+                        response_text += "\n\n*(注：本回复基于脱敏数据生成，敏感信息已在本地自动还原)*"
+
+                    await _stream_response_tokens(response_text, "知识库检索Agent")
+                    await _send("done", {
+                        "agent": "知识库检索Agent",
+                        "content": response_text,
+                        "memory_id": None,
+                        "conversation_id": conversation_id,
+                        "sources": ws_sources,
+                    })
+                    await _save_message(
+                        "assistant",
+                        response_text,
+                        "知识库检索Agent",
+                        citations=ws_sources,
+                    )
+                    continue
+                except Exception as rag_err:
+                    logger.warning(f"知识库研究模式执行失败，回退通用对话链路: {rag_err}")
+                    await _send("error", {
+                        "message": f"知识库检索出错，已切换到通用对话模式。({type(rag_err).__name__})",
+                        "recoverable": True,
+                    })
             
             # === A2UI 意图检测 — 仅作为辅助提示传递给 Coordinator，不拦截 ===
             _intent_hint = None
@@ -1124,7 +1291,12 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                     "sources": [s.model_dump() for s in ws_sources],
                 })
 
-                await _save_message("assistant", response_text, used_agent)
+                await _save_message(
+                    "assistant",
+                    response_text,
+                    used_agent,
+                    citations=[s.model_dump() for s in ws_sources],
+                )
                 
             except Exception as e:
                 logger.error(f"智能体调用失败: {e}")

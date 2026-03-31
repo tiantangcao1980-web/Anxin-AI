@@ -186,6 +186,8 @@ export interface ChatMessage {
   conversation_id?: string
   case_id?: string
   agent_name?: string
+  mode?: string
+  knowledge_base_ids?: string[]
 }
 
 export interface ChatResponse {
@@ -195,6 +197,7 @@ export interface ChatResponse {
   agent: string
   citations: any[]
   actions: any[]
+  sources?: any[]
 }
 
 export interface Agent {
@@ -1145,7 +1148,7 @@ export const knowledgeApi = {
     const token = localStorage.getItem('access_token')
     const headers: Record<string, string> = {}
     if (token) headers['Authorization'] = `Bearer ${token}`
-    return fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8003/api/v1'}/knowledge/bases/${kbId}/upload`, {
+    return fetch(`${API_BASE_URL}/knowledge/bases/${kbId}/upload`, {
       method: 'POST',
       headers,
       body: formData,
@@ -1211,7 +1214,7 @@ export const knowledgeApi = {
     const token = localStorage.getItem('access_token')
     const headers: Record<string, string> = {}
     if (token) headers['Authorization'] = `Bearer ${token}`
-    return fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8003/api/v1'}/knowledge/bases/${kbId}/batch-upload`, {
+    return fetch(`${API_BASE_URL}/knowledge/bases/${kbId}/batch-upload`, {
       method: 'POST', headers, body: formData,
     }).then(async res => {
       const json = await res.json()
@@ -2256,31 +2259,6 @@ export const adminApi = {
     request<any>(`/admin/organizations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 }
 
-// 导出所有 API
-export default {
-  auth: authApi,
-  chat: chatApi,
-  cases: casesApi,
-  contracts: contractsApi,
-  documents: documentsApi,
-  dueDiligence: dueDiligenceApi,
-  knowledge: knowledgeApi,
-  knowledgeCenter: knowledgeCenterApi,
-  llm: llmApi,
-  sentiment: sentimentApi,
-  collaboration: collaborationApi,
-  lic: licApi,
-  assets: assetsApi,
-  mcp: mcpApi,
-  notifications: notificationsApi,
-  tasks: tasksApi,
-  approvals: approvalsApi,
-  leads: leadsApi,
-  experts: expertsApi,
-  courses: coursesApi,
-  admin: adminApi,
-}
-
 // ===== 找律师 API =====
 
 export const lawyerMatchingApi = {
@@ -2289,16 +2267,30 @@ export const lawyerMatchingApi = {
     request<any>('/lawyer/consultations', { method: 'POST', body: JSON.stringify(data) }),
 
   // 用户：我的咨询列表
-  listConsultations: (params?: { status?: string; page?: number; page_size?: number }) =>
-    request<any>(`/lawyer/consultations?${new URLSearchParams(params as any).toString()}`),
+  listConsultations: (params?: { status?: string; page?: number; page_size?: number }) => {
+    const qs = new URLSearchParams()
+    if (params?.status) qs.set('status', params.status)
+    if (params?.page) qs.set('page', String(params.page))
+    if (params?.page_size) qs.set('page_size', String(params.page_size))
+    const query = qs.toString()
+    return request<any>(`/lawyer/consultations${query ? `?${query}` : ''}`)
+  },
 
   // 用户：一键委托
   createDelegation: (consultationId: string, data: { title: string; description?: string; service_type?: string }) =>
     request<any>(`/lawyer/consultations/${consultationId}/delegate`, { method: 'POST', body: JSON.stringify(data) }),
 
   // 公开：律师列表
-  listLawyers: (params?: { domain?: string; city?: string; min_rating?: number; page?: number; page_size?: number }) =>
-    request<any>(`/lawyer/lawyers?${new URLSearchParams(params as any).toString()}`),
+  listLawyers: (params?: { domain?: string; city?: string; min_rating?: number; page?: number; page_size?: number }) => {
+    const qs = new URLSearchParams()
+    if (params?.domain) qs.set('domain', params.domain)
+    if (params?.city) qs.set('city', params.city)
+    if (params?.min_rating) qs.set('min_rating', String(params.min_rating))
+    if (params?.page) qs.set('page', String(params.page))
+    if (params?.page_size) qs.set('page_size', String(params.page_size))
+    const query = qs.toString()
+    return request<any>(`/lawyer/lawyers${query ? `?${query}` : ''}`)
+  },
 
   // 入驻律师：接单大厅
   getLawyerHall: () =>
@@ -2379,3 +2371,158 @@ export const imApi = {
   markAsRead: (conversationId: string) =>
     request<any>(`/im/conversations/${conversationId}/read`, { method: 'PUT' }),
 }
+
+// ===== 计费 API =====
+
+export const billingApi = {
+  // 套餐
+  listPlans: (billingMode?: string) => {
+    const qs = billingMode ? `?billing_mode=${billingMode}` : ''
+    return request<any>(`/billing/plans${qs}`)
+  },
+  getPlan: (id: string) => request<any>(`/billing/plans/${id}`),
+
+  // 订阅
+  createSubscription: (data: { plan_id: string; payment_method?: string }) =>
+    request<any>('/billing/subscriptions', { method: 'POST', body: JSON.stringify(data) }),
+  getMySubscriptions: () => request<any>('/billing/subscriptions'),
+  getSubscriptionStatus: () => request<any>('/billing/subscriptions/status'),
+  cancelSubscription: (subId: string, reason?: string) =>
+    request<any>(`/billing/subscriptions/${subId}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+
+  // 退款
+  requestRefund: (data: { order_id: string; amount: number; reason: string }) =>
+    request<any>('/billing/refunds', { method: 'POST', body: JSON.stringify(data) }),
+  listRefunds: (params?: { status?: string; page?: number; page_size?: number }) => {
+    const qs = new URLSearchParams()
+    if (params?.status) qs.set('status', params.status)
+    if (params?.page) qs.set('page', String(params.page))
+    if (params?.page_size) qs.set('page_size', String(params.page_size))
+    const query = qs.toString()
+    return request<any>(`/billing/refunds${query ? `?${query}` : ''}`)
+  },
+
+  // 报表
+  getRevenueReport: (params?: { start_date?: string; end_date?: string }) => {
+    const qs = new URLSearchParams()
+    if (params?.start_date) qs.set('start_date', params.start_date)
+    if (params?.end_date) qs.set('end_date', params.end_date)
+    const query = qs.toString()
+    return request<any>(`/billing/reports/revenue${query ? `?${query}` : ''}`)
+  },
+  getSubscriptionReport: () => request<any>('/billing/reports/subscriptions'),
+
+  // Admin
+  adminApproveRefund: (refundId: string) =>
+    request<any>(`/billing/admin/refunds/${refundId}/approve`, { method: 'POST' }),
+  adminRejectRefund: (refundId: string, reason: string) =>
+    request<any>(`/billing/admin/refunds/${refundId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+}
+
+// ===== 获客分析 API =====
+
+export const acquisitionApi = {
+  getFunnel: () => request<any>('/acquisition/funnel'),
+  getConversionRates: () => request<any>('/acquisition/conversion'),
+  getSources: () => request<any>('/acquisition/sources'),
+  getLawyerPerformance: (params?: { limit?: number }) => {
+    const qs = params?.limit ? `?limit=${params.limit}` : ''
+    return request<any>(`/acquisition/lawyer-performance${qs}`)
+  },
+}
+
+// ===== 律所管理 API =====
+
+export const firmApi = {
+  // 团队
+  listTeams: () => request<any>('/firm/teams'),
+  createTeam: (data: { name: string; description?: string; leader_id?: string }) =>
+    request<any>('/firm/teams', { method: 'POST', body: JSON.stringify(data) }),
+  updateTeam: (teamId: string, data: any) =>
+    request<any>(`/firm/teams/${teamId}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteTeam: (teamId: string) =>
+    request(`/firm/teams/${teamId}`, { method: 'DELETE' }),
+  addTeamMember: (teamId: string, data: { user_id: string; role?: string }) =>
+    request<any>(`/firm/teams/${teamId}/members`, { method: 'POST', body: JSON.stringify(data) }),
+  removeTeamMember: (teamId: string, userId: string) =>
+    request(`/firm/teams/${teamId}/members/${userId}`, { method: 'DELETE' }),
+
+  // 工时
+  listTimesheet: (params?: { start_date?: string; end_date?: string; user_id?: string; status?: string }) => {
+    const qs = new URLSearchParams()
+    if (params?.start_date) qs.set('start_date', params.start_date)
+    if (params?.end_date) qs.set('end_date', params.end_date)
+    if (params?.user_id) qs.set('user_id', params.user_id)
+    if (params?.status) qs.set('status', params.status)
+    const query = qs.toString()
+    return request<any>(`/firm/timesheet${query ? `?${query}` : ''}`)
+  },
+  createTimeEntry: (data: { date: string; minutes: number; description?: string; billable?: boolean; rate?: number; case_id?: string }) =>
+    request<any>('/firm/timesheet', { method: 'POST', body: JSON.stringify(data) }),
+  submitTimeEntries: (ids: string[]) =>
+    request<any>('/firm/timesheet/submit', { method: 'POST', body: JSON.stringify({ entry_ids: ids }) }),
+  approveTimeEntries: (ids: string[]) =>
+    request<any>('/firm/timesheet/approve', { method: 'POST', body: JSON.stringify({ entry_ids: ids }) }),
+  getTimesheetSummary: (params?: { start_date?: string; end_date?: string }) => {
+    const qs = new URLSearchParams()
+    if (params?.start_date) qs.set('start_date', params.start_date)
+    if (params?.end_date) qs.set('end_date', params.end_date)
+    const query = qs.toString()
+    return request<any>(`/firm/timesheet/summary${query ? `?${query}` : ''}`)
+  },
+
+  // 发票
+  listInvoices: (params?: { status?: string; page?: number; page_size?: number }) => {
+    const qs = new URLSearchParams()
+    if (params?.status) qs.set('status', params.status)
+    if (params?.page) qs.set('page', String(params.page))
+    if (params?.page_size) qs.set('page_size', String(params.page_size))
+    const query = qs.toString()
+    return request<any>(`/firm/invoices${query ? `?${query}` : ''}`)
+  },
+  createInvoice: (data: any) =>
+    request<any>('/firm/invoices', { method: 'POST', body: JSON.stringify(data) }),
+  updateInvoiceStatus: (invoiceId: string, status: string) =>
+    request<any>(`/firm/invoices/${invoiceId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }),
+}
+
+// ===== AI 助手设置 API =====
+
+export const aiAssistantApi = {
+  getConfig: () => request<any>('/ai-assistant/config'),
+  updateConfig: (data: any) =>
+    request<any>('/ai-assistant/config', { method: 'POST', body: JSON.stringify(data) }),
+  listAgents: () => request<any>('/ai-assistant/agents'),
+  // 私有LLM
+  detectLocalLLM: () => request<any>('/ai-assistant/private-llm/detect'),
+  testConnection: (data: { endpoint: string; model?: string }) =>
+    request<any>('/ai-assistant/private-llm/test', { method: 'POST', body: JSON.stringify(data) }),
+  getRecommendedModels: () => request<any>('/ai-assistant/private-llm/models'),
+  getDeploymentGuide: (provider: string) => request<any>(`/ai-assistant/private-llm/guide/${provider}`),
+}
+
+// ===== 律师入驻/工作台 API =====
+
+export const lawyerApi = {
+  // 入驻
+  createOrUpdateProfile: (data: any) =>
+    request<any>('/lawyer/onboarding/profile', { method: 'POST', body: JSON.stringify(data) }),
+  submitCertification: (data: any) =>
+    request<any>('/lawyer/onboarding/certification', { method: 'POST', body: JSON.stringify(data) }),
+  getOnboardingStatus: () => request<any>('/lawyer/onboarding/status'),
+  updateServiceConfig: (data: any) =>
+    request<any>('/lawyer/onboarding/service-config', { method: 'PUT', body: JSON.stringify(data) }),
+  // 工作台
+  getDashboard: () => request<any>('/lawyer/dashboard'),
+}
+
+// 所有 API 已通过命名导出（export const xxxApi）提供，无需默认导出

@@ -8,6 +8,7 @@
  * 全部 mock 数据，使用 recharts + design-tokens
  */
 
+import { useState, useEffect } from 'react'
 import {
   LineChart,
   Line,
@@ -32,44 +33,35 @@ import {
 import { icons } from '@/lib/icons'
 import { cardStyle, heading, iconSize, chartColors, statusBadge } from '@/lib/design-tokens'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { billingApi } from '@/lib/api'
 
-// @mock-data FALLBACK: 后端就绪后从 /firm/revenue-report API 获取
-
-const KPI_DATA = {
-  totalRevenue: 2856000,
-  paidAmount: 2142000,
-  pendingAmount: 714000,
-  avgOrderValue: 47600,
+// 数据类型定义
+interface RevenueKpi {
+  totalRevenue: number
+  paidAmount: number
+  pendingAmount: number
+  avgOrderValue: number
 }
 
-const MONTHLY_DATA = [
-  { month: '2025/10', amount: 186000 },
-  { month: '2025/11', amount: 215000 },
-  { month: '2025/12', amount: 248000 },
-  { month: '2026/01', amount: 312000 },
-  { month: '2026/02', amount: 278000 },
-  { month: '2026/03', amount: 356000 },
-]
+interface MonthlyPoint {
+  month: string
+  amount: number
+}
 
-const SOURCE_DATA = [
-  { name: '合同纠纷', value: 980000 },
-  { name: '知识产权', value: 650000 },
-  { name: '劳动争议', value: 420000 },
-  { name: '公司治理', value: 380000 },
-  { name: '刑事辩护', value: 260000 },
-  { name: '其他', value: 166000 },
-]
+interface SourcePoint {
+  name: string
+  value: number
+}
 
-const LAWYER_RANKING = [
-  { rank: 1, name: '张明远', hours: 486, revenue: 583200, cases: 12 },
-  { rank: 2, name: '陈伟达', hours: 412, revenue: 494400, cases: 9 },
-  { rank: 3, name: '刘婉清', hours: 368, revenue: 441600, cases: 8 },
-  { rank: 4, name: '黄建国', hours: 324, revenue: 356400, cases: 11 },
-  { rank: 5, name: '李思晨', hours: 298, revenue: 298000, cases: 7 },
-  { rank: 6, name: '杨丽娜', hours: 276, revenue: 276000, cases: 6 },
-  { rank: 7, name: '王浩然', hours: 245, revenue: 220500, cases: 5 },
-  { rank: 8, name: '韩思远', hours: 218, revenue: 185300, cases: 4 },
-]
+interface LawyerRankItem {
+  rank: number
+  name: string
+  hours: number
+  revenue: number
+  cases: number
+}
 
 // ========== 工具函数 ==========
 
@@ -106,6 +98,85 @@ function KpiCard({ icon, label, value, sub, colorClass = 'text-foreground' }: Kp
 // ========== 组件 ==========
 
 export default function RevenueReport() {
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [kpiData, setKpiData] = useState<RevenueKpi>({ totalRevenue: 0, paidAmount: 0, pendingAmount: 0, avgOrderValue: 0 })
+  const [monthlyData, setMonthlyData] = useState<MonthlyPoint[]>([])
+  const [sourceData, setSourceData] = useState<SourcePoint[]>([])
+  const [lawyerRanking, setLawyerRanking] = useState<LawyerRankItem[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    async function fetchReport() {
+      try {
+        setLoading(true)
+        setError(null)
+        const data = await billingApi.getRevenueReport()
+        if (cancelled) return
+        // 适配后端字段
+        setKpiData({
+          totalRevenue: data.total_revenue ?? data.totalRevenue ?? 0,
+          paidAmount: data.paid_amount ?? data.paidAmount ?? 0,
+          pendingAmount: data.pending_amount ?? data.pendingAmount ?? 0,
+          avgOrderValue: data.avg_order_value ?? data.avgOrderValue ?? 0,
+        })
+        setMonthlyData(
+          (data.monthly_data ?? data.monthly ?? []).map((m: any) => ({
+            month: m.month,
+            amount: m.amount ?? m.revenue ?? 0,
+          }))
+        )
+        setSourceData(
+          (data.source_data ?? data.sources ?? data.by_category ?? []).map((s: any) => ({
+            name: s.name ?? s.category ?? '',
+            value: s.value ?? s.amount ?? 0,
+          }))
+        )
+        setLawyerRanking(
+          (data.lawyer_ranking ?? data.rankings ?? []).map((r: any, idx: number) => ({
+            rank: r.rank ?? idx + 1,
+            name: r.name ?? '',
+            hours: r.hours ?? 0,
+            revenue: r.revenue ?? 0,
+            cases: r.cases ?? r.case_count ?? 0,
+          }))
+        )
+      } catch (err: any) {
+        if (!cancelled) setError(err.message || '加载收入报表失败')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    fetchReport()
+    return () => { cancelled = true }
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 rounded-xl" />
+          ))}
+        </div>
+        <Skeleton className="h-72 rounded-xl" />
+        <Skeleton className="h-64 rounded-xl" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className={`${cardStyle.base} flex flex-col items-center justify-center py-12`}>
+        <icons.AlertTriangle className={`${iconSize.xl} text-destructive/60 mb-3`} />
+        <p className="text-sm text-muted-foreground mb-3">{error}</p>
+        <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+          重试
+        </Button>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* KPI 卡片行 */}
@@ -113,29 +184,28 @@ export default function RevenueReport() {
         <KpiCard
           icon={<icons.DollarSign className={`${iconSize.md} text-primary`} />}
           label="总收入"
-          value={`${formatCurrency(KPI_DATA.totalRevenue)}元`}
+          value={`${formatCurrency(kpiData.totalRevenue)}元`}
           sub="本年累计"
           colorClass="text-foreground"
         />
         <KpiCard
           icon={<icons.CheckCircle className={`${iconSize.md} text-emerald-600 dark:text-emerald-400`} />}
           label="已收款"
-          value={`${formatCurrency(KPI_DATA.paidAmount)}元`}
-          sub={`回款率 ${((KPI_DATA.paidAmount / KPI_DATA.totalRevenue) * 100).toFixed(0)}%`}
+          value={`${formatCurrency(kpiData.paidAmount)}元`}
+          sub={`回款率 ${kpiData.totalRevenue > 0 ? ((kpiData.paidAmount / kpiData.totalRevenue) * 100).toFixed(0) : 0}%`}
           colorClass="text-emerald-600 dark:text-emerald-400"
         />
         <KpiCard
           icon={<icons.Clock className={`${iconSize.md} text-amber-600 dark:text-amber-400`} />}
           label="待收款"
-          value={`${formatCurrency(KPI_DATA.pendingAmount)}元`}
+          value={`${formatCurrency(kpiData.pendingAmount)}元`}
           sub="含已发送和逾期"
           colorClass="text-amber-600 dark:text-amber-400"
         />
         <KpiCard
           icon={<icons.TrendingUp className={`${iconSize.md} text-primary`} />}
           label="平均客单价"
-          value={`${formatCurrency(KPI_DATA.avgOrderValue)}元`}
-          sub="同比 +12.3%"
+          value={`${formatCurrency(kpiData.avgOrderValue)}元`}
           colorClass="text-primary"
         />
       </div>
@@ -146,7 +216,7 @@ export default function RevenueReport() {
         <div className={`${cardStyle.base} lg:col-span-2`}>
           <h3 className={`${heading.section} mb-4`}>月度收入趋势</h3>
           <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={MONTHLY_DATA}>
+            <LineChart data={monthlyData}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis
                 dataKey="month"
@@ -185,7 +255,7 @@ export default function RevenueReport() {
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
               <Pie
-                data={SOURCE_DATA}
+                data={sourceData}
                 cx="50%"
                 cy="45%"
                 innerRadius={55}
@@ -195,7 +265,7 @@ export default function RevenueReport() {
                 label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                 labelLine={{ strokeWidth: 1 }}
               >
-                {SOURCE_DATA.map((_, idx) => (
+                {sourceData.map((_, idx) => (
                   <Cell key={idx} fill={chartColors[idx % chartColors.length]} />
                 ))}
               </Pie>
@@ -216,6 +286,9 @@ export default function RevenueReport() {
       {/* 律师业绩排行 */}
       <div className={cardStyle.base}>
         <h3 className={`${heading.section} mb-4`}>律师业绩排行</h3>
+        {lawyerRanking.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">暂无排行数据</p>
+        ) : (
         <Table>
           <TableHeader>
             <TableRow>
@@ -228,7 +301,7 @@ export default function RevenueReport() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {LAWYER_RANKING.map(row => {
+            {lawyerRanking.map(row => {
               const hourlyRate = row.hours > 0 ? Math.round(row.revenue / row.hours) : 0
               return (
                 <TableRow key={row.rank}>
@@ -271,6 +344,7 @@ export default function RevenueReport() {
             })}
           </TableBody>
         </Table>
+        )}
       </div>
     </div>
   )

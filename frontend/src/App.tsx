@@ -7,7 +7,7 @@
  *
  * ===== [Phase 2] 路由懒加载 + 四大业务域路由结构 =====
  * 使用 React.lazy() + Suspense 实现按需加载，减少首屏 bundle 体积
- * 路由按 PRD 四大业务域分组：AI法务、智能协作、信息中心、法律智库
+ * 路由按 PRD 四大业务域分组：AI法务、智能协作、智能调查、法律智库
  *
  * ===== [Phase 3] ErrorBoundary + 404 页面 =====
  * 添加全局错误边界，防止子组件崩溃导致白屏
@@ -25,6 +25,7 @@ import { PrivacyProvider } from '@/context/PrivacyContext'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { AdminRoute } from '@/components/auth/AdminRoute'
+import AdminLayout from '@/components/admin/AdminLayout'
 
 // ===== 路由懒加载 =====
 // 每个页面只在用户访问时才加载对应的 JS 代码
@@ -71,8 +72,7 @@ const NotFound = lazy(() => import('@/pages/NotFound'))
 // 登录页
 const Login = lazy(() => import('@/pages/Login'))
 
-// 后台管理
-const AdminLayout = lazy(() => import('@/components/admin/AdminLayout'))
+// 后台管理（AdminLayout 静态引入，避免 Vite 动态 import 偶发 Failed to fetch module）
 const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'))
 const AdminUsers = lazy(() => import('@/pages/admin/AdminUsers'))
 const AdminRoles = lazy(() => import('@/pages/admin/AdminRoles'))

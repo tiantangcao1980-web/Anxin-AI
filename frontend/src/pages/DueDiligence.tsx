@@ -41,62 +41,7 @@ interface InvestigationData {
   risk: any
 }
 
-// ===== 示例数据：未调查时供功能预览 =====
-const DEMO_DATA: InvestigationData = {
-  companyName: '示例科技有限公司',
-  basicInfo: {
-    name: '示例科技有限公司',
-    legal_representative: '张明',
-    registered_capital: '5000 万元人民币',
-    established_date: '2015-03-18',
-    status: '存续',
-    business_scope: '软件开发、信息技术咨询、数据处理服务',
-    address: '北京市海淀区中关村科技园区',
-    company_type: '有限责任公司',
-    data_source: '示例数据',
-  },
-  litigation: {
-    total_cases: 7,
-    as_plaintiff: 3,
-    as_defendant: 4,
-    execution_cases: 1,
-    dishonest_records: 0,
-    major_cases: [
-      { case_no: '(2024)京0108民初12345号', case_type: '合同纠纷', role: '被告', status: '审理中', result: '待判决', amount: '120万元', date: '2024-06-15' },
-      { case_no: '(2024)京0108民初23456号', case_type: '知识产权', role: '原告', status: '已结案', result: '胜诉', amount: '80万元', date: '2024-03-20' },
-      { case_no: '(2023)京0108民初34567号', case_type: '劳动争议', role: '被告', status: '已结案', result: '调解结案', amount: '15万元', date: '2023-11-08' },
-      { case_no: '(2023)京0108民初45678号', case_type: '买卖合同', role: '原告', status: '已结案', result: '胜诉', amount: '200万元', date: '2023-08-25' },
-    ],
-  },
-  credit: {
-    credit_rating: 'BBB',
-    administrative_penalties: 1,
-    tax_violations: 0,
-    environmental_penalties: 0,
-    abnormal_operations: 0,
-    serious_violations: 0,
-    dishonest_records: 0,
-  },
-  risk: {
-    operation_risk: 35,
-    litigation_risk: 48,
-    credit_risk: 28,
-    compliance_risk: 42,
-    relation_risk: 22,
-    overall_rating: 'medium',
-    risk_points: [
-      '近一年涉诉案件增加，需关注合同履约能力',
-      '存在行政处罚记录，合规管理有待加强',
-      '部分关联企业经营状况异常，存在风险传导可能',
-    ],
-    recommendations: [
-      '加强合同审查流程，降低合同纠纷风险',
-      '建立常态化合规审查机制',
-      '定期监控关联企业经营状况',
-      '完善应收账款管理，控制信用风险敞口',
-    ],
-  },
-}
+// (DEMO_DATA 已移除 — 未调查时显示空状态引导)
 
 interface SearchResult {
   id?: string
@@ -515,14 +460,39 @@ export default function DueDiligence() {
     navigate(`/knowledge-graph?search=${encodeURIComponent(entityName)}`)
   }, [navigate])
 
-  // 是否处于示例数据模式
+  // 是否处于空状态（未进行调查）
   const isDemo = !hasResults && !isSearching
-  const activeData = investigationData || DEMO_DATA
-  const activeName = companyName || DEMO_DATA.companyName
+  const activeData = investigationData
+  const activeName = companyName || ''
 
-  // 渲染当前活跃的内容区域（同时支持真实数据和示例数据）
+  // 渲染当前活跃的内容区域
   const renderContent = () => {
     const data = activeData
+
+    // 未调查时显示空状态引导（不再展示假数据）
+    if (!data) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+          <icons.Search className="w-16 h-16 mb-4 opacity-20" />
+          <p className="text-lg font-medium mb-2">尚未开始调查</p>
+          <p className="text-sm opacity-60 mb-6 text-center max-w-md">
+            在上方搜索框输入企业名称，启动 AI 智能尽职调查，多 Agent 协同为您生成全方位企业调查报告
+          </p>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>试试：</span>
+            {['阿里巴巴', '腾讯', '华为'].map(name => (
+              <button
+                key={name}
+                onClick={() => { setSearchInput(name); handleInvestigate(name) }}
+                className={`${buttonStyle.ghost} text-xs rounded-full`}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )
+    }
 
     switch (activeSection) {
       case 'overview':
@@ -684,28 +654,8 @@ export default function DueDiligence() {
         {!showSearch && !isSearching && (
           <div className="h-full overflow-y-auto">
             <div className="p-4 sm:p-5 lg:p-6 space-y-4">
-              {/* 示例数据提示横幅 */}
-              {isDemo && (
-                <motion.div
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800"
-                >
-                  <icons.Info className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-                  <p className="text-xs text-amber-700 dark:text-amber-300 flex-1">
-                    当前展示为<span className="font-semibold">示例数据</span>，在上方搜索框输入真实企业名称即可启动 AI 调查
-                  </p>
-                  <button
-                    onClick={() => document.querySelector<HTMLInputElement>('input[placeholder*="企业名称"]')?.focus()}
-                    className="text-xs font-medium text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-100 whitespace-nowrap px-2 py-1 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
-                  >
-                    立即调查 →
-                  </button>
-                </motion.div>
-              )}
-
-              {/* 企业概况 Hero */}
-              {activeSection === 'overview' && (
+              {/* 企业概况 Hero — 仅在有调查数据时展示 */}
+              {activeSection === 'overview' && activeData && (
                 <CompanyProfile data={activeData.basicInfo} companyName={activeName} riskData={activeData.risk} />
               )}
 

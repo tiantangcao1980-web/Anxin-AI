@@ -14,6 +14,181 @@ from loguru import logger
 from src.core.config import settings
 
 
+_DUE_DILIGENCE_QUERY_PATTERNS = [
+    re.compile(r"(尽职调查|尽调|背景调查|企业调查|公司调查)"),
+    re.compile(r"(调查|查一下|查下|查查|看看|核查|评估|分析).{0,8}(公司|企业|供应商|合作方|交易对手|对方主体|对方)"),
+    re.compile(r"(工商信息|股权结构|诉讼记录|失信记录|经营异常|行政处罚|信用记录|关联企业|关联关系)"),
+    re.compile(r"(供应商|合作方|交易对手).{0,12}(可靠|靠谱|风险|背景|信用)"),
+]
+
+_COMPANY_NAME_PATTERNS = [
+    re.compile(r"([A-Za-z0-9\u4e00-\u9fa5（）()·\-.]{2,60}?(?:有限责任公司|股份有限公司|集团有限公司|有限公司|集团|公司|企业))"),
+]
+
+_COMPANY_PLACEHOLDERS = {
+    "一家公司", "一间公司", "一家企业", "一间企业", "这个公司", "这家公司",
+    "那个公司", "那家公司", "某公司", "某企业", "目标公司", "合作公司",
+    "合作企业", "供应商公司", "企业公司", "公司", "企业", "对方公司", "对方企业",
+}
+
+_KNOWN_COMPANY_ALIASES = (
+    "腾讯", "阿里巴巴", "阿里", "字节跳动", "京东", "百度", "美团", "拼多多", "小米", "华为",
+)
+
+_LEADING_REQUEST_PREFIX = re.compile(
+    r"^(请|麻烦|帮我|帮忙|想|我要|我想|请帮我)?"
+    r"(调查一下|调查|查一下|查下|查查|查一查|看看|看下|核查|评估|分析|了解一下)?"
+)
+
+
+def detect_company_due_diligence_request(message: str) -> Dict[str, Any]:
+    """
+    检测用户是否在发起“公司/企业调查”请求，并尽量提取目标公司名称。
+
+    Returns:
+        {
+            "matched": bool,
+            "company_name": Optional[str],
+            "reason": str,
+        }
+    """
+    text = (message or "").strip()
+    if not text:
+        return {"matched": False, "company_name": None, "reason": "empty"}
+
+    if "公司法" in text and not any(pattern.search(text) for pattern in _DUE_DILIGENCE_QUERY_PATTERNS[:2]):
+        return {"matched": False, "company_name": None, "reason": "company_law_question"}
+
+    matched_pattern = next((pattern.pattern for pattern in _DUE_DILIGENCE_QUERY_PATTERNS if pattern.search(text)), None)
+    if not matched_pattern:
+        return {"matched": False, "company_name": None, "reason": "no_due_diligence_signal"}
+
+    company_name = extract_company_name_from_text(text)
+    return {
+        "matched": True,
+        "company_name": company_name,
+        "reason": f"matched:{matched_pattern}",
+    }
+
+
+def extract_company_name_from_text(text: str) -> Optional[str]:
+    """从用户输入中提取目标企业名称。"""
+    if not text:
+        return None
+
+    normalized_text = _normalize_company_extraction_text(text)
+
+    for pattern in _COMPANY_NAME_PATTERNS:
+        matches = pattern.findall(normalized_text)
+        if not matches:
+            continue
+
+        candidates = sorted(
+            {_clean_company_candidate(match) for match in matches},
+            key=len,
+            reverse=True,
+        )
+        for candidate in candidates:
+            if _is_valid_company_candidate(candidate):
+                return candidate
+
+    for alias in _KNOWN_COMPANY_ALIASES:
+        if alias in normalized_text:
+            return alias
+
+    return None
+
+
+def _is_valid_company_candidate(candidate: str) -> bool:
+    """过滤明显不是企业名称的占位词和泛词。"""
+    if not candidate or len(candidate) < 2:
+        return False
+    if candidate in _COMPANY_PLACEHOLDERS:
+        return False
+    if candidate.startswith(("这个", "这家", "那个", "那家", "某", "一家", "一间")):
+        return False
+    if candidate.endswith(("公司法", "企业法")):
+        return False
+    return True
+
+
+def _normalize_company_extraction_text(text: str) -> str:
+    cleaned = text.strip()
+    cleaned = _LEADING_REQUEST_PREFIX.sub("", cleaned).strip()
+    return cleaned
+
+
+def _clean_company_candidate(candidate: str) -> str:
+    cleaned = candidate.strip("「」『』“”\"'：:，,。.？? ")
+    cleaned = _LEADING_REQUEST_PREFIX.sub("", cleaned).strip()
+    return cleaned
+
+
+def format_due_diligence_chat_response(company_name: str, data: Dict[str, Any]) -> str:
+    """将尽调结果格式化为适合聊天场景的结构化摘要。"""
+    basic_info = data.get("basic_info", {}) or {}
+    litigation = data.get("litigation", {}) or {}
+    credit = data.get("credit", {}) or {}
+    risk = data.get("risk", {}) or {}
+
+    overall_rating = risk.get("overall_rating", "unknown")
+    risk_labels = {
+        "low": "低风险",
+        "medium": "中风险",
+        "high": "高风险",
+        "critical": "重大风险",
+        "unknown": "待核验",
+    }
+    overall_label = risk_labels.get(str(overall_rating).lower(), str(overall_rating))
+
+    total_cases = int(litigation.get("plaintiff_cases", 0) or 0) + int(litigation.get("defendant_cases", 0) or 0)
+    risk_points = [str(item).strip() for item in (risk.get("risk_points") or []) if str(item).strip()]
+    recommendations = [str(item).strip() for item in (risk.get("recommendations") or []) if str(item).strip()]
+    credit_rating = credit.get("credit_rating") or "待核验"
+    data_source = basic_info.get("data_source") or "调查服务"
+
+    summary_lines = [
+        f"已识别为企业调查需求，以下是对“{company_name}”的尽调摘要：",
+        "",
+        "1. 企业概况",
+        f"- 名称：{basic_info.get('name') or company_name}",
+        f"- 经营状态：{basic_info.get('status') or '待核验'}",
+        f"- 法定代表人：{basic_info.get('legal_representative') or '待核验'}",
+        f"- 注册资本：{basic_info.get('registered_capital') or '待核验'}",
+        f"- 成立日期：{basic_info.get('established_date') or '待核验'}",
+        "",
+        "2. 风险结论",
+        f"- 综合风险等级：{overall_label}",
+        f"- 诉讼相关案件数：{total_cases}",
+        f"- 信用评级：{credit_rating}",
+        f"- 风险分项：经营 {risk.get('operation_risk', 'N/A')} / 诉讼 {risk.get('litigation_risk', 'N/A')} / 信用 {risk.get('credit_risk', 'N/A')} / 合规 {risk.get('compliance_risk', 'N/A')} / 关联 {risk.get('relation_risk', 'N/A')}",
+        "",
+        "3. 重点发现",
+    ]
+
+    if risk_points:
+        summary_lines.extend([f"- {item}" for item in risk_points[:4]])
+    else:
+        summary_lines.append("- 暂未识别到明确高风险点，建议继续核验工商、诉讼与信用公开记录。")
+
+    summary_lines.extend(["", "4. 建议动作"])
+    if recommendations:
+        summary_lines.extend([f"- {item}" for item in recommendations[:3]])
+    else:
+        summary_lines.extend([
+            "- 补充核查最新工商登记与年报信息。",
+            "- 重点核查涉诉、被执行和行政处罚记录。",
+            "- 如用于交易或合作决策，建议进一步做股权穿透和实控人关联排查。",
+        ])
+
+    summary_lines.extend([
+        "",
+        f"说明：本次摘要的数据来源标记为“{data_source}”。若其中包含 AI 推断字段，请在正式决策前以工商、裁判文书、执行信息等公开记录再次核验。",
+    ])
+
+    return "\n".join(summary_lines)
+
+
 class DueDiligenceService:
     """尽职调查服务"""
 

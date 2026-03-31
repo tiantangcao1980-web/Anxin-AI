@@ -9,7 +9,7 @@
  * 全部 mock 数据
  */
 
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -33,6 +33,7 @@ import {
 import { icons } from '@/lib/icons'
 import { Skeleton } from '@/components/ui/skeleton'
 import { iconSize, heading, statusBadge, cardStyle } from '@/lib/design-tokens'
+import { firmApi } from '@/lib/api'
 
 // ========== 类型 ==========
 
@@ -82,63 +83,51 @@ const STATUS_MAP: Record<EntryStatus, { label: string; badge: string }> = {
   rejected: { label: '已拒绝', badge: statusBadge.error },
 }
 
-// @mock-data FALLBACK: 后端就绪后从 /firm/timesheet API 获取
-
-const MOCK_ROWS: TimesheetRow[] = [
-  {
-    id: '1',
-    caseName: '张某诉李某合同纠纷案',
-    caseId: 'CASE-2026-0042',
-    billable: true,
-    status: 'draft',
-    hours: [2, 3, 1.5, 0, 4, 0, 0],
-  },
-  {
-    id: '2',
-    caseName: 'XX公司股权架构重组',
-    caseId: 'CASE-2026-0038',
-    billable: true,
-    status: 'submitted',
-    hours: [1, 2, 2, 3, 1, 0, 0],
-  },
-  {
-    id: '3',
-    caseName: '员工劳动争议仲裁',
-    caseId: 'CASE-2026-0045',
-    billable: true,
-    status: 'approved',
-    hours: [0, 1, 0, 2, 3, 0, 0],
-  },
-  {
-    id: '4',
-    caseName: '内部培训与学习',
-    caseId: 'INTERNAL',
-    billable: false,
-    status: 'draft',
-    hours: [0.5, 0, 1, 0, 0, 0, 0],
-  },
-  {
-    id: '5',
-    caseName: 'YY科技专利侵权诉讼',
-    caseId: 'CASE-2026-0051',
-    billable: true,
-    status: 'rejected',
-    hours: [0, 0, 3, 2, 0, 1, 0],
-  },
-]
+// 数据从 API 加载
 
 // ========== 组件 ==========
 
 export default function TimesheetTable() {
   const [weekOffset, setWeekOffset] = useState(0)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [rows, setRows] = useState<TimesheetRow[]>(MOCK_ROWS)
+  const [rows, setRows] = useState<TimesheetRow[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [newCaseName, setNewCaseName] = useState('')
 
   const weekDates = useMemo(() => getWeekDates(weekOffset), [weekOffset])
+
+  const fetchTimesheet = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const dates = getWeekDates(weekOffset)
+      const startDate = dates[0].toISOString().split('T')[0]
+      const endDate = dates[6].toISOString().split('T')[0]
+      const data = await firmApi.listTimesheet({ start_date: startDate, end_date: endDate })
+      // 适配后端返回数据：可能是数组或 { items: [] }
+      const items = Array.isArray(data) ? data : (data.items ?? [])
+      setRows(
+        items.map((entry: any, idx: number) => ({
+          id: entry.id ?? `entry-${idx}`,
+          caseName: entry.case_name ?? entry.caseName ?? entry.description ?? '',
+          caseId: entry.case_id ?? entry.caseId ?? '',
+          billable: entry.billable ?? true,
+          status: entry.status ?? 'draft',
+          hours: entry.hours ?? entry.daily_hours ?? [0, 0, 0, 0, 0, 0, 0],
+        }))
+      )
+    } catch (err: any) {
+      setError(err.message || '加载工时数据失败')
+    } finally {
+      setLoading(false)
+    }
+  }, [weekOffset])
+
+  useEffect(() => {
+    fetchTimesheet()
+  }, [fetchTimesheet])
 
   const totals = useMemo(() => {
     let total = 0
@@ -264,9 +253,14 @@ export default function TimesheetTable() {
         <div className={`${cardStyle.base} flex flex-col items-center justify-center py-12`}>
           <icons.AlertTriangle className={`${iconSize.xl} text-destructive/60 mb-2`} />
           <p className="text-sm text-muted-foreground mb-3">{error}</p>
-          <Button variant="outline" size="sm" onClick={() => setError(null)}>
+          <Button variant="outline" size="sm" onClick={fetchTimesheet}>
             重试
           </Button>
+        </div>
+      ) : rows.length === 0 ? (
+        <div className={`${cardStyle.base} text-center py-12`}>
+          <icons.Clock className={`${iconSize.xl} text-muted-foreground/40 mx-auto mb-2`} />
+          <p className="text-sm text-muted-foreground">本周暂无工时记录</p>
         </div>
       ) : (
       <div className={`${cardStyle.base} overflow-x-auto`}>

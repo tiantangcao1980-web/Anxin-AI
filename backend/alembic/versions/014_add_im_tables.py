@@ -22,7 +22,7 @@ def upgrade() -> None:
     # ===== im_conversations =====
     safe_create_table(
         "im_conversations",
-        sa.Column("id", sa.CHAR(36), primary_key=True),
+        sa.Column("id", PostgreSQLUUID(as_uuid=False), primary_key=True),
         sa.Column("type", sa.String(20), nullable=False, comment="对话类型: private|group|case|contract"),
         sa.Column("title", sa.String(200), nullable=True, comment="对话标题"),
         sa.Column("avatar_url", sa.String(500), nullable=True, comment="对话头像 URL"),
@@ -32,13 +32,13 @@ def upgrade() -> None:
         sa.Column("last_message_preview", sa.String(200), nullable=True),
         sa.Column(
             "case_id",
-            sa.CHAR(36),
+            PostgreSQLUUID(as_uuid=False),
             sa.ForeignKey("cases.id", ondelete="SET NULL"),
             nullable=True,
         ),
         sa.Column(
             "contract_id",
-            sa.CHAR(36),
+            PostgreSQLUUID(as_uuid=False),
             sa.ForeignKey("contracts.id", ondelete="SET NULL"),
             nullable=True,
         ),
@@ -63,16 +63,16 @@ def upgrade() -> None:
     # ===== im_participants =====
     safe_create_table(
         "im_participants",
-        sa.Column("id", sa.CHAR(36), primary_key=True),
+        sa.Column("id", PostgreSQLUUID(as_uuid=False), primary_key=True),
         sa.Column(
             "conversation_id",
-            sa.CHAR(36),
+            PostgreSQLUUID(as_uuid=False),
             sa.ForeignKey("im_conversations.id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column(
             "user_id",
-            sa.CHAR(36),
+            PostgreSQLUUID(as_uuid=False),
             sa.ForeignKey("users.id", ondelete="CASCADE"),
             nullable=False,
         ),
@@ -112,16 +112,16 @@ def upgrade() -> None:
     # ===== im_messages =====
     safe_create_table(
         "im_messages",
-        sa.Column("id", sa.CHAR(36), primary_key=True),
+        sa.Column("id", PostgreSQLUUID(as_uuid=False), primary_key=True),
         sa.Column(
             "conversation_id",
-            sa.CHAR(36),
+            PostgreSQLUUID(as_uuid=False),
             sa.ForeignKey("im_conversations.id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column(
             "sender_id",
-            sa.CHAR(36),
+            PostgreSQLUUID(as_uuid=False),
             sa.ForeignKey("users.id", ondelete="CASCADE"),
             nullable=False,
         ),
@@ -129,7 +129,7 @@ def upgrade() -> None:
         sa.Column("message_type", sa.String(20), server_default="text", nullable=False),
         sa.Column(
             "reply_to_id",
-            sa.CHAR(36),
+            PostgreSQLUUID(as_uuid=False),
             sa.ForeignKey("im_messages.id", ondelete="SET NULL"),
             nullable=True,
         ),

@@ -3,20 +3,23 @@
  *
  * 设计目标：
  * - 围绕当前项目已落地的法务能力做输入加速
- * - 点击后填充输入框提示文本，用户可继续补充后发送
- * - 一级展示高频业务动作，二级收纳扩展能力
- * - 深度思考开关独立，放在输入框内
+ * - 统一通过对话填充型动作触发能力，不离开聊天页
+ * - 一级展示高频业务动作，溢出收纳到"更多"弹出面板
+ * - 始终显示（处理中也保持可见，但置灰禁用对话填充型）
+ * - 支持基于用户使用频率的个性化排序
  */
 
-import { useState, useCallback, useRef, useEffect, memo } from 'react';
+import { useState, useCallback, useRef, useEffect, memo, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { icons } from '@/lib/icons';
 import { iconSize, radius } from '@/lib/design-tokens';
 import {
-  QUICK_WORKFLOW_ACTIONS,
   getWorkflowPrompt,
+  getPersonalizedActions,
+  trackActionUsage,
   type QuickActionMode,
+  type QuickActionType,
   type WorkflowActionDefinition,
 } from '@/components/chat/workflowConfig';
 
@@ -24,6 +27,10 @@ export interface QuickActionFillPayload {
   text: string;
   actionId?: string;
   mode?: QuickActionMode | null;
+  /** @deprecated 旧版导航型快捷动作遗留字段，当前聊天入口不再使用 */
+  navigateTo?: string;
+  /** @deprecated 仅保留给历史调用方做兼容，当前统一使用对话填充型动作 */
+  actionType?: QuickActionType | 'navigate';
 }
 
 export type QuickAction = WorkflowActionDefinition;
@@ -56,7 +63,6 @@ export const DeepModeToggle = memo(function DeepModeToggle({
       }`}
     >
       <icons.Brain className={iconSize.sm} />
-      {/* 激活指示圆点 */}
       {isActive && (
         <motion.span
           initial={{ scale: 0 }}
@@ -69,6 +75,9 @@ export const DeepModeToggle = memo(function DeepModeToggle({
 });
 
 // ========== 快捷操作工具栏 ==========
+
+const MAX_VISIBLE_DESKTOP = 5;
+const MAX_VISIBLE_MOBILE = 3;
 
 interface QuickActionsBarProps {
   onFillInput: (payload: QuickActionFillPayload) => void;
@@ -94,12 +103,32 @@ export function QuickActionsBar({
   const portalRef = useRef<HTMLDivElement>(null);
   const moreBtnRef = useRef<HTMLButtonElement>(null);
   const [popupPos, setPopupPos] = useState<{ x: number; y: number } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [maxVisible, setMaxVisible] = useState(isMobile ? MAX_VISIBLE_MOBILE : MAX_VISIBLE_DESKTOP);
 
-  const quickActions = actions || QUICK_WORKFLOW_ACTIONS;
-  const primaryActions = quickActions.filter((action) => action.quickGroup !== 'secondary');
-  const secondaryActions = quickActions.filter((action) => action.quickGroup === 'secondary');
+  const personalizedActions = useMemo(
+    () => actions || getPersonalizedActions(MAX_VISIBLE_DESKTOP),
+    [actions],
+  );
 
-  const visiblePrimary = isMobile ? primaryActions.slice(0, 4) : primaryActions;
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const observer = new ResizeObserver(() => {
+      const width = el.clientWidth;
+      if (width < 400) setMaxVisible(MAX_VISIBLE_MOBILE);
+      else if (width < 600) setMaxVisible(4);
+      else if (width < 800) setMaxVisible(MAX_VISIBLE_DESKTOP);
+      else setMaxVisible(personalizedActions.length);
+    });
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [personalizedActions.length]);
+
+  const visibleActions = personalizedActions.slice(0, maxVisible);
+  const hiddenActions = personalizedActions.slice(maxVisible);
 
   useEffect(() => {
     if (!moreOpen) return;
@@ -117,6 +146,7 @@ export function QuickActionsBar({
   }, [moreOpen]);
 
   const handleQuickAction = useCallback((action: QuickAction) => {
+    trackActionUsage(action.id);
     const text = getWorkflowPrompt(action.id, {
       hasAttachment: !!attachmentName,
       attachmentName,
@@ -125,116 +155,91 @@ export function QuickActionsBar({
     setMoreOpen(false);
   }, [attachmentName, onFillInput]);
 
-  return (
-    <AnimatePresence>
-      {!isProcessing && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
-          transition={{ duration: 0.2 }}
-          className="overflow-hidden"
+  const renderActionButton = (action: QuickAction, compact = false) => {
+    const Icon = icons[action.iconKey];
+    const isSelected = activeActionId === action.id;
+    const isDisabled = isProcessing;
+
+    if (compact) {
+      return (
+        <button
+          key={action.id}
+          onClick={() => handleQuickAction(action)}
+          disabled={isDisabled}
+          className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-foreground/80 hover:bg-muted/50 hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {/* 业务快捷入口：图标+文字紧凑横排 */}
-          <div className="flex items-center gap-1.5 mb-2">
-            {/* 可滚动区域：主操作按钮 */}
-            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
-              {visiblePrimary.map((action) => {
-                const Icon = icons[action.iconKey];
-                const isSelected = activeActionId === action.id;
-                return (
-                  <button
-                    key={action.id}
-                    onClick={() => handleQuickAction(action)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-all active:scale-95 flex-shrink-0 border ${
-                      isSelected
-                        ? 'text-primary bg-primary/5 border-primary/30 shadow-sm'
-                        : 'text-foreground/70 bg-background border-border/80 hover:border-primary/40 hover:text-primary hover:bg-primary/5 shadow-sm'
-                    }`}
+          <Icon className="w-4 h-4 text-muted-foreground" />
+          <div className="flex-1 text-left">
+            <span>{action.label}</span>
+          </div>
+        </button>
+      );
+    }
+
+    return (
+      <button
+        key={action.id}
+        onClick={() => handleQuickAction(action)}
+        disabled={isDisabled}
+        title={action.description}
+        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-all active:scale-95 border disabled:opacity-40 disabled:cursor-not-allowed ${
+          isSelected
+            ? 'text-primary bg-primary/5 border-primary/30 shadow-sm'
+            : 'text-foreground/70 bg-background border-border/80 hover:border-primary/40 hover:text-primary hover:bg-primary/5 shadow-sm'
+        }`}
+      >
+        <Icon className="w-3.5 h-3.5" />
+        <span>{action.label}</span>
+      </button>
+    );
+  };
+
+  return (
+    <div ref={containerRef}>
+      <div className="flex items-center gap-1.5 mb-2">
+        {visibleActions.map((action) => renderActionButton(action))}
+
+        {hiddenActions.length > 0 && (
+          <div className="relative flex-shrink-0" ref={moreRef}>
+            <button
+              ref={moreBtnRef}
+              onClick={() => {
+                if (!moreOpen && moreBtnRef.current) {
+                  const rect = moreBtnRef.current.getBoundingClientRect();
+                  setPopupPos({ x: rect.right, y: rect.top });
+                }
+                setMoreOpen(!moreOpen);
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-all border ${
+                moreOpen
+                  ? 'text-primary bg-primary/5 border-primary/30 shadow-sm'
+                  : 'text-foreground/70 bg-background border-border/80 hover:border-primary/40 hover:text-primary hover:bg-primary/5 shadow-sm'
+              }`}
+            >
+              <icons.MoreHorizontal className="w-3.5 h-3.5" />
+              <span>更多</span>
+            </button>
+
+            {moreOpen && createPortal(
+              <div ref={portalRef}>
+                <AnimatePresence>
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    style={popupPos ? { position: 'fixed', right: window.innerWidth - popupPos.x, bottom: window.innerHeight - popupPos.y + 8 } : undefined}
+                    className="bg-background border border-border rounded-xl shadow-xl py-1.5 min-w-[160px] z-[9999]"
                   >
-                    <Icon className="w-3.5 h-3.5" />
-                    <span>{action.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* "更多"按钮 — 弹出面板通过 Portal 渲染到 body 以突破 overflow:hidden */}
-            {secondaryActions.length > 0 && (
-              <div className="relative flex-shrink-0" ref={moreRef}>
-                <button
-                  ref={moreBtnRef}
-                  onClick={() => {
-                    if (!moreOpen && moreBtnRef.current) {
-                      const rect = moreBtnRef.current.getBoundingClientRect();
-                      setPopupPos({ x: rect.right, y: rect.top });
-                    }
-                    setMoreOpen(!moreOpen);
-                  }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-all border ${
-                    moreOpen
-                      ? 'text-primary bg-primary/5 border-primary/30 shadow-sm'
-                      : 'text-foreground/70 bg-background border-border/80 hover:border-primary/40 hover:text-primary hover:bg-primary/5 shadow-sm'
-                  }`}
-                >
-                  <icons.MoreHorizontal className="w-3.5 h-3.5" />
-                  <span>更多</span>
-                </button>
-
-                {/* Portal 弹出面板 */}
-                {moreOpen && createPortal(
-                  <div ref={portalRef}>
-                    <AnimatePresence>
-                      <motion.div
-                        initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                        transition={{ duration: 0.15 }}
-                        style={popupPos ? { position: 'fixed', right: window.innerWidth - popupPos.x, bottom: window.innerHeight - popupPos.y + 8 } : undefined}
-                        className="bg-background border border-border rounded-xl shadow-xl py-1.5 min-w-[160px] z-[9999]"
-                      >
-                        {secondaryActions.map((action) => {
-                          const Icon = icons[action.iconKey];
-                          return (
-                            <button
-                              key={action.id}
-                              onClick={() => handleQuickAction(action)}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-foreground/80 hover:bg-muted/50 hover:text-primary transition-colors"
-                            >
-                              <Icon className="w-4 h-4 text-muted-foreground" />
-                              <span>{action.label}</span>
-                            </button>
-                          );
-                        })}
-
-                        {isMobile && primaryActions.length > 4 && (
-                          <>
-                            <div className="h-px bg-border my-1" />
-                            {primaryActions.slice(4).map((action) => {
-                              const Icon = icons[action.iconKey];
-                              return (
-                                <button
-                                  key={action.id}
-                                  onClick={() => handleQuickAction(action)}
-                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-foreground/80 hover:bg-muted/50 hover:text-primary transition-colors"
-                                >
-                                  <Icon className="w-4 h-4 text-muted-foreground" />
-                                  <span>{action.label}</span>
-                                </button>
-                              );
-                            })}
-                          </>
-                        )}
-                      </motion.div>
-                    </AnimatePresence>
-                  </div>,
-                  document.body
-                )}
-              </div>
+                    {hiddenActions.map((action) => renderActionButton(action, true))}
+                  </motion.div>
+                </AnimatePresence>
+              </div>,
+              document.body
             )}
           </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        )}
+      </div>
+    </div>
   );
 }

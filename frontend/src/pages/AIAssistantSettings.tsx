@@ -12,9 +12,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
+import { aiAssistantApi } from '@/lib/api'
 
 // ====================================================================
-// @mock-data FALLBACK: 后端就绪后从 API 获取
+// 类型定义
 // ====================================================================
 
 interface AgentConfig {
@@ -46,22 +47,7 @@ interface AssistantConfig {
   llmConfigId: string
 }
 
-const mockAgents: AgentConfig[] = [
-  { id: 'legal_advisor', name: '法律顾问 Agent', description: '综合法律咨询与建议', icon: 'Scale', enabled: true },
-  { id: 'contract_reviewer', name: '合同审查 Agent', description: '合同条款分析与风险识别', icon: 'FileCheck', enabled: true },
-  { id: 'risk_assessor', name: '风险评估 Agent', description: '法律风险量化评估', icon: 'ShieldAlert', enabled: true },
-  { id: 'legal_researcher', name: '法律研究 Agent', description: '法律法规检索与分析', icon: 'Search', enabled: true },
-  { id: 'document_drafter', name: '文书起草 Agent', description: '法律文书智能生成', icon: 'FileText', enabled: true },
-  { id: 'compliance_officer', name: '合规审查 Agent', description: '企业合规性检查', icon: 'ShieldCheck', enabled: true },
-  { id: 'litigation_strategist', name: '诉讼策略 Agent', description: '诉讼方案规划', icon: 'Briefcase', enabled: false },
-  { id: 'ip_specialist', name: '知识产权 Agent', description: '商标/专利/版权保护', icon: 'Lock', enabled: false },
-  { id: 'due_diligence', name: '尽职调查 Agent', description: '企业背景深度调查', icon: 'FileSearch', enabled: true },
-  { id: 'tax_compliance', name: '税务合规 Agent', description: '税务法规咨询', icon: 'Calculator', enabled: false },
-  { id: 'labor_compliance', name: '劳动法 Agent', description: '劳动法律咨询', icon: 'Users', enabled: false },
-  { id: 'evidence_analyst', name: '证据分析 Agent', description: '证据链条梳理与评估', icon: 'Eye', enabled: false },
-  { id: 'regulatory_monitor', name: '监管动态 Agent', description: '法规变更监测预警', icon: 'Activity', enabled: false },
-]
-
+// 前端配置常量 - 性格预设和 Agent 组合方案
 const personalityPresets: PersonalityPreset[] = [
   {
     id: 'professional',
@@ -100,7 +86,7 @@ const defaultConfig: AssistantConfig = {
   description: '企业专属 AI 法律顾问，提供合同审查、法律咨询、风险评估等智能服务。',
   personalityPresetId: 'professional',
   customSystemPrompt: '',
-  agents: mockAgents,
+  agents: [],
   temperature: 0.7,
   contextRounds: '10',
   llmConfigId: 'default',
@@ -112,14 +98,67 @@ type PageState = 'loading' | 'error' | 'ready'
 
 export default function AIAssistantSettings() {
   const [state, setState] = useState<PageState>('loading')
+  const [errorMsg, setErrorMsg] = useState<string>('')
   const [config, setConfig] = useState<AssistantConfig>(defaultConfig)
   const [showCustomPrompt, setShowCustomPrompt] = useState(false)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    // @mock-data FALLBACK: 模拟加载
-    const timer = setTimeout(() => setState('ready'), 600)
-    return () => clearTimeout(timer)
+    let cancelled = false
+    async function fetchData() {
+      setState('loading')
+      try {
+        const [configData, agentsData] = await Promise.all([
+          aiAssistantApi.getConfig(),
+          aiAssistantApi.listAgents(),
+        ])
+        if (cancelled) return
+
+        // 合并配置
+        const agents: AgentConfig[] = Array.isArray(agentsData)
+          ? agentsData.map((a: any) => ({
+              id: a.id || '',
+              name: a.name || '',
+              description: a.description || '',
+              icon: a.icon || 'Bot',
+              enabled: a.enabled ?? true,
+            }))
+          : (agentsData?.agents || []).map((a: any) => ({
+              id: a.id || '',
+              name: a.name || '',
+              description: a.description || '',
+              icon: a.icon || 'Bot',
+              enabled: a.enabled ?? true,
+            }))
+
+        if (configData) {
+          setConfig({
+            name: configData.name || defaultConfig.name,
+            avatarUrl: configData.avatar_url || configData.avatarUrl || defaultConfig.avatarUrl,
+            welcomeMessage: configData.welcome_message || configData.welcomeMessage || defaultConfig.welcomeMessage,
+            description: configData.description || defaultConfig.description,
+            personalityPresetId: configData.personality_preset_id || configData.personalityPresetId || defaultConfig.personalityPresetId,
+            customSystemPrompt: configData.custom_system_prompt || configData.customSystemPrompt || '',
+            agents: agents.length > 0 ? agents : defaultConfig.agents,
+            temperature: configData.temperature ?? defaultConfig.temperature,
+            contextRounds: String(configData.context_rounds ?? configData.contextRounds ?? defaultConfig.contextRounds),
+            llmConfigId: configData.llm_config_id || configData.llmConfigId || defaultConfig.llmConfigId,
+          })
+        } else {
+          setConfig(prev => ({ ...prev, agents: agents.length > 0 ? agents : prev.agents }))
+        }
+
+        setState('ready')
+      } catch (err: any) {
+        if (!cancelled) {
+          console.error('AI 助手配置加载失败:', err)
+          setErrorMsg(err?.message || '数据加载失败，请稍后重试')
+          setState('error')
+        }
+      }
+    }
+    fetchData()
+    return () => { cancelled = true }
   }, [])
 
   const updateField = <K extends keyof AssistantConfig>(key: K, value: AssistantConfig[K]) => {
@@ -145,10 +184,25 @@ export default function AIAssistantSettings() {
 
   const handleSave = async () => {
     setSaving(true)
-    // @mock-data FALLBACK: 模拟保存
-    await new Promise(r => setTimeout(r, 800))
-    setSaving(false)
-    toast.success('配置已保存')
+    try {
+      await aiAssistantApi.updateConfig({
+        name: config.name,
+        avatar_url: config.avatarUrl,
+        welcome_message: config.welcomeMessage,
+        description: config.description,
+        personality_preset_id: config.personalityPresetId,
+        custom_system_prompt: config.customSystemPrompt,
+        agents: config.agents.map(a => ({ id: a.id, enabled: a.enabled })),
+        temperature: config.temperature,
+        context_rounds: Number(config.contextRounds),
+        llm_config_id: config.llmConfigId,
+      })
+      toast.success('配置已保存')
+    } catch (err: any) {
+      toast.error(err?.message || '保存失败，请稍后重试')
+    } finally {
+      setSaving(false)
+    }
   }
 
   if (state === 'loading') {
@@ -174,7 +228,7 @@ export default function AIAssistantSettings() {
         <div className={`${cardStyle.base} flex flex-col items-center justify-center py-16`}>
           <icons.AlertCircle className={`${iconSize.xl} text-destructive mb-3`} />
           <p className={heading.section}>加载失败</p>
-          <p className={heading.muted}>请检查网络后重试</p>
+          <p className={heading.muted}>{errorMsg || '请检查网络后重试'}</p>
           <Button className="mt-4" onClick={() => setState('loading')}>
             <icons.Refresh className={iconSize.sm} />
             重试
@@ -333,27 +387,31 @@ export default function AIAssistantSettings() {
                 </div>
 
                 {/* Agent 列表 */}
-                <div className="space-y-1">
-                  {config.agents.map(agent => {
-                    const Icon = icons[agent.icon]
-                    return (
-                      <div
-                        key={agent.id}
-                        className="flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-muted/50 transition-colors"
-                      >
-                        <Icon className={`${iconSize.md} text-muted-foreground shrink-0`} />
-                        <div className="flex-1 min-w-0">
-                          <p className={heading.card}>{agent.name}</p>
-                          <p className={heading.micro}>{agent.description}</p>
+                {config.agents.length > 0 ? (
+                  <div className="space-y-1">
+                    {config.agents.map(agent => {
+                      const Icon = icons[agent.icon] || icons.Bot
+                      return (
+                        <div
+                          key={agent.id}
+                          className="flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-muted/50 transition-colors"
+                        >
+                          <Icon className={`${iconSize.md} text-muted-foreground shrink-0`} />
+                          <div className="flex-1 min-w-0">
+                            <p className={heading.card}>{agent.name}</p>
+                            <p className={heading.micro}>{agent.description}</p>
+                          </div>
+                          <Switch
+                            checked={agent.enabled}
+                            onCheckedChange={() => toggleAgent(agent.id)}
+                          />
                         </div>
-                        <Switch
-                          checked={agent.enabled}
-                          onCheckedChange={() => toggleAgent(agent.id)}
-                        />
-                      </div>
-                    )
-                  })}
-                </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="py-8 text-center text-sm text-muted-foreground">暂无可配置的 Agent</div>
+                )}
               </div>
             </PageSection>
           </div>

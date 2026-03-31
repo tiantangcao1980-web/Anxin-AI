@@ -5,7 +5,7 @@
 import pytest
 import pytest_asyncio
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -109,48 +109,44 @@ class TestSentimentAnalysis:
     """测试舆情分析功能"""
     
     @pytest.mark.asyncio
-    @patch('src.services.sentiment_service.SentimentAnalysisAgent')
-    async def test_analyze_content_positive(self, mock_agent_class, db_session: AsyncSession, test_organization: Organization):
+    async def test_analyze_content_positive(self, db_session: AsyncSession, test_organization: Organization):
         """测试分析正面舆情"""
         # Mock Agent
         mock_agent = MagicMock()
         mock_agent.analyze_sentiment = AsyncMock(return_value={"analysis": "正面分析结果"})
         mock_agent.assess_risk = AsyncMock(return_value={"risk_assessment": "低风险"})
-        mock_agent_class.return_value = mock_agent
-        
+
         service = SentimentService(db_session)
         service._agent = mock_agent
-        
+
         result = await service.analyze_content(
             content="公司法务团队获得年度优秀团队表彰，合规工作成效显著",
             keyword="法务",
             org_id=test_organization.id,
             save_record=True
         )
-        
+
         assert result is not None
         assert "sentiment_type" in result
         assert "risk_level" in result
-    
+
     @pytest.mark.asyncio
-    @patch('src.services.sentiment_service.SentimentAnalysisAgent')
-    async def test_analyze_content_negative(self, mock_agent_class, db_session: AsyncSession, test_organization: Organization):
+    async def test_analyze_content_negative(self, db_session: AsyncSession, test_organization: Organization):
         """测试分析负面舆情"""
         mock_agent = MagicMock()
         mock_agent.analyze_sentiment = AsyncMock(return_value={"analysis": "负面分析结果"})
         mock_agent.assess_risk = AsyncMock(return_value={"risk_assessment": "高风险"})
-        mock_agent_class.return_value = mock_agent
-        
+
         service = SentimentService(db_session)
         service._agent = mock_agent
-        
+
         result = await service.analyze_content(
             content="公司因合同违约被起诉，涉及金额巨大，面临诉讼风险",
             keyword="诉讼",
             org_id=test_organization.id,
             save_record=True
         )
-        
+
         assert result is not None
         # 包含负面关键词应该被识别为负面/高风险
         assert result["sentiment_type"] in ["negative", "neutral"]
@@ -300,8 +296,7 @@ class TestSentimentStatistics:
         assert stats["total_records"] == 0
     
     @pytest.mark.asyncio
-    @patch('src.services.sentiment_service.SentimentAnalysisAgent')
-    async def test_generate_report(self, mock_agent_class, db_session: AsyncSession, test_sentiment_records, test_organization: Organization):
+    async def test_generate_report(self, db_session: AsyncSession, test_sentiment_records, test_organization: Organization):
         """测试生成报告"""
         mock_agent = MagicMock()
         mock_agent.generate_report = AsyncMock(return_value={
@@ -309,15 +304,14 @@ class TestSentimentStatistics:
             "report_content": "模拟报告内容",
             "statistics": {}
         })
-        mock_agent_class.return_value = mock_agent
-        
+
         service = SentimentService(db_session)
         service._agent = mock_agent
-        
+
         report = await service.generate_report(
             org_id=test_organization.id,
             period="daily"
         )
-        
+
         assert report is not None
         assert "report_type" in report

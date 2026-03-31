@@ -8,7 +8,7 @@
  * 全部 mock 数据
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -22,7 +22,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { icons } from '@/lib/icons'
 import { cardStyle, iconSize, heading, statusBadge } from '@/lib/design-tokens'
+import { Skeleton } from '@/components/ui/skeleton'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { firmApi } from '@/lib/api'
 
 // ========== Mock 数据 ==========
 
@@ -43,68 +45,14 @@ interface Team {
   members: TeamMember[]
 }
 
-// @mock-data FALLBACK: 后端就绪后从 /firm/teams API 获取
-const MOCK_TEAMS: Team[] = [
-  {
-    id: '1',
-    name: '公司法务部',
-    description: '处理公司治理、股权架构、并购重组等事务',
-    leader: '张明远',
-    memberCount: 6,
-    members: [
-      { id: 'u1', name: '张明远', role: 'leader', title: '高级合伙人' },
-      { id: 'u2', name: '李思晨', role: 'member', title: '律师' },
-      { id: 'u3', name: '王浩然', role: 'member', title: '律师' },
-      { id: 'u4', name: '赵雨萱', role: 'member', title: '实习律师' },
-      { id: 'u5', name: '陈志强', role: 'member', title: '律师助理' },
-      { id: 'u6', name: '周美琳', role: 'member', title: '律师助理' },
-    ],
-  },
-  {
-    id: '2',
-    name: '知识产权组',
-    description: '专利申请、商标注册、著作权保护、侵权诉讼',
-    leader: '刘婉清',
-    memberCount: 4,
-    members: [
-      { id: 'u7', name: '刘婉清', role: 'leader', title: '合伙人' },
-      { id: 'u8', name: '孙晓峰', role: 'member', title: '律师' },
-      { id: 'u9', name: '吴丽华', role: 'member', title: '律师' },
-      { id: 'u10', name: '郑浩宇', role: 'member', title: '实习律师' },
-    ],
-  },
-  {
-    id: '3',
-    name: '劳动法团队',
-    description: '劳动争议仲裁、用工合规、员工关系管理',
-    leader: '黄建国',
-    memberCount: 3,
-    members: [
-      { id: 'u11', name: '黄建国', role: 'leader', title: '高级律师' },
-      { id: 'u12', name: '林思远', role: 'member', title: '律师' },
-      { id: 'u13', name: '许文博', role: 'member', title: '律师助理' },
-    ],
-  },
-  {
-    id: '4',
-    name: '诉讼仲裁部',
-    description: '民商事诉讼、仲裁案件代理、执行申请',
-    leader: '陈伟达',
-    memberCount: 5,
-    members: [
-      { id: 'u14', name: '陈伟达', role: 'leader', title: '合伙人' },
-      { id: 'u15', name: '杨丽娜', role: 'member', title: '高级律师' },
-      { id: 'u16', name: '韩思远', role: 'member', title: '律师' },
-      { id: 'u17', name: '马小红', role: 'member', title: '律师' },
-      { id: 'u18', name: '朱文杰', role: 'member', title: '实习律师' },
-    ],
-  },
-]
+// 数据从 API 加载
 
 // ========== 组件 ==========
 
 export default function TeamManagement() {
-  const [teams, setTeams] = useState<Team[]>(MOCK_TEAMS)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [teams, setTeams] = useState<Team[]>([])
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingTeam, setEditingTeam] = useState<Team | null>(null)
@@ -112,6 +60,41 @@ export default function TeamManagement() {
   const [formDesc, setFormDesc] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [removeMemberTarget, setRemoveMemberTarget] = useState<{ teamId: string; memberId: string } | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    async function fetchTeams() {
+      try {
+        setLoading(true)
+        setError(null)
+        const data = await firmApi.listTeams()
+        if (cancelled) return
+        const items = Array.isArray(data) ? data : (data.items ?? data.teams ?? [])
+        setTeams(
+          items.map((t: any) => ({
+            id: t.id,
+            name: t.name ?? '',
+            description: t.description ?? '',
+            leader: t.leader ?? t.leader_name ?? '待指定',
+            memberCount: t.member_count ?? t.memberCount ?? (t.members?.length ?? 0),
+            members: (t.members ?? []).map((m: any) => ({
+              id: m.id ?? m.user_id ?? '',
+              name: m.name ?? m.user_name ?? '',
+              role: m.role ?? 'member',
+              avatar: m.avatar ?? m.avatar_url,
+              title: m.title ?? m.position ?? '',
+            })),
+          }))
+        )
+      } catch (err: any) {
+        if (!cancelled) setError(err.message || '加载团队数据失败')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    fetchTeams()
+    return () => { cancelled = true }
+  }, [])
 
   const handleToggleExpand = (teamId: string) => {
     setExpandedTeam(expandedTeam === teamId ? null : teamId)
@@ -174,6 +157,34 @@ export default function TeamManagement() {
         const newMembers = t.members.filter(m => m.id !== memberId)
         return { ...t, members: newMembers, memberCount: newMembers.length }
       }),
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-9 w-24" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-40 rounded-xl" />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className={`${cardStyle.base} flex flex-col items-center justify-center py-12`}>
+        <icons.AlertTriangle className={`${iconSize.xl} text-destructive/60 mb-3`} />
+        <p className="text-sm text-muted-foreground mb-3">{error}</p>
+        <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+          重试
+        </Button>
+      </div>
     )
   }
 

@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { icons } from '@/lib/icons'
 import { toast } from 'sonner'
+import { lawyerApi } from '@/lib/api'
 import { cardStyle, buttonStyle, heading, statusBadge, iconSize, chartColors } from '@/lib/design-tokens'
 import { PageContainer, PageSection } from '@/components/ui/PageContainer'
 import { Button } from '@/components/ui/button'
@@ -48,62 +49,6 @@ interface TrendPoint {
   rating: number
 }
 
-// ============ Mock 数据 ============
-
-// @mock-data FALLBACK: 后端就绪后从 API 获取
-const MOCK_KPI: KpiData = {
-  monthlyIncome: 28500,
-  monthlyOrders: 12,
-  rating: 4.8,
-  avgResponseMinutes: 35,
-}
-
-// @mock-data FALLBACK: 后端就绪后从 API 获取
-const MOCK_PENDING: PendingConsultation[] = [
-  {
-    id: '1',
-    summary: '劳动合同到期后公司不续签，是否可以要求经济补偿金？',
-    field: '劳动争议',
-    urgency: 'high',
-    createdAt: '2026-03-28 09:15',
-    clientName: '张**',
-  },
-  {
-    id: '2',
-    summary: '租赁合同中的违约金条款是否过高？法律上有无上限规定？',
-    field: '合同纠纷',
-    urgency: 'medium',
-    createdAt: '2026-03-28 10:30',
-    clientName: '李**',
-  },
-  {
-    id: '3',
-    summary: '公司股东退出后如何办理工商变更登记？',
-    field: '公司法务',
-    urgency: 'low',
-    createdAt: '2026-03-28 11:00',
-    clientName: '王**',
-  },
-  {
-    id: '4',
-    summary: '商标注册被驳回，是否可以提出复审？流程和时限是什么？',
-    field: '知识产权',
-    urgency: 'medium',
-    createdAt: '2026-03-28 11:45',
-    clientName: '赵**',
-  },
-]
-
-// @mock-data FALLBACK: 后端就绪后从 API 获取
-const MOCK_TREND: TrendPoint[] = [
-  { month: '10月', income: 18000, rating: 4.5 },
-  { month: '11月', income: 22000, rating: 4.6 },
-  { month: '12月', income: 25000, rating: 4.7 },
-  { month: '1月', income: 21000, rating: 4.6 },
-  { month: '2月', income: 24000, rating: 4.8 },
-  { month: '3月', income: 28500, rating: 4.8 },
-]
-
 const URGENCY_MAP: Record<string, { label: string; badge: string }> = {
   high: { label: '紧急', badge: statusBadge.error },
   medium: { label: '一般', badge: statusBadge.warning },
@@ -115,19 +60,51 @@ const URGENCY_MAP: Record<string, { label: string; badge: string }> = {
 export default function LawyerDashboard() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
-  const [kpi, setKpi] = useState<KpiData>(MOCK_KPI)
+  const [error, setError] = useState<string | null>(null)
+  const [kpi, setKpi] = useState<KpiData>({ monthlyIncome: 0, monthlyOrders: 0, rating: 0, avgResponseMinutes: 0 })
   const [pending, setPending] = useState<PendingConsultation[]>([])
   const [trend, setTrend] = useState<TrendPoint[]>([])
 
   useEffect(() => {
-    // @mock-data FALLBACK: 后端就绪后从 API 获取
-    const timer = setTimeout(() => {
-      setKpi(MOCK_KPI)
-      setPending(MOCK_PENDING)
-      setTrend(MOCK_TREND)
-      setLoading(false)
-    }, 600)
-    return () => clearTimeout(timer)
+    let cancelled = false
+    async function fetchDashboard() {
+      try {
+        setLoading(true)
+        setError(null)
+        const data = await lawyerApi.getDashboard()
+        if (cancelled) return
+        // 适配后端返回的字段名
+        setKpi({
+          monthlyIncome: data.monthly_income ?? data.monthlyIncome ?? 0,
+          monthlyOrders: data.monthly_orders ?? data.monthlyOrders ?? 0,
+          rating: data.rating ?? 0,
+          avgResponseMinutes: data.avg_response_minutes ?? data.avgResponseMinutes ?? 0,
+        })
+        setPending(
+          (data.pending_consultations ?? data.pending ?? []).map((c: any) => ({
+            id: c.id,
+            summary: c.summary,
+            field: c.field ?? c.category ?? '',
+            urgency: c.urgency ?? 'medium',
+            createdAt: c.created_at ?? c.createdAt ?? '',
+            clientName: c.client_name ?? c.clientName ?? '',
+          }))
+        )
+        setTrend(
+          (data.trend ?? data.income_trend ?? []).map((t: any) => ({
+            month: t.month,
+            income: t.income ?? t.amount ?? 0,
+            rating: t.rating ?? 0,
+          }))
+        )
+      } catch (err: any) {
+        if (!cancelled) setError(err.message || '加载仪表板数据失败')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    fetchDashboard()
+    return () => { cancelled = true }
   }, [])
 
   function handleAccept(id: string) {
@@ -149,6 +126,21 @@ export default function LawyerDashboard() {
           ))}
         </div>
         <Skeleton className="h-64 rounded-xl mt-4" />
+      </PageContainer>
+    )
+  }
+
+  if (error) {
+    return (
+      <PageContainer title="律师工作台">
+        <div className={`${cardStyle.flat} flex flex-col items-center justify-center py-12`}>
+          <icons.AlertTriangle className={`${iconSize.xl} text-destructive/60 mb-3`} />
+          <p className={heading.section}>加载失败</p>
+          <p className="text-sm text-muted-foreground mt-1">{error}</p>
+          <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
+            重新加载
+          </Button>
+        </div>
       </PageContainer>
     )
   }

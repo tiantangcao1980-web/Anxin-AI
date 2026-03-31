@@ -2,7 +2,7 @@
 """添加支付订单表
 
 Revision ID: 012_payment_orders
-Revises: 011_approval_chain
+Revises: 011_notification_preferences
 Create Date: 2026-03-27
 
 """

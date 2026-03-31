@@ -44,6 +44,15 @@ interface FeatureFlag {
   updated_at: string | null
 }
 
+interface FeatureFlagListResponse {
+  items?: FeatureFlag[]
+  meta?: {
+    total: number
+    skip: number
+    limit: number
+  }
+}
+
 const emptyForm = {
   key: '',
   name: '',
@@ -82,10 +91,12 @@ export default function AdminFeatureFlags() {
   const loadFlags = async () => {
     setLoading(true)
     try {
-      const data = await flagRequest<FeatureFlag[]>('/admin/feature-flags')
-      setFlags(data)
+      const data = await flagRequest<FeatureFlagListResponse | FeatureFlag[]>('/admin/feature-flags')
+      const items = Array.isArray(data) ? data : data?.items
+      setFlags(Array.isArray(items) ? items : [])
     } catch (e: any) {
       toast.error(e.message || '加载失败')
+      setFlags([])
     } finally {
       setLoading(false)
     }

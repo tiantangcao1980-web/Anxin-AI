@@ -2,6 +2,13 @@ import { icons } from '@/lib/icons';
 
 export type QuickActionMode = 'chat' | 'deep_analysis' | 'contract' | 'document' | 'research';
 
+/**
+ * 快捷操作的触发类型：
+ * - 'fill'：填充输入框提示文本，用户补充后发送（对话型）
+ * - 'panel'：在右侧智能工作台中打开对应面板（面板型）
+ */
+export type QuickActionType = 'fill' | 'panel';
+
 export interface QuickActionContext {
   hasAttachment: boolean;
   attachmentName: string | null;
@@ -15,6 +22,7 @@ export interface WorkflowActionDefinition {
   mode: QuickActionMode;
   category: 'core' | 'knowledge' | 'delivery';
   quickGroup?: 'primary' | 'secondary';
+  actionType: QuickActionType;
   command?: string;
   aliases?: string[];
   basePrompt: string;
@@ -23,14 +31,16 @@ export interface WorkflowActionDefinition {
 }
 
 const WORKFLOW_ACTIONS: WorkflowActionDefinition[] = [
+  // ===== 一级：4 个高频核心动作 =====
   {
     id: 'qa-consult',
     label: '快速咨询',
-    description: '适合先拿到初步法律判断和下一步建议',
+    description: '获取初步法律判断、关键依据和下一步建议',
     iconKey: 'Zap',
     mode: 'chat',
     category: 'core',
     quickGroup: 'primary',
+    actionType: 'fill',
     command: '/consult',
     aliases: ['/咨询', '/法律咨询'],
     basePrompt: '请先直接给我一个简明法律结论，再补充关键依据和下一步建议：',
@@ -41,28 +51,30 @@ const WORKFLOW_ACTIONS: WorkflowActionDefinition[] = [
   {
     id: 'qa-contract',
     label: '合同审查',
-    description: '对合同条款做风险识别、缺失项检查和修改建议',
+    description: '风险识别、条款解读、缺失项检查和修改建议',
     iconKey: 'FileCheck',
     mode: 'contract',
     category: 'core',
     quickGroup: 'primary',
+    actionType: 'fill',
     command: '/contract',
-    aliases: ['/合同审查', '/审合同'],
-    basePrompt: '请帮我审查以下合同内容，标出风险点、缺失条款和修改建议：',
+    aliases: ['/合同审查', '/审合同', '/条款', '/条款解读'],
+    basePrompt: '请帮我审查以下合同内容，逐条标出风险点、条款解读、缺失条款和修改建议：',
     attachmentPrompt: (attachmentName) =>
-      `请对附件「${attachmentName || '当前合同'}」进行合同审查，标出风险条款、缺失条款和修改建议：`,
-    placeholder: '粘贴合同条款，或上传合同后点击发送...',
+      `请对附件「${attachmentName || '当前合同'}」进行全面审查，包括风险条款标注、条款解读、缺失项检查和修改建议：`,
+    placeholder: '粘贴合同条款或上传合同文件，我来做全面审查...',
   },
   {
     id: 'qa-draft',
-    label: '协作起草',
-    description: '用于起草函件、说明、意见稿和内部流转文本',
+    label: '文书起草',
+    description: '起草函件、意见稿、说明和法律文书',
     iconKey: 'PenTool',
     mode: 'document',
     category: 'core',
     quickGroup: 'primary',
+    actionType: 'fill',
     command: '/draft',
-    aliases: ['/起草', '/协作起草'],
+    aliases: ['/起草', '/协作起草', '/文书'],
     basePrompt: '请帮我起草一份适合法务协作与内部评审的文本：',
     attachmentPrompt: (attachmentName) =>
       `请基于附件「${attachmentName || '当前材料'}」帮我起草一版结构清晰、适合法务协作的文本：`,
@@ -70,87 +82,36 @@ const WORKFLOW_ACTIONS: WorkflowActionDefinition[] = [
   },
   {
     id: 'qa-compliance',
-    label: '合规检查',
-    description: '输出主要合规风险、法规依据和整改建议',
+    label: '合规风控',
+    description: '合规检查、尽职调查和风险评估',
     iconKey: 'ShieldCheck',
     mode: 'research',
     category: 'core',
     quickGroup: 'primary',
+    actionType: 'fill',
     command: '/compliance',
-    aliases: ['/合规', '/合规检查'],
-    basePrompt: '请帮我进行合规检查，输出主要风险、法规依据和整改建议：',
+    aliases: ['/合规', '/合规检查', '/尽调', '/尽职调查', '/due-diligence'],
+    basePrompt: '我想做一轮合规风控，请先根据下面的业务场景梳理主要合规风险、尽调重点和下一步建议：',
     attachmentPrompt: (attachmentName) =>
-      `请围绕附件「${attachmentName || '当前材料'}」进行合规检查，输出主要风险、依据和整改建议：`,
-    placeholder: '输入业务场景、地区和关注点，我来做合规检查...',
+      `请围绕附件「${attachmentName || '当前材料'}」先做一轮合规风控分析，输出主要风险、尽调重点和整改建议：`,
+    placeholder: '输入业务场景或企业背景，我来做合规检查和风险评估...',
   },
+  // ===== 二级：扩展能力 =====
   {
-    id: 'qa-dd',
-    label: '尽职调查',
-    description: '梳理调查清单、核验重点和风险事项',
-    iconKey: 'Search',
-    mode: 'research',
-    category: 'core',
-    quickGroup: 'primary',
-    command: '/due-diligence',
-    aliases: ['/尽调', '/尽职调查'],
-    basePrompt: '请帮我制定一份尽职调查清单，并标出需要重点核验的风险事项：',
-    attachmentPrompt: (attachmentName) =>
-      `请基于附件「${attachmentName || '当前材料'}」梳理尽职调查重点，列出待核验事项与风险提示：`,
-    placeholder: '输入企业/项目背景，我来整理尽调重点和核验清单...',
-  },
-  {
-    id: 'qa-knowledge',
-    label: '知识检索',
-    description: '联动法规、案例和知识库内容做结论整理',
+    id: 'qa-search',
+    label: '法律检索',
+    description: '检索法规条文、裁判案例和知识库内容',
     iconKey: 'BookOpen',
     mode: 'research',
     category: 'knowledge',
-    quickGroup: 'primary',
-    command: '/knowledge',
-    aliases: ['/知识检索', '/知识库'],
-    basePrompt: '请帮我检索相关法规、案例和知识库内容，并整理结论：',
+    quickGroup: 'secondary',
+    actionType: 'fill',
+    command: '/search',
+    aliases: ['/检索', '/知识检索', '/案例', '/案例检索', '/法规', '/法规查询', '/knowledge', '/case', '/regulation'],
+    basePrompt: '请帮我检索与下面问题相关的法规条文、裁判案例和实务要点，并优先整理出关键结论：',
     attachmentPrompt: (attachmentName) =>
-      `请结合附件「${attachmentName || '当前材料'}」检索相关法规、案例和知识库内容，并整理结论：`,
-    placeholder: '输入关键词、争议点或法条主题，我来做知识检索...',
-  },
-  {
-    id: 'qa-case',
-    label: '案例检索',
-    description: '围绕争议点梳理相关案例和裁判思路',
-    iconKey: 'Briefcase',
-    mode: 'research',
-    category: 'knowledge',
-    quickGroup: 'secondary',
-    command: '/case',
-    aliases: ['/案例', '/案例检索'],
-    basePrompt: '请帮我检索与以下争议相关的案例，并总结裁判要点：',
-    placeholder: '输入争议焦点、案由或关键词，我来检索相关案例...',
-  },
-  {
-    id: 'qa-regulation',
-    label: '法规查询',
-    description: '定位关键法条并提炼适用要点',
-    iconKey: 'Scale',
-    mode: 'research',
-    category: 'knowledge',
-    quickGroup: 'secondary',
-    command: '/regulation',
-    aliases: ['/法规', '/法规查询'],
-    basePrompt: '请帮我查询与以下问题相关的法律法规，并标出关键条文：',
-    placeholder: '输入问题场景或法条主题，我来定位相关法规...',
-  },
-  {
-    id: 'qa-clause',
-    label: '条款解读',
-    description: '逐条解释条款含义、风险和谈判点',
-    iconKey: 'FileText',
-    mode: 'document',
-    category: 'delivery',
-    quickGroup: 'secondary',
-    command: '/clause',
-    aliases: ['/条款', '/条款解读'],
-    basePrompt: '请帮我逐条解读以下条款，说明法律含义、风险和谈判建议：',
-    placeholder: '粘贴需要解读的条款，我来说明含义、风险和谈判点...',
+      `请结合附件「${attachmentName || '当前材料'}」检索相关法规、案例和知识库内容，并整理要点结论：`,
+    placeholder: '输入您想检索的法律问题或关键词...',
   },
   {
     id: 'qa-evidence',
@@ -160,6 +121,7 @@ const WORKFLOW_ACTIONS: WorkflowActionDefinition[] = [
     mode: 'document',
     category: 'knowledge',
     quickGroup: 'secondary',
+    actionType: 'fill',
     command: '/evidence',
     aliases: ['/证据', '/证据梳理'],
     basePrompt: '请帮我梳理当前案件材料中的证据链、缺口和补强建议：',
@@ -170,24 +132,26 @@ const WORKFLOW_ACTIONS: WorkflowActionDefinition[] = [
   {
     id: 'qa-lawyer',
     label: '找律师',
-    description: '围绕案件阶段和专业方向推荐律师画像',
+    description: '根据案件类型和阶段推荐合适的律师',
     iconKey: 'Users',
     mode: 'chat',
     category: 'core',
     quickGroup: 'secondary',
+    actionType: 'fill',
     command: '/lawyer',
     aliases: ['/找律师'],
-    basePrompt: '我想找一位擅长以下领域并适合当前案件阶段的律师：',
-    placeholder: '说明案件类型、地区和阶段，我来帮您筛选律师方向...',
+    basePrompt: '帮我找一位擅长',
+    placeholder: '例如：劳动纠纷的律师，坐标深圳，目前在仲裁前沟通阶段...',
   },
   {
     id: 'qa-task',
     label: '任务拆解',
-    description: '把事项整理为执行步骤、优先级和协作分工',
+    description: '拆解执行步骤、优先级和协作分工',
     iconKey: 'Tasks',
     mode: 'chat',
     category: 'delivery',
     quickGroup: 'secondary',
+    actionType: 'fill',
     command: '/task',
     aliases: ['/任务', '/任务拆解'],
     basePrompt: '请根据以下事项帮我拆解任务、优先级和协作分工建议：',
@@ -322,8 +286,66 @@ export function inferAttachmentWorkflow(file: File): AttachmentWorkflowHint {
   }
 
   if (isDueDiligenceLike || /\.(xls|xlsx|csv)$/i.test(lowerName)) {
-    return createAttachmentHint(fileName, 'qa-dd');
+    return createAttachmentHint(fileName, 'qa-compliance');
   }
 
-  return createAttachmentHint(fileName, 'qa-knowledge');
+  return createAttachmentHint(fileName, 'qa-search');
+}
+
+// ===== 用户行为追踪与个性化排序 =====
+
+const USAGE_STORAGE_KEY = 'anxin_quick_action_usage';
+
+interface ActionUsageRecord {
+  [actionId: string]: { count: number; lastUsed: number };
+}
+
+function getUsageRecords(): ActionUsageRecord {
+  try {
+    const raw = localStorage.getItem(USAGE_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** 记录一次快捷操作使用 */
+export function trackActionUsage(actionId: string): void {
+  const records = getUsageRecords();
+  const prev = records[actionId] || { count: 0, lastUsed: 0 };
+  records[actionId] = { count: prev.count + 1, lastUsed: Date.now() };
+  try {
+    localStorage.setItem(USAGE_STORAGE_KEY, JSON.stringify(records));
+  } catch { /* quota exceeded — ignore */ }
+}
+
+/**
+ * 获取按使用频率排序的快捷操作列表
+ * 高频使用的操作排在前面（primary），低频排在后面（secondary）
+ * 从未使用过的操作保持默认位置
+ */
+export function getPersonalizedActions(maxPrimary = 4): WorkflowActionDefinition[] {
+  const records = getUsageRecords();
+  const hasUsageData = Object.keys(records).length > 0;
+
+  if (!hasUsageData) {
+    return WORKFLOW_ACTIONS.filter((a) => Boolean(a.quickGroup));
+  }
+
+  const scored = WORKFLOW_ACTIONS.filter((a) => Boolean(a.quickGroup)).map((action) => {
+    const usage = records[action.id];
+    const recencyBonus = usage ? Math.max(0, 1 - (Date.now() - usage.lastUsed) / (7 * 24 * 60 * 60 * 1000)) : 0;
+    const score = usage ? usage.count * 0.7 + recencyBonus * 0.3 : 0;
+    return { action, score, hasUsage: !!usage };
+  });
+
+  const used = scored.filter((s) => s.hasUsage).sort((a, b) => b.score - a.score);
+  const unused = scored.filter((s) => !s.hasUsage);
+
+  const sorted = [...used, ...unused];
+
+  return sorted.map((s, i) => ({
+    ...s.action,
+    quickGroup: i < maxPrimary ? 'primary' as const : 'secondary' as const,
+  }));
 }

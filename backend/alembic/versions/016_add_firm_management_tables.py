@@ -73,7 +73,7 @@ def upgrade() -> None:
         sa.Column('date', sa.Date, nullable=False, comment='工时日期'),
         sa.Column('minutes', sa.Integer, nullable=False, comment='工时（分钟）'),
         sa.Column('description', sa.String(500), nullable=True, comment='工时说明'),
-        sa.Column('billable', sa.Boolean, nullable=False, server_default=sa.text('1'), comment='是否可计费'),
+        sa.Column('billable', sa.Boolean, nullable=False, server_default=sa.text('true'), comment='是否可计费'),
         sa.Column('rate', sa.Float, nullable=True, comment='费率（元/小时）'),
         sa.Column('status', sa.String(20), nullable=False, server_default='draft', comment='状态: draft | submitted | approved | rejected'),
         sa.Column('approved_by', postgresql.UUID(as_uuid=False), sa.ForeignKey('users.id', ondelete='SET NULL'), nullable=True, comment='审批人'),

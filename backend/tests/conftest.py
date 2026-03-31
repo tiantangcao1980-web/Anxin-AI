@@ -15,15 +15,36 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.pool import NullPool
+from sqlalchemy.pool import NullPool, StaticPool
 from httpx import AsyncClient, ASGITransport
 
 from src.models.base import Base
-from src.models.user import User, Organization
-from src.models.case import Case, CaseStatus, CasePriority, CaseType
-from src.models.document import Document
-from src.models.sentiment import SentimentRecord, SentimentAlert, SentimentMonitor
-from src.models.collaboration import DocumentSession, DocumentCollaborator
+# 导入所有模型，确保 Base.metadata 包含完整的表定义
+from src.models import (  # noqa: F401 — side-effect import
+    User, Organization,
+    Case, CaseEvent,
+    Document, DocumentVersion,
+    Contract, ContractClause, ContractRisk,
+    Conversation, Message,
+    KnowledgeBase, KnowledgeDocument,
+    LLMConfig,
+    AuditLog,
+    SentimentRecord, SentimentAlert, SentimentMonitor,
+    DocumentSession, DocumentCollaborator, DocumentEdit, DocumentSnapshot,
+    Asset, Notification, NotificationPreference,
+    Task, Lead, Expert, Course, CourseProgress,
+    Approval, ApprovalTemplate,
+    LawyerProfile, Consultation, Delegation,
+    PaymentOrderModel, FeatureFlag,
+    IMConversation, IMParticipant, IMMessage,
+    LawyerReview,
+    Team, TeamMember, CaseAssignment, TimeEntry, Invoice,
+    LawyerCertification, LawyerServiceConfig,
+    BillingPlan, Subscription, Refund,
+    AIAssistantConfig, ConversationSummary, AIAssistantFeedback,
+    McpServerConfig,
+)
+from src.models.case import CaseStatus, CasePriority, CaseType
 
 
 # ============ 测试数据库配置 ============
@@ -41,10 +62,13 @@ if TEST_DATABASE_URL.startswith("postgresql://"):
     TEST_DATABASE_URL = TEST_DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
 
 # 创建测试引擎
+# SQLite 内存数据库必须使用 StaticPool 保证所有连接共享同一个数据库实例
+_is_sqlite_memory = ":memory:" in TEST_DATABASE_URL or "mode=memory" in TEST_DATABASE_URL
 test_engine = create_async_engine(
     TEST_DATABASE_URL,
     echo=False,
-    poolclass=NullPool,
+    poolclass=StaticPool if _is_sqlite_memory else NullPool,
+    **( {"connect_args": {"check_same_thread": False}} if _is_sqlite_memory else {} ),
 )
 
 # 创建测试会话工厂
@@ -130,6 +154,35 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
         yield ac
     
     # 清理依赖覆盖
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def auth_client(
+    db_session: AsyncSession,
+    test_user: User,
+) -> AsyncGenerator[AsyncClient, None]:
+    """
+    创建带认证的测试HTTP客户端
+    """
+    from src.api.main import app
+    from src.core.database import get_db
+    from src.core.security import create_access_token
+
+    async def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    token = create_access_token(user_id=test_user.id)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={"Authorization": f"Bearer {token}"},
+    ) as ac:
+        yield ac
+
     app.dependency_overrides.clear()
 
 
@@ -372,8 +425,9 @@ def mock_workforce():
 
 def create_auth_headers(user: User) -> dict:
     """创建认证头（用于需要认证的API测试）"""
-    # 简化处理：实际应该生成JWT token
-    return {"Authorization": f"Bearer test-token-{user.id}"}
+    from src.core.security import create_access_token
+    token = create_access_token(user_id=user.id)
+    return {"Authorization": f"Bearer {token}"}
 
 
 async def create_test_data(db: AsyncSession, count: int = 10) -> dict:

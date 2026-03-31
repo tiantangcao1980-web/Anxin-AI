@@ -10,7 +10,7 @@
  * 后端 API: /api/v1/compliance-check
  */
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { icons } from '@/lib/icons'
 import {
@@ -23,7 +23,8 @@ import {
   chartColors,
 } from '@/lib/design-tokens'
 import { PageContainer } from '@/components/ui/PageContainer'
-// import { toast } from 'sonner'
+import { complianceApi } from '@/lib/api'
+import { toast } from 'sonner'
 import {
   PieChart,
   Pie,
@@ -119,127 +120,7 @@ const DIMENSIONS = [
   { key: 'governance', label: '公司治理', icon: icons.Building },
 ]
 
-// ===== Mock 数据 =====
-
-const MOCK_RESULT: CheckResult = {
-  totalScore: 72,
-  dimensions: [
-    { name: '劳动用工', score: 85, fullMark: 100 },
-    { name: '合同管理', score: 68, fullMark: 100 },
-    { name: '数据合规', score: 55, fullMark: 100 },
-    { name: '知识产权', score: 78, fullMark: 100 },
-    { name: '税务合规', score: 90, fullMark: 100 },
-    { name: '公司治理', score: 60, fullMark: 100 },
-  ],
-  risks: [
-    {
-      id: 'r1',
-      dimension: '数据合规',
-      title: '未建立数据分类分级制度',
-      description:
-        '企业未按《数据安全法》要求建立数据分类分级保护制度，可能面临监管处罚。',
-      level: 'high',
-      suggestion:
-        '建议尽快制定数据分类分级方案，明确重要数据目录，完成数据安全评估。',
-      lawRef: '《数据安全法》第二十一条',
-    },
-    {
-      id: 'r2',
-      dimension: '数据合规',
-      title: '个人信息处理缺乏合法基础',
-      description:
-        '部分业务场景下收集用户个人信息未取得有效同意，隐私政策不完善。',
-      level: 'high',
-      suggestion:
-        '完善隐私政策，增加分场景的授权同意机制，确保数据处理活动有合法基础。',
-      lawRef: '《个人信息保护法》第十三条',
-    },
-    {
-      id: 'r3',
-      dimension: '合同管理',
-      title: '合同审批流程不规范',
-      description:
-        '部分合同未经法务审核即签署，存在条款风险。',
-      level: 'medium',
-      suggestion:
-        '建立合同分级审批机制，金额超过5万元的合同须经法务审核。',
-      lawRef: '《民法典》合同编',
-    },
-    {
-      id: 'r4',
-      dimension: '合同管理',
-      title: '合同台账管理缺失',
-      description:
-        '缺少统一的合同台账系统，到期合同无提醒机制。',
-      level: 'medium',
-      suggestion:
-        '引入合同管理系统，建立合同全生命周期跟踪机制。',
-    },
-    {
-      id: 'r5',
-      dimension: '公司治理',
-      title: '股东会决议记录不完整',
-      description:
-        '部分重要决议未形成书面记录，存在公司治理风险。',
-      level: 'medium',
-      suggestion:
-        '规范股东会/董事会会议记录流程，确保决议书面存档。',
-      lawRef: '《公司法》第二十二条',
-    },
-    {
-      id: 'r6',
-      dimension: '劳动用工',
-      title: '加班管理制度需优化',
-      description:
-        '加班审批流程不规范，存在超时加班未支付加班费的风险。',
-      level: 'low',
-      suggestion:
-        '完善加班审批流程，确保加班时间记录准确，按规定支付加班报酬。',
-      lawRef: '《劳动法》第四十四条',
-    },
-    {
-      id: 'r7',
-      dimension: '知识产权',
-      title: '商标监控不足',
-      description:
-        '未建立竞品商标监控机制，存在品牌被侵权风险。',
-      level: 'low',
-      suggestion: '定期进行商标检索监控，发现侵权及时维权。',
-    },
-  ],
-  suggestions: [
-    '优先解决数据合规领域的高风险项，建立数据分类分级制度是当务之急。',
-    '建议在一个月内完善隐私政策和用户授权同意机制。',
-    '引入合同管理系统，规范合同审批和台账管理流程。',
-    '安排法务团队对公司治理文件进行全面梳理和归档。',
-    '建议每季度进行一次合规自检，持续跟踪改善情况。',
-  ],
-  checkTime: '2026-03-28 14:30',
-}
-
-const MOCK_HISTORY: HistoryRecord[] = [
-  {
-    id: 'h1',
-    companyName: '某科技有限公司',
-    totalScore: 72,
-    checkTime: '2026-03-28 14:30',
-    dimensions: ['劳动用工', '合同管理', '数据合规', '知识产权', '税务合规', '公司治理'],
-  },
-  {
-    id: 'h2',
-    companyName: '某科技有限公司',
-    totalScore: 65,
-    checkTime: '2026-03-15 10:20',
-    dimensions: ['劳动用工', '数据合规', '税务合规'],
-  },
-  {
-    id: 'h3',
-    companyName: '某科技有限公司',
-    totalScore: 58,
-    checkTime: '2026-02-20 16:45',
-    dimensions: ['合同管理', '公司治理'],
-  },
-]
+// (MOCK_RESULT / MOCK_HISTORY 已移除 — 使用真实 API 调用)
 
 // ===== 辅助函数 =====
 
@@ -334,6 +215,8 @@ export default function ComplianceCheck() {
   const [result, setResult] = useState<CheckResult | null>(null)
   const [expandedRisks, setExpandedRisks] = useState<Set<string>>(new Set())
   const [checkProgress, setCheckProgress] = useState(0)
+  const [history, setHistory] = useState<HistoryRecord[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
 
   // 表单是否可提交
   const canSubmit =
@@ -370,37 +253,76 @@ export default function ComplianceCheck() {
     setStep('checking')
     setCheckProgress(0)
 
-    // TODO: 调用后端 API
-    // try {
-    //   const res = await fetch('/api/v1/compliance-check', {
-    //     method: 'POST',
-    //     headers: { 'Content-Type': 'application/json' },
-    //     body: JSON.stringify({
-    //       company_name: form.name,
-    //       industry: form.industry,
-    //       scale: form.scale,
-    //       region: form.region,
-    //       dimensions: Array.from(selectedDimensions),
-    //     }),
-    //   })
-    //   const data = await res.json()
-    //   setResult(data)
-    //   setStep('result')
-    // } catch {
-    //   toast.error('合规检测失败，请重试')
-    //   setStep('form')
-    // }
+    // 模拟进度动画（API 调用期间给用户视觉反馈）
+    const progressSteps = [10, 25, 40, 55, 70]
+    let progressIdx = 0
+    const progressTimer = setInterval(() => {
+      if (progressIdx < progressSteps.length) {
+        setCheckProgress(progressSteps[progressIdx])
+        progressIdx++
+      }
+    }, 400)
 
-    // Mock: 模拟进度动画
-    const steps = [10, 25, 40, 55, 70, 85, 95, 100]
-    for (let i = 0; i < steps.length; i++) {
-      await new Promise((r) => setTimeout(r, 350))
-      setCheckProgress(steps[i])
+    try {
+      // 构建答案列表：选中的维度视为合规项
+      const answers = Array.from(selectedDimensions).map(dim => ({
+        item_id: dim,
+        answer: true,
+      }))
+
+      const data = await complianceApi.evaluate({
+        industry: form.industry,
+        company_size: form.scale,
+        answers,
+      })
+
+      clearInterval(progressTimer)
+      setCheckProgress(100)
+      await new Promise((r) => setTimeout(r, 300))
+
+      // 适配 API 返回的数据结构到 CheckResult
+      const apiResult: CheckResult = {
+        totalScore: data.totalScore ?? data.total_score ?? data.score ?? 0,
+        dimensions: data.dimensions ?? data.dimension_scores?.map((d: any) => ({
+          name: d.name || d.dimension,
+          score: d.score,
+          fullMark: 100,
+        })) ?? [],
+        risks: data.risks ?? data.risk_items?.map((r: any, i: number) => ({
+          id: r.id || `r${i}`,
+          dimension: r.dimension || '',
+          title: r.title || r.name || '',
+          description: r.description || '',
+          level: r.level || r.severity || 'medium',
+          suggestion: r.suggestion || r.recommendation || '',
+          lawRef: r.lawRef || r.law_ref || undefined,
+        })) ?? [],
+        suggestions: data.suggestions ?? data.recommendations ?? [],
+        checkTime: data.checkTime ?? data.check_time ?? new Date().toLocaleString('zh-CN'),
+      }
+
+      setResult(apiResult)
+      setStep('result')
+    } catch (err: any) {
+      clearInterval(progressTimer)
+      toast.error('合规检测失败: ' + (err.message || '请重试'))
+      setStep('form')
     }
-    await new Promise((r) => setTimeout(r, 400))
-    setResult(MOCK_RESULT)
-    setStep('result')
   }
+
+  // 完成检测后，将结果追加到本地历史记录
+  useEffect(() => {
+    if (result && step === 'result') {
+      const record: HistoryRecord = {
+        id: `h_${Date.now()}`,
+        companyName: form.name,
+        totalScore: result.totalScore,
+        checkTime: result.checkTime,
+        dimensions: result.dimensions.map(d => d.name),
+      }
+      setHistory(prev => [record, ...prev])
+    }
+  }, [result, step])
 
   // 重新检测
   const handleReset = () => {
@@ -832,14 +754,14 @@ export default function ComplianceCheck() {
               <icons.Clock className={iconSize.md} />
               检测历史
             </h3>
-            {MOCK_HISTORY.length === 0 ? (
+            {history.length === 0 ? (
               <div className="text-center py-8">
                 <icons.FileSearch className={`${iconSize.xl} text-muted-foreground mx-auto mb-3`} />
-                <p className={heading.muted}>暂无检测记录</p>
+                <p className={heading.muted}>{historyLoading ? '加载中...' : '暂无检测记录'}</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {MOCK_HISTORY.map((record) => (
+                {history.map((record) => (
                   <button
                     key={record.id}
                     className="w-full text-left p-3 rounded-lg border border-border hover:border-primary/20 hover:bg-muted/30 transition-all"

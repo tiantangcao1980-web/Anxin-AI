@@ -24,7 +24,35 @@ from src.core.config import settings
 from src.models.conversation import Conversation, Message, MessageRole
 from src.services.compute_router_service import compute_router
 from src.services.pii_service import pii_service
+from src.services.due_diligence_service import (
+    detect_company_due_diligence_request,
+    format_due_diligence_chat_response,
+    get_company_info,
+)
 from src.core.privacy import InferenceRequest, SensitivityLevel
+
+
+# ========== 合同审查 / 文书起草意图检测 ==========
+
+_CONTRACT_REVIEW_RE = re.compile(
+    r"审[查阅看核].*合同|合同.*审[查阅看核]|检查.*合同|合同.*[问题风险]|帮我看.*合同|审核.*协议",
+    re.IGNORECASE,
+)
+
+_DOCUMENT_DRAFTING_RE = re.compile(
+    r"起草.*[文书合同协议函]|写.*[合同协议律师函]|生成.*[文书合同]|帮我[写拟].*[合同协议文书]|草拟",
+    re.IGNORECASE,
+)
+
+
+def detect_contract_review_intent(content: str) -> bool:
+    """检测合同审查意图"""
+    return bool(_CONTRACT_REVIEW_RE.search(content))
+
+
+def detect_document_drafting_intent(content: str) -> bool:
+    """检测文书起草意图"""
+    return bool(_DOCUMENT_DRAFTING_RE.search(content))
 
 
 # ========== RAG 引用来源模型 ==========
@@ -340,6 +368,60 @@ class ChatService:
         )
         await self.db.flush()
         return result.rowcount or 0
+
+    async def _build_knowledge_sources(
+        self,
+        kb_ids: Optional[List[str]],
+        rag_sources: Optional[List[Dict[str, Any]]],
+    ) -> List[CitationSource]:
+        """将知识库 RAG 返回值转换为前端统一 sources 结构。"""
+        kb_name_map: Dict[str, str] = {}
+        if kb_ids:
+            from src.models.knowledge import KnowledgeBase
+
+            kb_result = await self.db.execute(
+                select(KnowledgeBase).where(KnowledgeBase.id.in_(kb_ids))
+            )
+            kb_name_map = {str(kb.id): kb.name for kb in kb_result.scalars().all()}
+
+        raw_sources = rag_sources or []
+        max_score = max(
+            (
+                float(source.get("score", 0) or 0)
+                for source in raw_sources
+                if isinstance(source, dict)
+            ),
+            default=0.0,
+        )
+
+        sources: List[CitationSource] = []
+        for kb_id in kb_ids or []:
+            kb_name = kb_name_map.get(kb_id)
+            if not kb_name:
+                continue
+            sources.append(CitationSource(
+                id=f"knowledge-base-{kb_id}",
+                type="knowledge_base",
+                title=kb_name,
+                content_snippet="",
+                source=kb_name,
+                relevance_score=max_score,
+            ))
+
+        default_source_label = next(iter(kb_name_map.values()), "知识库检索")
+        for index, source in enumerate(raw_sources, start=1):
+            if not isinstance(source, dict):
+                continue
+            sources.append(CitationSource(
+                id=source.get("id") or f"knowledge-source-{index}",
+                type="knowledge",
+                title=source.get("title") or f"知识片段 {index}",
+                content_snippet=source.get("content_snippet") or "",
+                source=source.get("source") or default_source_label,
+                relevance_score=float(source.get("score", 0) or 0),
+            ))
+
+        return sources
     
     # ========== 对话处理 ==========
     
@@ -350,6 +432,8 @@ class ChatService:
         user_id: Optional[str] = None,
         case_id: Optional[str] = None,
         agent_name: Optional[str] = None,
+        mode: Optional[str] = None,
+        knowledge_base_ids: Optional[List[str]] = None,
     ) -> dict:
         """处理对话（同步模式）"""
         # 获取或创建对话
@@ -379,10 +463,54 @@ class ChatService:
         
         # 加载 LLM 配置（使用公共方法）
         llm_config = await self._load_llm_config()
+        normalized_kb_ids = [kb_id for kb_id in (knowledge_base_ids or []) if isinstance(kb_id, str) and kb_id]
+        sources: List[CitationSource] = []
         
         # 调用智能体
         try:
-            if agent_name:
+            due_diligence_request = detect_company_due_diligence_request(content) if not agent_name else {"matched": False}
+
+            if due_diligence_request.get("matched"):
+                company_name = due_diligence_request.get("company_name")
+                used_agent = "尽职调查Agent"
+                if not company_name:
+                    response_text = (
+                        "我已识别到您是在发起企业调查/尽调请求，但当前信息还不够。"
+                        "请至少补充目标企业的完整名称，最好同时说明您重点关注的范围，例如工商信息、诉讼记录、股权结构、信用情况或合作风险。"
+                    )
+                else:
+                    try:
+                        company_data = await get_company_info(company_name)
+                        response_text = format_due_diligence_chat_response(company_name, company_data)
+                    except Exception as dd_err:
+                        logger.error(f"同步企业调查强路由失败: {dd_err}")
+                        response_text = (
+                            f"我已识别到您要调查企业“{company_name}”，但当前尽调服务暂时无法返回可靠结果。"
+                            "请稍后重试，或补充统一社会信用代码和关注范围（工商/诉讼/股权/信用），我会继续按尽调流程处理。"
+                        )
+            elif (mode == "research" or normalized_kb_ids) and not agent_name:
+                from src.services.knowledge_service import KnowledgeService
+
+                knowledge_service = KnowledgeService(self.db)
+                rag_result = await knowledge_service.rag_query(
+                    query=content,
+                    kb_ids=normalized_kb_ids or None,
+                )
+                response_text = (rag_result or {}).get("answer", "").strip() or "抱歉，当前知识库未返回有效内容。"
+                used_agent = "知识库检索Agent"
+                sources = await self._build_knowledge_sources(
+                    normalized_kb_ids,
+                    (rag_result or {}).get("sources", []),
+                )
+            elif not agent_name and detect_contract_review_intent(content):
+                # 合同审查强路由：直接分配给合同审查 Agent，跳过 DAG 规划
+                used_agent = "contract_reviewer"
+                response_text = await self.workforce.chat(content, used_agent, context={"llm_config": llm_config})
+            elif not agent_name and detect_document_drafting_intent(content):
+                # 文书起草强路由：直接分配给文书起草 Agent，跳过 DAG 规划
+                used_agent = "document_drafter"
+                response_text = await self.workforce.chat(content, used_agent, context={"llm_config": llm_config})
+            elif agent_name:
                 response_text = await self.workforce.chat(content, agent_name, context={"llm_config": llm_config})
                 used_agent = agent_name
             else:
@@ -408,7 +536,8 @@ class ChatService:
             used_agent = "系统"
         
         # 提取引用来源
-        sources = extract_citations(response_text)
+        if not sources:
+            sources = extract_citations(response_text)
 
         # 保存AI响应
         ai_message = await self.add_message(
@@ -517,24 +646,117 @@ class ChatService:
             role="user",
             content=content,
         )
+
+        due_diligence_request = detect_company_due_diligence_request(content) if not agent_name else {"matched": False}
+        if due_diligence_request.get("matched"):
+            used_agent = "尽职调查Agent"
+            company_name = due_diligence_request.get("company_name")
+
+            yield {
+                "type": "agent_start",
+                "agent": used_agent,
+                "message": "正在识别调查对象并准备企业尽调结果...",
+            }
+
+            if not company_name:
+                response_text = (
+                    "我已识别到您是在发起企业调查/尽调请求，但当前信息还不够。"
+                    "请至少补充目标企业的完整名称，最好同时说明您重点关注的范围，例如工商信息、诉讼记录、股权结构、信用情况或合作风险。"
+                )
+            else:
+                try:
+                    company_data = await get_company_info(company_name)
+                    response_text = format_due_diligence_chat_response(company_name, company_data)
+                except Exception as dd_err:
+                    logger.error(f"流式企业调查强路由失败: {dd_err}")
+                    response_text = (
+                        f"我已识别到您要调查企业“{company_name}”，但当前尽调服务暂时无法返回可靠结果。"
+                        "请稍后重试，或补充统一社会信用代码和关注范围（工商/诉讼/股权/信用），我会继续按尽调流程处理。"
+                    )
+
+            if recovery_map:
+                response_text = pii_service.restore(response_text, recovery_map)
+                response_text += "\n\n*(注：本回复基于脱敏数据生成，敏感信息已在本地自动还原)*"
+
+            sources = extract_citations(response_text)
+            ai_message = await self.add_message(
+                conversation_id=conversation.id,
+                role="assistant",
+                content=response_text,
+                agent_name=used_agent,
+                citations=[s.model_dump() for s in sources] if sources else None,
+            )
+
+            yield {
+                "type": "content",
+                "text": response_text,
+                "accumulated": response_text,
+                "agent": used_agent,
+                "progress": 1.0,
+            }
+            yield {
+                "type": "done",
+                "conversation_id": conversation.id,
+                "message_id": ai_message.id,
+                "agent": used_agent,
+                "full_content": response_text,
+                "sources": [s.model_dump() for s in sources],
+            }
+
+            await self._publish_event("chat_events", {
+                "type": "stream_chat_completed",
+                "conversation_id": str(conversation.id),
+                "agent": used_agent,
+                "user_id": user_id,
+            })
+            return
         
+        # === 合同审查/文书起草强路由（流式） ===
+        _fast_agent = None
+        if not agent_name and detect_contract_review_intent(content):
+            _fast_agent = "contract_reviewer"
+        elif not agent_name and detect_document_drafting_intent(content):
+            _fast_agent = "document_drafter"
+
+        if _fast_agent:
+            used_agent = _fast_agent
+            yield {"type": "agent_start", "agent": used_agent, "message": f"正在处理您的请求..."}
+            try:
+                response_text = await self.workforce.chat(content, _fast_agent, context={"llm_config": llm_config})
+            except Exception:
+                response_text = await self.workforce.chat(content, "legal_advisor", context={"llm_config": llm_config})
+                used_agent = "legal_advisor"
+
+            if recovery_map:
+                response_text = pii_service.restore(response_text, recovery_map)
+
+            sources = extract_citations(response_text)
+            ai_message = await self.add_message(
+                conversation_id=conversation.id, role="assistant",
+                content=response_text, agent_name=used_agent,
+                citations=[s.model_dump() for s in sources] if sources else None,
+            )
+            yield {"type": "content", "text": response_text, "accumulated": response_text, "agent": used_agent, "progress": 1.0}
+            yield {"type": "done", "conversation_id": conversation.id, "message_id": ai_message.id, "agent": used_agent, "full_content": response_text, "sources": [s.model_dump() for s in sources]}
+            return
+
         # 发送开始事件
         yield {
             "type": "start",
             "conversation_id": conversation.id,
             "agent": "协调调度Agent",
         }
-        
+
         yield {
             "type": "thinking",
             "agent": "智能体团队",
             "message": "正在分析您的问题...",
         }
-        
+
         try:
             # 判断是否需要多智能体协作
             is_complex = any(
-                keyword in content 
+                keyword in content
                 for keyword in ['合同', '审查', '尽职调查', '风险', '诉讼', '法规', '条款']
             )
             

@@ -40,7 +40,7 @@ import {
   GraphToolbar,
   GraphDetailDrawer,
 } from '@/components/knowledge-graph'
-import type { ForceGraphNode, ForceGraphEdge } from '@/components/knowledge-graph'
+import type { ForceGraphNode, ForceGraphEdge, ForceGraphCanvasHandle } from '@/components/knowledge-graph'
 
 // ============================================================
 // 类型定义
@@ -121,116 +121,12 @@ const NODE_TYPE_LABELS: Record<string, string> = {
 const MAX_VISIBLE_NODES = 200
 const DEBOUNCE_MS = 300
 
-// ============================================================
-// Mock 数据 (API fallback)
-// ============================================================
+// (MOCK_STATS / generateMockSearchResults / generateMockSubgraph / generateMockPath 已移除 — 使用真实 API)
 
-// @mock-data FALLBACK
-const MOCK_STATS: GraphOverviewStats = {
-  available: true,
-  total_nodes: 1247,
-  total_edges: 3856,
-  node_types: { '法规': 312, '案例': 456, '当事人': 189, '机构': 120, '律师': 100, '其他': 70 },
-  relation_types: { '适用': 890, '引用': 756, '关联': 623, '包含': 512, '对立': 234, '补充': 198 },
-}
+// (generateMockEntityDetail / generateMockTypes 已移除 — 使用真实 API)
 
-// @mock-data FALLBACK
-function generateMockSearchResults(keyword: string): SearchResult[] {
-  return [
-    { id: 'm1', name: `${keyword}相关法规`, type: '法规' },
-    { id: 'm2', name: `${keyword}典型案例`, type: '案例' },
-    { id: 'm3', name: `${keyword}当事人甲`, type: '当事人' },
-    { id: 'm4', name: `${keyword}代理律师`, type: '律师' },
-    { id: 'm5', name: `${keyword}审理机构`, type: '机构' },
-  ]
-}
-
-// @mock-data FALLBACK
-function generateMockSubgraph(centerName: string): { nodes: ForceNode[]; edges: ForceEdge[] } {
-  const center: ForceNode = {
-    id: 'c0', name: centerName, type: '案例', relationCount: 7,
-  }
-  const satellites: ForceNode[] = [
-    { id: 's1', name: '民法典', type: '法规', relationCount: 5 },
-    { id: 's2', name: '合同法', type: '法规', relationCount: 4 },
-    { id: 's3', name: '张某', type: '当事人', relationCount: 3 },
-    { id: 's4', name: '李某', type: '当事人', relationCount: 2 },
-    { id: 's5', name: '北京市高级人民法院', type: '机构', relationCount: 6 },
-    { id: 's6', name: '王律师', type: '律师', relationCount: 3 },
-    { id: 's7', name: '侵权责任法', type: '法规', relationCount: 4 },
-    { id: 's8', name: '合同效力争议', type: '案例', relationCount: 2 },
-    { id: 's9', name: '刘律师', type: '律师', relationCount: 1 },
-    { id: 's10', name: '赵某', type: '当事人', relationCount: 2 },
-    { id: 's11', name: '损害赔偿', type: '其他', relationCount: 3 },
-    { id: 's12', name: '违约金', type: '其他', relationCount: 2 },
-  ]
-  const edges: ForceEdge[] = [
-    { source: 'c0', target: 's1', label: '适用' },
-    { source: 'c0', target: 's3', label: '原告' },
-    { source: 'c0', target: 's4', label: '被告' },
-    { source: 'c0', target: 's5', label: '审理' },
-    { source: 'c0', target: 's6', label: '代理' },
-    { source: 'c0', target: 's11', label: '判决' },
-    { source: 's1', target: 's2', label: '引用' },
-    { source: 's2', target: 's8', label: '适用' },
-    { source: 's3', target: 's10', label: '关联' },
-    { source: 's7', target: 'c0', label: '适用' },
-    { source: 's6', target: 's3', label: '代理' },
-    { source: 's9', target: 's4', label: '代理' },
-    { source: 's11', target: 's12', label: '包含' },
-    { source: 's5', target: 's8', label: '审理' },
-  ]
-  return { nodes: [center, ...satellites], edges }
-}
-
-// @mock-data FALLBACK
-function generateMockPath(from: string, to: string): { nodes: ForceNode[]; edges: ForceEdge[] } {
-  const nodes: ForceNode[] = [
-    { id: 'p0', name: from, type: '案例', relationCount: 3 },
-    { id: 'p1', name: '合同法', type: '法规', relationCount: 5 },
-    { id: 'p2', name: '民法典', type: '法规', relationCount: 8 },
-    { id: 'p3', name: to, type: '当事人', relationCount: 2 },
-  ]
-  const edges: ForceEdge[] = [
-    { source: 'p0', target: 'p1', label: '适用' },
-    { source: 'p1', target: 'p2', label: '引用' },
-    { source: 'p2', target: 'p3', label: '关联' },
-  ]
-  return { nodes, edges }
-}
-
-// @mock-data FALLBACK
-function generateMockEntityDetail(name: string, type: string): EntityDetail {
-  return {
-    name,
-    type,
-    properties: {
-      '编号': `ID-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-      '状态': '有效',
-      '创建时间': '2024-06-15',
-      '更新时间': '2025-01-20',
-      '来源': '司法数据库',
-    },
-    outEdges: [
-      { target: '民法典', label: '适用' },
-      { target: '合同效力', label: '涉及' },
-      { target: '违约责任', label: '判决' },
-    ],
-    inEdges: [
-      { source: '北京高院', label: '审理' },
-      { source: '张某', label: '起诉' },
-    ],
-    documents: [
-      { id: 'd1', title: '判决书全文' },
-      { id: 'd2', title: '相关法规汇编' },
-    ],
-  }
-}
-
-// @mock-data FALLBACK
-function generateMockTypes(): string[] {
-  return ['法规', '案例', '当事人', '机构', '律师', '其他']
-}
+/** 默认实体类型列表 */
+const DEFAULT_ENTITY_TYPES = ['法规', '案例', '当事人', '机构', '律师', '其他']
 
 // ============================================================
 // 工具函数
@@ -595,7 +491,7 @@ export default function KnowledgeGraph() {
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d')
   const [showLabels, setShowLabels] = useState(true)
   const [autoRotate, setAutoRotate] = useState(false)
-  const graphRef = useRef<any>(null)
+  const graphRef = useRef<ForceGraphCanvasHandle>(null)
 
   // --- 弹窗状态 ---
   const [showAddEntity, setShowAddEntity] = useState(false)
@@ -657,80 +553,20 @@ export default function KnowledgeGraph() {
   // API 调用
   // ============================================================
 
-  /** 初始加载：尝试从 API 获取图谱，失败则加载 Mock 演示数据 */
+  /** 初始加载：从 API 获取图谱概览数据 */
   async function loadInitialDemoGraph() {
+    setGraphLoading(true)
     try {
       const data = await knowledgeCenterApi.searchGraph('法', 1, 50)
       if (data && data.nodes && data.nodes.length > 0) {
         const { nodes: n, edges: e } = convertApiData(data)
         mergeGraph(n, e)
-        return
       }
     } catch {
-      // API 不可用，使用演示数据
+      setGraphError('图谱数据加载失败，请使用搜索功能探索')
+    } finally {
+      setGraphLoading(false)
     }
-    // @mock-data FALLBACK — 构建一个丰富的法律知识图谱演示
-    const demoNodes: ForceNode[] = [
-      // 案例
-      { id: 'demo_c1', name: '劳动合同纠纷案', type: '案例', relationCount: 6 },
-      { id: 'demo_c2', name: '工伤赔偿案', type: '案例', relationCount: 4 },
-      { id: 'demo_c3', name: '知识产权侵权案', type: '案例', relationCount: 5 },
-      // 法规
-      { id: 'demo_l1', name: '民法典', type: '法规', relationCount: 8 },
-      { id: 'demo_l2', name: '劳动合同法', type: '法规', relationCount: 6 },
-      { id: 'demo_l3', name: '劳动法', type: '法规', relationCount: 4 },
-      { id: 'demo_l4', name: '工伤保险条例', type: '法规', relationCount: 3 },
-      { id: 'demo_l5', name: '著作权法', type: '法规', relationCount: 3 },
-      { id: 'demo_l6', name: '公司法', type: '法规', relationCount: 2 },
-      // 当事人
-      { id: 'demo_p1', name: '张三', type: '当事人', relationCount: 3 },
-      { id: 'demo_p2', name: '李四', type: '当事人', relationCount: 3 },
-      { id: 'demo_p3', name: '王五', type: '当事人', relationCount: 2 },
-      { id: 'demo_p4', name: '某科技有限公司', type: '当事人', relationCount: 4 },
-      // 机构
-      { id: 'demo_o1', name: '北京市第一中级人民法院', type: '机构', relationCount: 4 },
-      { id: 'demo_o2', name: '朝阳区劳动仲裁委员会', type: '机构', relationCount: 3 },
-      // 律师
-      { id: 'demo_a1', name: '陈律师', type: '律师', relationCount: 3 },
-      { id: 'demo_a2', name: '刘律师', type: '律师', relationCount: 2 },
-      // 其他
-      { id: 'demo_x1', name: '经济补偿金', type: '其他', relationCount: 2 },
-      { id: 'demo_x2', name: '违约责任', type: '其他', relationCount: 2 },
-    ]
-    const demoEdges: ForceEdge[] = [
-      // 劳动合同纠纷案
-      { source: 'demo_c1', target: 'demo_l2', label: '适用' },
-      { source: 'demo_c1', target: 'demo_l3', label: '适用' },
-      { source: 'demo_p1', target: 'demo_c1', label: '原告' },
-      { source: 'demo_p4', target: 'demo_c1', label: '被告' },
-      { source: 'demo_o1', target: 'demo_c1', label: '审理' },
-      { source: 'demo_a1', target: 'demo_p1', label: '代理' },
-      { source: 'demo_c1', target: 'demo_x1', label: '判决' },
-      // 工伤赔偿案
-      { source: 'demo_c2', target: 'demo_l4', label: '适用' },
-      { source: 'demo_c2', target: 'demo_l3', label: '适用' },
-      { source: 'demo_p2', target: 'demo_c2', label: '原告' },
-      { source: 'demo_p4', target: 'demo_c2', label: '被告' },
-      { source: 'demo_o2', target: 'demo_c2', label: '仲裁' },
-      // 知识产权侵权案
-      { source: 'demo_c3', target: 'demo_l5', label: '适用' },
-      { source: 'demo_c3', target: 'demo_l1', label: '适用' },
-      { source: 'demo_p3', target: 'demo_c3', label: '原告' },
-      { source: 'demo_p4', target: 'demo_c3', label: '被告' },
-      { source: 'demo_o1', target: 'demo_c3', label: '审理' },
-      { source: 'demo_a2', target: 'demo_p3', label: '代理' },
-      { source: 'demo_c3', target: 'demo_x2', label: '判决' },
-      // 法规间引用
-      { source: 'demo_l2', target: 'demo_l3', label: '引用' },
-      { source: 'demo_l1', target: 'demo_l6', label: '引用' },
-      { source: 'demo_l1', target: 'demo_l2', label: '引用' },
-      { source: 'demo_l4', target: 'demo_l3', label: '依据' },
-      // 公司关联
-      { source: 'demo_p4', target: 'demo_l6', label: '适用' },
-    ]
-    setGraphNodes(demoNodes)
-    setGraphEdges(demoEdges)
-    toast.info('已加载演示数据，可搜索探索更多')
   }
 
   async function loadStats() {
@@ -739,8 +575,7 @@ export default function KnowledgeGraph() {
       const data = await knowledgeCenterApi.getGraphOverview()
       setStats(data as unknown as GraphOverviewStats)
     } catch {
-      // @mock-data FALLBACK
-      setStats(MOCK_STATS)
+      setStats(null)
     } finally {
       setStatsLoading(false)
     }
@@ -758,12 +593,10 @@ export default function KnowledgeGraph() {
         return
       }
     } catch {
-      // fallback
+      // API 不可用，使用默认类型列表
     }
-    // @mock-data FALLBACK
-    const types = generateMockTypes()
-    setEntityTypes(types)
-    setActiveTypes(new Set(types))
+    setEntityTypes(DEFAULT_ENTITY_TYPES)
+    setActiveTypes(new Set(DEFAULT_ENTITY_TYPES))
   }
 
   async function handleSearch(keyword: string) {
@@ -776,13 +609,12 @@ export default function KnowledgeGraph() {
         type: n.type,
       }))
       setSearchResults(results)
-      return
-    } catch {
-      // fallback
+    } catch (err: any) {
+      toast.error('搜索失败: ' + (err.message || '服务不可用'))
+      setSearchResults([])
+    } finally {
+      setSearchLoading(false)
     }
-    // @mock-data FALLBACK
-    setSearchResults(generateMockSearchResults(keyword))
-    setSearchLoading(false)
   }
 
   async function loadSubgraph(name: string, depth = 2) {
@@ -792,28 +624,24 @@ export default function KnowledgeGraph() {
       const data = await knowledgeCenterApi.getSubgraph(name, depth, 100)
       const { nodes: n, edges: e } = convertApiData(data)
       mergeGraph(n, e)
-      return
-    } catch {
-      // @mock-data FALLBACK
-      const { nodes: n, edges: e } = generateMockSubgraph(name)
-      mergeGraph(n, e)
+    } catch (err: any) {
+      toast.error('加载子图失败: ' + (err.message || '服务不可用'))
     } finally {
       setGraphLoading(false)
     }
   }
 
-  async function loadEntityDetail(name: string, type: string) {
+  async function loadEntityDetail(name: string, _type: string) {
     setDetailLoading(true)
     try {
       const data = await knowledgeCenterApi.getEntityDetail(name)
       setEntityDetail(data)
-      return
-    } catch {
-      // fallback
+    } catch (err: any) {
+      toast.error('加载实体详情失败: ' + (err.message || '服务不可用'))
+      setEntityDetail(null)
+    } finally {
+      setDetailLoading(false)
     }
-    // @mock-data FALLBACK
-    setEntityDetail(generateMockEntityDetail(name, type))
-    setDetailLoading(false)
   }
 
   async function handlePathQuery() {
@@ -835,17 +663,11 @@ export default function KnowledgeGraph() {
       setGraphEdges(e)
       setSelectedNodeId(null)
       toast.success(`找到从 "${pathFrom}" 到 "${pathTo}" 的路径`)
-      return
-    } catch {
-      // fallback
+    } catch (err: any) {
+      toast.error('路径查询失败: ' + (err.message || '服务不可用'))
+    } finally {
+      setPathLoading(false)
     }
-    // @mock-data FALLBACK
-    const { nodes: n, edges: e } = generateMockPath(pathFrom, pathTo)
-    setGraphNodes(n)
-    setGraphEdges(e)
-    setSelectedNodeId(null)
-    toast.success(`找到从 "${pathFrom}" 到 "${pathTo}" 的路径（演示数据）`)
-    setPathLoading(false)
   }
 
   // ============================================================
@@ -1285,6 +1107,7 @@ export default function KnowledgeGraph() {
             /* 图谱画布 + 浮动控件 */
             <>
               <ForceGraphCanvas
+                ref={graphRef}
                 nodes={graphNodes as ForceGraphNode[]}
                 edges={graphEdges as ForceGraphEdge[]}
                 activeTypes={activeTypes}
@@ -1293,6 +1116,7 @@ export default function KnowledgeGraph() {
                 onDoubleClickNode={handleDoubleClickNode}
                 viewMode={viewMode}
                 showLabels={showLabels}
+                autoRotate={autoRotate}
               />
 
               {/* 浮动工具栏 */}
@@ -1304,12 +1128,8 @@ export default function KnowledgeGraph() {
                   onToggleLabels={() => setShowLabels((v) => !v)}
                   autoRotate={autoRotate}
                   onToggleAutoRotate={() => setAutoRotate((v) => !v)}
-                  onResetView={() => {
-                    // GraphCanvas handles this internally via ref if needed
-                  }}
-                  onZoomToFit={() => {
-                    // GraphCanvas handles this internally via ref if needed
-                  }}
+                  onResetView={() => graphRef.current?.resetView()}
+                  onZoomToFit={() => graphRef.current?.zoomToFit()}
                 />
               </div>
 
@@ -1319,6 +1139,8 @@ export default function KnowledgeGraph() {
                   nodeCount={graphNodes.length}
                   edgeCount={graphEdges.length}
                   viewMode={viewMode}
+                  activeTypes={activeTypes}
+                  onToggleType={handleToggleType}
                 />
               </div>
 

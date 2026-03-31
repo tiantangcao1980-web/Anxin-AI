@@ -313,8 +313,8 @@ interface ChatState {
   updateCanvasText: (text: string) => void
 
   // 文档列表（工作台内管理的历史文档）
-  documentList: { id: string; title: string; type: CanvasContent['type']; updatedAt: number; preview?: string }[]
-  addDocumentToList: (doc: { id: string; title: string; type: CanvasContent['type']; preview?: string }) => void
+  documentList: { id: string; title: string; type: CanvasContent['type']; updatedAt: number; preview?: string; content?: string }[]
+  addDocumentToList: (doc: { id: string; title: string; type: CanvasContent['type']; preview?: string; content?: string }) => void
   removeDocumentFromList: (id: string) => void
   clearDocumentList: () => void
 
@@ -404,7 +404,7 @@ export const useChatStore = create<ChatState>()(
       conversationId: null,
       isLoading: false,
       conversations: [],
-      sidebarOpen: false,
+      sidebarOpen: true,
 
       // 右侧面板
       rightPanelTab: 'smart',
@@ -434,15 +434,26 @@ export const useChatStore = create<ChatState>()(
           canvasContent: s.canvasContent ? { ...s.canvasContent, content: text } : null,
         })),
 
-      // 文档列表
+      // 文档列表（按 id 或 title+preview 去重，防止关闭文档时重复添加）
       documentList: [],
       addDocumentToList: (doc) =>
-        set((s) => ({
-          documentList: [
-            { ...doc, updatedAt: Date.now() },
-            ...s.documentList.filter((d) => d.id !== doc.id),
-          ],
-        })),
+        set((s) => {
+          const isDuplicate = s.documentList.some(
+            (d) => d.id === doc.id || (d.title === doc.title && d.preview === doc.preview),
+          );
+          if (isDuplicate) {
+            return {
+              documentList: s.documentList.map((d) =>
+                d.id === doc.id || (d.title === doc.title && d.preview === doc.preview)
+                  ? { ...d, ...doc, updatedAt: Date.now() }
+                  : d,
+              ),
+            };
+          }
+          return {
+            documentList: [{ ...doc, updatedAt: Date.now() }, ...s.documentList],
+          };
+        }),
       removeDocumentFromList: (id) =>
         set((s) => ({ documentList: s.documentList.filter((d) => d.id !== id) })),
       clearDocumentList: () => set({ documentList: [] }),
@@ -505,34 +516,8 @@ export const useChatStore = create<ChatState>()(
       setChatSidebarOpen: (open) => set({ sidebarOpen: open }),
       toggleChatSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
 
-      // 律师协助
-      onlineLawyers: [
-        {
-          id: 'lawyer-1', name: '张明律师', specialties: ['合同法', '公司法', '知识产权'],
-          status: 'online', rating: 4.9, responseTime: '通常3分钟内回复', firm: '金杜律师事务所',
-          avatar: '',
-        },
-        {
-          id: 'lawyer-2', name: '李婷律师', specialties: ['劳动法', '人事合规', '竞业禁止'],
-          status: 'online', rating: 4.8, responseTime: '通常5分钟内回复', firm: '中伦律师事务所',
-          avatar: '',
-        },
-        {
-          id: 'lawyer-3', name: '王强律师', specialties: ['并购重组', '投资基金', '证券法'],
-          status: 'busy', rating: 4.7, responseTime: '通常15分钟内回复', firm: '方达律师事务所',
-          avatar: '',
-        },
-        {
-          id: 'lawyer-4', name: '赵雪律师', specialties: ['知识产权', '商标注册', '专利诉讼'],
-          status: 'online', rating: 4.9, responseTime: '通常5分钟内回复', firm: '君合律师事务所',
-          avatar: '',
-        },
-        {
-          id: 'lawyer-5', name: '陈浩律师', specialties: ['刑事辩护', '行政诉讼', '合规审查'],
-          status: 'offline', rating: 4.6, responseTime: '通常30分钟内回复', firm: '德恒律师事务所',
-          avatar: '',
-        },
-      ],
+      // 律师协助（从后端 API 加载，不再硬编码 mock 数据）
+      onlineLawyers: [],
       setOnlineLawyers: (lawyers) => set({ onlineLawyers: lawyers }),
       activeAssistRequest: null,
       setActiveAssistRequest: (request) => set({ activeAssistRequest: request }),

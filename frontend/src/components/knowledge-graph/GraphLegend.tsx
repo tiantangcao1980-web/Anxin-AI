@@ -1,6 +1,6 @@
 /**
  * GraphLegend - 知识图谱浮动图例面板
- * 显示节点类型颜色映射 + 操作提示 + 统计
+ * 显示节点类型颜色映射（可点击切换可见性）+ 操作提示 + 统计
  */
 
 import { useState } from 'react'
@@ -19,21 +19,20 @@ interface Props {
   nodeCount: number
   edgeCount: number
   viewMode: '2d' | '3d'
+  activeTypes?: Set<string>
+  onToggleType?: (type: string) => void
 }
 
-export function GraphLegend({ nodeCount, edgeCount, viewMode }: Props) {
+export function GraphLegend({ nodeCount, edgeCount, activeTypes, onToggleType }: Props) {
   const [collapsed, setCollapsed] = useState(false)
-  const dark = viewMode === '3d'
 
-  const panelCls = dark
-    ? 'bg-slate-900/80 backdrop-blur-md border-slate-700 text-slate-300'
-    : 'bg-background/90 backdrop-blur-sm border-border text-muted-foreground'
+  const isInteractive = !!activeTypes && !!onToggleType
 
   return (
-    <div className={`rounded-xl border shadow-lg ${panelCls}`}>
+    <div className="rounded-xl border shadow-lg bg-background/90 backdrop-blur-md border-border text-foreground">
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="flex items-center justify-between w-full px-3 py-2"
+        className="flex items-center justify-between w-full px-3 py-2 text-muted-foreground"
       >
         <div className="flex items-center gap-1.5">
           <icons.Layers className="w-3.5 h-3.5" />
@@ -44,34 +43,57 @@ export function GraphLegend({ nodeCount, edgeCount, viewMode }: Props) {
 
       {!collapsed && (
         <div className="px-3 pb-3">
-          <div className="space-y-1.5">
-            {LEGEND_ITEMS.map(item => (
-              <div key={item.type} className="flex items-center gap-2">
-                <div
-                  className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shadow-sm"
-                  style={{ backgroundColor: item.color }}
+          <div className="space-y-1">
+            {LEGEND_ITEMS.map(item => {
+              const isActive = activeTypes ? activeTypes.has(item.type) : true
+              return (
+                <button
+                  key={item.type}
+                  onClick={() => onToggleType?.(item.type)}
+                  disabled={!isInteractive}
+                  className={`flex items-center gap-2 w-full rounded-md px-1.5 py-1 transition-all ${
+                    isInteractive
+                      ? 'hover:bg-muted cursor-pointer'
+                      : 'cursor-default'
+                  } ${isActive ? 'opacity-100' : 'opacity-40'}`}
                 >
-                  {item.char}
-                </div>
-                <span className="text-[11px]">{item.type}</span>
-              </div>
-            ))}
+                  <div
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shadow-sm shrink-0 transition-opacity"
+                    style={{ backgroundColor: item.color }}
+                  >
+                    {item.char}
+                  </div>
+                  <span className="text-[11px] flex-1 text-left text-foreground">{item.type}</span>
+                  {isInteractive && (
+                    <div className={`w-3 h-3 rounded border transition-colors flex items-center justify-center ${
+                      isActive
+                        ? 'border-primary bg-primary'
+                        : 'border-border bg-background'
+                    }`}>
+                      {isActive && (
+                        <icons.Check className="w-2 h-2 text-white" />
+                      )}
+                    </div>
+                  )}
+                </button>
+              )
+            })}
           </div>
 
           {/* 统计 */}
-          <div className={`mt-2.5 pt-2 border-t flex gap-4 ${dark ? 'border-slate-700' : 'border-border'}`}>
+          <div className="mt-2.5 pt-2 border-t border-border flex gap-4">
             <div className="text-center flex-1">
-              <div className={`text-sm font-bold ${dark ? 'text-white' : 'text-foreground'}`}>{nodeCount}</div>
-              <div className="text-[10px]">节点</div>
+              <div className="text-sm font-bold text-foreground">{nodeCount}</div>
+              <div className="text-[10px] text-muted-foreground">节点</div>
             </div>
             <div className="text-center flex-1">
-              <div className={`text-sm font-bold ${dark ? 'text-white' : 'text-foreground'}`}>{edgeCount}</div>
-              <div className="text-[10px]">关系</div>
+              <div className="text-sm font-bold text-foreground">{edgeCount}</div>
+              <div className="text-[10px] text-muted-foreground">关系</div>
             </div>
           </div>
 
           {/* 操作提示 */}
-          <div className={`mt-2 pt-2 border-t text-[10px] space-y-0.5 ${dark ? 'border-slate-700 text-slate-500' : 'border-border'}`}>
+          <div className="mt-2 pt-2 border-t border-border text-[10px] text-muted-foreground space-y-0.5">
             <p>左键点击 = 查看详情</p>
             <p>右键点击 = 展开关系</p>
             <p>滚轮 = 缩放 · 拖拽 = 平移</p>

@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Skeleton } from '@/components/ui/skeleton'
+import { billingApi } from '@/lib/api'
 import {
   Table,
   TableBody,
@@ -41,33 +42,7 @@ interface FeatureRow {
   enterprise: string | boolean
 }
 
-// ============ Mock 数据 ============
-
-// @mock-data FALLBACK: 后端就绪后从 API 获取
-const MOCK_PLANS: PricingPlan[] = [
-  {
-    id: 'basic',
-    name: '基础版',
-    monthlyPrice: 99,
-    features: ['AI 咨询 50 次/月', '5GB 存储空间', '基础合同审查', '邮件支持'],
-  },
-  {
-    id: 'pro',
-    name: '专业版',
-    monthlyPrice: 299,
-    recommended: true,
-    highlight: '最受欢迎',
-    features: ['AI 咨询 200 次/月', '20GB 存储空间', '高级合同审查', '找律师服务', '合规自检', '优先支持'],
-  },
-  {
-    id: 'enterprise',
-    name: '企业版',
-    monthlyPrice: 999,
-    features: ['不限 AI 咨询次数', '100GB 存储空间', '所有功能', '专属法律顾问', 'API 接入', '团队协作', '定制开发'],
-  },
-]
-
-// @mock-data FALLBACK: 后端就绪后从 API 获取
+// 功能对比表 - 前端配置（后端暂不支持此结构化数据）
 const FEATURE_COMPARE: FeatureRow[] = [
   { label: 'AI 对话次数', basic: '50 次/月', pro: '200 次/月', enterprise: '不限' },
   { label: '存储空间', basic: '5GB', pro: '20GB', enterprise: '100GB' },
@@ -84,11 +59,39 @@ const FEATURE_COMPARE: FeatureRow[] = [
 
 export default function Pricing() {
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [annual, setAnnual] = useState(false)
+  const [plans, setPlans] = useState<PricingPlan[]>([])
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 400)
-    return () => clearTimeout(timer)
+    let cancelled = false
+    async function fetchPlans() {
+      setLoading(true)
+      setError(null)
+      try {
+        const data = await billingApi.listPlans()
+        if (cancelled) return
+
+        const planList = Array.isArray(data) ? data : data?.plans || []
+        setPlans(planList.map((p: any) => ({
+          id: p.id || p.code || '',
+          name: p.name || '',
+          monthlyPrice: p.monthly_price ?? p.monthlyPrice ?? 0,
+          recommended: p.recommended ?? p.code === 'pro',
+          features: p.features || [],
+          highlight: p.highlight || (p.recommended ? '最受欢迎' : undefined),
+        })))
+      } catch (err: any) {
+        if (!cancelled) {
+          console.error('套餐加载失败:', err)
+          setError(err?.message || '数据加载失败，请稍后重试')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    fetchPlans()
+    return () => { cancelled = true }
   }, [])
 
   function getPrice(monthly: number): number {
@@ -102,9 +105,16 @@ export default function Pricing() {
     return `¥${monthly}/月`
   }
 
-  function handleSubscribe(planId: string) {
-    // @mock-data FALLBACK: 后端就绪后调用 API 创建订阅
-    toast.success(`已选择${MOCK_PLANS.find(p => p.id === planId)?.name}，即将跳转支付...`)
+  async function handleSubscribe(planId: string) {
+    try {
+      await billingApi.createSubscription({
+        plan_id: planId,
+        payment_method: annual ? 'yearly' : 'monthly',
+      })
+      toast.success(`已选择${plans.find(p => p.id === planId)?.name}，即将跳转支付...`)
+    } catch (err: any) {
+      toast.error(err?.message || '订阅创建失败，请稍后重试')
+    }
   }
 
   if (loading) {
@@ -114,6 +124,31 @@ export default function Pricing() {
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-96 rounded-xl" />
           ))}
+        </div>
+      </PageContainer>
+    )
+  }
+
+  if (error) {
+    return (
+      <PageContainer title="选择套餐">
+        <div className={`${cardStyle.base} flex flex-col items-center justify-center py-16`}>
+          <icons.AlertCircle className={`${iconSize.xl} text-destructive mb-3`} />
+          <p className={heading.section}>加载失败</p>
+          <p className="text-sm text-muted-foreground mt-1">{error}</p>
+          <Button className="mt-4" onClick={() => window.location.reload()}>重试</Button>
+        </div>
+      </PageContainer>
+    )
+  }
+
+  if (plans.length === 0) {
+    return (
+      <PageContainer title="选择套餐" description="为您的法律服务需求选择最合适的方案">
+        <div className={`${cardStyle.base} flex flex-col items-center justify-center py-16`}>
+          <icons.Box className={`${iconSize.xl} text-muted-foreground mb-3`} />
+          <p className={heading.section}>暂无可用套餐</p>
+          <p className="text-sm text-muted-foreground mt-1">套餐信息正在准备中，请稍后再来</p>
         </div>
       </PageContainer>
     )
@@ -137,7 +172,7 @@ export default function Pricing() {
 
       {/* 套餐卡片 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {MOCK_PLANS.map(plan => (
+        {plans.map(plan => (
           <div
             key={plan.id}
             className={`relative ${

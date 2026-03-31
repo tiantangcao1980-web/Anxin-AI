@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Progress } from '@/components/ui/progress'
+import { billingApi } from '@/lib/api'
 import {
   Table,
   TableBody,
@@ -54,41 +55,6 @@ interface RefundRecord {
   createdAt: string
 }
 
-// ============ Mock 数据 ============
-
-// @mock-data FALLBACK: 后端就绪后从 API 获取
-const MOCK_SUB: SubscriptionInfo = {
-  planName: '专业版',
-  planId: 'pro',
-  expiresAt: '2026-04-28',
-  autoRenew: true,
-  aiUsed: 142,
-  aiTotal: 200,
-  storageUsedGB: 8.5,
-  storageTotalGB: 20,
-}
-
-// @mock-data FALLBACK: 后端就绪后从 API 获取
-const MOCK_ORDERS: OrderRecord[] = [
-  { id: 'ORD-20260328001', date: '2026-03-28', description: '专业版月度订阅', amount: 299, status: 'paid' },
-  { id: 'ORD-20260228001', date: '2026-02-28', description: '专业版月度订阅', amount: 299, status: 'paid' },
-  { id: 'ORD-20260128001', date: '2026-01-28', description: '专业版月度订阅', amount: 299, status: 'paid' },
-  { id: 'ORD-20251228001', date: '2025-12-28', description: '基础版月度订阅', amount: 99, status: 'paid' },
-  { id: 'ORD-20251128001', date: '2025-11-28', description: '基础版月度订阅', amount: 99, status: 'refunded' },
-]
-
-// @mock-data FALLBACK: 后端就绪后从 API 获取
-const MOCK_REFUNDS: RefundRecord[] = [
-  {
-    id: 'REF-001',
-    orderId: 'ORD-20251128001',
-    amount: 99,
-    reason: '升级到专业版，基础版未用完',
-    status: 'approved',
-    createdAt: '2025-12-01',
-  },
-]
-
 const ORDER_STATUS_MAP: Record<string, { label: string; badge: string }> = {
   paid: { label: '已支付', badge: statusBadge.success },
   pending: { label: '待支付', badge: statusBadge.warning },
@@ -106,43 +72,102 @@ const REFUND_STATUS_MAP: Record<string, { label: string; badge: string }> = {
 
 export default function MySubscription() {
   const [loading, setLoading] = useState(true)
-  const [sub, setSub] = useState<SubscriptionInfo>(MOCK_SUB)
+  const [error, setError] = useState<string | null>(null)
+  const [sub, setSub] = useState<SubscriptionInfo | null>(null)
   const [orders, setOrders] = useState<OrderRecord[]>([])
   const [refunds, setRefunds] = useState<RefundRecord[]>([])
 
   useEffect(() => {
-    // @mock-data FALLBACK: 后端就绪后从 API 获取
-    const timer = setTimeout(() => {
-      setSub(MOCK_SUB)
-      setOrders(MOCK_ORDERS)
-      setRefunds(MOCK_REFUNDS)
-      setLoading(false)
-    }, 600)
-    return () => clearTimeout(timer)
+    let cancelled = false
+    async function fetchData() {
+      setLoading(true)
+      setError(null)
+      try {
+        const [subData, refundData] = await Promise.all([
+          billingApi.getMySubscriptions(),
+          billingApi.listRefunds(),
+        ])
+        if (cancelled) return
+
+        // 订阅信息 - 适配不同返回结构
+        if (subData) {
+          const subscription = Array.isArray(subData) ? subData[0] : subData.subscription || subData
+          if (subscription) {
+            setSub({
+              planName: subscription.plan_name || subscription.planName || '未知套餐',
+              planId: subscription.plan_id || subscription.planId || '',
+              expiresAt: subscription.expires_at || subscription.expiresAt || '',
+              autoRenew: subscription.auto_renew ?? subscription.autoRenew ?? false,
+              aiUsed: subscription.ai_used ?? subscription.aiUsed ?? 0,
+              aiTotal: subscription.ai_total ?? subscription.aiTotal ?? 0,
+              storageUsedGB: subscription.storage_used_gb ?? subscription.storageUsedGB ?? 0,
+              storageTotalGB: subscription.storage_total_gb ?? subscription.storageTotalGB ?? 0,
+            })
+          }
+
+          // 订单可能嵌在订阅数据中
+          const orderList = subscription?.orders || subData?.orders || []
+          if (Array.isArray(orderList)) {
+            setOrders(orderList)
+          }
+        }
+
+        // 退款记录
+        if (refundData) {
+          const refundList = Array.isArray(refundData) ? refundData : refundData.refunds || []
+          setRefunds(refundList.map((r: any) => ({
+            id: r.id,
+            orderId: r.order_id || r.orderId || '',
+            amount: r.amount || 0,
+            reason: r.reason || '',
+            status: r.status || 'pending',
+            createdAt: r.created_at || r.createdAt || '',
+          })))
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          console.error('订阅数据加载失败:', err)
+          setError(err?.message || '数据加载失败，请稍后重试')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    fetchData()
+    return () => { cancelled = true }
   }, [])
 
   function handleAutoRenewToggle(val: boolean) {
-    setSub(prev => ({ ...prev, autoRenew: val }))
+    if (!sub) return
+    setSub(prev => prev ? { ...prev, autoRenew: val } : prev)
     toast.success(val ? '已开启自动续费' : '已关闭自动续费')
   }
 
-  function handleRefundRequest(orderId: string) {
-    // @mock-data FALLBACK: 后端就绪后调用 API
+  async function handleRefundRequest(orderId: string) {
     const order = orders.find(o => o.id === orderId)
     if (!order) return
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'refund_pending' as const } : o))
-    setRefunds(prev => [
-      ...prev,
-      {
-        id: `REF-${Date.now()}`,
-        orderId,
+    try {
+      await billingApi.requestRefund({
+        order_id: orderId,
         amount: order.amount,
         reason: '用户申请退款',
-        status: 'pending' as const,
-        createdAt: new Date().toISOString().slice(0, 10),
-      },
-    ])
-    toast.success('退款申请已提交')
+      })
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'refund_pending' as const } : o))
+      setRefunds(prev => [
+        ...prev,
+        {
+          id: `REF-${Date.now()}`,
+          orderId,
+          amount: order.amount,
+          reason: '用户申请退款',
+          status: 'pending' as const,
+          createdAt: new Date().toISOString().slice(0, 10),
+        },
+      ])
+      toast.success('退款申请已提交')
+    } catch (err: any) {
+      toast.error(err?.message || '退款申请失败，请稍后重试')
+    }
   }
 
   if (loading) {
@@ -154,8 +179,36 @@ export default function MySubscription() {
     )
   }
 
-  const aiPercent = Math.round((sub.aiUsed / sub.aiTotal) * 100)
-  const storagePercent = Math.round((sub.storageUsedGB / sub.storageTotalGB) * 100)
+  if (error) {
+    return (
+      <PageContainer title="我的订阅">
+        <div className={`${cardStyle.base} flex flex-col items-center justify-center py-16`}>
+          <icons.AlertCircle className={`${iconSize.xl} text-destructive mb-3`} />
+          <p className={heading.section}>加载失败</p>
+          <p className="text-sm text-muted-foreground mt-1">{error}</p>
+          <Button className="mt-4" onClick={() => window.location.reload()}>重试</Button>
+        </div>
+      </PageContainer>
+    )
+  }
+
+  if (!sub) {
+    return (
+      <PageContainer title="我的订阅" description="管理套餐、查看用量和订单记录">
+        <div className={`${cardStyle.base} flex flex-col items-center justify-center py-16`}>
+          <icons.Box className={`${iconSize.xl} text-muted-foreground mb-3`} />
+          <p className={heading.section}>暂无订阅</p>
+          <p className="text-sm text-muted-foreground mt-1">您还没有订阅任何套餐</p>
+          <Button className="mt-4" onClick={() => window.location.href = '/pricing'}>
+            查看套餐
+          </Button>
+        </div>
+      </PageContainer>
+    )
+  }
+
+  const aiPercent = sub.aiTotal > 0 ? Math.round((sub.aiUsed / sub.aiTotal) * 100) : 0
+  const storagePercent = sub.storageTotalGB > 0 ? Math.round((sub.storageUsedGB / sub.storageTotalGB) * 100) : 0
 
   return (
     <PageContainer title="我的订阅" description="管理套餐、查看用量和订单记录">
@@ -234,8 +287,8 @@ export default function MySubscription() {
                     <TableCell className="text-sm">{order.description}</TableCell>
                     <TableCell className="text-sm font-medium">¥{order.amount}</TableCell>
                     <TableCell>
-                      <Badge className={`text-xs px-2 py-0.5 ${ORDER_STATUS_MAP[order.status].badge}`}>
-                        {ORDER_STATUS_MAP[order.status].label}
+                      <Badge className={`text-xs px-2 py-0.5 ${ORDER_STATUS_MAP[order.status]?.badge || statusBadge.neutral}`}>
+                        {ORDER_STATUS_MAP[order.status]?.label || order.status}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
@@ -272,8 +325,8 @@ export default function MySubscription() {
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-sm font-medium text-foreground">退款 ¥{r.amount}</span>
-                      <Badge className={`text-xs px-2 py-0.5 ${REFUND_STATUS_MAP[r.status].badge}`}>
-                        {REFUND_STATUS_MAP[r.status].label}
+                      <Badge className={`text-xs px-2 py-0.5 ${REFUND_STATUS_MAP[r.status]?.badge || statusBadge.neutral}`}>
+                        {REFUND_STATUS_MAP[r.status]?.label || r.status}
                       </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground">

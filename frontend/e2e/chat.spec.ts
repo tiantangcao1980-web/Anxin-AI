@@ -1,21 +1,19 @@
 import { test, expect } from '@playwright/test'
+import { loginAsAdmin } from './helpers/auth'
 
 test.describe('AI 对话', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/chat')
+    await loginAsAdmin(page)
   })
 
   test('对话页面正确渲染', async ({ page }) => {
-    await expect(page.getByText('AI 法务助手')).toBeVisible()
-    // 输入框存在
-    const input = page.locator('textarea, [contenteditable], input[type="text"]').first()
-    await expect(input).toBeVisible()
+    await expect(page.getByText('你好，有什么可以帮您？')).toBeVisible()
+    await expect(page.getByPlaceholder(/发送消息或输入/)).toBeVisible()
+    await expect(page.getByText(/快速咨询/)).toBeVisible()
   })
 
   test('新建对话', async ({ page }) => {
-    const newChatBtn = page.getByRole('button', { name: /新建/ })
-    if (await newChatBtn.isVisible()) {
-      await newChatBtn.click()
-    }
+    await page.getByRole('button', { name: /新建对话/ }).click()
+    await expect(page.getByText('你好，有什么可以帮您？')).toBeVisible()
   })
 })

@@ -41,7 +41,7 @@ const navGroups: { id: string; label: string; path: string }[] = [
   { id: 'ai-legal', label: 'AI法务', path: '/chat' },
   { id: 'collaboration', label: '智能协作', path: '/cases' },
   { id: 'info-center', label: '智能调查', path: '/due-diligence' },
-  { id: 'knowledge', label: '法律智库', path: '/knowledge-graph' },
+  { id: 'knowledge', label: '法律智库', path: '/knowledge-base' },
 ]
 
 // 系统功能（右侧图标按钮）— 审批已整合进任务中心，系统设置已整合进后台管理
@@ -93,10 +93,10 @@ const moduleSidebarConfig: { id: string; title: string; icon: React.ComponentTyp
     id: 'knowledge',
     title: '法律智库',
     icon: icons.KnowledgeGroup,
-    paths: ['/knowledge-graph', '/knowledge-base'],
+    paths: ['/knowledge-base', '/knowledge-graph'],
     items: [
+      { path: '/knowledge-base', label: '知识库', icon: icons.Database },
       { path: '/knowledge-graph', label: '知识图谱', icon: icons.KnowledgeGraph },
-      { path: '/knowledge-base', label: '司法智库', icon: icons.KnowledgeBase },
     ],
   },
 ]
@@ -319,30 +319,35 @@ export default function Layout() {
           </nav>
 
           {/* 右侧：系统功能 + 用户区 */}
-          <div className="flex items-center gap-1.5 ml-auto">
+          <div className="flex items-center gap-2 ml-auto">
             {/* 消息入口（合并 IM + 通知未读数） */}
             <button
               onClick={() => navigate('/messages')}
               title={!headerActionLabels ? '消息' : undefined}
-              className={`relative flex items-center rounded-lg text-sm font-medium transition-colors ${
-                headerActionLabels ? 'gap-1.5 px-2.5 py-1.5' : 'p-2 justify-center'
+              className={`relative flex items-center rounded-lg text-sm font-medium transition-colors border ${
+                headerActionLabels ? 'gap-1.5 px-3 py-1.5' : 'p-2 justify-center'
               } ${
                 currentPath === '/messages'
-                  ? 'text-primary bg-primary/10'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                  ? 'text-primary bg-primary/10 border-primary/30'
+                  : (combinedUnread > 0 || unreadCount > 0)
+                    ? 'text-foreground bg-background border-border shadow-sm hover:bg-muted/50'
+                    : 'text-muted-foreground bg-background/80 border-border/60 hover:text-foreground hover:bg-muted/50 hover:border-border'
               }`}
             >
               <icons.Chat className="h-4 w-4 shrink-0" />
               {headerActionLabels && <span>消息</span>}
               {(combinedUnread > 0 || unreadCount > 0) && (
-                <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] bg-destructive text-white text-[10px] font-bold flex items-center justify-center rounded-full px-1 border-2 border-background">
-                  {(combinedUnread || unreadCount) > 99 ? '99+' : (combinedUnread || unreadCount)}
-                </span>
+                <>
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-destructive text-white text-[10px] font-bold flex items-center justify-center rounded-full px-1 border-2 border-background animate-bounce-subtle">
+                    {(combinedUnread || unreadCount) > 99 ? '99+' : (combinedUnread || unreadCount)}
+                  </span>
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-destructive rounded-full animate-ping opacity-40" />
+                </>
               )}
             </button>
 
             {/* 桌面端系统功能（图标+文字按钮） */}
-            <div className="hidden lg:flex items-center gap-1">
+            <div className="hidden lg:flex items-center gap-2">
               {systemItems.map((item) => {
                 const Icon = item.icon
                 const isActive = isPathActive(item.path, currentPath)
@@ -352,12 +357,12 @@ export default function Layout() {
                     type="button"
                     title={!headerActionLabels ? item.label : undefined}
                     onClick={() => handleNavClick(item.path)}
-                    className={`flex items-center rounded-lg text-sm font-medium transition-colors ${
-                      headerActionLabels ? 'gap-1.5 px-2.5 py-1.5' : 'p-2 justify-center'
+                    className={`relative flex items-center rounded-lg text-sm font-medium transition-colors border ${
+                      headerActionLabels ? 'gap-1.5 px-3 py-1.5' : 'p-2 justify-center'
                     } ${
                       isActive
-                        ? 'text-primary bg-primary/10'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                        ? 'text-primary bg-primary/10 border-primary/30'
+                        : 'text-muted-foreground bg-background/80 border-border/60 hover:text-foreground hover:bg-muted/50 hover:border-border'
                     }`}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
@@ -369,31 +374,16 @@ export default function Layout() {
 
             <div className="hidden lg:block h-5 w-px bg-border/60 mx-1" />
 
-            {/* 用户头像（含视图切换指示器） */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowProfile(!showProfile)}
-                className={buttonStyle.icon}
-              >
-                <div className={`${iconSize.xl} bg-primary/90 rounded-full flex items-center justify-center`}>
-                  <icons.User className={`${iconSize.sm} text-white`} />
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={toggleHeaderActionLabels}
-                className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-background rounded-full flex items-center justify-center border border-border shadow-sm hover:bg-muted transition-colors"
-                title={headerActionLabels ? '切换为仅图标' : '切换为图标与文字'}
-                aria-pressed={headerActionLabels}
-              >
-                {headerActionLabels ? (
-                  <icons.Grid3x3 className="w-2.5 h-2.5 text-muted-foreground" />
-                ) : (
-                  <icons.List className="w-2.5 h-2.5 text-muted-foreground" />
-                )}
-              </button>
-            </div>
+            {/* 用户头像 */}
+            <button
+              type="button"
+              onClick={() => setShowProfile(!showProfile)}
+              className={buttonStyle.icon}
+            >
+              <div className={`${iconSize.xl} bg-primary/90 rounded-full flex items-center justify-center`}>
+                <icons.User className={`${iconSize.sm} text-white`} />
+              </div>
+            </button>
 
           </div>
         </div>
@@ -528,7 +518,13 @@ export default function Layout() {
       )}
 
       {/* 用户中心 */}
-      {showProfile && <UserProfile onClose={() => setShowProfile(false)} />}
+      {showProfile && (
+        <UserProfile
+          onClose={() => setShowProfile(false)}
+          headerActionLabels={headerActionLabels}
+          onToggleHeaderActionLabels={toggleHeaderActionLabels}
+        />
+      )}
     </div>
   )
 }

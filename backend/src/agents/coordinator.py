@@ -244,6 +244,20 @@ class CoordinatorAgent(BaseLegalAgent):
             intent = intent_data.get("intent", "COMPLEX_TASK")
             confidence = intent_data.get("confidence", 0.0)
             logger.info(f"意图识别结果(LLM): {intent} (置信度: {confidence})")
+
+        hint_mapping = {
+            "find_lawyer": "QA_CONSULTATION",
+            "review_contract": "CONTRACT_REVIEW",
+            "draft_document": "DOCUMENT_DRAFTING",
+            "risk_assessment": "REGULATORY_MONITORING",
+            "due_diligence": "DUE_DILIGENCE",
+            "legal_consultation": "QA_CONSULTATION",
+        }
+        hinted_intent = hint_mapping.get(intent_hint)
+        if hinted_intent and intent != hinted_intent and confidence < 0.93:
+            logger.info(f"使用前端意图提示覆盖识别结果: {intent} -> {hinted_intent}")
+            intent = hinted_intent
+            confidence = max(confidence, 0.9)
         
         # --- Stage 2: 动态路由与规划 ---
         
@@ -543,7 +557,7 @@ class CoordinatorAgent(BaseLegalAgent):
         (["归档", "合同到期", "履约提醒", "合同管理", "合同状态"], "CONTRACT_MANAGEMENT", 0.90),
         (["发布制度", "签收", "全员通知", "公告", "员工手册发布"], "POLICY_DISTRIBUTION", 0.90),
         (["起草", "草拟", "写一份", "拟一份", "律师函", "法律文书", "法律意见书"], "DOCUMENT_DRAFTING", 0.90),
-        (["尽职调查", "尽调", "背景调查", "企业调查", "查公司"], "DUE_DILIGENCE", 0.90),
+        (["尽职调查", "尽调", "背景调查", "企业调查", "查公司", "调查公司", "查一下公司", "看看公司", "公司怎么样", "工商信息", "股权结构", "诉讼记录", "信用记录", "供应商靠不靠谱", "合作方风险", "交易对手背景"], "DUE_DILIGENCE", 0.90),
         (["诉讼策略", "起诉", "胜诉", "败诉", "庭审", "反诉", "仲裁"], "LITIGATION_STRATEGY", 0.88),
         (["风险评估", "合规检查", "合规审查", "合规风险"], "REGULATORY_MONITORING", 0.88),
         (["专利", "商标", "侵权", "知识产权", "版权"], "IP_PROTECTION", 0.88),

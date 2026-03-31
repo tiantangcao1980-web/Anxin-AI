@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { cardStyle, heading, statusBadge, chartColors, iconSize } from '@/lib/design-tokens'
 import { icons } from '@/lib/icons'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import { expertsApi } from '@/lib/api'
 
 // ===== 类型定义 =====
 
@@ -56,104 +57,7 @@ interface Review {
   created_at: string
 }
 
-// @mock-data FALLBACK: 后端就绪后从 /lawyers/{profileId} API 获取
-
-const mockProfile: LawyerProfileData = {
-  id: 'mock-profile-001',
-  real_name: '张明律师',
-  avatar_url: null,
-  law_firm: '北京盈科律师事务所',
-  years_of_practice: 12,
-  city: '北京',
-  province: '北京市',
-  specializations: ['合同纠纷', '公司法', '知识产权', '劳动争议'],
-  bio: '毕业于中国政法大学，曾任某知名科技公司法务总监。专注企业法律服务领域超过 12 年，累计服务企业客户 200+，擅长合同纠纷、股权架构设计、知识产权保护等领域。秉持"预防优于诉讼"的服务理念，为客户提供全流程法律风险管控方案。',
-  hourly_rate_min: 500,
-  hourly_rate_max: 1200,
-  rating: 4.8,
-  total_cases: 356,
-  success_cases: 328,
-  total_reviews: 89,
-  is_verified: true,
-  is_online: true,
-}
-
-const mockStats: ReviewStats = {
-  average_rating: 4.8,
-  total_reviews: 89,
-  rating_distribution: { 1: 1, 2: 2, 3: 5, 4: 18, 5: 63 },
-  top_tags: [
-    { tag: '专业', count: 56 },
-    { tag: '耐心', count: 43 },
-    { tag: '高效', count: 38 },
-    { tag: '态度好', count: 29 },
-    { tag: '经验丰富', count: 22 },
-    { tag: '解释清晰', count: 18 },
-  ],
-}
-
-const mockReviews: Review[] = [
-  {
-    id: 'r1',
-    rating: 5,
-    content: '张律师非常专业，帮我们公司处理了一起复杂的合同纠纷案件，从法律分析到庭审准备都非常细致。最终帮我们挽回了大量损失，非常感谢！',
-    tags: ['专业', '高效', '经验丰富'],
-    is_anonymous: false,
-    reviewer_id: 'u1',
-    reviewer_name: '李先生',
-    reply_content: '感谢您的信任和认可，能帮到您很高兴。如后续有法律需求可随时联系。',
-    replied_at: '2026-03-20T10:30:00',
-    created_at: '2026-03-18T14:20:00',
-  },
-  {
-    id: 'r2',
-    rating: 5,
-    content: '咨询了劳动合同方面的问题，张律师给出了非常详细的解答和建议，态度非常好，解答也很专业。',
-    tags: ['耐心', '态度好', '解释清晰'],
-    is_anonymous: false,
-    reviewer_id: 'u2',
-    reviewer_name: '王女士',
-    reply_content: null,
-    replied_at: null,
-    created_at: '2026-03-15T09:00:00',
-  },
-  {
-    id: 'r3',
-    rating: 4,
-    content: '知识产权案件处理得很好，过程中沟通也很及时。唯一不足是前期等待时间稍长，可能是律师太忙了。',
-    tags: ['专业', '高效'],
-    is_anonymous: true,
-    reviewer_id: null,
-    reviewer_name: null,
-    reply_content: '感谢您的反馈，我们会优化咨询响应流程，缩短等待时间。',
-    replied_at: '2026-03-12T16:00:00',
-    created_at: '2026-03-10T11:30:00',
-  },
-  {
-    id: 'r4',
-    rating: 5,
-    content: '股权架构方面的咨询，张律师给的方案非常系统，有理有据。推荐！',
-    tags: ['专业', '经验丰富'],
-    is_anonymous: false,
-    reviewer_id: 'u4',
-    reviewer_name: '赵总',
-    reply_content: null,
-    replied_at: null,
-    created_at: '2026-03-05T13:45:00',
-  },
-  {
-    id: 'r5',
-    rating: 3,
-    content: '基本问题回答了，但感觉不太深入。可能是咨询时间太短的原因。',
-    tags: [],
-    is_anonymous: true,
-    reviewer_id: null,
-    reviewer_name: null,
-    reply_content: null,
-    replied_at: null,
-    created_at: '2026-02-28T08:15:00',
-  },
-]
+// 数据从 API 加载
 
 // ===== 辅助组件 =====
 
@@ -188,12 +92,82 @@ export default function LawyerProfile() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
+  const [profile, setProfile] = useState<LawyerProfileData | null>(null)
+  const [stats, setStats] = useState<ReviewStats>({ average_rating: 0, total_reviews: 0, rating_distribution: {}, top_tags: [] })
+  const [reviews, setReviews] = useState<Review[]>([])
 
-  // 模拟加载
   useEffect(() => {
-    setLoading(true)
-    const timer = setTimeout(() => setLoading(false), 300)
-    return () => clearTimeout(timer)
+    if (!profileId) return
+    let cancelled = false
+    async function fetchProfile() {
+      try {
+        setLoading(true)
+        setError(null)
+        const data: any = await expertsApi.get(profileId!)
+        if (cancelled) return
+        // 适配后端 ExpertItem 字段到 LawyerProfileData
+        setProfile({
+          id: data.id,
+          real_name: data.name ?? data.real_name ?? '',
+          avatar_url: data.avatar_url ?? data.avatar ?? null,
+          law_firm: data.law_firm ?? data.firm ?? '',
+          years_of_practice: data.years_of_practice ?? data.experience ?? 0,
+          city: data.city ?? '',
+          province: data.province ?? '',
+          specializations: data.specializations ?? data.specialties ?? [],
+          bio: data.bio ?? data.description ?? '',
+          hourly_rate_min: data.hourly_rate_min ?? data.rate_min ?? 0,
+          hourly_rate_max: data.hourly_rate_max ?? data.rate_max ?? 0,
+          rating: data.rating ?? 0,
+          total_cases: data.total_cases ?? data.casesHandled ?? 0,
+          success_cases: data.success_cases ?? 0,
+          total_reviews: data.total_reviews ?? 0,
+          is_verified: data.is_verified ?? data.verified ?? false,
+          is_online: data.is_online ?? false,
+        })
+        // 评价统计和评价列表作为详情的一部分返回
+        if (data.review_stats || data.stats) {
+          const s = data.review_stats ?? data.stats
+          setStats({
+            average_rating: s.average_rating ?? data.rating ?? 0,
+            total_reviews: s.total_reviews ?? data.total_reviews ?? 0,
+            rating_distribution: s.rating_distribution ?? {},
+            top_tags: s.top_tags ?? [],
+          })
+        } else {
+          setStats({
+            average_rating: data.rating ?? 0,
+            total_reviews: data.total_reviews ?? 0,
+            rating_distribution: {},
+            top_tags: [],
+          })
+        }
+        if (data.reviews) {
+          setReviews(
+            data.reviews.map((r: any) => ({
+              id: r.id,
+              rating: r.rating ?? 0,
+              content: r.content ?? null,
+              tags: r.tags ?? [],
+              is_anonymous: r.is_anonymous ?? false,
+              reviewer_id: r.reviewer_id ?? null,
+              reviewer_name: r.reviewer_name ?? null,
+              reply_content: r.reply_content ?? null,
+              replied_at: r.replied_at ?? null,
+              created_at: r.created_at ?? '',
+            }))
+          )
+        } else {
+          setReviews([])
+        }
+      } catch (err: any) {
+        if (!cancelled) setError(err.message || '加载律师信息失败')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    fetchProfile()
+    return () => { cancelled = true }
   }, [profileId])
 
   // profileId 不存在时渲染 404
@@ -268,11 +242,20 @@ export default function LawyerProfile() {
     )
   }
 
-  // TODO: 根据 profileId 从 API 获取数据
-  // const { data: profile } = useSWR(`/lawyer/lawyers/${profileId}`, fetcher)
-  const profile = mockProfile
-  const stats = mockStats
-  const reviews = mockReviews
+  if (!profile) {
+    return (
+      <PageContainer title="律师详情">
+        <div className="flex flex-col items-center justify-center py-20">
+          <icons.User className={`${iconSize['2xl']} text-muted-foreground/40 mb-4`} />
+          <p className={heading.section}>暂无律师数据</p>
+          <Button variant="outline" className="mt-4" onClick={() => navigate('/find-lawyer')}>
+            返回律师列表
+          </Button>
+        </div>
+      </PageContainer>
+    )
+  }
+
   const pageSize = 5
   const totalPages = Math.ceil(reviews.length / pageSize)
   const displayedReviews = reviews.slice((currentPage - 1) * pageSize, currentPage * pageSize)

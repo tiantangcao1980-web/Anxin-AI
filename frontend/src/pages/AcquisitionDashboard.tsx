@@ -2,7 +2,7 @@
  * AcquisitionDashboard - 获客数据看板
  *
  * 展示线索漏斗、趋势图、来源分布、律师业绩排行等获客指标。
- * 当前使用 mock 数据，后续接入 API。
+ * 数据来源：acquisitionApi
  */
 
 import { useState, useEffect } from 'react'
@@ -10,6 +10,7 @@ import { PageContainer } from '@/components/ui/PageContainer'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cardStyle, heading, statusBadge, chartColors, iconSize } from '@/lib/design-tokens'
 import { icons } from '@/lib/icons'
+import { acquisitionApi } from '@/lib/api'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
   LineChart, Line, CartesianGrid, Legend,
@@ -52,78 +53,6 @@ interface LawyerPerformance {
   avg_rating: number
 }
 
-// @mock-data FALLBACK: 后端就绪后从 /acquisition/* API 获取
-
-const mockKPIs: KPICard[] = [
-  {
-    label: '总线索数',
-    value: 1280,
-    change: '+12.5%',
-    trend: 'up',
-    icon: icons.Users,
-  },
-  {
-    label: '本月新增',
-    value: 186,
-    change: '+8.3%',
-    trend: 'up',
-    icon: icons.Plus,
-  },
-  {
-    label: '转化率',
-    value: '23.4%',
-    change: '+2.1%',
-    trend: 'up',
-    icon: icons.TrendingUp,
-  },
-  {
-    label: '活跃律师',
-    value: 42,
-    change: '-3',
-    trend: 'down',
-    icon: icons.Briefcase,
-  },
-]
-
-const mockFunnel: FunnelItem[] = [
-  { stage: 'new', label: '新线索', count: 186 },
-  { stage: 'contacted', label: '已联系', count: 142 },
-  { stage: 'qualified', label: '已评估', count: 98 },
-  { stage: 'proposal', label: '方案中', count: 65 },
-  { stage: 'won', label: '已成交', count: 43 },
-  { stage: 'lost', label: '已流失', count: 21 },
-]
-
-const mockTrend: TrendItem[] = Array.from({ length: 30 }, (_, i) => {
-  const d = new Date()
-  d.setDate(d.getDate() - (29 - i))
-  return {
-    date: `${d.getMonth() + 1}/${d.getDate()}`,
-    count: Math.floor(Math.random() * 12) + 3,
-  }
-})
-
-const mockSources: SourceItem[] = [
-  { source: '线上咨询', count: 68 },
-  { source: '转介绍', count: 45 },
-  { source: '主动拓展', count: 32 },
-  { source: '电话咨询', count: 24 },
-  { source: '合作渠道', count: 17 },
-]
-
-const mockLawyerPerformance: LawyerPerformance[] = [
-  { rank: 1, lawyer_name: '张明', law_firm: '北京盈科', total_consultations: 58, total_delegations: 23, revenue: 184000, avg_rating: 4.9 },
-  { rank: 2, lawyer_name: '李婷', law_firm: '金杜律所', total_consultations: 52, total_delegations: 20, revenue: 168000, avg_rating: 4.8 },
-  { rank: 3, lawyer_name: '王强', law_firm: '中伦律所', total_consultations: 45, total_delegations: 18, revenue: 152000, avg_rating: 4.7 },
-  { rank: 4, lawyer_name: '陈晓', law_firm: '德恒律所', total_consultations: 41, total_delegations: 15, revenue: 128000, avg_rating: 4.8 },
-  { rank: 5, lawyer_name: '赵丽', law_firm: '大成律所', total_consultations: 38, total_delegations: 14, revenue: 112000, avg_rating: 4.6 },
-  { rank: 6, lawyer_name: '刘伟', law_firm: '锦天城', total_consultations: 35, total_delegations: 12, revenue: 96000, avg_rating: 4.5 },
-  { rank: 7, lawyer_name: '周敏', law_firm: '国浩律所', total_consultations: 32, total_delegations: 11, revenue: 88000, avg_rating: 4.7 },
-  { rank: 8, lawyer_name: '吴芳', law_firm: '君合律所', total_consultations: 28, total_delegations: 10, revenue: 80000, avg_rating: 4.4 },
-  { rank: 9, lawyer_name: '孙杰', law_firm: '通商律所', total_consultations: 25, total_delegations: 9, revenue: 72000, avg_rating: 4.5 },
-  { rank: 10, lawyer_name: '郑华', law_firm: '海问律所', total_consultations: 22, total_delegations: 8, revenue: 64000, avg_rating: 4.3 },
-]
-
 // ===== 辅助函数 =====
 
 function formatCurrency(amount: number): string {
@@ -138,18 +67,129 @@ function formatCurrency(amount: number): string {
 export default function AcquisitionDashboard() {
   const [timeRange, setTimeRange] = useState<number>(30)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // 模拟加载
+  const [kpis, setKpis] = useState<KPICard[]>([])
+  const [funnel, setFunnel] = useState<FunnelItem[]>([])
+  const [trend, setTrend] = useState<TrendItem[]>([])
+  const [sources, setSources] = useState<SourceItem[]>([])
+  const [lawyerPerformance, setLawyerPerformance] = useState<LawyerPerformance[]>([])
+
   useEffect(() => {
-    setLoading(true)
-    const timer = setTimeout(() => setLoading(false), 300)
-    return () => clearTimeout(timer)
+    let cancelled = false
+    async function fetchData() {
+      setLoading(true)
+      setError(null)
+      try {
+        const [funnelData, sourcesData, performanceData, conversionData] = await Promise.all([
+          acquisitionApi.getFunnel(),
+          acquisitionApi.getSources(),
+          acquisitionApi.getLawyerPerformance({ limit: 10 }),
+          acquisitionApi.getConversionRates(),
+        ])
+        if (cancelled) return
+
+        // 漏斗数据
+        if (Array.isArray(funnelData)) {
+          setFunnel(funnelData)
+        } else if (funnelData?.stages) {
+          setFunnel(funnelData.stages)
+        } else {
+          setFunnel([])
+        }
+
+        // 来源数据
+        if (Array.isArray(sourcesData)) {
+          setSources(sourcesData)
+        } else if (sourcesData?.sources) {
+          setSources(sourcesData.sources)
+        } else {
+          setSources([])
+        }
+
+        // 律师业绩
+        if (Array.isArray(performanceData)) {
+          setLawyerPerformance(performanceData)
+        } else if (performanceData?.lawyers) {
+          setLawyerPerformance(performanceData.lawyers)
+        } else {
+          setLawyerPerformance([])
+        }
+
+        // 从 conversion 接口提取 KPI 和趋势数据
+        if (conversionData) {
+          // KPI 卡片
+          const kpiCards: KPICard[] = [
+            {
+              label: '总线索数',
+              value: conversionData.total_leads ?? conversionData.totalLeads ?? 0,
+              change: conversionData.leads_change ?? conversionData.leadsChange ?? '--',
+              trend: (conversionData.leads_trend ?? conversionData.leadsTrend ?? 'flat') as 'up' | 'down' | 'flat',
+              icon: icons.Users,
+            },
+            {
+              label: '本月新增',
+              value: conversionData.new_leads ?? conversionData.newLeads ?? 0,
+              change: conversionData.new_leads_change ?? conversionData.newLeadsChange ?? '--',
+              trend: (conversionData.new_leads_trend ?? conversionData.newLeadsTrend ?? 'flat') as 'up' | 'down' | 'flat',
+              icon: icons.Plus,
+            },
+            {
+              label: '转化率',
+              value: conversionData.conversion_rate ?? conversionData.conversionRate ?? '0%',
+              change: conversionData.conversion_change ?? conversionData.conversionChange ?? '--',
+              trend: (conversionData.conversion_trend ?? conversionData.conversionTrend ?? 'flat') as 'up' | 'down' | 'flat',
+              icon: icons.TrendingUp,
+            },
+            {
+              label: '活跃律师',
+              value: conversionData.active_lawyers ?? conversionData.activeLawyers ?? 0,
+              change: conversionData.lawyers_change ?? conversionData.lawyersChange ?? '--',
+              trend: (conversionData.lawyers_trend ?? conversionData.lawyersTrend ?? 'flat') as 'up' | 'down' | 'flat',
+              icon: icons.Briefcase,
+            },
+          ]
+          setKpis(kpiCards)
+
+          // 趋势数据
+          if (Array.isArray(conversionData.trend)) {
+            setTrend(conversionData.trend)
+          } else if (Array.isArray(conversionData.daily_trend)) {
+            setTrend(conversionData.daily_trend)
+          } else {
+            setTrend([])
+          }
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          console.error('获客数据加载失败:', err)
+          setError(err?.message || '数据加载失败，请稍后重试')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    fetchData()
+    return () => { cancelled = true }
   }, [timeRange])
 
-  // TODO: 接入 API
-  // const { data: funnel } = useSWR(`/acquisition/funnel?days=${timeRange}`, fetcher)
-  // const { data: sources } = useSWR(`/acquisition/sources?days=${timeRange}`, fetcher)
-  // const { data: performance } = useSWR(`/acquisition/lawyer-performance?days=${timeRange}`, fetcher)
+  if (error) {
+    return (
+      <PageContainer title="获客分析" description="线索转化与业绩追踪">
+        <div className={`${cardStyle.base} flex flex-col items-center justify-center py-16`}>
+          <icons.AlertCircle className={`${iconSize.xl} text-destructive mb-3`} />
+          <p className={heading.section}>加载失败</p>
+          <p className="text-sm text-muted-foreground mt-1">{error}</p>
+          <button
+            onClick={() => setLoading(true)}
+            className="mt-4 px-4 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            重试
+          </button>
+        </div>
+      </PageContainer>
+    )
+  }
 
   return (
     <PageContainer
@@ -204,7 +244,7 @@ export default function AcquisitionDashboard() {
       <>
       {/* KPI 卡片行 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {mockKPIs.map((kpi) => (
+        {kpis.length > 0 ? kpis.map((kpi) => (
           <div key={kpi.label} className={cardStyle.base}>
             <div className="flex items-center justify-between">
               <p className={heading.micro}>{kpi.label}</p>
@@ -223,7 +263,11 @@ export default function AcquisitionDashboard() {
               {kpi.change} 较上期
             </p>
           </div>
-        ))}
+        )) : (
+          <div className={`${cardStyle.base} col-span-full text-center py-8`}>
+            <p className="text-sm text-muted-foreground">暂无 KPI 数据</p>
+          </div>
+        )}
       </div>
 
       {/* 漏斗图 + 趋势图 */}
@@ -231,57 +275,65 @@ export default function AcquisitionDashboard() {
         {/* 漏斗图 */}
         <div className={cardStyle.base}>
           <h3 className={heading.section}>线索漏斗</h3>
-          <div className="h-64 mt-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={mockFunnel.filter((f) => f.stage !== 'lost')}
-                layout="vertical"
-                margin={{ left: 20, right: 20, top: 5, bottom: 5 }}
-              >
-                <XAxis type="number" hide />
-                <YAxis type="category" dataKey="label" width={60} tick={{ fontSize: 12 }} />
-                <Tooltip
-                  formatter={(value: number) => [`${value} 条`, '数量']}
-                  contentStyle={{ borderRadius: 8, border: '1px solid var(--border)' }}
-                />
-                <Bar dataKey="count" radius={[0, 6, 6, 0]} maxBarSize={28}>
-                  {mockFunnel.filter((f) => f.stage !== 'lost').map((_, idx) => (
-                    <Cell key={idx} fill={chartColors[idx % chartColors.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {funnel.length > 0 ? (
+            <div className="h-64 mt-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={funnel.filter((f) => f.stage !== 'lost')}
+                  layout="vertical"
+                  margin={{ left: 20, right: 20, top: 5, bottom: 5 }}
+                >
+                  <XAxis type="number" hide />
+                  <YAxis type="category" dataKey="label" width={60} tick={{ fontSize: 12 }} />
+                  <Tooltip
+                    formatter={(value: number) => [`${value} 条`, '数量']}
+                    contentStyle={{ borderRadius: 8, border: '1px solid var(--border)' }}
+                  />
+                  <Bar dataKey="count" radius={[0, 6, 6, 0]} maxBarSize={28}>
+                    {funnel.filter((f) => f.stage !== 'lost').map((_, idx) => (
+                      <Cell key={idx} fill={chartColors[idx % chartColors.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-64 flex items-center justify-center text-sm text-muted-foreground">暂无漏斗数据</div>
+          )}
         </div>
 
         {/* 趋势图 */}
         <div className={cardStyle.base}>
           <h3 className={heading.section}>线索趋势（近 {timeRange} 天）</h3>
-          <div className="h-64 mt-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={mockTrend} margin={{ left: 0, right: 10, top: 5, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis
-                  dataKey="date"
-                  tick={{ fontSize: 11 }}
-                  interval={Math.floor(mockTrend.length / 6)}
-                />
-                <YAxis tick={{ fontSize: 11 }} width={30} />
-                <Tooltip
-                  contentStyle={{ borderRadius: 8, border: '1px solid var(--border)' }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="count"
-                  stroke={chartColors[0]}
-                  strokeWidth={2}
-                  dot={false}
-                  activeDot={{ r: 4 }}
-                  name="线索数"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          {trend.length > 0 ? (
+            <div className="h-64 mt-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={trend} margin={{ left: 0, right: 10, top: 5, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 11 }}
+                    interval={Math.floor(trend.length / 6)}
+                  />
+                  <YAxis tick={{ fontSize: 11 }} width={30} />
+                  <Tooltip
+                    contentStyle={{ borderRadius: 8, border: '1px solid var(--border)' }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="count"
+                    stroke={chartColors[0]}
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                    name="线索数"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-64 flex items-center justify-center text-sm text-muted-foreground">暂无趋势数据</div>
+          )}
         </div>
       </div>
 
@@ -290,94 +342,104 @@ export default function AcquisitionDashboard() {
         {/* 来源分布饼图 */}
         <div className={cardStyle.base}>
           <h3 className={heading.section}>来源分布</h3>
-          <div className="h-64 mt-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={mockSources}
-                  dataKey="count"
-                  nameKey="source"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  innerRadius={40}
-                  paddingAngle={2}
-                  label={({ source, percent }) =>
-                    `${source} ${(percent * 100).toFixed(0)}%`
-                  }
-                  labelLine={{ strokeWidth: 1 }}
-                >
-                  {mockSources.map((_, idx) => (
-                    <Cell key={idx} fill={chartColors[idx % chartColors.length]} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(value: number, name: string) => [`${value} 条`, name]}
-                  contentStyle={{ borderRadius: 8, border: '1px solid var(--border)' }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          {/* 图例 */}
-          <div className="flex flex-wrap gap-3 mt-2">
-            {mockSources.map((s, idx) => (
-              <div key={s.source} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span
-                  className="w-2.5 h-2.5 rounded-sm shrink-0"
-                  style={{ backgroundColor: chartColors[idx % chartColors.length] }}
-                />
-                {s.source}
+          {sources.length > 0 ? (
+            <>
+              <div className="h-64 mt-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={sources}
+                      dataKey="count"
+                      nameKey="source"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      innerRadius={40}
+                      paddingAngle={2}
+                      label={({ source, percent }) =>
+                        `${source} ${(percent * 100).toFixed(0)}%`
+                      }
+                      labelLine={{ strokeWidth: 1 }}
+                    >
+                      {sources.map((_, idx) => (
+                        <Cell key={idx} fill={chartColors[idx % chartColors.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value: number, name: string) => [`${value} 条`, name]}
+                      contentStyle={{ borderRadius: 8, border: '1px solid var(--border)' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
-            ))}
-          </div>
+              {/* 图例 */}
+              <div className="flex flex-wrap gap-3 mt-2">
+                {sources.map((s, idx) => (
+                  <div key={s.source} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span
+                      className="w-2.5 h-2.5 rounded-sm shrink-0"
+                      style={{ backgroundColor: chartColors[idx % chartColors.length] }}
+                    />
+                    {s.source}
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="h-64 flex items-center justify-center text-sm text-muted-foreground">暂无来源数据</div>
+          )}
         </div>
 
         {/* 律师业绩排行 */}
         <div className={`${cardStyle.base} lg:col-span-2`}>
           <h3 className={heading.section}>律师业绩排行 TOP 10</h3>
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left py-2 px-2 font-medium text-muted-foreground">排名</th>
-                  <th className="text-left py-2 px-2 font-medium text-muted-foreground">律师</th>
-                  <th className="text-left py-2 px-2 font-medium text-muted-foreground hidden sm:table-cell">律所</th>
-                  <th className="text-right py-2 px-2 font-medium text-muted-foreground">咨询</th>
-                  <th className="text-right py-2 px-2 font-medium text-muted-foreground">委托</th>
-                  <th className="text-right py-2 px-2 font-medium text-muted-foreground">收入</th>
-                  <th className="text-right py-2 px-2 font-medium text-muted-foreground">评分</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mockLawyerPerformance.map((lp) => (
-                  <tr key={lp.rank} className="border-b border-border/50 last:border-b-0 hover:bg-muted/30 transition-colors">
-                    <td className="py-2.5 px-2">
-                      <span
-                        className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
-                          lp.rank <= 3
-                            ? 'bg-primary/10 text-primary'
-                            : 'bg-muted text-muted-foreground'
-                        }`}
-                      >
-                        {lp.rank}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-2 font-medium text-foreground">{lp.lawyer_name}</td>
-                    <td className="py-2.5 px-2 text-muted-foreground hidden sm:table-cell">{lp.law_firm}</td>
-                    <td className="py-2.5 px-2 text-right text-foreground">{lp.total_consultations}</td>
-                    <td className="py-2.5 px-2 text-right text-foreground">{lp.total_delegations}</td>
-                    <td className="py-2.5 px-2 text-right font-medium text-foreground">{formatCurrency(lp.revenue)}</td>
-                    <td className="py-2.5 px-2 text-right">
-                      <span className="inline-flex items-center gap-0.5">
-                        <icons.Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-                        <span className="text-foreground">{lp.avg_rating}</span>
-                      </span>
-                    </td>
+          {lawyerPerformance.length > 0 ? (
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-2 px-2 font-medium text-muted-foreground">排名</th>
+                    <th className="text-left py-2 px-2 font-medium text-muted-foreground">律师</th>
+                    <th className="text-left py-2 px-2 font-medium text-muted-foreground hidden sm:table-cell">律所</th>
+                    <th className="text-right py-2 px-2 font-medium text-muted-foreground">咨询</th>
+                    <th className="text-right py-2 px-2 font-medium text-muted-foreground">委托</th>
+                    <th className="text-right py-2 px-2 font-medium text-muted-foreground">收入</th>
+                    <th className="text-right py-2 px-2 font-medium text-muted-foreground">评分</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {lawyerPerformance.map((lp, idx) => (
+                    <tr key={lp.rank || idx} className="border-b border-border/50 last:border-b-0 hover:bg-muted/30 transition-colors">
+                      <td className="py-2.5 px-2">
+                        <span
+                          className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+                            (lp.rank || idx + 1) <= 3
+                              ? 'bg-primary/10 text-primary'
+                              : 'bg-muted text-muted-foreground'
+                          }`}
+                        >
+                          {lp.rank || idx + 1}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-2 font-medium text-foreground">{lp.lawyer_name}</td>
+                      <td className="py-2.5 px-2 text-muted-foreground hidden sm:table-cell">{lp.law_firm}</td>
+                      <td className="py-2.5 px-2 text-right text-foreground">{lp.total_consultations}</td>
+                      <td className="py-2.5 px-2 text-right text-foreground">{lp.total_delegations}</td>
+                      <td className="py-2.5 px-2 text-right font-medium text-foreground">{formatCurrency(lp.revenue)}</td>
+                      <td className="py-2.5 px-2 text-right">
+                        <span className="inline-flex items-center gap-0.5">
+                          <icons.Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                          <span className="text-foreground">{lp.avg_rating}</span>
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="mt-4 py-12 text-center text-sm text-muted-foreground">暂无律师业绩数据</div>
+          )}
         </div>
       </div>
       </>

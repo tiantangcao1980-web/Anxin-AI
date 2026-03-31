@@ -89,6 +89,17 @@ export function KnowledgeGraphExplorer() {
   const [ForceGraph3DComp, setForceGraph3DComp] = useState<any>(null)
   const [ForceGraph2DComp, setForceGraph2DComp] = useState<any>(null)
 
+  // 跟随系统深色/浅色模式
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'))
+  useEffect(() => {
+    const root = document.documentElement
+    const observer = new MutationObserver(() => {
+      setIsDark(root.classList.contains('dark'))
+    })
+    observer.observe(root, { attributes: true, attributeFilter: ['class'] })
+    return () => observer.disconnect()
+  }, [])
+
   // 动态导入 react-force-graph-3d / 2d (避免联合包加载 AFRAME)
   useEffect(() => {
     Promise.all([
@@ -204,7 +215,7 @@ export function KnowledgeGraphExplorer() {
     const material = new THREE.MeshPhongMaterial({
       color: cfg.color,
       emissive: cfg.emissive,
-      emissiveIntensity: 0.3,
+      emissiveIntensity: isDark ? 0.3 : 0.15,
       shininess: 100,
       transparent: true,
       opacity: 0.92,
@@ -217,7 +228,7 @@ export function KnowledgeGraphExplorer() {
     const glowMaterial = new THREE.MeshBasicMaterial({
       color: cfg.color,
       transparent: true,
-      opacity: 0.08,
+      opacity: isDark ? 0.08 : 0.12,
     })
     const glow = new THREE.Mesh(glowGeometry, glowMaterial)
     group.add(glow)
@@ -225,10 +236,10 @@ export function KnowledgeGraphExplorer() {
     // 文字标签
     if (showLabels) {
       const sprite = new SpriteText(node.name)
-      sprite.color = '#e2e8f0'
+      sprite.color = isDark ? '#e2e8f0' : '#334155'
       sprite.textHeight = 3.5
       sprite.fontWeight = '600'
-      sprite.backgroundColor = 'rgba(15, 23, 42, 0.75)'
+      sprite.backgroundColor = isDark ? 'rgba(15, 23, 42, 0.75)' : 'rgba(255, 255, 255, 0.85)'
       sprite.padding = [2, 4]
       sprite.borderRadius = 3
       sprite.position.y = -(node.val || 6) - 5
@@ -236,7 +247,7 @@ export function KnowledgeGraphExplorer() {
     }
 
     return group
-  }, [showLabels])
+  }, [showLabels, isDark])
 
   // 2D 节点绘制
   const nodeCanvasObject = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
@@ -385,7 +396,7 @@ export function KnowledgeGraphExplorer() {
       </div>
 
       {/* 图谱画布 */}
-      <div className="flex-1 relative" ref={containerRef} style={{ background: viewMode === '3d' ? '#0f172a' : 'var(--color-muted, #f8fafc)' }}>
+      <div className="flex-1 relative" ref={containerRef} style={{ background: isDark ? (viewMode === '3d' ? '#0f172a' : '#1e1e1e') : (viewMode === '3d' ? '#f8fafc' : '#fafafa') }}>
         {hasData && GraphComponent ? (
           <>
             {viewMode === '3d' ? (
@@ -394,19 +405,19 @@ export function KnowledgeGraphExplorer() {
                 graphData={fgData}
                 width={dimensions.width - (selectedNode ? 288 : 0)}
                 height={dimensions.height}
-                backgroundColor="#0f172a"
+                backgroundColor={isDark ? '#0f172a' : '#f8fafc'}
                 nodeThreeObject={nodeThreeObject}
                 nodeThreeObjectExtend={false}
                 onNodeClick={handleNodeClick}
                 onNodeRightClick={(node: any) => handleExpandNode(node.id)}
-                linkColor={(link: any) => link.color || 'rgba(148, 163, 184, 0.3)'}
+                linkColor={(link: any) => link.color || (isDark ? 'rgba(148, 163, 184, 0.3)' : 'rgba(100, 116, 139, 0.35)')}
                 linkWidth={1.2}
-                linkOpacity={0.5}
+                linkOpacity={isDark ? 0.5 : 0.6}
                 linkDirectionalParticles={linkDirectionalParticles}
                 linkDirectionalParticleWidth={linkDirectionalParticleWidth}
                 linkDirectionalParticleColor={() => '#818cf8'}
                 linkDirectionalParticleSpeed={0.004}
-                linkLabel={(link: any) => `<span style="color:#e2e8f0;font-size:11px;background:rgba(15,23,42,0.8);padding:2px 6px;border-radius:4px">${link.label}</span>`}
+                linkLabel={(link: any) => `<span style="color:${isDark ? '#e2e8f0' : '#334155'};font-size:11px;background:${isDark ? 'rgba(15,23,42,0.8)' : 'rgba(255,255,255,0.9)'};padding:2px 6px;border-radius:4px;${isDark ? '' : 'box-shadow:0 1px 3px rgba(0,0,0,0.1)'}">${link.label}</span>`}
                 enableNodeDrag={true}
                 enableNavigationControls={true}
                 showNavInfo={false}
@@ -421,7 +432,7 @@ export function KnowledgeGraphExplorer() {
                 graphData={fgData}
                 width={dimensions.width - (selectedNode ? 288 : 0)}
                 height={dimensions.height}
-                backgroundColor="#f8fafc"
+                backgroundColor={isDark ? '#1e1e1e' : '#fafafa'}
                 nodeCanvasObject={nodeCanvasObject}
                 nodePointerAreaPaint={(node: any, color: string, ctx: CanvasRenderingContext2D) => {
                   const r = (node.val || 6) * 1.5

@@ -18,6 +18,7 @@ import { Switch } from '@/components/ui/switch'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { billingApi } from '@/lib/api'
 import {
   Table,
   TableBody,
@@ -86,68 +87,6 @@ interface RefundRequest {
   createdAt: string
 }
 
-// ============ Mock 数据 ============
-
-// @mock-data FALLBACK: 后端就绪后从 API 获取
-const MOCK_PLANS: PlanConfig[] = [
-  { id: '1', name: '基础版', code: 'basic', billingMode: 'both', monthlyPrice: 99, yearlyPrice: 950, enabled: true },
-  { id: '2', name: '专业版', code: 'pro', billingMode: 'both', monthlyPrice: 299, yearlyPrice: 2870, enabled: true },
-  { id: '3', name: '企业版', code: 'enterprise', billingMode: 'both', monthlyPrice: 999, yearlyPrice: 9590, enabled: true },
-  { id: '4', name: '试用版', code: 'trial', billingMode: 'monthly', monthlyPrice: 0, yearlyPrice: 0, enabled: false },
-]
-
-// @mock-data FALLBACK: 后端就绪后从 API 获取
-const MOCK_STATS: SubscriptionStats = {
-  activeCount: 1256,
-  mrr: 285600,
-  churnRate: 3.2,
-  avgRevenue: 227,
-}
-
-// @mock-data FALLBACK: 后端就绪后从 API 获取
-const MOCK_GROWTH: GrowthPoint[] = [
-  { month: '10月', subscriptions: 820, revenue: 186000 },
-  { month: '11月', subscriptions: 920, revenue: 210000 },
-  { month: '12月', subscriptions: 1050, revenue: 238000 },
-  { month: '1月', subscriptions: 1100, revenue: 252000 },
-  { month: '2月', subscriptions: 1180, revenue: 268000 },
-  { month: '3月', subscriptions: 1256, revenue: 285600 },
-]
-
-// @mock-data FALLBACK: 后端就绪后从 API 获取
-const MOCK_REFUNDS: RefundRequest[] = [
-  {
-    id: 'REF-001',
-    userId: 'U-101',
-    userName: '陈小明',
-    orderId: 'ORD-20260325001',
-    amount: 299,
-    reason: '功能不满足需求',
-    status: 'pending',
-    createdAt: '2026-03-27 10:30',
-  },
-  {
-    id: 'REF-002',
-    userId: 'U-205',
-    userName: '林静',
-    orderId: 'ORD-20260320001',
-    amount: 99,
-    reason: '重复扣费',
-    status: 'pending',
-    createdAt: '2026-03-26 15:45',
-  },
-  {
-    id: 'REF-003',
-    userId: 'U-088',
-    userName: '周伟',
-    orderId: 'ORD-20260315001',
-    amount: 999,
-    reason: '公司取消采购计划',
-    status: 'approved',
-    createdAt: '2026-03-22 09:00',
-  },
-]
-
 const BILLING_MODE_MAP: Record<string, string> = {
   monthly: '仅月付',
   yearly: '仅年付',
@@ -164,8 +103,9 @@ const REFUND_STATUS_MAP: Record<string, { label: string; badge: string }> = {
 
 export default function AdminBilling() {
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [plans, setPlans] = useState<PlanConfig[]>([])
-  const [stats, setStats] = useState<SubscriptionStats>(MOCK_STATS)
+  const [stats, setStats] = useState<SubscriptionStats>({ activeCount: 0, mrr: 0, churnRate: 0, avgRevenue: 0 })
   const [growth, setGrowth] = useState<GrowthPoint[]>([])
   const [refunds, setRefunds] = useState<RefundRequest[]>([])
 
@@ -175,15 +115,67 @@ export default function AdminBilling() {
   const [rejectDialog, setRejectDialog] = useState<{ open: boolean; id: string }>({ open: false, id: '' })
 
   useEffect(() => {
-    // @mock-data FALLBACK: 后端就绪后从 API 获取
-    const timer = setTimeout(() => {
-      setPlans(MOCK_PLANS)
-      setStats(MOCK_STATS)
-      setGrowth(MOCK_GROWTH)
-      setRefunds(MOCK_REFUNDS)
-      setLoading(false)
-    }, 600)
-    return () => clearTimeout(timer)
+    let cancelled = false
+    async function fetchData() {
+      setLoading(true)
+      setError(null)
+      try {
+        const [plansData, reportData, refundsData] = await Promise.all([
+          billingApi.listPlans(),
+          billingApi.getSubscriptionReport(),
+          billingApi.listRefunds({ status: 'pending' }),
+        ])
+        if (cancelled) return
+
+        // 套餐列表
+        const planList = Array.isArray(plansData) ? plansData : plansData?.plans || []
+        setPlans(planList.map((p: any) => ({
+          id: p.id || '',
+          name: p.name || '',
+          code: p.code || '',
+          billingMode: p.billing_mode || p.billingMode || 'both',
+          monthlyPrice: p.monthly_price ?? p.monthlyPrice ?? 0,
+          yearlyPrice: p.yearly_price ?? p.yearlyPrice ?? 0,
+          enabled: p.enabled ?? true,
+        })))
+
+        // 订阅报表
+        if (reportData) {
+          setStats({
+            activeCount: reportData.active_count ?? reportData.activeCount ?? 0,
+            mrr: reportData.mrr ?? 0,
+            churnRate: reportData.churn_rate ?? reportData.churnRate ?? 0,
+            avgRevenue: reportData.avg_revenue ?? reportData.avgRevenue ?? 0,
+          })
+          const growthData = reportData.growth || reportData.trend || []
+          if (Array.isArray(growthData)) {
+            setGrowth(growthData)
+          }
+        }
+
+        // 退款列表
+        const refundList = Array.isArray(refundsData) ? refundsData : refundsData?.refunds || []
+        setRefunds(refundList.map((r: any) => ({
+          id: r.id || '',
+          userId: r.user_id || r.userId || '',
+          userName: r.user_name || r.userName || '',
+          orderId: r.order_id || r.orderId || '',
+          amount: r.amount || 0,
+          reason: r.reason || '',
+          status: r.status || 'pending',
+          createdAt: r.created_at || r.createdAt || '',
+        })))
+      } catch (err: any) {
+        if (!cancelled) {
+          console.error('计费数据加载失败:', err)
+          setError(err?.message || '数据加载失败，请稍后重试')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    fetchData()
+    return () => { cancelled = true }
   }, [])
 
   if (loading) {
@@ -191,6 +183,19 @@ export default function AdminBilling() {
       <PageContainer title="计费管理">
         <Skeleton className="h-10 w-80 mb-4" />
         <Skeleton className="h-64 w-full rounded-xl" />
+      </PageContainer>
+    )
+  }
+
+  if (error) {
+    return (
+      <PageContainer title="计费管理">
+        <div className={`${cardStyle.base} flex flex-col items-center justify-center py-16`}>
+          <icons.AlertCircle className={`${iconSize.xl} text-destructive mb-3`} />
+          <p className={heading.section}>加载失败</p>
+          <p className="text-sm text-muted-foreground mt-1">{error}</p>
+          <Button className="mt-4" onClick={() => window.location.reload()}>重试</Button>
+        </div>
       </PageContainer>
     )
   }
@@ -328,27 +333,35 @@ function PlansTab({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {plans.map(plan => (
-              <TableRow key={plan.id}>
-                <TableCell className="text-sm font-medium">{plan.name}</TableCell>
-                <TableCell className="text-sm text-muted-foreground font-mono">{plan.code}</TableCell>
-                <TableCell className="hidden sm:table-cell text-sm">{BILLING_MODE_MAP[plan.billingMode]}</TableCell>
-                <TableCell className="text-sm">¥{plan.monthlyPrice}</TableCell>
-                <TableCell className="hidden md:table-cell text-sm">¥{plan.yearlyPrice}</TableCell>
-                <TableCell>
-                  <Switch
-                    checked={plan.enabled}
-                    onCheckedChange={v => handleToggle(plan.id, v)}
-                  />
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => openEdit(plan)}>
-                    <icons.Edit className={iconSize.xs} />
-                    编辑
-                  </Button>
+            {plans.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-8">
+                  <p className={heading.muted}>暂无套餐数据</p>
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              plans.map(plan => (
+                <TableRow key={plan.id}>
+                  <TableCell className="text-sm font-medium">{plan.name}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground font-mono">{plan.code}</TableCell>
+                  <TableCell className="hidden sm:table-cell text-sm">{BILLING_MODE_MAP[plan.billingMode] || plan.billingMode}</TableCell>
+                  <TableCell className="text-sm">¥{plan.monthlyPrice}</TableCell>
+                  <TableCell className="hidden md:table-cell text-sm">¥{plan.yearlyPrice}</TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={plan.enabled}
+                      onCheckedChange={v => handleToggle(plan.id, v)}
+                    />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => openEdit(plan)}>
+                      <icons.Edit className={iconSize.xs} />
+                      编辑
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
@@ -470,41 +483,45 @@ function StatsTab({
 
       {/* 增长趋势 */}
       <div className={cardStyle.base}>
-        <h4 className={`${heading.card} mb-4`}>订阅增长趋势（近 6 月）</h4>
-        <ResponsiveContainer width="100%" height={280}>
-          <LineChart data={growth}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
-            <YAxis yAxisId="left" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
-            <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
-            <Tooltip
-              contentStyle={{
-                background: 'hsl(var(--background))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: 8,
-                fontSize: 12,
-              }}
-            />
-            <Line
-              yAxisId="left"
-              type="monotone"
-              dataKey="subscriptions"
-              name="订阅数"
-              stroke={chartColors[0]}
-              strokeWidth={2}
-              dot={{ r: 3, fill: chartColors[0] }}
-            />
-            <Line
-              yAxisId="right"
-              type="monotone"
-              dataKey="revenue"
-              name="收入(¥)"
-              stroke={chartColors[1]}
-              strokeWidth={2}
-              dot={{ r: 3, fill: chartColors[1] }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+        <h4 className={`${heading.card} mb-4`}>订阅增长趋势</h4>
+        {growth.length > 0 ? (
+          <ResponsiveContainer width="100%" height={280}>
+            <LineChart data={growth}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+              <YAxis yAxisId="left" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+              <Tooltip
+                contentStyle={{
+                  background: 'hsl(var(--background))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
+              />
+              <Line
+                yAxisId="left"
+                type="monotone"
+                dataKey="subscriptions"
+                name="订阅数"
+                stroke={chartColors[0]}
+                strokeWidth={2}
+                dot={{ r: 3, fill: chartColors[0] }}
+              />
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="revenue"
+                name="收入(¥)"
+                stroke={chartColors[1]}
+                strokeWidth={2}
+                dot={{ r: 3, fill: chartColors[1] }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="h-64 flex items-center justify-center text-sm text-muted-foreground">暂无趋势数据</div>
+        )}
       </div>
     </>
   )
@@ -527,16 +544,26 @@ function RefundsTab({
   rejectDialog: { open: boolean; id: string }
   setRejectDialog: React.Dispatch<React.SetStateAction<{ open: boolean; id: string }>>
 }) {
-  function handleApprove() {
-    setRefunds(prev => prev.map(r => (r.id === approveDialog.id ? { ...r, status: 'approved' as const } : r)))
-    setApproveDialog({ open: false, id: '' })
-    toast.success('退款已通过')
+  async function handleApprove() {
+    try {
+      await billingApi.adminApproveRefund(approveDialog.id)
+      setRefunds(prev => prev.map(r => (r.id === approveDialog.id ? { ...r, status: 'approved' as const } : r)))
+      setApproveDialog({ open: false, id: '' })
+      toast.success('退款已通过')
+    } catch (err: any) {
+      toast.error(err?.message || '操作失败，请稍后重试')
+    }
   }
 
-  function handleReject() {
-    setRefunds(prev => prev.map(r => (r.id === rejectDialog.id ? { ...r, status: 'rejected' as const } : r)))
-    setRejectDialog({ open: false, id: '' })
-    toast.success('退款已拒绝')
+  async function handleReject() {
+    try {
+      await billingApi.adminRejectRefund(rejectDialog.id, '管理员拒绝')
+      setRefunds(prev => prev.map(r => (r.id === rejectDialog.id ? { ...r, status: 'rejected' as const } : r)))
+      setRejectDialog({ open: false, id: '' })
+      toast.success('退款已拒绝')
+    } catch (err: any) {
+      toast.error(err?.message || '操作失败，请稍后重试')
+    }
   }
 
   return (
@@ -570,8 +597,8 @@ function RefundsTab({
                   <TableCell className="hidden md:table-cell text-sm text-muted-foreground max-w-48 truncate">{r.reason}</TableCell>
                   <TableCell className="hidden sm:table-cell text-xs text-muted-foreground">{r.createdAt}</TableCell>
                   <TableCell>
-                    <Badge className={`text-xs px-2 py-0.5 ${REFUND_STATUS_MAP[r.status].badge}`}>
-                      {REFUND_STATUS_MAP[r.status].label}
+                    <Badge className={`text-xs px-2 py-0.5 ${REFUND_STATUS_MAP[r.status]?.badge || statusBadge.neutral}`}>
+                      {REFUND_STATUS_MAP[r.status]?.label || r.status}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">

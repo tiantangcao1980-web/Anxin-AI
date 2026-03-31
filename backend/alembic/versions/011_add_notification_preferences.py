@@ -1,7 +1,7 @@
 """添加通知偏好设置表
 
 Revision ID: 011_notification_preferences
-Revises: 010_lawyer_matching
+Revises: 011_approval_chain_templates
 Create Date: 2026-03-27
 
 安心法务通知系统增强：
@@ -23,6 +23,22 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # 兼容历史开发库：notifications 表曾由 ORM create_all 创建，但未进入迁移链。
+    safe_create_table(
+        'notifications',
+        sa.Column('id', UUID(as_uuid=False), primary_key=True),
+        sa.Column('user_id', UUID(as_uuid=False), sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('type', sa.String(50), nullable=False),
+        sa.Column('title', sa.String(255), nullable=False),
+        sa.Column('message', sa.Text(), nullable=False),
+        sa.Column('is_read', sa.Boolean(), nullable=False, server_default=sa.text('false')),
+        sa.Column('related_link', sa.String(500), nullable=True),
+        sa.Column('event_type', sa.String(50), nullable=True),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+    )
+    safe_create_index('ix_notifications_user_id', 'notifications', ['user_id'])
+
     # 创建通知偏好表
     safe_create_table(
         'notification_preferences',

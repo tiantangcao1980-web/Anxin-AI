@@ -23,6 +23,8 @@ import { usePrivacy, PrivacyMode } from '@/context/PrivacyContext';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
+import { CitationList } from '@/components/chat/CitationList';
+import { KnowledgeBaseSelector } from '@/components/chat/KnowledgeBaseSelector';
 import { LottieIcon } from '@/components/ui/LottieIcon';
 import { RightPanel } from '@/components/chat/RightPanel';
 import { StreamingMessage } from '@/components/chat/StreamingMessage';
@@ -31,7 +33,9 @@ import { QuickActionsBar, DeepModeToggle, type QuickActionFillPayload } from '@/
 import { SlashCommandPalette, useSlashCommand, type SlashCommand } from '@/components/chat/SlashCommandPalette';
 import { ThinkingIndicator, type ThinkingStatus } from '@/components/chat/ThinkingIndicator';
 import {
+  getWorkflowAction,
   getWorkflowPlaceholder,
+  getWorkflowPrompt,
   inferAttachmentWorkflow,
   type QuickActionMode,
 } from '@/components/chat/workflowConfig';
@@ -82,11 +86,17 @@ function cleanCanvasContent(rawContent: string): string {
   while (prev !== content) {
     prev = content;
 
+    // 去除 "智能体团队" / "Agent 团队" / "多Agent协作" 等系统标签
+    content = content.replace(/^(智能体团队|Agent\s*团队|多Agent协作|AI\s*团队|协作完成)\s*\n*/u, '');
+
     // 去除 "任务执行完成。" / "任务已完成。" 前缀
     content = content.replace(/^(任务(执行)?完成|处理完毕|已完成)[。.!]\s*/u, '');
 
     // 去除 "### Agent名称" / "## 文书起草Agent" 标题行
     content = content.replace(/^#{1,4}\s*[\w\u4e00-\u9fff]+Agent[^\n]*\n*/u, '');
+
+    // 去除纯 Agent 名称行（无标题标记格式，如 "文书起草Agent"）
+    content = content.replace(/^[\u4e00-\u9fff]+Agent\s*\n*/u, '');
 
     // 去除 "**Agent名称**" / "**文书起草Agent 输出**"
     content = content.replace(/^\*{1,2}[\w\u4e00-\u9fff]+Agent[^*]*\*{1,2}\s*\n*/u, '');
@@ -102,6 +112,15 @@ function cleanCanvasContent(rawContent: string): string {
   }
 
   return content.trim();
+}
+
+/**
+ * 检测内容是否为法律文书/合同生成（用于区分文书生成 vs 普通对话）
+ * 仅当内容足够长且包含明确的文书结构特征时返回 true
+ */
+function isDocumentGeneration(content: string): boolean {
+  if (content.length < 300) return false;
+  return /第[一二三四五六七八九十]+[条章节]|甲方[\s\S]{0,30}乙方|乙方[\s\S]{0,30}甲方|合同编号|签署日期|^#\s*.{2,}|鉴于.*双方|本合同自|违约责任|争议解决/m.test(content);
 }
 
 // ========== 类型定义 ==========
@@ -190,11 +209,11 @@ export default function Chat() {
   // 本地状态
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [chatWidth, setChatWidth] = useState(100); // 默认全宽
-  const [isMobile, setIsMobile] = useState(false);
+  const isDesktopInit = typeof window !== 'undefined' && window.innerWidth >= 1024;
+  const [chatWidth, setChatWidth] = useState(isDesktopInit ? 50 : 100);
+  const [isMobile, setIsMobile] = useState(!isDesktopInit);
   const [showContextPanel, setShowContextPanel] = useState(false);
-  // 右侧面板默认收起，只在有任务触发时展开
-  const [rightPanelOpen, setRightPanelOpen] = useState(false);
+  const [rightPanelOpen, setRightPanelOpen] = useState(isDesktopInit);
   // 左侧对话列表宽度（可拖拽调整）
   const [sidebarWidth, setSidebarWidth] = useState(220);
   // 右侧面板宽度百分比（可拖拽调整）
@@ -203,6 +222,7 @@ export default function Chat() {
   const [inputAreaHeight, setInputAreaHeight] = useState<number | null>(null);
   const [input, setInput] = useState('');
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [selectedKbIdsByConversation, setSelectedKbIdsByConversation] = useState<Record<string, string[]>>({});
   // 内联 Agent 思考状态指示器
   const [thinkingStatus, setThinkingStatus] = useState<ThinkingStatus | null>(null);
   // 模式切换 + 斜杠命令 + 快捷操作选中态
@@ -250,6 +270,39 @@ export default function Chat() {
     conversations, setConversations, addConversation, removeConversation, removeConversations, updateConversationTitle,
     sidebarOpen: chatSidebarOpen, setChatSidebarOpen,
   } = store;
+  const conversationSelectionKey = conversationId || '__draft__';
+  const selectedKbIds = selectedKbIdsByConversation[conversationSelectionKey] || [];
+
+  const handleSelectedKbIdsChange = useCallback((ids: string[]) => {
+    const normalizedIds = Array.from(new Set(ids.filter((id): id is string => Boolean(id))));
+    setSelectedKbIdsByConversation((prev) => {
+      if (normalizedIds.length === 0) {
+        if (!(conversationSelectionKey in prev)) return prev;
+        const next = { ...prev };
+        delete next[conversationSelectionKey];
+        return next;
+      }
+      return {
+        ...prev,
+        [conversationSelectionKey]: normalizedIds,
+      };
+    });
+  }, [conversationSelectionKey]);
+
+  const clearKnowledgeBaseSelections = useCallback((conversationKeys: string[]) => {
+    if (conversationKeys.length === 0) return;
+    setSelectedKbIdsByConversation((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      conversationKeys.forEach((key) => {
+        if (key in next) {
+          delete next[key];
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, []);
 
   // ========== 初始化 ==========
 
@@ -258,8 +311,13 @@ export default function Chat() {
   }, [conversationId, setConversationId]);
 
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 1024);
-    check();
+    const check = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      return mobile;
+    };
+    const mobile = check();
+    if (mobile) setChatSidebarOpen(false);
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
   }, []);
@@ -300,9 +358,11 @@ export default function Chat() {
     setPendingFile(null);
     setActiveActionId(null);
     store.resetWorkspace();
-    // 新对话收起右面板，聊天区占满宽度
-    setRightPanelOpen(false);
-    setChatWidth(100);
+    // 桌面端保持面板展开，移动端收起
+    if (window.innerWidth < 1024) {
+      setRightPanelOpen(false);
+      setChatWidth(100);
+    }
     setTimeout(() => chatInputRef.current?.focus(), 100);
     toast.success('已创建新对话');
   }, [closeCurrentWs, setConversationId, store]);
@@ -333,10 +393,11 @@ export default function Chat() {
     try {
       await chatApi.deleteConversation(convId);
       removeConversation(convId);
+      clearKnowledgeBaseSelections([convId]);
       toast.success('对话已删除');
       if (convId === conversationId) handleNewConversation();
     } catch { toast.error('删除失败'); }
-  }, [deleteConfirmId, conversationId, removeConversation, handleNewConversation]);
+  }, [clearKnowledgeBaseSelections, deleteConfirmId, conversationId, removeConversation, handleNewConversation]);
 
   const handleStartRename = useCallback((conv: ConversationItem, e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -391,6 +452,7 @@ export default function Chat() {
     try {
       await chatApi.batchDeleteConversations(ids);
       removeConversations(ids);
+      clearKnowledgeBaseSelections(ids);
       toast.success(`已删除 ${ids.length} 个对话`);
       if (conversationId && ids.includes(conversationId)) {
         handleNewConversation();
@@ -402,7 +464,7 @@ export default function Chat() {
     } finally {
       setIsBatchDeleting(false);
     }
-  }, [selectedConvIds, conversationId, removeConversations, handleNewConversation]);
+  }, [clearKnowledgeBaseSelections, selectedConvIds, conversationId, removeConversations, handleNewConversation]);
 
   useEffect(() => {
     if (!menuOpenId) return;
@@ -436,6 +498,7 @@ export default function Chat() {
               content: displayContent || m.content,
               timestamp: new Date(m.created_at || Date.now()), agent: m.agent_name,
               attachment,
+              sources: Array.isArray(m.sources) ? m.sources : undefined,
             };
           });
           setMessages(prev => {
@@ -671,7 +734,12 @@ export default function Chat() {
           progress: 0,
           startedAt: Date.now(),
         });
-        // 不再自动打开面板 — 由后端 panel_trigger 事件决定
+        if (isMobile) {
+          store.setRightPanelTab('smart');
+          setShowContextPanel(true);
+        } else {
+          openRightPanel('smart');
+        }
         break;
 
       case 'agent_task_progress':
@@ -1010,53 +1078,56 @@ export default function Chat() {
           break;
         }
 
-        // 如果有流式内容，先 finalize
+        // 在 finalizeStream 之前获取原始响应内容
+        const responseContent = data.content || store.streamingContent || '';
+
+        // 检测是否为法律文书生成（合同起草、法律意见书等）
+        const isDocGen = isDocumentGeneration(responseContent);
+
+        // 法律文书：清理 Agent 系统噪音（"智能体团队"、"任务执行完成"、"文书起草Agent" 等）
+        const displayContent = isDocGen ? cleanCanvasContent(responseContent) : responseContent;
+
         if (store.streamingMessageId) {
-          const finalContent = data.content || store.streamingContent;
           const streamAgent = store.streamingAgent || data.agent || '';
           store.finalizeStream();
 
           const lastUserContent = [...messages].reverse().find(m => m.type === 'user')?.content || '';
           const aiMessage: Message = {
-            id: uuidv4(), type: 'ai', content: finalContent,
+            id: uuidv4(), type: 'ai', content: displayContent,
             timestamp: new Date(), agent: streamAgent,
             memory_id: data.memory_id,
             sources: data.sources,
-            suggestions: generateFollowUpSuggestions(finalContent, lastUserContent),
+            suggestions: generateFollowUpSuggestions(displayContent, lastUserContent),
           };
           setMessages(prev => [...prev, aiMessage]);
-        } else if (data.content) {
+        } else if (displayContent) {
           const lastUserContent = [...messages].reverse().find(m => m.type === 'user')?.content || '';
           const aiMessage: Message = {
-            id: uuidv4(), type: 'ai', content: data.content,
+            id: uuidv4(), type: 'ai', content: displayContent,
             timestamp: new Date(), agent: data.agent,
             memory_id: data.memory_id,
             sources: data.sources,
-            suggestions: generateFollowUpSuggestions(data.content, lastUserContent),
+            suggestions: generateFollowUpSuggestions(displayContent, lastUserContent),
           };
           setMessages(prev => [...prev, aiMessage]);
         }
-        // 对话完成后刷新对话列表（更新消息数、标题等）
         loadConversationsRef.current();
 
-        // === 智能文书检测：AI 回复中包含法律文书/合同内容时，自动推送到工作台 ===
-        const responseContent = data.content || store.streamingContent || '';
-        if (responseContent.length > 500) {
-          // 检测文书特征：标题、条款、甲乙方、签署日期等
-          const isLegalDoc = /^#\s*.{2,}|第[一二三四五六七八九十]+条|甲方|乙方|合同|协议|法律意见|律师函|起诉状|答辩状|仲裁|签署日期/m.test(responseContent);
-          if (isLegalDoc && !store.canvasContent) {
-            // 提取标题
-            const titleMatch = responseContent.match(/^#\s*(.+)$/m);
-            const title = titleMatch ? titleMatch[1].trim() : '法律文书';
-            const isContract = /合同|协议|contract|agreement/i.test(responseContent);
-            store.setCanvasContent({
-              type: isContract ? 'contract' : 'document',
-              title: cleanCanvasTitle(title),
-              content: cleanCanvasContent(responseContent),
-              suggestions: [],
-            });
-            openRightPanel('document');
-          }
+        // === 法律文书自动推送到文档面板（始终更新，新文书覆盖旧文档） ===
+        if (isDocGen) {
+          const docContent = cleanCanvasContent(responseContent);
+          const titleMatch = docContent.match(/^#\s*(.+)$/m);
+          const inferredTitle = titleMatch
+            ? titleMatch[1].trim()
+            : (docContent.match(/^(.+?(?:合同|协议|意见书|律师函|起诉状|答辩状|仲裁申请书|通知书|声明|备忘录))/m)?.[1]?.trim() || '法律文书');
+          const isContract = /合同|协议|contract|agreement/i.test(responseContent);
+          store.setCanvasContent({
+            type: isContract ? 'contract' : 'document',
+            title: cleanCanvasTitle(inferredTitle),
+            content: docContent,
+            suggestions: [],
+          });
+          setTimeout(() => openRightPanel('document'), 600);
         }
         break;
       }
@@ -1137,6 +1208,7 @@ export default function Chat() {
   }, [handleWebSocketMessage]);
 
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialConnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttemptRef = useRef(0);
   const maxReconnectAttempts = 5;
   const intentionalCloseRef = useRef(false); // 标记是否为主动关闭
@@ -1200,17 +1272,26 @@ export default function Chat() {
 
   useEffect(() => {
     if (!conversationId || wsRef.current) return;
-    const ws = connectWs(conversationId);
-    wsRef.current = ws;
+    initialConnectTimerRef.current = setTimeout(() => {
+      if (!wsRef.current) {
+        wsRef.current = connectWs(conversationId);
+      }
+      initialConnectTimerRef.current = null;
+    }, 0);
+
     return () => {
       intentionalCloseRef.current = true;
+      if (initialConnectTimerRef.current) {
+        clearTimeout(initialConnectTimerRef.current);
+        initialConnectTimerRef.current = null;
+      }
       if (reconnectTimerRef.current) {
         clearTimeout(reconnectTimerRef.current);
         reconnectTimerRef.current = null;
       }
       reconnectAttemptRef.current = 0;
-      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
-        ws.close(1000, 'component cleanup');
+      if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+        wsRef.current.close(1000, 'component cleanup');
       }
       wsRef.current = null;
     };
@@ -1319,6 +1400,7 @@ export default function Chat() {
         has_attachments: !!attachedFile,
         document_id: uploadedDocId,
         mode: actionModeOverride ?? quickActionMode,  // 快捷技能优先，其次是深度思考开关
+        knowledge_base_ids: selectedKbIds.length > 0 ? selectedKbIds : undefined,
       }));
       if (conversationId && !conversations.find(c => c.id === conversationId)) {
         const title = messageContent.slice(0, 30) + (messageContent.length > 30 ? '...' : '');
@@ -1485,7 +1567,14 @@ export default function Chat() {
   }, [store.canvasContent, conversationId]);
 
   const handleCanvasAIOptimize = useCallback(() => {
-    if (!store.canvasContent || !wsRef.current) return;
+    if (!store.canvasContent) {
+      toast.error('没有文档内容可以润色');
+      return;
+    }
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      toast.error('连接已断开，请刷新后重试');
+      return;
+    }
     wsRef.current.send(JSON.stringify({
       type: 'canvas_request',
       canvas_content: store.canvasContent.content,
@@ -1502,11 +1591,13 @@ export default function Chat() {
     store.setCanvasContent({ ...store.canvasContent, suggestions: updated });
   }, [store]);
 
-  // ========== 文档快捷操作（参考豆包：翻译/摘要/润色/风险检查）==========
+  // ========== 文档快捷操作（翻译/摘要/润色/风险检查）==========
   const handleDocumentAction = useCallback((action: string, payload?: any) => {
-    if (!store.canvasContent || !wsRef.current) return;
+    if (!store.canvasContent) {
+      toast.error('没有文档内容');
+      return;
+    }
     const content = store.canvasContent.content;
-    const title = store.canvasContent.title;
 
     const actionMessages: Record<string, string> = {
       summarize: `请为以下文档生成结构化摘要，包含主要内容、关键条款和核心结论：\n\n---\n${content.slice(0, 10000)}`,
@@ -1547,8 +1638,77 @@ export default function Chat() {
   }, [store.conversationId]);
 
   // ========== 工作台动作回调 ==========
+
+  const WORKSPACE_TO_WORKFLOW_ACTION: Record<string, { workflowActionId: string; hint?: string }> = {
+    'ws-contract-review': {
+      workflowActionId: 'qa-contract',
+      hint: '可先上传合同文件，或直接粘贴合同条款后发送',
+    },
+    'ws-regulation': {
+      workflowActionId: 'qa-search',
+    },
+    'ws-due-diligence': {
+      workflowActionId: 'qa-compliance',
+    },
+    'ws-compliance': {
+      workflowActionId: 'qa-compliance',
+    },
+    'ws-find-lawyer': {
+      workflowActionId: 'qa-lawyer',
+    },
+    'ws-doc-generate': {
+      workflowActionId: 'qa-draft',
+    },
+  };
+
   const handleWorkspaceAction = useCallback((actionId: string, payload?: any) => {
-    // 通过 WebSocket 将动作发送回后端
+    if (actionId.startsWith('ws-')) {
+      if (actionId === 'ws-messages') {
+        window.location.href = '/messages';
+        return;
+      }
+      if (actionId === 'ws-voice-chat') {
+        toast.info('语音对话功能正在开发中，敬请期待', { icon: '🎙️' });
+        return;
+      }
+
+      // 工作台入口统一复用现有 qa-* 工作流配置，避免输入语义与发送模式漂移。
+      const workflowBridge = WORKSPACE_TO_WORKFLOW_ACTION[actionId];
+      if (workflowBridge) {
+        const workflowAction = getWorkflowAction(workflowBridge.workflowActionId);
+        const prompt = getWorkflowPrompt(workflowBridge.workflowActionId, {
+          hasAttachment: false,
+          attachmentName: null,
+        });
+
+        setInput(prompt);
+        setActiveActionId(workflowBridge.workflowActionId);
+        setActionModeOverride(workflowAction?.mode ?? null);
+        setTimeout(() => {
+          const el = chatInputRef.current;
+          if (el) {
+            el.focus();
+            el.setSelectionRange(prompt.length, prompt.length);
+          }
+        }, 50);
+        if (workflowBridge.hint) {
+          toast(workflowBridge.hint, { icon: '💡', duration: 4000 });
+        }
+        return;
+      }
+    }
+
+    // 快捷功能入口：qa-* 动作直接填充输入框
+    if (actionId.startsWith('qa-')) {
+      const prompt = getWorkflowPrompt(actionId, { hasAttachment: false, attachmentName: null });
+      if (prompt) {
+        setInput(prompt);
+        setActiveActionId(actionId);
+        setTimeout(() => chatInputRef.current?.focus(), 50);
+        return;
+      }
+    }
+
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
         type: 'workspace_action',
@@ -1557,7 +1717,6 @@ export default function Chat() {
         conversation_id: store.conversationId,
       }));
     }
-    // 某些动作可以直接在前端执行
     switch (actionId) {
       case 'open_document':
         openRightPanel('document');
@@ -1682,7 +1841,7 @@ export default function Chat() {
   }, [messages]);
 
   const renderMessage = (message: Message) => {
-    // ========== 品牌视觉欢迎页（参考千问标题图像风格）==========
+    // ========== 欢迎页：品牌问候 + 能力简介 ==========
     if (message.content === '__WELCOME__') {
       return (
         <motion.div
@@ -1690,43 +1849,23 @@ export default function Chat() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="w-full min-h-[60vh] flex flex-col items-center justify-center mx-auto"
+          className="w-full min-h-[50vh] flex flex-col items-center justify-center mx-auto max-w-lg px-4"
         >
-          {/* 品牌 Logo + 标语（参考千问） */}
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/80 to-primary flex items-center justify-center shadow-lg shadow-primary/20">
-              <icons.Scale className="w-8 h-8 text-white" />
-            </div>
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/80 to-primary flex items-center justify-center shadow-lg shadow-primary/20">
+            <icons.Scale className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight mt-3">安心 AI 法务</h1>
-          <p className="text-sm text-muted-foreground mt-1.5">让法律服务更智能、更可靠</p>
-
-          {/* 核心能力卡片 — 千问风格网格 */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-8 w-full max-w-2xl px-4">
-            {[
-              { icon: icons.FileCheck, label: '合同审查', desc: '风险识别与修改建议', query: '请帮我审查以下合同内容，标出风险点、缺失条款和修改建议：' },
-              { icon: icons.PenTool, label: '文书起草', desc: '专业法律文书生成', query: '请帮我起草一份适合法务协作与内部评审的文本：' },
-              { icon: icons.ShieldCheck, label: '合规检查', desc: '法规依据与整改建议', query: '请帮我进行合规检查，输出主要风险、法规依据和整改建议：' },
-              { icon: icons.Search, label: '尽职调查', desc: '企业背景与风险排查', query: '请帮我制定一份尽职调查清单，并标出需要重点核验的风险事项：' },
-            ].map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.label}
-                  onClick={() => {
-                    setInput(item.query);
-                    setTimeout(() => chatInputRef.current?.focus(), 50);
-                  }}
-                  className="flex flex-col items-center gap-2.5 p-4 rounded-2xl bg-background border border-border/60 hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all group cursor-pointer"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-primary/5 group-hover:bg-primary/10 flex items-center justify-center transition-colors">
-                    <Icon className="w-5 h-5 text-primary/60 group-hover:text-primary transition-colors" />
-                  </div>
-                  <span className="text-sm font-semibold text-foreground">{item.label}</span>
-                  <span className="text-[11px] text-muted-foreground leading-tight text-center">{item.desc}</span>
-                </button>
-              );
-            })}
+          <h1 className="text-2xl font-bold text-foreground tracking-tight mt-4">你好，有什么可以帮您？</h1>
+          <p className="text-sm text-muted-foreground mt-3 text-center leading-relaxed">
+            我是安心 AI 法务助手，您可以直接在下方输入问题，
+            <br className="hidden sm:block" />
+            或使用底部工具栏选择具体服务。我可以帮您：
+          </p>
+          <div className="mt-4 text-sm text-muted-foreground/80 text-center leading-loose">
+            审查合同条款与风险 · 起草法律文书与函件
+            <br />
+            合规检查与尽职调查 · 检索法规与裁判案例
+            <br />
+            梳理证据链 · 拆解法务任务 · 推荐律师
           </div>
         </motion.div>
       );
@@ -1836,6 +1975,12 @@ export default function Chat() {
 
     const isUser = message.type === 'user';
     const isEditing = editingMessageId === message.id;
+    const knowledgeBaseSources = !isUser
+      ? (message.sources || []).filter((source) => source.type === 'knowledge_base')
+      : [];
+    const regularSources = !isUser
+      ? (message.sources || []).filter((source) => source.type !== 'knowledge_base')
+      : [];
 
     return (
       <motion.div
@@ -1940,6 +2085,63 @@ export default function Chat() {
                   onEvent={handleA2UIEvent}
                   animated={true}
                   isMobile={isMobile}
+                />
+              )}
+            </div>
+          )}
+
+          {!isUser && message.sources && message.sources.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {knowledgeBaseSources.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {knowledgeBaseSources.map((source, index) => {
+                    const knowledgeBaseName = source.source || source.title || `知识库 ${index + 1}`;
+                    const score = typeof source.relevance_score === 'number'
+                      ? `${Math.round(source.relevance_score * 100)}%`
+                      : null;
+
+                    return (
+                      <div
+                        key={source.id || `${knowledgeBaseName}-${index}`}
+                        className="inline-flex max-w-full items-center gap-2 rounded-xl border border-primary/15 bg-primary/5 px-3 py-2 text-xs text-foreground shadow-sm"
+                      >
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-background text-primary shadow-sm">
+                          <icons.Database className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate font-medium text-foreground">
+                              {knowledgeBaseName}
+                            </span>
+                            {score && (
+                              <span className="rounded-full bg-background px-1.5 py-0.5 text-[10px] text-primary">
+                                相关度 {score}
+                              </span>
+                            )}
+                          </div>
+                          {source.title && source.title !== knowledgeBaseName && (
+                            <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                              {source.title}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {regularSources.length > 0 && (
+                <CitationList
+                  sources={regularSources.map((source, index) => ({
+                    id: source.id || `${source.type}-${index}`,
+                    type: source.type || 'knowledge',
+                    title: source.title || source.source || `引用 ${index + 1}`,
+                    content_snippet: source.content_snippet || '',
+                    source: source.source || '知识库检索',
+                    relevance_score: source.relevance_score ?? 0,
+                    url: source.url || null,
+                  }))}
                 />
               )}
             </div>
@@ -2205,7 +2407,7 @@ export default function Chat() {
         <div className="flex-1 flex overflow-hidden">
           {/* 左侧聊天区 — 自适应宽度，拖拽时禁用动画防止卡顿 */}
           <div
-            className={`flex flex-col bg-background ${isDragging ? '' : 'transition-all duration-300 ease-in-out'}`}
+            className={`flex flex-col bg-background relative ${isDragging ? '' : 'transition-all duration-300 ease-in-out'}`}
             style={{ width: rightPanelOpen && !isMobile ? `${100 - rightPanelWidth}%` : '100%', minWidth: 0 }}
           >
             {/* Header — v3 紧凑版 */}
@@ -2228,10 +2430,6 @@ export default function Chat() {
                 </span>
               </div>
               <div className="flex-1" />
-              <button onClick={handleNewConversation}
-                className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-lg transition-colors" title="新建对话">
-                <icons.Plus className="w-4.5 h-4.5" />
-              </button>
               {/* 智能工作台面板切换 */}
               {!isMobile && (
                 <button
@@ -2263,10 +2461,14 @@ export default function Chat() {
                 <ThinkingChain steps={store.thinkingSteps} isThinking={isProcessing} />
               )}
 
-              {/* 流式消息 */}
+              {/* 流式消息 — 法律文书生成时实时清理 Agent 系统噪音 */}
               {store.streamingMessageId && (
                 <StreamingMessage
-                  content={store.streamingContent}
+                  content={
+                    store.streamingContent.length > 200 && isDocumentGeneration(store.streamingContent)
+                      ? cleanCanvasContent(store.streamingContent)
+                      : store.streamingContent
+                  }
                   agent={store.streamingAgent}
                   isStreaming={true}
                 />
@@ -2379,7 +2581,6 @@ export default function Chat() {
                     setInput(text);
                     setActiveActionId(actionId ?? null);
                     setActionModeOverride(filledMode ?? null);
-                    // 填充后自动聚焦输入框，光标移到末尾
                     setTimeout(() => {
                       const el = chatInputRef.current;
                       if (el) {
@@ -2393,6 +2594,12 @@ export default function Chat() {
                   activeActionId={activeActionId}
                   attachmentName={pendingFile?.name ?? null}
                   onTriggerUpload={() => fileInputRef.current?.click()}
+                />
+
+                <KnowledgeBaseSelector
+                  selectedKbIds={selectedKbIds}
+                  onSelectionChange={handleSelectedKbIdsChange}
+                  disabled={isProcessing}
                 />
 
                 {/* 输入框容器 — 一体式设计 */}
@@ -2562,6 +2769,7 @@ export default function Chat() {
                   onWorkspaceConfirm={handleWorkspaceConfirm}
                   onWorkspaceAction={handleWorkspaceAction}
                   onDocumentAction={handleDocumentAction}
+                  onNewConversation={handleNewConversation}
                 />
               </motion.div>
             )}
@@ -2626,6 +2834,7 @@ export default function Chat() {
                     onWorkspaceConfirm={handleWorkspaceConfirm}
                     onWorkspaceAction={handleWorkspaceAction}
                     onDocumentAction={handleDocumentAction}
+                    onNewConversation={handleNewConversation}
                   />
                 </div>
               </motion.div>
