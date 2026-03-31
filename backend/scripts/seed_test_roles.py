@@ -83,12 +83,14 @@ async def main():
                 user.department = acct["department"]
                 user.hashed_password = hashed
                 user.is_active = True
+                user.email_verified = True
                 updated += 1
             else:
                 session.add(User(
                     id=str(uuid4()), email=acct["email"], name=acct["name"],
                     hashed_password=hashed, role=acct["role"], user_type=acct["user_type"],
                     department=acct["department"], org_id=acct["org_id"], is_active=True,
+                    email_verified=True,
                 ))
                 created += 1
 

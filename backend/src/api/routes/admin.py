@@ -514,6 +514,9 @@ async def reset_user_password(
     db: AsyncSession = Depends(get_db),
 ):
     """管理员重置用户密码"""
+    from src.api.routes.auth import validate_password
+    validate_password(body.new_password)
+
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
 

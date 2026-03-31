@@ -106,6 +106,7 @@ class User(Base, TimestampMixin):
     user_type: Mapped[str] = mapped_column(String(30), default="internal")  # internal / platform_lawyer / enterprise / individual
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    email_verified: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # 安全字段
     last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)

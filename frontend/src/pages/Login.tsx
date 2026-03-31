@@ -19,7 +19,7 @@ export default function Login() {
   const navigate = useNavigate()
   const location = useLocation()
   const { login: setAuth } = useAuthStore()
-  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login')
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot' | 'verify'>('login')
   const [loading, setLoading] = useState(false)
 
   // 忘记密码
@@ -40,6 +40,12 @@ export default function Login() {
   const [regConfirm, setRegConfirm] = useState('')
   const [showRegPassword, setShowRegPassword] = useState(false)
   const [agreedTerms, setAgreedTerms] = useState(false)
+  const [regUserType, setRegUserType] = useState<'individual' | 'enterprise' | 'platform_lawyer' | 'institution'>('individual')
+
+  // 邮箱验证
+  const [verifyEmail, setVerifyEmail] = useState('')
+  const [verifyCode, setVerifyCode] = useState('')
+  const [resendCountdown, setResendCountdown] = useState(0)
 
   // 密码强度计算
   const getPasswordStrength = (pwd: string): { level: number; label: string; color: string } => {
@@ -74,7 +80,16 @@ export default function Login() {
       toast.success(`欢迎回来，${resp.user.name}！`)
       navigate(from, { replace: true })
     } catch (err: any) {
-      toast.error(err.message || '登录失败，请检查邮箱和密码')
+      const msg = err.message || '登录失败，请检查邮箱和密码'
+      if (msg.includes('邮箱未验证')) {
+        toast.error('邮箱未验证，请先完成验证')
+        setVerifyEmail(email)
+        setMode('verify')
+        // 自动发送验证码
+        authApi.resendVerification(email).catch(() => {})
+      } else {
+        toast.error(msg)
+      }
     } finally {
       setLoading(false)
     }
@@ -100,22 +115,12 @@ export default function Login() {
     }
     setLoading(true)
     try {
-      await authApi.register({ name: regName, email: regEmail, password: regPassword })
-      // 注册成功后自动登录
-      try {
-        const resp = await authApi.login({ email: regEmail, password: regPassword })
-        localStorage.setItem('refresh_token', resp.refresh_token || '')
-        setAuth(resp.user, resp.access_token)
-        toast.success(`注册成功！欢迎 ${resp.user.name}`)
-        navigate(from, { replace: true })
-        return
-      } catch {
-        // 自动登录失败则回到登录页
-        toast.success('注册成功！请登录')
-        setMode('login')
-        setEmail(regEmail)
-        setPassword('')
-      }
+      await authApi.register({ name: regName, email: regEmail, password: regPassword, user_type: regUserType })
+      // 注册成功，跳转到邮箱验证步骤
+      toast.success('注册成功！请查收邮箱验证码')
+      setVerifyEmail(regEmail)
+      setVerifyCode('')
+      setMode('verify')
     } catch (err: any) {
       const msg = err.message || '注册失败'
       if (msg.includes('already') || msg.includes('已注册') || msg.includes('exist')) {
@@ -180,6 +185,43 @@ export default function Login() {
       toast.error(err.message || '重置失败')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleVerifyEmail = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!verifyCode || verifyCode.length !== 6) {
+      toast.error('请输入6位验证码')
+      return
+    }
+    setLoading(true)
+    try {
+      const resp = await authApi.verifyEmail(verifyEmail, verifyCode)
+      localStorage.setItem('refresh_token', resp.refresh_token || '')
+      setAuth(resp.user, resp.access_token)
+      toast.success('邮箱验证成功！')
+      navigate(from, { replace: true })
+    } catch (err: any) {
+      toast.error(err.message || '验证失败')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleResendVerification = async () => {
+    if (resendCountdown > 0) return
+    try {
+      await authApi.resendVerification(verifyEmail)
+      toast.success('验证码已重新发送')
+      setResendCountdown(60)
+      const timer = setInterval(() => {
+        setResendCountdown((prev) => {
+          if (prev <= 1) { clearInterval(timer); return 0 }
+          return prev - 1
+        })
+      }, 1000)
+    } catch (err: any) {
+      toast.error(err.message || '发送失败')
     }
   }
 
@@ -296,7 +338,7 @@ export default function Login() {
           </div>
 
           {/* Tab 切换（忘记密码模式时隐藏） */}
-          {mode !== 'forgot' ? (
+          {mode !== 'forgot' && mode !== 'verify' ? (
             <div className={`flex gap-1 mb-8 bg-muted p-1 ${radius.card}`}>
               {(['login', 'register'] as const).map((tab) => (
                 <button
@@ -419,6 +461,58 @@ export default function Login() {
                   </div>
                 )}
               </motion.div>
+            ) : mode === 'verify' ? (
+              <motion.div
+                key="verify"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+              >
+                <h2 className={`${heading.page} mb-2`}>邮箱验证</h2>
+                <p className={`${heading.muted} mb-6`}>
+                  验证码已发送至 <span className="font-medium text-foreground">{verifyEmail}</span>
+                </p>
+                <form onSubmit={handleVerifyEmail} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1.5">验证码</label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      placeholder="请输入6位验证码"
+                      value={verifyCode}
+                      onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      className={inputCls + ' text-center text-2xl tracking-[0.5em] font-mono'}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading || verifyCode.length !== 6}
+                    className={`${buttonStyle.primary} w-full h-11 ${radius.button} font-medium`}
+                  >
+                    {loading ? '验证中...' : '验证邮箱'}
+                  </button>
+                  <div className="text-center text-sm text-muted-foreground">
+                    没收到验证码？{' '}
+                    <button
+                      type="button"
+                      onClick={handleResendVerification}
+                      disabled={resendCountdown > 0}
+                      className="text-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {resendCountdown > 0 ? `${resendCountdown}秒后重发` : '重新发送'}
+                    </button>
+                  </div>
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={() => { setMode('login'); setEmail(verifyEmail) }}
+                      className="text-sm text-muted-foreground hover:text-foreground"
+                    >
+                      返回登录
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
             ) : mode === 'login' ? (
               <motion.form
                 key="login"
@@ -508,6 +602,35 @@ export default function Login() {
                 onSubmit={handleRegister}
                 className="space-y-4"
               >
+                {/* 用户类型选择 */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">我是</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      { value: 'individual', label: '个人用户', desc: '法律咨询' },
+                      { value: 'enterprise', label: '企业用户', desc: '企业法务' },
+                      { value: 'platform_lawyer', label: '律师', desc: '需实名认证' },
+                      { value: 'institution', label: '律所/机构', desc: '需资质审核' },
+                    ] as const).map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setRegUserType(opt.value)}
+                        className={`p-2.5 rounded-lg border text-left transition-all ${
+                          regUserType === opt.value
+                            ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                            : 'border-border hover:border-primary/40'
+                        }`}
+                      >
+                        <div className={`text-sm font-medium ${regUserType === opt.value ? 'text-primary' : 'text-foreground'}`}>
+                          {opt.label}
+                        </div>
+                        <div className="text-xs text-muted-foreground">{opt.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* 姓名 */}
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">姓名</label>

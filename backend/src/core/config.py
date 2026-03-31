@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     # JWT配置 (生产环境必须使用强密钥)
     JWT_SECRET_KEY: str = "your-super-secret-jwt-key-change-in-production"
     JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRE_MINUTES: int = 1440
+    JWT_EXPIRE_MINUTES: int = 120  # 2小时（配合 refresh_token 实现无感续期）
 
     # 密码策略
     PASSWORD_MIN_LENGTH: int = 8
@@ -47,7 +47,10 @@ class Settings(BaseSettings):
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:3001", "tauri://localhost"]
     CORS_ALLOW_CREDENTIALS: bool = True
     CORS_ALLOW_METHODS: List[str] = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-    CORS_ALLOW_HEADERS: List[str] = ["*"]
+    CORS_ALLOW_HEADERS: List[str] = [
+        "Authorization", "Content-Type", "Accept", "X-Requested-With",
+        "X-Integration-Key", "X-Request-ID",
+    ]
 
     # 输入验证配置
     MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024  # 10MB
@@ -58,6 +61,27 @@ class Settings(BaseSettings):
 
     # 敏感数据加密
     ENCRYPTION_KEY: Optional[str] = None  # 用于加密敏感数据
+
+    # 集成 API 密钥（用于 OA/Webhook 回调验证）
+    INTEGRATION_API_KEY: Optional[str] = None
+
+    # ========== 阿里云服务（短信 + 邮件共用 AccessKey） ==========
+    ALIYUN_ACCESS_KEY_ID: str = ""
+    ALIYUN_ACCESS_KEY_SECRET: str = ""
+
+    # 阿里云短信 (Dysmsapi)
+    # 控制台：https://dysms.console.aliyun.com
+    ALIYUN_SMS_REGION: str = "cn-hangzhou"
+    ALIYUN_SMS_SIGN_NAME: str = ""  # 短信签名，如「安心法务」
+    ALIYUN_SMS_TEMPLATE_VERIFY: str = ""  # 注册验证码模板 Code
+    ALIYUN_SMS_TEMPLATE_LOGIN: str = ""  # 登录验证码模板 Code
+    ALIYUN_SMS_TEMPLATE_RESET: str = ""  # 密码重置模板 Code
+
+    # 阿里云邮件推送 (DirectMail)
+    # 控制台：https://dm.console.aliyun.com
+    ALIYUN_EMAIL_REGION: str = "cn-hangzhou"
+    ALIYUN_EMAIL_ACCOUNT: str = ""  # 发信地址，如 noreply@mail.anxinfawu.com
+    ALIYUN_EMAIL_ALIAS: str = "安心法务"  # 发件人昵称
 
     # ========== 品牌定制 ==========
     BRAND_NAME: str = "安心法务"

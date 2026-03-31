@@ -33,6 +33,7 @@ INTENT_LABELS: Dict[str, str] = {
     "E_SIGNATURE": "电子签约",
     "CONTRACT_MANAGEMENT": "合同管理",
     "POLICY_DISTRIBUTION": "制度分发",
+    "FIND_LAWYER": "找律师",
     "COMPLEX_TASK": "复合任务",
 }
 
@@ -83,6 +84,9 @@ FAST_PATH_ROUTES: Dict[str, List[Dict[str, Any]]] = {
     ],
     "POLICY_DISTRIBUTION": [
         {"id": "task_1", "agent": "labor_compliance", "depends_on": []},
+    ],
+    "FIND_LAWYER": [
+        {"id": "task_1", "agent": "legal_advisor", "depends_on": []},
     ],
 }
 
@@ -173,7 +177,7 @@ class CoordinatorAgent(BaseLegalAgent):
                 logger.info(f"意图识别结果(LLM): {intent} (置信度: {confidence})")
 
         hint_mapping = {
-            "find_lawyer": "QA_CONSULTATION",
+            "find_lawyer": "FIND_LAWYER",
             "review_contract": "CONTRACT_REVIEW",
             "draft_document": "DOCUMENT_DRAFTING",
             "risk_assessment": "REGULATORY_MONITORING",
@@ -329,9 +333,9 @@ class CoordinatorAgent(BaseLegalAgent):
         #   vague  → chat_only（先对话澄清需求）
         #   partial → chat_only（继续对话补充信息）
         #   clear  → chat_with_streaming_a2ui（流式推送卡片：律师推荐、风险评估等）
-        if intent in {"DUE_DILIGENCE", "LITIGATION_STRATEGY", "IP_PROTECTION",
-                       "REGULATORY_MONITORING", "TAX_FINANCE", "LABOR_HR",
-                       "POLICY_DISTRIBUTION"}:
+        if intent in {"FIND_LAWYER", "DUE_DILIGENCE", "LITIGATION_STRATEGY",
+                       "IP_PROTECTION", "REGULATORY_MONITORING", "TAX_FINANCE",
+                       "LABOR_HR", "POLICY_DISTRIBUTION"}:
             if intent_clarity == "clear":
                 return "chat_with_streaming_a2ui"
             if intent_clarity == "partial" and conversation_turns > 0:
@@ -416,11 +420,11 @@ class CoordinatorAgent(BaseLegalAgent):
                 "description": "知识产权保护以案件进度+风险评估+详情列表展示",
             },
             "REGULATORY_MONITORING": {
-                "suggested_cards": ["risk-assessment", "detail-list", "info-banner"],
+                "suggested_cards": ["risk-assessment", "detail-list", "info-banner", "checklist"],
                 "layout": "vertical",
                 "streaming_hint": True,
                 "primary_card": "risk-assessment",
-                "description": "合规监管以风险评估雷达+详情+警示横幅展示",
+                "description": "合规监管以风险评估雷达+详情+警示横幅+合规检查表展示",
             },
             "COMPLEX_TASK": {
                 "suggested_cards": ["case-progress", "risk-assessment", "detail-list"],
@@ -428,6 +432,13 @@ class CoordinatorAgent(BaseLegalAgent):
                 "streaming_hint": True,
                 "primary_card": "case-progress",
                 "description": "复杂任务以案件进度+风险评估+详情展示，流式推送",
+            },
+            "FIND_LAWYER": {
+                "suggested_cards": ["lawyer-card", "recommendation-card", "horizontal-scroll"],
+                "layout": "horizontal-scroll",
+                "streaming_hint": True,
+                "primary_card": "lawyer-card",
+                "description": "找律师以律师推荐卡片横滑列表展示，支持联系、查看详情、AI智能匹配",
             },
             "QA_CONSULTATION": {
                 "suggested_cards": ["recommendation-card", "detail-list"],
@@ -479,6 +490,7 @@ class CoordinatorAgent(BaseLegalAgent):
     # 注意：关键词仅匹配用户输入的前 200 字符（即用户实际问题），避免合同正文干扰
     _KEYWORD_INTENT_RULES = [
         # (关键词列表, 意图, 置信度)
+        (["找律师", "推荐律师", "帮我找律师", "律师推荐", "委托律师", "请律师", "聘请律师", "请个律师", "找个律师"], "FIND_LAWYER", 0.92),
         (["审查合同", "合同审查", "审合同", "审查这份", "审查一下", "条款审核", "合同风险", "帮我审查"], "CONTRACT_REVIEW", 0.92),
         (["电子签", "发起签约", "电子签章", "电子签约", "在线签署"], "E_SIGNATURE", 0.92),
         (["归档", "合同到期", "履约提醒", "合同管理", "合同状态"], "CONTRACT_MANAGEMENT", 0.90),
@@ -486,12 +498,13 @@ class CoordinatorAgent(BaseLegalAgent):
         (["起草", "草拟", "写一份", "拟一份", "律师函", "法律文书", "法律意见书"], "DOCUMENT_DRAFTING", 0.90),
         (["尽职调查", "尽调", "背景调查", "企业调查", "查公司", "调查公司", "查一下公司", "看看公司", "公司怎么样", "工商信息", "股权结构", "诉讼记录", "信用记录", "供应商靠不靠谱", "合作方风险", "交易对手背景"], "DUE_DILIGENCE", 0.90),
         (["诉讼策略", "起诉", "胜诉", "败诉", "庭审", "反诉", "仲裁"], "LITIGATION_STRATEGY", 0.88),
-        (["风险评估", "合规检查", "合规审查", "合规风险"], "REGULATORY_MONITORING", 0.88),
+        (["风险评估", "合规检查", "合规审查", "合规风险", "合规自检", "合规自查", "内审", "合规体检", "内部审查", "制度审计"], "REGULATORY_MONITORING", 0.88),
         (["专利", "商标", "侵权", "知识产权", "版权"], "IP_PROTECTION", 0.88),
         (["辞退", "劳动合同", "劳动仲裁", "工资拖欠", "员工", "入职", "试用期", "社保", "劳动争议", "劳动法", "工伤"], "LABOR_HR", 0.88),
         (["发票", "报销", "税务", "财税", "避税", "税收", "股权转让"], "TAX_FINANCE", 0.88),
         (["录音", "证据", "鉴定", "证据链"], "EVIDENCE_PROCESSING", 0.88),
         (["新规", "政策", "法规解读", "监管"], "REGULATORY_MONITORING", 0.85),
+        (["查法条", "搜案例", "法规查询", "法律检索", "查找法规", "相关判例", "法条检索", "案例检索"], "QA_CONSULTATION", 0.85),
     ]
     
     async def analyze_and_classify(

@@ -46,6 +46,19 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
     name: str
+    user_type: str = "individual"  # individual / enterprise / platform_lawyer / institution
+    phone: Optional[str] = None  # 手机号（用于短信验证）
+
+
+class VerifyEmailRequest(BaseModel):
+    """邮箱验证请求"""
+    email: EmailStr
+    code: str
+
+
+class ResendVerificationRequest(BaseModel):
+    """重发验证码请求"""
+    email: EmailStr
 
 
 class RefreshTokenRequest(BaseModel):
@@ -77,6 +90,7 @@ class UserResponse(BaseModel):
     name: str
     role: str
     avatar_url: Optional[str] = None
+    email_verified: bool = True
 
 
 class UserUpdate(BaseModel):
@@ -175,6 +189,14 @@ async def login(
             detail="邮箱或密码错误"
         )
 
+    # 检查邮箱是否已验证
+    if existing_user and not existing_user.email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="邮箱未验证，请先完成邮箱验证",
+            headers={"X-Email-Unverified": "true"},
+        )
+
     # 登录成功：重置登录失败计数，更新最后登录时间
     if existing_user:
         existing_user.login_attempts = 0
@@ -202,11 +224,32 @@ async def register(
 ):
     """
     用户注册
-    
+
+    支持四种用户类型：
+    - individual: 个人用户 → 初始 role=individual_user
+    - enterprise: 企业用户 → 初始 role=enterprise_user（受限，认证后解锁完整权限）
+    - platform_lawyer: 律师 → 初始 role=viewer（待认证，通过后升级为 platform_lawyer）
+    - institution: 律所/机构 → 初始 role=viewer（待审核，通过后升级为 org_admin）
+
     限流：5次/5分钟
     """
     # 验证密码强度
     validate_password(register_request.password)
+
+    # 验证用户类型并映射初始角色
+    USER_TYPE_ROLE_MAP = {
+        "individual": "individual_user",
+        "enterprise": "enterprise_user",
+        "platform_lawyer": "viewer",  # 待律师认证通过后升级
+        "institution": "viewer",  # 待机构审核通过后升级
+    }
+    user_type = register_request.user_type
+    if user_type not in USER_TYPE_ROLE_MAP:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"不支持的用户类型: {user_type}，可选: individual, enterprise, platform_lawyer, institution",
+        )
+    initial_role = USER_TYPE_ROLE_MAP[user_type]
 
     service = UserService(db)
     audit_service = AuditService(db)
@@ -216,24 +259,50 @@ async def register(
             email=register_request.email,
             password=register_request.password,
             name=register_request.name,
+            role=initial_role,
+            user_type=user_type,
+            phone=register_request.phone,
         )
-        
+
+        # 生成邮箱验证码（6位数字，15分钟有效）
+        verify_code = f"{secrets.randbelow(1000000):06d}"
+        _email_verify_tokens[verify_code] = {
+            "user_id": str(user.id),
+            "email": user.email,
+            "expires_at": datetime.now(timezone.utc) + timedelta(minutes=15),
+        }
+        logger.info(f"邮箱验证码已生成 (用户: {user.email}, 类型: {user_type})")
+
+        # 发送邮箱验证码
+        from src.services.email_service import email_service
+        await email_service.send_verification_code(user.email, verify_code)
+
         # 记录注册成功
         await audit_service.log_from_request(
             request=request,
             action=AuditAction.USER_REGISTER.value,
             resource_type=ResourceType.USER.value,
             resource_id=user.id,
-            extra_data={"email": register_request.email, "name": register_request.name},
+            extra_data={
+                "email": register_request.email,
+                "name": register_request.name,
+                "user_type": user_type,
+                "initial_role": initial_role,
+            },
         )
         await db.commit()
-        
-        return UserResponse(
-            id=user.id,
-            email=user.email,
-            name=user.name,
-            role=user.role,
-        )
+
+        return {
+            "id": str(user.id),
+            "email": user.email,
+            "name": user.name,
+            "role": user.role,
+            "user_type": user_type,
+            "email_verified": False,
+            "message": "注册成功，请查收邮箱验证码完成验证",
+            # 开发模式返回验证码，方便调试
+            **({"debug_verify_code": verify_code} if settings.DEV_MODE else {}),
+        }
     except ValueError as e:
         # 记录注册失败
         await audit_service.log_from_request(
@@ -245,7 +314,7 @@ async def register(
             extra_data={"email": register_request.email},
         )
         await db.commit()
-        
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
@@ -261,6 +330,7 @@ async def get_current_user_info(user: User = Depends(get_current_user_required))
         name=user.name,
         role=user.role,
         avatar_url=user.avatar_url,
+        email_verified=user.email_verified,
     )
 
 
@@ -290,6 +360,7 @@ async def update_current_user(
         name=updated_user.name,
         role=updated_user.role,
         avatar_url=updated_user.avatar_url,
+        email_verified=updated_user.email_verified,
     )
 
 
@@ -424,6 +495,105 @@ async def revoke_token_endpoint(
     )
 
 
+# ============ 邮箱验证 ============
+
+
+@router.post("/verify-email", summary="验证邮箱 - 使用注册验证码")
+async def verify_email(
+    req: VerifyEmailRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """使用验证码完成邮箱验证"""
+    token_data = _email_verify_tokens.get(req.code)
+    if not token_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="验证码无效或已过期"
+        )
+
+    if datetime.now(timezone.utc) > token_data["expires_at"]:
+        del _email_verify_tokens[req.code]
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="验证码已过期，请重新获取"
+        )
+
+    if token_data["email"] != req.email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="验证码与邮箱不匹配"
+        )
+
+    # 更新用户邮箱验证状态
+    result = await db.execute(select(User).where(User.id == token_data["user_id"]))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    user.email_verified = True
+    await db.commit()
+
+    # 清除已使用的验证码
+    del _email_verify_tokens[req.code]
+
+    logger.info(f"用户 {user.email} 邮箱验证成功")
+
+    # 验证成功后自动颁发 Token，允许直接登录
+    tokens = create_token_pair(user.id)
+    return {
+        "message": "邮箱验证成功",
+        "access_token": tokens.access_token,
+        "refresh_token": tokens.refresh_token,
+        "token_type": "bearer",
+        "user": {
+            "id": str(user.id),
+            "email": user.email,
+            "name": user.name,
+            "role": user.role,
+        },
+    }
+
+
+@router.post("/resend-verification", summary="重发邮箱验证码")
+async def resend_verification(
+    req: ResendVerificationRequest,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(rate_limit(limit=3, window=300, endpoint="resend_verify")),
+):
+    """重新发送邮箱验证码（限流：3次/5分钟）"""
+    result = await db.execute(select(User).where(User.email == req.email))
+    user = result.scalar_one_or_none()
+
+    debug_code = None
+    if user and not user.email_verified:
+        # 清除该邮箱旧的验证码
+        to_remove = [k for k, v in _email_verify_tokens.items() if v["email"] == req.email]
+        for k in to_remove:
+            del _email_verify_tokens[k]
+
+        # 生成新验证码
+        verify_code = f"{secrets.randbelow(1000000):06d}"
+        _email_verify_tokens[verify_code] = {
+            "user_id": str(user.id),
+            "email": user.email,
+            "expires_at": datetime.now(timezone.utc) + timedelta(minutes=15),
+        }
+        logger.info(f"邮箱验证码已重新发送 (用户: {user.email})")
+        logger.debug(f"[DEV] 验证码: {verify_code}")
+        debug_code = verify_code
+        # 发送邮箱验证码
+        from src.services.email_service import email_service
+        await email_service.send_verification_code(user.email, verify_code)
+
+    # 无论邮箱是否存在都返回成功（防止枚举攻击）
+    return {
+        "message": "如果该邮箱已注册且未验证，我们将发送新的验证码",
+        "expires_in": 900,
+        # 开发模式返回验证码
+        **({"debug_verify_code": debug_code} if settings.DEV_MODE and debug_code else {}),
+    }
+
+
 # ============ OAuth 第三方登录 ============
 
 class OAuthCallbackRequest(BaseModel):
@@ -479,6 +649,7 @@ async def wechat_oauth_callback(
                 role="member",
                 org_id=default_org_id,
                 is_active=True,
+                email_verified=True,  # 第三方登录视为已验证
                 wechat_openid=openid,
                 wechat_unionid=unionid,
                 login_type="wechat",
@@ -547,6 +718,7 @@ async def alipay_oauth_callback(
                 role="member",
                 org_id=default_org_id,
                 is_active=True,
+                email_verified=True,  # 第三方登录视为已验证
                 alipay_user_id=alipay_uid,
                 login_type="alipay",
             )
@@ -589,8 +761,9 @@ class ChangePasswordRequest(BaseModel):
     new_password: str
 
 
-# 内存中的重置令牌存储（生产环境应用 Redis）
+# 内存中的令牌存储（生产环境应用 Redis）
 _reset_tokens: dict[str, dict] = {}
+_email_verify_tokens: dict[str, dict] = {}  # key=验证码, value={user_id, email, expires_at}
 
 
 @router.post("/forgot-password", summary="忘记密码 - 发送重置链接")
@@ -613,10 +786,12 @@ async def forgot_password(
             "email": user.email,
             "expires_at": datetime.now(timezone.utc) + timedelta(minutes=15),
         }
-        logger.info(f"密码重置验证码已生成: {token} (用户: {user.email})")
+        logger.info(f"密码重置验证码已生成 (用户: {user.email})")
+        logger.debug(f"[DEV] 重置验证码: {token}")
 
-        # TODO: 集成邮件服务发送验证码
-        # await email_service.send_reset_code(user.email, token)
+        # 发送密码重置验证码
+        from src.services.email_service import email_service
+        await email_service.send_reset_code(user.email, token)
 
     # 始终返回成功（防止邮箱枚举）
     return {
@@ -649,11 +824,7 @@ async def reset_password(
         )
 
     # 密码强度验证
-    if len(req.new_password) < 8:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="密码长度不能少于8位"
-        )
+    validate_password(req.new_password)
 
     # 更新密码
     result = await db.execute(select(User).where(User.id == token_data["user_id"]))
@@ -701,11 +872,7 @@ async def change_password(
             detail="当前密码不正确"
         )
 
-    if len(req.new_password) < 8:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="新密码长度不能少于8位"
-        )
+    validate_password(req.new_password)
 
     if req.old_password == req.new_password:
         raise HTTPException(

@@ -25,26 +25,29 @@ class UserService:
         name: str,
         org_id: Optional[str] = None,
         role: str = "member",
+        user_type: str = "individual",
+        phone: Optional[str] = None,
     ) -> User:
         """创建用户"""
         # 检查邮箱是否已存在
         existing = await self.get_user_by_email(email)
         if existing:
             raise ValueError("邮箱已被注册")
-        
+
         user = User(
             email=email,
             hashed_password=get_password_hash(password),
             name=name,
             org_id=org_id,
             role=role,
+            user_type=user_type,
             is_active=True,
         )
-        
+
         self.db.add(user)
         await self.db.flush()
-        
-        logger.info(f"用户创建成功: {email}")
+
+        logger.info(f"用户创建成功: {email}, type={user_type}, role={role}")
         return user
     
     async def get_user(self, user_id: str) -> Optional[User]:
@@ -90,6 +93,7 @@ class UserService:
                 "email": user.email,
                 "name": user.name,
                 "role": user.role,
+                "email_verified": user.email_verified,
             }
         }
     

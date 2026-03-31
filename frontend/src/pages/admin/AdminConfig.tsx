@@ -55,6 +55,18 @@ export default function AdminConfig() {
     password_min_length: '8',
     require_special_char: 'true',
   })
+  const [sms, setSms] = useState<ConfigSection>({
+    aliyun_access_key_id: '',
+    aliyun_access_key_secret: '',
+    aliyun_sms_sign_name: '',
+    aliyun_sms_template_verify: '',
+    aliyun_sms_template_login: '',
+    aliyun_sms_template_reset: '',
+  })
+  const [email, setEmailConfig] = useState<ConfigSection>({
+    aliyun_email_account: '',
+    aliyun_email_alias: '安心法务',
+  })
 
   useEffect(() => {
     loadConfig()
@@ -70,6 +82,8 @@ export default function AdminConfig() {
         if (config.oauth) setOauth({ ...oauth, ...config.oauth })
         if (config.storage) setStorage({ ...storage, ...config.storage })
         if (config.security) setSecurity({ ...security, ...config.security })
+        if (config.sms) setSms({ ...sms, ...config.sms })
+        if (config.email) setEmailConfig({ ...email, ...config.email })
       }
     } catch {
       // Use defaults
@@ -126,6 +140,14 @@ export default function AdminConfig() {
           <TabsTrigger value="storage" className="gap-2">
             <icons.Database className="w-4 h-4" />
             存储配置
+          </TabsTrigger>
+          <TabsTrigger value="sms" className="gap-2">
+            <icons.Smartphone className="w-4 h-4" />
+            短信服务
+          </TabsTrigger>
+          <TabsTrigger value="email" className="gap-2">
+            <icons.Mail className="w-4 h-4" />
+            邮件服务
           </TabsTrigger>
           <TabsTrigger value="security" className="gap-2">
             <icons.Lock className="w-4 h-4" />
@@ -230,7 +252,12 @@ export default function AdminConfig() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">OAuth 登录配置</CardTitle>
-              <CardDescription>配置第三方社交登录参数</CardDescription>
+              <CardDescription>
+                配置微信和支付宝第三方登录。填入 AppID 和密钥后自动启用。
+                <a href="https://open.weixin.qq.com" target="_blank" rel="noopener" className="text-primary ml-1">微信开放平台</a>
+                {' | '}
+                <a href="https://open.alipay.com" target="_blank" rel="noopener" className="text-primary">支付宝开放平台</a>
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
@@ -293,6 +320,93 @@ export default function AdminConfig() {
               <div className="flex justify-end">
                 <Button onClick={() => handleSave('oauth', oauth)} disabled={saving}>
                   {saving ? '保存中...' : '保存配置'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 短信服务配置 */}
+        <TabsContent value="sms">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">阿里云短信服务 (Dysmsapi)</CardTitle>
+              <CardDescription>
+                配置短信验证码发送服务。
+                <a href="https://dysms.console.aliyun.com" target="_blank" rel="noopener" className="text-primary ml-1">控制台</a>
+                {' | '}
+                <a href="https://help.aliyun.com/document_detail/419273.html" target="_blank" rel="noopener" className="text-primary">文档</a>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Separator />
+              <p className="text-xs text-muted-foreground">AccessKey 与邮件服务共用，在基础配置中统一设置。</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>AccessKey ID</Label>
+                  <Input value={sms.aliyun_access_key_id} onChange={(e) => setSms({ ...sms, aliyun_access_key_id: e.target.value })} placeholder="LTAI5t..." />
+                </div>
+                <div className="space-y-2">
+                  <Label>AccessKey Secret</Label>
+                  <Input type="password" value={sms.aliyun_access_key_secret} onChange={(e) => setSms({ ...sms, aliyun_access_key_secret: e.target.value })} placeholder="******" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>短信签名</Label>
+                <Input value={sms.aliyun_sms_sign_name} onChange={(e) => setSms({ ...sms, aliyun_sms_sign_name: e.target.value })} placeholder="安心法务" />
+                <p className="text-xs text-muted-foreground">需在阿里云控制台申请并审核通过</p>
+              </div>
+              <Separator />
+              <p className="text-sm font-medium">模板 Code（在阿里云控制台创建模板后获取）</p>
+              <div className="grid grid-cols-1 gap-3">
+                <div className="space-y-2">
+                  <Label>注册验证码模板</Label>
+                  <Input value={sms.aliyun_sms_template_verify} onChange={(e) => setSms({ ...sms, aliyun_sms_template_verify: e.target.value })} placeholder="SMS_xxxxxx" />
+                </div>
+                <div className="space-y-2">
+                  <Label>登录验证码模板</Label>
+                  <Input value={sms.aliyun_sms_template_login} onChange={(e) => setSms({ ...sms, aliyun_sms_template_login: e.target.value })} placeholder="SMS_xxxxxx" />
+                </div>
+                <div className="space-y-2">
+                  <Label>密码重置模板</Label>
+                  <Input value={sms.aliyun_sms_template_reset} onChange={(e) => setSms({ ...sms, aliyun_sms_template_reset: e.target.value })} placeholder="SMS_xxxxxx" />
+                </div>
+              </div>
+              <div className="pt-2">
+                <Button onClick={() => handleSave('sms', sms)} disabled={saving}>
+                  {saving ? '保存中...' : '保存短信配置'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 邮件服务配置 */}
+        <TabsContent value="email">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">阿里云邮件推送 (DirectMail)</CardTitle>
+              <CardDescription>
+                配置邮箱验证码和通知邮件发送服务。
+                <a href="https://dm.console.aliyun.com" target="_blank" rel="noopener" className="text-primary ml-1">控制台</a>
+                {' | '}
+                <a href="https://help.aliyun.com/document_detail/29444.html" target="_blank" rel="noopener" className="text-primary">文档</a>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-xs text-muted-foreground">AccessKey 与短信服务共用。</p>
+              <div className="space-y-2">
+                <Label>发信地址 (AccountName)</Label>
+                <Input value={email.aliyun_email_account} onChange={(e) => setEmailConfig({ ...email, aliyun_email_account: e.target.value })} placeholder="noreply@mail.anxinfawu.com" />
+                <p className="text-xs text-muted-foreground">需在阿里云 DirectMail 控制台创建并验证域名</p>
+              </div>
+              <div className="space-y-2">
+                <Label>发件人昵称</Label>
+                <Input value={email.aliyun_email_alias} onChange={(e) => setEmailConfig({ ...email, aliyun_email_alias: e.target.value })} placeholder="安心法务" />
+              </div>
+              <div className="pt-2">
+                <Button onClick={() => handleSave('email', email)} disabled={saving}>
+                  {saving ? '保存中...' : '保存邮件配置'}
                 </Button>
               </div>
             </CardContent>

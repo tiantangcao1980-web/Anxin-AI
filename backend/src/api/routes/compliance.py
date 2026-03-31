@@ -19,7 +19,7 @@ from datetime import datetime
 from loguru import logger
 
 from src.core.database import get_db
-from src.core.deps import get_current_user
+from src.core.deps import get_current_user_required
 from src.models.user import User
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -170,7 +170,7 @@ async def get_checklist(industry: str):
 @router.post("/evaluate")
 async def evaluate_compliance(
     req: ComplianceCheckRequest,
-    user: Optional[User] = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
     """评估合规状况，生成报告（基础版免费，完整版需登录）"""
     template = INDUSTRY_TEMPLATES.get(req.industry)
@@ -264,7 +264,7 @@ class ReportRequest(BaseModel):
 @router.post("/report")
 async def generate_compliance_report(
     req: ReportRequest,
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
     """生成合规检查 HTML 报告"""
     from src.services.compliance_service import compliance_service
@@ -279,6 +279,7 @@ async def generate_compliance_report(
 async def compare_evaluations(
     current: dict,
     previous: dict,
+    user: User = Depends(get_current_user_required),
 ):
     """对比两次合规检查结果"""
     from src.services.compliance_service import compliance_service

@@ -8,8 +8,10 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
+from src.core.deps import get_current_user_required, get_admin_user
 from src.services.llm_service import LLMService
 from src.models.llm_config import LLM_PROVIDER_CONFIGS
+from src.models.user import User
 
 router = APIRouter()
 
@@ -122,13 +124,13 @@ class ProviderInfo(BaseModel):
 # ============ API端点 ============
 
 @router.get("/providers", response_model=Dict[str, ProviderInfo])
-async def get_providers():
+async def get_providers(user: User = Depends(get_current_user_required)):
     """获取所有支持的LLM提供商"""
     return LLM_PROVIDER_CONFIGS
 
 
 @router.get("/providers/{provider}/models")
-async def get_provider_models(provider: str):
+async def get_provider_models(provider: str, user: User = Depends(get_current_user_required)):
     """获取指定提供商的模型列表"""
     if provider not in LLM_PROVIDER_CONFIGS:
         raise HTTPException(
@@ -151,7 +153,8 @@ async def get_provider_models(provider: str):
 @router.post("/configs", response_model=LLMConfigResponse)
 async def create_config(
     data: LLMConfigCreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(get_admin_user),
 ):
     """创建LLM配置"""
     config = await LLMService.create_config(
@@ -169,7 +172,8 @@ async def list_configs(
     is_active: Optional[bool] = None,
     page: int = 1,
     page_size: int = 20,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
 ):
     """列出LLM配置"""
     result = await LLMService.list_configs(
@@ -192,7 +196,8 @@ async def list_configs(
 @router.get("/configs/default")
 async def get_default_config(
     config_type: str = "llm",
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
 ):
     """获取默认配置"""
     config = await LLMService.get_default_config(db, config_type)
@@ -208,7 +213,8 @@ async def get_default_config(
 @router.get("/configs/{config_id}", response_model=LLMConfigResponse)
 async def get_config(
     config_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
 ):
     """获取单个配置"""
     config = await LLMService.get_config(db, config_id)
@@ -225,7 +231,8 @@ async def get_config(
 async def update_config(
     config_id: str,
     data: LLMConfigUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(get_admin_user),
 ):
     """更新LLM配置"""
     updates = {k: v for k, v in data.model_dump().items() if v is not None}
@@ -243,7 +250,8 @@ async def update_config(
 @router.delete("/configs/{config_id}")
 async def delete_config(
     config_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(get_admin_user),
 ):
     """删除LLM配置"""
     success = await LLMService.delete_config(db, config_id)
@@ -259,7 +267,8 @@ async def delete_config(
 @router.post("/configs/{config_id}/set-default", response_model=LLMConfigResponse)
 async def set_default_config(
     config_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(get_admin_user),
 ):
     """设置默认配置"""
     config = await LLMService.set_default(db, config_id)
@@ -275,7 +284,8 @@ async def set_default_config(
 @router.post("/configs/{config_id}/toggle-active", response_model=LLMConfigResponse)
 async def toggle_active(
     config_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(get_admin_user),
 ):
     """切换启用状态"""
     config = await LLMService.toggle_active(db, config_id)
@@ -289,7 +299,7 @@ async def toggle_active(
 
 
 @router.post("/test-connection", response_model=TestConnectionResponse)
-async def test_connection(data: TestConnectionRequest):
+async def test_connection(data: TestConnectionRequest, admin: User = Depends(get_admin_user)):
     """测试LLM连接"""
     result = await LLMService.test_connection(
         provider=data.provider,
@@ -305,7 +315,8 @@ async def test_connection(data: TestConnectionRequest):
 @router.post("/configs/{config_id}/test", response_model=TestConnectionResponse)
 async def test_config_connection(
     config_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(get_admin_user),
 ):
     """测试已保存的配置连接"""
     config = await LLMService.get_config(db, config_id)

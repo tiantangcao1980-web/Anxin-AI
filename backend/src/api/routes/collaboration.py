@@ -13,7 +13,7 @@ from uuid import uuid4
 
 from src.core.responses import UnifiedResponse
 from src.core.database import get_db, async_session_maker
-from src.core.deps import get_current_user
+from src.core.deps import get_current_user_required
 from src.models.user import User
 from src.models.collaboration import (
     DocumentSession, DocumentCollaborator, DocumentEdit, DocumentSnapshot,
@@ -247,7 +247,7 @@ class EditRecord(BaseModel):
 async def create_session(
     request: SessionCreate,
     db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
     """创建协作会话"""
     # 检查文档是否存在
@@ -310,7 +310,7 @@ async def commit_session_version(
     session_id: str,
     request: CommitRequest,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
     """提交并创建一个新的文档版本"""
     service = CollaborationService(db)
@@ -335,7 +335,7 @@ async def commit_session_version(
 @router.get("/config", response_model=UnifiedResponse)
 async def get_collaboration_config(
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
     """获取协作系统配置（如 Docmost 地址）"""
     service = CollaborationService(db)
@@ -434,7 +434,7 @@ async def get_session(
 async def close_session(
     session_id: str,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
     """关闭协作会话（仅 owner 可操作）"""
     result = await db.execute(
@@ -519,7 +519,7 @@ async def add_collaborator(
     session_id: str,
     request: AddCollaboratorRequest,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
     """添加协作者（仅 owner 可操作）"""
     # 权限检查
@@ -570,7 +570,7 @@ async def remove_collaborator(
     session_id: str,
     collaborator_user_id: str,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
     """移除协作者（仅 owner 可操作）"""
     # 权限检查
@@ -620,7 +620,7 @@ async def update_collaborator_role(
     collaborator_user_id: str,
     request: UpdateCollaboratorRoleRequest,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
     """更新协作者角色（仅 owner 可操作）"""
     owner_result = await db.execute(
@@ -684,7 +684,7 @@ async def create_snapshot(
     session_id: str,
     request: SnapshotCreateRequest,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
     """创建手动快照"""
     service = CollaborationService(db)
@@ -705,7 +705,7 @@ async def list_snapshots(
     session_id: str,
     limit: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
     """获取快照列表"""
     service = CollaborationService(db)
@@ -723,7 +723,7 @@ async def restore_snapshot(
     session_id: str,
     snapshot_id: str,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
     """回滚到某版本"""
     service = CollaborationService(db)
@@ -743,7 +743,7 @@ async def diff_snapshots(
     snapshot_a: str = Query(..., description="快照A的ID"),
     snapshot_b: str = Query(..., description="快照B的ID"),
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
     """版本对比"""
     service = CollaborationService(db)

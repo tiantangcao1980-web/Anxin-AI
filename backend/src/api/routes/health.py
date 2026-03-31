@@ -142,11 +142,7 @@ async def health_check(db: AsyncSession = Depends(get_db)):
     else:
         overall = "healthy"
 
+    # 公开端点只返回最少信息，避免暴露系统版本和环境细节
     return {
         "status": overall,
-        "version": settings.APP_VERSION,
-        "environment": settings.ENVIRONMENT,
-        "brand": settings.BRAND_NAME,
-        "uptime_seconds": round(time.time() - _start_time, 1),
-        "components": components,
     }

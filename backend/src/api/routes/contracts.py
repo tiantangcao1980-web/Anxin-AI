@@ -13,7 +13,7 @@ import asyncio
 from src.core.config import settings
 from src.core.responses import UnifiedResponse
 from src.core.database import get_db
-from src.core.deps import get_current_user
+from src.core.deps import get_current_user_required
 from src.services.contract_service import ContractService
 from src.services.document_parser import parse_contract_document, contract_analyzer
 from src.models.user import User
@@ -92,13 +92,13 @@ async def list_contracts(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
     """获取合同列表"""
     service = ContractService(db)
     
     contracts, total = await service.list_contracts(
-        org_id=user.org_id if user else None,
+        org_id=user.org_id,
         status=status,
         contract_type=contract_type,
         page=page,
@@ -134,7 +134,7 @@ async def list_contracts(
 async def create_contract(
     contract: ContractCreate,
     db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
     """创建合同"""
     service = ContractService(db)
@@ -142,7 +142,7 @@ async def create_contract(
     created_contract = await service.create_contract(
         title=contract.title,
         contract_type=contract.contract_type,
-        org_id=user.org_id if user else None,
+        org_id=user.org_id,
         party_a=contract.party_a,
         party_b=contract.party_b,
         amount=contract.amount,
@@ -168,7 +168,9 @@ async def create_contract(
 # ============ 固定路径路由（必须在 /{contract_id} 之前） ============
 
 @router.get("/templates", response_model=UnifiedResponse)
-async def get_contract_templates():
+async def get_contract_templates(
+    user: User = Depends(get_current_user_required),
+):
     """获取合同模板列表"""
     data = {
         "templates": [
@@ -190,6 +192,7 @@ async def apply_suggestions(
     contract_id: str,
     body: dict,  # {"accepted_risk_ids": ["id1", "id2"]}
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
 ):
     """应用用户接受的修改建议"""
     service = ContractService(db)
@@ -202,12 +205,12 @@ async def apply_suggestions(
 async def save_contract_file(
     contract_id: str,
     db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
     """保存合同文件到服务器"""
     service = ContractService(db)
     file_path = await service.save_contract_file(
-        contract_id, user_id=user.id if user else None
+        contract_id, user_id=user.id
     )
     return UnifiedResponse.success(data={"file_path": file_path}, message="合同已保存")
 
@@ -217,6 +220,7 @@ async def download_contract(
     contract_id: str,
     format: str = Query("docx", pattern="^(pdf|docx)$"),
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
 ):
     """下载合同文件（PDF 或 DOCX）"""
     service = ContractService(db)
@@ -280,7 +284,11 @@ async def download_contract(
 
 
 @router.get("/{contract_id}", response_model=UnifiedResponse)
-async def get_contract(contract_id: str, db: AsyncSession = Depends(get_db)):
+async def get_contract(
+    contract_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
     """获取合同详情"""
     service = ContractService(db)
     contract = await service.get_contract(contract_id)
@@ -310,7 +318,7 @@ async def review_contract(
     contract_id: str,
     request: ContractReviewRequest,
     db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
     """AI审查合同"""
     service = ContractService(db)
@@ -319,7 +327,7 @@ async def review_contract(
         result = await service.review_contract(
             contract_id=contract_id,
             contract_text=request.contract_text,
-            reviewed_by=user.id if user else None,
+            reviewed_by=user.id,
         )
         return UnifiedResponse.success(data=ContractReviewResponse(**result))
     except ValueError as e:
@@ -327,7 +335,11 @@ async def review_contract(
 
 
 @router.get("/{contract_id}/risks", response_model=UnifiedResponse)
-async def get_contract_risks(contract_id: str, db: AsyncSession = Depends(get_db)):
+async def get_contract_risks(
+    contract_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
     """获取合同风险点"""
     service = ContractService(db)
     risks = await service.get_risks(contract_id)
@@ -354,6 +366,7 @@ async def resolve_risk(
     risk_id: str,
     resolution_note: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
 ):
     """标记风险已解决"""
     service = ContractService(db)
@@ -398,6 +411,7 @@ class QuickReviewResponse(BaseModel):
 @router.post("/parse", response_model=DocumentParseResponse)
 async def parse_contract_file(
     file: UploadFile = File(...),
+    user: User = Depends(get_current_user_required),
 ):
     """
     解析合同文档
@@ -443,6 +457,7 @@ async def parse_contract_file(
 @router.post("/quick-review", response_model=QuickReviewResponse)
 async def quick_review_contract(
     request: QuickReviewRequest,
+    user: User = Depends(get_current_user_required),
 ):
     """
     快速审查合同文本
@@ -531,6 +546,7 @@ async def quick_review_contract(
 async def stream_review_contract(
     file: UploadFile = File(None),
     text: str = Form(None),
+    user: User = Depends(get_current_user_required),
 ):
     """
     流式合同审查（SSE）
@@ -620,7 +636,7 @@ async def upload_and_review_contract(
     file: UploadFile = File(...),
     title: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
     """
     上传合同文件并进行完整审查
@@ -655,7 +671,7 @@ async def upload_and_review_contract(
         contract = await service.create_contract(
             title=title or file.filename or "未命名合同",
             contract_type=contract_type,
-            org_id=user.org_id if user else None,
+            org_id=user.org_id,
         )
         
         # 保存原始合同文本
@@ -665,7 +681,7 @@ async def upload_and_review_contract(
         review_result = await service.review_contract(
             contract_id=contract.id,
             contract_text=contract_text,
-            reviewed_by=user.id if user else None,
+            reviewed_by=user.id,
         )
 
         return {

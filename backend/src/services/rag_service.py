@@ -405,6 +405,7 @@ class RAGService:
                 "id": chunk.id,
                 "title": chunk.metadata.get("title", ""),
                 "source": chunk.metadata.get("source", ""),
+                "content_snippet": chunk_text[:200],
                 "score": chunk.final_score,
             })
         

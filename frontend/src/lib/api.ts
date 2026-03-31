@@ -126,6 +126,7 @@ export interface LoginResponse {
     email: string
     name: string
     role: string
+    email_verified?: boolean
   }
 }
 
@@ -134,7 +135,9 @@ export interface User {
   email: string
   name: string
   role: string
+  user_type?: string
   avatar_url?: string
+  email_verified?: boolean
 }
 
 export const authApi = {
@@ -144,7 +147,7 @@ export const authApi = {
       body: JSON.stringify(data),
     }),
   
-  register: (data: { email: string; password: string; name: string }) =>
+  register: (data: { email: string; password: string; name: string; user_type?: string; phone?: string }) =>
     request<User>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -176,6 +179,18 @@ export const authApi = {
     request<{ message: string }>('/auth/change-password', {
       method: 'PUT',
       body: JSON.stringify({ old_password, new_password }),
+    }),
+
+  verifyEmail: (email: string, code: string) =>
+    request<LoginResponse>('/auth/verify-email', {
+      method: 'POST',
+      body: JSON.stringify({ email, code }),
+    }),
+
+  resendVerification: (email: string) =>
+    request<{ message: string; debug_verify_code?: string }>('/auth/resend-verification', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
     }),
 }
 

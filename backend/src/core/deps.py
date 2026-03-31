@@ -302,39 +302,26 @@ async def get_current_user(
     """
     获取当前用户（可选认证）
     """
-    # ===== [S-02] DEV_MODE 增加双重校验 =====
-    # 原因：原代码只检查 DEV_MODE，如果生产环境忘记关闭就等于无认证
-    # 修复方式：增加 ENVIRONMENT 校验，只有非 production 才允许 DEV_MODE 生效
-    #          main.py lifespan 中已有启动拦截，这里是运行时二次防护
-    from src.core.config import settings
-    if settings.DEV_MODE and settings.ENVIRONMENT != "production":
-        result = await db.execute(
-            select(User).where(User.email == "admin@example.com")
-        )
-        dev_user = result.scalar_one_or_none()
-        if dev_user:
-            return dev_user
-
     if not credentials:
         return None
-    
+
     token = credentials.credentials
-    
+
     # 使用带黑名单检查的验证（Redis 不可用时降级为无黑名单验证）
     try:
         user_id = await verify_token_with_blacklist(token)
     except Exception:
         logger.warning("Redis不可用，降级为无黑名单Token验证")
         user_id = verify_token(token)
-    
+
     if not user_id:
         return None
-    
+
     result = await db.execute(
         select(User).where(User.id == user_id, User.is_active == True)
     )
     user = result.scalar_one_or_none()
-    
+
     return user
 
 
@@ -345,16 +332,6 @@ async def get_current_user_required(
     """
     获取当前用户（必须认证）
     """
-    # ===== [S-02] DEV_MODE 增加双重校验（同 get_current_user） =====
-    from src.core.config import settings
-    if settings.DEV_MODE and settings.ENVIRONMENT != "production":
-        result = await db.execute(
-            select(User).where(User.email == "admin@example.com")
-        )
-        user = result.scalar_one_or_none()
-        if user:
-            return user
-
     if not credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -397,9 +374,10 @@ async def get_admin_user(
     user: User = Depends(get_current_user_required),
 ) -> User:
     """
-    获取管理员用户
+    获取管理员用户（super_admin / admin / org_admin）
     """
-    if user.role != UserRole.ADMIN.value:
+    admin_roles = {UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.ORG_ADMIN.value}
+    if user.role not in admin_roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="需要管理员权限",

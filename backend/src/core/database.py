@@ -65,6 +65,9 @@ async def _ensure_additive_schema_columns() -> None:
         "ALTER TABLE approvals ADD COLUMN IF NOT EXISTS approval_chain JSON",
         "ALTER TABLE approvals ADD COLUMN IF NOT EXISTS current_step INTEGER DEFAULT 0 NOT NULL",
         "ALTER TABLE approvals ADD COLUMN IF NOT EXISTS template_id UUID",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT false",
+        # 已有管理员账号自动标记为已验证
+        "UPDATE users SET email_verified = true WHERE role IN ('super_admin', 'admin') AND email_verified = false",
     ]
 
     async with engine.begin() as conn:
@@ -126,8 +129,8 @@ async def init_db() -> None:
                 try:
                     hashed_pwd = get_password_hash(initial_password)
                 except Exception as e:
-                    logger.warning(f"密码哈希失败，使用预设哈希: {e}")
-                    hashed_pwd = "$2b$12$LQv3c1yqBWVHxkd0LqGreev6.YpXYL0W8.v.8K.2v.8K.2v.8K.2v."
+                    logger.error(f"密码哈希失败，无法创建管理员账号: {e}")
+                    raise RuntimeError("bcrypt 密码哈希失败，请检查依赖安装") from e
                 
                 admin = User(
                     id="00000000-0000-0000-0000-000000000001",
@@ -136,7 +139,8 @@ async def init_db() -> None:
                     hashed_password=hashed_pwd,
                     role="admin",
                     org_id=org_id,
-                    is_active=True
+                    is_active=True,
+                    email_verified=True,
                 )
                 session.add(admin)
                 logger.info(f"创建默认管理员: {user_email}")

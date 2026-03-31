@@ -45,6 +45,11 @@ _DOCUMENT_DRAFTING_RE = re.compile(
     re.IGNORECASE,
 )
 
+_FIND_LAWYER_RE = re.compile(
+    r"找.{0,4}律师|推荐.{0,4}律师|请.{0,2}律师|委托律师|聘请律师|律师推荐",
+    re.IGNORECASE,
+)
+
 
 def detect_contract_review_intent(content: str) -> bool:
     """检测合同审查意图"""
@@ -54,6 +59,11 @@ def detect_contract_review_intent(content: str) -> bool:
 def detect_document_drafting_intent(content: str) -> bool:
     """检测文书起草意图"""
     return bool(_DOCUMENT_DRAFTING_RE.search(content))
+
+
+def detect_find_lawyer_intent(content: str) -> bool:
+    """检测找律师意图"""
+    return bool(_FIND_LAWYER_RE.search(content))
 
 
 # ========== RAG 引用来源模型 ==========
@@ -306,22 +316,31 @@ class ChatService:
         self,
         user_id: Optional[str] = None,
         case_id: Optional[str] = None,
+        keyword: Optional[str] = None,
+        starred_only: bool = False,
         limit: int = 50,
     ) -> List[Conversation]:
-        """获取对话列表（包含当前用户的 + 无归属的对话，排除空对话）"""
+        """获取对话列表（支持关键字搜索和收藏过滤）"""
         from sqlalchemy import or_
         query = select(Conversation)
 
         if user_id:
-            # 显示当前用户的对话 + 无归属的对话（WebSocket 创建的可能没有 user_id）
             query = query.where(
                 or_(Conversation.user_id == user_id, Conversation.user_id.is_(None))
             )
         if case_id:
             query = query.where(Conversation.case_id == case_id)
 
-        # 排除没有任何消息的空对话（旧代码遗留的垃圾数据）
+        # 排除空对话
         query = query.where(Conversation.message_count > 0)
+
+        # 关键字搜索（标题）
+        if keyword and keyword.strip():
+            query = query.where(Conversation.title.ilike(f"%{keyword.strip()}%"))
+
+        # 仅收藏
+        if starred_only:
+            query = query.where(Conversation.is_starred == True)
 
         query = query.order_by(Conversation.updated_at.desc()).limit(limit)
 
@@ -411,6 +430,50 @@ class ChatService:
         await self.db.flush()
         return result.rowcount or 0
 
+    async def toggle_star(self, conversation_id: str) -> Optional[bool]:
+        """切换对话收藏状态，返回新状态。对话不存在返回 None。"""
+        conversation = await self.get_conversation(conversation_id)
+        if not conversation:
+            return None
+        conversation.is_starred = not conversation.is_starred
+        conversation.starred_at = datetime.now() if conversation.is_starred else None
+        await self.db.flush()
+        return conversation.is_starred
+
+    async def search_messages(
+        self,
+        keyword: str,
+        user_id: Optional[str] = None,
+        limit: int = 50,
+    ) -> List[Dict[str, Any]]:
+        """跨对话搜索消息内容，返回匹配的消息及所属对话信息"""
+        from sqlalchemy import or_
+        query = (
+            select(Message)
+            .join(Conversation, Message.conversation_id == Conversation.id)
+            .where(Message.content.ilike(f"%{keyword.strip()}%"))
+            .where(Message.role != MessageRole.SYSTEM)
+        )
+        if user_id:
+            query = query.where(
+                or_(Conversation.user_id == user_id, Conversation.user_id.is_(None))
+            )
+        query = query.order_by(Message.created_at.desc()).limit(limit)
+        result = await self.db.execute(query)
+        messages = list(result.scalars().all())
+
+        return [
+            {
+                "message_id": str(msg.id),
+                "conversation_id": str(msg.conversation_id),
+                "role": msg.role.value if hasattr(msg.role, "value") else str(msg.role),
+                "content_snippet": msg.content[:200] if msg.content else "",
+                "agent_name": msg.agent_name,
+                "created_at": msg.created_at.isoformat() if msg.created_at else None,
+            }
+            for msg in messages
+        ]
+
     async def _build_knowledge_sources(
         self,
         kb_ids: Optional[List[str]],
@@ -494,6 +557,9 @@ class ChatService:
         if not agent_name and detect_document_drafting_intent(content):
             return "document_drafting", "document_drafter", None
 
+        if not agent_name and detect_find_lawyer_intent(content):
+            return "specific_agent", "legal_advisor", None
+
         if agent_name:
             return "specific_agent", agent_name, None
 
@@ -508,6 +574,7 @@ class ChatService:
         agent_name: Optional[str],
         mode: Optional[str] = None,
         knowledge_base_ids: Optional[List[str]] = None,
+        model_id: Optional[str] = None,
     ) -> _ChatContext:
         """
         统一前置准备：获取/创建会话、保存用户消息、加载历史和 LLM 配置、决定路由。
@@ -524,7 +591,22 @@ class ChatService:
         context_messages = await self.get_recent_history(
             conversation.id, limit=10, exclude_latest=True,
         )
-        llm_config = await self._load_llm_config()
+
+        # 如果指定了 model_id，加载对应配置；否则使用默认
+        llm_config = None
+        if model_id:
+            from src.models.llm_config import LLMConfig as LLMConfigModel
+            result = await self.db.execute(
+                select(LLMConfigModel).where(
+                    LLMConfigModel.id == model_id,
+                    LLMConfigModel.is_active == True,
+                )
+            )
+            llm_config = result.scalar_one_or_none()
+            if llm_config:
+                logger.info(f"ChatService: 使用指定模型配置: {llm_config.name}")
+        if not llm_config:
+            llm_config = await self._load_llm_config()
         normalized_kb_ids = [
             kb_id for kb_id in (knowledge_base_ids or [])
             if isinstance(kb_id, str) and kb_id
@@ -568,6 +650,7 @@ class ChatService:
         self,
         content: str,
         normalized_kb_ids: List[str],
+        user_id: Optional[str] = None,
     ) -> tuple:
         """执行 RAG 知识库路由，返回 (response_text, sources)"""
         from src.services.knowledge_service import KnowledgeService
@@ -576,6 +659,7 @@ class ChatService:
         rag_result = await knowledge_service.rag_query(
             query=content,
             kb_ids=normalized_kb_ids or None,
+            user_id=user_id,
         )
         response_text = (
             (rag_result or {}).get("answer", "").strip()
@@ -632,11 +716,12 @@ class ChatService:
         agent_name: Optional[str] = None,
         mode: Optional[str] = None,
         knowledge_base_ids: Optional[List[str]] = None,
+        model_id: Optional[str] = None,
     ) -> dict:
         """处理对话（同步模式）"""
         ctx = await self._prepare_chat_context(
             content, conversation_id, user_id, case_id,
-            agent_name, mode, knowledge_base_ids,
+            agent_name, mode, knowledge_base_ids, model_id=model_id,
         )
 
         sources: List[CitationSource] = []
@@ -646,7 +731,7 @@ class ChatService:
                 used_agent = ctx.resolved_agent
 
             elif ctx.route == "rag":
-                response_text, sources = await self._execute_rag(content, ctx.normalized_kb_ids)
+                response_text, sources = await self._execute_rag(content, ctx.normalized_kb_ids, user_id=user_id)
                 used_agent = ctx.resolved_agent
 
             elif ctx.route in ("contract_review", "document_drafting"):
@@ -847,7 +932,7 @@ class ChatService:
             )
 
             if is_complex and not agent_name:
-                # ===== 多智能体协作模式 =====
+                # ===== 多智能体协作模式（真流式） =====
                 yield {
                     "type": "agent_start",
                     "agent": "协调调度Agent",
@@ -858,20 +943,61 @@ class ChatService:
                 from src.services.rag_service import rag_service
                 graph_task = asyncio.create_task(rag_service.get_graph_a2ui_data(content))
 
-                # 发送各Agent工作状态
-                agents_sequence = [
-                    ("法律顾问Agent", "分析法律问题要点..."),
-                    ("合同审查Agent", "检查相关条款..."),
-                    ("风险评估Agent", "评估潜在风险..."),
-                ]
+                accumulated_text = ""
+                final_event = None
+                used_agent = "智能体团队"
 
-                for agent_display, task_desc in agents_sequence:
-                    yield {
-                        "type": "agent_working",
-                        "agent": agent_display,
-                        "message": task_desc,
-                    }
-                    await asyncio.sleep(0.2)
+                async for event in self.workforce.process_task_streaming(
+                    task_description=content,
+                    context={
+                        "conversation_id": ctx.conversation.id,
+                        "case_id": case_id,
+                        "llm_config": ctx.llm_config,
+                        "history": ctx.context_messages,
+                    },
+                ):
+                    evt_type = event.get("type")
+
+                    if evt_type == "dag_plan":
+                        # 通知前端 DAG 规划（可展示任务卡片）
+                        pass
+
+                    elif evt_type == "agent_start":
+                        yield {
+                            "type": "agent_working",
+                            "agent": event.get("agent", ""),
+                            "message": f"{event.get('agent', '')} 正在处理...",
+                        }
+
+                    elif evt_type == "stream_token":
+                        # 主 Agent 真流式 token
+                        accumulated_text += event["token"]
+                        yield {
+                            "type": "content",
+                            "text": event["token"],
+                            "accumulated": accumulated_text,
+                            "agent": event.get("agent", used_agent),
+                            "progress": -1,
+                        }
+
+                    elif evt_type == "agent_complete":
+                        yield {
+                            "type": "agent_result",
+                            "agent": event.get("agent", ""),
+                            "content": event.get("content", "")[:500],
+                            "elapsed": event.get("elapsed", 0),
+                        }
+
+                    elif evt_type == "agent_failed":
+                        yield {
+                            "type": "agent_result",
+                            "agent": event.get("agent", ""),
+                            "content": event.get("content", "")[:200],
+                            "error": True,
+                        }
+
+                    elif evt_type == "final_result":
+                        final_event = event
 
                 # 等待图谱任务
                 try:
@@ -885,39 +1011,27 @@ class ChatService:
                 except Exception as ge:
                     logger.warning(f"获取图谱 A2UI 数据失败: {ge}")
 
-                # 获取实际响应
-                result = await self.workforce.process_task(
-                    task_description=content,
-                    context={
-                        "conversation_id": ctx.conversation.id,
-                        "case_id": case_id,
-                        "llm_config": ctx.llm_config,
-                        "history": ctx.context_messages,
-                    }
-                )
-                response_text = result.get("final_result", {}).get("summary", "")
+                # 汇总最终结果
+                if final_event:
+                    summary = final_event.get("data", {}).get("summary", "")
+                    response_text = summary or accumulated_text
 
-                # 隐私还原
-                if recovery_map:
-                    response_text = pii_service.restore(response_text, recovery_map)
-                    response_text += "\n\n*(注：本回复基于脱敏数据生成，敏感信息已在本地自动还原)*"
-
-                # 处理Agent Action (Notifications)
-                await self._process_agent_notifications(result, user_id, ctx.conversation.id)
-
-                # 提取 A2UI 数据
-                a2ui_data = None
-                for res in result.get("agent_results", []):
-                    if isinstance(res, dict) and res.get("metadata", {}).get("a2ui"):
-                        a2ui_data = res["metadata"]["a2ui"]
-                        break
-
-                if a2ui_data:
-                    yield {
-                        "type": "context_update",
-                        "context_type": "a2ui",
-                        "data": a2ui_data,
-                    }
+                    # 如果汇总结果与流式内容不同（有新增内容），追加推送
+                    if summary and summary != accumulated_text and len(summary) > len(accumulated_text):
+                        extra = summary[len(accumulated_text):]
+                        accumulated_text = summary
+                        sentences = self._split_into_chunks(extra)
+                        for sentence in sentences:
+                            yield {
+                                "type": "content",
+                                "text": sentence,
+                                "accumulated": accumulated_text,
+                                "agent": used_agent,
+                                "progress": 1.0,
+                            }
+                            await asyncio.sleep(0.02)
+                else:
+                    response_text = accumulated_text
 
                 if not response_text:
                     response_text = await self.workforce.chat(
@@ -925,23 +1039,19 @@ class ChatService:
                         context={"llm_config": ctx.llm_config, "history": ctx.context_messages},
                     )
 
-                used_agent = "智能体团队"
+                # 隐私还原
+                if recovery_map:
+                    response_text = pii_service.restore(response_text, recovery_map)
+                    response_text += "\n\n*(注：本回复基于脱敏数据生成，敏感信息已在本地自动还原)*"
 
-                # 多 Agent 结果：使用分块输出
+                # 处理 Agent Action (Notifications)
+                if final_event:
+                    await self._process_agent_notifications(
+                        {"agent_results": final_event.get("agent_results", [])},
+                        user_id, ctx.conversation.id,
+                    )
+
                 yield {"type": "agent_complete", "agent": used_agent}
-
-                sentences = self._split_into_chunks(response_text)
-                accumulated_text = ""
-                for i, sentence in enumerate(sentences):
-                    accumulated_text += sentence
-                    yield {
-                        "type": "content",
-                        "text": sentence,
-                        "accumulated": accumulated_text,
-                        "agent": used_agent,
-                        "progress": (i + 1) / len(sentences),
-                    }
-                    await asyncio.sleep(0.02)
 
             else:
                 # ===== 单智能体模式：使用真正的流式输出 =====

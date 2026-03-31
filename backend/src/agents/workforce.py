@@ -275,6 +275,7 @@ class LegalWorkforce:
             "E_SIGNATURE": "电子签约",
             "CONTRACT_MANAGEMENT": "合同管理",
             "POLICY_DISTRIBUTION": "制度分发",
+            "FIND_LAWYER": "找律师",
             "COMPLEX_TASK": "复合任务",
         }
         intent_label = _intent_labels.get(intent, intent)
@@ -660,6 +661,303 @@ class LegalWorkforce:
             logger.warning(f"共识机制执行失败: {e}")
             return None
     
+    async def process_task_streaming(
+        self,
+        task_description: str,
+        context: Optional[Dict[str, Any]] = None,
+        session_id: Optional[str] = None,
+    ):
+        """
+        流式版 process_task — DAG 第一层主 Agent 真流式输出，后续层级增量追加。
+
+        Yields dict 事件:
+            dag_plan       — DAG 规划完成
+            agent_start    — Agent 开始执行
+            stream_token   — 主 Agent 的逐 token 输出
+            agent_complete — 某 Agent 完成（含 content）
+            agent_failed   — Agent 失败/降级
+            final_result   — 全部完成，汇总结果
+        """
+        from src.services.episodic_memory_service import episodic_memory
+        from src.agents.base import _task_llm_config_var, _task_history_var
+
+        if context is None:
+            context = {}
+        if session_id:
+            context["session_id"] = session_id
+        context["original_message"] = task_description
+
+        task_start_time = time.time()
+        logger.info(f"[streaming] 开始处理任务: {task_description[:100]}...")
+
+        # 0. 情景记忆 + 技能匹配（同 process_task）
+        try:
+            similar_cases = await episodic_memory.retrieve_similar_cases(task_description)
+            if similar_cases:
+                context["similar_cases"] = similar_cases
+        except Exception:
+            pass
+
+        matched_skills = []
+        try:
+            from src.services.skill_service import skill_service
+            matched_skills = skill_service.match_skills(task_description)
+            if matched_skills:
+                context["matched_skills"] = [s.to_dict() for s in matched_skills]
+        except Exception:
+            pass
+
+        # 1. Coordinator 分析
+        analysis = await self.coordinator.analyze_task({
+            "description": task_description,
+            "type": None,
+            "context": context,
+        })
+        plan = analysis.get("plan", [])
+
+        # 空计划回退
+        if not plan:
+            plan = [{"id": "task_1", "agent": "legal_advisor", "depends_on": [],
+                      "instruction": task_description}]
+            analysis["plan"] = plan
+
+        yield {"type": "dag_plan", "plan": plan, "analysis": analysis}
+
+        # Agent 名称映射
+        _display = {
+            "legal_advisor": "法律顾问Agent", "contract_reviewer": "合同审查Agent",
+            "due_diligence": "尽职调查Agent", "legal_researcher": "法律研究Agent",
+            "document_drafter": "文书起草Agent", "compliance_officer": "合规审查Agent",
+            "risk_assessor": "风险评估Agent", "litigation_strategist": "诉讼策略Agent",
+            "ip_specialist": "知识产权Agent", "regulatory_monitor": "监管监测Agent",
+            "tax_compliance": "税务合规Agent", "labor_compliance": "劳动合规Agent",
+            "evidence_analyst": "证据分析Agent", "contract_steward": "合同管家Agent",
+        }
+
+        # 2. 基础设施初始化
+        task_id = str(uuid.uuid4())[:12]
+        message_pool = MessagePool(task_id=task_id, session_id=session_id or "")
+        memory_integration = MemoryIntegration(session_id=session_id or "", task_id=task_id)
+        lifecycle_manager = AgentLifecycleManager(agents=self.agents)
+
+        executed_tasks: Dict[str, Any] = {}
+        pending_task_ids = [t["id"] for t in plan]
+        plan_index = {t["id"]: t for t in plan}
+        is_first_layer = True
+        dag_round = 0
+        global_start = time.time()
+        all_results: List[AgentResponse] = []
+
+        # 3. DAG 循环
+        while pending_task_ids:
+            if time.time() - global_start > GLOBAL_TASK_TIMEOUT:
+                logger.warning(f"[streaming] 全局超时 ({GLOBAL_TASK_TIMEOUT}s)")
+                break
+
+            dag_round += 1
+            if dag_round > MAX_DAG_ROUNDS:
+                logger.error(f"[streaming] DAG 轮次超过 {MAX_DAG_ROUNDS}")
+                break
+
+            executable = [
+                plan_index[t_id] for t_id in pending_task_ids
+                if all(dep in executed_tasks for dep in plan_index[t_id].get("depends_on", []))
+            ]
+            if not executable:
+                break
+
+            if is_first_layer and len(executable) >= 1:
+                # === 第一层：主 Agent 真流式 + 其余并行同步 ===
+                primary_task = executable[0]
+                other_tasks = executable[1:]
+                primary_name = primary_task.get("agent", "legal_advisor")
+                primary_agent = self.agents.get(primary_name)
+                primary_instruction = primary_task.get("instruction", "").strip() or task_description
+
+                yield {
+                    "type": "agent_start",
+                    "agent": _display.get(primary_name, primary_name),
+                    "task_id": primary_task["id"],
+                    "is_primary": True,
+                }
+
+                # 注入技能
+                if matched_skills:
+                    for skill in matched_skills:
+                        if skill.name in primary_instruction.lower():
+                            primary_instruction += f"\n\n【参考技能：{skill.name}】\n{skill.content[:2000]}\n"
+
+                # 并行启动其余 Agent
+                async def _run_other(t_info):
+                    a_name = t_info.get("agent", "unknown")
+                    t_info["instruction"] = t_info.get("instruction", "").strip() or task_description
+                    deps = t_info.get("depends_on", [])
+                    t_info["dependent_results"] = {d: executed_tasks[d] for d in deps if d in executed_tasks}
+                    ctx = AgentContext(agent_id=str(uuid.uuid4())[:8], agent_name=a_name, task_id=t_info["id"])
+                    result = await lifecycle_manager.execute_with_lifecycle(
+                        agent_name=a_name, task_info=t_info,
+                        agent_context=ctx, message_pool=message_pool, context=context,
+                    )
+                    return t_info["id"], a_name, result
+
+                other_futures = asyncio.gather(
+                    *[_run_other(t) for t in other_tasks],
+                    return_exceptions=True,
+                ) if other_tasks else None
+
+                # 主 Agent 真流式
+                primary_text = ""
+                stream_success = False
+                if primary_agent:
+                    try:
+                        llm_config = context.get("llm_config")
+                        history = context.get("history")
+                        token_cfg = _task_llm_config_var.set(llm_config)
+                        token_hist = _task_history_var.set(history)
+                        try:
+                            queue = await primary_agent.stream_chat(
+                                primary_instruction,
+                                llm_config=llm_config,
+                                history=history,
+                            )
+                            while True:
+                                token = await asyncio.wait_for(queue.get(), timeout=60.0)
+                                if token is None:
+                                    break
+                                if token.startswith("[Error]"):
+                                    raise Exception(token)
+                                primary_text += token
+                                yield {"type": "stream_token", "token": token, "agent": primary_name}
+                            stream_success = True
+                        finally:
+                            _task_llm_config_var.reset(token_cfg)
+                            _task_history_var.reset(token_hist)
+                    except Exception as se:
+                        logger.warning(f"[streaming] 主 Agent {primary_name} 流式失败，降级到同步: {se}")
+
+                # 流式失败降级
+                if not stream_success:
+                    try:
+                        primary_task["instruction"] = primary_instruction
+                        primary_task["dependent_results"] = {}
+                        p_ctx = AgentContext(agent_id=str(uuid.uuid4())[:8], agent_name=primary_name, task_id=primary_task["id"])
+                        p_result = await lifecycle_manager.execute_with_lifecycle(
+                            agent_name=primary_name, task_info=primary_task,
+                            agent_context=p_ctx, message_pool=message_pool, context=context,
+                        )
+                        if isinstance(p_result, AgentResponse):
+                            primary_text = p_result.content
+                    except Exception as fallback_err:
+                        logger.error(f"[streaming] 主 Agent 降级也失败: {fallback_err}")
+                        primary_text = f"[降级输出] {primary_name} 执行失败"
+
+                # 记录主 Agent 结果
+                primary_response = AgentResponse(
+                    agent_name=primary_name,
+                    content=primary_text,
+                    metadata={"streamed": stream_success},
+                )
+                executed_tasks[primary_task["id"]] = primary_response
+                pending_task_ids.remove(primary_task["id"])
+                all_results.append(primary_response)
+
+                yield {
+                    "type": "agent_complete",
+                    "agent": _display.get(primary_name, primary_name),
+                    "agent_key": primary_name,
+                    "content": primary_text,
+                    "elapsed": round(time.time() - global_start, 1),
+                    "streamed": stream_success,
+                }
+
+                # 等待其余 Agent
+                if other_futures:
+                    other_results = await other_futures
+                    for item in other_results:
+                        if isinstance(item, Exception):
+                            logger.error(f"[streaming] 其余 Agent 异常: {item}")
+                            continue
+                        t_id, a_name, result = item
+                        executed_tasks[t_id] = result
+                        if t_id in pending_task_ids:
+                            pending_task_ids.remove(t_id)
+                        if isinstance(result, AgentResponse):
+                            all_results.append(result)
+                            is_err = result.metadata.get("error", False)
+                            yield {
+                                "type": "agent_failed" if is_err else "agent_complete",
+                                "agent": _display.get(a_name, a_name),
+                                "agent_key": a_name,
+                                "content": result.content[:500],
+                                "elapsed": round(time.time() - global_start, 1),
+                            }
+
+                is_first_layer = False
+
+            else:
+                # === 后续层级：正常并行执行 ===
+                async def _run_later(t_info):
+                    a_name = t_info.get("agent", "unknown")
+                    t_info["instruction"] = t_info.get("instruction", "").strip() or task_description
+                    deps = t_info.get("depends_on", [])
+                    t_info["dependent_results"] = {d: executed_tasks[d] for d in deps if d in executed_tasks}
+                    ctx = AgentContext(agent_id=str(uuid.uuid4())[:8], agent_name=a_name, task_id=t_info["id"])
+                    result = await lifecycle_manager.execute_with_lifecycle(
+                        agent_name=a_name, task_info=t_info,
+                        agent_context=ctx, message_pool=message_pool, context=context,
+                    )
+                    return t_info["id"], a_name, result
+
+                later_results = await asyncio.gather(
+                    *[_run_later(t) for t in executable],
+                    return_exceptions=True,
+                )
+                for item in later_results:
+                    if isinstance(item, Exception):
+                        continue
+                    t_id, a_name, result = item
+                    executed_tasks[t_id] = result
+                    if t_id in pending_task_ids:
+                        pending_task_ids.remove(t_id)
+                    if isinstance(result, AgentResponse):
+                        all_results.append(result)
+                        is_err = result.metadata.get("error", False)
+                        yield {
+                            "type": "agent_failed" if is_err else "agent_complete",
+                            "agent": _display.get(a_name, a_name),
+                            "agent_key": a_name,
+                            "content": result.content[:500],
+                            "elapsed": round(time.time() - global_start, 1),
+                        }
+
+        # 4. 共识 + 汇总
+        consensus_res = await self._maybe_run_consensus(task_description, all_results)
+        final_all = all_results + ([consensus_res] if consensus_res else [])
+        final_result = await self.coordinator.aggregate_results(final_all)
+
+        # 5. 存储情景记忆
+        try:
+            await memory_integration.commit_task_memory(
+                task_desc=task_description, plan=plan,
+                result=final_result, agent_contexts={},
+            )
+        except Exception:
+            pass
+
+        elapsed = time.time() - task_start_time
+        logger.info(f"[streaming] 任务完成，耗时 {elapsed:.2f}s，涉及 {len(all_results)} 个Agent")
+
+        yield {
+            "type": "final_result",
+            "data": final_result,
+            "agent_results": [
+                r.model_dump() if isinstance(r, AgentResponse) else str(r)
+                for r in all_results
+            ],
+            "consensus": consensus_res.model_dump() if consensus_res else None,
+            "elapsed_seconds": round(elapsed, 2),
+        }
+
     async def chat(
         self,
         message: str,

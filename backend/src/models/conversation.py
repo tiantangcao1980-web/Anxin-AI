@@ -4,7 +4,7 @@
 
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import String, Text, ForeignKey, DateTime, Integer, Enum as SQLEnum
+from sqlalchemy import Boolean, String, Text, ForeignKey, DateTime, Integer, Enum as SQLEnum
 from sqlalchemy import JSON as JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import enum
@@ -44,6 +44,10 @@ class Conversation(Base, TimestampMixin):
     case_id: Mapped[Optional[str]] = mapped_column(
         GUID(), ForeignKey("cases.id", ondelete="SET NULL")
     )
+
+    # 收藏
+    is_starred: Mapped[bool] = mapped_column(Boolean, default=False)
+    starred_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     
     # å³ç³»
     messages: Mapped[list["Message"]] = relationship(

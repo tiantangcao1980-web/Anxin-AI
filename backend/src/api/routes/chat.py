@@ -12,7 +12,7 @@ from loguru import logger
 from src.core.responses import UnifiedResponse
 from src.core.database import get_db
 from src.core.deps import (
-    get_current_user,
+    get_current_user_required,
     get_current_user_required,
     rate_limit,
     rate_limit_chat,
@@ -50,6 +50,7 @@ class ChatMessage(BaseModel):
     privacy_mode: Optional[str] = "HYBRID"
     mode: Optional[str] = "chat"
     knowledge_base_ids: Optional[List[str]] = None
+    model_id: Optional[str] = None  # 指定使用的 LLM 配置 ID
 
     @field_validator("content")
     @classmethod
@@ -88,7 +89,7 @@ async def send_message(
     request: Request,
     message: ChatMessage,
     db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
     _: None = Depends(rate_limit_chat),
 ):
     """发送消息并获取AI回复"""
@@ -97,11 +98,12 @@ async def send_message(
     result = await service.chat(
         content=message.content,
         conversation_id=message.conversation_id,
-        user_id=user.id if user else None,
+        user_id=user.id,
         case_id=message.case_id,
         agent_name=message.agent_name,
         mode=message.mode,
         knowledge_base_ids=message.knowledge_base_ids,
+        model_id=message.model_id,
     )
     
     # 记录审计日志
@@ -126,13 +128,15 @@ async def send_message(
 async def get_chat_history(
     conversation_id: Optional[str] = None,
     case_id: Optional[str] = None,
+    keyword: Optional[str] = None,
+    starred: Optional[bool] = None,
     limit: int = Query(50, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
-    """获取对话历史"""
+    """获取对话历史（支持关键字搜索和收藏过滤）"""
     service = ChatService(db)
-    
+
     if conversation_id:
         messages = await service.get_messages(conversation_id, limit)
         data = {
@@ -153,8 +157,10 @@ async def get_chat_history(
         return UnifiedResponse.success(data=data)
     else:
         conversations = await service.list_conversations(
-            user_id=user.id if user else None,
+            user_id=user.id,
             case_id=case_id,
+            keyword=keyword,
+            starred_only=starred or False,
             limit=limit,
         )
         data = {
@@ -163,6 +169,7 @@ async def get_chat_history(
                     "id": c.id,
                     "title": c.title,
                     "message_count": c.message_count,
+                    "is_starred": getattr(c, "is_starred", False),
                     "last_message_at": c.last_message_at.isoformat() if c.last_message_at else None,
                     "created_at": c.created_at.isoformat(),
                 }
@@ -173,11 +180,39 @@ async def get_chat_history(
         return UnifiedResponse.success(data=data)
 
 
+@router.post("/conversations/{conversation_id}/star", response_model=UnifiedResponse)
+async def toggle_conversation_star(
+    conversation_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
+    """切换对话收藏状态"""
+    service = ChatService(db)
+    new_state = await service.toggle_star(conversation_id)
+    if new_state is None:
+        return UnifiedResponse.error(message="对话不存在", code=404)
+    await db.commit()
+    return UnifiedResponse.success(data={"is_starred": new_state})
+
+
+@router.get("/messages/search", response_model=UnifiedResponse)
+async def search_messages(
+    q: str = Query(..., min_length=1, max_length=200),
+    limit: int = Query(50, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
+    """跨对话搜索消息内容"""
+    service = ChatService(db)
+    results = await service.search_messages(keyword=q, user_id=user.id, limit=limit)
+    return UnifiedResponse.success(data={"results": results, "total": len(results)})
+
+
 @router.delete("/conversations/{conversation_id}", response_model=UnifiedResponse)
 async def delete_conversation(
     conversation_id: str,
     db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
     """删除对话"""
     from src.models.conversation import Conversation, Message as MessageModel
@@ -208,7 +243,7 @@ class BatchDeleteRequest(BaseModel):
 async def batch_delete_conversations(
     payload: BatchDeleteRequest,
     db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
     """批量删除对话"""
     from src.models.conversation import Conversation, Message as MessageModel
@@ -240,7 +275,7 @@ async def update_conversation(
     conversation_id: str,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
     """更新对话标题"""
     from src.models.conversation import Conversation
@@ -271,6 +306,7 @@ async def update_conversation(
 @router.post("/conversations/cleanup", response_model=UnifiedResponse)
 async def cleanup_empty_conversations(
     db: AsyncSession = Depends(get_db),
+    admin: User = Depends(get_current_user_required),
 ):
     """清理空对话（24小时前创建但没有任何消息的对话）"""
     try:
@@ -288,7 +324,7 @@ async def stream_chat_endpoint(
     request: Request,
     message: ChatMessage,
     db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
     _: None = Depends(rate_limit(limit=20, window=60, endpoint="chat_stream")),
 ):
     """
@@ -312,7 +348,7 @@ async def stream_chat_endpoint(
             async for event in service.stream_chat(
                 content=message.content,
                 conversation_id=message.conversation_id,
-                user_id=user.id if user else None,
+                user_id=user.id,
                 case_id=message.case_id,
                 agent_name=message.agent_name,
             ):
@@ -520,7 +556,8 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                 continue
 
             # === 知识库研究模式 ===
-            if await handle_rag_query(ctx, content, data, agent_name, recovery_map):
+            _ws_user_id = data.get("user_id")
+            if await handle_rag_query(ctx, content, data, agent_name, recovery_map, user_id=_ws_user_id):
                 continue
             
             # === A2UI 意图检测 — 仅作为辅助提示传递给 Coordinator，不拦截 ===
@@ -939,6 +976,7 @@ async def submit_memory_feedback(
     memory_id: str,
     rating: int,
     comment: Optional[str] = None,
+    user: User = Depends(get_current_user_required),
 ):
     """
     提交情景记忆反馈
@@ -958,7 +996,7 @@ async def create_handover(
     conversation_id: str,
     summary: str,
     priority: str = "normal",
-    user: Optional[User] = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
     """
     创建人工交接任务
@@ -967,7 +1005,7 @@ async def create_handover(
     # 模拟发送邮件或工单系统
     # 实际项目中这里会调用工单系统 API 或发送邮件
     
-    logger.info(f"Creating handover for conversation {conversation_id}, user {user.id if user else 'anonymous'}")
+    logger.info(f"Creating handover for conversation {conversation_id}, user {user.id}")
     
     # 模拟处理时间
     await asyncio.sleep(1)
@@ -983,7 +1021,7 @@ async def create_handover(
 
 
 @router.get("/agents", response_model=UnifiedResponse)
-async def get_available_agents():
+async def get_available_agents(user: User = Depends(get_current_user_required)):
     """获取可用的智能体列表"""
     workforce = get_workforce()
     data = {
@@ -992,10 +1030,33 @@ async def get_available_agents():
     return UnifiedResponse.success(data=data)
 
 
+@router.get("/models", response_model=UnifiedResponse)
+async def get_available_models(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
+    """获取可用的 LLM 模型列表（供对话中切换模型使用）"""
+    from src.services.llm_service import LLMService
+    result = await LLMService.list_configs(db, config_type="llm", is_active=True, page_size=50)
+    configs = result.get("items", [])
+    models = [
+        {
+            "id": str(c.id),
+            "name": c.name,
+            "provider": c.provider,
+            "model": c.model_name,
+            "is_default": c.is_default,
+        }
+        for c in configs
+    ]
+    return UnifiedResponse.success(data={"models": models})
+
+
 @router.get("/conversations/{conversation_id}/canvas", response_model=UnifiedResponse)
 async def get_conversation_canvas(
     conversation_id: str,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
 ):
     """获取对话关联的 Canvas 文档内容"""
     try:

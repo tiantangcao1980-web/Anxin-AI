@@ -8,7 +8,33 @@
 
 **v0.9.0-beta** | 预计上线：2026-04-01（第一版客户测试）
 
-## 最近更新（2026-03-31 续）
+## 最近更新（2026-03-31 安全加固 + 认证体系升级）
+
+### 安全加固 — 生产上线标准
+- [x] 路由认证加固：contracts/llm/datacenter/documents/chat/collaboration/compliance 全部强制认证
+- [x] LLM 配置路由：读取需登录，写入/删除需管理员权限
+- [x] 集成 Webhook：添加 X-Integration-Key 密钥校验
+- [x] CORS 收紧：allow_headers 改为具体列表
+
+### 认证体系升级
+- [x] 邮箱验证完整流程已启用（注册→验证码→通过才能登录）
+- [x] 阿里云邮件推送 email_service.py（DirectMail SDK）
+- [x] 阿里云短信服务 sms_service.py（Dysmsapi SDK，注册/登录/密码重置）
+- [x] OAuth 微信+支付宝代码就绪（填入 AppID/Secret 即可启用）
+
+### 用户类型与权限分层
+- [x] 注册四类身份：个人用户/企业用户/律师/律所机构
+- [x] 初始权限：个人→individual_user，企业→enterprise_user，律师/律所→viewer（待认证）
+- [x] 企业内部分权：org_admin→dept_admin→enterprise_user→member
+- [x] 审批流预留：approvals + integrations webhook OA 集成
+
+### 后台管理增强
+- [x] AdminConfig 新增短信服务和邮件服务配置 Tab
+- [x] OAuth 配置添加官方文档链接
+
+---
+
+## 更早的更新（2026-03-31 续）
 
 ### 找律师 — AI 核心能力实现
 - [x] 新建 `lawyer_matching_service.py`：AI 案情分析 + 自动脱敏 + 领域识别 + 风险评估 + 法律要素提取
@@ -59,6 +85,7 @@
 - [x] P2 拆分 WebSocket handler：`websocket_chat` 从 1534 行降到 1040 行，提取 6 个独立 handler 模块（A2UI/工作台/Canvas/尽调/RAG/共享上下文）
 - [x] P1 Prompt 模板化管理收尾：Coordinator `merged_intent_analysis` 抽取为模板文件，`requirement_analyst` 路径统一到 `agents/` 目录，全部 Agent + Coordinator prompt 均已模板化
 - [x] P2 统一 Service 层消除三重重复：提取 `_ChatContext` + `_decide_route()` + `_prepare_chat_context()` + `_execute_due_diligence()` + `_execute_rag()` + `_finalize_response()` 共享编排层，`chat()` 和 `stream_chat()` 复用同一套路由决策和前后处理
+- [x] P0 多 Agent DAG 真流式输出：新增 `LegalWorkforce.process_task_streaming()` 异步生成器，DAG 第一层主 Agent 使用 `stream_chat()` token-by-token 推送，其余 Agent 并行同步执行，后续层级增量追加；`ChatService.stream_chat()` 多 Agent 分支改用新方法消费事件流，首 token 延迟从"等全部完成"降到"主 Agent 开始输出"（~2s）
 
 ### 对话入口与研究模式统一
 - [x] Chat 请求协议补充 `mode` 与 `knowledge_base_ids`，普通对话、快捷动作和知识库研究模式统一走同一聊天入口
@@ -272,15 +299,15 @@
 4. 全部核心路由与聊天入口能力做上线前可用性验证
 
 ### P1 — 对话工作台闭环强化
-5. 合规风控 / 法律检索 / 找律师 / 尽调 的后端意图识别与 A2UI 卡片输出稳定化
-6. 知识库研究模式增强来源引用、权限校验和空知识库提示
-7. 工作台动作与消息流联动补全（消息中心、语音对话、模板触发、文档回看）
+5. ~~合规风控 / 法律检索 / 找律师 / 尽调 的后端意图识别与 A2UI 卡片输出稳定化~~ ✅ 新增 FIND_LAWYER 意图+关键词+A2UI配置，扩充合规/法律检索关键词，找律师强路由
+6. ~~知识库研究模式增强来源引用、权限校验和空知识库提示~~ ✅ RAG sources 补充 content_snippet，_execute_rag 透传 user_id 权限校验，WebSocket RAG 调用补传 user_id
+7. 工作台动作与消息流联动补全 — 后端侧已就绪（通知推送链路、Canvas handler、模板 Agent 调度均完整），剩余为前端集成：WebSocket 通知监听、模板→工作流 UI 联动、文档版本历史展示、语音对话 ASR 接入
 
 ### P2 — 体验优化
-8. 全局样式规范统一（字体大小、间距、内容区布局、图谱亮暗主题细节）
-9. 对话历史搜索和收藏功能
-10. 多模型切换界面（在对话中切换不同大模型）
-11. 大规模知识图谱场景下的性能优化与高级过滤
+8. 全局样式规范统一（字体大小、间距、内容区布局、图谱亮暗主题细节）— 纯前端，待实施
+9. ~~对话历史搜索和收藏功能~~ ✅ 后端已完成：Alembic 迁移（is_starred/starred_at）、list_conversations 支持 keyword/starred_only、toggle_star/search_messages Service 方法、3 个新 API 端点（/star, /messages/search, /history?keyword&starred）
+10. ~~多模型切换界面（在对话中切换不同大模型）~~ ✅ 后端已完成：ChatMessage 新增 model_id 字段、_prepare_chat_context 支持按 model_id 加载指定 LLM 配置、新增 GET /chat/models 端点返回可用模型列表
+11. 大规模知识图谱场景下的性能优化与高级过滤 — 待实施
 
 ## 设计参考文件
 

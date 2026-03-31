@@ -10,7 +10,7 @@ from loguru import logger
 from src.core.config import settings
 from src.core.responses import UnifiedResponse
 from src.core.database import get_db
-from src.core.deps import get_current_user
+from src.core.deps import get_current_user_required, rate_limit_upload
 from src.services.document_service import DocumentService
 from src.models.user import User
 
@@ -79,7 +79,7 @@ async def list_documents(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
     """获取文档列表"""
     service = DocumentService(db)
@@ -125,7 +125,8 @@ async def upload_document(
     case_id: Optional[str] = Form(None),
     tags: Optional[str] = Form(None),  # JSON字符串
     db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
+    _: None = Depends(rate_limit_upload),
 ):
     """上传文档"""
     service = DocumentService(db)
@@ -180,7 +181,7 @@ async def upload_document(
 async def create_text_document(
     request: TextDocumentCreate,
     db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
     """创建在线文本文档"""
     service = DocumentService(db)
@@ -216,7 +217,7 @@ async def create_text_document(
 async def generate_document(
     request: DocumentGenerateRequest,
     db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
     """AI 生成文档"""
     from src.agents.workforce import get_workforce
@@ -279,7 +280,11 @@ async def generate_document(
 
 
 @router.get("/{document_id}", response_model=UnifiedResponse)
-async def get_document(document_id: str, db: AsyncSession = Depends(get_db)):
+async def get_document(
+    document_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
     """获取文档详情"""
     service = DocumentService(db)
     document = await service.get_document(document_id)
@@ -309,6 +314,7 @@ async def update_document(
     document_id: str,
     update: DocumentUpdate,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
 ):
     """更新文档元数据"""
     service = DocumentService(db)
@@ -345,7 +351,7 @@ async def update_document_content(
     document_id: str,
     update: DocumentContentUpdate,
     db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_current_user),
+    user: User = Depends(get_current_user_required),
 ):
     """更新文档内容（创建新版本）"""
     service = DocumentService(db)
@@ -378,7 +384,11 @@ async def update_document_content(
 
 
 @router.delete("/{document_id}", response_model=UnifiedResponse)
-async def delete_document(document_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_document(
+    document_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
     """删除文档"""
     service = DocumentService(db)
     success = await service.delete_document(document_id)
@@ -390,7 +400,11 @@ async def delete_document(document_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/{document_id}/versions", response_model=UnifiedResponse)
-async def get_document_versions(document_id: str, db: AsyncSession = Depends(get_db)):
+async def get_document_versions(
+    document_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
     """获取文档版本历史"""
     service = DocumentService(db)
     versions = await service.get_versions(document_id)

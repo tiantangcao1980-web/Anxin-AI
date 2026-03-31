@@ -16,7 +16,8 @@ import asyncio
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Depends, Query
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Depends, Query, Request
+from src.core.deps import rate_limit
 from pydantic import BaseModel, Field
 from loguru import logger
 
@@ -133,7 +134,11 @@ async def _broadcast_to_room(room_id: str, message: dict):
 # ===== REST API =====
 
 @router.post("/rooms", response_model=CreateRoomResponse)
-async def create_room(req: CreateRoomRequest):
+async def create_room(
+    req: CreateRoomRequest,
+    request: Request,
+    _: None = Depends(rate_limit(limit=10, window=300, endpoint="anon_chat_create", by_user=False)),
+):
     """创建匿名聊天室，返回房间 ID 和双方临时 token"""
     room_id = str(uuid.uuid4())[:8]
     user_token = f"u-{uuid.uuid4().hex[:16]}"

@@ -12,7 +12,9 @@ interface User {
   email: string
   name: string
   role: string
+  user_type?: string
   avatar_url?: string
+  email_verified?: boolean
 }
 
 // 对话列表项
