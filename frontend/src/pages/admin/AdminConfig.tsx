@@ -142,7 +142,7 @@ export default function AdminConfig() {
             存储配置
           </TabsTrigger>
           <TabsTrigger value="sms" className="gap-2">
-            <icons.Smartphone className="w-4 h-4" />
+            <icons.Phone className="w-4 h-4" />
             短信服务
           </TabsTrigger>
           <TabsTrigger value="email" className="gap-2">
