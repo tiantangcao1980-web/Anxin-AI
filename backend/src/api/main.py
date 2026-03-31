@@ -64,7 +64,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="AI Legal Agent API",
     description="AI法务智能体系统 - 基于多智能体协作的超级AI法务系统",
-    version="0.1.0",
+    version="0.1.1",
     lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
