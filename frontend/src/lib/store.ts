@@ -651,12 +651,22 @@ export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
       sidebarOpen: true,
-      theme: 'system',
+      theme: 'light',
       toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
       setTheme: (theme) => set({ theme }),
     }),
-    { name: 'ui-storage' }
+    {
+      name: 'ui-storage',
+      version: 1,
+      migrate: (persisted: any, version: number) => {
+        // v0 → v1: 默认主题从 'system' 改为 'light'（深色模式需用户手动开启）
+        if (version === 0 && persisted?.state?.theme === 'system') {
+          persisted.state.theme = 'light'
+        }
+        return persisted
+      },
+    }
   )
 )
 

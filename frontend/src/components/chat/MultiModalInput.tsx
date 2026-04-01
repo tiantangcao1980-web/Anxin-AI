@@ -40,7 +40,7 @@ export function MultiModalInput({ onSend, disabled }: MultiModalInputProps) {
           type="file"
           onChange={handleFileChange}
           className="hidden"
-          accept=".pdf,.doc,.docx,.txt,image/*"
+          accept=".pdf,.doc,.docx,.txt,.md,.xlsx,.xls,.csv,.pptx,image/*"
         />
         
         <button

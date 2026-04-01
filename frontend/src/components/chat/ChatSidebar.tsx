@@ -8,7 +8,8 @@ import { icons } from '@/lib/icons';
 import { ConversationItem } from '@/lib/store';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
-import { cardStyle, heading, buttonStyle, iconSize, chatBubble, listItem, shadow } from '@/lib/design-tokens';
+import { useState, useMemo } from 'react';
+import { cardStyle, heading, buttonStyle, iconSize, chatBubble, listItem, shadow, searchBar, starButton } from '@/lib/design-tokens';
 
 interface ChatSidebarProps {
   conversations: ConversationItem[];
@@ -21,6 +22,7 @@ interface ChatSidebarProps {
   onSelectAll: () => void;
   onBatchDelete: () => void;
   onClose: () => void;
+  onToggleStar?: (convId: string) => void;
   // 批量模式
   batchMode?: boolean;
   selectedConvIds?: Set<string>;
@@ -45,6 +47,7 @@ export function ChatSidebar({
   onSelectAll,
   onBatchDelete,
   onClose,
+  onToggleStar,
   batchMode = false,
   selectedConvIds = new Set(),
   isBatchDeleting = false,
@@ -55,6 +58,22 @@ export function ChatSidebar({
   menuOpenId,
   setMenuOpenId,
 }: ChatSidebarProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterMode, setFilterMode] = useState<'all' | 'starred'>('all');
+
+  // 本地过滤对话列表
+  const filteredConversations = useMemo(() => {
+    let list = conversations;
+    if (filterMode === 'starred') {
+      list = list.filter((c) => (c as any).is_starred);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter((c) => (c.title || '').toLowerCase().includes(q));
+    }
+    return list;
+  }, [conversations, filterMode, searchQuery]);
+
   const formatConvDate = (dateStr: string | null) => {
     if (!dateStr) return '';
     const d = new Date(dateStr);
@@ -174,16 +193,65 @@ export function ChatSidebar({
         )}
       </div>
 
+      {/* 搜索 + 过滤 */}
+      {!batchMode && (
+        <div className="px-3 pt-2 pb-1 space-y-2">
+          {/* 搜索输入框 */}
+          <div className={searchBar.container}>
+            <icons.Search className={searchBar.icon} />
+            <input
+              type="text"
+              placeholder="搜索对话..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={searchBar.input}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className={searchBar.clear}
+              >
+                <icons.X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+
+          {/* 全部 / 收藏 Tab */}
+          <div className="flex gap-1">
+            <button
+              onClick={() => setFilterMode('all')}
+              className={`flex-1 py-1 text-xs font-medium rounded-md transition-colors ${
+                filterMode === 'all'
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              全部
+            </button>
+            <button
+              onClick={() => setFilterMode('starred')}
+              className={`flex-1 py-1 text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-1 ${
+                filterMode === 'starred'
+                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                  : 'text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              <icons.Star className="w-3 h-3" /> 收藏
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 对话列表 */}
       <div className="flex-1 overflow-y-auto py-2">
-        {conversations.length === 0 ? (
+        {filteredConversations.length === 0 ? (
           <div className="text-center text-muted-foreground text-sm mt-8 px-4">
             <icons.MessageSquare className={`${iconSize.xl} mx-auto mb-2 opacity-30`} />
             <p className={heading.muted}>暂无对话记录</p>
             <p className={`${heading.micro} mt-1`}>开始新对话后将在此处显示</p>
           </div>
         ) : (
-          conversations.map((conv) => {
+          filteredConversations.map((conv) => {
             const isActive = conv.id === currentId;
             const isEditing = editingConvId === conv.id;
             const isSelected = selectedConvIds.has(conv.id);
@@ -257,9 +325,26 @@ export function ChatSidebar({
                   {!isEditing && !batchMode && (
                     <div
                       className={`flex items-center gap-0.5 ${
-                        isActive ? 'visible' : 'invisible group-hover:visible'
+                        isActive || (conv as any).is_starred ? 'visible' : 'invisible group-hover:visible'
                       }`}
                     >
+                      {/* 收藏按钮 */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleStar?.(conv.id);
+                        }}
+                        className={`${starButton.base} ${
+                          (conv as any).is_starred ? starButton.active : starButton.inactive
+                        }`}
+                        title={(conv as any).is_starred ? '取消收藏' : '收藏'}
+                      >
+                        {(conv as any).is_starred ? (
+                          <icons.Star className="w-3.5 h-3.5 fill-current" />
+                        ) : (
+                          <icons.Star className="w-3.5 h-3.5" />
+                        )}
+                      </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -310,7 +395,10 @@ export function ChatSidebar({
 
       {/* 底部统计 */}
       <div className="p-3 border-t border-border text-center">
-        <p className={heading.micro}>共 {conversations.length} 个对话</p>
+        <p className={heading.micro}>
+          {filterMode === 'starred' ? `${filteredConversations.length} 个收藏` : `共 ${conversations.length} 个对话`}
+          {searchQuery && ` · 搜索 "${searchQuery}"`}
+        </p>
       </div>
     </motion.div>
   );

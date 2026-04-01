@@ -575,6 +575,7 @@ class ChatService:
         mode: Optional[str] = None,
         knowledge_base_ids: Optional[List[str]] = None,
         model_id: Optional[str] = None,
+        document_id: Optional[str] = None,
     ) -> _ChatContext:
         """
         统一前置准备：获取/创建会话、保存用户消息、加载历史和 LLM 配置、决定路由。
@@ -611,6 +612,31 @@ class ChatService:
             kb_id for kb_id in (knowledge_base_ids or [])
             if isinstance(kb_id, str) and kb_id
         ]
+
+        # 文件内容注入：如果携带 document_id，提取文本拼接到 content
+        if document_id:
+            try:
+                from src.services.document_service import DocumentService
+                _doc_svc = DocumentService(self.db)
+                _doc = await _doc_svc.get_document(document_id)
+                if _doc:
+                    _extracted = _doc.extracted_text or ""
+                    if not _extracted.strip() and _doc.file_path:
+                        from src.services.document_parser import DocumentParser
+                        _parser = DocumentParser()
+                        _parse_result = await _parser.parse_file(file_path=_doc.file_path)
+                        _extracted = _parse_result.get("text", "")
+                        if _extracted:
+                            _doc.extracted_text = _extracted
+                            await self.db.flush()
+                    if _extracted.strip():
+                        _max_chars = 8000
+                        _truncated = _extracted[:_max_chars]
+                        if len(_extracted) > _max_chars:
+                            _truncated += f"\n\n...（文档共 {len(_extracted)} 字，已截取前 {_max_chars} 字）"
+                        content = f"{content}\n\n[附件内容 - {_doc.name}]\n{_truncated}"
+            except Exception as _doc_err:
+                logger.warning(f"ChatService: 文件内容注入失败: {_doc_err}")
 
         route, resolved_agent, dd_company_name = self._decide_route(
             content, agent_name, mode, normalized_kb_ids,
@@ -717,11 +743,13 @@ class ChatService:
         mode: Optional[str] = None,
         knowledge_base_ids: Optional[List[str]] = None,
         model_id: Optional[str] = None,
+        document_id: Optional[str] = None,
     ) -> dict:
         """处理对话（同步模式）"""
         ctx = await self._prepare_chat_context(
             content, conversation_id, user_id, case_id,
             agent_name, mode, knowledge_base_ids, model_id=model_id,
+            document_id=document_id,
         )
 
         sources: List[CitationSource] = []
@@ -796,6 +824,7 @@ class ChatService:
         case_id: Optional[str] = None,
         agent_name: Optional[str] = None,
         privacy_mode: str = "HYBRID",
+        document_id: Optional[str] = None,
     ) -> AsyncGenerator[dict, None]:
         """
         流式对话 (v2 -- 支持真正的 token 流式输出)
@@ -847,6 +876,7 @@ class ChatService:
         try:
             ctx = await self._prepare_chat_context(
                 content, conversation_id, user_id, case_id, agent_name,
+                document_id=document_id,
             )
         except ValueError as e:
             yield {"type": "error", "message": str(e)}

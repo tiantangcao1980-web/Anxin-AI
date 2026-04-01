@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 120  # 2小时（配合 refresh_token 实现无感续期）
 
+    # 功能开关
+    EMAIL_VERIFY_ENABLED: bool = False  # 邮箱验证开关（关闭时注册即可登录）
+    SMS_ENABLED: bool = False  # 短信服务开关
+    OAUTH_WECHAT_ENABLED: bool = False  # 微信登录开关
+    OAUTH_ALIPAY_ENABLED: bool = False  # 支付宝登录开关
+
     # 密码策略
     PASSWORD_MIN_LENGTH: int = 8
     PASSWORD_REQUIRE_UPPERCASE: bool = True
@@ -56,7 +62,8 @@ class Settings(BaseSettings):
     MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024  # 10MB
     MAX_QUERY_LENGTH: int = 1000  # 最大查询长度
     ALLOWED_FILE_EXTENSIONS: List[str] = [
-        ".pdf", ".doc", ".docx", ".txt", ".md"
+        ".pdf", ".doc", ".docx", ".txt", ".md",
+        ".xlsx", ".xls", ".csv", ".pptx",
     ]
 
     # 敏感数据加密

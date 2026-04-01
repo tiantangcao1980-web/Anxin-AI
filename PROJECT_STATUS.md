@@ -8,7 +8,95 @@
 
 **v0.9.0-beta** | 预计上线：2026-04-01（第一版客户测试）
 
-## 最近更新（2026-03-31 安全加固 + 认证体系升级）
+## 最近更新（2026-04-01 核心功能质量优化）
+
+### 文件上传全链路增强
+- [x] 后端 document_parser.py 新增 Excel (.xlsx/.xls)、CSV、PPTX 解析支持
+- [x] 使用 openpyxl 解析 Excel（多工作表），python-pptx 解析 PPT（含表格文本）
+- [x] 前端聊天文件选择器扩展：支持 PDF/Word/Excel/CSV/PPT/TXT/MD/图片（MultiModalInput + ChatInput + Chat.tsx）
+- [x] 前端 useChatInput 增加文件大小校验（>10MB 拒绝）和扩展名白名单校验
+- [x] 聊天区新增拖拽上传：拖入文件显示蒙层提示，松开自动附加并推断工作流
+- [x] **核心**：聊天文件→AI 分析链路打通 — WebSocket 和 ChatService 在收到 document_id 时自动提取文档文本（extracted_text 或实时解析），截取前 8000 字拼接到用户消息中，AI Agent 可直接分析文件内容
+- [x] 后端 config.py ALLOWED_FILE_EXTENSIONS 和 documents.py MIME 白名单同步扩展
+- [x] 默认主题从 'system' 改为 'light'（深色模式需用户手动开启），增加 persist migrate 兼容存量用户
+
+### 合同审查质量大幅提升
+- [x] contract_reviewer.txt 提示词从56行扩充至200+行
+- [x] 新增完整法律依据引用（民法典、劳动法、公司法等核心法条）
+- [x] 新增三层系统化审查框架（效力审查→核心条款→特殊条款）
+- [x] 新增合同类型专项审查指南（买卖/租赁/服务/劳动/投资）
+- [x] 新增 missing_clauses 和 legal_basis 字段增强输出结构
+- [x] 细化风险等级判断标准（关联具体法律后果）
+
+### 合同/法律文书生成质量提升
+- [x] document_drafter.txt 提示词从53行扩充至300+行
+- [x] 新增完整的合同标准结构模板（14条+签署页+附件区）
+- [x] 新增民事起诉状、律师函等专用格式模板
+- [x] 定义严格的内容详实性要求（合同正文不少于3000字）
+- [x] 规范编号体系：第X条→X.X→（1）三级编号
+- [x] 新增法律文书排版规范和格式要求
+
+### 文档协作编辑器全面升级
+- [x] 新增 TipTap 扩展：Underline、TextAlign、TextStyle、Color、Highlight
+- [x] 工具栏增强：字体颜色、高亮、文本对齐（左/中/右/两端）、下划线、删除线
+- [x] 标题格式下拉选择器（正文/标题1/标题2/标题3）
+- [x] 颜色选择器组件（12色快速选取）
+- [x] A4页面模拟布局（210mm×297mm，标准页边距）
+- [x] 缩放控制（50%-200%）
+- [x] 打印功能（专业法律文书打印样式，宋体/1.8行距）
+- [x] 快捷键支持（Ctrl+S保存、Ctrl+P打印）
+- [x] 图标系统修正：Bold/Italic/Heading等编辑器图标使用正确的lucide-react图标
+
+### 合同审查Agent代码增强
+- [x] 新增合同类型专项审查方法 `_get_type_specific_guide()`，覆盖8类合同
+- [x] 审查提示词构建增强：要求至少5维度分析、必须引用法律依据、补充missing_clauses
+- [x] JSON解析增强：支持```json包裹格式，增加missing_clauses/legal_basis字段兼容
+- [x] quick_review方法升级为结构化JSON输出
+
+### 文书起草Agent代码增强
+- [x] 新增文书类型结构指南 `_get_structure_guide()`，覆盖合同/诉讼/函件/法律意见
+- [x] 起草提示词增强：要求合同不少于3000字、至少10条款、完整签署区
+- [x] draft_contract方法增加结构指南和编号体系要求
+
+### DOCX/PDF导出专业化
+- [x] DOCX导出：A4纸张、标准页边距(上下2.54cm/左右3.17cm)
+- [x] 标题排版：小二号(18pt)黑体居中、条款四号(14pt)黑体、正文小四号(12pt)宋体
+- [x] 正文两端对齐、首行缩进2字符、1.5倍行距
+- [x] Markdown智能解析：自动识别标题/条款/签署区/分隔线
+- [x] PDF导出同步升级排版标准
+
+### Slash命令系统（借鉴docmost）
+- [x] 新建 SlashCommandExtension.tsx，18个命令覆盖基本格式+法律文书两大类
+- [x] 法律文书专用命令：合同标题区、甲乙方信息、鉴于条款、标准条款、违约责任、争议解决、不可抗力、保密条款、签署区、附件列表
+- [x] 输入"/"弹出命令面板，支持关键词搜索、方向键/Enter选择
+- [x] 集成到CollaborativeEditor主编辑器
+
+### Bug修复
+- [x] 修复 AdminConfig.tsx 中缺失的 Smartphone 图标引用
+- [x] 修复 Chat.tsx 中重复的 accept 属性导致的TS编译错误
+
+---
+
+## 更早的更新（2026-04-01 安全纵深防御 + 功能开关机制）
+
+### 功能开关机制
+- [x] 后端 config.py 新增 4 个开关：EMAIL_VERIFY_ENABLED / SMS_ENABLED / OAUTH_WECHAT_ENABLED / OAUTH_ALIPAY_ENABLED
+- [x] 邮箱验证默认关闭（EMAIL_VERIFY_ENABLED=False），关闭时注册自动标记 email_verified=True
+- [x] OAuth 端点受开关保护，未启用时返回 404
+- [x] 后端 GET /auth/features 公开端点供前端查询开关状态
+- [x] 前端 Login.tsx 根据开关动态显示微信/支付宝登录按钮
+- [x] 前端注册流程：开关关闭时注册后自动登录，开启后跳转验证页
+- [x] AdminConfig 安全配置 Tab 新增认证功能开关面板（4 个开关的 UI 控制）
+
+### 安全纵深防御
+- [x] 安全响应头：X-Content-Type-Options / X-Frame-Options / X-XSS-Protection / Referrer-Policy / HSTS(生产)
+- [x] 文件上传白名单：扩展名 + MIME 类型双重校验（pdf/doc/docx/txt/md/xlsx/xls/csv）
+- [x] 匿名聊天加固：消息长度 4096 上限 + 30条/分钟频率限制 + HTML 转义防 XSS
+- [x] 验证码端点频率限制：verify-email 10次/5分钟、reset-password 10次/5分钟
+
+---
+
+## 更早的更新（2026-03-31 安全加固 + 认证体系升级）
 
 ### 安全加固 — 生产上线标准
 - [x] 路由认证加固：contracts/llm/datacenter/documents/chat/collaboration/compliance 全部强制认证

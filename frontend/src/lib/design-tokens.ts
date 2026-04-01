@@ -235,13 +235,51 @@ export const onlineIndicator = {
   offline: 'bg-muted-foreground/30',
 } as const
 
+// ===== AI 状态样式 =====
+export const aiStatus = {
+  /** AI 思考中（脉冲动画） */
+  thinking: 'text-ai animate-ai-pulse',
+  /** AI 流式输出光标 */
+  cursor: 'inline-block w-0.5 h-4 bg-ai animate-ai-cursor ml-0.5',
+  /** AI 消息气泡背景 */
+  surface: 'bg-ai-surface',
+  /** AI 标识色文字 */
+  label: 'text-ai font-medium',
+  /** AI 错误/降级 */
+  error: 'text-destructive border border-destructive/20 bg-destructive/5 rounded-lg p-3',
+} as const
+
+// ===== 模型选择器 =====
+export const modelSelector = {
+  trigger: 'flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors cursor-pointer',
+  dropdown: 'bg-popover border border-border rounded-xl shadow-lg p-1 min-w-[200px]',
+  option: 'flex items-center justify-between px-3 py-2 text-sm rounded-lg hover:bg-muted cursor-pointer transition-colors',
+  optionActive: 'flex items-center justify-between px-3 py-2 text-sm rounded-lg bg-primary/5 text-primary font-medium',
+  badge: 'text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground',
+  badgeDefault: 'text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary',
+} as const
+
+// ===== 搜索栏 =====
+export const searchBar = {
+  container: 'relative',
+  input: 'w-full bg-muted/50 border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10 transition-all',
+  icon: 'absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground',
+  clear: 'absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground rounded-md hover:bg-muted transition-colors',
+} as const
+
+// ===== 收藏按钮 =====
+export const starButton = {
+  base: 'p-1 rounded-md transition-colors',
+  active: 'text-amber-500 hover:text-amber-600',
+  inactive: 'text-muted-foreground/40 hover:text-amber-400',
+} as const
+
 // ===== 图表色板 =====
-// 替代蓝紫渐变，使用和谐的企业级色板
 export const chartColors = [
-  'hsl(var(--primary))',          // 万里蓝
+  'hsl(var(--primary))',          // 品牌琥珀橙
   'hsl(160, 60%, 45%)',           // 翡翠绿
   'hsl(35, 90%, 55%)',            // 琥珀橙
   'hsl(200, 70%, 50%)',           // 天际蓝
   'hsl(350, 65%, 55%)',           // 珊瑚红
-  'hsl(270, 50%, 55%)',           // 紫水晶
+  'hsl(var(--ai))',               // AI 紫
 ] as const

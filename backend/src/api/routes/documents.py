@@ -129,7 +129,28 @@ async def upload_document(
     _: None = Depends(rate_limit_upload),
 ):
     """上传文档"""
+    import os
     service = DocumentService(db)
+
+    # 文件类型白名单校验
+    ALLOWED_EXTENSIONS = {".pdf", ".doc", ".docx", ".txt", ".md", ".xlsx", ".xls", ".csv", ".pptx"}
+    ALLOWED_MIMETYPES = {
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "text/plain",
+        "text/markdown",
+        "text/csv",
+    }
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"不支持的文件类型: {ext}，允许: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
+        )
 
     # 读取文件内容
     file_content = await file.read()

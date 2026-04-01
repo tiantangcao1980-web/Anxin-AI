@@ -142,7 +142,7 @@ export default function AdminConfig() {
             存储配置
           </TabsTrigger>
           <TabsTrigger value="sms" className="gap-2">
-            <icons.Smartphone className="w-4 h-4" />
+            <icons.Phone className="w-4 h-4" />
             短信服务
           </TabsTrigger>
           <TabsTrigger value="email" className="gap-2">
@@ -478,9 +478,73 @@ export default function AdminConfig() {
 
         {/* 安全配置 */}
         <TabsContent value="security">
+          {/* 功能开关卡片 */}
+          <Card className="mb-4">
+            <CardHeader>
+              <CardTitle className="text-base">认证功能开关</CardTitle>
+              <CardDescription>控制邮箱验证、短信服务、第三方登录的启用/关闭</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center justify-between p-3 rounded-lg border">
+                  <div>
+                    <div className="text-sm font-medium">邮箱验证</div>
+                    <div className="text-xs text-muted-foreground">注册后需验证邮箱才能登录</div>
+                  </div>
+                  <Select value={security.email_verify_enabled || 'false'} onValueChange={(v) => setSecurity({ ...security, email_verify_enabled: v })}>
+                    <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="true">开启</SelectItem>
+                      <SelectItem value="false">关闭</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg border">
+                  <div>
+                    <div className="text-sm font-medium">短信服务</div>
+                    <div className="text-xs text-muted-foreground">短信验证码（需配置阿里云）</div>
+                  </div>
+                  <Select value={security.sms_enabled || 'false'} onValueChange={(v) => setSecurity({ ...security, sms_enabled: v })}>
+                    <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="true">开启</SelectItem>
+                      <SelectItem value="false">关闭</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg border">
+                  <div>
+                    <div className="text-sm font-medium">微信登录</div>
+                    <div className="text-xs text-muted-foreground">需配置微信开放平台凭证</div>
+                  </div>
+                  <Select value={security.oauth_wechat_enabled || 'false'} onValueChange={(v) => setSecurity({ ...security, oauth_wechat_enabled: v })}>
+                    <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="true">开启</SelectItem>
+                      <SelectItem value="false">关闭</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg border">
+                  <div>
+                    <div className="text-sm font-medium">支付宝登录</div>
+                    <div className="text-xs text-muted-foreground">需配置支付宝开放平台凭证</div>
+                  </div>
+                  <Select value={security.oauth_alipay_enabled || 'false'} onValueChange={(v) => setSecurity({ ...security, oauth_alipay_enabled: v })}>
+                    <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="true">开启</SelectItem>
+                      <SelectItem value="false">关闭</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">安全配置</CardTitle>
+              <CardTitle className="text-base">安全策略</CardTitle>
               <CardDescription>JWT、速率限制和密码策略</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

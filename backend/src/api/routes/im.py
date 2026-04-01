@@ -5,6 +5,7 @@ IM 即时通讯路由
 REST API + WebSocket 端点，提供对话管理、消息收发、实时通信。
 """
 
+import asyncio
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
@@ -300,6 +301,17 @@ async def _handle_message(
         participant_ids=participant_ids,
         message={"type": "message", "message": msg},
     )
+
+    # AI 旁听钩子：异步触发，不阻塞消息流
+    if message_type == "text":
+        from src.services.meeting_assistant_service import meeting_assistant
+        asyncio.create_task(
+            meeting_assistant.on_message(
+                conversation_id=conversation_id,
+                sender_id=sender_id,
+                content=content,
+            )
+        )
 
 
 async def _handle_typing(

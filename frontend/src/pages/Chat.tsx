@@ -222,6 +222,7 @@ export default function Chat() {
   const [inputAreaHeight, setInputAreaHeight] = useState<number | null>(null);
   const [input, setInput] = useState('');
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
   const [selectedKbIdsByConversation, setSelectedKbIdsByConversation] = useState<Record<string, string[]>>({});
   // 内联 Agent 思考状态指示器
   const [thinkingStatus, setThinkingStatus] = useState<ThinkingStatus | null>(null);
@@ -2446,8 +2447,41 @@ export default function Chat() {
               )}
             </div>
 
-            {/* Messages — 移动端额外底部内边距防止 BottomActionBar 遮挡 */}
-            <div ref={messagesContainerRef} className={`flex-1 overflow-y-auto p-4 md:p-8 space-y-6 scroll-smooth ${isMobile ? 'pb-20' : ''}`}>
+            {/* Messages — 支持拖拽上传，移动端额外底部内边距防止 BottomActionBar 遮挡 */}
+            <div
+              ref={messagesContainerRef}
+              className={`flex-1 overflow-y-auto p-4 md:p-8 space-y-6 scroll-smooth relative ${isMobile ? 'pb-20' : ''}`}
+              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
+              onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(false); }}
+              onDrop={(e) => {
+                e.preventDefault(); e.stopPropagation(); setIsDragOver(false);
+                const f = e.dataTransfer.files?.[0];
+                if (f) {
+                  // 复用文件输入框的处理逻辑
+                  const workflow = inferAttachmentWorkflow(f);
+                  setPendingFile(f);
+                  setActiveActionId(workflow.actionId);
+                  setActionModeOverride(workflow.mode);
+                  setInput((prev) => (prev.trim() ? prev : workflow.prompt));
+                  toast.success(`已附加: ${f.name}，已切换到${workflow.label}`);
+                  if (workflow.triggerContractReview) {
+                    store.setContractReviewFile(f);
+                    store.setContractReviewVisible(true);
+                  }
+                  if (workflow.openSmartPanel) openRightPanel('smart');
+                }
+              }}
+            >
+              {/* 拖拽上传蒙层 */}
+              {isDragOver && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-primary/5 border-2 border-dashed border-primary/40 rounded-xl backdrop-blur-sm pointer-events-none">
+                  <div className="flex flex-col items-center gap-2 text-primary">
+                    <icons.Upload className="w-10 h-10" />
+                    <span className="text-sm font-medium">释放以上传文件</span>
+                    <span className="text-xs text-muted-foreground">支持 PDF、Word、Excel、CSV、PPT、TXT、图片</span>
+                  </div>
+                </div>
+              )}
               {isLoadingHistory && (
                 <div className="flex items-center justify-center py-8">
                   <icons.Loader2 className="w-5 h-5 animate-spin text-muted-foreground mr-2" />
@@ -2613,6 +2647,7 @@ export default function Chat() {
                   />
                   {/* 附件按钮 */}
                   <input ref={fileInputRef} type="file" className="hidden"
+                    accept=".pdf,.doc,.docx,.txt,.md,.xlsx,.xls,.csv,.pptx,image/*"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
                       if (f) {
@@ -2644,7 +2679,7 @@ export default function Chat() {
                       }
                       if (e.target) e.target.value = '';
                     }}
-                    accept=".pdf,.doc,.docx,.txt,image/*" />
+                    />
                   <button onClick={() => fileInputRef.current?.click()} disabled={isProcessing}
                     className="p-2.5 text-muted-foreground hover:text-primary transition-colors disabled:opacity-50 flex-shrink-0 self-end"
                     title="上传文件">

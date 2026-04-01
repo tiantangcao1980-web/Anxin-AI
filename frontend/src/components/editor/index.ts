@@ -9,3 +9,6 @@ export type {
   CollaborativeEditorProps,
   SimpleEditorProps,
 } from './CollaborativeEditor';
+
+export { SLASH_COMMANDS, SlashCommandMenu, useSlashCommand } from './SlashCommandExtension';
+export type { SlashCommandItem } from './SlashCommandExtension';
