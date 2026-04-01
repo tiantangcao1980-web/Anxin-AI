@@ -189,12 +189,11 @@ async def login(
             detail="邮箱或密码错误"
         )
 
-    # 检查邮箱是否已验证
-    if existing_user and not existing_user.email_verified:
+    # 检查邮箱是否已验证（仅在开关启用时）
+    if settings.EMAIL_VERIFY_ENABLED and existing_user and not existing_user.email_verified:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="邮箱未验证，请先完成邮箱验证",
-            headers={"X-Email-Unverified": "true"},
         )
 
     # 登录成功：重置登录失败计数，更新最后登录时间
@@ -264,18 +263,24 @@ async def register(
             phone=register_request.phone,
         )
 
-        # 生成邮箱验证码（6位数字，15分钟有效）
-        verify_code = f"{secrets.randbelow(1000000):06d}"
-        _email_verify_tokens[verify_code] = {
-            "user_id": str(user.id),
-            "email": user.email,
-            "expires_at": datetime.now(timezone.utc) + timedelta(minutes=15),
-        }
-        logger.info(f"邮箱验证码已生成 (用户: {user.email}, 类型: {user_type})")
+        debug_code = None
+        if settings.EMAIL_VERIFY_ENABLED:
+            # 生成邮箱验证码（6位数字，15分钟有效）
+            verify_code = f"{secrets.randbelow(1000000):06d}"
+            _email_verify_tokens[verify_code] = {
+                "user_id": str(user.id),
+                "email": user.email,
+                "expires_at": datetime.now(timezone.utc) + timedelta(minutes=15),
+            }
+            logger.info(f"邮箱验证码已生成 (用户: {user.email}, 类型: {user_type})")
+            debug_code = verify_code
 
-        # 发送邮箱验证码
-        from src.services.email_service import email_service
-        await email_service.send_verification_code(user.email, verify_code)
+            # 发送邮箱验证码
+            from src.services.email_service import email_service
+            await email_service.send_verification_code(user.email, verify_code)
+        else:
+            # 邮箱验证未启用时，自动标记为已验证
+            user.email_verified = True
 
         # 记录注册成功
         await audit_service.log_from_request(
@@ -298,10 +303,10 @@ async def register(
             "name": user.name,
             "role": user.role,
             "user_type": user_type,
-            "email_verified": False,
-            "message": "注册成功，请查收邮箱验证码完成验证",
+            "email_verified": user.email_verified,
+            "message": "注册成功" if not settings.EMAIL_VERIFY_ENABLED else "注册成功，请查收邮箱验证码完成验证",
             # 开发模式返回验证码，方便调试
-            **({"debug_verify_code": verify_code} if settings.DEV_MODE else {}),
+            **({"debug_verify_code": debug_code} if settings.DEV_MODE and debug_code else {}),
         }
     except ValueError as e:
         # 记录注册失败
@@ -502,6 +507,7 @@ async def revoke_token_endpoint(
 async def verify_email(
     req: VerifyEmailRequest,
     db: AsyncSession = Depends(get_db),
+    _: None = Depends(rate_limit(limit=10, window=300, endpoint="verify_email", by_user=False)),
 ):
     """使用验证码完成邮箱验证"""
     token_data = _email_verify_tokens.get(req.code)
@@ -594,6 +600,20 @@ async def resend_verification(
     }
 
 
+# ============ 功能开关查询 ============
+
+
+@router.get("/features")
+async def get_auth_features():
+    """查询认证相关功能开关状态（公开端点，供前端判断UI展示）"""
+    return {
+        "email_verify_enabled": settings.EMAIL_VERIFY_ENABLED,
+        "sms_enabled": settings.SMS_ENABLED,
+        "oauth_wechat_enabled": settings.OAUTH_WECHAT_ENABLED,
+        "oauth_alipay_enabled": settings.OAUTH_ALIPAY_ENABLED,
+    }
+
+
 # ============ OAuth 第三方登录 ============
 
 class OAuthCallbackRequest(BaseModel):
@@ -605,6 +625,8 @@ class OAuthCallbackRequest(BaseModel):
 @router.get("/oauth/wechat/url")
 async def get_wechat_login_url():
     """获取微信登录授权 URL"""
+    if not settings.OAUTH_WECHAT_ENABLED:
+        raise HTTPException(status_code=404, detail="微信登录未启用")
     state = secrets.token_urlsafe(16)
     url = WeChatOAuth.get_authorize_url(state)
     return {"url": url, "state": state}
@@ -684,6 +706,8 @@ async def wechat_oauth_callback(
 @router.get("/oauth/alipay/url")
 async def get_alipay_login_url():
     """获取支付宝登录授权 URL"""
+    if not settings.OAUTH_ALIPAY_ENABLED:
+        raise HTTPException(status_code=404, detail="支付宝登录未启用")
     state = secrets.token_urlsafe(16)
     url = AlipayOAuth.get_authorize_url(state)
     return {"url": url, "state": state}
@@ -806,6 +830,7 @@ async def forgot_password(
 async def reset_password(
     req: ResetPasswordRequest,
     db: AsyncSession = Depends(get_db),
+    _: None = Depends(rate_limit(limit=10, window=300, endpoint="reset_password", by_user=False)),
 ):
     """使用验证码重置密码"""
     # 查找并验证令牌

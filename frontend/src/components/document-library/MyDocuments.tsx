@@ -165,7 +165,7 @@ export function MyDocuments() {
         type="file"
         ref={fileInputRef}
         onChange={handleFileChange}
-        accept=".pdf,.doc,.docx,.txt,.md"
+        accept=".pdf,.doc,.docx,.txt,.md,.xlsx,.xls,.csv"
         className="hidden"
       />
 

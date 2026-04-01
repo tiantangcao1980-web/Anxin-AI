@@ -550,6 +550,48 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
             ctx.session_message_count += 1
             ctx.last_user_content = content
 
+            # === 文件内容注入：将附件文本提取并拼接到用户消息中 ===
+            _document_id = data.get("document_id")
+            if _document_id:
+                try:
+                    await ctx.send("agent_thinking", {"agent": "文档解析", "message": "正在提取附件内容..."})
+                    async with async_session_maker() as _doc_db:
+                        from src.services.document_service import DocumentService
+                        _doc_svc = DocumentService(_doc_db)
+                        _doc = await _doc_svc.get_document(_document_id)
+                        if _doc:
+                            _extracted = _doc.extracted_text or ""
+                            # 如果文档没有已提取的文本，实时解析
+                            if not _extracted.strip() and _doc.file_path:
+                                from src.services.document_parser import DocumentParser
+                                _parser = DocumentParser()
+                                _parse_result = await _parser.parse_file(file_path=_doc.file_path)
+                                _extracted = _parse_result.get("text", "")
+                                if _extracted:
+                                    _doc.extracted_text = _extracted
+                                    await _doc_db.commit()
+                            if _extracted.strip():
+                                _max_chars = 8000
+                                _truncated = _extracted[:_max_chars]
+                                if len(_extracted) > _max_chars:
+                                    _truncated += f"\n\n...（文档共 {len(_extracted)} 字，已截取前 {_max_chars} 字）"
+                                content = f"{content}\n\n[附件内容 - {_doc.name}]\n{_truncated}"
+                                await ctx.send("file_parsed", {
+                                    "document_id": _document_id,
+                                    "file_name": _doc.name,
+                                    "char_count": len(_extracted),
+                                    "truncated": len(_extracted) > _max_chars,
+                                })
+                            else:
+                                await ctx.send("file_parsed", {
+                                    "document_id": _document_id,
+                                    "file_name": getattr(_doc, 'name', ''),
+                                    "error": "无法提取文件内容",
+                                })
+                except Exception as _doc_err:
+                    logger.warning(f"文件内容注入失败: {_doc_err}")
+                    await ctx.send("file_parsed", {"document_id": _document_id, "error": str(_doc_err)})
+
             # === 企业调查强路由 ===
             dd_result = await handle_due_diligence(ctx, content, agent_name, recovery_map)
             if dd_result is not None:

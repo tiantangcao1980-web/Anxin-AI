@@ -300,6 +300,10 @@ async def websocket_chat(websocket: WebSocket, room_id: str, token: str = Query(
         "message": join_msg.model_dump(),
     })
 
+    MAX_MESSAGE_LENGTH = 4096  # 单条消息最大长度
+    MAX_MESSAGES_PER_MINUTE = 30  # 每分钟最大消息数
+    _msg_timestamps: list = []
+
     try:
         while True:
             data = await websocket.receive_json()
@@ -307,12 +311,35 @@ async def websocket_chat(websocket: WebSocket, room_id: str, token: str = Query(
             if not content:
                 continue
 
+            # 消息长度限制
+            if len(content) > MAX_MESSAGE_LENGTH:
+                await websocket.send_json({
+                    "type": "error",
+                    "message": f"消息长度不能超过 {MAX_MESSAGE_LENGTH} 字符",
+                })
+                continue
+
+            # 简易频率限制
+            now = datetime.now(timezone.utc)
+            _msg_timestamps.append(now)
+            _msg_timestamps[:] = [t for t in _msg_timestamps if (now - t).total_seconds() < 60]
+            if len(_msg_timestamps) > MAX_MESSAGES_PER_MINUTE:
+                await websocket.send_json({
+                    "type": "error",
+                    "message": "发送过于频繁，请稍后再试",
+                })
+                continue
+
+            # XSS 过滤：转义 HTML 特殊字符
+            import html as html_mod
+            content = html_mod.escape(content)
+
             # 创建消息
             msg = ChatMessage(
                 id=str(uuid.uuid4()),
                 sender=role,
                 content=content,
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=now.isoformat(),
                 type="text",
             )
             room.messages.append(msg)
@@ -322,6 +349,17 @@ async def websocket_chat(websocket: WebSocket, room_id: str, token: str = Query(
                 "type": "message",
                 "message": msg.model_dump(),
             })
+
+            # AI 旁听钩子
+            from src.services.meeting_assistant_service import meeting_assistant
+            asyncio.create_task(
+                meeting_assistant.on_message(
+                    conversation_id=room_id,
+                    sender_id=role,
+                    content=content,
+                    sender_name=role,
+                )
+            )
 
     except WebSocketDisconnect:
         logger.info(f"WebSocket 断开: {role_label} 离开聊天室 {room_id}")

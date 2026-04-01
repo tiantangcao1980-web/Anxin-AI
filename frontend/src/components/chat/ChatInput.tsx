@@ -95,7 +95,7 @@ export function ChatInput({
               if (file) onFileSelect(file);
               if (e.target) e.target.value = '';
             }}
-            accept=".pdf,.doc,.docx,.txt,image/*"
+            accept=".pdf,.doc,.docx,.txt,.md,.xlsx,.xls,.csv,.pptx,image/*"
           />
           <button
             onClick={() => fileInputRef.current?.click()}

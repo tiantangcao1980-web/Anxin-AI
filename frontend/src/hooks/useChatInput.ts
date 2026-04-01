@@ -6,11 +6,24 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 
+/** 文件大小上限（与后端 MAX_UPLOAD_SIZE 一致） */
+const MAX_FILE_SIZE_MB = 10;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
+/** 支持的文件扩展名 */
+const ALLOWED_EXTENSIONS = [
+  '.pdf', '.doc', '.docx', '.txt', '.md',
+  '.xlsx', '.xls', '.csv', '.pptx',
+  '.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg',
+];
+
 export interface PendingFile {
   file: File;
   name: string;
   size: string;
   type: 'file' | 'image';
+  /** 文件扩展名（小写，含点号，如 '.pdf'） */
+  fileExtension: string;
 }
 
 export interface UseChatInputOptions {
@@ -87,14 +100,32 @@ export function useChatInput(
    * 处理文件选择
    */
   const handleFileSelect = useCallback((file: File) => {
+    // 文件大小校验
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+      toast.error(`文件过大（${sizeMB}MB），最大支持 ${MAX_FILE_SIZE_MB}MB`);
+      return;
+    }
+
+    // 文件类型校验
+    const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      toast.error(`不支持的文件类型（${ext}），支持：PDF、Word、Excel、CSV、PPT、TXT、图片`);
+      return;
+    }
+
     const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(file.name);
-    const sizeKB = (file.size / 1024).toFixed(1);
+    const sizeKB = file.size / 1024;
+    const sizeStr = sizeKB >= 1024
+      ? `${(sizeKB / 1024).toFixed(1)} MB`
+      : `${sizeKB.toFixed(1)} KB`;
 
     setPendingFile({
       file,
       name: file.name,
-      size: `${sizeKB} KB`,
+      size: sizeStr,
       type: isImage ? 'image' : 'file',
+      fileExtension: ext,
     });
 
     toast.success(`已附加: ${file.name}`);

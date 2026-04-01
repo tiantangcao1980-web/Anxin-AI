@@ -17,28 +17,42 @@ from loguru import logger
 
 class DocumentParser:
     """文档解析器"""
-    
-    SUPPORTED_EXTENSIONS = {'.pdf', '.docx', '.doc', '.txt', '.md'}
-    
+
+    SUPPORTED_EXTENSIONS = {'.pdf', '.docx', '.doc', '.txt', '.md', '.xlsx', '.xls', '.csv', '.pptx'}
+
     def __init__(self):
         self._check_dependencies()
-    
+
     def _check_dependencies(self):
         """检查可用的解析库"""
         self.has_pypdf = False
         self.has_docx = False
-        
+        self.has_openpyxl = False
+        self.has_pptx = False
+
         try:
             import pypdf
             self.has_pypdf = True
         except ImportError:
             logger.warning("pypdf 未安装，PDF解析功能受限")
-        
+
         try:
             import docx
             self.has_docx = True
         except ImportError:
             logger.warning("python-docx 未安装，Word文档解析功能受限")
+
+        try:
+            import openpyxl
+            self.has_openpyxl = True
+        except ImportError:
+            logger.warning("openpyxl 未安装，Excel文档解析功能受限")
+
+        try:
+            import pptx
+            self.has_pptx = True
+        except ImportError:
+            logger.warning("python-pptx 未安装，PPT文档解析功能受限")
     
     async def parse_file(
         self,
@@ -80,6 +94,12 @@ class DocumentParser:
                 text = await self._parse_pdf(file_content)
             elif ext in ['.docx', '.doc']:
                 text = await self._parse_docx(file_content)
+            elif ext in ['.xlsx', '.xls']:
+                text = await self._parse_excel(file_content)
+            elif ext == '.csv':
+                text = self._parse_csv(file_content)
+            elif ext == '.pptx':
+                text = await self._parse_pptx(file_content)
             elif ext in ['.txt', '.md']:
                 text = self._parse_text(file_content)
             else:
@@ -155,6 +175,68 @@ class DocumentParser:
         
         return "\n\n".join(text_parts)
     
+    async def _parse_excel(self, content: bytes) -> str:
+        """解析 Excel 文件 (.xlsx / .xls)"""
+        if not self.has_openpyxl:
+            raise ImportError("需要安装 openpyxl 来解析Excel文件")
+
+        import openpyxl
+        wb = openpyxl.load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+        text_parts = []
+
+        for sheet_name in wb.sheetnames:
+            ws = wb[sheet_name]
+            text_parts.append(f"【工作表: {sheet_name}】")
+            for row in ws.iter_rows(values_only=True):
+                row_values = [str(cell) if cell is not None else "" for cell in row]
+                row_text = " | ".join(v for v in row_values if v)
+                if row_text.strip():
+                    text_parts.append(row_text)
+            text_parts.append("")  # 工作表间空行
+
+        wb.close()
+        return "\n".join(text_parts)
+
+    def _parse_csv(self, content: bytes) -> str:
+        """解析 CSV 文件"""
+        import csv
+        text = self._parse_text(content)
+        reader = csv.reader(io.StringIO(text))
+        lines = []
+        for row in reader:
+            line = " | ".join(cell.strip() for cell in row if cell.strip())
+            if line:
+                lines.append(line)
+        return "\n".join(lines)
+
+    async def _parse_pptx(self, content: bytes) -> str:
+        """解析 PowerPoint 文件（提取所有幻灯片中的文本）"""
+        if not self.has_pptx:
+            return "[python-pptx 未安装，无法解析 PPTX 文件]"
+
+        from pptx import Presentation
+
+        prs = Presentation(io.BytesIO(content))
+        texts: list[str] = []
+        for slide_idx, slide in enumerate(prs.slides, 1):
+            slide_texts: list[str] = []
+            for shape in slide.shapes:
+                if shape.has_text_frame:
+                    for para in shape.text_frame.paragraphs:
+                        line = para.text.strip()
+                        if line:
+                            slide_texts.append(line)
+                # 表格中的文本
+                if shape.has_table:
+                    for row in shape.table.rows:
+                        row_texts = [cell.text.strip() for cell in row.cells if cell.text.strip()]
+                        if row_texts:
+                            slide_texts.append(" | ".join(row_texts))
+            if slide_texts:
+                texts.append(f"--- 第 {slide_idx} 页 ---\n" + "\n".join(slide_texts))
+
+        return "\n\n".join(texts)
+
     def _parse_text(self, content: bytes) -> str:
         """解析纯文本文件"""
         # 尝试多种编码

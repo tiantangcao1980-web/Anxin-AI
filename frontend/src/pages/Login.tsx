@@ -6,7 +6,7 @@
  * 移动端仅显示右侧表单区域。
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
@@ -21,6 +21,15 @@ export default function Login() {
   const { login: setAuth } = useAuthStore()
   const [mode, setMode] = useState<'login' | 'register' | 'forgot' | 'verify'>('login')
   const [loading, setLoading] = useState(false)
+
+  // 功能开关
+  const [features, setFeatures] = useState({ email_verify_enabled: false, sms_enabled: false, oauth_wechat_enabled: false, oauth_alipay_enabled: false })
+  useEffect(() => {
+    fetch('/api/v1/auth/features').then(r => r.json()).then(d => {
+      const data = d.data || d
+      setFeatures(data)
+    }).catch(() => {})
+  }, [])
 
   // 忘记密码
   const [forgotEmail, setForgotEmail] = useState('')
@@ -115,12 +124,28 @@ export default function Login() {
     }
     setLoading(true)
     try {
-      await authApi.register({ name: regName, email: regEmail, password: regPassword, user_type: regUserType })
-      // 注册成功，跳转到邮箱验证步骤
-      toast.success('注册成功！请查收邮箱验证码')
-      setVerifyEmail(regEmail)
-      setVerifyCode('')
-      setMode('verify')
+      const resp = await authApi.register({ name: regName, email: regEmail, password: regPassword, user_type: regUserType }) as any
+      if (resp.email_verified) {
+        // 邮箱验证未启用，注册后自动登录
+        try {
+          const loginResp = await authApi.login({ email: regEmail, password: regPassword })
+          localStorage.setItem('refresh_token', loginResp.refresh_token || '')
+          setAuth(loginResp.user, loginResp.access_token)
+          toast.success(`注册成功！欢迎 ${loginResp.user.name}`)
+          navigate(from, { replace: true })
+          return
+        } catch {
+          toast.success('注册成功！请登录')
+          setMode('login')
+          setEmail(regEmail)
+        }
+      } else {
+        // 邮箱验证已启用，跳转到验证步骤
+        toast.success('注册成功！请查收邮箱验证码')
+        setVerifyEmail(regEmail)
+        setVerifyCode('')
+        setMode('verify')
+      }
     } catch (err: any) {
       const msg = err.message || '注册失败'
       if (msg.includes('already') || msg.includes('已注册') || msg.includes('exist')) {
@@ -768,8 +793,8 @@ export default function Login() {
             )}
           </AnimatePresence>
 
-          {/* 第三方登录 — 暂未开放，待接入微信/支付宝 OAuth 后启用 */}
-          {false && <><div className="relative my-6">
+          {/* 第三方登录 — 根据后台功能开关动态显示 */}
+          {(features.oauth_wechat_enabled || features.oauth_alipay_enabled) && (<><div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-border" />
             </div>
@@ -782,6 +807,7 @@ export default function Login() {
 
           {/* 第三方登录按钮 */}
           <div className="grid grid-cols-2 gap-3">
+            {features.oauth_wechat_enabled && (
             <button
               onClick={() => handleOAuth('wechat')}
               className={`${buttonStyle.ghost} flex items-center justify-center gap-2 py-2.5 border border-border`}
@@ -791,6 +817,8 @@ export default function Login() {
               </svg>
               微信登录
             </button>
+            )}
+            {features.oauth_alipay_enabled && (
             <button
               onClick={() => handleOAuth('alipay')}
               className={`${buttonStyle.ghost} flex items-center justify-center gap-2 py-2.5 border border-border`}
@@ -800,7 +828,8 @@ export default function Login() {
               </svg>
               支付宝登录
             </button>
-          </div></>}
+            )}
+          </div></>)}
 
           {/* 开发模式快捷登录 — 已隐藏 */}
         </motion.div>

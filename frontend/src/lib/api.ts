@@ -194,6 +194,40 @@ export const authApi = {
     }),
 }
 
+// ============ AI 旁听助手 API ============
+
+export const assistantApi = {
+  start: (data: { conversation_id: string; conversation_type?: string }) =>
+    request<any>('/assistant/start', {
+      method: 'POST',
+      body: JSON.stringify({ conversation_type: 'im', ...data }),
+    }),
+
+  stop: (conversation_id: string) =>
+    request<any>('/assistant/stop', {
+      method: 'POST',
+      body: JSON.stringify({ conversation_id }),
+    }),
+
+  getStatus: (conversation_id: string) =>
+    request<{ listening: boolean }>(`/assistant/status/${conversation_id}`),
+
+  getInsights: (conversation_id: string) =>
+    request<{ insights: any[] }>(`/assistant/insights/${conversation_id}`),
+
+  getSummary: (conversation_id: string) =>
+    request<any>(`/assistant/summary/${conversation_id}`),
+
+  getRecords: (page?: number) =>
+    request<any>(`/assistant/records?page=${page || 1}`),
+
+  linkCase: (recordId: string, data: { case_id?: string; contract_id?: string }) =>
+    request<any>(`/assistant/${recordId}/link-case`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+}
+
 // ============ 对话 API ============
 
 export interface ChatMessage {
