@@ -19,7 +19,7 @@ import { v4 as uuidv4 } from 'uuid'
 // 子组件
 import { type InvestigationSection } from '@/components/due-diligence/InvestigationSidebar'
 import { InvestigationOverview } from '@/components/due-diligence/InvestigationOverview'
-import { InvestigationProgress, type InvestigationStage, type ConflictInfo } from '@/components/due-diligence/InvestigationProgress'
+import { InvestigationProgress, type InvestigationStage, type ConflictInfo, type ResearchProgress, type ForumProgress, type ReportProgress } from '@/components/due-diligence/InvestigationProgress'
 import { CompanyProfile } from '@/components/due-diligence/CompanyProfile'
 import { SentimentAnalysis } from '@/components/due-diligence/SentimentAnalysis'
 import { LegalCases } from '@/components/due-diligence/LegalCases'
@@ -232,6 +232,12 @@ export default function DueDiligence() {
   const [licTaskId, setLicTaskId] = useState('')
   const [investigateStartTime, setInvestigateStartTime] = useState(0)
 
+  // v2: 深度研究 / 论坛 / 报告进度
+  const [researchProgress, setResearchProgress] = useState<ResearchProgress | null>(null)
+  const [forumProgress, setForumProgress] = useState<ForumProgress | null>(null)
+  const [reportProgress, setReportProgress] = useState<ReportProgress | null>(null)
+  const [useDeepMode, setUseDeepMode] = useState(true) // 是否启用深度调查模式
+
   // 是否显示搜索模式（未开始调查时）
   const [showSearch, setShowSearch] = useState(false)
 
@@ -280,6 +286,9 @@ export default function DueDiligence() {
     setShowSearch(false)
     setConflicts([])
     setConsensus(null)
+    setResearchProgress(null)
+    setForumProgress(null)
+    setReportProgress(null)
     setActiveSection('overview')
     setInvestigateStartTime(Date.now())
 
@@ -288,7 +297,7 @@ export default function DueDiligence() {
     setLicTaskId(taskId)
     licApi.startCrawl({ url: 'https://www.tianyancha.com', keyword: name, task_id: taskId }).catch(() => {})
 
-    // 初始化三阶段
+    // 初始化阶段（根据模式决定阶段数）
     const initialStages: InvestigationStage[] = [
       {
         id: 'collection',
@@ -300,6 +309,10 @@ export default function DueDiligence() {
           { name: 'compliance', label: '合规审查', status: 'loading' },
         ],
       },
+      ...(useDeepMode ? [
+        { id: 'deep_research' as const, label: '深度研究', status: 'pending' as const, agents: [] },
+        { id: 'forum' as const, label: '专家论坛', status: 'pending' as const, agents: [] },
+      ] : []),
       { id: 'verification', label: '交叉验证', status: 'pending', agents: [] },
       { id: 'synthesis', label: '综合分析', status: 'pending', agents: [] },
     ]
@@ -315,87 +328,221 @@ export default function DueDiligence() {
     // 启动无活动超时计时器
     resetInactivityTimer(name)
 
-    try {
-      await dueDiligenceApi.streamInvestigate(
-        name,
-        'comprehensive',
-        (event: InvestigationStreamEvent) => {
-          // 每收到一个事件都重置无活动计时器
-          resetInactivityTimer(name)
+    // 事件处理函数
+    const handleEvent = (event: InvestigationStreamEvent) => {
+      resetInactivityTimer(name)
 
-          if (event.type === 'step') {
-            setStages(prev => prev.map(stage => {
-              if (stage.id !== 'collection') return stage
-              return {
-                ...stage,
-                agents: stage.agents?.map(a => {
-                  if (event.step === 'basic_info' && a.name === 'due_diligence') return { ...a, status: 'loading' as const }
-                  if (event.step === 'risk' && a.name === 'risk_assessor') return { ...a, status: 'loading' as const }
-                  if (event.step === 'credit' && a.name === 'compliance') return { ...a, status: 'loading' as const }
-                  return a
-                }) || [],
-              }
-            }))
-          } else if (event.type === 'result') {
-            if (event.step === 'basic_info') { collectedData.basicInfo = event.data }
-            if (event.step === 'litigation') { collectedData.litigation = event.data }
-            if (event.step === 'credit') { collectedData.credit = event.data }
-            if (event.step === 'risk') { collectedData.risk = event.data }
-
-            setStages(prev => prev.map(stage => {
-              if (stage.id !== 'collection') return stage
-              return {
-                ...stage,
-                agents: stage.agents?.map(a => {
-                  if (event.step === 'basic_info' && a.name === 'due_diligence') return { ...a, status: 'done' as const, data: event.data }
-                  if (event.step === 'risk' && a.name === 'risk_assessor') return { ...a, status: 'done' as const, data: event.data }
-                  if (event.step === 'credit' && a.name === 'compliance') return { ...a, status: 'done' as const, data: event.data }
-                  return a
-                }) || [],
-              }
-            }))
-          } else if (event.type === 'stage') {
-            setStages(prev => prev.map(s => {
-              if (s.id === event.step) return { ...s, status: 'active' }
-              if (s.status === 'active' && s.id !== event.step) return { ...s, status: 'done' }
-              return s
-            }))
-          } else if (event.type === 'conflict') {
-            setConflicts(prev => [...prev, { description: event.message || '', agents: (event.data as any)?.agents || [] }])
-          } else if (event.type === 'consensus') {
-            setConsensus(event.data)
-          } else if (event.type === 'done') {
-            if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
-            setStages(prev => prev.map(s => ({ ...s, status: 'done' as const })))
-            setInvestigationData(collectedData)
-            setIsSearching(false)
-            setHasResults(true)
-            toast.success('尽职调查完成')
-          } else if (event.type === 'error') {
-            if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
-            // 如果已收集到部分数据，尝试用 fallback 补全
-            const hasPartialData = collectedData.basicInfo || collectedData.litigation || collectedData.risk
-            if (hasPartialData) {
-              toast.info('部分数据已获取，正在补全...')
-              fallbackInvestigate(name, collectedData)
-            } else {
-              toast.info('正在切换查询方式...')
-              fallbackInvestigate(name, collectedData)
-            }
+      // ===== 数据采集事件 =====
+      if (event.type === 'step') {
+        setStages(prev => prev.map(stage => {
+          if (stage.id !== 'collection') return stage
+          return {
+            ...stage,
+            agents: stage.agents?.map(a => {
+              if (event.step === 'basic_info' && a.name === 'due_diligence') return { ...a, status: 'loading' as const }
+              if (event.step === 'risk' && a.name === 'risk_assessor') return { ...a, status: 'loading' as const }
+              if (event.step === 'credit' && a.name === 'compliance') return { ...a, status: 'loading' as const }
+              return a
+            }) || [],
           }
-        },
-        () => {
-          if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
-          toast.info('正在切换查询方式...')
-          fallbackInvestigate(name, collectedData)
+        }))
+      } else if (event.type === 'result') {
+        if (event.step === 'basic_info') { collectedData.basicInfo = event.data }
+        if (event.step === 'litigation') { collectedData.litigation = event.data }
+        if (event.step === 'credit') { collectedData.credit = event.data }
+        if (event.step === 'risk') { collectedData.risk = event.data }
+
+        setStages(prev => prev.map(stage => {
+          if (stage.id !== 'collection') return stage
+          return {
+            ...stage,
+            agents: stage.agents?.map(a => {
+              if (event.step === 'basic_info' && a.name === 'due_diligence') return { ...a, status: 'done' as const, data: event.data }
+              if (event.step === 'risk' && a.name === 'risk_assessor') return { ...a, status: 'done' as const, data: event.data }
+              if (event.step === 'credit' && a.name === 'compliance') return { ...a, status: 'done' as const, data: event.data }
+              return a
+            }) || [],
+          }
+        }))
+
+      // ===== 阶段切换 =====
+      } else if (event.type === 'stage') {
+        setStages(prev => prev.map(s => {
+          if (s.id === event.step) return { ...s, status: 'active' }
+          if (s.status === 'active' && s.id !== event.step) return { ...s, status: 'done' }
+          return s
+        }))
+
+      // ===== 深度研究事件 =====
+      } else if (event.type === 'research_start') {
+        setResearchProgress({
+          currentRound: 0, maxRounds: (event as any).max_rounds || 3,
+          totalResults: 0, confidence: 0, gaps: [],
+          latestQueries: [], summary: '',
+        })
+      } else if (event.type === 'search_round') {
+        setResearchProgress(prev => prev ? {
+          ...prev,
+          currentRound: (event as any).round || prev.currentRound + 1,
+          latestQueries: (event as any).queries || prev.latestQueries,
+        } : prev)
+      } else if (event.type === 'search_results') {
+        setResearchProgress(prev => prev ? {
+          ...prev,
+          totalResults: (event as any).total_results || prev.totalResults,
+        } : prev)
+      } else if (event.type === 'reflection') {
+        setResearchProgress(prev => prev ? {
+          ...prev,
+          confidence: (event as any).confidence || prev.confidence,
+          gaps: (event as any).gaps || prev.gaps,
+          summary: (event as any).summary || prev.summary,
+        } : prev)
+      } else if (event.type === 'keyword_optimized') {
+        setResearchProgress(prev => prev ? {
+          ...prev,
+          latestQueries: (event as any).optimized || prev.latestQueries,
+        } : prev)
+
+      // ===== 论坛事件 =====
+      } else if (event.type === 'forum_start') {
+        setForumProgress({
+          totalAgents: (event as any).agents?.length || 4,
+          speechesCompleted: 0, debateRound: 0,
+          conflictsFound: 0, conflictsResolved: 0, speeches: [],
+        })
+      } else if (event.type === 'agent_speaking') {
+        setForumProgress(prev => prev ? {
+          ...prev,
+          currentSpeaker: (event as any).agent,
+          currentRole: (event as any).role,
+        } : prev)
+      } else if (event.type === 'agent_speech') {
+        const speech = (event as any).speech
+        setForumProgress(prev => prev ? {
+          ...prev,
+          speechesCompleted: prev.speechesCompleted + 1,
+          currentSpeaker: undefined,
+          currentRole: undefined,
+          speeches: [...prev.speeches, {
+            agent: speech?.agent_name || '',
+            role: speech?.agent_role || '',
+            riskLevel: speech?.risk_level || 'unknown',
+            confidence: speech?.confidence || 0.5,
+            keyFindings: speech?.key_findings || [],
+          }],
+        } : prev)
+      } else if (event.type === 'debate_start') {
+        setForumProgress(prev => prev ? {
+          ...prev,
+          conflictsFound: (event as any).conflicts_count || 0,
+        } : prev)
+      } else if (event.type === 'debate_round') {
+        setForumProgress(prev => prev ? {
+          ...prev,
+          debateRound: (event as any).round || prev.debateRound + 1,
+        } : prev)
+      } else if (event.type === 'conflict_found') {
+        const c = (event as any).conflict
+        setConflicts(prev => [...prev, {
+          description: c?.topic || '', agents: c?.agents_involved || [],
+        }])
+      } else if (event.type === 'conflict_resolved') {
+        const c = (event as any).conflict
+        setConflicts(prev => prev.map(existing =>
+          existing.description === c?.topic
+            ? { ...existing, resolved: true, resolution: c?.resolution || '' }
+            : existing
+        ))
+        setForumProgress(prev => prev ? {
+          ...prev,
+          conflictsResolved: prev.conflictsResolved + 1,
+        } : prev)
+
+      // ===== 报告事件 =====
+      } else if (event.type === 'report_start' || event.type === 'report_report_start') {
+        setReportProgress({
+          templateName: (event as any).template || '调查报告',
+          totalChapters: (event as any).total_chapters || 0,
+          completedChapters: 0,
+        })
+      } else if (event.type === 'report_chapter_start') {
+        setReportProgress(prev => prev ? {
+          ...prev,
+          currentChapter: (event as any).chapter_title || '',
+        } : prev)
+      } else if (event.type === 'report_chapter_done') {
+        setReportProgress(prev => prev ? {
+          ...prev,
+          completedChapters: prev.completedChapters + 1,
+          currentChapter: undefined,
+        } : prev)
+
+      // ===== 冲突/共识 =====
+      } else if (event.type === 'conflict') {
+        setConflicts(prev => [...prev, {
+          description: event.message || '',
+          agents: (event.data as any)?.agents || [],
+        }])
+      } else if (event.type === 'consensus' || event.type === 'consensus_reached') {
+        const consensusData = event.type === 'consensus_reached' ? (event as any).consensus : event.data
+        setConsensus(consensusData)
+
+      // ===== 完成/错误 =====
+      } else if (event.type === 'done') {
+        if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
+        setStages(prev => prev.map(s => ({ ...s, status: 'done' as const })))
+        // 从 done 事件中提取更完整的数据
+        const doneData = (event as any).data
+        if (doneData?.results) {
+          if (doneData.results.basic_info) collectedData.basicInfo = doneData.results.basic_info
+          if (doneData.results.risk) collectedData.risk = doneData.results.risk
+          if (doneData.results.litigation) collectedData.litigation = doneData.results.litigation
+          if (doneData.results.credit) collectedData.credit = doneData.results.credit
         }
-      )
+        setInvestigationData(collectedData)
+        setIsSearching(false)
+        setHasResults(true)
+        toast.success('尽职调查完成')
+      } else if (event.type === 'error') {
+        if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
+        const hasPartialData = collectedData.basicInfo || collectedData.litigation || collectedData.risk
+        if (hasPartialData) {
+          toast.info('部分数据已获取，正在补全...')
+        } else {
+          toast.info('正在切换查询方式...')
+        }
+        fallbackInvestigate(name, collectedData)
+      }
+    }
+
+    const handleStreamError = () => {
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
+      toast.info('正在切换查询方式...')
+      fallbackInvestigate(name, collectedData)
+    }
+
+    try {
+      if (useDeepMode) {
+        // v2 深度调查模式
+        await dueDiligenceApi.deepInvestigate(
+          name,
+          { enableDeepResearch: true, enableForum: true },
+          handleEvent,
+          handleStreamError,
+        )
+      } else {
+        // v1 基础模式
+        await dueDiligenceApi.streamInvestigate(
+          name, 'comprehensive', handleEvent, handleStreamError,
+        )
+      }
     } catch {
       if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
       toast.info('正在切换查询方式...')
       fallbackInvestigate(name, collectedData)
     }
-  }, [resetInactivityTimer])
+  }, [resetInactivityTimer, useDeepMode])
 
   const fallbackInvestigate = async (name: string, collectedData: any) => {
     // 更新进度状态为"快速查询"
@@ -573,6 +720,14 @@ export default function DueDiligence() {
           </div>
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setUseDeepMode(!useDeepMode)}
+              className={`${useDeepMode ? 'bg-primary/10 text-primary border-primary/20' : 'bg-muted text-muted-foreground border-transparent'} text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-colors`}
+              title={useDeepMode ? '深度调查模式：包含迭代研究 + 多专家论坛' : '基础调查模式：快速数据采集'}
+            >
+              <icons.Sparkles className="w-3.5 h-3.5" />
+              {useDeepMode ? '深度模式' : '基础模式'}
+            </button>
+            <button
               onClick={() => { setShowSearch(!showSearch) }}
               className={`${showSearch ? buttonStyle.primary : buttonStyle.ghost} text-xs flex items-center gap-1.5`}
             >
@@ -646,6 +801,9 @@ export default function DueDiligence() {
               onSkip={handleSkipToFallback}
               onCancel={handleCancelInvestigation}
               startTime={investigateStartTime}
+              researchProgress={researchProgress || undefined}
+              forumProgress={forumProgress || undefined}
+              reportProgress={reportProgress || undefined}
             />
           </div>
         )}

@@ -956,12 +956,43 @@ export interface CompanyGraph {
 }
 
 export interface InvestigationStreamEvent {
-  type: 'start' | 'step' | 'result' | 'step_error' | 'done' | 'error' | 'stage' | 'agent_start' | 'agent_result' | 'conflict' | 'consensus'
+  type:
+    | 'start' | 'step' | 'result' | 'step_error' | 'done' | 'error'
+    | 'stage' | 'agent_start' | 'agent_result' | 'conflict' | 'consensus'
+    // Deep Research Engine 事件
+    | 'research_start' | 'search_round' | 'search_results' | 'reflection'
+    | 'keyword_optimized' | 'early_stop' | 'research_summary' | 'research_done'
+    | 'research_error'
+    // Agent Forum 事件
+    | 'forum_start' | 'agent_speaking' | 'agent_speech' | 'host_analysis'
+    | 'debate_start' | 'debate_round' | 'conflict_found' | 'conflict_resolved'
+    | 'consensus_reached' | 'forum_done' | 'forum_error'
+    // Report Engine 事件
+    | 'report_start' | 'report_template_selected' | 'report_chapter_start'
+    | 'report_chapter_done' | 'report_done' | 'report_report_start'
+    | 'report_report_done'
   message?: string
   step?: string
   agent?: string
   task?: string
   data?: any
+  // Deep Research 扩展字段
+  round?: number
+  queries?: string[]
+  confidence?: number
+  gaps?: string[]
+  summary?: string
+  // Forum 扩展字段
+  role?: string
+  focus?: string
+  speech?: any
+  consensus?: any
+  // Report 扩展字段
+  template?: string
+  chapter_index?: number
+  chapter_id?: string
+  chapter_title?: string
+  section?: any
 }
 
 export const dueDiligenceApi = {
@@ -1061,6 +1092,83 @@ export const dueDiligenceApi = {
         status: string
       }>
     }>(`/due-diligence/search?keyword=${encodeURIComponent(keyword)}&limit=${limit}`),
+
+  // 增强版深度调查（v2）— 支持深度研究 + 多专家论坛 + 报告生成
+  deepInvestigate: async (
+    companyName: string,
+    options: {
+      investigationType?: string
+      enableDeepResearch?: boolean
+      enableForum?: boolean
+      enableReport?: boolean
+      reportTemplate?: string
+    } = {},
+    onEvent: (event: InvestigationStreamEvent) => void,
+    onError?: (error: Error) => void
+  ): Promise<void> => {
+    const token = localStorage.getItem('access_token')
+    const headers: HeadersInit = { 'Content-Type': 'application/json' }
+    if (token) headers['Authorization'] = `Bearer ${token}`
+
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 300000) // 5min timeout
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/due-diligence/company/deep-investigate`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          company_name: companyName,
+          investigation_type: options.investigationType || 'comprehensive',
+          enable_deep_research: options.enableDeepResearch ?? true,
+          enable_forum: options.enableForum ?? true,
+          enable_report: options.enableReport ?? false,
+          report_template: options.reportTemplate || 'comprehensive',
+        }),
+        signal: controller.signal,
+      })
+
+      if (!response.ok) throw new Error('深度调查请求失败')
+
+      const reader = response.body?.getReader()
+      if (!reader) throw new Error('无法获取响应流')
+
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+              onEvent(data as InvestigationStreamEvent)
+            } catch {
+              // 忽略解析错误
+            }
+          }
+        }
+      }
+    } catch (error) {
+      clearTimeout(timeoutId)
+      if (onError) onError(error as Error)
+      else throw error
+      return
+    }
+    clearTimeout(timeoutId)
+  },
+
+  // 报告模板列表
+  listReportTemplates: () =>
+    request<Array<{ id: string; name: string; description: string; chapters: number; word_budget: number }>>(
+      '/due-diligence/report/templates'
+    ),
 
   // 调查历史
   getInvestigationHistory: (page: number = 1, pageSize: number = 20) =>

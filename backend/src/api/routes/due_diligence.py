@@ -387,12 +387,22 @@ async def search_companies(
 
 # ===== 多 Agent 协同调查 (阶段二) =====
 
+class OrchestratedInvestigateRequest(BaseModel):
+    """增强版协同调查请求"""
+    company_name: str
+    investigation_type: str = "comprehensive"
+    enable_deep_research: bool = True
+    enable_forum: bool = True
+    enable_report: bool = False
+    report_template: str = "comprehensive"
+
+
 @router.post("/company/orchestrated-stream")
 async def orchestrated_stream_investigate(
     request: CompanyInvestigateRequest,
     user: User = Depends(get_current_user_required),
 ):
-    """多 Agent 协同流式调查 — 支持增强 SSE 事件"""
+    """多 Agent 协同流式调查 — 支持增强 SSE 事件（v1 兼容）"""
 
     async def generate_stream():
         try:
@@ -405,6 +415,46 @@ async def orchestrated_stream_investigate(
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
         except Exception as e:
             logger.error(f"协同调查失败: {e}")
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
+    )
+
+
+@router.post("/company/deep-investigate")
+async def deep_investigate_stream(
+    request: OrchestratedInvestigateRequest,
+    user: User = Depends(get_current_user_required),
+):
+    """
+    增强版深度调查（v2）— 六阶段管线
+
+    支持：
+    - 深度研究（迭代式搜索-反思-优化循环）
+    - 多专家论坛辩论
+    - 模板化报告生成
+    """
+
+    async def generate_stream():
+        try:
+            from src.services.investigation_orchestrator import investigation_orchestrator
+            async for event in investigation_orchestrator.orchestrate_investigation_v2(
+                company_name=request.company_name,
+                investigation_type=request.investigation_type,
+                user_id=str(user.id) if user else None,
+                enable_deep_research=request.enable_deep_research,
+                enable_forum=request.enable_forum,
+                enable_report=request.enable_report,
+                report_template=request.report_template,
+            ):
+                # 过滤内部事件
+                if not event.get("type", "").startswith("_"):
+                    yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            logger.error(f"深度调查失败: {e}")
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
 
     return StreamingResponse(
@@ -464,6 +514,8 @@ async def get_investigation(
 class ReportRequest(BaseModel):
     """报告生成请求"""
     format: str = "html"  # html / json
+    template_id: str = "comprehensive"  # comprehensive / risk_focus / executive / litigation / credit / compliance
+    use_llm: bool = False  # 是否使用 LLM 增强章节内容
 
 
 @router.post("/investigations/{investigation_id}/report")
@@ -492,7 +544,9 @@ async def generate_investigation_report(
             "conflicts": inv.conflicts or [],
         }
 
-        report = await report_engine.generate_report(investigation_data, request.format)
+        report = await report_engine.generate_report(
+            investigation_data, request.format, request.template_id, request.use_llm
+        )
         return UnifiedResponse.success(data=report)
     except Exception as e:
         logger.error(f"报告生成失败: {e}")
@@ -521,6 +575,53 @@ async def generate_report_direct(
     except Exception as e:
         logger.error(f"报告生成失败: {e}")
         return UnifiedResponse.error(message=str(e))
+
+
+@router.get("/report/templates")
+async def list_report_templates(
+    user: User = Depends(get_current_user_required),
+):
+    """列出所有可用报告模板"""
+    try:
+        from src.services.report_engine import report_engine
+        templates = report_engine.list_templates()
+        return UnifiedResponse.success(data=templates)
+    except Exception as e:
+        return UnifiedResponse.error(message=str(e))
+
+
+@router.post("/report/generate/stream")
+async def generate_report_stream(
+    request: ReportRequest,
+    company_name: str = Query(..., min_length=1),
+    user: User = Depends(get_current_user_required),
+):
+    """流式报告生成（逐章返回进度）"""
+
+    async def generate_stream():
+        try:
+            from src.services.report_engine import report_engine
+
+            company_data = await get_company_info(company_name)
+            investigation_data = {
+                "company_name": company_name,
+                "basic_info": company_data.get("basic_info", {}),
+                "risk": company_data.get("risk", {}),
+                "litigation": company_data.get("litigation", {}),
+                "credit": company_data.get("credit", {}),
+            }
+            async for event in report_engine.generate_report_stream(
+                investigation_data, request.template_id, request.use_llm
+            ):
+                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
+    )
 
 
 # ===== 风险场景推演 (阶段四) =====

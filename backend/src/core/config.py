@@ -181,6 +181,10 @@ class Settings(BaseSettings):
     # ========== OpenAI兼容 ==========
     OPENAI_API_KEY: Optional[str] = None
 
+    # ========== 搜索服务 API ==========
+    TAVILY_API_KEY: str = ""        # Tavily Search API (https://tavily.com)
+    BING_SEARCH_KEY: str = ""       # Bing Web Search API
+
     # ===== OAuth 第三方登录 =====
     WECHAT_APP_ID: str = ""
     WECHAT_APP_SECRET: str = ""
