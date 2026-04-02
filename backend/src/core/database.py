@@ -73,6 +73,8 @@ async def _ensure_additive_schema_columns() -> None:
         "ALTER TABLE investigations ADD COLUMN IF NOT EXISTS forum_data JSON",
         "ALTER TABLE investigations ADD COLUMN IF NOT EXISTS stages_completed JSON",
         # v3 调查引擎：快照、缓存、偏好表由 create_all 自动创建
+        # v4 智能需求发掘引擎：用户 AI 画像
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_profile JSONB DEFAULT '{}'",
     ]
 
     async with engine.begin() as conn:
