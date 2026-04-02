@@ -214,6 +214,8 @@ interface LeftPanelProps {
   entityTypes: string[]
   activeTypes: Set<string>
   onToggleType: (t: string) => void
+  onSelectAllTypes: () => void
+  onClearAllTypes: () => void
   pathFrom: string
   setPathFrom: (v: string) => void
   pathTo: string
@@ -222,6 +224,10 @@ interface LeftPanelProps {
   pathLoading: boolean
   stats: GraphOverviewStats | null
   statsLoading: boolean
+  hasMore: boolean
+  loadMoreLoading: boolean
+  onLoadMore: () => void
+  totalLoaded: number
 }
 
 function LeftPanel({
@@ -233,6 +239,8 @@ function LeftPanel({
   entityTypes,
   activeTypes,
   onToggleType,
+  onSelectAllTypes,
+  onClearAllTypes,
   pathFrom,
   setPathFrom,
   pathTo,
@@ -241,6 +249,10 @@ function LeftPanel({
   pathLoading,
   stats,
   statsLoading,
+  hasMore,
+  loadMoreLoading,
+  onLoadMore,
+  totalLoaded,
 }: LeftPanelProps) {
   const navigate = useNavigate()
 
@@ -300,7 +312,24 @@ function LeftPanel({
       <div className="flex-1 overflow-y-auto">
         {/* 类型过滤 */}
         <div className="p-4 border-b border-border space-y-2">
-          <h3 className={heading.card}>实体类型</h3>
+          <div className="flex items-center justify-between">
+            <h3 className={heading.card}>实体类型</h3>
+            <div className="flex gap-1">
+              <button
+                onClick={onSelectAllTypes}
+                className="text-[10px] text-primary hover:underline"
+              >
+                全选
+              </button>
+              <span className="text-muted-foreground text-[10px]">/</span>
+              <button
+                onClick={onClearAllTypes}
+                className="text-[10px] text-muted-foreground hover:underline"
+              >
+                清空
+              </button>
+            </div>
+          </div>
           <div className="space-y-1">
             {entityTypes.map((t) => (
               <label
@@ -322,6 +351,29 @@ function LeftPanel({
             ))}
           </div>
         </div>
+
+        {/* 加载更多节点 */}
+        {(hasMore || totalLoaded > 0) && (
+          <div className="p-4 border-b border-border">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-muted-foreground">已加载 {totalLoaded} 个节点</span>
+              {hasMore && (
+                <button
+                  onClick={onLoadMore}
+                  disabled={loadMoreLoading}
+                  className="text-xs text-primary hover:underline flex items-center gap-1"
+                >
+                  {loadMoreLoading ? (
+                    <icons.Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <icons.ChevronDown className="w-3 h-3" />
+                  )}
+                  加载更多
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* 路径查询 */}
         <div className="p-4 border-b border-border space-y-2">
@@ -460,6 +512,8 @@ function LeftPanel({
 // 主组件
 // ============================================================
 
+const GRAPH_PAGE_SIZE = 30
+
 export default function KnowledgeGraph() {
   const navigate = useNavigate()
   // --- 数据状态 ---
@@ -470,6 +524,11 @@ export default function KnowledgeGraph() {
 
   const [graphNodes, setGraphNodes] = useState<ForceNode[]>([])
   const [graphEdges, setGraphEdges] = useState<ForceEdge[]>([])
+
+  // --- 分页状态 ---
+  const [currentPage, setCurrentPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
+  const [loadMoreLoading, setLoadMoreLoading] = useState(false)
 
   const [searchQuery, setSearchQuery] = useState('')
   const debouncedQuery = useDebounce(searchQuery, DEBOUNCE_MS)
@@ -556,17 +615,43 @@ export default function KnowledgeGraph() {
   /** 初始加载：从 API 获取图谱概览数据（限制首屏节点数提升首次渲染速度） */
   async function loadInitialDemoGraph() {
     setGraphLoading(true)
+    setCurrentPage(1)
     try {
-      // 首批只加载 30 个节点以加速首次渲染
-      const data = await knowledgeCenterApi.searchGraph('法', 1, 30, 0)
+      // 首批只加载 GRAPH_PAGE_SIZE 个节点以加速首次渲染
+      const data = await knowledgeCenterApi.searchGraph('法', 1, GRAPH_PAGE_SIZE, 0)
       if (data && data.nodes && data.nodes.length > 0) {
         const { nodes: n, edges: e } = convertApiData(data)
         mergeGraph(n, e)
+        setHasMore(data.nodes.length >= GRAPH_PAGE_SIZE)
+      } else {
+        setHasMore(false)
       }
     } catch {
       setGraphError('图谱数据加载失败，请使用搜索功能探索')
     } finally {
       setGraphLoading(false)
+    }
+  }
+
+  /** 加载更多节点（翻页） */
+  async function loadMoreNodes() {
+    if (loadMoreLoading || !hasMore) return
+    setLoadMoreLoading(true)
+    const nextPage = currentPage + 1
+    try {
+      const data = await knowledgeCenterApi.searchGraph('法', 1, GRAPH_PAGE_SIZE, (nextPage - 1) * GRAPH_PAGE_SIZE)
+      if (data && data.nodes && data.nodes.length > 0) {
+        const { nodes: n, edges: e } = convertApiData(data)
+        mergeGraph(n, e)
+        setCurrentPage(nextPage)
+        setHasMore(data.nodes.length >= GRAPH_PAGE_SIZE)
+      } else {
+        setHasMore(false)
+      }
+    } catch (err: any) {
+      toast.error('加载更多失败: ' + (err.message || '服务不可用'))
+    } finally {
+      setLoadMoreLoading(false)
     }
   }
 
@@ -738,6 +823,14 @@ export default function KnowledgeGraph() {
       }
       return next
     })
+  }
+
+  function handleSelectAllTypes() {
+    setActiveTypes(new Set(entityTypes))
+  }
+
+  function handleClearAllTypes() {
+    setActiveTypes(new Set())
   }
 
   function handleDoubleClickNode(id: string) {
@@ -1135,14 +1228,30 @@ export default function KnowledgeGraph() {
                 />
               </div>
 
-              {/* 浮动图例 */}
-              <div className="absolute bottom-4 left-4 z-10">
+              {/* 浮动图例 + 加载更多 */}
+              <div className="absolute bottom-4 left-4 z-10 space-y-2">
+                {hasMore && (
+                  <button
+                    onClick={loadMoreNodes}
+                    disabled={loadMoreLoading}
+                    className="flex items-center gap-1.5 bg-background/90 backdrop-blur-md border border-border rounded-xl px-3 py-2 text-xs text-primary hover:bg-muted/80 transition-colors shadow-lg w-full justify-center"
+                  >
+                    {loadMoreLoading ? (
+                      <icons.Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <icons.ChevronDown className="w-3 h-3" />
+                    )}
+                    加载更多节点（已显示 {graphNodes.length}）
+                  </button>
+                )}
                 <GraphLegend
                   nodeCount={graphNodes.length}
                   edgeCount={graphEdges.length}
                   viewMode={viewMode}
                   activeTypes={activeTypes}
                   onToggleType={handleToggleType}
+                  onSelectAll={handleSelectAllTypes}
+                  onClearAll={handleClearAllTypes}
                 />
               </div>
 

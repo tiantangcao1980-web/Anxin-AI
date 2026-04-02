@@ -17,7 +17,11 @@ interface Template {
 
 const categories = ['all', '合同协议', '催告函件', '诉讼文书', '法律意见书', '调研报告', '其他'];
 
-export function TemplateGallery() {
+interface TemplateGalleryProps {
+  onAIGenerate?: (docType: string) => void;
+}
+
+export function TemplateGallery({ onAIGenerate }: TemplateGalleryProps) {
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -185,8 +189,18 @@ export function TemplateGallery() {
                 </div>
               </div>
               <div className="flex gap-1">
+                {onAIGenerate && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onAIGenerate(template.name); }}
+                    className="p-1.5 hover:bg-amber-50 rounded-lg text-amber-600 active:scale-95 transition-all flex items-center gap-1 px-2"
+                    title="AI 智能生成"
+                  >
+                    <icons.Sparkles className="w-4 h-4" />
+                    <span className="text-xs font-medium">AI</span>
+                  </button>
+                )}
                 <button
-                  onClick={() => handleUseTemplate(template)}
+                  onClick={(e) => { e.stopPropagation(); handleUseTemplate(template); }}
                   disabled={!!processingId}
                   className="p-1.5 hover:bg-primary/5 rounded-lg text-primary active:scale-95 transition-all flex items-center gap-1 px-2"
                 >
@@ -198,9 +212,6 @@ export function TemplateGallery() {
                       <span className="text-xs font-medium">使用</span>
                     </>
                   )}
-                </button>
-                <button className="p-1.5 hover:bg-primary/5 rounded-lg text-primary active:scale-95 transition-all">
-                  <icons.Eye className="w-4 h-4" />
                 </button>
               </div>
             </div>

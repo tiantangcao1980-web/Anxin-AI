@@ -21,25 +21,38 @@ interface Props {
   viewMode: '2d' | '3d'
   activeTypes?: Set<string>
   onToggleType?: (type: string) => void
+  onSelectAll?: () => void
+  onClearAll?: () => void
 }
 
-export function GraphLegend({ nodeCount, edgeCount, activeTypes, onToggleType }: Props) {
+export function GraphLegend({ nodeCount, edgeCount, activeTypes, onToggleType, onSelectAll, onClearAll }: Props) {
   const [collapsed, setCollapsed] = useState(false)
 
   const isInteractive = !!activeTypes && !!onToggleType
 
   return (
     <div className="rounded-xl border shadow-lg bg-background/90 backdrop-blur-md border-border text-foreground">
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        className="flex items-center justify-between w-full px-3 py-2 text-muted-foreground"
-      >
-        <div className="flex items-center gap-1.5">
+      <div className="flex items-center justify-between px-3 py-2">
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="flex items-center gap-1.5 text-muted-foreground"
+        >
           <icons.Layers className="w-3.5 h-3.5" />
           <span className="text-[10px] font-bold uppercase tracking-wider">图例</span>
-        </div>
-        <icons.ChevronDown className={`w-3 h-3 transition-transform ${collapsed ? '-rotate-90' : ''}`} />
-      </button>
+          <icons.ChevronDown className={`w-3 h-3 transition-transform ${collapsed ? '-rotate-90' : ''}`} />
+        </button>
+        {!collapsed && (onSelectAll || onClearAll) && (
+          <div className="flex gap-1.5">
+            {onSelectAll && (
+              <button onClick={onSelectAll} className="text-[9px] text-primary hover:underline">全选</button>
+            )}
+            {onSelectAll && onClearAll && <span className="text-[9px] text-muted-foreground">/</span>}
+            {onClearAll && (
+              <button onClick={onClearAll} className="text-[9px] text-muted-foreground hover:underline">清空</button>
+            )}
+          </div>
+        )}
+      </div>
 
       {!collapsed && (
         <div className="px-3 pb-3">

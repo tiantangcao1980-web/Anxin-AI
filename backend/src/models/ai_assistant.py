@@ -108,10 +108,12 @@ class AIAssistantFeedback(Base, TimestampMixin):
         GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     conversation_id: Mapped[Optional[str]] = mapped_column(
-        String(36), nullable=True
+        GUID(),
+        ForeignKey("conversations.id", ondelete="SET NULL"),
+        nullable=True,
     )
     message_id: Mapped[Optional[str]] = mapped_column(
-        String(36), nullable=True, comment="针对具体消息的反馈"
+        GUID(), nullable=True, comment="针对具体消息的反馈"
     )
     rating: Mapped[int] = mapped_column(
         Integer, nullable=False, comment="评分 1-5"

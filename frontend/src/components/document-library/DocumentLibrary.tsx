@@ -8,6 +8,12 @@ import { heading, iconSize } from '@/lib/design-tokens';
 
 export function DocumentLibrary() {
   const [activeTab, setActiveTab] = useState<'templates' | 'ai-generate' | 'my-docs'>('templates');
+  const [presetDocType, setPresetDocType] = useState<string | undefined>();
+
+  const handleAIGenerate = (docType: string) => {
+    setPresetDocType(docType);
+    setActiveTab('ai-generate');
+  };
 
   const tabs = [
     { id: 'templates', label: '文档模板', icon: icons.FileText },
@@ -53,8 +59,8 @@ export function DocumentLibrary() {
 
       {/* Content */}
       <div className="flex-1 overflow-hidden">
-        {activeTab === 'templates' && <TemplateGallery />}
-        {activeTab === 'ai-generate' && <AIGenerator />}
+        {activeTab === 'templates' && <TemplateGallery onAIGenerate={handleAIGenerate} />}
+        {activeTab === 'ai-generate' && <AIGenerator defaultDocType={presetDocType} />}
         {activeTab === 'my-docs' && <MyDocuments />}
       </div>
     </div>

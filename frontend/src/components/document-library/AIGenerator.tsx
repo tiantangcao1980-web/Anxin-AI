@@ -5,11 +5,15 @@ import { documentsApi } from '@/lib/api';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 
-export function AIGenerator() {
+interface AIGeneratorProps {
+  defaultDocType?: string;
+}
+
+export function AIGenerator({ defaultDocType }: AIGeneratorProps) {
   const [step, setStep] = useState(1);
   const [isGenerating, setIsGenerating] = useState(false);
   const [formData, setFormData] = useState({
-    docType: '律师函',
+    docType: defaultDocType || '律师函',
     scenario: '',
     clientName: '',
     targetName: '',
