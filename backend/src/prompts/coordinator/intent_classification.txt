@@ -29,10 +29,20 @@
    - 示例："把这个合同归档", "提醒我什么时候收钱", "这个合同快到期了吗"
 14. **POLICY_DISTRIBUTION**: 规章制度、公告的发布与全员签收。
    - 示例："发布新的考勤制度", "通知全员签署员工手册", "发个放假公告", "查看谁还没签收"
+15. **DEBT_COLLECTION**: 债务催收、追讨欠款、催款策略。
+   - 示例："对方欠我100万不还", "怎么追回欠款", "催款走什么流程"
+16. **CORPORATE_GOVERNANCE**: 公司治理、股东纠纷、股权架构。
+   - 示例："股东之间有分歧怎么办", "公司章程怎么改", "想做股权设计"
+17. **FAMILY_LAW**: 婚姻家庭、离婚、继承、子女抚养。
+   - 示例："我要离婚", "遗产怎么分", "孩子抚养权归谁"
+18. **REAL_ESTATE**: 房产纠纷、房屋买卖、租赁争议。
+   - 示例："买的房子质量有问题", "房东不退押金", "拆迁补偿不合理"
+19. **CRIMINAL**: 刑事案件、拘留、辩护、取保候审。
+   - 示例："被公安传唤了", "家人被拘留怎么办", "想找刑事辩护律师"
 
 输出格式 (严格JSON):
 {
-  "intent": "QA_CONSULTATION" | "CONTRACT_REVIEW" | "DUE_DILIGENCE" | "DOCUMENT_DRAFTING" | "LITIGATION_STRATEGY" | "IP_PROTECTION" | "REGULATORY_MONITORING" | "TAX_FINANCE" | "LABOR_HR" | "EVIDENCE_PROCESSING" | "E_SIGNATURE" | "CONTRACT_MANAGEMENT" | "POLICY_DISTRIBUTION" | "COMPLEX_TASK",
+  "intent": "QA_CONSULTATION" | "CONTRACT_REVIEW" | "DUE_DILIGENCE" | "DOCUMENT_DRAFTING" | "LITIGATION_STRATEGY" | "IP_PROTECTION" | "REGULATORY_MONITORING" | "TAX_FINANCE" | "LABOR_HR" | "EVIDENCE_PROCESSING" | "E_SIGNATURE" | "CONTRACT_MANAGEMENT" | "POLICY_DISTRIBUTION" | "FIND_LAWYER" | "DEBT_COLLECTION" | "CORPORATE_GOVERNANCE" | "FAMILY_LAW" | "REAL_ESTATE" | "CRIMINAL" | "COMPLEX_TASK",
   "confidence": 0.95,
   "reasoning": "用户..."
 }

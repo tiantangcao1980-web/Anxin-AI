@@ -4,7 +4,9 @@
    QA_CONSULTATION, CONTRACT_REVIEW, DUE_DILIGENCE, DOCUMENT_DRAFTING,
    LITIGATION_STRATEGY, IP_PROTECTION, REGULATORY_MONITORING, TAX_FINANCE,
    LABOR_HR, EVIDENCE_PROCESSING, E_SIGNATURE, CONTRACT_MANAGEMENT,
-   POLICY_DISTRIBUTION, FIND_LAWYER, COMPLEX_TASK
+   POLICY_DISTRIBUTION, FIND_LAWYER,
+   DEBT_COLLECTION, CORPORATE_GOVERNANCE, FAMILY_LAW, REAL_ESTATE, CRIMINAL,
+   COMPLEX_TASK
 
 2. **需求完整度分析**：严格评估用户提供的信息是否足够开始处理
 
@@ -19,13 +21,15 @@
 - 简单问答（概念解释、法条查询）直接标记 is_complete=true，score=1.0
 - **禁止默认给高分**：如果用户没有提供具体事实信息，score 不应超过 0.5
 
-### 追问规则
+### 追问规则（苏格拉底式渐进引导）
 - 如果 completeness_score < 0.7，必须生成 1-3 个 guidance_questions
-- 每个问题必须有 3-5 个具体可选选项（不是开放式问题）
-- 问题按重要性排序：先问最关键的信息
+- 每个问题必须有 3-6 个具体可选选项（不是开放式问题）
+- 问题按重要性排序：先问最关键的信息（round 1），细化补充放后面（round 2）
 - 追问语气友好自然，像律师助理在了解案情
+- **不要追问与场景无关的问题**：例如起草合同时不要问"文书目的是催款还是维权"
 
 {attachment_hint}
+{template_context}
 
 用户输入：{description}
 
@@ -42,7 +46,8 @@
     {{
       "question": "友好自然的追问",
       "options": ["选项A", "选项B", "选项C"],
-      "purpose": "补充什么信息"
+      "purpose": "补充什么信息",
+      "round": 1
     }}
   ],
   "suggested_agents": ["agent_name"]

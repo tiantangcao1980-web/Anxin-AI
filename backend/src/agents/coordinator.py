@@ -16,7 +16,7 @@ import time
 
 from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
 from src.prompts import load_prompt
-from src.services.scenario_templates import assess_completeness, build_context_summary
+from src.services.scenario_templates import assess_completeness, build_context_summary, get_template_context_for_llm
 
 
 # 意图代码 → 中文标签映射
@@ -35,6 +35,11 @@ INTENT_LABELS: Dict[str, str] = {
     "CONTRACT_MANAGEMENT": "合同管理",
     "POLICY_DISTRIBUTION": "制度分发",
     "FIND_LAWYER": "找律师",
+    "DEBT_COLLECTION": "债务催收",
+    "CORPORATE_GOVERNANCE": "公司治理",
+    "FAMILY_LAW": "婚姻家庭",
+    "REAL_ESTATE": "房产纠纷",
+    "CRIMINAL": "刑事相关",
     "COMPLEX_TASK": "复合任务",
 }
 
@@ -88,6 +93,22 @@ FAST_PATH_ROUTES: Dict[str, List[Dict[str, Any]]] = {
     ],
     "FIND_LAWYER": [
         {"id": "task_1", "agent": "legal_advisor", "depends_on": []},
+    ],
+    # v3 新增场景路由
+    "DEBT_COLLECTION": [
+        {"id": "task_1", "agent": "legal_advisor", "instruction_suffix": "分析债务催收方案，评估催收路径（协商→律师函→诉讼→执行）。", "depends_on": []},
+    ],
+    "CORPORATE_GOVERNANCE": [
+        {"id": "task_1", "agent": "legal_advisor", "instruction_suffix": "分析公司治理问题，提供股权/章程/决议方面的法律建议。", "depends_on": []},
+    ],
+    "FAMILY_LAW": [
+        {"id": "task_1", "agent": "legal_advisor", "instruction_suffix": "分析婚姻家庭法律问题，提供离婚/继承/抚养相关建议。", "depends_on": []},
+    ],
+    "REAL_ESTATE": [
+        {"id": "task_1", "agent": "legal_advisor", "instruction_suffix": "分析房产法律问题，提供买卖/租赁/纠纷处理建议。", "depends_on": []},
+    ],
+    "CRIMINAL": [
+        {"id": "task_1", "agent": "legal_advisor", "instruction_suffix": "分析刑事案件情况，提供辩护策略和权益保障建议。注意紧急性评估。", "depends_on": []},
     ],
 }
 
@@ -504,6 +525,12 @@ class CoordinatorAgent(BaseLegalAgent):
         (["辞退", "劳动合同", "劳动仲裁", "工资拖欠", "员工", "入职", "试用期", "社保", "劳动争议", "劳动法", "工伤"], "LABOR_HR", 0.88),
         (["发票", "报销", "税务", "财税", "避税", "税收", "股权转让"], "TAX_FINANCE", 0.88),
         (["录音", "证据", "鉴定", "证据链"], "EVIDENCE_PROCESSING", 0.88),
+        # v3 新增场景
+        (["欠钱", "欠款", "催收", "不还钱", "欠我", "讨债", "追债", "催款"], "DEBT_COLLECTION", 0.90),
+        (["股东纠纷", "股权架构", "公司章程", "股东僵局", "增资", "减资", "股权设计", "公司治理"], "CORPORATE_GOVERNANCE", 0.88),
+        (["离婚", "分居", "抚养权", "财产分割", "家暴", "遗产", "继承", "遗嘱"], "FAMILY_LAW", 0.90),
+        (["买房", "卖房", "租房纠纷", "物业纠纷", "拆迁", "房屋质量", "交房", "房产"], "REAL_ESTATE", 0.88),
+        (["刑事", "拘留", "逮捕", "取保候审", "传唤", "犯罪", "嫌疑人", "辩护"], "CRIMINAL", 0.92),
         (["新规", "政策", "法规解读", "监管"], "REGULATORY_MONITORING", 0.85),
         (["查法条", "搜案例", "法规查询", "法律检索", "查找法规", "相关判例", "法条检索", "案例检索"], "QA_CONSULTATION", 0.85),
     ]
@@ -561,11 +588,18 @@ class CoordinatorAgent(BaseLegalAgent):
                 return cached_result
 
         attachment_hint = "[注意：用户已上传附件文件]" if has_attachments else ""
+
+        # 尝试用关键词预判意图，为 LLM 注入对应场景模板上下文（Fix 7）
+        _hint_result = self._fast_keyword_intent(description)
+        _hint_intent = _hint_result["intent"] if _hint_result and _hint_result.get("confidence", 0) >= 0.5 else ""
+        template_context_hint = get_template_context_for_llm(_hint_intent, description) if _hint_intent else ""
+
         merged_prompt = load_prompt(
             "coordinator/merged_intent_analysis.txt",
             fallback="你是一位专业的法务意图识别与需求分析师。",
             attachment_hint=attachment_hint,
             description=description,
+            template_context=template_context_hint,
         )
 
         merged_system = load_prompt(
