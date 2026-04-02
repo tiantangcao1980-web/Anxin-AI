@@ -152,15 +152,24 @@ export const ForceGraphCanvas = forwardRef<ForceGraphCanvasHandle, Props>(functi
   // 动态导入 react-force-graph
   const [FG3D, setFG3D] = useState<any>(null)
   const [FG2D, setFG2D] = useState<any>(null)
+  const [graphEngineError, setGraphEngineError] = useState<string | null>(null)
 
   useEffect(() => {
+    let cancelled = false
+    setGraphEngineError(null)
     Promise.all([
       import('react-force-graph-3d'),
       import('react-force-graph-2d'),
     ]).then(([mod3d, mod2d]) => {
+      if (cancelled) return
       setFG3D(() => mod3d.default)
       setFG2D(() => mod2d.default)
+    }).catch((err) => {
+      if (cancelled) return
+      console.error('图谱引擎加载失败:', err)
+      setGraphEngineError(err?.message || '图谱引擎加载失败')
     })
+    return () => { cancelled = true }
   }, [])
 
   // 容器尺寸监听
@@ -359,6 +368,23 @@ export const ForceGraphCanvas = forwardRef<ForceGraphCanvasHandle, Props>(functi
   }, [fgData.nodes.length, viewMode])
 
   const GraphComp = viewMode === '3d' ? FG3D : FG2D
+  if (graphEngineError) {
+    return (
+      <div ref={containerRef} className="w-full h-full flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3 text-muted-foreground text-sm max-w-md text-center">
+          <svg className="w-8 h-8 text-destructive" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+          <p>图谱引擎加载失败</p>
+          <p className="text-xs text-muted-foreground/70">{graphEngineError}</p>
+          <button
+            className="mt-2 px-4 py-1.5 text-xs rounded-md border border-border hover:bg-accent transition-colors"
+            onClick={() => window.location.reload()}
+          >
+            刷新重试
+          </button>
+        </div>
+      </div>
+    )
+  }
   if (!GraphComp) {
     return (
       <div ref={containerRef} className="w-full h-full flex items-center justify-center">
