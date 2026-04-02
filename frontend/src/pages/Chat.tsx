@@ -673,11 +673,34 @@ export default function Chat() {
       // --- 需求分析结果 ---
       case 'requirement_analysis':
         store.setRequirementAnalysis(data);
-        // 不再自动打开面板 — 由后端 panel_trigger 事件决定
-        // 如果有引导问题，自动在右侧工作台生成确认卡片
+        // 如果有引导问题，根据设备类型选择交互方式
         if (data.guidance_questions && data.guidance_questions.length > 0) {
-          data.guidance_questions.forEach((q: any, idx: number) => {
-            if (q.options && q.options.length > 0) {
+          const validQuestions = data.guidance_questions.filter(
+            (q: any) => q.options && q.options.length > 0
+          );
+
+          if (isMobile && validQuestions.length > 0) {
+            // === 移动端：在对话框内以 ClarificationBubble 形式展示 ===
+            setIsProcessing(false);
+            const mobileMsg: Message = {
+              id: uuidv4(), type: 'clarification',
+              content: data.summary
+                ? `我来帮您处理：${data.summary}\n\n为了更精准地满足需求，请补充以下信息：`
+                : '为了更好地帮助您，请补充以下信息：',
+              timestamp: new Date(), agent: '需求分析',
+              clarification: {
+                questions: validQuestions.map((q: any) => ({
+                  question: q.question,
+                  options: q.options,
+                })),
+                original_content: data.original_content || '',
+              },
+            };
+            setMessages(prev => [...prev, mobileMsg]);
+            clarificationRef.current = { original_content: data.original_content || '' };
+          } else {
+            // === 桌面端/Web端：在右侧工作台生成确认卡片 ===
+            validQuestions.forEach((q: any, idx: number) => {
               store.addWorkspaceConfirmation({
                 id: `req-confirm-${uuidv4()}`,
                 title: q.question || `确认事项 ${idx + 1}`,
@@ -693,8 +716,8 @@ export default function Chat() {
                 callbackAction: 'requirement_clarification',
                 createdAt: Date.now(),
               });
-            }
-          });
+            });
+          }
         }
         // 如果需求完整，推送建议动作
         if (data.is_complete && data.suggested_agents && data.suggested_agents.length > 0) {
@@ -1647,13 +1670,14 @@ export default function Chat() {
   }, [store, openRightPanel]);
 
   // ========== 工作台确认回调 ==========
-  const handleWorkspaceConfirm = useCallback((confirmationId: string, selectedIds: string[]) => {
+  const handleWorkspaceConfirm = useCallback((confirmationId: string, selectedIds: string[], customText?: string) => {
     // 通过 WebSocket 将用户选择发送回后端
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
         type: 'workspace_confirmation_response',
         confirmation_id: confirmationId,
         selected_ids: selectedIds,
+        custom_text: customText || undefined,
         conversation_id: store.conversationId,
       }));
     }

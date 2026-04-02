@@ -6,14 +6,14 @@
  * 确认后锁定选择，通过回调通知上层
  */
 
-import { useState, memo } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useRef, memo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { icons } from '@/lib/icons';
 import type { WorkspaceConfirmation } from '@/lib/store';
 
 interface WorkspaceConfirmationCardProps {
   confirmation: WorkspaceConfirmation;
-  onConfirm: (selectedIds: string[]) => void;
+  onConfirm: (selectedIds: string[], customText?: string) => void;
 }
 
 // 图标映射
@@ -28,16 +28,26 @@ const iconMap: Record<string, React.ElementType> = {
   labor: icons.Briefcase,
 };
 
+// 自定义输入的特殊 ID
+const CUSTOM_INPUT_ID = '__custom_input__';
+
 export const WorkspaceConfirmationCard = memo(function WorkspaceConfirmationCard({
   confirmation,
   onConfirm,
 }: WorkspaceConfirmationCardProps) {
   const [localSelected, setLocalSelected] = useState<string[]>(confirmation.selectedIds);
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [customText, setCustomText] = useState('');
+  const customInputRef = useRef<HTMLInputElement>(null);
   const isConfirmed = confirmation.status === 'confirmed';
   const isSingle = confirmation.type === 'single';
 
   const handleToggle = (optionId: string) => {
     if (isConfirmed) return;
+
+    // 选择预设选项时关闭自定义输入
+    setShowCustomInput(false);
+    setCustomText('');
 
     if (isSingle) {
       setLocalSelected([optionId]);
@@ -45,14 +55,34 @@ export const WorkspaceConfirmationCard = memo(function WorkspaceConfirmationCard
       setLocalSelected(prev =>
         prev.includes(optionId)
           ? prev.filter(id => id !== optionId)
-          : [...prev, optionId]
+          : prev.filter(id => id !== CUSTOM_INPUT_ID).concat(optionId)
       );
     }
   };
 
+  const handleToggleCustomInput = () => {
+    if (isConfirmed) return;
+    const newState = !showCustomInput;
+    setShowCustomInput(newState);
+    if (newState) {
+      // 切换到自定义输入模式，清除预设选择
+      setLocalSelected(isSingle ? [CUSTOM_INPUT_ID] : prev => [...prev.filter(id => id !== CUSTOM_INPUT_ID), CUSTOM_INPUT_ID]);
+      setTimeout(() => customInputRef.current?.focus(), 100);
+    } else {
+      setLocalSelected(prev => prev.filter(id => id !== CUSTOM_INPUT_ID));
+      setCustomText('');
+    }
+  };
+
   const handleConfirm = () => {
-    if (localSelected.length === 0 || isConfirmed) return;
-    onConfirm(localSelected);
+    if (isConfirmed) return;
+    const hasCustom = localSelected.includes(CUSTOM_INPUT_ID) && customText.trim();
+    const hasPreset = localSelected.some(id => id !== CUSTOM_INPUT_ID);
+    if (!hasCustom && !hasPreset) return;
+    onConfirm(
+      localSelected.filter(id => id !== CUSTOM_INPUT_ID),
+      hasCustom ? customText.trim() : undefined,
+    );
   };
 
   return (
@@ -99,7 +129,7 @@ export const WorkspaceConfirmationCard = memo(function WorkspaceConfirmationCard
       {/* 选项列表 */}
       <div className="p-3 space-y-2">
         {confirmation.options.map((option) => {
-          const isSelected = localSelected.includes(option.id);
+          const isSelected = localSelected.includes(option.id) && !showCustomInput;
           const OptionIcon = option.icon ? (iconMap[option.icon] || icons.Circle) : null;
 
           return (
@@ -160,27 +190,81 @@ export const WorkspaceConfirmationCard = memo(function WorkspaceConfirmationCard
             </motion.button>
           );
         })}
+
+        {/* 自定义输入选项 */}
+        {!isConfirmed && (
+          <motion.button
+            onClick={handleToggleCustomInput}
+            whileTap={{ scale: 0.98 }}
+            className={`w-full text-left px-3 py-2.5 rounded-lg border transition-all flex items-center gap-3 ${
+              showCustomInput
+                ? 'border-primary bg-primary/5 shadow-sm'
+                : 'border-dashed border-border bg-background hover:border-primary/40 hover:bg-primary/5'
+            }`}
+          >
+            <div className="flex-shrink-0">
+              {showCustomInput ? (
+                <icons.CheckCircle2 className="w-4.5 h-4.5 text-primary" />
+              ) : (
+                <icons.Edit className="w-4.5 h-4.5 text-muted-foreground" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={`text-sm font-medium ${
+                showCustomInput ? 'text-foreground' : 'text-muted-foreground'
+              }`}>以上都不是，自己输入</p>
+            </div>
+          </motion.button>
+        )}
+
+        {/* 自定义输入框 */}
+        <AnimatePresence>
+          {showCustomInput && !isConfirmed && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <input
+                ref={customInputRef}
+                value={customText}
+                onChange={(e) => setCustomText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && customText.trim()) handleConfirm();
+                }}
+                placeholder="请输入您的具体需求..."
+                className="w-full px-3 py-2.5 text-sm bg-muted/50 border border-border rounded-lg focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/10 text-foreground placeholder:text-muted-foreground transition-colors"
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* 确认按钮 */}
-      {!isConfirmed && (
-        <div className="px-4 pb-3">
-          <motion.button
-            onClick={handleConfirm}
-            disabled={localSelected.length === 0}
-            whileHover={localSelected.length > 0 ? { scale: 1.01 } : {}}
-            whileTap={localSelected.length > 0 ? { scale: 0.98 } : {}}
-            className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-              localSelected.length > 0
-                ? 'bg-primary text-white hover:bg-primary/90 shadow-sm'
-                : 'bg-muted text-muted-foreground cursor-not-allowed'
-            }`}
-          >
-            确认选择
-            <icons.ArrowRight className="w-3.5 h-3.5" />
-          </motion.button>
-        </div>
-      )}
+      {!isConfirmed && (() => {
+        const hasPreset = localSelected.some(id => id !== CUSTOM_INPUT_ID);
+        const hasCustom = showCustomInput && customText.trim().length > 0;
+        const canConfirm = hasPreset || hasCustom;
+        return (
+          <div className="px-4 pb-3">
+            <motion.button
+              onClick={handleConfirm}
+              disabled={!canConfirm}
+              whileHover={canConfirm ? { scale: 1.01 } : {}}
+              whileTap={canConfirm ? { scale: 0.98 } : {}}
+              className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                canConfirm
+                  ? 'bg-primary text-white hover:bg-primary/90 shadow-sm'
+                  : 'bg-muted text-muted-foreground cursor-not-allowed'
+              }`}
+            >
+              确认选择
+              <icons.ArrowRight className="w-3.5 h-3.5" />
+            </motion.button>
+          </div>
+        );
+      })()}
 
       {/* 来源标注 */}
       {confirmation.source && (

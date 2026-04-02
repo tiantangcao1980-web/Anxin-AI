@@ -21,17 +21,27 @@ async def handle_workspace_message(
     if msg_type == "workspace_confirmation_response":
         confirmation_id = data.get("confirmation_id", "")
         selected_ids = data.get("selected_ids", [])
-        logger.info(f"收到工作台确认: {confirmation_id}, 选项: {selected_ids}")
+        custom_text = data.get("custom_text", "")
+        logger.info(f"收到工作台确认: {confirmation_id}, 选项: {selected_ids}, 自定义: {custom_text[:50] if custom_text else ''}")
         await ctx.send("workspace_confirmation_ack", {
             "confirmation_id": confirmation_id,
             "status": "received",
         })
 
+        # 合并预设选项和自定义输入
+        parts = []
         if selected_ids:
-            selections_text = "、".join(selected_ids)
+            parts.append("、".join(selected_ids))
+        if custom_text:
+            parts.append(custom_text)
+
+        if parts:
+            selections_text = "；".join(parts)
             data["original_content"] = ctx.last_user_content
             data["content"] = selections_text
             data["selections"] = selections_text
+            if custom_text:
+                data["custom_text"] = custom_text
             logger.info(f"工作台确认 → 转为 clarification_response: {selections_text[:50]}")
             return True, "clarification_response", data
         else:

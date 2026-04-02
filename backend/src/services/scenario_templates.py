@@ -109,9 +109,9 @@ SCENARIO_TEMPLATES: Dict[str, Dict[str, Any]] = {
             {
                 "key": "doc_type", "label": "文书类型",
                 "question": "需要起草什么类型的文书？",
-                "options": ["律师函", "起诉状", "合同", "法律意见书", "公司章程", "其他"],
+                "options": ["律师函", "起诉状", "合同/协议", "法律意见书", "公司章程", "其他"],
                 "extract_patterns": [
-                    r"律师函", r"起诉状", r"答辩状", r"合同", r"意见书",
+                    r"律师函", r"起诉状", r"答辩状", r"合同", r"协议", r"意见书",
                     r"章程", r"通知", r"声明", r"备忘录", r"仲裁申请",
                 ],
             },
@@ -141,6 +141,92 @@ SCENARIO_TEMPLATES: Dict[str, Dict[str, Any]] = {
         ],
         "auto_complete_if": [],
         "min_required_for_proceed": 1,
+        # 合同/协议类文书的动态子模板 — 当 doc_type 匹配合同/协议时替换 required_slots
+        "sub_templates": {
+            "contract": {
+                "detect_patterns": [r"合同", r"协议"],
+                "required_slots": [
+                    {
+                        "key": "contract_sub_type", "label": "合同类型",
+                        "question": "这是什么类型的合同/协议？",
+                        "options": ["买卖/销售合同", "服务合同", "租赁合同", "合作协议", "保密协议（NDA）", "劳动/劳务合同"],
+                        "extract_patterns": [
+                            r"买卖", r"销售", r"采购", r"购销",
+                            r"服务", r"委托", r"咨询", r"外包",
+                            r"租赁", r"租房", r"厂房",
+                            r"合作", r"战略", r"联营", r"框架",
+                            r"保密", r"NDA", r"nda",
+                            r"劳动", r"劳务", r"用工", r"雇佣",
+                            r"加盟", r"特许", r"代理", r"经销", r"分销",
+                            r"技术开发", r"技术转让", r"许可",
+                            r"股权转让", r"投资", r"融资",
+                            r"借款", r"借贷", r"担保",
+                        ],
+                    },
+                    {
+                        "key": "contract_parties", "label": "合同双方",
+                        "question": "合同双方分别是？（如：甲方XXX公司，乙方XXX）",
+                        "extract_patterns": [
+                            r"甲方", r"乙方", r"公司", r"对方", r"我方",
+                            r"买方", r"卖方", r"出租", r"承租",
+                        ],
+                    },
+                    {
+                        "key": "contract_subject", "label": "合同标的",
+                        "question": "合同涉及的主要内容是什么？（如：标的物、服务内容、金额等）",
+                        "extract_patterns": [
+                            r"\d+万", r"\d+元", r"金额", r"标的",
+                            r"货物", r"商品", r"产品", r"设备",
+                            r"房屋", r"场地", r"土地",
+                        ],
+                    },
+                ],
+                "optional_slots": [
+                    {
+                        "key": "contract_term", "label": "合同期限",
+                        "question": "合同期限大约多长？",
+                        "options": ["1年以内", "1-3年", "3年以上", "一次性交易", "暂不确定"],
+                        "extract_patterns": [r"\d+年", r"\d+月", r"长期", r"短期", r"一次"],
+                    },
+                    {
+                        "key": "special_terms", "label": "特殊条款",
+                        "question": "是否有需要特别关注的条款？",
+                        "options": ["违约责任", "知识产权归属", "保密条款", "竞业限制", "争议解决方式", "暂时没有"],
+                        "extract_patterns": [
+                            r"违约", r"知识产权", r"保密", r"竞业", r"仲裁", r"管辖",
+                        ],
+                    },
+                ],
+            },
+            "lawyer_letter": {
+                "detect_patterns": [r"律师函"],
+                "required_slots": [
+                    {
+                        "key": "letter_purpose", "label": "律师函目的",
+                        "question": "发送律师函的目的是什么？",
+                        "options": ["催款/催告", "维权警告", "解除/终止合同", "要求停止侵权", "告知/通知"],
+                        "extract_patterns": [
+                            r"催款", r"催告", r"催收", r"维权", r"警告",
+                            r"解除", r"终止", r"侵权", r"通知",
+                        ],
+                    },
+                    {
+                        "key": "letter_parties", "label": "涉及方",
+                        "question": "律师函发送给谁？（个人/公司名称）",
+                        "extract_patterns": [
+                            r"甲方", r"乙方", r"公司", r"对方", r"我方",
+                        ],
+                    },
+                    {
+                        "key": "letter_facts", "label": "基本事实",
+                        "question": "请简述涉及的基本事实（如：欠款金额、违约情况等）",
+                        "extract_patterns": [
+                            r"\d+万", r"\d+元", r"欠款", r"违约", r"损失",
+                        ],
+                    },
+                ],
+            },
+        },
     },
 
     "LITIGATION_STRATEGY": {
@@ -452,7 +538,29 @@ def assess_completeness(
             "filled_slots": [], "missing_slots": [], "questions": [],
         }
 
-    required = template["required_slots"]
+    required = list(template["required_slots"])
+    optional_extra = list(template.get("optional_slots", []))
+
+    # === 子模板动态分支 ===
+    # 当模板定义了 sub_templates 时，根据用户输入匹配子模板
+    # 例: DOCUMENT_DRAFTING 中 doc_type 匹配"合同"时，切换到合同专用 slots
+    sub_templates = template.get("sub_templates", {})
+    _matched_sub = None
+    if sub_templates:
+        for sub_key, sub_def in sub_templates.items():
+            for pattern in sub_def.get("detect_patterns", []):
+                if re.search(pattern, user_input):
+                    _matched_sub = sub_key
+                    break
+            if _matched_sub:
+                break
+        if _matched_sub:
+            sub = sub_templates[_matched_sub]
+            required = sub["required_slots"]
+            if "optional_slots" in sub:
+                optional_extra = sub["optional_slots"] + optional_extra
+            logger.debug(f"子模板匹配: {_matched_sub}, 切换到专用 slots")
+
     if not required:
         return {
             "is_complete": True, "score": 1.0,
@@ -511,11 +619,11 @@ def assess_completeness(
     if len(user_input) > 200:
         score = min(score + 0.1, 1.0)
 
-    # 生成追问问题（置信度门控：最多 3 个，按重要性排序）
+    # 生成追问问题（苏格拉底式渐进追问：最多 3 个，按重要性排序）
     questions = []
     for slot_info in missing[:3]:
         slot_key = slot_info["key"]
-        # 从模板中找回完整 slot 定义
+        # 从模板中找回完整 slot 定义（含子模板 slots）
         slot_def = next((s for s in required if s["key"] == slot_key), None)
         if slot_def:
             q: Dict[str, Any] = {
@@ -524,6 +632,27 @@ def assess_completeness(
             }
             if "options" in slot_def:
                 q["options"] = slot_def["options"]
+            questions.append(q)
+
+    # 如果 required 追问不足 3 个，从 optional 补充（渐进引导）
+    if len(questions) < 3 and optional_extra:
+        for opt_slot in optional_extra:
+            if len(questions) >= 3:
+                break
+            opt_key = opt_slot["key"]
+            # 跳过已填充的
+            if any(f["key"] == opt_key for f in filled):
+                continue
+            # 跳过 pre_filled 的
+            if opt_key in pre_filled and pre_filled[opt_key]:
+                continue
+            q = {
+                "question": opt_slot["question"],
+                "purpose": opt_slot["label"],
+                "optional": True,  # 标记为可选，前端可区分展示
+            }
+            if "options" in opt_slot:
+                q["options"] = opt_slot["options"]
             questions.append(q)
 
     min_required = template.get("min_required_for_proceed", 1)

@@ -30,7 +30,7 @@ interface AgentWorkspaceProps {
   requirementAnalysis: RequirementAnalysis | null;
   a2uiData: any;
   isProcessing: boolean;
-  onWorkspaceConfirm?: (confirmationId: string, selectedIds: string[]) => void;
+  onWorkspaceConfirm?: (confirmationId: string, selectedIds: string[], customText?: string) => void;
   onWorkspaceAction?: (actionId: string, payload?: any) => void;
   /** 切换到文档模式的回调（用于"查看完整文档"按钮） */
   onSwitchToDocument?: () => void;
@@ -105,10 +105,10 @@ export const AgentWorkspace = memo(function AgentWorkspace({
             >
               <WorkspaceConfirmationCard
                 confirmation={confirmation}
-                onConfirm={(selectedIds) => {
+                onConfirm={(selectedIds, customText) => {
                   store.updateConfirmationSelection(confirmation.id, selectedIds);
                   store.confirmWorkspaceSelection(confirmation.id);
-                  onWorkspaceConfirm?.(confirmation.id, selectedIds);
+                  onWorkspaceConfirm?.(confirmation.id, selectedIds, customText);
                 }}
               />
             </motion.div>
