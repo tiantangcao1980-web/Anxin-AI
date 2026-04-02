@@ -111,13 +111,27 @@ class DeepResearchEngine:
     自动生成优化的后续查询，直到信息充分或达到最大轮数。
     """
 
-    MAX_REFLECTIONS = 3          # 最大反思轮数
-    MIN_CONFIDENCE = 0.85        # 提前终止的信心阈值
-    SEARCH_TIMEOUT = 15.0        # 单次搜索超时（秒）
+    MAX_REFLECTIONS = 5          # 最大反思轮数（从 3 提升到 5）
+    MIN_CONFIDENCE = 0.88        # 提前终止的信心阈值（从 0.85 提升到 0.88）
+    SEARCH_TIMEOUT = 20.0        # 单次搜索超时（秒）
+    MAX_RESULTS_PER_SOURCE = 8   # 每个数据源最多返回条数
+
+    # 更丰富的研究维度
+    DEFAULT_DIMENSIONS = [
+        "工商基本信息与经营状态",
+        "涉诉记录与司法风险",
+        "信用评级与行政处罚",
+        "股权关系与实控人穿透",
+        "行业舆情与负面新闻",
+        "财务状况与经营数据",
+        "知识产权与技术资产",
+        "关联交易与担保链",
+    ]
 
     def __init__(self):
         self._llm_agent = None
         self._web_searcher = None
+        self._data_store = None
 
     @property
     def llm_agent(self):
@@ -144,6 +158,16 @@ class DeepResearchEngine:
                 logger.warning("WebSearchService 不可用")
         return self._web_searcher
 
+    @property
+    def data_store(self):
+        if self._data_store is None:
+            try:
+                from src.services.investigation_data_store import investigation_data_store
+                self._data_store = investigation_data_store
+            except ImportError:
+                pass
+        return self._data_store
+
     # ========== 主入口：流式深度研究 ==========
 
     async def research_stream(
@@ -167,13 +191,7 @@ class DeepResearchEngine:
         max_rounds = max_rounds or self.MAX_REFLECTIONS
 
         if not research_dimensions:
-            research_dimensions = [
-                "工商基本信息与经营状态",
-                "涉诉记录与司法风险",
-                "信用评级与行政处罚",
-                "股权关系与实控人",
-                "行业舆情与负面新闻",
-            ]
+            research_dimensions = self.DEFAULT_DIMENSIONS
 
         # 初始化研究状态
         initial_query = f"{company_name} 企业尽职调查"
@@ -304,32 +322,51 @@ class DeepResearchEngine:
     async def _search_single(
         self, query: str, company_name: str
     ) -> List[SearchResult]:
-        """单次搜索：整合多个数据源"""
+        """单次搜索：整合多个数据源，结果自动入缓存"""
         results: List[SearchResult] = []
 
-        # 数据源 1：Web 搜索
-        if self.web_searcher:
-            try:
-                web_results = await asyncio.wait_for(
-                    self.web_searcher.search(query, max_results=5),
-                    timeout=self.SEARCH_TIMEOUT,
-                )
-                for wr in web_results:
+        # 先检查缓存
+        if self.data_store:
+            cached = await self.data_store.get_cached_data(
+                company_name, "web_search", query_text=query,
+                max_age_seconds=43200,  # Web 搜索缓存 12 小时
+            )
+            if cached:
+                logger.debug(f"深度研究缓存命中: {query[:30]}")
+                cached_items = cached.get("results", []) if isinstance(cached, dict) else []
+                for item in cached_items:
                     results.append(SearchResult(
-                        source="web_search",
-                        title=wr.get("title", ""),
-                        content=wr.get("snippet", wr.get("content", "")),
-                        url=wr.get("url", ""),
-                        relevance=wr.get("relevance", 0.5),
+                        source=item.get("source", "cache"),
+                        title=item.get("title", ""),
+                        content=item.get("content", ""),
+                        url=item.get("url", ""),
+                        relevance=item.get("relevance", 0.6),
                     ))
-            except Exception as e:
-                logger.debug(f"Web 搜索失败: {e}")
+                if results:
+                    return results
+
+        # 数据源 1：Web 搜索（通用 + 新闻 + 法律专项）
+        if self.web_searcher:
+            search_tasks = [
+                self._safe_web_search(query, max_results=self.MAX_RESULTS_PER_SOURCE),
+            ]
+            # 新闻搜索
+            if any(kw in query for kw in ["舆情", "新闻", "负面", "事件"]):
+                search_tasks.append(self._safe_news_search(query, max_results=5))
+            # 法律专项搜索
+            if any(kw in query for kw in ["诉讼", "判决", "裁定", "执行", "失信"]):
+                search_tasks.append(self._safe_legal_search(query, max_results=5))
+
+            all_web = await asyncio.gather(*search_tasks, return_exceptions=True)
+            for batch in all_web:
+                if isinstance(batch, list):
+                    results.extend(batch)
 
         # 数据源 2：内部知识库
         try:
             from src.services.knowledge_service import knowledge_service
             kb_results = await asyncio.wait_for(
-                knowledge_service.search(query, limit=3),
+                knowledge_service.search(query, limit=5),
                 timeout=self.SEARCH_TIMEOUT,
             )
             if kb_results:
@@ -361,7 +398,81 @@ class DeepResearchEngine:
         except Exception as e:
             logger.debug(f"工商数据获取失败: {e}")
 
+        # 搜索结果入缓存
+        if results and self.data_store:
+            cache_data = {"results": [r.to_dict() for r in results]}
+            await self.data_store.save_to_cache(
+                company_name=company_name,
+                data_source="web_search",
+                raw_data=cache_data,
+                query_text=query,
+                ttl_seconds=43200,
+            )
+
         return results
+
+    async def _safe_web_search(self, query: str, max_results: int = 8) -> List[SearchResult]:
+        """安全封装的 Web 搜索"""
+        try:
+            web_results = await asyncio.wait_for(
+                self.web_searcher.search(query, max_results=max_results),
+                timeout=self.SEARCH_TIMEOUT,
+            )
+            return [
+                SearchResult(
+                    source="web_search",
+                    title=wr.get("title", ""),
+                    content=wr.get("snippet", wr.get("content", "")),
+                    url=wr.get("url", ""),
+                    relevance=wr.get("relevance", 0.5),
+                )
+                for wr in web_results
+            ]
+        except Exception as e:
+            logger.debug(f"Web 搜索失败: {e}")
+            return []
+
+    async def _safe_news_search(self, query: str, max_results: int = 5) -> List[SearchResult]:
+        """安全封装的新闻搜索"""
+        try:
+            news_results = await asyncio.wait_for(
+                self.web_searcher.search_news(query, max_results=max_results),
+                timeout=self.SEARCH_TIMEOUT,
+            )
+            return [
+                SearchResult(
+                    source="news",
+                    title=nr.get("title", ""),
+                    content=nr.get("snippet", nr.get("content", "")),
+                    url=nr.get("url", ""),
+                    relevance=nr.get("relevance", 0.6),
+                )
+                for nr in news_results
+            ]
+        except Exception as e:
+            logger.debug(f"新闻搜索失败: {e}")
+            return []
+
+    async def _safe_legal_search(self, query: str, max_results: int = 5) -> List[SearchResult]:
+        """安全封装的法律专项搜索"""
+        try:
+            legal_results = await asyncio.wait_for(
+                self.web_searcher.search_legal(query, max_results=max_results),
+                timeout=self.SEARCH_TIMEOUT,
+            )
+            return [
+                SearchResult(
+                    source="legal_database",
+                    title=lr.get("title", ""),
+                    content=lr.get("snippet", lr.get("content", "")),
+                    url=lr.get("url", ""),
+                    relevance=lr.get("relevance", 0.7),
+                )
+                for lr in legal_results
+            ]
+        except Exception as e:
+            logger.debug(f"法律搜索失败: {e}")
+            return []
 
     async def _reflect_on_results(
         self,

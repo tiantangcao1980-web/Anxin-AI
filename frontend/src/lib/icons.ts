@@ -398,6 +398,8 @@ export const icons = {
   Printer: Printer,
   Table: Table,
   Image: Image,
+  Play: Play,
+  Square: Square,
   PenTool: PenSquare,
   GripVertical: GripVertical,
 

@@ -689,3 +689,124 @@ async def list_simulation_scenarios(
         return UnifiedResponse.success(data=scenarios)
     except Exception as e:
         return UnifiedResponse.error(message=str(e))
+
+
+# ===== 时间序列快照 =====
+
+@router.get("/snapshots/{company_name}")
+async def get_company_snapshots(
+    company_name: str,
+    limit: int = Query(20, ge=1, le=100),
+    user: User = Depends(get_current_user_required),
+):
+    """获取企业历史快照列表"""
+    try:
+        from src.services.investigation_data_store import investigation_data_store
+        snapshots = await investigation_data_store.get_snapshots(
+            company_name=company_name,
+            limit=limit,
+            user_id=str(user.id),
+        )
+        return UnifiedResponse.success(data=snapshots)
+    except Exception as e:
+        logger.debug(f"查询快照失败: {e}")
+        return UnifiedResponse.success(data=[])
+
+
+@router.get("/snapshots/{company_name}/trend")
+async def get_risk_trend(
+    company_name: str,
+    limit: int = Query(30, ge=1, le=100),
+    user: User = Depends(get_current_user_required),
+):
+    """获取企业风险趋势数据（用于折线图）"""
+    try:
+        from src.services.investigation_data_store import investigation_data_store
+        trend = await investigation_data_store.get_risk_trend(
+            company_name=company_name,
+            limit=limit,
+        )
+        return UnifiedResponse.success(data=trend)
+    except Exception as e:
+        logger.debug(f"查询风险趋势失败: {e}")
+        return UnifiedResponse.success(data=[])
+
+
+@router.get("/snapshots/compare/{snapshot_a}/{snapshot_b}")
+async def compare_snapshots(
+    snapshot_a: str,
+    snapshot_b: str,
+    user: User = Depends(get_current_user_required),
+):
+    """对比两个快照的差异"""
+    try:
+        from src.services.investigation_data_store import investigation_data_store
+        result = await investigation_data_store.compare_snapshots(snapshot_a, snapshot_b)
+        return UnifiedResponse.success(data=result)
+    except Exception as e:
+        return UnifiedResponse.error(message=str(e))
+
+
+# ===== 缓存管理 =====
+
+@router.get("/cache/{company_name}")
+async def get_cache_status(
+    company_name: str,
+    user: User = Depends(get_current_user_required),
+):
+    """获取某企业各维度的缓存状态"""
+    try:
+        from src.services.investigation_data_store import investigation_data_store
+        dimensions = await investigation_data_store.get_cached_dimensions(company_name)
+        return UnifiedResponse.success(data=dimensions)
+    except Exception as e:
+        logger.debug(f"查询缓存状态失败: {e}")
+        return UnifiedResponse.success(data={})
+
+
+@router.delete("/cache/{company_name}")
+async def invalidate_cache(
+    company_name: str,
+    data_source: Optional[str] = Query(None, description="指定失效的数据源，不传则全部失效"),
+    user: User = Depends(get_current_user_required),
+):
+    """使某企业的缓存失效（强制下次调查重新抓取）"""
+    try:
+        from src.services.investigation_data_store import investigation_data_store
+        count = await investigation_data_store.invalidate_cache(company_name, data_source)
+        return UnifiedResponse.success(data={"invalidated": count})
+    except Exception as e:
+        return UnifiedResponse.error(message=str(e))
+
+
+# ===== 用户偏好 =====
+
+@router.get("/preferences")
+async def get_user_preferences(
+    user: User = Depends(get_current_user_required),
+):
+    """获取当前用户的调查偏好"""
+    try:
+        from src.services.investigation_data_store import investigation_data_store
+        pref = await investigation_data_store.get_user_preference(str(user.id))
+        return UnifiedResponse.success(data=pref)
+    except Exception as e:
+        logger.debug(f"查询用户偏好失败: {e}")
+        return UnifiedResponse.success(data=None)
+
+
+@router.get("/preferences/recommendations")
+async def get_smart_recommendations(
+    company_name: Optional[str] = Query(None),
+    user: User = Depends(get_current_user_required),
+):
+    """获取基于用户偏好的智能推荐"""
+    try:
+        from src.services.investigation_data_store import investigation_data_store
+        rec = await investigation_data_store.get_smart_recommendations(
+            user_id=str(user.id),
+            company_name=company_name,
+        )
+        return UnifiedResponse.success(data=rec)
+    except Exception as e:
+        return UnifiedResponse.success(data={})

@@ -43,6 +43,10 @@ from src.models.firm_management import Team, TeamMember, CaseAssignment, TimeEnt
 from src.models.lawyer_certification import LawyerCertification, LawyerServiceConfig
 from src.models.billing import BillingPlan, Subscription, Refund
 from src.models.ai_assistant import AIAssistantConfig, ConversationSummary, AIAssistantFeedback
+from src.models.investigation import (
+    Investigation, InvestigationStatus, InvestigationRiskLevel,
+    InvestigationSnapshot, SearchCache, UserInvestigationPreference,
+)
 
 from src.models.sentiment import (
 
@@ -209,5 +213,12 @@ __all__ = [
     "AIAssistantConfig",
     "ConversationSummary",
     "AIAssistantFeedback",
+    # 调查模型
+    "Investigation",
+    "InvestigationStatus",
+    "InvestigationRiskLevel",
+    "InvestigationSnapshot",
+    "SearchCache",
+    "UserInvestigationPreference",
 ]
 

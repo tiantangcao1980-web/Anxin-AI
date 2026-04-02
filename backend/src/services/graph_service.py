@@ -8,7 +8,12 @@ import time
 from typing import ClassVar, List, Dict, Any, Optional
 from loguru import logger
 
-from camel.storages import Neo4jGraph
+try:
+    from camel.storages import Neo4jGraph
+except ImportError:
+    Neo4jGraph = None  # type: ignore
+    logger.warning("camel-ai 未安装，图数据库功能不可用")
+
 from src.core.config import settings
 
 

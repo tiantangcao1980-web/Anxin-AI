@@ -478,6 +478,38 @@ export default function DueDiligence() {
           currentChapter: undefined,
         } : prev)
 
+      // ===== 缓存命中事件 =====
+      } else if (event.type === 'cache_hit') {
+        // 缓存热加载数据
+        if (event.step === 'basic_info') { collectedData.basicInfo = event.data }
+        if (event.step === 'litigation') { collectedData.litigation = event.data }
+        if (event.step === 'credit') { collectedData.credit = event.data }
+        if (event.step === 'risk') { collectedData.risk = event.data }
+        // 更新 agent 状态为 done
+        setStages(prev => prev.map(stage => {
+          if (stage.id !== 'collection') return stage
+          return {
+            ...stage,
+            agents: stage.agents?.map(a => {
+              if (event.step === 'basic_info' && a.name === 'due_diligence') return { ...a, status: 'done' as const, data: event.data }
+              if (event.step === 'risk' && a.name === 'risk_assessor') return { ...a, status: 'done' as const, data: event.data }
+              if (event.step === 'credit' && a.name === 'compliance') return { ...a, status: 'done' as const, data: event.data }
+              return a
+            }) || [],
+          }
+        }))
+        toast.success(`${event.step} 缓存命中，秒级加载`)
+      } else if (event.type === 'cache_status') {
+        // 缓存预检完成
+        const status = event.data || {}
+        const cachedCount = Object.values(status).filter((v: any) => v.status === 'cached').length
+        if (cachedCount > 0) {
+          toast.info(`已缓存 ${cachedCount} 个维度数据，加速加载中...`)
+        }
+      } else if (event.type === 'snapshot_saved') {
+        // 快照已保存通知
+        toast.success('调查快照已保存，可在历史中对比')
+
       // ===== 冲突/共识 =====
       } else if (event.type === 'conflict') {
         setConflicts(prev => [...prev, {

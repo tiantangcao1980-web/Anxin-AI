@@ -1005,6 +1005,8 @@ export interface InvestigationStreamEvent {
     | 'report_start' | 'report_template_selected' | 'report_chapter_start'
     | 'report_chapter_done' | 'report_done' | 'report_report_start'
     | 'report_report_done'
+    // Cache & Snapshot 事件
+    | 'cache_status' | 'cache_hit' | 'snapshot_saved' | 'preference_updated'
   message?: string
   step?: string
   agent?: string
@@ -1027,6 +1029,11 @@ export interface InvestigationStreamEvent {
   chapter_id?: string
   chapter_title?: string
   section?: any
+  // Cache & Snapshot 扩展字段
+  snapshot_id?: string
+  recommendations?: any
+  cache_used?: boolean
+  stages?: string[]
 }
 
 export const dueDiligenceApi = {
@@ -1227,6 +1234,54 @@ export const dueDiligenceApi = {
 
   listScenarios: () =>
     request<any[]>('/due-diligence/simulate/scenarios'),
+
+  // ===== 时间序列快照 =====
+
+  /** 获取企业历史快照列表 */
+  getCompanySnapshots: (companyName: string, limit: number = 20) =>
+    request<any[]>(`/due-diligence/snapshots/${encodeURIComponent(companyName)}?limit=${limit}`),
+
+  /** 获取企业风险趋势数据（折线图） */
+  getRiskTrend: (companyName: string, limit: number = 30) =>
+    request<Array<{ time: string; risk_score: number; risk_level: string; has_changes: boolean }>>(
+      `/due-diligence/snapshots/${encodeURIComponent(companyName)}/trend?limit=${limit}`
+    ),
+
+  /** 对比两个快照差异 */
+  compareSnapshots: (snapshotA: string, snapshotB: string) =>
+    request<{
+      snapshot_a: any; snapshot_b: any;
+      risk_score_change: number; diff_summary: string; changes: Record<string, any>;
+    }>(`/due-diligence/snapshots/compare/${snapshotA}/${snapshotB}`),
+
+  // ===== 缓存管理 =====
+
+  /** 获取企业各维度缓存状态 */
+  getCacheStatus: (companyName: string) =>
+    request<Record<string, { cached: boolean; age_hours?: number; expired?: boolean; hit_count?: number }>>(
+      `/due-diligence/cache/${encodeURIComponent(companyName)}`
+    ),
+
+  /** 使缓存失效 */
+  invalidateCache: (companyName: string, dataSource?: string) =>
+    request<{ invalidated: number }>(
+      `/due-diligence/cache/${encodeURIComponent(companyName)}${dataSource ? `?data_source=${dataSource}` : ''}`,
+      { method: 'DELETE' }
+    ),
+
+  // ===== 用户偏好 =====
+
+  /** 获取当前用户调查偏好 */
+  getUserPreferences: () =>
+    request<any>('/due-diligence/preferences'),
+
+  /** 获取基于偏好的智能推荐 */
+  getSmartRecommendations: (companyName?: string) =>
+    request<{
+      suggested_depth: string; suggested_template: string;
+      suggested_dimensions: string[]; quick_access: Array<{ name: string; count: number; last_investigated: string }>;
+      total_investigations: number; search_keywords: string[];
+    }>(`/due-diligence/preferences/recommendations${companyName ? `?company_name=${encodeURIComponent(companyName)}` : ''}`),
 }
 
 

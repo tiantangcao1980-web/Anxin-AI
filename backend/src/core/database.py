@@ -68,6 +68,11 @@ async def _ensure_additive_schema_columns() -> None:
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT false",
         # 已有管理员账号自动标记为已验证
         "UPDATE users SET email_verified = true WHERE role IN ('super_admin', 'admin') AND email_verified = false",
+        # v2 调查引擎新增字段
+        "ALTER TABLE investigations ADD COLUMN IF NOT EXISTS research_data JSON",
+        "ALTER TABLE investigations ADD COLUMN IF NOT EXISTS forum_data JSON",
+        "ALTER TABLE investigations ADD COLUMN IF NOT EXISTS stages_completed JSON",
+        # v3 调查引擎：快照、缓存、偏好表由 create_all 自动创建
     ]
 
     async with engine.begin() as conn:
