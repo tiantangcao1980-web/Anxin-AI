@@ -24,7 +24,7 @@ dependencies = [
     "redis>=5.0.1",
     "celery>=5.3.6",
     # 多智能体框架
-    "camel-ai>=0.2.0",
+    "camel-ai>=0.2.14,!=0.2.72",
     "mcp>=1.0.0",
     "jsonschema>=4.0.0",
     # 向量数据库
@@ -81,8 +81,8 @@ local-ai = [
 ]
 
 livekit = [
-    "livekit-agents>=0.12.0",
-    "livekit-plugins-aliyun>=1.3.0",
+    "livekit-agents>=0.12.0,<1.0.0",
+    "livekit-plugins-aliyun>=0.4.0,<1.0.0",
 ]
 
 [build-system]

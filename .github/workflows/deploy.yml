@@ -31,6 +31,9 @@ on:
       - '.gitignore'
       - 'LICENSE'
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 # 同一分支的新推送会取消正在进行的旧部署，避免排队
 concurrency:
   group: deploy-${{ github.ref }}
@@ -45,7 +48,7 @@ jobs:
     steps:
       # ========== 1. 检出代码 (用于变更检测) ==========
       - name: 检出代码
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 2  # 需要上一次提交来做 diff
 
