@@ -1149,6 +1149,27 @@ export default function Chat() {
         clarificationRef.current = { original_content: data.original_content || '' };
         break;
 
+      // --- 对话修复：主题跳转/矛盾检测 ---
+      case 'conversation_repair': {
+        setIsProcessing(false);
+        const repairMsg: Message = {
+          id: uuidv4(), type: 'clarification',
+          content: data.message || '检测到信息不一致，请确认',
+          timestamp: new Date(), agent: '需求分析',
+          clarification: {
+            questions: [{
+              question: data.message || '',
+              options: data.options || [],
+            }],
+            original_content: data.original_content || '',
+          },
+          metadata: { repair_type: data.repair_type },
+        };
+        setMessages(prev => [...prev, repairMsg]);
+        clarificationRef.current = { original_content: data.original_content || '' };
+        break;
+      }
+
       // --- 后端通知对话标题已更新 ---
       case 'conversation_title_updated':
         if (data.conversation_id && data.title) {

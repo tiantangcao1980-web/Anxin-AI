@@ -56,6 +56,8 @@ const Approvals = lazy(() => import('@/pages/Approvals'))
 const FindLawyer = lazy(() => import('@/pages/FindLawyer'))
 const ComplianceCheck = lazy(() => import('@/pages/ComplianceCheck'))
 const Messages = lazy(() => import('@/pages/Messages'))
+const VoiceCall = lazy(() => import('@/components/rtc/VoiceCall'))
+const VideoCall = lazy(() => import('@/components/rtc/VideoCall'))
 const LawyerProfile = lazy(() => import('@/pages/LawyerProfile'))
 const AcquisitionDashboard = lazy(() => import('@/pages/AcquisitionDashboard'))
 const FirmManagement = lazy(() => import('@/pages/FirmManagement'))
@@ -154,6 +156,8 @@ function App() {
 
                 {/* ===== IM 即时通讯 ===== */}
                 <Route path="messages" element={<Messages />} />
+                <Route path="call/voice/:roomName" element={<VoiceCall />} />
+                <Route path="call/video/:roomName" element={<VideoCall />} />
 
                 {/* ===== 律师资料 ===== */}
                 <Route path="lawyer/:profileId" element={<LawyerProfile />} />

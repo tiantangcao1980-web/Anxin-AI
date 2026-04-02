@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Optional, TYPE_CHECKING
 
 from sqlalchemy import String, ForeignKey, Boolean, DateTime, Integer
+from sqlalchemy import JSON as JSONB
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -118,6 +119,9 @@ class User(Base, TimestampMixin):
     wechat_unionid: Mapped[Optional[str]] = mapped_column(String(100), unique=True, nullable=True, index=True)
     alipay_user_id: Mapped[Optional[str]] = mapped_column(String(100), unique=True, nullable=True, index=True)
     login_type: Mapped[str] = mapped_column(String(20), default="email")  # email / wechat / alipay
+
+    # AI 用户画像（法律专业度、常用场景、追问耐心度、默认上下文等）
+    ai_profile: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
 
     # 外键
 

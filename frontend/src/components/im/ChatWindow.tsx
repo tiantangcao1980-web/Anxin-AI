@@ -10,11 +10,13 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { inputStyle, heading, iconSize } from '@/lib/design-tokens'
 import { icons } from '@/lib/icons'
-import { imApi } from '@/lib/api'
+import { useNavigate } from 'react-router-dom'
+import { imApi, rtcApi } from '@/lib/api'
 import { toast } from 'sonner'
 import { useIMStore, useAuthStore, type IMMessage } from '@/lib/store'
 import { useIMWebSocket } from '@/hooks/useIMWebSocket'
 import { MessageItem } from './MessageItem'
+import AIAssistantPanel from './AIAssistantPanel'
 
 interface ChatWindowProps {
   conversationId: string
@@ -22,11 +24,28 @@ interface ChatWindowProps {
 }
 
 export function ChatWindow({ conversationId, onBack }: ChatWindowProps) {
+  const navigate = useNavigate()
   const [inputText, setInputText] = useState('')
   const [replyTo, setReplyTo] = useState<IMMessage | null>(null)
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [sending, setSending] = useState(false)
+  const [showAssistant, setShowAssistant] = useState(false)
+
+  const handleStartCall = async (callType: 'voice' | 'video') => {
+    try {
+      const resp = await rtcApi.createRoom({ conversation_id: conversationId, call_type: callType })
+      const params = new URLSearchParams({
+        token: resp.token,
+        server: resp.livekit_url,
+        conv: conversationId,
+      })
+      navigate(`/call/${callType}/${resp.room_name}?${params.toString()}`)
+    } catch (err: any) {
+      const { toast } = await import('sonner')
+      toast.error(err.message || '发起通话失败')
+    }
+  }
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -152,7 +171,8 @@ export function ChatWindow({ conversationId, onBack }: ChatWindowProps) {
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex">
+      <div className="flex-1 flex flex-col min-w-0">
       {/* 顶部标题栏 */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border shrink-0">
         {onBack && (
@@ -168,6 +188,21 @@ export function ChatWindow({ conversationId, onBack }: ChatWindowProps) {
             </p>
           )}
         </div>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleStartCall('voice')} title="语音通话">
+          <icons.Phone className={iconSize.md} />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleStartCall('video')} title="视频通话">
+          <icons.Video className={iconSize.md} />
+        </Button>
+        <Button
+          variant={showAssistant ? 'default' : 'ghost'}
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => setShowAssistant(!showAssistant)}
+          title="AI 法律助手"
+        >
+          <icons.Bot className={iconSize.md} />
+        </Button>
         <Button variant="ghost" size="icon" className="h-8 w-8">
           <icons.MoreHorizontal className={iconSize.md} />
         </Button>
@@ -296,6 +331,14 @@ export function ChatWindow({ conversationId, onBack }: ChatWindowProps) {
           </Button>
         </div>
       </div>
+      </div>
+      {/* AI 助手侧边面板 */}
+      {showAssistant && (
+        <AIAssistantPanel
+          conversationId={conversationId}
+          onClose={() => setShowAssistant(false)}
+        />
+      )}
     </div>
   )
 }

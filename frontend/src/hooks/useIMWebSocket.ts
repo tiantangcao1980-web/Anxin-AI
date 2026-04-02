@@ -203,7 +203,19 @@ function _routeMessage(
 
     case 'notification': {
       if (data.notification) {
-        store.addNotification(data.notification as any)
+        const notifStore = useNotificationStore.getState()
+        notifStore.addNotification(data.notification as any)
+        // 实时 toast 提示
+        const n = data.notification as any
+        const title = n.title || '新通知'
+        const msg = n.message || ''
+        const type = n.type || 'info'
+        if (type === 'urgent' || type === 'warning') {
+          // 使用动态 import 避免循环依赖
+          import('sonner').then(({ toast }) => toast.warning(`${title}: ${msg}`, { duration: 5000 }))
+        } else {
+          import('sonner').then(({ toast }) => toast.info(title, { description: msg, duration: 4000 }))
+        }
       }
       break
     }

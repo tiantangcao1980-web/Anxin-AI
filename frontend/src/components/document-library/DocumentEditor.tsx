@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { icons } from '@/lib/icons';
 import ReactMarkdown from 'react-markdown';
 import { documentsApi, Document } from '@/lib/api';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { VersionHistory } from './VersionHistory';
 
 interface DocumentEditorProps {
   initialDoc?: Document | null; // Null means creating new
@@ -20,6 +22,7 @@ export function DocumentEditor({ initialDoc, onClose, onSave }: DocumentEditorPr
   const [isPreview, setIsPreview] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadingContent, setLoadingContent] = useState(false);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
 
   // 如果是编辑模式，且 initialDoc 没有 content (列表接口可能不返回)，则获取详情
   useEffect(() => {
@@ -96,8 +99,34 @@ export function DocumentEditor({ initialDoc, onClose, onSave }: DocumentEditorPr
     setTags(tags.filter(tag => tag !== tagToRemove));
   };
 
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [slashOpen, setSlashOpen] = useState(false);
+  const [slashQuery, setSlashQuery] = useState('');
+  const [slashPos, setSlashPos] = useState({ top: 0, left: 0 });
+  const [slashIndex, setSlashIndex] = useState(0);
+
+  // Markdown slash command templates
+  const MARKDOWN_COMMANDS = [
+    { title: '合同标题', icon: '契', desc: '插入合同标题和编号', text: '# 【合同名称】\n\n合同编号：【    】\n\n' },
+    { title: '甲乙方信息', icon: '方', desc: '当事方基本信息', text: '**甲方（全称）：** 【    】\n统一社会信用代码/身份证号：【    】\n法定代表人：【    】\n住所/地址：【    】\n联系方式：【    】\n\n**乙方（全称）：** 【    】\n统一社会信用代码/身份证号：【    】\n法定代表人：【    】\n住所/地址：【    】\n联系方式：【    】\n\n' },
+    { title: '鉴于条款', icon: '鉴', desc: '鉴于（Whereas）条款', text: '**鉴于：**\n\n1. 甲方【背景说明】；\n2. 乙方【背景说明】；\n3. 双方经友好协商，就【合同目的】事宜达成如下协议：\n\n' },
+    { title: '标准条款', icon: '条', desc: '带编号的合同条款', text: '## 第【  】条 【条款名称】\n\n【条款内容】\n\n' },
+    { title: '违约责任', icon: '责', desc: '标准违约责任条款', text: '## 违约责任\n\n1. 甲方违约责任：甲方逾期支付款项的，应按逾期金额每日【  ‰】的标准向乙方支付违约金。\n2. 乙方违约责任：【具体违约情形及责任】\n3. 损害赔偿：违约方应赔偿守约方因此遭受的直接经济损失，但赔偿总额不超过本合同总价款的【  】%。\n\n' },
+    { title: '争议解决', icon: '诉', desc: '争议解决条款', text: '## 争议解决\n\n1. 本合同的签订、履行、变更、解除和终止等有关的争议，双方应首先通过友好协商解决。\n2. 协商不成的，任何一方均有权向【    】人民法院提起诉讼 / 提交【    】仲裁委员会按其仲裁规则进行仲裁。\n\n' },
+    { title: '不可抗力', icon: '力', desc: '不可抗力条款', text: '## 不可抗力\n\n1. 不可抗力是指不能预见、不能避免且不能克服的客观情况，包括但不限于自然灾害、战争、政府行为、法律法规变更等。\n2. 因不可抗力不能履行合同的，根据不可抗力的影响，部分或全部免除责任。\n3. 遭受不可抗力的一方应在不可抗力事件发生后【  】日内书面通知对方，并在【  】日内提供相关证明文件。\n\n' },
+    { title: '保密条款', icon: '密', desc: '保密义务条款', text: '## 保密条款\n\n1. 保密信息范围：双方在合同履行过程中知悉的对方商业秘密、技术秘密及其他保密信息。\n2. 保密期限：本条保密义务自本合同签订之日起至合同终止后【  】年止。\n3. 例外情形：（1）公开渠道可获得的信息；（2）已为接收方合法拥有的信息；（3）经披露方书面同意披露的信息；（4）法律法规要求披露的信息。\n\n' },
+    { title: '签署区', icon: '署', desc: '签署盖章区域', text: '\n（以下无正文）\n\n**甲方（盖章）：**                    **乙方（盖章）：**\n\n法定代表人/授权代表：              法定代表人/授权代表：\n\n签字：                            签字：\n\n日期：    年    月    日           日期：    年    月    日\n\n' },
+    { title: '附件列表', icon: '附', desc: '附件清单', text: '**附件：**\n\n附件一：【    】\n附件二：【    】\n附件三：【    】\n\n' },
+    { title: '分隔线', icon: '—', desc: '水平分割线', text: '\n---\n\n' },
+    { title: '表格', icon: '田', desc: '3列表格', text: '| 列1 | 列2 | 列3 |\n|------|------|------|\n| 内容 | 内容 | 内容 |\n| 内容 | 内容 | 内容 |\n\n' },
+  ];
+
+  const filteredCommands = MARKDOWN_COMMANDS.filter(
+    cmd => cmd.title.includes(slashQuery) || cmd.desc.includes(slashQuery)
+  );
+
   const insertText = (before: string, after: string = '') => {
-      const textarea = document.querySelector('textarea');
+      const textarea = textareaRef.current;
       if (!textarea) return;
 
       const start = textarea.selectionStart;
@@ -107,11 +136,75 @@ export function DocumentEditor({ initialDoc, onClose, onSave }: DocumentEditorPr
 
       setContent(newText);
 
-      // Restore selection/cursor
       setTimeout(() => {
           textarea.focus();
           textarea.setSelectionRange(start + before.length, end + before.length);
       }, 0);
+  };
+
+  const insertSlashCommand = useCallback((cmd: typeof MARKDOWN_COMMANDS[0]) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const cursorPos = textarea.selectionStart;
+    // Find the "/" position
+    const textBefore = content.substring(0, cursorPos);
+    const slashIdx = textBefore.lastIndexOf('/');
+    if (slashIdx < 0) return;
+
+    const newContent = content.substring(0, slashIdx) + cmd.text + content.substring(cursorPos);
+    setContent(newContent);
+    setSlashOpen(false);
+    setSlashQuery('');
+
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(slashIdx + cmd.text.length, slashIdx + cmd.text.length);
+    }, 0);
+  }, [content]);
+
+  // Handle textarea input for slash detection
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setContent(val);
+
+    const pos = e.target.selectionStart;
+    const textBefore = val.substring(0, pos);
+    const match = textBefore.match(/(?:^|\n)\/([\u4e00-\u9fa5\w]*)$/);
+
+    if (match) {
+      setSlashQuery(match[1] || '');
+      setSlashIndex(0);
+      setSlashOpen(true);
+
+      // Approximate position
+      const rect = e.target.getBoundingClientRect();
+      const linesBefore = textBefore.split('\n').length;
+      setSlashPos({
+        top: rect.top + Math.min(linesBefore * 22, rect.height - 40),
+        left: rect.left + 40,
+      });
+    } else {
+      setSlashOpen(false);
+    }
+  };
+
+  // Keyboard nav for slash menu
+  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!slashOpen || filteredCommands.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSlashIndex(prev => (prev + 1) % filteredCommands.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSlashIndex(prev => (prev - 1 + filteredCommands.length) % filteredCommands.length);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      insertSlashCommand(filteredCommands[slashIndex]);
+    } else if (e.key === 'Escape') {
+      setSlashOpen(false);
+    }
   };
 
   return (
@@ -153,6 +246,16 @@ export function DocumentEditor({ initialDoc, onClose, onSave }: DocumentEditorPr
                {isPreview ? <icons.Edit3 className="w-4 h-4" /> : <icons.Eye className="w-4 h-4" />}
                {isPreview ? '编辑' : '预览'}
              </button>
+             {/* 版本历史按钮 */}
+             {initialDoc?.id && (
+               <button
+                 onClick={() => setShowVersionHistory(true)}
+                 className="p-2 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors"
+                 title="版本历史"
+               >
+                 <icons.Clock className="w-5 h-5" />
+               </button>
+             )}
              <div className="h-6 w-px bg-border" />
              <button
                onClick={onClose}
@@ -247,20 +350,71 @@ export function DocumentEditor({ initialDoc, onClose, onSave }: DocumentEditorPr
                     <ReactMarkdown>{content}</ReactMarkdown>
                 </div>
             ) : (
-                <textarea
+                <div className="relative flex-1 flex">
+                  <textarea
+                    ref={textareaRef}
                     value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    placeholder="在此输入文档内容 (支持 Markdown 格式)..."
+                    onChange={handleTextareaChange}
+                    onKeyDown={handleTextareaKeyDown}
+                    placeholder="在此输入文档内容 (支持 Markdown 格式)... 输入 / 可快速插入法律文书模块"
                     className="flex-1 p-8 resize-none focus:outline-none text-foreground leading-relaxed font-mono text-base"
-                />
+                  />
+                  {/* Slash Command Menu */}
+                  {slashOpen && filteredCommands.length > 0 && (
+                    <div
+                      className="fixed z-[100] bg-popover border border-border rounded-lg shadow-xl overflow-hidden max-h-[280px] overflow-y-auto min-w-[260px] animate-in fade-in slide-in-from-top-1 duration-150"
+                      style={{ top: slashPos.top, left: slashPos.left }}
+                    >
+                      <div className="px-3 py-1 border-b border-border bg-muted/50">
+                        <span className="text-[10px] text-muted-foreground">方向键选择 · Enter 确认 · Esc 取消</span>
+                      </div>
+                      {filteredCommands.map((cmd, i) => (
+                        <button
+                          key={cmd.title}
+                          onClick={() => insertSlashCommand(cmd)}
+                          className={cn(
+                            'w-full flex items-center gap-3 px-3 py-2 text-left transition-colors',
+                            i === slashIndex ? 'bg-primary/10 text-primary' : 'hover:bg-accent text-foreground'
+                          )}
+                        >
+                          <span className="w-7 h-7 rounded-md bg-muted flex items-center justify-center text-xs font-bold shrink-0 border border-border/50">
+                            {cmd.icon}
+                          </span>
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium truncate">{cmd.title}</div>
+                            <div className="text-[11px] text-muted-foreground truncate">{cmd.desc}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
             )}
         </div>
 
         <div className="px-6 py-2 border-t border-border bg-muted text-xs text-muted-foreground flex justify-between">
-            <span>支持 Markdown 格式</span>
-            <span>{content.length} 字符</span>
+            <span>支持 Markdown 格式 · 输入 / 插入法律文书模块</span>
+            <span>{content.replace(/\s/g, '').length} 字 · {content.length} 字符</span>
         </div>
       </motion.div>
+
+      {/* 版本历史面板 */}
+      {showVersionHistory && initialDoc?.id && (
+        <VersionHistory
+          documentId={initialDoc.id}
+          onClose={() => setShowVersionHistory(false)}
+          onRestore={() => {
+            setShowVersionHistory(false);
+            // 重新加载文档内容
+            if (initialDoc.id) {
+              documentsApi.get(initialDoc.id).then((doc) => {
+                setContent(doc.extracted_text || '');
+                setTags(doc.tags || []);
+              });
+            }
+          }}
+        />
+      )}
     </motion.div>
   );
 }

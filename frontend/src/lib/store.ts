@@ -939,3 +939,47 @@ export const useNotificationStore = create<NotificationState>()(
     }
   )
 )
+
+// ========== 应用模式状态 (Tauri 客户端) ==========
+
+type AppMode = 'top-secret' | 'hybrid' | 'cloud'
+type SyncStatusType = 'idle' | 'syncing' | 'error' | 'offline'
+
+interface AppModeState {
+  mode: AppMode
+  syncStatus: SyncStatusType
+  lastSyncTime: string | null
+  isOnline: boolean
+  localLLMAvailable: boolean
+
+  setMode: (mode: AppMode) => void
+  setSyncStatus: (status: SyncStatusType) => void
+  setLastSyncTime: (time: string | null) => void
+  setOnline: (online: boolean) => void
+  setLocalLLMAvailable: (available: boolean) => void
+}
+
+export const useAppModeStore = create<AppModeState>()(
+  persist(
+    (set) => ({
+      mode: 'cloud',
+      syncStatus: 'idle',
+      lastSyncTime: null,
+      isOnline: true,
+      localLLMAvailable: false,
+
+      setMode: (mode) => set({ mode }),
+      setSyncStatus: (syncStatus) => set({ syncStatus }),
+      setLastSyncTime: (lastSyncTime) => set({ lastSyncTime }),
+      setOnline: (isOnline) => set({ isOnline }),
+      setLocalLLMAvailable: (localLLMAvailable) => set({ localLLMAvailable }),
+    }),
+    {
+      name: 'app-mode-storage',
+      partialize: (state) => ({
+        mode: state.mode,
+        lastSyncTime: state.lastSyncTime,
+      }),
+    }
+  )
+)

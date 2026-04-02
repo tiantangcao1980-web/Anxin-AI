@@ -23,6 +23,8 @@ from src.api.routes import lawyer_onboarding
 from src.api.routes import billing
 from src.api.routes import ai_assistant
 from src.api.routes import meeting_assistant
+from src.api.routes import rtc
+from src.api.routes import sync, updates
 
 api_router = APIRouter()
 
@@ -64,3 +66,6 @@ api_router.include_router(lawyer_onboarding.router, tags=["律师入驻"])
 api_router.include_router(billing.router, tags=["计费系统"])
 api_router.include_router(ai_assistant.router, tags=["AI私有助手"])
 api_router.include_router(meeting_assistant.router, prefix="/assistant", tags=["AI旁听助手"])
+api_router.include_router(rtc.router, prefix="/rtc", tags=["音视频通话"])
+api_router.include_router(sync.router, prefix="/sync", tags=["客户端同步"])
+api_router.include_router(updates.router, prefix="/updates", tags=["OTA更新"])

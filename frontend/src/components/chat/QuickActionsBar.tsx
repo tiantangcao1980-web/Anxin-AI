@@ -14,6 +14,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { icons } from '@/lib/icons';
 import { iconSize, radius } from '@/lib/design-tokens';
+import { TemplateSelector } from './TemplateSelector';
 import {
   getWorkflowPrompt,
   getPersonalizedActions,
@@ -99,10 +100,14 @@ export function QuickActionsBar({
   onTriggerUpload,
 }: QuickActionsBarProps) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const [templateOpen, setTemplateOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
   const portalRef = useRef<HTMLDivElement>(null);
   const moreBtnRef = useRef<HTMLButtonElement>(null);
+  const templateRef = useRef<HTMLDivElement>(null);
+  const templateBtnRef = useRef<HTMLButtonElement>(null);
   const [popupPos, setPopupPos] = useState<{ x: number; y: number } | null>(null);
+  const [templatePos, setTemplatePos] = useState<{ x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [maxVisible, setMaxVisible] = useState(isMobile ? MAX_VISIBLE_MOBILE : MAX_VISIBLE_DESKTOP);
 
@@ -239,6 +244,50 @@ export function QuickActionsBar({
             )}
           </div>
         )}
+
+        {/* 常用模板按钮 */}
+        <div className="relative flex-shrink-0" ref={templateRef}>
+          <button
+            ref={templateBtnRef}
+            onClick={() => {
+              if (!templateOpen && templateBtnRef.current) {
+                const rect = templateBtnRef.current.getBoundingClientRect();
+                setTemplatePos({ x: rect.right, y: rect.top });
+              }
+              setTemplateOpen(!templateOpen);
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-all border ${
+              templateOpen
+                ? 'text-primary bg-primary/5 border-primary/30 shadow-sm'
+                : 'text-foreground/70 bg-background border-border/80 hover:border-primary/40 hover:text-primary hover:bg-primary/5 shadow-sm'
+            }`}
+          >
+            <icons.FileText className="w-3.5 h-3.5" />
+            <span>模板</span>
+          </button>
+
+          {templateOpen && createPortal(
+            <div>
+              <AnimatePresence>
+                <div
+                  style={templatePos ? { position: 'fixed', right: window.innerWidth - templatePos.x, bottom: window.innerHeight - templatePos.y + 8 } : undefined}
+                >
+                  <TemplateSelector
+                    onSelect={(t) => {
+                      onSelect({
+                        text: `请基于「${t.name}」模板帮我起草一份${t.name}。`,
+                        actionId: 'qa-draft',
+                        mode: 'document',
+                      });
+                    }}
+                    onClose={() => setTemplateOpen(false)}
+                  />
+                </div>
+              </AnimatePresence>
+            </div>,
+            document.body
+          )}
+        </div>
       </div>
     </div>
   );

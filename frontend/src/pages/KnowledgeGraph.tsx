@@ -553,11 +553,12 @@ export default function KnowledgeGraph() {
   // API 调用
   // ============================================================
 
-  /** 初始加载：从 API 获取图谱概览数据 */
+  /** 初始加载：从 API 获取图谱概览数据（限制首屏节点数提升首次渲染速度） */
   async function loadInitialDemoGraph() {
     setGraphLoading(true)
     try {
-      const data = await knowledgeCenterApi.searchGraph('法', 1, 50)
+      // 首批只加载 30 个节点以加速首次渲染
+      const data = await knowledgeCenterApi.searchGraph('法', 1, 30, 0)
       if (data && data.nodes && data.nodes.length > 0) {
         const { nodes: n, edges: e } = convertApiData(data)
         mergeGraph(n, e)
@@ -602,7 +603,8 @@ export default function KnowledgeGraph() {
   async function handleSearch(keyword: string) {
     setSearchLoading(true)
     try {
-      const data = await knowledgeCenterApi.searchGraph(keyword, 1, 50)
+      // 搜索使用分页，首批 30 个结果以加速响应
+      const data = await knowledgeCenterApi.searchGraph(keyword, 1, 30, 0)
       const results: SearchResult[] = (data.nodes || []).map((n: any) => ({
         id: n.id || n.name,
         name: n.name || n.label,

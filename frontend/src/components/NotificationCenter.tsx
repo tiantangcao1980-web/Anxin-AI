@@ -3,54 +3,59 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { icons } from '@/lib/icons';
 import { cardStyle, heading, buttonStyle, statusBadge, iconSize } from '@/lib/design-tokens';
-import { notificationsApi, Notification } from '../lib/api';
+import { notificationsApi } from '../lib/api';
+import { useNotificationStore } from '../lib/store';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
 interface NotificationCenterProps {
   onClose: () => void;
-  onClearAll: () => void; // Keeping this prop for now, but implementation will be internal
+  onClearAll?: () => void;
 }
 
 export function NotificationCenter({ onClose }: NotificationCenterProps) {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const notifications = useNotificationStore((s) => s.notifications);
+  const setStoreNotifications = useNotificationStore((s) => s.setNotifications);
+  const markRead = useNotificationStore((s) => s.markAsRead);
+  const markAllRead = useNotificationStore((s) => s.markAllAsRead);
   const [loading, setLoading] = useState(true);
-
-  const fetchNotifications = async () => {
-    try {
-      const response = await notificationsApi.list({ limit: 50 });
-      setNotifications(response.data);
-    } catch (error) {
-      console.error('Failed to fetch notifications:', error);
-      toast.error('获取通知失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
   useEffect(() => {
-    fetchNotifications();
-  }, []);
+    (async () => {
+      try {
+        const response = await notificationsApi.list({ limit: 50 });
+        const items = response.data || [];
+        const unread = items.filter((n: any) => !n.is_read).length;
+        setStoreNotifications(items, unread);
+      } catch {
+        toast.error('获取通知失败');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [setStoreNotifications]);
+
+  const filteredNotifications = filter === 'unread'
+    ? notifications.filter((n) => !n.is_read)
+    : notifications;
 
   const handleMarkAsRead = async (id: string) => {
     try {
       await notificationsApi.markAsRead(id);
-      setNotifications(prev =>
-        prev.map(n => n.id === id ? { ...n, is_read: true } : n)
-      );
-    } catch (error) {
-      console.error('Failed to mark as read:', error);
+      markRead(id);
+    } catch {
+      // 静默
     }
   };
 
   const handleMarkAllAsRead = async () => {
     try {
       await notificationsApi.markAllAsRead();
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      markAllRead();
       toast.success('已全部标记为已读');
-    } catch (error) {
-      console.error('Failed to mark all as read:', error);
+    } catch {
       toast.error('操作失败');
     }
   };
@@ -102,12 +107,33 @@ export function NotificationCenter({ onClose }: NotificationCenterProps) {
                 <icons.X className={`${iconSize.md} text-muted-foreground`} />
               </button>
             </div>
-            <button
-              onClick={handleMarkAllAsRead}
-              className={buttonStyle.ghost}
-            >
-              全部标记为已读
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleMarkAllAsRead}
+                className={`${buttonStyle.ghost} text-xs`}
+              >
+                全部已读
+              </button>
+            </div>
+            {/* 全部 / 未读 Tab */}
+            <div className="flex gap-1 mt-3">
+              <button
+                onClick={() => setFilter('all')}
+                className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                  filter === 'all' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                全部
+              </button>
+              <button
+                onClick={() => setFilter('unread')}
+                className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                  filter === 'unread' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                未读
+              </button>
+            </div>
           </div>
 
           {/* Notifications List */}
@@ -116,14 +142,14 @@ export function NotificationCenter({ onClose }: NotificationCenterProps) {
               <div className="flex items-center justify-center h-full">
                 <icons.Loader2 className={`${iconSize.lg} animate-spin text-muted-foreground`} />
               </div>
-            ) : notifications.length === 0 ? (
+            ) : filteredNotifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                 <icons.Bell className={`${iconSize['2xl']} mb-2 opacity-20`} />
                 <p>暂无通知</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {notifications.map((notification, index) => {
+                {filteredNotifications.map((notification, index) => {
                   const config = getConfig(notification.type);
                   const Icon = getIcon(notification.type);
 

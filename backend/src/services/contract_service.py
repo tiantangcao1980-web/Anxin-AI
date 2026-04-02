@@ -187,6 +187,7 @@ class ContractService:
             "risks": review_result.get("risks", []),
             "suggestions": review_result.get("suggestions", []),
             "key_terms": review_result.get("key_terms", {}),
+            "missing_clauses": review_result.get("missing_clauses", []),
         }
     
     def _calculate_risk_score(self, review_result: dict) -> float:
@@ -222,21 +223,27 @@ class ContractService:
             return RiskLevel.LOW
     
     async def _save_risks(self, contract_id: str, risks: list) -> None:
-        """保存风险点"""
+        """保存风险点（包含法律依据）"""
         for risk_data in risks:
+            # 将法律依据合并到描述中
+            description = risk_data.get("description", "")
+            legal_basis = risk_data.get("legal_basis", "")
+            if legal_basis:
+                description = f"{description}\n\n【法律依据】{legal_basis}"
+
             risk = ContractRisk(
                 contract_id=contract_id,
                 risk_type=risk_data.get("type", "unknown"),
                 risk_level=RiskLevel(risk_data.get("level", "medium").lower()),
                 title=risk_data.get("title", "未知风险"),
-                description=risk_data.get("description", ""),
+                description=description,
                 related_clause=risk_data.get("clause"),
                 original_text=risk_data.get("original_text"),
                 suggestion=risk_data.get("suggestion"),
                 suggested_text=risk_data.get("suggested_text"),
             )
             self.db.add(risk)
-        
+
         await self.db.flush()
     
     async def get_risks(self, contract_id: str) -> List[ContractRisk]:

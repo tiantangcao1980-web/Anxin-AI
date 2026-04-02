@@ -50,7 +50,13 @@ class Settings(BaseSettings):
     RATE_LIMIT_PER_HOUR: int = 1000
 
     # CORS配置
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:3001", "tauri://localhost"]
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "tauri://localhost",          # Tauri 桌面端
+        "https://tauri.localhost",    # Tauri v2 移动端 (Android/iOS)
+        "http://tauri.localhost",     # Tauri v2 移动端 (备用)
+    ]
     CORS_ALLOW_CREDENTIALS: bool = True
     CORS_ALLOW_METHODS: List[str] = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
     CORS_ALLOW_HEADERS: List[str] = [
@@ -95,6 +101,12 @@ class Settings(BaseSettings):
     BRAND_LOGO_URL: str = ""
     BRAND_PRIMARY_COLOR: str = "#D4A574"
     BRAND_FAVICON_URL: str = ""
+
+    # ========== LiveKit 音视频服务 ==========
+    # 文档：https://docs.livekit.io
+    LIVEKIT_URL: str = ""  # ws://localhost:7880
+    LIVEKIT_API_KEY: str = ""  # livekit.yaml 中 keys 的键名
+    LIVEKIT_API_SECRET: str = ""  # livekit.yaml 中 keys 的值
 
     # ========== LLM配置 ==========
     LLM_API_KEY: str = ""

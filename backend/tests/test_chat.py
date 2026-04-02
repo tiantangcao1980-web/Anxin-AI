@@ -81,8 +81,8 @@ class TestChatAPIAuthentication:
             json={"content": "测试消息"}
         )
 
-        # 聊天端点使用可选认证（get_current_user），无 token 也应正常返回
-        assert response.status_code in [200, 500]
+        # 聊天端点已强制认证（安全加固后），无 token 应返回 401
+        assert response.status_code == 401
 
     @pytest.mark.asyncio
     async def test_chat_with_invalid_token(self, client: AsyncClient):

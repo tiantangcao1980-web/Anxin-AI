@@ -71,6 +71,19 @@ export default defineConfig(({ mode }) => {
       // chat-components 含 39 个组件约 692KB，暂时提高阈值
       chunkSizeWarningLimit: 700,
     },
+    // Tauri 包仅桌面端可用，Web 模式下跳过预构建和解析
+    optimizeDeps: {
+      exclude: [
+        '@tauri-apps/api',
+        '@tauri-apps/api/core',
+        '@tauri-apps/api/event',
+        '@tauri-apps/plugin-notification',
+        '@tauri-apps/plugin-dialog',
+        '@tauri-apps/plugin-clipboard-manager',
+        '@tauri-apps/plugin-updater',
+        '@tauri-apps/plugin-sql',
+      ],
+    },
     server: {
       port: 3001,
       host: true,

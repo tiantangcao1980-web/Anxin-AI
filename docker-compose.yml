@@ -153,6 +153,23 @@ services:
       timeout: 5s
       retries: 5
 
+  # ==================== LiveKit 音视频服务 ====================
+  livekit-server:
+    image: livekit/livekit-server:v1.8
+    command: --config /livekit.yaml
+    ports:
+      - "7880:7880"       # 信令 WebSocket + API
+      - "7881:7881"       # WebRTC over TCP
+      - "50000-60000:50000-60000/udp"  # WebRTC 媒体 UDP
+    volumes:
+      - ./livekit.yaml:/livekit.yaml:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - legal-network
+    restart: unless-stopped
+
 # ==================== 网络配置 ====================
 networks:
   legal-network:

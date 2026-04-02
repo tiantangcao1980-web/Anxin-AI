@@ -24,6 +24,8 @@ import { usePermission } from '@/hooks/usePermission'
 
 import { icons } from '@/lib/icons'
 import { iconSize, buttonStyle, heading, sidebarNav } from '@/lib/design-tokens'
+import { ModeSwitcher } from '@/components/mode-switcher/ModeSwitcher'
+import { SyncStatus } from '@/components/mode-switcher/SyncStatus'
 
 // Heroicons 组件类型
 type HeroIcon = React.ComponentType<React.SVGProps<SVGSVGElement>>
@@ -218,7 +220,6 @@ export default function Layout() {
   const isAdmin = user?.role === 'admin'
   const [showNotifications, setShowNotifications] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
-  const [unreadCount, setUnreadCount] = useState(0)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [headerActionLabels, setHeaderActionLabels] = useState(readHeaderActionLabels)
 
@@ -239,20 +240,18 @@ export default function Layout() {
   const notifUnreadCount = useNotificationStore((s) => s.unreadCount)
   const setNotifStore = useNotificationStore((s) => s.setNotifications)
 
-  // 通知轮询：同时更新 notificationStore
+  // 启动时从 API 同步通知未读数到 Store（后续由 WebSocket 实时更新）
   useEffect(() => {
-    const fetchUnreadCount = async () => {
+    (async () => {
       try {
         const response = await notificationsApi.list({ unread_only: true })
-        setUnreadCount(response.total || 0)
+        const items = response.data || []
+        setNotifStore(items, items.length)
       } catch {
         // 静默处理
       }
-    }
-    fetchUnreadCount()
-    const interval = setInterval(fetchUnreadCount, 120000)
-    return () => clearInterval(interval)
-  }, [])
+    })()
+  }, [setNotifStore])
 
   // 合并 IM + 通知未读数
   const combinedUnread = imUnreadTotal + notifUnreadCount
@@ -329,17 +328,17 @@ export default function Layout() {
               } ${
                 currentPath === '/messages'
                   ? 'text-primary bg-primary/10 border-primary/30'
-                  : (combinedUnread > 0 || unreadCount > 0)
+                  : (combinedUnread > 0)
                     ? 'text-foreground bg-background border-border shadow-sm hover:bg-muted/50'
                     : 'text-muted-foreground bg-background/80 border-border/60 hover:text-foreground hover:bg-muted/50 hover:border-border'
               }`}
             >
               <icons.Chat className="h-4 w-4 shrink-0" />
               {headerActionLabels && <span>消息</span>}
-              {(combinedUnread > 0 || unreadCount > 0) && (
+              {(combinedUnread > 0) && (
                 <>
                   <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-destructive text-white text-[10px] font-bold flex items-center justify-center rounded-full px-1 border-2 border-background animate-bounce-subtle">
-                    {(combinedUnread || unreadCount) > 99 ? '99+' : (combinedUnread || unreadCount)}
+                    {(combinedUnread) > 99 ? '99+' : (combinedUnread)}
                   </span>
                   <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-destructive rounded-full animate-ping opacity-40" />
                 </>
@@ -371,6 +370,10 @@ export default function Layout() {
                 )
               })}
             </div>
+
+            {/* 运行模式切换器 + 同步状态 (Tauri 客户端) */}
+            <ModeSwitcher />
+            <SyncStatus />
 
             <div className="hidden lg:block h-5 w-px bg-border/60 mx-1" />
 

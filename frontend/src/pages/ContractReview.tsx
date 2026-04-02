@@ -149,6 +149,8 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
   const [currentAgent, setCurrentAgent] = useState('');
   const [agentMessage, setAgentMessage] = useState('');
   const [detectedRisks, setDetectedRisks] = useState<ReviewRiskItem[]>([]);
+  const [missingClauses, setMissingClauses] = useState<string[]>([]);
+  const [keyTerms, setKeyTerms] = useState<Record<string, string>>({});
 
   // review step states
   const [acceptedRisks, setAcceptedRisks] = useState<Set<number>>(new Set());
@@ -204,6 +206,9 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
     setDetectedRisks([]);
 
     let streamRisks: ReviewRiskItem[] = [];
+    let streamMissing: string[] = [];
+    let streamKeyTerms: Record<string, string> = {};
+    let streamSuggestions: string[] = [];
 
     try {
       await contractsApi.streamReview(
@@ -227,14 +232,32 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
                 setDetectedRisks(event.data);
               }
               break;
+            case 'missing_clauses':
+              if (event.data) {
+                setMissingClauses(event.data);
+                streamMissing = event.data;
+              }
+              break;
+            case 'key_terms':
+              if (event.data) {
+                setKeyTerms(event.data);
+                streamKeyTerms = event.data;
+              }
+              break;
+            case 'suggestions':
+              if (event.data) {
+                streamSuggestions = event.data;
+              }
+              break;
             case 'done':
               const result: QuickReviewResult = {
                 summary: event.summary || '',
                 risk_level: event.risk_level || 'medium',
                 risk_score: event.risk_score || 0.5,
                 key_risks: streamRisks,
-                suggestions: [],
-                key_terms: {},
+                suggestions: streamSuggestions,
+                key_terms: streamKeyTerms,
+                missing_clauses: streamMissing,
               };
               setReviewResult(result);
               setDetectedRisks(streamRisks);
@@ -870,8 +893,14 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
                       </span>
                     </div>
                     <p className="text-sm text-foreground/80">{risk.description}</p>
+                    {risk.legal_basis && (
+                      <div className="flex items-start gap-2 p-2 mt-1.5 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <icons.Scale className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                        <p className="text-xs text-blue-700 dark:text-blue-300">{risk.legal_basis}</p>
+                      </div>
+                    )}
                     {risk.suggestion && (
-                      <div className="flex items-start gap-2 p-2 mt-2 bg-background/50 rounded-lg">
+                      <div className="flex items-start gap-2 p-2 mt-1.5 bg-background/50 rounded-lg">
                         <icons.Sparkles className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
                         <p className="text-sm text-primary">{risk.suggestion}</p>
                       </div>
@@ -881,6 +910,24 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Missing Clauses */}
+      {missingClauses.length > 0 && (
+        <div className="p-4 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20">
+          <h4 className="font-semibold text-sm text-amber-800 dark:text-amber-200 mb-3 flex items-center gap-2">
+            <icons.AlertTriangle className="w-4 h-4" />
+            缺失的重要条款
+          </h4>
+          <ul className="space-y-1.5">
+            {missingClauses.map((clause, i) => (
+              <li key={i} className="text-sm text-amber-700 dark:text-amber-300 flex items-start gap-2">
+                <span className="text-amber-400 mt-0.5">•</span>
+                {clause}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

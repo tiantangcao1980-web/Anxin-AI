@@ -8,6 +8,7 @@ import { icons } from '@/lib/icons';
 import { usePrivacy, PrivacyMode } from '@/context/PrivacyContext';
 import { PendingFile } from '@/hooks';
 import { cardStyle, heading, buttonStyle, iconSize, chatBubble, inputStyle } from '@/lib/design-tokens';
+import { VoiceInputButton } from './VoiceInputButton';
 
 interface ChatInputProps {
   input: string;
@@ -105,6 +106,12 @@ export function ChatInput({
           >
             <icons.Paperclip className={iconSize.md} />
           </button>
+
+          {/* 语音输入 */}
+          <VoiceInputButton
+            onTranscript={(text) => setInput((prev) => prev + text)}
+            disabled={isProcessing}
+          />
 
           {/* 文本输入 */}
           <textarea

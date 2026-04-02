@@ -88,6 +88,7 @@ import {
   Moon,
   Image,
   Mic,
+  MicOff,
   Paperclip,
   Send,
   Code2,
@@ -338,6 +339,7 @@ export const icons = {
   Send: Send,
   Paperclip: Paperclip,
   Mic: Mic,
+  MicOff: MicOff,
   Mail: Mail,
   Phone: Phone,
 
@@ -437,6 +439,10 @@ export const icons = {
   RotateCcw: RotateCcw,
   Focus: Focus,
   Server: Server,
+  Play: Play,
+  Square: Square,
+  Video: Camera,
+  PhoneOff: Phone,
 } as const
 
 // 导出图标类型，便于类型约束

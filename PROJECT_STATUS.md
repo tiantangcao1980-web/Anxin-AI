@@ -8,7 +8,66 @@
 
 **v0.9.0-beta** | 预计上线：2026-04-01（第一版客户测试）
 
-## 最近更新（2026-04-01 核心功能质量优化）
+## 最近更新（2026-04-01 Phase 2 音视频通话 + 实时转录）
+
+### LiveKit 音视频通话 — Phase 2
+- [x] **LiveKit Server Docker 部署**：docker-compose.yml 新增 livekit-server 服务 + livekit.yaml 配置
+- [x] **RTC 服务 (rtc_service.py)**：房间创建/删除/Token 签发，基于 livekit-api SDK
+- [x] **RTC API 路由 (/api/v1/rtc)**：创建房间、获取 Token、结束通话、列出活跃房间
+- [x] **转录 Agent (livekit_transcriber.py)**：LiveKit Agents 框架，阿里云 Paraformer 实时 ASR
+  - 转录结果自动推送前端字幕 + 复用 Phase 1 AI 分析管道
+- [x] **VoiceCall 组件**：LiveKitRoom + 音频渲染 + 参与者头像 + AI 助手面板
+- [x] **VideoCall 组件**：LiveKitRoom + VideoConference + AI 助手浮动按钮
+- [x] **TranscriptOverlay 组件**：实时字幕覆盖层，显示 ASR 转录文本
+- [x] **ChatWindow 集成**：工具栏新增语音/视频通话按钮，点击创建房间并跳转
+- [x] **前端路由**：`/call/voice/:roomName` 和 `/call/video/:roomName`
+
+### 部署说明
+```bash
+# 启动 LiveKit Server
+docker-compose up livekit-server
+
+# 安装后端依赖
+pip install livekit-api
+pip install livekit-agents livekit-plugins-aliyun  # 可选：转录 Agent
+
+# 安装前端依赖
+npm install @livekit/components-react @livekit/components-styles livekit-client
+
+# 启动转录 Agent（独立进程）
+cd backend && python -m src.services.livekit_transcriber console
+
+# .env 配置
+LIVEKIT_URL=ws://localhost:7880
+LIVEKIT_API_KEY=anxin_livekit_key
+LIVEKIT_API_SECRET=<见 livekit.yaml>
+DASHSCOPE_API_KEY=<阿里云百炼 API Key>
+```
+
+---
+
+## 更早的更新（2026-04-01 AI 旁听助手 Phase 1）
+
+### AI 智能旁听助手 — Phase 1 文字对话
+- [x] **MeetingRecord 数据模型**：会议记录表，存储对话文本、AI分析、纪要、待办事项
+- [x] **meeting_assistant_service.py**：AI 旁听核心服务
+  - 消息缓冲器：累积 3 条或 30 秒触发一次批量 LLM 分析
+  - 实时法律要点提取：风险点/法律问题/事实陈述/决策事项分类
+  - 对话结束生成结构化纪要（摘要/案情要素/法律分析/风险评估/建议/待办）
+  - 复用已有 workforce Agent + RAG 知识库，零新外部依赖
+- [x] **API 路由** `/api/v1/assistant`：start/stop/status/insights/summary/records/link-case
+- [x] **IM 消息钩子**：im.py + anonymous_chat.py 消息广播后异步触发 AI 分析
+- [x] **前端 AIAssistantPanel**：ChatWindow 右侧面板，实时显示法律分析卡片和纪要
+- [x] **WebSocket 集成**：AI 分析结果通过 im_manager 实时推送给对话参与者
+
+### Phase 2 规划（LiveKit 音视频）
+- 待实施：LiveKit Server 部署 + LiveKit Agents(Python) ASR 管道
+- 语音通话 + 实时转录 + AI 旁听分析
+- 技术选型：LiveKit + 阿里云百炼 Paraformer ASR
+
+---
+
+## 更早的更新（2026-04-01 核心功能质量优化）
 
 ### 文件上传全链路增强
 - [x] 后端 document_parser.py 新增 Excel (.xlsx/.xls)、CSV、PPTX 解析支持
@@ -71,9 +130,21 @@
 - [x] 输入"/"弹出命令面板，支持关键词搜索、方向键/Enter选择
 - [x] 集成到CollaborativeEditor主编辑器
 
+### 前后端数据打通
+- [x] 合同审查服务返回 missing_clauses 字段，风险保存合并 legal_basis
+- [x] 流式审查新增 missing_clauses、key_terms 事件类型
+- [x] 快速审查 prompt 要求引用法律依据和缺失条款
+- [x] 文档生成 API prompt 升级为完整起草规范
+- [x] 前端审查页新增法律依据蓝色标签 + 缺失条款琥珀色警示面板
+
+### 文档库编辑器 Slash 命令
+- [x] Markdown 编辑器支持 "/" 快捷插入（12个法律文书模块）
+- [x] 方向键/Enter选择、Esc取消、关键词搜索
+
 ### Bug修复
-- [x] 修复 AdminConfig.tsx 中缺失的 Smartphone 图标引用
-- [x] 修复 Chat.tsx 中重复的 accept 属性导致的TS编译错误
+- [x] 修复 AdminConfig.tsx 缺失的 Smartphone 图标
+- [x] 修复 Chat.tsx 重复 accept 属性的TS错误
+- [x] 补充 icons.ts 缺失的 Play、Square、Video、PhoneOff 映射
 
 ---
 
@@ -380,22 +451,26 @@
 
 ## 下一步计划（优先级排序，已按 2026-03-31 最新改动重排）
 
-### P0 — 上线前必须
-1. 完成 Alembic 迁移烟雾验证，重点覆盖 IM、通知偏好、律所管理和尽调相关变更
-2. 执行新增后端单测与前端 Playwright 本地回归，并把结果同步回文档
-3. 前端深色模式和移动端响应式做一轮全链路复查
-4. 全部核心路由与聊天入口能力做上线前可用性验证
+### P0 — 上线前必须 ✅ 全部通过（2026-04-01）
+1. ~~Alembic 迁移验证~~ ✅ 25 个迁移脚本链完整，修复 022 编号冲突（重命名为 023_conversation_star）
+2. ~~后端单测回归~~ ✅ 快速单测 11/11 通过（尽调意图/A2UI覆盖/LLM缓存），修复 test_chat_without_auth 断言适配安全加固
+3. ~~深色模式+移动端复查~~ ✅ 亮/暗模式 CSS 变量正确切换，移动端(375px)/平板(768px)/桌面端渲染正常，零控制台错误
+4. ~~核心路由可用性~~ ✅ 登录页正常渲染，未认证路由正确重定向到 /login
 
 ### P1 — 对话工作台闭环强化
 5. ~~合规风控 / 法律检索 / 找律师 / 尽调 的后端意图识别与 A2UI 卡片输出稳定化~~ ✅ 新增 FIND_LAWYER 意图+关键词+A2UI配置，扩充合规/法律检索关键词，找律师强路由
 6. ~~知识库研究模式增强来源引用、权限校验和空知识库提示~~ ✅ RAG sources 补充 content_snippet，_execute_rag 透传 user_id 权限校验，WebSocket RAG 调用补传 user_id
-7. 工作台动作与消息流联动补全 — 后端侧已就绪（通知推送链路、Canvas handler、模板 Agent 调度均完整），剩余为前端集成：WebSocket 通知监听、模板→工作流 UI 联动、文档版本历史展示、语音对话 ASR 接入
+7. ~~工作台动作与消息流联动补全~~ ✅ 全栈完成：
+   - WebSocket 通知 UI：重构 NotificationCenter 使用 Zustand Store（单一数据源），Layout 统一未读计数（移除独立 state+轮询），useIMWebSocket 增强通知 toast 弹窗
+   - 文档版本历史：新建 VersionHistory 面板（时间线布局+恢复按钮），集成到 DocumentEditor 工具栏
+   - 模板→工作流联动：新建 TemplateSelector（5 个内置法务模板），集成到 QuickActionsBar，选择后自动预填输入框
+   - 语音对话 ASR：新建 useSpeechRecognition hook（Web Speech API, zh-CN, 自动停止），VoiceInputButton（录音脉冲+实时转写浮层），集成到 ChatInput 工具栏
 
 ### P2 — 体验优化
-8. 全局样式规范统一（字体大小、间距、内容区布局、图谱亮暗主题细节）— 纯前端，待实施
-9. ~~对话历史搜索和收藏功能~~ ✅ 后端已完成：Alembic 迁移（is_starred/starred_at）、list_conversations 支持 keyword/starred_only、toggle_star/search_messages Service 方法、3 个新 API 端点（/star, /messages/search, /history?keyword&starred）
-10. ~~多模型切换界面（在对话中切换不同大模型）~~ ✅ 后端已完成：ChatMessage 新增 model_id 字段、_prepare_chat_context 支持按 model_id 加载指定 LLM 配置、新增 GET /chat/models 端点返回可用模型列表
-11. 大规模知识图谱场景下的性能优化与高级过滤 — 待实施
+8. ~~全局样式规范统一~~ ✅ 已建立完整设计系统：`docs/design-system.md` 规范文档、index.css 新增语义状态色/AI色/动效令牌/阴影系统（亮暗双套）、tailwind.config.js 新增 success/warning/info/ai 语义色+排版体系+动效 token+AI 动画、design-tokens.ts 新增 aiStatus/modelSelector/searchBar/starButton Token
+9. ~~对话历史搜索和收藏功能~~ ✅ 全栈完成：后端迁移+API+Service + 前端 ChatSidebar 新增搜索输入框（实时过滤）、全部/收藏 Tab 切换、收藏星标按钮
+10. ~~多模型切换界面~~ ✅ 全栈完成：后端 model_id 支持+GET /chat/models + 前端 ModelSelector 组件（下拉选择器，显示提供商标签和默认标记）
+11. ~~知识图谱性能优化~~ ✅ 前端 searchGraph API 新增 skip/entityType 分页参数、初始加载和搜索限制首批 30 节点加速首次渲染、后端已有分页+节点限制 API
 
 ## 设计参考文件
 
@@ -405,4 +480,4 @@
 
 ---
 
-*最后更新: 2026-03-31 23:59*
+*最后更新: 2026-04-01*

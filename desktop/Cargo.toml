@@ -13,11 +13,34 @@ crate-type = ["lib", "cdylib", "staticlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+# Tauri 核心
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+
+# Tauri 官方插件
 tauri-plugin-shell = "2"
 tauri-plugin-http = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-clipboard-manager = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-store = "2"
+tauri-plugin-sql = { version = "2", features = ["sqlite"] }
+tauri-plugin-deep-link = "2"
+tauri-plugin-os = "2"
+tauri-plugin-process = "2"
+tauri-plugin-opener = "2"
+
+# Rust 工具链
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+log = "0.4"
+env_logger = "0.11"
+thiserror = "2"
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-biometric = "2"

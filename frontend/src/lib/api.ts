@@ -194,6 +194,25 @@ export const authApi = {
     }),
 }
 
+// ============ 音视频通话 (RTC) API ============
+
+export const rtcApi = {
+  createRoom: (data: { conversation_id: string; call_type?: string }) =>
+    request<{ room_name: string; token: string; livekit_url: string; call_type: string; conversation_id: string }>('/rtc/rooms', {
+      method: 'POST',
+      body: JSON.stringify({ call_type: 'voice', ...data }),
+    }),
+
+  getToken: (roomName: string) =>
+    request<{ room_name: string; token: string; livekit_url: string }>(`/rtc/rooms/${roomName}/token`),
+
+  endCall: (roomName: string) =>
+    request<any>(`/rtc/rooms/${roomName}`, { method: 'DELETE' }),
+
+  listRooms: () =>
+    request<{ rooms: any[]; available: boolean }>('/rtc/rooms'),
+}
+
 // ============ AI 旁听助手 API ============
 
 export const assistantApi = {
@@ -626,6 +645,7 @@ export interface ReviewRiskItem {
   clause?: string
   original_text?: string
   suggested_text?: string
+  legal_basis?: string
 }
 
 export interface QuickReviewResult {
@@ -635,11 +655,12 @@ export interface QuickReviewResult {
   key_risks: ReviewRiskItem[]
   suggestions: string[]
   key_terms: Record<string, string>
+  missing_clauses?: string[]
   contract_id?: string
 }
 
 export interface ContractReviewStreamEvent {
-  type: 'start' | 'parsing' | 'parsed' | 'analyzing' | 'key_info' | 'reviewing' | 'risks' | 'suggestions' | 'done' | 'error'
+  type: 'start' | 'parsing' | 'parsed' | 'analyzing' | 'key_info' | 'reviewing' | 'risks' | 'suggestions' | 'missing_clauses' | 'key_terms' | 'done' | 'error'
   message?: string
   agent?: string
   data?: any
@@ -1521,8 +1542,11 @@ export const knowledgeCenterApi = {
   getGraphOverview: () =>
     request<GraphStats>('/knowledge-center/graph/overview'),
 
-  searchGraph: (query: string, depth: number = 1, limit: number = 30) =>
-    request<GraphData>(`/knowledge-center/graph/search?query=${encodeURIComponent(query)}&depth=${depth}&limit=${limit}`),
+  searchGraph: (query: string, depth: number = 1, limit: number = 30, skip: number = 0, entityType?: string) => {
+    let url = `/knowledge-center/graph/search?query=${encodeURIComponent(query)}&depth=${depth}&limit=${limit}&skip=${skip}`;
+    if (entityType) url += `&entity_type=${encodeURIComponent(entityType)}`;
+    return request<GraphData>(url);
+  },
 
   getEntityRelations: (entityName: string, depth: number = 1) =>
     request<GraphData>(`/knowledge-center/graph/entity/${encodeURIComponent(entityName)}?depth=${depth}`),

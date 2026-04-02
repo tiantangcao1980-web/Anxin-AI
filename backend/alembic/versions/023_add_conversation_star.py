@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """conversations 表新增 is_starred / starred_at 字段，支持对话收藏功能
 
-Revision ID: 022_conversation_star
-Revises: 021_email_verified
+Revision ID: 023_conversation_star
+Revises: 022_meeting_records
 Create Date: 2026-03-31
 
 """
@@ -12,8 +12,8 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision: str = "022_conversation_star"
-down_revision: Union[str, None] = "021_email_verified"
+revision: str = "023_conversation_star"
+down_revision: Union[str, None] = "022_meeting_records"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

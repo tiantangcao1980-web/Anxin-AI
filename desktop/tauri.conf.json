@@ -24,8 +24,13 @@
         "transparent": false
       }
     ],
+    "trayIcon": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true,
+      "tooltip": "安心法务"
+    },
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' http://localhost:* ws://localhost:* https://*; img-src 'self' data: https://* blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self' 'unsafe-eval'"
+      "csp": "default-src 'self'; connect-src 'self' http://localhost:* https://localhost:* ws://localhost:* wss://localhost:* https://*.anxin-legal.com wss://*.anxin-legal.com; img-src 'self' data: https://* blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self' 'unsafe-eval'; media-src 'self' blob: mediastream:"
     }
   },
   "bundle": {
@@ -41,15 +46,36 @@
     "macOS": {
       "minimumSystemVersion": "10.15",
       "signingIdentity": null,
-      "entitlements": null
+      "entitlements": "Entitlements.plist"
     },
     "windows": {
       "certificateThumbprint": null,
-      "timestampUrl": ""
+      "timestampUrl": "http://timestamp.digicert.com"
     },
     "linux": {
       "deb": {
-        "depends": []
+        "depends": ["libwebkit2gtk-4.1-0", "libssl3"]
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://api.anxin-legal.com/api/v1/updates/{{target}}/{{arch}}/{{current_version}}"
+      ],
+      "pubkey": ""
+    },
+    "deep-link": {
+      "desktop": {
+        "schemes": ["anxin"]
+      },
+      "mobile": {
+        "schemes": ["anxin"]
+      }
+    },
+    "sql": {
+      "preload": {
+        "db": "sqlite:anxin_local.db"
       }
     }
   }

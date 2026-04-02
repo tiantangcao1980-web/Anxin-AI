@@ -475,9 +475,8 @@ async def quick_review_contract(
         # 提取关键信息
         key_info = contract_analyzer.extract_key_info(request.text)
         
-        # 调用合同审查智能体
-        review_prompt = f"""
-请快速审查以下合同文本，识别关键风险点：
+        # 调用合同审查智能体（增强版）
+        review_prompt = f"""请对以下合同进行专业审查，识别关键风险点并引用法律依据：
 
 合同类型：{contract_type}
 
@@ -486,13 +485,14 @@ async def quick_review_contract(
 
 请以JSON格式返回：
 {{
-    "summary": "审查总结（100字以内）",
+    "summary": "审查总结（200字以上，概述合同类型、主要内容和核心风险）",
     "risk_level": "low/medium/high/critical",
     "risk_score": 0.0-1.0,
     "key_risks": [
-        {{"type": "风险类型", "title": "风险标题", "level": "等级", "description": "描述", "suggestion": "建议"}}
+        {{"type": "风险类型", "title": "风险标题", "level": "等级", "description": "描述（引用法律依据）", "legal_basis": "相关法条", "suggestion": "建议", "suggested_text": "修改后文本"}}
     ],
-    "suggestions": ["建议1", "建议2"],
+    "missing_clauses": ["缺少的重要条款1", "缺少的重要条款2"],
+    "suggestions": ["建议1", "建议2", "建议3"],
     "key_terms": {{
         "parties": "合同主体",
         "amount": "金额",
@@ -600,20 +600,33 @@ async def stream_review_contract(
             # 智能体审查
             yield f"data: {json.dumps({'type': 'reviewing', 'agent': '风险评估Agent', 'message': '正在识别风险条款...'})}\n\n"
             
-            # 调用智能体
+            # 调用智能体（增强版提示）
             result = await workforce.process_task(
-                task_description=f"请审查以下{contract_type}：\n\n{contract_text[:8000]}",
+                task_description=f"请对以下{contract_type}进行全面、系统的专业审查，按照三层审查框架逐一检查，引用具体法律条文，列出缺失条款：\n\n{contract_text[:10000]}",
                 task_type="contract_review",
+                context={
+                    "contract_type": contract_type,
+                }
             )
-            
+
             review_data = result.get("final_result", {})
-            
+
             # 发送审查结果
-            yield f"data: {json.dumps({'type': 'risks', 'data': review_data.get('risks', [])})}\n\n"
-            yield f"data: {json.dumps({'type': 'suggestions', 'data': review_data.get('suggestions', [])})}\n\n"
-            
+            yield f"data: {json.dumps({'type': 'risks', 'data': review_data.get('risks', [])}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'suggestions', 'data': review_data.get('suggestions', [])}, ensure_ascii=False)}\n\n"
+
+            # 发送缺失条款（新增）
+            missing = review_data.get("missing_clauses", [])
+            if missing:
+                yield f"data: {json.dumps({'type': 'missing_clauses', 'data': missing}, ensure_ascii=False)}\n\n"
+
+            # 发送关键条款（新增）
+            key_terms = review_data.get("key_terms", {})
+            if key_terms:
+                yield f"data: {json.dumps({'type': 'key_terms', 'data': key_terms}, ensure_ascii=False)}\n\n"
+
             # 完成
-            yield f"data: {json.dumps({'type': 'done', 'summary': review_data.get('summary', '审查完成'), 'risk_level': review_data.get('risk_level', 'medium'), 'risk_score': review_data.get('risk_score', 0.5)})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'summary': review_data.get('summary', '审查完成'), 'risk_level': review_data.get('risk_level', 'medium'), 'risk_score': review_data.get('risk_score', 0.5)}, ensure_ascii=False)}\n\n"
             
         except Exception as e:
             logger.error(f"流式审查失败: {e}", exc_info=True)

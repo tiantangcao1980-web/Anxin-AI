@@ -16,6 +16,7 @@ import time
 
 from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
 from src.prompts import load_prompt
+from src.services.scenario_templates import assess_completeness, build_context_summary
 
 
 # 意图代码 → 中文标签映射
@@ -512,28 +513,42 @@ class CoordinatorAgent(BaseLegalAgent):
         description: str,
         has_attachments: bool = False,
         llm_config=None,
+        user_profile_context: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
-        合并需求分析 + 意图识别为单次 LLM 调用（节省 ~2s 延迟）。
+        合并需求分析 + 意图识别（v2 — 场景模板驱动 + 置信度门控）。
 
-        先尝试关键词快速路径。仅在关键词未命中时才调用 LLM。
+        先尝试关键词快速路径确定意图，再用场景模板评估信息完整度。
+        仅在关键词未命中时才调用 LLM。
         返回格式兼容原 requirement_analyst.analyze_requirement() 的结果，
-        同时额外包含 intent、confidence 字段。
+        同时额外包含 intent、confidence、filled_slots 等字段。
         """
-        # 快速路径：关键词命中
+        pre_filled = (user_profile_context or {}).get("default_context", {})
+
+        # 快速路径：关键词命中 → 确定意图 → 场景模板评估完整度
         keyword_result = self._fast_keyword_intent(description)
         if keyword_result and keyword_result.get("confidence", 0) >= 0.8:
             intent = keyword_result["intent"]
             logger.info(f"⚡ 合并分析-关键词命中: {intent}")
+
+            # 用场景模板评估信息完整度（纯规则 < 1ms，不再直接标记 is_complete=True）
+            completeness = assess_completeness(
+                description, intent,
+                has_attachments=has_attachments,
+                pre_filled_context=pre_filled,
+            )
+
             return {
-                "is_complete": True,
-                "completeness_score": 0.85,
+                "is_complete": completeness["is_complete"],
+                "completeness_score": completeness["score"],
                 "summary": description[:100],
                 "complexity": "simple" if intent == "QA_CONSULTATION" else "moderate",
                 "intent": intent,
                 "confidence": keyword_result["confidence"],
-                "guidance_questions": [],
-                "missing_elements": [],
+                "guidance_questions": completeness["questions"],
+                "missing_elements": [s["label"] for s in completeness["missing_slots"]],
+                "filled_slots": completeness["filled_slots"],
+                "context_summary": build_context_summary(completeness["filled_slots"]),
                 "suggested_agents": [FAST_PATH_ROUTES.get(intent, [{}])[0].get("agent", "legal_advisor")],
             }
 
@@ -571,19 +586,54 @@ class CoordinatorAgent(BaseLegalAgent):
                 # 确保必需字段
                 result.setdefault("intent", "QA_CONSULTATION")
                 result.setdefault("confidence", 0.7)
-                result.setdefault("is_complete", True)
-                result.setdefault("completeness_score", 0.8)
                 result.setdefault("summary", description[:100])
                 result.setdefault("complexity", "simple")
-                result.setdefault("missing_elements", [])
-                result.setdefault("guidance_questions", [])
                 result.setdefault("suggested_agents", ["legal_advisor"])
+
+                # 用场景模板对 LLM 返回结果做二次校验/增强
+                llm_intent = result["intent"]
+                completeness = assess_completeness(
+                    description, llm_intent,
+                    has_attachments=has_attachments,
+                    pre_filled_context=pre_filled,
+                )
+
+                # 场景模板的评估与 LLM 评估取交集（更严格）
+                llm_complete = result.get("is_complete", True)
+                template_complete = completeness["is_complete"]
+                result["is_complete"] = llm_complete and template_complete
+                result["completeness_score"] = min(
+                    result.get("completeness_score", 0.8),
+                    completeness["score"],
+                )
+
+                # 合并追问问题：LLM 生成的 + 场景模板的（去重）
+                llm_questions = result.get("guidance_questions", [])
+                template_questions = completeness["questions"]
+                existing_purposes = {
+                    q.get("purpose", "") for q in llm_questions if isinstance(q, dict)
+                }
+                for tq in template_questions:
+                    if tq.get("purpose", "") not in existing_purposes:
+                        llm_questions.append(tq)
+                result["guidance_questions"] = llm_questions[:3]  # 最多 3 个
+
+                # 补充缺失信息列表
+                result["missing_elements"] = result.get("missing_elements", []) or [
+                    s["label"] for s in completeness["missing_slots"]
+                ]
+                result["filled_slots"] = completeness["filled_slots"]
+                result["context_summary"] = build_context_summary(completeness["filled_slots"])
 
                 # 写入缓存
                 self._intent_cache[cache_key] = (result, time.time())
                 self._cleanup_intent_cache()
 
-                logger.info(f"合并分析(LLM): intent={result['intent']}, complete={result['is_complete']}, complexity={result['complexity']}")
+                logger.info(
+                    f"合并分析(LLM+模板): intent={result['intent']}, "
+                    f"complete={result['is_complete']}, score={result['completeness_score']}, "
+                    f"complexity={result['complexity']}"
+                )
                 return result
         except Exception as e:
             logger.warning(f"合并分析失败，降级到分离模式: {e}")

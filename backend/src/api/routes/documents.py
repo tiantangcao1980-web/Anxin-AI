@@ -245,21 +245,24 @@ async def generate_document(
     
     workforce = get_workforce()
     
-    # 构建 Prompt
-    prompt = f"""
-    请作为一名专业律师，起草一份【{request.doc_type}】。
-    
-    场景背景：
-    {request.scenario}
-    
-    具体要求与参数：
-    {request.requirements}
-    
-    输出要求：
-    1. 格式规范，条款清晰。
-    2. 使用 Markdown 格式输出。
-    3. 包含必要的法律声明。
-    """
+    # 构建增强版 Prompt（与 DocumentDraftAgent 的结构指南保持一致）
+    prompt = f"""请根据以下需求起草一份**完整、专业、可直接使用**的法律文书：
+
+【文书类型】：{request.doc_type}
+【场景背景】：{request.scenario}
+【具体要求】：{json.dumps(request.requirements, ensure_ascii=False) if request.requirements else '无特殊要求'}
+
+【起草规范（必须遵守）】：
+1. 输出完整的法律文书，禁止省略或用"..."代替内容
+2. 合同类文书不得少于3000字，必须包含至少10个条款
+3. 使用规范的 Markdown 格式：合同标题用 # 一级标题，各条用 ## 二级标题（格式"第X条 条款名称"），条款内容用 X.X 编号
+4. 需要用户填写的信息用【】标注，并附示例说明
+5. 合同金额同时标注阿拉伯数字和大写中文
+6. 必须包含完整的签署区（甲方/乙方盖章、签字、日期）
+7. 文书末尾附上"起草说明"，解释重要条款的设置理由
+
+开始起草：
+"""
     
     try:
         # 调用 DocumentDrafter Agent

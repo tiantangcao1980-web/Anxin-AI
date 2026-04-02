@@ -616,7 +616,25 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
             
             # === 加载 LLM 配置 ===
             llm_config = await ctx.load_llm_config()
-            
+
+            # === 1.5 对话修复检测 — 矛盾/主题跳转（纯规则，< 1ms） ===
+            if msg_type != "clarification_response" and recent_history and len(recent_history) >= 2:
+                try:
+                    from src.services.prompt_assembler import prompt_assembler
+                    _repair = prompt_assembler.detect_contradiction(content, recent_history)
+                    if _repair:
+                        logger.info(f"对话修复检测: {_repair['type']}")
+                        await ctx.send("conversation_repair", {
+                            "repair_type": _repair["type"],
+                            "message": _repair["message"],
+                            "options": _repair.get("options", []),
+                            "original_content": content,
+                        })
+                        await ctx.save_message("assistant", _repair["message"], "需求分析Agent")
+                        continue
+                except Exception as _repair_err:
+                    logger.debug(f"对话修复检测跳过: {_repair_err}")
+
             # === 2. 快速路径判断 — 简单消息直接回复，跳过需求分析 ===
             
             # 规则引擎：判断是否是简单消息（无需 LLM 调用）
@@ -666,8 +684,9 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                 # === 快速路径：简单消息直接回复，不走需求分析和意图识别 ===
                 req_analysis = {"is_complete": True, "summary": content, "complexity": "simple"}
                 logger.info(f"快速路径：简单消息 '{content[:20]}' 直接回复")
-            elif _is_complex_by_keyword:
-                # === 复杂任务：合并需求分析+意图识别（单次LLM调用） ===
+            elif not _is_simple:
+                # === 所有非简单消息统一走合并需求分析+意图识别 ===
+                # （修复"中间层黑洞"：原来没命中关键词的消息被跳过分析）
                 await ctx.send("agent_thinking", {"agent": "需求分析Agent", "message": "正在分析您的需求..."})
 
                 try:
@@ -680,59 +699,70 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                         )
                     finally:
                         _task_llm_config_var.reset(token)
-                    
+
                     # 推送需求分析结果到右侧工作台
                     await ctx.send("requirement_analysis", req_analysis)
+
+                    # 就绪度评分推送（阶段4能力：让用户看到信息收集进度）
+                    _completeness_score = req_analysis.get("completeness_score", 1.0)
+                    _filled_slots = req_analysis.get("filled_slots", [])
+                    _missing_elements = req_analysis.get("missing_elements", [])
                     await ctx.send("thinking_content", {
                         "agent": "需求分析Agent",
-                        "content": f"**需求摘要**: {req_analysis.get('summary', '')}\n\n**复杂度**: {req_analysis.get('complexity', 'simple')}",
+                        "content": (
+                            f"**需求摘要**: {req_analysis.get('summary', '')}\n\n"
+                            f"**复杂度**: {req_analysis.get('complexity', 'simple')}\n\n"
+                            f"**信息就绪度**: {int(_completeness_score * 100)}%"
+                            + (f"\n\n**已收集**: {', '.join(s.get('label', '') for s in _filled_slots)}" if _filled_slots else "")
+                            + (f"\n\n**待补充**: {', '.join(_missing_elements)}" if _missing_elements else "")
+                        ),
                         "phase": "requirement",
+                        "readiness_score": _completeness_score,
+                        "filled_slots": _filled_slots,
+                        "missing_elements": _missing_elements,
                     })
-                    
+
                     # 如果需求不完整，智能选择澄清方式
                     if not req_analysis.get("is_complete", True) and req_analysis.get("guidance_questions"):
                         guidance_qs = req_analysis.get("guidance_questions", [])
-                        
+
                         # 判断是否需要结构化多选（多项并行选择场景）
-                        _needs_structured = len(guidance_qs) >= 3 or any(
+                        _needs_structured = len(guidance_qs) >= 2 or any(
                             len(q.get("options", [])) > 3 for q in guidance_qs if isinstance(q, dict)
                         )
-                        
+
                         if _needs_structured:
-                            # 复杂多选场景：使用结构化 clarification_request
+                            # 结构化场景：使用 ClarificationBubble
                             await ctx.send("clarification_request", {
                                 "message": f"为了更好地帮助您，请补充以下信息：\n\n需求摘要：{req_analysis.get('summary', '')}",
                                 "questions": guidance_qs,
                                 "original_content": content,
                                 "requirement_summary": req_analysis.get("summary", ""),
+                                "readiness_score": _completeness_score,
                             })
                             await ctx.save_message("assistant", req_analysis.get("summary", ""), "需求分析Agent")
                             continue
                         else:
                             # 简单追问场景：Agent 通过自然对话追问，不中断流程
-                            # 将引导问题转为自然语言追问，让 Agent 在回复中自然地提出
                             questions_text = "\n".join(
                                 f"- {q.get('question', q) if isinstance(q, dict) else q}"
                                 for q in guidance_qs
                             )
-                            # 标记需求分析为"已完成"以继续走 Agent 管线
                             req_analysis["is_complete"] = True
                             req_analysis["natural_followup"] = (
                                 f"请在回复中自然地向用户追问以下信息（不要使用列表形式，"
                                 f"用对话的方式友好地询问）：\n{questions_text}"
                             )
-                        
+
                 except Exception as e:
                     logger.warning(f"需求分析失败，继续处理: {e}")
                     req_analysis = {"is_complete": True, "summary": content[:100], "complexity": "simple"}
-            else:
-                # === 中等复杂度：跳过需求分析，直接单 Agent 回复 ===
-                req_analysis = {"is_complete": True, "summary": content[:100], "complexity": "simple"}
             
             try:
                 # 判断是否需要多智能体协作
                 complexity = req_analysis.get("complexity", "simple")
-                is_complex = (complexity in ("moderate", "complex") or _is_complex_by_keyword) and not _is_simple
+                _has_legal_intent = req_analysis.get("intent") not in (None, "", "QA_CONSULTATION") or _is_complex_by_keyword
+                is_complex = (complexity in ("moderate", "complex") or _has_legal_intent) and not _is_simple
                 
                 memory_id = None
                 # 默认响应策略 — 简单路径为 chat_only，复杂路径由 Coordinator 决定
@@ -996,7 +1026,43 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                     used_agent,
                     citations=[s.model_dump() for s in ws_sources],
                 )
-                
+
+                # === 经验沉淀：保存需求发掘路径到情景记忆 ===
+                try:
+                    _discovery_intent = req_analysis.get("intent", "")
+                    _guidance_qs = req_analysis.get("guidance_questions", [])
+                    _filled_slots = req_analysis.get("filled_slots", [])
+                    if _discovery_intent and (_guidance_qs or _filled_slots):
+                        from src.services.episodic_memory_service import episodic_memory
+                        await episodic_memory.add_discovery_path(
+                            intent=_discovery_intent,
+                            user_input=content[:500],
+                            clarification_rounds=1 if msg_type == "clarification_response" else 0,
+                            questions_asked=_guidance_qs,
+                            user_answers={},
+                            filled_slots=_filled_slots,
+                            metadata={"conversation_id": conversation_id},
+                        )
+                except Exception as _mem_err:
+                    logger.debug(f"经验沉淀跳过: {_mem_err}")
+
+                # === 用户画像更新 ===
+                try:
+                    _ws_user_id = data.get("user_id") or ctx.user_id
+                    if _ws_user_id:
+                        from src.services.user_profile_service import UserProfileService
+                        async with async_session_maker() as _profile_db:
+                            _profile_svc = UserProfileService(_profile_db)
+                            await _profile_svc.update_after_session(
+                                user_id=_ws_user_id,
+                                intent=req_analysis.get("intent", "QA_CONSULTATION"),
+                                clarification_rounds=1 if msg_type == "clarification_response" else 0,
+                                user_input_sample=content[:300],
+                            )
+                            await _profile_db.commit()
+                except Exception as _profile_err:
+                    logger.debug(f"用户画像更新跳过: {_profile_err}")
+
             except Exception as e:
                 logger.error(f"智能体调用失败: {e}")
                 await ctx.send("error", {"content": f"处理失败: {str(e)}"})

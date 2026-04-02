@@ -167,5 +167,143 @@ class EpisodicMemoryService:
             logger.error(f"更新记忆反馈失败: {e}")
             return False
 
+    async def add_discovery_path(
+        self,
+        intent: str,
+        user_input: str,
+        clarification_rounds: int,
+        questions_asked: List[Dict[str, Any]],
+        user_answers: Dict[str, str],
+        filled_slots: List[Dict[str, Any]],
+        final_rating: Optional[int] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Optional[str]:
+        """
+        存储完整的"需求发掘路径"，用于飞轮优化。
+
+        高评分路径会被聚合分析，自动优化场景模板。
+        """
+        await self.ensure_initialized()
+
+        path_id = str(uuid.uuid4())
+        payload = {
+            "memory_id": path_id,
+            "type": "discovery_path",
+            "intent": intent,
+            "original_input": user_input[:500],
+            "clarification_rounds": clarification_rounds,
+            "questions_asked": json.dumps(questions_asked, ensure_ascii=False),
+            "user_answers": json.dumps(user_answers, ensure_ascii=False),
+            "filled_slots": json.dumps(filled_slots, ensure_ascii=False),
+            "user_rating": final_rating or 0,
+            "timestamp": datetime.now().isoformat(),
+        }
+        if metadata:
+            payload.update(metadata)
+
+        content_to_vectorize = (
+            f"Intent: {intent}\n"
+            f"Input: {user_input[:200]}\n"
+            f"Questions: {', '.join(q.get('question', '') for q in questions_asked)}\n"
+            f"Answers: {json.dumps(user_answers, ensure_ascii=False)}"
+        )
+
+        document = {
+            "id": path_id,
+            "content": content_to_vectorize,
+            "metadata": payload,
+        }
+
+        count = await self.vector_store.add_documents(
+            self.COLLECTION_NAME, [document]
+        )
+        if count > 0:
+            logger.info(f"已保存需求发掘路径: {path_id}, intent={intent}, rating={final_rating}")
+            return path_id
+        return None
+
+    async def get_discovery_insights(
+        self,
+        intent: str,
+        top_k: int = 20,
+    ) -> Dict[str, Any]:
+        """
+        分析特定场景的需求发掘经验，生成模板优化建议。
+
+        Returns:
+            {
+                "total_paths": int,
+                "avg_rating": float,
+                "avg_rounds": float,
+                "most_asked_questions": [{"question": str, "count": int}],
+                "most_filled_slots": [{"slot": str, "count": int}],
+                "suggested_slot_order": [str],
+            }
+        """
+        await self.ensure_initialized()
+
+        results = await self.vector_store.search(
+            collection_name=self.COLLECTION_NAME,
+            query=f"Intent: {intent} discovery path",
+            top_k=top_k,
+            score_threshold=0.5,
+        )
+
+        paths = [
+            r.get("metadata", {})
+            for r in results
+            if r.get("metadata", {}).get("type") == "discovery_path"
+            and r.get("metadata", {}).get("intent") == intent
+        ]
+
+        if not paths:
+            return {"total_paths": 0}
+
+        # 统计
+        total = len(paths)
+        ratings = [p.get("user_rating", 0) for p in paths if p.get("user_rating", 0) > 0]
+        rounds = [p.get("clarification_rounds", 0) for p in paths]
+
+        # 统计高频追问问题
+        question_counts: Dict[str, int] = {}
+        slot_counts: Dict[str, int] = {}
+
+        for p in paths:
+            try:
+                questions = json.loads(p.get("questions_asked", "[]"))
+                for q in questions:
+                    q_text = q.get("question", "") if isinstance(q, dict) else str(q)
+                    if q_text:
+                        question_counts[q_text] = question_counts.get(q_text, 0) + 1
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+            try:
+                slots = json.loads(p.get("filled_slots", "[]"))
+                for s in slots:
+                    s_key = s.get("key", "") if isinstance(s, dict) else str(s)
+                    if s_key:
+                        slot_counts[s_key] = slot_counts.get(s_key, 0) + 1
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        # 按频率排序
+        most_asked = sorted(question_counts.items(), key=lambda x: x[1], reverse=True)
+        most_filled = sorted(slot_counts.items(), key=lambda x: x[1], reverse=True)
+
+        return {
+            "total_paths": total,
+            "avg_rating": round(sum(ratings) / len(ratings), 1) if ratings else 0,
+            "avg_rounds": round(sum(rounds) / total, 1),
+            "most_asked_questions": [
+                {"question": q, "count": c} for q, c in most_asked[:10]
+            ],
+            "most_filled_slots": [
+                {"slot": s, "count": c} for s, c in most_filled[:10]
+            ],
+            "suggested_slot_order": [s for s, _ in most_filled],
+        }
+
+
 # 全局实例
 episodic_memory = EpisodicMemoryService()
