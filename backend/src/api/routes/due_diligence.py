@@ -395,6 +395,9 @@ class OrchestratedInvestigateRequest(BaseModel):
     enable_forum: bool = True
     enable_report: bool = False
     report_template: str = "comprehensive"
+    # 历史时间范围：支持用户选择搜索过去N个月/年的数据
+    time_range_start: Optional[str] = None  # ISO 格式 "2023-01-01"
+    time_range_end: Optional[str] = None    # ISO 格式 "2024-12-31"，默认今天
 
 
 @router.post("/company/orchestrated-stream")
@@ -449,6 +452,8 @@ async def deep_investigate_stream(
                 enable_forum=request.enable_forum,
                 enable_report=request.enable_report,
                 report_template=request.report_template,
+                time_range_start=request.time_range_start,
+                time_range_end=request.time_range_end,
             ):
                 # 过滤内部事件
                 if not event.get("type", "").startswith("_"):

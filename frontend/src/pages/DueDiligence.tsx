@@ -238,6 +238,12 @@ export default function DueDiligence() {
   const [reportProgress, setReportProgress] = useState<ReportProgress | null>(null)
   const [useDeepMode, setUseDeepMode] = useState(true) // 是否启用深度调查模式
 
+  // 历史时间范围
+  const [showTimeRange, setShowTimeRange] = useState(false)
+  const [timeRangeStart, setTimeRangeStart] = useState('')
+  const [timeRangeEnd, setTimeRangeEnd] = useState('')
+  const [selectedPreset, setSelectedPreset] = useState<string>('') // 预设快捷选项
+
   // 是否显示搜索模式（未开始调查时）
   const [showSearch, setShowSearch] = useState(false)
 
@@ -559,7 +565,12 @@ export default function DueDiligence() {
         // v2 深度调查模式
         await dueDiligenceApi.deepInvestigate(
           name,
-          { enableDeepResearch: true, enableForum: true },
+          {
+            enableDeepResearch: true,
+            enableForum: true,
+            timeRangeStart: timeRangeStart || undefined,
+            timeRangeEnd: timeRangeEnd || undefined,
+          },
           handleEvent,
           handleStreamError,
         )
@@ -760,6 +771,14 @@ export default function DueDiligence() {
               {useDeepMode ? '深度模式' : '基础模式'}
             </button>
             <button
+              onClick={() => setShowTimeRange(!showTimeRange)}
+              className={`${showTimeRange || timeRangeStart ? 'bg-primary/10 text-primary border-primary/20' : 'bg-muted text-muted-foreground border-transparent'} text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-colors`}
+              title="设置历史时间范围，搜索过去N个月/年的数据"
+            >
+              <icons.Calendar className="w-3.5 h-3.5" />
+              {timeRangeStart ? `${timeRangeStart.slice(0, 7)} ~` : '历史范围'}
+            </button>
+            <button
               onClick={() => { setShowSearch(!showSearch) }}
               className={`${showSearch ? buttonStyle.primary : buttonStyle.ghost} text-xs flex items-center gap-1.5`}
             >
@@ -768,6 +787,74 @@ export default function DueDiligence() {
             </button>
           </div>
         </div>
+
+        {/* 历史时间范围选择器 */}
+        {showTimeRange && !showSearch && (
+          <div className={`${cardStyle.base} p-3 space-y-2`}>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-foreground">选择调查时间范围</span>
+              {timeRangeStart && (
+                <button
+                  onClick={() => { setTimeRangeStart(''); setTimeRangeEnd(''); setSelectedPreset('') }}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  清除
+                </button>
+              )}
+            </div>
+            {/* 快捷预设 */}
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { label: '近3个月', key: '3m', months: 3 },
+                { label: '近6个月', key: '6m', months: 6 },
+                { label: '近1年', key: '1y', months: 12 },
+                { label: '近2年', key: '2y', months: 24 },
+                { label: '近3年', key: '3y', months: 36 },
+                { label: '近5年', key: '5y', months: 60 },
+              ].map(preset => {
+                const isActive = selectedPreset === preset.key
+                return (
+                  <button
+                    key={preset.key}
+                    onClick={() => {
+                      const end = new Date()
+                      const start = new Date()
+                      start.setMonth(start.getMonth() - preset.months)
+                      setTimeRangeStart(start.toISOString().slice(0, 10))
+                      setTimeRangeEnd(end.toISOString().slice(0, 10))
+                      setSelectedPreset(preset.key)
+                    }}
+                    className={`${isActive ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'} text-xs px-2.5 py-1 rounded-md transition-colors`}
+                  >
+                    {preset.label}
+                  </button>
+                )
+              })}
+            </div>
+            {/* 自定义日期范围 */}
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={timeRangeStart}
+                onChange={e => { setTimeRangeStart(e.target.value); setSelectedPreset('custom') }}
+                className={`${inputStyle.search} text-xs px-2 py-1.5 rounded-md flex-1`}
+              />
+              <span className="text-xs text-muted-foreground">至</span>
+              <input
+                type="date"
+                value={timeRangeEnd}
+                onChange={e => { setTimeRangeEnd(e.target.value); setSelectedPreset('custom') }}
+                max={new Date().toISOString().slice(0, 10)}
+                className={`${inputStyle.search} text-xs px-2 py-1.5 rounded-md flex-1`}
+              />
+            </div>
+            {timeRangeStart && (
+              <p className="text-xs text-muted-foreground">
+                将搜索 {timeRangeStart} ~ {timeRangeEnd || '至今'} 期间的历史数据，帮助您了解被调查目标在该时段的经营变化
+              </p>
+            )}
+          </div>
+        )}
 
         {/* 调查搜索框 — 始终显示（非知识搜索模式下） */}
         {!showSearch && (

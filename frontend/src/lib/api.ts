@@ -1143,6 +1143,8 @@ export const dueDiligenceApi = {
       enableForum?: boolean
       enableReport?: boolean
       reportTemplate?: string
+      timeRangeStart?: string   // "2023-01-01"
+      timeRangeEnd?: string     // "2024-12-31"
     } = {},
     onEvent: (event: InvestigationStreamEvent) => void,
     onError?: (error: Error) => void
@@ -1165,6 +1167,8 @@ export const dueDiligenceApi = {
           enable_forum: options.enableForum ?? true,
           enable_report: options.enableReport ?? false,
           report_template: options.reportTemplate || 'comprehensive',
+          time_range_start: options.timeRangeStart || null,
+          time_range_end: options.timeRangeEnd || null,
         }),
         signal: controller.signal,
       })

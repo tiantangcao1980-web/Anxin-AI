@@ -175,6 +175,8 @@ class DeepResearchEngine:
         company_name: str,
         research_dimensions: Optional[List[str]] = None,
         max_rounds: Optional[int] = None,
+        time_range_start: Optional[str] = None,
+        time_range_end: Optional[str] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
         流式深度研究，通过 SSE 事件返回每一步进度
@@ -187,21 +189,39 @@ class DeepResearchEngine:
         - keyword_optimized: 优化后的搜索关键词
         - research_summary: 最终研究摘要
         - research_done: 研究完成
+
+        时间范围参数：
+        - time_range_start: 搜索起始日期 "2023-01-01"
+        - time_range_end: 搜索结束日期 "2024-12-31"
         """
         max_rounds = max_rounds or self.MAX_REFLECTIONS
 
         if not research_dimensions:
             research_dimensions = self.DEFAULT_DIMENSIONS
 
-        # 初始化研究状态
-        initial_query = f"{company_name} 企业尽职调查"
+        # 构建时间范围感知的初始查询
+        time_suffix = ""
+        if time_range_start or time_range_end:
+            start = time_range_start or "2010-01-01"
+            end = time_range_end or datetime.now().strftime("%Y-%m-%d")
+            time_suffix = f" {start}至{end}"
+
+        initial_query = f"{company_name} 企业尽职调查{time_suffix}"
         state = ResearchState(company_name, initial_query)
+        # 保存时间范围到 state，供后续轮次使用
+        state._time_range_start = time_range_start
+        state._time_range_end = time_range_end
+
+        time_range_desc = ""
+        if time_range_start or time_range_end:
+            time_range_desc = f"（时间范围：{time_range_start or '最早'} ~ {time_range_end or '至今'}）"
 
         yield {
             "type": "research_start",
-            "message": f"开始对「{company_name}」的深度研究",
+            "message": f"开始对「{company_name}」的深度研究{time_range_desc}",
             "dimensions": research_dimensions,
             "max_rounds": max_rounds,
+            "time_range": {"start": time_range_start, "end": time_range_end} if (time_range_start or time_range_end) else None,
         }
 
         # ===== 轮次循环：search → reflect → refine =====
@@ -217,7 +237,9 @@ class DeepResearchEngine:
 
             # —— 搜索阶段 ——
             round_results = await self._execute_search_round(
-                state.current_queries, company_name
+                state.current_queries, company_name,
+                time_range_start=getattr(state, '_time_range_start', None),
+                time_range_end=getattr(state, '_time_range_end', None),
             )
             state.all_results.extend(round_results)
 
@@ -303,12 +325,16 @@ class DeepResearchEngine:
     # ========== 内部方法 ==========
 
     async def _execute_search_round(
-        self, queries: List[str], company_name: str
+        self,
+        queries: List[str],
+        company_name: str,
+        time_range_start: Optional[str] = None,
+        time_range_end: Optional[str] = None,
     ) -> List[SearchResult]:
         """并行执行一轮多查询搜索"""
         tasks = []
         for query in queries:
-            tasks.append(self._search_single(query, company_name))
+            tasks.append(self._search_single(query, company_name, time_range_start, time_range_end))
 
         results_nested = await asyncio.gather(*tasks, return_exceptions=True)
         all_results = []
@@ -320,13 +346,20 @@ class DeepResearchEngine:
         return all_results
 
     async def _search_single(
-        self, query: str, company_name: str
+        self,
+        query: str,
+        company_name: str,
+        time_range_start: Optional[str] = None,
+        time_range_end: Optional[str] = None,
     ) -> List[SearchResult]:
         """单次搜索：整合多个数据源，结果自动入缓存"""
         results: List[SearchResult] = []
 
+        # 有时间范围时跳过缓存（历史搜索通常需要新数据）
+        use_cache = not (time_range_start or time_range_end)
+
         # 先检查缓存
-        if self.data_store:
+        if use_cache and self.data_store:
             cached = await self.data_store.get_cached_data(
                 company_name, "web_search", query_text=query,
                 max_age_seconds=43200,  # Web 搜索缓存 12 小时
@@ -345,17 +378,41 @@ class DeepResearchEngine:
                 if results:
                     return results
 
+        # 计算 Web 搜索 API 的 time_range 参数
+        web_time_range = self._compute_web_time_range(time_range_start, time_range_end)
+
+        # 对历史搜索，自动将时间信息附加到查询以提升召回
+        effective_query = query
+        if time_range_start and time_range_start not in query:
+            # 提取年份信息附加到查询
+            try:
+                from datetime import datetime as _dt
+                start_year = _dt.strptime(time_range_start, "%Y-%m-%d").year
+                end_year = _dt.strptime(time_range_end, "%Y-%m-%d").year if time_range_end else _dt.now().year
+                if start_year == end_year:
+                    effective_query = f"{query} {start_year}年"
+                else:
+                    effective_query = f"{query} {start_year}-{end_year}年"
+            except Exception:
+                effective_query = f"{query} {time_range_start}"
+
         # 数据源 1：Web 搜索（通用 + 新闻 + 法律专项）
         if self.web_searcher:
             search_tasks = [
-                self._safe_web_search(query, max_results=self.MAX_RESULTS_PER_SOURCE),
+                self._safe_web_search(effective_query, max_results=self.MAX_RESULTS_PER_SOURCE, time_range=web_time_range),
             ]
             # 新闻搜索
             if any(kw in query for kw in ["舆情", "新闻", "负面", "事件"]):
-                search_tasks.append(self._safe_news_search(query, max_results=5))
+                search_tasks.append(self._safe_news_search(effective_query, max_results=5))
             # 法律专项搜索
             if any(kw in query for kw in ["诉讼", "判决", "裁定", "执行", "失信"]):
-                search_tasks.append(self._safe_legal_search(query, max_results=5))
+                search_tasks.append(self._safe_legal_search(effective_query, max_results=5))
+
+            # 历史搜索时，额外按年份分段搜索，挖掘更多历史数据
+            if time_range_start:
+                search_tasks.extend(self._build_historical_search_tasks(
+                    query, company_name, time_range_start, time_range_end
+                ))
 
             all_web = await asyncio.gather(*search_tasks, return_exceptions=True)
             for batch in all_web:
@@ -411,11 +468,11 @@ class DeepResearchEngine:
 
         return results
 
-    async def _safe_web_search(self, query: str, max_results: int = 8) -> List[SearchResult]:
+    async def _safe_web_search(self, query: str, max_results: int = 8, time_range: Optional[str] = None) -> List[SearchResult]:
         """安全封装的 Web 搜索"""
         try:
             web_results = await asyncio.wait_for(
-                self.web_searcher.search(query, max_results=max_results),
+                self.web_searcher.search(query, max_results=max_results, time_range=time_range),
                 timeout=self.SEARCH_TIMEOUT,
             )
             return [
@@ -498,11 +555,17 @@ class DeepResearchEngine:
             for r in state.all_results[-20:]  # 取最近 20 条
         )
 
+        time_range_hint = ""
+        if getattr(state, '_time_range_start', None):
+            start = state._time_range_start
+            end = getattr(state, '_time_range_end', None) or "至今"
+            time_range_hint = f"\n时间范围要求：{start} ~ {end}（请重点关注该时间段内的历史事件和变化）"
+
         prompt = f"""你是一位资深的企业尽职调查研究员。请审视以下搜索结果并进行反思分析。
 
 研究目标：对「{state.company_name}」进行全面尽职调查
 调查维度：{', '.join(dimensions)}
-当前是第 {round_num} 轮搜索。
+当前是第 {round_num} 轮搜索。{time_range_hint}
 
 已有搜索结果：
 {results_summary if results_summary else '（暂无结果）'}
@@ -591,6 +654,80 @@ class DeepResearchEngine:
             logger.warning(f"关键词优化失败: {e}")
 
         return queries[:5]
+
+    def _compute_web_time_range(
+        self,
+        time_range_start: Optional[str],
+        time_range_end: Optional[str],
+    ) -> Optional[str]:
+        """将日期范围转换为 Web 搜索 API 的 time_range 参数"""
+        if not time_range_start:
+            return None
+
+        try:
+            start = datetime.strptime(time_range_start, "%Y-%m-%d")
+            end = datetime.strptime(time_range_end, "%Y-%m-%d") if time_range_end else datetime.now()
+            days_span = (end - start).days
+
+            if days_span <= 1:
+                return "day"
+            elif days_span <= 7:
+                return "week"
+            elif days_span <= 31:
+                return "month"
+            elif days_span <= 365:
+                return "year"
+            else:
+                return None  # 超过 1 年，不限制（通过查询词包含年份来过滤）
+        except (ValueError, TypeError):
+            return None
+
+    def _build_historical_search_tasks(
+        self,
+        query: str,
+        company_name: str,
+        time_range_start: str,
+        time_range_end: Optional[str],
+    ) -> list:
+        """
+        构建按年份分段的历史搜索任务
+
+        例如用户选择 2020-2023，会分别搜索每年的数据：
+        - "腾讯 诉讼 2020年"
+        - "腾讯 诉讼 2021年"
+        - "腾讯 诉讼 2022年"
+        - "腾讯 诉讼 2023年"
+
+        这样可以更精确地获取不同年份的历史信息。
+        """
+        tasks = []
+        try:
+            start = datetime.strptime(time_range_start, "%Y-%m-%d")
+            end = datetime.strptime(time_range_end, "%Y-%m-%d") if time_range_end else datetime.now()
+
+            start_year = start.year
+            end_year = end.year
+
+            # 最多搜索 5 个年份（避免请求过多）
+            years = list(range(start_year, end_year + 1))
+            if len(years) > 5:
+                # 取首尾和均匀分布的中间年份
+                step = len(years) // 4
+                years = [years[0], years[step], years[step * 2], years[step * 3], years[-1]]
+
+            # 关键的历史搜索维度
+            historical_keywords = ["经营状况", "诉讼", "处罚", "变更", "新闻"]
+
+            for year in years:
+                # 每年选一个最重要的维度搜索
+                kw = historical_keywords[year % len(historical_keywords)]
+                year_query = f"{company_name} {kw} {year}年"
+                tasks.append(self._safe_web_search(year_query, max_results=3))
+
+        except (ValueError, TypeError) as e:
+            logger.debug(f"构建历史搜索任务失败: {e}")
+
+        return tasks
 
     async def _generate_final_summary(
         self, state: ResearchState, dimensions: List[str]

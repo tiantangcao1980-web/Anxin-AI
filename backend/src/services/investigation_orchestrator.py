@@ -102,6 +102,8 @@ class InvestigationOrchestrator:
         enable_forum: bool = True,
         enable_report: bool = False,
         report_template: str = "comprehensive",
+        time_range_start: Optional[str] = None,
+        time_range_end: Optional[str] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
         增强版多 Agent 协同调查，七阶段流水线（含缓存预检）
@@ -136,11 +138,19 @@ class InvestigationOrchestrator:
             except Exception:
                 pass
 
+        # 构建时间范围描述
+        time_range_desc = ""
+        if time_range_start or time_range_end:
+            start_label = time_range_start or "最早"
+            end_label = time_range_end or "至今"
+            time_range_desc = f"（时间范围：{start_label} ~ {end_label}）"
+
         yield {
             "type": "start",
-            "message": f"开始对「{company_name}」的多维度协同调查",
+            "message": f"开始对「{company_name}」的多维度协同调查{time_range_desc}",
             "stages": self._get_stages_config(enable_deep_research, enable_forum, enable_report),
             "recommendations": recommendations if recommendations else None,
+            "time_range": {"start": time_range_start, "end": time_range_end} if (time_range_start or time_range_end) else None,
         }
 
         # ===== 阶段零：缓存预检与热加载 =====
@@ -185,7 +195,10 @@ class InvestigationOrchestrator:
 
             # 深度研究的搜索轮数可按用户偏好调整
             max_rounds = recommendations.get("max_search_rounds", 3) if recommendations else 3
-            async for event in self._stage_deep_research(company_name, max_rounds=max_rounds):
+            async for event in self._stage_deep_research(
+                company_name, max_rounds=max_rounds,
+                time_range_start=time_range_start, time_range_end=time_range_end,
+            ):
                 if event.get("_research_data"):
                     research_data = event["_research_data"]
                 else:
@@ -459,7 +472,11 @@ class InvestigationOrchestrator:
                 )
 
     async def _stage_deep_research(
-        self, company_name: str, max_rounds: int = 3
+        self,
+        company_name: str,
+        max_rounds: int = 3,
+        time_range_start: Optional[str] = None,
+        time_range_end: Optional[str] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """阶段二：深度研究"""
         research_data = {}
@@ -468,6 +485,8 @@ class InvestigationOrchestrator:
             async for event in self.deep_research.research_stream(
                 company_name=company_name,
                 max_rounds=max_rounds,
+                time_range_start=time_range_start,
+                time_range_end=time_range_end,
             ):
                 yield event
                 # 捕获最终数据
