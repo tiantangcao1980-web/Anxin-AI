@@ -1144,6 +1144,578 @@ SCENARIO_TEMPLATES: Dict[str, Dict[str, Any]] = {
         "auto_complete_if": [],
         "min_required_for_proceed": 2,
     },
+
+    # ================================================================
+    # === 企业经营管理专项场景 (v3.1 — 12 个新增) ===
+    # ================================================================
+
+    # ================================================================
+    # 20. 融资投资 (企业核心)
+    # ================================================================
+    "INVESTMENT_FINANCING": {
+        "name": "融资投资",
+        "required_slots": [
+            {
+                "key": "financing_type", "label": "融资类型",
+                "question": "属于什么类型的融资/投资？",
+                "options": ["股权融资（A/B/C轮）", "债权融资（贷款/债券）", "可转债/SAFE", "股权转让", "上市/IPO", "基金投资"],
+                "extract_patterns": [
+                    r"股权融资", r"[A-Fa-f]轮", r"天使", r"种子",
+                    r"贷款", r"债券", r"债权", r"借款",
+                    r"可转债", r"SAFE", r"safe",
+                    r"股权转让", r"股转",
+                    r"上市", r"IPO", r"ipo",
+                    r"基金", r"LP", r"GP",
+                ],
+                "round": 1,
+            },
+            {
+                "key": "role", "label": "您的角色",
+                "question": "您是融资方还是投资方？",
+                "options": ["融资方/创业公司", "投资方/基金", "财务顾问/FA", "律师/法务"],
+                "extract_patterns": [
+                    r"融资", r"创业", r"投资方", r"基金", r"FA",
+                    r"顾问", r"法务",
+                ],
+                "round": 1,
+            },
+        ],
+        "optional_slots": [
+            {
+                "key": "amount", "label": "融资规模",
+                "question": "目标融资/投资金额大约多少？",
+                "options": ["500万以下", "500万-5000万", "5000万-5亿", "5亿以上", "暂不确定"],
+                "extract_patterns": [r"\d+万", r"\d+亿", r"金额"],
+                "round": 2,
+            },
+            {
+                "key": "stage", "label": "项目阶段",
+                "question": "目前融资到什么阶段？",
+                "options": ["前期接洽/意向", "Term Sheet谈判", "尽调中", "交割/签约", "投后管理"],
+                "extract_patterns": [r"意向", r"[Tt]erm", r"尽调", r"签约", r"交割"],
+                "round": 2,
+            },
+            {
+                "key": "focus", "label": "关注重点",
+                "question": "重点关注哪些条款？",
+                "options": ["估值与对价", "对赌/业绩承诺", "反稀释保护", "退出机制", "治理权/董事会", "优先清算权"],
+                "extract_patterns": [r"估值", r"对赌", r"稀释", r"退出", r"董事", r"清算"],
+                "round": 2,
+            },
+        ],
+        "auto_complete_if": ["has_attachments"],
+        "min_required_for_proceed": 2,
+        "sub_templates": {
+            "equity_financing": {
+                "detect_patterns": [r"股权融资", r"[A-Fa-f]轮", r"天使", r"种子", r"融资"],
+                "required_slots": [
+                    {
+                        "key": "round_stage", "label": "融资轮次",
+                        "question": "当前是第几轮融资？",
+                        "options": ["天使/种子轮", "Pre-A / A轮", "B轮", "C轮及以后", "Pre-IPO"],
+                        "extract_patterns": [r"天使", r"种子", r"[Aa]轮", r"[Bb]轮", r"[Cc]轮", r"IPO"],
+                        "round": 1,
+                    },
+                    {
+                        "key": "need_type", "label": "具体需求",
+                        "question": "需要什么帮助？",
+                        "options": ["Term Sheet审查", "投资协议起草/审查", "股东协议设计", "交割文件准备", "估值分析建议"],
+                        "extract_patterns": [r"[Tt]erm", r"投资协议", r"股东协议", r"交割", r"估值"],
+                        "round": 1,
+                    },
+                ],
+            },
+        },
+    },
+
+    # ================================================================
+    # 21. 并购重组
+    # ================================================================
+    "MA_RESTRUCTURING": {
+        "name": "并购重组",
+        "required_slots": [
+            {
+                "key": "ma_type", "label": "交易类型",
+                "question": "属于什么类型的并购/重组？",
+                "options": ["收购/兼并", "合并", "资产剥离/出售", "公司分立", "业务重组", "管理层收购（MBO）"],
+                "extract_patterns": [
+                    r"收购", r"兼并", r"合并", r"剥离", r"出售",
+                    r"分立", r"重组", r"MBO", r"mbo",
+                ],
+                "round": 1,
+            },
+            {
+                "key": "role", "label": "您的角色",
+                "question": "您是收购方还是被收购方？",
+                "options": ["收购方/买方", "被收购方/卖方/目标公司", "财务顾问", "法律顾问"],
+                "extract_patterns": [
+                    r"收购方", r"买方", r"被收购", r"卖方", r"目标公司",
+                    r"顾问",
+                ],
+                "round": 1,
+            },
+        ],
+        "optional_slots": [
+            {
+                "key": "deal_structure", "label": "交易结构",
+                "question": "倾向什么交易结构？",
+                "options": ["股权收购", "资产收购", "增资扩股", "换股合并", "还未确定"],
+                "extract_patterns": [r"股权收购", r"资产收购", r"增资", r"换股"],
+                "round": 2,
+            },
+            {
+                "key": "deal_value", "label": "交易规模",
+                "question": "预估交易金额？",
+                "options": ["1000万以下", "1000万-1亿", "1-10亿", "10亿以上", "暂不确定"],
+                "extract_patterns": [r"\d+万", r"\d+亿"],
+                "round": 2,
+            },
+            {
+                "key": "stage", "label": "项目阶段",
+                "question": "并购项目到什么阶段了？",
+                "options": ["前期论证/可行性", "意向接洽/LOI", "尽职调查", "协议谈判", "审批/交割"],
+                "extract_patterns": [r"论证", r"意向", r"LOI", r"尽调", r"谈判", r"审批", r"交割"],
+                "round": 2,
+            },
+            {
+                "key": "regulatory", "label": "审批要求",
+                "question": "是否涉及监管审批？",
+                "options": ["需要反垄断申报", "需要外资审批", "需要国资审批", "无特殊审批", "不确定"],
+                "extract_patterns": [r"反垄断", r"外资", r"国资", r"审批"],
+                "round": 2,
+            },
+        ],
+        "auto_complete_if": [],
+        "min_required_for_proceed": 2,
+    },
+
+    # ================================================================
+    # 22. 跨境涉外
+    # ================================================================
+    "CROSS_BORDER": {
+        "name": "跨境涉外",
+        "required_slots": [
+            {
+                "key": "cross_type", "label": "涉外类型",
+                "question": "涉及什么类型的跨境业务？",
+                "options": ["国际贸易（进出口）", "外商投资/FDI", "对外投资/ODI", "跨境服务/技术", "跨境争议/仲裁", "其他"],
+                "extract_patterns": [
+                    r"进口", r"出口", r"贸易", r"外商", r"FDI", r"fdi",
+                    r"对外投资", r"ODI", r"odi", r"跨境服务",
+                    r"国际仲裁", r"跨境争议",
+                ],
+                "round": 1,
+            },
+            {
+                "key": "jurisdictions", "label": "涉及国家/地区",
+                "question": "涉及哪些国家或地区？",
+                "options": ["美国", "欧盟/欧洲", "东南亚", "日韩", "中东/非洲", "其他"],
+                "extract_patterns": [
+                    r"美国", r"欧洲", r"欧盟", r"东南亚", r"日本", r"韩国",
+                    r"香港", r"新加坡", r"英国", r"德国",
+                ],
+                "round": 1,
+            },
+        ],
+        "optional_slots": [
+            {
+                "key": "compliance_focus", "label": "合规关注",
+                "question": "重点关注哪些合规要求？",
+                "options": ["出口管制/制裁", "外汇管制", "数据跨境传输", "反腐败(FCPA)", "关税/贸易壁垒", "暂不确定"],
+                "extract_patterns": [
+                    r"出口管制", r"制裁", r"外汇", r"数据跨境", r"FCPA",
+                    r"关税", r"贸易壁垒",
+                ],
+                "round": 2,
+            },
+            {
+                "key": "contract_law", "label": "适用法律",
+                "question": "合同约定适用哪国法律？",
+                "options": ["中国法", "美国法/英美法", "香港法", "新加坡法", "尚未确定"],
+                "extract_patterns": [r"中国法", r"美国法", r"英美法", r"香港法"],
+                "round": 2,
+            },
+        ],
+        "auto_complete_if": [],
+        "min_required_for_proceed": 2,
+    },
+
+    # ================================================================
+    # 23. 数据合规/网络安全
+    # ================================================================
+    "DATA_COMPLIANCE": {
+        "name": "数据合规",
+        "required_slots": [
+            {
+                "key": "data_issue", "label": "数据问题",
+                "question": "具体是什么数据合规问题？",
+                "options": ["个人信息保护合规", "数据跨境传输", "数据泄露应急", "隐私政策审查", "数据处理协议(DPA)", "网络安全等保"],
+                "extract_patterns": [
+                    r"个人信息", r"个保", r"PIPL", r"pipl",
+                    r"跨境", r"数据出境",
+                    r"泄露", r"泄漏", r"应急",
+                    r"隐私政策", r"隐私协议",
+                    r"DPA", r"dpa", r"数据处理",
+                    r"等保", r"网络安全", r"等级保护",
+                ],
+                "round": 1,
+            },
+            {
+                "key": "data_type", "label": "数据类型",
+                "question": "涉及什么类型的数据？",
+                "options": ["个人信息/用户数据", "敏感个人信息", "企业商业数据", "政府/公共数据", "医疗健康数据", "金融数据"],
+                "extract_patterns": [
+                    r"个人信息", r"用户数据", r"敏感", r"商业数据",
+                    r"医疗", r"健康", r"金融",
+                ],
+                "round": 1,
+            },
+        ],
+        "optional_slots": [
+            {
+                "key": "regulation", "label": "适用法规",
+                "question": "需要满足哪些法规要求？",
+                "options": ["个保法(PIPL)", "GDPR", "网络安全法", "数据安全法", "行业特定规定", "不确定"],
+                "extract_patterns": [r"个保法", r"PIPL", r"GDPR", r"gdpr", r"网络安全法", r"数据安全法"],
+                "round": 2,
+            },
+            {
+                "key": "urgency", "label": "紧急程度",
+                "question": "是否有紧急情况？",
+                "options": ["数据泄露事件处理（紧急）", "监管检查/约谈", "合规建设（常规）", "合同签约前评估"],
+                "extract_patterns": [r"泄露", r"检查", r"约谈", r"紧急"],
+                "round": 2,
+            },
+        ],
+        "auto_complete_if": [],
+        "min_required_for_proceed": 2,
+    },
+
+    # ================================================================
+    # 24. 反不正当竞争
+    # ================================================================
+    "ANTI_UNFAIR_COMPETITION": {
+        "name": "反不正当竞争",
+        "required_slots": [
+            {
+                "key": "competition_type", "label": "竞争问题",
+                "question": "涉及什么不正当竞争问题？",
+                "options": ["商业秘密侵犯", "员工跳槽带走客户/技术", "仿冒/混淆", "虚假宣传", "商业诋毁", "不正当手段获取商业机会"],
+                "extract_patterns": [
+                    r"商业秘密", r"跳槽", r"带走客户", r"仿冒", r"混淆",
+                    r"虚假宣传", r"诋毁", r"窃取", r"泄密",
+                ],
+                "round": 1,
+            },
+            {
+                "key": "role", "label": "您的角色",
+                "question": "您是维权方还是被指控方？",
+                "options": ["维权方（权益被侵犯）", "被指控方（被指控不正当竞争）", "预防性咨询"],
+                "extract_patterns": [r"维权", r"被侵", r"被指控", r"预防"],
+                "round": 1,
+            },
+        ],
+        "optional_slots": [
+            {
+                "key": "measures_taken", "label": "已采取措施",
+                "question": "此前是否已采取保护措施？",
+                "options": ["有竞业限制协议", "有保密协议", "有商业秘密管理制度", "都没有"],
+                "extract_patterns": [r"竞业", r"保密协议", r"管理制度"],
+                "round": 2,
+            },
+            {
+                "key": "loss_estimate", "label": "损失评估",
+                "question": "预估造成的损失规模？",
+                "options": ["50万以下", "50-500万", "500万以上", "难以量化"],
+                "extract_patterns": [r"\d+万", r"损失"],
+                "round": 2,
+            },
+        ],
+        "auto_complete_if": [],
+        "min_required_for_proceed": 2,
+    },
+
+    # ================================================================
+    # 25. 特许经营/经销
+    # ================================================================
+    "FRANCHISE_DISTRIBUTION": {
+        "name": "特许经营与经销",
+        "required_slots": [
+            {
+                "key": "business_type", "label": "业务类型",
+                "question": "涉及什么类型的商业合作？",
+                "options": ["特许经营/加盟", "代理经销", "品牌授权", "区域独家", "供应链合作"],
+                "extract_patterns": [
+                    r"特许", r"加盟", r"代理", r"经销", r"分销",
+                    r"品牌授权", r"独家", r"供应链",
+                ],
+                "round": 1,
+            },
+            {
+                "key": "role", "label": "您的角色",
+                "question": "您是品牌方/授权方还是加盟方/经销商？",
+                "options": ["品牌方/特许人/厂家", "加盟方/被特许人/经销商", "第三方咨询"],
+                "extract_patterns": [r"品牌方", r"厂家", r"加盟方", r"经销商"],
+                "round": 1,
+            },
+        ],
+        "optional_slots": [
+            {
+                "key": "need_type", "label": "具体需求",
+                "question": "需要什么帮助？",
+                "options": ["合同起草/审查", "合规备案（商业特许经营）", "终止/解除纠纷", "区域保护/窜货问题", "费用/返利纠纷"],
+                "extract_patterns": [r"合同", r"备案", r"终止", r"解除", r"窜货", r"返利"],
+                "round": 2,
+            },
+        ],
+        "auto_complete_if": [],
+        "min_required_for_proceed": 2,
+    },
+
+    # ================================================================
+    # 26. 建设工程
+    # ================================================================
+    "CONSTRUCTION_ENGINEERING": {
+        "name": "建设工程",
+        "required_slots": [
+            {
+                "key": "project_issue", "label": "工程问题",
+                "question": "涉及什么建设工程问题？",
+                "options": ["工程合同纠纷", "工程款结算/拖欠", "质量/安全问题", "工期延误", "招投标问题", "分包/转包纠纷"],
+                "extract_patterns": [
+                    r"工程合同", r"工程款", r"结算", r"质量",
+                    r"安全", r"工期", r"延误", r"招投标",
+                    r"分包", r"转包", r"挂靠",
+                ],
+                "round": 1,
+            },
+            {
+                "key": "role", "label": "您的角色",
+                "question": "您是哪方？",
+                "options": ["建设单位/发包方/业主", "施工单位/承包方", "分包方/实际施工人", "监理/设计方", "其他"],
+                "extract_patterns": [
+                    r"发包", r"业主", r"甲方", r"施工", r"承包",
+                    r"分包", r"监理", r"设计",
+                ],
+                "round": 1,
+            },
+        ],
+        "optional_slots": [
+            {
+                "key": "project_value", "label": "工程金额",
+                "question": "工程涉及的金额？",
+                "options": ["500万以下", "500万-5000万", "5000万-5亿", "5亿以上"],
+                "extract_patterns": [r"\d+万", r"\d+亿"],
+                "round": 2,
+            },
+            {
+                "key": "project_stage", "label": "工程阶段",
+                "question": "项目处于什么阶段？",
+                "options": ["招投标阶段", "施工中", "竣工验收", "质保期", "已完工有争议"],
+                "extract_patterns": [r"招标", r"施工", r"竣工", r"验收", r"质保"],
+                "round": 2,
+            },
+        ],
+        "auto_complete_if": [],
+        "min_required_for_proceed": 2,
+    },
+
+    # ================================================================
+    # 27. 政府采购/PPP
+    # ================================================================
+    "GOVERNMENT_CONTRACTS": {
+        "name": "政府采购与PPP",
+        "required_slots": [
+            {
+                "key": "gov_type", "label": "项目类型",
+                "question": "涉及什么类型的政府项目？",
+                "options": ["政府采购/招标", "PPP项目", "政府补贴/扶持资金", "行政许可/资质", "政府合同纠纷"],
+                "extract_patterns": [
+                    r"政府采购", r"招标", r"投标", r"PPP", r"ppp",
+                    r"补贴", r"扶持", r"资质", r"许可",
+                ],
+                "round": 1,
+            },
+            {
+                "key": "role", "label": "您的角色",
+                "question": "您是供应商还是政府方？",
+                "options": ["供应商/投标方", "政府/采购方", "咨询方/代理机构"],
+                "extract_patterns": [r"供应商", r"投标", r"政府", r"采购方"],
+                "round": 1,
+            },
+        ],
+        "optional_slots": [
+            {
+                "key": "need_type", "label": "具体需求",
+                "question": "需要什么帮助？",
+                "options": ["投标文件审查", "中标后合同谈判", "质疑/投诉", "履约纠纷", "合规风险评估"],
+                "extract_patterns": [r"投标", r"中标", r"质疑", r"投诉", r"履约"],
+                "round": 2,
+            },
+        ],
+        "auto_complete_if": [],
+        "min_required_for_proceed": 2,
+    },
+
+    # ================================================================
+    # 28. 破产清算
+    # ================================================================
+    "BANKRUPTCY_INSOLVENCY": {
+        "name": "破产与清算",
+        "required_slots": [
+            {
+                "key": "bankruptcy_type", "label": "程序类型",
+                "question": "涉及什么类型的破产/清算？",
+                "options": ["破产清算", "破产重整", "破产和解", "公司解散清算", "债务重组（非破产）"],
+                "extract_patterns": [
+                    r"破产清算", r"清算", r"破产重整", r"重整",
+                    r"和解", r"解散", r"债务重组",
+                ],
+                "round": 1,
+            },
+            {
+                "key": "role", "label": "您的角色",
+                "question": "您的身份是？",
+                "options": ["债务人/企业方", "债权人", "股东", "管理人/清算组", "员工"],
+                "extract_patterns": [
+                    r"债务人", r"企业", r"债权人", r"股东",
+                    r"管理人", r"清算组", r"员工",
+                ],
+                "round": 1,
+            },
+        ],
+        "optional_slots": [
+            {
+                "key": "stage", "label": "程序阶段",
+                "question": "目前到什么阶段了？",
+                "options": ["考虑是否申请破产", "已申请/受理中", "债权申报阶段", "资产处置阶段", "分配/终结"],
+                "extract_patterns": [r"申请", r"受理", r"债权申报", r"资产处置", r"分配"],
+                "round": 2,
+            },
+            {
+                "key": "debt_scale", "label": "债务规模",
+                "question": "负债规模大约多少？",
+                "options": ["500万以下", "500万-5000万", "5000万-5亿", "5亿以上"],
+                "extract_patterns": [r"\d+万", r"\d+亿"],
+                "round": 2,
+            },
+        ],
+        "auto_complete_if": [],
+        "min_required_for_proceed": 2,
+    },
+
+    # ================================================================
+    # 29. 环保合规
+    # ================================================================
+    "ENVIRONMENTAL_COMPLIANCE": {
+        "name": "环保合规",
+        "required_slots": [
+            {
+                "key": "env_issue", "label": "环保问题",
+                "question": "涉及什么环保法律问题？",
+                "options": ["环评审批", "排污许可", "环境处罚/罚款", "环境污染纠纷", "碳排放/碳交易", "土壤/水污染修复"],
+                "extract_patterns": [
+                    r"环评", r"排污", r"环保处罚", r"罚款",
+                    r"环境污染", r"碳排放", r"碳交易",
+                    r"土壤", r"水污染", r"修复",
+                ],
+                "round": 1,
+            },
+            {
+                "key": "industry", "label": "所属行业",
+                "question": "企业所属行业？",
+                "options": ["制造业/化工", "建筑/房地产", "能源/矿业", "农业/畜牧", "互联网/科技", "其他"],
+                "extract_patterns": [r"制造", r"化工", r"建筑", r"能源", r"矿", r"农业"],
+                "round": 1,
+            },
+        ],
+        "optional_slots": [
+            {
+                "key": "urgency", "label": "紧急程度",
+                "question": "是否有紧急情况？",
+                "options": ["被环保部门查处（紧急）", "收到整改通知", "合规建设（常规）", "项目开工前评估"],
+                "extract_patterns": [r"查处", r"整改", r"通知", r"开工"],
+                "round": 2,
+            },
+        ],
+        "auto_complete_if": [],
+        "min_required_for_proceed": 2,
+    },
+
+    # ================================================================
+    # 30. 反商业贿赂/反腐败
+    # ================================================================
+    "ANTI_CORRUPTION": {
+        "name": "反商业贿赂",
+        "required_slots": [
+            {
+                "key": "corruption_type", "label": "问题类型",
+                "question": "涉及什么反腐败/反贿赂问题？",
+                "options": ["合规体系建设", "内部调查/举报处理", "政府调查应对", "商业贿赂风险评估", "第三方（代理/中间人）合规", "FCPA/英国反贿赂法"],
+                "extract_patterns": [
+                    r"合规", r"内部调查", r"举报", r"反贿赂",
+                    r"FCPA", r"fcpa", r"代理", r"中间人", r"回扣",
+                ],
+                "round": 1,
+            },
+        ],
+        "optional_slots": [
+            {
+                "key": "scope", "label": "涉及范围",
+                "question": "涉及哪些业务环节？",
+                "options": ["销售/市场推广", "采购/供应链", "政府关系/公关", "招投标", "跨境业务"],
+                "extract_patterns": [r"销售", r"采购", r"政府", r"招投标", r"跨境"],
+                "round": 2,
+            },
+            {
+                "key": "urgency", "label": "紧急程度",
+                "question": "是否涉及紧急事件？",
+                "options": ["已被调查（紧急）", "收到举报待处理", "常规合规建设", "预防性评估"],
+                "extract_patterns": [r"调查", r"举报", r"紧急"],
+                "round": 2,
+            },
+        ],
+        "auto_complete_if": [],
+        "min_required_for_proceed": 1,
+    },
+
+    # ================================================================
+    # 31. 产品责任/消费者权益
+    # ================================================================
+    "PRODUCT_LIABILITY": {
+        "name": "产品责任与消费者权益",
+        "required_slots": [
+            {
+                "key": "liability_type", "label": "问题类型",
+                "question": "涉及什么产品/消费者问题？",
+                "options": ["产品质量缺陷", "产品召回", "消费者投诉/维权", "虚假广告/标签", "食品安全", "产品责任诉讼"],
+                "extract_patterns": [
+                    r"产品质量", r"缺陷", r"召回", r"消费者",
+                    r"投诉", r"维权", r"虚假广告", r"标签",
+                    r"食品安全", r"产品责任",
+                ],
+                "round": 1,
+            },
+            {
+                "key": "role", "label": "您的角色",
+                "question": "您是生产/销售方还是消费者？",
+                "options": ["生产商/制造商", "销售商/平台", "消费者/受害方", "保险公司"],
+                "extract_patterns": [r"生产", r"制造", r"销售", r"平台", r"消费者", r"保险"],
+                "round": 1,
+            },
+        ],
+        "optional_slots": [
+            {
+                "key": "damage_type", "label": "损害类型",
+                "question": "造成了什么损害？",
+                "options": ["人身伤害", "财产损失", "精神损害", "尚未造成损害（预防）"],
+                "extract_patterns": [r"受伤", r"伤害", r"损失", r"精神"],
+                "round": 2,
+            },
+        ],
+        "auto_complete_if": [],
+        "min_required_for_proceed": 2,
+    },
 }
 
 

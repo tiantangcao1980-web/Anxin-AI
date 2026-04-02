@@ -40,6 +40,18 @@ INTENT_LABELS: Dict[str, str] = {
     "FAMILY_LAW": "婚姻家庭",
     "REAL_ESTATE": "房产纠纷",
     "CRIMINAL": "刑事相关",
+    "INVESTMENT_FINANCING": "融资投资",
+    "MA_RESTRUCTURING": "并购重组",
+    "CROSS_BORDER": "跨境涉外",
+    "DATA_COMPLIANCE": "数据合规",
+    "ANTI_UNFAIR_COMPETITION": "反不正当竞争",
+    "FRANCHISE_DISTRIBUTION": "特许经营与经销",
+    "CONSTRUCTION_ENGINEERING": "建设工程",
+    "GOVERNMENT_CONTRACTS": "政府采购与PPP",
+    "BANKRUPTCY_INSOLVENCY": "破产与清算",
+    "ENVIRONMENTAL_COMPLIANCE": "环保合规",
+    "ANTI_CORRUPTION": "反商业贿赂",
+    "PRODUCT_LIABILITY": "产品责任",
     "COMPLEX_TASK": "复合任务",
 }
 
@@ -109,6 +121,44 @@ FAST_PATH_ROUTES: Dict[str, List[Dict[str, Any]]] = {
     ],
     "CRIMINAL": [
         {"id": "task_1", "agent": "legal_advisor", "instruction_suffix": "分析刑事案件情况，提供辩护策略和权益保障建议。注意紧急性评估。", "depends_on": []},
+    ],
+    # v3.1 企业经营管理场景路由
+    "INVESTMENT_FINANCING": [
+        {"id": "task_1", "agent": "legal_advisor", "instruction_suffix": "分析融资/投资事项，审查交易结构、核心条款（估值/对赌/反稀释/退出等）。", "depends_on": []},
+    ],
+    "MA_RESTRUCTURING": [
+        {"id": "task_1", "agent": "due_diligence", "instruction_suffix": "对并购目标进行法律尽调分析。", "depends_on": []},
+        {"id": "task_2", "agent": "legal_advisor", "instruction_suffix": "基于尽调结果，设计并购交易方案和风险应对策略。", "depends_on": ["task_1"]},
+    ],
+    "CROSS_BORDER": [
+        {"id": "task_1", "agent": "legal_advisor", "instruction_suffix": "分析跨境/涉外法律问题，关注适用法律、管辖、出口管制、外汇等合规要求。", "depends_on": []},
+    ],
+    "DATA_COMPLIANCE": [
+        {"id": "task_1", "agent": "regulatory_monitor", "instruction_suffix": "评估数据合规状态，对照个保法/GDPR/数据安全法等要求提供合规建议。", "depends_on": []},
+    ],
+    "ANTI_UNFAIR_COMPETITION": [
+        {"id": "task_1", "agent": "legal_advisor", "instruction_suffix": "分析不正当竞争问题，评估商业秘密保护、竞业限制等法律风险。", "depends_on": []},
+    ],
+    "FRANCHISE_DISTRIBUTION": [
+        {"id": "task_1", "agent": "legal_advisor", "instruction_suffix": "分析特许经营/经销法律问题，关注合规备案、合同条款、区域保护等。", "depends_on": []},
+    ],
+    "CONSTRUCTION_ENGINEERING": [
+        {"id": "task_1", "agent": "legal_advisor", "instruction_suffix": "分析建设工程法律问题，关注合同条款、工程款结算、质量责任等。", "depends_on": []},
+    ],
+    "GOVERNMENT_CONTRACTS": [
+        {"id": "task_1", "agent": "legal_advisor", "instruction_suffix": "分析政府采购/PPP法律问题，关注招投标合规、合同特殊条款、履约要求。", "depends_on": []},
+    ],
+    "BANKRUPTCY_INSOLVENCY": [
+        {"id": "task_1", "agent": "legal_advisor", "instruction_suffix": "分析破产/清算法律问题，评估程序选择、债权债务、资产处置等。", "depends_on": []},
+    ],
+    "ENVIRONMENTAL_COMPLIANCE": [
+        {"id": "task_1", "agent": "regulatory_monitor", "instruction_suffix": "评估环保合规状态，对照环保法/排污许可/碳排放等要求提供建议。", "depends_on": []},
+    ],
+    "ANTI_CORRUPTION": [
+        {"id": "task_1", "agent": "regulatory_monitor", "instruction_suffix": "评估反贿赂/反腐败合规体系，对照FCPA/反不正当竞争法等提供建议。", "depends_on": []},
+    ],
+    "PRODUCT_LIABILITY": [
+        {"id": "task_1", "agent": "legal_advisor", "instruction_suffix": "分析产品责任/消费者权益问题，评估召回义务、赔偿责任、诉讼风险。", "depends_on": []},
     ],
 }
 
@@ -531,6 +581,19 @@ class CoordinatorAgent(BaseLegalAgent):
         (["离婚", "分居", "抚养权", "财产分割", "家暴", "遗产", "继承", "遗嘱"], "FAMILY_LAW", 0.90),
         (["买房", "卖房", "租房纠纷", "物业纠纷", "拆迁", "房屋质量", "交房", "房产"], "REAL_ESTATE", 0.88),
         (["刑事", "拘留", "逮捕", "取保候审", "传唤", "犯罪", "嫌疑人", "辩护"], "CRIMINAL", 0.92),
+        # v3.1 企业经营管理场景
+        (["融资", "A轮", "B轮", "C轮", "天使轮", "投资协议", "Term Sheet", "估值", "对赌", "股权融资"], "INVESTMENT_FINANCING", 0.90),
+        (["并购", "收购", "兼并", "重组", "资产剥离", "MBO", "企业整合"], "MA_RESTRUCTURING", 0.90),
+        (["跨境", "涉外", "国际贸易", "进出口", "出口管制", "外商投资", "对外投资", "FCPA"], "CROSS_BORDER", 0.88),
+        (["数据合规", "个人信息保护", "PIPL", "GDPR", "数据泄露", "隐私政策", "数据出境", "等保"], "DATA_COMPLIANCE", 0.90),
+        (["商业秘密", "不正当竞争", "仿冒", "虚假宣传", "商业诋毁", "窃取客户"], "ANTI_UNFAIR_COMPETITION", 0.88),
+        (["特许经营", "加盟", "经销商", "代理商", "品牌授权", "窜货"], "FRANCHISE_DISTRIBUTION", 0.88),
+        (["建设工程", "工程款", "施工合同", "分包", "转包", "挂靠", "竣工验收", "工程结算"], "CONSTRUCTION_ENGINEERING", 0.88),
+        (["政府采购", "投标", "中标", "PPP", "政府合同"], "GOVERNMENT_CONTRACTS", 0.88),
+        (["破产", "清算", "破产重整", "债务重组", "资不抵债", "破产申请"], "BANKRUPTCY_INSOLVENCY", 0.90),
+        (["环保", "环评", "排污", "碳排放", "碳交易", "环境污染", "环保处罚"], "ENVIRONMENTAL_COMPLIANCE", 0.88),
+        (["反贿赂", "反腐败", "商业贿赂", "回扣", "FCPA合规"], "ANTI_CORRUPTION", 0.88),
+        (["产品责任", "产品召回", "消费者投诉", "食品安全", "产品质量", "消费者维权"], "PRODUCT_LIABILITY", 0.88),
         (["新规", "政策", "法规解读", "监管"], "REGULATORY_MONITORING", 0.85),
         (["查法条", "搜案例", "法规查询", "法律检索", "查找法规", "相关判例", "法条检索", "案例检索"], "QA_CONSULTATION", 0.85),
     ]

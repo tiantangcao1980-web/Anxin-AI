@@ -39,10 +39,34 @@
    - 示例："买的房子质量有问题", "房东不退押金", "拆迁补偿不合理"
 19. **CRIMINAL**: 刑事案件、拘留、辩护、取保候审。
    - 示例："被公安传唤了", "家人被拘留怎么办", "想找刑事辩护律师"
+20. **INVESTMENT_FINANCING**: 融资投资、股权融资、投资协议、估值对赌。
+   - 示例："公司要做A轮融资", "投资协议里的对赌条款怎么看", "Term Sheet审查"
+21. **MA_RESTRUCTURING**: 并购重组、收购兼并、资产剥离。
+   - 示例："想收购一家公司", "企业重组方案设计", "资产剥离怎么做"
+22. **CROSS_BORDER**: 跨境涉外、国际贸易、外商投资、出口管制。
+   - 示例："跨境电商合规", "外资企业设立", "出口管制清单查询"
+23. **DATA_COMPLIANCE**: 数据合规、个人信息保护、隐私政策、数据泄露。
+   - 示例："数据合规评估", "用户隐私政策审查", "数据泄露怎么处理"
+24. **ANTI_UNFAIR_COMPETITION**: 反不正当竞争、商业秘密、虚假宣传。
+   - 示例："前员工带走了客户资源", "竞争对手虚假宣传", "商业秘密被泄露"
+25. **FRANCHISE_DISTRIBUTION**: 特许经营、加盟、经销代理。
+   - 示例："开放加盟需要什么手续", "经销商窜货", "特许经营备案"
+26. **CONSTRUCTION_ENGINEERING**: 建设工程、工程款、施工合同。
+   - 示例："工程款被拖欠", "施工合同纠纷", "竣工验收不通过"
+27. **GOVERNMENT_CONTRACTS**: 政府采购、招投标、PPP项目。
+   - 示例："投标文件审查", "政府采购合同", "中标后怎么签约"
+28. **BANKRUPTCY_INSOLVENCY**: 破产清算、重整、债务重组。
+   - 示例："公司资不抵债怎么办", "申请破产重整", "债权人如何申报"
+29. **ENVIRONMENTAL_COMPLIANCE**: 环保合规、环评、排污、碳排放。
+   - 示例："被环保局处罚", "环评审批流程", "碳排放交易"
+30. **ANTI_CORRUPTION**: 反商业贿赂、反腐败合规、FCPA。
+   - 示例："商业贿赂合规体系建设", "收到举报怎么内部调查", "FCPA合规"
+31. **PRODUCT_LIABILITY**: 产品责任、产品召回、消费者权益。
+   - 示例："产品质量问题被投诉", "是否需要召回", "消费者索赔"
 
 输出格式 (严格JSON):
 {
-  "intent": "QA_CONSULTATION" | "CONTRACT_REVIEW" | "DUE_DILIGENCE" | "DOCUMENT_DRAFTING" | "LITIGATION_STRATEGY" | "IP_PROTECTION" | "REGULATORY_MONITORING" | "TAX_FINANCE" | "LABOR_HR" | "EVIDENCE_PROCESSING" | "E_SIGNATURE" | "CONTRACT_MANAGEMENT" | "POLICY_DISTRIBUTION" | "FIND_LAWYER" | "DEBT_COLLECTION" | "CORPORATE_GOVERNANCE" | "FAMILY_LAW" | "REAL_ESTATE" | "CRIMINAL" | "COMPLEX_TASK",
+  "intent": "QA_CONSULTATION" | "CONTRACT_REVIEW" | "DUE_DILIGENCE" | "DOCUMENT_DRAFTING" | "LITIGATION_STRATEGY" | "IP_PROTECTION" | "REGULATORY_MONITORING" | "TAX_FINANCE" | "LABOR_HR" | "EVIDENCE_PROCESSING" | "E_SIGNATURE" | "CONTRACT_MANAGEMENT" | "POLICY_DISTRIBUTION" | "FIND_LAWYER" | "DEBT_COLLECTION" | "CORPORATE_GOVERNANCE" | "FAMILY_LAW" | "REAL_ESTATE" | "CRIMINAL" | "INVESTMENT_FINANCING" | "MA_RESTRUCTURING" | "CROSS_BORDER" | "DATA_COMPLIANCE" | "ANTI_UNFAIR_COMPETITION" | "FRANCHISE_DISTRIBUTION" | "CONSTRUCTION_ENGINEERING" | "GOVERNMENT_CONTRACTS" | "BANKRUPTCY_INSOLVENCY" | "ENVIRONMENTAL_COMPLIANCE" | "ANTI_CORRUPTION" | "PRODUCT_LIABILITY" | "COMPLEX_TASK",
   "confidence": 0.95,
   "reasoning": "用户..."
 }
