@@ -13,7 +13,7 @@
 import re
 from datetime import datetime, timedelta
 from typing import Optional, List, AsyncGenerator, Dict, Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,6 +31,11 @@ from src.services.due_diligence_service import (
     get_company_info,
 )
 from src.core.privacy import InferenceRequest, SensitivityLevel
+
+# ========== Harness Engineering 集成 ==========
+from src.harness.trace_context import start_trace, end_trace, current_trace
+from src.harness.output_validator import output_validator
+from src.harness.task_engine import task_engine, TaskState
 
 
 # ========== 合同审查 / 文书起草意图检测 ==========
@@ -305,6 +310,12 @@ class ChatService:
 
     async def get_conversation(self, conversation_id: str) -> Optional[Conversation]:
         """获取对话会话"""
+        try:
+            UUID(str(conversation_id))
+        except (TypeError, ValueError):
+            logger.warning(f"忽略非法 conversation_id: {conversation_id}")
+            return None
+
         result = await self.db.execute(
             select(Conversation)
             .options(selectinload(Conversation.messages))
@@ -390,6 +401,12 @@ class ChatService:
         limit: int = 100,
     ) -> List[Message]:
         """获取消息列表"""
+        try:
+            UUID(str(conversation_id))
+        except (TypeError, ValueError):
+            logger.warning(f"忽略非法 conversation_id 的消息查询: {conversation_id}")
+            return []
+
         result = await self.db.execute(
             select(Message)
             .where(Message.conversation_id == conversation_id)
@@ -642,6 +659,57 @@ class ChatService:
             content, agent_name, mode, normalized_kb_ids,
         )
 
+        # ===== Harness: 上下文压缩（激活已有 context_compressor）=====
+        try:
+            from src.services.context_compressor import context_compressor
+            tier = context_compressor.should_compress(context_messages)
+            if tier is not None:
+                logger.info(f"[Harness] 触发上下文压缩 Tier {tier}（消息数: {len(context_messages)}）")
+                context_messages, compress_stats = await context_compressor.compress(
+                    context_messages, tier=tier,
+                )
+                logger.info(
+                    f"[Harness] 压缩完成 | "
+                    f"原始: {compress_stats.get('original_tokens', '?')} tokens → "
+                    f"压缩后: {compress_stats.get('compressed_tokens', '?')} tokens | "
+                    f"节省: {compress_stats.get('saved_tokens', '?')} tokens"
+                )
+        except Exception as compress_err:
+            logger.debug(f"[Harness] 上下文压缩跳过: {compress_err}")
+
+        # ===== 记忆系统集成：注入增强上下文 =====
+        # 在 context_messages 最前面插入用户画像+经验上下文，让 LLM 更了解用户
+        if user_id:
+            try:
+                from src.services.memory_layer import memory_layer
+                enriched = await memory_layer.build_enriched_context(
+                    user_id=user_id,
+                    session_id=str(conversation.id),
+                    query=content,
+                    max_tokens=600,
+                )
+                if enriched:
+                    context_messages = [
+                        {"role": "system", "content": enriched},
+                        *context_messages,
+                    ]
+
+                # 缓冲消息到记忆层（Memobase flush 思路）
+                await memory_layer.buffer_message(user_id, {"role": "user", "content": content})
+            except Exception as mem_err:
+                logger.debug(f"记忆上下文注入跳过: {mem_err}")
+
+            try:
+                from src.services.experience_engine import experience_engine
+                exp_context = experience_engine.build_experience_context(user_id, content, max_tokens=300)
+                if exp_context:
+                    context_messages = [
+                        {"role": "system", "content": exp_context},
+                        *context_messages,
+                    ]
+            except Exception as exp_err:
+                logger.debug(f"经验上下文注入跳过: {exp_err}")
+
         return _ChatContext(
             conversation=conversation,
             context_messages=context_messages,
@@ -713,6 +781,21 @@ class ChatService:
         if not sources:
             sources = extract_citations(response_text)
 
+        # ===== 引文追踪：从 AI 回复中提取法律引文并沉淀到图谱 =====
+        try:
+            from src.services.citation_tracker import citation_tracker
+            citation_result = await citation_tracker.track_and_enrich(
+                response_text, auto_sink_to_graph=True,
+            )
+            if citation_result.get("citation_count", 0) > 0:
+                logger.debug(
+                    f"引文追踪: {citation_result['citation_count']} 条引用, "
+                    f"{citation_result.get('verified_count', 0)} 条已验证, "
+                    f"{citation_result.get('sunk_count', 0)} 条沉淀到图谱"
+                )
+        except Exception:
+            pass
+
         ai_message = await self.add_message(
             conversation_id=conversation.id,
             role="assistant",
@@ -728,6 +811,14 @@ class ChatService:
                 "agent": used_agent,
                 "user_id": user_id,
             })
+
+        # ===== 做梦机制：记录用户活动 =====
+        if user_id:
+            try:
+                from src.services.auto_dream import auto_dream_engine
+                auto_dream_engine.record_activity(user_id, f"chat_{used_agent}")
+            except Exception:
+                pass
 
         return sources, ai_message
 
@@ -746,14 +837,33 @@ class ChatService:
         document_id: Optional[str] = None,
     ) -> dict:
         """处理对话（同步模式）"""
+
+        # ===== Harness: 启动请求追踪 + 创建任务 =====
+        trace = start_trace(user_id=user_id, conversation_id=conversation_id)
+
         ctx = await self._prepare_chat_context(
             content, conversation_id, user_id, case_id,
             agent_name, mode, knowledge_base_ids, model_id=model_id,
             document_id=document_id,
         )
+        trace.route = ctx.route
+        trace.conversation_id = str(ctx.conversation.id)
+
+        # Harness: 创建任务记录
+        task_record = task_engine.create_task(
+            description=content[:200],
+            route=ctx.route,
+            agent_name=ctx.resolved_agent,
+            user_id=user_id,
+            conversation_id=str(ctx.conversation.id),
+            trace_id=trace.trace_id,
+        )
+        task_engine.transition(task_record.task_id, TaskState.RUNNING)
 
         sources: List[CitationSource] = []
         try:
+            span_id = trace.start_span(f"route.{ctx.route}", agent_name=ctx.resolved_agent)
+
             if ctx.route == "due_diligence":
                 response_text = await self._execute_due_diligence(content, ctx.dd_company_name)
                 used_agent = ctx.resolved_agent
@@ -796,17 +906,47 @@ class ChatService:
                     )
                     used_agent = "法律顾问Agent"
 
+            trace.end_span(span_id, status="success")
+
         except Exception as e:
             logger.error(f"智能体调用失败: {e}")
+            trace.end_span(span_id, status="error", error_msg=str(e))
+            task_engine.transition(task_record.task_id, TaskState.FAILED, error_msg=str(e))
             response_text = "抱歉，处理您的请求时遇到问题。请稍后重试。"
             used_agent = "系统"
+
+        # ===== Harness: 输出质量校验 =====
+        try:
+            validation = await output_validator.validate(
+                response_text=response_text,
+                user_query=content,
+                agent_name=used_agent,
+                route=ctx.route,
+            )
+            if not validation.passed:
+                logger.warning(
+                    f"[Harness] 输出校验未通过 | score={validation.score:.2f} | "
+                    f"issues={[i.message for i in validation.issues]}"
+                )
+                # 对于 CRITICAL 级别，追加免责声明
+                if validation.has_critical:
+                    response_text += "\n\n⚠️ 本回答内容仅供参考，不构成法律意见。如需专业法律服务，请咨询执业律师。"
+        except Exception as val_err:
+            logger.debug(f"[Harness] 输出校验跳过: {val_err}")
+
+        # Harness: 校验通过后标记任务完成
+        if task_record.state != TaskState.FAILED:
+            task_engine.transition(task_record.task_id, TaskState.COMPLETED, result=used_agent)
 
         final_sources, ai_message = await self._finalize_response(
             response_text, used_agent, ctx.conversation, user_id,
             sources=sources or None,
         )
 
-        return {
+        # ===== Harness: 结束追踪，记录摘要 =====
+        trace_summary = end_trace()
+
+        result_dict = {
             "conversation_id": ctx.conversation.id,
             "message_id": ai_message.id,
             "content": response_text,
@@ -815,6 +955,17 @@ class ChatService:
             "actions": ai_message.actions or [],
             "sources": [s.model_dump() for s in final_sources],
         }
+
+        # 附加 harness 元数据（可选，前端可用于展示 token 消耗等）
+        if trace_summary:
+            result_dict["_harness"] = {
+                "trace_id": trace_summary.get("trace_id"),
+                "total_tokens": trace_summary.get("total_tokens", 0),
+                "total_cost_usd": trace_summary.get("total_cost_usd", 0),
+                "elapsed_ms": trace_summary.get("elapsed_ms", 0),
+            }
+
+        return result_dict
 
     async def stream_chat(
         self,

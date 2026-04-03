@@ -42,6 +42,7 @@ const navGroups: NavGroup[] = [
       { path: '/admin/config', label: '系统配置', icon: icons.Settings },
       { path: '/admin/ai-config', label: 'AI 配置', icon: icons.Cpu },
       { path: '/admin/health', label: '系统监控', icon: icons.Server },
+      { path: '/admin/harness', label: 'Harness 工程', icon: icons.Shield },
     ],
   },
   {

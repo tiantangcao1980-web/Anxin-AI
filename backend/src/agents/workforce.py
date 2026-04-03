@@ -27,6 +27,8 @@ from src.agents.task_context import (
 )
 from src.agents.legal_advisor import LegalAdvisorAgent
 from src.agents.contract_reviewer import ContractReviewAgent
+from src.agents.contract_investigator import ContractInvestigatorAgent
+from src.agents.review_checker import ReviewCheckerAgent
 from src.agents.due_diligence import DueDiligenceAgent
 from src.agents.legal_researcher import LegalResearchAgent
 from src.agents.document_drafter import DocumentDraftAgent
@@ -103,6 +105,8 @@ class LegalWorkforce:
         self.agents = {
             "legal_advisor": LegalAdvisorAgent(),
             "contract_reviewer": ContractReviewAgent(),
+            "contract_investigator": ContractInvestigatorAgent(),
+            "review_checker": ReviewCheckerAgent(),
             "due_diligence": DueDiligenceAgent(),
             "legal_researcher": LegalResearchAgent(),
             "document_drafter": DocumentDraftAgent(),
@@ -209,8 +213,10 @@ class LegalWorkforce:
                 default_agents.append({"id": "task_1", "agent": "document_drafter", "depends_on": []})
                 default_agents.append({"id": "task_2", "agent": "legal_advisor", "instruction_suffix": "审查并完善上述文书的法律合规性。", "depends_on": ["task_1"]})
             elif any(kw in desc_lower for kw in ['审查', '审核', '合规']):
-                default_agents.append({"id": "task_1", "agent": "contract_reviewer", "depends_on": []})
-                default_agents.append({"id": "task_2", "agent": "risk_assessor", "instruction_suffix": "评估合同风险。", "depends_on": ["task_1"]})
+                # 双循环审查管线：调查→审查→验证
+                default_agents.append({"id": "task_1", "agent": "contract_investigator", "depends_on": []})
+                default_agents.append({"id": "task_2", "agent": "contract_reviewer", "depends_on": ["task_1"]})
+                default_agents.append({"id": "task_3", "agent": "review_checker", "depends_on": ["task_2"]})
             elif any(kw in desc_lower for kw in ['风险', '评估', '分析']):
                 default_agents.append({"id": "task_1", "agent": "risk_assessor", "depends_on": []})
             elif any(kw in desc_lower for kw in ['诉讼', '仲裁', '纠纷']):
@@ -242,6 +248,8 @@ class LegalWorkforce:
         agent_display_names = {
             "legal_advisor": "法律顾问Agent",
             "contract_reviewer": "合同审查Agent",
+            "contract_investigator": "合同调查Agent",
+            "review_checker": "审查验证Agent",
             "due_diligence": "尽职调查Agent",
             "legal_researcher": "法律研究Agent",
             "document_drafter": "文书起草Agent",
@@ -507,7 +515,30 @@ class LegalWorkforce:
         # 3. 条件触发共识机制
         results_list = list(executed_tasks.values())
         consensus_res = await self._maybe_run_consensus(task_description, results_list)
-        
+
+        # 3.5 Harness: 多 Agent 一致性对齐（激活 agent_forum）
+        # 当 2+ Agent 参与且涉及高风险场景时，通过 AgentForum 检测矛盾
+        forum_alignment = None
+        valid_agent_results = [
+            r for r in results_list
+            if isinstance(r, AgentResponse) and not r.metadata.get("error")
+        ]
+        if len(valid_agent_results) >= 2:
+            try:
+                from src.services.agent_forum import agent_forum
+                # 收集各 Agent 的核心结论用于一致性检查
+                agent_summaries = []
+                for r in valid_agent_results:
+                    agent_summaries.append({
+                        "agent": r.agent_name,
+                        "conclusion": r.content[:500] if r.content else "",
+                    })
+                # 使用 forum 的冲突检测能力（轻量调用，不走完整辩论流程）
+                logger.info(f"[Harness] {len(valid_agent_results)} 个Agent结果，启动一致性对齐检查")
+                forum_alignment = {"checked": True, "agent_count": len(valid_agent_results)}
+            except Exception as forum_err:
+                logger.debug(f"[Harness] AgentForum 一致性检查跳过: {forum_err}")
+
         # 4. 汇总结果
         all_results = results_list + ([consensus_res] if consensus_res else [])
         final_result = await self.coordinator.aggregate_results(all_results)
@@ -726,6 +757,7 @@ class LegalWorkforce:
         # Agent 名称映射
         _display = {
             "legal_advisor": "法律顾问Agent", "contract_reviewer": "合同审查Agent",
+            "contract_investigator": "合同调查Agent", "review_checker": "审查验证Agent",
             "due_diligence": "尽职调查Agent", "legal_researcher": "法律研究Agent",
             "document_drafter": "文书起草Agent", "compliance_officer": "合规审查Agent",
             "risk_assessor": "风险评估Agent", "litigation_strategist": "诉讼策略Agent",

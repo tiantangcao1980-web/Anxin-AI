@@ -39,6 +39,7 @@ const Cases = lazy(() => import('@/pages/Cases'))
 const CaseDetail = lazy(() => import('@/pages/CaseDetail'))
 const Contracts = lazy(() => import('@/pages/Contracts'))
 const Collaboration = lazy(() => import('@/pages/Collaboration'))
+const Documents = lazy(() => import('@/pages/Documents'))
 const Leads = lazy(() => import('@/pages/Leads'))
 
 // 智能调查
@@ -48,6 +49,9 @@ const DueDiligence = lazy(() => import('@/pages/DueDiligence'))
 // 法律智库
 const KnowledgeGraph = lazy(() => import('@/pages/KnowledgeGraph'))
 const KnowledgeBase = lazy(() => import('@/pages/KnowledgeBase'))
+
+// 客户门户
+const ClientPortal = lazy(() => import('@/pages/ClientPortal'))
 
 // 系统
 const Settings = lazy(() => import('@/pages/Settings'))
@@ -88,6 +92,7 @@ const AdminBilling = lazy(() => import('@/pages/admin/AdminBilling'))
 const AdminFirm = lazy(() => import('@/pages/admin/AdminFirm'))
 const AdminEnterprise = lazy(() => import('@/pages/admin/AdminEnterprise'))
 const AdminAcquisition = lazy(() => import('@/pages/admin/AdminAcquisition'))
+const AdminHarness = lazy(() => import('@/pages/admin/AdminHarness'))
 
 function App() {
   // 全局监听 auth:redirect 事件，统一处理页面跳转
@@ -119,6 +124,7 @@ function App() {
                 <Route path="audit" element={<AdminAudit />} />
                 <Route path="config" element={<AdminConfig />} />
                 <Route path="health" element={<AdminHealth />} />
+                <Route path="harness" element={<AdminHarness />} />
                 <Route path="orgs" element={<AdminOrgs />} />
                 <Route path="feature-flags" element={<AdminFeatureFlags />} />
                 <Route path="lawyer-verify" element={<AdminLawyerVerify />} />
@@ -133,29 +139,30 @@ function App() {
                 <Route index element={<Navigate to="/chat" replace />} />
 
                 {/* ===== AI法务（仅智能对话） ===== */}
-                <Route path="chat" element={<Chat />} />
+                <Route path="chat" element={<ProtectedRoute feature="ai_chat"><Chat /></ProtectedRoute>} />
 
                 {/* ===== 智能协作 ===== */}
                 <Route path="cases" element={<ProtectedRoute feature="case_management"><Cases /></ProtectedRoute>} />
                 <Route path="cases/:id" element={<ProtectedRoute feature="case_management"><CaseDetail /></ProtectedRoute>} />
-                <Route path="contracts" element={<Contracts />} />
-                <Route path="collaboration" element={<Collaboration />} />
-                <Route path="collaboration/:sessionId" element={<Collaboration />} />
+                <Route path="contracts" element={<ProtectedRoute feature="contract_management"><Contracts /></ProtectedRoute>} />
+                <Route path="collaboration" element={<ProtectedRoute feature="collaboration"><Collaboration /></ProtectedRoute>} />
+                <Route path="collaboration/:sessionId" element={<ProtectedRoute feature="collaboration"><Collaboration /></ProtectedRoute>} />
+                <Route path="documents" element={<ProtectedRoute feature="document_management"><Documents /></ProtectedRoute>} />
                 <Route path="find-lawyer" element={<ProtectedRoute feature="lawyer_matching"><FindLawyer /></ProtectedRoute>} />
-                <Route path="compliance-check" element={<ComplianceCheck />} />
+                <Route path="compliance-check" element={<ProtectedRoute feature="compliance_check"><ComplianceCheck /></ProtectedRoute>} />
                 <Route path="leads" element={<ProtectedRoute feature="leads"><Leads /></ProtectedRoute>} />
 
                 {/* ===== 智能调查 ===== */}
                 {/* <Route path="news" element={<News />} /> */}{/* v2.0 版本启用 */}
-                <Route path="due-diligence" element={<DueDiligence />} />
-                <Route path="due-diligence/:section" element={<DueDiligence />} />
+                <Route path="due-diligence" element={<ProtectedRoute feature="due_diligence"><DueDiligence /></ProtectedRoute>} />
+                <Route path="due-diligence/:section" element={<ProtectedRoute feature="due_diligence"><DueDiligence /></ProtectedRoute>} />
 
                 {/* ===== 法律智库 ===== */}
-                <Route path="knowledge-graph" element={<KnowledgeGraph />} />
-                <Route path="knowledge-base" element={<KnowledgeBase />} />
+                <Route path="knowledge-graph" element={<ProtectedRoute feature="knowledge_graph"><KnowledgeGraph /></ProtectedRoute>} />
+                <Route path="knowledge-base" element={<ProtectedRoute feature="knowledge_base"><KnowledgeBase /></ProtectedRoute>} />
 
                 {/* ===== IM 即时通讯 ===== */}
-                <Route path="messages" element={<Messages />} />
+                <Route path="messages" element={<ProtectedRoute feature="im_messaging"><Messages /></ProtectedRoute>} />
                 <Route path="call/voice/:roomName" element={<VoiceCall />} />
                 <Route path="call/video/:roomName" element={<VideoCall />} />
 
@@ -163,22 +170,25 @@ function App() {
                 <Route path="lawyer/:profileId" element={<LawyerProfile />} />
 
                 {/* ===== 律师入驻 ===== */}
-                <Route path="lawyer-onboarding" element={<LawyerOnboarding />} />
-                <Route path="lawyer-dashboard" element={<LawyerDashboard />} />
+                <Route path="lawyer-onboarding" element={<ProtectedRoute feature="lawyer_onboarding"><LawyerOnboarding /></ProtectedRoute>} />
+                <Route path="lawyer-dashboard" element={<ProtectedRoute feature="lawyer_dashboard"><LawyerDashboard /></ProtectedRoute>} />
+
+                {/* ===== 客户门户 ===== */}
+                <Route path="client-portal" element={<ClientPortal />} />
 
                 {/* ===== 计费系统 ===== */}
-                <Route path="pricing" element={<Pricing />} />
-                <Route path="my-subscription" element={<MySubscription />} />
+                <Route path="pricing" element={<ProtectedRoute feature="pricing"><Pricing /></ProtectedRoute>} />
+                <Route path="my-subscription" element={<ProtectedRoute feature="my_subscription"><MySubscription /></ProtectedRoute>} />
 
                 {/* ===== AI 配置已迁移到后台管理 ===== */}
-                <Route path="ai-assistant-settings" element={<Navigate to="/admin/ai-config" replace />} />
-                <Route path="private-llm" element={<Navigate to="/admin/ai-config" replace />} />
+                <Route path="ai-assistant-settings" element={<Navigate to="/private-llm" replace />} />
+                <Route path="private-llm" element={<ProtectedRoute feature="private_llm"><PrivateLLMSetup /></ProtectedRoute>} />
                 <Route path="conversation-insights" element={<Navigate to="/admin" replace />} />
                 <Route path="agent-workflow" element={<Navigate to="/admin" replace />} />
 
                 {/* ===== 系统（审批已整合进任务中心，系统设置仅保留个人中心） ===== */}
-                <Route path="settings" element={<Settings />} />
-                <Route path="tasks" element={<Tasks />} />
+                <Route path="settings" element={<ProtectedRoute feature="settings"><Settings /></ProtectedRoute>} />
+                <Route path="tasks" element={<ProtectedRoute feature="tasks"><Tasks /></ProtectedRoute>} />
 
                 {/* ===== 旧路由兼容重定向 ===== */}
                 <Route path="knowledge" element={<Navigate to="/knowledge-base" replace />} />
@@ -187,7 +197,6 @@ function App() {
                 <Route path="sentiment" element={<Navigate to="/chat" replace />} />
                 <Route path="contract-review" element={<Navigate to="/contracts" replace />} />
                 <Route path="dashboard" element={<Navigate to="/collaboration" replace />} />
-                <Route path="documents" element={<Navigate to="/collaboration" replace />} />
                 <Route path="experts" element={<Navigate to="/find-lawyer" replace />} />
                 <Route path="approvals" element={<Navigate to="/tasks" replace />} />
                 <Route path="search" element={<Navigate to="/due-diligence" replace />} />

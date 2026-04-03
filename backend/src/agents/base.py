@@ -494,6 +494,22 @@ class BaseLegalAgent(ABC):
                 # 使用带重试的 LLM 调用
                 data = await self._call_llm_with_retry(url, headers, payload)
 
+                # ===== Harness: 捕获 token 用量并记录成本 =====
+                try:
+                    usage = data.get("usage")
+                    if usage:
+                        from src.harness.cost_tracker import cost_tracker
+                        cost_tracker.record(
+                            model=model_name or "unknown",
+                            provider=provider or "unknown",
+                            prompt_tokens=usage.get("prompt_tokens", 0),
+                            completion_tokens=usage.get("completion_tokens", 0),
+                            agent_name=self.name,
+                            operation=f"agent.{self.name}.chat.turn_{current_turn}",
+                        )
+                except Exception:
+                    pass  # 成本追踪不应影响主流程
+
                 # 解析响应：兼容本地模型 API 和 OpenAI 格式
                 if is_local_api:
                     # 本地模型响应格式: {"output": [{"type": "message", "content": "..."}], ...}
