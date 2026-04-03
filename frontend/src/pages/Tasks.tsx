@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { icons } from '@/lib/icons'
 import { cardStyle, buttonStyle, heading, statusColor } from '@/lib/design-tokens'
 import { tasksApi, type TaskItem } from '@/lib/api'
@@ -60,6 +60,10 @@ export default function Tasks() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // 拖拽状态
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null)
+  const [dropTarget, setDropTarget] = useState<TaskStatus | null>(null)
+
   const loadTasks = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -78,20 +82,85 @@ export default function Tasks() {
 
   const filteredTasks = filterPriority === 'all' ? tasks : tasks.filter(t => t.priority === filterPriority)
 
-  const moveTask = async (taskId: string, newStatus: TaskStatus) => {
+  // ===== 拖拽处理 =====
+
+  const handleDragStart = (e: React.DragEvent, taskId: string) => {
+    setDraggedTaskId(taskId)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', taskId)
+    // 半透明拖拽效果
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '0.5'
+    }
+  }
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    setDraggedTaskId(null)
+    setDropTarget(null)
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '1'
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent, status: TaskStatus) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDropTarget(status)
+  }
+
+  const handleDragLeave = () => {
+    setDropTarget(null)
+  }
+
+  const handleDrop = async (e: React.DragEvent, newStatus: TaskStatus) => {
+    e.preventDefault()
+    const taskId = e.dataTransfer.getData('text/plain') || draggedTaskId
+    setDropTarget(null)
+    setDraggedTaskId(null)
+
+    if (!taskId) return
+
+    const task = tasks.find(t => t.id === taskId)
+    if (!task || task.status === newStatus) return
+
+    // 乐观更新
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t))
-    toast.success('任务状态已更新')
+    toast.success(`任务已移至「${statusConfig[newStatus].label}」`)
+
+    // 调用后端
     try {
-      await tasksApi.updateStatus(taskId, newStatus)
+      await tasksApi.transition(taskId, newStatus)
+    } catch (err: any) {
+      // 回滚
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: task.status } : t))
+      toast.error(err?.message || '状态更新失败')
+    }
+  }
+
+  // 按钮点击快捷移动
+  const moveTask = async (taskId: string, newStatus: TaskStatus) => {
+    const task = tasks.find(t => t.id === taskId)
+    if (!task) return
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t))
+    toast.success(`任务已移至「${statusConfig[newStatus].label}」`)
+    try {
+      await tasksApi.transition(taskId, newStatus)
     } catch {
-      // 静默失败，本地状态已更新
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: task.status } : t))
     }
   }
 
   const isOverdue = (date: string) => date && new Date(date) < new Date()
 
   const TaskCard = ({ task }: { task: Task }) => (
-    <div className={cardStyle.interactive + ' mb-3'}>
+    <div
+      draggable
+      onDragStart={e => handleDragStart(e, task.id)}
+      onDragEnd={handleDragEnd}
+      className={`${cardStyle.interactive} mb-3 cursor-grab active:cursor-grabbing ${
+        draggedTaskId === task.id ? 'ring-2 ring-primary/40 opacity-50' : ''
+      }`}
+    >
       <div className="flex items-start justify-between mb-2">
         <h4 className={heading.card + ' flex-1'}>{task.title}</h4>
         <span className={`text-xs px-1.5 py-0.5 rounded ${priorityConfig[task.priority]?.color || ''}`}>
@@ -178,12 +247,22 @@ export default function Tasks() {
             <p className="text-xs text-muted-foreground">运行种子数据后即可验证任务看板。</p>
           </div>
         ) : viewMode === 'board' ? (
+          /* ===== 看板视图（支持拖拽） ===== */
           <div className="flex gap-4 h-full min-w-[768px]">
             {columns.map(col => {
               const colTasks = filteredTasks.filter(t => t.status === col.key)
+              const isOver = dropTarget === col.key
               return (
-                <div key={col.key} className="flex-1 flex flex-col min-w-[240px]">
-                  <div className="flex items-center justify-between mb-3">
+                <div
+                  key={col.key}
+                  className={`flex-1 flex flex-col min-w-[240px] rounded-xl transition-colors ${
+                    isOver ? 'bg-primary/5 ring-2 ring-primary/20 ring-dashed' : ''
+                  }`}
+                  onDragOver={e => handleDragOver(e, col.key)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={e => handleDrop(e, col.key)}
+                >
+                  <div className="flex items-center justify-between mb-3 px-1">
                     <div className="flex items-center gap-2">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${statusConfig[col.key].color}`}>
                         {col.label}
@@ -191,10 +270,16 @@ export default function Tasks() {
                       <span className="text-xs text-muted-foreground">{colTasks.length}</span>
                     </div>
                   </div>
-                  <div className="flex-1 overflow-y-auto">
+                  <div className={`flex-1 overflow-y-auto px-1 min-h-[100px] ${
+                    isOver && colTasks.length === 0 ? 'flex items-center justify-center' : ''
+                  }`}>
                     {colTasks.map(task => <TaskCard key={task.id} task={task} />)}
                     {colTasks.length === 0 && (
-                      <p className="text-xs text-muted-foreground text-center py-8 opacity-50">暂无任务</p>
+                      <p className={`text-xs text-muted-foreground text-center py-8 ${
+                        isOver ? 'text-primary opacity-80' : 'opacity-50'
+                      }`}>
+                        {isOver ? '放下以移至此列' : '暂无任务'}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -202,6 +287,7 @@ export default function Tasks() {
             })}
           </div>
         ) : (
+          /* ===== 列表视图 ===== */
           <div className="space-y-2">
             {filteredTasks.map(task => (
               <div key={task.id} className={cardStyle.interactive + ' flex items-center gap-4'}>

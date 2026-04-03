@@ -171,17 +171,69 @@ async def create_contract(
 async def get_contract_templates(
     user: User = Depends(get_current_user_required),
 ):
-    """获取合同模板列表"""
-    data = {
-        "templates": [
-            {"id": "1", "name": "采购合同模板", "type": "purchase"},
-            {"id": "2", "name": "服务协议模板", "type": "service"},
-            {"id": "3", "name": "劳动合同模板", "type": "labor"},
-            {"id": "4", "name": "租赁合同模板", "type": "lease"},
-            {"id": "5", "name": "保密协议模板", "type": "nda"},
-        ]
-    }
-    return UnifiedResponse.success(data=data)
+    """获取合同模板列表（含智能条件模板）"""
+    from src.services.template_engine import get_template_library
+
+    templates = []
+    for t in get_template_library():
+        templates.append({
+            "id": t.id,
+            "name": t.name.replace("{{", "").replace("}}", "").replace("goods_name", ""),
+            "type": t.category,
+            "description": t.description,
+            "field_count": len(t.fields),
+            "clause_count": len(t.clauses),
+            "regions": t.applicable_regions,
+        })
+
+    return UnifiedResponse.success(data={"templates": templates})
+
+
+@router.get("/templates/{template_id}", response_model=UnifiedResponse)
+async def get_template_detail(
+    template_id: str,
+    user: User = Depends(get_current_user_required),
+):
+    """获取模板详情（含字段定义和条款结构）"""
+    from src.services.template_engine import get_template_by_id
+    from dataclasses import asdict
+
+    template = get_template_by_id(template_id)
+    if not template:
+        raise HTTPException(status_code=404, detail="模板不存在")
+
+    return UnifiedResponse.success(data={
+        "id": template.id,
+        "name": template.name,
+        "category": template.category,
+        "description": template.description,
+        "version": template.version,
+        "fields": [asdict(f) for f in template.fields],
+        "clauses": [{"id": c.id, "title": c.title, "required": c.required, "condition": c.condition} for c in template.clauses],
+    })
+
+
+@router.post("/templates/{template_id}/render", response_model=UnifiedResponse)
+async def render_template(
+    template_id: str,
+    body: dict,
+    user: User = Depends(get_current_user_required),
+):
+    """渲染合同模板（根据用户填写的变量生成合同文本）"""
+    from src.services.template_engine import get_template_by_id, TemplateEngine
+
+    template = get_template_by_id(template_id)
+    if not template:
+        raise HTTPException(status_code=404, detail="模板不存在")
+
+    variables = body.get("variables", {})
+    rendered = TemplateEngine.render_template(template, variables)
+
+    return UnifiedResponse.success(data={
+        "template_id": template_id,
+        "rendered_text": rendered,
+        "word_count": len(rendered.replace(" ", "")),
+    })
 
 
 # ============ 动态路径路由 ============
@@ -197,7 +249,13 @@ async def apply_suggestions(
     """应用用户接受的修改建议"""
     service = ContractService(db)
     accepted_ids = body.get("accepted_risk_ids", [])
-    modified_text = await service.apply_suggestions(contract_id, accepted_ids)
+    try:
+        modified_text = await service.apply_suggestions(
+            contract_id, accepted_ids, org_id=user.org_id
+        )
+    except ValueError as e:
+        return UnifiedResponse.error(code=404, message=str(e))
+
     return UnifiedResponse.success(data={"modified_text": modified_text})
 
 
@@ -209,9 +267,13 @@ async def save_contract_file(
 ):
     """保存合同文件到服务器"""
     service = ContractService(db)
-    file_path = await service.save_contract_file(
-        contract_id, user_id=user.id
-    )
+    try:
+        file_path = await service.save_contract_file(
+            contract_id, user_id=user.id, org_id=user.org_id
+        )
+    except ValueError as e:
+        return UnifiedResponse.error(code=404, message=str(e))
+
     return UnifiedResponse.success(data={"file_path": file_path}, message="合同已保存")
 
 
@@ -224,7 +286,7 @@ async def download_contract(
 ):
     """下载合同文件（PDF 或 DOCX）"""
     service = ContractService(db)
-    contract = await service.get_contract(contract_id)
+    contract = await service.get_contract(contract_id, org_id=user.org_id)
     if not contract:
         raise HTTPException(status_code=404, detail="合同不存在")
 
@@ -291,7 +353,7 @@ async def get_contract(
 ):
     """获取合同详情"""
     service = ContractService(db)
-    contract = await service.get_contract(contract_id)
+    contract = await service.get_contract(contract_id, org_id=user.org_id)
     
     if not contract:
         return UnifiedResponse.error(code=404, message="合同不存在")
@@ -328,6 +390,7 @@ async def review_contract(
             contract_id=contract_id,
             contract_text=request.contract_text,
             reviewed_by=user.id,
+            org_id=user.org_id,
         )
         return UnifiedResponse.success(data=ContractReviewResponse(**result))
     except ValueError as e:
@@ -342,7 +405,11 @@ async def get_contract_risks(
 ):
     """获取合同风险点"""
     service = ContractService(db)
-    risks = await service.get_risks(contract_id)
+    contract = await service.get_contract(contract_id, org_id=user.org_id)
+    if not contract:
+        return UnifiedResponse.error(code=404, message="合同不存在")
+
+    risks = await service.get_risks(contract_id, org_id=user.org_id)
     
     data = [
         ContractRiskResponse(
@@ -370,7 +437,12 @@ async def resolve_risk(
 ):
     """标记风险已解决"""
     service = ContractService(db)
-    success = await service.resolve_risk(risk_id, resolution_note)
+    success = await service.resolve_risk(
+        risk_id,
+        resolution_note,
+        contract_id=contract_id,
+        org_id=user.org_id,
+    )
     
     if not success:
         return UnifiedResponse.error(code=404, message="风险点不存在")

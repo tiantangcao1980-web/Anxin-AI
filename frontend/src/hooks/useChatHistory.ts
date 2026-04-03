@@ -127,7 +127,7 @@ export function useChatHistory(options: UseChatHistoryOptions): UseChatHistoryRe
       }
     } catch (e) {
       if (!cancelled) {
-        console.debug('加载对话历史失败:', e);
+        import.meta.env.DEV && console.debug('加载对话历史失败:', e);
       }
     } finally {
       if (!cancelled) {

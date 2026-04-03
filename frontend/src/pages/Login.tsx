@@ -6,7 +6,7 @@
  * 移动端仅显示右侧表单区域。
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
@@ -14,6 +14,15 @@ import { icons } from '@/lib/icons'
 import { authApi } from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
 import { iconSize, radius, buttonStyle, heading, inputStyle, statusColor } from '@/lib/design-tokens'
+
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (container: HTMLElement, options: Record<string, unknown>) => string | number
+      reset: (widgetId?: string | number) => void
+    }
+  }
+}
 
 export default function Login() {
   const navigate = useNavigate()
@@ -23,7 +32,26 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
 
   // 功能开关
-  const [features, setFeatures] = useState({ email_verify_enabled: false, sms_enabled: false, oauth_wechat_enabled: false, oauth_alipay_enabled: false })
+  const [features, setFeatures] = useState({
+    email_verify_enabled: false,
+    sms_enabled: false,
+    oauth_wechat_enabled: false,
+    oauth_alipay_enabled: false,
+    captcha_enabled: false,
+    captcha_provider: '',
+    captcha_site_key: '',
+  })
+  const [captchaToken, setCaptchaToken] = useState('')
+  const captchaContainerRef = useRef<HTMLDivElement | null>(null)
+  const captchaWidgetIdRef = useRef<string | number | null>(null)
+  const captchaScriptLoadedRef = useRef(false)
+
+  // 忘记密码
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [resetToken, setResetToken] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [forgotStep, setForgotStep] = useState<'email' | 'code' | 'done'>('email')
+
   useEffect(() => {
     fetch('/api/v1/auth/features').then(r => r.json()).then(d => {
       const data = d.data || d
@@ -31,11 +59,77 @@ export default function Login() {
     }).catch(() => {})
   }, [])
 
-  // 忘记密码
-  const [forgotEmail, setForgotEmail] = useState('')
-  const [resetToken, setResetToken] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [forgotStep, setForgotStep] = useState<'email' | 'code' | 'done'>('email')
+  const captchaRequired = Boolean(
+    features.captcha_enabled
+    && (
+      mode === 'login'
+      || mode === 'register'
+      || (mode === 'forgot' && forgotStep === 'email')
+    )
+  )
+
+  const resetCaptcha = useCallback(() => {
+    setCaptchaToken('')
+    if (window.turnstile && captchaWidgetIdRef.current !== null) {
+      window.turnstile.reset(captchaWidgetIdRef.current)
+    }
+  }, [])
+
+  const renderCaptcha = useCallback(() => {
+    if (!captchaRequired || !features.captcha_site_key) return
+    if (!window.turnstile || !captchaContainerRef.current) return
+    if (captchaWidgetIdRef.current !== null) return
+
+    captchaWidgetIdRef.current = window.turnstile.render(captchaContainerRef.current, {
+      sitekey: features.captcha_site_key,
+      theme: 'auto',
+      callback: (token: string) => setCaptchaToken(token),
+      'expired-callback': () => setCaptchaToken(''),
+      'error-callback': () => setCaptchaToken(''),
+    })
+  }, [captchaRequired, features.captcha_site_key])
+
+  useEffect(() => {
+    if (!features.captcha_enabled || features.captcha_provider !== 'turnstile') return
+
+    const existing = document.querySelector<HTMLScriptElement>('script[data-turnstile]')
+    const onReady = () => {
+      captchaScriptLoadedRef.current = true
+      renderCaptcha()
+    }
+
+    if (window.turnstile) {
+      onReady()
+      return
+    }
+
+    if (existing) {
+      existing.addEventListener('load', onReady, { once: true })
+      return () => existing.removeEventListener('load', onReady)
+    }
+
+    const script = document.createElement('script')
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
+    script.async = true
+    script.defer = true
+    script.dataset.turnstile = 'true'
+    script.addEventListener('load', onReady, { once: true })
+    document.head.appendChild(script)
+
+    return () => script.removeEventListener('load', onReady)
+  }, [features.captcha_enabled, features.captcha_provider, renderCaptcha])
+
+  useEffect(() => {
+    if (!captchaRequired) {
+      setCaptchaToken('')
+      return
+    }
+    if (captchaWidgetIdRef.current !== null) {
+      resetCaptcha()
+    } else if (captchaScriptLoadedRef.current) {
+      renderCaptcha()
+    }
+  }, [captchaRequired, mode, forgotStep, renderCaptcha, resetCaptcha])
 
   // 登录表单
   const [email, setEmail] = useState('')
@@ -83,7 +177,7 @@ export default function Login() {
     }
     setLoading(true)
     try {
-      const resp = await authApi.login({ email, password })
+      const resp = await authApi.login({ email, password, captcha_token: captchaToken || undefined })
       localStorage.setItem('refresh_token', resp.refresh_token || '')
       setAuth(resp.user, resp.access_token)
       toast.success(`欢迎回来，${resp.user.name}！`)
@@ -100,6 +194,7 @@ export default function Login() {
         toast.error(msg)
       }
     } finally {
+      if (captchaRequired) resetCaptcha()
       setLoading(false)
     }
   }
@@ -124,7 +219,13 @@ export default function Login() {
     }
     setLoading(true)
     try {
-      const resp = await authApi.register({ name: regName, email: regEmail, password: regPassword, user_type: regUserType }) as any
+      const resp = await authApi.register({
+        name: regName,
+        email: regEmail,
+        password: regPassword,
+        user_type: regUserType,
+        captcha_token: captchaToken || undefined,
+      }) as any
       if (resp.email_verified) {
         // 邮箱验证未启用，注册后自动登录
         try {
@@ -156,6 +257,7 @@ export default function Login() {
         toast.error(msg)
       }
     } finally {
+      if (captchaRequired) resetCaptcha()
       setLoading(false)
     }
   }
@@ -168,7 +270,7 @@ export default function Login() {
     }
     setLoading(true)
     try {
-      const resp = await authApi.forgotPassword(forgotEmail)
+      const resp = await authApi.forgotPassword(forgotEmail, captchaToken || undefined)
       toast.success('验证码已发送到您的邮箱')
       if (resp.debug_token) {
         // 开发模式自动填充验证码
@@ -178,6 +280,7 @@ export default function Login() {
     } catch (err: any) {
       toast.error(err.message || '发送失败')
     } finally {
+      if (captchaRequired) resetCaptcha()
       setLoading(false)
     }
   }
@@ -267,6 +370,16 @@ export default function Login() {
   // 输入框通用样式 — 基于 design-tokens inputStyle.search，增加左图标 padding
   const inputCls =
     `${inputStyle.search} pl-10 py-2.5 focus:border-transparent`
+
+  const captchaBlock = captchaRequired ? (
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-foreground">安全验证</label>
+      <div ref={captchaContainerRef} className="min-h-[70px]" />
+      {!captchaToken && (
+        <p className="text-xs text-muted-foreground">请先完成人机验证后再提交。</p>
+      )}
+    </div>
+  ) : null
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -417,9 +530,10 @@ export default function Login() {
                         autoFocus
                       />
                     </div>
+                    {captchaBlock}
                     <button
                       type="submit"
-                      disabled={loading}
+                      disabled={loading || (captchaRequired && !captchaToken)}
                       className={`${buttonStyle.primary} w-full py-2.5 disabled:opacity-60 flex items-center justify-center gap-2`}
                     >
                       {loading && <icons.Loader2 className={`${iconSize.sm} animate-spin`} />}
@@ -608,10 +722,12 @@ export default function Login() {
                   </button>
                 </div>
 
+                {captchaBlock}
+
                 {/* 提交 */}
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || (captchaRequired && !captchaToken)}
                   className={`${buttonStyle.primary} w-full py-2.5 disabled:opacity-60 flex items-center justify-center gap-2`}
                 >
                   {loading && <icons.Loader2 className={`${iconSize.sm} animate-spin`} />}
@@ -780,10 +896,12 @@ export default function Login() {
                   </span>
                 </label>
 
+                {captchaBlock}
+
                 {/* 提交 */}
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || (captchaRequired && !captchaToken)}
                   className={`${buttonStyle.primary} w-full py-2.5 disabled:opacity-60 flex items-center justify-center gap-2`}
                 >
                   {loading && <icons.Loader2 className={`${iconSize.sm} animate-spin`} />}

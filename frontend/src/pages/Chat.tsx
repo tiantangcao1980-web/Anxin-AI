@@ -134,7 +134,7 @@ interface Message {
   memory_id?: string;
   feedback?: 'up' | 'down';
   attachment?: { type: 'file' | 'image'; name: string; size: string };
-  metadata?: { isError?: boolean; originalError?: string; lastUserMessage?: string };
+  metadata?: { isError?: boolean; originalError?: string; lastUserMessage?: string; repair_type?: string };
   clarification?: {
     questions: { question: string; options: string[] }[];
     original_content: string;
@@ -329,7 +329,7 @@ export default function Chat() {
     try {
       const result = await chatApi.listConversations(50);
       if (result?.conversations) setConversations(result.conversations);
-    } catch (e) { console.debug('加载对话列表失败:', e); }
+    } catch (e) { import.meta.env.DEV && console.debug('加载对话列表失败:', e); }
   }, [setConversations]);
 
   useEffect(() => { loadConversations(); }, [loadConversations]);
@@ -508,7 +508,7 @@ export default function Chat() {
           });
         }
       } catch (e) {
-        if (!cancelled) console.debug('加载对话历史失败:', e);
+        if (!cancelled) import.meta.env.DEV && console.debug('加载对话历史失败:', e);
       }
 
       // 同时恢复 Canvas 文档
@@ -527,7 +527,7 @@ export default function Chat() {
         }
       } catch (e) {
         // Canvas 恢复失败不影响主流程
-        console.debug('Canvas 文档恢复失败:', e);
+        import.meta.env.DEV && console.debug('Canvas 文档恢复失败:', e);
       }
 
       if (!cancelled) {

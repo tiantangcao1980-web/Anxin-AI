@@ -26,6 +26,7 @@ from src.core.security import (
 from src.services.user_service import UserService
 from src.services.audit_service import AuditService
 from src.services.oauth_service import WeChatOAuth, AlipayOAuth
+from src.services.captcha_service import captcha_service
 from src.models.audit import AuditAction, ResourceType
 from src.models.user import User
 
@@ -39,6 +40,7 @@ class LoginRequest(BaseModel):
     """登录请求"""
     email: EmailStr
     password: str
+    captcha_token: Optional[str] = None
 
 
 class RegisterRequest(BaseModel):
@@ -48,6 +50,7 @@ class RegisterRequest(BaseModel):
     name: str
     user_type: str = "individual"  # individual / enterprise / platform_lawyer / institution
     phone: Optional[str] = None  # 手机号（用于短信验证）
+    captcha_token: Optional[str] = None
 
 
 class VerifyEmailRequest(BaseModel):
@@ -89,6 +92,7 @@ class UserResponse(BaseModel):
     email: str
     name: str
     role: str
+    user_type: str = "individual"
     avatar_url: Optional[str] = None
     email_verified: bool = True
 
@@ -107,6 +111,35 @@ class LogoutRequest(BaseModel):
 # 账号锁定配置
 ACCOUNT_LOCKOUT_THRESHOLD = 5
 ACCOUNT_LOCKOUT_MINUTES = 30
+OAUTH_STATE_EXPIRES_MINUTES = 10
+
+
+def _issue_oauth_state(provider: str) -> str:
+    state = secrets.token_urlsafe(24)
+    _oauth_state_tokens[state] = {
+        "provider": provider,
+        "expires_at": datetime.now(timezone.utc) + timedelta(minutes=OAUTH_STATE_EXPIRES_MINUTES),
+    }
+    return state
+
+
+def _consume_oauth_state(provider: str, state: Optional[str]) -> None:
+    if not state:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="OAuth state 缺失")
+
+    token_data = _oauth_state_tokens.get(state)
+    if not token_data:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="OAuth state 无效")
+
+    if token_data["provider"] != provider:
+        _oauth_state_tokens.pop(state, None)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="OAuth state 不匹配")
+
+    if datetime.now(timezone.utc) > token_data["expires_at"]:
+        _oauth_state_tokens.pop(state, None)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="OAuth state 已过期")
+
+    _oauth_state_tokens.pop(state, None)
 
 
 def validate_password(password: str) -> None:
@@ -133,6 +166,24 @@ def validate_password(password: str) -> None:
         )
 
 
+async def _require_captcha(request: Request, captcha_token: Optional[str]) -> None:
+    if not captcha_service.is_enabled():
+        return
+    if not captcha_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="请先完成人机验证",
+        )
+
+    forwarded = request.headers.get("X-Forwarded-For")
+    remote_ip = forwarded.split(",")[0].strip() if forwarded else (request.client.host if request.client else None)
+    if not await captcha_service.verify_token(captcha_token, remote_ip=remote_ip):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="人机验证未通过，请重试",
+        )
+
+
 @router.post("/login", response_model=TokenResponse)
 async def login(
     request: Request,
@@ -145,6 +196,8 @@ async def login(
     
     限流：10次/分钟
     """
+    await _require_captcha(request, login_request.captcha_token)
+
     # 检查账号锁定状态
     stmt = select(User).where(User.email == login_request.email)
     user_result = await db.execute(stmt)
@@ -232,6 +285,8 @@ async def register(
 
     限流：5次/5分钟
     """
+    await _require_captcha(request, register_request.captcha_token)
+
     # 验证密码强度
     validate_password(register_request.password)
 
@@ -334,6 +389,7 @@ async def get_current_user_info(user: User = Depends(get_current_user_required))
         email=user.email,
         name=user.name,
         role=user.role,
+        user_type=getattr(user, 'user_type', 'individual') or 'individual',
         avatar_url=user.avatar_url,
         email_verified=user.email_verified,
     )
@@ -611,6 +667,7 @@ async def get_auth_features():
         "sms_enabled": settings.SMS_ENABLED,
         "oauth_wechat_enabled": settings.OAUTH_WECHAT_ENABLED,
         "oauth_alipay_enabled": settings.OAUTH_ALIPAY_ENABLED,
+        **captcha_service.get_public_config(),
     }
 
 
@@ -627,7 +684,7 @@ async def get_wechat_login_url():
     """获取微信登录授权 URL"""
     if not settings.OAUTH_WECHAT_ENABLED:
         raise HTTPException(status_code=404, detail="微信登录未启用")
-    state = secrets.token_urlsafe(16)
+    state = _issue_oauth_state("wechat")
     url = WeChatOAuth.get_authorize_url(state)
     return {"url": url, "state": state}
 
@@ -639,6 +696,7 @@ async def wechat_oauth_callback(
 ):
     """微信 OAuth 回调 -- 用 code 换 token，查找或创建用户"""
     try:
+        _consume_oauth_state("wechat", request.state)
         token_data = await WeChatOAuth.get_access_token(request.code)
         user_info = await WeChatOAuth.get_user_info(
             token_data["access_token"], token_data["openid"]
@@ -698,6 +756,8 @@ async def wechat_oauth_callback(
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"微信 OAuth 回调失败: {e}")
         raise HTTPException(status_code=500, detail="微信登录失败，请重试")
@@ -708,7 +768,7 @@ async def get_alipay_login_url():
     """获取支付宝登录授权 URL"""
     if not settings.OAUTH_ALIPAY_ENABLED:
         raise HTTPException(status_code=404, detail="支付宝登录未启用")
-    state = secrets.token_urlsafe(16)
+    state = _issue_oauth_state("alipay")
     url = AlipayOAuth.get_authorize_url(state)
     return {"url": url, "state": state}
 
@@ -720,6 +780,7 @@ async def alipay_oauth_callback(
 ):
     """支付宝 OAuth 回调"""
     try:
+        _consume_oauth_state("alipay", request.state)
         token_data = await AlipayOAuth.get_access_token(request.code)
         user_info = await AlipayOAuth.get_user_info(token_data["access_token"])
 
@@ -766,6 +827,8 @@ async def alipay_oauth_callback(
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"支付宝 OAuth 回调失败: {e}")
         raise HTTPException(status_code=500, detail="支付宝登录失败，请重试")
@@ -775,6 +838,7 @@ async def alipay_oauth_callback(
 
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
+    captcha_token: Optional[str] = None
 
 class ResetPasswordRequest(BaseModel):
     token: str
@@ -788,17 +852,22 @@ class ChangePasswordRequest(BaseModel):
 # 内存中的令牌存储（生产环境应用 Redis）
 _reset_tokens: dict[str, dict] = {}
 _email_verify_tokens: dict[str, dict] = {}  # key=验证码, value={user_id, email, expires_at}
+_oauth_state_tokens: dict[str, dict] = {}
 
 
 @router.post("/forgot-password", summary="忘记密码 - 发送重置链接")
 async def forgot_password(
+    request: Request,
     req: ForgotPasswordRequest,
     db: AsyncSession = Depends(get_db),
+    _: None = Depends(rate_limit(limit=5, window=300, endpoint="forgot_password", by_user=False)),
 ):
     """
     发送密码重置链接到用户邮箱。
     无论邮箱是否存在都返回成功（防止枚举攻击）。
     """
+    await _require_captcha(request, req.captcha_token)
+
     result = await db.execute(select(User).where(User.email == req.email))
     user = result.scalar_one_or_none()
 

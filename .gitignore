@@ -27,11 +27,23 @@ frontend/package-lock.json
 .env.*.local
 backend/.env
 backend/.env.local
+frontend/.env
+frontend/.env.local
+frontend/.env.tauri
+
+# ==================== 敏感配置文件 ====================
+livekit.yaml
+*.secrets.yaml
+*.secrets.json
 
 # ==================== 数据与日志 ====================
 /data/
+backend/data/
 *.log
 logs/
+
+# ==================== 运行时产物 ====================
+.omx/
 
 # ==================== Docker 开发数据 ====================
 # Docker 数据卷由 Docker 管理，不提交
@@ -142,3 +154,9 @@ start-all.bat
 start_dev.bat
 start_mcp.bat
 DEV_GUIDE.md
+.env
+backend/.env
+backend/.env.local
+frontend/.env
+frontend/.env.tauri
+livekit.yaml

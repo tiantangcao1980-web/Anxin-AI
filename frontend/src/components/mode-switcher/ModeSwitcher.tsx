@@ -41,9 +41,7 @@ export function ModeSwitcher() {
   const { mode, setMode } = useAppModeStore()
   const [isOpen, setIsOpen] = useState(false)
   const [isSwitching, setIsSwitching] = useState(false)
-
-  // Web 模式下不显示
-  if (!isTauri()) return null
+  const isDesktopClient = isTauri()
 
   const currentConfig = MODE_CONFIG[mode]
   const Icon = currentConfig.icon
@@ -64,6 +62,9 @@ export function ModeSwitcher() {
       setIsOpen(false)
     }
   }, [mode, isSwitching, setMode])
+
+  // Web 模式下不显示
+  if (!isDesktopClient) return null
 
   return (
     <div className="relative">

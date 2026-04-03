@@ -24,7 +24,7 @@ services:
     ports:
       - "${BACKEND_PORT:-8001}:8001"
     environment:
-      - DATABASE_URL=postgresql://postgres:password@postgres:5432/legal_agent_db
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/legal_agent_db
       - REDIS_URL=redis://redis:6379/0
       - QDRANT_URL=http://qdrant:6333
       - NEO4J_URI=bolt://neo4j:7687
@@ -54,7 +54,7 @@ services:
     environment:
       POSTGRES_DB: legal_agent_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
     ports:
       - "5433:5432"
     volumes:
@@ -114,7 +114,7 @@ services:
       - "7474:7474"
       - "7687:7687"
     environment:
-      NEO4J_AUTH: neo4j/password
+      NEO4J_AUTH: ${NEO4J_AUTH:-neo4j/password}
       NEO4J_PLUGINS: '["apoc"]'
     volumes:
       - neo4j_data:/data
@@ -140,8 +140,8 @@ services:
       - "9000:9000"
       - "9001:9001"
     environment:
-      MINIO_ROOT_USER: admin
-      MINIO_ROOT_PASSWORD: password
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-password}
     volumes:
       - minio_data:/data
     networks:
@@ -170,6 +170,41 @@ services:
       - legal-network
     restart: unless-stopped
 
+  # ==================== 监控（Sprint 6.1）====================
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: anxin-prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - legal-network
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=30d'
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: anxin-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-anxin2026}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - legal-network
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
 # ==================== 网络配置 ====================
 networks:
   legal-network:
@@ -183,3 +218,5 @@ volumes:
   neo4j_data:
   neo4j_logs:
   minio_data:
+  prometheus_data:
+  grafana_data:

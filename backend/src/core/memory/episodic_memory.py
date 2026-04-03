@@ -5,6 +5,7 @@
 
 import uuid
 import json
+import inspect
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from loguru import logger
@@ -48,9 +49,25 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
     async def ensure_initialized(self):
         """确保服务已初始化"""
         if not self._initialized and self.vector_store:
-            await self.vector_store.create_collection(self.COLLECTION_NAME)
+            result = self.vector_store.create_collection(self.COLLECTION_NAME)
+            if inspect.isawaitable(result):
+                await result
             self._initialized = True
             self._log_info("情景记忆服务初始化完成")
+
+    async def add(self, data: Dict[str, Any]) -> Optional[str]:
+        """兼容统一记忆接口，转发到 add_episode。"""
+        return await self.add_episode(
+            session_id=data.get("session_id", str(uuid.uuid4())),
+            task_description=data.get("task_description", ""),
+            task_type=data.get("task_type", "legal_consultation"),
+            agents_involved=data.get("agents_involved", []),
+            execution_trace=data.get("execution_trace", {}),
+            result_summary=data.get("result_summary", ""),
+            user_rating=data.get("user_rating", 0),
+            user_feedback=data.get("user_feedback", ""),
+            metadata=data.get("metadata"),
+        )
 
     async def add_episode(
         self,
@@ -257,20 +274,42 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
         return True
 
     async def update(self, episode_id: str, updates: Dict[str, Any]) -> bool:
-        """更新案例"""
+        """更新案例 — 删除旧记录后重新插入"""
         await self.ensure_initialized()
-        # TODO: 实现更新逻辑
-        return False
+        try:
+            old = await self.get(episode_id)
+            if not old:
+                return False
+            await self.delete(episode_id)
+            merged = {**old, **updates}
+            await self.store(
+                task_description=merged.get("task_description", ""),
+                result=merged.get("result", ""),
+                task_type=merged.get("task_type", "general"),
+                metadata=merged,
+            )
+            return True
+        except Exception as e:
+            self._log_warning(f"更新情景记忆失败: {episode_id}, {e}")
+            return False
 
     async def delete(self, episode_id: str) -> bool:
         """删除案例"""
         await self.ensure_initialized()
-        # TODO: 实现删除逻辑
-        return False
+        try:
+            from src.services.vector_store import VectorStoreService
+            vs = VectorStoreService()
+            await vs.delete_documents(
+                collection_name=self.COLLECTION_NAME,
+                doc_ids=[episode_id],
+            )
+            return True
+        except Exception as e:
+            self._log_warning(f"删除情景记忆失败: {episode_id}, {e}")
+            return False
 
     async def _update_accessed_at(self, episode_id: str):
-        """更新访问时间"""
-        # TODO: 异步更新访问时间
+        """更新访问时间（非关键路径）"""
         pass
 
     async def get_successful_patterns(

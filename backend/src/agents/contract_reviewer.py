@@ -7,6 +7,8 @@ import json
 
 from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
 from src.prompts import load_prompt
+from src.services.legal_citation import LegalCitationService
+from src.services.agent_rag_service import AgentRAGService
 
 
 _FALLBACK_PROMPT = "你是一位资深的合同审查专家，拥有丰富的合同法律实务经验。"
@@ -35,10 +37,25 @@ class ContractReviewAgent(BaseLegalAgent):
         # 构建针对合同类型的专项审查要求
         type_specific_guide = self._get_type_specific_guide(contract_type)
 
+        # RAG检索相关法律条文
+        rag_context = ""
+        try:
+            rag_context = await AgentRAGService.get_legal_context(
+                query=description[:2000],
+                contract_type=contract_type,
+                max_articles=8,
+            )
+            if rag_context:
+                rag_context = AgentRAGService.build_rag_prompt_section(rag_context, task_type="review")
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).debug(f"RAG检索跳过: {e}")
+
         # 构建审查提示
         prompt = f"""请对以下合同进行全面、系统的专业审查：
 
 【合同类型】：{contract_type}
+{rag_context}
 
 {type_specific_guide}
 
@@ -59,6 +76,9 @@ class ContractReviewAgent(BaseLegalAgent):
 
         # 尝试解析JSON结果
         review_result = self._parse_review_result(response)
+
+        # 增强：解析法律引用，附加结构化的法条信息
+        review_result = LegalCitationService.enrich_review_result(review_result)
 
         return AgentResponse(
             agent_name=self.name,

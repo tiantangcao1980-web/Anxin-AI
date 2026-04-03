@@ -3,7 +3,7 @@
 律师评价服务
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +11,7 @@ from sqlalchemy import select, func, and_
 from loguru import logger
 
 from src.models.review import LawyerReview
-from src.models.lawyer_matching import LawyerProfile
+from src.models.lawyer_matching import Consultation, Delegation, LawyerProfile
 
 
 class ReviewService:
@@ -35,6 +35,46 @@ class ReviewService:
         # 校验评分范围
         if not 1 <= rating <= 5:
             raise ValueError("评分必须在 1-5 之间")
+
+        lawyer_profile = await self.db.get(LawyerProfile, lawyer_profile_id)
+        if not lawyer_profile:
+            raise ValueError("律师档案不存在")
+
+        if not consultation_id and not delegation_id:
+            raise ValueError("评价必须关联真实咨询或委托记录")
+
+        if consultation_id:
+            consultation = await self.db.get(Consultation, consultation_id)
+            if not consultation:
+                raise ValueError("咨询记录不存在")
+            if consultation.user_id != reviewer_id:
+                raise ValueError("无权使用该咨询记录进行评价")
+            if consultation.matched_lawyer_id != lawyer_profile.user_id:
+                raise ValueError("咨询记录与律师档案不匹配")
+
+        if delegation_id:
+            delegation = await self.db.get(Delegation, delegation_id)
+            if not delegation:
+                raise ValueError("委托记录不存在")
+            if delegation.client_id != reviewer_id:
+                raise ValueError("无权使用该委托记录进行评价")
+            if delegation.lawyer_id != lawyer_profile.user_id:
+                raise ValueError("委托记录与律师档案不匹配")
+
+        duplicate_conditions = [
+            LawyerReview.reviewer_id == reviewer_id,
+            LawyerReview.lawyer_profile_id == lawyer_profile_id,
+        ]
+        if consultation_id:
+            duplicate_conditions.append(LawyerReview.consultation_id == consultation_id)
+        if delegation_id:
+            duplicate_conditions.append(LawyerReview.delegation_id == delegation_id)
+
+        existing_result = await self.db.execute(
+            select(LawyerReview).where(and_(*duplicate_conditions))
+        )
+        if existing_result.scalar_one_or_none():
+            raise ValueError("该服务记录已评价，请勿重复提交")
 
         review = LawyerReview(
             reviewer_id=reviewer_id,
@@ -130,7 +170,7 @@ class ReviewService:
             raise PermissionError("只有该律师本人才能回复评价")
 
         review.reply_content = content
-        review.replied_at = datetime.utcnow()
+        review.replied_at = datetime.now(timezone.utc)
 
         await self.db.commit()
         await self.db.refresh(review)

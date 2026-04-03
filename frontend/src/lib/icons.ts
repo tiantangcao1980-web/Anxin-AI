@@ -157,6 +157,8 @@ import {
   PanelLeft,
   Wand2,
   Camera,
+  Video,
+  PhoneOff,
   Paintbrush,
   GripVertical,
   Hash,
@@ -439,10 +441,8 @@ export const icons = {
   RotateCcw: RotateCcw,
   Focus: Focus,
   Server: Server,
-  Play: Play,
-  Square: Square,
-  Video: Camera,
-  PhoneOff: Phone,
+  Video: Video,
+  PhoneOff: PhoneOff,
 } as const
 
 // 导出图标类型，便于类型约束

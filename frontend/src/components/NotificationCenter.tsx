@@ -11,14 +11,13 @@ import { zhCN } from 'date-fns/locale';
 
 interface NotificationCenterProps {
   onClose: () => void;
-  onClearAll?: () => void;
 }
 
 export function NotificationCenter({ onClose }: NotificationCenterProps) {
   const notifications = useNotificationStore((s) => s.notifications);
   const setStoreNotifications = useNotificationStore((s) => s.setNotifications);
-  const markRead = useNotificationStore((s) => s.markAsRead);
-  const markAllRead = useNotificationStore((s) => s.markAllAsRead);
+  const markRead = useNotificationStore((s) => s.markNotificationRead);
+  const markAllRead = useNotificationStore((s) => s.markAllNotificationsRead);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
@@ -27,8 +26,7 @@ export function NotificationCenter({ onClose }: NotificationCenterProps) {
       try {
         const response = await notificationsApi.list({ limit: 50 });
         const items = response.data || [];
-        const unread = items.filter((n: any) => !n.is_read).length;
-        setStoreNotifications(items, unread);
+        setStoreNotifications(items);
       } catch {
         toast.error('获取通知失败');
       } finally {

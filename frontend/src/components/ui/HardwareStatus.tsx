@@ -3,6 +3,14 @@ import { createPortal } from 'react-dom';
 import { icons } from '@/lib/icons';
 import { usePrivacy, PrivacyMode, HardwareStatus as HWStatus } from '../../context/PrivacyContext';
 import { buttonStyle } from '@/lib/design-tokens';
+import { toast } from 'sonner';
+
+const OPENCLAW_SETUP_GUIDE = [
+  '1. 确认本机满足最低硬件要求（建议 8GB 内存、20GB 可用磁盘）。',
+  '2. 拉取 OpenClaw 运行时与法律模型包。',
+  '3. 配置本地推理服务地址、模型目录和隐私策略。',
+  '4. 完成本地联调后，再回到平台点击“我已完成部署”。',
+].join('\n');
 
 /**
  * HardwareStatus - AI 私有助手状态组件
@@ -118,13 +126,13 @@ export const HardwareStatus = () => {
                   <div>
                     <h4 className="text-base font-semibold text-foreground mb-1">云端私有助手</h4>
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                      云端私有助手正在开发中，将为您提供专属的云端 AI 法务服务实例，
-                      数据隔离存储，独享算力资源。
+                      云端私有助手仍处于规划与预研阶段。后续开放后，将为您提供专属的云端 AI 法务服务实例、
+                      数据隔离存储与独享算力资源。
                     </p>
                   </div>
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 rounded-full text-xs font-medium border border-amber-200 dark:border-amber-800">
                     <icons.Clock className="w-3.5 h-3.5" />
-                    预计后续版本迭代开放
+                    当前尚未开放申请
                   </div>
                 </div>
               ) : (
@@ -163,13 +171,36 @@ export const HardwareStatus = () => {
               >
                 {isCloudMode ? '知道了' : '稍后安装'}
               </button>
-              {!isCloudMode && (
+              {isCloudMode && (
                 <button
-                  onClick={handleCompleteSetup}
+                  onClick={() => { window.location.href = '/pricing' }}
                   className={`${buttonStyle.sm} px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm`}
                 >
-                  开始安装
+                  查看企业方案
                 </button>
+              )}
+              {!isCloudMode && (
+                <>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(OPENCLAW_SETUP_GUIDE);
+                        toast.success('安装说明已复制');
+                      } catch {
+                        toast.info('请根据弹窗步骤手动完成部署');
+                      }
+                    }}
+                    className={`${buttonStyle.sm} px-4 py-2 text-muted-foreground hover:bg-muted`}
+                  >
+                    复制安装说明
+                  </button>
+                  <button
+                    onClick={handleCompleteSetup}
+                    className={`${buttonStyle.sm} px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm`}
+                  >
+                    我已完成部署
+                  </button>
+                </>
               )}
             </div>
           </div>

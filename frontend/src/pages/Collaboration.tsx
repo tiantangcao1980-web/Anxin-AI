@@ -312,11 +312,23 @@ export default function Collaboration() {
 
   // WebSocket连接
   const connectWebSocket = useCallback((id: string) => {
-    const wsUrl = `${import.meta.env.VITE_WS_BASE_URL || 'ws://localhost:8002'}/api/v1/collaboration/ws/${id}?user_id=${userId.current}&nickname=${encodeURIComponent(nickname.current)}&color=${encodeURIComponent(userColor.current)}`;
+    const wsUrl = `${import.meta.env.VITE_WS_BASE_URL || 'ws://localhost:8002'}/api/v1/collaboration/ws/${id}`;
 
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        setError('认证已失效，请重新登录');
+        ws.close();
+        return;
+      }
+
+      ws.send(JSON.stringify({
+        type: 'auth',
+        token,
+        color: userColor.current,
+      }));
       setConnected(true);
       setError(null);
       reconnectCountRef.current = 0;

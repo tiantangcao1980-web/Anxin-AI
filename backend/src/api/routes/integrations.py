@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Header
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from pydantic import BaseModel
 
 from src.core.config import settings
@@ -25,7 +25,7 @@ async def verify_integration_key(
 
 
 class NotificationRequest(BaseModel):
-    user_id: str
+    user_id: Optional[str] = None
     title: str
     content: str
     provider: Optional[str] = None # feishu, dingtalk, wecom
@@ -33,7 +33,7 @@ class NotificationRequest(BaseModel):
 class ApprovalRequest(BaseModel):
     title: str
     details: Dict[str, Any]
-    initiator_id: str
+    initiator_id: Optional[str] = None
     provider: Optional[str] = None
 
 class SyncRequest(BaseModel):
@@ -45,10 +45,14 @@ async def send_oa_notification(
     user: User = Depends(get_current_user_required),
 ):
     """
-    向指定的OA平台发送通知消息
+    向当前登录用户在 OA 平台的账户发送通知消息。
+
+    为避免伪造目标用户，服务端不信任客户端传入的 user_id。
     """
+    target_user_id = str(user.id)
+
     success = await oa_service.send_notification(
-        req.user_id, req.title, req.content, req.provider
+        target_user_id, req.title, req.content, req.provider
     )
     if not success:
         raise HTTPException(status_code=500, detail="Failed to send notification")
@@ -63,7 +67,7 @@ async def create_oa_approval(
     在OA系统中创建审批流程（如合同审批、用印申请）
     """
     instance_id = await oa_service.initiate_approval(
-        req.title, req.details, req.initiator_id, req.provider
+        req.title, req.details, str(user.id), req.provider
     )
     return {"status": "success", "instance_id": instance_id}
 

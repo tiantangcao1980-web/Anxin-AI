@@ -6,6 +6,7 @@ from typing import Any, Dict
 
 from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
 from src.prompts import load_prompt
+from src.services.agent_rag_service import AgentRAGService
 
 
 _FALLBACK_PROMPT = "你是一位专业的法律文书起草专家，精通各类法律文书的撰写。"
@@ -44,8 +45,22 @@ class DocumentDraftAgent(BaseLegalAgent):
         # 获取文书类型专项结构指南
         structure_guide = self._get_structure_guide(doc_type)
 
+        # RAG检索相关法律条文
+        rag_context = ""
+        try:
+            rag_context = await AgentRAGService.get_legal_context(
+                query=f"{doc_type} {description[:1000]}",
+                contract_type=doc_type,
+                max_articles=6,
+            )
+            if rag_context:
+                rag_context = AgentRAGService.build_rag_prompt_section(rag_context, task_type="draft")
+        except Exception:
+            pass
+
         # 构建增强的起草提示
         prompt = f"""请根据以下需求起草一份**完整、专业、可直接使用**的法律文书：
+{rag_context}
 
 【文书类型】：{doc_type or '请根据需求判断'}
 【需求描述】：{description}
@@ -73,10 +88,29 @@ class DocumentDraftAgent(BaseLegalAgent):
         # 调用Agent
         response = await self.chat(prompt)
 
+        # 质量验证
+        validation_info = ""
+        try:
+            from src.services.document_validator import DocumentValidator
+            is_contract = any(k in (doc_type or "").lower() for k in ["合同", "协议", "contract"])
+            if is_contract:
+                result = DocumentValidator.validate_contract(response, doc_type or "")
+            else:
+                result = DocumentValidator.validate_lawsuit(response)
+            validation_info = f"质量评分: {result.score:.0%}, 通过: {result.passed}"
+            if not result.passed and result.score < 0.5:
+                # 质量过低，尝试补充
+                critical_issues = [i.message for i in result.issues if i.level == "critical"]
+                if critical_issues:
+                    fix_prompt = f"你生成的文书存在以下严重问题，请补充修正后重新输出完整文书：\n" + "\n".join(f"- {m}" for m in critical_issues[:3])
+                    response = await self.chat(fix_prompt)
+        except Exception:
+            pass
+
         return AgentResponse(
             agent_name=self.name,
             content=response,
-            reasoning="基于法律文书规范、专业模板和行业惯例生成",
+            reasoning=f"基于法律文书规范、专业模板和行业惯例生成。{validation_info}",
             actions=[
                 {"type": "document_generated", "description": "文书起草完成"}
             ]

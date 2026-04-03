@@ -252,6 +252,8 @@ async def get_monitor(
     
     if not monitor:
         return UnifiedResponse.error(code=404, message="监控配置不存在")
+    if monitor.org_id and str(monitor.org_id) != str(user.org_id):
+        return UnifiedResponse.error(code=403, message="无权访问该监控配置")
     
     data = MonitorResponse(
         id=monitor.id,
@@ -279,14 +281,16 @@ async def update_monitor(
 ):
     """更新监控配置"""
     service = SentimentService(db)
+    existing = await service.get_monitor(monitor_id)
+    if not existing:
+        return UnifiedResponse.error(code=404, message="监控配置不存在")
+    if existing.org_id and str(existing.org_id) != str(user.org_id):
+        return UnifiedResponse.error(code=403, message="无权修改该监控配置")
     
     monitor = await service.update_monitor(
         monitor_id=monitor_id,
         **request.model_dump(exclude_unset=True)
     )
-    
-    if not monitor:
-        return UnifiedResponse.error(code=404, message="监控配置不存在")
     
     data = MonitorResponse(
         id=monitor.id,
@@ -313,11 +317,12 @@ async def delete_monitor(
 ):
     """删除监控配置"""
     service = SentimentService(db)
-    success = await service.delete_monitor(monitor_id)
-    
-    if not success:
+    monitor = await service.get_monitor(monitor_id)
+    if not monitor:
         return UnifiedResponse.error(code=404, message="监控配置不存在")
-    
+    if monitor.org_id and str(monitor.org_id) != str(user.org_id):
+        return UnifiedResponse.error(code=403, message="无权删除该监控配置")
+    success = await service.delete_monitor(monitor_id)
     return UnifiedResponse.success(message="监控配置已删除")
 
 
@@ -330,11 +335,12 @@ async def toggle_monitor(
 ):
     """启用/禁用监控"""
     service = SentimentService(db)
-    monitor = await service.toggle_monitor(monitor_id, is_active)
-    
-    if not monitor:
+    existing = await service.get_monitor(monitor_id)
+    if not existing:
         return UnifiedResponse.error(code=404, message="监控配置不存在")
-    
+    if existing.org_id and str(existing.org_id) != str(user.org_id):
+        return UnifiedResponse.error(code=403, message="无权操作该监控配置")
+    monitor = await service.toggle_monitor(monitor_id, is_active)
     return UnifiedResponse.success(message=f"监控已{'启用' if is_active else '禁用'}")
 
 
@@ -435,6 +441,8 @@ async def get_record(
     
     if not record:
         return UnifiedResponse.error(code=404, message="舆情记录不存在")
+    if record.org_id and str(record.org_id) != str(user.org_id):
+        return UnifiedResponse.error(code=403, message="无权访问该舆情记录")
     
     data = RecordResponse(
         id=record.id,
@@ -512,6 +520,8 @@ async def get_alert(
     
     if not alert:
         return UnifiedResponse.error(code=404, message="预警不存在")
+    if alert.org_id and str(alert.org_id) != str(user.org_id):
+        return UnifiedResponse.error(code=403, message="无权访问该预警")
     
     data = AlertResponse(
         id=alert.id,
@@ -536,11 +546,12 @@ async def mark_alert_read(
 ):
     """标记预警已读"""
     service = SentimentService(db)
-    alert = await service.mark_alert_read(alert_id)
-    
-    if not alert:
+    existing = await service.get_alert(alert_id)
+    if not existing:
         return UnifiedResponse.error(code=404, message="预警不存在")
-    
+    if existing.org_id and str(existing.org_id) != str(user.org_id):
+        return UnifiedResponse.error(code=403, message="无权操作该预警")
+    alert = await service.mark_alert_read(alert_id)
     return UnifiedResponse.success(message="已标记为已读")
 
 
@@ -553,16 +564,17 @@ async def handle_alert(
 ):
     """处理预警"""
     service = SentimentService(db)
+    existing = await service.get_alert(alert_id)
+    if not existing:
+        return UnifiedResponse.error(code=404, message="预警不存在")
+    if existing.org_id and str(existing.org_id) != str(user.org_id):
+        return UnifiedResponse.error(code=403, message="无权操作该预警")
     
     alert = await service.handle_alert(
         alert_id=alert_id,
         handled_by=user.id,
         handle_note=request.handle_note,
     )
-    
-    if not alert:
-        return UnifiedResponse.error(code=404, message="预警不存在")
-    
     return UnifiedResponse.success(message="预警已处理")
 
 

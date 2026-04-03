@@ -507,7 +507,7 @@ async def get_investigation(
     try:
         from src.models.investigation import Investigation
         result = await db.get(Investigation, investigation_id)
-        if result:
+        if result and str(result.user_id) == str(user.id):
             return UnifiedResponse.success(data=result.to_dict())
     except Exception as e:
         logger.debug(f"获取调查详情失败: {e}")
@@ -538,6 +538,8 @@ async def generate_investigation_report(
         inv = await db.get(Investigation, investigation_id)
         if not inv:
             return UnifiedResponse.error(message="调查记录不存在")
+        if str(inv.user_id) != str(user.id):
+            return UnifiedResponse.error(code=403, message="无权访问该调查记录")
 
         investigation_data = {
             "company_name": inv.company_name,
@@ -730,6 +732,7 @@ async def get_risk_trend(
         trend = await investigation_data_store.get_risk_trend(
             company_name=company_name,
             limit=limit,
+            user_id=str(user.id),
         )
         return UnifiedResponse.success(data=trend)
     except Exception as e:
@@ -746,7 +749,9 @@ async def compare_snapshots(
     """对比两个快照的差异"""
     try:
         from src.services.investigation_data_store import investigation_data_store
-        result = await investigation_data_store.compare_snapshots(snapshot_a, snapshot_b)
+        result = await investigation_data_store.compare_snapshots(snapshot_a, snapshot_b, user_id=str(user.id))
+        if result.get("error") == "无权访问指定快照":
+            return UnifiedResponse.error(code=403, message="无权访问指定快照")
         return UnifiedResponse.success(data=result)
     except Exception as e:
         return UnifiedResponse.error(message=str(e))
@@ -762,7 +767,9 @@ async def get_cache_status(
     """获取某企业各维度的缓存状态"""
     try:
         from src.services.investigation_data_store import investigation_data_store
-        dimensions = await investigation_data_store.get_cached_dimensions(company_name)
+        dimensions = await investigation_data_store.get_cached_dimensions(company_name, user_id=str(user.id))
+        if not dimensions and user.role not in {"super_admin", "admin"}:
+            return UnifiedResponse.error(code=403, message="无权查看缓存状态")
         return UnifiedResponse.success(data=dimensions)
     except Exception as e:
         logger.debug(f"查询缓存状态失败: {e}")
@@ -778,7 +785,13 @@ async def invalidate_cache(
     """使某企业的缓存失效（强制下次调查重新抓取）"""
     try:
         from src.services.investigation_data_store import investigation_data_store
-        count = await investigation_data_store.invalidate_cache(company_name, data_source)
+        count = await investigation_data_store.invalidate_cache(
+            company_name,
+            data_source,
+            None if user.role in {"super_admin", "admin"} else str(user.id),
+        )
+        if count == 0 and user.role not in {"super_admin", "admin"}:
+            return UnifiedResponse.error(code=403, message="无权执行缓存失效")
         return UnifiedResponse.success(data={"invalidated": count})
     except Exception as e:
         return UnifiedResponse.error(message=str(e))
@@ -813,5 +826,233 @@ async def get_smart_recommendations(
             company_name=company_name,
         )
         return UnifiedResponse.success(data=rec)
+    except Exception as e:
+        return UnifiedResponse.success(data={})
+
+
+# ===== 记忆系统 API (AutoDream + MemoryLayer + CitationTracker) =====
+
+@router.get("/memory/status")
+async def get_memory_status(
+    user: User = Depends(get_current_user_required),
+):
+    """获取用户记忆系统状态"""
+    result = {}
+    try:
+        from src.services.auto_dream import auto_dream_engine
+        result["dream"] = auto_dream_engine.get_dream_status(str(user.id))
+    except Exception:
+        result["dream"] = {"status": "unavailable"}
+
+    try:
+        from src.services.memory_layer import memory_layer
+        profile = await memory_layer.get_user_profile(str(user.id))
+        result["profile"] = {
+            "confidence": profile.get("confidence", 0),
+            "primary_domain": profile.get("legal_needs", {}).get("primary_domain"),
+            "timeline_events": len(profile.get("timeline_events", [])),
+        }
+        result["context_preview"] = await memory_layer.get_user_context(str(user.id))
+    except Exception:
+        result["profile"] = {"status": "unavailable"}
+
+    return UnifiedResponse.success(data=result)
+
+
+@router.post("/memory/dream")
+async def trigger_dream(
+    force: bool = Query(False),
+    user: User = Depends(get_current_user_required),
+):
+    """手动触发做梦（记忆巩固）"""
+    try:
+        from src.services.auto_dream import auto_dream_engine
+        result = await auto_dream_engine.trigger_dream(str(user.id), force=force)
+        return UnifiedResponse.success(data=result)
+    except Exception as e:
+        return UnifiedResponse.error(message=str(e))
+
+
+@router.get("/memory/profile")
+async def get_user_legal_profile(
+    user: User = Depends(get_current_user_required),
+):
+    """获取用户法律画像"""
+    try:
+        from src.services.memory_layer import memory_layer
+        profile = await memory_layer.get_user_profile(str(user.id))
+        return UnifiedResponse.success(data=profile)
+    except Exception as e:
+        return UnifiedResponse.error(message=str(e))
+
+
+@router.get("/memory/context")
+async def get_enriched_context(
+    session_id: Optional[str] = None,
+    query: str = Query(""),
+    user: User = Depends(get_current_user_required),
+):
+    """获取增强上下文（用于注入 system prompt）"""
+    try:
+        from src.services.memory_layer import memory_layer
+        context = await memory_layer.build_enriched_context(
+            user_id=str(user.id),
+            session_id=session_id,
+            query=query,
+        )
+        return UnifiedResponse.success(data={"context": context})
+    except Exception as e:
+        return UnifiedResponse.success(data={"context": ""})
+
+
+@router.get("/memory/upcoming-events")
+async def get_upcoming_events(
+    days: int = Query(30, ge=1, le=365),
+    user: User = Depends(get_current_user_required),
+):
+    """获取即将到来的法律时效事件"""
+    try:
+        from src.services.memory_layer import memory_layer
+        events = await memory_layer.get_upcoming_events(str(user.id), days)
+        return UnifiedResponse.success(data=events)
+    except Exception as e:
+        return UnifiedResponse.success(data=[])
+
+
+@router.post("/citations/extract")
+async def extract_citations(
+    text: str = "",
+    auto_sink: bool = Query(True),
+    user: User = Depends(get_current_user_required),
+):
+    """从文本中提取法律引文并追踪"""
+    try:
+        from src.services.citation_tracker import citation_tracker
+        result = await citation_tracker.track_and_enrich(text, auto_sink_to_graph=auto_sink)
+        return UnifiedResponse.success(data=result)
+    except Exception as e:
+        return UnifiedResponse.error(message=str(e))
+
+
+# ===== 上下文压缩 API =====
+
+class CompressRequest(BaseModel):
+    """压缩请求"""
+    messages: list
+    max_context_tokens: int = 200000
+
+
+@router.post("/context/compress")
+async def compress_context(
+    req: CompressRequest,
+    user: User = Depends(get_current_user_required),
+):
+    """对话上下文渐进式压缩"""
+    try:
+        from src.services.context_compressor import context_compressor
+        tier = context_compressor.should_compress(req.messages, req.max_context_tokens)
+        if tier is None:
+            return UnifiedResponse.success(data={"action": "no_compression_needed"})
+
+        compressed, stats = await context_compressor.compress(req.messages, tier, req.max_context_tokens)
+        return UnifiedResponse.success(data={
+            "compressed_messages": compressed,
+            "stats": stats,
+        })
+    except Exception as e:
+        return UnifiedResponse.error(message=str(e))
+
+
+@router.get("/context/compress/stats")
+async def get_compression_stats(
+    user: User = Depends(get_current_user_required),
+):
+    """获取上下文压缩统计"""
+    try:
+        from src.services.context_compressor import context_compressor
+        return UnifiedResponse.success(data=context_compressor.get_stats())
+    except Exception as e:
+        return UnifiedResponse.success(data={})
+
+
+# ===== 经验积累 API =====
+
+class ExtractExperienceRequest(BaseModel):
+    """经验提取请求"""
+    messages: list
+
+
+@router.post("/experience/extract")
+async def extract_experiences(
+    req: ExtractExperienceRequest,
+    user: User = Depends(get_current_user_required),
+):
+    """从会话中提取经验模式"""
+    try:
+        from src.services.experience_engine import experience_engine
+        extracted = await experience_engine.extract_from_session(str(user.id), req.messages)
+        return UnifiedResponse.success(data={
+            "extracted_count": len(extracted),
+            "experiences": [e.to_dict() for e in extracted],
+        })
+    except Exception as e:
+        return UnifiedResponse.error(message=str(e))
+
+
+@router.get("/experience/search")
+async def search_experiences(
+    query: str = Query(""),
+    category: Optional[str] = None,
+    top_k: int = Query(5, ge=1, le=20),
+    user: User = Depends(get_current_user_required),
+):
+    """搜索相关经验"""
+    try:
+        from src.services.experience_engine import experience_engine
+        results = await experience_engine.search_experiences(
+            str(user.id), query, category, top_k
+        )
+        return UnifiedResponse.success(data=results)
+    except Exception as e:
+        return UnifiedResponse.success(data=[])
+
+
+@router.post("/experience/{experience_id}/confirm")
+async def confirm_experience(
+    experience_id: str,
+    user: User = Depends(get_current_user_required),
+):
+    """确认经验有效"""
+    try:
+        from src.services.experience_engine import experience_engine
+        success = experience_engine.confirm_experience(str(user.id), experience_id)
+        return UnifiedResponse.success(data={"confirmed": success})
+    except Exception as e:
+        return UnifiedResponse.error(message=str(e))
+
+
+@router.post("/experience/{experience_id}/contradict")
+async def contradict_experience(
+    experience_id: str,
+    evidence: str = "",
+    user: User = Depends(get_current_user_required),
+):
+    """标记经验矛盾"""
+    try:
+        from src.services.experience_engine import experience_engine
+        success = experience_engine.contradict_experience(str(user.id), experience_id, evidence)
+        return UnifiedResponse.success(data={"contradicted": success})
+    except Exception as e:
+        return UnifiedResponse.error(message=str(e))
+
+
+@router.get("/experience/stats")
+async def get_experience_stats(
+    user: User = Depends(get_current_user_required),
+):
+    """获取经验统计"""
+    try:
+        from src.services.experience_engine import experience_engine
+        return UnifiedResponse.success(data=experience_engine.get_stats(str(user.id)))
     except Exception as e:
         return UnifiedResponse.success(data={})

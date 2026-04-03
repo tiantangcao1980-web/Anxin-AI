@@ -1,0 +1,32 @@
+# Prometheus 配置 — 安心AI法务监控
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # FastAPI 后端指标
+  - job_name: 'anxin-backend'
+    metrics_path: '/api/v1/metrics'
+    static_configs:
+      - targets: ['backend:8005']
+        labels:
+          service: 'anxin-api'
+
+  # PostgreSQL 指标（需要 postgres_exporter）
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres:5432']
+        labels:
+          service: 'postgres'
+
+  # Redis 指标
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+        labels:
+          service: 'redis'
+
+  # Prometheus 自身
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

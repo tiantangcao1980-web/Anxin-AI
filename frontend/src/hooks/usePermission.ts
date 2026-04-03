@@ -115,6 +115,10 @@ const FEATURE_VISIBILITY: Record<string, Set<UserRole> | 'all'> = {
     'super_admin', 'admin', 'org_admin', 'partner', 'lawyer', 'enterprise_user',
     'member',
   ]),
+  lawyer_dashboard: new Set([
+    'super_admin', 'admin', 'org_admin', 'partner', 'lawyer', 'paralegal', 'platform_lawyer',
+  ]),
+  private_llm: MANAGEMENT_ROLES,
 };
 
 // ===== Hook =====

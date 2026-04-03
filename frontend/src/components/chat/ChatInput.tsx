@@ -12,7 +12,7 @@ import { VoiceInputButton } from './VoiceInputButton';
 
 interface ChatInputProps {
   input: string;
-  setInput: (value: string) => void;
+  setInput: React.Dispatch<React.SetStateAction<string>>;
   pendingFile: PendingFile | null;
   clearPendingFile: () => void;
   sendDisabled: boolean;

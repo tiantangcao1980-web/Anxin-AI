@@ -1,30 +1,32 @@
-# -*- coding: utf-8 -*-
 """
 任务管理服务
 """
 
-from typing import List, Optional
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from datetime import date
 
 from src.models.task import Task
 
 
 class TaskService:
+    STATUS_ALIASES = {
+        "pending": "todo",
+        "completed": "done",
+    }
+
     def __init__(self, db: AsyncSession):
         self.db = db
 
     async def list_tasks(
         self,
-        org_id: Optional[str] = None,
-        status: Optional[str] = None,
-        priority: Optional[str] = None,
-        assignee_id: Optional[str] = None,
+        org_id: str | None = None,
+        status: str | None = None,
+        priority: str | None = None,
+        assignee_id: str | None = None,
         page: int = 1,
         page_size: int = 50,
-    ) -> tuple[List[Task], int]:
+    ) -> tuple[list[Task], int]:
         query = select(Task).options(
             selectinload(Task.assignee),
             selectinload(Task.case),
@@ -48,12 +50,16 @@ class TaskService:
         result = await self.db.execute(query)
         return list(result.scalars().all()), total
 
-    async def get_task(self, task_id: str) -> Optional[Task]:
-        result = await self.db.execute(
+    async def get_task(self, task_id: str, org_id: str | None = None) -> Task | None:
+        query = (
             select(Task)
             .options(selectinload(Task.assignee), selectinload(Task.case))
             .where(Task.id == task_id)
         )
+        if org_id:
+            query = query.where(Task.org_id == org_id)
+
+        result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
     async def create_task(self, **kwargs) -> Task:
@@ -62,7 +68,7 @@ class TaskService:
         await self.db.flush()
         return task
 
-    async def update_task(self, task_id: str, org_id: Optional[str] = None, **kwargs) -> Optional[Task]:
+    async def update_task(self, task_id: str, org_id: str | None = None, **kwargs) -> Task | None:
         query = select(Task).where(Task.id == task_id)
         if org_id:
             query = query.where(Task.org_id == org_id)
@@ -76,7 +82,7 @@ class TaskService:
         await self.db.flush()
         return task
 
-    async def delete_task(self, task_id: str, org_id: Optional[str] = None) -> bool:
+    async def delete_task(self, task_id: str, org_id: str | None = None) -> bool:
         query = select(Task).where(Task.id == task_id)
         if org_id:
             query = query.where(Task.org_id == org_id)
@@ -91,45 +97,49 @@ class TaskService:
     # ===== 看板拖拽批量更新 =====
 
     VALID_STATUS_TRANSITIONS = {
-        'pending': ['in_progress', 'cancelled'],
-        'in_progress': ['completed', 'pending', 'blocked'],
-        'blocked': ['in_progress', 'cancelled'],
-        'completed': ['pending'],  # 允许重新打开
-        'cancelled': ['pending'],
+        'todo': ['in_progress'],
+        'in_progress': ['done', 'todo'],
+        'done': ['todo'],
     }
+
+    def _normalize_status(self, status: str | None) -> str:
+        raw = status or "todo"
+        return self.STATUS_ALIASES.get(raw, raw)
 
     async def transition_status(
         self,
         task_id: str,
         new_status: str,
-        org_id: Optional[str] = None,
-    ) -> Optional[Task]:
+        org_id: str | None = None,
+    ) -> Task | None:
         """状态转换（带校验）"""
-        task = await self.get_task(task_id)
+        task = await self.get_task(task_id, org_id=org_id)
         if not task:
             return None
 
-        current = task.status or 'pending'
+        current = self._normalize_status(task.status)
+        target = self._normalize_status(new_status)
         allowed = self.VALID_STATUS_TRANSITIONS.get(current, [])
-        if new_status not in allowed:
+        if target not in allowed:
             raise ValueError(
-                f"无效状态转换: {current} → {new_status}，允许的目标状态: {allowed}"
+                f"无效状态转换: {current} → {target}，允许的目标状态: {allowed}"
             )
 
-        task.status = new_status
+        task.status = target
 
         # 自动设置完成时间
-        if new_status == 'completed' and hasattr(task, 'completed_at'):
-            from datetime import datetime
-            task.completed_at = datetime.utcnow()
+        if target == 'done' and hasattr(task, 'completed_at'):
+            from datetime import datetime, timezone
+
+            task.completed_at = datetime.now(timezone.utc)
 
         await self.db.flush()
         return task
 
     async def batch_update_status(
         self,
-        updates: List[dict],
-        org_id: Optional[str] = None,
+        updates: list[dict],
+        org_id: str | None = None,
     ) -> dict:
         """批量更新任务状态（看板拖拽）
 
@@ -155,7 +165,12 @@ class TaskService:
 
             try:
                 task = await self.transition_status(task_id, new_status, org_id)
-                if task and sort_order is not None and hasattr(task, 'sort_order'):
+                if not task:
+                    failed += 1
+                    errors.append({"task_id": task_id, "error": "任务不存在"})
+                    continue
+
+                if sort_order is not None and hasattr(task, 'sort_order'):
                     task.sort_order = sort_order
                 success += 1
             except ValueError as e:
@@ -168,7 +183,7 @@ class TaskService:
         await self.db.flush()
         return {"success": success, "failed": failed, "errors": errors}
 
-    async def get_kanban_stats(self, org_id: Optional[str] = None) -> dict:
+    async def get_kanban_stats(self, org_id: str | None = None) -> dict:
         """获取看板统计（各状态任务数量）"""
         from sqlalchemy import func
 
@@ -183,12 +198,14 @@ class TaskService:
         result = await self.db.execute(query)
         rows = result.all()
 
-        stats = {row.status: row.count for row in rows}
+        stats: dict[str, int] = {}
+        for row in rows:
+            normalized = self._normalize_status(row.status)
+            stats[normalized] = stats.get(normalized, 0) + row.count
+
         return {
-            "pending": stats.get("pending", 0),
+            "todo": stats.get("todo", 0),
             "in_progress": stats.get("in_progress", 0),
-            "blocked": stats.get("blocked", 0),
-            "completed": stats.get("completed", 0),
-            "cancelled": stats.get("cancelled", 0),
+            "done": stats.get("done", 0),
             "total": sum(stats.values()),
         }

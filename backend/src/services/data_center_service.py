@@ -138,15 +138,23 @@ class DataCenterService:
             "updated_at": record["updated_at"]
         }
 
-    async def list_data(self, category: Optional[DataCategory], user_role: str) -> List[Dict[str, Any]]:
+    async def list_data(
+        self,
+        category: Optional[DataCategory],
+        user_role: str,
+        user_id: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
         """列出可见的数据资产"""
         results = []
+        is_admin_like = user_role in {"admin", "super_admin"}
         for pid, record in _DATA_STORE.items():
             if category and record["category"] != category.value:
                 continue
             
             # 权限过滤
             if self._check_permission(user_role, record["access_level"]):
+                if not is_admin_like and user_id and record["owner_id"] != user_id:
+                    continue
                 results.append({
                     "id": record["id"],
                     "key": record["key"],

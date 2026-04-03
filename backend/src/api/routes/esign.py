@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel, Field
 from loguru import logger
 
+from src.core.config import settings
 from src.core.deps import get_current_user_required, get_current_user
 from src.models.user import User
 from src.services.esign_service import (
@@ -20,9 +21,9 @@ from src.services.esign_service import (
     SignType,
     FlowStatus,
 )
+from src.services.webhook_security import WebhookSecurity
 
 router = APIRouter()
-
 
 # ========== 请求/响应模型 ==========
 
@@ -322,11 +323,16 @@ async def esign_webhook(
         f"[ESign Webhook] 收到回调: flow_id={payload.flow_id}, "
         f"action={payload.action}, status={payload.status}"
     )
-
-    # TODO: 生产环境需要验证 Webhook 签名
-    # signature = request.headers.get("X-ESign-Signature", "")
-    # if not verify_webhook_signature(signature, await request.body()):
-    #     raise HTTPException(status_code=403, detail="签名验证失败")
+    signature = request.headers.get("X-ESign-Signature", "")
+    timestamp = request.headers.get("X-Webhook-Timestamp")
+    if not WebhookSecurity.verify(
+        scope="esign",
+        body=await request.body(),
+        signature=signature,
+        secret=settings.ESIGN_WEBHOOK_SECRET,
+        timestamp=timestamp,
+    ):
+        raise HTTPException(status_code=403, detail="签名验证失败")
 
     # TODO: 根据回调内容更新合同签署状态
     # 1. 查找对应的合同记录

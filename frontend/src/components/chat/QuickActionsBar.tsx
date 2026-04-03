@@ -274,11 +274,12 @@ export function QuickActionsBar({
                 >
                   <TemplateSelector
                     onSelect={(t) => {
-                      onSelect({
+                      onFillInput({
                         text: `请基于「${t.name}」模板帮我起草一份${t.name}。`,
                         actionId: 'qa-draft',
                         mode: 'document',
                       });
+                      setTemplateOpen(false);
                     }}
                     onClose={() => setTemplateOpen(false)}
                   />

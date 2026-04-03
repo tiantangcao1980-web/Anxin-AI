@@ -16,6 +16,13 @@ from src.services.acquisition_analytics_service import AcquisitionAnalyticsServi
 router = APIRouter(prefix="/acquisition", tags=["获客分析"])
 
 
+def _resolve_org_scope(user: User, requested_org_id: Optional[str]) -> Optional[str]:
+    """仅平台管理员可跨组织查询，其他用户固定到自身组织。"""
+    if user.role in {"super_admin", "admin"}:
+        return requested_org_id
+    return str(user.org_id) if getattr(user, "org_id", None) else None
+
+
 @router.get("/funnel")
 async def get_lead_funnel(
     days: int = Query(30, ge=1, le=365),
@@ -25,7 +32,7 @@ async def get_lead_funnel(
 ):
     """获取线索漏斗数据"""
     service = AcquisitionAnalyticsService(db)
-    data = await service.get_lead_funnel(org_id=org_id, days=days)
+    data = await service.get_lead_funnel(org_id=_resolve_org_scope(user, org_id), days=days)
     return UnifiedResponse.success(data=data)
 
 
@@ -38,7 +45,7 @@ async def get_conversion_rates(
 ):
     """获取各阶段转化率"""
     service = AcquisitionAnalyticsService(db)
-    data = await service.get_conversion_rates(org_id=org_id, days=days)
+    data = await service.get_conversion_rates(org_id=_resolve_org_scope(user, org_id), days=days)
     return UnifiedResponse.success(data=data)
 
 
@@ -51,7 +58,7 @@ async def get_lead_sources(
 ):
     """获取线索来源分布"""
     service = AcquisitionAnalyticsService(db)
-    data = await service.get_lead_sources(org_id=org_id, days=days)
+    data = await service.get_lead_sources(org_id=_resolve_org_scope(user, org_id), days=days)
     return UnifiedResponse.success(data=data)
 
 
@@ -66,7 +73,7 @@ async def get_lawyer_performance(
 ):
     """获取律师业绩排名"""
     service = AcquisitionAnalyticsService(db)
-    data = await service.get_lawyer_performance(org_id=org_id, days=days)
+    data = await service.get_lawyer_performance(org_id=_resolve_org_scope(user, org_id), days=days)
     # 按 total_delegations 降序排列
     if isinstance(data, list):
         data.sort(key=lambda x: x.get("total_delegations", 0), reverse=True)

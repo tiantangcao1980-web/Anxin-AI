@@ -8,13 +8,15 @@ import json
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from loguru import logger
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from src.core.memory.episodic_memory import EnhancedEpisodicMemoryService
 
 
 class Pattern(BaseModel):
     """经验模式"""
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     pattern_id: str
     pattern_type: str  # dag_optimization, reasoning_template, agent_selection, etc.
     task_type: str
@@ -24,10 +26,6 @@ class Pattern(BaseModel):
     created_at: datetime
     usage_count: int = 0
     success_rate: float = 0.0
-
-    class Config:
-        arbitrary_types_allowed = True
-
 
 class ExperienceExtractor:
     """
@@ -40,8 +38,24 @@ class ExperienceExtractor:
     4. 提取推理链模板
     """
 
-    def __init__(self, episodic_memory: EnhancedEpisodicMemoryService):
+    def __init__(
+        self,
+        episodic_memory: Optional[Any] = None,
+        db: Any = None,
+        vector_store: Any = None,
+    ):
+        if (
+            episodic_memory is not None
+            and not isinstance(episodic_memory, EnhancedEpisodicMemoryService)
+            and db is not None
+            and vector_store is None
+        ):
+            # 兼容旧签名：ExperienceExtractor(db, vector_store)
+            episodic_memory, db, vector_store = None, episodic_memory, db
+
         self.episodic_memory = episodic_memory
+        self.db = db
+        self.vector_store = vector_store
         self._patterns: List[Pattern] = []
 
     async def extract_from_episode(self, episode_id: str) -> List[Pattern]:
@@ -248,3 +262,72 @@ class ExperienceExtractor:
             "by_type": pattern_types,
             "most_used": sorted(self._patterns, key=lambda p: p.usage_count, reverse=True)[:5]
         }
+
+    def _calculate_confidence(self, cases: List[Dict[str, Any]]) -> float:
+        """兼容旧测试：根据案例数量和评分估算置信度。"""
+        if not cases:
+            return 0.0
+        avg_rating = sum(case.get("user_rating", 0) for case in cases) / len(cases)
+        volume_factor = min(len(cases) / 10, 1.0)
+        return min((avg_rating / 5) * 0.7 + volume_factor * 0.3, 1.0)
+
+    async def extract_from_success_cases(
+        self,
+        task_type: str,
+        min_rating: int = 4,
+        limit: int = 10,
+    ) -> List[Pattern]:
+        """兼容旧测试：从成功案例集合中提取模式。"""
+        cases = self.db.all() if self.db and hasattr(self.db, "all") else []
+        filtered = [
+            case for case in cases
+            if case.get("task_type") == task_type and case.get("user_rating", 0) >= min_rating
+        ][:limit]
+        if not filtered:
+            return []
+        confidence = self._calculate_confidence(filtered)
+        sample = filtered[0]
+        return [
+            Pattern(
+                pattern_id=f"dag_{task_type}_compat",
+                pattern_type="dag_optimization",
+                task_type=task_type,
+                description=f"兼容模式：{task_type} 成功案例",
+                confidence=confidence,
+                data={
+                    "agents_used": sample.get("agents_involved", []),
+                    "parallel_groups": sample.get("execution_trace", {}).get("parallel_groups", []),
+                },
+                created_at=datetime.now(),
+            )
+        ]
+
+    async def extract_from_failure_cases(
+        self,
+        task_type: str,
+        max_rating: int = 2,
+        limit: int = 10,
+    ) -> List[Pattern]:
+        """兼容旧测试：从失败案例集合中提取模式。"""
+        cases = self.db.all() if self.db and hasattr(self.db, "all") else []
+        filtered = [
+            case for case in cases
+            if case.get("task_type") == task_type and case.get("user_rating", 5) <= max_rating
+        ][:limit]
+        if not filtered:
+            return []
+        sample = filtered[0]
+        return [
+            Pattern(
+                pattern_id=f"failure_{task_type}_compat",
+                pattern_type="failure_pattern",
+                task_type=task_type,
+                description=f"兼容模式：{task_type} 失败案例",
+                confidence=0.5,
+                data={
+                    "failure_reason": sample.get("error_message", ""),
+                    "agents_used": sample.get("agents_involved", []),
+                },
+                created_at=datetime.now(),
+            )
+        ]

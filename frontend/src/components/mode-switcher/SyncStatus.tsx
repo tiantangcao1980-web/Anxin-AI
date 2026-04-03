@@ -45,9 +45,7 @@ const STATUS_CONFIG = {
 export function SyncStatus() {
   const { syncStatus, lastSyncTime, mode } = useAppModeStore()
   const [isSyncing, setIsSyncing] = useState(false)
-
-  if (!isTauri()) return null
-  if (mode === 'top-secret') return null // 绝密模式不显示同步状态
+  const isDesktopClient = isTauri()
 
   const config = STATUS_CONFIG[syncStatus]
   const Icon = config.icon
@@ -61,6 +59,9 @@ export function SyncStatus() {
       setIsSyncing(false)
     }
   }, [isSyncing, syncStatus])
+
+  if (!isDesktopClient) return null
+  if (mode === 'top-secret') return null // 绝密模式不显示同步状态
 
   const formatTime = (time: string | null) => {
     if (!time) return '从未同步'

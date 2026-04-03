@@ -418,7 +418,8 @@ SCENARIO_TEMPLATES: Dict[str, Dict[str, Any]] = {
                 "options": ["合同纠纷", "侵权纠纷", "劳动纠纷", "公司纠纷", "知识产权", "民间借贷", "其他"],
                 "extract_patterns": [
                     r"合同", r"侵权", r"劳动", r"公司", r"知识产权",
-                    r"债务", r"借贷", r"房产", r"婚姻",
+                    r"债务", r"借贷", r"房产", r"婚姻", r"租赁",
+                    r"纠纷", r"争议", r"买卖", r"交通", r"医疗",
                 ],
                 "round": 1,
             },
@@ -427,8 +428,9 @@ SCENARIO_TEMPLATES: Dict[str, Dict[str, Any]] = {
                 "question": "您是原告还是被告？",
                 "options": ["原告（起诉方）", "被告（被诉方）", "还未确定/考虑中"],
                 "extract_patterns": [
-                    r"我要起诉", r"我想告", r"原告",
+                    r"我要起诉", r"我想起诉", r"想告", r"想起诉", r"原告",
                     r"被起诉", r"被告", r"被诉", r"收到传票",
+                    r"我是租客", r"我是买方", r"我是卖方", r"我是业主",
                 ],
                 "round": 1,
             },
@@ -1866,10 +1868,10 @@ def assess_completeness(
         else:
             missing.append({"key": slot_key, "label": slot["label"], "round": slot.get("round", 1)})
 
-    # 附件自动提升完整度
+    # 附件自动提升完整度（合同/文档类场景，附件=核心输入，大幅加分）
     score_boost = 0.0
     if has_attachments and "has_attachments" in template.get("auto_complete_if", []):
-        score_boost = 0.3
+        score_boost = 0.5
 
     total = len(required)
     base_score = len(filled) / total if total > 0 else 1.0
@@ -1937,8 +1939,20 @@ def assess_completeness(
                 q["options"] = opt_slot["options"]
             questions.append(q)
 
-    min_required = template.get("min_required_for_proceed", 1)
-    is_complete = len(filled) >= min_required or score >= 0.7
+    min_required = template.get("min_required_for_proceed", 2)
+
+    # 严格完整度判断：
+    # - score < 0.4 且有缺失：必须追问（"帮我写份合同"这类模糊请求）
+    # - score >= 0.5 且至少有1个slot或附件：可以开始处理
+    # - score >= 0.7：信息充分，直接处理
+    if score < 0.4 and missing:
+        is_complete = False
+    elif score >= 0.7:
+        is_complete = True
+    elif score >= 0.5 and (len(filled) >= 1 or has_attachments):
+        is_complete = True
+    else:
+        is_complete = len(missing) == 0
 
     return {
         "is_complete": is_complete,
@@ -1985,8 +1999,9 @@ def merge_clarification_into_slots(
     total = len(filled) + len(remaining_missing)
     score = len(filled) / total if total > 0 else 1.0
 
+    # 澄清后判断：至少 60% 信息已收集才标记完整
     return {
-        "is_complete": score >= 0.5,
+        "is_complete": score >= 0.6 or not remaining_missing,
         "score": round(score, 2),
         "filled_slots": filled,
         "missing_slots": remaining_missing,

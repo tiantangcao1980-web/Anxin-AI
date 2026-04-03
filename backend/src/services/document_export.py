@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Optional, List
 
 from loguru import logger
+from src.core.ai_labeling import AILabelingService, AIContentType
 
 
 class ContractExportService:
@@ -291,6 +292,25 @@ class ContractExportService:
                 s_run.font.bold = True
                 s_run.font.size = Pt(10)
                 detail_p.add_run(f"{status}\n").font.size = Pt(10)
+
+        # ===== AI内容标识（GB 45438-2025合规） =====
+        footer_text = AILabelingService.get_document_footer(AIContentType.DOCUMENT)
+        footer_lines = footer_text.split("\n")
+        doc.add_paragraph("")  # 空行
+        for line in footer_lines:
+            fp = doc.add_paragraph()
+            fp.alignment = WD_ALIGN_PARAGRAPH.LEFT
+            fr = fp.add_run(line)
+            fr.font.size = Pt(8)
+            fr.font.color.rgb = RGBColor(150, 150, 150)
+            fr.font.name = "宋体"
+
+        # 设置文件属性元数据
+        meta = AILabelingService.get_export_metadata(AIContentType.DOCUMENT)
+        doc.core_properties.author = meta.get("creator", "")
+        doc.core_properties.comments = meta.get("comments", "")
+        doc.core_properties.keywords = meta.get("keywords", "")
+        doc.core_properties.category = meta.get("category", "")
 
         # ===== 保存 =====
         output = BytesIO()

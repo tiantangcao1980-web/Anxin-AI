@@ -4,7 +4,7 @@
 
 from datetime import datetime, date
 from typing import Optional, List
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
@@ -12,6 +12,13 @@ from sqlalchemy.orm import selectinload
 from loguru import logger
 
 from src.models.case import Case, CaseEvent, CaseStatus, CasePriority, CaseType
+
+
+def get_workforce():
+    """延迟获取智能体团队，保留模块级入口方便测试替身注入。"""
+    from src.agents.workforce import get_workforce as _get_workforce
+
+    return _get_workforce()
 
 
 class CaseService:
@@ -67,6 +74,12 @@ class CaseService:
 
     async def get_case(self, case_id: str, org_id: Optional[str] = None) -> Optional[Case]:
         """获取案件详情 (带组织隔离)"""
+        try:
+            UUID(str(case_id))
+        except (TypeError, ValueError):
+            logger.warning(f"忽略非法 case_id: {case_id}")
+            return None
+
         query = select(Case).options(selectinload(Case.events), selectinload(Case.documents)).where(Case.id == case_id)
         if org_id:
             query = query.where(Case.org_id == org_id)
@@ -203,8 +216,6 @@ class CaseService:
         if not case:
             raise ValueError("案件不存在")
         
-        # 调用智能体团队分析（延迟导入避免循环依赖）
-        from src.agents.workforce import get_workforce
         workforce = get_workforce()
         
         # 获取关联文档内容
@@ -266,17 +277,21 @@ class CaseService:
         case_id: str,
         document_id: str,
         created_by: Optional[str] = None,
+        org_id: Optional[str] = None,
     ) -> bool:
         """关联文档到案件"""
         from src.models.document import Document
         
-        case = await self.get_case(case_id)
+        case = await self.get_case(case_id, org_id=org_id)
         if not case:
             return False
         
         # 获取文档
         result = await self.db.execute(
-            select(Document).where(Document.id == document_id)
+            select(Document).where(
+                Document.id == document_id,
+                *( [Document.org_id == org_id] if org_id else [] ),
+            )
         )
         doc = result.scalar_one_or_none()
         if not doc:
@@ -334,13 +349,19 @@ class CaseService:
         
         return True
     
-    async def get_case_documents(self, case_id: str) -> list:
+    async def get_case_documents(
+        self,
+        case_id: str,
+        org_id: Optional[str] = None,
+    ) -> list:
         """获取案件关联的文档列表"""
         from src.models.document import Document
-        
+        conditions = [Document.case_id == case_id]
+        if org_id:
+            conditions.append(Document.org_id == org_id)
         result = await self.db.execute(
             select(Document)
-            .where(Document.case_id == case_id)
+            .where(and_(*conditions))
             .order_by(Document.created_at.desc())
         )
         return list(result.scalars().all())

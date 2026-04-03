@@ -246,7 +246,7 @@ export default function Layout() {
       try {
         const response = await notificationsApi.list({ unread_only: true })
         const items = response.data || []
-        setNotifStore(items, items.length)
+        setNotifStore(items)
       } catch {
         // 静默处理
       }
@@ -516,7 +516,6 @@ export default function Layout() {
       {showNotifications && (
         <NotificationCenter
           onClose={() => setShowNotifications(false)}
-          onClearAll={() => setUnreadCount(0)}
         />
       )}
 

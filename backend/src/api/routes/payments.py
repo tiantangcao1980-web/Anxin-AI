@@ -16,9 +16,11 @@ from sqlalchemy import select, desc
 from loguru import logger
 
 from src.core.database import get_db
+from src.core.config import settings
 from src.core.deps import get_current_user_required, require_permission, Permission
 from src.models.user import User
 from src.models.payment import PaymentOrder as PaymentOrderModel
+from src.services.webhook_security import WebhookSecurity
 from src.services.payment_service import (
     CreateOrderRequest,
     RefundRequest,
@@ -80,7 +82,6 @@ def _model_to_response(order: PaymentOrderModel) -> OrderResponse:
         created_at=order.created_at,
         updated_at=order.updated_at,
     )
-
 
 # ========== 接口 ==========
 
@@ -293,6 +294,16 @@ async def wechat_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     """
     body = await request.body()
     logger.info(f"[Webhook] 微信支付回调: {body[:200]}")
+    signature = request.headers.get("X-Wechat-Signature")
+    timestamp = request.headers.get("X-Webhook-Timestamp")
+    if not WebhookSecurity.verify(
+        scope="wechat_pay",
+        body=body,
+        signature=signature,
+        secret=settings.WECHAT_PAY_WEBHOOK_SECRET,
+        timestamp=timestamp,
+    ):
+        raise HTTPException(status_code=403, detail="微信支付回调签名验证失败")
 
     # TODO: 验证签名 + 解析报文 + 更新订单状态
     # 占位返回成功
@@ -306,8 +317,19 @@ async def alipay_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 
     生产环境需验证签名，当前为占位实现。
     """
+    body = await request.body()
     form = await request.form()
     logger.info(f"[Webhook] 支付宝回调: trade_no={form.get('trade_no')}")
+    signature = request.headers.get("X-Alipay-Signature")
+    timestamp = request.headers.get("X-Webhook-Timestamp")
+    if not WebhookSecurity.verify(
+        scope="alipay",
+        body=body,
+        signature=signature,
+        secret=settings.ALIPAY_WEBHOOK_SECRET,
+        timestamp=timestamp,
+    ):
+        raise HTTPException(status_code=403, detail="支付宝回调签名验证失败")
 
     # TODO: 验证签名 + 更新订单状态
     return "success"

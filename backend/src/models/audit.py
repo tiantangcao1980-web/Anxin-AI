@@ -3,7 +3,7 @@
 记录用户的所有敏感操作
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Any
 from enum import Enum
 
@@ -178,7 +178,7 @@ class AuditLog(Base):
     # 时间戳
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
         nullable=False,
         index=True,
         comment="创建时间"

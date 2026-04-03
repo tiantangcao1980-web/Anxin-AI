@@ -1,0 +1,36 @@
+# LiveKit Server 配置模板
+# 文档：https://docs.livekit.io/transport/self-hosting/vm/
+#
+# 使用方式: cp livekit.yaml.example livekit.yaml && 修改 keys 部分
+# 注意：livekit.yaml 已加入 .gitignore，不会提交到 Git
+#
+# 开发环境使用 docker-compose，生产环境需要：
+# 1. 配置 TLS（域名 + Caddy/Nginx 反代）
+# 2. 配置 TURN 服务（NAT 穿透）
+# 3. 使用安全的 API Key/Secret
+
+port: 7880
+bind_addresses:
+  - ""
+
+rtc:
+  port_range_start: 50000
+  port_range_end: 60000
+  tcp_port: 7881
+  use_external_ip: true
+
+redis:
+  address: redis:6379
+
+# API 密钥（生产环境务必更换！）
+# 生成方式: openssl rand -base64 32
+keys:
+  your_api_key: your-api-secret-please-change
+
+room:
+  auto_create: true
+  empty_timeout: 300      # 空房间 5 分钟后自动销毁
+  max_participants: 20
+
+logging:
+  level: info

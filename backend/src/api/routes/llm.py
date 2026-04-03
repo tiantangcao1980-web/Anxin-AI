@@ -4,7 +4,7 @@ LLM配置管理API路由
 
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
@@ -63,6 +63,8 @@ class LLMConfigUpdate(BaseModel):
 
 class LLMConfigResponse(BaseModel):
     """LLM配置响应"""
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     name: str
     provider: str
@@ -88,10 +90,6 @@ class LLMConfigResponse(BaseModel):
     created_at: str
     updated_at: str
     
-    class Config:
-        from_attributes = True
-
-
 class TestConnectionRequest(BaseModel):
     """测试连接请求"""
     provider: str

@@ -80,6 +80,8 @@ async def search_users_for_im(
 ):
     """搜索用户（用于创建对话时选择成员），排除当前用户"""
     query = sa_select(User).where(User.is_active == True, User.id != user.id)
+    if user.role not in {"super_admin", "admin"} and getattr(user, "org_id", None):
+        query = query.where(User.org_id == user.org_id)
 
     if q.strip():
         pattern = f"%{q.strip()}%"

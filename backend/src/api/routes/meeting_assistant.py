@@ -39,6 +39,10 @@ async def start_listening(
     if req.conversation_type not in ("im", "anonymous_chat"):
         raise HTTPException(status_code=400, detail="不支持的对话类型")
 
+    existing = await meeting_assistant.get_record(db, req.conversation_id)
+    if existing and str(existing.started_by) != str(user.id):
+        raise HTTPException(status_code=403, detail="该对话已有其他用户开启旁听")
+
     record = await meeting_assistant.start_listening(
         db=db,
         conversation_id=req.conversation_id,
@@ -65,6 +69,10 @@ async def stop_listening(
     user: User = Depends(get_current_user_required),
 ):
     """停止旁听并生成纪要"""
+    existing = await meeting_assistant.get_record(db, req.conversation_id)
+    if existing and str(existing.started_by) != str(user.id):
+        raise HTTPException(status_code=403, detail="无权停止该旁听记录")
+
     record = await meeting_assistant.stop_listening(
         db=db,
         conversation_id=req.conversation_id,
@@ -89,10 +97,12 @@ async def stop_listening(
 @router.get("/status/{conversation_id}", response_model=UnifiedResponse)
 async def get_status(
     conversation_id: str,
+    db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
 ):
     """查询旁听状态"""
-    is_active = meeting_assistant.is_listening(conversation_id)
+    record = await meeting_assistant.get_record(db, conversation_id)
+    is_active = bool(record and str(record.started_by) == str(user.id) and meeting_assistant.is_listening(conversation_id))
     return UnifiedResponse.success(data={"listening": is_active})
 
 
@@ -104,7 +114,7 @@ async def get_insights(
 ):
     """获取实时分析结果"""
     record = await meeting_assistant.get_record(db, conversation_id)
-    if not record:
+    if not record or str(record.started_by) != str(user.id):
         return UnifiedResponse.success(data={"insights": []})
 
     return UnifiedResponse.success(data={"insights": record.insights or []})
@@ -118,7 +128,7 @@ async def get_summary(
 ):
     """获取结构化纪要"""
     record = await meeting_assistant.get_record(db, conversation_id)
-    if not record:
+    if not record or str(record.started_by) != str(user.id):
         raise HTTPException(status_code=404, detail="未找到旁听记录")
 
     return UnifiedResponse.success(
@@ -183,6 +193,8 @@ async def link_case(
     record = result.scalar_one_or_none()
     if not record:
         raise HTTPException(status_code=404, detail="记录不存在")
+    if str(record.started_by) != str(user.id):
+        raise HTTPException(status_code=403, detail="无权操作该旁听记录")
 
     if req.case_id:
         record.related_case_id = req.case_id

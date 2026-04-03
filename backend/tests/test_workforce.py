@@ -16,7 +16,7 @@ from src.agents.sentiment_agent import SentimentAnalysisAgent
 
 
 # 当前 workforce 中专业智能体的数量（不含 coordinator 和 requirement_analyst）
-EXPECTED_AGENT_COUNT = 15
+EXPECTED_AGENT_COUNT = 17
 
 
 def _make_llm_config_mock():
@@ -272,6 +272,8 @@ _WORKFORCE_AGENT_PATCHES = [
     'src.agents.workforce.LegalResearchAgent',
     'src.agents.workforce.DueDiligenceAgent',
     'src.agents.workforce.ContractReviewAgent',
+    'src.agents.workforce.ContractInvestigatorAgent',
+    'src.agents.workforce.ReviewCheckerAgent',
     'src.agents.workforce.LegalAdvisorAgent',
     'src.agents.workforce.CoordinatorAgent',
 ]
@@ -312,6 +314,8 @@ class TestLegalWorkforce:
     @patch('src.agents.workforce.LegalResearchAgent')
     @patch('src.agents.workforce.DueDiligenceAgent')
     @patch('src.agents.workforce.ContractReviewAgent')
+    @patch('src.agents.workforce.ContractInvestigatorAgent')
+    @patch('src.agents.workforce.ReviewCheckerAgent')
     @patch('src.agents.workforce.LegalAdvisorAgent')
     @patch('src.agents.workforce.CoordinatorAgent')
     def test_workforce_initialization(self, *mocks):
@@ -343,6 +347,8 @@ class TestLegalWorkforce:
     @patch('src.agents.workforce.LegalResearchAgent')
     @patch('src.agents.workforce.DueDiligenceAgent')
     @patch('src.agents.workforce.ContractReviewAgent')
+    @patch('src.agents.workforce.ContractInvestigatorAgent')
+    @patch('src.agents.workforce.ReviewCheckerAgent')
     @patch('src.agents.workforce.LegalAdvisorAgent')
     @patch('src.agents.workforce.CoordinatorAgent')
     def test_get_agents_info(self, *mocks):
@@ -382,6 +388,8 @@ class TestLegalWorkforce:
     @patch('src.agents.workforce.LegalResearchAgent')
     @patch('src.agents.workforce.DueDiligenceAgent')
     @patch('src.agents.workforce.ContractReviewAgent')
+    @patch('src.agents.workforce.ContractInvestigatorAgent')
+    @patch('src.agents.workforce.ReviewCheckerAgent')
     @patch('src.agents.workforce.LegalAdvisorAgent')
     @patch('src.agents.workforce.CoordinatorAgent')
     async def test_workforce_chat(self, *mocks):
@@ -414,6 +422,8 @@ class TestLegalWorkforce:
     @patch('src.agents.workforce.LegalResearchAgent')
     @patch('src.agents.workforce.DueDiligenceAgent')
     @patch('src.agents.workforce.ContractReviewAgent')
+    @patch('src.agents.workforce.ContractInvestigatorAgent')
+    @patch('src.agents.workforce.ReviewCheckerAgent')
     @patch('src.agents.workforce.LegalAdvisorAgent')
     @patch('src.agents.workforce.CoordinatorAgent')
     async def test_workforce_process_task(self, *mocks):

@@ -155,7 +155,9 @@ class InvestigationDataStore:
             return False
 
     async def get_cached_dimensions(
-        self, company_name: str
+        self,
+        company_name: str,
+        user_id: Optional[str] = None,
     ) -> Dict[str, Dict[str, Any]]:
         """
         获取某企业所有已缓存维度的状态
@@ -173,6 +175,8 @@ class InvestigationDataStore:
             from sqlalchemy import select, and_
 
             async with get_db_context() as session:
+                if user_id:
+                    return {}
                 stmt = select(SearchCache).where(
                     and_(
                         SearchCache.company_name == company_name,
@@ -204,7 +208,10 @@ class InvestigationDataStore:
             return {}
 
     async def invalidate_cache(
-        self, company_name: str, data_source: Optional[str] = None
+        self,
+        company_name: str,
+        data_source: Optional[str] = None,
+        user_id: Optional[str] = None,
     ) -> int:
         """使某企业的缓存失效。返回失效条数。"""
         try:
@@ -213,6 +220,8 @@ class InvestigationDataStore:
             from sqlalchemy import select, and_, update
 
             async with get_db_context() as session:
+                if user_id:
+                    return 0
                 conditions = [SearchCache.company_name == company_name]
                 if data_source:
                     conditions.append(SearchCache.data_source == data_source)
@@ -323,7 +332,10 @@ class InvestigationDataStore:
             return []
 
     async def get_risk_trend(
-        self, company_name: str, limit: int = 30
+        self,
+        company_name: str,
+        limit: int = 30,
+        user_id: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """获取企业风险趋势数据（用于前端折线图）"""
         try:
@@ -343,6 +355,8 @@ class InvestigationDataStore:
                     .order_by(asc(InvestigationSnapshot.created_at))
                     .limit(limit)
                 )
+                if user_id:
+                    stmt = stmt.where(InvestigationSnapshot.user_id == user_id)
                 result = await session.execute(stmt)
                 rows = result.all()
 
@@ -361,7 +375,10 @@ class InvestigationDataStore:
             return []
 
     async def compare_snapshots(
-        self, snapshot_id_a: str, snapshot_id_b: str
+        self,
+        snapshot_id_a: str,
+        snapshot_id_b: str,
+        user_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """对比两个快照的差异"""
         try:
@@ -374,6 +391,11 @@ class InvestigationDataStore:
 
                 if not snap_a or not snap_b:
                     return {"error": "快照不存在"}
+                if user_id and (
+                    str(snap_a.user_id) != str(user_id)
+                    or str(snap_b.user_id) != str(user_id)
+                ):
+                    return {"error": "无权访问指定快照"}
 
                 data_a = {
                     "basic_info": snap_a.basic_info or {},

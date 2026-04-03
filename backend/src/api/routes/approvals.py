@@ -22,6 +22,14 @@ from src.models.approval import (
 router = APIRouter()
 
 
+def _approval_scope_filter(user: User):
+    if user.role in {"super_admin", "admin"}:
+        return True
+    if user.role == "org_admin":
+        return Approval.org_id == str(user.org_id)
+    return (Approval.requester_id == str(user.id)) | (Approval.approver_id == str(user.id))
+
+
 # ========== Pydantic 模型 ==========
 
 class ChainStepConfig(BaseModel):
@@ -285,6 +293,26 @@ def _advance_chain(approval: Approval, user_id: str, action: str, comment: Optio
     return True
 
 
+def _can_current_user_act_on_approval(approval: Approval, user: User) -> bool:
+    if user.role in {"super_admin", "admin"}:
+        return True
+
+    if approval.approval_chain and approval.approval_chain.get("steps"):
+        steps = approval.approval_chain["steps"]
+        mode = approval.approval_chain.get("mode", "sequential")
+        if mode == ChainMode.sequential.value:
+            idx = approval.current_step
+            if idx < len(steps):
+                return str(steps[idx].get("approver_id")) == str(user.id)
+        elif mode == ChainMode.parallel.value:
+            return any(
+                str(step.get("approver_id")) == str(user.id) and step.get("status") == "pending"
+                for step in steps
+            )
+
+    return str(approval.approver_id) == str(user.id)
+
+
 # ========== 固定路径路由（放在参数路由之前） ==========
 
 @router.get("/stats", response_model=UnifiedResponse)
@@ -389,7 +417,8 @@ async def list_templates(
         if enabled is not None:
             conditions.append(ApprovalTemplate.enabled == enabled)
 
-        where = and_(*conditions) if conditions else True
+        conditions.append(_approval_scope_filter(user))
+        where = and_(*conditions)
 
         count_r = await db.execute(
             select(func.count(ApprovalTemplate.id)).where(where)
@@ -723,6 +752,12 @@ async def get_approval(
     approval = result.scalar_one_or_none()
     if not approval:
         return UnifiedResponse.error(code=404, message="审批记录不存在")
+    if user.role not in {"super_admin", "admin"}:
+        if user.role == "org_admin":
+            if str(approval.org_id) != str(user.org_id):
+                return UnifiedResponse.error(code=403, message="无权查看该审批记录")
+        elif str(approval.requester_id) != str(user.id) and str(approval.approver_id) != str(user.id):
+            return UnifiedResponse.error(code=403, message="无权查看该审批记录")
     user_map = await _load_user_name_map(
         db,
         [str(approval.requester_id), str(approval.approver_id) if approval.approver_id else ""],
@@ -745,6 +780,8 @@ async def approve_approval(
             return UnifiedResponse.error(code=404, message="审批记录不存在")
         if approval.status != ApprovalStatus.pending.value:
             return UnifiedResponse.error(code=400, message="当前状态无法审批")
+        if not _can_current_user_act_on_approval(approval, user):
+            return UnifiedResponse.error(code=403, message="当前用户不是该审批的有效审批人")
 
         comment = body.comment if body else None
         chain_done = _advance_chain(approval, str(user.id), "approve", comment)
@@ -791,6 +828,8 @@ async def reject_approval(
             return UnifiedResponse.error(code=404, message="审批记录不存在")
         if approval.status != ApprovalStatus.pending.value:
             return UnifiedResponse.error(code=400, message="当前状态无法驳回")
+        if not _can_current_user_act_on_approval(approval, user):
+            return UnifiedResponse.error(code=403, message="当前用户不是该审批的有效审批人")
 
         comment = body.comment if body else None
         _advance_chain(approval, str(user.id), "reject", comment)

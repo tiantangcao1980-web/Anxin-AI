@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, timezone
 from loguru import logger
 
 from src.core.database import get_db
@@ -324,7 +324,7 @@ async def accept_consultation(
         raise HTTPException(status_code=400, detail="该咨询已被其他律师接单")
 
     consultation.matched_lawyer_id = user.id
-    consultation.matched_at = datetime.utcnow()
+    consultation.matched_at = datetime.now(timezone.utc)
     consultation.status = ConsultationStatus.IN_PROGRESS.value
 
     await db.commit()

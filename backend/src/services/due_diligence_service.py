@@ -1,17 +1,167 @@
 """
 尽职调查服务
 
-提供企业信息聚合、风险评估、诉讼查询等功能
+提供企业信息聚合、风险评估、诉讼查询等功能。
+
+数据源:
+  - 天眼查/企查查/爱企查: 工商信息
+  - 中国执行信息公开网 (zxgk.court.gov.cn): 被执行人 + 失信名单
+  - 信用中国 (creditchina.gov.cn): 行政处罚、信用信息
+  - 中国裁判文书网 (wenshu.court.gov.cn): 裁判文书（受限）
+  - LLM: 风险评估与分析补充
+
+安全机制:
+  - 基于用户ID的查询频率限制（防止恶意爬取）
+  - 单用户每日/每小时查询上限
+  - 查询日志审计
 """
 
 import asyncio
 import json
 import re
+import time
+from collections import defaultdict
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from loguru import logger
 
 from src.core.config import settings
+
+
+# ==================== 查询频率限制器 ====================
+
+
+class InvestigationRateLimiter:
+    """
+    调查查询频率限制器
+
+    防止用户恶意高频查询外部数据源，保护系统和数据源安全。
+    基于内存计数，进程重启后重置（可后续扩展为 Redis 存储）。
+    """
+
+    # 默认限制（可通过 settings 覆盖）
+    MAX_QUERIES_PER_HOUR = 20      # 每用户每小时最大查询数
+    MAX_QUERIES_PER_DAY = 50       # 每用户每天最大查询数
+    MAX_SAME_COMPANY_PER_HOUR = 5  # 同一企业每小时最大查询数
+    GLOBAL_MAX_PER_MINUTE = 10     # 全局每分钟最大查询数（保护外部数据源）
+
+    def __init__(self):
+        # {user_id: [(timestamp, company_name), ...]}
+        self._user_queries: Dict[str, list] = defaultdict(list)
+        # [(timestamp, company_name), ...]
+        self._global_queries: list = []
+        # {user_id: block_until_timestamp}
+        self._blocked_users: Dict[str, float] = {}
+
+    def check_and_record(
+        self, user_id: str, company_name: str
+    ) -> Dict[str, Any]:
+        """
+        检查查询是否允许，并记录。
+
+        Returns:
+            {"allowed": bool, "reason": str, "remaining_hour": int, "remaining_day": int}
+        """
+        now = time.time()
+        hour_ago = now - 3600
+        day_ago = now - 86400
+        minute_ago = now - 60
+
+        # 检查是否被临时封禁
+        if user_id in self._blocked_users:
+            if now < self._blocked_users[user_id]:
+                remaining = int(self._blocked_users[user_id] - now)
+                return {
+                    "allowed": False,
+                    "reason": f"查询过于频繁，请 {remaining} 秒后重试",
+                    "remaining_hour": 0,
+                    "remaining_day": 0,
+                }
+            else:
+                del self._blocked_users[user_id]
+
+        # 清理过期记录
+        self._user_queries[user_id] = [
+            (ts, cn) for ts, cn in self._user_queries[user_id] if ts > day_ago
+        ]
+        self._global_queries = [
+            (ts, cn) for ts, cn in self._global_queries if ts > minute_ago
+        ]
+
+        user_history = self._user_queries[user_id]
+
+        # 检查全局限速
+        if len(self._global_queries) >= self.GLOBAL_MAX_PER_MINUTE:
+            return {
+                "allowed": False,
+                "reason": "系统繁忙，请稍后重试",
+                "remaining_hour": 0,
+                "remaining_day": 0,
+            }
+
+        # 检查每小时限制
+        hour_count = sum(1 for ts, _ in user_history if ts > hour_ago)
+        if hour_count >= self.MAX_QUERIES_PER_HOUR:
+            # 触发限速，临时封禁10分钟
+            self._blocked_users[user_id] = now + 600
+            logger.warning(f"用户 {user_id} 触发小时查询限制 ({hour_count}/{self.MAX_QUERIES_PER_HOUR})")
+            return {
+                "allowed": False,
+                "reason": f"每小时查询上限为 {self.MAX_QUERIES_PER_HOUR} 次，请10分钟后重试",
+                "remaining_hour": 0,
+                "remaining_day": max(0, self.MAX_QUERIES_PER_DAY - len(user_history)),
+            }
+
+        # 检查每天限制
+        if len(user_history) >= self.MAX_QUERIES_PER_DAY:
+            logger.warning(f"用户 {user_id} 触发每日查询限制 ({len(user_history)}/{self.MAX_QUERIES_PER_DAY})")
+            return {
+                "allowed": False,
+                "reason": f"每日查询上限为 {self.MAX_QUERIES_PER_DAY} 次，请明天再试",
+                "remaining_hour": 0,
+                "remaining_day": 0,
+            }
+
+        # 检查同一企业重复查询
+        same_company_hour = sum(
+            1 for ts, cn in user_history if ts > hour_ago and cn == company_name
+        )
+        if same_company_hour >= self.MAX_SAME_COMPANY_PER_HOUR:
+            return {
+                "allowed": False,
+                "reason": f"同一企业每小时最多查询 {self.MAX_SAME_COMPANY_PER_HOUR} 次",
+                "remaining_hour": max(0, self.MAX_QUERIES_PER_HOUR - hour_count),
+                "remaining_day": max(0, self.MAX_QUERIES_PER_DAY - len(user_history)),
+            }
+
+        # 通过检查，记录查询
+        self._user_queries[user_id].append((now, company_name))
+        self._global_queries.append((now, company_name))
+
+        return {
+            "allowed": True,
+            "reason": "",
+            "remaining_hour": max(0, self.MAX_QUERIES_PER_HOUR - hour_count - 1),
+            "remaining_day": max(0, self.MAX_QUERIES_PER_DAY - len(user_history)),
+        }
+
+    def get_user_stats(self, user_id: str) -> Dict[str, Any]:
+        """获取用户查询统计"""
+        now = time.time()
+        history = self._user_queries.get(user_id, [])
+        hour_count = sum(1 for ts, _ in history if ts > now - 3600)
+        day_count = sum(1 for ts, _ in history if ts > now - 86400)
+        return {
+            "queries_this_hour": hour_count,
+            "queries_today": day_count,
+            "remaining_hour": max(0, self.MAX_QUERIES_PER_HOUR - hour_count),
+            "remaining_day": max(0, self.MAX_QUERIES_PER_DAY - day_count),
+            "is_blocked": user_id in self._blocked_users,
+        }
+
+
+# 全局单例
+_rate_limiter = InvestigationRateLimiter()
 
 
 _DUE_DILIGENCE_QUERY_PATTERNS = [
@@ -142,6 +292,8 @@ def format_due_diligence_chat_response(company_name: str, data: Dict[str, Any]) 
     overall_label = risk_labels.get(str(overall_rating).lower(), str(overall_rating))
 
     total_cases = int(litigation.get("plaintiff_cases", 0) or 0) + int(litigation.get("defendant_cases", 0) or 0)
+    execution_cases = int(litigation.get("execution_cases", 0) or 0)
+    dishonest_records = int(litigation.get("dishonest_records", 0) or 0)
     risk_points = [str(item).strip() for item in (risk.get("risk_points") or []) if str(item).strip()]
     recommendations = [str(item).strip() for item in (risk.get("recommendations") or []) if str(item).strip()]
     credit_rating = credit.get("credit_rating") or "待核验"
@@ -160,6 +312,8 @@ def format_due_diligence_chat_response(company_name: str, data: Dict[str, Any]) 
         "2. 风险结论",
         f"- 综合风险等级：{overall_label}",
         f"- 诉讼相关案件数：{total_cases}",
+        f"- 被执行案件数：{execution_cases}" + (f"（来源：中国执行信息公开网）" if execution_cases else ""),
+        f"- 失信被执行人记录：{dishonest_records}" + (f"（来源：全国法院失信被执行人名单）" if dishonest_records else ""),
         f"- 信用评级：{credit_rating}",
         f"- 风险分项：经营 {risk.get('operation_risk', 'N/A')} / 诉讼 {risk.get('litigation_risk', 'N/A')} / 信用 {risk.get('credit_risk', 'N/A')} / 合规 {risk.get('compliance_risk', 'N/A')} / 关联 {risk.get('relation_risk', 'N/A')}",
         "",
@@ -215,6 +369,251 @@ class DueDiligenceService:
             if not self._llm_agent and wf.agents:
                 self._llm_agent = list(wf.agents.values())[0]
         return self._llm_agent
+
+    async def _fetch_execution_info(self, company_name: str) -> Dict[str, Any]:
+        """
+        从中国执行信息公开网查询被执行人信息。
+
+        数据源: https://zxgk.court.gov.cn/
+        注意: 该网站有瑞数反爬保护，使用 Playwright 模拟浏览器查询。
+        返回: {"execution_cases": int, "total_amount": str, "records": [...]}
+        """
+        result = {"execution_cases": 0, "total_amount": "", "records": [], "dishonest_records": 0}
+
+        try:
+            from playwright.async_api import async_playwright
+        except ImportError:
+            logger.debug("Playwright 未安装，跳过执行信息查询")
+            return result
+
+        try:
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True)
+                context = await browser.new_context(
+                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                    viewport={"width": 1280, "height": 720},
+                )
+                page = await context.new_page()
+
+                # === 1. 查询被执行人信息 ===
+                try:
+                    await page.goto("https://zxgk.court.gov.cn/zhixing/", timeout=15000)
+                    await page.wait_for_load_state("networkidle", timeout=10000)
+
+                    # 填写企业名称
+                    name_input = page.locator('input[name="pName"], input#pName, input.input-txt').first
+                    await name_input.fill(company_name)
+
+                    # 点击搜索
+                    search_btn = page.locator('button:has-text("搜索"), a:has-text("搜索"), .search-btn').first
+                    await search_btn.click()
+                    await page.wait_for_timeout(3000)
+
+                    # 提取结果
+                    content = await page.content()
+                    from bs4 import BeautifulSoup
+                    soup = BeautifulSoup(content, "html.parser")
+
+                    # 查找结果表格或列表
+                    rows = soup.find_all("tr") or soup.find_all("div", class_=re.compile(r"result|item|record"))
+                    records = []
+                    for row in rows[1:11]:  # 最多取10条
+                        cells = row.find_all("td") or row.find_all("span")
+                        if len(cells) >= 3:
+                            record = {
+                                "case_no": cells[0].get_text(strip=True) if cells else "",
+                                "court": cells[1].get_text(strip=True) if len(cells) > 1 else "",
+                                "amount": cells[2].get_text(strip=True) if len(cells) > 2 else "",
+                                "status": cells[-1].get_text(strip=True) if cells else "",
+                            }
+                            records.append(record)
+
+                    result["execution_cases"] = len(records)
+                    result["records"] = records
+                    if records:
+                        logger.info(f"执行信息查询成功: {company_name}, {len(records)} 条记录")
+
+                except Exception as e:
+                    logger.debug(f"被执行人查询失败: {e}")
+
+                # === 2. 查询失信被执行人 ===
+                try:
+                    await page.goto("https://zxgk.court.gov.cn/shixin/", timeout=15000)
+                    await page.wait_for_load_state("networkidle", timeout=10000)
+
+                    name_input = page.locator('input[name="pName"], input#pName, input.input-txt').first
+                    await name_input.fill(company_name)
+
+                    search_btn = page.locator('button:has-text("搜索"), a:has-text("搜索"), .search-btn').first
+                    await search_btn.click()
+                    await page.wait_for_timeout(3000)
+
+                    content = await page.content()
+                    soup = BeautifulSoup(content, "html.parser")
+                    rows = soup.find_all("tr") or soup.find_all("div", class_=re.compile(r"result|item"))
+                    dishonest_count = max(0, len(rows) - 1)  # 减去表头
+                    result["dishonest_records"] = dishonest_count
+
+                    if dishonest_count > 0:
+                        logger.info(f"失信查询成功: {company_name}, {dishonest_count} 条失信记录")
+
+                except Exception as e:
+                    logger.debug(f"失信被执行人查询失败: {e}")
+
+                await browser.close()
+
+        except Exception as e:
+            logger.warning(f"执行信息查询整体失败: {e}")
+
+        return result
+
+    async def _fetch_credit_china_info(self, company_name: str) -> Dict[str, Any]:
+        """
+        从信用中国查询企业信用信息（Playwright 方式，绕过瑞数反爬）。
+
+        数据源: https://www.creditchina.gov.cn/
+        返回: {"penalties": int, "red_list": bool, "black_list": bool, "records": [...]}
+        """
+        result = {"penalties": 0, "red_list": False, "black_list": False, "records": []}
+
+        try:
+            from playwright.async_api import async_playwright
+        except ImportError:
+            logger.debug("Playwright 未安装，跳过信用中国查询")
+            return result
+
+        try:
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True)
+                context = await browser.new_context(
+                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                )
+                page = await context.new_page()
+
+                await page.goto(
+                    f"https://www.creditchina.gov.cn/xinyongxinxixiangqing/xyDetail.html?searchState=1&entityType=1&keyword={company_name}",
+                    timeout=20000,
+                )
+                await page.wait_for_timeout(3000)
+
+                content = await page.content()
+                from bs4 import BeautifulSoup
+                soup = BeautifulSoup(content, "html.parser")
+
+                # 提取行政处罚记录
+                penalty_sections = soup.find_all(
+                    string=re.compile(r"行政处罚|行政许可|经营异常")
+                )
+                for section in penalty_sections:
+                    parent = section.find_parent("div")
+                    if parent:
+                        rows = parent.find_all("tr")
+                        for row in rows[1:6]:  # 最多5条
+                            cells = row.find_all("td")
+                            if cells:
+                                result["records"].append({
+                                    "title": cells[0].get_text(strip=True) if cells else "",
+                                    "type": "行政处罚",
+                                    "date": cells[-1].get_text(strip=True) if cells else "",
+                                })
+                                result["penalties"] += 1
+
+                # 检查黑名单
+                page_text = soup.get_text()
+                if "严重失信" in page_text or "黑名单" in page_text:
+                    result["black_list"] = True
+                if "守信红名单" in page_text:
+                    result["red_list"] = True
+
+                if result["penalties"] > 0 or result["black_list"]:
+                    logger.info(
+                        f"信用中国查询成功: {company_name}, "
+                        f"{result['penalties']}条处罚, 黑名单={result['black_list']}"
+                    )
+
+                await browser.close()
+
+        except Exception as e:
+            logger.warning(f"信用中国查询失败: {e}")
+
+        return result
+
+    async def _fetch_wenshu_info(self, company_name: str) -> Dict[str, Any]:
+        """
+        从中国裁判文书网查询相关裁判文书（Playwright 方式）。
+
+        数据源: https://wenshu.court.gov.cn/
+        注意: 反爬极严格，仅做轻量查询（获取案件数量和摘要），
+              不做批量爬取。若触发验证码则立即放弃。
+        返回: {"case_count": int, "cases": [...], "source": str}
+        """
+        result = {"case_count": 0, "cases": [], "source": "中国裁判文书网"}
+
+        try:
+            from playwright.async_api import async_playwright
+        except ImportError:
+            logger.debug("Playwright 未安装，跳过裁判文书网查询")
+            return result
+
+        try:
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True)
+                context = await browser.new_context(
+                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                )
+                page = await context.new_page()
+
+                # 访问搜索页
+                await page.goto("https://wenshu.court.gov.cn/", timeout=15000)
+                await page.wait_for_timeout(2000)
+
+                # 检查是否有验证码
+                content = await page.content()
+                if "验证" in content and ("滑" in content or "captcha" in content.lower()):
+                    logger.info("裁判文书网触发验证码，放弃查询")
+                    await browser.close()
+                    return result
+
+                # 尝试搜索
+                try:
+                    search_input = page.locator('input[type="text"], input.search-input, #keyword').first
+                    await search_input.fill(company_name)
+                    await page.keyboard.press("Enter")
+                    await page.wait_for_timeout(5000)
+
+                    content = await page.content()
+                    from bs4 import BeautifulSoup
+                    soup = BeautifulSoup(content, "html.parser")
+
+                    # 尝试提取案件数量
+                    count_el = soup.find(string=re.compile(r"共?\s*\d+\s*条"))
+                    if count_el:
+                        count_match = re.search(r"(\d+)", count_el)
+                        if count_match:
+                            result["case_count"] = int(count_match.group(1))
+
+                    # 提取案件列表（最多5条摘要）
+                    items = soup.find_all("div", class_=re.compile(r"result|item|case", re.I))
+                    for item in items[:5]:
+                        title = item.find("a")
+                        if title:
+                            result["cases"].append({
+                                "title": title.get_text(strip=True)[:100],
+                                "url": title.get("href", ""),
+                            })
+
+                    if result["case_count"] > 0:
+                        logger.info(f"裁判文书网查询成功: {company_name}, {result['case_count']} 条文书")
+
+                except Exception as e:
+                    logger.debug(f"裁判文书网搜索失败: {e}")
+
+                await browser.close()
+
+        except Exception as e:
+            logger.warning(f"裁判文书网查询失败: {e}")
+
+        return result
 
     async def _fetch_real_company_data(self, company_name: str) -> Optional[Dict[str, Any]]:
         """
@@ -321,11 +720,39 @@ class DueDiligenceService:
         logger.warning(f"所有公开数据源均未获取到企业数据: {company_name}")
         return None
 
-    async def quick_investigate(self, company_name: str) -> Dict[str, Any]:
+    async def quick_investigate(
+        self,
+        company_name: str,
+        user_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
-        快速尽调 — 优先抓取真实工商数据，再用 LLM 补充风险评估。
+        快速尽调 — 并行抓取多数据源，LLM 补充风险评估。
+
+        数据源 (并行):
+          1. 天眼查/企查查/爱企查 → 工商信息
+          2. 执行信息公开网 → 被执行 + 失信
+          3. 信用中国 → 行政处罚 + 黑名单
+          4. 裁判文书网 → 相关案件（轻量查询）
+          5. LLM → 风险分析
+
+        安全: 基于 user_id 的查询频率限制
         """
-        # 第一步：尝试获取真实工商数据（并行，不阻塞 LLM 调用）
+        # ===== 频率限制检查 =====
+        effective_user_id = user_id or "anonymous"
+        rate_check = _rate_limiter.check_and_record(effective_user_id, company_name)
+        if not rate_check["allowed"]:
+            logger.warning(
+                f"查询被限流: user={effective_user_id}, company={company_name}, "
+                f"reason={rate_check['reason']}"
+            )
+            return {
+                "error": rate_check["reason"],
+                "rate_limited": True,
+                "remaining_hour": rate_check["remaining_hour"],
+                "remaining_day": rate_check["remaining_day"],
+            }
+
+        # 第一步：并行启动所有数据源
         real_data_task = asyncio.create_task(self._fetch_real_company_data(company_name))
 
         # 第二步：同时启动 LLM 调用做风险分析
@@ -378,7 +805,16 @@ class DueDiligenceService:
 
 请基于你对该企业的了解填入数据。工商信息如果不确定请留空。风险评分和分析请合理评估。"""
 
-        logger.info(f"快速尽调 - 并行获取真实数据 + LLM 分析: {company_name}")
+        # 同时启动执行信息、信用中国、裁判文书网查询
+        execution_task = asyncio.create_task(self._fetch_execution_info(company_name))
+        credit_china_task = asyncio.create_task(self._fetch_credit_china_info(company_name))
+        wenshu_task = asyncio.create_task(self._fetch_wenshu_info(company_name))
+
+        logger.info(
+            f"快速尽调 - 并行5源查询: 工商+执行+信用+文书+LLM | "
+            f"user={effective_user_id}, company={company_name}, "
+            f"剩余配额: {rate_check['remaining_hour']}/h, {rate_check['remaining_day']}/d"
+        )
         response = await agent.chat(
             message=prompt,
             system_prompt_override=(
@@ -410,6 +846,63 @@ class DueDiligenceService:
             logger.info(f"已用真实工商数据覆盖 LLM 数据: {company_name}")
         else:
             result["basic_info"]["data_source"] = "AI 分析（建议核实）"
+
+        # 第四步：合并执行信息和信用中国数据
+        try:
+            execution_data = await asyncio.wait_for(execution_task, timeout=20.0)
+            if execution_data:
+                litigation = result.get("litigation", {})
+                litigation["execution_cases"] = execution_data.get("execution_cases", 0)
+                litigation["dishonest_records"] = execution_data.get("dishonest_records", 0)
+                litigation["execution_records"] = execution_data.get("records", [])
+                if execution_data.get("execution_cases", 0) > 0:
+                    litigation["data_source_execution"] = "中国执行信息公开网"
+                if execution_data.get("dishonest_records", 0) > 0:
+                    litigation["data_source_dishonest"] = "全国法院失信被执行人名单"
+                    # 有失信记录，提高诉讼风险评分
+                    risk = result.get("risk", {})
+                    risk["litigation_risk"] = max(risk.get("litigation_risk", 0), 70)
+                    risk["risk_points"] = risk.get("risk_points", []) + [
+                        f"存在 {execution_data['dishonest_records']} 条失信被执行人记录"
+                    ]
+                result["litigation"] = litigation
+        except (asyncio.TimeoutError, Exception) as e:
+            logger.debug(f"执行信息获取超时或失败: {e}")
+
+        try:
+            credit_china_data = await asyncio.wait_for(credit_china_task, timeout=25.0)
+            if credit_china_data:
+                credit = result.get("credit", {})
+                credit["administrative_penalties"] = credit_china_data.get("penalties", 0)
+                credit["credit_china_records"] = credit_china_data.get("records", [])
+                if credit_china_data.get("penalties", 0) > 0:
+                    credit["data_source_credit_china"] = "信用中国"
+                if credit_china_data.get("black_list"):
+                    risk = result.get("risk", {})
+                    risk["credit_risk"] = max(risk.get("credit_risk", 0), 80)
+                    risk["risk_points"] = risk.get("risk_points", []) + ["企业在信用中国黑名单中"]
+                result["credit"] = credit
+        except (asyncio.TimeoutError, Exception) as e:
+            logger.debug(f"信用中国数据获取超时或失败: {e}")
+
+        # 第六步：合并裁判文书网数据
+        try:
+            wenshu_data = await asyncio.wait_for(wenshu_task, timeout=25.0)
+            if wenshu_data and wenshu_data.get("case_count", 0) > 0:
+                litigation = result.get("litigation", {})
+                litigation["wenshu_case_count"] = wenshu_data["case_count"]
+                litigation["wenshu_cases"] = wenshu_data.get("cases", [])
+                litigation["data_source_wenshu"] = "中国裁判文书网"
+                result["litigation"] = litigation
+                logger.info(f"裁判文书网: {company_name} 有 {wenshu_data['case_count']} 条相关文书")
+        except (asyncio.TimeoutError, Exception) as e:
+            logger.debug(f"裁判文书网数据获取超时或失败: {e}")
+
+        # 附加查询配额信息
+        result["_query_quota"] = {
+            "remaining_hour": rate_check["remaining_hour"],
+            "remaining_day": rate_check["remaining_day"],
+        }
 
         return result
 
@@ -987,7 +1480,8 @@ async def get_company_info(company_name: str, max_retries: int = 3) -> Dict[str,
     优先使用快速模式（单次 LLM 调用），失败后重试。
     """
     # 1. 预置知名企业数据
-    if company_name in MOCK_COMPANY_DATA:
+    # 仅开发模式下使用预置示例数据
+    if settings.DEV_MODE and company_name in MOCK_COMPANY_DATA:
         return MOCK_COMPANY_DATA[company_name]
 
     # 2. 快速模式（单次 LLM 调用，带重试）
@@ -1024,7 +1518,8 @@ async def get_company_info(company_name: str, max_retries: int = 3) -> Dict[str,
 # 保留旧名称的兼容别名
 async def get_mock_company_info(company_name: str) -> Dict[str, Any]:
     """向后兼容的别名 — 内部改为确定性数据"""
-    if company_name in MOCK_COMPANY_DATA:
+    # 仅开发模式下使用预置示例数据
+    if settings.DEV_MODE and company_name in MOCK_COMPANY_DATA:
         return MOCK_COMPANY_DATA[company_name]
     return _generate_deterministic_company_data(company_name)
 

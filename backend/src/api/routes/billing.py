@@ -151,11 +151,14 @@ async def create_subscription(
 ):
     """创建订阅"""
     service = SubscriptionService(db)
+    target_org_id = req.org_id or user.org_id
+    if req.org_id and str(req.org_id) != str(user.org_id) and user.role not in {"super_admin", "admin"}:
+        return UnifiedResponse.error(403, "无权为其他组织创建订阅")
     try:
         data = await service.create_subscription(
             user_id=user.id,
             plan_id=req.plan_id,
-            org_id=req.org_id,
+            org_id=target_org_id,
         )
         return UnifiedResponse.success(data, message="订阅已创建")
     except ValueError as e:
@@ -327,5 +330,6 @@ async def get_subscription_report(
 ):
     """订阅报表"""
     service = SubscriptionService(db)
-    data = await service.get_subscription_stats(org_id=org_id)
+    scoped_org_id = org_id if user.role in {"super_admin", "admin"} else user.org_id
+    data = await service.get_subscription_stats(org_id=scoped_org_id)
     return UnifiedResponse.success(data)

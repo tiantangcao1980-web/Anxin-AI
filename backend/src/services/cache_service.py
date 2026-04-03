@@ -134,6 +134,10 @@ class CacheService:
         Returns:
             缓存值，不存在返回None
         """
+        if l3_loader is not None and not callable(l3_loader):
+            key = self._make_key(key, str(l3_loader))
+            l3_loader = None
+
         # L1: 内存缓存查找
         if self.enable_l1:
             entry = self._l1_cache.get(key)
@@ -184,6 +188,7 @@ class CacheService:
         self,
         key: str,
         value: Any,
+        data: Any = None,
         ttl: Optional[int] = None,
     ) -> bool:
         """
@@ -197,6 +202,10 @@ class CacheService:
         Returns:
             是否设置成功
         """
+        if data is not None:
+            key = self._make_key(key, str(value))
+            value = data
+
         success = True
 
         # L1: 写入内存缓存

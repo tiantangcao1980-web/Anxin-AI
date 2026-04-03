@@ -91,14 +91,14 @@ export const A2UIProvider: React.FC<A2UIProviderProps> = ({
   const registerComponent = useCallback((type: string, component: React.ComponentType<any>) => {
     rendererRef.current.register(type, component);
     if (isDebug) {
-      console.log(`[A2UI] Component registered: ${type}`);
+      // console.log(`[A2UI] Component registered: ${type}`);
     }
   }, [isDebug]);
 
   const unregisterComponent = useCallback((type: string) => {
     rendererRef.current.unregister(type);
     if (isDebug) {
-      console.log(`[A2UI] Component unregistered: ${type}`);
+      // console.log(`[A2UI] Component unregistered: ${type}`);
     }
   }, [isDebug]);
 
@@ -117,7 +117,7 @@ export const A2UIProvider: React.FC<A2UIProviderProps> = ({
       onStateChange(path, value);
     }
     if (isDebug) {
-      console.log(`[A2UI] State updated: ${path} =`, value);
+      // console.log(`[A2UI] State updated: ${path} =`, value);
     }
   }, [onStateChange, isDebug]);
 
@@ -138,14 +138,14 @@ export const A2UIProvider: React.FC<A2UIProviderProps> = ({
   const triggerAnimation = useCallback((animation: string, options?: any) => {
     // TODO: 实现动画触发逻辑
     if (isDebug) {
-      console.log(`[A2UI] Animation triggered: ${animation}`, options);
+      // console.log(`[A2UI] Animation triggered: ${animation}`, options);
     }
   }, [isDebug]);
 
   const cancelAnimation = useCallback((animationId: string) => {
     // TODO: 实现动画取消逻辑
     if (isDebug) {
-      console.log(`[A2UI] Animation cancelled: ${animationId}`);
+      // console.log(`[A2UI] Animation cancelled: ${animationId}`);
     }
   }, [isDebug]);
 

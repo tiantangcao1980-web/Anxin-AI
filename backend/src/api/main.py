@@ -56,6 +56,13 @@ async def lifespan(app: FastAPI):
         await event_bus.disconnect()
     except Exception as e:
         logger.warning(f"关闭事件总线失败: {e}")
+
+    # 关闭图数据库连接
+    try:
+        from src.services.graph_service import graph_service
+        await graph_service.close()
+    except Exception as e:
+        logger.warning(f"关闭图数据库连接失败: {e}")
     
     await close_db()
     logger.info("AI法务智能体系统关闭")

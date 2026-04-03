@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { icons } from '@/lib/icons'
 import { toast } from 'sonner'
 import { cardStyle, buttonStyle, heading, statusBadge, iconSize, inputStyle } from '@/lib/design-tokens'
@@ -72,6 +72,7 @@ export default function Settings() {
 // ============ 个人中心面板 ============
 
 function ProfilePanel() {
+  const navigate = useNavigate()
   const { user, setUser } = useAuthStore()
   const { theme, setTheme } = useUIStore()
   const [form, setForm] = useState({
@@ -81,6 +82,7 @@ function ProfilePanel() {
   })
   const [saving, setSaving] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)
+  const [showTwoFactorInfo, setShowTwoFactorInfo] = useState(false)
   const [passwordForm, setPasswordForm] = useState({ current: '', newPassword: '', confirm: '' })
 
   const handleSaveProfile = async () => {
@@ -108,6 +110,19 @@ function ProfilePanel() {
       setPasswordForm({ current: '', newPassword: '', confirm: '' })
     } catch (err: any) {
       toast.error(err.message || '密码修改失败')
+    }
+  }
+
+  const handleResendVerification = async () => {
+    if (!user?.email) {
+      toast.error('当前账号没有可用邮箱')
+      return
+    }
+    try {
+      await authApi.resendVerification(user.email)
+      toast.success('验证邮件已重新发送，请前往登录页完成验证')
+    } catch (err: any) {
+      toast.error(err.message || '重发验证邮件失败')
     }
   }
 
@@ -167,6 +182,30 @@ function ProfilePanel() {
           <CardDescription className={heading.muted}>管理密码和安全选项</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="rounded-xl border border-border bg-muted/40 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-foreground">安全状态</p>
+                <p className="text-xs text-muted-foreground">显示当前账号已启用的基础保护能力</p>
+              </div>
+              <Badge variant={user?.email_verified === false ? 'secondary' : 'default'}>
+                {user?.email_verified === false ? '需补充验证' : '基础保护已启用'}
+              </Badge>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="rounded-lg bg-background border border-border px-3 py-2">
+                <p className="text-xs text-muted-foreground">邮箱验证</p>
+                <p className="text-sm font-medium text-foreground mt-1">
+                  {user?.email_verified === false ? '未完成' : '已完成'}
+                </p>
+              </div>
+              <div className="rounded-lg bg-background border border-border px-3 py-2">
+                <p className="text-xs text-muted-foreground">两步验证</p>
+                <p className="text-sm font-medium text-foreground mt-1">暂未开放</p>
+              </div>
+            </div>
+          </div>
+
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-foreground">登录密码</p>
@@ -180,9 +219,11 @@ function ProfilePanel() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-foreground">两步验证</p>
-              <p className="text-xs text-muted-foreground">使用手机验证码进行双重身份验证</p>
+              <p className="text-xs text-muted-foreground">该能力已进入规划阶段，后续会接入短信或身份验证器</p>
             </div>
-            <Badge variant="secondary">即将上线</Badge>
+            <Button variant="outline" size="sm" onClick={() => setShowTwoFactorInfo(true)}>
+              查看说明
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -265,6 +306,54 @@ function ProfilePanel() {
           <DialogFooter>
             <Button variant="ghost" onClick={() => setChangingPassword(false)}>取消</Button>
             <Button onClick={handleChangePassword}>确认修改</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showTwoFactorInfo} onOpenChange={setShowTwoFactorInfo}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>两步验证说明</DialogTitle>
+            <DialogDescription>当前账号安全能力状态</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="rounded-xl border border-border bg-muted/40 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Badge variant="secondary">规划中</Badge>
+                <span className="text-sm font-medium text-foreground">尚未开放短信或验证器绑定</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                当前版本还未接入短信 OTP 或 TOTP 身份验证器，因此这里不会展示伪开关，避免误导您认为账号已受双重保护。
+              </p>
+            </div>
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <p>当前建议：</p>
+              <p>1. 定期修改登录密码，并避免与其他系统重复使用。</p>
+              <p>2. 确保邮箱已验证，便于后续找回和风险提醒。</p>
+              <p>3. 如需更高强度的账户保护，可优先使用私有化部署与本地私有助手模式。</p>
+            </div>
+            {user?.email_verified === false && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 space-y-3">
+                <div className="flex items-center gap-2 text-amber-700">
+                  <icons.AlertTriangle className="w-4 h-4" />
+                  <p className="text-sm font-medium">当前邮箱尚未完成验证</p>
+                </div>
+                <p className="text-sm text-amber-700/90">
+                  建议先完成邮箱验证，再等待两步验证能力开放。这样至少能保证找回密码和安全通知链路可用。
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={handleResendVerification}>
+                    重新发送验证邮件
+                  </Button>
+                  <Button onClick={() => navigate('/login')}>
+                    前往登录页验证
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setShowTwoFactorInfo(false)}>我知道了</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

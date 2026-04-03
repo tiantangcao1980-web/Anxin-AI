@@ -5,6 +5,9 @@ LIC 抓取引擎服务
 
 import asyncio
 import random
+import ipaddress
+import socket
+from urllib.parse import urlparse
 from typing import Dict, Any, Optional, List, Callable
 from loguru import logger
 import uuid
@@ -26,13 +29,54 @@ except ImportError:
 from src.services.data_cleaner import data_cleaner
 from src.services.knowledge_service import KnowledgeService
 from src.services.graph_service import graph_service
+from src.core.config import settings
 from src.core.database import async_session_maker as AsyncSessionLocal
 
+
+def _is_allowed_runtime_url(url: str) -> bool:
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        return False
+
+    hostname = parsed.hostname.lower()
+    allowed_hosts = [item.lower() for item in settings.LIC_ALLOWED_HOSTS if item]
+    if hostname in {"localhost", "127.0.0.1", "::1"} or hostname.endswith(".local"):
+        return False
+    if allowed_hosts and not any(hostname == allowed or hostname.endswith(f".{allowed}") for allowed in allowed_hosts):
+        return False
+
+    try:
+        ip = ipaddress.ip_address(hostname)
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+            return False
+    except ValueError:
+        try:
+            resolved = {item[4][0] for item in socket.getaddrinfo(hostname, None)}
+        except socket.gaierror:
+            resolved = set()
+        for addr in resolved:
+            try:
+                ip = ipaddress.ip_address(addr)
+            except ValueError:
+                continue
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+                return False
+
+    return True
+
 class CrawlerTask:
-    def __init__(self, url: str, keyword: str, task_id: str, callback: Optional[Callable] = None):
+    def __init__(
+        self,
+        url: str,
+        keyword: str,
+        task_id: str,
+        owner_id: Optional[str] = None,
+        callback: Optional[Callable] = None,
+    ):
         self.id = task_id
         self.url = url
         self.keyword = keyword
+        self.owner_id = owner_id
         self.status = "pending" # pending, running, completed, failed
         self.progress = 0
         self.message = ""
@@ -113,9 +157,15 @@ class CrawlerService:
             except Exception as e:
                 logger.error(f"Global callback failed for task {task.id}: {e}")
 
-    async def crawl_and_process(self, url: str, keyword: str, task_id: str):
+    async def crawl_and_process(
+        self,
+        url: str,
+        keyword: str,
+        task_id: str,
+        owner_id: Optional[str] = None,
+    ):
         """抓取并处理流程"""
-        task = CrawlerTask(url, keyword, task_id)
+        task = CrawlerTask(url, keyword, task_id, owner_id=owner_id)
         self.tasks[task_id] = task
         
         try:
@@ -133,6 +183,9 @@ class CrawlerService:
                 await asyncio.sleep(random.uniform(1.0, 3.0))
                 
                 await page.goto(url, wait_until="networkidle", timeout=30000)
+                final_url = page.url
+                if not _is_allowed_runtime_url(final_url):
+                    raise RuntimeError(f"抓取目标发生不安全重定向: {final_url}")
                 
                 content = await page.content()
                 title = await page.title()
@@ -210,6 +263,7 @@ class CrawlerService:
             "id": task.id,
             "url": task.url,
             "keyword": task.keyword,
+            "owner_id": task.owner_id,
             "status": task.status,
             "progress": task.progress,
             "message": task.message,

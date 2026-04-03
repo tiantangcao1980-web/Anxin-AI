@@ -772,6 +772,15 @@ class InvestigationOrchestrator:
                 await session.flush()
                 inv_id = str(investigation.id)
                 logger.info(f"调查结果已保存: id={inv_id}, company={company_name}")
+
+                # ===== 做梦机制 + 经验积累：每次调查完成后触发 =====
+                if user_id:
+                    try:
+                        from src.services.auto_dream import auto_dream_engine
+                        auto_dream_engine.record_activity(user_id, "investigation")
+                    except Exception:
+                        pass
+
                 return inv_id
 
         except Exception as e:

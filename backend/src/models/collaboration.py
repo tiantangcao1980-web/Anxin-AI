@@ -2,7 +2,7 @@
 协作编辑数据模型
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, TYPE_CHECKING
 from sqlalchemy import String, Text, ForeignKey, DateTime, Boolean, Enum as SQLEnum, Integer
 from sqlalchemy import JSON as JSONB
@@ -64,11 +64,11 @@ class DocumentSession(Base, TimestampMixin):
     
     # 时间节点
     started_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
     ended_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     last_activity_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
     
     # 统计
@@ -123,10 +123,10 @@ class DocumentCollaborator(Base, TimestampMixin):
     
     # 时间
     joined_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
     last_seen_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
     left_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     
@@ -173,7 +173,7 @@ class DocumentEdit(Base, TimestampMixin):
     
     # 操作时间戳（精确到毫秒）
     operation_time: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
     
     # 是否已同步

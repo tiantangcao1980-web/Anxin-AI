@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from loguru import logger
+from starlette.websockets import WebSocketState
 import json
 import asyncio
 from uuid import uuid4
@@ -14,6 +15,7 @@ from uuid import uuid4
 from src.core.responses import UnifiedResponse
 from src.core.database import get_db, async_session_maker
 from src.core.deps import get_current_user_required
+from src.core.security import verify_token, verify_token_with_blacklist
 from src.models.user import User
 from src.models.collaboration import (
     DocumentSession, DocumentCollaborator, DocumentEdit, DocumentSnapshot,
@@ -60,7 +62,8 @@ class ConnectionManager:
             await websocket.close(code=4002, reason="协作者数量已达上限")
             return
 
-        await websocket.accept()
+        if websocket.application_state == WebSocketState.CONNECTING:
+            await websocket.accept()
 
         if session_id not in self.active_connections:
             self.active_connections[session_id] = {}
@@ -189,6 +192,36 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
+async def _get_session_access(
+    db: AsyncSession,
+    session_id: str,
+    user_id: str,
+) -> tuple[Optional[DocumentSession], Optional[DocumentCollaborator]]:
+    """加载会话并校验当前用户是否为协作者或创建者。"""
+    result = await db.execute(
+        select(DocumentSession).where(DocumentSession.id == session_id)
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        return None, None
+
+    collab_result = await db.execute(
+        select(DocumentCollaborator).where(
+            DocumentCollaborator.session_id == session_id,
+            DocumentCollaborator.user_id == user_id,
+            DocumentCollaborator.is_active == True,
+        )
+    )
+    collaborator = collab_result.scalar_one_or_none()
+    if collaborator:
+        return session, collaborator
+
+    if str(session.created_by) == str(user_id):
+        return session, None
+
+    return session, None
+
+
 # ============ 请求/响应模型 ============
 
 class SessionCreate(BaseModel):
@@ -257,6 +290,8 @@ async def create_session(
     document = doc_result.scalar_one_or_none()
     if not document:
         return UnifiedResponse.error(code=404, message="文档不存在")
+    if document.org_id and str(document.org_id) != str(user.org_id):
+        return UnifiedResponse.error(code=403, message="无权为该文档创建协作会话")
     
     # 创建会话
     session = DocumentSession(
@@ -313,6 +348,12 @@ async def commit_session_version(
     user: User = Depends(get_current_user_required),
 ):
     """提交并创建一个新的文档版本"""
+    session, collaborator = await _get_session_access(db, session_id, str(user.id))
+    if not session:
+        return UnifiedResponse.error(code=404, message="协作会话不存在")
+    if collaborator is None and str(session.created_by) != str(user.id):
+        return UnifiedResponse.error(code=403, message="您不是该协作会话的成员")
+
     service = CollaborationService(db)
     result = await service.create_version_snapshot(
         session_id=session_id,
@@ -350,6 +391,7 @@ async def list_sessions(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
 ):
     """获取协作会话列表"""
     from sqlalchemy import func, and_
@@ -357,7 +399,17 @@ async def list_sessions(
     query = select(DocumentSession)
     count_query = select(func.count(DocumentSession.id))
     
-    conditions = []
+    membership_subquery = (
+        select(DocumentCollaborator.session_id)
+        .where(
+            DocumentCollaborator.user_id == user.id,
+            DocumentCollaborator.is_active == True,
+        )
+    )
+
+    conditions = [
+        (DocumentSession.created_by == user.id) | (DocumentSession.id.in_(membership_subquery))
+    ]
     if document_id:
         conditions.append(DocumentSession.document_id == document_id)
     if status:
@@ -405,15 +457,15 @@ async def list_sessions(
 async def get_session(
     session_id: str,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
 ):
     """获取协作会话详情"""
-    result = await db.execute(
-        select(DocumentSession).where(DocumentSession.id == session_id)
-    )
-    session = result.scalar_one_or_none()
+    session, collaborator = await _get_session_access(db, session_id, str(user.id))
     
     if not session:
         return UnifiedResponse.error(code=404, message="协作会话不存在")
+    if collaborator is None and str(session.created_by) != str(user.id):
+        return UnifiedResponse.error(code=403, message="您不是该协作会话的成员")
     
     data = SessionResponse(
         id=session.id,
@@ -473,8 +525,15 @@ async def close_session(
 async def get_collaborators(
     session_id: str,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
 ):
     """获取会话中的协作者列表"""
+    session, collaborator = await _get_session_access(db, session_id, str(user.id))
+    if not session:
+        return UnifiedResponse.error(code=404, message="协作会话不存在")
+    if collaborator is None and str(session.created_by) != str(user.id):
+        return UnifiedResponse.error(code=403, message="您不是该协作会话的成员")
+
     result = await db.execute(
         select(DocumentCollaborator).where(
             DocumentCollaborator.session_id == session_id
@@ -687,6 +746,12 @@ async def create_snapshot(
     user: User = Depends(get_current_user_required),
 ):
     """创建手动快照"""
+    session, collaborator = await _get_session_access(db, session_id, str(user.id))
+    if not session:
+        return UnifiedResponse.error(code=404, message="协作会话不存在")
+    if collaborator is None and str(session.created_by) != str(user.id):
+        return UnifiedResponse.error(code=403, message="您不是该协作会话的成员")
+
     service = CollaborationService(db)
     result = await service.create_snapshot(
         session_id=session_id,
@@ -708,6 +773,12 @@ async def list_snapshots(
     user: User = Depends(get_current_user_required),
 ):
     """获取快照列表"""
+    session, collaborator = await _get_session_access(db, session_id, str(user.id))
+    if not session:
+        return UnifiedResponse.error(code=404, message="协作会话不存在")
+    if collaborator is None and str(session.created_by) != str(user.id):
+        return UnifiedResponse.error(code=403, message="您不是该协作会话的成员")
+
     service = CollaborationService(db)
     snapshots = await service.list_snapshots(session_id=session_id, limit=limit)
     return UnifiedResponse.success(data=snapshots)
@@ -726,6 +797,12 @@ async def restore_snapshot(
     user: User = Depends(get_current_user_required),
 ):
     """回滚到某版本"""
+    session, collaborator = await _get_session_access(db, session_id, str(user.id))
+    if not session:
+        return UnifiedResponse.error(code=404, message="协作会话不存在")
+    if collaborator is None and str(session.created_by) != str(user.id):
+        return UnifiedResponse.error(code=403, message="您不是该协作会话的成员")
+
     service = CollaborationService(db)
     result = await service.restore_snapshot(
         session_id=session_id,
@@ -746,6 +823,12 @@ async def diff_snapshots(
     user: User = Depends(get_current_user_required),
 ):
     """版本对比"""
+    session, collaborator = await _get_session_access(db, session_id, str(user.id))
+    if not session:
+        return UnifiedResponse.error(code=404, message="协作会话不存在")
+    if collaborator is None and str(session.created_by) != str(user.id):
+        return UnifiedResponse.error(code=403, message="您不是该协作会话的成员")
+
     service = CollaborationService(db)
     result = await service.diff_snapshots(
         snapshot_id_a=snapshot_a,
@@ -764,20 +847,40 @@ async def websocket_collaboration(
     session_id: str,
 ):
     """协作编辑WebSocket端点"""
-    # 简化的认证：从查询参数获取用户信息
-    user_id = websocket.query_params.get("user_id", str(uuid4()))
-    nickname = websocket.query_params.get("nickname", f"用户{user_id[:4]}")
-    color = websocket.query_params.get("color", _generate_color())
+    await websocket.accept()
+
+    try:
+        auth_message = await asyncio.wait_for(websocket.receive_json(), timeout=10)
+    except Exception:
+        await websocket.close(code=4001, reason="认证超时")
+        return
+
+    if auth_message.get("type") != "auth":
+        await websocket.close(code=4001, reason="首条消息必须为 auth")
+        return
+
+    token = auth_message.get("token", "")
+    if not token:
+        await websocket.close(code=4001, reason="缺少认证令牌")
+        return
+
+    try:
+        verified_user_id = await verify_token_with_blacklist(token)
+    except Exception:
+        verified_user_id = verify_token(token)
+
+    if not verified_user_id:
+        await websocket.close(code=4001, reason="认证失败")
+        return
     
     # 验证会话
     async with async_session_maker() as db:
-        result = await db.execute(
-            select(DocumentSession).where(DocumentSession.id == session_id)
-        )
-        session = result.scalar_one_or_none()
-        
+        session, collaborator = await _get_session_access(db, session_id, str(verified_user_id))
         if not session:
             await websocket.close(code=4004, reason="协作会话不存在")
+            return
+        if collaborator is None and str(session.created_by) != str(verified_user_id):
+            await websocket.close(code=4003, reason="无权加入该协作会话")
             return
         
         if session.status != SessionStatus.ACTIVE:
@@ -790,24 +893,30 @@ async def websocket_collaboration(
             return
         
         # 创建或更新协作者记录
-        collab_result = await db.execute(
-            select(DocumentCollaborator).where(
-                DocumentCollaborator.session_id == session_id,
-                DocumentCollaborator.user_id == user_id
-            )
+        user_result = await db.execute(
+            select(User).where(User.id == verified_user_id, User.is_active == True)
         )
-        collaborator = collab_result.scalar_one_or_none()
-        
-        if not collaborator:
+        db_user = user_result.scalar_one_or_none()
+        if not db_user:
+            await websocket.close(code=4001, reason="用户不存在或已被禁用")
+            return
+
+        if collaborator is None:
             collaborator = DocumentCollaborator(
                 session_id=session_id,
-                user_id=user_id,
-                nickname=nickname,
-                color=color,
+                user_id=str(db_user.id),
+                nickname=db_user.name,
+                color=_generate_color(),
                 role=CollaboratorRole.EDITOR,
             )
             db.add(collaborator)
-        
+            await db.flush()
+
+        user_id = str(db_user.id)
+        nickname = collaborator.nickname or db_user.name
+        color = collaborator.color or auth_message.get("color") or _generate_color()
+        collaborator.nickname = nickname
+        collaborator.color = color
         collaborator.is_online = True
         collaborator.last_seen_at = datetime.now()
         await db.commit()

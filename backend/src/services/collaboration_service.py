@@ -13,7 +13,7 @@ import difflib
 import json
 import uuid
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional, Set
 from dataclasses import dataclass, asdict, field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,7 +47,7 @@ class DocumentOperation:
     length: int = 0
     content: str = ""
     attributes: Dict[str, Any] = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 @dataclass
@@ -60,7 +60,7 @@ class DocumentComment:
     content: str
     position: Dict[str, int]  # {from: int, to: int}
     resolved: bool = False
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 # ==================== 协作会话管理 ====================
@@ -75,7 +75,7 @@ class CollaborationSession:
         self.comments: Dict[str, DocumentComment] = {}
         self.operations: List[DocumentOperation] = []
         self.version = 0
-        self.created_at = datetime.utcnow()
+        self.created_at = datetime.now(timezone.utc)
         self._lock = asyncio.Lock()
 
     async def add_user(self, user: CollaborativeUser):

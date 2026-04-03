@@ -45,8 +45,8 @@ interface LicenseInfo {
   validFrom: string
   validTo: string
   barAssociation: string
-  // TODO: 上传实际文件对象
-  uploaded: boolean
+  licenseImageUrl: string
+  idCardImageUrl: string
 }
 
 interface OrderSettings {
@@ -134,7 +134,8 @@ export default function LawyerOnboarding() {
     validFrom: '',
     validTo: '',
     barAssociation: '',
-    uploaded: false,
+    licenseImageUrl: '',
+    idCardImageUrl: '',
   })
 
   // Step 3: 接单设置
@@ -218,8 +219,8 @@ export default function LawyerOnboarding() {
 
   function validateStep2(): boolean {
     const newErrors: Record<string, string> = {}
-    if (!license.uploaded) {
-      newErrors.licenseUpload = '请上传执业证照片'
+    if (!license.licenseImageUrl.trim()) {
+      newErrors.licenseImageUrl = '请填写执业证图片 URL'
     }
     if (!license.validFrom) {
       newErrors.validFrom = '请选择执业证签发日期'
@@ -327,9 +328,8 @@ export default function LawyerOnboarding() {
     setSubmitting(true)
     try {
       await lawyerApi.submitCertification({
-        // 当前环境暂无正式文件上传链路，使用联调占位 URL 验证后端认证流程。
-        license_image_url: `https://files.anxin.test/licenses/${encodeURIComponent(profile.licenseNo || 'pending')}.jpg`,
-        id_card_image_url: `https://files.anxin.test/id-cards/${encodeURIComponent(profile.licenseNo || 'pending')}.jpg`,
+        license_image_url: license.licenseImageUrl.trim(),
+        id_card_image_url: license.idCardImageUrl.trim() || undefined,
         license_issue_date: license.validFrom,
         license_expiry_date: license.validTo,
         bar_association: license.barAssociation || undefined,
@@ -636,33 +636,29 @@ function Step2License({
     <div className="space-y-5">
       <h3 className={heading.section}>执业证上传</h3>
 
-      {/* 上传区域 */}
       <div className="space-y-2">
-        <Label className="text-sm font-medium">执业证照片</Label>
-        {/* TODO: 实际上传功能，对接 OSS/后端文件上传接口 */}
-        <div
-          className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
-            license.uploaded
-              ? 'border-primary/40 bg-primary/5'
-              : 'border-border hover:border-primary/30 hover:bg-muted/30'
-          } cursor-pointer`}
-          onClick={() => setLicense(p => ({ ...p, uploaded: !p.uploaded }))}
-        >
-          {license.uploaded ? (
-            <div className="flex flex-col items-center gap-2">
-              <icons.CheckCircle className={`${iconSize.xl} text-primary`} />
-              <p className="text-sm font-medium text-primary">执业证已上传</p>
-              <p className="text-xs text-muted-foreground">点击重新上传</p>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-2">
-              <icons.Upload className={`${iconSize.xl} text-muted-foreground`} />
-              <p className="text-sm font-medium text-foreground">点击或拖拽上传执业证照片</p>
-              <p className="text-xs text-muted-foreground">支持 JPG、PNG 格式，文件不超过 10MB</p>
-            </div>
-          )}
-        </div>
-        {errors.licenseUpload && <p className="text-xs text-destructive">{errors.licenseUpload}</p>}
+        <Label className="text-sm font-medium">
+          执业证照片 URL <span className="text-destructive">*</span>
+        </Label>
+        <Input
+          placeholder="https://example.com/license.jpg"
+          value={license.licenseImageUrl}
+          onChange={e => setLicense(p => ({ ...p, licenseImageUrl: e.target.value }))}
+          className={errors.licenseImageUrl ? 'border-destructive' : ''}
+        />
+        <p className="text-xs text-muted-foreground">
+          当前版本支持填写可访问的图片 URL 提交认证资料。后续会补齐平台内文件上传能力。
+        </p>
+        {errors.licenseImageUrl && <p className="text-xs text-destructive">{errors.licenseImageUrl}</p>}
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">身份证照片 URL（可选）</Label>
+        <Input
+          placeholder="https://example.com/id-card.jpg"
+          value={license.idCardImageUrl}
+          onChange={e => setLicense(p => ({ ...p, idCardImageUrl: e.target.value }))}
+        />
       </div>
 
       {/* 有效期 */}
@@ -900,7 +896,7 @@ function Step4Submit({
           执业证信息
         </h4>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-          <SummaryItem label="执业证" value={license.uploaded ? '已上传' : '未上传'} />
+          <SummaryItem label="执业证" value={license.licenseImageUrl ? '已填写链接' : '未填写'} />
           <SummaryItem label="有效期" value={license.validFrom && license.validTo ? `${license.validFrom} ~ ${license.validTo}` : '—'} />
           <SummaryItem label="律师协会" value={license.barAssociation || '—'} />
         </div>

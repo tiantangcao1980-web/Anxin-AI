@@ -4,6 +4,8 @@
 使用 CAMEL-AI 的 Neo4jGraph 进行图谱管理
 """
 
+import atexit
+import os
 import time
 from typing import ClassVar, List, Dict, Any, Optional
 from loguru import logger
@@ -43,6 +45,7 @@ class GraphService:
     def __init__(self):
         self._graph = None
         self._last_init_attempt = 0.0
+        atexit.register(self._close_sync)
 
     @property
     def graph(self):
@@ -75,6 +78,9 @@ class GraphService:
         if self._graph is not None:
             return True
 
+        if os.environ.get("PYTEST_CURRENT_TEST"):
+            return False
+
         if not settings.NEO4J_URI:
             return False
 
@@ -85,6 +91,42 @@ class GraphService:
         self._last_init_attempt = now
         self._init_graph()
         return self._graph is not None
+
+    async def close(self) -> None:
+        """显式关闭底层 Neo4j 连接，避免依赖析构器回收。"""
+        graph = self._graph
+        self._graph = None
+        if graph is None:
+            return
+
+        try:
+            driver = getattr(graph, "driver", None)
+            if driver is not None and hasattr(driver, "close"):
+                close_result = driver.close()
+                if hasattr(close_result, "__await__"):
+                    await close_result
+            elif hasattr(graph, "close"):
+                close_result = graph.close()
+                if hasattr(close_result, "__await__"):
+                    await close_result
+            logger.info("Neo4j 图数据库连接已关闭")
+        except Exception as e:
+            logger.warning(f"关闭 Neo4j 图数据库连接失败: {e}")
+
+    def _close_sync(self) -> None:
+        """进程退出时的最佳努力关闭，覆盖未走应用生命周期的场景。"""
+        graph = self._graph
+        self._graph = None
+        if graph is None:
+            return
+        try:
+            driver = getattr(graph, "driver", None)
+            if driver is not None and hasattr(driver, "close"):
+                driver.close()
+            elif hasattr(graph, "close"):
+                graph.close()
+        except Exception:
+            pass
 
     def add_legal_entities(self, case_info: Dict[str, Any], doc_id: str):
         """将清洗后的案件信息存入图谱"""

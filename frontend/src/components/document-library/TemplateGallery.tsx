@@ -27,6 +27,7 @@ export function TemplateGallery({ onAIGenerate }: TemplateGalleryProps) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     loadTemplates();
@@ -50,7 +51,7 @@ export function TemplateGallery({ onAIGenerate }: TemplateGalleryProps) {
             tags: ['模板', ...template.tags]
         });
         toast.success('已使用模板创建文档');
-        navigate('/documents');
+        navigate('/collaboration');
     } catch (error) {
         console.error('Failed to use template:', error);
         toast.error('创建失败');
@@ -61,6 +62,7 @@ export function TemplateGallery({ onAIGenerate }: TemplateGalleryProps) {
 
   const loadTemplates = async () => {
     try {
+      setLoadFailed(false);
       const response = await contractsApi.getTemplates();
       // 适配后端数据，如果后端返回格式不同，这里需要映射
       const mappedTemplates = response.templates.map((t: any) => ({
@@ -75,36 +77,8 @@ export function TemplateGallery({ onAIGenerate }: TemplateGalleryProps) {
       setTemplates(mappedTemplates);
     } catch (error) {
       console.error('Failed to load templates:', error);
-      // Fallback to mock data if API fails (for demo purposes)
-      setTemplates([
-        {
-          id: '1',
-          name: '律师函模板',
-          category: '催告函件',
-          description: '用于债务催收、合同履行催告等场景',
-          downloads: 1245,
-          rating: 4.8,
-          tags: ['合同', '催告'],
-        },
-        {
-          id: '2',
-          name: '技术服务合同',
-          category: '合同协议',
-          description: '软件开发、技术咨询等服务合同模板',
-          downloads: 892,
-          rating: 4.9,
-          tags: ['合同', '技术'],
-        },
-        {
-          id: '3',
-          name: '民事起诉状',
-          category: '诉讼文书',
-          description: '民事诉讼起诉状标准模板',
-          downloads: 2103,
-          rating: 4.7,
-          tags: ['诉讼', '民事'],
-        },
-      ]);
+      setTemplates([]);
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -118,6 +92,31 @@ export function TemplateGallery({ onAIGenerate }: TemplateGalleryProps) {
     return (
       <div className="h-full flex items-center justify-center bg-muted">
         <icons.Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (loadFailed) {
+    return (
+      <div className="h-full flex items-center justify-center p-6 bg-muted">
+        <div className="max-w-md text-center">
+          <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-background flex items-center justify-center border border-border">
+            <icons.FileText className="w-10 h-10 text-muted-foreground/50" />
+          </div>
+          <h3 className="text-xl font-semibold text-foreground mb-2">模板库暂时不可用</h3>
+          <p className="text-sm text-muted-foreground mb-6">
+            当前没有从后端获取到可用模板。为避免展示不真实的示例数据，这里会保持空状态；您可以先使用 AI 生成文档。
+          </p>
+          {onAIGenerate && (
+            <button
+              onClick={() => onAIGenerate('法律文书')}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium"
+            >
+              <icons.Sparkles className="w-4 h-4" />
+              前往 AI 生成
+            </button>
+          )}
+        </div>
       </div>
     );
   }

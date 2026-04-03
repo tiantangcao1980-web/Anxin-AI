@@ -227,8 +227,16 @@ class TestChatAPIErrorHandling:
         assert response.status_code in [200, 500]
 
     @pytest.mark.asyncio
-    async def test_chat_rate_limiting(self, auth_client: AsyncClient):
+    @patch('src.agents.workforce.get_workforce')
+    async def test_chat_rate_limiting(self, mock_get_workforce, auth_client: AsyncClient):
         """测试速率限制"""
+        mock_workforce = MagicMock()
+        mock_workforce.chat = AsyncMock(return_value="测试回复")
+        mock_workforce.process_task = AsyncMock(
+            return_value={"final_result": {"summary": "测试回复"}}
+        )
+        mock_get_workforce.return_value = mock_workforce
+
         # 快速发送多个请求
         responses = []
         for i in range(10):

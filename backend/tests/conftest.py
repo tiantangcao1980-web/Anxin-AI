@@ -5,7 +5,7 @@ Pytest配置和Fixtures
 import asyncio
 import pytest
 import pytest_asyncio
-from typing import AsyncGenerator, Generator
+from typing import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime
 from uuid import uuid4
@@ -84,11 +84,9 @@ test_session_maker = async_sessionmaker(
 # ============ Event Loop配置 ============
 
 @pytest.fixture(scope="session")
-def event_loop() -> Generator:
-    """创建事件循环"""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+def event_loop_policy() -> asyncio.AbstractEventLoopPolicy:
+    """使用 pytest-asyncio 推荐的事件循环策略入口。"""
+    return asyncio.DefaultEventLoopPolicy()
 
 
 # ============ 数据库Fixtures ============
@@ -186,6 +184,35 @@ async def auth_client(
     app.dependency_overrides.clear()
 
 
+@pytest_asyncio.fixture(scope="function")
+async def admin_auth_client(
+    db_session: AsyncSession,
+    test_admin: User,
+) -> AsyncGenerator[AsyncClient, None]:
+    """
+    创建带管理员认证的测试HTTP客户端
+    """
+    from src.api.main import app
+    from src.core.database import get_db
+    from src.core.security import create_access_token
+
+    async def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    token = create_access_token(user_id=test_admin.id)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={"Authorization": f"Bearer {token}"},
+    ) as ac:
+        yield ac
+
+    app.dependency_overrides.clear()
+
+
 # ============ 用户Fixtures ============
 
 @pytest_asyncio.fixture
@@ -205,7 +232,7 @@ async def test_user(db_session: AsyncSession, test_organization: Organization) -
     """创建测试用户"""
     user = User(
         id=str(uuid4()),
-        email="test@example.com",
+        email=f"test-{uuid4().hex[:8]}@example.com",
         name="测试用户",
         hashed_password="hashed_password",
         org_id=test_organization.id,
@@ -221,7 +248,7 @@ async def test_admin(db_session: AsyncSession, test_organization: Organization) 
     """创建测试管理员"""
     admin = User(
         id=str(uuid4()),
-        email="admin@anxinfawu.com",
+        email=f"admin-{uuid4().hex[:8]}@anxinfawu.com",
         name="超级管理员",
         hashed_password="hashed_password",
         org_id=test_organization.id,
@@ -365,7 +392,7 @@ async def test_session(
     test_user: User
 ) -> DocumentSession:
     """创建测试协作会话"""
-    from src.models.collaboration import SessionStatus
+    from src.models.collaboration import SessionStatus, CollaboratorRole
     
     session = DocumentSession(
         id=str(uuid4()),
@@ -378,6 +405,18 @@ async def test_session(
         current_content="这是测试文档内容",
     )
     db_session.add(session)
+    await db_session.flush()
+
+    collaborator = DocumentCollaborator(
+        id=str(uuid4()),
+        session_id=session.id,
+        user_id=test_user.id,
+        role=CollaboratorRole.OWNER,
+        nickname=test_user.name,
+        color="#4ECDC4",
+        is_online=False,
+    )
+    db_session.add(collaborator)
     await db_session.flush()
     return session
 

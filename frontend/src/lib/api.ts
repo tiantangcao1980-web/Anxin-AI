@@ -2,7 +2,7 @@
  * API服务层
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8003/api/v1'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '')
@@ -115,6 +115,7 @@ async function request<T>(
 export interface LoginRequest {
   email: string
   password: string
+  captcha_token?: string
 }
 
 export interface LoginResponse {
@@ -147,7 +148,7 @@ export const authApi = {
       body: JSON.stringify(data),
     }),
   
-  register: (data: { email: string; password: string; name: string; user_type?: string; phone?: string }) =>
+  register: (data: { email: string; password: string; name: string; user_type?: string; phone?: string; captcha_token?: string }) =>
     request<User>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -163,10 +164,10 @@ export const authApi = {
   
   logout: () => request('/auth/logout', { method: 'POST' }),
 
-  forgotPassword: (email: string) =>
+  forgotPassword: (email: string, captcha_token?: string) =>
     request<{ message: string; debug_token?: string }>('/auth/forgot-password', {
       method: 'POST',
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, captcha_token }),
     }),
 
   resetPassword: (token: string, new_password: string) =>
@@ -2332,6 +2333,15 @@ export const tasksApi = {
     request<TaskItem>(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   updateStatus: (id: string, status: string) =>
     request<TaskItem>(`/tasks/${id}/status?status=${status}`, { method: 'PATCH' }),
+  transition: (id: string, status: string) =>
+    request<TaskItem>(`/tasks/${id}/transition`, { method: 'PUT', body: JSON.stringify({ status }) }),
+  batchUpdate: (updates: Array<{ task_id: string; status: string; sort_order?: number }>) =>
+    request<{ success: number; failed: number; errors: any[] }>('/tasks/batch-update', {
+      method: 'POST',
+      body: JSON.stringify({ updates }),
+    }),
+  kanbanStats: () =>
+    request<Record<string, number>>('/tasks/kanban/stats'),
   delete: (id: string) =>
     request(`/tasks/${id}`, { method: 'DELETE' }),
 }

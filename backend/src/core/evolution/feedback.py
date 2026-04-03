@@ -37,11 +37,17 @@ class FeedbackPipeline:
 
     def __init__(
         self,
-        episodic_memory: EnhancedEpisodicMemoryService,
-        experience_extractor: ExperienceExtractor
+        episodic_memory: Any,
+        experience_extractor: Optional[Any] = None,
+        db: Any = None,
     ):
+        if experience_extractor is not None and not isinstance(experience_extractor, ExperienceExtractor):
+            # 兼容旧签名：FeedbackPipeline(db, episodic_memory)
+            db, episodic_memory, experience_extractor = episodic_memory, experience_extractor, None
+
         self.episodic_memory = episodic_memory
-        self.experience_extractor = experience_extractor
+        self.experience_extractor = experience_extractor or ExperienceExtractor(episodic_memory=episodic_memory)
+        self.db = db
         self._feedback_queue: asyncio.Queue[UserFeedback] = asyncio.Queue()
         self._processing = False
 
@@ -74,16 +80,36 @@ class FeedbackPipeline:
             await self._feedback_queue.put(feedback)
 
             # 立即更新情景记忆的评分
-            await self.episodic_memory.update_feedback(
-                episode_id=feedback.episode_id,
-                user_rating=feedback.rating,
-                user_feedback=feedback.comment
-            )
+            update_feedback = getattr(self.episodic_memory, "update_feedback", None)
+            update_rating = getattr(self.episodic_memory, "update_rating", None)
+
+            if callable(update_feedback) and (
+                hasattr(type(self.episodic_memory), "update_feedback")
+                or "update_feedback" in getattr(self.episodic_memory, "__dict__", {})
+            ):
+                await update_feedback(
+                    episode_id=feedback.episode_id,
+                    user_rating=feedback.rating,
+                    user_feedback=feedback.comment
+                )
+            elif callable(update_rating) and (
+                hasattr(type(self.episodic_memory), "update_rating")
+                or "update_rating" in getattr(self.episodic_memory, "__dict__", {})
+            ):
+                await update_rating(
+                    feedback.episode_id,
+                    feedback.rating,
+                    feedback.comment,
+                )
 
             logger.info(
                 f"反馈已提交: {feedback.episode_id}, "
                 f"评分: {feedback.rating}"
             )
+
+            if not self._processing and (feedback.rating >= 4 or feedback.rating <= 2):
+                await self._trigger_experience_extraction(feedback)
+
             return True
 
         except Exception as e:

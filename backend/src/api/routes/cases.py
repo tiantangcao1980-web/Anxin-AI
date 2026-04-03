@@ -3,6 +3,7 @@
 from datetime import datetime
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -247,11 +248,17 @@ async def get_case(
     case = await service.get_case(case_id)
     
     if not case:
-        return UnifiedResponse.error(code=404, message="案件不存在")
+        return JSONResponse(
+            status_code=404,
+            content=UnifiedResponse.error(code=404, message="案件不存在"),
+        )
     
     # 简单的越权检查
     if case.org_id != user.org_id:
-        return UnifiedResponse.error(code=403, message="无权访问该案件")
+        return JSONResponse(
+            status_code=403,
+            content=UnifiedResponse.error(code=403, message="无权访问该案件"),
+        )
     
     data = CaseResponse(
         id=case.id,
@@ -393,7 +400,7 @@ async def generate_case_briefing(
         
     # 获取案件时间线和相关文档摘要
     timeline = await service.get_timeline(case_id)
-    documents = await service.get_case_documents(case_id)
+    documents = await service.get_case_documents(case_id, org_id=user.org_id)
     
     # 构建上下文
     context = f"案件标题: {case.title}\n案件类型: {case.case_type.value}\n描述: {case.description}\n"
@@ -481,6 +488,7 @@ async def link_document_to_case(
     success = await service.link_document(
         case_id=case_id,
         document_id=request.document_id,
+        org_id=user.org_id,
         created_by=user.id,
     )
     

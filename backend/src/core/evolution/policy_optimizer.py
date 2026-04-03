@@ -36,11 +36,23 @@ class PolicyOptimizer:
 
     def __init__(
         self,
-        episodic_memory: EnhancedEpisodicMemoryService,
-        experience_extractor: ExperienceExtractor
+        episodic_memory: Optional[Any] = None,
+        experience_extractor: Optional[Any] = None,
+        db: Any = None,
+        vector_store: Any = None,
     ):
+        if experience_extractor is not None and not isinstance(experience_extractor, ExperienceExtractor):
+            # 兼容旧签名：PolicyOptimizer(db, vector_store)
+            db, vector_store, episodic_memory, experience_extractor = episodic_memory, experience_extractor, None, None
+
         self.episodic_memory = episodic_memory
-        self.experience_extractor = experience_extractor
+        self.experience_extractor = experience_extractor or ExperienceExtractor(
+            episodic_memory=episodic_memory,
+            db=db,
+            vector_store=vector_store,
+        )
+        self.db = db
+        self.vector_store = vector_store
         self._optimization_cache: Dict[str, Any] = {}
 
     async def optimize_agent_selection(
@@ -69,15 +81,20 @@ class PolicyOptimizer:
                 return cached["agents"]
 
         # 2. 检索相关成功案例
-        successful_episodes = await self.episodic_memory.search(
-            query=task_description,
-            top_k=10,
-            filters={
-                "task_type": task_type,
-                "is_successful": True,
-                "min_rating": 4
-            }
-        )
+        if self.episodic_memory is not None:
+            successful_episodes = await self.episodic_memory.search(
+                query=task_description,
+                top_k=10,
+                filters={
+                    "task_type": task_type,
+                    "is_successful": True,
+                    "min_rating": 4
+                }
+            )
+        elif self.vector_store is not None and hasattr(self.vector_store, "search"):
+            successful_episodes = await self.vector_store.search(task_description)
+        else:
+            successful_episodes = []
 
         if not successful_episodes:
             # 无历史经验,使用默认策略
@@ -97,7 +114,7 @@ class PolicyOptimizer:
 
         # 4. 选择最佳组合
         if agent_combinations:
-            best_tuple = agent_combinations.most_common(1)[0]
+            best_tuple = agent_combinations.most_common(1)[0][0]
             best_agents = list(best_tuple)
 
             # 结合当前可用的 Agent
@@ -163,15 +180,18 @@ class PolicyOptimizer:
             )
 
         # 2. 从成功案例中学习
-        successful_episodes = await self.episodic_memory.search(
-            query=task_description,
-            top_k=5,
-            filters={
-                "task_type": task_type,
-                "is_successful": True,
-                "min_rating": 4
-            }
-        )
+        if self.episodic_memory is not None:
+            successful_episodes = await self.episodic_memory.search(
+                query=task_description,
+                top_k=5,
+                filters={
+                    "task_type": task_type,
+                    "is_successful": True,
+                    "min_rating": 4
+                }
+            )
+        else:
+            successful_episodes = []
 
         if successful_episodes:
             # 分析最成功的案例
@@ -314,3 +334,15 @@ class PolicyOptimizer:
             "pattern_stats": pattern_stats,
             "last_optimization": datetime.now().isoformat()
         }
+
+    def _rank_combinations(self, combinations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """兼容旧测试：按评分、成功率、耗时综合排序。"""
+        return sorted(
+            combinations,
+            key=lambda item: (
+                item.get("avg_rating", 0),
+                item.get("success_rate", 0),
+                -item.get("avg_duration", 0),
+            ),
+            reverse=True,
+        )

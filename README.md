@@ -104,6 +104,92 @@ docker-compose up -d
 
 访问 http://localhost:3001
 
+## 测试
+
+### 后端定向回归
+
+```bash
+cd backend
+./.venv/bin/python -m pytest \
+  tests/test_auth_roles_permissions.py \
+  tests/test_contract_review_workflow.py
+```
+
+覆盖内容：
+- 注册用户类型到初始角色映射
+- 登录失败锁定与权限边界
+- 合同审查结果落库、风险保存与建议应用
+
+### 前端角色权限 E2E
+
+```bash
+cd frontend
+npm run test:e2e -- role-access.spec.ts
+```
+
+覆盖内容：
+- 企业用户可见“找律师”但不可见“案源管理”
+- 非管理员访问后台自动回退到 `/chat`
+- 过期 token 访问受保护页面自动跳转 `/login`
+
+说明：
+- `frontend/e2e/role-access.spec.ts` 已覆盖桌面端与移动端的多角色权限流。
+- `frontend/e2e/helpers/session.ts` 会注入 mock 登录态、API 响应和 WebSocket，避免依赖真实后端启动。
+
+### 前端核心业务动作 E2E
+
+```bash
+cd frontend
+npm run test:e2e -- business-actions.spec.ts
+```
+
+覆盖内容：
+- 找律师：问题描述 → 律师匹配 → 确认委托
+- 任务中心：任务从“待办”推进到“进行中”
+- 合同管理：触发智能审查并展示风险结果
+- 文档库：进入“我的文档”并触发 AI 分析
+
+### 当前质量基线
+
+```bash
+# 后端全量回归
+cd backend
+./.venv/bin/pytest -q tests
+
+# 前端静态检查
+cd ../frontend
+npm run lint
+npm run build
+```
+
+当前状态：
+- 后端全量测试已通过：`172 passed`
+- 后端核心授权/业务回归已通过：`42/42`
+- 前端 `lint` / `build` 已通过
+- 前端多角色访问控制 E2E：`6/6`
+- 前端核心业务动作 E2E：`8/8`
+- `/documents` 已恢复为真实受保护路由，文档库“我的文档 → AI 分析”链路已纳入回归
+- 浏览器 E2E 仍受当前开发机 Chromium 启动权限限制，建议在具备浏览器权限的环境中补跑
+
+### 本轮收口内容
+
+- 合同模块：详情、审查、风险列表、建议应用、风险处理、保存、下载全部按组织边界收口
+- 文档模块：文本创建、元数据更新、内容更新、删除、版本历史、AI 分析全部纳入 API 级授权回归
+- 找律师模块：咨询创建、委托前置条件、接单大厅可见性、接单状态推进、评价创建、评价回复已补齐权限与回归
+- AI 旁听助手：同一对话仅允许发起人本人复用或停止旁听
+- 前端：找律师委托、任务推进、合同审查、文档库分析四条动作流已补齐 E2E
+
+### 当前已知遗留
+
+- 仓库历史中的真实密钥轮换与 Git 历史清理尚未完成
+- 前端 `access_token` / `refresh_token` 仍持久化在 `localStorage`
+- 验证码 / 找回密码链路仍使用 6 位数字码，额外上下文绑定与更强校验尚未完成
+- 两步验证目前仅提供状态说明与邮箱验证引导，尚未接入真实短信 / TOTP
+- 云端私有助手目前为规划态入口，已提供“查看企业方案”跳转，但尚未开放申请
+- 律师入驻当前支持图片 URL 提交认证资料，尚未接入站内真实文件上传链路
+- 匿名聊天公开创建与 token 设计仍需重构
+- e 签宝、法大大、部分支付/通知渠道仍保留占位实现
+
 ## 项目结构
 
 ```

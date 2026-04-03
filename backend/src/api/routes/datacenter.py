@@ -10,6 +10,16 @@ from src.models.user import User
 
 router = APIRouter()
 
+
+def _max_access_level_for_role(role: str) -> int:
+    if role in {"super_admin", "admin"}:
+        return 4
+    if role in {"org_admin", "partner", "executive"}:
+        return 3
+    if role in {"dept_admin", "lawyer", "manager"}:
+        return 2
+    return 1
+
 class DataStoreRequest(BaseModel):
     category: str # core_asset, knowledge, management, archive
     key: str
@@ -36,6 +46,9 @@ async def store_data(
         level_enum = AccessLevel(req.access_level)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid category or access level")
+
+    if req.access_level > _max_access_level_for_role(user.role):
+        raise HTTPException(status_code=403, detail="无权设置该访问等级")
 
     result = await data_center_service.store_data(
         category=category_enum,
@@ -72,4 +85,4 @@ async def list_data(
     列出当前用户可见的数据资产
     """
     cat_enum = DataCategory(category) if category else None
-    return await data_center_service.list_data(cat_enum, user.role)
+    return await data_center_service.list_data(cat_enum, user.role, str(user.id))

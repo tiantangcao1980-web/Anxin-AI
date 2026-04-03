@@ -111,3 +111,6 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+filterwarnings = [
+    "ignore:Relying on Driver's destructor to close the session is deprecated:DeprecationWarning:neo4j\\._sync\\.driver",
+]

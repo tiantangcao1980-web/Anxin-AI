@@ -172,6 +172,29 @@ class TokenBlacklist:
     
     def __init__(self):
         self._redis = None
+        self._redis_warning_logged = False
+        self._local_blacklist: dict[str, datetime] = {}
+
+    def _prune_local_blacklist(self) -> None:
+        now = datetime.now(timezone.utc)
+        expired = [jti for jti, exp in self._local_blacklist.items() if exp <= now]
+        for jti in expired:
+            self._local_blacklist.pop(jti, None)
+
+    def _store_local_blacklist(self, jti: str, exp: datetime) -> None:
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+        self._prune_local_blacklist()
+        self._local_blacklist[jti] = exp
+
+    def _log_redis_fallback(self, action: str, error: Exception) -> None:
+        """Redis 不可用时记录一次警告，后续降级为调试日志，避免刷屏。"""
+        message = f"{action}: {error}"
+        if self._redis_warning_logged:
+            logger.debug(message)
+            return
+        logger.warning(message)
+        self._redis_warning_logged = True
     
     async def _get_redis(self):
         """获取Redis客户端"""
@@ -231,6 +254,11 @@ class TokenBlacklist:
             
         except Exception as e:
             logger.error(f"添加Token到黑名单失败: {e}")
+            if payload is not None:
+                jti = payload.jti or hashlib.sha256(token.encode()).hexdigest()[:32]
+                self._store_local_blacklist(jti, exp)
+                logger.warning(f"Redis不可用，Token已写入本地黑名单回退: jti={jti[:8]}...")
+                return True
             return False
     
     async def is_blacklisted(self, token: str) -> bool:
@@ -258,8 +286,9 @@ class TokenBlacklist:
             return await redis_client.exists(key) > 0
             
         except Exception as e:
-            logger.error(f"检查Token黑名单失败: {e}")
-            return False
+            self._log_redis_fallback("检查Token黑名单失败，已降级为本地黑名单校验", e)
+            self._prune_local_blacklist()
+            return jti in self._local_blacklist
     
     async def revoke_all_user_tokens(self, user_id: str) -> bool:
         """
@@ -393,6 +422,17 @@ class RateLimiter:
     
     def __init__(self):
         self._redis = None
+        self._redis_warning_logged = False
+        self._memory_windows: dict[str, list[float]] = {}
+
+    def _log_redis_fallback(self, action: str, error: Exception) -> None:
+        """限流 Redis 不可用时只在首次输出警告，后续使用调试日志。"""
+        message = f"{action}: {error}"
+        if self._redis_warning_logged:
+            logger.debug(message)
+            return
+        logger.warning(message)
+        self._redis_warning_logged = True
     
     async def _get_redis(self):
         """获取Redis客户端"""
@@ -478,9 +518,18 @@ class RateLimiter:
             return allowed, current, remaining
             
         except Exception as e:
-            logger.error(f"频率限制检查失败: {e}")
-            # 失败时允许请求通过
-            return True, 0, limit
+            self._log_redis_fallback("频率限制检查失败，已降级为本地内存限流", e)
+            key = self._make_key(identifier, endpoint)
+            now = datetime.now(timezone.utc).timestamp()
+            window_start = now - window
+            timestamps = [ts for ts in self._memory_windows.get(key, []) if ts > window_start]
+            current = len(timestamps)
+            if current < limit:
+                timestamps.append(now)
+                self._memory_windows[key] = timestamps
+                return True, current + 1, limit - current - 1
+            self._memory_windows[key] = timestamps
+            return False, current, 0
     
     async def get_usage(
         self,
@@ -510,8 +559,13 @@ class RateLimiter:
             return await redis_client.zcard(key)
             
         except Exception as e:
-            logger.error(f"获取使用量失败: {e}")
-            return 0
+            self._log_redis_fallback("获取限流使用量失败，已降级为本地内存统计", e)
+            key = self._make_key(identifier, endpoint)
+            now = datetime.now(timezone.utc).timestamp()
+            window_start = now - window
+            timestamps = [ts for ts in self._memory_windows.get(key, []) if ts > window_start]
+            self._memory_windows[key] = timestamps
+            return len(timestamps)
     
     async def reset(self, identifier: str, endpoint: str = "global") -> bool:
         """
@@ -531,7 +585,9 @@ class RateLimiter:
             return True
         except Exception as e:
             logger.error(f"重置限流失败: {e}")
-            return False
+            key = self._make_key(identifier, endpoint)
+            self._memory_windows.pop(key, None)
+            return True
     
     async def close(self):
         """关闭Redis连接"""

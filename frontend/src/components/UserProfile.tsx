@@ -7,6 +7,165 @@ import { useAuthStore, useUIStore } from '../lib/store'
 import { usePrivacy, PrivacyMode, HardwareStatus as HWStatus } from '../context/PrivacyContext'
 import { toast } from 'sonner'
 
+const OPENCLAW_SETUP_GUIDE = [
+  '1. 确认本机满足最低硬件要求（建议 8GB 内存、20GB 可用磁盘）。',
+  '2. 拉取 OpenClaw 运行时与法律模型包。',
+  '3. 配置本地推理服务地址、模型目录和隐私策略。',
+  '4. 完成本地联调后，再回到平台点击“我已完成部署”。',
+].join('\n')
+
+// ==================== 角色和认证辅助函数 ====================
+
+const ROLE_DISPLAY_MAP: Record<string, string> = {
+  super_admin: '超级管理员',
+  admin: '系统管理员',
+  org_admin: '机构管理员',
+  dept_admin: '部门管理员',
+  partner: '合伙人',
+  lawyer: '执业律师',
+  paralegal: '律师助理',
+  platform_lawyer: '平台律师',
+  enterprise_user: '企业用户',
+  individual_user: '个人用户',
+  member: '普通用户',
+  client: '委托人',
+  viewer: '访客',
+}
+
+const USER_TYPE_DISPLAY_MAP: Record<string, string> = {
+  individual: '个人版',
+  enterprise: '企业版',
+  lawyer: '律师版',
+  law_firm: '律所版',
+  internal: '',
+}
+
+function getRoleDisplayName(role: string): string {
+  return ROLE_DISPLAY_MAP[role] || role
+}
+
+function getUserTypeDisplayName(userType: string): string {
+  return USER_TYPE_DISPLAY_MAP[userType] || userType
+}
+
+/** 角色图标映射 — 使用设计系统中的 lucide-react SVG 图标 */
+function RoleIcon({ role, className = 'w-3.5 h-3.5' }: { role: string; className?: string }) {
+  const iconMap: Record<string, typeof icons[keyof typeof icons]> = {
+    super_admin: icons.Shield,
+    admin: icons.Settings,
+    org_admin: icons.Building,
+    dept_admin: icons.ClipboardCheck,
+    partner: icons.Star,
+    lawyer: icons.Scale,
+    paralegal: icons.Edit,
+    platform_lawyer: icons.Scale,
+    enterprise_user: icons.Building2,
+    individual_user: icons.User,
+    member: icons.User,
+    client: icons.Users,
+    viewer: icons.Eye,
+  }
+  const IconComponent = iconMap[role] || icons.User
+  return <IconComponent className={className} />
+}
+
+// 兼容旧的字符串签名（返回空字符串，实际使用 RoleIcon 组件）
+function getRoleIcon(_role: string): string {
+  return ''
+}
+
+/** 需要认证的角色 */
+const ROLES_NEED_VERIFICATION = ['lawyer', 'platform_lawyer', 'enterprise_user', 'org_admin']
+
+/** 生成认证状态横幅 */
+function getVerificationBanner(
+  user: { role?: string; user_type?: string; email_verified?: boolean },
+  navigate: (path: string) => void,
+) {
+  const role = user.role || 'member'
+  const userType = user.user_type || 'individual'
+
+  // 邮箱未验证
+  if (user.email_verified === false) {
+    return (
+      <button
+        onClick={() => navigate('/settings?tab=profile')}
+        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/20 text-amber-100 text-xs hover:bg-amber-500/30 transition-colors"
+      >
+        <icons.AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+        <span className="text-left">邮箱未验证，部分功能受限。点击前往验证</span>
+        <icons.ChevronRight className="w-3.5 h-3.5 ml-auto shrink-0" />
+      </button>
+    )
+  }
+
+  // 律师/律所 — 检查是否已认证
+  if (userType === 'lawyer' || userType === 'law_firm' || role === 'lawyer' || role === 'platform_lawyer') {
+    // 如果角色仍是 viewer/member，说明未通过认证
+    if (role === 'viewer' || role === 'member' || role === 'individual_user') {
+      return (
+        <button
+          onClick={() => navigate('/lawyer-onboarding')}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/20 text-amber-100 text-xs hover:bg-amber-500/30 transition-colors"
+        >
+          <icons.FileSignature className="w-3.5 h-3.5 shrink-0" />
+          <span className="text-left">律师资质待认证，完成认证后解锁全部功能</span>
+          <icons.ChevronRight className="w-3.5 h-3.5 ml-auto shrink-0" />
+        </button>
+      )
+    }
+    // 已认证
+    return (
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-100 text-xs">
+        <icons.CheckCircle className="w-3.5 h-3.5 shrink-0" />
+        <span>已认证律师 · 全部功能已开通</span>
+      </div>
+    )
+  }
+
+  // 企业用户 — 检查是否已认证
+  if (userType === 'enterprise') {
+    if (role === 'viewer' || role === 'member' || role === 'individual_user') {
+      return (
+        <button
+          onClick={() => navigate('/settings?tab=profile')}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/20 text-blue-100 text-xs hover:bg-blue-500/30 transition-colors"
+        >
+          <icons.Building className="w-3.5 h-3.5 shrink-0" />
+          <span className="text-left">企业认证待完成，认证后开通团队协作功能</span>
+          <icons.ChevronRight className="w-3.5 h-3.5 ml-auto shrink-0" />
+        </button>
+      )
+    }
+    return (
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-100 text-xs">
+        <icons.CheckCircle className="w-3.5 h-3.5 shrink-0" />
+        <span>企业已认证 · 团队功能已开通</span>
+      </div>
+    )
+  }
+
+  // 个人用户 — 提示升级
+  if (userType === 'individual' || role === 'individual_user' || role === 'member') {
+    return (
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10 text-white/80 text-xs">
+        <icons.Lightbulb className="w-3.5 h-3.5 shrink-0" />
+        <span>个人用户 · </span>
+        <button
+          onClick={() => navigate('/subscription')}
+          className="underline hover:text-white transition-colors"
+        >
+          升级套餐解锁更多功能
+        </button>
+      </div>
+    )
+  }
+
+  return null
+}
+
+// ==================== Component ====================
+
 interface UserProfileProps {
   onClose: () => void
   headerActionLabels?: boolean
@@ -89,7 +248,7 @@ export function UserProfile({ onClose, headerActionLabels = true, onToggleHeader
 
   const menuItems = [
     { icon: icons.User, label: '个人信息', action: () => handleNavigate('/settings?tab=profile') },
-    { icon: icons.HelpCircle, label: '帮助中心', action: () => toast.info('帮助文档即将上线') },
+    { icon: icons.HelpCircle, label: '帮助中心', action: () => handleNavigate('/knowledge-base') },
   ]
 
   return (
@@ -101,9 +260,9 @@ export function UserProfile({ onClose, headerActionLabels = true, onToggleHeader
         onClick={(e) => e.stopPropagation()}
         className="absolute right-0 top-0 bottom-0 w-80 bg-background shadow-2xl flex flex-col animate-in slide-in-from-right duration-200"
       >
-        {/* Header */}
+        {/* Header — 用户信息+角色+认证状态 */}
         <div className="p-6 bg-primary text-primary-foreground">
-          <div className="flex items-start justify-between mb-6">
+          <div className="flex items-start justify-between mb-4">
             <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center overflow-hidden">
               {user?.avatar_url ? (
                 <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
@@ -119,9 +278,28 @@ export function UserProfile({ onClose, headerActionLabels = true, onToggleHeader
             </button>
           </div>
           <h3 className={`${heading.section} text-primary-foreground text-lg mb-1`}>{user?.name || '未登录'}</h3>
-          <p className={`${heading.muted} text-primary-foreground/80`}>{user?.email || '请登录后查看'}</p>
-          {user?.role && (
-            <span className="inline-block mt-2 px-2 py-0.5 rounded text-xs bg-white/20">{user.role}</span>
+          <p className={`${heading.muted} text-primary-foreground/80 text-sm`}>{user?.email || '请登录后查看'}</p>
+
+          {/* 角色和用户类型标签 */}
+          <div className="flex flex-wrap gap-1.5 mt-3">
+            {user?.role && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-white/20">
+                <RoleIcon role={user.role} className="w-3 h-3" />
+                {getRoleDisplayName(user.role)}
+              </span>
+            )}
+            {user?.user_type && user.user_type !== 'internal' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-white/15">
+                {getUserTypeDisplayName(user.user_type)}
+              </span>
+            )}
+          </div>
+
+          {/* 认证状态提示 */}
+          {user && (
+            <div className="mt-3">
+              {getVerificationBanner(user, handleNavigate)}
+            </div>
           )}
         </div>
 
@@ -375,13 +553,12 @@ export function UserProfile({ onClose, headerActionLabels = true, onToggleHeader
                   <div>
                     <h4 className="text-base font-semibold text-foreground mb-1">云端私有助手</h4>
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                      云端私有助手正在开发中，将为您提供专属的云端 AI 法务服务实例，
-                      数据隔离存储，独享算力资源。
+                      云端私有助手仍处于规划阶段。开放后将提供专属云端 AI 法务实例、数据隔离存储与独享算力资源。
                     </p>
                   </div>
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 rounded-full text-xs font-medium border border-amber-200 dark:border-amber-800">
                     <icons.Clock className="w-3.5 h-3.5" />
-                    预计后续版本迭代开放
+                    当前尚未开放申请
                   </div>
                 </div>
               ) : (
@@ -417,18 +594,44 @@ export function UserProfile({ onClose, headerActionLabels = true, onToggleHeader
               >
                 {privacyMode === PrivacyMode.CLOUD ? '知道了' : '稍后安装'}
               </button>
-              {privacyMode !== PrivacyMode.CLOUD && (
+              {privacyMode === PrivacyMode.CLOUD && (
                 <button
                   onClick={() => {
-                    setOpenClawInstalled(true)
                     setShowHardwareSetup(false)
-                    toggleHardwareConnection()
-                    toast.success('AI 私有助手配置完成')
+                    navigate('/pricing')
                   }}
                   className={`${buttonStyle.sm} px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm`}
                 >
-                  开始安装
+                  查看企业方案
                 </button>
+              )}
+              {privacyMode !== PrivacyMode.CLOUD && (
+                <>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(OPENCLAW_SETUP_GUIDE)
+                        toast.success('安装说明已复制')
+                      } catch {
+                        toast.info('请根据弹窗中的步骤手动完成部署')
+                      }
+                    }}
+                    className={`${buttonStyle.sm} px-4 py-2 text-muted-foreground hover:bg-muted`}
+                  >
+                    复制安装说明
+                  </button>
+                  <button
+                    onClick={() => {
+                      setOpenClawInstalled(true)
+                      setShowHardwareSetup(false)
+                      toggleHardwareConnection()
+                      toast.success('已标记为本地部署完成')
+                    }}
+                    className={`${buttonStyle.sm} px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm`}
+                  >
+                    我已完成部署
+                  </button>
+                </>
               )}
             </div>
           </div>

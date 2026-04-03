@@ -227,7 +227,7 @@ async def get_knowledge_base(
 ):
     """获取知识库详情"""
     service = KnowledgeService(db)
-    kb = await service.get_knowledge_base(kb_id)
+    kb = await service.get_knowledge_base(kb_id, user_id=user.id, org_id=user.org_id)
     
     if not kb:
         return UnifiedResponse.error(code=404, message="知识库不存在")
@@ -255,7 +255,13 @@ async def list_kb_documents(
     """获取知识库文档列表"""
     service = KnowledgeService(db)
     
-    docs, total = await service.list_documents(kb_id, page, page_size)
+    docs, total = await service.list_documents(
+        kb_id,
+        page,
+        page_size,
+        user_id=user.id,
+        org_id=user.org_id,
+    )
     
     data = {
         "items": [
@@ -288,7 +294,7 @@ async def add_document_to_kb(
     service = KnowledgeService(db)
     
     # 检查知识库是否存在
-    kb = await service.get_knowledge_base(kb_id)
+    kb = await service.get_knowledge_base(kb_id, user_id=user.id, org_id=user.org_id)
     if not kb:
         return UnifiedResponse.error(code=404, message="知识库不存在")
     
@@ -337,13 +343,16 @@ async def search_knowledge(
             query=request.query,
             kb_ids=request.kb_ids,
             top_k=request.top_k,
+            user_id=user.id,
+            org_id=user.org_id,
         )
     else:
         results = await service.search(
             query=request.query,
             kb_ids=request.kb_ids,
             top_k=request.top_k,
-            use_vector=request.use_vector,
+            user_id=user.id,
+            org_id=user.org_id,
         )
     
     data = [
@@ -380,7 +389,7 @@ async def delete_kb_document(
 ):
     """删除知识库文档"""
     service = KnowledgeService(db)
-    success = await service.delete_document(doc_id)
+    success = await service.delete_document(doc_id, user_id=user.id, org_id=user.org_id)
     
     if not success:
         return UnifiedResponse.error(code=404, message="文档不存在")
@@ -408,6 +417,8 @@ async def rag_query(
         top_k=request.top_k,
         include_sources=request.include_sources,
         system_prompt=request.system_prompt,
+        user_id=user.id,
+        org_id=user.org_id,
     )
     
     data = RAGQueryResponse(
@@ -433,7 +444,7 @@ async def index_document(
     service = KnowledgeService(db)
     
     # 检查知识库是否存在
-    kb = await service.get_knowledge_base(kb_id)
+    kb = await service.get_knowledge_base(kb_id, user_id=user.id, org_id=user.org_id)
     if not kb:
         return UnifiedResponse.error(code=404, message="知识库不存在")
     
@@ -470,7 +481,7 @@ async def upload_document_to_kb(
     service = KnowledgeService(db)
     
     # 检查知识库是否存在
-    kb = await service.get_knowledge_base(kb_id)
+    kb = await service.get_knowledge_base(kb_id, user_id=user.id, org_id=user.org_id)
     if not kb:
         return UnifiedResponse.error(code=404, message="知识库不存在")
     
@@ -506,6 +517,8 @@ async def semantic_search(
         query=query,
         kb_id=kb_id,
         top_k=top_k,
+        user_id=user.id,
+        org_id=user.org_id,
     )
     
     data = [
@@ -588,7 +601,7 @@ async def update_knowledge_base(
     if not update_data:
         return UnifiedResponse.error(message="未提供更新字段")
 
-    kb = await service.update_knowledge_base(kb_id, **update_data)
+    kb = await service.update_knowledge_base(kb_id, user_id=user.id, org_id=user.org_id, **update_data)
     if not kb:
         return UnifiedResponse.error(code=404, message="知识库不存在")
 
@@ -608,7 +621,7 @@ async def delete_knowledge_base(
 ):
     """删除知识库"""
     service = KnowledgeService(db)
-    success = await service.delete_knowledge_base(kb_id)
+    success = await service.delete_knowledge_base(kb_id, user_id=user.id, org_id=user.org_id)
     if not success:
         return UnifiedResponse.error(code=404, message="知识库不存在")
     return UnifiedResponse.success(message="知识库已删除")
@@ -622,7 +635,7 @@ async def get_document_detail(
 ):
     """获取文档完整内容"""
     service = KnowledgeService(db)
-    doc = await service.get_document(doc_id)
+    doc = await service.get_document(doc_id, user_id=user.id, org_id=user.org_id)
     if not doc:
         return UnifiedResponse.error(code=404, message="文档不存在")
 
@@ -650,7 +663,7 @@ async def update_document(
     if not update_data:
         return UnifiedResponse.error(message="未提供更新字段")
 
-    doc = await service.update_document(doc_id, **update_data)
+    doc = await service.update_document(doc_id, user_id=user.id, org_id=user.org_id, **update_data)
     if not doc:
         return UnifiedResponse.error(code=404, message="文档不存在")
 
@@ -670,7 +683,7 @@ async def get_kb_stats(
 ):
     """获取知识库统计"""
     service = KnowledgeService(db)
-    stats = await service.get_kb_stats_detail(kb_id)
+    stats = await service.get_kb_stats_detail(kb_id, user_id=user.id, org_id=user.org_id)
     if stats.get("error"):
         return UnifiedResponse.error(code=404, message="知识库不存在")
     return UnifiedResponse.success(data=stats)
@@ -684,7 +697,7 @@ async def export_knowledge_base(
 ):
     """导出知识库为JSON"""
     service = KnowledgeService(db)
-    result = await service.export_knowledge_base(kb_id)
+    result = await service.export_knowledge_base(kb_id, user_id=user.id, org_id=user.org_id)
     if not result:
         return UnifiedResponse.error(code=404, message="知识库不存在")
     return UnifiedResponse.success(data=result)
@@ -699,7 +712,7 @@ async def batch_upload_documents(
 ):
     """批量上传文件到知识库"""
     service = KnowledgeService(db)
-    kb = await service.get_knowledge_base(kb_id)
+    kb = await service.get_knowledge_base(kb_id, user_id=user.id, org_id=user.org_id)
     if not kb:
         return UnifiedResponse.error(code=404, message="知识库不存在")
 

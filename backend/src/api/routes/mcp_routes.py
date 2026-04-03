@@ -4,11 +4,11 @@ MCP Server Management Routes
 
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from src.core.deps import get_current_user_required, UserRole, require_role
+from src.core.deps import UserRole, get_admin_user, require_role
 from src.services.mcp_client_service import mcp_client_service
 from src.models.mcp_config import McpServerConfig
 from src.core.database import get_db
@@ -36,16 +36,15 @@ class McpConfigUpdate(BaseModel):
     is_enabled: Optional[bool] = None
 
 class McpConfigResponse(McpConfigCreate):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     cached_tools: Optional[List[Dict]] = []
-
-    class Config:
-        from_attributes = True
 
 @router.get("/servers", response_model=List[McpConfigResponse])
 async def list_servers(
     db: AsyncSession = Depends(get_db),
-    user = Depends(require_role(UserRole.ADMIN))
+    user = Depends(get_admin_user)
 ):
     """List all configured MCP servers."""
     result = await db.execute(select(McpServerConfig))
@@ -55,7 +54,7 @@ async def list_servers(
 async def create_server(
     config: McpConfigCreate,
     db: AsyncSession = Depends(get_db),
-    user = Depends(require_role(UserRole.ADMIN))
+    user = Depends(get_admin_user)
 ):
     """Add a new MCP server configuration."""
     # Check if name exists
@@ -74,7 +73,7 @@ async def update_server(
     server_id: str,
     config: McpConfigUpdate,
     db: AsyncSession = Depends(get_db),
-    user = Depends(require_role(UserRole.ADMIN))
+    user = Depends(get_admin_user)
 ):
     """Update an MCP server configuration."""
     db_config = await db.get(McpServerConfig, server_id)
@@ -93,7 +92,7 @@ async def update_server(
 async def delete_server(
     server_id: str,
     db: AsyncSession = Depends(get_db),
-    user = Depends(require_role(UserRole.ADMIN))
+    user = Depends(get_admin_user)
 ):
     """Delete an MCP server configuration."""
     db_config = await db.get(McpServerConfig, server_id)
@@ -108,7 +107,7 @@ async def delete_server(
 async def connect_server(
     server_id: str,
     db: AsyncSession = Depends(get_db),
-    user = Depends(require_role(UserRole.ADMIN))
+    user = Depends(get_admin_user)
 ):
     """Test connection and refresh tools."""
     config = await db.get(McpServerConfig, server_id)
@@ -129,7 +128,7 @@ async def connect_server(
 
 @router.get("/tools")
 async def list_available_tools(
-    user = Depends(get_current_user_required)
+    user = Depends(require_role(UserRole.ADMIN, UserRole.SUPER_ADMIN))
 ):
     """List all available tools from connected servers."""
     return await mcp_client_service.get_all_tools()

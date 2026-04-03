@@ -14,14 +14,15 @@ import json
 import uuid
 from dataclasses import asdict
 from typing import Optional
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from loguru import logger
 
 from src.core.database import get_db
-from src.core.deps import get_current_user
-from src.core.security import verify_token
+from src.core.deps import get_current_user_required
+from src.core.security import verify_token, verify_token_with_blacklist
+from src.models.collaboration import DocumentSession, DocumentCollaborator, SessionStatus
 from src.models.user import User
 from src.services.collaboration_service import CollaborationService
 
@@ -70,7 +71,7 @@ async def document_collaboration_websocket(
     # 向后兼容：如果 URL 中有 token，先尝试验证
     if token:
         try:
-            verified_user_id = verify_token(token)
+            verified_user_id = await verify_token_with_blacklist(token)
             if verified_user_id:
                 result = await db.execute(
                     select(User).where(User.id == verified_user_id, User.is_active == True)
@@ -98,7 +99,7 @@ async def document_collaboration_websocket(
             auth_token = init_data.get("token", "")
             if auth_token:
                 try:
-                    verified_user_id = verify_token(auth_token)
+                    verified_user_id = await verify_token_with_blacklist(auth_token)
                     if verified_user_id:
                         result = await db.execute(
                             select(User).where(User.id == verified_user_id, User.is_active == True)
@@ -125,8 +126,35 @@ async def document_collaboration_websocket(
             init_data = join_msg.get("data", {})
 
         if init_type == "join":
-            user_id = init_data.get("user_id", user_id)
-            user_name = init_data.get("user_name", user_name)
+            session_result = await db.execute(
+                select(DocumentSession).where(
+                    DocumentSession.document_id == document_id,
+                    DocumentSession.status == SessionStatus.ACTIVE,
+                )
+            )
+            doc_session = session_result.scalar_one_or_none()
+            if not doc_session:
+                await websocket.send_json({
+                    "type": "error",
+                    "data": {"message": "文档没有可用的协作会话"}
+                })
+                await websocket.close(code=4004, reason="协作会话不存在")
+                return
+
+            collab_result = await db.execute(
+                select(DocumentCollaborator).where(
+                    DocumentCollaborator.session_id == doc_session.id,
+                    DocumentCollaborator.user_id == user_id,
+                    DocumentCollaborator.is_active == True,
+                )
+            )
+            if not collab_result.scalar_one_or_none():
+                await websocket.send_json({
+                    "type": "error",
+                    "data": {"message": "您不是该文档协作会话的成员"}
+                })
+                await websocket.close(code=4003, reason="未加入协作会话")
+                return
 
             # 加入文档协作
             result = await collaboration_service.join_document(
@@ -330,13 +358,34 @@ async def apply_document_operation(
     document_id: str,
     operation: dict,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
 ):
     """通过 HTTP 应用文档操作（备用）"""
+    session_result = await db.execute(
+        select(DocumentSession).where(
+            DocumentSession.document_id == document_id,
+            DocumentSession.status == SessionStatus.ACTIVE,
+        )
+    )
+    doc_session = session_result.scalar_one_or_none()
+    if not doc_session:
+        raise HTTPException(status_code=404, detail="协作会话不存在")
+
+    collab_result = await db.execute(
+        select(DocumentCollaborator).where(
+            DocumentCollaborator.session_id == doc_session.id,
+            DocumentCollaborator.user_id == str(user.id),
+            DocumentCollaborator.is_active == True,
+        )
+    )
+    if not collab_result.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="您不是该协作会话的成员")
+
     service = CollaborationService(db)
 
     result = await service.handle_operation(
         document_id=document_id,
-        user_id=operation.get("user_id", "api"),
+        user_id=str(user.id),
         operation=operation
     )
 
@@ -348,14 +397,36 @@ async def create_document_comment(
     document_id: str,
     comment: dict,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
 ):
     """创建文档评论"""
+    session_result = await db.execute(
+        select(DocumentSession).where(
+            DocumentSession.document_id == document_id,
+            DocumentSession.status == SessionStatus.ACTIVE,
+        )
+    )
+    doc_session = session_result.scalar_one_or_none()
+    if not doc_session:
+        raise HTTPException(status_code=404, detail="协作会话不存在")
+
+    collab_result = await db.execute(
+        select(DocumentCollaborator).where(
+            DocumentCollaborator.session_id == doc_session.id,
+            DocumentCollaborator.user_id == str(user.id),
+            DocumentCollaborator.is_active == True,
+        )
+    )
+    collaborator = collab_result.scalar_one_or_none()
+    if not collaborator:
+        raise HTTPException(status_code=403, detail="您不是该协作会话的成员")
+
     service = CollaborationService(db)
 
     result = await service.add_comment(
         document_id=document_id,
-        user_id=comment.get("user_id", "api"),
-        user_name=comment.get("user_name", "API 用户"),
+        user_id=str(user.id),
+        user_name=collaborator.nickname or user.name,
         content=comment.get("content", ""),
         position=comment.get("position", {})
     )
@@ -366,9 +437,31 @@ async def create_document_comment(
 @router.get("/document/{document_id}/comments")
 async def list_document_comments(
     document_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
 ):
     """获取文档当前评论列表（内存态）"""
     from src.services.collaboration_service import collaboration_manager
+
+    session_result = await db.execute(
+        select(DocumentSession).where(
+            DocumentSession.document_id == document_id,
+            DocumentSession.status == SessionStatus.ACTIVE,
+        )
+    )
+    doc_session = session_result.scalar_one_or_none()
+    if not doc_session:
+        return {"comments": []}
+
+    collab_result = await db.execute(
+        select(DocumentCollaborator).where(
+            DocumentCollaborator.session_id == doc_session.id,
+            DocumentCollaborator.user_id == str(user.id),
+            DocumentCollaborator.is_active == True,
+        )
+    )
+    if not collab_result.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="您不是该协作会话的成员")
 
     session = collaboration_manager.get_session(document_id)
     if not session:
@@ -388,8 +481,29 @@ async def resolve_document_comment(
     document_id: str,
     comment_id: str,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
 ):
     """标记评论为已解决"""
+    session_result = await db.execute(
+        select(DocumentSession).where(
+            DocumentSession.document_id == document_id,
+            DocumentSession.status == SessionStatus.ACTIVE,
+        )
+    )
+    doc_session = session_result.scalar_one_or_none()
+    if not doc_session:
+        raise HTTPException(status_code=404, detail="协作会话不存在")
+
+    collab_result = await db.execute(
+        select(DocumentCollaborator).where(
+            DocumentCollaborator.session_id == doc_session.id,
+            DocumentCollaborator.user_id == str(user.id),
+            DocumentCollaborator.is_active == True,
+        )
+    )
+    if not collab_result.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="您不是该协作会话的成员")
+
     service = CollaborationService(db)
     return await service.resolve_comment(document_id=document_id, comment_id=comment_id)
 
@@ -398,9 +512,30 @@ async def resolve_document_comment(
 async def get_active_users(
     document_id: str,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
 ):
     """获取文档的活跃用户列表"""
     from src.services.collaboration_service import collaboration_manager
+
+    session_result = await db.execute(
+        select(DocumentSession).where(
+            DocumentSession.document_id == document_id,
+            DocumentSession.status == SessionStatus.ACTIVE,
+        )
+    )
+    doc_session = session_result.scalar_one_or_none()
+    if not doc_session:
+        return {"users": []}
+
+    collab_result = await db.execute(
+        select(DocumentCollaborator).where(
+            DocumentCollaborator.session_id == doc_session.id,
+            DocumentCollaborator.user_id == str(user.id),
+            DocumentCollaborator.is_active == True,
+        )
+    )
+    if not collab_result.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="您不是该协作会话的成员")
 
     session = collaboration_manager.get_session(document_id)
     if not session:

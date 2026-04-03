@@ -195,7 +195,8 @@ async def handle_a2ui_event(
 
 # ========== 「找律师」完整流程 ==========
 
-# 模拟律师数据库
+# 示例律师数据（开发环境使用，生产环境应从 lawyer_profiles 表查询）
+# TODO: v1.1 替换为 LawyerProfile 数据库查询
 MOCK_LAWYERS = [
     {
         "id": "lawyer-001", "name": "张明", "firm": "金杜律师事务所",

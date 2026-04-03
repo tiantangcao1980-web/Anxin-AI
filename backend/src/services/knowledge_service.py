@@ -127,8 +127,13 @@ class KnowledgeService:
         kb_id: str,
         page: int = 1,
         page_size: int = 20,
+        user_id: Optional[str] = None,
+        org_id: Optional[str] = None,
     ) -> tuple[List[KnowledgeDocument], int]:
         """获取知识库文档列表"""
+        kb = await self.get_knowledge_base(kb_id, user_id=user_id, org_id=org_id)
+        if not kb:
+            return [], 0
         query = select(KnowledgeDocument).where(KnowledgeDocument.knowledge_base_id == kb_id)
         count_query = select(func.count(KnowledgeDocument.id)).where(KnowledgeDocument.knowledge_base_id == kb_id)
         
@@ -168,7 +173,12 @@ class KnowledgeService:
         await self.db.flush()
         return doc
 
-    async def delete_document(self, doc_id: str) -> bool:
+    async def delete_document(
+        self,
+        doc_id: str,
+        user_id: Optional[str] = None,
+        org_id: Optional[str] = None,
+    ) -> bool:
         """删除文档"""
         result = await self.db.execute(select(KnowledgeDocument).where(KnowledgeDocument.id == doc_id))
         doc = result.scalar_one_or_none()
@@ -176,7 +186,9 @@ class KnowledgeService:
             return False
         
         # 尝试从向量库删除
-        kb = await self.get_knowledge_base(doc.knowledge_base_id)
+        kb = await self.get_knowledge_base(doc.knowledge_base_id, user_id=user_id, org_id=org_id)
+        if not kb:
+            return False
         if kb and vector_store.is_available:
             await vector_store.delete_documents(kb.vector_collection, [doc_id])
             
@@ -186,15 +198,43 @@ class KnowledgeService:
             
         return True
 
-    async def semantic_search_simple(self, query: str, kb_id: Optional[str] = None, top_k: int = 10) -> List[dict]:
+    async def semantic_search_simple(
+        self,
+        query: str,
+        kb_id: Optional[str] = None,
+        top_k: int = 10,
+        user_id: Optional[str] = None,
+        org_id: Optional[str] = None,
+    ) -> List[dict]:
         """简单语义搜索"""
         kb_ids = [kb_id] if kb_id else None
-        return await self.search(query, kb_ids=kb_ids, top_k=top_k)
+        return await self.search(query, kb_ids=kb_ids, top_k=top_k, user_id=user_id, org_id=org_id)
 
-    async def hybrid_search(self, query: str, kb_ids: Optional[List[str]] = None, top_k: int = 10) -> List[dict]:
+    async def hybrid_search(
+        self,
+        query: str,
+        kb_ids: Optional[List[str]] = None,
+        top_k: int = 10,
+        user_id: Optional[str] = None,
+        org_id: Optional[str] = None,
+    ) -> List[dict]:
         """混合搜索 (结合语义搜索与关键词搜索)"""
         # 1. 语义搜索结果
-        vector_results = await self.search(query, kb_ids=kb_ids, top_k=top_k * 2)
+        vector_results = await self.search(
+            query,
+            kb_ids=kb_ids,
+            top_k=top_k * 2,
+            user_id=user_id,
+            org_id=org_id,
+        )
+
+        accessible_kb_ids = kb_ids
+        if kb_ids and user_id:
+            kbs_result = await self.db.execute(select(KnowledgeBase).where(KnowledgeBase.id.in_(kb_ids)))
+            kbs = [kb for kb in kbs_result.scalars().all() if self._check_kb_access(kb, user_id, org_id)]
+            accessible_kb_ids = [kb.id for kb in kbs]
+            if not accessible_kb_ids:
+                return []
         
         # 2. 关键词搜索结果 (PostgreSQL)
         keyword_results = []
@@ -205,8 +245,8 @@ class KnowledgeService:
                     KnowledgeDocument.content.ilike(f"%{query}%")
                 )
             )
-            if kb_ids:
-                db_query = db_query.where(KnowledgeDocument.knowledge_base_id.in_(kb_ids))
+            if accessible_kb_ids:
+                db_query = db_query.where(KnowledgeDocument.knowledge_base_id.in_(accessible_kb_ids))
             
             db_query = db_query.limit(top_k * 2)
             db_result = await self.db.execute(db_query)
@@ -262,25 +302,59 @@ class KnowledgeService:
         metadata: Optional[Dict] = None,
         chunk_size: Optional[int] = None,
         chunk_overlap: Optional[int] = None,
+        chunking_strategy: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         索引文档：集成分块与向量化流程
+
+        Args:
+            chunking_strategy: 分块策略名称，可选值:
+                - "legal_article": 按法律条款(第X条)分块，适用于法律法规
+                - "paragraph": 按段落分块，适用于合同模板
+                - "sentence": 按句子分块
+                - "recursive": 递归分块(默认)
+                - None: 自动选择(默认 recursive)
         """
         kb = await self.get_knowledge_base(kb_id)
         if not kb:
             return {"success": False, "error": "知识库不存在"}
-        
+
         doc_id = str(uuid.uuid4())
-        
+
         # 1. 调用统一的分块引擎
         chunk_kwargs = {}
         if chunk_size is not None:
             chunk_kwargs["chunk_size"] = chunk_size
         if chunk_overlap is not None:
             chunk_kwargs["chunk_overlap"] = chunk_overlap
+
+        # 根据 chunking_strategy 参数或知识库类型选择分块策略
+        strategy = ChunkingStrategy.RECURSIVE
+        if chunking_strategy:
+            strategy_map = {
+                "legal_article": ChunkingStrategy.LEGAL_ARTICLE,
+                "paragraph": ChunkingStrategy.PARAGRAPH,
+                "sentence": ChunkingStrategy.SENTENCE,
+                "recursive": ChunkingStrategy.RECURSIVE,
+                "fixed_size": ChunkingStrategy.FIXED_SIZE,
+            }
+            strategy = strategy_map.get(chunking_strategy, ChunkingStrategy.RECURSIVE)
+        elif kb.knowledge_type:
+            # 根据知识库类型自动选择策略
+            type_strategy_map = {
+                "law": ChunkingStrategy.LEGAL_ARTICLE,
+                "regulation": ChunkingStrategy.LEGAL_ARTICLE,
+                "interpretation": ChunkingStrategy.LEGAL_ARTICLE,
+                "template": ChunkingStrategy.PARAGRAPH,
+                "letter": ChunkingStrategy.PARAGRAPH,
+                "litigation": ChunkingStrategy.PARAGRAPH,
+            }
+            kt = kb.knowledge_type.value if hasattr(kb.knowledge_type, 'value') else str(kb.knowledge_type)
+            strategy = type_strategy_map.get(kt, ChunkingStrategy.RECURSIVE)
+
         text_chunks = chunking_service.chunk_text(
             text=content,
-            strategy=ChunkingStrategy.RECURSIVE,
+            strategy=strategy,
             **chunk_kwargs,
         )
         
@@ -475,9 +549,15 @@ class KnowledgeService:
             metadata=doc_metadata
         )
 
-    async def update_knowledge_base(self, kb_id: str, **kwargs) -> Optional[KnowledgeBase]:
+    async def update_knowledge_base(
+        self,
+        kb_id: str,
+        user_id: Optional[str] = None,
+        org_id: Optional[str] = None,
+        **kwargs
+    ) -> Optional[KnowledgeBase]:
         """更新知识库"""
-        kb = await self.get_knowledge_base(kb_id)
+        kb = await self.get_knowledge_base(kb_id, user_id=user_id, org_id=org_id)
         if not kb:
             return None
         for key, value in kwargs.items():
@@ -488,9 +568,14 @@ class KnowledgeService:
         await self.db.flush()
         return kb
 
-    async def delete_knowledge_base(self, kb_id: str) -> bool:
+    async def delete_knowledge_base(
+        self,
+        kb_id: str,
+        user_id: Optional[str] = None,
+        org_id: Optional[str] = None,
+    ) -> bool:
         """删除知识库及其所有文档和向量"""
-        kb = await self.get_knowledge_base(kb_id)
+        kb = await self.get_knowledge_base(kb_id, user_id=user_id, org_id=org_id)
         if not kb:
             return False
         # 删除向量集合
@@ -502,14 +587,29 @@ class KnowledgeService:
         await self.db.delete(kb)
         return True
 
-    async def get_document(self, doc_id: str) -> Optional[KnowledgeDocument]:
+    async def get_document(
+        self,
+        doc_id: str,
+        user_id: Optional[str] = None,
+        org_id: Optional[str] = None,
+    ) -> Optional[KnowledgeDocument]:
         """获取文档完整内容"""
         result = await self.db.execute(select(KnowledgeDocument).where(KnowledgeDocument.id == doc_id))
-        return result.scalar_one_or_none()
+        doc = result.scalar_one_or_none()
+        if not doc:
+            return None
+        kb = await self.get_knowledge_base(doc.knowledge_base_id, user_id=user_id, org_id=org_id)
+        return doc if kb else None
 
-    async def update_document(self, doc_id: str, **kwargs) -> Optional[KnowledgeDocument]:
+    async def update_document(
+        self,
+        doc_id: str,
+        user_id: Optional[str] = None,
+        org_id: Optional[str] = None,
+        **kwargs
+    ) -> Optional[KnowledgeDocument]:
         """更新文档"""
-        doc = await self.get_document(doc_id)
+        doc = await self.get_document(doc_id, user_id=user_id, org_id=org_id)
         if not doc:
             return None
         for key, value in kwargs.items():
@@ -518,9 +618,14 @@ class KnowledgeService:
         await self.db.flush()
         return doc
 
-    async def get_kb_stats_detail(self, kb_id: str) -> Dict[str, Any]:
+    async def get_kb_stats_detail(
+        self,
+        kb_id: str,
+        user_id: Optional[str] = None,
+        org_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """获取知识库详细统计"""
-        kb = await self.get_knowledge_base(kb_id)
+        kb = await self.get_knowledge_base(kb_id, user_id=user_id, org_id=org_id)
         if not kb:
             return {"error": "not found"}
 
@@ -555,9 +660,14 @@ class KnowledgeService:
             "embedding_model": kb.embedding_model,
         }
 
-    async def export_knowledge_base(self, kb_id: str) -> Optional[Dict[str, Any]]:
+    async def export_knowledge_base(
+        self,
+        kb_id: str,
+        user_id: Optional[str] = None,
+        org_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
         """导出知识库为JSON"""
-        kb = await self.get_knowledge_base(kb_id)
+        kb = await self.get_knowledge_base(kb_id, user_id=user_id, org_id=org_id)
         if not kb:
             return None
 

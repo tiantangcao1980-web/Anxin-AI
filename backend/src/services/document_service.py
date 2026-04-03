@@ -94,11 +94,16 @@ class DocumentService:
         }
         return mime_map.get(mime_type, ".bin")
     
-    async def get_document(self, document_id: str) -> Optional[Document]:
+    async def get_document(
+        self,
+        document_id: str,
+        org_id: Optional[str] = None,
+    ) -> Optional[Document]:
         """获取文档详情"""
-        result = await self.db.execute(
-            select(Document).where(Document.id == document_id)
-        )
+        query = select(Document).where(Document.id == document_id)
+        if org_id:
+            query = query.where(Document.org_id == org_id)
+        result = await self.db.execute(query)
         return result.scalar_one_or_none()
     
     async def list_documents(
@@ -136,9 +141,13 @@ class DocumentService:
         
         return documents, total
     
-    async def delete_document(self, document_id: str) -> bool:
+    async def delete_document(
+        self,
+        document_id: str,
+        org_id: Optional[str] = None,
+    ) -> bool:
         """删除文档"""
-        document = await self.get_document(document_id)
+        document = await self.get_document(document_id, org_id=org_id)
         if not document:
             return False
         
@@ -176,11 +185,12 @@ class DocumentService:
         self,
         document_id: str,
         content: str,
+        org_id: Optional[str] = None,
         updated_by: Optional[str] = None,
         change_summary: Optional[str] = None
     ) -> Optional[Document]:
         """更新文档内容（创建新版本）"""
-        document = await self.get_document(document_id)
+        document = await self.get_document(document_id, org_id=org_id)
         if not document:
             return None
             
@@ -225,12 +235,13 @@ class DocumentService:
     async def update_document(
         self,
         document_id: str,
+        org_id: Optional[str] = None,
         name: Optional[str] = None,
         description: Optional[str] = None,
         tags: Optional[list] = None,
     ) -> Optional[Document]:
         """更新文档信息"""
-        document = await self.get_document(document_id)
+        document = await self.get_document(document_id, org_id=org_id)
         if not document:
             return None
         
@@ -246,12 +257,12 @@ class DocumentService:
         
         return document
     
-    async def analyze_document(self, document_id: str) -> dict:
+    async def analyze_document(self, document_id: str, org_id: Optional[str] = None) -> dict:
         """AI分析文档"""
         from src.agents.workforce import get_workforce
         from src.services.document_parser import parse_contract_document
         
-        document = await self.get_document(document_id)
+        document = await self.get_document(document_id, org_id=org_id)
         if not document:
             raise ValueError("文档不存在")
         
@@ -325,8 +336,14 @@ class DocumentService:
                 "entities": [],
             }
     
-    async def get_versions(self, document_id: str) -> List[DocumentVersion]:
+    async def get_versions(
+        self,
+        document_id: str,
+        org_id: Optional[str] = None,
+    ) -> List[DocumentVersion]:
         """获取文档版本历史"""
+        if org_id and not await self.get_document(document_id, org_id=org_id):
+            return []
         result = await self.db.execute(
             select(DocumentVersion)
             .where(DocumentVersion.document_id == document_id)

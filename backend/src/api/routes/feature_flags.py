@@ -80,6 +80,11 @@ async def admin_list_flags(
 ):
     service = FeatureFlagService(db)
     flags = await service.list_all()
+    if user.role == UserRole.ORG_ADMIN.value:
+        flags = [
+            f for f in flags
+            if not f.target_org_ids or str(getattr(user, "org_id", "")) in f.target_org_ids
+        ]
     # 搜索过滤
     if search:
         search_lower = search.lower()

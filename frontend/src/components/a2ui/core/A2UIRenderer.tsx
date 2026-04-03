@@ -67,7 +67,7 @@ export class A2UIRenderer {
   register(type: string, component: React.ComponentType<any>): void {
     this.components.set(type, component);
     if (this.config.debug) {
-      console.log(`[A2UI Renderer] Component registered: ${type}`);
+      // console.log(`[A2UI Renderer] Component registered: ${type}`);
     }
   }
 
@@ -86,7 +86,7 @@ export class A2UIRenderer {
   unregister(type: string): void {
     this.components.delete(type);
     if (this.config.debug) {
-      console.log(`[A2UI Renderer] Component unregistered: ${type}`);
+      // console.log(`[A2UI Renderer] Component unregistered: ${type}`);
     }
   }
 

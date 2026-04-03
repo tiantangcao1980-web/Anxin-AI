@@ -311,7 +311,7 @@ async def get_document(
 ):
     """获取文档详情"""
     service = DocumentService(db)
-    document = await service.get_document(document_id)
+    document = await service.get_document(document_id, org_id=user.org_id)
     
     if not document:
         return UnifiedResponse.error(code=404, message="文档不存在")
@@ -345,6 +345,7 @@ async def update_document(
     
     document = await service.update_document(
         document_id=document_id,
+        org_id=user.org_id,
         name=update.name,
         description=update.description,
         tags=update.tags,
@@ -383,6 +384,7 @@ async def update_document_content(
     document = await service.update_document_content(
         document_id=document_id,
         content=update.content,
+        org_id=user.org_id,
         updated_by=user.id if user else None,
         change_summary=update.change_summary
     )
@@ -407,6 +409,23 @@ async def update_document_content(
     return UnifiedResponse.success(data=data)
 
 
+@router.post("/{document_id}/analyze", response_model=UnifiedResponse)
+async def analyze_document(
+    document_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
+    """AI 分析文档"""
+    service = DocumentService(db)
+
+    try:
+        data = await service.analyze_document(document_id, org_id=user.org_id)
+    except ValueError as e:
+        return UnifiedResponse.error(code=404, message=str(e))
+
+    return UnifiedResponse.success(data=data)
+
+
 @router.delete("/{document_id}", response_model=UnifiedResponse)
 async def delete_document(
     document_id: str,
@@ -415,7 +434,7 @@ async def delete_document(
 ):
     """删除文档"""
     service = DocumentService(db)
-    success = await service.delete_document(document_id)
+    success = await service.delete_document(document_id, org_id=user.org_id)
     
     if not success:
         return UnifiedResponse.error(code=404, message="文档不存在")
@@ -431,7 +450,11 @@ async def get_document_versions(
 ):
     """获取文档版本历史"""
     service = DocumentService(db)
-    versions = await service.get_versions(document_id)
+    document = await service.get_document(document_id, org_id=user.org_id)
+    if not document:
+        return UnifiedResponse.error(code=404, message="文档不存在")
+
+    versions = await service.get_versions(document_id, org_id=user.org_id)
     
     data = {
         "versions": [

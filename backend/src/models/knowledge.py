@@ -20,6 +20,10 @@ class KnowledgeType(str, enum.Enum):
     TEMPLATE = "template"  # 合同模板
     ARTICLE = "article"  # 法律文章
     INTERNAL = "internal"  # 内部知识
+    COMPLIANCE = "compliance"  # 合规文件、行业标准
+    LETTER = "letter"  # 律师函、法律意见书模板
+    LITIGATION = "litigation"  # 诉讼文书（起诉状、答辩状等）
+    POLICY = "policy"  # 政策文件
     OTHER = "other"
 
 
@@ -93,7 +97,17 @@ class KnowledgeDocument(Base, TimestampMixin):
     law_category: Mapped[Optional[str]] = mapped_column(String(100))  # 法律类别
     effective_date: Mapped[Optional[str]] = mapped_column(String(50))  # 生效日期
     issuing_authority: Mapped[Optional[str]] = mapped_column(String(255))  # 发布机关
-    
+
+    # 数据采集与版本管理
+    external_id: Mapped[Optional[str]] = mapped_column(
+        String(255), index=True
+    )  # 外部稳定ID，用于幂等导入
+    content_hash: Mapped[Optional[str]] = mapped_column(String(64))  # SHA256 内容哈希
+    version: Mapped[int] = mapped_column(Integer, default=1)  # 文档版本号
+    status: Mapped[str] = mapped_column(
+        String(20), default="active"
+    )  # active / superseded
+
     # 外键
     knowledge_base_id: Mapped[str] = mapped_column(
         GUID(), ForeignKey("knowledge_bases.id", ondelete="CASCADE"), nullable=False

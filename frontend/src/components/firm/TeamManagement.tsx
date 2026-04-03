@@ -5,7 +5,7 @@
  * - 点击团队卡展开成员列表
  * - 创建/编辑团队 Dialog
  * - 添加/移除成员
- * 全部 mock 数据
+ * - 团队负责人可从真实用户列表中指定
  */
 
 import { useState, useEffect } from 'react'
@@ -24,7 +24,8 @@ import { icons } from '@/lib/icons'
 import { cardStyle, iconSize, heading, statusBadge } from '@/lib/design-tokens'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { firmApi } from '@/lib/api'
+import { adminApi, firmApi } from '@/lib/api'
+import { toast } from 'sonner'
 
 // ========== Mock 数据 ==========
 
@@ -41,8 +42,15 @@ interface Team {
   name: string
   description: string
   leader: string
+  leaderId?: string
   memberCount: number
   members: TeamMember[]
+}
+
+interface UserOption {
+  id: string
+  name: string
+  email: string
 }
 
 // 数据从 API 加载
@@ -58,107 +66,195 @@ export default function TeamManagement() {
   const [editingTeam, setEditingTeam] = useState<Team | null>(null)
   const [formName, setFormName] = useState('')
   const [formDesc, setFormDesc] = useState('')
+  const [selectedLeaderId, setSelectedLeaderId] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [removeMemberTarget, setRemoveMemberTarget] = useState<{ teamId: string; memberId: string } | null>(null)
+  const [memberDialogOpen, setMemberDialogOpen] = useState(false)
+  const [memberTeamId, setMemberTeamId] = useState<string | null>(null)
+  const [userOptions, setUserOptions] = useState<UserOption[]>([])
+  const [selectedUserId, setSelectedUserId] = useState('')
+  const [memberSearch, setMemberSearch] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const fetchTeams = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const data = await firmApi.listTeams()
+      const items = Array.isArray(data) ? data : (data.items ?? data.teams ?? [])
+      setTeams(
+        items.map((t: any) => ({
+          id: t.id,
+          name: t.name ?? '',
+          description: t.description ?? '',
+          leader: t.leader ?? t.leader_name ?? '待指定',
+          leaderId: t.leader_id ?? undefined,
+          memberCount: t.member_count ?? t.memberCount ?? (t.members?.length ?? 0),
+          members: (t.members ?? []).map((m: any) => ({
+            id: m.id ?? m.user_id ?? '',
+            name: m.name ?? m.user_name ?? '',
+            role: m.role ?? 'member',
+            avatar: m.avatar ?? m.avatar_url,
+            title: m.title ?? m.position ?? '',
+          })),
+        }))
+      )
+    } catch (err: any) {
+      setError(err.message || '加载团队数据失败')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    let cancelled = false
-    async function fetchTeams() {
-      try {
-        setLoading(true)
-        setError(null)
-        const data = await firmApi.listTeams()
-        if (cancelled) return
-        const items = Array.isArray(data) ? data : (data.items ?? data.teams ?? [])
-        setTeams(
-          items.map((t: any) => ({
-            id: t.id,
-            name: t.name ?? '',
-            description: t.description ?? '',
-            leader: t.leader ?? t.leader_name ?? '待指定',
-            memberCount: t.member_count ?? t.memberCount ?? (t.members?.length ?? 0),
-            members: (t.members ?? []).map((m: any) => ({
-              id: m.id ?? m.user_id ?? '',
-              name: m.name ?? m.user_name ?? '',
-              role: m.role ?? 'member',
-              avatar: m.avatar ?? m.avatar_url,
-              title: m.title ?? m.position ?? '',
-            })),
-          }))
-        )
-      } catch (err: any) {
-        if (!cancelled) setError(err.message || '加载团队数据失败')
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-    fetchTeams()
-    return () => { cancelled = true }
+    fetchTeams().catch(() => undefined)
   }, [])
+
+  const loadActiveUsers = async () => {
+    const res = await adminApi.listUsers({ limit: 100, is_active: true })
+    const payload: any = res
+    const items = payload?.users ?? payload?.items ?? []
+    return items.map((item: any) => ({
+      id: item.id,
+      name: item.name || '未命名用户',
+      email: item.email || '',
+    }))
+  }
 
   const handleToggleExpand = (teamId: string) => {
     setExpandedTeam(expandedTeam === teamId ? null : teamId)
   }
 
-  const handleOpenCreate = () => {
+  const handleOpenCreate = async () => {
     setEditingTeam(null)
     setFormName('')
     setFormDesc('')
+    setSelectedLeaderId('')
     setDialogOpen(true)
+    try {
+      setUserOptions(await loadActiveUsers())
+    } catch (e: any) {
+      toast.error(e.message || '加载用户列表失败')
+    }
   }
 
-  const handleOpenEdit = (team: Team) => {
+  const handleOpenEdit = async (team: Team) => {
     setEditingTeam(team)
     setFormName(team.name)
     setFormDesc(team.description)
+    setSelectedLeaderId(team.leaderId || '')
     setDialogOpen(true)
-  }
-
-  const handleSave = () => {
-    if (!formName.trim()) return
-    if (editingTeam) {
-      setTeams(prev =>
-        prev.map(t =>
-          t.id === editingTeam.id ? { ...t, name: formName, description: formDesc } : t,
-        ),
-      )
-    } else {
-      const newTeam: Team = {
-        id: `new-${Date.now()}`,
-        name: formName,
-        description: formDesc,
-        leader: '待指定',
-        memberCount: 0,
-        members: [],
-      }
-      setTeams(prev => [newTeam, ...prev])
+    try {
+      setUserOptions(await loadActiveUsers())
+    } catch (e: any) {
+      toast.error(e.message || '加载用户列表失败')
     }
-    setDialogOpen(false)
   }
 
-  const handleDeleteConfirm = () => {
+  const handleOpenAddMember = async (teamId: string) => {
+    setMemberTeamId(teamId)
+    setSelectedUserId('')
+    setMemberSearch('')
+    setMemberDialogOpen(true)
+    try {
+      const res = await adminApi.listUsers({ limit: 100, is_active: true })
+      const payload: any = res
+      const items = payload?.users ?? payload?.items ?? []
+      const currentTeam = teams.find((team) => team.id === teamId)
+      const existingMemberIds = new Set((currentTeam?.members ?? []).map((member) => member.id))
+      setUserOptions(
+        items
+          .filter((item: any) => !existingMemberIds.has(item.id))
+          .map((item: any) => ({
+            id: item.id,
+            name: item.name || '未命名用户',
+            email: item.email || '',
+          }))
+      )
+    } catch (e: any) {
+      toast.error(e.message || '加载用户列表失败')
+    }
+  }
+
+  const handleSave = async () => {
+    if (!formName.trim()) return
+    setSaving(true)
+    try {
+      if (editingTeam) {
+        await firmApi.updateTeam(editingTeam.id, {
+          name: formName.trim(),
+          description: formDesc.trim() || undefined,
+          leader_id: selectedLeaderId || undefined,
+        })
+        toast.success('团队已更新')
+      } else {
+        await firmApi.createTeam({
+          name: formName.trim(),
+          description: formDesc.trim() || undefined,
+          leader_id: selectedLeaderId || undefined,
+        })
+        toast.success('团队已创建')
+      }
+      await fetchTeams()
+      setDialogOpen(false)
+    } catch (e: any) {
+      toast.error(e.message || (editingTeam ? '更新团队失败' : '创建团队失败'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDeleteConfirm = async () => {
     if (!deleteTarget) return
-    setTeams(prev => prev.filter(t => t.id !== deleteTarget))
-    if (expandedTeam === deleteTarget) setExpandedTeam(null)
-    setDeleteTarget(null)
+    try {
+      await firmApi.deleteTeam(deleteTarget)
+      toast.success('团队已删除')
+      if (expandedTeam === deleteTarget) setExpandedTeam(null)
+      setDeleteTarget(null)
+      await fetchTeams()
+    } catch (e: any) {
+      toast.error(e.message || '删除团队失败')
+    }
   }
 
-  const handleRemoveMemberConfirm = () => {
+  const handleRemoveMemberConfirm = async () => {
     if (!removeMemberTarget) return
     const { teamId, memberId } = removeMemberTarget
-    handleRemoveMember(teamId, memberId)
-    setRemoveMemberTarget(null)
+    try {
+      await firmApi.removeTeamMember(teamId, memberId)
+      toast.success('成员已移除')
+      setRemoveMemberTarget(null)
+      await fetchTeams()
+    } catch (e: any) {
+      toast.error(e.message || '移除成员失败')
+    }
   }
 
-  const handleRemoveMember = (teamId: string, memberId: string) => {
-    setTeams(prev =>
-      prev.map(t => {
-        if (t.id !== teamId) return t
-        const newMembers = t.members.filter(m => m.id !== memberId)
-        return { ...t, members: newMembers, memberCount: newMembers.length }
-      }),
-    )
+  const handleAddMember = async () => {
+    if (!memberTeamId || !selectedUserId) return
+    setSaving(true)
+    try {
+      await firmApi.addTeamMember(memberTeamId, { user_id: selectedUserId, role: 'member' })
+      toast.success('成员已添加')
+      setMemberDialogOpen(false)
+      setMemberTeamId(null)
+      setSelectedUserId('')
+      await fetchTeams()
+    } catch (e: any) {
+      toast.error(e.message || '添加成员失败')
+    } finally {
+      setSaving(false)
+    }
   }
+
+  const filteredUserOptions = userOptions.filter((user) => {
+    const keyword = memberSearch.trim().toLowerCase()
+    if (!keyword) return true
+    return (
+      user.name.toLowerCase().includes(keyword) ||
+      user.email.toLowerCase().includes(keyword)
+    )
+  })
 
   if (loading) {
     return (
@@ -181,7 +277,7 @@ export default function TeamManagement() {
       <div className={`${cardStyle.base} flex flex-col items-center justify-center py-12`}>
         <icons.AlertTriangle className={`${iconSize.xl} text-destructive/60 mb-3`} />
         <p className="text-sm text-muted-foreground mb-3">{error}</p>
-        <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+        <Button variant="outline" size="sm" onClick={() => fetchTeams()}>
           重试
         </Button>
       </div>
@@ -252,6 +348,12 @@ export default function TeamManagement() {
             {/* 展开的成员列表 */}
             {expandedTeam === team.id && (
               <div className="border border-t-0 border-border rounded-b-xl bg-muted/30 p-4 space-y-2">
+                <div className="flex justify-end pb-2">
+                  <Button size="sm" variant="outline" onClick={() => handleOpenAddMember(team.id)}>
+                    <icons.Plus className={iconSize.sm} />
+                    添加成员
+                  </Button>
+                </div>
                 {team.members.map(member => (
                   <div
                     key={member.id}
@@ -312,13 +414,74 @@ export default function TeamManagement() {
                 placeholder="请输入团队描述"
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="team-leader">团队负责人</Label>
+              <select
+                id="team-leader"
+                value={selectedLeaderId}
+                onChange={(e) => setSelectedLeaderId(e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+              >
+                <option value="">暂不指定</option>
+                {userOptions.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name} ({user.email})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
               取消
             </Button>
-            <Button onClick={handleSave} disabled={!formName.trim()}>
-              {editingTeam ? '保存' : '创建'}
+            <Button onClick={handleSave} disabled={!formName.trim() || saving}>
+              {saving ? '提交中...' : editingTeam ? '保存' : '创建'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={memberDialogOpen} onOpenChange={setMemberDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>添加团队成员</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="team-member-search">搜索用户</Label>
+              <Input
+                id="team-member-search"
+                value={memberSearch}
+                onChange={(e) => setMemberSearch(e.target.value)}
+                placeholder="输入姓名或邮箱筛选"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="team-member-user">选择用户</Label>
+              <select
+                id="team-member-user"
+                value={selectedUserId}
+                onChange={(e) => setSelectedUserId(e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+              >
+                <option value="">
+                  {filteredUserOptions.length > 0 ? '请选择用户' : '没有匹配的可添加成员'}
+                </option>
+                {filteredUserOptions.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name} ({user.email})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMemberDialogOpen(false)} disabled={saving}>
+              取消
+            </Button>
+            <Button onClick={handleAddMember} disabled={!selectedUserId || saving}>
+              {saving ? '添加中...' : '添加成员'}
             </Button>
           </DialogFooter>
         </DialogContent>

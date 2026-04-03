@@ -15,6 +15,15 @@ from src.models.sentiment import (
     SentimentRecord, SentimentAlert, SentimentMonitor,
     SentimentType, RiskLevel, AlertLevel, AlertType, SourceType
 )
+
+
+def SentimentAnalysisAgent():
+    """延迟获取舆情分析 Agent，保留模块级入口便于测试替身注入。"""
+    from src.agents.sentiment_agent import SentimentAnalysisAgent as _SentimentAnalysisAgent
+
+    return _SentimentAnalysisAgent()
+
+
 class SentimentService:
     """舆情监控服务"""
     
@@ -26,7 +35,6 @@ class SentimentService:
     def agent(self):
         """延迟导入和初始化舆情分析Agent，避免循环依赖"""
         if self._agent is None:
-            from src.agents.sentiment_agent import SentimentAnalysisAgent
             self._agent = SentimentAnalysisAgent()
         return self._agent
     

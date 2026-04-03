@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
 from src.models.firm_management import Team, TeamMember
+from src.models.user import User
 
 
 class TeamService:
@@ -43,6 +44,35 @@ class TeamService:
         for team, count in rows:
             d = team.to_dict()
             d["member_count"] = count or 0
+            d["leader_name"] = "待指定"
+
+            if team.leader_id:
+                leader_result = await self.db.execute(
+                    select(User).where(User.id == team.leader_id)
+                )
+                leader = leader_result.scalar_one_or_none()
+                if leader:
+                    d["leader_name"] = leader.name
+
+            member_stmt = (
+                select(TeamMember, User)
+                .join(User, TeamMember.user_id == User.id)
+                .where(TeamMember.team_id == team.id)
+                .order_by(TeamMember.role.desc(), TeamMember.created_at)
+            )
+            member_rows = (await self.db.execute(member_stmt)).all()
+            d["members"] = [
+                {
+                    "id": member.user_id,
+                    "user_id": member.user_id,
+                    "name": user.name,
+                    "user_name": user.name,
+                    "role": member.role,
+                    "avatar_url": user.avatar_url,
+                    "title": user.department or "",
+                }
+                for member, user in member_rows
+            ]
             teams.append(d)
         return teams
 

@@ -848,7 +848,7 @@ export const useIMStore = create<IMState>()(
 
 export interface NotificationItem {
   id: string
-  type: 'urgent' | 'warning' | 'info' | 'success'
+  type: string
   title: string
   message: string
   is_read: boolean

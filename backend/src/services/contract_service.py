@@ -2,12 +2,11 @@
 合同审查服务
 """
 
-from datetime import datetime, date
-from typing import Optional, List
+from datetime import date, datetime
 from uuid import uuid4
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from loguru import logger
 
@@ -33,13 +32,13 @@ class ContractService:
         self,
         title: str,
         contract_type: str,
-        document_id: Optional[str] = None,
-        org_id: Optional[str] = None,
-        party_a: Optional[dict] = None,
-        party_b: Optional[dict] = None,
-        amount: Optional[float] = None,
-        effective_date: Optional[date] = None,
-        expiry_date: Optional[date] = None,
+        document_id: str | None = None,
+        org_id: str | None = None,
+        party_a: dict | None = None,
+        party_b: dict | None = None,
+        amount: float | None = None,
+        effective_date: date | None = None,
+        expiry_date: date | None = None,
     ) -> Contract:
         """创建合同记录"""
         contract_number = f"CONTRACT-{datetime.now().strftime('%Y%m%d')}-{str(uuid4())[:8].upper()}"
@@ -64,24 +63,28 @@ class ContractService:
         logger.info(f"合同创建成功: {contract.contract_number}")
         return contract
     
-    async def get_contract(self, contract_id: str) -> Optional[Contract]:
+    async def get_contract(self, contract_id: str, org_id: str | None = None) -> Contract | None:
         """获取合同详情"""
-        result = await self.db.execute(
+        query = (
             select(Contract)
             .options(selectinload(Contract.clauses))
             .options(selectinload(Contract.risks))
             .where(Contract.id == contract_id)
         )
+        if org_id:
+            query = query.where(Contract.org_id == org_id)
+
+        result = await self.db.execute(query)
         return result.scalar_one_or_none()
     
     async def list_contracts(
         self,
-        org_id: Optional[str] = None,
-        status: Optional[str] = None,
-        contract_type: Optional[str] = None,
+        org_id: str | None = None,
+        status: str | None = None,
+        contract_type: str | None = None,
         page: int = 1,
         page_size: int = 20,
-    ) -> tuple[List[Contract], int]:
+    ) -> tuple[list[Contract], int]:
         """获取合同列表"""
         query = select(Contract)
         count_query = select(func.count(Contract.id))
@@ -113,7 +116,8 @@ class ContractService:
         self,
         contract_id: str,
         contract_text: str,
-        reviewed_by: Optional[str] = None,
+        reviewed_by: str | None = None,
+        org_id: str | None = None,
     ) -> dict:
         """
         AI审查合同
@@ -126,7 +130,7 @@ class ContractService:
         Returns:
             审查结果
         """
-        contract = await self.get_contract(contract_id)
+        contract = await self.get_contract(contract_id, org_id=org_id)
         if not contract:
             raise ValueError("合同不存在")
         
@@ -246,24 +250,37 @@ class ContractService:
 
         await self.db.flush()
     
-    async def get_risks(self, contract_id: str) -> List[ContractRisk]:
+    async def get_risks(self, contract_id: str, org_id: str | None = None) -> list[ContractRisk]:
         """获取合同风险点列表"""
-        result = await self.db.execute(
+        query = (
             select(ContractRisk)
+            .join(Contract, Contract.id == ContractRisk.contract_id)
             .where(ContractRisk.contract_id == contract_id)
             .order_by(ContractRisk.risk_level.desc())
         )
+        if org_id:
+            query = query.where(Contract.org_id == org_id)
+
+        result = await self.db.execute(query)
         return list(result.scalars().all())
     
     async def resolve_risk(
         self,
         risk_id: str,
-        resolution_note: Optional[str] = None,
+        resolution_note: str | None = None,
+        contract_id: str | None = None,
+        org_id: str | None = None,
     ) -> bool:
         """标记风险已解决"""
-        result = await self.db.execute(
-            select(ContractRisk).where(ContractRisk.id == risk_id)
+        query = select(ContractRisk).join(Contract, Contract.id == ContractRisk.contract_id).where(
+            ContractRisk.id == risk_id
         )
+        if contract_id:
+            query = query.where(ContractRisk.contract_id == contract_id)
+        if org_id:
+            query = query.where(Contract.org_id == org_id)
+
+        result = await self.db.execute(query)
         risk = result.scalar_one_or_none()
 
         if not risk:
@@ -275,9 +292,11 @@ class ContractService:
 
         return True
 
-    async def apply_suggestions(self, contract_id: str, accepted_risk_ids: list[str]) -> str:
+    async def apply_suggestions(
+        self, contract_id: str, accepted_risk_ids: list[str], org_id: str | None = None
+    ) -> str:
         """应用用户接受的修改建议，返回修改后的文本"""
-        contract = await self.get_contract(contract_id)
+        contract = await self.get_contract(contract_id, org_id=org_id)
         if not contract or not contract.original_text:
             raise ValueError("合同不存在或未审查")
 
@@ -306,9 +325,11 @@ class ContractService:
         await self.db.flush()
         return modified
 
-    async def save_contract_file(self, contract_id: str, user_id: Optional[str] = None) -> str:
+    async def save_contract_file(
+        self, contract_id: str, user_id: str | None = None, org_id: str | None = None
+    ) -> str:
         """保存合同文件到服务器，返回文件路径"""
-        contract = await self.get_contract(contract_id)
+        contract = await self.get_contract(contract_id, org_id=org_id)
         if not contract:
             raise ValueError("合同不存在")
 

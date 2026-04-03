@@ -3,6 +3,7 @@
 import json
 import asyncio
 from typing import Optional, List, AsyncGenerator
+from uuid import UUID
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, field_validator
@@ -39,6 +40,14 @@ from src.api.routes.chat_handlers import (
 )
 
 router = APIRouter()
+
+
+def _is_valid_uuid(value: str) -> bool:
+    try:
+        UUID(str(value))
+        return True
+    except (TypeError, ValueError):
+        return False
 
 
 class ChatMessage(BaseModel):
@@ -94,17 +103,20 @@ async def send_message(
 ):
     """发送消息并获取AI回复"""
     service = ChatService(db)
-    
-    result = await service.chat(
-        content=message.content,
-        conversation_id=message.conversation_id,
-        user_id=user.id,
-        case_id=message.case_id,
-        agent_name=message.agent_name,
-        mode=message.mode,
-        knowledge_base_ids=message.knowledge_base_ids,
-        model_id=message.model_id,
-    )
+    try:
+        result = await service.chat(
+            content=message.content,
+            conversation_id=message.conversation_id,
+            user_id=user.id,
+            case_id=message.case_id,
+            agent_name=message.agent_name,
+            mode=message.mode,
+            knowledge_base_ids=message.knowledge_base_ids,
+            model_id=message.model_id,
+        )
+    except ValueError as exc:
+        logger.warning(f"聊天请求校验失败: {exc}")
+        return UnifiedResponse.error(code=404, message=str(exc))
     
     # 记录审计日志
     if user:
@@ -138,6 +150,8 @@ async def get_chat_history(
     service = ChatService(db)
 
     if conversation_id:
+        if not _is_valid_uuid(conversation_id):
+            return UnifiedResponse.error(code=404, message="对话不存在")
         messages = await service.get_messages(conversation_id, limit)
         data = {
             "conversation_id": conversation_id,
@@ -180,6 +194,46 @@ async def get_chat_history(
         return UnifiedResponse.success(data=data)
 
 
+@router.get("/conversations", response_model=UnifiedResponse)
+async def get_conversations(
+    case_id: Optional[str] = None,
+    keyword: Optional[str] = None,
+    starred: Optional[bool] = None,
+    limit: int = Query(50, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
+    """兼容旧版路径：获取对话列表。"""
+    return await get_chat_history(
+        conversation_id=None,
+        case_id=case_id,
+        keyword=keyword,
+        starred=starred,
+        limit=limit,
+        db=db,
+        user=user,
+    )
+
+
+@router.get("/conversations/{conversation_id}/messages", response_model=UnifiedResponse)
+async def get_conversation_messages(
+    conversation_id: str,
+    limit: int = Query(50, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
+    """兼容旧版路径：获取单个对话消息历史。"""
+    return await get_chat_history(
+        conversation_id=conversation_id,
+        case_id=None,
+        keyword=None,
+        starred=None,
+        limit=limit,
+        db=db,
+        user=user,
+    )
+
+
 @router.post("/conversations/{conversation_id}/star", response_model=UnifiedResponse)
 async def toggle_conversation_star(
     conversation_id: str,
@@ -217,6 +271,9 @@ async def delete_conversation(
     """删除对话"""
     from src.models.conversation import Conversation, Message as MessageModel
     from sqlalchemy import delete as sa_delete, select
+
+    if not _is_valid_uuid(conversation_id):
+        return UnifiedResponse.error(message="对话不存在", code=404)
     
     # 验证对话存在
     result = await db.execute(
@@ -722,37 +779,24 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                         "missing_elements": _missing_elements,
                     })
 
-                    # 如果需求不完整，智能选择澄清方式
+                    # 如果需求不完整且有追问问题，必须展示 ClarificationBubble
                     if not req_analysis.get("is_complete", True) and req_analysis.get("guidance_questions"):
                         guidance_qs = req_analysis.get("guidance_questions", [])
 
-                        # 判断是否需要结构化多选（多项并行选择场景）
-                        _needs_structured = len(guidance_qs) >= 2 or any(
-                            len(q.get("options", [])) > 3 for q in guidance_qs if isinstance(q, dict)
-                        )
-
-                        if _needs_structured:
-                            # 结构化场景：使用 ClarificationBubble
-                            await ctx.send("clarification_request", {
-                                "message": f"为了更好地帮助您，请补充以下信息：\n\n需求摘要：{req_analysis.get('summary', '')}",
-                                "questions": guidance_qs,
-                                "original_content": content,
-                                "requirement_summary": req_analysis.get("summary", ""),
-                                "readiness_score": _completeness_score,
-                            })
-                            await ctx.save_message("assistant", req_analysis.get("summary", ""), "需求分析Agent")
-                            continue
-                        else:
-                            # 简单追问场景：Agent 通过自然对话追问，不中断流程
-                            questions_text = "\n".join(
-                                f"- {q.get('question', q) if isinstance(q, dict) else q}"
-                                for q in guidance_qs
-                            )
-                            req_analysis["is_complete"] = True
-                            req_analysis["natural_followup"] = (
-                                f"请在回复中自然地向用户追问以下信息（不要使用列表形式，"
-                                f"用对话的方式友好地询问）：\n{questions_text}"
-                            )
+                        # 只要有追问问题，统一使用结构化 ClarificationBubble
+                        # （之前的"自然追问"分支会导致 is_complete=True 跳过澄清，
+                        #   造成用户得到低质量输出，图2-3的好效果全靠这个 UI 实现）
+                        await ctx.send("clarification_request", {
+                            "message": f"为了更好地帮助您，请补充以下信息：\n\n需求摘要：{req_analysis.get('summary', '')}",
+                            "questions": guidance_qs,
+                            "original_content": content,
+                            "requirement_summary": req_analysis.get("summary", ""),
+                            "readiness_score": _completeness_score,
+                            "filled_slots": _filled_slots,
+                            "missing_elements": _missing_elements,
+                        })
+                        await ctx.save_message("assistant", req_analysis.get("summary", ""), "需求分析Agent")
+                        continue
 
                 except Exception as e:
                     logger.warning(f"需求分析失败，继续处理: {e}")

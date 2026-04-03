@@ -5,13 +5,19 @@
 
 import secrets
 from typing import Optional, List
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 import os
 
 
 class Settings(BaseSettings):
     """应用配置 (Enhanced with Security)"""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+    )
 
     # ========== 基础配置 ==========
     APP_NAME: str = "AI Legal Agent"
@@ -36,6 +42,10 @@ class Settings(BaseSettings):
     SMS_ENABLED: bool = False  # 短信服务开关
     OAUTH_WECHAT_ENABLED: bool = False  # 微信登录开关
     OAUTH_ALIPAY_ENABLED: bool = False  # 支付宝登录开关
+    CAPTCHA_ENABLED: bool = False
+    CAPTCHA_PROVIDER: str = "turnstile"
+    TURNSTILE_SITE_KEY: str = ""
+    TURNSTILE_SECRET_KEY: str = ""
 
     # 密码策略
     PASSWORD_MIN_LENGTH: int = 8
@@ -77,6 +87,11 @@ class Settings(BaseSettings):
 
     # 集成 API 密钥（用于 OA/Webhook 回调验证）
     INTEGRATION_API_KEY: Optional[str] = None
+    WECHAT_PAY_WEBHOOK_SECRET: Optional[str] = None
+    ALIPAY_WEBHOOK_SECRET: Optional[str] = None
+    ESIGN_WEBHOOK_SECRET: Optional[str] = None
+    WEBHOOK_SIGNATURE_MAX_AGE_SECONDS: int = 300
+    LIC_ALLOWED_HOSTS: List[str] = []
 
     # ========== 阿里云服务（短信 + 邮件共用 AccessKey） ==========
     ALIYUN_ACCESS_KEY_ID: str = ""
@@ -192,6 +207,19 @@ class Settings(BaseSettings):
     # 单个 Agent 最大重试次数
     AGENT_MAX_RETRIES: int = 2
 
+    # ========== 法律数据采集配置 ==========
+    DATA_DIR: str = "data"  # 数据存储根目录
+    COLLECTOR_RATE_LIMIT: float = 2.0  # 请求间隔(秒)
+    COLLECTOR_MAX_RETRIES: int = 3  # 最大重试次数
+    COLLECTOR_REQUEST_TIMEOUT: int = 30  # 请求超时(秒)
+    COLLECTOR_MAX_CONCURRENT: int = 3  # 最大并发采集器数
+
+    # ========== 企业调查数据源 API ==========
+    TIANYANCHA_API_KEY: Optional[str] = None  # 天眼查 API
+    QICHACHA_API_KEY: Optional[str] = None  # 企查查 API
+    AIQICHA_API_KEY: Optional[str] = None  # 爱企查 API
+    CREDIT_CHINA_API_KEY: Optional[str] = None  # 信用中国 API
+
     # ========== 日志配置 ==========
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "json"
@@ -229,11 +257,6 @@ class Settings(BaseSettings):
             elif self.ENVIRONMENT == "development":
                 # 开发环境自动生成密钥
                 self.JWT_SECRET_KEY = secrets.token_urlsafe(32)
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = True
 
     def is_production(self) -> bool:
         """判断是否为生产环境"""
