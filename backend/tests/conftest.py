@@ -89,6 +89,28 @@ def event_loop_policy() -> asyncio.AbstractEventLoopPolicy:
     return asyncio.DefaultEventLoopPolicy()
 
 
+# ============ 重置全局限流器状态（防止测试间污染） ============
+
+@pytest_asyncio.fixture(autouse=True)
+async def _reset_rate_limiter():
+    """每个测试前重置限流状态（Redis + 本地内存），避免跨测试/跨运行干扰。"""
+    from src.core.security import get_rate_limiter
+    limiter = get_rate_limiter()
+    limiter._memory_windows.clear()
+    # 同时清理 Redis 中的限流键
+    try:
+        redis_client = await limiter._get_redis()
+        keys = []
+        async for key in redis_client.scan_iter(f"{limiter.KEY_PREFIX}:*"):
+            keys.append(key)
+        if keys:
+            await redis_client.delete(*keys)
+    except Exception:
+        pass  # Redis 不可用时跳过
+    yield
+    limiter._memory_windows.clear()
+
+
 # ============ 数据库Fixtures ============
 
 @pytest_asyncio.fixture(scope="session", autouse=True)

@@ -1,0 +1,4 @@
+# LiveKit 音视频 Agent 依赖（与 camel-ai 存在传递依赖冲突，需单独安装）
+# 安装方式：pip install -r requirements-livekit.txt
+livekit-agents>=1.1.0,<2.0.0
+livekit-plugins-aliyun>=1.1.0,<2.0.0

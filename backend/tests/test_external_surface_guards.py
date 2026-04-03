@@ -190,6 +190,18 @@ async def test_lic_crawl_respects_allowlist(auth_client, monkeypatch):
 def test_lic_runtime_url_validator_blocks_redirect_targets(monkeypatch):
     monkeypatch.setattr(settings, "LIC_ALLOWED_HOSTS", ["court.gov.cn"])
 
+    # Mock DNS 解析，避免依赖网络环境（VPN/代理可能返回私有 IP）
+    import socket
+    _real_getaddrinfo = socket.getaddrinfo
+
+    def _fake_getaddrinfo(host, *args, **kwargs):
+        # 白名单域名返回公网 IP，其他走真实解析
+        if host and host.endswith("court.gov.cn"):
+            return [(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("1.2.3.4", 443))]
+        return _real_getaddrinfo(host, *args, **kwargs)
+
+    monkeypatch.setattr(socket, "getaddrinfo", _fake_getaddrinfo)
+
     assert _is_allowed_runtime_url("https://sub.court.gov.cn/page") is True
     assert _is_allowed_runtime_url("http://127.0.0.1/private") is False
     assert _is_allowed_runtime_url("https://example.com/redirected") is False

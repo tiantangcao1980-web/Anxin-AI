@@ -3,7 +3,7 @@ name = "ai-legal-agent-backend"
 version = "0.1.0"
 description = "AI法务智能体系统后端服务"
 readme = "README.md"
-requires-python = ">=3.11,<3.14"
+requires-python = ">=3.11,<3.13"
 license = { text = "Apache-2.0" }
 authors = [
     { name = "AI Legal Agent Team" }
@@ -80,10 +80,9 @@ local-ai = [
     "sentence-transformers>=2.3.1",
 ]
 
-livekit = [
-    "livekit-agents>=0.12.0,<1.0.0",
-    "livekit-plugins-aliyun>=0.4.0,<1.0.0",
-]
+# livekit 依赖已移至 requirements-livekit.txt
+# 原因：livekit-agents 与 camel-ai 存在传递依赖冲突
+# 安装方式：pip install -r requirements-livekit.txt
 
 [build-system]
 requires = ["hatchling"]
