@@ -871,18 +871,20 @@ async def forgot_password(
     result = await db.execute(select(User).where(User.email == req.email))
     user = result.scalar_one_or_none()
 
+    token = None
     if user:
-        # 生成重置令牌（6 位数字验证码，15 分钟有效）
-        token = f"{secrets.randbelow(1000000):06d}"
+        # 生成高熵重置令牌（32 字符 URL-safe token，15 分钟有效）
+        # S-003 修复：从 6 位数字升级为 32 字符随机 token，防暴力枚举
+        token = secrets.token_urlsafe(24)  # 192 bits entropy
         _reset_tokens[token] = {
             "user_id": str(user.id),
             "email": user.email,
+            "bound_email": req.email,  # 绑定请求邮箱，防止 token 被用于其他邮箱
             "expires_at": datetime.now(timezone.utc) + timedelta(minutes=15),
         }
-        logger.info(f"密码重置验证码已生成 (用户: {user.email})")
-        logger.debug(f"[DEV] 重置验证码: {token}")
+        logger.info(f"密码重置令牌已生成 (用户: {user.email})")
 
-        # 发送密码重置验证码
+        # 发送密码重置令牌
         from src.services.email_service import email_service
         await email_service.send_reset_code(user.email, token)
 
@@ -895,13 +897,13 @@ async def forgot_password(
     }
 
 
-@router.post("/reset-password", summary="重置密码 - 使用验证码")
+@router.post("/reset-password", summary="重置密码 - 使用重置令牌")
 async def reset_password(
     req: ResetPasswordRequest,
     db: AsyncSession = Depends(get_db),
-    _: None = Depends(rate_limit(limit=10, window=300, endpoint="reset_password", by_user=False)),
+    _: None = Depends(rate_limit(limit=5, window=300, endpoint="reset_password", by_user=False)),
 ):
-    """使用验证码重置密码"""
+    """使用高熵重置令牌重置密码"""
     # 查找并验证令牌
     token_data = _reset_tokens.get(req.token)
     if not token_data:

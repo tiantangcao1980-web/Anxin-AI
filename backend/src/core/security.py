@@ -261,34 +261,40 @@ class TokenBlacklist:
                 return True
             return False
     
-    async def is_blacklisted(self, token: str) -> bool:
+    async def is_blacklisted(self, token: str, fail_closed: bool = False) -> bool:
         """
         检查Token是否在黑名单中
-        
+
         Args:
             token: JWT Token
-            
+            fail_closed: Redis 故障时是否拒绝请求（用于 refresh token 等敏感链路）
+
         Returns:
             是否在黑名单中
         """
+        jti = None
         try:
             payload = decode_token(token)
             if payload is None:
                 return True  # 无效Token视为已黑名单
-            
+
             jti = payload.jti
             if not jti:
                 jti = hashlib.sha256(token.encode()).hexdigest()[:32]
-            
+
             redis_client = await self._get_redis()
             key = self._make_key(jti)
-            
+
             return await redis_client.exists(key) > 0
-            
+
         except Exception as e:
-            self._log_redis_fallback("检查Token黑名单失败，已降级为本地黑名单校验", e)
+            self._log_redis_fallback("检查Token黑名单失败", e)
+            if fail_closed:
+                logger.warning("Redis 不可用且处于 fail-closed 模式，拒绝敏感操作")
+                return True  # 敏感链路：Redis 故障时视为已撤销
+            # 普通链路：降级为本地黑名单
             self._prune_local_blacklist()
-            return jti in self._local_blacklist
+            return (jti in self._local_blacklist) if jti else True
     
     async def revoke_all_user_tokens(self, user_id: str) -> bool:
         """
@@ -349,10 +355,10 @@ async def refresh_access_token(refresh_token: str) -> Optional[TokenPair]:
         logger.warning("刷新Token无效")
         return None
     
-    # 检查是否在黑名单中
+    # 检查是否在黑名单中 — refresh 链路使用 fail-closed
     blacklist = get_token_blacklist()
-    if await blacklist.is_blacklisted(refresh_token):
-        logger.warning(f"刷新Token已被撤销: user_id={user_id}")
+    if await blacklist.is_blacklisted(refresh_token, fail_closed=True):
+        logger.warning(f"刷新Token已被撤销或 Redis 不可用(fail-closed): user_id={user_id}")
         return None
     
     # 将旧的刷新Token加入黑名单

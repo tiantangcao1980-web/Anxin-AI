@@ -426,11 +426,10 @@ class BaseLegalAgent(ABC):
                         "3. 编辑您的模型配置，输入有效的 API Key\n"
                         "4. 保存后重新发送消息即可")
             
-            # Debug logging
+            # Debug logging — 不记录任何密钥片段
             provider = getattr(active_config, 'provider', 'N/A')
             base_url_str = getattr(active_config, 'api_base_url', 'N/A')
-            key_preview = _final_key[:5] + '...' if _final_key else 'None'
-            logger.info(f"Agent {self.name} using config: Provider={provider}, API Base={base_url_str}, Key={key_preview}")
+            logger.info(f"Agent {self.name} using config: Provider={provider}, API Base={base_url_str}, Key={'configured' if _final_key else 'missing'}")
             
             # 准备请求参数
             url, headers, model_name = self._prepare_llm_request(active_config)

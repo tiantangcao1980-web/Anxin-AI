@@ -173,12 +173,18 @@ async def list_configs(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
 ):
-    """列出LLM配置"""
+    """列出LLM配置（按组织隔离，管理员可见所有）"""
+    # S-104 修复：普通用户只能看到自己组织的配置
+    org_id = None
+    if not getattr(user, 'is_superuser', False):
+        org_id = getattr(user, 'org_id', None)
+
     result = await LLMService.list_configs(
         db=db,
         config_type=config_type,
         provider=provider,
         is_active=is_active,
+        org_id=org_id,
         page=page,
         page_size=page_size
     )
@@ -214,14 +220,20 @@ async def get_config(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
 ):
-    """获取单个配置"""
+    """获取单个配置（含组织隔离检查）"""
     config = await LLMService.get_config(db, config_id)
     if not config:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="配置不存在"
         )
-    
+    # S-104: 非超级管理员只能访问自己组织的配置
+    if not getattr(user, 'is_superuser', False):
+        user_org = getattr(user, 'org_id', None)
+        config_org = getattr(config, 'org_id', None)
+        if config_org and user_org and config_org != user_org:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="配置不存在")
+
     return _config_to_response(config)
 
 

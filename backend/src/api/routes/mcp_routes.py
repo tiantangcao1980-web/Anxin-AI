@@ -35,29 +35,54 @@ class McpConfigUpdate(BaseModel):
     url: Optional[str] = None
     is_enabled: Optional[bool] = None
 
-class McpConfigResponse(McpConfigCreate):
+class McpConfigResponse(BaseModel):
+    """MCP 服务器响应 — 隐藏 env 中的敏感值"""
     model_config = ConfigDict(from_attributes=True)
 
     id: str
+    name: str
+    description: Optional[str] = None
+    type: str = "stdio"
+    command: Optional[str] = None
+    args: Optional[List[str]] = []
+    url: Optional[str] = None
+    is_enabled: bool = True
     cached_tools: Optional[List[Dict]] = []
+    env_keys: Optional[List[str]] = []  # 仅返回键名，不返回值
 
-@router.get("/servers", response_model=List[McpConfigResponse])
+    @classmethod
+    def from_orm_masked(cls, obj):
+        """从 ORM 对象创建响应，遮罩 env 值"""
+        data = {
+            "id": obj.id,
+            "name": obj.name,
+            "description": obj.description,
+            "type": obj.type,
+            "command": obj.command,
+            "args": obj.args,
+            "url": obj.url,
+            "is_enabled": obj.is_enabled,
+            "cached_tools": obj.cached_tools,
+            "env_keys": list((obj.env or {}).keys()),
+        }
+        return cls(**data)
+
+@router.get("/servers")
 async def list_servers(
     db: AsyncSession = Depends(get_db),
     user = Depends(get_admin_user)
 ):
-    """List all configured MCP servers."""
+    """List all configured MCP servers (env values masked)."""
     result = await db.execute(select(McpServerConfig))
-    return result.scalars().all()
+    return [McpConfigResponse.from_orm_masked(s) for s in result.scalars().all()]
 
-@router.post("/servers", response_model=McpConfigResponse)
+@router.post("/servers")
 async def create_server(
     config: McpConfigCreate,
     db: AsyncSession = Depends(get_db),
     user = Depends(get_admin_user)
 ):
     """Add a new MCP server configuration."""
-    # Check if name exists
     existing = await db.execute(select(McpServerConfig).where(McpServerConfig.name == config.name))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Server with this name already exists")
@@ -66,9 +91,9 @@ async def create_server(
     db.add(db_config)
     await db.commit()
     await db.refresh(db_config)
-    return db_config
+    return McpConfigResponse.from_orm_masked(db_config)
 
-@router.put("/servers/{server_id}", response_model=McpConfigResponse)
+@router.put("/servers/{server_id}")
 async def update_server(
     server_id: str,
     config: McpConfigUpdate,
@@ -86,7 +111,7 @@ async def update_server(
 
     await db.commit()
     await db.refresh(db_config)
-    return db_config
+    return McpConfigResponse.from_orm_masked(db_config)
 
 @router.delete("/servers/{server_id}")
 async def delete_server(
