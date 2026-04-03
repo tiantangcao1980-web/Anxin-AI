@@ -119,6 +119,38 @@ CREATE TABLE IF NOT EXISTS local_conversations (
     synced BOOLEAN DEFAULT 0
 );
 
+-- 离线任务队列（Harness Engineering 离线支持）
+CREATE TABLE IF NOT EXISTS offline_tasks (
+    id TEXT PRIMARY KEY,
+    task_type TEXT NOT NULL DEFAULT 'chat',
+    description TEXT NOT NULL,
+    conversation_id TEXT,
+    priority INTEGER DEFAULT 2,
+    status TEXT DEFAULT 'queued',
+    local_result TEXT,
+    cloud_result TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    retry_count INTEGER DEFAULT 0,
+    error_message TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_offline_tasks_status ON offline_tasks(status);
+CREATE INDEX IF NOT EXISTS idx_offline_tasks_priority ON offline_tasks(priority, created_at);
+
+-- Harness Artifact 本地缓存（跨端同步用）
+CREATE TABLE IF NOT EXISTS local_artifacts (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    artifact_type TEXT NOT NULL,
+    data_json TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    synced BOOLEAN DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_artifacts_session ON local_artifacts(session_id);
+CREATE INDEX IF NOT EXISTS idx_artifacts_synced ON local_artifacts(synced);
+
 -- 数据库版本管理
 CREATE TABLE IF NOT EXISTS db_migrations (
     version INTEGER PRIMARY KEY,
@@ -128,6 +160,7 @@ CREATE TABLE IF NOT EXISTS db_migrations (
 
 -- 插入初始版本记录
 INSERT OR IGNORE INTO db_migrations (version, name) VALUES (1, 'initial_schema');
+INSERT OR IGNORE INTO db_migrations (version, name) VALUES (2, 'harness_offline_support');
 "#;
 
 /// 获取数据库初始化 SQL

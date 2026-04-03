@@ -143,6 +143,57 @@ export async function checkLocalLLMStatus() {
   return invokeCommand('check_local_llm_status')
 }
 
+// ===== 离线任务队列（Harness Engineering）=====
+
+/** 提交离线任务 */
+export async function submitOfflineTask(
+  taskType: string,
+  description: string,
+  conversationId?: string,
+  priority?: number
+): Promise<string | null> {
+  return invokeCommand('submit_offline_task', {
+    taskType,
+    description,
+    conversationId: conversationId ?? null,
+    priority: priority ?? 2,
+  })
+}
+
+/** 获取离线队列统计 */
+export async function getQueueStats() {
+  return invokeCommand('get_queue_stats')
+}
+
+/** 触发离线任务批量同步 */
+export async function flushOfflineQueue(): Promise<string | null> {
+  return invokeCommand('flush_offline_queue')
+}
+
+/** 推送 Harness Artifact 到云端 */
+export async function pushHarnessArtifacts(
+  sessionId: string,
+  artifacts: Record<string, any>,
+  deviceId: string
+): Promise<string | null> {
+  return invokeCommand('push_harness_artifacts', {
+    sessionId,
+    artifacts,
+    deviceId,
+  })
+}
+
+/** 拉取 Harness Artifact */
+export async function pullHarnessArtifacts(
+  sessionId: string,
+  artifactTypes?: string[]
+): Promise<Record<string, any> | null> {
+  return invokeCommand('pull_harness_artifacts', {
+    sessionId,
+    artifactTypes: artifactTypes ?? null,
+  })
+}
+
 // ===== 认证 =====
 
 /** 保存认证 Token */
