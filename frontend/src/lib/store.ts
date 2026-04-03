@@ -498,22 +498,22 @@ export const useChatStore = create<ChatState>()(
       setConversationId: (id) => set({ conversationId: id }),
       setLoading: (loading) => set({ isLoading: loading }),
       clearMessages: () => set({ messages: [], conversationId: null }),
-      setConversations: (conversations) => set({ conversations }),
+      setConversations: (conversations) => set({ conversations: Array.isArray(conversations) ? conversations : [] }),
       addConversation: (conversation) =>
         set((state) => ({
-          conversations: [conversation, ...state.conversations.filter((c) => c.id !== conversation.id)],
+          conversations: [conversation, ...(state.conversations || []).filter((c) => c.id !== conversation.id)],
         })),
       removeConversation: (id) =>
         set((state) => ({
-          conversations: state.conversations.filter((c) => c.id !== id),
+          conversations: (state.conversations || []).filter((c) => c.id !== id),
         })),
       removeConversations: (ids) =>
         set((state) => ({
-          conversations: state.conversations.filter((c) => !ids.includes(c.id)),
+          conversations: (state.conversations || []).filter((c) => !ids.includes(c.id)),
         })),
       updateConversationTitle: (id, title) =>
         set((state) => ({
-          conversations: state.conversations.map((c) => (c.id === id ? { ...c, title } : c)),
+          conversations: (state.conversations || []).map((c) => (c.id === id ? { ...c, title } : c)),
         })),
       setChatSidebarOpen: (open) => set({ sidebarOpen: open }),
       toggleChatSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
@@ -632,6 +632,14 @@ export const useChatStore = create<ChatState>()(
         conversationId: state.conversationId,
         sidebarOpen: state.sidebarOpen,
         conversations: state.conversations,
+      }),
+      merge: (persisted: any, current: any) => ({
+        ...current,
+        ...(persisted && typeof persisted === 'object' ? persisted : {}),
+        // 防止 localStorage 数据损坏导致 conversations 不是数组
+        conversations: Array.isArray((persisted as any)?.conversations)
+          ? (persisted as any).conversations
+          : [],
       }),
     }
   )

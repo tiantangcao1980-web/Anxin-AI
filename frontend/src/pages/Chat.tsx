@@ -268,9 +268,11 @@ export default function Chat() {
 
   const {
     conversationId, setConversationId,
-    conversations, setConversations, addConversation, removeConversation, removeConversations, updateConversationTitle,
+    conversations: rawConversations, setConversations, addConversation, removeConversation, removeConversations, updateConversationTitle,
     sidebarOpen: chatSidebarOpen, setChatSidebarOpen,
   } = store;
+  // 防御性保护：确保 conversations 始终是数组（防止 persist 数据损坏）
+  const conversations = Array.isArray(rawConversations) ? rawConversations : [];
   const conversationSelectionKey = conversationId || '__draft__';
   const selectedKbIds = selectedKbIdsByConversation[conversationSelectionKey] || [];
 
@@ -328,7 +330,7 @@ export default function Chat() {
   const loadConversations = useCallback(async () => {
     try {
       const result = await chatApi.listConversations(50);
-      if (result?.conversations) setConversations(result.conversations);
+      if (Array.isArray(result?.conversations)) setConversations(result.conversations);
     } catch (e) { import.meta.env.DEV && console.debug('加载对话列表失败:', e); }
   }, [setConversations]);
 
