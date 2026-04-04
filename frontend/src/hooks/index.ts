@@ -17,4 +17,9 @@ export type { UseChatScrollOptions, UseChatScrollReturn } from './useChatScroll'
 export { useWorkspace } from './useWorkspace';
 export type { UseWorkspaceOptions, UseWorkspaceReturn } from './useWorkspace';
 
+// Harness: Chat.tsx 拆分提取的 hooks
+export { useCanvasOperations } from './useCanvasOperations';
+export { useConversationManager } from './useConversationManager';
+export { useSmartScroll } from './useSmartScroll';
+
 // useStreamingA2UI is exported from @/components/a2ui/StreamingA2UIRenderer
