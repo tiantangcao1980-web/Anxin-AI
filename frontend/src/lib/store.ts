@@ -633,14 +633,12 @@ export const useChatStore = create<ChatState>()(
         sidebarOpen: state.sidebarOpen,
         conversations: state.conversations,
       }),
-      merge: (persisted: any, current: any) => ({
-        ...current,
-        ...(persisted && typeof persisted === 'object' ? persisted : {}),
+      onRehydrateStorage: () => (state) => {
         // 防止 localStorage 数据损坏导致 conversations 不是数组
-        conversations: Array.isArray((persisted as any)?.conversations)
-          ? (persisted as any).conversations
-          : [],
-      }),
+        if (state && !Array.isArray(state.conversations)) {
+          state.conversations = [];
+        }
+      },
     }
   )
 )
