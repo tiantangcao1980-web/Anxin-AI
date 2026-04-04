@@ -126,15 +126,122 @@ class Experience:
 
 
 class ExperienceEngine:
-    """经验积累引擎"""
+    """
+    经验积累引擎（Harness 增强版）
+
+    改进：经验数据持久化到 PostgreSQL experience_patterns 表，
+    服务重启后自动恢复，不再丢失学习成果。
+    """
 
     def __init__(self):
-        self._store: Dict[str, List[Experience]] = {}  # user_id -> experiences
+        self._store: Dict[str, List[Experience]] = {}  # user_id -> experiences（内存缓存）
+        self._persistence_enabled = False
+        self._try_enable_persistence()
+
+    def _try_enable_persistence(self):
+        """尝试启用数据库持久化"""
+        try:
+            from src.core.database import async_session_maker
+            self._persistence_enabled = True
+            logger.info("[ExperienceEngine] 数据库持久化已启用")
+        except Exception:
+            logger.debug("[ExperienceEngine] 数据库不可用，使用内存模式")
 
     def _get_user_experiences(self, user_id: str) -> List[Experience]:
         if user_id not in self._store:
             self._store[user_id] = []
         return self._store[user_id]
+
+    async def _persist_experience(self, exp: Experience):
+        """将经验持久化到数据库"""
+        if not self._persistence_enabled:
+            return
+        try:
+            from src.core.database import async_session_maker
+            from sqlalchemy import text
+            async with async_session_maker() as db:
+                await db.execute(
+                    text("""
+                        INSERT INTO experience_patterns
+                        (id, user_id, pattern, category, context, solution, confidence,
+                         source, use_count, confirmed_count, contradicted_count, is_active, status)
+                        VALUES (:id, :user_id, :pattern, :category, :context, :solution, :confidence,
+                                :source, :use_count, :confirmed_count, :contradicted_count, :is_active, :status)
+                        ON CONFLICT (id) DO UPDATE SET
+                            confidence = :confidence,
+                            use_count = :use_count,
+                            confirmed_count = :confirmed_count,
+                            contradicted_count = :contradicted_count,
+                            is_active = :is_active,
+                            status = :status,
+                            last_used_at = NOW()
+                    """),
+                    {
+                        "id": exp.id,
+                        "user_id": exp.user_id,
+                        "pattern": exp.pattern,
+                        "category": exp.category,
+                        "context": exp.context,
+                        "solution": exp.solution,
+                        "confidence": exp.confidence,
+                        "source": exp.source,
+                        "use_count": exp.use_count,
+                        "confirmed_count": exp.confirmed_count,
+                        "contradicted_count": exp.contradicted_count,
+                        "is_active": exp.is_active,
+                        "status": "candidate" if exp.confirmed_count == 0 else "validated",
+                    },
+                )
+                await db.commit()
+        except Exception as e:
+            logger.debug(f"[ExperienceEngine] 持久化失败: {e}")
+
+    async def load_user_experiences(self, user_id: str) -> List[Experience]:
+        """从数据库加载用户经验（启动时或首次访问时）"""
+        if user_id in self._store and self._store[user_id]:
+            return self._store[user_id]
+        if not self._persistence_enabled:
+            return []
+        try:
+            from src.core.database import async_session_maker
+            from sqlalchemy import text
+            async with async_session_maker() as db:
+                result = await db.execute(
+                    text("""
+                        SELECT id, pattern, category, context, solution, confidence,
+                               source, use_count, confirmed_count, contradicted_count, is_active
+                        FROM experience_patterns
+                        WHERE user_id = :user_id AND is_active = true
+                        ORDER BY confidence DESC
+                        LIMIT :limit
+                    """),
+                    {"user_id": user_id, "limit": EXPERIENCE_CONFIG["max_experiences"]},
+                )
+                rows = result.fetchall()
+                experiences = []
+                for row in rows:
+                    exp = Experience(
+                        pattern=row.pattern,
+                        category=row.category,
+                        context=row.context,
+                        solution=row.solution,
+                        confidence=row.confidence,
+                        source=row.source,
+                        user_id=user_id,
+                    )
+                    exp.id = row.id
+                    exp.use_count = row.use_count
+                    exp.confirmed_count = row.confirmed_count
+                    exp.contradicted_count = row.contradicted_count
+                    exp.is_active = row.is_active
+                    experiences.append(exp)
+                self._store[user_id] = experiences
+                if experiences:
+                    logger.info(f"[ExperienceEngine] 加载 {len(experiences)} 条经验 (user={user_id[:8]})")
+                return experiences
+        except Exception as e:
+            logger.debug(f"[ExperienceEngine] 加载经验失败: {e}")
+            return []
 
     # ===== 经验提取 =====
 
@@ -196,16 +303,20 @@ class ExperienceEngine:
             if existing:
                 # 相同模式 → 确认
                 existing.confirm()
+                # Harness: 持久化确认更新
+                await self._persist_experience(existing)
             else:
                 # 新模式 → 添加
                 user_exps.append(new_exp)
+                # Harness: 持久化新经验
+                await self._persist_experience(new_exp)
 
         # 限制数量
         if len(user_exps) > EXPERIENCE_CONFIG["max_experiences"]:
             user_exps.sort(key=lambda e: e.confidence, reverse=True)
             self._store[user_id] = user_exps[:EXPERIENCE_CONFIG["max_experiences"]]
 
-        logger.info(f"经验提取完成 (user={user_id}): 新增 {len(extracted)} 条")
+        logger.info(f"经验提取完成 (user={user_id}): 新增 {len(extracted)} 条，已持久化")
         return extracted
 
     def _detect_corrections(self, messages: List[Dict]) -> List[Dict]:
