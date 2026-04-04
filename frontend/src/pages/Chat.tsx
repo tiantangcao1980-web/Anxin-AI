@@ -32,6 +32,7 @@ import { ThinkingChain } from '@/components/chat/ThinkingChain';
 import { QuickActionsBar, DeepModeToggle, type QuickActionFillPayload } from '@/components/chat/QuickActionsBar';
 import { SlashCommandPalette, useSlashCommand, type SlashCommand } from '@/components/chat/SlashCommandPalette';
 import { ThinkingIndicator, type ThinkingStatus } from '@/components/chat/ThinkingIndicator';
+import { ClarificationBubble } from '@/components/chat/ClarificationBubble';
 import {
   getWorkflowAction,
   getWorkflowPlaceholder,
@@ -42,6 +43,10 @@ import {
 import { A2UIRenderer, StreamingA2UIRenderer, useStreamingA2UI } from '@/components/a2ui';
 import { MobileA2UIAdapter } from '@/components/a2ui/MobileA2UIAdapter';
 import type { A2UIMessage, A2UIEvent, A2UIStreamEvent, A2UIComponent } from '@/components/a2ui';
+// Harness: Chat.tsx 拆分 — 提取的 hooks
+import { useCanvasOperations } from '@/hooks/useCanvasOperations';
+import { useConversationManager } from '@/hooks/useConversationManager';
+import { useSmartScroll } from '@/hooks/useSmartScroll';
 
 // ========== Canvas 内容清理工具 ==========
 
@@ -254,13 +259,15 @@ export default function Chat() {
 
   // 拖拽状态标记 — 拖拽时禁用 CSS transition 以避免卡顿
   const [isDragging, setIsDragging] = useState(false);
-  // 智能滚动：用户主动向上滚动时暂停自动滚动
-  const [userScrolledUp, setUserScrolledUp] = useState(false);
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  // Harness: 使用提取的智能滚动 hook（替代内联实现）
+  const {
+    messagesContainerRef, messagesEndRef, userScrolledUp, setUserScrolledUp,
+    scrollToBottom, debouncedScrollToBottom, handleScroll: handleScrollEvent,
+  } = useSmartScroll();
 
   // Refs
   const wsRef = useRef<WebSocket | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
@@ -562,21 +569,7 @@ export default function Chat() {
     return () => container.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // 滚动到底部（仅在用户未主动向上滚动时）
-  const scrollToBottom = useCallback((force = false) => {
-    if (!force && userScrolledUp) return; // 尊重用户的滚动意图
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [userScrolledUp]);
-
-  // 防抖滚动 — 流式内容更新时最多 200ms 触发一次
-  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const debouncedScrollToBottom = useCallback(() => {
-    if (userScrolledUp) return;
-    if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
-    scrollTimerRef.current = setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 200);
-  }, [userScrolledUp]);
+  // Harness: scrollToBottom / debouncedScrollToBottom 已移至 useSmartScroll hook
 
   // 新消息到达时智能滚动
   useEffect(() => {
@@ -1569,100 +1562,13 @@ export default function Chat() {
     return '发送消息或输入 / 选择技能';
   }, [pendingFile, quickActionMode, activeActionId]);
 
-  // ========== Canvas 操作 ==========
-
-  // Canvas 内容变更 → 防抖发送到后端 + 保存到文档系统
-  const canvasSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [canvasSaved, setCanvasSaved] = useState(true);
-
-  const handleCanvasContentChange = useCallback((content: string) => {
-    // 1. 立即更新本地状态
-    store.updateCanvasText(content);
-    setCanvasSaved(false);
-
-    // 2. 防抖 1.5s 后发送到后端
-    if (canvasSaveTimerRef.current) clearTimeout(canvasSaveTimerRef.current);
-    canvasSaveTimerRef.current = setTimeout(() => {
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({
-          type: 'canvas_edit',
-          content,
-          title: store.canvasContent?.title || '文档',
-          canvas_type: store.canvasContent?.type || 'document',
-        }));
-        setCanvasSaved(true);
-      }
-    }, 1500);
-  }, [store]);
-
-  // Canvas 手动保存（将内容保存为文档）
-  const handleCanvasSaveAsDocument = useCallback(async () => {
-    if (!store.canvasContent?.content) return;
-    try {
-      await chatApi.sendMessage({
-        content: `[系统] 保存文档: ${store.canvasContent.title}`,
-        conversation_id: conversationId || undefined,
-      });
-      // 调用文档 API 保存
-      const { documentsApi } = await import('@/lib/api');
-      await documentsApi.createText({
-        name: store.canvasContent.title || '未命名文档',
-        content: store.canvasContent.content,
-        doc_type: store.canvasContent.type === 'contract' ? 'contract' : 'document',
-        description: `通过 Canvas 编辑器创建`,
-      });
-      toast.success('文档已保存到文档库');
-      setCanvasSaved(true);
-    } catch (e) {
-      toast.error('保存失败，请稍后重试');
-    }
-  }, [store.canvasContent, conversationId]);
-
-  const handleCanvasAIOptimize = useCallback(() => {
-    if (!store.canvasContent) {
-      toast.error('没有文档内容可以润色');
-      return;
-    }
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      toast.error('连接已断开，请刷新后重试');
-      return;
-    }
-    wsRef.current.send(JSON.stringify({
-      type: 'canvas_request',
-      canvas_content: store.canvasContent.content,
-      canvas_type: store.canvasContent.type,
-    }));
-    setIsProcessing(true);
-  }, [store.canvasContent]);
-
-  const handleCanvasSuggestionAction = useCallback((id: string, action: 'accept' | 'reject') => {
-    if (!store.canvasContent) return;
-    const updated = (store.canvasContent.suggestions || []).map(s =>
-      s.id === id ? { ...s, status: action === 'accept' ? 'accepted' as const : 'rejected' as const } : s
-    );
-    store.setCanvasContent({ ...store.canvasContent, suggestions: updated });
-  }, [store]);
-
-  // ========== 文档快捷操作（翻译/摘要/润色/风险检查）==========
-  const handleDocumentAction = useCallback((action: string, payload?: any) => {
-    if (!store.canvasContent) {
-      toast.error('没有文档内容');
-      return;
-    }
-    const content = store.canvasContent.content;
-
-    const actionMessages: Record<string, string> = {
-      summarize: `请为以下文档生成结构化摘要，包含主要内容、关键条款和核心结论：\n\n---\n${content.slice(0, 10000)}`,
-      translate: `请将以下文档翻译为英文（保留原格式）：\n\n---\n${content.slice(0, 10000)}`,
-      optimize: `请对以下法律文档进行措辞润色和结构优化：\n\n---\n${content.slice(0, 10000)}`,
-      risk_check: `请检查以下文档中的法律风险点，标出有风险的条款并给出修改建议：\n\n---\n${content.slice(0, 10000)}`,
-    };
-
-    const message = actionMessages[action];
-    if (message) {
-      handleSendMessage(message);
-    }
-  }, [store.canvasContent, handleSendMessage]);
+  // ========== Harness: Canvas 操作已提取到 useCanvasOperations hook ==========
+  const {
+    canvasSaved, setCanvasSaved,
+    handleCanvasContentChange, handleCanvasSaveAsDocument,
+    handleCanvasAIOptimize, handleCanvasSuggestionAction,
+    handleDocumentAction,
+  } = useCanvasOperations(wsRef, conversationId, setIsProcessing, handleSendMessage);
 
   // ========== 转发律师 ==========
   const handleForwardToLawyer = useCallback(() => {
@@ -2964,137 +2870,4 @@ export default function Chat() {
 }
 
 
-// ========== 引导式问答气泡组件 — v3 优化版 ==========
-// 核心改进：
-// 1. 选择后立即锁定（不可修改、不可多选）
-// 2. 提交后不再输出选择内容到对话流（直接显示"已确认"状态）
-// 3. 提交后的选择以紧凑标签形式展示，不重复出现
-function ClarificationBubble({ message, questions, originalContent, onSubmit, disabled }: {
-  message: string;
-  questions: { question: string; options: string[] }[];
-  originalContent: string;
-  onSubmit: (originalContent: string, selections: Record<string, string>) => void;
-  disabled: boolean;
-}) {
-  const [selections, setSelections] = useState<Record<string, string>>({});
-  const [submitted, setSubmitted] = useState(false);
-
-  const handleSelect = (question: string, option: string) => {
-    // 已提交或已有选择时不可更改（单选锁定）
-    if (submitted || selections[question]) return;
-    setSelections(prev => ({ ...prev, [question]: option }));
-  };
-
-  const handleSubmit = () => {
-    if (submitted || disabled) return;
-    const valid = Object.fromEntries(Object.entries(selections).filter(([_, v]) => v));
-    if (Object.keys(valid).length === 0) return;
-    setSubmitted(true);
-    // 直接发送到后端，不在对话流中重复输出选择文字
-    onSubmit(originalContent, valid);
-  };
-
-  const answeredCount = Object.values(selections).filter(v => v).length;
-  const allAnswered = answeredCount === questions.length;
-
-  // 提交后的紧凑视图
-  if (submitted) {
-    return (
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-3 items-start">
-        <div className="w-8 h-8 rounded-full bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center flex-shrink-0">
-          <icons.CheckCircle className="h-4 w-4 text-emerald-600" />
-        </div>
-        <div className="flex flex-col gap-1 max-w-[80%]">
-          <div className="bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-2xl rounded-tl-none px-4 py-3">
-            <div className="flex items-center gap-1.5 mb-2">
-              <span className="text-xs font-semibold text-emerald-600">已确认需求</span>
-              <icons.Loader2 className="w-3 h-3 animate-spin text-emerald-600" />
-              <span className="text-[10px] text-emerald-600">处理中...</span>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {Object.entries(selections).filter(([_, v]) => v).map(([q, a]) => (
-                <span key={q} className="inline-flex items-center gap-1 px-2 py-1 bg-background rounded-lg text-[11px] text-foreground/80 border border-emerald-200">
-                  <icons.CheckCircle className="w-2.5 h-2.5 text-emerald-600" />
-                  {a}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-      </motion.div>
-    );
-  }
-
-  return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-3 items-start">
-      <div className="w-8 h-8 rounded-full bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 flex items-center justify-center flex-shrink-0">
-        <icons.HelpCircle className="h-4 w-4 text-amber-500" />
-      </div>
-      <div className="flex flex-col gap-1.5 max-w-[85%]">
-        <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground ml-1">
-          <icons.Sparkles className="h-3 w-3 text-amber-500" /> 需求确认
-        </div>
-        <div className="bg-background border border-border rounded-2xl rounded-tl-none px-4 py-3.5 shadow-sm">
-          <p className="text-sm text-foreground/80 mb-3 leading-relaxed">{message}</p>
-          <div className="space-y-3">
-            {questions.map((q, qi) => {
-              const isAnswered = !!selections[q.question];
-              return (
-                <div key={qi}>
-                  <p className="text-xs font-medium text-foreground mb-1.5">{q.question}</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {q.options.map((opt, oi) => {
-                      const isSelected = selections[q.question] === opt;
-                      const isLocked = isAnswered && !isSelected;
-                      return (
-                        <button
-                          key={oi}
-                          onClick={() => handleSelect(q.question, opt)}
-                          disabled={isLocked}
-                          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                            isSelected
-                              ? 'bg-primary text-white border-primary shadow-sm scale-[1.02]'
-                              : isLocked
-                              ? 'bg-muted/50 text-muted-foreground/50 border-border/50 cursor-not-allowed'
-                              : 'bg-background text-muted-foreground border-border hover:border-primary/30 hover:text-primary hover:bg-primary/5 cursor-pointer active:scale-95'
-                          }`}
-                        >
-                          {opt}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          {/* 确认按钮 — 仅全部选择后显示 */}
-          <AnimatePresence>
-            {allAnswered && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden"
-              >
-                <button
-                  onClick={handleSubmit}
-                  disabled={disabled}
-                  className="mt-3 w-full flex items-center justify-center gap-1.5 px-4 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98] shadow-sm"
-                >
-                  <span>确认并继续</span>
-                  <icons.ChevronRight className="w-4 h-4" />
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          {!allAnswered && (
-            <p className="text-[10px] text-muted-foreground mt-2 text-center">
-              请逐一选择 · 已完成 {answeredCount}/{questions.length}
-            </p>
-          )}
-        </div>
-      </div>
-    </motion.div>
-  );
-}
+// ClarificationBubble 已提取到 @/components/chat/ClarificationBubble.tsx（通过顶部 import 引入）
