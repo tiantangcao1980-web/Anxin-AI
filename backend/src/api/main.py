@@ -91,6 +91,33 @@ app.add_middleware(
     allow_headers=settings.CORS_ALLOW_HEADERS,
 )
 
+# ===== 反Bot防御中间件（后注册先执行，顺序：WAF → HMAC → ClientIntel → RiskScoring） =====
+if settings.ANTIBOT_ENABLED:
+    # Phase 3: 风控评分（最后执行，综合所有信号）— 最先注册
+    if settings.ANTIBOT_RISK_SCORING_ENABLED:
+        from src.middleware.risk_scoring import RiskScoringMiddleware
+        app.add_middleware(RiskScoringMiddleware)
+        logger.info("反Bot: 风控评分引擎已启用")
+
+    # Phase 2: 客户端情报
+    if settings.ANTIBOT_FINGERPRINT_ENABLED:
+        from src.middleware.client_intel import ClientIntelMiddleware
+        app.add_middleware(ClientIntelMiddleware)
+        logger.info("反Bot: 客户端情报分析已启用")
+
+    # Phase 1: HMAC 签名
+    if settings.ANTIBOT_HMAC_ENABLED:
+        from src.middleware.hmac_signature import HMACSignatureMiddleware
+        app.add_middleware(HMACSignatureMiddleware)
+        logger.info(f"反Bot: HMAC 签名验证已启用 (enforce={settings.ANTIBOT_HMAC_ENFORCE})")
+
+    # Phase 1: WAF（较早执行，拦截明显攻击）
+    if settings.ANTIBOT_WAF_ENABLED:
+        from src.middleware.waf import WAFMiddleware
+        app.add_middleware(WAFMiddleware)
+        logger.info(f"反Bot: WAF 已启用 (log_only={settings.ANTIBOT_WAF_LOG_ONLY})")
+
+
 # ===== 安全响应头 =====
 @app.middleware("http")
 async def add_security_headers(request, call_next):

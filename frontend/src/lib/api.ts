@@ -52,11 +52,59 @@ async function request<T>(
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
   }
-  
+
+  // 反Bot: 注入 HMAC 签名头 + 客户端情报头
+  try {
+    const { signRequest, isHmacEnabled } = await import('./security/hmac-signer')
+    if (isHmacEnabled()) {
+      const sigHeaders = await signRequest(
+        options.method || 'GET',
+        endpoint,
+        typeof options.body === 'string' ? options.body : undefined,
+      )
+      Object.assign(headers, sigHeaders)
+    }
+  } catch { /* 签名模块不可用，静默降级 */ }
+
+  try {
+    const { getVisitorId } = await import('./security/fingerprint')
+    const vid = getVisitorId()
+    if (vid) headers['X-Client-ID'] = vid
+
+    const { getBotSignalsHeader } = await import('./security/bot-detection')
+    const bs = getBotSignalsHeader()
+    if (bs) headers['X-Bot-Signals'] = bs
+  } catch { /* 指纹/Bot检测不可用，静默降级 */ }
+
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
     headers,
   })
+
+  // 反Bot: 处理 PoW 挑战（429 + X-Challenge-Required）
+  if (response.status === 429 && response.headers.get('X-Challenge-Required')) {
+    try {
+      const body = await response.json()
+      if (body.challenge) {
+        const { solvePow } = await import('./security/pow-solver')
+        const nonce = await solvePow(body.challenge)
+        // 带上挑战解答重试
+        const retryHeaders = { ...headers }
+        retryHeaders['X-Challenge-ID'] = body.challenge.challenge_id
+        retryHeaders['X-Challenge-Solution'] = String(nonce)
+        const retryResp = await fetch(`${API_BASE_URL}${endpoint}`, {
+          ...options,
+          headers: retryHeaders,
+        })
+        const retryJson = await retryResp.json().catch(() => ({
+          code: 500, message: '解析响应失败',
+        }))
+        if (retryResp.ok && (!retryJson.code || retryJson.code < 400)) {
+          return (retryJson.data !== undefined ? retryJson.data : retryJson) as T
+        }
+      }
+    } catch { /* PoW 求解失败，抛出原始错误 */ }
+  }
   
   // 处理 401 认证失败：尝试刷新 Token，失败则跳转登录
   if (response.status === 401 && !_retry && token) {

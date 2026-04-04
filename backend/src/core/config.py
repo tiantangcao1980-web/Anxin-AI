@@ -72,6 +72,10 @@ class Settings(BaseSettings):
     CORS_ALLOW_HEADERS: List[str] = [
         "Authorization", "Content-Type", "Accept", "X-Requested-With",
         "X-Integration-Key", "X-Request-ID",
+        # 反Bot防御头
+        "X-Request-Timestamp", "X-Request-Nonce", "X-Request-Signature",
+        "X-Client-ID", "X-Bot-Signals",
+        "X-Challenge-ID", "X-Challenge-Solution",
     ]
 
     # 输入验证配置
@@ -87,6 +91,24 @@ class Settings(BaseSettings):
 
     # 集成 API 密钥（用于 OA/Webhook 回调验证）
     INTEGRATION_API_KEY: Optional[str] = None
+
+    # ========== 反Bot防御配置 ==========
+    ANTIBOT_ENABLED: bool = False               # 总开关
+    ANTIBOT_HMAC_ENABLED: bool = False          # HMAC 签名验证
+    ANTIBOT_HMAC_ENFORCE: bool = False          # False=仅记录, True=拦截
+    ANTIBOT_PUBLIC_SIGNING_KEY: str = ""        # 公共签名密钥
+    ANTIBOT_TIMESTAMP_DRIFT: int = 300          # 时间偏移容忍（秒）
+    ANTIBOT_NONCE_TTL: int = 600                # Nonce TTL（秒）
+    ANTIBOT_WAF_ENABLED: bool = False           # WAF 开关
+    ANTIBOT_WAF_LOG_ONLY: bool = True           # WAF 仅记录模式
+    ANTIBOT_FINGERPRINT_ENABLED: bool = False   # 浏览器指纹检测
+    ANTIBOT_MAX_IPS_PER_FP: int = 5             # 单指纹最大 IP 数
+    ANTIBOT_MAX_FPS_PER_IP: int = 10            # 单 IP 最大指纹数
+    ANTIBOT_RISK_SCORING_ENABLED: bool = False  # 风控引擎
+    ANTIBOT_CHALLENGE_THRESHOLD: int = 30       # 挑战阈值
+    ANTIBOT_BLOCK_THRESHOLD: int = 70           # 阻断阈值
+    ANTIBOT_POW_ENABLED: bool = False           # PoW 挑战
+    ANTIBOT_POW_DIFFICULTY: int = 4             # PoW 难度（前缀零个数）
     WECHAT_PAY_WEBHOOK_SECRET: Optional[str] = None
     ALIPAY_WEBHOOK_SECRET: Optional[str] = None
     ESIGN_WEBHOOK_SECRET: Optional[str] = None

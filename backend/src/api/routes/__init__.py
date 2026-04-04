@@ -28,11 +28,13 @@ from src.api.routes import sync, updates
 from src.api.routes import metrics
 from src.api.routes import knowledge_management
 from src.api.routes import harness
+from src.api.routes import security_challenge
 
 api_router = APIRouter()
 
 # 注册各模块路由
 api_router.include_router(auth.router, prefix="/auth", tags=["认证"])
+api_router.include_router(security_challenge.router, prefix="/auth", tags=["安全挑战"])
 api_router.include_router(chat.router, prefix="/chat", tags=["AI对话"])
 api_router.include_router(cases.router, prefix="/cases", tags=["案件管理"])
 api_router.include_router(contracts.router, prefix="/contracts", tags=["合同审查"])
