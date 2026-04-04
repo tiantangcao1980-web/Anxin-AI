@@ -729,11 +729,67 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
             _is_complex_by_keyword = any(kw in content for kw in _complex_keywords)
             
             if msg_type == "clarification_response":
-                # 合并澄清回复和原始问题
+                # ===== Harness: 补充信息后重新评估（不再直接放行）=====
                 original = data.get("original_content", "")
-                selections = data.get("selections", "")
-                content = f"{original}\n\n用户补充信息：{content}\n选择：{selections}"
+                selections_dict = data.get("selections", {})
+                if isinstance(selections_dict, str):
+                    selections_dict = {}
+                selections_text = data.get("selections", "")
+                content = f"{original}\n\n用户补充信息：{content}\n选择：{selections_text}"
                 await ctx.save_message("user", content)
+
+                # 从上下文中恢复上次评估结果
+                _prev_assessment = data.get("_prev_assessment", {})
+                _prev_intent = data.get("_prev_intent", "QA_CONSULTATION")
+                _prev_round = data.get("_prev_round", 1)
+                _has_attachments = bool(data.get("file_ids"))
+
+                try:
+                    from src.services.scenario_templates import reassess_after_clarification
+                    reassessment = reassess_after_clarification(
+                        user_input=original,
+                        intent=_prev_intent,
+                        original_assessment=_prev_assessment,
+                        user_selections=selections_dict,
+                        current_round=_prev_round,
+                        has_attachments=_has_attachments,
+                    )
+
+                    if not reassessment["is_complete"] and reassessment["questions"]:
+                        # 仍不完整 → 发送下一轮追问（不放行）
+                        logger.info(
+                            f"[Harness] 补充后仍不完整 (round {reassessment['round']})，"
+                            f"继续追问（缺失: {reassessment['missing_summary']}）"
+                        )
+                        await ctx.send("clarification_request", {
+                            "message": f"感谢补充！还需要以下信息才能为您提供准确的分析：",
+                            "questions": reassessment["questions"],
+                            "original_content": original,
+                            "readiness_score": reassessment["score"],
+                            "filled_slots": reassessment["filled_slots"],
+                            "missing_elements": [s["label"] for s in reassessment["missing_slots"]],
+                            "_prev_assessment": reassessment,
+                            "_prev_intent": _prev_intent,
+                            "_prev_round": reassessment["round"],
+                        })
+                        continue
+
+                    if not reassessment["is_complete"] and reassessment.get("round", 1) >= 3:
+                        # 3轮后仍不完整 → 告知用户缺什么，让用户决定
+                        logger.info(f"[Harness] 已追问3轮仍不完整，让用户选择是否继续")
+                        await ctx.send("completeness_warning", {
+                            "message": f"目前仍缺少以下信息：{reassessment['missing_summary']}。\n\n"
+                                       f"您可以继续补充，或使用当前信息生成（结果可能不够完整）。",
+                            "missing_summary": reassessment["missing_summary"],
+                            "score": reassessment["score"],
+                            "options": ["继续补充", "使用当前信息"],
+                            "original_content": original,
+                        })
+                        continue
+
+                except Exception as _reassess_err:
+                    logger.warning(f"[Harness] 重评估失败，降级放行: {_reassess_err}")
+
                 req_analysis = {"is_complete": True, "summary": content[:100], "complexity": "moderate"}
                 _is_simple = False
                 _is_complex_by_keyword = True

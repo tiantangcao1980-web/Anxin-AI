@@ -26,6 +26,34 @@ from typing import Any, Dict, List, Optional
 from loguru import logger
 
 
+# ========== Harness: 分级完整性门槛 ==========
+# 按场景风险分级，高风险场景（正式法律文件/刑事）要求更高完整度才允许生成
+COMPLETENESS_THRESHOLDS = {
+    # 高风险：生成正式法律文件/涉及人身自由/破产
+    "DOCUMENT_DRAFTING":      {"min_score": 0.75, "min_filled_ratio": 0.80},
+    "CRIMINAL":               {"min_score": 0.80, "min_filled_ratio": 0.90},
+    "LITIGATION_STRATEGY":    {"min_score": 0.70, "min_filled_ratio": 0.70},
+    "BANKRUPTCY_INSOLVENCY":  {"min_score": 0.75, "min_filled_ratio": 0.80},
+    # 中风险：分析/纠纷处理
+    "CONTRACT_REVIEW":        {"min_score": 0.65, "min_filled_ratio": 0.60},
+    "LABOR_HR":               {"min_score": 0.65, "min_filled_ratio": 0.60},
+    "DEBT_COLLECTION":        {"min_score": 0.65, "min_filled_ratio": 0.60},
+    "FAMILY_LAW":             {"min_score": 0.65, "min_filled_ratio": 0.60},
+    "DUE_DILIGENCE":          {"min_score": 0.70, "min_filled_ratio": 0.70},
+    "EVIDENCE_PROCESSING":    {"min_score": 0.65, "min_filled_ratio": 0.60},
+    "REAL_ESTATE":            {"min_score": 0.65, "min_filled_ratio": 0.60},
+    "CORPORATE_GOVERNANCE":   {"min_score": 0.65, "min_filled_ratio": 0.60},
+    "IP_PROTECTION":          {"min_score": 0.60, "min_filled_ratio": 0.50},
+    "TAX_FINANCE":            {"min_score": 0.60, "min_filled_ratio": 0.50},
+    # 低风险：咨询/导航
+    "QA_CONSULTATION":        {"min_score": 0.35, "min_filled_ratio": 0.00},
+    "FIND_LAWYER":            {"min_score": 0.40, "min_filled_ratio": 0.30},
+    "TEMPLATE_REQUEST":       {"min_score": 0.20, "min_filled_ratio": 0.00},
+    # 默认（未列出的场景）
+    "_default":               {"min_score": 0.60, "min_filled_ratio": 0.50},
+}
+
+
 # ========== 场景模板注册表 ==========
 
 SCENARIO_TEMPLATES: Dict[str, Dict[str, Any]] = {
@@ -1941,18 +1969,31 @@ def assess_completeness(
 
     min_required = template.get("min_required_for_proceed", 2)
 
-    # 严格完整度判断：
-    # - score < 0.4 且有缺失：必须追问（"帮我写份合同"这类模糊请求）
-    # - score >= 0.5 且至少有1个slot或附件：可以开始处理
-    # - score >= 0.7：信息充分，直接处理
-    if score < 0.4 and missing:
-        is_complete = False
-    elif score >= 0.7:
+    # ===== Harness: 分级完整性判断（替代旧的宽松逻辑）=====
+    # 根据场景风险等级使用不同门槛，高风险场景（文书起草/刑事等）需要更高完整度
+    threshold = COMPLETENESS_THRESHOLDS.get(intent, COMPLETENESS_THRESHOLDS["_default"])
+    min_score = threshold["min_score"]
+    min_filled_ratio = threshold["min_filled_ratio"]
+
+    # 附件可降低填充率要求（合同审查场景，附件=核心输入）
+    if has_attachments and "has_attachments" in template.get("auto_complete_if", []):
+        min_filled_ratio = max(0.0, min_filled_ratio - 0.20)
+
+    filled_ratio = len(filled) / total if total > 0 else 1.0
+
+    if score >= min_score and filled_ratio >= min_filled_ratio:
         is_complete = True
-    elif score >= 0.5 and (len(filled) >= 1 or has_attachments):
+    elif not missing:
+        # 所有必填项已填，无论分数如何都可以继续
         is_complete = True
     else:
-        is_complete = len(missing) == 0
+        is_complete = False
+        logger.info(
+            f"[Harness] 信息不完整: intent={intent} | "
+            f"score={score:.2f} (需>={min_score}) | "
+            f"filled={len(filled)}/{total} ({filled_ratio:.0%}, 需>={min_filled_ratio:.0%}) | "
+            f"缺失: {[s['label'] for s in missing]}"
+        )
 
     return {
         "is_complete": is_complete,
@@ -2007,6 +2048,106 @@ def merge_clarification_into_slots(
         "missing_slots": remaining_missing,
         "questions": [],
         "has_next_round": False,
+    }
+
+
+def reassess_after_clarification(
+    user_input: str,
+    intent: str,
+    original_assessment: Dict[str, Any],
+    user_selections: Dict[str, str],
+    current_round: int = 1,
+    has_attachments: bool = False,
+) -> Dict[str, Any]:
+    """
+    Harness: 补充信息后重新评估完整度（不直接放行）。
+
+    与 merge_clarification_into_slots 的区别：
+    1. 使用分级门槛（COMPLETENESS_THRESHOLDS）而非固定 0.6
+    2. 如果仍不完整，自动生成下一轮问题
+    3. 记录当前轮次，支持最多 3 轮追问
+
+    Args:
+        user_input: 原始用户输入
+        intent: 意图类型
+        original_assessment: 上次 assess_completeness 的结果
+        user_selections: 用户在本轮选择的选项 {"问题文本": "选项文本"}
+        current_round: 当前已完成的追问轮次
+        has_attachments: 是否有附件
+
+    Returns:
+        {
+            "is_complete": bool,
+            "score": float,
+            "filled_slots": [...],
+            "missing_slots": [...],
+            "questions": [...],  # 下一轮问题（如果仍不完整）
+            "has_next_round": bool,
+            "round": int,        # 当前轮次
+            "missing_summary": str,  # 缺失信息摘要（用于告知用户）
+        }
+    """
+    # Step 1: 合并用户选择
+    merged = merge_clarification_into_slots(original_assessment, user_selections)
+
+    # Step 2: 用分级门槛重新评估
+    threshold = COMPLETENESS_THRESHOLDS.get(intent, COMPLETENESS_THRESHOLDS["_default"])
+    min_score = threshold["min_score"]
+    min_filled_ratio = threshold["min_filled_ratio"]
+
+    filled = merged["filled_slots"]
+    remaining_missing = merged["missing_slots"]
+    total = len(filled) + len(remaining_missing)
+    filled_ratio = len(filled) / total if total > 0 else 1.0
+    score = merged["score"]
+
+    # 附件降低要求
+    if has_attachments:
+        min_filled_ratio = max(0.0, min_filled_ratio - 0.20)
+
+    is_complete = (score >= min_score and filled_ratio >= min_filled_ratio) or not remaining_missing
+
+    # Step 3: 如果不完整且未到最大轮次，生成下一轮问题
+    next_round = current_round + 1
+    questions = []
+    max_rounds = 3
+
+    if not is_complete and next_round <= max_rounds and remaining_missing:
+        # 重新运行 assess_completeness 以获取下一轮的问题
+        # 将已有 filled_slots 转为 pre_filled_context
+        pre_filled = {s["key"]: s["value"] for s in filled}
+        next_assessment = assess_completeness(
+            user_input=user_input,
+            intent=intent,
+            has_attachments=has_attachments,
+            pre_filled_context=pre_filled,
+            current_round=next_round,
+        )
+        questions = next_assessment.get("questions", [])
+
+    # Step 4: 生成缺失信息摘要
+    missing_summary = ""
+    if remaining_missing:
+        missing_labels = [s["label"] for s in remaining_missing[:5]]
+        missing_summary = "、".join(missing_labels)
+
+    logger.info(
+        f"[Harness] 补充后重评估: intent={intent} round={next_round} | "
+        f"score={score:.2f} (需>={min_score}) | "
+        f"filled={len(filled)}/{total} ({filled_ratio:.0%}) | "
+        f"is_complete={is_complete} | "
+        f"缺失: {missing_summary or '无'}"
+    )
+
+    return {
+        "is_complete": is_complete,
+        "score": round(score, 2),
+        "filled_slots": filled,
+        "missing_slots": remaining_missing,
+        "questions": questions,
+        "has_next_round": len(questions) > 0,
+        "round": next_round,
+        "missing_summary": missing_summary,
     }
 
 
