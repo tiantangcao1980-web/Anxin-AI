@@ -793,6 +793,19 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                 req_analysis = {"is_complete": True, "summary": content[:100], "complexity": "moderate"}
                 _is_simple = False
                 _is_complex_by_keyword = True
+            elif data.get("mode") == "professional":
+                # ===== Harness: 专业模式 — 跳过引导式问答，直接路由到Agent =====
+                # 律师/高级用户使用，不走 analyze_and_classify 的追问流程
+                logger.info(f"[Harness] 专业模式: 跳过需求引导，直接处理")
+                req_analysis = {
+                    "is_complete": True,
+                    "summary": content[:100],
+                    "complexity": "professional",
+                    "intent": data.get("intent_hint", "QA_CONSULTATION"),
+                    "skip_clarification": True,
+                }
+                _is_simple = False
+                _is_complex_by_keyword = True
             elif _is_simple:
                 # === 快速路径：简单消息直接回复，不走需求分析和意图识别 ===
                 req_analysis = {"is_complete": True, "summary": content, "complexity": "simple"}

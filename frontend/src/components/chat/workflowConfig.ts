@@ -1,6 +1,6 @@
 import { icons } from '@/lib/icons';
 
-export type QuickActionMode = 'chat' | 'deep_analysis' | 'contract' | 'document' | 'research';
+export type QuickActionMode = 'chat' | 'deep_analysis' | 'contract' | 'document' | 'research' | 'professional';
 
 /**
  * 快捷操作的触发类型：

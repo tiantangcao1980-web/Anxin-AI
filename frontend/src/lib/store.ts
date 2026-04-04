@@ -309,6 +309,10 @@ interface ChatState {
   requirementAnalysis: RequirementAnalysis | null
   setRequirementAnalysis: (data: RequirementAnalysis | null) => void
 
+  // Harness: 专业模式持久化
+  isProfessionalMode: boolean
+  setProfessionalMode: (enabled: boolean) => void
+
   // Canvas
   canvasContent: CanvasContent | null
   setCanvasContent: (content: CanvasContent | null) => void
@@ -429,6 +433,10 @@ export const useChatStore = create<ChatState>()(
       setRequirementAnalysis: (data) => set({ requirementAnalysis: data }),
 
       // Canvas
+      // Harness: 专业模式
+      isProfessionalMode: false,
+      setProfessionalMode: (enabled) => set({ isProfessionalMode: enabled }),
+
       canvasContent: null,
       setCanvasContent: (content) => set({ canvasContent: content }),
       updateCanvasText: (text) =>
