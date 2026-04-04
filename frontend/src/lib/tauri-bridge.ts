@@ -194,6 +194,27 @@ export async function pullHarnessArtifacts(
   })
 }
 
+// ===== CLI 命令接口 =====
+
+/** 执行 CLI 命令 */
+export async function cliExecute(
+  command: string,
+  args: Record<string, any> = {},
+  apiKey?: string
+) {
+  return invokeCommand('cli_execute', { command, args, apiKey: apiKey ?? null })
+}
+
+/** 创建 CLI API Key */
+export async function cliCreateKey(name: string, scopes: string[] = ['read', 'chat'], expiresDays?: number) {
+  return invokeCommand('cli_create_key', { name, scopes, expiresDays: expiresDays ?? 90 })
+}
+
+/** 列出 CLI API Keys */
+export async function cliListKeys() {
+  return invokeCommand('cli_list_keys')
+}
+
 // ===== 认证 =====
 
 /** 保存认证 Token */
