@@ -20,7 +20,7 @@ export default function AdminBasic() {
   })
 
   useEffect(() => {
-    ;(async () => {
+    void (async () => {
       try {
         const config = await adminApi.getSystemConfig()
         if (config?.basic) setBasic(prev => ({ ...prev, ...config.basic }))

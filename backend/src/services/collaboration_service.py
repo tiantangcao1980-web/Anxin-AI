@@ -10,11 +10,11 @@
 """
 
 import difflib
+import asyncio
 import json
 import uuid
-import asyncio
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional, Set
+from typing import Any, Optional
 from dataclasses import dataclass, asdict, field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -33,7 +33,7 @@ class CollaborativeUser:
     name: str
     color: str
     cursor_pos: Optional[int] = None
-    selection: Optional[Dict[str, int]] = None  # {from: int, to: int}
+    selection: Optional[dict[str, int]] = None  # {from: int, to: int}
 
 
 @dataclass
@@ -46,7 +46,7 @@ class DocumentOperation:
     position: int
     length: int = 0
     content: str = ""
-    attributes: Dict[str, Any] = field(default_factory=dict)
+    attributes: dict[str, Any] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -58,7 +58,7 @@ class DocumentComment:
     user_id: str
     user_name: str
     content: str
-    position: Dict[str, int]  # {from: int, to: int}
+    position: dict[str, int]  # {from: int, to: int}
     resolved: bool = False
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -68,30 +68,30 @@ class DocumentComment:
 class CollaborationSession:
     """内存中的协作会话"""
 
-    def __init__(self, document_id: str, initial_content: str = ""):
+    def __init__(self, document_id: str, initial_content: str = "") -> None:
         self.document_id = document_id
         self.content = initial_content
-        self.users: Dict[str, CollaborativeUser] = {}
-        self.comments: Dict[str, DocumentComment] = {}
-        self.operations: List[DocumentOperation] = []
+        self.users: dict[str, CollaborativeUser] = {}
+        self.comments: dict[str, DocumentComment] = {}
+        self.operations: list[DocumentOperation] = []
         self.version = 0
         self.created_at = datetime.now(timezone.utc)
         self._lock = asyncio.Lock()
 
-    async def add_user(self, user: CollaborativeUser):
+    async def add_user(self, user: CollaborativeUser) -> None:
         """添加用户"""
         async with self._lock:
             self.users[user.id] = user
             logger.info(f"用户 {user.name} 加入文档 {self.document_id}")
 
-    async def remove_user(self, user_id: str):
+    async def remove_user(self, user_id: str) -> None:
         """移除用户"""
         async with self._lock:
             if user_id in self.users:
                 del self.users[user_id]
                 logger.info(f"用户 {user_id} 离开文档 {self.document_id}")
 
-    def get_active_users(self) -> List[CollaborativeUser]:
+    def get_active_users(self) -> list[CollaborativeUser]:
         """获取活跃用户"""
         return list(self.users.values())
 
@@ -118,18 +118,18 @@ class CollaborationSession:
                 logger.error(f"应用操作失败: {e}")
                 return False
 
-    async def add_comment(self, comment: DocumentComment):
+    async def add_comment(self, comment: DocumentComment) -> None:
         """添加评论"""
         async with self._lock:
             self.comments[comment.id] = comment
 
-    async def resolve_comment(self, comment_id: str):
+    async def resolve_comment(self, comment_id: str) -> None:
         """解决评论"""
         async with self._lock:
             if comment_id in self.comments:
                 self.comments[comment_id].resolved = True
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """序列化"""
         return {
             "document_id": self.document_id,
@@ -146,15 +146,15 @@ class CollaborationManager:
     _instance: Optional['CollaborationManager'] = None
     _lock = asyncio.Lock()
 
-    def __new__(cls):
+    def __new__(cls) -> "CollaborationManager":
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def __init__(self):
+    def __init__(self) -> None:
         if not hasattr(self, '_initialized'):
-            self.sessions: Dict[str, CollaborationSession] = {}
-            self.websocket_connections: Dict[str, Any] = {}  # session_id -> {websocket, user_id, document_id}
+            self.sessions: dict[str, CollaborationSession] = {}
+            self.websocket_connections: dict[str, Any] = {}  # session_id -> {websocket, user_id, document_id}
             self._initialized = True
 
     def get_or_create_session(self, document_id: str, initial_content: str = "") -> CollaborationSession:
@@ -163,12 +163,12 @@ class CollaborationManager:
             self.sessions[document_id] = CollaborationSession(document_id, initial_content)
         return self.sessions[document_id]
 
-    def remove_session(self, document_id: str):
+    def remove_session(self, document_id: str) -> None:
         """移除会话"""
         if document_id in self.sessions:
             del self.sessions[document_id]
 
-    async def register_connection(self, session_id: str, websocket: Any, user_id: str, document_id: str):
+    async def register_connection(self, session_id: str, websocket: Any, user_id: str, document_id: str) -> None:
         """注册 WebSocket"""
         self.websocket_connections[session_id] = {
             "websocket": websocket,
@@ -177,7 +177,7 @@ class CollaborationManager:
         }
         logger.info(f"连接已注册: session={session_id}, user={user_id}, doc={document_id}")
 
-    async def unregister_connection(self, session_id: str):
+    async def unregister_connection(self, session_id: str) -> None:
         """注销 WebSocket"""
         if session_id in self.websocket_connections:
             conn = self.websocket_connections.pop(session_id)
@@ -191,7 +191,7 @@ class CollaborationManager:
         """获取会话"""
         return self.sessions.get(document_id)
 
-    async def broadcast_to_document(self, document_id: str, message: dict, exclude_session: Optional[str] = None):
+    async def broadcast_to_document(self, document_id: str, message: dict[str, Any], exclude_session: Optional[str] = None) -> None:
         """广播消息到文档的所有协作者"""
         for session_id, conn in list(self.websocket_connections.items()):
             if conn["document_id"] == document_id and session_id != exclude_session:
@@ -201,7 +201,7 @@ class CollaborationManager:
                     logger.warning(f"广播失败: {e}")
                     await self.unregister_connection(session_id)
 
-    async def send_to_session(self, session_id: str, message: dict):
+    async def send_to_session(self, session_id: str, message: dict[str, Any]) -> None:
         """发送消息到特定会话"""
         if session_id in self.websocket_connections:
             try:
@@ -232,7 +232,7 @@ class CollaborationService:
         session_id: str,
         websocket: Any,
         initial_content: str = ""
-    ) -> dict:
+    ) -> dict[str, Any]:
         """加入文档协作"""
 
         # 获取文档内容
@@ -264,7 +264,7 @@ class CollaborationService:
 
         return session.to_dict()
 
-    async def leave_document(self, document_id: str, user_id: str, session_id: str):
+    async def leave_document(self, document_id: str, user_id: str, session_id: str) -> None:
         """离开文档协作"""
         await self.manager.unregister_connection(session_id)
 
@@ -279,8 +279,8 @@ class CollaborationService:
         self,
         document_id: str,
         user_id: str,
-        operation: dict
-    ) -> dict:
+        operation: dict[str, Any]
+    ) -> dict[str, Any]:
         """处理文档操作"""
         session = self.manager.get_session(document_id)
         if not session:
@@ -316,8 +316,8 @@ class CollaborationService:
         document_id: str,
         user_id: str,
         position: int,
-        selection: Optional[Dict[str, int]] = None
-    ):
+        selection: Optional[dict[str, int]] = None
+    ) -> None:
         """更新光标位置"""
         session = self.manager.get_session(document_id)
         if session and user_id in session.users:
@@ -339,8 +339,8 @@ class CollaborationService:
         user_id: str,
         user_name: str,
         content: str,
-        position: Dict[str, int]
-    ) -> dict:
+        position: dict[str, int]
+    ) -> dict[str, Any]:
         """添加评论"""
         session = self.manager.get_session(document_id)
         if not session:
@@ -365,7 +365,7 @@ class CollaborationService:
 
         return {"success": True, "comment_id": comment.id}
 
-    async def resolve_comment(self, document_id: str, comment_id: str) -> dict:
+    async def resolve_comment(self, document_id: str, comment_id: str) -> dict[str, Any]:
         """解决评论"""
         session = self.manager.get_session(document_id)
         if not session:
@@ -381,7 +381,7 @@ class CollaborationService:
 
         return {"success": True}
 
-    async def save_document(self, document_id: str, content: str) -> dict:
+    async def save_document(self, document_id: str, content: str) -> dict[str, Any]:
         """保存文档到数据库"""
         try:
             result = await self.db.execute(select(Document).where(Document.id == document_id))
@@ -406,7 +406,7 @@ class CollaborationService:
 
     # ==================== 原有方法 ====================
 
-    async def create_version_snapshot(self, session_id: str, creator_id: str, message: str) -> Dict[str, Any]:
+    async def create_version_snapshot(self, session_id: str, creator_id: str, message: str) -> dict[str, Any]:
         """创建文档版本快照 (Git-like commit)"""
         result = await self.db.execute(
             select(DocumentSession).where(DocumentSession.id == session_id)
@@ -451,7 +451,7 @@ class CollaborationService:
 
         return {"success": False, "error": "关联文档不存在"}
 
-    async def get_docmost_config(self) -> Dict[str, Any]:
+    async def get_docmost_config(self) -> dict[str, Any]:
         """获取 Docmost 集成配置"""
         from src.core.config import settings
 
@@ -490,10 +490,10 @@ class CollaborationService:
         self,
         session_id: str,
         content: str,
-        user_id: str = None,
+        user_id: str | None = None,
         snapshot_type: str = "manual",
-        description: str = None,
-    ) -> dict:
+        description: str | None = None,
+    ) -> dict[str, Any]:
         """创建版本快照"""
         try:
             result = await self.db.execute(
@@ -529,7 +529,7 @@ class CollaborationService:
             logger.error(f"创建快照失败: {e}")
             return {"success": False, "error": str(e)}
 
-    async def list_snapshots(self, session_id: str, limit: int = 20) -> list[dict]:
+    async def list_snapshots(self, session_id: str, limit: int = 20) -> list[dict[str, Any]]:
         """获取快照列表"""
         from sqlalchemy import desc
 
@@ -554,7 +554,7 @@ class CollaborationService:
             for s in snapshots
         ]
 
-    async def restore_snapshot(self, session_id: str, snapshot_id: str, user_id: str) -> dict:
+    async def restore_snapshot(self, session_id: str, snapshot_id: str, user_id: str) -> dict[str, Any]:
         """回滚到某版本"""
         try:
             # 读取目标快照
@@ -616,7 +616,7 @@ class CollaborationService:
             logger.error(f"回滚快照失败: {e}")
             return {"success": False, "error": str(e)}
 
-    async def diff_snapshots(self, snapshot_id_a: str, snapshot_id_b: str) -> dict:
+    async def diff_snapshots(self, snapshot_id_a: str, snapshot_id_b: str) -> dict[str, Any]:
         """版本对比"""
         try:
             result_a = await self.db.execute(

@@ -22,7 +22,7 @@ export default function AdminAIConfig() {
   })
 
   useEffect(() => {
-    ;(async () => {
+    void (async () => {
       try {
         const config = await adminApi.getSystemConfig()
         if (config?.llm) setLlm(prev => ({ ...prev, ...config.llm }))

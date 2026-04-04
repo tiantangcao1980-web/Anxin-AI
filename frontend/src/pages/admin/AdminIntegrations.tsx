@@ -22,7 +22,7 @@ export default function AdminIntegrations() {
   const [email, setEmail] = useState({ aliyun_email_account: '', aliyun_email_alias: '安心法务' })
 
   useEffect(() => {
-    ;(async () => {
+    void (async () => {
       try {
         const config = await adminApi.getSystemConfig()
         if (config?.oauth) setOauth(prev => ({ ...prev, ...config.oauth }))

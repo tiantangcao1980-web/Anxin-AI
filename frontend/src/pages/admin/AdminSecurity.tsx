@@ -27,7 +27,7 @@ export default function AdminSecurity() {
   })
 
   useEffect(() => {
-    ;(async () => {
+    void (async () => {
       try {
         const config = await adminApi.getSystemConfig()
         if (config?.security) setSecurity(prev => ({ ...prev, ...config.security }))
