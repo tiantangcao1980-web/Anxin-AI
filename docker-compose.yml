@@ -21,11 +21,12 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "${BACKEND_PORT:-8001}:8001"
+    # 后端仅通过 Nginx 反代访问，不直接暴露端口
+    expose:
+      - "8001"
     environment:
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/legal_agent_db
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-changeme_redis_2026}@redis:6379/0
       - QDRANT_URL=http://qdrant:6333
       - NEO4J_URI=bolt://neo4j:7687
       - MINIO_ENDPOINT=minio:9000
@@ -55,8 +56,9 @@ services:
       POSTGRES_DB: legal_agent_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
-    ports:
-      - "5433:5432"
+    # 安全：不暴露端口到宿主机，仅内网通信
+    expose:
+      - "5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -73,15 +75,17 @@ services:
   redis:
     image: redis:7-alpine
     hostname: redis
-    ports:
-      - "6379:6379"
+    # 安全：不暴露端口到宿主机 + 设置密码
+    expose:
+      - "6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD:-changeme_redis_2026} --appendonly yes
     volumes:
       - redis_data:/data
     networks:
       - legal-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-changeme_redis_2026}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -92,9 +96,10 @@ services:
   qdrant:
     image: qdrant/qdrant:v1.12.1
     hostname: qdrant
-    ports:
-      - "6333:6333"
-      - "6334:6334"
+    # 安全：不暴露端口到宿主机
+    expose:
+      - "6333"
+      - "6334"
     volumes:
       - qdrant_data:/qdrant/storage
     networks:
@@ -110,9 +115,10 @@ services:
   neo4j:
     image: neo4j:5-community
     hostname: neo4j
-    ports:
-      - "7474:7474"
-      - "7687:7687"
+    # 安全：不暴露端口到宿主机
+    expose:
+      - "7474"
+      - "7687"
     environment:
       NEO4J_AUTH: ${NEO4J_AUTH:-neo4j/password}
       NEO4J_PLUGINS: '["apoc"]'
@@ -136,9 +142,10 @@ services:
     image: minio/minio:RELEASE.2024-12-18T13-15-44Z
     hostname: minio
     command: server /data --console-address ":9001"
-    ports:
-      - "9000:9000"
-      - "9001:9001"
+    # 安全：不暴露端口到宿主机
+    expose:
+      - "9000"
+      - "9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-password}
@@ -178,8 +185,9 @@ services:
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
-    ports:
-      - "9090:9090"
+    # 安全：不暴露端口到宿主机，通过 Grafana 查看
+    expose:
+      - "9090"
     networks:
       - legal-network
     restart: unless-stopped
@@ -197,8 +205,9 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    # 安全：Grafana 仅绑定本机，通过 Nginx 反代访问
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     networks:
       - legal-network
     restart: unless-stopped

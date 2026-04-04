@@ -38,6 +38,8 @@ const USER_TYPE_DISPLAY_MAP: Record<string, string> = {
   lawyer: '律师版',
   law_firm: '律所版',
   internal: '',
+  admin: '管理平台',
+  super_admin: '管理平台',
 }
 
 function getRoleDisplayName(role: string): string {
@@ -84,6 +86,16 @@ function getVerificationBanner(
 ) {
   const role = user.role || 'member'
   const userType = user.user_type || 'individual'
+
+  // 管理员角色不显示认证/升级提示
+  if (['super_admin', 'admin', 'org_admin', 'dept_admin'].includes(role)) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-100 text-xs">
+        <icons.Shield className="w-3.5 h-3.5 shrink-0" />
+        <span>{getRoleDisplayName(role)} · 全部功能已开通</span>
+      </div>
+    )
+  }
 
   // 邮箱未验证
   if (user.email_verified === false) {
