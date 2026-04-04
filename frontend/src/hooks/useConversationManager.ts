@@ -33,8 +33,10 @@ export function useConversationManager(
   const loadConversationsRef = useRef<() => Promise<void>>()
   const loadConversations = useCallback(async () => {
     try {
-      const data = await chatApi.conversations()
-      store.setConversations(data)
+      const result = await chatApi.listConversations(50)
+      if (Array.isArray(result?.conversations)) {
+        store.setConversations(result.conversations)
+      }
     } catch (e: any) {
       if (!e?.message?.includes('401')) {
         console.error('加载对话列表失败:', e)
@@ -48,12 +50,13 @@ export function useConversationManager(
     closeCurrentWs()
     store.setConversationId(null)
     store.setMessages([])
-    store.clearStreamingState()
     store.setCanvasContent(null)
-    store.clearWorkspace()
-    store.clearAgentTeamState()
+    store.clearAgentResults()
+    store.clearThinkingSteps()
+    store.clearWorkspaceActions()
+    store.clearAgentTasks()
     store.setRequirementAnalysis(null)
-    store.setRightPanelTab('workspace')
+    store.setRightPanelTab('smart')
   }, [store, closeCurrentWs])
 
   // 切换会话
@@ -62,9 +65,10 @@ export function useConversationManager(
     closeCurrentWs()
     store.setConversationId(convId)
     store.setMessages([])
-    store.clearStreamingState()
+    store.clearAgentResults()
+    store.clearThinkingSteps()
     store.setCanvasContent(null)
-    store.clearWorkspace()
+    store.clearWorkspaceActions()
   }, [store, closeCurrentWs])
 
   // 删除会话

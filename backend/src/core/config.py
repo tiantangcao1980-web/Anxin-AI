@@ -153,7 +153,7 @@ class Settings(BaseSettings):
     LLM_MAX_TOKENS: int = 4096
     LLM_PROVIDER: str = "openai"
     LLM_ENCRYPTION_KEY: Optional[str] = None
-    LLM_DEFAULT_CONFIG_CACHE_TTL_SECONDS: int = 60
+    LLM_DEFAULT_CONFIG_CACHE_TTL_SECONDS: int = 3600  # Harness优化: 60s→1h（配置很少变）
 
     # ========== Embedding配置 ==========
     EMBEDDING_API_KEY: Optional[str] = None

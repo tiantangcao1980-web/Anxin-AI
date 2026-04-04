@@ -37,7 +37,7 @@ export default function TemplateListCard({
             </p>
             <div className="flex justify-center gap-3">
               <Button variant="outline" size="sm" onClick={onBrowseLibrary}>
-                <icons.Library className="h-4 w-4 mr-1" />
+                <icons.BookOpen className="h-4 w-4 mr-1" />
                 浏览法律智库
               </Button>
               <Button size="sm" onClick={onAIGenerate}>

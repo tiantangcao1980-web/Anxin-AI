@@ -291,10 +291,12 @@ class LLMService:
         # 排序
         query = query.order_by(LLMConfig.is_default.desc(), LLMConfig.priority.desc(), LLMConfig.created_at.desc())
         
-        # 分页
-        total_result = await db.execute(query)
-        total = len(total_result.all())
-        
+        # 分页（Harness优化: 用 count() 替代 len(all())，避免加载全部行到内存）
+        from sqlalchemy import func as sa_func
+        count_query = select(sa_func.count()).select_from(query.subquery())
+        count_result = await db.execute(count_query)
+        total = count_result.scalar() or 0
+
         query = query.offset((page - 1) * page_size).limit(page_size)
         result = await db.execute(query)
         items = result.scalars().all()

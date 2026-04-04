@@ -14,7 +14,6 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy import text
-from sqlalchemy.pool import NullPool
 from loguru import logger
 
 from src.core.config import settings
@@ -24,11 +23,15 @@ from src.models.base import Base
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-# 创建异步引擎
+# 创建异步引擎（启用连接池，替代 NullPool）
+# Harness 性能优化: NullPool 每次新建/关闭连接，高并发损失 50-70%
 engine_args = {
     "echo": settings.DEBUG,
     "pool_pre_ping": True,
-    "poolclass": NullPool,
+    "pool_size": settings.DATABASE_POOL_SIZE,       # 默认 10
+    "max_overflow": settings.DATABASE_MAX_OVERFLOW,  # 默认 20
+    "pool_recycle": 3600,    # 每小时回收（防数据库端超时）
+    "pool_timeout": 30,      # 等待可用连接超时
 }
 
 # 仅在 PostgreSQL 时添加 connect_args
