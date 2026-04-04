@@ -53,7 +53,7 @@ export default function AdminAIConfig() {
   }
 
   return (
-    <PageContainer title="模型配置" subtitle="大语言模型提供商和 API 密钥">
+    <PageContainer title="模型配置" description="大语言模型提供商和 API 密钥">
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">

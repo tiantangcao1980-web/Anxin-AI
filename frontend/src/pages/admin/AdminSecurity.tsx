@@ -57,7 +57,7 @@ export default function AdminSecurity() {
   ]
 
   return (
-    <PageContainer title="安全策略" subtitle="认证开关、JWT、速率限制和密码策略">
+    <PageContainer title="安全策略" description="认证开关、JWT、速率限制和密码策略">
       {/* 功能开关 */}
       <Card className="mb-6">
         <CardHeader>

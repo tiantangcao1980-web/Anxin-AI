@@ -46,7 +46,7 @@ export default function AdminBasic() {
   }
 
   return (
-    <PageContainer title="基础设置" subtitle="平台名称和基本信息">
+    <PageContainer title="基础设置" description="平台名称和基本信息">
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">

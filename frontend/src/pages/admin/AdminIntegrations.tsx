@@ -48,7 +48,7 @@ export default function AdminIntegrations() {
   }
 
   return (
-    <PageContainer title="服务集成" subtitle="OAuth 登录、对象存储、短信和邮件服务">
+    <PageContainer title="服务集成" description="OAuth 登录、对象存储、短信和邮件服务">
       <Tabs defaultValue="oauth" className="space-y-4">
         <TabsList>
           <TabsTrigger value="oauth" className="gap-1.5"><icons.Globe className="w-3.5 h-3.5" />OAuth 登录</TabsTrigger>

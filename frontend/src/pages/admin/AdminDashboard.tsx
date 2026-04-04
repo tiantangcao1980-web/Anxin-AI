@@ -136,7 +136,7 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <PageContainer title="管理概览" subtitle="系统运行状态与关键指标">
+      <PageContainer title="管理概览" description="系统运行状态与关键指标">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-28 rounded-xl" />
@@ -151,7 +151,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <PageContainer title="管理概览" subtitle="系统运行状态与关键指标">
+    <PageContainer title="管理概览" description="系统运行状态与关键指标">
       {/* 统计卡片 */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {statCards.map((card, index) => {
