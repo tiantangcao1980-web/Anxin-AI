@@ -504,13 +504,18 @@ export default function Chat() {
               sources: Array.isArray(m.sources) ? m.sources : undefined,
             };
           });
-          setMessages(prev => {
-            const welcome = prev.length > 0 && prev[0].id === '1' ? [prev[0]] : [];
-            return [...welcome, ...hist];
-          });
+          // 加载历史时去掉欢迎消息，直接显示对话内容
+          setMessages(hist);
         }
       } catch (e) {
-        if (!cancelled) import.meta.env.DEV && console.debug('加载对话历史失败:', e);
+        if (!cancelled) {
+          console.warn('加载对话历史失败:', e);
+          // 加载失败时给用户提示
+          setMessages([{
+            id: uuidv4(), type: 'system', content: '对话历史加载失败，请重试',
+            timestamp: new Date(), metadata: { isError: true },
+          }]);
+        }
       }
 
       // 同时恢复 Canvas 文档
@@ -529,9 +534,9 @@ export default function Chat() {
         }
       } catch (e) {
         // Canvas 恢复失败不影响主流程
-        import.meta.env.DEV && console.debug('Canvas 文档恢复失败:', e);
       }
 
+      // 无论成功失败都标记完成，防止加载状态卡住
       if (!cancelled) {
         setHistoryLoaded(true);
         setIsLoadingHistory(false);
