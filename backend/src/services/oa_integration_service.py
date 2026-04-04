@@ -130,7 +130,7 @@ class FeishuProvider(BaseOAProvider):
     async def sync_department_users(self, dept_id: str) -> List[Dict[str, Any]]:
         token = await self._get_token()
         if token == "mock_token":
-            return [{"id": "mock_u1", "name": "模拟飞书用户"}]
+            return [{"id": "mock_u1", "name": "Feishu User 1"}]
 
         import httpx
         async with httpx.AsyncClient(timeout=10) as client:

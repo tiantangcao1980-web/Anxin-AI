@@ -27,15 +27,18 @@ export function collectBotSignals(): BotSignals {
   if (cachedSignals) return cachedSignals
 
   const nav = navigator as unknown as Record<string, unknown>
+  const chromeLike = (window as Record<string, unknown>).chrome
+  const hasChromeRuntime =
+    typeof chromeLike === 'object' &&
+    chromeLike !== null &&
+    Object.prototype.hasOwnProperty.call(chromeLike, 'runtime')
 
   cachedSignals = {
     webdriver: !!nav.webdriver,
     noLanguages: !navigator.languages || navigator.languages.length === 0,
     noPlugins: !navigator.plugins || navigator.plugins.length === 0,
     zeroSize: window.outerWidth === 0 || window.outerHeight === 0,
-    headlessChrome:
-      'chrome' in window &&
-      !(window as Record<string, unknown>).chrome?.hasOwnProperty?.('runtime'),
+    headlessChrome: 'chrome' in window && !hasChromeRuntime,
     ts: Date.now(),
   }
 
