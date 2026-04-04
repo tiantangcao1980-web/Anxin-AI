@@ -52,6 +52,9 @@ import { useSmartScroll } from '@/hooks/useSmartScroll';
 import { cleanCanvasTitle, cleanCanvasContent, isDocumentGeneration, generateFollowUpSuggestions } from '@/components/chat/canvasUtils';
 // A2UI 映射表 + 工作台动作映射（已提取）
 import { A2UI_ACTION_TO_MESSAGE, WORKSPACE_TO_WORKFLOW_ACTION } from '@/components/chat/a2uiActionMap';
+// 提取的子组件
+import { WelcomeScreen } from '@/components/chat/WelcomeScreen';
+import { SystemMessage } from '@/components/chat/SystemMessage';
 
 // 类型定义和常量（已提取到独立文件）
 import type { Message } from '@/components/chat/types';
@@ -1594,34 +1597,8 @@ export default function Chat() {
   }, [messages]);
 
   const renderMessage = (message: Message) => {
-    // ========== 欢迎页：品牌问候 + 能力简介 ==========
     if (message.content === '__WELCOME__') {
-      return (
-        <motion.div
-          key={message.id}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="w-full min-h-[50vh] flex flex-col items-center justify-center mx-auto max-w-lg px-4"
-        >
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/80 to-primary flex items-center justify-center shadow-lg shadow-primary/20">
-            <icons.Scale className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight mt-4">你好，有什么可以帮您？</h1>
-          <p className="text-sm text-muted-foreground mt-3 text-center leading-relaxed">
-            我是安心 AI 法务助手，您可以直接在下方输入问题，
-            <br className="hidden sm:block" />
-            或使用底部工具栏选择具体服务。我可以帮您：
-          </p>
-          <div className="mt-4 text-sm text-muted-foreground/80 text-center leading-loose">
-            审查合同条款与风险 · 起草法律文书与函件
-            <br />
-            合规检查与尽职调查 · 检索法规与裁判案例
-            <br />
-            梳理证据链 · 拆解法务任务 · 推荐律师
-          </div>
-        </motion.div>
-      );
+      return <WelcomeScreen key={message.id} />;
     }
 
     // A2UI 消息 — 结构化 UI 组件
@@ -1691,38 +1668,18 @@ export default function Chat() {
       );
     }
 
-    // 系统消息 — 居中提示条（错误消息带重试按钮）
+    // 系统消息
     if (message.type === 'system') {
-      const isErr = message.metadata?.isError;
       return (
-        <motion.div
+        <SystemMessage
           key={message.id}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex justify-center"
-        >
-          <div className={`text-[11px] mx-auto font-medium px-4 py-1.5 rounded-full flex items-center gap-2 ${
-            isErr
-              ? 'bg-destructive/5 text-destructive border border-destructive/20'
-              : 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
-          }`}>
-            <span>{message.content}</span>
-            {isErr && (
-              <button
-                onClick={() => {
-                  // 找到最后一条用户消息重新发送
-                  const lastUserMsg = [...messages].reverse().find(m => m.type === 'user');
-                  if (lastUserMsg) {
-                    handleSendMessage(lastUserMsg.content);
-                  }
-                }}
-                className="ml-1 px-2 py-0.5 bg-destructive/10 hover:bg-destructive/10 text-destructive rounded-full text-[10px] font-semibold transition-colors"
-              >
-                重试
-              </button>
-            )}
-          </div>
-        </motion.div>
+          content={message.content}
+          isError={message.metadata?.isError}
+          onRetry={message.metadata?.isError ? () => {
+            const lastUserMsg = [...messages].reverse().find(m => m.type === 'user');
+            if (lastUserMsg) handleSendMessage(lastUserMsg.content);
+          } : undefined}
+        />
       );
     }
 

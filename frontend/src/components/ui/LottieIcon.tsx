@@ -1,24 +1,17 @@
-import React, { Suspense, lazy } from 'react';
-
-// 本地 Lottie JSON 动画文件
-import loadingData from '@/assets/animations/loading.json';
-import successData from '@/assets/animations/success.json';
-import emptyData from '@/assets/animations/empty.json';
-import thinkingData from '@/assets/animations/thinking.json';
-import searchingData from '@/assets/animations/searching.json';
+import React, { Suspense, lazy, useState, useEffect } from 'react';
 
 // 懒加载 Lottie 组件（减少首屏 bundle）
 const Lottie = lazy(() => import('lottie-react'));
 
-// 动画类型映射
-const ANIMATION_DATA: Record<string, unknown> = {
-  loading: loadingData,
-  success: successData,
-  empty: emptyData,
-  thinking: thinkingData,
-  searching: searchingData,
-  analyzing: searchingData, // analyzing 复用 searching 动画
-  error: successData, // error 暂时复用 success，颜色不同
+// 动画 JSON 文件动态导入（不再静态 import，减少首屏 ~200KB）
+const ANIMATION_LOADERS: Record<string, () => Promise<{ default: unknown }>> = {
+  loading: () => import('@/assets/animations/loading.json'),
+  success: () => import('@/assets/animations/success.json'),
+  empty: () => import('@/assets/animations/empty.json'),
+  thinking: () => import('@/assets/animations/thinking.json'),
+  searching: () => import('@/assets/animations/searching.json'),
+  analyzing: () => import('@/assets/animations/searching.json'),
+  error: () => import('@/assets/animations/success.json'),
 };
 
 export type LottieAnimationType = 'thinking' | 'success' | 'analyzing' | 'error' | 'loading' | 'empty' | 'searching';
@@ -42,7 +35,15 @@ export const LottieIcon: React.FC<LottieIconProps> = ({
   loop = true,
   autoplay = true,
 }) => {
-  const animationData = ANIMATION_DATA[type];
+  const [animationData, setAnimationData] = useState<unknown>(null);
+
+  // 动态加载动画 JSON（仅在组件渲染时按需加载）
+  useEffect(() => {
+    const loader = ANIMATION_LOADERS[type];
+    if (loader) {
+      loader().then(mod => setAnimationData(mod.default)).catch(() => {});
+    }
+  }, [type]);
 
   // 有 Lottie 数据时使用 Lottie 渲染
   if (animationData) {
@@ -58,7 +59,7 @@ export const LottieIcon: React.FC<LottieIconProps> = ({
     );
   }
 
-  // 无 Lottie 数据时降级到 SVG 动画
+  // 加载中或无数据时降级到 SVG 动画
   return <FallbackAnimation type={type} className={className} />;
 };
 
