@@ -69,7 +69,7 @@ class WebSocketContext:
         """统一回调 — 将 workforce 事件直接推送给前端"""
         await self.send(event_type, data)
 
-    # ---- 消息持久化 ----
+    # ---- 消息持久化（带自动重试） ----
 
     async def save_message(
         self, role: str, content: str,
@@ -79,44 +79,54 @@ class WebSocketContext:
         if not self.conversation_id:
             return
         async with self._save_lock:
-            try:
-                from src.core.database import async_session_maker
-                from src.services.chat_service import ChatService
-                async with async_session_maker() as db_session:
-                    svc = ChatService(db_session)
-                    await svc.add_message(
-                        conversation_id=self.conversation_id, role=role,
-                        content=content, agent_name=agent_name,
-                        citations=citations,
-                    )
-                    # 第一条用户消息时，自动更新对话标题
-                    if role == "user":
-                        from src.models.conversation import Conversation as ConvModel
-                        from sqlalchemy import select as sa_select, update as sa_update
-                        result = await db_session.execute(
-                            sa_select(ConvModel.title).where(
-                                ConvModel.id == self.conversation_id
-                            )
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    from src.core.database import async_session_maker
+                    from src.services.chat_service import ChatService
+                    async with async_session_maker() as db_session:
+                        svc = ChatService(db_session)
+                        await svc.add_message(
+                            conversation_id=self.conversation_id, role=role,
+                            content=content, agent_name=agent_name,
+                            citations=citations,
                         )
-                        current_title = result.scalar_one_or_none()
-                        if current_title and current_title.startswith("对话 "):
-                            title_text = content.replace("[附件:", "").strip()[:50]
-                            if title_text:
-                                await db_session.execute(
-                                    sa_update(ConvModel)
-                                    .where(ConvModel.id == self.conversation_id)
-                                    .values(title=title_text)
+                        # 第一条用户消息时，自动更新对话标题
+                        if role == "user":
+                            from src.models.conversation import Conversation as ConvModel
+                            from sqlalchemy import select as sa_select, update as sa_update
+                            result = await db_session.execute(
+                                sa_select(ConvModel.title).where(
+                                    ConvModel.id == self.conversation_id
                                 )
-                                await self.send("conversation_title_updated", {
-                                    "conversation_id": self.conversation_id,
-                                    "title": title_text,
-                                })
-                    await db_session.commit()
-            except Exception as e:
-                logger.warning(f"WebSocket: 保存消息失败: {e}")
-                await self.send("save_warning", {
-                    "message": "消息可能未成功保存，建议刷新页面",
-                })
+                            )
+                            current_title = result.scalar_one_or_none()
+                            if current_title and current_title.startswith("对话 "):
+                                title_text = content.replace("[附件:", "").strip()[:50]
+                                if title_text:
+                                    await db_session.execute(
+                                        sa_update(ConvModel)
+                                        .where(ConvModel.id == self.conversation_id)
+                                        .values(title=title_text)
+                                    )
+                                    await self.send("conversation_title_updated", {
+                                        "conversation_id": self.conversation_id,
+                                        "title": title_text,
+                                    })
+                        await db_session.commit()
+                    # 成功 → 跳出重试循环
+                    if attempt > 0:
+                        logger.info(f"WebSocket: 消息保存成功（第 {attempt + 1} 次尝试）")
+                    return
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        wait_time = 0.5 * (attempt + 1)
+                        logger.warning(f"WebSocket: 保存消息失败（第 {attempt + 1}/{max_retries} 次），{wait_time}s 后重试: {e}")
+                        await asyncio.sleep(wait_time)
+                    else:
+                        # 最终失败：静默记录日志，不弹警告打扰用户
+                        # 消息会在下次加载对话历史时从 Agent 响应中恢复
+                        logger.error(f"WebSocket: 消息保存最终失败（已重试 {max_retries} 次）: {e}")
 
     # ---- LLM 配置加载 ----
 

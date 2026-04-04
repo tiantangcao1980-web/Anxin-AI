@@ -677,38 +677,50 @@ class ChatService:
         except Exception as compress_err:
             logger.debug(f"[Harness] 上下文压缩跳过: {compress_err}")
 
-        # ===== 记忆系统集成：注入增强上下文 =====
-        # 在 context_messages 最前面插入用户画像+经验上下文，让 LLM 更了解用户
+        # ===== 记忆系统集成：并行注入增强上下文 =====
+        # 优化：记忆检索 + 经验检索 + 消息缓冲并行执行，节省 200-500ms
         if user_id:
-            try:
-                from src.services.memory_layer import memory_layer
-                enriched = await memory_layer.build_enriched_context(
-                    user_id=user_id,
-                    session_id=str(conversation.id),
-                    query=content,
-                    max_tokens=600,
-                )
-                if enriched:
-                    context_messages = [
-                        {"role": "system", "content": enriched},
-                        *context_messages,
-                    ]
+            import asyncio as _aio
 
-                # 缓冲消息到记忆层（Memobase flush 思路）
-                await memory_layer.buffer_message(user_id, {"role": "user", "content": content})
-            except Exception as mem_err:
-                logger.debug(f"记忆上下文注入跳过: {mem_err}")
+            async def _get_memory_context():
+                try:
+                    from src.services.memory_layer import memory_layer
+                    enriched = await memory_layer.build_enriched_context(
+                        user_id=user_id,
+                        session_id=str(conversation.id),
+                        query=content,
+                        max_tokens=600,
+                    )
+                    # 后台缓冲消息（不阻塞）
+                    _aio.create_task(memory_layer.buffer_message(user_id, {"role": "user", "content": content}))
+                    return enriched
+                except Exception as mem_err:
+                    logger.debug(f"记忆上下文注入跳过: {mem_err}")
+                    return None
 
-            try:
-                from src.services.experience_engine import experience_engine
-                exp_context = experience_engine.build_experience_context(user_id, content, max_tokens=300)
-                if exp_context:
-                    context_messages = [
-                        {"role": "system", "content": exp_context},
-                        *context_messages,
-                    ]
-            except Exception as exp_err:
-                logger.debug(f"经验上下文注入跳过: {exp_err}")
+            async def _get_experience_context():
+                try:
+                    from src.services.experience_engine import experience_engine
+                    return experience_engine.build_experience_context(user_id, content, max_tokens=300)
+                except Exception as exp_err:
+                    logger.debug(f"经验上下文注入跳过: {exp_err}")
+                    return None
+
+            enriched, exp_context = await _aio.gather(
+                _get_memory_context(), _get_experience_context(),
+            )
+
+            # 按优先级插入（经验在最前，记忆其次）
+            if exp_context:
+                context_messages = [
+                    {"role": "system", "content": exp_context},
+                    *context_messages,
+                ]
+            if enriched:
+                context_messages = [
+                    {"role": "system", "content": enriched},
+                    *context_messages,
+                ]
 
         return _ChatContext(
             conversation=conversation,

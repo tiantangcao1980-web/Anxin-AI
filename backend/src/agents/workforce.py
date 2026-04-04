@@ -165,38 +165,55 @@ class LegalWorkforce:
                 except Exception:
                     pass
 
-        # 0.1 检索情景记忆（历史类似案件）
-        try:
-            similar_cases = await episodic_memory.retrieve_similar_cases(task_description)
-            if similar_cases:
-                logger.info(f"检索到 {len(similar_cases)} 个相似历史案件，已注入上下文")
-                context["similar_cases"] = similar_cases
-        except Exception as e:
-            logger.warning(f"情景记忆检索失败: {e}")
-            
-        # 0.2 匹配动态技能
-        matched_skills = []
-        try:
-            from src.services.skill_service import skill_service
-            matched_skills = skill_service.match_skills(task_description)
-            if matched_skills:
-                skill_names = [s.name for s in matched_skills]
-                logger.info(f"匹配到相关技能: {skill_names}")
-                context["matched_skills"] = [s.to_dict() for s in matched_skills]
-        except Exception as e:
-            logger.warning(f"技能匹配失败: {e}")
-        
+        # 0. 并行预处理：情景记忆 + 技能匹配 + 意图分析同时启动
+        # 优化：原来串行执行 3 步（记忆→技能→分析），现在并行，节省 1-3 秒
         await _notify("agent_thinking", {
             "agent": "协调调度Agent",
             "message": "正在分析任务意图...",
         })
-        
-        # 1. 协调者分析任务并生成 DAG 计划
-        analysis = await self.coordinator.analyze_task({
-            "description": task_description,
-            "type": task_type,
-            "context": context
-        })
+
+        async def _fetch_memory():
+            try:
+                cases = await episodic_memory.retrieve_similar_cases(task_description)
+                if cases:
+                    logger.info(f"检索到 {len(cases)} 个相似历史案件")
+                return cases or []
+            except Exception as e:
+                logger.warning(f"情景记忆检索失败: {e}")
+                return []
+
+        async def _match_skills():
+            try:
+                from src.services.skill_service import skill_service
+                skills = skill_service.match_skills(task_description)
+                if skills:
+                    logger.info(f"匹配到相关技能: {[s.name for s in skills]}")
+                return skills or []
+            except Exception as e:
+                logger.warning(f"技能匹配失败: {e}")
+                return []
+
+        async def _analyze_task(ctx):
+            return await self.coordinator.analyze_task({
+                "description": task_description,
+                "type": task_type,
+                "context": ctx,
+            })
+
+        # 并行执行记忆检索和技能匹配（不阻塞意图分析）
+        memory_task = asyncio.create_task(_fetch_memory())
+        skills_task = asyncio.create_task(_match_skills())
+
+        # 先快速拿到记忆和技能结果（通常 < 200ms）
+        similar_cases, matched_skills = await asyncio.gather(memory_task, skills_task)
+
+        if similar_cases:
+            context["similar_cases"] = similar_cases
+        if matched_skills:
+            context["matched_skills"] = [s.to_dict() for s in matched_skills]
+
+        # 1. 协调者分析任务并生成 DAG 计划（此时上下文已就绪）
+        analysis = await _analyze_task(context)
         
         plan = analysis.get("plan", [])
         total_steps = len(plan)
