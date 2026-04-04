@@ -50,44 +50,12 @@ import { useSmartScroll } from '@/hooks/useSmartScroll';
 
 // Canvas 工具函数 + 追问建议生成（已提取到独立文件）
 import { cleanCanvasTitle, cleanCanvasContent, isDocumentGeneration, generateFollowUpSuggestions } from '@/components/chat/canvasUtils';
+// A2UI 映射表 + 工作台动作映射（已提取）
+import { A2UI_ACTION_TO_MESSAGE, WORKSPACE_TO_WORKFLOW_ACTION } from '@/components/chat/a2uiActionMap';
 
-// ========== 类型定义 ==========
-
-interface Message {
-  id: string;
-  type: 'user' | 'ai' | 'system' | 'clarification' | 'a2ui';
-  content: string;
-  timestamp: Date;
-  agent?: string;
-  memory_id?: string;
-  feedback?: 'up' | 'down';
-  attachment?: { type: 'file' | 'image'; name: string; size: string };
-  metadata?: { isError?: boolean; originalError?: string; lastUserMessage?: string; repair_type?: string };
-  clarification?: {
-    questions: { question: string; options: string[] }[];
-    original_content: string;
-  };
-  /** A2UI 结构化组件数据（嵌入对话流中的可交互 UI） */
-  a2ui?: A2UIMessage;
-  /** RAG 引用来源 */
-  sources?: { id: string; type: string; title: string; content_snippet?: string; source?: string; relevance_score?: number; url?: string }[];
-  /** 后续引导建议（AI 回复后的推荐问题） */
-  suggestions?: string[];
-}
-
-/**
- * 根据 AI 回复内容和上下文生成后续引导建议
- * 基于关键词匹配和内容分析，提供 2-3 条有针对性的推荐问题
- */
-// generateFollowUpSuggestions 已提取到 @/components/chat/canvasUtils.ts
-
-/** 欢迎消息标记 — 渲染时替换为品牌视觉组件 */
-const WELCOME_MESSAGE: Message = {
-  id: '1',
-  type: 'system',
-  content: '__WELCOME__',
-  timestamp: new Date(),
-};
+// 类型定义和常量（已提取到独立文件）
+import type { Message } from '@/components/chat/types';
+import { WELCOME_MESSAGE } from '@/components/chat/types';
 
 // ========== 主组件 ==========
 
@@ -1482,27 +1450,7 @@ export default function Chat() {
 
   // ========== 工作台动作回调 ==========
 
-  const WORKSPACE_TO_WORKFLOW_ACTION: Record<string, { workflowActionId: string; hint?: string }> = {
-    'ws-contract-review': {
-      workflowActionId: 'qa-contract',
-      hint: '可先上传合同文件，或直接粘贴合同条款后发送',
-    },
-    'ws-regulation': {
-      workflowActionId: 'qa-search',
-    },
-    'ws-due-diligence': {
-      workflowActionId: 'qa-compliance',
-    },
-    'ws-compliance': {
-      workflowActionId: 'qa-compliance',
-    },
-    'ws-find-lawyer': {
-      workflowActionId: 'qa-lawyer',
-    },
-    'ws-doc-generate': {
-      workflowActionId: 'qa-draft',
-    },
-  };
+  // WORKSPACE_TO_WORKFLOW_ACTION 已提取到 @/components/chat/a2uiActionMap.ts
 
   const handleWorkspaceAction = useCallback((actionId: string, payload?: any) => {
     if (actionId.startsWith('ws-')) {
@@ -1599,45 +1547,7 @@ export default function Chat() {
 
   // ========== A2UI 事件处理（千问购物式：卡片操作 → 对话消息回传） ==========
 
-  /**
-   * 卡片操作→对话消息映射表
-   * 
-   * 千问购物模式的核心交互：用户点击卡片上的操作按钮后，
-   * 自动在对话流中生成可见的用户消息，让整个流程像自然对话一样流畅。
-   * 
-   * 映射规则：
-   * - 浏览类操作（查看详情、了解更多）→ 生成自然语言消息
-   * - 确认类操作（确认委托、接受修改）→ 生成确认消息 + 发送 A2UI 事件
-   * - 表单类操作（提交表单）→ 静默发送 A2UI 事件（不生成消息）
-   */
-  const A2UI_ACTION_TO_MESSAGE: Record<string, (payload: Record<string, any>) => string | null> = useMemo(() => ({
-    // --- 律师相关 ---
-    'contact_lawyer': (p) => `我想咨询${p.lawyerName || '这位'}律师`,
-    'consult_lawyer': (p) => `请帮我联系${p.lawyerName || '这位'}律师进行咨询`,
-    'view_lawyer_detail': (p) => `请详细介绍${p.lawyerName || '这位'}律师的擅长领域和成功案例`,
-    'view_more_lawyers': () => '请推荐更多律师',
-    'ai_match_lawyer': () => '请用 AI 帮我智能匹配最合适的律师',
-    // --- 合同相关 ---
-    'accept_changes': () => '我接受这些修改建议',
-    'export_report': () => '请导出合同审查报告',
-    'view_full_report': () => '请展示完整的合同审查报告',
-    'ai_suggestions': () => '请给出 AI 修改建议',
-    'start_review': () => '开始审查合同',
-    // --- 费用/委托相关 ---
-    'confirm_fee': () => '我确认这个费用方案',
-    'confirm_engagement': () => '确认委托，请开始处理',
-    // --- 风险/案件相关 ---
-    'view_case_detail': (p) => `请展示案件${p.caseId ? ` ${p.caseId}` : ''}的详细信息`,
-    'assess_contract_risk': () => '请评估合同风险',
-    'assess_compliance': () => '请进行合规审查',
-    'assess_litigation_risk': () => '请评估诉讼风险',
-    'assess_ip_risk': () => '请评估知识产权风险',
-    // --- 文书相关 ---
-    'select_doc_type': (p) => `我需要起草${p.docType === 'contract' ? '合同/协议' : p.docType === 'lawyer_letter' ? '律师函' : p.docType === 'legal_opinion' ? '法律意见书' : '法律文书'}`,
-    // --- 通用 ---
-    'quick_intent': () => null, // 由 query payload 处理
-    'go_back': () => null, // 导航操作，不生成消息
-  }), []);
+  // A2UI_ACTION_TO_MESSAGE 已提取到 @/components/chat/a2uiActionMap.ts（通过顶部 import 引入）
 
   const handleA2UIEvent = useCallback((event: A2UIEvent) => {
     // 特殊处理：快捷意图按钮 → 直接作为用户消息发送
