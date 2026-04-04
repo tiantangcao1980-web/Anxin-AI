@@ -48,85 +48,8 @@ import { useCanvasOperations } from '@/hooks/useCanvasOperations';
 import { useConversationManager } from '@/hooks/useConversationManager';
 import { useSmartScroll } from '@/hooks/useSmartScroll';
 
-// ========== Canvas 内容清理工具 ==========
-
-/**
- * 清理 Canvas 标题 — 去除过长的用户补充信息，提取核心文档名
- * 例如: "帮我起草一份贸易合同? 用户补充信息: 这份贸易合同是用于国内..." → "贸易合同"
- */
-function cleanCanvasTitle(rawTitle: string): string {
-  let title = rawTitle;
-
-  // 去除 "用户补充信息: ..." 及后续内容
-  title = title.replace(/[?？]?\s*用户补充信息[:：].*$/s, '');
-
-  // 去除常见前缀："帮我起草一份"、"帮我写一份"、"请起草"、"起草一份" 等
-  title = title.replace(/^(请|帮我|帮忙)?(起草|撰写|写|生成|草拟)(一份|一个|一篇)?/u, '');
-
-  // 去除首尾空白和标点
-  title = title.replace(/^[\s?？、，,.:：]+|[\s?？、，,.:：]+$/g, '').trim();
-
-  // 如果清理后为空，用原始标题的前 20 个字符
-  if (!title) {
-    title = rawTitle.slice(0, 20).replace(/[?？].*$/, '').trim() || '文档';
-  }
-
-  // 限制最大长度 30 字
-  if (title.length > 30) {
-    title = title.slice(0, 30) + '…';
-  }
-
-  return title;
-}
-
-/**
- * 清理 Canvas 内容 — 去除 Agent 执行痕迹，只保留文书正文
- * 例如去除: "任务执行完成。\n### 文书起草Agent\n" 等系统前缀
- */
-function cleanCanvasContent(rawContent: string): string {
-  let content = rawContent;
-
-  // 循环清理开头的系统噪音（可能连续出现多段）
-  let prev = '';
-  while (prev !== content) {
-    prev = content;
-
-    // 去除 "智能体团队" / "Agent 团队" / "多Agent协作" 等系统标签
-    content = content.replace(/^(智能体团队|Agent\s*团队|多Agent协作|AI\s*团队|协作完成)\s*\n*/u, '');
-
-    // 去除 "任务执行完成。" / "任务已完成。" 前缀
-    content = content.replace(/^(任务(执行)?完成|处理完毕|已完成)[。.!]\s*/u, '');
-
-    // 去除 "### Agent名称" / "## 文书起草Agent" 标题行
-    content = content.replace(/^#{1,4}\s*[\w\u4e00-\u9fff]+Agent[^\n]*\n*/u, '');
-
-    // 去除纯 Agent 名称行（无标题标记格式，如 "文书起草Agent"）
-    content = content.replace(/^[\u4e00-\u9fff]+Agent\s*\n*/u, '');
-
-    // 去除 "**Agent名称**" / "**文书起草Agent 输出**"
-    content = content.replace(/^\*{1,2}[\w\u4e00-\u9fff]+Agent[^*]*\*{1,2}\s*\n*/u, '');
-
-    // 去除 "---" 分隔线（Agent 输出常用分隔）
-    content = content.replace(/^-{3,}\s*\n*/u, '');
-
-    // 去除 "以下是为您起草的..." / "根据您的需求..." 引导语
-    content = content.replace(/^(以下是|根据您的|按照您的|应您要求|为您)(需求|要求|提供)?[，,]?(我)?(为您|已|特)?[^。\n]{0,50}[。.：:]\s*\n*/u, '');
-
-    // 去除空白行
-    content = content.replace(/^\s*\n/, '');
-  }
-
-  return content.trim();
-}
-
-/**
- * 检测内容是否为法律文书/合同生成（用于区分文书生成 vs 普通对话）
- * 仅当内容足够长且包含明确的文书结构特征时返回 true
- */
-function isDocumentGeneration(content: string): boolean {
-  if (content.length < 300) return false;
-  return /第[一二三四五六七八九十]+[条章节]|甲方[\s\S]{0,30}乙方|乙方[\s\S]{0,30}甲方|合同编号|签署日期|^#\s*.{2,}|鉴于.*双方|本合同自|违约责任|争议解决/m.test(content);
-}
+// Canvas 工具函数 + 追问建议生成（已提取到独立文件）
+import { cleanCanvasTitle, cleanCanvasContent, isDocumentGeneration, generateFollowUpSuggestions } from '@/components/chat/canvasUtils';
 
 // ========== 类型定义 ==========
 
@@ -156,46 +79,7 @@ interface Message {
  * 根据 AI 回复内容和上下文生成后续引导建议
  * 基于关键词匹配和内容分析，提供 2-3 条有针对性的推荐问题
  */
-function generateFollowUpSuggestions(aiContent: string, userContent: string): string[] {
-  const content = aiContent.toLowerCase();
-  const suggestions: string[] = [];
-
-  if (/合同|协议|条款|合约/.test(content)) {
-    suggestions.push('这份合同有哪些主要风险点？');
-    if (/风险|注意/.test(content)) {
-      suggestions.push('请给出修改建议和替代条款');
-    } else {
-      suggestions.push('请逐条解读关键条款的法律含义');
-    }
-    suggestions.push('帮我生成一份修改版合同');
-  } else if (/合规|法规|法律|条文|法条/.test(content)) {
-    suggestions.push('有没有相关的司法解释或案例？');
-    suggestions.push('这在不同地区的适用是否有差异？');
-    suggestions.push('请帮我整理一份合规检查清单');
-  } else if (/尽职调查|尽调|工商|股权/.test(content)) {
-    suggestions.push('有哪些需要重点关注的风险事项？');
-    suggestions.push('请帮我生成尽调报告模板');
-    suggestions.push('类似项目的常见风险有哪些？');
-  } else if (/证据|举证|证明/.test(content)) {
-    suggestions.push('证据链是否完整？还需要补充什么？');
-    suggestions.push('对方可能提出哪些抗辩？');
-    suggestions.push('请帮我整理证据目录和说明');
-  } else if (/起草|草拟|文书|函件/.test(content)) {
-    suggestions.push('请帮我优化文书的措辞和格式');
-    suggestions.push('有没有需要补充的法律条款引用？');
-    suggestions.push('请生成配套的送达回执模板');
-  } else if (/案例|判决|裁判|判例/.test(content)) {
-    suggestions.push('有没有相反观点的判例？');
-    suggestions.push('这个裁判思路在近年有变化吗？');
-    suggestions.push('请帮我总结可援引的裁判要旨');
-  } else {
-    suggestions.push('请进一步展开分析');
-    suggestions.push('有哪些实操层面的注意事项？');
-    suggestions.push('请帮我整理一份行动清单');
-  }
-
-  return suggestions.slice(0, 3);
-}
+// generateFollowUpSuggestions 已提取到 @/components/chat/canvasUtils.ts
 
 /** 欢迎消息标记 — 渲染时替换为品牌视觉组件 */
 const WELCOME_MESSAGE: Message = {
