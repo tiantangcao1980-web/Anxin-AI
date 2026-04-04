@@ -82,70 +82,7 @@ _HIGH_RISK_PHRASES = [
 class OutputValidator:
     """输出质量校验引擎"""
 
-    async def validate(
-        self,
-        response_text: str,
-        user_query: str = "",
-        agent_name: str = "",
-        route: str = "general",
-    ) -> ValidationResult:
-        """
-        执行全部校验
-
-        Args:
-            response_text: Agent 生成的回复
-            user_query: 用户原始问题
-            agent_name: 使用的 Agent 名称
-            route: 路由类型
-
-        Returns:
-            ValidationResult
-        """
-        issues: List[ValidationIssue] = []
-        score = 1.0
-
-        # 1. 结构校验
-        struct_issues = self._check_structure(response_text)
-        issues.extend(struct_issues)
-
-        # 2. 引用核查
-        citation_issues = await self._check_citations(response_text)
-        issues.extend(citation_issues)
-
-        # 3. 相关性检测（仅当有用户问题时）
-        if user_query:
-            relevance_issues = self._check_relevance(response_text, user_query)
-            issues.extend(relevance_issues)
-
-        # 4. 风险检测
-        risk_issues = self._check_risk_content(response_text, route)
-        issues.extend(risk_issues)
-
-        # 计算质量分
-        for issue in issues:
-            if issue.level == ValidationLevel.CRITICAL:
-                score -= 0.4
-            elif issue.level == ValidationLevel.FAIL:
-                score -= 0.2
-            elif issue.level == ValidationLevel.WARNING:
-                score -= 0.05
-        score = max(0.0, score)
-
-        passed = not any(
-            i.level in (ValidationLevel.FAIL, ValidationLevel.CRITICAL)
-            for i in issues
-        )
-
-        result = ValidationResult(passed=passed, issues=issues, score=score)
-
-        if not passed:
-            logger.warning(
-                f"[OutputValidator] 校验未通过 | agent={agent_name} | "
-                f"score={score:.2f} | issues={len(issues)} | "
-                f"fails={[i.message for i in issues if i.level in (ValidationLevel.FAIL, ValidationLevel.CRITICAL)]}"
-            )
-
-        return result
+    # validate() 方法定义在文件末尾（增强版，含场景化检查）
 
     def _check_structure(self, text: str) -> List[ValidationIssue]:
         """结构校验"""
@@ -308,6 +245,131 @@ class OutputValidator:
                     ))
 
         return issues
+
+    def _check_document_completeness(self, text: str, route: str) -> List[ValidationIssue]:
+        """文书起草场景：检查输出是否包含法定格式要素"""
+        issues = []
+        if route not in ("document_drafting", "DOCUMENT_DRAFTING"):
+            return issues
+
+        # 文书必须包含的要素
+        required_elements = {
+            "当事人信息": [r"甲方|乙方|原告|被告|申请人|被申请人|委托人"],
+            "核心条款/请求": [r"第[一二三四五六七八九十\d]+条|诉讼请求|请求事项|合同标的"],
+            "日期": [r"\d{4}\s*年\s*\d{1,2}\s*月|\d{4}-\d{2}-\d{2}"],
+        }
+
+        missing = []
+        for element_name, patterns in required_elements.items():
+            found = any(re.search(p, text) for p in patterns)
+            if not found:
+                missing.append(element_name)
+
+        if missing:
+            issues.append(ValidationIssue(
+                check_name="document.incomplete",
+                level=ValidationLevel.WARNING,
+                message=f"文书可能缺少以下要素: {', '.join(missing)}",
+                detail=f"建议补充: {missing}",
+            ))
+
+        return issues
+
+    def _check_case_analysis_quality(self, text: str, route: str) -> List[ValidationIssue]:
+        """案件分析场景：检查报告是否包含法律依据、证据评估、风险评估"""
+        issues = []
+        # 对分析类路由生效
+        analysis_routes = (
+            "general", "LABOR_HR", "DEBT_COLLECTION", "LITIGATION_STRATEGY",
+            "FAMILY_LAW", "CRIMINAL", "REAL_ESTATE",
+        )
+        if route not in analysis_routes:
+            return issues
+
+        # 分析报告的长度应该足够（至少 300 字才有实质内容）
+        if len(text) < 300:
+            return issues
+
+        quality_indicators = {
+            "法律依据": [r"《[^》]+》", r"第[一二三四五六七八九十百千\d]+条", r"根据.*规定"],
+            "风险评估": [r"风险|注意|需要.*关注|建议.*重视|可能.*不利"],
+            "行动建议": [r"建议|应当|可以.*考虑|下一步|行动方案"],
+        }
+
+        missing = []
+        for indicator_name, patterns in quality_indicators.items():
+            found = any(re.search(p, text) for p in patterns)
+            if not found:
+                missing.append(indicator_name)
+
+        if len(missing) >= 2:
+            issues.append(ValidationIssue(
+                check_name="analysis.low_quality",
+                level=ValidationLevel.WARNING,
+                message=f"分析报告质量不足，缺少: {', '.join(missing)}",
+                detail=f"高质量的法律分析应包含法律依据引用、风险评估和行动建议",
+            ))
+
+        return issues
+
+    async def validate(
+        self,
+        response_text: str,
+        user_query: str = "",
+        agent_name: str = "",
+        route: str = "general",
+    ) -> ValidationResult:
+        """
+        执行全部校验（增强版，含场景化检查）
+        """
+        issues: List[ValidationIssue] = []
+        score = 1.0
+
+        # 1. 结构校验
+        issues.extend(self._check_structure(response_text))
+
+        # 2. 引用核查
+        citation_issues = await self._check_citations(response_text)
+        issues.extend(citation_issues)
+
+        # 3. 相关性检测
+        if user_query:
+            issues.extend(self._check_relevance(response_text, user_query))
+
+        # 4. 风险检测
+        issues.extend(self._check_risk_content(response_text, route))
+
+        # 5. 文书完整性检查（场景化）
+        issues.extend(self._check_document_completeness(response_text, route))
+
+        # 6. 案件分析质量检查（场景化）
+        issues.extend(self._check_case_analysis_quality(response_text, route))
+
+        # 计算质量分
+        for issue in issues:
+            if issue.level == ValidationLevel.CRITICAL:
+                score -= 0.4
+            elif issue.level == ValidationLevel.FAIL:
+                score -= 0.2
+            elif issue.level == ValidationLevel.WARNING:
+                score -= 0.05
+        score = max(0.0, score)
+
+        passed = not any(
+            i.level in (ValidationLevel.FAIL, ValidationLevel.CRITICAL)
+            for i in issues
+        )
+
+        result = ValidationResult(passed=passed, issues=issues, score=score)
+
+        if not passed:
+            logger.warning(
+                f"[OutputValidator] 校验未通过 | agent={agent_name} | "
+                f"score={score:.2f} | issues={len(issues)} | "
+                f"fails={[i.message for i in issues if i.level in (ValidationLevel.FAIL, ValidationLevel.CRITICAL)]}"
+            )
+
+        return result
 
 
 # 全局单例

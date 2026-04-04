@@ -43,6 +43,7 @@ from src.agents.labor_compliance import LaborComplianceAgent
 from src.agents.evidence_analyst import EvidenceAnalystAgent
 from src.agents.contract_steward import ContractStewardAgent
 from src.agents.requirement_analyst import RequirementAnalystAgent
+from src.agents.template_librarian import TemplateLirarianAgent
 
 
 # 回调类型别名
@@ -120,8 +121,9 @@ class LegalWorkforce:
             "labor_compliance": LaborComplianceAgent(),
             "evidence_analyst": EvidenceAnalystAgent(),
             "contract_steward": ContractStewardAgent(),
+            "template_librarian": TemplateLirarianAgent(),
         }
-        
+
         logger.info(f"法务智能体团队初始化完成，共 {len(self.agents)} 个专业智能体")
     
     async def process_task(

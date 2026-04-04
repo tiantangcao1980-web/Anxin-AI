@@ -160,6 +160,10 @@ FAST_PATH_ROUTES: Dict[str, List[Dict[str, Any]]] = {
     "PRODUCT_LIABILITY": [
         {"id": "task_1", "agent": "legal_advisor", "instruction_suffix": "分析产品责任/消费者权益问题，评估召回义务、赔偿责任、诉讼风险。", "depends_on": []},
     ],
+    # Harness: 模板请求路由 — 用户只要模板不要AI生成
+    "TEMPLATE_REQUEST": [
+        {"id": "task_1", "agent": "template_librarian", "depends_on": []},
+    ],
 }
 
 
@@ -562,6 +566,8 @@ class CoordinatorAgent(BaseLegalAgent):
     # 注意：关键词仅匹配用户输入的前 200 字符（即用户实际问题），避免合同正文干扰
     _KEYWORD_INTENT_RULES = [
         # (关键词列表, 意图, 置信度)
+        # Harness: 模板请求优先匹配（在生成类意图之前，避免"合同模板"匹配到"合同审查"）
+        (["合同模板", "模板下载", "下载模板", "给我模板", "模板库", "范本下载", "下载范本", "文书模板", "协议模板", "样本下载"], "TEMPLATE_REQUEST", 0.93),
         (["找律师", "推荐律师", "帮我找律师", "律师推荐", "委托律师", "请律师", "聘请律师", "请个律师", "找个律师"], "FIND_LAWYER", 0.92),
         (["审查合同", "合同审查", "审合同", "审查这份", "审查一下", "条款审核", "合同风险", "帮我审查"], "CONTRACT_REVIEW", 0.92),
         (["电子签", "发起签约", "电子签章", "电子签约", "在线签署"], "E_SIGNATURE", 0.92),
