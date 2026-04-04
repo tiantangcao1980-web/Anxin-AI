@@ -3,7 +3,7 @@ mod models;
 mod services;
 
 use models::create_shared_state;
-use tauri::Manager;
+use tauri::{Emitter, Event, Listener, Manager};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -17,7 +17,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_updater::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(tauri_plugin_deep_link::init())
@@ -53,7 +53,7 @@ pub fn run() {
             commands::auth::get_app_info,
         ])
         // ===== 应用初始化 =====
-        .setup(|app| {
+        .setup(move |app| {
             let handle = app.handle().clone();
 
             // 桌面端：创建系统托盘
@@ -74,7 +74,7 @@ pub fn run() {
 
             // 监听深度链接
             let handle_clone = handle.clone();
-            app.listen("deep-link://new-url", move |event| {
+            app.listen("deep-link://new-url", move |event: Event| {
                 log::info!("收到深度链接: {:?}", event.payload());
                 // 通知前端处理深度链接
                 let _ = handle_clone.emit("deep-link-received", event.payload());

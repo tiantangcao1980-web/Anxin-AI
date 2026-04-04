@@ -1,4 +1,5 @@
 import { test, expect, type Page, type TestInfo } from '@playwright/test'
+import { installApiMocks, seedAuthState } from './helpers/session'
 
 async function installMockWebSocket(page: Page) {
   await page.addInitScript(() => {
@@ -118,6 +119,13 @@ async function emitSocketEvent(page: Page, payload: Record<string, unknown>) {
 test.describe('右侧面板双模式', () => {
   test.beforeEach(async ({ page }, testInfo: TestInfo) => {
     test.skip(testInfo.project.name === 'mobile', 'desktop only')
+    await installApiMocks(page)
+    await seedAuthState(page, {
+      role: 'admin',
+      userId: 'e2e-user',
+      name: 'E2E User',
+      email: 'e2e@example.com',
+    })
     await installMockWebSocket(page)
     await page.goto('/chat')
     await expect(page.getByText('AI 法务助手', { exact: true }).first()).toBeVisible()

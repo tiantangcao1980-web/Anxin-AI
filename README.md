@@ -102,7 +102,19 @@ npx playwright test -c playwright.local.config.ts
 docker-compose up -d
 ```
 
-访问 http://localhost:3001
+生产环境推荐使用“宿主机 Nginx + Docker Compose 内环回绑定”的部署形态：
+
+- 公网入口：`80` / `443`
+- 前端容器：`127.0.0.1:3001 -> 80`
+- 后端容器：`127.0.0.1:8001 -> 8001`
+- PostgreSQL / Redis / Qdrant / Neo4j / MinIO：仅容器网络内可见，不对公网暴露
+
+本地或服务器健康检查可使用：
+
+```bash
+curl -I http://127.0.0.1:3001
+curl -I http://127.0.0.1:8001/health
+```
 
 ## 测试
 
@@ -168,8 +180,20 @@ npm run build
 - 前端 `lint` / `build` 已通过
 - 前端多角色访问控制 E2E：`6/6`
 - 前端核心业务动作 E2E：`8/8`
+- 云端生产迁移已确认到 `027_experience_patterns (head)`，`experience_patterns` 表已创建成功
+- 云端生产入口已切换到宿主机 Nginx，`https://anxinfawu.com` 与 `https://www.anxinfawu.com` 均已验证可访问
+- 云端生产公网仅保留 `80/443`，`8001/5433/6379/6333/6334/7474/7687/9000/9001` 已收口
 - `/documents` 已恢复为真实受保护路由，文档库“我的文档 → AI 分析”链路已纳入回归
 - 浏览器 E2E 仍受当前开发机 Chromium 启动权限限制，建议在具备浏览器权限的环境中补跑
+
+### 当前生产部署基线
+
+- 主机目录：`/opt/anxin-smart-legal-services`
+- 对外域名：`anxinfawu.com`、`www.anxinfawu.com`
+- HTTPS：已通过 Certbot 签发并接入主机 Nginx，HTTP 自动 301 跳转到 HTTPS
+- 容器入口：前端 `127.0.0.1:3001`，后端 `127.0.0.1:8001`
+- 生产模式：`DEV_MODE=false`
+- 生产密钥：JWT、PostgreSQL、Redis 已完成线上随机化轮换
 
 ### 本轮收口内容
 
@@ -189,6 +213,7 @@ npm run build
 - 律师入驻当前支持图片 URL 提交认证资料，尚未接入站内真实文件上传链路
 - 匿名聊天公开创建与 token 设计仍需重构
 - e 签宝、法大大、部分支付/通知渠道仍保留占位实现
+- LiveKit 仍未纳入当前生产启用范围，如需音视频需单独开放端口并补做验收
 
 ## 项目结构
 

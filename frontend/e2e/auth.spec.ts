@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { loginAsAdmin } from './helpers/auth'
+import { installApiMocks } from './helpers/session'
 
 test.describe('认证流程', () => {
   test('登录页面正确渲染', async ({ page }) => {
@@ -21,7 +22,11 @@ test.describe('认证流程', () => {
   })
 
   test('测试账号可以登录并进入对话页', async ({ page }) => {
-    await loginAsAdmin(page)
+    await installApiMocks(page)
+    await page.goto('/login')
+    await page.getByPlaceholder('请输入邮箱地址').fill('admin@anxinfawu.com')
+    await page.getByPlaceholder('请输入密码').fill('admin888')
+    await page.locator('form').getByRole('button', { name: '登录' }).click()
     await expect(page).toHaveURL(/chat/)
   })
 })

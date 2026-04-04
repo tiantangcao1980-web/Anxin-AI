@@ -142,7 +142,17 @@ class TemplateLirarianAgent:
 
     def __init__(self):
         self.name = "模板管理员"
+        self.role = "template_librarian"
         self.templates = TEMPLATE_CATALOG
+
+    def get_info(self) -> Dict[str, Any]:
+        """返回智能体元信息，保持与其他 Agent 的查询契约一致。"""
+        return {
+            "name": self.name,
+            "role": self.role,
+            "description": "从模板库中检索匹配模板，并引导用户下载或切换到 AI 定制生成。",
+            "tools": ["template_library", "knowledge_base_navigation"],
+        }
 
     async def process(self, task: Dict[str, Any]) -> AgentResponse:
         """

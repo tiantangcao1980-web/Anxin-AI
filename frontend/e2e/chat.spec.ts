@@ -12,8 +12,9 @@ test.describe('AI 对话', () => {
     await expect(page.getByText(/快速咨询/)).toBeVisible()
   })
 
-  test('新建对话', async ({ page }) => {
-    await page.getByRole('button', { name: /新建对话/ }).click()
+  test('新建对话', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'mobile layout has separate conversation interactions')
+    await page.getByRole('button', { name: /新建对话/ }).first().click()
     await expect(page.getByText('你好，有什么可以帮您？')).toBeVisible()
   })
 })

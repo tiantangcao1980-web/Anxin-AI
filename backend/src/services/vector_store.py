@@ -7,7 +7,7 @@
 """
 
 import hashlib
-from typing import Optional, List, Dict, Any, Union
+from typing import Any, Optional, cast
 from loguru import logger
 
 from src.core.config import settings
@@ -22,18 +22,18 @@ class VectorStoreService:
     2. 本地 sentence-transformers 模型
     """
     
-    def __init__(self):
-        self.client = None  # Qdrant 客户端
-        self.embedding_model = None  # Embedding 模型名称
-        self.openai_client = None  # OpenAI 客户端（API 模式）
-        self.local_model = None  # 本地 sentence-transformers 模型
+    def __init__(self) -> None:
+        self.client: Any | None = None  # Qdrant 客户端
+        self.embedding_model: str | None = None  # Embedding 模型名称
+        self.openai_client: Any | None = None  # OpenAI 客户端（API 模式）
+        self.local_model: Any | None = None  # 本地 sentence-transformers 模型
         self.embedding_dim = 1536  # 向量维度
         self.use_local_embedding = settings.USE_LOCAL_EMBEDDING  # 是否使用本地模型
         
         self._init_client()
         self._init_embedding()
     
-    def _init_client(self):
+    def _init_client(self) -> None:
         """初始化 Qdrant 客户端连接"""
         try:
             from qdrant_client import QdrantClient
@@ -70,7 +70,7 @@ class VectorStoreService:
             logger.error(f"Qdrant 客户端初始化失败: {e}")
             self.client = None
     
-    def _init_embedding(self):
+    def _init_embedding(self) -> None:
         """
         初始化 Embedding 模型
         
@@ -81,7 +81,7 @@ class VectorStoreService:
         else:
             self._init_openai_embedding()
     
-    def _init_local_embedding(self):
+    def _init_local_embedding(self) -> None:
         """初始化本地 sentence-transformers Embedding 模型"""
         try:
             from sentence_transformers import SentenceTransformer
@@ -105,7 +105,7 @@ class VectorStoreService:
             self.use_local_embedding = False
             self._init_openai_embedding()
     
-    def _init_openai_embedding(self):
+    def _init_openai_embedding(self) -> None:
         """初始化 OpenAI API Embedding"""
         try:
             from openai import OpenAI
@@ -142,7 +142,7 @@ class VectorStoreService:
         return self.client is not None and has_embedding
     
     @property
-    def embedding_info(self) -> Dict[str, Any]:
+    def embedding_info(self) -> dict[str, Any]:
         """获取当前 Embedding 配置信息"""
         return {
             "model": self.embedding_model,
@@ -163,17 +163,18 @@ class VectorStoreService:
         try:
             import asyncio
             from qdrant_client.models import Distance, VectorParams
+            client = cast(Any, self.client)
 
             # 检查集合是否存在
             collections = await asyncio.to_thread(
-                lambda: self.client.get_collections().collections
+                lambda: client.get_collections().collections
             )
             exists = any(c.name == collection_name for c in collections)
             need_create = False
 
             if exists:
                 if recreate:
-                    await asyncio.to_thread(self.client.delete_collection, collection_name)
+                    await asyncio.to_thread(client.delete_collection, collection_name)
                     logger.info(f"已删除旧集合: {collection_name} (recreate=True)")
                     need_create = True
                 else:
@@ -189,7 +190,7 @@ class VectorStoreService:
                                 f"已有 {existing_dim}, 当前配置 {self.embedding_dim}，自动重建"
                             )
                             await asyncio.to_thread(
-                                self.client.delete_collection, collection_name
+                                client.delete_collection, collection_name
                             )
                             need_create = True
                         else:
@@ -205,7 +206,7 @@ class VectorStoreService:
                     await asyncio.sleep(2.0)
 
                 await asyncio.to_thread(
-                    lambda: self.client.create_collection(
+                    lambda: client.create_collection(
                         collection_name=collection_name,
                         vectors_config=VectorParams(
                             size=self.embedding_dim,
@@ -221,7 +222,7 @@ class VectorStoreService:
             logger.error(f"创建向量集合失败: {e}")
             return False
     
-    async def get_embedding(self, text: str) -> Optional[List[float]]:
+    async def get_embedding(self, text: str) -> list[float] | None:
         """
         获取文本的向量表示
         
@@ -244,7 +245,7 @@ class VectorStoreService:
         else:
             return await self._get_api_embedding(text)
     
-    async def _get_local_embedding(self, text: str) -> Optional[List[float]]:
+    async def _get_local_embedding(self, text: str) -> list[float] | None:
         """使用本地 sentence-transformers 模型获取向量"""
         if not self.local_model:
             return None
@@ -258,13 +259,13 @@ class VectorStoreService:
             # sentence-transformers 是同步的，但速度很快
             embedding = self.local_model.encode(text, normalize_embeddings=True)
             
-            return embedding.tolist()
+            return cast(list[float], embedding.tolist())
             
         except Exception as e:
             logger.error(f"本地 Embedding 获取失败: {e}")
             return None
     
-    async def _get_api_embedding(self, text: str) -> Optional[List[float]]:
+    async def _get_api_embedding(self, text: str) -> list[float] | None:
         """使用 OpenAI API 获取向量"""
         if not self.openai_client:
             return None
@@ -280,7 +281,7 @@ class VectorStoreService:
                 input=text,
             )
             
-            return response.data[0].embedding
+            return cast(list[float], response.data[0].embedding)
             
         except Exception as e:
             logger.error(f"API Embedding 获取失败: {e}")
@@ -288,9 +289,9 @@ class VectorStoreService:
     
     async def get_embeddings_batch(
         self,
-        texts: List[str],
+        texts: list[str],
         batch_size: int = 32,
-    ) -> List[Optional[List[float]]]:
+    ) -> list[list[float] | None]:
         """
         批量获取文本向量
         
@@ -329,7 +330,7 @@ class VectorStoreService:
     async def add_documents(
         self,
         collection_name: str,
-        documents: List[Dict[str, Any]],
+        documents: list[dict[str, Any]],
     ) -> int:
         """
         添加文档到向量集合
@@ -374,7 +375,8 @@ class VectorStoreService:
                 ))
             
             if points:
-                self.client.upsert(
+                client = cast(Any, self.client)
+                client.upsert(
                     collection_name=collection_name,
                     points=points,
                 )
@@ -392,8 +394,8 @@ class VectorStoreService:
         query: str,
         top_k: Optional[int] = None,
         score_threshold: Optional[float] = None,
-        filter_conditions: Optional[Dict] = None,
-    ) -> List[Dict[str, Any]]:
+        filter_conditions: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
         """
         向量相似度搜索
         
@@ -423,7 +425,8 @@ class VectorStoreService:
                 return []
             
             # 检查集合是否存在
-            collections = self.client.get_collections().collections
+            client = cast(Any, self.client)
+            collections = client.get_collections().collections
             if not any(c.name == collection_name for c in collections):
                 logger.warning(f"向量集合不存在: {collection_name}")
                 return []
@@ -444,7 +447,7 @@ class VectorStoreService:
                 query_filter = Filter(must=must_conditions)
             
             # 执行搜索（qdrant-client >= 1.12 使用 query_points 替代 search）
-            response = self.client.query_points(
+            response = client.query_points(
                 collection_name=collection_name,
                 query=query_embedding,
                 limit=top_k,
@@ -472,7 +475,7 @@ class VectorStoreService:
     async def delete_documents(
         self,
         collection_name: str,
-        doc_ids: List[str],
+        doc_ids: list[str],
     ) -> bool:
         """删除文档"""
         if not self.client:
@@ -500,7 +503,7 @@ class VectorStoreService:
             logger.error(f"删除文档失败: {e}")
             return False
     
-    async def get_collection_info(self, collection_name: str) -> Optional[Dict]:
+    async def get_collection_info(self, collection_name: str) -> dict[str, Any] | None:
         """获取集合信息"""
         if not self.client:
             return None
@@ -520,7 +523,7 @@ class VectorStoreService:
         self,
         collection_name: str,
         doc_id: str,
-        chunks: List[Dict[str, Any]],
+        chunks: list[dict[str, Any]],
     ) -> int:
         """
         批量添加文档分块到向量集合
@@ -569,7 +572,8 @@ class VectorStoreService:
                 ))
             
             if points:
-                self.client.upsert(
+                client = cast(Any, self.client)
+                client.upsert(
                     collection_name=collection_name,
                     points=points,
                 )
@@ -594,7 +598,7 @@ class VectorStoreService:
             logger.error(f"删除向量集合失败: {e}")
             return False
     
-    async def list_collections(self) -> List[str]:
+    async def list_collections(self) -> list[str]:
         """列出所有向量集合"""
         if not self.client:
             return []
@@ -618,7 +622,7 @@ async def embed_and_store_document(
     title: str,
     content: str,
     source: Optional[str] = None,
-    metadata: Optional[Dict] = None,
+    metadata: dict[str, Any] | None = None,
 ) -> bool:
     """向量化并存储单个文档"""
     result = await vector_store.add_documents(
@@ -638,7 +642,7 @@ async def semantic_search(
     collection_name: str,
     query: str,
     top_k: int = 10,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """语义搜索"""
     return await vector_store.search(
         collection_name=collection_name,
@@ -648,11 +652,11 @@ async def semantic_search(
 
 
 async def multi_collection_search(
-    collection_names: List[str],
+    collection_names: list[str],
     query: str,
     top_k: int = 10,
     score_threshold: float = 0.5,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     多集合搜索
     
@@ -693,9 +697,9 @@ async def multi_collection_search(
 async def search_with_filter(
     collection_name: str,
     query: str,
-    filters: Dict[str, Any],
+    filters: dict[str, Any],
     top_k: int = 10,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     带过滤条件的搜索
     
@@ -721,7 +725,7 @@ async def get_similar_chunks(
     chunk_id: str,
     top_k: int = 5,
     exclude_same_doc: bool = True,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     获取相似分块
     

@@ -27,7 +27,7 @@ export function collectBotSignals(): BotSignals {
   if (cachedSignals) return cachedSignals
 
   const nav = navigator as unknown as Record<string, unknown>
-  const chromeLike = (window as Record<string, unknown>).chrome
+  const chromeLike = (window as Window & { chrome?: unknown }).chrome
   const hasChromeRuntime =
     typeof chromeLike === 'object' &&
     chromeLike !== null &&

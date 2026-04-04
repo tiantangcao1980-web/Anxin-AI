@@ -7,7 +7,7 @@
 import json
 import hashlib
 import functools
-from typing import Optional, Any, Callable, TypeVar, Union, Dict, List
+from typing import Any, Awaitable, Callable, Optional, ParamSpec, TypeVar, cast
 from datetime import datetime, timedelta
 from collections import OrderedDict
 
@@ -19,11 +19,12 @@ from src.core.config import settings
 
 # 类型变量用于装饰器
 T = TypeVar('T')
+P = ParamSpec('P')
 
 
 class CacheEntry:
     """L1 内存缓存条目"""
-    def __init__(self, value: Any, ttl: int):
+    def __init__(self, value: Any, ttl: int) -> None:
         self.value = value
         self.expires_at = datetime.now() + timedelta(seconds=ttl)
 
@@ -55,7 +56,7 @@ class CacheService:
         self,
         enable_l1: bool = True,
         enable_l2: bool = True
-    ):
+    ) -> None:
         self._client: Optional[redis.Redis] = None
 
         # L1: 内存缓存 (有序字典,自动淘汰旧数据)
@@ -74,7 +75,7 @@ class CacheService:
             "l3_misses": 0,
         }
     
-    def _cleanup_expired_l1(self):
+    def _cleanup_expired_l1(self) -> None:
         """清理过期的 L1 缓存"""
         now = datetime.now()
         expired_keys = [
@@ -84,7 +85,7 @@ class CacheService:
         for key in expired_keys:
             del self._l1_cache[key]
 
-    def _enforce_l1_size_limit(self):
+    def _enforce_l1_size_limit(self) -> None:
         """强制执行 L1 大小限制"""
         self._cleanup_expired_l1()
 
@@ -122,8 +123,8 @@ class CacheService:
     async def get(
         self,
         key: str,
-        l3_loader: Optional[Callable] = None
-    ) -> Optional[Any]:
+        l3_loader: Callable[[], Awaitable[Any]] | None = None
+    ) -> Any | None:
         """
         获取缓存值 (三层查找)
 
@@ -315,7 +316,7 @@ class CacheService:
         """
         try:
             client = await self.get_client()
-            return await client.incrby(key, amount)
+            return cast(int, await client.incrby(key, amount))
         except Exception as e:
             logger.warning(f"增加计数器失败 key={key}: {e}")
             return 0
@@ -333,7 +334,7 @@ class CacheService:
         """
         try:
             client = await self.get_client()
-            return await client.expire(key, ttl)
+            return cast(bool, await client.expire(key, ttl))
         except Exception as e:
             logger.warning(f"设置过期时间失败 key={key}: {e}")
             return False
@@ -350,19 +351,19 @@ class CacheService:
         """
         try:
             client = await self.get_client()
-            return await client.ttl(key)
+            return cast(int, await client.ttl(key))
         except Exception as e:
             logger.warning(f"获取TTL失败 key={key}: {e}")
             return -2
     
     # ========== 用户缓存 ==========
     
-    async def get_user(self, user_id: str) -> Optional[dict]:
+    async def get_user(self, user_id: str) -> dict[str, Any] | None:
         """获取用户信息缓存"""
         key = self._make_key("user", "info", user_id)
         return await self.get(key)
     
-    async def set_user(self, user_id: str, user_data: dict, ttl: int = 1800) -> bool:
+    async def set_user(self, user_id: str, user_data: dict[str, Any], ttl: int = 1800) -> bool:
         """设置用户信息缓存（默认30分钟）"""
         key = self._make_key("user", "info", user_id)
         return await self.set(key, user_data, ttl)
@@ -374,12 +375,12 @@ class CacheService:
     
     # ========== 案件缓存 ==========
     
-    async def get_case(self, case_id: str) -> Optional[dict]:
+    async def get_case(self, case_id: str) -> dict[str, Any] | None:
         """获取案件详情缓存"""
         key = self._make_key("case", "detail", case_id)
         return await self.get(key)
     
-    async def set_case(self, case_id: str, case_data: dict, ttl: int = 600) -> bool:
+    async def set_case(self, case_id: str, case_data: dict[str, Any], ttl: int = 600) -> bool:
         """设置案件详情缓存（默认10分钟）"""
         key = self._make_key("case", "detail", case_id)
         return await self.set(key, case_data, ttl)
@@ -389,13 +390,13 @@ class CacheService:
         key = self._make_key("case", "detail", case_id)
         return await self.delete(key)
     
-    async def get_case_list(self, user_id: str, page: int = 1) -> Optional[dict]:
+    async def get_case_list(self, user_id: str, page: int = 1) -> dict[str, Any] | None:
         """获取案件列表缓存"""
         key = self._make_key("case", "list", f"{user_id}:{page}")
         return await self.get(key)
     
     async def set_case_list(
-        self, user_id: str, page: int, data: dict, ttl: int = 300
+        self, user_id: str, page: int, data: dict[str, Any], ttl: int = 300
     ) -> bool:
         """设置案件列表缓存（默认5分钟）"""
         key = self._make_key("case", "list", f"{user_id}:{page}")
@@ -408,26 +409,26 @@ class CacheService:
     
     # ========== 搜索结果缓存 ==========
     
-    async def get_search_result(self, query_hash: str) -> Optional[dict]:
+    async def get_search_result(self, query_hash: str) -> dict[str, Any] | None:
         """获取搜索结果缓存"""
         key = self._make_key("search", "result", query_hash)
         return await self.get(key)
     
     async def set_search_result(
-        self, query_hash: str, result: dict, ttl: int = 1800
+        self, query_hash: str, result: dict[str, Any], ttl: int = 1800
     ) -> bool:
         """设置搜索结果缓存（默认30分钟）"""
         key = self._make_key("search", "result", query_hash)
         return await self.set(key, result, ttl)
     
     @staticmethod
-    def hash_query(query: str, **kwargs) -> str:
+    def hash_query(query: str, **kwargs: Any) -> str:
         """生成查询参数的哈希值"""
         params = {"query": query, **kwargs}
         param_str = json.dumps(params, sort_keys=True, ensure_ascii=False)
         return hashlib.md5(param_str.encode()).hexdigest()
     
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """获取缓存统计信息"""
         total_hits = (
             self._stats["l1_hits"] +
@@ -452,12 +453,12 @@ class CacheService:
             "total_requests": total_requests,
         }
 
-    async def clear_l1(self):
+    async def clear_l1(self) -> None:
         """清空 L1 缓存"""
         self._l1_cache.clear()
         logger.info("L1 缓存已清空")
 
-    async def clear_l2(self):
+    async def clear_l2(self) -> None:
         """清空 L2 缓存"""
         if self.enable_l2 and self._client:
             try:
@@ -468,10 +469,10 @@ class CacheService:
 
     async def warm_up(
         self,
-        data: List[Dict[str, Any]],
+        data: list[dict[str, Any]],
         prefix: str,
         id_field: str = "id"
-    ):
+    ) -> None:
         """
         缓存预热
         :param data: 预热数据列表
@@ -488,7 +489,7 @@ class CacheService:
 
         logger.info(f"✅ 缓存预热完成")
 
-    async def close(self):
+    async def close(self) -> None:
         """关闭Redis连接"""
         if self._client:
             await self._client.close()
@@ -514,8 +515,8 @@ def cached(
     module: str,
     resource: str,
     ttl: int = 3600,
-    key_builder: Optional[Callable[..., str]] = None,
-):
+    key_builder: Callable[P, str] | None = None,
+) -> Callable[[Callable[P, Awaitable[T]]], Callable[P, Awaitable[T]]]:
     """
     缓存装饰器
     
@@ -536,9 +537,9 @@ def cached(
         async def list_cases(user_id: str, page: int = 1) -> dict:
             ...
     """
-    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+    def decorator(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
         @functools.wraps(func)
-        async def wrapper(*args, **kwargs) -> T:
+        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             cache = get_cache_service()
             
             # 生成缓存Key
@@ -564,7 +565,7 @@ def cached(
             cached_value = await cache.get(cache_key)
             if cached_value is not None:
                 logger.debug(f"缓存命中: {cache_key}")
-                return cached_value
+                return cast(T, cached_value)
             
             # 执行原函数
             result = await func(*args, **kwargs)
@@ -580,7 +581,7 @@ def cached(
     return decorator
 
 
-def invalidate_cache(module: str, resource: str, key_suffix: str = "*"):
+def invalidate_cache(module: str, resource: str, key_suffix: str = "*") -> Callable[[Callable[P, Awaitable[T]]], Callable[P, Awaitable[T]]]:
     """
     缓存失效装饰器
     
@@ -596,9 +597,9 @@ def invalidate_cache(module: str, resource: str, key_suffix: str = "*"):
         async def update_user(user_id: str, data: dict) -> dict:
             ...
     """
-    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+    def decorator(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
         @functools.wraps(func)
-        async def wrapper(*args, **kwargs) -> T:
+        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             # 先执行原函数
             result = await func(*args, **kwargs)
             

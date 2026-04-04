@@ -2,7 +2,8 @@ import { test, expect } from '@playwright/test'
 import { loginAsAdmin } from './helpers/auth'
 
 test.describe('导航结构', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'mobile navigation has dedicated coverage in mobile.spec.ts')
     await loginAsAdmin(page)
   })
 

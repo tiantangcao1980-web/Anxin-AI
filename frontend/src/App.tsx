@@ -83,7 +83,10 @@ const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'))
 const AdminUsers = lazy(() => import('@/pages/admin/AdminUsers'))
 const AdminRoles = lazy(() => import('@/pages/admin/AdminRoles'))
 const AdminAudit = lazy(() => import('@/pages/admin/AdminAudit'))
-const AdminConfig = lazy(() => import('@/pages/admin/AdminConfig'))
+const AdminBasic = lazy(() => import('@/pages/admin/AdminBasic'))
+const AdminAIConfig = lazy(() => import('@/pages/admin/AdminAIConfig'))
+const AdminIntegrations = lazy(() => import('@/pages/admin/AdminIntegrations'))
+const AdminSecurity = lazy(() => import('@/pages/admin/AdminSecurity'))
 const AdminHealth = lazy(() => import('@/pages/admin/AdminHealth'))
 const AdminOrgs = lazy(() => import('@/pages/admin/AdminOrgs'))
 const AdminFeatureFlags = lazy(() => import('@/pages/admin/AdminFeatureFlags'))
@@ -122,7 +125,11 @@ function App() {
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="roles" element={<AdminRoles />} />
                 <Route path="audit" element={<AdminAudit />} />
-                <Route path="config" element={<AdminConfig />} />
+                <Route path="basic" element={<AdminBasic />} />
+                <Route path="ai-config" element={<AdminAIConfig />} />
+                <Route path="integrations" element={<AdminIntegrations />} />
+                <Route path="security" element={<AdminSecurity />} />
+                <Route path="config" element={<Navigate to="/admin/basic" replace />} />
                 <Route path="health" element={<AdminHealth />} />
                 <Route path="harness" element={<AdminHarness />} />
                 <Route path="orgs" element={<AdminOrgs />} />

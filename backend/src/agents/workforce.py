@@ -16,7 +16,7 @@
 import asyncio
 import time
 import uuid
-from typing import Any, Callable, Coroutine, Dict, List, Optional
+from typing import Any, AsyncIterator, Callable, Coroutine, cast
 from loguru import logger
 
 from src.agents.base import AgentResponse
@@ -47,7 +47,9 @@ from src.agents.template_librarian import TemplateLirarianAgent
 
 
 # 回调类型别名
-WsCallback = Optional[Callable[..., Coroutine]]
+EventPayload = dict[str, Any]
+TaskInfo = dict[str, Any]
+WsCallback = Callable[[str, EventPayload], Coroutine[Any, Any, None]]
 
 # ========== 配置常量（从全局配置读取，支持动态调整） ==========
 from src.core.config import settings
@@ -75,8 +77,11 @@ class LegalWorkforce:
     - 单任务超时控制 + 全局超时保护
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         self._dag_semaphore = asyncio.Semaphore(MAX_PARALLEL_AGENTS)
+        self.coordinator: CoordinatorAgent
+        self.requirement_analyst: RequirementAnalystAgent
+        self.agents: dict[str, Any] = {}
         logger.info(
             f"智能体并行配置: MAX_PARALLEL={MAX_PARALLEL_AGENTS}, "
             f"LLM_CONCURRENCY={settings.AGENT_LLM_CONCURRENCY}, "
@@ -85,7 +90,7 @@ class LegalWorkforce:
         )
         self._init_agents()
         
-    def _init_agents(self):
+    def _init_agents(self) -> None:
         """初始化所有智能体"""
         logger.info("初始化法务智能体团队...")
         
@@ -129,12 +134,12 @@ class LegalWorkforce:
     async def process_task(
         self,
         task_description: str,
-        task_type: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None,
-        session_id: Optional[str] = None,
-        progress_callback: WsCallback = None,
-        ws_callback: WsCallback = None,
-    ) -> Dict[str, Any]:
+        task_type: str | None = None,
+        context: dict[str, Any] | None = None,
+        session_id: str | None = None,
+        progress_callback: WsCallback | None = None,
+        ws_callback: WsCallback | None = None,
+    ) -> dict[str, Any]:
         """
         处理法务任务 (v4: DAG执行流 + 条件共识 + 并发控制 + 流式Agent结果推送)
         
@@ -160,7 +165,7 @@ class LegalWorkforce:
         context["original_message"] = task_description
 
         # 辅助：发送进度事件（统一回调）
-        async def _notify(event_type: str, data: dict):
+        async def _notify(event_type: str, data: EventPayload) -> None:
             if _cb:
                 try:
                     await _cb(event_type, data)
@@ -174,7 +179,7 @@ class LegalWorkforce:
             "message": "正在分析任务意图...",
         })
 
-        async def _fetch_memory():
+        async def _fetch_memory() -> list[Any]:
             try:
                 cases = await episodic_memory.retrieve_similar_cases(task_description)
                 if cases:
@@ -184,7 +189,7 @@ class LegalWorkforce:
                 logger.warning(f"情景记忆检索失败: {e}")
                 return []
 
-        async def _match_skills():
+        async def _match_skills() -> list[Any]:
             try:
                 from src.services.skill_service import skill_service
                 skills = skill_service.match_skills(task_description)
@@ -195,12 +200,12 @@ class LegalWorkforce:
                 logger.warning(f"技能匹配失败: {e}")
                 return []
 
-        async def _analyze_task(ctx):
-            return await self.coordinator.analyze_task({
+        async def _analyze_task(ctx: dict[str, Any]) -> dict[str, Any]:
+            return cast(dict[str, Any], await self.coordinator.analyze_task({
                 "description": task_description,
                 "type": task_type,
                 "context": ctx,
-            })
+            }))
 
         # 并行执行记忆检索和技能匹配（不阻塞意图分析）
         memory_task = asyncio.create_task(_fetch_memory())
@@ -225,7 +230,7 @@ class LegalWorkforce:
             logger.warning("DAG 规划返回空计划，启用回退机制生成默认计划")
             
             # 根据任务描述中的关键词推断合理的默认 Agent 组合
-            default_agents = []
+            default_agents: list[TaskInfo] = []
             desc_lower = task_description.lower()
             
             if any(kw in desc_lower for kw in ['合同', '协议', '起草', '草拟', '文书', '方案']):
@@ -338,12 +343,12 @@ class LegalWorkforce:
         message_pool = MessagePool(task_id=task_id, session_id=session_id or "")
         memory_integration = MemoryIntegration(session_id=session_id or "", task_id=task_id)
         lifecycle_manager = AgentLifecycleManager(agents=self.agents, ws_callback=_cb)
-        agent_contexts: Dict[str, AgentContext] = {}
+        agent_contexts: dict[str, AgentContext] = {}
         
         # 3. 按照 DAG 顺序执行任务（带并发控制、生命周期管理和全局超时）
-        executed_tasks = {}  # task_id -> result
+        executed_tasks: dict[str, AgentResponse] = {}  # task_id -> result
         pending_task_ids = [t["id"] for t in plan]
-        plan_index = {t["id"]: t for t in plan}
+        plan_index: dict[str, TaskInfo] = {t["id"]: t for t in plan}
         completed_count = 0
         dag_round = 0
         global_start = time.time()
@@ -380,7 +385,7 @@ class LegalWorkforce:
                 break
                 
             # 并行执行当前层级的任务（带生命周期管理）
-            async def run_task_with_lifecycle(t_info):
+            async def run_task_with_lifecycle(t_info: TaskInfo) -> AgentResponse:
                 """带生命周期管理的任务执行"""
                 a_name = t_info.get("agent", "unknown")
                 display_name = agent_display_names.get(a_name, a_name)
@@ -532,7 +537,7 @@ class LegalWorkforce:
         await memory_integration.save_message_pool(message_pool)
         
         # 3. 条件触发共识机制
-        results_list = list(executed_tasks.values())
+        results_list: list[AgentResponse] = list(executed_tasks.values())
         consensus_res = await self._maybe_run_consensus(task_description, results_list)
 
         # 3.5 Harness: 多 Agent 一致性对齐（激活 agent_forum）
@@ -592,10 +597,10 @@ class LegalWorkforce:
     
     async def _execute_single_task(
         self,
-        t_info: Dict[str, Any],
-        context: Dict[str, Any],
-        executed_tasks: Dict[str, Any],
-        matched_skills: list,
+        t_info: TaskInfo,
+        context: dict[str, Any],
+        executed_tasks: dict[str, AgentResponse],
+        matched_skills: list[Any],
     ) -> AgentResponse:
         """
         执行单个 Agent 任务（带超时控制）
@@ -644,12 +649,12 @@ class LegalWorkforce:
 
             try:
                 result = await asyncio.wait_for(
-                    self.agents[agent_name].process({
+                    cast(AgentResponse, await self.agents[agent_name].process({
                         "description": final_instruction,
                         "context": context,
                         "dependent_results": dep_results,
                         "llm_config": llm_config,
-                    }),
+                    })),
                     timeout=TASK_TIMEOUT_SECONDS
                 )
                 return result
@@ -676,8 +681,8 @@ class LegalWorkforce:
     async def _maybe_run_consensus(
         self,
         task_description: str,
-        results_list: List[AgentResponse],
-    ) -> Optional[AgentResponse]:
+        results_list: list[AgentResponse],
+    ) -> AgentResponse | None:
         """
         条件触发共识机制
         
@@ -697,10 +702,10 @@ class LegalWorkforce:
         logger.info(f"{len(valid_results)} 个Agent结果，触发共识机制...")
         try:
             consensus_res = await asyncio.wait_for(
-                self.agents["consensus_manager"].process({
+                cast(AgentResponse, await self.agents["consensus_manager"].process({
                     "description": task_description,
                     "agent_results": valid_results
-                }),
+                })),
                 timeout=TASK_TIMEOUT_SECONDS
             )
             return consensus_res
@@ -714,9 +719,9 @@ class LegalWorkforce:
     async def process_task_streaming(
         self,
         task_description: str,
-        context: Optional[Dict[str, Any]] = None,
-        session_id: Optional[str] = None,
-    ):
+        context: dict[str, Any] | None = None,
+        session_id: str | None = None,
+    ) -> AsyncIterator[dict[str, Any]]:
         """
         流式版 process_task — DAG 第一层主 Agent 真流式输出，后续层级增量追加。
 
@@ -748,7 +753,7 @@ class LegalWorkforce:
         except Exception:
             pass
 
-        matched_skills = []
+        matched_skills: list[Any] = []
         try:
             from src.services.skill_service import skill_service
             matched_skills = skill_service.match_skills(task_description)
@@ -791,13 +796,13 @@ class LegalWorkforce:
         memory_integration = MemoryIntegration(session_id=session_id or "", task_id=task_id)
         lifecycle_manager = AgentLifecycleManager(agents=self.agents)
 
-        executed_tasks: Dict[str, Any] = {}
+        executed_tasks: dict[str, AgentResponse] = {}
         pending_task_ids = [t["id"] for t in plan]
         plan_index = {t["id"]: t for t in plan}
         is_first_layer = True
         dag_round = 0
         global_start = time.time()
-        all_results: List[AgentResponse] = []
+        all_results: list[AgentResponse] = []
 
         # 3. DAG 循环
         while pending_task_ids:
@@ -839,16 +844,16 @@ class LegalWorkforce:
                             primary_instruction += f"\n\n【参考技能：{skill.name}】\n{skill.content[:2000]}\n"
 
                 # 并行启动其余 Agent
-                async def _run_other(t_info):
+                async def _run_other(t_info: TaskInfo) -> tuple[str, str, AgentResponse]:
                     a_name = t_info.get("agent", "unknown")
                     t_info["instruction"] = t_info.get("instruction", "").strip() or task_description
                     deps = t_info.get("depends_on", [])
                     t_info["dependent_results"] = {d: executed_tasks[d] for d in deps if d in executed_tasks}
                     ctx = AgentContext(agent_id=str(uuid.uuid4())[:8], agent_name=a_name, task_id=t_info["id"])
-                    result = await lifecycle_manager.execute_with_lifecycle(
+                    result = cast(AgentResponse, await lifecycle_manager.execute_with_lifecycle(
                         agent_name=a_name, task_info=t_info,
                         agent_context=ctx, message_pool=message_pool, context=context,
-                    )
+                    ))
                     return t_info["id"], a_name, result
 
                 other_futures = asyncio.gather(
@@ -928,6 +933,8 @@ class LegalWorkforce:
                         if isinstance(item, Exception):
                             logger.error(f"[streaming] 其余 Agent 异常: {item}")
                             continue
+                        if not isinstance(item, tuple):
+                            continue
                         t_id, a_name, result = item
                         executed_tasks[t_id] = result
                         if t_id in pending_task_ids:
@@ -947,16 +954,16 @@ class LegalWorkforce:
 
             else:
                 # === 后续层级：正常并行执行 ===
-                async def _run_later(t_info):
+                async def _run_later(t_info: TaskInfo) -> tuple[str, str, AgentResponse]:
                     a_name = t_info.get("agent", "unknown")
                     t_info["instruction"] = t_info.get("instruction", "").strip() or task_description
                     deps = t_info.get("depends_on", [])
                     t_info["dependent_results"] = {d: executed_tasks[d] for d in deps if d in executed_tasks}
                     ctx = AgentContext(agent_id=str(uuid.uuid4())[:8], agent_name=a_name, task_id=t_info["id"])
-                    result = await lifecycle_manager.execute_with_lifecycle(
+                    result = cast(AgentResponse, await lifecycle_manager.execute_with_lifecycle(
                         agent_name=a_name, task_info=t_info,
                         agent_context=ctx, message_pool=message_pool, context=context,
-                    )
+                    ))
                     return t_info["id"], a_name, result
 
                 later_results = await asyncio.gather(
@@ -965,6 +972,8 @@ class LegalWorkforce:
                 )
                 for item in later_results:
                     if isinstance(item, Exception):
+                        continue
+                    if not isinstance(item, tuple):
                         continue
                     t_id, a_name, result = item
                     executed_tasks[t_id] = result
@@ -1012,8 +1021,8 @@ class LegalWorkforce:
     async def chat(
         self,
         message: str,
-        agent_name: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        agent_name: str | None = None,
+        context: dict[str, Any] | None = None
     ) -> str:
         """
         对话接口
@@ -1030,20 +1039,20 @@ class LegalWorkforce:
         history = context.get("history") if context else None
         
         if agent_name and agent_name in self.agents:
-            return await self.agents[agent_name].chat(message, llm_config=llm_config, history=history)
+            return cast(str, await self.agents[agent_name].chat(message, llm_config=llm_config, history=history))
         else:
-            return await self.agents["legal_advisor"].chat(message, llm_config=llm_config, history=history)
+            return cast(str, await self.agents["legal_advisor"].chat(message, llm_config=llm_config, history=history))
     
-    def get_agents_info(self) -> List[Dict[str, Any]]:
+    def get_agents_info(self) -> list[dict[str, Any]]:
         """获取所有智能体信息"""
         return [
-            agent.get_info()
+            cast(dict[str, Any], agent.get_info())
             for agent in self.agents.values()
         ]
 
 
 # 全局单例
-_workforce: Optional[LegalWorkforce] = None
+_workforce: LegalWorkforce | None = None
 
 
 def get_workforce() -> LegalWorkforce:

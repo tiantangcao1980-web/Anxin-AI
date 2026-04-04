@@ -10,8 +10,8 @@
 import asyncio
 import time
 import uuid
-from typing import Any, Callable, Coroutine, Dict, List, Optional
 from dataclasses import dataclass, field
+from typing import Any, cast
 from loguru import logger
 
 from src.core.config import settings
@@ -26,15 +26,15 @@ class AgentContext:
     agent_id: str
     agent_name: str
     task_id: str
-    local_state: Dict[str, Any] = field(default_factory=dict)
-    reasoning_chain: List[str] = field(default_factory=list)
-    input_context: Dict[str, Any] = field(default_factory=dict)
-    output_artifacts: List[Dict] = field(default_factory=list)
+    local_state: dict[str, Any] = field(default_factory=dict)
+    reasoning_chain: list[str] = field(default_factory=list)
+    input_context: dict[str, Any] = field(default_factory=dict)
+    output_artifacts: list[dict[str, Any]] = field(default_factory=list)
     status: str = "idle"  # idle / working / completed / failed / retrying
     retry_count: int = 0
     created_at: float = field(default_factory=time.time)
     
-    def set_local(self, key: str, value: Any):
+    def set_local(self, key: str, value: Any) -> None:
         """设置私有状态"""
         self.local_state[key] = value
     
@@ -42,11 +42,11 @@ class AgentContext:
         """获取私有状态"""
         return self.local_state.get(key, default)
     
-    def add_reasoning(self, step: str):
+    def add_reasoning(self, step: str) -> None:
         """添加推理链步骤"""
         self.reasoning_chain.append(f"[{time.strftime('%H:%M:%S')}] {step}")
     
-    def to_snapshot(self) -> dict:
+    def to_snapshot(self) -> dict[str, Any]:
         """导出快照（用于持久化或接管传递）"""
         return {
             "agent_id": self.agent_id,
@@ -62,7 +62,7 @@ class AgentContext:
         }
     
     @classmethod
-    def from_snapshot(cls, snapshot: dict) -> 'AgentContext':
+    def from_snapshot(cls, snapshot: dict[str, Any]) -> 'AgentContext':
         """从快照恢复（用于 Agent 重启/接管时继承前任的推理链）"""
         ctx = cls(
             agent_id=snapshot.get("agent_id", str(uuid.uuid4())[:8]),
@@ -100,14 +100,14 @@ class MessagePool:
     基于内存实现，可通过 MemoryIntegration 桥接到 Redis。
     """
     
-    def __init__(self, task_id: str, session_id: str = ""):
+    def __init__(self, task_id: str, session_id: str = "") -> None:
         self.task_id = task_id
         self.session_id = session_id
-        self.messages: List[PoolMessage] = []
+        self.messages: list[PoolMessage] = []
         self._lock = asyncio.Lock()
-        self._subscribers: Dict[str, List[asyncio.Event]] = {}
+        self._subscribers: dict[str, list[asyncio.Event]] = {}
     
-    async def publish(self, sender: str, topic: str, content: Any, priority: str = "normal"):
+    async def publish(self, sender: str, topic: str, content: Any, priority: str = "normal") -> None:
         """
         Agent 发布消息到公共池（直接通信 — 立即写入，立即可见）
         
@@ -136,7 +136,7 @@ class MessagePool:
         
         logger.debug(f"[MessagePool] {sender} -> {topic}: {str(content)[:80]}")
     
-    async def wait_for(self, topic: str, sender: str = None, timeout: float = 60) -> Optional[PoolMessage]:
+    async def wait_for(self, topic: str, sender: str | None = None, timeout: float = 60) -> PoolMessage | None:
         """同步通信 — 阻塞等待公共池中出现特定 topic 的消息（有超时保护）"""
         # 先检查已有消息
         existing = await self.get_messages(topic=topic, sender=sender)
@@ -160,7 +160,7 @@ class MessagePool:
             if event in self._subscribers.get(topic, []):
                 self._subscribers[topic].remove(event)
     
-    async def get_messages(self, topic: str = None, sender: str = None, since: float = None) -> List[PoolMessage]:
+    async def get_messages(self, topic: str | None = None, sender: str | None = None, since: float | None = None) -> list[PoolMessage]:
         """查询消息"""
         async with self._lock:
             result = list(self.messages)
@@ -174,12 +174,12 @@ class MessagePool:
         
         return result
     
-    async def get_latest_by_sender(self, sender: str) -> Optional[PoolMessage]:
+    async def get_latest_by_sender(self, sender: str) -> PoolMessage | None:
         """获取某 Agent 最新的消息"""
         msgs = await self.get_messages(sender=sender)
         return msgs[-1] if msgs else None
     
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """序列化为 dict（用于持久化）"""
         return {
             "task_id": self.task_id,
@@ -195,7 +195,7 @@ class MessagePool:
         }
     
     @classmethod
-    def from_dict(cls, data: dict) -> 'MessagePool':
+    def from_dict(cls, data: dict[str, Any]) -> 'MessagePool':
         """从 dict 恢复"""
         pool = cls(task_id=data.get("task_id", ""), session_id=data.get("session_id", ""))
         for m in data.get("messages", []):
@@ -209,7 +209,7 @@ MAX_TASK_RETRIES = settings.AGENT_MAX_RETRIES            # 单任务最大重试
 TASK_TIMEOUT_SECONDS = settings.AGENT_TASK_TIMEOUT       # 单任务超时（默认 120s）
 
 # Agent 能力映射表（某 Agent 失败后，可以被哪些替代）
-AGENT_REPLACEMENT_MAP: Dict[str, List[str]] = {
+AGENT_REPLACEMENT_MAP: dict[str, list[str]] = {
     "contract_reviewer": ["legal_advisor", "compliance_officer"],
     "risk_assessor": ["legal_advisor", "compliance_officer"],
     "document_drafter": ["legal_advisor"],
@@ -236,12 +236,12 @@ class AgentLifecycleManager:
     3. 降级输出（所有恢复策略失败后，生成明确的降级响应）
     """
     
-    def __init__(self, agents: dict, ws_callback=None):
+    def __init__(self, agents: dict[str, Any], ws_callback: Any = None) -> None:
         self.agents = agents
         self._ws_callback = ws_callback
-        self.agent_health: Dict[str, Dict[str, Any]] = {}
+        self.agent_health: dict[str, dict[str, Any]] = {}
     
-    async def _notify(self, event_type: str, data: dict):
+    async def _notify(self, event_type: str, data: dict[str, Any]) -> None:
         """发送 WebSocket 事件"""
         if self._ws_callback:
             try:
@@ -252,11 +252,11 @@ class AgentLifecycleManager:
     async def execute_with_lifecycle(
         self,
         agent_name: str,
-        task_info: dict,
+        task_info: dict[str, Any],
         agent_context: AgentContext,
         message_pool: MessagePool,
-        context: dict,
-    ):
+        context: dict[str, Any],
+    ) -> Any:
         """
         带生命周期管理的 Agent 执行
         
@@ -410,7 +410,7 @@ class AgentLifecycleManager:
         
         return self._create_degraded_response(agent_name, "超过最大重试次数")
     
-    def _find_replacement(self, failed_agent: str) -> Optional[str]:
+    def _find_replacement(self, failed_agent: str) -> str | None:
         """查找能接管的替代 Agent"""
         candidates = AGENT_REPLACEMENT_MAP.get(failed_agent, [])
         for c in candidates:
@@ -426,9 +426,9 @@ class AgentLifecycleManager:
     
     def _get_timeout(self, agent_name: str, attempt: int) -> float:
         """动态超时：每次重试增加 50%"""
-        return TASK_TIMEOUT_SECONDS * (1.5 ** attempt)
+        return cast(float, TASK_TIMEOUT_SECONDS * (1.5 ** attempt))
     
-    def _create_degraded_response(self, agent_name: str, error_msg: str):
+    def _create_degraded_response(self, agent_name: str, error_msg: str) -> Any:
         """创建降级响应"""
         from src.agents.base import AgentResponse
         return AgentResponse(
@@ -437,7 +437,7 @@ class AgentLifecycleManager:
             metadata={"error": True, "degraded": True},
         )
     
-    def _create_timeout_response(self, agent_name: str, attempt: int):
+    def _create_timeout_response(self, agent_name: str, attempt: int) -> Any:
         """创建超时响应"""
         from src.agents.base import AgentResponse
         return AgentResponse(
@@ -458,12 +458,12 @@ class MemoryIntegration:
     - L3 语义记忆 (Qdrant+PG): 法律知识增强
     """
     
-    def __init__(self, session_id: str = "", task_id: str = ""):
+    def __init__(self, session_id: str = "", task_id: str = "") -> None:
         self.session_id = session_id
         self.task_id = task_id
     
     # === L1 工作记忆：Agent上下文持久化 ===
-    async def save_agent_context(self, agent_context: AgentContext):
+    async def save_agent_context(self, agent_context: AgentContext) -> None:
         """持久化 AgentContext 到 WorkingMemory.agent_states"""
         try:
             from src.core.memory.working_memory import WorkingMemoryService
@@ -478,7 +478,7 @@ class MemoryIntegration:
         except Exception as e:
             logger.warning(f"保存 AgentContext 失败: {e}")
     
-    async def restore_agent_context(self, agent_name: str) -> Optional[AgentContext]:
+    async def restore_agent_context(self, agent_name: str) -> AgentContext | None:
         """从 WorkingMemory 恢复 AgentContext"""
         try:
             from src.core.memory.working_memory import WorkingMemoryService
@@ -492,7 +492,7 @@ class MemoryIntegration:
             logger.warning(f"恢复 AgentContext 失败: {e}")
         return None
     
-    async def save_message_pool(self, pool: MessagePool):
+    async def save_message_pool(self, pool: MessagePool) -> None:
         """消息池状态同步到 shared_variables"""
         try:
             from src.core.memory.working_memory import WorkingMemoryService
@@ -508,7 +508,7 @@ class MemoryIntegration:
             logger.warning(f"保存 MessagePool 失败: {e}")
     
     # === L2 情景记忆：Agent 执行中按需查询历史经验 ===
-    async def query_similar_experience(self, agent_name: str, sub_task: str) -> List[dict]:
+    async def query_similar_experience(self, agent_name: str, sub_task: str) -> list[dict[str, Any]]:
         """查询与当前子任务相似的历史经验"""
         try:
             from src.services.episodic_memory_service import episodic_memory
@@ -522,9 +522,9 @@ class MemoryIntegration:
             return []
     
     # === L3 跨层检索：Agent 执行中增强知识 ===
-    async def enhance_agent_knowledge(self, agent_name: str, query: str) -> dict:
+    async def enhance_agent_knowledge(self, agent_name: str, query: str) -> dict[str, Any]:
         """通过三层记忆增强 Agent 的知识基础"""
-        result = {
+        result: dict[str, Any] = {
             "similar_cases": [],
             "legal_knowledge": [],
             "session_context": {},
@@ -562,10 +562,10 @@ class MemoryIntegration:
     async def commit_task_memory(
         self,
         task_desc: str,
-        plan: list,
-        result: dict,
-        agent_contexts: Dict[str, AgentContext],
-    ):
+        plan: list[dict[str, Any]],
+        result: dict[str, Any],
+        agent_contexts: dict[str, AgentContext],
+    ) -> str | None:
         """将完整执行轨迹写入情景记忆"""
         try:
             import json as _json
@@ -584,9 +584,9 @@ class MemoryIntegration:
             
             # 清理 plan：执行过程中 plan 字典会被注入 dependent_results（包含不可序列化的
             # AgentResponse 对象），这里做深拷贝并过滤掉不可序列化的字段
-            safe_plan = []
+            safe_plan: list[dict[str, Any]] = []
             for step in plan:
-                safe_step = {}
+                safe_step: dict[str, Any] = {}
                 for k, v in step.items():
                     if k == "dependent_results":
                         # 跳过包含 AgentResponse 对象的依赖结果
@@ -603,7 +603,7 @@ class MemoryIntegration:
                 plan=safe_plan,
                 final_result=enhanced_result,
             )
-            return memory_id
+            return cast(str | None, memory_id)
         except Exception as e:
             logger.warning(f"情景记忆写入失败: {e}")
             return None

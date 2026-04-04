@@ -3,12 +3,12 @@ OA集成服务 (OA Integration Service)
 负责与飞书、钉钉、企业微信等第三方办公平台进行对接，实现消息推送、审批流同步、组织架构同步等功能。
 """
 
-from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional
-from enum import Enum
-from loguru import logger
-import asyncio
 import json
+from abc import ABC, abstractmethod
+from enum import Enum
+
+from loguru import logger
+
 
 class OAProviderType(Enum):
     FEISHU = "feishu"
@@ -18,24 +18,24 @@ class OAProviderType(Enum):
 
 class BaseOAProvider(ABC):
     """OA提供商基类"""
-    
+
     @abstractmethod
-    async def send_notification(self, user_id: str, title: str, content: str, url: Optional[str] = None) -> bool:
+    async def send_notification(self, user_id: str, title: str, content: str, url: str | None = None) -> bool:
         """发送通知消息"""
         pass
-    
+
     @abstractmethod
-    async def create_approval_instance(self, template_id: str, initiator_id: str, form_data: Dict[str, Any]) -> str:
+    async def create_approval_instance(self, template_id: str, initiator_id: str, form_data: dict[str, object]) -> str:
         """创建审批实例，返回实例ID"""
         pass
-    
+
     @abstractmethod
     async def get_approval_status(self, instance_id: str) -> str:
         """获取审批状态"""
         pass
-    
+
     @abstractmethod
-    async def sync_department_users(self, dept_id: str) -> List[Dict[str, Any]]:
+    async def sync_department_users(self, dept_id: str) -> list[dict[str, object]]:
         """同步部门用户"""
         pass
 
@@ -53,7 +53,7 @@ class FeishuProvider(BaseOAProvider):
         self.app_id = os.getenv("FEISHU_APP_ID", "")
         self.app_secret = os.getenv("FEISHU_APP_SECRET", "")
         self.base_url = "https://open.feishu.cn/open-apis"
-        self._token_cache: Optional[Dict[str, Any]] = None
+        self._token_cache: dict[str, object] | None = None
 
     async def _get_token(self) -> str:
         """获取 tenant_access_token（带缓存）"""
@@ -76,7 +76,7 @@ class FeishuProvider(BaseOAProvider):
             self._token_cache = {"token": token, "expires_at": time.time() + data.get("expire", 7200) - 300}
             return token
 
-    async def send_notification(self, user_id: str, title: str, content: str, url: Optional[str] = None) -> bool:
+    async def send_notification(self, user_id: str, title: str, content: str, url: str | None = None) -> bool:
         token = await self._get_token()
         if token == "mock_token":
             logger.info(f"[Feishu/Mock] 发送消息给 {user_id}: {title}")
@@ -107,7 +107,7 @@ class FeishuProvider(BaseOAProvider):
                 logger.warning(f"[Feishu] 发送消息失败: {resp.text}")
             return ok
 
-    async def create_approval_instance(self, template_id: str, initiator_id: str, form_data: Dict[str, Any]) -> str:
+    async def create_approval_instance(self, template_id: str, initiator_id: str, form_data: dict[str, object]) -> str:
         token = await self._get_token()
         if token == "mock_token":
             instance_id = f"feishu_approval_{initiator_id}_{int(__import__('time').time())}"
@@ -127,7 +127,7 @@ class FeishuProvider(BaseOAProvider):
     async def get_approval_status(self, instance_id: str) -> str:
         return "PENDING"  # 实际应查询飞书 API
 
-    async def sync_department_users(self, dept_id: str) -> List[Dict[str, Any]]:
+    async def sync_department_users(self, dept_id: str) -> list[dict[str, object]]:
         token = await self._get_token()
         if token == "mock_token":
             return [{"id": "mock_u1", "name": "Feishu User 1"}]
@@ -158,7 +158,7 @@ class DingTalkProvider(BaseOAProvider):
         self.app_secret = os.getenv("DINGTALK_APP_SECRET", "")
         self.agent_id = os.getenv("DINGTALK_AGENT_ID", "")
         self.base_url = "https://oapi.dingtalk.com"
-        self._token_cache: Optional[Dict[str, Any]] = None
+        self._token_cache: dict[str, object] | None = None
 
     async def _get_token(self) -> str:
         import time
@@ -179,7 +179,7 @@ class DingTalkProvider(BaseOAProvider):
             self._token_cache = {"token": token, "expires_at": time.time() + data.get("expires_in", 7200) - 300}
             return token
 
-    async def send_notification(self, user_id: str, title: str, content: str, url: Optional[str] = None) -> bool:
+    async def send_notification(self, user_id: str, title: str, content: str, url: str | None = None) -> bool:
         token = await self._get_token()
         if token == "mock_token":
             logger.info(f"[DingTalk/Mock] 发送消息给 {user_id}: {title}")
@@ -194,7 +194,7 @@ class DingTalkProvider(BaseOAProvider):
             )
             return resp.json().get("errcode", -1) == 0
 
-    async def create_approval_instance(self, template_id: str, initiator_id: str, form_data: Dict[str, Any]) -> str:
+    async def create_approval_instance(self, template_id: str, initiator_id: str, form_data: dict[str, object]) -> str:
         token = await self._get_token()
         if token == "mock_token":
             instance_id = f"dingtalk_proc_{initiator_id}_{int(__import__('time').time())}"
@@ -207,12 +207,12 @@ class DingTalkProvider(BaseOAProvider):
                 f"{self.base_url}/topapi/processinstance/create?access_token={token}",
                 json={"process_code": template_id, "originator_user_id": initiator_id, "form_component_values": form_data},
             )
-            return resp.json().get("process_instance_id", f"dingtalk_err")
+            return resp.json().get("process_instance_id", "dingtalk_err")
 
     async def get_approval_status(self, instance_id: str) -> str:
         return "RUNNING"
 
-    async def sync_department_users(self, dept_id: str) -> List[Dict[str, Any]]:
+    async def sync_department_users(self, dept_id: str) -> list[dict[str, object]]:
         return [{"id": "mock_d1", "name": "模拟钉钉用户"}]
 
 
@@ -231,7 +231,7 @@ class WeComProvider(BaseOAProvider):
         self.corp_secret = os.getenv("WECOM_CORP_SECRET", "")
         self.agent_id = os.getenv("WECOM_AGENT_ID", "")
         self.base_url = "https://qyapi.weixin.qq.com/cgi-bin"
-        self._token_cache: Optional[Dict[str, Any]] = None
+        self._token_cache: dict[str, object] | None = None
 
     async def _get_token(self) -> str:
         import time
@@ -252,7 +252,7 @@ class WeComProvider(BaseOAProvider):
             self._token_cache = {"token": token, "expires_at": time.time() + data.get("expires_in", 7200) - 300}
             return token
 
-    async def send_notification(self, user_id: str, title: str, content: str, url: Optional[str] = None) -> bool:
+    async def send_notification(self, user_id: str, title: str, content: str, url: str | None = None) -> bool:
         token = await self._get_token()
         if token == "mock_token":
             logger.info(f"[WeCom/Mock] 发送消息给 {user_id}: {title}")
@@ -269,7 +269,7 @@ class WeComProvider(BaseOAProvider):
             resp = await client.post(f"{self.base_url}/message/send?access_token={token}", json=msg)
             return resp.json().get("errcode", -1) == 0
 
-    async def create_approval_instance(self, template_id: str, initiator_id: str, form_data: Dict[str, Any]) -> str:
+    async def create_approval_instance(self, template_id: str, initiator_id: str, form_data: dict[str, object]) -> str:
         token = await self._get_token()
         if token == "mock_token":
             instance_id = f"wecom_sp_{initiator_id}_{int(__import__('time').time())}"
@@ -282,18 +282,18 @@ class WeComProvider(BaseOAProvider):
                 f"{self.base_url}/oa/applyevent?access_token={token}",
                 json={"creator_userid": initiator_id, "template_id": template_id, "apply_data": {"contents": form_data}},
             )
-            return resp.json().get("sp_no", f"wecom_err")
+            return resp.json().get("sp_no", "wecom_err")
 
     async def get_approval_status(self, instance_id: str) -> str:
         return "1"  # 1=审批中
 
-    async def sync_department_users(self, dept_id: str) -> List[Dict[str, Any]]:
+    async def sync_department_users(self, dept_id: str) -> list[dict[str, object]]:
         return [{"id": "mock_w1", "name": "模拟企微用户"}]
 
 class OAIntegrationService:
-    
+
     def __init__(self):
-        self.providers: Dict[str, BaseOAProvider] = {
+        self.providers: dict[str, BaseOAProvider] = {
             OAProviderType.FEISHU.value: FeishuProvider(),
             OAProviderType.DINGTALK.value: DingTalkProvider(),
             OAProviderType.WECOM.value: WeComProvider()
@@ -302,21 +302,21 @@ class OAIntegrationService:
         self.default_provider_name = OAProviderType.FEISHU.value
         logger.info("OA集成服务初始化完成")
 
-    def get_provider(self, provider_name: Optional[str] = None) -> BaseOAProvider:
+    def get_provider(self, provider_name: str | None = None) -> BaseOAProvider:
         name = provider_name or self.default_provider_name
         return self.providers.get(name, self.providers[OAProviderType.FEISHU.value])
 
-    async def send_notification(self, user_id: str, title: str, content: str, provider: Optional[str] = None) -> bool:
+    async def send_notification(self, user_id: str, title: str, content: str, provider: str | None = None) -> bool:
         """统一发送通知接口"""
         return await self.get_provider(provider).send_notification(user_id, title, content)
 
-    async def initiate_approval(self, title: str, details: Dict[str, Any], initiator_id: str, provider: Optional[str] = None) -> str:
+    async def initiate_approval(self, title: str, details: dict[str, object], initiator_id: str, provider: str | None = None) -> str:
         """统一发起审批接口"""
         # 实际场景中这里需要根据业务类型映射到OA的模板ID
         template_id = "generic_approval_template"
         return await self.get_provider(provider).create_approval_instance(template_id, initiator_id, details)
 
-    async def sync_org_structure(self, provider: Optional[str] = None) -> Dict[str, Any]:
+    async def sync_org_structure(self, provider: str | None = None) -> dict[str, object]:
         """同步组织架构"""
         # 模拟同步根部门
         users = await self.get_provider(provider).sync_department_users("root")

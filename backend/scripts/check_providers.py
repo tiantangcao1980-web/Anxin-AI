@@ -1,5 +1,6 @@
-import requests
 import json
+
+import requests  # type: ignore[import-untyped]
 
 try:
     response = requests.get("http://localhost:8001/api/v1/llm/providers")

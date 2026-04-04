@@ -13,7 +13,7 @@ A2UI 意图处理器
 
 import re
 import uuid
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Any, cast
 from loguru import logger
 
 from src.services.due_diligence_service import get_company_info
@@ -27,8 +27,13 @@ from src.services.a2ui_protocol import (
 
 # ========== 意图检测 ==========
 
+JSONDict = dict[str, Any]
+JSONList = list[JSONDict]
+ContextDict = dict[str, Any]
+RiskPattern = dict[str, Any]
+
 # 意图关键词映射
-INTENT_PATTERNS: List[Tuple[str, List[str]]] = [
+INTENT_PATTERNS: list[tuple[str, list[str]]] = [
     ("find_lawyer", [
         r"找.{0,10}律师", r"推荐.{0,10}律师", r"请.{0,4}律师", r"律师.{0,4}推荐",
         r"帮我找.{0,10}律师", r"需要.{0,10}律师", r"法律咨询", r"咨询律师",
@@ -59,7 +64,7 @@ INTENT_PATTERNS: List[Tuple[str, List[str]]] = [
 ]
 
 
-def detect_intent(message: str) -> Optional[str]:
+def detect_intent(message: str) -> str | None:
     """从用户消息中检测 A2UI 意图"""
     message_clean = message.strip().lower()
     
@@ -77,8 +82,8 @@ def detect_intent(message: str) -> Optional[str]:
 async def handle_a2ui_intent(
     intent: str,
     user_message: str,
-    context: Dict[str, Any] = None,
-) -> Optional[dict]:
+    context: ContextDict | None = None,
+) -> JSONDict | None:
     """
     根据意图生成 A2UI WebSocket 消息。
     
@@ -110,10 +115,10 @@ async def handle_a2ui_intent(
 async def handle_a2ui_event(
     action_id: str,
     component_id: str,
-    payload: Dict[str, Any] = None,
-    form_data: Dict[str, Any] = None,
-    context: Dict[str, Any] = None,
-) -> Optional[dict]:
+    payload: ContextDict | None = None,
+    form_data: ContextDict | None = None,
+    context: ContextDict | None = None,
+) -> JSONDict | None:
     """
     处理前端 A2UI 事件回调，生成后续响应。
     
@@ -197,7 +202,7 @@ async def handle_a2ui_event(
 
 # 示例律师数据（开发环境使用，生产环境应从 lawyer_profiles 表查询）
 # TODO: v1.1 替换为 LawyerProfile 数据库查询
-MOCK_LAWYERS = [
+MOCK_LAWYERS: JSONList = [
     {
         "id": "lawyer-001", "name": "张明", "firm": "金杜律师事务所",
         "title": "合伙人", "specialties": ["合同法", "公司法", "知识产权"],
@@ -246,7 +251,7 @@ MOCK_LAWYERS = [
 ]
 
 
-async def _handle_find_lawyer(user_message: str, context: dict) -> dict:
+async def _handle_find_lawyer(user_message: str, context: ContextDict) -> JSONDict:
     """处理「找律师」意图 → 推荐律师列表"""
     
     # 根据用户消息匹配合适的律师（简单匹配逻辑，未来可接入真实搜索）
@@ -274,7 +279,7 @@ async def _handle_find_lawyer(user_message: str, context: dict) -> dict:
         matched_lawyers = MOCK_LAWYERS[:4]
     
     # 构建律师卡片
-    cards = []
+    cards: list[JSONDict] = []
     for l in matched_lawyers:
         cards.append(lawyer_card(
             lawyer_id=l["id"], name=l["name"], firm=l["firm"],
@@ -313,14 +318,14 @@ async def _handle_find_lawyer(user_message: str, context: dict) -> dict:
         align="stretch",
     ))
     
-    return a2ui_message(
+    return cast(JSONDict, a2ui_message(
         components,
         text="",
         agent="律师推荐 Agent",
-    )
+    ))
 
 
-async def _handle_contact_lawyer(payload: dict, context: dict) -> dict:
+async def _handle_contact_lawyer(payload: ContextDict, context: ContextDict) -> JSONDict:
     """处理「联系律师」操作 → 显示服务选择"""
     lawyer_id = payload.get("lawyerId", "")
     
@@ -367,10 +372,10 @@ async def _handle_contact_lawyer(payload: dict, context: dict) -> dict:
         ),
     ]
     
-    return a2ui_message(components, agent="服务选择 Agent")
+    return cast(JSONDict, a2ui_message(components, agent="服务选择 Agent"))
 
 
-async def _handle_select_service(payload: dict, context: dict) -> dict:
+async def _handle_select_service(payload: ContextDict, context: ContextDict) -> JSONDict:
     """处理「选择服务」操作 → 显示委托信息表单"""
     service_id = payload.get("serviceId", "standard_consult")
     
@@ -427,10 +432,10 @@ async def _handle_select_service(payload: dict, context: dict) -> dict:
         ),
     ]
     
-    return a2ui_message(components, agent="委托信息收集 Agent")
+    return cast(JSONDict, a2ui_message(components, agent="委托信息收集 Agent"))
 
 
-async def _handle_submit_engagement(form_data: dict, context: dict) -> dict:
+async def _handle_submit_engagement(form_data: ContextDict, context: ContextDict) -> JSONDict:
     """处理「提交委托」操作 → 显示确认订单"""
     
     case_type_names = {
@@ -478,10 +483,10 @@ async def _handle_submit_engagement(form_data: dict, context: dict) -> dict:
         ),
     ]
     
-    return a2ui_message(components, agent="委托确认 Agent")
+    return cast(JSONDict, a2ui_message(components, agent="委托确认 Agent"))
 
 
-async def _handle_confirm_engagement(payload: dict, context: dict) -> dict:
+async def _handle_confirm_engagement(payload: ContextDict, context: ContextDict) -> JSONDict:
     """处理「确认委托」→ 显示成功状态 + 进度"""
     
     engagement_id = str(uuid.uuid4())[:8]
@@ -509,14 +514,14 @@ async def _handle_confirm_engagement(payload: dict, context: dict) -> dict:
         ),
     ]
     
-    return a2ui_message(
+    return cast(JSONDict, a2ui_message(
         components,
         text="",
         agent="委托管理 Agent",
-    )
+    ))
 
 
-async def _handle_view_lawyer_detail(payload: dict, context: dict) -> dict:
+async def _handle_view_lawyer_detail(payload: ContextDict, context: ContextDict) -> JSONDict:
     """查看律师详情"""
     lawyer_id = payload.get("lawyerId", "")
     lawyer = next((l for l in MOCK_LAWYERS if l["id"] == lawyer_id), MOCK_LAWYERS[0])
@@ -544,12 +549,12 @@ async def _handle_view_lawyer_detail(payload: dict, context: dict) -> dict:
         ),
     ]
     
-    return a2ui_message(components, agent="律师详情 Agent")
+    return cast(JSONDict, a2ui_message(components, agent="律师详情 Agent"))
 
 
 # ========== 「合同审查」流程 ==========
 
-async def _handle_review_contract(user_message: str, context: dict) -> dict:
+async def _handle_review_contract(user_message: str, context: ContextDict) -> JSONDict:
     """处理「合同审查」意图"""
     
     components = [
@@ -570,10 +575,10 @@ async def _handle_review_contract(user_message: str, context: dict) -> dict:
         ),
     ]
     
-    return a2ui_message(components, agent="合同审查 Agent")
+    return cast(JSONDict, a2ui_message(components, agent="合同审查 Agent"))
 
 
-async def _handle_upload_contract(payload: dict, context: dict) -> dict:
+async def _handle_upload_contract(payload: ContextDict, context: ContextDict) -> JSONDict:
     """处理合同上传后的审查"""
     components = [
         progress_steps(
@@ -590,10 +595,10 @@ async def _handle_upload_contract(payload: dict, context: dict) -> dict:
         ),
         text_block("正在分析您的合同文件，请稍候..."),
     ]
-    return a2ui_message(components, agent="合同审查 Agent")
+    return cast(JSONDict, a2ui_message(components, agent="合同审查 Agent"))
 
 
-async def _handle_start_review(payload: dict, context: dict) -> dict:
+async def _handle_start_review(payload: ContextDict, context: ContextDict) -> JSONDict:
     """审查完成后的结果展示"""
     components = [
         risk_indicator(
@@ -616,12 +621,12 @@ async def _handle_start_review(payload: dict, context: dict) -> dict:
             ],
         ),
     ]
-    return a2ui_message(components, agent="合同审查 Agent")
+    return cast(JSONDict, a2ui_message(components, agent="合同审查 Agent"))
 
 
 # ========== 「文书起草」流程 ==========
 
-async def _handle_draft_document(user_message: str, context: dict) -> dict:
+async def _handle_draft_document(user_message: str, context: ContextDict) -> JSONDict:
     """处理「文书起草」意图"""
     
     components = [
@@ -658,12 +663,12 @@ async def _handle_draft_document(user_message: str, context: dict) -> dict:
         ),
     ]
     
-    return a2ui_message(components, agent="文书起草 Agent")
+    return cast(JSONDict, a2ui_message(components, agent="文书起草 Agent"))
 
 
 # ========== 「风险评估」流程 ==========
 
-async def _handle_risk_assessment(user_message: str, context: dict) -> dict:
+async def _handle_risk_assessment(user_message: str, context: ContextDict) -> JSONDict:
     """处理「风险评估」意图"""
     
     components = [
@@ -679,12 +684,12 @@ async def _handle_risk_assessment(user_message: str, context: dict) -> dict:
         ),
     ]
     
-    return a2ui_message(components, agent="风险评估 Agent")
+    return cast(JSONDict, a2ui_message(components, agent="风险评估 Agent"))
 
 
 # ========== 「尽职调查」流程 ==========
 
-async def _handle_due_diligence(user_message: str, context: dict) -> dict:
+async def _handle_due_diligence(user_message: str, context: ContextDict) -> JSONDict:
     """处理「尽职调查」意图"""
     
     components = [
@@ -712,23 +717,23 @@ async def _handle_due_diligence(user_message: str, context: dict) -> dict:
         ),
     ]
     
-    return a2ui_message(components, agent="尽职调查 Agent")
+    return cast(JSONDict, a2ui_message(components, agent="尽职调查 Agent"))
 
 
-async def _handle_start_due_diligence(form_data: dict, context: dict) -> dict:
+async def _handle_start_due_diligence(form_data: ContextDict, context: ContextDict) -> JSONDict:
     """处理「开始调查」操作 → 返回尽调摘要卡片"""
     company_name = (form_data.get("company_name") or "").strip()
     investigation_scope = form_data.get("investigation_scope") or []
     purpose = form_data.get("purpose") or "cooperation"
 
     if not company_name:
-        return a2ui_message(
+        return cast(JSONDict, a2ui_message(
             [
                 info_banner("请先填写需要调查的企业名称。", variant="warning"),
                 text_block("建议填写完整企业名称，必要时补充统一社会信用代码，以便提高调查准确性。"),
             ],
             agent="尽职调查 Agent",
-        )
+        ))
 
     scope_labels = {
         "basic": "基础工商信息",
@@ -749,7 +754,7 @@ async def _handle_start_due_diligence(form_data: dict, context: dict) -> dict:
         company_data = await get_company_info(company_name)
     except Exception as e:
         logger.error(f"[A2UI] 尽调查询失败: {e}")
-        return a2ui_message(
+        return cast(JSONDict, a2ui_message(
             [
                 status_card(
                     "warning",
@@ -759,7 +764,7 @@ async def _handle_start_due_diligence(form_data: dict, context: dict) -> dict:
                 text_block("如果您需要，我也可以先帮您列出尽调清单，包括工商、诉讼、股权、信用和合规核查项。"),
             ],
             agent="尽职调查 Agent",
-        )
+        ))
 
     basic_info = company_data.get("basic_info", {}) or {}
     litigation = company_data.get("litigation", {}) or {}
@@ -826,23 +831,23 @@ async def _handle_start_due_diligence(form_data: dict, context: dict) -> dict:
         layout="horizontal",
     ))
 
-    return a2ui_message(components, agent="尽职调查 Agent")
+    return cast(JSONDict, a2ui_message(components, agent="尽职调查 Agent"))
 
 
-async def _handle_go_back(action_id: str, context: dict) -> dict:
+async def _handle_go_back(action_id: str, context: ContextDict) -> JSONDict:
     message = "已返回对话，您可以继续补充信息或发起新的法务需求。"
     if action_id == "cancel_engagement":
         message = "已取消当前委托流程，您可以重新选择律师或继续描述需求。"
-    return a2ui_message(
+    return cast(JSONDict, a2ui_message(
         [
             info_banner(message, variant="info"),
             text_block("如果您愿意，我可以继续帮您做律师匹配、合同审查、企业调查或文书起草。"),
         ],
         agent="交互助手 Agent",
-    )
+    ))
 
 
-async def _handle_lawyer_followup(action_id: str, payload: dict, context: dict) -> dict:
+async def _handle_lawyer_followup(action_id: str, payload: ContextDict, context: ContextDict) -> JSONDict:
     if action_id == "ai_match_lawyer":
         # 从上下文提取用户描述，进行关键词匹配推荐
         user_text = (context.get("user_message") or context.get("last_user_message") or "").lower()
@@ -877,14 +882,14 @@ async def _handle_lawyer_followup(action_id: str, payload: dict, context: dict) 
             ))
 
         match_desc = f"已根据您的问题（{'、'.join(matched_specialties[:3])}）智能匹配" if matched_specialties else "已为您推荐评分最高的律师"
-        return a2ui_message(
+        return cast(JSONDict, a2ui_message(
             [
                 info_banner(f"{match_desc}以下律师：", variant="success"),
                 horizontal_scroll(cards),
                 text_block("您也可以补充案件类型、所在城市或预算范围，获得更精准的推荐。"),
             ],
             agent="律师推荐 Agent",
-        )
+        ))
 
     if action_id == "find_lawyer":
         return await _handle_find_lawyer("帮我推荐合适的律师", context)
@@ -892,18 +897,18 @@ async def _handle_lawyer_followup(action_id: str, payload: dict, context: dict) 
     return await _handle_find_lawyer("查看更多律师推荐", context)
 
 
-async def _handle_contract_followup(action_id: str, payload: dict, context: dict) -> dict:
+async def _handle_contract_followup(action_id: str, payload: ContextDict, context: ContextDict) -> JSONDict:
     if action_id == "paste_contract":
-        return a2ui_message(
+        return cast(JSONDict, a2ui_message(
             [
                 info_banner("请直接把合同全文粘贴到对话框中，我会继续做条款解析和风险审查。", variant="info"),
                 text_block("如果合同较长，建议优先上传文件；如果只想看重点，也可以只粘贴关键条款。"),
             ],
             agent="合同审查 Agent",
-        )
+        ))
 
     if action_id == "browse_templates":
-        return a2ui_message(
+        return cast(JSONDict, a2ui_message(
             [
                 service_selection(
                     title="常用合同模板",
@@ -916,10 +921,10 @@ async def _handle_contract_followup(action_id: str, payload: dict, context: dict
                 )
             ],
             agent="合同审查 Agent",
-        )
+        ))
 
     if action_id == "view_full_report":
-        return a2ui_message(
+        return cast(JSONDict, a2ui_message(
             [
                 status_card("info", "详细报告已准备", description="建议重点查看违约责任、保密条款、争议解决和知识产权归属。"),
                 detail_list(
@@ -932,9 +937,9 @@ async def _handle_contract_followup(action_id: str, payload: dict, context: dict
                 ),
             ],
             agent="合同审查 Agent",
-        )
+        ))
 
-    return a2ui_message(
+    return cast(JSONDict, a2ui_message(
         [
             recommendation_card(
                 title="AI 修改建议",
@@ -944,10 +949,10 @@ async def _handle_contract_followup(action_id: str, payload: dict, context: dict
             text_block("如果您愿意，我也可以继续按条款逐段给出修改稿。"),
         ],
         agent="合同审查 Agent",
-    )
+    ))
 
 
-async def _handle_select_doc_type(payload: dict, context: dict) -> dict:
+async def _handle_select_doc_type(payload: ContextDict, context: ContextDict) -> JSONDict:
     doc_type = payload.get("serviceId") or payload.get("docType") or "general"
     doc_titles = {
         "contract": "合同/协议",
@@ -959,7 +964,7 @@ async def _handle_select_doc_type(payload: dict, context: dict) -> dict:
         "procurement": "采购合同",
     }
     title = doc_titles.get(doc_type, "法律文书")
-    return a2ui_message(
+    return cast(JSONDict, a2ui_message(
         [
             form_sheet(
                 title=f"{title}信息收集",
@@ -973,15 +978,15 @@ async def _handle_select_doc_type(payload: dict, context: dict) -> dict:
             )
         ],
         agent="文书起草 Agent",
-    )
+    ))
 
 
-def _compute_risk_score(action_id: str, context: dict) -> tuple:
+def _compute_risk_score(action_id: str, context: ContextDict) -> tuple[str, int, str, str, list[str]]:
     """根据用户输入动态计算风险评分和风险点"""
     user_text = (context.get("user_message") or context.get("last_user_message") or "").lower()
 
     # 每种风险类型的关键词 → (权重, 风险描述)
-    _RISK_PATTERNS = {
+    _RISK_PATTERNS: dict[str, RiskPattern] = {
         "assess_contract_risk": {
             "title": "合同风险",
             "base_score": 55,
@@ -1046,10 +1051,10 @@ def _compute_risk_score(action_id: str, context: dict) -> tuple:
     }
 
     pattern = _RISK_PATTERNS.get(action_id, _RISK_PATTERNS["assess_contract_risk"])
-    score = pattern["base_score"]
-    matched_risks = []
+    score = int(pattern["base_score"])
+    matched_risks: list[str] = []
 
-    for keyword, (weight, risk_desc) in pattern["keywords"].items():
+    for keyword, (weight, risk_desc) in cast(dict[str, tuple[int, str]], pattern["keywords"]).items():
         if keyword in user_text:
             score += weight
             matched_risks.append(risk_desc)
@@ -1060,12 +1065,12 @@ def _compute_risk_score(action_id: str, context: dict) -> tuple:
     if matched_risks:
         desc = "；".join(matched_risks[:4]) + "。"
     else:
-        desc = pattern["fallback_desc"]
+        desc = str(pattern["fallback_desc"])
 
-    return pattern["title"], score, level, desc, matched_risks
+    return str(pattern["title"]), score, level, desc, matched_risks
 
 
-async def _handle_risk_drilldown(action_id: str, payload: dict, context: dict) -> dict:
+async def _handle_risk_drilldown(action_id: str, payload: ContextDict, context: ContextDict) -> JSONDict:
     title, score, level, desc, matched = _compute_risk_score(action_id, context)
 
     components = [risk_indicator(title=title, score=score, level=level, description=desc)]
@@ -1082,11 +1087,11 @@ async def _handle_risk_drilldown(action_id: str, payload: dict, context: dict) -
         text_block("如果您补充合同文本、事实经过或证据材料，我可以进一步把风险拆到更细的维度。")
     )
 
-    return a2ui_message(components, agent="风险评估 Agent")
+    return cast(JSONDict, a2ui_message(components, agent="风险评估 Agent"))
 
 
-async def _handle_view_engagement_detail(payload: dict, context: dict) -> dict:
-    return a2ui_message(
+async def _handle_view_engagement_detail(payload: ContextDict, context: ContextDict) -> JSONDict:
+    return cast(JSONDict, a2ui_message(
         [
             detail_list(
                 [
@@ -1110,12 +1115,12 @@ async def _handle_view_engagement_detail(payload: dict, context: dict) -> dict:
             ),
         ],
         agent="委托管理 Agent",
-    )
+    ))
 
 
 # ========== 「法律咨询」流程 ==========
 
-async def _handle_legal_consultation(user_message: str, context: dict) -> dict:
+async def _handle_legal_consultation(user_message: str, context: ContextDict) -> JSONDict:
     """处理「法律咨询」意图 → 提供快速分析入口"""
     
     components = [
@@ -1142,4 +1147,4 @@ async def _handle_legal_consultation(user_message: str, context: dict) -> dict:
         ),
     ]
     
-    return a2ui_message(components, agent="法律咨询 Agent")
+    return cast(JSONDict, a2ui_message(components, agent="法律咨询 Agent"))

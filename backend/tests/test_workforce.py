@@ -16,7 +16,7 @@ from src.agents.sentiment_agent import SentimentAnalysisAgent
 
 
 # 当前 workforce 中专业智能体的数量（不含 coordinator 和 requirement_analyst）
-EXPECTED_AGENT_COUNT = 17
+EXPECTED_AGENT_COUNT = 18
 
 
 def _make_llm_config_mock():

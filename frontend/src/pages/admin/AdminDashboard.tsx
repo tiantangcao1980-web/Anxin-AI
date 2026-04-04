@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PageContainer } from '@/components/ui/PageContainer'
 import {
   Table,
   TableBody,
@@ -135,22 +136,22 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6">
+      <PageContainer title="管理概览" subtitle="系统运行状态与关键指标">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-28 rounded-xl" />
           ))}
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
           <Skeleton className="h-80 rounded-xl" />
           <Skeleton className="h-80 rounded-xl" />
         </div>
-      </div>
+      </PageContainer>
     )
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <PageContainer title="管理概览" subtitle="系统运行状态与关键指标">
       {/* 统计卡片 */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {statCards.map((card, index) => {
@@ -357,6 +358,6 @@ export default function AdminDashboard() {
           </Card>
         </motion.div>
       </div>
-    </div>
+    </PageContainer>
   )
 }

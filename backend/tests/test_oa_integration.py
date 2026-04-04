@@ -1,12 +1,14 @@
 import pytest
-from src.services.oa_integration_service import oa_service, OAProviderType
+
+from src.services.oa_integration_service import oa_service
+
 
 @pytest.mark.asyncio
 async def test_oa_notification():
     # Test Feishu
     res_feishu = await oa_service.send_notification("u1", "Test Title", "Test Content", "feishu")
     assert res_feishu is True
-    
+
     # Test DingTalk
     res_ding = await oa_service.send_notification("u2", "Test Title", "Test Content", "dingtalk")
     assert res_ding is True

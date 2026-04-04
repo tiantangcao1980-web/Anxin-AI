@@ -7,13 +7,13 @@
 import atexit
 import os
 import time
-from typing import ClassVar, List, Dict, Any, Optional
+from typing import Any, ClassVar, Optional, cast
 from loguru import logger
 
 try:
     from camel.storages import Neo4jGraph
 except ImportError:
-    Neo4jGraph = None  # type: ignore
+    Neo4jGraph = None
     logger.warning("camel-ai 未安装，图数据库功能不可用")
 
 from src.core.config import settings
@@ -23,40 +23,40 @@ class GraphService:
     """法务知识图谱服务"""
 
     # ---- 进程内缓存 ----
-    _cache: ClassVar[dict] = {}
-    _cache_ts: ClassVar[dict] = {}
+    _cache: ClassVar[dict[str, Any]] = {}
+    _cache_ts: ClassVar[dict[str, float]] = {}
     _CACHE_TTL = 300  # 5 分钟
     _INIT_RETRY_INTERVAL = 30  # 秒
 
-    def _get_cached(self, key: str):
+    def _get_cached(self, key: str) -> Any | None:
         if key in self._cache and time.time() - self._cache_ts.get(key, 0) < self._CACHE_TTL:
             return self._cache[key]
         return None
 
-    def _set_cache(self, key: str, value):
+    def _set_cache(self, key: str, value: Any) -> None:
         self._cache[key] = value
         self._cache_ts[key] = time.time()
 
-    def _invalidate_cache(self):
+    def _invalidate_cache(self) -> None:
         """清除全部缓存（写操作后调用）"""
         self._cache.clear()
         self._cache_ts.clear()
 
-    def __init__(self):
-        self._graph = None
+    def __init__(self) -> None:
+        self._graph: Any | None = None
         self._last_init_attempt = 0.0
         atexit.register(self._close_sync)
 
     @property
-    def graph(self):
+    def graph(self) -> Any | None:
         self._ensure_graph()
         return self._graph
 
     @graph.setter
-    def graph(self, value):
+    def graph(self, value: Any | None) -> None:
         self._graph = value
         
-    def _init_graph(self):
+    def _init_graph(self) -> None:
         """初始化 Neo4j 客户端"""
         try:
             if not settings.NEO4J_URI:
@@ -128,7 +128,7 @@ class GraphService:
         except Exception:
             pass
 
-    def add_legal_entities(self, case_info: Dict[str, Any], doc_id: str):
+    def add_legal_entities(self, case_info: dict[str, Any], doc_id: str) -> None:
         """将清洗后的案件信息存入图谱"""
         if not self.graph:
             logger.warning("图数据库未连接，跳过实体入库")
@@ -163,19 +163,19 @@ class GraphService:
         except Exception as e:
             logger.error(f"存入图数据库失败: {e}")
 
-    def query_graph(self, cypher_query: str, params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    def query_graph(self, cypher_query: str, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         """执行 Cypher 查询（支持参数化）"""
         if not self.graph:
             return []
         try:
             if params:
-                return self.graph.query(cypher_query, params=params)
-            return self.graph.query(cypher_query)
+                return list(self.graph.query(cypher_query, params=params))
+            return list(self.graph.query(cypher_query))
         except Exception as e:
             logger.error(f"Cypher 查询失败: {e}")
             return []
 
-    def get_related_entities(self, entity_name: str, depth: int = 1) -> List[Dict[str, Any]]:
+    def get_related_entities(self, entity_name: str, depth: int = 1) -> list[dict[str, Any]]:
         """获取实体的关联实体及关系"""
         if not self.graph:
             return []
@@ -200,7 +200,7 @@ class GraphService:
             """
             return self.query_graph(query, params={"entity_name": entity_name})
 
-    def get_context_from_graph(self, entities: List[str]) -> str:
+    def get_context_from_graph(self, entities: list[str]) -> str:
         """从图谱中提取实体及其关系的文本上下文"""
         if not self.graph or not entities:
             return ""
@@ -225,7 +225,7 @@ class GraphService:
         context = "【图谱关联知识】\n" + "\n".join(formatted_relations)
         return context
 
-    def get_graph_stats(self) -> Dict[str, Any]:
+    def get_graph_stats(self) -> dict[str, Any]:
         """获取图谱统计信息（带缓存）"""
         if not self.graph:
             return {
@@ -238,7 +238,7 @@ class GraphService:
 
         cached = self._get_cached("graph_stats")
         if cached is not None:
-            return cached
+            return cast(dict[str, Any], cached)
 
         try:
             # 节点总数
@@ -281,7 +281,7 @@ class GraphService:
                 "error": str(e),
             }
 
-    def search_entities(self, keyword: str, depth: int = 1, limit: int = 30) -> Dict[str, Any]:
+    def search_entities(self, keyword: str, depth: int = 1, limit: int = 30) -> dict[str, Any]:
         """搜索实体及其关联（用于图谱可视化，带缓存）"""
         if not self.graph:
             return {"nodes": [], "edges": [], "total": 0}
@@ -289,7 +289,7 @@ class GraphService:
         cache_key = f"search:{keyword}:{depth}:{limit}"
         cached = self._get_cached(cache_key)
         if cached is not None:
-            return cached
+            return cast(dict[str, Any], cached)
 
         try:
             # 参数化查询防止 Cypher 注入
@@ -364,7 +364,7 @@ class GraphService:
 
     async def search_with_pagination(
         self, keyword: str, skip: int = 0, limit: int = 20, entity_type: Optional[str] = None
-    ) -> dict:
+    ) -> dict[str, Any]:
         """分页搜索实体"""
         if not self.graph:
             return {"items": [], "total": 0, "skip": skip, "limit": limit}
@@ -372,7 +372,7 @@ class GraphService:
         cache_key = f"search_page:{keyword}:{skip}:{limit}:{entity_type}"
         cached = self._get_cached(cache_key)
         if cached is not None:
-            return cached
+            return cast(dict[str, Any], cached)
 
         try:
             safe_skip = max(0, int(skip))
@@ -385,7 +385,7 @@ class GraphService:
 
             # 查询总数
             count_query = f"MATCH (n) {where_clause} RETURN count(n) as total"
-            count_params: Dict[str, Any] = {"keyword": keyword}
+            count_params: dict[str, Any] = {"keyword": keyword}
             if entity_type:
                 count_params["entity_type"] = entity_type
             count_result = self.query_graph(count_query, params=count_params)
@@ -417,7 +417,7 @@ class GraphService:
             logger.error(f"分页搜索失败: {e}")
             return {"items": [], "total": 0, "skip": skip, "limit": limit, "error": str(e)}
 
-    async def get_entity_detail(self, entity_name: str) -> dict:
+    async def get_entity_detail(self, entity_name: str) -> dict[str, Any]:
         """获取实体详情（属性 + 所有关系 + 关联文档）"""
         if not self.graph:
             return {"entity": None, "incoming_relations": [], "outgoing_relations": []}
@@ -487,7 +487,7 @@ class GraphService:
             logger.error(f"获取实体详情失败: {e}")
             return {"entity": None, "incoming_relations": [], "outgoing_relations": [], "error": str(e)}
 
-    async def get_shortest_path(self, entity_a: str, entity_b: str, max_depth: int = 10) -> dict:
+    async def get_shortest_path(self, entity_a: str, entity_b: str, max_depth: int = 10) -> dict[str, Any]:
         """最短路径查询"""
         if not self.graph:
             return {"path_length": 0, "nodes": [], "relationships": []}
@@ -539,7 +539,7 @@ class GraphService:
             logger.error(f"最短路径查询失败: {e}")
             return {"path_length": 0, "nodes": [], "relationships": [], "error": str(e)}
 
-    async def get_subgraph(self, entity_name: str, depth: int = 2, max_nodes: int = 50) -> dict:
+    async def get_subgraph(self, entity_name: str, depth: int = 2, max_nodes: int = 50) -> dict[str, Any]:
         """子图提取（限制节点数防爆炸）"""
         if not self.graph:
             return {"center": entity_name, "nodes": [], "edges": []}
@@ -583,7 +583,7 @@ class GraphService:
                 """
                 results = self.query_graph(fallback_query, params={"name": entity_name})
 
-            nodes_map: Dict[str, dict] = {
+            nodes_map: dict[str, dict[str, Any]] = {
                 entity_name: {
                     "id": entity_name,
                     "label": entity_name,
@@ -591,8 +591,8 @@ class GraphService:
                     "is_center": True,
                 }
             }
-            edges_set: set = set()
-            edges: list = []
+            edges_set: set[str] = set()
+            edges: list[dict[str, Any]] = []
 
             for r in results:
                 node_name = r.get("node_name", "")
@@ -627,7 +627,7 @@ class GraphService:
             logger.error(f"子图提取失败: {e}")
             return {"center": entity_name, "nodes": [], "edges": [], "error": str(e)}
 
-    async def batch_import_entities(self, entities: List[dict]) -> dict:
+    async def batch_import_entities(self, entities: list[dict[str, Any]]) -> dict[str, Any]:
         """批量导入三元组"""
         if not self.graph:
             return {"imported": 0, "errors": ["图数据库未连接"]}
@@ -658,14 +658,14 @@ class GraphService:
             logger.error(f"批量导入失败: {e}")
             return {"imported": imported, "errors": errors + [str(e)]}
 
-    async def get_entity_types(self) -> List[dict]:
+    async def get_entity_types(self) -> list[dict[str, Any]]:
         """获取所有实体类型列表（带缓存）"""
         if not self.graph:
             return []
 
         cached = self._get_cached("entity_types")
         if cached is not None:
-            return cached
+            return cast(list[dict[str, Any]], cached)
 
         try:
             query = """
@@ -715,7 +715,7 @@ class GraphService:
                 node_type = "document"
         return node_type
 
-    async def create_entity(self, name: str, entity_type: str = "Entity", properties: Optional[Dict[str, Any]] = None) -> dict:
+    async def create_entity(self, name: str, entity_type: str = "Entity", properties: dict[str, Any] | None = None) -> dict[str, Any]:
         """创建实体节点"""
         if not self.graph:
             return {"success": False, "error": "图数据库未连接"}
@@ -731,7 +731,7 @@ class GraphService:
             logger.error(f"创建实体失败: {e}")
             return {"success": False, "error": str(e)}
 
-    async def update_entity(self, name: str, properties: Dict[str, Any]) -> dict:
+    async def update_entity(self, name: str, properties: dict[str, Any]) -> dict[str, Any]:
         """更新实体属性"""
         if not self.graph:
             return {"success": False, "error": "图数据库未连接"}
@@ -754,7 +754,7 @@ class GraphService:
             logger.error(f"更新实体失败: {e}")
             return {"success": False, "error": str(e)}
 
-    async def delete_entity(self, name: str) -> dict:
+    async def delete_entity(self, name: str) -> dict[str, Any]:
         """删除实体及其所有关系"""
         if not self.graph:
             return {"success": False, "error": "图数据库未连接"}
@@ -773,7 +773,7 @@ class GraphService:
             logger.error(f"删除实体失败: {e}")
             return {"success": False, "error": str(e)}
 
-    async def create_relation(self, subject: str, predicate: str, obj: str, properties: Optional[Dict[str, Any]] = None) -> dict:
+    async def create_relation(self, subject: str, predicate: str, obj: str, properties: dict[str, Any] | None = None) -> dict[str, Any]:
         """创建关系"""
         if not self.graph:
             return {"success": False, "error": "图数据库未连接"}
@@ -785,7 +785,7 @@ class GraphService:
             logger.error(f"创建关系失败: {e}")
             return {"success": False, "error": str(e)}
 
-    async def delete_relation(self, subject: str, predicate: str, obj: str) -> dict:
+    async def delete_relation(self, subject: str, predicate: str, obj: str) -> dict[str, Any]:
         """删除指定关系"""
         if not self.graph:
             return {"success": False, "error": "图数据库未连接"}
@@ -804,7 +804,7 @@ class GraphService:
             logger.error(f"删除关系失败: {e}")
             return {"success": False, "error": str(e)}
 
-    async def export_triples(self, entity_type: Optional[str] = None, limit: int = 10000) -> List[Dict[str, str]]:
+    async def export_triples(self, entity_type: str | None = None, limit: int = 10000) -> list[dict[str, str]]:
         """导出所有三元组为列表"""
         if not self.graph:
             return []

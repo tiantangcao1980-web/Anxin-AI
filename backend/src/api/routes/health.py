@@ -83,13 +83,13 @@ async def _check_minio() -> Dict[str, Any]:
 
 
 async def _check_neo4j() -> Dict[str, Any]:
-    """检查 Neo4j 图数据库"""
+    """检查 Neo4j 图数据库（兼容 Community 版）"""
     try:
         t0 = time.time()
-        # 将 bolt://host:7687 转换为 http://host:7474 进行 HTTP 健康检查
         neo4j_uri = getattr(settings, "NEO4J_URI", "bolt://localhost:7687")
         host = neo4j_uri.split("://")[-1].split(":")[0]
-        http_url = f"http://{host}:7474/db/neo4j/cluster/available"
+        # Community 版不支持 /cluster/available，改用根路径检查
+        http_url = f"http://{host}:7474/"
         async with httpx.AsyncClient(timeout=5) as client:
             resp = await client.get(http_url)
         latency = round((time.time() - t0) * 1000, 1)

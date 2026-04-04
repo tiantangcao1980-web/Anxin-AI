@@ -78,6 +78,11 @@ async def _ensure_additive_schema_columns() -> None:
         # v3 调查引擎：快照、缓存、偏好表由 create_all 自动创建
         # v4 智能需求发掘引擎：用户 AI 画像
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_profile JSONB DEFAULT '{}'",
+        # v5 Harness: conversations 表缺失字段修复
+        "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS is_starred BOOLEAN DEFAULT false",
+        "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS starred_at TIMESTAMP",
+        "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS last_message_at TIMESTAMP",
+        "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT false",
     ]
 
     async with engine.begin() as conn:

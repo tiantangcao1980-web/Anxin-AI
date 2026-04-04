@@ -10,6 +10,8 @@
 
 **核心原则：所有密钥只存在于服务器本地 `.env`，绝不通过 Git 传输。**
 
+当前生产目录：`/opt/anxin-smart-legal-services`
+
 ---
 
 ## 第一步：轮换已泄露的密钥（紧急）
@@ -30,7 +32,7 @@
 ```bash
 # SSH 到服务器
 ssh root@<服务器IP>
-cd /opt/AILegalAgent  # 或你的项目目录
+cd /opt/anxin-smart-legal-services
 
 # 创建 .env 文件（此文件不通过 Git 管理）
 cat > .env << 'ENVEOF'
@@ -56,7 +58,8 @@ LLM_ENCRYPTION_KEY=<生成的Fernet密钥>
 # ===== 数据库（使用强密码） =====
 POSTGRES_PASSWORD=<强密码-至少16位>
 DATABASE_URL=postgresql://postgres:<同上密码>@postgres:5432/legal_agent_db
-REDIS_URL=redis://redis:6379/0
+REDIS_PASSWORD=<强密码-至少16位>
+REDIS_URL=redis://:<同上密码>@redis:6379/0
 NEO4J_AUTH=neo4j/<强密码>
 NEO4J_PASSWORD=<同上密码>
 MINIO_ROOT_USER=admin
@@ -73,8 +76,6 @@ GRAFANA_PASSWORD=<强密码>
 
 # ===== 其他 =====
 LOG_LEVEL=INFO
-BACKEND_PORT=8001
-FRONTEND_PORT=80
 ENVEOF
 
 # 设置文件权限（仅 root 可读写）
@@ -118,7 +119,7 @@ docker compose up -d --build
 # 检查服务状态
 docker compose ps
 docker compose logs --tail=50 backend
-curl -sf http://localhost:8001/health
+curl -sf http://127.0.0.1:8001/health
 ```
 
 ## 第六步：验证安全配置
@@ -133,7 +134,46 @@ git ls-files --cached | grep -E '\.env|livekit\.yaml$'
 
 # 3. 验证新 Key 工作正常
 docker compose logs --tail=20 backend | grep -i "error\|fail"
+
+# 4. 验证公网仅保留 80/443
+ss -lntup | egrep ':(80|443|8001|5432|6379|6333|6334|7474|7687|9000|9001)\b'
+# 应只看到 80/443 为公网监听；8001 应仅绑定 127.0.0.1，其余端口不应对公网开放
 ```
+
+## 第七步：主机 Nginx + HTTPS（推荐）
+
+```bash
+apt update
+apt install -y nginx certbot python3-certbot-nginx
+
+# 使用仓库内 nginx.conf 作为基础模板，然后按实际回环端口校正 upstream
+cp /opt/anxin-smart-legal-services/nginx.conf /etc/nginx/conf.d/anxin.conf
+
+# 申请并部署证书
+certbot --nginx -d anxinfawu.com -d www.anxinfawu.com
+
+nginx -t
+systemctl reload nginx
+```
+
+完成后应满足：
+
+- `http://anxinfawu.com` 与 `http://www.anxinfawu.com` 自动 301 到 HTTPS
+- `https://anxinfawu.com` 与 `https://www.anxinfawu.com` 返回 `200`
+- Docker 内部服务不需要额外公网端口放行
+
+## 第八步：阿里云安全组最小开放面
+
+只保留入方向：
+
+- `22`：SSH
+- `80`：HTTP
+- `443`：HTTPS
+
+如果暂未启用 LiveKit，不要开放：
+
+- `7880-7881/TCP`
+- `50000-60000/UDP`
 
 ---
 

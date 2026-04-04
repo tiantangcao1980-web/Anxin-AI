@@ -5,11 +5,12 @@
 """
 
 import asyncio
-import sys
 import os
-import uuid
-from datetime import datetime, date, timedelta
 import random
+import sys
+import uuid
+from datetime import date, datetime, timedelta
+from typing import Any
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -56,11 +57,11 @@ TEAM_IDS = [f"00000000-0000-0000-0007-{str(i).zfill(12)}" for i in range(1, 5)]
 COURSE_IDS = [f"00000000-0000-0000-0005-{str(i).zfill(12)}" for i in range(1, 9)]
 
 
-def uid():
+def uid() -> str:
     return str(uuid.uuid4())
 
 
-async def seed():
+async def seed() -> None:
     from src.core.database import async_session_maker, engine
     from src.models.base import Base
 
@@ -141,7 +142,7 @@ async def seed():
     print("\n🎉 所有种子数据填充完成！")
 
 
-async def check_exists(session, model, **kwargs):
+async def check_exists(session: Any, model: Any, **kwargs: Any) -> Any:
     """检查记录是否已存在"""
     stmt = select(model)
     for k, v in kwargs.items():
@@ -152,7 +153,7 @@ async def check_exists(session, model, **kwargs):
 
 # ==================== 用户 ====================
 # ⚠️ 用户账号已统一由 seed_test_roles.py 管理，此处仅为业务数据关联创建兼容用户
-async def seed_organization(session):
+async def seed_organization(session: Any) -> None:
     from src.models.user import Organization
 
     existing = await check_exists(session, Organization, id=ORG_ID)
@@ -170,7 +171,7 @@ async def seed_organization(session):
     print("  + 测试组织: 明德律师事务所")
 
 
-async def seed_users(session):
+async def seed_users(session: Any) -> None:
     from src.models.user import User
     from src.core.security import get_password_hash
 
@@ -203,7 +204,7 @@ async def seed_users(session):
 
 
 # ==================== 律师入驻 ====================
-async def seed_lawyer_onboarding(session):
+async def seed_lawyer_onboarding(session: Any) -> None:
     from src.models.lawyer_matching import LawyerProfile
     from src.models.lawyer_certification import LawyerCertification, LawyerServiceConfig
 
@@ -344,7 +345,7 @@ async def seed_lawyer_onboarding(session):
 
 
 # ==================== 案件 ====================
-async def seed_cases(session):
+async def seed_cases(session: Any) -> None:
     from src.models.case import Case, CaseEvent, CaseStatus, CasePriority, CaseType
 
     cases_data = [
@@ -484,7 +485,7 @@ async def seed_cases(session):
 
 
 # ==================== 文档 ====================
-async def seed_documents(session):
+async def seed_documents(session: Any) -> None:
     from src.models.document import Document, DocumentType
 
     docs = [
@@ -532,7 +533,7 @@ async def seed_documents(session):
 
 
 # ==================== 合同 ====================
-async def seed_contracts(session):
+async def seed_contracts(session: Any) -> None:
     from src.models.contract import Contract, ContractClause, ContractRisk, ContractStatus, RiskLevel
 
     existing_count = (await session.execute(select(func.count()).select_from(Contract))).scalar()
@@ -693,7 +694,7 @@ async def seed_contracts(session):
 
 
 # ==================== 任务 ====================
-async def seed_tasks(session):
+async def seed_tasks(session: Any) -> None:
     from src.models.task import Task
 
     existing_count = (await session.execute(select(func.count()).select_from(Task))).scalar()
@@ -739,7 +740,7 @@ async def seed_tasks(session):
 
 
 # ==================== 案源线索 ====================
-async def seed_leads(session):
+async def seed_leads(session: Any) -> None:
     from src.models.lead import Lead
 
     existing_count = (await session.execute(select(func.count()).select_from(Lead))).scalar()
@@ -815,7 +816,7 @@ async def seed_leads(session):
 
 
 # ==================== 专家 ====================
-async def seed_experts(session):
+async def seed_experts(session: Any) -> None:
     from src.models.expert import Expert
 
     existing_count = (await session.execute(select(func.count()).select_from(Expert))).scalar()
@@ -869,7 +870,7 @@ async def seed_experts(session):
 
 
 # ==================== 课程 ====================
-async def seed_courses(session):
+async def seed_courses(session: Any) -> None:
     from src.models.course import Course, CourseProgress
 
     existing_count = (await session.execute(select(func.count()).select_from(Course))).scalar()
@@ -942,7 +943,7 @@ async def seed_courses(session):
 
 
 # ==================== 通知 ====================
-async def seed_notifications(session):
+async def seed_notifications(session: Any) -> None:
     from src.models.notification import Notification
 
     existing_count = (await session.execute(select(func.count()).select_from(Notification))).scalar()
@@ -980,7 +981,7 @@ async def seed_notifications(session):
 
 
 # ==================== 知识库 ====================
-async def seed_knowledge(session):
+async def seed_knowledge(session: Any) -> None:
     from src.models.knowledge import KnowledgeBase as KB, KnowledgeDocument, KnowledgeType
 
     existing_count = (await session.execute(select(func.count()).select_from(KB))).scalar()
@@ -1073,7 +1074,7 @@ async def seed_knowledge(session):
 
 
 # ==================== 舆情 ====================
-async def seed_sentiment(session):
+async def seed_sentiment(session: Any) -> None:
     from src.models.sentiment import SentimentMonitor, SentimentRecord, SentimentAlert
     from src.models.sentiment import SentimentType, SourceType
     from src.models.sentiment import RiskLevel as SRiskLevel, AlertType, AlertLevel
@@ -1214,7 +1215,7 @@ async def seed_sentiment(session):
 
 
 # ==================== 审批流 ====================
-async def seed_approvals(session):
+async def seed_approvals(session: Any) -> None:
     from src.models.approval import Approval, ApprovalStatus, ApprovalType
 
     existing_count = (await session.execute(select(func.count()).select_from(Approval))).scalar()
@@ -1302,7 +1303,7 @@ async def seed_approvals(session):
 
 
 # ==================== 计费/订阅 ====================
-async def seed_billing(session):
+async def seed_billing(session: Any) -> None:
     from src.models.billing import BillingPlan, Subscription, Refund
     from src.models.payment import PaymentOrder
 
@@ -1492,7 +1493,7 @@ async def seed_billing(session):
 
 
 # ==================== 律所管理 ====================
-async def seed_firm(session):
+async def seed_firm(session: Any) -> None:
     from src.models.firm_management import Team, TeamMember, TimeEntry, Invoice, CaseAssignment
 
     teams = [
@@ -1553,7 +1554,7 @@ async def seed_firm(session):
             added_assignments += 1
     print(f"  + {added_assignments} 条案件分配")
 
-    time_entries = [
+    time_entries: list[tuple[str, str | None, date, int, str, bool, int, str]] = [
         (USER_IDS["lawyer1"], CASE_IDS[0], date.today() - timedelta(days=2), 360, "并购尽调底稿复核", True, 1800, "approved"),
         (USER_IDS["lawyer1"], CASE_IDS[2], date.today() - timedelta(days=1), 240, "股权转让风险意见书", True, 2000, "submitted"),
         (USER_IDS["lawyer2"], CASE_IDS[1], date.today() - timedelta(days=3), 300, "劳动仲裁证据整理", True, 1200, "approved"),
@@ -1561,7 +1562,7 @@ async def seed_firm(session):
         (USER_IDS["paralegal1"], CASE_IDS[0], date.today() - timedelta(days=1), 180, "资料目录与尽调清单整理", True, 600, "submitted"),
     ]
     added_entries = 0
-    for user_id, case_id, entry_date, minutes, description, billable, rate, status in time_entries:
+    for user_id, time_case_id, entry_date, minutes, description, billable, rate, status in time_entries:
         existing = await session.execute(
             select(TimeEntry).where(
                 TimeEntry.user_id == user_id,
@@ -1573,7 +1574,7 @@ async def seed_firm(session):
             session.add(TimeEntry(
                 id=uid(),
                 user_id=user_id,
-                case_id=case_id,
+                case_id=time_case_id,
                 date=entry_date,
                 minutes=minutes,
                 description=description,
@@ -1632,7 +1633,7 @@ async def seed_firm(session):
 
 
 # ==================== AI 助手 ====================
-async def seed_ai_assistant(session):
+async def seed_ai_assistant(session: Any) -> None:
     from src.models.ai_assistant import AIAssistantConfig, AIAssistantFeedback
 
     config = await session.execute(

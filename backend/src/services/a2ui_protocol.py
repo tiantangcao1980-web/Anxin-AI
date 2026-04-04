@@ -6,7 +6,10 @@ Agent 使用这些函数构建结构化 UI 描述，通过 WebSocket/SSE 推送�
 """
 
 import uuid
-from typing import Optional, List, Dict, Any
+from typing import Any
+
+JSONDict = dict[str, Any]
+StringDict = dict[str, str]
 
 
 def make_id() -> str:
@@ -18,21 +21,21 @@ def make_id() -> str:
 def recommendation_card(
     title: str,
     *,
-    subtitle: str = None,
-    description: str = None,
-    image: str = None,
-    image_fallback: str = None,
-    rating: float = None,
-    rating_text: str = None,
-    tags: List[Dict[str, str]] = None,
-    meta: str = None,
-    price: Dict[str, Any] = None,
-    details: List[Dict[str, str]] = None,
-    action: Dict[str, Any] = None,
-    secondary_action: Dict[str, Any] = None,
-    component_id: str = None,
-) -> dict:
-    data = {"title": title}
+    subtitle: str | None = None,
+    description: str | None = None,
+    image: str | None = None,
+    image_fallback: str | None = None,
+    rating: float | None = None,
+    rating_text: str | None = None,
+    tags: list[StringDict] | None = None,
+    meta: str | None = None,
+    price: JSONDict | None = None,
+    details: list[StringDict] | None = None,
+    action: JSONDict | None = None,
+    secondary_action: JSONDict | None = None,
+    component_id: str | None = None,
+) -> JSONDict:
+    data: JSONDict = {"title": title}
     if subtitle: data["subtitle"] = subtitle
     if description: data["description"] = description
     if image: data["image"] = image
@@ -54,21 +57,21 @@ def lawyer_card(
     lawyer_id: str,
     name: str,
     firm: str,
-    specialties: List[str],
+    specialties: list[str],
     rating: float,
     status: str = "online",
     *,
-    avatar: str = None,
-    title: str = None,
-    win_rate: str = None,
-    experience: str = None,
-    response_time: str = None,
-    consult_fee: Dict[str, Any] = None,
-    introduction: str = None,
-    action: Dict[str, Any] = None,
-    component_id: str = None,
-) -> dict:
-    data = {
+    avatar: str | None = None,
+    title: str | None = None,
+    win_rate: str | None = None,
+    experience: str | None = None,
+    response_time: str | None = None,
+    consult_fee: JSONDict | None = None,
+    introduction: str | None = None,
+    action: JSONDict | None = None,
+    component_id: str | None = None,
+) -> JSONDict:
+    data: JSONDict = {
         "lawyerId": lawyer_id,
         "name": name,
         "firm": firm,
@@ -90,14 +93,14 @@ def lawyer_card(
 # ========== 横滑列表 ==========
 
 def horizontal_scroll(
-    items: List[dict],
+    items: list[JSONDict],
     *,
-    title: str = None,
+    title: str | None = None,
     show_arrows: bool = True,
-    visible_count: int = None,
-    component_id: str = None,
-) -> dict:
-    data = {"items": items, "showArrows": show_arrows}
+    visible_count: int | None = None,
+    component_id: str | None = None,
+) -> JSONDict:
+    data: JSONDict = {"items": items, "showArrows": show_arrows}
     if title: data["title"] = title
     if visible_count: data["visibleCount"] = visible_count
     return {"id": component_id or make_id(), "type": "horizontal-scroll", "data": data}
@@ -107,16 +110,16 @@ def horizontal_scroll(
 
 def form_sheet(
     title: str,
-    sections: List[dict],
-    submit_action: Dict[str, str],
+    sections: list[JSONDict],
+    submit_action: StringDict,
     *,
-    subtitle: str = None,
-    header: dict = None,
-    cancel_action: Dict[str, str] = None,
+    subtitle: str | None = None,
+    header: JSONDict | None = None,
+    cancel_action: StringDict | None = None,
     as_sheet: bool = False,
-    component_id: str = None,
-) -> dict:
-    data = {
+    component_id: str | None = None,
+) -> JSONDict:
+    data: JSONDict = {
         "title": title,
         "sections": sections,
         "submitAction": submit_action,
@@ -133,13 +136,13 @@ def form_section(
     label: str,
     section_type: str = "single-select",
     *,
-    description: str = None,
+    description: str | None = None,
     required: bool = False,
-    options: List[dict] = None,
+    options: list[JSONDict] | None = None,
     default_value: Any = None,
-    placeholder: str = None,
-) -> dict:
-    data = {"id": section_id, "label": label, "type": section_type}
+    placeholder: str | None = None,
+) -> JSONDict:
+    data: JSONDict = {"id": section_id, "label": label, "type": section_type}
     if description: data["description"] = description
     if required: data["required"] = True
     if options: data["options"] = options
@@ -148,8 +151,8 @@ def form_section(
     return data
 
 
-def form_option(option_id: str, label: str, *, description: str = None, price: dict = None) -> dict:
-    data = {"id": option_id, "label": label}
+def form_option(option_id: str, label: str, *, description: str | None = None, price: JSONDict | None = None) -> JSONDict:
+    data: JSONDict = {"id": option_id, "label": label}
     if description: data["description"] = description
     if price: data["price"] = price
     return data
@@ -158,16 +161,16 @@ def form_option(option_id: str, label: str, *, description: str = None, price: d
 # ========== 订单/委托确认卡片 ==========
 
 def order_card(
-    item: dict,
-    details: List[dict],
-    actions: List[dict],
+    item: JSONDict,
+    details: list[JSONDict],
+    actions: list[JSONDict],
     *,
-    title: str = None,
-    pricing: dict = None,
-    note: str = None,
-    component_id: str = None,
-) -> dict:
-    data = {"item": item, "details": details, "actions": actions}
+    title: str | None = None,
+    pricing: JSONDict | None = None,
+    note: str | None = None,
+    component_id: str | None = None,
+) -> JSONDict:
+    data: JSONDict = {"item": item, "details": details, "actions": actions}
     if title: data["title"] = title
     if pricing: data["pricing"] = pricing
     if note: data["note"] = note
@@ -180,12 +183,12 @@ def info_banner(
     content: str,
     *,
     variant: str = "info",
-    icon: str = None,
-    action: dict = None,
+    icon: str | None = None,
+    action: JSONDict | None = None,
     dismissible: bool = False,
-    component_id: str = None,
-) -> dict:
-    data = {"content": content, "variant": variant}
+    component_id: str | None = None,
+) -> JSONDict:
+    data: JSONDict = {"content": content, "variant": variant}
     if icon: data["icon"] = icon
     if action: data["action"] = action
     if dismissible: data["dismissible"] = True
@@ -195,12 +198,12 @@ def info_banner(
 # ========== 按钮组 ==========
 
 def button_group(
-    buttons: List[dict],
+    buttons: list[JSONDict],
     *,
     layout: str = "horizontal",
     align: str = "stretch",
-    component_id: str = None,
-) -> dict:
+    component_id: str | None = None,
+) -> JSONDict:
     return {
         "id": component_id or make_id(),
         "type": "button-group",
@@ -214,12 +217,12 @@ def status_card(
     status: str,
     title: str,
     *,
-    description: str = None,
-    action: dict = None,
-    secondary_action: dict = None,
-    component_id: str = None,
-) -> dict:
-    data = {"status": status, "title": title}
+    description: str | None = None,
+    action: JSONDict | None = None,
+    secondary_action: JSONDict | None = None,
+    component_id: str | None = None,
+) -> JSONDict:
+    data: JSONDict = {"status": status, "title": title}
     if description: data["description"] = description
     if action: data["action"] = action
     if secondary_action: data["secondaryAction"] = secondary_action
@@ -229,13 +232,13 @@ def status_card(
 # ========== 详情列表 ==========
 
 def detail_list(
-    items: List[dict],
+    items: list[JSONDict],
     *,
-    title: str = None,
+    title: str | None = None,
     divider: bool = True,
-    component_id: str = None,
-) -> dict:
-    data = {"items": items, "divider": divider}
+    component_id: str | None = None,
+) -> JSONDict:
+    data: JSONDict = {"items": items, "divider": divider}
     if title: data["title"] = title
     return {"id": component_id or make_id(), "type": "detail-list", "data": data}
 
@@ -243,14 +246,14 @@ def detail_list(
 # ========== 步骤进度 ==========
 
 def progress_steps(
-    steps: List[dict],
+    steps: list[JSONDict],
     current_step: int,
     *,
-    title: str = None,
+    title: str | None = None,
     direction: str = "vertical",
-    component_id: str = None,
-) -> dict:
-    data = {"steps": steps, "currentStep": current_step, "direction": direction}
+    component_id: str | None = None,
+) -> JSONDict:
+    data: JSONDict = {"steps": steps, "currentStep": current_step, "direction": direction}
     if title: data["title"] = title
     return {"id": component_id or make_id(), "type": "progress-steps", "data": data}
 
@@ -263,12 +266,12 @@ def risk_indicator(
     level: str,
     *,
     max_score: int = 100,
-    description: str = None,
-    factors: List[dict] = None,
-    action: dict = None,
-    component_id: str = None,
-) -> dict:
-    data = {"title": title, "score": score, "level": level, "maxScore": max_score}
+    description: str | None = None,
+    factors: list[JSONDict] | None = None,
+    action: JSONDict | None = None,
+    component_id: str | None = None,
+) -> JSONDict:
+    data: JSONDict = {"title": title, "score": score, "level": level, "maxScore": max_score}
     if description: data["description"] = description
     if factors: data["factors"] = factors
     if action: data["action"] = action
@@ -282,10 +285,10 @@ def text_block(
     *,
     format: str = "markdown",
     collapsible: bool = False,
-    preview_lines: int = None,
-    component_id: str = None,
-) -> dict:
-    data = {"content": content, "format": format}
+    preview_lines: int | None = None,
+    component_id: str | None = None,
+) -> JSONDict:
+    data: JSONDict = {"content": content, "format": format}
     if collapsible: data["collapsible"] = True
     if preview_lines: data["previewLines"] = preview_lines
     return {"id": component_id or make_id(), "type": "text-block", "data": data}
@@ -293,8 +296,8 @@ def text_block(
 
 # ========== 分隔线 ==========
 
-def divider(label: str = None, component_id: str = None) -> dict:
-    data = {}
+def divider(label: str | None = None, component_id: str | None = None) -> JSONDict:
+    data: JSONDict = {}
     if label: data["label"] = label
     return {"id": component_id or make_id(), "type": "divider", "data": data}
 
@@ -303,12 +306,12 @@ def divider(label: str = None, component_id: str = None) -> dict:
 
 def service_selection(
     title: str,
-    services: List[dict],
+    services: list[JSONDict],
     *,
-    subtitle: str = None,
-    component_id: str = None,
-) -> dict:
-    data = {"title": title, "services": services}
+    subtitle: str | None = None,
+    component_id: str | None = None,
+) -> JSONDict:
+    data: JSONDict = {"title": title, "services": services}
     if subtitle: data["subtitle"] = subtitle
     return {"id": component_id or make_id(), "type": "service-selection", "data": data}
 
@@ -319,15 +322,15 @@ def contract_preview(
     contract_id: str,
     title: str,
     contract_type: str,
-    parties: List[dict],
-    key_terms: List[dict],
+    parties: list[JSONDict],
+    key_terms: list[JSONDict],
     risk_level: str,
-    actions: List[dict],
+    actions: list[JSONDict],
     *,
-    risk_items: List[dict] = None,
-    component_id: str = None,
-) -> dict:
-    data = {
+    risk_items: list[JSONDict] | None = None,
+    component_id: str | None = None,
+) -> JSONDict:
+    data: JSONDict = {
         "contractId": contract_id,
         "title": title,
         "type": contract_type,
@@ -343,11 +346,11 @@ def contract_preview(
 # ========== 动作栏 ==========
 
 def action_bar(
-    actions: List[dict],
+    actions: list[JSONDict],
     *,
     position: str = "bottom",
-    component_id: str = None,
-) -> dict:
+    component_id: str | None = None,
+) -> JSONDict:
     """
     底部/顶部操作栏。
     actions: [{"id": "...", "label": "...", "actionId": "...", "variant": "primary|outline|ghost", "icon": "..."}]
@@ -361,19 +364,19 @@ def action_bar(
 def map_view(
     title: str,
     *,
-    center: Dict[str, float] = None,
-    markers: List[Dict[str, Any]] = None,
+    center: dict[str, float] | None = None,
+    markers: list[JSONDict] | None = None,
     zoom: int = 14,
     map_provider: str = "amap",
-    action: dict = None,
-    component_id: str = None,
-) -> dict:
+    action: JSONDict | None = None,
+    component_id: str | None = None,
+) -> JSONDict:
     """
     地图视图组件（预留接口）。
     未来可对接高德/百度/Google Maps。
     markers: [{"id": "...", "lat": 39.9, "lng": 116.3, "label": "...", "info": "..."}]
     """
-    data = {"title": title, "zoom": zoom, "mapProvider": map_provider}
+    data: JSONDict = {"title": title, "zoom": zoom, "mapProvider": map_provider}
     if center: data["center"] = center
     if markers: data["markers"] = markers
     if action: data["action"] = action
@@ -387,19 +390,19 @@ def payment_card(
     amount: float,
     *,
     currency: str = "CNY",
-    description: str = None,
-    payment_methods: List[Dict[str, Any]] = None,
-    order_id: str = None,
-    pay_action: dict = None,
-    cancel_action: dict = None,
-    component_id: str = None,
-) -> dict:
+    description: str | None = None,
+    payment_methods: list[JSONDict] | None = None,
+    order_id: str | None = None,
+    pay_action: JSONDict | None = None,
+    cancel_action: JSONDict | None = None,
+    component_id: str | None = None,
+) -> JSONDict:
     """
     支付卡片组件（预留接口）。
     未来可对接微信支付/支付宝/银行卡。
     payment_methods: [{"id": "wechat", "name": "微信支付", "icon": "wechat"}, ...]
     """
-    data = {
+    data: JSONDict = {
         "title": title,
         "amount": amount,
         "currency": currency,
@@ -416,21 +419,21 @@ def payment_card(
 
 def lawyer_picker(
     title: str,
-    lawyers: List[dict],
+    lawyers: list[JSONDict],
     *,
-    filters: List[Dict[str, Any]] = None,
-    sort_options: List[Dict[str, str]] = None,
-    on_select_action: dict = None,
+    filters: list[JSONDict] | None = None,
+    sort_options: list[StringDict] | None = None,
+    on_select_action: JSONDict | None = None,
     multi_select: bool = False,
-    component_id: str = None,
-) -> dict:
+    component_id: str | None = None,
+) -> JSONDict:
     """
     律师选择器组件（预留接口）。
     支持筛选、排序、多选等功能。
     filters: [{"id": "specialty", "label": "专长", "options": [...]}, ...]
     sort_options: [{"id": "rating", "label": "评分"}, {"id": "price", "label": "价格"}]
     """
-    data = {"title": title, "lawyers": lawyers, "multiSelect": multi_select}
+    data: JSONDict = {"title": title, "lawyers": lawyers, "multiSelect": multi_select}
     if filters: data["filters"] = filters
     if sort_options: data["sortOptions"] = sort_options
     if on_select_action: data["onSelectAction"] = on_select_action
@@ -444,17 +447,17 @@ def media_card(
     media_type: str,
     url: str,
     *,
-    thumbnail: str = None,
-    description: str = None,
-    size: str = None,
-    action: dict = None,
-    component_id: str = None,
-) -> dict:
+    thumbnail: str | None = None,
+    description: str | None = None,
+    size: str | None = None,
+    action: JSONDict | None = None,
+    component_id: str | None = None,
+) -> JSONDict:
     """
     媒体预览卡片。
     media_type: "image" | "video" | "pdf" | "document"
     """
-    data = {"title": title, "mediaType": media_type, "url": url}
+    data: JSONDict = {"title": title, "mediaType": media_type, "url": url}
     if thumbnail: data["thumbnail"] = thumbnail
     if description: data["description"] = description
     if size: data["size"] = size
@@ -466,18 +469,18 @@ def media_card(
 
 def schedule_picker(
     title: str,
-    available_slots: List[Dict[str, Any]],
+    available_slots: list[JSONDict],
     *,
-    subtitle: str = None,
-    duration_options: List[Dict[str, Any]] = None,
-    on_select_action: dict = None,
-    component_id: str = None,
-) -> dict:
+    subtitle: str | None = None,
+    duration_options: list[JSONDict] | None = None,
+    on_select_action: JSONDict | None = None,
+    component_id: str | None = None,
+) -> JSONDict:
     """
     日程预约组件（预留接口）。
     available_slots: [{"id": "...", "date": "2026-02-10", "time": "10:00", "available": true}]
     """
-    data = {"title": title, "availableSlots": available_slots}
+    data: JSONDict = {"title": title, "availableSlots": available_slots}
     if subtitle: data["subtitle"] = subtitle
     if duration_options: data["durationOptions"] = duration_options
     if on_select_action: data["onSelectAction"] = on_select_action
@@ -491,14 +494,14 @@ def feedback_card(
     *,
     rating_enabled: bool = True,
     comment_enabled: bool = True,
-    tags: List[str] = None,
-    submit_action: dict = None,
-    component_id: str = None,
-) -> dict:
+    tags: list[str] | None = None,
+    submit_action: JSONDict | None = None,
+    component_id: str | None = None,
+) -> JSONDict:
     """
     评价反馈组件。
     """
-    data = {
+    data: JSONDict = {
         "title": title,
         "ratingEnabled": rating_enabled,
         "commentEnabled": comment_enabled,
@@ -512,18 +515,18 @@ def feedback_card(
 
 def plugin_container(
     plugin_type: str,
-    config: Dict[str, Any],
+    config: JSONDict,
     *,
-    title: str = None,
+    title: str | None = None,
     fallback_text: str = "该功能即将开放",
-    component_id: str = None,
-) -> dict:
+    component_id: str | None = None,
+) -> JSONDict:
     """
     通用插件容器 — Skills/MCP 扩展的统一接口。
     plugin_type: 插件类型标识（如 "mcp_tool", "skill_action"）
     config: 插件配置数据
     """
-    data = {
+    data: JSONDict = {
         "pluginType": plugin_type,
         "config": config,
         "fallbackText": fallback_text,
@@ -535,12 +538,12 @@ def plugin_container(
 # ========== A2UI 消息包装器 ==========
 
 def a2ui_message(
-    components: List[dict],
+    components: list[JSONDict],
     *,
     text: str = "",
     agent: str = "AI 助手",
-    message_id: str = None,
-) -> dict:
+    message_id: str | None = None,
+) -> JSONDict:
     """
     构建完整的 A2UI 消息，用于 WebSocket 发送。
     
@@ -566,11 +569,11 @@ def a2ui_message(
 # ========== StreamObject 流式 A2UI 协议 ==========
 
 def a2ui_stream_start(
-    stream_id: str = None,
+    stream_id: str | None = None,
     *,
     agent: str = "AI 助手",
-    metadata: Dict[str, Any] = None,
-) -> dict:
+    metadata: JSONDict | None = None,
+) -> JSONDict:
     """
     构建流式 A2UI 开始事件。
 
@@ -585,7 +588,7 @@ def a2ui_stream_start(
             "agent": "...",
         }
     """
-    event = {
+    event: JSONDict = {
         "type": "a2ui_stream",
         "streamId": stream_id or make_id(),
         "action": "stream_start",
@@ -598,10 +601,10 @@ def a2ui_stream_start(
 
 def a2ui_stream_component(
     stream_id: str,
-    component: dict,
+    component: JSONDict,
     *,
-    agent: str = None,
-) -> dict:
+    agent: str | None = None,
+) -> JSONDict:
     """
     构建流式 A2UI 新增组件事件。
 
@@ -620,7 +623,7 @@ def a2ui_stream_component(
             "component": {...},
         }
     """
-    event = {
+    event: JSONDict = {
         "type": "a2ui_stream",
         "streamId": stream_id,
         "action": "stream_component",
@@ -634,8 +637,8 @@ def a2ui_stream_component(
 def a2ui_stream_delta(
     stream_id: str,
     component_id: str,
-    delta: Dict[str, Any],
-) -> dict:
+    delta: JSONDict,
+) -> JSONDict:
     """
     构建流式 A2UI 增量更新事件。
 
@@ -665,7 +668,7 @@ def a2ui_stream_delta(
     }
 
 
-def a2ui_stream_end(stream_id: str) -> dict:
+def a2ui_stream_end(stream_id: str) -> JSONDict:
     """
     构建流式 A2UI 结束事件。
 
@@ -693,19 +696,19 @@ def case_progress_card(
     title: str,
     current_phase: str,
     progress: int,
-    steps: List[Dict[str, Any]],
+    steps: list[JSONDict],
     *,
-    case_type: str = None,
-    estimated_completion: str = None,
-    actions: List[dict] = None,
-    component_id: str = None,
-) -> dict:
+    case_type: str | None = None,
+    estimated_completion: str | None = None,
+    actions: list[JSONDict] | None = None,
+    component_id: str | None = None,
+) -> JSONDict:
     """
     案件进度时间线卡片。
 
     steps: [{"id": "...", "label": "...", "status": "completed|active|pending|error", "description": "...", "timestamp": "...", "agent": "..."}]
     """
-    data = {
+    data: JSONDict = {
         "caseId": case_id,
         "title": title,
         "currentPhase": current_phase,
@@ -725,20 +728,20 @@ def risk_assessment_card(
     title: str,
     overall_score: int,
     overall_level: str,
-    dimensions: List[Dict[str, Any]],
+    dimensions: list[JSONDict],
     *,
-    subtitle: str = None,
-    summary: str = None,
-    recommendations: List[str] = None,
-    actions: List[dict] = None,
-    component_id: str = None,
-) -> dict:
+    subtitle: str | None = None,
+    summary: str | None = None,
+    recommendations: list[str] | None = None,
+    actions: list[JSONDict] | None = None,
+    component_id: str | None = None,
+) -> JSONDict:
     """
     风险评估雷达图卡片。
 
     dimensions: [{"id": "...", "label": "...", "score": 75, "level": "medium", "trend": "up|down|stable"}]
     """
-    data = {
+    data: JSONDict = {
         "title": title,
         "overallScore": overall_score,
         "overallLevel": overall_level,
@@ -759,20 +762,20 @@ def contract_compare_card(
     title: str,
     left_label: str,
     right_label: str,
-    clauses: List[Dict[str, Any]],
+    clauses: list[JSONDict],
     *,
-    subtitle: str = None,
-    summary: dict = None,
-    actions: List[dict] = None,
-    component_id: str = None,
-) -> dict:
+    subtitle: str | None = None,
+    summary: JSONDict | None = None,
+    actions: list[JSONDict] | None = None,
+    component_id: str | None = None,
+) -> JSONDict:
     """
     合同条款对比卡片。
 
     clauses: [{"id": "...", "clauseTitle": "...", "changeType": "added|removed|modified|unchanged",
                "leftContent": "...", "rightContent": "...", "riskLevel": "low|medium|high", "comment": "..."}]
     """
-    data = {
+    data: JSONDict = {
         "title": title,
         "leftLabel": left_label,
         "rightLabel": right_label,
@@ -789,24 +792,24 @@ def contract_compare_card(
 
 def fee_estimate_card(
     title: str,
-    items: List[Dict[str, Any]],
-    total: Dict[str, Any],
+    items: list[JSONDict],
+    total: JSONDict,
     *,
-    subtitle: str = None,
-    discounts: List[dict] = None,
-    packages: List[dict] = None,
-    payment_methods: List[dict] = None,
-    notes: List[str] = None,
-    actions: List[dict] = None,
-    component_id: str = None,
-) -> dict:
+    subtitle: str | None = None,
+    discounts: list[JSONDict] | None = None,
+    packages: list[JSONDict] | None = None,
+    payment_methods: list[JSONDict] | None = None,
+    notes: list[str] | None = None,
+    actions: list[JSONDict] | None = None,
+    component_id: str | None = None,
+) -> JSONDict:
     """
     费用估算卡片。
 
     items: [{"id": "...", "label": "...", "amount": 500, "unit": "元/小时", "optional": false}]
     total: {"label": "预计总费用", "amount": 5000, "original": 6000}
     """
-    data = {
+    data: JSONDict = {
         "title": title,
         "items": items,
         "total": total,

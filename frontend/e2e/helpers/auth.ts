@@ -1,15 +1,14 @@
 import { expect, type Page } from '@playwright/test'
-
-const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || 'admin@anxinfawu.com'
-const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD || 'admin888'
+import { installApiMocks, seedAuthState } from './session'
 
 export async function loginAsAdmin(page: Page) {
-  await page.goto('/login')
-
-  await page.getByPlaceholder('请输入邮箱地址').fill(ADMIN_EMAIL)
-  await page.getByPlaceholder('请输入密码').fill(ADMIN_PASSWORD)
-  await page.locator('form').getByRole('button', { name: '登录' }).click()
-
-  await page.waitForURL('**/chat', { timeout: 15000 })
+  await installApiMocks(page)
+  await seedAuthState(page, {
+    role: 'admin',
+    userId: 'e2e-admin',
+    name: 'E2E Admin',
+    email: 'admin@anxinfawu.com',
+  })
+  await page.goto('/chat')
   await expect(page.getByText('你好，有什么可以帮您？')).toBeVisible({ timeout: 15000 })
 }

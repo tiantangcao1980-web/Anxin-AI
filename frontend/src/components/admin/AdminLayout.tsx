@@ -39,10 +39,12 @@ const navGroups: NavGroup[] = [
   {
     label: '系统运维',
     items: [
-      { path: '/admin/config', label: '系统配置', icon: icons.Settings },
-      { path: '/admin/ai-config', label: 'AI 配置', icon: icons.Cpu },
+      { path: '/admin/basic', label: '基础设置', icon: icons.Settings },
+      { path: '/admin/ai-config', label: '模型配置', icon: icons.Cpu },
+      { path: '/admin/integrations', label: '服务集成', icon: icons.Globe },
+      { path: '/admin/security', label: '安全策略', icon: icons.Lock },
       { path: '/admin/health', label: '系统监控', icon: icons.Server },
-      { path: '/admin/harness', label: 'Harness 工程', icon: icons.Shield },
+      { path: '/admin/harness', label: 'Harness', icon: icons.Shield },
     ],
   },
   {
@@ -55,7 +57,6 @@ const navGroups: NavGroup[] = [
   {
     label: '安全与合规',
     items: [
-      { path: '/admin/security', label: '安全设置', icon: icons.Lock },
       { path: '/admin/audit', label: '审计日志', icon: icons.FileText },
       { path: '/admin/feature-flags', label: '功能开关', icon: icons.Target },
     ],

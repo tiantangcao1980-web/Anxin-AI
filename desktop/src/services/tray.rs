@@ -2,7 +2,7 @@ use crate::models::{AppMode, SharedAppState};
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
-    AppHandle, Manager,
+    AppHandle, Emitter, Manager,
 };
 
 /// 创建系统托盘
