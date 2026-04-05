@@ -29,6 +29,8 @@ from camel.messages import BaseMessage
 from camel.models import ModelFactory
 from camel.types import ModelPlatformType, ModelType
 
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, retry_if_exception
+
 from src.core.config import settings, get_settings
 from src.core.llm_helper import get_llm_config_sync
 
@@ -302,59 +304,48 @@ class BaseLegalAgent(ABC):
         Raises:
             Exception: 所有重试失败后抛出
         """
+        from tenacity import AsyncRetrying, stop_after_attempt, wait_exponential, retry_if_exception_type
+
         client = await self.get_http_client()
-        last_error = None
         
-        for attempt in range(1, self.MAX_RETRIES + 1):
-            try:
-                async with self._llm_semaphore:
-                    if stream:
-                        # 流式模式需要特殊处理，这里返回 response 对象
-                        resp = await client.post(url, headers=headers, json=payload)
-                    else:
-                        resp = await client.post(url, headers=headers, json=payload)
-                
-                if resp.status_code == 200:
-                    return resp.json()
-                elif resp.status_code == 401:
-                    # 认证错误不需要重试
-                    raise Exception(f"API认证失败 (401): {resp.text}")
-                elif resp.status_code == 429:
-                    # 速率限制，等待更长时间
-                    delay = min(self.RETRY_BASE_DELAY * (2 ** attempt), self.RETRY_MAX_DELAY)
-                    logger.warning(f"API速率限制 (429)，等待 {delay:.1f}s 后重试 (尝试 {attempt}/{self.MAX_RETRIES})")
-                    await asyncio.sleep(delay)
-                    continue
-                else:
-                    raise Exception(f"API返回 {resp.status_code}: {resp.text}")
+        def should_retry(e: BaseException) -> bool:
+            # 认证错误不重试
+            error_str = str(e)
+            if "401" in error_str or "认证" in error_str:
+                return False
+            return True
+
+        retryer = AsyncRetrying(
+            stop=stop_after_attempt(self.MAX_RETRIES),
+            wait=wait_exponential(multiplier=self.RETRY_BASE_DELAY, min=1, max=self.RETRY_MAX_DELAY),
+            retry=retry_if_exception_type(Exception),
+            reraise=True,
+        )
+
+        async for attempt in retryer:
+            with attempt:
+                try:
+                    async with self._llm_semaphore:
+                        if stream:
+                            resp = await client.post(url, headers=headers, json=payload)
+                        else:
+                            resp = await client.post(url, headers=headers, json=payload)
                     
-            except httpx.TimeoutException as e:
-                last_error = e
-                # 首次超时用较短延迟（可能只是网络抖动），后续指数退避
-                delay = min(self.RETRY_BASE_DELAY * (2 ** (attempt - 1)), self.RETRY_MAX_DELAY)
-                logger.warning(
-                    f"API超时 (timeout={settings.AGENT_LLM_TIMEOUT}s)，"
-                    f"等待 {delay:.1f}s 后重试 (尝试 {attempt}/{self.MAX_RETRIES})"
-                )
-                await asyncio.sleep(delay)
-            except httpx.ConnectError as e:
-                last_error = e
-                delay = min(self.RETRY_BASE_DELAY * (2 ** (attempt - 1)), self.RETRY_MAX_DELAY)
-                logger.warning(f"API连接失败，等待 {delay:.1f}s 后重试 (尝试 {attempt}/{self.MAX_RETRIES})")
-                await asyncio.sleep(delay)
-            except Exception as e:
-                if "401" in str(e) or "认证" in str(e):
-                    raise  # 认证错误不重试
-                last_error = e
-                if attempt < self.MAX_RETRIES:
-                    delay = min(self.RETRY_BASE_DELAY * (2 ** (attempt - 1)), self.RETRY_MAX_DELAY)
-                    logger.warning(f"API调用异常: {e}，等待 {delay:.1f}s 后重试 (尝试 {attempt}/{self.MAX_RETRIES})")
-                    await asyncio.sleep(delay)
-        
-        error_detail = str(last_error) if last_error else "未知错误"
-        if not error_detail.strip():
-            error_detail = f"{type(last_error).__name__}: 请求超时或连接失败"
-        raise Exception(f"LLM调用在 {self.MAX_RETRIES} 次重试后失败: {error_detail}")
+                    if resp.status_code == 200:
+                        return resp.json()
+                    elif resp.status_code == 401:
+                        raise Exception(f"API认证失败 (401): {resp.text}")
+                    elif resp.status_code == 429:
+                        raise Exception(f"API速率限制 (429): {resp.text}")
+                    else:
+                        raise Exception(f"API返回 {resp.status_code}: {resp.text}")
+                        
+                except Exception as e:
+                    if not should_retry(e):
+                        raise  # Reraise immediately, bypass tenacity retry
+                    
+                    logger.warning(f"API调用异常: {e}，正在尝试重试 (当前尝试 {attempt.retry_state.attempt_number}/{self.MAX_RETRIES})")
+                    raise  # Reraise so tenacity catches it and retries
     
     async def chat(
         self,
