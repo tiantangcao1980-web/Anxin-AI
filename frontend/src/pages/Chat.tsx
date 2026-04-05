@@ -1014,12 +1014,20 @@ export default function Chat() {
       // --- 引导式问答 ---
       case 'clarification_request':
         setIsProcessing(false);
+        const safeQuestions = Array.isArray(data.questions)
+          ? data.questions.map((q: any, index: number) => ({
+            question: typeof q?.question === 'string' && q.question.trim()
+              ? q.question
+              : `问题 ${index + 1}`,
+            options: Array.isArray(q?.options) ? q.options : [],
+          }))
+          : [];
         const clarMsg: Message = {
           id: uuidv4(), type: 'clarification',
           content: data.message || '为了更好地帮助您，请补充以下信息：',
           timestamp: new Date(), agent: '需求分析',
           clarification: {
-            questions: data.questions || [],
+            questions: safeQuestions,
             original_content: data.original_content || '',
           },
         };
@@ -1660,8 +1668,8 @@ export default function Chat() {
         <ClarificationBubble
           key={message.id}
           message={message.content}
-          questions={message.clarification!.questions}
-          originalContent={message.clarification!.original_content}
+          questions={message.clarification?.questions ?? []}
+          originalContent={message.clarification?.original_content ?? ''}
           onSubmit={handleClarificationResponse}
           disabled={isProcessing}
         />

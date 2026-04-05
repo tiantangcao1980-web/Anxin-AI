@@ -86,8 +86,22 @@ export function ClarificationBubble({
     onSubmit?.(originalContent, valid);
   };
 
+  const normalizedQuestions = (Array.isArray(questions) ? questions : [])
+    .map((q, index) => {
+      const question = typeof q?.question === 'string' && q.question.trim()
+        ? q.question.trim()
+        : `问题 ${index + 1}`;
+      const options = Array.isArray(q?.options)
+        ? q.options
+          .filter((opt): opt is string => typeof opt === 'string')
+          .map(opt => opt.trim())
+          .filter(Boolean)
+        : [];
+      return { question, options };
+    });
+
   const answeredCount = Object.values(selections).filter(v => v).length;
-  const allAnswered = answeredCount === questions.length;
+  const allAnswered = normalizedQuestions.length > 0 && answeredCount === normalizedQuestions.length;
   const hasAnyAnswer = answeredCount > 0;
 
   // 提交后的紧凑视图
@@ -130,7 +144,7 @@ export function ClarificationBubble({
         <div className="bg-background border border-border rounded-2xl rounded-tl-none px-4 py-3.5 shadow-sm">
           <p className="text-sm text-foreground mb-3 leading-relaxed">{message}</p>
           <div className="space-y-4">
-            {questions.map((q, qi) => {
+            {normalizedQuestions.map((q, qi) => {
               const isAnswered = !!selections[q.question];
               const isCustomMode = showCustomInput[q.question];
               return (
@@ -210,7 +224,7 @@ export function ClarificationBubble({
                   {allAnswered ? (
                     <>确认需求，开始处理 <icons.ChevronRight className="w-4 h-4" /></>
                   ) : (
-                    <>先处理已确认的 ({answeredCount}/{questions.length}) <icons.ChevronRight className="w-4 h-4" /></>
+                    <>先处理已确认的 ({answeredCount}/{normalizedQuestions.length}) <icons.ChevronRight className="w-4 h-4" /></>
                   )}
                 </button>
               </motion.div>
@@ -218,7 +232,7 @@ export function ClarificationBubble({
             <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
               {allAnswered
                 ? '所有信息已填写完毕，点击上方按钮确认'
-                : `已完成 ${answeredCount}/${questions.length} · 您可以先提交已有信息，AI 会继续引导补充`
+                : `已完成 ${answeredCount}/${normalizedQuestions.length} · 您可以先提交已有信息，AI 会继续引导补充`
               }
             </p>
           </div>
