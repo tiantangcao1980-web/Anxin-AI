@@ -178,7 +178,8 @@ export default function Login() {
     setLoading(true)
     try {
       const resp = await authApi.login({ email, password, captcha_token: captchaToken || undefined })
-      localStorage.setItem('refresh_token', resp.refresh_token || '')
+      // access_token 保存到 localStorage，refresh_token 现已通过 HttpOnly cookie 设置
+      localStorage.setItem('access_token', resp.access_token)
       setAuth(resp.user, resp.access_token)
       toast.success(`欢迎回来，${resp.user.name}！`)
       navigate(from, { replace: true })
@@ -230,7 +231,6 @@ export default function Login() {
         // 邮箱验证未启用，注册后自动登录
         try {
           const loginResp = await authApi.login({ email: regEmail, password: regPassword })
-          localStorage.setItem('refresh_token', loginResp.refresh_token || '')
           setAuth(loginResp.user, loginResp.access_token)
           toast.success(`注册成功！欢迎 ${loginResp.user.name}`)
           navigate(from, { replace: true })
@@ -325,7 +325,6 @@ export default function Login() {
     setLoading(true)
     try {
       const resp = await authApi.verifyEmail(verifyEmail, verifyCode)
-      localStorage.setItem('refresh_token', resp.refresh_token || '')
       setAuth(resp.user, resp.access_token)
       toast.success('邮箱验证成功！')
       navigate(from, { replace: true })

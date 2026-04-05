@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
@@ -66,7 +66,7 @@ class ResendVerificationRequest(BaseModel):
 
 class RefreshTokenRequest(BaseModel):
     """Token刷新请求"""
-    refresh_token: str
+    refresh_token: Optional[str] = None
 
 
 class TokenResponse(BaseModel):
@@ -187,6 +187,7 @@ async def _require_captcha(request: Request, captcha_token: Optional[str]) -> No
 @router.post("/login", response_model=TokenResponse)
 async def login(
     request: Request,
+    response: Response,
     login_request: LoginRequest,
     db: AsyncSession = Depends(get_db),
     _: None = Depends(rate_limit_auth),
@@ -263,6 +264,16 @@ async def login(
         extra_data={"email": login_request.email},
     )
     await db.commit()
+
+    # 将 refresh_token 设置到 HttpOnly cookie 中
+    response.set_cookie(
+        key="refresh_token",
+        value=result["refresh_token"],
+        httponly=True,
+        secure=not settings.DEV_MODE,
+        samesite="lax",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_MINUTES * 60,
+    )
 
     return result
 
@@ -476,6 +487,7 @@ async def logout(
 @router.post("/refresh", response_model=TokenPairResponse)
 async def refresh_token_endpoint(
     request: Request,
+    response: Response,
     refresh_request: RefreshTokenRequest,
     db: AsyncSession = Depends(get_db),
     _: None = Depends(rate_limit(limit=30, window=60, endpoint="auth_refresh")),
@@ -483,12 +495,20 @@ async def refresh_token_endpoint(
     """
     刷新访问Token
     
-    使用refresh_token获取新的access_token和refresh_token对。
+    优先从 HttpOnly Cookie 获取 refresh_token，降级使用请求体。
     旧的refresh_token会被加入黑名单，只能使用一次。
     
     限流：30次/分钟
     """
-    token_pair = await refresh_access_token(refresh_request.refresh_token)
+    token = request.cookies.get("refresh_token") or refresh_request.refresh_token
+    
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="未提供 refresh_token",
+        )
+        
+    token_pair = await refresh_access_token(token)
     
     if not token_pair:
         raise HTTPException(
@@ -506,6 +526,16 @@ async def refresh_token_endpoint(
     )
     await db.commit()
     
+    # 更新 HttpOnly Cookie 中的 refresh_token
+    response.set_cookie(
+        key="refresh_token",
+        value=token_pair.refresh_token,
+        httponly=True,
+        secure=not settings.DEV_MODE,
+        samesite="lax",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_MINUTES * 60,
+    )
+    
     logger.info("Token刷新成功")
     
     return TokenPairResponse(
@@ -519,6 +549,7 @@ async def refresh_token_endpoint(
 @router.post("/revoke")
 async def revoke_token_endpoint(
     request: Request,
+    response: Response,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
@@ -548,6 +579,9 @@ async def revoke_token_endpoint(
         )
         await db.commit()
         
+        # 清除 Cookie
+        response.delete_cookie("refresh_token")
+        
         return {"message": "Token已撤销"}
     
     raise HTTPException(
@@ -562,6 +596,7 @@ async def revoke_token_endpoint(
 @router.post("/verify-email", summary="验证邮箱 - 使用注册验证码")
 async def verify_email(
     req: VerifyEmailRequest,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     _: None = Depends(rate_limit(limit=10, window=300, endpoint="verify_email", by_user=False)),
 ):
@@ -602,6 +637,17 @@ async def verify_email(
 
     # 验证成功后自动颁发 Token，允许直接登录
     tokens = create_token_pair(user.id)
+    
+    # 设置 HttpOnly Cookie
+    response.set_cookie(
+        key="refresh_token",
+        value=tokens.refresh_token,
+        httponly=True,
+        secure=not settings.DEV_MODE,
+        samesite="lax",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_MINUTES * 60,
+    )
+    
     return {
         "message": "邮箱验证成功",
         "access_token": tokens.access_token,

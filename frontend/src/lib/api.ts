@@ -109,27 +109,22 @@ async function request<T>(
   // 处理 401 认证失败：尝试刷新 Token，失败则跳转登录
   if (response.status === 401 && !_retry && token) {
     // Try to refresh token
-    const refreshToken = localStorage.getItem('refresh_token')
-    if (refreshToken) {
-      try {
-        const refreshResp = await fetch(`${API_BASE_URL}/auth/refresh`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refresh_token: refreshToken }),
-        })
-        if (refreshResp.ok) {
-          const refreshData = await refreshResp.json()
-          const newToken = refreshData.data?.access_token || refreshData.access_token
-          const newRefresh = refreshData.data?.refresh_token || refreshData.refresh_token
-          if (newToken) {
-            localStorage.setItem('access_token', newToken)
-            if (newRefresh) localStorage.setItem('refresh_token', newRefresh)
-            return request<T>(endpoint, options, true)
-          }
+    try {
+      const refreshResp = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include' // 允许携带 HttpOnly Cookie
+      })
+      if (refreshResp.ok) {
+        const refreshData = await refreshResp.json()
+        const newToken = refreshData.data?.access_token || refreshData.access_token
+        if (newToken) {
+          localStorage.setItem('access_token', newToken)
+          return request<T>(endpoint, options, true)
         }
-      } catch {
-        // Refresh failed, proceed to logout
       }
+    } catch {
+      // Refresh failed, proceed to logout
     }
     // Refresh failed or no refresh token — clear auth and redirect
     localStorage.removeItem('access_token')
