@@ -115,6 +115,17 @@ AVAILABLE_AGENTS: List[Dict[str, Any]] = [
     },
 ]
 
+import asyncio
+
+# 全局 HTTP 客户端，用于复用连接池
+_shared_http_client: Optional[httpx.AsyncClient] = None
+
+def get_shared_http_client() -> httpx.AsyncClient:
+    global _shared_http_client
+    if _shared_http_client is None or _shared_http_client.is_closed:
+        _shared_http_client = httpx.AsyncClient(timeout=60.0)
+    return _shared_http_client
+
 
 class AIAssistantService:
     """AI 私有助手服务"""
@@ -435,12 +446,12 @@ class AIAssistantService:
             "max_tokens": min(llm_config.max_tokens, 2000),
         }
 
-        async with httpx.AsyncClient(timeout=60) as client:
-            try:
-                resp = await client.post(url, json=payload, headers=headers)
-                resp.raise_for_status()
-                data = resp.json()
-                return data["choices"][0]["message"]["content"]
-            except Exception as e:
-                logger.error(f"LLM 调用失败: {e}")
-                return f"摘要生成失败: {e}"
+        client = get_shared_http_client()
+        try:
+            resp = await client.post(url, json=payload, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
+            return data["choices"][0]["message"]["content"]
+        except Exception as e:
+            logger.exception(f"LLM 调用失败: {e}")
+            return f"摘要生成失败: {e}"
