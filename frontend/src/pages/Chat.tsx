@@ -1683,10 +1683,14 @@ export default function Chat() {
           key={message.id}
           content={message.content}
           isError={message.metadata?.isError}
+          actionable={message.metadata?.actionable}
           onRetry={message.metadata?.isError ? () => {
             const lastUserMsg = [...messages].reverse().find(m => m.type === 'user');
             if (lastUserMsg) handleSendMessage(lastUserMsg.content);
           } : undefined}
+          onSwitchModel={() => {
+            toast('请点击页面右上角的模型选择器切换其他大模型');
+          }}
         />
       );
     }

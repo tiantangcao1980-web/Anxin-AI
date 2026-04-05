@@ -11,10 +11,12 @@ import { icons } from '@/lib/icons'
 interface SystemMessageProps {
   content: string
   isError?: boolean
+  actionable?: 'retry' | 'switch_model'
   onRetry?: () => void
+  onSwitchModel?: () => void
 }
 
-export function SystemMessage({ content, isError, onRetry }: SystemMessageProps) {
+export function SystemMessage({ content, isError, actionable, onRetry, onSwitchModel }: SystemMessageProps) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -33,6 +35,14 @@ export function SystemMessage({ content, isError, onRetry }: SystemMessageProps)
             className="ml-1 px-2 py-0.5 bg-destructive/10 hover:bg-destructive/20 text-destructive rounded-full text-[10px] font-semibold transition-colors"
           >
             重试
+          </button>
+        )}
+        {isError && actionable === 'switch_model' && onSwitchModel && (
+          <button
+            onClick={onSwitchModel}
+            className="ml-1 px-2 py-0.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-full text-[10px] font-semibold transition-colors"
+          >
+            切换基础模型
           </button>
         )}
       </div>

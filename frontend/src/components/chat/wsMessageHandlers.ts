@@ -115,8 +115,11 @@ export function handleError(data: any, ctx: WSHandlerContext) {
 
   // 友好化错误消息
   let friendlyMsg = `处理遇到问题：${rawError}`
+  let actionableType: 'retry' | 'switch_model' = 'retry'
+
   if (rawError.includes('timeout') || rawError.includes('超时')) {
-    friendlyMsg = '处理超时，请简化问题后重试。'
+    friendlyMsg = '处理超时，请简化问题后重试，或尝试切换其他模型。'
+    actionableType = 'switch_model'
   } else if (rawError.includes('Canvas')) {
     friendlyMsg = 'Canvas 内容优化失败，请稍后重试。'
   }
@@ -126,7 +129,7 @@ export function handleError(data: any, ctx: WSHandlerContext) {
     type: 'system' as const,
     content: friendlyMsg,
     timestamp: new Date(),
-    metadata: { isError: true, originalError: rawError },
+    metadata: { isError: true, originalError: rawError, actionable: actionableType },
   }])
 }
 

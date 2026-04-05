@@ -30,6 +30,7 @@ export interface Message {
   metadata?: {
     isError?: boolean
     originalError?: string
+    actionable?: 'retry' | 'switch_model'
     lastUserMessage?: string
     repair_type?: string
   }
