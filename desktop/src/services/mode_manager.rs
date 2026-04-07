@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::models::{AppMode, AppStateData, SharedAppState, SyncStatus};
 
 /// 模式管理器：管理三种运行模式的切换和状态

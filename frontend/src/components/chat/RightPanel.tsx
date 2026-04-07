@@ -436,10 +436,24 @@ export const RightPanel = memo(function RightPanel(props: RightPanelProps) {
   }, [props.canvasContent, store, addDocumentToList]);
 
   const handleSwitchToDocument = useCallback(() => {
-    if (hasDocument) {
-      onTabChange('document');
-    }
-  }, [hasDocument, onTabChange]);
+    if (!hasDocument || !props.canvasContent) return;
+
+    const entryState = {
+      entryMode: 'chat' as const,
+      initialDocument: {
+        id: `chat-${Date.now()}`,
+        title: props.canvasContent.title || '未命名文档',
+        content: props.canvasContent.content,
+        type: props.canvasContent.type,
+        metadata: props.canvasContent.metadata,
+      },
+    };
+    window.sessionStorage.setItem('document-workbench-entry', JSON.stringify(entryState));
+
+    navigate('/documents', {
+      state: entryState,
+    });
+  }, [hasDocument, navigate, props.canvasContent]);
 
   const handleSelectTemplate = useCallback((template: { title: string; content: string; type: CanvasContent['type'] }) => {
     store.setCanvasContent({
@@ -459,9 +473,14 @@ export const RightPanel = memo(function RightPanel(props: RightPanelProps) {
   )
 
   return (
-    <div className="h-full flex flex-col bg-muted/30">
+    <div
+      data-workbench-shell="chat"
+      data-workbench-tab={activeTab}
+      data-workbench-surface
+      className="flex h-full flex-col border-l border-border/60 bg-surface-2"
+    >
       {/* 顶栏：Tab 切换 + 功能按钮 */}
-      <div className="h-12 flex items-center px-3 bg-background border-b border-border flex-shrink-0">
+      <div data-workbench-header className="flex h-12 shrink-0 items-center border-b border-border/60 bg-surface-1/95 px-3 backdrop-blur-xl">
         {/* 左侧：双模式 Tab */}
         <div className="flex items-center gap-0.5 bg-muted/60 rounded-lg p-0.5 flex-shrink-0">
           <button
@@ -556,7 +575,7 @@ export const RightPanel = memo(function RightPanel(props: RightPanelProps) {
       </div>
 
       {/* 内容区 — 每个 Tab 独立渲染 */}
-      <div className="flex-1 overflow-hidden relative">
+      <div data-workbench-content className="relative flex-1 overflow-hidden bg-surface-2">
         {/* 文档列表弹出面板 */}
         <AnimatePresence>
           {showDocList && (
@@ -616,7 +635,7 @@ export const RightPanel = memo(function RightPanel(props: RightPanelProps) {
 
         {/* ===== 工作台模式 ===== */}
         {activeTab === 'smart' && (
-          <div className="h-full overflow-y-auto">
+          <div className="h-full overflow-y-auto px-3 py-3">
             <Suspense fallback={panelFallback}>
               <AgentWorkspace
                 agentResults={props.agentResults}
@@ -633,7 +652,7 @@ export const RightPanel = memo(function RightPanel(props: RightPanelProps) {
 
             {/* 工作台空状态 — 系统内置功能入口 */}
             {!hasActivity && !props.isProcessing && !store.contractReviewVisible && (
-              <div className="h-full flex flex-col px-4 py-5">
+              <div className="flex h-full flex-col rounded-2xl border border-border/60 bg-surface-1 px-4 py-5 shadow-card">
                 {/* 顶部标题 */}
                 <div className="flex items-center gap-2.5 mb-5 px-1">
                   <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shadow-sm">
@@ -661,7 +680,7 @@ export const RightPanel = memo(function RightPanel(props: RightPanelProps) {
                           <button
                             key={item.actionId}
                             onClick={() => props.onWorkspaceAction?.(item.actionId)}
-                            className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-background border border-border/50 hover:border-primary/30 hover:shadow-md transition-all active:scale-95"
+                            className="flex flex-col items-center gap-1.5 rounded-xl border border-border/60 bg-surface-1 p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-card active:scale-95"
                           >
                             <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${item.color}`}>
                               <Icon className="w-4.5 h-4.5" />
@@ -705,7 +724,7 @@ export const RightPanel = memo(function RightPanel(props: RightPanelProps) {
                           <button
                             key={item.actionId}
                             onClick={() => props.onWorkspaceAction?.(item.actionId)}
-                            className="flex items-start gap-3 p-3 rounded-xl bg-background border border-border/50 hover:border-primary/30 hover:shadow-md transition-all w-full text-left group active:scale-[0.98]"
+                            className="group flex w-full items-start gap-3 rounded-xl border border-border/60 bg-surface-1 p-3 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-card active:scale-[0.98]"
                           >
                             <div className="w-9 h-9 rounded-lg bg-primary/5 group-hover:bg-primary/10 flex items-center justify-center flex-shrink-0 transition-colors">
                               <Icon className="w-4.5 h-4.5 text-primary/60 group-hover:text-primary transition-colors" />
@@ -737,7 +756,7 @@ export const RightPanel = memo(function RightPanel(props: RightPanelProps) {
                           <button
                             key={item.actionId}
                             onClick={() => props.onWorkspaceAction?.(item.actionId)}
-                            className="flex items-center gap-2.5 p-3 rounded-xl bg-background border border-border/50 hover:border-primary/30 hover:shadow-md transition-all group text-left active:scale-[0.98]"
+                            className="group flex items-center gap-2.5 rounded-xl border border-border/60 bg-surface-1 p-3 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-card active:scale-[0.98]"
                           >
                             <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 group-hover:bg-primary/5 transition-colors">
                               <Icon className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -756,7 +775,7 @@ export const RightPanel = memo(function RightPanel(props: RightPanelProps) {
                 {/* 底部能力标签 */}
                 <div className="flex flex-wrap justify-center gap-1.5 mt-4 pt-3 border-t border-border/50">
                   {['需求分析', '多Agent协作', '进度追踪', 'A2UI动态卡片'].map((tag) => (
-                    <span key={tag} className="px-2 py-0.5 bg-background text-[10px] text-muted-foreground border border-border rounded-full">
+                    <span key={tag} className="rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[10px] text-muted-foreground">
                       {tag}
                     </span>
                   ))}

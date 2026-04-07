@@ -364,8 +364,7 @@ export function CaseManagement() {
   };
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Content */}
+    <div data-ui="page-shell" className="h-full flex flex-col bg-surface-2">
       <div className="flex-1 overflow-hidden">
         <div className="h-full flex flex-col lg:flex-row">
           {/* Case List */}

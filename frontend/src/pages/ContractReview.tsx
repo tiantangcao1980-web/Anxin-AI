@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { icons } from '@/lib/icons';
-import { contractsApi, DocumentParseResult, QuickReviewResult, ContractReviewStreamEvent, ReviewRiskItem } from '@/lib/api';
+import { contractsApi, DocumentParseResult, QuickReviewResult, ContractReviewStreamEvent, ReviewRiskItem, UploadAndReviewResult } from '@/lib/api';
 import { toast } from 'sonner';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { cardStyle, heading, buttonStyle, iconSize, statusBadge, radius, inputStyle } from '@/lib/design-tokens';
@@ -57,6 +57,20 @@ function getRiskLevelLabel(level: string) {
     case 'low': return '低风险';
     default: return level;
   }
+}
+
+function normalizeFullReviewResult(payload: UploadAndReviewResult): QuickReviewResult {
+  const review = payload.review_result || {} as UploadAndReviewResult['review_result'];
+  return {
+    summary: review.summary || '审查完成',
+    risk_level: review.risk_level || 'medium',
+    risk_score: review.risk_score || 0.5,
+    key_risks: review.risks || [],
+    suggestions: review.suggestions || [],
+    key_terms: review.key_terms || {},
+    missing_clauses: review.missing_clauses || [],
+    contract_id: payload.contract_id,
+  };
 }
 
 function renderContractText(
@@ -177,6 +191,13 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
     setIsProcessing(true);
     setCurrentAgent('文档解析');
     setAgentMessage('正在解析文档内容...');
+    setReviewResult(null);
+    setDetectedRisks([]);
+    setMissingClauses([]);
+    setKeyTerms({});
+    setAcceptedRisks(new Set());
+    setContractId('');
+    setAppliedCount(0);
 
     try {
       const result = await contractsApi.parseDocument(selectedFile);
@@ -190,8 +211,24 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
       setParseResult(result);
       setContractText(result.text);
       toast.success(`文档解析成功: ${result.contract_type}`);
+      setStep('reviewing');
+      setCurrentAgent('合同审查Agent');
+      setAgentMessage('正在生成可编辑审查结果...');
 
-      await startReview(result.text, result.contract_type);
+      try {
+        const uploadResult = await contractsApi.uploadAndReview(selectedFile, selectedFile.name);
+        const fullReviewResult = normalizeFullReviewResult(uploadResult);
+        setContractId(uploadResult.contract_id);
+        setReviewResult(fullReviewResult);
+        setDetectedRisks(fullReviewResult.key_risks);
+        setMissingClauses(fullReviewResult.missing_clauses || []);
+        setKeyTerms(fullReviewResult.key_terms || {});
+        setStep('review');
+        toast.success('合同审查完成');
+      } catch (reviewError: any) {
+        toast.warning(reviewError?.message || '完整审查失败，已切换到流式审查');
+        await startReview(result.text, result.contract_type);
+      }
     } catch (error: any) {
       toast.error(error.message || '解析失败');
       setStep('upload');
@@ -204,6 +241,10 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
     setStep('reviewing');
     setIsProcessing(true);
     setDetectedRisks([]);
+    setMissingClauses([]);
+    setKeyTerms({});
+    setAcceptedRisks(new Set());
+    setAppliedCount(0);
 
     let streamRisks: ReviewRiskItem[] = [];
     let streamMissing: string[] = [];
@@ -580,7 +621,7 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
     >
       {/* Summary bar */}
       {reviewResult && (
-        <div className={`${cardStyle.base} !p-4 mb-4 flex items-center justify-between`}>
+        <div data-review-summary className={`${cardStyle.base} !p-4 mb-4 flex items-center justify-between`}>
           <div className="flex items-center gap-4">
             <div className={`px-3 py-1.5 ${radius.button} text-sm font-medium flex items-center gap-1.5 ${getRiskLevelColor(reviewResult.risk_level)}`}>
               <icons.Shield className={iconSize.sm} />
@@ -639,7 +680,7 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
               </span>
             )}
           </div>
-          <div className="flex-1 overflow-auto p-4 space-y-3">
+          <div data-review-risk-list className="flex-1 overflow-auto p-4 space-y-3">
             {detectedRisks.map((risk, index) => {
               const isAccepted = acceptedRisks.has(index);
               return (
@@ -736,7 +777,7 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
       </div>
 
       {/* Bottom action bar */}
-      <div className="bg-background border-t border-border rounded-b-xl px-6 py-4 mt-4">
+      <div data-review-actions className="bg-background border-t border-border rounded-b-xl px-6 py-4 mt-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {suggestableRisksCount > 0 && (

@@ -11,8 +11,11 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { icons } from '@/lib/icons'
-import { authApi } from '@/lib/api'
+import { authApi, type LoginResponse } from '@/lib/api'
+import { createAuthClient } from '@/lib/client/auth-client'
+import { getTokenStorage } from '@/lib/platform/storage'
 import { useAuthStore } from '@/lib/store'
+import { saveAuthToken } from '@/lib/tauri-bridge'
 import { iconSize, radius, buttonStyle, heading, inputStyle, statusColor } from '@/lib/design-tokens'
 
 declare global {
@@ -149,6 +152,11 @@ export default function Login() {
   const [verifyEmail, setVerifyEmail] = useState('')
   const [verifyCode, setVerifyCode] = useState('')
   const [resendCountdown, setResendCountdown] = useState(0)
+  const authClient = createAuthClient({
+    api: authApi,
+    storage: getTokenStorage(),
+    persistDesktopAuth: saveAuthToken,
+  })
 
   // 密码强度计算
   const getPasswordStrength = (pwd: string): { level: number; label: string; color: string } => {
@@ -169,6 +177,11 @@ export default function Login() {
   // 登录成功后跳转的目标路径
   const from = (location.state as { from?: string })?.from || '/chat'
 
+  const persistSession = async (resp: LoginResponse) => {
+    await authClient.persistSession(resp)
+    setAuth(resp.user, resp.access_token)
+  }
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email || !password) {
@@ -177,9 +190,7 @@ export default function Login() {
     }
     setLoading(true)
     try {
-      const resp = await authApi.login({ email, password, captcha_token: captchaToken || undefined })
-      // access_token 保存到 localStorage，refresh_token 现已通过 HttpOnly cookie 设置
-      localStorage.setItem('access_token', resp.access_token)
+      const resp = await authClient.login({ email, password, captcha_token: captchaToken || undefined })
       setAuth(resp.user, resp.access_token)
       toast.success(`欢迎回来，${resp.user.name}！`)
       navigate(from, { replace: true })
@@ -231,7 +242,7 @@ export default function Login() {
         // 邮箱验证未启用，注册后自动登录
         try {
           const loginResp = await authApi.login({ email: regEmail, password: regPassword })
-          setAuth(loginResp.user, loginResp.access_token)
+          await persistSession(loginResp)
           toast.success(`注册成功！欢迎 ${loginResp.user.name}`)
           navigate(from, { replace: true })
           return
@@ -325,7 +336,7 @@ export default function Login() {
     setLoading(true)
     try {
       const resp = await authApi.verifyEmail(verifyEmail, verifyCode)
-      setAuth(resp.user, resp.access_token)
+      await persistSession(resp)
       toast.success('邮箱验证成功！')
       navigate(from, { replace: true })
     } catch (err: any) {

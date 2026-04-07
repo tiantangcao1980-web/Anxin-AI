@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::models::{AppMode, SharedAppState};
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
@@ -120,6 +122,7 @@ async fn switch_tray_mode(app: &AppHandle, mode: AppMode) {
 }
 
 /// 更新托盘未读消息数
+#[allow(dead_code)]
 pub fn update_tray_badge(app: &AppHandle, count: u32) {
     if let Some(tray) = app.tray_by_id("main-tray") {
         let tooltip = if count > 0 {

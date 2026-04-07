@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 /// CLI 命令接口
 ///
 /// 将安心法务的核心功能暴露为桌面端命令，
@@ -13,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use tauri::command;
 
 /// CLI 命令请求
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CLIRequest {
     pub command: String,

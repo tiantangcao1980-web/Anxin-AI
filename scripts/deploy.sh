@@ -34,23 +34,29 @@ echo -e "${GREEN}========================================${NC}"
 echo ""
 
 # 拉取最新代码
-echo -e "${YELLOW}[1/4] 拉取最新代码...${NC}"
+echo -e "${YELLOW}[1/5] 拉取最新代码...${NC}"
 git pull
 echo "当前版本: $(git log -1 --format='%h %s')"
 
 # 构建
 echo ""
-echo -e "${YELLOW}[2/4] 构建镜像...${NC}"
+echo -e "${YELLOW}[2/5] 构建镜像...${NC}"
 DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose build "${SERVICES[@]}"
 
 # 重启 (不影响基础设施)
 echo ""
-echo -e "${YELLOW}[3/4] 重启服务...${NC}"
+echo -e "${YELLOW}[3/5] 重启服务...${NC}"
 docker compose up -d --no-deps --force-recreate "${SERVICES[@]}"
+
+if printf '%s\n' "${SERVICES[@]}" | grep -qx "backend"; then
+    echo ""
+    echo -e "${YELLOW}[4/5] 运行数据库迁移...${NC}"
+    docker compose exec -T backend alembic upgrade head
+fi
 
 # 检查
 echo ""
-echo -e "${YELLOW}[4/4] 检查状态...${NC}"
+echo -e "${YELLOW}[5/5] 检查状态...${NC}"
 sleep 5
 docker compose ps
 

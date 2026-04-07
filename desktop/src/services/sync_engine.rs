@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::models::{AppMode, SharedAppState, SyncStatus};
 
 /// 同步引擎：处理本地与云端之间的数据同步

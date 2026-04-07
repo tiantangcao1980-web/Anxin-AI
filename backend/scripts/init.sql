@@ -135,6 +135,8 @@ CREATE TABLE IF NOT EXISTS contracts (
     review_summary TEXT,
     key_terms JSONB DEFAULT '{}',
     review_result JSONB DEFAULT '{}',
+    original_text TEXT,
+    modified_text TEXT,
     reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -248,9 +250,16 @@ CREATE TABLE IF NOT EXISTS knowledge_documents (
     law_category VARCHAR(100),
     effective_date VARCHAR(50),
     issuing_authority VARCHAR(255),
+    external_id VARCHAR(255),
+    content_hash VARCHAR(64),
+    version INTEGER DEFAULT 1 NOT NULL,
+    status VARCHAR(20) DEFAULT 'active' NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS ix_knowledge_documents_external_id
+    ON knowledge_documents (external_id);
 
 -- ==================== 舆情监控 ====================
 

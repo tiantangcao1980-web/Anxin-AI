@@ -1,5 +1,4 @@
-// -*- coding: utf-8 -*-
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import {
   View,
   Text,
@@ -14,59 +13,33 @@ import {
 } from 'react-native'
 import { router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Colors } from '@/constants/colors'
 import { Layout } from '@/constants/layout'
+import { createAuthClient } from '@/lib/auth-client'
+import { getAuthStorage } from '@/lib/auth-storage'
 import { useAuthStore } from '@/lib/store'
-import type { User } from '@/types/api'
+import { authApi } from '@/services/api'
 
 export default function LoginScreen() {
-  const [phone, setPhone] = useState('')
-  const [code, setCode] = useState('')
-  const [countdown, setCountdown] = useState(0)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const codeInputRef = useRef<TextInput>(null)
   const { setAuth } = useAuthStore()
+  const authClient = createAuthClient({
+    api: authApi,
+    storage: getAuthStorage(),
+  })
 
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current)
-    }
-  }, [])
-
-  const isPhoneValid = /^1[3-9]\d{9}$/.test(phone)
-  const isCodeValid = /^\d{4,6}$/.test(code)
-
-  const handleSendCode = () => {
-    if (!isPhoneValid) {
-      Alert.alert('提示', '请输入正确的手机号码')
-      return
-    }
-    if (!agreedToTerms) {
-      Alert.alert('提示', '请先同意隐私协议和服务条款')
-      return
-    }
-
-    // @mock-data FALLBACK - 模拟发送验证码
-    setCountdown(60)
-    timerRef.current = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          if (timerRef.current) clearInterval(timerRef.current)
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-
-    codeInputRef.current?.focus()
-    Alert.alert('验证码已发送', '测试验证码：1234')
-  }
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  const isPasswordValid = password.length >= 8
 
   const handleLogin = async () => {
-    if (!isPhoneValid || !isCodeValid) return
+    if (!isEmailValid || !isPasswordValid) {
+      Alert.alert('提示', '请输入有效邮箱和至少 8 位密码')
+      return
+    }
     if (!agreedToTerms) {
       Alert.alert('提示', '请先同意隐私协议和服务条款')
       return
@@ -75,25 +48,11 @@ export default function LoginScreen() {
     setLoading(true)
 
     try {
-      // @mock-data FALLBACK - 模拟登录
-      await new Promise((resolve) => setTimeout(resolve, 800))
-
-      const mockUser: User = {
-        id: 'user_001',
-        name: '张三',
-        email: 'zhangsan@example.com',
-        role: 'client',
-        avatar_url: undefined,
-      }
-      const mockToken = 'mock_token_' + Date.now()
-
-      // 保存到 store 和 AsyncStorage
-      setAuth(mockUser, mockToken)
-      await AsyncStorage.setItem('token', mockToken)
-
+      const result = await authClient.login({ email, password })
+      setAuth(result.user, result.access_token)
       router.replace('/(tabs)/')
-    } catch {
-      Alert.alert('登录失败', '网络异常，请稍后重试')
+    } catch (error: any) {
+      Alert.alert('登录失败', error?.message || '邮箱或密码错误，请稍后重试')
     } finally {
       setLoading(false)
     }
@@ -123,53 +82,40 @@ export default function LoginScreen() {
 
           {/* 登录表单 */}
           <View style={styles.form}>
-            {/* 手机号 */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>手机号</Text>
+              <Text style={styles.inputLabel}>邮箱</Text>
               <View style={styles.phoneRow}>
-                <View style={styles.prefixBox}>
-                  <Text style={styles.prefixText}>+86</Text>
-                </View>
                 <TextInput
                   style={styles.phoneInput}
-                  placeholder="请输入手机号"
+                  placeholder="请输入邮箱地址"
                   placeholderTextColor={Colors.textMuted}
-                  value={phone}
-                  onChangeText={setPhone}
-                  keyboardType="phone-pad"
-                  maxLength={11}
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
                 />
               </View>
             </View>
 
-            {/* 验证码 */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>验证码</Text>
+              <Text style={styles.inputLabel}>密码</Text>
               <View style={styles.codeRow}>
                 <TextInput
-                  ref={codeInputRef}
                   style={styles.codeInput}
-                  placeholder="请输入验证码"
+                  placeholder="请输入密码"
                   placeholderTextColor={Colors.textMuted}
-                  value={code}
-                  onChangeText={setCode}
-                  keyboardType="number-pad"
-                  maxLength={6}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
                 />
                 <TouchableOpacity
-                  style={[styles.codeButton, countdown > 0 && styles.codeButtonDisabled]}
-                  onPress={handleSendCode}
-                  disabled={countdown > 0}
+                  style={styles.codeButton}
+                  onPress={() => setShowPassword((value) => !value)}
                   activeOpacity={0.7}
                 >
-                  <Text
-                    style={[
-                      styles.codeButtonText,
-                      countdown > 0 && styles.codeButtonTextDisabled,
-                    ]}
-                  >
-                    {countdown > 0 ? `${countdown}s 后重发` : '获取验证码'}
-                  </Text>
+                  <Text style={styles.codeButtonText}>{showPassword ? '隐藏' : '显示'}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -178,10 +124,10 @@ export default function LoginScreen() {
             <TouchableOpacity
               style={[
                 styles.loginButton,
-                (!isPhoneValid || !isCodeValid || loading) && styles.loginButtonDisabled,
+                (!isEmailValid || !isPasswordValid || loading) && styles.loginButtonDisabled,
               ]}
               onPress={handleLogin}
-              disabled={!isPhoneValid || !isCodeValid || loading}
+              disabled={!isEmailValid || !isPasswordValid || loading}
               activeOpacity={0.8}
             >
               <Text style={styles.loginButtonText}>
@@ -192,7 +138,7 @@ export default function LoginScreen() {
             {/* 第三方登录 */}
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>其他登录方式</Text>
+              <Text style={styles.dividerText}>更多登录方式即将开放</Text>
               <View style={styles.dividerLine} />
             </View>
 

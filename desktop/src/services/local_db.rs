@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 /// 本地 SQLite 数据库管理
 ///
 /// 通过 tauri-plugin-sql 前端直接操作 SQLite，
@@ -164,6 +166,24 @@ INSERT OR IGNORE INTO db_migrations (version, name) VALUES (2, 'harness_offline_
 "#;
 
 /// 获取数据库初始化 SQL
-pub fn get_init_sql() -> &'static str {
+pub fn build_init_sql() -> &'static str {
     INIT_SQL
+}
+
+pub fn get_init_sql() -> &'static str {
+    build_init_sql()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_init_sql;
+
+    #[test]
+    fn build_init_sql_contains_sync_tables() {
+        let sql = build_init_sql();
+
+        assert!(sql.contains("CREATE TABLE IF NOT EXISTS offline_tasks"));
+        assert!(sql.contains("CREATE TABLE IF NOT EXISTS app_settings"));
+        assert!(sql.contains("CREATE TABLE IF NOT EXISTS sync_log"));
+    }
 }

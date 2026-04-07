@@ -160,3 +160,7 @@ backend/.env.local
 frontend/.env
 frontend/.env.tauri
 livekit.yaml
+.superpowers/brainstorm/55156-1775366237/state/server.pid
+.superpowers/brainstorm/55156-1775366237/content/layout-options.html
+.superpowers/brainstorm/55156-1775366237/state/events
+.superpowers/brainstorm/55156-1775366237/state/server-info

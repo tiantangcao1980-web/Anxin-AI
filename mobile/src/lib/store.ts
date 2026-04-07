@@ -13,6 +13,8 @@ interface AuthState {
   user: User | null
   token: string | null
   isAuthenticated: boolean
+  hydrated: boolean
+  markHydrated: () => void
   setAuth: (user: User, token: string) => void
   logout: () => void
 }
@@ -22,10 +24,18 @@ export const useAuthStore = create<AuthState>()(persist(
     user: null,
     token: null,
     isAuthenticated: false,
+    hydrated: false,
+    markHydrated: () => set({ hydrated: true }),
     setAuth: (user, token) => set({ user, token, isAuthenticated: true }),
     logout: () => set({ user: null, token: null, isAuthenticated: false }),
   }),
-  { name: 'auth-store', storage: asyncStorage }
+  {
+    name: 'auth-store',
+    storage: asyncStorage,
+    onRehydrateStorage: () => (state) => {
+      state?.markHydrated()
+    },
+  }
 ))
 
 interface ChatState {

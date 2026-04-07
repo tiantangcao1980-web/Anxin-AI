@@ -7,6 +7,7 @@ import { icons } from '@/lib/icons';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { BUILTIN_TEMPLATES } from './TemplateSelector';
 
 const KB_CACHE_TTL = 5 * 60 * 1000;
 
@@ -43,21 +44,48 @@ async function loadKnowledgeBases(force = false): Promise<KnowledgeBase[]> {
   return kbCacheRequest;
 }
 
+type ResourceView = 'all' | 'knowledge' | 'template';
+
+interface TemplateResource {
+  id: string;
+  name: string;
+  description?: string;
+  resourceType: 'template';
+}
+
+interface KnowledgeResource extends KnowledgeBase {
+  resourceType: 'knowledge';
+}
+
+type ContextResource = KnowledgeResource | TemplateResource;
+
 interface KnowledgeBaseSelectorProps {
   selectedKbIds: string[];
-  onSelectionChange: (ids: string[]) => void;
+  selectedTemplateId: string | null;
+  onKnowledgeSelectionChange: (ids: string[]) => void;
+  onTemplateSelectionChange: (id: string | null) => void;
   disabled?: boolean;
+  embedded?: boolean;
 }
+
+const TEMPLATE_RESOURCES: TemplateResource[] = BUILTIN_TEMPLATES.map((template) => ({
+  ...template,
+  resourceType: 'template',
+}));
 
 export function KnowledgeBaseSelector({
   selectedKbIds,
-  onSelectionChange,
+  selectedTemplateId,
+  onKnowledgeSelectionChange,
+  onTemplateSelectionChange,
   disabled = false,
+  embedded = false,
 }: KnowledgeBaseSelectorProps) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [resourceView, setResourceView] = useState<ResourceView>('all');
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
 
   const fetchBases = useCallback(async (force = false) => {
@@ -81,36 +109,65 @@ export function KnowledgeBaseSelector({
     return knowledgeBases.filter((kb) => selectedSet.has(kb.id));
   }, [knowledgeBases, selectedKbIds]);
 
-  const filteredBases = useMemo(() => {
+  const selectedTemplate = useMemo(
+    () => TEMPLATE_RESOURCES.find((template) => template.id === selectedTemplateId) ?? null,
+    [selectedTemplateId],
+  );
+
+  const allResources = useMemo<ContextResource[]>(
+    () => [
+      ...knowledgeBases.map((kb) => ({ ...kb, resourceType: 'knowledge' as const })),
+      ...TEMPLATE_RESOURCES,
+    ],
+    [knowledgeBases],
+  );
+
+  const filteredResources = useMemo(() => {
     const keyword = searchQuery.trim().toLowerCase();
-    if (!keyword) return knowledgeBases;
-
-    return knowledgeBases.filter((kb) => {
-      const haystack = [kb.name, kb.description, kb.knowledge_type]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      return haystack.includes(keyword);
+    return allResources.filter((resource) => {
+      const matchesView = resourceView === 'all' || resource.resourceType === resourceView;
+      const haystack = resource.resourceType === 'knowledge'
+        ? [resource.name, resource.description, resource.knowledge_type].filter(Boolean).join(' ').toLowerCase()
+        : [resource.name, resource.description].filter(Boolean).join(' ').toLowerCase();
+      const matchesQuery = !keyword || haystack.includes(keyword);
+      return matchesView && matchesQuery;
     });
-  }, [knowledgeBases, searchQuery]);
+  }, [allResources, resourceView, searchQuery]);
 
-  const toggleSelection = useCallback((kbId: string) => {
+  const toggleKnowledgeSelection = useCallback((kbId: string) => {
     if (selectedKbIds.includes(kbId)) {
-      onSelectionChange(selectedKbIds.filter((id) => id !== kbId));
+      onKnowledgeSelectionChange(selectedKbIds.filter((id) => id !== kbId));
       return;
     }
 
-    onSelectionChange([...selectedKbIds, kbId]);
-  }, [onSelectionChange, selectedKbIds]);
+    onKnowledgeSelectionChange([...selectedKbIds, kbId]);
+  }, [onKnowledgeSelectionChange, selectedKbIds]);
 
-  const removeSelection = useCallback((kbId: string) => {
-    onSelectionChange(selectedKbIds.filter((id) => id !== kbId));
-  }, [onSelectionChange, selectedKbIds]);
+  const toggleTemplateSelection = useCallback((templateId: string) => {
+    onTemplateSelectionChange(selectedTemplateId === templateId ? null : templateId);
+  }, [onTemplateSelectionChange, selectedTemplateId]);
+
+  const removeKnowledgeSelection = useCallback((kbId: string) => {
+    onKnowledgeSelectionChange(selectedKbIds.filter((id) => id !== kbId));
+  }, [onKnowledgeSelectionChange, selectedKbIds]);
+
+  const triggerLabel = useMemo(() => {
+    if (selectedKbIds.length > 0 && selectedTemplateId) {
+      return `知识库 · 资料 ${selectedKbIds.length} · 模板 1`;
+    }
+    if (selectedTemplateId) {
+      return '知识库 · 模板 1';
+    }
+    if (selectedKbIds.length > 0) {
+      return `知识库 · ${selectedKbIds.length}`;
+    }
+    return '知识库';
+  }, [selectedKbIds, selectedTemplateId]);
 
   return (
-    <div className="mb-2">
+    <div className={embedded ? 'shrink-0' : 'mb-2'}>
       <div className="flex flex-wrap items-center gap-2">
-        {selectedBases.map((kb) => (
+        {!embedded && selectedBases.map((kb) => (
           <Badge
             key={kb.id}
             variant="outline"
@@ -120,7 +177,7 @@ export function KnowledgeBaseSelector({
             <span className="max-w-[180px] truncate">{kb.name}</span>
             <button
               type="button"
-              onClick={() => removeSelection(kb.id)}
+              onClick={() => removeKnowledgeSelection(kb.id)}
               className="ml-0.5 rounded-full p-0.5 text-muted-foreground hover:bg-primary/10 hover:text-foreground"
               aria-label={`移除知识库 ${kb.name}`}
             >
@@ -129,28 +186,45 @@ export function KnowledgeBaseSelector({
           </Badge>
         ))}
 
+        {!embedded && selectedTemplate && (
+          <Badge
+            variant="outline"
+            className="h-8 rounded-full border-primary/20 bg-primary/5 px-2.5 text-xs text-foreground"
+          >
+            <icons.FileText className="w-3 h-3 text-primary" />
+            <span className="max-w-[180px] truncate">{selectedTemplate.name}</span>
+            <button
+              type="button"
+              onClick={() => onTemplateSelectionChange(null)}
+              className="ml-0.5 rounded-full p-0.5 text-muted-foreground hover:bg-primary/10 hover:text-foreground"
+              aria-label={`移除模板 ${selectedTemplate.name}`}
+            >
+              <icons.X className="w-3 h-3" />
+            </button>
+          </Badge>
+        )}
+
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
             <button
               type="button"
               disabled={disabled}
+              data-testid="knowledge-base-trigger"
               className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border/80 bg-background px-3 text-xs font-medium text-foreground/80 shadow-sm transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
             >
               <icons.Database className="w-3.5 h-3.5" />
-              <span>
-                {selectedKbIds.length > 0 ? `已选知识库 ${selectedKbIds.length}` : '添加知识库'}
-              </span>
+              <span>{triggerLabel}</span>
               <icons.ChevronDown className="w-3 h-3 opacity-60" />
             </button>
           </PopoverTrigger>
 
-          <PopoverContent align="start" className="w-[360px] p-0">
+          <PopoverContent align="start" className="w-[380px] p-0">
             <div className="border-b border-border px-4 py-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-foreground">选择知识库</p>
+                  <p className="text-sm font-semibold text-foreground">选择资源上下文</p>
                   <p className="text-xs text-muted-foreground">
-                    勾选后，AI 会优先参考这些知识库作答
+                    资料用于提供依据，模板用于约束输出结构
                   </p>
                 </div>
                 <button
@@ -165,53 +239,86 @@ export function KnowledgeBaseSelector({
             </div>
 
             <div className="p-4 pb-3">
+              <div className="mb-3 flex items-center rounded-lg bg-muted p-1" role="tablist" aria-label="资源类型">
+                {[
+                  ['all', '全部'],
+                  ['knowledge', '知识库'],
+                  ['template', '模板'],
+                ].map(([view, label]) => (
+                  <button
+                    key={view}
+                    type="button"
+                    role="tab"
+                    aria-selected={resourceView === view}
+                    onClick={() => setResourceView(view as ResourceView)}
+                    className={`flex-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                      resourceView === view
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
               <div className="relative mb-3">
                 <icons.Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                 <input
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="搜索知识库名称或说明..."
+                  placeholder="搜索知识库名称、模板名称或说明..."
                   className="h-9 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm outline-none transition-colors focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
                 />
               </div>
 
-              <div className="max-h-64 space-y-1 overflow-y-auto">
+              <div className="max-h-72 space-y-1 overflow-y-auto">
                 {loading && knowledgeBases.length === 0 ? (
                   <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
                     <icons.Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    正在加载知识库...
+                    正在加载资源...
                   </div>
-                ) : filteredBases.length > 0 ? (
-                  filteredBases.map((kb) => {
-                    const checked = selectedKbIds.includes(kb.id);
+                ) : filteredResources.length > 0 ? (
+                  filteredResources.map((resource) => {
+                    const checked = resource.resourceType === 'knowledge'
+                      ? selectedKbIds.includes(resource.id)
+                      : selectedTemplateId === resource.id;
+                    const onToggle = () => resource.resourceType === 'knowledge'
+                      ? toggleKnowledgeSelection(resource.id)
+                      : toggleTemplateSelection(resource.id);
                     return (
                       <label
-                        key={kb.id}
+                        key={`${resource.resourceType}-${resource.id}`}
                         className="flex cursor-pointer items-start gap-3 rounded-xl border border-transparent px-3 py-2.5 transition-colors hover:border-primary/10 hover:bg-muted/50"
                       >
                         <Checkbox
                           checked={checked}
-                          onCheckedChange={() => toggleSelection(kb.id)}
+                          onCheckedChange={onToggle}
                           className="mt-0.5"
                         />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <span className="truncate text-sm font-medium text-foreground">
-                              {kb.name}
+                              {resource.name}
                             </span>
-                            {kb.doc_count > 0 ? (
-                              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                                {kb.doc_count} 篇
-                              </span>
-                            ) : (
-                              <span className="rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] text-destructive">
-                                暂无文档
-                              </span>
+                            <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                              {resource.resourceType === 'knowledge' ? '知识库' : '模板'}
+                            </span>
+                            {resource.resourceType === 'knowledge' && (
+                              resource.doc_count > 0 ? (
+                                <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                  {resource.doc_count} 篇
+                                </span>
+                              ) : (
+                                <span className="rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] text-destructive">
+                                  暂无文档
+                                </span>
+                              )
                             )}
                           </div>
-                          {kb.description && (
+                          {resource.description && (
                             <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                              {kb.description}
+                              {resource.description}
                             </p>
                           )}
                         </div>
@@ -221,9 +328,9 @@ export function KnowledgeBaseSelector({
                 ) : (
                   <div className="rounded-xl border border-dashed border-border px-4 py-8 text-center">
                     <icons.Database className="mx-auto mb-2 h-5 w-5 text-muted-foreground/60" />
-                    <p className="text-sm text-foreground">暂无可选知识库</p>
+                    <p className="text-sm text-foreground">暂无可选资源</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      去知识库管理页创建后，就可以在这里直接选用
+                      去知识库管理页创建资料，或在这里选择内置模板资源
                     </p>
                   </div>
                 )}
@@ -232,7 +339,7 @@ export function KnowledgeBaseSelector({
 
             <div className="flex items-center justify-between border-t border-border px-4 py-3">
               <span className="text-xs text-muted-foreground">
-                已选 {selectedKbIds.length} 个知识库
+                已选资料 {selectedKbIds.length} 个 · 模板 {selectedTemplateId ? 1 : 0} 个
               </span>
               <button
                 type="button"

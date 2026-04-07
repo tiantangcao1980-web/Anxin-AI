@@ -7,6 +7,7 @@ import { memo } from 'react';
 import { icons } from '@/lib/icons';
 import type { LawyerCardComponent, A2UIEventHandler } from '../types';
 import { cn } from '@/lib/utils';
+import { A2UICardShell } from './A2UICardShell';
 
 interface Props {
   component: LawyerCardComponent;
@@ -35,14 +36,35 @@ export const LawyerCard = memo(function LawyerCard({ component, onEvent }: Props
   };
 
   return (
-    <div className={cn(
-      'a2ui-lawyer-card',
-      'bg-background rounded-2xl border border-border/50',
-      'shadow-sm hover:shadow-md transition-all duration-200',
-      'p-4',
-      component.className,
-    )}>
-      {/* 头部：头像 + 基本信息 */}
+    <A2UICardShell
+      title={data.name}
+      subtitle={data.firm}
+      className={cn('a2ui-lawyer-card', component.className)}
+      headerAside={
+        data.title ? (
+          <span className="rounded-full bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary">
+            {data.title}
+          </span>
+        ) : null
+      }
+      actions={
+        data.action ? (
+          <button
+            onClick={handleAction}
+            disabled={data.status === 'offline'}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-medium transition-all',
+              data.status === 'offline'
+                ? 'bg-muted text-muted-foreground/70 cursor-not-allowed'
+                : 'bg-primary text-white hover:bg-primary-600',
+            )}
+          >
+            <icons.Phone className="w-3.5 h-3.5" />
+            {data.action.label}
+          </button>
+        ) : null
+      }
+    >
       <div className="flex gap-3">
         {/* 头像 */}
         <div className="relative flex-shrink-0">
@@ -64,21 +86,6 @@ export const LawyerCard = memo(function LawyerCard({ component, onEvent }: Props
 
         {/* 信息 */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h4 className="font-semibold text-sm text-foreground">
-              {data.name}
-            </h4>
-            {data.title && (
-              <span className="text-[10px] bg-primary/5 text-primary dark:bg-primary/10 dark:text-primary px-1.5 py-0.5 rounded-full">
-                {data.title}
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {data.firm}
-          </p>
-
-          {/* 评分 */}
           <div className="flex items-center gap-3 mt-1.5">
             <div className="flex items-center gap-0.5">
               <icons.Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
@@ -102,7 +109,6 @@ export const LawyerCard = memo(function LawyerCard({ component, onEvent }: Props
           </div>
         </div>
       </div>
-
       {/* 专长标签 */}
       <div className="flex flex-wrap gap-1.5 mt-3">
         {data.specialties.map((specialty, i) => (
@@ -115,14 +121,12 @@ export const LawyerCard = memo(function LawyerCard({ component, onEvent }: Props
         ))}
       </div>
 
-      {/* 简介 */}
       {data.introduction && (
         <p className="text-xs text-muted-foreground mt-2.5 leading-relaxed line-clamp-2">
           {data.introduction}
         </p>
       )}
 
-      {/* 底部信息 + 操作 */}
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
         <div className="flex items-center gap-3">
           {data.responseTime && (
@@ -140,23 +144,7 @@ export const LawyerCard = memo(function LawyerCard({ component, onEvent }: Props
             </span>
           )}
         </div>
-
-        {data.action && (
-          <button
-            onClick={handleAction}
-            disabled={data.status === 'offline'}
-            className={cn(
-              'inline-flex items-center gap-1.5 px-5 py-2 rounded-full text-xs font-medium transition-all',
-              data.status === 'offline'
-                ? 'bg-muted text-muted-foreground/70 cursor-not-allowed'
-                : 'bg-primary text-white hover:bg-primary/90 active:scale-95',
-            )}
-          >
-            <icons.Phone className="w-3.5 h-3.5" />
-            {data.action.label}
-          </button>
-        )}
       </div>
-    </div>
+    </A2UICardShell>
   );
 });

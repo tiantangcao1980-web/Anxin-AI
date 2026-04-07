@@ -938,16 +938,88 @@ class CoordinatorAgent(BaseLegalAgent):
         return {}
 
     async def aggregate_results(self, results: List[AgentResponse]) -> Dict[str, Any]:
-        """汇总结果"""
         from datetime import datetime
-        
+
         summary = "任务执行完成。\n\n"
+        review_result: Dict[str, Any] = {}
+        investigation: Dict[str, Any] = {}
+        verification: Dict[str, Any] = {}
+
         for r in results:
-            if isinstance(r, AgentResponse):
-                summary += f"### {r.agent_name}\n{r.content}\n\n"
-                
-        return {
-            "summary": summary,
+            if not isinstance(r, AgentResponse):
+                continue
+
+            summary += f"### {r.agent_name}\n{r.content}\n\n"
+            metadata = r.metadata if isinstance(r.metadata, dict) else {}
+
+            if not metadata and isinstance(r.actions, list):
+                for action in r.actions:
+                    if isinstance(action, dict) and isinstance(action.get("data"), dict):
+                        metadata = action["data"]
+                        break
+
+            if metadata.get("summary") or metadata.get("risks") or metadata.get("key_risks"):
+                review_result = self._merge_contract_review_result(review_result, metadata)
+
+            if any(key in metadata for key in ("contract_type", "parties", "focus_areas", "missing_elements")):
+                investigation = self._merge_nested_result(investigation, metadata)
+
+            if any(key in metadata for key in ("quality_score", "confidence_level", "verification_results", "missed_areas")):
+                verification = self._merge_nested_result(verification, metadata)
+
+        result = {
+            "summary": review_result.get("summary") or summary,
             "agent_count": len(results),
             "generated_at": datetime.now().isoformat()
         }
+
+        if review_result:
+            result.update(review_result)
+
+        if investigation:
+            result["investigation"] = investigation
+
+        if verification:
+            result["verification"] = verification
+
+        return result
+
+    def _merge_contract_review_result(self, current: Dict[str, Any], incoming: Dict[str, Any]) -> Dict[str, Any]:
+        merged = dict(current)
+        risks = incoming.get("risks")
+        key_risks = incoming.get("key_risks")
+
+        if not risks and isinstance(key_risks, list):
+            risks = key_risks
+        if not key_risks and isinstance(risks, list):
+            key_risks = risks
+
+        scalar_fields = ("summary", "risk_level", "risk_score")
+        collection_fields = {
+            "risks": risks,
+            "key_risks": key_risks,
+            "suggestions": incoming.get("suggestions"),
+            "missing_clauses": incoming.get("missing_clauses"),
+        }
+
+        for field in scalar_fields:
+            value = incoming.get(field)
+            if value not in (None, "", []):
+                merged[field] = value
+
+        for field, value in collection_fields.items():
+            if isinstance(value, list):
+                merged[field] = value
+
+        key_terms = incoming.get("key_terms")
+        if isinstance(key_terms, dict):
+            merged["key_terms"] = key_terms
+
+        return merged
+
+    def _merge_nested_result(self, current: Dict[str, Any], incoming: Dict[str, Any]) -> Dict[str, Any]:
+        merged = dict(current)
+        for key, value in incoming.items():
+            if value not in (None, "", [], {}):
+                merged[key] = value
+        return merged

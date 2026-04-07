@@ -16,6 +16,7 @@ type MockOptions = {
   }
   documents?: {
     list?: unknown
+    get?: unknown
     analyze?: unknown
   }
   tasks?: {
@@ -26,6 +27,13 @@ type MockOptions = {
     consultation?: unknown
     lawyers?: unknown
     delegation?: unknown
+  }
+  collaboration?: {
+    sessions?: unknown
+    session?: unknown
+    collaborators?: unknown
+    snapshots?: unknown
+    restore?: unknown
   }
 }
 
@@ -190,6 +198,77 @@ export async function installApiMocks(page: Page, options: MockOptions = {}) {
         route,
         buildUnified(
           options.documents?.list ?? { items: [], total: 0, page: 1, page_size: 20 },
+        ),
+      )
+    }
+
+    if (/\/documents\/[^/]+$/.test(pathname)) {
+      const listItems = (options.documents?.list as { items?: unknown[] } | undefined)?.items
+      const fallbackDocument = Array.isArray(listItems) && listItems.length > 0 ? listItems[0] : {}
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.documents?.get ?? fallbackDocument,
+        ),
+      )
+    }
+
+    if (pathname.endsWith('/collaboration/sessions')) {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.collaboration?.sessions ?? { items: [], total: 0, page: 1, page_size: 20 },
+        ),
+      )
+    }
+
+    if (/\/collaboration\/sessions\/[^/]+\/collaborators$/.test(pathname)) {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.collaboration?.collaborators ?? [],
+        ),
+      )
+    }
+
+    if (/\/collaboration\/sessions\/[^/]+\/snapshots$/.test(pathname)) {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.collaboration?.snapshots ?? [],
+        ),
+      )
+    }
+
+    if (/\/collaboration\/sessions\/[^/]+\/snapshots\/[^/]+\/restore$/.test(pathname)) {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.collaboration?.restore ?? {
+            success: true,
+            new_version: 2,
+            restored_from_version: 1,
+          },
+        ),
+      )
+    }
+
+    if (/\/collaboration\/sessions\/[^/]+$/.test(pathname)) {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.collaboration?.session ?? {
+            id: 'collab-session-e2e',
+            document_id: 'document-real-1',
+            name: '默认协作会话',
+            status: 'active',
+            current_version: 1,
+            active_collaborators: 2,
+            max_collaborators: 10,
+            started_at: '2026-04-06T00:00:00Z',
+            last_activity_at: '2026-04-06T00:00:00Z',
+            created_at: '2026-04-06T00:00:00Z',
+          },
         ),
       )
     }

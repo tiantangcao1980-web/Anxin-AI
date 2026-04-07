@@ -43,8 +43,7 @@ export function CaseList({ cases, selectedCase, onSelectCase, onCreateCase }: Ca
 
   return (
     <div className="h-full flex flex-col bg-background">
-      {/* Header */}
-      <div className="p-5 border-b border-border">
+      <div data-ui="page-header" className="border-b border-border bg-surface-1 p-5 shadow-card">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className={heading.page}>案件管理</h2>

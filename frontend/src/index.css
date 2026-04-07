@@ -34,6 +34,9 @@
     --muted-foreground: 20 9% 46%;
     --accent: 35 100% 96%;
     --accent-foreground: 20 14% 10%;
+    --surface-1: 0 0% 100%;
+    --surface-2: 30 14% 98%;
+    --surface-3: 32 18% 95%;
 
     /* --- 状态色 --- */
     --destructive: 0 72% 51%;
@@ -84,6 +87,8 @@
     --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06);
     --shadow-lg: 0 10px 15px rgba(0,0,0,0.08), 0 4px 6px rgba(0,0,0,0.05);
     --shadow-focus: 0 0 0 3px hsl(25 95% 53% / 0.35);
+    --shadow-card: 0 8px 24px rgba(15, 23, 42, 0.06);
+    --shadow-float: 0 18px 48px rgba(15, 23, 42, 0.12);
 
     /* --- 登录页专用 --- */
     --login-brand-from: 25 95% 53%;
@@ -113,6 +118,9 @@
     --muted-foreground: 20 9% 55%;
     --accent: 25 20% 17%;
     --accent-foreground: 30 13% 91%;
+    --surface-1: 20 15% 11%;
+    --surface-2: 20 14% 14%;
+    --surface-3: 20 13% 18%;
 
     /* --- 状态色（深色下降饱和度）--- */
     --destructive: 0 62% 50%;
@@ -153,6 +161,8 @@
     --shadow-md: 0 0 0 1px rgba(255,255,255,0.08);
     --shadow-lg: 0 0 0 1px rgba(255,255,255,0.10);
     --shadow-focus: 0 0 0 3px hsl(25 85% 55% / 0.45);
+    --shadow-card: 0 0 0 1px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.24);
+    --shadow-float: 0 0 0 1px rgba(255,255,255,0.12), 0 18px 48px rgba(0,0,0,0.34);
 
     /* --- 登录页专用（深色下融入背景）--- */
     --login-brand-from: 20 25% 10%;
@@ -165,11 +175,17 @@
   * {
     @apply border-border;
   }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
   html {
     font-family: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
   }
   body {
     @apply bg-background text-foreground antialiased;
+    min-height: 100dvh;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
@@ -183,10 +199,10 @@
 }
 
 /* 法律服务阴影（浅色用品牌蓝光晕，深色用自然暗影） */
-.shadow-legal-sm { box-shadow: 0 1px 2px 0 rgb(0 101 255 / 0.05); }
-.shadow-legal { box-shadow: 0 1px 3px 0 rgb(0 101 255 / 0.08), 0 1px 2px -1px rgb(0 101 255 / 0.06); }
-.shadow-legal-md { box-shadow: 0 4px 6px -1px rgb(0 101 255 / 0.08), 0 2px 4px -2px rgb(0 101 255 / 0.06); }
-.shadow-legal-lg { box-shadow: 0 10px 15px -3px rgb(0 101 255 / 0.08), 0 4px 6px -4px rgb(0 101 255 / 0.06); }
+.shadow-legal-sm { box-shadow: 0 2px 8px 0 hsl(var(--primary) / 0.08); }
+.shadow-legal { box-shadow: 0 4px 12px 0 hsl(var(--primary) / 0.12); }
+.shadow-legal-md { box-shadow: 0 10px 24px -8px hsl(var(--primary) / 0.16); }
+.shadow-legal-lg { box-shadow: 0 18px 36px -16px hsl(var(--primary) / 0.18); }
 
 .dark .shadow-legal-sm { box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4); }
 .dark .shadow-legal { box-shadow: 0 2px 4px 0 rgb(0 0 0 / 0.35), 0 1px 2px -1px rgb(0 0 0 / 0.3); }

@@ -69,6 +69,13 @@ async def _ensure_additive_schema_columns() -> None:
         "ALTER TABLE approvals ADD COLUMN IF NOT EXISTS current_step INTEGER DEFAULT 0 NOT NULL",
         "ALTER TABLE approvals ADD COLUMN IF NOT EXISTS template_id UUID",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT false",
+        "ALTER TABLE contracts ADD COLUMN IF NOT EXISTS original_text TEXT",
+        "ALTER TABLE contracts ADD COLUMN IF NOT EXISTS modified_text TEXT",
+        "ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS external_id VARCHAR(255)",
+        "ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64)",
+        "ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS version INTEGER DEFAULT 1 NOT NULL",
+        "ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active' NOT NULL",
+        "CREATE INDEX IF NOT EXISTS ix_knowledge_documents_external_id ON knowledge_documents (external_id)",
         # 已有管理员账号自动标记为已验证
         "UPDATE users SET email_verified = true WHERE role IN ('super_admin', 'admin') AND email_verified = false",
         # v2 调查引擎新增字段

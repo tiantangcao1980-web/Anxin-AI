@@ -25,6 +25,7 @@ from src.core.config import settings
 from src.models.conversation import Conversation, Message, MessageRole
 from src.services.compute_router_service import compute_router
 from src.services.pii_service import pii_service
+from src.services.template_context import build_template_context_message
 from src.services.due_diligence_service import (
     detect_company_due_diligence_request,
     format_due_diligence_chat_response,
@@ -591,6 +592,7 @@ class ChatService:
         agent_name: Optional[str],
         mode: Optional[str] = None,
         knowledge_base_ids: Optional[List[str]] = None,
+        template_id: Optional[str] = None,
         model_id: Optional[str] = None,
         document_id: Optional[str] = None,
     ) -> _ChatContext:
@@ -609,6 +611,12 @@ class ChatService:
         context_messages = await self.get_recent_history(
             conversation.id, limit=10, exclude_latest=True,
         )
+        template_context_message = build_template_context_message(template_id)
+        if template_context_message:
+            context_messages = [
+                {"role": "system", "content": template_context_message},
+                *context_messages,
+            ]
 
         # 如果指定了 model_id，加载对应配置；否则使用默认
         llm_config = None
@@ -845,6 +853,7 @@ class ChatService:
         agent_name: Optional[str] = None,
         mode: Optional[str] = None,
         knowledge_base_ids: Optional[List[str]] = None,
+        template_id: Optional[str] = None,
         model_id: Optional[str] = None,
         document_id: Optional[str] = None,
     ) -> dict:
@@ -855,7 +864,7 @@ class ChatService:
 
         ctx = await self._prepare_chat_context(
             content, conversation_id, user_id, case_id,
-            agent_name, mode, knowledge_base_ids, model_id=model_id,
+            agent_name, mode, knowledge_base_ids, template_id, model_id=model_id,
             document_id=document_id,
         )
         trace.route = ctx.route

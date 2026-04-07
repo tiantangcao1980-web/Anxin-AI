@@ -4,10 +4,9 @@
  * 展示常用法务文档模板列表，选择后预填聊天输入框。
  */
 
-import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { icons } from '@/lib/icons';
-import { heading, iconSize, cardStyle } from '@/lib/design-tokens';
+import { heading, iconSize } from '@/lib/design-tokens';
 
 interface Template {
   id: string;
@@ -15,14 +14,18 @@ interface Template {
   description?: string;
 }
 
-// 内置常用法务模板（不依赖后端 API，零延迟）
-const BUILTIN_TEMPLATES: Template[] = [
+export const BUILTIN_TEMPLATES: Template[] = [
   { id: 'nda', name: '保密协议', description: '适用于商业合作前的保密约定' },
   { id: 'labor', name: '劳动合同', description: '标准劳动合同模板' },
   { id: 'service', name: '服务协议', description: '技术/咨询服务合同' },
   { id: 'lawyer-letter', name: '律师函', description: '催告、警告、协商函' },
   { id: 'legal-opinion', name: '法律意见书', description: '专项法律问题分析意见' },
 ];
+
+export function getBuiltinTemplateById(templateId: string | null | undefined) {
+  if (!templateId) return null;
+  return BUILTIN_TEMPLATES.find((template) => template.id === templateId) ?? null;
+}
 
 interface TemplateSelectorProps {
   onSelect: (template: Template) => void;

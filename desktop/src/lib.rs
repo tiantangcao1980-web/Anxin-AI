@@ -45,6 +45,16 @@ pub fn run() {
             commands::local_llm::local_llm_chat,
             commands::local_llm::list_local_models,
             commands::local_llm::check_local_llm_status,
+            // CLI
+            commands::cli::cli_execute,
+            commands::cli::cli_create_key,
+            commands::cli::cli_list_keys,
+            // 离线任务
+            commands::offline_tasks::submit_offline_task,
+            commands::offline_tasks::get_queue_stats,
+            commands::offline_tasks::flush_offline_queue,
+            commands::offline_tasks::push_harness_artifacts,
+            commands::offline_tasks::pull_harness_artifacts,
             // 认证
             commands::auth::biometric_authenticate,
             commands::auth::save_auth_token,

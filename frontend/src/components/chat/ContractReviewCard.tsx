@@ -92,6 +92,8 @@ export function ContractReviewCard() {
     setRisks([]);
     setCurrentAgent('合同审查Agent');
     setAgentMessage('正在进行智能审查...');
+    let streamRisks: RiskItem[] = [];
+    let streamSuggestions: string[] = [];
 
     try {
       await contractsApi.streamReview(
@@ -110,16 +112,25 @@ export function ContractReviewCard() {
               setAgentMessage(event.message || '识别风险...');
               break;
             case 'risks':
-              if (event.data) setRisks(event.data);
+              if (event.data) {
+                streamRisks = event.data;
+                setRisks(event.data);
+              }
+              break;
+            case 'suggestions':
+              if (event.data) {
+                streamSuggestions = event.data;
+              }
               break;
             case 'done':
               setResult({
                 summary: event.summary || '',
                 risk_level: event.risk_level || 'medium',
                 risk_score: event.risk_score || 0.5,
-                key_risks: risks,
-                suggestions: [],
+                key_risks: streamRisks,
+                suggestions: streamSuggestions,
               });
+              setRisks(streamRisks);
               setStep('complete');
               break;
             case 'error':
@@ -318,8 +329,7 @@ export function ContractReviewCard() {
         {/* === Complete State === */}
         {step === 'complete' && result && (
           <div className="space-y-4">
-            {/* Summary */}
-            <div className="flex items-start gap-3 p-3 bg-muted rounded-xl">
+            <div data-review-summary className="flex items-start gap-3 p-3 bg-muted rounded-xl">
               <icons.Shield className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
@@ -350,7 +360,7 @@ export function ContractReviewCard() {
 
             {/* Risks */}
             {result.key_risks.length > 0 && (
-              <div className="space-y-2">
+              <div data-review-risk-list className="space-y-2">
                 <p className="text-xs font-semibold text-foreground">
                   风险条款 ({result.key_risks.length})
                 </p>
@@ -384,14 +394,13 @@ export function ContractReviewCard() {
             )}
 
             {result.key_risks.length === 0 && (
-              <div className="text-center py-4">
+              <div data-review-risk-list className="text-center py-4">
                 <icons.CheckCircle className="w-10 h-10 mx-auto mb-2 text-emerald-600" />
                 <p className="text-sm text-muted-foreground">未检测到明显风险条款</p>
               </div>
             )}
 
-            {/* Actions */}
-            <div className="flex gap-2">
+            <div data-review-actions className="flex gap-2">
               <button
                 onClick={resetReview}
                 className="flex-1 py-2 border border-border text-muted-foreground rounded-lg text-sm font-medium hover:bg-muted transition-colors flex items-center justify-center gap-2"

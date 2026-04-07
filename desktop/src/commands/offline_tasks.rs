@@ -1,3 +1,5 @@
+#![allow(dead_code, unused_variables)]
+
 /// 离线任务队列 Tauri 命令
 ///
 /// 暴露给前端的 IPC 命令，用于：
@@ -10,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use tauri::command;
 
 /// 离线任务摘要
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OfflineTaskSummary {
     pub id: String,
@@ -38,8 +41,8 @@ pub struct QueueStats {
 #[command]
 pub async fn submit_offline_task(
     task_type: String,
-    description: String,
-    conversation_id: Option<String>,
+    _description: String,
+    _conversation_id: Option<String>,
     priority: Option<i32>,
 ) -> Result<String, String> {
     let task_id = uuid::Uuid::new_v4().to_string();
@@ -97,7 +100,7 @@ pub async fn flush_offline_queue() -> Result<String, String> {
 pub async fn push_harness_artifacts(
     session_id: String,
     artifacts: std::collections::HashMap<String, serde_json::Value>,
-    device_id: String,
+    _device_id: String,
 ) -> Result<String, String> {
     log::info!(
         "推送 Harness Artifact: session={}, types={:?}",
@@ -121,7 +124,7 @@ pub async fn push_harness_artifacts(
 #[command]
 pub async fn pull_harness_artifacts(
     session_id: String,
-    artifact_types: Option<Vec<String>>,
+    _artifact_types: Option<Vec<String>>,
 ) -> Result<std::collections::HashMap<String, serde_json::Value>, String> {
     log::info!("拉取 Harness Artifact: session={}", session_id);
 

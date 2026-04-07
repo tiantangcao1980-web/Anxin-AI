@@ -14,7 +14,6 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { icons } from '@/lib/icons';
 import { iconSize, radius } from '@/lib/design-tokens';
-import { TemplateSelector } from './TemplateSelector';
 import {
   getWorkflowPrompt,
   getPersonalizedActions,
@@ -77,9 +76,6 @@ export const DeepModeToggle = memo(function DeepModeToggle({
 
 // ========== 快捷操作工具栏 ==========
 
-const MAX_VISIBLE_DESKTOP = 5;
-const MAX_VISIBLE_MOBILE = 3;
-
 interface QuickActionsBarProps {
   onFillInput: (payload: QuickActionFillPayload) => void;
   isProcessing: boolean;
@@ -87,6 +83,8 @@ interface QuickActionsBarProps {
   activeActionId?: string | null;
   actions?: WorkflowActionDefinition[];
   attachmentName?: string | null;
+  className?: string;
+  visibleActionCount?: number;
   onTriggerUpload?: () => void;
 }
 
@@ -97,43 +95,23 @@ export function QuickActionsBar({
   activeActionId = null,
   actions,
   attachmentName = null,
+  className,
+  visibleActionCount,
   onTriggerUpload,
 }: QuickActionsBarProps) {
   const [moreOpen, setMoreOpen] = useState(false);
-  const [templateOpen, setTemplateOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
   const portalRef = useRef<HTMLDivElement>(null);
   const moreBtnRef = useRef<HTMLButtonElement>(null);
-  const templateRef = useRef<HTMLDivElement>(null);
-  const templateBtnRef = useRef<HTMLButtonElement>(null);
   const [popupPos, setPopupPos] = useState<{ x: number; y: number } | null>(null);
-  const [templatePos, setTemplatePos] = useState<{ x: number; y: number } | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [maxVisible, setMaxVisible] = useState(isMobile ? MAX_VISIBLE_MOBILE : MAX_VISIBLE_DESKTOP);
-
-  const personalizedActions = useMemo(
-    () => actions || getPersonalizedActions(MAX_VISIBLE_DESKTOP),
+  const orderedActions = useMemo(
+    () => actions || getPersonalizedActions(6).filter((action) => action.id !== 'qa-template'),
     [actions],
   );
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const observer = new ResizeObserver(() => {
-      const width = el.clientWidth;
-      if (width < 400) setMaxVisible(MAX_VISIBLE_MOBILE);
-      else if (width < 600) setMaxVisible(4);
-      else if (width < 800) setMaxVisible(MAX_VISIBLE_DESKTOP);
-      else setMaxVisible(personalizedActions.length);
-    });
-
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [personalizedActions.length]);
-
-  const visibleActions = personalizedActions.slice(0, maxVisible);
-  const hiddenActions = personalizedActions.slice(maxVisible);
+  const maxVisible = visibleActionCount ?? (isMobile ? 2 : 3);
+  const visibleActions = orderedActions.slice(0, maxVisible);
+  const hiddenActions = orderedActions.slice(maxVisible);
+  const hiddenActionActive = hiddenActions.some((action) => action.id === activeActionId);
 
   useEffect(() => {
     if (!moreOpen) return;
@@ -200,9 +178,13 @@ export function QuickActionsBar({
   };
 
   return (
-    <div ref={containerRef}>
-      <div className="flex items-center gap-1.5 mb-2">
-        {visibleActions.map((action) => renderActionButton(action))}
+    <div className={className}>
+      <div className="flex min-w-0 items-center gap-1.5">
+        <div className="flex min-w-0 items-center gap-1.5 overflow-hidden whitespace-nowrap">
+          {visibleActions.map((action) => renderActionButton(action))}
+        </div>
+
+        <div className="flex-1" />
 
         {hiddenActions.length > 0 && (
           <div className="relative flex-shrink-0" ref={moreRef}>
@@ -216,7 +198,7 @@ export function QuickActionsBar({
                 setMoreOpen(!moreOpen);
               }}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-all border ${
-                moreOpen
+                moreOpen || hiddenActionActive
                   ? 'text-primary bg-primary/5 border-primary/30 shadow-sm'
                   : 'text-foreground/70 bg-background border-border/80 hover:border-primary/40 hover:text-primary hover:bg-primary/5 shadow-sm'
               }`}
@@ -244,51 +226,6 @@ export function QuickActionsBar({
             )}
           </div>
         )}
-
-        {/* 常用模板按钮 */}
-        <div className="relative flex-shrink-0" ref={templateRef}>
-          <button
-            ref={templateBtnRef}
-            onClick={() => {
-              if (!templateOpen && templateBtnRef.current) {
-                const rect = templateBtnRef.current.getBoundingClientRect();
-                setTemplatePos({ x: rect.right, y: rect.top });
-              }
-              setTemplateOpen(!templateOpen);
-            }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-all border ${
-              templateOpen
-                ? 'text-primary bg-primary/5 border-primary/30 shadow-sm'
-                : 'text-foreground/70 bg-background border-border/80 hover:border-primary/40 hover:text-primary hover:bg-primary/5 shadow-sm'
-            }`}
-          >
-            <icons.FileText className="w-3.5 h-3.5" />
-            <span>模板</span>
-          </button>
-
-          {templateOpen && createPortal(
-            <div>
-              <AnimatePresence>
-                <div
-                  style={templatePos ? { position: 'fixed', right: window.innerWidth - templatePos.x, bottom: window.innerHeight - templatePos.y + 8 } : undefined}
-                >
-                  <TemplateSelector
-                    onSelect={(t) => {
-                      onFillInput({
-                        text: `请基于「${t.name}」模板帮我起草一份${t.name}。`,
-                        actionId: 'qa-draft',
-                        mode: 'document',
-                      });
-                      setTemplateOpen(false);
-                    }}
-                    onClose={() => setTemplateOpen(false)}
-                  />
-                </div>
-              </AnimatePresence>
-            </div>,
-            document.body
-          )}
-        </div>
       </div>
     </div>
   );

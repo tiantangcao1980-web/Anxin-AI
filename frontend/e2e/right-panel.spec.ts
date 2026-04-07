@@ -140,6 +140,8 @@ test.describe('右侧面板双模式', () => {
       description: '正在起草法律意见书',
     })
 
+    await expect(page.locator('[data-workbench-shell="chat"]')).toBeVisible()
+    await expect(page.locator('[data-workbench-tab="smart"]')).toBeVisible()
     await expect(page.getByText('多智能体协作')).toBeVisible()
     await expect(page.getByRole('button', { name: /文书起草Agent/ })).toBeVisible()
   })
@@ -185,6 +187,345 @@ test.describe('右侧面板双模式', () => {
     await expect(page.getByRole('button', { name: /查看完整文档/ })).toBeVisible()
 
     await page.getByRole('button', { name: /查看完整文档/ }).click()
-    await expect(page.locator('input[value="买卖合同草稿"]')).toBeVisible()
+    await expect(page).toHaveURL(/\/documents/)
+    await expect(page.getByTestId('document-workbench-shell')).toHaveAttribute('data-entry-mode', 'chat')
+    await expect(page.getByText('买卖合同草稿').first()).toBeVisible()
+  })
+
+  test('查看完整文档会打开统一文档工作台', async ({ page }) => {
+    await emitSocketEvent(page, {
+      type: 'canvas_open',
+      title: '测试法律意见书',
+      content: '# 测试法律意见书',
+      type_name: 'document',
+    })
+
+    await page.getByRole('button', { name: /^工作台/ }).click()
+    await page.getByRole('button', { name: /查看完整文档/ }).click()
+
+    await expect(page).toHaveURL(/\/documents/)
+    await expect(page.getByTestId('document-workbench-shell')).toBeVisible()
+  })
+
+  test('工作台支持将待确认事项插入到文档正文', async ({ page }) => {
+    await emitSocketEvent(page, {
+      type: 'canvas_open',
+      title: '测试法律意见书',
+      content: '# 测试法律意见书',
+      type_name: 'document',
+      metadata: {
+        draft_mode: '高可用草案',
+        completeness_score: 0.62,
+        validation_score: 0.81,
+        missing_fields: [
+          {
+            key: '合同金额与付款安排',
+            label: '合同金额与付款安排',
+            severity: 'high',
+            group: '交易条件',
+            suggestion: '建议补充：明确合同总价、付款节点、付款条件',
+          },
+        ],
+      },
+    })
+
+    await page.evaluate(() => {
+      window.sessionStorage.setItem(
+        'document-workbench-entry',
+        JSON.stringify({
+          entryMode: 'chat',
+          initialDocument: {
+            id: 'chat-doc-1',
+            title: '测试法律意见书',
+            content: '# 测试法律意见书',
+            type: 'document',
+            metadata: {
+              draft_mode: '高可用草案',
+              completeness_score: 0.62,
+              validation_score: 0.81,
+              missing_fields: [
+                {
+                  key: '合同金额与付款安排',
+                  label: '合同金额与付款安排',
+                  severity: 'high',
+                  group: '交易条件',
+                  suggestion: '建议补充：明确合同总价、付款节点、付款条件',
+                },
+              ],
+            },
+          },
+        }),
+      )
+    })
+    await page.goto('/documents')
+    await expect(page.getByTestId('document-workbench-shell')).toBeVisible()
+    await page.locator('aside').getByText('AI', { exact: true }).click()
+    await expect(page.getByText('待确认事项')).toBeVisible()
+    await page.getByRole('button', { name: '插入建议' }).click()
+    await expect(page.locator('textarea')).toContainText('建议补充：明确合同总价、付款节点、付款条件')
+    await expect(page.getByText('当前文档暂无待确认事项')).toBeVisible()
+  })
+
+  test('工作台支持按缺项生成补写段落', async ({ page }) => {
+    await page.route('**/api/v1/documents/generate-paragraph', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          request_id: 'test-request',
+          data: {
+            title: 'AI补写段落：法律后果提示',
+            content: '若贵方逾期未履行付款义务，我方将依法提起诉讼并主张违约责任。',
+          },
+        }),
+      })
+    })
+
+    await emitSocketEvent(page, {
+      type: 'canvas_open',
+      title: '测试法律意见书',
+      content: '# 测试法律意见书',
+      type_name: 'document',
+      metadata: {
+        draft_mode: '高可用草案',
+        completeness_score: 0.62,
+        validation_score: 0.81,
+        missing_fields: [
+          {
+            key: '法律后果提示',
+            label: '法律后果提示',
+            severity: 'medium',
+            group: '风险控制',
+            suggestion: '建议补充：说明逾期不履行将面临的诉讼、仲裁或其他法律后果',
+          },
+        ],
+      },
+    })
+
+    await page.evaluate(() => {
+      window.sessionStorage.setItem(
+        'document-workbench-entry',
+        JSON.stringify({
+          entryMode: 'chat',
+          initialDocument: {
+            id: 'chat-doc-2',
+            title: '测试法律意见书',
+            content: '# 测试法律意见书',
+            type: 'document',
+            metadata: {
+              draft_mode: '高可用草案',
+              completeness_score: 0.62,
+              validation_score: 0.81,
+              missing_fields: [
+                {
+                  key: '法律后果提示',
+                  label: '法律后果提示',
+                  severity: 'medium',
+                  group: '风险控制',
+                  suggestion: '建议补充：说明逾期不履行将面临的诉讼、仲裁或其他法律后果',
+                },
+              ],
+            },
+          },
+        }),
+      )
+    })
+    await page.goto('/documents')
+    await expect(page.getByTestId('document-workbench-shell')).toBeVisible()
+    await page.locator('aside').getByText('AI', { exact: true }).click()
+    await page.getByRole('button', { name: '生成补写段落' }).click()
+    await expect(page.locator('textarea')).toContainText('## AI补写段落：法律后果提示')
+    await expect(page.locator('textarea')).toContainText('若贵方逾期未履行付款义务，我方将依法提起诉讼并主张违约责任。')
+    await expect(page.getByText('当前文档暂无待确认事项')).toBeVisible()
+  })
+
+  test('已处理缺项会进入工作台历史页签', async ({ page }) => {
+    await page.route('**/api/v1/documents/generate-paragraph', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          request_id: 'test-request',
+          data: {
+            title: 'AI补写段落：法律后果提示',
+            content: '若贵方逾期未履行付款义务，我方将依法提起诉讼并主张违约责任。',
+          },
+        }),
+      })
+    })
+
+    await emitSocketEvent(page, {
+      type: 'canvas_open',
+      title: '测试法律意见书',
+      content: '# 测试法律意见书',
+      type_name: 'document',
+      metadata: {
+        draft_mode: '高可用草案',
+        completeness_score: 0.62,
+        validation_score: 0.81,
+        missing_fields: [
+          {
+            key: '法律后果提示',
+            label: '法律后果提示',
+            severity: 'medium',
+            group: '风险控制',
+            suggestion: '建议补充：说明逾期不履行将面临的诉讼、仲裁或其他法律后果',
+          },
+        ],
+      },
+    })
+
+    await page.evaluate(() => {
+      window.sessionStorage.setItem(
+        'document-workbench-entry',
+        JSON.stringify({
+          entryMode: 'chat',
+          initialDocument: {
+            id: 'chat-doc-3',
+            title: '测试法律意见书',
+            content: '# 测试法律意见书',
+            type: 'document',
+            metadata: {
+              draft_mode: '高可用草案',
+              completeness_score: 0.62,
+              validation_score: 0.81,
+              missing_fields: [
+                {
+                  key: '法律后果提示',
+                  label: '法律后果提示',
+                  severity: 'medium',
+                  group: '风险控制',
+                  suggestion: '建议补充：说明逾期不履行将面临的诉讼、仲裁或其他法律后果',
+                },
+              ],
+            },
+          },
+        }),
+      )
+    })
+    await page.goto('/documents')
+    await expect(page.getByTestId('document-workbench-shell')).toBeVisible()
+    await page.locator('aside').getByText('AI', { exact: true }).click()
+    await page.getByRole('button', { name: '生成补写段落' }).click()
+    await page.getByRole('tab', { name: '历史' }).click()
+
+    await expect(page.getByText('已处理待确认事项')).toBeVisible()
+    await expect(page.getByText('法律后果提示 · AI补写')).toBeVisible()
+  })
+
+  test('点击已处理缺项历史记录可定位到正文段落', async ({ page }) => {
+    await page.route('**/api/v1/documents/generate-paragraph', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          request_id: 'test-request',
+          data: {
+            title: 'AI补写段落：法律后果提示',
+            content: '若贵方逾期未履行付款义务，我方将依法提起诉讼并主张违约责任。',
+          },
+        }),
+      })
+    })
+
+    await emitSocketEvent(page, {
+      type: 'canvas_open',
+      title: '测试法律意见书',
+      content: '# 测试法律意见书',
+      type_name: 'document',
+      metadata: {
+        draft_mode: '高可用草案',
+        completeness_score: 0.62,
+        validation_score: 0.81,
+        missing_fields: [
+          {
+            key: '法律后果提示',
+            label: '法律后果提示',
+            severity: 'medium',
+            group: '风险控制',
+            suggestion: '建议补充：说明逾期不履行将面临的诉讼、仲裁或其他法律后果',
+          },
+        ],
+      },
+    })
+
+    await page.evaluate(() => {
+      window.sessionStorage.setItem(
+        'document-workbench-entry',
+        JSON.stringify({
+          entryMode: 'chat',
+          initialDocument: {
+            id: 'chat-doc-4',
+            title: '测试法律意见书',
+            content: '# 测试法律意见书',
+            type: 'document',
+            metadata: {
+              draft_mode: '高可用草案',
+              completeness_score: 0.62,
+              validation_score: 0.81,
+              missing_fields: [
+                {
+                  key: '法律后果提示',
+                  label: '法律后果提示',
+                  severity: 'medium',
+                  group: '风险控制',
+                  suggestion: '建议补充：说明逾期不履行将面临的诉讼、仲裁或其他法律后果',
+                },
+              ],
+            },
+          },
+        }),
+      )
+    })
+    await page.goto('/documents')
+    await expect(page.getByTestId('document-workbench-shell')).toBeVisible()
+    await page.locator('aside').getByText('AI', { exact: true }).click()
+    await page.getByRole('button', { name: '生成补写段落' }).click()
+    await page.getByRole('tab', { name: '历史' }).click()
+    await page.getByRole('button', { name: '法律后果提示 · AI补写' }).click()
+
+    await expect(page.locator('textarea')).toBeFocused()
+    await expect
+      .poll(() =>
+        page.locator('textarea').evaluate((element) => {
+          const textarea = element as HTMLTextAreaElement
+          return textarea.value.slice(textarea.selectionStart, textarea.selectionEnd)
+        }),
+      )
+      .toContain('## AI补写段落：法律后果提示')
+  })
+
+  test('持续收到工作流事件时不应过早显示请求超时', async ({ page }) => {
+    await page.evaluate(() => {
+      ;(window as any).__TEST_PROCESSING_TIMEOUT_MS = 50
+    })
+
+    await emitSocketEvent(page, {
+      type: 'agent_start',
+      agent: '协调调度Agent',
+      message: '正在分析您的需求...',
+    })
+    await page.waitForTimeout(30)
+    await emitSocketEvent(page, {
+      type: 'agent_working',
+      agent: '文书起草Agent',
+      message: '正在执行任务...',
+    })
+    await page.waitForTimeout(30)
+    await emitSocketEvent(page, {
+      type: 'agent_result',
+      agent: '文书起草Agent',
+      content: '已生成草稿',
+      step: 1,
+      total_steps: 1,
+    })
+
+    await expect(page.getByText('请求超时，服务器未在规定时间内响应。请稍后重试。')).toHaveCount(0)
   })
 })

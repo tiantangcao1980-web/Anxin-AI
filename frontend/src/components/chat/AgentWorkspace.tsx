@@ -57,7 +57,7 @@ export const AgentWorkspace = memo(function AgentWorkspace({
   const hasActions = workspaceActions.length > 0;
   const hasTasks = agentTasks.length > 0;
   const isEmpty = !requirementAnalysis && agentResults.length === 0 && !a2uiData
-    && !hasConfirmations && !hasActions && !hasTasks;
+    && !hasConfirmations && !hasActions && !hasTasks && !hasDocument;
 
   // 按状态分组 agent 结果
   const completedResults = useMemo(() => agentResults, [agentResults]);
@@ -150,7 +150,7 @@ export const AgentWorkspace = memo(function AgentWorkspace({
         )}
 
         {/* ===== 4.5 查看完整文档入口 ===== */}
-        {hasDocument && onSwitchToDocument && completedResults.length > 0 && !isProcessing && (
+        {hasDocument && onSwitchToDocument && !isProcessing && (
           <motion.button
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}

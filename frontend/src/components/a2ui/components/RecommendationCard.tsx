@@ -7,6 +7,7 @@ import { memo } from 'react';
 import { icons } from '@/lib/icons';
 import type { RecommendationCardComponent, A2UIEventHandler } from '../types';
 import { cn } from '@/lib/utils';
+import { A2UICardShell } from './A2UICardShell';
 
 interface Props {
   component: RecommendationCardComponent;
@@ -39,15 +40,47 @@ export const RecommendationCard = memo(function RecommendationCard({ component, 
   };
 
   return (
-    <div className={cn(
-      'a2ui-recommendation-card',
-      'bg-background rounded-2xl border border-border/50',
-      'shadow-sm hover:shadow-md transition-shadow duration-200',
-      'overflow-hidden',
-      component.className,
-    )}>
-      {/* 主体内容 */}
-      <div className="flex gap-3 p-4">
+    <A2UICardShell
+      title={data.title}
+      subtitle={data.subtitle}
+      className={cn('a2ui-recommendation-card', component.className)}
+      headerAside={data.rating !== undefined ? (
+        <div className="flex items-center gap-0.5">
+          <icons.Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+          <span className="text-xs font-medium text-muted-foreground">
+            {data.ratingText || data.rating.toFixed(1)}
+          </span>
+        </div>
+      ) : null}
+      actions={
+        <>
+          {data.secondaryAction ? (
+            <button
+              onClick={handleSecondaryAction}
+              className="inline-flex items-center gap-1 rounded-xl px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+            >
+              {data.secondaryAction.label}
+            </button>
+          ) : null}
+          {data.action ? (
+            <button
+              onClick={handleAction}
+              className={cn(
+                'inline-flex items-center gap-1 rounded-xl px-4 py-2 text-xs font-medium transition-colors',
+                data.action.variant === 'secondary'
+                  ? 'bg-surface-2 text-foreground hover:bg-muted'
+                  : data.action.variant === 'outline'
+                    ? 'border border-primary/20 text-primary hover:bg-primary/5'
+                    : 'bg-primary text-white hover:bg-primary-600',
+              )}
+            >
+              {data.action.label}
+            </button>
+          ) : null}
+        </>
+      }
+    >
+      <div className="flex gap-3">
         {/* 图片区 */}
         {(data.image || data.imageFallback) && (
           <div className="flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-muted">
@@ -63,27 +96,6 @@ export const RecommendationCard = memo(function RecommendationCard({ component, 
 
         {/* 信息区 */}
         <div className="flex-1 min-w-0">
-          {/* 标题行 */}
-          <div className="flex items-start justify-between gap-2">
-            <h4 className="font-semibold text-sm text-foreground leading-tight line-clamp-1">
-              {data.title}
-            </h4>
-            {data.rating !== undefined && (
-              <div className="flex items-center gap-0.5 flex-shrink-0">
-                <icons.Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                <span className="text-xs font-medium text-muted-foreground">
-                  {data.ratingText || data.rating.toFixed(1)}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* 副标题 */}
-          {data.subtitle && (
-            <p className="text-xs text-muted-foreground mt-0.5">{data.subtitle}</p>
-          )}
-
-          {/* 元信息 */}
           {data.meta && (
             <p className="text-xs text-muted-foreground/70 mt-1 flex items-center gap-1">
               <icons.MapPin className="w-3 h-3" />
@@ -119,8 +131,7 @@ export const RecommendationCard = memo(function RecommendationCard({ component, 
             </p>
           )}
 
-          {/* 价格 + 操作 */}
-          <div className="flex items-center justify-between mt-3">
+          <div className="mt-3 flex items-center justify-between">
             {data.price && (
               <div className="flex items-baseline gap-1.5">
                 <span className="text-base font-bold text-orange-600 dark:text-orange-400">
@@ -138,26 +149,10 @@ export const RecommendationCard = memo(function RecommendationCard({ component, 
                 )}
               </div>
             )}
-            {data.action && (
-              <button
-                onClick={handleAction}
-                className={cn(
-                  'inline-flex items-center gap-1 px-4 py-1.5 rounded-full text-xs font-medium transition-colors',
-                  data.action.variant === 'secondary'
-                    ? 'bg-muted text-foreground hover:bg-accent'
-                    : data.action.variant === 'outline'
-                    ? 'border border-primary text-primary hover:bg-primary/5 dark:text-primary'
-                    : 'bg-primary text-white hover:bg-primary/90',
-                )}
-              >
-                {data.action.label}
-              </button>
-            )}
           </div>
         </div>
       </div>
 
-      {/* 详情列表 */}
       {data.details && data.details.length > 0 && (
         <div className="border-t border-border/50 px-4 py-2">
           {data.details.map((detail, i) => (
@@ -168,17 +163,6 @@ export const RecommendationCard = memo(function RecommendationCard({ component, 
           ))}
         </div>
       )}
-
-      {/* 次要操作 */}
-      {data.secondaryAction && (
-        <button
-          onClick={handleSecondaryAction}
-          className="w-full flex items-center justify-center gap-1 py-2.5 border-t border-border/50 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-        >
-          {data.secondaryAction.label}
-          <icons.ChevronRight className="w-3.5 h-3.5" />
-        </button>
-      )}
-    </div>
+    </A2UICardShell>
   );
 });

@@ -1069,10 +1069,8 @@ export default function KnowledgeGraph() {
   // ============================================================
 
   return (
-    <div className="h-full flex flex-col">
-      {/* 图谱全屏画布 */}
-      <div className="flex-1 relative min-h-0">
-          {/* 加载覆盖层 */}
+    <div data-analysis-shell className="h-full flex flex-col bg-surface-2">
+      <div data-analysis-main className="relative flex-1 min-h-0">
           {graphLoading && (
             <div className="absolute inset-0 bg-background/60 backdrop-blur-sm z-30 flex items-center justify-center">
               <div className="flex items-center gap-3 bg-background border border-border rounded-xl px-5 py-3 shadow-lg">
@@ -1082,9 +1080,8 @@ export default function KnowledgeGraph() {
             </div>
           )}
 
-          {/* ====== 浮动搜索栏 (顶部居中) ====== */}
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 w-full max-w-xl px-4">
-            <div className="flex items-center gap-2 bg-background/90 backdrop-blur-md border border-border rounded-xl shadow-lg px-3 py-2">
+          <div data-analysis-toolbar className="absolute top-3 left-1/2 z-20 w-full max-w-xl -translate-x-1/2 px-4">
+            <div className="flex items-center gap-2 rounded-xl border border-border bg-surface-1/90 px-3 py-2 shadow-card backdrop-blur-md">
               <icons.Search className="w-4 h-4 text-muted-foreground shrink-0" />
               <input
                 type="text"
@@ -1098,7 +1095,6 @@ export default function KnowledgeGraph() {
                   <icons.X className="w-3.5 h-3.5" />
                 </button>
               )}
-              {/* 操作按钮 */}
               <div className="flex items-center gap-0.5 border-l border-border pl-2 ml-1">
                 <button onClick={() => setShowAddEntity(true)} className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors" title="添加实体">
                   <icons.Plus className="w-4 h-4" />
@@ -1123,9 +1119,8 @@ export default function KnowledgeGraph() {
                 )}
               </div>
             </div>
-            {/* 搜索结果下拉 */}
             {(searchLoading || (searchResults.length > 0 && searchQuery.trim())) && (
-              <div className="mt-1.5 bg-background/95 backdrop-blur-md border border-border rounded-xl shadow-lg overflow-hidden max-h-60 overflow-y-auto">
+              <div className="mt-1.5 max-h-60 overflow-y-auto overflow-hidden rounded-xl border border-border bg-surface-1/95 shadow-card backdrop-blur-md">
                 {searchLoading ? (
                   <div className="p-3 flex items-center gap-2 text-xs text-muted-foreground">
                     <icons.Loader2 className="w-3.5 h-3.5 animate-spin" /> 搜索中...
@@ -1162,7 +1157,6 @@ export default function KnowledgeGraph() {
               </div>
             </div>
           ) : graphNodes.length === 0 ? (
-            /* 空状态 */
             <div className="h-full flex items-center justify-center">
               <div className="text-center max-w-md px-6">
                 <icons.Network className="w-16 h-16 mx-auto mb-5 text-muted-foreground/20" />
@@ -1199,7 +1193,6 @@ export default function KnowledgeGraph() {
               </div>
             </div>
           ) : (
-            /* 图谱画布 + 浮动控件 */
             <>
               <ForceGraphCanvas
                 ref={graphRef}
@@ -1214,7 +1207,6 @@ export default function KnowledgeGraph() {
                 autoRotate={autoRotate}
               />
 
-              {/* 浮动工具栏 */}
               <div className="absolute top-4 left-4 z-10">
                 <GraphToolbar
                   viewMode={viewMode}
@@ -1228,7 +1220,6 @@ export default function KnowledgeGraph() {
                 />
               </div>
 
-              {/* 浮动图例 + 加载更多 */}
               <div className="absolute bottom-4 left-4 z-10 space-y-2">
                 {hasMore && (
                   <button
@@ -1255,7 +1246,6 @@ export default function KnowledgeGraph() {
                 />
               </div>
 
-              {/* 节点数量警告 */}
               {graphNodes.length > MAX_VISIBLE_NODES && (
                 <div className="absolute top-4 right-4 z-10 bg-amber-500/10 border border-amber-500/30 text-amber-600 rounded-lg px-3 py-2 text-xs flex items-center gap-2">
                   <icons.AlertTriangle className={iconSize.sm} />

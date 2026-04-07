@@ -28,8 +28,7 @@ import {
   Cell,
   Legend,
 } from 'recharts'
-
-const COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#ec4899']
+import { cardStyle, chartColors } from '@/lib/design-tokens'
 
 interface StatCard {
   title: string
@@ -73,38 +72,38 @@ export default function AdminDashboard() {
       title: '总用户数',
       value: dashData?.total_users ?? '--',
       icon: icons.Users,
-      color: 'text-blue-500',
+      color: 'text-info',
       change: dashData?.user_change,
     },
     {
       title: '今日活跃',
       value: dashData?.active_today ?? '--',
       icon: icons.Activity,
-      color: 'text-green-500',
+      color: 'text-success',
     },
     {
       title: '案件总量',
       value: dashData?.total_cases ?? '--',
       icon: icons.Briefcase,
-      color: 'text-amber-500',
+      color: 'text-primary',
     },
     {
       title: '合同总量',
       value: dashData?.total_contracts ?? '--',
       icon: icons.FileText,
-      color: 'text-purple-500',
+      color: 'text-warning',
     },
     {
       title: '文档总量',
       value: dashData?.total_documents ?? '--',
       icon: icons.FolderOpen,
-      color: 'text-pink-500',
+      color: 'text-info',
     },
     {
       title: '系统运行',
       value: dashData?.uptime ?? '--',
       icon: icons.Clock,
-      color: 'text-teal-500',
+      color: 'text-success',
     },
   ]
 
@@ -152,7 +151,7 @@ export default function AdminDashboard() {
 
   return (
     <PageContainer title="管理概览" description="系统运行状态与关键指标">
-      {/* 统计卡片 */}
+      <section data-admin-shell className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {statCards.map((card, index) => {
           const Icon = card.icon
@@ -163,7 +162,7 @@ export default function AdminDashboard() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
             >
-              <Card className="hover:shadow-md transition-shadow">
+              <Card data-ui="surface-card" className={`${cardStyle.base} hover:shadow-float transition-shadow`}>
                 <CardContent className="pt-5 pb-4 px-4">
                   <div className="flex items-center justify-between mb-3">
                     <Icon className={`w-5 h-5 ${card.color}`} />
@@ -190,10 +189,10 @@ export default function AdminDashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <Card>
+          <Card data-ui="surface-card" className={cardStyle.base}>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <icons.TrendingUp className="w-5 h-5 text-blue-500" />
+                <icons.TrendingUp className="w-5 h-5 text-info" />
                 用户增长趋势
               </CardTitle>
             </CardHeader>
@@ -210,7 +209,7 @@ export default function AdminDashboard() {
                       borderRadius: '8px',
                     }}
                   />
-                  <Bar dataKey="count" fill="#f59e0b" radius={[4, 4, 0, 0]} name="用户数" />
+                  <Bar dataKey="count" fill={chartColors[0]} radius={[4, 4, 0, 0]} name="用户数" />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -223,10 +222,10 @@ export default function AdminDashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
         >
-          <Card>
+          <Card data-ui="surface-card" className={cardStyle.base}>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <icons.PieChart className="w-5 h-5 text-purple-500" />
+                <icons.PieChart className="w-5 h-5 text-warning" />
                 操作类型分布
               </CardTitle>
             </CardHeader>
@@ -243,7 +242,7 @@ export default function AdminDashboard() {
                     dataKey="value"
                   >
                     {actionDistribution.map((_: any, index: number) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      <Cell key={`cell-${index}`} fill={chartColors[index % chartColors.length]} />
                     ))}
                   </Pie>
                   <Tooltip />
@@ -267,10 +266,10 @@ export default function AdminDashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
         >
-          <Card>
+          <Card data-ui="surface-card" className={cardStyle.base}>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <icons.FileText className="w-5 h-5 text-amber-500" />
+                <icons.FileText className="w-5 h-5 text-primary" />
                 最近审计日志
               </CardTitle>
             </CardHeader>
@@ -326,10 +325,10 @@ export default function AdminDashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
         >
-          <Card>
+          <Card data-ui="surface-card" className={cardStyle.base}>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <icons.Server className="w-5 h-5 text-green-500" />
+                <icons.Server className="w-5 h-5 text-success" />
                 系统健康
               </CardTitle>
             </CardHeader>
@@ -358,6 +357,7 @@ export default function AdminDashboard() {
           </Card>
         </motion.div>
       </div>
+      </section>
     </PageContainer>
   )
 }

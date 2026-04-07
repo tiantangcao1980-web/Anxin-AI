@@ -1,7 +1,7 @@
 """合同审查路由"""
 
 from datetime import date, datetime
-from typing import Optional, List
+from typing import Any, Optional, List
 from fastapi import APIRouter, HTTPException, Query, Depends, UploadFile, File, Form, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -83,6 +83,47 @@ class ContractRiskResponse(BaseModel):
     related_clause: Optional[str] = None
     suggestion: Optional[str] = None
     is_resolved: bool
+
+
+def _normalize_review_payload(review_data: Any) -> dict[str, Any]:
+    if isinstance(review_data, str):
+        import re
+
+        json_match = re.search(r'\{[\s\S]*\}', review_data)
+        if json_match:
+            try:
+                review_data = json.loads(json_match.group())
+            except json.JSONDecodeError:
+                review_data = {}
+        else:
+            review_data = {}
+
+    if not isinstance(review_data, dict):
+        review_data = {}
+
+    risks = review_data.get("risks")
+    key_risks = review_data.get("key_risks")
+
+    if not isinstance(risks, list):
+        risks = key_risks if isinstance(key_risks, list) else []
+    if not isinstance(key_risks, list):
+        key_risks = risks
+
+    suggestions = review_data.get("suggestions")
+    key_terms = review_data.get("key_terms")
+    missing_clauses = review_data.get("missing_clauses")
+
+    return {
+        **review_data,
+        "summary": review_data.get("summary", "审查完成"),
+        "risk_level": review_data.get("risk_level", "medium"),
+        "risk_score": float(review_data.get("risk_score", 0.5)),
+        "risks": risks,
+        "key_risks": key_risks,
+        "suggestions": suggestions if isinstance(suggestions, list) else [],
+        "key_terms": key_terms if isinstance(key_terms, dict) else {},
+        "missing_clauses": missing_clauses if isinstance(missing_clauses, list) else [],
+    }
 
 
 @router.get("/", response_model=UnifiedResponse)
@@ -579,19 +620,11 @@ async def quick_review_contract(
         )
         
         # 解析结果
-        review_data = result.get("final_result", {})
-        if isinstance(review_data, str):
-            import re
-            json_match = re.search(r'\{[\s\S]*\}', review_data)
-            if json_match:
-                try:
-                    review_data = json.loads(json_match.group())
-                except json.JSONDecodeError:
-                    review_data = {}
+        review_data = _normalize_review_payload(result.get("final_result", {}))
         
         # 合并高风险词检测结果
         high_risk_terms = key_info.get("high_risk_terms", [])
-        if high_risk_terms and "key_risks" in review_data:
+        if high_risk_terms:
             review_data["key_risks"].append({
                 "type": "高风险条款",
                 "title": "检测到高风险关键词",
@@ -599,14 +632,15 @@ async def quick_review_contract(
                 "description": f"文本中包含以下高风险表述：{', '.join(high_risk_terms)}",
                 "suggestion": "请仔细审查这些条款的具体内容"
             })
+            review_data["risks"] = review_data["key_risks"]
         
         return QuickReviewResponse(
-            summary=review_data.get("summary", "审查完成"),
-            risk_level=review_data.get("risk_level", "medium"),
-            risk_score=float(review_data.get("risk_score", 0.5)),
-            key_risks=review_data.get("key_risks", []),
-            suggestions=review_data.get("suggestions", []),
-            key_terms=review_data.get("key_terms", {}),
+            summary=review_data["summary"],
+            risk_level=review_data["risk_level"],
+            risk_score=review_data["risk_score"],
+            key_risks=review_data["key_risks"],
+            suggestions=review_data["suggestions"],
+            key_terms=review_data["key_terms"],
         )
         
     except Exception as e:
@@ -681,24 +715,24 @@ async def stream_review_contract(
                 }
             )
 
-            review_data = result.get("final_result", {})
+            review_data = _normalize_review_payload(result.get("final_result", {}))
 
             # 发送审查结果
-            yield f"data: {json.dumps({'type': 'risks', 'data': review_data.get('risks', [])}, ensure_ascii=False)}\n\n"
-            yield f"data: {json.dumps({'type': 'suggestions', 'data': review_data.get('suggestions', [])}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'risks', 'data': review_data['risks']}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'suggestions', 'data': review_data['suggestions']}, ensure_ascii=False)}\n\n"
 
             # 发送缺失条款（新增）
-            missing = review_data.get("missing_clauses", [])
+            missing = review_data["missing_clauses"]
             if missing:
                 yield f"data: {json.dumps({'type': 'missing_clauses', 'data': missing}, ensure_ascii=False)}\n\n"
 
             # 发送关键条款（新增）
-            key_terms = review_data.get("key_terms", {})
+            key_terms = review_data["key_terms"]
             if key_terms:
                 yield f"data: {json.dumps({'type': 'key_terms', 'data': key_terms}, ensure_ascii=False)}\n\n"
 
             # 完成
-            yield f"data: {json.dumps({'type': 'done', 'summary': review_data.get('summary', '审查完成'), 'risk_level': review_data.get('risk_level', 'medium'), 'risk_score': review_data.get('risk_score', 0.5)}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'summary': review_data['summary'], 'risk_level': review_data['risk_level'], 'risk_score': review_data['risk_score']}, ensure_ascii=False)}\n\n"
             
         except Exception as e:
             logger.error(f"流式审查失败: {e}", exc_info=True)

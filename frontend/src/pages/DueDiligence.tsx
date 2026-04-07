@@ -753,9 +753,8 @@ export default function DueDiligence() {
   }
 
   return (
-    <div className="h-full flex flex-col min-h-0">
-      {/* 顶部搜索栏 */}
-      <div className="shrink-0 p-4 sm:p-5 lg:p-6 pb-0 space-y-3">
+    <div data-analysis-shell className="h-full min-h-0 flex flex-col bg-surface-2">
+      <div data-analysis-toolbar className="shrink-0 p-4 sm:p-5 lg:p-6 pb-0 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <h1 className={`${heading.page} tracking-tight flex flex-wrap items-end`}>智能调查</h1>
@@ -899,16 +898,13 @@ export default function DueDiligence() {
         )}
       </div>
 
-      {/* 主内容区 */}
-      <div className="flex-1 min-h-0 overflow-hidden">
-        {/* 知识搜索模式 */}
+      <div data-analysis-main className="flex-1 min-h-0 overflow-hidden">
         {showSearch && (
           <div className="h-full overflow-y-auto p-4 sm:p-5 lg:p-6">
             <SearchSection />
           </div>
         )}
 
-        {/* 调查进度 */}
         {!showSearch && isSearching && (
           <div className="h-full overflow-y-auto">
             <InvestigationProgress
@@ -927,7 +923,6 @@ export default function DueDiligence() {
           </div>
         )}
 
-        {/* 模块内容 — 示例模式 或 真实数据模式 */}
         {!showSearch && !isSearching && (
           <div className="h-full overflow-y-auto">
             <div className="p-4 sm:p-5 lg:p-6 space-y-4">

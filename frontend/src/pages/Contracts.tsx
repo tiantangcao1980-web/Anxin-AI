@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { icons } from '@/lib/icons'
 import { toast } from 'sonner'
 import { contractsApi, Contract, ContractCreate } from '@/lib/api'
@@ -34,6 +35,7 @@ const CONTRACT_TYPES = [
 ]
 
 export default function Contracts() {
+  const navigate = useNavigate()
   const [contracts, setContracts] = useState<Contract[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -85,17 +87,24 @@ export default function Contracts() {
           </button>
           <button
             onClick={() => setShowReviewModal(true)}
+            className={`${buttonStyle.secondary} flex items-center gap-2 whitespace-nowrap`}
+          >
+            <icons.Search className={iconSize.sm} />
+            快捷审查
+          </button>
+          <button
+            onClick={() => navigate('/contract-review')}
             className={`${buttonStyle.primary} flex items-center gap-2 whitespace-nowrap`}
           >
             <icons.Upload className={iconSize.sm} />
-            上传审查
+            完整审查
           </button>
         </div>
       }
     >
       {/* 统计卡片 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className={cardStyle.compact}>
+        <div data-ui="surface-card" className={cardStyle.compact}>
           <div className="flex items-center justify-between">
             <p className={heading.muted}>待审核</p>
             <icons.Clock className={`${iconSize.md} text-amber-500`} />
@@ -104,7 +113,7 @@ export default function Contracts() {
             {contracts.filter(c => c.status === 'pending_review').length}
           </p>
         </div>
-        <div className={cardStyle.compact}>
+        <div data-ui="surface-card" className={cardStyle.compact}>
           <div className="flex items-center justify-between">
             <p className={heading.muted}>审核中</p>
             <icons.Loader2 className={`${iconSize.md} text-primary`} />
@@ -113,7 +122,7 @@ export default function Contracts() {
             {contracts.filter(c => c.status === 'under_review').length}
           </p>
         </div>
-        <div className={cardStyle.compact}>
+        <div data-ui="surface-card" className={cardStyle.compact}>
           <div className="flex items-center justify-between">
             <p className={heading.muted}>高风险</p>
             <icons.AlertTriangle className={`${iconSize.md} text-red-500`} />
@@ -122,7 +131,7 @@ export default function Contracts() {
             {contracts.filter(c => c.risk_level === 'high' || c.risk_level === 'critical').length}
           </p>
         </div>
-        <div className={cardStyle.compact}>
+        <div data-ui="surface-card" className={cardStyle.compact}>
           <div className="flex items-center justify-between">
             <p className={heading.muted}>已完成</p>
             <icons.CheckCircle className={`${iconSize.md} text-emerald-600`} />
@@ -134,7 +143,7 @@ export default function Contracts() {
       </div>
 
       {/* 合同列表 */}
-      <div className={cardStyle.base}>
+      <div data-ui="surface-card" className={cardStyle.base}>
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <icons.Loader2 className={`${iconSize.xl} animate-spin text-muted-foreground`} />

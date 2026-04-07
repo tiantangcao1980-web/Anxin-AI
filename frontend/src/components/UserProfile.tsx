@@ -3,7 +3,9 @@ import { heading, buttonStyle, iconSize } from '@/lib/design-tokens'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authApi, User as ApiUser } from '../lib/api'
+import { getTokenStorage } from '../lib/platform/storage'
 import { useAuthStore, useUIStore } from '../lib/store'
+import { clearAuth as clearDesktopAuth } from '../lib/tauri-bridge'
 import { usePrivacy, PrivacyMode, HardwareStatus as HWStatus } from '../context/PrivacyContext'
 import { toast } from 'sonner'
 
@@ -244,8 +246,9 @@ export function UserProfile({ onClose, headerActionLabels = true, onToggleHeader
     try {
       await authApi.logout()
     } catch {
-      // 即使后端不可用也执行本地登出
     }
+    await getTokenStorage().clearAuth()
+    await clearDesktopAuth()
     storeLogout()
     localStorage.removeItem('user_info')
     toast.success('已退出登录')

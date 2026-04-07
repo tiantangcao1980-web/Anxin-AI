@@ -11,21 +11,22 @@ import { icons } from '@/lib/icons'
 export function WelcomeScreen() {
   return (
     <motion.div
+      data-chat-welcome
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="w-full min-h-[50vh] flex flex-col items-center justify-center mx-auto max-w-lg px-4"
+      className="mx-auto flex min-h-[42vh] w-full max-w-xl flex-col items-center justify-start px-5 pt-8 text-center sm:min-h-[50vh] sm:justify-center sm:pt-0"
     >
-      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/80 to-primary flex items-center justify-center shadow-lg shadow-primary/20">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/80 to-primary shadow-lg shadow-primary/20">
         <icons.Scale className="w-8 h-8 text-white" />
       </div>
-      <h1 className="text-2xl font-bold text-foreground tracking-tight mt-4">你好，有什么可以帮您？</h1>
-      <p className="text-sm text-muted-foreground mt-3 text-center leading-relaxed">
+      <h1 className="mt-4 text-2xl font-bold tracking-tight text-foreground">你好，有什么可以帮您？</h1>
+      <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
         我是安心 AI 法务助手，您可以直接在下方输入问题，
         <br className="hidden sm:block" />
         或使用底部工具栏选择具体服务。我可以帮您：
       </p>
-      <div className="mt-4 text-sm text-muted-foreground/80 text-center leading-loose">
+      <div className="mt-5 rounded-2xl border border-border/70 bg-surface-1/80 px-5 py-4 text-sm leading-loose text-muted-foreground/80 shadow-card">
         审查合同条款与风险 · 起草法律文书与函件
         <br />
         合规检查与尽职调查 · 检索法规与裁判案例

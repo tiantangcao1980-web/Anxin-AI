@@ -8,6 +8,7 @@ import { memo } from 'react';
 import { icons } from '@/lib/icons';
 import type { StatusCardComponent, A2UIEventHandler } from '../types';
 import { cn } from '@/lib/utils';
+import { A2UICardShell } from './A2UICardShell';
 
 interface Props {
   component: StatusCardComponent;
@@ -53,56 +54,45 @@ export const StatusCard = memo(function StatusCard({ component, onEvent }: Props
   const Icon = config.icon;
 
   return (
-    <div className={cn(
-      'a2ui-status-card rounded-2xl border p-6 text-center',
-      config.bg, config.border,
-      component.className,
-    )}>
-      <div className="flex justify-center mb-3">
-        <div className={cn('w-12 h-12 rounded-full flex items-center justify-center', config.bg)}>
-          <Icon className={cn('w-7 h-7', config.iconColor)} />
-        </div>
-      </div>
-
-      <h4 className="text-base font-semibold text-foreground">
-        {data.title}
-      </h4>
-
-      {data.description && (
-        <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
-          {data.description}
-        </p>
-      )}
-
-      {/* 操作按钮 */}
-      {(data.action || data.secondaryAction) && (
-        <div className="flex items-center justify-center gap-3 mt-4">
-          {data.secondaryAction && (
+    <A2UICardShell
+      title={data.title}
+      subtitle={data.description}
+      className={cn('a2ui-status-card text-center', config.bg, config.border, component.className)}
+      bodyClassName="px-6 py-6"
+      actions={(data.action || data.secondaryAction) ? (
+        <>
+          {data.secondaryAction ? (
             <button
               onClick={() => onEvent({
                 type: 'action',
                 actionId: data.secondaryAction!.actionId,
                 componentId: component.id,
               })}
-              className="px-5 py-2 rounded-full text-sm font-medium text-muted-foreground hover:bg-muted transition"
+              className="rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface-2"
             >
               {data.secondaryAction.label}
             </button>
-          )}
-          {data.action && (
+          ) : null}
+          {data.action ? (
             <button
               onClick={() => onEvent({
                 type: 'action',
                 actionId: data.action!.actionId,
                 componentId: component.id,
               })}
-              className="px-6 py-2 rounded-full text-sm font-semibold bg-primary text-white hover:bg-primary/90 transition active:scale-95"
+              className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-600"
             >
               {data.action.label}
             </button>
-          )}
+          ) : null}
+        </>
+      ) : null}
+    >
+      <div className="mb-3 flex justify-center">
+        <div className={cn('w-12 h-12 rounded-full flex items-center justify-center', config.bg)}>
+          <Icon className={cn('w-7 h-7', config.iconColor)} />
         </div>
-      )}
-    </div>
+      </div>
+    </A2UICardShell>
   );
 });

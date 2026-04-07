@@ -19,7 +19,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { NotificationCenter } from './NotificationCenter'
 import { UserProfile } from './UserProfile'
 import { notificationsApi } from '../lib/api'
-import { useAuthStore, useIMStore, useNotificationStore } from '@/lib/store'
+import { useIMStore, useNotificationStore } from '@/lib/store'
 import { usePermission } from '@/hooks/usePermission'
 
 import { icons } from '@/lib/icons'
@@ -64,11 +64,12 @@ const moduleSidebarConfig: { id: string; title: string; icon: React.ComponentTyp
     id: 'collaboration',
     title: '智能协作',
     icon: icons.CollaborationGroup,
-    paths: ['/cases', '/contracts', '/collaboration', '/find-lawyer', '/compliance-check', '/leads', '/firm', '/lawyer-dashboard', '/acquisition'],
+    paths: ['/cases', '/contracts', '/documents', '/collaboration', '/find-lawyer', '/compliance-check', '/leads', '/firm', '/lawyer-dashboard', '/acquisition'],
     items: [
       { path: '/cases', label: '案件管理', icon: icons.Cases, feature: 'case_management' },
       { path: '/contracts', label: '合同管理', icon: icons.Contracts, feature: 'contract_management' },
-      { path: '/collaboration', label: '在线协作', icon: icons.Collaboration, feature: 'collaboration' },
+      { path: '/documents', label: '文档工作台', icon: icons.FileText, feature: 'document_management' },
+      { path: '/collaboration', label: '协作模板', icon: icons.Collaboration, feature: 'collaboration' },
       { path: '/find-lawyer', label: '找律师', icon: icons.Scale, feature: 'lawyer_matching' },
       { path: '/compliance-check', label: '合规自检', icon: icons.ShieldCheck, feature: 'compliance_check' },
       { path: '/leads', label: '案源管理', icon: icons.Leads, feature: 'leads' },
@@ -215,12 +216,9 @@ function readHeaderActionLabels(): boolean {
 export default function Layout() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user } = useAuthStore()
   const { canAccess } = usePermission()
-  const isAdmin = user?.role === 'admin'
   const [showNotifications, setShowNotifications] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
-  const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [headerActionLabels, setHeaderActionLabels] = useState(readHeaderActionLabels)
 
   const toggleHeaderActionLabels = useCallback(() => {
@@ -256,15 +254,9 @@ export default function Layout() {
   // 合并 IM + 通知未读数
   const combinedUnread = imUnreadTotal + notifUnreadCount
 
-  // 路由变化时关闭更多菜单
-  useEffect(() => {
-    setShowMoreMenu(false)
-  }, [location.pathname])
-
   const handleNavClick = useCallback(
     (path: string) => {
       navigate(path)
-      setShowMoreMenu(false)
     },
     [navigate]
   )
@@ -282,15 +274,15 @@ export default function Layout() {
     )
 
   return (
-    <div className="h-screen bg-muted/30 flex flex-col overflow-hidden">
+    <div className="flex h-[100dvh] min-h-[100dvh] flex-col overflow-hidden bg-surface-2">
       {/* ===== 固定顶部导航栏 ===== */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-surface-1/90 backdrop-blur-xl">
         <div className="h-[60px] px-4 lg:px-6 flex items-center">
           {/* 左侧：Logo */}
           <button
             type="button"
             onClick={() => handleNavClick('/chat')}
-            className="flex items-center justify-start gap-2.5 shrink-0 mr-6 lg:mr-10 w-[196px]"
+            className="flex w-auto shrink-0 items-center justify-start gap-2.5 mr-3 sm:mr-6 lg:mr-10 lg:w-[196px]"
           >
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
               <icons.Legal className="w-[18px] h-[18px] text-white" />
@@ -318,35 +310,34 @@ export default function Layout() {
           </nav>
 
           {/* 右侧：系统功能 + 用户区 */}
-          <div className="flex items-center gap-2 ml-auto">
-            {/* 消息入口（合并 IM + 通知未读数） */}
-            <button
-              onClick={() => navigate('/messages')}
-              title={!headerActionLabels ? '消息' : undefined}
-              className={`relative flex items-center rounded-lg text-sm font-medium transition-colors border ${
-                headerActionLabels ? 'gap-1.5 px-3 py-1.5' : 'p-2 justify-center'
-              } ${
-                currentPath === '/messages'
-                  ? 'text-primary bg-primary/10 border-primary/30'
-                  : (combinedUnread > 0)
-                    ? 'text-foreground bg-background border-border shadow-sm hover:bg-muted/50'
-                    : 'text-muted-foreground bg-background/80 border-border/60 hover:text-foreground hover:bg-muted/50 hover:border-border'
-              }`}
-            >
-              <icons.Chat className="h-4 w-4 shrink-0" />
-              {headerActionLabels && <span>消息</span>}
-              {(combinedUnread > 0) && (
-                <>
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-destructive text-white text-[10px] font-bold flex items-center justify-center rounded-full px-1 border-2 border-background animate-bounce-subtle">
-                    {(combinedUnread) > 99 ? '99+' : (combinedUnread)}
-                  </span>
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-destructive rounded-full animate-ping opacity-40" />
-                </>
-              )}
-            </button>
+          <div className="ml-auto flex items-center gap-1 sm:gap-1.5 md:gap-2">
+            <div className="flex items-center gap-1 rounded-xl border border-border/60 bg-background/85 p-1 shadow-sm backdrop-blur-sm">
+              <button
+                onClick={() => navigate('/messages')}
+                aria-label="消息"
+                title="消息"
+                className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-medium transition-colors md:h-10 md:w-auto md:text-sm ${
+                  headerActionLabels ? 'md:gap-1.5 md:px-3' : 'md:px-2'
+                } ${
+                  currentPath === '/messages'
+                    ? 'text-primary bg-primary/10'
+                    : (combinedUnread > 0)
+                      ? 'text-foreground bg-background shadow-sm hover:bg-muted/50'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                }`}
+              >
+                <icons.Chat className="h-4 w-4 shrink-0" />
+                {headerActionLabels && <span className="hidden whitespace-nowrap md:inline">消息</span>}
+                {(combinedUnread > 0) && (
+                  <>
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-destructive text-white text-[10px] font-bold flex items-center justify-center rounded-full px-1 border-2 border-background animate-bounce-subtle">
+                      {(combinedUnread) > 99 ? '99+' : (combinedUnread)}
+                    </span>
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-destructive rounded-full animate-ping opacity-40" />
+                  </>
+                )}
+              </button>
 
-            {/* 桌面端系统功能（图标+文字按钮） */}
-            <div className="hidden lg:flex items-center gap-2">
               {systemItems.map((item) => {
                 const Icon = item.icon
                 const isActive = isPathActive(item.path, currentPath)
@@ -354,26 +345,28 @@ export default function Layout() {
                   <button
                     key={item.id}
                     type="button"
-                    title={!headerActionLabels ? item.label : undefined}
+                    aria-label={item.label}
+                    title={item.label}
                     onClick={() => handleNavClick(item.path)}
-                    className={`relative flex items-center rounded-lg text-sm font-medium transition-colors border ${
-                      headerActionLabels ? 'gap-1.5 px-3 py-1.5' : 'p-2 justify-center'
+                    className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-medium transition-colors md:h-10 md:w-auto md:text-sm ${
+                      headerActionLabels ? 'md:gap-1.5 md:px-3' : 'md:px-2'
                     } ${
                       isActive
-                        ? 'text-primary bg-primary/10 border-primary/30'
-                        : 'text-muted-foreground bg-background/80 border-border/60 hover:text-foreground hover:bg-muted/50 hover:border-border'
+                        ? 'text-primary bg-primary/10'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                     }`}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
-                    {headerActionLabels && <span>{item.label}</span>}
+                    {headerActionLabels && <span className="hidden whitespace-nowrap md:inline">{item.label}</span>}
                   </button>
                 )
               })}
             </div>
 
-            {/* 运行模式切换器 + 同步状态 (Tauri 客户端) */}
-            <ModeSwitcher />
-            <SyncStatus />
+            <div className="hidden sm:flex items-center gap-1.5">
+              <ModeSwitcher />
+              <SyncStatus />
+            </div>
 
             <div className="hidden lg:block h-5 w-px bg-border/60 mx-1" />
 
@@ -381,9 +374,9 @@ export default function Layout() {
             <button
               type="button"
               onClick={() => setShowProfile(!showProfile)}
-              className={buttonStyle.icon}
+              className={`${buttonStyle.icon} p-1.5 sm:p-2 rounded-lg sm:rounded-xl`}
             >
-              <div className={`${iconSize.xl} bg-primary/90 rounded-full flex items-center justify-center`}>
+              <div className="w-7 h-7 sm:w-8 sm:h-8 bg-primary/90 rounded-full flex items-center justify-center">
                 <icons.User className={`${iconSize.sm} text-white`} />
               </div>
             </button>
@@ -424,13 +417,13 @@ export default function Layout() {
         {!currentPath.startsWith('/chat') && !currentPath.startsWith('/messages') && !currentPath.startsWith('/tasks') && !currentPath.startsWith('/settings') && (
           <ModuleSidebar currentPath={currentPath} onNavigate={handleNavClick} />
         )}
-        <main className="flex-1 overflow-hidden">
+        <main className="flex-1 overflow-hidden bg-surface-2">
           <Outlet />
         </main>
       </div>
 
       {/* ===== 移动端底部 Tab 栏 ===== */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border/50" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-surface-1/95 backdrop-blur-xl" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="flex items-center justify-around h-14">
           {navGroups.map((group) => {
             const isActive = isModuleActive(group.id, currentPath)
@@ -454,63 +447,8 @@ export default function Layout() {
               </button>
             )
           })}
-          {/* 更多按钮 */}
-          <button
-            onClick={() => setShowMoreMenu(!showMoreMenu)}
-            className={`flex flex-col items-center gap-0.5 px-3 py-1 min-w-[60px] ${
-              showMoreMenu ? 'text-primary' : 'text-muted-foreground'
-            }`}
-          >
-            <icons.MoreHorizontal className="w-5 h-5" />
-            <span className="text-[10px] font-medium">更多</span>
-          </button>
         </div>
       </nav>
-
-      {/* ===== 移动端"更多"弹出面板 ===== */}
-      {showMoreMenu && (
-        <>
-          <div
-            className="lg:hidden fixed inset-0 z-40"
-            onClick={() => setShowMoreMenu(false)}
-          />
-          <div className="lg:hidden fixed bottom-14 left-0 right-0 z-50 bg-background border-t border-border/50 shadow-lg rounded-t-2xl animate-in slide-in-from-bottom-2 duration-200" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-            <div className="px-4 py-3 space-y-1">
-              {systemItems.map((item) => {
-                const Icon = item.icon
-                const isActive = isPathActive(item.path, currentPath)
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => handleNavClick(item.path)}
-                    className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] transition-colors ${
-                      isActive
-                        ? 'text-primary bg-primary/5 font-medium'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                    }`}
-                  >
-                    <Icon className="w-5 h-5 shrink-0" />
-                    <span>{item.label}</span>
-                  </button>
-                )
-              })}
-              {isAdmin && (
-                <button
-                  onClick={() => handleNavClick('/admin')}
-                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] transition-colors ${
-                    currentPath.startsWith('/admin')
-                      ? 'text-amber-600 bg-amber-500/10 font-medium'
-                      : 'text-amber-500/80 hover:text-amber-600 hover:bg-amber-500/10'
-                  }`}
-                >
-                  <icons.Shield className="w-5 h-5 shrink-0" />
-                  <span>后台管理</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </>
-      )}
 
       {/* 通知中心 */}
       {showNotifications && (

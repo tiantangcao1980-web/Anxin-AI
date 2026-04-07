@@ -4,6 +4,7 @@ import { router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { Colors } from '@/constants/colors'
 import { Layout } from '@/constants/layout'
+import { getAuthStorage } from '@/lib/auth-storage'
 import { useAuthStore } from '@/lib/store'
 
 interface MenuItem {
@@ -43,9 +44,10 @@ export default function ProfileScreen() {
       {
         text: '退出',
         style: 'destructive',
-        onPress: () => {
+        onPress: async () => {
+          await getAuthStorage().clearAuth()
           logout()
-          router.replace('/(tabs)/')
+          router.replace('/')
         },
       },
     ])

@@ -175,6 +175,31 @@ class GraphService:
             logger.error(f"Cypher 查询失败: {e}")
             return []
 
+    def _find_entity_record(self, entity_name: str) -> dict[str, Any] | None:
+        exact_query = """
+        MATCH (n) WHERE n.name = $name
+        RETURN n.name as name, labels(n) as labels, properties(n) as props
+        LIMIT 1
+        """
+        exact_result = self.query_graph(exact_query, params={"name": entity_name})
+        if exact_result:
+            return exact_result[0]
+
+        contains_query = """
+        MATCH (n)
+        WHERE n.name CONTAINS $keyword
+        RETURN n.name as name, labels(n) as labels, properties(n) as props,
+               CASE WHEN n.name STARTS WITH $keyword THEN 0 ELSE 1 END as prefix_rank,
+               abs(size(n.name) - size($keyword)) as length_gap
+        ORDER BY prefix_rank ASC, length_gap ASC, size(n.name) ASC, n.name ASC
+        LIMIT 1
+        """
+        contains_result = self.query_graph(contains_query, params={"keyword": entity_name})
+        if contains_result:
+            return contains_result[0]
+
+        return None
+
     def get_related_entities(self, entity_name: str, depth: int = 1) -> list[dict[str, Any]]:
         """获取实体的关联实体及关系"""
         if not self.graph:
@@ -423,20 +448,14 @@ class GraphService:
             return {"entity": None, "incoming_relations": [], "outgoing_relations": []}
 
         try:
-            # 查询实体属性
-            prop_query = """
-            MATCH (n) WHERE n.name = $name
-            RETURN n.name as name, labels(n) as labels, properties(n) as props
-            LIMIT 1
-            """
-            prop_result = self.query_graph(prop_query, params={"name": entity_name})
-            if not prop_result:
+            entity_data = self._find_entity_record(entity_name)
+            if not entity_data:
                 return {"entity": None, "incoming_relations": [], "outgoing_relations": []}
 
-            entity_data = prop_result[0]
             entity_labels = entity_data.get("labels", [])
+            resolved_name = entity_data.get("name", entity_name)
             entity = {
-                "name": entity_data.get("name", ""),
+                "name": resolved_name,
                 "type": entity_labels[0] if entity_labels else "Entity",
                 "labels": entity_labels,
                 "properties": entity_data.get("props", {}),
@@ -449,7 +468,7 @@ class GraphService:
                    properties(r) as rel_props
             LIMIT 100
             """
-            out_result = self.query_graph(out_query, params={"name": entity_name})
+            out_result = self.query_graph(out_query, params={"name": resolved_name})
             outgoing = []
             for r in out_result:
                 t_labels = r.get("target_labels", [])
@@ -467,7 +486,7 @@ class GraphService:
                    properties(r) as rel_props
             LIMIT 100
             """
-            in_result = self.query_graph(in_query, params={"name": entity_name})
+            in_result = self.query_graph(in_query, params={"name": resolved_name})
             incoming = []
             for r in in_result:
                 s_labels = r.get("source_labels", [])
@@ -479,6 +498,17 @@ class GraphService:
                 })
 
             return {
+                "name": entity["name"],
+                "type": entity["type"],
+                "properties": entity["properties"],
+                "outEdges": [
+                    {"target": item["target"], "label": item["relation"]}
+                    for item in outgoing
+                ],
+                "inEdges": [
+                    {"source": item["source"], "label": item["relation"]}
+                    for item in incoming
+                ],
                 "entity": entity,
                 "incoming_relations": incoming,
                 "outgoing_relations": outgoing,

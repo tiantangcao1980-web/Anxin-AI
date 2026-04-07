@@ -1,8 +1,8 @@
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Platform } from 'react-native'
-import type { ApiResponse } from '../types/api'
+import { getAuthStorage } from '../lib/auth-storage'
+import type { ApiResponse, User } from '../types/api'
 
-const BASE_URL = __DEV__
+const DEFAULT_BASE_URL = __DEV__
   ? Platform.OS === 'android' ? 'http://10.0.2.2:8001/api/v1' : 'http://localhost:8001/api/v1'
   : 'https://api.anxinlegal.com/api/v1'
 
@@ -10,25 +10,42 @@ const REQUEST_TIMEOUT = 30000
 
 let refreshPromise: Promise<string> | null = null
 
+export interface LoginRequest {
+  email: string
+  password: string
+}
+
+export interface LoginResponse {
+  access_token: string
+  refresh_token?: string
+  token_type: string
+  user: User
+}
+
 async function getToken(): Promise<string | null> {
-  return await AsyncStorage.getItem('token')
+  return getAuthStorage().getAccessToken()
 }
 
 async function setToken(token: string): Promise<void> {
-  await AsyncStorage.setItem('token', token)
+  await getAuthStorage().setAccessToken(token)
 }
 
 async function clearAuth(): Promise<void> {
-  await AsyncStorage.multiRemove(['token', 'refresh_token', 'user'])
+  await getAuthStorage().clearAuth()
+}
+
+async function getBaseUrl(): Promise<string> {
+  return (await getAuthStorage().getBackendUrl()) ?? DEFAULT_BASE_URL
 }
 
 async function refreshToken(): Promise<string> {
   if (refreshPromise) return refreshPromise
   refreshPromise = (async () => {
     try {
-      const rt = await AsyncStorage.getItem('refresh_token')
+      const storage = getAuthStorage()
+      const rt = await storage.getRefreshToken()
       if (!rt) throw new Error('无刷新令牌')
-      const res = await fetch(`${BASE_URL}/auth/refresh`, {
+      const res = await fetch(`${await getBaseUrl()}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: rt }),
@@ -36,7 +53,7 @@ async function refreshToken(): Promise<string> {
       const body: ApiResponse<{ access_token: string; refresh_token?: string }> = await res.json()
       if (body.code !== 200) throw new Error(body.message)
       await setToken(body.data.access_token)
-      if (body.data.refresh_token) await AsyncStorage.setItem('refresh_token', body.data.refresh_token)
+      if (body.data.refresh_token) await storage.setRefreshToken(body.data.refresh_token)
       return body.data.access_token
     } catch {
       await clearAuth()
@@ -51,7 +68,7 @@ async function refreshToken(): Promise<string> {
 export async function request<T>(options: {
   url: string
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
-  data?: any
+  data?: unknown
   retry?: number
 }): Promise<T> {
   const { url, method = 'GET', data, retry = 2 } = options
@@ -59,10 +76,11 @@ export async function request<T>(options: {
   for (let attempt = 0; attempt <= retry; attempt++) {
     try {
       const token = await getToken()
+      const baseUrl = await getBaseUrl()
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT)
 
-      const res = await fetch(`${BASE_URL}${url}`, {
+      const res = await fetch(`${baseUrl}${url}`, {
         method,
         headers: {
           'Content-Type': 'application/json',
@@ -98,7 +116,11 @@ export async function request<T>(options: {
 
 export const api = {
   get: <T>(url: string) => request<T>({ url, method: 'GET' }),
-  post: <T>(url: string, data?: any) => request<T>({ url, method: 'POST', data }),
-  put: <T>(url: string, data?: any) => request<T>({ url, method: 'PUT', data }),
+  post: <T>(url: string, data?: unknown) => request<T>({ url, method: 'POST', data }),
+  put: <T>(url: string, data?: unknown) => request<T>({ url, method: 'PUT', data }),
   delete: <T>(url: string) => request<T>({ url, method: 'DELETE' }),
+}
+
+export const authApi = {
+  login: (data: LoginRequest) => api.post<LoginResponse>('/auth/login', data),
 }

@@ -70,22 +70,358 @@ test.describe('快捷操作栏', () => {
     await loginAsAdmin(page)
   })
 
+  test('输入编排栏固定为知识库在左更多在右且无模板主入口', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'mobile has a compact layout')
+
+    const bar = page.getByTestId('input-orchestration-bar')
+    const knowledgeButton = bar.getByTestId('knowledge-base-trigger')
+    const consultButton = bar.getByRole('button', { name: '快速咨询' })
+    const moreButton = bar.getByRole('button', { name: '更多' })
+
+    await expect(knowledgeButton).toBeVisible()
+    await expect(consultButton).toBeVisible()
+    await expect(bar.getByRole('button', { name: '合同审查' })).toBeVisible()
+    await expect(bar.getByRole('button', { name: '文书起草' })).toBeVisible()
+    await expect(moreButton).toBeVisible()
+    await expect(bar.getByRole('button', { name: '模板' })).not.toBeVisible()
+
+    const [knowledgeBox, consultBox, moreBox] = await Promise.all([
+      knowledgeButton.boundingBox(),
+      consultButton.boundingBox(),
+      moreButton.boundingBox(),
+    ])
+
+    expect(knowledgeBox).not.toBeNull()
+    expect(consultBox).not.toBeNull()
+    expect(moreBox).not.toBeNull()
+
+    expect(knowledgeBox!.x).toBeLessThan(consultBox!.x)
+    expect(moreBox!.x).toBeGreaterThan(consultBox!.x)
+  })
+
+  test('知识库入口升级为资源选择器并包含模板视图', async ({ page }) => {
+    const trigger = page.getByTestId('knowledge-base-trigger')
+    await trigger.click()
+
+    await expect(page.getByRole('tab', { name: '全部' })).toBeVisible()
+    await expect(page.getByRole('tab', { name: '知识库' })).toBeVisible()
+    await expect(page.getByRole('tab', { name: '模板' })).toBeVisible()
+
+    await page.getByRole('tab', { name: '模板' }).click()
+    await expect(page.getByText('法律意见书', { exact: true })).toBeVisible()
+  })
+
+  test('选择模板后知识库触发器显示模板上下文', async ({ page }) => {
+    const trigger = page.getByTestId('knowledge-base-trigger')
+
+    await trigger.click()
+    await page.getByRole('tab', { name: '模板' }).click()
+    await page.getByLabel('法律意见书').click()
+
+    await expect(trigger).toContainText('模板')
+  })
+
+  test('输入区整合为单行编排栏并折叠低频标签', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'mobile layout uses a different compact rule')
+
+    const orchestrationBar = page.getByTestId('input-orchestration-bar')
+
+    await expect(orchestrationBar).toBeVisible()
+    await expect(orchestrationBar.getByRole('button', { name: '快速咨询' })).toBeVisible()
+    await expect(orchestrationBar.getByRole('button', { name: '合同审查' })).toBeVisible()
+    await expect(orchestrationBar.getByRole('button', { name: '文书起草' })).toBeVisible()
+    await expect(orchestrationBar.getByRole('button', { name: /知识库/ })).toBeVisible()
+    await expect(orchestrationBar.getByRole('button', { name: '更多' })).toBeVisible()
+    await expect(orchestrationBar.getByRole('button', { name: '模板' })).not.toBeVisible()
+    await expect(orchestrationBar.getByRole('button', { name: '法律检索' })).not.toBeVisible()
+    await expect(page.getByText('添加知识库')).not.toBeVisible()
+  })
+
   test('快捷操作按钮可见且可点击', async ({ page }, testInfo) => {
-    // 底部工具栏应该显示核心操作
-    await expect(page.getByRole('button', { name: '快速咨询' }).first()).toBeVisible()
-    await expect(page.getByRole('button', { name: '合同审查' }).first()).toBeVisible()
-    await expect(page.getByRole('button', { name: '文书起草' }).first()).toBeVisible()
+    const orchestrationBar = page.getByTestId('input-orchestration-bar')
+
+    await expect(orchestrationBar.getByRole('button', { name: '快速咨询' })).toBeVisible()
+    await expect(orchestrationBar.getByRole('button', { name: '合同审查' })).toBeVisible()
+    await expect(orchestrationBar.getByRole('button', { name: /知识库/ })).toBeVisible()
+    await expect(orchestrationBar.getByRole('button', { name: '更多' })).toBeVisible()
+
     if (testInfo.project.name !== 'mobile') {
-      await expect(page.getByRole('button', { name: '合规风控' }).first()).toBeVisible()
+      await expect(orchestrationBar.getByRole('button', { name: '文书起草' })).toBeVisible()
     }
   })
 
   test('点击快捷操作填充输入框', async ({ page }) => {
-    await page.getByRole('button', { name: '合同审查' }).first().click()
+    await page.getByTestId('input-orchestration-bar').getByRole('button', { name: '合同审查' }).click()
 
     // 输入框应该被填充了审查相关的提示
     const input = page.getByPlaceholder(/粘贴合同|上传合同/)
     await expect(input).toBeVisible()
+  })
+
+  test('文书起草保留快捷动作而模板仅存在于知识库入口', async ({ page }) => {
+    const bar = page.getByTestId('input-orchestration-bar')
+
+    await bar.getByRole('button', { name: '文书起草' }).click()
+    await expect(page.getByPlaceholder(/起草|请描述/)).toBeVisible()
+
+    await expect(bar.getByRole('button', { name: '模板' })).not.toBeVisible()
+    await bar.getByTestId('knowledge-base-trigger').click()
+    await expect(page.getByRole('tab', { name: '模板' })).toBeVisible()
+    await page.getByRole('tab', { name: '模板' }).click({ force: true })
+    await expect(page.getByText('保密协议', { exact: true })).toBeVisible()
+  })
+})
+
+test.describe('统一文档工作台入口', () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAsAdmin(page)
+  })
+
+  test('collaboration 入口默认打开协作侧栏', async ({ page }) => {
+    await page.goto('/collaboration')
+
+    await expect(page.getByRole('tab', { name: '协作' })).toHaveAttribute('data-state', 'active')
+    await expect(page.getByText('在线成员')).toBeVisible()
+  })
+
+  test('协作入口可读取真实协作成员', async ({ page }) => {
+    await installApiMocks(page, {
+      collaboration: {
+        session: {
+          id: 'session-e2e',
+          document_id: 'document-real-1',
+          name: '劳动合同协作会话',
+          status: 'active',
+          current_version: 3,
+          active_collaborators: 2,
+          max_collaborators: 10,
+          started_at: '2026-04-06T00:00:00Z',
+          last_activity_at: '2026-04-06T00:00:00Z',
+          created_at: '2026-04-06T00:00:00Z',
+        },
+        collaborators: [
+          {
+            id: 'collab-owner',
+            user_id: 'u-owner',
+            nickname: '张律师',
+            role: 'owner',
+            is_online: true,
+            last_seen_at: '2026-04-06T00:00:00Z',
+          },
+          {
+            id: 'collab-reviewer',
+            user_id: 'u-reviewer',
+            nickname: '李法务',
+            role: 'commenter',
+            is_online: true,
+            last_seen_at: '2026-04-06T00:00:00Z',
+          },
+        ],
+      },
+    })
+
+    await page.goto('/collaboration/session-e2e')
+
+    await expect(page.getByRole('tab', { name: '协作' })).toHaveAttribute('data-state', 'active')
+    await expect(page.getByText('张律师')).toBeVisible()
+    await expect(page.getByText('李法务')).toBeVisible()
+  })
+
+  test('协作入口会展示会话版本与活动状态', async ({ page }) => {
+    await installApiMocks(page, {
+      collaboration: {
+        session: {
+          id: 'session-version-e2e',
+          document_id: 'document-real-1',
+          name: '融资协议协作会话',
+          status: 'active',
+          current_version: 8,
+          active_collaborators: 3,
+          max_collaborators: 10,
+          started_at: '2026-04-06T00:00:00Z',
+          last_activity_at: '2026-04-06T10:30:00Z',
+          created_at: '2026-04-06T00:00:00Z',
+        },
+        collaborators: [
+          {
+            id: 'collab-owner',
+            user_id: 'u-owner',
+            nickname: '王律师',
+            role: 'owner',
+            is_online: true,
+            last_seen_at: '2026-04-06T10:30:00Z',
+          },
+        ],
+      },
+    })
+
+    await page.goto('/collaboration/session-version-e2e')
+
+    await expect(page.getByText('融资协议协作会话')).toBeVisible()
+    await expect(page.getByText('版本 8')).toBeVisible()
+    await expect(page.getByText('状态 active')).toBeVisible()
+  })
+
+  test('协作入口会展示快照列表摘要', async ({ page }) => {
+    await installApiMocks(page, {
+      collaboration: {
+        session: {
+          id: 'session-snapshot-e2e',
+          document_id: 'document-real-1',
+          name: '股权协议协作会话',
+          status: 'active',
+          current_version: 5,
+          active_collaborators: 2,
+          max_collaborators: 10,
+          started_at: '2026-04-06T00:00:00Z',
+          last_activity_at: '2026-04-06T10:30:00Z',
+          created_at: '2026-04-06T00:00:00Z',
+        },
+        collaborators: [],
+        snapshots: [
+          {
+            id: 'snapshot-1',
+            version: 5,
+            created_at: '2026-04-06T10:00:00Z',
+            snapshot_type: 'manual',
+            description: '提交给法务复核',
+          },
+          {
+            id: 'snapshot-2',
+            version: 4,
+            created_at: '2026-04-06T09:00:00Z',
+            snapshot_type: 'auto',
+            description: '自动保存节点',
+          },
+        ],
+      },
+    })
+
+    await page.goto('/collaboration/session-snapshot-e2e')
+
+    await expect(page.getByText('版本历史')).toBeVisible()
+    await expect(page.getByText('提交给法务复核')).toBeVisible()
+    await expect(page.getByText('自动保存节点')).toBeVisible()
+  })
+
+  test('协作入口可恢复到指定快照并记录历史', async ({ page }) => {
+    await installApiMocks(page, {
+      collaboration: {
+        session: {
+          id: 'session-restore-e2e',
+          document_id: 'document-real-1',
+          name: '恢复测试协作会话',
+          status: 'active',
+          current_version: 5,
+          active_collaborators: 2,
+          max_collaborators: 10,
+          started_at: '2026-04-06T00:00:00Z',
+          last_activity_at: '2026-04-06T10:30:00Z',
+          created_at: '2026-04-06T00:00:00Z',
+        },
+        snapshots: [
+          {
+            id: 'snapshot-restore-1',
+            version: 3,
+            created_at: '2026-04-06T09:00:00Z',
+            snapshot_type: 'manual',
+            description: '法务确认版',
+          },
+        ],
+        restore: {
+          success: true,
+          new_version: 6,
+          restored_from_version: 3,
+        },
+      },
+    })
+
+    await page.goto('/collaboration/session-restore-e2e')
+
+    await page.getByRole('button', { name: '恢复 V3' }).click()
+    await expect(page.getByText('版本 6')).toBeVisible()
+
+    await page.getByRole('tab', { name: '历史' }).click()
+    await expect(page.getByText('已从版本 3 恢复到版本 6')).toBeVisible()
+  })
+
+  test('统一文档工作台跑通一期高频闭环', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'mobile workbench layout will be covered separately')
+
+    await page.goto('/documents')
+
+    await page.getByRole('button', { name: '打开 Markdown 示例' }).click()
+    await expect(page.getByTestId('markdown-text-adapter')).toBeVisible()
+
+    await page.getByRole('tab', { name: 'AI' }).click()
+    await expect(page.getByText('总结')).toBeVisible()
+
+    await page.getByRole('tab', { name: '协作' }).click()
+    await expect(page.getByText('在线成员')).toBeVisible()
+
+    await expect(page.getByText('自动保存')).toBeVisible()
+  })
+
+  test('统一文档工作台会展示当前文档标题与模式状态', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'mobile workbench layout will be covered separately')
+
+    await page.goto('/documents')
+    await page.getByRole('button', { name: '打开 Markdown 示例' }).click()
+
+    await expect(page.getByTestId('workbench-active-title')).toContainText('Markdown 示例')
+    await expect(page.getByTestId('document-workbench-statusbar')).toContainText('Markdown')
+    await expect(page.getByTestId('document-workbench-statusbar')).toContainText('字数')
+  })
+
+  test('统一文档工作台支持历史与属性侧栏', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'mobile workbench layout will be covered separately')
+
+    await page.goto('/documents')
+    await page.getByRole('button', { name: '打开 Markdown 示例' }).click()
+
+    await page.getByRole('tab', { name: '属性' }).click()
+    await expect(page.getByText('文档类型')).toBeVisible()
+    await expect(page.getByTestId('workbench-property-type')).toHaveText('Markdown')
+
+    await page.getByRole('tab', { name: '历史' }).click()
+    await expect(page.getByText('最近活动')).toBeVisible()
+    await expect(page.getByText('打开文档')).toBeVisible()
+  })
+
+  test('统一文档工作台侧栏可加载真实文档并打开为标签', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'mobile workbench layout will be covered separately')
+
+    await installApiMocks(page, {
+      documents: {
+        list: {
+          items: [
+            {
+              id: 'document-real-1',
+              name: '劳动合同真实草稿',
+              doc_type: 'markdown',
+              description: '来自真实文档列表',
+              file_size: 256,
+              mime_type: 'text/markdown',
+              version: 3,
+              extracted_text: '# 劳动合同真实草稿\n\n第一条 用工期限',
+              created_at: '2026-04-06T00:00:00Z',
+              updated_at: '2026-04-06T00:00:00Z',
+            },
+          ],
+          total: 1,
+          page: 1,
+          page_size: 20,
+        },
+      },
+    })
+
+    await page.goto('/documents')
+
+    await expect(page.getByRole('button', { name: '劳动合同真实草稿' })).toBeVisible()
+    await page.getByRole('button', { name: '劳动合同真实草稿' }).click()
+
+    await expect(page.getByTestId('workbench-active-title')).toContainText('劳动合同真实草稿')
+    await expect(page.getByTestId('markdown-text-adapter')).toContainText('第一条 用工期限')
   })
 })
 

@@ -162,7 +162,7 @@ class ContractService:
         )
         
         # 解析审查结果
-        review_result = result.get("final_result", {})
+        review_result = self._normalize_review_result(result.get("final_result", {}))
         
         # 计算风险评分
         risk_score = self._calculate_risk_score(review_result)
@@ -225,6 +225,29 @@ class ContractService:
             return RiskLevel.MEDIUM
         else:
             return RiskLevel.LOW
+
+    def _normalize_review_result(self, review_result: dict | None) -> dict:
+        if not isinstance(review_result, dict):
+            review_result = {}
+
+        risks = review_result.get("risks")
+        key_risks = review_result.get("key_risks")
+
+        if not isinstance(risks, list):
+            risks = key_risks if isinstance(key_risks, list) else []
+
+        suggestions = review_result.get("suggestions")
+        key_terms = review_result.get("key_terms")
+        missing_clauses = review_result.get("missing_clauses")
+
+        return {
+            **review_result,
+            "summary": review_result.get("summary", ""),
+            "risks": risks,
+            "suggestions": suggestions if isinstance(suggestions, list) else [],
+            "key_terms": key_terms if isinstance(key_terms, dict) else {},
+            "missing_clauses": missing_clauses if isinstance(missing_clauses, list) else [],
+        }
     
     async def _save_risks(self, contract_id: str, risks: list) -> None:
         """保存风险点（包含法律依据）"""

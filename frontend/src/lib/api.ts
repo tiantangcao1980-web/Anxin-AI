@@ -2,6 +2,8 @@
  * API服务层
  */
 
+import { getTokenStorage } from './platform/storage'
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
 
 function trimTrailingSlash(value: string): string {
@@ -42,7 +44,8 @@ async function request<T>(
   options: RequestInit = {},
   _retry = false
 ): Promise<T> {
-  const token = localStorage.getItem('access_token')
+  const storage = getTokenStorage()
+  const token = await storage.getAccessToken()
   
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -119,7 +122,7 @@ async function request<T>(
         const refreshData = await refreshResp.json()
         const newToken = refreshData.data?.access_token || refreshData.access_token
         if (newToken) {
-          localStorage.setItem('access_token', newToken)
+          await storage.setAccessToken(newToken)
           return request<T>(endpoint, options, true)
         }
       }
@@ -127,8 +130,7 @@ async function request<T>(
       // Refresh failed, proceed to logout
     }
     // Refresh failed or no refresh token — clear auth and redirect
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
+    await storage.clearAuth()
     if (!window.location.pathname.startsWith('/login')) {
       window.dispatchEvent(new CustomEvent('auth:redirect', { detail: '/login' }))
     }
@@ -300,6 +302,7 @@ export interface ChatMessage {
   agent_name?: string
   mode?: string
   knowledge_base_ids?: string[]
+  template_id?: string
 }
 
 export interface ChatResponse {
@@ -342,7 +345,7 @@ export const chatApi = {
     onEvent: (event: StreamEvent) => void,
     onError?: (error: Error) => void
   ): Promise<void> => {
-    const token = localStorage.getItem('access_token')
+    const token = await getTokenStorage().getAccessToken()
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
     }
@@ -703,6 +706,28 @@ export interface QuickReviewResult {
   contract_id?: string
 }
 
+export interface UploadAndReviewResult {
+  contract_id: string
+  contract_number: string
+  title: string
+  contract_type: string
+  parse_result: {
+    char_count: number
+    word_count: number
+    key_info: Record<string, any>
+  }
+  review_result: {
+    contract_id: string
+    risk_score?: number
+    risk_level?: string
+    summary: string
+    risks: ReviewRiskItem[]
+    suggestions: string[]
+    key_terms: Record<string, string>
+    missing_clauses?: string[]
+  }
+}
+
 export interface ContractReviewStreamEvent {
   type: 'start' | 'parsing' | 'parsed' | 'analyzing' | 'key_info' | 'reviewing' | 'risks' | 'suggestions' | 'missing_clauses' | 'key_terms' | 'done' | 'error'
   message?: string
@@ -755,7 +780,7 @@ export const contractsApi = {
     const formData = new FormData()
     formData.append('file', file)
     
-    const token = localStorage.getItem('access_token')
+    const token = await getTokenStorage().getAccessToken()
     const headers: HeadersInit = {}
     if (token) headers['Authorization'] = `Bearer ${token}`
     
@@ -793,7 +818,7 @@ export const contractsApi = {
       formData.append('text', options.text)
     }
     
-    const token = localStorage.getItem('access_token')
+    const token = await getTokenStorage().getAccessToken()
     const headers: HeadersInit = {}
     if (token) headers['Authorization'] = `Bearer ${token}`
     
@@ -843,12 +868,12 @@ export const contractsApi = {
   },
   
   // 新增: 上传并完整审查
-  uploadAndReview: async (file: File, title?: string) => {
+  uploadAndReview: async (file: File, title?: string): Promise<UploadAndReviewResult> => {
     const formData = new FormData()
     formData.append('file', file)
     if (title) formData.append('title', title)
     
-    const token = localStorage.getItem('access_token')
+    const token = await getTokenStorage().getAccessToken()
     const headers: HeadersInit = {}
     if (token) headers['Authorization'] = `Bearer ${token}`
     
@@ -881,7 +906,7 @@ export const contractsApi = {
 
   // 下载合同
   downloadContract: async (contractId: string, format: 'pdf' | 'docx' = 'docx'): Promise<void> => {
-    const token = localStorage.getItem('access_token')
+    const token = await getTokenStorage().getAccessToken()
     const headers: HeadersInit = {}
     if (token) headers['Authorization'] = `Bearer ${token}`
 
@@ -921,6 +946,18 @@ export interface Document {
   mime_type?: string
   version: number
   ai_summary?: string
+  ai_metadata?: {
+    draft_mode?: '成稿' | '高可用草案' | '结构化草稿'
+    completeness_score?: number | null
+    validation_score?: number | null
+    missing_fields?: Array<{
+      key: string
+      label: string
+      severity: 'high' | 'medium' | 'low'
+      group: string
+      suggestion: string
+    }>
+  }
   extracted_text?: string // 支持在线编辑
   tags?: string[]
   created_at: string
@@ -947,7 +984,7 @@ export const documentsApi = {
     if (data.case_id) formData.append('case_id', data.case_id)
     if (data.tags) formData.append('tags', JSON.stringify(data.tags))
     
-    const token = localStorage.getItem('access_token')
+    const token = await getTokenStorage().getAccessToken()
     const headers: HeadersInit = {}
     if (token) headers['Authorization'] = `Bearer ${token}`
     
@@ -982,6 +1019,23 @@ export const documentsApi = {
   // 新增: AI生成文档
   generate: (data: { doc_type: string; scenario: string; requirements: any; case_id?: string }) =>
     request<Document>('/documents/generate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  generateParagraph: async (data: {
+    doc_type: string
+    document_title: string
+    current_content: string
+    missing_field: {
+      key: string
+      label: string
+      severity: 'high' | 'medium' | 'low'
+      group: string
+      suggestion: string
+    }
+  }) =>
+    request<{ title: string; content: string }>('/documents/generate-paragraph', {
       method: 'POST',
       body: JSON.stringify(data),
     }),

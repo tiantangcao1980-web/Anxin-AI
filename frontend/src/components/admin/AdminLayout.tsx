@@ -81,7 +81,7 @@ export default function AdminLayout() {
   ) || allNavItems[0]
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
+    <div className="flex h-screen bg-surface-2 overflow-hidden">
       {/* 移动端遮罩 */}
       {mobileMenuOpen && (
         <div
@@ -199,7 +199,7 @@ export default function AdminLayout() {
       {/* 主内容区 */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* 顶部栏 */}
-        <header className="h-14 lg:h-16 border-b border-border bg-background flex items-center justify-between px-3 sm:px-6 shrink-0">
+        <header className="h-14 lg:h-16 shrink-0 border-b border-border bg-surface-1 flex items-center justify-between px-3 sm:px-6">
           <div className="flex items-center gap-2 sm:gap-3">
             {/* 移动端菜单按钮 */}
             <button
@@ -242,7 +242,7 @@ export default function AdminLayout() {
         </header>
 
         {/* 页面内容 */}
-        <main className="flex-1 overflow-auto bg-muted/30">
+        <main className="flex-1 overflow-auto bg-surface-2">
           <Outlet />
         </main>
       </div>

@@ -44,13 +44,10 @@ export const iconSize = {
 
 // ===== 间距体系 =====
 export const spacing = {
-  /** 页面内边距 */
-  page: 'px-6 py-6',
+  page: 'px-4 py-4 sm:px-5 sm:py-5 lg:px-6 lg:py-6',
   pageMobile: 'px-4 py-4',
-  /** 卡片内边距 */
   card: 'p-5',
   cardCompact: 'p-4',
-  /** 区块间距 */
   section: 'space-y-6',
   sectionCompact: 'space-y-4',
 } as const
@@ -73,14 +70,10 @@ export const radius = {
 
 // ===== 阴影体系 =====
 export const shadow = {
-  /** 卡片悬浮 */
-  card: 'shadow-sm hover:shadow-md transition-shadow',
-  /** 弹窗 */
-  dialog: 'shadow-xl',
-  /** 下拉菜单 */
-  dropdown: 'shadow-lg',
-  /** 浮动按钮 */
-  float: 'shadow-md',
+  card: 'shadow-card transition-shadow',
+  dialog: 'shadow-float',
+  dropdown: 'shadow-float',
+  float: 'shadow-card',
 } as const
 
 // ===== 动画时长 =====
@@ -92,71 +85,53 @@ export const duration = {
 
 // ===== 卡片样式预设 =====
 export const cardStyle = {
-  /** 基础卡片 */
-  base: 'bg-background border border-border rounded-xl p-5',
-  /** 可交互卡片（hover 效果） */
+  base: 'rounded-2xl border border-border/70 bg-surface-1 p-5 shadow-card',
   interactive:
-    'bg-background border border-border rounded-xl p-5 hover:shadow-md hover:border-primary/20 transition-all cursor-pointer',
-  /** 高亮卡片 */
-  highlight: 'bg-primary/5 border border-primary/20 rounded-xl p-5',
-  /** 紧凑卡片 */
-  compact: 'bg-background border border-border rounded-xl p-4',
-  /** 无边框卡片 */
-  flat: 'bg-muted/50 rounded-xl p-5',
+    'rounded-2xl border border-border/70 bg-surface-1 p-5 shadow-card transition-all hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-float cursor-pointer',
+  highlight: 'rounded-2xl border border-primary/20 bg-primary-50/80 p-5 shadow-card dark:bg-primary-100/10',
+  compact: 'rounded-xl border border-border/70 bg-surface-1 p-4 shadow-card',
+  flat: 'rounded-xl bg-surface-2 p-5',
 } as const
 
 // ===== 按钮样式预设 =====
 export const buttonStyle = {
-  /** 主要按钮 */
   primary:
-    'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] rounded-lg px-4 py-2 text-sm font-medium transition-all',
-  /** 次要按钮 */
+    'rounded-xl bg-primary text-primary-foreground px-4 py-2 text-sm font-medium shadow-sm transition-all hover:-translate-y-0.5 hover:bg-primary-600 active:translate-y-0',
   secondary:
-    'bg-muted text-foreground hover:bg-muted/80 active:scale-[0.98] rounded-lg px-4 py-2 text-sm font-medium transition-all',
-  /** 幽灵按钮 */
+    'rounded-xl border border-border/70 bg-surface-1 px-4 py-2 text-sm font-medium text-foreground transition-all hover:bg-surface-2 hover:border-primary/20',
   ghost:
-    'text-muted-foreground hover:bg-muted hover:text-foreground active:scale-[0.98] rounded-lg px-4 py-2 text-sm font-medium transition-all',
-  /** 危险按钮 */
+    'rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-surface-2 hover:text-foreground',
   danger:
-    'bg-destructive text-destructive-foreground hover:bg-destructive/90 active:scale-[0.98] rounded-lg px-4 py-2 text-sm font-medium transition-all',
-  /** 图标按钮（无文字） */
-  icon: 'p-2 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors',
-  /** 小号按钮 */
-  sm: 'px-3 py-1.5 text-xs font-medium rounded-lg transition-all',
+    'rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition-all hover:bg-destructive/90',
+  icon: 'rounded-xl p-2 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground',
+  sm: 'rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
 } as const
 
-// ===== 页面标题样式 =====
-// 紧凑层级：page(14px) ≥ section(14px) > card(13px) > muted(12px) > micro(11px)
 export const heading = {
-  /** 页面主标题 - 14px */
-  page: 'text-sm font-semibold text-foreground',
-  /** 区块标题 - 14px（与 page 同级，通过上下文区分） */
-  section: 'text-sm font-semibold text-foreground',
-  /** 卡片标题 - 13px */
-  card: 'text-[13px] font-medium text-foreground',
-  /** 辅助文本 - 12px */
-  muted: 'text-xs text-muted-foreground',
-  /** 微标签 - 11px */
-  micro: 'text-[11px] text-muted-foreground',
+  page: 'text-2xl sm:text-3xl font-semibold tracking-tight text-foreground',
+  section: 'text-lg sm:text-xl font-semibold tracking-tight text-foreground',
+  card: 'text-sm sm:text-base font-semibold text-foreground',
+  muted: 'text-sm text-muted-foreground',
+  micro: 'text-xs text-muted-foreground',
 } as const
 
 // ===== 状态颜色 =====
 // 使用语义化 CSS 变量色，支持深色模式
 export const statusColor = {
-  success: 'text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-950/30',
-  warning: 'text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-950/30',
-  error: 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950/30',
-  info: 'text-primary bg-primary/5',
-  neutral: 'text-muted-foreground bg-muted',
+  success: 'bg-success/10 text-success dark:bg-success/20',
+  warning: 'bg-warning/10 text-warning dark:bg-warning/20',
+  error: 'bg-destructive/10 text-destructive dark:bg-destructive/20',
+  info: 'bg-info/10 text-info dark:bg-info/20',
+  neutral: 'bg-muted text-muted-foreground',
 } as const
 
 // ===== 状态徽章 =====
 export const statusBadge = {
-  success: 'text-emerald-700 bg-emerald-50 border border-emerald-200 dark:text-emerald-400 dark:bg-emerald-950/30 dark:border-emerald-800',
-  warning: 'text-amber-700 bg-amber-50 border border-amber-200 dark:text-amber-400 dark:bg-amber-950/30 dark:border-amber-800',
-  error: 'text-red-700 bg-red-50 border border-red-200 dark:text-red-400 dark:bg-red-950/30 dark:border-red-800',
-  info: 'text-primary bg-primary/5 border border-primary/20',
-  neutral: 'text-muted-foreground bg-muted border border-border',
+  success: 'border border-success/20 bg-success/10 text-success dark:bg-success/20',
+  warning: 'border border-warning/20 bg-warning/10 text-warning dark:bg-warning/20',
+  error: 'border border-destructive/20 bg-destructive/10 text-destructive dark:bg-destructive/20',
+  info: 'border border-info/20 bg-info/10 text-info dark:bg-info/20',
+  neutral: 'border border-border bg-muted text-muted-foreground',
 } as const
 
 // ===== 聊天气泡样式 =====
@@ -175,12 +150,9 @@ export const chatBubble = {
 
 // ===== 输入框样式 =====
 export const inputStyle = {
-  /** 聊天输入框容器 */
-  chatContainer: 'relative flex items-end bg-muted/50 rounded-2xl border border-border focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 transition-all',
-  /** 聊天文本域 */
-  chatTextarea: 'flex-1 py-2.5 bg-transparent border-none resize-none focus:outline-none text-foreground placeholder:text-muted-foreground text-sm leading-relaxed',
-  /** 搜索输入框 */
-  search: 'w-full bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10 transition-all',
+  chatContainer: 'relative flex items-end rounded-2xl border border-border/70 bg-surface-1 shadow-card transition-all focus-within:border-primary/35 focus-within:ring-2 focus-within:ring-primary/10',
+  chatTextarea: 'flex-1 bg-transparent py-2.5 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none border-none resize-none',
+  search: 'w-full rounded-xl border border-border/70 bg-surface-1 px-3 py-2 text-sm text-foreground shadow-sm transition-all placeholder:text-muted-foreground focus:border-primary/35 focus:outline-none focus:ring-2 focus:ring-primary/10',
 } as const
 
 // ===== Prose 样式（Markdown 渲染） =====
@@ -262,9 +234,9 @@ export const modelSelector = {
 // ===== 搜索栏 =====
 export const searchBar = {
   container: 'relative',
-  input: 'w-full bg-muted/50 border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10 transition-all',
+  input: 'w-full rounded-xl border border-border/70 bg-surface-1 py-2 pl-9 pr-3 text-sm text-foreground shadow-sm transition-all placeholder:text-muted-foreground focus:border-primary/35 focus:outline-none focus:ring-2 focus:ring-primary/10',
   icon: 'absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground',
-  clear: 'absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground rounded-md hover:bg-muted transition-colors',
+  clear: 'absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground',
 } as const
 
 // ===== 收藏按钮 =====
@@ -276,10 +248,10 @@ export const starButton = {
 
 // ===== 图表色板 =====
 export const chartColors = [
-  'hsl(var(--primary))',          // 品牌琥珀橙
-  'hsl(160, 60%, 45%)',           // 翡翠绿
-  'hsl(35, 90%, 55%)',            // 琥珀橙
-  'hsl(200, 70%, 50%)',           // 天际蓝
-  'hsl(350, 65%, 55%)',           // 珊瑚红
-  'hsl(var(--ai))',               // AI 紫
+  'hsl(var(--primary))',
+  'hsl(var(--info))',
+  'hsl(var(--success))',
+  'hsl(var(--warning))',
+  'hsl(var(--destructive))',
+  'hsl(var(--ai))',
 ] as const

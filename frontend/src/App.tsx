@@ -26,6 +26,10 @@ import { ThemeProvider } from '@/components/ThemeProvider'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { AdminRoute } from '@/components/auth/AdminRoute'
 import AdminLayout from '@/components/admin/AdminLayout'
+import { initLocalDatabase } from '@/lib/api-adapter'
+import { getTokenStorage } from '@/lib/platform/storage'
+import { useAppModeStore } from '@/lib/store'
+import { getAppState, isTauri, saveAuthToken } from '@/lib/tauri-bridge'
 
 // ===== 路由懒加载 =====
 // 每个页面只在用户访问时才加载对应的 JS 代码
@@ -38,8 +42,9 @@ const Chat = lazy(() => import('@/pages/Chat'))
 const Cases = lazy(() => import('@/pages/Cases'))
 const CaseDetail = lazy(() => import('@/pages/CaseDetail'))
 const Contracts = lazy(() => import('@/pages/Contracts'))
-const Collaboration = lazy(() => import('@/pages/Collaboration'))
-const Documents = lazy(() => import('@/pages/Documents'))
+const ContractReview = lazy(() => import('@/pages/ContractReview'))
+const Collaboration = lazy(() => import('@/pages/CollaborationEntry'))
+const DocumentWorkbench = lazy(() => import('@/pages/DocumentWorkbench'))
 const Leads = lazy(() => import('@/pages/Leads'))
 
 // 智能调查
@@ -98,6 +103,8 @@ const AdminAcquisition = lazy(() => import('@/pages/admin/AdminAcquisition'))
 const AdminHarness = lazy(() => import('@/pages/admin/AdminHarness'))
 
 function App() {
+  const { setLastSyncTime, setMode, setOnline, setSyncStatus } = useAppModeStore()
+
   // 全局监听 auth:redirect 事件，统一处理页面跳转
   // 在 Tauri 桌面端可替换为 Tauri 路由方式，Web 端保持 window.location 行为
   useEffect(() => {
@@ -107,6 +114,46 @@ function App() {
     window.addEventListener('auth:redirect', handler as EventListener)
     return () => window.removeEventListener('auth:redirect', handler as EventListener)
   }, [])
+
+  useEffect(() => {
+    if (!isTauri()) {
+      return
+    }
+
+    let active = true
+
+    const bootstrapDesktop = async () => {
+      await initLocalDatabase()
+
+      const storage = getTokenStorage()
+      const [accessToken, refreshToken, appState] = await Promise.all([
+        storage.getAccessToken(),
+        storage.getRefreshToken(),
+        getAppState(),
+      ])
+
+      if (accessToken) {
+        await saveAuthToken(accessToken, refreshToken ?? undefined)
+      }
+
+      if (!active || !appState) {
+        return
+      }
+
+      setMode(appState.mode)
+      setSyncStatus(appState.sync_status)
+      setLastSyncTime(appState.last_sync_time)
+      setOnline(appState.is_online)
+    }
+
+    bootstrapDesktop().catch((error) => {
+      console.error('[Desktop] 启动初始化失败:', error)
+    })
+
+    return () => {
+      active = false
+    }
+  }, [setLastSyncTime, setMode, setOnline, setSyncStatus])
 
   return (
     <ErrorBoundary>
@@ -152,9 +199,10 @@ function App() {
                 <Route path="cases" element={<ProtectedRoute feature="case_management"><Cases /></ProtectedRoute>} />
                 <Route path="cases/:id" element={<ProtectedRoute feature="case_management"><CaseDetail /></ProtectedRoute>} />
                 <Route path="contracts" element={<ProtectedRoute feature="contract_management"><Contracts /></ProtectedRoute>} />
+                <Route path="contract-review" element={<ProtectedRoute feature="ai_chat"><ContractReview /></ProtectedRoute>} />
                 <Route path="collaboration" element={<ProtectedRoute feature="collaboration"><Collaboration /></ProtectedRoute>} />
                 <Route path="collaboration/:sessionId" element={<ProtectedRoute feature="collaboration"><Collaboration /></ProtectedRoute>} />
-                <Route path="documents" element={<ProtectedRoute feature="document_management"><Documents /></ProtectedRoute>} />
+                <Route path="documents" element={<ProtectedRoute feature="document_management"><DocumentWorkbench /></ProtectedRoute>} />
                 <Route path="find-lawyer" element={<ProtectedRoute feature="lawyer_matching"><FindLawyer /></ProtectedRoute>} />
                 <Route path="compliance-check" element={<ProtectedRoute feature="compliance_check"><ComplianceCheck /></ProtectedRoute>} />
                 <Route path="leads" element={<ProtectedRoute feature="leads"><Leads /></ProtectedRoute>} />
@@ -202,7 +250,6 @@ function App() {
                 <Route path="tools" element={<Navigate to="/chat" replace />} />
                 <Route path="tax-assets" element={<Navigate to="/chat" replace />} />
                 <Route path="sentiment" element={<Navigate to="/chat" replace />} />
-                <Route path="contract-review" element={<Navigate to="/contracts" replace />} />
                 <Route path="dashboard" element={<Navigate to="/collaboration" replace />} />
                 <Route path="experts" element={<Navigate to="/find-lawyer" replace />} />
                 <Route path="approvals" element={<Navigate to="/tasks" replace />} />

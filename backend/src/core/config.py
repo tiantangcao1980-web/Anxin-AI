@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "your-super-secret-jwt-key-change-in-production"
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 120  # 2小时（配合 refresh_token 实现无感续期）
+    REFRESH_TOKEN_EXPIRE_MINUTES: int = 10080  # 7天
 
     # 功能开关
     EMAIL_VERIFY_ENABLED: bool = False  # 邮箱验证开关（关闭时注册即可登录）

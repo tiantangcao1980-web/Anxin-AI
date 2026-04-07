@@ -11,6 +11,7 @@ from src.core.config import settings
 from src.core.responses import UnifiedResponse
 from src.core.database import get_db
 from src.core.deps import get_current_user_required, rate_limit_upload
+from src.services.document_generation_service import DocumentGenerationService
 from src.services.document_service import DocumentService
 from src.models.user import User
 
@@ -27,6 +28,7 @@ class DocumentResponse(BaseModel):
     mime_type: Optional[str] = None
     version: int
     ai_summary: Optional[str] = None
+    ai_metadata: Optional[Dict[str, Any]] = None
     extracted_text: Optional[str] = None # 支持在线编辑
     tags: Optional[list] = None
     created_at: datetime
@@ -72,6 +74,20 @@ class DocumentGenerateRequest(BaseModel):
     case_id: Optional[str] = None
 
 
+class ParagraphGenerateRequest(BaseModel):
+    """补写段落生成请求"""
+    doc_type: str
+    document_title: str
+    current_content: str
+    missing_field: Dict[str, Any]
+
+
+class ParagraphGenerateResponse(BaseModel):
+    """补写段落生成响应"""
+    title: str
+    content: str
+
+
 @router.get("/", response_model=UnifiedResponse)
 async def list_documents(
     case_id: Optional[str] = None,
@@ -103,6 +119,7 @@ async def list_documents(
                 mime_type=d.mime_type,
                 version=d.version,
                 ai_summary=d.ai_summary,
+                ai_metadata=None,
                 extracted_text=d.extracted_text, # 返回文本内容
                 tags=d.tags,
                 created_at=d.created_at,
@@ -241,48 +258,28 @@ async def generate_document(
     user: User = Depends(get_current_user_required),
 ):
     """AI 生成文档"""
-    from src.agents.workforce import get_workforce
-    
-    workforce = get_workforce()
-    
-    # 构建增强版 Prompt（与 DocumentDraftAgent 的结构指南保持一致）
-    prompt = f"""请根据以下需求起草一份**完整、专业、可直接使用**的法律文书：
-
-【文书类型】：{request.doc_type}
-【场景背景】：{request.scenario}
-【具体要求】：{json.dumps(request.requirements, ensure_ascii=False) if request.requirements else '无特殊要求'}
-
-【起草规范（必须遵守）】：
-1. 输出完整的法律文书，禁止省略或用"..."代替内容
-2. 合同类文书不得少于3000字，必须包含至少10个条款
-3. 使用规范的 Markdown 格式：合同标题用 # 一级标题，各条用 ## 二级标题（格式"第X条 条款名称"），条款内容用 X.X 编号
-4. 需要用户填写的信息用【】标注，并附示例说明
-5. 合同金额同时标注阿拉伯数字和大写中文
-6. 必须包含完整的签署区（甲方/乙方盖章、签字、日期）
-7. 文书末尾附上"起草说明"，解释重要条款的设置理由
-
-开始起草：
-"""
-    
     try:
-        # 调用 DocumentDrafter Agent
-        generated_content = await workforce.chat(prompt, agent_name="document_drafter")
-        
-        # 自动保存为文档
+        generation_service = DocumentGenerationService(db)
+        generated = await generation_service.generate(
+            doc_type=request.doc_type,
+            scenario=request.scenario,
+            requirements=request.requirements or {},
+        )
+
         service = DocumentService(db)
         doc_name = f"{request.doc_type}_{datetime.now().strftime('%Y%m%d%H%M')}.md"
-        
+
         document = await service.create_text_document(
             name=doc_name,
-            content=generated_content,
-            doc_type="contract" if "合同" in request.doc_type else "legal_opinion", # 简单映射
+            content=generated["content"],
+            doc_type="contract" if "合同" in request.doc_type else "legal_opinion",
             org_id=user.org_id if user else None,
             case_id=request.case_id,
             created_by=user.id if user else None,
-            description=f"AI自动生成: {request.scenario[:50]}...",
-            tags=["AI生成", request.doc_type]
+            description=f"AI自动生成（{generated['draft_mode']}）: {request.scenario[:50]}...",
+            tags=["AI生成", request.doc_type, generated["draft_mode"]],
         )
-        
+
         data = DocumentResponse(
             id=document.id,
             name=document.name,
@@ -291,15 +288,46 @@ async def generate_document(
             file_size=document.file_size,
             mime_type=document.mime_type,
             version=document.version,
+            ai_metadata={
+                "draft_mode": generated["draft_mode"],
+                "validation_score": generated["validation_score"],
+                "completeness_score": generated.get("completeness_score"),
+                "missing_fields": generated.get("missing_fields", []),
+            },
             extracted_text=document.extracted_text,
             tags=document.tags,
             created_at=document.created_at,
             updated_at=document.updated_at,
         )
         return UnifiedResponse.success(data=data)
-        
+
     except Exception as e:
         logger.error(f"文档生成失败: {e}")
+        return UnifiedResponse.error(code=500, message=f"生成失败: {str(e)}")
+
+
+@router.post("/generate-paragraph", response_model=UnifiedResponse)
+async def generate_paragraph(
+    request: ParagraphGenerateRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
+    """AI 生成补写段落"""
+    try:
+        generation_service = DocumentGenerationService(db)
+        generated = await generation_service.generate_missing_field_paragraph(
+            doc_type=request.doc_type,
+            document_title=request.document_title,
+            current_content=request.current_content,
+            missing_field=request.missing_field,
+        )
+        data = ParagraphGenerateResponse(
+            title=generated["title"],
+            content=generated["content"],
+        )
+        return UnifiedResponse.success(data=data)
+    except Exception as e:
+        logger.error(f"补写段落生成失败: {e}")
         return UnifiedResponse.error(code=500, message=f"生成失败: {str(e)}")
 
 
@@ -323,10 +351,10 @@ async def get_document(
         description=document.description,
         file_size=document.file_size,
         mime_type=document.mime_type,
+        ai_metadata=None,
         version=document.version,
         ai_summary=document.ai_summary,
         extracted_text=document.extracted_text,
-        tags=document.tags,
         created_at=document.created_at,
         updated_at=document.updated_at,
     )
@@ -363,6 +391,7 @@ async def update_document(
         mime_type=document.mime_type,
         version=document.version,
         ai_summary=document.ai_summary,
+        ai_metadata=None,
         extracted_text=document.extracted_text,
         tags=document.tags,
         created_at=document.created_at,
@@ -401,6 +430,7 @@ async def update_document_content(
         mime_type=document.mime_type,
         version=document.version,
         ai_summary=document.ai_summary,
+            ai_metadata=None,
         extracted_text=document.extracted_text,
         tags=document.tags,
         created_at=document.created_at,

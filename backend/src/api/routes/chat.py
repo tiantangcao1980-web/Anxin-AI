@@ -21,6 +21,7 @@ from src.core.deps import (
     Permission,
 )
 from src.services.chat_service import ChatService, extract_citations
+from src.services.template_context import inject_template_context
 from src.services.audit_service import AuditService
 from src.models.audit import AuditAction, ResourceType
 from src.models.user import User
@@ -50,6 +51,27 @@ def _is_valid_uuid(value: str) -> bool:
         return False
 
 
+async def _consume_streaming_tokens(
+    *,
+    token_queue: asyncio.Queue,
+    ctx,
+    agent_name: str,
+    timeout_seconds: float = 60.0,
+) -> str:
+    response_text = ""
+    while True:
+        token = await asyncio.wait_for(token_queue.get(), timeout=timeout_seconds)
+        if token is None:
+            break
+        response_text += token
+        await ctx.send("content_token", {
+            "token": token,
+            "accumulated": response_text,
+            "agent": agent_name,
+        })
+    return response_text
+
+
 class ChatMessage(BaseModel):
     """聊天消息"""
     content: str
@@ -59,6 +81,7 @@ class ChatMessage(BaseModel):
     privacy_mode: Optional[str] = "HYBRID"
     mode: Optional[str] = "chat"
     knowledge_base_ids: Optional[List[str]] = None
+    template_id: Optional[str] = None
     model_id: Optional[str] = None  # 指定使用的 LLM 配置 ID
 
     @field_validator("content")
@@ -112,6 +135,7 @@ async def send_message(
             agent_name=message.agent_name,
             mode=message.mode,
             knowledge_base_ids=message.knowledge_base_ids,
+            template_id=message.template_id,
             model_id=message.model_id,
         )
     except ValueError as exc:
@@ -556,7 +580,9 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
         while True:
             data = await websocket.receive_json()
             msg_type = data.get("type", "message")
-            content = data.get("content", "")
+            raw_content = data.get("content", "")
+            content = raw_content
+            template_id = data.get("template_id")
             agent_name = data.get("agent_name")
             privacy_mode = data.get("privacy_mode", "HYBRID")
             
@@ -564,7 +590,8 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
             if msg_type == "a2ui_event":
                 if await handle_a2ui_event(ctx, data):
                     continue
-                content = f"用户执行了操作: {data.get('action_id', '')}"
+                raw_content = f"用户执行了操作: {data.get('action_id', '')}"
+                content = raw_content
 
             # === 工作台确认/动作 ===
             if msg_type in ("workspace_confirmation_response", "workspace_action"):
@@ -574,7 +601,8 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                 if handled and new_type:
                     msg_type = new_type
                     data = new_data
-                    content = data.get("content", "")
+                    raw_content = data.get("content", "")
+                    content = raw_content
 
             # === Canvas ===
             if msg_type in ("canvas_edit", "canvas_request"):
@@ -587,6 +615,8 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                 req = InferenceRequest(prompt=content, sensitivity=sensitivity)
                 processed_content, recovery_map = await compute_router.route_request(req)
 
+                content = inject_template_context(processed_content, template_id)
+
                 if sensitivity == SensitivityLevel.CONFIDENTIAL:
                     await ctx.send("agent_thinking", {"agent": "\u672c\u5730\u5b89\u5168\u82af\u7247", "message": "\u6b63\u5728\u672c\u5730\u786c\u4ef6\u5b89\u5168\u533a\u8fdb\u884c\u63a8\u7406..."})
                     await ctx.send("agent_response", {"agent": "AI\u79c1\u6709\u52a9\u624b(Local)", "content": processed_content})
@@ -594,18 +624,16 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                     await ctx.save_message("assistant", processed_content, "AI\u79c1\u6709\u52a9\u624b(Local)")
                     continue
 
-                content = processed_content
-
             except Exception as e:
                 logger.error(f"\u7b97\u529b\u8def\u7531\u5931\u8d25: {e}")
                 await ctx.send("error", {"content": f"\u5b89\u5168\u68c0\u67e5\u5931\u8d25: {str(e)}"})
                 continue
 
             # === \u6301\u4e45\u5316\u7528\u6237\u6d88\u606f & \u66f4\u65b0\u4f1a\u8bdd\u8ba1\u6570\u5668 ===
-            await ctx.save_message("user", content)
+            await ctx.save_message("user", raw_content)
             recent_history = await ctx.load_recent_history(limit=10)
             ctx.session_message_count += 1
-            ctx.last_user_content = content
+            ctx.last_user_content = raw_content
 
             # === 文件内容注入：将附件文本提取并拼接到用户消息中 ===
             _document_id = data.get("document_id")
@@ -935,17 +963,12 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                                     max_tokens=_dynamic_max_tokens,
                                 )
 
-                                response_text = ""
-                                while True:
-                                    token = await token_queue.get()
-                                    if token is None:
-                                        break
-                                    response_text += token
-                                    await ctx.send("content_token", {
-                                        "token": token,
-                                        "accumulated": response_text,
-                                        "agent": _agent_obj.name,
-                                    })
+                                response_text = await _consume_streaming_tokens(
+                                    token_queue=token_queue,
+                                    ctx=ctx,
+                                    agent_name=_agent_obj.name,
+                                    timeout_seconds=60.0,
+                                )
                             finally:
                                 _task_llm_config_var.reset(token_var)
 
@@ -990,6 +1013,7 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                         # 提取 A2UI 数据
                         a2ui_data = None
                         a2ui_components = []
+                        canvas_metadata = None
                         for res in result.get("agent_results", []):
                             if isinstance(res, dict) and res.get("metadata", {}).get("a2ui"):
                                 a2ui_data = res["metadata"]["a2ui"]
@@ -997,6 +1021,15 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                                     a2ui_components.extend(a2ui_data["components"])
                                 elif isinstance(a2ui_data, dict) and a2ui_data.get("a2ui", {}).get("components"):
                                     a2ui_components.extend(a2ui_data["a2ui"]["components"])
+                            if isinstance(res, dict) and res.get("metadata") and not canvas_metadata:
+                                candidate = res["metadata"]
+                                if candidate.get("draft_mode") or candidate.get("missing_fields"):
+                                    canvas_metadata = {
+                                        "draft_mode": candidate.get("draft_mode"),
+                                        "missing_fields": candidate.get("missing_fields", []),
+                                        "completeness_score": candidate.get("completeness_score"),
+                                        "validation_score": candidate.get("validation_score"),
+                                    }
 
                         # 提取响应文本
                         response_text = result.get("final_result", {}).get("summary", "")
@@ -1037,6 +1070,7 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                                 "type": canvas_type,
                                 "title": req_analysis.get("summary", "文档")[:50],
                                 "content": response_text,
+                                "metadata": canvas_metadata,
                             })
                     
                 else:

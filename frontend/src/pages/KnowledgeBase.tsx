@@ -676,9 +676,8 @@ export default function KnowledgeBase() {
 
   if (selectedBase) {
     return (
-      <div className="h-full flex flex-col">
-        {/* 顶部导航 */}
-        <div className="border-b border-border px-4 sm:px-6 py-4 shrink-0">
+      <div data-ui="page-shell" className="h-full flex flex-col bg-surface-2">
+        <div data-ui="page-header" className="border-b border-border bg-surface-1 px-4 py-4 shadow-card sm:px-6 shrink-0">
           <div className="flex items-center gap-2 sm:gap-3 mb-3">
             <button onClick={() => { setSelectedBase(null); setDocuments([]); setStats(null); setShowStats(false) }}
               className="p-1.5 rounded-lg hover:bg-muted transition-colors">
@@ -732,7 +731,7 @@ export default function KnowledgeBase() {
         </div>
 
         {/* 内容区 */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
           {renderStatsPanel()}
 
           {docLoading ? (
@@ -824,9 +823,8 @@ export default function KnowledgeBase() {
   // ============================================================
 
   return (
-    <div className="h-full flex flex-col">
-      {/* 顶部区域 */}
-      <div className="border-b border-border px-4 sm:px-6 py-4 sm:py-5 shrink-0">
+    <div data-ui="page-shell" className="h-full flex flex-col bg-surface-2">
+      <div data-ui="page-header" className="border-b border-border bg-surface-1 px-4 py-4 shadow-card sm:px-6 sm:py-5 shrink-0">
         <div className="flex items-center justify-between mb-4">
           <h1 className={heading.page}>
             <icons.KnowledgeBase className={`${iconSize.md} inline-block mr-2 -mt-0.5`} />
@@ -866,7 +864,7 @@ export default function KnowledgeBase() {
       </div>
 
       {/* 内容 */}
-      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
+      <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <icons.Refresh className={`${iconSize.lg} animate-spin text-primary`} />

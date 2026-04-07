@@ -10,12 +10,13 @@
 #   5. docker compose up -d 重启变更的服务 (不影响数据库等基础设施)
 #   6. 健康检查 + 清理旧镜像
 # ============================================================
-# 所需 GitHub Secrets (共 4 个，在 Settings > Secrets and variables > Actions 配置):
+# 所需 GitHub Secrets (共 4-5 个，在 Settings > Secrets and variables > Actions 配置):
 #
 #   DEPLOY_HOST     阿里云服务器公网 IP (如 47.100.xx.xx)
 #   DEPLOY_USER     SSH 用户名 (如 root)
 #   DEPLOY_SSH_KEY  SSH 私钥 (完整内容，包含 BEGIN/END 行)
 #   DEPLOY_PATH     服务器上项目目录 (如 /opt/AILegalAgent)
+#   DEPLOY_PORT     SSH 端口，可选，默认 22
 #
 # ============================================================
 
@@ -84,153 +85,239 @@ jobs:
           echo ""
           echo "检测结果: backend=$BACKEND_CHANGED, frontend=$FRONTEND_CHANGED"
 
-      # ========== 3. SSH 到服务器执行部署 ==========
+      - name: 部署前检查
+        if: steps.changes.outputs.backend_changed == 'true' || steps.changes.outputs.frontend_changed == 'true'
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          BACKEND_CHANGED: ${{ steps.changes.outputs.backend_changed }}
+          FRONTEND_CHANGED: ${{ steps.changes.outputs.frontend_changed }}
+          BRANCH: ${{ github.ref_name }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          test -n "$DEPLOY_HOST" || { echo "❌ 缺少 DEPLOY_HOST secret"; exit 1; }
+          test -n "$DEPLOY_USER" || { echo "❌ 缺少 DEPLOY_USER secret"; exit 1; }
+          test -n "$DEPLOY_PATH" || { echo "❌ 缺少 DEPLOY_PATH secret"; exit 1; }
+          test -n "${{ secrets.DEPLOY_SSH_KEY }}" || { echo "❌ 缺少 DEPLOY_SSH_KEY secret"; exit 1; }
+
+          SSH_PORT="${DEPLOY_PORT:-22}"
+          SERVICES=""
+          if [ "$BACKEND_CHANGED" = "true" ]; then
+            SERVICES="$SERVICES backend"
+          fi
+          if [ "$FRONTEND_CHANGED" = "true" ]; then
+            SERVICES="$SERVICES frontend"
+          fi
+
+          echo "================================================"
+          echo "部署前检查通过"
+          echo "  Host: $DEPLOY_HOST"
+          echo "  User: $DEPLOY_USER"
+          echo "  Port: $SSH_PORT"
+          echo "  Path: $DEPLOY_PATH"
+          echo "  Branch: $BRANCH"
+          echo "  Commit: $COMMIT_SHA"
+          echo "  Services:$SERVICES"
+          echo "================================================"
+
+      # ========== 3. 配置 SSH 连接 ==========
+      - name: 配置 SSH 私钥
+        if: steps.changes.outputs.backend_changed == 'true' || steps.changes.outputs.frontend_changed == 'true'
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' '${{ secrets.DEPLOY_SSH_KEY }}' > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+      - name: 写入 known_hosts
+        if: steps.changes.outputs.backend_changed == 'true' || steps.changes.outputs.frontend_changed == 'true'
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+        run: |
+          SSH_PORT="${DEPLOY_PORT:-22}"
+          ssh-keyscan -p "$SSH_PORT" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: 验证 SSH 连通性
+        if: steps.changes.outputs.backend_changed == 'true' || steps.changes.outputs.frontend_changed == 'true'
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+        run: |
+          SSH_PORT="${DEPLOY_PORT:-22}"
+          ssh \
+            -i ~/.ssh/deploy_key \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=30 \
+            -p "$SSH_PORT" \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "echo 'SSH 连接成功'"
+
+      # ========== 4. SSH 到服务器执行部署 ==========
       - name: SSH 部署
         if: steps.changes.outputs.backend_changed == 'true' || steps.changes.outputs.frontend_changed == 'true'
-        uses: appleboy/ssh-action@v1
         env:
           BACKEND_CHANGED: ${{ steps.changes.outputs.backend_changed }}
           FRONTEND_CHANGED: ${{ steps.changes.outputs.frontend_changed }}
           BRANCH: ${{ github.ref_name }}
           COMMIT_SHA: ${{ github.sha }}
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          envs: BACKEND_CHANGED,FRONTEND_CHANGED,BRANCH,COMMIT_SHA
-          command_timeout: 30m
-          script: |
-            set -e
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+        run: |
+          SSH_PORT="${DEPLOY_PORT:-22}"
+          ssh \
+            -i ~/.ssh/deploy_key \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=30 \
+            -p "$SSH_PORT" \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "BACKEND_CHANGED='${BACKEND_CHANGED}' FRONTEND_CHANGED='${FRONTEND_CHANGED}' BRANCH='${BRANCH}' COMMIT_SHA='${COMMIT_SHA}' DEPLOY_PATH='${DEPLOY_PATH}' bash -s" <<'REMOTE_SCRIPT'
+          set -e
 
-            echo "================================================"
-            echo "  开始部署 - 分支: $BRANCH"
-            echo "  提交: $COMMIT_SHA"
-            echo "  时间: $(date '+%Y-%m-%d %H:%M:%S')"
-            echo "================================================"
+          echo "================================================"
+          echo "  开始部署 - 分支: $BRANCH"
+          echo "  提交: $COMMIT_SHA"
+          echo "  时间: $(date '+%Y-%m-%d %H:%M:%S')"
+          echo "================================================"
 
-            cd ${{ secrets.DEPLOY_PATH }}
+          cd "$DEPLOY_PATH"
 
-            # ---------- 拉取最新代码 ----------
+          # ---------- 拉取最新代码 ----------
+          echo ""
+          echo "[1/5] 拉取最新代码..."
+
+          # 备份本地 .env 文件（不通过 Git 管理）
+          ENV_FILES=".env backend/.env backend/.env.local frontend/.env livekit.yaml"
+          for f in $ENV_FILES; do
+            if [ -f "$f" ]; then
+              cp "$f" "${f}.deploy-backup" 2>/dev/null || true
+            fi
+          done
+
+          git fetch origin "$BRANCH"
+          git checkout "$BRANCH"
+
+          # 如果本地和远端分叉（如 force push 后），强制重置到远端
+          if ! git merge-base --is-ancestor "origin/$BRANCH" HEAD 2>/dev/null && \
+             ! git merge-base --is-ancestor HEAD "origin/$BRANCH" 2>/dev/null; then
+            echo "  检测到历史分叉，执行 git reset --hard origin/$BRANCH"
+            git reset --hard "origin/$BRANCH"
+          else
+            git pull origin "$BRANCH"
+          fi
+
+          echo "当前版本: $(git log -1 --format='%h %s')"
+
+          # 恢复 .env 备份
+          for f in $ENV_FILES; do
+            if [ -f "${f}.deploy-backup" ]; then
+              mv "${f}.deploy-backup" "$f"
+            fi
+          done
+
+          # 验证关键 .env 文件存在
+          if [ ! -f ".env" ]; then
+            echo "⚠️  警告: .env 文件不存在！请在服务器上手动创建"
+            echo "   参考: cp .env.example .env && vim .env"
+          fi
+
+          # ---------- 确定要部署的服务 ----------
+          SERVICES=""
+          if [ "$BACKEND_CHANGED" = "true" ]; then
+            SERVICES="$SERVICES backend"
+          fi
+          if [ "$FRONTEND_CHANGED" = "true" ]; then
+            SERVICES="$SERVICES frontend"
+          fi
+          echo ""
+          echo "[2/6] 需要重建的服务: $SERVICES"
+
+          # ---------- 构建镜像 ----------
+          echo ""
+          echo "[3/6] 构建 Docker 镜像..."
+          # DOCKER_BUILDKIT=1 启用 BuildKit，支持 --mount=type=cache 缓存加速
+          DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose build $SERVICES
+
+          # ---------- 重启服务 (不影响数据库等基础设施) ----------
+          echo ""
+          echo "[4/6] 重启服务..."
+          docker compose up -d --no-deps --force-recreate $SERVICES
+
+          if [ "$BACKEND_CHANGED" = "true" ]; then
             echo ""
-            echo "[1/5] 拉取最新代码..."
+            echo "[5/6] 运行数据库迁移..."
+            docker compose exec -T backend alembic upgrade head
+          fi
 
-            # 备份本地 .env 文件（不通过 Git 管理）
-            ENV_FILES=".env backend/.env backend/.env.local frontend/.env livekit.yaml"
-            for f in $ENV_FILES; do
-              if [ -f "$f" ]; then
-                cp "$f" "${f}.deploy-backup" 2>/dev/null || true
-              fi
-            done
+          # ---------- 健康检查 ----------
+          echo ""
+          echo "[6/6] 健康检查..."
+          sleep 8
 
-            git fetch origin $BRANCH
-            git checkout $BRANCH
-
-            # 如果本地和远端分叉（如 force push 后），强制重置到远端
-            if ! git merge-base --is-ancestor origin/$BRANCH HEAD 2>/dev/null && \
-               ! git merge-base --is-ancestor HEAD origin/$BRANCH 2>/dev/null; then
-              echo "  检测到历史分叉，执行 git reset --hard origin/$BRANCH"
-              git reset --hard origin/$BRANCH
+          # 检查容器是否运行
+          FAILED=""
+          for svc in $SERVICES; do
+            STATUS=$(docker compose ps $svc --format '{{.Status}}' 2>/dev/null || echo "unknown")
+            if echo "$STATUS" | grep -qi "up"; then
+              echo "  ✅ $svc - 运行中 ($STATUS)"
             else
-              git pull origin $BRANCH
+              echo "  ❌ $svc - 异常 ($STATUS)"
+              echo "  最后20行日志:"
+              docker compose logs --tail=20 $svc
+              FAILED="$FAILED $svc"
             fi
+          done
 
-            echo "当前版本: $(git log -1 --format='%h %s')"
-
-            # 恢复 .env 备份
-            for f in $ENV_FILES; do
-              if [ -f "${f}.deploy-backup" ]; then
-                mv "${f}.deploy-backup" "$f"
+          # 后端额外检查 /health 接口
+          if [ "$BACKEND_CHANGED" = "true" ]; then
+            echo ""
+            echo "  检查后端 /health 接口..."
+            for i in 1 2 3 4 5 6; do
+              if curl -sf http://localhost:8001/health > /dev/null 2>&1; then
+                echo "  ✅ 后端健康检查通过"
+                break
               fi
-            done
-
-            # 验证关键 .env 文件存在
-            if [ ! -f ".env" ]; then
-              echo "⚠️  警告: .env 文件不存在！请在服务器上手动创建"
-              echo "   参考: cp .env.example .env && vim .env"
-            fi
-
-            # ---------- 确定要部署的服务 ----------
-            SERVICES=""
-            if [ "$BACKEND_CHANGED" = "true" ]; then
-              SERVICES="$SERVICES backend"
-            fi
-            if [ "$FRONTEND_CHANGED" = "true" ]; then
-              SERVICES="$SERVICES frontend"
-            fi
-            echo ""
-            echo "[2/5] 需要重建的服务: $SERVICES"
-
-            # ---------- 构建镜像 ----------
-            echo ""
-            echo "[3/5] 构建 Docker 镜像..."
-            # DOCKER_BUILDKIT=1 启用 BuildKit，支持 --mount=type=cache 缓存加速
-            DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose build $SERVICES
-
-            # ---------- 重启服务 (不影响数据库等基础设施) ----------
-            echo ""
-            echo "[4/5] 重启服务..."
-            docker compose up -d --no-deps --force-recreate $SERVICES
-
-            # ---------- 健康检查 ----------
-            echo ""
-            echo "[5/5] 健康检查..."
-            sleep 8
-
-            # 检查容器是否运行
-            FAILED=""
-            for svc in $SERVICES; do
-              STATUS=$(docker compose ps $svc --format '{{.Status}}' 2>/dev/null || echo "unknown")
-              if echo "$STATUS" | grep -qi "up"; then
-                echo "  ✅ $svc - 运行中 ($STATUS)"
-              else
-                echo "  ❌ $svc - 异常 ($STATUS)"
-                echo "  最后20行日志:"
-                docker compose logs --tail=20 $svc
-                FAILED="$FAILED $svc"
+              if [ $i -eq 6 ]; then
+                echo "  ⚠️  后端健康检查超时 (可能仍在启动)"
               fi
+              sleep 5
             done
+          fi
 
-            # 后端额外检查 /health 接口
-            if [ "$BACKEND_CHANGED" = "true" ]; then
-              echo ""
-              echo "  检查后端 /health 接口..."
-              for i in 1 2 3 4 5 6; do
-                if curl -sf http://localhost:8001/health > /dev/null 2>&1; then
-                  echo "  ✅ 后端健康检查通过"
-                  break
-                fi
-                if [ $i -eq 6 ]; then
-                  echo "  ⚠️  后端健康检查超时 (可能仍在启动)"
-                fi
-                sleep 5
-              done
-            fi
+          # ---------- 清理旧镜像 ----------
+          echo ""
+          echo "清理旧镜像..."
+          docker image prune -f
 
-            # ---------- 清理旧镜像 ----------
-            echo ""
-            echo "清理旧镜像..."
-            docker image prune -f
+          # ---------- 最终状态 ----------
+          echo ""
+          echo "================================================"
+          if [ -z "$FAILED" ]; then
+            echo "  ✅ 部署成功!"
+          else
+            echo "  ⚠️  部分服务异常: $FAILED"
+            echo "  请手动检查: docker compose logs $FAILED"
+          fi
+          echo "  分支: $BRANCH"
+          echo "  提交: $(git log -1 --format='%h %s')"
+          echo "  时间: $(date '+%Y-%m-%d %H:%M:%S')"
+          echo "================================================"
 
-            # ---------- 最终状态 ----------
-            echo ""
-            echo "================================================"
-            if [ -z "$FAILED" ]; then
-              echo "  ✅ 部署成功!"
-            else
-              echo "  ⚠️  部分服务异常: $FAILED"
-              echo "  请手动检查: docker compose logs $FAILED"
-            fi
-            echo "  分支: $BRANCH"
-            echo "  提交: $(git log -1 --format='%h %s')"
-            echo "  时间: $(date '+%Y-%m-%d %H:%M:%S')"
-            echo "================================================"
+          # 如果有失败的服务，以非零退出码结束，让 GitHub Actions 标记为失败
+          if [ -n "$FAILED" ]; then
+            exit 1
+          fi
+          REMOTE_SCRIPT
 
-            # 如果有失败的服务，以非零退出码结束，让 GitHub Actions 标记为失败
-            if [ -n "$FAILED" ]; then
-              exit 1
-            fi
-
-      # ========== 4. 无变更时跳过 ==========
+      # ========== 5. 无变更时跳过 ==========
       - name: 无需部署
         if: steps.changes.outputs.backend_changed != 'true' && steps.changes.outputs.frontend_changed != 'true'
         run: echo "前端和后端代码无变更，跳过部署"

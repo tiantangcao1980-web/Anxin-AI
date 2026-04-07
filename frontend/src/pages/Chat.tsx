@@ -24,12 +24,12 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 import { CitationList } from '@/components/chat/CitationList';
-import { KnowledgeBaseSelector } from '@/components/chat/KnowledgeBaseSelector';
 import { LottieIcon } from '@/components/ui/LottieIcon';
 import { RightPanel } from '@/components/chat/RightPanel';
 import { StreamingMessage } from '@/components/chat/StreamingMessage';
 import { ThinkingChain } from '@/components/chat/ThinkingChain';
-import { QuickActionsBar, DeepModeToggle, type QuickActionFillPayload } from '@/components/chat/QuickActionsBar';
+import { DeepModeToggle, type QuickActionFillPayload } from '@/components/chat/QuickActionsBar';
+import { InputOrchestrationBar } from '@/components/chat/InputOrchestrationBar';
 import { SlashCommandPalette, useSlashCommand, type SlashCommand } from '@/components/chat/SlashCommandPalette';
 import { ThinkingIndicator, type ThinkingStatus } from '@/components/chat/ThinkingIndicator';
 import { ClarificationBubble } from '@/components/chat/ClarificationBubble';
@@ -84,6 +84,7 @@ export default function Chat() {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [selectedKbIdsByConversation, setSelectedKbIdsByConversation] = useState<Record<string, string[]>>({});
+  const [selectedTemplateIdsByConversation, setSelectedTemplateIdsByConversation] = useState<Record<string, string | null>>({});
   // 内联 Agent 思考状态指示器
   const [thinkingStatus, setThinkingStatus] = useState<ThinkingStatus | null>(null);
   // 模式切换 + 斜杠命令 + 快捷操作选中态
@@ -137,6 +138,7 @@ export default function Chat() {
   const conversations = Array.isArray(rawConversations) ? rawConversations : [];
   const conversationSelectionKey = conversationId || '__draft__';
   const selectedKbIds = selectedKbIdsByConversation[conversationSelectionKey] || [];
+  const selectedTemplateId = selectedTemplateIdsByConversation[conversationSelectionKey] || null;
 
   const handleSelectedKbIdsChange = useCallback((ids: string[]) => {
     const normalizedIds = Array.from(new Set(ids.filter((id): id is string => Boolean(id))));
@@ -154,9 +156,39 @@ export default function Chat() {
     });
   }, [conversationSelectionKey]);
 
+  const handleSelectedTemplateChange = useCallback((templateId: string | null) => {
+    setSelectedTemplateIdsByConversation((prev) => {
+      if (!templateId) {
+        if (!(conversationSelectionKey in prev)) return prev;
+        const next = { ...prev };
+        delete next[conversationSelectionKey];
+        return next;
+      }
+      return {
+        ...prev,
+        [conversationSelectionKey]: templateId,
+      };
+    });
+  }, [conversationSelectionKey]);
+
   const clearKnowledgeBaseSelections = useCallback((conversationKeys: string[]) => {
     if (conversationKeys.length === 0) return;
     setSelectedKbIdsByConversation((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      conversationKeys.forEach((key) => {
+        if (key in next) {
+          delete next[key];
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, []);
+
+  const clearTemplateSelections = useCallback((conversationKeys: string[]) => {
+    if (conversationKeys.length === 0) return;
+    setSelectedTemplateIdsByConversation((prev) => {
       let changed = false;
       const next = { ...prev };
       conversationKeys.forEach((key) => {
@@ -259,10 +291,11 @@ export default function Chat() {
       await chatApi.deleteConversation(convId);
       removeConversation(convId);
       clearKnowledgeBaseSelections([convId]);
+      clearTemplateSelections([convId]);
       toast.success('对话已删除');
       if (convId === conversationId) handleNewConversation();
     } catch { toast.error('删除失败'); }
-  }, [clearKnowledgeBaseSelections, deleteConfirmId, conversationId, removeConversation, handleNewConversation]);
+  }, [clearKnowledgeBaseSelections, clearTemplateSelections, deleteConfirmId, conversationId, removeConversation, handleNewConversation]);
 
   const handleStartRename = useCallback((conv: ConversationItem, e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -318,6 +351,7 @@ export default function Chat() {
       await chatApi.batchDeleteConversations(ids);
       removeConversations(ids);
       clearKnowledgeBaseSelections(ids);
+      clearTemplateSelections(ids);
       toast.success(`已删除 ${ids.length} 个对话`);
       if (conversationId && ids.includes(conversationId)) {
         handleNewConversation();
@@ -329,7 +363,7 @@ export default function Chat() {
     } finally {
       setIsBatchDeleting(false);
     }
-  }, [clearKnowledgeBaseSelections, selectedConvIds, conversationId, removeConversations, handleNewConversation]);
+  }, [clearKnowledgeBaseSelections, clearTemplateSelections, selectedConvIds, conversationId, removeConversations, handleNewConversation]);
 
   useEffect(() => {
     if (!menuOpenId) return;
@@ -459,9 +493,48 @@ export default function Chat() {
     }
   }, [rightPanelOpen, openRightPanel, closeRightPanel]);
 
+  const processingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const getProcessingTimeoutMs = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      const testTimeout = (window as any).__TEST_PROCESSING_TIMEOUT_MS;
+      if (typeof testTimeout === 'number' && Number.isFinite(testTimeout) && testTimeout > 0) {
+        return testTimeout;
+      }
+    }
+    return 90_000;
+  }, []);
+
+  const clearProcessingTimeout = useCallback(() => {
+    if (processingTimeoutRef.current) {
+      clearTimeout(processingTimeoutRef.current);
+      processingTimeoutRef.current = null;
+    }
+  }, []);
+
+  const armProcessingTimeout = useCallback(() => {
+    clearProcessingTimeout();
+    processingTimeoutRef.current = setTimeout(() => {
+      setIsProcessing(false);
+      store.finalizeStream();
+      setMessages(prev => [
+        ...prev,
+        {
+          id: uuidv4(),
+          type: 'system' as const,
+          content: '请求超时，服务器未在规定时间内响应。请稍后重试。',
+          timestamp: new Date(),
+        },
+      ]);
+    }, getProcessingTimeoutMs());
+  }, [clearProcessingTimeout, getProcessingTimeoutMs, store]);
+
   // ========== WebSocket 消息处理（v2 — 流式 + 思考链 + Agent 结果）==========
 
   const handleWebSocketMessage = useCallback((data: any) => {
+    if (!['done', 'agent_response', 'error', 'task_force_complete'].includes(data?.type || '')) {
+      armProcessingTimeout();
+    }
     switch (data.type) {
       // --- 思考 / Agent 状态 → 同步到思考链 ---
       case 'agent_thinking':
@@ -844,6 +917,7 @@ export default function Chat() {
           title: cleanCanvasTitle(data.title || '文档'),
           content: cleanCanvasContent(data.content || ''),
           language: data.language,
+          metadata: data.metadata,
         });
         openRightPanel('document');
         break;
@@ -1105,7 +1179,7 @@ export default function Chat() {
         break;
       }
     }
-  }, [isMobile, store]);
+  }, [armProcessingTimeout, isMobile, store]);
 
   // ========== WebSocket 连接（稳定引用，不因回调变化而重连）==========
 
@@ -1206,35 +1280,16 @@ export default function Chat() {
   }, [conversationId]); // 只在 conversationId 变化时重建连接
 
   // ========== 发送消息超时保护 ==========
-
-  const processingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   useEffect(() => {
     if (isProcessing) {
-      // 90 秒超时：若后端一直无回复，自动停止 loading
-      processingTimeoutRef.current = setTimeout(() => {
-        setIsProcessing(false);
-        store.finalizeStream();
-        setMessages(prev => [
-          ...prev,
-          {
-            id: uuidv4(),
-            type: 'system' as const,
-            content: '请求超时，服务器未在规定时间内响应。请稍后重试。',
-            timestamp: new Date(),
-          },
-        ]);
-      }, 90_000);
+      armProcessingTimeout();
     } else {
-      if (processingTimeoutRef.current) {
-        clearTimeout(processingTimeoutRef.current);
-        processingTimeoutRef.current = null;
-      }
+      clearProcessingTimeout();
     }
     return () => {
-      if (processingTimeoutRef.current) clearTimeout(processingTimeoutRef.current);
+      clearProcessingTimeout();
     };
-  }, [isProcessing]);
+  }, [armProcessingTimeout, clearProcessingTimeout, isProcessing]);
 
   // ========== 发送消息 ==========
 
@@ -1264,6 +1319,7 @@ export default function Chat() {
     setActiveActionId(null); // 发送后取消快捷操作高亮
     setActionModeOverride(null);
     setIsProcessing(true);
+    armProcessingTimeout();
     setUserScrolledUp(false); // 发送消息时重置滚动状态，自动跟随新内容
     store.resetWorkspace();
 
@@ -1309,6 +1365,7 @@ export default function Chat() {
         document_id: uploadedDocId,
         mode: actionModeOverride ?? quickActionMode,  // 快捷技能优先，其次是深度思考开关
         knowledge_base_ids: selectedKbIds.length > 0 ? selectedKbIds : undefined,
+        template_id: selectedTemplateId ?? undefined,
       }));
       if (conversationId && !conversations.find(c => c.id === conversationId)) {
         const title = messageContent.slice(0, 30) + (messageContent.length > 30 ? '...' : '');
@@ -1330,6 +1387,7 @@ export default function Chat() {
     const selectionText = Object.entries(selections).map(([q, a]) => `${q}: ${a}`).join('；');
     // v3 优化：不再在对话流中重复输出选择内容，直接发送到后端
     setIsProcessing(true);
+    armProcessingTimeout();
     store.resetWorkspace();
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
@@ -1954,7 +2012,7 @@ export default function Chat() {
   // ========== JSX ==========
 
   return (
-    <div className="h-full flex bg-muted/50 relative">
+    <div className="relative flex h-full min-h-0 bg-surface-2">
       {/* ========== 左侧对话列表侧边栏 ========== */}
       <AnimatePresence>
         {chatSidebarOpen && (
@@ -2133,7 +2191,7 @@ export default function Chat() {
             style={{ width: rightPanelOpen && !isMobile ? `${100 - rightPanelWidth}%` : '100%', minWidth: 0 }}
           >
             {/* Header — v3 紧凑版 */}
-            <div className="h-12 px-4 border-b border-border flex items-center gap-2.5 bg-background/80 backdrop-blur-sm shrink-0">
+            <div data-chat-local-header className="hidden h-12 shrink-0 items-center gap-2.5 border-b border-border bg-background/80 px-4 backdrop-blur-sm md:flex">
               {!chatSidebarOpen && (
                 <button onClick={() => setChatSidebarOpen(true)}
                   className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors" title="展开对话列表">
@@ -2171,7 +2229,7 @@ export default function Chat() {
             {/* Messages — 支持拖拽上传，移动端额外底部内边距防止 BottomActionBar 遮挡 */}
             <div
               ref={messagesContainerRef}
-              className={`flex-1 overflow-y-auto p-4 md:p-8 space-y-6 scroll-smooth relative ${isMobile ? 'pb-20' : ''}`}
+              className={`relative flex-1 overflow-y-auto scroll-smooth space-y-6 px-4 pt-6 md:p-8 ${isMobile ? 'pb-[calc(10rem+env(safe-area-inset-bottom))]' : 'pb-8'}`}
               onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
               onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(false); }}
               onDrop={(e) => {
@@ -2309,8 +2367,8 @@ export default function Chat() {
 
             {/* Input Area — 工作台一体化输入区 */}
             <div
-              className="p-3 bg-background shrink-0 flex flex-col"
-              style={inputAreaHeight ? { height: inputAreaHeight } : undefined}
+              className="shrink-0 flex flex-col border-t border-border/60 bg-surface-1/95 p-3 shadow-[0_-12px_30px_rgba(15,23,42,0.06)] backdrop-blur-xl"
+              style={isMobile ? { paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))', ...(inputAreaHeight ? { height: inputAreaHeight } : {}) } : (inputAreaHeight ? { height: inputAreaHeight } : undefined)}
             >
               <div className="flex-1 flex flex-col min-h-0">
                 <AnimatePresence>
@@ -2331,7 +2389,7 @@ export default function Chat() {
                 </AnimatePresence>
 
                 {/* 快捷操作工具栏 — 常驻输入框上方 */}
-                <QuickActionsBar
+                <InputOrchestrationBar
                   onFillInput={({ text, actionId, mode: filledMode }: QuickActionFillPayload) => {
                     setInput(text);
                     setActiveActionId(actionId ?? null);
@@ -2348,13 +2406,10 @@ export default function Chat() {
                   isMobile={isMobile}
                   activeActionId={activeActionId}
                   attachmentName={pendingFile?.name ?? null}
-                  onTriggerUpload={() => fileInputRef.current?.click()}
-                />
-
-                <KnowledgeBaseSelector
                   selectedKbIds={selectedKbIds}
-                  onSelectionChange={handleSelectedKbIdsChange}
-                  disabled={isProcessing}
+                  selectedTemplateId={selectedTemplateId}
+                  onKnowledgeSelectionChange={handleSelectedKbIdsChange}
+                  onTemplateSelectionChange={handleSelectedTemplateChange}
                 />
 
                 {/* 输入框容器 — 一体式设计 */}

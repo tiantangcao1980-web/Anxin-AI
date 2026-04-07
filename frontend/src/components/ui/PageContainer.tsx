@@ -15,6 +15,7 @@
 
 import { type ReactNode } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { heading, spacing } from '@/lib/design-tokens'
 
 interface PageContainerProps {
   /** 页面标题 */
@@ -52,34 +53,31 @@ export function PageContainer({
 
   // 当 scrollable=false 且 fullHeight=true 时，内容区需要 flex-1 + min-h-0 来支持子容器的内部滚动
   const contentClasses = [
-    'p-4 sm:p-5 lg:p-6 space-y-4 sm:space-y-5 lg:space-y-6',
+    `${spacing.page} ${spacing.section}`,
     !scrollable && fullHeight ? 'flex-1 flex flex-col min-h-0' : '',
     className,
   ].filter(Boolean).join(' ')
 
   const content = (
-    <div className={contentClasses}>
-      {/* 页面标题栏 */}
+    <div data-ui="page-shell" className={contentClasses}>
       {hasHeader && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+        <div data-ui="page-header" className="flex flex-col justify-between gap-3 rounded-2xl border border-border/70 bg-surface-1 p-5 shadow-card sm:flex-row sm:items-center shrink-0">
           <div className="min-w-0">
             {title && (
-              <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight truncate">
+              <h1 className={`${heading.page} truncate`}>
                 {title}
               </h1>
             )}
             {description && (
-              <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">{description}</p>
+              <p className={`${heading.muted} mt-1 line-clamp-2`}>{description}</p>
             )}
           </div>
-          {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
+          {actions && <div data-ui="page-actions" className="flex items-center gap-2 shrink-0">{actions}</div>}
         </div>
       )}
 
-      {/* 工具栏 / 筛选栏 */}
-      {toolbar && <div className="flex flex-wrap items-center gap-2 shrink-0">{toolbar}</div>}
+      {toolbar && <div data-ui="page-toolbar" className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/60 bg-surface-1 p-4 shadow-card shrink-0">{toolbar}</div>}
 
-      {/* 页面主内容 */}
       {children}
     </div>
   )
