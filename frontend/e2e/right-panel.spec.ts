@@ -503,7 +503,7 @@ test.describe('右侧面板双模式', () => {
 
   test('持续收到工作流事件时不应过早显示请求超时', async ({ page }) => {
     await page.evaluate(() => {
-      ;(window as any).__TEST_PROCESSING_TIMEOUT_MS = 50
+      void ((window as any).__TEST_PROCESSING_TIMEOUT_MS = 50)
     })
 
     await emitSocketEvent(page, {

@@ -92,6 +92,7 @@ jobs:
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           BACKEND_CHANGED: ${{ steps.changes.outputs.backend_changed }}
           FRONTEND_CHANGED: ${{ steps.changes.outputs.frontend_changed }}
           BRANCH: ${{ github.ref_name }}
@@ -100,7 +101,7 @@ jobs:
           test -n "$DEPLOY_HOST" || { echo "❌ 缺少 DEPLOY_HOST secret"; exit 1; }
           test -n "$DEPLOY_USER" || { echo "❌ 缺少 DEPLOY_USER secret"; exit 1; }
           test -n "$DEPLOY_PATH" || { echo "❌ 缺少 DEPLOY_PATH secret"; exit 1; }
-          test -n "${{ secrets.DEPLOY_SSH_KEY }}" || { echo "❌ 缺少 DEPLOY_SSH_KEY secret"; exit 1; }
+          test -n "$DEPLOY_SSH_KEY" || { echo "❌ 缺少 DEPLOY_SSH_KEY secret"; exit 1; }
 
           SSH_PORT="${DEPLOY_PORT:-22}"
           SERVICES=""
@@ -125,10 +126,12 @@ jobs:
       # ========== 3. 配置 SSH 连接 ==========
       - name: 配置 SSH 私钥
         if: steps.changes.outputs.backend_changed == 'true' || steps.changes.outputs.frontend_changed == 'true'
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          printf '%s\n' '${{ secrets.DEPLOY_SSH_KEY }}' > ~/.ssh/deploy_key
+          echo "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
 
       - name: 写入 known_hosts

@@ -245,8 +245,7 @@ export function UserProfile({ onClose, headerActionLabels = true, onToggleHeader
   const handleLogout = async () => {
     try {
       await authApi.logout()
-    } catch {
-    }
+    } catch { /* logout may fail silently */ }
     await getTokenStorage().clearAuth()
     await clearDesktopAuth()
     storeLogout()
