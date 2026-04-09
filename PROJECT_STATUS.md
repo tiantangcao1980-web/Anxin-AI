@@ -391,6 +391,43 @@ LLM 生成回复 → _finalize_response
   - 静态资源缓存（1年，immutable）
   - 敏感路径屏蔽
 
+#### 智能调查搜索引擎三级架构升级（2026-04-08）
+- [x] **Phase 1: Crawl4AI 集成** — LLM 友好网页爬取
+  - 新建 `crawl4ai_service.py`（250行）：自动 JS 渲染 + 反检测 + Markdown 输出
+  - 延迟初始化（首次使用才加载），未安装时自动降级到 httpx
+  - 并发控制（Semaphore）+ 缓存 + 结构化提取
+  - pyproject.toml 新增 `crawl4ai>=0.4.0` 依赖
+- [x] **Phase 2: SearXNG 集成** — 自建隐私搜索引擎
+  - docker-compose.yml 新增 searxng 服务容器
+  - 新建 `searxng/settings.yml`（Google+Bing+Baidu+DDG+Wikipedia 五引擎聚合）
+  - web_search_service.py 新增 `_search_searxng()` 方法
+  - config.py 新增 SEARXNG_ENABLED/URL/TIMEOUT/MAX_RESULTS 配置
+- [x] **Phase 3: Open-WebSearch 集成** — 免费降级兜底
+  - web_search_service.py 新增 `_search_open_websearch()` 方法
+  - config.py 新增 OPEN_WEBSEARCH_ENABLED/URL/ENGINES/TIMEOUT 配置
+  - 搜索链升级为四级：SearXNG → Tavily/Bing → Open-WebSearch → DuckDuckGo
+- [x] **Phase 4: 搜索结果去重+质量评分**
+  - 新建 `search_dedup_service.py`（200行）
+  - URL 去重 + 标题相似度去重
+  - 30+ 域名可信度分级（gov.cn=1.0, 法律平台=0.85, 媒体=0.7, 社交=0.3）
+  - RRF 多源结果融合排序 + 质量加权
+
+#### 智能调查核心优化：数据驱动风险评估（2026-04-08）
+- [x] **新建 `risk_scoring_engine.py`** — 数据驱动五维风险评分引擎
+  - 基于真实采集数据（执行案件/失信记录/行政处罚/裁判文书）计算风险分
+  - LLM 估算仅作为补充（打 5-7 折，标注为"AI 估算"）
+  - 每维输出：分数 + 标签 + 依据 + 数据来源 + 数据质量等级
+  - 整体数据质量判定：real(≥3维真实) / public(≥3维公开) / estimated
+- [x] **集成到 `quick_investigate()`** — 第七步"数据驱动风险重算"
+  - 替代 LLM 直接输出的风险评分
+  - 保留 LLM 的 risk_points 和 recommendations（合并去重）
+- [x] **新增第四数据源：国家企业信用信息公示系统 (GSXT)**
+  - `gsxt.gov.cn` 搜索接口，获取统一社会信用代码等权威工商数据
+- [x] **前端数据质量透明度标识**
+  - InvestigationOverview 显示数据质量徽章（真实数据/公开数据/AI估算）
+  - InvestigationOverview 显示数据来源列表
+  - SentimentAnalysis 根据数据质量动态显示描述文案
+
 #### Sprint 6.1 监控基础设施
 - [x] docker-compose.yml 新增 Prometheus + Grafana 服务容器
 - [x] 创建 `monitoring/prometheus.yml`（4个抓取目标）

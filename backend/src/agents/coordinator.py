@@ -52,6 +52,12 @@ INTENT_LABELS: Dict[str, str] = {
     "ENVIRONMENTAL_COMPLIANCE": "环保合规",
     "ANTI_CORRUPTION": "反商业贿赂",
     "PRODUCT_LIABILITY": "产品责任",
+    "LEGAL_CALCULATION": "法务分析",
+    "CONSUMER_PROTECTION": "消费者维权",
+    "TRAFFIC_ACCIDENT": "交通事故",
+    "INSURANCE_CLAIM": "保险理赔",
+    "SOCIAL_INSURANCE": "社保公积金",
+    "PROPERTY_MANAGEMENT": "物业管理",
     "COMPLEX_TASK": "复合任务",
 }
 
@@ -163,6 +169,26 @@ FAST_PATH_ROUTES: Dict[str, List[Dict[str, Any]]] = {
     # Harness: 模板请求路由 — 用户只要模板不要AI生成
     "TEMPLATE_REQUEST": [
         {"id": "task_1", "agent": "template_librarian", "depends_on": []},
+    ],
+    # v4 法律计算路由 — 精确计算器 + 法律分析
+    "LEGAL_CALCULATION": [
+        {"id": "task_1", "agent": "legal_calculator", "depends_on": []},
+    ],
+    # v4.1 P0 新增场景路由
+    "CONSUMER_PROTECTION": [
+        {"id": "task_1", "agent": "legal_advisor", "instruction_suffix": "分析消费者维权问题，引用《消费者权益保护法》《产品质量法》，提供投诉/诉讼/行政举报等多渠道维权方案。", "depends_on": []},
+    ],
+    "TRAFFIC_ACCIDENT": [
+        {"id": "task_1", "agent": "legal_advisor", "instruction_suffix": "分析交通事故责任与赔偿，引用《道路交通安全法》，计算人身/财产损害赔偿，提供保险理赔和诉讼指引。", "depends_on": []},
+    ],
+    "INSURANCE_CLAIM": [
+        {"id": "task_1", "agent": "legal_advisor", "instruction_suffix": "分析保险理赔纠纷，引用《保险法》，评估保险公司拒赔理由是否合法，提供理赔策略和投诉/诉讼方案。", "depends_on": []},
+    ],
+    "SOCIAL_INSURANCE": [
+        {"id": "task_1", "agent": "labor_compliance", "instruction_suffix": "分析社保/公积金问题，引用《社会保险法》《住房公积金管理条例》，提供补缴/投诉/仲裁方案。", "depends_on": []},
+    ],
+    "PROPERTY_MANAGEMENT": [
+        {"id": "task_1", "agent": "legal_advisor", "instruction_suffix": "分析物业管理纠纷，引用《民法典》物权编和《物业管理条例》，区分业主和物业公司视角提供解决方案。", "depends_on": []},
     ],
 }
 
@@ -502,6 +528,13 @@ class CoordinatorAgent(BaseLegalAgent):
                 "primary_card": "risk-assessment",
                 "description": "合规监管以风险评估雷达+详情+警示横幅+合规检查表展示",
             },
+            "LEGAL_CALCULATION": {
+                "suggested_cards": ["fee-estimate", "detail-list", "recommendation-card", "risk-indicator"],
+                "layout": "vertical",
+                "streaming_hint": True,
+                "primary_card": "fee-estimate",
+                "description": "法务分析以费用明细+法律分析+风险评估+操作方案展示，支持咨询与计算双模式",
+            },
             "COMPLEX_TASK": {
                 "suggested_cards": ["case-progress", "risk-assessment", "detail-list"],
                 "layout": "vertical",
@@ -578,6 +611,12 @@ class CoordinatorAgent(BaseLegalAgent):
         (["诉讼策略", "起诉", "胜诉", "败诉", "庭审", "反诉", "仲裁"], "LITIGATION_STRATEGY", 0.88),
         (["风险评估", "合规检查", "合规审查", "合规风险", "合规自检", "合规自查", "内审", "合规体检", "内部审查", "制度审计"], "REGULATORY_MONITORING", 0.88),
         (["专利", "商标", "侵权", "知识产权", "版权"], "IP_PROTECTION", 0.88),
+        # v4 法律计算场景（优先于 LABOR_HR，"赔多少""赔偿金""诉讼费""时效"等触发精确计算）
+        (["赔多少", "赔偿金", "补偿金", "N+1", "2N", "经济补偿", "赔偿计算", "补偿计算", "怎么算", "赔偿标准"], "LEGAL_CALCULATION", 0.92),
+        (["诉讼费", "打官司多少钱", "打官司费用", "起诉费", "受理费", "诉讼成本"], "LEGAL_CALCULATION", 0.92),
+        (["时效", "诉讼时效", "过期", "还能起诉", "超过时效", "仲裁时效", "过了时效"], "LEGAL_CALCULATION", 0.90),
+        (["加班费", "加班工资", "加班怎么算", "加班补偿"], "LEGAL_CALCULATION", 0.92),
+        (["工伤赔偿", "伤残赔偿", "伤残等级", "工伤补偿"], "LEGAL_CALCULATION", 0.92),
         (["辞退", "劳动合同", "劳动仲裁", "工资拖欠", "员工", "入职", "试用期", "社保", "劳动争议", "劳动法", "工伤"], "LABOR_HR", 0.88),
         (["发票", "报销", "税务", "财税", "避税", "税收", "股权转让"], "TAX_FINANCE", 0.88),
         (["录音", "证据", "鉴定", "证据链"], "EVIDENCE_PROCESSING", 0.88),
@@ -600,6 +639,12 @@ class CoordinatorAgent(BaseLegalAgent):
         (["环保", "环评", "排污", "碳排放", "碳交易", "环境污染", "环保处罚"], "ENVIRONMENTAL_COMPLIANCE", 0.88),
         (["反贿赂", "反腐败", "商业贿赂", "回扣", "FCPA合规"], "ANTI_CORRUPTION", 0.88),
         (["产品责任", "产品召回", "消费者投诉", "食品安全", "产品质量", "消费者维权"], "PRODUCT_LIABILITY", 0.88),
+        # v4.1 P0 新增场景
+        (["消费维权", "退款", "假货", "商品质量", "消费者", "投诉商家", "315", "欺诈消费", "虚假宣传", "预付卡", "充值不退"], "CONSUMER_PROTECTION", 0.90),
+        (["交通事故", "车祸", "追尾", "撞车", "刮蹭", "肇事", "交通赔偿", "交通责任"], "TRAFFIC_ACCIDENT", 0.92),
+        (["保险理赔", "拒赔", "保险不赔", "保险纠纷", "定损", "理赔"], "INSURANCE_CLAIM", 0.90),
+        (["社保", "公积金", "不交社保", "没交社保", "断缴", "补缴", "社保转移", "生育津贴", "养老金"], "SOCIAL_INSURANCE", 0.90),
+        (["物业", "物业费", "业委会", "物业纠纷", "停车位", "维修基金", "小区"], "PROPERTY_MANAGEMENT", 0.88),
         (["新规", "政策", "法规解读", "监管"], "REGULATORY_MONITORING", 0.85),
         (["查法条", "搜案例", "法规查询", "法律检索", "查找法规", "相关判例", "法条检索", "案例检索"], "QA_CONSULTATION", 0.85),
     ]

@@ -177,6 +177,22 @@ services:
       - legal-network
     restart: unless-stopped
 
+  # ==================== 搜索引擎（SearXNG）====================
+
+  searxng:
+    image: searxng/searxng:latest
+    container_name: anxin-searxng
+    hostname: searxng
+    volumes:
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+    environment:
+      - SEARXNG_SECRET=anxin-searxng-secret-2026
+    expose:
+      - "8080"
+    networks:
+      - legal-network
+    restart: unless-stopped
+
   # ==================== 监控（Sprint 6.1）====================
 
   prometheus:

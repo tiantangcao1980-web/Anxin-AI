@@ -172,35 +172,46 @@ class CrawlerService:
             await self._update_progress(task, "starting", 10, f"开始任务: {url}")
             
             # 1. 抓取数据
-            await self._update_progress(task, "crawling", 20, f"正在通过 Playwright 抓取: {url}")
-            
-            browser = await self._get_browser()
-            context = await browser.new_context(user_agent=random.choice(self.USER_AGENTS))
-            page = await context.new_page()
-            
+            await self._update_progress(task, "crawling", 20, f"正在抓取: {url}")
+
+            # 优先使用 Crawl4AI（LLM 友好，自动反检测）
+            crawl4ai_result = None
             try:
-                # 模拟随机延迟 (反爬)
+                from src.services.crawl4ai_service import crawl4ai_service
+                crawl4ai_result = await crawl4ai_service.crawl_url(url, timeout=30)
+            except Exception as c4e:
+                logger.debug(f"Crawl4AI 不可用，降级到 Playwright: {c4e}")
+
+            if crawl4ai_result and crawl4ai_result.get("success"):
+                content = crawl4ai_result.get("html", "")
+                title = crawl4ai_result.get("title", "")
+                text = crawl4ai_result.get("content", "")  # 已经是清洁 Markdown
+                await self._update_progress(task, "crawling", 40, "Crawl4AI 抓取成功")
+            else:
+                # Fallback: 原 Playwright 逻辑
+                await self._update_progress(task, "crawling", 25, "降级到 Playwright 抓取...")
+                browser = await self._get_browser()
+                context = await browser.new_context(user_agent=random.choice(self.USER_AGENTS))
+                page = await context.new_page()
+
                 await asyncio.sleep(random.uniform(1.0, 3.0))
-                
                 await page.goto(url, wait_until="networkidle", timeout=30000)
                 final_url = page.url
                 if not _is_allowed_runtime_url(final_url):
                     raise RuntimeError(f"抓取目标发生不安全重定向: {final_url}")
-                
+
                 content = await page.content()
                 title = await page.title()
-                
-                await self._update_progress(task, "crawling", 40, "抓取成功，正在解析内容...")
-                
-                # 2. 清洗数据
-                await self._update_progress(task, "cleaning", 50, "正在清洗数据 (BeautifulSoup & Cleaner)...")
-                
+                await page.close()
+                await context.close()
+                await self._update_progress(task, "crawling", 40, "Playwright 抓取成功")
+
                 soup = BeautifulSoup(content, 'html.parser')
-                # 移除脚本和样式
                 for script in soup(["script", "style"]):
                     script.extract()
-                
                 text = soup.get_text(separator=' ', strip=True)
+
+            try:
                 
                 # 调用业务清洗逻辑
                 clean_data = await data_cleaner.clean_html(content)

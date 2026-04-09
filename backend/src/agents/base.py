@@ -391,11 +391,37 @@ class BaseLegalAgent(ABC):
                 except Exception as e:
                     logger.warning(f"无法获取用户偏好: {e}")
             
+            # ===== Harness: RAG 法律知识自动注入（所有 Agent 共享）=====
+            # 从知识库检索相关法条，注入到 system_prompt 中
+            try:
+                from src.services.agent_rag_service import AgentRAGService
+                rag_context = await AgentRAGService.get_legal_context(
+                    query=message[:1000],
+                    max_articles=5,
+                )
+                if rag_context:
+                    rag_section = AgentRAGService.build_rag_prompt_section(rag_context, task_type="general")
+                    system_prompt += f"\n\n{rag_section}"
+                    logger.debug(f"[Harness] RAG 注入 {len(rag_context)} 条法律知识到 {self.name}")
+            except Exception as rag_err:
+                logger.debug(f"[Harness] RAG 注入跳过: {rag_err}")
+
+            # ===== Harness: 做梦洞察注入（越用越懂用户）=====
+            # 如果 auto_dream 产生了针对该用户的洞察，注入到 prompt 中
+            if user_id:
+                try:
+                    from src.services.experience_engine import experience_engine
+                    exp_ctx = experience_engine.build_experience_context(user_id, message, max_tokens=200)
+                    if exp_ctx:
+                        system_prompt += f"\n\n[用户历史偏好与经验]\n{exp_ctx}"
+                except Exception:
+                    pass
+
             # 防护：确保 user 消息不为空（API 会拒绝空消息）
             if not message or not message.strip():
                 logger.warning(f"Agent {self.name}: 收到空的用户消息，使用默认提示")
                 message = "请根据上下文提供分析和建议。"
-            
+
             # 使用传入的 history > contextvars 任务历史（DAG 执行时自动透传）
             effective_history = history or _task_history_var.get(None)
             messages = self._build_llm_messages(system_prompt, message, effective_history)
@@ -497,8 +523,8 @@ class BaseLegalAgent(ABC):
                             agent_name=self.name,
                             operation=f"agent.{self.name}.chat.turn_{current_turn}",
                         )
-                except Exception:
-                    pass  # 成本追踪不应影响主流程
+                except Exception as _cost_err:
+                    logger.debug(f"成本追踪跳过: {_cost_err}")  # 不影响主流程但记录日志
 
                 # 解析响应：兼容本地模型 API 和 OpenAI 格式
                 if is_local_api:
@@ -508,8 +534,9 @@ class BaseLegalAgent(ABC):
                     for item in output_list:
                         if isinstance(item, dict) and item.get("content"):
                             content += item["content"]
-                    if not content:
-                        content = str(data)
+                    if not content or not content.strip():
+                        logger.warning(f"本地模型返回空响应: {str(data)[:200]}")
+                        content = "抱歉，模型未能生成有效回复，请重试或切换模型。"
                     tool_calls = None  # 本地模型暂不支持 tool calls
                     resp_msg = {"role": "assistant", "content": content}
                 else:
@@ -526,7 +553,13 @@ class BaseLegalAgent(ABC):
                     else:
                         content = raw_content
                     tool_calls = resp_msg.get("tool_calls")
-                
+
+                # 空响应防护
+                if not content and not tool_calls:
+                    logger.warning(f"LLM 返回空内容: model={model_name}, turn={current_turn}")
+                    content = "抱歉，AI 暂时无法生成回复，请稍后重试。"
+                    resp_msg["content"] = content
+
                 # Update messages with assistant response
                 messages.append(resp_msg)
                 
@@ -547,7 +580,7 @@ class BaseLegalAgent(ABC):
                             logger.info(f"Tool {fn_name} executed successfully")
                         except Exception as e:
                             logger.error(f"Tool execution failed for {fn_name}: {e}")
-                            tool_output = f"Error executing tool: {str(e)}"
+                            tool_output = f"[工具调用失败] {fn_name}: {str(e)}。请基于已有信息回答，不要编造数据。"
                         return {
                             "role": "tool",
                             "tool_call_id": call_id,

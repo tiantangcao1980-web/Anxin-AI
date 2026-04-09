@@ -49,6 +49,14 @@ COMPLETENESS_THRESHOLDS = {
     "QA_CONSULTATION":        {"min_score": 0.35, "min_filled_ratio": 0.00},
     "FIND_LAWYER":            {"min_score": 0.40, "min_filled_ratio": 0.30},
     "TEMPLATE_REQUEST":       {"min_score": 0.20, "min_filled_ratio": 0.00},
+    # 计算器类（需要精确参数，宁可多问一轮）
+    "LEGAL_CALCULATION":      {"min_score": 0.70, "min_filled_ratio": 0.60},
+    # P0 新增场景
+    "CONSUMER_PROTECTION":    {"min_score": 0.60, "min_filled_ratio": 0.50},
+    "TRAFFIC_ACCIDENT":       {"min_score": 0.65, "min_filled_ratio": 0.60},
+    "INSURANCE_CLAIM":        {"min_score": 0.60, "min_filled_ratio": 0.50},
+    "SOCIAL_INSURANCE":       {"min_score": 0.55, "min_filled_ratio": 0.40},
+    "PROPERTY_MANAGEMENT":    {"min_score": 0.60, "min_filled_ratio": 0.50},
     # 默认（未列出的场景）
     "_default":               {"min_score": 0.60, "min_filled_ratio": 0.50},
 }
@@ -325,7 +333,7 @@ SCENARIO_TEMPLATES: Dict[str, Dict[str, Any]] = {
                     {
                         "key": "contract_sub_type", "label": "合同类型",
                         "question": "这是什么类型的合同/协议？",
-                        "options": ["买卖/销售合同", "服务合同", "租赁合同", "合作协议", "保密协议（NDA）", "劳动/劳务合同"],
+                        "options": ["买卖/销售合同", "服务合同", "租赁合同", "合作协议", "保密协议（NDA）", "劳动/劳务合同", "其他（请说明）"],
                         "extract_patterns": [
                             r"买卖", r"销售", r"采购", r"购销",
                             r"服务", r"委托", r"咨询", r"外包",
@@ -342,7 +350,7 @@ SCENARIO_TEMPLATES: Dict[str, Dict[str, Any]] = {
                     },
                     {
                         "key": "contract_parties", "label": "合同双方",
-                        "question": "合同双方分别是？（如：甲方XXX公司，乙方XXX）",
+                        "question": "合同双方分别是？（可用化名，如：甲方A公司，乙方B公司）",
                         "extract_patterns": [
                             r"甲方", r"乙方", r"公司", r"对方", r"我方",
                             r"买方", r"卖方", r"出租", r"承租",
@@ -351,16 +359,65 @@ SCENARIO_TEMPLATES: Dict[str, Dict[str, Any]] = {
                     },
                     {
                         "key": "contract_subject", "label": "合同标的",
-                        "question": "合同涉及的主要内容是什么？（如：标的物、服务内容、金额等）",
+                        "question": "合同涉及的具体标的是什么？（如：商品名称、服务内容）",
                         "extract_patterns": [
                             r"\d+万", r"\d+元", r"金额", r"标的",
                             r"货物", r"商品", r"产品", r"设备",
                             r"房屋", r"场地", r"土地",
                         ],
-                        "round": 2,
+                        "round": 1,
                     },
                 ],
                 "optional_slots": [
+                    # === Round 2: 交易核心条款（影响合同质量的关键信息）===
+                    {
+                        "key": "goods_detail", "label": "商品/服务明细",
+                        "question": "请补充商品或服务的具体信息（数量、规格、型号、质量标准等）",
+                        "extract_patterns": [r"\d+台", r"\d+件", r"\d+吨", r"\d+套", r"规格", r"型号", r"标准"],
+                        "round": 2,
+                    },
+                    {
+                        "key": "total_amount", "label": "合同金额",
+                        "question": "合同总金额是多少？",
+                        "options": ["1万以内", "1-10万", "10-100万", "100万以上", "按实际结算", "其他（请说明）"],
+                        "extract_patterns": [r"\d+万", r"\d+元", r"金额", r"总价"],
+                        "round": 2,
+                    },
+                    {
+                        "key": "payment_terms", "label": "付款方式",
+                        "question": "付款方式和时间安排？",
+                        "options": ["一次性付清", "分期付款（预付+尾款）", "货到付款", "月结/季结", "按进度付款", "其他（请说明）"],
+                        "extract_patterns": [r"付款", r"支付", r"预付", r"尾款", r"月结", r"分期"],
+                        "round": 2,
+                    },
+                    {
+                        "key": "delivery_terms", "label": "交付/交货",
+                        "question": "交付时间和地点？",
+                        "extract_patterns": [r"交付", r"交货", r"发货", r"配送", r"\d+天", r"\d+日"],
+                        "round": 2,
+                    },
+                    # === Round 3: 风险控制条款（专业合同必备）===
+                    {
+                        "key": "quality_standard", "label": "质量标准",
+                        "question": "商品/服务的验收标准是什么？",
+                        "options": ["国家标准", "行业标准", "双方约定标准", "样品标准", "其他（请说明）"],
+                        "extract_patterns": [r"标准", r"验收", r"质量", r"检验", r"合格"],
+                        "round": 3,
+                    },
+                    {
+                        "key": "warranty_period", "label": "质保期",
+                        "question": "质保期多长？",
+                        "options": ["无质保", "3个月", "6个月", "1年", "2年", "其他（请说明）"],
+                        "extract_patterns": [r"质保", r"保修", r"保质", r"\d+月", r"\d+年"],
+                        "round": 3,
+                    },
+                    {
+                        "key": "dispute_resolution", "label": "争议解决",
+                        "question": "发生争议时如何解决？",
+                        "options": ["协商解决", "提交仲裁委员会仲裁", "向甲方所在地法院起诉", "向乙方所在地法院起诉", "向合同签订地法院起诉", "其他（请说明）"],
+                        "extract_patterns": [r"仲裁", r"法院", r"管辖", r"诉讼", r"协商"],
+                        "round": 3,
+                    },
                     {
                         "key": "contract_term", "label": "合同期限",
                         "question": "合同期限大约多长？",
@@ -371,11 +428,11 @@ SCENARIO_TEMPLATES: Dict[str, Dict[str, Any]] = {
                     {
                         "key": "special_terms", "label": "特殊条款",
                         "question": "是否有需要特别关注的条款？",
-                        "options": ["违约责任", "知识产权归属", "保密条款", "竞业限制", "争议解决方式", "暂时没有"],
+                        "options": ["违约责任", "知识产权归属", "保密条款", "竞业限制", "争议解决方式", "暂时没有", "其他（请说明）"],
                         "extract_patterns": [
                             r"违约", r"知识产权", r"保密", r"竞业", r"仲裁", r"管辖",
                         ],
-                        "round": 2,
+                        "round": 3,
                     },
                 ],
             },
@@ -474,20 +531,56 @@ SCENARIO_TEMPLATES: Dict[str, Dict[str, Any]] = {
             },
         ],
         "optional_slots": [
+            # === Round 2: 核心信息 ===
             {
                 "key": "dispute_amount", "label": "争议金额",
                 "question": "涉及的争议金额大约多少？",
-                "options": ["10万以下", "10-50万", "50-500万", "500万以上", "非金钱纠纷"],
+                "options": ["10万以下", "10-50万", "50-500万", "500万以上", "非金钱纠纷", "其他（请说明）"],
                 "extract_patterns": [r"\d+万", r"\d+元", r"金额", r"标的", r"赔偿"],
                 "round": 2,
             },
-            {"key": "evidence_status", "label": "证据情况", "question": "目前掌握哪些证据？", "round": 2},
+            {
+                "key": "client_goal", "label": "期望结果",
+                "question": "您最希望达到什么结果？",
+                "options": ["全额赔偿/返还", "协商和解（接受部分赔偿）", "维护权益（不一定要钱）", "保住合作关系", "获得道歉/纠正", "其他（请说明）"],
+                "extract_patterns": [r"赔偿", r"和解", r"调解", r"道歉", r"关系"],
+                "round": 2,
+            },
+            {
+                "key": "evidence_status", "label": "证据情况",
+                "question": "目前掌握哪些关键证据？",
+                "options": ["有书面合同", "有转账/付款记录", "有微信/邮件沟通记录", "有录音/录像", "有第三方证人", "证据较少/不确定", "其他（请说明）"],
+                "extract_patterns": [r"合同", r"转账", r"微信", r"录音", r"证人", r"证据"],
+                "round": 2,
+            },
             {
                 "key": "timeline", "label": "时间压力",
                 "question": "是否有诉讼时效或期限压力？",
                 "options": ["紧急（即将到期）", "有时间", "不确定"],
                 "extract_patterns": [r"快到期", r"时效", r"期限", r"快过了"],
                 "round": 2,
+            },
+            # === Round 3: 策略相关 ===
+            {
+                "key": "prior_communication", "label": "前期沟通",
+                "question": "之前是否已与对方沟通过？",
+                "options": ["从未沟通", "口头协商过但无果", "已发律师函/催告", "对方完全不回应", "其他（请说明）"],
+                "extract_patterns": [r"协商", r"沟通", r"律师函", r"催过", r"不理"],
+                "round": 3,
+            },
+            {
+                "key": "opponent_status", "label": "对方情况",
+                "question": "对方目前是什么态度/状况？",
+                "options": ["正常经营/有偿还能力", "经营困难/可能无力赔偿", "失联/找不到人", "态度强硬/拒绝沟通", "不确定", "其他（请说明）"],
+                "extract_patterns": [r"找不到", r"失联", r"困难", r"破产", r"强硬"],
+                "round": 3,
+            },
+            {
+                "key": "urgent_measures", "label": "紧急措施",
+                "question": "是否需要紧急保全措施？",
+                "options": ["需要财产保全（冻结对方账户/资产）", "需要证据保全（防止对方销毁证据）", "需要行为保全（禁令）", "暂不需要", "不确定"],
+                "extract_patterns": [r"保全", r"冻结", r"查封", r"禁令", r"紧急"],
+                "round": 3,
             },
             {
                 "key": "has_lawyer", "label": "是否有律师",
@@ -1740,6 +1833,309 @@ SCENARIO_TEMPLATES: Dict[str, Dict[str, Any]] = {
                 "question": "造成了什么损害？",
                 "options": ["人身伤害", "财产损失", "精神损害", "尚未造成损害（预防）"],
                 "extract_patterns": [r"受伤", r"伤害", r"损失", r"精神"],
+                "round": 2,
+            },
+        ],
+        "auto_complete_if": [],
+        "min_required_for_proceed": 2,
+    },
+
+    # ================================================================
+    # 法律计算
+    # ================================================================
+    "LEGAL_CALCULATION": {
+        "name": "法律计算",
+        "required_slots": [
+            {
+                "key": "calc_type", "label": "计算类型",
+                "question": "您需要计算什么？",
+                "options": ["经济补偿金(N/N+1/2N)", "诉讼费", "诉讼时效", "加班费", "工伤赔偿"],
+                "extract_patterns": [
+                    r"补偿金", r"赔偿金", r"N\+1", r"2N", r"经济补偿",
+                    r"诉讼费", r"起诉费", r"受理费",
+                    r"时效", r"过期",
+                    r"加班费", r"加班",
+                    r"工伤", r"伤残",
+                ],
+                "round": 1,
+            },
+        ],
+        "optional_slots": [
+            {
+                "key": "monthly_salary", "label": "月工资",
+                "question": "月工资（税前）是多少？",
+                "extract_patterns": [r"\d+(?:元|块)", r"月薪?\d+", r"工资\d+", r"\d+/月"],
+                "round": 1,
+            },
+            {
+                "key": "work_years", "label": "工作年限",
+                "question": "在该单位工作了多长时间？",
+                "extract_patterns": [r"\d+年", r"干了\d+", r"工作\d+"],
+                "round": 1,
+            },
+            {
+                "key": "amount", "label": "标的额/金额",
+                "question": "涉及的金额大约是多少？",
+                "extract_patterns": [r"\d+万", r"\d+元", r"标的\d+"],
+                "round": 1,
+            },
+            {
+                "key": "city", "label": "所在城市",
+                "question": "在哪个城市？（影响社平工资和最低工资标准）",
+                "extract_patterns": [
+                    r"北京|上海|深圳|广州|杭州|南京|苏州|成都|武汉|重庆|天津|西安",
+                    r"长沙|郑州|青岛|大连|厦门|福州|合肥|济南|沈阳|哈尔滨",
+                ],
+                "round": 2,
+            },
+            {
+                "key": "termination_type", "label": "解除类型",
+                "question": "是什么情况下的解除/辞退？",
+                "options": ["协商解除(N)", "无过失辞退未提前通知(N+1)", "违法辞退(2N)"],
+                "extract_patterns": [r"协商", r"无过失", r"违法辞退", r"非法辞退", r"强行辞退"],
+                "round": 1,
+            },
+            {
+                "key": "trigger_date", "label": "时效起算日期",
+                "question": "权利受到侵害（或知道受侵害）是什么时候？",
+                "extract_patterns": [r"\d{4}[-/年]\d{1,2}[-/月]\d{1,2}", r"去年", r"今年", r"前年"],
+                "round": 1,
+            },
+            {
+                "key": "disability_level", "label": "伤残等级",
+                "question": "伤残鉴定的等级是几级？(1-10级)",
+                "extract_patterns": [r"\d+级", r"一级|二级|三级|四级|五级|六级|七级|八级|九级|十级"],
+                "round": 1,
+            },
+        ],
+        "auto_complete_if": [],
+        "min_required_for_proceed": 1,
+        "sub_templates": {
+            "severance": {
+                "trigger_keywords": ["补偿金", "赔偿金", "N+1", "2N", "辞退", "经济补偿"],
+                "extra_required": ["monthly_salary", "work_years"],
+                "extra_optional": ["city", "termination_type"],
+            },
+            "litigation_cost": {
+                "trigger_keywords": ["诉讼费", "起诉费", "受理费", "打官司费用"],
+                "extra_required": ["amount"],
+                "extra_optional": [],
+            },
+            "statute_of_limitations": {
+                "trigger_keywords": ["时效", "过期", "还能起诉", "过了时效"],
+                "extra_required": ["trigger_date"],
+                "extra_optional": [],
+            },
+            "overtime_pay": {
+                "trigger_keywords": ["加班费", "加班工资", "加班补偿"],
+                "extra_required": ["monthly_salary"],
+                "extra_optional": [],
+            },
+            "work_injury": {
+                "trigger_keywords": ["工伤", "伤残赔偿", "工伤补偿"],
+                "extra_required": ["disability_level", "monthly_salary"],
+                "extra_optional": ["city"],
+            },
+        },
+    },
+
+    # ================================================================
+    # P0 新增场景：消费者维权
+    # ================================================================
+    "CONSUMER_PROTECTION": {
+        "name": "消费者维权",
+        "required_slots": [
+            {
+                "key": "issue_type", "label": "问题类型",
+                "question": "您遇到了什么消费问题？",
+                "options": ["商品质量问题", "虚假宣传/欺诈", "预付卡/充值退款", "网购纠纷/退货", "服务质量不达标", "食品安全"],
+                "extract_patterns": [
+                    r"质量", r"假[货冒]", r"虚假宣传", r"欺[诈骗]", r"退[款货]", r"充值",
+                    r"预付", r"网购", r"食品", r"过期", r"霉变", r"投诉",
+                ],
+                "round": 1,
+            },
+            {
+                "key": "purchase_info", "label": "消费信息",
+                "question": "消费金额和消费时间？在哪里消费的？",
+                "extract_patterns": [r"\d+元", r"\d+块", r"\d+万", r"淘宝", r"京东", r"拼多多", r"实体店"],
+                "round": 1,
+            },
+        ],
+        "optional_slots": [
+            {
+                "key": "evidence", "label": "证据情况",
+                "question": "有哪些证据？（发票/收据/聊天记录/照片等）",
+                "extract_patterns": [r"发票", r"收据", r"截图", r"聊天记录", r"照片", r"视频"],
+                "round": 2,
+            },
+            {
+                "key": "merchant_response", "label": "商家态度",
+                "question": "联系过商家吗？商家怎么回应的？",
+                "options": ["未联系", "商家拒绝处理", "商家同意但未兑现", "商家失联/跑路"],
+                "extract_patterns": [r"拒绝", r"不理", r"失联", r"跑路"],
+                "round": 2,
+            },
+        ],
+        "auto_complete_if": [],
+        "min_required_for_proceed": 2,
+    },
+
+    # ================================================================
+    # P0 新增场景：交通事故
+    # ================================================================
+    "TRAFFIC_ACCIDENT": {
+        "name": "交通事故",
+        "required_slots": [
+            {
+                "key": "accident_type", "label": "事故类型",
+                "question": "事故情况是怎样的？",
+                "options": ["追尾", "刮蹭", "行人被撞", "非机动车事故", "多车连环", "单方事故"],
+                "extract_patterns": [
+                    r"追尾", r"刮蹭", r"撞[了到]", r"被撞", r"碰撞", r"碾压",
+                    r"逆行", r"闯红灯", r"超速",
+                ],
+                "round": 1,
+            },
+            {
+                "key": "injury_status", "label": "伤亡情况",
+                "question": "有没有人受伤？伤情如何？",
+                "options": ["无人受伤（纯财产损失）", "轻微伤", "轻伤以上", "有人死亡"],
+                "extract_patterns": [r"受伤", r"骨折", r"住院", r"伤残", r"死亡", r"没受伤"],
+                "round": 1,
+            },
+        ],
+        "optional_slots": [
+            {
+                "key": "responsibility", "label": "责任认定",
+                "question": "交警有没有出具事故责任认定书？责任怎么划分的？",
+                "options": ["全责", "主责", "同等责任", "次责", "无责", "尚未认定"],
+                "extract_patterns": [r"全责", r"主责", r"同责", r"次责", r"无责", r"认定书"],
+                "round": 1,
+            },
+            {
+                "key": "insurance_status", "label": "保险情况",
+                "question": "双方的保险情况？（交强险/商业险）",
+                "extract_patterns": [r"交强险", r"商业险", r"三者险", r"全险", r"没有保险"],
+                "round": 2,
+            },
+            {
+                "key": "damage_amount", "label": "损失金额",
+                "question": "大致的损失金额？（维修费、医疗费等）",
+                "extract_patterns": [r"\d+元", r"\d+万", r"修车", r"医疗费"],
+                "round": 2,
+            },
+        ],
+        "auto_complete_if": [],
+        "min_required_for_proceed": 2,
+    },
+
+    # ================================================================
+    # P0 新增场景：保险理赔
+    # ================================================================
+    "INSURANCE_CLAIM": {
+        "name": "保险理赔",
+        "required_slots": [
+            {
+                "key": "insurance_type", "label": "保险类型",
+                "question": "是什么保险？",
+                "options": ["车险", "意外险", "医疗险/健康险", "人寿险", "财产险", "责任险", "工程险"],
+                "extract_patterns": [
+                    r"车险", r"意外", r"医疗", r"健康", r"人寿", r"财产",
+                    r"交强险", r"商业险", r"工程险", r"责任险",
+                ],
+                "round": 1,
+            },
+            {
+                "key": "claim_issue", "label": "理赔问题",
+                "question": "遇到了什么问题？",
+                "options": ["保险公司拒赔", "理赔金额过低", "理赔拖延不处理", "对定损金额有异议", "不清楚如何理赔"],
+                "extract_patterns": [r"拒赔", r"不赔", r"赔少了", r"拖延", r"定损", r"怎么理赔"],
+                "round": 1,
+            },
+        ],
+        "optional_slots": [
+            {
+                "key": "claim_amount", "label": "理赔金额",
+                "question": "要求理赔的金额大概是多少？保险公司认可多少？",
+                "extract_patterns": [r"\d+元", r"\d+万"],
+                "round": 2,
+            },
+            {
+                "key": "rejection_reason", "label": "拒赔理由",
+                "question": "保险公司拒赔的理由是什么？",
+                "extract_patterns": [r"免责", r"不在范围", r"未如实告知", r"等待期", r"除外"],
+                "round": 2,
+            },
+        ],
+        "auto_complete_if": [],
+        "min_required_for_proceed": 2,
+    },
+
+    # ================================================================
+    # P0 新增场景：社保公积金
+    # ================================================================
+    "SOCIAL_INSURANCE": {
+        "name": "社保公积金",
+        "required_slots": [
+            {
+                "key": "issue_type", "label": "问题类型",
+                "question": "您遇到了什么社保/公积金问题？",
+                "options": ["公司未缴社保", "社保断缴/补缴", "公积金提取", "工伤保险待遇", "生育保险待遇", "养老保险转移"],
+                "extract_patterns": [
+                    r"没交社保", r"不交社保", r"未缴", r"断缴", r"补缴",
+                    r"公积金", r"提取", r"工伤", r"生育", r"养老", r"医保",
+                ],
+                "round": 1,
+            },
+        ],
+        "optional_slots": [
+            {
+                "key": "duration", "label": "时间范围",
+                "question": "涉及多长时间？（如未缴社保的月数）",
+                "extract_patterns": [r"\d+个?月", r"\d+年", r"一直没交"],
+                "round": 1,
+            },
+            {
+                "key": "employer_info", "label": "单位信息",
+                "question": "在什么单位工作？是否有劳动合同？",
+                "extract_patterns": [r"合同", r"公司", r"单位"],
+                "round": 2,
+            },
+        ],
+        "auto_complete_if": [],
+        "min_required_for_proceed": 1,
+    },
+
+    # ================================================================
+    # P0 新增场景：物业管理纠纷
+    # ================================================================
+    "PROPERTY_MANAGEMENT": {
+        "name": "物业管理纠纷",
+        "required_slots": [
+            {
+                "key": "issue_type", "label": "纠纷类型",
+                "question": "遇到什么物业问题？",
+                "options": ["物业费纠纷", "维修基金使用", "业委会选举/成立", "物业服务质量差", "公共区域权益侵占", "停车位纠纷"],
+                "extract_patterns": [
+                    r"物业费", r"维修基金", r"业委会", r"服务质量", r"公共区域",
+                    r"停车", r"电梯", r"绿化", r"安保",
+                ],
+                "round": 1,
+            },
+            {
+                "key": "role", "label": "您的身份",
+                "question": "您是业主还是物业公司？",
+                "options": ["业主", "物业公司", "业委会"],
+                "extract_patterns": [r"业主", r"物业公司", r"物业", r"业委会"],
+                "round": 1,
+            },
+        ],
+        "optional_slots": [
+            {
+                "key": "amount", "label": "涉及金额",
+                "question": "涉及的金额大约是多少？",
+                "extract_patterns": [r"\d+元", r"\d+万"],
                 "round": 2,
             },
         ],

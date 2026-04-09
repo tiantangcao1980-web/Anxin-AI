@@ -818,7 +818,13 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                 except Exception as _reassess_err:
                     logger.warning(f"[Harness] 重评估失败，降级放行: {_reassess_err}")
 
-                req_analysis = {"is_complete": True, "summary": content[:100], "complexity": "moderate"}
+                # 保留完整上下文（包括已填槽位），避免丢失用户已补充的信息
+                req_analysis = {
+                    "is_complete": True,
+                    "summary": content[:100],
+                    "complexity": "moderate",
+                    "filled_slots": _prev_assessment.get("filled_slots", []) if _prev_assessment else [],
+                }
                 _is_simple = False
                 _is_complex_by_keyword = True
             elif data.get("mode") == "professional":

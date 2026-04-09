@@ -44,6 +44,7 @@ from src.agents.evidence_analyst import EvidenceAnalystAgent
 from src.agents.contract_steward import ContractStewardAgent
 from src.agents.requirement_analyst import RequirementAnalystAgent
 from src.agents.template_librarian import TemplateLirarianAgent
+from src.agents.legal_calculator import LegalCalculatorAgent
 
 
 # 回调类型别名
@@ -127,6 +128,7 @@ class LegalWorkforce:
             "evidence_analyst": EvidenceAnalystAgent(),
             "contract_steward": ContractStewardAgent(),
             "template_librarian": TemplateLirarianAgent(),
+            "legal_calculator": LegalCalculatorAgent(),
         }
 
         logger.info(f"法务智能体团队初始化完成，共 {len(self.agents)} 个专业智能体")
@@ -287,8 +289,10 @@ class LegalWorkforce:
             "evidence_analyst": "证据分析Agent",
             "contract_steward": "合同管家Agent",
             "consensus_manager": "共识管理Agent",
+            "legal_calculator": "法务分析Agent",
+            "template_librarian": "模板库Agent",
         }
-        
+
         # 推送思考链内容：意图识别 + DAG 规划（中文展示）
         intent = analysis.get("intent", "UNKNOWN")
         reasoning = analysis.get("reasoning", "")
@@ -788,6 +792,7 @@ class LegalWorkforce:
             "ip_specialist": "知识产权Agent", "regulatory_monitor": "监管监测Agent",
             "tax_compliance": "税务合规Agent", "labor_compliance": "劳动合规Agent",
             "evidence_analyst": "证据分析Agent", "contract_steward": "合同管家Agent",
+            "legal_calculator": "法务分析Agent", "template_librarian": "模板库Agent",
         }
 
         # 2. 基础设施初始化

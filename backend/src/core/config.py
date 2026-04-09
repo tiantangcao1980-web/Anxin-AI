@@ -17,6 +17,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
+        extra="ignore",
     )
 
     # ========== 基础配置 ==========
@@ -254,6 +255,25 @@ class Settings(BaseSettings):
     # ========== 搜索服务 API ==========
     TAVILY_API_KEY: str = ""        # Tavily Search API (https://tavily.com)
     BING_SEARCH_KEY: str = ""       # Bing Web Search API
+
+    # ===== Crawl4AI 配置 =====
+    CRAWL4AI_ENABLED: bool = True
+    CRAWL4AI_TIMEOUT: int = 30          # 单页超时（秒）
+    CRAWL4AI_MAX_CONCURRENT: int = 3    # 最大并发爬取数
+    CRAWL4AI_CACHE_ENABLED: bool = True # 启用 Crawl4AI 内置缓存
+    CRAWL4AI_VERBOSE: bool = False
+
+    # ===== SearXNG 配置 =====
+    SEARXNG_ENABLED: bool = True
+    SEARXNG_URL: str = "http://searxng:8080"  # Docker 内部地址
+    SEARXNG_TIMEOUT: int = 15
+    SEARXNG_MAX_RESULTS: int = 10
+
+    # ===== Open-WebSearch 配置 =====
+    OPEN_WEBSEARCH_ENABLED: bool = True
+    OPEN_WEBSEARCH_URL: str = "http://localhost:3080"
+    OPEN_WEBSEARCH_ENGINES: str = "bing,duckduckgo,baidu"
+    OPEN_WEBSEARCH_TIMEOUT: int = 15
 
     # ===== OAuth 第三方登录 =====
     WECHAT_APP_ID: str = ""

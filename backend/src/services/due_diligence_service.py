@@ -380,6 +380,26 @@ class DueDiligenceService:
         """
         result = {"execution_cases": 0, "total_amount": "", "records": [], "dishonest_records": 0}
 
+        # 优先尝试 Crawl4AI（反检测能力更强）
+        try:
+            from src.services.crawl4ai_service import crawl4ai_service
+            c4_result = await crawl4ai_service.crawl_url(
+                f"https://zxgk.court.gov.cn/zhixing/?pName={company_name}",
+                timeout=20,
+            )
+            if c4_result.get("success") and c4_result.get("content"):
+                content = c4_result["content"]
+                # 从 Markdown 内容中提取执行案件数
+                import re
+                case_matches = re.findall(r'(\d+)\s*(?:件|条|项)', content)
+                if case_matches:
+                    result["execution_cases"] = int(case_matches[0])
+                    logger.info(f"Crawl4AI 获取执行信息成功: {company_name}, {result['execution_cases']} 件")
+                    return result
+        except Exception as c4e:
+            logger.debug(f"Crawl4AI 执行信息获取失败: {c4e}")
+
+        # Fallback: Playwright
         try:
             from playwright.async_api import async_playwright
         except ImportError:
@@ -476,6 +496,30 @@ class DueDiligenceService:
         """
         result = {"penalties": 0, "red_list": False, "black_list": False, "records": []}
 
+        # 优先尝试 Crawl4AI
+        try:
+            from src.services.crawl4ai_service import crawl4ai_service
+            credit_url = f"https://www.creditchina.gov.cn/xinyongxinxixiangqing/xyDetail.html?searchState=1&entityType=1&keyword={company_name}"
+            c4_result = await crawl4ai_service.crawl_url(credit_url, timeout=20)
+            if c4_result.get("success") and c4_result.get("content"):
+                content = c4_result["content"]
+                import re
+                # 提取行政处罚数
+                penalty_match = re.findall(r'行政处罚[^0-9]*(\d+)', content)
+                if penalty_match:
+                    result["penalties"] = int(penalty_match[0])
+                # 检测黑名单
+                if "严重失信" in content or "黑名单" in content:
+                    result["black_list"] = True
+                if "守信红名单" in content or "红名单" in content:
+                    result["red_list"] = True
+                if result["penalties"] > 0 or result["black_list"]:
+                    logger.info(f"Crawl4AI 信用中国数据成功: {company_name}, 处罚={result['penalties']}")
+                    return result
+        except Exception as c4e:
+            logger.debug(f"Crawl4AI 信用中国获取失败: {c4e}")
+
+        # Fallback: Playwright
         try:
             from playwright.async_api import async_playwright
         except ImportError:
@@ -717,6 +761,43 @@ class DueDiligenceService:
         except Exception as e:
             logger.debug(f"爱企查接口不可用: {e}")
 
+        # --- 数据源 4: 国家企业信用信息公示系统 (GSXT) ---
+        try:
+            async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+                # GSXT 搜索接口
+                resp = await client.post(
+                    "https://www.gsxt.gov.cn/corp-query-entprise-info-searchent-search.html",
+                    data={"searchword": company_name},
+                    headers={
+                        **headers,
+                        "Referer": "https://www.gsxt.gov.cn/index.html",
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                )
+                if resp.status_code == 200:
+                    try:
+                        data = resp.json()
+                        items = data.get("data", [])
+                        if items and isinstance(items, list):
+                            for item in items:
+                                if company_name in str(item.get("entName", "")):
+                                    result = {
+                                        "name": item.get("entName", company_name),
+                                        "legal_representative": item.get("leRepNm", ""),
+                                        "registered_capital": item.get("regCap", ""),
+                                        "established_date": item.get("estDate", ""),
+                                        "address": item.get("dom", ""),
+                                        "status": item.get("regState", "正常"),
+                                        "unified_credit_code": item.get("uniscId", ""),
+                                        "company_type": item.get("entType", ""),
+                                    }
+                                    logger.info(f"国家企业信用信息公示系统数据获取成功: {company_name}")
+                                    return result
+                    except (json.JSONDecodeError, KeyError):
+                        pass
+        except Exception as e:
+            logger.debug(f"国家企业信用信息公示系统接口不可用: {e}")
+
         logger.warning(f"所有公开数据源均未获取到企业数据: {company_name}")
         return None
 
@@ -897,6 +978,38 @@ class DueDiligenceService:
                 logger.info(f"裁判文书网: {company_name} 有 {wenshu_data['case_count']} 条相关文书")
         except (asyncio.TimeoutError, Exception) as e:
             logger.debug(f"裁判文书网数据获取超时或失败: {e}")
+
+        # ===== 第七步：数据驱动风险重算 =====
+        # 用真实采集的数据重新计算风险评分，替代 LLM 估算
+        try:
+            from src.services.risk_scoring_engine import risk_scoring_engine
+            llm_risk = result.get("risk", {})  # 保留 LLM 结果作为补充
+            data_driven_risk = risk_scoring_engine.compute_risk_scores(
+                basic_info=result.get("basic_info", {}),
+                litigation=result.get("litigation", {}),
+                credit=result.get("credit", {}),
+                llm_risk=llm_risk,
+            )
+            # 保留 LLM 的 risk_points（去重合并）
+            existing_points = set(llm_risk.get("risk_points", []))
+            new_points = data_driven_risk.get("risk_points", [])
+            merged_points = list(existing_points | set(new_points))
+            data_driven_risk["risk_points"] = merged_points[:15]
+
+            # 保留 LLM 的 recommendations（去重合并）
+            existing_recs = set(llm_risk.get("recommendations", []))
+            new_recs = data_driven_risk.get("recommendations", [])
+            data_driven_risk["recommendations"] = list(existing_recs | set(new_recs))[:10]
+
+            result["risk"] = data_driven_risk
+            logger.info(
+                f"数据驱动风险评分: {company_name} "
+                f"综合={data_driven_risk['overall_score']}, "
+                f"质量={data_driven_risk['data_quality']}, "
+                f"来源={data_driven_risk['data_sources']}"
+            )
+        except Exception as e:
+            logger.warning(f"数据驱动风险评分失败，保留 LLM 评分: {e}")
 
         # 附加查询配额信息
         result["_query_quota"] = {

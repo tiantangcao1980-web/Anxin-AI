@@ -137,8 +137,28 @@ export function InvestigationOverview({ data, companyName, onNavigate, onGenerat
     },
   ]
 
+  // 数据质量标识
+  const dataQuality = data.risk?.data_quality
+  const dataSources = data.risk?.data_sources || []
+  const dataQualityLabel = dataQuality === 'real' ? '真实数据' : dataQuality === 'public' ? '公开数据' : dataQuality === 'estimated' ? 'AI 估算' : '综合'
+  const dataQualityColor = dataQuality === 'real' ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30' : dataQuality === 'public' ? 'text-primary bg-primary/5' : 'text-muted-foreground bg-muted'
+
   return (
     <div className="space-y-6">
+      {/* 数据质量标识 */}
+      {dataQuality && (
+        <div className="flex items-center gap-2 text-xs">
+          <span className={`px-2 py-0.5 rounded-full font-medium ${dataQualityColor}`}>
+            {dataQualityLabel}
+          </span>
+          {dataSources.length > 0 && (
+            <span className="text-muted-foreground">
+              数据来源：{dataSources.join('、')}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* KPI 卡片 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {kpiCards.map((card, i) => {

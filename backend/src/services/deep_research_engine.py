@@ -455,6 +455,29 @@ class DeepResearchEngine:
         except Exception as e:
             logger.debug(f"工商数据获取失败: {e}")
 
+        # 搜索结果去重 + 质量评分
+        if results:
+            try:
+                from src.services.search_dedup_service import search_dedup_service
+                result_dicts = [r.to_dict() if hasattr(r, 'to_dict') else {"title": r.title, "snippet": r.content, "url": getattr(r, 'url', ''), "relevance": r.relevance, "source": r.source} for r in results]
+                deduped = search_dedup_service.deduplicate(result_dicts)
+                # 重建 SearchResult 列表
+                new_results = []
+                for d in deduped:
+                    new_results.append(SearchResult(
+                        source=d.get("source", ""),
+                        title=d.get("title", ""),
+                        content=d.get("snippet", d.get("content", "")),
+                        url=d.get("url", ""),
+                        relevance=d.get("relevance", 0.5),
+                    ))
+                original_count = len(results)
+                results = new_results
+                if original_count != len(results):
+                    logger.debug(f"深度研究去重: {original_count} → {len(results)} 条")
+            except Exception as dedup_err:
+                logger.debug(f"去重跳过: {dedup_err}")
+
         # 搜索结果入缓存
         if results and self.data_store:
             cache_data = {"results": [r.to_dict() for r in results]}

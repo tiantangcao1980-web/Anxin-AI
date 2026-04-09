@@ -57,12 +57,21 @@ class WebSearchService:
         Returns:
             [{"title": ..., "snippet": ..., "url": ..., "relevance": ...}]
         """
-        # 依次尝试各搜索引擎
-        for searcher in [
-            self._search_tavily,
-            self._search_bing,
-            self._search_duckduckgo,
-        ]:
+        # 构建搜索引擎优先级链
+        # L1: SearXNG（自建实例，最高质量）
+        # L2: Tavily / Bing（付费 API）
+        # L3: Open-WebSearch（免费降级）
+        # L4: DuckDuckGo（兜底）
+        search_chain = []
+        if getattr(settings, "SEARXNG_ENABLED", False):
+            search_chain.append(self._search_searxng)
+        search_chain.append(self._search_tavily)
+        search_chain.append(self._search_bing)
+        if getattr(settings, "OPEN_WEBSEARCH_ENABLED", False):
+            search_chain.append(self._search_open_websearch)
+        search_chain.append(self._search_duckduckgo)
+
+        for searcher in search_chain:
             try:
                 results = await searcher(query, max_results, search_depth, time_range)
                 if results:
@@ -245,6 +254,86 @@ class WebSearchService:
                     "source": "duckduckgo",
                 })
 
+        return results
+
+    # ========== SearXNG 自建搜索 ==========
+
+    async def _search_searxng(
+        self,
+        query: str,
+        max_results: int,
+        search_depth: str,
+        time_range: Optional[str],
+    ) -> List[Dict[str, Any]]:
+        """SearXNG 自建搜索引擎（250+ 引擎聚合）"""
+        searxng_url = getattr(settings, "SEARXNG_URL", "")
+        if not searxng_url:
+            return []
+
+        params: Dict[str, Any] = {
+            "q": query,
+            "format": "json",
+            "language": "zh-CN",
+            "pageno": 1,
+        }
+        if time_range:
+            params["time_range"] = time_range
+
+        timeout = getattr(settings, "SEARXNG_TIMEOUT", 15)
+
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.get(f"{searxng_url}/search", params=params)
+            resp.raise_for_status()
+            data = resp.json()
+
+        results = []
+        for i, r in enumerate(data.get("results", [])[:max_results]):
+            results.append({
+                "title": r.get("title", ""),
+                "snippet": r.get("content", ""),
+                "url": r.get("url", ""),
+                "relevance": 1.0 - (i * 0.05),
+                "source": f"searxng:{r.get('engine', '')}",
+            })
+        return results
+
+    # ========== Open-WebSearch 免费降级 ==========
+
+    async def _search_open_websearch(
+        self,
+        query: str,
+        max_results: int,
+        search_depth: str,
+        time_range: Optional[str],
+    ) -> List[Dict[str, Any]]:
+        """Open-WebSearch 免费搜索（无需 API Key）"""
+        ows_url = getattr(settings, "OPEN_WEBSEARCH_URL", "")
+        if not ows_url:
+            return []
+
+        engines_str = getattr(settings, "OPEN_WEBSEARCH_ENGINES", "bing,duckduckgo,baidu")
+        payload = {
+            "query": query,
+            "engines": engines_str.split(","),
+            "max_results": max_results,
+        }
+
+        timeout = getattr(settings, "OPEN_WEBSEARCH_TIMEOUT", 15)
+
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.post(f"{ows_url}/search", json=payload)
+            resp.raise_for_status()
+            data = resp.json()
+
+        results = []
+        for i, r in enumerate(data.get("results", [])[:max_results]):
+            results.append({
+                "title": r.get("title", ""),
+                "snippet": r.get("snippet", r.get("description", "")),
+                "url": r.get("url", ""),
+                "relevance": 0.6 - (i * 0.03),
+                "source": f"open_websearch:{r.get('engine', '')}",
+            })
         return results
 
 

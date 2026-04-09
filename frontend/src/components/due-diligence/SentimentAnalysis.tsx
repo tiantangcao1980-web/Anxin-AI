@@ -18,6 +18,7 @@ interface SentimentAnalysisProps {
     operation_risk?: number
     litigation_risk?: number
     credit_risk?: number
+    [key: string]: any  // 支持 data_quality, data_sources 等扩展字段
     compliance_risk?: number
     relation_risk?: number
     overall_rating?: string
@@ -58,7 +59,9 @@ export function SentimentAnalysis({ data }: SentimentAnalysisProps) {
           <icons.ShieldAlert className="w-5 h-5 text-primary" />
           <div>
             <h3 className={heading.section}>五维风险分析</h3>
-            <p className={heading.muted}>基于多维度风险评估模型</p>
+            <p className={heading.muted}>
+              {data?.data_quality === 'real' ? '基于真实政府公开数据' : data?.data_quality === 'public' ? '基于公开工商数据' : '基于多维度风险评估模型'}
+            </p>
           </div>
         </div>
         <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${

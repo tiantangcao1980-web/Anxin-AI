@@ -813,8 +813,8 @@ class ChatService:
                     f"{citation_result.get('verified_count', 0)} 条已验证, "
                     f"{citation_result.get('sunk_count', 0)} 条沉淀到图谱"
                 )
-        except Exception:
-            pass
+        except Exception as citation_err:
+            logger.warning(f"引文追踪失败（不影响回复）: {citation_err}")
 
         ai_message = await self.add_message(
             conversation_id=conversation.id,

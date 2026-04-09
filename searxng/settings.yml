@@ -1,0 +1,45 @@
+general:
+  instance_name: "安心法务搜索"
+  debug: false
+
+search:
+  safe_search: 0
+  default_lang: "zh-CN"
+  formats:
+    - html
+    - json
+
+server:
+  secret_key: "anxin-searxng-secret-2026"
+  bind_address: "0.0.0.0:8080"
+  image_proxy: false
+
+engines:
+  - name: google
+    engine: google
+    shortcut: g
+    disabled: false
+  - name: bing
+    engine: bing
+    shortcut: b
+    disabled: false
+  - name: baidu
+    engine: baidu
+    shortcut: bd
+    disabled: false
+  - name: duckduckgo
+    engine: duckduckgo
+    shortcut: ddg
+    disabled: false
+  - name: wikipedia
+    engine: wikipedia
+    shortcut: wp
+    disabled: false
+
+outgoing:
+  request_timeout: 10
+  max_request_timeout: 15
+
+ui:
+  default_theme: simple
+  query_in_title: true
