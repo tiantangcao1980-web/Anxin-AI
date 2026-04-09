@@ -131,8 +131,27 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          echo "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          # 使用 printf 写入密钥，避免 echo 解释转义字符
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+
+          # 验证密钥格式（不泄露内容）
+          echo "=== 密钥格式检查 ==="
+          echo "文件大小: $(wc -c < ~/.ssh/deploy_key) 字节"
+          echo "行数: $(wc -l < ~/.ssh/deploy_key)"
+          echo "首行: $(head -1 ~/.ssh/deploy_key)"
+          echo "末行: $(tail -1 ~/.ssh/deploy_key)"
+          echo "权限: $(ls -la ~/.ssh/deploy_key)"
+
+          # 用 ssh-keygen 验证密钥有效性
+          if ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null 2>&1; then
+            echo "✅ 密钥格式有效"
+            echo "公钥指纹: $(ssh-keygen -lf ~/.ssh/deploy_key)"
+          else
+            echo "❌ 密钥格式无效！请检查 DEPLOY_SSH_KEY secret 的内容"
+            echo "   确保包含完整的 BEGIN/END 行，且换行符正确"
+            exit 1
+          fi
 
       - name: 写入 known_hosts
         if: steps.changes.outputs.backend_changed == 'true' || steps.changes.outputs.frontend_changed == 'true'
@@ -152,11 +171,15 @@ jobs:
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
         run: |
           SSH_PORT="${DEPLOY_PORT:-22}"
-          ssh \
+          echo "连接到 ${DEPLOY_USER}@${DEPLOY_HOST}:${SSH_PORT}"
+          echo "本地公钥指纹: $(ssh-keygen -lf ~/.ssh/deploy_key 2>/dev/null || echo '无法读取')"
+          # -v 参数显示详细认证过程，方便诊断失败原因
+          ssh -v \
             -i ~/.ssh/deploy_key \
             -o BatchMode=yes \
             -o StrictHostKeyChecking=yes \
             -o ConnectTimeout=30 \
+            -o IdentitiesOnly=yes \
             -p "$SSH_PORT" \
             "${DEPLOY_USER}@${DEPLOY_HOST}" \
             "echo 'SSH 连接成功'"
@@ -180,6 +203,7 @@ jobs:
             -o BatchMode=yes \
             -o StrictHostKeyChecking=yes \
             -o ConnectTimeout=30 \
+            -o IdentitiesOnly=yes \
             -p "$SSH_PORT" \
             "${DEPLOY_USER}@${DEPLOY_HOST}" \
             "BACKEND_CHANGED='${BACKEND_CHANGED}' FRONTEND_CHANGED='${FRONTEND_CHANGED}' BRANCH='${BRANCH}' COMMIT_SHA='${COMMIT_SHA}' DEPLOY_PATH='${DEPLOY_PATH}' bash -s" <<'REMOTE_SCRIPT'
