@@ -6,6 +6,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useChatStore } from '@/lib/store';
+import { buildWebSocketUrl } from '@/lib/api';
 
 export interface WebSocketMessageHandlers {
   onMessage?: (data: any) => void;
@@ -77,8 +78,8 @@ export function useChatWebSocket(
 
     setIsConnecting(true);
 
-    // 构建 WebSocket URL
-    const wsUrl = `${import.meta.env.VITE_WS_URL || 'ws://localhost:8000'}/api/chat/ws/${convId}`;
+    // 构建 WebSocket URL（使用统一的 URL 构建函数，生产环境自动使用 wss://）
+    const wsUrl = buildWebSocketUrl(`/chat/ws/${convId}`);
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {

@@ -14,7 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { toast } from 'sonner';
 import { icons } from '@/lib/icons';
-import { collaborationApi, documentsApi, type CollaborationSession, type Collaborator, type CollaborationSnapshot } from '@/lib/api';
+import { collaborationApi, documentsApi, buildWebSocketUrl, type CollaborationSession, type Collaborator, type CollaborationSnapshot } from '@/lib/api';
 import { cardStyle, heading, iconSize, statusBadge, statusColor, buttonStyle, spacing } from '@/lib/design-tokens';
 import { PageContainer } from '@/components/ui/PageContainer';
 
@@ -312,7 +312,7 @@ export default function Collaboration() {
 
   // WebSocket连接
   const connectWebSocket = useCallback((id: string) => {
-    const wsUrl = `${import.meta.env.VITE_WS_BASE_URL || 'ws://localhost:8002'}/api/v1/collaboration/ws/${id}`;
+    const wsUrl = buildWebSocketUrl(`/collaboration/ws/${id}`);
 
     const ws = new WebSocket(wsUrl);
 
