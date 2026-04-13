@@ -33,11 +33,19 @@ export default {
         '4.5': '1.125rem',
       },
       colors: {
-        border: "hsl(var(--border))",
+        border: {
+          DEFAULT: "hsl(var(--border))",
+          strong: "hsl(var(--border-strong))",
+          subtle: "hsl(var(--border-subtle))",
+        },
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
+        foreground: {
+          DEFAULT: "hsl(var(--foreground))",
+          tertiary: "hsl(var(--text-tertiary))",
+          disabled: "hsl(var(--text-disabled))",
+        },
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
@@ -100,6 +108,17 @@ export default {
           foreground: "hsl(var(--ai-foreground))",
           surface: "hsl(var(--ai-surface))",
         },
+        // 图谱节点语义色
+        node: {
+          law: "hsl(var(--node-law))",
+          case: "hsl(var(--node-case))",
+          party: "hsl(var(--node-party))",
+          organization: "hsl(var(--node-organization))",
+          lawyer: "hsl(var(--node-lawyer))",
+          query: "hsl(var(--node-query))",
+          conclusion: "hsl(var(--node-conclusion))",
+          other: "hsl(var(--node-other))",
+        },
       },
       // 排版系统
       fontSize: {
@@ -128,6 +147,13 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      letterSpacing: {
+        // DESIGN.md 字距系统
+        "heading-xl": "-0.03em",   // Display Hero / large hero text
+        "heading-lg": "-0.02em",   // Page Title
+        "heading-md": "-0.01em",   // Section / Panel Title
+        "caption": "0.01em",       // Caption / timestamp
       },
       boxShadow: {
         card: "var(--shadow-card)",

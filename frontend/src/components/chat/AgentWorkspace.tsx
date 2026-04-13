@@ -133,7 +133,7 @@ export const AgentWorkspace = memo(function AgentWorkspace({
           <div className="space-y-0">
             <div className="flex items-center gap-2 mb-3 px-1">
               <icons.Zap className="w-3.5 h-3.5 text-primary" />
-              <span className={`${heading.micro} font-bold`}>执行结果</span>
+              <span className={`${heading.micro} font-medium`}>执行结果</span>
               <span className={`text-[10px] px-2 py-0.5 ${statusColor.info} ${radius.avatar} font-medium`}>
                 {completedResults.length}
               </span>
@@ -202,7 +202,7 @@ export const AgentWorkspace = memo(function AgentWorkspace({
           <div className="space-y-0">
             <div className="flex items-center gap-2 mb-3 px-1">
               <icons.Loader2 className={`w-3.5 h-3.5 ${isProcessing ? 'animate-spin text-primary' : 'text-muted-foreground'}`} />
-              <span className={`${heading.micro} font-bold`}>推理过程</span>
+              <span className={`${heading.micro} font-medium`}>推理过程</span>
               <span className={`text-[10px] px-2 py-0.5 ${statusColor.info} ${radius.avatar} font-medium`}>
                 {thinkingSteps.length} 步
               </span>

@@ -12,7 +12,7 @@ export default function NotFound() {
     <div className="h-full flex items-center justify-center">
       <div className="text-center space-y-4 max-w-md px-6">
         <div className="text-6xl font-bold text-muted-foreground/30">404</div>
-        <h2 className="text-xl font-semibold text-foreground">页面未找到</h2>
+        <h2 className="text-xl font-medium text-foreground">页面未找到</h2>
         <p className="text-sm text-muted-foreground">
           您访问的页面不存在或已被移除
         </p>

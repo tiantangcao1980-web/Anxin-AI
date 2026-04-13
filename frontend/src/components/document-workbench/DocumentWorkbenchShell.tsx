@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { DocumentTabs } from './DocumentTabs'
 import { DocumentCanvas } from './DocumentCanvas'
 import { WorkbenchRightPanel } from './WorkbenchRightPanel'
@@ -11,6 +12,8 @@ interface DocumentWorkbenchShellProps {
 }
 
 export function DocumentWorkbenchShell({ entryMode, sessionId }: DocumentWorkbenchShellProps) {
+  const [showRightPanel, setShowRightPanel] = useState(false)
+
   return (
     <div
       data-testid="document-workbench-shell"
@@ -20,7 +23,11 @@ export function DocumentWorkbenchShell({ entryMode, sessionId }: DocumentWorkben
       className="flex h-full min-h-0 flex-col bg-surface-2"
     >
       <div data-ui="page-header" className="border-b border-border/60 bg-surface-1 shadow-card">
-        <WorkbenchTopbar entryMode={entryMode} />
+        <WorkbenchTopbar
+          entryMode={entryMode}
+          showRightPanel={showRightPanel}
+          onToggleRightPanel={() => setShowRightPanel((v) => !v)}
+        />
       </div>
       <div className="flex min-h-0 flex-1">
         <WorkbenchSidebar entryMode={entryMode} />
@@ -30,7 +37,9 @@ export function DocumentWorkbenchShell({ entryMode, sessionId }: DocumentWorkben
             <DocumentCanvas />
           </div>
         </main>
-        <WorkbenchRightPanel entryMode={entryMode} sessionId={sessionId} />
+        {showRightPanel && (
+          <WorkbenchRightPanel entryMode={entryMode} sessionId={sessionId} />
+        )}
       </div>
       <WorkbenchStatusBar />
     </div>

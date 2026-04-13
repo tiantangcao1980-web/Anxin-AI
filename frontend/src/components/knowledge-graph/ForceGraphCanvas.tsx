@@ -10,22 +10,23 @@
 import { useState, useCallback, useEffect, useRef, useMemo, forwardRef, useImperativeHandle } from 'react'
 import * as THREE from 'three'
 import SpriteText from 'three-spritetext'
+import { graphCanvasColors, graphNodeColors } from '@/lib/design-tokens'
 import { measureAndCache, truncateToWidth, setFontIfChanged } from './textMeasureCache'
 
 // 节点类型配置（颜色 + 发光 + 图标 + 中文标签）
 const NODE_CONFIG: Record<string, { color: string; emissive: string; char: string; label: string }> = {
-  '法规': { color: '#22c55e', emissive: '#16a34a', char: '法', label: '法规' },
-  '案例': { color: '#3b82f6', emissive: '#2563eb', char: '案', label: '案例' },
-  '当事人': { color: '#f59e0b', emissive: '#d97706', char: '当', label: '当事人' },
-  '机构': { color: '#8b5cf6', emissive: '#7c3aed', char: '机', label: '机构' },
-  '律师': { color: '#ec4899', emissive: '#db2777', char: '律', label: '律师' },
-  '其他': { color: '#6b7280', emissive: '#4b5563', char: '其', label: '其他' },
+  '法规': { color: graphNodeColors.law, emissive: '#16a34a', char: '法', label: '法规' },
+  '案例': { color: graphNodeColors.case, emissive: '#2563eb', char: '案', label: '案例' },
+  '当事人': { color: graphNodeColors.party, emissive: '#d97706', char: '当', label: '当事人' },
+  '机构': { color: graphNodeColors.organization, emissive: '#7c3aed', char: '机', label: '机构' },
+  '律师': { color: graphNodeColors.lawyer, emissive: '#ea580c', char: '律', label: '律师' },
+  '其他': { color: graphNodeColors.other, emissive: '#4b5563', char: '其', label: '其他' },
   // API 字段兼容
-  law: { color: '#22c55e', emissive: '#16a34a', char: '法', label: '法规' },
-  entity: { color: '#3b82f6', emissive: '#2563eb', char: '实', label: '实体' },
-  document: { color: '#f97316', emissive: '#ea580c', char: '文', label: '文档' },
-  query: { color: '#64748b', emissive: '#475569', char: '查', label: '查询' },
-  conclusion: { color: '#a855f7', emissive: '#9333ea', char: '结', label: '结论' },
+  law: { color: graphNodeColors.law, emissive: '#16a34a', char: '法', label: '法规' },
+  entity: { color: graphNodeColors.case, emissive: '#2563eb', char: '实', label: '实体' },
+  document: { color: graphNodeColors.lawyer, emissive: '#ea580c', char: '文', label: '文档' },
+  query: { color: graphNodeColors.query, emissive: '#475569', char: '查', label: '查询' },
+  conclusion: { color: graphNodeColors.conclusion, emissive: '#9333ea', char: '结', label: '结论' },
 }
 
 function getCfg(type: string) {
@@ -251,10 +252,10 @@ export const ForceGraphCanvas = forwardRef<ForceGraphCanvasHandle, Props>(functi
     // 文字标签
     if (showLabels) {
       const sprite = new SpriteText(node.name)
-      sprite.color = isDark ? '#e2e8f0' : '#334155'
+      sprite.color = isDark ? graphCanvasColors.labelDark : graphCanvasColors.labelLight
       sprite.textHeight = 3.5
       sprite.fontWeight = '600'
-      sprite.backgroundColor = isDark ? 'rgba(15, 23, 42, 0.75)' : 'rgba(255, 255, 255, 0.85)'
+      sprite.backgroundColor = isDark ? graphCanvasColors.tooltipDarkBg : graphCanvasColors.tooltipLightBg
       sprite.padding = [2, 4] as any
       sprite.borderRadius = 3
       sprite.position.y = -r - 5
@@ -306,7 +307,7 @@ export const ForceGraphCanvas = forwardRef<ForceGraphCanvasHandle, Props>(functi
       lastFontRef.current = setFontIfChanged(ctx, labelFont, lastFontRef.current)
       ctx.textAlign = 'center'
       ctx.textBaseline = 'top'
-      ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#334155'
+      ctx.fillStyle = document.documentElement.classList.contains('dark') ? graphCanvasColors.labelDark : graphCanvasColors.labelLight
       const maxLabelWidth = r * 6
       const label = truncateToWidth(node.name, labelFont, maxLabelWidth)
       ctx.fillText(label, x, y + r + 3)
@@ -397,8 +398,8 @@ export const ForceGraphCanvas = forwardRef<ForceGraphCanvasHandle, Props>(functi
   }
 
   const bgColor = isDark
-    ? (viewMode === '3d' ? '#0f172a' : '#1e1e1e')
-    : (viewMode === '3d' ? '#f8fafc' : '#fafafa')
+    ? (viewMode === '3d' ? graphCanvasColors.dark3d : graphCanvasColors.dark2d)
+    : (viewMode === '3d' ? graphCanvasColors.light3d : graphCanvasColors.light2d)
 
   return (
     <div ref={containerRef} className="w-full h-full relative" style={{ background: bgColor }}>
@@ -414,14 +415,14 @@ export const ForceGraphCanvas = forwardRef<ForceGraphCanvasHandle, Props>(functi
           onNodeClick={handleNodeClick}
           onNodeRightClick={handleRightClick}
           onBackgroundClick={() => onSelectNode(null)}
-          linkColor={(l: any) => l.color || (isDark ? 'rgba(148,163,184,0.3)' : 'rgba(100,116,139,0.35)')}
+          linkColor={(l: any) => l.color || (isDark ? graphCanvasColors.linkDark : graphCanvasColors.linkLight)}
           linkWidth={1.2}
           linkOpacity={isDark ? 0.5 : 0.6}
           linkDirectionalParticles={2}
           linkDirectionalParticleWidth={1.5}
-          linkDirectionalParticleColor={() => '#818cf8'}
+          linkDirectionalParticleColor={() => graphCanvasColors.particle}
           linkDirectionalParticleSpeed={0.004}
-          linkLabel={(l: any) => `<span style="color:${isDark ? '#e2e8f0' : '#334155'};font-size:11px;background:${isDark ? 'rgba(15,23,42,0.8)' : 'rgba(255,255,255,0.9)'};padding:2px 6px;border-radius:4px;${isDark ? '' : 'box-shadow:0 1px 3px rgba(0,0,0,0.1)'}">${l.label}</span>`}
+          linkLabel={(l: any) => `<span style="color:${isDark ? graphCanvasColors.labelDark : graphCanvasColors.labelLight};font-size:11px;background:${isDark ? graphCanvasColors.tooltipDarkBg : graphCanvasColors.tooltipLightBg};padding:2px 6px;border-radius:4px;${isDark ? '' : `box-shadow:${graphCanvasColors.tooltipLightShadow}` }">${l.label}</span>`}
           enableNodeDrag
           enableNavigationControls
           showNavInfo={false}
@@ -442,11 +443,11 @@ export const ForceGraphCanvas = forwardRef<ForceGraphCanvasHandle, Props>(functi
           onNodeClick={handleNodeClick}
           onNodeRightClick={handleRightClick}
           onBackgroundClick={() => onSelectNode(null)}
-          linkColor={() => 'rgba(148,163,184,0.3)'}
+          linkColor={() => isDark ? graphCanvasColors.linkDark : graphCanvasColors.linkLight}
           linkWidth={1.5}
           linkDirectionalParticles={2}
           linkDirectionalParticleWidth={2}
-          linkDirectionalParticleColor={() => '#818cf8'}
+          linkDirectionalParticleColor={() => graphCanvasColors.particle}
           linkCanvasObjectMode={() => 'after' as any}
           linkCanvasObject={linkCanvasObject}
           enableNodeDrag

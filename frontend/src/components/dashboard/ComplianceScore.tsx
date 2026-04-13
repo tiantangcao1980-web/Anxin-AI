@@ -51,7 +51,7 @@ export function ComplianceScore() {
     >
       <div className="flex items-center gap-2 mb-6">
         <icons.Shield className="w-5 h-5" />
-        <h3 className="font-bold uppercase tracking-wider text-sm">合规健康分</h3>
+        <h3 className="font-medium uppercase tracking-caption text-sm">合规健康分</h3>
       </div>
 
       <div className="flex items-center justify-center mb-6">
@@ -101,13 +101,13 @@ export function ComplianceScore() {
         ].map((item) => (
           <div key={item.label} className="flex items-center justify-between text-xs">
             <span className="text-primary-foreground/70 font-medium">{item.label}</span>
-            <span className="font-bold">{item.value}</span>
+            <span className="font-medium">{item.value}</span>
           </div>
         ))}
       </div>
 
       <div className="mt-6 pt-4 border-t border-primary-foreground/10">
-        <div className="flex items-center gap-2 text-xs font-bold">
+        <div className="flex items-center gap-2 text-xs font-medium">
           <icons.TrendingUp className="w-4 h-4 text-accent" />
           <span className="text-primary-foreground">较上月提升 {scoreData?.trend || 0} 分</span>
         </div>

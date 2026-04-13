@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
-import { heading } from '@/lib/design-tokens';
+import { heading, cardStyle } from '@/lib/design-tokens';
 
 interface A2UICardShellProps {
   title?: string;
@@ -25,7 +25,7 @@ export function A2UICardShell({
     <section
       data-a2ui-card
       className={cn(
-        'overflow-hidden rounded-2xl border border-border/70 bg-surface-1 shadow-card',
+        `${cardStyle.compact} overflow-hidden !p-0`,
         className,
       )}
     >

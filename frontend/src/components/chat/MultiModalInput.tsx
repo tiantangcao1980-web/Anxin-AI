@@ -47,7 +47,7 @@ export function MultiModalInput({ onSend, disabled }: MultiModalInputProps) {
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={disabled}
-          className="p-2.5 rounded-lg hover:bg-primary-50 text-muted-foreground hover:text-primary transition-all active:scale-95"
+          className="p-2.5 rounded-lg hover:bg-primary-50 text-muted-foreground hover:text-primary transition-all active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
         >
           <icons.Paperclip className="w-5 h-5" />
         </button>
@@ -89,7 +89,7 @@ export function MultiModalInput({ onSend, disabled }: MultiModalInputProps) {
         <button
           type="button"
           disabled={disabled}
-          className="p-2.5 rounded-lg hover:bg-primary-50 text-muted-foreground hover:text-primary transition-all active:scale-95"
+          className="p-2.5 rounded-lg hover:bg-primary-50 text-muted-foreground hover:text-primary transition-all active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
         >
           <icons.Camera className="w-5 h-5" />
         </button>
@@ -99,13 +99,13 @@ export function MultiModalInput({ onSend, disabled }: MultiModalInputProps) {
           type="submit"
           disabled={disabled || (!input.trim() && !fileInputRef.current?.files?.[0])}
           whileTap={{ scale: 0.95 }}
-          className="p-3 bg-primary text-white rounded-lg hover:bg-primary-600 shadow-legal-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+          className="p-3 bg-primary text-white rounded-lg hover:bg-primary-600 shadow-legal-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-1"
         >
           <icons.Send className="w-5 h-5" />
         </motion.button>
       </form>
 
-      <div className="mt-3 flex items-center justify-center gap-2 text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
+      <div className="mt-3 flex items-center justify-center gap-2 text-[10px] text-muted-foreground font-medium uppercase tracking-caption">
         <div className="w-1.5 h-1.5 bg-success rounded-full animate-pulse"></div>
         <span>安心AI法务：支持文本 / 语音 / 图片 / 文件多模态输入</span>
       </div>

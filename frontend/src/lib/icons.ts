@@ -70,6 +70,7 @@ import {
   Filter,
   Calendar,
   Clock,
+  CreditCard,
   Tag,
   Link,
   ExternalLink,
@@ -186,6 +187,7 @@ import {
   Superscript,
   RemoveFormatting,
   Printer,
+  QrCode,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -302,6 +304,7 @@ export const icons = {
   Filter: Filter,
   Calendar: Calendar,
   Clock: Clock,
+  CreditCard: CreditCard,
   Tag: Tag,
   Link: Link,
   ExternalLink: ExternalLink,
@@ -415,6 +418,7 @@ export const icons = {
   Cloud: Cloud,
   Database: Database,
   DollarSign: DollarSign,
+  QrCode: QrCode,
   Calculator: Calculator,
   Wrench: Wrench,
   Gift: Gift,

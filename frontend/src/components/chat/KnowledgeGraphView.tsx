@@ -28,13 +28,13 @@ interface KnowledgeGraphViewProps {
   data: GraphData;
 }
 
-// 使用 CSS 变量兼容深色模式
+// 使用语义 CSS 变量，支持深色模式。避免在此处直接写 hex — 参见 DESIGN.md §4 Graph Node Colors
 const nodeStyles: Record<string, React.CSSProperties> = {
-  query: { background: 'hsl(var(--muted))', border: '2px solid hsl(var(--muted-foreground) / 0.4)', borderRadius: '8px', padding: '10px' },
-  entity: { background: 'hsl(142 76% 36% / 0.1)', border: '2px solid #22c55e', borderRadius: '8px', padding: '10px' },
-  law: { background: 'hsl(217 91% 60% / 0.1)', border: '2px solid #3b82f6', borderRadius: '8px', padding: '10px' },
-  document: { background: 'hsl(25 95% 53% / 0.1)', border: '2px solid #f97316', borderRadius: '8px', padding: '10px' },
-  conclusion: { background: 'hsl(271 91% 65% / 0.1)', border: '2px solid #a855f7', borderRadius: '8px', padding: '10px' },
+  query:      { background: 'hsl(var(--node-query) / 0.08)',      border: '2px solid hsl(var(--node-query))',      borderRadius: '8px', padding: '10px' },
+  entity:     { background: 'hsl(var(--node-law) / 0.1)',         border: '2px solid hsl(var(--node-law))',         borderRadius: '8px', padding: '10px' },
+  law:        { background: 'hsl(var(--node-case) / 0.1)',        border: '2px solid hsl(var(--node-case))',        borderRadius: '8px', padding: '10px' },
+  document:   { background: 'hsl(var(--node-lawyer) / 0.1)',      border: '2px solid hsl(var(--node-lawyer))',      borderRadius: '8px', padding: '10px' },
+  conclusion: { background: 'hsl(var(--node-conclusion) / 0.1)',  border: '2px solid hsl(var(--node-conclusion))',  borderRadius: '8px', padding: '10px' },
 };
 
 export function KnowledgeGraphView({ data }: KnowledgeGraphViewProps) {
@@ -83,7 +83,7 @@ export function KnowledgeGraphView({ data }: KnowledgeGraphViewProps) {
   return (
     <div className="w-full h-[400px] border border-border rounded-xl bg-muted relative">
       <div className="absolute top-4 left-4 z-10 bg-background/80 backdrop-blur-sm p-2 rounded border border-border shadow-sm">
-        <h5 className="text-xs font-bold text-foreground uppercase tracking-wider">知识逻辑链路图谱</h5>
+        <h5 className="text-xs font-medium text-foreground">知识逻辑链路图谱</h5>
       </div>
       <ReactFlow
         nodes={initialNodes}

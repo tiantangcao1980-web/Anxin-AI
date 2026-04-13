@@ -8,7 +8,7 @@
 import { useState, useEffect } from 'react'
 import { icons } from '@/lib/icons'
 import { toast } from 'sonner'
-import { cardStyle, heading, statusBadge, iconSize, chartColors } from '@/lib/design-tokens'
+import { cardStyle, complianceScoreColors, heading, statusBadge, iconSize, chartColors } from '@/lib/design-tokens'
 import { PageContainer, PageSection } from '@/components/ui/PageContainer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -462,22 +462,22 @@ function StatsTab({
           icon={icons.DollarSign}
           label="月经常性收入(MRR)"
           value={`¥${stats.mrr.toLocaleString()}`}
-          color="text-emerald-600"
-          bgColor="bg-emerald-50 dark:bg-emerald-950/30"
+          color="text-success"
+          bgColor="bg-success/10 dark:bg-success/20"
         />
         <StatCard
           icon={icons.TrendingDown}
           label="流失率"
           value={`${stats.churnRate}%`}
-          color="text-amber-600"
-          bgColor="bg-amber-50 dark:bg-amber-950/30"
+          color="text-warning"
+          bgColor="bg-warning/10 dark:bg-warning/20"
         />
         <StatCard
           icon={icons.Calculator}
           label="平均客单价"
           value={`¥${stats.avgRevenue}`}
-          color="text-blue-600"
-          bgColor="bg-blue-50 dark:bg-blue-950/30"
+          color="text-info"
+          bgColor="bg-info/10 dark:bg-info/20"
         />
       </div>
 

@@ -27,7 +27,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       // 同步 meta theme-color（移动端浏览器顶部栏颜色）
       const metaThemeColor = document.querySelector('meta[name="theme-color"]')
       if (metaThemeColor) {
-        metaThemeColor.setAttribute('content', isDark ? '#0a0f1e' : '#ffffff')
+        metaThemeColor.setAttribute('content', isDark ? '#171310' : '#ffffff')
       }
 
       // 过渡结束后移除过渡类

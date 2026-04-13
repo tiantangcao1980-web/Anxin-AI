@@ -7,27 +7,35 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { icons } from '@/lib/icons'
-import { cardStyle, heading } from '@/lib/design-tokens'
+import { buttonStyle, cardStyle, graphCanvasColors, graphNodeColors, heading, toolbarButton } from '@/lib/design-tokens'
 import { knowledgeCenterApi, type GraphData, type GraphStats, type GraphNode } from '@/lib/api'
 import { toast } from 'sonner'
 import * as THREE from 'three'
 import SpriteText from 'three-spritetext'
 import { truncateToWidth, setFontIfChanged } from '../knowledge-graph/textMeasureCache'
 
-// 节点颜色与图标配置
-const NODE_CONFIG: Record<string, { color: string; emissive: string; icon: string; label: string }> = {
-  query:      { color: '#64748b', emissive: '#475569', icon: '🔍', label: '查询' },
-  entity:     { color: '#22c55e', emissive: '#16a34a', icon: '🏢', label: '实体' },
-  law:        { color: '#3b82f6', emissive: '#2563eb', icon: '⚖️', label: '法律法规' },
-  document:   { color: '#f97316', emissive: '#ea580c', icon: '📄', label: '案件文书' },
-  conclusion: { color: '#a855f7', emissive: '#9333ea', icon: '💡', label: '结论' },
+// 节点颜色配置
+const NODE_CONFIG: Record<string, { color: string; emissive: string; label: string }> = {
+  query:      { color: graphNodeColors.query, emissive: '#475569', label: '查询' },
+  entity:     { color: graphNodeColors.law, emissive: '#16a34a', label: '实体' },
+  law:        { color: graphNodeColors.case, emissive: '#2563eb', label: '法律法规' },
+  document:   { color: graphNodeColors.lawyer, emissive: '#ea580c', label: '案件文书' },
+  conclusion: { color: graphNodeColors.conclusion, emissive: '#9333ea', label: '结论' },
+}
+
+const NODE_ICONS: Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
+  query: icons.Search,
+  entity: icons.Building2,
+  law: icons.Scale,
+  document: icons.FileText,
+  conclusion: icons.Lightbulb,
 }
 
 const LEGEND_ITEMS = [
-  { type: 'entity',     label: '实体',     color: '#22c55e' },
-  { type: 'law',        label: '法律法规', color: '#3b82f6' },
-  { type: 'document',   label: '案件文书', color: '#f97316' },
-  { type: 'conclusion', label: '结论',     color: '#a855f7' },
+  { type: 'entity',     label: '实体',     color: graphNodeColors.law },
+  { type: 'law',        label: '法律法规', color: graphNodeColors.case },
+  { type: 'document',   label: '案件文书', color: graphNodeColors.lawyer },
+  { type: 'conclusion', label: '结论',     color: graphNodeColors.conclusion },
 ]
 
 // 转换后端数据为 force-graph 格式
@@ -237,10 +245,10 @@ export function KnowledgeGraphExplorer() {
     // 文字标签
     if (showLabels) {
       const sprite = new SpriteText(node.name)
-      sprite.color = isDark ? '#e2e8f0' : '#334155'
+      sprite.color = isDark ? graphCanvasColors.labelDark : graphCanvasColors.labelLight
       sprite.textHeight = 3.5
       sprite.fontWeight = '600'
-      sprite.backgroundColor = isDark ? 'rgba(15, 23, 42, 0.75)' : 'rgba(255, 255, 255, 0.85)'
+      sprite.backgroundColor = isDark ? graphCanvasColors.tooltipDarkBg : graphCanvasColors.tooltipLightBg
       sprite.padding = [2, 4]
       sprite.borderRadius = 3
       sprite.position.y = -(node.val || 6) - 5
@@ -280,7 +288,7 @@ export function KnowledgeGraphExplorer() {
       lastFontRef2D.current = setFontIfChanged(ctx, labelFont, lastFontRef2D.current)
       ctx.textAlign = 'center'
       ctx.textBaseline = 'top'
-      ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#334155'
+      ctx.fillStyle = document.documentElement.classList.contains('dark') ? graphCanvasColors.labelDark : graphCanvasColors.labelLight
       const maxLabelWidth = r * 6
       const label = truncateToWidth(node.name, labelFont, maxLabelWidth)
       ctx.fillText(label, x, y + r + 3)
@@ -365,7 +373,7 @@ export function KnowledgeGraphExplorer() {
           <button
             onClick={handleSearch}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-all shadow-sm"
+            className={`${buttonStyle.primary} flex items-center gap-2`}
           >
             {loading ? <icons.Loader2 className="w-4 h-4 animate-spin" /> : <icons.Search className="w-4 h-4" />}
             搜索
@@ -400,7 +408,7 @@ export function KnowledgeGraphExplorer() {
       </div>
 
       {/* 图谱画布 */}
-      <div className="flex-1 relative" ref={containerRef} style={{ background: isDark ? (viewMode === '3d' ? '#0f172a' : '#1e1e1e') : (viewMode === '3d' ? '#f8fafc' : '#fafafa') }}>
+      <div className="flex-1 relative" ref={containerRef} style={{ background: isDark ? (viewMode === '3d' ? graphCanvasColors.dark3d : graphCanvasColors.dark2d) : (viewMode === '3d' ? graphCanvasColors.light3d : graphCanvasColors.light2d) }}>
         {hasData && GraphComponent ? (
           <>
             {viewMode === '3d' ? (
@@ -409,19 +417,19 @@ export function KnowledgeGraphExplorer() {
                 graphData={fgData}
                 width={dimensions.width - (selectedNode ? 288 : 0)}
                 height={dimensions.height}
-                backgroundColor={isDark ? '#0f172a' : '#f8fafc'}
+                backgroundColor={isDark ? graphCanvasColors.dark3d : graphCanvasColors.light3d}
                 nodeThreeObject={nodeThreeObject}
                 nodeThreeObjectExtend={false}
                 onNodeClick={handleNodeClick}
                 onNodeRightClick={(node: any) => handleExpandNode(node.id)}
-                linkColor={(link: any) => link.color || (isDark ? 'rgba(148, 163, 184, 0.3)' : 'rgba(100, 116, 139, 0.35)')}
+                linkColor={(link: any) => link.color || (isDark ? graphCanvasColors.linkDark : graphCanvasColors.linkLight)}
                 linkWidth={1.2}
                 linkOpacity={isDark ? 0.5 : 0.6}
                 linkDirectionalParticles={linkDirectionalParticles}
                 linkDirectionalParticleWidth={linkDirectionalParticleWidth}
-                linkDirectionalParticleColor={() => '#818cf8'}
+                linkDirectionalParticleColor={() => graphCanvasColors.particle}
                 linkDirectionalParticleSpeed={0.004}
-                linkLabel={(link: any) => `<span style="color:${isDark ? '#e2e8f0' : '#334155'};font-size:11px;background:${isDark ? 'rgba(15,23,42,0.8)' : 'rgba(255,255,255,0.9)'};padding:2px 6px;border-radius:4px;${isDark ? '' : 'box-shadow:0 1px 3px rgba(0,0,0,0.1)'}">${link.label}</span>`}
+                linkLabel={(link: any) => `<span style="color:${isDark ? graphCanvasColors.labelDark : graphCanvasColors.labelLight};font-size:11px;background:${isDark ? graphCanvasColors.tooltipDarkBg : graphCanvasColors.tooltipLightBg};padding:2px 6px;border-radius:4px;${isDark ? '' : `box-shadow:${graphCanvasColors.tooltipLightShadow}` }">${link.label}</span>`}
                 enableNodeDrag={true}
                 enableNavigationControls={true}
                 showNavInfo={false}
@@ -436,7 +444,7 @@ export function KnowledgeGraphExplorer() {
                 graphData={fgData}
                 width={dimensions.width - (selectedNode ? 288 : 0)}
                 height={dimensions.height}
-                backgroundColor={isDark ? '#1e1e1e' : '#fafafa'}
+                backgroundColor={isDark ? graphCanvasColors.dark2d : graphCanvasColors.light2d}
                 nodeCanvasObject={nodeCanvasObject}
                 nodePointerAreaPaint={(node: any, color: string, ctx: CanvasRenderingContext2D) => {
                   const r = (node.val || 6) * 1.5
@@ -471,7 +479,7 @@ export function KnowledgeGraphExplorer() {
               }`}>
                 <div className="flex items-center gap-1.5 mb-2">
                   <icons.Layers className={`w-3.5 h-3.5 ${viewMode === '3d' ? 'text-slate-400' : 'text-muted-foreground'}`} />
-                  <span className={`text-[10px] font-bold uppercase tracking-wider ${
+                  <span className={`text-[10px] font-medium uppercase tracking-caption ${
                     viewMode === '3d' ? 'text-slate-400' : 'text-muted-foreground'
                   }`}>图例</span>
                 </div>
@@ -532,19 +540,19 @@ export function KnowledgeGraphExplorer() {
               ? 'bg-slate-900/80 backdrop-blur-md border-slate-700'
               : 'bg-background/90 backdrop-blur-sm border-border'
             }`}>
-              <div className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${
+              <div className={`text-[10px] font-medium uppercase tracking-caption mb-2 ${
                 viewMode === '3d' ? 'text-slate-400' : 'text-muted-foreground'
               }`}>当前图谱</div>
               <div className="space-y-1">
                 <div className="flex justify-between">
                   <span className={`text-xs ${viewMode === '3d' ? 'text-slate-400' : 'text-muted-foreground'}`}>节点</span>
-                  <span className={`text-xs font-bold ${viewMode === '3d' ? 'text-white' : 'text-foreground'}`}>
+                  <span className={`text-xs font-semibold ${viewMode === '3d' ? 'text-white' : 'text-foreground'}`}>
                     {fgData.nodes.length}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className={`text-xs ${viewMode === '3d' ? 'text-slate-400' : 'text-muted-foreground'}`}>关系</span>
-                  <span className={`text-xs font-bold ${viewMode === '3d' ? 'text-white' : 'text-foreground'}`}>
+                  <span className={`text-xs font-semibold ${viewMode === '3d' ? 'text-white' : 'text-foreground'}`}>
                     {fgData.links.length}
                   </span>
                 </div>
@@ -583,11 +591,11 @@ export function KnowledgeGraphExplorer() {
               {graphStats?.available && (
                 <div className="mt-8 grid grid-cols-2 gap-3 max-w-xs mx-auto">
                   <div className={`${cardStyle.compact} text-center shadow-sm`}>
-                    <div className="text-3xl font-bold text-foreground">{graphStats.total_nodes}</div>
+                    <div className="text-3xl font-semibold text-foreground">{graphStats.total_nodes}</div>
                     <div className={`${heading.micro} mt-1`}>知识节点</div>
                   </div>
                   <div className={`${cardStyle.compact} text-center shadow-sm`}>
-                    <div className="text-3xl font-bold text-foreground">{graphStats.total_edges}</div>
+                    <div className="text-3xl font-semibold text-foreground">{graphStats.total_edges}</div>
                     <div className={`${heading.micro} mt-1`}>关系边</div>
                   </div>
                 </div>
@@ -656,8 +664,13 @@ export function KnowledgeGraphExplorer() {
                         : `linear-gradient(135deg, ${cfg.color}15, ${cfg.color}05)`,
                       border: `1px solid ${cfg.color}30`,
                     }}>
-                      <div className="text-4xl mb-2">{cfg.icon}</div>
-                      <div className="font-bold text-sm" style={{ color: viewMode === '3d' ? '#e2e8f0' : cfg.color }}>
+                      <div className="mb-2 flex justify-center">
+                        {(() => {
+                          const NodeIcon = NODE_ICONS[node.type] || icons.Network
+                          return <NodeIcon className="h-8 w-8" style={{ color: cfg.color }} />
+                        })()}
+                      </div>
+                      <div className="font-semibold text-sm" style={{ color: viewMode === '3d' ? '#e2e8f0' : cfg.color }}>
                         {node.label}
                       </div>
                       <div className="text-[10px] mt-1 px-2.5 py-0.5 rounded-full inline-block" style={{
@@ -670,7 +683,7 @@ export function KnowledgeGraphExplorer() {
 
                     {/* 关联关系 */}
                     <div>
-                      <h5 className={`text-xs font-bold uppercase tracking-wider mb-2 ${
+                      <h5 className={`text-xs font-medium uppercase tracking-caption mb-2 ${
                         viewMode === '3d' ? 'text-slate-400' : 'text-muted-foreground'
                       }`}>
                         关联关系 ({relatedEdges.length})
@@ -726,10 +739,10 @@ function ControlButton({ icon: Icon, label, onClick, active, dark }: {
   icon: any; label: string; onClick: () => void; active?: boolean; dark?: boolean
 }) {
   return (
-    <button
-      onClick={onClick}
-      title={label}
-      className={`p-2 rounded-lg transition-all ${
+      <button
+        onClick={onClick}
+        title={label}
+        className={`${active ? toolbarButton.active : toolbarButton.base} transition-all ${
         dark
           ? active
             ? 'bg-primary text-primary-foreground'

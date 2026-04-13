@@ -6,7 +6,7 @@
  */
 import { motion } from 'framer-motion'
 import { icons } from '@/lib/icons'
-import { cardStyle, heading } from '@/lib/design-tokens'
+import { cardStyle, complianceScoreColors, heading } from '@/lib/design-tokens'
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
   ResponsiveContainer, Tooltip,
@@ -38,9 +38,9 @@ export function SentimentAnalysis({ data }: SentimentAnalysisProps) {
 
   const avgRisk = riskDimensions.reduce((s, d) => s + d.score, 0) / 5
   const riskLabel = data?.overall_rating === 'low' ? '低风险' : data?.overall_rating === 'high' ? '高风险' : avgRisk > 60 ? '高风险' : avgRisk > 35 ? '中风险' : '低风险'
-  const riskColor = avgRisk > 60 ? 'text-red-600 dark:text-red-400' : avgRisk > 35 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
+  const riskColor = avgRisk > 60 ? 'text-destructive' : avgRisk > 35 ? 'text-warning' : 'text-success'
 
-  const barColor = (score: number) => score > 60 ? '#ef4444' : score > 35 ? '#f59e0b' : '#10b981'
+  const barColor = (score: number) => score > 60 ? complianceScoreColors.poor : score > 35 ? complianceScoreColors.medium : complianceScoreColors.excellent
 
   const hasRiskData = riskDimensions.some(d => d.score > 0)
 
@@ -65,9 +65,9 @@ export function SentimentAnalysis({ data }: SentimentAnalysisProps) {
           </div>
         </div>
         <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-          avgRisk > 60 ? 'bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400'
-            : avgRisk > 35 ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400'
-            : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400'
+          avgRisk > 60 ? 'bg-destructive/10 text-destructive dark:bg-destructive/20'
+            : avgRisk > 35 ? 'bg-warning/10 text-warning dark:bg-warning/20'
+            : 'bg-success/10 text-success dark:bg-success/20'
         }`}>
           {riskLabel} · 均分 {Math.round(avgRisk)}
         </span>
@@ -118,7 +118,7 @@ export function SentimentAnalysis({ data }: SentimentAnalysisProps) {
           {riskPoints.length > 0 && (
             <div>
               <h4 className={`${heading.card} mb-3 flex items-center gap-1.5`}>
-                <icons.AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                <icons.AlertTriangle className="w-3.5 h-3.5 text-warning" />
                 风险要点
               </h4>
               <div className="space-y-2">
@@ -128,9 +128,9 @@ export function SentimentAnalysis({ data }: SentimentAnalysisProps) {
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.08 }}
-                    className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800"
+                    className="flex items-start gap-2 p-2.5 rounded-lg bg-warning/10 dark:bg-warning/20 border border-warning/20"
                   >
-                    <span className="w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] flex items-center justify-center shrink-0 mt-0.5 font-bold">
+                    <span className="w-5 h-5 rounded-full bg-warning text-white text-[10px] flex items-center justify-center shrink-0 mt-0.5 font-semibold">
                       {i + 1}
                     </span>
                     <p className="text-xs leading-relaxed text-foreground">{point}</p>

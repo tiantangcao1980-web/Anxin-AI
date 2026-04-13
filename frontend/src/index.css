@@ -44,6 +44,8 @@
 
     /* --- 边框 & 输入 --- */
     --border: 30 13% 91%;
+    --border-strong: 30 12% 84%;
+    --border-subtle: 30 10% 94%;
     --input: 30 13% 91%;
     --ring: 25 95% 53% / 0.15;
     --radius: 0.5rem;
@@ -72,6 +74,20 @@
     --ai: 262 83% 58%;
     --ai-foreground: 0 0% 100%;
     --ai-surface: 262 60% 97%;
+
+    /* --- 文本层级扩展 (DESIGN.md §2) --- */
+    --text-tertiary: 20 8% 60%;
+    --text-disabled: 20 7% 72%;
+
+    /* --- 图谱节点语义色 --- */
+    --node-law: 142 63% 43%;
+    --node-case: 217 91% 60%;
+    --node-party: 38 92% 50%;
+    --node-organization: 262 83% 58%;
+    --node-lawyer: 25 95% 53%;
+    --node-query: 220 9% 46%;
+    --node-conclusion: 280 68% 60%;
+    --node-other: 220 9% 42%;
 
     /* --- 动效令牌 --- */
     --duration-instant: 50ms;
@@ -128,6 +144,8 @@
 
     /* --- 边框 & 输入（微妙的分割线）--- */
     --border: 20 13% 18%;
+    --border-strong: 20 12% 25%;
+    --border-subtle: 20 10% 15%;
     --input: 20 13% 18%;
     --ring: 25 85% 55% / 0.25;
 
@@ -155,6 +173,20 @@
     --ai: 262 83% 75%;
     --ai-foreground: 0 0% 100%;
     --ai-surface: 262 30% 12%;
+
+    /* --- 文本层级扩展（深色） --- */
+    --text-tertiary: 20 8% 55%;
+    --text-disabled: 20 7% 38%;
+
+    /* --- 图谱节点语义色（深色降饱和）--- */
+    --node-law: 142 55% 55%;
+    --node-case: 217 85% 72%;
+    --node-party: 38 85% 60%;
+    --node-organization: 262 75% 72%;
+    --node-lawyer: 25 85% 65%;
+    --node-query: 220 10% 60%;
+    --node-conclusion: 280 60% 72%;
+    --node-other: 220 8% 55%;
 
     /* --- 阴影系统（深色用边框代替） --- */
     --shadow-sm: 0 0 0 1px rgba(255,255,255,0.06);

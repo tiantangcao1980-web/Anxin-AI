@@ -60,7 +60,7 @@ export default function ModuleLayout({ title, icon: TitleIcon, navItems }: Modul
                 initial={{ opacity: 0, width: 0 }}
                 animate={{ opacity: 1, width: 'auto' }}
                 exit={{ opacity: 0, width: 0 }}
-                className="text-sm font-bold text-foreground overflow-hidden whitespace-nowrap"
+                className="text-sm font-medium text-foreground overflow-hidden whitespace-nowrap"
               >
                 {title}
               </motion.span>

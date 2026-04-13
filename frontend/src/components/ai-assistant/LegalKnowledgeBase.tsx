@@ -73,7 +73,7 @@ export function LegalKnowledgeBase() {
               <icons.BookOpen className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h3 className="font-bold text-foreground">法律智慧库</h3>
+              <h3 className="font-medium text-foreground">法律智慧库</h3>
               <p className="text-xs text-muted-foreground">混合搜索 + AI 深度研究</p>
             </div>
           </div>
@@ -128,7 +128,7 @@ export function LegalKnowledgeBase() {
             <div className="px-6 py-4 border-b border-primary/20 flex items-center justify-between bg-primary/5">
               <div className="flex items-center gap-2">
                 <icons.Sparkles className="w-4 h-4 text-primary" />
-                <span className="font-bold text-foreground text-sm">AI 深度法律研究报告</span>
+                <span className="font-medium text-foreground text-sm">AI 深度法律研究报告</span>
               </div>
               <button 
                 onClick={() => setShowReport(false)}
@@ -154,7 +154,7 @@ export function LegalKnowledgeBase() {
                   
                   {researchReport.citations?.length > 0 && (
                     <div className="mt-8 pt-6 border-t border-border">
-                      <h5 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
+                      <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-caption mb-4 flex items-center gap-2">
                         <icons.BookMarked className="w-3.5 h-3.5" />
                         研究引用库
                       </h5>
@@ -194,17 +194,17 @@ export function LegalKnowledgeBase() {
                 className="group bg-background rounded-xl border border-border p-4 hover:border-primary hover:shadow-md transition-all cursor-pointer relative overflow-hidden"
               >
                 {item.metadata?.keyword_match && (
-                  <div className="absolute top-0 right-0 px-2 py-0.5 bg-primary text-[10px] text-white font-bold rounded-bl-lg">
+                  <div className="absolute top-0 right-0 px-2 py-0.5 bg-primary text-[10px] text-white font-medium rounded-bl-lg">
                     精准匹配
                   </div>
                 )}
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] font-bold text-primary uppercase tracking-tighter bg-primary/10 px-1.5 py-0.5 rounded">
+                      <span className="text-[10px] font-medium text-primary uppercase tracking-tighter bg-primary/10 px-1.5 py-0.5 rounded">
                         {item.match_type === 'hybrid' ? '混合检索' : item.match_type === 'vector' ? '语义关联' : '文本匹配'}
                       </span>
-                      <h4 className="font-bold text-foreground text-sm group-hover:text-primary transition-colors">{item.title}</h4>
+                      <h4 className="font-medium text-foreground text-sm group-hover:text-primary transition-colors">{item.title}</h4>
                     </div>
                   </div>
                   <icons.ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />

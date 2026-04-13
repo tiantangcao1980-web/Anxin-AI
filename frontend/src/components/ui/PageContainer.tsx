@@ -15,7 +15,7 @@
 
 import { type ReactNode } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { heading, spacing } from '@/lib/design-tokens'
+import { heading, spacing, cardStyle } from '@/lib/design-tokens'
 
 interface PageContainerProps {
   /** 页面标题 */
@@ -61,7 +61,7 @@ export function PageContainer({
   const content = (
     <div data-ui="page-shell" className={contentClasses}>
       {hasHeader && (
-        <div data-ui="page-header" className="flex flex-col justify-between gap-3 rounded-2xl border border-border/70 bg-surface-1 p-5 shadow-card sm:flex-row sm:items-center shrink-0">
+        <div data-ui="page-header" className={`flex flex-col justify-between gap-3 ${cardStyle.base} sm:flex-row sm:items-center shrink-0`}>
           <div className="min-w-0">
             {title && (
               <h1 className={`${heading.page} truncate`}>
@@ -76,7 +76,7 @@ export function PageContainer({
         </div>
       )}
 
-      {toolbar && <div data-ui="page-toolbar" className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/60 bg-surface-1 p-4 shadow-card shrink-0">{toolbar}</div>}
+      {toolbar && <div data-ui="page-toolbar" className={`flex flex-wrap items-center gap-2 ${cardStyle.compact} shrink-0`}>{toolbar}</div>}
 
       {children}
     </div>
@@ -113,7 +113,7 @@ export function PageSection({ title, description, actions, children, className =
       {(title || actions) && (
         <div className="flex items-center justify-between gap-3">
           <div>
-            {title && <h2 className="text-base sm:text-lg font-semibold text-foreground">{title}</h2>}
+            {title && <h2 className="text-base sm:text-lg font-medium text-foreground">{title}</h2>}
             {description && <p className="text-sm text-muted-foreground mt-0.5">{description}</p>}
           </div>
           {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}

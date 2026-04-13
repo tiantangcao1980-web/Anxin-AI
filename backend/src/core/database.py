@@ -169,7 +169,17 @@ async def init_db() -> None:
             
             await session.commit()
             logger.info("默认数据初始化完成")
-            
+
+        # 初始化预置功能开关（独立事务，不影响主初始化流程）
+        try:
+            async with async_session_maker() as flag_session:
+                from src.services.feature_flag_service import FeatureFlagService
+                flag_svc = FeatureFlagService(flag_session)
+                await flag_svc.ensure_preset_flags()
+                await flag_session.commit()
+        except Exception as flag_err:
+            logger.warning(f"预置功能开关初始化跳过: {flag_err}")
+
     except Exception as e:
         logger.error(f"数据库初始化失败: {e}")
         raise

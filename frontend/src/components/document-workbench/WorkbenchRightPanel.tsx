@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { documentsApi } from '@/lib/api'
+import { cardStyle } from '@/lib/design-tokens'
 import { useCollaborationSession } from './hooks/useCollaborationSession'
 import { useDocumentWorkbenchStore } from './hooks/useDocumentWorkbenchStore'
 
@@ -166,8 +167,8 @@ export function WorkbenchRightPanel({ entryMode, sessionId }: WorkbenchRightPane
         {activeTab === 'collaboration' ? (
           <div className="space-y-4">
             {session ? (
-              <div className="rounded-2xl border border-border bg-background px-3 py-3">
-                <div className="text-sm font-semibold text-foreground">{session.name || '协作会话'}</div>
+              <div className={`${cardStyle.compact} !px-3 !py-3`}>
+                <div className="text-sm font-medium text-foreground">{session.name || '协作会话'}</div>
                 <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
                   <span className="rounded-full bg-muted px-2.5 py-1">版本 {session.current_version}</span>
                   <span className="rounded-full bg-muted px-2.5 py-1">状态 {session.status}</span>
@@ -180,11 +181,11 @@ export function WorkbenchRightPanel({ entryMode, sessionId }: WorkbenchRightPane
             ) : null}
 
             <div>
-            <h3 className="text-sm font-semibold text-foreground">在线成员</h3>
+            <h3 className="text-sm font-medium text-foreground">在线成员</h3>
             <div className="mt-3 space-y-2">
               {collaborators.length > 0 ? (
                 collaborators.map((item) => (
-                  <div key={item.id} className="rounded-2xl border border-border bg-background px-3 py-2">
+                  <div key={item.id} className={`${cardStyle.compact} !px-3 !py-2`}>
                     <div className="text-sm font-medium text-foreground">{item.name}</div>
                     <div className="text-xs text-muted-foreground">{item.role}</div>
                   </div>
@@ -198,11 +199,11 @@ export function WorkbenchRightPanel({ entryMode, sessionId }: WorkbenchRightPane
             </div>
 
             <div>
-              <h3 className="text-sm font-semibold text-foreground">版本历史</h3>
+              <h3 className="text-sm font-medium text-foreground">版本历史</h3>
               <div className="mt-3 space-y-2">
                 {versions.length > 0 ? (
                   versions.map((item) => (
-                    <div key={item.id} className="rounded-2xl border border-border bg-background px-3 py-2">
+                    <div key={item.id} className={`${cardStyle.compact} !px-3 !py-2`}>
                       <div className="flex items-center justify-between gap-2">
                         <div className="text-sm font-medium text-foreground">{item.description || '未命名快照'}</div>
                         <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
@@ -232,11 +233,11 @@ export function WorkbenchRightPanel({ entryMode, sessionId }: WorkbenchRightPane
           </div>
         ) : activeTab === 'ai' ? (
           <div>
-            <h3 className="text-sm font-semibold text-foreground">智能操作</h3>
+            <h3 className="text-sm font-medium text-foreground">智能操作</h3>
             <div className="mt-3 space-y-4">
               {hasAIMetadata ? (
                 <div className="space-y-3">
-                  <div className="rounded-2xl border border-border bg-background px-3 py-3">
+                  <div className={`${cardStyle.compact} !px-3 !py-3`}>
                     <div className="text-xs text-muted-foreground">生成状态</div>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       {metadata?.draft_mode ? (
@@ -256,7 +257,7 @@ export function WorkbenchRightPanel({ entryMode, sessionId }: WorkbenchRightPane
                       ) : null}
                     </div>
                   </div>
-                  <div className="rounded-2xl border border-border bg-background px-3 py-3">
+                  <div className={`${cardStyle.compact} !px-3 !py-3`}>
                     <div className="flex items-center justify-between">
                       <div className="text-sm font-medium text-foreground">待确认事项</div>
                       <div className="text-xs text-muted-foreground">{pendingMissingFields.length} 项</div>
@@ -318,10 +319,10 @@ export function WorkbenchRightPanel({ entryMode, sessionId }: WorkbenchRightPane
           </div>
         ) : activeTab === 'history' ? (
           <div>
-            <h3 className="text-sm font-semibold text-foreground">最近活动</h3>
+            <h3 className="text-sm font-medium text-foreground">最近活动</h3>
             <div className="mt-3 space-y-2">
               {historyItems.map((item) => (
-                <div key={item.id} className="rounded-2xl border border-border bg-background px-3 py-3">
+                <div key={item.id} className={`${cardStyle.compact} !px-3 !py-3`}>
                   <div className="text-sm font-medium text-foreground">{item.label}</div>
                   {item.targetText ? (
                     <button
@@ -340,21 +341,21 @@ export function WorkbenchRightPanel({ entryMode, sessionId }: WorkbenchRightPane
           </div>
         ) : (
           <div>
-            <h3 className="text-sm font-semibold text-foreground">文档属性</h3>
+            <h3 className="text-sm font-medium text-foreground">文档属性</h3>
             <div className="mt-3 space-y-2">
-              <div className="rounded-2xl border border-border bg-background px-3 py-3">
+              <div className={`${cardStyle.compact} !px-3 !py-3`}>
                 <div className="text-xs text-muted-foreground">文档标题</div>
                 <div data-testid="workbench-property-title" className="mt-1 text-sm font-medium text-foreground">
                   {activeDocument?.title ?? '未打开文档'}
                 </div>
               </div>
-              <div className="rounded-2xl border border-border bg-background px-3 py-3">
+              <div className={`${cardStyle.compact} !px-3 !py-3`}>
                 <div className="text-xs text-muted-foreground">文档类型</div>
                 <div data-testid="workbench-property-type" className="mt-1 text-sm font-medium text-foreground">
                   {documentTypeLabel}
                 </div>
               </div>
-              <div className="rounded-2xl border border-border bg-background px-3 py-3">
+              <div className={`${cardStyle.compact} !px-3 !py-3`}>
                 <div className="text-xs text-muted-foreground">协作模式</div>
                 <div data-testid="workbench-property-mode" className="mt-1 text-sm font-medium text-foreground">
                   {entryMode === 'collaboration' ? '协作模板' : entryMode === 'chat' ? '智能工作台入口' : '文档工作台'}

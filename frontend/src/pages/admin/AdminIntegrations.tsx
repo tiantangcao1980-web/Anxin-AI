@@ -65,7 +65,7 @@ export default function AdminIntegrations() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
-                <h4 className="text-sm font-semibold mb-3">微信登录</h4>
+                <h4 className="text-sm font-medium mb-3">微信登录</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2"><Label>App ID</Label><Input value={oauth.wechat_app_id} onChange={e => setOauth({ ...oauth, wechat_app_id: e.target.value })} placeholder="wx..." /></div>
                   <div className="space-y-2"><Label>App Secret</Label><Input type="password" value={oauth.wechat_app_secret} onChange={e => setOauth({ ...oauth, wechat_app_secret: e.target.value })} /></div>
@@ -73,7 +73,7 @@ export default function AdminIntegrations() {
               </div>
               <Separator />
               <div>
-                <h4 className="text-sm font-semibold mb-3">支付宝登录</h4>
+                <h4 className="text-sm font-medium mb-3">支付宝登录</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2"><Label>App ID</Label><Input value={oauth.alipay_app_id} onChange={e => setOauth({ ...oauth, alipay_app_id: e.target.value })} /></div>
                   <div className="space-y-2"><Label>App Secret</Label><Input type="password" value={oauth.alipay_app_secret} onChange={e => setOauth({ ...oauth, alipay_app_secret: e.target.value })} /></div>

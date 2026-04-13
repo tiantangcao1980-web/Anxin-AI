@@ -34,6 +34,9 @@ const navGroups: NavGroup[] = [
       { path: '/admin/users', label: '用户管理', icon: icons.Users },
       { path: '/admin/roles', label: '角色权限', icon: icons.Shield },
       { path: '/admin/orgs', label: '组织管理', icon: icons.Building },
+      { path: '/admin/security', label: '安全策略', icon: icons.Lock },
+      { path: '/admin/audit', label: '审计日志', icon: icons.FileText },
+      { path: '/admin/feature-flags', label: '功能开关', icon: icons.Target },
     ],
   },
   {
@@ -42,7 +45,6 @@ const navGroups: NavGroup[] = [
       { path: '/admin/basic', label: '基础设置', icon: icons.Settings },
       { path: '/admin/ai-config', label: '模型配置', icon: icons.Cpu },
       { path: '/admin/integrations', label: '服务集成', icon: icons.Globe },
-      { path: '/admin/security', label: '安全策略', icon: icons.Lock },
       { path: '/admin/health', label: '系统监控', icon: icons.Server },
       { path: '/admin/harness', label: 'Harness', icon: icons.Shield },
     ],
@@ -52,13 +54,6 @@ const navGroups: NavGroup[] = [
     items: [
       { path: '/admin/lawyer-verify', label: '律师认证', icon: icons.CheckCircle },
       { path: '/admin/billing', label: '计费管理', icon: icons.DollarSign },
-    ],
-  },
-  {
-    label: '安全与合规',
-    items: [
-      { path: '/admin/audit', label: '审计日志', icon: icons.FileText },
-      { path: '/admin/feature-flags', label: '功能开关', icon: icons.Target },
     ],
   },
 ]
@@ -114,7 +109,7 @@ export default function AdminLayout() {
                 exit={{ opacity: 0, width: 0 }}
                 className="overflow-hidden whitespace-nowrap"
               >
-                <h1 className="text-base font-bold text-foreground">后台管理</h1>
+                <h1 className="text-base font-medium text-foreground">后台管理</h1>
                 <p className="text-xs text-muted-foreground">Admin Panel</p>
               </motion.div>
             )}
@@ -128,7 +123,7 @@ export default function AdminLayout() {
               {/* 分组标题 */}
               {group.label && !collapsed && (
                 <div className="px-4 pt-4 pb-1">
-                  <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">
+                  <span className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-caption">
                     {group.label}
                   </span>
                 </div>

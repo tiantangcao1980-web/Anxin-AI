@@ -16,6 +16,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { icons } from '@/lib/icons'
+import { EmptyState, LoadingState } from '@/components/common'
 import {
   cardStyle,
   buttonStyle,
@@ -120,6 +121,10 @@ export default function KnowledgeBase() {
   const [docSearch, setDocSearch] = useState('')
   const [stats, setStats] = useState<BaseStats | null>(null)
   const [showStats, setShowStats] = useState(false)
+  const [docPage, setDocPage] = useState(1)
+  const [docTotal, setDocTotal] = useState(0)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const DOC_PAGE_SIZE = 50
 
   // ---- 弹窗状态 ----
   const [showCreate, setShowCreate] = useState(false)
@@ -156,18 +161,27 @@ export default function KnowledgeBase() {
     }
   }, [filterType])
 
-  const loadDocuments = useCallback(async (kbId: string) => {
-    setDocLoading(true)
+  const loadDocuments = useCallback(async (kbId: string, page = 1, append = false) => {
+    if (page === 1) setDocLoading(true)
+    else setLoadingMore(true)
     try {
-      const data = await knowledgeApi.listDocuments(kbId)
-      setDocuments(data.items || [])
+      const data = await knowledgeApi.listDocuments(kbId, { page, page_size: DOC_PAGE_SIZE })
+      const items = data.items || []
+      setDocuments(prev => append ? [...prev, ...items] : items)
+      setDocTotal(data.total || 0)
+      setDocPage(page)
     } catch (err: any) {
       toast.error('加载文档失败: ' + (err.message || '服务不可用'))
-      setDocuments([])
+      if (!append) setDocuments([])
     } finally {
       setDocLoading(false)
+      setLoadingMore(false)
     }
   }, [])
+
+  const handleLoadMore = useCallback(() => {
+    if (selectedBase) loadDocuments(selectedBase.id, docPage + 1, true)
+  }, [selectedBase, docPage, loadDocuments])
 
   const loadStats = useCallback(async (kbId: string) => {
     try {
@@ -639,7 +653,7 @@ export default function KnowledgeBase() {
             <p className="text-xs text-muted-foreground">文档总数</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold text-emerald-600">{stats.processed_count}</p>
+            <p className="text-2xl font-bold text-success">{stats.processed_count}</p>
             <p className="text-xs text-muted-foreground">已索引</p>
           </div>
           <div className="text-center">
@@ -735,25 +749,18 @@ export default function KnowledgeBase() {
           {renderStatsPanel()}
 
           {docLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <icons.Refresh className={`${iconSize.lg} animate-spin text-primary`} />
-            </div>
+            <LoadingState />
           ) : filteredDocs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-              <icons.FileText className={`${iconSize['2xl']} mb-3 opacity-30`} />
-              <p className="text-sm mb-1">{docSearch ? '没有找到匹配的文档' : '暂无文档'}</p>
-              <p className="text-xs mb-4">{docSearch ? '尝试修改搜索关键词' : '上传文件开始构建知识库'}</p>
-              {!docSearch && (
-                <button onClick={() => setShowUpload(true)} className={buttonStyle.primary}>
-                  <icons.Upload className={`${iconSize.sm} inline-block mr-1`} />
-                  上传文档
-                </button>
-              )}
-            </div>
+            <EmptyState
+              icon={docSearch ? 'Search' : 'FileText'}
+              title={docSearch ? '没有找到匹配的文档' : '暂无文档'}
+              description={docSearch ? '尝试修改搜索关键词' : '上传文件开始构建知识库'}
+              action={!docSearch ? { label: '上传文档', onClick: () => setShowUpload(true) } : undefined}
+            />
           ) : (
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground mb-2">
-                共 {filteredDocs.length} 篇文档
+                显示 {filteredDocs.length} / {docTotal} 篇文档
                 {docSearch && ` (搜索: "${docSearch}")`}
               </p>
               {filteredDocs.map(doc => (
@@ -804,6 +811,22 @@ export default function KnowledgeBase() {
                   </div>
                 </div>
               ))}
+              {/* 加载更多按钮 */}
+              {!docSearch && documents.length < docTotal && (
+                <div className="flex justify-center pt-4">
+                  <button
+                    onClick={handleLoadMore}
+                    disabled={loadingMore}
+                    className={buttonStyle.ghost + ' text-sm'}
+                  >
+                    {loadingMore ? (
+                      <><icons.Refresh className={`${iconSize.sm} animate-spin inline-block mr-1`} />加载中...</>
+                    ) : (
+                      <>加载更多 ({documents.length}/{docTotal})</>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -831,14 +854,6 @@ export default function KnowledgeBase() {
             司法智库
           </h1>
           <div className="flex items-center gap-2">
-            <button onClick={() => navigate('/knowledge-graph')} className={buttonStyle.ghost} title="知识图谱">
-              <icons.Network className={iconSize.sm} />
-              <span className="hidden sm:inline text-xs ml-1">图谱</span>
-            </button>
-            <button onClick={() => navigate('/due-diligence')} className={buttonStyle.ghost} title="智能调查">
-              <icons.Search className={iconSize.sm} />
-              <span className="hidden sm:inline text-xs ml-1">调查</span>
-            </button>
             <button onClick={() => { setBaseForm({ name: '', description: '', knowledge_type: 'general', is_public: false }); setShowCreate(true) }} className={buttonStyle.primary}>
               <icons.Plus className={`${iconSize.sm} inline-block mr-1`} />
               新建知识库
@@ -866,29 +881,22 @@ export default function KnowledgeBase() {
       {/* 内容 */}
       <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <icons.Refresh className={`${iconSize.lg} animate-spin text-primary`} />
-          </div>
+          <LoadingState />
         ) : filteredBases.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-            <icons.BookOpen className={`${iconSize['2xl']} mb-3 opacity-30`} />
-            <p className="text-sm mb-1">{searchQuery || filterType ? '没有找到匹配的知识库' : '暂无知识库'}</p>
-            <p className="text-xs mb-4">{searchQuery || filterType ? '尝试修改搜索条件' : '创建第一个知识库开始管理法律知识'}</p>
-            {!searchQuery && !filterType && (
-              <button onClick={() => { setBaseForm({ name: '', description: '', knowledge_type: 'general', is_public: false }); setShowCreate(true) }} className={buttonStyle.primary}>
-                <icons.Plus className={`${iconSize.sm} inline-block mr-1`} />
-                新建知识库
-              </button>
-            )}
-          </div>
+          <EmptyState
+            icon={searchQuery || filterType ? 'Search' : 'BookOpen'}
+            title={searchQuery || filterType ? '没有找到匹配的知识库' : '暂无知识库'}
+            description={searchQuery || filterType ? '尝试修改搜索条件' : '创建第一个知识库开始管理法律知识'}
+            action={!searchQuery && !filterType ? { label: '新建知识库', onClick: () => { setBaseForm({ name: '', description: '', knowledge_type: 'general', is_public: false }); setShowCreate(true) } } : undefined}
+          />
         ) : (
           <>
             {/* 统计摘要 */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
               {[
                 { label: '知识库', value: filteredBases.length, icon: icons.BookOpen, color: 'text-primary' },
-                { label: '总文档', value: filteredBases.reduce((sum, kb) => sum + ((kb as any).document_count || kb.doc_count || 0), 0), icon: icons.FileText, color: 'text-emerald-600 dark:text-emerald-400' },
-                { label: '类型', value: new Set(filteredBases.map(kb => kb.knowledge_type)).size, icon: icons.Tag, color: 'text-amber-600 dark:text-amber-400' },
+                { label: '总文档', value: filteredBases.reduce((sum, kb) => sum + ((kb as any).document_count || kb.doc_count || 0), 0), icon: icons.FileText, color: 'text-success' },
+                { label: '类型', value: new Set(filteredBases.map(kb => kb.knowledge_type)).size, icon: icons.Tag, color: 'text-warning' },
                 { label: '公开', value: filteredBases.filter(kb => kb.is_public).length, icon: icons.Globe, color: 'text-muted-foreground' },
               ].map(stat => {
                 const Icon = stat.icon

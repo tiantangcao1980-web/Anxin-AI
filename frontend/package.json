@@ -8,6 +8,8 @@
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "vitest run",
+    "audit:design": "bash ./scripts/design-audit.sh",
+    "audit:cleanup": "bash ./scripts/design-cleanup-audit.sh",
     "preview": "vite preview",
     "tauri:dev": "cd ../desktop && cargo tauri dev",
     "tauri:build": "cd ../desktop && cargo tauri build",

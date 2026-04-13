@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom'
 import { icons } from '@/lib/icons'
 import { toast } from 'sonner'
 import { lawyerApi } from '@/lib/api'
-import { cardStyle, buttonStyle, heading, statusBadge, iconSize, chartColors } from '@/lib/design-tokens'
+import { cardStyle, buttonStyle, complianceScoreColors, heading, statusBadge, iconSize, chartColors } from '@/lib/design-tokens'
 import { PageContainer, PageSection } from '@/components/ui/PageContainer'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -153,8 +153,8 @@ export default function LawyerDashboard() {
           icon={icons.DollarSign}
           label="本月收入"
           value={`¥${kpi.monthlyIncome.toLocaleString()}`}
-          color="text-emerald-600"
-          bgColor="bg-emerald-50 dark:bg-emerald-950/30"
+          color="text-success"
+          bgColor="bg-success/10 dark:bg-success/20"
         />
         <KpiCard
           icon={icons.Briefcase}
@@ -167,15 +167,15 @@ export default function LawyerDashboard() {
           icon={icons.Star}
           label="综合评分"
           value={`${kpi.rating} ★`}
-          color="text-amber-600"
-          bgColor="bg-amber-50 dark:bg-amber-950/30"
+          color="text-warning"
+          bgColor="bg-warning/10 dark:bg-warning/20"
         />
         <KpiCard
           icon={icons.Clock}
           label="平均回复"
           value={`${kpi.avgResponseMinutes} 分钟`}
-          color="text-blue-600"
-          bgColor="bg-blue-50 dark:bg-blue-950/30"
+          color="text-info"
+          bgColor="bg-info/10 dark:bg-info/20"
         />
       </div>
 
@@ -183,7 +183,7 @@ export default function LawyerDashboard() {
       <PageSection title="待处理咨询" description={`${pending.length} 条待处理`}>
         {pending.length === 0 ? (
           <div className={`${cardStyle.flat} text-center py-8`}>
-            <icons.CheckCircle className={`${iconSize.xl} text-emerald-500 mx-auto mb-2`} />
+            <icons.CheckCircle className={`${iconSize.xl} text-success mx-auto mb-2`} />
             <p className={heading.muted}>暂无待处理咨询</p>
           </div>
         ) : (

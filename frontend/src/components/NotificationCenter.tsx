@@ -60,9 +60,9 @@ export function NotificationCenter({ onClose }: NotificationCenterProps) {
 
   const typeConfig = {
     urgent: { badge: statusBadge.error, text: 'text-destructive', icon: icons.AlertCircle },
-    warning: { badge: statusBadge.warning, text: 'text-amber-600 dark:text-amber-400', icon: icons.AlertCircle },
+    warning: { badge: statusBadge.warning, text: 'text-warning', icon: icons.AlertCircle },
     info: { badge: statusBadge.info, text: 'text-primary', icon: icons.Bell },
-    success: { badge: statusBadge.success, text: 'text-emerald-600 dark:text-emerald-400', icon: icons.Check },
+    success: { badge: statusBadge.success, text: 'text-success', icon: icons.Check },
   };
 
   const getIcon = (type: string) => {

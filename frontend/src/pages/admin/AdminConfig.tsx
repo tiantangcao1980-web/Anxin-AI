@@ -261,7 +261,7 @@ export default function AdminConfig() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
-                <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
                   <icons.Globe className="w-4 h-4" />
                   微信登录
                 </h4>
@@ -290,7 +290,7 @@ export default function AdminConfig() {
               </div>
               <Separator />
               <div>
-                <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
                   <icons.Globe className="w-4 h-4" />
                   支付宝登录
                 </h4>

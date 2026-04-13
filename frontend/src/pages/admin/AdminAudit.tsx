@@ -245,7 +245,7 @@ export default function AdminAudit() {
             <Card>
               <CardContent className="pt-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-sm font-semibold">操作详情</h4>
+                  <h4 className="text-sm font-medium">操作详情</h4>
                   <Button
                     variant="ghost"
                     size="sm"

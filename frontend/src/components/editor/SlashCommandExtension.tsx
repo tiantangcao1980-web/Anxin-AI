@@ -323,7 +323,7 @@ export function SlashCommandMenu({ editor, isOpen, onClose, position, query }: S
       </div>
       {Object.entries(grouped).map(([category, catItems]) => (
         <div key={category}>
-          <div className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider bg-muted/20 border-b border-border/30">
+          <div className="px-3 py-1 text-[10px] font-medium text-muted-foreground uppercase tracking-caption bg-muted/20 border-b border-border/30">
             {category}
           </div>
           {catItems.map((item) => {

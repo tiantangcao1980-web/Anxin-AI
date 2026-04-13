@@ -41,15 +41,13 @@ interface NavChild {
 // 四大业务域 — 全部为直达链接，点击进入模块首页（各模块有自己的左侧导航栏）
 const navGroups: { id: string; label: string; path: string }[] = [
   { id: 'ai-legal', label: 'AI法务', path: '/chat' },
-  { id: 'collaboration', label: '智能协作', path: '/cases' },
-  { id: 'info-center', label: '智能调查', path: '/due-diligence' },
+  { id: 'collaboration', label: '智能协作', path: '/case-center' },
+  { id: 'monitoring', label: '舆情监测', path: '/monitoring' },
   { id: 'knowledge', label: '法律智库', path: '/knowledge-base' },
 ]
 
-// 系统功能（右侧图标按钮）— 审批已整合进任务中心，系统设置已整合进后台管理
-const systemItems: NavChild[] = [
-  { id: 'tasks', path: '/tasks', label: '任务中心', icon: icons.Tasks },
-]
+// 系统功能（右侧图标按钮）— 任务中心已整合进案件中心
+const systemItems: NavChild[] = []
 
 // ===== 模块侧边栏配置 =====
 interface SidebarItem {
@@ -64,32 +62,22 @@ const moduleSidebarConfig: { id: string; title: string; icon: React.ComponentTyp
     id: 'collaboration',
     title: '智能协作',
     icon: icons.CollaborationGroup,
-    paths: ['/cases', '/contracts', '/documents', '/collaboration', '/find-lawyer', '/compliance-check', '/leads', '/firm', '/lawyer-dashboard', '/acquisition'],
+    paths: ['/case-center', '/management', '/documents', '/find-lawyer', '/firm', '/lawyer-dashboard', '/acquisition'],
     items: [
-      { path: '/cases', label: '案件管理', icon: icons.Cases, feature: 'case_management' },
-      { path: '/contracts', label: '合同管理', icon: icons.Contracts, feature: 'contract_management' },
-      { path: '/documents', label: '文档工作台', icon: icons.FileText, feature: 'document_management' },
-      { path: '/collaboration', label: '协作模板', icon: icons.Collaboration, feature: 'collaboration' },
-      { path: '/find-lawyer', label: '找律师', icon: icons.Scale, feature: 'lawyer_matching' },
-      { path: '/compliance-check', label: '合规自检', icon: icons.ShieldCheck, feature: 'compliance_check' },
-      { path: '/leads', label: '案源管理', icon: icons.Leads, feature: 'leads' },
+      { path: '/case-center', label: '案件中心', icon: icons.Cases, feature: 'case_management' },
+      { path: '/management', label: '管理中心', icon: icons.ShieldCheck, feature: 'contract_management' },
+      { path: '/find-lawyer', label: '律师精英', icon: icons.Scale, feature: 'lawyer_matching' },
+      { path: '/documents', label: '智能文档', icon: icons.FileText, feature: 'document_management' },
     ],
   },
   {
-    id: 'info-center',
-    title: '智能调查',
+    id: 'monitoring',
+    title: '舆情监测',
     icon: icons.DueDiligence,
-    paths: ['/due-diligence', '/due-diligence/risk', '/due-diligence/litigation', '/due-diligence/compliance', '/due-diligence/graph', '/due-diligence/sentiment', '/due-diligence/simulation', '/due-diligence/report'],
+    paths: ['/monitoring', '/investigation'],
     items: [
-      { path: '/due-diligence', label: '调查概览', icon: icons.BarChart3 },
-      { path: '/due-diligence/risk', label: '风险评估', icon: icons.ShieldAlert },
-      { path: '/due-diligence/litigation', label: '诉讼分析', icon: icons.Scale },
-      { path: '/due-diligence/compliance', label: '信用合规', icon: icons.FileCheck },
-      { path: '/due-diligence/graph', label: '关系图谱', icon: icons.Network },
-      { path: '/due-diligence/sentiment', label: '舆情监控', icon: icons.Signal },
-      { path: '/due-diligence/simulation', label: '风险推演', icon: icons.Cpu },
-      { path: '/due-diligence/report', label: '调查报告', icon: icons.FileText },
-      // { path: '/news', label: '司法资讯', icon: icons.News },  // v2.0 版本启用
+      { path: '/monitoring', label: '舆情中心', icon: icons.Signal },
+      { path: '/investigation', label: '智能调查', icon: icons.BarChart3 },
     ],
   },
   {
@@ -168,7 +156,7 @@ function ModuleSidebar({ currentPath, onNavigate }: { currentPath: string; onNav
       <div className="p-2 border-t border-border">
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="w-full flex items-center justify-center gap-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-xs"
+          className="w-full flex items-center justify-center gap-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-xs outline-none focus-visible:ring-2 focus-visible:ring-primary/15"
         >
           {collapsed ? (
             <icons.ChevronRight className="w-4 h-4" />
@@ -187,7 +175,7 @@ function ModuleSidebar({ currentPath, onNavigate }: { currentPath: string; onNav
 // 路由活跃检测 — 检查当前路径是否属于某个模块
 const modulePathMap: Record<string, string[]> = {
   'ai-legal': ['/chat'],
-  'collaboration': ['/cases', '/contracts', '/collaboration', '/find-lawyer', '/compliance-check', '/leads', '/acquisition', '/firm', '/lawyer-dashboard'],
+  'collaboration': ['/cases', '/contracts', '/documents', '/find-lawyer', '/compliance-check', '/leads', '/acquisition', '/firm', '/lawyer-dashboard'],
   'info-center': ['/due-diligence'],  // 子路径 /due-diligence/* 自动匹配
   'knowledge': ['/search', '/knowledge-graph', '/knowledge-base', '/academy'],
 }
@@ -287,7 +275,7 @@ export default function Layout() {
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
               <icons.Legal className="w-[18px] h-[18px] text-white" />
             </div>
-            <span className="text-xl font-semibold text-foreground tracking-tight hidden sm:block">
+            <span className="text-xl font-medium text-foreground tracking-tight hidden sm:block">
               安心法务
             </span>
           </button>
@@ -311,7 +299,7 @@ export default function Layout() {
 
           {/* 右侧：系统功能 + 用户区 */}
           <div className="ml-auto flex items-center gap-1 sm:gap-1.5 md:gap-2">
-            <div className="flex items-center gap-1 rounded-xl border border-border/60 bg-background/85 p-1 shadow-sm backdrop-blur-sm">
+            <div className="flex items-center gap-1 rounded-xl p-1">
               <button
                 onClick={() => navigate('/messages')}
                 aria-label="消息"

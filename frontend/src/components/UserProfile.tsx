@@ -92,7 +92,7 @@ function getVerificationBanner(
   // 管理员角色不显示认证/升级提示
   if (['super_admin', 'admin', 'org_admin', 'dept_admin'].includes(role)) {
     return (
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-100 text-xs">
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-success/10 text-success text-xs">
         <icons.Shield className="w-3.5 h-3.5 shrink-0" />
         <span>{getRoleDisplayName(role)} · 全部功能已开通</span>
       </div>
@@ -104,7 +104,7 @@ function getVerificationBanner(
     return (
       <button
         onClick={() => navigate('/settings?tab=profile')}
-        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/20 text-amber-100 text-xs hover:bg-amber-500/30 transition-colors"
+        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-warning/10 text-warning text-xs hover:bg-warning/20 transition-colors"
       >
         <icons.AlertTriangle className="w-3.5 h-3.5 shrink-0" />
         <span className="text-left">邮箱未验证，部分功能受限。点击前往验证</span>
@@ -120,7 +120,7 @@ function getVerificationBanner(
       return (
         <button
           onClick={() => navigate('/lawyer-onboarding')}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/20 text-amber-100 text-xs hover:bg-amber-500/30 transition-colors"
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-warning/10 text-warning text-xs hover:bg-warning/20 transition-colors"
         >
           <icons.FileSignature className="w-3.5 h-3.5 shrink-0" />
           <span className="text-left">律师资质待认证，完成认证后解锁全部功能</span>
@@ -130,7 +130,7 @@ function getVerificationBanner(
     }
     // 已认证
     return (
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-100 text-xs">
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-success/10 text-success text-xs">
         <icons.CheckCircle className="w-3.5 h-3.5 shrink-0" />
         <span>已认证律师 · 全部功能已开通</span>
       </div>
@@ -143,7 +143,7 @@ function getVerificationBanner(
       return (
         <button
           onClick={() => navigate('/settings?tab=profile')}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/20 text-blue-100 text-xs hover:bg-blue-500/30 transition-colors"
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-info/10 text-info text-xs hover:bg-info/20 transition-colors"
         >
           <icons.Building className="w-3.5 h-3.5 shrink-0" />
           <span className="text-left">企业认证待完成，认证后开通团队协作功能</span>
@@ -152,7 +152,7 @@ function getVerificationBanner(
       )
     }
     return (
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-100 text-xs">
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-success/10 text-success text-xs">
         <icons.CheckCircle className="w-3.5 h-3.5 shrink-0" />
         <span>企业已认证 · 团队功能已开通</span>
       </div>
@@ -426,9 +426,9 @@ export function UserProfile({ onClose, headerActionLabels = true, onToggleHeader
                 <div className="flex items-center gap-3">
                   <icons.Cpu className={`${iconSize.md} ${
                     hardwareStatus === HWStatus.CONNECTED
-                      ? 'text-emerald-600 dark:text-emerald-400'
+                      ? 'text-success'
                       : !openClawInstalled
-                        ? 'text-amber-600 dark:text-amber-400'
+                        ? 'text-warning'
                         : 'text-muted-foreground'
                   }`} />
                   <div>
@@ -455,7 +455,7 @@ export function UserProfile({ onClose, headerActionLabels = true, onToggleHeader
                   }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                     hardwareStatus === HWStatus.CONNECTED
-                      ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900/50'
+                      ? 'bg-success/10 text-success hover:bg-success/20'
                       : !openClawInstalled
                         ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                         : 'bg-muted text-muted-foreground hover:bg-muted/80'
@@ -467,7 +467,7 @@ export function UserProfile({ onClose, headerActionLabels = true, onToggleHeader
               {hardwareStatus === HWStatus.CONNECTED && (
                 <div className="h-1.5 bg-border rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                    className="h-full bg-success rounded-full transition-all duration-500"
                     style={{ width: `${secureComputeUsage}%` }}
                   />
                 </div>
@@ -522,7 +522,7 @@ export function UserProfile({ onClose, headerActionLabels = true, onToggleHeader
         <div className="p-4 border-t border-border">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-950/50 active:scale-[0.98] rounded-lg px-4 py-2 text-sm font-medium transition-all"
+            className="w-full flex items-center justify-center gap-2 bg-warning/10 text-warning border border-warning/20 hover:bg-warning/20 active:scale-[0.98] rounded-lg px-4 py-2 text-sm font-medium transition-all"
           >
             <icons.LogOut className={iconSize.md} />
             退出登录
@@ -544,7 +544,7 @@ export function UserProfile({ onClose, headerActionLabels = true, onToggleHeader
                     <icons.Cpu className="w-6 h-6 text-primary" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-foreground">AI 私有助手</h3>
+                    <h3 className="text-lg font-medium text-foreground">AI 私有助手</h3>
                     <p className="text-sm text-muted-foreground">
                       {privacyMode === PrivacyMode.CLOUD ? '云端私有助手服务' : '基于 OpenClaw 的本地私有化 AI 服务'}
                     </p>
@@ -565,12 +565,12 @@ export function UserProfile({ onClose, headerActionLabels = true, onToggleHeader
                     <icons.Cloud className="w-8 h-8 text-primary" />
                   </div>
                   <div>
-                    <h4 className="text-base font-semibold text-foreground mb-1">云端私有助手</h4>
+                    <h4 className="text-base font-medium text-foreground mb-1">云端私有助手</h4>
                     <p className="text-sm text-muted-foreground leading-relaxed">
                       云端私有助手仍处于规划阶段。开放后将提供专属云端 AI 法务实例、数据隔离存储与独享算力资源。
                     </p>
                   </div>
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 rounded-full text-xs font-medium border border-amber-200 dark:border-amber-800">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-warning/10 text-warning rounded-full text-xs font-medium border border-warning/20">
                     <icons.Clock className="w-3.5 h-3.5" />
                     当前尚未开放申请
                   </div>

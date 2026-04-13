@@ -233,6 +233,21 @@ export type RightPanelTab = 'smart' | 'document'
 // 文档面板内的浮层模式
 export type DocumentOverlay = 'none' | 'lawyer' | 'signing'
 
+// 工作台状态快照（按 conversationId 缓存，切换对话时保留进度）
+export interface WorkspaceSnapshot {
+  agentResults: AgentResult[]
+  thinkingSteps: ThinkingStep[]
+  requirementAnalysis: RequirementAnalysis | null
+  a2uiData: any | null
+  canvasContent: CanvasContent | null
+  analysisData: AnalysisData
+  workspaceConfirmations: WorkspaceConfirmation[]
+  workspaceActions: WorkspaceAction[]
+  agentTasks: AgentTask[]
+  rightPanelTab: RightPanelTab
+  contractReviewVisible: boolean
+}
+
 // ========== Auth Store ==========
 
 interface AuthState {
@@ -398,6 +413,12 @@ interface ChatState {
   setActiveSigningId: (id: string | null) => void
   signingPanelOpen: boolean
   setSigningPanelOpen: (open: boolean) => void
+
+  // 工作台状态缓存（按 conversationId 保留切换前的进度）
+  workspaceCache: Record<string, WorkspaceSnapshot>
+  saveWorkspaceToCache: (conversationId: string) => void
+  restoreWorkspaceFromCache: (conversationId: string) => boolean
+  clearWorkspaceCache: (conversationId?: string) => void
 
   // 重置工作区（新对话时调用）
   resetWorkspace: () => void
@@ -613,7 +634,87 @@ export const useChatStore = create<ChatState>()(
       setContractReviewVisible: (visible) => set({ contractReviewVisible: visible }),
       setContractReviewFile: (file) => set({ contractReviewFile: file }),
 
-      // 重置工作区
+      // 工作台状态缓存（按 conversationId 保留切换前的进度）
+      workspaceCache: {},
+
+      saveWorkspaceToCache: (conversationId: string) => {
+        const s = get()
+        // 只有工作台有实质内容时才缓存（避免缓存空状态）
+        const hasContent = s.agentResults.length > 0
+          || s.thinkingSteps.length > 0
+          || s.requirementAnalysis !== null
+          || s.a2uiData !== null
+          || s.canvasContent !== null
+          || s.workspaceConfirmations.length > 0
+          || s.workspaceActions.length > 0
+          || s.agentTasks.length > 0
+          || s.analysisData.riskRadar !== null
+          || s.analysisData.documentDiff !== null
+          || s.analysisData.knowledgeGraph !== null
+        if (!hasContent) return
+
+        const snapshot: WorkspaceSnapshot = {
+          agentResults: s.agentResults,
+          thinkingSteps: s.thinkingSteps,
+          requirementAnalysis: s.requirementAnalysis,
+          a2uiData: s.a2uiData,
+          canvasContent: s.canvasContent,
+          analysisData: { ...s.analysisData },
+          workspaceConfirmations: s.workspaceConfirmations,
+          workspaceActions: s.workspaceActions,
+          agentTasks: s.agentTasks,
+          rightPanelTab: s.rightPanelTab,
+          contractReviewVisible: s.contractReviewVisible,
+        }
+        set((prev) => {
+          const next = { ...prev.workspaceCache, [conversationId]: snapshot }
+          // 最多缓存 20 个对话的工作台状态，超出时淘汰最早的
+          const keys = Object.keys(next)
+          if (keys.length > 20) {
+            delete next[keys[0]]
+          }
+          return { workspaceCache: next }
+        })
+      },
+
+      restoreWorkspaceFromCache: (conversationId: string) => {
+        const snapshot = get().workspaceCache[conversationId]
+        if (!snapshot) return false
+        set({
+          agentResults: snapshot.agentResults,
+          thinkingSteps: snapshot.thinkingSteps,
+          requirementAnalysis: snapshot.requirementAnalysis,
+          a2uiData: snapshot.a2uiData,
+          canvasContent: snapshot.canvasContent,
+          analysisData: snapshot.analysisData,
+          workspaceConfirmations: snapshot.workspaceConfirmations,
+          workspaceActions: snapshot.workspaceActions,
+          agentTasks: snapshot.agentTasks,
+          rightPanelTab: snapshot.rightPanelTab,
+          contractReviewVisible: snapshot.contractReviewVisible,
+          // 流式状态不恢复
+          streamingMessageId: null,
+          streamingContent: '',
+          streamingAgent: '',
+          documentOverlay: 'none' as DocumentOverlay,
+          contractReviewFile: null,
+        })
+        return true
+      },
+
+      clearWorkspaceCache: (conversationId?: string) => {
+        if (conversationId) {
+          set((prev) => {
+            const next = { ...prev.workspaceCache }
+            delete next[conversationId]
+            return { workspaceCache: next }
+          })
+        } else {
+          set({ workspaceCache: {} })
+        }
+      },
+
+      // 重置工作区（仅用于创建全新对话时）
       resetWorkspace: () =>
         set({
           agentResults: [],

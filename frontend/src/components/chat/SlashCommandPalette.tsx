@@ -159,7 +159,7 @@ export function SlashCommandPalette({
         >
           {/* 标题 */}
           <div className="px-3 py-2 border-b border-border flex items-center gap-2">
-            <span className={`${heading.micro} font-semibold uppercase tracking-wider`}>快捷命令</span>
+            <span className={`${heading.micro} font-medium uppercase tracking-caption`}>快捷命令</span>
             {searchTerm && (
               <span className="text-[10px] text-primary">搜索: {searchTerm}</span>
             )}
@@ -168,7 +168,7 @@ export function SlashCommandPalette({
           {/* 命令列表 */}
           {Object.entries(groupedCommands).map(([category, commands]) => (
             <div key={category}>
-              <div className={`px-3 py-1.5 ${heading.micro} font-semibold uppercase tracking-wider bg-muted/50`}>
+              <div className={`px-3 py-1.5 ${heading.micro} font-medium uppercase tracking-caption bg-muted/50`}>
                 {CATEGORY_LABELS[category] || category}
               </div>
               {commands.map((cmd) => {

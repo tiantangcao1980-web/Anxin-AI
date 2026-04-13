@@ -52,20 +52,24 @@ export const spacing = {
   sectionCompact: 'space-y-4',
 } as const
 
-// ===== 圆角体系 =====
+// ===== 圆角体系 (DESIGN.md §5 Radius Scale) =====
 export const radius = {
-  /** 按钮、输入框 */
-  button: 'rounded-lg',
-  /** 卡片 */
-  card: 'rounded-xl',
-  /** 弹窗 */
-  dialog: 'rounded-2xl',
-  /** 头像 */
+  /** 按钮、输入框 — 16px */
+  button: 'rounded-2xl',
+  /** 标准卡片、面板、抽屉 — 24px */
+  card: 'rounded-3xl',
+  /** 弹窗 — 24px */
+  dialog: 'rounded-3xl',
+  /** 头像 — pill */
   avatar: 'rounded-full',
-  /** 标签 */
-  badge: 'rounded-md',
-  /** 聊天气泡 */
+  /** 标签、徽章 — 4px */
+  badge: 'rounded',
+  /** 聊天气泡 — 16px */
   bubble: 'rounded-2xl',
+  /** 紧凑容器、列表子项 — 12px */
+  compact: 'rounded-xl',
+  /** 小控件、表格行 — 8px */
+  small: 'rounded-lg',
 } as const
 
 // ===== 阴影体系 =====
@@ -83,34 +87,35 @@ export const duration = {
   slow: 'duration-300',
 } as const
 
-// ===== 卡片样式预设 =====
+// ===== 卡片样式预设 (DESIGN.md §4 Cards: 24px radius) =====
 export const cardStyle = {
-  base: 'rounded-2xl border border-border/70 bg-surface-1 p-5 shadow-card',
+  base: 'rounded-3xl border border-border/70 bg-surface-1 p-5 shadow-card',
   interactive:
-    'rounded-2xl border border-border/70 bg-surface-1 p-5 shadow-card transition-all hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-float cursor-pointer',
-  highlight: 'rounded-2xl border border-primary/20 bg-primary-50/80 p-5 shadow-card dark:bg-primary-100/10',
-  compact: 'rounded-xl border border-border/70 bg-surface-1 p-4 shadow-card',
-  flat: 'rounded-xl bg-surface-2 p-5',
+    'rounded-3xl border border-border/70 bg-surface-1 p-5 shadow-card transition-all hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-float cursor-pointer',
+  highlight: 'rounded-3xl border border-primary/20 bg-primary-50/80 p-5 shadow-card dark:bg-primary-100/10',
+  compact: 'rounded-2xl border border-border/70 bg-surface-1 p-4 shadow-card',
+  flat: 'rounded-2xl bg-surface-2 p-5',
 } as const
 
-// ===== 按钮样式预设 =====
+// ===== 按钮样式预设 (DESIGN.md §4 Buttons: 16px radius) =====
 export const buttonStyle = {
   primary:
-    'rounded-xl bg-primary text-primary-foreground px-4 py-2 text-sm font-medium shadow-sm transition-all hover:-translate-y-0.5 hover:bg-primary-600 active:translate-y-0',
+    'rounded-2xl bg-primary text-primary-foreground px-4 py-2 text-sm font-medium shadow-sm transition-all hover:-translate-y-0.5 hover:bg-primary-600 active:translate-y-0 outline-none focus-visible:ring-[3px] focus-visible:ring-primary/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
   secondary:
-    'rounded-xl border border-border/70 bg-surface-1 px-4 py-2 text-sm font-medium text-foreground transition-all hover:bg-surface-2 hover:border-primary/20',
+    'rounded-2xl border border-border/70 bg-surface-1 px-4 py-2 text-sm font-medium text-foreground transition-all hover:bg-surface-2 hover:border-primary/20 outline-none focus-visible:ring-[3px] focus-visible:ring-primary/15 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
   ghost:
-    'rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-surface-2 hover:text-foreground',
+    'rounded-2xl px-4 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-surface-2 hover:text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-primary/15 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
   danger:
-    'rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition-all hover:bg-destructive/90',
-  icon: 'rounded-xl p-2 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground',
-  sm: 'rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
+    'rounded-2xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition-all hover:bg-destructive/90 outline-none focus-visible:ring-[3px] focus-visible:ring-destructive/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
+  icon: 'rounded-2xl p-2 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-primary/15 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
+  sm: 'rounded-xl px-3 py-1.5 text-xs font-medium transition-all outline-none focus-visible:ring-[3px] focus-visible:ring-primary/15 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
 } as const
 
+// DESIGN.md §3: 中文标题使用 font-medium (500)，避免 font-semibold (600) 带来的压迫感
 export const heading = {
-  page: 'text-2xl sm:text-3xl font-semibold tracking-tight text-foreground',
-  section: 'text-lg sm:text-xl font-semibold tracking-tight text-foreground',
-  card: 'text-sm sm:text-base font-semibold text-foreground',
+  page: 'text-2xl sm:text-3xl font-medium tracking-heading-lg text-foreground',
+  section: 'text-lg sm:text-xl font-medium tracking-heading-md text-foreground',
+  card: 'text-sm sm:text-base font-medium text-foreground',
   muted: 'text-sm text-muted-foreground',
   micro: 'text-xs text-muted-foreground',
 } as const
@@ -143,22 +148,22 @@ export const chatBubble = {
   /** 系统消息 */
   system: 'text-[11px] font-medium px-4 py-1.5 rounded-full',
   /** 系统消息-错误 */
-  systemError: 'bg-red-50 text-red-600 border border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800',
+  systemError: 'bg-destructive/8 text-destructive border border-destructive/20',
   /** 系统消息-警告 */
-  systemWarning: 'bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800',
+  systemWarning: 'bg-warning/8 text-warning border border-warning/20',
 } as const
 
 // ===== 输入框样式 =====
 export const inputStyle = {
   chatContainer: 'relative flex items-end rounded-2xl border border-border/70 bg-surface-1 shadow-card transition-all focus-within:border-primary/35 focus-within:ring-2 focus-within:ring-primary/10',
   chatTextarea: 'flex-1 bg-transparent py-2.5 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none border-none resize-none',
-  search: 'w-full rounded-xl border border-border/70 bg-surface-1 px-3 py-2 text-sm text-foreground shadow-sm transition-all placeholder:text-muted-foreground focus:border-primary/35 focus:outline-none focus:ring-2 focus:ring-primary/10',
+  search: 'w-full rounded-xl border border-border/70 bg-surface-1 px-3 py-2 text-sm text-foreground shadow-sm transition-all placeholder:text-muted-foreground focus:border-primary/35 focus:outline-none focus:ring-2 focus:ring-primary/10 focus-visible:border-primary/35 focus-visible:ring-2 focus-visible:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-50',
 } as const
 
 // ===== Prose 样式（Markdown 渲染） =====
 export const proseStyle = {
   /** 聊天消息中的 Markdown */
-  chat: 'prose prose-sm max-w-none prose-headings:text-foreground prose-headings:font-semibold prose-p:text-foreground prose-p:leading-relaxed prose-strong:text-foreground prose-ul:text-foreground/80 prose-ol:text-foreground/80 prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-[13px] prose-pre:bg-foreground prose-pre:text-background dark:prose-invert',
+  chat: 'prose prose-sm max-w-none prose-headings:text-foreground prose-headings:font-medium prose-p:text-foreground prose-p:leading-relaxed prose-strong:text-foreground prose-ul:text-foreground/80 prose-ol:text-foreground/80 prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-[13px] prose-pre:bg-foreground prose-pre:text-background dark:prose-invert',
 } as const
 
 // ===== 侧边栏导航 =====
@@ -168,9 +173,9 @@ export const sidebarNav = {
   /** 导航项字号 - 14px */
   itemText: 'text-sm',
   /** 导航项激活态 */
-  itemActive: 'bg-primary/10 text-primary font-medium',
+  itemActive: 'bg-primary/10 text-primary font-medium outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-2',
   /** 导航项默认态 */
-  itemDefault: 'text-muted-foreground hover:bg-muted hover:text-foreground',
+  itemDefault: 'text-muted-foreground hover:bg-muted hover:text-foreground outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-primary/15 focus-visible:ring-offset-2',
 } as const
 
 // ===== 侧边栏列表项 =====
@@ -194,9 +199,9 @@ export const overlay = {
 // ===== 工具栏按钮 =====
 export const toolbarButton = {
   /** 工具栏默认按钮 */
-  base: 'p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors',
+  base: 'p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/15 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
   /** 工具栏激活按钮 */
-  active: 'p-1.5 text-primary bg-primary/5 hover:bg-primary/10 rounded-lg transition-colors',
+  active: 'p-1.5 text-primary bg-primary/5 hover:bg-primary/10 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
 } as const
 
 // ===== 在线状态指示 =====
@@ -231,12 +236,12 @@ export const modelSelector = {
   badgeDefault: 'text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary',
 } as const
 
-// ===== 搜索栏 =====
+// ===== 搜索栏 (DESIGN.md §4 Search Input: 16px radius) =====
 export const searchBar = {
   container: 'relative',
-  input: 'w-full rounded-xl border border-border/70 bg-surface-1 py-2 pl-9 pr-3 text-sm text-foreground shadow-sm transition-all placeholder:text-muted-foreground focus:border-primary/35 focus:outline-none focus:ring-2 focus:ring-primary/10',
+  input: 'w-full rounded-2xl border border-border/70 bg-surface-1 py-2 pl-9 pr-3 text-sm text-foreground shadow-sm transition-all placeholder:text-muted-foreground focus:border-primary/35 focus:outline-none focus:ring-2 focus:ring-primary/10',
   icon: 'absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground',
-  clear: 'absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground',
+  clear: 'absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground',
 } as const
 
 // ===== 收藏按钮 =====
@@ -255,3 +260,85 @@ export const chartColors = [
   'hsl(var(--destructive))',
   'hsl(var(--ai))',
 ] as const
+
+// ===== 图谱节点色板 =====
+// 这些 hex 值是 canvas 绘图的 fallback（CSS variables 无法直接用于 canvas API）。
+// 在非 canvas 场景（CSS / Tailwind）应优先使用 `bg-node-law` 等语义工具类。
+// 对应 CSS 变量：--node-law, --node-case, --node-party, --node-organization,
+//               --node-lawyer, --node-query, --node-conclusion, --node-other
+export const graphNodeColors = {
+  law: '#1a9e52',
+  case: '#2563eb',
+  party: '#d97706',
+  organization: '#7c3aed',
+  lawyer: '#ea6a10',
+  query: '#64748b',
+  conclusion: '#9333ea',
+  other: '#6b7280',
+} as const
+
+// ===== 协作身份色板 =====
+export const collaborationAccentColors = [
+  'hsl(var(--primary))',
+  '#4ECDC4',
+  'hsl(var(--info))',
+  'hsl(var(--success))',
+  'hsl(var(--warning))',
+  '#A29BFE',
+  '#FD79A8',
+  '#E17055',
+] as const
+
+// ===== 合规评分色板 =====
+export const complianceScoreColors = {
+  excellent: 'hsl(160 60% 45%)',
+  good: 'hsl(var(--primary))',
+  medium: 'hsl(35 90% 55%)',
+  poor: 'hsl(350 65% 55%)',
+} as const
+
+// ===== 风险等级色板 =====
+export const riskLevelColors = {
+  critical: 'hsl(var(--destructive))',
+  high: 'hsl(var(--warning))',
+  medium: 'hsl(var(--primary))',
+  low: graphNodeColors.other,
+} as const
+
+// ===== 图谱画布色板 =====
+export const graphCanvasColors = {
+  dark3d: '#0f172a',
+  dark2d: '#1e1e1e',
+  light3d: '#f8fafc',
+  light2d: '#fafafa',
+  labelDark: '#e2e8f0',
+  labelLight: '#334155',
+  linkDark: 'rgba(148, 163, 184, 0.3)',
+  linkLight: 'rgba(100, 116, 139, 0.35)',
+  tooltipDarkBg: 'rgba(15, 23, 42, 0.8)',
+  tooltipLightBg: 'rgba(255, 255, 255, 0.9)',
+  tooltipLightShadow: '0 1px 3px rgba(0,0,0,0.1)',
+  particle: '#818cf8',
+} as const
+
+// ===== 编辑器色板 =====
+export const editorPalette = {
+  text: [
+    '#2f241d',
+    '#5f5148',
+    '#81746b',
+    '#a79a90',
+    graphNodeColors.other,
+    graphNodeColors.party,
+    'hsl(var(--warning))',
+    graphNodeColors.law,
+    graphNodeColors.case,
+    graphNodeColors.organization,
+    graphNodeColors.conclusion,
+    graphNodeColors.lawyer,
+  ],
+  highlight: 'hsl(var(--warning) / 0.35)',
+  printText: '#2f241d',
+  printBorder: '#8c7e73',
+  printHeaderBg: '#f6f0e8',
+} as const

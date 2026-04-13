@@ -2,7 +2,7 @@
  * App.tsx - 应用根组件与路由配置
  *
  * ===== [Phase 1] 移除废弃模块 =====
- * 删除了 PRD 不需要的页面：TaxAssets、Sentiment、LegalTools
+ * 删除了 PRD 不需要的页面：TaxAssets、Sentiment、LegalTools，以及已被重定向替代的旧业务页
  * 合同审查已合并到合同管理，智能文档和智能中台已整合到在线协作
  *
  * ===== [Phase 2] 路由懒加载 + 四大业务域路由结构 =====
@@ -38,18 +38,15 @@ import { getAppState, isTauri, saveAuthToken } from '@/lib/tauri-bridge'
 // AI法务
 const Chat = lazy(() => import('@/pages/Chat'))
 
-// 智能协作
-const Cases = lazy(() => import('@/pages/Cases'))
+// 智能协作（v3.0 模块合并）
+const CaseCenter = lazy(() => import('@/pages/CaseCenter'))
 const CaseDetail = lazy(() => import('@/pages/CaseDetail'))
-const Contracts = lazy(() => import('@/pages/Contracts'))
-const ContractReview = lazy(() => import('@/pages/ContractReview'))
-const Collaboration = lazy(() => import('@/pages/CollaborationEntry'))
+const ManagementCenter = lazy(() => import('@/pages/ManagementCenter'))
 const DocumentWorkbench = lazy(() => import('@/pages/DocumentWorkbench'))
-const Leads = lazy(() => import('@/pages/Leads'))
 
-// 智能调查
-// const News = lazy(() => import('@/pages/News'))  // v2.0 版本启用
-const DueDiligence = lazy(() => import('@/pages/DueDiligence'))
+// 舆情监测（v3.0 由"智能调查"重构）
+const MonitoringCenter = lazy(() => import('@/pages/MonitoringCenter'))
+const Investigation = lazy(() => import('@/pages/Investigation'))
 
 // 法律智库
 const KnowledgeGraph = lazy(() => import('@/pages/KnowledgeGraph'))
@@ -60,24 +57,17 @@ const ClientPortal = lazy(() => import('@/pages/ClientPortal'))
 
 // 系统
 const Settings = lazy(() => import('@/pages/Settings'))
-const Tasks = lazy(() => import('@/pages/Tasks'))
-const Approvals = lazy(() => import('@/pages/Approvals'))
 const FindLawyer = lazy(() => import('@/pages/FindLawyer'))
-const ComplianceCheck = lazy(() => import('@/pages/ComplianceCheck'))
 const Messages = lazy(() => import('@/pages/Messages'))
 const VoiceCall = lazy(() => import('@/components/rtc/VoiceCall'))
 const VideoCall = lazy(() => import('@/components/rtc/VideoCall'))
 const LawyerProfile = lazy(() => import('@/pages/LawyerProfile'))
 const AcquisitionDashboard = lazy(() => import('@/pages/AcquisitionDashboard'))
-const FirmManagement = lazy(() => import('@/pages/FirmManagement'))
 const LawyerOnboarding = lazy(() => import('@/pages/LawyerOnboarding'))
 const LawyerDashboard = lazy(() => import('@/pages/LawyerDashboard'))
 const Pricing = lazy(() => import('@/pages/Pricing'))
 const MySubscription = lazy(() => import('@/pages/MySubscription'))
-const AIAssistantSettings = lazy(() => import('@/pages/AIAssistantSettings'))
 const PrivateLLMSetup = lazy(() => import('@/pages/PrivateLLMSetup'))
-const ConversationInsights = lazy(() => import('@/pages/ConversationInsights'))
-const AgentWorkflow = lazy(() => import('@/pages/AgentWorkflow'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
 
 // 登录页
@@ -195,22 +185,17 @@ function App() {
                 {/* ===== AI法务（仅智能对话） ===== */}
                 <Route path="chat" element={<ProtectedRoute feature="ai_chat"><Chat /></ProtectedRoute>} />
 
-                {/* ===== 智能协作 ===== */}
-                <Route path="cases" element={<ProtectedRoute feature="case_management"><Cases /></ProtectedRoute>} />
-                <Route path="cases/:id" element={<ProtectedRoute feature="case_management"><CaseDetail /></ProtectedRoute>} />
-                <Route path="contracts" element={<ProtectedRoute feature="contract_management"><Contracts /></ProtectedRoute>} />
-                <Route path="contract-review" element={<ProtectedRoute feature="ai_chat"><ContractReview /></ProtectedRoute>} />
-                <Route path="collaboration" element={<ProtectedRoute feature="collaboration"><Collaboration /></ProtectedRoute>} />
-                <Route path="collaboration/:sessionId" element={<ProtectedRoute feature="collaboration"><Collaboration /></ProtectedRoute>} />
+                {/* ===== 智能协作（v3.0 模块合并） ===== */}
+                <Route path="case-center" element={<ProtectedRoute feature="case_management"><CaseCenter /></ProtectedRoute>} />
+                <Route path="case-center/:id" element={<ProtectedRoute feature="case_management"><CaseDetail /></ProtectedRoute>} />
+                <Route path="management" element={<ProtectedRoute feature="contract_management"><ManagementCenter /></ProtectedRoute>} />
                 <Route path="documents" element={<ProtectedRoute feature="document_management"><DocumentWorkbench /></ProtectedRoute>} />
                 <Route path="find-lawyer" element={<ProtectedRoute feature="lawyer_matching"><FindLawyer /></ProtectedRoute>} />
-                <Route path="compliance-check" element={<ProtectedRoute feature="compliance_check"><ComplianceCheck /></ProtectedRoute>} />
-                <Route path="leads" element={<ProtectedRoute feature="leads"><Leads /></ProtectedRoute>} />
 
-                {/* ===== 智能调查 ===== */}
-                {/* <Route path="news" element={<News />} /> */}{/* v2.0 版本启用 */}
-                <Route path="due-diligence" element={<ProtectedRoute feature="due_diligence"><DueDiligence /></ProtectedRoute>} />
-                <Route path="due-diligence/:section" element={<ProtectedRoute feature="due_diligence"><DueDiligence /></ProtectedRoute>} />
+                {/* ===== 舆情监测（v3.0 由"智能调查"重构） ===== */}
+                <Route path="monitoring" element={<ProtectedRoute feature="due_diligence"><MonitoringCenter /></ProtectedRoute>} />
+                <Route path="investigation" element={<ProtectedRoute feature="due_diligence"><Investigation /></ProtectedRoute>} />
+                <Route path="investigation/:companyId" element={<ProtectedRoute feature="due_diligence"><Investigation /></ProtectedRoute>} />
 
                 {/* ===== 法律智库 ===== */}
                 <Route path="knowledge-graph" element={<ProtectedRoute feature="knowledge_graph"><KnowledgeGraph /></ProtectedRoute>} />
@@ -241,19 +226,29 @@ function App() {
                 <Route path="conversation-insights" element={<Navigate to="/admin" replace />} />
                 <Route path="agent-workflow" element={<Navigate to="/admin" replace />} />
 
-                {/* ===== 系统（审批已整合进任务中心，系统设置仅保留个人中心） ===== */}
+                {/* ===== 系统 ===== */}
                 <Route path="settings" element={<ProtectedRoute feature="settings"><Settings /></ProtectedRoute>} />
-                <Route path="tasks" element={<ProtectedRoute feature="tasks"><Tasks /></ProtectedRoute>} />
 
-                {/* ===== 旧路由兼容重定向 ===== */}
+                {/* ===== 旧路由兼容重定向（v3.0 模块合并） ===== */}
+                <Route path="cases" element={<Navigate to="/case-center" replace />} />
+                <Route path="cases/:id" element={<Navigate to="/case-center" replace />} />
+                <Route path="leads" element={<Navigate to="/case-center" replace />} />
+                <Route path="tasks" element={<Navigate to="/case-center" replace />} />
+                <Route path="contracts" element={<Navigate to="/management" replace />} />
+                <Route path="contract-review" element={<Navigate to="/management" replace />} />
+                <Route path="compliance-check" element={<Navigate to="/management" replace />} />
+                <Route path="due-diligence" element={<Navigate to="/investigation" replace />} />
+                <Route path="due-diligence/:section" element={<Navigate to="/investigation" replace />} />
+                <Route path="collaboration" element={<Navigate to="/documents" replace />} />
+                <Route path="collaboration/:sessionId" element={<Navigate to="/documents" replace />} />
+                <Route path="approvals" element={<Navigate to="/case-center" replace />} />
                 <Route path="knowledge" element={<Navigate to="/knowledge-base" replace />} />
                 <Route path="tools" element={<Navigate to="/chat" replace />} />
                 <Route path="tax-assets" element={<Navigate to="/chat" replace />} />
-                <Route path="sentiment" element={<Navigate to="/chat" replace />} />
-                <Route path="dashboard" element={<Navigate to="/collaboration" replace />} />
+                <Route path="sentiment" element={<Navigate to="/monitoring" replace />} />
+                <Route path="dashboard" element={<Navigate to="/case-center" replace />} />
                 <Route path="experts" element={<Navigate to="/find-lawyer" replace />} />
-                <Route path="approvals" element={<Navigate to="/tasks" replace />} />
-                <Route path="search" element={<Navigate to="/due-diligence" replace />} />
+                <Route path="search" element={<Navigate to="/investigation" replace />} />
                 <Route path="academy" element={<Navigate to="/knowledge-base" replace />} />
                 <Route path="firm" element={<Navigate to="/admin/firm" replace />} />
                 <Route path="acquisition" element={<Navigate to="/admin/acquisition" replace />} />

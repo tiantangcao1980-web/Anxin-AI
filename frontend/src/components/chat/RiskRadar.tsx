@@ -25,10 +25,11 @@ export function RiskRadar({ data }: RiskRadarProps) {
     low: icons.Info,
   };
 
+  // 语义色：禁止在此处写 red-*/amber-* 硬编码 token，统一用 destructive/warning
   const issueColors = {
-    high: 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300',
-    medium: 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300',
-    low: 'bg-primary/5 border-primary/20 text-primary',
+    high:   'bg-destructive/8 border-destructive/20 text-destructive',
+    medium: 'bg-warning/8 border-warning/20 text-warning',
+    low:    'bg-primary/5 border-primary/20 text-primary',
   };
 
   return (
@@ -55,20 +56,20 @@ export function RiskRadar({ data }: RiskRadarProps) {
               <Radar
                 name="风险评分"
                 dataKey="value"
-                stroke="#3b82f6"
-                fill="#3b82f6"
-                fillOpacity={0.3}
+                stroke="hsl(var(--info))"
+                fill="hsl(var(--info))"
+                fillOpacity={0.25}
                 strokeWidth={2}
               />
             </RadarChart>
           </ResponsiveContainer>
           <div className="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground">
             <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+              <div className="w-3 h-3 rounded-full bg-success"></div>
               <span>100 = 无风险</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded-full bg-red-500"></div>
+              <div className="w-3 h-3 rounded-full bg-destructive"></div>
               <span>0 = 高风险</span>
             </div>
           </div>
@@ -101,7 +102,7 @@ export function RiskRadar({ data }: RiskRadarProps) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-primary-foreground/70 text-sm mb-1">综合风险评分</p>
-              <p className="font-bold">62 / 100</p>
+              <p className="font-medium">62 / 100</p>
             </div>
             <div className="text-right">
               <p className="text-primary-foreground/70 text-sm mb-1">建议</p>

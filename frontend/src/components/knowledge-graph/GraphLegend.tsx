@@ -5,14 +5,15 @@
 
 import { useState } from 'react'
 import { icons } from '@/lib/icons'
+import { graphNodeColors } from '@/lib/design-tokens'
 
 const LEGEND_ITEMS = [
-  { type: '法规', char: '法', color: '#22c55e' },
-  { type: '案例', char: '案', color: '#3b82f6' },
-  { type: '当事人', char: '当', color: '#f59e0b' },
-  { type: '机构', char: '机', color: '#8b5cf6' },
-  { type: '律师', char: '律', color: '#ec4899' },
-  { type: '其他', char: '其', color: '#6b7280' },
+  { type: '法规', char: '法', color: graphNodeColors.law },
+  { type: '案例', char: '案', color: graphNodeColors.case },
+  { type: '当事人', char: '当', color: graphNodeColors.party },
+  { type: '机构', char: '机', color: graphNodeColors.organization },
+  { type: '律师', char: '律', color: graphNodeColors.lawyer },
+  { type: '其他', char: '其', color: graphNodeColors.other },
 ]
 
 interface Props {
@@ -38,7 +39,7 @@ export function GraphLegend({ nodeCount, edgeCount, activeTypes, onToggleType, o
           className="flex items-center gap-1.5 text-muted-foreground"
         >
           <icons.Layers className="w-3.5 h-3.5" />
-          <span className="text-[10px] font-bold uppercase tracking-wider">图例</span>
+          <span className="text-[10px] font-medium uppercase tracking-caption">图例</span>
           <icons.ChevronDown className={`w-3 h-3 transition-transform ${collapsed ? '-rotate-90' : ''}`} />
         </button>
         {!collapsed && (onSelectAll || onClearAll) && (
@@ -71,7 +72,7 @@ export function GraphLegend({ nodeCount, edgeCount, activeTypes, onToggleType, o
                   } ${isActive ? 'opacity-100' : 'opacity-40'}`}
                 >
                   <div
-                    className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shadow-sm shrink-0 transition-opacity"
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-semibold text-white shadow-sm shrink-0 transition-opacity"
                     style={{ backgroundColor: item.color }}
                   >
                     {item.char}
@@ -96,11 +97,11 @@ export function GraphLegend({ nodeCount, edgeCount, activeTypes, onToggleType, o
           {/* 统计 */}
           <div className="mt-2.5 pt-2 border-t border-border flex gap-4">
             <div className="text-center flex-1">
-              <div className="text-sm font-bold text-foreground">{nodeCount}</div>
+              <div className="text-sm font-semibold text-foreground">{nodeCount}</div>
               <div className="text-[10px] text-muted-foreground">节点</div>
             </div>
             <div className="text-center flex-1">
-              <div className="text-sm font-bold text-foreground">{edgeCount}</div>
+              <div className="text-sm font-semibold text-foreground">{edgeCount}</div>
               <div className="text-[10px] text-muted-foreground">关系</div>
             </div>
           </div>

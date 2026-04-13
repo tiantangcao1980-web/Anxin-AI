@@ -44,9 +44,9 @@ export function PresentationAdapter({ document }: PresentationAdapterProps) {
         </div>
       </div>
       <div className="flex min-h-0 flex-1 items-center justify-center p-6">
-        <div className="aspect-[16/9] w-full max-w-3xl rounded-[28px] border border-border bg-background p-10 shadow-sm">
-          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">演示文稿</div>
-          <div className="mt-6 text-3xl font-semibold text-foreground">{slides[0]?.title ?? document.title}</div>
+        <div className="aspect-[16/9] w-full max-w-3xl rounded-3xl border border-border bg-background p-10 shadow-sm">
+          <div className="text-xs uppercase tracking-caption text-muted-foreground">演示文稿</div>
+          <div className="mt-6 text-3xl font-medium text-foreground">{slides[0]?.title ?? document.title}</div>
           <div className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">{slides[0]?.body ?? '演示内容预览。'}</div>
         </div>
       </div>

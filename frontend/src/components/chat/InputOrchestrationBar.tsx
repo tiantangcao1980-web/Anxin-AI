@@ -27,7 +27,7 @@ export function InputOrchestrationBar({
   return (
     <div
       data-testid="input-orchestration-bar"
-      className="mb-2 flex items-center gap-1.5 overflow-hidden rounded-2xl border border-border/80 bg-background px-2.5 py-2 shadow-sm"
+      className="mb-2 flex items-center gap-1.5 overflow-hidden rounded-2xl bg-background px-2.5 py-2"
     >
       <KnowledgeBaseSelector
         selectedKbIds={selectedKbIds}
