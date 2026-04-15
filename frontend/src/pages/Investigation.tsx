@@ -12,8 +12,10 @@ import {
  Shield, Scale, FileCheck, Network, FileText, Cpu, BarChart3
 } from'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from'@/components/ui/tabs'
+import { PageContainer } from'@/components/ui/PageContainer'
 import { dueDiligenceApi, type InvestigationStreamEvent } from'@/lib/api'
 import { toast } from'sonner'
+import { heading } from'@/lib/design-tokens'
 
 // 子组件
 import { InvestigationOverview } from'@/components/due-diligence/InvestigationOverview'
@@ -72,10 +74,11 @@ function SearchView({ onSelect }: { onSelect: (id: string, name: string) => void
  const [query, setQuery] = useState('')
 
  return (
- <div className="max-w-4xl mx-auto p-6 space-y-8">
+ <PageContainer scrollable={false} showHeader={false}>
+ <div className="max-w-4xl mx-auto space-y-8">
  {/* 搜索区 */}
  <div className="text-center space-y-4 pt-8">
- <h1 className="text-2xl font-medium tracking-heading-lg">智能调查</h1>
+ <h1 className={heading.page}>智能调查</h1>
  <p className="text-muted-foreground">输入企业名称，AI 自动搜索爬取并生成全维度调查报告</p>
  <div className="relative max-w-xl mx-auto">
  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -141,6 +144,7 @@ function SearchView({ onSelect }: { onSelect: (id: string, name: string) => void
  </div>
  </div>
  </div>
+ </PageContainer>
  )
 }
 
@@ -251,7 +255,7 @@ function DetailView({ companyName, onBack }: { companyName: string; onBack: () =
  }
 
  return (
- <div className="h-full flex flex-col">
+ <PageContainer scrollable={false} showHeader={false}>
  {/* 顶部：返回 + 公司名 + 操作 + Tab */}
  <div className="border-b bg-background/95 backdrop-blur px-6 pt-3 pb-0">
  <div className="flex items-center gap-3 mb-3">
@@ -262,7 +266,7 @@ function DetailView({ companyName, onBack }: { companyName: string; onBack: () =
  <ArrowLeft className="h-5 w-5" />
  </button>
  <div className="flex-1">
- <h1 className="text-lg font-medium">{companyName}</h1>
+ <h1 className={heading.card}>{companyName}</h1>
  <p className="text-xs text-muted-foreground">企业全维度调查报告</p>
  </div>
  <button
@@ -289,7 +293,7 @@ function DetailView({ companyName, onBack }: { companyName: string; onBack: () =
  <div className="flex-1 overflow-auto p-6">
  {renderTabContent(activeTab)}
  </div>
- </div>
+ </PageContainer>
  )
 }
 

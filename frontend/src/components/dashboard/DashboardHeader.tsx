@@ -123,7 +123,7 @@ export function DashboardHeader() {
 
  <div className="relative z-10">
  <div className="flex items-baseline gap-1 mb-1">
- <p className="text-3xl font-bold text-foreground tracking-tight">{stat.value}</p>
+ <p className="text-3xl font-bold text-foreground tracking-heading-lg">{stat.value}</p>
  <span className="text-xs text-muted-foreground font-medium">{stat.unit}</span>
  </div>
  <p className="text-xs font-medium text-muted-foreground uppercase tracking-caption flex items-center gap-1">

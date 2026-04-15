@@ -75,8 +75,9 @@ export default function Contracts() {
 
  return (
  <PageContainer
- title="合同审查"
+ title="合同管理"
  description="AI智能审查合同，识别风险条款"
+ embedded
  actions={
  <div className="flex gap-2 flex-wrap">
  <button

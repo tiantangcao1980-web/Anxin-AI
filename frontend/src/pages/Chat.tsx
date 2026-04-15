@@ -2052,7 +2052,7 @@ export default function Chat() {
  {!batchMode ? (
  <>
  <button onClick={handleNewConversation}
- className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors flex-1 mr-2 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-1">
+ className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-primary hover:bg-primary/90 text-white rounded-2xl transition-colors flex-1 mr-2 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-1">
  <icons.Plus className="w-4 h-4" /> 新建对话
  </button>
  <button onClick={handleToggleBatchMode}
@@ -2694,11 +2694,11 @@ export default function Chat() {
  </p>
  <div className="flex gap-3 justify-end">
  <button onClick={() => setDeleteConfirmId(null)}
- className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-lg hover:bg-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/15">
+ className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-2xl hover:bg-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/15">
  取消
  </button>
  <button onClick={confirmDeleteConversation}
- className="px-4 py-2 text-sm font-medium text-white bg-destructive rounded-lg hover:bg-destructive/90 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-destructive/30 focus-visible:ring-offset-1">
+ className="px-4 py-2 text-sm font-medium text-white bg-destructive rounded-2xl hover:bg-destructive/90 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-destructive/30 focus-visible:ring-offset-1">
  确认删除
  </button>
  </div>

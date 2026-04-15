@@ -4,6 +4,7 @@
 
 import { memo } from'react';
 import { icons } from'@/lib/icons';
+import { spacing } from '@/lib/design-tokens';
 
 const stats = [
  { label:'知识库总量', value:'12', icon: icons.Database, color:'bg-primary/10 text-primary' },
@@ -21,7 +22,7 @@ const recentActivities = [
 
 export const KnowledgeOverview = memo(function KnowledgeOverview() {
  return (
- <div className="p-6 space-y-6">
+ <div className={`${spacing.page} ${spacing.section}`}>
  {/* 数据概览 */}
  <div>
  <h2 className="text-lg font-medium text-foreground mb-4 flex items-center gap-2">

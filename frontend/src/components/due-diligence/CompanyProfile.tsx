@@ -4,6 +4,7 @@
  */
 import { motion } from'framer-motion';
 import { icons } from'@/lib/icons';
+import { heading } from'@/lib/design-tokens';
 
 interface CompanyProfileProps {
  data?: {
@@ -94,7 +95,7 @@ export function CompanyProfile({ data, companyName, riskData }: CompanyProfilePr
  >
  <div className="flex items-start justify-between mb-6">
  <div>
- <h2 className="text-2xl font-medium mb-2">{companyData.name}</h2>
+ <h2 className={`${heading.page} mb-2 text-white`}>{companyData.name}</h2>
  <div className="flex items-center gap-2">
  <span className="px-3 py-1 bg-white/20 rounded-full text-sm font-medium">
  {companyData.employees}

@@ -17,6 +17,7 @@ import {
   type SentimentAlert,
 } from '@/lib/api'
 import { toast } from 'sonner'
+import { PageContainer } from '@/components/ui/PageContainer'
 
 const riskColors = { low: 'text-success bg-success/10', medium: 'text-warning bg-warning/10', high: 'text-destructive bg-destructive/10' }
 const riskLabels = { low: '低风险', medium: '中风险', high: '高风险' }
@@ -95,11 +96,11 @@ function AddMonitorDialog({ onClose, onCreated }: { onClose: () => void; onCreat
           </div>
         </div>
         <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 text-sm rounded-lg border hover:bg-muted transition-colors">取消</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm rounded-2xl border hover:bg-muted transition-colors">取消</button>
           <button
             onClick={handleCreate}
             disabled={creating}
-            className="px-4 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+            className="px-4 py-2 text-sm rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
           >
             {creating ? '创建中...' : '确认添加'}
           </button>
@@ -341,150 +342,143 @@ export default function MonitoringCenter() {
     : monitors
 
   return (
-    <div className="h-full overflow-auto">
-      <div className="max-w-6xl mx-auto p-6 space-y-6">
-        {/* 页面标题 */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-medium tracking-heading-lg">舆情中心</h1>
-            <p className="text-sm text-muted-foreground mt-1">实时监测企业舆情动态，智能预警风险事件</p>
-          </div>
-          <button
-            onClick={() => setShowAddDialog(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
-          >
-            <Plus className="h-4 w-4" />
-            添加监测对象
-          </button>
+    <PageContainer
+      title="舆情中心"
+      description="实时监测企业舆情动态，智能预警风险事件"
+      actions={
+        <button
+          onClick={() => setShowAddDialog(true)}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-2xl hover:bg-primary/90 transition-colors text-sm font-medium"
+        >
+          <Plus className="h-4 w-4" />
+          添加监测对象
+        </button>
+      }
+      toolbar={
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="搜索监测对象或关键词..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 bg-muted/50 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+          />
         </div>
-
-        {/* 统计卡片 */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {stats.map(stat => (
-            <div key={stat.label} className="bg-card border rounded-xl p-4 hover:shadow-sm transition-shadow">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg bg-muted/50 ${stat.color}`}>
-                  <stat.icon className="h-5 w-5" />
-                </div>
-                <div>
-                  {loading ? (
-                    <div className="h-8 w-12 rounded bg-muted animate-pulse" />
-                  ) : (
-                    <p className="text-2xl font-bold">{stat.value}</p>
-                  )}
-                  <p className="text-xs text-muted-foreground">{stat.label}</p>
-                </div>
+      }
+    >
+      {/* 统计卡片 */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {stats.map(stat => (
+          <div key={stat.label} className="bg-card border rounded-xl p-4 hover:shadow-sm transition-shadow">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg bg-muted/50 ${stat.color}`}>
+                <stat.icon className="h-5 w-5" />
+              </div>
+              <div>
+                {loading ? (
+                  <div className="h-8 w-12 rounded bg-muted animate-pulse" />
+                ) : (
+                  <p className="text-2xl font-bold">{stat.value}</p>
+                )}
+                <p className="text-xs text-muted-foreground">{stat.label}</p>
               </div>
             </div>
-          ))}
-        </div>
-
-        {/* 搜索 */}
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="搜索监测对象或关键词..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-muted/50 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            />
           </div>
-        </div>
+        ))}
+      </div>
 
-        {/* 监测对象列表 */}
-        <div className="space-y-3">
-          <h2 className="text-sm font-medium text-muted-foreground">
-            监测对象 ({filteredMonitors.length})
-          </h2>
-          {loading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map(i => <div key={i} className="h-20 rounded-xl bg-muted animate-pulse" />)}
-            </div>
-          ) : filteredMonitors.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">
-              <Radio className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
-              <p className="text-sm font-medium">{searchQuery ? '未找到匹配的监测对象' : '暂无监测对象'}</p>
-              <p className="text-xs mt-1">点击"添加监测对象"开始监测企业舆情</p>
-            </div>
-          ) : (
-            filteredMonitors.map(monitor => {
-              const risk = getRiskLevel(monitor)
-              return (
-                <div
-                  key={monitor.id}
-                  className={`bg-card border rounded-xl p-4 hover:shadow-sm hover:border-primary/20 transition-all group ${
-                    !monitor.is_active ? 'opacity-60' : ''
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedMonitor(monitor)}
-                      className="flex items-center gap-4 text-left flex-1 min-w-0"
-                    >
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                        <Building2 className="h-5 w-5 text-primary" />
-                      </div>
-                      <div className="min-w-0">
-                        <h3 className="font-medium group-hover:text-primary transition-colors truncate">{monitor.name}</h3>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {monitor.keywords.join(', ')}
-                          {!monitor.is_active && ' · 已暂停'}
-                        </p>
-                      </div>
-                    </button>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${riskColors[risk]}`}>
-                        {riskLabels[risk]}
+      {/* 监测对象列表 */}
+      <div className="space-y-3">
+        <h2 className="text-sm font-medium text-muted-foreground">
+          监测对象 ({filteredMonitors.length})
+        </h2>
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map(i => <div key={i} className="h-20 rounded-xl bg-muted animate-pulse" />)}
+          </div>
+        ) : filteredMonitors.length === 0 ? (
+          <div className="text-center py-16 text-muted-foreground">
+            <Radio className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
+            <p className="text-sm font-medium">{searchQuery ? '未找到匹配的监测对象' : '暂无监测对象'}</p>
+            <p className="text-xs mt-1">点击"添加监测对象"开始监测企业舆情</p>
+          </div>
+        ) : (
+          filteredMonitors.map(monitor => {
+            const risk = getRiskLevel(monitor)
+            return (
+              <div
+                key={monitor.id}
+                className={`bg-card border rounded-xl p-4 hover:shadow-sm hover:border-primary/20 transition-all group ${
+                  !monitor.is_active ? 'opacity-60' : ''
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedMonitor(monitor)}
+                    className="flex items-center gap-4 text-left flex-1 min-w-0"
+                  >
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <Building2 className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-medium group-hover:text-primary transition-colors truncate">{monitor.name}</h3>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {monitor.keywords.join(', ')}
+                        {!monitor.is_active && ' · 已暂停'}
+                      </p>
+                    </div>
+                  </button>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${riskColors[risk]}`}>
+                      {riskLabels[risk]}
+                    </span>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Eye className="h-3.5 w-3.5" />
+                        {monitor.total_records}
                       </span>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Eye className="h-3.5 w-3.5" />
-                          {monitor.total_records}
+                      {monitor.alert_count > 0 && (
+                        <span className="flex items-center gap-1 text-destructive">
+                          <AlertCircle className="h-3.5 w-3.5" />
+                          {monitor.alert_count}
                         </span>
-                        {monitor.alert_count > 0 && (
-                          <span className="flex items-center gap-1 text-destructive">
-                            <AlertCircle className="h-3.5 w-3.5" />
-                            {monitor.alert_count}
-                          </span>
-                        )}
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3.5 w-3.5" />
-                          {formatTime(monitor.last_scan_at)}
-                        </span>
-                      </div>
-                      {/* 操作按钮 */}
-                      <div className="hidden group-hover:flex items-center gap-1">
-                        <button
-                          onClick={e => { e.stopPropagation(); handleToggle(monitor.id, monitor.is_active) }}
-                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                          title={monitor.is_active ? '暂停监测' : '恢复监测'}
-                        >
-                          <Power className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={e => { e.stopPropagation(); handleDelete(monitor.id) }}
-                          className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                          title="删除"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
+                      )}
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3.5 w-3.5" />
+                        {formatTime(monitor.last_scan_at)}
+                      </span>
+                    </div>
+                    {/* 操作按钮 */}
+                    <div className="hidden group-hover:flex items-center gap-1">
                       <button
-                        onClick={() => setSelectedMonitor(monitor)}
-                        className="p-1"
+                        onClick={e => { e.stopPropagation(); handleToggle(monitor.id, monitor.is_active) }}
+                        className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                        title={monitor.is_active ? '暂停监测' : '恢复监测'}
                       >
-                        <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                        <Power className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={e => { e.stopPropagation(); handleDelete(monitor.id) }}
+                        className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                        title="删除"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
+                    <button
+                      onClick={() => setSelectedMonitor(monitor)}
+                      className="p-1"
+                    >
+                      <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                    </button>
                   </div>
                 </div>
-              )
-            })
-          )}
-        </div>
+              </div>
+            )
+          })
+        )}
       </div>
 
       {/* 添加对话框 */}
@@ -505,6 +499,6 @@ export default function MonitoringCenter() {
           onClose={() => setSelectedMonitor(null)}
         />
       )}
-    </div>
+    </PageContainer>
   )
 }

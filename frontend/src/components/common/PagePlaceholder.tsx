@@ -1,4 +1,5 @@
 import { icons } from '@/lib/icons'
+import { heading } from '@/lib/design-tokens'
 
 interface PagePlaceholderProps {
   title: string
@@ -15,7 +16,7 @@ export function PagePlaceholder({ title, description, icon = 'FileText' }: PageP
         <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-muted flex items-center justify-center">
           <Icon className="w-10 h-10 text-muted-foreground/50" />
         </div>
-        <h2 className="text-xl font-medium text-foreground mb-2">{title}</h2>
+        <h2 className={`${heading.section} mb-2`}>{title}</h2>
         <p className="text-sm text-muted-foreground mb-6">{description}</p>
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
           <icons.Sparkles className="w-4 h-4" />

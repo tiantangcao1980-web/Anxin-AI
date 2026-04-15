@@ -17,6 +17,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { icons } from '@/lib/icons'
 import { EmptyState, LoadingState } from '@/components/common'
+import { PageContainer } from '@/components/ui/PageContainer'
 import {
   cardStyle,
   buttonStyle,
@@ -846,22 +847,16 @@ export default function KnowledgeBase() {
   // ============================================================
 
   return (
-    <div data-ui="page-shell" className="h-full flex flex-col bg-surface-2">
-      <div data-ui="page-header" className="border-b border-border bg-surface-1 px-4 py-4 shadow-card sm:px-6 sm:py-5 shrink-0">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className={heading.page}>
-            <icons.KnowledgeBase className={`${iconSize.md} inline-block mr-2 -mt-0.5`} />
-            司法智库
-          </h1>
-          <div className="flex items-center gap-2">
-            <button onClick={() => { setBaseForm({ name: '', description: '', knowledge_type: 'general', is_public: false }); setShowCreate(true) }} className={buttonStyle.primary}>
-              <icons.Plus className={`${iconSize.sm} inline-block mr-1`} />
-              新建知识库
-            </button>
-          </div>
-        </div>
-        {/* 搜索 & 筛选 */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+    <PageContainer
+      title="司法智库"
+      actions={
+        <button onClick={() => { setBaseForm({ name: '', description: '', knowledge_type: 'general', is_public: false }); setShowCreate(true) }} className={buttonStyle.primary}>
+          <icons.Plus className={`${iconSize.sm} inline-block mr-1`} />
+          新建知识库
+        </button>
+      }
+      toolbar={
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full">
           <div className="relative flex-1 max-w-md">
             <icons.Search className={`${iconSize.sm} absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground`} />
             <input
@@ -876,10 +871,9 @@ export default function KnowledgeBase() {
             ))}
           </select>
         </div>
-      </div>
-
-      {/* 内容 */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+      }
+    >
+      <div>
         {loading ? (
           <LoadingState />
         ) : filteredBases.length === 0 ? (
@@ -959,6 +953,6 @@ export default function KnowledgeBase() {
       {/* 弹窗 */}
       {renderCreateEditModal()}
       {renderDeleteConfirm()}
-    </div>
+    </PageContainer>
   )
 }

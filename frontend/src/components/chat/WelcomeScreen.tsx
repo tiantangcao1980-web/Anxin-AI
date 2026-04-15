@@ -7,6 +7,7 @@
 
 import { motion } from 'framer-motion'
 import { icons } from '@/lib/icons'
+import { heading } from '@/lib/design-tokens'
 
 export function WelcomeScreen() {
   return (
@@ -20,7 +21,7 @@ export function WelcomeScreen() {
       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/80 to-primary shadow-lg shadow-primary/20">
         <icons.Scale className="w-8 h-8 text-white" />
       </div>
-      <h1 className="mt-4 text-2xl font-medium tracking-heading-lg text-foreground">你好，有什么可以帮您？</h1>
+      <h1 className={`${heading.page} mt-4`}>你好，有什么可以帮您？</h1>
       <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
         我是安心 AI 法务助手，您可以直接在下方输入问题，
         <br className="hidden sm:block" />

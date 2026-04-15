@@ -9,6 +9,7 @@ import {
   FileText, Radio, ChevronDown, ChevronRight, Eye,
 } from 'lucide-react'
 import { contractsApi, sentimentApi, type Contract, type SentimentAlert } from '@/lib/api'
+import { spacing } from '@/lib/design-tokens'
 import { toast } from 'sonner'
 
 // 统一风险项
@@ -32,8 +33,8 @@ const RISK_LEVEL_CONFIG = {
 
 // 来源配置
 const SOURCE_CONFIG = {
-  contract: { label: '合同风险', icon: FileText, color: 'text-blue-600 bg-blue-50' },
-  sentiment: { label: '舆情预警', icon: Radio, color: 'text-orange-600 bg-orange-50' },
+  contract: { label: '合同风险', icon: FileText, color: 'text-info bg-info/10' },
+  sentiment: { label: '舆情预警', icon: Radio, color: 'text-warning bg-warning/10' },
 }
 
 function normalizeRiskLevel(level?: string): 'high' | 'medium' | 'low' {
@@ -158,7 +159,7 @@ export function RiskAlertPanel() {
   const filteredRisks = filter === 'all' ? risks : risks.filter(r => r.level === filter)
 
   return (
-    <div className="h-full overflow-auto p-6 space-y-6">
+    <div className={`h-full overflow-auto ${spacing.page} ${spacing.section}`}>
       {/* 统计卡片 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard

@@ -275,7 +275,7 @@ export default function Layout() {
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
               <icons.Legal className="w-[18px] h-[18px] text-white" />
             </div>
-            <span className="text-xl font-medium text-foreground tracking-tight hidden sm:block">
+            <span className={`${heading.section} hidden sm:block`}>
               安心法务
             </span>
           </button>

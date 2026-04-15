@@ -4,6 +4,7 @@ import { icons } from'@/lib/icons';
 import { documentsApi } from'@/lib/api';
 import { toast } from'sonner';
 import ReactMarkdown from'react-markdown';
+import { heading } from'@/lib/design-tokens';
 
 interface AIGeneratorProps {
  defaultDocType?: string;
@@ -90,7 +91,7 @@ export function AIGenerator({ defaultDocType }: AIGeneratorProps) {
  className="space-y-6"
  >
  <div className="text-center mb-6 lg:mb-8">
- <h3 className="text-lg lg:text-xl font-medium text-foreground mb-2">
+ <h3 className={`${heading.section} mb-2`}>
  选择文档类型
  </h3>
  <p className="text-sm text-muted-foreground">AI 将根据您的需求生成专业法律文书</p>
@@ -124,7 +125,7 @@ export function AIGenerator({ defaultDocType }: AIGeneratorProps) {
  className="space-y-4 lg:space-y-6"
  >
  <div className="text-center mb-6 lg:mb-8">
- <h3 className="text-lg lg:text-xl font-medium text-foreground mb-2">
+ <h3 className={`${heading.section} mb-2`}>
  填写基本信息
  </h3>
  <p className="text-sm text-muted-foreground">
@@ -244,7 +245,7 @@ export function AIGenerator({ defaultDocType }: AIGeneratorProps) {
  <div className="w-14 h-14 lg:w-16 lg:h-16 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-4">
  <icons.CheckCircle className="w-7 h-7 lg:w-8 lg:h-8 text-success" />
  </div>
- <h3 className="text-lg lg:text-xl font-medium text-foreground mb-2">
+ <h3 className={`${heading.section} mb-2`}>
  生成完成！
  </h3>
  <p className="text-sm text-muted-foreground">
@@ -282,7 +283,7 @@ export function AIGenerator({ defaultDocType }: AIGeneratorProps) {
  className="text-center py-16 lg:py-20"
  >
  <icons.Loader2 className="w-12 h-12 lg:w-16 lg:h-16 text-primary animate-spin mx-auto mb-4" />
- <h3 className="text-lg lg:text-xl font-medium text-foreground mb-2">
+ <h3 className={`${heading.section} mb-2`}>
  AI 正在生成文档...
  </h3>
  <p className="text-sm text-muted-foreground">

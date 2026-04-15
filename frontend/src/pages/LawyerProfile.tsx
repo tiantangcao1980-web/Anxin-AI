@@ -285,7 +285,7 @@ export default function LawyerProfile() {
  {/* 基本信息 */}
  <div className="flex-1 min-w-0">
  <div className="flex items-center gap-2 flex-wrap">
- <h2 className="text-xl font-medium tracking-heading-lg text-foreground">{profile.real_name}</h2>
+ <h2 className={heading.section}>{profile.real_name}</h2>
  {profile.is_verified && (
  <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-md ${statusBadge.info}`}>
  <icons.ShieldCheck className={iconSize.xs} />

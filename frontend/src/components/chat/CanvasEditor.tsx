@@ -15,6 +15,7 @@ import { InlineSuggestion } from'./InlineSuggestion';
 import type { CanvasContent } from'@/lib/store';
 import { toast } from'sonner';
 import { cn } from'@/lib/utils';
+import { heading } from'@/lib/design-tokens';
 
 /**
  * 将 Markdown 文本转为 HTML（覆盖法律文书常用格式）
@@ -418,7 +419,7 @@ export const CanvasEditor = memo(function CanvasEditor({
  <icons.PenTool className="w-12 h-12 text-white" />
  </motion.div>
  <div>
- <h3 className="text-xl font-medium text-foreground mb-2">AI 智能画布</h3>
+ <h3 className={`${heading.section} mb-2`}>AI 智能画布</h3>
  <p className="text-muted-foreground leading-relaxed max-w-md mx-auto">
  AI 生成文书、合同时将自动在此打开<br />
  支持富文本编辑、实时协作、AI 优化

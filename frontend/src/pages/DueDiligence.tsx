@@ -757,7 +757,7 @@ export default function DueDiligence() {
  <div data-analysis-toolbar className="shrink-0 p-4 sm:p-5 lg:p-6 pb-0 space-y-3">
  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
  <div>
- <h1 className={`${heading.page} tracking-tight flex flex-wrap items-end`}>智能调查</h1>
+ <h1 className={`${heading.page} flex flex-wrap items-end`}>智能调查</h1>
  <p className={`${heading.muted} mt-0.5`}>多 Agent 协同 · 一站式智能法律调查平台</p>
  </div>
  <div className="flex items-center gap-2">

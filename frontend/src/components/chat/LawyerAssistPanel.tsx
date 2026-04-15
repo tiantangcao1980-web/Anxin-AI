@@ -376,19 +376,19 @@ export const LawyerAssistPanel = memo(function LawyerAssistPanel({
  store.setDocumentOverlay('none');
  toast.success('所有修改意见已一键应用到画布');
  }}
- className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium bg-success text-primary-foreground rounded-lg hover:bg-success/20 transition-colors shadow-sm"
+ className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium bg-success text-primary-foreground rounded-2xl hover:bg-success/20 transition-colors shadow-sm"
  >
  <icons.CheckCircle className="w-3.5 h-3.5" /> 一键接受全部
  </button>
  <button
  onClick={() => store.setDocumentOverlay('none')}
- className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium bg-background text-success rounded-lg border border-success/20 hover:bg-success/20 transition-colors"
+ className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium bg-background text-success rounded-2xl border border-success/20 hover:bg-success/20 transition-colors"
  >
  <icons.Eye className="w-3.5 h-3.5" /> 逐条查看
  </button>
  <button
  onClick={() => store.setDocumentOverlay('signing')}
- className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium bg-background text-primary rounded-lg border border-primary/20 hover:bg-primary/5 transition-colors"
+ className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium bg-background text-primary rounded-2xl border border-primary/20 hover:bg-primary/5 transition-colors"
  >
  <icons.ArrowRight className="w-3.5 h-3.5" /> 进入签约流程
  </button>

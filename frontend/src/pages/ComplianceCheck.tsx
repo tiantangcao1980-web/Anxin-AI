@@ -373,7 +373,7 @@ export default function ComplianceCheck() {
  }
 
  return (
- <PageContainer title="企业合规自检" description="AI 智能分析企业合规状况，快速识别风险">
+ <PageContainer title="合规管理" description="AI 智能分析企业合规状况，快速识别风险" embedded>
  <div className="flex flex-col lg:flex-row gap-6">
  {/* ===== 主区域 ===== */}
  <div className="flex-1 min-w-0">

@@ -91,7 +91,7 @@ export function A2UIRenderer({ data }: A2UIRendererProps) {
  <div key={id} className="flex items-center justify-between p-3 bg-muted/60 rounded-lg border border-border/50">
  <span className="text-xs font-medium text-muted-foreground">{props.label}</span>
  <div className="flex items-baseline gap-1">
- <span className={`text-base font-bold tracking-tight ${props.color ==='red' ?'text-destructive' :'text-foreground'}`}>
+ <span className={`text-base font-bold ${props.color ==='red' ?'text-destructive' :'text-foreground'}`}>
  {props.value}
  </span>
  {props.unit && <span className="text-[11px] text-muted-foreground font-medium">{props.unit}</span>}

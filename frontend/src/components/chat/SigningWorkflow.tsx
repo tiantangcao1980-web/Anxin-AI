@@ -519,10 +519,10 @@ export const SigningWorkflow = memo(function SigningWorkflow() {
  <p className="text-base font-medium text-success mb-1">流程已全部完成</p>
  <p className="text-xs text-success mb-4">所有步骤已完成，文档已自动归档存证</p>
  <div className="flex justify-center gap-2">
- <button className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium bg-success text-primary-foreground rounded-lg hover:bg-success/20 transition-colors shadow-sm">
+ <button className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium bg-success text-primary-foreground rounded-2xl hover:bg-success/20 transition-colors shadow-sm">
  <icons.Download className="w-3.5 h-3.5" /> 下载签署件
  </button>
- <button className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium bg-background text-success rounded-lg border border-success/20 hover:bg-success/20 transition-colors">
+ <button className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium bg-background text-success rounded-2xl border border-success/20 hover:bg-success/20 transition-colors">
  <icons.Eye className="w-3.5 h-3.5" /> 查看存证
  </button>
  </div>

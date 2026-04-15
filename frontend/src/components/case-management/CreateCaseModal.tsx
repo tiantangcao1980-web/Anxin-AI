@@ -180,13 +180,13 @@ export function CreateCaseModal({ onClose, onCreate }: CreateCaseModalProps) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 border border-border text-foreground rounded-lg hover:bg-muted/50 transition-colors font-medium"
+              className="flex-1 py-2.5 border border-border text-foreground rounded-2xl hover:bg-muted/50 transition-colors font-medium"
             >
               取消
             </button>
             <button
               type="submit"
-              className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
+              className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-2xl hover:bg-primary/90 transition-colors font-medium"
             >
               创建案件
             </button>

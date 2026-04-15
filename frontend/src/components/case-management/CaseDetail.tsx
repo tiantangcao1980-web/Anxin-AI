@@ -6,6 +6,7 @@ import { LottieIcon } from'../ui/LottieIcon';
 import { casesApi, documentsApi, Document } from'@/lib/api';
 import { toast } from'sonner';
 import ReactMarkdown from'react-markdown';
+import { heading } from'@/lib/design-tokens';
 
 interface CaseDetailProps {
  case: Case;
@@ -128,7 +129,7 @@ ${activities.length > 0 ? activities.slice(0, 5).map(a => `- [${new Date(a.time)
  className="absolute inset-0 z-50 bg-background/95 backdrop-blur-md flex flex-col p-8"
  >
  <div className="flex justify-between items-center mb-6">
- <h2 className="text-2xl font-medium text-foreground flex items-center gap-2">
+ <h2 className={`${heading.page} flex items-center gap-2`}>
  <icons.FileOutput className="w-6 h-6 text-primary" />
  律师交接简报
  </h2>
@@ -170,7 +171,7 @@ ${activities.length > 0 ? activities.slice(0, 5).map(a => `- [${new Date(a.time)
  {statusLabels[caseItem.status] || caseItem.status}
  </span>
  </div>
- <h2 className="text-xl font-medium text-foreground mb-2">{caseItem.title}</h2>
+ <h2 className={`${heading.section} mb-2`}>{caseItem.title}</h2>
  <p className="text-sm text-muted-foreground">{caseItem.description}</p>
  </div>
  <button
