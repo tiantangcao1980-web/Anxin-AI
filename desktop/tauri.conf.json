@@ -5,8 +5,9 @@
   "identifier": "com.anxin.legal",
   "build": {
     "frontendDist": "../frontend/dist",
+    "devUrl": "http://localhost:3001",
     "beforeBuildCommand": "cd ../frontend && npm run build",
-    "beforeDevCommand": "cd ../frontend && npm run dev -- --port 3001"
+    "beforeDevCommand": ""
   },
   "app": {
     "windows": [
@@ -61,18 +62,8 @@
       ],
       "pubkey": ""
     },
-    "deep-link": {
-      "desktop": {
-        "schemes": ["anxin"]
-      },
-      "mobile": {
-        "schemes": ["anxin"]
-      }
-    },
     "sql": {
-      "preload": {
-        "db": "sqlite:anxin_local.db"
-      }
+      "preload": ["sqlite:anxin_local.db"]
     }
   }
 }
