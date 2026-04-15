@@ -9,6 +9,7 @@ import { Label } from'@/components/ui/label'
 import { Badge } from'@/components/ui/badge'
 import { Skeleton } from'@/components/ui/skeleton'
 import { Progress } from'@/components/ui/progress'
+import { ErrorState } from'@/components/common'
 import { aiAssistantApi } from'@/lib/api'
 
 // ====================================================================
@@ -207,15 +208,11 @@ export default function PrivateLLMSetup() {
  if (state ==='error') {
  return (
  <PageContainer title="私有 LLM 配置" description="配置本地大语言模型服务">
- <div className={`${cardStyle.base} flex flex-col items-center justify-center py-16`}>
- <icons.AlertCircle className={`${iconSize.xl} text-destructive mb-3`} />
- <p className={heading.section}>加载失败</p>
- <p className={heading.muted}>{errorMsg ||'请检查网络后重试'}</p>
- <Button className="mt-4" onClick={() => setState('loading')}>
- <icons.Refresh className={iconSize.sm} />
- 重试
- </Button>
- </div>
+ <ErrorState
+ title="加载失败"
+ message={errorMsg ||'请检查网络后重试'}
+ onRetry={() => window.location.reload()}
+ />
  </PageContainer>
  )
  }

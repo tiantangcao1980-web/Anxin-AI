@@ -10,6 +10,7 @@ import { icons } from'@/lib/icons'
 import { toast } from'sonner'
 import { cardStyle, heading, statusBadge, iconSize } from'@/lib/design-tokens'
 import { PageContainer } from'@/components/ui/PageContainer'
+import { ErrorState } from'@/components/common'
 import { Button } from'@/components/ui/button'
 import { Badge } from'@/components/ui/badge'
 import { Switch } from'@/components/ui/switch'
@@ -132,12 +133,7 @@ export default function Pricing() {
  if (error) {
  return (
  <PageContainer title="选择套餐">
- <div className={`${cardStyle.base} flex flex-col items-center justify-center py-16`}>
- <icons.AlertCircle className={`${iconSize.xl} text-destructive mb-3`} />
- <p className={heading.section}>加载失败</p>
- <p className="text-sm text-muted-foreground mt-1">{error}</p>
- <Button className="mt-4" onClick={() => window.location.reload()}>重试</Button>
- </div>
+ <ErrorState title="加载失败" message={error} onRetry={() => window.location.reload()} />
  </PageContainer>
  )
  }

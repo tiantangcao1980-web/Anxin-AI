@@ -24,6 +24,7 @@ import {
  SelectTrigger,
  SelectValue,
 } from'@/components/ui/select'
+import { ErrorState } from'@/components/common'
 import { lawyerApi } from'@/lib/api'
 
 // ============ 类型定义 ============
@@ -377,15 +378,11 @@ export default function LawyerOnboarding() {
  if (loadError) {
  return (
  <PageContainer title="律师入驻" description="完善资料，开始接案">
- <div className={`${cardStyle.base} flex flex-col items-center justify-center py-12 text-center`}>
- <icons.AlertCircle className={`${iconSize.xl} text-destructive mb-3`} />
- <p className={heading.section}>入驻进度加载失败</p>
- <p className={`${heading.muted} mt-1`}>{loadError}</p>
- <Button className="mt-4 gap-2" onClick={loadStatus}>
- <icons.RefreshCw className={iconSize.sm} />
- 重新加载
- </Button>
- </div>
+ <ErrorState
+ title="入驻进度加载失败"
+ message={loadError}
+ onRetry={loadStatus}
+ />
  </PageContainer>
  )
  }

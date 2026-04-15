@@ -3,6 +3,7 @@ import { icons } from'@/lib/icons'
 import { cardStyle, heading, statusColor } from'@/lib/design-tokens'
 import { coursesApi, type CourseItem } from'@/lib/api'
 import { PageContainer } from'@/components/ui/PageContainer'
+import { ErrorState } from'@/components/common'
 
 type CourseCategory ='all' |'regulation' |'case_study' |'practice' |'exam'
 
@@ -179,14 +180,11 @@ export default function Academy() {
  <span className="ml-2 text-sm text-muted-foreground">加载课程...</span>
  </div>
  ) : error ? (
- <div className="flex flex-col items-center justify-center py-20">
- <icons.AlertTriangle className="w-10 h-10 text-destructive/60 mb-3" />
- <p className="text-sm text-foreground mb-1">课程数据加载失败</p>
- <p className="text-xs text-muted-foreground mb-4">{error}</p>
- <button onClick={() => void loadCourses()} className="px-4 py-2 rounded-lg bg-primary text-white text-sm">
- 重新加载
- </button>
- </div>
+ <ErrorState
+ title="课程数据加载失败"
+ message={error}
+ onRetry={() => void loadCourses()}
+ />
  ) : filtered.length === 0 ? (
  <div className="flex flex-col items-center justify-center py-20">
  <icons.Academy className="w-10 h-10 text-muted-foreground/50 mb-3" />
