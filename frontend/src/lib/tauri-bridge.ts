@@ -9,7 +9,10 @@
 
 /** 是否运行在 Tauri 环境中 */
 export function isTauri(): boolean {
-  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
+  if (typeof window === 'undefined') return false
+  // 必须同时满足：Tauri 内部对象存在 + 包含 invoke 方法（排除 Vite dev webview 误判）
+  const internals = (window as any).__TAURI_INTERNALS__
+  return !!(internals && typeof internals.invoke === 'function')
 }
 
 /** 获取运行平台 */
@@ -34,22 +37,20 @@ export function isMobile(): boolean {
 
 // ===== Tauri IPC 调用 =====
 
-// 动态包名，避免 Vite 在 Web 模式下静态解析 @tauri-apps 包
-const TAURI_CORE = '@tauri-apps' + '/api/core'
-const TAURI_NOTIFICATION = '@tauri-apps' + '/plugin-notification'
-const TAURI_DIALOG = '@tauri-apps' + '/plugin-dialog'
-const TAURI_CLIPBOARD = '@tauri-apps' + '/plugin-clipboard-manager'
-const TAURI_EVENT = '@tauri-apps' + '/api/event'
-const TAURI_UPDATER = '@tauri-apps' + '/plugin-updater'
+// Tauri 包动态加载 — 使用 @vite-ignore 避免 Vite 静态分析
 
 /** 安全调用 Tauri IPC 命令 */
 async function invokeCommand<T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
   if (!isTauri()) return null
   try {
-    const mod = await import(TAURI_CORE)
-    return await mod.invoke(cmd, args)
+    // 直接使用 Tauri 注入的 __TAURI_INTERNALS__.invoke，避免动态 import 解析失败
+    const internals = (window as any).__TAURI_INTERNALS__
+    if (internals?.invoke) {
+      return await internals.invoke(cmd, args)
+    }
+    return null
   } catch (error) {
-    console.error(`[Tauri] ${cmd} 调用失败:`, error)
+    console.debug(`[Tauri] ${cmd} 调用失败:`, error)
     return null
   }
 }
@@ -241,7 +242,7 @@ export async function getAppInfo() {
 export async function sendNotification(title: string, body: string) {
   if (!isTauri()) return
   try {
-    const { sendNotification: notify } = await import(TAURI_NOTIFICATION)
+    const { sendNotification: notify } = await import(/* @vite-ignore */ '@tauri-apps/plugin-notification')
     await notify({ title, body })
   } catch (error) {
     console.error('[Tauri] 通知发送失败:', error)
@@ -252,7 +253,7 @@ export async function sendNotification(title: string, body: string) {
 export async function requestNotificationPermission(): Promise<boolean> {
   if (!isTauri()) return false
   try {
-    const { requestPermission } = await import(TAURI_NOTIFICATION)
+    const { requestPermission } = await import(/* @vite-ignore */ '@tauri-apps/plugin-notification')
     const perm = await requestPermission()
     return perm === 'granted'
   } catch {
@@ -266,7 +267,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
 export async function pickFile(filters?: { name: string; extensions: string[] }[]) {
   if (!isTauri()) return null
   try {
-    const { open } = await import(TAURI_DIALOG)
+    const { open } = await import(/* @vite-ignore */ '@tauri-apps/plugin-dialog')
     return await open({
       multiple: false,
       filters: filters ?? [
@@ -284,7 +285,7 @@ export async function pickFile(filters?: { name: string; extensions: string[] }[
 export async function saveFileDialog(defaultPath?: string) {
   if (!isTauri()) return null
   try {
-    const { save } = await import(TAURI_DIALOG)
+    const { save } = await import(/* @vite-ignore */ '@tauri-apps/plugin-dialog')
     return await save({ defaultPath })
   } catch {
     return null
@@ -297,7 +298,7 @@ export async function saveFileDialog(defaultPath?: string) {
 export async function copyToClipboard(text: string) {
   if (isTauri()) {
     try {
-      const { writeText } = await import(TAURI_CLIPBOARD)
+      const { writeText } = await import(/* @vite-ignore */ '@tauri-apps/plugin-clipboard-manager')
       await writeText(text)
       return
     } catch { /* fallback */ }

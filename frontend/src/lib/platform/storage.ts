@@ -3,7 +3,6 @@ import { isTauri } from '@/lib/tauri-bridge'
 const ACCESS_TOKEN_KEY = 'access_token'
 const REFRESH_TOKEN_KEY = 'refresh_token'
 const BACKEND_URL_KEY = 'backend_url'
-const TAURI_STORE_MODULE = '@tauri-apps' + '/plugin-store'
 const TAURI_STORE_PATH = 'auth.json'
 
 type StoreLike = {
@@ -58,11 +57,17 @@ function removeIfPresent(store: StoreLike | null, key: string) {
 
 async function getDesktopStore(): Promise<DesktopStore> {
   if (!desktopStorePromise) {
-    desktopStorePromise = import(TAURI_STORE_MODULE).then(async (mod) => {
-      const store = new mod.LazyStore(TAURI_STORE_PATH, { autoSave: true })
-      await store.init()
-      return store as DesktopStore
-    })
+    desktopStorePromise = import(/* @vite-ignore */ '@tauri-apps/plugin-store')
+      .then(async (mod: any) => {
+        const store = new mod.LazyStore(TAURI_STORE_PATH, { autoSave: true })
+        await store.init()
+        return store as DesktopStore
+      })
+      .catch((error) => {
+        // Tauri store 加载失败时静默降级到内存存储，避免错误弹窗
+        console.debug('[Tauri] plugin-store 加载失败，降级到浏览器存储:', error)
+        throw error
+      })
   }
   return desktopStorePromise
 }
@@ -151,66 +156,85 @@ function createBrowserTokenStorage(store: StoreLike | null): TokenStorage {
 
 function createDesktopTokenStorage(): TokenStorage {
   const browserStore = getBrowserStore()
+  const browserFallback = createBrowserTokenStorage(browserStore)
+
+  // 尝试 desktop store，失败时降级到浏览器存储
+  const tryDesktop = async <T>(op: (store: DesktopStore) => Promise<T>, fallback: () => Promise<T>): Promise<T> => {
+    try {
+      const store = await getDesktopStore()
+      return await op(store)
+    } catch {
+      return fallback()
+    }
+  }
 
   return {
     async getAccessToken() {
-      const store = await getDesktopStore()
-      const token = await store.get<string>(ACCESS_TOKEN_KEY)
-      if (token) {
-        setIfTruthy(browserStore, ACCESS_TOKEN_KEY, token)
-        return token
-      }
-      return browserStore?.getItem(ACCESS_TOKEN_KEY) ?? null
+      return tryDesktop(async (store) => {
+        const token = await store.get<string>(ACCESS_TOKEN_KEY)
+        if (token) {
+          setIfTruthy(browserStore, ACCESS_TOKEN_KEY, token)
+          return token
+        }
+        return browserStore?.getItem(ACCESS_TOKEN_KEY) ?? null
+      }, () => browserFallback.getAccessToken())
     },
     async setAccessToken(token: string) {
-      const store = await getDesktopStore()
-      await store.set(ACCESS_TOKEN_KEY, token)
-      await store.save()
-      setIfTruthy(browserStore, ACCESS_TOKEN_KEY, token)
+      return tryDesktop(async (store) => {
+        await store.set(ACCESS_TOKEN_KEY, token)
+        await store.save()
+        setIfTruthy(browserStore, ACCESS_TOKEN_KEY, token)
+      }, () => browserFallback.setAccessToken(token))
     },
     async getRefreshToken() {
-      const store = await getDesktopStore()
-      const token = await store.get<string>(REFRESH_TOKEN_KEY)
-      if (token) {
-        setIfTruthy(browserStore, REFRESH_TOKEN_KEY, token)
-        return token
-      }
-      return browserStore?.getItem(REFRESH_TOKEN_KEY) ?? null
+      return tryDesktop(async (store) => {
+        const token = await store.get<string>(REFRESH_TOKEN_KEY)
+        if (token) {
+          setIfTruthy(browserStore, REFRESH_TOKEN_KEY, token)
+          return token
+        }
+        return browserStore?.getItem(REFRESH_TOKEN_KEY) ?? null
+      }, () => browserFallback.getRefreshToken())
     },
     async setRefreshToken(token: string) {
-      const store = await getDesktopStore()
-      await store.set(REFRESH_TOKEN_KEY, token)
-      await store.save()
-      setIfTruthy(browserStore, REFRESH_TOKEN_KEY, token)
+      return tryDesktop(async (store) => {
+        await store.set(REFRESH_TOKEN_KEY, token)
+        await store.save()
+        setIfTruthy(browserStore, REFRESH_TOKEN_KEY, token)
+      }, () => browserFallback.setRefreshToken(token))
     },
     async getBackendUrl() {
-      const store = await getDesktopStore()
-      const url = await store.get<string>(BACKEND_URL_KEY)
-      if (url) {
-        setIfTruthy(browserStore, BACKEND_URL_KEY, url)
-        return url
-      }
-      return browserStore?.getItem(BACKEND_URL_KEY) ?? null
+      return tryDesktop(async (store) => {
+        const url = await store.get<string>(BACKEND_URL_KEY)
+        if (url) {
+          setIfTruthy(browserStore, BACKEND_URL_KEY, url)
+          return url
+        }
+        return browserStore?.getItem(BACKEND_URL_KEY) ?? null
+      }, () => browserFallback.getBackendUrl())
     },
     async setBackendUrl(url: string) {
-      const store = await getDesktopStore()
-      await store.set(BACKEND_URL_KEY, url)
-      await store.save()
-      setIfTruthy(browserStore, BACKEND_URL_KEY, url)
+      return tryDesktop(async (store) => {
+        await store.set(BACKEND_URL_KEY, url)
+        await store.save()
+        setIfTruthy(browserStore, BACKEND_URL_KEY, url)
+      }, () => browserFallback.setBackendUrl(url))
     },
     async clearBackendUrl() {
-      const store = await getDesktopStore()
-      await store.delete(BACKEND_URL_KEY)
-      await store.save()
-      removeIfPresent(browserStore, BACKEND_URL_KEY)
+      return tryDesktop(async (store) => {
+        await store.delete(BACKEND_URL_KEY)
+        await store.save()
+        removeIfPresent(browserStore, BACKEND_URL_KEY)
+      }, () => browserFallback.clearBackendUrl())
     },
     async clearAuth() {
-      const store = await getDesktopStore()
-      await store.delete(ACCESS_TOKEN_KEY)
-      await store.delete(REFRESH_TOKEN_KEY)
-      await store.save()
-      removeIfPresent(browserStore, ACCESS_TOKEN_KEY)
-      removeIfPresent(browserStore, REFRESH_TOKEN_KEY)
+      return tryDesktop(async (store) => {
+        await store.delete(ACCESS_TOKEN_KEY)
+        await store.delete(REFRESH_TOKEN_KEY)
+        await store.save()
+        removeIfPresent(browserStore, ACCESS_TOKEN_KEY)
+        removeIfPresent(browserStore, REFRESH_TOKEN_KEY)
+      }, () => browserFallback.clearAuth())
     },
   }
 }
