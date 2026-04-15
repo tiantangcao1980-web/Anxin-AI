@@ -111,13 +111,24 @@ export const buttonStyle = {
   sm: 'rounded-xl px-3 py-1.5 text-xs font-medium transition-all outline-none focus-visible:ring-[3px] focus-visible:ring-primary/15 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
 } as const
 
-// DESIGN.md §3: 中文标题使用 font-medium (500)，避免 font-semibold (600) 带来的压迫感
+// ===== 标题层级 (DESIGN.md §3 Typography Hierarchy) =====
+// 使用 tailwind.config.js 中精确定义的 fontSize（text-h1/h2/h3 等），
+// 而非 ad-hoc 的 text-2xl/text-lg。每个 fontSize 预设已内置 lineHeight 和 fontWeight。
 export const heading = {
-  page: 'text-2xl sm:text-3xl font-medium tracking-heading-lg text-foreground',
-  section: 'text-lg sm:text-xl font-medium tracking-heading-md text-foreground',
-  card: 'text-sm sm:text-base font-medium text-foreground',
-  muted: 'text-sm text-muted-foreground',
-  micro: 'text-xs text-muted-foreground',
+  /** Display Hero — 40px/500/-0.03em，仅首页/品牌展示 */
+  display: 'text-display tracking-heading-xl text-foreground',
+  /** Page Title — 32px/500/-0.02em，一级页面标题 (h1) */
+  page: 'text-h1 tracking-heading-lg text-foreground',
+  /** Section Title — 24px/500/-0.01em，区块/分区标题 (h2) */
+  section: 'text-h2 tracking-heading-md text-foreground',
+  /** Panel Title — 20px/500/-0.01em，卡片/面板标题 (h3) */
+  card: 'text-h3 tracking-heading-md text-foreground',
+  /** Body Label — 16px/500，表单标签/列表项名 */
+  label: 'text-body-lg font-medium text-foreground',
+  /** Muted description — 14px/400 */
+  muted: 'text-body text-muted-foreground',
+  /** Caption — 12px/400/0.01em，时间戳、弱标签 */
+  micro: 'text-caption text-muted-foreground tracking-caption',
 } as const
 
 // ===== 状态颜色 =====

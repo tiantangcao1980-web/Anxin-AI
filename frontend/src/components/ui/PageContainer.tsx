@@ -36,6 +36,9 @@ interface PageContainerProps {
   fullHeight?: boolean
   /** 标题下方的筛选栏或 Tab 栏 */
   toolbar?: ReactNode
+  /** 嵌入模式：当 PageContainer 嵌套在 CenterLayout 等外层容器内时，
+   *  标题降为 heading.card (h3) 并去掉卡片外框，避免层级重复 */
+  embedded?: boolean
 }
 
 export function PageContainer({
@@ -48,6 +51,7 @@ export function PageContainer({
   showHeader = true,
   fullHeight = true,
   toolbar,
+  embedded = false,
 }: PageContainerProps) {
   const hasHeader = showHeader && (title || actions)
 
@@ -61,13 +65,20 @@ export function PageContainer({
   const content = (
     <div data-ui="page-shell" className={contentClasses}>
       {hasHeader && (
-        <div data-ui="page-header" className={`flex flex-col justify-between gap-3 ${cardStyle.base} sm:flex-row sm:items-center shrink-0`}>
+        <div
+          data-ui="page-header"
+          className={`flex flex-col justify-between gap-3 sm:flex-row sm:items-center shrink-0 ${
+            embedded
+              ? 'border-b border-border pb-3'                 /* embedded: 轻量分割线，不用卡片 */
+              : `${cardStyle.base}`                           /* standalone: 完整卡片包裹 */
+          }`}
+        >
           <div className="min-w-0">
-            {title && (
-              <h1 className={`${heading.page} truncate`}>
-                {title}
-              </h1>
-            )}
+            {title && embedded ? (
+              <h3 className={`${heading.card} truncate`}>{title}</h3>
+            ) : title ? (
+              <h1 className={`${heading.page} truncate`}>{title}</h1>
+            ) : null}
             {description && (
               <p className={`${heading.muted} mt-1 line-clamp-2`}>{description}</p>
             )}
@@ -113,8 +124,8 @@ export function PageSection({ title, description, actions, children, className =
       {(title || actions) && (
         <div className="flex items-center justify-between gap-3">
           <div>
-            {title && <h2 className="text-base sm:text-lg font-medium text-foreground">{title}</h2>}
-            {description && <p className="text-sm text-muted-foreground mt-0.5">{description}</p>}
+            {title && <h2 className={heading.section}>{title}</h2>}
+            {description && <p className={`${heading.muted} mt-0.5`}>{description}</p>}
           </div>
           {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
         </div>
