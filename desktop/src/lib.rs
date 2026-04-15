@@ -24,6 +24,7 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         // ===== 全局状态 =====
         .manage(shared_state.clone())
         // ===== IPC 命令注册 =====
@@ -66,11 +67,39 @@ pub fn run() {
         .setup(move |app| {
             let handle = app.handle().clone();
 
-            // 桌面端：创建系统托盘
+            // 桌面端：创建系统托盘 + 注册全局快捷键
             #[cfg(desktop)]
             {
                 if let Err(e) = services::tray::create_tray(&handle) {
                     log::error!("系统托盘创建失败: {}", e);
+                }
+
+                // 全局快捷键：Cmd+Shift+Space (macOS) / Ctrl+Shift+Space (Win/Linux)
+                // 呼出/隐藏主窗口 —— 类似 Spotlight / Alfred / ClawX
+                use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+                #[cfg(target_os = "macos")]
+                let summon_shortcut = Shortcut::new(Some(Modifiers::SUPER | Modifiers::SHIFT), Code::Space);
+                #[cfg(not(target_os = "macos"))]
+                let summon_shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
+
+                if let Err(e) = app.global_shortcut().on_shortcut(summon_shortcut, move |app, _shortcut, event| {
+                    if event.state() == ShortcutState::Pressed {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let is_visible = window.is_visible().unwrap_or(false);
+                            let is_focused = window.is_focused().unwrap_or(false);
+                            if is_visible && is_focused {
+                                let _ = window.hide();
+                            } else {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                                let _ = window.center();
+                            }
+                        }
+                    }
+                }) {
+                    log::error!("全局快捷键注册失败: {}", e);
+                } else {
+                    log::info!("全局快捷键已注册: Cmd/Ctrl+Shift+Space");
                 }
             }
 

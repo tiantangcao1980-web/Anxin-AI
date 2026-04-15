@@ -355,3 +355,9 @@
 | 2026-04-12 | Initial DESIGN.md | 将审计结论沉淀为项目级设计真相源 | Web design system |
 | 2026-04-12 | Token layer Phase 2 | 补全缺失 token、修正 radius/weight 与规范对齐 | index.css, tailwind.config.js, design-tokens.ts |
 | 2026-04-12 | Phase 3-5 全站治理 | font-bold/semibold→medium; tracking-wide→caption; 572处hardcoded色→0; focus-visible补齐; DOM嵌套修复 | 138+ files |
+| 2026-04-15 | Batch 1 标题层级对齐 | heading token 从 ad-hoc 尺寸对齐到 text-h1/h2/h3 精确 fontSize；新增 heading.display/label | design-tokens.ts, PageContainer.tsx |
+| 2026-04-15 | Batch 2 CenterLayout + embedded | 统一中心页面（CaseCenter/ManagementCenter）；PageContainer 新增 embedded 模式解决嵌套标题重复 | 新建 CenterLayout.tsx + 4 pages |
+| 2026-04-15 | Batch 3 剩余页面迁移 | MonitoringCenter/Investigation/KnowledgeBase 全部迁移到 PageContainer；92% 页面使用标准布局容器 | 3 pages + RiskAlertPanel |
+| 2026-04-15 | Batch 4 硬编码清理 | 硬编码标题 24→0；p-6 padding 34→0；按钮 rounded-lg→rounded-2xl（主要按钮）；tracking-tight→heading tokens | 25+ files |
+| 2026-04-15 | 新增统一状态组件 | EmptyState/LoadingState/ErrorState 三组统一 UI 状态组件，替代 72+122+142 文件各自为政的实现 | src/components/common/ |
+| 2026-04-15 | Batch 5 桌面端 MVP | Tauri 全局快捷键 Cmd+Shift+Space；参考 ClawX/Qclaw 呼出式交互；多端产品路线图 PRODUCT_ROADMAP.md | desktop/ + PRODUCT_ROADMAP.md |
