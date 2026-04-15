@@ -11,6 +11,7 @@ import { toast } from 'sonner'
 import { cardStyle, heading, statusBadge, iconSize, inputStyle } from '@/lib/design-tokens'
 import { PageContainer } from '@/components/ui/PageContainer'
 import { lawyerApi } from '@/lib/api'
+import { ErrorState } from '@/components/common'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -161,17 +162,7 @@ export default function AdminLawyerVerify() {
   return (
     <PageContainer title="律师审核" description="审核律师入驻申请">
       {error && (
-        <div className={`${cardStyle.base} border-destructive/20 bg-destructive/5`}>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium text-foreground">待审核律师数据加载失败</p>
-              <p className="text-xs text-muted-foreground mt-1">{error}</p>
-            </div>
-            <Button variant="outline" onClick={() => void loadApplications()}>
-              重试
-            </Button>
-          </div>
-        </div>
+        <ErrorState variant="card" title="待审核律师数据加载失败" message={error} onRetry={() => void loadApplications()} />
       )}
 
       {/* 搜索栏 */}

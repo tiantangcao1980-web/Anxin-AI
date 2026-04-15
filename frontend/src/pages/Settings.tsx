@@ -19,6 +19,7 @@ import { Separator } from'@/components/ui/separator'
 
 import { llmApi, mcpApi, authApi, notificationsApi, LLMConfig, LLMProvider, McpServerConfig, McpServerCreate, NotificationPreference } from'@/lib/api'
 import { useAuthStore, useUIStore } from'@/lib/store'
+import { ErrorState, LoadingState } from'@/components/common'
 
 export default function Settings() {
  const [searchParams] = useSearchParams()
@@ -427,23 +428,15 @@ function LlmSettingsPanel() {
 
  if (loading) {
  return (
- <div className={`${cardStyle.base} flex items-center justify-center py-12`}>
- <icons.Loader2 className="h-8 w-8 animate-spin text-primary" />
+ <div className={cardStyle.base}>
+ <LoadingState />
  </div>
  )
  }
 
  if (error) {
  return (
- <div className={`${cardStyle.base} flex flex-col items-center justify-center py-12 text-center`}>
- <icons.AlertCircle className="h-8 w-8 text-destructive mb-3" />
- <p className={heading.section}>模型配置加载失败</p>
- <p className={`${heading.muted} mt-1`}>{error}</p>
- <Button className="mt-4" onClick={loadData}>
- <icons.Refresh className="h-4 w-4 mr-2" />
- 重新加载
- </Button>
- </div>
+ <ErrorState title="模型配置加载失败" message={error} onRetry={loadData} />
  )
  }
 
@@ -881,23 +874,15 @@ function McpSettingsPanel() {
 
  if (loading) {
  return (
- <div className={`${cardStyle.base} flex items-center justify-center py-12`}>
- <icons.Loader2 className="h-8 w-8 animate-spin text-primary" />
+ <div className={cardStyle.base}>
+ <LoadingState />
  </div>
  )
  }
 
  if (error) {
  return (
- <div className={`${cardStyle.base} flex flex-col items-center justify-center py-12 text-center`}>
- <icons.AlertCircle className="h-8 w-8 text-destructive mb-3" />
- <p className={heading.section}>服务集成加载失败</p>
- <p className={`${heading.muted} mt-1`}>{error}</p>
- <Button className="mt-4" onClick={loadData}>
- <icons.Refresh className="h-4 w-4 mr-2" />
- 重新加载
- </Button>
- </div>
+ <ErrorState title="服务集成加载失败" message={error} onRetry={loadData} />
  )
  }
 
@@ -1366,9 +1351,8 @@ function NotificationPreferencesPanel() {
  if (loading) {
  return (
  <Card className="border-border rounded-xl">
- <CardContent className="py-12 flex items-center justify-center">
- <icons.Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
- <span className="ml-2 text-muted-foreground">加载通知偏好...</span>
+ <CardContent>
+ <LoadingState text="加载通知偏好..." />
  </CardContent>
  </Card>
  )

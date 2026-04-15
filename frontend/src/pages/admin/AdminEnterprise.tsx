@@ -8,11 +8,11 @@
 import { useState, useEffect } from'react'
 import { PageContainer } from'@/components/ui/PageContainer'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from'@/components/ui/tabs'
-import { Skeleton } from'@/components/ui/skeleton'
 import { Button } from'@/components/ui/button'
 import { icons } from'@/lib/icons'
 import { cardStyle, complianceScoreColors, heading, statusBadge, inputStyle, iconSize, riskLevelColors } from'@/lib/design-tokens'
 import { adminApi, complianceApi } from'@/lib/api'
+import { ErrorState, LoadingState } from'@/components/common'
 import {
  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
  BarChart, Bar, Legend,
@@ -150,12 +150,7 @@ export default function AdminEnterprise() {
  if (loading) {
  return (
  <PageContainer title="企业管理">
- <Skeleton className="h-10 w-80 mb-4" />
- <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
- {Array.from({ length: 6 }).map((_, i) => (
- <Skeleton key={i} className="h-48 rounded-xl" />
- ))}
- </div>
+ <LoadingState variant="skeleton" rows={6} />
  </PageContainer>
  )
  }
@@ -163,12 +158,7 @@ export default function AdminEnterprise() {
  if (error) {
  return (
  <PageContainer title="企业管理">
- <div className={`${cardStyle.base} flex flex-col items-center justify-center py-16`}>
- <icons.AlertCircle className={`${iconSize.xl} text-destructive mb-3`} />
- <p className={heading.section}>加载失败</p>
- <p className="text-sm text-muted-foreground mt-1">{error}</p>
- <Button className="mt-4" onClick={() => window.location.reload()}>重试</Button>
- </div>
+ <ErrorState title="加载失败" message={error} onRetry={() => window.location.reload()} />
  </PageContainer>
  )
  }

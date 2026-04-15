@@ -16,6 +16,15 @@ const queryClient = new QueryClient({
 
 setupDynamicImportRecovery()
 
+// Tauri 平台检测：桌面端 macOS 启用标题栏交通灯让位样式
+// 检测方式：Tauri 注入全局 __TAURI_INTERNALS__，通过 navigator.userAgent 识别 OS
+const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
+if (isTauri) {
+  const ua = navigator.userAgent.toLowerCase()
+  const platform = ua.includes('mac') ? 'tauri-macos' : ua.includes('win') ? 'tauri-windows' : 'tauri-linux'
+  document.documentElement.setAttribute('data-platform', platform)
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>

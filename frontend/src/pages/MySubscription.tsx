@@ -13,9 +13,9 @@ import { PageContainer, PageSection } from'@/components/ui/PageContainer'
 import { Button } from'@/components/ui/button'
 import { Badge } from'@/components/ui/badge'
 import { Switch } from'@/components/ui/switch'
-import { Skeleton } from'@/components/ui/skeleton'
 import { Progress } from'@/components/ui/progress'
 import { billingApi } from'@/lib/api'
+import { ErrorState, LoadingState } from'@/components/common'
 import {
  Table,
  TableBody,
@@ -173,8 +173,7 @@ export default function MySubscription() {
  if (loading) {
  return (
  <PageContainer title="我的订阅">
- <Skeleton className="h-48 rounded-xl" />
- <Skeleton className="h-64 rounded-xl mt-4" />
+ <LoadingState variant="skeleton" rows={4} />
  </PageContainer>
  )
  }
@@ -182,12 +181,7 @@ export default function MySubscription() {
  if (error) {
  return (
  <PageContainer title="我的订阅">
- <div className={`${cardStyle.base} flex flex-col items-center justify-center py-16`}>
- <icons.AlertCircle className={`${iconSize.xl} text-destructive mb-3`} />
- <p className={heading.section}>加载失败</p>
- <p className="text-sm text-muted-foreground mt-1">{error}</p>
- <Button className="mt-4" onClick={() => window.location.reload()}>重试</Button>
- </div>
+ <ErrorState title="加载失败" message={error} onRetry={() => window.location.reload()} />
  </PageContainer>
  )
  }

@@ -19,6 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { billingApi } from '@/lib/api'
+import { ErrorState } from '@/components/common'
 import {
   Table,
   TableBody,
@@ -190,12 +191,7 @@ export default function AdminBilling() {
   if (error) {
     return (
       <PageContainer title="计费管理">
-        <div className={`${cardStyle.base} flex flex-col items-center justify-center py-16`}>
-          <icons.AlertCircle className={`${iconSize.xl} text-destructive mb-3`} />
-          <p className={heading.section}>加载失败</p>
-          <p className="text-sm text-muted-foreground mt-1">{error}</p>
-          <Button className="mt-4" onClick={() => window.location.reload()}>重试</Button>
-        </div>
+        <ErrorState title="加载失败" message={error} onRetry={() => window.location.reload()} />
       </PageContainer>
     )
   }

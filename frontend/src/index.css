@@ -286,3 +286,24 @@
 .safe-area-inset-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
+
+/* =====================================================
+ * Tauri 桌面端适配
+ *
+ * macOS 使用 titleBarStyle: "Overlay" + hiddenTitle 后，
+ * 交通灯按钮悬浮在 (16, 18) 位置。Logo 所在的顶部导航栏
+ * 左侧需要让出 ~88px 空间避免按钮与内容重叠。
+ *
+ * 启用方式：在 main.tsx 检测 Tauri 环境后，给 <html>
+ * 添加 data-platform="tauri-macos" 属性。
+ * ===================================================== */
+html[data-platform="tauri-macos"] .tauri-safe-pl-22 {
+  padding-left: 88px; /* 88px = 左 16 + 交通灯 52 + 间距 20 */
+}
+
+/* 在 Tauri 桌面端禁用文本选择的默认拖拽行为 */
+html[data-platform^="tauri"] header[data-tauri-drag-region] button,
+html[data-platform^="tauri"] header[data-tauri-drag-region] input,
+html[data-platform^="tauri"] header[data-tauri-drag-region] a {
+  -webkit-app-region: no-drag;
+}

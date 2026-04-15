@@ -4,6 +4,7 @@ import { cardStyle, heading, statusBadge, buttonStyle, iconSize } from'@/lib/des
 import { sentimentApi, type SentimentRecord } from'@/lib/api'
 import { toast } from'sonner'
 import { PageContainer } from'@/components/ui/PageContainer'
+import { ErrorState, LoadingState } from'@/components/common'
 
 type NewsCategory ='all' |'regulation' |'case_law' |'policy' |'industry'
 
@@ -191,19 +192,9 @@ export default function News() {
  toolbar={<FilterBar category={category} setCategory={setCategory} />}
  >
  {loading ? (
- <div className="flex items-center justify-center py-20">
- <icons.Refresh className={`${iconSize.lg} animate-spin text-primary`} />
- <span className="ml-2 text-sm text-muted-foreground">加载资讯...</span>
- </div>
+ <LoadingState variant="page" text="加载资讯..." />
  ) : error ? (
- <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
- <icons.AlertTriangle className={`${iconSize['2xl']} mb-3 opacity-30`} />
- <p className="text-sm mb-3">{error}</p>
- <button onClick={loadNews} className={buttonStyle.primary}>
- <icons.Refresh className={`${iconSize.sm} inline-block mr-1`} />
- 重试
- </button>
- </div>
+ <ErrorState title="资讯加载失败" message={error} onRetry={loadNews} />
  ) : filtered.length === 0 ? (
  <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
  <icons.FileSearch className={`${iconSize['2xl']} mb-3 opacity-30`} />

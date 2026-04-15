@@ -263,9 +263,13 @@ export default function Layout() {
 
   return (
     <div className="flex h-[100dvh] min-h-[100dvh] flex-col overflow-hidden bg-surface-2">
-      {/* ===== 固定顶部导航栏 ===== */}
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-surface-1/90 backdrop-blur-xl">
-        <div className="h-[60px] px-4 lg:px-6 flex items-center">
+      {/* ===== 固定顶部导航栏 (Tauri 桌面端：data-tauri-drag-region 允许拖拽窗口) ===== */}
+      <header
+        data-tauri-drag-region
+        className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-surface-1/90 backdrop-blur-xl"
+      >
+        {/* 在 Tauri 桌面端 macOS，html[data-platform="tauri-macos"] 会激活 .tauri-safe-pl-22 增加左 padding 让开交通灯 */}
+        <div className="h-[60px] px-4 lg:px-6 flex items-center tauri-safe-pl-22">
           {/* 左侧：Logo */}
           <button
             type="button"
