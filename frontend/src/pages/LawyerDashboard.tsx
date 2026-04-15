@@ -15,6 +15,7 @@ import { PageContainer, PageSection } from '@/components/ui/PageContainer'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ErrorState } from '@/components/common'
 import {
   LineChart,
   Line,
@@ -133,14 +134,7 @@ export default function LawyerDashboard() {
   if (error) {
     return (
       <PageContainer title="律师工作台">
-        <div className={`${cardStyle.flat} flex flex-col items-center justify-center py-12`}>
-          <icons.AlertTriangle className={`${iconSize.xl} text-destructive/60 mb-3`} />
-          <p className={heading.section}>加载失败</p>
-          <p className="text-sm text-muted-foreground mt-1">{error}</p>
-          <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
-            重新加载
-          </Button>
-        </div>
+        <ErrorState title="加载失败" message={error} onRetry={() => window.location.reload()} />
       </PageContainer>
     )
   }

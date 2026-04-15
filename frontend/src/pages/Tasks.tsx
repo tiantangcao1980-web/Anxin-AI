@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from'react'
 import { icons } from'@/lib/icons'
-import { EmptyState, LoadingState } from'@/components/common'
+import { EmptyState, LoadingState, ErrorState } from'@/components/common'
 import { cardStyle, buttonStyle, heading, statusColor } from'@/lib/design-tokens'
 import { tasksApi, type TaskItem } from'@/lib/api'
 import { toast } from'sonner'
@@ -226,14 +226,7 @@ export default function Tasks() {
  {loading ? (
  <LoadingState text="加载任务..." />
  ) : error ? (
- <div className="flex flex-col items-center justify-center py-20">
- <icons.AlertTriangle className="w-10 h-10 text-destructive/60 mb-3" />
- <p className="text-sm text-foreground mb-1">任务数据加载失败</p>
- <p className="text-xs text-muted-foreground mb-4">{error}</p>
- <button onClick={() => void loadTasks()} className={buttonStyle.primary}>
- 重新加载
- </button>
- </div>
+ <ErrorState title="任务数据加载失败" message={error} onRetry={() => void loadTasks()} />
  ) : filteredTasks.length === 0 ? (
  <EmptyState icon="Tasks" title="暂无任务数据" description="运行种子数据后即可验证任务看板。" />
  ) : viewMode ==='board' ? (

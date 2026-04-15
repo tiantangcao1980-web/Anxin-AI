@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from'react'
 import { icons } from'@/lib/icons'
-import { EmptyState, LoadingState } from'@/components/common'
+import { EmptyState, LoadingState, ErrorState } from'@/components/common'
 import { cardStyle, buttonStyle, heading, statusColor } from'@/lib/design-tokens'
 import { leadsApi, type LeadItem } from'@/lib/api'
 import { toast } from'sonner'
@@ -190,14 +190,7 @@ export default function Leads() {
  {loading ? (
  <LoadingState text="加载线索..." />
  ) : error ? (
- <div className="flex flex-col items-center justify-center py-20">
- <icons.AlertTriangle className="w-10 h-10 text-destructive/60 mb-3" />
- <p className="text-sm text-foreground mb-1">线索数据加载失败</p>
- <p className="text-xs text-muted-foreground mb-4">{error}</p>
- <button onClick={() => void loadLeads()} className={buttonStyle.primary}>
- 重新加载
- </button>
- </div>
+ <ErrorState title="线索数据加载失败" message={error} onRetry={() => void loadLeads()} />
  ) : leads.length === 0 ? (
  <EmptyState icon="Leads" title="暂无线索数据" description="运行种子数据后即可验证真实案源流程。" />
  ) : viewMode ==='pipeline' ? (
