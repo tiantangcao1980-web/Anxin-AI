@@ -53,7 +53,7 @@ const navGroups: NavGroup[] = [
     label: '智能工具',
     items: [
       { path: '/chat', label: 'AI 法律助手', icon: icons.Sparkles },
-      { path: '/knowledge-base', label: '法律智库', icon: icons.Book },
+      { path: '/knowledge-base', label: '法律智库', icon: icons.BookOpen },
       { path: '/investigation', label: '尽职调查', icon: icons.BarChart3 },
     ],
   },
