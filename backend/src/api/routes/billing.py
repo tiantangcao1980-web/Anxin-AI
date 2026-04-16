@@ -333,3 +333,140 @@ async def get_subscription_report(
     scoped_org_id = org_id if user.role in {"super_admin", "admin"} else user.org_id
     data = await service.get_subscription_stats(org_id=scoped_org_id)
     return UnifiedResponse.success(data)
+
+
+# ===== V2 架构：运行模式与功能鉴权 API =====
+
+
+@router.get("/v2/features")
+async def get_my_features(
+    client_type: str = Query("needer", description="客户端类型: needer/provider"),
+    user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取当前用户的有效功能权限（V2 架构）"""
+    service = SubscriptionService(db)
+    features = await service.get_effective_features(user.id, client_type)
+    sub = await service.get_active_by_client(user.id, client_type)
+    return UnifiedResponse.success({
+        "features": features,
+        "subscription_status": sub.status if sub else "free",
+        "trial_ends_at": sub.trial_ends_at.isoformat() if sub and sub.trial_ends_at else None,
+        "client_type": client_type,
+    })
+
+
+@router.get("/v2/can-access")
+async def check_feature_access(
+    feature: str = Query(..., description="功能标识: sentiment_monitoring/lawyer_matching 等"),
+    client_type: str = Query("needer", description="客户端类型"),
+    user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db),
+):
+    """检查用户是否可访问某功能"""
+    service = SubscriptionService(db)
+    allowed = await service.can_access_feature(user.id, feature, client_type)
+    return UnifiedResponse.success({"feature": feature, "allowed": allowed})
+
+
+@router.get("/v2/can-use-mode")
+async def check_mode_access(
+    mode: str = Query(..., description="运行模式: local/hybrid/cloud"),
+    client_type: str = Query("needer"),
+    user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db),
+):
+    """检查用户是否可使用指定运行模式"""
+    service = SubscriptionService(db)
+    allowed = await service.can_use_mode(user.id, mode, client_type)
+    return UnifiedResponse.success({"mode": mode, "allowed": allowed})
+
+
+@router.post("/v2/trial")
+async def create_trial_subscription(
+    client_type: str = Query("needer"),
+    user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db),
+):
+    """创建试用订阅（3天云端体验）"""
+    service = SubscriptionService(db)
+    sub = await service.create_trial(user.id, client_type)
+    if not sub:
+        return UnifiedResponse.error(code=409, message="您已有活跃订阅或试用计划未配置")
+    await db.commit()
+    return UnifiedResponse.success({
+        "message": "试用订阅已创建，享受 3 天云端体验！",
+        "trial_ends_at": sub.trial_ends_at.isoformat() if sub.trial_ends_at else None,
+    })
+
+
+class V2SubscribeRequest(BaseModel):
+    plan_id: str = Field(..., description="计费方案 ID")
+    client_type: str = Field("needer", pattern=r"^(needer|provider)$")
+    payment_method: str = Field("wechat", pattern=r"^(wechat|alipay)$")
+    billing_cycle: str = Field("monthly", pattern=r"^(monthly|yearly)$")
+
+
+@router.post("/v2/subscribe")
+async def create_v2_subscription(
+    body: V2SubscribeRequest,
+    user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    V2 创建付费订阅（连接支付系统）
+
+    1. 查找方案并校验 client_type 匹配
+    2. 创建订阅记录
+    3. 创建支付订单
+    4. 返回支付链接/二维码
+    """
+    service = SubscriptionService(db)
+
+    # 检查是否已有活跃订阅
+    existing = await service.get_active_by_client(user.id, body.client_type)
+    if existing and existing.status == "active":
+        return UnifiedResponse.error(code=409, message="您在该客户端已有活跃订阅，请先取消或等待到期")
+
+    # 查找方案
+    from src.models.billing import BillingPlan
+    plan = await db.get(BillingPlan, body.plan_id)
+    if not plan or not plan.is_active:
+        return UnifiedResponse.error(code=404, message="方案不存在或已下架")
+
+    # 校验 client_type 匹配
+    plan_client = getattr(plan, 'client_type', 'needer') or 'needer'
+    if plan_client != 'both' and plan_client != body.client_type:
+        return UnifiedResponse.error(code=400, message="该方案不适用于您选择的客户端类型")
+
+    # 计算金额
+    if body.billing_cycle == "yearly":
+        amount = (getattr(plan, 'base_price', 0) or 0) * 12 * 0.8  # 年付 8 折
+    else:
+        amount = getattr(plan, 'base_price', 0) or 0
+
+    # 创建订阅
+    result = await service.create_subscription(
+        user_id=user.id,
+        plan_id=body.plan_id,
+        org_id=getattr(user, 'org_id', None),
+    )
+
+    # 更新订阅的 client_type
+    sub_data = result.get("subscription", {})
+    sub_id = sub_data.get("id")
+    if sub_id:
+        from src.models.billing import Subscription
+        sub_obj = await db.get(Subscription, sub_id)
+        if sub_obj:
+            sub_obj.client_type = body.client_type
+            sub_obj.allowed_modes = (plan.features or {}).get("modes", ["local", "hybrid", "cloud"])
+
+    await db.commit()
+
+    return UnifiedResponse.success(data={
+        "subscription_id": sub_id,
+        "payment_order": result.get("payment_order"),
+        "amount": amount,
+        "message": f"订阅创建成功，请完成 ¥{amount:.0f} 的支付",
+    })

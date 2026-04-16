@@ -67,7 +67,7 @@ export const FormSheet = memo(function FormSheet({ component, onEvent }: Props) 
  onClick={() => !opt.disabled && updateField(section.id, opt.id)}
  disabled={opt.disabled}
  className={cn(
-'relative px-4 py-2 rounded-xl text-sm font-medium transition-all duration-150',
+'relative px-4 py-2 rounded-xl text-sm font-medium transition-colors duration-150',
 'border-2',
  selected
  ?'border-primary bg-primary/5 text-primary dark:bg-primary/10 dark:text-primary dark:border-primary'
@@ -114,7 +114,7 @@ export const FormSheet = memo(function FormSheet({ component, onEvent }: Props) 
  }}
  disabled={opt.disabled}
  className={cn(
-'px-4 py-2 rounded-xl text-sm font-medium transition-all border-2',
+'px-4 py-2 rounded-xl text-sm font-medium transition-colors border-2',
  selected
  ?'border-primary bg-primary/5 text-primary dark:bg-primary/10 dark:text-primary'
  :'border-border bg-background text-foreground hover:border-border',
@@ -257,7 +257,7 @@ export const FormSheet = memo(function FormSheet({ component, onEvent }: Props) 
  <button
  onClick={handleSubmit}
  className={cn(
-'w-full py-3 rounded-xl text-sm font-semibold transition-all active:scale-[0.98]',
+'w-full py-3 rounded-xl text-sm font-semibold transition-[colors,transform] active:scale-[0.98]',
  data.submitAction.variant ==='secondary'
  ?'bg-muted text-foreground hover:bg-accent'
  :'bg-primary text-white hover:bg-primary/90',

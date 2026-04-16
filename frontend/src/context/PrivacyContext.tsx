@@ -22,8 +22,13 @@ interface PrivacyState {
 
 interface PrivacyContextType extends PrivacyState {
   setMode: (mode: PrivacyMode) => void;
+  /** V2: 尝试切换模式，非本地模式需检查订阅 */
+  requestModeSwitch: (mode: PrivacyMode) => Promise<boolean>;
   toggleHardwareConnection: () => void;
   setOpenClawInstalled: (installed: boolean) => void;
+  /** V2: 模式切换被订阅拒绝时的回调 */
+  subscriptionRequired: boolean;
+  setSubscriptionRequired: (v: boolean) => void;
 }
 
 const PrivacyContext = createContext<PrivacyContextType | undefined>(undefined);
@@ -42,6 +47,44 @@ export const PrivacyProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [hardwareName, setHardwareName] = useState<string>('AI私有助手');
   const [secureComputeUsage, setSecureComputeUsage] = useState<number>(0);
   const [openClawInstalled, setOpenClawInstalled] = useState<boolean>(false);
+  // V2: 订阅检查状态
+  const [subscriptionRequired, setSubscriptionRequired] = useState<boolean>(false);
+
+  // V2: 带订阅检查的模式切换
+  const requestModeSwitch = async (targetMode: PrivacyMode): Promise<boolean> => {
+    // 切到本地模式无需检查
+    if (targetMode === PrivacyMode.LOCAL) {
+      setMode(targetMode);
+      setSubscriptionRequired(false);
+      return true;
+    }
+    // 切到混合/云端需要检查订阅
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        setSubscriptionRequired(true);
+        return false;
+      }
+      const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8003/api/v1';
+      const resp = await fetch(`${API}/billing/v2/can-use-mode?mode=${targetMode.toLowerCase()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await resp.json();
+      const allowed = json?.data?.allowed ?? true; // 默认允许（API 不可用时不阻断）
+      if (allowed) {
+        setMode(targetMode);
+        setSubscriptionRequired(false);
+        return true;
+      } else {
+        setSubscriptionRequired(true);
+        return false;
+      }
+    } catch {
+      // API 调用失败时不阻断，允许切换
+      setMode(targetMode);
+      return true;
+    }
+  };
 
   // 模拟硬件连接和算力变化
   const toggleHardwareConnection = () => {
@@ -80,8 +123,11 @@ export const PrivacyProvider: React.FC<{ children: ReactNode }> = ({ children })
         secureComputeUsage,
         openClawInstalled,
         setMode,
+        requestModeSwitch,
         toggleHardwareConnection,
         setOpenClawInstalled,
+        subscriptionRequired,
+        setSubscriptionRequired,
       }}
     >
       {children}

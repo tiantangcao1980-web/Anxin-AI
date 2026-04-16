@@ -98,7 +98,7 @@ export function RiskRadar({ data }: RiskRadarProps) {
         </div>
 
         {/* Overall Score */}
-        <div className="bg-primary rounded-xl shadow-sm p-6 text-white">
+        <div className="bg-primary rounded-xl shadow-sm p-6 text-primary-foreground">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-primary-foreground/70 text-sm mb-1">综合风险评分</p>

@@ -32,10 +32,10 @@ const iconMap: Record<string, React.ElementType> = {
 };
 
 const variantStyles: Record<string, string> = {
- primary:'bg-primary text-white hover:bg-primary/90 shadow-sm shadow-primary/20',
+ primary:'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm shadow-primary/20',
  secondary:'bg-background text-foreground border border-border hover:bg-muted hover:border-border',
- warning:'bg-warning text-white hover:bg-warning/20 shadow-sm shadow-amber-200',
- success:'bg-success text-white hover:bg-success/20 shadow-sm shadow-emerald-200',
+ warning:'bg-warning text-warning-foreground hover:bg-warning/20 shadow-sm shadow-amber-200',
+ success:'bg-success text-success-foreground hover:bg-success/20 shadow-sm shadow-emerald-200',
 };
 
 export const WorkspaceActionBar = memo(function WorkspaceActionBar({

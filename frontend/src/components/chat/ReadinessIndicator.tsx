@@ -132,10 +132,10 @@ export function ReadinessIndicator({
  {onProceed && score >= 0.4 && (
  <button
  onClick={onProceed}
- className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg text-white transition-colors ${
+ className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
  score >= 0.7
- ?'bg-primary hover:bg-primary/90'
- :'bg-warning hover:bg-warning/20'
+ ?'bg-primary text-primary-foreground hover:bg-primary/90'
+ :'bg-warning text-warning-foreground hover:bg-warning/20'
  }`}
  >
  {score >= 0.7 ?'开始处理' :'使用默认值生成'}

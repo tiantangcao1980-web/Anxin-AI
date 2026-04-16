@@ -28,6 +28,7 @@ import { AdminRoute } from '@/components/auth/AdminRoute'
 import AdminLayout from '@/components/admin/AdminLayout'
 import { initLocalDatabase } from '@/lib/api-adapter'
 import { getTokenStorage } from '@/lib/platform/storage'
+import { ModeGate } from '@/components/mode/ModeGate'
 import { useAppModeStore } from '@/lib/store'
 import { getAppState, isTauri, saveAuthToken } from '@/lib/tauri-bridge'
 
@@ -72,6 +73,9 @@ const NotFound = lazy(() => import('@/pages/NotFound'))
 
 // 登录页
 const Login = lazy(() => import('@/pages/Login'))
+
+// V2 架构：服务方端独立布局
+import ProLayout from '@/components/pro/ProLayout'
 
 // 后台管理（AdminLayout 静态引入，避免 Vite 动态 import 偶发 Failed to fetch module）
 const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'))
@@ -155,6 +159,8 @@ function App() {
               <Routes>
               {/* 登录页（不需要 Layout 和路由守卫） */}
               <Route path="/login" element={<Login />} />
+              {/* V2 架构：服务方端（律师/律所）专属登录入口 */}
+              <Route path="/pro/login" element={<Login />} />
 
               {/* ===== 后台管理（独立布局 + Admin 权限守卫） ===== */}
               <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
@@ -178,6 +184,22 @@ function App() {
                 <Route path="acquisition" element={<AdminAcquisition />} />
               </Route>
 
+              {/* ===== V2 架构：服务方端（律师/律所独立布局） ===== */}
+              <Route path="/pro" element={<ProtectedRoute><ProLayout /></ProtectedRoute>}>
+                <Route index element={<Navigate to="/lawyer-dashboard" replace />} />
+                <Route path="dashboard" element={<LawyerDashboard />} />
+                <Route path="cases" element={<CaseCenter />} />
+                <Route path="contracts" element={<ManagementCenter />} />
+                <Route path="documents" element={<DocumentWorkbench />} />
+                <Route path="chat" element={<Chat />} />
+                <Route path="messages" element={<Messages />} />
+                <Route path="knowledge" element={<KnowledgeBase />} />
+                <Route path="investigation" element={<Investigation />} />
+                <Route path="onboarding" element={<LawyerOnboarding />} />
+                <Route path="subscription" element={<MySubscription />} />
+                <Route path="settings" element={<Settings />} />
+              </Route>
+
               {/* 受保护的业务路由 */}
               <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
                 <Route index element={<Navigate to="/chat" replace />} />
@@ -190,19 +212,62 @@ function App() {
                 <Route path="case-center/:id" element={<ProtectedRoute feature="case_management"><CaseDetail /></ProtectedRoute>} />
                 <Route path="management" element={<ProtectedRoute feature="contract_management"><ManagementCenter /></ProtectedRoute>} />
                 <Route path="documents" element={<ProtectedRoute feature="document_management"><DocumentWorkbench /></ProtectedRoute>} />
-                <Route path="find-lawyer" element={<ProtectedRoute feature="lawyer_matching"><FindLawyer /></ProtectedRoute>} />
+                {/* V2: 找律师需要云端数据库支持 */}
+                <Route path="find-lawyer" element={
+                  <ProtectedRoute feature="lawyer_matching">
+                    <ModeGate required="hybrid_or_cloud" feature="找律师">
+                      <FindLawyer />
+                    </ModeGate>
+                  </ProtectedRoute>
+                } />
 
-                {/* ===== 舆情监测（v3.0 由"智能调查"重构） ===== */}
-                <Route path="monitoring" element={<ProtectedRoute feature="due_diligence"><MonitoringCenter /></ProtectedRoute>} />
-                <Route path="investigation" element={<ProtectedRoute feature="due_diligence"><Investigation /></ProtectedRoute>} />
-                <Route path="investigation/:companyId" element={<ProtectedRoute feature="due_diligence"><Investigation /></ProtectedRoute>} />
+                {/* ===== 舆情监测 — V2: 必须云端/混合模式（爬虫+NLP） ===== */}
+                <Route path="monitoring" element={
+                  <ProtectedRoute feature="due_diligence">
+                    <ModeGate required="hybrid_or_cloud" feature="舆情监测">
+                      <MonitoringCenter />
+                    </ModeGate>
+                  </ProtectedRoute>
+                } />
+                <Route path="investigation" element={
+                  <ProtectedRoute feature="due_diligence">
+                    <ModeGate required="hybrid_or_cloud" feature="尽职调查">
+                      <Investigation />
+                    </ModeGate>
+                  </ProtectedRoute>
+                } />
+                <Route path="investigation/:companyId" element={
+                  <ProtectedRoute feature="due_diligence">
+                    <ModeGate required="hybrid_or_cloud" feature="尽职调查">
+                      <Investigation />
+                    </ModeGate>
+                  </ProtectedRoute>
+                } />
 
-                {/* ===== 法律智库 ===== */}
-                <Route path="knowledge-graph" element={<ProtectedRoute feature="knowledge_graph"><KnowledgeGraph /></ProtectedRoute>} />
-                <Route path="knowledge-base" element={<ProtectedRoute feature="knowledge_base"><KnowledgeBase /></ProtectedRoute>} />
+                {/* ===== 法律智库 — V2: 本地可用但需先下载数据包 ===== */}
+                <Route path="knowledge-graph" element={
+                  <ProtectedRoute feature="knowledge_graph">
+                    <ModeGate required="local_ok_with_download" feature="知识图谱">
+                      <KnowledgeGraph />
+                    </ModeGate>
+                  </ProtectedRoute>
+                } />
+                <Route path="knowledge-base" element={
+                  <ProtectedRoute feature="knowledge_base">
+                    <ModeGate required="local_ok_with_download" feature="法律智库">
+                      <KnowledgeBase />
+                    </ModeGate>
+                  </ProtectedRoute>
+                } />
 
-                {/* ===== IM 即时通讯 ===== */}
-                <Route path="messages" element={<ProtectedRoute feature="im_messaging"><Messages /></ProtectedRoute>} />
+                {/* ===== IM 即时通讯 — V2: 必须云端/混合（需 WebSocket 转发） ===== */}
+                <Route path="messages" element={
+                  <ProtectedRoute feature="im_messaging">
+                    <ModeGate required="hybrid_or_cloud" feature="即时通讯">
+                      <Messages />
+                    </ModeGate>
+                  </ProtectedRoute>
+                } />
                 <Route path="call/voice/:roomName" element={<VoiceCall />} />
                 <Route path="call/video/:roomName" element={<VideoCall />} />
 

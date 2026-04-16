@@ -255,7 +255,7 @@ export const WorkspaceConfirmationCard = memo(function WorkspaceConfirmationCard
  whileTap={canConfirm ? { scale: 0.98 } : {}}
  className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${
  canConfirm
- ?'bg-primary text-white hover:bg-primary/90 shadow-sm'
+ ?'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm'
  :'bg-muted text-muted-foreground cursor-not-allowed'
  }`}
  >

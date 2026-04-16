@@ -190,7 +190,7 @@ export default function FindLawyer() {
  step === s.key
  ?'bg-primary text-primary-foreground'
  : i < ['describe','matching','chatting','delegate'].indexOf(step)
- ?'bg-success text-white'
+ ?'bg-success text-success-foreground'
  :'bg-muted text-muted-foreground'
  }`}>
  {i < ['describe','matching','chatting','delegate'].indexOf(step)
@@ -237,7 +237,7 @@ export default function FindLawyer() {
  <button
  key={d.value}
  onClick={() => setSelectedDomain(selectedDomain === d.value ?'' : d.value)}
- className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all text-center ${
+ className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-colors text-center ${
  selectedDomain === d.value
  ?'border-primary bg-primary/5 text-primary'
  :'border-border bg-background text-muted-foreground hover:border-primary/30 hover:bg-muted/50'
@@ -258,7 +258,7 @@ export default function FindLawyer() {
  value={description}
  onChange={(e) => setDescription(e.target.value)}
  placeholder="请尽可能详细地描述您遇到的法律问题，AI 会自动分析并生成匿名摘要发送给律师..."
- className="w-full h-40 p-4 bg-muted/50 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10 transition-all"
+ className="w-full h-40 p-4 bg-muted/50 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10 transition-colors"
  />
  <p className="text-xs text-muted-foreground mt-1 text-right">{description.length} / 5000</p>
  </div>
@@ -271,7 +271,7 @@ export default function FindLawyer() {
  <button
  key={u.value}
  onClick={() => setUrgency(u.value)}
- className={`p-3 rounded-xl border text-left transition-all ${
+ className={`p-3 rounded-xl border text-left transition-colors ${
  urgency === u.value
  ?'border-primary bg-primary/5'
  :'border-border bg-background hover:border-primary/30'
@@ -288,7 +288,7 @@ export default function FindLawyer() {
  <button
  onClick={handleSubmit}
  disabled={isSubmitting || description.length < 10}
- className="w-full py-3 bg-primary text-primary-foreground font-medium rounded-xl hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+ className="w-full py-3 bg-primary text-primary-foreground font-medium rounded-xl hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
  >
  {isSubmitting ? (
  <><icons.Loader2 className="w-4 h-4 animate-spin" /> AI 分析中...</>
@@ -347,7 +347,7 @@ export default function FindLawyer() {
  <div
  key={lawyer.id}
  onClick={() => setSelectedLawyer(lawyer)}
- className={`p-4 rounded-xl border transition-all cursor-pointer ${
+ className={`p-4 rounded-xl border transition-colors cursor-pointer ${
  selectedLawyer?.id === lawyer.id
  ?'border-primary bg-primary/5 ring-2 ring-primary/20'
  :'border-border bg-background hover:border-primary/30 hover:bg-muted/50'
@@ -392,7 +392,7 @@ export default function FindLawyer() {
  <button
  onClick={handleEnterChat}
  disabled={isCreatingRoom || !selectedLawyer}
- className="px-6 py-2.5 bg-muted text-foreground font-medium rounded-xl hover:bg-muted/80 disabled:opacity-50 transition-all flex items-center gap-2"
+ className="px-6 py-2.5 bg-muted text-foreground font-medium rounded-xl hover:bg-muted/80 disabled:opacity-50 transition-colors flex items-center gap-2"
  >
  {isCreatingRoom ? (
  <><icons.Loader2 className="w-4 h-4 animate-spin" /> 创建聊天室...</>
@@ -403,7 +403,7 @@ export default function FindLawyer() {
  <button
  onClick={() => setStep('delegate')}
  disabled={!selectedLawyer}
- className="px-6 py-2.5 bg-primary text-primary-foreground font-medium rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-all flex items-center gap-2"
+ className="px-6 py-2.5 bg-primary text-primary-foreground font-medium rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center gap-2"
  >
  <icons.Check className="w-4 h-4" /> 一键委托
  </button>
@@ -453,14 +453,14 @@ export default function FindLawyer() {
  <div className="flex gap-3">
  <button
  onClick={() => setStep('matching')}
- className="flex-1 py-2.5 bg-muted text-foreground font-medium rounded-xl hover:bg-muted/80 transition-all"
+ className="flex-1 py-2.5 bg-muted text-foreground font-medium rounded-xl hover:bg-muted/80 transition-colors"
  >
  返回选择
  </button>
  <button
  onClick={handleDelegate}
  disabled={isDelegating}
- className="flex-1 py-2.5 bg-primary text-primary-foreground font-medium rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+ className="flex-1 py-2.5 bg-primary text-primary-foreground font-medium rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
  >
  {isDelegating ? (
  <><icons.Loader2 className="w-4 h-4 animate-spin" /> 提交中...</>

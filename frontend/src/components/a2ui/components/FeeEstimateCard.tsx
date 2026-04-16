@@ -138,7 +138,7 @@ export const FeeEstimateCard = memo(function FeeEstimateCard({ component, onEven
  });
  }}
  className={cn(
-'relative text-left p-3 rounded-xl border-2 transition-all',
+'relative text-left p-3 rounded-xl border-2 transition-colors',
  selectedPackage === pkg.id
  ?'border-primary bg-primary/10'
  :'border-border hover:border-primary/40',
@@ -270,7 +270,7 @@ export const FeeEstimateCard = memo(function FeeEstimateCard({ component, onEven
  },
  })}
  className={cn(
-'flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-medium transition-all active:scale-[0.98]',
+'flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-medium transition-[colors,transform] active:scale-[0.98]',
  action.variant ==='primary'
  ?'bg-primary text-white hover:bg-primary/90 shadow-sm'
  : action.variant ==='outline'

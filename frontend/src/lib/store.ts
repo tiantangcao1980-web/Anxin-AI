@@ -13,6 +13,8 @@ interface User {
   name: string
   role: string
   user_type?: string
+  // V2 架构：主客户端偏好 (needer=需求方端 / provider=服务方端)
+  primary_client?: 'needer' | 'provider'
   avatar_url?: string
   email_verified?: boolean
 }

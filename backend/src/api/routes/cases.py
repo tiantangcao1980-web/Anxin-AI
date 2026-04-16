@@ -106,9 +106,18 @@ async def list_cases(
 ):
     """获取案件列表"""
     service = CaseService(db)
-    
+
+    # V2 架构：律所内部分级数据可见性
+    # 合伙人(partner)/管理员(org_admin/admin/super_admin) 看全部
+    # 律师(lawyer)/入驻律师(platform_lawyer) 只看自己负责的
+    # 助理(paralegal) 只看自己负责的
+    _scope_user_id = None
+    if user.role in ("lawyer", "platform_lawyer", "paralegal"):
+        _scope_user_id = user.id
+
     cases, total = await service.list_cases(
         org_id=user.org_id,
+        assignee_id=_scope_user_id,
         status=status,
         case_type=case_type,
         priority=priority,

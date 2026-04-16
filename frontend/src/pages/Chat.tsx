@@ -1807,21 +1807,21 @@ export default function Chat() {
  isUser
  ? isEditing
  ?'bg-primary/10 border-2 border-primary/40 text-foreground px-4 py-2.5 rounded-br-md'
- :'bg-primary text-white px-4 py-2.5 rounded-br-md'
+ :'bg-primary text-primary-foreground px-4 py-2.5 rounded-br-md'
  :'bg-background border border-border/50 text-foreground px-4 py-3 rounded-bl-md shadow-sm'
  }`}>
  {/* 附件 */}
  {message.attachment && (
  <div className={`flex items-center gap-2.5 mb-2.5 p-2 rounded-lg ${
- isUser ? (isEditing ?'bg-primary/5 border border-primary/10' :'bg-white/15') :'bg-muted/50 border border-border/50'
+ isUser ? (isEditing ?'bg-primary/5 border border-primary/10' :'bg-primary-foreground/15') :'bg-muted/50 border border-border/50'
  }`}>
- <div className={`p-1.5 rounded ${isUser ? (isEditing ?'bg-primary/10' :'bg-white/20') :'bg-background shadow-sm'}`}>
- <icons.FileText className={`w-4 h-4 ${isUser ? (isEditing ?'text-primary' :'text-white') :'text-primary'}`} />
+ <div className={`p-1.5 rounded ${isUser ? (isEditing ?'bg-primary/10' :'bg-primary-foreground/20') :'bg-background shadow-sm'}`}>
+ <icons.FileText className={`w-4 h-4 ${isUser ? (isEditing ?'text-primary' :'text-primary-foreground') :'text-primary'}`} />
  </div>
  <div className="flex flex-col min-w-0">
  <span className="text-xs font-medium truncate">{message.attachment.name}</span>
  {message.attachment.size && (
- <span className={`text-[10px] ${isUser ? (isEditing ?'text-muted-foreground' :'text-white/70') :'text-muted-foreground'}`}>{message.attachment.size}</span>
+ <span className={`text-[10px] ${isUser ? (isEditing ?'text-muted-foreground' :'text-primary-foreground/70') :'text-muted-foreground'}`}>{message.attachment.size}</span>
  )}
  </div>
  </div>
@@ -1856,7 +1856,7 @@ export default function Chat() {
  <button
  onClick={handleConfirmEditMessage}
  disabled={!editingMessageContent.trim() || isProcessing}
- className="px-3 py-1 text-xs font-medium text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1 outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-1"
+ className="px-3 py-1 text-xs font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1 outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-1"
  >
  <icons.Send className="w-3 h-3" />
  重新发送
@@ -2020,7 +2020,7 @@ export default function Chat() {
  handleSendMessage(suggestion);
  }, 50);
  }}
- className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-foreground/70 bg-background border border-border/80 rounded-full hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all shadow-sm active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+ className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-foreground/70 bg-background border border-border/80 rounded-full hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-[colors,transform] shadow-sm active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
  >
  <icons.Sparkles className="w-3 h-3 text-primary/50" />
  <span>{suggestion}</span>
@@ -2052,7 +2052,7 @@ export default function Chat() {
  {!batchMode ? (
  <>
  <button onClick={handleNewConversation}
- className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-primary hover:bg-primary/90 text-white rounded-2xl transition-colors flex-1 mr-2 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-1">
+ className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground rounded-2xl transition-colors flex-1 mr-2 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-1">
  <icons.Plus className="w-4 h-4" /> 新建对话
  </button>
  <button onClick={handleToggleBatchMode}
@@ -2089,7 +2089,7 @@ export default function Chat() {
  </button>
  <button onClick={handleBatchDelete}
  disabled={selectedConvIds.size === 0 || isBatchDeleting}
- className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white bg-destructive hover:bg-destructive/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors flex-1 justify-center shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-destructive/30 focus-visible:ring-offset-1">
+ className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-destructive-foreground bg-destructive hover:bg-destructive/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors flex-1 justify-center shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-destructive/30 focus-visible:ring-offset-1">
  {isBatchDeleting ? (
  <><icons.Loader2 className="w-3.5 h-3.5 animate-spin" /> 删除中...</>
  ) : (
@@ -2354,7 +2354,7 @@ export default function Chat() {
  setUserScrolledUp(false);
  messagesEndRef.current?.scrollIntoView({ behavior:'smooth' });
  }}
- className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-medium rounded-full shadow-lg hover:bg-primary/90 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-1"
+ className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-xs font-medium rounded-full shadow-lg hover:bg-primary/90 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-1"
  >
  <icons.ChevronDown className="w-3.5 h-3.5" />
  回到最新
@@ -2437,7 +2437,7 @@ export default function Chat() {
  />
 
  {/* 输入框容器 — 一体式设计 */}
- <div className={`relative flex bg-muted/50 rounded-2xl border border-border focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 transition-all ${inputAreaHeight ?'flex-1 min-h-0' :''}`}>
+ <div className={`relative flex bg-muted/50 rounded-2xl border border-border focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 transition-colors ${inputAreaHeight ?'flex-1 min-h-0' :''}`}>
  {/* 斜杠命令面板 — 输入框上方浮层 */}
  <SlashCommandPalette
  inputValue={input}
@@ -2520,9 +2520,9 @@ export default function Chat() {
  <button
  onClick={() => handleSendMessage()}
  disabled={!input.trim() || isProcessing}
- className={`p-2 m-1 rounded-xl transition-all disabled:opacity-30 flex-shrink-0 ${
+ className={`p-2 m-1 rounded-xl transition-[colors,transform] disabled:opacity-30 flex-shrink-0 ${
  input.trim()
- ?'bg-primary text-white hover:bg-primary/90 active:scale-95 shadow-sm'
+ ?'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 shadow-sm'
  :'bg-transparent text-muted-foreground/50'
  }`}
  >
@@ -2620,7 +2620,7 @@ export default function Chat() {
  initial={{ opacity: 0 }}
  animate={{ opacity: 1 }}
  exit={{ opacity: 0 }}
- className="fixed inset-0 z-40 bg-black/40"
+ className="fixed inset-0 z-40 bg-foreground/40"
  onClick={() => setShowContextPanel(false)}
  />
  {/* 底部抽屉面板 */}
@@ -2681,7 +2681,7 @@ export default function Chat() {
  <AnimatePresence>
  {deleteConfirmId && (
  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
- className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+ className="fixed inset-0 z-[100] flex items-center justify-center bg-foreground/40 backdrop-blur-sm"
  onClick={() => setDeleteConfirmId(null)}>
  <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
  className="bg-background rounded-2xl shadow-2xl p-6 w-80 mx-4" onClick={(e) => e.stopPropagation()}>
@@ -2698,7 +2698,7 @@ export default function Chat() {
  取消
  </button>
  <button onClick={confirmDeleteConversation}
- className="px-4 py-2 text-sm font-medium text-white bg-destructive rounded-2xl hover:bg-destructive/90 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-destructive/30 focus-visible:ring-offset-1">
+ className="px-4 py-2 text-sm font-medium text-destructive-foreground bg-destructive rounded-2xl hover:bg-destructive/90 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-destructive/30 focus-visible:ring-offset-1">
  确认删除
  </button>
  </div>

@@ -152,7 +152,7 @@ export const ChatSidebarPanel = memo(function ChatSidebarPanel({
               {!batchMode ? (
                 <>
                   <button onClick={onNewConversation}
-                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors flex-1 mr-2 shadow-sm">
+                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors flex-1 mr-2 shadow-sm">
                     <icons.Plus className="w-4 h-4" /> 新建对话
                   </button>
                   <button onClick={handleToggleBatchMode}
@@ -188,7 +188,7 @@ export const ChatSidebarPanel = memo(function ChatSidebarPanel({
                 </button>
                 <button onClick={handleBatchDeleteClick}
                   disabled={selectedConvIds.size === 0 || isBatchDeleting}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white bg-destructive hover:bg-destructive/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors flex-1 justify-center shadow-sm">
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-destructive-foreground bg-destructive hover:bg-destructive/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors flex-1 justify-center shadow-sm">
                   {isBatchDeleting ? (
                     <><icons.Loader2 className="w-3.5 h-3.5 animate-spin" /> 删除中...</>
                   ) : (

@@ -416,7 +416,7 @@ export const CanvasEditor = memo(function CanvasEditor({
  animate={{ scale: 1, opacity: 1 }}
  className="w-24 h-24 mx-auto bg-primary rounded-2xl flex items-center justify-center shadow-lg"
  >
- <icons.PenTool className="w-12 h-12 text-white" />
+ <icons.PenTool className="w-12 h-12 text-primary-foreground" />
  </motion.div>
  <div>
  <h3 className={`${heading.section} mb-2`}>AI 智能画布</h3>

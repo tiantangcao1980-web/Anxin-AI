@@ -199,7 +199,7 @@ export function ContractReviewCard() {
  {/* Card Header */}
  <div className="flex items-center gap-3 px-5 py-4">
  <div className={`p-2 bg-primary ${radius.card} ${shadow.float}`}>
- <icons.FileCheck className={`${iconSize.md} text-white`} />
+ <icons.FileCheck className={`${iconSize.md} text-primary-foreground`} />
  </div>
  <div className="flex-1 min-w-0">
  <h4 className={heading.card}>合同智能审查</h4>
@@ -285,7 +285,7 @@ export function ContractReviewCard() {
  {(step ==='uploading' || step ==='reviewing') && (
  <div className="text-center py-4">
  <div className={`w-14 h-14 mx-auto mb-3 bg-primary ${radius.dialog} flex items-center justify-center`}>
- <icons.Loader2 className="w-7 h-7 text-white animate-spin" />
+ <icons.Loader2 className="w-7 h-7 text-primary-foreground animate-spin" />
  </div>
  <p className="font-medium text-foreground text-sm">
  {step ==='uploading' ?'正在解析文档' :'智能审查中'}

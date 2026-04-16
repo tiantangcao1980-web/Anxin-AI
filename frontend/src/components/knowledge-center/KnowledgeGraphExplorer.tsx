@@ -335,7 +335,7 @@ export function KnowledgeGraphExplorer() {
       <div className="p-4 bg-background border-b border-border flex items-center gap-3 flex-shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="p-2 bg-primary rounded-xl shadow-lg shadow-primary/20">
-            <icons.Network className="w-4 h-4 text-white" />
+            <icons.Network className="w-4 h-4 text-primary-foreground" />
           </div>
           <div>
             <h3 className={heading.section}>知识图谱</h3>
@@ -356,7 +356,7 @@ export function KnowledgeGraphExplorer() {
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               placeholder="搜索实体：企业名、法律条文、案件..."
-              className="w-full pl-9 pr-3 py-2 bg-muted/50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm text-foreground transition-all"
+              className="w-full pl-9 pr-3 py-2 bg-muted/50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm text-foreground transition-colors"
             />
           </div>
 
@@ -384,7 +384,7 @@ export function KnowledgeGraphExplorer() {
         <div className="flex gap-0.5 p-0.5 bg-muted rounded-lg">
           <button
             onClick={() => setViewMode('3d')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
               viewMode === '3d'
                 ? 'bg-background text-primary shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
@@ -395,7 +395,7 @@ export function KnowledgeGraphExplorer() {
           </button>
           <button
             onClick={() => setViewMode('2d')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
               viewMode === '2d'
                 ? 'bg-background text-primary shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
@@ -581,7 +581,7 @@ export function KnowledgeGraphExplorer() {
                   <button
                     key={tag}
                     onClick={() => setSearchQuery(tag)}
-                    className="px-3.5 py-2 text-xs text-muted-foreground bg-background border border-border rounded-xl hover:bg-primary/5 hover:text-primary hover:border-primary/20 transition-all shadow-sm"
+                    className="px-3.5 py-2 text-xs text-muted-foreground bg-background border border-border rounded-xl hover:bg-primary/5 hover:text-primary hover:border-primary/20 transition-colors shadow-sm"
                   >
                     {tag}
                   </button>
@@ -710,7 +710,7 @@ export function KnowledgeGraphExplorer() {
                     <button
                       onClick={() => handleExpandNode(selectedNode)}
                       disabled={!!expandingNode}
-                      className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50 transition-all ${
+                      className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50 transition-colors ${
                         viewMode === '3d'
                           ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                           : 'bg-primary/5 text-primary hover:bg-primary/10'
@@ -742,7 +742,7 @@ function ControlButton({ icon: Icon, label, onClick, active, dark }: {
       <button
         onClick={onClick}
         title={label}
-        className={`${active ? toolbarButton.active : toolbarButton.base} transition-all ${
+        className={`${active ? toolbarButton.active : toolbarButton.base} transition-colors ${
         dark
           ? active
             ? 'bg-primary text-primary-foreground'

@@ -183,7 +183,7 @@ export const A2UIButton = forwardRef<HTMLButtonElement, A2UIButtonProps>(
 'items-center',
 'justify-center',
 'gap-2',
-'transition-all',
+'transition-[colors,shadow]',
 'duration-200',
 'disabled:opacity-50',
 'disabled:cursor-not-allowed',

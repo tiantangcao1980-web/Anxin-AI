@@ -34,6 +34,10 @@ class UserService:
         if existing:
             raise ValueError("邮箱已被注册")
 
+        # V2 架构：根据 user_type 自动推断 primary_client
+        # 律师/律所 → 服务方端；个人/企业 → 需求方端
+        primary_client = "provider" if user_type in ("platform_lawyer", "institution") else "needer"
+
         user = User(
             email=email,
             hashed_password=get_password_hash(password),
@@ -41,13 +45,14 @@ class UserService:
             org_id=org_id,
             role=role,
             user_type=user_type,
+            primary_client=primary_client,
             is_active=True,
         )
 
         self.db.add(user)
         await self.db.flush()
 
-        logger.info(f"用户创建成功: {email}, type={user_type}, role={role}")
+        logger.info(f"用户创建成功: {email}, type={user_type}, role={role}, client={primary_client}")
         return user
     
     async def get_user(self, user_id: str) -> Optional[User]:

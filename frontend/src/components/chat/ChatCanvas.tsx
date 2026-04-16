@@ -234,7 +234,7 @@ export function ChatCanvas() {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             onClick={() => setShowContextPanel(true)}
-            className={`fixed bottom-20 right-4 w-14 h-14 bg-primary rounded-full ${shadow.dropdown} flex items-center justify-center text-white z-30 active:scale-95 transition-transform`}
+            className={`fixed bottom-20 right-4 w-14 h-14 bg-primary rounded-full ${shadow.dropdown} flex items-center justify-center text-primary-foreground z-30 active:scale-95 transition-transform`}
           >
             <icons.FileText className={iconSize.lg} />
             {contextContent.data?.detectedIssues && (

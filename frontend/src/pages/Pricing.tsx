@@ -43,6 +43,13 @@ interface FeatureRow {
  enterprise: string | boolean
 }
 
+// V2 架构：双端分组标签
+type ClientTab = 'needer' | 'provider'
+const CLIENT_TABS: { key: ClientTab; label: string; description: string }[] = [
+  { key: 'needer', label: '个人/企业用户', description: '获取法律服务' },
+  { key: 'provider', label: '律师/律所', description: '获客与案件管理' },
+]
+
 // 功能对比表 - 前端配置（后端暂不支持此结构化数据）
 const FEATURE_COMPARE: FeatureRow[] = [
  { label:'AI 对话次数', basic:'50 次/月', pro:'200 次/月', enterprise:'不限' },
@@ -63,6 +70,8 @@ export default function Pricing() {
  const [error, setError] = useState<string | null>(null)
  const [annual, setAnnual] = useState(false)
  const [plans, setPlans] = useState<PricingPlan[]>([])
+ // V2 架构：双端 Tab
+ const [clientTab, setClientTab] = useState<ClientTab>('needer')
 
  useEffect(() => {
  let cancelled = false
@@ -152,6 +161,24 @@ export default function Pricing() {
 
  return (
  <PageContainer title="选择套餐" description="为您的法律服务需求选择最合适的方案">
+ {/* V2: 双端 Tab 切换 */}
+ <div className="flex items-center justify-center gap-2 mb-6">
+  {CLIENT_TABS.map(tab => (
+    <button
+      key={tab.key}
+      onClick={() => setClientTab(tab.key)}
+      className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+        clientTab === tab.key
+          ? 'bg-primary text-primary-foreground shadow-sm'
+          : 'bg-muted text-muted-foreground hover:bg-muted/80'
+      }`}
+    >
+      <div>{tab.label}</div>
+      <div className={`text-[10px] mt-0.5 ${clientTab === tab.key ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>{tab.description}</div>
+    </button>
+  ))}
+ </div>
+
  {/* 月付/年付切换 */}
  <div className="flex items-center justify-center gap-3 py-2">
  <span className={`text-sm font-medium ${!annual ?'text-foreground' :'text-muted-foreground'}`}>

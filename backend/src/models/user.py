@@ -104,7 +104,12 @@ class User(Base, TimestampMixin):
     department: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
     # 用户类型标识
-    user_type: Mapped[str] = mapped_column(String(30), default="internal")  # internal / platform_lawyer / enterprise / individual
+    user_type: Mapped[str] = mapped_column(String(30), default="internal")  # internal / platform_lawyer / enterprise / individual / institution
+
+    # V2 架构：主客户端偏好（决定默认进入哪个端的界面）
+    # needer  = 需求方端（个人/企业用户主入口 /app/*）
+    # provider = 服务方端（律师/律所主入口 /pro/*）
+    primary_client: Mapped[str] = mapped_column(String(20), default="needer", server_default="needer")
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     email_verified: Mapped[bool] = mapped_column(Boolean, default=False)

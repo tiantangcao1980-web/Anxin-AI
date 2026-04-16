@@ -103,21 +103,21 @@ export function ChatMessages({
  {message.attachment && (
  <div
  className={`flex items-center gap-2.5 mb-2.5 p-2 rounded-lg ${
- isUser ?'bg-white/15' :'bg-muted border border-border'
+ isUser ?'bg-primary-foreground/15' :'bg-muted border border-border'
  }`}
  >
  <div
- className={`p-1.5 rounded ${isUser ?'bg-white/20' :'bg-background shadow-sm'}`}
+ className={`p-1.5 rounded ${isUser ?'bg-primary-foreground/20' :'bg-background shadow-sm'}`}
  >
  <icons.FileText
- className={`${iconSize.sm} ${isUser ?'text-white' :'text-primary'}`}
+ className={`${iconSize.sm} ${isUser ?'text-primary-foreground' :'text-primary'}`}
  />
  </div>
  <div className="flex flex-col min-w-0">
  <span className="text-xs font-medium truncate">{message.attachment.name}</span>
  {message.attachment.size && (
  <span
- className={`text-[10px] ${isUser ?'text-white/70' :'text-muted-foreground'}`}
+ className={`text-[10px] ${isUser ?'text-primary-foreground/70' :'text-muted-foreground'}`}
  >
  {message.attachment.size}
  </span>

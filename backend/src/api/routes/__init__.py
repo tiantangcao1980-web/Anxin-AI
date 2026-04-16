@@ -30,6 +30,7 @@ from src.api.routes import knowledge_management
 from src.api.routes import harness
 from src.api.routes import cli
 from src.api.routes import security_challenge
+from src.api.routes import case_market
 
 api_router = APIRouter()
 
@@ -79,3 +80,4 @@ api_router.include_router(metrics.router, tags=["监控指标"])
 api_router.include_router(knowledge_management.router, tags=["知识管理"])
 api_router.include_router(harness.router, tags=["Harness监控"])
 api_router.include_router(cli.router, tags=["CLI命令"])
+api_router.include_router(case_market.router, tags=["案源市场"])

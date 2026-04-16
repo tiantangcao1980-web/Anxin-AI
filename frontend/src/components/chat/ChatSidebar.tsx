@@ -177,7 +177,7 @@ export function ChatSidebar({
  <button
  onClick={onBatchDelete}
  disabled={selectedConvIds.size === 0 || isBatchDeleting}
- className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white bg-destructive hover:bg-destructive/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors flex-1 justify-center shadow-sm"
+ className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-destructive-foreground bg-destructive hover:bg-destructive/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors flex-1 justify-center shadow-sm"
  >
  {isBatchDeleting ? (
  <>

@@ -308,3 +308,140 @@ class SubscriptionService:
             "cancelled_count": cancelled_count,
             "mrr": mrr,
         }
+
+    # ------------------------------------------------------------------
+    # V2 架构：运行模式与功能鉴权
+    # ------------------------------------------------------------------
+
+    # 免费方案默认功能（仅本地模式）
+    _FREE_FEATURES = {
+        "modes": ["local"],
+        "ai_quota_tokens": 0,
+        "sentiment_monitoring": False,
+        "legal_knowledge_base": False,
+        "template_marketplace": False,
+        "lawyer_matching": False,
+        "im_messaging": False,
+        "due_diligence": False,
+        "team_seats": 1,
+    }
+
+    async def get_active_by_client(
+        self,
+        user_id: str,
+        client_type: str = "needer",
+    ) -> Optional[Subscription]:
+        """获取用户在指定客户端的当前有效订阅"""
+        today = date.today()
+        result = await self.db.execute(
+            select(Subscription)
+            .where(
+                and_(
+                    Subscription.user_id == user_id,
+                    Subscription.client_type == client_type,
+                    Subscription.status.in_(["active", "trial", "past_due"]),
+                    Subscription.current_period_end >= today,
+                )
+            )
+            .order_by(Subscription.status.asc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_effective_features(
+        self,
+        user_id: str,
+        client_type: str = "needer",
+    ) -> dict:
+        """
+        获取用户当前生效的功能权限。
+        优先级：features_override > plan.features > FREE
+        """
+        sub = await self.get_active_by_client(user_id, client_type)
+        if not sub:
+            return dict(self._FREE_FEATURES)
+
+        # 检查试用期
+        if sub.status == "trial" and sub.trial_ends_at:
+            from datetime import timezone as tz
+            if sub.trial_ends_at.replace(tzinfo=tz.utc) < datetime.now(tz.utc):
+                sub.status = "expired"
+                await self.db.flush()
+                return dict(self._FREE_FEATURES)
+
+        plan = await self.db.get(BillingPlan, sub.plan_id)
+        plan_features = dict(plan.features or {}) if plan else {}
+        features = {**self._FREE_FEATURES, **plan_features}
+
+        if sub.features_override:
+            features.update(sub.features_override)
+        if sub.allowed_modes:
+            features["modes"] = sub.allowed_modes
+
+        return features
+
+    async def can_access_feature(
+        self,
+        user_id: str,
+        feature_key: str,
+        client_type: str = "needer",
+    ) -> bool:
+        """检查用户是否可访问某功能"""
+        features = await self.get_effective_features(user_id, client_type)
+        val = features.get(feature_key)
+        if isinstance(val, bool):
+            return val
+        if isinstance(val, int):
+            return val > 0
+        if isinstance(val, list):
+            return len(val) > 0
+        return True  # 未定义的功能默认允许
+
+    async def can_use_mode(
+        self,
+        user_id: str,
+        mode: str,
+        client_type: str = "needer",
+    ) -> bool:
+        """检查用户是否可使用指定运行模式"""
+        features = await self.get_effective_features(user_id, client_type)
+        allowed = features.get("modes", ["local"])
+        return mode.lower() in [m.lower() for m in allowed]
+
+    async def create_trial(
+        self,
+        user_id: str,
+        client_type: str = "needer",
+        trial_days: int = 3,
+    ) -> Optional[Subscription]:
+        """为新用户创建试用订阅（3天云端体验）"""
+        existing = await self.get_active_by_client(user_id, client_type)
+        if existing:
+            return None
+
+        result = await self.db.execute(
+            select(BillingPlan).where(
+                and_(BillingPlan.code == "trial", BillingPlan.is_active == True)
+            )
+        )
+        trial_plan = result.scalar_one_or_none()
+        if not trial_plan:
+            logger.debug("试用计划未配置，跳过创建试用订阅")
+            return None
+
+        today = date.today()
+        now = datetime.now(timezone.utc)
+        sub = Subscription(
+            user_id=user_id,
+            plan_id=trial_plan.id,
+            client_type=client_type,
+            status="trial",
+            trial_ends_at=now + timedelta(days=trial_days),
+            current_period_start=today,
+            current_period_end=today + timedelta(days=trial_days),
+            auto_renew=False,
+        )
+        self.db.add(sub)
+        await self.db.flush()
+        logger.info(f"创建试用订阅: user={user_id}, client={client_type}, days={trial_days}")
+        return sub

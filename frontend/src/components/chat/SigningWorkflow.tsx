@@ -574,7 +574,7 @@ export const SigningWorkflow = memo(function SigningWorkflow() {
  initial={{ opacity: 0 }}
  animate={{ opacity: 1 }}
  exit={{ opacity: 0 }}
- className="absolute inset-0 bg-black/30 flex items-center justify-center z-50 p-4"
+ className="absolute inset-0 bg-foreground/30 flex items-center justify-center z-50 p-4"
  >
  <motion.div
  initial={{ scale: 0.9, y: 20 }}
@@ -638,7 +638,7 @@ export const SigningWorkflow = memo(function SigningWorkflow() {
  initial={{ opacity: 0 }}
  animate={{ opacity: 1 }}
  exit={{ opacity: 0 }}
- className="absolute inset-0 bg-black/30 flex items-center justify-center z-50 p-4"
+ className="absolute inset-0 bg-foreground/30 flex items-center justify-center z-50 p-4"
  >
  <motion.div
  initial={{ scale: 0.9, y: 20 }}
@@ -667,7 +667,7 @@ export const SigningWorkflow = memo(function SigningWorkflow() {
  <button
  key={sealName}
  onClick={() => setSelectedSealType(sealName)}
- className={`relative p-4 rounded-xl border-2 transition-all ${
+ className={`relative p-4 rounded-xl border-2 transition-[colors,shadow] ${
  isActive
  ?'border-destructive/20 bg-destructive/10 shadow-md'
  :'border-border bg-background hover:border-muted-foreground'
@@ -726,7 +726,7 @@ export const SigningWorkflow = memo(function SigningWorkflow() {
  handleAdvanceStep(activeWorkflow.id, activeWorkflow.currentStepIndex);
  }
  }}
- className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-white bg-destructive rounded-xl hover:bg-destructive/20 transition-colors shadow-sm"
+ className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-destructive-foreground bg-destructive rounded-xl hover:bg-destructive/20 transition-colors shadow-sm"
  >
  <icons.FileSignature className="w-3.5 h-3.5" /> 确认盖章
  </button>
@@ -775,7 +775,7 @@ export const SigningWorkflow = memo(function SigningWorkflow() {
  <button
  key={seal}
  onClick={() => setSelectedSealType(seal)}
- className={`p-3 rounded-xl border text-left transition-all ${
+ className={`p-3 rounded-xl border text-left transition-colors ${
  selectedSealType === seal
  ?'border-destructive/20 bg-destructive/10'
  :'border-border bg-background hover:border-muted-foreground'
@@ -801,7 +801,7 @@ export const SigningWorkflow = memo(function SigningWorkflow() {
  <button
  key={key}
  onClick={() => setUrgency(key as any)}
- className={`flex-1 py-2 rounded-xl text-xs font-medium border transition-all ${
+ className={`flex-1 py-2 rounded-xl text-xs font-medium border transition-colors ${
  urgency === key
  ? `${val.color} border-current`
  :'bg-background text-muted-foreground border-border hover:border-muted-foreground'
@@ -884,7 +884,7 @@ export const SigningWorkflow = memo(function SigningWorkflow() {
  <button
  onClick={handleInitiateWorkflow}
  disabled={!isDocReady}
- className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground text-sm font-medium rounded-xl hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm active:scale-[0.98]"
+ className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground text-sm font-medium rounded-xl hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-[colors,transform] shadow-sm active:scale-[0.98]"
  >
  <icons.Send className="w-4 h-4" />
  发起{config.label}流程
@@ -946,7 +946,7 @@ export const SigningWorkflow = memo(function SigningWorkflow() {
  setStep('configure');
  }}
  disabled={!isDocReady}
- className={`w-full flex items-center gap-3 p-4 rounded-xl border transition-all text-left ${
+ className={`w-full flex items-center gap-3 p-4 rounded-xl border transition-[colors,shadow] text-left ${
  isDetected
  ? `${conf.color} shadow-sm`
  :'border-border bg-background hover:border-muted-foreground hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed'
@@ -1042,7 +1042,7 @@ export const SigningWorkflow = memo(function SigningWorkflow() {
  key={wf.id}
  whileTap={{ scale: 0.98 }}
  onClick={() => { setActiveSigningId(wf.id); setStep('detail'); }}
- className="w-full flex items-center gap-3 p-4 bg-background rounded-xl border border-border hover:border-muted-foreground hover:shadow-sm transition-all text-left"
+ className="w-full flex items-center gap-3 p-4 bg-background rounded-xl border border-border hover:border-muted-foreground hover:shadow-sm transition-[colors,shadow] text-left"
  >
  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${config.color}`}>
  <WfIcon className="w-5 h-5" />

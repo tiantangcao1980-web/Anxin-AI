@@ -218,7 +218,7 @@ export const CaseProgressCard = memo(function CaseProgressCard({
  key={action.actionId}
  onClick={() => handleAction(action.actionId, action.payload)}
  className={cn(
-'flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95',
+'flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-[colors,transform] active:scale-95',
  action.variant ==='primary'
  ?'bg-primary text-white hover:bg-primary/90 shadow-sm'
  : action.variant ==='outline'

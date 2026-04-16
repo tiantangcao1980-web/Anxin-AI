@@ -64,6 +64,8 @@ from src.models.collaboration import (
 
 )
 
+from src.models.case_market import CaseRequest, LawyerBid, RequestStatus, BidStatus
+
 
 
 __all__ = [

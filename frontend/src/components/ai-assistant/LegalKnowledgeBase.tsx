@@ -81,7 +81,7 @@ export function LegalKnowledgeBase() {
           <button
             onClick={handleEvolve}
             disabled={isEvolving}
-            className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-all border border-transparent hover:border-primary/20 disabled:opacity-50"
+            className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors border border-transparent hover:border-primary/20 disabled:opacity-50"
           >
             <icons.RefreshCw className={`w-3.5 h-3.5 ${isEvolving ? 'animate-spin' : ''}`} />
             更新法规库

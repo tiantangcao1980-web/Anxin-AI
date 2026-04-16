@@ -132,7 +132,7 @@ export function ChatInput({
  disabled={sendDisabled}
  className={`p-2 m-1 rounded-xl transition-all disabled:opacity-30 flex-shrink-0 ${
  input.trim()
- ?'bg-primary text-white hover:bg-primary/90 active:scale-95 shadow-sm'
+ ?'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 shadow-sm'
  :'bg-transparent text-muted-foreground'
  }`}
  >

@@ -59,7 +59,7 @@ function FormField({
 'w-full px-3 py-2 bg-background border border-border rounded-lg',
 'text-sm text-foreground placeholder:text-muted-foreground',
 'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary',
-'transition-all'
+'transition-colors'
  );
 
  switch (field.field_type) {
@@ -83,7 +83,7 @@ function FormField({
  <button
  onClick={() => onChange(true)}
  className={cn(
-'px-4 py-2 rounded-lg text-sm border transition-all',
+'px-4 py-2 rounded-lg text-sm border transition-colors',
  value === true
  ?'bg-primary text-primary-foreground border-primary'
  :'bg-background border-border text-muted-foreground hover:border-primary/50'
@@ -94,7 +94,7 @@ function FormField({
  <button
  onClick={() => onChange(false)}
  className={cn(
-'px-4 py-2 rounded-lg text-sm border transition-all',
+'px-4 py-2 rounded-lg text-sm border transition-colors',
  value === false
  ?'bg-primary text-primary-foreground border-primary'
  :'bg-background border-border text-muted-foreground hover:border-primary/50'
@@ -328,7 +328,7 @@ export function TemplateWizard({ templateId, onGenerate, onClose, apiBaseUrl =''
  key={group}
  onClick={() => setCurrentGroup(group)}
  className={cn(
-'px-3 py-1.5 rounded-lg text-sm transition-all',
+'px-3 py-1.5 rounded-lg text-sm transition-colors',
  currentGroup === group
  ?'bg-primary text-primary-foreground'
  :'bg-muted text-muted-foreground hover:bg-muted/80'
@@ -366,7 +366,7 @@ export function TemplateWizard({ templateId, onGenerate, onClose, apiBaseUrl =''
  <button
  onClick={handleRender}
  disabled={rendering || completionPct < 30}
- className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-all text-sm font-medium"
+ className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors text-sm font-medium"
  >
  {rendering ? (
  <icons.Loader2 className="w-4 h-4 animate-spin" />
@@ -378,7 +378,7 @@ export function TemplateWizard({ templateId, onGenerate, onClose, apiBaseUrl =''
  {showPreview && (
  <button
  onClick={() => onGenerate(previewText)}
- className="flex items-center gap-2 px-4 py-3 bg-success text-white rounded-lg hover:bg-success/20 transition-all text-sm font-medium"
+ className="flex items-center gap-2 px-4 py-3 bg-success text-white rounded-lg hover:bg-success/20 transition-colors text-sm font-medium"
  >
  <icons.Check className="w-4 h-4" />
  使用此合同

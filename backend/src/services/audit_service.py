@@ -457,6 +457,78 @@ def audit_log(
                         logger.error(f"审计日志记录失败: {log_error}")
             
             return result
-        
+
         return wrapper
     return decorator
+
+    # ===== V2 架构：合规审计增强 =====
+
+    async def export_audit_report(
+        self,
+        org_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        format: str = "json",
+    ) -> dict:
+        """
+        导出合规审计报告。
+
+        Args:
+            org_id: 组织范围（律所/企业）
+            user_id: 指定用户
+            start_time: 开始时间
+            end_time: 结束时间
+            format: 导出格式（json/csv）
+
+        Returns:
+            {"records": [...], "summary": {...}, "export_time": "..."}
+        """
+        logs = await self.query(
+            user_id=user_id,
+            start_time=start_time,
+            end_time=end_time,
+            limit=10000,
+        )
+
+        # 如果有 org_id 限制，过滤
+        if org_id:
+            from src.models.user import User
+            from sqlalchemy import select as sel
+            org_members = await self.db.execute(
+                sel(User.id).where(User.org_id == org_id)
+            )
+            member_ids = {str(r[0]) for r in org_members.all()}
+            logs = [l for l in logs if l.user_id in member_ids]
+
+        records = []
+        action_counts: dict = {}
+        for log in logs:
+            record = {
+                "timestamp": log.created_at.isoformat() if log.created_at else "",
+                "user_email": log.user_email or "",
+                "user_role": log.user_role or "",
+                "action": log.action or "",
+                "resource_type": log.resource_type or "",
+                "resource_id": str(log.resource_id) if log.resource_id else "",
+                "status": log.status or "success",
+                "ip_address": log.ip_address or "",
+            }
+            records.append(record)
+            action_counts[log.action] = action_counts.get(log.action, 0) + 1
+
+        summary = {
+            "total_records": len(records),
+            "action_breakdown": action_counts,
+            "time_range": {
+                "start": start_time.isoformat() if start_time else "all",
+                "end": end_time.isoformat() if end_time else "now",
+            },
+        }
+
+        return {
+            "records": records,
+            "summary": summary,
+            "export_time": datetime.now(timezone.utc).isoformat(),
+            "format": format,
+        }

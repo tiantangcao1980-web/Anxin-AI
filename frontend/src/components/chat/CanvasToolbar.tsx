@@ -99,7 +99,7 @@ export const CanvasToolbar = memo(function CanvasToolbar({
  <button
  onClick={onAIOptimize}
  disabled={isOptimizing}
- className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+ className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
  >
  {isOptimizing ? <icons.Loader2 className="w-3.5 h-3.5 animate-spin" /> : <icons.Wand2 className="w-3.5 h-3.5" />}
  {isOptimizing ?'AI 优化中...' :'AI 优化'}

@@ -192,7 +192,7 @@ export const ContractCompareCard = memo(function ContractCompareCard({ component
  componentId: component.id,
  })}
  className={cn(
-'px-4 py-2 rounded-lg text-xs font-medium transition-all active:scale-95',
+'px-4 py-2 rounded-lg text-xs font-medium transition-[colors,transform] active:scale-95',
  action.variant ==='primary'
  ?'bg-primary text-white hover:bg-primary/90'
  : action.variant ==='outline'

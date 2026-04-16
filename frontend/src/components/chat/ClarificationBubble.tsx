@@ -151,7 +151,7 @@ export function ClarificationBubble({
  <div key={qi}>
  <p className="text-xs font-medium text-foreground mb-2 flex items-center gap-1.5">
  <span className={`w-4.5 h-4.5 rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0 ${
- isAnswered ?'bg-primary text-white' :'bg-muted text-muted-foreground'
+ isAnswered ?'bg-primary text-primary-foreground' :'bg-muted text-muted-foreground'
  }`}>{qi + 1}</span>
  {q.question}
  </p>
@@ -164,7 +164,7 @@ export function ClarificationBubble({
  onClick={() => handleSelect(q.question, opt)}
  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
  isSelected
- ?'bg-primary text-white border-primary shadow-sm'
+ ?'bg-primary text-primary-foreground border-primary shadow-sm'
  :'bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-primary hover:bg-primary/5 cursor-pointer active:scale-95'
  }`}
  >
@@ -219,7 +219,7 @@ export function ClarificationBubble({
  <button
  onClick={handleSubmit}
  disabled={disabled}
- className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98] shadow-sm"
+ className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-xl hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98] shadow-sm"
  >
  {allAnswered ? (
  <>确认需求，开始处理 <icons.ChevronRight className="w-4 h-4" /></>

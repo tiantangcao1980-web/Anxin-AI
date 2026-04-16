@@ -399,7 +399,7 @@ export default function LawyerOnboarding() {
  <button
  key={s.key}
  onClick={() => { if (i <= step) setStep(i) }}
- className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+ className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
  isActive
  ?'bg-primary text-primary-foreground'
  : isDone
@@ -592,7 +592,7 @@ function Step1Basic({
  <button
  key={s}
  onClick={() => toggleSpecialty(s)}
- className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+ className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
  profile.specialties.includes(s)
  ?'bg-primary text-primary-foreground'
  :'bg-muted text-muted-foreground hover:bg-muted/80'
@@ -608,7 +608,7 @@ function Step1Basic({
  <div className="space-y-1.5">
  <Label className="text-sm font-medium">个人简介</Label>
  <textarea
- className="w-full min-h-[100px] bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10 transition-all resize-y"
+ className="w-full min-h-[100px] bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10 transition-colors resize-y"
  placeholder="简要介绍您的执业经验和专长..."
  value={profile.bio}
  onChange={e => setProfile(p => ({ ...p, bio: e.target.value }))}
@@ -720,7 +720,7 @@ function Step3Settings({
  <button
  key={opt.value}
  onClick={() => toggleServiceType(opt.value)}
- className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+ className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
  settings.serviceTypes.includes(opt.value)
  ?'bg-primary text-primary-foreground'
  :'bg-muted text-muted-foreground hover:bg-muted/80'

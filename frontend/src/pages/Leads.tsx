@@ -176,11 +176,11 @@ export default function Leads() {
  </p>
  <div className="flex rounded-lg border border-border overflow-hidden">
  <button onClick={() => setViewMode('pipeline')}
- className={`px-3 py-1.5 text-xs ${viewMode ==='pipeline' ?'bg-primary text-white' :'bg-background text-muted-foreground hover:bg-muted'}`}>
+ className={`px-3 py-1.5 text-xs ${viewMode ==='pipeline' ?'bg-primary text-primary-foreground' :'bg-background text-muted-foreground hover:bg-muted'}`}>
  管道
  </button>
  <button onClick={() => setViewMode('list')}
- className={`px-3 py-1.5 text-xs ${viewMode ==='list' ?'bg-primary text-white' :'bg-background text-muted-foreground hover:bg-muted'}`}>
+ className={`px-3 py-1.5 text-xs ${viewMode ==='list' ?'bg-primary text-primary-foreground' :'bg-background text-muted-foreground hover:bg-muted'}`}>
  列表
  </button>
  </div>

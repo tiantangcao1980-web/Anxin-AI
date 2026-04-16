@@ -78,7 +78,7 @@ export const A2UICard = forwardRef<HTMLDivElement, A2UICardProps>(
       // 基础样式
       'rounded-2xl',
       'p-6',
-      'transition-all',
+      'transition-[colors,shadow]',
       'duration-300',
 
       // 变体样式

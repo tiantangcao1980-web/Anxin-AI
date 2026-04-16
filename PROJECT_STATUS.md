@@ -4,6 +4,68 @@
 
 ---
 
+## 2026-04-16 V2 架构升级启动
+
+### 总体方向
+本次升级是产品架构层面的三大根本性变革，详见 [docs/ARCHITECTURE_V2.md](docs/ARCHITECTURE_V2.md)：
+
+1. **双客户端分离** — 需求方（C端）与服务方（B端律师律所）独立客户端
+2. **三态运行模式** — 本地/混合/云端，各自独立的数据边界与功能边界
+3. **订阅商业化** — 非本地模式需订阅，建立可持续商业模型
+
+### Phase 1 — 已完成 ✅
+- [x] 架构升级规划文档 `docs/ARCHITECTURE_V2.md`
+- [x] README / PROJECT_STATUS / MEMORY 同步更新
+- [x] User 表新增 `primary_client` 字段 + 自动迁移 + 老用户推断
+- [x] 后端 API 返回 `primary_client`（register/me）
+- [x] 前端路由拆分 `/pro/*` 服务方端 + `/pro/login` 独立入口
+- [x] Login.tsx 按 `?role=provider` 分流注册类型 + 登录后按身份路由
+- [x] ModeGate 组件（4 种门控策略：any/hybrid_or_cloud/cloud_only/local_ok_with_download）
+- [x] 舆情/知识库/找律师/IM 包裹 ModeGate
+
+### Phase 2 — 已完成 ✅
+- [x] ProLayout 服务方端独立布局（侧边栏：工作台/案件/合同/案源/消息/工具/认证/账单）
+- [x] Subscription 模型扩展（client_type/allowed_modes/features_override/trial_ends_at）
+- [x] BillingPlan 新增 client_type 字段
+- [x] SubscriptionService V2 鉴权方法（get_effective_features/can_access_feature/can_use_mode/create_trial）
+- [x] database.py 自动补齐所有 V2 新增字段
+
+### Phase 3 — 已完成 ✅
+- [x] 订阅 V2 API（/billing/v2/features, /v2/can-access, /v2/can-use-mode, /v2/trial）
+- [x] Pricing 页双端 Tab 切换（个人/企业 vs 律师/律所）
+- [x] PrivacyContext 模式切换与订阅联动（requestModeSwitch 检查订阅）
+- [x] OfflineResourceManager 离线资源管理组件（7 个资源包分类下载）
+
+### Phase 4 — 已完成 ✅
+- [x] 案源市场 MVP（CaseRequest + LawyerBid 模型 + 8 个 API：发布/浏览/投标/接受/评价）
+- [x] 利益冲突检查（ConflictCheckService，投标时自动扫描历史案件当事人）
+- [x] 律所内部分级（案件列表按角色过滤：合伙人看全部/律师看自己的）
+- [x] 订阅价值感可视化（ValueDashboard 组件）
+
+### Phase 5 — 已完成 ✅
+- [x] V2 订阅购买 API（/billing/v2/subscribe，连接支付系统，年付 8 折）
+- [x] 老用户 V2 迁移引导（V2MigrationGuide 组件，按用户类型定制引导）
+- [x] 合规审计日志增强（export_audit_report 方法 + /admin/audit-logs/export API）
+
+### 完成度统计
+- **Phase 1-5 共计 45+ 子任务全部完成**
+- V2 架构核心基础设施已就绪，可部署到生产环境
+- 后续为持续迭代：支付渠道真实对接、跨模式数据同步、企业私有化定制
+
+### 关键决策
+- **账号体系不分离**：同一 users 表，通过 `primary_client` 字段区分默认客户端
+- **律师可兼作需求方用户**：支持同账号切换两端（类似淘宝/千牛）
+- **本地模式的核心卖点**：数据绝对不出设备，律所安全合规首选
+- **订阅与客户端独立计费**：兼职律师可同时订阅 Pro + Lawyer Pro
+
+### Phase 完成后的预期效果
+- 律师打开 App 看到的是获客/案源/账单，用户看到的是咨询/找律师
+- 高保密律所可纯本地模式运行，零数据泄露
+- 普通用户有试用期，订阅后享受完整 AI 能力
+- 舆情等需要云端的功能在本地模式下给出明确引导
+
+---
+
 ## 2026-04-03 安全审计（进行中）
 
 ### 当前仍待处理的高风险问题

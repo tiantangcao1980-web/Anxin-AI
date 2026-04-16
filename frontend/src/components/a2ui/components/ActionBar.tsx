@@ -62,7 +62,7 @@ export const ActionBar = memo(function ActionBar({ component, onEvent }: Props) 
  disabled={item.disabled}
  className={cn(
 'flex-shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-full',
-'text-xs font-medium transition-all',
+'text-xs font-medium transition-[colors,transform]',
 'border border-border',
 'bg-background text-muted-foreground',
 'hover:bg-muted/50 hover:border-border',

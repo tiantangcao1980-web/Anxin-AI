@@ -97,9 +97,9 @@ export function SmartSearch() {
  }
 
  const modeConfig = {
- hybrid: { label:'混合检索', icon: icons.Search, color:'bg-foreground hover:bg-foreground/90' },
- rag: { label:'RAG问答', icon: icons.MessageSquare, color:'bg-success hover:bg-success/20' },
- research: { label:'深度研究', icon: icons.Sparkles, color:'bg-primary hover:bg-primary/90' },
+ hybrid: { label:'混合检索', icon: icons.Search, color:'bg-foreground text-background hover:bg-foreground/90' },
+ rag: { label:'RAG问答', icon: icons.MessageSquare, color:'bg-success text-success-foreground hover:bg-success/20' },
+ research: { label:'深度研究', icon: icons.Sparkles, color:'bg-primary text-primary-foreground hover:bg-primary/90' },
  }
 
  const currentMode = modeConfig[searchMode]
@@ -111,7 +111,7 @@ export function SmartSearch() {
  <div className="max-w-4xl mx-auto">
  <div className="flex items-center gap-3 mb-4">
  <div className="p-2.5 bg-primary rounded-xl shadow-lg shadow-primary/20">
- <icons.Search className="w-5 h-5 text-white" />
+ <icons.Search className="w-5 h-5 text-primary-foreground" />
  </div>
  <div>
  <h2 className="text-lg font-medium text-foreground">智慧搜索引擎</h2>
@@ -157,7 +157,7 @@ export function SmartSearch() {
  <button
  onClick={handleSearch}
  disabled={loading || isResearching || isAsking}
- className={`flex items-center gap-2 px-5 py-3 text-white rounded-xl text-sm font-medium shadow-lg transition-all active:scale-95 disabled:opacity-50 ${currentMode.color}`}
+ className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium shadow-lg transition-all active:scale-95 disabled:opacity-50 ${currentMode.color}`}
  >
  {(loading || isResearching || isAsking) ? (
  <icons.Loader2 className="w-4 h-4 animate-spin" />

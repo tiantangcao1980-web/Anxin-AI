@@ -93,6 +93,8 @@ class UserResponse(BaseModel):
     name: str
     role: str
     user_type: str = "individual"
+    # V2 架构：主客户端偏好 (needer=需求方端 / provider=服务方端)
+    primary_client: str = "needer"
     avatar_url: Optional[str] = None
     email_verified: bool = True
 
@@ -369,6 +371,7 @@ async def register(
             "name": user.name,
             "role": user.role,
             "user_type": user_type,
+            "primary_client": getattr(user, 'primary_client', 'needer') or 'needer',
             "email_verified": user.email_verified,
             "message": "注册成功" if not settings.EMAIL_VERIFY_ENABLED else "注册成功，请查收邮箱验证码完成验证",
             # 开发模式返回验证码，方便调试
@@ -401,6 +404,7 @@ async def get_current_user_info(user: User = Depends(get_current_user_required))
         name=user.name,
         role=user.role,
         user_type=getattr(user, 'user_type', 'individual') or 'individual',
+        primary_client=getattr(user, 'primary_client', 'needer') or 'needer',
         avatar_url=user.avatar_url,
         email_verified=user.email_verified,
     )

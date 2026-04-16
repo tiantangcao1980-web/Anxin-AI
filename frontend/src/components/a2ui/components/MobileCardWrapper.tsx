@@ -199,7 +199,7 @@ export const BottomActionBar = memo(function BottomActionBar({
  onClick={action.onClick}
  disabled={action.disabled || action.loading}
  className={cn(
-'flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95',
+'flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-medium transition-[colors,transform] active:scale-95',
  action.variant ==='primary'
  ?'bg-primary text-white hover:bg-primary/90 shadow-sm flex-1'
  : action.variant ==='destructive'

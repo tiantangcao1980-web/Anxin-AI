@@ -47,7 +47,7 @@ export function MultiModalInput({ onSend, disabled }: MultiModalInputProps) {
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={disabled}
-          className="p-2.5 rounded-lg hover:bg-primary-50 text-muted-foreground hover:text-primary transition-all active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+          className="p-2.5 rounded-lg hover:bg-primary-50 text-muted-foreground hover:text-primary transition-[colors,transform] active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
         >
           <icons.Paperclip className="w-5 h-5" />
         </button>
@@ -66,7 +66,7 @@ export function MultiModalInput({ onSend, disabled }: MultiModalInputProps) {
             placeholder="输入您的法律问题，或上传合同文件..."
             disabled={disabled}
             rows={1}
-            className="w-full px-4 py-3 bg-muted border-none rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/10 focus:bg-background transition-all disabled:opacity-50 text-foreground placeholder:text-muted-foreground text-sm"
+            className="w-full px-4 py-3 bg-muted border-none rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/10 focus:bg-background transition-colors disabled:opacity-50 text-foreground placeholder:text-muted-foreground text-sm"
             style={{ minHeight: '48px', maxHeight: '120px' }}
           />
         </div>
@@ -77,9 +77,9 @@ export function MultiModalInput({ onSend, disabled }: MultiModalInputProps) {
           onClick={() => setIsRecording(!isRecording)}
           disabled={disabled}
           whileTap={{ scale: 0.95 }}
-          className={`p-2.5 rounded-lg transition-all disabled:opacity-50 ${
+          className={`p-2.5 rounded-lg transition-colors disabled:opacity-50 ${
             isRecording
-              ? 'bg-danger text-white'
+              ? 'bg-destructive text-destructive-foreground'
               : 'hover:bg-primary-50 text-muted-foreground hover:text-primary'
           }`}
         >
@@ -89,7 +89,7 @@ export function MultiModalInput({ onSend, disabled }: MultiModalInputProps) {
         <button
           type="button"
           disabled={disabled}
-          className="p-2.5 rounded-lg hover:bg-primary-50 text-muted-foreground hover:text-primary transition-all active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+          className="p-2.5 rounded-lg hover:bg-primary-50 text-muted-foreground hover:text-primary transition-[colors,transform] active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
         >
           <icons.Camera className="w-5 h-5" />
         </button>
@@ -99,7 +99,7 @@ export function MultiModalInput({ onSend, disabled }: MultiModalInputProps) {
           type="submit"
           disabled={disabled || (!input.trim() && !fileInputRef.current?.files?.[0])}
           whileTap={{ scale: 0.95 }}
-          className="p-3 bg-primary text-white rounded-lg hover:bg-primary-600 shadow-legal-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-1"
+          className="p-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary-600 shadow-legal-sm transition-[colors,transform] disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-1"
         >
           <icons.Send className="w-5 h-5" />
         </motion.button>

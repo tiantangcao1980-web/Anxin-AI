@@ -733,6 +733,25 @@ async def get_audit_log_detail(
     return log.to_dict()
 
 
+# ========== V2: 合规审计报告导出 ==========
+
+
+@router.get("/audit-logs/export", summary="导出合规审计报告")
+async def export_audit_report(
+    days: int = Query(30, ge=1, le=365, description="导出天数范围"),
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """导出合规审计报告（JSON 格式，可用于律所合规证明）"""
+    start_time = datetime.utcnow() - timedelta(days=days)
+    audit_service = AuditService(db)
+    report = await audit_service.export_audit_report(
+        org_id=getattr(admin, 'org_id', None),
+        start_time=start_time,
+    )
+    return UnifiedResponse.success(data=report)
+
+
 # ========== 系统配置 ==========
 
 

@@ -104,7 +104,7 @@ function ToolbarButton({ onClick, active, disabled, children, title }: ToolbarBu
  disabled={disabled}
  title={title}
  className={cn(
-'p-1.5 rounded transition-all text-foreground/70',
+'p-1.5 rounded transition-[colors,transform] text-foreground/70',
 'hover:bg-accent hover:text-foreground active:scale-95',
 'disabled:opacity-40 disabled:cursor-not-allowed',
  active &&'bg-primary/10 text-primary font-semibold'

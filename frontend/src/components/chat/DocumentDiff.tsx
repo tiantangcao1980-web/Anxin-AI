@@ -36,7 +36,7 @@ export function DocumentDiff() {
  <p className="text-sm text-muted-foreground">红色 = 风险点 | 绿色 = AI 优化建议</p>
  </div>
  <div className="flex items-center gap-2">
- <button className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90">
+ <button className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90">
  接受全部建议
  </button>
  </div>

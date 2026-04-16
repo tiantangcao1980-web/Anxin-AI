@@ -478,7 +478,7 @@ export default function ComplianceCheck() {
  <div
  className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
  selected
- ?'bg-primary border-primary text-white'
+ ?'bg-primary border-primary text-primary-foreground'
  :'border-muted-foreground/30 bg-background'
  }`}
  >

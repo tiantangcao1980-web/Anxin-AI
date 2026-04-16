@@ -64,9 +64,9 @@ export function AIGenerator({ defaultDocType }: AIGeneratorProps) {
  <div
  className={`w-8 h-8 lg:w-10 lg:h-10 rounded-full flex items-center justify-center font-semibold text-sm ${
  s === step
- ?'bg-primary text-white shadow-sm'
+ ?'bg-primary text-primary-foreground shadow-sm'
  : s < step
- ?'bg-success text-white shadow-sm'
+ ?'bg-success text-success-foreground shadow-sm'
  :'bg-border text-muted-foreground'
  }`}
  >
@@ -225,7 +225,7 @@ export function AIGenerator({ defaultDocType }: AIGeneratorProps) {
  <button
  onClick={handleGenerate}
  disabled={isGenerating}
- className="flex-1 py-3 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors font-medium flex items-center justify-center gap-2 shadow-lg active:scale-98"
+ className="flex-1 py-3 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors font-medium flex items-center justify-center gap-2 shadow-lg active:scale-98"
  >
  <icons.Sparkles className="w-5 h-5" />
  {isGenerating ?'生成中...' :'AI 生成文档'}
@@ -268,7 +268,7 @@ export function AIGenerator({ defaultDocType }: AIGeneratorProps) {
  >
  重新生成
  </button>
- <button className="flex-1 py-3 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors font-medium shadow-sm active:scale-98">
+ <button className="flex-1 py-3 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors font-medium shadow-sm active:scale-98">
  下载文档
  </button>
  </div>

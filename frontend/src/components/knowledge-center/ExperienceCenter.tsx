@@ -106,7 +106,7 @@ export function ExperienceMemory() {
  <button
  onClick={handleSearch}
  disabled={loading}
- className="px-4 py-2.5 bg-warning text-white rounded-xl text-sm font-medium hover:bg-warning/20 disabled:opacity-50 transition-all shadow-sm"
+ className="px-4 py-2.5 bg-warning text-warning-foreground rounded-xl text-sm font-medium hover:bg-warning/20 disabled:opacity-50 transition-all shadow-sm"
  >
  {loading ? <icons.Loader2 className="w-4 h-4 animate-spin" /> :'检索'}
  </button>
@@ -208,7 +208,7 @@ export function ExperienceMemory() {
  initial={{ opacity: 0 }}
  animate={{ opacity: 1 }}
  exit={{ opacity: 0 }}
- className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm"
+ className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-sm"
  onClick={() => setSelectedMemory(null)}
  >
  <motion.div
@@ -312,7 +312,7 @@ export function ExperienceMemory() {
  <button
  onClick={handleSubmitFeedback}
  disabled={submittingFeedback || feedbackRating === 0}
- className="flex items-center gap-2 px-5 py-2 bg-warning text-white rounded-xl text-sm font-medium hover:bg-warning/20 disabled:opacity-50 transition-all shadow-sm"
+ className="flex items-center gap-2 px-5 py-2 bg-warning text-warning-foreground rounded-xl text-sm font-medium hover:bg-warning/20 disabled:opacity-50 transition-all shadow-sm"
  >
  {submittingFeedback ? <icons.Loader2 className="w-4 h-4 animate-spin" /> : <icons.ThumbsUp className="w-4 h-4" />}
  提交评价
@@ -413,7 +413,7 @@ export function EvolutionEngine() {
  <div className="flex items-center justify-between mb-6">
  <div className="flex items-center gap-3">
  <div className="p-2.5 bg-success rounded-xl shadow-lg shadow-emerald-500/20">
- <icons.Zap className="w-5 h-5 text-white" />
+ <icons.Zap className="w-5 h-5 text-success-foreground" />
  </div>
  <div>
  <h3 className={heading.section}>自进化引擎</h3>
@@ -423,7 +423,7 @@ export function EvolutionEngine() {
  <button
  onClick={handleTriggerEvolution}
  disabled={evolving}
- className="flex items-center gap-2 px-5 py-2.5 bg-success text-white rounded-xl text-sm font-medium hover:bg-success/20 disabled:opacity-50 transition-all shadow-lg shadow-emerald-600/20 active:scale-95"
+ className="flex items-center gap-2 px-5 py-2.5 bg-success text-success-foreground rounded-xl text-sm font-medium hover:bg-success/20 disabled:opacity-50 transition-all shadow-lg shadow-emerald-600/20 active:scale-95"
  >
  {evolving ? (
  <icons.Loader2 className="w-4 h-4 animate-spin" />

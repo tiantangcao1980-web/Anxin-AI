@@ -165,7 +165,7 @@ export default function Academy() {
  {[{ key:'all' as const, label:'全部' }, ...Object.entries(categoryConfig).map(([k, v]) => ({ key: k as CourseCategory, label: v.label }))].map(c => (
  <button key={c.key} onClick={() => setCategory(c.key)}
  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
- category === c.key ?'bg-primary text-white' :'bg-muted text-muted-foreground hover:text-foreground'
+ category === c.key ?'bg-primary text-primary-foreground' :'bg-muted text-muted-foreground hover:text-foreground'
  }`}>
  {c.label}
  </button>

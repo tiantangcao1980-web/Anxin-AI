@@ -85,6 +85,17 @@ async def _ensure_additive_schema_columns() -> None:
         # v3 调查引擎：快照、缓存、偏好表由 create_all 自动创建
         # v4 智能需求发掘引擎：用户 AI 画像
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_profile JSONB DEFAULT '{}'",
+        # V2 架构：用户主客户端偏好（needer/provider）
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS primary_client VARCHAR(20) DEFAULT 'needer' NOT NULL",
+        # V2 架构：订阅表扩展字段
+        "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS client_type VARCHAR(20) DEFAULT 'needer' NOT NULL",
+        "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS allowed_modes JSON",
+        "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS features_override JSON",
+        "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMP",
+        "ALTER TABLE billing_plans ADD COLUMN IF NOT EXISTS client_type VARCHAR(20) DEFAULT 'needer' NOT NULL",
+        # 基于 user_type 推断老用户的 primary_client
+        "UPDATE users SET primary_client = 'provider' WHERE user_type IN ('platform_lawyer', 'institution') AND primary_client = 'needer'",
+        "UPDATE users SET primary_client = 'needer' WHERE user_type IN ('individual', 'enterprise') AND primary_client != 'needer'",
         # v5 Harness: conversations 表缺失字段修复
         "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS is_starred BOOLEAN DEFAULT false",
         "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS starred_at TIMESTAMP",

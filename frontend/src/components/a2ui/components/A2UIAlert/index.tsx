@@ -107,7 +107,7 @@ export const A2UIAlert = forwardRef<HTMLDivElement, A2UIAlertProps>(
  const baseClassName = cn(
 'rounded-lg p-4',
 'flex items-start gap-3',
-'transition-all',
+'transition-colors',
  styles[variant],
  className
  );

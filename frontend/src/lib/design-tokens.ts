@@ -88,12 +88,15 @@ export const duration = {
 } as const
 
 // ===== 卡片样式预设 (DESIGN.md §4 Cards: 24px radius) =====
+// v2 优化：边框从 /70 降到 /40 更精致（Linear/Stripe 风格），spacious 变体用于呼吸感
 export const cardStyle = {
-  base: 'rounded-3xl border border-border/70 bg-surface-1 p-5 shadow-card',
+  base: 'rounded-3xl border border-border/40 bg-surface-1 p-5 shadow-card',
+  /** 宽松内边距（24px）— 用于高信息密度场景需要呼吸感时 */
+  spacious: 'rounded-3xl border border-border/40 bg-surface-1 p-6 shadow-card',
   interactive:
-    'rounded-3xl border border-border/70 bg-surface-1 p-5 shadow-card transition-all hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-float cursor-pointer',
+    'rounded-3xl border border-border/40 bg-surface-1 p-5 shadow-card transition-colors hover:border-primary/25 hover:shadow-float cursor-pointer',
   highlight: 'rounded-3xl border border-primary/20 bg-primary-50/80 p-5 shadow-card dark:bg-primary-100/10',
-  compact: 'rounded-2xl border border-border/70 bg-surface-1 p-4 shadow-card',
+  compact: 'rounded-2xl border border-border/40 bg-surface-1 p-4 shadow-card',
   flat: 'rounded-2xl bg-surface-2 p-5',
 } as const
 
@@ -102,7 +105,7 @@ export const buttonStyle = {
   primary:
     'rounded-2xl bg-primary text-primary-foreground px-4 py-2 text-sm font-medium shadow-sm transition-all hover:-translate-y-0.5 hover:bg-primary-600 active:translate-y-0 outline-none focus-visible:ring-[3px] focus-visible:ring-primary/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
   secondary:
-    'rounded-2xl border border-border/70 bg-surface-1 px-4 py-2 text-sm font-medium text-foreground transition-all hover:bg-surface-2 hover:border-primary/20 outline-none focus-visible:ring-[3px] focus-visible:ring-primary/15 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
+    'rounded-2xl border border-border/40 bg-surface-1 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-2 hover:border-primary/20 outline-none focus-visible:ring-[3px] focus-visible:ring-primary/15 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
   ghost:
     'rounded-2xl px-4 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-surface-2 hover:text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-primary/15 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
   danger:
@@ -123,12 +126,28 @@ export const heading = {
   section: 'text-h2 tracking-heading-md text-foreground',
   /** Panel Title — 20px/500/-0.01em，卡片/面板标题 (h3) */
   card: 'text-h3 tracking-heading-md text-foreground',
-  /** Body Label — 16px/500，表单标签/列表项名 */
+  /** Body Label — 16px/500，表单大标签/列表项名 */
   label: 'text-body-lg font-medium text-foreground',
+  /** Form Label — 14px/500，表单字段标签（比 label 小一级，更紧凑） */
+  formLabel: 'text-body font-medium text-foreground/90',
+  /** Field Hint — 12px/400，字段下方提示 */
+  fieldHint: 'text-caption text-muted-foreground',
   /** Muted description — 14px/400 */
   muted: 'text-body text-muted-foreground',
   /** Caption — 12px/400/0.01em，时间戳、弱标签 */
   micro: 'text-caption text-muted-foreground tracking-caption',
+} as const
+
+// ===== 语义文本层级 =====
+// 更精细的文本对比度控制。按 WCAG AA（4.5:1）对齐：
+// primary 最深（#1C1C1E）→ secondary 70% → tertiary 50%（muted-foreground）
+export const textColor = {
+  /** 主文本 — 最高对比度，正文、标题、关键数据 */
+  primary: 'text-foreground',
+  /** 次级文本 — 70% 深度，描述、元信息、辅助说明 */
+  secondary: 'text-foreground/70',
+  /** 三级文本 — muted，时间戳、边缘说明、已禁用 */
+  tertiary: 'text-muted-foreground',
 } as const
 
 // ===== 状态颜色 =====
@@ -166,9 +185,9 @@ export const chatBubble = {
 
 // ===== 输入框样式 =====
 export const inputStyle = {
-  chatContainer: 'relative flex items-end rounded-2xl border border-border/70 bg-surface-1 shadow-card transition-all focus-within:border-primary/35 focus-within:ring-2 focus-within:ring-primary/10',
+  chatContainer: 'relative flex items-end rounded-2xl border border-border/40 bg-surface-1 shadow-card transition-all focus-within:border-primary/35 focus-within:ring-2 focus-within:ring-primary/10',
   chatTextarea: 'flex-1 bg-transparent py-2.5 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none border-none resize-none',
-  search: 'w-full rounded-xl border border-border/70 bg-surface-1 px-3 py-2 text-sm text-foreground shadow-sm transition-all placeholder:text-muted-foreground focus:border-primary/35 focus:outline-none focus:ring-2 focus:ring-primary/10 focus-visible:border-primary/35 focus-visible:ring-2 focus-visible:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-50',
+  search: 'w-full rounded-xl border border-border/40 bg-surface-1 px-3 py-2 text-sm text-foreground shadow-sm transition-all placeholder:text-muted-foreground focus:border-primary/35 focus:outline-none focus:ring-2 focus:ring-primary/10 focus-visible:border-primary/35 focus-visible:ring-2 focus-visible:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-50',
 } as const
 
 // ===== Prose 样式（Markdown 渲染） =====
@@ -250,7 +269,7 @@ export const modelSelector = {
 // ===== 搜索栏 (DESIGN.md §4 Search Input: 16px radius) =====
 export const searchBar = {
   container: 'relative',
-  input: 'w-full rounded-2xl border border-border/70 bg-surface-1 py-2 pl-9 pr-3 text-sm text-foreground shadow-sm transition-all placeholder:text-muted-foreground focus:border-primary/35 focus:outline-none focus:ring-2 focus:ring-primary/10',
+  input: 'w-full rounded-2xl border border-border/40 bg-surface-1 py-2 pl-9 pr-3 text-sm text-foreground shadow-sm transition-all placeholder:text-muted-foreground focus:border-primary/35 focus:outline-none focus:ring-2 focus:ring-primary/10',
   icon: 'absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground',
   clear: 'absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground',
 } as const

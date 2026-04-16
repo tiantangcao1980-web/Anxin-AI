@@ -38,6 +38,12 @@ class BillingPlan(Base, TimestampMixin):
         String(3), nullable=False, default="CNY", comment="币种"
     )
 
+    # V2 架构：适用客户端 (needer / provider / both)
+    client_type: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="needer", server_default="needer",
+        comment="适用客户端: needer / provider / both"
+    )
+
     # 功能配额
     features: Mapped[Optional[dict]] = mapped_column(
         JSON, default=list, comment='功能列表: [{"name":"AI咨询","quota":100}, ...]'
@@ -76,7 +82,7 @@ class BillingPlan(Base, TimestampMixin):
 
 
 class Subscription(Base, TimestampMixin):
-    """用户订阅"""
+    """用户订阅（V2 架构：支持双端独立计费）"""
     __tablename__ = "subscriptions"
 
     user_id: Mapped[str] = mapped_column(
@@ -92,8 +98,31 @@ class Subscription(Base, TimestampMixin):
         nullable=True, comment="企业订阅关联组织"
     )
 
+    # V2 架构：适用客户端（needer/provider），同一用户可有两端各一个活跃订阅
+    client_type: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="needer", server_default="needer",
+        comment="适用客户端: needer(需求方) / provider(服务方)"
+    )
+
+    # V2 架构：允许的运行模式（JSON 列表），从 plan.features.modes 继承
+    allowed_modes: Mapped[Optional[dict]] = mapped_column(
+        JSON, nullable=True,
+        comment='允许的运行模式: ["local","hybrid","cloud"]'
+    )
+
+    # V2 架构：功能权限覆盖（管理员可逐用户定制）
+    features_override: Mapped[Optional[dict]] = mapped_column(
+        JSON, nullable=True,
+        comment="管理员覆盖的功能权限（优先于 plan.features）"
+    )
+
     status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="active", comment="订阅状态: active/past_due/cancelled/expired"
+        String(20), nullable=False, default="active", comment="订阅状态: active/trial/past_due/cancelled/expired"
+    )
+
+    # V2 架构：试用期
+    trial_ends_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True, comment="试用期结束时间"
     )
 
     current_period_start: Mapped[date] = mapped_column(

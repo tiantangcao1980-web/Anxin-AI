@@ -275,7 +275,7 @@ export const LawyerAssistPanel = memo(function LawyerAssistPanel({
  <div className="flex bg-background rounded-lg p-0.5 border border-border">
  <button
  onClick={() => setActiveView('comments')}
- className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded-md transition-all ${
+ className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded-md transition-[colors,shadow] ${
  activeView ==='comments' ?'bg-primary/5 text-primary shadow-sm' :'text-muted-foreground hover:text-foreground'
  }`}
  >
@@ -284,7 +284,7 @@ export const LawyerAssistPanel = memo(function LawyerAssistPanel({
  </button>
  <button
  onClick={() => setActiveView('chat')}
- className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded-md transition-all ${
+ className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded-md transition-[colors,shadow] ${
  activeView ==='chat' ?'bg-primary/5 text-primary shadow-sm' :'text-muted-foreground hover:text-foreground'
  }`}
  >
@@ -552,7 +552,7 @@ export const LawyerAssistPanel = memo(function LawyerAssistPanel({
  <button
  key={key}
  onClick={() => setRequestType(key as any)}
- className={`p-3 rounded-xl text-left border transition-all ${
+ className={`p-3 rounded-xl text-left border transition-[colors,shadow] ${
  requestType === key
  ?'border-primary/30 bg-primary/5 shadow-sm'
  :'border-border bg-background hover:border-muted-foreground'
@@ -610,7 +610,7 @@ export const LawyerAssistPanel = memo(function LawyerAssistPanel({
  key={lawyer.id}
  onClick={() => isAvailable && setSelectedLawyer(isSelected ? null : lawyer)}
  whileTap={isAvailable ? { scale: 0.98 } : undefined}
- className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
+ className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-[colors,shadow] text-left ${
  isSelected
  ?'border-primary bg-primary/5 shadow-md shadow-primary/10'
  : isAvailable
@@ -674,7 +674,7 @@ export const LawyerAssistPanel = memo(function LawyerAssistPanel({
  <button
  onClick={handleSendRequest}
  disabled={!selectedLawyer || !canvasContent}
- className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground text-sm font-medium rounded-xl hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm active:scale-[0.98]"
+ className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground text-sm font-medium rounded-xl hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-[colors,transform] shadow-sm active:scale-[0.98]"
  >
  <icons.Send className="w-4 h-4" />
  {selectedLawyer

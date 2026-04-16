@@ -53,7 +53,7 @@ export const LawyerCard = memo(function LawyerCard({ component, onEvent }: Props
  onClick={handleAction}
  disabled={data.status ==='offline'}
  className={cn(
-'inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-medium transition-all',
+'inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-medium transition-colors',
  data.status ==='offline'
  ?'bg-muted text-muted-foreground/70 cursor-not-allowed'
  :'bg-primary text-white hover:bg-primary-600',

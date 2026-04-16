@@ -272,7 +272,7 @@ export const AgentTaskBoard = memo(function AgentTaskBoard({
  {onGenerateDocument && (
  <button
  onClick={onGenerateDocument}
- className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
+ className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
  >
  <icons.FileOutput className="w-3.5 h-3.5" />
  查看文档
@@ -341,7 +341,7 @@ function TaskCard({
  {/* 并行角标 */}
  {isParallel && task.status ==='running' && (
  <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
- <icons.Zap className="w-2.5 h-2.5 text-white" />
+ <icons.Zap className="w-2.5 h-2.5 text-primary-foreground" />
  </div>
  )}
 

@@ -98,7 +98,7 @@ export const A2UIInput = forwardRef<HTMLTextAreaElement, A2UIInputProps>(
  const baseClassName = cn(
  // 基础样式
 'w-full',
-'transition-all',
+'transition-colors',
 'duration-200',
 'resize-none',
 'focus:outline-none',

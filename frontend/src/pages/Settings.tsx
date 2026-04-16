@@ -1062,7 +1062,7 @@ function McpConfigDialog({ editingServer, onClose, onSave }: { editingServer: Mc
  }
 
  return (
- <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+ <div className="fixed inset-0 bg-foreground/40 flex items-center justify-center z-50">
  <div className="bg-background border border-border rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col mx-4">
  <div className="flex items-center justify-between px-6 py-4 border-b border-border">
  <h2 className={heading.section}>{editingServer ?'编辑服务' :'添加服务'}</h2>

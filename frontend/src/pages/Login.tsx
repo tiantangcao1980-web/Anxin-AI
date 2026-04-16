@@ -34,6 +34,11 @@ export default function Login() {
  const [mode, setMode] = useState<'login' |'register' |'forgot' |'verify'>('login')
  const [loading, setLoading] = useState(false)
 
+ // V2 架构：从 URL 读取客户端角色 (?role=provider 表示服务方端登录)
+ // 路由 /pro/login 会自动附加此参数
+ const searchParams = new URLSearchParams(location.search)
+ const clientRole: 'needer' | 'provider' = (searchParams.get('role') === 'provider' || location.pathname.startsWith('/pro')) ? 'provider' : 'needer'
+
  // 功能开关
  const [features, setFeatures] = useState({
  email_verify_enabled: false,
@@ -146,7 +151,10 @@ export default function Login() {
  const [regConfirm, setRegConfirm] = useState('')
  const [showRegPassword, setShowRegPassword] = useState(false)
  const [agreedTerms, setAgreedTerms] = useState(false)
- const [regUserType, setRegUserType] = useState<'individual' |'enterprise' |'platform_lawyer' |'institution'>('individual')
+ // V2 架构：根据客户端角色设置默认用户类型
+ const [regUserType, setRegUserType] = useState<'individual' |'enterprise' |'platform_lawyer' |'institution'>(
+   clientRole === 'provider' ? 'platform_lawyer' : 'individual'
+ )
 
  // 邮箱验证
  const [verifyEmail, setVerifyEmail] = useState('')
@@ -174,8 +182,15 @@ export default function Login() {
  }
  const pwdStrength = getPasswordStrength(regPassword)
 
- // 登录成功后跳转的目标路径
- const from = (location.state as { from?: string })?.from ||'/chat'
+ // 登录成功后跳转的目标路径（V2 架构：按 primary_client 决定默认入口）
+ const fromState = (location.state as { from?: string })?.from
+ // 根据用户的 primary_client 推断默认主入口
+ const getDefaultHomeForUser = (u: { primary_client?: string; role?: string }): string => {
+   if (u.primary_client === 'provider' || u.role === 'platform_lawyer' || u.role === 'org_admin') {
+     return '/pro/dashboard'
+   }
+   return '/chat'
+ }
 
  const persistSession = async (resp: LoginResponse) => {
  await authClient.persistSession(resp)
@@ -193,7 +208,9 @@ export default function Login() {
  const resp = await authClient.login({ email, password, captcha_token: captchaToken || undefined })
  setAuth(resp.user, resp.access_token)
  toast.success(`欢迎回来，${resp.user.name}！`)
- navigate(from, { replace: true })
+ // V2: 如果指定了 from，去 from；否则根据用户身份决定默认入口
+ const target = fromState || getDefaultHomeForUser(resp.user)
+ navigate(target, { replace: true })
  } catch (err: any) {
  const msg = err.message ||'登录失败，请检查邮箱和密码'
  if (msg.includes('邮箱未验证')) {
@@ -244,7 +261,7 @@ export default function Login() {
  const loginResp = await authApi.login({ email: regEmail, password: regPassword })
  await persistSession(loginResp)
  toast.success(`注册成功！欢迎 ${loginResp.user.name}`)
- navigate(from, { replace: true })
+ navigate(fromState || '/chat', { replace: true })
  return
  } catch {
  toast.success('注册成功！请登录')
@@ -338,7 +355,7 @@ export default function Login() {
  const resp = await authApi.verifyEmail(verifyEmail, verifyCode)
  await persistSession(resp)
  toast.success('邮箱验证成功！')
- navigate(from, { replace: true })
+ navigate(fromState || '/chat', { replace: true })
  } catch (err: any) {
  toast.error(err.message ||'验证失败')
  } finally {
@@ -753,16 +770,20 @@ export default function Login() {
  onSubmit={handleRegister}
  className="space-y-4"
  >
- {/* 用户类型选择 */}
+ {/* 用户类型选择 — V2 架构：按客户端角色分流 */}
  <div>
  <label className="block text-sm font-medium text-foreground mb-2">我是</label>
  <div className="grid grid-cols-2 gap-2">
- {([
- { value:'individual', label:'个人用户', desc:'法律咨询' },
- { value:'enterprise', label:'企业用户', desc:'企业法务' },
- { value:'platform_lawyer', label:'律师', desc:'需实名认证' },
- { value:'institution', label:'律所/机构', desc:'需资质审核' },
- ] as const).map((opt) => (
+ {(clientRole === 'provider'
+   ? [
+       { value:'platform_lawyer', label:'律师', desc:'需实名认证' },
+       { value:'institution', label:'律所/机构', desc:'需资质审核' },
+     ] as const
+   : [
+       { value:'individual', label:'个人用户', desc:'法律咨询' },
+       { value:'enterprise', label:'企业用户', desc:'企业法务' },
+     ] as const
+ ).map((opt) => (
  <button
  key={opt.value}
  type="button"
@@ -779,6 +800,14 @@ export default function Login() {
  <div className="text-xs text-muted-foreground">{opt.desc}</div>
  </button>
  ))}
+ </div>
+ {/* 跨端引导 */}
+ <div className="mt-3 text-xs text-muted-foreground text-center">
+ {clientRole === 'provider' ? (
+   <>不是律师？<button type="button" onClick={() => { window.location.href = '/login' }} className="text-primary hover:underline ml-1">去用户端注册</button></>
+ ) : (
+   <>您是律师？<button type="button" onClick={() => { window.location.href = '/pro/login' }} className="text-primary hover:underline ml-1">去服务方端注册</button></>
+ )}
  </div>
  </div>
 
