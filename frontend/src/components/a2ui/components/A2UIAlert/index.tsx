@@ -32,22 +32,22 @@ export interface A2UIAlertProps {
 const alertStyles = {
  types: {
  info: {
- solid:'bg-primary text-white',
+ solid:'bg-primary text-primary-foreground',
  outlined:'border-2 border-primary text-primary bg-primary/5',
  soft:'bg-primary/5 text-primary border border-primary/20',
  },
  success: {
- solid:'bg-success text-white',
+ solid:'bg-success text-success-foreground',
  outlined:'border-2 border-success/20 text-success bg-success/10',
  soft:'bg-success/10 text-success border border-success/20',
  },
  warning: {
- solid:'bg-warning text-white',
+ solid:'bg-warning text-warning-foreground',
  outlined:'border-2 border-warning/20 text-warning bg-warning/10',
  soft:'bg-warning/10 text-warning border border-warning/20',
  },
  error: {
- solid:'bg-destructive text-white',
+ solid:'bg-destructive text-destructive-foreground',
  outlined:'border-2 border-destructive/20 text-destructive bg-destructive/10',
  soft:'bg-destructive/10 text-destructive border border-destructive/20',
  },

@@ -2211,7 +2211,7 @@ export default function Chat() {
  <div className="flex-1 flex overflow-hidden">
  {/* 左侧聊天区 — 自适应宽度，拖拽时禁用动画防止卡顿 */}
  <div
- className={`flex flex-col bg-background relative ${isDragging ?'' :'transition-all duration-300 ease-in-out'}`}
+ className={`flex flex-col bg-background relative ${isDragging ?'' :'transition-[width] duration-300 ease-in-out'}`}
  style={{ width: rightPanelOpen && !isMobile ? `${100 - rightPanelWidth}%` :'100%', minWidth: 0 }}
  >
  {/* Header — v3 紧凑版 */}

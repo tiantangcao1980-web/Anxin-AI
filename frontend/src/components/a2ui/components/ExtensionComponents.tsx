@@ -139,7 +139,7 @@ export const PaymentCard = memo(function PaymentCard({
  type:'action', actionId: payAction.actionId, componentId: component.id,
  payload: { method: selectedMethod, amount },
  })}
- className="flex-1 px-4 py-2.5 text-sm text-white bg-success hover:bg-success/20 rounded-lg transition-colors font-medium"
+ className="flex-1 px-4 py-2.5 text-sm text-success-foreground bg-success hover:bg-success/20 rounded-lg transition-colors font-medium"
  >
  {payAction.label}
  </button>
@@ -287,7 +287,7 @@ export const SchedulePicker = memo(function SchedulePicker({
  !slot.available
  ?'bg-muted text-muted-foreground/50 cursor-not-allowed'
  : selectedSlot === slot.id
- ?'bg-primary text-white'
+ ?'bg-primary text-primary-foreground'
  :'bg-muted text-muted-foreground hover:bg-primary/5 hover:text-primary'
  }`}
  >
@@ -309,7 +309,7 @@ export const SchedulePicker = memo(function SchedulePicker({
  type:'action', actionId: onSelectAction.actionId, componentId: component.id,
  payload: { slotId: selectedSlot },
  })}
- className="w-full py-2.5 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors font-medium"
+ className="w-full py-2.5 text-sm text-primary-foreground bg-primary hover:bg-primary/90 rounded-lg transition-colors font-medium"
  >
  {onSelectAction.label}
  </button>
@@ -386,7 +386,7 @@ export const FeedbackCard = memo(function FeedbackCard({
  type:'form-submit', actionId: submitAction.actionId, componentId: component.id,
  formData: { rating, comment, tags: selectedTags },
  })}
- className="w-full py-2.5 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors font-medium flex items-center justify-center gap-1.5"
+ className="w-full py-2.5 text-sm text-primary-foreground bg-primary hover:bg-primary/90 rounded-lg transition-colors font-medium flex items-center justify-center gap-1.5"
  >
  <icons.ThumbsUp className="w-3.5 h-3.5" />
  {submitAction.label}

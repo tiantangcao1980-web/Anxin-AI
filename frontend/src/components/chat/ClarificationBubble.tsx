@@ -175,7 +175,7 @@ export function ClarificationBubble({
  {/* 自己输入按钮 */}
  <button
  onClick={() => handleToggleCustomInput(q.question)}
- className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+ className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
  isCustomMode
  ?'bg-primary/5 text-primary border-primary/30'
  :'bg-background text-muted-foreground/60 border-dashed border-border hover:border-primary/50 hover:text-primary cursor-pointer'
@@ -219,7 +219,7 @@ export function ClarificationBubble({
  <button
  onClick={handleSubmit}
  disabled={disabled}
- className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-xl hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98] shadow-sm"
+ className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-xl hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-[background-color,transform] active:scale-[0.98] shadow-sm"
  >
  {allAnswered ? (
  <>确认需求，开始处理 <icons.ChevronRight className="w-4 h-4" /></>

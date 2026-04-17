@@ -319,7 +319,7 @@ function NotificationRow({
 
  return (
  <div
- className={`flex items-start gap-3 px-3 py-3 rounded-xl cursor-pointer transition-all group ${
+ className={`flex items-start gap-3 px-3 py-3 rounded-xl cursor-pointer transition-colors group ${
  isSelected
  ? listItem.active
  : item.is_read

@@ -71,7 +71,7 @@ export const RecommendationCard = memo(function RecommendationCard({ component, 
  ?'bg-surface-2 text-foreground hover:bg-muted'
  : data.action.variant ==='outline'
  ?'border border-primary/20 text-primary hover:bg-primary/5'
- :'bg-primary text-white hover:bg-primary-600',
+ :'bg-primary text-primary-foreground hover:bg-primary-600',
  )}
  >
  {data.action.label}

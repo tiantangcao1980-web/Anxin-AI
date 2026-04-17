@@ -144,10 +144,10 @@ export const OrderCard = memo(function OrderCard({ component, onEvent }: Props) 
  onClick={() => handleAction(action.actionId, action.payload)}
  className={cn(
 'flex-1 py-2.5 rounded-xl text-sm font-semibold transition-[colors,transform] active:scale-[0.98]',
- action.variant ==='primary' &&'bg-primary text-white hover:bg-primary/90',
+ action.variant ==='primary' &&'bg-primary text-primary-foreground hover:bg-primary/90',
  action.variant ==='secondary' &&'bg-muted text-foreground hover:bg-accent',
  action.variant ==='outline' &&'border border-border text-foreground hover:bg-muted/50',
- action.variant ==='warning' &&'bg-warning text-white hover:bg-warning/20',
+ action.variant ==='warning' &&'bg-warning text-warning-foreground hover:bg-warning/20',
  !action.variant &&'bg-muted text-foreground hover:bg-accent',
  action.fullWidth &&'w-full',
  )}

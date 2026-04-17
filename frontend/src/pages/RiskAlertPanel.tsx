@@ -233,7 +233,7 @@ export function RiskAlertPanel() {
             return (
               <div
                 key={item.id}
-                className={`rounded-xl border bg-card transition-all ${item.handled ? 'opacity-60' : ''}`}
+                className={`rounded-xl border bg-card transition-opacity ${item.handled ? 'opacity-60' : ''}`}
               >
                 <button
                   type="button"

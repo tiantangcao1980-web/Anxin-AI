@@ -227,7 +227,7 @@ export default function PrivateLLMSetup() {
  <div key={label} className="flex items-center gap-2 flex-1">
  <button
  onClick={() => setCurrentStep(i)}
- className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-sm font-medium ${
+ className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
  i === currentStep
  ?'bg-primary text-primary-foreground'
  : i < currentStep
@@ -335,7 +335,7 @@ export default function PrivateLLMSetup() {
  setSelectedModel(model.id)
  setModelName(model.name.toLowerCase().replace('-',':'))
  }}
- className={`p-4 rounded-xl border text-left transition-all ${
+ className={`p-4 rounded-xl border text-left transition-colors ${
  isSelected
  ?'border-primary bg-primary/5 ring-2 ring-primary/20'
  :'border-border hover:border-primary/30 hover:bg-muted/50'

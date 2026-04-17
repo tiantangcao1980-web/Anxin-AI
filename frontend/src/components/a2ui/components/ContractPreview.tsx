@@ -112,7 +112,7 @@ export const ContractPreview = memo(function ContractPreview({ component, onEven
  })}
  className={cn(
 'flex-1 py-2.5 rounded-xl text-xs font-semibold transition-[colors,transform] active:scale-[0.98]',
- action.variant ==='primary' &&'bg-primary text-white hover:bg-primary/90',
+ action.variant ==='primary' &&'bg-primary text-primary-foreground hover:bg-primary/90',
  action.variant ==='secondary' &&'bg-muted text-foreground hover:bg-accent',
  action.variant ==='outline' &&'border border-border text-foreground hover:bg-muted/50',
  !action.variant &&'bg-muted text-foreground hover:bg-accent',

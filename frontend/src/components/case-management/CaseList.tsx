@@ -109,7 +109,7 @@ export function CaseList({ cases, selectedCase, onSelectCase, onCreateCase }: Ca
  animate={{ opacity: 1, y: 0 }}
  transition={{ delay: index * 0.05 }}
  onClick={() => onSelectCase(caseItem)}
- className={`p-4 rounded-xl border cursor-pointer transition-all hover:shadow-md ${
+ className={`p-4 rounded-xl border cursor-pointer transition-[border-color,box-shadow] hover:shadow-md ${
  isSelected
  ?'border-primary bg-primary/5 shadow-sm'
  : `${priority.border} bg-background hover:border-primary/20`
@@ -151,7 +151,7 @@ export function CaseList({ cases, selectedCase, onSelectCase, onCreateCase }: Ca
  </div>
  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
  <div
- className={`h-full rounded-full transition-all ${
+ className={`h-full rounded-full transition-[width,background-color] ${
  caseItem.progress >= 100
  ?'bg-success'
  : caseItem.progress >= 50

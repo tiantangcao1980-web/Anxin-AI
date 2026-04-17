@@ -37,7 +37,7 @@ export function DocumentLibrary() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`px-4 py-2.5 rounded-t-xl text-sm font-medium transition-all flex items-center gap-2 relative ${
+                className={`px-4 py-2.5 rounded-t-xl text-sm font-medium transition-colors flex items-center gap-2 relative ${
                   activeTab === tab.id
                     ? 'text-primary'
                     : 'text-muted-foreground hover:text-foreground'

@@ -1231,7 +1231,7 @@ export default function Collaboration() {
  return (
  <div
  key={uid}
- className="absolute left-0 right-0 rounded-sm transition-all"
+ className="absolute left-0 right-0 rounded-sm transition-colors"
  style={{
  top: `${top}px`,
  height: `${height}px`,
@@ -1419,7 +1419,7 @@ export default function Collaboration() {
  {[...versionHistory].reverse().map((ver, idx) => (
  <div key={ver.id} className="relative pl-8 group">
  <div className={`absolute left-1.5 top-3 w-3 h-3 rounded-full border-2 ${idx === 0 ?'bg-primary border-primary' :'bg-background border-border group-hover:border-primary/50'} transition-colors`} />
- <div className="p-2 rounded-lg bg-background border border-transparent hover:border-primary/20 transition-all cursor-pointer">
+ <div className="p-2 rounded-lg bg-background border border-transparent hover:border-primary/20 transition-colors cursor-pointer">
  <div className="flex items-center justify-between mb-1">
  <span className="text-xs font-semibold text-primary">v{ver.version}</span>
  <Badge variant="outline" className="text-[10px] px-1.5 py-0">

@@ -487,7 +487,7 @@ export default function LawyerProfile() {
  <div className="sticky bottom-4 flex justify-center">
  <button
  onClick={() => navigate('/find-lawyer')}
- className="px-8 py-3 bg-primary text-primary-foreground rounded-xl text-base font-medium shadow-lg hover:bg-primary/90 active:scale-[0.98] transition-all"
+ className="px-8 py-3 bg-primary text-primary-foreground rounded-xl text-base font-medium shadow-lg hover:bg-primary/90 active:scale-[0.98] transition-[background-color,transform]"
  >
  立即咨询
  </button>

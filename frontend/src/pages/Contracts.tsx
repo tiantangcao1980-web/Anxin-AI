@@ -225,7 +225,7 @@ export default function Contracts() {
  <span className={`${heading.micro} whitespace-nowrap`}>风险评分:</span>
  <div className="flex-1 h-2 bg-muted border border-border/50 rounded-full overflow-hidden max-w-xs">
  <div
- className={`h-full rounded-full transition-all duration-300 ${
+ className={`h-full rounded-full transition-[width] duration-300 ${
  contract.risk_score >= 0.7 ?'bg-destructive' :
  contract.risk_score >= 0.5 ?'bg-warning' :
  contract.risk_score >= 0.3 ?'bg-warning' :

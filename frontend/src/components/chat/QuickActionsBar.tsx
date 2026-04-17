@@ -56,7 +56,7 @@ export const DeepModeToggle = memo(function DeepModeToggle({
       onClick={onToggle}
       disabled={disabled}
       title={isActive ? '关闭深度思考（多智能体协作·深度分析·联网搜索）' : '开启深度思考（多智能体协作·深度分析·联网搜索）'}
-      className={`relative flex items-center gap-1 px-2 py-1.5 text-xs font-medium ${radius.button} transition-all duration-200 flex-shrink-0 disabled:opacity-40 ${
+      className={`relative flex items-center gap-1 px-2 py-1.5 text-xs font-medium ${radius.button} transition-colors duration-200 flex-shrink-0 disabled:opacity-40 ${
         isActive
           ? 'bg-primary/5 text-primary hover:bg-primary/10'
           : 'text-muted-foreground hover:text-foreground hover:bg-muted'

@@ -110,7 +110,7 @@ export function TemplateGallery({ onAIGenerate }: TemplateGalleryProps) {
  {onAIGenerate && (
  <button
  onClick={() => onAIGenerate('法律文书')}
- className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium"
+ className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium"
  >
  <icons.Sparkles className="w-4 h-4" />
  前往 AI 生成
@@ -129,9 +129,9 @@ export function TemplateGallery({ onAIGenerate }: TemplateGalleryProps) {
  <button
  key={category}
  onClick={() => setSelectedCategory(category)}
- className={`px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${
+ className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
  selectedCategory === category
- ?'bg-primary text-white shadow-sm'
+ ?'bg-primary text-primary-foreground shadow-sm'
  :'bg-background text-foreground/80 hover:bg-muted border border-border'
  }`}
  >
@@ -153,7 +153,7 @@ export function TemplateGallery({ onAIGenerate }: TemplateGalleryProps) {
  >
  {/* Icon */}
  <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-sm">
- <icons.FileText className="w-6 h-6 text-white" />
+ <icons.FileText className="w-6 h-6 text-primary-foreground" />
  </div>
 
  {/* Content */}
@@ -191,7 +191,7 @@ export function TemplateGallery({ onAIGenerate }: TemplateGalleryProps) {
  {onAIGenerate && (
  <button
  onClick={(e) => { e.stopPropagation(); onAIGenerate(template.name); }}
- className="p-1.5 hover:bg-warning/20 rounded-lg text-warning active:scale-95 transition-all flex items-center gap-1 px-2"
+ className="p-1.5 hover:bg-warning/20 rounded-lg text-warning active:scale-95 transition-[background-color,transform] flex items-center gap-1 px-2"
  title="AI 智能生成"
  >
  <icons.Sparkles className="w-4 h-4" />
@@ -201,7 +201,7 @@ export function TemplateGallery({ onAIGenerate }: TemplateGalleryProps) {
  <button
  onClick={(e) => { e.stopPropagation(); handleUseTemplate(template); }}
  disabled={!!processingId}
- className="p-1.5 hover:bg-primary/5 rounded-lg text-primary active:scale-95 transition-all flex items-center gap-1 px-2"
+ className="p-1.5 hover:bg-primary/5 rounded-lg text-primary active:scale-95 transition-[background-color,transform] flex items-center gap-1 px-2"
  >
  {processingId === template.id ? (
  <icons.Loader2 className="w-4 h-4 animate-spin" />

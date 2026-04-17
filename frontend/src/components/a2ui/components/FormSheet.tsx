@@ -87,7 +87,7 @@ export const FormSheet = memo(function FormSheet({ component, onEvent }: Props) 
  animate={{ scale: 1 }}
  className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-primary rounded-full flex items-center justify-center"
  >
- <icons.Check className="w-2.5 h-2.5 text-white" />
+ <icons.Check className="w-2.5 h-2.5 text-primary-foreground" />
  </motion.div>
  )}
  </button>
@@ -260,7 +260,7 @@ export const FormSheet = memo(function FormSheet({ component, onEvent }: Props) 
 'w-full py-3 rounded-xl text-sm font-semibold transition-[colors,transform] active:scale-[0.98]',
  data.submitAction.variant ==='secondary'
  ?'bg-muted text-foreground hover:bg-accent'
- :'bg-primary text-white hover:bg-primary/90',
+ :'bg-primary text-primary-foreground hover:bg-primary/90',
  )}
  >
  {data.submitAction.label}

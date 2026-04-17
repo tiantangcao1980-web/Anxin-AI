@@ -228,7 +228,7 @@ export function ScenarioSimulation({ companyName, currentRisk }: ScenarioSimulat
  whileTap={{ scale: 0.98 }}
  onClick={() => runSimulation(tmpl.id)}
  disabled={simulating}
- className={`p-4 rounded-xl border text-left transition-all ${
+ className={`p-4 rounded-xl border text-left transition-colors ${
  isActive
  ?'border-primary bg-primary/5 ring-2 ring-primary/20'
  :'border-border hover:border-primary/30 hover:bg-muted/30'
@@ -378,7 +378,7 @@ export function ScenarioSimulation({ companyName, currentRisk }: ScenarioSimulat
  <div className="space-y-2">
  {result.recommendations.map((rec, i) => (
  <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-primary/5">
- <span className="w-5 h-5 rounded-full bg-primary text-white text-[10px] flex items-center justify-center shrink-0 mt-0.5 font-bold">
+ <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center shrink-0 mt-0.5 font-bold">
  {i + 1}
  </span>
  <p className="text-xs text-foreground leading-relaxed">{rec}</p>

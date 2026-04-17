@@ -255,9 +255,9 @@ export function SentimentDashboard({ companyName, onEntityClick, investigationDa
  <button
  key={tab.id}
  onClick={() => setActiveView(tab.id)}
- className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+ className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
  activeView === tab.id
- ?'bg-primary text-white'
+ ?'bg-primary text-primary-foreground'
  :'bg-muted text-muted-foreground hover:text-foreground'
  }`}
  >

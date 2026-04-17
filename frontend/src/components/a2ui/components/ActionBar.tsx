@@ -73,7 +73,7 @@ export const ActionBar = memo(function ActionBar({ component, onEvent }: Props) 
  {Icon && <Icon className="w-3.5 h-3.5" />}
  {item.label}
  {item.badge && (
- <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-destructive text-white text-[9px] font-bold">
+ <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold">
  {item.badge}
  </span>
  )}

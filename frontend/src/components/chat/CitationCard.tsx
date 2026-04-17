@@ -71,7 +71,7 @@ export function CitationCard({ citation }: CitationCardProps) {
 
   return (
     <div
-      className={`${cardStyle.compact} cursor-pointer hover:border-primary/20 hover:shadow-sm transition-all`}
+      className={`${cardStyle.compact} cursor-pointer hover:border-primary/20 hover:shadow-sm transition-[border-color,box-shadow]`}
       onClick={() => setExpanded(!expanded)}
     >
       <div className="flex items-start gap-2.5">

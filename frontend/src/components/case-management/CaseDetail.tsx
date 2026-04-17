@@ -253,7 +253,7 @@ ${activities.length > 0 ? activities.slice(0, 5).map(a => `- [${new Date(a.time)
  initial={{ opacity: 0, x: -10 }}
  animate={{ opacity: 1, x: 0 }}
  transition={{ delay: index * 0.05 }}
- className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-border hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer"
+ className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-border hover:border-primary/30 hover:bg-primary/5 transition-colors cursor-pointer"
  >
  <div className="flex items-center gap-3">
  <icons.FileText className="w-8 h-8 text-primary" />
@@ -316,7 +316,7 @@ ${activities.length > 0 ? activities.slice(0, 5).map(a => `- [${new Date(a.time)
  <button 
  onClick={handleGenerateBriefing}
  disabled={isGenerating}
- className="flex-1 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all text-sm font-medium flex items-center justify-center gap-2 shadow-sm disabled:opacity-70"
+ className="flex-1 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium flex items-center justify-center gap-2 shadow-sm disabled:opacity-70"
  >
  {isGenerating ? (
  <>

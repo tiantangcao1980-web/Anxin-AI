@@ -54,9 +54,9 @@ export function AIAssistant() {
  <div className="border-b border-border bg-background px-2 py-2 flex gap-2 overflow-x-auto">
  <button
  onClick={() => setMobileTab('editor')}
- className={`flex-1 min-w-[100px] px-4 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
+ className={`flex-1 min-w-[100px] px-4 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2 whitespace-nowrap ${
  mobileTab ==='editor'
- ?'bg-primary text-white shadow-sm'
+ ?'bg-primary text-primary-foreground shadow-sm'
  :'bg-muted text-foreground/80 active:bg-border'
  }`}
  >
@@ -65,9 +65,9 @@ export function AIAssistant() {
  </button>
  <button
  onClick={() => setMobileTab('annotation')}
- className={`flex-1 min-w-[100px] px-4 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
+ className={`flex-1 min-w-[100px] px-4 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2 whitespace-nowrap ${
  mobileTab ==='annotation'
- ?'bg-primary text-white shadow-sm'
+ ?'bg-primary text-primary-foreground shadow-sm'
  :'bg-muted text-foreground/80 active:bg-border'
  }`}
  >
@@ -76,9 +76,9 @@ export function AIAssistant() {
  </button>
  <button
  onClick={() => setMobileTab('knowledge')}
- className={`flex-1 min-w-[100px] px-4 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
+ className={`flex-1 min-w-[100px] px-4 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2 whitespace-nowrap ${
  mobileTab ==='knowledge'
- ?'bg-primary text-white shadow-sm'
+ ?'bg-primary text-primary-foreground shadow-sm'
  :'bg-muted text-foreground/80 active:bg-border'
  }`}
  >

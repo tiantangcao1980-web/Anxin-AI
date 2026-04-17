@@ -201,9 +201,9 @@ export const BottomActionBar = memo(function BottomActionBar({
  className={cn(
 'flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-medium transition-[colors,transform] active:scale-95',
  action.variant ==='primary'
- ?'bg-primary text-white hover:bg-primary/90 shadow-sm flex-1'
+ ?'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm flex-1'
  : action.variant ==='destructive'
- ?'bg-destructive text-white hover:bg-destructive/20'
+ ?'bg-destructive text-destructive-foreground hover:bg-destructive/20'
  : action.variant ==='outline'
  ?'border border-border text-foreground hover:bg-muted'
  :'bg-muted text-foreground hover:bg-muted',

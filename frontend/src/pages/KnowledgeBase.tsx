@@ -672,7 +672,7 @@ export default function KnowledgeBase() {
                   <div key={cat} className="flex items-center gap-2">
                     <span className="text-xs text-foreground w-16 shrink-0">{cat}</span>
                     <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-primary/60 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                      <div className="h-full bg-primary/60 rounded-full transition-[width]" style={{ width: `${pct}%` }} />
                     </div>
                     <span className="text-xs text-muted-foreground w-12 text-right">{count} ({pct}%)</span>
                   </div>

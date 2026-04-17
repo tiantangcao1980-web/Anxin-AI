@@ -63,7 +63,7 @@ export function DocumentEditor({ content, onContentChange, onAnnotationClick }: 
  <button
  onClick={handleReview}
  disabled={isReviewing}
- className="px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm font-medium shadow-sm active:scale-95"
+ className="px-4 py-2 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm font-medium shadow-sm active:scale-95"
  >
  <icons.Send className="w-4 h-4" />
  {isReviewing ?'审核中...' :'提交 AI 审核'}

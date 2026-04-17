@@ -167,7 +167,7 @@ export function KnowledgeBaseManager() {
  <motion.button
  key={kb.id}
  onClick={() => loadDocuments(kb)}
- className={`w-full text-left p-3 rounded-xl transition-all ${
+ className={`w-full text-left p-3 rounded-xl transition-colors ${
  isSelected
  ?'bg-primary/5 border border-primary/20 shadow-sm'
  :'hover:bg-muted/50 border border-transparent'
@@ -316,7 +316,7 @@ export function KnowledgeBaseManager() {
  </div>
  <button
  onClick={() => handleDeleteDoc(doc.id)}
- className="p-1.5 text-muted-foreground/50 hover:text-destructive hover:bg-destructive/5 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+ className="p-1.5 text-muted-foreground/50 hover:text-destructive hover:bg-destructive/5 rounded-lg transition-[color,background-color,opacity] opacity-0 group-hover:opacity-100"
  title="删除文档"
  >
  <icons.Trash2 className="w-3.5 h-3.5" />
@@ -392,7 +392,7 @@ export function KnowledgeBaseManager() {
  <button
  key={key}
  onClick={() => setNewKb({ ...newKb, knowledge_type: key })}
- className={`flex flex-col items-center gap-1 p-2.5 rounded-xl text-[10px] font-medium transition-all border ${
+ className={`flex flex-col items-center gap-1 p-2.5 rounded-xl text-[10px] font-medium transition-colors border ${
  newKb.knowledge_type === key
  ?'border-primary/30 bg-primary/5 text-primary'
  :'border-border bg-muted/50 text-muted-foreground hover:border-border'

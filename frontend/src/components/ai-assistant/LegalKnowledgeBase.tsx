@@ -97,20 +97,20 @@ export function LegalKnowledgeBase() {
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               placeholder="搜索法律条文、案例、或输入研究课题..."
-              className="w-full pl-9 pr-3 py-2.5 bg-muted border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm text-foreground transition-all"
+              className="w-full pl-9 pr-3 py-2.5 bg-muted border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm text-foreground transition-colors"
             />
           </div>
           <button
             onClick={handleSearch}
             disabled={loading}
-            className="px-4 py-2 bg-foreground text-background rounded-xl text-sm font-medium hover:bg-foreground/90 disabled:opacity-50 transition-all"
+            className="px-4 py-2 bg-foreground text-background rounded-xl text-sm font-medium hover:bg-foreground/90 disabled:opacity-50 transition-colors"
           >
             {loading ? <icons.Loader2 className="w-4 h-4 animate-spin" /> : '搜索'}
           </button>
           <button
             onClick={handleDeepResearch}
             disabled={isResearching}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:opacity-90 shadow-md transition-all active:scale-95 disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:opacity-90 shadow-md transition-[opacity,transform] active:scale-95 disabled:opacity-50"
           >
             <icons.Sparkles className="w-4 h-4" />
             深度研究
@@ -191,10 +191,10 @@ export function LegalKnowledgeBase() {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.05 }}
-                className="group bg-background rounded-xl border border-border p-4 hover:border-primary hover:shadow-md transition-all cursor-pointer relative overflow-hidden"
+                className="group bg-background rounded-xl border border-border p-4 hover:border-primary hover:shadow-md transition-[border-color,box-shadow] cursor-pointer relative overflow-hidden"
               >
                 {item.metadata?.keyword_match && (
-                  <div className="absolute top-0 right-0 px-2 py-0.5 bg-primary text-[10px] text-white font-medium rounded-bl-lg">
+                  <div className="absolute top-0 right-0 px-2 py-0.5 bg-primary text-[10px] text-primary-foreground font-medium rounded-bl-lg">
                     精准匹配
                   </div>
                 )}

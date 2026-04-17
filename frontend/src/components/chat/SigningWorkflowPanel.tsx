@@ -294,7 +294,7 @@ const SigningWorkflowPanel = memo(function SigningWorkflowPanel({
  {/* 连接线 */}
  <div className="absolute top-4 left-4 right-4 h-0.5 bg-border" />
  <div
- className="absolute top-4 left-4 h-0.5 bg-primary transition-all duration-500"
+ className="absolute top-4 left-4 h-0.5 bg-primary transition-[width] duration-500"
  style={{ width: `${(activeStep / (WORKFLOW_STEPS.length - 1)) * 100}%`, maxWidth:'calc(100% - 2rem)' }}
  />
 
@@ -310,7 +310,7 @@ const SigningWorkflowPanel = memo(function SigningWorkflowPanel({
  <div key={step.key} className="flex flex-col items-center" style={{ width: compact ? 56 : 72 }}>
  <div
  className={[
-'relative z-10 flex items-center justify-center w-8 h-8 rounded-full border-2 transition-all duration-300',
+'relative z-10 flex items-center justify-center w-8 h-8 rounded-full border-2 transition-colors duration-300',
  isCompleted
  ?'bg-primary border-primary text-primary-foreground'
  : isActive

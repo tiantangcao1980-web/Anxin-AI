@@ -54,8 +54,8 @@ import {
 const PAGE_SIZE = 10
 
 const roleMap: Record<string, { label: string; color: string }> = {
- admin: { label:'管理员', color:'bg-warning text-white' },
- member: { label:'成员', color:'bg-info text-white' },
+ admin: { label:'管理员', color:'bg-warning text-warning-foreground' },
+ member: { label:'成员', color:'bg-info text-info-foreground' },
  viewer: { label:'观察者', color:'bg-slate-500 text-white' },
 }
 

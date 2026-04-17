@@ -58,7 +58,7 @@ export default function ClientPortal() {
     <PageContainer title="客户门户" description="查看案件进度、文档、账单">
       <div className={`${cardStyle.base} mb-6 border-primary/20 bg-primary/5`}>
         <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shrink-0">
             <icons.ShieldCheck className="w-5 h-5" />
           </div>
           <div>
@@ -78,9 +78,9 @@ export default function ClientPortal() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                 activeTab === tab.id
-                  ? 'bg-primary text-white'
+                  ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               }`}
             >

@@ -177,7 +177,7 @@ function ConversationItem({
 
  return (
  <div
- className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all ${
+ className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-colors ${
  isActive ? listItem.active : listItem.base
  }`}
  onClick={onClick}

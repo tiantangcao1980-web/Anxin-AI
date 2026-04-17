@@ -106,7 +106,7 @@ export function ExperienceMemory() {
  <button
  onClick={handleSearch}
  disabled={loading}
- className="px-4 py-2.5 bg-warning text-warning-foreground rounded-xl text-sm font-medium hover:bg-warning/20 disabled:opacity-50 transition-all shadow-sm"
+ className="px-4 py-2.5 bg-warning text-warning-foreground rounded-xl text-sm font-medium hover:bg-warning/20 disabled:opacity-50 transition-colors shadow-sm"
  >
  {loading ? <icons.Loader2 className="w-4 h-4 animate-spin" /> :'检索'}
  </button>
@@ -312,7 +312,7 @@ export function ExperienceMemory() {
  <button
  onClick={handleSubmitFeedback}
  disabled={submittingFeedback || feedbackRating === 0}
- className="flex items-center gap-2 px-5 py-2 bg-warning text-warning-foreground rounded-xl text-sm font-medium hover:bg-warning/20 disabled:opacity-50 transition-all shadow-sm"
+ className="flex items-center gap-2 px-5 py-2 bg-warning text-warning-foreground rounded-xl text-sm font-medium hover:bg-warning/20 disabled:opacity-50 transition-colors shadow-sm"
  >
  {submittingFeedback ? <icons.Loader2 className="w-4 h-4 animate-spin" /> : <icons.ThumbsUp className="w-4 h-4" />}
  提交评价
@@ -423,7 +423,7 @@ export function EvolutionEngine() {
  <button
  onClick={handleTriggerEvolution}
  disabled={evolving}
- className="flex items-center gap-2 px-5 py-2.5 bg-success text-success-foreground rounded-xl text-sm font-medium hover:bg-success/20 disabled:opacity-50 transition-all shadow-lg shadow-emerald-600/20 active:scale-95"
+ className="flex items-center gap-2 px-5 py-2.5 bg-success text-success-foreground rounded-xl text-sm font-medium hover:bg-success/20 disabled:opacity-50 transition-[background-color,transform] shadow-lg shadow-emerald-600/20 active:scale-95"
  >
  {evolving ? (
  <icons.Loader2 className="w-4 h-4 animate-spin" />

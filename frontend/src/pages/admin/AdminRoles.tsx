@@ -215,7 +215,7 @@ export default function AdminRoles() {
  transition={{ delay: index * 0.1 }}
  >
  <Card
- className={`cursor-pointer transition-all hover:shadow-md ${
+ className={`cursor-pointer transition-shadow hover:shadow-md ${
  isSelected ?'ring-2 ring-primary shadow-md' :''
  }`}
  onClick={() => setSelectedRole(role.key)}

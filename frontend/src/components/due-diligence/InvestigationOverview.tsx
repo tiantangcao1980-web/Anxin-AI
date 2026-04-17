@@ -170,7 +170,7 @@ export function InvestigationOverview({ data, companyName, onNavigate, onGenerat
  animate={{ opacity: 1, y: 0 }}
  transition={{ delay: i * 0.05 }}
  onClick={() => onNavigate(card.section)}
- className={`p-4 rounded-xl border cursor-pointer hover:shadow-md transition-all ${card.bg} ${card.border}`}
+ className={`p-4 rounded-xl border cursor-pointer hover:shadow-md transition-shadow ${card.bg} ${card.border}`}
  >
  <div className="flex items-center gap-2 mb-2">
  <Icon className={`w-4 h-4 ${card.color}`} />

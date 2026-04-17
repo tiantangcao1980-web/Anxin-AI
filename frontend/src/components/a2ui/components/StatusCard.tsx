@@ -80,7 +80,7 @@ export const StatusCard = memo(function StatusCard({ component, onEvent }: Props
  actionId: data.action!.actionId,
  componentId: component.id,
  })}
- className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-600"
+ className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-600"
  >
  {data.action.label}
  </button>

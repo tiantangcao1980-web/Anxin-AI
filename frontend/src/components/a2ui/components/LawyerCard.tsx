@@ -56,7 +56,7 @@ export const LawyerCard = memo(function LawyerCard({ component, onEvent }: Props
 'inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-medium transition-colors',
  data.status ==='offline'
  ?'bg-muted text-muted-foreground/70 cursor-not-allowed'
- :'bg-primary text-white hover:bg-primary-600',
+ :'bg-primary text-primary-foreground hover:bg-primary-600',
  )}
  >
  <icons.Phone className="w-3.5 h-3.5" />

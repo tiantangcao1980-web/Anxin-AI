@@ -84,7 +84,7 @@ export const RiskIndicator = memo(function RiskIndicator({ component, onEvent }:
  </div>
  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
  <div
- className={cn('h-full rounded-full transition-all duration-700', factorConfig.bg)}
+ className={cn('h-full rounded-full transition-[width,background-color] duration-700', factorConfig.bg)}
  style={{ width: `${factorPct}%` }}
  />
  </div>

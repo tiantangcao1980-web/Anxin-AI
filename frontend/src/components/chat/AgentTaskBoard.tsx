@@ -334,7 +334,7 @@ function TaskCard({
  initial={{ opacity: 0, scale: 0.95 }}
  animate={{ opacity: 1, scale: 1 }}
  transition={{ delay: index * 0.04, duration: 0.2 }}
- className={`relative rounded-xl border transition-all ${sty.border} ${sty.bg} ${
+ className={`relative rounded-xl border transition-colors ${sty.border} ${sty.bg} ${
  task.status ==='running' ?'shadow-sm ring-1 ring-primary/10' :''
  }`}
  >

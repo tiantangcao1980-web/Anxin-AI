@@ -190,7 +190,7 @@ export const FeeEstimateCard = memo(function FeeEstimateCard({ component, onEven
 'w-4 h-4 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0',
  selectedItems.has(item.id) ?'bg-primary border-primary' :'border-border',
  )}>
- {selectedItems.has(item.id) && <icons.Check className="w-2.5 h-2.5 text-white" />}
+ {selectedItems.has(item.id) && <icons.Check className="w-2.5 h-2.5 text-primary-foreground" />}
  </div>
  )}
  <div className="flex-1 min-w-0">
@@ -272,7 +272,7 @@ export const FeeEstimateCard = memo(function FeeEstimateCard({ component, onEven
  className={cn(
 'flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-medium transition-[colors,transform] active:scale-[0.98]',
  action.variant ==='primary'
- ?'bg-primary text-white hover:bg-primary/90 shadow-sm'
+ ?'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm'
  : action.variant ==='outline'
  ?'border border-border text-foreground hover:bg-muted'
  :'bg-muted text-foreground hover:bg-muted/80',

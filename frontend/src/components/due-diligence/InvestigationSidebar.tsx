@@ -78,9 +78,9 @@ export function InvestigationSidebar({
  }
 
  const badgeColors = {
- error:'bg-destructive text-white',
- warning:'bg-warning text-white',
- info:'bg-primary text-white',
+ error:'bg-destructive text-destructive-foreground',
+ warning:'bg-warning text-warning-foreground',
+ info:'bg-primary text-primary-foreground',
  }
 
  return (
@@ -99,7 +99,7 @@ export function InvestigationSidebar({
  key={item.id}
  onClick={() => onSectionChange(item.id)}
  className={cn(
-'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all relative group',
+'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative group',
  isActive
  ?'bg-primary/10 text-primary'
  :'text-muted-foreground hover:bg-muted hover:text-foreground',

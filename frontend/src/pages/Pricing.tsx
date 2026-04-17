@@ -167,7 +167,7 @@ export default function Pricing() {
     <button
       key={tab.key}
       onClick={() => setClientTab(tab.key)}
-      className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+      className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors ${
         clientTab === tab.key
           ? 'bg-primary text-primary-foreground shadow-sm'
           : 'bg-muted text-muted-foreground hover:bg-muted/80'

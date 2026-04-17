@@ -266,7 +266,7 @@ export function InvestigationReport({ companyName, investigationData, onBack }: 
  setActiveSection(section.id)
  document.getElementById(`report-${section.id}`)?.scrollIntoView({ behavior:'smooth', block:'start' })
  }}
- className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition-all ${
+ className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
  activeSection === section.id
  ?'bg-primary/10 text-primary'
  :'text-muted-foreground hover:bg-muted hover:text-foreground'

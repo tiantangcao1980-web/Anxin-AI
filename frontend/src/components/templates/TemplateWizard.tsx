@@ -306,7 +306,7 @@ export function TemplateWizard({ templateId, onGenerate, onClose, apiBaseUrl =''
  <div className="flex items-center gap-2">
  <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden">
  <div
- className="h-full bg-primary rounded-full transition-all duration-300"
+ className="h-full bg-primary rounded-full transition-[width] duration-300"
  style={{ width: `${completionPct}%` }}
  />
  </div>
@@ -378,7 +378,7 @@ export function TemplateWizard({ templateId, onGenerate, onClose, apiBaseUrl =''
  {showPreview && (
  <button
  onClick={() => onGenerate(previewText)}
- className="flex items-center gap-2 px-4 py-3 bg-success text-white rounded-lg hover:bg-success/20 transition-colors text-sm font-medium"
+ className="flex items-center gap-2 px-4 py-3 bg-success text-success-foreground rounded-lg hover:bg-success/20 transition-colors text-sm font-medium"
  >
  <icons.Check className="w-4 h-4" />
  使用此合同

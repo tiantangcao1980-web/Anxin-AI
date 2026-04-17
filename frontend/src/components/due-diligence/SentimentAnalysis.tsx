@@ -130,7 +130,7 @@ export function SentimentAnalysis({ data }: SentimentAnalysisProps) {
                     transition={{ delay: i * 0.08 }}
                     className="flex items-start gap-2 p-2.5 rounded-lg bg-warning/10 dark:bg-warning/20 border border-warning/20"
                   >
-                    <span className="w-5 h-5 rounded-full bg-warning text-white text-[10px] flex items-center justify-center shrink-0 mt-0.5 font-semibold">
+                    <span className="w-5 h-5 rounded-full bg-warning text-warning-foreground text-[10px] flex items-center justify-center shrink-0 mt-0.5 font-semibold">
                       {i + 1}
                     </span>
                     <p className="text-xs leading-relaxed text-foreground">{point}</p>
@@ -155,7 +155,7 @@ export function SentimentAnalysis({ data }: SentimentAnalysisProps) {
                     transition={{ delay: i * 0.08 }}
                     className="flex items-start gap-2 p-2.5 rounded-lg bg-primary/5 border border-primary/10"
                   >
-                    <span className="w-5 h-5 rounded-full bg-primary text-white text-[10px] flex items-center justify-center shrink-0 mt-0.5 font-bold">
+                    <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center shrink-0 mt-0.5 font-bold">
                       {i + 1}
                     </span>
                     <p className="text-xs leading-relaxed text-foreground">{rec}</p>

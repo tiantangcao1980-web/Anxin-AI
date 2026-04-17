@@ -133,7 +133,7 @@ export const CaseAnalysisCard = memo(function CaseAnalysisCard({
  </div>
  <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
  <div
- className={cn('h-full rounded-full transition-all duration-700 ease-out', probConfig.color)}
+ className={cn('h-full rounded-full transition-[width] duration-700 ease-out', probConfig.color)}
  style={{ width: `${Math.min(100, Math.max(0, winProbability))}%` }}
  />
  </div>

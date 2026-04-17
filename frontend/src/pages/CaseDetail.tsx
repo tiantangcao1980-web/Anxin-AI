@@ -240,7 +240,7 @@ export default function CaseDetail() {
  <div className="absolute left-0 mt-1.5 h-8 w-8 -translate-x-1/2 rounded-full border-4 border-background bg-primary shadow-sm flex items-center justify-center">
  <div className="h-2 w-2 rounded-full bg-background" />
  </div>
- <div className="flex-1 bg-muted/20 p-4 rounded-lg border border-transparent hover:border-primary/10 hover:bg-background transition-all shadow-sm group">
+ <div className="flex-1 bg-muted/20 p-4 rounded-lg border border-transparent hover:border-primary/10 hover:bg-background transition-colors shadow-sm group">
  <div className="flex justify-between items-start mb-1">
  <p className="font-medium text-foreground group-hover:text-primary transition-colors">
  {event.title}
@@ -303,7 +303,7 @@ export default function CaseDetail() {
  </div>
  <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
  <div 
- className={`h-full transition-all duration-1000 ${case_.risk_score > 0.7 ?'bg-destructive' : case_.risk_score > 0.4 ?'bg-warning' :'bg-success'}`}
+ className={`h-full transition-[width,background-color] duration-1000 ${case_.risk_score > 0.7 ?'bg-destructive' : case_.risk_score > 0.4 ?'bg-warning' :'bg-success'}`}
  style={{ width: `${case_.risk_score * 100}%` }}
  />
  </div>

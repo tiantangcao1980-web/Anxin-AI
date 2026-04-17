@@ -113,7 +113,7 @@ function ModuleSidebar({ currentPath, onNavigate }: { currentPath: string; onNav
 
   return (
     <div
-      className="hidden lg:flex flex-col border-r border-border bg-card shrink-0 transition-all duration-200"
+      className="hidden lg:flex flex-col border-r border-border bg-card shrink-0 transition-[width] duration-200"
       style={{ width: collapsed ? 56 : 220 }}
     >
       {/* 模块标题 */}
@@ -277,7 +277,7 @@ export default function Layout() {
             className="flex w-auto shrink-0 items-center justify-start gap-2.5 mr-3 sm:mr-6 lg:mr-10 lg:w-[196px]"
           >
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
-              <icons.Legal className="w-[18px] h-[18px] text-white" />
+              <icons.Legal className="w-[18px] h-[18px] text-primary-foreground" />
             </div>
             <span className={`${heading.section} hidden sm:block`}>
               安心法务
@@ -322,7 +322,7 @@ export default function Layout() {
                 {headerActionLabels && <span className="hidden whitespace-nowrap md:inline">消息</span>}
                 {(combinedUnread > 0) && (
                   <>
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-destructive text-white text-[10px] font-bold flex items-center justify-center rounded-full px-1 border-2 border-background animate-bounce-subtle">
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center rounded-full px-1 border-2 border-background animate-bounce-subtle">
                       {(combinedUnread) > 99 ? '99+' : (combinedUnread)}
                     </span>
                     <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-destructive rounded-full animate-ping opacity-40" />
@@ -369,7 +369,7 @@ export default function Layout() {
               className={`${buttonStyle.icon} p-1.5 sm:p-2 rounded-lg sm:rounded-xl`}
             >
               <div className="w-7 h-7 sm:w-8 sm:h-8 bg-primary/90 rounded-full flex items-center justify-center">
-                <icons.User className={`${iconSize.sm} text-white`} />
+                <icons.User className={`${iconSize.sm} text-primary-foreground`} />
               </div>
             </button>
 

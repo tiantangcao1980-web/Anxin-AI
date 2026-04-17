@@ -70,7 +70,7 @@ export function ModeSwitcher() {
  <div className="relative">
  <button
  onClick={() => setIsOpen(!isOpen)}
- className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-sm font-medium transition-all ${currentConfig.bg} ${currentConfig.border} ${currentConfig.color} hover:opacity-80`}
+ className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-sm font-medium transition-opacity ${currentConfig.bg} ${currentConfig.border} ${currentConfig.color} hover:opacity-80`}
  title={currentConfig.description}
  >
  <Icon className="h-4 w-4" />

@@ -418,7 +418,7 @@ export default function LawyerOnboarding() {
  {/* 步骤进度条 */}
  <div className="w-full bg-muted rounded-full h-1.5">
  <div
- className="bg-primary h-1.5 rounded-full transition-all duration-300"
+ className="bg-primary h-1.5 rounded-full transition-[width] duration-300"
  style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
  />
  </div>

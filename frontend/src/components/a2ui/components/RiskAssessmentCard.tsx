@@ -341,7 +341,7 @@ export const RiskAssessmentCard = memo(function RiskAssessmentCard({
  className={cn(
 'flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-[colors,transform] active:scale-95',
  action.variant ==='primary'
- ?'bg-primary text-white hover:bg-primary/90 shadow-sm'
+ ?'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm'
  : action.variant ==='outline'
  ?'border border-border text-muted-foreground hover:bg-muted'
  :'bg-muted text-muted-foreground hover:bg-muted/80',

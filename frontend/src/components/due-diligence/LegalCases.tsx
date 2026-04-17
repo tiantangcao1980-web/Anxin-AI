@@ -130,7 +130,7 @@ export function LegalCases({ data }: LegalCasesProps) {
  key={f}
  onClick={() => setRoleFilter(f)}
  className={`px-2.5 py-1 text-xs font-medium transition-colors ${
- roleFilter === f ?'bg-primary text-white' :'bg-background text-muted-foreground hover:text-foreground'
+ roleFilter === f ?'bg-primary text-primary-foreground' :'bg-background text-muted-foreground hover:text-foreground'
  }`}
  >
  {f ==='all' ?'全部' : f}

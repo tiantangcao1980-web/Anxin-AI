@@ -66,7 +66,7 @@ export const WorkspaceActionBar = memo(function WorkspaceActionBar({
  disabled={action.disabled}
  whileHover={action.disabled ? {} : { scale: 1.01 }}
  whileTap={action.disabled ? {} : { scale: 0.98 }}
- className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+ className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
  action.disabled ?'opacity-50 cursor-not-allowed' :''
  } ${style}`}
  >

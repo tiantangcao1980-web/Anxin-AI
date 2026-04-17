@@ -353,7 +353,7 @@ export default function AdminLawyerVerify() {
             <div className="space-y-1.5">
               <label className="text-sm font-medium">驳回原因</label>
               <textarea
-                className="w-full min-h-[80px] bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10 transition-all resize-y"
+                className="w-full min-h-[80px] bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10 transition-colors resize-y"
                 placeholder="请填写驳回原因..."
                 value={rejectReason}
                 onChange={e => setRejectReason(e.target.value)}

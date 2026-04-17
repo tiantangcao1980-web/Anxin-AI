@@ -119,7 +119,7 @@ function SearchSection() {
  <button
  key={m.key}
  onClick={() => setMode(m.key)}
- className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap shrink-0 ${
+ className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
  mode === m.key ?'bg-primary text-primary-foreground' :'bg-muted text-muted-foreground hover:text-foreground'
  }`}
  title={m.desc}

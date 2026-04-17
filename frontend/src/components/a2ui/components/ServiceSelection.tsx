@@ -44,7 +44,7 @@ export const ServiceSelection = memo(function ServiceSelection({ component, onEv
  >
  {/* 热门标记 */}
  {service.popular && (
- <div className="absolute -top-2.5 left-4 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary text-white text-[10px] font-semibold">
+ <div className="absolute -top-2.5 left-4 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold">
  <icons.Star className="w-2.5 h-2.5 fill-current" />
  推荐
  </div>

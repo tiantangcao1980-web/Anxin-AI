@@ -118,7 +118,7 @@ export default function Academy() {
  <span className="text-xs text-muted-foreground">{selectedCourse.progress}%</span>
  </div>
  <div className="w-full h-2 rounded-full bg-muted">
- <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${selectedCourse.progress}%` }} />
+ <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${selectedCourse.progress}%` }} />
  </div>
  </div>
 
@@ -164,7 +164,7 @@ export default function Academy() {
  <div className="flex gap-2">
  {[{ key:'all' as const, label:'全部' }, ...Object.entries(categoryConfig).map(([k, v]) => ({ key: k as CourseCategory, label: v.label }))].map(c => (
  <button key={c.key} onClick={() => setCategory(c.key)}
- className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+ className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
  category === c.key ?'bg-primary text-primary-foreground' :'bg-muted text-muted-foreground hover:text-foreground'
  }`}>
  {c.label}

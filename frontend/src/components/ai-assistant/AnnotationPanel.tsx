@@ -145,7 +145,7 @@ export function AnnotationPanel({ selectedAnnotation, onClose }: AnnotationPanel
  )}
 
  <div className="flex items-center gap-2 pt-4 border-t border-border">
- <button className="flex-1 py-2.5 bg-success text-white rounded-xl hover:bg-success/20 transition-colors text-sm font-medium active:scale-98 shadow-sm">
+ <button className="flex-1 py-2.5 bg-success text-success-foreground rounded-xl hover:bg-success/20 transition-colors text-sm font-medium active:scale-98 shadow-sm">
  采纳建议
  </button>
  <button className="px-4 py-2.5 border border-border text-foreground rounded-xl hover:bg-muted transition-colors text-sm font-medium active:scale-98">
@@ -184,7 +184,7 @@ export function AnnotationPanel({ selectedAnnotation, onClose }: AnnotationPanel
  animate={{ opacity: 1, y: 0 }}
  transition={{ delay: index * 0.05 }}
  onClick={() => {}}
- className={`w-full text-left p-3 lg:p-4 rounded-xl border ${config.bg} ${config.border} hover:shadow-md transition-all active:scale-[0.99]`}
+ className={`w-full text-left p-3 lg:p-4 rounded-xl border ${config.bg} ${config.border} hover:shadow-md transition-[box-shadow,transform] active:scale-[0.99]`}
  >
  <div className="flex items-start gap-3">
  <Icon className={`w-4 h-4 ${config.color} flex-shrink-0 mt-0.5`} />

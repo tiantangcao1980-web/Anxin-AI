@@ -125,7 +125,7 @@ export function SmartSearch() {
  <button
  key={key}
  onClick={() => setSearchMode(key as any)}
- className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+ className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
  searchMode === key
  ?'bg-background text-foreground shadow-sm'
  :'text-muted-foreground hover:text-foreground'
@@ -151,13 +151,13 @@ export function SmartSearch() {
  searchMode ==='rag' ?'输入法律问题，AI将结合知识库为您解答...' :
 '输入法律研究课题，生成深度分析报告...'
  }
- className="w-full pl-10 pr-4 py-3 bg-muted/50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm text-foreground transition-all"
+ className="w-full pl-10 pr-4 py-3 bg-muted/50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm text-foreground transition-colors"
  />
  </div>
  <button
  onClick={handleSearch}
  disabled={loading || isResearching || isAsking}
- className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium shadow-lg transition-all active:scale-95 disabled:opacity-50 ${currentMode.color}`}
+ className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium shadow-lg transition-transform active:scale-95 disabled:opacity-50 ${currentMode.color}`}
  >
  {(loading || isResearching || isAsking) ? (
  <icons.Loader2 className="w-4 h-4 animate-spin" />
@@ -300,7 +300,7 @@ export function SmartSearch() {
  initial={{ opacity: 0, y: 10 }}
  animate={{ opacity: 1, y: 0 }}
  transition={{ delay: index * 0.03 }}
- className="group bg-background rounded-xl border border-border p-5 hover:border-primary/30 hover:shadow-md transition-all cursor-pointer relative overflow-hidden"
+ className="group bg-background rounded-xl border border-border p-5 hover:border-primary/30 hover:shadow-md transition-[border-color,box-shadow] cursor-pointer relative overflow-hidden"
  >
  {item.metadata?.keyword_match && (
  <div className="absolute top-0 right-0 px-2 py-0.5 bg-primary text-[10px] text-primary-foreground font-medium rounded-bl-lg">

@@ -63,7 +63,7 @@ export const HardwareStatus = () => {
         onClick={handleClick}
         title={statusTitle}
         aria-label={statusTitle}
-        className={`relative shrink-0 flex items-center justify-center p-2 rounded-lg border transition-all ${
+        className={`relative shrink-0 flex items-center justify-center p-2 rounded-lg border transition-colors ${
           isConnected
             ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-950/50'
             : !openClawInstalled

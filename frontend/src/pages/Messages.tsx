@@ -204,7 +204,7 @@ function TabButton({
  >
  {children}
  {badge != null && badge > 0 && (
- <span className="min-w-[16px] h-[16px] bg-destructive text-white text-[10px] font-bold flex items-center justify-center rounded-full px-1">
+ <span className="min-w-[16px] h-[16px] bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center rounded-full px-1">
  {badge > 99 ?'99+' : badge}
  </span>
  )}

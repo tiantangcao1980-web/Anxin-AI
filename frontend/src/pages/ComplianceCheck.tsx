@@ -469,7 +469,7 @@ export default function ComplianceCheck() {
  <button
  key={dim.key}
  onClick={() => toggleDimension(dim.key)}
- className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${
+ className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-colors text-left ${
  selected
  ?'border-primary bg-primary/5 text-foreground'
  :'border-border bg-background text-muted-foreground hover:border-primary/30'
@@ -767,7 +767,7 @@ export default function ComplianceCheck() {
  {history.map((record) => (
  <button
  key={record.id}
- className="w-full text-left p-3 rounded-lg border border-border hover:border-primary/20 hover:bg-muted/30 transition-all"
+ className="w-full text-left p-3 rounded-lg border border-border hover:border-primary/20 hover:bg-muted/30 transition-colors"
  >
  <div className="flex items-center justify-between mb-1">
  <span className={`text-sm font-semibold ${getScoreColor(record.totalScore)}`}>

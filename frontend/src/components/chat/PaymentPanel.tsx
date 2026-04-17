@@ -189,7 +189,7 @@ export default function PaymentPanel({
  {/* 微信支付 */}
  <button
  onClick={() => setMethod('wechat_pay')}
- className={`flex items-center justify-center gap-2 px-4 py-3 ${radius.button} border transition-all outline-none focus-visible:ring-[3px] focus-visible:ring-success/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+ className={`flex items-center justify-center gap-2 px-4 py-3 ${radius.button} border transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-success/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
  method ==='wechat_pay'
  ? paymentMethodStyle.wechat_pay.selected
  : paymentMethodStyle.wechat_pay.idle
@@ -204,7 +204,7 @@ export default function PaymentPanel({
  {/* 支付宝 */}
  <button
  onClick={() => setMethod('alipay')}
- className={`flex items-center justify-center gap-2 px-4 py-3 ${radius.button} border transition-all outline-none focus-visible:ring-[3px] focus-visible:ring-info/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+ className={`flex items-center justify-center gap-2 px-4 py-3 ${radius.button} border transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-info/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
  method ==='alipay'
  ? paymentMethodStyle.alipay.selected
  : paymentMethodStyle.alipay.idle

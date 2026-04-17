@@ -58,7 +58,7 @@ export default function LawyerReferralCard({
  onClick={() => onSelectService?.(service.id)}
  >
  {service.recommended && (
- <Badge className="absolute -top-2 right-2 bg-warning text-white text-xs">
+ <Badge className="absolute -top-2 right-2 bg-warning text-warning-foreground text-xs">
  推荐
  </Badge>
  )}

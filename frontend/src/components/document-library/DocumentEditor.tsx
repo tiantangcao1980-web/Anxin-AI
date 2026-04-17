@@ -266,7 +266,7 @@ export function DocumentEditor({ initialDoc, onClose, onSave }: DocumentEditorPr
              <button
                onClick={handleSave}
                disabled={saving || loadingContent}
-               className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 text-sm font-medium disabled:opacity-50 shadow-sm"
+               className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 text-sm font-medium disabled:opacity-50 shadow-sm"
              >
                {saving ? <icons.Loader2 className="w-4 h-4 animate-spin" /> : <icons.Save className="w-4 h-4" />}
                保存
@@ -279,7 +279,7 @@ export function DocumentEditor({ initialDoc, onClose, onSave }: DocumentEditorPr
             <select
               value={docType}
               onChange={(e) => setDocType(e.target.value)}
-              className="px-3 py-1.5 bg-muted border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              className="px-3 py-1.5 bg-muted border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
             >
                 <option value="other">其他文档</option>
                 <option value="contract">合同协议</option>

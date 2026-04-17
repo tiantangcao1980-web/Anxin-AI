@@ -509,7 +509,7 @@ export default function Login() {
  <button
  key={tab}
  onClick={() => setMode(tab)}
- className={`flex-1 py-2.5 ${radius.button} text-sm font-medium transition-all ${
+ className={`flex-1 py-2.5 ${radius.button} text-sm font-medium transition-colors ${
  mode === tab
  ?'bg-background text-foreground shadow-sm'
  :'text-muted-foreground hover:text-foreground'
@@ -788,7 +788,7 @@ export default function Login() {
  key={opt.value}
  type="button"
  onClick={() => setRegUserType(opt.value)}
- className={`p-2.5 rounded-lg border text-left transition-all ${
+ className={`p-2.5 rounded-lg border text-left transition-colors ${
  regUserType === opt.value
  ?'border-primary bg-primary/5 ring-1 ring-primary/30'
  :'border-border hover:border-primary/40'

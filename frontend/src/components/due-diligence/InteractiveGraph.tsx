@@ -211,7 +211,7 @@ export function InteractiveGraph({ companyName, onEntityClick, showKnowledgeLink
  {/* 图层切换 */}
  <div className="flex flex-wrap gap-2">
  {Object.entries(layers).map(([key, value]) => (
- <label key={key} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer transition-all ${
+ <label key={key} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer transition-colors ${
  value ?'bg-primary/10 text-primary border border-primary/20' :'bg-muted text-muted-foreground border border-transparent'
  }`}>
  <input

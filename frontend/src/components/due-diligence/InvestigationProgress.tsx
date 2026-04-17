@@ -176,7 +176,7 @@ export function InvestigationProgress({
  const StageIcon = stageIcons[stage.id] || icons.Circle
  return (
  <div key={stage.id} className="flex items-center flex-1 min-w-0">
- <div className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg flex-1 transition-all ${
+ <div className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg flex-1 transition-colors ${
  stage.status ==='done' ?'bg-success/10 border border-success/20'
  : stage.status ==='active' ?'bg-primary/5 border border-primary/20'
  : stage.status ==='error' ?'bg-destructive/10 border border-destructive/20'

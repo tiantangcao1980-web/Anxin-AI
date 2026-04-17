@@ -67,7 +67,7 @@ function CallControls({ conversationId }: { conversationId: string }) {
  <icons.Bot className="w-5 h-5" />
  </button>
  <DisconnectButton
- className="w-14 h-14 rounded-full bg-destructive hover:bg-destructive/20 flex items-center justify-center text-white transition-colors"
+ className="w-14 h-14 rounded-full bg-destructive hover:bg-destructive/20 flex items-center justify-center text-destructive-foreground transition-colors"
  onClick={() => navigate(-1)}
  >
  <icons.PhoneOff className="w-6 h-6" />

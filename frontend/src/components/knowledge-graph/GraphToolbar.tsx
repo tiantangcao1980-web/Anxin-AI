@@ -26,7 +26,7 @@ export function GraphToolbar({
       <div className="flex gap-0.5 p-0.5 rounded-lg border shadow-lg bg-background/90 backdrop-blur-md border-border">
         <button
           onClick={() => onViewModeChange('2d')}
-          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${
+          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
             viewMode === '2d'
               ? 'bg-primary/10 text-primary shadow-sm'
               : 'text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -37,7 +37,7 @@ export function GraphToolbar({
         </button>
         <button
           onClick={() => onViewModeChange('3d')}
-          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${
+          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
             viewMode === '3d'
               ? 'bg-primary/10 text-primary shadow-sm'
               : 'text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -68,7 +68,7 @@ function CtrlBtn({ icon: Icon, label, onClick, active }: {
     <button
       onClick={onClick}
       title={label}
-      className={`p-2 rounded-lg transition-all ${
+      className={`p-2 rounded-lg transition-colors ${
         active
           ? 'bg-primary/10 text-primary'
           : 'text-muted-foreground hover:text-foreground hover:bg-muted'

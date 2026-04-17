@@ -241,7 +241,7 @@ export function ContractReviewCard() {
  if (f) handleFileSelect(f);
  }}
  onClick={() => fileInputRef.current?.click()}
- className={`border-2 border-dashed border-border ${radius.card} p-6 text-center hover:border-primary hover:bg-primary/5 transition-all cursor-pointer`}
+ className={`border-2 border-dashed border-border ${radius.card} p-6 text-center hover:border-primary hover:bg-primary/5 transition-colors cursor-pointer`}
  >
  <icons.Upload className={`${iconSize.xl} mx-auto text-primary mb-2`} />
  <p className={heading.card}>拖放合同文件或点击上传</p>

@@ -100,7 +100,7 @@ export function CaseDistribution() {
         <div className="flex gap-2 bg-muted p-1 rounded-xl">
           <button
             onClick={() => setViewType('pie')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               viewType === 'pie'
                 ? 'bg-background text-primary shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
@@ -110,7 +110,7 @@ export function CaseDistribution() {
           </button>
           <button
             onClick={() => setViewType('bar')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               viewType === 'bar'
                 ? 'bg-background text-primary shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'

@@ -466,7 +466,7 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
  <div
  className={`flex items-center gap-${compact ?'1.5' :'2'} px-${compact ?'2.5' :'3'} py-${compact ?'0.5' :'1'} rounded-full text-${compact ?'xs' :'sm'} font-medium ${
  step === s.key
- ?'bg-primary text-white'
+ ?'bg-primary text-primary-foreground'
  : currentStepIndex > i
  ?'bg-success/10 text-success'
  :'bg-muted text-muted-foreground'
@@ -506,7 +506,7 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
  onDragOver={(e) => e.preventDefault()}
  onDrop={handleFileDrop}
  onClick={() => fileInputRef.current?.click()}
- className={`border-2 border-dashed border-border ${radius.dialog} p-12 text-center bg-background hover:border-primary hover:bg-primary/5 transition-all cursor-pointer`}
+ className={`border-2 border-dashed border-border ${radius.dialog} p-12 text-center bg-background hover:border-primary hover:bg-primary/5 transition-colors cursor-pointer`}
  >
  <div className={`w-16 h-16 mx-auto mb-4 bg-primary/10 ${radius.dialog} flex items-center justify-center`}>
  <icons.Upload className={`${iconSize.xl} text-primary`} />
@@ -562,7 +562,7 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
  >
  <div className={`${cardStyle.base} !p-8 ${radius.dialog}`}>
  <div className={`w-20 h-20 mx-auto mb-6 bg-primary ${radius.dialog} flex items-center justify-center`}>
- <icons.Loader2 className={`${iconSize['2xl']} text-white animate-spin`} />
+ <icons.Loader2 className={`${iconSize['2xl']} text-primary-foreground animate-spin`} />
  </div>
  <h3 className={`${heading.page} text-center mb-2`}>
  {step ==='parsing' ?'正在解析文档' :'智能审查中'}
@@ -690,7 +690,7 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
  initial={{ opacity: 0, y: 10 }}
  animate={{ opacity: 1, y: 0 }}
  transition={{ delay: index * 0.05 }}
- className={`p-4 ${radius.card} border transition-all ${
+ className={`p-4 ${radius.card} border transition-colors ${
  isAccepted ?'border-success/20 bg-success/10' : getRiskLevelColor(risk.level)
  }`}
  >
@@ -745,7 +745,7 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
  onClick={() => toggleAcceptRisk(index)}
  className={`flex-1 py-2 ${radius.button} text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
  isAccepted
- ?'bg-success text-white'
+ ?'bg-success text-success-foreground'
  : `${statusBadge.success} hover:bg-success/20`
  }`}
  >
@@ -784,7 +784,7 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
  <>
  <button
  onClick={acceptAllRisks}
- className={`px-4 py-2.5 bg-success text-white ${radius.button} text-sm font-medium hover:bg-success/20 transition-colors flex items-center gap-2`}
+ className={`px-4 py-2.5 bg-success text-success-foreground ${radius.button} text-sm font-medium hover:bg-success/20 transition-colors flex items-center gap-2`}
  >
  <icons.CheckCircle className={iconSize.sm} />
  一键接受全部 ({suggestableRisksCount})

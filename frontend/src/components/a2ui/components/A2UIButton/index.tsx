@@ -37,11 +37,11 @@ export interface A2UIButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLBut
  */
 const buttonStyles = {
  variants: {
- primary:'bg-primary text-white shadow-lg hover:shadow-xl',
+ primary:'bg-primary text-primary-foreground shadow-lg hover:shadow-xl',
  secondary:'bg-muted text-foreground hover:bg-muted/80 border border-border',
- success:'bg-success text-white shadow-lg hover:shadow-xl',
- danger:'bg-destructive text-white shadow-lg hover:shadow-xl',
- warning:'bg-warning text-white shadow-lg hover:shadow-xl',
+ success:'bg-success text-success-foreground shadow-lg hover:shadow-xl',
+ danger:'bg-destructive text-destructive-foreground shadow-lg hover:shadow-xl',
+ warning:'bg-warning text-warning-foreground shadow-lg hover:shadow-xl',
  ghost:'bg-transparent text-foreground hover:bg-muted'
  },
 

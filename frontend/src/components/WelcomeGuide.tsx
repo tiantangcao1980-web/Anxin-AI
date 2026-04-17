@@ -85,7 +85,7 @@ export function WelcomeGuide({ onClose, onSelectView }: WelcomeGuideProps) {
  transition={{ delay: 0.1, type:'spring', stiffness: 200 }}
  className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0"
  >
- <icons.Sparkles className="w-7 h-7 text-white" />
+ <icons.Sparkles className="w-7 h-7 text-primary-foreground" />
  </motion.div>
  <div className="flex-1 text-left">
  <h1 className={heading.page}>欢迎使用 AI 法务协同系统</h1>
@@ -136,7 +136,7 @@ export function WelcomeGuide({ onClose, onSelectView }: WelcomeGuideProps) {
  </div>
  ))}
  </div>
- <icons.ArrowRight className="absolute bottom-4 lg:bottom-5 right-4 lg:right-5 w-4 h-4 lg:w-5 lg:h-5 text-border opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all" />
+ <icons.ArrowRight className="absolute bottom-4 lg:bottom-5 right-4 lg:right-5 w-4 h-4 lg:w-5 lg:h-5 text-border opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-[opacity,transform]" />
  </motion.button>
  );
  })}
@@ -156,7 +156,7 @@ export function WelcomeGuide({ onClose, onSelectView }: WelcomeGuideProps) {
  onSelectView('chat');
  onClose();
  }}
- className="w-full lg:w-auto px-5 lg:px-6 py-2.5 lg:py-3 bg-primary text-white rounded-xl hover:bg-primary/90 active:scale-95 transition-all flex items-center justify-center gap-2 font-medium shadow-sm text-sm"
+ className="w-full lg:w-auto px-5 lg:px-6 py-2.5 lg:py-3 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 active:scale-95 transition-[background-color,transform] flex items-center justify-center gap-2 font-medium shadow-sm text-sm"
  >
  开始使用
  <icons.ArrowRight className="w-4 h-4 lg:w-5 lg:h-5" />

@@ -65,7 +65,7 @@ export function GraphLegend({ nodeCount, edgeCount, activeTypes, onToggleType, o
                   key={item.type}
                   onClick={() => onToggleType?.(item.type)}
                   disabled={!isInteractive}
-                  className={`flex items-center gap-2 w-full rounded-md px-1.5 py-1 transition-all ${
+                  className={`flex items-center gap-2 w-full rounded-md px-1.5 py-1 transition-[background-color,opacity] ${
                     isInteractive
                       ? 'hover:bg-muted cursor-pointer'
                       : 'cursor-default'

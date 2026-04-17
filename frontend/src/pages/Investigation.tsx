@@ -105,7 +105,7 @@ function SearchView({ onSelect }: { onSelect: (id: string, name: string) => void
  <button
  key={item.id}
  onClick={() => onSelect(item.id, item.name)}
- className="w-full flex items-center justify-between p-3 bg-card border rounded-lg hover:border-primary/20 hover:shadow-sm transition-all text-left"
+ className="w-full flex items-center justify-between p-3 bg-card border rounded-lg hover:border-primary/20 hover:shadow-sm transition-[border-color,box-shadow] text-left"
  >
  <div className="flex items-center gap-3">
  <Building2 className="h-4 w-4 text-muted-foreground" />
@@ -128,7 +128,7 @@ function SearchView({ onSelect }: { onSelect: (id: string, name: string) => void
  <button
  key={item.id}
  onClick={() => onSelect(item.id, item.name)}
- className="w-full flex items-center justify-between p-3 bg-card border rounded-lg hover:border-primary/20 hover:shadow-sm transition-all text-left"
+ className="w-full flex items-center justify-between p-3 bg-card border rounded-lg hover:border-primary/20 hover:shadow-sm transition-[border-color,box-shadow] text-left"
  >
  <div className="flex items-center gap-3">
  <Building2 className="h-4 w-4 text-primary" />

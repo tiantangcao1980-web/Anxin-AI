@@ -409,7 +409,7 @@ export default function MonitoringCenter() {
             return (
               <div
                 key={monitor.id}
-                className={`bg-card border rounded-xl p-4 hover:shadow-sm hover:border-primary/20 transition-all group ${
+                className={`bg-card border rounded-xl p-4 hover:shadow-sm hover:border-primary/20 transition-[border-color,box-shadow] group ${
                   !monitor.is_active ? 'opacity-60' : ''
                 }`}
               >

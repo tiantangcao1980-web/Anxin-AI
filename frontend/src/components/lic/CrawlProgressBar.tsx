@@ -107,7 +107,7 @@ export function CrawlProgressBar({ taskId, onComplete }: CrawlProgressBarProps) 
  const isDone = status ==='completed';
 
  return (
- <Card className={`overflow-hidden transition-all duration-300 ${
+ <Card className={`overflow-hidden transition-colors duration-300 ${
  isError
  ?'border-warning/20 bg-warning/10/50'
  : isDone

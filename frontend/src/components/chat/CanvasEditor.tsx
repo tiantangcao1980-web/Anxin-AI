@@ -516,7 +516,7 @@ export const CanvasEditor = memo(function CanvasEditor({
  }}
  disabled={isProcessing || isOptimizing || inlineProcessing}
  className={cn(
-'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all',
+'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
  isProcessing || isOptimizing || inlineProcessing
  ?'bg-primary/10 text-primary/60 cursor-not-allowed'
  :'bg-primary/10 text-primary hover:bg-primary/15'

@@ -80,7 +80,7 @@ export const KnowledgeOverview = memo(function KnowledgeOverview() {
  return (
  <button
  key={item.label}
- className="text-left bg-background rounded-xl border border-border p-4 shadow-sm hover:shadow-md hover:border-primary/30 transition-all group"
+ className="text-left bg-background rounded-xl border border-border p-4 shadow-sm hover:shadow-md hover:border-primary/30 transition-[border-color,box-shadow] group"
  >
  <Icon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors mb-2" />
  <div className="text-sm font-medium text-foreground">{item.label}</div>

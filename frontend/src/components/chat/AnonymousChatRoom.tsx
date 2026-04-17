@@ -286,7 +286,7 @@ export default function AnonymousChatRoom({ roomId, token, role, onClose }: Anon
  {/* 输入区域 */}
  <div className="px-4 py-3 border-t border-border bg-background">
  <div className="flex items-end gap-2">
- <div className="flex-1 relative bg-muted/50 rounded-2xl border border-border focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 transition-all">
+ <div className="flex-1 relative bg-muted/50 rounded-2xl border border-border focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 transition-colors">
  <textarea
  ref={inputRef}
  value={inputValue}

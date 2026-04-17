@@ -243,7 +243,7 @@ function LegalToolsPanel() {
               <button
                 key={tool.id}
                 onClick={() => setActiveTool(tool.id)}
-                className={`flex items-center gap-1.5 ${buttonStyle.sm} transition-all ${
+                className={`flex items-center gap-1.5 ${buttonStyle.sm} transition-colors ${
                   isActive
                     ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'bg-muted text-muted-foreground hover:bg-primary/5 hover:text-primary'
@@ -368,7 +368,7 @@ export function CaseManagement() {
       <div className="flex-1 overflow-hidden">
         <div className="h-full flex flex-col lg:flex-row">
           {/* Case List */}
-          <div className={`${selectedCase ? 'hidden lg:flex lg:w-1/3' : 'w-full'} transition-all duration-300 h-full flex flex-col`}>
+          <div className={`${selectedCase ? 'hidden lg:flex lg:w-1/3' : 'w-full'} transition-[width] duration-300 h-full flex flex-col`}>
             {isLoading ? (
               <div className="flex-1 flex items-center justify-center">
                 <icons.Loader2 className={`${iconSize.xl} animate-spin text-primary`} />
