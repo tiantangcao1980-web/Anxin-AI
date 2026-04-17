@@ -85,6 +85,13 @@ export function ChatMessages({
  className={`group ${isUser ?'flex justify-end' :''}`}
  >
  <div className={`max-w-[85%]`}>
+ {/* V2: AI 消息绑定的思考过程 — 渲染在答案上方（DeepSeek/o1 风格） */}
+ {!isUser && message.thinkingSteps && message.thinkingSteps.length > 0 && (
+ <div className="mb-2">
+ <ThinkingChain steps={message.thinkingSteps} isThinking={false} />
+ </div>
+ )}
+
  {/* AI 消息 - Agent 标签 */}
  {!isUser && message.agent && (
  <div className={`flex items-center gap-1.5 ${heading.micro} font-medium mb-1.5 ml-0.5`}>
@@ -191,10 +198,14 @@ export function ChatMessages({
  {/* 消息列表 */}
  {messages.map(renderMessage)}
 
- {/* 思考链 */}
- {thinkingSteps.length > 0 && <ThinkingChain steps={thinkingSteps} isThinking={isProcessing} />}
+ {/* 正在进行中的思考链 — V2：作为当前流式回答的"头部"显示 */}
+ {thinkingSteps.length > 0 && isProcessing && (
+ <div className="mb-2">
+ <ThinkingChain steps={thinkingSteps} isThinking={true} />
+ </div>
+ )}
 
- {/* 流式消息 */}
+ {/* 流式消息（显示在思考链下方） */}
  {streamingMessageId && (
  <StreamingMessage content={streamingContent} agent={streamingAgent} isStreaming={true} />
  )}

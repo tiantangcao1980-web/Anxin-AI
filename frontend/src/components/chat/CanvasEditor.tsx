@@ -12,7 +12,9 @@ import { motion, AnimatePresence } from'framer-motion';
 import { icons } from'@/lib/icons';
 import { CollaborativeEditor, type EditorUser } from'@/components/editor';
 import { InlineSuggestion } from'./InlineSuggestion';
+import { DocumentSwitcher } from'./DocumentSwitcher';
 import type { CanvasContent } from'@/lib/store';
+import { useChatStore } from'@/lib/store';
 import { toast } from'sonner';
 import { cn } from'@/lib/utils';
 import { heading } from'@/lib/design-tokens';
@@ -448,6 +450,20 @@ export const CanvasEditor = memo(function CanvasEditor({
 'h-full flex flex-col bg-background',
  isFullscreen &&'fixed inset-0 z-50'
  )}>
+ {/* V2：文档切换器 — 本对话所有文档的快速切换 */}
+ <DocumentSwitcherContainer currentTitle={canvas.title} onSelectDocument={(d) => {
+ // 切换到选中的文档：更新 canvas 内容
+ // 注意：这里直接改 store 的 canvasContent
+ const store = useChatStore.getState();
+ store.setCanvasContent({
+ type: (d.type as any) ||'document',
+ title: d.title,
+ content: d.content ||'',
+ suggestions: [],
+ });
+ toast.success(`已切换到「${d.title}」`);
+ }} />
+
  {/* 工具栏 */}
  <div className="border-b border-border bg-background flex-shrink-0 px-3 py-2 space-y-1">
  {/* 第一行：标题 + 状态 */}
@@ -775,3 +791,36 @@ export const CanvasEditor = memo(function CanvasEditor({
 });
 
 CanvasEditor.displayName ='CanvasEditor';
+
+/**
+ * DocumentSwitcherContainer — 适配器：从 store 读取 documentList 并传给 DocumentSwitcher
+ */
+function DocumentSwitcherContainer({
+ currentTitle,
+ onSelectDocument,
+}: {
+ currentTitle?: string;
+ onSelectDocument: (doc: { id: string; title: string; content: string; type: string }) => void;
+}) {
+ const documentList = useChatStore((s) => s.documentList);
+ const removeDocumentFromList = useChatStore((s) => s.removeDocumentFromList);
+
+ if (!documentList || documentList.length === 0) return null;
+
+ const items = documentList.map((d) => ({
+ id: d.id,
+ title: d.title,
+ type: (d.type as string) ||'document',
+ updatedAt: d.updatedAt,
+ preview: d.preview,
+ }));
+
+ return (
+ <DocumentSwitcher
+ currentTitle={currentTitle}
+ documents={items}
+ onSelect={onSelectDocument}
+ onDelete={(id) => removeDocumentFromList(id)}
+ />
+ );
+}

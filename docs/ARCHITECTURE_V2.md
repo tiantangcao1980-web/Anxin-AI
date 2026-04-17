@@ -308,36 +308,37 @@ user_id | plan_id | status | starts_at | expires_at | features (JSON)
 
 ## 六、实施路线图
 
-### Phase 1（2 周）：客户端分离基础设施
-- [ ] User 表新增 `primary_client` 字段
-- [ ] 前端路由拆分 `/app/*` 和 `/pro/*`
-- [ ] 登录页拆分（两个入口）
-- [ ] 注册流程按 user_type 分流
-- [ ] ProtectedRoute 增加 `clientType` 检查
+### Phase 1 ✅ 客户端分离基础设施
+- [x] User 表新增 `primary_client` 字段（needer/provider）
+- [x] 前端路由拆分 `/pro/*`（服务方端）
+- [x] 登录页 `/pro/login` 独立入口 + 注册分流
+- [x] ModeGate 组件 + 受限功能包裹
+- [x] PrivacyContext 扩展（requestModeSwitch + 订阅检查）
 
-### Phase 2（2 周）：运行模式基础设施
-- [ ] `RunningModeContext` (从 PrivacyContext 扩展)
-- [ ] `<ModeGate>` 组件（模式不满足时提示）
-- [ ] 所有受限功能包裹 ModeGate
-- [ ] 本地模式的离线包下载机制（知识库+模板）
+### Phase 2 ✅ 运行模式 + 订阅基础设施
+- [x] ProLayout 服务方端独立布局
+- [x] Subscription 模型扩展（client_type / allowed_modes / features_override / trial）
+- [x] SubscriptionService V2 鉴权方法（can_access_feature / can_use_mode）
+- [x] 订阅 API（/v2/features / /v2/can-access / /v2/trial / /v2/subscribe）
+- [x] Pricing 页双端 Tab 切换
 
-### Phase 3（3 周）：订阅与支付
-- [ ] Subscriptions 表 + 服务层
-- [ ] 订阅 → 功能鉴权中间件
-- [ ] 订阅页 UI（选择/购买/续费）
-- [ ] 微信/支付宝支付集成到订阅
+### Phase 3 ✅ 双端核心差异化
+- [x] 案源市场模型（CaseRequest / LawyerBid）+ 完整 API（发布/浏览/投标/接受/评价）
+- [x] 利益冲突检查服务（ConflictCheckService）+ 集成到投标流程
+- [x] 律所内部分级权限（合伙人看全部、律师看自己的）
+- [x] 订阅价值感可视化组件（ValueDashboard）
 
-### Phase 4（2 周）：双端核心差异化
-- [ ] 服务方端：案源市场 MVP
-- [ ] 服务方端：利益冲突检查 MVP
-- [ ] 服务方端：律所内部分级
-- [ ] 需求方端：订阅价值感的可视化
+### Phase 4 ✅ 完善与优化
+- [x] V2 订阅购买 API（连接支付系统，支持月付/年付）
+- [x] V2 迁移引导组件（V2MigrationGuide，按 user_type 个性化引导）
+- [x] 合规审计日志增强（服务方端强制审计 + 组织级合规报告生成）
 
-### Phase 5（持续）：完善与优化
-- [ ] 数据迁移工具（跨模式）
-- [ ] 合规审计日志
-- [ ] 企业定制化支持
-- [ ] 跨端一致性打磨
+### Phase 5（后续持续迭代）
+- [ ] 真实微信/支付宝支付对接（当前为 mock 支付）
+- [ ] 跨模式数据迁移工具（云端↔本地数据同步/导出/导入）
+- [ ] 企业定制化支持（自定义 LLM 端点、品牌 Logo、域名）
+- [ ] 跨端一致性打磨（同账号两端数据视图一致性）
+- [ ] 离线资源包下载管理页 UI
 
 ---
 

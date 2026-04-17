@@ -336,10 +336,12 @@ interface ChatState {
   updateCanvasText: (text: string) => void
 
   // 文档列表（工作台内管理的历史文档）
-  documentList: { id: string; title: string; type: CanvasContent['type']; updatedAt: number; preview?: string; content?: string }[]
+  documentList: { id: string; title: string; type: CanvasContent['type']; updatedAt: number | string; preview?: string; content?: string }[]
   addDocumentToList: (doc: { id: string; title: string; type: CanvasContent['type']; preview?: string; content?: string }) => void
   removeDocumentFromList: (id: string) => void
   clearDocumentList: () => void
+  /** V2：从 API 批量设置对话的历史文档列表 */
+  setDocumentList: (docs: { id: string; title: string; type: CanvasContent['type']; updatedAt: number | string; preview?: string; content?: string }[]) => void
 
   // 分析数据
   analysisData: AnalysisData
@@ -424,6 +426,8 @@ interface ChatState {
 
   // 重置工作区（新对话时调用）
   resetWorkspace: () => void
+  /** V2：每轮对话开始时仅清除临时思考状态，保留 Canvas/文档列表 */
+  resetTransientState: () => void
 }
 
 export const useChatStore = create<ChatState>()(
@@ -490,6 +494,7 @@ export const useChatStore = create<ChatState>()(
       removeDocumentFromList: (id) =>
         set((s) => ({ documentList: s.documentList.filter((d) => d.id !== id) })),
       clearDocumentList: () => set({ documentList: [] }),
+      setDocumentList: (docs) => set({ documentList: docs }),
 
       // 分析
       analysisData: { riskRadar: null, documentDiff: null, knowledgeGraph: null },
@@ -735,6 +740,18 @@ export const useChatStore = create<ChatState>()(
           agentTasks: [],
           contractReviewVisible: false,
           contractReviewFile: null,
+        }),
+
+      // V2 新增：仅清临时状态（思考/流式/Agent结果），保留 Canvas 文档和文档列表
+      // 用于"新一轮对话开始"场景，而不是"新建会话"
+      resetTransientState: () =>
+        set({
+          agentResults: [],
+          thinkingSteps: [],
+          streamingMessageId: null,
+          streamingContent: '',
+          streamingAgent: '',
+          // 保留：canvasContent, documentList, requirementAnalysis（上一轮的需求分析作为后续参考）
         }),
     }),
     {

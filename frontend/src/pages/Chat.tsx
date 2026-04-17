@@ -288,9 +288,39 @@ export default function Chat() {
  // 2. 尝试从缓存恢复目标对话的工作台状态
  const restored = store.restoreWorkspaceFromCache(conv.id);
  if (!restored) {
+ // 缓存没有 — 从后端 API 加载该对话的历史文档
  store.resetWorkspace();
+ import('@/lib/api').then(({ chatApi }) => {
+ // 加载最新一份文档到 Canvas
+ chatApi.getConversationCanvas(conv.id).then(canvas => {
+ if (canvas && canvas.content) {
+ store.setCanvasContent({
+ type: (canvas.type as any) ||'document',
+ title: canvas.title ||'历史文档',
+ content: canvas.content,
+ suggestions: [],
+ });
+ // 自动打开右侧文档面板
+ setTimeout(() => openRightPanel?.('document'), 300);
  }
- }, [conversationId, closeCurrentWs, setConversationId, store]);
+ }).catch(() => {});
+
+ // 加载完整文档列表到工作台（用于"历史文档"选择）
+ chatApi.listConversationDocuments(conv.id).then(result => {
+ const items = result?.items || [];
+ if (items.length > 0) {
+ store.setDocumentList?.(items.map(d => ({
+ id: d.id,
+ title: d.title,
+ type: (d.type as any) ||'document',
+ updatedAt: d.updated_at,
+ preview: d.preview,
+ })));
+ }
+ }).catch(() => {});
+ });
+ }
+ }, [conversationId, closeCurrentWs, setConversationId, store, openRightPanel]);
 
  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
@@ -1059,6 +1089,9 @@ export default function Chat() {
  // 法律文书：清理 Agent 系统噪音（"智能体团队"、"任务执行完成"、"文书起草Agent" 等）
  const displayContent = isDocGen ? cleanCanvasContent(responseContent) : responseContent;
 
+ // V2：把当前轮次的 thinkingSteps 快照下来，绑定到这条 AI 消息
+ const currentThinkingSteps = [...(store.thinkingSteps || [])];
+
  if (store.streamingMessageId) {
  const streamAgent = store.streamingAgent || data.agent ||'';
  store.finalizeStream();
@@ -1070,6 +1103,7 @@ export default function Chat() {
  memory_id: data.memory_id,
  sources: data.sources,
  suggestions: generateFollowUpSuggestions(displayContent, lastUserContent),
+ thinkingSteps: currentThinkingSteps.length > 0 ? currentThinkingSteps : undefined,
  };
  setMessages(prev => [...prev, aiMessage]);
  } else if (displayContent) {
@@ -1080,9 +1114,12 @@ export default function Chat() {
  memory_id: data.memory_id,
  sources: data.sources,
  suggestions: generateFollowUpSuggestions(displayContent, lastUserContent),
+ thinkingSteps: currentThinkingSteps.length > 0 ? currentThinkingSteps : undefined,
  };
  setMessages(prev => [...prev, aiMessage]);
  }
+ // 清空全局 thinkingSteps，为下一轮准备
+ store.clearThinkingSteps?.();
  loadConversationsRef.current();
 
  // === 法律文书自动推送到文档面板（始终更新，新文书覆盖旧文档） ===
@@ -1100,6 +1137,12 @@ export default function Chat() {
  suggestions: [],
  });
  setTimeout(() => openRightPanel('document'), 600);
+ }
+
+ // V2 修复：生成完成后自动保存工作台快照到当前对话缓存
+ // 这样切换到其他对话再切回来时，工作台还在
+ if (conversationId) {
+ setTimeout(() => store.saveWorkspaceToCache(conversationId), 200);
  }
  break;
  }
@@ -1340,7 +1383,9 @@ export default function Chat() {
  setIsProcessing(true);
  armProcessingTimeout();
  setUserScrolledUp(false); // 发送消息时重置滚动状态，自动跟随新内容
- store.resetWorkspace();
+ // V2 修复：只清思考过程/流式状态，保留 Canvas 文档和工作台内容
+ // 这样生成完成后工作台不会被下一轮请求清空
+ store.resetTransientState();
 
  // === 文件上传：先上传文件获取文档 ID 和提取文本，再通过 WebSocket 发送 ===
  let sendContent = messageContent;
@@ -1407,7 +1452,8 @@ export default function Chat() {
  // v3 优化：不再在对话流中重复输出选择内容，直接发送到后端
  setIsProcessing(true);
  armProcessingTimeout();
- store.resetWorkspace();
+ // V2 修复：澄清响应只清临时状态，保留之前生成的文档
+ store.resetTransientState();
  if (wsRef.current?.readyState === WebSocket.OPEN) {
  wsRef.current.send(JSON.stringify({
  type:'clarification_response', content: selectionText,

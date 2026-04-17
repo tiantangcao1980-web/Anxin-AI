@@ -532,3 +532,89 @@ def audit_log(
             "export_time": datetime.now(timezone.utc).isoformat(),
             "format": format,
         }
+
+    # ===== V2 架构：服务方端审计增强 =====
+
+    async def is_provider_audit_required(self, user: User) -> bool:
+        """
+        判断是否需要强制审计（服务方端律师/律所必须）。
+        合伙人、律师、律所管理员的所有操作都强制记录。
+        """
+        provider_roles = {"partner", "lawyer", "paralegal", "platform_lawyer", "org_admin"}
+        return user.role in provider_roles or getattr(user, 'primary_client', '') == 'provider'
+
+    async def generate_compliance_report(
+        self,
+        org_id: str,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+    ) -> dict:
+        """
+        生成合规审计报告（律所端导出用）。
+
+        包含：操作统计、数据访问记录、异常行为标记。
+        可由律所管理员导出为 PDF 作为合规证明。
+        """
+        if not start_time:
+            start_time = datetime.now(timezone.utc) - timedelta(days=30)
+        if not end_time:
+            end_time = datetime.now(timezone.utc)
+
+        # 查询该组织下所有用户的审计日志
+        from src.models.user import User as UserModel
+        org_users = await self.db.execute(
+            select(UserModel.id, UserModel.name, UserModel.role)
+            .where(UserModel.org_id == org_id)
+        )
+        user_map = {str(r.id): {"name": r.name, "role": r.role} for r in org_users.all()}
+
+        logs = await self.db.execute(
+            select(AuditLog)
+            .where(
+                and_(
+                    AuditLog.user_id.in_(list(user_map.keys())),
+                    AuditLog.created_at >= start_time,
+                    AuditLog.created_at <= end_time,
+                )
+            )
+            .order_by(AuditLog.created_at.desc())
+        )
+        records = logs.scalars().all()
+
+        # 统计
+        action_counts = {}
+        user_activity = {}
+        failed_ops = []
+
+        for r in records:
+            action = r.action or "unknown"
+            action_counts[action] = action_counts.get(action, 0) + 1
+
+            uid = str(r.user_id) if r.user_id else "system"
+            user_activity[uid] = user_activity.get(uid, 0) + 1
+
+            if r.status == "failed":
+                failed_ops.append({
+                    "action": action,
+                    "user": user_map.get(uid, {}).get("name", uid),
+                    "time": r.created_at.isoformat() if r.created_at else None,
+                    "error": r.error_message,
+                })
+
+        return {
+            "org_id": org_id,
+            "period": {
+                "start": start_time.isoformat(),
+                "end": end_time.isoformat(),
+            },
+            "total_operations": len(records),
+            "action_breakdown": action_counts,
+            "user_activity": {
+                user_map.get(uid, {}).get("name", uid): count
+                for uid, count in sorted(user_activity.items(), key=lambda x: x[1], reverse=True)
+            },
+            "failed_operations": failed_ops[:20],
+            "compliance_status": "pass" if not failed_ops else "review_needed",
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "exportable": True,  # 标记可导出为 PDF
+        }

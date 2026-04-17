@@ -433,6 +433,31 @@ export const chatApi = {
     request<{ document_id: string; title: string; content: string; type: string; updated_at: string } | null>(
       `/chat/conversations/${conversationId}/canvas`
     ),
+
+  // V2：列出对话关联的所有文档（工作台文档历史）
+  listConversationDocuments: (conversationId: string) =>
+    request<{ items: Array<{ id: string; title: string; type: string; preview: string; updated_at: string; created_at: string }>; total: number }>(
+      `/chat/conversations/${conversationId}/documents`
+    ),
+
+  // V2：获取指定文档完整内容（打开编辑）
+  getDocumentContent: (documentId: string) =>
+    request<{ id: string; title: string; content: string; type: string; updated_at: string }>(
+      `/chat/documents/${documentId}/content`
+    ),
+
+  // V2：删除工作台文档
+  deleteDocument: (documentId: string) =>
+    request<{ message: string }>(`/chat/documents/${documentId}`, {
+      method: 'DELETE',
+    }),
+
+  // V2：准备文档导出
+  exportDocument: (documentId: string, format: 'markdown' | 'docx' | 'pdf' = 'markdown') =>
+    request<{ format: string; filename: string; content?: string; content_base64?: string; mime?: string }>(
+      `/chat/documents/${documentId}/export?format=${format}`,
+      { method: 'POST' }
+    ),
   
   getAgents: () => request<{ agents: Agent[] }>('/chat/agents'),
   

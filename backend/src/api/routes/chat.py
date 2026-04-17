@@ -610,6 +610,9 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                     continue
             
             # === 1. 算力路由与隐私检查 ===
+            # V2 修复：保留原始文本用于需求分析/场景模板匹配，脱敏仅影响送 LLM 的内容
+            # 这样避免"单价 39800 元"被脱敏成 "[AMOUNT_1]" 导致合同标的识别失败
+            original_content = content  # 原始文本（未脱敏），需求分析使用
             try:
                 sensitivity = SensitivityLevel(privacy_mode)
                 req = InferenceRequest(prompt=content, sensitivity=sensitivity)
@@ -852,8 +855,10 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                 try:
                     token = _task_llm_config_var.set(llm_config)
                     try:
+                        # V2 修复：用原始文本做需求分析（避免 [AMOUNT_1] 等占位符干扰 pattern 匹配）
+                        _analysis_text = locals().get('original_content') or content
                         req_analysis = await workforce.coordinator.analyze_and_classify(
-                            content,
+                            _analysis_text,
                             has_attachments=bool(data.get("has_attachments")),
                             llm_config=llm_config,
                         )
@@ -944,6 +949,17 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                         "E_SIGNATURE": "contract_steward",
                         "CONTRACT_MANAGEMENT": "contract_steward",
                         "POLICY_DISTRIBUTION": "labor_compliance",
+                        # V2 修复：补齐 LEGAL_CALCULATION 映射，让"赔多少""诉讼费""加班费"等
+                        # 直接走 legal_calculator agent，产出具体数字而非公式解释
+                        "LEGAL_CALCULATION": "legal_calculator",
+                        # V2 补齐：其他已定义但未映射的意图
+                        "LITIGATION_STRATEGY": "litigation_strategist",
+                        "FIND_LAWYER": "legal_advisor",
+                        "DEBT_COLLECTION": "document_drafter",
+                        "CORPORATE_GOVERNANCE": "legal_advisor",
+                        "FAMILY_LAW": "legal_advisor",
+                        "REAL_ESTATE": "legal_advisor",
+                        "CRIMINAL": "legal_advisor",
                     }
                     _fast_agent = _SINGLE_AGENT_INTENTS.get(_merged_intent) if _merged_confidence >= 0.7 else None
 
@@ -981,6 +997,22 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                             used_agent = _fast_agent
                             _response_strategy = "chat_only"
                             memory_id = None
+
+                            # V2 修复：单 Agent 快速路径的 Canvas 自动触发
+                            # 文书类意图（DOCUMENT_DRAFTING/合同/律师函等）生成内容 > 100 字自动打开 Canvas
+                            # 让用户看到"可编辑的文档"而不是聊天气泡里的 Markdown 文字
+                            _fp_is_doc_task = _merged_intent in ("DOCUMENT_DRAFTING", "CONTRACT_REVIEW",
+                                                                 "CONTRACT_MANAGEMENT", "DEBT_COLLECTION") or \
+                                any(kw in content for kw in ['起草', '草拟', '协议', '合同', '文书', '方案',
+                                                             '律师函', '通知书', '答辩状', '起诉状', '申请书'])
+                            if _fp_is_doc_task and len((response_text or '').strip()) > 100:
+                                _fp_canvas_type = "contract" if any(kw in content for kw in ['合同', '协议', '合伙']) else "document"
+                                await ctx.send("canvas_open", {
+                                    "type": _fp_canvas_type,
+                                    "title": (req_analysis.get("summary") or content[:30])[:50],
+                                    "content": response_text,
+                                })
+                                logger.info(f"🎨 单Agent快速路径自动打开Canvas: intent={_merged_intent}, type={_fp_canvas_type}")
                         except Exception as fast_err:
                             logger.warning(f"真流式快速路径失败，降级到 process_task: {fast_err}")
                             _fast_agent = None  # 标记降级
@@ -1065,12 +1097,15 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                         # 伪流式推送多智能体汇总结果
                         await ctx.stream_response_tokens(response_text, used_agent)
 
-                        # === 智能 Canvas 自动打开 — 仅在 workspace 策略下触发 ===
+                        # === 智能 Canvas 自动打开 — V2 放宽：文书类意图或关键词即触发 ===
                         intent = result.get("analysis", {}).get("intent", "")
-                        _is_doc_task = intent in ("DOCUMENT_DRAFTING", "CONTRACT_REVIEW", "CONTRACT_MANAGEMENT") or \
-                            any(kw in content for kw in ['起草', '草拟', '协议', '合同', '文书', '方案', '律师函'])
+                        _is_doc_task = intent in ("DOCUMENT_DRAFTING", "CONTRACT_REVIEW", "CONTRACT_MANAGEMENT", "DEBT_COLLECTION") or \
+                            any(kw in content for kw in ['起草', '草拟', '协议', '合同', '文书', '方案', '律师函',
+                                                         '通知书', '答辩状', '起诉状', '申请书', '意见书'])
 
-                        if _response_strategy == "workspace" and _is_doc_task and len(response_text) > 200:
+                        # V2 修复：降低触发门槛 — 只要是文书类意图或关键词 + 响应有实质内容（>100字）就打开 Canvas
+                        # 不再强制 workspace 策略（大量文书任务走的是 chat_only 策略）
+                        if _is_doc_task and len(response_text) > 100:
                             canvas_type = "contract" if any(kw in content for kw in ['合同', '协议', '合伙']) else "document"
                             await ctx.send("canvas_open", {
                                 "type": canvas_type,
@@ -1360,3 +1395,181 @@ async def get_conversation_canvas(
     except Exception as e:
         logger.error(f"获取 Canvas 文档失败: {e}")
         return UnifiedResponse.success(data=None, message="获取失败")
+
+
+@router.get("/conversations/{conversation_id}/documents", response_model=UnifiedResponse)
+async def list_conversation_documents(
+    conversation_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
+    """
+    V2：列出对话关联的所有文档（用于工作台文档历史列表）
+
+    用户切换对话时加载此接口，恢复工作台的文档列表。
+    选择其中某份文档时可打开进行编辑。
+    """
+    try:
+        from src.models.document import Document as DocModel
+        from sqlalchemy import select as sa_select, and_, cast, String
+
+        result = await db.execute(
+            sa_select(DocModel).where(
+                and_(
+                    DocModel.doc_metadata.isnot(None),
+                    cast(DocModel.doc_metadata["conversation_id"], String) == conversation_id,
+                )
+            ).order_by(DocModel.updated_at.desc())
+        )
+        docs = result.scalars().all()
+
+        items = []
+        for doc in docs:
+            preview = (doc.extracted_text or "")[:200]
+            items.append({
+                "id": str(doc.id),
+                "title": doc.name,
+                "type": doc.doc_type.value if doc.doc_type else "document",
+                "preview": preview,
+                "updated_at": doc.updated_at.isoformat() if doc.updated_at else None,
+                "created_at": doc.created_at.isoformat() if doc.created_at else None,
+            })
+
+        return UnifiedResponse.success(data={
+            "items": items,
+            "total": len(items),
+            "conversation_id": conversation_id,
+        })
+    except Exception as e:
+        logger.error(f"列出对话文档失败: {e}")
+        return UnifiedResponse.success(data={"items": [], "total": 0}, message="获取失败")
+
+
+@router.get("/documents/{document_id}/content", response_model=UnifiedResponse)
+async def get_document_full_content(
+    document_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
+    """
+    V2：获取指定文档的完整内容（用于打开编辑）
+
+    用户在工作台点击某份历史文档时调用。
+    """
+    try:
+        from src.models.document import Document as DocModel
+        doc = await db.get(DocModel, document_id)
+        if not doc:
+            return UnifiedResponse.error(code=404, message="文档不存在")
+
+        content = doc.extracted_text or ""
+        if not content and doc.file_path:
+            try:
+                from pathlib import Path
+                fp = Path(doc.file_path)
+                if fp.exists():
+                    content = fp.read_text(encoding="utf-8")
+            except Exception:
+                pass
+
+        return UnifiedResponse.success(data={
+            "id": str(doc.id),
+            "title": doc.name,
+            "content": content,
+            "type": doc.doc_type.value if doc.doc_type else "document",
+            "updated_at": doc.updated_at.isoformat() if doc.updated_at else None,
+        })
+    except Exception as e:
+        logger.error(f"获取文档内容失败: {e}")
+        return UnifiedResponse.error(code=500, message=f"获取失败: {str(e)}")
+
+
+@router.delete("/documents/{document_id}", response_model=UnifiedResponse)
+async def delete_document_from_workspace(
+    document_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
+    """
+    V2：删除工作台文档（仅限自己创建的）
+
+    用户在工作台删除某份文档时调用。
+    """
+    try:
+        from src.models.document import Document as DocModel
+        doc = await db.get(DocModel, document_id)
+        if not doc:
+            return UnifiedResponse.error(code=404, message="文档不存在")
+
+        # 权限检查：仅创建者本人可删除
+        if doc.created_by and str(doc.created_by) != str(user.id) and user.role not in ("admin", "super_admin"):
+            return UnifiedResponse.error(code=403, message="无权删除此文档")
+
+        # 删除关联文件（如果有）
+        if doc.file_path:
+            try:
+                from pathlib import Path
+                fp = Path(doc.file_path)
+                if fp.exists() and fp.is_file():
+                    fp.unlink()
+            except Exception as e:
+                logger.warning(f"删除文档文件失败: {e}")
+
+        await db.delete(doc)
+        await db.commit()
+        logger.info(f"用户 {user.id} 删除文档 {document_id}")
+        return UnifiedResponse.success(message="删除成功")
+    except Exception as e:
+        logger.error(f"删除文档失败: {e}")
+        await db.rollback()
+        return UnifiedResponse.error(code=500, message=f"删除失败: {str(e)}")
+
+
+@router.post("/documents/{document_id}/export", response_model=UnifiedResponse)
+async def prepare_document_export(
+    document_id: str,
+    format: str = "markdown",
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+):
+    """
+    V2：准备文档导出（返回下载URL或Base64内容）
+
+    支持格式：markdown, docx, pdf
+    """
+    try:
+        from src.models.document import Document as DocModel
+        doc = await db.get(DocModel, document_id)
+        if not doc:
+            return UnifiedResponse.error(code=404, message="文档不存在")
+
+        content = doc.extracted_text or ""
+        if not content and doc.file_path:
+            try:
+                from pathlib import Path
+                fp = Path(doc.file_path)
+                if fp.exists():
+                    content = fp.read_text(encoding="utf-8")
+            except Exception:
+                pass
+
+        if format.lower() == "markdown":
+            import base64
+            b64 = base64.b64encode(content.encode("utf-8")).decode("ascii")
+            return UnifiedResponse.success(data={
+                "format": "markdown",
+                "filename": f"{doc.name}.md",
+                "content_base64": b64,
+                "mime": "text/markdown",
+            })
+
+        # PDF/DOCX 需要额外依赖，这里返回前端可自行转换的提示
+        return UnifiedResponse.success(data={
+            "format": format,
+            "filename": f"{doc.name}.{format}",
+            "content": content,
+            "note": "PDF/DOCX 由前端渲染生成",
+        })
+    except Exception as e:
+        logger.error(f"文档导出准备失败: {e}")
+        return UnifiedResponse.error(code=500, message=f"导出失败: {str(e)}")

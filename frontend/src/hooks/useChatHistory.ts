@@ -17,6 +17,15 @@ export interface CitationSource {
   url?: string | null;
 }
 
+export interface ThinkingStep {
+  id: string;
+  agent: string;
+  content: string;
+  phase?: string;
+  timestamp?: number;
+  planSteps?: any[];
+}
+
 export interface Message {
   id: string;
   type: 'user' | 'ai' | 'system' | 'clarification';
@@ -32,6 +41,8 @@ export interface Message {
     questions: { question: string; options: string[] }[];
     original_content: string;
   };
+  // V2：本轮 AI 回答对应的思考过程（绑定到消息，而不是全局）
+  thinkingSteps?: ThinkingStep[];
 }
 
 const WELCOME_MESSAGE: Message = {

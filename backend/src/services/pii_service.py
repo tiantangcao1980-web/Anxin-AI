@@ -18,25 +18,33 @@ class PIIService:
         self.redaction_map: dict[str, str] = {}
         self.counter = 0
 
-    def scrub(self, text: str) -> tuple[str, dict[str, str]]:
+    def scrub(self, text: str, scrub_money: bool = False) -> tuple[str, dict[str, str]]:
         """
         对文本进行脱敏
+
+        Args:
+            text: 待脱敏文本
+            scrub_money: 是否脱敏金额（默认 False）
+                - 合同起草/咨询场景中金额是必要业务信息，不应脱敏
+                - 仅在明确需要保护商业机密时才传 True
         Returns:
             (desensitized_text, recovery_map)
         """
         self.redaction_map = {}
         self.counter = 0
-        
+
         scrubbed_text = text
-        
-        # 1. 处理手机号
+
+        # 1. 处理手机号（始终脱敏 — 避免泄露个人联系方式）
         scrubbed_text = re.sub(self.PATTERNS["PHONE"], self._replace_phone, scrubbed_text)
-        
-        # 2. 处理身份证
+
+        # 2. 处理身份证（始终脱敏 — 强隐私信息）
         scrubbed_text = re.sub(self.PATTERNS["ID_CARD"], self._replace_id, scrubbed_text)
-        
-        # 3. 处理金额 (商业机密)
-        scrubbed_text = re.sub(self.PATTERNS["MONEY"], self._replace_money, scrubbed_text)
+
+        # 3. 金额脱敏 — 默认关闭（合同/咨询场景中金额是必要信息）
+        # 用户在 settings 中显式开启"商业机密保护"时才脱敏
+        if scrub_money:
+            scrubbed_text = re.sub(self.PATTERNS["MONEY"], self._replace_money, scrubbed_text)
         
         # 4. 简单的人名识别 (这里用非常简单的启发式，实际生产环境应使用NLP模型)
         # 假设 "张三"、"李四" 这种2-3字的名字出现在特定上下文中
