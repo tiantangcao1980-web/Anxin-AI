@@ -69,6 +69,9 @@ export interface CollaborativeEditorProps {
  onCommentResolve?: (commentId: string) => void;
  /** Hide outer toolbar & status bar (when parent provides them) */
  minimal?: boolean;
+ /** V2：是否启用 Yjs 协作（默认 false — 单机本地编辑）
+  *  启用后需要 wsUrl 指向 Yjs WebSocket provider，否则编辑可能不稳定 */
+ enableCollaboration?: boolean;
 }
 
 // ==================== Helper Functions ====================
@@ -218,6 +221,7 @@ export function CollaborativeEditor({
  onCommentAdd,
  onCommentResolve,
  minimal = false,
+ enableCollaboration = false,  // V2：默认关闭协作，避免 Yjs 干扰本地编辑
 }: CollaborativeEditorProps) {
  const [ydoc] = useState(() => new Y.Doc());
  const [connectedUsers, setConnectedUsers] = useState<EditorUser[]>([user]);
@@ -234,48 +238,45 @@ export function CollaborativeEditor({
  const yXmlFragment = useMemo(() => ydoc.getXmlFragment('prosemirror'), [ydoc]);
 
  // Initialize editor with enhanced extensions
- const editor = useEditor({
- extensions: [
+ // V2：Collaboration 扩展改为可选 — 默认关闭，保证单机编辑体验
+ const extensions = useMemo(() => {
+ const base: any[] = [
  StarterKit.configure({
  heading: { levels: [1, 2, 3] },
- history: false,
+ // 启用协作时关闭原生 history（由 Yjs 管理）；否则保留（保证撤销/重做）
+ history: enableCollaboration ? false : undefined,
  }),
  Placeholder.configure({
  placeholder:'开始输入法律文书内容...',
  }),
  LinkExt.configure({
  openOnClick: false,
- HTMLAttributes: {
- class:'text-primary underline hover:text-primary/80',
- },
+ HTMLAttributes: { class:'text-primary underline hover:text-primary/80' },
  }),
  ImageExt.configure({
- HTMLAttributes: {
- class:'max-w-full h-auto rounded-lg',
- },
+ HTMLAttributes: { class:'max-w-full h-auto rounded-lg' },
  }),
  Table.configure({
  resizable: true,
- HTMLAttributes: {
- class:'border-collapse w-full',
- },
+ HTMLAttributes: { class:'border-collapse w-full' },
  }),
  TableRow,
  TableCell,
  TableHeader,
  Underline,
- TextAlign.configure({
- types: ['heading','paragraph'],
- }),
+ TextAlign.configure({ types: ['heading','paragraph'] }),
  TextStyle,
  Color,
- Highlight.configure({
- multicolor: true,
- }),
- Collaboration.configure({
- document: ydoc,
- }),
- ],
+ Highlight.configure({ multicolor: true }),
+ ];
+ if (enableCollaboration) {
+ base.push(Collaboration.configure({ document: ydoc }));
+ }
+ return base;
+ }, [enableCollaboration, ydoc]);
+
+ const editor = useEditor({
+ extensions,
  content: initialContent,
  editable: !readOnly,
  onUpdate: ({ editor }) => {
@@ -291,12 +292,19 @@ export function CollaborativeEditor({
  handleSave();
  }, 3000);
  },
- });
+ }, [extensions]);  // V2：扩展变化时重建编辑器
 
- // Load initial content when editor is ready
+ // V2：当 initialContent 变化时同步更新编辑器内容（避免 isEmpty 误判）
  useEffect(() => {
- if (editor && initialContent && editor.isEmpty) {
+ if (!editor || initialContent === undefined) return;
+ // 仅当外部传入的内容与编辑器当前内容不一致时才更新
+ const currentText = editor.getText();
+ const currentHtml = editor.getHTML();
+ if (initialContent && initialContent !== currentText && initialContent !== currentHtml) {
+ // 如果编辑器是空的，或者内容完全不同（AI 生成了新文档），则替换
+ if (editor.isEmpty || !editor.isFocused) {
  editor.commands.setContent(initialContent);
+ }
  }
  }, [editor, initialContent]);
 

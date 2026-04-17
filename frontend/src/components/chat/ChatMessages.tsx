@@ -10,6 +10,7 @@ import { ThinkingChain } from'./ThinkingChain';
 import { StreamingMessage } from'./StreamingMessage';
 import { ClarificationBubble } from'./ClarificationBubble';
 import { CitationList } from'./CitationList';
+import { LongMessage } from'./LongMessage';
 import type { Message } from'@/hooks';
 import { cardStyle, heading, buttonStyle, iconSize, chatBubble, proseStyle } from'@/lib/design-tokens';
 
@@ -133,13 +134,14 @@ export function ChatMessages({
  </div>
  )}
 
- {/* 消息内容 */}
+ {/* 消息内容 — V2：AI 消息用 LongMessage（长文折叠 + 法律文书卡片化） */}
  {isUser ? (
  <p className="whitespace-pre-wrap">{message.content}</p>
  ) : (
- <div className={proseStyle.chat}>
- <ReactMarkdown>{message.content}</ReactMarkdown>
- </div>
+ <LongMessage
+ content={message.content}
+ isHistorical={!!message.memory_id}
+ />
  )}
  </div>
 

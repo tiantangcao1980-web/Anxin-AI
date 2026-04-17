@@ -300,8 +300,12 @@ export default function Chat() {
  content: canvas.content,
  suggestions: [],
  });
- // 自动打开右侧文档面板
- setTimeout(() => openRightPanel?.('document'), 300);
+ // 自动打开右侧文档面板（直接操作 state/store，避免闭包引用 TDZ）
+ setTimeout(() => {
+ setRightPanelOpen(true);
+ setChatWidth(50);
+ store.setRightPanelTab?.('document');
+ }, 300);
  }
  }).catch(() => {});
 
@@ -320,7 +324,7 @@ export default function Chat() {
  }).catch(() => {});
  });
  }
- }, [conversationId, closeCurrentWs, setConversationId, store, openRightPanel]);
+ }, [conversationId, closeCurrentWs, setConversationId, store]);
 
  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
