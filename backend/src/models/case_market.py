@@ -19,7 +19,7 @@ from sqlalchemy import JSON as JSONB
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.models.base import Base, TimestampMixin, GUID
+from src.models.base import Base, TimestampMixin, GUID, ValueEnum
 
 
 class RequestStatus(str, enum.Enum):
@@ -72,7 +72,7 @@ class CaseRequest(Base, TimestampMixin):
 
     # 状态
     status: Mapped[RequestStatus] = mapped_column(
-        SQLEnum(RequestStatus), default=RequestStatus.PUBLISHED
+        ValueEnum(RequestStatus), default=RequestStatus.PUBLISHED
     )
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
@@ -124,7 +124,7 @@ class LawyerBid(Base, TimestampMixin):
 
     # 状态
     status: Mapped[BidStatus] = mapped_column(
-        SQLEnum(BidStatus), default=BidStatus.PENDING
+        ValueEnum(BidStatus), default=BidStatus.PENDING
     )
 
     # 需求方评价

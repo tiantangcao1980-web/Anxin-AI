@@ -9,7 +9,7 @@ from sqlalchemy import JSON as JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import enum
 
-from src.models.base import Base, TimestampMixin, GUID
+from src.models.base import Base, TimestampMixin, GUID, ValueEnum
 
 if TYPE_CHECKING:
     from src.models.user import User
@@ -49,7 +49,7 @@ class DocumentSession(Base, TimestampMixin):
     # 基本信息
     name: Mapped[Optional[str]] = mapped_column(String(255))
     status: Mapped[SessionStatus] = mapped_column(
-        SQLEnum(SessionStatus), default=SessionStatus.ACTIVE
+        ValueEnum(SessionStatus), default=SessionStatus.ACTIVE
     )
     
     # 会话配置
@@ -109,7 +109,7 @@ class DocumentCollaborator(Base, TimestampMixin):
     
     # 协作者信息
     role: Mapped[CollaboratorRole] = mapped_column(
-        SQLEnum(CollaboratorRole), default=CollaboratorRole.EDITOR
+        ValueEnum(CollaboratorRole), default=CollaboratorRole.EDITOR
     )
     nickname: Mapped[Optional[str]] = mapped_column(String(50))
     color: Mapped[Optional[str]] = mapped_column(String(20))  # 用户标识颜色
@@ -158,7 +158,7 @@ class DocumentEdit(Base, TimestampMixin):
     
     # 编辑信息
     operation: Mapped[EditOperation] = mapped_column(
-        SQLEnum(EditOperation), nullable=False
+        ValueEnum(EditOperation), nullable=False
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     

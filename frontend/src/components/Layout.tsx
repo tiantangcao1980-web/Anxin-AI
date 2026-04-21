@@ -26,6 +26,7 @@ import { icons } from '@/lib/icons'
 import { iconSize, buttonStyle, heading, sidebarNav } from '@/lib/design-tokens'
 import { ModeSwitcher } from '@/components/mode-switcher/ModeSwitcher'
 import { SyncStatus } from '@/components/mode-switcher/SyncStatus'
+import { MobileNavBar } from '@/components/mobile/MobileNavBar'
 
 // Heroicons 组件类型
 type HeroIcon = React.ComponentType<React.SVGProps<SVGSVGElement>>
@@ -39,10 +40,12 @@ interface NavChild {
 }
 
 // 四大业务域 — 全部为直达链接，点击进入模块首页（各模块有自己的左侧导航栏）
+// 顶部四大业务域（与 PRD / 全端导航保持同步）。
+// 「智能调查」对应 /investigation 工作台，舆情监测是其中一个子入口。
 const navGroups: { id: string; label: string; path: string }[] = [
   { id: 'ai-legal', label: 'AI法务', path: '/chat' },
   { id: 'collaboration', label: '智能协作', path: '/case-center' },
-  { id: 'monitoring', label: '舆情监测', path: '/monitoring' },
+  { id: 'investigation', label: '智能调查', path: '/investigation' },
   { id: 'knowledge', label: '法律智库', path: '/knowledge-base' },
 ]
 
@@ -71,13 +74,13 @@ const moduleSidebarConfig: { id: string; title: string; icon: React.ComponentTyp
     ],
   },
   {
-    id: 'monitoring',
-    title: '舆情监测',
+    id: 'investigation',
+    title: '智能调查',
     icon: icons.DueDiligence,
-    paths: ['/monitoring', '/investigation'],
+    paths: ['/investigation', '/monitoring'],
     items: [
-      { path: '/monitoring', label: '舆情中心', icon: icons.Signal },
-      { path: '/investigation', label: '智能调查', icon: icons.BarChart3 },
+      { path: '/investigation', label: '尽职调查', icon: icons.BarChart3 },
+      { path: '/monitoring', label: '舆情监测', icon: icons.Signal },
     ],
   },
   {
@@ -175,8 +178,12 @@ function ModuleSidebar({ currentPath, onNavigate }: { currentPath: string; onNav
 // 路由活跃检测 — 检查当前路径是否属于某个模块
 const modulePathMap: Record<string, string[]> = {
   'ai-legal': ['/chat'],
-  'collaboration': ['/cases', '/contracts', '/documents', '/find-lawyer', '/compliance-check', '/leads', '/acquisition', '/firm', '/lawyer-dashboard'],
-  'info-center': ['/due-diligence'],  // 子路径 /due-diligence/* 自动匹配
+  'collaboration': [
+    '/case-center', '/management', '/cases', '/contracts', '/documents',
+    '/find-lawyer', '/compliance-check', '/leads', '/acquisition', '/firm',
+    '/lawyer-dashboard',
+  ],
+  'investigation': ['/investigation', '/monitoring', '/due-diligence'],
   'knowledge': ['/search', '/knowledge-graph', '/knowledge-base', '/academy'],
 }
 
@@ -416,30 +423,7 @@ export default function Layout() {
 
       {/* ===== 移动端底部 Tab 栏 ===== */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-surface-1/95 backdrop-blur-xl" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        <div className="flex items-center justify-around h-14">
-          {navGroups.map((group) => {
-            const isActive = isModuleActive(group.id, currentPath)
-            const groupIcons: Record<string, typeof icons.Chat> = {
-              'ai-legal': icons.Chat,
-              'collaboration': icons.Cases,
-              'info-center': icons.DueDiligence,
-              'knowledge': icons.KnowledgeGraph,
-            }
-            const GroupIcon = groupIcons[group.id] || icons.Chat
-            return (
-              <button
-                key={group.id}
-                onClick={() => handleNavClick(group.path)}
-                className={`flex flex-col items-center gap-0.5 px-3 py-1 min-w-[60px] ${
-                  isActive ? 'text-primary' : 'text-muted-foreground'
-                }`}
-              >
-                <GroupIcon className="w-5 h-5" />
-                <span className="text-[10px] font-medium">{group.label}</span>
-              </button>
-            )
-          })}
-        </div>
+        <MobileNavBar />
       </nav>
 
       {/* 通知中心 */}

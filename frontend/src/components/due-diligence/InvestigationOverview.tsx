@@ -6,6 +6,7 @@ import { useMemo } from'react'
 import { motion } from'framer-motion'
 import { icons } from'@/lib/icons'
 import { cardStyle, heading, statusBadge, buttonStyle } from'@/lib/design-tokens'
+import { StatCard, StatGrid } from'@/components/ui-unified'
 import {
  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
  ResponsiveContainer, Tooltip,
@@ -94,47 +95,18 @@ export function InvestigationOverview({ data, companyName, onNavigate, onGenerat
  { dimension:'关联风险', score: data.risk.relation_risk || 0 },
  ] : []
 
- const kpiCards = [
- {
- label:'风险等级',
- value: rc.label,
- sub: `综合评分 ${riskScore}`,
- icon: icons.ShieldAlert,
- color: rc.color,
- bg: rc.bg,
- border: rc.border,
- section:'risk',
- },
- {
- label:'涉诉案件',
- value: `${litigationCount} 起`,
- sub: `被告 ${data.litigation?.as_defendant || 0} / 原告 ${data.litigation?.as_plaintiff || 0}`,
- icon: icons.Scale,
- color: litigationCount > 3 ?'text-destructive' :'text-foreground',
- bg: litigationCount > 3 ?'bg-destructive/10' :'bg-muted/50',
- border: litigationCount > 3 ?'border-destructive/20' :'border-border',
- section:'litigation',
- },
- {
- label:'信用评级',
- value: creditRating,
- sub: `行政处罚 ${data.credit?.administrative_penalties || 0} 条`,
- icon: icons.FileCheck,
- color: creditIsGood ?'text-success' :'text-warning',
- bg: creditIsGood ?'bg-success/10' :'bg-warning/10',
- border: creditIsGood ?'border-success/20' :'border-warning/20',
- section:'compliance',
- },
- {
- label:'预警数量',
- value: `${alerts.length} 条`,
- sub: `严重 ${alerts.filter(a => a.severity ==='critical').length} / 警告 ${alerts.filter(a => a.severity ==='warning').length}`,
- icon: icons.Bell,
- color: alerts.some(a => a.severity ==='critical') ?'text-destructive' :'text-success',
- bg: alerts.some(a => a.severity ==='critical') ?'bg-destructive/10' :'bg-success/10',
- border: alerts.some(a => a.severity ==='critical') ?'border-destructive/20' :'border-success/20',
- section:'sentiment',
- },
+ // 将业务 tone 映射到 StatCard 统一 tone 体系
+ type StatTone ='primary' |'success' |'warning' |'destructive' |'default'
+ const riskTone: StatTone = riskScore >= 70 ?'destructive' : riskScore >= 40 ?'warning' :'success'
+ const litigationTone: StatTone = litigationCount > 3 ?'destructive' : litigationCount > 0 ?'warning' :'default'
+ const creditTone: StatTone = creditIsGood ?'success' :'warning'
+ const alertsTone: StatTone = alerts.some(a => a.severity ==='critical') ?'destructive' : alerts.length ?'warning' :'success'
+
+ const kpiCards: { label: string; value: string; sub: string; icon: any; tone: StatTone; section: string }[] = [
+ { label:'风险等级', value: rc.label,                 sub: `综合评分 ${riskScore}`,                                                                                                 icon: icons.ShieldAlert, tone: riskTone,       section:'risk' },
+ { label:'涉诉案件', value: `${litigationCount} 起`,   sub: `被告 ${data.litigation?.as_defendant || 0} / 原告 ${data.litigation?.as_plaintiff || 0}`,                                icon: icons.Scale,       tone: litigationTone, section:'litigation' },
+ { label:'信用评级', value: creditRating,              sub: `行政处罚 ${data.credit?.administrative_penalties || 0} 条`,                                                                icon: icons.FileCheck,   tone: creditTone,     section:'compliance' },
+ { label:'预警数量', value: `${alerts.length} 条`,     sub: `严重 ${alerts.filter(a => a.severity ==='critical').length} / 警告 ${alerts.filter(a => a.severity ==='warning').length}`, icon: icons.Bell,        tone: alertsTone,     section:'sentiment' },
  ]
 
  // 数据质量标识
@@ -159,29 +131,21 @@ export function InvestigationOverview({ data, companyName, onNavigate, onGenerat
  </div>
  )}
 
- {/* KPI 卡片 */}
- <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
- {kpiCards.map((card, i) => {
- const Icon = card.icon
- return (
- <motion.div
+ {/* KPI 卡片 —— 接入 StatGrid，点击跳到详情章节 */}
+ <StatGrid cols={4}>
+ {kpiCards.map((card, i) => (
+ <StatCard
  key={card.label}
- initial={{ opacity: 0, y: 20 }}
- animate={{ opacity: 1, y: 0 }}
- transition={{ delay: i * 0.05 }}
+ index={i}
+ icon={card.icon}
+ tone={card.tone}
+ label={card.label}
+ value={card.value}
+ hint={card.sub}
  onClick={() => onNavigate(card.section)}
- className={`p-4 rounded-xl border cursor-pointer hover:shadow-md transition-shadow ${card.bg} ${card.border}`}
- >
- <div className="flex items-center gap-2 mb-2">
- <Icon className={`w-4 h-4 ${card.color}`} />
- <span className="text-xs text-muted-foreground font-medium">{card.label}</span>
- </div>
- <p className={`text-xl font-bold ${card.color}`}>{card.value}</p>
- <p className="text-xs text-muted-foreground mt-1">{card.sub}</p>
- </motion.div>
- )
- })}
- </div>
+ />
+ ))}
+ </StatGrid>
 
  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
  {/* 风险雷达图 */}

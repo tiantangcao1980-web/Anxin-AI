@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { contractsApi, sentimentApi, type Contract, type SentimentAlert } from '@/lib/api'
 import { spacing } from '@/lib/design-tokens'
+import { StatCard as UnifiedStatCard, StatGrid } from '@/components/ui-unified'
 import { toast } from 'sonner'
 
 // 统一风险项
@@ -160,37 +161,13 @@ export function RiskAlertPanel() {
 
   return (
     <div className={`h-full overflow-auto ${spacing.page} ${spacing.section}`}>
-      {/* 统计卡片 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          icon={AlertTriangle}
-          label="总预警"
-          value={stats.total}
-          color="text-foreground"
-          loading={loading}
-        />
-        <StatCard
-          icon={Shield}
-          label="高风险"
-          value={stats.high}
-          color="text-destructive"
-          loading={loading}
-        />
-        <StatCard
-          icon={TrendingUp}
-          label="本周新增"
-          value={stats.thisWeek}
-          color="text-primary"
-          loading={loading}
-        />
-        <StatCard
-          icon={Clock}
-          label="待处理"
-          value={stats.pending}
-          color="text-warning"
-          loading={loading}
-        />
-      </div>
+      {/* 统计卡片 —— 接入 StatGrid，视觉与全站一致 */}
+      <StatGrid cols={4}>
+        <UnifiedStatCard index={0} icon={AlertTriangle} tone="default"     label="总预警"   value={stats.total}    hint="全部预警" loading={loading} />
+        <UnifiedStatCard index={1} icon={Shield}        tone="destructive" label="高风险"   value={stats.high}     hint="需立即处理" loading={loading} />
+        <UnifiedStatCard index={2} icon={TrendingUp}    tone="primary"     label="本周新增" value={stats.thisWeek} hint="近 7 天"   loading={loading} />
+        <UnifiedStatCard index={3} icon={Clock}         tone="warning"     label="待处理"   value={stats.pending}  hint="未受理"    loading={loading} />
+      </StatGrid>
 
       {/* 筛选 */}
       <div className="flex items-center gap-2">
@@ -299,28 +276,6 @@ export function RiskAlertPanel() {
   )
 }
 
-// 统计卡片
-function StatCard({ icon: Icon, label, value, color, loading }: {
-  icon: typeof AlertTriangle
-  label: string
-  value: number
-  color: string
-  loading: boolean
-}) {
-  return (
-    <div className="rounded-xl border bg-card p-4">
-      <div className="flex items-center gap-2 mb-2">
-        <Icon className={`h-4 w-4 ${color}`} />
-        <span className="text-xs text-muted-foreground">{label}</span>
-      </div>
-      {loading ? (
-        <div className="h-8 w-16 rounded bg-muted animate-pulse" />
-      ) : (
-        <div className={`text-2xl font-semibold ${color}`}>{value}</div>
-      )}
-    </div>
-  )
-}
 
 // 合同风险描述生成
 function getContractRiskDescription(contract: Contract): string {

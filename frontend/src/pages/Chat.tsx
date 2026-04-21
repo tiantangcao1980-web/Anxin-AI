@@ -21,6 +21,7 @@ import { useChatStore, ConversationItem } from'@/lib/store';
 import type { AgentResult, ThinkingStep, CanvasContent } from'@/lib/store';
 import { usePrivacy, PrivacyMode } from'@/context/PrivacyContext';
 import { cn } from'@/lib/utils';
+import { useBreakpoint } from'@/hooks/useBreakpoint';
 import { toast } from'sonner';
 import { v4 as uuidv4 } from'uuid';
 import { CitationList } from'@/components/chat/CitationList';
@@ -69,11 +70,12 @@ export default function Chat() {
  // 本地状态
  const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
  const [isProcessing, setIsProcessing] = useState(false);
- const isDesktopInit = typeof window !=='undefined' && window.innerWidth >= 1024;
- const [chatWidth, setChatWidth] = useState(isDesktopInit ? 50 : 100);
- const [isMobile, setIsMobile] = useState(!isDesktopInit);
+ // 响应式断点（统一由 useBreakpoint 管理，替代手动 resize 监听）
+ const { isDesktop } = useBreakpoint();
+ const isMobile = !isDesktop;
+ const [chatWidth, setChatWidth] = useState(isDesktop ? 50 : 100);
  const [showContextPanel, setShowContextPanel] = useState(false);
- const [rightPanelOpen, setRightPanelOpen] = useState(isDesktopInit);
+ const [rightPanelOpen, setRightPanelOpen] = useState(isDesktop);
  // 左侧对话列表宽度（可拖拽调整）
  const [sidebarWidth, setSidebarWidth] = useState(220);
  // 右侧面板宽度百分比（可拖拽调整）
@@ -207,17 +209,11 @@ export default function Chat() {
  if (!conversationId) setConversationId(uuidv4());
  }, [conversationId, setConversationId]);
 
+ // 响应断点变化：切换到移动端时自动关闭侧边栏
+ // 注：isMobile 由 useBreakpoint 提供，无需重复监听 resize
  useEffect(() => {
- const check = () => {
- const mobile = window.innerWidth < 1024;
- setIsMobile(mobile);
- return mobile;
- };
- const mobile = check();
- if (mobile) setChatSidebarOpen(false);
- window.addEventListener('resize', check);
- return () => window.removeEventListener('resize', check);
- }, []);
+ if (isMobile) setChatSidebarOpen(false);
+ }, [isMobile, setChatSidebarOpen]);
 
  // ========== 对话管理 ==========
 
@@ -430,6 +426,11 @@ export default function Chat() {
  useEffect(() => {
  if (!conversationId || historyLoaded) return;
  let cancelled = false;
+
+ // 页面刷新后初次加载：先尝试从持久化的工作台缓存恢复
+ // 避免对话切换时清空状态导致工作台空白
+ store.restoreWorkspaceFromCache?.(conversationId);
+
  (async () => {
  setIsLoadingHistory(true);
  try {
@@ -493,6 +494,26 @@ export default function Chat() {
  })();
  return () => { cancelled = true; };
  }, [conversationId, historyLoaded]);
+
+ // ========== 工作台状态自动持久化 ==========
+ // 当工作台关键状态变化时，节流保存到缓存（覆盖当前 conversationId）
+ // 配合 Zustand persist，刷新页面/切换对话后能恢复
+ useEffect(() => {
+ if (!conversationId) return;
+ const timer = setTimeout(() => {
+ store.saveWorkspaceToCache?.(conversationId);
+ }, 1000);
+ return () => clearTimeout(timer);
+ }, [
+ conversationId,
+ store.agentResults,
+ store.thinkingSteps,
+ store.requirementAnalysis,
+ store.canvasContent,
+ store.workspaceConfirmations,
+ store.workspaceActions,
+ store.agentTasks,
+ ]);
 
  // ========== 智能滚动控制 ==========
  // 检测用户是否主动向上滚动

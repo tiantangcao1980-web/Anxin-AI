@@ -5,8 +5,14 @@
  */
 
 import type { A2UIMessage } from '@/components/a2ui'
+import type { ThinkingStep } from '@/lib/store'
 
-/** 引用来源 */
+/**
+ * 引用来源
+ *
+ * 来自后端 RAG / 知识库检索。字段在网络边界可能缺省，
+ * 因此声明为可选；消费组件需要自行提供 UI 兜底。
+ */
 export interface CitationSource {
   id: string
   type: string
@@ -14,8 +20,10 @@ export interface CitationSource {
   content_snippet?: string
   source?: string
   relevance_score?: number
-  url?: string
+  url?: string | null
 }
+
+export type { ThinkingStep }
 
 /** 聊天消息 */
 export interface Message {
@@ -50,6 +58,8 @@ export interface Message {
   sources?: CitationSource[]
   /** 后续引导建议 */
   suggestions?: string[]
+  /** V2：本轮 AI 回答对应的思考过程（绑定到消息，而不是全局） */
+  thinkingSteps?: ThinkingStep[]
 }
 
 /** 欢迎消息 */

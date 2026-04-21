@@ -31,6 +31,19 @@ async def handle_rag_query(
     if not ((_frontend_mode == "research" or _selected_kb_ids) and not agent_name):
         return False
 
+    # V2 修复：用户上传了附件（合同/文书等）+ 意图关键词（审查/起草/解读/修改）
+    # → 应该让附件走专业 Agent 处理，而不是被 RAG 知识库检索拦截
+    # 典型场景："上传合同 + 请帮我审查并检索相关法规" → 应走 CONTRACT_REVIEW
+    if data.get("has_attachments"):
+        _contract_intent_keywords = [
+            "审查", "审核", "起草", "修改", "解读", "风险", "条款",
+            "合同", "协议", "文书", "律师函", "起诉状", "答辩状",
+            "授权书", "委托书", "意见书", "备忘录",
+        ]
+        if any(kw in content for kw in _contract_intent_keywords):
+            logger.info(f"RAG 处理器让路：检测到附件+专业意图，交给 Coordinator 路由")
+            return False
+
     await ctx.send("agent_thinking", {
         "agent": "知识库检索Agent",
         "message": "正在检索知识库并整理答案...",

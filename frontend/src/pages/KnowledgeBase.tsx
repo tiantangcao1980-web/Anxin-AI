@@ -27,6 +27,7 @@ import {
   iconSize,
   spacing,
 } from '@/lib/design-tokens'
+import { StatCard as UnifiedStatCard } from '@/components/ui-unified'
 import { knowledgeApi, type KnowledgeBase as KB, type KnowledgeDocument } from '@/lib/api'
 import { toast } from 'sonner'
 
@@ -649,17 +650,18 @@ export default function KnowledgeBase() {
           <button onClick={() => setShowStats(false)} className={buttonStyle.icon}><icons.Close className={iconSize.sm} /></button>
         </div>
         <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4">
+          {/* 数值等宽 + 权重 600 + tnum —— 与全站统计一致 */}
           <div className="text-center">
-            <p className="text-2xl font-bold text-foreground">{stats.doc_count}</p>
-            <p className="text-xs text-muted-foreground">文档总数</p>
+            <p className="num-tabular text-[28px] font-semibold leading-tight tracking-heading-md text-foreground">{stats.doc_count}</p>
+            <p className="text-caption text-foreground-tertiary mt-1">文档总数</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold text-success">{stats.processed_count}</p>
-            <p className="text-xs text-muted-foreground">已索引</p>
+            <p className="num-tabular text-[28px] font-semibold leading-tight tracking-heading-md text-success">{stats.processed_count}</p>
+            <p className="text-caption text-foreground-tertiary mt-1">已索引</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold text-primary">{stats.total_chunks}</p>
-            <p className="text-xs text-muted-foreground">向量分块</p>
+            <p className="num-tabular text-[28px] font-semibold leading-tight tracking-heading-md text-primary">{stats.total_chunks}</p>
+            <p className="text-caption text-foreground-tertiary mt-1">向量分块</p>
           </div>
         </div>
         {categories.length > 0 && (
@@ -888,20 +890,20 @@ export default function KnowledgeBase() {
             {/* 统计摘要 */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
               {[
-                { label: '知识库', value: filteredBases.length, icon: icons.BookOpen, color: 'text-primary' },
-                { label: '总文档', value: filteredBases.reduce((sum, kb) => sum + ((kb as any).document_count || kb.doc_count || 0), 0), icon: icons.FileText, color: 'text-success' },
-                { label: '类型', value: new Set(filteredBases.map(kb => kb.knowledge_type)).size, icon: icons.Tag, color: 'text-warning' },
-                { label: '公开', value: filteredBases.filter(kb => kb.is_public).length, icon: icons.Globe, color: 'text-muted-foreground' },
-              ].map(stat => {
-                const Icon = stat.icon
-                return (
-                  <div key={stat.label} className={cardStyle.compact + ' text-center'}>
-                    <Icon className={`w-4 h-4 mx-auto mb-1 ${stat.color}`} />
-                    <p className={`text-lg font-bold ${stat.color}`}>{stat.value}</p>
-                    <p className="text-[10px] text-muted-foreground">{stat.label}</p>
-                  </div>
-                )
-              })}
+                { label: '知识库', value: filteredBases.length, icon: icons.BookOpen, tone: 'primary' as const },
+                { label: '总文档', value: filteredBases.reduce((sum, kb) => sum + ((kb as any).document_count || kb.doc_count || 0), 0), icon: icons.FileText, tone: 'success' as const },
+                { label: '类型', value: new Set(filteredBases.map(kb => kb.knowledge_type)).size, icon: icons.Tag, tone: 'warning' as const },
+                { label: '公开', value: filteredBases.filter(kb => kb.is_public).length, icon: icons.Globe, tone: 'default' as const },
+              ].map((stat, index) => (
+                <UnifiedStatCard
+                  key={stat.label}
+                  index={index}
+                  icon={stat.icon}
+                  tone={stat.tone}
+                  label={stat.label}
+                  value={stat.value}
+                />
+              ))}
             </div>
 
             <p className="text-xs text-muted-foreground mb-3">

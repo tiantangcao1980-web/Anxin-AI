@@ -7,6 +7,7 @@ import { Button } from'@/components/ui/button'
 import { Badge } from'@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from'@/components/ui/card'
 import { Skeleton } from'@/components/ui/skeleton'
+import { StatCard as UnifiedStatCard, StatGrid, StatCardSkeleton } from'@/components/ui-unified'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ||'/api/v1'
 
@@ -25,25 +26,6 @@ interface HarnessStats {
  tools?: { total_tools: number; requires_approval: string[]; total_calls: number }
  policy?: { total_checks: number; decisions: Record<string, number> }
  tasks?: { total_tasks: number; completed: number; failed: number; success_rate: number; avg_elapsed_seconds: number }
-}
-
-function StatCard({ title, value, subtitle, icon: Icon, color ='text-info' }: {
- title: string; value: string | number; subtitle?: string; icon?: any; color?: string
-}) {
- return (
- <Card>
- <CardContent className="pt-6">
- <div className="flex items-center justify-between">
- <div>
- <p className="text-sm text-muted-foreground">{title}</p>
- <p className={`text-2xl font-bold ${color}`}>{value}</p>
- {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
- </div>
- {Icon && <Icon className="h-8 w-8 text-muted-foreground/30" />}
- </div>
- </CardContent>
- </Card>
- )
 }
 
 export default function AdminHarness() {
@@ -72,9 +54,7 @@ export default function AdminHarness() {
  if (loading) {
  return (
  <PageContainer title="Harness 工程监控" description="AI 系统运行质量与治理">
- <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
- {[1,2,3,4].map(i => <Skeleton key={i} className="h-28 rounded-xl" />)}
- </div>
+ <StatCardSkeleton count={4} />
  </PageContainer>
  )
  }
@@ -86,37 +66,41 @@ export default function AdminHarness() {
 
  return (
  <PageContainer title="Harness 工程监控" description="AI 系统运行质量与治理">
- {/* 顶部概览卡片 */}
- <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
- <StatCard
- title="Token 消耗"
- value={cost?.total_tokens?.toLocaleString() ||'0'}
- subtitle={`$${cost?.total_cost_usd?.toFixed(4) ||'0'} USD`}
+ {/* 顶部概览卡片 — 接入 StatGrid */}
+ <StatGrid cols={4} className="mb-6">
+ <UnifiedStatCard
+ index={0}
  icon={icons.Zap}
- color="text-warning"
+ tone="warning"
+ label="Token 消耗"
+ value={cost?.total_tokens?.toLocaleString() ||'0'}
+ hint={`$${cost?.total_cost_usd?.toFixed(4) ||'0'} USD`}
  />
- <StatCard
- title="任务总数"
- value={tasks?.total_tasks || 0}
- subtitle={`成功率 ${((tasks?.success_rate || 0) * 100).toFixed(1)}%`}
+ <UnifiedStatCard
+ index={1}
  icon={icons.CheckCircle}
- color="text-success"
+ tone="success"
+ label="任务总数"
+ value={tasks?.total_tasks || 0}
+ hint={`成功率 ${((tasks?.success_rate || 0) * 100).toFixed(1)}%`}
  />
- <StatCard
- title="注册工具"
- value={tools?.total_tools || 0}
- subtitle={`${tools?.requires_approval?.length || 0} 个需审批`}
+ <UnifiedStatCard
+ index={2}
  icon={icons.Settings}
- color="text-info"
+ tone="primary"
+ label="注册工具"
+ value={tools?.total_tools || 0}
+ hint={`${tools?.requires_approval?.length || 0} 个需审批`}
  />
- <StatCard
- title="权限检查"
- value={policy?.total_checks || 0}
- subtitle={`拒绝 ${policy?.decisions?.DENY || 0} 次`}
+ <UnifiedStatCard
+ index={3}
  icon={icons.Shield}
- color="text-destructive"
+ tone="destructive"
+ label="权限检查"
+ value={policy?.total_checks || 0}
+ hint={`拒绝 ${policy?.decisions?.DENY || 0} 次`}
  />
- </div>
+ </StatGrid>
 
  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
  {/* 模型费用分布 */}
@@ -172,25 +156,25 @@ export default function AdminHarness() {
  </CardHeader>
  <CardContent>
  <div className="grid grid-cols-2 gap-4">
- <div className="text-center p-3 bg-success/10 rounded-lg">
- <p className="text-2xl font-bold text-success">{tasks?.completed || 0}</p>
- <p className="text-xs text-muted-foreground">已完成</p>
+ <div className="text-center p-3 bg-success/10 rounded-dd">
+ <p className="num-tabular text-[28px] font-semibold leading-tight tracking-heading-md text-success">{tasks?.completed || 0}</p>
+ <p className="text-caption text-foreground-tertiary mt-1">已完成</p>
  </div>
- <div className="text-center p-3 bg-destructive/10 rounded-lg">
- <p className="text-2xl font-bold text-destructive">{tasks?.failed || 0}</p>
- <p className="text-xs text-muted-foreground">已失败</p>
+ <div className="text-center p-3 bg-destructive/10 rounded-dd">
+ <p className="num-tabular text-[28px] font-semibold leading-tight tracking-heading-md text-destructive">{tasks?.failed || 0}</p>
+ <p className="text-caption text-foreground-tertiary mt-1">已失败</p>
  </div>
- <div className="text-center p-3 bg-info/10 rounded-lg">
- <p className="text-2xl font-bold text-info">
+ <div className="text-center p-3 bg-info/10 rounded-dd">
+ <p className="num-tabular text-[28px] font-semibold leading-tight tracking-heading-md text-info">
  {((tasks?.success_rate || 0) * 100).toFixed(1)}%
  </p>
- <p className="text-xs text-muted-foreground">成功率</p>
+ <p className="text-caption text-foreground-tertiary mt-1">成功率</p>
  </div>
- <div className="text-center p-3 bg-warning/10 rounded-lg">
- <p className="text-2xl font-bold text-warning">
+ <div className="text-center p-3 bg-warning/10 rounded-dd">
+ <p className="num-tabular text-[28px] font-semibold leading-tight tracking-heading-md text-warning">
  {tasks?.avg_elapsed_seconds?.toFixed(1) ||'0'}s
  </p>
- <p className="text-xs text-muted-foreground">平均耗时</p>
+ <p className="text-caption text-foreground-tertiary mt-1">平均耗时</p>
  </div>
  </div>
  </CardContent>

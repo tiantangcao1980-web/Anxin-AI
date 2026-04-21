@@ -139,8 +139,9 @@ test.describe('核心业务动作回归', () => {
       email: 'enterprise@example.com',
     })
 
-    await page.goto('/contracts')
-    await page.getByRole('button', { name: '上传审查' }).click()
+    await page.goto('/management?tab=contracts')
+    // 合同管理页的审查入口（快捷审查 / 完整审查），统一打开审查弹窗
+    await page.getByRole('button', { name: '快捷审查' }).click()
 
     await page.getByPlaceholder('请在此粘贴合同文本...').fill('甲方应在合同生效后付款，违约责任另行协商。')
     await page.getByRole('button', { name: '开始审查' }).click()

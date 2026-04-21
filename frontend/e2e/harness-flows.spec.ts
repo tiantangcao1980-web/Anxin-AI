@@ -158,7 +158,10 @@ test.describe('快捷操作栏', () => {
     await expect(input).toBeVisible()
   })
 
-  test('文书起草保留快捷动作而模板仅存在于知识库入口', async ({ page }) => {
+  test('文书起草保留快捷动作而模板仅存在于知识库入口', async ({ page }, testInfo) => {
+    // 移动端 QuickActionsBar 把「文书起草」折叠进「更多」菜单；
+    // 此测试聚焦桌面端编排栏的模板入口纯粹性，移动端有专门用例覆盖。
+    test.skip(testInfo.project.name === 'mobile', 'mobile 折叠了文书起草到更多菜单')
     const bar = page.getByTestId('input-orchestration-bar')
 
     await bar.getByRole('button', { name: '文书起草' }).click()

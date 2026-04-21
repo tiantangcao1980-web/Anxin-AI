@@ -28,7 +28,10 @@ dependencies = [
     "mcp>=1.0.0",
     "jsonschema>=4.0.0",
     # 向量数据库
-    "qdrant-client>=1.7.0",
+    # 服务端 docker 镜像固定在 qdrant/qdrant:v1.12.1，
+    # 为避免 Major 版本差引发 check_compatibility 警告与 API 差异，
+    # 客户端锁定在 1.12.x 兼容范围内；升级服务端前不要放开上限。
+    "qdrant-client>=1.12.0,<1.13.0",
     # 知识图谱
     "neo4j>=5.15.0",
     # 文档处理

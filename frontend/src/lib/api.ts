@@ -2806,6 +2806,24 @@ export const billingApi = {
     request<any>('/billing/subscriptions', { method: 'POST', body: JSON.stringify(data) }),
   getMySubscriptions: () => request<any>('/billing/subscriptions'),
   getSubscriptionStatus: () => request<any>('/billing/subscriptions/status'),
+
+  // V2：带客户端类型 + 计费周期的订阅创建
+  createV2Subscription: (data: {
+    plan_id: string;
+    client_type?: 'needer' | 'provider';
+    payment_method?: 'wechat' | 'alipay';
+    billing_cycle?: 'monthly' | 'yearly';
+  }) =>
+    request<any>('/billing/v2/subscribe', { method: 'POST', body: JSON.stringify(data) }),
+
+  // V2：创建试用订阅
+  createTrial: (clientType: 'needer' | 'provider' = 'needer') =>
+    request<any>(`/billing/v2/trial?client_type=${clientType}`, { method: 'POST' }),
+
+  // V2：获取当前功能权限
+  getMyFeatures: (clientType: 'needer' | 'provider' = 'needer') =>
+    request<any>(`/billing/v2/features?client_type=${clientType}`),
+
   cancelSubscription: (subId: string, reason?: string) =>
     request<any>(`/billing/subscriptions/${subId}/cancel`, {
       method: 'POST',
@@ -2842,6 +2860,55 @@ export const billingApi = {
       method: 'POST',
       body: JSON.stringify({ reason }),
     }),
+}
+
+// ===== 案源市场 API（V2 架构）=====
+export const caseMarketApi = {
+  // 需求方：发布需求
+  publishRequest: (data: {
+    title: string; description: string; legal_area: string;
+    urgency?: 'urgent' | 'normal' | 'flexible';
+    budget_min?: number; budget_max?: number;
+    location?: string; is_anonymous?: boolean; tags?: string[];
+  }) => request<any>('/case-market/requests', { method: 'POST', body: JSON.stringify(data) }),
+
+  // 需求方：我发布的需求列表
+  listMyRequests: (params?: { status?: string; skip?: number; limit?: number }) => {
+    const qs = new URLSearchParams()
+    if (params?.status) qs.set('status', params.status)
+    if (params?.skip !== undefined) qs.set('skip', String(params.skip))
+    if (params?.limit !== undefined) qs.set('limit', String(params.limit))
+    const query = qs.toString()
+    return request<any>(`/case-market/requests/mine${query ? `?${query}` : ''}`)
+  },
+
+  // 需求方：某需求收到的投标
+  listBidsForRequest: (requestId: string) =>
+    request<any>(`/case-market/requests/${requestId}/bids`),
+
+  // 需求方：接受投标
+  acceptBid: (requestId: string, bidId: string) =>
+    request<any>(`/case-market/requests/${requestId}/accept-bid/${bidId}`, { method: 'POST' }),
+
+  // 服务方：浏览市场
+  browseMarket: (params?: { legal_area?: string; location?: string; urgency?: string; skip?: number; limit?: number }) => {
+    const qs = new URLSearchParams()
+    Object.entries(params || {}).forEach(([k, v]) => v !== undefined && qs.set(k, String(v)))
+    const query = qs.toString()
+    return request<any>(`/case-market/market${query ? `?${query}` : ''}`)
+  },
+
+  // 服务方：投标（可能返回 conflict_warning）
+  submitBid: (requestId: string, data: { proposal: string; quoted_price?: number; estimated_days?: number }) =>
+    request<any>(`/case-market/market/${requestId}/bid`, { method: 'POST', body: JSON.stringify(data) }),
+
+  // 服务方：我的投标记录
+  listMyBids: (status?: string) =>
+    request<any>(`/case-market/bids/mine${status ? `?status=${status}` : ''}`),
+
+  // 双向评价
+  rateService: (bidId: string, data: { rating: number; comment?: string }) =>
+    request<any>(`/case-market/bids/${bidId}/rate`, { method: 'POST', body: JSON.stringify(data) }),
 }
 
 // ===== 获客分析 API =====

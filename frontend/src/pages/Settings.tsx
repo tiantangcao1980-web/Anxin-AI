@@ -20,6 +20,7 @@ import { Separator } from'@/components/ui/separator'
 import { llmApi, mcpApi, authApi, notificationsApi, LLMConfig, LLMProvider, McpServerConfig, McpServerCreate, NotificationPreference } from'@/lib/api'
 import { useAuthStore, useUIStore } from'@/lib/store'
 import { ErrorState, LoadingState } from'@/components/common'
+import { usePermission } from'@/hooks/usePermission'
 
 export default function Settings() {
  const [searchParams] = useSearchParams()
@@ -75,6 +76,7 @@ export default function Settings() {
 function ProfilePanel() {
  const navigate = useNavigate()
  const { user, setUser } = useAuthStore()
+ const { isAdmin } = usePermission()
  const { theme, setTheme } = useUIStore()
  const [form, setForm] = useState({
  name: user?.name ||'',
@@ -228,6 +230,22 @@ function ProfilePanel() {
  </div>
  </CardContent>
  </Card>
+
+ {isAdmin && (
+ <Card className="border-border rounded-xl">
+ <CardHeader>
+ <CardTitle className={heading.section}>管理入口</CardTitle>
+ <CardDescription className={heading.muted}>管理员可从这里进入后台管理面板</CardDescription>
+ </CardHeader>
+ <CardContent className="flex items-center justify-between gap-3">
+ <div>
+ <p className="text-sm font-medium text-foreground">后台管理</p>
+ <p className="text-xs text-muted-foreground">用户、角色、审计、安全与系统配置</p>
+ </div>
+ <Button onClick={() => navigate('/admin')}>后台管理</Button>
+ </CardContent>
+ </Card>
+ )}
 
  {/* 外观设置 */}
  <Card className="border-border rounded-xl">

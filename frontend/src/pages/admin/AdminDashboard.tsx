@@ -29,13 +29,16 @@ import {
  Legend,
 } from'recharts'
 import { cardStyle, chartColors } from'@/lib/design-tokens'
+import { StatCard as UnifiedStatCard, StatGrid, StatCardSkeleton } from'@/components/ui-unified'
 
+type StatTone = 'primary' | 'success' | 'warning' | 'destructive' | 'ai' | 'default'
 interface StatCard {
  title: string
  value: string | number
  icon: any
- color: string
+ tone: StatTone
  change?: string
+ hint?: string
 }
 
 export default function AdminDashboard() {
@@ -72,38 +75,44 @@ export default function AdminDashboard() {
  title:'总用户数',
  value: dashData?.total_users ??'--',
  icon: icons.Users,
- color:'text-info',
+ tone:'primary',
  change: dashData?.user_change,
+ hint:'全部注册用户',
  },
  {
  title:'今日活跃',
  value: dashData?.active_today ??'--',
  icon: icons.Activity,
- color:'text-success',
+ tone:'success',
+ hint:'DAU',
  },
  {
  title:'案件总量',
  value: dashData?.total_cases ??'--',
  icon: icons.Briefcase,
- color:'text-primary',
+ tone:'default',
+ hint:'累计案件数',
  },
  {
  title:'合同总量',
  value: dashData?.total_contracts ??'--',
  icon: icons.FileText,
- color:'text-warning',
+ tone:'warning',
+ hint:'含审查中',
  },
  {
  title:'文档总量',
  value: dashData?.total_documents ??'--',
  icon: icons.FolderOpen,
- color:'text-info',
+ tone:'default',
+ hint:'所有存档',
  },
  {
  title:'系统运行',
  value: dashData?.uptime ??'--',
  icon: icons.Clock,
- color:'text-success',
+ tone:'ai',
+ hint:'系统健康状态',
  },
  ]
 
@@ -136,14 +145,10 @@ export default function AdminDashboard() {
  if (loading) {
  return (
  <PageContainer title="管理概览" description="系统运行状态与关键指标">
- <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
- {Array.from({ length: 6 }).map((_, i) => (
- <Skeleton key={i} className="h-28 rounded-xl" />
- ))}
- </div>
+ <StatCardSkeleton count={6} />
  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
- <Skeleton className="h-80 rounded-xl" />
- <Skeleton className="h-80 rounded-xl" />
+ <Skeleton className="h-80 rounded-dd_xl" />
+ <Skeleton className="h-80 rounded-dd_xl" />
  </div>
  </PageContainer>
  )
@@ -152,34 +157,33 @@ export default function AdminDashboard() {
  return (
  <PageContainer title="管理概览" description="系统运行状态与关键指标">
  <section data-admin-shell className="space-y-6">
- <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+ <StatGrid cols={5}>
  {statCards.map((card, index) => {
- const Icon = card.icon
+ // 解析 change 字段为 trend：支持 "+12%" / "-3%" / "持平"
+ const changeStr = card.change ?? ''
+ const trend: 'up' | 'down' | 'flat' | undefined =
+ changeStr.startsWith('+')
+ ? 'up'
+ : changeStr.startsWith('-')
+ ? 'down'
+ : changeStr
+ ? 'flat'
+ : undefined
  return (
- <motion.div
+ <UnifiedStatCard
  key={card.title}
- initial={{ opacity: 0, y: 20 }}
- animate={{ opacity: 1, y: 0 }}
- transition={{ delay: index * 0.05 }}
- >
- <Card data-ui="surface-card" className={`${cardStyle.base} hover:shadow-float transition-shadow`}>
- <CardContent className="pt-5 pb-4 px-4">
- <div className="flex items-center justify-between mb-3">
- <Icon className={`w-5 h-5 ${card.color}`} />
- {card.change && (
- <Badge variant="secondary" className="text-xs">
- {card.change}
- </Badge>
- )}
- </div>
- <p className="text-2xl font-bold">{card.value}</p>
- <p className="text-xs text-muted-foreground mt-1">{card.title}</p>
- </CardContent>
- </Card>
- </motion.div>
+ index={index}
+ icon={card.icon}
+ tone={card.tone}
+ label={card.title}
+ value={card.value}
+ trend={trend}
+ trendValue={trend ? changeStr : undefined}
+ hint={card.hint}
+ />
  )
  })}
- </div>
+ </StatGrid>
 
  {/* 图表区域 */}
  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

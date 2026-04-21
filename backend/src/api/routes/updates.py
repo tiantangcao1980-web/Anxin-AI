@@ -1,35 +1,53 @@
 # -*- coding: utf-8 -*-
 """
-OTA 更新 API
-
-为 Tauri 客户端提供自动更新支持。
-属于控制面，所有运行模式下都可用。
+OTA 更新 API —— Tauri 客户端自动更新端点。
 
 Tauri Updater 协议：
 - 返回 200 + JSON manifest 表示有新版本
 - 返回 204 No Content 表示已是最新版本
+
+数据源：
+- 主路径：`UPDATER_MANIFEST_PATH` 指向的 JSON 文件（CI 发版时更新）
+- 兜底：内存常量 `CURRENT_RELEASES`
+- 未来可扩展为 `software_releases` 数据库表
+
+manifest 示例见 docs/DEPLOYMENT_DESKTOP.md 2.3。
 """
 
+from __future__ import annotations
+
+import json
 import os
-import platform
+from datetime import datetime, timezone
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Path, Query
+
+from fastapi import APIRouter, HTTPException, Path, Query, Response
 from pydantic import BaseModel, Field
 
 router = APIRouter()
 
-# ===== 版本信息配置 =====
-# 实际生产中应从数据库或配置服务读取
 
-CURRENT_RELEASES = {
-    # "target/arch": { version, url, signature, notes, mandatory }
-    # target: darwin, linux, windows
-    # arch: x86_64, aarch64
-}
+# ============================================================================
+# 配置：manifest 文件位置
+# ============================================================================
+
+# 仓库根目录下的 updater-latest.json；CI 发版后会 `gh release upload` 到这里
+_DEFAULT_MANIFEST_PATH = os.environ.get(
+    "UPDATER_MANIFEST_PATH",
+    os.path.join(
+        os.path.dirname(__file__), "..", "..", "..", "..", "updater-latest.json",
+    ),
+)
+
+
+# ============================================================================
+# Pydantic Schemas
+# ============================================================================
 
 
 class UpdateManifest(BaseModel):
-    """Tauri Updater 标准响应格式"""
+    """Tauri Updater 每次检查返回的结构（单平台）"""
+
     version: str = Field(..., description="新版本号")
     notes: str = Field(default="", description="更新说明（Markdown）")
     pub_date: str = Field(..., description="发布日期 (RFC 3339)")
@@ -37,17 +55,72 @@ class UpdateManifest(BaseModel):
     signature: str = Field(..., description="更新包签名")
 
 
-class ReleaseInfo(BaseModel):
-    """完整版本信息"""
+class PlatformAsset(BaseModel):
+    signature: str
+    url: str
+
+
+class FullManifest(BaseModel):
+    """全量 manifest（CI 写入 JSON 文件的结构）"""
+
     version: str
-    notes: str
+    notes: str = ""
     pub_date: str
-    platforms: dict = Field(default_factory=dict, description="各平台下载信息")
-    mandatory: bool = False
-    min_supported_version: Optional[str] = None
+    platforms: dict[str, PlatformAsset] = Field(default_factory=dict)
+    # 若客户端版本 < min_version 则强制更新（不允许"跳过此版本"）
+    min_version: Optional[str] = None
 
 
-# ===== API 端点 =====
+# ============================================================================
+# 工具函数
+# ============================================================================
+
+
+def _load_manifest_from_disk() -> Optional[FullManifest]:
+    """优先读 JSON 文件。失败返回 None。"""
+    path = _DEFAULT_MANIFEST_PATH
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return FullManifest(**data)
+    except Exception:
+        return None
+
+
+def _normalize_arch(arch: str) -> str:
+    """统一 Tauri 发送的 arch 标识：arm64 → aarch64。"""
+    return "aarch64" if arch in ("aarch64", "arm64") else arch
+
+
+def _compare_versions(v1: str, v2: str) -> int:
+    """比较语义化版本号：返回 -1 / 0 / 1。"""
+    try:
+        # 去掉预发布后缀（1.2.3-beta.1 → 1.2.3）
+        core1 = v1.split("-", 1)[0]
+        core2 = v2.split("-", 1)[0]
+        parts1 = [int(x) for x in core1.split(".") if x.isdigit()]
+        parts2 = [int(x) for x in core2.split(".") if x.isdigit()]
+        # 补齐到 3 位
+        while len(parts1) < 3:
+            parts1.append(0)
+        while len(parts2) < 3:
+            parts2.append(0)
+        for p1, p2 in zip(parts1, parts2):
+            if p1 < p2:
+                return -1
+            if p1 > p2:
+                return 1
+        return 0
+    except (ValueError, AttributeError):
+        return 0
+
+
+# ============================================================================
+# 路由
+# ============================================================================
+
 
 @router.get(
     "/{target}/{arch}/{current_version}",
@@ -59,56 +132,66 @@ class ReleaseInfo(BaseModel):
     },
 )
 async def check_update(
-    target: str = Path(..., description="目标平台: darwin/linux/windows"),
-    arch: str = Path(..., description="CPU 架构: x86_64/aarch64"),
-    current_version: str = Path(..., description="客户端当前版本号"),
+    target: str = Path(
+        ..., pattern="^(darwin|windows|linux)$", description="目标平台"
+    ),
+    arch: str = Path(
+        ..., pattern="^(x86_64|aarch64|arm64|i686)$", description="CPU 架构"
+    ),
+    current_version: str = Path(..., min_length=1, max_length=32),
 ):
+    """Tauri Updater 插件定期调用此端点检查更新。
+
+    无可用更新或配置缺失时返回 204。
     """
-    检查是否有新版本可用。
+    manifest = _load_manifest_from_disk()
+    if manifest is None:
+        return Response(status_code=204)
 
-    Tauri Updater 插件会自动调用此接口：
-    - 返回 200 + 更新清单：提示用户更新
-    - 返回 204：无更新
-    """
-    platform_key = f"{target}/{arch}"
+    arch_key = _normalize_arch(arch)
+    platform_key = f"{target}-{arch_key}"
 
-    # 查找该平台的最新版本
-    release = CURRENT_RELEASES.get(platform_key)
+    if platform_key not in manifest.platforms:
+        # 该平台未发布：不推更
+        return Response(status_code=204)
 
-    if not release:
-        # 没有该平台的发布记录，返回无更新
-        raise HTTPException(status_code=204)
+    if _compare_versions(current_version, manifest.version) >= 0:
+        # 已是最新
+        return Response(status_code=204)
 
-    latest_version = release.get("version", "0.0.0")
-
-    # 版本比较（简单的语义化版本对比）
-    if _compare_versions(current_version, latest_version) >= 0:
-        # 当前版本 >= 最新版本，无需更新
-        raise HTTPException(status_code=204)
-
-    # 有新版本
+    asset = manifest.platforms[platform_key]
     return UpdateManifest(
-        version=latest_version,
-        notes=release.get("notes", ""),
-        pub_date=release.get("pub_date", ""),
-        url=release.get("url", ""),
-        signature=release.get("signature", ""),
+        version=manifest.version,
+        notes=manifest.notes,
+        pub_date=manifest.pub_date,
+        url=asset.url,
+        signature=asset.signature,
     )
 
 
-@router.get("/latest", summary="获取最新版本信息")
+@router.get("/", summary="运维接口：查看当前 manifest")
+async def read_manifest():
+    """供运维 / CI 验证 manifest 是否已生效。生产应加 admin 鉴权。"""
+    m = _load_manifest_from_disk()
+    if m is None:
+        raise HTTPException(status_code=404, detail="updater manifest not configured")
+    return m
+
+
+@router.get("/latest", summary="前端展示：最新版本摘要")
 async def get_latest_release():
-    """获取所有平台的最新版本信息"""
+    """给用户在 UI 上展示最新版本的简化结构。"""
+    m = _load_manifest_from_disk()
+    if m is None:
+        return {"current_release": None, "platforms": {}}
     return {
-        "current_release": None,  # TODO: 从数据库读取
-        "platforms": {
-            "darwin/aarch64": {"status": "planned"},
-            "darwin/x86_64": {"status": "planned"},
-            "windows/x86_64": {"status": "planned"},
-            "windows/aarch64": {"status": "planned"},
-            "android": {"status": "planned"},
-            "ios": {"status": "planned"},
+        "current_release": {
+            "version": m.version,
+            "notes": m.notes,
+            "pub_date": m.pub_date,
+            "min_version": m.min_version,
         },
+        "platforms": {k: {"url": v.url} for k, v in m.platforms.items()},
     }
 
 
@@ -117,34 +200,31 @@ async def get_changelog(
     limit: int = Query(10, le=50),
     offset: int = Query(0),
 ):
-    """获取版本更新日志列表"""
-    # TODO: 从数据库读取版本历史
+    """返回版本历史列表。当前只返回最新一条（来自 manifest），
+    未来可接入 `software_releases` 表提供完整历史。
+    """
+    m = _load_manifest_from_disk()
+    if m is None:
+        return {"total": 0, "versions": []}
     return {
-        "total": 0,
-        "versions": [],
+        "total": 1,
+        "versions": [
+            {"version": m.version, "notes": m.notes, "pub_date": m.pub_date},
+        ][offset : offset + limit],
     }
 
 
-def _compare_versions(v1: str, v2: str) -> int:
-    """
-    比较两个语义化版本号。
-    返回: -1 (v1 < v2), 0 (v1 == v2), 1 (v1 > v2)
-    """
-    try:
-        parts1 = [int(x) for x in v1.split(".")]
-        parts2 = [int(x) for x in v2.split(".")]
+@router.get("/healthz", summary="Updater 服务健康检查")
+async def healthz():
+    m = _load_manifest_from_disk()
+    return {
+        "status": "ok" if m is not None else "degraded",
+        "has_manifest": m is not None,
+        "manifest_path": _DEFAULT_MANIFEST_PATH,
+        "latest_version": m.version if m else None,
+        "server_time": datetime.now(timezone.utc).isoformat(),
+    }
 
-        # 补齐长度
-        while len(parts1) < 3:
-            parts1.append(0)
-        while len(parts2) < 3:
-            parts2.append(0)
 
-        for p1, p2 in zip(parts1, parts2):
-            if p1 < p2:
-                return -1
-            if p1 > p2:
-                return 1
-        return 0
-    except (ValueError, AttributeError):
-        return 0
+# 供测试/手动发布使用的内存常量；文件源优先。
+CURRENT_RELEASES: dict[str, dict] = {}

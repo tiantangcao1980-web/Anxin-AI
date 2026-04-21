@@ -370,6 +370,7 @@ class ChatService:
         actions: Optional[list] = None,
         prompt_tokens: int = 0,
         completion_tokens: int = 0,
+        msg_metadata: Optional[dict] = None,
     ) -> Message:
         """添加消息"""
         message = Message(
@@ -382,6 +383,7 @@ class ChatService:
             actions=actions,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
+            msg_metadata=msg_metadata,
         )
 
         self.db.add(message)

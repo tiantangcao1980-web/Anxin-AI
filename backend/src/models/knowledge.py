@@ -8,7 +8,7 @@ from sqlalchemy import JSON as JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import enum
 
-from src.models.base import Base, TimestampMixin, GUID
+from src.models.base import Base, TimestampMixin, GUID, ValueEnum
 
 
 class KnowledgeType(str, enum.Enum):
@@ -39,7 +39,7 @@ class KnowledgeBase(Base, TimestampMixin):
         # 与 Alembic migration 创建的 PostgreSQL ENUM type 保持一致。
         # 不指定时 SQLAlchemy 2.x 默认用枚举 name（大写），会导致
         # "'law' is not among the defined enum values" 错误。
-        SQLEnum(KnowledgeType, values_callable=lambda x: [e.value for e in x]),
+        ValueEnum(KnowledgeType, values_callable=lambda x: [e.value for e in x]),
         default=KnowledgeType.OTHER,
     )
     

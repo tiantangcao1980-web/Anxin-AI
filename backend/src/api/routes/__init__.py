@@ -24,7 +24,7 @@ from src.api.routes import billing
 from src.api.routes import ai_assistant
 from src.api.routes import meeting_assistant
 from src.api.routes import rtc
-from src.api.routes import sync, updates
+from src.api.routes import sync, updates, offline_packs, privacy
 from src.api.routes import metrics
 from src.api.routes import knowledge_management
 from src.api.routes import harness
@@ -76,6 +76,8 @@ api_router.include_router(meeting_assistant.router, prefix="/assistant", tags=["
 api_router.include_router(rtc.router, prefix="/rtc", tags=["音视频通话"])
 api_router.include_router(sync.router, prefix="/sync", tags=["客户端同步"])
 api_router.include_router(updates.router, prefix="/updates", tags=["OTA更新"])
+api_router.include_router(offline_packs.router, prefix="/offline-packs", tags=["离线数据包"])
+api_router.include_router(privacy.router, prefix="/privacy", tags=["隐私与 DSAR"])
 api_router.include_router(metrics.router, tags=["监控指标"])
 api_router.include_router(knowledge_management.router, tags=["知识管理"])
 api_router.include_router(harness.router, tags=["Harness监控"])

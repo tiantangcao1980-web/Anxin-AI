@@ -31,6 +31,8 @@ tauri-plugin-os = "2"
 tauri-plugin-process = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-global-shortcut = "2"
+# 桌面端 UX 深化：记住窗口位置/尺寸
+tauri-plugin-window-state = "2"
 
 # Rust 工具链
 serde = { version = "1", features = ["derive"] }

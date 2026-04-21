@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { billingApi } from '@/lib/api'
 import { ErrorState } from '@/components/common'
+import { StatCard as UnifiedStatCard, StatGrid } from '@/components/ui-unified'
 import {
   Table,
   TableBody,
@@ -445,37 +446,13 @@ function StatsTab({
 }) {
   return (
     <>
-      {/* KPI 卡片 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          icon={icons.Users}
-          label="活跃订阅数"
-          value={stats.activeCount.toLocaleString()}
-          color="text-primary"
-          bgColor="bg-primary/5"
-        />
-        <StatCard
-          icon={icons.DollarSign}
-          label="月经常性收入(MRR)"
-          value={`¥${stats.mrr.toLocaleString()}`}
-          color="text-success"
-          bgColor="bg-success/10 dark:bg-success/20"
-        />
-        <StatCard
-          icon={icons.TrendingDown}
-          label="流失率"
-          value={`${stats.churnRate}%`}
-          color="text-warning"
-          bgColor="bg-warning/10 dark:bg-warning/20"
-        />
-        <StatCard
-          icon={icons.Calculator}
-          label="平均客单价"
-          value={`¥${stats.avgRevenue}`}
-          color="text-info"
-          bgColor="bg-info/10 dark:bg-info/20"
-        />
-      </div>
+      {/* KPI 卡片 —— 接入 StatGrid，与 AdminDashboard 等页完全一致 */}
+      <StatGrid cols={4}>
+        <UnifiedStatCard index={0} icon={icons.Users}        tone="primary"     label="活跃订阅数"        value={stats.activeCount.toLocaleString()} hint="当前付费用户" />
+        <UnifiedStatCard index={1} icon={icons.DollarSign}   tone="success"     label="月经常性收入(MRR)" value={`¥${stats.mrr.toLocaleString()}`}   hint="按月计费" />
+        <UnifiedStatCard index={2} icon={icons.TrendingDown} tone="warning"     label="流失率"            value={`${stats.churnRate}%`}              hint="需关注" />
+        <UnifiedStatCard index={3} icon={icons.Calculator}   tone="default"     label="平均客单价"        value={`¥${stats.avgRevenue}`}             hint="ARPU" />
+      </StatGrid>
 
       {/* 增长趋势 */}
       <div className={cardStyle.base}>
@@ -651,32 +628,3 @@ function RefundsTab({
   )
 }
 
-// ============ 辅助组件 ============
-
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  color,
-  bgColor,
-}: {
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  value: string
-  color: string
-  bgColor: string
-}) {
-  return (
-    <div className={cardStyle.base}>
-      <div className="flex items-center gap-3">
-        <div className={`p-2 rounded-lg ${bgColor}`}>
-          <Icon className={`${iconSize.md} ${color}`} />
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-lg font-bold text-foreground">{value}</p>
-        </div>
-      </div>
-    </div>
-  )
-}

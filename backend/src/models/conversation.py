@@ -9,7 +9,7 @@ from sqlalchemy import JSON as JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import enum
 
-from src.models.base import Base, TimestampMixin, GUID
+from src.models.base import Base, TimestampMixin, GUID, ValueEnum
 
 
 class MessageRole(str, enum.Enum):
@@ -61,7 +61,7 @@ class Message(Base, TimestampMixin):
     __tablename__ = "messages"
     
     role: Mapped[MessageRole] = mapped_column(
-        SQLEnum(
+        ValueEnum(
             MessageRole,
             values_callable=lambda x: [e.value for e in x],
             name="messagerole",

@@ -9,6 +9,7 @@ import { useState, useEffect } from'react'
 import { PageContainer } from'@/components/ui/PageContainer'
 import { Skeleton } from'@/components/ui/skeleton'
 import { cardStyle, heading, statusBadge, chartColors, iconSize } from'@/lib/design-tokens'
+import { StatCard, StatGrid, StatCardSkeleton } from'@/components/ui-unified'
 import { icons } from'@/lib/icons'
 import { acquisitionApi } from'@/lib/api'
 import {
@@ -24,7 +25,7 @@ interface KPICard {
  value: string | number
  change: string
  trend:'up' |'down' |'flat'
- icon: React.ElementType
+ icon: React.ComponentType<{ className?: string }>
 }
 
 interface FunnelItem {
@@ -215,60 +216,43 @@ export default function AcquisitionDashboard() {
  >
  {loading ? (
  <div className="space-y-4">
- {/* KPI 骨架 */}
- <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
- {Array.from({ length: 4 }).map((_, i) => (
- <div key={i} className={cardStyle.base}>
- <div className="flex items-center justify-between mb-3">
- <Skeleton className="h-4 w-16" />
- <Skeleton className="h-5 w-5 rounded" />
- </div>
- <Skeleton className="h-8 w-20 mb-2" />
- <Skeleton className="h-3 w-24" />
- </div>
- ))}
- </div>
+ <StatCardSkeleton count={4} />
  {/* 图表骨架 */}
  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
  <div className={cardStyle.base}>
  <Skeleton className="h-5 w-24 mb-4" />
- <Skeleton className="h-64 w-full rounded-lg" />
+ <Skeleton className="h-64 w-full rounded-dd_lg" />
  </div>
  <div className={cardStyle.base}>
  <Skeleton className="h-5 w-32 mb-4" />
- <Skeleton className="h-64 w-full rounded-lg" />
+ <Skeleton className="h-64 w-full rounded-dd_lg" />
  </div>
  </div>
  </div>
  ) : (
  <>
- {/* KPI 卡片行 */}
- <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
- {kpis.length > 0 ? kpis.map((kpi) => (
- <div key={kpi.label} className={cardStyle.base}>
- <div className="flex items-center justify-between">
- <p className={heading.micro}>{kpi.label}</p>
- <kpi.icon className={`${iconSize.md} text-muted-foreground`} />
- </div>
- <p className="text-2xl font-bold text-foreground mt-2">{kpi.value}</p>
- <p
- className={`text-xs mt-1 ${
- kpi.trend ==='up'
- ?'text-success'
- : kpi.trend ==='down'
- ?'text-destructive'
- :'text-muted-foreground'
- }`}
- >
- {kpi.change} 较上期
- </p>
- </div>
- )) : (
- <div className={`${cardStyle.base} col-span-full text-center py-8`}>
+ {/* KPI 卡片行 — 接入 StatGrid，自动获得 tone 色调 / 趋势徽章 / 错峰入场 */}
+ {kpis.length > 0 ? (
+ <StatGrid cols={4}>
+ {kpis.map((kpi, index) => (
+ <StatCard
+ key={kpi.label}
+ index={index}
+ icon={kpi.icon}
+ tone="primary"
+ label={kpi.label}
+ value={kpi.value}
+ trend={kpi.trend === 'up' ? 'up' : kpi.trend === 'down' ? 'down' : 'flat'}
+ trendValue={kpi.change}
+ hint="较上期"
+ />
+ ))}
+ </StatGrid>
+ ) : (
+ <div className={`${cardStyle.base} text-center py-8`}>
  <p className="text-sm text-muted-foreground">暂无 KPI 数据</p>
  </div>
  )}
- </div>
 
  {/* 漏斗图 + 趋势图 */}
  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

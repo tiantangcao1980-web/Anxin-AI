@@ -73,6 +73,12 @@ const SigningWorkflow = lazy(async () => {
  return { default: module.SigningWorkflow }
 })
 
+// 文档模式渲染 CanvasEditor。延迟加载以避免主聊天路径的首屏开销。
+const CanvasEditor = lazy(async () => {
+ const module = await import('./CanvasEditor')
+ return { default: module.CanvasEditor }
+})
+
 
 export const RightPanel = memo(function RightPanel(props: RightPanelProps) {
  const { activeTab, isLive } = props;
@@ -123,14 +129,38 @@ export const RightPanel = memo(function RightPanel(props: RightPanelProps) {
  data-workbench-surface
  className="flex h-full flex-col border-l border-border/60 bg-surface-2"
  >
- {/* 顶栏：标题 + 功能按钮 */}
+ {/* 顶栏：模式切换 + 功能按钮 */}
  <div data-workbench-header className="flex h-12 shrink-0 items-center border-b border-border/60 bg-surface-1/95 px-3 backdrop-blur-xl">
- {/* 左侧：工作台标题 */}
- <div className="flex items-center gap-1.5 flex-shrink-0">
- <icons.Cpu className="w-3.5 h-3.5 text-primary" />
- <span className="text-xs font-semibold text-foreground">工作台</span>
+ {/* 左侧：工作台 / 文档 模式切换；文档 tab 仅在有 canvasContent 时可见 */}
+ <div className="flex items-center gap-1">
+ <button
+ type="button"
+ onClick={() => props.onTabChange('smart')}
+ className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+ activeTab === 'smart'
+ ? 'bg-primary/10 text-primary'
+ : 'text-muted-foreground hover:text-foreground'
+ }`}
+ >
+ <icons.Cpu className="h-3.5 w-3.5" />
+ 工作台
+ </button>
+ {hasDocument && (
+ <button
+ type="button"
+ onClick={() => props.onTabChange('document')}
+ className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+ activeTab === 'document'
+ ? 'bg-primary/10 text-primary'
+ : 'text-muted-foreground hover:text-foreground'
+ }`}
+ >
+ <icons.FileText className="h-3.5 w-3.5" />
+ 文档
+ </button>
+ )}
  {props.isProcessing && (
- <span className="relative flex h-1.5 w-1.5">
+ <span className="relative flex h-1.5 w-1.5 ml-1">
  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-success" />
  </span>
@@ -316,6 +346,28 @@ export const RightPanel = memo(function RightPanel(props: RightPanelProps) {
  </div>
  </div>
  )}
+ </div>
+ )}
+
+ {/* ===== 文档模式 ===== */}
+ {activeTab === 'document' && (
+ <div className="h-full overflow-hidden">
+ <Suspense fallback={panelFallback}>
+ <CanvasEditor
+ canvas={props.canvasContent}
+ onContentChange={props.onCanvasContentChange}
+ onTitleChange={props.onCanvasTitleChange}
+ onModeChange={props.onCanvasModeChange}
+ onAIOptimize={props.onCanvasAIOptimize}
+ onSuggestionAction={props.onCanvasSuggestionAction}
+ onForwardToLawyer={props.onForwardToLawyer}
+ onInitiateSigning={props.onInitiateSigning}
+ onSaveAsDocument={props.onCanvasSaveAsDocument}
+ onDocumentAction={props.onDocumentAction}
+ isSaved={props.canvasSaved}
+ isProcessing={props.isProcessing}
+ />
+ </Suspense>
  </div>
  )}
 

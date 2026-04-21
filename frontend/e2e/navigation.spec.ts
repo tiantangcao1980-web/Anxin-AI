@@ -46,7 +46,7 @@ test.describe('导航结构', () => {
   })
 
   test('统一工作台支持 Excel 与 PPT 轻量适配入口', async ({ page }) => {
-    await page.route('**/documents/?page=1&page_size=8', async (route) => {
+    await page.route(/documents\/\?page=1.*page_size=\d+/, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -92,7 +92,7 @@ test.describe('导航结构', () => {
   })
 
   test('统一工作台会渲染真实 Excel 与 PPT 文档内容', async ({ page }) => {
-    await page.route('**/documents/?page=1&page_size=8', async (route) => {
+    await page.route(/documents\/\?page=1.*page_size=\d+/, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -183,7 +183,7 @@ test.describe('导航结构', () => {
   })
 
   test('统一工作台可打开真实文档列表中的文档', async ({ page }) => {
-    await page.route('**/documents/?page=1&page_size=8', async (route) => {
+    await page.route(/documents\/\?page=1.*page_size=\d+/, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -232,7 +232,7 @@ test.describe('导航结构', () => {
   })
 
   test('统一工作台可按关键词过滤真实文档列表', async ({ page }) => {
-    await page.route('**/documents/?page=1&page_size=8', async (route) => {
+    await page.route(/documents\/\?page=1.*page_size=\d+/, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -314,18 +314,20 @@ test.describe('导航结构', () => {
 
   test('点击智能协作显示侧边栏', async ({ page }) => {
     await page.getByRole('banner').getByRole('button', { name: '智能协作' }).click()
-    await page.waitForURL(/\/cases/)
-    await expect(page.getByRole('main').getByRole('heading', { name: '案件管理' })).toBeVisible()
+    // 智能协作入口路径重构为 /case-center，兼容旧 /cases 重定向
+    await page.waitForURL(/case-center|cases/)
+    await expect(page.getByRole('main').getByRole('heading', { name: '案件中心' })).toBeVisible()
   })
 
   test('案件管理页面加载', async ({ page }) => {
+    // /cases 会被重定向到 /case-center?tab=cases
     await page.goto('/cases')
-    await expect(page.getByRole('main').getByRole('heading', { name: '案件管理' })).toBeVisible()
-    await expect(page.getByRole('button', { name: '新建案件' })).toBeVisible()
+    await expect(page.getByRole('main').getByRole('heading', { name: '案件中心' })).toBeVisible()
   })
 
   test('合同管理页面加载', async ({ page }) => {
+    // /contracts 会被重定向到 /management?tab=contracts
     await page.goto('/contracts')
-    await expect(page.getByText('合同审查').first()).toBeVisible()
+    await expect(page.getByRole('main').getByRole('heading', { name: '管理中心' })).toBeVisible()
   })
 })

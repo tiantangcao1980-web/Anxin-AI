@@ -131,6 +131,16 @@ export default defineConfig(({ mode }) => {
     test: {
       environment: 'node',
       globals: true,
+      // Vitest 只跑 src/ 目录下的 .test.ts 单测；
+      // e2e/*.spec.ts 归 Playwright 管理，避免把 Playwright 套件误当成 Vitest 套件。
+      include: ['src/**/*.{test,spec}.{ts,tsx,js,jsx}'],
+      exclude: [
+        '**/node_modules/**',
+        '**/dist/**',
+        'e2e/**',
+        'playwright-report/**',
+        'test-results/**',
+      ],
     },
   }
 })

@@ -157,6 +157,16 @@ class Settings(BaseSettings):
     LLM_ENCRYPTION_KEY: Optional[str] = None
     LLM_DEFAULT_CONFIG_CACHE_TTL_SECONDS: int = 3600  # Harness优化: 60s→1h（配置很少变）
 
+    # ========== 本地 LLM 兜底配置（支持 LOCAL / NAS-Lite 运行模式） ==========
+    # 当未配置 LLM_API_KEY 时，系统优先尝试调用 Ollama 本地服务。
+    # 用户在家用 NAS 或桌面端装好 Ollama 后，无需额外配置 Key 即可使用。
+    OLLAMA_BASE_URL: str = ""  # 例如 http://host.docker.internal:11434 或 http://localhost:11434
+    OLLAMA_DEFAULT_MODEL: str = "qwen2.5:7b"
+
+    # 整体运行模式：cloud / hybrid / nas-lite / local
+    # 影响：是否强制本地 LLM、是否跳过云端依赖、数据分桶策略
+    RUNTIME_MODE: str = "cloud"
+
     # ========== Embedding配置 ==========
     EMBEDDING_API_KEY: Optional[str] = None
     EMBEDDING_BASE_URL: str = "https://api.openai.com/v1"

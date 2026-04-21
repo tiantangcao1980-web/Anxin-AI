@@ -20,7 +20,7 @@ import enum
 
 
 
-from src.models.base import Base, TimestampMixin, GUID
+from src.models.base import Base, TimestampMixin, GUID, ValueEnum
 
 
 
@@ -110,19 +110,19 @@ class Case(Base, TimestampMixin):
 
     case_type: Mapped[CaseType] = mapped_column(
 
-        SQLEnum(CaseType), default=CaseType.OTHER
+        ValueEnum(CaseType), default=CaseType.OTHER
 
     )
 
     status: Mapped[CaseStatus] = mapped_column(
 
-        SQLEnum(CaseStatus), default=CaseStatus.PENDING
+        ValueEnum(CaseStatus), default=CaseStatus.PENDING
 
     )
 
     priority: Mapped[CasePriority] = mapped_column(
 
-        SQLEnum(CasePriority), default=CasePriority.MEDIUM
+        ValueEnum(CasePriority), default=CasePriority.MEDIUM
 
     )
 

@@ -13,6 +13,7 @@ import { icons } from'@/lib/icons'
 import { cardStyle, complianceScoreColors, heading, statusBadge, inputStyle, iconSize, riskLevelColors } from'@/lib/design-tokens'
 import { adminApi, complianceApi } from'@/lib/api'
 import { ErrorState, LoadingState } from'@/components/common'
+import { StatCard, StatGrid } from'@/components/ui-unified'
 import {
  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
  BarChart, Bar, Legend,
@@ -391,25 +392,13 @@ function RiskOverviewTab({
 
  return (
  <div className="space-y-6">
- {/* 风险评分卡 */}
- <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
- <div className={cardStyle.base +' text-center border-destructive/20'}>
- <p className="text-3xl font-bold text-destructive">{riskCounts.critical}</p>
- <p className="text-xs text-muted-foreground mt-1">严重风险</p>
- </div>
- <div className={cardStyle.base +' text-center border-warning/20'}>
- <p className="text-3xl font-bold text-warning">{riskCounts.high}</p>
- <p className="text-xs text-muted-foreground mt-1">高风险</p>
- </div>
- <div className={cardStyle.base +' text-center'}>
- <p className="text-3xl font-bold text-primary">{riskCounts.medium}</p>
- <p className="text-xs text-muted-foreground mt-1">中风险</p>
- </div>
- <div className={cardStyle.base +' text-center'}>
- <p className="text-3xl font-bold text-muted-foreground">{riskCounts.low}</p>
- <p className="text-xs text-muted-foreground mt-1">低风险</p>
- </div>
- </div>
+ {/* 风险评分卡 — 统一 StatGrid */}
+ <StatGrid cols={4}>
+ <StatCard index={0} icon={icons.AlertTriangle} tone="destructive" label="严重风险" value={riskCounts.critical} hint="需立即介入" />
+ <StatCard index={1} icon={icons.AlertTriangle} tone="warning"     label="高风险"   value={riskCounts.high}     hint="建议处置" />
+ <StatCard index={2} icon={icons.Clock}         tone="primary"     label="中风险"   value={riskCounts.medium}   hint="持续关注" />
+ <StatCard index={3} icon={icons.CheckCircle}   tone="success"     label="低风险"   value={riskCounts.low}      hint="状态正常" />
+ </StatGrid>
 
  {/* 风险趋势 */}
  <div className={cardStyle.base}>

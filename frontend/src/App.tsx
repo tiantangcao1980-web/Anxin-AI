@@ -15,7 +15,7 @@
  */
 
 import { lazy, Suspense, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import Layout from '@/components/Layout'
 // ModuleLayout is used inside Layout.tsx based on current route
@@ -29,6 +29,7 @@ import AdminLayout from '@/components/admin/AdminLayout'
 import { initLocalDatabase } from '@/lib/api-adapter'
 import { getTokenStorage } from '@/lib/platform/storage'
 import { ModeGate } from '@/components/mode/ModeGate'
+import { SubscriptionGate } from '@/components/mode/SubscriptionGate'
 import { useAppModeStore } from '@/lib/store'
 import { getAppState, isTauri, saveAuthToken } from '@/lib/tauri-bridge'
 
@@ -69,6 +70,7 @@ const LawyerDashboard = lazy(() => import('@/pages/LawyerDashboard'))
 const Pricing = lazy(() => import('@/pages/Pricing'))
 const MySubscription = lazy(() => import('@/pages/MySubscription'))
 const PrivateLLMSetup = lazy(() => import('@/pages/PrivateLLMSetup'))
+const CaseMarket = lazy(() => import('@/pages/CaseMarket'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
 
 // 登录页
@@ -95,6 +97,21 @@ const AdminFirm = lazy(() => import('@/pages/admin/AdminFirm'))
 const AdminEnterprise = lazy(() => import('@/pages/admin/AdminEnterprise'))
 const AdminAcquisition = lazy(() => import('@/pages/admin/AdminAcquisition'))
 const AdminHarness = lazy(() => import('@/pages/admin/AdminHarness'))
+
+function CollaborationRedirect() {
+  const { sessionId } = useParams()
+
+  return (
+    <Navigate
+      to="/documents"
+      replace
+      state={{
+        entryMode: 'collaboration',
+        sessionId: sessionId ?? null,
+      }}
+    />
+  )
+}
 
 function App() {
   const { setLastSyncTime, setMode, setOnline, setSyncStatus } = useAppModeStore()
@@ -155,6 +172,8 @@ function App() {
         <PrivacyProvider>
           <BrowserRouter>
             <Toaster position="top-right" richColors />
+            {/* V2：全局订阅引导弹窗 — 切换到混合/云端模式无订阅时触发 */}
+            <SubscriptionGate />
             <Suspense fallback={<PageSkeleton />}>
               <Routes>
               {/* 登录页（不需要 Layout 和路由守卫） */}
@@ -198,6 +217,7 @@ function App() {
                 <Route path="onboarding" element={<LawyerOnboarding />} />
                 <Route path="subscription" element={<MySubscription />} />
                 <Route path="settings" element={<Settings />} />
+                <Route path="market" element={<CaseMarket />} />
               </Route>
 
               {/* 受保护的业务路由 */}
@@ -293,20 +313,31 @@ function App() {
 
                 {/* ===== 系统 ===== */}
                 <Route path="settings" element={<ProtectedRoute feature="settings"><Settings /></ProtectedRoute>} />
+                {/* V2：案源市场（需求方发布，本页根据 primary_client 自动切换视图） */}
+                <Route path="market" element={
+                  <ProtectedRoute feature="lawyer_matching">
+                    <ModeGate required="hybrid_or_cloud" feature="案源市场">
+                      <CaseMarket />
+                    </ModeGate>
+                  </ProtectedRoute>
+                } />
 
-                {/* ===== 旧路由兼容重定向（v3.0 模块合并） ===== */}
-                <Route path="cases" element={<Navigate to="/case-center" replace />} />
-                <Route path="cases/:id" element={<Navigate to="/case-center" replace />} />
-                <Route path="leads" element={<Navigate to="/case-center" replace />} />
-                <Route path="tasks" element={<Navigate to="/case-center" replace />} />
-                <Route path="contracts" element={<Navigate to="/management" replace />} />
-                <Route path="contract-review" element={<Navigate to="/management" replace />} />
-                <Route path="compliance-check" element={<Navigate to="/management" replace />} />
+                {/* ===== 旧路由兼容重定向（v3.0 模块合并） =====
+                 * 保留语义：`/tasks` 必须落到「任务与审批」tab，`/contracts`
+                 * 必须落到「合同管理」tab，避免用户书签或外部链接失效。
+                 */}
+                <Route path="cases" element={<Navigate to="/case-center?tab=cases" replace />} />
+                <Route path="cases/:id" element={<Navigate to="/case-center?tab=cases" replace />} />
+                <Route path="leads" element={<Navigate to="/case-center?tab=leads" replace />} />
+                <Route path="tasks" element={<Navigate to="/case-center?tab=tasks" replace />} />
+                <Route path="contracts" element={<Navigate to="/management?tab=contracts" replace />} />
+                <Route path="contract-review" element={<Navigate to="/management?tab=contracts" replace />} />
+                <Route path="compliance-check" element={<Navigate to="/management?tab=compliance" replace />} />
                 <Route path="due-diligence" element={<Navigate to="/investigation" replace />} />
                 <Route path="due-diligence/:section" element={<Navigate to="/investigation" replace />} />
-                <Route path="collaboration" element={<Navigate to="/documents" replace />} />
-                <Route path="collaboration/:sessionId" element={<Navigate to="/documents" replace />} />
-                <Route path="approvals" element={<Navigate to="/case-center" replace />} />
+                <Route path="collaboration" element={<CollaborationRedirect />} />
+                <Route path="collaboration/:sessionId" element={<CollaborationRedirect />} />
+                <Route path="approvals" element={<Navigate to="/case-center?tab=tasks" replace />} />
                 <Route path="knowledge" element={<Navigate to="/knowledge-base" replace />} />
                 <Route path="tools" element={<Navigate to="/chat" replace />} />
                 <Route path="tax-assets" element={<Navigate to="/chat" replace />} />

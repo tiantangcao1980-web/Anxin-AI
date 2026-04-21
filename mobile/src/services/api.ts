@@ -95,7 +95,18 @@ export async function request<T>(options: {
 
       if (res.status === 401 || body.code === 401) {
         if (attempt < retry) {
-          try { await refreshToken(); continue } catch { throw new Error('登录已过期') }
+          try {
+            await refreshToken()
+            // 刷新成功后同步 zustand 登录态，避免 store 与 SecureStore 不一致导致越权判断错位
+            const { useAuthStore } = await import('../lib/store')
+            await useAuthStore.getState().syncAuth()
+            continue
+          } catch {
+            // 刷新失败：清登录态，让守卫重定向到登录页
+            const { useAuthStore } = await import('../lib/store')
+            await useAuthStore.getState().logout()
+            throw new Error('登录已过期')
+          }
         }
       }
 

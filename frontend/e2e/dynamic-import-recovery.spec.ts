@@ -13,7 +13,9 @@ test.describe('动态导入恢复', () => {
 
     await navigationPromise
     await page.waitForLoadState('domcontentloaded')
-    await page.waitForLoadState('networkidle')
+    // 生产环境 networkidle 会在首包加载完成后触发；Vite dev server 因持续 HMR
+    // 心跳不会 idle，这里用 5s 兜底超时而不让整个用例挂掉。
+    await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {})
 
     expect(
       await page.evaluate(() => {

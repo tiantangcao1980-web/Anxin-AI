@@ -25,6 +25,8 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        // 持久化窗口位置/尺寸：让用户关掉再开还能回到原位
+        .plugin(tauri_plugin_window_state::Builder::new().build())
         // ===== 全局状态 =====
         .manage(shared_state.clone())
         // ===== IPC 命令注册 =====

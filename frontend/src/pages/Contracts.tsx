@@ -1,7 +1,7 @@
 import { useState, useEffect } from'react'
-import { useNavigate } from'react-router-dom'
 import { icons } from'@/lib/icons'
 import { EmptyState, LoadingState } from'@/components/common'
+import { StatCard, StatGrid } from'@/components/ui-unified'
 import { toast } from'sonner'
 import { contractsApi, Contract, ContractCreate } from'@/lib/api'
 import { PageContainer } from'@/components/ui/PageContainer'
@@ -36,7 +36,6 @@ const CONTRACT_TYPES = [
 ]
 
 export default function Contracts() {
- const navigate = useNavigate()
  const [contracts, setContracts] = useState<Contract[]>([])
  const [loading, setLoading] = useState(true)
  const [error, setError] = useState<string | null>(null)
@@ -95,7 +94,7 @@ export default function Contracts() {
  快捷审查
  </button>
  <button
- onClick={() => navigate('/contract-review')}
+ onClick={() => setShowReviewModal(true)}
  className={`${buttonStyle.primary} flex items-center gap-2 whitespace-nowrap`}
  >
  <icons.Upload className={iconSize.sm} />
@@ -104,45 +103,45 @@ export default function Contracts() {
  </div>
  }
  >
- {/* 统计卡片 */}
- <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
- <div data-ui="surface-card" className={cardStyle.compact}>
- <div className="flex items-center justify-between">
- <p className={heading.muted}>待审核</p>
- <icons.Clock className={`${iconSize.md} text-warning`} />
- </div>
- <p className="text-2xl font-bold mt-2">
- {contracts.filter(c => c.status ==='pending_review').length}
- </p>
- </div>
- <div data-ui="surface-card" className={cardStyle.compact}>
- <div className="flex items-center justify-between">
- <p className={heading.muted}>审核中</p>
- <icons.Loader2 className={`${iconSize.md} text-primary`} />
- </div>
- <p className="text-2xl font-bold mt-2">
- {contracts.filter(c => c.status ==='under_review').length}
- </p>
- </div>
- <div data-ui="surface-card" className={cardStyle.compact}>
- <div className="flex items-center justify-between">
- <p className={heading.muted}>高风险</p>
- <icons.AlertTriangle className={`${iconSize.md} text-destructive`} />
- </div>
- <p className="text-2xl font-bold mt-2">
- {contracts.filter(c => c.risk_level ==='high' || c.risk_level ==='critical').length}
- </p>
- </div>
- <div data-ui="surface-card" className={cardStyle.compact}>
- <div className="flex items-center justify-between">
- <p className={heading.muted}>已完成</p>
- <icons.CheckCircle className={`${iconSize.md} text-success`} />
- </div>
- <p className="text-2xl font-bold mt-2">
- {contracts.filter(c => c.status ==='approved' || c.status ==='signed').length}
- </p>
- </div>
- </div>
+ {/* 统计卡片 — StatGrid 统一接入，自动获得错峰入场、趋势徽章、悬浮抬升、骨架加载 */}
+ <StatGrid cols={4}>
+ <StatCard
+ index={0}
+ icon={icons.Clock}
+ tone="warning"
+ label="待审核"
+ value={contracts.filter(c => c.status ==='pending_review').length}
+ hint="需人工介入"
+ loading={loading}
+ />
+ <StatCard
+ index={1}
+ icon={icons.Loader2}
+ tone="primary"
+ label="审核中"
+ value={contracts.filter(c => c.status ==='under_review').length}
+ hint="AI 审查进行中"
+ loading={loading}
+ />
+ <StatCard
+ index={2}
+ icon={icons.AlertTriangle}
+ tone="destructive"
+ label="高风险"
+ value={contracts.filter(c => c.risk_level ==='high' || c.risk_level ==='critical').length}
+ hint="建议立即处理"
+ loading={loading}
+ />
+ <StatCard
+ index={3}
+ icon={icons.CheckCircle}
+ tone="success"
+ label="已完成"
+ value={contracts.filter(c => c.status ==='approved' || c.status ==='signed').length}
+ hint="已批准/签署"
+ loading={loading}
+ />
+ </StatGrid>
 
  {/* 合同列表 */}
  <div data-ui="surface-card" className={cardStyle.base}>

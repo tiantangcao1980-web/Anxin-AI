@@ -4,11 +4,22 @@
 
 from datetime import datetime
 from typing import Any
+import enum as _enum
 import uuid
 
 from sqlalchemy import DateTime, func, String, TypeDecorator, CHAR
+from sqlalchemy import Enum as _SAEnum
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+
+def ValueEnum(enum_cls: type[_enum.Enum], **kwargs: Any):
+    """
+    统一的 Enum 列类型 — 使用 enum.value（小写）而非 enum.name（大写）写入 DB，
+    与 PostgreSQL 已创建的小写枚举类型匹配。
+    """
+    kwargs.setdefault("values_callable", lambda x: [e.value for e in x])
+    return _SAEnum(enum_cls, **kwargs)
 
 
 class GUID(TypeDecorator):

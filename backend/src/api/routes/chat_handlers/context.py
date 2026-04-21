@@ -23,6 +23,61 @@ from src.services.a2ui_protocol import (
 WsCallback = Callable[[str, dict], Coroutine[Any, Any, None]]
 
 
+# 看起来像 UUID 或 hash 的文件名（纯十六进制或 UUID）
+_UUID_LIKE_FILENAME = re.compile(r"^[0-9a-f\-]{16,}\.[a-zA-Z0-9]+$", re.IGNORECASE)
+
+
+def _extract_conversation_title(content: str, max_length: int = 40) -> str:
+    """
+    从首条用户消息内容中提取对话标题。
+
+    处理以下场景：
+    1. 移除 "[附件: xxx]" 前缀
+    2. 移除 "请结合附件「xxx」检索相关法规..." 等样板前缀
+    3. 优先提取冒号后的实际需求（如 "...并整理要点结论：帮我分析一下"）
+    4. 如果文件名是 UUID/hash 样式，替换为"附件"
+    5. 去除换行、压缩空白、截断到 max_length
+    """
+    if not content:
+        return ""
+
+    text = content.strip()
+
+    # 1. 移除 [附件: xxx] 前缀（可能有多个附件）
+    text = re.sub(r"^\s*(?:\[附件:[^\]]*\]\s*\n?)+", "", text, flags=re.IGNORECASE)
+
+    # 2. 压缩换行和多余空白
+    text = re.sub(r"\s+", " ", text).strip()
+
+    # 3. 识别"附件样板 + 冒号 + 实际需求"结构，截取冒号后的用户真实诉求
+    #    例如: "请结合附件「xxx.pdf」检索...：帮我分析一下这份协议" → "帮我分析一下这份协议"
+    template_prefixes = [
+        r"^请结合附件[「『\"\"'']?[^」』\"\"'']*[」』\"\"'']?[^：:]*[：:]\s*",
+        r"^结合附件[^：:]*[：:]\s*",
+        r"^基于附件[^：:]*[：:]\s*",
+    ]
+    for pat in template_prefixes:
+        new_text = re.sub(pat, "", text)
+        if new_text != text and new_text:
+            text = new_text
+            break
+
+    # 4. 如果文本以 UUID 样式文件名开头（意味着没匹配到模板），替换为"附件"
+    text = re.sub(
+        r"[「『\"\"'']?([0-9a-f\-]{16,}\.[a-zA-Z0-9]+)[」』\"\"'']?",
+        "附件",
+        text,
+        flags=re.IGNORECASE,
+    )
+
+    # 5. 去除首尾标点和空白，截断
+    text = text.strip(" 　,，.。!！?？:：;；")
+    if len(text) > max_length:
+        text = text[:max_length].rstrip() + "…"
+
+    return text
+
+
 class WebSocketContext:
     """
     WebSocket 会话上下文 — 封装一次 WebSocket 连接的所有共享状态。
@@ -45,6 +100,8 @@ class WebSocketContext:
         self._save_lock = asyncio.Lock()
         self.session_message_count = 0
         self.last_user_content = ""
+        # V2：本轮对话的思考过程累积（send 时自动捕获）
+        self._thinking_steps_buffer: List[dict] = []
 
     # ---- 安全发送 ----
 
@@ -52,6 +109,20 @@ class WebSocketContext:
         """安全发送 WebSocket 消息"""
         if self._ws_closed:
             return
+        # V2：自动捕获思考过程事件 → 累积到 buffer，供保存 AI 消息时一并持久化
+        if event_type in ("thinking_content", "agent_thinking", "agent_start") and isinstance(data, dict):
+            try:
+                content = data.get("content") or data.get("message") or ""
+                if content:
+                    self._thinking_steps_buffer.append({
+                        "id": str(uuid.uuid4()),
+                        "agent": data.get("agent", ""),
+                        "content": str(content)[:1500],  # 限长防撑爆
+                        "phase": data.get("phase", "execution"),
+                        "timestamp": int(asyncio.get_event_loop().time() * 1000),
+                    })
+            except Exception:
+                pass
         try:
             await self.ws.send_json({
                 **data,
@@ -62,6 +133,12 @@ class WebSocketContext:
             if "close" in str(e).lower():
                 self._ws_closed = True
             logger.warning(f"WS 发送失败: {e}")
+
+    def pop_thinking_steps(self) -> list:
+        """取出本轮累积的思考步骤并清空（保存 AI 消息时调用）"""
+        steps = list(self._thinking_steps_buffer)
+        self._thinking_steps_buffer = []
+        return steps
 
     # ---- ws_callback（供 workforce 使用） ----
 
@@ -75,6 +152,8 @@ class WebSocketContext:
         self, role: str, content: str,
         agent_name: str = None,
         citations: Optional[list] = None,
+        thinking_steps: Optional[list] = None,
+        memory_id: Optional[str] = None,
     ):
         if not self.conversation_id:
             return
@@ -86,10 +165,17 @@ class WebSocketContext:
                     from src.services.chat_service import ChatService
                     async with async_session_maker() as db_session:
                         svc = ChatService(db_session)
+                        # V2：保存 thinking_steps 与 memory_id 到 msg_metadata
+                        _extra_meta = {}
+                        if thinking_steps:
+                            _extra_meta["thinking_steps"] = thinking_steps
+                        if memory_id:
+                            _extra_meta["memory_id"] = memory_id
                         await svc.add_message(
                             conversation_id=self.conversation_id, role=role,
                             content=content, agent_name=agent_name,
                             citations=citations,
+                            msg_metadata=_extra_meta if _extra_meta else None,
                         )
                         # 第一条用户消息时，自动更新对话标题
                         if role == "user":
@@ -102,7 +188,7 @@ class WebSocketContext:
                             )
                             current_title = result.scalar_one_or_none()
                             if current_title and current_title.startswith("对话 "):
-                                title_text = content.replace("[附件:", "").strip()[:50]
+                                title_text = _extract_conversation_title(content)
                                 if title_text:
                                     await db_session.execute(
                                         sa_update(ConvModel)

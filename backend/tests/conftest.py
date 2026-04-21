@@ -89,6 +89,21 @@ def event_loop_policy() -> asyncio.AbstractEventLoopPolicy:
     return asyncio.DefaultEventLoopPolicy()
 
 
+# ============ 认证风控开关隔离 ============
+#
+# `.env` 可能开启 CAPTCHA_ENABLED 以便本地/预发挥做人机校验，但自动化测试
+# 默认不提供 captcha token，也不 mock 第三方验证服务。为保证测试基线稳定，
+# 每个测试运行时强制关闭 CAPTCHA；个别测试（test_auth_surface_hardening.py
+# 中的 captcha 用例）会通过 monkeypatch 再显式打开。
+
+@pytest.fixture(autouse=True)
+def _disable_captcha_by_default(monkeypatch):
+    from src.core.config import settings as _settings
+
+    monkeypatch.setattr(_settings, "CAPTCHA_ENABLED", False, raising=False)
+    yield
+
+
 # ============ 重置全局限流器状态（防止测试间污染） ============
 
 @pytest_asyncio.fixture(autouse=True)

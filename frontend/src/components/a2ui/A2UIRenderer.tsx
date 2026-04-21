@@ -33,6 +33,7 @@ import {
   SchedulePicker, FeedbackCard, PluginContainer,
 } from './components/ExtensionComponents';
 import { FullWidthCard } from './components/MobileCardWrapper';
+import { A2UIBoundary } from '@/components/ai-primitives';
 import { cn } from '@/lib/utils';
 
 /** 需要在移动端使用全宽包裹的组件类型 */
@@ -53,6 +54,19 @@ interface A2UIRendererProps {
   animated?: boolean;
   /** 移动端模式 — 启用全宽卡片、可折叠等千问风格包裹 */
   isMobile?: boolean;
+  /**
+   * DesignDNA 标准外壳。传 true 使用默认 AI tone；
+   * 传对象可自定义 tone / title / streaming / footer。
+   * 默认 false — 保持向后兼容，由调用方自行决定是否启用。
+   */
+  boundary?:
+    | boolean
+    | {
+        tone?: 'ai' | 'neutral' | 'suggestion';
+        title?: string;
+        streaming?: boolean;
+        footer?: React.ReactNode;
+      };
 }
 
 /** 单个组件的渲染分发 */
@@ -135,6 +149,7 @@ export const A2UIRenderer = memo(function A2UIRenderer({
   className,
   animated = true,
   isMobile = false,
+  boundary = false,
 }: A2UIRendererProps) {
   const handleEvent = useCallback(
     (event: A2UIEvent) => {
@@ -176,15 +191,30 @@ export const A2UIRenderer = memo(function A2UIRenderer({
     </div>
   );
 
-  if (animated) {
+  const rendered = animated ? (
+    <AnimatePresence mode="wait">
+      {content}
+    </AnimatePresence>
+  ) : (
+    content
+  );
+
+  if (boundary) {
+    const opts = boundary === true ? {} : boundary;
     return (
-      <AnimatePresence mode="wait">
-        {content}
-      </AnimatePresence>
+      <A2UIBoundary
+        tone={opts.tone ?? 'ai'}
+        title={opts.title ?? (message.metadata as any)?.title}
+        streaming={opts.streaming}
+        footer={opts.footer}
+        dense={isMobile}
+      >
+        {rendered}
+      </A2UIBoundary>
     );
   }
 
-  return content;
+  return rendered;
 });
 
 export default A2UIRenderer;

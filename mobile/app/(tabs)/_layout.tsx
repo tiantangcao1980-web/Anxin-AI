@@ -2,16 +2,25 @@ import React, { useEffect, useState } from 'react'
 import { Tabs } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { useColorScheme, Platform } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Colors, DarkColors } from '../../src/constants/colors'
 import { normalizeBadgeCount } from '../../src/features/inbox/engagement-model'
 import { api } from '../../src/services/api'
 import type { IMConversation } from '../../src/types/api'
 
+/**
+ * 移动端底部 5 Tab 导航。
+ *
+ * 对齐 PRD 四大业务域：AI法务 / 智能协作 / 智能调查 / 法律智库，
+ * 第 5 项「我的」承载账号、订阅、运行模式、设置。
+ *
+ * 徽章：合并了通知未读数 + IM 会话未读数进入「协作」tab。
+ */
 export default function TabLayout() {
   const colorScheme = useColorScheme()
   const theme = colorScheme === 'dark' ? DarkColors : Colors
-  const [inboxBadge, setInboxBadge] = useState<number | string | undefined>(undefined)
-  const [chatBadge, setChatBadge] = useState<number | string | undefined>(undefined)
+  const insets = useSafeAreaInsets()
+  const [collabBadge, setCollabBadge] = useState<number | string | undefined>(undefined)
 
   useEffect(() => {
     const loadBadges = async () => {
@@ -28,16 +37,17 @@ export default function TabLayout() {
           ? conversationResult.value.reduce((sum, item) => sum + (item.unread_count ?? 0), 0)
           : 0
 
-        setInboxBadge(normalizeBadgeCount(notificationCount + conversationCount))
-        setChatBadge(normalizeBadgeCount(conversationCount))
+        setCollabBadge(normalizeBadgeCount(notificationCount + conversationCount))
       } catch {
-        setInboxBadge(undefined)
-        setChatBadge(undefined)
+        setCollabBadge(undefined)
       }
     }
 
     loadBadges()
   }, [])
+
+  const baseTabBarHeight = Platform.OS === 'ios' ? 56 : 56
+  const paddingBottom = Math.max(insets.bottom, Platform.OS === 'ios' ? 8 : 8)
 
   return (
     <Tabs
@@ -47,8 +57,8 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: theme.background,
           borderTopColor: theme.border,
-          height: Platform.OS === 'ios' ? 83 : 56,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 8,
+          height: baseTabBarHeight + paddingBottom,
+          paddingBottom,
           paddingTop: 8,
         },
         tabBarLabelStyle: {
@@ -62,22 +72,39 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="chat"
         options={{
-          title: '收件箱',
-          tabBarBadge: inboxBadge,
+          title: 'AI法务',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="file-tray-full-outline" size={size} color={color} />
+            <Ionicons name="sparkles-outline" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="chat"
+        name="collaboration"
         options={{
-          title: '咨询',
-          tabBarBadge: chatBadge,
+          title: '协作',
+          tabBarBadge: collabBadge,
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubbles-outline" size={size} color={color} />
+            <Ionicons name="people-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="investigation"
+        options={{
+          title: '智能调查',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="search-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="knowledge"
+        options={{
+          title: '法律智库',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="library-outline" size={size} color={color} />
           ),
         }}
       />
@@ -88,6 +115,16 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-outline" size={size} color={color} />
           ),
+        }}
+      />
+
+      {/* 原 index 收件箱仍保留页面但从 tab 中隐藏，避免破坏已有路由；
+          从「我的」进入「消息中心」后使用 */}
+      <Tabs.Screen
+        name="index"
+        options={{
+          href: null,
+          title: '收件箱',
         }}
       />
     </Tabs>

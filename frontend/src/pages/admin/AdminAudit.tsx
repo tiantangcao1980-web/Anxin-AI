@@ -85,10 +85,89 @@ export default function AdminAudit() {
     }
   }
 
+  // V2：导出合规报告（PDF via window.print）
+  const handleExportComplianceReport = async () => {
+    try {
+      const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8003/api/v1'
+      const token = localStorage.getItem('access_token')
+      const resp = await fetch(`${API}/admin/audit-logs/compliance-report?days=30`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const json = await resp.json()
+      const report = json?.data
+      if (!report || !report.total_operations) {
+        toast.error(json?.message || '暂无审计数据可导出')
+        return
+      }
+
+      // 在新窗口渲染报告并打印
+      const printWindow = window.open('', '_blank')
+      if (!printWindow) {
+        toast.error('浏览器阻止弹窗，请允许弹窗后重试')
+        return
+      }
+      const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><title>合规审计报告</title>
+<style>
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; padding: 40px; color: #333; line-height: 1.7; }
+  h1 { color: #d97706; border-bottom: 2px solid #d97706; padding-bottom: 8px; }
+  h2 { color: #444; margin-top: 28px; }
+  .meta { color: #666; font-size: 14px; margin-bottom: 24px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+  th, td { padding: 10px 14px; border: 1px solid #ddd; text-align: left; font-size: 13px; }
+  th { background: #fff7ed; color: #333; font-weight: 600; }
+  .pass { color: #16a34a; font-weight: 600; }
+  .review { color: #dc2626; font-weight: 600; }
+  .footer { margin-top: 40px; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 12px; }
+  @media print { body { padding: 20px; } }
+</style></head><body>
+<h1>律所合规审计报告</h1>
+<div class="meta">
+  组织 ID：${report.org_id}<br>
+  报告周期：${new Date(report.period.start).toLocaleDateString('zh-CN')} ~ ${new Date(report.period.end).toLocaleDateString('zh-CN')}<br>
+  生成时间：${new Date(report.generated_at).toLocaleString('zh-CN')}<br>
+  合规状态：<span class="${report.compliance_status === 'pass' ? 'pass' : 'review'}">
+    ${report.compliance_status === 'pass' ? '✓ 合规通过' : '⚠ 需关注'}
+  </span>
+</div>
+<h2>1. 操作总览</h2>
+<p>本周期内共记录 <strong>${report.total_operations}</strong> 次操作。</p>
+<h2>2. 操作类型分布</h2>
+<table><thead><tr><th>操作类型</th><th>次数</th></tr></thead><tbody>
+${Object.entries(report.action_breakdown || {}).map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('')}
+</tbody></table>
+<h2>3. 用户活跃度（Top 10）</h2>
+<table><thead><tr><th>用户</th><th>操作次数</th></tr></thead><tbody>
+${Object.entries(report.user_activity || {}).slice(0, 10).map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('')}
+</tbody></table>
+${report.failed_operations?.length ? `
+<h2>4. 异常操作（${report.failed_operations.length} 条）</h2>
+<table><thead><tr><th>操作</th><th>用户</th><th>时间</th><th>原因</th></tr></thead><tbody>
+${report.failed_operations.map((op: any) => `<tr><td>${op.action}</td><td>${op.user}</td><td>${op.time ? new Date(op.time).toLocaleString('zh-CN') : '-'}</td><td>${op.error || '-'}</td></tr>`).join('')}
+</tbody></table>` : ''}
+<div class="footer">
+  ⚖️ 本报告由「安心法务 Pro」自动生成，可作为律所合规管理证据留存。<br>
+  如需纸质归档，请使用浏览器打印功能保存为 PDF。
+</div>
+</body></html>`
+      printWindow.document.write(html)
+      printWindow.document.close()
+      setTimeout(() => { try { printWindow.print() } catch { /* ignore */ } }, 500)
+      toast.success('合规报告已生成，可保存为 PDF')
+    } catch (e: any) {
+      toast.error(e?.message || '导出失败')
+    }
+  }
+
   return (
     <PageContainer
       title="审计日志"
       description="查看系统操作记录和安全审计日志"
+      actions={
+        <Button onClick={handleExportComplianceReport} variant="outline" size="sm">
+          <icons.FileOutput className="w-4 h-4 mr-1.5" />
+          导出合规报告
+        </Button>
+      }
     >
       {/* 筛选栏 */}
       <Card>

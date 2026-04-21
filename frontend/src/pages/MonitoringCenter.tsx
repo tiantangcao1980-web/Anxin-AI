@@ -18,6 +18,8 @@ import {
 } from '@/lib/api'
 import { toast } from 'sonner'
 import { PageContainer } from '@/components/ui/PageContainer'
+import { StatCard, StatGrid, StatCardSkeleton } from '@/components/ui-unified'
+import { buttonStyle, inputStyle, iconSize } from '@/lib/design-tokens'
 
 const riskColors = { low: 'text-success bg-success/10', medium: 'text-warning bg-warning/10', high: 'text-destructive bg-destructive/10' }
 const riskLabels = { low: '低风险', medium: '中风险', high: '高风险' }
@@ -308,31 +310,41 @@ export default function MonitoringCenter() {
     }
   }, [])
 
-  // 统计计算
-  const stats = [
+  // 统计计算（使用 UnifiedStatCard tone 体系）
+  const stats: {
+    label: string
+    value: number | string
+    icon: typeof Building2
+    tone: 'primary' | 'success' | 'destructive' | 'warning'
+    hint: string
+  }[] = [
     {
       label: '监测对象',
       value: monitors.length,
       icon: Building2,
-      color: 'text-info',
+      tone: 'primary',
+      hint: '已订阅',
     },
     {
       label: '今日舆情',
       value: statistics?.total_records ?? monitors.reduce((s, m) => s + m.total_records, 0),
       icon: Activity,
-      color: 'text-success',
+      tone: 'success',
+      hint: '24 小时内',
     },
     {
       label: '风险预警',
       value: statistics?.alerts?.total ?? monitors.reduce((s, m) => s + m.alert_count, 0),
       icon: Bell,
-      color: 'text-destructive',
+      tone: 'destructive',
+      hint: '待处理告警',
     },
     {
       label: '负面舆情',
       value: statistics?.sentiment_distribution?.negative ?? monitors.reduce((s, m) => s + m.negative_count, 0),
       icon: TrendingUp,
-      color: 'text-warning',
+      tone: 'warning',
+      hint: '需关注',
     },
   ]
 
@@ -348,45 +360,43 @@ export default function MonitoringCenter() {
       actions={
         <button
           onClick={() => setShowAddDialog(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-2xl hover:bg-primary/90 transition-colors text-sm font-medium"
+          className={`${buttonStyle.primary} inline-flex items-center gap-2`}
         >
-          <Plus className="h-4 w-4" />
+          <Plus className={iconSize.sm} />
           添加监测对象
         </button>
       }
       toolbar={
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className={`${iconSize.sm} absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground`} />
           <input
             type="text"
             placeholder="搜索监测对象或关键词..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-muted/50 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+            className={`${inputStyle.search} pl-10`}
           />
         </div>
       }
     >
-      {/* 统计卡片 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map(stat => (
-          <div key={stat.label} className="bg-card border rounded-xl p-4 hover:shadow-sm transition-shadow">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg bg-muted/50 ${stat.color}`}>
-                <stat.icon className="h-5 w-5" />
-              </div>
-              <div>
-                {loading ? (
-                  <div className="h-8 w-12 rounded bg-muted animate-pulse" />
-                ) : (
-                  <p className="text-2xl font-bold">{stat.value}</p>
-                )}
-                <p className="text-xs text-muted-foreground">{stat.label}</p>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* 统计卡片 — 接入 StatGrid 与全站一致 */}
+      {loading ? (
+        <StatCardSkeleton count={4} />
+      ) : (
+        <StatGrid cols={4}>
+          {stats.map((stat, index) => (
+            <StatCard
+              key={stat.label}
+              index={index}
+              icon={stat.icon}
+              tone={stat.tone}
+              label={stat.label}
+              value={stat.value}
+              hint={stat.hint}
+            />
+          ))}
+        </StatGrid>
+      )}
 
       {/* 监测对象列表 */}
       <div className="space-y-3">

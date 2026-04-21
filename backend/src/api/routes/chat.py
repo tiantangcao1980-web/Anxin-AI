@@ -114,6 +114,9 @@ class MessageItem(BaseModel):
     agent_name: Optional[str] = None
     created_at: str
     sources: list = []
+    # V2：把思考过程等元数据一并返回给前端，用于恢复历史消息的思考链
+    msg_metadata: Optional[dict] = None
+    reasoning: Optional[str] = None
 
 
 @router.post("/", response_model=UnifiedResponse)
@@ -187,6 +190,8 @@ async def get_chat_history(
                     agent_name=m.agent_name,
                     created_at=m.created_at.isoformat(),
                     sources=m.citations or [],
+                    msg_metadata=getattr(m, 'msg_metadata', None),
+                    reasoning=getattr(m, 'reasoning', None),
                 )
                 for m in messages
             ],
@@ -664,6 +669,9 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                                 if len(_extracted) > _max_chars:
                                     _truncated += f"\n\n...（文档共 {len(_extracted)} 字，已截取前 {_max_chars} 字）"
                                 content = f"{content}\n\n[附件内容 - {_doc.name}]\n{_truncated}"
+                                # V2 修复：标记附件已成功提取，供后续需求分析/路由使用
+                                data["has_attachments"] = True
+                                data["_attachment_name"] = _doc.name
                                 await ctx.send("file_parsed", {
                                     "document_id": _document_id,
                                     "file_name": _doc.name,
@@ -1208,11 +1216,15 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                     "sources": [s.model_dump() for s in ws_sources],
                 })
 
+                # V2：取出本轮累积的思考步骤 + memory_id，随 AI 消息持久化
+                _thinking_snapshot = ctx.pop_thinking_steps()
                 await ctx.save_message(
                     "assistant",
                     response_text,
                     used_agent,
                     citations=[s.model_dump() for s in ws_sources],
+                    thinking_steps=_thinking_snapshot if _thinking_snapshot else None,
+                    memory_id=memory_id,
                 )
 
                 # === 经验沉淀：保存需求发掘路径到情景记忆 ===

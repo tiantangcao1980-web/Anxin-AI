@@ -133,11 +133,11 @@ export function ComplianceReport({ data }: ComplianceReportProps) {
  </div>
  </div>
 
- <div className={`bg-gradient-to-br ${rateBg} rounded-lg p-4 mb-4 border`}>
+ <div className={`bg-gradient-to-br ${rateBg} rounded-dd_lg p-4 mb-4 border`}>
  <div className="text-center">
- <p className={`text-sm ${rateColor} mb-1`}>合规率</p>
- <p className={`text-3xl font-bold ${rateColor}`}>{complianceRate}%</p>
- <p className={`text-xs ${rateColor} mt-1 opacity-80`}>
+ <p className={`text-caption ${rateColor} mb-1`}>合规率</p>
+ <p className={`num-tabular title-display text-[32px] ${rateColor}`}>{complianceRate}%</p>
+ <p className={`text-caption ${rateColor} mt-1 opacity-80`}>
  {passCount}/{complianceItems.length} 项通过
  </p>
  </div>

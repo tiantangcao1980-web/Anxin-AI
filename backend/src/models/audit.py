@@ -11,7 +11,7 @@ from sqlalchemy import String, Text, ForeignKey, DateTime, Enum as SQLEnum, Inde
 from sqlalchemy import JSON as JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.models.base import Base, GUID
+from src.models.base import Base, GUID, ValueEnum
 
 
 class AuditAction(str, Enum):

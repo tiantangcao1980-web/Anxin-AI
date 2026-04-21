@@ -1,5 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, Stack } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -13,45 +21,37 @@ const filters = [
   { key: 'unread', label: '未读' },
 ] as const
 
-const fallbackNotifications: NotificationItem[] = [
-  {
-    id: 'n1',
-    type: 'warning',
-    title: '审批即将超时',
-    message: '合同用印审批距离 SLA 还有 2 小时。',
-    is_read: false,
-    event_type: 'approval',
-    created_at: '刚刚',
-  },
-  {
-    id: 'n2',
-    type: 'info',
-    title: '有新的协作消息',
-    message: '并购项目群有 2 条新消息等待处理。',
-    is_read: false,
-    event_type: 'chat',
-    created_at: '10 分钟前',
-  },
-]
-
 export default function NotificationsScreen() {
   const [filter, setFilter] = useState<(typeof filters)[number]['key']>('all')
-  const [notifications, setNotifications] = useState<NotificationItem[]>(fallbackNotifications)
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const loadNotifications = useCallback(async () => {
+    try {
+      setError(null)
+      const result = await api.get<{ data: NotificationItem[]; total: number }>(
+        '/notifications/?limit=50',
+      )
+      setNotifications(result.data ?? [])
+    } catch (err: any) {
+      setNotifications([])
+      setError(err?.message || '加载通知失败')
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }, [])
 
   useEffect(() => {
-    const loadNotifications = async () => {
-      try {
-        const result = await api.get<{ data: NotificationItem[]; total: number }>('/notifications/?limit=30')
-        if (result.data.length > 0) {
-          setNotifications(result.data)
-        }
-      } catch {
-        setNotifications(fallbackNotifications)
-      }
-    }
-
     loadNotifications()
-  }, [])
+  }, [loadNotifications])
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true)
+    loadNotifications()
+  }, [loadNotifications])
 
   const visibleNotifications = useMemo(
     () => notifications.filter((item) => (filter === 'unread' ? !item.is_read : true)),
@@ -76,10 +76,24 @@ export default function NotificationsScreen() {
         ))}
       </View>
 
+      {loading && notifications.length === 0 ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      ) : (
       <FlatList
         data={visibleNotifications}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={
+          visibleNotifications.length === 0 ? styles.emptyContainer : styles.listContent
+        }
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.primary}
+          />
+        }
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.card}
@@ -111,18 +125,43 @@ export default function NotificationsScreen() {
           </TouchableOpacity>
         )}
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Ionicons name="notifications-off-outline" size={48} color={Colors.textMuted} />
-            <Text style={styles.emptyTitle}>暂无通知</Text>
-            <Text style={styles.emptyText}>你处理过的通知会显示在这里。</Text>
-          </View>
+          error ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="cloud-offline-outline" size={48} color="#DC2626" />
+              <Text style={[styles.emptyTitle, { color: '#DC2626' }]}>{error}</Text>
+              <TouchableOpacity style={styles.retryBtn} onPress={loadNotifications}>
+                <Text style={styles.retryBtnText}>点击重试</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="notifications-off-outline" size={48} color={Colors.textMuted} />
+              <Text style={styles.emptyTitle}>暂无通知</Text>
+              <Text style={styles.emptyText}>下拉可刷新。</Text>
+            </View>
+          )
         }
       />
+      )}
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  emptyContainer: { flex: 1 },
+  retryBtn: {
+    marginTop: Layout.spacing.md,
+    paddingHorizontal: Layout.spacing.lg,
+    paddingVertical: Layout.spacing.sm,
+    backgroundColor: Colors.primary,
+    borderRadius: Layout.borderRadius.md,
+  },
+  retryBtnText: {
+    fontSize: Layout.fontSize.sm,
+    color: Colors.white,
+    fontWeight: '500',
+  },
   container: {
     flex: 1,
     backgroundColor: Colors.background,

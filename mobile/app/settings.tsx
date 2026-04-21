@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Switch, ScrollView, Alert, StyleSheet } f
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, Stack } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
+import { useStackHeaderOptions, useTheme } from '@/lib/theme'
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name']
 
@@ -62,6 +63,9 @@ export default function SettingsScreen() {
     setSwitches((prev) => ({ ...prev, [key]: !prev[key] }))
   }
 
+  const headerOptions = useStackHeaderOptions({ title: '设置' })
+  const theme = useTheme()
+
   const handlePress = (key: string) => {
     switch (key) {
       case 'cache':
@@ -114,14 +118,11 @@ export default function SettingsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <Stack.Screen
-        options={{
-          title: '设置',
-          headerStyle: { backgroundColor: '#FFF' },
-          headerTintColor: '#333',
-        }}
-      />
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.surface }]}
+      edges={['bottom']}
+    >
+      <Stack.Screen options={headerOptions} />
 
       <ScrollView
         style={styles.scrollView}

@@ -760,11 +760,18 @@ export const useChatStore = create<ChatState>()(
         conversationId: state.conversationId,
         sidebarOpen: state.sidebarOpen,
         conversations: state.conversations,
+        // 持久化工作台缓存，刷新页面后切换对话仍能恢复
+        workspaceCache: state.workspaceCache,
       }),
       onRehydrateStorage: () => (state) => {
+        if (!state) return;
         // 防止 localStorage 数据损坏导致 conversations 不是数组
-        if (state && !Array.isArray(state.conversations)) {
+        if (!Array.isArray(state.conversations)) {
           state.conversations = [];
+        }
+        // 防止 workspaceCache 不是对象
+        if (!state.workspaceCache || typeof state.workspaceCache !== 'object') {
+          state.workspaceCache = {};
         }
       },
     }

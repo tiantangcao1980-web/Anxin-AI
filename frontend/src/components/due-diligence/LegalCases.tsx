@@ -8,6 +8,7 @@ import { useState, useMemo } from'react'
 import { motion } from'framer-motion'
 import { icons } from'@/lib/icons'
 import { cardStyle, heading, inputStyle } from'@/lib/design-tokens'
+import { StatCard, StatGrid } from'@/components/ui-unified'
 
 interface LegalCasesProps {
  data?: {
@@ -76,37 +77,31 @@ export function LegalCases({ data }: LegalCasesProps) {
  })
  }, [cases, roleFilter, searchQuery])
 
- const statCards = [
- { label:'涉诉总数', value: totalCases, unit:'起', icon: icons.Scale, color:'text-primary', bg:'bg-primary/5' },
- { label:'作为被告', value: asDefendant, unit:'起', icon: icons.AlertTriangle, color: asDefendant > 0 ?'text-destructive' :'text-muted-foreground', bg: asDefendant > 0 ?'bg-destructive/10' :'bg-muted/50' },
- { label:'作为原告', value: asPlaintiff, unit:'起', icon: icons.ShieldCheck, color:'text-success', bg:'bg-success/10' },
- { label:'执行案件', value: executionCases, unit:'起', icon: icons.FileText, color: executionCases > 0 ?'text-warning' :'text-muted-foreground', bg: executionCases > 0 ?'bg-warning/10' :'bg-muted/50' },
- { label:'失信记录', value: dishonestRecords, unit:'条', icon: icons.XCircle, color: dishonestRecords > 0 ?'text-destructive' :'text-muted-foreground', bg: dishonestRecords > 0 ?'bg-destructive/10' :'bg-muted/50' },
+ type Tone ='primary' |'success' |'warning' |'destructive' |'default'
+ const statCards: { label: string; value: number; unit: string; icon: any; tone: Tone }[] = [
+ { label:'涉诉总数', value: totalCases,       unit:'起', icon: icons.Scale,          tone:'primary' },
+ { label:'作为被告', value: asDefendant,      unit:'起', icon: icons.AlertTriangle,  tone: asDefendant > 0 ?'destructive' :'default' },
+ { label:'作为原告', value: asPlaintiff,      unit:'起', icon: icons.ShieldCheck,    tone:'success' },
+ { label:'执行案件', value: executionCases,   unit:'起', icon: icons.FileText,       tone: executionCases > 0 ?'warning' :'default' },
+ { label:'失信记录', value: dishonestRecords, unit:'条', icon: icons.XCircle,        tone: dishonestRecords > 0 ?'destructive' :'default' },
  ]
 
  return (
  <div className="space-y-4">
- {/* 统计概览 */}
- <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
- {statCards.map((card, i) => {
- const Icon = card.icon
- return (
- <motion.div
+ {/* 统计概览 —— 接入 StatGrid，5 列响应式 */}
+ <StatGrid cols={5}>
+ {statCards.map((card, i) => (
+ <StatCard
  key={card.label}
- initial={{ opacity: 0, y: 10 }}
- animate={{ opacity: 1, y: 0 }}
- transition={{ delay: i * 0.05 }}
- className={`${cardStyle.compact} text-center`}
- >
- <div className={`w-8 h-8 mx-auto mb-2 rounded-full ${card.bg} flex items-center justify-center`}>
- <Icon className={`w-4 h-4 ${card.color}`} />
- </div>
- <p className={`text-xl font-bold ${card.color}`}>{card.value}</p>
- <p className={heading.muted}>{card.label}</p>
- </motion.div>
- )
- })}
- </div>
+ index={i}
+ icon={card.icon}
+ tone={card.tone}
+ label={card.label}
+ value={card.value}
+ hint={card.unit}
+ />
+ ))}
+ </StatGrid>
 
  {/* 案件列表 */}
  <motion.div

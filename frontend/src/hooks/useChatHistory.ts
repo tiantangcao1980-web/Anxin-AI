@@ -6,49 +6,17 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { chatApi } from '@/lib/api';
 import { v4 as uuidv4 } from 'uuid';
+import type { Message, CitationSource } from '@/components/chat/types';
+import type { ThinkingStep } from '@/lib/store';
 
-export interface CitationSource {
-  id: string;
-  type: string; // "law_article" | "case" | "knowledge" | "regulation"
-  title: string;
-  content_snippet: string;
-  source: string;
-  relevance_score: number;
-  url?: string | null;
-}
-
-export interface ThinkingStep {
-  id: string;
-  agent: string;
-  content: string;
-  phase?: string;
-  timestamp?: number;
-  planSteps?: any[];
-}
-
-export interface Message {
-  id: string;
-  type: 'user' | 'ai' | 'system' | 'clarification';
-  content: string;
-  timestamp: Date;
-  agent?: string;
-  memory_id?: string;
-  feedback?: 'up' | 'down';
-  sources?: CitationSource[];
-  attachment?: { type: 'file' | 'image'; name: string; size: string };
-  metadata?: { isError?: boolean; originalError?: string; lastUserMessage?: string };
-  clarification?: {
-    questions: { question: string; options: string[] }[];
-    original_content: string;
-  };
-  // V2：本轮 AI 回答对应的思考过程（绑定到消息，而不是全局）
-  thinkingSteps?: ThinkingStep[];
-}
+// 统一 Message / ThinkingStep / CitationSource 的单一来源，供 @/hooks 继续 re-export。
+export type { Message, CitationSource, ThinkingStep };
 
 const WELCOME_MESSAGE: Message = {
   id: '1',
   type: 'ai',
-  content: '您好！我是您的 AI 法务助手。\n\n我可以帮助您审查合同、分析风险或提供法律建议。系统已启用**自我进化模式**，我会从每一次交互中学习。',
+  content:
+    '您好！我是您的 AI 法务助手。\n\n我可以帮助您审查合同、分析风险或提供法律建议。系统已启用**自我进化模式**，我会从每一次交互中学习。',
   timestamp: new Date(),
   agent: '法律顾问Agent',
 };
@@ -121,6 +89,28 @@ export function useChatHistory(options: UseChatHistoryOptions): UseChatHistoryRe
             ? m.content.replace(attachMatch[0], '').trim()
             : m.content;
 
+          // V2：从 msg_metadata.thinking_steps 恢复历史消息的思考过程
+          const metaThinking = m.msg_metadata?.thinking_steps || m.thinking_steps;
+          let restoredThinking: ThinkingStep[] | undefined;
+          if (Array.isArray(metaThinking) && metaThinking.length > 0) {
+            restoredThinking = metaThinking.map((s: any) => ({
+              id: s.id || uuidv4(),
+              agent: s.agent || '',
+              content: s.content || '',
+              phase: s.phase || 'execution',
+              timestamp: s.timestamp || Date.now(),
+            }));
+          } else if (m.reasoning && typeof m.reasoning === 'string' && m.reasoning.trim()) {
+            // 兜底：单行 reasoning 字段也展示为一步
+            restoredThinking = [{
+              id: uuidv4(),
+              agent: m.agent_name || '',
+              content: m.reasoning,
+              phase: 'execution',
+              timestamp: Date.now(),
+            }];
+          }
+
           return {
             id: m.id || uuidv4(),
             type: m.role === 'user' ? 'user' : 'ai',
@@ -128,6 +118,10 @@ export function useChatHistory(options: UseChatHistoryOptions): UseChatHistoryRe
             timestamp: new Date(m.created_at || Date.now()),
             agent: m.agent_name,
             attachment,
+            // V2：让历史消息也展示自己的思考过程（跟随消息头部）
+            thinkingSteps: restoredThinking,
+            memory_id: m.msg_metadata?.memory_id,
+            sources: m.citations,
           };
         });
 

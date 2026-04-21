@@ -1,5 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, Stack } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -14,30 +22,35 @@ const taskFilters = [
   { key: 'done', label: '已完成' },
 ] as const
 
-const fallbackTasks: TaskItem[] = [
-  { id: 'task-1', title: '补充合同附件', status: 'todo', priority: 'high', dueDate: '今天 18:00', tags: ['合同'] },
-  { id: 'task-2', title: '确认案件交接清单', status: 'in_progress', priority: 'medium', dueDate: '明天 10:00', tags: ['案件'] },
-  { id: 'task-3', title: '归档历史审查意见', status: 'done', priority: 'low', tags: ['归档'] },
-]
-
 export default function TasksScreen() {
   const [filter, setFilter] = useState<(typeof taskFilters)[number]['key']>('todo')
-  const [tasks, setTasks] = useState<TaskItem[]>(fallbackTasks)
+  const [tasks, setTasks] = useState<TaskItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const loadTasks = useCallback(async () => {
+    try {
+      setError(null)
+      const result = await api.get<{ items: TaskItem[]; total: number }>('/tasks/?page_size=50')
+      setTasks(result.items ?? [])
+    } catch (err: any) {
+      setTasks([])
+      setError(err?.message || '加载任务失败')
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }, [])
 
   useEffect(() => {
     loadTasks()
-  }, [])
+  }, [loadTasks])
 
-  const loadTasks = async () => {
-    try {
-      const result = await api.get<{ items: TaskItem[]; total: number }>('/tasks/?page_size=20')
-      if (result.items.length > 0) {
-        setTasks(result.items)
-      }
-    } catch {
-      setTasks(fallbackTasks)
-    }
-  }
+  const onRefresh = useCallback(() => {
+    setRefreshing(true)
+    loadTasks()
+  }, [loadTasks])
 
   const filteredTasks = useMemo(
     () => tasks.filter((item) => item.status === filter),
@@ -65,48 +78,76 @@ export default function TasksScreen() {
         })}
       </View>
 
-      <FlatList
-        data={filteredTasks}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={filteredTasks.length === 0 ? styles.emptyContainer : styles.listContent}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
-            activeOpacity={0.8}
-            onPress={() =>
-              router.push({
-                pathname: '/tasks/[id]',
-                params: {
-                  id: item.id,
-                  title: item.title,
-                  description: item.description,
-                  status: item.status,
-                  priority: item.priority,
-                  dueDate: item.dueDate,
-                  tags: item.tags.join('|'),
-                },
-              })
-            }
-          >
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>{item.title}</Text>
-              <Text style={styles.priorityText}>
-                {item.priority === 'high' ? '高' : item.priority === 'medium' ? '中' : '低'}
+      {loading && tasks.length === 0 ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={filteredTasks}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={
+            filteredTasks.length === 0 ? styles.emptyContainer : styles.listContent
+          }
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={Colors.primary}
+            />
+          }
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.card}
+              activeOpacity={0.8}
+              onPress={() =>
+                router.push({
+                  pathname: '/tasks/[id]',
+                  params: {
+                    id: item.id,
+                    title: item.title,
+                    description: item.description,
+                    status: item.status,
+                    priority: item.priority,
+                    dueDate: item.dueDate,
+                    tags: item.tags.join('|'),
+                  },
+                })
+              }
+            >
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>{item.title}</Text>
+                <Text style={styles.priorityText}>
+                  {item.priority === 'high' ? '高' : item.priority === 'medium' ? '中' : '低'}
+                </Text>
+              </View>
+              <Text style={styles.cardMeta}>
+                {(item.tags.length > 0 ? item.tags.join(' · ') : '任务') +
+                  (item.dueDate ? ` · 截止 ${item.dueDate}` : '')}
               </Text>
-            </View>
-            <Text style={styles.cardMeta}>
-              {(item.tags.length > 0 ? item.tags.join(' · ') : '任务') + (item.dueDate ? ` · 截止 ${item.dueDate}` : '')}
-            </Text>
-          </TouchableOpacity>
-        )}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Ionicons name="checkbox-outline" size={48} color={Colors.textMuted} />
-            <Text style={styles.emptyTitle}>当前筛选下暂无任务</Text>
-            <Text style={styles.emptyText}>后续会接入更完整的任务处理与状态流转。</Text>
-          </View>
-        }
-      />
+            </TouchableOpacity>
+          )}
+          ListEmptyComponent={
+            error ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="cloud-offline-outline" size={48} color="#DC2626" />
+                <Text style={[styles.emptyTitle, { color: '#DC2626' }]}>{error}</Text>
+                <TouchableOpacity style={styles.retryBtn} onPress={loadTasks}>
+                  <Text style={styles.retryBtnText}>点击重试</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons name="checkbox-outline" size={48} color={Colors.textMuted} />
+                <Text style={styles.emptyTitle}>当前筛选下暂无任务</Text>
+                <Text style={styles.emptyText}>
+                  下拉可刷新；新建任务会同步出现在这里。
+                </Text>
+              </View>
+            )
+          }
+        />
+      )}
     </SafeAreaView>
   )
 }
@@ -115,6 +156,23 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  retryBtn: {
+    marginTop: Layout.spacing.md,
+    paddingHorizontal: Layout.spacing.lg,
+    paddingVertical: Layout.spacing.sm,
+    backgroundColor: Colors.primary,
+    borderRadius: Layout.borderRadius.md,
+  },
+  retryBtnText: {
+    fontSize: Layout.fontSize.sm,
+    color: Colors.white,
+    fontWeight: '500',
   },
   summaryRow: {
     flexDirection: 'row',

@@ -293,6 +293,20 @@ export const CanvasEditor = memo(function CanvasEditor({
  setShowDownloadMenu(false);
  }, [canvas, buildHtmlDocument]);
 
+ // V2：下载为 Markdown（保留原生格式，便于后续二次编辑）
+ const handleDownloadMarkdown = useCallback(() => {
+ if (!canvas) return;
+ const blob = new Blob([canvas.content ||''], { type:'text/markdown;charset=utf-8' });
+ const url = URL.createObjectURL(blob);
+ const a = document.createElement('a');
+ a.href = url;
+ a.download = `${canvas.title ||'文档'}.md`;
+ a.click();
+ URL.revokeObjectURL(url);
+ setShowDownloadMenu(false);
+ toast.success('Markdown 文件已下载');
+ }, [canvas]);
+
  /**
  * 统一处理 AI 文档操作 — 结果直接渲染在编辑器内容区
  */
@@ -650,6 +664,13 @@ export const CanvasEditor = memo(function CanvasEditor({
  >
  <icons.FileOutput className="w-3.5 h-3.5 text-destructive flex-shrink-0" />
  下载为 PDF
+ </button>
+ <button
+ onClick={handleDownloadMarkdown}
+ className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted transition-colors whitespace-nowrap"
+ >
+ <icons.Edit className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+ 下载为 Markdown (.md)
  </button>
  </div>
  </>

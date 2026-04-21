@@ -123,10 +123,11 @@ export function DashboardHeader() {
 
  <div className="relative z-10">
  <div className="flex items-baseline gap-1 mb-1">
- <p className="text-3xl font-bold text-foreground tracking-heading-lg">{stat.value}</p>
- <span className="text-xs text-muted-foreground font-medium">{stat.unit}</span>
+ {/* 数值统一到 StatCard 规范：28px / 600 / tabular-nums，全站一致 */}
+ <p className="num-tabular text-[28px] font-semibold leading-tight tracking-heading-md text-foreground">{stat.value}</p>
+ <span className="text-caption text-foreground-tertiary font-medium">{stat.unit}</span>
  </div>
- <p className="text-xs font-medium text-muted-foreground uppercase tracking-caption flex items-center gap-1">
+ <p className="text-caption font-medium text-foreground-tertiary uppercase tracking-caption flex items-center gap-1">
  {stat.label}
  </p>
  </div>

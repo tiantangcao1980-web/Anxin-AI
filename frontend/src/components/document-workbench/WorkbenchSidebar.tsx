@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from 'react'
 import {
   FolderOpen, FileText, ChevronRight, ChevronDown, Plus, Search,
   Trash2, MoreHorizontal, FileType, FileSpreadsheet, Presentation,
-  File, Clock, Star, Users, Briefcase,
+  File, Clock, Star, Users, Briefcase, Sparkles,
 } from 'lucide-react'
 import { useDocumentWorkbenchStore, type WorkbenchDocumentItem } from './hooks/useDocumentWorkbenchStore'
 import { documentsApi, type Document } from '@/lib/api'
@@ -30,6 +30,41 @@ function getDocIcon(docType: string) {
   return FileText
 }
 
+/**
+ * 示例文档：帮助新用户在文档工作台里一键上手。
+ * 每条是一个可直接打开的 WorkbenchDocumentItem；ID 需稳定，
+ * 方便 DocumentTabs 的 `data-testid=document-tab-${id}` 做可寻址。
+ */
+const EXAMPLE_DOCUMENTS: { buttonLabel: string; item: WorkbenchDocumentItem }[] = [
+  {
+    buttonLabel: '打开示例文档',
+    item: {
+      id: 'example-doc',
+      title: '示例文档',
+      kind: 'markdown',
+      content: `# 示例文档\n\n欢迎使用安心法务文档工作台。\n\n- 在左侧空间切换视图\n- 上方可上传真实文档\n- 右侧可打开版本与协作面板\n`,
+    },
+  },
+  {
+    buttonLabel: '打开 Markdown 示例',
+    item: {
+      id: 'example-markdown',
+      title: 'Markdown 示例',
+      kind: 'markdown',
+      content: `# Markdown 示例\n\n这是一个 Markdown 渲染的示例文档。\n\n## 常用语法\n\n- **加粗**、*斜体*、~~删除线~~\n- 行内 \`代码\` 与代码块\n- 表格、列表、图片、引用\n`,
+    },
+  },
+  {
+    buttonLabel: '打开 PDF 示例',
+    item: {
+      id: 'example-pdf',
+      title: 'PDF 示例文件',
+      kind: 'pdf',
+      content: 'https://example.com/sample.pdf',
+    },
+  },
+]
+
 const mapDocumentKind = (document: Pick<Document, 'doc_type' | 'mime_type'>): WorkbenchDocumentItem['kind'] =>
   document.doc_type === 'markdown'
     ? 'markdown'
@@ -44,8 +79,11 @@ const mapDocumentKind = (document: Pick<Document, 'doc_type' | 'mime_type'>): Wo
             : 'doc'
 
 // 侧边栏分类配置
+// 「我的文档」：用户自己创建或上传的，作为默认入口；
+// 「最近打开」：按打开时间排序的快速回溯视图；
+// 其他视图按收藏 / 共享 / 项目维度分组。
 const SIDEBAR_SPACES = [
-  { id: 'all' as const, label: '全部文档', icon: FolderOpen },
+  { id: 'all' as const, label: '我的文档', icon: FolderOpen },
   { id: 'recent' as const, label: '最近打开', icon: Clock },
   { id: 'starred' as const, label: '收藏文档', icon: Star },
   { id: 'shared' as const, label: '共享给我', icon: Users },
@@ -53,6 +91,14 @@ const SIDEBAR_SPACES = [
 ]
 
 type SidebarSpace = typeof SIDEBAR_SPACES[number]['id']
+
+const SIDEBAR_SPACE_LABEL_MAP: Record<SidebarSpace, string> = {
+  all: '我的文档',
+  recent: '最近打开',
+  starred: '收藏文档',
+  shared: '共享给我',
+  project: '项目文档',
+}
 
 export function WorkbenchSidebar({ entryMode }: WorkbenchSidebarProps) {
   const { openDocument, recentDocuments } = useDocumentWorkbenchStore()
@@ -64,6 +110,7 @@ export function WorkbenchSidebar({ entryMode }: WorkbenchSidebarProps) {
   const [showNewDocMenu, setShowNewDocMenu] = useState(false)
   const [contextMenu, setContextMenu] = useState<{ docId: string; x: number; y: number } | null>(null)
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['contracts', 'legal', 'other']))
+  const [analyzingDocumentId, setAnalyzingDocumentId] = useState<string | null>(null)
 
   // 加载文档列表
   useEffect(() => {
@@ -71,7 +118,9 @@ export function WorkbenchSidebar({ entryMode }: WorkbenchSidebarProps) {
     const loadDocuments = async () => {
       setLoading(true)
       try {
-        const result = await documentsApi.list({ page: 1, page_size: 50 })
+        // E2E mock 按 page_size=8 注册；真实用户有 10+ 文档是常态，
+        // 取 20 作为「我的文档」首屏合理下限，配合下方按名称/类型的文件夹分组展示。
+        const result = await documentsApi.list({ page: 1, page_size: 20 })
         if (!cancelled) setDocuments(result.items ?? [])
       } catch {
         if (!cancelled) setDocuments([])
@@ -215,11 +264,23 @@ export function WorkbenchSidebar({ entryMode }: WorkbenchSidebarProps) {
     }
   }, [])
 
+  const handleAnalyzeDocument = useCallback(async (docId: string) => {
+    setAnalyzingDocumentId(docId)
+    try {
+      await documentsApi.analyze(docId)
+      toast.success('文档分析完成')
+    } catch {
+      toast.error('文档分析失败，请稍后重试')
+    } finally {
+      setAnalyzingDocumentId(null)
+    }
+  }, [])
+
   // 选择当前显示内容
   const renderContent = () => {
     if (activeSpace === 'recent') {
       return (
-        <div className="space-y-1">
+        <div data-testid="workbench-recent-list" className="space-y-1">
           {recentDocuments.length > 0 ? (
             recentDocuments.map(doc => (
               <button
@@ -278,6 +339,8 @@ export function WorkbenchSidebar({ entryMode }: WorkbenchSidebarProps) {
                     return (
                       <div
                         key={doc.id}
+                        role="button"
+                        aria-label={doc.name}
                         tabIndex={0}
                         onClick={() => void openApiDocument(doc)}
                         onKeyDown={e => { if (e.key === 'Enter') void openApiDocument(doc) }}
@@ -292,16 +355,31 @@ export function WorkbenchSidebar({ entryMode }: WorkbenchSidebarProps) {
                         {openingDocumentId === doc.id ? (
                           <span className="ml-auto text-[11px] text-primary">打开中...</span>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={e => {
-                              e.stopPropagation()
-                              setContextMenu({ docId: doc.id, x: e.clientX, y: e.clientY })
-                            }}
-                            className="ml-auto hidden shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted-foreground/10 group-hover:block"
-                          >
-                            <MoreHorizontal className="h-3.5 w-3.5" />
-                          </button>
+                          <div className="ml-auto flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              title="AI分析"
+                              aria-label="AI分析"
+                              onClick={e => {
+                                e.stopPropagation()
+                                void handleAnalyzeDocument(doc.id)
+                              }}
+                              disabled={analyzingDocumentId === doc.id}
+                              className="rounded p-0.5 text-muted-foreground hover:bg-muted-foreground/10 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              <Sparkles className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={e => {
+                                e.stopPropagation()
+                                setContextMenu({ docId: doc.id, x: e.clientX, y: e.clientY })
+                              }}
+                              className="rounded p-0.5 text-muted-foreground hover:bg-muted-foreground/10"
+                            >
+                              <MoreHorizontal className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         )}
                       </div>
                     )
@@ -320,6 +398,24 @@ export function WorkbenchSidebar({ entryMode }: WorkbenchSidebarProps) {
       data-testid="document-workbench-sidebar"
       className="flex w-64 flex-col border-r border-border bg-background/95"
     >
+      {/* 顶部段切换：文档工作台 / 协作模板。
+          协作模板库尚未上线，点击后仅以 Toast 告知，保持导航语义对齐未来 PRD。 */}
+      <div className="flex gap-1 border-b border-border bg-muted/30 px-2 py-2">
+        <button
+          type="button"
+          className="flex-1 rounded-lg bg-background px-2 py-1 text-xs font-medium text-foreground shadow-sm"
+        >
+          文档工作台
+        </button>
+        <button
+          type="button"
+          onClick={() => toast.info('协作模板库即将上线')}
+          className="flex-1 rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          协作模板
+        </button>
+      </div>
+
       {/* 顶部：标题 + 新建 */}
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <span className="text-sm font-medium text-foreground">智能文档</span>
@@ -372,7 +468,7 @@ export function WorkbenchSidebar({ entryMode }: WorkbenchSidebarProps) {
           <input
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            placeholder="搜索文档..."
+            placeholder="搜索真实文档"
             className="w-full rounded-lg border border-border bg-background py-1.5 pl-8 pr-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary"
           />
         </div>
@@ -403,7 +499,32 @@ export function WorkbenchSidebar({ entryMode }: WorkbenchSidebarProps) {
 
       {/* 内容区：文件夹树 / 最近列表 */}
       <div className="flex-1 overflow-auto border-t border-border px-2 pt-2">
+        <div className="px-2 pb-2">
+          <h2 className="text-sm font-semibold text-foreground">
+            {SIDEBAR_SPACE_LABEL_MAP[activeSpace]}
+          </h2>
+        </div>
         {renderContent()}
+      </div>
+
+      {/* 示例文档：新用户可一键预览 Markdown / PDF 渲染效果 */}
+      <div className="border-t border-border px-2 py-2">
+        <div className="px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          示例文档
+        </div>
+        <div className="space-y-0.5">
+          {EXAMPLE_DOCUMENTS.map(example => (
+            <button
+              key={example.item.id}
+              type="button"
+              onClick={() => openDocument(example.item)}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <FileType className="h-3.5 w-3.5" />
+              {example.buttonLabel}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* 右键菜单 */}

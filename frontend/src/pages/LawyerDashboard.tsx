@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/common'
+import { StatCard as UnifiedStatCard, StatGrid, StatCardSkeleton } from '@/components/ui-unified'
 import {
   LineChart,
   Line,
@@ -121,12 +122,8 @@ export default function LawyerDashboard() {
   if (loading) {
     return (
       <PageContainer title="律师工作台">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-xl" />
-          ))}
-        </div>
-        <Skeleton className="h-64 rounded-xl mt-4" />
+        <StatCardSkeleton count={4} />
+        <Skeleton className="h-64 rounded-dd_xl mt-4" />
       </PageContainer>
     )
   }
@@ -141,37 +138,41 @@ export default function LawyerDashboard() {
 
   return (
     <PageContainer title="律师工作台" description="查看收入、管理咨询、跟踪业绩">
-      {/* KPI 卡片 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard
+      {/* KPI 卡片 —— 统一 StatGrid，视觉与 AdminDashboard / Contracts 一致 */}
+      <StatGrid cols={4}>
+        <UnifiedStatCard
+          index={0}
           icon={icons.DollarSign}
+          tone="success"
           label="本月收入"
           value={`¥${kpi.monthlyIncome.toLocaleString()}`}
-          color="text-success"
-          bgColor="bg-success/10 dark:bg-success/20"
+          hint="含结算中"
         />
-        <KpiCard
+        <UnifiedStatCard
+          index={1}
           icon={icons.Briefcase}
+          tone="primary"
           label="本月接单"
-          value={`${kpi.monthlyOrders} 单`}
-          color="text-primary"
-          bgColor="bg-primary/5"
+          value={kpi.monthlyOrders}
+          hint="单"
         />
-        <KpiCard
+        <UnifiedStatCard
+          index={2}
           icon={icons.Star}
+          tone="warning"
           label="综合评分"
           value={`${kpi.rating} ★`}
-          color="text-warning"
-          bgColor="bg-warning/10 dark:bg-warning/20"
+          hint="五星制"
         />
-        <KpiCard
+        <UnifiedStatCard
+          index={3}
           icon={icons.Clock}
+          tone="default"
           label="平均回复"
           value={`${kpi.avgResponseMinutes} 分钟`}
-          color="text-info"
-          bgColor="bg-info/10 dark:bg-info/20"
+          hint="响应速度"
         />
-      </div>
+      </StatGrid>
 
       {/* 待处理咨询 */}
       <PageSection title="待处理咨询" description={`${pending.length} 条待处理`}>
@@ -292,32 +293,3 @@ export default function LawyerDashboard() {
   )
 }
 
-// ============ KPI 卡片组件 ============
-
-function KpiCard({
-  icon: Icon,
-  label,
-  value,
-  color,
-  bgColor,
-}: {
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  value: string
-  color: string
-  bgColor: string
-}) {
-  return (
-    <div className={cardStyle.base}>
-      <div className="flex items-center gap-3">
-        <div className={`p-2 rounded-lg ${bgColor}`}>
-          <Icon className={`${iconSize.md} ${color}`} />
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-lg font-bold text-foreground">{value}</p>
-        </div>
-      </div>
-    </div>
-  )
-}

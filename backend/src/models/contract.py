@@ -20,7 +20,7 @@ import enum
 
 
 
-from src.models.base import Base, TimestampMixin, GUID
+from src.models.base import Base, TimestampMixin, GUID, ValueEnum
 
 
 
@@ -90,7 +90,7 @@ class Contract(Base, TimestampMixin):
 
     status: Mapped[ContractStatus] = mapped_column(
 
-        SQLEnum(ContractStatus), default=ContractStatus.DRAFT
+        ValueEnum(ContractStatus), default=ContractStatus.DRAFT
 
     )
 
@@ -126,7 +126,7 @@ class Contract(Base, TimestampMixin):
 
     # AI审核结果
 
-    risk_level: Mapped[Optional[RiskLevel]] = mapped_column(SQLEnum(RiskLevel))
+    risk_level: Mapped[Optional[RiskLevel]] = mapped_column(ValueEnum(RiskLevel))
 
     risk_score: Mapped[Optional[float]] = mapped_column(Float)
 
@@ -206,7 +206,7 @@ class ContractClause(Base, TimestampMixin):
 
     is_standard: Mapped[bool] = mapped_column(default=True)  # 是否标准条款
 
-    risk_level: Mapped[Optional[RiskLevel]] = mapped_column(SQLEnum(RiskLevel))
+    risk_level: Mapped[Optional[RiskLevel]] = mapped_column(ValueEnum(RiskLevel))
 
     analysis: Mapped[Optional[dict]] = mapped_column(JSONB)
 
@@ -246,7 +246,7 @@ class ContractRisk(Base, TimestampMixin):
 
     risk_level: Mapped[RiskLevel] = mapped_column(
 
-        SQLEnum(RiskLevel), default=RiskLevel.MEDIUM
+        ValueEnum(RiskLevel), default=RiskLevel.MEDIUM
 
     )
 

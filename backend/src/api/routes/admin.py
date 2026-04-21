@@ -752,6 +752,33 @@ async def export_audit_report(
     return UnifiedResponse.success(data=report)
 
 
+@router.get("/audit-logs/compliance-report", summary="V2 律所合规审计报告")
+async def get_compliance_report(
+    days: int = Query(30, ge=1, le=365, description="报告天数范围"),
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    V2：生成律所合规审计报告（用于导出 PDF）
+
+    返回结构化数据：操作统计 / 用户活跃度 / 异常操作。
+    前端接到数据后渲染为 PDF 格式下载。
+    """
+    from datetime import timezone
+    org_id = getattr(admin, 'org_id', None)
+    if not org_id:
+        return UnifiedResponse.error(code=400, message="当前账号无组织归属，无法生成合规报告")
+    end_time = datetime.now(timezone.utc)
+    start_time = end_time - timedelta(days=days)
+    audit_service = AuditService(db)
+    report = await audit_service.generate_compliance_report(
+        org_id=str(org_id),
+        start_time=start_time,
+        end_time=end_time,
+    )
+    return UnifiedResponse.success(data=report)
+
+
 # ========== 系统配置 ==========
 
 

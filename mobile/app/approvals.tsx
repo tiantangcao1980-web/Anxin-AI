@@ -1,5 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, Stack } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -14,30 +22,37 @@ const approvalFilters = [
   { key: 'rejected', label: '已驳回' },
 ] as const
 
-const fallbackApprovals: ApprovalItem[] = [
-  { id: 'approval-1', title: '合同用印申请', type: 'contract', status: 'pending', priority: 1, created_at: '今天 09:30' },
-  { id: 'approval-2', title: '外聘律师付款申请', type: 'expense', status: 'pending', priority: 2, created_at: '今天 11:10' },
-  { id: 'approval-3', title: '资料共享授权', type: 'custom', status: 'approved', priority: 2, created_at: '昨天 17:40' },
-]
-
 export default function ApprovalsScreen() {
   const [filter, setFilter] = useState<(typeof approvalFilters)[number]['key']>('pending')
-  const [approvals, setApprovals] = useState<ApprovalItem[]>(fallbackApprovals)
+  const [approvals, setApprovals] = useState<ApprovalItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const loadApprovals = useCallback(async () => {
+    try {
+      setError(null)
+      const result = await api.get<{ items: ApprovalItem[]; total: number }>(
+        '/approvals?page_size=50',
+      )
+      setApprovals(result.items ?? [])
+    } catch (err: any) {
+      setApprovals([])
+      setError(err?.message || '加载审批失败')
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }, [])
 
   useEffect(() => {
     loadApprovals()
-  }, [])
+  }, [loadApprovals])
 
-  const loadApprovals = async () => {
-    try {
-      const result = await api.get<{ items: ApprovalItem[]; total: number }>('/approvals?page_size=20')
-      if (result.items.length > 0) {
-        setApprovals(result.items)
-      }
-    } catch {
-      setApprovals(fallbackApprovals)
-    }
-  }
+  const onRefresh = useCallback(() => {
+    setRefreshing(true)
+    loadApprovals()
+  }, [loadApprovals])
 
   const filteredApprovals = useMemo(
     () => approvals.filter((item) => item.status === filter),
@@ -66,47 +81,76 @@ export default function ApprovalsScreen() {
         })}
       </View>
 
-      <FlatList
-        data={filteredApprovals}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={filteredApprovals.length === 0 ? styles.emptyContainer : styles.listContent}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
-            activeOpacity={0.8}
-            onPress={() =>
-              router.push({
-                pathname: '/approvals/[id]',
-                params: {
-                  id: item.id,
-                  title: item.title,
-                  type: item.type,
-                  status: item.status,
-                  description: item.description,
-                },
-              })
-            }
-          >
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>{item.title}</Text>
-              <View style={styles.typeBadge}>
-                <Text style={styles.typeBadgeText}>{item.type}</Text>
+      {loading && approvals.length === 0 ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={filteredApprovals}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={
+            filteredApprovals.length === 0 ? styles.emptyContainer : styles.listContent
+          }
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={Colors.primary}
+            />
+          }
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.card}
+              activeOpacity={0.8}
+              onPress={() =>
+                router.push({
+                  pathname: '/approvals/[id]',
+                  params: {
+                    id: item.id,
+                    title: item.title,
+                    type: item.type,
+                    status: item.status,
+                    description: item.description,
+                  },
+                })
+              }
+            >
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>{item.title}</Text>
+                <View style={styles.typeBadge}>
+                  <Text style={styles.typeBadgeText}>{item.type}</Text>
+                </View>
               </View>
-            </View>
-            <Text style={styles.cardMeta}>
-              {item.status === 'pending' ? '等待处理' : item.status === 'approved' ? '已通过' : '已驳回'}
-              {item.created_at ? ` · ${item.created_at}` : ''}
-            </Text>
-          </TouchableOpacity>
-        )}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Ionicons name="git-compare-outline" size={48} color={Colors.textMuted} />
-            <Text style={styles.emptyTitle}>当前没有审批记录</Text>
-            <Text style={styles.emptyText}>后续会接入审批详情、批量处理和 SLA 提醒。</Text>
-          </View>
-        }
-      />
+              <Text style={styles.cardMeta}>
+                {item.status === 'pending'
+                  ? '等待处理'
+                  : item.status === 'approved'
+                    ? '已通过'
+                    : '已驳回'}
+                {item.created_at ? ` · ${item.created_at}` : ''}
+              </Text>
+            </TouchableOpacity>
+          )}
+          ListEmptyComponent={
+            error ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="cloud-offline-outline" size={48} color="#DC2626" />
+                <Text style={[styles.emptyTitle, { color: '#DC2626' }]}>{error}</Text>
+                <TouchableOpacity style={styles.retryBtn} onPress={loadApprovals}>
+                  <Text style={styles.retryBtnText}>点击重试</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons name="git-compare-outline" size={48} color={Colors.textMuted} />
+                <Text style={styles.emptyTitle}>当前没有审批记录</Text>
+                <Text style={styles.emptyText}>下拉可刷新。</Text>
+              </View>
+            )
+          }
+        />
+      )}
     </SafeAreaView>
   )
 }
@@ -115,6 +159,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  retryBtn: {
+    marginTop: Layout.spacing.md,
+    paddingHorizontal: Layout.spacing.lg,
+    paddingVertical: Layout.spacing.sm,
+    backgroundColor: Colors.primary,
+    borderRadius: Layout.borderRadius.md,
+  },
+  retryBtnText: {
+    fontSize: Layout.fontSize.sm,
+    color: Colors.white,
+    fontWeight: '500',
   },
   filterRow: {
     flexDirection: 'row',

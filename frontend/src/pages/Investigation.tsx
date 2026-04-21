@@ -75,29 +75,31 @@ function SearchView({ onSelect }: { onSelect: (id: string, name: string) => void
 
  return (
  <PageContainer scrollable={false} showHeader={false}>
- <div className="max-w-4xl mx-auto space-y-8">
- {/* 搜索区 */}
- <div className="text-center space-y-4 pt-8">
- <h1 className={heading.page}>智能调查</h1>
- <p className="text-muted-foreground">输入企业名称，AI 自动搜索爬取并生成全维度调查报告</p>
- <div className="relative max-w-xl mx-auto">
- <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+ <div data-analysis-shell className="max-w-5xl mx-auto space-y-6 fade-in-up">
+ {/* 搜索区 — 左对齐紧凑版：标题 + 描述 + 搜索条一组 */}
+ <div data-analysis-toolbar className="space-y-3 pt-4">
+ <div>
+ <h1 className="text-[28px] font-semibold leading-tight tracking-heading-md text-foreground">智能调查</h1>
+ <p className="mt-1 text-body text-foreground-tertiary">输入企业名称，AI 自动搜索爬取并生成全维度调查报告</p>
+ </div>
+ <div className="relative max-w-2xl">
+ <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground-tertiary" />
  <input
  type="text"
  placeholder="输入企业名称开始调查..."
  value={query}
  onChange={e => setQuery(e.target.value)}
  onKeyDown={e => { if (e.key ==='Enter' && query.trim()) onSelect(query.trim(), query.trim()) }}
- className="w-full pl-12 pr-4 py-3.5 bg-muted/50 border rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+ className="w-full pl-10 pr-4 py-3 bg-card border border-border rounded-dd_xl text-body-lg text-foreground placeholder:text-foreground-tertiary shadow-elev-1 transition-[border-color,box-shadow] duration-fast ease-standard focus:outline-none focus:border-primary focus:shadow-focus-ring"
  />
  </div>
  </div>
 
- <div className="grid md:grid-cols-2 gap-6">
+ <div data-analysis-main className="grid md:grid-cols-2 gap-4">
  {/* 历史搜索 */}
- <div className="space-y-3">
- <h2 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
- <Clock className="h-4 w-4" />
+ <div className="space-y-2">
+ <h2 className="text-caption font-medium text-foreground-tertiary flex items-center gap-1.5 uppercase tracking-caption">
+ <Clock className="h-3.5 w-3.5" />
  最近搜索
  </h2>
  <div className="space-y-2">
@@ -105,7 +107,7 @@ function SearchView({ onSelect }: { onSelect: (id: string, name: string) => void
  <button
  key={item.id}
  onClick={() => onSelect(item.id, item.name)}
- className="w-full flex items-center justify-between p-3 bg-card border rounded-lg hover:border-primary/20 hover:shadow-sm transition-[border-color,box-shadow] text-left"
+ className="w-full flex items-center justify-between p-3 bg-card border border-border rounded-dd_lg shadow-elev-1 hover:border-primary/30 hover:shadow-elev-2 active:scale-[0.99] transition-[transform,border-color,box-shadow] duration-fast ease-standard text-left focus-visible:outline-none focus-visible:shadow-focus-ring"
  >
  <div className="flex items-center gap-3">
  <Building2 className="h-4 w-4 text-muted-foreground" />
@@ -118,9 +120,9 @@ function SearchView({ onSelect }: { onSelect: (id: string, name: string) => void
  </div>
 
  {/* 热点推荐 */}
- <div className="space-y-3">
- <h2 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
- <TrendingUp className="h-4 w-4" />
+ <div className="space-y-2">
+ <h2 className="text-caption font-medium text-foreground-tertiary flex items-center gap-1.5 uppercase tracking-caption">
+ <TrendingUp className="h-3.5 w-3.5" />
  热点推荐
  </h2>
  <div className="space-y-2">
@@ -128,7 +130,7 @@ function SearchView({ onSelect }: { onSelect: (id: string, name: string) => void
  <button
  key={item.id}
  onClick={() => onSelect(item.id, item.name)}
- className="w-full flex items-center justify-between p-3 bg-card border rounded-lg hover:border-primary/20 hover:shadow-sm transition-[border-color,box-shadow] text-left"
+ className="w-full flex items-center justify-between p-3 bg-card border border-border rounded-dd_lg shadow-elev-1 hover:border-primary/30 hover:shadow-elev-2 active:scale-[0.99] transition-[transform,border-color,box-shadow] duration-fast ease-standard text-left focus-visible:outline-none focus-visible:shadow-focus-ring"
  >
  <div className="flex items-center gap-3">
  <Building2 className="h-4 w-4 text-primary" />

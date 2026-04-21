@@ -49,7 +49,7 @@ export default function LoginScreen() {
 
     try {
       const result = await authClient.login({ email, password })
-      setAuth(result.user, result.access_token)
+      await setAuth(result.user, result.access_token, result.refresh_token)
       router.replace('/(tabs)/')
     } catch (error: any) {
       Alert.alert('登录失败', error?.message || '邮箱或密码错误，请稍后重试')
@@ -142,10 +142,31 @@ export default function LoginScreen() {
               <View style={styles.dividerLine} />
             </View>
 
-            <TouchableOpacity style={styles.wechatButton} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={styles.wechatButton}
+              activeOpacity={0.8}
+              onPress={() =>
+                Alert.alert(
+                  '微信登录',
+                  '微信登录即将开放，当前请使用邮箱密码登录。',
+                )
+              }
+            >
               <Ionicons name="logo-wechat" size={22} color={Colors.white} />
               <Text style={styles.wechatButtonText}>微信登录</Text>
             </TouchableOpacity>
+
+            <View style={styles.linkRow}>
+              <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
+                <Text style={styles.linkText}>立即注册</Text>
+              </TouchableOpacity>
+              <Text style={styles.linkDivider}>·</Text>
+              <TouchableOpacity
+                onPress={() => router.push('/(auth)/forgot-password')}
+              >
+                <Text style={styles.linkText}>忘记密码</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* 隐私协议 */}
@@ -326,6 +347,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.white,
   },
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Layout.spacing.md,
+    marginTop: Layout.spacing.md,
+  },
+  linkText: {
+    fontSize: Layout.fontSize.sm,
+    color: Colors.primary,
+    fontWeight: '500',
+  },
+  linkDivider: { color: Colors.textMuted },
   terms: {
     flexDirection: 'row',
     alignItems: 'flex-start',

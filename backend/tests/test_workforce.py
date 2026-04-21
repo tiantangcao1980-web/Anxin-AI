@@ -16,7 +16,30 @@ from src.agents.sentiment_agent import SentimentAnalysisAgent
 
 
 # 当前 workforce 中专业智能体的数量（不含 coordinator 和 requirement_analyst）
-EXPECTED_AGENT_COUNT = 18
+# 直接从注册表读取，避免"新增 agent 忘改测试"的维护成本。
+from src.agents.workforce import AGENT_REGISTRY  # noqa: E402
+
+EXPECTED_AGENT_COUNT = len(AGENT_REGISTRY)
+
+
+def _mock_agent_registry():
+    """构造一个 registry，所有 agent class 被替换为 MagicMock 工厂。
+
+    返回值：{agent_id: MagicMock class, ...}，调用 factory() 得到带 get_info() 的实例。
+    """
+    registry = {}
+    for agent_id in AGENT_REGISTRY:
+        cls_mock = MagicMock()
+        instance = MagicMock()
+        instance.get_info.return_value = {
+            "name": agent_id,
+            "role": "TestRole",
+            "description": "Test Description",
+            "tools": [],
+        }
+        cls_mock.return_value = instance
+        registry[agent_id] = cls_mock
+    return registry
 
 
 def _make_llm_config_mock():
@@ -300,71 +323,37 @@ class TestLegalWorkforce:
 
     @patch('src.services.skill_service.skill_service.load_skills')
     @patch('src.agents.workforce.RequirementAnalystAgent')
-    @patch('src.agents.workforce.ContractStewardAgent')
-    @patch('src.agents.workforce.EvidenceAnalystAgent')
-    @patch('src.agents.workforce.LaborComplianceAgent')
-    @patch('src.agents.workforce.TaxComplianceAgent')
-    @patch('src.agents.workforce.RegulatoryMonitorAgent')
-    @patch('src.agents.workforce.IPSpecialistAgent')
-    @patch('src.agents.workforce.LitigationStrategistAgent')
-    @patch('src.agents.workforce.ConsensusAgent')
-    @patch('src.agents.workforce.RiskAssessmentAgent')
-    @patch('src.agents.workforce.ComplianceAgent')
-    @patch('src.agents.workforce.DocumentDraftAgent')
-    @patch('src.agents.workforce.LegalResearchAgent')
-    @patch('src.agents.workforce.DueDiligenceAgent')
-    @patch('src.agents.workforce.ContractReviewAgent')
-    @patch('src.agents.workforce.ContractInvestigatorAgent')
-    @patch('src.agents.workforce.ReviewCheckerAgent')
-    @patch('src.agents.workforce.LegalAdvisorAgent')
     @patch('src.agents.workforce.CoordinatorAgent')
-    def test_workforce_initialization(self, *mocks):
-        """测试智能体团队初始化"""
-        for mock in mocks:
-            mock.return_value = MagicMock()
+    def test_workforce_initialization(self, mock_coordinator, mock_requirement, _mock_skills):
+        """测试智能体团队初始化（AGENT_REGISTRY 驱动，无需手工 patch 每个 agent）"""
+        mock_coordinator.return_value = MagicMock()
+        mock_requirement.return_value = MagicMock()
 
-        workforce = LegalWorkforce()
+        with patch.dict(
+            'src.agents.workforce.AGENT_REGISTRY', _mock_agent_registry(), clear=True,
+        ):
+            workforce = LegalWorkforce()
 
         assert workforce.coordinator is not None
         assert len(workforce.agents) == EXPECTED_AGENT_COUNT
+        # 关键 agent 必在注册表内（防止后续误删）
         assert "legal_advisor" in workforce.agents
         assert "contract_reviewer" in workforce.agents
         assert "risk_assessor" in workforce.agents
 
     @patch('src.services.skill_service.skill_service.load_skills')
     @patch('src.agents.workforce.RequirementAnalystAgent')
-    @patch('src.agents.workforce.ContractStewardAgent')
-    @patch('src.agents.workforce.EvidenceAnalystAgent')
-    @patch('src.agents.workforce.LaborComplianceAgent')
-    @patch('src.agents.workforce.TaxComplianceAgent')
-    @patch('src.agents.workforce.RegulatoryMonitorAgent')
-    @patch('src.agents.workforce.IPSpecialistAgent')
-    @patch('src.agents.workforce.LitigationStrategistAgent')
-    @patch('src.agents.workforce.ConsensusAgent')
-    @patch('src.agents.workforce.RiskAssessmentAgent')
-    @patch('src.agents.workforce.ComplianceAgent')
-    @patch('src.agents.workforce.DocumentDraftAgent')
-    @patch('src.agents.workforce.LegalResearchAgent')
-    @patch('src.agents.workforce.DueDiligenceAgent')
-    @patch('src.agents.workforce.ContractReviewAgent')
-    @patch('src.agents.workforce.ContractInvestigatorAgent')
-    @patch('src.agents.workforce.ReviewCheckerAgent')
-    @patch('src.agents.workforce.LegalAdvisorAgent')
     @patch('src.agents.workforce.CoordinatorAgent')
-    def test_get_agents_info(self, *mocks):
-        """测试获取智能体信息"""
-        for mock in mocks:
-            agent_mock = MagicMock()
-            agent_mock.get_info.return_value = {
-                "name": "TestAgent",
-                "role": "TestRole",
-                "description": "Test Description",
-                "tools": []
-            }
-            mock.return_value = agent_mock
+    def test_get_agents_info(self, mock_coordinator, mock_requirement, _mock_skills):
+        """测试获取智能体信息（AGENT_REGISTRY 驱动）"""
+        mock_coordinator.return_value = MagicMock()
+        mock_requirement.return_value = MagicMock()
 
-        workforce = LegalWorkforce()
-        info = workforce.get_agents_info()
+        with patch.dict(
+            'src.agents.workforce.AGENT_REGISTRY', _mock_agent_registry(), clear=True,
+        ):
+            workforce = LegalWorkforce()
+            info = workforce.get_agents_info()
 
         assert len(info) == EXPECTED_AGENT_COUNT
         for agent_info in info:
@@ -374,61 +363,28 @@ class TestLegalWorkforce:
     @pytest.mark.asyncio
     @patch('src.services.skill_service.skill_service.load_skills')
     @patch('src.agents.workforce.RequirementAnalystAgent')
-    @patch('src.agents.workforce.ContractStewardAgent')
-    @patch('src.agents.workforce.EvidenceAnalystAgent')
-    @patch('src.agents.workforce.LaborComplianceAgent')
-    @patch('src.agents.workforce.TaxComplianceAgent')
-    @patch('src.agents.workforce.RegulatoryMonitorAgent')
-    @patch('src.agents.workforce.IPSpecialistAgent')
-    @patch('src.agents.workforce.LitigationStrategistAgent')
-    @patch('src.agents.workforce.ConsensusAgent')
-    @patch('src.agents.workforce.RiskAssessmentAgent')
-    @patch('src.agents.workforce.ComplianceAgent')
-    @patch('src.agents.workforce.DocumentDraftAgent')
-    @patch('src.agents.workforce.LegalResearchAgent')
-    @patch('src.agents.workforce.DueDiligenceAgent')
-    @patch('src.agents.workforce.ContractReviewAgent')
-    @patch('src.agents.workforce.ContractInvestigatorAgent')
-    @patch('src.agents.workforce.ReviewCheckerAgent')
-    @patch('src.agents.workforce.LegalAdvisorAgent')
     @patch('src.agents.workforce.CoordinatorAgent')
-    async def test_workforce_chat(self, *mocks):
+    async def test_workforce_chat(self, mock_coordinator, mock_requirement, _mock_skills):
         """测试智能体团队对话"""
-        for mock in mocks:
-            agent_mock = MagicMock()
-            agent_mock.chat = AsyncMock(return_value="模拟回复")
-            agent_mock.get_info.return_value = {"name": "Test", "role": "Test", "description": "", "tools": []}
-            mock.return_value = agent_mock
+        mock_coordinator.return_value = MagicMock(chat=AsyncMock(return_value="模拟回复"))
+        mock_requirement.return_value = MagicMock()
 
-        workforce = LegalWorkforce()
-        response = await workforce.chat("测试问题")
+        registry = _mock_agent_registry()
+        for cls_mock in registry.values():
+            cls_mock.return_value.chat = AsyncMock(return_value="模拟回复")
+
+        with patch.dict('src.agents.workforce.AGENT_REGISTRY', registry, clear=True):
+            workforce = LegalWorkforce()
+            response = await workforce.chat("测试问题")
 
         assert response == "模拟回复"
 
     @pytest.mark.asyncio
     @patch('src.services.skill_service.skill_service.load_skills')
     @patch('src.agents.workforce.RequirementAnalystAgent')
-    @patch('src.agents.workforce.ContractStewardAgent')
-    @patch('src.agents.workforce.EvidenceAnalystAgent')
-    @patch('src.agents.workforce.LaborComplianceAgent')
-    @patch('src.agents.workforce.TaxComplianceAgent')
-    @patch('src.agents.workforce.RegulatoryMonitorAgent')
-    @patch('src.agents.workforce.IPSpecialistAgent')
-    @patch('src.agents.workforce.LitigationStrategistAgent')
-    @patch('src.agents.workforce.ConsensusAgent')
-    @patch('src.agents.workforce.RiskAssessmentAgent')
-    @patch('src.agents.workforce.ComplianceAgent')
-    @patch('src.agents.workforce.DocumentDraftAgent')
-    @patch('src.agents.workforce.LegalResearchAgent')
-    @patch('src.agents.workforce.DueDiligenceAgent')
-    @patch('src.agents.workforce.ContractReviewAgent')
-    @patch('src.agents.workforce.ContractInvestigatorAgent')
-    @patch('src.agents.workforce.ReviewCheckerAgent')
-    @patch('src.agents.workforce.LegalAdvisorAgent')
     @patch('src.agents.workforce.CoordinatorAgent')
-    async def test_workforce_process_task(self, *mocks):
+    async def test_workforce_process_task(self, mock_coordinator, mock_requirement, _mock_skills):
         """测试智能体团队任务处理"""
-        # 设置协调者 (first mock = CoordinatorAgent, due to decorator order)
         coordinator_mock = MagicMock()
         coordinator_mock.analyze_task = AsyncMock(return_value={
             "agents": ["legal_advisor"],
@@ -438,31 +394,29 @@ class TestLegalWorkforce:
             "intent": "CONTRACT_REVIEW",
             "reasoning": "合同审查任务",
         })
-        coordinator_mock.aggregate_results = AsyncMock(return_value={
-            "summary": "任务处理完成"
-        })
-        mocks[0].return_value = coordinator_mock  # CoordinatorAgent
+        coordinator_mock.aggregate_results = AsyncMock(return_value={"summary": "任务处理完成"})
+        mock_coordinator.return_value = coordinator_mock
+        mock_requirement.return_value = MagicMock()
 
-        # 设置其他智能体
-        for i, mock in enumerate(mocks[1:], 1):
-            agent_mock = MagicMock()
-            agent_mock.process = AsyncMock(return_value=AgentResponse(
+        # 所有注册表里的 agent 都返回标准 AgentResponse
+        registry = _mock_agent_registry()
+        for cls_mock in registry.values():
+            instance = cls_mock.return_value
+            instance.process = AsyncMock(return_value=AgentResponse(
                 agent_name="TestAgent",
                 content="处理结果",
-                reasoning="推理过程"
+                reasoning="推理过程",
             ))
-            agent_mock.get_info.return_value = {"name": "Test", "role": "Test", "description": "", "tools": []}
-            agent_mock.chat = AsyncMock(return_value="回复")
-            mock.return_value = agent_mock
+            instance.chat = AsyncMock(return_value="回复")
 
-        workforce = LegalWorkforce()
-        workforce.coordinator = coordinator_mock
-
-        result = await workforce.process_task(
-            task_description="审查合同条款",
-            task_type="contract_review",
-            context={"document_id": "test-123"}
-        )
+        with patch.dict('src.agents.workforce.AGENT_REGISTRY', registry, clear=True):
+            workforce = LegalWorkforce()
+            workforce.coordinator = coordinator_mock
+            result = await workforce.process_task(
+                task_description="审查合同条款",
+                task_type="contract_review",
+                context={"document_id": "test-123"},
+            )
 
         assert "task" in result
         assert "analysis" in result

@@ -501,9 +501,13 @@ test.describe('右侧面板双模式', () => {
       .toContain('## AI补写段落：法律后果提示')
   })
 
-  test('持续收到工作流事件时不应过早显示请求超时', async ({ page }) => {
+  test('持续收到工作流事件时不应过早显示请求超时', async ({ page }, testInfo) => {
+    // 心跳重置逻辑测试：每个事件都应重置 processing timeout，避免过早超时。
+    // 并行跑浏览器调度抖动下 50ms 太紧，给 200ms timeout + 80ms gap 保留余量，
+    // 仍然 gap (80ms) < timeout (200ms)，逻辑关系不变。
+    testInfo.setTimeout(15_000)
     await page.evaluate(() => {
-      void ((window as any).__TEST_PROCESSING_TIMEOUT_MS = 50)
+      void ((window as any).__TEST_PROCESSING_TIMEOUT_MS = 200)
     })
 
     await emitSocketEvent(page, {
@@ -511,13 +515,13 @@ test.describe('右侧面板双模式', () => {
       agent: '协调调度Agent',
       message: '正在分析您的需求...',
     })
-    await page.waitForTimeout(30)
+    await page.waitForTimeout(80)
     await emitSocketEvent(page, {
       type: 'agent_working',
       agent: '文书起草Agent',
       message: '正在执行任务...',
     })
-    await page.waitForTimeout(30)
+    await page.waitForTimeout(80)
     await emitSocketEvent(page, {
       type: 'agent_result',
       agent: '文书起草Agent',

@@ -20,7 +20,7 @@ import enum
 
 
 
-from src.models.base import Base, TimestampMixin, GUID
+from src.models.base import Base, TimestampMixin, GUID, ValueEnum
 
 
 
@@ -138,7 +138,7 @@ class SentimentRecord(Base, TimestampMixin):
 
     source_type: Mapped[SourceType] = mapped_column(
 
-        SQLEnum(SourceType), default=SourceType.OTHER
+        ValueEnum(SourceType), default=SourceType.OTHER
 
     )
 
@@ -148,7 +148,7 @@ class SentimentRecord(Base, TimestampMixin):
 
     sentiment_type: Mapped[SentimentType] = mapped_column(
 
-        SQLEnum(SentimentType), default=SentimentType.NEUTRAL
+        ValueEnum(SentimentType), default=SentimentType.NEUTRAL
 
     )
 
@@ -160,7 +160,7 @@ class SentimentRecord(Base, TimestampMixin):
 
     risk_level: Mapped[RiskLevel] = mapped_column(
 
-        SQLEnum(RiskLevel), default=RiskLevel.LOW
+        ValueEnum(RiskLevel), default=RiskLevel.LOW
 
     )
 
@@ -236,13 +236,13 @@ class SentimentAlert(Base, TimestampMixin):
 
     alert_type: Mapped[AlertType] = mapped_column(
 
-        SQLEnum(AlertType), nullable=False
+        ValueEnum(AlertType), nullable=False
 
     )
 
     alert_level: Mapped[AlertLevel] = mapped_column(
 
-        SQLEnum(AlertLevel), default=AlertLevel.INFO
+        ValueEnum(AlertLevel), default=AlertLevel.INFO
 
     )
 

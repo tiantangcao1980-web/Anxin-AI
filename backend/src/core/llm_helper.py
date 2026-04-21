@@ -72,8 +72,14 @@ async def get_llm_config(
         except Exception as e:
             logger.warning(f"从数据库获取LLM配置失败，将使用环境变量配置: {e}")
     
-    # 回退到环境变量配置
+    # 回退到环境变量配置（异步路径同样支持本地 LLM fallback）
     if config_type == "llm":
+        local = _resolve_local_llm_fallback()
+        if local is not None:
+            logger.info(
+                f"使用本地 LLM 兜底配置：provider={local.provider}, base_url={local.api_base_url}"
+            )
+            return local
         logger.debug("使用环境变量LLM配置")
         return LLMConfigResult(
             provider=settings.LLM_PROVIDER,
@@ -108,13 +114,46 @@ async def get_llm_config(
         )
 
 
+def _resolve_local_llm_fallback() -> Optional[LLMConfigResult]:
+    """若 LLM_API_KEY 缺失但配置了 OLLAMA_BASE_URL，返回 Ollama 兜底配置。
+
+    也受 RUNTIME_MODE 影响：`local` / `nas-lite` 模式下强制优先使用 Ollama，
+    即使 LLM_API_KEY 存在也倾向本地（出于隐私需要）。
+    """
+    ollama_url = getattr(settings, "OLLAMA_BASE_URL", "") or ""
+    runtime_mode = getattr(settings, "RUNTIME_MODE", "cloud")
+    if not ollama_url:
+        return None
+
+    # 本地/NAS 模式：强制走 Ollama
+    # 云端模式且 API key 缺失：回退 Ollama
+    if runtime_mode in ("local", "nas-lite") or not settings.LLM_API_KEY:
+        return LLMConfigResult(
+            provider="ollama",
+            api_key="",  # Ollama 不需要 API key
+            api_base_url=ollama_url.rstrip("/") + "/v1",  # Ollama OpenAI 兼容端点
+            model_name=getattr(settings, "OLLAMA_DEFAULT_MODEL", "qwen2.5:7b"),
+            temperature=settings.LLM_TEMPERATURE,
+            max_tokens=settings.LLM_MAX_TOKENS,
+            source="local-fallback",
+        )
+    return None
+
+
 def get_llm_config_sync(config_type: str = "llm") -> LLMConfigResult:
     """
-    同步获取LLM配置（仅从环境变量）
-    
-    用于不方便使用异步的场景，如智能体初始化
+    同步获取LLM配置。
+
+    优先级：
+    1. 本地 LLM fallback（配置了 OLLAMA_BASE_URL 且（RUNTIME_MODE=local 或 LLM_API_KEY 为空））
+    2. 环境变量
+
+    用于不方便使用异步的场景，如智能体初始化。
     """
     if config_type == "llm":
+        local = _resolve_local_llm_fallback()
+        if local is not None:
+            return local
         return LLMConfigResult(
             provider=settings.LLM_PROVIDER,
             api_key=settings.LLM_API_KEY,

@@ -46,6 +46,37 @@ from src.agents.requirement_analyst import RequirementAnalystAgent
 from src.agents.template_librarian import TemplateLirarianAgent
 from src.agents.legal_calculator import LegalCalculatorAgent
 
+# ============================================================================
+# 专业智能体注册表
+#
+# 新增 agent 只需在这里登记一条（同时导入对应类）。
+# LegalWorkforce 在 _initialize_agents 时会从注册表实例化全部 agent，
+# 测试可通过 `patch.dict("src.agents.workforce.AGENT_REGISTRY", ...)`
+# 整体替换，避免每加一个 agent 就要去测试里补 @patch 装饰器。
+# ============================================================================
+
+AGENT_REGISTRY: dict[str, type] = {
+    "legal_advisor": LegalAdvisorAgent,
+    "contract_reviewer": ContractReviewAgent,
+    "contract_investigator": ContractInvestigatorAgent,
+    "review_checker": ReviewCheckerAgent,
+    "due_diligence": DueDiligenceAgent,
+    "legal_researcher": LegalResearchAgent,
+    "document_drafter": DocumentDraftAgent,
+    "compliance_officer": ComplianceAgent,
+    "risk_assessor": RiskAssessmentAgent,
+    "consensus_manager": ConsensusAgent,
+    "litigation_strategist": LitigationStrategistAgent,
+    "ip_specialist": IPSpecialistAgent,
+    "regulatory_monitor": RegulatoryMonitorAgent,
+    "tax_compliance": TaxComplianceAgent,
+    "labor_compliance": LaborComplianceAgent,
+    "evidence_analyst": EvidenceAnalystAgent,
+    "contract_steward": ContractStewardAgent,
+    "template_librarian": TemplateLirarianAgent,
+    "legal_calculator": LegalCalculatorAgent,
+}
+
 
 # 回调类型别名
 EventPayload = dict[str, Any]
@@ -104,32 +135,12 @@ class LegalWorkforce:
             
         # 协调者
         self.coordinator = CoordinatorAgent()
-        
+
         # 需求分析智能体
         self.requirement_analyst = RequirementAnalystAgent()
-        
-        # 专业智能体
-        self.agents = {
-            "legal_advisor": LegalAdvisorAgent(),
-            "contract_reviewer": ContractReviewAgent(),
-            "contract_investigator": ContractInvestigatorAgent(),
-            "review_checker": ReviewCheckerAgent(),
-            "due_diligence": DueDiligenceAgent(),
-            "legal_researcher": LegalResearchAgent(),
-            "document_drafter": DocumentDraftAgent(),
-            "compliance_officer": ComplianceAgent(),
-            "risk_assessor": RiskAssessmentAgent(),
-            "consensus_manager": ConsensusAgent(),
-            "litigation_strategist": LitigationStrategistAgent(),
-            "ip_specialist": IPSpecialistAgent(),
-            "regulatory_monitor": RegulatoryMonitorAgent(),
-            "tax_compliance": TaxComplianceAgent(),
-            "labor_compliance": LaborComplianceAgent(),
-            "evidence_analyst": EvidenceAnalystAgent(),
-            "contract_steward": ContractStewardAgent(),
-            "template_librarian": TemplateLirarianAgent(),
-            "legal_calculator": LegalCalculatorAgent(),
-        }
+
+        # 专业智能体：从注册表实例化（新增 agent 只需修改 AGENT_REGISTRY）
+        self.agents = {agent_id: factory() for agent_id, factory in AGENT_REGISTRY.items()}
 
         logger.info(f"法务智能体团队初始化完成，共 {len(self.agents)} 个专业智能体")
     
@@ -652,14 +663,17 @@ class LegalWorkforce:
             token_hist = _task_history_var.set(history)
 
             try:
-                result = await asyncio.wait_for(
-                    cast(AgentResponse, await self.agents[agent_name].process({
-                        "description": final_instruction,
-                        "context": context,
-                        "dependent_results": dep_results,
-                        "llm_config": llm_config,
-                    })),
-                    timeout=TASK_TIMEOUT_SECONDS
+                # process() 本身是协程，直接交给 wait_for 做超时包装，
+                # 不要提前 await，否则会得到 AgentResponse 并被 wait_for 当成非 awaitable。
+                agent_task = self.agents[agent_name].process({
+                    "description": final_instruction,
+                    "context": context,
+                    "dependent_results": dep_results,
+                    "llm_config": llm_config,
+                })
+                result = cast(
+                    AgentResponse,
+                    await asyncio.wait_for(agent_task, timeout=TASK_TIMEOUT_SECONDS),
                 )
                 return result
             finally:

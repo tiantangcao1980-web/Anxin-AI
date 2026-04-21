@@ -104,25 +104,24 @@ class CaseService:
         conditions = []
         if org_id:
             conditions.append(Case.org_id == org_id)
+        # 模型使用 ValueEnum —— DB 写入的是 enum.value（小写短名），
+        # 过滤时须匹配 value，而不是 .name。直接把 enum 实例交给 SQLAlchemy
+        # 由方言负责序列化成 value，避免手工 upper()/lower() 误判。
         if status:
-            # DB 存储大写枚举名(VARCHAR)，需匹配 .name
             try:
-                enum_val = CaseStatus(status)
-                conditions.append(Case.status == enum_val.name)
+                conditions.append(Case.status == CaseStatus(status))
             except ValueError:
-                conditions.append(Case.status == status.upper())
+                conditions.append(Case.status == status.lower())
         if case_type:
             try:
-                enum_val = CaseType(case_type)
-                conditions.append(Case.case_type == enum_val.name)
+                conditions.append(Case.case_type == CaseType(case_type))
             except ValueError:
-                conditions.append(Case.case_type == case_type.upper())
+                conditions.append(Case.case_type == case_type.lower())
         if priority:
             try:
-                enum_val = CasePriority(priority)
-                conditions.append(Case.priority == enum_val.name)
+                conditions.append(Case.priority == CasePriority(priority))
             except ValueError:
-                conditions.append(Case.priority == priority.upper())
+                conditions.append(Case.priority == priority.lower())
         if assignee_id:
             conditions.append(Case.assignee_id == assignee_id)
         

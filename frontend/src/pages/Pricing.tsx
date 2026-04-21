@@ -117,13 +117,29 @@ export default function Pricing() {
 
  async function handleSubscribe(planId: string) {
  try {
- await billingApi.createSubscription({
- plan_id: planId,
- payment_method: annual ?'yearly' :'monthly',
- })
- toast.success(`已选择${plans.find(p => p.id === planId)?.name}，即将跳转支付...`)
+   const result = await billingApi.createV2Subscription({
+     plan_id: planId,
+     client_type: clientTab,
+     payment_method:'wechat',
+     billing_cycle: annual ?'yearly' :'monthly',
+   })
+   toast.success(`订阅创建成功，应付 ¥${result?.amount ?? 0}，正在跳转支付...`)
+   // TODO: 跳转到支付页面 / 调用支付 SDK
+   const paymentUrl = result?.payment_order?.payment_url
+   if (paymentUrl) {
+     setTimeout(() => { window.location.href = paymentUrl }, 800)
+   } else {
+     setTimeout(() => { window.location.href ='/my-subscription' }, 1200)
+   }
  } catch (err: any) {
- toast.error(err?.message ||'订阅创建失败，请稍后重试')
+   const msg = err?.message ||''
+   if (msg.includes('您在该客户端已有活跃订阅')) {
+     toast.error('您已有活跃订阅，请先在账单中心取消或等待到期')
+   } else if (msg.includes('不适用于')) {
+     toast.error('该方案不适用于您选择的客户端类型')
+   } else {
+     toast.error(msg ||'订阅创建失败，请稍后重试')
+   }
  }
  }
 
@@ -214,12 +230,12 @@ export default function Pricing() {
  {/* 套餐名称 */}
  <h3 className={`${heading.section} text-center mt-2`}>{plan.name}</h3>
 
- {/* 价格 */}
+ {/* 价格 — 使用 title-display + num-tabular 保证精致与等宽 */}
  <div className="text-center py-4">
- <span className="text-3xl font-bold text-foreground">
+ <span className="title-display num-tabular text-[40px] text-foreground">
  ¥{annual ? Math.round(plan.monthlyPrice * 0.8) : plan.monthlyPrice}
  </span>
- <span className="text-sm text-muted-foreground ml-1">/月</span>
+ <span className="text-sm text-foreground-tertiary ml-1.5">/月</span>
  {annual && (
  <p className="text-xs text-muted-foreground mt-1">
  年付 ¥{getPrice(plan.monthlyPrice).toLocaleString()}，

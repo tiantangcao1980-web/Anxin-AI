@@ -1,5 +1,13 @@
-import { useEffect, useState } from 'react'
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { useCallback, useEffect, useState } from 'react'
+import {
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, Stack } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -9,46 +17,45 @@ import { normalizeBadgeCount } from '@/features/inbox/engagement-model'
 import { api } from '@/services/api'
 import type { IMConversation } from '@/types/api'
 
-const fallbackConversations: IMConversation[] = [
-  {
-    id: 'conv-1',
-    type: 'group',
-    title: '并购项目群',
-    unread_count: 2,
-    last_message_preview: '请确认尽调清单的最新版本。',
-    last_message_at: '刚刚',
-    participants: [],
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'conv-2',
-    type: 'private',
-    title: '法务顾问',
-    unread_count: 0,
-    last_message_preview: '合同修订意见已经同步。',
-    last_message_at: '今天 09:20',
-    participants: [],
-    created_at: new Date().toISOString(),
-  },
-]
-
 export default function MessagesScreen() {
-  const [conversations, setConversations] = useState<IMConversation[]>(fallbackConversations)
+  const [conversations, setConversations] = useState<IMConversation[]>([])
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const loadConversations = useCallback(async () => {
+    try {
+      setError(null)
+      const result = await api.get<IMConversation[]>('/im/conversations')
+      setConversations(result ?? [])
+    } catch (err: any) {
+      setConversations([])
+      setError(err?.message || '加载会话失败')
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }, [])
 
   useEffect(() => {
-    const loadConversations = async () => {
-      try {
-        const result = await api.get<IMConversation[]>('/im/conversations')
-        if (result.length > 0) {
-          setConversations(result)
-        }
-      } catch {
-        setConversations(fallbackConversations)
-      }
-    }
-
     loadConversations()
-  }, [])
+  }, [loadConversations])
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true)
+    loadConversations()
+  }, [loadConversations])
+
+  if (loading && conversations.length === 0) {
+    return (
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <Stack.Screen options={{ title: '消息中心' }} />
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      </SafeAreaView>
+    )
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -56,7 +63,16 @@ export default function MessagesScreen() {
       <FlatList
         data={conversations}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={
+          conversations.length === 0 ? styles.emptyContainer : styles.listContent
+        }
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.primary}
+          />
+        }
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.card}
@@ -93,11 +109,21 @@ export default function MessagesScreen() {
           </TouchableOpacity>
         )}
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Ionicons name="mail-open-outline" size={48} color={Colors.textMuted} />
-            <Text style={styles.emptyTitle}>暂无消息会话</Text>
-            <Text style={styles.emptyText}>后续会接入新建会话、搜索和更完整的即时通讯能力。</Text>
-          </View>
+          error ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="cloud-offline-outline" size={48} color="#DC2626" />
+              <Text style={[styles.emptyTitle, { color: '#DC2626' }]}>{error}</Text>
+              <TouchableOpacity style={styles.retryBtn} onPress={loadConversations}>
+                <Text style={styles.retryBtnText}>点击重试</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="mail-open-outline" size={48} color={Colors.textMuted} />
+              <Text style={styles.emptyTitle}>暂无消息会话</Text>
+              <Text style={styles.emptyText}>下拉可刷新；新消息会立刻推送到这里。</Text>
+            </View>
+          )
         }
       />
     </SafeAreaView>
@@ -105,6 +131,20 @@ export default function MessagesScreen() {
 }
 
 const styles = StyleSheet.create({
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  emptyContainer: { flex: 1 },
+  retryBtn: {
+    marginTop: Layout.spacing.md,
+    paddingHorizontal: Layout.spacing.lg,
+    paddingVertical: Layout.spacing.sm,
+    backgroundColor: Colors.primary,
+    borderRadius: Layout.borderRadius.md,
+  },
+  retryBtnText: {
+    fontSize: Layout.fontSize.sm,
+    color: Colors.white,
+    fontWeight: '500',
+  },
   container: {
     flex: 1,
     backgroundColor: Colors.background,

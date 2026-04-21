@@ -324,7 +324,8 @@ SCENARIO_TEMPLATES: Dict[str, Dict[str, Any]] = {
                 "round": 2,
             },
         ],
-        "auto_complete_if": [],
+        # V2 修复：上传了参考文档（模板/旧合同）时跳过类型追问
+        "auto_complete_if": ["has_attachments"],
         "min_required_for_proceed": 2,
         "sub_templates": {
             "contract": {
@@ -2383,12 +2384,20 @@ def assess_completeness(
     min_filled_ratio = threshold["min_filled_ratio"]
 
     # 附件可降低填充率要求（合同审查场景，附件=核心输入）
+    # V2 修复：附件存在时同时降低 min_score，避免"有合同附件还追问合同类型"
     if has_attachments and "has_attachments" in template.get("auto_complete_if", []):
         min_filled_ratio = max(0.0, min_filled_ratio - 0.20)
+        min_score = max(0.0, min_score - 0.30)  # 附件是核心输入，score 阈值大幅降低
 
     filled_ratio = len(filled) / total if total > 0 else 1.0
 
-    if score >= min_score and filled_ratio >= min_filled_ratio:
+    # V2 修复：附件存在且分数已有 0.4+ 时直接放行（避免不必要的追问）
+    if has_attachments and "has_attachments" in template.get("auto_complete_if", []) and score >= 0.4:
+        is_complete = True
+        logger.info(
+            f"[Harness] 附件充分: intent={intent} | score={score:.2f} | 附件存在 → 直接处理"
+        )
+    elif score >= min_score and filled_ratio >= min_filled_ratio:
         is_complete = True
     elif not missing:
         # 所有必填项已填，无论分数如何都可以继续
@@ -2399,6 +2408,7 @@ def assess_completeness(
             f"[Harness] 信息不完整: intent={intent} | "
             f"score={score:.2f} (需>={min_score}) | "
             f"filled={len(filled)}/{total} ({filled_ratio:.0%}, 需>={min_filled_ratio:.0%}) | "
+            f"has_attachments={has_attachments} | "
             f"缺失: {[s['label'] for s in missing]}"
         )
 

@@ -3,7 +3,15 @@
  */
 
 export { useChatHistory } from './useChatHistory';
-export type { CitationSource, Message, UseChatHistoryOptions, UseChatHistoryReturn } from './useChatHistory';
+export type {
+  CitationSource,
+  Message,
+  ThinkingStep,
+  UseChatHistoryOptions,
+  UseChatHistoryReturn,
+} from './useChatHistory';
+
+export { useTabUrlSync } from './useTabUrlSync';
 
 export { useChatWebSocket } from './useChatWebSocket';
 export type { WebSocketMessageHandlers, UseChatWebSocketOptions, UseChatWebSocketReturn } from './useChatWebSocket';
@@ -23,3 +31,5 @@ export { useConversationManager } from './useConversationManager';
 export { useSmartScroll } from './useSmartScroll';
 
 // useStreamingA2UI is exported from @/components/a2ui/StreamingA2UIRenderer
+export { useBreakpoint, useMediaQuery, useBreakpointMatches, BREAKPOINTS } from './useBreakpoint'
+export type { BreakpointKey, BreakpointState } from './useBreakpoint'

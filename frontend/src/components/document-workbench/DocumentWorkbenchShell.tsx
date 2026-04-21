@@ -12,7 +12,11 @@ interface DocumentWorkbenchShellProps {
 }
 
 export function DocumentWorkbenchShell({ entryMode, sessionId }: DocumentWorkbenchShellProps) {
-  const [showRightPanel, setShowRightPanel] = useState(false)
+  // 所有入口都默认展开右侧面板：
+  // - library：让用户一进入就能看到 AI 助手 / 属性 / 历史入口
+  // - collaboration：协作成员与快照面板需要立即可见
+  // - chat：从 Chat 页「查看完整文档」跳来时期望看到 AI 缺项补写面板
+  const [showRightPanel, setShowRightPanel] = useState(true)
 
   return (
     <div

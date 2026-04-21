@@ -1,347 +1,358 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   View,
   Text,
   FlatList,
   TouchableOpacity,
   TextInput,
-  ScrollView,
   StyleSheet,
+  RefreshControl,
+  ActivityIndicator,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, Stack } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
+import { api } from '@/services/api'
+import { useStackHeaderOptions, useTheme } from '@/lib/theme'
 
-// @mock-data FALLBACK
-interface Lawyer {
+/**
+ * 找律师 —— 接入 `/lawyer/lawyers` 真实 API（支持按领域智能匹配）。
+ *
+ * 支持：领域筛选、下拉刷新、分页、loading/error/empty 三态。
+ */
+
+interface LawyerProfile {
   id: string
-  name: string
-  initials: string
-  yearsOfPractice: number
-  specialties: string[]
-  rating: number
-  rateRange: string
+  real_name: string
+  law_firm?: string | null
+  years_of_practice?: number | null
+  city?: string | null
+  specializations: string[]
+  bio?: string | null
+  avatar_url?: string | null
+  rating?: number | null
+  total_cases?: number | null
+  hourly_rate_min?: number | null
+  hourly_rate_max?: number | null
 }
 
-// @mock-data FALLBACK
-const MOCK_LAWYERS: Lawyer[] = [
-  {
-    id: '1',
-    name: '王建国',
-    initials: '王',
-    yearsOfPractice: 15,
-    specialties: ['合同纠纷', '公司法', '知识产权'],
-    rating: 4.9,
-    rateRange: '¥500 - ¥800/小时',
-  },
-  {
-    id: '2',
-    name: '陈美玲',
-    initials: '陈',
-    yearsOfPractice: 10,
-    specialties: ['劳动法', '婚姻家庭', '民事诉讼'],
-    rating: 4.8,
-    rateRange: '¥400 - ¥600/小时',
-  },
-  {
-    id: '3',
-    name: '林志远',
-    initials: '林',
-    yearsOfPractice: 20,
-    specialties: ['刑事辩护', '行政诉讼', '合规顾问'],
-    rating: 4.7,
-    rateRange: '¥600 - ¥1000/小时',
-  },
-  {
-    id: '4',
-    name: '赵晓婷',
-    initials: '赵',
-    yearsOfPractice: 8,
-    specialties: ['房产纠纷', '建设工程', '合同法'],
-    rating: 4.6,
-    rateRange: '¥350 - ¥500/小时',
-  },
-  {
-    id: '5',
-    name: '刘鹏飞',
-    initials: '刘',
-    yearsOfPractice: 12,
-    specialties: ['国际贸易', '海商法', '仲裁'],
-    rating: 4.8,
-    rateRange: '¥500 - ¥900/小时',
-  },
-]
-
-function StarRating({ rating }: { rating: number }) {
-  const fullStars = Math.floor(rating)
-  const hasHalf = rating - fullStars >= 0.5
-
-  return (
-    <View style={styles.starRow}>
-      {Array.from({ length: 5 }, (_, i) => {
-        if (i < fullStars) {
-          return <Ionicons key={i} name="star" size={14} color="#F5A623" />
-        }
-        if (i === fullStars && hasHalf) {
-          return <Ionicons key={i} name="star-half" size={14} color="#F5A623" />
-        }
-        return <Ionicons key={i} name="star-outline" size={14} color="#F5A623" />
-      })}
-      <Text style={styles.ratingValue}>{rating.toFixed(1)}</Text>
-    </View>
-  )
+interface LawyerListResponse {
+  items: LawyerProfile[]
+  total: number
 }
+
+const DOMAINS = [
+  { key: '', label: '全部' },
+  { key: '合同纠纷', label: '合同纠纷' },
+  { key: '劳动争议', label: '劳动争议' },
+  { key: '知识产权', label: '知识产权' },
+  { key: '公司法务', label: '公司法务' },
+  { key: '婚姻家事', label: '婚姻家事' },
+  { key: '刑事辩护', label: '刑事辩护' },
+] as const
+
+const PAGE_SIZE = 20
 
 export default function FindLawyerScreen() {
-  const [description, setDescription] = useState('')
-  const [hasSearched, setHasSearched] = useState(false)
+  const [activeDomain, setActiveDomain] = useState<string>('')
+  const [city, setCity] = useState('')
+  const [lawyers, setLawyers] = useState<LawyerProfile[]>([])
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const headerOptions = useStackHeaderOptions({ title: '找律师' })
+  const theme = useTheme()
 
-  const handleMatch = () => {
-    setHasSearched(true)
-  }
-
-  const renderLawyer = ({ item }: { item: Lawyer }) => (
-    <View style={styles.lawyerCard}>
-      <View style={styles.lawyerTop}>
-        {/* 头像 */}
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{item.initials}</Text>
-        </View>
-        <View style={styles.lawyerInfo}>
-          <View style={styles.nameRow}>
-            <Text style={styles.lawyerName}>{item.name}</Text>
-            <Text style={styles.yearsText}>执业 {item.yearsOfPractice} 年</Text>
-          </View>
-          <StarRating rating={item.rating} />
-        </View>
-      </View>
-
-      {/* 专业领域标签 */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.specialtiesRow}
-        contentContainerStyle={styles.specialtiesContent}
-      >
-        {item.specialties.map((s) => (
-          <View key={s} style={styles.specialtyTag}>
-            <Text style={styles.specialtyText}>{s}</Text>
-          </View>
-        ))}
-      </ScrollView>
-
-      {/* 底部：费率 + 咨询按钮 */}
-      <View style={styles.lawyerFooter}>
-        <Text style={styles.rateText}>{item.rateRange}</Text>
-        <TouchableOpacity style={styles.consultButton} activeOpacity={0.7}>
-          <Ionicons name="chatbubble-ellipses-outline" size={14} color="#FFF" />
-          <Text style={styles.consultButtonText}>咨询</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+  const loadPage = useCallback(
+    async (targetPage: number, replace: boolean) => {
+      try {
+        setError(null)
+        if (replace && targetPage === 1 && !refreshing) setLoading(true)
+        const qs = new URLSearchParams({
+          page: String(targetPage),
+          page_size: String(PAGE_SIZE),
+        })
+        if (activeDomain) qs.set('domain', activeDomain)
+        if (city.trim()) qs.set('city', city.trim())
+        const result = await api.get<LawyerListResponse>(`/lawyer/lawyers?${qs.toString()}`)
+        setTotal(result.total)
+        setLawyers((prev) => (replace ? result.items : [...prev, ...result.items]))
+        setPage(targetPage)
+      } catch (err: any) {
+        setError(err?.message || '加载律师列表失败')
+        if (replace) setLawyers([])
+      } finally {
+        setLoading(false)
+        setLoadingMore(false)
+        setRefreshing(false)
+      }
+    },
+    [activeDomain, city, refreshing],
   )
 
-  return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <Stack.Screen
-        options={{
-          title: '找律师',
-          headerStyle: { backgroundColor: '#FFF' },
-          headerTintColor: '#333',
-        }}
-      />
+  useEffect(() => {
+    loadPage(1, true)
+  }, [activeDomain])  // eslint-disable-line react-hooks/exhaustive-deps
 
-      {/* 需求描述输入 */}
-      <View style={styles.inputSection}>
-        <Text style={styles.inputLabel}>描述您的法律需求</Text>
-        <TextInput
-          style={styles.descriptionInput}
-          placeholder="请简要描述您遇到的法律问题，例如：公司合同纠纷、劳动仲裁等..."
-          placeholderTextColor="#BBB"
-          multiline
-          numberOfLines={4}
-          textAlignVertical="top"
-          value={description}
-          onChangeText={setDescription}
-        />
-        <TouchableOpacity
-          style={[styles.matchButton, !description && styles.matchButtonDisabled]}
-          activeOpacity={0.7}
-          onPress={handleMatch}
-          disabled={!description}
-        >
-          <Ionicons name="sparkles-outline" size={18} color="#FFF" />
-          <Text style={styles.matchButtonText}>智能匹配</Text>
+  const onRefresh = useCallback(() => {
+    setRefreshing(true)
+    loadPage(1, true)
+  }, [loadPage])
+
+  const onEndReached = useCallback(() => {
+    if (loadingMore || lawyers.length >= total) return
+    setLoadingMore(true)
+    loadPage(page + 1, false)
+  }, [lawyers.length, total, page, loadingMore, loadPage])
+
+  const onSearch = useCallback(() => {
+    loadPage(1, true)
+  }, [loadPage])
+
+  const renderLawyer = ({ item }: { item: LawyerProfile }) => (
+    <TouchableOpacity
+      style={styles.card}
+      activeOpacity={0.7}
+      onPress={() => router.push(`/lawyer/${item.id}` as any)}
+    >
+      <View style={styles.avatarBox}>
+        <View style={styles.avatarPlaceholder}>
+          <Text style={styles.avatarLetter}>
+            {item.real_name?.charAt(0) || '律'}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.cardMain}>
+        <View style={styles.nameRow}>
+          <Text style={styles.name}>{item.real_name}</Text>
+          {item.rating !== null && item.rating !== undefined && item.rating > 0 && (
+            <View style={styles.ratingBox}>
+              <Ionicons name="star" size={12} color="#F59E0B" />
+              <Text style={styles.rating}>{item.rating.toFixed(1)}</Text>
+            </View>
+          )}
+        </View>
+        {item.law_firm && <Text style={styles.firm}>{item.law_firm}</Text>}
+        <View style={styles.tagsRow}>
+          {item.specializations.slice(0, 3).map((s) => (
+            <View key={s} style={styles.tag}>
+              <Text style={styles.tagText}>{s}</Text>
+            </View>
+          ))}
+        </View>
+        <View style={styles.metaRow}>
+          {item.years_of_practice && (
+            <Text style={styles.meta}>执业 {item.years_of_practice} 年</Text>
+          )}
+          {item.total_cases !== null && item.total_cases !== undefined && (
+            <Text style={styles.meta}> · 办理 {item.total_cases} 案</Text>
+          )}
+          {item.city && <Text style={styles.meta}> · {item.city}</Text>}
+        </View>
+      </View>
+    </TouchableOpacity>
+  )
+
+  const renderEmpty = () =>
+    error ? (
+      <View style={styles.emptyContainer}>
+        <Ionicons name="cloud-offline-outline" size={64} color="#DC2626" />
+        <Text style={[styles.emptyText, { color: '#DC2626' }]}>{error}</Text>
+        <TouchableOpacity style={styles.retryBtn} onPress={() => loadPage(1, true)}>
+          <Text style={styles.retryBtnText}>点击重试</Text>
         </TouchableOpacity>
       </View>
+    ) : (
+      <View style={styles.emptyContainer}>
+        <Ionicons name="people-outline" size={64} color="#CCC" />
+        <Text style={styles.emptyText}>暂无匹配律师</Text>
+        <Text style={styles.emptySubText}>调整筛选条件再试试</Text>
+      </View>
+    )
 
-      {/* 推荐律师列表 */}
-      {hasSearched && (
-        <FlatList
-          data={MOCK_LAWYERS}
-          keyExtractor={(item) => item.id}
-          renderItem={renderLawyer}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          ListHeaderComponent={
-            <Text style={styles.resultTitle}>
-              为您推荐 {MOCK_LAWYERS.length} 位律师
-            </Text>
-          }
-        />
-      )}
+  return (
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.surface }]}
+      edges={['bottom']}
+    >
+      <Stack.Screen options={headerOptions} />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.searchContainer}>
+          <Ionicons name="location-outline" size={16} color="#999" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="输入城市（选填）"
+            placeholderTextColor="#BBB"
+            value={city}
+            onChangeText={setCity}
+            returnKeyType="search"
+            onSubmitEditing={onSearch}
+          />
+          <TouchableOpacity style={styles.searchBtn} onPress={onSearch}>
+            <Text style={styles.searchBtnText}>筛选</Text>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabScroll}>
+          <View style={styles.tabRow}>
+            {DOMAINS.map((d) => (
+              <TouchableOpacity
+                key={d.key || 'all'}
+                style={[styles.tab, activeDomain === d.key && styles.tabActive]}
+                onPress={() => setActiveDomain(d.key)}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    activeDomain === d.key && styles.tabTextActive,
+                  ]}
+                >
+                  {d.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+
+        {loading && lawyers.length === 0 && !error ? (
+          <View style={styles.centered}>
+            <ActivityIndicator color="#D4A574" size="large" />
+          </View>
+        ) : (
+          <FlatList
+            data={lawyers}
+            keyExtractor={(item) => item.id}
+            renderItem={renderLawyer}
+            ListEmptyComponent={renderEmpty}
+            ListFooterComponent={
+              loadingMore ? (
+                <View style={styles.footerLoading}>
+                  <ActivityIndicator color="#D4A574" />
+                </View>
+              ) : null
+            }
+            contentContainerStyle={
+              lawyers.length === 0 ? styles.emptyList : styles.listContent
+            }
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor="#D4A574"
+              />
+            }
+            onEndReached={onEndReached}
+            onEndReachedThreshold={0.3}
+          />
+        )}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  container: { flex: 1, backgroundColor: '#F5F5F5' },
+  flex: { flex: 1 },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 8,
+  },
+  searchInput: { flex: 1, fontSize: 14, color: '#333', padding: 0 },
+  searchBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#D4A574',
+    borderRadius: 8,
+  },
+  searchBtnText: { color: '#FFF', fontSize: 13, fontWeight: '500' },
+  tabScroll: { marginTop: 12, maxHeight: 40 },
+  tabRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 8 },
+  tab: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#FFF',
+  },
+  tabActive: { backgroundColor: '#D4A574' },
+  tabText: { fontSize: 13, color: '#666' },
+  tabTextActive: { color: '#FFF', fontWeight: '600' },
+  listContent: { paddingHorizontal: 16, paddingVertical: 12 },
+  card: {
+    flexDirection: 'row',
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    gap: 12,
+  },
+  avatarBox: {},
+  avatarPlaceholder: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#F5F0E6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarLetter: { fontSize: 20, fontWeight: '600', color: '#D4A574' },
+  cardMain: { flex: 1 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  name: { fontSize: 16, fontWeight: '600', color: '#333' },
+  ratingBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  rating: { fontSize: 11, color: '#D97706', fontWeight: '600' },
+  firm: { fontSize: 12, color: '#666', marginTop: 2 },
+  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
+  tag: {
     backgroundColor: '#F5F5F5',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
-  inputSection: {
-    backgroundColor: '#FFF',
-    margin: 16,
-    borderRadius: 12,
-    padding: 16,
-  },
-  inputLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 10,
-  },
-  descriptionInput: {
-    backgroundColor: '#F9F9F9',
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 14,
-    color: '#333',
-    height: 100,
-    borderWidth: 1,
-    borderColor: '#EEE',
-  },
-  matchButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#D4A574',
-    borderRadius: 10,
-    height: 44,
-    marginTop: 12,
-  },
-  matchButtonDisabled: {
-    opacity: 0.5,
-  },
-  matchButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 6,
-  },
-  resultTitle: {
-    fontSize: 14,
-    color: '#999',
-    marginBottom: 10,
-  },
-  listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 20,
-  },
-  lawyerCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 10,
-  },
-  lawyerTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#D4A574',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  lawyerInfo: {
+  tagText: { fontSize: 11, color: '#666' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
+  meta: { fontSize: 11, color: '#999' },
+  footerLoading: { paddingVertical: 16 },
+  emptyList: { flex: 1 },
+  emptyContainer: {
     flex: 1,
-    marginLeft: 12,
-  },
-  nameRow: {
-    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 4,
+    paddingTop: 80,
   },
-  lawyerName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  yearsText: {
-    fontSize: 12,
-    color: '#999',
-    marginLeft: 8,
-  },
-  starRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  ratingValue: {
-    fontSize: 12,
-    color: '#F5A623',
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  specialtiesRow: {
-    marginTop: 12,
-  },
-  specialtiesContent: {
-    gap: 6,
-  },
-  specialtyTag: {
-    backgroundColor: '#D4A57415',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  specialtyText: {
-    fontSize: 12,
-    color: '#D4A574',
-    fontWeight: '500',
-  },
-  lawyerFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#EEE',
-  },
-  rateText: {
-    fontSize: 13,
-    color: '#666',
-  },
-  consultButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  emptyText: { fontSize: 16, color: '#999', marginTop: 16 },
+  emptySubText: { fontSize: 13, color: '#CCC', marginTop: 4 },
+  retryBtn: {
+    marginTop: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     backgroundColor: '#D4A574',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 18,
+    borderRadius: 8,
   },
-  consultButtonText: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 4,
-  },
+  retryBtnText: { color: '#FFF', fontSize: 14, fontWeight: '500' },
 })

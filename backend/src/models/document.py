@@ -8,7 +8,7 @@ from sqlalchemy import JSON as JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import enum
 
-from src.models.base import Base, TimestampMixin, GUID
+from src.models.base import Base, TimestampMixin, GUID, ValueEnum
 
 if TYPE_CHECKING:
     from src.models.user import User
@@ -35,7 +35,7 @@ class Document(Base, TimestampMixin):
     
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     doc_type: Mapped[DocumentType] = mapped_column(
-        SQLEnum(DocumentType), default=DocumentType.OTHER
+        ValueEnum(DocumentType), default=DocumentType.OTHER
     )
     description: Mapped[Optional[str]] = mapped_column(Text)
     

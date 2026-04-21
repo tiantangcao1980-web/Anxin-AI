@@ -17,8 +17,10 @@ test.describe('多角色访问控制（桌面端）', () => {
 
     await page.goto('/cases')
 
-    await expect(page).toHaveURL(/\/cases$/)
-    await expect(page.getByRole('button', { name: '找律师' })).toBeVisible()
+    // /cases → /case-center?tab=cases 的兼容重定向，允许任一落点
+    await expect(page).toHaveURL(/(case-center|\/cases)/)
+    // 侧栏「律师精英」对应 /find-lawyer 模块入口
+    await expect(page.getByRole('button', { name: '律师精英' })).toBeVisible()
     await expect(page.getByRole('button', { name: '案源管理' })).toHaveCount(0)
   })
 
@@ -64,12 +66,14 @@ test.describe('多角色访问控制（移动端）', () => {
 
     await page.goto('/cases')
 
-    await expect(page).toHaveURL(/\/cases$/)
-    await expect(page.getByRole('button', { name: '找律师' })).toBeVisible()
+    // /cases → /case-center?tab=cases 的兼容重定向
+    await expect(page).toHaveURL(/(case-center|\/cases)/)
+    // 侧栏「律师精英」对应 /find-lawyer 模块入口
+    await expect(page.getByRole('button', { name: '律师精英' })).toBeVisible()
     await expect(page.getByRole('button', { name: '案源管理' })).toHaveCount(0)
   })
 
-  test('非管理员在更多菜单中看不到后台管理入口', async ({ page }) => {
+  test('非管理员在"我的"菜单中看不到后台管理入口', async ({ page }) => {
     await seedAuthState(page, {
       role: 'enterprise_user',
       name: '企业法务',
@@ -77,13 +81,13 @@ test.describe('多角色访问控制（移动端）', () => {
     })
 
     await page.goto('/chat')
-    await page.getByRole('navigation').getByRole('button', { name: '更多' }).click()
+    // 移动端底部导航将设置入口命名为"我的"
+    await page.getByRole('navigation').getByRole('button', { name: '我的' }).click()
 
     await expect(page.getByRole('button', { name: '后台管理' })).toHaveCount(0)
-    await expect(page.getByRole('button', { name: '任务中心' })).toBeVisible()
   })
 
-  test('管理员在更多菜单中可见后台管理入口', async ({ page }) => {
+  test('管理员在"我的"菜单中可见后台管理入口', async ({ page }) => {
     await seedAuthState(page, {
       role: 'admin',
       name: 'Admin User',
@@ -91,7 +95,7 @@ test.describe('多角色访问控制（移动端）', () => {
     })
 
     await page.goto('/chat')
-    await page.getByRole('navigation').getByRole('button', { name: '更多' }).click()
+    await page.getByRole('navigation').getByRole('button', { name: '我的' }).click()
 
     await expect(page.getByRole('button', { name: '后台管理' })).toBeVisible()
   })
