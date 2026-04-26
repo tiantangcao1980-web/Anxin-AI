@@ -1,8 +1,8 @@
 {
-  "name": "anxin-legal-miniprogram",
+  "name": "anxin-assistant-miniprogram",
   "version": "1.0.0",
   "private": true,
-  "description": "安心法务微信小程序",
+  "description": "安心智能助手微信小程序",
   "templateInfo": {
     "name": "default",
     "typescript": true,

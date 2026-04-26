@@ -1,7 +1,7 @@
 {
-  "name": "ai-legal-agent",
+  "name": "anxin-assistant",
   "version": "0.1.0",
-  "description": "AI法务智能体系统 - 基于多智能体协作的超级AI法务系统",
+  "description": "安心智能助手 — 制造业全链路智能经营助理（法/税/财/管理 + 调研获客 + 内容 + 出海跨境）",
   "private": true,
   "type": "module",
   "scripts": {
