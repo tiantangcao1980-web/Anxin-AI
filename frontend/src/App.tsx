@@ -79,6 +79,23 @@ const Login = lazy(() => import('@/pages/Login'))
 // V2 架构：服务方端独立布局
 import ProLayout from '@/components/pro/ProLayout'
 
+// ===== V3 IA 占位页（与旧路由并存，可独立访问） =====
+const AgentsPage = lazy(() => import('@/pages/v3/agents/AgentsPage'))
+const ScheduledTasksPage = lazy(() => import('@/pages/v3/capabilities/ScheduledTasksPage'))
+const AppAuthorizationsPage = lazy(() => import('@/pages/v3/capabilities/AppAuthorizationsPage'))
+const SkillsPage = lazy(() => import('@/pages/v3/capabilities/SkillsPage'))
+const PluginsPage = lazy(() => import('@/pages/v3/capabilities/PluginsPage'))
+const MessageChannelsPage = lazy(() => import('@/pages/v3/capabilities/MessageChannelsPage'))
+const PairingAuthorizationsPage = lazy(() => import('@/pages/v3/capabilities/PairingAuthorizationsPage'))
+const V3TasksPage = lazy(() => import('@/pages/v3/tasks/TasksPage'))
+
+// V3 Layout（侧边栏 IA）— 通过 VITE_V3_NAV=true 启用，默认仍用旧 Layout
+import LayoutV3 from '@/components/layout/LayoutV3'
+
+// 严格读取 boolean flag（避免 'false' 字符串被当成真值）
+const V3_NAV_ENABLED = import.meta.env.VITE_V3_NAV === 'true'
+const RootLayout = V3_NAV_ENABLED ? LayoutV3 : Layout
+
 // 后台管理（AdminLayout 静态引入，避免 Vite 动态 import 偶发 Failed to fetch module）
 const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'))
 const AdminUsers = lazy(() => import('@/pages/admin/AdminUsers'))
@@ -220,9 +237,19 @@ function App() {
                 <Route path="market" element={<CaseMarket />} />
               </Route>
 
-              {/* 受保护的业务路由 */}
-              <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+              {/* 受保护的业务路由 — Layout 由 VITE_V3_NAV 切换（默认旧 Layout） */}
+              <Route path="/" element={<ProtectedRoute><RootLayout /></ProtectedRoute>}>
                 <Route index element={<Navigate to="/chat" replace />} />
+
+                {/* ===== V3 IA 新增路由（占位） ===== */}
+                <Route path="agents" element={<AgentsPage />} />
+                <Route path="capabilities/scheduled-tasks" element={<ScheduledTasksPage />} />
+                <Route path="capabilities/app-authorizations" element={<AppAuthorizationsPage />} />
+                <Route path="capabilities/skills" element={<SkillsPage />} />
+                <Route path="capabilities/plugins" element={<PluginsPage />} />
+                <Route path="capabilities/message-channels" element={<MessageChannelsPage />} />
+                <Route path="capabilities/pairing-authorizations" element={<PairingAuthorizationsPage />} />
+                <Route path="v3/tasks" element={<V3TasksPage />} />
 
                 {/* ===== AI法务（仅智能对话） ===== */}
                 <Route path="chat" element={<ProtectedRoute feature="ai_chat"><Chat /></ProtectedRoute>} />
