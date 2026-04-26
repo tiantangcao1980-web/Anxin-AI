@@ -38,7 +38,12 @@ from sqlalchemy import (
     Integer,
     String,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+# 与项目其它 model 一致：以 JSON 为基础类型，并在 PostgreSQL 上自动 variant 到 JSONB。
+# 这样在 SQLite 测试库上可以正常 CREATE TABLE，在生产 PG 上仍享受 JSONB 索引能力。
+from sqlalchemy import JSON as _JSON
+from sqlalchemy.dialects.postgresql import JSONB as _PGJSONB
+
+JSONB = _JSON().with_variant(_PGJSONB(), "postgresql")
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.models.base import GUID, Base, TimestampMixin, ValueEnum
@@ -57,6 +62,7 @@ class TaskStatus(str, enum.Enum):
     DONE = "done"
     FAILED = "failed"
     NEEDS_APPROVAL = "needs_approval"
+    CANCELLED = "cancelled"
 
 
 class Task(Base, TimestampMixin):

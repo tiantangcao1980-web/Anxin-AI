@@ -46,6 +46,10 @@ from src.models import (  # noqa: F401 — side-effect import
 )
 from src.models.case import CaseStatus, CasePriority, CaseType
 
+# P2: 注册 task_orchestrator 的 agent_tasks 表到 Base.metadata
+# （独立子目录 ORM，不在 src.models.__init__ 集中导出，需在此处显式 import）
+from src.services.task_orchestrator.models import Task as AgentTask  # noqa: F401
+
 
 # ============ 测试数据库配置 ============
 
