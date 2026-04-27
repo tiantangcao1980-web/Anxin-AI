@@ -35,12 +35,16 @@ from src.api.routes import agent_tasks
 from src.api.routes import im_pairing
 from src.api.routes import app_authorizations
 from src.api.routes import skills
+<<<<<<< HEAD
 from src.api.routes import fetch
 <<<<<<< HEAD
 from src.api.routes import personas
 =======
 from src.api.routes import persona_market
 >>>>>>> 94b6f50 (feat(p7-market-researcher): 市场研究员 persona + DeepResearch 迭代算法 + 5 API)
+=======
+from src.api.routes import fetch, persona_sales
+>>>>>>> 071b039 (feat(p7-lead-hunter): 获客猎手 persona + 5 capabilities + LeadScoring + 6 API)
 
 api_router = APIRouter()
 
@@ -99,7 +103,11 @@ api_router.include_router(app_authorizations.router, prefix="/app-authorizations
 api_router.include_router(skills.router, prefix="/skills", tags=["技能注册表"])
 api_router.include_router(fetch.router, prefix="/fetch", tags=["信息获取栈"])
 <<<<<<< HEAD
+<<<<<<< HEAD
 api_router.include_router(personas.router, prefix="/personas", tags=["V3 Personas"])
 =======
 api_router.include_router(persona_market.router, prefix="/personas/market", tags=["市场研究员"])
 >>>>>>> 94b6f50 (feat(p7-market-researcher): 市场研究员 persona + DeepResearch 迭代算法 + 5 API)
+=======
+api_router.include_router(persona_sales.router, prefix="/personas/sales", tags=["获客猎手"])
+>>>>>>> 071b039 (feat(p7-lead-hunter): 获客猎手 persona + 5 capabilities + LeadScoring + 6 API)
