@@ -167,6 +167,10 @@ class Settings(BaseSettings):
     # 影响：是否强制本地 LLM、是否跳过云端依赖、数据分桶策略
     RUNTIME_MODE: str = "cloud"
 
+    # ========== 沙箱执行器（P3-E）==========
+    # 默认 Provider：local / docker / e2b / codex_cloud
+    SANDBOX_PROVIDER: str = "local"
+
     # ========== Embedding配置 ==========
     EMBEDDING_API_KEY: Optional[str] = None
     EMBEDDING_BASE_URL: str = "https://api.openai.com/v1"
