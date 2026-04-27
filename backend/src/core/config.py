@@ -309,6 +309,13 @@ class Settings(BaseSettings):
     FEISHU_VERIFY_TOKEN: str = ""    # 事件订阅 Verification Token
     FEISHU_ENCRYPT_KEY: str = ""     # 事件订阅 Encrypt Key（开启加密推送时使用）
 
+    # ===== 通用应用授权（P4-A） =====
+    # Fernet base64-urlsafe key（生成: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"）
+    # 支持逗号分隔多 key 用于 key rotation（首位为新 key，其余为待淘汰旧 key）
+    OAUTH_TOKEN_ENCRYPTION_KEY: str = ""
+    # 第三方授权回调基础 URL（不含 /api/v1/...），如 https://api.anxin-fawu.com
+    APP_AUTH_REDIRECT_BASE_URL: str = "http://localhost:8001"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         # 自动生成安全的 JWT 密钥（如果未设置）
