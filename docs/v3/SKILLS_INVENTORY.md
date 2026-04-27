@@ -1,6 +1,6 @@
 # 安心智能助手 V3 — Skills 域结构清单
 
-> Skill 是 V3 的能力原子。本文按 **13 个域** 组织所有 skill，标注：来源 / 描述 / 依赖 / 目标 persona / 阶段。
+> Skill 是 V3 的能力原子。本文按 **13 个域** 组织所有 skill，标注：来源 / 描述 / 依赖 / 目标 persona / 阶段 / 实装状态。
 
 > 来源说明：
 > - **cowork-anthropic**：Anthropic 官方 cowork skills（直接接入）
@@ -10,7 +10,13 @@
 
 > 阶段：**P5 起步**（Skills 运行时上线后首批） / **P7 起步**（跨境 + 销售 agent 阶段） / **后续**（Beyond P7）
 
-相关文档：[ARCHITECTURE](./ARCHITECTURE.md) · [AGENT_PERSONAS](./AGENT_PERSONAS.md) · [CAPABILITY_MATRIX](./CAPABILITY_MATRIX.md)
+> **实装状态（2026-04-27）**：
+> - ✅ Skills 运行时框架（P5）：[`backend/src/services/skill_registry/`](../../backend/src/services/skill_registry/)（loader / validators / registry，pyyaml + watchdog 热加载）+ [`skill_executor/`](../../backend/src/services/skill_executor/)（装饰器 + executor）+ 6 API
+> - ✅ 4 个 office skill（cowork-anthropic 兼容）：[`skills/office/docx`](../../skills/office/docx) · [`skills/office/xlsx`](../../skills/office/xlsx) · [`skills/office/pptx`](../../skills/office/pptx) · [`skills/office/pdf`](../../skills/office/pdf)
+> - ✅ FetchService 4 层（`intelligence/fetch` 真实装）：[`backend/src/services/fetch/`](../../backend/src/services/fetch/) — L1 HTTP / L2 crawl4ai / L3 HeadlessX / L4 官方 API
+> - 🚧 其余 skill 仍是 yaml 描述 + 服务调用框架，逐步替换为真函数
+
+相关文档：[ARCHITECTURE](./ARCHITECTURE.md) · [AGENT_PERSONAS](./AGENT_PERSONAS.md) · [CAPABILITY_MATRIX](./CAPABILITY_MATRIX.md) · [V3_DELIVERY_SUMMARY](./V3_DELIVERY_SUMMARY.md)
 
 ---
 
@@ -128,16 +134,14 @@
 
 ## 8. office — 办公文档域
 
-| skill | 描述 | 来源 | 依赖 | 目标 persona | 阶段 |
+| skill | 描述 | 来源 | 实装路径 | 目标 persona | 状态 |
 |---|---|---|---|---|---|
-| `office/docx-read` | Word 读取 | cowork-anthropic | anthropic-skills:docx | 全部 | P5 起步 |
-| `office/docx-write` | Word 生成 + 模板 | cowork-anthropic | anthropic-skills:docx | 合同管家 / 内容总监 | P5 起步 |
-| `office/docx-track-changes` | Word 轨道修订 | cowork-anthropic | anthropic-skills:docx | 合同管家 | P5 起步 |
-| `office/xlsx` | Excel 读 / 写 / 计算 | cowork-anthropic | anthropic-skills:xlsx | 财税顾问 / 流程管家 | P5 起步 |
-| `office/pdf-report-gen` | PDF 报告生成 | cowork-anthropic | anthropic-skills:pdf | 全部 | P5 起步 |
-| `office/pptx` | PPT 生成 | cowork-anthropic | anthropic-skills:pptx | 内容总监 / 流程管家 | P7 起步 |
-| `office/transcribe` | 录音 / 视频转写 | 自建 | Whisper / 通义千问 ASR | 流程管家 | P5 起步 |
-| `office/email-extract` | 邮件正文 / 附件提取 | 自建 | Outlook / Gmail | 合同管家 / 流程管家 | P5 起步 |
+| `office/docx-*` | Word 读 / 写 / 模板 / 轨道修订 / helpers | cowork-anthropic | [`skills/office/docx/`](../../skills/office/docx) (helpers + 3 模板 + 5 测试) | 合同管家 / 内容总监 | ✅ 已实装（P5） |
+| `office/xlsx` | Excel 读 / 写 / 计算 / helpers | cowork-anthropic | [`skills/office/xlsx/`](../../skills/office/xlsx) (helpers + 3 模板 + 5 测试) | 财税顾问 / 流程管家 | ✅ 已实装（P5） |
+| `office/pptx` | PPT 生成 + 4 模板 | cowork-anthropic | [`skills/office/pptx/`](../../skills/office/pptx) (4 模板 + 5 测试) | 内容总监 / 流程管家 | ✅ 已实装（P5） |
+| `office/pdf-report-gen` | PDF 报告生成 + OCR | cowork-anthropic | [`skills/office/pdf/`](../../skills/office/pdf) (OCR + 4 模板 + 5 测试) | 全部 | ✅ 已实装（P5） |
+| `office/transcribe` | 录音 / 视频转写 | 自建 | Whisper / 通义千问 ASR | 流程管家 | 🚧 P9+ |
+| `office/email-extract` | 邮件正文 / 附件提取 | 自建 | Outlook / Gmail | 合同管家 / 流程管家 | 🚧 P9+ |
 
 ---
 
@@ -173,7 +177,7 @@
 
 | skill | 描述 | 来源 | 依赖 | 目标 persona | 阶段 |
 |---|---|---|---|---|---|
-| `intelligence/fetch` | 智能抓取（API / HTTP / crawl4ai / HeadlessX 自动选型） | 自建 | HeadlessX self-host + 代理池 | 全部 | P5 起步（P6 完整） |
+| `intelligence/fetch` | 智能抓取（API / HTTP / crawl4ai / HeadlessX 自动选型） — ✅ **真实装** [`backend/src/services/fetch/`](../../backend/src/services/fetch/) | 自建 | HeadlessX self-host + 代理池 | 全部 | ✅ P6 完成 |
 | `intelligence/cross-search` | 跨数据源联合检索 | 自建 | RAG 向量库 + 倒排索引 | 安心助理 / 市场研究员 | P5 起步 |
 | `intelligence/news-aggregate` | 新闻聚合（多源去重 + 分类） | 自建 | 各新闻源 API | 市场研究员 / 尽调专家 | P5 起步 |
 | `intelligence/social-listen` | 社媒舆情监听 | 自建 | Reddit / X / LinkedIn | 市场研究员 / 获客猎手 | P5 起步 |
@@ -199,17 +203,20 @@
 
 ## 13. system — 系统 / 基础设施域
 
-| skill | 描述 | 来源 | 依赖 | 目标 persona | 阶段 |
+| skill | 描述 | 来源 | 依赖 | 目标 persona | 状态 |
 |---|---|---|---|---|---|
-| `system/intent-router` | 意图识别 + 路由到 persona | 自建 | LLM + 路由表 | 安心助理 | P5 起步 |
-| `system/task-graph` | 任务 DAG 拆解 + 并行编排 | 自建 | TaskOrchestrator | 安心助理 | P2 起步 |
-| `system/consensus` | 多 agent 协商基础设施 | 自建 | consensus_agent | 安心助理 | P7 起步 |
-| `system/template-render` | 模板渲染（Jinja2 / Handlebars） | 自建 | - | 全部 | P5 起步 |
-| `system/oauth-bridge` | OAuth 统一桥接 + 凭证刷新 | 自建 | KMS | 全部 | P4 起步 |
-| `system/notification-route` | 多通道通知路由（桌面 / 推送 / IM / 邮件） | 自建 | - | 全部 | P3 起步 |
-| `system/memory-recall` | 分层记忆调用（V2 已有） | 已有项目内 | hierarchical-memory | 全部 | P5 起步 |
-| `system/audit-log` | 全链路审计 | 自建 | OpenTelemetry | 全部 | P2 起步 |
-| `system/workflow-canvas` | 可视化工作流编辑器（后续） | 自建 | React Flow | 安心助理 / 流程管家 | 后续 |
+| `system/intent-router` | 意图识别 + 路由到 persona | 自建 | LLM + 路由表 | 安心助理 | 🚧 P9+ |
+| `system/task-graph` | 任务 DAG 拆解 + 并行编排 — ✅ [`task_orchestrator/`](../../backend/src/services/task_orchestrator/) | 自建 | TaskOrchestrator | 安心助理 | ✅ P2 完成 |
+| `system/consensus` | 多 agent 协商基础设施 | 自建 | consensus_agent | 安心助理 | 🚧 P9+ |
+| `system/template-render` | 模板渲染（Jinja2 / Handlebars） | 自建 | - | 全部 | 🟡 部分（persona 模板已用） |
+| `system/oauth-bridge` | OAuth 统一桥接 + 凭证刷新 — ✅ [`app_authorization/`](../../backend/src/services/app_authorization/) | 自建 | KMS / 加密 token_store | 全部 | ✅ P4 完成 |
+| `system/notification-route` | 多通道通知路由（桌面 / 推送 / IM / 邮件） | 自建 | - | 全部 | 🟡 部分（飞书卡片已） |
+| `system/memory-recall` | 分层记忆调用（V2 已有） | 已有项目内 | hierarchical-memory | 全部 | ✅ V2 沿用 |
+| `system/audit-log` | 全链路审计 — fetch 已带 audit | 自建 | OpenTelemetry | 全部 | 🟡 部分 |
+| `system/skill-registry` | Skills 运行时注册 + 热加载 — ✅ [`skill_registry/`](../../backend/src/services/skill_registry/) | 自建 | pyyaml + watchdog | 全部 | ✅ P5 完成 |
+| `system/sandbox` | 沙箱执行器（LocalProvider + Docker/E2B/Codex Cloud 占位） — ✅ [`sandbox_executor/`](../../backend/src/services/sandbox_executor/) | 自建 | LocalProvider 可用 | 全部 | ✅ P3 骨架 |
+| `system/im-gateway` | IM 通道 gateway + 配对授权 24h — ✅ [`im_gateway/`](../../backend/src/services/im_gateway/) | 自建 | feishu adapter 真 + 4 占位 | 安心助理 | ✅ P3 完成 |
+| `system/workflow-canvas` | 可视化工作流编辑器（后续） | 自建 | React Flow | 安心助理 / 流程管家 | 🚧 后续 |
 
 ---
 
@@ -234,17 +241,17 @@
 |---|---|
 | `system/oauth-bridge` | OAuth 统一基础 |
 
-### Phase: P5 起步（Skills 运行时上线后首批）
+### Phase: P5 起步（Skills 运行时上线后首批）— ✅ 框架完成
 
-> **重头戏，~46 个 skill 一起上**：legal/8 + tax_finance/3 + operations/5 + research/3 + content/3 + design/3 + office/7 + intelligence/8 + decision/2 + system/4 (除 task-graph/notification/oauth/audit-log 外)
+> **实装情况**：✅ 4 office skill 真实装（docx/xlsx/pptx/pdf），其余 ~46 个仍是 yaml + 服务调用框架，前端 [`SkillsPage.tsx`](../../frontend/src/pages/v3/capabilities/SkillsPage.tsx) 已展示 50+ skill 跨 13 域
 
-### Phase: P7 起步（跨境 + 销售 agent 阶段）
+### Phase: P7 起步（跨境 + 销售 agent 阶段）— ✅ 主要 skill 已上
 
-> **~26 个 skill 一起上**：tax_finance/3 + research/2 + marketing/4 + content/3 + ecommerce/8 + sales/5 + decision/1 + system/1 + intelligence/2
+> **实装情况**：✅ 5 personas 已实装（市场/获客/内容/出海/流程），各 persona 调用的核心 skill（`research/deep-research` `sales/lead-mining` `content/article-write` `ecommerce/*`）以函数级集成在 persona 文件内；后续会抽出独立 skill 包
 
-### Phase: 后续（Beyond P7）
+### Phase: P8+ 持续
 
-> **~4 个**：legal/litigation-strategy / design/figma-export / sales/customer-segment / decision/scenario-analysis / system/workflow-canvas / ecommerce/customs-policy / marketing/email-campaign
+> 真函数化推进：把 yaml 描述的 skill 一个个改写为可调用的 Python 入口，进入 skill_registry 注册；优先级按 persona 真实调用频率
 
 ---
 
@@ -263,4 +270,4 @@
 
 ---
 
-上次更新：2026-04-26
+上次更新：2026-04-27（P5 office skill 实装 + P6 fetch + system 真实装同步）

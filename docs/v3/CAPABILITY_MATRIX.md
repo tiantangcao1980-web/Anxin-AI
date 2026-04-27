@@ -2,7 +2,9 @@
 
 > 横向 4 大通用能力 × 纵向 4 大业务域 = 16 个能力单元，每个单元至少 3–5 项 skill / agent / 集成。
 
-相关文档：[ARCHITECTURE](./ARCHITECTURE.md) · [AGENT_PERSONAS](./AGENT_PERSONAS.md) · [SKILLS_INVENTORY](./SKILLS_INVENTORY.md)
+> **实装进度（2026-04-27）**：P0–P7 已交付 ✅ 基础设施 + 5 personas + 4 office skill + FetchService 4 层；下表每个 cell 已标注 ✅ 已实装 / 🟡 部分 / 🚧 规划中。
+
+相关文档：[ARCHITECTURE](./ARCHITECTURE.md) · [AGENT_PERSONAS](./AGENT_PERSONAS.md) · [SKILLS_INVENTORY](./SKILLS_INVENTORY.md) · [V3_DELIVERY_SUMMARY](./V3_DELIVERY_SUMMARY.md)
 
 ---
 
@@ -26,39 +28,45 @@
 
 ---
 
-## 完整 4 × 4 矩阵（每格 3–5 项）
+## 完整 4 × 4 矩阵（每格 3–5 项 + 实装状态）
+
+> **图例**：✅ 已实装（P0-P7） / 🟡 部分实装 / 🚧 规划中
 
 ### 🛡 合规经营 × 4 横
 
 | | ① 信息获取 | ② 调研分析 | ③ 设计开发 | ④ 销售决策 |
 |---|---|---|---|---|
-| **agents** | regulatory_monitor / contract_investigator / legal_researcher | legal_advisor / risk_assessor / compliance_officer | document_drafter / template_librarian / contract_steward | risk_assessor / consensus_agent / litigation_strategist |
-| **skills** | `legal/regulation-search` `legal/case-search` `intelligence/litigation-search` `legal/regulation-monitor` `office/email-extract` | `legal/contract-review` `legal/clause-extract` `tax_finance/tax-check` `research/deeptutor-mode` `intelligence/citation-trace` | `legal/contract-draft` `legal/template-match` `legal/redline-suggest` `office/docx-track-changes` `office/pdf-report-gen` | `legal/risk-grade` `tax_finance/tax-plan` `decision/risk-cost-tradeoff` `decision/multi-agent-vote` `legal/litigation-strategy` |
-| **集成** | 北大法宝 / 威科 / 国务院政策库 / 信用中国 / 裁判文书网 | 北大法宝 / 法大大附件 / 内部合同库 | 法大大 / e签宝 / 飞书文档 / Word | 飞书审批 / 钉钉审批 / 内部 BPM |
+| **状态** | 🟡 部分（P6 4 法律源已接） | 🟡 部分（21 agent 可调，persona 待包） | 🟡 部分（office docx/pdf 已实装） | 🚧 规划中（P9+） |
+| **agents** | regulatory_monitor / contract_investigator / legal_researcher（21 agent 可用） | legal_advisor / risk_assessor / compliance_officer（21 agent 可用） | document_drafter / template_librarian / contract_steward（21 agent 可用） | risk_assessor / consensus_agent / litigation_strategist（21 agent 可用） |
+| **skills** | `legal/regulation-search` `legal/case-search` `intelligence/litigation-search` `legal/regulation-monitor` `office/email-extract` | `legal/contract-review` `legal/clause-extract` `tax_finance/tax-check` `research/deeptutor-mode` `intelligence/citation-trace` | `legal/contract-draft` `legal/template-match` `legal/redline-suggest` ✅`office/docx-track-changes` ✅`office/pdf-report-gen` | `legal/risk-grade` `tax_finance/tax-plan` `decision/risk-cost-tradeoff` `decision/multi-agent-vote` `legal/litigation-strategy` |
+| **集成** | ✅ pkulaw / ✅ wkinfo / ✅ flk_npc_gov / ✅ credit_china / ✅ historical_wenshu | 北大法宝 / 法大大附件 / 内部合同库 | 法大大 / e签宝 / 飞书文档 / Word | 飞书审批 / 钉钉审批 / 内部 BPM |
 
 ### 📈 增长获客 × 4 横
 
 | | ① 信息获取 | ② 调研分析 | ③ 设计开发 | ④ 销售决策 |
 |---|---|---|---|---|
-| **agents** | sentiment_agent / evidence_analyst / 自建 lead_agent | 自建 market_agent / sentiment_agent / evidence_analyst | 自建 content_agent / design_agent / video_agent | 自建 vibe_seller / consensus_agent / 自建 ad_optimizer |
-| **skills** | `intelligence/competitor-monitor` `intelligence/social-listen` `intelligence/news-aggregate` `sales/lead-mining` `intelligence/recruit-signal` | `research/deeptutor-mode` `research/competitive-monitor` `research/multi-source-synthesize` `intelligence/sentiment-score` `marketing/audience-target` | `content/article-write` `design/poster` `design/canvas-design` `design/web-artifacts-builder` `content/remotion-render` | `sales/vibe-selling` `sales/follow-up` `marketing/ad-optimize` `decision/multi-agent-vote` `sales/quotation-draft` |
-| **集成** | Reddit / X / LinkedIn / YouTube / TikTok / 巨量 / 艾瑞 | 艾瑞 / 易观 / 内部 PDF 库 / DeepTutor 引擎 | Figma / Canva / Higgsfield / Remotion / cowork canvas-design | Salesforce / HubSpot / Zoho / Pipedrive / 巨量引擎 |
+| **状态** | 🟡 部分（lead 挖掘 ✅，社媒抓取 待 P9+ 接入真 API） | ✅ 已实装（P7 市场研究员 + DeepResearch 算法） | ✅ 已实装（P7 内容总监 + office skill） | ✅ 已实装（P7 获客猎手 + LeadScoring） |
+| **agents** | sentiment_agent / evidence_analyst / ✅ lead_hunter persona | ✅ market_researcher persona / sentiment_agent / evidence_analyst | ✅ content_director persona / design_agent (规划) / video_agent (规划) | ✅ lead_hunter persona / consensus_agent / ad_optimizer (规划) |
+| **skills** | `intelligence/competitor-monitor` `intelligence/social-listen` `intelligence/news-aggregate` ✅`sales/lead-mining` `intelligence/recruit-signal` | ✅`research/deeptutor-mode` ✅`research/competitive-monitor` `research/multi-source-synthesize` `intelligence/sentiment-score` `marketing/audience-target` | ✅`content/article-write` `design/poster` `design/canvas-design` `design/web-artifacts-builder` `content/remotion-render` | ✅`sales/vibe-selling` ✅`sales/follow-up` `marketing/ad-optimize` `decision/multi-agent-vote` ✅`sales/quotation-draft` |
+| **集成** | 🚧 Reddit / X / LinkedIn（OAuth 待接） / YouTube / TikTok / 巨量 / 艾瑞 | 艾瑞 / 易观 / 内部 PDF 库 / DeepTutor 引擎 | Figma / Canva / Higgsfield / Remotion / cowork canvas-design | 🚧 Salesforce / HubSpot / Zoho / Pipedrive / 巨量引擎 |
 
 ### 🌍 出海跨境 × 4 横
 
 | | ① 信息获取 | ② 调研分析 | ③ 设计开发 | ④ 销售决策 |
 |---|---|---|---|---|
-| **agents** | 自建 ecommerce_agent / sentiment_agent / regulatory_monitor | 自建 selection_agent / risk_assessor / 自建 oversea_compliance_agent | document_drafter / 自建 design_agent / 自建 listing_agent | tax_compliance / consensus_agent / 自建 pricing_agent |
-| **skills** | `ecommerce/platform-data-pull` `ecommerce/keyword-research` `ecommerce/customs-policy` `intelligence/social-listen` `office/api-call` | `ecommerce/product-selection` `research/deeptutor-mode` `ecommerce/oversea-compliance` `intelligence/citation-trace` `tax_finance/cross-border-tax` | `ecommerce/store-setup` `ecommerce/listing-optimize` `design/canvas-design` `design/web-artifacts-builder` `content/multilingual` | `ecommerce/pricing-strategy` `marketing/ad-optimize` `decision/multi-agent-vote` `ecommerce/logistics-plan` `sales/vibe-selling` |
-| **集成** | Shopify / Shopee / TikTok Shop / Amazon SP-API / 1688 / Reddit / X / Helium 10 | TikTok / Reddit 趋势 / 海关数据 / GDPR / IPO 数据库 | Shopify / Higgsfield / Canva / WordPress / Webflow | Stripe / PayPal / 万里汇 / Meta / Google / TikTok Ads |
+| **状态** | ✅ 已实装（FetchService 4 层 + 5 电商源 1 真 4 mock） | ✅ 已实装（P7 跨境助手 analyze-niche / verify-supplier） | ✅ 已实装（P7 setup-store / list-to-platforms） | ✅ 已实装（P7 AI 议价 + VAT 指引） |
+| **agents** | ✅ ecommerce_assistant persona / sentiment_agent / regulatory_monitor | ✅ ecommerce_assistant persona（含 selection 能力）/ risk_assessor | ✅ ecommerce_assistant persona / document_drafter / listing 能力（内置） | tax_compliance / consensus_agent / 自建 pricing_agent (内置 negotiate) |
+| **skills** | ✅`ecommerce/platform-data-pull` `ecommerce/keyword-research` `ecommerce/customs-policy` `intelligence/social-listen` `office/api-call` | ✅`ecommerce/product-selection` `research/deeptutor-mode` ✅`ecommerce/oversea-compliance` `intelligence/citation-trace` `tax_finance/cross-border-tax` | ✅`ecommerce/store-setup` ✅`ecommerce/listing-optimize` `design/canvas-design` `design/web-artifacts-builder` `content/multilingual` | ✅`ecommerce/pricing-strategy` `marketing/ad-optimize` `decision/multi-agent-vote` `ecommerce/logistics-plan` `sales/vibe-selling` |
+| **集成** | 🟡 ✅ Shopify 真 / 🟡 Shopee/TikTok Shop/Amazon SP-API/1688 mock / 🚧 Reddit / Helium 10 | TikTok / Reddit 趋势 / 海关数据 / GDPR / IPO 数据库 | ✅ Shopify / Higgsfield / Canva / WordPress / Webflow | 🚧 Stripe / PayPal / 万里汇 / Meta / Google / TikTok Ads |
 
 ### 🎯 综合协调 × 4 横
 
 | | ① 信息获取 | ② 调研分析 | ③ 设计开发 | ④ 销售决策 |
 |---|---|---|---|---|
-| **agents** | coordinator / workforce / requirement_analyst | coordinator / consensus_agent / evidence_analyst | coordinator / workforce / template_librarian | coordinator / consensus_agent / workforce |
-| **skills** | `intelligence/cross-search` `system/intent-router` `office/inbox-aggregate` `office/calendar-coordinate` `system/oauth-bridge` | `intelligence/cross-search` `research/multi-source-synthesize` `system/task-graph` `intelligence/citation-trace` `system/memory-recall` | `system/task-graph` `system/template-render` `office/pdf-report-gen` `system/workflow-canvas` `system/notification-route` | `decision/multi-agent-vote` `system/consensus` `decision/risk-cost-tradeoff` `system/escalate-to-human` `system/audit-log` |
-| **集成** | 飞书 / 钉钉 / 企微 / Slack / WhatsApp / 邮件 | 内部知识库 / 经验库 / Evolver | 桌面通知中心 / 移动推送 / IM 卡片 | 飞书审批 / 内部 BPM / 钉钉智能填表 |
+| **状态** | ✅ 已实装（IM gateway + 飞书 + 邮件） | 🟡 部分（cross-search 框架就位，跨域 RAG 待 P10） | ✅ 已实装（P2 task_orchestrator + P3 配对授权 + P5 模板渲染） | 🟡 部分（多 agent 协商待 P9+ 抽象） |
+| **agents** | coordinator / workforce / requirement_analyst（21 agent） | coordinator / consensus_agent / evidence_analyst（21 agent） | coordinator / workforce / template_librarian（21 agent） | coordinator / consensus_agent / workforce（21 agent） |
+| **skills** | `intelligence/cross-search` `system/intent-router` `office/inbox-aggregate` `office/calendar-coordinate` ✅`system/oauth-bridge` | `intelligence/cross-search` `research/multi-source-synthesize` ✅`system/task-graph` `intelligence/citation-trace` `system/memory-recall` | ✅`system/task-graph` `system/template-render` ✅`office/pdf-report-gen` `system/workflow-canvas` `system/notification-route` | `decision/multi-agent-vote` `system/consensus` `decision/risk-cost-tradeoff` `system/escalate-to-human` `system/audit-log` |
+| **集成** | ✅ 飞书 / ✅ 钉钉 (OAuth) / 企微 / Slack / WhatsApp / 邮件 | 内部知识库 / 经验库 / Evolver | 桌面通知中心 / 移动推送 / ✅ IM 卡片（飞书） | 飞书审批 / 内部 BPM / 钉钉智能填表 |
 
 ---
 
@@ -131,23 +139,36 @@ consensus_agent 投票 / 加权 / 仲裁
 
 > **解读**：合规经营是基本盘（P0 必须做），综合协调是骨架（P0 必须有），增长 + 出海是 P3-P5 的增长曲线。
 
+## 实装状态热力图（2026-04-27 实际版）
+
+> 颜色含义：🟢 已实装 / 🟡 部分实装 / 🔴 待实装
+
+| | ① 信息获取 | ② 调研分析 | ③ 设计开发 | ④ 销售决策 |
+|---|---|---|---|---|
+| 🛡 合规经营 | 🟢（4 法律源已接） | 🟡（21 agent 可调，persona 待包） | 🟡（office docx/pdf 已实装） | 🔴（P9+） |
+| 📈 增长获客 | 🟡（lead_hunter ✅，社媒 OAuth 待接） | 🟢（market_researcher ✅） | 🟢（content_director ✅） | 🟢（lead_hunter + LeadScoring ✅） |
+| 🌍 出海跨境 | 🟢（FetchService 4 层 + 5 源） | 🟢（analyze-niche ✅） | 🟢（setup-store ✅） | 🟢（AI 议价 + VAT ✅） |
+| 🎯 综合协调 | 🟢（IM gateway + 飞书） | 🟡（cross-search 框架，跨域 RAG 待 P10） | 🟢（task_orchestrator + 配对授权） | 🟡（多 agent 协商待 P9+） |
+
 ---
 
-## 能力 × Persona 反向映射（速查）
+## 能力 × Persona 反向映射（速查 + 实装状态）
+
+> ✅ 已实装 / 🟡 部分（依赖底层就位） / ⚪ 不涉及 / 🚧 P9+ 规划中
 
 | Persona ↓ / 能力 → | ① 信息获取 | ② 调研分析 | ③ 设计开发 | ④ 销售决策 |
 |---|---|---|---|---|
-| 🤖 安心助理 | ✅ 跨域聚合 | ✅ 跨域 RAG | ✅ 工作流编排 | ✅ 多 agent 协商 |
-| ⚖️ 法律顾问 | ✅ 法规检索 | ✅ 案例分析 | ⚪ | ✅ 风险评级 |
-| 📜 合同管家 | ✅ 合同入库 | ✅ 合同审查 | ✅ 起草 + 红线 | ⚪ |
-| 🔍 尽调专家 | ✅ 多源抓取 | ✅ DD 分析 | ✅ 报告导出 | ✅ 综合评级 |
-| 💰 财税顾问 | ✅ 政策订阅 | ✅ 财务分析 | ✅ 方案表 | ✅ 节税决策 |
-| 📋 流程管家 | ✅ 多端聚合 | ⚪ | ✅ 报告 / 看板 | ✅ 审批决策 |
-| 📊 市场研究员 | ✅ 多源抓取 | ✅ 深度研读 | ✅ 摘要 / 图表 | ⚪ |
-| 🎯 获客猎手 | ✅ 线索挖掘 | ✅ 客户画像 | ✅ 销售物料 | ✅ 多 agent 投放 |
-| ✍️ 内容总监 | ✅ 素材抓取 | ⚪ | ✅ 设计核心 | ⚪ |
-| 🌍 跨境电商助手 | ✅ 平台数据 | ✅ 选品 / 趋势 | ✅ 独立站 / 商品页 | ✅ 出价 / 物流 |
+| 🤖 安心助理 🚧 | 🚧 跨域聚合 | 🚧 跨域 RAG | 🚧 工作流编排（task_orchestrator 可用） | 🚧 多 agent 协商 |
+| ⚖️ 法律顾问 🚧 | 🟡 法规检索（4 法律源已接） | 🚧 案例分析 | ⚪ | 🚧 风险评级 |
+| 📜 合同管家 🚧 | 🚧 合同入库 | 🚧 合同审查 | 🟡 起草+红线（office/docx 已实装） | ⚪ |
+| 🔍 尽调专家 🚧 | 🟡 多源抓取（FetchService 已可用） | 🚧 DD 分析 | 🟡 报告导出（office/pdf 已实装） | 🚧 综合评级 |
+| 💰 财税顾问 🚧 | 🚧 政策订阅 | 🚧 财务分析 | 🟡 方案表（office/xlsx 已实装） | 🚧 节税决策 |
+| 📋 流程管家 ✅ | ✅ 多端聚合 | ⚪ | ✅ 报告 / 看板 | ✅ 审批决策 |
+| 📊 市场研究员 ✅ | ✅ 多源抓取 | ✅ 深度研读（DeepResearch 算法） | ✅ 摘要 / 图表 | ⚪ |
+| 🎯 获客猎手 ✅ | ✅ 线索挖掘 | ✅ 客户画像（LeadScoring） | ✅ 销售物料（邮件模板） | ✅ 多 agent 投放（待 P9+ 完整） |
+| ✍️ 内容总监 ✅ | ✅ 素材抓取 | ⚪ | ✅ 设计核心 | ⚪ |
+| 🌍 跨境电商助手 ✅ | ✅ 平台数据（5 源） | ✅ 选品 / 趋势 | ✅ 独立站 / 商品页 | ✅ 出价（AI 议价） |
 
 ---
 
-上次更新：2026-04-26
+上次更新：2026-04-27（P0-P7 实装状态同步）

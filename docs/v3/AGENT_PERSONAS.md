@@ -4,30 +4,34 @@
 
 > 设计原则：**对外人格化、对内能力化**。咨询 + 解决并重，不叫"工具/计算器"。
 
-相关文档：[ARCHITECTURE](./ARCHITECTURE.md) · [CAPABILITY_MATRIX](./CAPABILITY_MATRIX.md) · [SKILLS_INVENTORY](./SKILLS_INVENTORY.md) · [INTEGRATIONS](./INTEGRATIONS.md)
+> **实装状态（2026-04-27）**：5 个增长 + 协调域 persona 已落地（P7），5 个法务 persona 复用 21 个 specialized agent 待 P9+ 包装。统一注册表：[`backend/src/agents/personas/registry.py`](../../backend/src/agents/personas/registry.py)
+
+相关文档：[ARCHITECTURE](./ARCHITECTURE.md) · [CAPABILITY_MATRIX](./CAPABILITY_MATRIX.md) · [SKILLS_INVENTORY](./SKILLS_INVENTORY.md) · [INTEGRATIONS](./INTEGRATIONS.md) · [V3_DELIVERY_SUMMARY](./V3_DELIVERY_SUMMARY.md)
 
 ---
 
 ## Persona 总览
 
-| # | 头像 | 名称 | 一句话定位 | 业务域 |
-|---|---|---|---|---|
-| 1 | 🤖 | **安心助理** | 通用入口 + 任务编排，不知道找谁就找它 | 综合协调 |
-| 2 | ⚖️ | **法律顾问** | 法律咨询 + 法规检索 + 风险评估 | 合规经营 |
-| 3 | 📜 | **合同管家** | 合同全生命周期，从起草到归档 | 合规经营 |
-| 4 | 🔍 | **尽调专家** | 公司 / 项目 / 客户 360° 尽调 | 合规经营 |
-| 5 | 💰 | **财税顾问** | 税务合规 + 财务分析 + 法律计算 | 合规经营 |
-| 6 | 📋 | **流程管家** | OKR / 审批 / 会议 / 周报全流程 | 合规经营 |
-| 7 | 📊 | **市场研究员** | 调研 / 竞品 / 趋势 / 行业洞察 | 增长获客 |
-| 8 | 🎯 | **获客猎手** | 销售线索 + 推广 + Vibe Selling | 增长获客 |
-| 9 | ✍️ | **内容总监** | 公众号 / 短视频 / 海报 / 落地页 | 增长获客 |
-| 10 | 🌍 | **跨境电商助手** | 选品 / 独立站 / 出海全链路 | 出海跨境 |
+| # | 头像 | 名称 | 一句话定位 | 业务域 | 状态 |
+|---|---|---|---|---|---|
+| 1 | 🤖 | **安心助理** | 通用入口 + 任务编排，不知道找谁就找它 | 综合协调 | 🚧 P9+ |
+| 2 | ⚖️ | **法律顾问** | 法律咨询 + 法规检索 + 风险评估 | 合规经营 | 🚧 P9+（21 agent 可调） |
+| 3 | 📜 | **合同管家** | 合同全生命周期，从起草到归档 | 合规经营 | 🚧 P9+（21 agent 可调） |
+| 4 | 🔍 | **尽调专家** | 公司 / 项目 / 客户 360° 尽调 | 合规经营 | 🚧 P9+（21 agent 可调） |
+| 5 | 💰 | **财税顾问** | 税务合规 + 财务分析 + 法律计算 | 合规经营 | 🚧 P9+（21 agent 可调） |
+| 6 | 📋 | **流程管家** | OKR / 审批 / 会议 / 周报全流程 | 合规经营 | ✅ 已实装（7 API） |
+| 7 | 📊 | **市场研究员** | 调研 / 竞品 / 趋势 / 行业洞察 | 增长获客 | ✅ 已实装（5 API + DeepResearch） |
+| 8 | 🎯 | **获客猎手** | 销售线索 + 推广 + Vibe Selling | 增长获客 | ✅ 已实装（6 API + LeadScoring） |
+| 9 | ✍️ | **内容总监** | 公众号 / 短视频 / 海报 / 落地页 | 增长获客 | ✅ 已实装（7 API） |
+| 10 | 🌍 | **跨境电商助手** | 选品 / 独立站 / 出海全链路 | 出海跨境 | ✅ 已实装（7 API + AI 议价） |
 
 ---
 
-## 1. 🤖 安心助理 — 通用入口 / 任务编排
+## 1. 🤖 安心助理 — 通用入口 / 任务编排  🚧 P9+
 
 > **一句话**：你的智能办公总管，不知道找谁就找我，我帮你叫人。
+
+**实装状态**：🚧 P9+ 计划包装。已具备底层能力 — `coordinator` + `workforce` + `consensus_agent` 三个 specialized agent 可被直接调用；任务编排走 P2 已落地的 `task_orchestrator`。
 
 ### 目标用户场景
 - **场景 A**：老板在飞书群 @bot 「帮我看看这个供应商靠不靠谱」→ 自动路由到尽调专家。
@@ -76,9 +80,11 @@
 
 ---
 
-## 2. ⚖️ 法律顾问 — 法律咨询 + 检索
+## 2. ⚖️ 法律顾问 — 法律咨询 + 检索  🚧 P9+
 
 > **一句话**：你的随身法律大脑，问法条、判例、风险，全靠我。
+
+**实装状态**：🚧 P9+ 计划包装。底层能力已就绪：6 个 specialized agent（`legal_advisor` / `legal_researcher` / `risk_assessor` / `compliance_officer` / `regulatory_monitor` / `litigation_strategist`）+ P6 4 个法律源（`pkulaw` / `wkinfo` / `flk_npc_gov` / `credit_china` / `historical_wenshu`）可直接被 persona 接管。
 
 ### 目标用户场景
 - **场景 A**：HR 问「员工提交辞职申请后的当天就要走，可以吗？依据是什么？」
@@ -140,9 +146,11 @@
 
 ---
 
-## 3. 📜 合同管家 — 合同全生命周期
+## 3. 📜 合同管家 — 合同全生命周期  🚧 P9+
 
 > **一句话**：从起草、审查、谈判、签署到归档，每一份合同我帮你盯。
+
+**实装状态**：🚧 P9+ 计划包装。底层能力已就绪：6 个 specialized agent（`contract_reviewer` / `contract_steward` / `contract_investigator` / `review_checker` / `document_drafter` / `template_librarian`）+ P5 office/docx skill（`skills/office/docx/`，含轨道修订模板）可直接接管。
 
 ### 目标用户场景
 - **场景 A**：销售拿到客户的合同模板，想知道哪里可以让步、哪里必须坚持。
@@ -207,9 +215,11 @@
 
 ---
 
-## 4. 🔍 尽调专家 — 公司 / 项目 360° 尽调
+## 4. 🔍 尽调专家 — 公司 / 项目 360° 尽调  🚧 P9+
 
 > **一句话**：见客户 / 投资 / 收购前，先让我看看对方家底。
+
+**实装状态**：🚧 P9+ 计划包装。底层能力已就绪：6 个 specialized agent（`due_diligence` / `evidence_analyst` / `sentiment_agent` / `legal_researcher` / `risk_assessor` / `contract_investigator`）+ P6 FetchService（`backend/src/services/fetch/`）+ `credit_china`/`historical_wenshu` 法律源可直接接管。
 
 ### 目标用户场景
 - **场景 A**：销售要见新客户，提前查工商 / 司法 / 舆情。
@@ -273,9 +283,11 @@
 
 ---
 
-## 5. 💰 财税顾问 — 税务 + 财务
+## 5. 💰 财税顾问 — 税务 + 财务  🚧 P9+
 
 > **一句话**：节税合规 + 财务健康，老板和会计的最佳搭档。
+
+**实装状态**：🚧 P9+ 计划包装。底层能力已就绪：3 个 specialized agent（`tax_compliance` / `legal_calculator` / `compliance_officer`）+ P5 office/xlsx skill（`skills/office/xlsx/`，含财务模板）可直接接管。
 
 ### 目标用户场景
 - **场景 A**：年底了，怎么合理筹划税务？
@@ -338,9 +350,27 @@
 
 ---
 
-## 6. 📋 流程管家 — OKR / 审批 / 会议 / 周报
+## 6. 📋 流程管家 — OKR / 审批 / 会议 / 周报  ✅ 已实装
 
 > **一句话**：公司过程管理小助手，OKR 到周报都帮你梳。
+
+**实装状态**：✅ 已实装（P7 commit `3445501`）
+
+**实装文件**：
+- Persona: [`backend/src/agents/personas/operations_manager.py`](../../backend/src/agents/personas/operations_manager.py)
+- Base / Registry: [`backend/src/agents/personas/base_persona.py`](../../backend/src/agents/personas/base_persona.py) · [`backend/src/agents/personas/registry.py`](../../backend/src/agents/personas/registry.py)
+- API: [`backend/src/api/routes/personas.py`](../../backend/src/api/routes/personas.py)
+
+**实际 API endpoints**（前缀 `/api/v3/personas`）：
+| Method | Path | 用途 |
+|---|---|---|
+| GET  | `/personas` | 列出所有 persona（5 实装 + 5 占位） |
+| GET  | `/personas/{persona_id}` | persona 详情 |
+| POST | `/personas/{persona_id}/chat` | 通用对话入口 |
+| POST | `/personas/operations/okr/dashboard` | OKR 看板 |
+| POST | `/personas/operations/weekly-report` | 周报自动起草 |
+| POST | `/personas/operations/meeting-minutes` | 会议纪要生成 |
+| POST | `/personas/operations/extract-todos` | 待办抽取 |
 
 ### 目标用户场景
 - **场景 A**：季度初制定 OKR，部门间对齐。
@@ -407,9 +437,25 @@
 
 ---
 
-## 7. 📊 市场研究员 — 调研 / 竞品 / 趋势
+## 7. 📊 市场研究员 — 调研 / 竞品 / 趋势  ✅ 已实装
 
 > **一句话**：想了解一个行业 / 一个对手 / 一个趋势，我做你的研究员。
+
+**实装状态**：✅ 已实装（P7 commit `0c69b83`，含 DeepResearch 迭代算法）
+
+**实装文件**：
+- Persona: [`backend/src/agents/personas/market_researcher.py`](../../backend/src/agents/personas/market_researcher.py)
+- Models: [`backend/src/agents/personas/research_models.py`](../../backend/src/agents/personas/research_models.py)
+- API: [`backend/src/api/routes/persona_market.py`](../../backend/src/api/routes/persona_market.py)
+
+**实际 API endpoints**（前缀 `/api/v3/personas/market`）：
+| Method | Path | 用途 |
+|---|---|---|
+| POST | `/personas/market/investigate-company` | 公司调研 |
+| POST | `/personas/market/competitor-monitor` | 竞品监控 |
+| POST | `/personas/market/industry-trends` | 行业趋势挖掘 |
+| POST | `/personas/market/deep-research` | DeepResearch 迭代深度研究 |
+| GET  | `/personas/market/research/{report_id}` | 研究报告详情 |
 
 ### 目标用户场景
 - **场景 A**：进入新赛道前，做行业 + 竞品 + 政策三方面研究。
@@ -474,9 +520,27 @@
 
 ---
 
-## 8. 🎯 获客猎手 — 销售 / 推广 / Vibe Selling
+## 8. 🎯 获客猎手 — 销售 / 推广 / Vibe Selling  ✅ 已实装
 
 > **一句话**：把陌生人变成客户，把客户变成朋友。
+
+**实装状态**：✅ 已实装（P7 commit `9de3895`，含 LeadScoring 模型）
+
+**实装文件**：
+- Persona: [`backend/src/agents/personas/lead_hunter.py`](../../backend/src/agents/personas/lead_hunter.py)
+- Models: [`backend/src/agents/personas/sales_models.py`](../../backend/src/agents/personas/sales_models.py)
+- 邮件模板: [`backend/src/agents/personas/templates/emails/`](../../backend/src/agents/personas/templates/emails/) (cold_intro_zh / follow_up_en / proposal_jp)
+- API: [`backend/src/api/routes/persona_sales.py`](../../backend/src/api/routes/persona_sales.py)
+
+**实际 API endpoints**（前缀 `/api/v3/personas/sales`）：
+| Method | Path | 用途 |
+|---|---|---|
+| POST | `/personas/sales/discover-leads` | 线索挖掘 + LeadScoring |
+| POST | `/personas/sales/draft-email` | 销售邮件起草（多语言模板） |
+| POST | `/personas/sales/generate-quote` | 报价单生成 |
+| POST | `/personas/sales/sync-crm` | CRM 数据同步 |
+| POST | `/personas/sales/linkedin-outreach` | LinkedIn 触达策略 |
+| GET  | `/personas/sales/leads` | 线索列表 |
 
 ### 目标用户场景
 - **场景 A**：销售要拿到 200 个新线索，行业 + 地域 + 规模筛选。
@@ -539,9 +603,27 @@
 
 ---
 
-## 9. ✍️ 内容总监 — 公众号 / 短视频 / 海报
+## 9. ✍️ 内容总监 — 公众号 / 短视频 / 海报  ✅ 已实装
 
 > **一句话**：从一句话灵感到一支成片，全链路内容生产。
+
+**实装状态**：✅ 已实装（P7 commit `8b785a8`）
+
+**实装文件**：
+- Persona: [`backend/src/agents/personas/content_director.py`](../../backend/src/agents/personas/content_director.py)
+- Models: [`backend/src/agents/personas/content_models.py`](../../backend/src/agents/personas/content_models.py)
+- API: [`backend/src/api/routes/persona_content.py`](../../backend/src/api/routes/persona_content.py)
+
+**实际 API endpoints**（前缀 `/api/v3/personas/content`）：
+| Method | Path | 用途 |
+|---|---|---|
+| POST | `/personas/content/wechat-article` | 公众号长文起草 |
+| POST | `/personas/content/video-script` | 短视频脚本 + 分镜 |
+| POST | `/personas/content/poster-copy` | 海报文案 / 标题矩阵 |
+| POST | `/personas/content/brand-check` | 品牌一致性校验 |
+| POST | `/personas/content/localize` | 多语言改写 |
+| GET  | `/personas/content/brand-profiles` | 列出品牌画像 |
+| POST | `/personas/content/brand-profiles` | 新建品牌画像 |
 
 ### 目标用户场景
 - **场景 A**：老板说「写一篇我们新品发布的公众号」。
@@ -615,9 +697,28 @@
 
 ---
 
-## 10. 🌍 跨境电商助手 — 选品 / 独立站 / 出海全链路
+## 10. 🌍 跨境电商助手 — 选品 / 独立站 / 出海全链路  ✅ 已实装
 
 > **一句话**：从想做出海到第一笔订单，每个坑我帮你避。
+
+**实装状态**：✅ 已实装（P7 commit `2624335`，含 AI 议价能力）
+
+**实装文件**：
+- Persona: [`backend/src/agents/personas/ecommerce_assistant.py`](../../backend/src/agents/personas/ecommerce_assistant.py)
+- Models: [`backend/src/agents/personas/ecommerce_models.py`](../../backend/src/agents/personas/ecommerce_models.py)
+- API: [`backend/src/api/routes/persona_ecommerce.py`](../../backend/src/api/routes/persona_ecommerce.py)
+- 数据源: [`backend/src/services/fetch/sources/ecommerce/`](../../backend/src/services/fetch/sources/ecommerce/) (shopify 真 + amazon_sp/shopee/tiktok_shop/alibaba_1688 mock)
+
+**实际 API endpoints**（前缀 `/api/v3/personas/ecommerce`）：
+| Method | Path | 用途 |
+|---|---|---|
+| POST | `/personas/ecommerce/analyze-niche` | 选品 / 类目分析（Accio Ecommerce Mind 范式） |
+| POST | `/personas/ecommerce/verify-supplier` | 供应商核验 |
+| POST | `/personas/ecommerce/negotiate` | AI 议价（多轮策略） |
+| POST | `/personas/ecommerce/setup-store` | 独立站搭建（Shopify） |
+| POST | `/personas/ecommerce/list-to-platforms` | 多平台 listing 上架 |
+| POST | `/personas/ecommerce/vat-guidance` | VAT / 跨境合规指引 |
+| GET  | `/personas/ecommerce/dashboard` | 出海运营总览 |
 
 ### 目标用户场景
 - **场景 A**：制造业老板想做亚马逊 / 独立站，从哪开始？
@@ -700,4 +801,4 @@
 
 ---
 
-上次更新：2026-04-26
+上次更新：2026-04-27（P0-P7 实际进度同步）
