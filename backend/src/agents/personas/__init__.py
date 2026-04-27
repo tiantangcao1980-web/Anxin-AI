@@ -35,6 +35,8 @@ from src.agents.personas.legal_advisor import LegalAdvisorPersona
 from src.agents.personas.contract_steward import ContractStewardPersona
 # P9-D: 尽调专家（包装 3 specialized agent + 关系图谱）
 from src.agents.personas.due_diligence_expert import DueDiligenceExpertPersona
+# P9-E: 财税顾问（包装 2 specialized agent + 跨境 VAT）
+from src.agents.personas.tax_finance_advisor import TaxFinanceAdvisorPersona
 
 __all__ = [
     "BasePersonaAgent",
@@ -50,4 +52,5 @@ __all__ = [
     "LegalAdvisorPersona",
     "ContractStewardPersona",
     "DueDiligenceExpertPersona",
+    "TaxFinanceAdvisorPersona",
 ]
