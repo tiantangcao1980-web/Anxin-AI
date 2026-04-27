@@ -325,6 +325,12 @@ class Settings(BaseSettings):
     DINGTALK_APP_KEY: str = ""
     DINGTALK_APP_SECRET: str = ""
 
+    # ===== Shopify OAuth Provider（P4-E） =====
+    # 控制台：https://partners.shopify.com → Apps → API credentials
+    SHOPIFY_API_KEY: str = ""
+    SHOPIFY_API_SECRET: str = ""
+    SHOPIFY_API_VERSION: str = "2024-10"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         # 自动生成安全的 JWT 密钥（如果未设置）
