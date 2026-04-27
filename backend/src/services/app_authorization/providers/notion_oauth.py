@@ -94,14 +94,20 @@ class NotionOAuthProvider(BaseOAuthProvider):
         client_id: str | None = None,
         client_secret: str | None = None,
         http_client: httpx.AsyncClient | None = None,
+        redis_client: Any | None = None,
+        **kwargs: Any,
     ) -> None:
         """构造一个 Notion OAuth provider。
+
+        优先级：注入参数 > ``core.config.settings`` 兜底。
 
         Args:
             client_id: Notion integration 的 OAuth client_id。
                        缺省则读取 ``settings.NOTION_CLIENT_ID``。
             client_secret: integration secret。缺省读 ``settings.NOTION_CLIENT_SECRET``。
             http_client: 可注入的 ``httpx.AsyncClient``（用于测试 mock）。
+            redis_client: 可选 Redis 客户端，保留以满足基类签名。
+            **kwargs: 透传给基类。
         """
         # 复用项目 settings；测试场景下 settings 可能不可用，做兜底
         settings_client_id = ""
@@ -114,8 +120,23 @@ class NotionOAuthProvider(BaseOAuthProvider):
         except Exception:
             pass
 
-        self._client_id: str = client_id or settings_client_id
-        self._client_secret: str = client_secret or settings_client_secret
+        # 注入优先 → fallback 到 settings
+        resolved_client_id = client_id or settings_client_id
+        resolved_client_secret = client_secret or settings_client_secret
+
+        # 走基类标准构造，统一持有 http_client / redis_client / client_id 等
+        super().__init__(
+            http_client=http_client,
+            redis_client=redis_client,
+            client_id=resolved_client_id,
+            client_secret=resolved_client_secret,
+            **kwargs,
+        )
+
+        # Notion provider 自身需要的本地名（_client_id / _client_secret）
+        # 注意基类已把同名属性写入；这里显式覆盖以保留 str 而非 None 的兜底
+        self._client_id: str = resolved_client_id
+        self._client_secret: str = resolved_client_secret
         self._http_client: httpx.AsyncClient | None = http_client
 
     # ------------------------------------------------------------------

@@ -99,15 +99,36 @@ class FeishuOAuthProvider(BaseOAuthProvider):
         *,
         app_id: str | None = None,
         app_secret: str | None = None,
+        client_id: str | None = None,
+        client_secret: str | None = None,
         http_client: httpx.AsyncClient | None = None,
+        redis_client: Any | None = None,
+        **kwargs: Any,
     ) -> None:
         """构造一个飞书 OAuth provider。
 
+        优先级：注入参数 > ``core.config.settings`` 兜底。
+        ``client_id``/``client_secret`` 是 BaseOAuthProvider 的标准 kwargs，
+        与飞书的 ``app_id``/``app_secret`` 互为别名。
+
         Args:
-            app_id: 飞书自建应用 App ID。缺省则读取 ``settings.FEISHU_APP_ID``。
-            app_secret: 应用 secret。缺省读 ``settings.FEISHU_APP_SECRET``。
+            app_id: 飞书自建应用 App ID（飞书命名）。
+            app_secret: 应用 secret（飞书命名）。
+            client_id: 等价于 ``app_id``，兼容标准 OAuth 命名。
+            client_secret: 等价于 ``app_secret``。
             http_client: 可注入的 ``httpx.AsyncClient``（用于测试 mock）。
+            redis_client: 可选 Redis 客户端，未使用但保留以满足基类签名。
+            **kwargs: 透传给基类，预留扩展。
         """
+        # 标准基类构造（保存 http_client / redis_client / client_id 等）
+        super().__init__(
+            http_client=http_client,
+            redis_client=redis_client,
+            client_id=client_id or app_id,
+            client_secret=client_secret or app_secret,
+            **kwargs,
+        )
+
         # 复用项目 settings；测试场景下 settings 可能不可用，做兜底
         settings_app_id = ""
         settings_app_secret = ""
@@ -119,8 +140,9 @@ class FeishuOAuthProvider(BaseOAuthProvider):
         except Exception:
             pass
 
-        self._app_id: str = app_id or settings_app_id
-        self._app_secret: str = app_secret or settings_app_secret
+        # 注入优先 → fallback 到 settings
+        self._app_id: str = app_id or client_id or settings_app_id
+        self._app_secret: str = app_secret or client_secret or settings_app_secret
         self._http_client: httpx.AsyncClient | None = http_client
 
     # ------------------------------------------------------------------

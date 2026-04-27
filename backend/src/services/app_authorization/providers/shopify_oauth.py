@@ -157,17 +157,57 @@ class ShopifyOAuthProvider(BaseOAuthProvider):
     def __init__(
         self,
         *,
-        client_id: str,
-        client_secret: str,
-        redirect_uri: str,
+        client_id: Optional[str] = None,
+        client_secret: Optional[str] = None,
+        redirect_uri: Optional[str] = None,
         http_client: Optional[httpx.AsyncClient] = None,
+        redis_client: Optional[Any] = None,
         api_version: str = DEFAULT_API_VERSION,
+        **kwargs: Any,
     ) -> None:
+        """构造 Shopify OAuth provider。
+
+        优先级：注入参数 > ``core.config.settings`` 兜底；
+        ``api_version`` 总是读注入值（默认 :attr:`DEFAULT_API_VERSION`）。
+
+        Args:
+            client_id: Shopify App ``API key``；缺省读 ``settings.SHOPIFY_API_KEY``。
+            client_secret: Shopify App ``API secret``；缺省读
+                ``settings.SHOPIFY_API_SECRET``。
+            redirect_uri: 回跳 URL（必须在 Shopify 控制台白名单内）。
+            http_client: 可注入的 ``httpx.AsyncClient``，用于测试 mock。
+            redis_client: 可选 Redis 客户端，保留以满足基类签名。
+            api_version: Shopify Admin API 版本号（季度发布）。
+            **kwargs: 透传给基类。
+        """
+        # 注入优先 → fallback 到 settings
+        settings_client_id = ""
+        settings_client_secret = ""
+        settings_redirect = ""
+        try:  # pragma: no cover - 运行期 settings 可能不可用
+            from src.core.config import settings as _settings
+
+            settings_client_id = getattr(_settings, "SHOPIFY_API_KEY", "") or ""
+            settings_client_secret = (
+                getattr(_settings, "SHOPIFY_API_SECRET", "") or ""
+            )
+            settings_redirect = (
+                getattr(_settings, "SHOPIFY_OAUTH_REDIRECT_URI", "") or ""
+            )
+        except Exception:
+            pass
+
+        resolved_client_id = client_id or settings_client_id
+        resolved_client_secret = client_secret or settings_client_secret
+        resolved_redirect = redirect_uri or settings_redirect
+
         super().__init__(
-            client_id=client_id,
-            client_secret=client_secret,
-            redirect_uri=redirect_uri,
             http_client=http_client,
+            redis_client=redis_client,
+            client_id=resolved_client_id,
+            client_secret=resolved_client_secret,
+            redirect_uri=resolved_redirect,
+            **kwargs,
         )
         self.api_version = api_version
 
