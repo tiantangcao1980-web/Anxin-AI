@@ -19,7 +19,14 @@ P7 实施分阶段：
 
 from src.agents.personas.base_persona import BasePersonaAgent, PersonaInfo
 from src.agents.personas.registry import PersonaRegistry, get_persona_registry
+
+# P8-A: 顶层 import 全部 5 个 persona class，确保 ``__init_subclass__``
+# 在包加载阶段就触发自动注册，调用方无需依赖 ``autoload()`` 才能拿全。
 from src.agents.personas.operations_manager import OperationsManagerAgent
+from src.agents.personas.market_researcher import MarketResearcherAgent
+from src.agents.personas.lead_hunter import LeadHunterAgent
+from src.agents.personas.content_director import ContentDirectorAgent
+from src.agents.personas.ecommerce_assistant import EcommerceAssistantAgent
 
 __all__ = [
     "BasePersonaAgent",
@@ -27,4 +34,8 @@ __all__ = [
     "PersonaRegistry",
     "get_persona_registry",
     "OperationsManagerAgent",
+    "MarketResearcherAgent",
+    "LeadHunterAgent",
+    "ContentDirectorAgent",
+    "EcommerceAssistantAgent",
 ]

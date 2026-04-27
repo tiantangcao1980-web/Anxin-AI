@@ -153,3 +153,8 @@ class HeadlessXTier(BaseTier):
         if self._client is not None and self._injected_client is None:
             await self._client.aclose()
             self._client = None
+
+
+# P8-A 兼容别名：``__init__.py`` 与 ``service.py`` 引用 ``L3HeadlessXTier``。
+# P6-B 实装时把类命名成了 ``HeadlessXTier``，此处补齐别名以恢复 import 链。
+L3HeadlessXTier = HeadlessXTier

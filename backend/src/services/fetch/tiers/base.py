@@ -15,6 +15,10 @@ from abc import ABC, abstractmethod
 
 from src.services.fetch.models import FetchRequest, FetchResponse, FetchTier
 
+# P8-A 兼容别名：早期 P6 实装文件用 ``TierName`` 引用层枚举。
+# 保留以避免破坏 ``from .base import TierName`` 的 import 链。
+TierName = FetchTier
+
 
 class BaseTier(ABC):
     """抓取层抽象基类。"""

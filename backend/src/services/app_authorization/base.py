@@ -24,6 +24,31 @@ from datetime import datetime
 from typing import ClassVar
 
 
+# ---------------------------------------------------------------------------
+# OAuth provider 异常族（P8-A 补齐）
+# ---------------------------------------------------------------------------
+# P4-B/C/D/E 各 provider（feishu / dingtalk / notion / shopify ...）从
+# ``..base`` import 这两个异常类型；P4-A 框架只定义了 ``OAuthFlowError`` 系列
+# 在 ``oauth_flow`` 中，未在 base 暴露 provider 侧的异常基类，
+# 导致所有 provider import 即崩。这里补齐：
+#   - ``OAuthError``                : provider 侧通用错误基类
+#   - ``OAuthTokenExpiredError``    : token 过期 / 失效（需要重新授权或刷新）
+class OAuthError(Exception):
+    """OAuth provider 调用通用异常基类。
+
+    所有 provider 在配置缺失 / 凭据无效 / 远端非 2xx / 解析失败等场景应抛该异常
+    或其子类；上层 ``OAuthFlowService`` 会再包装为 :class:`OAuthProviderError`。
+    """
+
+
+class OAuthTokenExpiredError(OAuthError):
+    """OAuth access_token / refresh_token 过期或被撤销。
+
+    Provider 检测到「token 已失效」（如飞书 ``code in TOKEN_EXPIRED_CODES``、
+    Notion 401、Shopify 401 等）时抛出，让上层进入 refresh / re-auth 流程。
+    """
+
+
 @dataclass
 class OAuthTokenBundle:
     """OAuth 2.0 token 三元组（access + refresh + 元数据）。
