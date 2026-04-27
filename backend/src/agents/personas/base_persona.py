@@ -17,7 +17,7 @@ PersonaRegistry 在自动加载时只需要 import 子类模块，子类即注�
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from loguru import logger
 
@@ -89,7 +89,27 @@ class BasePersonaAgent(BaseLegalAgent):
     backed_by_agents: List[str] = []
     enabled: bool = True
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        llm_client: Any | None = None,
+        llm_callable: Optional[Callable[..., Any]] = None,
+        skill_executor: Any | None = None,
+        fetch_service: Any | None = None,
+        kb_search: Any | None = None,
+        **_extra: Any,
+    ) -> None:
+        """统一构造器。
+
+        所有 persona 子类共享 4 个标准依赖注入 kwargs（`llm_client` /
+        `llm_callable` / `skill_executor` / `fetch_service`），加 1 个常用
+        `kb_search`。其余子类专用 kwargs 通过 `**_extra` 吸收，避免上层
+        签名扩散。这让测试可以稳定地注入 mock：
+
+            agent = MarketResearcherAgent(llm_callable=mock_fn)
+            agent = ContentDirectorAgent(llm_client=mock_obj)
+        """
+
         if not self.persona_id:
             raise ValueError(f"{type(self).__name__} 必须定义 persona_id")
         if not self.SYSTEM_PROMPT:
@@ -103,6 +123,44 @@ class BasePersonaAgent(BaseLegalAgent):
             tools=list(self.backed_by_skills),
         )
         super().__init__(config)
+
+        # 标准注入点（生产可缺省，测试可 mock）
+        self.llm_client = llm_client
+        self.llm_callable = llm_callable
+        self.skill_executor = skill_executor
+        self.fetch_service = fetch_service
+        self.kb_search = kb_search
+
+    # ------------------------------------------------------------------
+    # 通用 LLM 适配（子类可覆盖）
+    # ------------------------------------------------------------------
+    async def run_llm(self, system: str, user: str) -> str:
+        """统一 LLM 调用入口。
+
+        优先级：``llm_callable`` (测试)  >  ``llm_client.complete`` (测试 mock)
+        >  ``BaseLegalAgent.chat()`` (生产)。
+        """
+
+        if self.llm_callable is not None:
+            res = self.llm_callable(system, user)
+            if hasattr(res, "__await__"):
+                return await res  # type: ignore[no-any-return]
+            return res  # type: ignore[return-value]
+
+        if self.llm_client is not None and hasattr(self.llm_client, "complete"):
+            return await self.llm_client.complete(user, system=system)
+
+        # 退回 BaseLegalAgent.chat（真生产 LLM）
+        return await self.chat(message=user)
+
+    async def _llm(self, prompt: str, system: Optional[str] = None) -> str:
+        """`llm_client.complete(prompt, system=...)` 风格的兼容入口。
+
+        ContentDirectorAgent 等 persona 习惯用 ``self._llm(prompt, system=...)``，
+        保留为薄封装；缺省走 ``run_llm()``。
+        """
+
+        return await self.run_llm(system or self.SYSTEM_PROMPT, prompt)
 
     # ------------------------------------------------------------------
     # 自动注册 hook
