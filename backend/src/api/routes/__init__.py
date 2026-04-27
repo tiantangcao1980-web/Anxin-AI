@@ -44,6 +44,7 @@ from src.api.routes import persona_ecommerce  # P7-E
 from src.api.routes import persona_anxin  # P9-A
 from src.api.routes import persona_legal  # P9-B
 from src.api.routes import persona_contract  # P9-C
+from src.api.routes import persona_dd  # P9-D
 
 api_router = APIRouter()
 
@@ -109,3 +110,4 @@ api_router.include_router(persona_ecommerce.router, prefix="/personas/ecommerce"
 api_router.include_router(persona_anxin.router, prefix="/personas/anxin", tags=["安心助理 persona"])
 api_router.include_router(persona_legal.router, prefix="/personas/legal", tags=["法律顾问 persona"])
 api_router.include_router(persona_contract.router, prefix="/personas/contract", tags=["合同管家"])
+api_router.include_router(persona_dd.router, prefix="/personas/dd", tags=["尽调专家"])

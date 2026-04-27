@@ -33,6 +33,8 @@ from src.agents.personas.anxin_assistant import AnxinAssistantAgent
 from src.agents.personas.legal_advisor import LegalAdvisorPersona
 # P9-C: 合同管家（包装 6 contract agent）
 from src.agents.personas.contract_steward import ContractStewardPersona
+# P9-D: 尽调专家（包装 3 specialized agent + 关系图谱）
+from src.agents.personas.due_diligence_expert import DueDiligenceExpertPersona
 
 __all__ = [
     "BasePersonaAgent",
@@ -47,4 +49,5 @@ __all__ = [
     "AnxinAssistantAgent",
     "LegalAdvisorPersona",
     "ContractStewardPersona",
+    "DueDiligenceExpertPersona",
 ]
