@@ -27,6 +27,8 @@ from src.agents.personas.market_researcher import MarketResearcherAgent
 from src.agents.personas.lead_hunter import LeadHunterAgent
 from src.agents.personas.content_director import ContentDirectorAgent
 from src.agents.personas.ecommerce_assistant import EcommerceAssistantAgent
+# P9-A: 安心助理（通用入口 + 任务编排）
+from src.agents.personas.anxin_assistant import AnxinAssistantAgent
 
 __all__ = [
     "BasePersonaAgent",
@@ -38,4 +40,5 @@ __all__ = [
     "LeadHunterAgent",
     "ContentDirectorAgent",
     "EcommerceAssistantAgent",
+    "AnxinAssistantAgent",
 ]

@@ -41,6 +41,7 @@ from src.api.routes import persona_market
 from src.api.routes import persona_sales
 from src.api.routes import persona_content
 from src.api.routes import persona_ecommerce  # P7-E
+from src.api.routes import persona_anxin  # P9-A
 
 api_router = APIRouter()
 
@@ -103,3 +104,4 @@ api_router.include_router(persona_market.router, prefix="/personas/market", tags
 api_router.include_router(persona_sales.router, prefix="/personas/sales", tags=["获客猎手"])
 api_router.include_router(persona_content.router, prefix="/personas/content", tags=["内容总监 persona"])
 api_router.include_router(persona_ecommerce.router, prefix="/personas/ecommerce", tags=["跨境电商助手"])
+api_router.include_router(persona_anxin.router, prefix="/personas/anxin", tags=["安心助理 persona"])
