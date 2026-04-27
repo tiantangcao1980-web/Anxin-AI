@@ -36,6 +36,7 @@ from src.api.routes import im_pairing
 from src.api.routes import app_authorizations
 from src.api.routes import skills
 from src.api.routes import fetch
+from src.api.routes import personas
 
 api_router = APIRouter()
 
@@ -93,3 +94,4 @@ api_router.include_router(im_pairing.router, prefix="/im/pairing", tags=["IM配�
 api_router.include_router(app_authorizations.router, prefix="/app-authorizations", tags=["应用授权"])
 api_router.include_router(skills.router, prefix="/skills", tags=["技能注册表"])
 api_router.include_router(fetch.router, prefix="/fetch", tags=["信息获取栈"])
+api_router.include_router(personas.router, prefix="/personas", tags=["V3 Personas"])
