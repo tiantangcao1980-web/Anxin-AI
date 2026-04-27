@@ -299,6 +299,11 @@ class Settings(BaseSettings):
     ALIPAY_PUBLIC_KEY: str = ""
     ALIPAY_REDIRECT_URI: str = ""
 
+    # ===== Notion OAuth (P4-D) =====
+    # 控制台：https://www.notion.so/my-integrations
+    NOTION_CLIENT_ID: str = ""
+    NOTION_CLIENT_SECRET: str = ""
+
     # 前端登录页 URL（OAuth 回调后重定向）
     FRONTEND_LOGIN_URL: str = "http://localhost:3001/login"
 
