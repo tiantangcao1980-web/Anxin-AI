@@ -73,9 +73,6 @@ const PrivateLLMSetup = lazy(() => import('@/pages/PrivateLLMSetup'))
 const CaseMarket = lazy(() => import('@/pages/CaseMarket'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
 
-// V3 任务中心(P2 真业务化)
-const V3TasksPage = lazy(() => import('@/pages/v3/tasks/TasksPage'))
-
 // 登录页
 const Login = lazy(() => import('@/pages/Login'))
 
@@ -90,6 +87,7 @@ const SkillsPage = lazy(() => import('@/pages/v3/capabilities/SkillsPage'))
 const PluginsPage = lazy(() => import('@/pages/v3/capabilities/PluginsPage'))
 const MessageChannelsPage = lazy(() => import('@/pages/v3/capabilities/MessageChannelsPage'))
 const PairingAuthorizationsPage = lazy(() => import('@/pages/v3/capabilities/PairingAuthorizationsPage'))
+// V3 任务中心（P2 真业务化）
 const V3TasksPage = lazy(() => import('@/pages/v3/tasks/TasksPage'))
 
 // V3 Layout（侧边栏 IA）— 通过 VITE_V3_NAV=true 启用，默认仍用旧 Layout
@@ -252,7 +250,6 @@ function App() {
                 <Route path="capabilities/plugins" element={<PluginsPage />} />
                 <Route path="capabilities/message-channels" element={<MessageChannelsPage />} />
                 <Route path="capabilities/pairing-authorizations" element={<PairingAuthorizationsPage />} />
-                <Route path="v3/tasks" element={<V3TasksPage />} />
 
                 {/* ===== AI法务（仅智能对话） ===== */}
                 <Route path="chat" element={<ProtectedRoute feature="ai_chat"><Chat /></ProtectedRoute>} />
