@@ -31,6 +31,8 @@ from src.agents.personas.ecommerce_assistant import EcommerceAssistantAgent
 from src.agents.personas.anxin_assistant import AnxinAssistantAgent
 # P9-B: 法律顾问（包装 5 specialized agent）
 from src.agents.personas.legal_advisor import LegalAdvisorPersona
+# P9-C: 合同管家（包装 6 contract agent）
+from src.agents.personas.contract_steward import ContractStewardPersona
 
 __all__ = [
     "BasePersonaAgent",
@@ -44,4 +46,5 @@ __all__ = [
     "EcommerceAssistantAgent",
     "AnxinAssistantAgent",
     "LegalAdvisorPersona",
+    "ContractStewardPersona",
 ]
