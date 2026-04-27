@@ -65,6 +65,9 @@ dependencies = [
     "email-validator>=2.3.0",
     "playwright>=1.57.0",
     "beautifulsoup4>=4.14.3",
+    # P6-A FetchService 静态解析（selectolax 比 BS4 快 5-10x；lxml 用于 XPath）
+    "selectolax>=0.3",
+    "lxml>=5",
     # LiveKit 音视频通话
     "livekit-api>=0.7.0",
     # Crawl4AI LLM 友好爬取
