@@ -316,6 +316,10 @@ class Settings(BaseSettings):
     # 第三方授权回调基础 URL（不含 /api/v1/...），如 https://api.anxin-fawu.com
     APP_AUTH_REDIRECT_BASE_URL: str = "http://localhost:8001"
 
+    # ===== 钉钉 OAuth Provider（P4-C） =====
+    DINGTALK_APP_KEY: str = ""
+    DINGTALK_APP_SECRET: str = ""
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         # 自动生成安全的 JWT 密钥（如果未设置）
