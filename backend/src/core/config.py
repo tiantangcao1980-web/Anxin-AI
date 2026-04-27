@@ -289,6 +289,13 @@ class Settings(BaseSettings):
     OPEN_WEBSEARCH_ENGINES: str = "bing,duckduckgo,baidu"
     OPEN_WEBSEARCH_TIMEOUT: int = 15
 
+    # ===== HeadlessX 反检测抓取层（P6-B） =====
+    # self-hosted Camoufox-based scraping platform: https://github.com/saifyxpro/HeadlessX
+    HEADLESSX_BASE_URL: str = ""                # http://headlessx:3000 (Docker 内部) 或 https://headlessx.example.com
+    HEADLESSX_API_KEY: str = ""                 # x-api-key 鉴权
+    HEADLESSX_TIMEOUT: int = 60                 # 单次渲染超时 (秒)
+    HEADLESSX_FALLBACK_TIER: str = "l2_crawl4ai"  # L3 失败时回退到哪一层
+
     # ===== OAuth 第三方登录 =====
     WECHAT_APP_ID: str = ""
     WECHAT_APP_SECRET: str = ""
