@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-SkillLoader —— 从 SKILL.md 加载技能
+SkillLoader —— 从 SKILL.md 加载技能（P5 真实装版）
 
 兼容 cowork / Anthropic Skills 格式：
     - YAML frontmatter（``---`` 包裹）+ markdown body
     - 必须字段：``name``、``description``
-    - 可选字段：``version``、``type``、``triggers``、``dependencies``、``requires_apps``
+    - 可选字段：``version``、``type``、``category``、``triggers``、
+      ``dependencies``、``requires_apps``、``personas``、``enabled``、``author``
 
-P5 实现要点：
-    - 监听文件变更（watchdog）实现热更新
-    - 校验 trigger 不冲突；同名后注册覆盖前者并打 WARN
+P5 升级要点：
+    - 用 ``yaml.safe_load`` 替换骨架手写 parser，全面支持嵌套 list/dict
+    - 字段名兼容 cowork 的多种拼写（``trigger``/``triggers``、``apps``/``requires_apps``）
 """
 
 from __future__ import annotations
@@ -17,6 +18,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 from typing import Any
+
+import yaml
 
 from src.services.skill_registry.models import Skill
 
@@ -27,7 +30,7 @@ class SkillParseError(ValueError):
 
 # YAML frontmatter 正则：开头三横线 + 内容 + 三横线
 _FRONTMATTER_RE = re.compile(
-    r"^---\s*\n(.*?)\n---\s*\n(.*)$",
+    r"^---\s*\n(.*?)\n---\s*\n?(.*)$",
     re.DOTALL,
 )
 
@@ -35,56 +38,61 @@ _FRONTMATTER_RE = re.compile(
 def _parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
     """切出 frontmatter 与 body。
 
-    P5 实现使用 PyYAML，骨架阶段使用极简手写 parser，
-    仅支持 ``key: value`` 与 ``key:\n  - item`` 两种语法。
+    使用 ``yaml.safe_load``，全面支持 list、dict、嵌套结构、
+    多行字符串（``|`` / ``>``）等 YAML 1.1 子集。
     """
     match = _FRONTMATTER_RE.match(text)
     if not match:
         raise SkillParseError("缺少 YAML frontmatter（应以 --- 开头/结尾）")
 
     raw_yaml, body = match.group(1), match.group(2)
-    meta = _parse_simple_yaml(raw_yaml)
+    try:
+        meta = yaml.safe_load(raw_yaml) or {}
+    except yaml.YAMLError as exc:
+        raise SkillParseError(f"YAML frontmatter 解析失败: {exc}") from exc
+
+    if not isinstance(meta, dict):
+        raise SkillParseError("frontmatter 必须是 mapping（key: value）")
+
     return meta, body.strip()
 
 
-def _parse_simple_yaml(raw: str) -> dict[str, Any]:
-    """极简 YAML（仅 frontmatter 用），P5 替换为 ``yaml.safe_load``。
+def _coerce_str_list(value: Any) -> list[str]:
+    """容错地把任意值转成 ``list[str]``。
 
-    规则：
-        - 顶层 ``key: value``
-        - 顶层 ``key:`` 后跟若干 ``  - item`` 行 → list
-        - 忽略空行 / ``#`` 注释
+    - ``None`` / 空 → ``[]``
+    - 单个字符串 → ``[value]``
+    - list → 逐项 ``str().strip()`` 并去空
     """
-    result: dict[str, Any] = {}
-    current_key: str | None = None
-    current_list: list[str] | None = None
-
-    for line in raw.splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
+    if value is None:
+        return []
+    if isinstance(value, str):
+        items = [value]
+    elif isinstance(value, (list, tuple, set)):
+        items = list(value)
+    else:
+        items = [value]
+    out: list[str] = []
+    for item in items:
+        if item is None:
             continue
+        s = str(item).strip()
+        if s:
+            out.append(s)
+    return out
 
-        # list item
-        if stripped.startswith("- ") and current_key is not None and current_list is not None:
-            current_list.append(stripped[2:].strip())
-            continue
 
-        # key: value or key:
-        if ":" in stripped:
-            key, _, value = stripped.partition(":")
-            key = key.strip()
-            value = value.strip()
-            if value == "":
-                # 进入 list 模式
-                current_key = key
-                current_list = []
-                result[key] = current_list
-            else:
-                result[key] = value
-                current_key = None
-                current_list = None
-        # 其它格式忽略（骨架阶段不严格）
-    return result
+def _coerce_bool(value: Any, default: bool = True) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    s = str(value).strip().lower()
+    if s in {"true", "yes", "y", "1", "on", "enabled"}:
+        return True
+    if s in {"false", "no", "n", "0", "off", "disabled"}:
+        return False
+    return default
 
 
 class SkillLoader:
@@ -110,8 +118,6 @@ class SkillLoader:
 
         异常：
             ``FileNotFoundError`` / ``SkillParseError``
-
-        阶段：P5（骨架已可用，校验后续加强）。
         """
         file_path = Path(path).resolve()
         if not file_path.is_file():
@@ -125,28 +131,41 @@ class SkillLoader:
                 f"{file_path}: frontmatter 缺少必需字段 name/description"
             )
 
-        triggers = meta.get("triggers") or []
-        deps = meta.get("dependencies") or []
-        apps = meta.get("requires_apps") or []
+        # 字段兼容：trigger/triggers，apps/requires_apps
+        triggers = meta.get("triggers")
+        if triggers is None:
+            triggers = meta.get("trigger")
+        deps = meta.get("dependencies")
+        if deps is None:
+            deps = meta.get("depends_on")
+        apps = meta.get("requires_apps")
+        if apps is None:
+            apps = meta.get("apps")
+        personas = meta.get("personas")
+        if personas is None:
+            personas = meta.get("persona")
 
-        # 容错：value 可能是字符串而非 list
-        if isinstance(triggers, str):
-            triggers = [triggers]
-        if isinstance(deps, str):
-            deps = [deps]
-        if isinstance(apps, str):
-            apps = [apps]
+        category = meta.get("category") or meta.get("type") or "general"
+        type_ = meta.get("type") or category
+
+        author = meta.get("author")
+        if author is not None:
+            author = str(author).strip() or None
 
         return Skill(
             name=str(meta["name"]).strip(),
             description=str(meta["description"]).strip(),
             version=str(meta.get("version", "0.0.0")).strip(),
-            type=str(meta.get("type", "general")).strip(),
-            triggers=[str(t).strip() for t in triggers if str(t).strip()],
+            type=str(type_).strip(),
+            category=str(category).strip(),
+            triggers=_coerce_str_list(triggers),
             body=body,
             file_path=file_path,
-            dependencies=[str(d).strip() for d in deps if str(d).strip()],
-            requires_apps=[str(a).strip() for a in apps if str(a).strip()],
+            dependencies=_coerce_str_list(deps),
+            requires_apps=_coerce_str_list(apps),
+            personas=_coerce_str_list(personas),
+            enabled=_coerce_bool(meta.get("enabled"), default=True),
+            author=author,
         )
 
     def load_from_directory(self, root: str | Path) -> list[Skill]:
@@ -157,19 +176,27 @@ class SkillLoader:
 
         返回：
             ``Skill`` 列表（解析失败的文件会跳过，由调用方决定是否记录日志）。
-
-        阶段：P5。
         """
         root_path = Path(root).resolve()
         if not root_path.is_dir():
             raise NotADirectoryError(f"非目录: {root_path}")
 
         skills: list[Skill] = []
+        # 用 (st_dev, st_ino) 去重，跨大小写不敏感文件系统也安全
+        seen_ino: set[tuple[int, int]] = set()
         for name in self.SKILL_FILE_NAMES:
             for file_path in root_path.rglob(name):
                 try:
+                    st = file_path.stat()
+                except OSError:
+                    continue
+                key = (st.st_dev, st.st_ino)
+                if key in seen_ino:
+                    continue
+                seen_ino.add(key)
+                try:
                     skills.append(self.load_from_file(file_path))
                 except SkillParseError:
-                    # P5：换为日志告警；骨架阶段静默跳过，避免单文件坏掉拖整批
+                    # 单文件坏掉不应拖垮整批；调用方决定是否打日志
                     continue
         return skills

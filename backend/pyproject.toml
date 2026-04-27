@@ -67,6 +67,9 @@ dependencies = [
     "livekit-api>=0.7.0",
     # Crawl4AI LLM 友好爬取
     "crawl4ai>=0.4.0",
+    # P5 skill_registry / skill_executor
+    "pyyaml>=6.0",
+    "watchdog>=4.0",
 ]
 
 [project.optional-dependencies]

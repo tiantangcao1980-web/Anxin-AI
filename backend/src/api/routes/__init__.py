@@ -34,6 +34,7 @@ from src.api.routes import case_market
 from src.api.routes import agent_tasks
 from src.api.routes import im_pairing
 from src.api.routes import app_authorizations
+from src.api.routes import skills
 
 api_router = APIRouter()
 
@@ -89,3 +90,4 @@ api_router.include_router(case_market.router, tags=["案源市场"])
 api_router.include_router(agent_tasks.router, prefix="/agent-tasks", tags=["异步任务"])
 api_router.include_router(im_pairing.router, prefix="/im/pairing", tags=["IM配对授权"])
 api_router.include_router(app_authorizations.router, prefix="/app-authorizations", tags=["应用授权"])
+api_router.include_router(skills.router, prefix="/skills", tags=["技能注册表"])
