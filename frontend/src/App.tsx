@@ -73,6 +73,9 @@ const PrivateLLMSetup = lazy(() => import('@/pages/PrivateLLMSetup'))
 const CaseMarket = lazy(() => import('@/pages/CaseMarket'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
 
+// V3 任务中心(P2 真业务化)
+const V3TasksPage = lazy(() => import('@/pages/v3/tasks/TasksPage'))
+
 // 登录页
 const Login = lazy(() => import('@/pages/Login'))
 
@@ -337,6 +340,9 @@ function App() {
                 <Route path="private-llm" element={<ProtectedRoute feature="private_llm"><PrivateLLMSetup /></ProtectedRoute>} />
                 <Route path="conversation-insights" element={<Navigate to="/admin" replace />} />
                 <Route path="agent-workflow" element={<Navigate to="/admin" replace />} />
+
+                {/* ===== V3 任务中心(P2 真业务化) ===== */}
+                <Route path="v3/tasks" element={<ProtectedRoute><V3TasksPage /></ProtectedRoute>} />
 
                 {/* ===== 系统 ===== */}
                 <Route path="settings" element={<ProtectedRoute feature="settings"><Settings /></ProtectedRoute>} />
