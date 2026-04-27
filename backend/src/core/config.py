@@ -298,6 +298,13 @@ class Settings(BaseSettings):
     # 前端登录页 URL（OAuth 回调后重定向）
     FRONTEND_LOGIN_URL: str = "http://localhost:3001/login"
 
+    # ===== 飞书（Lark）IM 适配器（P3） =====
+    # 控制台：https://open.feishu.cn → 应用凭证
+    FEISHU_APP_ID: str = ""
+    FEISHU_APP_SECRET: str = ""
+    FEISHU_VERIFY_TOKEN: str = ""    # 事件订阅 Verification Token
+    FEISHU_ENCRYPT_KEY: str = ""     # 事件订阅 Encrypt Key（开启加密推送时使用）
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         # 自动生成安全的 JWT 密钥（如果未设置）
