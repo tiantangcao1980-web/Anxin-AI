@@ -344,6 +344,22 @@ class Settings(BaseSettings):
     SHOPIFY_API_SECRET: str = ""
     SHOPIFY_API_VERSION: str = "2024-10"
 
+    # ===== 跨境电商数据源凭据（P6-D） =====
+    # Amazon SP-API（mock 阶段不强制；真实接入需 LWA + AWS SigV4）
+    AMAZON_SP_LWA_CLIENT_ID: str = ""
+    AMAZON_SP_LWA_CLIENT_SECRET: str = ""
+    AMAZON_SP_REFRESH_TOKEN: str = ""
+    AMAZON_SP_REGION: str = "us-east-1"
+    # 阿里 1688 开放平台（ISV 凭据；mock 阶段为空即可）
+    ALIBABA_1688_APP_KEY: str = ""
+    ALIBABA_1688_APP_SECRET: str = ""
+    # Shopee Open Platform（Partner 凭据；mock 阶段为空即可）
+    SHOPEE_PARTNER_ID: str = ""
+    SHOPEE_PARTNER_KEY: str = ""
+    # TikTok Shop（Partner Center 凭据；mock 阶段为空即可）
+    TIKTOK_SHOP_APP_KEY: str = ""
+    TIKTOK_SHOP_APP_SECRET: str = ""
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         # 自动生成安全的 JWT 密钥（如果未设置）
