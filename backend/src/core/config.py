@@ -258,6 +258,12 @@ class Settings(BaseSettings):
     AIQICHA_API_KEY: Optional[str] = None  # 爱企查 API
     CREDIT_CHINA_API_KEY: Optional[str] = None  # 信用中国 API
 
+    # ========== 法律数据源（P6-C） ==========
+    PKULAW_API_KEY: str = ""  # 北大法宝商业 API（缺省走 mock）
+    PKULAW_BASE_URL: str = "https://api.pkulaw.com/v1"
+    WKINFO_API_KEY: str = ""  # 威科先行商业 API（缺省走 mock）
+    WKINFO_BASE_URL: str = "https://api.wkinfo.com.cn/v1"
+
     # ========== 日志配置 ==========
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "json"
