@@ -89,6 +89,8 @@ const MessageChannelsPage = lazy(() => import('@/pages/v3/capabilities/MessageCh
 const PairingAuthorizationsPage = lazy(() => import('@/pages/v3/capabilities/PairingAuthorizationsPage'))
 // V3 任务中心（P2 真业务化）
 const V3TasksPage = lazy(() => import('@/pages/v3/tasks/TasksPage'))
+// V3 智能体工作台（P8-C 真业务化 — 10 个 user-facing persona）
+const PersonaWorkspacePage = lazy(() => import('@/pages/v3/personas/PersonaWorkspacePage'))
 
 // V3 Layout（侧边栏 IA）— 通过 VITE_V3_NAV=true 启用，默认仍用旧 Layout
 import LayoutV3 from '@/components/layout/LayoutV3'
@@ -340,6 +342,7 @@ function App() {
 
                 {/* ===== V3 任务中心(P2 真业务化) ===== */}
                 <Route path="v3/tasks" element={<ProtectedRoute><V3TasksPage /></ProtectedRoute>} />
+                <Route path="v3/personas/:personaId" element={<ProtectedRoute><PersonaWorkspacePage /></ProtectedRoute>} />
 
                 {/* ===== 系统 ===== */}
                 <Route path="settings" element={<ProtectedRoute feature="settings"><Settings /></ProtectedRoute>} />
