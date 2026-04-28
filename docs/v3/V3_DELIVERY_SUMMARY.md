@@ -144,8 +144,8 @@
 | 维度 | 数据 |
 |---|---|
 | **后端测试文件** | 100 个 `test_*.py` |
-| **后端 test 函数** | 742 个（含未启用） |
-| **稳定通过 pytest** | 543+（v3 主体回归基线） |
+| **后端 test 函数** | 1023 个（P9/P10 加 281 个新测） |
+| **稳定通过 pytest** | **944 / 1023 = 92.3%** （P11 健康度回归，详见 `HEALTH_P11.md`） |
 | **前端 E2E 文件** | role-access.spec.ts (6/6 ✅) + business-actions.spec.ts (8/8 ✅) |
 | **前端 lint / build** | ✅ 通过 |
 | **Alembic 迁移** | head = `030_add_app_authorization_tables.py`（V3 新增 028/029/030） |
