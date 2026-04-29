@@ -107,6 +107,15 @@ local-ai = [
     "sentence-transformers>=2.3.1",
 ]
 
+# P13-A 多模态文档解析（MinerU + 公章识别 + 表格 OCR）。
+# 默认不安装；接入真 MinerU 时 ``pip install '.[multimodal-rag]'`` 拉起。
+multimodal-rag = [
+    "magic-pdf>=0.7.0",            # MinerU 主 SDK（含 OCR + layout 解析）
+    "pdfplumber>=0.11.0",           # PDF 表格 fallback
+    "opencv-python-headless>=4.9",  # 公章 / 红色 mask 检测
+    "pillow>=10.0",                 # 图像预处理
+]
+
 # livekit 依赖已移至 requirements-livekit.txt
 # 原因：livekit-agents 与 camel-ai 存在传递依赖冲突
 # 安装方式：pip install -r requirements-livekit.txt

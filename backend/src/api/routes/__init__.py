@@ -46,6 +46,7 @@ from src.api.routes import persona_legal  # P9-B
 from src.api.routes import persona_contract  # P9-C
 from src.api.routes import persona_dd  # P9-D
 from src.api.routes import persona_finance  # P9-E
+from src.api.routes import rag_ingest  # P13-A
 
 api_router = APIRouter()
 
@@ -113,3 +114,4 @@ api_router.include_router(persona_legal.router, prefix="/personas/legal", tags=[
 api_router.include_router(persona_contract.router, prefix="/personas/contract", tags=["合同管家"])
 api_router.include_router(persona_dd.router, prefix="/personas/dd", tags=["尽调专家"])
 api_router.include_router(persona_finance.router, prefix="/personas/finance", tags=["财税顾问"])
+api_router.include_router(rag_ingest.router, prefix="/rag/ingest", tags=["RAG 多模态接入"])
