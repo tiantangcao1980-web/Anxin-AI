@@ -26,6 +26,8 @@ from loguru import logger
 
 from src.services.im_gateway.base import BaseIMAdapter
 from src.services.im_gateway.feishu_signature import (
+    FeishuSignatureError,
+    FeishuTimestampError,
     decrypt_payload,
     verify_signature,
 )
@@ -337,15 +339,19 @@ class FeishuAdapter(BaseIMAdapter):
                 "data": {"challenge": body_obj.get("challenge", "")},
             }
 
-        # 4) 签名校验（仅在配置 encrypt_key 时强制）
-        if self._encrypt_key:
-            timestamp = headers.get("X-Lark-Request-Timestamp", "")
-            nonce = headers.get("X-Lark-Request-Nonce", "")
-            signature = headers.get("X-Lark-Signature", "")
-            if not verify_signature(
-                timestamp, nonce, raw_body, signature, self._encrypt_key
-            ):
-                raise PermissionError("飞书 webhook 签名校验失败")
+        # 4) 签名校验（P16-C：fail-closed —— encrypt_key 缺失会抛 FeishuSignatureError，
+        #    除非 FEISHU_VERIFY_SIGNATURE=False 显式关闭；timestamp 超 ±300s 抛 FeishuTimestampError）
+        timestamp = headers.get("X-Lark-Request-Timestamp", "")
+        nonce = headers.get("X-Lark-Request-Nonce", "")
+        signature = headers.get("X-Lark-Signature", "")
+        try:
+            ok = verify_signature(timestamp, nonce, raw_body, signature, self._encrypt_key)
+        except FeishuTimestampError as e:
+            raise PermissionError(f"飞书 webhook timestamp 校验失败: {e}") from e
+        except FeishuSignatureError as e:
+            raise PermissionError(f"飞书 webhook 签名校验未启用: {e}") from e
+        if not ok:
+            raise PermissionError("飞书 webhook 签名校验失败")
 
         # 5) 事件路由（schema v2 + 兼容 v1）
         # v2: { "schema": "2.0", "header": {...}, "event": {...} }

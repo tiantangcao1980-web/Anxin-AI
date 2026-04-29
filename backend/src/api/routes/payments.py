@@ -296,7 +296,7 @@ async def wechat_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     logger.info(f"[Webhook] 微信支付回调: {body[:200]}")
     signature = request.headers.get("X-Wechat-Signature")
     timestamp = request.headers.get("X-Webhook-Timestamp")
-    if not WebhookSecurity.verify(
+    if not await WebhookSecurity.verify(
         scope="wechat_pay",
         body=body,
         signature=signature,
@@ -322,7 +322,7 @@ async def alipay_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     logger.info(f"[Webhook] 支付宝回调: trade_no={form.get('trade_no')}")
     signature = request.headers.get("X-Alipay-Signature")
     timestamp = request.headers.get("X-Webhook-Timestamp")
-    if not WebhookSecurity.verify(
+    if not await WebhookSecurity.verify(
         scope="alipay",
         body=body,
         signature=signature,

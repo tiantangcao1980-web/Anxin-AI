@@ -326,6 +326,11 @@ class Settings(BaseSettings):
     FEISHU_APP_SECRET: str = ""
     FEISHU_VERIFY_TOKEN: str = ""    # 事件订阅 Verification Token
     FEISHU_ENCRYPT_KEY: str = ""     # 事件订阅 Encrypt Key（开启加密推送时使用）
+    # P16-C: fail-closed —— 默认要求飞书签名校验。仅当显式置为 False 时才允许
+    # 在 encrypt_key 缺失的情况下放行（仅推荐本地调试 / 联调环境）。
+    FEISHU_VERIFY_SIGNATURE: bool = True
+    # X-Lark-Request-Timestamp 与服务器时间允许的最大偏差（秒），防 replay。
+    FEISHU_TIMESTAMP_MAX_AGE_SECONDS: int = 300
 
     # ===== 通用应用授权（P4-A） =====
     # Fernet base64-urlsafe key（生成: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"）

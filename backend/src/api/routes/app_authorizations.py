@@ -164,7 +164,17 @@ async def oauth_callback(
     state: str = Query(..., description="CSRF state"),
     db: AsyncSession = Depends(get_db),
 ) -> CallbackOut:
-    """OAuth 回调入口（不要求登录态 —— state 已绑定 user_id）。"""
+    """OAuth 回调入口（不要求登录态 —— state 已绑定 user_id）。
+
+    P16-C 安全审计（2026-04-28）：
+        - state 一次性校验：``OAuthFlowService.callback`` 内通过 Redis SETEX
+          消费一次后失效，已防 CSRF + replay。
+        - Shopify webhook：HMAC fail-closed (见 shopify provider)。
+        - 飞书 OAuth callback：state 已带 user_id 绑定，签名校验由事件订阅
+          走另条路径（受 ``feishu_signature.verify_signature`` fail-closed 保护）。
+        - TODO（钉钉 / Notion）：当前 callback 仅依赖 state，provider 端未提
+          供回调签名机制；如未来开放 webhook，需在 provider 实现里加 HMAC。
+    """
     service = _get_service(db)
     try:
         auth = await service.callback(

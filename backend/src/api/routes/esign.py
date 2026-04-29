@@ -325,7 +325,7 @@ async def esign_webhook(
     )
     signature = request.headers.get("X-ESign-Signature", "")
     timestamp = request.headers.get("X-Webhook-Timestamp")
-    if not WebhookSecurity.verify(
+    if not await WebhookSecurity.verify(
         scope="esign",
         body=await request.body(),
         signature=signature,

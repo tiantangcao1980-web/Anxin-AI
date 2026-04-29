@@ -80,7 +80,11 @@ def _mock_http_response(json_data: dict[str, Any], status: int = 200) -> MagicMo
 # 1. 签名校验
 # ===========================================================================
 def test_signature_verification() -> None:
-    """SHA-256 签名按 (timestamp+nonce+encrypt_key+body) 拼接，并常量时间比较。"""
+    """SHA-256 签名按 (timestamp+nonce+encrypt_key+body) 拼接，并常量时间比较。
+
+    P16-C：``verify_signature`` 现在会校验 timestamp 新鲜度（默认 ±300s），
+    所以这里固定 ``now=ts`` 让 timestamp 视作当前时间。
+    """
     encrypt_key = "abcdef1234567890"
     timestamp = "1714125600"
     nonce = "rand-nonce"
@@ -93,17 +97,19 @@ def test_signature_verification() -> None:
     manual = hashlib.sha256(raw).hexdigest()
     assert expected == manual, "签名计算应与手算 SHA-256 一致"
 
+    fixed_now = float(timestamp)
+
     # 正确签名通过
-    assert verify_signature(timestamp, nonce, body, expected, encrypt_key) is True
+    assert verify_signature(timestamp, nonce, body, expected, encrypt_key, now=fixed_now) is True
 
     # 错误签名拒绝
     assert (
-        verify_signature(timestamp, nonce, body, "deadbeef" * 8, encrypt_key) is False
+        verify_signature(timestamp, nonce, body, "deadbeef" * 8, encrypt_key, now=fixed_now) is False
     )
 
     # body 篡改 → 拒绝
     tampered_body = body + b"x"
-    assert verify_signature(timestamp, nonce, tampered_body, expected, encrypt_key) is False
+    assert verify_signature(timestamp, nonce, tampered_body, expected, encrypt_key, now=fixed_now) is False
 
 
 # ===========================================================================
