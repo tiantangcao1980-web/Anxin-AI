@@ -35,7 +35,8 @@ dependencies = [
     # 知识图谱
     "neo4j>=5.15.0",
     # 文档处理
-    "pypdf>=4.0",
+    # P16-D: pypdf 6.10.2 修复 12 个 CVE/GHSA（PDF 解析栈）
+    "pypdf>=6.10.2",
     "python-docx>=1.1.0",
     "fpdf2>=2.7.0",
     "reportlab>=4.0",
@@ -47,9 +48,17 @@ dependencies = [
     "openai>=1.12.0",
     "anthropic>=0.18.0",
     "tiktoken>=0.7.0",
+    # P16-D: litellm 受 camel-ai (<0.2.72 或 >0.2.72) 共同约束，所有可用 camel-ai 版本均锁
+    # litellm<=1.83.6 或不兼容 1.83.7+，无法在不引入 pre-release 情况下升级；
+    # GHSA-xqmj-j6mv-4862 列入残留漏洞清单。详见 docs/v3/P16_DEPENDENCY_UPGRADE.md。
+    "litellm>=1.83.0",
     # 工具
     "pydantic>=2.5.3",
     "pydantic-settings>=2.1.0",
+    # P16-D: cryptography 46.0.7 修复 CVE-2026-26007 / 34073 / 39892 三项高危
+    "cryptography>=46.0.7",
+    # P16-D: pyjwt 2.12.0 修复 CVE-2026-32597
+    "pyjwt>=2.12.0",
     "python-jose[cryptography]>=3.3.0",
     "passlib[bcrypt]>=1.7.4",
     "httpx>=0.26.0",
@@ -67,7 +76,11 @@ dependencies = [
     "beautifulsoup4>=4.14.3",
     # P6-A FetchService 静态解析（selectolax 比 BS4 快 5-10x；lxml 用于 XPath）
     "selectolax>=0.3",
-    "lxml>=5",
+    # P16-D: lxml 与 pillow 受 crawl4ai (>=0.4,<0.7 锁 lxml<6 / pillow<11) 上限制约，
+    # 目前 5.x / 10.x 线无更高补丁版本，CVE-2026-41066（lxml）与 CVE-2026-25990/40192（pillow）
+    # 暂列入残留漏洞清单，待 crawl4ai 上游放开后再升级。详见 docs/v3/P16_DEPENDENCY_UPGRADE.md。
+    "lxml>=5.4",
+    "pillow>=10.4",
     # LiveKit 音视频通话
     "livekit-api>=0.7.0",
     # Crawl4AI LLM 友好爬取
