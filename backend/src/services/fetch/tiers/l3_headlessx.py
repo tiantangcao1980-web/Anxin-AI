@@ -19,6 +19,7 @@ from typing import Optional
 
 from src.core.config import settings
 
+from ..ssrf_guard import SSRFError, validate_url
 from ..headlessx_client import (
     HeadlessXAuthError,
     HeadlessXClient,
@@ -83,6 +84,14 @@ class HeadlessXTier(BaseTier):
         client = await self._ensure_client()
         if client is None:
             logger.debug("L3 HeadlessX 未配置，跳过")
+            return None
+
+        # SSRF 防护：headless 渲染同样能命中内网 / 云元数据。
+        # 命中即返回 None，让 service 走兜底（L1/L2 也带 SSRF guard 会再次拒绝）。
+        try:
+            validate_url(request.url)
+        except SSRFError as exc:
+            logger.warning("L3 HeadlessX SSRF blocked url=%s code=%s", request.url, exc.code)
             return None
 
         try:

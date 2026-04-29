@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import AnyHttpUrl, BaseModel, Field
 
 
 class ExtractConfigIn(BaseModel):
@@ -18,7 +18,9 @@ class ExtractConfigIn(BaseModel):
 
 
 class FetchRequestIn(BaseModel):
-    url: str
+    # AnyHttpUrl: pydantic 强类型，自动校验 scheme ∈ {http, https}
+    # 进入 service 前再走 ssrf_guard.validate_url 做 IP/元数据/redirect 校验
+    url: AnyHttpUrl
     method: str = "GET"
     headers: dict[str, str] = Field(default_factory=dict)
     timeout: int = 30

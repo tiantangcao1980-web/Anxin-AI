@@ -36,6 +36,7 @@ from src.services.fetch import (
     FetchTier,
     fetch_service,
 )
+from src.services.fetch.ssrf_guard import SSRFError, validate_url
 
 router = APIRouter()
 
@@ -58,7 +59,7 @@ def _to_request(payload: FetchRequestIn, user: User) -> FetchRequest:
         FetchTier(payload.tier_hint) if payload.tier_hint else None
     )
     return FetchRequest(
-        url=payload.url,
+        url=str(payload.url),
         method=payload.method,
         headers=payload.headers,
         timeout=payload.timeout,
@@ -110,6 +111,13 @@ async def fetch_one(
 ) -> FetchResponseOut:
     """单次抓取 — 自动路由到合适的 Tier，支持合规检查 / 限流 / 降级 / 审计。"""
     request = _to_request(payload, user)
+    try:
+        validate_url(request.url)
+    except SSRFError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": exc.code, "message": "URL rejected by SSRF policy"},
+        ) from exc
     response = await fetch_service.fetch(request)
     return _to_response_out(response)
 
@@ -128,6 +136,14 @@ async def fetch_batch(
             detail="单批最多 100 个请求",
         )
     requests = [_to_request(p, user) for p in payload.requests]
+    for req in requests:
+        try:
+            validate_url(req.url)
+        except SSRFError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": exc.code, "url": req.url, "message": "URL rejected by SSRF policy"},
+            ) from exc
     responses = await fetch_service.fetch_batch(
         requests, concurrency=max(1, min(payload.concurrency, 20))
     )

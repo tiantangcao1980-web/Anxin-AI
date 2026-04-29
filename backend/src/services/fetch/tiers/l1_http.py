@@ -30,6 +30,12 @@ from src.services.fetch.models import (
     FetchResponse,
     FetchTier,
 )
+from src.services.fetch.ssrf_guard import (
+    MAX_REDIRECT_DEPTH,
+    SSRFError,
+    validate_redirect,
+    validate_url,
+)
 from src.services.fetch.tiers.base import BaseTier
 
 try:
@@ -78,25 +84,75 @@ class L1HttpTier(BaseTier):
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None:
+            # SSRF 防护：禁用自动 redirect，由 fetch() 手动 chain 校验每一跳
             self._client = httpx.AsyncClient(
-                follow_redirects=True,
+                follow_redirects=False,
                 headers=self._default_headers,
             )
         return self._client
 
     async def fetch(self, request: FetchRequest) -> FetchResponse:
         start = time.monotonic()
+
+        # SSRF 校验：协议 / 域名 / IP 黑名单 + DNS rebinding 兜底
+        try:
+            validate_url(request.url)
+        except SSRFError as exc:
+            return FetchResponse(
+                request=request,
+                status_code=400,
+                tier_used=self.tier,
+                duration_ms=int((time.monotonic() - start) * 1000),
+                error=f"ssrf_blocked:{exc.code}",
+                blocked_reason=f"SSRF:{exc.code}",
+            )
+
         client = await self._get_client()
         merged_headers = {**self._default_headers, **request.headers}
 
+        current_url = request.url
+        resp: httpx.Response | None = None
+
         try:
-            resp = await client.request(
-                method=request.method,
-                url=request.url,
-                headers=merged_headers,
-                content=request.body,
-                timeout=request.timeout,
-            )
+            for hop in range(MAX_REDIRECT_DEPTH + 1):
+                resp = await client.request(
+                    method=request.method,
+                    url=current_url,
+                    headers=merged_headers,
+                    content=request.body,
+                    timeout=request.timeout,
+                )
+                # 非 3xx → 终态
+                if not (300 <= resp.status_code < 400):
+                    break
+                next_location = resp.headers.get("location")
+                if not next_location:
+                    break
+                # 解析为绝对 URL
+                next_url = str(httpx.URL(current_url).join(next_location))
+                # SSRF：每一跳重新校验（含协议 / IP / 元数据 / 内网）
+                try:
+                    validate_redirect(next_url)
+                except SSRFError as exc:
+                    return FetchResponse(
+                        request=request,
+                        status_code=400,
+                        tier_used=self.tier,
+                        duration_ms=int((time.monotonic() - start) * 1000),
+                        error=f"ssrf_blocked:{exc.code}",
+                        blocked_reason=f"SSRF:{exc.code}",
+                    )
+                current_url = next_url
+            else:
+                # for-else：循环跑满未 break = 超出最大重定向数
+                return FetchResponse(
+                    request=request,
+                    status_code=400,
+                    tier_used=self.tier,
+                    duration_ms=int((time.monotonic() - start) * 1000),
+                    error="ssrf_blocked:redirect_depth",
+                    blocked_reason="SSRF:redirect_depth",
+                )
         except httpx.TimeoutException as e:
             return FetchResponse(
                 request=request,
@@ -113,6 +169,8 @@ class L1HttpTier(BaseTier):
                 duration_ms=int((time.monotonic() - start) * 1000),
                 error=f"http_error: {e}",
             )
+
+        assert resp is not None  # noqa: S101 — 循环至少跑一次
 
         text: str | None = None
         try:

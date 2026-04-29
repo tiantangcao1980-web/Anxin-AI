@@ -18,6 +18,7 @@ from src.services.fetch.models import (
     FetchResponse,
     FetchTier,
 )
+from src.services.fetch.ssrf_guard import SSRFError, validate_url
 from src.services.fetch.tiers.base import BaseTier
 
 
@@ -35,6 +36,19 @@ class L2Crawl4AITier(BaseTier):
 
     async def fetch(self, request: FetchRequest) -> FetchResponse:
         start = time.monotonic()
+
+        # SSRF 防护：crawl4ai 内部 headless 浏览器同样能访问内网 / 元数据
+        try:
+            validate_url(request.url)
+        except SSRFError as exc:
+            return FetchResponse(
+                request=request,
+                status_code=400,
+                tier_used=self.tier,
+                duration_ms=int((time.monotonic() - start) * 1000),
+                error=f"ssrf_blocked:{exc.code}",
+                blocked_reason=f"SSRF:{exc.code}",
+            )
 
         # crawl4ai 仅支持 GET，POST 等显式降级到 L1（由 FetchService 处理）
         if request.method.upper() != "GET":

@@ -3,6 +3,9 @@
 
 from __future__ import annotations
 
+import socket
+from unittest.mock import patch
+
 import httpx
 import pytest
 
@@ -13,6 +16,15 @@ from src.services.fetch.models import (
     FetchTier,
 )
 from src.services.fetch.tiers.l1_http import L1HttpTier
+
+
+# P16-B: SSRF guard 会对 example.com 做 DNS 解析；测试环境本地 DNS 可能返回
+# 198.18.0.0/15 (IETF 测试网段，被 is_reserved 拦截)。统一 mock 成公网 IP。
+@pytest.fixture(autouse=True)
+def _mock_ssrf_dns():
+    fake = [(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("93.184.216.34", 0))]
+    with patch("src.services.fetch.ssrf_guard.socket.getaddrinfo", return_value=fake):
+        yield
 
 
 _HTML = """
