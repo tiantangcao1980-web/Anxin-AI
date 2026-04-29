@@ -1,0 +1,73 @@
+.persona-card {
+  display: flex;
+  flex-direction: column;
+  background-color: #ffffff;
+  border-radius: 24rpx;
+  padding: 28rpx 28rpx 32rpx;
+  box-shadow: 0 4rpx 16rpx rgba(29, 33, 41, 0.06);
+  width: 100%;
+  box-sizing: border-box;
+
+  &--compact {
+    width: 460rpx;
+    margin-right: 24rpx;
+    flex-shrink: 0;
+  }
+
+  &__head {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16rpx;
+  }
+
+  &__emoji {
+    font-size: 56rpx;
+    line-height: 1;
+  }
+
+  &__badge {
+    font-size: 22rpx;
+    padding: 4rpx 14rpx;
+    border-radius: 999rpx;
+
+    &--ready {
+      background-color: #ecfdf5;
+      color: #16a34a;
+    }
+    &--planning {
+      background-color: #fef3c7;
+      color: #b45309;
+    }
+  }
+
+  &__name {
+    font-size: 32rpx;
+    font-weight: 600;
+    color: #1d2129;
+    margin-bottom: 8rpx;
+  }
+
+  &__desc {
+    font-size: 24rpx;
+    color: #4e5969;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  &__caps {
+    margin-top: 16rpx;
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__cap {
+    font-size: 22rpx;
+    color: #86909c;
+    line-height: 1.6;
+  }
+}

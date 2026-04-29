@@ -1,6 +1,5 @@
 // -*- coding: utf-8 -*-
 export default definePageConfig({
-  navigationBarTitleText: '安心智能助手',
-  enablePullDownRefresh: true,
+  navigationBarTitleText: '我的',
   backgroundColor: '#FAFAFA',
 })

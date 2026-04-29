@@ -40,8 +40,12 @@
     "@tarojs/cli": "3.6.x",
     "@tarojs/webpack5-runner": "3.6.x",
     "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
     "typescript": "^5.1.0",
     "sass": "^1.62.0",
     "babel-preset-taro": "3.6.x"
+  },
+  "overrides": {
+    "webpack": "5.89.0"
   }
 }

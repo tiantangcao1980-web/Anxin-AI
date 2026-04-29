@@ -1,0 +1,12 @@
+.anxin-screen {
+  min-height: 100vh;
+  background-color: #fafafa;
+  box-sizing: border-box;
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom);
+
+  &--padded {
+    padding-left: 32rpx;
+    padding-right: 32rpx;
+  }
+}
