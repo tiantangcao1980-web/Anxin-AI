@@ -1,62 +1,45 @@
-import React, { useEffect, useState } from 'react'
+// -*- coding: utf-8 -*-
+import React from 'react'
+import { Platform } from 'react-native'
 import { Tabs } from 'expo-router'
-import { Ionicons } from '@expo/vector-icons'
-import { useColorScheme, Platform } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Colors, DarkColors } from '../../src/constants/colors'
-import { normalizeBadgeCount } from '../../src/features/inbox/engagement-model'
-import { api } from '../../src/services/api'
-import type { IMConversation } from '../../src/types/api'
+import {
+  Bot,
+  ListChecks,
+  Sparkles,
+  User,
+} from 'lucide-react-native'
+import { useV3Theme } from '@/theme'
 
 /**
- * 移动端底部 5 Tab 导航。
+ * V3 移动端底部 4 Tab 导航。
  *
- * 对齐 PRD 四大业务域：AI法务 / 智能协作 / 智能调查 / 法律智库，
- * 第 5 项「我的」承载账号、订阅、运行模式、设置。
+ * 对齐 V3 PRD：
+ *   1. 智能体  -> personas.tsx        10 个 persona 入口（待 P17-B）
+ *   2. 任务    -> tasks.tsx           agent 任务中心（待 P17-C）
+ *   3. 能力    -> capabilities.tsx    5 个能力中心（待 P17-D）
+ *   4. 我      -> me.tsx              账号 / 订阅 / 推送 / 登出
  *
- * 徽章：合并了通知未读数 + IM 会话未读数进入「协作」tab。
+ * V2 老 tab（chat / collaboration / investigation / knowledge / profile / index）
+ * 暂保留在文件系统中，通过 `href: null` 从底部栏隐藏，避免 P17-B/C/D 还没接入时
+ * 误触老页面。可通过 router.push 直链访问。
  */
 export default function TabLayout() {
-  const colorScheme = useColorScheme()
-  const theme = colorScheme === 'dark' ? DarkColors : Colors
+  const t = useV3Theme()
   const insets = useSafeAreaInsets()
-  const [collabBadge, setCollabBadge] = useState<number | string | undefined>(undefined)
 
-  useEffect(() => {
-    const loadBadges = async () => {
-      try {
-        const [notificationResult, conversationResult] = await Promise.allSettled([
-          api.get<{ count: number }>('/notifications/unread-count'),
-          api.get<IMConversation[]>('/im/conversations'),
-        ])
-
-        const notificationCount = notificationResult.status === 'fulfilled'
-          ? notificationResult.value.count
-          : 0
-        const conversationCount = conversationResult.status === 'fulfilled'
-          ? conversationResult.value.reduce((sum, item) => sum + (item.unread_count ?? 0), 0)
-          : 0
-
-        setCollabBadge(normalizeBadgeCount(notificationCount + conversationCount))
-      } catch {
-        setCollabBadge(undefined)
-      }
-    }
-
-    loadBadges()
-  }, [])
-
-  const baseTabBarHeight = Platform.OS === 'ios' ? 56 : 56
+  const baseTabBarHeight = 56
   const paddingBottom = Math.max(insets.bottom, Platform.OS === 'ios' ? 8 : 8)
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: theme.textMuted,
+        tabBarActiveTintColor: t.colors.primary,
+        tabBarInactiveTintColor: t.colors.textMuted,
         tabBarStyle: {
-          backgroundColor: theme.background,
-          borderTopColor: theme.border,
+          backgroundColor: t.colors.surface,
+          borderTopColor: t.colors.divider,
+          borderTopWidth: 0.5,
           height: baseTabBarHeight + paddingBottom,
           paddingBottom,
           paddingTop: 8,
@@ -64,69 +47,51 @@ export default function TabLayout() {
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '500',
+          marginTop: 2,
         },
-        headerStyle: { backgroundColor: theme.background },
-        headerTintColor: theme.text,
+        headerStyle: { backgroundColor: t.colors.background },
+        headerTintColor: t.colors.text,
         headerTitleStyle: { fontWeight: '600' },
         headerShadowVisible: false,
       }}
     >
+      {/* ===== V3 4 个 tab ===== */}
       <Tabs.Screen
-        name="chat"
+        name="personas"
         options={{
-          title: 'AI法务',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="sparkles-outline" size={size} color={color} />
-          ),
+          title: '智能体',
+          tabBarIcon: ({ color, size }) => <Bot color={color} size={size} />,
         }}
       />
       <Tabs.Screen
-        name="collaboration"
+        name="tasks"
         options={{
-          title: '协作',
-          tabBarBadge: collabBadge,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people-outline" size={size} color={color} />
-          ),
+          title: '任务',
+          tabBarIcon: ({ color, size }) => <ListChecks color={color} size={size} />,
         }}
       />
       <Tabs.Screen
-        name="investigation"
+        name="capabilities"
         options={{
-          title: '智能调查',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="search-outline" size={size} color={color} />
-          ),
+          title: '能力',
+          tabBarIcon: ({ color, size }) => <Sparkles color={color} size={size} />,
         }}
       />
       <Tabs.Screen
-        name="knowledge"
+        name="me"
         options={{
-          title: '法律智库',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="library-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: '我的',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
-          ),
+          title: '我',
+          tabBarIcon: ({ color, size }) => <User color={color} size={size} />,
         }}
       />
 
-      {/* 原 index 收件箱仍保留页面但从 tab 中隐藏，避免破坏已有路由；
-          从「我的」进入「消息中心」后使用 */}
-      <Tabs.Screen
-        name="index"
-        options={{
-          href: null,
-          title: '收件箱',
-        }}
-      />
+      {/* ===== V2 老页面：保留文件但从底部 tab 隐藏，避免破坏 router 路径 ===== */}
+      <Tabs.Screen name="index" options={{ href: null }} />
+      <Tabs.Screen name="chat" options={{ href: null }} />
+      <Tabs.Screen name="collaboration" options={{ href: null }} />
+      <Tabs.Screen name="investigation" options={{ href: null }} />
+      <Tabs.Screen name="knowledge" options={{ href: null }} />
+      <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   )
 }
