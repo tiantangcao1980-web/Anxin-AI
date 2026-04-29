@@ -37,6 +37,7 @@ import {
   Users,
   Rocket,
   BookOpen,
+  Database,
   ChevronDown,
   ChevronRight,
   Scale,
@@ -69,6 +70,7 @@ const CAPABILITY_ITEMS: NavItem[] = [
 
 const BOTTOM_ITEMS: NavItem[] = [
   { label: '任务中心', path: '/v3/tasks', icon: Rocket, beta: true },
+  { label: 'RAG 数据看板', path: '/v3/rag', icon: Database, beta: true },
   { label: '知识库', path: '/knowledge-base', icon: BookOpen },
 ]
 

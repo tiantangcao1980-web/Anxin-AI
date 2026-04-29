@@ -91,6 +91,12 @@ const PairingAuthorizationsPage = lazy(() => import('@/pages/v3/capabilities/Pai
 const V3TasksPage = lazy(() => import('@/pages/v3/tasks/TasksPage'))
 // V3 智能体工作台（P8-C 真业务化 — 10 个 user-facing persona）
 const PersonaWorkspacePage = lazy(() => import('@/pages/v3/personas/PersonaWorkspacePage'))
+// V3 RAG 数据看板（P13-D — 多模态文档解析 / 文档库 / KG / VLM 查询）
+const RagDashboardPage = lazy(() => import('@/pages/v3/rag/RagDashboardPage'))
+const RagIngestPage = lazy(() => import('@/pages/v3/rag/IngestPage'))
+const RagDocumentLibraryPage = lazy(() => import('@/pages/v3/rag/DocumentLibraryPage'))
+const RagKnowledgeGraphPage = lazy(() => import('@/pages/v3/rag/KnowledgeGraphPage'))
+const RagMultimodalQueryPage = lazy(() => import('@/pages/v3/rag/MultimodalQueryPage'))
 
 // V3 Layout（侧边栏 IA）— 通过 VITE_V3_NAV=true 启用，默认仍用旧 Layout
 import LayoutV3 from '@/components/layout/LayoutV3'
@@ -343,6 +349,12 @@ function App() {
                 {/* ===== V3 任务中心(P2 真业务化) ===== */}
                 <Route path="v3/tasks" element={<ProtectedRoute><V3TasksPage /></ProtectedRoute>} />
                 <Route path="v3/personas/:personaId" element={<ProtectedRoute><PersonaWorkspacePage /></ProtectedRoute>} />
+                {/* ===== V3 RAG 数据看板(P13-D) ===== */}
+                <Route path="v3/rag" element={<ProtectedRoute><RagDashboardPage /></ProtectedRoute>} />
+                <Route path="v3/rag/ingest" element={<ProtectedRoute><RagIngestPage /></ProtectedRoute>} />
+                <Route path="v3/rag/library" element={<ProtectedRoute><RagDocumentLibraryPage /></ProtectedRoute>} />
+                <Route path="v3/rag/kg" element={<ProtectedRoute><RagKnowledgeGraphPage /></ProtectedRoute>} />
+                <Route path="v3/rag/query" element={<ProtectedRoute><RagMultimodalQueryPage /></ProtectedRoute>} />
 
                 {/* ===== 系统 ===== */}
                 <Route path="settings" element={<ProtectedRoute feature="settings"><Settings /></ProtectedRoute>} />
