@@ -1,0 +1,231 @@
+/* P21-C 智能体工作台列表页样式
+ * 主色 #D4A574（琥珀），辅以柔和米色背景
+ */
+
+.personas-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #f7f5f2;
+}
+
+/* 顶部 search bar */
+.search-bar {
+  padding: 20rpx 24rpx 12rpx;
+  background: #fff;
+  border-bottom: 1rpx solid #efe9e1;
+}
+
+.search-input-wrapper {
+  display: flex;
+  align-items: center;
+  background: #f1ede6;
+  border-radius: 36rpx;
+  padding: 0 24rpx;
+  height: 72rpx;
+}
+
+.search-icon {
+  font-size: 28rpx;
+  margin-right: 16rpx;
+  color: #a89580;
+}
+
+.search-input {
+  flex: 1;
+  font-size: 28rpx;
+  height: 72rpx;
+  color: #333;
+}
+
+.search-clear {
+  font-size: 32rpx;
+  color: #a89580;
+  padding-left: 16rpx;
+}
+
+/* 滚动容器 */
+.groups-scroll {
+  flex: 1;
+  padding: 16rpx 24rpx 32rpx;
+}
+
+.loading-block,
+.empty-block {
+  padding: 120rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.loading-text {
+  color: #999;
+  font-size: 26rpx;
+}
+
+.empty-emoji {
+  font-size: 96rpx;
+  margin-bottom: 16rpx;
+}
+
+.empty-title {
+  font-size: 30rpx;
+  color: #444;
+  margin-bottom: 8rpx;
+}
+
+.empty-desc {
+  font-size: 24rpx;
+  color: #999;
+}
+
+/* 分组 */
+.group-section {
+  margin-top: 24rpx;
+}
+
+.group-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+  padding: 0 8rpx;
+}
+
+.group-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #2a2a2a;
+  position: relative;
+  padding-left: 18rpx;
+}
+
+.group-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8rpx;
+  bottom: 8rpx;
+  width: 8rpx;
+  background: #d4a574;
+  border-radius: 4rpx;
+}
+
+.group-count {
+  font-size: 22rpx;
+  color: #a89580;
+}
+
+/* 网格 */
+.persona-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 16rpx 0;
+}
+
+.persona-card {
+  width: 332rpx;
+  background: #fff;
+  border-radius: 20rpx;
+  padding: 24rpx 20rpx 20rpx;
+  box-shadow: 0 4rpx 16rpx rgba(212, 165, 116, 0.08);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: transform 120ms ease;
+}
+
+.persona-card:active {
+  transform: scale(0.98);
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12rpx;
+}
+
+.card-emoji {
+  font-size: 56rpx;
+  line-height: 1;
+}
+
+.card-fav {
+  color: #e2a44a;
+  font-size: 32rpx;
+}
+
+.card-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #2a2a2a;
+  margin-bottom: 8rpx;
+}
+
+.card-desc {
+  font-size: 22rpx;
+  color: #777;
+  line-height: 1.5;
+  min-height: 64rpx;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 16rpx;
+}
+
+.card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.card-cap {
+  font-size: 20rpx;
+  color: #a89580;
+}
+
+.card-tag {
+  font-size: 18rpx;
+  padding: 2rpx 12rpx;
+  border-radius: 12rpx;
+  line-height: 1.6;
+}
+
+.tag-on {
+  background: #ecf7e9;
+  color: #4f8c3a;
+}
+
+.tag-plan {
+  background: #fdf3e0;
+  color: #b07a26;
+}
+
+.card-cta {
+  background: linear-gradient(135deg, #d4a574 0%, #e0b88a 100%);
+  border-radius: 30rpx;
+  padding: 14rpx 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cta-text {
+  color: #fff;
+  font-size: 24rpx;
+  font-weight: 500;
+}
+
+.page-footer {
+  text-align: center;
+  padding: 32rpx 0;
+}
+
+.footer-text {
+  font-size: 22rpx;
+  color: #b8a690;
+}

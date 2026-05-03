@@ -1,0 +1,273 @@
+.persona-chat {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #f7f5f2;
+}
+
+/* 顶栏 */
+.chat-nav {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  padding: 16rpx 16rpx 16rpx 12rpx;
+  border-bottom: 1rpx solid #efe9e1;
+  gap: 12rpx;
+}
+
+.nav-back {
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48rpx;
+  color: #555;
+  font-weight: 300;
+}
+
+.nav-title {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.nav-emoji {
+  font-size: 36rpx;
+  margin-right: 12rpx;
+}
+
+.nav-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #2a2a2a;
+}
+
+.nav-mode {
+  padding: 6rpx 16rpx;
+  border-radius: 20rpx;
+  font-size: 22rpx;
+  margin-right: 8rpx;
+}
+
+.nav-mode.local {
+  background: #f1ede6;
+  color: #6b5236;
+}
+
+.nav-mode.cloud {
+  background: #d4a574;
+  color: #fff;
+}
+
+.nav-detail {
+  padding: 6rpx 18rpx;
+  border-radius: 20rpx;
+  font-size: 22rpx;
+  background: #f1ede6;
+  color: #6b5236;
+}
+
+/* 消息流 */
+.message-list {
+  flex: 1;
+  padding: 20rpx 24rpx;
+  overflow: hidden;
+}
+
+.message-row {
+  display: flex;
+  margin-bottom: 24rpx;
+  align-items: flex-start;
+
+  &.user {
+    flex-direction: row-reverse;
+
+    .bubble {
+      background: linear-gradient(135deg, #d4a574 0%, #e0b88a 100%);
+      margin-right: 16rpx;
+      margin-left: 80rpx;
+    }
+
+    .bubble-text {
+      color: #fff;
+    }
+  }
+
+  &.assistant {
+    .bubble {
+      background: #fff;
+      margin-left: 16rpx;
+      margin-right: 80rpx;
+    }
+
+    .bubble-text {
+      color: #333;
+    }
+  }
+}
+
+.avatar {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+  flex-shrink: 0;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
+}
+
+.avatar-user {
+  background: #fdf3e0;
+}
+
+.bubble {
+  padding: 20rpx 24rpx;
+  border-radius: 16rpx;
+  box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.04);
+  max-width: 540rpx;
+}
+
+.bubble-text {
+  font-size: 28rpx;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.cursor {
+  display: inline-block;
+  margin-left: 4rpx;
+  color: #d4a574;
+  animation: blink 0.9s infinite;
+  font-weight: bold;
+}
+
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+@keyframes typing-dot {
+  0%, 60%, 100% { opacity: 0.3; }
+  30% { opacity: 1; }
+}
+
+.bubble.typing .bubble-text {
+  color: #999;
+  animation: typing-dot 1.4s ease-in-out infinite;
+}
+
+/* capability chips */
+.cap-chips {
+  background: #fff;
+  border-top: 1rpx solid #efe9e1;
+  padding: 16rpx 0;
+}
+
+.chips-scroll {
+  white-space: nowrap;
+  width: 100%;
+}
+
+.chips-row {
+  display: inline-flex;
+  padding: 0 24rpx;
+  gap: 12rpx;
+}
+
+.cap-chip {
+  display: inline-block;
+  background: #fdf3e0;
+  color: #b07a26;
+  font-size: 22rpx;
+  padding: 12rpx 22rpx;
+  border-radius: 24rpx;
+  white-space: nowrap;
+}
+
+/* 输入区 */
+.input-area {
+  background: #fff;
+  border-top: 1rpx solid #efe9e1;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.input-row {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 24rpx 12rpx;
+  gap: 12rpx;
+}
+
+.plus-btn {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: #f1ede6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40rpx;
+  color: #6b5236;
+  flex-shrink: 0;
+}
+
+.chat-input {
+  flex: 1;
+  height: 64rpx;
+  background: #f5f1ea;
+  border-radius: 32rpx;
+  padding: 0 24rpx;
+  font-size: 28rpx;
+  color: #2a2a2a;
+}
+
+.send-btn {
+  padding: 14rpx 32rpx;
+  background: linear-gradient(135deg, #d4a574 0%, #e0b88a 100%);
+  border-radius: 32rpx;
+  color: #fff;
+  font-size: 26rpx;
+  flex-shrink: 0;
+}
+
+.send-btn.disabled {
+  background: #e6dccd;
+  color: #fff;
+  pointer-events: none;
+}
+
+.stop-btn {
+  padding: 14rpx 28rpx;
+  background: #f4d9b3;
+  border-radius: 32rpx;
+  color: #6b4d22;
+  font-size: 26rpx;
+  flex-shrink: 0;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-around;
+  padding: 12rpx 24rpx 18rpx;
+}
+
+.tool-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4rpx 12rpx;
+}
+
+.tool-emoji {
+  font-size: 28rpx;
+  margin-bottom: 2rpx;
+}
+
+.tool-label {
+  font-size: 20rpx;
+  color: #888;
+}

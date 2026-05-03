@@ -17,7 +17,7 @@ export default defineAppConfig({
     'pages/login/index',
     'pages/webview/index',
   ],
-  // 分包结构：P21-A 仅声明 tabBar 入口 page；P21-B/C/D 接入时自行追加 detail/chat/create 等子页面。
+  // 分包结构：P21-A 主包入口，P21-B/C/D 各分包业务化
   subpackages: [
     {
       root: 'subpackages/tasks',
@@ -25,7 +25,7 @@ export default defineAppConfig({
     },
     {
       root: 'subpackages/personas',
-      pages: ['index/index'], // P21-C 追加: detail/index, chat/index
+      pages: ['index/index', 'detail/index', 'chat/index'],
     },
     {
       root: 'subpackages/capabilities',
