@@ -29,7 +29,15 @@ export default defineAppConfig({
     },
     {
       root: 'subpackages/capabilities',
-      pages: ['index/index'], // P21-D 追加: scheduled-tasks/index, app-authorizations/index, skills/index, plugins/index, message-channels/index, pairing-authorizations/index
+      pages: [
+        'index/index',
+        'scheduled-tasks/index',
+        'app-authorizations/index',
+        'skills/index',
+        'plugins/index',
+        'message-channels/index',
+        'pairing-authorizations/index',
+      ],
     },
   ],
   preloadRule: {
