@@ -21,7 +21,7 @@ export default defineAppConfig({
   subpackages: [
     {
       root: 'subpackages/tasks',
-      pages: ['index/index'], // P21-B 追加: detail/index, create/index
+      pages: ['index/index', 'detail/index', 'create/index'],
     },
     {
       root: 'subpackages/personas',
