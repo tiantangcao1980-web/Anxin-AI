@@ -4,6 +4,17 @@
 >
 > _项目脱胎于「安心法务」（v1/v2，已上线 anxinfawu.com），v3 升级为面向制造业的全链路智能助理。法务能力作为最成熟的垂直域保留并继续演进。_
 
+## CI 状态 (P19-D)
+
+[![Backend CI](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/backend.yml/badge.svg)](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/backend.yml)
+[![Frontend CI](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/frontend.yml/badge.svg)](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/frontend.yml)
+[![Mobile CI](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/mobile.yml/badge.svg)](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/mobile.yml)
+[![Mini Program CI](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/mini-program.yml/badge.svg)](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/mini-program.yml)
+[![Tauri Desktop CI](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/tauri-desktop.yml/badge.svg)](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/tauri-desktop.yml)
+[![codecov](https://codecov.io/gh/tiantangcao1980-web/Anxin-Smart-Assistant/branch/main/graph/badge.svg)](https://codecov.io/gh/tiantangcao1980-web/Anxin-Smart-Assistant)
+
+本地一键 smoke：`bash scripts/ci/run-smoke.sh`（详见 [docs/v3/CI_PIPELINE.md](docs/v3/CI_PIPELINE.md)）
+
 ## 产品定位
 
 **安心法务**是一个以 AI 为核心驱动的智能法务平台，致力于让每个人都能便捷地获得专业法律服务。

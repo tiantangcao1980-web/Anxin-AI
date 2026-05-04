@@ -1,0 +1,122 @@
+name: Backend CI (P19-D)
+
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'pyproject.toml'
+      - '.github/workflows/backend.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'pyproject.toml'
+      - '.github/workflows/backend.yml'
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: '3.12'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  # 1. Lint：ruff + black（fail-fast，1 分钟内完成）
+  lint:
+    name: Lint (ruff + black)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: astral-sh/setup-uv@v5
+      - name: Sync dev deps
+        run: uv sync --extra dev
+      - name: ruff check
+        run: uv run ruff check src/ tests/
+      - name: black --check
+        run: uv run black --check src/ tests/
+
+  # 2. Typecheck：mypy（已配置在 pyproject.toml）
+  typecheck:
+    name: Typecheck (mypy)
+    runs-on: ubuntu-latest
+    needs: lint
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: astral-sh/setup-uv@v5
+      - name: Sync dev deps
+        run: uv sync --extra dev
+      - name: mypy
+        run: uv run mypy src/ --ignore-missing-imports || echo "mypy soft-fail (warmup)"
+
+  # 3. Test + Coverage：pytest --cov，门槛 80%
+  test:
+    name: Test + Coverage (>= 80%)
+    runs-on: ubuntu-latest
+    needs: lint
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: astral-sh/setup-uv@v5
+      - name: Sync dev deps
+        run: uv sync --extra dev
+      - name: pytest with coverage
+        run: |
+          uv run pytest tests/ \
+            --cov=src \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --cov-fail-under=80 \
+            --maxfail=10 \
+            -q
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: backend/coverage.xml
+          flags: backend
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  # 4. Security：pip-audit（忽略已知 litellm 残留 GHSA-xqmj-j6mv-4862）
+  security:
+    name: Security audit (pip-audit)
+    runs-on: ubuntu-latest
+    needs: lint
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: astral-sh/setup-uv@v5
+      - name: Install pip-audit
+        run: pip install pip-audit
+      - name: Sync deps
+        run: uv sync --extra dev
+      - name: Run pip-audit
+        run: |
+          pip-audit \
+            --strict \
+            --ignore-vuln GHSA-xqmj-j6mv-4862 \
+            -r pyproject.toml || \
+          echo "::warning::pip-audit reported issues (see log)"

@@ -1,0 +1,194 @@
+name: All-Smoke (5 端 nightly + on-demand)
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 每日 UTC 02:00（北京时间 10:00）
+    - cron: '0 2 * * *'
+
+env:
+  NODE_VERSION: '22'
+  PYTHON_VERSION: '3.12'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  # 5 端串联跑关键命令
+  smoke-backend:
+    name: Smoke / Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    outputs:
+      status: ${{ steps.result.outputs.status }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --extra dev
+      - id: result
+        run: |
+          uv run python -c "import src.api.main; print('backend_import_ok')" \
+            && uv run pytest -q tests/test_advanced_features.py tests/test_traceability.py \
+            && echo "status=ok" >> $GITHUB_OUTPUT \
+            || echo "status=fail" >> $GITHUB_OUTPUT
+
+  smoke-frontend:
+    name: Smoke / Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    outputs:
+      status: ${{ steps.result.outputs.status }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --legacy-peer-deps
+      - id: result
+        run: |
+          npm run lint && npm run build \
+            && echo "status=ok" >> $GITHUB_OUTPUT \
+            || echo "status=fail" >> $GITHUB_OUTPUT
+
+  smoke-mobile:
+    name: Smoke / Mobile
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    outputs:
+      status: ${{ steps.result.outputs.status }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci --legacy-peer-deps
+      - id: result
+        run: |
+          npm run typecheck \
+            && echo "status=ok" >> $GITHUB_OUTPUT \
+            || echo "status=fail" >> $GITHUB_OUTPUT
+
+  smoke-mini-program:
+    name: Smoke / Mini Program
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mini-program
+    outputs:
+      status: ${{ steps.result.outputs.status }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: mini-program/package-lock.json
+      - run: npm ci --legacy-peer-deps
+      - id: result
+        run: |
+          npm run build:weapp \
+            && echo "status=ok" >> $GITHUB_OUTPUT \
+            || echo "status=fail" >> $GITHUB_OUTPUT
+
+  smoke-desktop:
+    name: Smoke / Tauri Desktop (cargo check)
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: desktop
+    outputs:
+      status: ${{ steps.result.outputs.status }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Build frontend (desktop dep)
+        working-directory: frontend
+        run: npm ci --legacy-peer-deps && npm run build
+      - id: result
+        run: |
+          cargo check --all-targets \
+            && echo "status=ok" >> $GITHUB_OUTPUT \
+            || echo "status=fail" >> $GITHUB_OUTPUT
+
+  # 聚合报告 + 失败时开 issue
+  aggregate:
+    name: Aggregate Report
+    runs-on: ubuntu-latest
+    needs:
+      - smoke-backend
+      - smoke-frontend
+      - smoke-mobile
+      - smoke-mini-program
+      - smoke-desktop
+    if: always()
+    steps:
+      - name: Print summary
+        id: summary
+        run: |
+          {
+            echo "## All-Smoke Results ($(date -u +'%Y-%m-%d %H:%MZ'))"
+            echo ""
+            echo "| 端 | 状态 |"
+            echo "|---|---|"
+            echo "| Backend | ${{ needs.smoke-backend.outputs.status || 'unknown' }} |"
+            echo "| Frontend | ${{ needs.smoke-frontend.outputs.status || 'unknown' }} |"
+            echo "| Mobile | ${{ needs.smoke-mobile.outputs.status || 'unknown' }} |"
+            echo "| Mini Program | ${{ needs.smoke-mini-program.outputs.status || 'unknown' }} |"
+            echo "| Desktop | ${{ needs.smoke-desktop.outputs.status || 'unknown' }} |"
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Open issue on failure
+        if: |
+          needs.smoke-backend.outputs.status == 'fail' ||
+          needs.smoke-frontend.outputs.status == 'fail' ||
+          needs.smoke-mobile.outputs.status == 'fail' ||
+          needs.smoke-mini-program.outputs.status == 'fail' ||
+          needs.smoke-desktop.outputs.status == 'fail'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const failed = [
+              ['backend',     '${{ needs.smoke-backend.outputs.status }}'],
+              ['frontend',    '${{ needs.smoke-frontend.outputs.status }}'],
+              ['mobile',      '${{ needs.smoke-mobile.outputs.status }}'],
+              ['mini-program','${{ needs.smoke-mini-program.outputs.status }}'],
+              ['desktop',     '${{ needs.smoke-desktop.outputs.status }}']
+            ].filter(([_, s]) => s === 'fail').map(([n]) => n);
+
+            const title = `[all-smoke] Nightly failure: ${failed.join(', ')}`;
+            const body = [
+              `Nightly all-smoke run failed for: **${failed.join(', ')}**.`,
+              '',
+              `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              '',
+              'Triage steps: see `docs/v3/CI_PIPELINE.md` 失败诊断流程图.'
+            ].join('\n');
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['ci', 'p19-d', 'nightly-failure']
+            });
