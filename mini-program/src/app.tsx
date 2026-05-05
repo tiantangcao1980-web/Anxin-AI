@@ -2,7 +2,11 @@
 import { PropsWithChildren, useEffect } from 'react'
 import Taro, { useLaunch } from '@tarojs/taro'
 import { tokenStorage } from './utils/auth/token'
+import { setupErrorReporter } from './utils/monitoring/error-reporter'
+import { setupPerfReporter } from './utils/monitoring/perf'
 import './app.scss'
+// P19-B 可观测层：注册全局错误 + 性能上报（启动一次）
+;(() => { setupErrorReporter(); setupPerfReporter() })()
 
 /**
  * App 根组件（V3 P21-A）

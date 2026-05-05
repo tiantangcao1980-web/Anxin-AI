@@ -8,6 +8,10 @@ import { Colors, DarkColors } from '../src/constants/colors'
 import { PrivacyProvider } from '../src/lib/privacy-context'
 import { V3ThemeProvider } from '../src/theme'
 import { setupV3PushNotifications } from '../src/lib/notifications'
+import { initSentry } from '../src/lib/monitoring/sentry'
+import { setupCrashReporting } from '../src/lib/monitoring/crashReporting'
+// P19-B 可观测层：React 树挂载前初始化
+;(() => { initSentry(); setupCrashReporting() })()
 
 /**
  * Root layout（V3 P17-A 升级）。

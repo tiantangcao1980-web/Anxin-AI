@@ -49,6 +49,7 @@ from src.api.routes import persona_finance  # P9-E
 from src.api.routes import rag_ingest  # P13-A
 from src.api.routes import rag_kg  # P13-B
 from src.api.routes import rag_query  # P13-C
+from src.api.routes import client_errors  # P19-B 三端可观测层
 
 api_router = APIRouter()
 
@@ -119,3 +120,4 @@ api_router.include_router(persona_finance.router, prefix="/personas/finance", ta
 api_router.include_router(rag_ingest.router, prefix="/rag/ingest", tags=["RAG 多模态接入"])
 api_router.include_router(rag_kg.router, prefix="/rag/kg", tags=["RAG 知识图谱（P13-B）"])
 api_router.include_router(rag_query.router, prefix="/rag/query", tags=["RAG VLM 增强 Query"])
+api_router.include_router(client_errors.router, tags=["客户端错误聚合（P19-B）"])
