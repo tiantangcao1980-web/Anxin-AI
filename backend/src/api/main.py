@@ -19,6 +19,13 @@ async def lifespan(app: FastAPI):
     # 启动时
     logger.info("🚀 AI法务智能体系统启动中...")
 
+    # P19-A: Sentry 初始化（DSN 缺失则 noop）
+    try:
+        from src.services.monitoring import setup_sentry
+        setup_sentry()
+    except Exception as e:
+        logger.warning(f"Sentry 初始化失败（不影响启动）: {e}")
+
     # ===== [S-02] 安全检查：生产环境禁止启用 DEV_MODE =====
     # 原因：DEV_MODE 会跳过所有认证，生产环境如果误开等于无认证
     # 修复方式：启动时检测配置组合，不合法则拒绝启动
@@ -116,6 +123,11 @@ if settings.ANTIBOT_ENABLED:
         from src.middleware.waf import WAFMiddleware
         app.add_middleware(WAFMiddleware)
         logger.info(f"反Bot: WAF 已启用 (log_only={settings.ANTIBOT_WAF_LOG_ONLY})")
+
+
+# ===== P19-A 可观测中间件（最先注册 → 最先执行 → 包住其他所有 middleware） =====
+from src.middleware.observability import ObservabilityMiddleware
+app.add_middleware(ObservabilityMiddleware)
 
 
 # ===== 安全响应头 =====

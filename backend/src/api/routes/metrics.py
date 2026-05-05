@@ -10,8 +10,10 @@ Prometheus Metrics 端点
 """
 
 import time
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Header, HTTPException, Request, Response, status
 from loguru import logger
+
+from src.core.config import settings
 
 router = APIRouter()
 
@@ -72,7 +74,30 @@ async def prometheus_metrics():
     except Exception:
         pass
 
+    # P19-A: 追加业务级 prometheus_client 暴露（19 个 metric）
+    if getattr(settings, "METRICS_ENABLED", True):
+        try:
+            from src.services.monitoring.prometheus_metrics import CONTENT_TYPE_LATEST, render_exposition
+            return Response(
+                content="\n".join(lines) + "\n" + render_exposition().decode("utf-8"),
+                media_type=CONTENT_TYPE_LATEST,
+            )
+        except Exception as e:
+            logger.warning(f"prometheus exposition 失败: {e}")
+
     return Response(
         content="\n".join(lines) + "\n",
         media_type="text/plain; charset=utf-8",
     )
+
+
+@router.get("/metrics/business", tags=["监控指标"])
+async def business_metrics_only(
+    x_metrics_token: str = Header(default="", alias="X-Metrics-Token"),
+) -> Response:
+    """业务级 prometheus 暴露（admin 鉴权）— 仅返回 P19-A 业务 metric。"""
+    expected = (getattr(settings, "METRICS_AUTH_TOKEN", "") or "").strip()
+    if expected and x_metrics_token != expected:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="invalid metrics token")
+    from src.services.monitoring.prometheus_metrics import CONTENT_TYPE_LATEST, render_exposition
+    return Response(content=render_exposition(), media_type=CONTENT_TYPE_LATEST)

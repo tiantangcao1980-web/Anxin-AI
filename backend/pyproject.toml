@@ -88,6 +88,9 @@ dependencies = [
     # P5 skill_registry / skill_executor
     "pyyaml>=6.0",
     "watchdog>=4.0",
+    # P19-A 可观测层（Sentry + Prometheus）
+    "sentry-sdk[fastapi]>=2.20.0",
+    "prometheus-client>=0.21.0",
 ]
 
 [project.optional-dependencies]

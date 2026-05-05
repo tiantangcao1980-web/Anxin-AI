@@ -269,6 +269,14 @@ class Settings(BaseSettings):
     LOG_FORMAT: str = "json"
     LOG_FILE: Optional[str] = None
 
+    # ========== P19-A 可观测层 ==========
+    SENTRY_DSN: str = ""
+    SENTRY_ENVIRONMENT: str = "development"
+    SENTRY_TRACES_SAMPLE_RATE: float = 0.1
+    METRICS_ENABLED: bool = True
+    METRICS_AUTH_TOKEN: str = ""
+    SLO_DASHBOARD_REFRESH_SECONDS: int = 60
+
     # ========== OpenAI兼容 ==========
     OPENAI_API_KEY: Optional[str] = None
 
