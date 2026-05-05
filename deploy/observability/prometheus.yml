@@ -1,0 +1,82 @@
+# -*- coding: utf-8 -*-
+# Prometheus 主配置 - 安心智能助手 V3
+# 抓取拓扑：backend(8001) + 自身 + node/postgres/redis exporter
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: anxin-v3
+    env: ${ENV:-production}
+
+# 告警规则
+rule_files:
+  - "alert_rules.yml"
+
+# Alertmanager 接入
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+# 抓取目标
+scrape_configs:
+  # 1. Prometheus 自监控
+  - job_name: prometheus
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - localhost:9090
+        labels:
+          service: prometheus
+
+  # 2. 安心后端 FastAPI - 业务核心 metrics（19 个 anxin_* 指标）
+  - job_name: anxin-backend
+    scrape_interval: 10s
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - host.docker.internal:8001
+        labels:
+          service: anxin-backend
+          tier: api
+
+  # 3. Node Exporter - 主机资源
+  - job_name: node-exporter
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - node-exporter:9100
+        labels:
+          service: host
+          tier: infra
+
+  # 4. Postgres Exporter - 数据库
+  - job_name: postgres-exporter
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - postgres-exporter:9187
+        labels:
+          service: postgres
+          tier: data
+
+  # 5. Redis Exporter - 缓存 + 任务队列
+  - job_name: redis-exporter
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - redis-exporter:9121
+        labels:
+          service: redis
+          tier: data
+
+  # 6. Alertmanager 自监控
+  - job_name: alertmanager
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - alertmanager:9093
+        labels:
+          service: alertmanager

@@ -1,0 +1,157 @@
+# -*- coding: utf-8 -*-
+# 告警规则 - 基于 P19-A 后端定义的 5 SLO + 基础设施告警
+# severity: critical -> PagerDuty/电话; warning -> 飞书; info -> 仅 log
+
+groups:
+  - name: anxin-slo-business
+    interval: 30s
+    rules:
+      # SLO-1: 鉴权错误率 > 0.1% / 5min -> critical
+      - alert: HighErrorRateAuth
+        expr: |
+          (
+            sum(rate(anxin_http_requests_total{route=~"/auth/.*",status=~"5.."}[5m]))
+            /
+            sum(rate(anxin_http_requests_total{route=~"/auth/.*"}[5m]))
+          ) > 0.001
+        for: 5m
+        labels:
+          severity: critical
+          slo: auth-error-rate
+          team: backend
+        annotations:
+          summary: "鉴权接口错误率超过 0.1% (current={{ $value | humanizePercentage }})"
+          description: "/auth/* 5xx 错误率 > 0.1%，已持续 5 分钟，可能影响登录、注册、Token 刷新。"
+          runbook: "https://docs.anxinagent.com/runbook/auth-error-rate"
+
+      # SLO-2: Chat 错误率 > 1% / 5min -> warning
+      - alert: HighErrorRateChat
+        expr: |
+          (
+            sum(rate(anxin_http_requests_total{route=~"/api/chat/.*",status=~"5.."}[5m]))
+            /
+            sum(rate(anxin_http_requests_total{route=~"/api/chat/.*"}[5m]))
+          ) > 0.01
+        for: 5m
+        labels:
+          severity: warning
+          slo: chat-error-rate
+          team: backend
+        annotations:
+          summary: "Chat 接口错误率超过 1% (current={{ $value | humanizePercentage }})"
+          description: "/api/chat/* 5xx 错误率 > 1%，已持续 5 分钟。"
+
+      # SLO-3: 鉴权 P99 延迟 > 500ms / 10min -> warning
+      - alert: SlowAuth
+        expr: |
+          histogram_quantile(0.99,
+            sum by (le) (rate(anxin_http_request_duration_seconds_bucket{route=~"/auth/.*"}[10m]))
+          ) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+          slo: auth-latency
+          team: backend
+        annotations:
+          summary: "鉴权 P99 延迟 > 500ms (current={{ $value | humanizeDuration }})"
+          description: "/auth/* P99 延迟超阈值，可能是数据库慢查询、JWT 签名压力或 Redis 抖动。"
+
+      # SLO-4: Chat P99 延迟 > 3s / 10min -> warning
+      - alert: SlowChat
+        expr: |
+          histogram_quantile(0.99,
+            sum by (le) (rate(anxin_http_request_duration_seconds_bucket{route=~"/api/chat/.*"}[10m]))
+          ) > 3
+        for: 10m
+        labels:
+          severity: warning
+          slo: chat-latency
+          team: backend
+        annotations:
+          summary: "Chat P99 延迟 > 3s (current={{ $value | humanizeDuration }})"
+          description: "/api/chat/* P99 延迟超阈值，可能是上游 LLM 慢、向量检索瓶颈或 Persona 编排路径过长。"
+
+      # SLO-5: 任务队列积压 > 1000 / 5min -> warning
+      - alert: TaskQueueBacklog
+        expr: sum(anxin_task_queue_length) > 1000
+        for: 5m
+        labels:
+          severity: warning
+          slo: task-throughput
+          team: backend
+        annotations:
+          summary: "任务队列积压 > 1000 (current={{ $value }})"
+          description: "Persona/调研/导出任务积压，worker 可能不足或卡死。"
+
+  - name: anxin-infra
+    interval: 30s
+    rules:
+      # 数据库宕机
+      - alert: DatabaseDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: sre
+        annotations:
+          summary: "Postgres 宕机 (instance={{ $labels.instance }})"
+          description: "postgres-exporter pg_up=0 已持续 1 分钟，所有写入将失败。"
+
+      # Redis 宕机
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: sre
+        annotations:
+          summary: "Redis 宕机 (instance={{ $labels.instance }})"
+          description: "redis-exporter redis_up=0 已持续 1 分钟，缓存 + 任务队列失效。"
+
+      # 后端服务不可达
+      - alert: BackendDown
+        expr: up{job="anxin-backend"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "后端服务不可达 (instance={{ $labels.instance }})"
+          description: "anxin-backend /metrics 抓取失败 2 分钟，服务可能崩溃。"
+
+      # 磁盘空间低于 15%
+      - alert: DiskSpaceLow
+        expr: |
+          (node_filesystem_avail_bytes{mountpoint="/"}
+            / node_filesystem_size_bytes{mountpoint="/"}) < 0.15
+        for: 5m
+        labels:
+          severity: warning
+          team: sre
+        annotations:
+          summary: "磁盘空间剩余 < 15% (current={{ $value | humanizePercentage }})"
+          description: "{{ $labels.instance }} 根分区剩余空间不足。Prometheus tsdb / Postgres WAL / 上传文件可能溢出。"
+
+      # 内存占用 > 85%
+      - alert: HighMemoryUsage
+        expr: |
+          (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.85
+        for: 10m
+        labels:
+          severity: warning
+          team: sre
+        annotations:
+          summary: "内存占用 > 85% (current={{ $value | humanizePercentage }})"
+          description: "{{ $labels.instance }} 持续 10 分钟内存占用过高，可能 OOM。"
+
+      # CPU 持续打满
+      - alert: HighCpuUsage
+        expr: |
+          100 - (avg by(instance)(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 90
+        for: 10m
+        labels:
+          severity: warning
+          team: sre
+        annotations:
+          summary: "CPU 占用 > 90% (current={{ $value | printf \"%.1f\" }}%)"
+          description: "{{ $labels.instance }} CPU 持续打满 10 分钟。"

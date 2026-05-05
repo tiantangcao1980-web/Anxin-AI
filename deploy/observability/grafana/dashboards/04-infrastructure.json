@@ -1,0 +1,232 @@
+{
+  "description": "基础设施：CPU / 内存 / 磁盘 / 网络 / Postgres / Redis",
+  "editable": true,
+  "graphTooltip": 1,
+  "id": null,
+  "panels": [
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 70},
+              {"color": "red", "value": 90}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"colorMode": "background", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [
+        {
+          "expr": "100 - (avg by(instance)(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+          "refId": "A",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "title": "CPU 使用率",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 0.7},
+              {"color": "red", "value": 0.85}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 0},
+      "id": 2,
+      "options": {"colorMode": "background", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [
+        {
+          "expr": "1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes",
+          "refId": "A",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "title": "内存使用率",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 0.7},
+              {"color": "red", "value": 0.85}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 6, "w": 6, "x": 12, "y": 0},
+      "id": 3,
+      "options": {"colorMode": "background", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [
+        {
+          "expr": "1 - (node_filesystem_avail_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"})",
+          "refId": "A",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "title": "磁盘使用率 (/)",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"unit": "Bps"}},
+      "gridPos": {"h": 6, "w": 6, "x": 18, "y": 0},
+      "id": 4,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [
+        {
+          "expr": "sum(rate(node_network_receive_bytes_total{device!~\"lo|veth.*|docker.*\"}[1m]))",
+          "refId": "A",
+          "legendFormat": "RX"
+        },
+        {
+          "expr": "sum(rate(node_network_transmit_bytes_total{device!~\"lo|veth.*|docker.*\"}[1m]))",
+          "refId": "B",
+          "legendFormat": "TX"
+        }
+      ],
+      "title": "网络吞吐",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"unit": "short"}},
+      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 6},
+      "id": 5,
+      "options": {"legend": {"displayMode": "table"}},
+      "targets": [
+        {
+          "expr": "pg_stat_database_numbackends{datname!~\"template.*|postgres\"}",
+          "refId": "A",
+          "legendFormat": "{{datname}} - active"
+        },
+        {
+          "expr": "pg_settings_max_connections",
+          "refId": "B",
+          "legendFormat": "Max"
+        }
+      ],
+      "title": "Postgres 连接数",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"unit": "ops"}},
+      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 6},
+      "id": 6,
+      "options": {"legend": {"displayMode": "table"}},
+      "targets": [
+        {
+          "expr": "rate(pg_stat_database_xact_commit{datname!~\"template.*|postgres\"}[5m])",
+          "refId": "A",
+          "legendFormat": "{{datname}} commit/s"
+        },
+        {
+          "expr": "rate(pg_stat_database_xact_rollback{datname!~\"template.*|postgres\"}[5m])",
+          "refId": "B",
+          "legendFormat": "{{datname}} rollback/s"
+        }
+      ],
+      "title": "Postgres 事务速率",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"unit": "ops"}},
+      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 15},
+      "id": 7,
+      "options": {"legend": {"displayMode": "table"}},
+      "targets": [
+        {
+          "expr": "rate(redis_commands_processed_total[1m])",
+          "refId": "A",
+          "legendFormat": "ops/s"
+        },
+        {
+          "expr": "rate(redis_keyspace_hits_total[1m]) / (rate(redis_keyspace_hits_total[1m]) + rate(redis_keyspace_misses_total[1m]))",
+          "refId": "B",
+          "legendFormat": "hit ratio"
+        }
+      ],
+      "title": "Redis OPS / 命中率",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"unit": "bytes"}},
+      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 15},
+      "id": 8,
+      "options": {"legend": {"displayMode": "table"}},
+      "targets": [
+        {
+          "expr": "redis_memory_used_bytes",
+          "refId": "A",
+          "legendFormat": "used"
+        },
+        {
+          "expr": "redis_memory_max_bytes",
+          "refId": "B",
+          "legendFormat": "max"
+        }
+      ],
+      "title": "Redis 内存",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"unit": "short"}},
+      "gridPos": {"h": 7, "w": 24, "x": 0, "y": 24},
+      "id": 9,
+      "options": {"legend": {"displayMode": "table"}},
+      "targets": [
+        {
+          "expr": "anxin_db_pool_checkedout",
+          "refId": "A",
+          "legendFormat": "checked-out"
+        },
+        {
+          "expr": "anxin_db_pool_checkedin",
+          "refId": "B",
+          "legendFormat": "checked-in"
+        },
+        {
+          "expr": "anxin_db_pool_size",
+          "refId": "C",
+          "legendFormat": "pool-size"
+        }
+      ],
+      "title": "应用 DB 连接池",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["anxin", "v3", "infra"],
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
+  "timezone": "Asia/Shanghai",
+  "title": "04 - 安心 V3 - 基础设施",
+  "uid": "anxin-infra",
+  "version": 1
+}
