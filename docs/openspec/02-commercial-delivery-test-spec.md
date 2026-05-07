@@ -47,6 +47,7 @@ cd desktop && cargo test
 cd desktop && cargo tauri build --debug --no-bundle --ci
 bash scripts/desktop-runtime-smoke.sh --with-app-bundle
 bash scripts/desktop-sqlite-security-gate.sh
+bash scripts/desktop-network-surface-gate.sh
 ```
 
 当前全仓 Ruff 与 backend mypy 均已清零，商业交付路线采用分层零回退基线：
@@ -304,7 +305,7 @@ bash scripts/gitnexus-index.sh --skip-context-checks
 - 后端全量 pytest 通过。
 - 前端 lint/build 通过，关键 E2E 通过。
 - 移动端本地 smoke 通过，且真机/微信开发者工具关键路径证据齐全。
-- 桌面端 `cargo check`、`cargo test`、`cargo tauri build --debug --no-bundle --ci`、`bash scripts/desktop-runtime-smoke.sh --with-app-bundle`、`bash scripts/desktop-sqlite-security-gate.sh` 通过，必要 smoke 手测通过。
+- 桌面端 `cargo check`、`cargo test`、`cargo tauri build --debug --no-bundle --ci`、`bash scripts/desktop-runtime-smoke.sh --with-app-bundle`、`bash scripts/desktop-sqlite-security-gate.sh`、`bash scripts/desktop-network-surface-gate.sh` 通过，必要 smoke 手测通过。
 - 中小企业需求方、专业服务方、舆情/获客、重大事项转专业人士路径有 persona 级验收证据。
 - 桌面主工作站、本地模型、本地/组织知识库、用户可配置 LLM/Skills/MCP 和移动远程控制桌面路径有可复跑证据。
 - 本地/绝密模式下云端模型、外部 MCP、同步上传和远控外传默认 fail-closed，且日志不泄露密钥、材料正文或 session token。

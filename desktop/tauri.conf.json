@@ -35,7 +35,7 @@
       "tooltip": "安心法务"
     },
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' http://localhost:* https://localhost:* ws://localhost:* wss://localhost:* https://*.anxin-legal.com wss://*.anxin-legal.com; img-src 'self' data: https://* blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self' 'unsafe-eval'; media-src 'self' blob: mediastream:"
+      "csp": "default-src 'self'; connect-src 'self' http://localhost:* https://localhost:* ws://localhost:* wss://localhost:* https://*.anxin-legal.com wss://*.anxin-legal.com; img-src 'self' data: blob: https://*.anxin-legal.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self'; media-src 'self' blob: mediastream:"
     }
   },
   "bundle": {

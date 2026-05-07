@@ -91,6 +91,7 @@
         "desktop/src/services/secure_db.rs",
         "desktop/src/commands/secure_db.rs",
         "scripts/desktop-sqlite-security-gate.sh",
+        "scripts/desktop-network-surface-gate.sh",
         "scripts/desktop-installed-profile-smoke.sh",
         "scripts/desktop-release-package.sh",
         "scripts/desktop-release-preflight.sh",
@@ -106,12 +107,13 @@
         "cd desktop && cargo test",
         "cd desktop && cargo check",
         "bash scripts/desktop-sqlite-security-gate.sh",
+        "bash scripts/desktop-network-surface-gate.sh",
         "bash scripts/desktop-installed-profile-smoke.sh --out docs/release/evidence/artifacts/desktop-installed-profile-smoke-YYYYMMDD.json",
         "bash scripts/desktop-runtime-smoke.sh --with-app-bundle --out docs/release/evidence/artifacts/desktop-runtime-code-smoke-YYYYMMDD.json --ui-log-out docs/release/evidence/artifacts/desktop-runtime-ui-smoke-YYYYMMDD.log",
         "bash scripts/desktop-release-package.sh --dry-run --out docs/release/evidence/artifacts/desktop-release-package-dry-run-YYYYMMDD.json --preflight-out docs/release/evidence/artifacts/desktop-release-preflight-YYYYMMDD.json",
         "bash scripts/desktop-release-preflight.sh --out docs/release/evidence/artifacts/desktop-release-preflight-YYYYMMDD.json"
       ],
-      "current_result": "Code-level SQLCipher/keyring, guarded erase-local-data path, unsigned debug .app runtime startup/UI smoke, structured desktop runtime artifacts, production APNs entitlement, release package dry-run, and release preflight pass; Status: pending because signing identity, notarization credentials, signed/notarized .app/DMG, packaged UI interaction, packaged runtime, migration transcript, performance, and cross-device evidence are missing."
+      "current_result": "Code-level SQLCipher/keyring, guarded erase-local-data path, desktop network surface gate, unsigned debug .app runtime startup/UI smoke, structured desktop runtime artifacts, production APNs entitlement, release package dry-run, and release preflight pass; Status: pending because signing identity, notarization credentials, signed/notarized .app/DMG, signed packaged UI interaction, signed packaged runtime, migration transcript, performance, and cross-device evidence are missing."
     },
     {
       "id": "rag-full50-live-baseline",
@@ -172,7 +174,7 @@
         "rg -n \"AgentManager|CapabilityRoute|consumer token|Human-in-the-loop|SkillEvolutionProposal|可信会话|企业智能体治理\" docs/openspec docs/audit/_tasks docs/references",
         "future: backend/tests/test_agent_governance_policy.py backend/tests/test_capability_routes.py backend/tests/test_agent_approval_flow.py"
       ],
-      "current_result": "Specs and task prompt are updated, including Codex/Claude-style trusted conversation UX and Skill Evolution Gate. Local hardening now covers CLI user-bound API keys/scopes/audit logs, MCP manage:system API gating and masked management audit logs, standalone MCP commercial fail-closed, external MCP stdio/SSE/env/command-line allowlists, desktop TopSecret data-network guards for CLI/sync/Harness IPC, local sync bridge, unified API fetch, WebView global fetch and WebSocket, unknown subscription feature denial, and staging JWT default-secret rejection. Implementation is still pending: unified capability policy engine, AgentManager/Team/Worker/Human models, route-token revocation, high-risk approval workspace, role-specific capability center, long-task artifact workflow, true approved MCP connector rehearsal, packaged runtime/CSP/tauri-plugin-http outbound evidence, and skill eval/approval/rollback must be built before full commercial Go."
+      "current_result": "Specs and task prompt are updated, including Codex/Claude-style trusted conversation UX and Skill Evolution Gate. Local hardening now covers CLI user-bound API keys/scopes/audit logs, MCP manage:system API gating and masked management audit logs, standalone MCP commercial fail-closed, external MCP stdio/SSE/env/command-line allowlists, desktop TopSecret data-network guards for CLI/sync/Harness IPC, local sync bridge, unified API fetch, WebView global fetch and WebSocket, Tauri/frontend HTTP plugin removal, active http capability removal, tightened CSP, unknown subscription feature denial, and staging JWT default-secret rejection. Implementation is still pending: unified capability policy engine, AgentManager/Team/Worker/Human models, route-token revocation, high-risk approval workspace, role-specific capability center, long-task artifact workflow, true approved MCP connector rehearsal, signed packaged runtime outbound evidence, and skill eval/approval/rollback must be built before full commercial Go."
     },
     {
       "id": "final-commercial-gate",
