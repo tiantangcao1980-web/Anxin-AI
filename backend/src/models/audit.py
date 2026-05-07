@@ -3,15 +3,15 @@
 记录用户的所有敏感操作
 """
 
-from datetime import datetime, timezone
-from typing import Optional, Any
+from datetime import UTC, datetime
 from enum import Enum
+from typing import Any
 
-from sqlalchemy import String, Text, ForeignKey, DateTime, Enum as SQLEnum, Index
 from sqlalchemy import JSON as JSONB
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text
+from sqlalchemy.orm import Mapped, mapped_column
 
-from src.models.base import Base, GUID, ValueEnum
+from src.models.base import GUID, Base
 
 
 class AuditAction(str, Enum):
@@ -22,7 +22,7 @@ class AuditAction(str, Enum):
     USER_REGISTER = "user.register"
     USER_PASSWORD_CHANGE = "user.password_change"
     USER_PROFILE_UPDATE = "user.profile_update"
-    
+
     # 案件相关
     CASE_CREATE = "case.create"
     CASE_UPDATE = "case.update"
@@ -30,36 +30,40 @@ class AuditAction(str, Enum):
     CASE_VIEW = "case.view"
     CASE_ASSIGN = "case.assign"
     CASE_STATUS_CHANGE = "case.status_change"
-    
+
     # 文档相关
     DOCUMENT_UPLOAD = "document.upload"
     DOCUMENT_DOWNLOAD = "document.download"
     DOCUMENT_DELETE = "document.delete"
     DOCUMENT_VIEW = "document.view"
-    
+
     # 合同相关
     CONTRACT_CREATE = "contract.create"
     CONTRACT_REVIEW = "contract.review"
     CONTRACT_SIGN = "contract.sign"
+    CONTRACT_STATUS_CHANGE = "contract.status_change"
     CONTRACT_DELETE = "contract.delete"
-    
+    CONTRACT_ATTACHMENT_UPLOAD = "contract.attachment_upload"
+    CONTRACT_ATTACHMENT_DOWNLOAD = "contract.attachment_download"
+    CONTRACT_ATTACHMENT_DELETE = "contract.attachment_delete"
+
     # 权限相关
     PERMISSION_GRANT = "permission.grant"
     PERMISSION_REVOKE = "permission.revoke"
     ROLE_CHANGE = "role.change"
-    
+
     # Token相关
     TOKEN_REFRESH = "token.refresh"
     TOKEN_REVOKE = "token.revoke"
-    
+
     # 系统相关
     CONFIG_CHANGE = "config.change"
     API_ACCESS = "api.access"
     EXPORT_DATA = "export.data"
-    
+
     # 搜索相关
     SEARCH_QUERY = "search.query"
-    
+
     # 对话相关
     CHAT_CREATE = "chat.create"
     CHAT_MESSAGE = "chat.message"
@@ -83,17 +87,17 @@ class ResourceType(str, Enum):
 
 class AuditLog(Base):
     """审计日志模型"""
-    
+
     __tablename__ = "audit_logs"
-    
+
     # 操作信息
     action: Mapped[str] = mapped_column(
-        String(100), 
+        String(100),
         nullable=False,
         index=True,
         comment="操作类型"
     )
-    
+
     # 资源信息
     resource_type: Mapped[str] = mapped_column(
         String(50),
@@ -101,100 +105,100 @@ class AuditLog(Base):
         index=True,
         comment="资源类型"
     )
-    resource_id: Mapped[Optional[str]] = mapped_column(
+    resource_id: Mapped[str | None] = mapped_column(
         String(100),
         nullable=True,
         index=True,
         comment="资源ID"
     )
-    
+
     # 操作者信息
-    user_id: Mapped[Optional[str]] = mapped_column(
+    user_id: Mapped[str | None] = mapped_column(
         GUID(),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
         comment="操作用户ID"
     )
-    user_email: Mapped[Optional[str]] = mapped_column(
+    user_email: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,
         comment="操作用户邮箱"
     )
-    user_role: Mapped[Optional[str]] = mapped_column(
+    user_role: Mapped[str | None] = mapped_column(
         String(50),
         nullable=True,
         comment="操作时的用户角色"
     )
-    
+
     # 变更内容
-    old_value: Mapped[Optional[dict]] = mapped_column(
+    old_value: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB,
         nullable=True,
         comment="变更前的值"
     )
-    new_value: Mapped[Optional[dict]] = mapped_column(
+    new_value: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB,
         nullable=True,
         comment="变更后的值"
     )
-    
+
     # 请求信息
-    ip_address: Mapped[Optional[str]] = mapped_column(
+    ip_address: Mapped[str | None] = mapped_column(
         String(45),
         nullable=True,
         comment="客户端IP地址"
     )
-    user_agent: Mapped[Optional[str]] = mapped_column(
+    user_agent: Mapped[str | None] = mapped_column(
         String(500),
         nullable=True,
         comment="用户代理"
     )
-    request_id: Mapped[Optional[str]] = mapped_column(
+    request_id: Mapped[str | None] = mapped_column(
         String(100),
         nullable=True,
         comment="请求ID"
     )
-    
+
     # 操作结果
     status: Mapped[str] = mapped_column(
         String(20),
         default="success",
         comment="操作状态：success/failed"
     )
-    error_message: Mapped[Optional[str]] = mapped_column(
+    error_message: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
         comment="错误信息"
     )
-    
+
     # 附加信息
-    extra_data: Mapped[Optional[dict]] = mapped_column(
+    extra_data: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB,
         nullable=True,
         comment="额外数据"
     )
-    
+
     # 时间戳
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
         index=True,
         comment="创建时间"
     )
-    
+
     # 复合索引，优化常见查询
     __table_args__ = (
         Index('ix_audit_user_action', 'user_id', 'action'),
         Index('ix_audit_resource', 'resource_type', 'resource_id'),
         Index('ix_audit_created_at_action', 'created_at', 'action'),
     )
-    
+
     def __repr__(self) -> str:
         return f"<AuditLog {self.action} by {self.user_email} at {self.created_at}>"
-    
-    def to_dict(self) -> dict:
+
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "id": self.id,

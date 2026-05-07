@@ -1,17 +1,15 @@
-# -*- coding: utf-8 -*-
 """
 获客分析服务
 """
 
-from datetime import datetime, timedelta
-from typing import Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, case
-from loguru import logger
 
+from src.models.lawyer_matching import Consultation, Delegation, LawyerProfile
 from src.models.lead import Lead
-from src.models.lawyer_matching import LawyerProfile, Consultation, Delegation
 
 
 class AcquisitionAnalyticsService:
@@ -22,16 +20,16 @@ class AcquisitionAnalyticsService:
 
     async def get_lead_funnel(
         self,
-        org_id: Optional[str] = None,
+        org_id: str | None = None,
         days: int = 30,
-    ) -> list[dict]:
+    ) -> list[dict[str, int | str]]:
         """获取线索漏斗各阶段数量"""
-        since = datetime.utcnow() - timedelta(days=days)
+        since = datetime.now(UTC) - timedelta(days=days)
         stages = ["new", "contacted", "qualified", "proposal", "won", "lost"]
 
         query = select(
             Lead.stage,
-            func.count(Lead.id).label("count"),
+            func.count(Lead.id).label("count_value"),
         ).where(Lead.created_at >= since)
 
         if org_id:
@@ -39,7 +37,11 @@ class AcquisitionAnalyticsService:
 
         query = query.group_by(Lead.stage)
         result = await self.db.execute(query)
-        stage_counts = {row.stage: row.count for row in result}
+        stage_counts: dict[str, int] = {
+            str(row["stage"]): int(row["count_value"])
+            for row in result.mappings()
+            if row["stage"] is not None
+        }
 
         return [
             {"stage": s, "count": stage_counts.get(s, 0)}
@@ -48,15 +50,15 @@ class AcquisitionAnalyticsService:
 
     async def get_conversion_rates(
         self,
-        org_id: Optional[str] = None,
+        org_id: str | None = None,
         days: int = 30,
-    ) -> list[dict]:
+    ) -> list[dict[str, float | int | str]]:
         """获取各阶段转化率"""
         funnel = await self.get_lead_funnel(org_id=org_id, days=days)
-        stage_map = {item["stage"]: item["count"] for item in funnel}
+        stage_map = {str(item["stage"]): int(item["count"]) for item in funnel}
 
         stages_order = ["new", "contacted", "qualified", "proposal", "won"]
-        conversions = []
+        conversions: list[dict[str, float | int | str]] = []
         for i in range(len(stages_order) - 1):
             from_stage = stages_order[i]
             to_stage = stages_order[i + 1]
@@ -75,15 +77,15 @@ class AcquisitionAnalyticsService:
 
     async def get_lead_sources(
         self,
-        org_id: Optional[str] = None,
+        org_id: str | None = None,
         days: int = 30,
-    ) -> list[dict]:
+    ) -> list[dict[str, int | str]]:
         """获取线索来源分布"""
-        since = datetime.utcnow() - timedelta(days=days)
+        since = datetime.now(UTC) - timedelta(days=days)
 
         query = select(
             Lead.source,
-            func.count(Lead.id).label("count"),
+            func.count(Lead.id).label("count_value"),
         ).where(
             and_(
                 Lead.created_at >= since,
@@ -98,24 +100,24 @@ class AcquisitionAnalyticsService:
         result = await self.db.execute(query)
 
         return [
-            {"source": row.source or "未知", "count": row.count}
-            for row in result
+            {"source": str(row["source"] or "未知"), "count": int(row["count_value"])}
+            for row in result.mappings()
         ]
 
     async def get_lawyer_performance(
         self,
-        org_id: Optional[str] = None,
+        org_id: str | None = None,
         days: int = 30,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """获取律师业绩排名"""
-        since = datetime.utcnow() - timedelta(days=days)
+        since = datetime.now(UTC) - timedelta(days=days)
 
         # 查询所有已认证律师档案
         profiles_q = select(LawyerProfile).where(LawyerProfile.is_verified == True)
         profiles_result = await self.db.execute(profiles_q)
         profiles = profiles_result.scalars().all()
 
-        performances = []
+        performances: list[dict[str, Any]] = []
         for profile in profiles:
             # 统计该律师在时间范围内的咨询量
             consult_q = select(func.count(Consultation.id)).where(
@@ -156,5 +158,5 @@ class AcquisitionAnalyticsService:
             })
 
         # 按委托量降序排序
-        performances.sort(key=lambda x: x["total_delegations"], reverse=True)
+        performances.sort(key=lambda x: int(x["total_delegations"]), reverse=True)
         return performances[:20]

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 智能条件合同模板引擎
 
@@ -9,11 +8,13 @@
 4. 行业惯例自动适用
 """
 
-import re
+import html
 import json
-from typing import Optional, List, Dict, Any
+import re
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any
+
 from loguru import logger
 
 
@@ -40,11 +41,11 @@ class TemplateField:
     required: bool = True           # 是否必填
     default: Any = None             # 默认值
     placeholder: str = ""           # 占位提示
-    options: List[Dict[str, str]] = field(default_factory=list)  # 选项（select/multiselect）
-    validation: Optional[str] = None  # 验证规则
+    options: list[dict[str, str]] = field(default_factory=list)  # 选项（select/multiselect）
+    validation: str | None = None  # 验证规则
     group: str = "基本信息"          # 分组
     help_text: str = ""             # 帮助文本
-    condition: Optional[str] = None  # 条件表达式（仅当条件满足时显示）
+    condition: str | None = None  # 条件表达式（仅当条件满足时显示）
 
 
 @dataclass
@@ -53,7 +54,7 @@ class ConditionalClause:
     id: str                         # 条款标识
     title: str                      # 条款标题
     content: str                    # 条款内容模板（支持变量插值）
-    condition: Optional[str] = None  # 条件表达式
+    condition: str | None = None  # 条件表达式
     required: bool = True           # 是否必选
     order: int = 0                  # 排序
 
@@ -65,10 +66,10 @@ class ContractTemplate:
     name: str                       # 模板名称
     category: str                   # 分类（买卖/租赁/劳动/服务等）
     description: str                # 描述
-    fields: List[TemplateField]     # 可填字段
-    clauses: List[ConditionalClause]  # 条件条款
+    fields: list[TemplateField]     # 可填字段
+    clauses: list[ConditionalClause]  # 条件条款
     version: str = "1.0"
-    applicable_regions: List[str] = field(default_factory=lambda: ["全国"])
+    applicable_regions: list[str] = field(default_factory=lambda: ["全国"])
 
 
 # ==================== 数字转大写 ====================
@@ -90,8 +91,7 @@ def number_to_chinese(num: float) -> str:
 
     if integer_part > 0:
         str_int = str(integer_part)
-        length = len(str_int)
-        groups = []
+        groups: list[str] = []
 
         # 按4位分组
         while str_int:
@@ -138,8 +138,16 @@ def number_to_chinese(num: float) -> str:
 class TemplateEngine:
     """合同模板渲染引擎"""
 
+    MAX_VARIABLES_SIZE = 64 * 1024
+    MAX_TEXT_LENGTH = 500
+    MAX_TEXTAREA_LENGTH = 2000
+    MAX_RENDER_OUTPUT_SIZE = 256 * 1024
+    SAFE_VARIABLE_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
+    DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+    PARTY_FIELDS = {"name", "code", "representative", "address", "contact"}
+
     @classmethod
-    def evaluate_condition(cls, condition: str, variables: Dict[str, Any]) -> bool:
+    def evaluate_condition(cls, condition: str, variables: dict[str, Any]) -> bool:
         """
         评估条件表达式
 
@@ -213,7 +221,7 @@ class TemplateEngine:
     def render_template(
         cls,
         template: ContractTemplate,
-        variables: Dict[str, Any],
+        variables: dict[str, Any],
     ) -> str:
         """
         渲染合同模板
@@ -229,7 +237,7 @@ class TemplateEngine:
         output_parts.append(f"# {title}\n")
 
         # 渲染合同编号
-        output_parts.append(f"合同编号：【    】\n")
+        output_parts.append("合同编号：【    】\n")
 
         # 渲染当事方信息
         party_a = variables.get("party_a", {})
@@ -264,12 +272,15 @@ class TemplateEngine:
         output_parts.append("签字：                            签字：\n")
         output_parts.append("日期：    年    月    日           日期：    年    月    日\n")
 
-        return "\n".join(output_parts)
+        output = "\n".join(output_parts)
+        if len(output.encode("utf-8")) > cls.MAX_RENDER_OUTPUT_SIZE:
+            raise ValueError("模板渲染结果超过大小限制")
+        return output
 
     @classmethod
-    def _interpolate(cls, text: str, variables: Dict[str, Any]) -> str:
+    def _interpolate(cls, text: str, variables: dict[str, Any]) -> str:
         """变量插值：将 {{variable}} 替换为实际值"""
-        def replace_var(match):
+        def replace_var(match: re.Match[str]) -> str:
             var_name = match.group(1).strip()
 
             # 支持管道符格式化：{{amount|money}}
@@ -277,30 +288,44 @@ class TemplateEngine:
                 var_name, fmt = var_name.split("|", 1)
                 var_name = var_name.strip()
                 fmt = fmt.strip()
-                value = variables.get(var_name, f"【{var_name}】")
+                if not cls._is_safe_variable_name(var_name):
+                    return cls._missing_variable_placeholder(var_name)
 
-                if fmt == "money" and isinstance(value, (int, float)):
-                    return f"人民币{value:,.2f}元（大写：{number_to_chinese(value)}）"
+                value = variables.get(var_name)
+                if value is None:
+                    return cls._missing_variable_placeholder(var_name)
+
+                if fmt == "money":
+                    number_value = cls._coerce_number(value)
+                    if number_value is not None:
+                        return f"人民币{number_value:,.2f}元（大写：{number_to_chinese(number_value)}）"
                 elif fmt == "date":
-                    return str(value) if value else "【    年    月    日】"
+                    return cls._escape_markdown_value(value) if value else "【    年    月    日】"
                 elif fmt == "percentage":
-                    return f"{value}%"
+                    number_value = cls._coerce_number(value)
+                    if number_value is not None:
+                        return f"{cls._format_number(number_value)}%"
+                    return f"{cls._escape_markdown_value(value)}%"
 
+            if not cls._is_safe_variable_name(var_name):
+                return cls._missing_variable_placeholder(var_name)
             value = variables.get(var_name)
             if value is None:
-                return f"【{var_name}】"
-            return str(value)
+                return cls._missing_variable_placeholder(var_name)
+            if isinstance(value, (dict, list, tuple, set)):
+                return cls._missing_variable_placeholder(var_name)
+            return cls._escape_markdown_value(value)
 
         return re.sub(r'\{\{([^}]+)\}\}', replace_var, text)
 
     @classmethod
-    def _render_party(cls, role: str, info: Dict[str, Any]) -> str:
+    def _render_party(cls, role: str, info: dict[str, Any]) -> str:
         """渲染当事方信息"""
-        name = info.get("name", f"【{role}全称】")
-        code = info.get("code", "【    】")
-        rep = info.get("representative", "【    】")
-        address = info.get("address", "【    】")
-        contact = info.get("contact", "【    】")
+        name = cls._escape_markdown_value(info.get("name")) if info.get("name") is not None else f"【{role}全称】"
+        code = cls._escape_markdown_value(info.get("code")) if info.get("code") is not None else "【    】"
+        rep = cls._escape_markdown_value(info.get("representative")) if info.get("representative") is not None else "【    】"
+        address = cls._escape_markdown_value(info.get("address")) if info.get("address") is not None else "【    】"
+        contact = cls._escape_markdown_value(info.get("contact")) if info.get("contact") is not None else "【    】"
 
         return (
             f"**{role}（全称）：** {name}\n"
@@ -309,6 +334,154 @@ class TemplateEngine:
             f"住所/地址：{address}\n"
             f"联系方式：{contact}\n"
         )
+
+    @classmethod
+    def validate_variables(
+        cls,
+        template: ContractTemplate,
+        variables: dict[str, Any],
+    ) -> list[str]:
+        """校验模板变量，防止未知字段、嵌套对象和超大输入进入渲染边界。"""
+        if not isinstance(variables, dict):
+            return ["variables 必须是对象"]
+
+        try:
+            payload_size = len(json.dumps(variables, ensure_ascii=False, default=str).encode("utf-8"))
+        except (TypeError, ValueError):
+            return ["variables 包含不可序列化的值"]
+
+        if payload_size > cls.MAX_VARIABLES_SIZE:
+            return ["variables 超过大小限制"]
+
+        field_map = {field.key: field for field in template.fields}
+        allowed_keys = set(field_map) | {"party_a", "party_b"}
+        errors: list[str] = []
+
+        for key, value in variables.items():
+            if not cls._is_safe_variable_name(key):
+                errors.append(f"变量名不安全: {key}")
+                continue
+
+            if key not in allowed_keys:
+                errors.append(f"不允许的变量: {key}")
+                continue
+
+            if key in {"party_a", "party_b"}:
+                errors.extend(cls._validate_party_value(key, value))
+                continue
+
+            errors.extend(cls._validate_field_value(field_map[key], value))
+
+        return errors
+
+    @classmethod
+    def _validate_party_value(cls, key: str, value: Any) -> list[str]:
+        if value is None:
+            return []
+        if not isinstance(value, dict):
+            return [f"{key} 必须是对象"]
+
+        errors = []
+        for party_key, party_value in value.items():
+            if party_key not in cls.PARTY_FIELDS:
+                errors.append(f"{key}.{party_key} 不是允许的当事方字段")
+                continue
+            if isinstance(party_value, (dict, list)):
+                errors.append(f"{key}.{party_key} 不允许嵌套对象或数组")
+                continue
+            if len(str(party_value)) > cls.MAX_TEXT_LENGTH:
+                errors.append(f"{key}.{party_key} 超过长度限制")
+        return errors
+
+    @classmethod
+    def _validate_field_value(cls, field: TemplateField, value: Any) -> list[str]:
+        if value is None or value == "":
+            return []
+
+        if field.field_type == FieldType.PARTY:
+            return cls._validate_party_value(field.key, value)
+
+        if isinstance(value, (dict, list)) and field.field_type != FieldType.MULTISELECT:
+            return [f"{field.label} 不允许嵌套对象或数组"]
+
+        if field.field_type in {FieldType.TEXT, FieldType.TEXTAREA}:
+            limit = cls.MAX_TEXTAREA_LENGTH if field.field_type == FieldType.TEXTAREA else cls.MAX_TEXT_LENGTH
+            if len(str(value)) > limit:
+                return [f"{field.label} 超过长度限制"]
+            return []
+
+        if field.field_type == FieldType.DATE:
+            if not isinstance(value, str) or not cls.DATE_RE.match(value):
+                return [f"{field.label} 必须是 YYYY-MM-DD 日期"]
+            return []
+
+        if field.field_type in {FieldType.NUMBER, FieldType.MONEY, FieldType.PERCENTAGE}:
+            if cls._coerce_number(value) is None:
+                return [f"{field.label} 必须是数字"]
+            return []
+
+        if field.field_type == FieldType.BOOLEAN:
+            if not isinstance(value, bool):
+                return [f"{field.label} 必须是布尔值"]
+            return []
+
+        if field.field_type == FieldType.SELECT:
+            allowed_values = {option.get("value") for option in field.options}
+            if allowed_values and value not in allowed_values:
+                return [f"{field.label} 不是允许的选项"]
+            return []
+
+        if field.field_type == FieldType.MULTISELECT:
+            if not isinstance(value, list):
+                return [f"{field.label} 必须是数组"]
+            allowed_values = {option.get("value") for option in field.options}
+            if allowed_values and any(item not in allowed_values for item in value):
+                return [f"{field.label} 包含不允许的选项"]
+            return []
+
+        return []
+
+    @classmethod
+    def _is_safe_variable_name(cls, name: Any) -> bool:
+        if not isinstance(name, str):
+            return False
+        if "__" in name:
+            return False
+        return bool(cls.SAFE_VARIABLE_NAME_RE.match(name))
+
+    @classmethod
+    def _missing_variable_placeholder(cls, name: str) -> str:
+        if not cls._is_safe_variable_name(name):
+            return "【变量】"
+        return f"【{name}】"
+
+    @classmethod
+    def _escape_markdown_value(cls, value: Any) -> str:
+        text = html.escape(str(value), quote=True)
+        text = re.sub(r"[\r\n\t]+", " ", text).strip()
+        text = re.sub(r"([\\`*_{}\[\]()#+!|>~])", r"\\\1", text)
+        return re.sub(r"(^|\s)([-*+]|\d+\.)\s+", r"\1\\\2 ", text)
+
+    @staticmethod
+    def _coerce_number(value: Any) -> float | None:
+        if isinstance(value, bool):
+            return None
+        if isinstance(value, (int, float)):
+            return float(value)
+        if isinstance(value, str):
+            try:
+                stripped = value.strip().replace(",", "")
+                if stripped:
+                    return float(stripped)
+            except ValueError:
+                return None
+        return None
+
+    @staticmethod
+    def _format_number(value: float) -> str:
+        if value.is_integer():
+            return str(int(value))
+        return str(value)
 
     @staticmethod
     def _num_to_chinese(num: int) -> str:
@@ -326,8 +499,8 @@ class TemplateEngine:
     def get_applicable_fields(
         cls,
         template: ContractTemplate,
-        current_variables: Dict[str, Any],
-    ) -> List[TemplateField]:
+        current_variables: dict[str, Any],
+    ) -> list[TemplateField]:
         """
         获取当前需要展示的字段列表
         （根据已填写的变量值，动态显示/隐藏条件字段）
@@ -344,7 +517,7 @@ class TemplateEngine:
 
 # ==================== 预置模板库 ====================
 
-def get_builtin_templates() -> List[ContractTemplate]:
+def get_builtin_templates() -> list[ContractTemplate]:
     """获取预置合同模板库"""
     templates = []
 
@@ -504,10 +677,10 @@ def get_builtin_templates() -> List[ContractTemplate]:
 
 
 # 全局模板库
-_builtin_templates: Optional[List[ContractTemplate]] = None
+_builtin_templates: list[ContractTemplate] | None = None
 
 
-def get_template_library() -> List[ContractTemplate]:
+def get_template_library() -> list[ContractTemplate]:
     """获取模板库（懒加载）"""
     global _builtin_templates
     if _builtin_templates is None:
@@ -515,7 +688,7 @@ def get_template_library() -> List[ContractTemplate]:
     return _builtin_templates
 
 
-def get_template_by_id(template_id: str) -> Optional[ContractTemplate]:
+def get_template_by_id(template_id: str) -> ContractTemplate | None:
     """根据ID获取模板"""
     for t in get_template_library():
         if t.id == template_id:

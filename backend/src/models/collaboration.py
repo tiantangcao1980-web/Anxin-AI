@@ -2,18 +2,19 @@
 协作编辑数据模型
 """
 
-from datetime import datetime, timezone
-from typing import Optional, TYPE_CHECKING
-from sqlalchemy import String, Text, ForeignKey, DateTime, Boolean, Enum as SQLEnum, Integer
-from sqlalchemy import JSON as JSONB
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 import enum
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any, Optional
 
-from src.models.base import Base, TimestampMixin, GUID, ValueEnum
+from sqlalchemy import JSON as JSONB
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from src.models.base import GUID, Base, TimestampMixin, ValueEnum
 
 if TYPE_CHECKING:
-    from src.models.user import User
     from src.models.document import Document
+    from src.models.user import User
 
 
 class SessionStatus(str, enum.Enum):
@@ -43,49 +44,49 @@ class EditOperation(str, enum.Enum):
 
 class DocumentSession(Base, TimestampMixin):
     """文档协作会话模型"""
-    
+
     __tablename__ = "document_sessions"
-    
+
     # 基本信息
-    name: Mapped[Optional[str]] = mapped_column(String(255))
+    name: Mapped[str | None] = mapped_column(String(255))
     status: Mapped[SessionStatus] = mapped_column(
         ValueEnum(SessionStatus), default=SessionStatus.ACTIVE
     )
-    
+
     # 会话配置
     max_collaborators: Mapped[int] = mapped_column(Integer, default=10)
     allow_anonymous: Mapped[bool] = mapped_column(Boolean, default=False)
     require_approval: Mapped[bool] = mapped_column(Boolean, default=False)
-    
+
     # 版本控制
     current_version: Mapped[int] = mapped_column(Integer, default=1)
-    base_content: Mapped[Optional[str]] = mapped_column(Text)  # 基础内容快照
-    current_content: Mapped[Optional[str]] = mapped_column(Text)  # 当前内容
-    
+    base_content: Mapped[str | None] = mapped_column(Text)  # 基础内容快照
+    current_content: Mapped[str | None] = mapped_column(Text)  # 当前内容
+
     # 时间节点
     started_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
-    ended_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_activity_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
-    
+
     # 统计
     total_edits: Mapped[int] = mapped_column(Integer, default=0)
     active_collaborators: Mapped[int] = mapped_column(Integer, default=0)
-    
+
     # 元数据
-    settings: Mapped[Optional[dict]] = mapped_column(JSONB)  # 会话设置
-    
+    settings: Mapped[dict[str, Any] | None] = mapped_column(JSONB)  # 会话设置
+
     # 外键
     document_id: Mapped[str] = mapped_column(
         GUID(), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
     )
-    created_by: Mapped[Optional[str]] = mapped_column(
+    created_by: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("users.id", ondelete="SET NULL")
     )
-    
+
     # 关系
     document: Mapped["Document"] = relationship("Document", back_populates="sessions")
     creator: Mapped[Optional["User"]] = relationship(
@@ -104,43 +105,43 @@ class DocumentSession(Base, TimestampMixin):
 
 class DocumentCollaborator(Base, TimestampMixin):
     """文档协作者模型"""
-    
+
     __tablename__ = "document_collaborators"
-    
+
     # 协作者信息
     role: Mapped[CollaboratorRole] = mapped_column(
         ValueEnum(CollaboratorRole), default=CollaboratorRole.EDITOR
     )
-    nickname: Mapped[Optional[str]] = mapped_column(String(50))
-    color: Mapped[Optional[str]] = mapped_column(String(20))  # 用户标识颜色
-    
+    nickname: Mapped[str | None] = mapped_column(String(50))
+    color: Mapped[str | None] = mapped_column(String(20))  # 用户标识颜色
+
     # 状态
     is_online: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    
+
     # 光标位置
-    cursor_position: Mapped[Optional[dict]] = mapped_column(JSONB)  # {line, column, selection}
-    
+    cursor_position: Mapped[dict[str, Any] | None] = mapped_column(JSONB)  # {line, column, selection}
+
     # 时间
     joined_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
     last_seen_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
-    left_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    
+    left_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
     # 统计
     edit_count: Mapped[int] = mapped_column(Integer, default=0)
-    
+
     # 外键
     session_id: Mapped[str] = mapped_column(
         GUID(), ForeignKey("document_sessions.id", ondelete="CASCADE"), nullable=False
     )
-    user_id: Mapped[Optional[str]] = mapped_column(
+    user_id: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("users.id", ondelete="SET NULL")
     )
-    
+
     # 关系
     session: Mapped["DocumentSession"] = relationship(
         "DocumentSession", back_populates="collaborators"
@@ -153,40 +154,40 @@ class DocumentCollaborator(Base, TimestampMixin):
 
 class DocumentEdit(Base, TimestampMixin):
     """文档编辑记录模型"""
-    
+
     __tablename__ = "document_edits"
-    
+
     # 编辑信息
     operation: Mapped[EditOperation] = mapped_column(
         ValueEnum(EditOperation), nullable=False
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False)
-    
+
     # 编辑内容
-    position: Mapped[dict] = mapped_column(JSONB, nullable=False)  # {start, end, line, column}
-    content: Mapped[Optional[str]] = mapped_column(Text)  # 插入/替换的内容
-    old_content: Mapped[Optional[str]] = mapped_column(Text)  # 被删除/替换的内容
-    
+    position: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)  # {start, end, line, column}
+    content: Mapped[str | None] = mapped_column(Text)  # 插入/替换的内容
+    old_content: Mapped[str | None] = mapped_column(Text)  # 被删除/替换的内容
+
     # 格式化信息（如果是格式化操作）
-    format_type: Mapped[Optional[str]] = mapped_column(String(50))
-    format_value: Mapped[Optional[dict]] = mapped_column(JSONB)
-    
+    format_type: Mapped[str | None] = mapped_column(String(50))
+    format_value: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+
     # 操作时间戳（精确到毫秒）
     operation_time: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
-    
+
     # 是否已同步
     is_synced: Mapped[bool] = mapped_column(Boolean, default=True)
-    
+
     # 外键
     session_id: Mapped[str] = mapped_column(
         GUID(), ForeignKey("document_sessions.id", ondelete="CASCADE"), nullable=False
     )
-    collaborator_id: Mapped[Optional[str]] = mapped_column(
+    collaborator_id: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("document_collaborators.id", ondelete="SET NULL")
     )
-    
+
     # 关系
     session: Mapped["DocumentSession"] = relationship(
         "DocumentSession", back_populates="edits"
@@ -205,14 +206,14 @@ class DocumentSnapshot(Base, TimestampMixin):
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    title: Mapped[Optional[str]] = mapped_column(String(200))
+    title: Mapped[str | None] = mapped_column(String(200))
     snapshot_type: Mapped[str] = mapped_column(
         String(20), default="auto"  # auto | manual | restore
     )
-    created_by: Mapped[Optional[str]] = mapped_column(
+    created_by: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("users.id", ondelete="SET NULL")
     )
-    description: Mapped[Optional[str]] = mapped_column(String(500))
+    description: Mapped[str | None] = mapped_column(String(500))
     byte_size: Mapped[int] = mapped_column(Integer, default=0)
 
     # 关系

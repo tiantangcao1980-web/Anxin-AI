@@ -28,8 +28,11 @@ import {
 // ============ 类型定义 ============
 
 interface SubscriptionInfo {
+ id: string
+ clientType: ClientType
  planName: string
  planId: string
+ status: string
  expiresAt: string
  autoRenew: boolean
  aiUsed: number
@@ -43,7 +46,7 @@ interface OrderRecord {
  date: string
  description: string
  amount: number
- status:'paid' |'pending' |'refunded' |'refund_pending'
+ status: string
 }
 
 interface RefundRecord {
@@ -51,8 +54,24 @@ interface RefundRecord {
  orderId: string
  amount: number
  reason: string
- status:'pending' |'approved' |'rejected'
+ status: string
  createdAt: string
+}
+
+type ClientType = 'needer' | 'provider'
+
+const CLIENTS: { type: ClientType; label: string; description: string; icon: typeof icons.User }[] = [
+ { type:'needer', label:'需求方端', description:'个人与企业法务需求', icon: icons.User },
+ { type:'provider', label:'服务方端', description:'律师与服务机构工作台', icon: icons.Briefcase },
+]
+
+const SUBSCRIPTION_STATUS_MAP: Record<string, { label: string; badge: string }> = {
+ pending: { label:'待支付', badge: statusBadge.warning },
+ trial: { label:'试用中', badge: statusBadge.info },
+ active: { label:'生效中', badge: statusBadge.success },
+ past_due: { label:'待续费', badge: statusBadge.warning },
+ cancelled: { label:'已取消', badge: statusBadge.neutral },
+ expired: { label:'已过期', badge: statusBadge.error },
 }
 
 const ORDER_STATUS_MAP: Record<string, { label: string; badge: string }> = {
@@ -60,12 +79,116 @@ const ORDER_STATUS_MAP: Record<string, { label: string; badge: string }> = {
  pending: { label:'待支付', badge: statusBadge.warning },
  refunded: { label:'已退款', badge: statusBadge.neutral },
  refund_pending: { label:'退款中', badge: statusBadge.info },
+ failed: { label:'支付失败', badge: statusBadge.error },
+ cancelled: { label:'已关闭', badge: statusBadge.neutral },
 }
 
 const REFUND_STATUS_MAP: Record<string, { label: string; badge: string }> = {
  pending: { label:'审批中', badge: statusBadge.warning },
  approved: { label:'已通过', badge: statusBadge.success },
  rejected: { label:'已拒绝', badge: statusBadge.error },
+ processed: { label:'已处理', badge: statusBadge.success },
+}
+
+export function normalizeSubscriptionData(raw: any): SubscriptionInfo[] {
+ const list = Array.isArray(raw)
+ ? raw
+ : Array.isArray(raw?.subscriptions)
+ ? raw.subscriptions
+ : raw?.subscription
+ ? [raw.subscription]
+ : raw
+ ? [raw]
+ : []
+
+ return list
+ .filter(Boolean)
+ .map((subscription: any) => {
+ const plan = subscription.plan || {}
+ return {
+ id: subscription.id || subscription.subscription_id ||'',
+ clientType: normalizeClientType(subscription.client_type || subscription.clientType),
+ planName: plan.name || subscription.plan_name || subscription.planName ||'未知套餐',
+ planId: subscription.plan_id || subscription.planId || plan.id ||'',
+ status: subscription.status ||'pending',
+ expiresAt:
+ subscription.current_period_end
+ || subscription.expires_at
+ || subscription.expiresAt
+ || subscription.trial_ends_at
+ ||'',
+ autoRenew: subscription.auto_renew ?? subscription.autoRenew ?? false,
+ aiUsed: subscription.ai_used ?? subscription.aiUsed ?? 0,
+ aiTotal: subscription.ai_total ?? subscription.aiTotal ?? plan.ai_quota ?? 0,
+ storageUsedGB: subscription.storage_used_gb ?? subscription.storageUsedGB ?? 0,
+ storageTotalGB:
+ subscription.storage_total_gb
+ ?? subscription.storageTotalGB
+ ?? plan.storage_gb
+ ?? 0,
+ }
+ })
+}
+
+export function normalizeOrderData(raw: any): OrderRecord[] {
+ const subscriptions = Array.isArray(raw)
+ ? raw
+ : Array.isArray(raw?.subscriptions)
+ ? raw.subscriptions
+ : raw?.subscription
+ ? [raw.subscription]
+ : []
+ const nestedOrders = subscriptions.flatMap((subscription: any) => (
+ Array.isArray(subscription?.orders) ? subscription.orders : []
+ ))
+ const orderList = [
+ ...(Array.isArray(raw?.orders) ? raw.orders : []),
+ ...nestedOrders,
+ ]
+ return orderList.map((order: any) => ({
+ id: order.id,
+ date: order.date || order.created_at || order.createdAt ||'',
+ description: order.description || order.order_type ||'订阅订单',
+ amount: Number(order.amount || 0),
+ status: order.status ||'pending',
+ }))
+}
+
+export function normalizeRefundData(raw: any): RefundRecord[] {
+ const refundList = Array.isArray(raw) ? raw : raw?.refunds || []
+ return refundList.map((r: any) => ({
+ id: r.id,
+ orderId: r.order_id || r.orderId ||'',
+ amount: r.amount || 0,
+ reason: r.reason ||'',
+ status: r.status ||'pending',
+ createdAt: r.created_at || r.createdAt ||'',
+ }))
+}
+
+function pickSubscriptionForClient(
+ subscriptions: SubscriptionInfo[],
+ clientType: ClientType
+): SubscriptionInfo | null {
+ const statusRank: Record<string, number> = {
+ active: 0,
+ trial: 1,
+ past_due: 2,
+ pending: 3,
+ cancelled: 4,
+ expired: 5,
+ }
+ const candidates = subscriptions.filter(sub => sub.clientType === clientType)
+ if (candidates.length === 0) return null
+ return [...candidates].sort((a, b) => {
+ const statusDelta = (statusRank[a.status] ?? 99) - (statusRank[b.status] ?? 99)
+ if (statusDelta !== 0) return statusDelta
+ return String(b.expiresAt).localeCompare(String(a.expiresAt))
+ })[0]
+}
+
+function normalizeClientType(value: unknown): ClientType {
+ return value ==='provider' ?'provider' :'needer'
 }
 
 // ============ 主组件 ============
@@ -73,7 +196,7 @@ const REFUND_STATUS_MAP: Record<string, { label: string; badge: string }> = {
 export default function MySubscription() {
  const [loading, setLoading] = useState(true)
  const [error, setError] = useState<string | null>(null)
- const [sub, setSub] = useState<SubscriptionInfo | null>(null)
+ const [subscriptions, setSubscriptions] = useState<SubscriptionInfo[]>([])
  const [orders, setOrders] = useState<OrderRecord[]>([])
  const [refunds, setRefunds] = useState<RefundRecord[]>([])
 
@@ -89,40 +212,12 @@ export default function MySubscription() {
  ])
  if (cancelled) return
 
- // 订阅信息 - 适配不同返回结构
- if (subData) {
- const subscription = Array.isArray(subData) ? subData[0] : subData.subscription || subData
- if (subscription) {
- setSub({
- planName: subscription.plan_name || subscription.planName ||'未知套餐',
- planId: subscription.plan_id || subscription.planId ||'',
- expiresAt: subscription.expires_at || subscription.expiresAt ||'',
- autoRenew: subscription.auto_renew ?? subscription.autoRenew ?? false,
- aiUsed: subscription.ai_used ?? subscription.aiUsed ?? 0,
- aiTotal: subscription.ai_total ?? subscription.aiTotal ?? 0,
- storageUsedGB: subscription.storage_used_gb ?? subscription.storageUsedGB ?? 0,
- storageTotalGB: subscription.storage_total_gb ?? subscription.storageTotalGB ?? 0,
- })
- }
-
- // 订单可能嵌在订阅数据中
- const orderList = subscription?.orders || subData?.orders || []
- if (Array.isArray(orderList)) {
- setOrders(orderList)
- }
- }
+ setSubscriptions(normalizeSubscriptionData(subData))
+ setOrders(normalizeOrderData(subData))
 
  // 退款记录
  if (refundData) {
- const refundList = Array.isArray(refundData) ? refundData : refundData.refunds || []
- setRefunds(refundList.map((r: any) => ({
- id: r.id,
- orderId: r.order_id || r.orderId ||'',
- amount: r.amount || 0,
- reason: r.reason ||'',
- status: r.status ||'pending',
- createdAt: r.created_at || r.createdAt ||'',
- })))
+ setRefunds(normalizeRefundData(refundData))
  }
  } catch (err: any) {
  if (!cancelled) {
@@ -137,9 +232,10 @@ export default function MySubscription() {
  return () => { cancelled = true }
  }, [])
 
- function handleAutoRenewToggle(val: boolean) {
- if (!sub) return
- setSub(prev => prev ? { ...prev, autoRenew: val } : prev)
+ function handleAutoRenewToggle(clientType: ClientType, val: boolean) {
+ setSubscriptions(prev => prev.map(sub => (
+ sub.clientType === clientType ? { ...sub, autoRenew: val } : sub
+ )))
  toast.success(val ?'已开启自动续费' :'已关闭自动续费')
  }
 
@@ -186,72 +282,22 @@ export default function MySubscription() {
  )
  }
 
- if (!sub) {
- return (
- <PageContainer title="我的订阅" description="管理套餐、查看用量和订单记录">
- <div className={`${cardStyle.base} flex flex-col items-center justify-center py-16`}>
- <icons.Box className={`${iconSize.xl} text-muted-foreground mb-3`} />
- <p className={heading.section}>暂无订阅</p>
- <p className="text-sm text-muted-foreground mt-1">您还没有订阅任何套餐</p>
- <Button className="mt-4" onClick={() => window.location.href ='/pricing'}>
- 查看套餐
- </Button>
- </div>
- </PageContainer>
- )
+ const subscriptionsByClient = {
+ needer: pickSubscriptionForClient(subscriptions, 'needer'),
+ provider: pickSubscriptionForClient(subscriptions, 'provider'),
  }
 
- const aiPercent = sub.aiTotal > 0 ? Math.round((sub.aiUsed / sub.aiTotal) * 100) : 0
- const storagePercent = sub.storageTotalGB > 0 ? Math.round((sub.storageUsedGB / sub.storageTotalGB) * 100) : 0
-
  return (
  <PageContainer title="我的订阅" description="管理套餐、查看用量和订单记录">
- {/* 当前套餐 */}
- <div className={cardStyle.highlight}>
- <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
- <div className="flex items-center gap-3">
- <div className="p-2.5 rounded-lg bg-primary/10">
- <icons.Zap className={`${iconSize.lg} text-primary`} />
- </div>
- <div>
- <div className="flex items-center gap-2">
- <h3 className={heading.section}>{sub.planName}</h3>
- <Badge className={statusBadge.info}>当前套餐</Badge>
- </div>
- <p className="text-sm text-muted-foreground mt-0.5">
- 到期时间：{sub.expiresAt}
- </p>
- </div>
- </div>
- <div className="flex items-center gap-3">
- <div className="flex items-center gap-2">
- <span className="text-sm text-muted-foreground">自动续费</span>
- <Switch checked={sub.autoRenew} onCheckedChange={handleAutoRenewToggle} />
- </div>
- <Button variant="outline" size="sm" className="gap-1.5">
- <icons.TrendingUp className={iconSize.sm} />
- 升级套餐
- </Button>
- </div>
- </div>
-
- {/* 用量进度 */}
- <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
- <UsageBar
- label="AI 对话次数"
- used={sub.aiUsed}
- total={sub.aiTotal}
- unit="次"
- percent={aiPercent}
+ <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+ {CLIENTS.map(client => (
+ <SubscriptionPanel
+ key={client.type}
+ client={client}
+ subscription={subscriptionsByClient[client.type]}
+ onAutoRenewToggle={handleAutoRenewToggle}
  />
- <UsageBar
- label="存储空间"
- used={sub.storageUsedGB}
- total={sub.storageTotalGB}
- unit="GB"
- percent={storagePercent}
- />
- </div>
+ ))}
  </div>
 
  {/* 订单历史 */}
@@ -339,6 +385,106 @@ export default function MySubscription() {
 }
 
 // ============ 辅助组件 ============
+
+function SubscriptionPanel({
+ client,
+ subscription,
+ onAutoRenewToggle,
+}: {
+ client: (typeof CLIENTS)[number]
+ subscription: SubscriptionInfo | null
+ onAutoRenewToggle: (clientType: ClientType, value: boolean) => void
+}) {
+ const Icon = client.icon
+ const aiPercent = subscription?.aiTotal
+ ? Math.round((subscription.aiUsed / subscription.aiTotal) * 100)
+ : 0
+ const storagePercent = subscription?.storageTotalGB
+ ? Math.round((subscription.storageUsedGB / subscription.storageTotalGB) * 100)
+ : 0
+
+ if (!subscription) {
+ return (
+ <div className={`${cardStyle.base} flex min-h-[260px] flex-col justify-between`}>
+ <div>
+ <div className="flex items-center gap-3">
+ <div className="p-2.5 rounded-lg bg-muted">
+ <Icon className={`${iconSize.lg} text-muted-foreground`} />
+ </div>
+ <div>
+ <h3 className={heading.section}>{client.label}</h3>
+ <p className="text-sm text-muted-foreground mt-0.5">{client.description}</p>
+ </div>
+ </div>
+ <div className="mt-8 text-center">
+ <icons.Box className={`${iconSize.xl} text-muted-foreground mx-auto mb-3`} />
+ <p className="text-sm font-medium text-foreground">未订阅</p>
+ <p className="text-xs text-muted-foreground mt-1">当前端侧未开通套餐</p>
+ </div>
+ </div>
+ <Button className="mt-6 w-full" onClick={() => window.location.href ='/pricing'}>
+ 查看套餐
+ </Button>
+ </div>
+ )
+ }
+
+ const status = SUBSCRIPTION_STATUS_MAP[subscription.status] || {
+ label: subscription.status,
+ badge: statusBadge.neutral,
+ }
+
+ return (
+ <div className={cardStyle.highlight}>
+ <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-5">
+ <div className="flex items-center gap-3">
+ <div className="p-2.5 rounded-lg bg-primary/10">
+ <Icon className={`${iconSize.lg} text-primary`} />
+ </div>
+ <div>
+ <div className="flex flex-wrap items-center gap-2">
+ <h3 className={heading.section}>{client.label}</h3>
+ <Badge className={`text-xs px-2 py-0.5 ${status.badge}`}>{status.label}</Badge>
+ </div>
+ <p className="text-sm text-muted-foreground mt-0.5">{subscription.planName}</p>
+ <p className="text-xs text-muted-foreground mt-1">
+ 到期时间：{subscription.expiresAt ||'未设置'}
+ </p>
+ </div>
+ </div>
+ <Button variant="outline" size="sm" className="gap-1.5 shrink-0">
+ <icons.TrendingUp className={iconSize.sm} />
+ 升级套餐
+ </Button>
+ </div>
+
+ <div className="flex items-center justify-between border-y border-border/60 py-3 mb-5">
+ <span className="text-sm text-muted-foreground">自动续费</span>
+ <Switch
+ checked={subscription.autoRenew}
+ onCheckedChange={value => onAutoRenewToggle(subscription.clientType, value)}
+ />
+ </div>
+
+ <div className="space-y-4">
+ <UsageBar
+ label="AI 对话次数"
+ used={subscription.aiUsed}
+ total={subscription.aiTotal}
+ unit="次"
+ percent={aiPercent}
+ />
+ <UsageBar
+ label="存储空间"
+ used={subscription.storageUsedGB}
+ total={subscription.storageTotalGB}
+ unit="GB"
+ percent={storagePercent}
+ />
+ </div>
+ </div>
+ )
+}
 
 function UsageBar({
  label,

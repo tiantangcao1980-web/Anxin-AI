@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Harness Engineering 监控面板 API
 
@@ -6,20 +5,21 @@ Harness Engineering 监控面板 API
 仅管理员可访问。
 """
 
-from typing import Optional
+
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query
-from loguru import logger
 
 from src.core.deps import get_admin_user
 
 router = APIRouter(prefix="/harness", tags=["harness"])
+ResponsePayload = dict[str, Any]
 
 
 @router.get("/stats")
-async def get_harness_stats(user=Depends(get_admin_user)):
+async def get_harness_stats(user: Any = Depends(get_admin_user)) -> ResponsePayload:
     """获取 Harness 全局统计概览"""
-    result = {}
+    result: ResponsePayload = {}
 
     try:
         from src.harness.cost_tracker import cost_tracker
@@ -49,14 +49,17 @@ async def get_harness_stats(user=Depends(get_admin_user)):
 
 
 @router.get("/cost")
-async def get_cost_stats(user=Depends(get_admin_user)):
+async def get_cost_stats(user: Any = Depends(get_admin_user)) -> ResponsePayload:
     """获取费用统计详情"""
     from src.harness.cost_tracker import cost_tracker
     return {"status": "ok", "data": cost_tracker.get_stats()}
 
 
 @router.get("/cost/conversation/{conversation_id}")
-async def get_conversation_cost(conversation_id: str, user=Depends(get_admin_user)):
+async def get_conversation_cost(
+    conversation_id: str,
+    user: Any = Depends(get_admin_user),
+) -> ResponsePayload:
     """获取单个会话的费用明细"""
     from src.harness.cost_tracker import cost_tracker
     return {"status": "ok", "data": cost_tracker.get_conversation_cost(conversation_id)}
@@ -64,13 +67,13 @@ async def get_conversation_cost(conversation_id: str, user=Depends(get_admin_use
 
 @router.get("/tools")
 async def list_tools(
-    risk_level: Optional[str] = Query(None, description="过滤风险等级"),
-    tag: Optional[str] = Query(None, description="过滤标签"),
-    agent: Optional[str] = Query(None, description="过滤可用 Agent"),
-    user=Depends(get_admin_user),
-):
+    risk_level: str | None = Query(None, description="过滤风险等级"),
+    tag: str | None = Query(None, description="过滤标签"),
+    agent: str | None = Query(None, description="过滤可用 Agent"),
+    user: Any = Depends(get_admin_user),
+) -> ResponsePayload:
     """列出已注册的工具"""
-    from src.harness.tool_registry import tool_registry, RiskLevel
+    from src.harness.tool_registry import RiskLevel, tool_registry
 
     risk = RiskLevel(risk_level) if risk_level else None
     tools = tool_registry.list_tools(risk_level=risk, tag=tag, agent_name=agent)
@@ -92,7 +95,10 @@ async def list_tools(
 
 
 @router.get("/tools/stats")
-async def get_tool_stats(tool_name: Optional[str] = Query(None), user=Depends(get_admin_user)):
+async def get_tool_stats(
+    tool_name: str | None = Query(None),
+    user: Any = Depends(get_admin_user),
+) -> ResponsePayload:
     """获取工具调用统计"""
     from src.harness.tool_registry import tool_registry
     return {"status": "ok", "data": tool_registry.get_tool_stats(tool_name)}
@@ -102,8 +108,8 @@ async def get_tool_stats(tool_name: Optional[str] = Query(None), user=Depends(ge
 async def check_policy(
     agent: str = Query(..., description="Agent 名称"),
     tool: str = Query(..., description="工具名称"),
-    user=Depends(get_admin_user),
-):
+    user: Any = Depends(get_admin_user),
+) -> ResponsePayload:
     """检查 Agent 是否有权限调用工具"""
     from src.harness.policy_engine import policy_engine
     result = policy_engine.check_tool_access(agent, tool)
@@ -120,7 +126,10 @@ async def check_policy(
 
 
 @router.get("/policy/agent/{agent_name}/tools")
-async def get_agent_tools(agent_name: str, user=Depends(get_admin_user)):
+async def get_agent_tools(
+    agent_name: str,
+    user: Any = Depends(get_admin_user),
+) -> ResponsePayload:
     """获取 Agent 可用的所有工具"""
     from src.harness.policy_engine import policy_engine
     tools = policy_engine.get_agent_available_tools(agent_name)
@@ -128,7 +137,10 @@ async def get_agent_tools(agent_name: str, user=Depends(get_admin_user)):
 
 
 @router.get("/policy/audit")
-async def get_policy_audit(limit: int = Query(50, le=200), user=Depends(get_admin_user)):
+async def get_policy_audit(
+    limit: int = Query(50, le=200),
+    user: Any = Depends(get_admin_user),
+) -> ResponsePayload:
     """获取权限审计日志"""
     from src.harness.policy_engine import policy_engine
     logs = policy_engine._audit_log[-limit:]
@@ -139,21 +151,28 @@ async def get_policy_audit(limit: int = Query(50, le=200), user=Depends(get_admi
 # ===== 任务引擎 =====
 
 @router.get("/tasks")
-async def get_task_stats(user=Depends(get_admin_user)):
+async def get_task_stats(user: Any = Depends(get_admin_user)) -> ResponsePayload:
     """获取任务引擎统计"""
     from src.harness.task_engine import task_engine
     return {"status": "ok", "data": task_engine.get_stats()}
 
 
 @router.get("/tasks/user/{user_id}")
-async def get_user_tasks(user_id: str, limit: int = Query(20, le=100), user=Depends(get_admin_user)):
+async def get_user_tasks(
+    user_id: str,
+    limit: int = Query(20, le=100),
+    user: Any = Depends(get_admin_user),
+) -> ResponsePayload:
     """获取用户任务列表"""
     from src.harness.task_engine import task_engine
     return {"status": "ok", "data": task_engine.get_user_tasks(user_id, limit)}
 
 
 @router.get("/tasks/{task_id}")
-async def get_task_detail(task_id: str, user=Depends(get_admin_user)):
+async def get_task_detail(
+    task_id: str,
+    user: Any = Depends(get_admin_user),
+) -> ResponsePayload:
     """获取任务详情"""
     from src.harness.task_engine import task_engine
     task = task_engine.get_task(task_id)
@@ -183,11 +202,13 @@ async def get_task_detail(task_id: str, user=Depends(get_admin_user)):
 async def negotiate_capability(
     platform: str = Query("web", description="平台类型: web/desktop/mobile/mini_program"),
     mode: str = Query("cloud", description="运行模式: cloud/hybrid/top_secret"),
-    user=Depends(get_admin_user),
-):
+    user: Any = Depends(get_admin_user),
+) -> ResponsePayload:
     """协商当前环境的可用能力"""
     from src.harness.capability_negotiator import (
-        capability_negotiator, PlatformType, AppMode,
+        AppMode,
+        PlatformType,
+        capability_negotiator,
     )
     try:
         result = capability_negotiator.negotiate(
@@ -214,10 +235,10 @@ async def negotiate_capability(
 async def get_degradation_notice(
     from_mode: str = Query(..., description="当前模式"),
     to_mode: str = Query(..., description="目标模式"),
-    user=Depends(get_admin_user),
-):
+    user: Any = Depends(get_admin_user),
+) -> ResponsePayload:
     """获取模式切换降级通知"""
-    from src.harness.capability_negotiator import capability_negotiator, AppMode
+    from src.harness.capability_negotiator import AppMode, capability_negotiator
     try:
         notice = capability_negotiator.get_degradation_notice(
             from_mode=AppMode(from_mode),

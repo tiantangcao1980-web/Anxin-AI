@@ -1,14 +1,13 @@
-# -*- coding: utf-8 -*-
 """
 工时管理服务
 """
 
-from datetime import date, datetime, timezone
-from typing import Optional
+from datetime import UTC, date, datetime
+from typing import Any
 
-from sqlalchemy import select, func, and_
-from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
+from sqlalchemy import and_, case, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.firm_management import TimeEntry
 
@@ -24,11 +23,11 @@ class TimesheetService:
         user_id: str,
         entry_date: date,
         minutes: int,
-        description: Optional[str] = None,
+        description: str | None = None,
         billable: bool = True,
-        rate: Optional[float] = None,
-        case_id: Optional[str] = None,
-    ) -> dict:
+        rate: float | None = None,
+        case_id: str | None = None,
+    ) -> dict[str, Any]:
         """创建工时记录"""
         entry = TimeEntry(
             user_id=user_id,
@@ -48,12 +47,12 @@ class TimesheetService:
 
     async def list_entries(
         self,
-        user_id: Optional[str] = None,
-        date_from: Optional[date] = None,
-        date_to: Optional[date] = None,
-        status: Optional[str] = None,
-        case_id: Optional[str] = None,
-    ) -> list[dict]:
+        user_id: str | None = None,
+        date_from: date | None = None,
+        date_to: date | None = None,
+        status: str | None = None,
+        case_id: str | None = None,
+    ) -> list[dict[str, Any]]:
         """查询工时记录"""
         stmt = select(TimeEntry)
 
@@ -105,7 +104,7 @@ class TimesheetService:
         result = await self.db.execute(stmt)
         entries = result.scalars().all()
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         count = 0
         for entry in entries:
             entry.status = "approved"
@@ -138,11 +137,11 @@ class TimesheetService:
 
     async def get_summary(
         self,
-        user_id: Optional[str] = None,
-        org_id: Optional[str] = None,
-        date_from: Optional[date] = None,
-        date_to: Optional[date] = None,
-    ) -> dict:
+        user_id: str | None = None,
+        org_id: str | None = None,
+        date_from: date | None = None,
+        date_to: date | None = None,
+    ) -> dict[str, Any]:
         """
         获取工时汇总
         返回 { total_minutes, billable_minutes, total_amount, by_user: [...] }
@@ -151,13 +150,13 @@ class TimesheetService:
             TimeEntry.user_id,
             func.sum(TimeEntry.minutes).label("total_minutes"),
             func.sum(
-                func.case(
+                case(
                     (TimeEntry.billable == True, TimeEntry.minutes),
                     else_=0,
                 )
             ).label("billable_minutes"),
             func.sum(
-                func.case(
+                case(
                     (
                         and_(TimeEntry.billable == True, TimeEntry.rate.isnot(None)),
                         TimeEntry.minutes / 60.0 * TimeEntry.rate,
@@ -187,7 +186,7 @@ class TimesheetService:
         total_minutes = 0
         billable_minutes = 0
         total_amount = 0.0
-        by_user = []
+        by_user: list[dict[str, Any]] = []
 
         for row in rows:
             user_minutes = int(row.total_minutes or 0)

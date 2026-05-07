@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 批量文件生成服务
 
@@ -13,11 +12,11 @@
 - 支持 Markdown / DOCX / PDF 三种输出格式
 """
 
-import asyncio
 import uuid
-from typing import Dict, Any, Optional, List
-from datetime import datetime, date
 from dataclasses import dataclass, field
+from datetime import date, datetime
+from typing import Any
+
 from loguru import logger
 
 
@@ -26,16 +25,16 @@ class DocumentItem:
     """单份生成文件"""
     id: str = ""
     recipient_name: str = ""      # 收件人/对象名
-    recipient_info: Dict = field(default_factory=dict)  # 收件人详细信息
+    recipient_info: dict[str, Any] = field(default_factory=dict)  # 收件人详细信息
     content: str = ""             # 生成的文件内容（Markdown）
     status: str = "pending"       # pending / generating / done / error
-    error: Optional[str] = None
+    error: str | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.id:
             self.id = str(uuid.uuid4())[:8]
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "recipient_name": self.recipient_name,
@@ -52,12 +51,12 @@ class BatchJob:
     template_type: str = ""       # demand_letter / labor_contract / termination_notice / etc.
     total: int = 0
     completed: int = 0
-    items: List[DocumentItem] = field(default_factory=list)
-    common_context: Dict = field(default_factory=dict)  # 各份文件共用的上下文
+    items: list[DocumentItem] = field(default_factory=list)
+    common_context: dict[str, Any] = field(default_factory=dict)  # 各份文件共用的上下文
     status: str = "created"       # created / processing / done / error
     created_at: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.job_id:
             self.job_id = str(uuid.uuid4())[:12]
         if not self.created_at:
@@ -67,7 +66,7 @@ class BatchJob:
     def progress(self) -> float:
         return self.completed / self.total if self.total > 0 else 0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "job_id": self.job_id,
             "template_type": self.template_type,
@@ -81,7 +80,7 @@ class BatchJob:
 
 # ========== 文件模板 ==========
 
-DOCUMENT_TEMPLATES: Dict[str, Dict[str, Any]] = {
+DOCUMENT_TEMPLATES: dict[str, dict[str, Any]] = {
     # 物业催费律师函
     "property_demand_letter": {
         "name": "物业催费律师函",
@@ -291,10 +290,10 @@ DOCUMENT_TEMPLATES: Dict[str, Dict[str, Any]] = {
 class BatchDocumentService:
     """批量文件生成服务"""
 
-    def __init__(self):
-        self._jobs: Dict[str, BatchJob] = {}
+    def __init__(self) -> None:
+        self._jobs: dict[str, BatchJob] = {}
 
-    def get_available_templates(self) -> List[Dict]:
+    def get_available_templates(self) -> list[dict[str, Any]]:
         """获取所有可用模板"""
         return [
             {
@@ -309,8 +308,8 @@ class BatchDocumentService:
     def create_batch_job(
         self,
         template_type: str,
-        recipients: List[Dict[str, Any]],
-        common_context: Optional[Dict[str, Any]] = None,
+        recipients: list[dict[str, Any]],
+        common_context: dict[str, Any] | None = None,
     ) -> BatchJob:
         """
         创建批量生成任务
@@ -324,7 +323,7 @@ class BatchDocumentService:
             raise ValueError(f"不支持的模板类型: {template_type}，可用: {list(DOCUMENT_TEMPLATES.keys())}")
 
         template_def = DOCUMENT_TEMPLATES[template_type]
-        items = []
+        items: list[DocumentItem] = []
         for r in recipients:
             name_field = template_def["required_fields"][0]
             items.append(DocumentItem(
@@ -357,7 +356,7 @@ class BatchDocumentService:
                 item.status = "generating"
 
                 # 合并参数：默认值 → 公共上下文 → 个体信息
-                params = {**defaults}
+                params: dict[str, Any] = {**defaults}
                 params.update(job.common_context)
                 params.update(item.recipient_info)
 
@@ -382,7 +381,7 @@ class BatchDocumentService:
         job.status = "done"
         return job
 
-    def get_job(self, job_id: str) -> Optional[BatchJob]:
+    def get_job(self, job_id: str) -> BatchJob | None:
         """获取任务状态"""
         return self._jobs.get(job_id)
 

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { useColorScheme, Platform } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Colors, DarkColors } from '../../src/constants/colors'
+import { Layout } from '../../src/constants/layout'
 import { normalizeBadgeCount } from '../../src/features/inbox/engagement-model'
 import { api } from '../../src/services/api'
 import type { IMConversation } from '../../src/types/api'
@@ -46,7 +47,7 @@ export default function TabLayout() {
     loadBadges()
   }, [])
 
-  const baseTabBarHeight = Platform.OS === 'ios' ? 56 : 56
+  const baseTabBarHeight = Math.max(Layout.tabBarBaseHeight, Layout.touchTarget.min)
   const paddingBottom = Math.max(insets.bottom, Platform.OS === 'ios' ? 8 : 8)
 
   return (
@@ -58,6 +59,7 @@ export default function TabLayout() {
           backgroundColor: theme.background,
           borderTopColor: theme.border,
           height: baseTabBarHeight + paddingBottom,
+          minHeight: Layout.touchTarget.min + paddingBottom,
           paddingBottom,
           paddingTop: 8,
         },

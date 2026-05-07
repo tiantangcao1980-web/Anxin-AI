@@ -17,6 +17,7 @@
  */
 
 import { ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { usePrivacy, PrivacyMode } from '@/context/PrivacyContext'
 import { icons } from '@/lib/icons'
@@ -83,15 +84,18 @@ export function checkModeAccess(
 
 /**
  * 模式不满足时的默认 UI
+ *
+ * V2: 不再提供"一键 setMode"按钮——切换模式必须经过订阅检查（requestModeSwitch）。
+ * 这里仅引导用户去设置页或订阅页，避免绕过订阅校验。
  */
 function DefaultFallback({
   feature,
   reason,
-  onSwitchMode,
+  onGoToSettings,
 }: {
   feature: string
   reason: string
-  onSwitchMode: () => void
+  onGoToSettings: () => void
 }) {
   return (
     <motion.div
@@ -111,10 +115,10 @@ function DefaultFallback({
         </p>
         <div className="flex flex-col gap-2">
           <button
-            onClick={onSwitchMode}
+            onClick={onGoToSettings}
             className="w-full px-4 py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
           >
-            切换运行模式
+            前往设置切换模式
           </button>
           <button
             onClick={() => { window.location.href = '/pricing' }}
@@ -135,7 +139,8 @@ export function ModeGate({
   hasLocalData = false,
   fallback,
 }: ModeGateProps) {
-  const { mode, setMode } = usePrivacy()
+  const { mode } = usePrivacy()
+  const navigate = useNavigate()
   const check = checkModeAccess(mode, required, hasLocalData)
 
   if (check.allowed) {
@@ -150,9 +155,9 @@ export function ModeGate({
     <DefaultFallback
       feature={feature}
       reason={check.reason || '当前运行模式下不可用'}
-      onSwitchMode={() => {
-        // 提示用户去设置页切换
-        setMode(PrivacyMode.HYBRID)
+      onGoToSettings={() => {
+        // V2 修复：不再直接 setMode（绕过订阅校验），跳到设置页让用户走 requestModeSwitch
+        navigate('/settings?tab=privacy')
       }}
     />
   )

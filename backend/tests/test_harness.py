@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Harness Engineering 模块测试
 
@@ -14,9 +13,10 @@ Harness Engineering 模块测试
 """
 
 import asyncio
-import pytest
-import sys
 import os
+import sys
+
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
@@ -64,7 +64,10 @@ class TestReassessAfterClarification:
 
     def test_one_field_not_enough_for_drafting(self):
         """文书起草：补充1个字段仍不放行"""
-        from src.services.scenario_templates import assess_completeness, reassess_after_clarification
+        from src.services.scenario_templates import (
+            assess_completeness,
+            reassess_after_clarification,
+        )
         initial = assess_completeness('帮我起草一份合同', 'DOCUMENT_DRAFTING')
         result = reassess_after_clarification(
             user_input='帮我起草一份合同',
@@ -79,7 +82,10 @@ class TestReassessAfterClarification:
 
     def test_reassess_generates_next_round_questions(self):
         """重评估应生成下一轮问题"""
-        from src.services.scenario_templates import assess_completeness, reassess_after_clarification
+        from src.services.scenario_templates import (
+            assess_completeness,
+            reassess_after_clarification,
+        )
         initial = assess_completeness('帮我起草合同', 'DOCUMENT_DRAFTING')
         result = reassess_after_clarification(
             user_input='帮我起草合同',
@@ -181,19 +187,19 @@ class TestPolicyEngine:
 
     def test_contract_reviewer_can_search(self):
         """合同审查Agent可以检索知识库"""
-        from src.harness.policy_engine import policy_engine, PolicyDecision
+        from src.harness.policy_engine import PolicyDecision, policy_engine
         result = policy_engine.check_tool_access('contract_reviewer', 'search_knowledge')
         assert result.decision == PolicyDecision.ALLOW
 
     def test_contract_reviewer_cannot_send_email(self):
         """合同审查Agent不能发邮件"""
-        from src.harness.policy_engine import policy_engine, PolicyDecision
+        from src.harness.policy_engine import PolicyDecision, policy_engine
         result = policy_engine.check_tool_access('contract_reviewer', 'send_email')
         assert result.decision == PolicyDecision.DENY
 
     def test_risk_assessor_cannot_draft(self):
         """风险评估Agent不能起草合同"""
-        from src.harness.policy_engine import policy_engine, PolicyDecision
+        from src.harness.policy_engine import PolicyDecision, policy_engine
         result = policy_engine.check_tool_access('risk_assessor', 'draft_contract')
         assert result.decision == PolicyDecision.DENY
 
@@ -205,14 +211,14 @@ class TestTaskEngine:
 
     def test_valid_transitions(self):
         """合法状态转换"""
-        from src.harness.task_engine import task_engine, TaskState
+        from src.harness.task_engine import TaskState, task_engine
         task = task_engine.create_task('测试任务', route='general')
         assert task_engine.transition(task.task_id, TaskState.RUNNING)
         assert task_engine.transition(task.task_id, TaskState.COMPLETED)
 
     def test_invalid_transition_blocked(self):
         """非法状态转换被拒绝"""
-        from src.harness.task_engine import task_engine, TaskState
+        from src.harness.task_engine import TaskState, task_engine
         task = task_engine.create_task('测试任务2', route='general')
         task_engine.transition(task.task_id, TaskState.RUNNING)
         task_engine.transition(task.task_id, TaskState.COMPLETED)
@@ -221,7 +227,7 @@ class TestTaskEngine:
 
     def test_priority_assignment(self):
         """优先级自动分配"""
-        from src.harness.task_engine import task_engine, TaskPriority
+        from src.harness.task_engine import TaskPriority, task_engine
         t1 = task_engine.create_task('审查合同', route='contract_review')
         t2 = task_engine.create_task('法律咨询', route='rag')
         assert t1.priority == TaskPriority.HIGH
@@ -235,23 +241,53 @@ class TestCapabilityNegotiator:
 
     def test_web_cloud_full_features(self):
         """Web+Cloud = 全功能"""
-        from src.harness.capability_negotiator import capability_negotiator, PlatformType, AppMode
+        from src.harness.capability_negotiator import AppMode, PlatformType, capability_negotiator
         result = capability_negotiator.negotiate(PlatformType.WEB, AppMode.CLOUD)
         available_count = sum(result.available_features.values())
         assert available_count > 8
 
     def test_desktop_top_secret_limited(self):
         """Desktop+TopSecret = 受限"""
-        from src.harness.capability_negotiator import capability_negotiator, PlatformType, AppMode
+        from src.harness.capability_negotiator import AppMode, PlatformType, capability_negotiator
         result = capability_negotiator.negotiate(PlatformType.DESKTOP, AppMode.TOP_SECRET)
         assert len(result.unavailable_features) > 5
         assert len(result.warnings) > 0
 
     def test_degradation_notice(self):
         """模式降级通知"""
-        from src.harness.capability_negotiator import capability_negotiator, AppMode
+        from src.harness.capability_negotiator import AppMode, capability_negotiator
         notice = capability_negotiator.get_degradation_notice(AppMode.CLOUD, AppMode.TOP_SECRET)
         assert len(notice['lost_features']) > 0
+
+
+@pytest.mark.asyncio
+async def test_context_engine_handoff_artifacts(monkeypatch):
+    """跨会话 artifact handoff 应复制已存在的中间产物并跳过缺失类型。"""
+    from src.harness.context_engine import ContextEngine
+    from src.services import memory_layer as memory_module
+
+    local_memory = memory_module.MemoryLayer()
+    monkeypatch.setattr(memory_module, "memory_layer", local_memory)
+
+    await local_memory.set_session_artifact("source-session", "summary", {"text": "摘要"})
+    await local_memory.set_session_artifact(
+        "source-session",
+        "citations",
+        [{"title": "《民法典》第五百七十七条"}],
+    )
+
+    result = await ContextEngine().handoff_artifacts(
+        "source-session",
+        "target-session",
+        artifact_types=["summary", "citations", "missing"],
+    )
+
+    assert result == {"transferred": {"summary": True, "citations": True}}
+    assert await local_memory.get_session_artifact("target-session", "summary") == {"text": "摘要"}
+    assert await local_memory.get_session_artifact("target-session", "citations") == [
+        {"title": "《民法典》第五百七十七条"}
+    ]
+    assert await local_memory.get_session_artifact("target-session", "missing") is None
 
 
 # ===== 8. 模板管理员 =====

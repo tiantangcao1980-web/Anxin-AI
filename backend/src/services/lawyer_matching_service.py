@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 找律师 — AI 智能匹配服务
 
@@ -10,12 +9,12 @@
 """
 
 import re
-import asyncio
-from typing import Dict, Any, Optional, List, Tuple
-from loguru import logger
-from sqlalchemy import select, and_, func, case
-from sqlalchemy.ext.asyncio import AsyncSession
+from collections import defaultdict
+from typing import Any
 
+from loguru import logger
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # ===== 脱敏正则 =====
 
@@ -63,7 +62,7 @@ def anonymize_text(text: str, level: str = 'standard') -> str:
     result = RE_BANK_CARD.sub(lambda m: m.group()[:4] + '****' + m.group()[-4:], result)
 
     # 中文姓名 → X某
-    def replace_name(m):
+    def replace_name(m: re.Match[str]) -> str:
         full = m.group(0)
         name = m.group(1)
         return full.replace(name, name[0] + '某')
@@ -81,7 +80,7 @@ def anonymize_text(text: str, level: str = 'standard') -> str:
 
 # ===== 法律领域关键词映射 =====
 
-DOMAIN_KEYWORDS: Dict[str, List[str]] = {
+DOMAIN_KEYWORDS: dict[str, list[str]] = {
     'contract': ['合同', '违约', '签约', '约定', '条款', '履行', '解约', '买卖', '租赁', '借款'],
     'labor': ['劳动', '工资', '辞退', '社保', '加班', '竞业', '工伤', '劳务', '离职', '裁员'],
     'ip': ['专利', '商标', '著作权', '版权', '侵权', '仿冒', '抄袭', '知识产权', '注册'],
@@ -94,7 +93,7 @@ DOMAIN_KEYWORDS: Dict[str, List[str]] = {
     'debt': ['债务', '欠款', '借贷', '催收', '担保', '抵押', '逾期', '坏账'],
 }
 
-DOMAIN_LABELS: Dict[str, str] = {
+DOMAIN_LABELS: dict[str, str] = {
     'contract': '合同纠纷',
     'labor': '劳动争议',
     'ip': '知识产权',
@@ -108,16 +107,17 @@ DOMAIN_LABELS: Dict[str, str] = {
 }
 
 URGENCY_WEIGHTS = {'low': 0.5, 'medium': 1.0, 'high': 1.5, 'urgent': 2.0}
+_MATCHING_EXPOSURE_COUNTER: dict[str, int] = defaultdict(int)
 
 
-def detect_legal_domain(text: str) -> Tuple[str, float]:
+def detect_legal_domain(text: str) -> tuple[str, float]:
     """
     自动识别法律领域
 
     Returns:
         (domain_code, confidence)
     """
-    scores: Dict[str, int] = {}
+    scores: dict[str, int] = {}
     text_lower = text.lower()
 
     for domain, keywords in DOMAIN_KEYWORDS.items():
@@ -148,14 +148,14 @@ def extract_risk_level(text: str) -> str:
     return 'low'
 
 
-def extract_legal_elements(text: str) -> Dict[str, Any]:
+def extract_legal_elements(text: str) -> dict[str, Any]:
     """
     提取法律要素
 
     Returns:
         包含主体、标的、争议焦点等法律要素
     """
-    elements: Dict[str, Any] = {
+    elements: dict[str, Any] = {
         'parties_mentioned': [],
         'amounts_mentioned': [],
         'dates_mentioned': [],
@@ -187,8 +187,8 @@ class LawyerMatchingService:
     async def analyze_case(
         self,
         description: str,
-        user_domain: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        user_domain: str | None = None,
+    ) -> dict[str, Any]:
         """
         AI 案情分析
 
@@ -268,10 +268,14 @@ class LawyerMatchingService:
         description: str,
         domain_label: str,
         anonymized: str,
-    ) -> Optional[str]:
+    ) -> str | None:
         """调用 LLM 生成更精细的匿名案情摘要"""
         try:
-            from src.services.llm_service import llm_service
+            from src.services import llm_service as llm_module
+
+            llm_service = getattr(llm_module, "llm_service", None)
+            if llm_service is None:
+                return None
 
             prompt = f"""你是一名专业的法律顾问助手。请对以下法律咨询进行分析，生成一段匿名案情摘要。
 
@@ -303,10 +307,10 @@ class LawyerMatchingService:
         db: AsyncSession,
         domain: str,
         urgency: str = 'medium',
-        city: Optional[str] = None,
-        specializations: Optional[List[str]] = None,
+        city: str | None = None,
+        specializations: list[str] | None = None,
         limit: int = 10,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         智能匹配律师
 
@@ -338,7 +342,7 @@ class LawyerMatchingService:
         domain_label = DOMAIN_LABELS.get(domain, '')
         urgency_weight = URGENCY_WEIGHTS.get(urgency, 1.0)
 
-        scored: List[Tuple[Any, float]] = []
+        scored: list[tuple[Any, float]] = []
 
         for lp in all_lawyers:
             score = 0.0
@@ -364,12 +368,16 @@ class LawyerMatchingService:
 
             # 紧急加权（紧急时优先在线律师）
             if urgency in ('high', 'urgent') and lp.is_online:
-                score += 10
+                score += min(20, 10 * urgency_weight)
 
             scored.append((lp, round(score, 1)))
 
-        # 排序
-        scored.sort(key=lambda x: x[1], reverse=True)
+        # 排序：先按匹配分，再对同分律师按曝光次数做轮询，避免长期先到先得。
+        scored.sort(key=lambda x: (-x[1], _MATCHING_EXPOSURE_COUNTER[str(x[0].id)], str(x[0].id)))
+
+        selected = scored[:limit]
+        for lp, _score in selected:
+            _MATCHING_EXPOSURE_COUNTER[str(lp.id)] += 1
 
         return [
             {
@@ -392,7 +400,7 @@ class LawyerMatchingService:
                 'match_score': score,
                 'match_reason': '领域匹配' if domain_match else '综合推荐',
             }
-            for lp, score in scored[:limit]
+            for lp, score in selected
         ]
 
 

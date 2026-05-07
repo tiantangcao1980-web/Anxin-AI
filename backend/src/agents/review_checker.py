@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 审查验证Agent（审查循环的验证步骤）
 
@@ -13,12 +12,11 @@
   审查循环: ContractReviewer → ReviewChecker ← (验证+补充)
 """
 
-from typing import Any, Dict, List
 import json
 import re
+from typing import Any, cast
 
-from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
-
+from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 
 _SYSTEM_PROMPT = """你是一位资深的法律审查质量控制专家，负责验证合同审查结论的准确性和完整性。
 
@@ -65,7 +63,7 @@ _SYSTEM_PROMPT = """你是一位资深的法律审查质量控制专家，负责
 class ReviewCheckerAgent(BaseLegalAgent):
     """审查验证Agent — 双循环审查的验证阶段"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         config = AgentConfig(
             name="审查验证Agent",
             role="法律审查质量控制专家",
@@ -76,7 +74,7 @@ class ReviewCheckerAgent(BaseLegalAgent):
         )
         super().__init__(config)
 
-    async def process(self, task: Dict[str, Any]) -> AgentResponse:
+    async def process(self, task: dict[str, Any]) -> AgentResponse:
         """验证审查结果"""
         description = task.get("description", "")
         context = task.get("context") or {}
@@ -87,6 +85,7 @@ class ReviewCheckerAgent(BaseLegalAgent):
         prompt = f"""请验证以下合同审查结果的质量：
 
 【调查阶段发现】：
+- 任务说明：{description}
 - 合同类型：{investigation.get('contract_type', '未知')}
 - 缺失要素：{json.dumps(investigation.get('missing_elements', []), ensure_ascii=False)}
 - 初步风险：{json.dumps(investigation.get('preliminary_risks', []), ensure_ascii=False)}
@@ -121,7 +120,7 @@ class ReviewCheckerAgent(BaseLegalAgent):
             ],
         )
 
-    def _format_risks(self, risks: List[Dict]) -> str:
+    def _format_risks(self, risks: list[dict[str, Any]]) -> str:
         """格式化风险列表"""
         if not risks:
             return "无风险点"
@@ -135,7 +134,7 @@ class ReviewCheckerAgent(BaseLegalAgent):
             )
         return "\n\n".join(lines)
 
-    def _parse_verification(self, response: str) -> Dict[str, Any]:
+    def _parse_verification(self, response: str) -> dict[str, Any]:
         """解析验证结果"""
         try:
             code_block = re.search(r'```json\s*([\s\S]*?)\s*```', response)
@@ -148,6 +147,7 @@ class ReviewCheckerAgent(BaseLegalAgent):
                 else:
                     raise ValueError("No JSON found")
 
+            result = cast(dict[str, Any], result)
             result.setdefault("quality_score", 0.7)
             result.setdefault("confidence_level", "medium")
             result.setdefault("verification_results", [])

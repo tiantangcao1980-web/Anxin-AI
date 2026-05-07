@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { icons } from '@/lib/icons'
+import { API_BASE_URL, buildApiHeaders } from '@/lib/api'
+import { getTokenStorage } from '@/lib/platform/storage'
 import { toast } from 'sonner'
 import { PageContainer } from '@/components/ui/PageContainer'
 import { Button } from '@/components/ui/button'
@@ -17,8 +19,6 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8003/api/v1'
 
 interface FeatureFlag {
   id: string
@@ -138,12 +138,8 @@ const emptyForm = {
 }
 
 async function flagRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem('access_token')
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string>),
-  }
-  if (token) headers['Authorization'] = `Bearer ${token}`
+  const token = await getTokenStorage().getAccessToken()
+  const headers = buildApiHeaders(options.headers, { token })
   const resp = await fetch(`${API_BASE_URL}${path}`, { ...options, headers })
   const json = await resp.json()
   if (!resp.ok || (json.code && json.code >= 400)) {

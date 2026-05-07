@@ -1,29 +1,27 @@
-# -*- coding: utf-8 -*-
 """
 计费系统 API 路由
 
 方案管理 / 订阅 / 退款 / 报表
 """
 
-from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Any
+
+from fastapi import APIRouter, Depends, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
-from loguru import logger
 
 from src.core.database import get_db
 from src.core.deps import (
-    get_current_user_required,
-    get_current_user,
-    require_permission,
     Permission,
+    get_current_user_required,
+    require_permission,
 )
 from src.core.responses import UnifiedResponse
 from src.models.user import User
-from src.services.subscription_service import SubscriptionService
 from src.services.refund_service import RefundService
-
+from src.services.subscription_service import SubscriptionService, SubscriptionStateError
 
 router = APIRouter(prefix="/billing", tags=["计费系统"])
 
@@ -38,43 +36,44 @@ class CreatePlanRequest(BaseModel):
         pattern=r"^[a-z][a-z0-9_]*$",
         description="方案代码（小写字母开头，仅含小写字母/数字/下划线）",
     )
-    description: Optional[str] = Field(None, max_length=1000, description="方案描述")
+    description: str | None = Field(None, max_length=1000, description="方案描述")
     billing_mode: str = Field(
         ...,
         pattern=r"^(per_consultation|monthly|yearly|hourly)$",
         description="计费模式",
     )
     base_price: float = Field(..., ge=0, description="基础价格")
-    original_price: Optional[float] = Field(None, ge=0, description="原价（划线价）")
-    features: List[dict] = Field(default_factory=list, description="功能列表")
+    original_price: float | None = Field(None, ge=0, description="原价（划线价）")
+    features: list[dict[str, Any]] = Field(default_factory=list, description="功能列表")
     ai_quota: int = Field(100, ge=0, description="AI对话次数/月")
     storage_gb: int = Field(5, ge=1, description="存储空间(GB)")
     max_team_members: int = Field(5, ge=1, description="团队成员上限")
-    badge: Optional[str] = Field(None, max_length=20, description="角标文字")
+    badge: str | None = Field(None, max_length=20, description="角标文字")
     highlight: bool = Field(False, description="是否高亮推荐")
 
 
 class UpdatePlanRequest(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=100)
-    description: Optional[str] = Field(None, max_length=1000)
-    billing_mode: Optional[str] = Field(
+    name: str | None = Field(None, min_length=1, max_length=100)
+    description: str | None = Field(None, max_length=1000)
+    billing_mode: str | None = Field(
         None, pattern=r"^(per_consultation|monthly|yearly|hourly)$"
     )
-    base_price: Optional[float] = Field(None, ge=0)
-    original_price: Optional[float] = Field(None, ge=0)
-    features: Optional[List[dict]] = None
-    ai_quota: Optional[int] = Field(None, ge=0)
-    storage_gb: Optional[int] = Field(None, ge=1)
-    max_team_members: Optional[int] = Field(None, ge=1)
-    badge: Optional[str] = Field(None, max_length=20)
-    highlight: Optional[bool] = None
-    is_active: Optional[bool] = None
-    sort_order: Optional[int] = None
+    base_price: float | None = Field(None, ge=0)
+    original_price: float | None = Field(None, ge=0)
+    features: list[dict[str, Any]] | None = None
+    ai_quota: int | None = Field(None, ge=0)
+    storage_gb: int | None = Field(None, ge=1)
+    max_team_members: int | None = Field(None, ge=1)
+    badge: str | None = Field(None, max_length=20)
+    highlight: bool | None = None
+    is_active: bool | None = None
+    sort_order: int | None = None
 
 
 class CreateSubscriptionRequest(BaseModel):
     plan_id: str = Field(..., description="计费方案ID")
-    org_id: Optional[str] = Field(None, description="企业订阅关联组织ID")
+    org_id: str | None = Field(None, description="企业订阅关联组织ID")
+    client_type: str = Field("needer", pattern=r"^(needer|provider)$", description="客户端类型")
 
 
 class CancelSubscriptionRequest(BaseModel):
@@ -84,8 +83,13 @@ class CancelSubscriptionRequest(BaseModel):
 
 class RequestRefundRequest(BaseModel):
     order_id: str = Field(..., description="支付订单ID")
-    amount: Optional[float] = Field(None, ge=0.01, description="退款金额（空=全额）")
+    amount: float | None = Field(None, ge=0.01, description="退款金额（空=全额）")
     reason: str = Field(..., min_length=1, max_length=500, description="退款原因")
+    idempotency_key: str | None = Field(
+        None,
+        max_length=128,
+        description="退款幂等键；同一 key 的重复申请返回同一退款单",
+    )
 
 
 class RejectRefundRequest(BaseModel):
@@ -97,9 +101,9 @@ class RejectRefundRequest(BaseModel):
 
 @router.get("/plans")
 async def list_plans(
-    billing_mode: Optional[str] = Query(None, description="按计费模式筛选"),
+    billing_mode: str | None = Query(None, description="按计费模式筛选"),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """获取计费方案列表（公开接口）"""
     service = SubscriptionService(db)
     data = await service.list_plans(billing_mode=billing_mode)
@@ -111,7 +115,7 @@ async def create_plan(
     req: CreatePlanRequest,
     user: User = Depends(require_permission(Permission.MANAGE_PLANS)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """创建计费方案（管理员）"""
     service = SubscriptionService(db)
     try:
@@ -127,7 +131,7 @@ async def update_plan(
     req: UpdatePlanRequest,
     user: User = Depends(require_permission(Permission.MANAGE_PLANS)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """更新计费方案（管理员）"""
     service = SubscriptionService(db)
     try:
@@ -148,7 +152,7 @@ async def create_subscription(
     req: CreateSubscriptionRequest,
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """创建订阅"""
     service = SubscriptionService(db)
     target_org_id = req.org_id or user.org_id
@@ -159,6 +163,7 @@ async def create_subscription(
             user_id=user.id,
             plan_id=req.plan_id,
             org_id=target_org_id,
+            client_type=req.client_type,
         )
         return UnifiedResponse.success(data, message="订阅已创建")
     except ValueError as e:
@@ -169,7 +174,7 @@ async def create_subscription(
 async def get_my_subscriptions(
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """获取我的订阅列表"""
     service = SubscriptionService(db)
     data = await service.get_user_subscriptions(user_id=user.id)
@@ -180,7 +185,7 @@ async def get_my_subscriptions(
 async def get_subscription_status(
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """查询当前订阅状态"""
     service = SubscriptionService(db)
     data = await service.check_subscription_access(user_id=user.id)
@@ -193,7 +198,7 @@ async def cancel_subscription(
     req: CancelSubscriptionRequest,
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> Any:
     """取消订阅"""
     service = SubscriptionService(db)
     try:
@@ -204,6 +209,11 @@ async def cancel_subscription(
             immediate=req.immediate,
         )
         return UnifiedResponse.success(data, message="订阅已取消")
+    except SubscriptionStateError as e:
+        return JSONResponse(
+            status_code=409,
+            content=UnifiedResponse.error(409, str(e)),
+        )
     except ValueError as e:
         return UnifiedResponse.error(400, str(e))
     except PermissionError as e:
@@ -218,7 +228,7 @@ async def request_refund(
     req: RequestRefundRequest,
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """申请退款"""
     service = RefundService(db)
     try:
@@ -227,6 +237,7 @@ async def request_refund(
             order_id=req.order_id,
             amount=req.amount,
             reason=req.reason,
+            idempotency_key=req.idempotency_key,
         )
         return UnifiedResponse.success(data, message="退款申请已提交")
     except ValueError as e:
@@ -237,12 +248,12 @@ async def request_refund(
 
 @router.get("/refunds")
 async def list_refunds(
-    status: Optional[str] = Query(None, description="按状态筛选"),
+    status: str | None = Query(None, description="按状态筛选"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """退款列表（用户端看自己的，管理端看全部）"""
     service = RefundService(db)
 
@@ -265,7 +276,7 @@ async def approve_refund(
     refund_id: str,
     user: User = Depends(require_permission(Permission.MANAGE_REFUNDS)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """审批退款"""
     service = RefundService(db)
     try:
@@ -286,7 +297,7 @@ async def reject_refund(
     req: RejectRefundRequest,
     user: User = Depends(require_permission(Permission.MANAGE_REFUNDS)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """驳回退款"""
     service = RefundService(db)
     try:
@@ -308,7 +319,7 @@ async def get_revenue_report(
     days: int = Query(30, ge=1, le=365, description="统计天数"),
     user: User = Depends(require_permission(Permission.VIEW_REPORTS)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """收入报表"""
     refund_service = RefundService(db)
     refund_stats = await refund_service.get_refund_stats(days=days)
@@ -324,10 +335,10 @@ async def get_revenue_report(
 
 @router.get("/reports/subscriptions")
 async def get_subscription_report(
-    org_id: Optional[str] = Query(None, description="组织ID筛选"),
+    org_id: str | None = Query(None, description="组织ID筛选"),
     user: User = Depends(require_permission(Permission.VIEW_REPORTS)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """订阅报表"""
     service = SubscriptionService(db)
     scoped_org_id = org_id if user.role in {"super_admin", "admin"} else user.org_id
@@ -343,7 +354,7 @@ async def get_my_features(
     client_type: str = Query("needer", description="客户端类型: needer/provider"),
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """获取当前用户的有效功能权限（V2 架构）"""
     service = SubscriptionService(db)
     features = await service.get_effective_features(user.id, client_type)
@@ -362,7 +373,7 @@ async def check_feature_access(
     client_type: str = Query("needer", description="客户端类型"),
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """检查用户是否可访问某功能"""
     service = SubscriptionService(db)
     allowed = await service.can_access_feature(user.id, feature, client_type)
@@ -375,7 +386,7 @@ async def check_mode_access(
     client_type: str = Query("needer"),
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """检查用户是否可使用指定运行模式"""
     service = SubscriptionService(db)
     allowed = await service.can_use_mode(user.id, mode, client_type)
@@ -387,7 +398,7 @@ async def create_trial_subscription(
     client_type: str = Query("needer"),
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """创建试用订阅（3天云端体验）"""
     service = SubscriptionService(db)
     sub = await service.create_trial(user.id, client_type)
@@ -412,7 +423,7 @@ async def create_v2_subscription(
     body: V2SubscribeRequest,
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """
     V2 创建付费订阅（连接支付系统）
 
@@ -450,19 +461,11 @@ async def create_v2_subscription(
         user_id=user.id,
         plan_id=body.plan_id,
         org_id=getattr(user, 'org_id', None),
+        client_type=body.client_type,
     )
 
-    # 更新订阅的 client_type
     sub_data = result.get("subscription", {})
     sub_id = sub_data.get("id")
-    if sub_id:
-        from src.models.billing import Subscription
-        sub_obj = await db.get(Subscription, sub_id)
-        if sub_obj:
-            sub_obj.client_type = body.client_type
-            sub_obj.allowed_modes = (plan.features or {}).get("modes", ["local", "hybrid", "cloud"])
-
-    await db.commit()
 
     return UnifiedResponse.success(data={
         "subscription_id": sub_id,

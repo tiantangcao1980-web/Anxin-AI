@@ -6,67 +6,75 @@
 
 
 
-from src.models.base import Base, TimestampMixin
-
-from src.models.user import User, Organization
-
-from src.models.case import Case, CaseEvent
-
-from src.models.document import Document, DocumentVersion
-
-from src.models.contract import Contract, ContractClause, ContractRisk
-
-from src.models.conversation import Conversation, Message
-
-from src.models.knowledge import KnowledgeBase, KnowledgeDocument
-from src.models.mcp_config import McpServerConfig
-
-from src.models.llm_config import LLMConfig, LLMProvider, LLMConfigType, LLM_PROVIDER_CONFIGS
-
-from src.models.audit import AuditLog, AuditAction, ResourceType
+from src.models.ai_assistant import AIAssistantConfig, AIAssistantFeedback, ConversationSummary
+from src.models.approval import Approval, ApprovalStatus, ApprovalTemplate, ApprovalType, ChainMode
 from src.models.asset import Asset
-from src.models.notification import Notification, NotificationPreference, NotificationChannel, NotificationEventType
-from src.models.task import Task
-from src.models.lead import Lead
-from src.models.expert import Expert
+from src.models.audit import AuditAction, AuditLog, ResourceType
+from src.models.base import Base, TimestampMixin
+from src.models.billing import BillingPlan, Refund, Subscription, SubscriptionEvent
+from src.models.case import Case, CaseEvent
+from src.models.case_market import BidStatus, CaseRequest, LawyerBid, RequestStatus
+from src.models.collaboration import (
+    CollaboratorRole,
+    DocumentCollaborator,
+    DocumentEdit,
+    DocumentSession,
+    DocumentSnapshot,
+    EditOperation,
+    SessionStatus,
+)
+from src.models.contract import Contract, ContractAttachment, ContractClause, ContractRisk
+from src.models.conversation import Conversation, Message
 from src.models.course import Course, CourseProgress
-from src.models.approval import Approval, ApprovalStatus, ApprovalType, ApprovalTemplate, ChainMode
+from src.models.document import Document, DocumentVersion
+from src.models.expert import Expert
+from src.models.feature_flag import FeatureFlag
+from src.models.firm_management import CaseAssignment, Invoice, Team, TeamMember, TimeEntry
+from src.models.im import IMConversation, IMMessage, IMParticipant
+from src.models.investigation import (
+    Investigation,
+    InvestigationRiskLevel,
+    InvestigationSnapshot,
+    InvestigationStatus,
+    SearchCache,
+    UserInvestigationPreference,
+)
+from src.models.knowledge import KnowledgeBase, KnowledgeDocument
+from src.models.lawyer_certification import LawyerCertification, LawyerServiceConfig
 from src.models.lawyer_matching import (
-    LawyerProfile, Consultation, Delegation,
-    ConsultationStatus, UrgencyLevel, PrivacyLevel, DelegationStatus
+    Consultation,
+    ConsultationStatus,
+    Delegation,
+    DelegationStatus,
+    LawyerProfile,
+    PrivacyLevel,
+    UrgencyLevel,
+)
+from src.models.lead import Lead
+from src.models.llm_config import LLM_PROVIDER_CONFIGS, LLMConfig, LLMConfigType, LLMProvider
+from src.models.mcp_config import McpServerConfig
+from src.models.notification import (
+    Notification,
+    NotificationChannel,
+    NotificationEventType,
+    NotificationPreference,
 )
 from src.models.payment import PaymentOrder as PaymentOrderModel
-from src.models.feature_flag import FeatureFlag
-from src.models.im import IMConversation, IMParticipant, IMMessage
 from src.models.review import LawyerReview
-from src.models.firm_management import Team, TeamMember, CaseAssignment, TimeEntry, Invoice
-from src.models.lawyer_certification import LawyerCertification, LawyerServiceConfig
-from src.models.billing import BillingPlan, Subscription, Refund
-from src.models.ai_assistant import AIAssistantConfig, ConversationSummary, AIAssistantFeedback
-from src.models.investigation import (
-    Investigation, InvestigationStatus, InvestigationRiskLevel,
-    InvestigationSnapshot, SearchCache, UserInvestigationPreference,
-)
-
 from src.models.sentiment import (
-
-    SentimentRecord, SentimentAlert, SentimentMonitor,
-
-    SentimentType, RiskLevel, AlertLevel, AlertType, SourceType
-
+    AlertLevel,
+    AlertType,
+    RiskLevel,
+    SentimentAlert,
+    SentimentMonitor,
+    SentimentRecord,
+    SentimentType,
+    SourceType,
 )
-
-from src.models.collaboration import (
-
-    DocumentSession, DocumentCollaborator, DocumentEdit, DocumentSnapshot,
-
-    SessionStatus, CollaboratorRole, EditOperation
-
-)
-
-from src.models.case_market import CaseRequest, LawyerBid, RequestStatus, BidStatus
-
-
+from src.models.sync import SyncLog
+from src.models.task import Task
+from src.models.user import Organization, PasswordResetToken, User
+from src.models.webhook import WebhookReceived
 
 __all__ = [
 
@@ -81,12 +89,19 @@ __all__ = [
     "User",
 
     "Organization",
+    "PasswordResetToken",
+    "WebhookReceived",
+    "SyncLog",
 
     # ??
 
     "Case",
 
     "CaseEvent",
+    "CaseRequest",
+    "LawyerBid",
+    "RequestStatus",
+    "BidStatus",
 
     # ??
 
@@ -97,6 +112,8 @@ __all__ = [
     # ??
 
     "Contract",
+
+    "ContractAttachment",
 
     "ContractClause",
 
@@ -123,6 +140,7 @@ __all__ = [
     "LLMConfigType",
 
     "LLM_PROVIDER_CONFIGS",
+    "McpServerConfig",
 
     # ????
 
@@ -210,6 +228,7 @@ __all__ = [
     # 计费系统
     "BillingPlan",
     "Subscription",
+    "SubscriptionEvent",
     "Refund",
     # AI 助手
     "AIAssistantConfig",
@@ -223,4 +242,3 @@ __all__ = [
     "SearchCache",
     "UserInvestigationPreference",
 ]
-

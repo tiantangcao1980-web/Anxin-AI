@@ -1,21 +1,31 @@
-# -*- coding: utf-8 -*-
 """
 退款服务
 
 管理退款申请、审批、执行全流程。
 """
 
-import uuid
-from datetime import datetime, timezone, timedelta
-from typing import Optional
+import asyncio
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
-from sqlalchemy import select, func, and_
-from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
+from sqlalchemy import and_, func, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.billing import Refund
 from src.models.payment import PaymentOrder
-from src.services.payment_service import get_payment_provider
+from src.services.payment_service import PaymentProviderConfigError, get_payment_provider
+
+_REFUND_IDEMPOTENCY_LOCKS: dict[str, asyncio.Lock] = {}
+
+
+def _refund_idempotency_lock(key: str) -> asyncio.Lock:
+    lock = _REFUND_IDEMPOTENCY_LOCKS.get(key)
+    if lock is None:
+        lock = asyncio.Lock()
+        _REFUND_IDEMPOTENCY_LOCKS[key] = lock
+    return lock
 
 
 class RefundService:
@@ -32,15 +42,23 @@ class RefundService:
         self,
         user_id: str,
         order_id: str,
-        amount: Optional[float] = None,
+        amount: float | None = None,
         reason: str = "用户申请",
-    ) -> dict:
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
         """
         申请退款:
         1. 查找订单，验证是 paid 状态
         2. amount 默认全额退款，不能超过订单金额
         3. 创建 Refund 记录
         """
+
+        normalized_key = self._normalize_idempotency_key(idempotency_key)
+        if normalized_key:
+            existing = await self._get_refund_by_idempotency_key(normalized_key)
+            if existing:
+                self._ensure_same_refund(existing, user_id=user_id, order_id=order_id)
+                return existing.to_dict()
 
         order = await self.db.get(PaymentOrder, order_id)
         if not order:
@@ -51,7 +69,7 @@ class RefundService:
             raise ValueError(f"订单状态为 {order.status}，无法退款")
 
         # 检查是否已有退款单
-        existing = await self.db.execute(
+        existing_result = await self.db.execute(
             select(Refund).where(
                 and_(
                     Refund.order_id == order_id,
@@ -59,7 +77,7 @@ class RefundService:
                 )
             )
         )
-        if existing.scalar_one_or_none():
+        if existing_result.scalar_one_or_none():
             raise ValueError("该订单已有待处理的退款申请")
 
         # 退款金额
@@ -74,10 +92,20 @@ class RefundService:
             user_id=user_id,
             amount=refund_amount,
             reason=reason,
+            idempotency_key=normalized_key,
             status="pending",
         )
         self.db.add(refund)
-        await self.db.commit()
+        try:
+            await self.db.commit()
+        except IntegrityError:
+            await self.db.rollback()
+            if normalized_key:
+                existing = await self._get_refund_by_idempotency_key(normalized_key)
+                if existing:
+                    self._ensure_same_refund(existing, user_id=user_id, order_id=order_id)
+                    return existing.to_dict()
+            raise
         await self.db.refresh(refund)
 
         logger.info(
@@ -86,17 +114,110 @@ class RefundService:
         )
         return refund.to_dict()
 
+    async def refund(
+        self,
+        user_id: str,
+        order_id: str,
+        amount: float | None = None,
+        reason: str = "用户申请退款",
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        """用稳定幂等键创建并执行退款；同 key 重放不再二次调用渠道。"""
+
+        order = await self.db.get(PaymentOrder, order_id)
+        if not order:
+            raise LookupError("订单不存在")
+
+        refund_amount = amount or order.amount
+        normalized_key = self._normalize_idempotency_key(
+            idempotency_key or self._default_refund_idempotency_key(order_id, refund_amount, reason)
+        )
+        if normalized_key is None:
+            raise ValueError("退款幂等键不能为空")
+        async with _refund_idempotency_lock(normalized_key):
+            existing = await self._get_refund_by_idempotency_key(normalized_key)
+            if existing:
+                self._ensure_same_refund(
+                    existing,
+                    user_id=user_id,
+                    order_id=order_id,
+                    amount=refund_amount,
+                )
+                return existing.to_dict()
+
+            await self.db.refresh(order)
+            if order.user_id != user_id:
+                raise PermissionError("无权操作此订单")
+            if order.status != "paid":
+                raise ValueError(f"订单状态为 {order.status}，无法退款")
+            if refund_amount > order.amount:
+                raise ValueError(f"退款金额不能超过订单金额 {order.amount}")
+            if refund_amount <= 0:
+                raise ValueError("退款金额必须大于 0")
+
+            refund = Refund(
+                order_id=order_id,
+                user_id=user_id,
+                amount=refund_amount,
+                reason=reason,
+                idempotency_key=normalized_key,
+                status="approved",
+            )
+            self.db.add(refund)
+            try:
+                await self.db.flush()
+            except IntegrityError:
+                await self.db.rollback()
+                existing = await self._get_refund_by_idempotency_key(normalized_key)
+                if existing:
+                    self._ensure_same_refund(
+                        existing,
+                        user_id=user_id,
+                        order_id=order_id,
+                        amount=refund_amount,
+                    )
+                    return existing.to_dict()
+                raise
+
+            try:
+                provider = get_payment_provider(order.payment_provider)
+                result = await provider.refund(
+                    order_id=order.id,
+                    amount=refund.amount,
+                    reason=refund.reason,
+                    total_amount=order.amount,
+                )
+            except (NotImplementedError, PaymentProviderConfigError) as e:
+                await self.db.rollback()
+                raise PaymentProviderConfigError(f"支付渠道退款失败: {e}") from e
+
+            refund.processor_transaction_id = result.refund_id
+            if result.status == "success":
+                refund.status = "processed"
+                refund.processed_at = datetime.now(UTC)
+                order.status = "refunded"
+                order.refunded_at = datetime.now(UTC)
+                order.refund_reason = refund.reason
+
+            await self.db.commit()
+            await self.db.refresh(refund)
+            logger.info(
+                f"幂等退款完成: refund={refund.id}, order={order_id}, "
+                f"key={normalized_key}, status={refund.status}"
+            )
+            return refund.to_dict()
+
     # ------------------------------------------------------------------
     # 退款列表
     # ------------------------------------------------------------------
 
     async def list_refunds(
         self,
-        user_id: Optional[str] = None,
-        status: Optional[str] = None,
+        user_id: str | None = None,
+        status: str | None = None,
         page: int = 1,
         page_size: int = 20,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """退款列表（用户端或管理端）"""
 
         query = select(Refund)
@@ -116,7 +237,7 @@ class RefundService:
         )
         refunds = result.scalars().all()
 
-        items = []
+        items: list[dict[str, Any]] = []
         for r in refunds:
             item = r.to_dict()
             # 附加订单信息
@@ -138,7 +259,7 @@ class RefundService:
     # 审批
     # ------------------------------------------------------------------
 
-    async def approve_refund(self, refund_id: str, approver_id: str) -> dict:
+    async def approve_refund(self, refund_id: str, approver_id: str) -> dict[str, Any]:
         """审批通过"""
 
         refund = await self.db.get(Refund, refund_id)
@@ -149,7 +270,7 @@ class RefundService:
 
         refund.status = "approved"
         refund.approved_by = approver_id
-        refund.approved_at = datetime.now(timezone.utc)
+        refund.approved_at = datetime.now(UTC)
 
         await self.db.commit()
         await self.db.refresh(refund)
@@ -159,7 +280,7 @@ class RefundService:
 
     async def reject_refund(
         self, refund_id: str, approver_id: str, reason: str
-    ) -> dict:
+    ) -> dict[str, Any]:
         """驳回退款"""
 
         refund = await self.db.get(Refund, refund_id)
@@ -170,7 +291,7 @@ class RefundService:
 
         refund.status = "rejected"
         refund.approved_by = approver_id
-        refund.approved_at = datetime.now(timezone.utc)
+        refund.approved_at = datetime.now(UTC)
         refund.rejection_reason = reason
 
         await self.db.commit()
@@ -183,7 +304,7 @@ class RefundService:
     # 执行退款
     # ------------------------------------------------------------------
 
-    async def process_refund(self, refund_id: str) -> dict:
+    async def process_refund(self, refund_id: str) -> dict[str, Any]:
         """执行退款（调用支付渠道 API）"""
 
         refund = await self.db.get(Refund, refund_id)
@@ -196,25 +317,25 @@ class RefundService:
         if not order:
             raise ValueError("关联订单不存在")
 
-        # 调用支付渠道退款
-        provider = get_payment_provider()
         try:
+            provider = get_payment_provider(order.payment_provider)
             result = await provider.refund(
                 order_id=order.id,
                 amount=refund.amount,
                 reason=refund.reason,
+                total_amount=order.amount,
             )
-        except NotImplementedError as e:
-            raise ValueError(f"支付渠道退款失败: {e}")
+        except (NotImplementedError, PaymentProviderConfigError) as e:
+            raise ValueError(f"支付渠道退款失败: {e}") from e
 
         # 更新退款单
         refund.status = "processed"
-        refund.processed_at = datetime.now(timezone.utc)
+        refund.processed_at = datetime.now(UTC)
         refund.processor_transaction_id = result.refund_id
 
         # 更新订单状态
         order.status = "refunded"
-        order.refunded_at = datetime.now(timezone.utc)
+        order.refunded_at = datetime.now(UTC)
         order.refund_reason = refund.reason
 
         await self.db.commit()
@@ -231,11 +352,11 @@ class RefundService:
     # ------------------------------------------------------------------
 
     async def get_refund_stats(
-        self, org_id: Optional[str] = None, days: int = 30
-    ) -> dict:
+        self, org_id: str | None = None, days: int = 30
+    ) -> dict[str, Any]:
         """退款统计"""
 
-        since = datetime.now(timezone.utc) - timedelta(days=days)
+        since = datetime.now(UTC) - timedelta(days=days)
 
         base = select(Refund).where(Refund.created_at >= since)
 
@@ -279,3 +400,37 @@ class RefundService:
             "avg_processing_days": avg_processing_days,
             "period_days": days,
         }
+
+    @staticmethod
+    def _normalize_idempotency_key(key: str | None) -> str | None:
+        if key is None:
+            return None
+        normalized = key.strip()
+        if not normalized:
+            return None
+        if len(normalized) > 128:
+            raise ValueError("退款幂等键长度不能超过 128")
+        return normalized
+
+    @staticmethod
+    def _default_refund_idempotency_key(order_id: str, amount: float, reason: str) -> str:
+        return f"refund:{order_id}:{amount:.2f}:{reason}"[:128]
+
+    async def _get_refund_by_idempotency_key(self, idempotency_key: str) -> Refund | None:
+        result = await self.db.execute(
+            select(Refund).where(Refund.idempotency_key == idempotency_key)
+        )
+        return result.scalar_one_or_none()
+
+    @staticmethod
+    def _ensure_same_refund(
+        refund: Refund,
+        *,
+        user_id: str,
+        order_id: str,
+        amount: float | None = None,
+    ) -> None:
+        if str(refund.user_id) != str(user_id) or str(refund.order_id) != str(order_id):
+            raise ValueError("退款幂等键已被其他退款使用")
+        if amount is not None and float(refund.amount) != float(amount):
+            raise ValueError("退款幂等键请求参数不一致")

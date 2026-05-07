@@ -1,151 +1,130 @@
-use crate::models::{AppMode, SharedAppState, SyncStatus};
+use crate::models::{AppMode, SharedAppState};
+use crate::services::{offline_queue, secure_db, sync_engine};
 use serde_json::json;
-use tauri::State;
+use tauri::{AppHandle, State};
 
-/// HTTP 请求的通用超时
-const SYNC_REQUEST_TIMEOUT_SECS: u64 = 30;
+fn read_local_sync_snapshot(app: &AppHandle) -> Result<sync_engine::LocalSyncSnapshot, String> {
+    let rows = secure_db::select(
+        app,
+        sync_engine::local_sync_snapshot_sql(),
+        vec![
+            serde_json::Value::from(sync_engine::MAX_SYNC_RETRIES),
+            serde_json::Value::String(chrono::Utc::now().to_rfc3339()),
+        ],
+    )?;
+    sync_engine::decode_local_sync_snapshot(&rows)
+}
 
-/// 客户端同步请求载荷。
-///
-/// 为了让桌面 / 云端首版打通，使用最小载荷：
-/// - records 从 SQLite `offline_tasks` 表拿（TODO 下个 Sprint）
-/// - last_sync_version 从 `sync_state` 表取（TODO 下个 Sprint）
-///
-/// 本 commit 先把 HTTP 调用链路真实接上，载荷细节逐步补。
-fn build_push_body(device_id: &str) -> serde_json::Value {
-    json!({
-        "device_id": device_id,
-        "records": [],  // TODO: 从 SQLite offline_tasks 表读取
-        "last_sync_version": 0,
-    })
+fn read_offline_queue_stats(
+    app: &AppHandle,
+) -> Result<offline_queue::OfflineQueueStatsSnapshot, String> {
+    let rows = secure_db::select(app, offline_queue::OfflineQueue::count_sql(), Vec::new())?;
+    offline_queue::decode_queue_stats(&rows)
 }
 
 /// 触发手动同步
 ///
-/// 流程：
-/// 1. 绝密模式直接拒绝
-/// 2. 获取 backend_url + auth_token；任一缺失视为未登录
-/// 3. POST /api/v1/sync/push（当前载荷为空，后续接入 SQLite 产出）
-/// 4. GET  /api/v1/sync/pull?since_version=0（当前丢弃数据，后续写入 SQLite）
-/// 5. 更新 last_sync_time + sync_status
+/// 真实 SQLite push/pull 由前端 `api-adapter.ts` 通过 Rust-owned SQLCipher command 执行。
+/// 这里保留 IPC 降级路径，不能伪造空 payload 同步成功。
 #[tauri::command]
-pub async fn trigger_sync(state: State<'_, SharedAppState>) -> Result<serde_json::Value, String> {
-    let (mode, backend_url, token) = {
+pub async fn trigger_sync(
+    app: AppHandle,
+    state: State<'_, SharedAppState>,
+) -> Result<serde_json::Value, String> {
+    let sync_snapshot = read_local_sync_snapshot(&app)?;
+    let queue_stats = read_offline_queue_stats(&app)?;
+    let pending_offline_tasks = queue_stats.flushable();
+    let (mode, token) = {
         let s = state.read().await;
-        (s.mode, s.backend_url.clone(), s.user_token.clone())
+        (s.mode, s.user_token.clone())
     };
 
     if matches!(mode, AppMode::TopSecret) {
         return Ok(json!({
             "success": false,
-            "message": "绝密模式下不同步任何数据"
+            "message": format!(
+                "绝密模式下不同步任何数据；本地仍有 {} 条同步记录、{} 条离线任务待处理",
+                sync_snapshot.pending,
+                pending_offline_tasks
+            ),
+            "conflicts": sync_snapshot.conflicts,
+            "deferred": sync_snapshot.deferred,
+            "needs_human": sync_snapshot.needs_human,
+            "pending_sync_records": sync_snapshot.pending,
+            "pending_offline_tasks": pending_offline_tasks,
         }));
     }
 
-    let Some(token) = token else {
+    let Some(_token) = token else {
         return Ok(json!({
             "success": false,
-            "message": "请先登录后再同步"
+            "message": format!(
+                "请先登录后再同步；本地仍有 {} 条同步记录、{} 条离线任务待处理",
+                sync_snapshot.pending,
+                pending_offline_tasks
+            ),
+            "conflicts": sync_snapshot.conflicts,
+            "deferred": sync_snapshot.deferred,
+            "needs_human": sync_snapshot.needs_human,
+            "pending_sync_records": sync_snapshot.pending,
+            "pending_offline_tasks": pending_offline_tasks,
         }));
     };
 
-    // 状态 → Syncing
-    {
-        let mut s = state.write().await;
-        s.sync_status = SyncStatus::Syncing;
-    }
-
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(SYNC_REQUEST_TIMEOUT_SECS))
-        .build()
-        .map_err(|e| format!("创建 HTTP 客户端失败: {e}"))?;
-
-    let device_id = std::env::var("ANXIN_DEVICE_ID").unwrap_or_else(|_| "desktop".to_string());
-
-    // Push
-    let push_url = format!("{}/api/v1/sync/push", backend_url.trim_end_matches('/'));
-    let push_resp = client
-        .post(&push_url)
-        .bearer_auth(&token)
-        .json(&build_push_body(&device_id))
-        .send()
-        .await;
-
-    let push_ok = match push_resp {
-        Ok(r) if r.status().is_success() => true,
-        Ok(r) => {
-            log::warn!("sync.push 非 2xx: status={}", r.status());
-            false
-        }
-        Err(e) => {
-            log::warn!("sync.push 失败: {e}");
-            false
-        }
-    };
-
-    // Pull
-    let pull_url = format!(
-        "{}/api/v1/sync/pull?since_version=0&limit=100",
-        backend_url.trim_end_matches('/')
-    );
-    let pull_resp = client
-        .get(&pull_url)
-        .bearer_auth(&token)
-        .send()
-        .await;
-
-    let pull_ok = match pull_resp {
-        Ok(r) if r.status().is_success() => {
-            // TODO: 下个 Sprint 把 r.json() 的 records 写入 SQLite
-            true
-        }
-        Ok(r) => {
-            log::warn!("sync.pull 非 2xx: status={}", r.status());
-            false
-        }
-        Err(e) => {
-            log::warn!("sync.pull 失败: {e}");
-            false
-        }
-    };
-
-    let now = chrono::Utc::now().to_rfc3339();
-    let success = push_ok && pull_ok;
-    {
-        let mut s = state.write().await;
-        s.sync_status = if success { SyncStatus::Idle } else { SyncStatus::Error };
-        if success {
-            s.last_sync_time = Some(now.clone());
-        }
-    }
-
     Ok(json!({
-        "success": success,
-        "message": if success { "同步完成" } else { "同步未完成，请检查网络或登录状态" },
-        "sync_time": if success { Some(now) } else { None },
-        "push_ok": push_ok,
-        "pull_ok": pull_ok,
+        "success": false,
+        "message": format!(
+            "Rust IPC 直接同步未启用；本地检测到 {} 条同步记录、{} 条离线任务、{} 条冲突，请使用前端 Tauri bridge 的 SQLCipher 本地同步路径",
+            sync_snapshot.pending,
+            pending_offline_tasks,
+            sync_snapshot.conflicts
+        ),
+        "sync_time": null,
+        "pushed": 0,
+        "pulled": 0,
+        "conflicts": sync_snapshot.conflicts,
+        "deferred": sync_snapshot.deferred,
+        "needs_human": sync_snapshot.needs_human,
+        "pending_sync_records": sync_snapshot.pending,
+        "pending_offline_tasks": pending_offline_tasks,
+        "push_ok": false,
+        "pull_ok": false,
     }))
 }
 
 /// 获取同步状态
 #[tauri::command]
-pub async fn get_sync_status(state: State<'_, SharedAppState>) -> Result<serde_json::Value, String> {
+pub async fn get_sync_status(
+    app: AppHandle,
+    state: State<'_, SharedAppState>,
+) -> Result<serde_json::Value, String> {
     let s = state.read().await;
+    let sync_snapshot = read_local_sync_snapshot(&app)?;
+    let queue_stats = read_offline_queue_stats(&app)?;
     Ok(json!({
         "status": s.sync_status,
         "last_sync_time": s.last_sync_time,
-        "is_online": s.is_online
+        "is_online": s.is_online,
+        "pending_sync_records": sync_snapshot.pending,
+        "pending_offline_tasks": queue_stats.flushable(),
+        "sync_conflicts": sync_snapshot.conflicts,
+        "deferred_sync_records": sync_snapshot.deferred,
+        "needs_human": sync_snapshot.needs_human,
     }))
 }
 
 /// 获取待同步记录数
 ///
-/// 真实实现需要读 SQLite `offline_tasks` 表 WHERE status='pending'。
-/// 目前保留为 0，等 sync_engine 的 SQLite schema 落地后替换。
+/// 返回 Rust IPC 可观察到的本地待同步工作量：
+/// - `sync_log` 中待推送/可重试的记录
+/// - `offline_tasks` 中 queued/local_completed 的离线任务
 #[tauri::command]
-pub async fn get_pending_sync_count() -> Result<u32, String> {
-    Ok(0)
+pub async fn get_pending_sync_count(app: AppHandle) -> Result<u32, String> {
+    let sync_snapshot = read_local_sync_snapshot(&app)?;
+    let queue_stats = read_offline_queue_stats(&app)?;
+    Ok(sync_snapshot
+        .pending
+        .saturating_add(queue_stats.flushable()))
 }
 
 /// 解决同步冲突
@@ -176,7 +155,7 @@ pub async fn resolve_conflict(
 
     let url = format!("{}/api/v1/sync/resolve", backend_url.trim_end_matches('/'));
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(SYNC_REQUEST_TIMEOUT_SECS))
+        .timeout(std::time::Duration::from_secs(30))
         .build()
         .map_err(|e| e.to_string())?;
 

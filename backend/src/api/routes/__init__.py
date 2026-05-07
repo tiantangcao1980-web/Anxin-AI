@@ -4,33 +4,56 @@ API路由汇总
 
 from fastapi import APIRouter
 
-from src.api.routes import auth, chat, cases, contracts, documents, due_diligence, knowledge, llm, lic, assets, notifications
-from src.api.routes import sentiment, collaboration, collaboration_ws, integrations, datacenter
-from src.api.routes import mcp_routes, episodic_memory
-from src.api.routes import tasks, leads, experts, courses
-from src.api.routes import admin
-from src.api.routes import approvals
-from src.api.routes import lawyer_matching
-from src.api.routes import compliance
-from src.api.routes import anonymous_chat
-from src.api.routes import esign
-from src.api.routes import payments
-from src.api.routes import feature_flags
-from src.api.routes import im
-from src.api.routes import acquisition_analytics
-from src.api.routes import firm_management
-from src.api.routes import lawyer_onboarding
-from src.api.routes import billing
-from src.api.routes import ai_assistant
-from src.api.routes import meeting_assistant
-from src.api.routes import rtc
-from src.api.routes import sync, updates, offline_packs, privacy
-from src.api.routes import metrics
-from src.api.routes import knowledge_management
-from src.api.routes import harness
-from src.api.routes import cli
-from src.api.routes import security_challenge
-from src.api.routes import case_market
+from src.api.routes import (
+    acquisition_analytics,
+    admin,
+    ai_assistant,
+    anonymous_chat,
+    approvals,
+    assets,
+    auth,
+    billing,
+    case_market,
+    cases,
+    chat,
+    cli,
+    collaboration,
+    collaboration_ws,
+    compliance,
+    contracts,
+    courses,
+    datacenter,
+    documents,
+    due_diligence,
+    episodic_memory,
+    esign,
+    experts,
+    feature_flags,
+    firm_management,
+    harness,
+    im,
+    integrations,
+    knowledge,
+    knowledge_management,
+    lawyer_matching,
+    lawyer_onboarding,
+    leads,
+    lic,
+    llm,
+    mcp_routes,
+    meeting_assistant,
+    metrics,
+    notifications,
+    offline_packs,
+    payments,
+    privacy,
+    rtc,
+    security_challenge,
+    sentiment,
+    sync,
+    tasks,
+    updates,
+)
 
 api_router = APIRouter()
 

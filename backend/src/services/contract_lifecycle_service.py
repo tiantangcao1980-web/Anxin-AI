@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 合同生命周期管理服务
 
@@ -14,15 +13,112 @@
 - 物业公司：物业服务合同+批量催收追踪
 """
 
-from typing import Dict, Any, Optional, List
-from datetime import datetime, date, timedelta
 from dataclasses import dataclass, field
+from datetime import date, datetime
+from typing import Any
+
 from loguru import logger
+
+from src.models.contract import Contract, ContractStatus
+
+LEGAL_TRANSITIONS: dict[ContractStatus, frozenset[ContractStatus]] = {
+    ContractStatus.DRAFT: frozenset({
+        ContractStatus.PENDING_REVIEW,
+        ContractStatus.UNDER_REVIEW,
+        ContractStatus.TERMINATED,
+    }),
+    ContractStatus.PENDING_REVIEW: frozenset({
+        ContractStatus.UNDER_REVIEW,
+        ContractStatus.APPROVED,
+        ContractStatus.DRAFT,
+        ContractStatus.TERMINATED,
+    }),
+    ContractStatus.UNDER_REVIEW: frozenset({
+        ContractStatus.PENDING_REVIEW,
+        ContractStatus.REVIEW_FAILED,
+        ContractStatus.APPROVED,
+        ContractStatus.TERMINATED,
+    }),
+    ContractStatus.REVIEW_FAILED: frozenset({
+        ContractStatus.UNDER_REVIEW,
+        ContractStatus.DRAFT,
+        ContractStatus.TERMINATED,
+    }),
+    ContractStatus.APPROVED: frozenset({
+        ContractStatus.SIGNED,
+        ContractStatus.TERMINATED,
+    }),
+    ContractStatus.SIGNED: frozenset({
+        ContractStatus.ACTIVE,
+        ContractStatus.EXPIRED,
+        ContractStatus.TERMINATED,
+    }),
+    ContractStatus.ACTIVE: frozenset({
+        ContractStatus.EXPIRED,
+        ContractStatus.TERMINATED,
+    }),
+    ContractStatus.EXPIRED: frozenset(),
+    ContractStatus.TERMINATED: frozenset(),
+}
+
+
+class IllegalStateTransition(ValueError):  # noqa: N818
+    """Raised when a contract status change violates the lifecycle matrix."""
+
+
+def normalize_contract_status(status: ContractStatus | str) -> ContractStatus:
+    if isinstance(status, ContractStatus):
+        return status
+    try:
+        return ContractStatus(status)
+    except ValueError as exc:
+        raise IllegalStateTransition(f"Unsupported contract status: {status}") from exc
+
+
+def can_transition_contract(
+    current_status: ContractStatus | str,
+    target_status: ContractStatus | str,
+) -> bool:
+    current = normalize_contract_status(current_status)
+    target = normalize_contract_status(target_status)
+    return current == target or target in LEGAL_TRANSITIONS[current]
+
+
+class ContractLifecycleStateMachine:
+    """Single gateway for contract status changes."""
+
+    @staticmethod
+    def transition(
+        contract: Contract,
+        target_status: ContractStatus | str,
+        *,
+        actor_id: str | None = None,
+        reason: str | None = None,
+    ) -> Contract:
+        current = normalize_contract_status(contract.status)
+        target = normalize_contract_status(target_status)
+        if current == target:
+            return contract
+        if target not in LEGAL_TRANSITIONS[current]:
+            raise IllegalStateTransition(
+                f"Illegal contract status transition: {current.value} -> {target.value}"
+            )
+
+        contract.status = target
+        logger.info(
+            "合同状态转换: contract_id={}, {} -> {}, actor={}, reason={}",
+            contract.id,
+            current.value,
+            target.value,
+            actor_id or "system",
+            reason or "",
+        )
+        return contract
 
 
 # ========== 1. 合同模板库 ==========
 
-CONTRACT_TEMPLATES: Dict[str, Dict[str, Any]] = {
+CONTRACT_TEMPLATES: dict[str, dict[str, Any]] = {
 
     # ===== 劳动合同（5种）=====
 
@@ -274,7 +370,7 @@ class ContractMilestone:
     status: str = "pending"       # pending / done / overdue / warning
     note: str = ""
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "due_date": self.due_date,
@@ -295,13 +391,13 @@ class ContractTracker:
     start_date: str
     end_date: str
     total_amount: float = 0
-    milestones: List[ContractMilestone] = field(default_factory=list)
+    milestones: list[ContractMilestone] = field(default_factory=list)
     status: str = "active"        # active / completed / terminated / disputed
-    follow_ups: List[Dict] = field(default_factory=list)  # 后续追踪记录
+    follow_ups: list[dict[str, Any]] = field(default_factory=list)  # 后续追踪记录
 
-    def check_alerts(self) -> List[Dict]:
+    def check_alerts(self) -> list[dict[str, Any]]:
         """检查预警"""
-        alerts = []
+        alerts: list[dict[str, Any]] = []
         today = date.today()
 
         for m in self.milestones:
@@ -357,7 +453,7 @@ class ContractTracker:
 
         return alerts
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "contract_id": self.contract_id,
             "contract_name": self.contract_name,
@@ -375,7 +471,7 @@ class ContractTracker:
 
 # ========== 3. 后续追踪闭环 ==========
 
-FOLLOW_UP_CHAINS: Dict[str, List[Dict]] = {
+FOLLOW_UP_CHAINS: dict[str, list[dict[str, Any]]] = {
     "demand_letter": [
         {
             "stage": "sent",
@@ -493,14 +589,14 @@ FOLLOW_UP_CHAINS: Dict[str, List[Dict]] = {
 class ContractLifecycleService:
     """合同生命周期管理服务"""
 
-    def __init__(self):
-        self._trackers: Dict[str, ContractTracker] = {}
+    def __init__(self) -> None:
+        self._trackers: dict[str, ContractTracker] = {}
 
     # ===== 模板库 =====
 
-    def get_template_catalog(self, category: Optional[str] = None) -> List[Dict]:
+    def get_template_catalog(self, category: str | None = None) -> list[dict[str, Any]]:
         """获取模板目录"""
-        result = []
+        result: list[dict[str, Any]] = []
         for key, tpl in CONTRACT_TEMPLATES.items():
             if category and tpl["category"] != category:
                 continue
@@ -514,7 +610,7 @@ class ContractLifecycleService:
             })
         return result
 
-    def get_template_detail(self, template_id: str) -> Optional[Dict]:
+    def get_template_detail(self, template_id: str) -> dict[str, Any] | None:
         """获取模板详情"""
         tpl = CONTRACT_TEMPLATES.get(template_id)
         if not tpl:
@@ -532,7 +628,7 @@ class ContractLifecycleService:
             f"**适用对象**：{tpl['applicable']}\n",
             "### 必备条款\n",
         ]
-        for i, clause in enumerate(tpl["key_clauses"], 1):
+        for clause in tpl["key_clauses"]:
             lines.append(f"- [ ] {clause}")
 
         if tpl.get("risk_checkpoints"):
@@ -557,7 +653,7 @@ class ContractLifecycleService:
         start_date: str,
         end_date: str,
         total_amount: float = 0,
-        milestones: Optional[List[Dict]] = None,
+        milestones: list[dict[str, Any]] | None = None,
     ) -> ContractTracker:
         """创建合同追踪器"""
         import uuid
@@ -578,9 +674,9 @@ class ContractLifecycleService:
         self._trackers[tracker.contract_id] = tracker
         return tracker
 
-    def get_all_alerts(self) -> List[Dict]:
+    def get_all_alerts(self) -> list[dict[str, Any]]:
         """获取所有合同的预警信息"""
-        all_alerts = []
+        all_alerts: list[dict[str, Any]] = []
         for tracker in self._trackers.values():
             alerts = tracker.check_alerts()
             for alert in alerts:
@@ -594,11 +690,11 @@ class ContractLifecycleService:
 
     # ===== 后续追踪 =====
 
-    def get_follow_up_chain(self, chain_type: str) -> Optional[List[Dict]]:
+    def get_follow_up_chain(self, chain_type: str) -> list[dict[str, Any]] | None:
         """获取追踪链"""
         return FOLLOW_UP_CHAINS.get(chain_type)
 
-    def get_follow_up_stage(self, chain_type: str, stage: str) -> Optional[Dict]:
+    def get_follow_up_stage(self, chain_type: str, stage: str) -> dict[str, Any] | None:
         """获取追踪链的某个阶段"""
         chain = FOLLOW_UP_CHAINS.get(chain_type, [])
         for item in chain:
@@ -606,7 +702,12 @@ class ContractLifecycleService:
                 return item
         return None
 
-    def get_next_follow_up(self, chain_type: str, current_stage: str, user_choice: str) -> Optional[Dict]:
+    def get_next_follow_up(
+        self,
+        chain_type: str,
+        current_stage: str,
+        user_choice: str,
+    ) -> dict[str, Any] | None:
         """根据用户选择获取下一步追踪"""
         stage = self.get_follow_up_stage(chain_type, current_stage)
         if not stage or "next" not in stage:

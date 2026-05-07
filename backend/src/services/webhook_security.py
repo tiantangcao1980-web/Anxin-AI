@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import hmac
 import time
-from typing import Optional
 
 from loguru import logger
 
@@ -31,9 +30,9 @@ class WebhookSecurity:
         *,
         scope: str,
         body: bytes,
-        signature: Optional[str],
-        secret: Optional[str],
-        timestamp: Optional[str],
+        signature: str | None,
+        secret: str | None,
+        timestamp: str | None,
     ) -> bool:
         """Verify HMAC signature with timestamp freshness and simple replay protection."""
         if not secret:
@@ -53,12 +52,12 @@ class WebhookSecurity:
             logger.info(f"{scope} webhook timestamp 过期: age={abs(now - ts_value)}")
             return False
 
-        payload = f"{ts_value}.".encode("utf-8") + body
+        payload = f"{ts_value}.".encode() + body
         expected = hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
         if not hmac.compare_digest(signature.strip(), expected):
             return False
 
-        replay_key = hashlib.sha256(f"{scope}:{ts_value}:{signature}".encode("utf-8")).hexdigest()
+        replay_key = hashlib.sha256(f"{scope}:{ts_value}:{signature}".encode()).hexdigest()
         cls._prune()
         if replay_key in cls._seen_signatures:
             logger.warning(f"{scope} webhook 检测到重放")

@@ -1,0 +1,185 @@
+{
+  "generated_at": "2026-05-06T07:48:58.955339+00:00",
+  "run_label": "rag-live-qdrant-smoke-2026-05-06",
+  "mode": "smoke",
+  "status": "live_predictions_export",
+  "notes": [
+    "Metrics are computed from predictions exported by a live vector-store run.",
+    "Use the same prediction schema for live Qdrant/RAG runs before tuning top-k or reranker thresholds."
+  ],
+  "inputs": {
+    "golden_path": "eval/rag_golden_set.jsonl",
+    "golden_sha256": "4855aeb8a4c1088cb7a4dddaaf586412796e61a327989bce7399c41d1daa9002",
+    "predictions_path": "eval/rag_live_predictions_smoke.json",
+    "predictions_sha256": "03c25b11a2045814d486ecd896b47d6119ae7f17487d8643e1e2ddc01bd1b4db"
+  },
+  "summary": {
+    "question_count": 10,
+    "mrr": 1.0,
+    "ndcg@10": 1.0,
+    "citation_f1": 0.6499999999999999,
+    "recall@5": 1.0,
+    "recall@10": 1.0,
+    "recall@20": 1.0
+  },
+  "by_category": {
+    "compliance": {
+      "question_count": 1,
+      "mrr": 1.0,
+      "ndcg@10": 1.0,
+      "citation_f1": 0.8,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "recall@20": 1.0
+    },
+    "contract": {
+      "question_count": 4,
+      "mrr": 1.0,
+      "ndcg@10": 1.0,
+      "citation_f1": 0.575,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "recall@20": 1.0
+    },
+    "labor": {
+      "question_count": 4,
+      "mrr": 1.0,
+      "ndcg@10": 1.0,
+      "citation_f1": 0.65,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "recall@20": 1.0
+    },
+    "litigation": {
+      "question_count": 1,
+      "mrr": 1.0,
+      "ndcg@10": 1.0,
+      "citation_f1": 0.8,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "recall@20": 1.0
+    }
+  },
+  "per_question": [
+    {
+      "id": "Q-0001",
+      "category": "contract",
+      "query": "合同只有一方签字但另一方已经履行主要义务，合同是否成立？",
+      "retrieved_count": 10,
+      "mrr": 1.0,
+      "ndcg@10": 1.0,
+      "citation_f1": 0.5,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "recall@20": 1.0
+    },
+    {
+      "id": "Q-0002",
+      "category": "contract",
+      "query": "格式条款没有提示免除责任内容，客户可以主张该条款不成为合同内容吗？",
+      "retrieved_count": 10,
+      "mrr": 1.0,
+      "ndcg@10": 1.0,
+      "citation_f1": 0.8,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "recall@20": 1.0
+    },
+    {
+      "id": "Q-0003",
+      "category": "contract",
+      "query": "合同违约金明显过高，法院能否调整？",
+      "retrieved_count": 10,
+      "mrr": 1.0,
+      "ndcg@10": 1.0,
+      "citation_f1": 0.5,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "recall@20": 1.0
+    },
+    {
+      "id": "Q-0004",
+      "category": "contract",
+      "query": "不可抗力导致无法履约，违约方是否当然免责？",
+      "retrieved_count": 10,
+      "mrr": 1.0,
+      "ndcg@10": 1.0,
+      "citation_f1": 0.5,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "recall@20": 1.0
+    },
+    {
+      "id": "Q-0005",
+      "category": "labor",
+      "query": "入职一个月内没有签书面劳动合同，单位有什么风险？",
+      "retrieved_count": 10,
+      "mrr": 1.0,
+      "ndcg@10": 1.0,
+      "citation_f1": 0.8,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "recall@20": 1.0
+    },
+    {
+      "id": "Q-0006",
+      "category": "labor",
+      "query": "同一用人单位能否与同一劳动者约定两次试用期？",
+      "retrieved_count": 10,
+      "mrr": 1.0,
+      "ndcg@10": 1.0,
+      "citation_f1": 0.5,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "recall@20": 1.0
+    },
+    {
+      "id": "Q-0007",
+      "category": "labor",
+      "query": "劳动者提前三十日书面通知离职，单位能否拒绝？",
+      "retrieved_count": 10,
+      "mrr": 1.0,
+      "ndcg@10": 1.0,
+      "citation_f1": 0.5,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "recall@20": 1.0
+    },
+    {
+      "id": "Q-0008",
+      "category": "labor",
+      "query": "员工违反竞业限制约定，公司可以要求其支付违约金吗？",
+      "retrieved_count": 10,
+      "mrr": 1.0,
+      "ndcg@10": 1.0,
+      "citation_f1": 0.8,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "recall@20": 1.0
+    },
+    {
+      "id": "Q-0009",
+      "category": "litigation",
+      "query": "约定管辖条款能否排除法定专属管辖？",
+      "retrieved_count": 10,
+      "mrr": 1.0,
+      "ndcg@10": 1.0,
+      "citation_f1": 0.8,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "recall@20": 1.0
+    },
+    {
+      "id": "Q-0010",
+      "category": "compliance",
+      "query": "处理个人信息前需要取得个人同意吗？",
+      "retrieved_count": 10,
+      "mrr": 1.0,
+      "ndcg@10": 1.0,
+      "citation_f1": 0.8,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "recall@20": 1.0
+    }
+  ]
+}

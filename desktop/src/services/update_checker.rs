@@ -18,9 +18,7 @@ impl UpdateChecker {
 
     /// 检查更新（控制面 - 所有模式可用）
     pub async fn check_update(&self) -> Result<Option<UpdateAvailable>, String> {
-        let backend_url = {
-            self.state.read().await.backend_url.clone()
-        };
+        let backend_url = { self.state.read().await.backend_url.clone() };
 
         let current_version = env!("CARGO_PKG_VERSION");
         let target = std::env::consts::OS;

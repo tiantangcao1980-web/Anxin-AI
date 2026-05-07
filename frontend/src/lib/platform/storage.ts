@@ -4,6 +4,7 @@ const ACCESS_TOKEN_KEY = 'access_token'
 const REFRESH_TOKEN_KEY = 'refresh_token'
 const BACKEND_URL_KEY = 'backend_url'
 const TAURI_STORE_PATH = 'auth.json'
+const ZUSTAND_AUTH_KEY = 'auth-storage'
 
 type StoreLike = {
   getItem(key: string): string | null
@@ -55,6 +56,52 @@ function removeIfPresent(store: StoreLike | null, key: string) {
   store.removeItem(key)
 }
 
+function sanitizePersistedAuthState(store: StoreLike | null) {
+  if (!store) {
+    return
+  }
+  const raw = store.getItem(ZUSTAND_AUTH_KEY)
+  if (!raw) {
+    return
+  }
+  try {
+    const parsed = JSON.parse(raw)
+    if (parsed?.state && typeof parsed.state === 'object') {
+      delete parsed.state.token
+      store.setItem(ZUSTAND_AUTH_KEY, JSON.stringify(parsed))
+    }
+  } catch {
+    store.removeItem(ZUSTAND_AUTH_KEY)
+  }
+}
+
+function removeLegacyBrowserTokens(store: StoreLike | null) {
+  removeIfPresent(store, ACCESS_TOKEN_KEY)
+  removeIfPresent(store, REFRESH_TOKEN_KEY)
+  sanitizePersistedAuthState(store)
+}
+
+function readLegacyBrowserToken(store: StoreLike | null, key: string): string | null {
+  const token = store?.getItem(key) ?? null
+  if (token) {
+    removeIfPresent(store, key)
+    sanitizePersistedAuthState(store)
+  }
+  return token
+}
+
+export function getAccessTokenSnapshot(): string | null {
+  return memoryState.get(ACCESS_TOKEN_KEY) ?? null
+}
+
+export function setAccessTokenSnapshot(token: string | null) {
+  if (token) {
+    memoryState.set(ACCESS_TOKEN_KEY, token)
+    return
+  }
+  memoryState.delete(ACCESS_TOKEN_KEY)
+}
+
 async function getDesktopStore(): Promise<DesktopStore> {
   if (!desktopStorePromise) {
     desktopStorePromise = import(/* @vite-ignore */ '@tauri-apps/plugin-store')
@@ -102,29 +149,37 @@ export function createMemoryTokenStorage(): TokenStorage {
   }
 }
 
-function createBrowserTokenStorage(store: StoreLike | null): TokenStorage {
+export function createBrowserTokenStorage(store: StoreLike | null): TokenStorage {
   const fallback = createMemoryTokenStorage()
 
   return {
     async getAccessToken() {
-      return store?.getItem(ACCESS_TOKEN_KEY) ?? fallback.getAccessToken()
+      const token = getAccessTokenSnapshot()
+      if (token) {
+        return token
+      }
+      const legacyToken = readLegacyBrowserToken(store, ACCESS_TOKEN_KEY)
+      if (legacyToken) {
+        setAccessTokenSnapshot(legacyToken)
+        return legacyToken
+      }
+      return fallback.getAccessToken()
     },
     async setAccessToken(token: string) {
-      if (store) {
-        store.setItem(ACCESS_TOKEN_KEY, token)
-        return
-      }
+      setAccessTokenSnapshot(token)
+      removeLegacyBrowserTokens(store)
       await fallback.setAccessToken(token)
     },
     async getRefreshToken() {
-      return store?.getItem(REFRESH_TOKEN_KEY) ?? fallback.getRefreshToken()
-    },
-    async setRefreshToken(token: string) {
-      if (store) {
-        store.setItem(REFRESH_TOKEN_KEY, token)
-        return
+      const legacyToken = readLegacyBrowserToken(store, REFRESH_TOKEN_KEY)
+      if (legacyToken) {
+        return legacyToken
       }
-      await fallback.setRefreshToken(token)
+      return fallback.getRefreshToken()
+    },
+    async setRefreshToken(_token: string) {
+      removeLegacyBrowserTokens(store)
+      memoryState.delete(REFRESH_TOKEN_KEY)
     },
     async getBackendUrl() {
       return store?.getItem(BACKEND_URL_KEY) ?? fallback.getBackendUrl()
@@ -144,11 +199,9 @@ function createBrowserTokenStorage(store: StoreLike | null): TokenStorage {
       await fallback.clearBackendUrl()
     },
     async clearAuth() {
-      if (store) {
-        store.removeItem(ACCESS_TOKEN_KEY)
-        store.removeItem(REFRESH_TOKEN_KEY)
-        return
-      }
+      setAccessTokenSnapshot(null)
+      memoryState.delete(REFRESH_TOKEN_KEY)
+      removeLegacyBrowserTokens(store)
       await fallback.clearAuth()
     },
   }
@@ -173,34 +226,41 @@ function createDesktopTokenStorage(): TokenStorage {
       return tryDesktop(async (store) => {
         const token = await store.get<string>(ACCESS_TOKEN_KEY)
         if (token) {
-          setIfTruthy(browserStore, ACCESS_TOKEN_KEY, token)
+          setAccessTokenSnapshot(token)
+          removeLegacyBrowserTokens(browserStore)
           return token
         }
-        return browserStore?.getItem(ACCESS_TOKEN_KEY) ?? null
+        const legacyToken = readLegacyBrowserToken(browserStore, ACCESS_TOKEN_KEY)
+        if (legacyToken) {
+          setAccessTokenSnapshot(legacyToken)
+          return legacyToken
+        }
+        return getAccessTokenSnapshot()
       }, () => browserFallback.getAccessToken())
     },
     async setAccessToken(token: string) {
       return tryDesktop(async (store) => {
         await store.set(ACCESS_TOKEN_KEY, token)
         await store.save()
-        setIfTruthy(browserStore, ACCESS_TOKEN_KEY, token)
+        setAccessTokenSnapshot(token)
+        removeLegacyBrowserTokens(browserStore)
       }, () => browserFallback.setAccessToken(token))
     },
     async getRefreshToken() {
       return tryDesktop(async (store) => {
         const token = await store.get<string>(REFRESH_TOKEN_KEY)
         if (token) {
-          setIfTruthy(browserStore, REFRESH_TOKEN_KEY, token)
+          removeLegacyBrowserTokens(browserStore)
           return token
         }
-        return browserStore?.getItem(REFRESH_TOKEN_KEY) ?? null
+        return readLegacyBrowserToken(browserStore, REFRESH_TOKEN_KEY)
       }, () => browserFallback.getRefreshToken())
     },
     async setRefreshToken(token: string) {
       return tryDesktop(async (store) => {
         await store.set(REFRESH_TOKEN_KEY, token)
         await store.save()
-        setIfTruthy(browserStore, REFRESH_TOKEN_KEY, token)
+        removeLegacyBrowserTokens(browserStore)
       }, () => browserFallback.setRefreshToken(token))
     },
     async getBackendUrl() {
@@ -232,8 +292,9 @@ function createDesktopTokenStorage(): TokenStorage {
         await store.delete(ACCESS_TOKEN_KEY)
         await store.delete(REFRESH_TOKEN_KEY)
         await store.save()
-        removeIfPresent(browserStore, ACCESS_TOKEN_KEY)
-        removeIfPresent(browserStore, REFRESH_TOKEN_KEY)
+        setAccessTokenSnapshot(null)
+        memoryState.delete(REFRESH_TOKEN_KEY)
+        removeLegacyBrowserTokens(browserStore)
       }, () => browserFallback.clearAuth())
     },
   }

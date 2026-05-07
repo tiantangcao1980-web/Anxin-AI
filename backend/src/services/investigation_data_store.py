@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Investigation Data Store — 调查数据持久化与缓存层
 
@@ -12,9 +11,9 @@ Investigation Data Store — 调查数据持久化与缓存层
 """
 
 import hashlib
-import json
-from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional, Tuple
+from datetime import datetime
+from typing import Any
+
 from loguru import logger
 
 
@@ -39,8 +38,9 @@ class InvestigationDataStore:
         company_name: str,
         data_source: str,
         query_text: str = "",
-        max_age_seconds: Optional[int] = None,
-    ) -> Optional[Dict[str, Any]]:
+        max_age_seconds: int | None = None,
+        org_id: str | None = None,
+    ) -> dict[str, Any] | None:
         """
         从缓存获取数据。如命中且未过期，返回缓存数据并更新命中计数。
 
@@ -49,23 +49,27 @@ class InvestigationDataStore:
             data_source: 数据源类型
             query_text: 搜索查询文本
             max_age_seconds: 最大缓存年龄，None 则使用默认 TTL
+            org_id: 组织 ID；为空时只读取全局/本地缓存，不读取其他组织缓存
 
         Returns:
             缓存的数据字典，或 None（未命中/已过期）
         """
         try:
+            from sqlalchemy import and_, select
+
             from src.core.database import get_db_context
             from src.models.investigation import SearchCache
-            from sqlalchemy import select, and_
 
             cache_key = self._make_cache_key(company_name, data_source, query_text)
             ttl = max_age_seconds or self.CACHE_TTL.get(data_source, 86400)
+            scope_org_id = self._normalize_org_id(org_id)
 
             async with get_db_context() as session:
                 stmt = select(SearchCache).where(
                     and_(
                         SearchCache.cache_key == cache_key,
-                        SearchCache.is_valid == True,
+                        SearchCache.is_valid.is_(True),
+                        self._org_scope_condition(SearchCache, scope_org_id),
                     )
                 )
                 result = await session.execute(stmt)
@@ -84,7 +88,10 @@ class InvestigationDataStore:
                 cache.hit_count += 1
                 await session.flush()
 
-                logger.info(f"缓存命中: {company_name}/{data_source} (hits={cache.hit_count})")
+                logger.info(
+                    f"缓存命中: {company_name}/{data_source} "
+                    f"org={scope_org_id or 'global'} (hits={cache.hit_count})"
+                )
                 return cache.parsed_data or cache.raw_data
 
         except Exception as e:
@@ -96,20 +103,23 @@ class InvestigationDataStore:
         company_name: str,
         data_source: str,
         raw_data: Any,
-        parsed_data: Optional[Dict] = None,
+        parsed_data: dict[str, Any] | None = None,
         query_text: str = "",
-        ttl_seconds: Optional[int] = None,
+        ttl_seconds: int | None = None,
+        org_id: str | None = None,
     ) -> bool:
         """
         保存搜索结果到缓存。如已有相同 key 的缓存，则更新。
         """
         try:
+            from sqlalchemy import and_, select
+
             from src.core.database import get_db_context
             from src.models.investigation import SearchCache
-            from sqlalchemy import select
 
             cache_key = self._make_cache_key(company_name, data_source, query_text)
             ttl = ttl_seconds or self.CACHE_TTL.get(data_source, 86400)
+            scope_org_id = self._normalize_org_id(org_id)
 
             # 序列化
             if not isinstance(raw_data, dict):
@@ -117,17 +127,29 @@ class InvestigationDataStore:
 
             result_count = 0
             if isinstance(raw_data, dict):
-                result_count = len(raw_data.get("results", raw_data.get("items", [])))
-                if result_count == 0:
-                    result_count = len(raw_data)
+                results = raw_data.get("results")
+                if isinstance(results, list):
+                    result_count = len(results)
+                else:
+                    items = raw_data.get("items")
+                    if isinstance(items, list):
+                        result_count = len(items)
+                    else:
+                        result_count = len(raw_data)
 
             async with get_db_context() as session:
                 # 查找已有缓存
-                stmt = select(SearchCache).where(SearchCache.cache_key == cache_key)
+                stmt = select(SearchCache).where(
+                    and_(
+                        SearchCache.cache_key == cache_key,
+                        self._org_scope_condition(SearchCache, scope_org_id),
+                    )
+                )
                 result = await session.execute(stmt)
                 existing = result.scalar_one_or_none()
 
                 if existing:
+                    existing.org_id = scope_org_id
                     existing.raw_data = raw_data
                     existing.parsed_data = parsed_data
                     existing.result_count = result_count
@@ -137,6 +159,7 @@ class InvestigationDataStore:
                 else:
                     cache = SearchCache(
                         cache_key=cache_key,
+                        org_id=scope_org_id,
                         company_name=company_name,
                         data_source=data_source,
                         query_text=query_text,
@@ -147,7 +170,9 @@ class InvestigationDataStore:
                     )
                     session.add(cache)
 
-                logger.debug(f"缓存已保存: {company_name}/{data_source}")
+                logger.debug(
+                    f"缓存已保存: {company_name}/{data_source} org={scope_org_id or 'global'}"
+                )
                 return True
 
         except Exception as e:
@@ -157,8 +182,9 @@ class InvestigationDataStore:
     async def get_cached_dimensions(
         self,
         company_name: str,
-        user_id: Optional[str] = None,
-    ) -> Dict[str, Dict[str, Any]]:
+        user_id: str | None = None,
+        org_id: str | None = None,
+    ) -> dict[str, dict[str, Any]]:
         """
         获取某企业所有已缓存维度的状态
 
@@ -170,17 +196,21 @@ class InvestigationDataStore:
             }
         """
         try:
+            from sqlalchemy import and_, select
+
             from src.core.database import get_db_context
             from src.models.investigation import SearchCache
-            from sqlalchemy import select, and_
+
+            scope_org_id = self._normalize_org_id(org_id)
+            if user_id and not scope_org_id:
+                return {}
 
             async with get_db_context() as session:
-                if user_id:
-                    return {}
                 stmt = select(SearchCache).where(
                     and_(
                         SearchCache.company_name == company_name,
-                        SearchCache.is_valid == True,
+                        SearchCache.is_valid.is_(True),
+                        self._org_scope_condition(SearchCache, scope_org_id),
                     )
                 )
                 result = await session.execute(stmt)
@@ -188,7 +218,9 @@ class InvestigationDataStore:
 
                 dimensions = {}
                 for cache in caches:
-                    age_seconds = (datetime.utcnow() - cache.created_at.replace(tzinfo=None)).total_seconds()
+                    age_seconds = (
+                        datetime.utcnow() - cache.created_at.replace(tzinfo=None)
+                    ).total_seconds()
                     age_hours = age_seconds / 3600
                     expired = age_seconds > cache.ttl_seconds
 
@@ -210,19 +242,26 @@ class InvestigationDataStore:
     async def invalidate_cache(
         self,
         company_name: str,
-        data_source: Optional[str] = None,
-        user_id: Optional[str] = None,
+        data_source: str | None = None,
+        user_id: str | None = None,
+        org_id: str | None = None,
     ) -> int:
         """使某企业的缓存失效。返回失效条数。"""
         try:
+            from sqlalchemy import and_, update
+
             from src.core.database import get_db_context
             from src.models.investigation import SearchCache
-            from sqlalchemy import select, and_, update
+
+            scope_org_id = self._normalize_org_id(org_id)
+            if user_id and not scope_org_id:
+                return 0
 
             async with get_db_context() as session:
-                if user_id:
-                    return 0
-                conditions = [SearchCache.company_name == company_name]
+                conditions = [
+                    SearchCache.company_name == company_name,
+                    self._org_scope_condition(SearchCache, scope_org_id),
+                ]
                 if data_source:
                     conditions.append(SearchCache.data_source == data_source)
 
@@ -232,8 +271,11 @@ class InvestigationDataStore:
                     .values(is_valid=False)
                 )
                 result = await session.execute(stmt)
-                count = result.rowcount
-                logger.info(f"缓存已失效: {company_name}/{data_source or 'all'} ({count} 条)")
+                count = int(getattr(result, "rowcount", 0) or 0)
+                logger.info(
+                    f"缓存已失效: {company_name}/{data_source or 'all'} "
+                    f"org={scope_org_id or 'global'} ({count} 条)"
+                )
                 return count
 
         except Exception as e:
@@ -245,10 +287,10 @@ class InvestigationDataStore:
     async def save_snapshot(
         self,
         company_name: str,
-        investigation_id: Optional[str],
-        user_id: Optional[str],
-        data: Dict[str, Any],
-    ) -> Optional[str]:
+        investigation_id: str | None,
+        user_id: str | None,
+        data: dict[str, Any],
+    ) -> str | None:
         """
         保存调查快照 — 记录某一时刻的企业数据状态
 
@@ -304,13 +346,14 @@ class InvestigationDataStore:
         self,
         company_name: str,
         limit: int = 20,
-        user_id: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        user_id: str | None = None,
+    ) -> list[dict[str, Any]]:
         """获取某企业的历史快照列表（按时间倒序）"""
         try:
+            from sqlalchemy import and_, desc, select
+
             from src.core.database import get_db_context
             from src.models.investigation import InvestigationSnapshot
-            from sqlalchemy import select, desc, and_
 
             async with get_db_context() as session:
                 conditions = [InvestigationSnapshot.company_name == company_name]
@@ -335,13 +378,14 @@ class InvestigationDataStore:
         self,
         company_name: str,
         limit: int = 30,
-        user_id: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        user_id: str | None = None,
+    ) -> list[dict[str, Any]]:
         """获取企业风险趋势数据（用于前端折线图）"""
         try:
+            from sqlalchemy import asc, select
+
             from src.core.database import get_db_context
             from src.models.investigation import InvestigationSnapshot
-            from sqlalchemy import select, asc
 
             async with get_db_context() as session:
                 stmt = (
@@ -378,8 +422,8 @@ class InvestigationDataStore:
         self,
         snapshot_id_a: str,
         snapshot_id_b: str,
-        user_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        user_id: str | None = None,
+    ) -> dict[str, Any]:
         """对比两个快照的差异"""
         try:
             from src.core.database import get_db_context
@@ -431,9 +475,9 @@ class InvestigationDataStore:
         user_id: str,
         company_name: str,
         investigation_type: str = "comprehensive",
-        duration_seconds: Optional[float] = None,
-        sections_viewed: Optional[List[str]] = None,
-        search_keywords: Optional[List[str]] = None,
+        duration_seconds: float | None = None,
+        sections_viewed: list[str] | None = None,
+        search_keywords: list[str] | None = None,
     ) -> bool:
         """
         更新用户调查偏好 — 每次调查完成后调用
@@ -446,9 +490,10 @@ class InvestigationDataStore:
         - 搜索关键词历史
         """
         try:
+            from sqlalchemy import select
+
             from src.core.database import get_db_context
             from src.models.investigation import UserInvestigationPreference
-            from sqlalchemy import select
 
             async with get_db_context() as session:
                 stmt = select(UserInvestigationPreference).where(
@@ -515,12 +560,13 @@ class InvestigationDataStore:
             logger.warning(f"更新用户偏好失败: {e}")
             return False
 
-    async def get_user_preference(self, user_id: str) -> Optional[Dict[str, Any]]:
+    async def get_user_preference(self, user_id: str) -> dict[str, Any] | None:
         """获取用户调查偏好"""
         try:
+            from sqlalchemy import select
+
             from src.core.database import get_db_context
             from src.models.investigation import UserInvestigationPreference
-            from sqlalchemy import select
 
             async with get_db_context() as session:
                 stmt = select(UserInvestigationPreference).where(
@@ -539,8 +585,8 @@ class InvestigationDataStore:
             return None
 
     async def get_smart_recommendations(
-        self, user_id: str, company_name: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, user_id: str, company_name: str | None = None
+    ) -> dict[str, Any]:
         """
         基于用户偏好生成智能推荐
 
@@ -592,7 +638,7 @@ class InvestigationDataStore:
                 "sentiment": "舆情监控",
             }
             suggested_dims = []
-            for section, count in sorted(most_viewed.items(), key=lambda x: -x[1]):
+            for section, _count in sorted(most_viewed.items(), key=lambda x: -x[1]):
                 if section in dimension_map:
                     suggested_dims.append(dimension_map[section])
                 if len(suggested_dims) >= 3:
@@ -616,17 +662,31 @@ class InvestigationDataStore:
 
     # ========== 内部方法 ==========
 
+    def _normalize_org_id(self, org_id: str | None) -> str | None:
+        """Normalize organization scope values before cache queries."""
+        if org_id is None:
+            return None
+        normalized = str(org_id).strip()
+        return normalized or None
+
+    def _org_scope_condition(self, cache_model: Any, org_id: str | None) -> Any:
+        """Build the organization-scope filter used by every cache operation."""
+        if org_id:
+            return cache_model.org_id == org_id
+        return cache_model.org_id.is_(None)
+
     def _make_cache_key(self, company_name: str, data_source: str, query_text: str = "") -> str:
         """生成缓存 key"""
         raw = f"{company_name}|{data_source}|{query_text}"
         return hashlib.md5(raw.encode()).hexdigest()
 
-    async def _get_latest_snapshot(self, company_name: str) -> Optional[Dict[str, Any]]:
+    async def _get_latest_snapshot(self, company_name: str) -> dict[str, Any] | None:
         """获取最新一个快照的数据"""
         try:
+            from sqlalchemy import desc, select
+
             from src.core.database import get_db_context
             from src.models.investigation import InvestigationSnapshot
-            from sqlalchemy import select, desc
 
             async with get_db_context() as session:
                 stmt = (
@@ -652,8 +712,11 @@ class InvestigationDataStore:
         return None
 
     def _compute_diff(
-        self, prev: Optional[Dict], current_data: Dict, current_risk_level: str
-    ) -> Tuple[str, Dict]:
+        self,
+        prev: dict[str, Any] | None,
+        current_data: dict[str, Any],
+        current_risk_level: str,
+    ) -> tuple[str, dict[str, Any]]:
         """计算当前数据与上一快照的差异"""
         if not prev:
             return "首次快照，无对比数据", {}
@@ -661,11 +724,13 @@ class InvestigationDataStore:
         return self._compute_diff_between(prev, current_data)
 
     def _compute_diff_between(
-        self, data_a: Dict, data_b: Dict
-    ) -> Tuple[str, Dict]:
+        self,
+        data_a: dict[str, Any],
+        data_b: dict[str, Any],
+    ) -> tuple[str, dict[str, Any]]:
         """对比两份数据的差异"""
-        changes = {}
-        summary_parts = []
+        changes: dict[str, Any] = {}
+        summary_parts: list[str] = []
 
         # 对比风险评分
         risk_a = data_a.get("risk", {})

@@ -1,0 +1,286 @@
+# OpenSpec — 商业交付测试规范
+
+> 日期：2026-05-06
+> 目的：约束从现状到商业交付的验证门槛。没有测试证据，不进入下一波次。
+
+## 1. 全局质量门槛
+
+每次合并候选必须运行：
+
+```bash
+bash scripts/commercial-readiness-gate.sh --quick
+cd backend && ./.venv/bin/pytest -q tests
+cd backend && ./.venv/bin/ruff check src tests
+cd backend && ./.venv/bin/mypy src
+cd frontend && npm run lint
+cd frontend && npm run build
+bash scripts/mobile-device-smoke.sh
+# mobile: 6 files / 15 tests passed; mobile tsc exit 0; mini-program tsc/build exit 0; fake fallback guard exit 0; mini-program design token guard exit 0
+
+python3 scripts/sandbox-evidence-runner.py --scope payment --out /tmp/anxin-payment-sandbox-preflight.json
+python3 scripts/sandbox-evidence-runner.py --scope esign --out /tmp/anxin-esign-sandbox-preflight.json
+# preflight only; live sandbox calls require --live --confirm-live-side-effects
+cd desktop && cargo check
+cd desktop && cargo test
+cd desktop && cargo tauri build --debug --no-bundle --ci
+bash scripts/desktop-runtime-smoke.sh --with-app-bundle
+bash scripts/desktop-sqlite-security-gate.sh
+```
+
+当前全仓 Ruff 与 backend mypy 均已清零，商业交付路线采用分层零回退基线：
+
+- P0/P1 改动文件不得新增 ruff/mypy 错误。
+- 每个任务至少收口其 touched files 的类型/静态检查问题。
+- 全仓 ruff/mypy 必须保持零回退；任何非零结果都应阻断 release readiness。
+
+`scripts/commercial-readiness-gate.sh` 是商业发布硬门禁，不是普通开发门禁。当前它应当失败；GitNexus embeddings 零值阻断已解除，移动/小程序本地 smoke 已建立，但支付/电签真实沙箱、桌面 runtime smoke + 加密、RAG full 50 live baseline 和移动真机仍未闭合。RAG full50 还需要非 smoke 标记的商业 golden set；外部证据模板在 `docs/release/evidence/`，gate 只接受 `Status: complete`。
+
+静态质量基线可用以下命令采集；当前 evidence 要求 backend mypy `0` 错误，并由 `scripts/mypy-baseline-check.sh` 的 zero-baseline gate 保护：
+
+```bash
+bash scripts/static-quality-baseline.sh --out /tmp/anxin-static-quality-baseline.md
+```
+
+### 2026-05-06 验证记录
+
+本轮 V2 守卫、匿名聊天/A2UI 加固、对象存储、支付/电签 webhook 幂等与自动重试底座、微信/支付宝官方回调验签、e签宝官方 HMAC 回调验签、法大大 FASC webhook 验签、e签宝/法大大 provider 客户端、退款幂等、订阅状态机、合同生命周期状态机、合同版本 diff/回滚、合同审查并发/超时、合同附件对象存储生命周期、webhook processing lock、双客户端订阅前端展示、双端套餐过滤、IM 离线 ACK 前后端协议、小程序微信真实登录链路已运行：
+
+```bash
+cd backend && ./.venv/bin/pytest -q
+# 467 passed, 1 skipped, 17 warnings in 36.11s
+
+cd backend && ./.venv/bin/pytest -q tests/test_subscription_state_machine.py tests/test_refund_idempotency.py tests/test_payment_provider_clients.py tests/test_official_webhook_security.py tests/test_webhook_business_events.py tests/test_external_surface_guards.py tests/test_mode_subscription_guards.py tests/test_im_offline_messages.py tests/test_im_websocket_auth.py -k 'subscription or refund or payment or webhook or metrics or provider or event or esignbao or mode or im or websocket'
+# 58 passed, 6 deselected in 11.79s
+
+cd backend && ./.venv/bin/pytest -q tests/test_auth_surface_hardening.py
+# 18 passed
+
+cd backend && ./.venv/bin/pytest -q tests/test_auth_surface_hardening.py -k 'wechat_mini or oauth_callback'
+# 4 passed, 14 deselected
+
+cd backend && ./.venv/bin/pytest -q tests/test_document_upload_validation_api.py
+# 8 passed
+
+cd backend && ./.venv/bin/pytest -q tests/test_document_upload_validation_api.py tests/test_document_authorization_api.py tests/test_object_storage_service.py tests/test_document_generation_api.py tests/test_security_authorization_guards.py
+# 28 passed
+
+cd backend && ./.venv/bin/pytest -q tests/test_template_engine_security.py
+# 7 passed
+
+cd backend && ./.venv/bin/pytest -q tests/test_template_engine_security.py tests/test_document_upload_validation_api.py tests/test_document_generation_api.py
+# 17 passed
+
+cd backend && ./.venv/bin/pytest -q tests/test_collaboration_offline_merge.py
+# 4 passed
+
+cd backend && ./.venv/bin/pytest -q tests/test_collaboration_offline_merge.py tests/test_chat.py -k collaboration tests/test_security_authorization_guards.py
+# 10 passed, 32 deselected
+
+cd backend && ./.venv/bin/pytest -q tests/test_document_export_limits.py tests/test_contract_authorization_api.py -k 'download or export'
+# 4 passed, 6 deselected
+
+cd backend && ./.venv/bin/pytest -q tests/test_document_object_storage_migration.py tests/test_object_storage_service.py
+# 7 passed
+
+cd backend && ./.venv/bin/pytest -q tests/test_contract_state_machine.py tests/test_contract_review_workflow.py tests/test_external_surface_guards.py -k 'contract or esign'
+# 27 passed, 20 deselected, 6 warnings in 2.85s
+
+cd backend && ./.venv/bin/pytest -q tests/test_webhook_business_events.py tests/test_external_surface_guards.py -k 'esign'
+# 9 passed, 22 deselected, 6 warnings in 2.36s
+
+cd backend && ./.venv/bin/pytest -q tests/test_contract_versions.py tests/test_contract_state_machine.py tests/test_contract_review_workflow.py tests/test_external_surface_guards.py -k 'contract or esign or version'
+# 32 passed, 20 deselected
+
+cd backend && ./.venv/bin/pytest -q tests/test_contract_version_migration.py tests/test_contract_versions.py
+# 6 passed
+
+cd backend && ./.venv/bin/pytest -q tests/test_contract_review_workflow.py tests/test_contract_state_machine.py
+# 25 passed, 6 warnings
+
+cd backend && ./.venv/bin/pytest -q tests/test_webhook_business_events.py tests/test_external_surface_guards.py -k 'esign or webhook'
+# 23 passed, 9 deselected, 6 warnings
+
+cd backend && ./.venv/bin/pytest -q tests/test_esign_provider_clients.py tests/test_external_surface_guards.py -k 'esign or fadada'
+# 9 passed, 20 deselected, 6 warnings
+
+cd backend && ./.venv/bin/pytest -q tests/test_contract_review_workflow.py tests/test_contract_state_machine.py tests/test_contract_versions.py tests/test_contract_version_migration.py tests/test_webhook_business_events.py tests/test_external_surface_guards.py -k 'contract or esign or webhook or version'
+# 54 passed, 9 deselected, 6 warnings
+
+cd backend && ./.venv/bin/pytest -q tests/test_esign_provider_clients.py tests/test_official_webhook_security.py tests/test_webhook_business_events.py tests/test_external_surface_guards.py tests/test_contract_state_machine.py tests/test_contract_review_workflow.py -k 'esign or webhook or contract or provider'
+# 56 passed, 8 deselected, 6 warnings
+
+cd backend && ./.venv/bin/pytest -q tests/test_contract_attachments.py tests/test_contract_attachment_migration.py
+# 5 passed, 6 warnings
+
+cd backend && ./.venv/bin/pytest -q tests/test_contract_attachments.py tests/test_contract_attachment_migration.py tests/test_contract_authorization_api.py tests/test_object_storage_service.py tests/test_document_upload_validation_api.py -k 'contract or object_storage or upload'
+# 26 passed, 6 warnings
+
+cd backend && ./.venv/bin/ruff check --select F401,I001,UP041 src/api/routes/documents.py src/api/routes/knowledge.py src/api/routes/contracts.py src/api/routes/upload_validation.py src/core/validators.py tests/test_document_upload_validation_api.py
+# All checks passed
+
+cd backend && ./.venv/bin/ruff check --select F401,I001,UP041 src/services/template_engine.py src/api/routes/contracts.py tests/test_template_engine_security.py
+# All checks passed
+
+cd backend && ./.venv/bin/ruff check --select F401,I001,UP041 src/services/collaboration_service.py tests/test_collaboration_offline_merge.py
+# All checks passed
+
+cd backend && ./.venv/bin/ruff check --select F401,I001,UP041 src/services/document_export.py src/api/routes/contracts.py tests/test_document_export_limits.py
+# All checks passed
+
+cd backend && ./.venv/bin/ruff check --select F401,I001,UP041 alembic/versions/029_add_document_object_storage_fields.py tests/test_document_object_storage_migration.py
+# All checks passed
+
+cd backend && ./.venv/bin/ruff check --select F401,I001,UP041 src/services/contract_lifecycle_service.py src/services/contract_service.py src/services/esign_webhook_service.py src/api/routes/contracts.py src/api/routes/esign.py tests/test_contract_state_machine.py
+# All checks passed
+
+cd backend && ./.venv/bin/ruff check --select F401,I001,UP041 src/models/contract.py src/core/database.py src/services/contract_service.py src/api/routes/contracts.py src/api/routes/esign.py tests/test_contract_versions.py tests/test_contract_state_machine.py alembic/versions/036_add_contract_versions.py
+# All checks passed
+
+cd backend && ./.venv/bin/ruff check --select F401,I001,UP041 src/services/contract_review_lock.py src/services/contract_service.py src/services/contract_lifecycle_service.py src/api/routes/contracts.py src/core/config.py tests/test_contract_review_workflow.py tests/test_contract_state_machine.py src/services/webhook_idempotency_service.py src/services/webhook_handler.py tests/test_webhook_business_events.py tests/test_external_surface_guards.py
+# All checks passed
+
+cd backend && ./.venv/bin/ruff check --select F401,I001,UP041 src/models/contract.py src/models/audit.py src/services/contract_service.py src/api/routes/contracts.py tests/test_contract_attachments.py tests/test_contract_attachment_migration.py
+# All checks passed
+
+cd backend && ./.venv/bin/ruff check --select F401,I001,UP041 src/services/esign_service.py src/api/routes/esign.py src/services/esign_webhook_service.py src/services/official_webhook_security.py src/core/config.py src/models/audit.py tests/test_esign_provider_clients.py tests/test_external_surface_guards.py
+# All checks passed
+
+cd backend && ./.venv/bin/pytest -q tests/test_investigation_cache_org_scope.py tests/test_mode_subscription_guards.py tests/test_anonymous_chat_token_split.py
+# 19 passed, 13 warnings
+
+cd backend && ./.venv/bin/pytest -q tests/test_risk_scoring_engine.py
+# 2 passed
+
+cd backend && ./.venv/bin/pytest -q tests/test_crawler_compliance.py
+# 4 passed
+
+cd backend && ./.venv/bin/pytest -q tests/test_due_diligence_intent.py tests/test_chat_due_diligence_routing.py
+# 13 passed；200 条 JSONL 评测集，intent_accuracy=1.000，company_accuracy=1.000，ChatService 分流已覆盖
+
+cd backend && ./.venv/bin/pytest -q tests/test_case_service.py tests/test_lawyer_matching_and_tasks_api.py
+# 46 passed, 6 warnings；案件状态机、任务 owner、律师市场 local guard/冲突阻断/公平轮询
+
+cd backend && ./.venv/bin/ruff check --select F401,F821 src/models/investigation.py src/core/database.py src/services/investigation_data_store.py src/services/investigation_orchestrator.py src/services/deep_research_engine.py src/api/routes/due_diligence.py tests/test_investigation_cache_org_scope.py
+# All checks passed
+
+cd backend && ./.venv/bin/ruff check --select F401,F821 src/config/crawler.py src/services/crawler_service.py src/services/crawl4ai_service.py src/services/due_diligence_service.py src/api/routes/lic.py tests/test_crawler_compliance.py
+# All checks passed
+
+cd backend && RUN_COMPREHENSIVE_FLOW=1 ./.venv/bin/pytest -q tests/test_comprehensive_flow.py
+# opt-in workforce smoke；默认回归跳过，避免等待外部/长任务
+
+cd frontend && npm run lint
+# exit 0
+
+cd frontend && npm test -- --run src/hooks/useIMWebSocket.test.ts
+# 3 passed
+
+cd frontend && npm test -- --run src/pages/MySubscription.test.ts
+# 3 passed
+
+cd frontend && npm test -- --run src/pages/Pricing.test.ts src/pages/MySubscription.test.ts
+# 5 passed
+
+cd frontend && npm test
+# 10 files / 34 tests passed
+
+cd frontend && npm run build
+# exit 0, tsc && vite build
+
+cd mini-program && npx tsc --noEmit --skipLibCheck --noUnusedLocals false
+# exit 0
+
+rg "fallbackNews|mock 数据|假新闻|mock_token_|登录成功（体验模式）|/auth/wechat-login" mini-program/src backend/src backend/tests
+# no matches
+
+cd mini-program && npm run build:weapp
+# exit 0
+
+bash scripts/mobile-device-smoke.sh
+# mobile Vitest 6 files / 15 tests passed; mobile tsc exit 0; mini-program tsc/build exit 0; fake fallback guard exit 0; mini-program design token guard exit 0
+
+cd frontend && npx playwright test e2e/role-access.spec.ts
+# 10 passed, 10 skipped
+
+cd frontend && npx playwright test e2e/document-flows.spec.ts --project=chromium
+# 3 passed
+
+cd frontend && npx playwright test e2e/contract-lifecycle.spec.ts --project=chromium
+# 1 passed
+
+cd frontend && npx playwright test e2e/rag-source-links.spec.ts --project=chromium
+# 1 passed
+
+./backend/.venv/bin/python eval/rag_live_qdrant_smoke.py --out eval/rag_live_predictions_smoke.json --collection rag_eval_smoke_live_20260506
+# indexed_chunks=15, predictions=10
+
+python3 eval/rag_quality.py --golden eval/rag_golden_set.jsonl --predictions eval/rag_live_predictions_smoke.json --out eval/rag_live_baseline_smoke.json --smoke --run-label rag-live-qdrant-smoke-2026-05-06
+# recall@10=1.000, MRR=1.000, NDCG@10=1.000
+
+python3 eval/rag_live_qdrant_full50.py --golden <commercial-full50-golden.jsonl> --corpus <business-corpus.jsonl> --preflight-only --out docs/release/evidence/artifacts/rag-full50-preflight-YYYYMMDD.json
+# must pass before any full50 commercial baseline run; refuses smoke/demo/sample corpus markers by default
+
+./backend/.venv/bin/python eval/rag_live_qdrant_full50.py --golden eval/rag_golden_set.jsonl --corpus <business-corpus.jsonl> --out eval/rag_live_predictions_full50.json --collection <rag_eval_full50_live_collection> --run-label <label>
+python3 eval/rag_quality.py --golden eval/rag_golden_set.jsonl --predictions eval/rag_live_predictions_full50.json --out eval/rag_live_baseline_full50.json --run-label <label>
+# pending real business corpus and staging/live Qdrant evidence
+```
+
+注意：Playwright 本地运行前必须确认 `3001` 没有旧 Vite 进程；`reuseExistingServer` 会复用旧进程，可能导致测试跑到旧路由。
+
+## 2. 任务级测试矩阵
+
+| 波次 | 任务 | 必跑测试 |
+|---|---|---|
+| 1 | auth | `pytest -k "auth or reset or captcha or redis"`；`npm test` storage/auth-client；新增 token/captcha/localStorage E2E |
+| 1 | mode-llm | `pytest -k "llm or mode or privacy or guard"`；`role-access.spec.ts`；Pro 路由 E2E |
+| 2 | agents/chat | websocket 鉴权、断线恢复、prompt 注入、A2UI 流式事件 |
+| 2 | a2ui | 协议版本兼容、未知组件降级、action 权限 |
+| 2 | contract/esign | webhook 签名、业务回写、合同状态机、版本 diff/回滚、审查锁/超时、webhook 并发幂等、附件持久化、e签宝/法大大 provider 客户端、法大大 FASC webhook；真实商户沙箱单列为发布阻断证据 |
+| 2 | document | 上传/下载/删除/版本、对象存储、模板沙箱、协作离线合并；`e2e/document-flows.spec.ts` 覆盖上传、下载、双人协作故事 |
+| 2 | rag | 召回质量、引用回链、权限过滤、PII 脱敏 |
+| 3 | case/task | 案件状态机、终态只读、任务 owner/assignee/admin、组织隔离 |
+| 3 | lawyer-market | local 模式拒绝、利益冲突阻断、投标/接受/评价权限、重复评价、撮合公平 |
+| 3 | risk/investigation | 匿名咨询 token 分离、尽调缓存 org 维度、抓取合规、风险解释、意图路由评测 |
+| 3 | billing-im | 支付状态机、退款幂等、IM 首包鉴权、RTC 参与者授权 |
+| 4 | desktop | Tauri smoke、快捷键、拖拽分析、本地模式状态 |
+| 4 | sync | push/pull/conflict、离线队列重放、跨端连续会话 |
+| 4 | mobile | `scripts/mobile-device-smoke.sh`、底部 Tab、safe-area、44px 触控、mock token/fallback 清理、消息/任务详情错误态 |
+
+## 3. GitNexus 使用门槛
+
+每个任务开工前：
+
+```bash
+GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus \
+bash scripts/gitnexus-index.sh --skip-context-checks
+/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus \
+  context -r Anxin-Smart-Legal-Services <target-symbol>
+```
+
+对共享符号：
+
+```bash
+/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus \
+  impact -r Anxin-Smart-Legal-Services <symbol> --direction upstream
+```
+
+补充规则：
+
+- 如果目标在 13 个 Python warning 文件内，必须额外 `rg`。
+- 如果目标是 React JSX 组件使用关系，必须额外 `rg "<ComponentName>" frontend/src frontend/e2e`。
+- 本机有多个 GitNexus 仓库索引；所有 `query` 必须显式指定 `--repo Anxin-Smart-Legal-Services`，否则会因 multi-repo disambiguation 失败。
+- 如果 GitNexus `query --repo Anxin-Smart-Legal-Services` 返回空，不代表代码不存在；必须使用 `rg`、源码阅读和测试复查。
+- 当前 GitNexus embeddings 已生成，direct rc binary 的 `context/query/cypher` 已通过 smoke；semantic query 仍不作为发布放行证据，必须与源码和测试互证。
+
+## 4. 发布前验收
+
+商业交付候选版必须满足：
+
+- 后端全量 pytest 通过。
+- 前端 lint/build 通过，关键 E2E 通过。
+- 移动端本地 smoke 通过，且真机/微信开发者工具关键路径证据齐全。
+- 桌面端 `cargo check`、`cargo test`、`cargo tauri build --debug --no-bundle --ci`、`bash scripts/desktop-runtime-smoke.sh --with-app-bundle`、`bash scripts/desktop-sqlite-security-gate.sh` 通过，必要 smoke 手测通过。
+- P0 安全项全部关闭。
+- 支付/电签/对象存储/同步均有失败、重试、幂等测试。
+- 所有 release 文档齐全。
+- 已知风险有 owner、优先级、验证计划和回滚方案。

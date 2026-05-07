@@ -2,168 +2,28 @@
 
 /// 本地 SQLite 数据库管理
 ///
-/// 通过 tauri-plugin-sql 前端直接操作 SQLite，
-/// 此模块提供 Rust 侧的初始化和迁移支持。
+/// 通过 Rust-owned SQLCipher 连接提供本地 SQLite 能力，
+/// 此模块提供初始化和迁移 SQL。
+
+pub const LOCAL_DB_URL: &str = "sqlcipher:anxin_local.db";
 
 /// 数据库初始化 SQL（首次启动时执行）
-pub const INIT_SQL: &str = r#"
--- 离线消息缓存
-CREATE TABLE IF NOT EXISTS local_messages (
-    id TEXT PRIMARY KEY,
-    conversation_id TEXT NOT NULL,
-    content TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'user',
-    agent TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    synced BOOLEAN DEFAULT 0,
-    sync_version INTEGER DEFAULT 0
-);
+pub const INIT_SQL: &str = include_str!("../../migrations/001_offline_queue.sql");
 
-CREATE INDEX IF NOT EXISTS idx_messages_conversation ON local_messages(conversation_id);
-CREATE INDEX IF NOT EXISTS idx_messages_synced ON local_messages(synced);
+#[derive(Clone, Debug)]
+pub struct SqlMigration {
+    pub version: i64,
+    pub description: &'static str,
+    pub sql: &'static str,
+}
 
--- 离线文档缓存
-CREATE TABLE IF NOT EXISTS local_documents (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    content TEXT,
-    file_path TEXT,
-    file_size INTEGER DEFAULT 0,
-    mime_type TEXT,
-    category TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    synced BOOLEAN DEFAULT 0,
-    sync_version INTEGER DEFAULT 0
-);
-
-CREATE INDEX IF NOT EXISTS idx_documents_synced ON local_documents(synced);
-CREATE INDEX IF NOT EXISTS idx_documents_category ON local_documents(category);
-
--- 离线案件缓存
-CREATE TABLE IF NOT EXISTS local_cases (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    description TEXT,
-    status TEXT DEFAULT 'pending',
-    case_type TEXT,
-    priority TEXT DEFAULT 'medium',
-    data_json TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    synced BOOLEAN DEFAULT 0,
-    sync_version INTEGER DEFAULT 0
-);
-
-CREATE INDEX IF NOT EXISTS idx_cases_status ON local_cases(status);
-
--- 离线合同缓存
-CREATE TABLE IF NOT EXISTS local_contracts (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    content TEXT,
-    contract_type TEXT,
-    status TEXT DEFAULT 'draft',
-    parties_json TEXT,
-    review_result_json TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    synced BOOLEAN DEFAULT 0,
-    sync_version INTEGER DEFAULT 0
-);
-
--- 同步日志
-CREATE TABLE IF NOT EXISTS sync_log (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    entity_type TEXT NOT NULL,
-    entity_id TEXT NOT NULL,
-    action TEXT NOT NULL,
-    data_json TEXT,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    status TEXT DEFAULT 'pending',
-    error_message TEXT,
-    retry_count INTEGER DEFAULT 0
-);
-
-CREATE INDEX IF NOT EXISTS idx_sync_status ON sync_log(status);
-CREATE INDEX IF NOT EXISTS idx_sync_entity ON sync_log(entity_type, entity_id);
-
--- 应用设置
-CREATE TABLE IF NOT EXISTS app_settings (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
--- 知识库缓存（绝密模式下使用）
-CREATE TABLE IF NOT EXISTS local_knowledge (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    content TEXT NOT NULL,
-    category TEXT,
-    tags TEXT,
-    embedding_json TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_knowledge_category ON local_knowledge(category);
-
--- 对话历史
-CREATE TABLE IF NOT EXISTS local_conversations (
-    id TEXT PRIMARY KEY,
-    title TEXT,
-    system_prompt TEXT,
-    model TEXT,
-    mode TEXT DEFAULT 'cloud',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    synced BOOLEAN DEFAULT 0
-);
-
--- 离线任务队列（Harness Engineering 离线支持）
-CREATE TABLE IF NOT EXISTS offline_tasks (
-    id TEXT PRIMARY KEY,
-    task_type TEXT NOT NULL DEFAULT 'chat',
-    description TEXT NOT NULL,
-    conversation_id TEXT,
-    priority INTEGER DEFAULT 2,
-    status TEXT DEFAULT 'queued',
-    local_result TEXT,
-    cloud_result TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    retry_count INTEGER DEFAULT 0,
-    error_message TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_offline_tasks_status ON offline_tasks(status);
-CREATE INDEX IF NOT EXISTS idx_offline_tasks_priority ON offline_tasks(priority, created_at);
-
--- Harness Artifact 本地缓存（跨端同步用）
-CREATE TABLE IF NOT EXISTS local_artifacts (
-    id TEXT PRIMARY KEY,
-    session_id TEXT NOT NULL,
-    artifact_type TEXT NOT NULL,
-    data_json TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    synced BOOLEAN DEFAULT 0
-);
-
-CREATE INDEX IF NOT EXISTS idx_artifacts_session ON local_artifacts(session_id);
-CREATE INDEX IF NOT EXISTS idx_artifacts_synced ON local_artifacts(synced);
-
--- 数据库版本管理
-CREATE TABLE IF NOT EXISTS db_migrations (
-    version INTEGER PRIMARY KEY,
-    name TEXT NOT NULL,
-    applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
--- 插入初始版本记录
-INSERT OR IGNORE INTO db_migrations (version, name) VALUES (1, 'initial_schema');
-INSERT OR IGNORE INTO db_migrations (version, name) VALUES (2, 'harness_offline_support');
-"#;
+pub fn sqlite_migrations() -> Vec<SqlMigration> {
+    vec![SqlMigration {
+        version: 1,
+        description: "offline_queue_and_sync_schema",
+        sql: INIT_SQL,
+    }]
+}
 
 /// 获取数据库初始化 SQL
 pub fn build_init_sql() -> &'static str {
@@ -177,6 +37,7 @@ pub fn get_init_sql() -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::build_init_sql;
+    use super::{sqlite_migrations, LOCAL_DB_URL};
 
     #[test]
     fn build_init_sql_contains_sync_tables() {
@@ -185,5 +46,21 @@ mod tests {
         assert!(sql.contains("CREATE TABLE IF NOT EXISTS offline_tasks"));
         assert!(sql.contains("CREATE TABLE IF NOT EXISTS app_settings"));
         assert!(sql.contains("CREATE TABLE IF NOT EXISTS sync_log"));
+        assert!(sql.contains("next_retry_at DATETIME"));
+        assert!(sql.contains("needs_human BOOLEAN DEFAULT 0"));
+        assert!(sql.contains("sync_version INTEGER DEFAULT 0"));
+    }
+
+    #[test]
+    fn sqlite_migrations_register_initial_schema() {
+        let migrations = sqlite_migrations();
+
+        assert_eq!(LOCAL_DB_URL, "sqlcipher:anxin_local.db");
+        assert_eq!(migrations.len(), 1);
+        assert_eq!(migrations[0].version, 1);
+        assert_eq!(migrations[0].description, "offline_queue_and_sync_schema");
+        assert!(migrations[0]
+            .sql
+            .contains("CREATE TABLE IF NOT EXISTS sync_log"));
     }
 }

@@ -1,17 +1,17 @@
-# -*- coding: utf-8 -*-
 """企业尽调强路由处理器"""
+from typing import Any
 
-from typing import Optional
 from loguru import logger
+
 from src.api.routes.chat_handlers.context import WebSocketContext
 
 
 async def handle_due_diligence(
     ctx: WebSocketContext,
     content: str,
-    agent_name: Optional[str],
-    recovery_map: Optional[dict],
-) -> Optional[str]:
+    agent_name: str | None,
+    recovery_map: dict[str, Any] | None,
+) -> str | None:
     """
     检测并处理企业尽调请求（强路由）。
 
@@ -43,7 +43,10 @@ async def handle_due_diligence(
         )
     else:
         try:
-            from src.services.due_diligence_service import get_company_info, format_due_diligence_chat_response
+            from src.services.due_diligence_service import (
+                format_due_diligence_chat_response,
+                get_company_info,
+            )
             company_data = await get_company_info(company_name)
             response_text = format_due_diligence_chat_response(company_name, company_data)
         except Exception as dd_err:

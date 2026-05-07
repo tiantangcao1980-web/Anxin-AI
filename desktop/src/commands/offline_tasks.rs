@@ -7,9 +7,10 @@
 /// 2. 查询队列状态
 /// 3. 触发批量同步
 /// 4. 管理 Harness Artifact
-
+use crate::models::{AppMode, SharedAppState};
+use crate::services::{offline_queue, secure_db};
 use serde::{Deserialize, Serialize};
-use tauri::command;
+use tauri::{command, AppHandle, State};
 
 /// 离线任务摘要
 #[allow(dead_code)]
@@ -40,19 +41,34 @@ pub struct QueueStats {
 /// 前端调用：`invoke('submit_offline_task', { taskType, description, conversationId, priority })`
 #[command]
 pub async fn submit_offline_task(
+    app: AppHandle,
     task_type: String,
-    _description: String,
-    _conversation_id: Option<String>,
+    description: String,
+    conversation_id: Option<String>,
     priority: Option<i32>,
 ) -> Result<String, String> {
     let task_id = uuid::Uuid::new_v4().to_string();
     let priority = priority.unwrap_or(2); // 默认 NORMAL
 
-    // 实际实现：通过 tauri-plugin-sql 写入 SQLite
-    // 这里返回 task_id，前端通过 SQL 插件直接执行 INSERT
+    secure_db::execute(
+        &app,
+        offline_queue::OfflineQueue::insert_sql(),
+        vec![
+            serde_json::Value::String(task_id.clone()),
+            serde_json::Value::String(task_type.clone()),
+            serde_json::Value::String(description),
+            conversation_id
+                .map(serde_json::Value::String)
+                .unwrap_or(serde_json::Value::Null),
+            serde_json::Value::from(priority),
+        ],
+    )?;
+
     log::info!(
         "离线任务已排队: id={}, type={}, priority={}",
-        task_id, task_type, priority
+        task_id,
+        task_type,
+        priority
     );
 
     Ok(task_id)
@@ -62,16 +78,17 @@ pub async fn submit_offline_task(
 ///
 /// 前端调用：`invoke('get_queue_stats')`
 #[command]
-pub async fn get_queue_stats() -> Result<QueueStats, String> {
-    // 实际实现：通过 SQL 查询 offline_tasks 表
-    // 前端可直接用 tauri-plugin-sql 查询，这里提供 Rust 端备选
+pub async fn get_queue_stats(app: AppHandle) -> Result<QueueStats, String> {
+    let rows = secure_db::select(&app, offline_queue::OfflineQueue::count_sql(), Vec::new())?;
+    let stats = offline_queue::decode_queue_stats(&rows)?;
+
     Ok(QueueStats {
-        queued: 0,
-        local_processing: 0,
-        local_completed: 0,
-        synced: 0,
-        failed: 0,
-        total: 0,
+        queued: stats.queued,
+        local_processing: stats.local_processing,
+        local_completed: stats.local_completed,
+        synced: stats.synced,
+        failed: stats.failed,
+        total: stats.total,
     })
 }
 
@@ -80,17 +97,37 @@ pub async fn get_queue_stats() -> Result<QueueStats, String> {
 /// 前端调用：`invoke('flush_offline_queue')`
 /// 将所有 queued/local_completed 的任务推送到云端
 #[command]
-pub async fn flush_offline_queue() -> Result<String, String> {
-    log::info!("触发离线任务队列批量同步...");
+pub async fn flush_offline_queue(
+    app: AppHandle,
+    state: State<'_, SharedAppState>,
+) -> Result<String, String> {
+    let rows = secure_db::select(&app, offline_queue::OfflineQueue::count_sql(), Vec::new())?;
+    let stats = offline_queue::decode_queue_stats(&rows)?;
+    let flushable = stats.flushable();
 
-    // 实际实现流程：
-    // 1. 查询 offline_tasks WHERE status IN ('queued', 'local_completed')
-    // 2. 按 priority ASC, created_at ASC 排序
-    // 3. 逐个/批量 POST /api/v1/chat 到云端
-    // 4. 成功 → 更新 status='synced', cloud_result=响应
-    // 5. 失败 → retry_count++, 超过3次 → status='failed'
+    if flushable == 0 {
+        return Ok("本地离线队列为空，无需同步".to_string());
+    }
 
-    Ok("同步任务已触发".to_string())
+    let (mode, is_online, has_token) = {
+        let state = state.read().await;
+        (state.mode, state.is_online, state.user_token.is_some())
+    };
+
+    match mode {
+        AppMode::TopSecret => Err(format!(
+            "绝密模式下不会同步离线任务；当前仍有 {flushable} 条本地任务待推送"
+        )),
+        _ if !is_online => Err(format!(
+            "当前处于离线状态；检测到 {flushable} 条待推送离线任务，未执行云端同步"
+        )),
+        _ if !has_token => Err(format!(
+            "请先登录后再同步；当前仍有 {flushable} 条离线任务待推送"
+        )),
+        _ => Err(format!(
+            "检测到 {flushable} 条待推送离线任务，但 Rust IPC 直连推送尚未实现；请使用前端 Tauri bridge 的本地同步路径"
+        )),
+    }
 }
 
 /// 推送 Harness Artifact 到云端

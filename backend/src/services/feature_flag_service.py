@@ -1,19 +1,18 @@
-# -*- coding: utf-8 -*-
 
 import hashlib
 import time
-from typing import Optional
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
 
 from src.models.feature_flag import FeatureFlag
 
 
 class FeatureFlagService:
     # 进程内缓存（类级别共享）
-    _cache: Optional[list] = None
+    _cache: list[FeatureFlag] | None = None
     _cache_ts: float = 0.0
     _CACHE_TTL: float = 30.0  # 缓存有效期 30 秒
 
@@ -40,7 +39,7 @@ class FeatureFlagService:
         FeatureFlagService._cache_ts = time.monotonic()
         return flags
 
-    async def get_by_key(self, key: str) -> Optional[FeatureFlag]:
+    async def get_by_key(self, key: str) -> FeatureFlag | None:
         result = await self.db.execute(
             select(FeatureFlag).where(FeatureFlag.key == key)
         )
@@ -50,7 +49,7 @@ class FeatureFlagService:
         self,
         user_id: str,
         role: str,
-        org_id: Optional[str] = None,
+        org_id: str | None = None,
     ) -> dict[str, bool]:
         flags = await self.list_all()
         result: dict[str, bool] = {}
@@ -63,7 +62,7 @@ class FeatureFlagService:
         key: str,
         user_id: str,
         role: str,
-        org_id: Optional[str] = None,
+        org_id: str | None = None,
     ) -> bool:
         flag = await self.get_by_key(key)
         if not flag:
@@ -75,12 +74,12 @@ class FeatureFlagService:
         flag: FeatureFlag,
         user_id: str,
         role: str,
-        org_id: Optional[str],
+        org_id: str | None,
     ) -> bool:
         if not flag.enabled:
             return False
 
-        if flag.expires_at and flag.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+        if flag.expires_at and flag.expires_at.replace(tzinfo=UTC) < datetime.now(UTC):
             return False
 
         if flag.target_roles and role not in flag.target_roles:
@@ -89,21 +88,22 @@ class FeatureFlagService:
         if flag.target_org_ids and (not org_id or org_id not in flag.target_org_ids):
             return False
 
-        if flag.rollout_percentage < 10000:
+        rollout_percentage = flag.rollout_percentage if flag.rollout_percentage is not None else 10000
+        if rollout_percentage < 10000:
             hash_val = int(hashlib.md5(f"{user_id}:{flag.key}".encode()).hexdigest(), 16)
-            if hash_val % 10000 >= flag.rollout_percentage:
+            if hash_val % 10000 >= rollout_percentage:
                 return False
 
         return True
 
-    async def create(self, data: dict) -> FeatureFlag:
+    async def create(self, data: dict[str, Any]) -> FeatureFlag:
         flag = FeatureFlag(**data)
         self.db.add(flag)
         await self.db.flush()
         self._invalidate_cache()
         return flag
 
-    async def update(self, key: str, data: dict) -> Optional[FeatureFlag]:
+    async def update(self, key: str, data: dict[str, Any]) -> FeatureFlag | None:
         flag = await self.get_by_key(key)
         if not flag:
             return None
@@ -133,7 +133,7 @@ class FeatureFlagService:
         """
         from loguru import logger
 
-        PRESET_FLAGS = [
+        preset_flags = [
             # AI 法务
             ("ai_chat", "智能对话", "AI 法律助手对话系统"),
             ("ai_assistant", "AI 助手增强", "智能推荐、自动摘要等增强功能"),
@@ -172,7 +172,7 @@ class FeatureFlagService:
         existing_keys = {f.key for f in existing}
 
         created = 0
-        for key, name, desc in PRESET_FLAGS:
+        for key, name, desc in preset_flags:
             if key not in existing_keys:
                 flag = FeatureFlag(
                     key=key,
@@ -187,7 +187,7 @@ class FeatureFlagService:
         if created > 0:
             await self.db.flush()
             self._invalidate_cache()
-            logger.info(f"预置功能开关: 新建 {created} 个，跳过 {len(PRESET_FLAGS) - created} 个已有记录")
+            logger.info(f"预置功能开关: 新建 {created} 个，跳过 {len(preset_flags) - created} 个已有记录")
         else:
             logger.debug("预置功能开关: 全部已存在，无需创建")
 

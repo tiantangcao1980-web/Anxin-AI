@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 安全加固配置
 
@@ -11,8 +10,6 @@
 """
 
 from enum import Enum
-from typing import List, Dict
-
 
 # ===== 数据分类分级 =====
 
@@ -26,7 +23,7 @@ class DataClassification(str, Enum):
 
 
 # 字段级数据分级映射
-FIELD_CLASSIFICATION: Dict[str, DataClassification] = {
+FIELD_CLASSIFICATION: dict[str, DataClassification] = {
     # 用户数据
     "email": DataClassification.SENSITIVE,
     "hashed_password": DataClassification.TOP_SECRET,

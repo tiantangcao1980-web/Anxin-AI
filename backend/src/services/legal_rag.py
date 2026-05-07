@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Legal RAG Service — 法律知识图谱 Hybrid 检索服务
 
@@ -21,16 +20,16 @@ Legal RAG Service — 法律知识图谱 Hybrid 检索服务
 """
 
 import re
-from typing import Dict, Any, Optional, List, Tuple
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import TypeAlias, TypedDict, cast
+
 from loguru import logger
 
+from src.core.config import settings
 from src.services.legal_corpus_loader import (
-    get_all_legal_corpus,
     LegalArticle,
-    format_articles_for_rag_context,
+    get_all_legal_corpus,
 )
-
 
 # ===== 查询模式 =====
 
@@ -41,6 +40,47 @@ class QueryMode:
     NAIVE = "naive"      # 纯向量
 
 
+MetadataValue: TypeAlias = (
+    str
+    | int
+    | float
+    | bool
+    | None
+    | list[str]
+    | list[int]
+    | list[float]
+    | list[bool]
+    | list["MetadataValue"]
+    | dict[str, "MetadataValue"]
+)
+MetadataDict: TypeAlias = dict[str, MetadataValue]
+
+
+class SourceEntry(TypedDict):
+    index: str
+    source: str
+    method: str
+
+
+class VectorSearchResult(TypedDict, total=False):
+    text: str
+    content: str
+    source: str
+    score: float
+    metadata: MetadataDict
+
+
+class GraphRelation(TypedDict, total=False):
+    source: str
+    relation: str
+    target: str
+
+
+def _metadata_text(metadata: MetadataDict, key: str, default: str = "") -> str:
+    value = metadata.get(key, default)
+    return value if isinstance(value, str) else default
+
+
 @dataclass
 class RetrievalResult:
     """单条检索结果"""
@@ -49,11 +89,7 @@ class RetrievalResult:
     article_number: str = ""       # 条文编号
     score: float = 0.0             # 相关性评分
     retrieval_method: str = ""     # 检索方式
-    metadata: Dict[str, Any] = None
-
-    def __post_init__(self):
-        if self.metadata is None:
-            self.metadata = {}
+    metadata: MetadataDict = field(default_factory=dict)
 
 
 @dataclass
@@ -61,22 +97,22 @@ class RAGContext:
     """RAG 检索上下文"""
     query: str
     mode: str
-    results: List[RetrievalResult]
+    results: list[RetrievalResult]
     total_found: int
     context_text: str              # 格式化后的上下文文本
-    sources: List[Dict[str, str]]  # 引用来源列表
+    sources: list[SourceEntry]     # 引用来源列表
     token_estimate: int            # 估计 token 数
 
 
 class LegalRAGService:
     """法律 RAG 检索服务"""
 
-    def __init__(self):
-        self._corpus: Optional[List[LegalArticle]] = None
-        self._keyword_index: Dict[str, List[int]] = {}  # keyword → article indices
+    def __init__(self) -> None:
+        self._corpus: list[LegalArticle] | None = None
+        self._keyword_index: dict[str, list[int]] = {}  # keyword → article indices
         self._initialized = False
 
-    def _ensure_loaded(self):
+    def _ensure_loaded(self) -> None:
         """确保法律语料和索引已加载"""
         if self._initialized:
             return
@@ -85,13 +121,13 @@ class LegalRAGService:
         self._initialized = True
         logger.info(f"LegalRAGService: 加载 {len(self._corpus)} 条法条，构建 {len(self._keyword_index)} 个关键词索引")
 
-    def _build_keyword_index(self):
+    def _build_keyword_index(self) -> None:
         """构建关键词倒排索引"""
         if not self._corpus:
             return
         for i, article in enumerate(self._corpus):
             # 从内容和标签中提取关键词
-            words = set()
+            words: set[str] = set()
             words.update(article.tags)
             words.add(article.law_name)
             words.add(article.chapter)
@@ -111,8 +147,8 @@ class LegalRAGService:
         mode: str = QueryMode.HYBRID,
         max_results: int = 10,
         max_context_tokens: int = 4000,
-        law_filter: Optional[str] = None,
-        article_filter: Optional[str] = None,
+        law_filter: str | None = None,
+        article_filter: str | None = None,
     ) -> RAGContext:
         """
         法律知识检索
@@ -129,7 +165,7 @@ class LegalRAGService:
             RAGContext 包含检索结果和格式化上下文
         """
         self._ensure_loaded()
-        results: List[RetrievalResult] = []
+        results: list[RetrievalResult] = []
 
         if mode == QueryMode.LOCAL:
             results = await self._local_retrieve(query, max_results, law_filter, article_filter)
@@ -158,11 +194,11 @@ class LegalRAGService:
         self,
         query: str,
         max_results: int,
-        law_filter: Optional[str] = None,
-        article_filter: Optional[str] = None,
-    ) -> List[RetrievalResult]:
+        law_filter: str | None = None,
+        article_filter: str | None = None,
+    ) -> list[RetrievalResult]:
         """局部精确检索：法条编号、法律名称精确匹配"""
-        results = []
+        results: list[RetrievalResult] = []
 
         # 1. 提取查询中的法条引用
         law_refs = re.findall(r'《([^》]+)》', query)
@@ -212,12 +248,12 @@ class LegalRAGService:
         self,
         query: str,
         max_results: int,
-    ) -> List[RetrievalResult]:
+    ) -> list[RetrievalResult]:
         """全局主题检索：按法律领域和主题聚类"""
-        results = []
+        results: list[RetrievalResult] = []
 
         # 关键词匹配 + 标签匹配
-        query_words = set(w for w in re.split(r'[，。、\s《》]+', query) if len(w) >= 2)
+        query_words = {w for w in re.split(r'[，。、\s《》]+', query) if len(w) >= 2}
 
         for article in (self._corpus or []):
             score = 0.0
@@ -259,9 +295,9 @@ class LegalRAGService:
         self,
         query: str,
         max_results: int,
-        law_filter: Optional[str] = None,
-        article_filter: Optional[str] = None,
-    ) -> List[RetrievalResult]:
+        law_filter: str | None = None,
+        article_filter: str | None = None,
+    ) -> list[RetrievalResult]:
         """混合检索：local + global + vector(可选) 三路合并"""
 
         # 路线1: 精确检索
@@ -285,7 +321,7 @@ class LegalRAGService:
         self,
         query: str,
         max_results: int,
-    ) -> List[RetrievalResult]:
+    ) -> list[RetrievalResult]:
         """纯向量检索（降级模式）"""
         results = await self._vector_retrieve(query, max_results)
         if not results:
@@ -297,21 +333,28 @@ class LegalRAGService:
         self,
         query: str,
         max_results: int,
-    ) -> List[RetrievalResult]:
+    ) -> list[RetrievalResult]:
         """向量语义检索（Qdrant）"""
         try:
             from src.services.vector_store import vector_store
             if not vector_store or not vector_store.is_available:
                 return []
 
-            search_results = await vector_store.search(query=query, top_k=max_results)
-            results = []
-            for sr in (search_results or []):
+            search_results = cast(
+                list[VectorSearchResult],
+                await vector_store.search(
+                    collection_name=settings.QDRANT_COLLECTION_NAME,
+                    query=query,
+                    top_k=max_results,
+                ),
+            )
+            results: list[RetrievalResult] = []
+            for sr in search_results:
                 content = sr.get("text", sr.get("content", ""))
-                metadata = sr.get("metadata", {})
+                metadata: MetadataDict = sr.get("metadata") or {}
                 results.append(RetrievalResult(
                     content=content,
-                    source=metadata.get("source", "知识库"),
+                    source=_metadata_text(metadata, "source", "知识库"),
                     score=sr.get("score", 0.0),
                     retrieval_method="vector",
                     metadata=metadata,
@@ -329,19 +372,26 @@ class LegalRAGService:
         entity_name: str,
         depth: int = 2,
         max_results: int = 10,
-    ) -> List[RetrievalResult]:
+    ) -> list[RetrievalResult]:
         """知识图谱关系检索（Neo4j）"""
         try:
             from src.services.graph_service import graph_service
-            related = await graph_service.get_related_entities(entity_name, depth=depth)
-            results = []
-            for item in (related or [])[:max_results]:
+            related = cast(
+                list[GraphRelation],
+                graph_service.get_related_entities(entity_name, depth=depth),
+            )
+            results: list[RetrievalResult] = []
+            for item in related[:max_results]:
                 results.append(RetrievalResult(
                     content=f"{item.get('source', '')} --[{item.get('relation', '')}]--> {item.get('target', '')}",
                     source="知识图谱",
                     score=1.0,
                     retrieval_method="graph",
-                    metadata=item,
+                    metadata={
+                        "source": item.get("source", ""),
+                        "relation": item.get("relation", ""),
+                        "target": item.get("target", ""),
+                    },
                 ))
             return results
         except Exception as e:
@@ -352,45 +402,45 @@ class LegalRAGService:
 
     def _reciprocal_rank_fusion(
         self,
-        result_lists: List[List[RetrievalResult]],
-        weights: List[float],
+        result_lists: list[list[RetrievalResult]],
+        weights: list[float],
         k: int = 60,
-    ) -> List[RetrievalResult]:
+    ) -> list[RetrievalResult]:
         """
         Reciprocal Rank Fusion (RRF) 多路结果合并
 
         公式：RRF_score = Σ weight_i / (k + rank_i)
         """
-        score_map: Dict[str, float] = {}
-        item_map: Dict[str, RetrievalResult] = {}
+        score_map: dict[str, float] = {}
+        item_map: dict[str, RetrievalResult] = {}
 
-        for weight, results in zip(weights, result_lists):
-            for rank, result in enumerate(results):
+        for weight, result_list in zip(weights, result_lists, strict=False):
+            for rank, result in enumerate(result_list):
                 key = f"{result.source}:{result.article_number}"
                 rrf_score = weight / (k + rank + 1)
                 score_map[key] = score_map.get(key, 0) + rrf_score
                 if key not in item_map or result.score > item_map[key].score:
                     item_map[key] = result
 
-        sorted_keys = sorted(score_map, key=score_map.get, reverse=True)
-        results = []
+        sorted_keys = sorted(score_map, key=score_map.__getitem__, reverse=True)
+        merged_results: list[RetrievalResult] = []
         for key in sorted_keys:
             item = item_map[key]
             item.score = score_map[key]
-            results.append(item)
-        return results
+            merged_results.append(item)
+        return merged_results
 
     def _format_context(
         self,
-        results: List[RetrievalResult],
+        results: list[RetrievalResult],
         max_tokens: int,
-    ) -> Tuple[str, List[Dict[str, str]]]:
+    ) -> tuple[str, list[SourceEntry]]:
         """格式化检索结果为 Prompt 上下文"""
         if not results:
             return "", []
 
         parts = ["[法律知识上下文]"]
-        sources = []
+        sources: list[SourceEntry] = []
         current_tokens = 20  # 标题预估
 
         for i, r in enumerate(results):
@@ -427,7 +477,7 @@ class LegalRAGService:
         - litigation_strategist → local + 精确判例
         - document_drafter → hybrid + 模板条款
         """
-        mode_map = {
+        mode_map: dict[str, str] = {
             "contract_reviewer": QueryMode.HYBRID,
             "legal_advisor": QueryMode.GLOBAL,
             "litigation_strategist": QueryMode.LOCAL,
@@ -488,10 +538,10 @@ class LegalRAGService:
 
         return added
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> MetadataDict:
         """获取检索服务统计"""
         self._ensure_loaded()
-        law_names = set(a.law_name for a in (self._corpus or []))
+        law_names = {a.law_name for a in (self._corpus or [])}
         return {
             "total_articles": len(self._corpus or []),
             "total_laws": len(law_names),

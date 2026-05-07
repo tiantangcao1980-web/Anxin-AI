@@ -11,25 +11,119 @@
 /// 4. 本地 LLM 可处理的任务 → 本地执行并标记 status='local_completed'
 /// 5. 重连后 → 批量推送 queued 任务到云端
 /// 6. 云端返回结果 → 更新本地记录 status='synced'
-
 use crate::models::SharedAppState;
+use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 /// 离线任务记录
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OfflineTask {
     pub id: String,
-    pub task_type: String,        // "chat" | "contract_review" | "document_draft" | "rag_search"
-    pub description: String,       // 用户输入的任务描述
+    pub task_type: String, // "chat" | "contract_review" | "document_draft" | "rag_search"
+    pub description: String, // 用户输入的任务描述
     pub conversation_id: Option<String>,
-    pub priority: i32,             // 0=critical, 1=high, 2=normal, 3=low
-    pub status: String,            // "queued" | "local_processing" | "local_completed" | "pushing" | "synced" | "failed"
-    pub local_result: Option<String>,  // 本地 LLM 处理的结果
-    pub cloud_result: Option<String>,  // 云端返回的结果
+    pub priority: i32,                // 0=critical, 1=high, 2=normal, 3=low
+    pub status: String, // "queued" | "local_processing" | "local_completed" | "pushing" | "synced" | "failed"
+    pub local_result: Option<String>, // 本地 LLM 处理的结果
+    pub cloud_result: Option<String>, // 云端返回的结果
     pub created_at: String,
     pub updated_at: String,
     pub retry_count: i32,
     pub error_message: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct OfflineQueueStatsSnapshot {
+    pub queued: u32,
+    pub local_processing: u32,
+    pub local_completed: u32,
+    pub synced: u32,
+    pub failed: u32,
+    pub total: u32,
+}
+
+impl OfflineQueueStatsSnapshot {
+    pub fn flushable(&self) -> u32 {
+        self.queued.saturating_add(self.local_completed)
+    }
+}
+
+fn json_u32_field(row: &Value, key: &str) -> Result<u32, String> {
+    let value = row
+        .get(key)
+        .ok_or_else(|| format!("离线队列统计缺少字段: {key}"))?;
+
+    if let Some(number) = value.as_u64() {
+        return u32::try_from(number).map_err(|_| format!("离线队列统计字段 {key} 超出范围"));
+    }
+    if let Some(number) = value.as_i64() {
+        return u32::try_from(number).map_err(|_| format!("离线队列统计字段 {key} 为负数"));
+    }
+    if let Some(number) = value.as_str() {
+        return number
+            .parse::<u32>()
+            .map_err(|err| format!("离线队列统计字段 {key} 解析失败: {err}"));
+    }
+
+    Err(format!("离线队列统计字段 {key} 类型无效"))
+}
+
+pub fn decode_queue_stats(rows: &[Value]) -> Result<OfflineQueueStatsSnapshot, String> {
+    let mut stats = OfflineQueueStatsSnapshot::default();
+
+    for row in rows {
+        let status = row
+            .get("status")
+            .and_then(Value::as_str)
+            .ok_or_else(|| "离线队列统计缺少 status 字段".to_string())?;
+        let count = json_u32_field(row, "count")?;
+        stats.total = stats.total.saturating_add(count);
+
+        match status {
+            "queued" => stats.queued = count,
+            "local_processing" => stats.local_processing = count,
+            "local_completed" => stats.local_completed = count,
+            "synced" => stats.synced = count,
+            "failed" => stats.failed = count,
+            _ => {}
+        }
+    }
+
+    Ok(stats)
+}
+
+pub fn read_queue_stats_from_connection(
+    conn: &Connection,
+) -> Result<OfflineQueueStatsSnapshot, String> {
+    let mut stmt = conn
+        .prepare(OfflineQueue::count_sql())
+        .map_err(|err| format!("无法准备离线队列统计查询: {err}"))?;
+    let rows = stmt
+        .query_map([], |row| {
+            let status: String = row.get(0)?;
+            let count: i64 = row.get(1)?;
+            Ok((status, count))
+        })
+        .map_err(|err| format!("无法执行离线队列统计查询: {err}"))?;
+
+    let mut stats = OfflineQueueStatsSnapshot::default();
+    for row in rows {
+        let (status, count) = row.map_err(|err| format!("无法解码离线队列统计结果: {err}"))?;
+        let count = u32::try_from(count)
+            .map_err(|_| format!("离线队列统计字段 count 超出范围: {count}"))?;
+        stats.total = stats.total.saturating_add(count);
+        match status.as_str() {
+            "queued" => stats.queued = count,
+            "local_processing" => stats.local_processing = count,
+            "local_completed" => stats.local_completed = count,
+            "synced" => stats.synced = count,
+            "failed" => stats.failed = count,
+            _ => {}
+        }
+    }
+
+    Ok(stats)
 }
 
 /// SQLite 建表 SQL（追加到 local_db.rs 的 INIT_SQL 中）
@@ -57,6 +151,74 @@ CREATE INDEX IF NOT EXISTS idx_offline_tasks_priority ON offline_tasks(priority,
 /// 离线任务队列管理器
 pub struct OfflineQueue {
     state: SharedAppState,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        decode_queue_stats, read_queue_stats_from_connection, OfflineQueue,
+        OfflineQueueStatsSnapshot,
+    };
+    use rusqlite::Connection;
+    use serde_json::json;
+
+    #[test]
+    fn decode_queue_stats_accumulates_known_statuses_and_total() {
+        let rows = vec![
+            json!({ "status": "queued", "count": 2 }),
+            json!({ "status": "local_completed", "count": 1 }),
+            json!({ "status": "failed", "count": 3 }),
+            json!({ "status": "pushing", "count": 4 }),
+        ];
+
+        let stats = decode_queue_stats(&rows).expect("decode queue stats");
+
+        assert_eq!(
+            stats,
+            OfflineQueueStatsSnapshot {
+                queued: 2,
+                local_processing: 0,
+                local_completed: 1,
+                synced: 0,
+                failed: 3,
+                total: 10,
+            }
+        );
+        assert_eq!(stats.flushable(), 3);
+    }
+
+    #[test]
+    fn queue_stats_query_reads_real_sqlite_rows() {
+        let conn = Connection::open_in_memory().expect("open sqlite");
+        conn.execute_batch(include_str!("../../migrations/001_offline_queue.sql"))
+            .expect("init schema");
+        conn.execute(
+            OfflineQueue::insert_sql(),
+            ("task-1", "chat", "draft", Option::<String>::None, 2),
+        )
+        .expect("insert queued task");
+        conn.execute(
+            OfflineQueue::insert_sql(),
+            ("task-2", "chat", "summary", Some("conv-1".to_string()), 1),
+        )
+        .expect("insert second queued task");
+        conn.execute_batch(
+            "UPDATE offline_tasks SET status = 'local_completed' WHERE id = 'task-2';
+             INSERT INTO offline_tasks (id, task_type, description, priority, status)
+             VALUES ('task-3', 'chat', 'push', 0, 'pushing');
+             INSERT INTO offline_tasks (id, task_type, description, priority, status)
+             VALUES ('task-4', 'chat', 'fail', 3, 'failed');",
+        )
+        .expect("seed other statuses");
+
+        let stats = read_queue_stats_from_connection(&conn).expect("read queue stats");
+
+        assert_eq!(stats.queued, 1);
+        assert_eq!(stats.local_completed, 1);
+        assert_eq!(stats.failed, 1);
+        assert_eq!(stats.total, 4);
+        assert_eq!(stats.flushable(), 2);
+    }
 }
 
 impl OfflineQueue {

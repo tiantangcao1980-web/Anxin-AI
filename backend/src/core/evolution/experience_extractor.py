@@ -3,10 +3,9 @@
 从历史案例中学习,提取可重用的模式
 """
 
-import asyncio
-import json
-from typing import List, Dict, Any, Optional
 from datetime import datetime
+from typing import Any
+
 from loguru import logger
 from pydantic import BaseModel, ConfigDict
 
@@ -22,7 +21,7 @@ class Pattern(BaseModel):
     task_type: str
     description: str
     confidence: float  # 0-1,基于评分和频率
-    data: Dict[str, Any]  # 模式具体数据
+    data: dict[str, Any]  # 模式具体数据
     created_at: datetime
     usage_count: int = 0
     success_rate: float = 0.0
@@ -40,10 +39,10 @@ class ExperienceExtractor:
 
     def __init__(
         self,
-        episodic_memory: Optional[Any] = None,
+        episodic_memory: Any | None = None,
         db: Any = None,
         vector_store: Any = None,
-    ):
+    ) -> None:
         if (
             episodic_memory is not None
             and not isinstance(episodic_memory, EnhancedEpisodicMemoryService)
@@ -56,9 +55,9 @@ class ExperienceExtractor:
         self.episodic_memory = episodic_memory
         self.db = db
         self.vector_store = vector_store
-        self._patterns: List[Pattern] = []
+        self._patterns: list[Pattern] = []
 
-    async def extract_from_episode(self, episode_id: str) -> List[Pattern]:
+    async def extract_from_episode(self, episode_id: str) -> list[Pattern]:
         """
         从单个案例中提取可重用的模式
 
@@ -69,6 +68,10 @@ class ExperienceExtractor:
             提取的模式列表
         """
         # 获取案例详情
+        if self.episodic_memory is None:
+            logger.warning("情景记忆服务未配置，跳过经验提取")
+            return []
+
         episode = await self.episodic_memory.get(episode_id)
         if not episode:
             logger.warning(f"案例不存在: {episode_id}")
@@ -94,7 +97,7 @@ class ExperienceExtractor:
 
         return patterns
 
-    async def _extract_success_patterns(self, episode: Dict[str, Any]) -> List[Pattern]:
+    async def _extract_success_patterns(self, episode: dict[str, Any]) -> list[Pattern]:
         """
         提取成功模式
         """
@@ -136,7 +139,7 @@ class ExperienceExtractor:
 
         return patterns
 
-    async def _extract_failure_patterns(self, episode: Dict[str, Any]) -> List[Pattern]:
+    async def _extract_failure_patterns(self, episode: dict[str, Any]) -> list[Pattern]:
         """
         提取失败模式
         """
@@ -163,7 +166,7 @@ class ExperienceExtractor:
 
         return patterns
 
-    async def _extract_collaboration_patterns(self, episode: Dict[str, Any]) -> List[Pattern]:
+    async def _extract_collaboration_patterns(self, episode: dict[str, Any]) -> list[Pattern]:
         """
         提取 Agent 协作模式
         """
@@ -190,11 +193,11 @@ class ExperienceExtractor:
 
     async def get_patterns(
         self,
-        pattern_type: Optional[str] = None,
-        task_type: Optional[str] = None,
+        pattern_type: str | None = None,
+        task_type: str | None = None,
         min_confidence: float = 0.5,
         limit: int = 10
-    ) -> List[Pattern]:
+    ) -> list[Pattern]:
         """
         获取已提取的模式
 
@@ -223,7 +226,7 @@ class ExperienceExtractor:
 
         return patterns[:limit]
 
-    async def update_pattern_usage(self, pattern_id: str, success: bool):
+    async def update_pattern_usage(self, pattern_id: str, success: bool) -> None:
         """
         更新模式使用统计
 
@@ -239,7 +242,7 @@ class ExperienceExtractor:
                 pattern.success_rate = (alpha * (1 if success else 0) + (1 - alpha) * pattern.success_rate)
                 break
 
-    async def get_pattern_stats(self) -> Dict[str, Any]:
+    async def get_pattern_stats(self) -> dict[str, Any]:
         """
         获取模式统计信息
 
@@ -263,11 +266,11 @@ class ExperienceExtractor:
             "most_used": sorted(self._patterns, key=lambda p: p.usage_count, reverse=True)[:5]
         }
 
-    def _calculate_confidence(self, cases: List[Dict[str, Any]]) -> float:
+    def _calculate_confidence(self, cases: list[dict[str, Any]]) -> float:
         """兼容旧测试：根据案例数量和评分估算置信度。"""
         if not cases:
             return 0.0
-        avg_rating = sum(case.get("user_rating", 0) for case in cases) / len(cases)
+        avg_rating = sum(float(case.get("user_rating", 0) or 0) for case in cases) / len(cases)
         volume_factor = min(len(cases) / 10, 1.0)
         return min((avg_rating / 5) * 0.7 + volume_factor * 0.3, 1.0)
 
@@ -276,7 +279,7 @@ class ExperienceExtractor:
         task_type: str,
         min_rating: int = 4,
         limit: int = 10,
-    ) -> List[Pattern]:
+    ) -> list[Pattern]:
         """兼容旧测试：从成功案例集合中提取模式。"""
         cases = self.db.all() if self.db and hasattr(self.db, "all") else []
         filtered = [
@@ -307,7 +310,7 @@ class ExperienceExtractor:
         task_type: str,
         max_rating: int = 2,
         limit: int = 10,
-    ) -> List[Pattern]:
+    ) -> list[Pattern]:
         """兼容旧测试：从失败案例集合中提取模式。"""
         cases = self.db.all() if self.db and hasattr(self.db, "all") else []
         filtered = [

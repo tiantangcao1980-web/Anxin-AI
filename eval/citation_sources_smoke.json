@@ -1,0 +1,29 @@
+{
+  "run_label": "citation-link-smoke-2026-05-06",
+  "sources": [
+    {
+      "id": "civil_code_490_0",
+      "title": "《民法典》第490条 合同成立时间",
+      "doc_id": "civil_code_490",
+      "chunk_id": "civil_code_490_0",
+      "source_url": "/knowledge/documents/civil_code_490#civil_code_490_0",
+      "anchor_text": "采用书面形式订立合同"
+    },
+    {
+      "id": "labor_contract_law_10_0",
+      "title": "《劳动合同法》第10条 书面劳动合同",
+      "doc_id": "labor_contract_law_10",
+      "chunk_id": "labor_contract_law_10_0",
+      "source_url": "/knowledge/documents/labor_contract_law_10#labor_contract_law_10_0",
+      "anchor_text": "订立书面劳动合同"
+    },
+    {
+      "id": "pipl_13_0",
+      "title": "《个人信息保护法》第13条 处理个人信息的合法性基础",
+      "doc_id": "pipl_13",
+      "chunk_id": "pipl_13_0",
+      "source_url": "/knowledge/documents/pipl_13#pipl_13_0",
+      "anchor_text": "个人信息处理者方可处理个人信息"
+    }
+  ]
+}

@@ -12,6 +12,7 @@ const menuItems = [
 ]
 
 interface UserInfo {
+  name?: string
   nickname: string
   avatar_url: string
 }
@@ -52,33 +53,24 @@ export default function Profile() {
         return
       }
 
-      try {
-        // 尝试调用后端微信登录接口
-        const data = await api.post<{
-          access_token: string
-          refresh_token?: string
-          user: UserInfo
-        }>('/auth/wechat-login', { code: loginRes.code })
+      const data = await api.post<{
+        access_token: string
+        refresh_token?: string
+        user: UserInfo
+      }>('/auth/wechat/code2session', { code: loginRes.code })
 
-        Taro.setStorageSync('token', data.access_token)
-        if (data.refresh_token) {
-          Taro.setStorageSync('refresh_token', data.refresh_token)
-        }
-        Taro.setStorageSync('user_info', data.user)
-        setIsLoggedIn(true)
-        setUserName(data.user.nickname || '微信用户')
-        setAvatarUrl(data.user.avatar_url || '')
-        Taro.showToast({ title: '登录成功', icon: 'success' })
-      } catch {
-        // 后端接口不可用时，降级为 mock 登录
-        const mockUser: UserInfo = { nickname: '安心用户', avatar_url: '' }
-        Taro.setStorageSync('token', `mock_token_${Date.now()}`)
-        Taro.setStorageSync('user_info', mockUser)
-        setIsLoggedIn(true)
-        setUserName(mockUser.nickname)
-        setAvatarUrl('')
-        Taro.showToast({ title: '登录成功（体验模式）', icon: 'success' })
+      if (!data.access_token) {
+        throw new Error('微信登录响应缺少访问令牌')
       }
+      Taro.setStorageSync('token', data.access_token)
+      if (data.refresh_token) {
+        Taro.setStorageSync('refresh_token', data.refresh_token)
+      }
+      Taro.setStorageSync('user_info', data.user)
+      setIsLoggedIn(true)
+      setUserName(data.user.nickname || data.user.name || '微信用户')
+      setAvatarUrl(data.user.avatar_url || '')
+      Taro.showToast({ title: '登录成功', icon: 'success' })
     } catch (e: any) {
       Taro.showToast({ title: e.message || '登录失败', icon: 'none' })
     }

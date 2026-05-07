@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
+  ActivityIndicator,
   Alert,
   ScrollView,
   StyleSheet,
@@ -12,17 +13,10 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Stack, useLocalSearchParams } from 'expo-router'
 import { Colors } from '@/constants/colors'
 import { Layout } from '@/constants/layout'
-import { getApprovalActions } from '@/features/workflow/detail-model'
+import { EmptyState } from '@/components/EmptyState'
+import { getApprovalActions, getDetailLoadErrorMessage } from '@/features/workflow/detail-model'
 import { api } from '@/services/api'
 import type { ApprovalItem } from '@/types/api'
-
-const fallbackApproval: ApprovalItem = {
-  id: 'fallback-approval',
-  title: '审批详情',
-  type: 'custom',
-  status: 'pending',
-  description: '审批说明将在这里展示。',
-}
 
 export default function ApprovalDetailScreen() {
   const params = useLocalSearchParams<{
@@ -32,36 +26,41 @@ export default function ApprovalDetailScreen() {
     status?: ApprovalItem['status']
     description?: string
   }>()
-  const [approval, setApproval] = useState<ApprovalItem>({
-    ...fallbackApproval,
-    id: params.id || fallbackApproval.id,
-    title: params.title || fallbackApproval.title,
-    type: params.type || fallbackApproval.type,
-    status: params.status || fallbackApproval.status,
-    description: params.description || fallbackApproval.description,
-  })
+  const [approval, setApproval] = useState<ApprovalItem | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [comment, setComment] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  useEffect(() => {
-    const loadDetail = async () => {
-      if (!params.id) {
-        return
-      }
-      try {
-        const detail = await api.get<ApprovalItem>(`/approvals/${params.id}`)
-        setApproval(detail)
-      } catch {
-      }
+  const loadDetail = useCallback(async () => {
+    if (!params.id) {
+      setApproval(null)
+      setLoadError('缺少审批 ID，无法加载审批详情')
+      setLoading(false)
+      return
     }
 
-    loadDetail()
+    setLoading(true)
+    setLoadError(null)
+    try {
+      const detail = await api.get<ApprovalItem>(`/approvals/${params.id}`)
+      setApproval(detail)
+    } catch (error) {
+      setApproval(null)
+      setLoadError(getDetailLoadErrorMessage(error, '加载审批详情失败'))
+    } finally {
+      setLoading(false)
+    }
   }, [params.id])
 
-  const actions = useMemo(() => getApprovalActions(approval.status), [approval.status])
+  useEffect(() => {
+    loadDetail()
+  }, [loadDetail])
+
+  const actions = useMemo(() => (approval ? getApprovalActions(approval.status) : []), [approval])
 
   const handleAction = async (action: 'approve' | 'reject' | 'withdraw') => {
-    if (!params.id) {
+    if (!params.id || !approval) {
       return
     }
 
@@ -89,6 +88,33 @@ export default function ApprovalDetailScreen() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <Stack.Screen options={{ title: '审批详情' }} />
+        <View style={styles.centered}>
+          <ActivityIndicator color={Colors.primary} size="large" />
+          <Text style={styles.loadingText}>正在加载审批详情</Text>
+        </View>
+      </SafeAreaView>
+    )
+  }
+
+  if (!approval) {
+    return (
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <Stack.Screen options={{ title: '审批详情' }} />
+        <EmptyState
+          icon="alert-circle-outline"
+          title="无法加载审批详情"
+          description={loadError || '请稍后重试'}
+          actionLabel={params.id ? '重试' : undefined}
+          onAction={params.id ? loadDetail : undefined}
+        />
+      </SafeAreaView>
+    )
   }
 
   return (
@@ -158,6 +184,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Layout.spacing.xl,
+  },
+  loadingText: {
+    marginTop: Layout.spacing.md,
+    color: Colors.textSecondary,
+    fontSize: Layout.fontSize.sm,
   },
   content: {
     padding: Layout.spacing.md,

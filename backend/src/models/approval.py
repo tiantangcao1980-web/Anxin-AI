@@ -1,15 +1,13 @@
-# -*- coding: utf-8 -*-
 """审批流模型 — 匹配已有数据库表结构"""
 
+import enum
 from datetime import datetime
-from typing import Optional
+from typing import Any
 
-from sqlalchemy import String, Text, DateTime, Integer, ForeignKey, JSON
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.models.base import Base, TimestampMixin, GUID
-
-import enum
+from src.models.base import GUID, Base, TimestampMixin
 
 
 class ApprovalStatus(str, enum.Enum):
@@ -52,7 +50,7 @@ class Approval(Base, TimestampMixin):
         String(20), nullable=False, default=ApprovalStatus.pending.value
     )
 
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # 发起人
     requester_id: Mapped[str] = mapped_column(
@@ -60,29 +58,29 @@ class Approval(Base, TimestampMixin):
     )
 
     # 组织
-    org_id: Mapped[Optional[str]] = mapped_column(
+    org_id: Mapped[str | None] = mapped_column(
         GUID(), nullable=True
     )
 
     # 关联资源
-    resource_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    resource_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    resource_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    resource_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     # 审批人
-    approver_id: Mapped[Optional[str]] = mapped_column(
+    approver_id: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
 
     # 审批时间
-    resolved_at: Mapped[Optional[datetime]] = mapped_column(
+    resolved_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
 
     # 审批意见
-    resolution_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    resolution_note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # 附加数据
-    payload: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    payload: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     # 风险等级
     risk_level: Mapped[str] = mapped_column(
@@ -90,7 +88,7 @@ class Approval(Base, TimestampMixin):
     )
 
     # 过期时间
-    expires_at: Mapped[Optional[datetime]] = mapped_column(
+    expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
 
@@ -104,7 +102,7 @@ class Approval(Base, TimestampMixin):
     #     {"step": 2, "approver_id": "yyy", "approver_name": "李四", "status": "pending"}
     #   ]
     # }
-    approval_chain: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    approval_chain: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     # 当前审批步骤（从 0 开始）
     current_step: Mapped[int] = mapped_column(
@@ -112,7 +110,7 @@ class Approval(Base, TimestampMixin):
     )
 
     # 关联的审批模板ID
-    template_id: Mapped[Optional[str]] = mapped_column(
+    template_id: Mapped[str | None] = mapped_column(
         GUID(), nullable=True
     )
 
@@ -124,7 +122,7 @@ class ApprovalTemplate(Base, TimestampMixin):
 
     name: Mapped[str] = mapped_column(String(200), nullable=False)
 
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # 模板适用类型：contract / expense / case_assign / document / custom
     type: Mapped[str] = mapped_column(
@@ -132,7 +130,7 @@ class ApprovalTemplate(Base, TimestampMixin):
     )
 
     # 审批链配置 JSON，同 Approval.approval_chain 格式
-    chain_config: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    chain_config: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     # 创建人
     created_by: Mapped[str] = mapped_column(

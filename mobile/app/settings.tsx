@@ -20,7 +20,6 @@ interface SettingSection {
   items: SettingItem[]
 }
 
-// @mock-data FALLBACK
 const SETTING_SECTIONS: SettingSection[] = [
   {
     title: '账户设置',

@@ -1,0 +1,34 @@
+// 小程序语义设计 token。
+// Web/桌面 canonical token 仍在 frontend/src/lib/design-tokens.ts；
+// 这里记录小程序当前平台映射，避免页面继续散写 hex/rpx。
+
+$color-brand-primary: #D4A574;
+$color-brand-primary-light: #E8C9A8;
+$color-brand-primary-dark: #B8864E;
+$color-brand-gradient: linear-gradient(135deg, $color-brand-primary 0%, $color-brand-primary-dark 100%);
+
+$color-text-primary: #333333;
+$color-text-secondary: #666666;
+$color-text-tertiary: #999999;
+$color-text-disabled: #CCCCCC;
+$color-text-inverse: #FFFFFF;
+
+$color-background: #F5F5F5;
+$color-surface: #FFFFFF;
+$color-surface-subtle: #F9F9F9;
+$color-border: #EEEEEE;
+$color-border-subtle: #F0F0F0;
+$color-skeleton: #F0F0F0;
+
+$color-brand-tint: rgba(212, 165, 116, 0.1);
+$color-inverse-weak: rgba(255, 255, 255, 0.8);
+$color-inverse-muted: rgba(255, 255, 255, 0.6);
+$color-inverse-surface: rgba(255, 255, 255, 0.3);
+
+$shadow-card: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+$shadow-avatar: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
+$shadow-bubble: 0 1px 4rpx rgba(0, 0, 0, 0.06);
+
+$radius-card: 16rpx;
+$radius-pill: 9999rpx;
+$touch-target-min: 88rpx; // 44px equivalent on a 750rpx design width

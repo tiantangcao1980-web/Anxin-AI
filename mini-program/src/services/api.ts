@@ -11,32 +11,86 @@ interface ApiResponse<T = any> {
   request_id: string
 }
 
+function isApiResponse<T>(body: unknown): body is ApiResponse<T> {
+  return !!body && typeof body === 'object' && 'code' in body && 'data' in body
+}
+
+function getErrorMessage(body: any, fallback: string): string {
+  return body?.detail || body?.message || body?.errmsg || fallback
+}
+
+function unwrapResponse<T>(body: unknown): T {
+  if (isApiResponse<T>(body)) {
+    if (body.code !== 200) throw new Error(body.message || '请求失败')
+    return body.data
+  }
+  return body as T
+}
+
 // token 刷新锁，防止并发刷新
 let refreshPromise: Promise<string> | null = null
+
+class MiniProgramAuthExpiredError extends Error {
+  constructor(message = '登录已过期') {
+    super(message)
+    this.name = 'MiniProgramAuthExpiredError'
+  }
+}
+
+class MiniProgramRefreshUnavailableError extends Error {
+  constructor(message = '暂时无法刷新登录状态，请稍后重试') {
+    super(message)
+    this.name = 'MiniProgramRefreshUnavailableError'
+  }
+}
+
+function isRefreshAuthFailure(statusCode: number, code?: number): boolean {
+  return statusCode === 401 || statusCode === 403 || code === 401 || code === 403
+}
+
+function isAuthExpiredError(error: unknown): error is MiniProgramAuthExpiredError {
+  return error instanceof MiniProgramAuthExpiredError
+}
+
+function clearStoredAuth(): void {
+  Taro.removeStorageSync('token')
+  Taro.removeStorageSync('refresh_token')
+}
 
 async function refreshToken(): Promise<string> {
   if (refreshPromise) return refreshPromise
   refreshPromise = (async () => {
+    const rt = Taro.getStorageSync('refresh_token')
+    if (!rt) {
+      clearStoredAuth()
+      throw new MiniProgramAuthExpiredError()
+    }
     try {
-      const rt = Taro.getStorageSync('refresh_token')
-      if (!rt) throw new Error('无刷新令牌')
       const res = await Taro.request({
         url: `${BASE_URL}/auth/refresh`,
         method: 'POST',
         data: { refresh_token: rt },
         timeout: 10000,
       })
-      const body = res.data as ApiResponse<{ access_token: string; refresh_token?: string }>
-      if (body.code !== 200) throw new Error(body.message)
-      Taro.setStorageSync('token', body.data.access_token)
-      if (body.data.refresh_token) {
-        Taro.setStorageSync('refresh_token', body.data.refresh_token)
+      const apiCode = isApiResponse(res.data) ? res.data.code : undefined
+      if (isRefreshAuthFailure(res.statusCode, apiCode)) {
+        clearStoredAuth()
+        throw new MiniProgramAuthExpiredError(getErrorMessage(res.data, '登录已过期'))
       }
-      return body.data.access_token
-    } catch (e) {
-      Taro.removeStorageSync('token')
-      Taro.removeStorageSync('refresh_token')
-      throw e
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        throw new MiniProgramRefreshUnavailableError(getErrorMessage(res.data, '刷新登录失败'))
+      }
+      const body = unwrapResponse<{ access_token: string; refresh_token?: string }>(res.data)
+      Taro.setStorageSync('token', body.access_token)
+      if (body.refresh_token) {
+        Taro.setStorageSync('refresh_token', body.refresh_token)
+      }
+      return body.access_token
+    } catch (error) {
+      if (isAuthExpiredError(error) || error instanceof MiniProgramRefreshUnavailableError) {
+        throw error
+      }
+      throw new MiniProgramRefreshUnavailableError()
     } finally {
       refreshPromise = null
     }
@@ -65,25 +119,29 @@ export async function request<T>(options: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       })
-      const body = res.data as ApiResponse<T>
+      const body = res.data as any
 
       // 401: 尝试刷新 token
-      if (res.statusCode === 401 || body.code === 401) {
+      if (res.statusCode === 401 || body?.code === 401) {
         if (attempt < retry) {
           try {
             await refreshToken()
             continue // 用新 token 重试
-          } catch {
-            Taro.showToast({ title: '登录已过期，请重新登录', icon: 'none' })
-            throw new Error('登录已过期')
+          } catch (error) {
+            if (isAuthExpiredError(error)) {
+              Taro.showToast({ title: '登录已过期，请重新登录', icon: 'none' })
+              throw new Error('登录已过期')
+            }
+            Taro.showToast({ title: '网络异常，暂时无法刷新登录', icon: 'none' })
+            throw error instanceof Error ? error : new Error('暂时无法刷新登录状态，请稍后重试')
           }
         }
       }
 
-      if (body.code !== 200) {
-        throw new Error(body.message || '请求失败')
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        throw new Error(getErrorMessage(body, '请求失败'))
       }
-      return body.data
+      return unwrapResponse<T>(body)
     } catch (e: any) {
       // 网络错误（超时、连接失败等），指数退避重试
       const isNetworkError =

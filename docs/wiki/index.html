@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>安心法务项目 Wiki</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #f7f4ef;
+        color: #1f2933;
+      }
+      body {
+        margin: 0;
+        padding: 40px 20px;
+      }
+      main {
+        max-width: 920px;
+        margin: 0 auto;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 32px;
+      }
+      .lead {
+        margin: 0 0 28px;
+        color: #5f6c7b;
+        line-height: 1.7;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 14px;
+      }
+      a.card {
+        display: block;
+        padding: 18px;
+        border: 1px solid #ded6ca;
+        border-radius: 8px;
+        background: #fffaf3;
+        color: inherit;
+        text-decoration: none;
+      }
+      a.card:hover {
+        border-color: #b78b54;
+      }
+      .card strong {
+        display: block;
+        margin-bottom: 8px;
+      }
+      .card span {
+        color: #6b7280;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      code {
+        background: rgba(120, 89, 48, 0.12);
+        padding: 2px 5px;
+        border-radius: 4px;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          background: #111827;
+          color: #f3f4f6;
+        }
+        .lead,
+        .card span {
+          color: #b6c2cf;
+        }
+        a.card {
+          background: #17202e;
+          border-color: #2f3b4a;
+        }
+        a.card:hover {
+          border-color: #d4a574;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>安心法务项目 Wiki</h1>
+      <p class="lead">
+        Codex 生成的本地项目知识库。Markdown 正文在 <code>docs/wiki/</code>，
+        当前 HTML 只是轻量入口页，方便浏览器预览。
+      </p>
+      <section class="grid" aria-label="Wiki pages">
+        <a class="card" href="./README.md"><strong>入口说明</strong><span>快速导航与一句话结论。</span></a>
+        <a class="card" href="./01-project-overview.md"><strong>项目总览</strong><span>产品定位、目录和真实状态。</span></a>
+        <a class="card" href="./02-architecture.md"><strong>架构与模块</strong><span>Web、后端、桌面、移动、小程序架构。</span></a>
+        <a class="card" href="./03-functionality-status.md"><strong>功能完成度</strong><span>主线能力和未完成链路。</span></a>
+        <a class="card" href="./04-platform-status.md"><strong>全端状态</strong><span>Web、后端、桌面、移动、小程序分别评估。</span></a>
+        <a class="card" href="./05-local-runbook.md"><strong>本地运行</strong><span>开发、构建、预览命令。</span></a>
+        <a class="card" href="./06-verification.md"><strong>验证基线</strong><span>已运行检查和发布前建议。</span></a>
+        <a class="card" href="./07-gitnexus.md"><strong>GitNexus</strong><span>索引使用、生成 wiki 和 WAL 修复。</span></a>
+        <a class="card" href="./graph.html"><strong>图谱视图</strong><span>基于 GitNexus 索引整理的模块级交互图。</span></a>
+        <a class="card" href="./08-release-risks.md"><strong>上线风险</strong><span>P0/P1/P2 收口路线。</span></a>
+      </section>
+    </main>
+  </body>
+</html>

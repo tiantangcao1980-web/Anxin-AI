@@ -12,6 +12,7 @@ import { knowledgeCenterApi, type GraphData, type GraphStats, type GraphNode } f
 import { toast } from 'sonner'
 import * as THREE from 'three'
 import SpriteText from 'three-spritetext'
+import { createGraphRenderPlan, GRAPH_RENDER_LIMITS } from '../knowledge-graph/graphPerformance'
 import { truncateToWidth, setFontIfChanged } from '../knowledge-graph/textMeasureCache'
 
 // 节点颜色配置
@@ -182,11 +183,26 @@ export function KnowledgeGraphExplorer() {
     }
   }
 
-  // 转换后的力导图数据
-  const fgData = useMemo(() => {
+  const rawFgData = useMemo(() => {
     if (!graphData) return { nodes: [], links: [] }
     return toForceGraphData(graphData, graphData.center_entity)
   }, [graphData])
+
+  // 转换后的力导图数据
+  const renderPlan = useMemo(
+    () => createGraphRenderPlan(rawFgData.nodes, rawFgData.links, {
+      maxNodes: GRAPH_RENDER_LIMITS.maxNodes,
+      maxLinks: GRAPH_RENDER_LIMITS.maxLinks,
+      selectedNodeId: selectedNode,
+      centerNodeId: graphData?.center_entity || null,
+    }),
+    [rawFgData.nodes, rawFgData.links, selectedNode, graphData?.center_entity]
+  )
+
+  const fgData = useMemo(
+    () => ({ nodes: renderPlan.nodes, links: renderPlan.links }),
+    [renderPlan.nodes, renderPlan.links]
+  )
 
   // 节点点击
   const handleNodeClick = useCallback((node: any) => {
@@ -296,7 +312,7 @@ export function KnowledgeGraphExplorer() {
   }, [showLabels])
 
   // 3D 链接粒子
-  const linkDirectionalParticles = 2
+  const linkDirectionalParticles = renderPlan.isDownsampled ? 0 : 2
   const linkDirectionalParticleWidth = 1.5
 
   // 容器尺寸
@@ -433,8 +449,8 @@ export function KnowledgeGraphExplorer() {
                 enableNodeDrag={true}
                 enableNavigationControls={true}
                 showNavInfo={false}
-                warmupTicks={60}
-                cooldownTicks={200}
+                warmupTicks={renderPlan.isDownsampled ? 20 : 60}
+                cooldownTicks={renderPlan.isDownsampled ? 80 : 200}
                 d3AlphaDecay={0.02}
                 d3VelocityDecay={0.3}
               />
@@ -457,13 +473,13 @@ export function KnowledgeGraphExplorer() {
                 onNodeRightClick={(node: any) => handleExpandNode(node.id)}
                 linkColor={() => 'rgba(148, 163, 184, 0.35)'}
                 linkWidth={1.5}
-                linkDirectionalParticles={2}
+                linkDirectionalParticles={linkDirectionalParticles}
                 linkDirectionalParticleWidth={2}
                 linkDirectionalParticleColor={() => '#818cf8'}
                 linkLabel={(link: any) => link.label}
                 enableNodeDrag={true}
-                warmupTicks={40}
-                cooldownTicks={150}
+                warmupTicks={renderPlan.isDownsampled ? 20 : 40}
+                cooldownTicks={renderPlan.isDownsampled ? 80 : 150}
                 d3AlphaDecay={0.025}
                 d3VelocityDecay={0.3}
               />

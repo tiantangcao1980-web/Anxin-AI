@@ -1,0 +1,168 @@
+{
+  "completion_note": "This artifact is supporting evidence only. Keep release evidence Status: pending until provider dashboards/logs, callback events, retry evidence, and redacted artifacts cover every row in docs/release/evidence/payment-sandbox.md and esign-sandbox.md.",
+  "environment": "staging/sandbox",
+  "generated_at": "2026-05-07T12:19:12.846877Z",
+  "live_checks": {},
+  "loaded_env_files": [
+    ".env",
+    "backend/.env"
+  ],
+  "mode": "preflight",
+  "providers": {
+    "esignbao": {
+      "configured": false,
+      "external_evidence_requirements": [
+        {
+          "artifact_ref": "TBD",
+          "collection_method": "Attach a redacted provider dashboard or delivery-log artifact after the official sandbox callback is delivered to the configured public endpoint.",
+          "id": "official_callback",
+          "label": "Official e签宝 callback verifies headers/body and writes audit.",
+          "release_blocking": true,
+          "status": "pending_external_input"
+        },
+        {
+          "artifact_ref": "TBD",
+          "collection_method": "Attach the redacted callback replay/delivery transcript and backend idempotency/audit log reference.",
+          "id": "duplicate_callback_idempotency",
+          "label": "Duplicate e签宝 callback is idempotent and does not duplicate flow state transitions.",
+          "release_blocking": true,
+          "status": "pending_external_input"
+        },
+        {
+          "artifact_ref": "TBD",
+          "collection_method": "Attach retry worker or provider retry transcript with secrets and PII redacted.",
+          "id": "failed_callback_retry",
+          "label": "Failed e签宝 callback enters retry or failed path without fake success.",
+          "release_blocking": true,
+          "status": "pending_external_input"
+        }
+      ],
+      "fields": [
+        {
+          "label": "app ID",
+          "name": "ESIGN_BAO_APP_ID",
+          "present": false,
+          "redacted": "missing"
+        },
+        {
+          "label": "app secret",
+          "name": "ESIGN_BAO_APP_SECRET",
+          "present": false,
+          "redacted": "missing"
+        },
+        {
+          "label": "API URL",
+          "name": "ESIGN_BAO_API_URL",
+          "present": true,
+          "redacted": "https://smlopenapi.esign.cn"
+        },
+        {
+          "label": "official webhook enabled",
+          "name": "ESIGN_OFFICIAL_WEBHOOK_ENABLED",
+          "present": false,
+          "redacted": "false"
+        }
+      ],
+      "missing": [
+        "app ID",
+        "app secret",
+        "official webhook enabled"
+      ],
+      "runtime_prerequisites": [
+        {
+          "argument": "--esign-document-url",
+          "label": "sandbox document URL or file ID",
+          "note": "Required to create/start a signing flow.",
+          "present": false,
+          "status": "missing"
+        },
+        {
+          "argument": "--esignbao-completed-flow-id",
+          "label": "completed sandbox flow ID for download evidence",
+          "note": "Required to exercise completed signed document download.",
+          "present": false,
+          "status": "missing"
+        }
+      ],
+      "warnings": []
+    },
+    "fadada": {
+      "configured": false,
+      "external_evidence_requirements": [
+        {
+          "artifact_ref": "TBD",
+          "collection_method": "Attach a redacted provider dashboard or delivery-log artifact after the official sandbox callback is delivered to the configured public endpoint.",
+          "id": "official_callback",
+          "label": "Official 法大大 callback verifies headers/body and writes audit.",
+          "release_blocking": true,
+          "status": "pending_external_input"
+        },
+        {
+          "artifact_ref": "TBD",
+          "collection_method": "Attach the redacted callback replay/delivery transcript and backend idempotency/audit log reference.",
+          "id": "duplicate_callback_idempotency",
+          "label": "Duplicate 法大大 callback is idempotent and does not duplicate flow state transitions.",
+          "release_blocking": true,
+          "status": "pending_external_input"
+        },
+        {
+          "artifact_ref": "TBD",
+          "collection_method": "Attach retry worker or provider retry transcript with secrets and PII redacted.",
+          "id": "failed_callback_retry",
+          "label": "Failed 法大大 callback enters retry or failed path without fake success.",
+          "release_blocking": true,
+          "status": "pending_external_input"
+        }
+      ],
+      "fields": [
+        {
+          "label": "app ID",
+          "name": "FADADA_APP_ID",
+          "present": false,
+          "redacted": "missing"
+        },
+        {
+          "label": "app secret",
+          "name": "FADADA_APP_SECRET",
+          "present": false,
+          "redacted": "missing"
+        },
+        {
+          "label": "API URL",
+          "name": "FADADA_API_URL",
+          "present": true,
+          "redacted": "https://api.fadada.com/api/v5"
+        },
+        {
+          "label": "official webhook enabled",
+          "name": "ESIGN_OFFICIAL_WEBHOOK_ENABLED",
+          "present": false,
+          "redacted": "false"
+        }
+      ],
+      "missing": [
+        "app ID",
+        "app secret",
+        "official webhook enabled"
+      ],
+      "runtime_prerequisites": [
+        {
+          "argument": "--esign-document-url",
+          "label": "sandbox document URL or file ID",
+          "note": "Required to create/start a signing flow.",
+          "present": false,
+          "status": "missing"
+        },
+        {
+          "argument": "--fadada-completed-flow-id",
+          "label": "completed sandbox flow ID for download evidence",
+          "note": "Required to exercise completed signed document download.",
+          "present": false,
+          "status": "missing"
+        }
+      ],
+      "warnings": []
+    }
+  },
+  "selected_scope": "esign"
+}

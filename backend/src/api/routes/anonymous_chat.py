@@ -1,25 +1,48 @@
-# -*- coding: utf-8 -*-
 """
 匿名聊天室 WebSocket API
 
 用户和律师在匹配后通过匿名聊天室沟通，双方同意后才揭示身份信息。
 
 路由：
-- POST   /api/v1/anonymous-chat/rooms              创建聊天室（返回 room_id + 双方临时 token）
+- POST   /api/v1/anonymous-chat/rooms              用户创建聊天室（要登录 + 必须是 consultation 所有者，仅返回 user_token）
+- POST   /api/v1/anonymous-chat/rooms/{room_id}/lawyer-join  律师认领并获取 lawyer_token（要登录 + 必须是 consultation.matched_lawyer）
+- GET    /api/v1/anonymous-chat/rooms/{room_id}/my-token     重新获取自己的 token（要登录 + 必须是 user_id 或 matched_lawyer_id）
 - GET    /api/v1/anonymous-chat/rooms/{room_id}     获取聊天室信息
 - POST   /api/v1/anonymous-chat/rooms/{room_id}/reveal  双方确认揭示身份
 - WS     /api/v1/anonymous-chat/ws/{room_id}?token={temp_token}  WebSocket 聊天连接
+
+V2 安全修复（PROJECT_STATUS S7）：
+  历史：POST /rooms 任意客户端无身份校验可调，一次返回 user_token + lawyer_token，
+        允许单方伪造双边身份。
+  修复：拆分为"用户发起"+"律师认领"+"各自重取" 三个接口，每个都强制身份归属校验。
+        前端单一调用方仅消费 user_token；lawyer_token 改为律师走 lawyer-join 单独获取。
 """
 
-import uuid
 import asyncio
-from datetime import datetime, timezone
-from typing import Optional
+import uuid
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Depends, Query, Request
-from src.core.deps import rate_limit
-from pydantic import BaseModel, Field
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from loguru import logger
+from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.core.database import get_db
+from src.core.deps import get_current_user_required, rate_limit
+from src.models.user import User
+
+if TYPE_CHECKING:
+    from src.models.lawyer_matching import Consultation
 
 router = APIRouter(prefix="/anonymous-chat", tags=["匿名聊天"])
 
@@ -36,13 +59,13 @@ class ChatMessage(BaseModel):
 
 class ChatRoom(BaseModel):
     room_id: str
-    consultation_id: Optional[str] = None
+    consultation_id: str | None = None
     user_token: str
     lawyer_token: str
-    user_name: Optional[str] = None
-    lawyer_name: Optional[str] = None
-    user_contact: Optional[str] = None
-    lawyer_contact: Optional[str] = None
+    user_name: str | None = None
+    lawyer_name: str | None = None
+    user_contact: str | None = None
+    lawyer_contact: str | None = None
     messages: list[ChatMessage] = []
     user_reveal: bool = False
     lawyer_reveal: bool = False
@@ -62,33 +85,47 @@ active_connections: dict[str, dict[str, WebSocket]] = {}
 
 class CreateRoomRequest(BaseModel):
     """创建匿名聊天室"""
-    consultation_id: Optional[str] = Field(None, description="关联咨询 ID")
-    user_name: Optional[str] = Field(None, description="用户真实姓名（揭示后展示）")
-    lawyer_name: Optional[str] = Field(None, description="律师真实姓名（揭示后展示）")
-    user_contact: Optional[str] = Field(None, description="用户联系方式（揭示后展示）")
-    lawyer_contact: Optional[str] = Field(None, description="律师联系方式（揭示后展示）")
+    consultation_id: str | None = Field(None, description="关联咨询 ID")
+    user_name: str | None = Field(None, description="用户真实姓名（揭示后展示）")
+    lawyer_name: str | None = Field(None, description="律师真实姓名（揭示后展示）")
+    user_contact: str | None = Field(None, description="用户联系方式（揭示后展示）")
+    lawyer_contact: str | None = Field(None, description="律师联系方式（揭示后展示）")
 
 
 class CreateRoomResponse(BaseModel):
+    """V2 安全修复：仅返回调用者（用户）自己的 token。律师走 lawyer-join 获取自己的 token。"""
     room_id: str
     user_token: str
-    lawyer_token: str
     created_at: str
     message: str
 
 
+class LawyerJoinResponse(BaseModel):
+    """律师认领房间后返回 lawyer_token"""
+    room_id: str
+    lawyer_token: str
+    message: str
+
+
+class MyTokenResponse(BaseModel):
+    """各方重新获取自己的 token（用于客户端丢失场景）"""
+    room_id: str
+    role: str  # "user" | "lawyer"
+    token: str
+
+
 class RoomInfoResponse(BaseModel):
     room_id: str
-    consultation_id: Optional[str]
+    consultation_id: str | None
     revealed: bool
     message_count: int
     created_at: str
     closed: bool
     # 揭示后才返回身份信息
-    user_name: Optional[str] = None
-    lawyer_name: Optional[str] = None
-    user_contact: Optional[str] = None
-    lawyer_contact: Optional[str] = None
+    user_name: str | None = None
+    lawyer_name: str | None = None
+    user_contact: str | None = None
+    lawyer_contact: str | None = None
 
 
 # ===== 辅助函数 =====
@@ -100,7 +137,7 @@ def _get_room(room_id: str) -> ChatRoom:
     return room
 
 
-def _get_role_by_token(room: ChatRoom, token: str) -> Optional[str]:
+def _get_role_by_token(room: ChatRoom, token: str) -> str | None:
     if token == room.user_token:
         return "user"
     elif token == room.lawyer_token:
@@ -113,15 +150,15 @@ def _create_system_message(content: str) -> ChatMessage:
         id=str(uuid.uuid4()),
         sender="system",
         content=content,
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
         type="system",
     )
 
 
-async def _broadcast_to_room(room_id: str, message: dict):
+async def _broadcast_to_room(room_id: str, message: dict[str, Any]) -> None:
     """向房间内所有连接广播消息"""
     conns = active_connections.get(room_id, {})
-    disconnected = []
+    disconnected: list[str] = []
     for role, ws in conns.items():
         try:
             await ws.send_json(message)
@@ -133,13 +170,39 @@ async def _broadcast_to_room(room_id: str, message: dict):
 
 # ===== REST API =====
 
+async def _get_consultation_or_403(db: AsyncSession, consultation_id: str, user: User) -> "Consultation":
+    """读取 consultation 并校验调用者是否为参与方（user 或 matched_lawyer）"""
+    from src.models.lawyer_matching import Consultation
+
+    result = await db.execute(select(Consultation).where(Consultation.id == consultation_id))
+    consultation = result.scalar_one_or_none()
+    if not consultation:
+        raise HTTPException(status_code=404, detail="咨询不存在")
+    return consultation
+
+
 @router.post("/rooms", response_model=CreateRoomResponse)
 async def create_room(
     req: CreateRoomRequest,
     request: Request,
-    _: None = Depends(rate_limit(limit=10, window=300, endpoint="anon_chat_create", by_user=False)),
-):
-    """创建匿名聊天室，返回房间 ID 和双方临时 token"""
+    user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(rate_limit(limit=10, window=300, endpoint="anon_chat_create", by_user=True)),
+) -> CreateRoomResponse:
+    """
+    用户发起创建匿名聊天室。
+
+    V2 安全修复：
+    - 必须登录（去掉无身份的 by_user=False 限流）
+    - 若传 consultation_id，则必须是 consultation 的所有者（user_id 匹配）
+    - 仅返回 user_token；lawyer_token 由律师走 /rooms/{id}/lawyer-join 获取
+    """
+    # 校验 consultation 归属（如有）
+    if req.consultation_id:
+        consultation = await _get_consultation_or_403(db, req.consultation_id, user)
+        if consultation.user_id != user.id:
+            raise HTTPException(status_code=403, detail="无权为他人的咨询创建聊天室")
+
     room_id = str(uuid.uuid4())[:8]
     user_token = f"u-{uuid.uuid4().hex[:16]}"
     lawyer_token = f"l-{uuid.uuid4().hex[:16]}"
@@ -148,12 +211,12 @@ async def create_room(
         room_id=room_id,
         consultation_id=req.consultation_id,
         user_token=user_token,
-        lawyer_token=lawyer_token,
+        lawyer_token=lawyer_token,  # 内部存储，但不在响应中返回给用户
         user_name=req.user_name,
         lawyer_name=req.lawyer_name,
         user_contact=req.user_contact,
         lawyer_contact=req.lawyer_contact,
-        created_at=datetime.now(timezone.utc).isoformat(),
+        created_at=datetime.now(UTC).isoformat(),
     )
 
     # 添加系统欢迎消息
@@ -161,19 +224,74 @@ async def create_room(
     room.messages.append(welcome)
 
     rooms[room_id] = room
-    logger.info(f"匿名聊天室创建: {room_id}, 关联咨询: {req.consultation_id}")
+    logger.info(f"匿名聊天室创建: room={room_id}, 创建人 user={user.id}, 关联咨询={req.consultation_id}")
 
     return CreateRoomResponse(
         room_id=room_id,
         user_token=user_token,
-        lawyer_token=lawyer_token,
         created_at=room.created_at,
         message="匿名聊天室已创建",
     )
 
 
+@router.post("/rooms/{room_id}/lawyer-join", response_model=LawyerJoinResponse)
+async def lawyer_join_room(
+    room_id: str,
+    user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db),
+) -> LawyerJoinResponse:
+    """
+    律师认领并获取 lawyer_token。
+
+    V2 安全修复：必须登录 + 必须是关联 consultation 的 matched_lawyer_id。
+    无 consultation_id 的临时房间暂不支持律师认领。
+    """
+    room = _get_room(room_id)
+
+    if not room.consultation_id:
+        raise HTTPException(status_code=400, detail="房间未关联咨询，无法认领律师身份")
+
+    consultation = await _get_consultation_or_403(db, room.consultation_id, user)
+    if consultation.matched_lawyer_id != user.id:
+        raise HTTPException(status_code=403, detail="您不是此咨询匹配的律师")
+
+    logger.info(f"律师认领聊天室: room={room_id}, lawyer user={user.id}")
+    return LawyerJoinResponse(
+        room_id=room.room_id,
+        lawyer_token=room.lawyer_token,
+        message="已认领律师身份",
+    )
+
+
+@router.get("/rooms/{room_id}/my-token", response_model=MyTokenResponse)
+async def get_my_token(
+    room_id: str,
+    user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db),
+) -> MyTokenResponse:
+    """
+    重新获取自己的 token（客户端丢失场景）。
+
+    根据登录用户与 consultation 的关系判定：
+    - user_id 匹配 → 返回 user_token
+    - matched_lawyer_id 匹配 → 返回 lawyer_token
+    - 其他 → 403
+    """
+    room = _get_room(room_id)
+
+    if not room.consultation_id:
+        raise HTTPException(status_code=400, detail="房间未关联咨询，无法重取 token")
+
+    consultation = await _get_consultation_or_403(db, room.consultation_id, user)
+    if consultation.user_id == user.id:
+        return MyTokenResponse(room_id=room.room_id, role="user", token=room.user_token)
+    if consultation.matched_lawyer_id == user.id:
+        return MyTokenResponse(room_id=room.room_id, role="lawyer", token=room.lawyer_token)
+    raise HTTPException(status_code=403, detail="您不是该聊天室的参与方")
+
+
 @router.get("/rooms/{room_id}", response_model=RoomInfoResponse)
-async def get_room_info(room_id: str, token: str = Query(..., description="临时 token")):
+async def get_room_info(room_id: str, token: str = Query(..., description="临时 token")) -> RoomInfoResponse:
     """获取聊天室信息（需要提供有效 token）"""
     room = _get_room(room_id)
     role = _get_role_by_token(room, token)
@@ -200,7 +318,7 @@ async def get_room_info(room_id: str, token: str = Query(..., description="临�
 
 
 @router.post("/rooms/{room_id}/reveal")
-async def reveal_identity(room_id: str, token: str = Query(..., description="临时 token")):
+async def reveal_identity(room_id: str, token: str = Query(..., description="临时 token")) -> dict[str, Any]:
     """确认揭示身份 — 双方都确认后身份信息解除匿名"""
     room = _get_room(room_id)
     role = _get_role_by_token(room, token)
@@ -257,7 +375,7 @@ async def reveal_identity(room_id: str, token: str = Query(..., description="临
 # ===== WebSocket 端点 =====
 
 @router.websocket("/ws/{room_id}")
-async def websocket_chat(websocket: WebSocket, room_id: str, token: str = Query(...)):
+async def websocket_chat(websocket: WebSocket, room_id: str, token: str = Query(...)) -> None:
     """匿名聊天 WebSocket 连接"""
     # 验证房间和 token
     room = rooms.get(room_id)
@@ -300,9 +418,9 @@ async def websocket_chat(websocket: WebSocket, room_id: str, token: str = Query(
         "message": join_msg.model_dump(),
     })
 
-    MAX_MESSAGE_LENGTH = 4096  # 单条消息最大长度
-    MAX_MESSAGES_PER_MINUTE = 30  # 每分钟最大消息数
-    _msg_timestamps: list = []
+    max_message_length = 4096  # 单条消息最大长度
+    max_messages_per_minute = 30  # 每分钟最大消息数
+    _msg_timestamps: list[datetime] = []
 
     try:
         while True:
@@ -312,18 +430,18 @@ async def websocket_chat(websocket: WebSocket, room_id: str, token: str = Query(
                 continue
 
             # 消息长度限制
-            if len(content) > MAX_MESSAGE_LENGTH:
+            if len(content) > max_message_length:
                 await websocket.send_json({
                     "type": "error",
-                    "message": f"消息长度不能超过 {MAX_MESSAGE_LENGTH} 字符",
+                    "message": f"消息长度不能超过 {max_message_length} 字符",
                 })
                 continue
 
             # 简易频率限制
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             _msg_timestamps.append(now)
             _msg_timestamps[:] = [t for t in _msg_timestamps if (now - t).total_seconds() < 60]
-            if len(_msg_timestamps) > MAX_MESSAGES_PER_MINUTE:
+            if len(_msg_timestamps) > max_messages_per_minute:
                 await websocket.send_json({
                     "type": "error",
                     "message": "发送过于频繁，请稍后再试",

@@ -1,17 +1,16 @@
-# -*- coding: utf-8 -*-
 """
 律师评价服务
 """
 
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
+from typing import Any
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
 from loguru import logger
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.review import LawyerReview
 from src.models.lawyer_matching import Consultation, Delegation, LawyerProfile
+from src.models.review import LawyerReview
 
 
 class ReviewService:
@@ -25,11 +24,11 @@ class ReviewService:
         reviewer_id: str,
         lawyer_profile_id: str,
         rating: int,
-        content: Optional[str] = None,
-        tags: Optional[list] = None,
+        content: str | None = None,
+        tags: list[str] | None = None,
         is_anonymous: bool = False,
-        consultation_id: Optional[str] = None,
-        delegation_id: Optional[str] = None,
+        consultation_id: str | None = None,
+        delegation_id: str | None = None,
     ) -> LawyerReview:
         """创建评价，并自动更新律师的平均评分和评价总数"""
         # 校验评分范围
@@ -103,7 +102,7 @@ class ReviewService:
         lawyer_profile_id: str,
         page: int = 1,
         page_size: int = 10,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """分页查询某律师的评价列表（按时间降序）"""
         base_query = select(LawyerReview).where(
             LawyerReview.lawyer_profile_id == lawyer_profile_id
@@ -119,7 +118,7 @@ class ReviewService:
         result = await self.db.execute(query)
         reviews = result.scalars().all()
 
-        items = []
+        items: list[dict[str, Any]] = []
         for r in reviews:
             item = {
                 "id": r.id,
@@ -170,7 +169,7 @@ class ReviewService:
             raise PermissionError("只有该律师本人才能回复评价")
 
         review.reply_content = content
-        review.replied_at = datetime.now(timezone.utc)
+        review.replied_at = datetime.now(UTC)
 
         await self.db.commit()
         await self.db.refresh(review)
@@ -178,12 +177,8 @@ class ReviewService:
         logger.info(f"律师 {lawyer_user_id} 回复了评价 {review_id}")
         return review
 
-    async def get_review_stats(self, lawyer_profile_id: str) -> dict:
+    async def get_review_stats(self, lawyer_profile_id: str) -> dict[str, Any]:
         """获取律师的评价统计"""
-        base_query = select(LawyerReview).where(
-            LawyerReview.lawyer_profile_id == lawyer_profile_id
-        )
-
         # 总数 & 平均分
         stats_q = select(
             func.count(LawyerReview.id).label("total"),
@@ -202,7 +197,7 @@ class ReviewService:
             LawyerReview.lawyer_profile_id == lawyer_profile_id
         ).group_by(LawyerReview.rating)
         dist_result = await self.db.execute(dist_q)
-        rating_distribution = {i: 0 for i in range(1, 6)}
+        rating_distribution = dict.fromkeys(range(1, 6), 0)
         for r in dist_result:
             rating_distribution[r.rating] = r.cnt
 
@@ -221,8 +216,8 @@ class ReviewService:
                     tag_counter[tag] = tag_counter.get(tag, 0) + 1
 
         # 按出现次数降序取 top 10
-        top_tags = sorted(tag_counter.items(), key=lambda x: x[1], reverse=True)[:10]
-        top_tags = [{"tag": t, "count": c} for t, c in top_tags]
+        top_tag_counts = sorted(tag_counter.items(), key=lambda x: x[1], reverse=True)[:10]
+        top_tags = [{"tag": tag, "count": count} for tag, count in top_tag_counts]
 
         return {
             "average_rating": average_rating,

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 全链路请求追踪
 
@@ -10,7 +9,7 @@ import time
 import uuid
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -19,16 +18,16 @@ from loguru import logger
 class SpanRecord:
     """单个操作的记录"""
     span_id: str
-    parent_span_id: Optional[str]
+    parent_span_id: str | None
     operation: str          # 如 "coordinator.analyze", "agent.contract_reviewer.chat"
-    agent_name: Optional[str] = None
-    tool_name: Optional[str] = None
+    agent_name: str | None = None
+    tool_name: str | None = None
     start_time: float = 0.0
     end_time: float = 0.0
     status: str = "started"  # started / success / error / timeout
-    error_msg: Optional[str] = None
-    token_usage: Optional[Dict[str, int]] = None  # {prompt_tokens, completion_tokens, total_tokens}
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    error_msg: str | None = None
+    token_usage: dict[str, int] | None = None  # {prompt_tokens, completion_tokens, total_tokens}
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
     def latency_ms(self) -> float:
@@ -41,23 +40,23 @@ class SpanRecord:
 class TraceContext:
     """一次请求的完整追踪上下文"""
     trace_id: str
-    user_id: Optional[str] = None
-    conversation_id: Optional[str] = None
-    route: Optional[str] = None
+    user_id: str | None = None
+    conversation_id: str | None = None
+    route: str | None = None
     start_time: float = 0.0
-    spans: List[SpanRecord] = field(default_factory=list)
+    spans: list[SpanRecord] = field(default_factory=list)
     total_prompt_tokens: int = 0
     total_completion_tokens: int = 0
     total_cost_usd: float = 0.0
-    _current_span_id: Optional[str] = field(default=None, repr=False)
+    _current_span_id: str | None = field(default=None, repr=False)
 
     def start_span(
         self,
         operation: str,
-        agent_name: Optional[str] = None,
-        tool_name: Optional[str] = None,
-        parent_span_id: Optional[str] = None,
-        **metadata,
+        agent_name: str | None = None,
+        tool_name: str | None = None,
+        parent_span_id: str | None = None,
+        **metadata: Any,
     ) -> str:
         """开始一个新 span，返回 span_id"""
         span_id = uuid.uuid4().hex[:12]
@@ -78,9 +77,9 @@ class TraceContext:
         self,
         span_id: str,
         status: str = "success",
-        error_msg: Optional[str] = None,
-        token_usage: Optional[Dict[str, int]] = None,
-    ):
+        error_msg: str | None = None,
+        token_usage: dict[str, int] | None = None,
+    ) -> None:
         """结束一个 span"""
         for span in self.spans:
             if span.span_id == span_id:
@@ -96,7 +95,12 @@ class TraceContext:
                 return
         logger.warning(f"TraceContext: span {span_id} not found")
 
-    def record_llm_usage(self, prompt_tokens: int, completion_tokens: int, cost_usd: float = 0.0):
+    def record_llm_usage(
+        self,
+        prompt_tokens: int,
+        completion_tokens: int,
+        cost_usd: float = 0.0,
+    ) -> None:
         """快速记录 LLM token 用量（不关联特定 span 时使用）"""
         self.total_prompt_tokens += prompt_tokens
         self.total_completion_tokens += completion_tokens
@@ -112,7 +116,7 @@ class TraceContext:
             return round((time.time() - self.start_time) * 1000, 2)
         return 0.0
 
-    def to_summary(self) -> Dict[str, Any]:
+    def to_summary(self) -> dict[str, Any]:
         """生成可存储的摘要"""
         return {
             "trace_id": self.trace_id,
@@ -143,12 +147,12 @@ class TraceContext:
 
 
 # ===== 全局 ContextVar，线程/协程安全 =====
-_trace_var: ContextVar[Optional[TraceContext]] = ContextVar("_trace_var", default=None)
+_trace_var: ContextVar[TraceContext | None] = ContextVar("_trace_var", default=None)
 
 
 def start_trace(
-    user_id: Optional[str] = None,
-    conversation_id: Optional[str] = None,
+    user_id: str | None = None,
+    conversation_id: str | None = None,
 ) -> TraceContext:
     """创建并激活一个新的 trace"""
     trace = TraceContext(
@@ -161,12 +165,12 @@ def start_trace(
     return trace
 
 
-def current_trace() -> Optional[TraceContext]:
+def current_trace() -> TraceContext | None:
     """获取当前协程的 trace（可能为 None）"""
     return _trace_var.get()
 
 
-def end_trace() -> Optional[Dict[str, Any]]:
+def end_trace() -> dict[str, Any] | None:
     """结束当前 trace 并返回摘要"""
     trace = _trace_var.get()
     if trace:

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { ComponentProps } from 'react'
 import {
   View,
   Text,
@@ -22,31 +23,39 @@ type ConversationItem = {
   unread_count?: number
 }
 
-const fallbackTasks: TaskItem[] = [
-  { id: 'task-1', title: '更新合同审查意见', status: 'todo', priority: 'high', tags: ['合同'], dueDate: '今天 18:00' },
-  { id: 'task-2', title: '整理客户尽调材料', status: 'todo', priority: 'medium', tags: ['尽调'], dueDate: '明天 10:00' },
-]
+type IoniconsName = ComponentProps<typeof Ionicons>['name']
 
-const fallbackApprovals: ApprovalItem[] = [
-  { id: 'approval-1', title: '合同用印审批', type: 'contract', status: 'pending', priority: 1, created_at: '刚刚' },
-  { id: 'approval-2', title: '外部律师费用审批', type: 'expense', status: 'pending', priority: 2, created_at: '30 分钟前' },
-]
-
-const fallbackNotifications: NotificationItem[] = [
-  { id: 'notification-1', type: 'info', title: '新协作消息', message: '并购项目群有 2 条新消息', is_read: false, event_type: 'chat', created_at: '刚刚' },
-  { id: 'notification-2', type: 'warning', title: '审批即将超时', message: '合同用印审批距离 SLA 还有 2 小时', is_read: false, event_type: 'approval', created_at: '10 分钟前' },
-]
+function EmptySection({
+  icon,
+  title,
+  description,
+}: {
+  icon: IoniconsName
+  title: string
+  description: string
+}) {
+  return (
+    <View style={styles.emptyCard}>
+      <Ionicons name={icon} size={24} color={Colors.textMuted} />
+      <View style={styles.emptyTextGroup}>
+        <Text style={styles.emptyTitle}>{title}</Text>
+        <Text style={styles.emptyDescription}>{description}</Text>
+      </View>
+    </View>
+  )
+}
 
 export default function HomeScreen() {
-  const [tasks, setTasks] = useState<TaskItem[]>(fallbackTasks)
-  const [approvals, setApprovals] = useState<ApprovalItem[]>(fallbackApprovals)
-  const [notifications, setNotifications] = useState<NotificationItem[]>(fallbackNotifications)
+  const [tasks, setTasks] = useState<TaskItem[]>([])
+  const [approvals, setApprovals] = useState<ApprovalItem[]>([])
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [counts, setCounts] = useState({
-    tasks: fallbackTasks.length,
-    approvals: fallbackApprovals.length,
+    tasks: 0,
+    approvals: 0,
     messages: 0,
-    notifications: fallbackNotifications.length,
+    notifications: 0,
   })
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
@@ -63,31 +72,39 @@ export default function HomeScreen() {
         api.get<ConversationItem[]>('/im/conversations'),
       ])
 
-      const nextTasks = taskResult.status === 'fulfilled' && taskResult.value.items.length > 0
-        ? taskResult.value.items
-        : fallbackTasks
-      const nextApprovals = approvalResult.status === 'fulfilled' && approvalResult.value.items.length > 0
-        ? approvalResult.value.items
-        : fallbackApprovals
-      const nextNotifications = notificationResult.status === 'fulfilled' && notificationResult.value.data.length > 0
-        ? notificationResult.value.data
-        : fallbackNotifications
+      const nextTasks = taskResult.status === 'fulfilled'
+        ? taskResult.value.items ?? []
+        : []
+      const nextApprovals = approvalResult.status === 'fulfilled'
+        ? approvalResult.value.items ?? []
+        : []
+      const nextNotifications = notificationResult.status === 'fulfilled'
+        ? notificationResult.value.data ?? []
+        : []
       const unreadMessages = conversationResult.status === 'fulfilled'
         ? conversationResult.value.reduce((sum, item) => sum + (item.unread_count ?? 0), 0)
         : 0
       const unreadNotifications = unreadCountResult.status === 'fulfilled'
         ? unreadCountResult.value.count
-        : nextNotifications.length
+        : nextNotifications.filter((notification) => !notification.is_read).length
+      const hasPartialFailure = [
+        taskResult,
+        approvalResult,
+        notificationResult,
+        unreadCountResult,
+        conversationResult,
+      ].some((result) => result.status === 'rejected')
 
       setTasks(nextTasks)
       setApprovals(nextApprovals)
       setNotifications(nextNotifications)
       setCounts({
-        tasks: taskResult.status === 'fulfilled' ? taskResult.value.total : nextTasks.length,
-        approvals: approvalResult.status === 'fulfilled' ? approvalResult.value.total : nextApprovals.length,
+        tasks: taskResult.status === 'fulfilled' ? taskResult.value.total ?? nextTasks.length : 0,
+        approvals: approvalResult.status === 'fulfilled' ? approvalResult.value.total ?? nextApprovals.length : 0,
         messages: unreadMessages,
         notifications: unreadNotifications,
       })
+      setLoadError(hasPartialFailure ? '部分数据加载失败，下拉可重试。' : null)
     } finally {
       setRefreshing(false)
     }
@@ -155,96 +172,125 @@ export default function HomeScreen() {
           </View>
 
           <Text style={styles.sectionTitle}>待办任务</Text>
-          {tasks.map((task) => (
-            <TouchableOpacity
-              key={task.id}
-              style={styles.listCard}
-              onPress={() =>
-                router.push({
-                  pathname: '/tasks/[id]',
-                  params: {
-                    id: task.id,
-                    title: task.title,
-                    description: task.description,
-                    status: task.status,
-                    priority: task.priority,
-                    dueDate: task.dueDate,
-                    tags: task.tags.join('|'),
-                  },
-                })
-              }
-              activeOpacity={0.8}
-            >
-              <View style={styles.listHeader}>
-                <Text style={styles.listTitle} numberOfLines={1}>{task.title}</Text>
-                <View style={[styles.badge, task.priority === 'high' ? styles.badgeHigh : task.priority === 'medium' ? styles.badgeMedium : styles.badgeLow]}>
-                  <Text style={styles.badgeText}>
-                    {task.priority === 'high' ? '高优先级' : task.priority === 'medium' ? '中优先级' : '低优先级'}
+          {tasks.length === 0 ? (
+            <EmptySection
+              icon="checkbox-outline"
+              title="暂无待办任务"
+              description={loadError ?? '下拉可刷新。'}
+            />
+          ) : (
+            tasks.map((task) => {
+              const tags = task.tags ?? []
+              return (
+                <TouchableOpacity
+                  key={task.id}
+                  style={styles.listCard}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/tasks/[id]',
+                      params: {
+                        id: task.id,
+                        title: task.title,
+                        description: task.description,
+                        status: task.status,
+                        priority: task.priority,
+                        dueDate: task.dueDate,
+                        tags: tags.join('|'),
+                      },
+                    })
+                  }
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.listHeader}>
+                    <Text style={styles.listTitle} numberOfLines={1}>{task.title}</Text>
+                    <View style={[styles.badge, task.priority === 'high' ? styles.badgeHigh : task.priority === 'medium' ? styles.badgeMedium : styles.badgeLow]}>
+                      <Text style={styles.badgeText}>
+                        {task.priority === 'high' ? '高优先级' : task.priority === 'medium' ? '中优先级' : '低优先级'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.listMeta}>
+                    {tags.join(' · ') || '待处理任务'}{task.dueDate ? ` · 截止 ${task.dueDate}` : ''}
                   </Text>
-                </View>
-              </View>
-              <Text style={styles.listMeta}>{task.tags.join(' · ') || '待处理任务'}{task.dueDate ? ` · 截止 ${task.dueDate}` : ''}</Text>
-            </TouchableOpacity>
-          ))}
+                </TouchableOpacity>
+              )
+            })
+          )}
 
           <Text style={styles.sectionTitle}>待审批</Text>
-          {approvals.map((approval) => (
-            <TouchableOpacity
-              key={approval.id}
-              style={styles.listCard}
-              onPress={() =>
-                router.push({
-                  pathname: '/approvals/[id]',
-                  params: {
-                    id: approval.id,
-                    title: approval.title,
-                    type: approval.type,
-                    status: approval.status,
-                    description: approval.description,
-                  },
-                })
-              }
-              activeOpacity={0.8}
-            >
-              <View style={styles.listHeader}>
-                <Text style={styles.listTitle} numberOfLines={1}>{approval.title}</Text>
-                <View style={styles.badgeNeutral}>
-                  <Text style={styles.badgeNeutralText}>{approval.type}</Text>
+          {approvals.length === 0 ? (
+            <EmptySection
+              icon="git-compare-outline"
+              title="暂无待审批"
+              description={loadError ?? '下拉可刷新。'}
+            />
+          ) : (
+            approvals.map((approval) => (
+              <TouchableOpacity
+                key={approval.id}
+                style={styles.listCard}
+                onPress={() =>
+                  router.push({
+                    pathname: '/approvals/[id]',
+                    params: {
+                      id: approval.id,
+                      title: approval.title,
+                      type: approval.type,
+                      status: approval.status,
+                      description: approval.description,
+                    },
+                  })
+                }
+                activeOpacity={0.8}
+              >
+                <View style={styles.listHeader}>
+                  <Text style={styles.listTitle} numberOfLines={1}>{approval.title}</Text>
+                  <View style={styles.badgeNeutral}>
+                    <Text style={styles.badgeNeutralText}>{approval.type}</Text>
+                  </View>
                 </View>
-              </View>
-              <Text style={styles.listMeta}>
-                {approval.status === 'pending' ? '等待你处理' : approval.status}
-                {approval.created_at ? ` · ${approval.created_at}` : ''}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Text style={styles.listMeta}>
+                  {approval.status === 'pending' ? '等待你处理' : approval.status}
+                  {approval.created_at ? ` · ${approval.created_at}` : ''}
+                </Text>
+              </TouchableOpacity>
+            ))
+          )}
 
           <Text style={styles.sectionTitle}>最新通知</Text>
-          {notifications.map((notification) => (
-            <TouchableOpacity
-              key={notification.id}
-              style={styles.notificationCard}
-              onPress={() =>
-                router.push({
-                  pathname: '/notifications/[id]',
-                  params: {
-                    id: notification.id,
-                    title: notification.title,
-                    message: notification.message,
-                    event_type: notification.event_type,
-                    created_at: notification.created_at,
-                    is_read: notification.is_read ? '1' : '0',
-                    target: getNotificationTargetRoute(notification),
-                  },
-                })
-              }
-              activeOpacity={0.8}
-            >
-              <Text style={styles.notificationTitle}>{notification.title}</Text>
-              <Text style={styles.notificationMessage} numberOfLines={2}>{notification.message}</Text>
-              <Text style={styles.notificationTime}>{notification.created_at}</Text>
-            </TouchableOpacity>
-          ))}
+          {notifications.length === 0 ? (
+            <EmptySection
+              icon="notifications-outline"
+              title="暂无新通知"
+              description={loadError ?? '下拉可刷新。'}
+            />
+          ) : (
+            notifications.map((notification) => (
+              <TouchableOpacity
+                key={notification.id}
+                style={styles.notificationCard}
+                onPress={() =>
+                  router.push({
+                    pathname: '/notifications/[id]',
+                    params: {
+                      id: notification.id,
+                      title: notification.title,
+                      message: notification.message,
+                      event_type: notification.event_type,
+                      created_at: notification.created_at,
+                      is_read: notification.is_read ? '1' : '0',
+                      target: getNotificationTargetRoute(notification),
+                    },
+                  })
+                }
+                activeOpacity={0.8}
+              >
+                <Text style={styles.notificationTitle}>{notification.title}</Text>
+                <Text style={styles.notificationMessage} numberOfLines={2}>{notification.message}</Text>
+                <Text style={styles.notificationTime}>{notification.created_at}</Text>
+              </TouchableOpacity>
+            ))
+          )}
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -353,6 +399,28 @@ const styles = StyleSheet.create({
     borderRadius: Layout.borderRadius.md,
     padding: Layout.spacing.md,
     marginBottom: Layout.spacing.sm,
+  },
+  emptyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Layout.spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Layout.borderRadius.md,
+    padding: Layout.spacing.md,
+    marginBottom: Layout.spacing.sm,
+  },
+  emptyTextGroup: {
+    flex: 1,
+  },
+  emptyTitle: {
+    fontSize: Layout.fontSize.md,
+    color: Colors.text,
+    fontWeight: '600',
+  },
+  emptyDescription: {
+    marginTop: 2,
+    fontSize: Layout.fontSize.sm,
+    color: Colors.textSecondary,
   },
   listHeader: {
     flexDirection: 'row',

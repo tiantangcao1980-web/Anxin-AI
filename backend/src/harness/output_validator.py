@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 输出质量校验引擎
 
@@ -13,7 +12,7 @@
 import re
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -32,14 +31,14 @@ class ValidationIssue:
     check_name: str
     level: ValidationLevel
     message: str
-    detail: Optional[str] = None
+    detail: str | None = None
 
 
 @dataclass
 class ValidationResult:
     """校验结果"""
     passed: bool
-    issues: List[ValidationIssue] = field(default_factory=list)
+    issues: list[ValidationIssue] = field(default_factory=list)
     score: float = 1.0  # 0.0-1.0 质量分
 
     @property
@@ -51,10 +50,10 @@ class ValidationResult:
         return any(i.level == ValidationLevel.FAIL for i in self.issues)
 
     @property
-    def warnings(self) -> List[ValidationIssue]:
+    def warnings(self) -> list[ValidationIssue]:
         return [i for i in self.issues if i.level == ValidationLevel.WARNING]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "passed": self.passed,
             "score": round(self.score, 2),
@@ -84,9 +83,9 @@ class OutputValidator:
 
     # validate() 方法定义在文件末尾（增强版，含场景化检查）
 
-    def _check_structure(self, text: str) -> List[ValidationIssue]:
+    def _check_structure(self, text: str) -> list[ValidationIssue]:
         """结构校验"""
-        issues = []
+        issues: list[ValidationIssue] = []
 
         if not text or not text.strip():
             issues.append(ValidationIssue(
@@ -120,9 +119,9 @@ class OutputValidator:
 
         return issues
 
-    async def _check_citations(self, text: str) -> List[ValidationIssue]:
+    async def _check_citations(self, text: str) -> list[ValidationIssue]:
         """引用核查：检测法条引用的真实性"""
-        issues = []
+        issues: list[ValidationIssue] = []
 
         law_refs = _LAW_CITATION_RE.findall(text)
         article_refs = _ARTICLE_RE.findall(text)
@@ -130,6 +129,12 @@ class OutputValidator:
         if not law_refs:
             # 法律回复没有引用不一定是错误，但值得关注
             return issues
+        if not article_refs:
+            issues.append(ValidationIssue(
+                check_name="citation.missing_article",
+                level=ValidationLevel.WARNING,
+                message="检测到法律名称引用，但未检测到具体条文编号",
+            ))
 
         # 基础校验：引用的法律名称是否看起来合理
         suspicious_laws = []
@@ -168,11 +173,13 @@ class OutputValidator:
         try:
             from src.services.vector_store import VectorStoreService
             vs = VectorStoreService()
+            if not await vs.get_collection_info("legal_knowledge"):
+                return issues
             for law_name in law_refs[:5]:  # 最多校验 5 条，控制延迟
                 results = await vs.search(
                     query=law_name,
                     collection_name="legal_knowledge",
-                    limit=1,
+                    top_k=1,
                     score_threshold=0.85,
                 )
                 if not results:
@@ -180,14 +187,14 @@ class OutputValidator:
                         check_name="citation.not_found_in_kb",
                         level=ValidationLevel.WARNING,
                         message=f"法律《{law_name}》未在知识库中找到匹配",
-                        detail=f"建议确认该法律名称是否准确",
+                        detail="建议确认该法律名称是否准确",
                     ))
         except Exception as e:
             logger.debug(f"引用向量库校验跳过: {e}")
 
         return issues
 
-    def _check_relevance(self, response: str, query: str) -> List[ValidationIssue]:
+    def _check_relevance(self, response: str, query: str) -> list[ValidationIssue]:
         """相关性检测：回答是否偏离问题"""
         issues = []
 
@@ -216,7 +223,7 @@ class OutputValidator:
 
         return issues
 
-    def _check_risk_content(self, text: str, route: str) -> List[ValidationIssue]:
+    def _check_risk_content(self, text: str, route: str) -> list[ValidationIssue]:
         """风险内容检测"""
         issues = []
 
@@ -246,9 +253,9 @@ class OutputValidator:
 
         return issues
 
-    def _check_document_completeness(self, text: str, route: str) -> List[ValidationIssue]:
+    def _check_document_completeness(self, text: str, route: str) -> list[ValidationIssue]:
         """文书起草场景：检查输出是否包含法定格式要素"""
-        issues = []
+        issues: list[ValidationIssue] = []
         if route not in ("document_drafting", "DOCUMENT_DRAFTING"):
             return issues
 
@@ -275,9 +282,9 @@ class OutputValidator:
 
         return issues
 
-    def _check_case_analysis_quality(self, text: str, route: str) -> List[ValidationIssue]:
+    def _check_case_analysis_quality(self, text: str, route: str) -> list[ValidationIssue]:
         """案件分析场景：检查报告是否包含法律依据、证据评估、风险评估"""
-        issues = []
+        issues: list[ValidationIssue] = []
         # 对分析类路由生效
         analysis_routes = (
             "general", "LABOR_HR", "DEBT_COLLECTION", "LITIGATION_STRATEGY",
@@ -307,7 +314,7 @@ class OutputValidator:
                 check_name="analysis.low_quality",
                 level=ValidationLevel.WARNING,
                 message=f"分析报告质量不足，缺少: {', '.join(missing)}",
-                detail=f"高质量的法律分析应包含法律依据引用、风险评估和行动建议",
+                detail="高质量的法律分析应包含法律依据引用、风险评估和行动建议",
             ))
 
         return issues
@@ -322,7 +329,7 @@ class OutputValidator:
         """
         执行全部校验（增强版，含场景化检查）
         """
-        issues: List[ValidationIssue] = []
+        issues: list[ValidationIssue] = []
         score = 1.0
 
         # 1. 结构校验

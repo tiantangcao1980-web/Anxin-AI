@@ -1,28 +1,32 @@
 """协作编辑API路由（包含WebSocket）"""
 
-from datetime import datetime
-from typing import Optional, Dict, List, Any
-from fastapi import APIRouter, HTTPException, Query, Depends, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from loguru import logger
-from starlette.websockets import WebSocketState
-import json
 import asyncio
-from uuid import uuid4
+from datetime import datetime
+from typing import Any
 
-from src.core.responses import UnifiedResponse
-from src.core.database import get_db, async_session_maker
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
+from loguru import logger
+from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
+from starlette.websockets import WebSocketState
+
+from src.core.database import async_session_maker, get_db
 from src.core.deps import get_current_user_required
+from src.core.responses import UnifiedResponse
 from src.core.security import verify_token, verify_token_with_blacklist
-from src.models.user import User
 from src.models.collaboration import (
-    DocumentSession, DocumentCollaborator, DocumentEdit, DocumentSnapshot,
-    SessionStatus, CollaboratorRole, EditOperation
+    CollaboratorRole,
+    DocumentCollaborator,
+    DocumentEdit,
+    DocumentSession,
+    DocumentSnapshot,
+    EditOperation,
+    SessionStatus,
 )
 from src.models.document import Document
-
+from src.models.user import User
 from src.services.collaboration_service import CollaborationService
 
 router = APIRouter()
@@ -36,15 +40,15 @@ class ConnectionManager:
     MAX_CONNECTIONS_PER_SESSION = 20
     HEARTBEAT_TIMEOUT = 30  # 秒
 
-    def __init__(self):
+    def __init__(self) -> None:
         # session_id -> {user_id: websocket}
-        self.active_connections: Dict[str, Dict[str, WebSocket]] = {}
+        self.active_connections: dict[str, dict[str, WebSocket]] = {}
         # session_id -> {user_id: collaborator_info}
-        self.collaborators: Dict[str, Dict[str, dict]] = {}
+        self.collaborators: dict[str, dict[str, dict[str, Any]]] = {}
         # session_id -> {user_id: last_active_time}
-        self._last_active: Dict[str, Dict[str, datetime]] = {}
+        self._last_active: dict[str, dict[str, datetime]] = {}
         # session_id -> 最近编辑记录缓存（用于断线重连补发）
-        self._edit_history: Dict[str, List[dict]] = {}
+        self._edit_history: dict[str, list[dict[str, Any]]] = {}
         # 编辑历史最大保留条数
         self._max_edit_history = 200
 
@@ -53,8 +57,8 @@ class ConnectionManager:
         websocket: WebSocket,
         session_id: str,
         user_id: str,
-        user_info: dict
-    ):
+        user_info: dict[str, Any],
+    ) -> None:
         """接受WebSocket连接"""
         # 连接数限制检查
         current_count = self.get_active_count(session_id)
@@ -79,8 +83,8 @@ class ConnectionManager:
         self._last_active.setdefault(session_id, {})[user_id] = datetime.now()
 
         logger.info(f"用户 {user_id} 加入协作会话 {session_id}")
-    
-    def disconnect(self, session_id: str, user_id: str):
+
+    def disconnect(self, session_id: str, user_id: str) -> None:
         """断开WebSocket连接"""
         if session_id in self.active_connections:
             if user_id in self.active_connections[session_id]:
@@ -100,17 +104,17 @@ class ConnectionManager:
                 # 编辑历史保留一段时间，不立即清理
 
         logger.info(f"用户 {user_id} 离开协作会话 {session_id}")
-    
+
     async def broadcast(
         self,
         session_id: str,
-        message: dict,
-        exclude_user: Optional[str] = None
-    ):
+        message: dict[str, Any],
+        exclude_user: str | None = None
+    ) -> None:
         """广播消息给会话中的所有用户"""
         if session_id not in self.active_connections:
             return
-        
+
         disconnected = []
         for user_id, websocket in self.active_connections[session_id].items():
             if exclude_user and user_id == exclude_user:
@@ -120,12 +124,14 @@ class ConnectionManager:
             except Exception as e:
                 logger.error(f"发送消息失败: {e}")
                 disconnected.append(user_id)
-        
+
         # 清理断开的连接
         for user_id in disconnected:
             self.disconnect(session_id, user_id)
-    
-    async def send_personal(self, session_id: str, user_id: str, message: dict):
+
+    async def send_personal(
+        self, session_id: str, user_id: str, message: dict[str, Any]
+    ) -> None:
         """发送消息给特定用户"""
         if session_id in self.active_connections:
             if user_id in self.active_connections[session_id]:
@@ -134,24 +140,24 @@ class ConnectionManager:
                 except Exception as e:
                     logger.error(f"发送消息失败: {e}")
                     self.disconnect(session_id, user_id)
-    
-    def get_collaborators(self, session_id: str) -> List[dict]:
+
+    def get_collaborators(self, session_id: str) -> list[dict[str, Any]]:
         """获取会话中的所有协作者"""
         if session_id in self.collaborators:
             return list(self.collaborators[session_id].values())
         return []
-    
+
     def get_active_count(self, session_id: str) -> int:
         """获取会话中的活跃连接数"""
         if session_id in self.active_connections:
             return len(self.active_connections[session_id])
         return 0
 
-    def touch(self, session_id: str, user_id: str):
+    def touch(self, session_id: str, user_id: str) -> None:
         """更新用户最后活跃时间（心跳）"""
         self._last_active.setdefault(session_id, {})[user_id] = datetime.now()
 
-    async def check_heartbeat_timeout(self, session_id: str):
+    async def check_heartbeat_timeout(self, session_id: str) -> None:
         """检查心跳超时，断开超时连接"""
         now = datetime.now()
         if session_id not in self._last_active:
@@ -173,7 +179,7 @@ class ConnectionManager:
                 }
             )
 
-    def record_edit(self, session_id: str, edit_message: dict):
+    def record_edit(self, session_id: str, edit_message: dict[str, Any]) -> None:
         """记录编辑消息到历史（用于断线重连补发）"""
         if session_id not in self._edit_history:
             self._edit_history[session_id] = []
@@ -182,7 +188,9 @@ class ConnectionManager:
         if len(self._edit_history[session_id]) > self._max_edit_history:
             self._edit_history[session_id] = self._edit_history[session_id][-self._max_edit_history:]
 
-    def get_missed_edits(self, session_id: str, from_version: int) -> List[dict]:
+    def get_missed_edits(
+        self, session_id: str, from_version: int
+    ) -> list[dict[str, Any]]:
         """获取断线重连后的遗漏编辑（从 from_version 开始）"""
         history = self._edit_history.get(session_id, [])
         return [e for e in history if e.get("version", 0) > from_version]
@@ -196,7 +204,7 @@ async def _get_session_access(
     db: AsyncSession,
     session_id: str,
     user_id: str,
-) -> tuple[Optional[DocumentSession], Optional[DocumentCollaborator]]:
+) -> tuple[DocumentSession | None, DocumentCollaborator | None]:
     """加载会话并校验当前用户是否为协作者或创建者。"""
     result = await db.execute(
         select(DocumentSession).where(DocumentSession.id == session_id)
@@ -227,7 +235,7 @@ async def _get_session_access(
 class SessionCreate(BaseModel):
     """创建协作会话"""
     document_id: str
-    name: Optional[str] = None
+    name: str | None = None
     max_collaborators: int = 10
     allow_anonymous: bool = False
 
@@ -236,7 +244,7 @@ class SessionResponse(BaseModel):
     """协作会话响应"""
     id: str
     document_id: str
-    name: Optional[str] = None
+    name: str | None = None
     status: str
     current_version: int
     active_collaborators: int
@@ -248,7 +256,7 @@ class SessionResponse(BaseModel):
 
 class SessionListResponse(BaseModel):
     """协作会话列表响应"""
-    items: List[SessionResponse]
+    items: list[SessionResponse]
     total: int
     page: int
     page_size: int
@@ -257,21 +265,21 @@ class SessionListResponse(BaseModel):
 class CollaboratorResponse(BaseModel):
     """协作者响应"""
     id: str
-    user_id: Optional[str] = None
-    nickname: Optional[str] = None
+    user_id: str | None = None
+    nickname: str | None = None
     role: str
     is_online: bool
-    color: Optional[str] = None
-    cursor_position: Optional[dict] = None
+    color: str | None = None
+    cursor_position: dict[str, Any] | None = None
     last_seen_at: datetime
 
 
 class EditRecord(BaseModel):
     """编辑记录"""
     operation: str  # insert, delete, replace, format
-    position: dict  # {start, end, line, column}
-    content: Optional[str] = None
-    old_content: Optional[str] = None
+    position: dict[str, Any]  # {start, end, line, column}
+    content: str | None = None
+    old_content: str | None = None
 
 
 # ============ 协作会话路由 ============
@@ -281,7 +289,7 @@ async def create_session(
     request: SessionCreate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """创建协作会话"""
     # 检查文档是否存在
     doc_result = await db.execute(
@@ -292,7 +300,7 @@ async def create_session(
         return UnifiedResponse.error(code=404, message="文档不存在")
     if document.org_id and str(document.org_id) != str(user.org_id):
         return UnifiedResponse.error(code=403, message="无权为该文档创建协作会话")
-    
+
     # 创建会话
     session = DocumentSession(
         document_id=request.document_id,
@@ -303,10 +311,10 @@ async def create_session(
         base_content=document.content if hasattr(document, 'content') else None,
         current_content=document.content if hasattr(document, 'content') else None,
     )
-    
+
     db.add(session)
     await db.flush()
-    
+
     # 创建者自动成为协作者
     if user:
         collaborator = DocumentCollaborator(
@@ -318,7 +326,7 @@ async def create_session(
         )
         db.add(collaborator)
         await db.flush()
-    
+
     data = SessionResponse(
         id=session.id,
         document_id=session.document_id,
@@ -346,7 +354,7 @@ async def commit_session_version(
     request: CommitRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """提交并创建一个新的文档版本"""
     session, collaborator = await _get_session_access(db, session_id, str(user.id))
     if not session:
@@ -362,14 +370,14 @@ async def commit_session_version(
     )
     if not result.get("success"):
         return UnifiedResponse.error(message=result.get("error", "提交失败"))
-    
+
     # 广播版本更新
     await manager.broadcast(session_id, {
         "type": "version_committed",
         "version": result["version"],
         "message": request.message
     })
-    
+
     return UnifiedResponse.success(data=result)
 
 
@@ -377,7 +385,7 @@ async def commit_session_version(
 async def get_collaboration_config(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取协作系统配置（如 Docmost 地址）"""
     service = CollaborationService(db)
     config = await service.get_docmost_config()
@@ -386,19 +394,19 @@ async def get_collaboration_config(
 
 @router.get("/sessions", response_model=UnifiedResponse)
 async def list_sessions(
-    document_id: Optional[str] = None,
-    status: Optional[str] = None,
+    document_id: str | None = None,
+    status: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取协作会话列表"""
-    from sqlalchemy import func, and_
-    
+    from sqlalchemy import and_, func
+
     query = select(DocumentSession)
     count_query = select(func.count(DocumentSession.id))
-    
+
     membership_subquery = (
         select(DocumentCollaborator.session_id)
         .where(
@@ -407,29 +415,29 @@ async def list_sessions(
         )
     )
 
-    conditions = [
+    conditions: list[ColumnElement[bool]] = [
         (DocumentSession.created_by == user.id) | (DocumentSession.id.in_(membership_subquery))
     ]
     if document_id:
         conditions.append(DocumentSession.document_id == document_id)
     if status:
         conditions.append(DocumentSession.status == SessionStatus(status))
-    
+
     if conditions:
         query = query.where(and_(*conditions))
         count_query = count_query.where(and_(*conditions))
-    
+
     # 总数
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
-    
+
     # 分页
     query = query.order_by(DocumentSession.created_at.desc())
     query = query.offset((page - 1) * page_size).limit(page_size)
-    
+
     result = await db.execute(query)
     sessions = list(result.scalars().all())
-    
+
     data = SessionListResponse(
         items=[
             SessionResponse(
@@ -458,15 +466,15 @@ async def get_session(
     session_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取协作会话详情"""
     session, collaborator = await _get_session_access(db, session_id, str(user.id))
-    
+
     if not session:
         return UnifiedResponse.error(code=404, message="协作会话不存在")
     if collaborator is None and str(session.created_by) != str(user.id):
         return UnifiedResponse.error(code=403, message="您不是该协作会话的成员")
-    
+
     data = SessionResponse(
         id=session.id,
         document_id=session.document_id,
@@ -487,7 +495,7 @@ async def close_session(
     session_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """关闭协作会话（仅 owner 可操作）"""
     result = await db.execute(
         select(DocumentSession).where(DocumentSession.id == session_id)
@@ -511,13 +519,13 @@ async def close_session(
     session.status = SessionStatus.CLOSED
     session.ended_at = datetime.now()
     await db.flush()
-    
+
     # 通知所有协作者会话已关闭
     await manager.broadcast(session_id, {
         "type": "session_closed",
         "message": "协作会话已关闭"
     })
-    
+
     return UnifiedResponse.success(message="协作会话已关闭")
 
 
@@ -526,7 +534,7 @@ async def get_collaborators(
     session_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取会话中的协作者列表"""
     session, collaborator = await _get_session_access(db, session_id, str(user.id))
     if not session:
@@ -540,11 +548,11 @@ async def get_collaborators(
         )
     )
     collaborators = list(result.scalars().all())
-    
+
     # 更新在线状态
     online_users = manager.get_collaborators(session_id)
     online_user_ids = [c.get("user_id") for c in online_users]
-    
+
     data = [
         CollaboratorResponse(
             id=c.id,
@@ -565,7 +573,7 @@ class AddCollaboratorRequest(BaseModel):
     """添加协作者请求"""
     user_id: str
     role: str = "editor"  # owner | editor | viewer | commenter
-    nickname: Optional[str] = None
+    nickname: str | None = None
 
 
 class UpdateCollaboratorRoleRequest(BaseModel):
@@ -579,7 +587,7 @@ async def add_collaborator(
     request: AddCollaboratorRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """添加协作者（仅 owner 可操作）"""
     # 权限检查
     owner_result = await db.execute(
@@ -630,7 +638,7 @@ async def remove_collaborator(
     collaborator_user_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """移除协作者（仅 owner 可操作）"""
     # 权限检查
     owner_result = await db.execute(
@@ -680,7 +688,7 @@ async def update_collaborator_role(
     request: UpdateCollaboratorRoleRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """更新协作者角色（仅 owner 可操作）"""
     owner_result = await db.execute(
         select(DocumentCollaborator).where(
@@ -735,7 +743,7 @@ async def update_collaborator_role(
 class SnapshotCreateRequest(BaseModel):
     """创建快照请求"""
     content: str
-    description: Optional[str] = None
+    description: str | None = None
 
 
 @router.post("/sessions/{session_id}/snapshots", response_model=UnifiedResponse)
@@ -744,7 +752,7 @@ async def create_snapshot(
     request: SnapshotCreateRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """创建手动快照"""
     session, collaborator = await _get_session_access(db, session_id, str(user.id))
     if not session:
@@ -771,7 +779,7 @@ async def list_snapshots(
     limit: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取快照列表"""
     session, collaborator = await _get_session_access(db, session_id, str(user.id))
     if not session:
@@ -795,7 +803,7 @@ async def restore_snapshot(
     snapshot_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """回滚到某版本"""
     session, collaborator = await _get_session_access(db, session_id, str(user.id))
     if not session:
@@ -821,7 +829,7 @@ async def diff_snapshots(
     snapshot_b: str = Query(..., description="快照B的ID"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """版本对比"""
     session, collaborator = await _get_session_access(db, session_id, str(user.id))
     if not session:
@@ -845,7 +853,7 @@ async def diff_snapshots(
 async def websocket_collaboration(
     websocket: WebSocket,
     session_id: str,
-):
+) -> None:
     """协作编辑WebSocket端点"""
     await websocket.accept()
 
@@ -872,7 +880,7 @@ async def websocket_collaboration(
     if not verified_user_id:
         await websocket.close(code=4001, reason="认证失败")
         return
-    
+
     # 验证会话
     async with async_session_maker() as db:
         session, collaborator = await _get_session_access(db, session_id, str(verified_user_id))
@@ -882,16 +890,16 @@ async def websocket_collaboration(
         if collaborator is None and str(session.created_by) != str(verified_user_id):
             await websocket.close(code=4003, reason="无权加入该协作会话")
             return
-        
+
         if session.status != SessionStatus.ACTIVE:
             await websocket.close(code=4001, reason="协作会话已关闭")
             return
-        
+
         # 检查协作者数量限制
         if manager.get_active_count(session_id) >= session.max_collaborators:
             await websocket.close(code=4002, reason="协作者数量已达上限")
             return
-        
+
         # 创建或更新协作者记录
         user_result = await db.execute(
             select(User).where(User.id == verified_user_id, User.is_active == True)
@@ -921,7 +929,7 @@ async def websocket_collaboration(
         collaborator.last_seen_at = datetime.now()
         await db.commit()
         collaborator_id = collaborator.id
-    
+
     # 连接WebSocket
     await manager.connect(
         websocket=websocket,
@@ -934,7 +942,7 @@ async def websocket_collaboration(
             "collaborator_id": collaborator_id,
         }
     )
-    
+
     # 广播用户加入
     await manager.broadcast(
         session_id=session_id,
@@ -947,14 +955,14 @@ async def websocket_collaboration(
         },
         exclude_user=user_id
     )
-    
+
     # 发送初始状态给新加入的用户
     async with async_session_maker() as db:
         result = await db.execute(
             select(DocumentSession).where(DocumentSession.id == session_id)
         )
         session = result.scalar_one_or_none()
-        
+
         await manager.send_personal(
             session_id=session_id,
             user_id=user_id,
@@ -965,7 +973,7 @@ async def websocket_collaboration(
                 "collaborators": manager.get_collaborators(session_id),
             }
         )
-    
+
     try:
         while True:
             # 接收消息
@@ -1014,21 +1022,21 @@ async def websocket_collaboration(
     finally:
         # 断开连接
         manager.disconnect(session_id, user_id)
-        
+
         # 更新协作者状态
         async with async_session_maker() as db:
-            result = await db.execute(
+            collab_result = await db.execute(
                 select(DocumentCollaborator).where(
                     DocumentCollaborator.session_id == session_id,
                     DocumentCollaborator.user_id == user_id
                 )
             )
-            collaborator = result.scalar_one_or_none()
-            if collaborator:
-                collaborator.is_online = False
-                collaborator.left_at = datetime.now()
+            disconnected_collaborator = collab_result.scalar_one_or_none()
+            if disconnected_collaborator:
+                disconnected_collaborator.is_online = False
+                disconnected_collaborator.left_at = datetime.now()
                 await db.commit()
-        
+
         # 广播用户离开
         await manager.broadcast(
             session_id=session_id,
@@ -1040,7 +1048,9 @@ async def websocket_collaboration(
         )
 
 
-async def _handle_edit(session_id: str, user_id: str, data: dict):
+async def _handle_edit(
+    session_id: str, user_id: str, data: dict[str, Any]
+) -> None:
     """处理编辑操作 -- 使用乐观锁"""
     operation = data.get("operation", "insert")
     position = data.get("position", {})
@@ -1146,10 +1156,12 @@ async def _handle_edit(session_id: str, user_id: str, data: dict):
     )
 
 
-async def _handle_cursor(session_id: str, user_id: str, data: dict):
+async def _handle_cursor(
+    session_id: str, user_id: str, data: dict[str, Any]
+) -> None:
     """处理光标移动"""
     cursor_position = data.get("position", {})
-    
+
     async with async_session_maker() as db:
         result = await db.execute(
             select(DocumentCollaborator).where(
@@ -1162,7 +1174,7 @@ async def _handle_cursor(session_id: str, user_id: str, data: dict):
             collaborator.cursor_position = cursor_position
             collaborator.last_seen_at = datetime.now()
             await db.commit()
-    
+
     # 广播光标位置给其他协作者
     await manager.broadcast(
         session_id=session_id,

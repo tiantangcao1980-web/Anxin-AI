@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Agent Forum — 多 Agent 辩论论坛引擎
 
@@ -16,12 +15,13 @@ Agent Forum — 多 Agent 辩论论坛引擎
 4. 后续建议 — 形成行动方案
 """
 
-import asyncio
 import json
 import re
-from typing import AsyncGenerator, Dict, Any, List, Optional, Tuple
-from datetime import datetime
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any, Protocol, TypedDict, cast
+
 from loguru import logger
 
 
@@ -33,11 +33,11 @@ class AgentSpeech:
     content: str
     dimension: str
     confidence: float
-    key_findings: List[str] = field(default_factory=list)
+    key_findings: list[str] = field(default_factory=list)
     risk_level: str = "unknown"
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_name": self.agent_name,
             "agent_role": self.agent_role,
@@ -54,12 +54,12 @@ class AgentSpeech:
 class DebateConflict:
     """辩论冲突"""
     topic: str
-    agents_involved: List[str]
-    positions: Dict[str, str]
+    agents_involved: list[str]
+    positions: dict[str, str]
     resolved: bool = False
     resolution: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "topic": self.topic,
             "agents_involved": self.agents_involved,
@@ -74,15 +74,15 @@ class ForumConsensus:
     """论坛共识结论"""
     risk_level: str
     confidence: float
-    key_conclusions: List[str]
+    key_conclusions: list[str]
     debate_summary: str
-    action_items: List[str]
-    agents_participated: List[str]
+    action_items: list[str]
+    agents_participated: list[str]
     conflicts_count: int
     conflicts_resolved: int
-    dimensions_covered: List[str]
+    dimensions_covered: list[str]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "risk_level": self.risk_level,
             "confidence": self.confidence,
@@ -98,7 +98,14 @@ class ForumConsensus:
 
 # ===== Agent 角色定义 =====
 
-FORUM_AGENTS = [
+class ForumAgentDefinition(TypedDict):
+    name: str
+    role: str
+    focus: str
+    dimensions: list[str]
+
+
+FORUM_AGENTS: list[ForumAgentDefinition] = [
     {
         "name": "due_diligence_expert",
         "role": "尽职调查专家",
@@ -126,6 +133,15 @@ FORUM_AGENTS = [
 ]
 
 
+class ForumChatAgent(Protocol):
+    async def chat(
+        self,
+        message: str,
+        system_prompt_override: str | None = None,
+        **kwargs: Any,
+    ) -> str: ...
+
+
 class AgentForum:
     """
     多 Agent 辩论论坛
@@ -140,20 +156,20 @@ class AgentForum:
 
     MAX_DEBATE_ROUNDS = 2  # 最大辩论轮次
 
-    def __init__(self):
-        self._llm_agent = None
+    def __init__(self) -> None:
+        self._llm_agent: ForumChatAgent | None = None
 
     @property
-    def llm_agent(self):
+    def llm_agent(self) -> ForumChatAgent | None:
         if self._llm_agent is None:
             try:
                 from src.agents.workforce import get_workforce
                 wf = get_workforce()
-                self._llm_agent = (
+                self._llm_agent = cast(ForumChatAgent | None, (
                     wf.agents.get("due_diligence")
                     or wf.agents.get("legal_advisor")
                     or (list(wf.agents.values())[0] if wf.agents else None)
-                )
+                ))
             except Exception as e:
                 logger.warning(f"无法加载 LLM Agent: {e}")
         return self._llm_agent
@@ -161,9 +177,9 @@ class AgentForum:
     async def run_forum_stream(
         self,
         company_name: str,
-        investigation_data: Dict[str, Any],
+        investigation_data: dict[str, Any],
         research_summary: str = "",
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """
         流式运行论坛辩论
 
@@ -179,8 +195,8 @@ class AgentForum:
         - consensus_reached: 达成共识
         - forum_done: 论坛结束
         """
-        speeches: List[AgentSpeech] = []
-        conflicts: List[DebateConflict] = []
+        speeches: list[AgentSpeech] = []
+        conflicts: list[DebateConflict] = []
 
         yield {
             "type": "forum_start",
@@ -283,9 +299,9 @@ class AgentForum:
 
     async def _get_agent_speech(
         self,
-        agent_def: Dict,
+        agent_def: ForumAgentDefinition,
         company_name: str,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         research_summary: str,
     ) -> AgentSpeech:
         """获取单个 Agent 的发言"""
@@ -358,9 +374,9 @@ class AgentForum:
     async def _host_synthesize(
         self,
         company_name: str,
-        speeches: List[AgentSpeech],
-        data: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        speeches: list[AgentSpeech],
+        data: dict[str, Any],
+    ) -> dict[str, Any]:
         """主持人综合分析：整合观点，识别矛盾"""
         agent = self.llm_agent
         if not agent:
@@ -431,8 +447,8 @@ class AgentForum:
         self,
         conflict: DebateConflict,
         company_name: str,
-        speeches: List[AgentSpeech],
-        data: Dict[str, Any],
+        speeches: list[AgentSpeech],
+        data: dict[str, Any],
     ) -> str:
         """解决特定冲突"""
         agent = self.llm_agent
@@ -463,9 +479,9 @@ class AgentForum:
     async def _reach_consensus(
         self,
         company_name: str,
-        speeches: List[AgentSpeech],
-        conflicts: List[DebateConflict],
-        data: Dict[str, Any],
+        speeches: list[AgentSpeech],
+        conflicts: list[DebateConflict],
+        data: dict[str, Any],
         research_summary: str,
     ) -> ForumConsensus:
         """达成最终共识"""

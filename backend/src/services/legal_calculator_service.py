@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 法律计算器服务 — 精确法律数值计算
 
@@ -15,14 +14,15 @@ P0 能力：
 - 区分城市/地区差异（最低工资、社平工资）
 """
 
-from typing import Dict, Any, Optional, List
-from datetime import datetime, date, timedelta
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import date, datetime
+from typing import Any
+
 from loguru import logger
 
-
 # ========== 2024-2025 年各主要城市最低工资标准（月，元） ==========
-MINIMUM_WAGE: Dict[str, int] = {
+MINIMUM_WAGE: dict[str, int] = {
     "北京": 2420, "上海": 2690, "深圳": 2360, "广州": 2300,
     "杭州": 2280, "南京": 2280, "苏州": 2280, "成都": 2100,
     "武汉": 2010, "重庆": 2100, "天津": 2180, "西安": 2160,
@@ -36,7 +36,7 @@ MINIMUM_WAGE: Dict[str, int] = {
 }
 
 # ========== 2023-2024 年各主要城市社平工资（月，元） ==========
-AVERAGE_WAGE: Dict[str, int] = {
+AVERAGE_WAGE: dict[str, int] = {
     "北京": 13930, "上海": 13050, "深圳": 13730, "广州": 12100,
     "杭州": 11600, "南京": 11500, "苏州": 11200, "成都": 9500,
     "武汉": 9600, "重庆": 9100, "天津": 10200, "西安": 9200,
@@ -51,13 +51,13 @@ class CalculationResult:
     """计算结果"""
     calculator_name: str
     total_amount: float
-    breakdown: List[Dict[str, Any]] = field(default_factory=list)
-    legal_basis: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
-    notes: List[str] = field(default_factory=list)
-    raw_params: Dict[str, Any] = field(default_factory=dict)
+    breakdown: list[dict[str, Any]] = field(default_factory=list)
+    legal_basis: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
+    raw_params: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "calculator": self.calculator_name,
             "total_amount": round(self.total_amount, 2),
@@ -240,7 +240,8 @@ class LegalCalculatorService:
             is_simplified: 是否适用简易程序（减半）
             is_appeal: 是否二审（按一审标准收取）
         """
-        breakdown = []
+        breakdown: list[dict[str, Any]] = []
+        fee: float
         legal_basis = [
             "《诉讼费用交纳办法》（国务院令第481号）"
         ]
@@ -339,7 +340,7 @@ class LegalCalculatorService:
         cause_of_action: str,
         trigger_date: str,
         is_interrupted: bool = False,
-        interruption_date: Optional[str] = None,
+        interruption_date: str | None = None,
     ) -> CalculationResult:
         """
         诉讼时效计算
@@ -360,7 +361,7 @@ class LegalCalculatorService:
             interruption_date: 中断日期 (YYYY-MM-DD)
         """
         # 案由 → (时效年数, 法条依据)
-        SOL_MAP = {
+        sol_map = {
             "general": (3, "《民法典》第一百八十八条：向人民法院请求保护民事权利的诉讼时效期间为三年"),
             "labor_arbitration": (1, "《劳动争议调解仲裁法》第二十七条：劳动争议申请仲裁的时效期间为一年"),
             "personal_injury": (3, "《民法典》第一百八十八条：人身损害赔偿诉讼时效为三年（原《民法通则》1年已废止）"),
@@ -371,7 +372,7 @@ class LegalCalculatorService:
             "insurance": (2, "《保险法》第二十六条：人寿保险5年，其他保险2年"),
         }
 
-        years, basis = SOL_MAP.get(cause_of_action, SOL_MAP["general"])
+        years, basis = sol_map.get(cause_of_action, sol_map["general"])
 
         try:
             trigger = datetime.strptime(trigger_date, "%Y-%m-%d").date()
@@ -504,7 +505,7 @@ class LegalCalculatorService:
         disability_level: int,
         monthly_salary: float,
         city: str = "默认",
-        age: Optional[int] = None,
+        age: int | None = None,
     ) -> CalculationResult:
         """
         工伤赔偿计算（一次性伤残补助金 + 一次性工伤医疗补助金 + 一次性伤残就业补助金）
@@ -518,19 +519,19 @@ class LegalCalculatorService:
         avg_wage = AVERAGE_WAGE.get(city, AVERAGE_WAGE["默认"])
 
         # 一次性伤残补助金标准（月工资×月数）
-        DISABILITY_MONTHS = {
+        disability_months = {
             1: 27, 2: 25, 3: 23, 4: 21,
             5: 18, 6: 16, 7: 13, 8: 11, 9: 9, 10: 7,
         }
 
-        if disability_level not in DISABILITY_MONTHS:
+        if disability_level not in disability_months:
             return CalculationResult(
                 calculator_name="工伤赔偿计算器",
                 total_amount=0,
                 warnings=["伤残等级应为1-10级"],
             )
 
-        months = DISABILITY_MONTHS[disability_level]
+        months = disability_months[disability_level]
         lump_sum = monthly_salary * months
 
         breakdown = [{
@@ -543,21 +544,21 @@ class LegalCalculatorService:
         # 这些标准各省不同，这里给出通用参考
         if disability_level >= 5:
             # 参考值：医疗补助金和就业补助金各为社平工资的若干月
-            MEDICAL_MONTHS = {5: 18, 6: 15, 7: 12, 8: 9, 9: 6, 10: 3}
-            EMPLOY_MONTHS = {5: 18, 6: 15, 7: 12, 8: 9, 9: 6, 10: 3}
+            medical_months = {5: 18, 6: 15, 7: 12, 8: 9, 9: 6, 10: 3}
+            employ_months = {5: 18, 6: 15, 7: 12, 8: 9, 9: 6, 10: 3}
 
-            med_months = MEDICAL_MONTHS.get(disability_level, 6)
-            emp_months = EMPLOY_MONTHS.get(disability_level, 6)
+            med_months = medical_months.get(disability_level, 6)
+            emp_months = employ_months.get(disability_level, 6)
             med_amount = avg_wage * med_months
             emp_amount = avg_wage * emp_months
 
             breakdown.append({
-                "item": f"一次性工伤医疗补助金（参考值）",
+                "item": "一次性工伤医疗补助金（参考值）",
                 "amount": med_amount,
                 "note": f"社平工资 ¥{avg_wage:,.0f} × {med_months} 个月（各省标准不同）",
             })
             breakdown.append({
-                "item": f"一次性伤残就业补助金（参考值）",
+                "item": "一次性伤残就业补助金（参考值）",
                 "amount": emp_amount,
                 "note": f"社平工资 ¥{avg_wage:,.0f} × {emp_months} 个月（各省标准不同）",
             })
@@ -587,7 +588,7 @@ class LegalCalculatorService:
 
     # ========== 统一入口 ==========
 
-    def calculate(self, calc_type: str, params: Dict[str, Any]) -> CalculationResult:
+    def calculate(self, calc_type: str, params: dict[str, Any]) -> CalculationResult:
         """
         统一计算入口
 
@@ -595,7 +596,7 @@ class LegalCalculatorService:
             calc_type: 计算器类型
             params: 计算参数（dict）
         """
-        dispatch = {
+        dispatch: dict[str, Callable[..., CalculationResult]] = {
             "severance": self.calc_severance,
             "litigation_cost": self.calc_litigation_cost,
             "statute_of_limitations": self.calc_statute_of_limitations,

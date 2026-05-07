@@ -1,10 +1,11 @@
 
 import enum
-from typing import Optional, TYPE_CHECKING
-from sqlalchemy import String, Boolean, ForeignKey, Text, UniqueConstraint, Enum
+from typing import TYPE_CHECKING
+
+from sqlalchemy import Boolean, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.models.base import Base, TimestampMixin, GUID
+from src.models.base import GUID, Base, TimestampMixin
 
 if TYPE_CHECKING:
     from src.models.user import User
@@ -44,10 +45,10 @@ class Notification(Base, TimestampMixin):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)
-    related_link: Mapped[Optional[str]] = mapped_column(String(500))
+    related_link: Mapped[str | None] = mapped_column(String(500))
 
     # 事件类型，用于匹配通知偏好
-    event_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    event_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     # 关联
     user: Mapped["User"] = relationship("User", backref="notifications")

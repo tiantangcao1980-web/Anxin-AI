@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 AI内容标识服务
 
@@ -14,10 +13,9 @@ AI内容标识服务
 """
 
 import hashlib
-import json
-from datetime import datetime, timezone
-from typing import Optional, Dict, Any
+from datetime import UTC, datetime
 from enum import Enum
+from typing import Any
 
 
 class AIContentType(str, Enum):
@@ -74,16 +72,16 @@ class AILabelingService:
     def get_metadata_label(
         cls,
         content_type: AIContentType = AIContentType.TEXT,
-        model_name: Optional[str] = None,
-        agent_name: Optional[str] = None,
-        task_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        model_name: str | None = None,
+        agent_name: str | None = None,
+        task_id: str | None = None,
+    ) -> dict[str, Any]:
         """
         生成元数据标识（Level 2）
 
         符合GB 45438-2025要求的结构化元数据
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         metadata = {
             "ai_generated": True,
@@ -112,16 +110,16 @@ class AILabelingService:
 
         用于验证AI生成内容的完整性和溯源
         """
-        payload = f"{cls.PLATFORM_NAME}:{content}:{datetime.now(timezone.utc).date().isoformat()}"
+        payload = f"{cls.PLATFORM_NAME}:{content}:{datetime.now(UTC).date().isoformat()}"
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
     @classmethod
     def wrap_streaming_metadata(
         cls,
         content_type: AIContentType = AIContentType.TEXT,
-        model_name: Optional[str] = None,
-        agent_name: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        model_name: str | None = None,
+        agent_name: str | None = None,
+    ) -> dict[str, Any]:
         """
         生成流式输出的元数据包装
 
@@ -135,7 +133,7 @@ class AILabelingService:
                 "full_disclaimer": cls.get_display_label(content_type, short=False),
                 "model": model_name,
                 "agent": agent_name,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
         }
 
@@ -161,8 +159,8 @@ class AILabelingService:
     def get_export_metadata(
         cls,
         content_type: AIContentType = AIContentType.DOCUMENT,
-        model_name: Optional[str] = None,
-    ) -> Dict[str, str]:
+        model_name: str | None = None,
+    ) -> dict[str, str]:
         """
         获取文档导出属性元数据
 

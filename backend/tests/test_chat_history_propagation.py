@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.services.chat_service import ChatService
 from src.agents.workforce import LegalWorkforce
+from src.services.chat_service import ChatService
 
 
 @pytest.mark.asyncio
@@ -75,7 +75,7 @@ async def test_workforce_chat_forwards_history_to_agent():
 @pytest.mark.asyncio
 async def test_task_history_var_propagates_to_agent_chat():
     """验证 _task_history_var contextvars 在 DAG 执行路径中自动透传对话历史到 agent.chat()"""
-    from src.agents.base import _task_history_var, BaseLegalAgent
+    from src.agents.base import BaseLegalAgent, _task_history_var
 
     history = [
         {"role": "user", "content": "之前的问题"},

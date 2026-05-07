@@ -1,11 +1,10 @@
-# -*- coding: utf-8 -*-
 """
 安心法务 - 增强健康检查端点
 检查各基础设施组件状态，支持 healthy / degraded / unhealthy 三级状态。
 """
 
 import time
-from typing import Any, Dict
+from typing import Any, cast
 
 import httpx
 from fastapi import APIRouter, Depends
@@ -22,7 +21,7 @@ router = APIRouter()
 _start_time = time.time()
 
 
-async def _check_postgres(db: AsyncSession) -> Dict[str, Any]:
+async def _check_postgres(db: AsyncSession) -> dict[str, Any]:
     """检查 PostgreSQL 连接"""
     try:
         t0 = time.time()
@@ -34,13 +33,14 @@ async def _check_postgres(db: AsyncSession) -> Dict[str, Any]:
         return {"status": "down", "error": str(e)}
 
 
-async def _check_redis() -> Dict[str, Any]:
+async def _check_redis() -> dict[str, Any]:
     """检查 Redis 连接"""
     try:
         import redis.asyncio as aioredis
 
         t0 = time.time()
-        r = aioredis.from_url(settings.REDIS_URL, socket_connect_timeout=3)
+        redis_from_url = cast(Any, aioredis.from_url)
+        r = redis_from_url(settings.REDIS_URL, socket_connect_timeout=3)
         await r.ping()
         latency = round((time.time() - t0) * 1000, 1)
         await r.aclose()
@@ -50,7 +50,7 @@ async def _check_redis() -> Dict[str, Any]:
         return {"status": "down", "error": str(e)}
 
 
-async def _check_qdrant() -> Dict[str, Any]:
+async def _check_qdrant() -> dict[str, Any]:
     """检查 Qdrant 向量数据库"""
     try:
         t0 = time.time()
@@ -65,7 +65,7 @@ async def _check_qdrant() -> Dict[str, Any]:
         return {"status": "down", "error": str(e)}
 
 
-async def _check_minio() -> Dict[str, Any]:
+async def _check_minio() -> dict[str, Any]:
     """检查 MinIO 对象存储"""
     try:
         t0 = time.time()
@@ -82,7 +82,7 @@ async def _check_minio() -> Dict[str, Any]:
         return {"status": "down", "error": str(e)}
 
 
-async def _check_neo4j() -> Dict[str, Any]:
+async def _check_neo4j() -> dict[str, Any]:
     """检查 Neo4j 图数据库（兼容 Community 版）"""
     try:
         t0 = time.time()
@@ -102,7 +102,7 @@ async def _check_neo4j() -> Dict[str, Any]:
 
 
 @router.get("/health")
-async def health_check(db: AsyncSession = Depends(get_db)):
+async def health_check(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
     """
     增强健康检查端点
 
@@ -127,6 +127,7 @@ async def health_check(db: AsyncSession = Depends(get_db)):
         "minio": minio_status,
         "neo4j": neo4j_status,
     }
+    logger.debug(f"Health components: {components}")
 
     # 判断整体状态
     core_components = [pg_status, redis_status]

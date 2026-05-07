@@ -49,6 +49,61 @@ test.describe('多角色访问控制（桌面端）', () => {
     await expect(page).toHaveURL(/\/login$/)
     await expect(page.getByPlaceholder('请输入邮箱地址')).toBeVisible()
   })
+
+  test('V2: 需求方端用户访问 /pro/* 会被引导回 /chat', async ({ page }) => {
+    await seedAuthState(page, {
+      role: 'enterprise_user',
+      name: '企业法务',
+      email: 'enterprise@example.com',
+      primary_client: 'needer',
+    })
+
+    await page.goto('/pro/dashboard')
+
+    // 守卫应将 needer 用户导回需求方端首页
+    await expect(page).toHaveURL(/\/chat$/)
+  })
+
+  test('V2: 服务方端律师访问 /pro/dashboard 应正常进入', async ({ page }) => {
+    await seedAuthState(page, {
+      role: 'lawyer',
+      name: '王律师',
+      email: 'lawyer@example.com',
+      primary_client: 'provider',
+    })
+
+    await page.goto('/pro/dashboard')
+
+    // 守卫放行后应停留在 /pro/dashboard
+    await expect(page).toHaveURL(/\/pro\/dashboard/)
+  })
+
+  test('V2: /pro 根路径重定向到 /pro/dashboard 而非根路径', async ({ page }) => {
+    await seedAuthState(page, {
+      role: 'lawyer',
+      name: '王律师',
+      email: 'lawyer@example.com',
+      primary_client: 'provider',
+    })
+
+    await page.goto('/pro')
+
+    // Phase 5 关键修复：原 index 跳到 /lawyer-dashboard（根路径）是 BUG，应跳到 /pro/dashboard
+    await expect(page).toHaveURL(/\/pro\/dashboard/)
+  })
+
+  test('V2: 老用户字段为空时按 role 推断（lawyer 仍然可进 /pro/*）', async ({ page }) => {
+    await seedAuthState(page, {
+      role: 'lawyer',
+      name: '老用户律师',
+      email: 'old-lawyer@example.com',
+      // 不传 primary_client，模拟字段未填的老账号
+    })
+
+    await page.goto('/pro/dashboard')
+
+    await expect(page).toHaveURL(/\/pro\/dashboard/)
+  })
 })
 
 test.describe('多角色访问控制（移动端）', () => {

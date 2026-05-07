@@ -1,19 +1,19 @@
-# -*- coding: utf-8 -*-
 """知识库 RAG 研究模式处理器"""
+from typing import Any
 
-from typing import Optional
 from loguru import logger
+
 from src.api.routes.chat_handlers.context import WebSocketContext
 
 
 async def handle_rag_query(
     ctx: WebSocketContext,
     content: str,
-    data: dict,
-    agent_name: Optional[str],
-    recovery_map: Optional[dict],
-    user_id: Optional[str] = None,
-    current_user=None,
+    data: dict[str, Any],
+    agent_name: str | None,
+    recovery_map: dict[str, str] | None,
+    user_id: str | None = None,
+    current_user: Any = None,
 ) -> bool:
     """
     知识库研究模式：在聊天内直接执行 RAG 查询。
@@ -41,7 +41,7 @@ async def handle_rag_query(
             "授权书", "委托书", "意见书", "备忘录",
         ]
         if any(kw in content for kw in _contract_intent_keywords):
-            logger.info(f"RAG 处理器让路：检测到附件+专业意图，交给 Coordinator 路由")
+            logger.info("RAG 处理器让路：检测到附件+专业意图，交给 Coordinator 路由")
             return False
 
     await ctx.send("agent_thinking", {
@@ -53,6 +53,7 @@ async def handle_rag_query(
         from src.core.database import async_session_maker
         async with async_session_maker() as db_session:
             from sqlalchemy import select as sa_select
+
             from src.models.knowledge import KnowledgeBase
             from src.services.knowledge_service import KnowledgeService
 

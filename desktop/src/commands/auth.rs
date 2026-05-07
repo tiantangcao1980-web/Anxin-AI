@@ -3,9 +3,7 @@ use tauri::State;
 
 /// 生物识别认证
 #[tauri::command]
-pub async fn biometric_authenticate(
-    reason: Option<String>,
-) -> Result<serde_json::Value, String> {
+pub async fn biometric_authenticate(reason: Option<String>) -> Result<serde_json::Value, String> {
     let auth_reason = reason.unwrap_or_else(|| "安心法务需要验证您的身份".to_string());
 
     // 实际调用由前端 tauri-plugin-biometric JS API 处理

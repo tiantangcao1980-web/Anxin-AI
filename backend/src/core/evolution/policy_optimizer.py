@@ -3,23 +3,21 @@
 基于历史经验优化 Agent 选择和 DAG 结构
 """
 
-import asyncio
-from typing import List, Dict, Any, Optional
-from datetime import datetime
-from loguru import logger
 from collections import Counter
+from datetime import datetime
+from typing import Any, cast
+
+from loguru import logger
 from pydantic import BaseModel
 
-from src.core.memory.episodic_memory import EnhancedEpisodicMemoryService
-from src.core.evolution.experience_extractor import ExperienceExtractor, Pattern
-from src.services.event_bus import event_bus
+from src.core.evolution.experience_extractor import ExperienceExtractor
 
 
 class DAGStructure(BaseModel):
     """DAG 结构定义"""
-    agents: List[str]
-    dependencies: Dict[str, List[str]]  # agent_id -> 依赖列表
-    parallel_groups: List[List[str]]  # 可并行的 Agent 组
+    agents: list[str]
+    dependencies: dict[str, list[str]]  # agent_id -> 依赖列表
+    parallel_groups: list[list[str]]  # 可并行的 Agent 组
     estimated_duration: float = 0.0
     confidence: float = 0.0
 
@@ -36,8 +34,8 @@ class PolicyOptimizer:
 
     def __init__(
         self,
-        episodic_memory: Optional[Any] = None,
-        experience_extractor: Optional[Any] = None,
+        episodic_memory: Any | None = None,
+        experience_extractor: Any | None = None,
         db: Any = None,
         vector_store: Any = None,
     ):
@@ -53,14 +51,14 @@ class PolicyOptimizer:
         )
         self.db = db
         self.vector_store = vector_store
-        self._optimization_cache: Dict[str, Any] = {}
+        self._optimization_cache: dict[str, Any] = {}
 
     async def optimize_agent_selection(
         self,
         task_description: str,
         task_type: str,
-        current_agents: Optional[List[str]] = None
-    ) -> List[str]:
+        current_agents: list[str] | None = None
+    ) -> list[str]:
         """
         优化 Agent 选择
 
@@ -78,7 +76,7 @@ class PolicyOptimizer:
             cached = self._optimization_cache[cache_key]
             if datetime.now().timestamp() - cached["timestamp"] < 3600:  # 1小时缓存
                 logger.info(f"使用缓存的 Agent 选择: {cached['agents']}")
-                return cached["agents"]
+                return cast(list[str], cached["agents"])
 
         # 2. 检索相关成功案例
         if self.episodic_memory is not None:
@@ -103,7 +101,7 @@ class PolicyOptimizer:
             return default_agents
 
         # 3. 统计最常用的 Agent 组合
-        agent_combinations = Counter()
+        agent_combinations: Counter[tuple[str, ...]] = Counter()
         for episode in successful_episodes:
             agents = episode.get("agents_involved", [])
             if agents:
@@ -143,7 +141,7 @@ class PolicyOptimizer:
         self,
         task_description: str,
         task_type: str,
-        agents: List[str]
+        agents: list[str]
     ) -> DAGStructure:
         """
         优化 DAG 执行结构
@@ -211,8 +209,8 @@ class PolicyOptimizer:
         self,
         task_type: str,
         agent_name: str,
-        current_params: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        current_params: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         优化 Agent 参数
 
@@ -239,7 +237,7 @@ class PolicyOptimizer:
 
         return optimized
 
-    def _get_default_agents(self, task_type: str) -> List[str]:
+    def _get_default_agents(self, task_type: str) -> list[str]:
         """
         获取默认 Agent 配置
 
@@ -261,7 +259,7 @@ class PolicyOptimizer:
 
         return default_agents.get(task_type, ["ConsultationAgent"])
 
-    def _default_dag(self, agents: List[str]) -> DAGStructure:
+    def _default_dag(self, agents: list[str]) -> DAGStructure:
         """
         创建默认 DAG 结构
 
@@ -282,8 +280,8 @@ class PolicyOptimizer:
 
     def _build_dag_from_episode(
         self,
-        episode: Dict[str, Any],
-        available_agents: List[str]
+        episode: dict[str, Any],
+        available_agents: list[str]
     ) -> DAGStructure:
         """
         从历史案例构建 DAG
@@ -320,7 +318,7 @@ class PolicyOptimizer:
             confidence=0.7  # 基于历史数据
         )
 
-    async def get_optimization_stats(self) -> Dict[str, Any]:
+    async def get_optimization_stats(self) -> dict[str, Any]:
         """
         获取优化统计信息
 
@@ -335,7 +333,7 @@ class PolicyOptimizer:
             "last_optimization": datetime.now().isoformat()
         }
 
-    def _rank_combinations(self, combinations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _rank_combinations(self, combinations: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """兼容旧测试：按评分、成功率、耗时综合排序。"""
         return sorted(
             combinations,

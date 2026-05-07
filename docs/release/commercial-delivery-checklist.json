@@ -1,0 +1,183 @@
+{
+  "generated_at": "2026-05-07",
+  "objective": "将 Anxin-Smart-Legal-Services 从当前代码现状推进到可商业交付：先验证并优化 GitNexus 索引知识图，再建立项目规范/验收标准，最后按规范完成开发、测试与交付准备。",
+  "status": "not_ready",
+  "status_reason": "Code-level gates, GitNexus embeddings, and built-in RAG full50 evidence are available, but commercial release evidence still has pending external sandbox, packaged desktop, and device-smoke requirements.",
+  "success_criteria": [
+    {
+      "id": "gitnexus-knowledge-graph",
+      "prompt_requirement": "使用 CLI 或 MCP 对本项目代码仓库进行代码级扫描，验证和优化 GitNexus 索引知识图，确保信息准确后再后续开发。",
+      "status": "complete_until_next_commit",
+      "evidence": [
+        ".gitnexus/meta.json",
+        "docs/audit/00-platform/06-gitnexus-knowledge-graph.md",
+        "scripts/gitnexus-index.sh"
+      ],
+      "verification": [
+        "node -e \"const fs=require('fs'); const m=JSON.parse(fs.readFileSync('.gitnexus/meta.json','utf8')); console.log(m.stats)\"",
+        "GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/commercial-readiness-gate.sh --quick"
+      ],
+      "current_result": "1181 files / 30003 nodes / 54587 edges / 300 flows / 28219 embeddings; vectorSearch.status=vector-index. Must rerun after final release commit."
+    },
+    {
+      "id": "openspec-commercial-spec",
+      "prompt_requirement": "使用 goal-prompt-builder 或 OpenSpec 完成项目规范之后再开始下一步开发。",
+      "status": "complete",
+      "evidence": [
+        "docs/openspec/commercial-delivery-spec.md",
+        "docs/openspec/commercial-delivery-test-spec.md",
+        "docs/release/commercial-delivery-readiness.md"
+      ],
+      "verification": [
+        "test -s docs/openspec/commercial-delivery-spec.md",
+        "test -s docs/openspec/commercial-delivery-test-spec.md"
+      ],
+      "current_result": "Commercial delivery spec, test spec, readiness model, release audit, rollback, security, and evidence templates exist."
+    },
+    {
+      "id": "quality-baseline",
+      "prompt_requirement": "按规范完成代码级开发与测试，建立质量基线。",
+      "status": "complete",
+      "evidence": [
+        "docs/release/evidence/static-quality-baseline.md",
+        "scripts/static-quality-baseline.sh",
+        "scripts/mypy-baseline-check.sh"
+      ],
+      "verification": [
+        "bash scripts/mypy-baseline-check.sh",
+        "python3 scripts/validate-release-evidence.py --json docs/release/evidence/static-quality-baseline.md|static-quality"
+      ],
+      "current_result": "Ruff is clean, backend mypy baseline is 0, and static quality evidence is Status: complete."
+    },
+    {
+      "id": "payment-sandbox-evidence",
+      "prompt_requirement": "补支付真实沙箱证据：微信/支付宝成功、失败、退款、关闭、异步通知、证书轮换。",
+      "status": "pending_external_input",
+      "evidence": [
+        "docs/release/evidence/payment-sandbox.md",
+        "docs/release/evidence/artifacts/payment-sandbox-preflight-20260507.json",
+        "docs/release/external-inputs-checklist.md",
+        "docs/release/external-resource-handoff.md",
+        "scripts/sandbox-evidence-runner.py"
+      ],
+      "verification": [
+        "python3 scripts/sandbox-evidence-runner.py --scope payment --out docs/release/evidence/artifacts/payment-sandbox-preflight-YYYYMMDD.json",
+        "python3 scripts/validate-release-evidence.py docs/release/evidence/payment-sandbox.md|payment-sandbox"
+      ],
+      "current_result": "Status: pending; preflight artifact now lists runtime_prerequisites plus external_evidence_requirements for official callback, duplicate idempotency, failed retry, and platform key/cert rotation. Still missing WeChat Pay/Alipay sandbox credentials, official webhook enablement, public callback, runtime order IDs, and live artifacts."
+    },
+    {
+      "id": "esign-sandbox-evidence",
+      "prompt_requirement": "补电签真实沙箱证据：e签宝/法大大签署、撤销、下载、回调事件。",
+      "status": "pending_external_input",
+      "evidence": [
+        "docs/release/evidence/esign-sandbox.md",
+        "docs/release/evidence/artifacts/esign-sandbox-preflight-20260507.json",
+        "docs/release/external-inputs-checklist.md",
+        "docs/release/external-resource-handoff.md",
+        "scripts/sandbox-evidence-runner.py"
+      ],
+      "verification": [
+        "python3 scripts/sandbox-evidence-runner.py --scope esign --out docs/release/evidence/artifacts/esign-sandbox-preflight-YYYYMMDD.json",
+        "python3 scripts/validate-release-evidence.py docs/release/evidence/esign-sandbox.md|esign-sandbox"
+      ],
+      "current_result": "Status: pending; preflight artifact now lists runtime_prerequisites plus external_evidence_requirements for official callback, duplicate idempotency, and failed retry. Still missing e签宝/法大大 sandbox credentials, official webhook enablement, test document/completed flow IDs, and live artifacts."
+    },
+    {
+      "id": "desktop-packaged-runtime-evidence",
+      "prompt_requirement": "实现/验证桌面 SQLite 加密和 keyring，并补桌面商业发布证据。",
+      "status": "pending_release_package",
+      "evidence": [
+        "desktop/src/services/secure_db.rs",
+        "desktop/src/commands/secure_db.rs",
+        "scripts/desktop-sqlite-security-gate.sh",
+        "scripts/desktop-installed-profile-smoke.sh",
+        "scripts/desktop-release-package.sh",
+        "scripts/desktop-release-preflight.sh",
+        "docs/release/evidence/desktop-runtime-smoke.md",
+        "docs/release/evidence/artifacts/desktop-release-package-dry-run-20260507.json",
+        "docs/release/evidence/artifacts/desktop-release-preflight-20260507.json",
+        "docs/release/evidence/artifacts/desktop-installed-profile-smoke-20260507.json",
+        "docs/release/evidence/artifacts/desktop-runtime-code-smoke-20260507.json",
+        "docs/release/evidence/artifacts/desktop-runtime-ui-smoke-20260507.log",
+        "docs/release/external-resource-handoff.md"
+      ],
+      "verification": [
+        "cd desktop && cargo test",
+        "cd desktop && cargo check",
+        "bash scripts/desktop-sqlite-security-gate.sh",
+        "bash scripts/desktop-installed-profile-smoke.sh --out docs/release/evidence/artifacts/desktop-installed-profile-smoke-YYYYMMDD.json",
+        "bash scripts/desktop-runtime-smoke.sh --with-app-bundle --out docs/release/evidence/artifacts/desktop-runtime-code-smoke-YYYYMMDD.json --ui-log-out docs/release/evidence/artifacts/desktop-runtime-ui-smoke-YYYYMMDD.log",
+        "bash scripts/desktop-release-package.sh --dry-run --out docs/release/evidence/artifacts/desktop-release-package-dry-run-YYYYMMDD.json --preflight-out docs/release/evidence/artifacts/desktop-release-preflight-YYYYMMDD.json",
+        "bash scripts/desktop-release-preflight.sh --out docs/release/evidence/artifacts/desktop-release-preflight-YYYYMMDD.json"
+      ],
+      "current_result": "Code-level SQLCipher/keyring, guarded erase-local-data path, unsigned debug .app runtime startup/UI smoke, structured desktop runtime artifacts, production APNs entitlement, release package dry-run, and release preflight pass; Status: pending because signing identity, notarization credentials, signed/notarized .app/DMG, packaged UI interaction, packaged runtime, migration transcript, performance, and cross-device evidence are missing."
+    },
+    {
+      "id": "rag-full50-live-baseline",
+      "prompt_requirement": "用内建法律知识库跑 RAG full50 live baseline，并保存 predictions/metrics。",
+      "status": "complete",
+      "evidence": [
+        "eval/export_builtin_legal_full50.py",
+        "eval/rag_live_qdrant_full50.py",
+        "docs/release/evidence/rag-full50-live-baseline.md",
+        "eval/legal_full50_corpus.jsonl",
+        "eval/legal_full50_golden.jsonl",
+        "docs/release/evidence/artifacts/rag-full50-built-in-preflight-20260507.json",
+        "docs/release/evidence/artifacts/rag-full50-built-in-predictions-20260507.json",
+        "docs/release/evidence/artifacts/rag-full50-built-in-metrics-20260507.json"
+      ],
+      "verification": [
+        "python3 eval/export_builtin_legal_full50.py --corpus eval/legal_full50_corpus.jsonl --golden eval/legal_full50_golden.jsonl",
+        "python3 eval/rag_live_qdrant_full50.py --golden eval/legal_full50_golden.jsonl --corpus eval/legal_full50_corpus.jsonl --preflight-only --out docs/release/evidence/artifacts/rag-full50-built-in-preflight-YYYYMMDD.json --run-label built-in-legal-full50-YYYYMMDD",
+        "./backend/.venv/bin/python eval/rag_live_qdrant_full50.py --golden eval/legal_full50_golden.jsonl --corpus eval/legal_full50_corpus.jsonl --out docs/release/evidence/artifacts/rag-full50-built-in-predictions-YYYYMMDD.json --collection rag_eval_full50_builtin_YYYYMMDD --run-label built-in-legal-full50-YYYYMMDD",
+        "python3 eval/rag_quality.py --golden eval/legal_full50_golden.jsonl --predictions docs/release/evidence/artifacts/rag-full50-built-in-predictions-YYYYMMDD.json --out docs/release/evidence/artifacts/rag-full50-built-in-metrics-YYYYMMDD.json --run-label built-in-legal-full50-YYYYMMDD",
+        "python3 scripts/validate-release-evidence.py docs/release/evidence/rag-full50-live-baseline.md|RAG full50"
+      ],
+      "current_result": "Built-in legal full50 baseline is complete: 42 chunks, 50 non-smoke questions, live Qdrant predictions=50, recall@10=1.000, MRR=1.000, NDCG@10=0.997."
+    },
+    {
+      "id": "mobile-mini-device-smoke",
+      "prompt_requirement": "补 iOS、Android、微信小程序真机 smoke。",
+      "status": "pending_device_evidence",
+      "evidence": [
+        "scripts/mobile-device-smoke.sh",
+        "docs/release/evidence/mobile-device-smoke.md",
+        "docs/release/evidence/artifacts/mobile-device-manual-template-20260508.json",
+        "docs/release/evidence/artifacts/mobile-mini-code-smoke-20260508.json",
+        "docs/release/external-inputs-checklist.md",
+        "docs/release/external-resource-handoff.md"
+      ],
+      "verification": [
+        "bash scripts/mobile-device-smoke.sh --out docs/release/evidence/artifacts/mobile-mini-code-smoke-YYYYMMDD.json --manual-template-out docs/release/evidence/artifacts/mobile-device-manual-template-YYYYMMDD.json",
+        "device/DevTools transcripts with screenshots/log artifact references"
+      ],
+      "current_result": "Local mobile/mini code smoke was refreshed on 2026-05-08, including Expo config/SDK dependency guard, WeChat DevTools CLI project smoke, refresh-auth guards, and structured mobile_npm_audit status=passed tracking, and writes a code-level artifact plus manual device evidence template. npx expo-doctor passes 17/17 and mobile production npm audit is 0. Status remains pending until real iOS, Android, interactive WeChat DevTools/device evidence and cross-device continuation are attached."
+    },
+    {
+      "id": "final-commercial-gate",
+      "prompt_requirement": "使用 /goal 完成项目从现状到商业交付的全流程开发与测试。",
+      "status": "pending_final_release",
+      "evidence": [
+        "scripts/commercial-readiness-gate.sh",
+        "scripts/release-worktree-inventory.py",
+        "scripts/validate-commercial-delivery-checklist.cjs",
+        "scripts/validate-commercial-delivery-lanes.cjs",
+        "scripts/validate-release-artifacts.py",
+        "docs/release/completion-audit.md",
+        "docs/release/evidence-collection-runbook.md",
+        "docs/release/external-resource-handoff.md",
+        "docs/release/commercial-delivery-lanes.json",
+        "docs/release/commercial-delivery-checklist.json"
+      ],
+      "verification": [
+        "git diff --check",
+        "bash scripts/release-evidence-secret-scan.sh",
+        "node scripts/validate-commercial-delivery-lanes.cjs",
+        "GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/commercial-readiness-gate.sh --quick",
+        "GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/commercial-readiness-gate.sh --with-local-tests"
+      ],
+      "current_result": "Gate currently FAILS on dirty worktree, Not ready declarations, and pending payment/e-sign/desktop/mobile evidence."
+    }
+  ]
+}

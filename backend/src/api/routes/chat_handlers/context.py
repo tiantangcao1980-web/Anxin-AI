@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 WebSocket 共享上下文
 
@@ -9,18 +8,20 @@ WebSocket 共享上下文
 import asyncio
 import re
 import uuid
-from typing import Any, Callable, Coroutine, Dict, List, Optional
+from collections.abc import Callable, Coroutine
+from typing import Any
 
 from loguru import logger
 from starlette.websockets import WebSocket
 
 from src.services.a2ui_protocol import (
-    a2ui_stream_start, a2ui_stream_component, a2ui_stream_end,
+    a2ui_stream_component,
+    a2ui_stream_end,
+    a2ui_stream_start,
 )
 
-
 # 类型别名
-WsCallback = Callable[[str, dict], Coroutine[Any, Any, None]]
+WsCallback = Callable[[str, dict[str, Any]], Coroutine[Any, Any, None]]
 
 
 # 看起来像 UUID 或 hash 的文件名（纯十六进制或 UUID）
@@ -90,22 +91,26 @@ class WebSocketContext:
         websocket: WebSocket,
         session_id: str,
         conversation_id: str,
-        workforce,
-    ):
+        workforce: Any,
+        user_id: str | None = None,
+    ) -> None:
         self.ws = websocket
         self.session_id = session_id
         self.conversation_id = conversation_id
         self.workforce = workforce
+        # V2 安全修复（TASK-04 P0-2）：WS 顶层鉴权后由 websocket_chat 注入。
+        # 缺失时 a2ui_handler / chat_handlers 内的 owner 校验会按"未知用户"拒绝。
+        self.user_id: str | None = user_id
         self._ws_closed = False
         self._save_lock = asyncio.Lock()
         self.session_message_count = 0
         self.last_user_content = ""
         # V2：本轮对话的思考过程累积（send 时自动捕获）
-        self._thinking_steps_buffer: List[dict] = []
+        self._thinking_steps_buffer: list[dict[str, Any]] = []
 
     # ---- 安全发送 ----
 
-    async def send(self, event_type: str, data: dict):
+    async def send(self, event_type: str, data: dict[str, Any]) -> None:
         """安全发送 WebSocket 消息"""
         if self._ws_closed:
             return
@@ -134,7 +139,7 @@ class WebSocketContext:
                 self._ws_closed = True
             logger.warning(f"WS 发送失败: {e}")
 
-    def pop_thinking_steps(self) -> list:
+    def pop_thinking_steps(self) -> list[dict[str, Any]]:
         """取出本轮累积的思考步骤并清空（保存 AI 消息时调用）"""
         steps = list(self._thinking_steps_buffer)
         self._thinking_steps_buffer = []
@@ -142,7 +147,7 @@ class WebSocketContext:
 
     # ---- ws_callback（供 workforce 使用） ----
 
-    async def ws_callback(self, event_type: str, data: dict):
+    async def ws_callback(self, event_type: str, data: dict[str, Any]) -> None:
         """统一回调 — 将 workforce 事件直接推送给前端"""
         await self.send(event_type, data)
 
@@ -150,11 +155,11 @@ class WebSocketContext:
 
     async def save_message(
         self, role: str, content: str,
-        agent_name: str = None,
-        citations: Optional[list] = None,
-        thinking_steps: Optional[list] = None,
-        memory_id: Optional[str] = None,
-    ):
+        agent_name: str | None = None,
+        citations: list[dict[str, Any]] | None = None,
+        thinking_steps: list[dict[str, Any]] | None = None,
+        memory_id: str | None = None,
+    ) -> None:
         if not self.conversation_id:
             return
         async with self._save_lock:
@@ -166,7 +171,7 @@ class WebSocketContext:
                     async with async_session_maker() as db_session:
                         svc = ChatService(db_session)
                         # V2：保存 thinking_steps 与 memory_id 到 msg_metadata
-                        _extra_meta = {}
+                        _extra_meta: dict[str, Any] = {}
                         if thinking_steps:
                             _extra_meta["thinking_steps"] = thinking_steps
                         if memory_id:
@@ -179,8 +184,10 @@ class WebSocketContext:
                         )
                         # 第一条用户消息时，自动更新对话标题
                         if role == "user":
+                            from sqlalchemy import select as sa_select
+                            from sqlalchemy import update as sa_update
+
                             from src.models.conversation import Conversation as ConvModel
-                            from sqlalchemy import select as sa_select, update as sa_update
                             result = await db_session.execute(
                                 sa_select(ConvModel.title).where(
                                     ConvModel.id == self.conversation_id
@@ -216,7 +223,7 @@ class WebSocketContext:
 
     # ---- LLM 配置加载 ----
 
-    async def load_llm_config(self):
+    async def load_llm_config(self) -> Any:
         """加载 LLM 配置（优先使用缓存）"""
         try:
             from src.services.llm_service import LLMService
@@ -230,8 +237,9 @@ class WebSocketContext:
             async with async_session_maker() as db_session:
                 cfg = await LLMService.get_default_config(db_session)
                 if not cfg:
-                    from src.models.llm_config import LLMConfig
                     from sqlalchemy import select
+
+                    from src.models.llm_config import LLMConfig
                     result_cfg = await db_session.execute(
                         select(LLMConfig)
                         .where(LLMConfig.config_type == "llm")
@@ -247,7 +255,7 @@ class WebSocketContext:
 
     # ---- 对话历史加载 ----
 
-    async def load_recent_history(self, limit: int = 10) -> List[dict]:
+    async def load_recent_history(self, limit: int = 10) -> list[dict[str, Any]]:
         if not self.conversation_id:
             return []
         try:
@@ -266,7 +274,7 @@ class WebSocketContext:
 
     # ---- 伪流式推送 ----
 
-    async def stream_response_tokens(self, text: str, agent: str):
+    async def stream_response_tokens(self, text: str, agent: str) -> None:
         """将完整响应文本逐块流式推送"""
         if not text:
             return
@@ -296,11 +304,11 @@ class WebSocketContext:
     # ---- 流式 A2UI 组件推送 ----
 
     async def stream_a2ui_components(
-        self, components: list,
+        self, components: list[dict[str, Any]],
         agent: str = "AI 助手",
-        stream_id: str = None,
+        stream_id: str | None = None,
         delay: float = 0.05,
-    ):
+    ) -> None:
         if not components:
             return
         sid = stream_id or f"stream-{str(uuid.uuid4())[:8]}"
@@ -314,7 +322,7 @@ class WebSocketContext:
     # ---- 动态 max_tokens 估算 ----
 
     @staticmethod
-    def estimate_max_tokens(content: str, complexity: str, intent: str = "") -> Optional[int]:
+    def estimate_max_tokens(content: str, complexity: str, intent: str = "") -> int | None:
         if intent in ("DOCUMENT_DRAFTING", "CONTRACT_REVIEW", "EVIDENCE_PROCESSING"):
             return 4096
         if complexity == "simple" or len(content) < 20:

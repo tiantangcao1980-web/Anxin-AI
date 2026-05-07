@@ -106,7 +106,12 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "B", "C4", "UP"]
-ignore = ["E501"]
+# FastAPI intentionally uses dependency/parameter helper calls such as
+# Depends(), Query(), Body(), and require_permission() in route defaults.
+# SQLAlchemy boolean column filters intentionally use == True/False semantics.
+# Historical Chinese docstrings/templates contain whitespace-only blank lines;
+# git diff --check remains the release hygiene gate for newly touched lines.
+ignore = ["E501", "B008", "E712", "W293"]
 
 [tool.mypy]
 python_version = "3.11"

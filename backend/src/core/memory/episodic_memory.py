@@ -3,12 +3,11 @@
 负责存储中期经验：历史案例、用户反馈、执行轨迹
 """
 
-import uuid
-import json
 import inspect
-from typing import List, Dict, Any, Optional
+import json
+import uuid
 from datetime import datetime
-from loguru import logger
+from typing import Any, cast
 
 from .base import BaseMemoryService
 
@@ -32,7 +31,7 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
     COLLECTION_NAME = "episodic_memory"
 
     # 任务类型
-    TASK_TYPES = {
+    TASK_TYPES: dict[str, str] = {
         "contract_review": "合同审查",
         "case_analysis": "案件分析",
         "document_generation": "文档生成",
@@ -41,32 +40,34 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
         "clause_optimization": "条款优化"
     }
 
-    def __init__(self, vector_store=None, db=None):
+    def __init__(self, vector_store: Any = None, db: Any = None) -> None:
         super().__init__()
         self.vector_store = vector_store
         self.db = db
 
-    async def ensure_initialized(self):
+    async def ensure_initialized(self) -> None:
         """确保服务已初始化"""
-        if not self._initialized and self.vector_store:
-            result = self.vector_store.create_collection(self.COLLECTION_NAME)
-            if inspect.isawaitable(result):
-                await result
-            self._initialized = True
-            self._log_info("情景记忆服务初始化完成")
+        if self._initialized or self.vector_store is None:
+            return
 
-    async def add(self, data: Dict[str, Any]) -> Optional[str]:
+        result = self.vector_store.create_collection(self.COLLECTION_NAME)
+        if inspect.isawaitable(result):
+            await result
+        self._initialized = True
+        self._log_info("情景记忆服务初始化完成")
+
+    async def add(self, data: dict[str, Any]) -> str | None:
         """兼容统一记忆接口，转发到 add_episode。"""
         return await self.add_episode(
-            session_id=data.get("session_id", str(uuid.uuid4())),
-            task_description=data.get("task_description", ""),
-            task_type=data.get("task_type", "legal_consultation"),
-            agents_involved=data.get("agents_involved", []),
-            execution_trace=data.get("execution_trace", {}),
-            result_summary=data.get("result_summary", ""),
-            user_rating=data.get("user_rating", 0),
-            user_feedback=data.get("user_feedback", ""),
-            metadata=data.get("metadata"),
+            session_id=self._coerce_str(data.get("session_id"), default=str(uuid.uuid4())),
+            task_description=self._coerce_str(data.get("task_description")),
+            task_type=self._coerce_str(data.get("task_type"), default="legal_consultation"),
+            agents_involved=self._coerce_str_list(data.get("agents_involved")),
+            execution_trace=self._coerce_dict(data.get("execution_trace")),
+            result_summary=self._coerce_str(data.get("result_summary")),
+            user_rating=self._coerce_int(data.get("user_rating")),
+            user_feedback=self._coerce_str(data.get("user_feedback")),
+            metadata=self._coerce_optional_dict(data.get("metadata")),
         )
 
     async def add_episode(
@@ -74,13 +75,13 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
         session_id: str,
         task_description: str,
         task_type: str,
-        agents_involved: List[str],
-        execution_trace: Dict[str, Any],
+        agents_involved: list[str],
+        execution_trace: dict[str, Any],
         result_summary: str,
         user_rating: int = 0,
         user_feedback: str = "",
-        metadata: Optional[Dict[str, Any]] = None
-    ) -> Optional[str]:
+        metadata: dict[str, Any] | None = None
+    ) -> str | None:
         """
         添加情景记忆 (案例)
 
@@ -99,6 +100,7 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
             episode_id: 案例 ID
         """
         await self.ensure_initialized()
+        vector_store = self._require_vector_store()
 
         episode_id = str(uuid.uuid4())
 
@@ -107,7 +109,7 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
         execution_time = metadata.get("execution_time", 0) if metadata else 0
 
         # 构建存储数据
-        payload = {
+        payload: dict[str, Any] = {
             "episode_id": episode_id,
             "session_id": session_id,
             "task_description": task_description,
@@ -132,13 +134,13 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
 
         # 添加到向量存储
         content_to_vectorize = f"Task: {task_description}\nResult: {result_summary}"
-        document = {
+        document: dict[str, Any] = {
             "id": episode_id,
             "content": content_to_vectorize,
             "metadata": payload
         }
 
-        count = await self.vector_store.add_documents(
+        count = await vector_store.add_documents(
             self.COLLECTION_NAME,
             [document]
         )
@@ -156,8 +158,8 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
         self,
         query: str,
         top_k: int = 5,
-        filters: Optional[Dict[str, Any]] = None
-    ) -> List[Dict[str, Any]]:
+        filters: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
         """
         搜索情景记忆
 
@@ -170,9 +172,10 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
             匹配的案例列表
         """
         await self.ensure_initialized()
+        vector_store = self._require_vector_store()
 
         # 执行向量搜索
-        results = await self.vector_store.search(
+        results = await vector_store.search(
             collection_name=self.COLLECTION_NAME,
             query=query,
             top_k=top_k * 2,
@@ -180,9 +183,10 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
         )
 
         # 过滤和排序
-        episodes = []
+        episodes: list[dict[str, Any]] = []
         for res in results:
-            meta = res.get("metadata", {})
+            raw_meta = res.get("metadata", {})
+            meta = raw_meta if isinstance(raw_meta, dict) else {}
 
             # 应用过滤器
             if filters:
@@ -200,11 +204,14 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
                     continue
 
             # 解析执行轨迹
-            execution_trace = {}
+            execution_trace: dict[str, Any] = {}
             try:
-                if "execution_trace" in meta and meta["execution_trace"]:
-                    execution_trace = json.loads(meta["execution_trace"])
-            except:
+                raw_execution_trace = meta.get("execution_trace")
+                if isinstance(raw_execution_trace, str) and raw_execution_trace:
+                    parsed_trace = json.loads(raw_execution_trace)
+                    if isinstance(parsed_trace, dict):
+                        execution_trace = cast(dict[str, Any], parsed_trace)
+            except Exception:
                 pass
 
             episodes.append({
@@ -235,11 +242,13 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
 
         # 更新访问时间
         for episode in episodes[:top_k]:
-            await self._update_accessed_at(episode["episode_id"])
+            episode_id = episode.get("episode_id")
+            if isinstance(episode_id, str) and episode_id:
+                await self._update_accessed_at(episode_id)
 
         return episodes[:top_k]
 
-    async def get(self, episode_id: str) -> Optional[Dict[str, Any]]:
+    async def get(self, episode_id: str) -> dict[str, Any] | None:
         """获取单个案例"""
         await self.ensure_initialized()
 
@@ -273,7 +282,7 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
         )
         return True
 
-    async def update(self, episode_id: str, updates: Dict[str, Any]) -> bool:
+    async def update(self, episode_id: str, updates: dict[str, Any]) -> bool:
         """更新案例 — 删除旧记录后重新插入"""
         await self.ensure_initialized()
         try:
@@ -282,13 +291,13 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
                 return False
             await self.delete(episode_id)
             merged = {**old, **updates}
-            await self.store(
-                task_description=merged.get("task_description", ""),
-                result=merged.get("result", ""),
-                task_type=merged.get("task_type", "general"),
+            new_id = await self.store(
+                task_description=self._coerce_str(merged.get("task_description")),
+                result=self._coerce_str(merged.get("result_summary", merged.get("result"))),
+                task_type=self._coerce_str(merged.get("task_type"), default="legal_consultation"),
                 metadata=merged,
             )
-            return True
+            return new_id is not None
         except Exception as e:
             self._log_warning(f"更新情景记忆失败: {episode_id}, {e}")
             return False
@@ -308,7 +317,41 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
             self._log_warning(f"删除情景记忆失败: {episode_id}, {e}")
             return False
 
-    async def _update_accessed_at(self, episode_id: str):
+    async def store(
+        self,
+        *,
+        task_description: str,
+        result: str,
+        task_type: str = "legal_consultation",
+        metadata: dict[str, Any] | None = None,
+    ) -> str | None:
+        """兼容旧接口，转发到 add_episode。"""
+        normalized_metadata = dict(metadata) if metadata else None
+
+        return await self.add_episode(
+            session_id=self._coerce_str(
+                normalized_metadata.get("session_id") if normalized_metadata else None,
+                default=str(uuid.uuid4()),
+            ),
+            task_description=task_description,
+            task_type=task_type,
+            agents_involved=self._coerce_str_list(
+                normalized_metadata.get("agents_involved") if normalized_metadata else None
+            ),
+            execution_trace=self._coerce_dict(
+                normalized_metadata.get("execution_trace") if normalized_metadata else None
+            ),
+            result_summary=result,
+            user_rating=self._coerce_int(
+                normalized_metadata.get("user_rating") if normalized_metadata else None
+            ),
+            user_feedback=self._coerce_str(
+                normalized_metadata.get("user_feedback") if normalized_metadata else None
+            ),
+            metadata=normalized_metadata,
+        )
+
+    async def _update_accessed_at(self, episode_id: str) -> None:
         """更新访问时间（非关键路径）"""
         pass
 
@@ -316,7 +359,7 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
         self,
         task_type: str,
         top_k: int = 10
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         获取特定任务类型的成功模式
         """
@@ -331,7 +374,7 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
         )
         return results
 
-    async def get_statistics(self) -> Dict[str, Any]:
+    async def get_statistics(self) -> dict[str, Any]:
         """获取情景记忆统计"""
         await self.ensure_initialized()
 
@@ -341,3 +384,30 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
             "average_rating": 0.0,
             "by_task_type": {}
         }
+
+    def _require_vector_store(self) -> Any:
+        if self.vector_store is None:
+            raise RuntimeError("Vector store is not configured")
+        return self.vector_store
+
+    @staticmethod
+    def _coerce_optional_dict(value: Any) -> dict[str, Any] | None:
+        return value if isinstance(value, dict) else None
+
+    @staticmethod
+    def _coerce_dict(value: Any) -> dict[str, Any]:
+        return value if isinstance(value, dict) else {}
+
+    @staticmethod
+    def _coerce_str(value: Any, default: str = "") -> str:
+        return value if isinstance(value, str) else default
+
+    @staticmethod
+    def _coerce_int(value: Any, default: int = 0) -> int:
+        return value if isinstance(value, int) else default
+
+    @staticmethod
+    def _coerce_str_list(value: Any) -> list[str]:
+        if not isinstance(value, list):
+            return []
+        return [item for item in value if isinstance(item, str)]

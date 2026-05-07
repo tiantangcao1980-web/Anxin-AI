@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from 'react'
+import { API_BASE_URL, buildApiHeaders } from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
+import { getTokenStorage } from '@/lib/platform/storage'
 import { FEATURE_FLAGS } from './usePermission'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8003/api/v1'
 const POLL_INTERVAL = 5 * 60 * 1000 // 5 min
 
 let remoteFlags: Record<string, boolean> | null = null
@@ -10,10 +11,10 @@ let fetchPromise: Promise<void> | null = null
 let lastFetchTime = 0
 
 async function fetchRemoteFlags(): Promise<Record<string, boolean>> {
-  const token = localStorage.getItem('access_token')
+  const token = await getTokenStorage().getAccessToken()
   if (!token) return {}
   const resp = await fetch(`${API_BASE_URL}/feature-flags`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: buildApiHeaders(undefined, { token, json: false }),
   })
   if (!resp.ok) throw new Error('Failed to fetch feature flags')
   const json = await resp.json()

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 多端能力协商器
 
@@ -11,7 +10,7 @@
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 from loguru import logger
 
@@ -150,12 +149,12 @@ class NegotiationResult:
     """能力协商结果"""
     platform: PlatformType
     mode: AppMode
-    available_features: Dict[str, bool]
-    unavailable_features: List[str]
-    available_tasks: List[str]
-    local_llm: Optional[LocalLLMCapability] = None
-    warnings: List[str] = field(default_factory=list)
-    recommendations: List[str] = field(default_factory=list)
+    available_features: dict[str, bool]
+    unavailable_features: list[str]
+    available_tasks: list[str]
+    local_llm: LocalLLMCapability | None = None
+    warnings: list[str] = field(default_factory=list)
+    recommendations: list[str] = field(default_factory=list)
 
 
 class CapabilityNegotiator:
@@ -170,7 +169,7 @@ class CapabilityNegotiator:
         self,
         platform: PlatformType,
         mode: AppMode = AppMode.CLOUD,
-        local_llm: Optional[LocalLLMCapability] = None,
+        local_llm: LocalLLMCapability | None = None,
     ) -> NegotiationResult:
         """
         执行能力协商
@@ -249,7 +248,7 @@ class CapabilityNegotiator:
         from_mode: AppMode,
         to_mode: AppMode,
         platform: PlatformType = PlatformType.DESKTOP,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         模式切换时生成降级通知
 

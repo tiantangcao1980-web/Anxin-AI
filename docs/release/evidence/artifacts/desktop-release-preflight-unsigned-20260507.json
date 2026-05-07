@@ -1,0 +1,228 @@
+{
+  "generated_at": "2026-05-07T17:38:46.351Z",
+  "mode": "preflight",
+  "release_ready": false,
+  "release_blockers": [
+    "tauri.signing_identity",
+    "codesign.identities",
+    "notary.credentials",
+    "release.app.codesign_verify",
+    "release.app.signature_authority"
+  ],
+  "inputs": {
+    "release_app": "desktop/target/release/bundle/macos/安心法务.app",
+    "debug_app": "desktop/target/debug/bundle/macos/安心法务.app",
+    "installed_profile_report": "docs/release/evidence/artifacts/desktop-installed-profile-smoke-20260507.json",
+    "runtime_transcript": "docs/release/evidence/artifacts/desktop-runtime-ui-smoke-20260507.log",
+    "runtime_structured_artifact": "docs/release/evidence/artifacts/desktop-runtime-code-smoke-20260507.json"
+  },
+  "checks": [
+    {
+      "id": "platform",
+      "label": "macOS release packaging host",
+      "status": "pass",
+      "release_blocking": true,
+      "detail": {
+        "platform": "darwin",
+        "required": "darwin"
+      }
+    },
+    {
+      "id": "command.xcodebuild",
+      "label": "xcodebuild available",
+      "status": "pass",
+      "release_blocking": true,
+      "detail": {}
+    },
+    {
+      "id": "command.xcrun",
+      "label": "xcrun available",
+      "status": "pass",
+      "release_blocking": true,
+      "detail": {}
+    },
+    {
+      "id": "command.codesign",
+      "label": "codesign available",
+      "status": "pass",
+      "release_blocking": true,
+      "detail": {}
+    },
+    {
+      "id": "command.security",
+      "label": "security available",
+      "status": "pass",
+      "release_blocking": true,
+      "detail": {}
+    },
+    {
+      "id": "command.spctl",
+      "label": "spctl available",
+      "status": "pass",
+      "release_blocking": true,
+      "detail": {}
+    },
+    {
+      "id": "command.hdiutil",
+      "label": "hdiutil available",
+      "status": "pass",
+      "release_blocking": true,
+      "detail": {}
+    },
+    {
+      "id": "dmg.hdiutil_create_probe",
+      "label": "hdiutil can create a temporary DMG",
+      "status": "pass",
+      "release_blocking": true,
+      "detail": {
+        "ok": true,
+        "exit_code": 0,
+        "stdout_tail": [
+          "created: /var/folders/nj/gp3tmfq54vl6vkldj7f8f7xc0000gn/T/anxin-hdiutil-probe.RXsBFK/probe.dmg"
+        ],
+        "stderr_tail": []
+      }
+    },
+    {
+      "id": "tauri.signing_identity",
+      "label": "Tauri macOS signing identity configured",
+      "status": "fail",
+      "release_blocking": true,
+      "detail": {
+        "configured": false,
+        "value_redacted": null
+      }
+    },
+    {
+      "id": "tauri.entitlements",
+      "label": "macOS entitlements file exists",
+      "status": "pass",
+      "release_blocking": true,
+      "detail": {
+        "path": "desktop/Entitlements.plist"
+      }
+    },
+    {
+      "id": "tauri.entitlements.aps_environment",
+      "label": "macOS APNs entitlement uses production for release",
+      "status": "pass",
+      "release_blocking": true,
+      "detail": {
+        "path": "desktop/Entitlements.plist",
+        "aps_environment": "production",
+        "required_for_release": "production"
+      }
+    },
+    {
+      "id": "codesign.identities",
+      "label": "Apple code signing identities installed",
+      "status": "fail",
+      "release_blocking": true,
+      "detail": {
+        "valid_identity_count": 0
+      }
+    },
+    {
+      "id": "notary.credentials",
+      "label": "Notarization credentials configured",
+      "status": "fail",
+      "release_blocking": true,
+      "detail": {
+        "keychain_profile_configured": false,
+        "apple_id_flow_configured": false,
+        "app_store_connect_api_configured": false
+      }
+    },
+    {
+      "id": "notary.tool",
+      "label": "notarytool available",
+      "status": "pass",
+      "release_blocking": true,
+      "detail": {}
+    },
+    {
+      "id": "stapler.tool",
+      "label": "stapler available",
+      "status": "pass",
+      "release_blocking": true,
+      "detail": {}
+    },
+    {
+      "id": "release.app.exists",
+      "label": "Release .app path exists",
+      "status": "pass",
+      "release_blocking": true,
+      "detail": {
+        "path": "desktop/target/release/bundle/macos/安心法务.app"
+      }
+    },
+    {
+      "id": "release.app.codesign_verify",
+      "label": "Release .app code signature verifies",
+      "status": "fail",
+      "release_blocking": true,
+      "detail": {
+        "exit_code": 1
+      }
+    },
+    {
+      "id": "release.app.signature_authority",
+      "label": "Release .app has signing authority chain",
+      "status": "fail",
+      "release_blocking": true,
+      "detail": {
+        "authority_count": 0
+      }
+    },
+    {
+      "id": "release.app.gatekeeper_assess",
+      "label": "Release .app passes Gatekeeper assessment",
+      "status": "pass",
+      "release_blocking": true,
+      "detail": {
+        "exit_code": 0
+      }
+    },
+    {
+      "id": "release.dmg.exists",
+      "label": "Release DMG path exists",
+      "status": "pass",
+      "release_blocking": true,
+      "detail": {
+        "path": "desktop/target/release/bundle/dmg"
+      }
+    },
+    {
+      "id": "support.debug_app.exists",
+      "label": "Debug .app supporting evidence exists",
+      "status": "pass",
+      "release_blocking": false,
+      "detail": {
+        "path": "desktop/target/debug/bundle/macos/安心法务.app"
+      }
+    },
+    {
+      "id": "support.debug_runtime_transcript",
+      "label": "Debug .app runtime/WebView transcript exists",
+      "status": "pass",
+      "release_blocking": false,
+      "detail": {
+        "path": "docs/release/evidence/artifacts/desktop-runtime-ui-smoke-20260507.log",
+        "structured_artifact": "docs/release/evidence/artifacts/desktop-runtime-code-smoke-20260507.json",
+        "page_load_evidence": true,
+        "structured_artifact_evidence": true
+      }
+    },
+    {
+      "id": "support.installed_profile_report",
+      "label": "Installed-profile SQLCipher/keyring report exists",
+      "status": "pass",
+      "release_blocking": false,
+      "detail": {
+        "path": "docs/release/evidence/artifacts/desktop-installed-profile-smoke-20260507.json",
+        "supporting_evidence_complete": true
+      }
+    }
+  ],
+  "completion_note": "Supporting evidence only. Keep desktop runtime evidence pending until a signed/notarized package has packaged UI interaction, signed packaged-profile migration, signed packaged runtime performance, and cross-device continuation evidence."
+}

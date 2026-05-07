@@ -10,35 +10,36 @@
 6. LLM 信号量和连接池参数从 config.py 统一读取，支持弹性扩展
 """
 
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
-from pydantic import BaseModel
-from loguru import logger
 import asyncio
-import os
-import json
-import hashlib
-import time
-
 import contextvars
+import json
+from abc import ABC, abstractmethod
+from typing import Any
 
 import httpx
-
-from camel.agents import ChatAgent
-from camel.messages import BaseMessage
-from camel.models import ModelFactory
+from camel.agents import ChatAgent  # noqa: F401 - legacy patch target for tests
+from camel.models import ModelFactory  # noqa: F401 - legacy patch target for tests
 from camel.types import ModelPlatformType, ModelType
+from loguru import logger
+from pydantic import BaseModel, Field
 
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, retry_if_exception
-
-from src.core.config import settings, get_settings
+from src.core.config import settings
 from src.core.llm_helper import get_llm_config_sync
 
+JSONDict = dict[str, Any]
+ChatMessage = dict[str, Any]
+
 # 任务级 LLM 配置上下文变量（线程安全，用于 DAG 执行时自动传递配置）
-_task_llm_config_var: contextvars.ContextVar = contextvars.ContextVar('task_llm_config', default=None)
+_task_llm_config_var: contextvars.ContextVar[Any | None] = contextvars.ContextVar(
+    "task_llm_config",
+    default=None,
+)
 
 # 任务级对话历史上下文变量（线程安全，用于 DAG 执行时自动传递历史给子 Agent）
-_task_history_var: contextvars.ContextVar = contextvars.ContextVar('task_history', default=None)
+_task_history_var: contextvars.ContextVar[list[ChatMessage] | None] = contextvars.ContextVar(
+    "task_history",
+    default=None,
+)
 
 
 class AgentConfig(BaseModel):
@@ -49,17 +50,17 @@ class AgentConfig(BaseModel):
     system_prompt: str
     temperature: float = 0.7
     max_tokens: int = 4096
-    tools: List[str] = []
+    tools: list[str] = Field(default_factory=list)
 
 
 class AgentResponse(BaseModel):
     """智能体响应"""
     agent_name: str
     content: str
-    reasoning: Optional[str] = None
-    citations: List[Dict] = []
-    actions: List[Dict] = []
-    metadata: Dict = {}
+    reasoning: str | None = None
+    citations: list[JSONDict] = Field(default_factory=list)
+    actions: list[JSONDict] = Field(default_factory=list)
+    metadata: JSONDict = Field(default_factory=dict)
 
 
 class BaseLegalAgent(ABC):
@@ -74,19 +75,19 @@ class BaseLegalAgent(ABC):
     - LLM 调用增加指数退避重试
     - Tool Calling 支持并行执行
     """
-    
+
     # ========== 类级别共享资源 ==========
-    _shared_http_client: Optional[httpx.AsyncClient] = None
+    _shared_http_client: httpx.AsyncClient | None = None
     _client_lock: asyncio.Lock = asyncio.Lock()
-    
+
     # LLM 调用重试配置（从 settings 读取，支持环境变量覆盖）
     MAX_RETRIES = settings.AGENT_LLM_MAX_RETRIES
     RETRY_BASE_DELAY = settings.AGENT_LLM_RETRY_BASE_DELAY  # 秒
     RETRY_MAX_DELAY = settings.AGENT_LLM_RETRY_MAX_DELAY  # 秒
-    
+
     # DAG 并行执行信号量（限制并发 LLM 请求数，从配置读取）
     _llm_semaphore: asyncio.Semaphore = asyncio.Semaphore(settings.AGENT_LLM_CONCURRENCY)
-    
+
     @classmethod
     async def get_http_client(cls) -> httpx.AsyncClient:
         """获取类级别共享的 httpx 客户端（带连接池）"""
@@ -114,43 +115,45 @@ class BaseLegalAgent(ABC):
                         f"llm_concurrency={settings.AGENT_LLM_CONCURRENCY})"
                     )
         return BaseLegalAgent._shared_http_client
-    
+
     @classmethod
-    async def close_http_client(cls):
+    async def close_http_client(cls) -> None:
         """关闭共享 httpx 客户端（应用关闭时调用）"""
         if BaseLegalAgent._shared_http_client and not BaseLegalAgent._shared_http_client.is_closed:
             await BaseLegalAgent._shared_http_client.aclose()
             BaseLegalAgent._shared_http_client = None
             logger.info("共享 httpx 连接池已关闭")
-    
-    def __init__(self, config: AgentConfig):
+
+    def __init__(self, config: AgentConfig) -> None:
         self.config = config
         self.name = config.name
         self.role = config.role
         self.system_prompt = config.system_prompt
-        self.client = None
-        self.agent = None  # Deprecated camel agent
+        self.client: Any | None = None
+        self.agent: Any | None = None  # Deprecated camel agent
+        self.llm_config: Any | None = None
+        self.model_name: str | None = None
         self._init_agent()
-    
-    def _init_agent(self):
+
+    def _init_agent(self) -> None:
         """初始化 LLM 配置（仅获取配置，不创建 httpx 客户端）"""
         try:
             llm_config = get_llm_config_sync("llm")
             self.llm_config = llm_config
             self.model_name = llm_config.model_name
-            
+
             logger.info(
                 f"智能体 {self.name} 初始化成功 "
                 f"(provider: {llm_config.provider}, model: {llm_config.model_name})"
             )
-            
+
         except Exception as e:
             logger.error(f"智能体 {self.name} 初始化失败: {e}")
             import traceback
             logger.error(traceback.format_exc())
             self.llm_config = None
             self.model_name = None
-    
+
     def _get_platform_type(self, provider: str) -> ModelPlatformType:
         """根据提供商获取CAMEL平台类型 (Unused, 保留兼容)"""
         platform_map = {
@@ -158,13 +161,13 @@ class BaseLegalAgent(ABC):
             "anthropic": ModelPlatformType.ANTHROPIC,
         }
         return platform_map.get(provider, ModelPlatformType.OPENAI)
-    
+
     def _get_model_type(self, provider: str, model_name: str) -> ModelType:
         """根据提供商和模型名称获取CAMEL模型类型 (Unused, 保留兼容)"""
         return ModelType.GPT_4O
-    
+
     @abstractmethod
-    async def process(self, task: Dict[str, Any]) -> AgentResponse:
+    async def process(self, task: dict[str, Any]) -> AgentResponse:
         """
         处理任务
         
@@ -175,7 +178,7 @@ class BaseLegalAgent(ABC):
             AgentResponse: 处理结果
         """
         pass
-    
+
     def _is_local_model_api(self, api_base_url: str) -> bool:
         """判断是否为本地模型服务（非 OpenAI 兼容格式）"""
         if not api_base_url:
@@ -183,15 +186,15 @@ class BaseLegalAgent(ABC):
         # 本地模型服务特征：URL 以 /api/v1/chat 结尾
         return "/api/v1/chat" in api_base_url
 
-    def _prepare_llm_request(self, active_config: Any) -> tuple:
+    def _prepare_llm_request(self, active_config: Any) -> tuple[str, dict[str, str], str | None]:
         """
         准备 LLM 请求参数（提取公共逻辑）
 
         Returns:
             (url, headers, model_name) 元组
         """
-        api_key = getattr(active_config, "api_key", "")
-        api_base_url = getattr(active_config, "api_base_url", "")
+        api_key = str(getattr(active_config, "api_key", "") or "")
+        api_base_url = str(getattr(active_config, "api_base_url", "") or "")
         model_name = getattr(active_config, "model_name", self.model_name)
 
         # 解密 API Key (如果需要)
@@ -222,9 +225,9 @@ class BaseLegalAgent(ABC):
         return url, headers, model_name
 
     @staticmethod
-    def _normalize_history_messages(history: Optional[List[Dict[str, Any]]]) -> List[Dict[str, str]]:
+    def _normalize_history_messages(history: list[ChatMessage] | None) -> list[ChatMessage]:
         """规范化历史消息，过滤空内容和重复 system 消息"""
-        normalized: List[Dict[str, str]] = []
+        normalized: list[ChatMessage] = []
         for item in history or []:
             if not isinstance(item, dict):
                 continue
@@ -239,8 +242,8 @@ class BaseLegalAgent(ABC):
         self,
         system_prompt: str,
         message: str,
-        history: Optional[List[Dict[str, Any]]] = None,
-    ) -> List[Dict[str, str]]:
+        history: list[ChatMessage] | None = None,
+    ) -> list[ChatMessage]:
         """构建发给 LLM 的消息列表，保留最近的对话历史"""
         return [
             {"role": "system", "content": system_prompt},
@@ -249,12 +252,12 @@ class BaseLegalAgent(ABC):
         ]
 
     @staticmethod
-    def _has_valid_api_key(active_config: Optional[Any]) -> bool:
+    def _has_valid_api_key(active_config: Any | None) -> bool:
         """检查配置是否包含可用 API Key"""
         api_key = getattr(active_config, "api_key", "") if active_config else ""
         return bool(api_key and api_key != "sk-dummy-key" and "dummy" not in str(api_key))
 
-    async def _resolve_active_llm_config(self, llm_config: Optional[Any] = None) -> Optional[Any]:
+    async def _resolve_active_llm_config(self, llm_config: Any | None = None) -> Any | None:
         """统一解析热路径中的有效 LLM 配置，必要时走缓存化自愈"""
         from src.services.llm_service import LLMService
 
@@ -281,14 +284,14 @@ class BaseLegalAgent(ABC):
             logger.warning(f"Agent {self.name}: 加载 LLM 配置失败: {db_err}")
 
         return active_config
-    
+
     async def _call_llm_with_retry(
         self,
         url: str,
-        headers: dict,
-        payload: dict,
+        headers: dict[str, str],
+        payload: JSONDict,
         stream: bool = False,
-    ) -> dict:
+    ) -> JSONDict:
         """
         带指数退避重试的 LLM 调用
         
@@ -304,10 +307,15 @@ class BaseLegalAgent(ABC):
         Raises:
             Exception: 所有重试失败后抛出
         """
-        from tenacity import AsyncRetrying, stop_after_attempt, wait_exponential, retry_if_exception_type
+        from tenacity import (
+            AsyncRetrying,
+            retry_if_exception_type,
+            stop_after_attempt,
+            wait_exponential,
+        )
 
         client = await self.get_http_client()
-        
+
         def should_retry(e: BaseException) -> bool:
             # 认证错误不重试
             error_str = str(e)
@@ -330,32 +338,37 @@ class BaseLegalAgent(ABC):
                             resp = await client.post(url, headers=headers, json=payload)
                         else:
                             resp = await client.post(url, headers=headers, json=payload)
-                    
+
                     if resp.status_code == 200:
-                        return resp.json()
+                        result = resp.json()
+                        if isinstance(result, dict):
+                            return result
+                        return {"response": result}
                     elif resp.status_code == 401:
                         raise Exception(f"API认证失败 (401): {resp.text}")
                     elif resp.status_code == 429:
                         raise Exception(f"API速率限制 (429): {resp.text}")
                     else:
                         raise Exception(f"API返回 {resp.status_code}: {resp.text}")
-                        
+
                 except Exception as e:
                     if not should_retry(e):
                         raise  # Reraise immediately, bypass tenacity retry
-                    
+
                     logger.warning(f"API调用异常: {e}，正在尝试重试 (当前尝试 {attempt.retry_state.attempt_number}/{self.MAX_RETRIES})")
                     raise  # Reraise so tenacity catches it and retries
-    
+
+        raise RuntimeError("API调用失败：重试器未返回结果")
+
     async def chat(
         self,
         message: str,
-        user_id: Optional[str] = None,
-        llm_config: Optional[Any] = None,
-        system_prompt_override: Optional[str] = None,
+        user_id: str | None = None,
+        llm_config: Any | None = None,
+        system_prompt_override: str | None = None,
         enable_reflection: bool = False,
-        max_tokens: Optional[int] = None,
-        history: Optional[List[Dict[str, Any]]] = None,
+        max_tokens: int | None = None,
+        history: list[ChatMessage] | None = None,
     ) -> str:
         """
         对话接口 (v2 优化版)
@@ -378,10 +391,10 @@ class BaseLegalAgent(ABC):
         try:
             # 广播思考状态
             await self.broadcast_status("thinking", f"{self.name} 正在思考...", {"message_preview": message[:50]})
-            
+
             # 确定 system prompt（优先使用 override，不修改实例状态）
             system_prompt = system_prompt_override or self.system_prompt
-            
+
             # 动态注入用户偏好 (Long-term Memory)
             if user_id:
                 try:
@@ -390,7 +403,7 @@ class BaseLegalAgent(ABC):
                     system_prompt += suffix
                 except Exception as e:
                     logger.warning(f"无法获取用户偏好: {e}")
-            
+
             # ===== Harness: RAG 法律知识自动注入（所有 Agent 共享）=====
             # 从知识库检索相关法条，注入到 system_prompt 中
             try:
@@ -442,26 +455,26 @@ class BaseLegalAgent(ABC):
                         "2. 进入 **模型配置 (LLM)** 标签\n"
                         "3. 编辑您的模型配置，输入有效的 API Key\n"
                         "4. 保存后重新发送消息即可")
-            
+
             # Debug logging — 不记录任何密钥片段
             provider = getattr(active_config, 'provider', 'N/A')
             base_url_str = getattr(active_config, 'api_base_url', 'N/A')
             logger.info(f"Agent {self.name} using config: Provider={provider}, API Base={base_url_str}, Key={'configured' if _final_key else 'missing'}")
-            
+
             # 准备请求参数
             url, headers, model_name = self._prepare_llm_request(active_config)
-            
+
             # --- MCP Tools Integration ---
             try:
                 available_tools = await mcp_client_service.get_all_tools()
             except Exception as e:
                 logger.warning(f"获取 MCP 工具失败: {e}")
                 available_tools = []
-                
+
             max_turns = 5  # Prevent infinite loops
             current_turn = 0
             reflection_done = False  # 标记是否已完成反思
-            
+
             # 检测是否为本地模型 API
             api_base_url = getattr(active_config, "api_base_url", "")
             is_local_api = self._is_local_model_api(api_base_url)
@@ -486,7 +499,7 @@ class BaseLegalAgent(ABC):
                             input_text += f"{msg_content}\n"
                         elif role == "assistant":
                             input_text += f"[助手回复] {msg_content}\n"
-                    payload = {
+                    payload: JSONDict = {
                         "model": model_name,
                         "input": input_text.strip(),
                         "stream": False,
@@ -538,7 +551,7 @@ class BaseLegalAgent(ABC):
                         logger.warning(f"本地模型返回空响应: {str(data)[:200]}")
                         content = "抱歉，模型未能生成有效回复，请重试或切换模型。"
                     tool_calls = None  # 本地模型暂不支持 tool calls
-                    resp_msg = {"role": "assistant", "content": content}
+                    resp_msg: ChatMessage = {"role": "assistant", "content": content}
                 else:
                     choice = data["choices"][0]
                     resp_msg = choice["message"]
@@ -551,7 +564,7 @@ class BaseLegalAgent(ABC):
                         )
                         resp_msg["content"] = content
                     else:
-                        content = raw_content
+                        content = str(raw_content) if raw_content is not None else ""
                     tool_calls = resp_msg.get("tool_calls")
 
                 # 空响应防护
@@ -562,13 +575,13 @@ class BaseLegalAgent(ABC):
 
                 # Update messages with assistant response
                 messages.append(resp_msg)
-                
+
                 if tool_calls:
                     logger.info(f"Executing {len(tool_calls)} tool calls...")
                     await self.broadcast_status("tool_use", f"{self.name} 正在使用工具...", {"tool_count": len(tool_calls)})
-                    
+
                     # 并行执行所有 Tool Calls
-                    async def _execute_tool(tc):
+                    async def _execute_tool(tc: JSONDict) -> ChatMessage:
                         call_id = tc["id"]
                         fn = tc["function"]
                         fn_name = fn["name"]
@@ -586,14 +599,14 @@ class BaseLegalAgent(ABC):
                             "tool_call_id": call_id,
                             "content": tool_output
                         }
-                    
+
                     tool_results = await asyncio.gather(
                         *[_execute_tool(tc) for tc in tool_calls],
                         return_exceptions=True
                     )
-                    
+
                     for tr in tool_results:
-                        if isinstance(tr, Exception):
+                        if isinstance(tr, BaseException):
                             messages.append({
                                 "role": "tool",
                                 "tool_call_id": "error",
@@ -601,7 +614,7 @@ class BaseLegalAgent(ABC):
                             })
                         else:
                             messages.append(tr)
-                    
+
                     # Loop back to send tool outputs to LLM
                     continue
                 else:
@@ -618,29 +631,29 @@ class BaseLegalAgent(ABC):
                         messages.append({"role": "user", "content": reflection_prompt})
                         await self.broadcast_status("reflection", f"{self.name} 正在反思...", {"reason": "Self-Correction"})
                         continue
-                    
+
                     # Final response
                     await self.broadcast_status("finished", f"{self.name} 回复完成", {"response_preview": str(content)[:50]})
                     return content
-            
+
             return "Task limit reached without final answer."
-            
+
         except Exception as e:
             # MOCK MODE
             error_str = str(e)
             is_auth_error = "Incorrect API key provided" in error_str or "401" in error_str or "认证" in error_str
             is_conn_error = "ConnectError" in error_str or "Timeout" in error_str or "timed out" in error_str or "Connection refused" in error_str
-            
+
             active_config = llm_config or _task_llm_config_var.get(None) or self.llm_config
             api_key = getattr(active_config, "api_key", "") if active_config else ""
             api_base_url = getattr(active_config, "api_base_url", "") if active_config else ""
-            
+
             is_dummy_key = "dummy" in api_key or not api_key
-            
+
             if is_auth_error or (is_conn_error and is_dummy_key) or (is_dummy_key and "api.openai.com" in api_base_url):
                 logger.warning(f"API调用失败或使用测试Key ({error_str})，使用模拟响应 (Mock Mode) - Agent: {self.name}")
                 return self._get_mock_response(message)
-                
+
             logger.error(f"对话失败: {e}")
             await self.broadcast_status("error", f"{self.name} 发生错误: {str(e)}")
             return f"处理失败: {str(e)}"
@@ -648,11 +661,11 @@ class BaseLegalAgent(ABC):
     async def stream_chat(
         self,
         message: str,
-        llm_config: Optional[Any] = None,
-        system_prompt_override: Optional[str] = None,
-        history: Optional[List[Dict[str, Any]]] = None,
-        max_tokens: Optional[int] = None,
-    ) -> asyncio.Queue:
+        llm_config: Any | None = None,
+        system_prompt_override: str | None = None,
+        history: list[ChatMessage] | None = None,
+        max_tokens: int | None = None,
+    ) -> asyncio.Queue[str | None]:
         """
         流式对话接口 — 真正的 token-by-token 流式输出
         
@@ -667,9 +680,9 @@ class BaseLegalAgent(ABC):
         Returns:
             asyncio.Queue: token 队列
         """
-        queue: asyncio.Queue = asyncio.Queue()
-        
-        async def _stream_worker():
+        queue: asyncio.Queue[str | None] = asyncio.Queue()
+
+        async def _stream_worker() -> None:
             try:
                 system_prompt = system_prompt_override or self.system_prompt
                 active_config = await self._resolve_active_llm_config(llm_config)
@@ -679,14 +692,14 @@ class BaseLegalAgent(ABC):
                     )
                     await queue.put(None)
                     return
-                
+
                 url, headers, model_name = self._prepare_llm_request(active_config)
-                
+
                 # 推理型模型强制 temperature=1
                 temperature = getattr(active_config, 'temperature', None) or self.config.temperature or 0.7
                 if model_name and ("k2" in model_name or "thinking" in model_name or "o1" in model_name or "o3" in model_name):
                     temperature = 1.0
-                
+
                 # 防护：确保 user 消息不为空
                 # 注意：不能对闭包变量 message 赋值，否则 Python 会将其视为局部变量
                 # 导致 UnboundLocalError
@@ -715,7 +728,7 @@ class BaseLegalAgent(ABC):
                             input_text += f"{msg_content}\n"
                         elif role == "assistant":
                             input_text += f"[助手回复] {msg_content}\n"
-                    payload = {
+                    payload: JSONDict = {
                         "model": model_name,
                         "input": input_text.strip(),
                         "stream": False,
@@ -756,7 +769,7 @@ class BaseLegalAgent(ABC):
 
                     async with client.stream("POST", url, headers=headers, json=payload) as resp:
                         if resp.status_code != 200:
-                            error_body = await resp.aread()
+                            await resp.aread()
                             await queue.put(f"[Error] API returned {resp.status_code}")
                             await queue.put(None)
                             return
@@ -774,14 +787,14 @@ class BaseLegalAgent(ABC):
                                         await queue.put(token)
                                 except (json.JSONDecodeError, KeyError, IndexError):
                                     continue
-                
+
                 await queue.put(None)  # 流结束信号
-                
+
             except Exception as e:
                 logger.error(f"流式对话失败: {e}")
                 await queue.put(f"[Error] {str(e)}")
                 await queue.put(None)
-        
+
         # 在后台启动流式 worker
         asyncio.create_task(_stream_worker())
         return queue
@@ -789,7 +802,7 @@ class BaseLegalAgent(ABC):
     def _get_mock_response(self, message: str) -> str:
         """生成模拟响应"""
         msg_lower = message.lower()
-        
+
         # 1. 劳动法相关
         if "辞退" in msg_lower or "试用期" in msg_lower:
             return """根据《劳动合同法》第39条规定，劳动者在试用期间被证明不符合录用条件的，用人单位可以解除劳动合同，且无需支付经济补偿金。
@@ -799,7 +812,7 @@ class BaseLegalAgent(ABC):
             2. 收集员工不符合录用条件的具体证据。
             3. 书面通知员工解除劳动合同。
             """
-            
+
         # 2. 知识产权相关
         if "抄袭" in msg_lower or "侵权" in msg_lower:
             return """判定著作权侵权通常遵循"接触 + 实质性相似"原则。
@@ -810,7 +823,7 @@ class BaseLegalAgent(ABC):
             
             建议保留创作底稿，进行侵权对比分析。
             """
-            
+
         # 3. 共识 Agent (JSON 格式)
         if "共识" in self.name or "仲裁" in self.role or "conflicts" in self.system_prompt:
             return """```json
@@ -836,8 +849,13 @@ class BaseLegalAgent(ABC):
         # 4. 通用回复
         return f"【Mock响应】我已收到您的问题：{message}。由于正在使用测试API Key，无法调用真实模型进行回答。请配置有效的OPENAI_API_KEY。"
 
-    
-    async def broadcast_status(self, status: str, message: str, payload: Dict = None):
+
+    async def broadcast_status(
+        self,
+        status: str,
+        message: str,
+        payload: JSONDict | None = None,
+    ) -> None:
         """广播Agent状态到事件总线"""
         try:
             from src.services.event_bus import event_bus
@@ -851,7 +869,7 @@ class BaseLegalAgent(ABC):
         except Exception as e:
             logger.warning(f"状态广播失败: {e}")
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         """获取Agent信息"""
         return {
             "name": self.name,

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 合同文档导出服务 - 支持 PDF 和 DOCX 格式
 专业法律文书排版标准
@@ -6,17 +5,29 @@
 
 import os
 import re
-import platform
-from io import BytesIO
+from collections.abc import Iterator
 from datetime import datetime
-from typing import Optional, List
+from io import BytesIO
+from typing import Any, TypeAlias, cast
 
 from loguru import logger
-from src.core.ai_labeling import AILabelingService, AIContentType
+
+from src.core.ai_labeling import AIContentType, AILabelingService
+
+MarkdownSection: TypeAlias = dict[str, str]
+RiskItems: TypeAlias = list[dict[str, Any]]
+
+
+class ExportSizeLimitError(ValueError):
+    """导出源内容或生成文件超过大小限制。"""
 
 
 class ContractExportService:
     """合同文档导出服务 - 专业法律文书排版"""
+
+    DEFAULT_MAX_EXPORT_BYTES = 50 * 1024 * 1024
+    ABSOLUTE_MAX_EXPORT_BYTES = 200 * 1024 * 1024
+    STREAM_CHUNK_SIZE = 64 * 1024
 
     # 中文字体路径候选列表
     _FONT_PATHS = [
@@ -30,7 +41,41 @@ class ContractExportService:
     ]
 
     @staticmethod
-    def _find_chinese_font() -> Optional[str]:
+    def _get_max_export_bytes() -> int:
+        try:
+            configured = int(os.getenv("CONTRACT_EXPORT_MAX_BYTES", ""))
+        except ValueError:
+            configured = ContractExportService.DEFAULT_MAX_EXPORT_BYTES
+
+        if configured <= 0:
+            configured = ContractExportService.DEFAULT_MAX_EXPORT_BYTES
+        return min(configured, ContractExportService.ABSOLUTE_MAX_EXPORT_BYTES)
+
+    @staticmethod
+    def _ensure_export_size(label: str, value: str | bytes | BytesIO) -> None:
+        if isinstance(value, BytesIO):
+            current_position = value.tell()
+            value.seek(0, os.SEEK_END)
+            size = value.tell()
+            value.seek(current_position)
+        elif isinstance(value, bytes):
+            size = len(value)
+        else:
+            size = len(value.encode("utf-8"))
+
+        max_size = ContractExportService._get_max_export_bytes()
+        if size > max_size:
+            raise ExportSizeLimitError(f"{label}超过导出大小限制（最大 {max_size} 字节）")
+
+    @staticmethod
+    def iter_bytes(output: BytesIO, chunk_size: int | None = None) -> Iterator[bytes]:
+        output.seek(0)
+        chunk_size = chunk_size or ContractExportService.STREAM_CHUNK_SIZE
+        while chunk := output.read(chunk_size):
+            yield chunk
+
+    @staticmethod
+    def _find_chinese_font() -> str | None:
         """查找可用的中文字体路径"""
         for font_path in ContractExportService._FONT_PATHS:
             if os.path.exists(font_path):
@@ -38,12 +83,12 @@ class ContractExportService:
         return None
 
     @staticmethod
-    def _parse_markdown_to_sections(text: str) -> list:
+    def _parse_markdown_to_sections(text: str) -> list[MarkdownSection]:
         """
         解析 Markdown 格式的合同文本为结构化段落列表。
         返回 [{"type": "h1"|"h2"|"h3"|"p"|"blank"|"sign"|"hr", "text": str}, ...]
         """
-        sections = []
+        sections: list[MarkdownSection] = []
         lines = text.split("\n")
 
         for line in lines:
@@ -80,14 +125,19 @@ class ContractExportService:
         return sections
 
     @staticmethod
+    def _risk_level(risk: dict[str, Any]) -> str:
+        raw_level = risk.get("risk_level", risk.get("level", "medium"))
+        return raw_level if isinstance(raw_level, str) else str(raw_level)
+
+    @staticmethod
     def export_docx(
         title: str,
         text: str,
-        contract_number: Optional[str] = None,
-        risk_level: Optional[str] = None,
-        risk_score: Optional[float] = None,
-        review_summary: Optional[str] = None,
-        risks: list = None,
+        contract_number: str | None = None,
+        risk_level: str | None = None,
+        risk_score: float | None = None,
+        review_summary: str | None = None,
+        risks: RiskItems | None = None,
     ) -> BytesIO:
         """
         导出为专业法律文书 DOCX 格式
@@ -99,10 +149,11 @@ class ContractExportService:
         - 正文：小四号（12pt）宋体，1.5倍行距
         - 签署区：独立排版
         """
+        ContractExportService._ensure_export_size("导出源内容", text)
+
         from docx import Document
-        from docx.shared import Pt, Inches, RGBColor, Cm, Emu
         from docx.enum.text import WD_ALIGN_PARAGRAPH
-        from docx.enum.section import WD_ORIENT
+        from docx.shared import Cm, Pt, RGBColor
 
         doc = Document()
 
@@ -201,7 +252,7 @@ class ContractExportService:
 
         # ===== 审查报告附录（如有） =====
         if risks:
-            doc.add_page_break()
+            cast(Any, doc).add_page_break()
 
             # 审查报告标题
             heading_p = doc.add_paragraph()
@@ -257,7 +308,7 @@ class ContractExportService:
             risk_level_cn = {"low": "低", "medium": "中", "high": "高", "critical": "严重"}
 
             for i, risk in enumerate(risks, 1):
-                level = risk.get("risk_level", risk.get("level", "medium"))
+                level = ContractExportService._risk_level(risk)
                 color = risk_level_colors.get(level, RGBColor(0, 0, 0))
 
                 # 风险标题
@@ -288,7 +339,7 @@ class ContractExportService:
                         val_run.font.size = Pt(10)
 
                 status = "已解决" if risk.get("is_resolved") else "待处理"
-                s_run = detail_p.add_run(f"状态：")
+                s_run = detail_p.add_run("状态：")
                 s_run.font.bold = True
                 s_run.font.size = Pt(10)
                 detail_p.add_run(f"{status}\n").font.size = Pt(10)
@@ -315,6 +366,7 @@ class ContractExportService:
         # ===== 保存 =====
         output = BytesIO()
         doc.save(output)
+        ContractExportService._ensure_export_size("导出文件", output)
         output.seek(0)
         return output
 
@@ -322,17 +374,19 @@ class ContractExportService:
     def export_pdf(
         title: str,
         text: str,
-        contract_number: Optional[str] = None,
-        risk_level: Optional[str] = None,
-        risk_score: Optional[float] = None,
-        review_summary: Optional[str] = None,
-        risks: list = None,
+        contract_number: str | None = None,
+        risk_level: str | None = None,
+        risk_score: float | None = None,
+        review_summary: str | None = None,
+        risks: RiskItems | None = None,
     ) -> BytesIO:
         """
         导出为 PDF 格式
 
         优先使用 reportlab，备选 fpdf2。
         """
+        ContractExportService._ensure_export_size("导出源内容", text)
+
         try:
             return ContractExportService._export_pdf_reportlab(
                 title, text, contract_number, risk_level, risk_score, review_summary, risks
@@ -347,20 +401,20 @@ class ContractExportService:
     def _export_pdf_reportlab(
         title: str,
         text: str,
-        contract_number: Optional[str] = None,
-        risk_level: Optional[str] = None,
-        risk_score: Optional[float] = None,
-        review_summary: Optional[str] = None,
-        risks: list = None,
+        contract_number: str | None = None,
+        risk_level: str | None = None,
+        risk_score: float | None = None,
+        review_summary: str | None = None,
+        risks: RiskItems | None = None,
     ) -> BytesIO:
         """使用 reportlab 导出专业法律文书 PDF"""
-        from reportlab.lib.pagesizes import A4
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.units import mm, cm
         from reportlab.lib.colors import HexColor
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+        from reportlab.lib.units import cm, mm
         from reportlab.pdfbase import pdfmetrics
         from reportlab.pdfbase.ttfonts import TTFont
+        from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer
 
         # 注册中文字体
         font_path = ContractExportService._find_chinese_font()
@@ -523,7 +577,7 @@ class ContractExportService:
             }
 
             for i, risk in enumerate(risks, 1):
-                level = risk.get("risk_level", risk.get("level", "medium"))
+                level = ContractExportService._risk_level(risk)
                 color = risk_colors.get(level, "#000000")
 
                 risk_title_style = ParagraphStyle(
@@ -563,6 +617,7 @@ class ContractExportService:
                 elements.append(Spacer(1, 4 * mm))
 
         doc.build(elements)
+        ContractExportService._ensure_export_size("导出文件", output)
         output.seek(0)
         return output
 
@@ -570,14 +625,15 @@ class ContractExportService:
     def _export_pdf_fpdf2(
         title: str,
         text: str,
-        contract_number: Optional[str] = None,
-        risk_level: Optional[str] = None,
-        risk_score: Optional[float] = None,
-        review_summary: Optional[str] = None,
-        risks: list = None,
+        contract_number: str | None = None,
+        risk_level: str | None = None,
+        risk_score: float | None = None,
+        review_summary: str | None = None,
+        risks: RiskItems | None = None,
     ) -> BytesIO:
         """使用 fpdf2 作为备选导出 PDF"""
         from fpdf import FPDF
+        from fpdf.enums import XPos, YPos
 
         pdf = FPDF()
         pdf.set_auto_page_break(auto=True, margin=25.4)
@@ -588,7 +644,7 @@ class ContractExportService:
         font_path = ContractExportService._find_chinese_font()
         if font_path:
             try:
-                pdf.add_font("Chinese", "", font_path, uni=True)
+                pdf.add_font("Chinese", "", font_path)
                 pdf.set_font("Chinese", size=12)
             except Exception as e:
                 logger.warning(f"fpdf2 注册中文字体失败: {e}")
@@ -602,22 +658,22 @@ class ContractExportService:
         for sec in sections:
             if sec["type"] == "h1":
                 pdf.set_font_size(18)
-                pdf.cell(0, 14, sec["text"], ln=True, align="C")
+                pdf.cell(0, 14, sec["text"], new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
                 pdf.ln(8)
             elif sec["type"] == "h2":
                 pdf.set_font_size(14)
                 pdf.ln(4)
-                pdf.cell(0, 10, sec["text"], ln=True)
+                pdf.cell(0, 10, sec["text"], new_x=XPos.LMARGIN, new_y=YPos.NEXT)
                 pdf.ln(2)
                 pdf.set_font_size(12)
             elif sec["type"] == "h3":
                 pdf.set_font_size(12)
                 pdf.ln(3)
-                pdf.cell(0, 8, sec["text"], ln=True)
+                pdf.cell(0, 8, sec["text"], new_x=XPos.LMARGIN, new_y=YPos.NEXT)
                 pdf.ln(1)
             elif sec["type"] == "sign":
                 pdf.set_font_size(12)
-                pdf.cell(0, 8, sec["text"], ln=True)
+                pdf.cell(0, 8, sec["text"], new_x=XPos.LMARGIN, new_y=YPos.NEXT)
             elif sec["type"] == "hr":
                 pdf.ln(4)
             elif sec["type"] == "blank":
@@ -630,33 +686,33 @@ class ContractExportService:
         if risks:
             pdf.add_page()
             pdf.set_font_size(16)
-            pdf.cell(0, 12, "合同审查报告 — 风险点详情", ln=True, align="C")
+            pdf.cell(0, 12, "合同审查报告 — 风险点详情", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
             pdf.ln(6)
 
             pdf.set_font_size(10)
             if contract_number:
-                pdf.cell(0, 6, f"合同编号：{contract_number}", ln=True)
-            pdf.cell(0, 6, f"审查日期：{datetime.now().strftime('%Y年%m月%d日')}", ln=True)
+                pdf.cell(0, 6, f"合同编号：{contract_number}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+            pdf.cell(0, 6, f"审查日期：{datetime.now().strftime('%Y年%m月%d日')}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
             if risk_level:
                 risk_level_map = {
                     "low": "低风险", "medium": "中风险",
                     "high": "高风险", "critical": "严重风险",
                 }
-                pdf.cell(0, 6, f"风险等级：{risk_level_map.get(risk_level, risk_level)}", ln=True)
+                pdf.cell(0, 6, f"风险等级：{risk_level_map.get(risk_level, risk_level)}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
             if risk_score is not None:
-                pdf.cell(0, 6, f"风险评分：{risk_score:.2f}", ln=True)
+                pdf.cell(0, 6, f"风险评分：{risk_score:.2f}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
             pdf.ln(5)
 
             risk_level_cn = {"low": "低", "medium": "中", "high": "高", "critical": "严重"}
 
             for i, risk in enumerate(risks, 1):
-                level = risk.get("risk_level", risk.get("level", "medium"))
+                level = ContractExportService._risk_level(risk)
                 pdf.set_font_size(12)
-                pdf.cell(0, 8, f"风险 {i}：{risk.get('title', '未知风险')}", ln=True)
+                pdf.cell(0, 8, f"风险 {i}：{risk.get('title', '未知风险')}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
                 pdf.set_font_size(10)
                 if risk.get("type") or risk.get("risk_type"):
-                    pdf.cell(0, 6, f"  类型：{risk.get('risk_type') or risk.get('type', '未知')}", ln=True)
-                pdf.cell(0, 6, f"  等级：{risk_level_cn.get(level, level)}", ln=True)
+                    pdf.cell(0, 6, f"  类型：{risk.get('risk_type') or risk.get('type', '未知')}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+                pdf.cell(0, 6, f"  等级：{risk_level_cn.get(level, level)}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
                 if risk.get("description"):
                     pdf.multi_cell(0, 6, f"  描述：{risk.get('description', '')}")
                 if risk.get("legal_basis"):
@@ -664,10 +720,11 @@ class ContractExportService:
                 if risk.get("suggestion"):
                     pdf.multi_cell(0, 6, f"  建议：{risk.get('suggestion')}")
                 status = "已解决" if risk.get("is_resolved") else "待处理"
-                pdf.cell(0, 6, f"  状态：{status}", ln=True)
+                pdf.cell(0, 6, f"  状态：{status}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
                 pdf.ln(3)
 
         output = BytesIO()
         pdf.output(output)
+        ContractExportService._ensure_export_size("导出文件", output)
         output.seek(0)
         return output

@@ -3,9 +3,9 @@
 包含反馈、经验提取、策略优化
 """
 
-from .feedback import FeedbackPipeline, UserFeedback, feedback_pipeline
 from .experience_extractor import ExperienceExtractor, Pattern
-from .policy_optimizer import PolicyOptimizer, DAGStructure
+from .feedback import FeedbackPipeline, UserFeedback, feedback_pipeline
+from .policy_optimizer import DAGStructure, PolicyOptimizer
 
 __all__ = [
     'FeedbackPipeline',

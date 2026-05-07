@@ -10,7 +10,6 @@
 /// - 每条命令审计记录
 /// - 高危操作禁止（delete/payment/sign）
 /// - 频率限制 30 req/min
-
 use serde::{Deserialize, Serialize};
 use tauri::command;
 
@@ -67,8 +66,8 @@ pub async fn cli_execute(
     });
 
     // 从环境或配置获取后端 URL
-    let backend_url = std::env::var("ANXIN_BACKEND_URL")
-        .unwrap_or_else(|_| "http://localhost:8001".to_string());
+    let backend_url =
+        std::env::var("ANXIN_BACKEND_URL").unwrap_or_else(|_| "http://localhost:8001".to_string());
 
     let response = client
         .post(format!("{}/api/v1/cli/execute", backend_url))
@@ -107,8 +106,8 @@ pub async fn cli_create_key(
     scopes: Vec<String>,
     expires_days: Option<u32>,
 ) -> Result<serde_json::Value, String> {
-    let backend_url = std::env::var("ANXIN_BACKEND_URL")
-        .unwrap_or_else(|_| "http://localhost:8001".to_string());
+    let backend_url =
+        std::env::var("ANXIN_BACKEND_URL").unwrap_or_else(|_| "http://localhost:8001".to_string());
 
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
@@ -140,8 +139,8 @@ pub async fn cli_create_key(
 /// 列出 API Keys
 #[command]
 pub async fn cli_list_keys() -> Result<serde_json::Value, String> {
-    let backend_url = std::env::var("ANXIN_BACKEND_URL")
-        .unwrap_or_else(|_| "http://localhost:8001".to_string());
+    let backend_url =
+        std::env::var("ANXIN_BACKEND_URL").unwrap_or_else(|_| "http://localhost:8001".to_string());
 
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))

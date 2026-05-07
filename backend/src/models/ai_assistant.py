@@ -1,14 +1,12 @@
-# -*- coding: utf-8 -*-
 """AI 私有助手模型"""
 
-from datetime import datetime
-from typing import Optional
+from typing import Any
 
-from sqlalchemy import String, Text, ForeignKey, Boolean, Integer, Float, Index
 from sqlalchemy import JSON as JSONB
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import Boolean, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy.orm import Mapped, mapped_column
 
-from src.models.base import Base, TimestampMixin, GUID
+from src.models.base import GUID, Base, TimestampMixin
 
 
 class AIAssistantConfig(Base, TimestampMixin):
@@ -16,32 +14,32 @@ class AIAssistantConfig(Base, TimestampMixin):
 
     __tablename__ = "ai_assistant_configs"
 
-    org_id: Mapped[Optional[str]] = mapped_column(
+    org_id: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True
     )
     name: Mapped[str] = mapped_column(
         String(100), nullable=False, default="安心法务助手"
     )
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    avatar_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    welcome_message: Mapped[Optional[str]] = mapped_column(
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    welcome_message: Mapped[str | None] = mapped_column(
         Text, default="您好！我是您的专属法务助手，有什么法律问题可以帮您？"
     )
-    system_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    personality: Mapped[Optional[dict]] = mapped_column(
+    system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    personality: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB, default=dict, comment="风格配置: style, tone, language"
     )
-    enabled_agents: Mapped[Optional[list]] = mapped_column(
+    enabled_agents: Mapped[list[Any] | None] = mapped_column(
         JSONB, default=list, comment="启用的 Agent key 列表"
     )
-    knowledge_base_ids: Mapped[Optional[list]] = mapped_column(
+    knowledge_base_ids: Mapped[list[Any] | None] = mapped_column(
         JSONB, default=list, comment="关联的知识库 ID 列表"
     )
     max_context_turns: Mapped[int] = mapped_column(
         Integer, default=10, comment="保留的上下文轮数"
     )
     temperature: Mapped[float] = mapped_column(Float, default=0.7)
-    llm_config_id: Mapped[Optional[str]] = mapped_column(
+    llm_config_id: Mapped[str | None] = mapped_column(
         String(36), nullable=True, comment="指定使用的 LLM 配置 ID"
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -70,18 +68,18 @@ class ConversationSummary(Base, TimestampMixin):
         GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     summary: Mapped[str] = mapped_column(Text, nullable=False, comment="AI 生成的摘要")
-    key_topics: Mapped[Optional[list]] = mapped_column(
+    key_topics: Mapped[list[Any] | None] = mapped_column(
         JSONB, default=list, comment="关键话题"
     )
-    action_items: Mapped[Optional[list]] = mapped_column(
+    action_items: Mapped[list[Any] | None] = mapped_column(
         JSONB, default=list, comment="待办事项"
     )
-    sentiment: Mapped[Optional[str]] = mapped_column(
+    sentiment: Mapped[str | None] = mapped_column(
         String(20), nullable=True, comment="positive/neutral/negative"
     )
     turn_count: Mapped[int] = mapped_column(Integer, default=0)
     token_count: Mapped[int] = mapped_column(Integer, default=0)
-    legal_domains: Mapped[Optional[list]] = mapped_column(
+    legal_domains: Mapped[list[Any] | None] = mapped_column(
         JSONB, default=list, comment="涉及的法律领域"
     )
 
@@ -99,7 +97,7 @@ class AIAssistantFeedback(Base, TimestampMixin):
 
     __tablename__ = "ai_assistant_feedbacks"
 
-    assistant_config_id: Mapped[Optional[str]] = mapped_column(
+    assistant_config_id: Mapped[str | None] = mapped_column(
         GUID(),
         ForeignKey("ai_assistant_configs.id", ondelete="SET NULL"),
         nullable=True,
@@ -107,18 +105,18 @@ class AIAssistantFeedback(Base, TimestampMixin):
     user_id: Mapped[str] = mapped_column(
         GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    conversation_id: Mapped[Optional[str]] = mapped_column(
+    conversation_id: Mapped[str | None] = mapped_column(
         GUID(),
         ForeignKey("conversations.id", ondelete="SET NULL"),
         nullable=True,
     )
-    message_id: Mapped[Optional[str]] = mapped_column(
+    message_id: Mapped[str | None] = mapped_column(
         GUID(), nullable=True, comment="针对具体消息的反馈"
     )
     rating: Mapped[int] = mapped_column(
         Integer, nullable=False, comment="评分 1-5"
     )
-    feedback_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    feedback_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     feedback_type: Mapped[str] = mapped_column(
         String(30),
         default="helpful",

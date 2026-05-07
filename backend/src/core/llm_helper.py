@@ -7,9 +7,11 @@ LLM配置辅助模块
 3. 支持解密API密钥
 """
 
-from typing import Optional, Dict, Any
 from dataclasses import dataclass
+from typing import Any
+
 from loguru import logger
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 
@@ -23,14 +25,14 @@ class LLMConfigResult:
     model_name: str
     temperature: float
     max_tokens: int
-    config_id: Optional[str] = None  # 如果来自数据库，则有ID
+    config_id: str | None = None  # 如果来自数据库，则有ID
     source: str = "env"  # 配置来源: "db" 或 "env"
-    extra_params: Optional[Dict[str, Any]] = None
+    extra_params: dict[str, Any] | None = None
 
 
 async def get_llm_config(
     config_type: str = "llm",
-    db_session = None,
+    db_session: AsyncSession | None = None,
 ) -> LLMConfigResult:
     """
     获取LLM配置
@@ -51,13 +53,13 @@ async def get_llm_config(
         try:
             from src.services.llm_service import LLMService
             config = await LLMService.get_default_config(db_session, config_type)
-            
+
             if config and config.is_active:
                 # 解密API密钥
                 api_key = LLMService.decrypt_api_key(config.api_key) if config.api_key else ""
-                
+
                 logger.debug(f"使用数据库LLM配置: {config.name} ({config.provider}/{config.model_name})")
-                
+
                 return LLMConfigResult(
                     provider=config.provider,
                     api_key=api_key,
@@ -71,7 +73,7 @@ async def get_llm_config(
                 )
         except Exception as e:
             logger.warning(f"从数据库获取LLM配置失败，将使用环境变量配置: {e}")
-    
+
     # 回退到环境变量配置（异步路径同样支持本地 LLM fallback）
     if config_type == "llm":
         local = _resolve_local_llm_fallback()
@@ -114,7 +116,7 @@ async def get_llm_config(
         )
 
 
-def _resolve_local_llm_fallback() -> Optional[LLMConfigResult]:
+def _resolve_local_llm_fallback() -> LLMConfigResult | None:
     """若 LLM_API_KEY 缺失但配置了 OLLAMA_BASE_URL，返回 Ollama 兜底配置。
 
     也受 RUNTIME_MODE 影响：`local` / `nas-lite` 模式下强制优先使用 Ollama，

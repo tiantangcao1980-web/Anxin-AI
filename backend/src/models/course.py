@@ -1,13 +1,16 @@
-# -*- coding: utf-8 -*-
 """
 司法学院课程模型
 """
 
-from typing import Optional
-from sqlalchemy import String, Text, Integer, Float, ForeignKey, JSON
+from typing import TYPE_CHECKING, Optional
+
+from sqlalchemy import JSON, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.models.base import Base, TimestampMixin, GUID
+from src.models.base import GUID, Base, TimestampMixin
+
+if TYPE_CHECKING:
+    from src.models.user import User
 
 
 class Course(Base, TimestampMixin):
@@ -15,18 +18,18 @@ class Course(Base, TimestampMixin):
     __tablename__ = "courses"
 
     title: Mapped[str] = mapped_column(String(255), nullable=False)
-    instructor: Mapped[Optional[str]] = mapped_column(String(100))
+    instructor: Mapped[str | None] = mapped_column(String(100))
     category: Mapped[str] = mapped_column(String(50), default="regulation")  # regulation, case_study, practice, exam
-    duration: Mapped[Optional[str]] = mapped_column(String(50))
+    duration: Mapped[str | None] = mapped_column(String(50))
     lessons: Mapped[int] = mapped_column(Integer, default=0)
-    description: Mapped[Optional[str]] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text)
     level: Mapped[str] = mapped_column(String(20), default="入门")  # 入门, 进阶, 高级
-    tags: Mapped[Optional[list]] = mapped_column(JSON, default=list)
+    tags: Mapped[list[str] | None] = mapped_column(JSON, default=list)
 
-    org_id: Mapped[Optional[str]] = mapped_column(
+    org_id: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("organizations.id", ondelete="CASCADE")
     )
-    created_by: Mapped[Optional[str]] = mapped_column(
+    created_by: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("users.id", ondelete="SET NULL")
     )
 
@@ -44,7 +47,7 @@ class CourseProgress(Base, TimestampMixin):
         GUID(), ForeignKey("courses.id", ondelete="CASCADE"), nullable=False
     )
     progress: Mapped[int] = mapped_column(Integer, default=0)  # 0-100
-    completed_lessons: Mapped[Optional[list]] = mapped_column(JSON, default=list)
+    completed_lessons: Mapped[list[str] | None] = mapped_column(JSON, default=list)
 
     user: Mapped["User"] = relationship("User")
     course: Mapped["Course"] = relationship("Course")

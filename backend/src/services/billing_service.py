@@ -1,14 +1,13 @@
-# -*- coding: utf-8 -*-
 """
 账单管理服务
 """
 
-from datetime import date, datetime, timezone
-from typing import Optional
+from datetime import UTC, date, datetime
+from typing import Any
 
-from sqlalchemy import select, func, and_, extract
-from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
+from sqlalchemy import and_, extract, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.firm_management import Invoice
 
@@ -21,7 +20,7 @@ class BillingService:
 
     async def _generate_invoice_number(self, org_id: str) -> str:
         """生成发票编号: INV-YYYYMM-NNN"""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         prefix = f"INV-{now.strftime('%Y%m')}"
 
         # 查询当月最大序号
@@ -38,11 +37,11 @@ class BillingService:
         self,
         org_id: str,
         client_name: str,
-        items: list[dict],
-        case_id: Optional[str] = None,
-        due_date: Optional[date] = None,
-        notes: Optional[str] = None,
-    ) -> dict:
+        items: list[dict[str, Any]],
+        case_id: str | None = None,
+        due_date: date | None = None,
+        notes: str | None = None,
+    ) -> dict[str, Any]:
         """创建发票"""
         number = await self._generate_invoice_number(org_id)
         total_amount = sum(item.get("amount", 0) for item in items)
@@ -67,8 +66,8 @@ class BillingService:
     async def list_invoices(
         self,
         org_id: str,
-        status: Optional[str] = None,
-    ) -> list[dict]:
+        status: str | None = None,
+    ) -> list[dict[str, Any]]:
         """查询发票列表"""
         stmt = select(Invoice).where(Invoice.org_id == org_id)
         if status:
@@ -79,7 +78,7 @@ class BillingService:
         invoices = result.scalars().all()
         return [inv.to_dict() for inv in invoices]
 
-    async def update_invoice_status(self, invoice_id: str, status: str) -> Optional[dict]:
+    async def update_invoice_status(self, invoice_id: str, status: str) -> dict[str, Any] | None:
         """更新发票状态"""
         result = await self.db.execute(select(Invoice).where(Invoice.id == invoice_id))
         invoice = result.scalar_one_or_none()
@@ -88,7 +87,7 @@ class BillingService:
 
         invoice.status = status
         if status == "paid":
-            invoice.paid_at = datetime.now(timezone.utc)
+            invoice.paid_at = datetime.now(UTC)
 
         await self.db.commit()
         await self.db.refresh(invoice)
@@ -98,9 +97,9 @@ class BillingService:
     async def get_revenue_report(
         self,
         org_id: str,
-        date_from: Optional[date] = None,
-        date_to: Optional[date] = None,
-    ) -> dict:
+        date_from: date | None = None,
+        date_to: date | None = None,
+    ) -> dict[str, Any]:
         """
         获取收入报表
         返回 { total_revenue, paid_amount, pending_amount,
@@ -128,17 +127,17 @@ class BillingService:
         total_revenue = 0.0
         paid_amount = 0.0
         pending_amount = 0.0
-        by_status = []
-        for row in status_rows:
-            amount = float(row.amount)
+        by_status: list[dict[str, Any]] = []
+        for status_row in status_rows:
+            amount = float(status_row.amount)
             total_revenue += amount
-            if row.status == "paid":
+            if status_row.status == "paid":
                 paid_amount += amount
-            elif row.status in ("sent", "overdue"):
+            elif status_row.status in ("sent", "overdue"):
                 pending_amount += amount
             by_status.append({
-                "status": row.status,
-                "count": row.count,
+                "status": status_row.status,
+                "count": status_row.count,
                 "amount": round(amount, 2),
             })
 
@@ -157,11 +156,11 @@ class BillingService:
         result_month = await self.db.execute(stmt_month)
         month_rows = result_month.all()
 
-        by_month = []
-        for row in month_rows:
+        by_month: list[dict[str, Any]] = []
+        for month_row in month_rows:
             by_month.append({
-                "month": f"{int(row.year)}-{int(row.month):02d}",
-                "amount": round(float(row.amount), 2),
+                "month": f"{int(month_row.year)}-{int(month_row.month):02d}",
+                "amount": round(float(month_row.amount), 2),
             })
 
         return {

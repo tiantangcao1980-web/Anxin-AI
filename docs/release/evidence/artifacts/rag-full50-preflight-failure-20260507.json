@@ -1,0 +1,72 @@
+{
+  "generated_at": "2026-05-07T08:06:20.221577+00:00",
+  "run_label": "rag-live-qdrant-full50",
+  "mode": "rag_full50_preflight_failure",
+  "status": "failed",
+  "error": {
+    "type": "ValueError",
+    "message": "Corpus looks like a fixture/smoke/demo export (matched: smoke). Use --allow-fixture-corpus only for non-commercial dry runs."
+  },
+  "corpus": {
+    "path": "eval/citation_documents_smoke.json",
+    "sha256": "10e22a33b387e611ed4fb4cfd6c7c217ba69a3b311c5414347a6a216fc29bd5d",
+    "chunk_count": 3,
+    "available_chunk_count": 3
+  },
+  "golden": {
+    "path": "eval/rag_golden_set.jsonl",
+    "sha256": "4855aeb8a4c1088cb7a4dddaaf586412796e61a327989bce7399c41d1daa9002",
+    "question_count": 0,
+    "min_questions": 50,
+    "smoke_question_count": 0,
+    "smoke_question_sample": []
+  },
+  "diagnostics": {
+    "required_chunk_count": 0,
+    "missing_chunk_count": 0,
+    "missing_chunk_sample": [],
+    "law_ref_gap_sample": []
+  },
+  "commercial_provenance": {
+    "artifact_kind": "preflight_failure",
+    "commercial_baseline_candidate": false,
+    "non_commercial_overrides": {
+      "allow_fixture_corpus": false,
+      "allow_smoke_golden": false,
+      "allow_missing_law_refs": false
+    },
+    "non_commercial_override_count": 0,
+    "smoke_question_count": 0
+  },
+  "readiness": {
+    "uses_repo_local_corpus": true,
+    "repo_relative_corpus_path": "eval/citation_documents_smoke.json",
+    "repo_relative_golden_path": "eval/rag_golden_set.jsonl",
+    "available_chunk_count": 3,
+    "smoke_question_count": 0,
+    "all_questions": {
+      "question_count": 0,
+      "required_chunk_count": 0,
+      "available_required_chunk_count": 0,
+      "missing_chunk_count": 0,
+      "missing_chunk_sample": [],
+      "coverage_ratio": 0.0
+    },
+    "non_smoke_questions": {
+      "question_count": 0,
+      "required_chunk_count": 0,
+      "available_required_chunk_count": 0,
+      "missing_chunk_count": 0,
+      "missing_chunk_sample": [],
+      "coverage_ratio": 0.0
+    },
+    "commercial_full50_ready": false,
+    "blockers": [
+      "golden_not_loaded"
+    ]
+  },
+  "next_steps": [
+    "Rerun the full50 preflight against the commercial golden/corpus pair and then generate live predictions plus full metrics."
+  ],
+  "completion_note": "Failure diagnostics only. Keep release evidence Status: pending until commercial golden/corpus coverage and live Qdrant metrics pass."
+}

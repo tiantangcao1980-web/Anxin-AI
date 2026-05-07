@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 法律语料加载器
 
@@ -11,8 +10,9 @@
 4. 法律术语词典
 """
 
-from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, field
+from typing import Any
+
 from loguru import logger
 
 
@@ -27,13 +27,13 @@ class LegalArticle:
     chapter: str = ""       # 所属章节
     effective_date: str = ""  # 生效日期
     issuing_authority: str = ""  # 颁布机关
-    tags: List[str] = field(default_factory=list)  # 标签
-    related_articles: List[str] = field(default_factory=list)  # 关联条文
+    tags: list[str] = field(default_factory=list)  # 标签
+    related_articles: list[str] = field(default_factory=list)  # 关联条文
 
 
 # ==================== 民法典合同编核心条文 ====================
 
-def get_civil_code_contract_articles() -> List[LegalArticle]:
+def get_civil_code_contract_articles() -> list[LegalArticle]:
     """民法典合同编核心条文（第三编，第463-988条）"""
 
     articles = []
@@ -95,7 +95,7 @@ def get_civil_code_contract_articles() -> List[LegalArticle]:
 
 # ==================== 劳动合同法核心条文 ====================
 
-def get_labor_contract_law_articles() -> List[LegalArticle]:
+def get_labor_contract_law_articles() -> list[LegalArticle]:
     """劳动合同法核心条文"""
 
     articles = []
@@ -138,7 +138,7 @@ def get_labor_contract_law_articles() -> List[LegalArticle]:
 
 # ==================== 加载入口 ====================
 
-def get_all_legal_corpus() -> List[LegalArticle]:
+def get_all_legal_corpus() -> list[LegalArticle]:
     """获取全部法律语料"""
     corpus = []
     corpus.extend(get_civil_code_contract_articles())
@@ -149,7 +149,7 @@ def get_all_legal_corpus() -> List[LegalArticle]:
     return corpus
 
 
-def format_article_for_indexing(article: LegalArticle) -> Dict[str, Any]:
+def format_article_for_indexing(article: LegalArticle) -> dict[str, Any]:
     """将法律条文格式化为知识库索引格式"""
     return {
         "title": f"《{article.law_name}》{article.article_number} {article.title}",
@@ -167,7 +167,7 @@ def format_article_for_indexing(article: LegalArticle) -> Dict[str, Any]:
     }
 
 
-def format_articles_for_rag_context(articles: List[LegalArticle], max_length: int = 4000) -> str:
+def format_articles_for_rag_context(articles: list[LegalArticle], max_length: int = 4000) -> str:
     """将检索到的法律条文格式化为RAG上下文"""
     context_parts = []
     total_len = 0

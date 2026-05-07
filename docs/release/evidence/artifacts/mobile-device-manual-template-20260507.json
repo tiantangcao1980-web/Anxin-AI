@@ -1,0 +1,116 @@
+{
+  "generated_at": "2026-05-07T11:56:59.345749+00:00",
+  "mode": "mobile_device_manual_template",
+  "status": "template",
+  "release_evidence_complete": false,
+  "redaction_required": true,
+  "platforms": [
+    {
+      "platform": "ios",
+      "device_model": "",
+      "os_version": "",
+      "build_hash": "",
+      "backend_environment": "",
+      "tester_role": "",
+      "tested_at": ""
+    },
+    {
+      "platform": "android",
+      "device_model": "",
+      "os_version": "",
+      "build_hash": "",
+      "backend_environment": "",
+      "tester_role": "",
+      "tested_at": ""
+    },
+    {
+      "platform": "wechat_mini_program",
+      "device_model": "",
+      "os_version": "",
+      "build_hash": "",
+      "backend_environment": "",
+      "tester_role": "",
+      "tested_at": ""
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "login",
+      "status": "pending",
+      "screenshot_refs": [],
+      "log_refs": [],
+      "notes": ""
+    },
+    {
+      "id": "approval_detail",
+      "status": "pending",
+      "screenshot_refs": [],
+      "log_refs": [],
+      "notes": ""
+    },
+    {
+      "id": "message_detail",
+      "status": "pending",
+      "screenshot_refs": [],
+      "log_refs": [],
+      "notes": ""
+    },
+    {
+      "id": "task_detail",
+      "status": "pending",
+      "screenshot_refs": [],
+      "log_refs": [],
+      "notes": ""
+    },
+    {
+      "id": "chat_continuation",
+      "status": "pending",
+      "screenshot_refs": [],
+      "log_refs": [],
+      "notes": ""
+    },
+    {
+      "id": "settings_error_state",
+      "status": "pending",
+      "screenshot_refs": [],
+      "log_refs": [],
+      "notes": ""
+    },
+    {
+      "id": "mini_program_wx_login_code2session",
+      "status": "pending",
+      "screenshot_refs": [],
+      "log_refs": [],
+      "notes": ""
+    },
+    {
+      "id": "mini_program_no_fake_fallback",
+      "status": "pending",
+      "screenshot_refs": [],
+      "log_refs": [],
+      "notes": ""
+    },
+    {
+      "id": "cross_device_continuation",
+      "status": "pending",
+      "screenshot_refs": [],
+      "log_refs": [],
+      "notes": ""
+    },
+    {
+      "id": "explicit_error_semantics",
+      "status": "pending",
+      "screenshot_refs": [],
+      "log_refs": [],
+      "notes": ""
+    }
+  ],
+  "cross_device_result": {
+    "status": "pending",
+    "web_session_ref": "",
+    "desktop_session_ref": "",
+    "mobile_session_ref": "",
+    "notes": ""
+  },
+  "completion_note": "Template only. Keep mobile-device smoke evidence Status: pending until real iOS, Android, WeChat DevTools or device runs fill device/build metadata plus redacted screenshot/log references."
+}

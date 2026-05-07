@@ -1,0 +1,1896 @@
+{
+  "generated_at": "2026-05-07T08:06:46.261067+00:00",
+  "run_label": "built-in-legal-full50-20260507",
+  "mode": "live_qdrant_full50",
+  "collection": "rag_eval_full50_builtin_20260507",
+  "qdrant_url": "http://localhost:6333",
+  "embedding": {
+    "model": "text-embedding-v3",
+    "dimensions": 1024,
+    "type": "api",
+    "available": true
+  },
+  "indexed_chunks": 42,
+  "corpus": {
+    "path": "eval/legal_full50_corpus.jsonl",
+    "sha256": "09c2583a9dbb47dcb13bb319525828e8da5cd2c1aaa87bcd85c462cbb2cc3e70",
+    "chunk_count": 42
+  },
+  "golden": {
+    "path": "eval/legal_full50_golden.jsonl",
+    "sha256": "45e0ea2dd43acdeb291600914d3e1257c0394bcb1842d3d9c1c39360ca4ea7f0",
+    "question_count": 50,
+    "min_questions": 50,
+    "smoke_question_count": 0
+  },
+  "commercial_provenance": {
+    "artifact_kind": "live_predictions",
+    "commercial_baseline_candidate": true,
+    "non_commercial_overrides": {
+      "allow_fixture_corpus": false,
+      "allow_smoke_golden": false,
+      "allow_missing_law_refs": false
+    },
+    "non_commercial_override_count": 0,
+    "smoke_question_count": 0,
+    "law_ref_coverage_required": true,
+    "fixture_corpus_rejected": true,
+    "smoke_golden_rejected": true
+  },
+  "notes": [
+    "Live Qdrant and configured embeddings were used.",
+    "The corpus was provided by an external export and passed full golden-set coverage checks."
+  ],
+  "predictions": [
+    {
+      "question_id": "BLT-0001",
+      "retrieved_chunk_ids": [
+        "civil_code_463_0",
+        "civil_code_533_0",
+        "civil_code_464_0",
+        "civil_code_465_0",
+        "civil_code_470_0",
+        "civil_code_496_0",
+        "civil_code_584_0",
+        "civil_code_563_0",
+        "civil_code_471_0",
+        "civil_code_498_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第463条",
+        "民法典:第533条",
+        "民法典:第464条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_463#civil_code_463_0",
+        "/knowledge/legal/civil_code_533#civil_code_533_0",
+        "/knowledge/legal/civil_code_464#civil_code_464_0"
+      ],
+      "scores": [
+        0.8505693,
+        0.6111289,
+        0.60695004,
+        0.59477925,
+        0.59197915,
+        0.5384681,
+        0.53347254,
+        0.52814,
+        0.5262985,
+        0.5256834
+      ]
+    },
+    {
+      "question_id": "BLT-0002",
+      "retrieved_chunk_ids": [
+        "civil_code_464_0",
+        "civil_code_470_0",
+        "civil_code_465_0",
+        "civil_code_463_0",
+        "civil_code_595_0",
+        "civil_code_490_0",
+        "civil_code_471_0",
+        "civil_code_496_0",
+        "civil_code_469_0",
+        "civil_code_509_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第464条",
+        "民法典:第470条",
+        "民法典:第465条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_464#civil_code_464_0",
+        "/knowledge/legal/civil_code_470#civil_code_470_0",
+        "/knowledge/legal/civil_code_465#civil_code_465_0"
+      ],
+      "scores": [
+        0.7712822,
+        0.68538153,
+        0.66819805,
+        0.64109397,
+        0.618286,
+        0.61184675,
+        0.60290927,
+        0.59766793,
+        0.59452045,
+        0.5769465
+      ]
+    },
+    {
+      "question_id": "BLT-0003",
+      "retrieved_chunk_ids": [
+        "civil_code_465_0",
+        "civil_code_463_0",
+        "civil_code_470_0",
+        "civil_code_464_0",
+        "civil_code_590_0",
+        "civil_code_509_0",
+        "civil_code_577_0",
+        "civil_code_617_0",
+        "civil_code_557_0",
+        "civil_code_496_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第465条",
+        "民法典:第463条",
+        "民法典:第470条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_465#civil_code_465_0",
+        "/knowledge/legal/civil_code_463#civil_code_463_0",
+        "/knowledge/legal/civil_code_470#civil_code_470_0"
+      ],
+      "scores": [
+        0.77993345,
+        0.6282565,
+        0.61298823,
+        0.61187255,
+        0.6055041,
+        0.5845512,
+        0.56740934,
+        0.5632503,
+        0.5622655,
+        0.5616639
+      ]
+    },
+    {
+      "question_id": "BLT-0004",
+      "retrieved_chunk_ids": [
+        "civil_code_469_0",
+        "civil_code_470_0",
+        "civil_code_471_0",
+        "civil_code_490_0",
+        "civil_code_465_0",
+        "civil_code_496_0",
+        "civil_code_464_0",
+        "civil_code_498_0",
+        "civil_code_509_0",
+        "civil_code_463_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第469条",
+        "民法典:第470条",
+        "民法典:第471条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_469#civil_code_469_0",
+        "/knowledge/legal/civil_code_470#civil_code_470_0",
+        "/knowledge/legal/civil_code_471#civil_code_471_0"
+      ],
+      "scores": [
+        0.7416147,
+        0.678987,
+        0.67452246,
+        0.6400229,
+        0.6330267,
+        0.62537503,
+        0.6106515,
+        0.60464895,
+        0.60249406,
+        0.59779465
+      ]
+    },
+    {
+      "question_id": "BLT-0005",
+      "retrieved_chunk_ids": [
+        "civil_code_470_0",
+        "civil_code_509_0",
+        "civil_code_464_0",
+        "civil_code_465_0",
+        "civil_code_533_0",
+        "civil_code_496_0",
+        "civil_code_498_0",
+        "civil_code_463_0",
+        "civil_code_469_0",
+        "civil_code_490_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第470条",
+        "民法典:第509条",
+        "民法典:第464条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_470#civil_code_470_0",
+        "/knowledge/legal/civil_code_509#civil_code_509_0",
+        "/knowledge/legal/civil_code_464#civil_code_464_0"
+      ],
+      "scores": [
+        0.7569672,
+        0.5960388,
+        0.569014,
+        0.56212234,
+        0.55511785,
+        0.553784,
+        0.55150604,
+        0.54917294,
+        0.5469533,
+        0.5433862
+      ]
+    },
+    {
+      "question_id": "BLT-0006",
+      "retrieved_chunk_ids": [
+        "civil_code_471_0",
+        "civil_code_470_0",
+        "civil_code_469_0",
+        "civil_code_490_0",
+        "civil_code_465_0",
+        "civil_code_464_0",
+        "civil_code_463_0",
+        "civil_code_496_0",
+        "civil_code_509_0",
+        "civil_code_498_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第471条",
+        "民法典:第470条",
+        "民法典:第469条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_471#civil_code_471_0",
+        "/knowledge/legal/civil_code_470#civil_code_470_0",
+        "/knowledge/legal/civil_code_469#civil_code_469_0"
+      ],
+      "scores": [
+        0.7969538,
+        0.6871288,
+        0.6858274,
+        0.6517148,
+        0.6081812,
+        0.6031716,
+        0.58212906,
+        0.57659215,
+        0.5696373,
+        0.56199026
+      ]
+    },
+    {
+      "question_id": "BLT-0007",
+      "retrieved_chunk_ids": [
+        "civil_code_490_0",
+        "civil_code_465_0",
+        "civil_code_502_0",
+        "civil_code_470_0",
+        "civil_code_464_0",
+        "civil_code_463_0",
+        "civil_code_509_0",
+        "civil_code_469_0",
+        "civil_code_533_0",
+        "civil_code_471_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第490条",
+        "民法典:第465条",
+        "民法典:第502条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_490#civil_code_490_0",
+        "/knowledge/legal/civil_code_465#civil_code_465_0",
+        "/knowledge/legal/civil_code_502#civil_code_502_0"
+      ],
+      "scores": [
+        0.75972414,
+        0.6059703,
+        0.60522497,
+        0.59264594,
+        0.56667197,
+        0.56584144,
+        0.5536633,
+        0.5429179,
+        0.5419283,
+        0.53939795
+      ]
+    },
+    {
+      "question_id": "BLT-0008",
+      "retrieved_chunk_ids": [
+        "civil_code_496_0",
+        "civil_code_498_0",
+        "civil_code_497_0",
+        "civil_code_470_0",
+        "civil_code_469_0",
+        "civil_code_509_0",
+        "civil_code_465_0",
+        "civil_code_490_0",
+        "civil_code_463_0",
+        "civil_code_471_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第496条",
+        "民法典:第498条",
+        "民法典:第497条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_496#civil_code_496_0",
+        "/knowledge/legal/civil_code_498#civil_code_498_0",
+        "/knowledge/legal/civil_code_497#civil_code_497_0"
+      ],
+      "scores": [
+        0.82194555,
+        0.76255584,
+        0.69917834,
+        0.6328221,
+        0.61436045,
+        0.59469587,
+        0.58237696,
+        0.579924,
+        0.5766845,
+        0.56917024
+      ]
+    },
+    {
+      "question_id": "BLT-0009",
+      "retrieved_chunk_ids": [
+        "civil_code_497_0",
+        "civil_code_498_0",
+        "civil_code_496_0",
+        "civil_code_506_0",
+        "civil_code_617_0",
+        "civil_code_577_0",
+        "civil_code_469_0",
+        "civil_code_590_0",
+        "civil_code_470_0",
+        "civil_code_502_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第497条",
+        "民法典:第498条",
+        "民法典:第496条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_497#civil_code_497_0",
+        "/knowledge/legal/civil_code_498#civil_code_498_0",
+        "/knowledge/legal/civil_code_496#civil_code_496_0"
+      ],
+      "scores": [
+        0.84569293,
+        0.7587776,
+        0.72922623,
+        0.6653451,
+        0.6023178,
+        0.5991616,
+        0.5898597,
+        0.58924586,
+        0.5887538,
+        0.58354825
+      ]
+    },
+    {
+      "question_id": "BLT-0010",
+      "retrieved_chunk_ids": [
+        "civil_code_498_0",
+        "civil_code_496_0",
+        "civil_code_497_0",
+        "civil_code_470_0",
+        "civil_code_509_0",
+        "civil_code_469_0",
+        "civil_code_490_0",
+        "civil_code_471_0",
+        "civil_code_463_0",
+        "civil_code_465_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第498条",
+        "民法典:第496条",
+        "民法典:第497条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_498#civil_code_498_0",
+        "/knowledge/legal/civil_code_496#civil_code_496_0",
+        "/knowledge/legal/civil_code_497#civil_code_497_0"
+      ],
+      "scores": [
+        0.82012165,
+        0.76109,
+        0.6883671,
+        0.63408804,
+        0.60578376,
+        0.59621215,
+        0.56530863,
+        0.5599375,
+        0.55682844,
+        0.5566026
+      ]
+    },
+    {
+      "question_id": "BLT-0011",
+      "retrieved_chunk_ids": [
+        "civil_code_502_0",
+        "civil_code_509_0",
+        "civil_code_490_0",
+        "civil_code_465_0",
+        "civil_code_533_0",
+        "civil_code_580_0",
+        "civil_code_506_0",
+        "civil_code_562_0",
+        "civil_code_563_0",
+        "civil_code_464_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第502条",
+        "民法典:第509条",
+        "民法典:第490条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_502#civil_code_502_0",
+        "/knowledge/legal/civil_code_509#civil_code_509_0",
+        "/knowledge/legal/civil_code_490#civil_code_490_0"
+      ],
+      "scores": [
+        0.7950011,
+        0.645543,
+        0.645439,
+        0.6344496,
+        0.6269319,
+        0.59529495,
+        0.5943371,
+        0.5930521,
+        0.5875536,
+        0.5860065
+      ]
+    },
+    {
+      "question_id": "BLT-0012",
+      "retrieved_chunk_ids": [
+        "civil_code_506_0",
+        "civil_code_590_0",
+        "civil_code_497_0",
+        "civil_code_580_0",
+        "civil_code_577_0",
+        "civil_code_584_0",
+        "civil_code_509_0",
+        "civil_code_502_0",
+        "civil_code_563_0",
+        "civil_code_617_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第506条",
+        "民法典:第590条",
+        "民法典:第497条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_506#civil_code_506_0",
+        "/knowledge/legal/civil_code_590#civil_code_590_0",
+        "/knowledge/legal/civil_code_497#civil_code_497_0"
+      ],
+      "scores": [
+        0.8178076,
+        0.68470776,
+        0.67069936,
+        0.61769724,
+        0.6010606,
+        0.6000933,
+        0.5976771,
+        0.5898379,
+        0.58761615,
+        0.57988906
+      ]
+    },
+    {
+      "question_id": "BLT-0013",
+      "retrieved_chunk_ids": [
+        "civil_code_509_0",
+        "civil_code_590_0",
+        "civil_code_580_0",
+        "civil_code_502_0",
+        "civil_code_577_0",
+        "civil_code_498_0",
+        "civil_code_470_0",
+        "civil_code_617_0",
+        "civil_code_533_0",
+        "civil_code_465_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第509条",
+        "民法典:第590条",
+        "民法典:第580条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_509#civil_code_509_0",
+        "/knowledge/legal/civil_code_590#civil_code_590_0",
+        "/knowledge/legal/civil_code_580#civil_code_580_0"
+      ],
+      "scores": [
+        0.84036094,
+        0.57678103,
+        0.57383263,
+        0.5529574,
+        0.5476041,
+        0.52993387,
+        0.5256157,
+        0.5158405,
+        0.5117923,
+        0.5032878
+      ]
+    },
+    {
+      "question_id": "BLT-0014",
+      "retrieved_chunk_ids": [
+        "civil_code_533_0",
+        "civil_code_463_0",
+        "civil_code_580_0",
+        "civil_code_557_0",
+        "civil_code_509_0",
+        "civil_code_502_0",
+        "civil_code_562_0",
+        "civil_code_563_0",
+        "civil_code_585_0",
+        "civil_code_590_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第533条",
+        "民法典:第463条",
+        "民法典:第580条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_533#civil_code_533_0",
+        "/knowledge/legal/civil_code_463#civil_code_463_0",
+        "/knowledge/legal/civil_code_580#civil_code_580_0"
+      ],
+      "scores": [
+        0.8123605,
+        0.5920298,
+        0.5326674,
+        0.53204787,
+        0.5313675,
+        0.5251862,
+        0.5228609,
+        0.5176034,
+        0.51587015,
+        0.51549214
+      ]
+    },
+    {
+      "question_id": "BLT-0015",
+      "retrieved_chunk_ids": [
+        "civil_code_557_0",
+        "civil_code_563_0",
+        "civil_code_562_0",
+        "civil_code_533_0",
+        "civil_code_580_0",
+        "civil_code_577_0",
+        "civil_code_617_0",
+        "civil_code_470_0",
+        "civil_code_506_0",
+        "civil_code_590_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第557条",
+        "民法典:第563条",
+        "民法典:第562条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_557#civil_code_557_0",
+        "/knowledge/legal/civil_code_563#civil_code_563_0",
+        "/knowledge/legal/civil_code_562#civil_code_562_0"
+      ],
+      "scores": [
+        0.7688801,
+        0.70598483,
+        0.6865869,
+        0.64991176,
+        0.641639,
+        0.635285,
+        0.60698116,
+        0.60389316,
+        0.59118724,
+        0.5857716
+      ]
+    },
+    {
+      "question_id": "BLT-0016",
+      "retrieved_chunk_ids": [
+        "civil_code_562_0",
+        "civil_code_563_0",
+        "civil_code_533_0",
+        "civil_code_557_0",
+        "civil_code_580_0",
+        "civil_code_585_0",
+        "civil_code_617_0",
+        "civil_code_509_0",
+        "civil_code_590_0",
+        "labor_contract_law_38_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第562条",
+        "民法典:第563条",
+        "民法典:第533条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_562#civil_code_562_0",
+        "/knowledge/legal/civil_code_563#civil_code_563_0",
+        "/knowledge/legal/civil_code_533#civil_code_533_0"
+      ],
+      "scores": [
+        0.81634665,
+        0.70785856,
+        0.6340521,
+        0.6263753,
+        0.5851568,
+        0.5765961,
+        0.57249105,
+        0.57132757,
+        0.57093465,
+        0.5653827
+      ]
+    },
+    {
+      "question_id": "BLT-0017",
+      "retrieved_chunk_ids": [
+        "civil_code_563_0",
+        "civil_code_562_0",
+        "civil_code_533_0",
+        "civil_code_557_0",
+        "labor_contract_law_38_0",
+        "civil_code_590_0",
+        "civil_code_580_0",
+        "civil_code_506_0",
+        "labor_contract_law_37_0",
+        "civil_code_617_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第563条",
+        "民法典:第562条",
+        "民法典:第533条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_563#civil_code_563_0",
+        "/knowledge/legal/civil_code_562#civil_code_562_0",
+        "/knowledge/legal/civil_code_533#civil_code_533_0"
+      ],
+      "scores": [
+        0.7343899,
+        0.71514845,
+        0.608464,
+        0.6028358,
+        0.5669445,
+        0.5627328,
+        0.5556787,
+        0.53719556,
+        0.5319561,
+        0.52988136
+      ]
+    },
+    {
+      "question_id": "BLT-0018",
+      "retrieved_chunk_ids": [
+        "civil_code_577_0",
+        "civil_code_617_0",
+        "civil_code_585_0",
+        "civil_code_590_0",
+        "civil_code_584_0",
+        "civil_code_580_0",
+        "civil_code_509_0",
+        "civil_code_557_0",
+        "civil_code_563_0",
+        "civil_code_506_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第577条",
+        "民法典:第617条",
+        "民法典:第585条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_577#civil_code_577_0",
+        "/knowledge/legal/civil_code_617#civil_code_617_0",
+        "/knowledge/legal/civil_code_585#civil_code_585_0"
+      ],
+      "scores": [
+        0.8114532,
+        0.6993841,
+        0.6984645,
+        0.6599947,
+        0.61033314,
+        0.6043806,
+        0.6011375,
+        0.59935147,
+        0.5806525,
+        0.5781612
+      ]
+    },
+    {
+      "question_id": "BLT-0019",
+      "retrieved_chunk_ids": [
+        "civil_code_580_0",
+        "civil_code_509_0",
+        "civil_code_577_0",
+        "civil_code_590_0",
+        "civil_code_585_0",
+        "civil_code_506_0",
+        "civil_code_617_0",
+        "civil_code_584_0",
+        "civil_code_502_0",
+        "civil_code_563_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第580条",
+        "民法典:第509条",
+        "民法典:第577条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_580#civil_code_580_0",
+        "/knowledge/legal/civil_code_509#civil_code_509_0",
+        "/knowledge/legal/civil_code_577#civil_code_577_0"
+      ],
+      "scores": [
+        0.7852451,
+        0.6057647,
+        0.6012858,
+        0.59248567,
+        0.5831839,
+        0.57968694,
+        0.57331246,
+        0.5671377,
+        0.56668484,
+        0.56110895
+      ]
+    },
+    {
+      "question_id": "BLT-0020",
+      "retrieved_chunk_ids": [
+        "civil_code_584_0",
+        "civil_code_585_0",
+        "civil_code_617_0",
+        "civil_code_506_0",
+        "civil_code_604_0",
+        "civil_code_590_0",
+        "civil_code_577_0",
+        "civil_code_498_0",
+        "labor_contract_law_46_0",
+        "labor_contract_law_47_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第584条",
+        "民法典:第585条",
+        "民法典:第617条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_584#civil_code_584_0",
+        "/knowledge/legal/civil_code_585#civil_code_585_0",
+        "/knowledge/legal/civil_code_617#civil_code_617_0"
+      ],
+      "scores": [
+        0.80131763,
+        0.6001901,
+        0.5417422,
+        0.53936076,
+        0.53189546,
+        0.51295054,
+        0.50913703,
+        0.5009832,
+        0.49146664,
+        0.487189
+      ]
+    },
+    {
+      "question_id": "BLT-0021",
+      "retrieved_chunk_ids": [
+        "civil_code_585_0",
+        "civil_code_577_0",
+        "civil_code_617_0",
+        "civil_code_584_0",
+        "civil_code_580_0",
+        "civil_code_590_0",
+        "civil_code_557_0",
+        "civil_code_509_0",
+        "civil_code_563_0",
+        "civil_code_506_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第585条",
+        "民法典:第577条",
+        "民法典:第617条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_585#civil_code_585_0",
+        "/knowledge/legal/civil_code_577#civil_code_577_0",
+        "/knowledge/legal/civil_code_617#civil_code_617_0"
+      ],
+      "scores": [
+        0.81904364,
+        0.70523715,
+        0.6816443,
+        0.67569584,
+        0.6222353,
+        0.62119853,
+        0.5833747,
+        0.58134097,
+        0.57837415,
+        0.5709108
+      ]
+    },
+    {
+      "question_id": "BLT-0022",
+      "retrieved_chunk_ids": [
+        "civil_code_590_0",
+        "civil_code_506_0",
+        "civil_code_577_0",
+        "civil_code_580_0",
+        "civil_code_509_0",
+        "civil_code_585_0",
+        "civil_code_563_0",
+        "civil_code_465_0",
+        "civil_code_584_0",
+        "civil_code_617_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第590条",
+        "民法典:第506条",
+        "民法典:第577条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_590#civil_code_590_0",
+        "/knowledge/legal/civil_code_506#civil_code_506_0",
+        "/knowledge/legal/civil_code_577#civil_code_577_0"
+      ],
+      "scores": [
+        0.80822635,
+        0.62443566,
+        0.58819556,
+        0.56810606,
+        0.5650825,
+        0.5501262,
+        0.54911965,
+        0.5479026,
+        0.5434487,
+        0.53286123
+      ]
+    },
+    {
+      "question_id": "BLT-0023",
+      "retrieved_chunk_ids": [
+        "civil_code_595_0",
+        "civil_code_464_0",
+        "civil_code_470_0",
+        "civil_code_509_0",
+        "civil_code_533_0",
+        "civil_code_502_0",
+        "civil_code_465_0",
+        "civil_code_490_0",
+        "civil_code_617_0",
+        "civil_code_463_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第595条",
+        "民法典:第464条",
+        "民法典:第470条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_595#civil_code_595_0",
+        "/knowledge/legal/civil_code_464#civil_code_464_0",
+        "/knowledge/legal/civil_code_470#civil_code_470_0"
+      ],
+      "scores": [
+        0.81869316,
+        0.64719284,
+        0.63333714,
+        0.6189327,
+        0.59236705,
+        0.58957076,
+        0.57502234,
+        0.57264066,
+        0.56102777,
+        0.55507934
+      ]
+    },
+    {
+      "question_id": "BLT-0024",
+      "retrieved_chunk_ids": [
+        "civil_code_604_0",
+        "civil_code_533_0",
+        "civil_code_726_0",
+        "civil_code_509_0",
+        "civil_code_617_0",
+        "civil_code_585_0",
+        "civil_code_463_0",
+        "civil_code_577_0",
+        "civil_code_734_0",
+        "civil_code_590_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第604条",
+        "民法典:第533条",
+        "民法典:第726条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_604#civil_code_604_0",
+        "/knowledge/legal/civil_code_533#civil_code_533_0",
+        "/knowledge/legal/civil_code_726#civil_code_726_0"
+      ],
+      "scores": [
+        0.7058177,
+        0.527442,
+        0.49373323,
+        0.4885561,
+        0.48842594,
+        0.4833705,
+        0.47736675,
+        0.47493166,
+        0.47317424,
+        0.47308338
+      ]
+    },
+    {
+      "question_id": "BLT-0025",
+      "retrieved_chunk_ids": [
+        "civil_code_617_0",
+        "civil_code_577_0",
+        "civil_code_585_0",
+        "civil_code_590_0",
+        "civil_code_604_0",
+        "civil_code_497_0",
+        "civil_code_533_0",
+        "civil_code_465_0",
+        "civil_code_509_0",
+        "civil_code_584_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第617条",
+        "民法典:第577条",
+        "民法典:第585条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_617#civil_code_617_0",
+        "/knowledge/legal/civil_code_577#civil_code_577_0",
+        "/knowledge/legal/civil_code_585#civil_code_585_0"
+      ],
+      "scores": [
+        0.8217407,
+        0.5715038,
+        0.5490222,
+        0.5251377,
+        0.52455515,
+        0.5221636,
+        0.5220041,
+        0.5189514,
+        0.51839864,
+        0.51756895
+      ]
+    },
+    {
+      "question_id": "BLT-0026",
+      "retrieved_chunk_ids": [
+        "civil_code_703_0",
+        "civil_code_706_0",
+        "civil_code_734_0",
+        "civil_code_470_0",
+        "civil_code_464_0",
+        "civil_code_726_0",
+        "civil_code_533_0",
+        "civil_code_496_0",
+        "civil_code_465_0",
+        "civil_code_471_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第703条",
+        "民法典:第706条",
+        "民法典:第734条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_703#civil_code_703_0",
+        "/knowledge/legal/civil_code_706#civil_code_706_0",
+        "/knowledge/legal/civil_code_734#civil_code_734_0"
+      ],
+      "scores": [
+        0.78405935,
+        0.6685497,
+        0.64415705,
+        0.61959225,
+        0.6005657,
+        0.5777046,
+        0.54404235,
+        0.5439584,
+        0.5304268,
+        0.5265995
+      ]
+    },
+    {
+      "question_id": "BLT-0027",
+      "retrieved_chunk_ids": [
+        "civil_code_706_0",
+        "civil_code_734_0",
+        "civil_code_703_0",
+        "civil_code_726_0",
+        "civil_code_470_0",
+        "civil_code_563_0",
+        "civil_code_580_0",
+        "labor_contract_law_14_0",
+        "civil_code_617_0",
+        "civil_code_509_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第706条",
+        "民法典:第734条",
+        "民法典:第703条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_706#civil_code_706_0",
+        "/knowledge/legal/civil_code_734#civil_code_734_0",
+        "/knowledge/legal/civil_code_703#civil_code_703_0"
+      ],
+      "scores": [
+        0.7775383,
+        0.6879019,
+        0.6507124,
+        0.60585034,
+        0.5525305,
+        0.5341139,
+        0.5257795,
+        0.5137501,
+        0.511719,
+        0.5068076
+      ]
+    },
+    {
+      "question_id": "BLT-0028",
+      "retrieved_chunk_ids": [
+        "civil_code_726_0",
+        "civil_code_734_0",
+        "civil_code_604_0",
+        "civil_code_617_0",
+        "civil_code_509_0",
+        "civil_code_470_0",
+        "civil_code_533_0",
+        "civil_code_465_0",
+        "civil_code_463_0",
+        "civil_code_490_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第726条",
+        "民法典:第734条",
+        "民法典:第604条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_726#civil_code_726_0",
+        "/knowledge/legal/civil_code_734#civil_code_734_0",
+        "/knowledge/legal/civil_code_604#civil_code_604_0"
+      ],
+      "scores": [
+        0.7441871,
+        0.54654133,
+        0.49113643,
+        0.48486215,
+        0.48464867,
+        0.4777745,
+        0.46497515,
+        0.46227854,
+        0.45973355,
+        0.4464883
+      ]
+    },
+    {
+      "question_id": "BLT-0029",
+      "retrieved_chunk_ids": [
+        "civil_code_734_0",
+        "civil_code_726_0",
+        "civil_code_703_0",
+        "civil_code_470_0",
+        "civil_code_604_0",
+        "civil_code_509_0",
+        "civil_code_706_0",
+        "civil_code_617_0",
+        "civil_code_464_0",
+        "civil_code_533_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第734条",
+        "民法典:第726条",
+        "民法典:第703条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_734#civil_code_734_0",
+        "/knowledge/legal/civil_code_726#civil_code_726_0",
+        "/knowledge/legal/civil_code_703#civil_code_703_0"
+      ],
+      "scores": [
+        0.7858844,
+        0.6985563,
+        0.5263609,
+        0.50741494,
+        0.50420654,
+        0.50106215,
+        0.4910925,
+        0.47613454,
+        0.46680403,
+        0.46595395
+      ]
+    },
+    {
+      "question_id": "BLT-0030",
+      "retrieved_chunk_ids": [
+        "labor_contract_law_10_0",
+        "labor_contract_law_17_0",
+        "labor_contract_law_14_0",
+        "labor_contract_law_82_0",
+        "labor_contract_law_38_0",
+        "labor_contract_law_23_0",
+        "labor_contract_law_37_0",
+        "labor_contract_law_46_0",
+        "civil_code_470_0",
+        "civil_code_469_0"
+      ],
+      "cited_law_refs": [
+        "劳动合同法:第10条",
+        "劳动合同法:第17条",
+        "劳动合同法:第14条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/labor_contract_law_10#labor_contract_law_10_0",
+        "/knowledge/legal/labor_contract_law_17#labor_contract_law_17_0",
+        "/knowledge/legal/labor_contract_law_14#labor_contract_law_14_0"
+      ],
+      "scores": [
+        0.7422692,
+        0.662936,
+        0.65251577,
+        0.6397776,
+        0.5903986,
+        0.58865625,
+        0.58508265,
+        0.5834233,
+        0.5770642,
+        0.5578152
+      ]
+    },
+    {
+      "question_id": "BLT-0031",
+      "retrieved_chunk_ids": [
+        "labor_contract_law_14_0",
+        "labor_contract_law_82_0",
+        "labor_contract_law_17_0",
+        "labor_contract_law_10_0",
+        "labor_contract_law_23_0",
+        "labor_contract_law_24_0",
+        "labor_contract_law_19_0",
+        "labor_contract_law_46_0",
+        "labor_contract_law_47_0",
+        "labor_contract_law_38_0"
+      ],
+      "cited_law_refs": [
+        "劳动合同法:第14条",
+        "劳动合同法:第82条",
+        "劳动合同法:第17条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/labor_contract_law_14#labor_contract_law_14_0",
+        "/knowledge/legal/labor_contract_law_82#labor_contract_law_82_0",
+        "/knowledge/legal/labor_contract_law_17#labor_contract_law_17_0"
+      ],
+      "scores": [
+        0.81775856,
+        0.6383246,
+        0.63380384,
+        0.6054051,
+        0.5976945,
+        0.5933793,
+        0.59305096,
+        0.58378,
+        0.58065474,
+        0.5738529
+      ]
+    },
+    {
+      "question_id": "BLT-0032",
+      "retrieved_chunk_ids": [
+        "labor_contract_law_17_0",
+        "labor_contract_law_14_0",
+        "labor_contract_law_10_0",
+        "labor_contract_law_23_0",
+        "labor_contract_law_82_0",
+        "civil_code_470_0",
+        "labor_contract_law_46_0",
+        "labor_contract_law_47_0",
+        "labor_contract_law_38_0",
+        "labor_contract_law_20_0"
+      ],
+      "cited_law_refs": [
+        "劳动合同法:第17条",
+        "劳动合同法:第14条",
+        "劳动合同法:第10条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/labor_contract_law_17#labor_contract_law_17_0",
+        "/knowledge/legal/labor_contract_law_14#labor_contract_law_14_0",
+        "/knowledge/legal/labor_contract_law_10#labor_contract_law_10_0"
+      ],
+      "scores": [
+        0.77997255,
+        0.6441275,
+        0.61659074,
+        0.60692966,
+        0.602271,
+        0.6013473,
+        0.5951649,
+        0.5835195,
+        0.5829525,
+        0.5659618
+      ]
+    },
+    {
+      "question_id": "BLT-0033",
+      "retrieved_chunk_ids": [
+        "labor_contract_law_19_0",
+        "labor_contract_law_20_0",
+        "labor_contract_law_21_0",
+        "labor_contract_law_37_0",
+        "labor_contract_law_17_0",
+        "labor_contract_law_14_0",
+        "labor_contract_law_10_0",
+        "labor_contract_law_23_0",
+        "labor_contract_law_47_0",
+        "labor_contract_law_24_0"
+      ],
+      "cited_law_refs": [
+        "劳动合同法:第19条",
+        "劳动合同法:第20条",
+        "劳动合同法:第21条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/labor_contract_law_19#labor_contract_law_19_0",
+        "/knowledge/legal/labor_contract_law_20#labor_contract_law_20_0",
+        "/knowledge/legal/labor_contract_law_21#labor_contract_law_21_0"
+      ],
+      "scores": [
+        0.7661408,
+        0.7049795,
+        0.6752201,
+        0.5995271,
+        0.5972527,
+        0.5919651,
+        0.57863516,
+        0.56682044,
+        0.56366754,
+        0.5628891
+      ]
+    },
+    {
+      "question_id": "BLT-0034",
+      "retrieved_chunk_ids": [
+        "labor_contract_law_20_0",
+        "labor_contract_law_19_0",
+        "labor_contract_law_21_0",
+        "labor_contract_law_37_0",
+        "labor_contract_law_47_0",
+        "labor_contract_law_17_0",
+        "labor_contract_law_23_0",
+        "labor_contract_law_10_0",
+        "labor_contract_law_82_0",
+        "labor_contract_law_14_0"
+      ],
+      "cited_law_refs": [
+        "劳动合同法:第20条",
+        "劳动合同法:第19条",
+        "劳动合同法:第21条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/labor_contract_law_20#labor_contract_law_20_0",
+        "/knowledge/legal/labor_contract_law_19#labor_contract_law_19_0",
+        "/knowledge/legal/labor_contract_law_21#labor_contract_law_21_0"
+      ],
+      "scores": [
+        0.8028196,
+        0.70804703,
+        0.6795441,
+        0.612476,
+        0.6094606,
+        0.6052229,
+        0.60449827,
+        0.5961338,
+        0.5913153,
+        0.583699
+      ]
+    },
+    {
+      "question_id": "BLT-0035",
+      "retrieved_chunk_ids": [
+        "labor_contract_law_21_0",
+        "labor_contract_law_37_0",
+        "labor_contract_law_38_0",
+        "labor_contract_law_20_0",
+        "labor_contract_law_19_0",
+        "labor_contract_law_23_0",
+        "civil_code_563_0",
+        "labor_contract_law_46_0",
+        "labor_contract_law_24_0",
+        "labor_contract_law_14_0"
+      ],
+      "cited_law_refs": [
+        "劳动合同法:第21条",
+        "劳动合同法:第37条",
+        "劳动合同法:第38条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/labor_contract_law_21#labor_contract_law_21_0",
+        "/knowledge/legal/labor_contract_law_37#labor_contract_law_37_0",
+        "/knowledge/legal/labor_contract_law_38#labor_contract_law_38_0"
+      ],
+      "scores": [
+        0.8114775,
+        0.70528185,
+        0.6703705,
+        0.6550936,
+        0.6505949,
+        0.61498654,
+        0.595854,
+        0.58418554,
+        0.58250695,
+        0.581739
+      ]
+    },
+    {
+      "question_id": "BLT-0036",
+      "retrieved_chunk_ids": [
+        "labor_contract_law_23_0",
+        "labor_contract_law_24_0",
+        "labor_contract_law_14_0",
+        "labor_contract_law_46_0",
+        "labor_contract_law_38_0",
+        "labor_contract_law_20_0",
+        "labor_contract_law_17_0",
+        "labor_contract_law_21_0",
+        "labor_contract_law_47_0",
+        "labor_contract_law_19_0"
+      ],
+      "cited_law_refs": [
+        "劳动合同法:第23条",
+        "劳动合同法:第24条",
+        "劳动合同法:第14条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/labor_contract_law_23#labor_contract_law_23_0",
+        "/knowledge/legal/labor_contract_law_24#labor_contract_law_24_0",
+        "/knowledge/legal/labor_contract_law_14#labor_contract_law_14_0"
+      ],
+      "scores": [
+        0.80367035,
+        0.7605097,
+        0.5369395,
+        0.52637184,
+        0.5218371,
+        0.5193213,
+        0.518026,
+        0.5178464,
+        0.5060107,
+        0.50135237
+      ]
+    },
+    {
+      "question_id": "BLT-0037",
+      "retrieved_chunk_ids": [
+        "labor_contract_law_24_0",
+        "labor_contract_law_23_0",
+        "labor_contract_law_14_0",
+        "labor_contract_law_17_0",
+        "labor_contract_law_20_0",
+        "labor_contract_law_46_0",
+        "labor_contract_law_38_0",
+        "labor_contract_law_47_0",
+        "labor_contract_law_19_0",
+        "labor_contract_law_21_0"
+      ],
+      "cited_law_refs": [
+        "劳动合同法:第24条",
+        "劳动合同法:第23条",
+        "劳动合同法:第14条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/labor_contract_law_24#labor_contract_law_24_0",
+        "/knowledge/legal/labor_contract_law_23#labor_contract_law_23_0",
+        "/knowledge/legal/labor_contract_law_14#labor_contract_law_14_0"
+      ],
+      "scores": [
+        0.81612307,
+        0.7567911,
+        0.5655978,
+        0.5318647,
+        0.52818227,
+        0.5192685,
+        0.5123573,
+        0.5102132,
+        0.5079597,
+        0.5021128
+      ]
+    },
+    {
+      "question_id": "BLT-0038",
+      "retrieved_chunk_ids": [
+        "labor_contract_law_37_0",
+        "labor_contract_law_38_0",
+        "labor_contract_law_21_0",
+        "labor_contract_law_23_0",
+        "labor_contract_law_46_0",
+        "civil_code_563_0",
+        "labor_contract_law_47_0",
+        "labor_contract_law_17_0",
+        "labor_contract_law_14_0",
+        "labor_contract_law_24_0"
+      ],
+      "cited_law_refs": [
+        "劳动合同法:第37条",
+        "劳动合同法:第38条",
+        "劳动合同法:第21条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/labor_contract_law_37#labor_contract_law_37_0",
+        "/knowledge/legal/labor_contract_law_38#labor_contract_law_38_0",
+        "/knowledge/legal/labor_contract_law_21#labor_contract_law_21_0"
+      ],
+      "scores": [
+        0.78610724,
+        0.68334454,
+        0.64474446,
+        0.6410377,
+        0.6247642,
+        0.606068,
+        0.5993692,
+        0.5956788,
+        0.5789627,
+        0.5737985
+      ]
+    },
+    {
+      "question_id": "BLT-0039",
+      "retrieved_chunk_ids": [
+        "labor_contract_law_38_0",
+        "labor_contract_law_37_0",
+        "labor_contract_law_21_0",
+        "civil_code_563_0",
+        "labor_contract_law_46_0",
+        "civil_code_562_0",
+        "labor_contract_law_23_0",
+        "labor_contract_law_14_0",
+        "labor_contract_law_82_0",
+        "labor_contract_law_10_0"
+      ],
+      "cited_law_refs": [
+        "劳动合同法:第38条",
+        "劳动合同法:第37条",
+        "劳动合同法:第21条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/labor_contract_law_38#labor_contract_law_38_0",
+        "/knowledge/legal/labor_contract_law_37#labor_contract_law_37_0",
+        "/knowledge/legal/labor_contract_law_21#labor_contract_law_21_0"
+      ],
+      "scores": [
+        0.79467064,
+        0.68127024,
+        0.6402137,
+        0.6302349,
+        0.62237155,
+        0.5975325,
+        0.5903181,
+        0.5815324,
+        0.56811696,
+        0.5605279
+      ]
+    },
+    {
+      "question_id": "BLT-0040",
+      "retrieved_chunk_ids": [
+        "labor_contract_law_46_0",
+        "labor_contract_law_47_0",
+        "labor_contract_law_23_0",
+        "labor_contract_law_38_0",
+        "labor_contract_law_82_0",
+        "labor_contract_law_17_0",
+        "civil_code_584_0",
+        "labor_contract_law_14_0",
+        "civil_code_463_0",
+        "labor_contract_law_24_0"
+      ],
+      "cited_law_refs": [
+        "劳动合同法:第46条",
+        "劳动合同法:第47条",
+        "劳动合同法:第23条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/labor_contract_law_46#labor_contract_law_46_0",
+        "/knowledge/legal/labor_contract_law_47#labor_contract_law_47_0",
+        "/knowledge/legal/labor_contract_law_23#labor_contract_law_23_0"
+      ],
+      "scores": [
+        0.8232349,
+        0.7372712,
+        0.6124152,
+        0.56914747,
+        0.55198437,
+        0.551971,
+        0.53933704,
+        0.5339001,
+        0.52893096,
+        0.5270881
+      ]
+    },
+    {
+      "question_id": "BLT-0041",
+      "retrieved_chunk_ids": [
+        "labor_contract_law_47_0",
+        "labor_contract_law_46_0",
+        "labor_contract_law_23_0",
+        "labor_contract_law_17_0",
+        "labor_contract_law_82_0",
+        "labor_contract_law_37_0",
+        "civil_code_584_0",
+        "labor_contract_law_20_0",
+        "labor_contract_law_38_0",
+        "labor_contract_law_14_0"
+      ],
+      "cited_law_refs": [
+        "劳动合同法:第47条",
+        "劳动合同法:第46条",
+        "劳动合同法:第23条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/labor_contract_law_47#labor_contract_law_47_0",
+        "/knowledge/legal/labor_contract_law_46#labor_contract_law_46_0",
+        "/knowledge/legal/labor_contract_law_23#labor_contract_law_23_0"
+      ],
+      "scores": [
+        0.7992428,
+        0.7440431,
+        0.61578125,
+        0.5705035,
+        0.56300527,
+        0.5520742,
+        0.5511771,
+        0.5510491,
+        0.5503588,
+        0.5477227
+      ]
+    },
+    {
+      "question_id": "BLT-0042",
+      "retrieved_chunk_ids": [
+        "labor_contract_law_82_0",
+        "labor_contract_law_14_0",
+        "labor_contract_law_17_0",
+        "labor_contract_law_10_0",
+        "labor_contract_law_46_0",
+        "labor_contract_law_23_0",
+        "labor_contract_law_38_0",
+        "labor_contract_law_47_0",
+        "civil_code_580_0",
+        "labor_contract_law_20_0"
+      ],
+      "cited_law_refs": [
+        "劳动合同法:第82条",
+        "劳动合同法:第14条",
+        "劳动合同法:第17条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/labor_contract_law_82#labor_contract_law_82_0",
+        "/knowledge/legal/labor_contract_law_14#labor_contract_law_14_0",
+        "/knowledge/legal/labor_contract_law_17#labor_contract_law_17_0"
+      ],
+      "scores": [
+        0.81325966,
+        0.60785574,
+        0.5912245,
+        0.58817905,
+        0.57547224,
+        0.5731275,
+        0.56992495,
+        0.5631046,
+        0.55309564,
+        0.5326934
+      ]
+    },
+    {
+      "question_id": "BLT-0043",
+      "retrieved_chunk_ids": [
+        "civil_code_496_0",
+        "civil_code_498_0",
+        "civil_code_506_0",
+        "civil_code_590_0",
+        "civil_code_497_0",
+        "civil_code_577_0",
+        "civil_code_584_0",
+        "civil_code_470_0",
+        "civil_code_585_0",
+        "civil_code_533_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第496条",
+        "民法典:第498条",
+        "民法典:第506条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_496#civil_code_496_0",
+        "/knowledge/legal/civil_code_498#civil_code_498_0",
+        "/knowledge/legal/civil_code_506#civil_code_506_0"
+      ],
+      "scores": [
+        0.6719926,
+        0.6534441,
+        0.63649684,
+        0.63321114,
+        0.6286572,
+        0.61259913,
+        0.58095104,
+        0.58071077,
+        0.5596089,
+        0.55815625
+      ]
+    },
+    {
+      "question_id": "BLT-0044",
+      "retrieved_chunk_ids": [
+        "civil_code_498_0",
+        "civil_code_496_0",
+        "civil_code_497_0",
+        "civil_code_580_0",
+        "civil_code_533_0",
+        "civil_code_577_0",
+        "civil_code_590_0",
+        "civil_code_469_0",
+        "civil_code_506_0",
+        "civil_code_584_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第498条",
+        "民法典:第496条",
+        "民法典:第497条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_498#civil_code_498_0",
+        "/knowledge/legal/civil_code_496#civil_code_496_0",
+        "/knowledge/legal/civil_code_497#civil_code_497_0"
+      ],
+      "scores": [
+        0.81792665,
+        0.7392428,
+        0.7122487,
+        0.56990993,
+        0.56730086,
+        0.5562273,
+        0.55575144,
+        0.55330384,
+        0.549332,
+        0.5388458
+      ]
+    },
+    {
+      "question_id": "BLT-0045",
+      "retrieved_chunk_ids": [
+        "civil_code_502_0",
+        "civil_code_490_0",
+        "civil_code_509_0",
+        "civil_code_470_0",
+        "civil_code_465_0",
+        "civil_code_533_0",
+        "labor_contract_law_10_0",
+        "civil_code_557_0",
+        "civil_code_464_0",
+        "civil_code_580_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第502条",
+        "民法典:第490条",
+        "民法典:第509条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_502#civil_code_502_0",
+        "/knowledge/legal/civil_code_490#civil_code_490_0",
+        "/knowledge/legal/civil_code_509#civil_code_509_0"
+      ],
+      "scores": [
+        0.72071636,
+        0.66531545,
+        0.60177976,
+        0.58225167,
+        0.57773745,
+        0.564185,
+        0.5599462,
+        0.5583694,
+        0.55642617,
+        0.54129434
+      ]
+    },
+    {
+      "question_id": "BLT-0046",
+      "retrieved_chunk_ids": [
+        "civil_code_563_0",
+        "civil_code_562_0",
+        "labor_contract_law_38_0",
+        "labor_contract_law_21_0",
+        "labor_contract_law_37_0",
+        "civil_code_557_0",
+        "labor_contract_law_46_0",
+        "civil_code_533_0",
+        "labor_contract_law_14_0",
+        "civil_code_580_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第563条",
+        "民法典:第562条",
+        "劳动合同法:第38条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_563#civil_code_563_0",
+        "/knowledge/legal/civil_code_562#civil_code_562_0",
+        "/knowledge/legal/labor_contract_law_38#labor_contract_law_38_0"
+      ],
+      "scores": [
+        0.7688031,
+        0.70316994,
+        0.68332666,
+        0.6441059,
+        0.63784546,
+        0.63578933,
+        0.618256,
+        0.5937446,
+        0.5807105,
+        0.56747496
+      ]
+    },
+    {
+      "question_id": "BLT-0047",
+      "retrieved_chunk_ids": [
+        "civil_code_585_0",
+        "civil_code_584_0",
+        "civil_code_577_0",
+        "civil_code_617_0",
+        "civil_code_604_0",
+        "civil_code_590_0",
+        "labor_contract_law_23_0",
+        "civil_code_533_0",
+        "civil_code_580_0",
+        "labor_contract_law_46_0"
+      ],
+      "cited_law_refs": [
+        "民法典:第585条",
+        "民法典:第584条",
+        "民法典:第577条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/civil_code_585#civil_code_585_0",
+        "/knowledge/legal/civil_code_584#civil_code_584_0",
+        "/knowledge/legal/civil_code_577#civil_code_577_0"
+      ],
+      "scores": [
+        0.74239695,
+        0.6995647,
+        0.663283,
+        0.6355098,
+        0.6021004,
+        0.57979983,
+        0.55381614,
+        0.54316324,
+        0.54167116,
+        0.53585637
+      ]
+    },
+    {
+      "question_id": "BLT-0048",
+      "retrieved_chunk_ids": [
+        "labor_contract_law_82_0",
+        "labor_contract_law_10_0",
+        "labor_contract_law_14_0",
+        "labor_contract_law_17_0",
+        "labor_contract_law_38_0",
+        "labor_contract_law_37_0",
+        "labor_contract_law_19_0",
+        "labor_contract_law_23_0",
+        "labor_contract_law_46_0",
+        "labor_contract_law_21_0"
+      ],
+      "cited_law_refs": [
+        "劳动合同法:第82条",
+        "劳动合同法:第10条",
+        "劳动合同法:第14条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/labor_contract_law_82#labor_contract_law_82_0",
+        "/knowledge/legal/labor_contract_law_10#labor_contract_law_10_0",
+        "/knowledge/legal/labor_contract_law_14#labor_contract_law_14_0"
+      ],
+      "scores": [
+        0.8220308,
+        0.7119572,
+        0.6645598,
+        0.645146,
+        0.57809067,
+        0.5750201,
+        0.5701652,
+        0.5636034,
+        0.5588888,
+        0.53728884
+      ]
+    },
+    {
+      "question_id": "BLT-0049",
+      "retrieved_chunk_ids": [
+        "labor_contract_law_23_0",
+        "labor_contract_law_24_0",
+        "civil_code_590_0",
+        "civil_code_509_0",
+        "civil_code_580_0",
+        "labor_contract_law_46_0",
+        "labor_contract_law_17_0",
+        "labor_contract_law_21_0",
+        "labor_contract_law_38_0",
+        "labor_contract_law_37_0"
+      ],
+      "cited_law_refs": [
+        "劳动合同法:第23条",
+        "劳动合同法:第24条",
+        "民法典:第590条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/labor_contract_law_23#labor_contract_law_23_0",
+        "/knowledge/legal/labor_contract_law_24#labor_contract_law_24_0",
+        "/knowledge/legal/civil_code_590#civil_code_590_0"
+      ],
+      "scores": [
+        0.819481,
+        0.79077184,
+        0.5113403,
+        0.5112011,
+        0.47882676,
+        0.4775921,
+        0.47438818,
+        0.4718216,
+        0.46594608,
+        0.46516198
+      ]
+    },
+    {
+      "question_id": "BLT-0050",
+      "retrieved_chunk_ids": [
+        "labor_contract_law_46_0",
+        "labor_contract_law_47_0",
+        "labor_contract_law_38_0",
+        "labor_contract_law_23_0",
+        "labor_contract_law_21_0",
+        "civil_code_562_0",
+        "civil_code_563_0",
+        "labor_contract_law_37_0",
+        "civil_code_557_0",
+        "labor_contract_law_14_0"
+      ],
+      "cited_law_refs": [
+        "劳动合同法:第46条",
+        "劳动合同法:第47条",
+        "劳动合同法:第38条"
+      ],
+      "source_urls": [
+        "/knowledge/legal/labor_contract_law_46#labor_contract_law_46_0",
+        "/knowledge/legal/labor_contract_law_47#labor_contract_law_47_0",
+        "/knowledge/legal/labor_contract_law_38#labor_contract_law_38_0"
+      ],
+      "scores": [
+        0.79971087,
+        0.7582849,
+        0.64698136,
+        0.61621237,
+        0.6085681,
+        0.60368216,
+        0.60145503,
+        0.59069943,
+        0.56483656,
+        0.56453997
+      ]
+    }
+  ]
+}

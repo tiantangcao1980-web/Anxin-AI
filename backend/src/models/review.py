@@ -1,17 +1,13 @@
-# -*- coding: utf-8 -*-
 """
 律师评价模型
 """
 
 from datetime import datetime
-from typing import Optional
 
-from sqlalchemy import (
-    String, Text, ForeignKey, Boolean, DateTime, Integer, JSON, Index
-)
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.models.base import Base, TimestampMixin, GUID
+from src.models.base import GUID, Base, TimestampMixin
 
 
 class LawyerReview(Base, TimestampMixin):
@@ -28,26 +24,26 @@ class LawyerReview(Base, TimestampMixin):
         GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     # 关联咨询（可选）
-    consultation_id: Mapped[Optional[str]] = mapped_column(
+    consultation_id: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("consultations.id", ondelete="SET NULL"), nullable=True
     )
     # 关联委托（可选）
-    delegation_id: Mapped[Optional[str]] = mapped_column(
+    delegation_id: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("delegations.id", ondelete="SET NULL"), nullable=True
     )
 
     # 评分 1-5 星
     rating: Mapped[int] = mapped_column(Integer, nullable=False)
     # 评价内容
-    content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    content: Mapped[str | None] = mapped_column(Text, nullable=True)
     # 标签，如 ["专业", "耐心", "高效"]
-    tags: Mapped[Optional[list]] = mapped_column(JSON, default=list)
+    tags: Mapped[list[str] | None] = mapped_column(JSON, default=list)
     # 是否匿名评价
     is_anonymous: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # 律师回复
-    reply_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    replied_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    reply_content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    replied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # 关系
     lawyer_profile = relationship("LawyerProfile", backref="reviews")

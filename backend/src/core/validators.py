@@ -3,15 +3,14 @@
 包含输入清理、文件验证、SQL注入防护等
 """
 
-import re
 import html
-from typing import Optional, List, Any
+import re
 from pathlib import Path
-from pydantic import BaseModel, validator, Field
+
 from loguru import logger
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.core.config import settings
-
 
 # ========== 输入清理 ==========
 
@@ -42,7 +41,7 @@ class InputSanitizer:
     ]
 
     @classmethod
-    def sanitize_string(cls, value: str, max_length: Optional[int] = None) -> str:
+    def sanitize_string(cls, value: str, max_length: int | None = None) -> str:
         """
         清理字符串输入
 
@@ -155,13 +154,27 @@ class FileValidator:
         ".jar", ".app", ".deb", ".rpm",
     }
 
+    # 允许的 MIME 类型及其对应扩展名
+    CONTENT_TYPE_EXTENSIONS = {
+        "application/pdf": {".pdf"},
+        "application/msword": {".doc"},
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {".docx"},
+        "application/vnd.ms-excel": {".xls"},
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {".xlsx"},
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": {".pptx"},
+        "text/plain": {".txt", ".md", ".csv"},
+        "text/markdown": {".md"},
+        "text/csv": {".csv"},
+    }
+
     # 文件类型签名（Magic Numbers）
-    FILE_SIGNATURES = {
-        b"\x25\x50\x44\x46": ".pdf",  # PDF
-        b"\x50\x4b\x03\x04": ".docx",  # DOCX (also ZIP)
-        b"\xd0\xcf\x11\xe0": ".doc",   # DOC
-        b"\x50\x4b\x03\x04": ".xlsx",  # XLSX (also ZIP)
-        b"\xd0\xcf\x11\xe0": ".xls",   # XLS
+    FILE_SIGNATURES_BY_EXTENSION = {
+        ".pdf": (b"\x25\x50\x44\x46",),
+        ".doc": (b"\xd0\xcf\x11\xe0",),
+        ".xls": (b"\xd0\xcf\x11\xe0",),
+        ".docx": (b"\x50\x4b\x03\x04",),
+        ".xlsx": (b"\x50\x4b\x03\x04",),
+        ".pptx": (b"\x50\x4b\x03\x04",),
     }
 
     @classmethod
@@ -209,17 +222,13 @@ class FileValidator:
         Returns:
             是否合法
         """
-        allowed_types = [
-            "application/pdf",
-            "application/msword",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "application/vnd.ms-excel",
-            "text/plain",
-            "text/markdown",
-        ]
+        normalized_type = cls.normalize_content_type(content_type)
+        return normalized_type in cls.CONTENT_TYPE_EXTENSIONS
 
-        return content_type in allowed_types
+    @staticmethod
+    def normalize_content_type(content_type: str) -> str:
+        """归一化 MIME 类型，去掉 charset 等参数。"""
+        return (content_type or "").split(";", 1)[0].strip().lower()
 
     @classmethod
     async def validate_file(
@@ -227,7 +236,7 @@ class FileValidator:
         filename: str,
         file_size: int,
         content_type: str,
-        content: Optional[bytes] = None
+        content: bytes | None = None
     ) -> tuple[bool, str]:
         """
         综合验证文件
@@ -243,27 +252,26 @@ class FileValidator:
         """
         # 验证扩展名
         if not cls.validate_extension(filename):
-            return False, f"不支持的文件类型"
+            return False, "不支持的文件类型"
 
         # 验证大小
         if not cls.validate_size(file_size):
             return False, f"文件过大（最大 {cls.MAX_SIZE // 1024 // 1024}MB）"
 
         # 验证 Content-Type
-        if not cls.validate_content_type(content_type):
+        normalized_type = cls.normalize_content_type(content_type)
+        if not cls.validate_content_type(normalized_type):
             return False, f"不支持的 MIME 类型: {content_type}"
+
+        ext = Path(filename).suffix.lower()
+        allowed_extensions = cls.CONTENT_TYPE_EXTENSIONS.get(normalized_type, set())
+        if allowed_extensions and ext not in allowed_extensions:
+            return False, "文件扩展名与 MIME 类型不匹配"
 
         # 深度验证（检查文件头）
         if content and len(content) >= 4:
-            ext = Path(filename).suffix.lower()
-            expected_sig = None
-
-            for sig, sig_ext in cls.FILE_SIGNATURES.items():
-                if sig_ext == ext:
-                    expected_sig = sig
-                    break
-
-            if expected_sig and not content.startswith(expected_sig):
+            expected_signatures = cls.FILE_SIGNATURES_BY_EXTENSION.get(ext)
+            if expected_signatures and not content.startswith(expected_signatures):
                 logger.warning(f"文件签名不匹配: {filename}")
                 return False, "文件内容与扩展名不匹配"
 
@@ -276,11 +284,7 @@ class FileValidator:
 class BaseValidationModel(BaseModel):
     """基础验证模型"""
 
-    class Config:
-        # 任何额外的字段都会导致验证错误
-        extra = "forbid"
-        # 允许别名
-        allow_population_by_field_name = True
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
 
 class UserInputModel(BaseValidationModel):
@@ -288,10 +292,11 @@ class UserInputModel(BaseValidationModel):
 
     query: str = Field(..., min_length=1, max_length=1000)
 
-    @validator("query")
-    def sanitize_query(cls, v):
+    @field_validator("query")
+    @classmethod
+    def sanitize_query(cls, value: str) -> str:
         """清理查询字符串"""
-        sanitized, is_dangerous = InputSanitizer.sanitize_user_input(v)
+        sanitized, is_dangerous = InputSanitizer.sanitize_user_input(value)
 
         if is_dangerous:
             raise ValueError("检测到非法输入")
@@ -303,12 +308,13 @@ class ChatMessageModel(BaseValidationModel):
     """聊天消息验证模型"""
 
     message: str = Field(..., min_length=1, max_length=5000)
-    session_id: Optional[str] = None
+    session_id: str | None = None
 
-    @validator("message")
-    def sanitize_message(cls, v):
+    @field_validator("message")
+    @classmethod
+    def sanitize_message(cls, value: str) -> str:
         """清理消息内容"""
-        sanitized, is_dangerous = InputSanitizer.sanitize_user_input(v)
+        sanitized, is_dangerous = InputSanitizer.sanitize_user_input(value)
 
         if is_dangerous:
             raise ValueError("检测到非法输入")
@@ -323,26 +329,28 @@ class FileUploadModel(BaseValidationModel):
     file_size: int
     content_type: str
 
-    @validator("filename")
-    def validate_filename(cls, v):
+    @field_validator("filename")
+    @classmethod
+    def validate_filename(cls, value: str) -> str:
         """验证文件名"""
         # 检查路径遍历攻击
-        if ".." in v or v.startswith("/"):
+        if ".." in value or value.startswith("/"):
             raise ValueError("非法文件名")
 
         # 检查扩展名
-        if not FileValidator.validate_extension(v):
-            raise ValueError(f"不支持的文件类型: {Path(v).suffix}")
+        if not FileValidator.validate_extension(value):
+            raise ValueError(f"不支持的文件类型: {Path(value).suffix}")
 
-        return v
+        return value
 
-    @validator("file_size")
-    def validate_file_size(cls, v):
+    @field_validator("file_size")
+    @classmethod
+    def validate_file_size(cls, value: int) -> int:
         """验证文件大小"""
-        if not FileValidator.validate_size(v):
+        if not FileValidator.validate_size(value):
             raise ValueError("文件过大")
 
-        return v
+        return value
 
 
 # ========== 路径验证 ==========

@@ -1,11 +1,16 @@
 
 import logging
-from typing import List, Optional, Dict, Any
+from typing import Any, cast
+
+from sqlalchemy import delete, func, select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, delete, func
+
 from src.models.notification import (
-    Notification, NotificationPreference,
-    NotificationChannel, NotificationEventType
+    Notification,
+    NotificationChannel,
+    NotificationEventType,
+    NotificationPreference,
 )
 
 logger = logging.getLogger(__name__)
@@ -13,7 +18,7 @@ logger = logging.getLogger(__name__)
 # ============================================================
 # 通知模板
 # ============================================================
-NOTIFICATION_TEMPLATES: Dict[str, Dict[str, str]] = {
+NOTIFICATION_TEMPLATES: dict[str, dict[str, str]] = {
     "approval_pending": {
         "title": "新审批待处理",
         "message": "您有一条新的审批待处理：{title}",
@@ -73,8 +78,8 @@ class NotificationService:
         type: str,
         title: str,
         message: str,
-        related_link: Optional[str] = None,
-        event_type: Optional[str] = None,
+        related_link: str | None = None,
+        event_type: str | None = None,
     ) -> Notification:
         notification = Notification(
             user_id=user_id,
@@ -96,8 +101,8 @@ class NotificationService:
         user_id: str,
         limit: int = 50,
         unread_only: bool = False,
-        event_type: Optional[str] = None,
-    ) -> List[Notification]:
+        event_type: str | None = None,
+    ) -> list[Notification]:
         query = select(Notification).where(Notification.user_id == user_id)
 
         if unread_only:
@@ -109,7 +114,7 @@ class NotificationService:
         query = query.order_by(Notification.created_at.desc()).limit(limit)
 
         result = await session.execute(query)
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     @staticmethod
     async def get_unread_count(
@@ -129,7 +134,7 @@ class NotificationService:
         session: AsyncSession,
         notification_id: str,
         user_id: str
-    ) -> Optional[Notification]:
+    ) -> Notification | None:
         query = (
             update(Notification)
             .where(Notification.id == notification_id, Notification.user_id == user_id)
@@ -152,7 +157,7 @@ class NotificationService:
         )
         result = await session.execute(query)
         await session.commit()
-        return result.rowcount
+        return cast(CursorResult[Any], result).rowcount
 
     @staticmethod
     async def delete_notification(
@@ -166,7 +171,7 @@ class NotificationService:
         )
         result = await session.execute(query)
         await session.commit()
-        return result.rowcount > 0
+        return cast(CursorResult[Any], result).rowcount > 0
 
     # ============================================================
     # 通知偏好管理
@@ -176,7 +181,7 @@ class NotificationService:
     async def get_user_preferences(
         session: AsyncSession,
         user_id: str
-    ) -> List[NotificationPreference]:
+    ) -> list[NotificationPreference]:
         """获取用户的通知偏好列表"""
         query = (
             select(NotificationPreference)
@@ -184,14 +189,14 @@ class NotificationService:
             .order_by(NotificationPreference.event_type, NotificationPreference.channel)
         )
         result = await session.execute(query)
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     @staticmethod
     async def upsert_preferences(
         session: AsyncSession,
         user_id: str,
-        preferences: List[Dict[str, Any]]
-    ) -> List[NotificationPreference]:
+        preferences: list[dict[str, Any]]
+    ) -> list[NotificationPreference]:
         """批量更新/插入用户通知偏好
 
         preferences 格式：[{"channel": "email", "event_type": "approval", "enabled": true}, ...]
@@ -264,9 +269,9 @@ class NotificationService:
         session: AsyncSession,
         user_id: str,
         template_key: str,
-        params: Optional[Dict[str, Any]] = None,
-        related_link: Optional[str] = None,
-    ) -> Optional[Notification]:
+        params: dict[str, Any] | None = None,
+        related_link: str | None = None,
+    ) -> Notification | None:
         """根据模板和用户偏好，向所有启用的渠道分发通知
 
         站内信创建后会通过 WebSocket 实时推送给在线用户。
@@ -283,7 +288,7 @@ class NotificationService:
         event_type = template["event_type"]
         notif_type = template["type"]
 
-        site_notification: Optional[Notification] = None
+        site_notification: Notification | None = None
 
         for channel in NotificationChannel:
             enabled = await NotificationService.is_channel_enabled(

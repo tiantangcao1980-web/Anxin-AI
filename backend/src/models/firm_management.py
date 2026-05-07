@@ -1,19 +1,27 @@
-# -*- coding: utf-8 -*-
 """
 律所内部管理模型
 包含团队、团队成员、案件分配、工时记录、发票等表
 """
 
 from datetime import date, datetime
-from typing import Optional
+from typing import Any
 
 from sqlalchemy import (
-    Boolean, Date, DateTime, Float, ForeignKey, Integer,
-    JSON, String, Text, UniqueConstraint, Index, func,
+    JSON,
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.models.base import Base, TimestampMixin, GUID
+from src.models.base import GUID, Base, TimestampMixin
 
 
 class Team(Base, TimestampMixin):
@@ -28,10 +36,10 @@ class Team(Base, TimestampMixin):
     name: Mapped[str] = mapped_column(
         String(100), nullable=False, comment="团队名称",
     )
-    description: Mapped[Optional[str]] = mapped_column(
+    description: Mapped[str | None] = mapped_column(
         Text, nullable=True, comment="团队描述",
     )
-    leader_id: Mapped[Optional[str]] = mapped_column(
+    leader_id: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True, comment="团队负责人",
     )
@@ -71,7 +79,7 @@ class CaseAssignment(Base, TimestampMixin):
         GUID(), ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False, index=True, comment="被分配人",
     )
-    assigned_by: Mapped[Optional[str]] = mapped_column(
+    assigned_by: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True, comment="分配人",
     )
@@ -79,7 +87,7 @@ class CaseAssignment(Base, TimestampMixin):
         String(30), nullable=False, default="support",
         comment="角色: lead | support | review",
     )
-    hours_estimated: Mapped[Optional[float]] = mapped_column(
+    hours_estimated: Mapped[float | None] = mapped_column(
         Float, nullable=True, comment="预估工时（小时）",
     )
     status: Mapped[str] = mapped_column(
@@ -100,7 +108,7 @@ class TimeEntry(Base, TimestampMixin):
         GUID(), ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False, index=True, comment="用户ID",
     )
-    case_id: Mapped[Optional[str]] = mapped_column(
+    case_id: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("cases.id", ondelete="SET NULL"),
         nullable=True, index=True, comment="关联案件ID",
     )
@@ -110,24 +118,24 @@ class TimeEntry(Base, TimestampMixin):
     minutes: Mapped[int] = mapped_column(
         Integer, nullable=False, comment="工时（分钟）",
     )
-    description: Mapped[Optional[str]] = mapped_column(
+    description: Mapped[str | None] = mapped_column(
         String(500), nullable=True, comment="工时说明",
     )
     billable: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, comment="是否可计费",
     )
-    rate: Mapped[Optional[float]] = mapped_column(
+    rate: Mapped[float | None] = mapped_column(
         Float, nullable=True, comment="费率（元/小时）",
     )
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="draft",
         comment="状态: draft | submitted | approved | rejected",
     )
-    approved_by: Mapped[Optional[str]] = mapped_column(
+    approved_by: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True, comment="审批人",
     )
-    approved_at: Mapped[Optional[datetime]] = mapped_column(
+    approved_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, comment="审批时间",
     )
 
@@ -141,7 +149,7 @@ class Invoice(Base, TimestampMixin):
         GUID(), ForeignKey("organizations.id", ondelete="CASCADE"),
         nullable=False, index=True, comment="所属组织",
     )
-    case_id: Mapped[Optional[str]] = mapped_column(
+    case_id: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("cases.id", ondelete="SET NULL"),
         nullable=True, index=True, comment="关联案件ID",
     )
@@ -158,16 +166,16 @@ class Invoice(Base, TimestampMixin):
         String(20), nullable=False, default="draft",
         comment="状态: draft | sent | paid | overdue | cancelled",
     )
-    due_date: Mapped[Optional[date]] = mapped_column(
+    due_date: Mapped[date | None] = mapped_column(
         Date, nullable=True, comment="到期日",
     )
-    items: Mapped[Optional[list]] = mapped_column(
+    items: Mapped[list[dict[str, Any]] | None] = mapped_column(
         JSON, nullable=True, default=list,
         comment="发票明细: [{description, hours, rate, amount}]",
     )
-    notes: Mapped[Optional[str]] = mapped_column(
+    notes: Mapped[str | None] = mapped_column(
         Text, nullable=True, comment="备注",
     )
-    paid_at: Mapped[Optional[datetime]] = mapped_column(
+    paid_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, comment="支付时间",
     )

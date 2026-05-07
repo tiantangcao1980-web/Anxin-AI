@@ -1,0 +1,39 @@
+{
+  "generated_at": "2026-05-07T11:56:59.312578+00:00",
+  "mode": "mobile_mini_code_smoke",
+  "status": "passed",
+  "release_evidence_complete": false,
+  "checks": {
+    "mobile_vitest": "passed",
+    "mobile_typescript": "passed",
+    "mobile_expo_config_guard": "passed",
+    "mobile_expo_doctor": "passed",
+    "mini_program_typescript": "passed",
+    "mini_program_wechat_build": "passed",
+    "mini_program_wechat_devtools_cli": "passed",
+    "mobile_refresh_auth_guard": "passed",
+    "mini_program_refresh_auth_guard": "passed",
+    "fake_fallback_guard": "passed",
+    "mini_program_design_token_guard": "passed"
+  },
+  "tooling": {
+    "wechat_devtools_cli": "/Applications/wechatwebdevtools.app/Contents/MacOS/cli"
+  },
+  "mobile_npm_audit": {
+    "status": "passed",
+    "command": "cd mobile && npm audit --omit=dev --json",
+    "critical": 0,
+    "high": 0,
+    "moderate": 0,
+    "total": 0,
+    "residual_vulnerabilities": [],
+    "remediated_by_override": [
+      "@xmldom/xmldom@0.8.13",
+      "@expo/cli -> tar@7.5.14",
+      "@expo/metro-config -> postcss@8.5.14",
+      "cacache -> tar@7.5.14"
+    ],
+    "remaining_note": "No production npm audit vulnerabilities remain after targeted Expo SDK 52 toolchain overrides. The tar override crosses Expo CLI's declared semver range, so expo-doctor and real device smoke should remain part of release verification."
+  },
+  "completion_note": "Code-level supporting evidence only. Keep mobile-device smoke evidence Status: pending until iOS, Android, WeChat DevTools or real-device runs and cross-device continuation are recorded."
+}

@@ -2,19 +2,18 @@
 尽职调查智能体
 """
 
-from typing import Any, Dict
+from typing import Any
 
-from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
+from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
-
 
 _FALLBACK_PROMPT = "你是一位资深的尽职调查专家，擅长企业背景调查和风险评估。"
 
 
 class DueDiligenceAgent(BaseLegalAgent):
     """尽职调查智能体"""
-    
-    def __init__(self):
+
+    def __init__(self) -> None:
         config = AgentConfig(
             name="尽职调查Agent",
             role="尽职调查专家",
@@ -23,13 +22,13 @@ class DueDiligenceAgent(BaseLegalAgent):
             tools=["company_info", "litigation_query", "credit_check", "web_search"],
         )
         super().__init__(config)
-    
-    async def process(self, task: Dict[str, Any]) -> AgentResponse:
+
+    async def process(self, task: dict[str, Any]) -> AgentResponse:
         """处理尽职调查任务"""
         description = task.get("description", "")
         context = task.get("context", {})
         company_name = context.get("company_name", "")
-        
+
         # 构建调查提示
         prompt = f"""
 请对以下企业进行尽职调查：
@@ -46,10 +45,10 @@ class DueDiligenceAgent(BaseLegalAgent):
 
 请提供详细的调查发现和风险评估意见。
 """
-        
+
         # 调用Agent
         response = await self.chat(prompt)
-        
+
         return AgentResponse(
             agent_name=self.name,
             content=response,
@@ -62,8 +61,8 @@ class DueDiligenceAgent(BaseLegalAgent):
                 {"type": "due_diligence_complete", "description": "尽职调查完成"}
             ]
         )
-    
-    async def investigate_company(self, company_name: str) -> Dict[str, Any]:
+
+    async def investigate_company(self, company_name: str) -> dict[str, Any]:
         """调查指定企业"""
         prompt = f"""
 请对企业 "{company_name}" 进行全面的尽职调查，包括：
@@ -77,14 +76,14 @@ class DueDiligenceAgent(BaseLegalAgent):
 请以结构化格式输出调查结果。
 """
         response = await self.chat(prompt)
-        
+
         return {
             "company_name": company_name,
             "report": response,
             "agent": self.name
         }
-    
-    async def check_litigation(self, company_name: str) -> Dict[str, Any]:
+
+    async def check_litigation(self, company_name: str) -> dict[str, Any]:
         """查询企业诉讼记录"""
         prompt = f"""
 请查询企业 "{company_name}" 的诉讼和仲裁记录，包括：
@@ -96,7 +95,7 @@ class DueDiligenceAgent(BaseLegalAgent):
 请分析诉讼风险等级。
 """
         response = await self.chat(prompt)
-        
+
         return {
             "company_name": company_name,
             "litigation_report": response,

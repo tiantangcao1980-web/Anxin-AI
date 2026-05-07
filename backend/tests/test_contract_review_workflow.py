@@ -1,9 +1,14 @@
+import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from src.models.contract import ContractRisk, ContractStatus, RiskLevel
-from src.services.contract_service import ContractService
+from src.services.contract_review_lock import ContractReviewAlreadyRunning
+from src.services.contract_service import (
+    ContractReviewTimeoutError,
+    ContractService,
+)
 
 from .conftest import create_auth_headers
 
@@ -70,6 +75,101 @@ async def test_review_contract_persists_risks_and_summary(
     assert contract.review_summary == "合同存在较高付款与违约责任风险"
     assert len(risks) == 2
     assert "《民法典》第五百零九条" in risks[0].description or "《民法典》第五百零九条" in risks[1].description
+
+
+@pytest.mark.asyncio
+async def test_review_contract_rejects_concurrent_review(
+    db_session,
+    test_organization,
+    test_user,
+):
+    started = asyncio.Event()
+    finish = asyncio.Event()
+
+    async def slow_review(*_args, **_kwargs):
+        started.set()
+        await finish.wait()
+        return {"final_result": {"summary": "并发审查完成", "risks": []}}
+
+    service_a = ContractService(db_session)
+    service_a._workforce = MagicMock(process_task=AsyncMock(side_effect=slow_review))
+    service_b = ContractService(db_session)
+    service_b._workforce = MagicMock(
+        process_task=AsyncMock(return_value={"final_result": {"summary": "不应执行"}})
+    )
+
+    contract = await service_a.create_contract(
+        title="并发审查合同",
+        contract_type="service",
+        org_id=test_organization.id,
+    )
+
+    review_task = asyncio.create_task(
+        service_a.review_contract(
+            contract_id=contract.id,
+            contract_text="第一条 服务内容。",
+            reviewed_by=test_user.id,
+        )
+    )
+    await started.wait()
+
+    with pytest.raises(ContractReviewAlreadyRunning):
+        await service_b.review_contract(
+            contract_id=contract.id,
+            contract_text="第一条 服务内容。",
+            reviewed_by=test_user.id,
+        )
+
+    finish.set()
+    await review_task
+    service_b._workforce.process_task.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_review_contract_timeout_marks_failed_and_allows_retry(
+    db_session,
+    test_organization,
+    test_user,
+    monkeypatch,
+):
+    monkeypatch.setattr("src.services.contract_service.settings.CONTRACT_REVIEW_TIMEOUT_SECONDS", 0.01)
+
+    async def slow_review(*_args, **_kwargs):
+        await asyncio.sleep(1)
+        return {"final_result": {"summary": "不应返回"}}
+
+    service = ContractService(db_session)
+    service._workforce = MagicMock(process_task=AsyncMock(side_effect=slow_review))
+    contract = await service.create_contract(
+        title="超时审查合同",
+        contract_type="service",
+        org_id=test_organization.id,
+    )
+
+    with pytest.raises(ContractReviewTimeoutError):
+        await service.review_contract(
+            contract_id=contract.id,
+            contract_text="第一条 交付内容。",
+            reviewed_by=test_user.id,
+        )
+
+    await db_session.refresh(contract)
+    assert contract.status == ContractStatus.REVIEW_FAILED
+    assert contract.review_result["status"] == "failed"
+    assert contract.review_result["reason"] == "contract_review_timeout"
+
+    service._workforce = MagicMock(
+        process_task=AsyncMock(return_value={"final_result": {"summary": "重试成功", "risks": []}})
+    )
+    result = await service.review_contract(
+        contract_id=contract.id,
+        contract_text="第一条 交付内容。",
+        reviewed_by=test_user.id,
+    )
+
+    await db_session.refresh(contract)
+    assert result["summary"] == "重试成功"
+    assert contract.status == ContractStatus.PENDING_REVIEW
 
 
 @pytest.mark.asyncio

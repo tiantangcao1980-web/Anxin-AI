@@ -6,6 +6,7 @@ import { toast } from'sonner'
 import { contractsApi, Contract, ContractCreate } from'@/lib/api'
 import { PageContainer } from'@/components/ui/PageContainer'
 import { cardStyle, heading, buttonStyle, iconSize, statusBadge, radius, inputStyle } from'@/lib/design-tokens'
+import ContractReview from'./ContractReview'
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
  draft: { label:'草稿', color: statusBadge.neutral },
@@ -42,7 +43,6 @@ export default function Contracts() {
  const [total, setTotal] = useState(0)
  const [page, setPage] = useState(1)
  const [showReviewModal, setShowReviewModal] = useState(false)
- const [selectedContract, setSelectedContract] = useState<Contract | null>(null)
  const [showCreateModal, setShowCreateModal] = useState(false)
 
  useEffect(() => {
@@ -67,8 +67,7 @@ export default function Contracts() {
  }
  }
 
- const handleReview = (contract: Contract) => {
- setSelectedContract(contract)
+ const handleReview = () => {
  setShowReviewModal(true)
  }
 
@@ -174,7 +173,7 @@ export default function Contracts() {
  return (
  <div
  key={contract.id}
- onClick={() => handleReview(contract)}
+ onClick={() => handleReview()}
  className="p-4 hover:bg-muted/30 transition-colors cursor-pointer"
  >
  <div className="flex items-start justify-between gap-2">
@@ -211,7 +210,7 @@ export default function Contracts() {
  </span>
 
  <button
- onClick={(e) => { e.stopPropagation(); handleReview(contract); }}
+ onClick={(e) => { e.stopPropagation(); handleReview(); }}
  className={buttonStyle.icon}
  >
  <icons.Eye className={iconSize.sm} />
@@ -255,12 +254,9 @@ export default function Contracts() {
  {/* 审查模态框 */}
  {showReviewModal && (
  <ReviewModal
- contract={selectedContract}
  onClose={() => {
  setShowReviewModal(false)
- setSelectedContract(null)
  }}
- onComplete={loadContracts}
  />
  )}
 
@@ -276,150 +272,18 @@ export default function Contracts() {
 }
 
 // 审查模态框
-function ReviewModal({ 
- contract, 
- onClose, 
- onComplete 
-}: { 
- contract: Contract | null
- onClose: () => void
- onComplete: () => void 
-}) {
- const [contractText, setContractText] = useState('')
- const [reviewing, setReviewing] = useState(false)
- const [result, setResult] = useState<any>(null)
-
- const handleReview = async () => {
- if (!contractText.trim()) {
- toast.error('请输入合同文本')
- return
- }
-
- setReviewing(true)
- try {
- // 如果没有选中的合同，先创建一个
- let contractId = contract?.id
- if (!contractId) {
- const newContract = await contractsApi.create({
- title:'待审查合同',
- contract_type:'other',
- })
- contractId = newContract.id
- }
-
- const reviewResult = await contractsApi.review(contractId, contractText)
- setResult(reviewResult)
- toast.success('审查完成')
- onComplete()
- } catch (error: any) {
- toast.error(error.message ||'审查失败')
- } finally {
- setReviewing(false)
- }
- }
-
+function ReviewModal({ onClose }: { onClose: () => void }) {
  return (
  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
- <div className={`bg-background ${radius.dialog} shadow-lg w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden flex flex-col`}>
- <div className="p-6 border-b">
+ <div className={`bg-background ${radius.dialog} shadow-lg w-full max-w-6xl mx-4 h-[90vh] overflow-hidden flex flex-col`}>
+ <div className="px-5 py-4 border-b flex items-center justify-between">
  <h2 className={heading.section}>合同智能审查</h2>
- </div>
- 
- <div className="flex-1 overflow-auto p-6">
- {result ? (
- <div className="space-y-6">
- {/* 审查结果概览 */}
- <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
- <div className={cardStyle.compact}>
- <p className={heading.muted}>风险等级</p>
- <p className={`text-lg font-bold ${
- result.risk_level ==='critical' || result.risk_level ==='high' ?'text-destructive' :
- result.risk_level ==='medium' ?'text-warning' :'text-success'
- }`}>
- {RISK_LEVEL_MAP[result.risk_level]?.label || result.risk_level}
- </p>
- </div>
- <div className={cardStyle.compact}>
- <p className={heading.muted}>风险评分</p>
- <p className="text-lg font-bold">{((result.risk_score || 0) * 100).toFixed(0)}%</p>
- </div>
- <div className={cardStyle.compact}>
- <p className={heading.muted}>风险点数量</p>
- <p className="text-lg font-bold">{result.risks?.length || 0}</p>
- </div>
- </div>
-
- {/* 审查摘要 */}
- <div className={cardStyle.compact}>
- <h3 className={`${heading.card} mb-2`}>审查摘要</h3>
- <p className={`${heading.muted} whitespace-pre-wrap`}>
- {result.summary ||'暂无摘要'}
- </p>
- </div>
-
- {/* 风险点列表 */}
- {result.risks && result.risks.length > 0 && (
- <div className="space-y-3">
- <h3 className={heading.card}>风险点 ({result.risks.length})</h3>
- {result.risks.map((risk: any, index: number) => (
- <div key={index} className={cardStyle.compact}>
- <div className="flex items-center gap-2">
- <icons.AlertTriangle className={`${iconSize.sm} ${
- risk.level ==='critical' || risk.level ==='high' ?'text-destructive' :
- risk.level ==='medium' ?'text-warning' :'text-success'
- }`} />
- <span className={heading.card}>{risk.title}</span>
- </div>
- <p className={`${heading.muted} mt-2`}>{risk.description}</p>
- {risk.suggestion && (
- <p className="text-sm mt-2 text-primary">建议: {risk.suggestion}</p>
- )}
- </div>
- ))}
- </div>
- )}
- </div>
- ) : (
- <div className="space-y-4">
- <p className={heading.muted}>
- 请粘贴合同文本，AI将自动识别风险条款并提供修改建议
- </p>
- <textarea
- value={contractText}
- onChange={(e) => setContractText(e.target.value)}
- placeholder="请在此粘贴合同文本..."
- className={`${inputStyle.search} h-96 px-4 py-3 resize-none`}
- />
- </div>
- )}
- </div>
- 
- <div className="p-6 border-t flex justify-end gap-3">
- <button
- onClick={onClose}
- className={buttonStyle.secondary}
- >
- 关闭
+ <button onClick={onClose} className={buttonStyle.icon} title="关闭">
+ <icons.X className={iconSize.md} />
  </button>
- {!result && (
- <button
- onClick={handleReview}
- disabled={reviewing || !contractText.trim()}
- className={`${buttonStyle.primary} flex items-center gap-2 disabled:opacity-50`}
- >
- {reviewing ? (
- <>
- <icons.Loader2 className={`${iconSize.sm} animate-spin`} />
- 审查中...
- </>
- ) : (
- <>
- <icons.Search className={iconSize.sm} />
- 开始审查
- </>
- )}
- </button>
- )}
+ </div>
+ <div className="flex-1 min-h-0">
+ <ContractReview embedded />
  </div>
  </div>
  </div>

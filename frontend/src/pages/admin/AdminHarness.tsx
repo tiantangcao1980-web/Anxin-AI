@@ -8,13 +8,13 @@ import { Badge } from'@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from'@/components/ui/card'
 import { Skeleton } from'@/components/ui/skeleton'
 import { StatCard as UnifiedStatCard, StatGrid, StatCardSkeleton } from'@/components/ui-unified'
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL ||'/api/v1'
+import { API_BASE_URL, buildApiHeaders } from'@/lib/api'
+import { getTokenStorage } from'@/lib/platform/storage'
 
 async function fetchHarness<T>(path: string): Promise<T> {
- const token = localStorage.getItem('access_token')
- const res = await fetch(`${API_BASE}/harness${path}`, {
- headers: { Authorization: `Bearer ${token}` },
+ const token = await getTokenStorage().getAccessToken()
+ const res = await fetch(`${API_BASE_URL}/harness${path}`, {
+ headers: buildApiHeaders(undefined, { token, json: false }),
  })
  const json = await res.json()
  if (json.status !=='ok') throw new Error(json.message ||'Harness API error')

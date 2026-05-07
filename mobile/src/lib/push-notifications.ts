@@ -9,7 +9,7 @@
  *
  * 注意：
  * - Expo Go 从 SDK 53 起不再支持远程推送；生产版需 EAS Build
- * - 依赖未在 package.json 注册时会 `require` 失败，本模块做 soft import
+ * - 本模块保留 soft import，避免不支持推送的运行环境阻断主流程
  */
 
 import { Platform } from 'react-native'
@@ -23,8 +23,8 @@ export interface PushRegistrationResult {
 }
 
 /**
- * Soft-import `expo-notifications` & `expo-device` —— 未安装依赖时不抛错，返回 success=false。
- * 这让项目启动期不强依赖，方便 CI lint 通过；真正推送接入时再 pnpm add。
+ * Soft-import `expo-notifications` & `expo-device` —— 当前运行时不可用时不抛错，返回 success=false。
+ * 这让模拟器、Expo Go 能力差异或测试环境不会阻断主流程。
  */
 async function loadOptionalDeps(): Promise<
   | {
@@ -57,7 +57,7 @@ export async function registerForPushNotifications(): Promise<PushRegistrationRe
   if (!deps) {
     return {
       success: false,
-      reason: 'expo-notifications 未安装；请 `pnpm add expo-notifications expo-device`',
+      reason: '当前运行环境不可用 expo-notifications 或 expo-device',
     }
   }
 

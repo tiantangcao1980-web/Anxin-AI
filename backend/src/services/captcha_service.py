@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 import httpx
 from loguru import logger
 
@@ -27,7 +25,7 @@ class CaptchaService:
         )
 
     @staticmethod
-    def get_public_config() -> dict:
+    def get_public_config() -> dict[str, bool | str | None]:
         if not CaptchaService.is_enabled():
             return {
                 "captcha_enabled": False,
@@ -41,7 +39,7 @@ class CaptchaService:
         }
 
     @staticmethod
-    async def verify_token(token: str, remote_ip: Optional[str] = None) -> bool:
+    async def verify_token(token: str, remote_ip: str | None = None) -> bool:
         if not CaptchaService.is_enabled():
             return True
         if not token:

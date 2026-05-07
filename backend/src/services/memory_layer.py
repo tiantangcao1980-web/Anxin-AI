@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Memory Layer — 分层记忆演化系统
 
@@ -20,16 +19,15 @@ L0/L1/L2 分层加载：
 - L2（详情）: 完整内容，仅按需加载
 """
 
+import copy
 import hashlib
 import json
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List, Tuple
-from loguru import logger
-
+from typing import Any
 
 # ===== 用户法律画像 Schema =====
 
-DEFAULT_LEGAL_PROFILE = {
+DEFAULT_LEGAL_PROFILE: dict[str, Any] = {
     "basic_info": {
         "company_type": None,       # 企业类型
         "industry": None,           # 所属行业
@@ -66,11 +64,11 @@ class MemoryEntry:
         content: str,
         memory_type: str,  # user / session / agent / graph
         level: int = 1,    # 0=L0, 1=L1, 2=L2
-        metadata: Optional[Dict] = None,
+        metadata: dict[str, Any] | None = None,
         source: str = "system",
-        user_id: Optional[str] = None,
-        session_id: Optional[str] = None,
-    ):
+        user_id: str | None = None,
+        session_id: str | None = None,
+    ) -> None:
         self.id = hashlib.md5(f"{content}{datetime.now().isoformat()}".encode()).hexdigest()[:16]
         self.content = content
         self.memory_type = memory_type
@@ -84,7 +82,7 @@ class MemoryEntry:
         self.access_count = 0
         self.confidence = 1.0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "content": self.content,
@@ -250,16 +248,17 @@ class MemoryLayer:
     + 事件时间线: 法律时效追踪
     """
 
-    def __init__(self):
-        self._user_profiles: Dict[str, Dict] = {}  # user_id -> profile
-        self._session_memories: Dict[str, List[MemoryEntry]] = {}  # session_id -> entries
-        self._buffer: Dict[str, List[Dict]] = {}  # user_id -> pending messages (Memobase 思路)
+    def __init__(self) -> None:
+        self._user_profiles: dict[str, dict[str, Any]] = {}  # user_id -> profile
+        self._session_memories: dict[str, list[MemoryEntry]] = {}  # session_id -> entries
+        self._session_artifacts: dict[str, dict[str, Any]] = {}  # session_id -> artifact_type -> data
+        self._buffer: dict[str, list[dict[str, Any]]] = {}  # user_id -> pending messages
         self._buffer_threshold = 10  # 缓冲区满 10 条触发处理
         self.context_loader = ContextLoader()
 
     # ===== User Memory =====
 
-    async def get_user_profile(self, user_id: str) -> Dict[str, Any]:
+    async def get_user_profile(self, user_id: str) -> dict[str, Any]:
         """获取用户法律画像"""
         if user_id in self._user_profiles:
             return self._user_profiles[user_id]
@@ -270,7 +269,7 @@ class MemoryLayer:
             if investigation_data_store:
                 prefs = await investigation_data_store.get_user_preference(user_id)
                 if prefs:
-                    profile = {**DEFAULT_LEGAL_PROFILE}
+                    profile: dict[str, Any] = copy.deepcopy(DEFAULT_LEGAL_PROFILE)
                     profile["interaction_pattern"]["preferred_depth"] = prefs.get("preferred_depth", "deep")
                     profile["interaction_pattern"]["report_format"] = prefs.get("preferred_report_template", "comprehensive")
                     profile["risk_profile"]["focus_dimensions"] = prefs.get("risk_focus_weights", {})
@@ -281,11 +280,11 @@ class MemoryLayer:
         except Exception:
             pass
 
-        profile = {**DEFAULT_LEGAL_PROFILE}
+        profile = copy.deepcopy(DEFAULT_LEGAL_PROFILE)
         self._user_profiles[user_id] = profile
         return profile
 
-    async def update_user_profile(self, user_id: str, updates: Dict[str, Any]):
+    async def update_user_profile(self, user_id: str, updates: dict[str, Any]) -> None:
         """增量更新用户画像"""
         profile = await self.get_user_profile(user_id)
 
@@ -342,7 +341,12 @@ class MemoryLayer:
 
     # ===== Session Memory =====
 
-    def add_session_memory(self, session_id: str, content: str, metadata: Optional[Dict] = None):
+    def add_session_memory(
+        self,
+        session_id: str,
+        content: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
         """添加会话记忆"""
         if session_id not in self._session_memories:
             self._session_memories[session_id] = []
@@ -355,14 +359,27 @@ class MemoryLayer:
         )
         self._session_memories[session_id].append(entry)
 
-    def get_session_context(self, session_id: str, max_entries: int = 10) -> List[Dict]:
+    def get_session_context(self, session_id: str, max_entries: int = 10) -> list[dict[str, Any]]:
         """获取会话记忆"""
         entries = self._session_memories.get(session_id, [])
         return [e.to_dict() for e in entries[-max_entries:]]
 
+    async def get_session_artifact(self, session_id: str, artifact_type: str) -> Any | None:
+        """获取会话级中间产物，用于跨会话上下文交接。"""
+        return self._session_artifacts.get(session_id, {}).get(artifact_type)
+
+    async def set_session_artifact(
+        self,
+        session_id: str,
+        artifact_type: str,
+        data: Any,
+    ) -> None:
+        """保存会话级中间产物，用于跨会话上下文交接。"""
+        self._session_artifacts.setdefault(session_id, {})[artifact_type] = data
+
     # ===== Buffer & Batch Processing (Memobase 思路) =====
 
-    async def buffer_message(self, user_id: str, message: Dict[str, Any]):
+    async def buffer_message(self, user_id: str, message: dict[str, Any]) -> None:
         """缓冲消息，达到阈值时批量处理"""
         if user_id not in self._buffer:
             self._buffer[user_id] = []
@@ -376,7 +393,7 @@ class MemoryLayer:
         if len(self._buffer[user_id]) >= self._buffer_threshold:
             await self._flush_buffer(user_id)
 
-    async def _flush_buffer(self, user_id: str):
+    async def _flush_buffer(self, user_id: str) -> None:
         """
         批量处理缓冲区（Memobase flush 思路）
 
@@ -390,7 +407,7 @@ class MemoryLayer:
             return
 
         # 提取用户偏好信号
-        updates = {}
+        updates: dict[str, Any] = {}
         for msg in messages:
             role = msg.get("role", "")
             content = msg.get("content", "")
@@ -453,8 +470,8 @@ class MemoryLayer:
         title: str,
         date: str,
         description: str = "",
-        metadata: Optional[Dict] = None,
-    ):
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
         """
         添加法律时效事件到用户时间线
 
@@ -481,7 +498,7 @@ class MemoryLayer:
         self,
         user_id: str,
         days_ahead: int = 30,
-    ) -> List[Dict]:
+    ) -> list[dict[str, Any]]:
         """获取即将到来的法律时效事件"""
         profile = await self.get_user_profile(user_id)
         events = profile.get("timeline_events", [])
@@ -496,7 +513,7 @@ class MemoryLayer:
     async def build_enriched_context(
         self,
         user_id: str,
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
         query: str = "",
         max_tokens: int = 1000,
     ) -> str:

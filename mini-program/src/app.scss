@@ -1,21 +1,12 @@
 // 全局样式
-// 主题色
-$primary-color: #D4A574;
-$primary-light: #E8C9A8;
-$primary-dark: #B8864E;
-$text-color: #333333;
-$text-secondary: #666666;
-$text-hint: #999999;
-$bg-color: #F5F5F5;
-$white: #FFFFFF;
-$border-color: #EEEEEE;
+@import './styles/design-tokens';
 
 page {
   font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue',
     'PingFang SC', 'Microsoft YaHei', 'Source Han Sans SC', sans-serif;
   font-size: 28rpx;
-  color: $text-color;
-  background-color: $bg-color;
+  color: $color-text-primary;
+  background-color: $color-background;
   box-sizing: border-box;
   // 安全区域适配
   padding-bottom: constant(safe-area-inset-bottom); // iOS < 11.2
@@ -30,6 +21,14 @@ view, text, image {
 .safe-area-bottom {
   padding-bottom: constant(safe-area-inset-bottom);
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+// 最小触控目标：用于小程序核心点击区，避免低于 44px 命中面积。
+.touch-target,
+.action-item,
+.menu-item,
+.send-btn {
+  min-height: $touch-target-min;
 }
 
 // 通用 loading 动画

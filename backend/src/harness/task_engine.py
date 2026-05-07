@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 任务状态机 + 优先级队列
 
@@ -10,13 +9,12 @@
 5. 任务合同：目标/成功标准/工具白名单/输出模板
 """
 
-import asyncio
 import time
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Coroutine, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -75,10 +73,10 @@ class TaskContract:
     定义任务的目标、边界、成功标准和约束。
     """
     goal: str                           # 任务目标
-    success_criteria: List[str] = field(default_factory=list)  # 成功标准
-    forbidden_actions: List[str] = field(default_factory=list)  # 禁止事项
-    required_tools: List[str] = field(default_factory=list)     # 必须使用的工具
-    output_format: Optional[str] = None   # 期望输出格式
+    success_criteria: list[str] = field(default_factory=list)  # 成功标准
+    forbidden_actions: list[str] = field(default_factory=list)  # 禁止事项
+    required_tools: list[str] = field(default_factory=list)     # 必须使用的工具
+    output_format: str | None = None   # 期望输出格式
     max_retries: int = 1                  # 最大重试次数
     timeout_seconds: int = 120            # 超时时间
     requires_approval: bool = False       # 是否需要人工审批
@@ -91,29 +89,29 @@ class TaskRecord:
     description: str
     state: TaskState = TaskState.PENDING
     priority: TaskPriority = TaskPriority.NORMAL
-    contract: Optional[TaskContract] = None
-    agent_name: Optional[str] = None
-    route: Optional[str] = None
-    user_id: Optional[str] = None
-    conversation_id: Optional[str] = None
-    trace_id: Optional[str] = None
+    contract: TaskContract | None = None
+    agent_name: str | None = None
+    route: str | None = None
+    user_id: str | None = None
+    conversation_id: str | None = None
+    trace_id: str | None = None
 
     # 时间线
     created_at: float = field(default_factory=time.time)
-    started_at: Optional[float] = None
-    completed_at: Optional[float] = None
+    started_at: float | None = None
+    completed_at: float | None = None
 
     # 中间产物
-    artifacts: Dict[str, Any] = field(default_factory=dict)
+    artifacts: dict[str, Any] = field(default_factory=dict)
 
     # 执行信息
     retry_count: int = 0
-    error_history: List[str] = field(default_factory=list)
-    state_history: List[Dict[str, Any]] = field(default_factory=list)
+    error_history: list[str] = field(default_factory=list)
+    state_history: list[dict[str, Any]] = field(default_factory=list)
 
     # 结果
-    result: Optional[Any] = None
-    validation_result: Optional[Dict] = None
+    result: Any | None = None
+    validation_result: dict[str, Any] | None = None
 
     @property
     def elapsed_seconds(self) -> float:
@@ -134,23 +132,23 @@ class TaskEngine:
     """
 
     def __init__(self, max_tasks: int = 5000):
-        self._tasks: Dict[str, TaskRecord] = {}
+        self._tasks: dict[str, TaskRecord] = {}
         self._max_tasks = max_tasks
         # 统计
-        self._state_counts: Dict[str, int] = defaultdict(int)
+        self._state_counts: dict[str, int] = defaultdict(int)
         self._completed_count: int = 0
         self._failed_count: int = 0
 
     def create_task(
         self,
         description: str,
-        route: Optional[str] = None,
-        agent_name: Optional[str] = None,
-        user_id: Optional[str] = None,
-        conversation_id: Optional[str] = None,
-        trace_id: Optional[str] = None,
-        contract: Optional[TaskContract] = None,
-        priority: Optional[TaskPriority] = None,
+        route: str | None = None,
+        agent_name: str | None = None,
+        user_id: str | None = None,
+        conversation_id: str | None = None,
+        trace_id: str | None = None,
+        contract: TaskContract | None = None,
+        priority: TaskPriority | None = None,
     ) -> TaskRecord:
         """创建新任务"""
         task_id = uuid.uuid4().hex[:12]
@@ -185,9 +183,9 @@ class TaskEngine:
         self,
         task_id: str,
         new_state: TaskState,
-        error_msg: Optional[str] = None,
-        result: Optional[Any] = None,
-        validation_result: Optional[Dict] = None,
+        error_msg: str | None = None,
+        result: Any | None = None,
+        validation_result: dict[str, Any] | None = None,
     ) -> bool:
         """
         执行状态转换
@@ -252,22 +250,22 @@ class TaskEngine:
             return task.retry_count < 1 if task else False
         return task.retry_count < task.contract.max_retries
 
-    def save_artifact(self, task_id: str, key: str, value: Any):
+    def save_artifact(self, task_id: str, key: str, value: Any) -> None:
         """保存中间产物"""
         task = self._tasks.get(task_id)
         if task:
             task.artifacts[key] = value
 
-    def get_artifact(self, task_id: str, key: str) -> Optional[Any]:
+    def get_artifact(self, task_id: str, key: str) -> Any | None:
         """获取中间产物"""
         task = self._tasks.get(task_id)
         return task.artifacts.get(key) if task else None
 
-    def get_task(self, task_id: str) -> Optional[TaskRecord]:
+    def get_task(self, task_id: str) -> TaskRecord | None:
         """获取任务"""
         return self._tasks.get(task_id)
 
-    def get_pending_by_priority(self) -> List[TaskRecord]:
+    def get_pending_by_priority(self) -> list[TaskRecord]:
         """按优先级获取待执行任务"""
         pending = [
             t for t in self._tasks.values()
@@ -275,7 +273,7 @@ class TaskEngine:
         ]
         return sorted(pending, key=lambda t: (t.priority.value, t.created_at))
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """获取引擎统计"""
         active = [t for t in self._tasks.values() if not t.is_terminal]
         return {
@@ -301,7 +299,7 @@ class TaskEngine:
             ),
         }
 
-    def get_user_tasks(self, user_id: str, limit: int = 20) -> List[Dict[str, Any]]:
+    def get_user_tasks(self, user_id: str, limit: int = 20) -> list[dict[str, Any]]:
         """获取用户的任务列表"""
         tasks = [
             t for t in self._tasks.values()
@@ -322,7 +320,7 @@ class TaskEngine:
             for t in tasks[:limit]
         ]
 
-    def _cleanup_old_tasks(self):
+    def _cleanup_old_tasks(self) -> None:
         """清理终态的旧任务"""
         terminal = [
             (tid, t) for tid, t in self._tasks.items()

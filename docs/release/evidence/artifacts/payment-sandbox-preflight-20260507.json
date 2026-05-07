@@ -1,0 +1,250 @@
+{
+  "completion_note": "This artifact is supporting evidence only. Keep release evidence Status: pending until provider dashboards/logs, callback events, retry evidence, and redacted artifacts cover every row in docs/release/evidence/payment-sandbox.md and esign-sandbox.md.",
+  "environment": "staging/sandbox",
+  "generated_at": "2026-05-07T12:19:12.845602Z",
+  "live_checks": {},
+  "loaded_env_files": [
+    ".env",
+    "backend/.env"
+  ],
+  "mode": "preflight",
+  "providers": {
+    "alipay": {
+      "configured": false,
+      "external_evidence_requirements": [
+        {
+          "artifact_ref": "TBD",
+          "collection_method": "Attach a redacted provider dashboard or delivery-log artifact after the official sandbox callback is delivered to the configured public endpoint.",
+          "id": "official_success_notification",
+          "label": "Official payment success notification verifies Alipay RSA2 signature.",
+          "release_blocking": true,
+          "status": "pending_external_input"
+        },
+        {
+          "artifact_ref": "TBD",
+          "collection_method": "Attach the redacted callback replay/delivery transcript and backend idempotency/audit log reference.",
+          "id": "duplicate_notification_idempotency",
+          "label": "Duplicate payment notification is idempotent and does not create duplicate business effects.",
+          "release_blocking": true,
+          "status": "pending_external_input"
+        },
+        {
+          "artifact_ref": "TBD",
+          "collection_method": "Attach retry worker or provider retry transcript with secrets and PII redacted.",
+          "id": "failed_notification_retry",
+          "label": "Failed notification enters retry or failed path without fake success.",
+          "release_blocking": true,
+          "status": "pending_external_input"
+        }
+      ],
+      "fields": [
+        {
+          "label": "public callback base URL",
+          "name": "PAYMENT_NOTIFY_BASE_URL",
+          "present": false,
+          "redacted": "missing"
+        },
+        {
+          "label": "app ID",
+          "name": "ALIPAY_APP_ID",
+          "present": false,
+          "redacted": "missing"
+        },
+        {
+          "label": "app private key",
+          "name": "ALIPAY_PRIVATE_KEY_PATH",
+          "present": false,
+          "redacted": "missing"
+        },
+        {
+          "label": "app private key",
+          "name": "ALIPAY_PRIVATE_KEY",
+          "present": false,
+          "redacted": "missing"
+        },
+        {
+          "label": "Alipay public key",
+          "name": "ALIPAY_PUBLIC_KEY_PATH",
+          "present": false,
+          "redacted": "missing"
+        },
+        {
+          "label": "Alipay public key",
+          "name": "ALIPAY_PUBLIC_KEY",
+          "present": false,
+          "redacted": "missing"
+        },
+        {
+          "label": "gateway URL",
+          "name": "ALIPAY_GATEWAY_URL",
+          "present": true,
+          "redacted": "https://openapi.alipay.com/gateway.do"
+        },
+        {
+          "label": "official webhook enabled",
+          "name": "ALIPAY_OFFICIAL_WEBHOOK_ENABLED",
+          "present": false,
+          "redacted": "false"
+        }
+      ],
+      "missing": [
+        "public callback base URL",
+        "app ID",
+        "app private key",
+        "Alipay public key",
+        "official webhook enabled"
+      ],
+      "runtime_prerequisites": [
+        {
+          "argument": "--alipay-query-order-id",
+          "label": "existing sandbox order ID for query evidence",
+          "note": "Required to exercise the Alipay query branch.",
+          "present": false,
+          "status": "missing"
+        },
+        {
+          "argument": "--alipay-refund-order-id",
+          "label": "paid sandbox order ID for refund evidence",
+          "note": "Required to exercise the Alipay refund branch.",
+          "present": false,
+          "status": "missing"
+        },
+        {
+          "argument": "--alipay-close-order-id",
+          "label": "open sandbox order ID for close evidence",
+          "note": "Required to exercise the Alipay close branch.",
+          "present": false,
+          "status": "missing"
+        }
+      ],
+      "warnings": []
+    },
+    "wechat_pay": {
+      "configured": false,
+      "external_evidence_requirements": [
+        {
+          "artifact_ref": "TBD",
+          "collection_method": "Attach a redacted provider dashboard or delivery-log artifact after the official sandbox callback is delivered to the configured public endpoint.",
+          "id": "official_success_callback",
+          "label": "Official payment success callback verifies RSA-SHA256 signature and decrypts resource.",
+          "release_blocking": true,
+          "status": "pending_external_input"
+        },
+        {
+          "artifact_ref": "TBD",
+          "collection_method": "Attach the redacted callback replay/delivery transcript and backend idempotency/audit log reference.",
+          "id": "duplicate_callback_idempotency",
+          "label": "Duplicate payment notification is idempotent and does not create duplicate business effects.",
+          "release_blocking": true,
+          "status": "pending_external_input"
+        },
+        {
+          "artifact_ref": "TBD",
+          "collection_method": "Attach retry worker or provider retry transcript with secrets and PII redacted.",
+          "id": "failed_callback_retry",
+          "label": "Failed callback enters retry or failed path without fake success.",
+          "release_blocking": true,
+          "status": "pending_external_input"
+        },
+        {
+          "artifact_ref": "TBD",
+          "collection_method": "Attach the redacted platform-key/certificate refresh proof from the provider console or key cache.",
+          "id": "platform_key_rotation",
+          "label": "Platform certificate/public-key rotation or refresh path is verified.",
+          "release_blocking": true,
+          "status": "pending_external_input"
+        }
+      ],
+      "fields": [
+        {
+          "label": "public callback base URL",
+          "name": "PAYMENT_NOTIFY_BASE_URL",
+          "present": false,
+          "redacted": "missing"
+        },
+        {
+          "label": "app ID",
+          "name": "WECHAT_PAY_APP_ID",
+          "present": false,
+          "redacted": "missing"
+        },
+        {
+          "label": "merchant ID",
+          "name": "WECHAT_PAY_MCH_ID",
+          "present": false,
+          "redacted": "missing"
+        },
+        {
+          "label": "merchant serial number",
+          "name": "WECHAT_PAY_MERCHANT_SERIAL_NO",
+          "present": false,
+          "redacted": "missing"
+        },
+        {
+          "label": "merchant private key",
+          "name": "WECHAT_PAY_MERCHANT_PRIVATE_KEY_PATH",
+          "present": false,
+          "redacted": "missing"
+        },
+        {
+          "label": "merchant private key",
+          "name": "WECHAT_PAY_MERCHANT_PRIVATE_KEY",
+          "present": false,
+          "redacted": "missing"
+        },
+        {
+          "label": "platform serial",
+          "name": "WECHAT_PAY_PLATFORM_SERIAL",
+          "present": false,
+          "redacted": "missing"
+        },
+        {
+          "label": "platform public key",
+          "name": "WECHAT_PAY_PLATFORM_PUBLIC_KEY_PATH",
+          "present": false,
+          "redacted": "missing"
+        },
+        {
+          "label": "platform public key",
+          "name": "WECHAT_PAY_PLATFORM_PUBLIC_KEY",
+          "present": false,
+          "redacted": "missing"
+        },
+        {
+          "label": "API v3 key for official callback decrypt",
+          "name": "WECHAT_PAY_API_V3_KEY",
+          "present": false,
+          "redacted": "missing"
+        },
+        {
+          "label": "official webhook enabled",
+          "name": "WECHAT_PAY_OFFICIAL_WEBHOOK_ENABLED",
+          "present": false,
+          "redacted": "false"
+        }
+      ],
+      "missing": [
+        "public callback base URL",
+        "app ID",
+        "merchant ID",
+        "merchant serial number",
+        "merchant private key",
+        "platform serial",
+        "platform public key",
+        "API v3 key for official callback decrypt",
+        "official webhook enabled"
+      ],
+      "runtime_prerequisites": [
+        {
+          "argument": "--wechat-refund-order-id",
+          "label": "paid sandbox order ID for refund evidence",
+          "note": "Required to exercise the paid-order refund branch.",
+          "present": false,
+          "status": "missing"
+        }
+      ],
+      "warnings": []
+    }
+  },
+  "selected_scope": "payment"
+}

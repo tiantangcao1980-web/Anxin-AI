@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 数据隐私与个保法（DSAR）API。
 
@@ -20,8 +19,8 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone, timedelta
-from typing import Literal, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Literal, TypedDict
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -45,6 +44,26 @@ class ClassificationOption(BaseModel):
     description: str
 
 
+class ExportJobStateBase(TypedDict):
+    user_id: str
+    status: Literal["pending", "running", "completed", "failed"]
+    created_at: str
+
+
+class ExportJobState(ExportJobStateBase, total=False):
+    download_url: str
+    expires_at: str
+    error: str
+
+
+class DeleteJobState(TypedDict):
+    user_id: str
+    status: Literal["pending", "cancelled"]
+    reason: str | None
+    created_at: str
+    scheduled_at: str
+
+
 CLASSIFICATIONS: list[ClassificationOption] = [
     ClassificationOption(
         value="private",
@@ -65,7 +84,7 @@ CLASSIFICATIONS: list[ClassificationOption] = [
 
 
 @router.get("/classification/options", summary="列出分类选项")
-async def list_classification_options():
+async def list_classification_options() -> dict[str, list[ClassificationOption]]:
     return {"items": CLASSIFICATIONS}
 
 
@@ -74,26 +93,26 @@ async def list_classification_options():
 # ============================================================================
 
 # 简化为内存状态机；生产需改为 `privacy_requests` 数据库表 + Celery worker
-_export_jobs: dict[str, dict] = {}
-_delete_jobs: dict[str, dict] = {}
+_export_jobs: dict[str, ExportJobState] = {}
+_delete_jobs: dict[str, DeleteJobState] = {}
 
 
 class PrivacyExportStatus(BaseModel):
     job_id: str
     status: Literal["pending", "running", "completed", "failed"]
     created_at: str
-    download_url: Optional[str] = None
-    expires_at: Optional[str] = None
-    error: Optional[str] = None
+    download_url: str | None = None
+    expires_at: str | None = None
+    error: str | None = None
 
 
 class PrivacyDeleteRequest(BaseModel):
-    reason: Optional[str] = Field(None, description="删除原因（可选）")
+    reason: str | None = Field(None, description="删除原因（可选）")
     confirm_word: str = Field(..., description="必须精确输入「确认删除」")
 
 
 @router.get("/export", summary="触发个人数据导出（ZIP 打包）")
-async def request_export(user: User = Depends(get_current_user_required)):
+async def request_export(user: User = Depends(get_current_user_required)) -> PrivacyExportStatus:
     """按个保法要求：用户有权获取个人数据副本。
 
     约束：
@@ -101,8 +120,8 @@ async def request_export(user: User = Depends(get_current_user_required)):
     - 下载链接有效期 7 天
     - 包含：profile / sessions / documents / contracts / messages / audit_log 等
     """
-    now = datetime.now(timezone.utc).isoformat()
-    job_id = f"export-{user.id}-{int(datetime.now(timezone.utc).timestamp())}"
+    now = datetime.now(UTC).isoformat()
+    job_id = f"export-{user.id}-{int(datetime.now(UTC).timestamp())}"
     _export_jobs[job_id] = {
         "user_id": str(user.id),
         "status": "pending",
@@ -117,18 +136,25 @@ async def request_export(user: User = Depends(get_current_user_required)):
 async def export_status(
     job_id: str = Query(...),
     user: User = Depends(get_current_user_required),
-):
+) -> PrivacyExportStatus:
     job = _export_jobs.get(job_id)
     if not job or job["user_id"] != str(user.id):
         raise HTTPException(status_code=404, detail="job not found")
-    return PrivacyExportStatus(**{"job_id": job_id, **job})
+    return PrivacyExportStatus(
+        job_id=job_id,
+        status=job["status"],
+        created_at=job["created_at"],
+        download_url=job.get("download_url"),
+        expires_at=job.get("expires_at"),
+        error=job.get("error"),
+    )
 
 
 @router.post("/delete", summary="请求删除账户（含 7 天冷静期）")
 async def request_delete(
     body: PrivacyDeleteRequest,
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, str]:
     """按个保法要求：用户有权注销账户并清除个人数据。
 
     流程：
@@ -140,7 +166,7 @@ async def request_delete(
     if body.confirm_word.strip() != "确认删除":
         raise HTTPException(status_code=400, detail="请精确输入「确认删除」以继续")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     scheduled = now + timedelta(days=7)
     job_id = f"delete-{user.id}-{int(now.timestamp())}"
     _delete_jobs[job_id] = {
@@ -162,7 +188,7 @@ async def request_delete(
 async def cancel_delete(
     job_id: str = Query(...),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, str]:
     job = _delete_jobs.get(job_id)
     if not job or job["user_id"] != str(user.id):
         raise HTTPException(status_code=404, detail="job not found")
@@ -176,7 +202,7 @@ async def cancel_delete(
 async def withdraw_consent(
     scope: Literal["all", "cloud_sync", "ai_training"] = Query("all"),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, str]:
     """撤回特定授权范围：
 
     - `all`          撤回所有云端服务授权，自动切到 local 模式
@@ -186,7 +212,7 @@ async def withdraw_consent(
     # TODO(Phase 4): 写入 `user_consents` 表；触发 mode 切换广播
     return {
         "scope": scope,
-        "effective_at": datetime.now(timezone.utc).isoformat(),
+        "effective_at": datetime.now(UTC).isoformat(),
         "message": "授权已撤回",
     }
 
@@ -207,7 +233,7 @@ async def _fake_export_worker(job_id: str) -> None:
         job["status"] = "completed"
         job["download_url"] = f"/api/v1/privacy/export/{job_id}/download"  # 占位
         job["expires_at"] = (
-            datetime.now(timezone.utc) + timedelta(days=7)
+            datetime.now(UTC) + timedelta(days=7)
         ).isoformat()
     except Exception as e:  # noqa: BLE001
         job["status"] = "failed"

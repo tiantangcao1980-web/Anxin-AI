@@ -3,12 +3,14 @@ LLM配置模型
 定义大模型配置的数据库模型和默认配置
 """
 
-from typing import Optional, Dict, Any
-from sqlalchemy import String, Boolean, Integer, Float, Text, JSON as JSONB
-from sqlalchemy.orm import Mapped, mapped_column
 import enum
+from typing import Any
 
-from src.models.base import Base, TimestampMixin, GUID
+from sqlalchemy import JSON as JSONB
+from sqlalchemy import Boolean, Float, Integer, String, Text
+from sqlalchemy.orm import Mapped, mapped_column
+
+from src.models.base import GUID, Base, TimestampMixin
 
 
 class LLMProvider(str, enum.Enum):
@@ -18,7 +20,7 @@ class LLMProvider(str, enum.Enum):
     ANTHROPIC = "anthropic"
     GOOGLE = "google"
     OPENROUTE = "openroute"
-    
+
     # 国内大模型
     DEEPSEEK = "deepseek"
     QWEN = "qwen"  # 通义千问
@@ -32,7 +34,7 @@ class LLMProvider(str, enum.Enum):
     DOUBAO = "doubao"  # 字节跳动豆包
     STEPFUN = "stepfun"  # 阶跃星辰
     YI = "yi"  # 零一万物
-    
+
     # 本地/开源模型
     OLLAMA = "ollama"
     LOCALAI = "localai"
@@ -52,54 +54,54 @@ class LLMConfigType(str, enum.Enum):
 class LLMConfig(Base, TimestampMixin):
     """LLM配置表"""
     __tablename__ = "llm_configs"
-    
+
     # 基本信息
     name: Mapped[str] = mapped_column(String(100), nullable=False, comment="配置名称")
     provider: Mapped[str] = mapped_column(String(50), nullable=False, comment="提供商")
     config_type: Mapped[str] = mapped_column(String(20), default="llm", comment="配置类型: llm/embedding/reranker")
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True, comment="描述信息")
-    
+    description: Mapped[str | None] = mapped_column(Text, nullable=True, comment="描述信息")
+
     # API配置
-    api_key: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, comment="API密钥(加密存储)")
-    api_base_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, comment="API基础URL")
-    api_version: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, comment="API版本")
-    
+    api_key: Mapped[str | None] = mapped_column(String(500), nullable=True, comment="API密钥(加密存储)")
+    api_base_url: Mapped[str | None] = mapped_column(String(500), nullable=True, comment="API基础URL")
+    api_version: Mapped[str | None] = mapped_column(String(50), nullable=True, comment="API版本")
+
     # 模型参数
     model_name: Mapped[str] = mapped_column(String(100), nullable=False, comment="模型名称")
-    model_version: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, comment="模型版本")
-    
+    model_version: Mapped[str | None] = mapped_column(String(50), nullable=True, comment="模型版本")
+
     # 生成参数
     max_tokens: Mapped[int] = mapped_column(Integer, default=4096, comment="最大token数")
     temperature: Mapped[float] = mapped_column(Float, default=0.7, comment="温度参数")
-    top_p: Mapped[Optional[float]] = mapped_column(Float, default=1.0, nullable=True, comment="Top-P采样")
-    top_k: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, comment="Top-K采样")
-    frequency_penalty: Mapped[Optional[float]] = mapped_column(Float, default=0.0, nullable=True, comment="频率惩罚")
-    presence_penalty: Mapped[Optional[float]] = mapped_column(Float, default=0.0, nullable=True, comment="存在惩罚")
-    
+    top_p: Mapped[float | None] = mapped_column(Float, default=1.0, nullable=True, comment="Top-P采样")
+    top_k: Mapped[int | None] = mapped_column(Integer, nullable=True, comment="Top-K采样")
+    frequency_penalty: Mapped[float | None] = mapped_column(Float, default=0.0, nullable=True, comment="频率惩罚")
+    presence_penalty: Mapped[float | None] = mapped_column(Float, default=0.0, nullable=True, comment="存在惩罚")
+
     # 本地模型参数
-    local_endpoint: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, comment="本地服务端点")
-    local_model_path: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True, comment="本地模型路径")
-    gpu_layers: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, comment="GPU层数")
-    context_length: Mapped[Optional[int]] = mapped_column(Integer, default=4096, nullable=True, comment="上下文长度")
-    
+    local_endpoint: Mapped[str | None] = mapped_column(String(500), nullable=True, comment="本地服务端点")
+    local_model_path: Mapped[str | None] = mapped_column(String(1000), nullable=True, comment="本地模型路径")
+    gpu_layers: Mapped[int | None] = mapped_column(Integer, nullable=True, comment="GPU层数")
+    context_length: Mapped[int | None] = mapped_column(Integer, default=4096, nullable=True, comment="上下文长度")
+
     # 高级配置
-    extra_params: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, default=dict, nullable=True, comment="额外参数")
-    headers: Mapped[Optional[Dict[str, str]]] = mapped_column(JSONB, default=dict, nullable=True, comment="自定义请求头")
-    
+    extra_params: Mapped[dict[str, Any] | None] = mapped_column(JSONB, default=dict, nullable=True, comment="额外参数")
+    headers: Mapped[dict[str, str] | None] = mapped_column(JSONB, default=dict, nullable=True, comment="自定义请求头")
+
     # 状态
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, comment="是否启用")
     is_default: Mapped[bool] = mapped_column(Boolean, default=False, comment="是否为默认配置")
     priority: Mapped[int] = mapped_column(Integer, default=0, comment="优先级")
-    
+
     # 统计信息
-    total_calls: Mapped[Optional[int]] = mapped_column(Integer, default=0, nullable=True, comment="总调用次数")
-    total_tokens: Mapped[Optional[int]] = mapped_column(Integer, default=0, nullable=True, comment="总消耗token数")
-    avg_latency: Mapped[Optional[float]] = mapped_column(Float, nullable=True, comment="平均延迟(ms)")
-    
+    total_calls: Mapped[int | None] = mapped_column(Integer, default=0, nullable=True, comment="总调用次数")
+    total_tokens: Mapped[int | None] = mapped_column(Integer, default=0, nullable=True, comment="总消耗token数")
+    avg_latency: Mapped[float | None] = mapped_column(Float, nullable=True, comment="平均延迟(ms)")
+
     # 多租户
-    org_id: Mapped[Optional[str]] = mapped_column(GUID(), nullable=True, comment="组织ID")
-    
-    def __repr__(self):
+    org_id: Mapped[str | None] = mapped_column(GUID(), nullable=True, comment="组织ID")
+
+    def __repr__(self) -> str:
         return f"<LLMConfig {self.name} ({self.provider}/{self.model_name})>"
 
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 利益冲突检查服务 (V2 架构)
 
@@ -11,22 +10,24 @@
 3. 返回冲突详情供律师判断
 """
 
-from typing import List, Dict, Any, Optional
+from typing import Any
+
 from loguru import logger
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_, and_
 
 from src.models.case import Case
 
 
 class ConflictCheckResult:
     """冲突检查结果"""
-    def __init__(self):
+
+    def __init__(self) -> None:
         self.has_conflict: bool = False
-        self.conflicts: List[Dict[str, Any]] = []
+        self.conflicts: list[dict[str, Any]] = []
         self.warning_level: str = "none"  # none / low / medium / high
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "has_conflict": self.has_conflict,
             "warning_level": self.warning_level,
@@ -44,9 +45,9 @@ class ConflictCheckService:
     async def check_conflict(
         self,
         lawyer_id: str,
-        party_names: List[str],
-        org_id: Optional[str] = None,
-        exclude_case_id: Optional[str] = None,
+        party_names: list[str],
+        org_id: str | None = None,
+        exclude_case_id: str | None = None,
     ) -> ConflictCheckResult:
         """
         检查律师接案是否存在利益冲突。
@@ -124,13 +125,33 @@ class ConflictCheckService:
         return result
 
     @staticmethod
-    def _extract_parties(case: Case) -> List[Dict[str, str]]:
+    def _extract_parties(case: Case) -> list[dict[str, str]]:
         """从案件中提取当事人信息"""
         parties = []
 
         # 从 case.description 或其他字段提取（简化实现）
         title = getattr(case, 'title', '') or ''
         description = getattr(case, 'description', '') or ''
+
+        # 优先读取 Case.parties，支持 {"plaintiff": "...", "defendant": "..."}、
+        # {"parties": [{"name": "..."}]} 和字符串列表等常见形态。
+        structured_parties = getattr(case, "parties", None) or {}
+        if isinstance(structured_parties, dict):
+            for role, value in structured_parties.items():
+                if isinstance(value, str):
+                    parties.append({"name": value, "role": role})
+                elif isinstance(value, list):
+                    for item in value:
+                        if isinstance(item, dict) and item.get("name"):
+                            parties.append({"name": item["name"], "role": item.get("role", role)})
+                        elif isinstance(item, str):
+                            parties.append({"name": item, "role": role})
+        elif isinstance(structured_parties, list):
+            for item in structured_parties:
+                if isinstance(item, dict) and item.get("name"):
+                    parties.append({"name": item["name"], "role": item.get("role", "party")})
+                elif isinstance(item, str):
+                    parties.append({"name": item, "role": "party"})
 
         # 尝试从 extra_data/metadata 中读取结构化当事人信息
         extra = getattr(case, 'extra_data', None) or {}

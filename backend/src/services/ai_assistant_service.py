@@ -1,27 +1,25 @@
-# -*- coding: utf-8 -*-
 """AI 私有助手服务"""
 
 from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Any
+from typing import Any, cast
 from uuid import uuid4
 
 import httpx
 from loguru import logger
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, case as sa_case
 
+from src.core.llm_helper import LLMConfigResult, get_llm_config
 from src.models.ai_assistant import (
     AIAssistantConfig,
-    ConversationSummary,
     AIAssistantFeedback,
+    ConversationSummary,
 )
 from src.models.conversation import Conversation, Message, MessageRole
-from src.core.llm_helper import get_llm_config
-
 
 # ========== 可用 Agent 注册表 ==========
 
-AVAILABLE_AGENTS: List[Dict[str, Any]] = [
+AVAILABLE_AGENTS: list[dict[str, Any]] = [
     {
         "key": "legal_advisor",
         "name": "法律顾问",
@@ -115,10 +113,9 @@ AVAILABLE_AGENTS: List[Dict[str, Any]] = [
     },
 ]
 
-import asyncio
 
 # 全局 HTTP 客户端，用于复用连接池
-_shared_http_client: Optional[httpx.AsyncClient] = None
+_shared_http_client: httpx.AsyncClient | None = None
 
 def get_shared_http_client() -> httpx.AsyncClient:
     global _shared_http_client
@@ -137,7 +134,7 @@ class AIAssistantService:
     # 助手配置
     # ------------------------------------------------------------------
 
-    async def get_or_create_config(self, org_id: str) -> dict:
+    async def get_or_create_config(self, org_id: str) -> dict[str, Any]:
         """获取组织的助手配置，不存在则创建默认配置"""
         result = await self.db.execute(
             select(AIAssistantConfig).where(
@@ -176,7 +173,7 @@ class AIAssistantService:
         await self.db.refresh(config)
         return config.to_dict()
 
-    async def update_config(self, config_id: str, data: dict) -> dict:
+    async def update_config(self, config_id: str, data: dict[str, Any]) -> dict[str, Any]:
         """更新助手配置"""
         result = await self.db.execute(
             select(AIAssistantConfig).where(AIAssistantConfig.id == config_id)
@@ -199,7 +196,7 @@ class AIAssistantService:
         await self.db.refresh(config)
         return config.to_dict()
 
-    async def get_available_agents(self) -> List[Dict[str, Any]]:
+    async def get_available_agents(self) -> list[dict[str, Any]]:
         """返回所有可用 Agent 列表"""
         return AVAILABLE_AGENTS
 
@@ -209,7 +206,7 @@ class AIAssistantService:
 
     async def generate_summary(
         self, conversation_id: str, user_id: str
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         为对话生成 AI 摘要。
 
@@ -260,7 +257,7 @@ class AIAssistantService:
         # 解析 LLM 返回
         import json
 
-        parsed: dict = {}
+        parsed: dict[str, Any] = {}
         try:
             # 尝试直接解析 JSON
             clean = summary_data.strip()
@@ -308,7 +305,7 @@ class AIAssistantService:
 
     async def get_summaries(
         self, user_id: str, limit: int = 20, offset: int = 0
-    ) -> List[dict]:
+    ) -> list[dict[str, Any]]:
         """获取用户的对话摘要列表"""
         result = await self.db.execute(
             select(ConversationSummary)
@@ -318,13 +315,13 @@ class AIAssistantService:
             .offset(offset)
         )
         summaries = result.scalars().all()
-        return [s.to_dict() for s in summaries]
+        return [summary.to_dict() for summary in summaries]
 
     # ------------------------------------------------------------------
     # 反馈
     # ------------------------------------------------------------------
 
-    async def submit_feedback(self, data: dict) -> dict:
+    async def submit_feedback(self, data: dict[str, Any]) -> dict[str, Any]:
         """提交反馈"""
         feedback = AIAssistantFeedback(
             id=str(uuid4()),
@@ -343,9 +340,9 @@ class AIAssistantService:
 
     async def get_feedback_stats(
         self,
-        assistant_config_id: Optional[str] = None,
+        assistant_config_id: str | None = None,
         days: int = 30,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         获取反馈统计。
 
@@ -381,7 +378,7 @@ class AIAssistantService:
             .where(base_filter)
             .group_by(AIAssistantFeedback.rating)
         )
-        rating_distribution = {r: 0 for r in range(1, 6)}
+        rating_distribution = dict.fromkeys(range(1, 6), 0)
         for rating_val, cnt in dist_result.all():
             rating_distribution[rating_val] = cnt
 
@@ -394,7 +391,10 @@ class AIAssistantService:
             .where(base_filter)
             .group_by(AIAssistantFeedback.feedback_type)
         )
-        type_distribution = {t: c for t, c in type_result.all()}
+        type_distribution: dict[str | None, int] = {
+            feedback_type: int(count)
+            for feedback_type, count in type_result.all()
+        }
 
         # 每日趋势
         trend_result = await self.db.execute(
@@ -429,7 +429,7 @@ class AIAssistantService:
     # ------------------------------------------------------------------
 
     @staticmethod
-    async def _call_llm(llm_config, prompt: str) -> str:
+    async def _call_llm(llm_config: LLMConfigResult, prompt: str) -> str:
         """调用 LLM 获取文本响应"""
         api_base = llm_config.api_base_url.rstrip("/")
         url = f"{api_base}/v1/chat/completions"
@@ -450,8 +450,8 @@ class AIAssistantService:
         try:
             resp = await client.post(url, json=payload, headers=headers)
             resp.raise_for_status()
-            data = resp.json()
-            return data["choices"][0]["message"]["content"]
+            data = cast(dict[str, Any], resp.json())
+            return cast(str, data["choices"][0]["message"]["content"])
         except Exception as e:
             logger.exception(f"LLM 调用失败: {e}")
             return f"摘要生成失败: {e}"

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 会议/咨询记录模型
 
@@ -6,13 +5,13 @@
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Any
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.models.base import Base, GUID, TimestampMixin
+from src.models.base import GUID, Base, TimestampMixin
 
 
 class MeetingRecord(Base, TimestampMixin):
@@ -32,7 +31,7 @@ class MeetingRecord(Base, TimestampMixin):
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    ended_at: Mapped[Optional[datetime]] = mapped_column(
+    ended_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
     started_by: Mapped[str] = mapped_column(
@@ -40,23 +39,23 @@ class MeetingRecord(Base, TimestampMixin):
     )
 
     # AI 分析产出
-    transcript_text: Mapped[Optional[str]] = mapped_column(
+    transcript_text: Mapped[str | None] = mapped_column(
         Text, nullable=True, comment="完整对话文本"
     )
-    summary: Mapped[Optional[dict]] = mapped_column(
+    summary: Mapped[dict[str, Any] | None] = mapped_column(
         JSON, nullable=True, comment="结构化纪要（摘要/法律分析/风险评估/建议）"
     )
-    insights: Mapped[Optional[list]] = mapped_column(
+    insights: Mapped[list[dict[str, Any]] | None] = mapped_column(
         JSON, nullable=True, default=list, comment="实时分析结果列表"
     )
-    action_items: Mapped[Optional[list]] = mapped_column(
+    action_items: Mapped[list[dict[str, Any]] | None] = mapped_column(
         JSON, nullable=True, default=list, comment="待办事项列表"
     )
 
     # 业务关联
-    related_case_id: Mapped[Optional[str]] = mapped_column(
+    related_case_id: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("cases.id", ondelete="SET NULL"), nullable=True, comment="关联案件"
     )
-    related_contract_id: Mapped[Optional[str]] = mapped_column(
+    related_contract_id: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("contracts.id", ondelete="SET NULL"), nullable=True, comment="关联合同"
     )

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Agent RAG增强服务
 
@@ -13,26 +12,25 @@ Agent在调用LLM之前，先检索相关的法律知识作为上下文注入。
     # 将context注入到agent的prompt中
 """
 
-from typing import Optional, List, Dict, Any
+
 from loguru import logger
 
 from src.services.legal_corpus_loader import (
-    get_all_legal_corpus,
     LegalArticle,
     format_articles_for_rag_context,
+    get_all_legal_corpus,
 )
-from src.services.legal_citation import LegalCitationService
 
 
 class AgentRAGService:
     """Agent RAG增强服务 — 为Agent提供法律知识检索"""
 
     # 内存法条索引（轻量级，用于无Qdrant环境）
-    _corpus: Optional[List[LegalArticle]] = None
+    _corpus: list[LegalArticle] | None = None
     _initialized: bool = False
 
     @classmethod
-    def _ensure_loaded(cls):
+    def _ensure_loaded(cls) -> None:
         """确保法律语料已加载到内存"""
         if not cls._initialized:
             cls._corpus = get_all_legal_corpus()
@@ -43,7 +41,7 @@ class AgentRAGService:
     async def get_legal_context(
         cls,
         query: str,
-        contract_type: Optional[str] = None,
+        contract_type: str | None = None,
         max_articles: int = 8,
         max_context_length: int = 4000,
     ) -> str:
@@ -74,22 +72,27 @@ class AgentRAGService:
     async def _vector_search(
         cls,
         query: str,
-        contract_type: Optional[str],
+        contract_type: str | None,
         max_articles: int,
         max_context_length: int,
     ) -> str:
         """通过Qdrant向量检索"""
-        from src.services.vector_store import semantic_search
         from src.core.config import get_settings
+        from src.services.vector_store import semantic_search
 
         settings = get_settings()
 
-        results = await semantic_search(
+        raw_results = await semantic_search(
             query=query,
             collection_name=settings.QDRANT_COLLECTION_NAME,
             top_k=max_articles,
-            score_threshold=settings.RAG_SCORE_THRESHOLD,
         )
+        score_threshold = float(settings.RAG_SCORE_THRESHOLD)
+        results = [
+            result
+            for result in raw_results
+            if float(result.get("score", 0) or 0) >= score_threshold
+        ]
 
         if not results:
             # 向量库为空或无匹配，降级
@@ -115,7 +118,7 @@ class AgentRAGService:
     def _keyword_search(
         cls,
         query: str,
-        contract_type: Optional[str],
+        contract_type: str | None,
         max_articles: int,
         max_context_length: int,
     ) -> str:
@@ -143,7 +146,7 @@ class AgentRAGService:
         return format_articles_for_rag_context(top_articles, max_context_length)
 
     @classmethod
-    def _extract_keywords(cls, text: str) -> List[str]:
+    def _extract_keywords(cls, text: str) -> list[str]:
         """提取搜索关键词"""
         # 法律相关关键词
         legal_terms = [
@@ -173,7 +176,7 @@ class AgentRAGService:
         return keywords
 
     @classmethod
-    def _calculate_relevance(cls, article: LegalArticle, keywords: List[str]) -> float:
+    def _calculate_relevance(cls, article: LegalArticle, keywords: list[str]) -> float:
         """计算法条与关键词的相关性分数"""
         score = 0.0
         searchable = f"{article.title} {article.content} {' '.join(article.tags)}"

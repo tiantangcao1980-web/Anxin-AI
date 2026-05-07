@@ -18,7 +18,6 @@ backend/venv/
 # ==================== Node.js ====================
 /frontend/node_modules/
 /node_modules/
-frontend/package-lock.json
 
 # ==================== 环境配置（含敏感信息） ====================
 # 使用 .env.example 作为模板（不含真实密钥）
@@ -40,10 +39,12 @@ livekit.yaml
 /data/
 backend/data/
 *.log
+!docs/release/evidence/artifacts/*.log
 logs/
 
 # ==================== 运行时产物 ====================
 .omx/
+.super-skill/
 
 # ==================== Docker 开发数据 ====================
 # Docker 数据卷由 Docker 管理，不提交
@@ -164,3 +165,5 @@ livekit.yaml
 .superpowers/brainstorm/55156-1775366237/content/layout-options.html
 .superpowers/brainstorm/55156-1775366237/state/events
 .superpowers/brainstorm/55156-1775366237/state/server-info
+.gitnexus/
+.gitnexus.*

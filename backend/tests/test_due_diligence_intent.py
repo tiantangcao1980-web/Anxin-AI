@@ -1,8 +1,14 @@
+import json
+from pathlib import Path
+
 from src.services.due_diligence_service import (
+    classify_investigation_request,
     detect_company_due_diligence_request,
     extract_company_name_from_text,
     format_due_diligence_chat_response,
 )
+
+EVAL_DATASET = Path(__file__).parent / "eval" / "investigation_routing_eval.jsonl"
 
 
 def test_detect_due_diligence_request_with_company_name():
@@ -75,3 +81,41 @@ def test_format_due_diligence_response_contains_structured_sections():
     assert "重点发现" in response
     assert "建议动作" in response
     assert "腾讯控股有限公司" in response
+
+
+def test_classify_investigation_request_routes_supported_intents():
+    cases = [
+        ("查一下腾讯公司的工商信息和诉讼记录", "due_diligence"),
+        ("搜索腾讯公司的负面新闻和媒体报道", "sentiment"),
+        ("监测腾讯公司适用的数据合规新规", "regulatory_monitoring"),
+        ("帮我总结一下合同审查流程", "general_search"),
+    ]
+
+    for text, intent in cases:
+        assert classify_investigation_request(text)["intent"] == intent
+
+
+def test_investigation_routing_eval_dataset_meets_accuracy_floor():
+    rows = [
+        json.loads(line)
+        for line in EVAL_DATASET.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+    assert len(rows) >= 200
+
+    intent_hits = 0
+    company_rows = 0
+    company_hits = 0
+    for row in rows:
+        result = classify_investigation_request(row["text"])
+        if result["intent"] == row["intent"]:
+            intent_hits += 1
+        if row.get("company_name"):
+            company_rows += 1
+            if result["company_name"] == row["company_name"]:
+                company_hits += 1
+
+    assert intent_hits / len(rows) >= 0.85
+    assert company_rows >= 100
+    assert company_hits / company_rows >= 0.85

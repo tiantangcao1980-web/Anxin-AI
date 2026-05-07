@@ -24,7 +24,7 @@
 
     <!-- 推送通知 -->
     <key>com.apple.developer.aps-environment</key>
-    <string>development</string>
+    <string>production</string>
 
     <!-- Associated Domains (Deep Link / Universal Links) -->
     <key>com.apple.developer.associated-domains</key>

@@ -1,0 +1,69 @@
+{
+  "generated_at": "2026-05-07T17:38:31.932Z",
+  "mode": "desktop_release_packaged_profile_smoke",
+  "status": "passed",
+  "release_evidence_complete": false,
+  "signed_or_notarized": false,
+  "checks": {
+    "release_app_exists": "passed",
+    "release_binary_exists": "passed",
+    "plaintext_profile_seeded": "passed",
+    "first_launch_plaintext_to_sqlcipher_migration": "passed",
+    "second_launch_keyring_reopen": "passed",
+    "release_sqlcipher_performance": "passed",
+    "ordinary_sqlite_plaintext_read_blocked": "passed"
+  },
+  "artifacts": {
+    "release_app": "/Users/pengchengkeji/Documents/GitHub/Anxin-Smart-Legal-Services/desktop/target/release/bundle/macos/安心法务.app",
+    "release_binary": "/Users/pengchengkeji/Documents/GitHub/Anxin-Smart-Legal-Services/desktop/target/release/bundle/macos/安心法务.app/Contents/MacOS/anxin-legal-desktop"
+  },
+  "firstLaunch": {
+    "dbPath": "/var/folders/nj/gp3tmfq54vl6vkldj7f8f7xc0000gn/T//anxin-release-profile-smoke.yDkxSy/anxin_local.db",
+    "keyringService": "com.anxin.legal.desktop.release-profile-smoke.1778175511.51350",
+    "keyringUser": "sqlcipher-db-key-v1",
+    "keyringRoundTrip": true,
+    "encryptedReopen": true,
+    "plaintextBackupPresent": true,
+    "plaintextOpenBlocked": true,
+    "sentinelId": "installed-profile-smoke",
+    "sentinelContent": "installed profile SQLCipher keyring reopen smoke"
+  },
+  "secondLaunch": {
+    "dbPath": "/var/folders/nj/gp3tmfq54vl6vkldj7f8f7xc0000gn/T//anxin-release-profile-smoke.yDkxSy/anxin_local.db",
+    "keyringService": "com.anxin.legal.desktop.release-profile-smoke.1778175511.51350",
+    "keyringUser": "sqlcipher-db-key-v1",
+    "keyringRoundTrip": true,
+    "encryptedReopen": true,
+    "plaintextBackupPresent": true,
+    "plaintextOpenBlocked": true,
+    "sentinelId": "installed-profile-smoke",
+    "sentinelContent": "installed profile SQLCipher keyring reopen smoke"
+  },
+  "performance": {
+    "dbPath": "/var/folders/nj/gp3tmfq54vl6vkldj7f8f7xc0000gn/T//anxin-release-profile-smoke.yDkxSy/anxin_local.db",
+    "keyringService": "com.anxin.legal.desktop.release-profile-smoke.1778175511.51350",
+    "keyringUser": "sqlcipher-db-key-v1",
+    "keyringRoundTrip": true,
+    "encryptedReopen": true,
+    "status": "passed",
+    "push100RowsP95Ms": 3.5,
+    "pull500RowsP95Ms": 1.8,
+    "pushThresholdMs": 2000,
+    "pullThresholdMs": 3000,
+    "pushSamplesMs": [
+      3.5,
+      0.4,
+      0.6,
+      0.5,
+      0.5
+    ],
+    "pullSamplesMs": [
+      1.2,
+      1.6,
+      1.8,
+      1.6,
+      1.6
+    ]
+  },
+  "completion_note": "Unsigned release packaged-profile/performance supporting evidence only. Keep desktop runtime evidence Status: pending until the package is signed/notarized and signed packaged-profile, signed packaged runtime performance, and cross-device evidence are attached."
+}

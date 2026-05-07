@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Risk Scoring Engine — 数据驱动的风险评分引擎
 
@@ -18,9 +17,8 @@ LLM 只在无真实数据时作为最后的补充。
 3. LLM 分析 → 仅作为补充（标注为估算值）
 """
 
-from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime
-from loguru import logger
+from typing import Any
 
 
 class DataQuality:
@@ -39,10 +37,10 @@ class RiskDimension:
         self.score = max(0, min(100, score))
         self.label = label  # low / medium / high
         self.data_quality = DataQuality.UNKNOWN
-        self.evidence: List[str] = []  # 每个评分的依据
-        self.data_sources: List[str] = []
+        self.evidence: list[str] = []  # 每个评分的依据
+        self.data_sources: list[str] = []
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "score": self.score,
@@ -56,13 +54,29 @@ class RiskDimension:
 class RiskScoringEngine:
     """数据驱动的风险评分引擎"""
 
+    DIMENSION_WEIGHTS: dict[str, float] = {
+        "operation_risk": 0.2,
+        "litigation_risk": 0.2,
+        "credit_risk": 0.2,
+        "compliance_risk": 0.2,
+        "relation_risk": 0.2,
+    }
+
+    DIMENSION_LABELS: dict[str, str] = {
+        "operation_risk": "经营风险",
+        "litigation_risk": "诉讼风险",
+        "credit_risk": "信用风险",
+        "compliance_risk": "合规风险",
+        "relation_risk": "关联风险",
+    }
+
     def compute_risk_scores(
         self,
-        basic_info: Dict[str, Any],
-        litigation: Dict[str, Any],
-        credit: Dict[str, Any],
-        llm_risk: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        basic_info: dict[str, Any],
+        litigation: dict[str, Any],
+        credit: dict[str, Any],
+        llm_risk: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         基于真实数据计算五维风险评分
 
@@ -84,17 +98,18 @@ class RiskScoringEngine:
         rel = self._compute_relation_risk(basic_info, llm)
 
         dimensions = [op, lit, cred, comp, rel]
-        avg_score = sum(d.score for d in dimensions) / 5
+        factors = self._build_factors(dimensions)
+        avg_score = sum(d.score * self.DIMENSION_WEIGHTS[d.name] for d in dimensions)
 
         overall_rating = "high" if avg_score > 60 else "medium" if avg_score > 35 else "low"
 
         # 汇总所有依据
-        all_evidence = []
+        all_evidence: list[str] = []
         for d in dimensions:
             all_evidence.extend(d.evidence)
 
         # 汇总所有数据来源
-        all_sources = set()
+        all_sources: set[str] = set()
         for d in dimensions:
             all_sources.update(d.data_sources)
 
@@ -116,8 +131,11 @@ class RiskScoringEngine:
             "credit_risk": cred.score,
             "compliance_risk": comp.score,
             "relation_risk": rel.score,
+            "score": round(avg_score, 1),
             "overall_rating": overall_rating,
             "overall_score": round(avg_score, 1),
+            "factors": factors,
+            "explain": self._build_explanation(round(avg_score, 1), overall_rating, factors),
             "risk_points": all_evidence[:10],  # 最多 10 条
             "recommendations": self._generate_recommendations(dimensions),
             "data_quality": overall_quality,
@@ -128,7 +146,7 @@ class RiskScoringEngine:
     # ===== 各维度评分 =====
 
     def _compute_operation_risk(
-        self, basic_info: Dict, llm: Dict
+        self, basic_info: dict[str, Any], llm: dict[str, Any]
     ) -> RiskDimension:
         """经营风险：基于工商状态、经营年限、异常记录"""
         dim = RiskDimension("operation_risk")
@@ -181,7 +199,7 @@ class RiskScoringEngine:
         return dim
 
     def _compute_litigation_risk(
-        self, litigation: Dict, llm: Dict
+        self, litigation: dict[str, Any], llm: dict[str, Any]
     ) -> RiskDimension:
         """诉讼风险：基于执行案件数、失信记录、裁判文书数"""
         dim = RiskDimension("litigation_risk")
@@ -244,7 +262,7 @@ class RiskScoringEngine:
         return dim
 
     def _compute_credit_risk(
-        self, credit: Dict, llm: Dict
+        self, credit: dict[str, Any], llm: dict[str, Any]
     ) -> RiskDimension:
         """信用风险：基于信用中国数据、行政处罚"""
         dim = RiskDimension("credit_risk")
@@ -296,7 +314,7 @@ class RiskScoringEngine:
         return dim
 
     def _compute_compliance_risk(
-        self, credit: Dict, basic_info: Dict, llm: Dict
+        self, credit: dict[str, Any], basic_info: dict[str, Any], llm: dict[str, Any]
     ) -> RiskDimension:
         """合规风险：基于处罚记录、经营范围"""
         dim = RiskDimension("compliance_risk")
@@ -337,7 +355,7 @@ class RiskScoringEngine:
         return dim
 
     def _compute_relation_risk(
-        self, basic_info: Dict, llm: Dict
+        self, basic_info: dict[str, Any], llm: dict[str, Any]
     ) -> RiskDimension:
         """关联风险：当前主要依赖 LLM，标注为估算"""
         dim = RiskDimension("relation_risk")
@@ -358,9 +376,58 @@ class RiskScoringEngine:
 
     # ===== 建议生成 =====
 
-    def _generate_recommendations(self, dimensions: List[RiskDimension]) -> List[str]:
+    def _build_factors(self, dimensions: list[RiskDimension]) -> list[dict[str, Any]]:
+        """Build deterministic factor contribution rows for explainable scoring."""
+        factors: list[dict[str, Any]] = []
+        for dim in dimensions:
+            weight = self.DIMENSION_WEIGHTS[dim.name]
+            contribution = round(dim.score * weight, 1)
+            evidence = list(dim.evidence[:3])
+            factor = {
+                "key": dim.name,
+                "name": self.DIMENSION_LABELS[dim.name],
+                "score": dim.score,
+                "weight": weight,
+                "contribution": contribution,
+                "label": dim.label,
+                "data_quality": dim.data_quality,
+                "evidence": evidence,
+                "explain": self._build_factor_explanation(dim, weight, contribution, evidence),
+            }
+            factors.append(factor)
+        return factors
+
+    def _build_factor_explanation(
+        self,
+        dim: RiskDimension,
+        weight: float,
+        contribution: float,
+        evidence: list[str],
+    ) -> str:
+        label = self.DIMENSION_LABELS[dim.name]
+        basis = "；".join(evidence) if evidence else "暂无明确风险信号"
+        return f"{label}{dim.score}/100，权重{weight:.0%}，贡献{contribution:.1f}分；依据：{basis}"
+
+    def _build_explanation(
+        self,
+        score: float,
+        overall_rating: str,
+        factors: list[dict[str, Any]],
+    ) -> str:
+        rating_label = {"high": "高", "medium": "中", "low": "低"}[overall_rating]
+        leading_factors = sorted(
+            factors,
+            key=lambda f: (-float(f["contribution"]), str(f["key"])),
+        )[:2]
+        leading = "、".join(
+            f"{factor['name']}贡献{factor['contribution']:.1f}分"
+            for factor in leading_factors
+        )
+        return f"综合风险为{rating_label}（{score:.1f}/100）；主要来源：{leading}。"
+
+    def _generate_recommendations(self, dimensions: list[RiskDimension]) -> list[str]:
         """基于评分结果生成针对性建议"""
-        recs = []
+        recs: list[str] = []
 
         for d in dimensions:
             if d.score > 60:

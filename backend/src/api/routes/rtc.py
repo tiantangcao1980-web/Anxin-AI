@@ -1,8 +1,8 @@
-# -*- coding: utf-8 -*-
 """音视频通话 (RTC) API 路由"""
 
 import time
-from typing import Optional
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,7 +28,7 @@ class CreateRoomResponse(BaseModel):
     livekit_url: str
 
 
-def _extract_conversation_id(room_name: str) -> Optional[str]:
+def _extract_conversation_id(room_name: str) -> str | None:
     prefix = "call_"
     if not room_name.startswith(prefix):
         return None
@@ -52,7 +52,7 @@ async def create_room(
     req: CreateRoomRequest,
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """创建通话房间并返回加入 Token"""
     if not rtc_service.is_available():
         raise HTTPException(status_code=503, detail="音视频服务未配置")
@@ -96,7 +96,7 @@ async def get_room_token(
     room_name: str,
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """获取加入已有房间的 Token"""
     if not rtc_service.is_available():
         raise HTTPException(status_code=503, detail="音视频服务未配置")
@@ -129,7 +129,7 @@ async def end_call(
     room_name: str,
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """结束通话（删除房间）"""
     if not rtc_service.is_available():
         raise HTTPException(status_code=503, detail="音视频服务未配置")
@@ -150,7 +150,7 @@ async def end_call(
 async def list_active_rooms(
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """列出活跃的通话房间"""
     if not rtc_service.is_available():
         return UnifiedResponse.success(data={"rooms": [], "available": False})

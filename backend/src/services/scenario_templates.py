@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 场景模板引擎 v3 (Scenario Template Engine)
 
@@ -22,9 +21,9 @@ v3 改进：
 """
 
 import re
-from typing import Any, Dict, List, Optional
-from loguru import logger
+from typing import Any
 
+from loguru import logger
 
 # ========== Harness: 分级完整性门槛 ==========
 # 按场景风险分级，高风险场景（正式法律文件/刑事）要求更高完整度才允许生成
@@ -64,7 +63,7 @@ COMPLETENESS_THRESHOLDS = {
 
 # ========== 场景模板注册表 ==========
 
-SCENARIO_TEMPLATES: Dict[str, Dict[str, Any]] = {
+SCENARIO_TEMPLATES: dict[str, dict[str, Any]] = {
 
     # ================================================================
     # 1. 合同审查
@@ -2157,12 +2156,12 @@ SCENARIO_TEMPLATES: Dict[str, Dict[str, Any]] = {
 }
 
 
-def get_template(intent: str) -> Optional[Dict[str, Any]]:
+def get_template(intent: str) -> dict[str, Any] | None:
     """获取场景模板"""
     return SCENARIO_TEMPLATES.get(intent)
 
 
-def get_all_intents() -> List[str]:
+def get_all_intents() -> list[str]:
     """获取所有已注册的意图"""
     return list(SCENARIO_TEMPLATES.keys())
 
@@ -2205,9 +2204,9 @@ def assess_completeness(
     user_input: str,
     intent: str,
     has_attachments: bool = False,
-    pre_filled_context: Optional[Dict[str, Any]] = None,
+    pre_filled_context: dict[str, Any] | None = None,
     current_round: int = 1,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     基于场景模板的信息完整度评估（纯规则，无 LLM 调用，< 1ms）。
 
@@ -2330,7 +2329,7 @@ def assess_completeness(
         if not slot_def:
             continue
 
-        q: Dict[str, Any] = {
+        q: dict[str, Any] = {
             "question": slot_def["question"],
             "purpose": slot_def["label"],
             "round": slot_round,
@@ -2374,8 +2373,6 @@ def assess_completeness(
             if "options" in opt_slot:
                 q["options"] = opt_slot["options"]
             questions.append(q)
-
-    min_required = template.get("min_required_for_proceed", 2)
 
     # ===== Harness: 分级完整性判断（替代旧的宽松逻辑）=====
     # 根据场景风险等级使用不同门槛，高风险场景（文书起草/刑事等）需要更高完整度
@@ -2423,9 +2420,9 @@ def assess_completeness(
 
 
 def merge_clarification_into_slots(
-    original_assessment: Dict[str, Any],
-    user_selections: Dict[str, str],
-) -> Dict[str, Any]:
+    original_assessment: dict[str, Any],
+    user_selections: dict[str, str],
+) -> dict[str, Any]:
     """
     将用户的澄清回复合并到 slot 评估中。
 
@@ -2471,11 +2468,11 @@ def merge_clarification_into_slots(
 def reassess_after_clarification(
     user_input: str,
     intent: str,
-    original_assessment: Dict[str, Any],
-    user_selections: Dict[str, str],
+    original_assessment: dict[str, Any],
+    user_selections: dict[str, str],
     current_round: int = 1,
     has_attachments: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Harness: 补充信息后重新评估完整度（不直接放行）。
 
@@ -2568,7 +2565,7 @@ def reassess_after_clarification(
     }
 
 
-def build_context_summary(filled_slots: List[Dict[str, Any]]) -> str:
+def build_context_summary(filled_slots: list[dict[str, Any]]) -> str:
     """
     将已填充的 slots 构建为上下文摘要，注入到 Agent prompt 中。
     """

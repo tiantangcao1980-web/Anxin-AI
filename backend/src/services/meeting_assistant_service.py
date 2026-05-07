@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 AI 旁听助手服务
 
@@ -8,17 +7,18 @@ AI 旁听助手服务
 
 import asyncio
 import time
-from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any, cast
 from uuid import uuid4
 
 from loguru import logger
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import async_session_maker
 from src.models.meeting_record import MeetingRecord
 
+JSONDict = dict[str, Any]
 
 # ========== 旁听 Prompt ==========
 
@@ -76,9 +76,9 @@ SUMMARY_SYSTEM_PROMPT = """你是安心法务的 AI 法律助手，请根据以�
 class MeetingAssistantService:
     """AI 旁听助手管理器（进程级单例）"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # conversation_id → 缓冲状态
-        self._buffers: Dict[str, _MessageBuffer] = {}
+        self._buffers: dict[str, _MessageBuffer] = {}
 
     def is_listening(self, conversation_id: str) -> bool:
         return conversation_id in self._buffers
@@ -127,7 +127,7 @@ class MeetingAssistantService:
         self,
         db: AsyncSession,
         conversation_id: str,
-    ) -> Optional[MeetingRecord]:
+    ) -> MeetingRecord | None:
         """停止旁听并生成纪要"""
         buf = self._buffers.pop(conversation_id, None)
         if not buf:
@@ -153,7 +153,7 @@ class MeetingAssistantService:
             record.action_items = summary["action_items"]
 
         record.status = "completed"
-        record.ended_at = datetime.now(timezone.utc)
+        record.ended_at = datetime.now(UTC)
 
         await db.flush()
         logger.info(f"AI 旁听已结束: conv={conversation_id}, record={record.id}")
@@ -180,7 +180,7 @@ class MeetingAssistantService:
                 self._analyze_and_push(conversation_id, buf.record_id, messages_batch)
             )
 
-    async def get_record(self, db: AsyncSession, conversation_id: str) -> Optional[MeetingRecord]:
+    async def get_record(self, db: AsyncSession, conversation_id: str) -> MeetingRecord | None:
         """获取对话的旁听记录"""
         result = await db.execute(
             select(MeetingRecord).where(
@@ -191,7 +191,7 @@ class MeetingAssistantService:
 
     async def get_records_by_user(
         self, db: AsyncSession, user_id: str, page: int = 1, page_size: int = 20
-    ) -> tuple[list, int]:
+    ) -> tuple[list[MeetingRecord], int]:
         """获取用户的旁听记录列表"""
         from sqlalchemy import func as sa_func
         count_result = await db.execute(
@@ -212,7 +212,7 @@ class MeetingAssistantService:
     # ========== 内部方法 ==========
 
     async def _analyze_and_push(
-        self, conversation_id: str, record_id: str, messages: List[dict]
+        self, conversation_id: str, record_id: str, messages: list[JSONDict]
     ) -> None:
         """异步分析消息批次并推送结果"""
         try:
@@ -226,9 +226,9 @@ class MeetingAssistantService:
                 return
 
             # 构建 insight 卡片
-            insight = {
+            insight: JSONDict = {
                 "id": str(uuid4()),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "points": analysis.get("points", []),
             }
 
@@ -250,7 +250,7 @@ class MeetingAssistantService:
         except Exception as e:
             logger.error(f"AI 旁听分析失败: conv={conversation_id}, error={e}")
 
-    async def _call_llm_analysis(self, text: str) -> Optional[dict]:
+    async def _call_llm_analysis(self, text: str) -> JSONDict | None:
         """调用 LLM 分析对话内容"""
         import json
 
@@ -258,10 +258,10 @@ class MeetingAssistantService:
             from src.agents.workforce import get_workforce
             workforce = get_workforce()
             # 使用 coordinator 的基础 agent 直接分析
-            agent = workforce._agents.get("legal_advisor")
+            agent = workforce.agents.get("legal_advisor")
             if not agent:
                 # fallback：用任意可用的 agent
-                agent = next(iter(workforce._agents.values()), None)
+                agent = next(iter(workforce.agents.values()), None)
             if not agent:
                 logger.warning("无可用 Agent，跳过旁听分析")
                 return None
@@ -276,14 +276,14 @@ class MeetingAssistantService:
             import re
             json_match = re.search(r'\{[\s\S]*\}', response)
             if json_match:
-                return json.loads(json_match.group())
+                return cast(JSONDict, json.loads(json_match.group()))
             return None
 
         except Exception as e:
             logger.error(f"LLM 分析调用失败: {e}")
             return None
 
-    async def _generate_summary(self, transcript: str) -> Optional[dict]:
+    async def _generate_summary(self, transcript: str) -> JSONDict | None:
         """生成结构化纪要"""
         if not transcript or len(transcript.strip()) < 20:
             return None
@@ -293,9 +293,9 @@ class MeetingAssistantService:
         try:
             from src.agents.workforce import get_workforce
             workforce = get_workforce()
-            agent = workforce._agents.get("legal_advisor")
+            agent = workforce.agents.get("legal_advisor")
             if not agent:
-                agent = next(iter(workforce._agents.values()), None)
+                agent = next(iter(workforce.agents.values()), None)
             if not agent:
                 return None
 
@@ -311,7 +311,7 @@ class MeetingAssistantService:
             import re
             json_match = re.search(r'\{[\s\S]*\}', response)
             if json_match:
-                return json.loads(json_match.group())
+                return cast(JSONDict, json.loads(json_match.group()))
             return None
 
         except Exception as e:
@@ -319,7 +319,7 @@ class MeetingAssistantService:
             return None
 
     async def _push_insight_to_conversation(
-        self, conversation_id: str, insight: dict
+        self, conversation_id: str, insight: JSONDict
     ) -> None:
         """通过 IM WebSocket 推送 AI 分析卡片"""
         try:
@@ -339,7 +339,7 @@ class MeetingAssistantService:
                         for p in insight.get("points", [])
                     )
 
-                    card_message = {
+                    card_message: JSONDict = {
                         "type": "ai_insight",
                         "data": {
                             "id": insight["id"],
@@ -365,15 +365,15 @@ class _MessageBuffer:
     BATCH_SIZE = 3  # 累积 N 条触发分析
     MAX_WAIT_SECONDS = 30  # 最大等待秒数
 
-    def __init__(self, record_id: str, conversation_id: str):
+    def __init__(self, record_id: str, conversation_id: str) -> None:
         self.record_id = record_id
         self.conversation_id = conversation_id
-        self.pending: List[dict] = []
-        self.all_messages: List[dict] = []
+        self.pending: list[JSONDict] = []
+        self.all_messages: list[JSONDict] = []
         self.last_analyze_time = time.time()
 
-    def add_message(self, sender_id: str, sender_name: str, content: str):
-        msg = {"sender_id": sender_id, "sender": sender_name, "content": content}
+    def add_message(self, sender_id: str, sender_name: str, content: str) -> None:
+        msg: JSONDict = {"sender_id": sender_id, "sender": sender_name, "content": content}
         self.pending.append(msg)
         self.all_messages.append(msg)
 
@@ -386,7 +386,7 @@ class _MessageBuffer:
             return True
         return False
 
-    def flush(self) -> List[dict]:
+    def flush(self) -> list[JSONDict]:
         batch = self.pending[:]
         self.pending.clear()
         self.last_analyze_time = time.time()

@@ -109,7 +109,6 @@ export default defineConfig(({ mode }) => {
         '@tauri-apps/plugin-dialog',
         '@tauri-apps/plugin-clipboard-manager',
         '@tauri-apps/plugin-updater',
-        '@tauri-apps/plugin-sql',
       ],
     },
     server: {

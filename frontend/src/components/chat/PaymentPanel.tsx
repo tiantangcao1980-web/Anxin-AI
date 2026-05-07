@@ -7,6 +7,8 @@
 
 import { useState, useEffect, useCallback } from'react'
 import { icons } from'@/lib/icons'
+import { API_BASE_URL, buildApiHeaders } from'@/lib/api'
+import { getTokenStorage } from'@/lib/platform/storage'
 import {
  cardStyle,
  heading,
@@ -82,16 +84,11 @@ export default function PaymentPanel({
  setStatus('pending')
 
  try {
- const token = localStorage.getItem('access_token')
- const API_BASE =
- import.meta.env.VITE_API_BASE_URL ||'http://localhost:8003/api/v1'
+ const token = await getTokenStorage().getAccessToken()
 
- const res = await fetch(`${API_BASE}/payments/orders`, {
+ const res = await fetch(`${API_BASE_URL}/payments/orders`, {
  method:'POST',
- headers: {
-'Content-Type':'application/json',
- ...(token ? { Authorization: `Bearer ${token}` } : {}),
- },
+ headers: buildApiHeaders(undefined, { token }),
  body: JSON.stringify({
  type: order.type,
  amount: order.amount,
@@ -121,14 +118,10 @@ export default function PaymentPanel({
 
  const interval = setInterval(async () => {
  try {
- const token = localStorage.getItem('access_token')
- const API_BASE =
- import.meta.env.VITE_API_BASE_URL ||'http://localhost:8003/api/v1'
+ const token = await getTokenStorage().getAccessToken()
 
- const res = await fetch(`${API_BASE}/payments/orders/${orderId}`, {
- headers: {
- ...(token ? { Authorization: `Bearer ${token}` } : {}),
- },
+ const res = await fetch(`${API_BASE_URL}/payments/orders/${orderId}`, {
+ headers: buildApiHeaders(undefined, { token, json: false }),
  })
 
  if (res.ok) {

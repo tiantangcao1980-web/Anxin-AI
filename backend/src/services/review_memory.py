@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 审查记忆服务
 
@@ -11,10 +10,10 @@
 3. 统计分析审查薄弱环节
 """
 
-import json
 import time
-from typing import Optional, List, Dict, Any
 from collections import defaultdict
+from typing import Any
+
 from loguru import logger
 
 
@@ -24,13 +23,13 @@ class ReviewMemoryEntry:
     def __init__(
         self,
         contract_type: str,
-        risks_found: List[Dict],
-        user_accepted: List[str],
-        user_rejected: List[str],
-        missing_clauses: List[str],
+        risks_found: list[dict[str, Any]],
+        user_accepted: list[str],
+        user_rejected: list[str],
+        missing_clauses: list[str],
         quality_score: float = 0.0,
         timestamp: float = 0.0,
-    ):
+    ) -> None:
         self.contract_type = contract_type
         self.risks_found = risks_found
         self.user_accepted = user_accepted  # 用户接受的风险ID
@@ -39,7 +38,7 @@ class ReviewMemoryEntry:
         self.quality_score = quality_score
         self.timestamp = timestamp or time.time()
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "contract_type": self.contract_type,
             "risks_count": len(self.risks_found),
@@ -54,9 +53,9 @@ class ReviewMemoryEntry:
 class ReviewMemoryService:
     """审查记忆服务（内存版，后续可升级为DB持久化）"""
 
-    def __init__(self):
-        self._memories: List[ReviewMemoryEntry] = []
-        self._type_stats: Dict[str, Dict[str, int]] = defaultdict(lambda: {
+    def __init__(self) -> None:
+        self._memories: list[ReviewMemoryEntry] = []
+        self._type_stats: dict[str, dict[str, int]] = defaultdict(lambda: {
             "total_reviews": 0,
             "total_risks": 0,
             "accepted_risks": 0,
@@ -66,9 +65,9 @@ class ReviewMemoryService:
     def save_review(
         self,
         contract_type: str,
-        review_result: Dict[str, Any],
-        accepted_risk_ids: Optional[List[str]] = None,
-        rejected_risk_ids: Optional[List[str]] = None,
+        review_result: dict[str, Any],
+        accepted_risk_ids: list[str] | None = None,
+        rejected_risk_ids: list[str] | None = None,
         quality_score: float = 0.0,
     ) -> None:
         """保存审查记忆"""
@@ -99,7 +98,7 @@ class ReviewMemoryService:
         self,
         contract_type: str,
         limit: int = 5,
-    ) -> List[Dict]:
+    ) -> list[dict[str, Any]]:
         """查找相似的历史审查"""
         relevant = [
             m for m in self._memories
@@ -109,9 +108,9 @@ class ReviewMemoryService:
         relevant.sort(key=lambda m: m.timestamp, reverse=True)
         return [m.to_dict() for m in relevant[:limit]]
 
-    def get_common_risks(self, contract_type: str) -> List[str]:
+    def get_common_risks(self, contract_type: str) -> list[str]:
         """获取某类合同的常见风险（基于历史）"""
-        risk_counter: Dict[str, int] = defaultdict(int)
+        risk_counter: dict[str, int] = defaultdict(int)
         for m in self._memories:
             if m.contract_type == contract_type:
                 for risk in m.risks_found:
@@ -122,9 +121,9 @@ class ReviewMemoryService:
         sorted_risks = sorted(risk_counter.items(), key=lambda x: x[1], reverse=True)
         return [risk for risk, _ in sorted_risks[:10]]
 
-    def get_rejection_patterns(self, contract_type: str) -> Dict[str, Any]:
+    def get_rejection_patterns(self, contract_type: str) -> dict[str, Any]:
         """分析用户拒绝模式（识别审查薄弱环节）"""
-        rejected_types: Dict[str, int] = defaultdict(int)
+        rejected_types: dict[str, int] = defaultdict(int)
         total_reviews = 0
 
         for m in self._memories:
@@ -144,7 +143,7 @@ class ReviewMemoryService:
             ],
         }
 
-    def get_type_stats(self, contract_type: Optional[str] = None) -> Dict:
+    def get_type_stats(self, contract_type: str | None = None) -> dict[str, Any]:
         """获取审查统计"""
         if contract_type:
             return dict(self._type_stats.get(contract_type, {}))
@@ -162,7 +161,7 @@ class ReviewMemoryService:
         if not common_risks and not rejection_info.get("improvement_areas"):
             return ""
 
-        parts = []
+        parts: list[str] = []
         if common_risks:
             parts.append(f"【历史审查经验】此类合同({contract_type})的常见风险点包括：{', '.join(common_risks[:5])}。请重点关注这些领域。")
 

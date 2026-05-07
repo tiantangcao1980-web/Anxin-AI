@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 法律引用溯源服务
 
@@ -7,9 +6,8 @@
 """
 
 import re
-from typing import Optional, List, Dict, Any
-from dataclasses import dataclass, field, asdict
-from loguru import logger
+from dataclasses import asdict, dataclass
+from typing import Any
 
 
 @dataclass
@@ -17,14 +15,14 @@ class LegalCitation:
     """法律引用结构"""
     law_name: str           # 法律名称，如"中华人民共和国民法典"
     article: str            # 条文编号，如"第496条"
-    paragraph: Optional[str] = None  # 款，如"第二款"
-    item: Optional[str] = None       # 项，如"第（三）项"
-    content_preview: Optional[str] = None  # 条文内容摘要
-    url: Optional[str] = None         # 国家法律数据库链接
+    paragraph: str | None = None  # 款，如"第二款"
+    item: str | None = None       # 项，如"第（三）项"
+    content_preview: str | None = None  # 条文内容摘要
+    url: str | None = None         # 国家法律数据库链接
     verified: bool = False             # 是否验证通过
     confidence: float = 0.0            # 引用置信度
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     def to_display(self) -> str:
@@ -86,7 +84,7 @@ class LegalCitationService:
     """法律引用溯源服务"""
 
     @classmethod
-    def extract_citations(cls, text: str) -> List[LegalCitation]:
+    def extract_citations(cls, text: str) -> list[LegalCitation]:
         """
         从文本中提取所有法律引用
 
@@ -167,14 +165,14 @@ class LegalCitationService:
         return citations
 
     @classmethod
-    def _generate_law_url(cls, law_name: str, article_num: str) -> Optional[str]:
+    def _generate_law_url(cls, law_name: str, article_num: str) -> str | None:
         """生成国家法律法规数据库链接"""
         # 国家法律法规数据库 (flk.npc.gov.cn) 的链接需要法律ID
         # 这里返回搜索链接作为近似
         return f"https://flk.npc.gov.cn/detail2.html?ZmY=&flfg_id=&keyword={law_name}+第{article_num}条"
 
     @classmethod
-    def enrich_review_result(cls, review_result: Dict[str, Any]) -> Dict[str, Any]:
+    def enrich_review_result(cls, review_result: dict[str, Any]) -> dict[str, Any]:
         """
         增强审查结果的法律引用信息
 
@@ -217,7 +215,7 @@ class LegalCitationService:
         return review_result
 
     @classmethod
-    def format_citation_summary(cls, citations: List[LegalCitation]) -> str:
+    def format_citation_summary(cls, citations: list[LegalCitation]) -> str:
         """格式化引用摘要"""
         if not citations:
             return ""

@@ -11,12 +11,20 @@ from typing import Any
 JSONDict = dict[str, Any]
 StringDict = dict[str, str]
 
+# A2UI 协议版本（语义化版本）：
+#   - major：不兼容的协议变更（前端必须升级）
+#   - minor：向后兼容的新增字段/事件类型
+#   - patch：错误修复
+# 老客户端遇到 minor 不识别字段应忽略；遇到 major 不一致应提示用户升级。
+A2UI_PROTOCOL_VERSION = "1.0.0"
+
 
 def make_id() -> str:
     return str(uuid.uuid4())[:8]
 
 
 # ========== 推荐卡片 ==========
+
 
 def recommendation_card(
     title: str,
@@ -36,22 +44,35 @@ def recommendation_card(
     component_id: str | None = None,
 ) -> JSONDict:
     data: JSONDict = {"title": title}
-    if subtitle: data["subtitle"] = subtitle
-    if description: data["description"] = description
-    if image: data["image"] = image
-    if image_fallback: data["imageFallback"] = image_fallback
-    if rating is not None: data["rating"] = rating
-    if rating_text: data["ratingText"] = rating_text
-    if tags: data["tags"] = tags
-    if meta: data["meta"] = meta
-    if price: data["price"] = price
-    if details: data["details"] = details
-    if action: data["action"] = action
-    if secondary_action: data["secondaryAction"] = secondary_action
+    if subtitle:
+        data["subtitle"] = subtitle
+    if description:
+        data["description"] = description
+    if image:
+        data["image"] = image
+    if image_fallback:
+        data["imageFallback"] = image_fallback
+    if rating is not None:
+        data["rating"] = rating
+    if rating_text:
+        data["ratingText"] = rating_text
+    if tags:
+        data["tags"] = tags
+    if meta:
+        data["meta"] = meta
+    if price:
+        data["price"] = price
+    if details:
+        data["details"] = details
+    if action:
+        data["action"] = action
+    if secondary_action:
+        data["secondaryAction"] = secondary_action
     return {"id": component_id or make_id(), "type": "recommendation-card", "data": data}
 
 
 # ========== 律师卡片 ==========
+
 
 def lawyer_card(
     lawyer_id: str,
@@ -79,18 +100,27 @@ def lawyer_card(
         "rating": rating,
         "status": status,
     }
-    if avatar: data["avatar"] = avatar
-    if title: data["title"] = title
-    if win_rate: data["winRate"] = win_rate
-    if experience: data["experience"] = experience
-    if response_time: data["responseTime"] = response_time
-    if consult_fee: data["consultFee"] = consult_fee
-    if introduction: data["introduction"] = introduction
-    if action: data["action"] = action
+    if avatar:
+        data["avatar"] = avatar
+    if title:
+        data["title"] = title
+    if win_rate:
+        data["winRate"] = win_rate
+    if experience:
+        data["experience"] = experience
+    if response_time:
+        data["responseTime"] = response_time
+    if consult_fee:
+        data["consultFee"] = consult_fee
+    if introduction:
+        data["introduction"] = introduction
+    if action:
+        data["action"] = action
     return {"id": component_id or make_id(), "type": "lawyer-card", "data": data}
 
 
 # ========== 横滑列表 ==========
+
 
 def horizontal_scroll(
     items: list[JSONDict],
@@ -101,12 +131,15 @@ def horizontal_scroll(
     component_id: str | None = None,
 ) -> JSONDict:
     data: JSONDict = {"items": items, "showArrows": show_arrows}
-    if title: data["title"] = title
-    if visible_count: data["visibleCount"] = visible_count
+    if title:
+        data["title"] = title
+    if visible_count:
+        data["visibleCount"] = visible_count
     return {"id": component_id or make_id(), "type": "horizontal-scroll", "data": data}
 
 
 # ========== 表单 Sheet ==========
+
 
 def form_sheet(
     title: str,
@@ -124,10 +157,14 @@ def form_sheet(
         "sections": sections,
         "submitAction": submit_action,
     }
-    if subtitle: data["subtitle"] = subtitle
-    if header: data["header"] = header
-    if cancel_action: data["cancelAction"] = cancel_action
-    if as_sheet: data["asSheet"] = True
+    if subtitle:
+        data["subtitle"] = subtitle
+    if header:
+        data["header"] = header
+    if cancel_action:
+        data["cancelAction"] = cancel_action
+    if as_sheet:
+        data["asSheet"] = True
     return {"id": component_id or make_id(), "type": "form-sheet", "data": data}
 
 
@@ -143,22 +180,32 @@ def form_section(
     placeholder: str | None = None,
 ) -> JSONDict:
     data: JSONDict = {"id": section_id, "label": label, "type": section_type}
-    if description: data["description"] = description
-    if required: data["required"] = True
-    if options: data["options"] = options
-    if default_value is not None: data["defaultValue"] = default_value
-    if placeholder: data["placeholder"] = placeholder
+    if description:
+        data["description"] = description
+    if required:
+        data["required"] = True
+    if options:
+        data["options"] = options
+    if default_value is not None:
+        data["defaultValue"] = default_value
+    if placeholder:
+        data["placeholder"] = placeholder
     return data
 
 
-def form_option(option_id: str, label: str, *, description: str | None = None, price: JSONDict | None = None) -> JSONDict:
+def form_option(
+    option_id: str, label: str, *, description: str | None = None, price: JSONDict | None = None
+) -> JSONDict:
     data: JSONDict = {"id": option_id, "label": label}
-    if description: data["description"] = description
-    if price: data["price"] = price
+    if description:
+        data["description"] = description
+    if price:
+        data["price"] = price
     return data
 
 
 # ========== 订单/委托确认卡片 ==========
+
 
 def order_card(
     item: JSONDict,
@@ -171,13 +218,17 @@ def order_card(
     component_id: str | None = None,
 ) -> JSONDict:
     data: JSONDict = {"item": item, "details": details, "actions": actions}
-    if title: data["title"] = title
-    if pricing: data["pricing"] = pricing
-    if note: data["note"] = note
+    if title:
+        data["title"] = title
+    if pricing:
+        data["pricing"] = pricing
+    if note:
+        data["note"] = note
     return {"id": component_id or make_id(), "type": "order-card", "data": data}
 
 
 # ========== 信息横幅 ==========
+
 
 def info_banner(
     content: str,
@@ -189,13 +240,17 @@ def info_banner(
     component_id: str | None = None,
 ) -> JSONDict:
     data: JSONDict = {"content": content, "variant": variant}
-    if icon: data["icon"] = icon
-    if action: data["action"] = action
-    if dismissible: data["dismissible"] = True
+    if icon:
+        data["icon"] = icon
+    if action:
+        data["action"] = action
+    if dismissible:
+        data["dismissible"] = True
     return {"id": component_id or make_id(), "type": "info-banner", "data": data}
 
 
 # ========== 按钮组 ==========
+
 
 def button_group(
     buttons: list[JSONDict],
@@ -213,6 +268,7 @@ def button_group(
 
 # ========== 状态卡片 ==========
 
+
 def status_card(
     status: str,
     title: str,
@@ -223,13 +279,17 @@ def status_card(
     component_id: str | None = None,
 ) -> JSONDict:
     data: JSONDict = {"status": status, "title": title}
-    if description: data["description"] = description
-    if action: data["action"] = action
-    if secondary_action: data["secondaryAction"] = secondary_action
+    if description:
+        data["description"] = description
+    if action:
+        data["action"] = action
+    if secondary_action:
+        data["secondaryAction"] = secondary_action
     return {"id": component_id or make_id(), "type": "status-card", "data": data}
 
 
 # ========== 详情列表 ==========
+
 
 def detail_list(
     items: list[JSONDict],
@@ -239,11 +299,13 @@ def detail_list(
     component_id: str | None = None,
 ) -> JSONDict:
     data: JSONDict = {"items": items, "divider": divider}
-    if title: data["title"] = title
+    if title:
+        data["title"] = title
     return {"id": component_id or make_id(), "type": "detail-list", "data": data}
 
 
 # ========== 步骤进度 ==========
+
 
 def progress_steps(
     steps: list[JSONDict],
@@ -254,11 +316,13 @@ def progress_steps(
     component_id: str | None = None,
 ) -> JSONDict:
     data: JSONDict = {"steps": steps, "currentStep": current_step, "direction": direction}
-    if title: data["title"] = title
+    if title:
+        data["title"] = title
     return {"id": component_id or make_id(), "type": "progress-steps", "data": data}
 
 
 # ========== 风险指标 ==========
+
 
 def risk_indicator(
     title: str,
@@ -272,13 +336,17 @@ def risk_indicator(
     component_id: str | None = None,
 ) -> JSONDict:
     data: JSONDict = {"title": title, "score": score, "level": level, "maxScore": max_score}
-    if description: data["description"] = description
-    if factors: data["factors"] = factors
-    if action: data["action"] = action
+    if description:
+        data["description"] = description
+    if factors:
+        data["factors"] = factors
+    if action:
+        data["action"] = action
     return {"id": component_id or make_id(), "type": "risk-indicator", "data": data}
 
 
 # ========== 文本块 ==========
+
 
 def text_block(
     content: str,
@@ -289,20 +357,25 @@ def text_block(
     component_id: str | None = None,
 ) -> JSONDict:
     data: JSONDict = {"content": content, "format": format}
-    if collapsible: data["collapsible"] = True
-    if preview_lines: data["previewLines"] = preview_lines
+    if collapsible:
+        data["collapsible"] = True
+    if preview_lines:
+        data["previewLines"] = preview_lines
     return {"id": component_id or make_id(), "type": "text-block", "data": data}
 
 
 # ========== 分隔线 ==========
 
+
 def divider(label: str | None = None, component_id: str | None = None) -> JSONDict:
     data: JSONDict = {}
-    if label: data["label"] = label
+    if label:
+        data["label"] = label
     return {"id": component_id or make_id(), "type": "divider", "data": data}
 
 
 # ========== 服务选择 ==========
+
 
 def service_selection(
     title: str,
@@ -312,11 +385,13 @@ def service_selection(
     component_id: str | None = None,
 ) -> JSONDict:
     data: JSONDict = {"title": title, "services": services}
-    if subtitle: data["subtitle"] = subtitle
+    if subtitle:
+        data["subtitle"] = subtitle
     return {"id": component_id or make_id(), "type": "service-selection", "data": data}
 
 
 # ========== 合同预览 ==========
+
 
 def contract_preview(
     contract_id: str,
@@ -339,11 +414,13 @@ def contract_preview(
         "riskLevel": risk_level,
         "actions": actions,
     }
-    if risk_items: data["riskItems"] = risk_items
+    if risk_items:
+        data["riskItems"] = risk_items
     return {"id": component_id or make_id(), "type": "contract-preview", "data": data}
 
 
 # ========== 动作栏 ==========
+
 
 def action_bar(
     actions: list[JSONDict],
@@ -361,6 +438,7 @@ def action_bar(
 
 # ========== 扩展接口：地图组件 ==========
 
+
 def map_view(
     title: str,
     *,
@@ -377,13 +455,17 @@ def map_view(
     markers: [{"id": "...", "lat": 39.9, "lng": 116.3, "label": "...", "info": "..."}]
     """
     data: JSONDict = {"title": title, "zoom": zoom, "mapProvider": map_provider}
-    if center: data["center"] = center
-    if markers: data["markers"] = markers
-    if action: data["action"] = action
+    if center:
+        data["center"] = center
+    if markers:
+        data["markers"] = markers
+    if action:
+        data["action"] = action
     return {"id": component_id or make_id(), "type": "map-view", "data": data}
 
 
 # ========== 扩展接口：支付组件 ==========
+
 
 def payment_card(
     title: str,
@@ -407,15 +489,21 @@ def payment_card(
         "amount": amount,
         "currency": currency,
     }
-    if description: data["description"] = description
-    if payment_methods: data["paymentMethods"] = payment_methods
-    if order_id: data["orderId"] = order_id
-    if pay_action: data["payAction"] = pay_action
-    if cancel_action: data["cancelAction"] = cancel_action
+    if description:
+        data["description"] = description
+    if payment_methods:
+        data["paymentMethods"] = payment_methods
+    if order_id:
+        data["orderId"] = order_id
+    if pay_action:
+        data["payAction"] = pay_action
+    if cancel_action:
+        data["cancelAction"] = cancel_action
     return {"id": component_id or make_id(), "type": "payment-card", "data": data}
 
 
 # ========== 扩展接口：律师选择器 ==========
+
 
 def lawyer_picker(
     title: str,
@@ -434,13 +522,17 @@ def lawyer_picker(
     sort_options: [{"id": "rating", "label": "评分"}, {"id": "price", "label": "价格"}]
     """
     data: JSONDict = {"title": title, "lawyers": lawyers, "multiSelect": multi_select}
-    if filters: data["filters"] = filters
-    if sort_options: data["sortOptions"] = sort_options
-    if on_select_action: data["onSelectAction"] = on_select_action
+    if filters:
+        data["filters"] = filters
+    if sort_options:
+        data["sortOptions"] = sort_options
+    if on_select_action:
+        data["onSelectAction"] = on_select_action
     return {"id": component_id or make_id(), "type": "lawyer-picker", "data": data}
 
 
 # ========== 扩展接口：媒体卡片（图片/视频/文件预览） ==========
+
 
 def media_card(
     title: str,
@@ -458,14 +550,19 @@ def media_card(
     media_type: "image" | "video" | "pdf" | "document"
     """
     data: JSONDict = {"title": title, "mediaType": media_type, "url": url}
-    if thumbnail: data["thumbnail"] = thumbnail
-    if description: data["description"] = description
-    if size: data["size"] = size
-    if action: data["action"] = action
+    if thumbnail:
+        data["thumbnail"] = thumbnail
+    if description:
+        data["description"] = description
+    if size:
+        data["size"] = size
+    if action:
+        data["action"] = action
     return {"id": component_id or make_id(), "type": "media-card", "data": data}
 
 
 # ========== 扩展接口：日程/预约组件 ==========
+
 
 def schedule_picker(
     title: str,
@@ -481,13 +578,17 @@ def schedule_picker(
     available_slots: [{"id": "...", "date": "2026-02-10", "time": "10:00", "available": true}]
     """
     data: JSONDict = {"title": title, "availableSlots": available_slots}
-    if subtitle: data["subtitle"] = subtitle
-    if duration_options: data["durationOptions"] = duration_options
-    if on_select_action: data["onSelectAction"] = on_select_action
+    if subtitle:
+        data["subtitle"] = subtitle
+    if duration_options:
+        data["durationOptions"] = duration_options
+    if on_select_action:
+        data["onSelectAction"] = on_select_action
     return {"id": component_id or make_id(), "type": "schedule-picker", "data": data}
 
 
 # ========== 扩展接口：评价/反馈组件 ==========
+
 
 def feedback_card(
     title: str,
@@ -506,12 +607,15 @@ def feedback_card(
         "ratingEnabled": rating_enabled,
         "commentEnabled": comment_enabled,
     }
-    if tags: data["tags"] = tags
-    if submit_action: data["submitAction"] = submit_action
+    if tags:
+        data["tags"] = tags
+    if submit_action:
+        data["submitAction"] = submit_action
     return {"id": component_id or make_id(), "type": "feedback-card", "data": data}
 
 
 # ========== 扩展接口：通用插件容器 ==========
+
 
 def plugin_container(
     plugin_type: str,
@@ -531,11 +635,13 @@ def plugin_container(
         "config": config,
         "fallbackText": fallback_text,
     }
-    if title: data["title"] = title
+    if title:
+        data["title"] = title
     return {"id": component_id or make_id(), "type": "plugin-container", "data": data}
 
 
 # ========== A2UI 消息包装器 ==========
+
 
 def a2ui_message(
     components: list[JSONDict],
@@ -546,7 +652,7 @@ def a2ui_message(
 ) -> JSONDict:
     """
     构建完整的 A2UI 消息，用于 WebSocket 发送。
-    
+
     Returns:
         WebSocket 消息格式：
         {
@@ -559,6 +665,7 @@ def a2ui_message(
     """
     return {
         "type": "a2ui_message",
+        "protocolVersion": A2UI_PROTOCOL_VERSION,
         "text": text,
         "agent": agent,
         "a2ui_id": message_id or make_id(),
@@ -567,6 +674,7 @@ def a2ui_message(
 
 
 # ========== StreamObject 流式 A2UI 协议 ==========
+
 
 def a2ui_stream_start(
     stream_id: str | None = None,
@@ -590,6 +698,7 @@ def a2ui_stream_start(
     """
     event: JSONDict = {
         "type": "a2ui_stream",
+        "protocolVersion": A2UI_PROTOCOL_VERSION,
         "streamId": stream_id or make_id(),
         "action": "stream_start",
         "agent": agent,
@@ -690,6 +799,7 @@ def a2ui_stream_end(stream_id: str) -> JSONDict:
 
 
 # ========== 法务专用卡片构建器 ==========
+
 
 def case_progress_card(
     case_id: str,

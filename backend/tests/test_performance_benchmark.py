@@ -5,24 +5,18 @@
 
 import asyncio
 import time
-import pytest
-from typing import List
-from datetime import datetime
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import AsyncMock, Mock
 
+import pytest
+
+from src.core.evolution import ExperienceExtractor, FeedbackPipeline, PolicyOptimizer
 from src.core.memory import (
-    SemanticMemoryService,
     EnhancedEpisodicMemoryService,
+    MultiTierMemoryRetrieval,
+    SemanticMemoryService,
     WorkingMemoryService,
-    MultiTierMemoryRetrieval
-)
-from src.core.evolution import (
-    FeedbackPipeline,
-    ExperienceExtractor,
-    PolicyOptimizer
 )
 from src.services.cache_service import CacheService
-
 
 # ========== 性能指标 ==========
 
@@ -32,7 +26,7 @@ class PerformanceMetrics:
 
     def __init__(self, name: str):
         self.name = name
-        self.durations: List[float] = []
+        self.durations: list[float] = []
         self.success_count = 0
         self.error_count = 0
 
@@ -113,17 +107,17 @@ class TestCachePerformance:
         # 执行100次写入
         for i in range(100):
             @measure_performance(metrics)
-            async def write_op():
+            async def write_op(current_i: int = i):
                 await cache_service.set(
                     "test",
-                    f"key-{i}",
-                    {"data": f"value-{i}"},
+                    f"key-{current_i}",
+                    {"data": f"value-{current_i}"},
                     ttl=60
                 )
             await write_op()
 
         stats = metrics.get_stats()
-        print(f"\n📊 缓存写入性能:")
+        print("\n📊 缓存写入性能:")
         print(f"  平均: {stats['avg']*1000:.2f}ms")
         print(f"  P95: {stats['p95']*1000:.2f}ms")
         print(f"  P99: {stats['p99']*1000:.2f}ms")
@@ -143,12 +137,12 @@ class TestCachePerformance:
         # 执行100次读取
         for i in range(100):
             @measure_performance(metrics)
-            async def read_op():
-                await cache_service.get("test", f"key-{i}")
+            async def read_op(current_i: int = i):
+                await cache_service.get("test", f"key-{current_i}")
             await read_op()
 
         stats = metrics.get_stats()
-        print(f"\n📊 缓存读取性能:")
+        print("\n📊 缓存读取性能:")
         print(f"  平均: {stats['avg']*1000:.2f}ms")
         print(f"  P95: {stats['p95']*1000:.2f}ms")
         print(f"  P99: {stats['p99']*1000:.2f}ms")
@@ -177,16 +171,16 @@ class TestMemoryPerformance:
         # 添加100条知识
         for i in range(100):
             @measure_performance(metrics)
-            async def add_op():
+            async def add_op(current_i: int = i):
                 await semantic.add_knowledge(
                     knowledge_type="statute",
-                    title=f"测试法律条文 {i}",
-                    content=f"这是第 {i} 条测试法律内容"
+                    title=f"测试法律条文 {current_i}",
+                    content=f"这是第 {current_i} 条测试法律内容"
                 )
             await add_op()
 
         stats = metrics.get_stats()
-        print(f"\n📊 语义记忆添加性能:")
+        print("\n📊 语义记忆添加性能:")
         print(f"  平均: {stats['avg']*1000:.2f}ms")
         print(f"  P95: {stats['p95']*1000:.2f}ms")
 
@@ -206,10 +200,10 @@ class TestMemoryPerformance:
         # 添加100条情景
         for i in range(100):
             @measure_performance(metrics)
-            async def add_op():
+            async def add_op(current_i: int = i):
                 await episodic.add_episode(
-                    session_id=f"session-{i}",
-                    task_description=f"测试任务 {i}",
+                    session_id=f"session-{current_i}",
+                    task_description=f"测试任务 {current_i}",
                     task_type="test",
                     agents_involved=["TestAgent"],
                     execution_trace={"agent_sequence": ["TestAgent"]},
@@ -219,7 +213,7 @@ class TestMemoryPerformance:
             await add_op()
 
         stats = metrics.get_stats()
-        print(f"\n📊 情景记忆添加性能:")
+        print("\n📊 情景记忆添加性能:")
         print(f"  平均: {stats['avg']*1000:.2f}ms")
         print(f"  P95: {stats['p95']*1000:.2f}ms")
 
@@ -249,16 +243,16 @@ class TestMemoryPerformance:
         # 执行100次检索
         for i in range(100):
             @measure_performance(metrics)
-            async def retrieve_op():
+            async def retrieve_op(current_i: int = i):
                 await retrieval.retrieve(
-                    query=f"测试查询 {i}",
-                    session_id=f"session-{i}",
+                    query=f"测试查询 {current_i}",
+                    session_id=f"session-{current_i}",
                     context={"task_type": "test"}
                 )
             await retrieve_op()
 
         stats = metrics.get_stats()
-        print(f"\n📊 跨层检索性能:")
+        print("\n📊 跨层检索性能:")
         print(f"  平均: {stats['avg']*1000:.2f}ms")
         print(f"  P95: {stats['p95']*1000:.2f}ms")
         print(f"  P99: {stats['p99']*1000:.2f}ms")
@@ -288,10 +282,10 @@ class TestEvolutionPerformance:
         # 提交100条反馈
         for i in range(100):
             @measure_performance(metrics)
-            async def submit_op():
+            async def submit_op(current_i: int = i):
                 from src.core.evolution import UserFeedback
                 feedback = UserFeedback(
-                    episode_id=f"episode-{i}",
+                    episode_id=f"episode-{current_i}",
                     rating=5,
                     comment="测试反馈"
                 )
@@ -299,7 +293,7 @@ class TestEvolutionPerformance:
             await submit_op()
 
         stats = metrics.get_stats()
-        print(f"\n📊 反馈提交性能:")
+        print("\n📊 反馈提交性能:")
         print(f"  平均: {stats['avg']*1000:.2f}ms")
         print(f"  P95: {stats['p95']*1000:.2f}ms")
 
@@ -343,7 +337,7 @@ class TestEvolutionPerformance:
             await extract_op()
 
         stats = metrics.get_stats()
-        print(f"\n📊 模式提取性能:")
+        print("\n📊 模式提取性能:")
         print(f"  平均: {stats['avg']*1000:.2f}ms")
         print(f"  P95: {stats['p95']*1000:.2f}ms")
 
@@ -372,15 +366,15 @@ class TestEvolutionPerformance:
         # 优化50次
         for i in range(50):
             @measure_performance(metrics)
-            async def optimize_op():
+            async def optimize_op(current_i: int = i):
                 await optimizer.optimize_agent_selection(
-                    task_description=f"测试任务 {i}",
+                    task_description=f"测试任务 {current_i}",
                     task_type="test"
                 )
             await optimize_op()
 
         stats = metrics.get_stats()
-        print(f"\n📊 策略优化性能:")
+        print("\n📊 策略优化性能:")
         print(f"  平均: {stats['avg']*1000:.2f}ms")
         print(f"  P95: {stats['p95']*1000:.2f}ms")
 
@@ -426,7 +420,7 @@ class TestStress:
         total_time = time.time() - start
 
         stats = metrics.get_stats()
-        print(f"\n📊 并发操作压力测试:")
+        print("\n📊 并发操作压力测试:")
         print(f"  总耗时: {total_time:.2f}s")
         print(f"  吞吐量: {1000/total_time:.2f} ops/s")
         print(f"  平均响应: {stats['avg']*1000:.2f}ms")

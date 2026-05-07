@@ -7,6 +7,14 @@ import { icons } from'@/lib/icons'
 import { knowledgeApi } from'@/lib/api'
 import { toast } from'sonner'
 import ReactMarkdown from'react-markdown'
+import {
+ RAGSource,
+ SourceDocument,
+ getExternalSourceUrl,
+ getSourceDocumentId,
+ getSourceLabel,
+ splitSourceContent,
+} from'./source-preview-utils'
 
 interface SearchResult {
  id: string
@@ -32,6 +40,8 @@ export function SmartSearch() {
  // RAG 问答
  const [ragAnswer, setRagAnswer] = useState<{ answer: string; sources: any[] } | null>(null)
  const [isAsking, setIsAsking] = useState(false)
+ const [sourcePreview, setSourcePreview] = useState<{ source: RAGSource; document: SourceDocument } | null>(null)
+ const [sourceLoading, setSourceLoading] = useState(false)
 
  const handleSearch = async () => {
  if (!searchQuery.trim()) return
@@ -72,6 +82,40 @@ export function SmartSearch() {
  } finally {
  setIsAsking(false)
  }
+ }
+
+ const handleOpenSource = async (source: RAGSource) => {
+ const docId = getSourceDocumentId(source)
+ const externalUrl = getExternalSourceUrl(source)
+ if (externalUrl) {
+ window.open(externalUrl, externalUrl.startsWith('http') ? '_blank' : '_self', 'noopener,noreferrer')
+ return
+ }
+ if (!docId) {
+ toast.error('该引用缺少可打开的文档定位')
+ return
+ }
+ setSourceLoading(true)
+ try {
+ const document = await knowledgeApi.getDocument(docId)
+ setSourcePreview({ source, document })
+ } catch (error: any) {
+ toast.error(error.message ||'无法打开引用来源')
+ } finally {
+ setSourceLoading(false)
+ }
+ }
+
+ const renderSourceContent = () => {
+ if (!sourcePreview?.document.content) return null
+ const segments = splitSourceContent(sourcePreview.document.content, sourcePreview.source.anchor_text)
+ return (
+ <pre className="text-sm text-foreground whitespace-pre-wrap font-sans leading-relaxed">
+ {segments.map((segment, index) => segment.highlighted ? (
+ <mark key={index} className="rounded bg-warning/30 px-0.5 text-foreground">{segment.text}</mark>
+ ) : segment.text)}
+ </pre>
+ )
  }
 
  const handleDeepResearch = async () => {
@@ -200,9 +244,17 @@ export function SmartSearch() {
  <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-caption mb-3">参考来源</h5>
  <div className="flex flex-wrap gap-2">
  {ragAnswer.sources.map((s: any, i: number) => (
- <span key={i} className="text-[11px] px-2 py-1 bg-muted text-muted-foreground rounded-md">
- {s.title || s.source || `来源 ${i+1}`}
- </span>
+ <button
+ key={i}
+ type="button"
+ onClick={() => handleOpenSource(s)}
+ disabled={sourceLoading}
+ className="inline-flex items-center gap-1.5 text-[11px] px-2 py-1 bg-muted text-muted-foreground rounded-md hover:text-foreground hover:bg-muted/80 transition-colors disabled:opacity-60"
+ title={s.chunk_id ? `打开 ${s.chunk_id}` : '打开引用来源'}
+ >
+ <icons.Link className="w-3 h-3" />
+ {getSourceLabel(s, i)}
+ </button>
  ))}
  </div>
  </div>
@@ -211,6 +263,57 @@ export function SmartSearch() {
  </motion.div>
  )}
  </AnimatePresence>
+
+ {(sourcePreview || sourceLoading) && (
+ <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => !sourceLoading && setSourcePreview(null)}>
+ <div className="w-full max-w-3xl max-h-[82vh] overflow-hidden rounded-xl border border-border bg-background shadow-xl" onClick={(event) => event.stopPropagation()}>
+ <div className="flex items-center justify-between border-b border-border px-5 py-4">
+ <div className="min-w-0">
+ <p className="text-sm font-medium text-foreground truncate">
+ {sourceLoading ? '正在打开引用来源' : sourcePreview?.document.title || getSourceLabel(sourcePreview!.source, 0)}
+ </p>
+ {sourcePreview?.source.chunk_id && (
+ <p className="mt-1 text-xs text-muted-foreground">chunk: {sourcePreview.source.chunk_id}</p>
+ )}
+ </div>
+ <button
+ type="button"
+ onClick={() => setSourcePreview(null)}
+ disabled={sourceLoading}
+ className="text-muted-foreground hover:text-foreground disabled:opacity-60"
+ >
+ <icons.X className="w-4 h-4" />
+ </button>
+ </div>
+ <div className="max-h-[68vh] overflow-y-auto p-5">
+ {sourceLoading ? (
+ <div className="flex items-center gap-2 text-sm text-muted-foreground">
+ <icons.Loader2 className="w-4 h-4 animate-spin" />
+ 加载中...
+ </div>
+ ) : (
+ <div className="space-y-4">
+ <div className="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
+ <div>
+ <span className="text-xs text-muted-foreground">来源</span>
+ <p className="text-foreground">{sourcePreview?.document.source || sourcePreview?.source.source || '未知'}</p>
+ </div>
+ {sourcePreview?.source.score != null && (
+ <div>
+ <span className="text-xs text-muted-foreground">相关度</span>
+ <p className="text-foreground">{Number(sourcePreview.source.score).toFixed(3)}</p>
+ </div>
+ )}
+ </div>
+ <div className="rounded-lg border border-border bg-muted/30 p-4">
+ {renderSourceContent()}
+ </div>
+ </div>
+ )}
+ </div>
+ </div>
+ </div>
+ )}
 
  {/* RAG 加载中 */}
  {isAsking && (

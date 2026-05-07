@@ -1,11 +1,12 @@
-# -*- coding: utf-8 -*-
 """
 律师精英服务
 """
 
-from typing import List, Optional
+
+from typing import Any
+
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 
 from src.models.expert import Expert
 
@@ -16,11 +17,11 @@ class ExpertService:
 
     async def list_experts(
         self,
-        org_id: Optional[str] = None,
-        specialty: Optional[str] = None,
+        org_id: str | None = None,
+        specialty: str | None = None,
         page: int = 1,
         page_size: int = 50,
-    ) -> tuple[List[Expert], int]:
+    ) -> tuple[list[Expert], int]:
         query = select(Expert)
         if org_id:
             query = query.where(Expert.org_id == org_id)
@@ -38,17 +39,22 @@ class ExpertService:
 
         return experts, total
 
-    async def get_expert(self, expert_id: str) -> Optional[Expert]:
+    async def get_expert(self, expert_id: str) -> Expert | None:
         result = await self.db.execute(select(Expert).where(Expert.id == expert_id))
         return result.scalar_one_or_none()
 
-    async def create_expert(self, **kwargs) -> Expert:
+    async def create_expert(self, **kwargs: Any) -> Expert:
         expert = Expert(**kwargs)
         self.db.add(expert)
         await self.db.flush()
         return expert
 
-    async def update_expert(self, expert_id: str, org_id: Optional[str] = None, **kwargs) -> Optional[Expert]:
+    async def update_expert(
+        self,
+        expert_id: str,
+        org_id: str | None = None,
+        **kwargs: Any,
+    ) -> Expert | None:
         query = select(Expert).where(Expert.id == expert_id)
         if org_id:
             query = query.where(Expert.org_id == org_id)
@@ -62,7 +68,7 @@ class ExpertService:
         await self.db.flush()
         return expert
 
-    async def delete_expert(self, expert_id: str, org_id: Optional[str] = None) -> bool:
+    async def delete_expert(self, expert_id: str, org_id: str | None = None) -> bool:
         query = select(Expert).where(Expert.id == expert_id)
         if org_id:
             query = query.where(Expert.org_id == org_id)

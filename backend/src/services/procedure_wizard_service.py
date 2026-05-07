@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 流程向导服务 — 逐步引导合规操作
 
@@ -16,10 +15,9 @@
 - 支持从任意步骤介入（用户可能已完成部分步骤）
 """
 
-from typing import Dict, Any, Optional, List
-from datetime import datetime
 from dataclasses import dataclass, field
-from loguru import logger
+from datetime import datetime
+from typing import Any
 
 
 @dataclass
@@ -28,15 +26,15 @@ class WizardStep:
     step_id: int
     name: str
     description: str
-    actions: List[str]                    # 需要执行的操作
-    documents: List[str]                  # 本步需要生成/准备的文件
-    legal_basis: List[str]                # 法律依据
-    warnings: List[str] = field(default_factory=list)  # 风险提示
-    prerequisites: List[str] = field(default_factory=list)  # 前置条件
+    actions: list[str]                    # 需要执行的操作
+    documents: list[str]                  # 本步需要生成/准备的文件
+    legal_basis: list[str]                # 法律依据
+    warnings: list[str] = field(default_factory=list)  # 风险提示
+    prerequisites: list[str] = field(default_factory=list)  # 前置条件
     estimated_days: int = 0               # 预估耗时（天）
     status: str = "pending"               # pending / current / done / skipped
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "step_id": self.step_id,
             "name": self.name,
@@ -57,13 +55,13 @@ class WizardInstance:
     wizard_id: str
     wizard_type: str
     title: str
-    steps: List[WizardStep]
+    steps: list[WizardStep]
     current_step: int = 1
-    context: Dict = field(default_factory=dict)
+    context: dict[str, Any] = field(default_factory=dict)
     created_at: str = ""
     status: str = "active"  # active / completed / paused
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.created_at:
             self.created_at = datetime.now().isoformat()
 
@@ -80,7 +78,7 @@ class WizardInstance:
     def total_days(self) -> int:
         return sum(s.estimated_days for s in self.steps)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "wizard_id": self.wizard_id,
             "wizard_type": self.wizard_type,
@@ -149,7 +147,7 @@ class WizardInstance:
 
 # ========== 流程向导定义 ==========
 
-WIZARD_DEFINITIONS: Dict[str, Dict[str, Any]] = {
+WIZARD_DEFINITIONS: dict[str, dict[str, Any]] = {
 
     # =============================================
     # 1. 辞退员工流程
@@ -570,10 +568,10 @@ WIZARD_DEFINITIONS: Dict[str, Dict[str, Any]] = {
 class ProcedureWizardService:
     """流程向导服务"""
 
-    def __init__(self):
-        self._instances: Dict[str, WizardInstance] = {}
+    def __init__(self) -> None:
+        self._instances: dict[str, WizardInstance] = {}
 
-    def get_available_wizards(self) -> List[Dict]:
+    def get_available_wizards(self) -> list[dict[str, Any]]:
         """获取所有可用流程向导"""
         return [
             {
@@ -586,7 +584,7 @@ class ProcedureWizardService:
             for key, defn in WIZARD_DEFINITIONS.items()
         ]
 
-    def start_wizard(self, wizard_type: str, context: Optional[Dict] = None) -> WizardInstance:
+    def start_wizard(self, wizard_type: str, context: dict[str, Any] | None = None) -> WizardInstance:
         """启动流程向导"""
         if wizard_type not in WIZARD_DEFINITIONS:
             raise ValueError(f"不支持的流程类型: {wizard_type}，可用: {list(WIZARD_DEFINITIONS.keys())}")
@@ -631,7 +629,7 @@ class ProcedureWizardService:
             return "向导实例不存在"
         return instance.to_markdown()
 
-    def get_instance(self, wizard_id: str) -> Optional[WizardInstance]:
+    def get_instance(self, wizard_id: str) -> WizardInstance | None:
         return self._instances.get(wizard_id)
 
     def get_wizard_overview_markdown(self, wizard_type: str) -> str:

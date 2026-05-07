@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
@@ -60,8 +60,8 @@ async def test_approval_requires_current_approver(auth_client, db_session, test_
         requester_id=str(test_user.id),
         approver_id=str(test_user.id),
         org_id=str(test_user.org_id),
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     db_session.add(approval)
     await db_session.flush()

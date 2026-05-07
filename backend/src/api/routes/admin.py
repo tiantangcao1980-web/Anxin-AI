@@ -1,35 +1,36 @@
-# -*- coding: utf-8 -*-
 """
 管理后台 API 路由
 提供系统仪表盘、用户管理、角色权限、审计日志、系统配置、组织管理等管理功能
 """
 
 import time
-from datetime import datetime, timedelta
-from typing import Optional, List, Any
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
-from pydantic import BaseModel, EmailStr, Field
-from sqlalchemy import select, func, and_, or_, case as sa_case
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from loguru import logger
+from pydantic import BaseModel, EmailStr, Field
+from sqlalchemy import and_, func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
 from src.core.deps import (
-    get_admin_user,
-    UserRole,
-    Permission,
     ROLE_PERMISSIONS,
-    get_user_permissions,
+    Permission,
+    UserRole,
+    get_admin_user,
 )
+from src.core.responses import UnifiedResponse
 from src.core.security import get_password_hash
-from src.models.user import User, Organization
-from src.models.audit import AuditLog, AuditAction, ResourceType
+from src.models.audit import AuditAction, AuditLog, ResourceType
 from src.models.case import Case
 from src.models.contract import Contract
 from src.models.document import Document
-from src.services.user_service import UserService
+from src.models.user import Organization, User
+from src.models.webhook import WebhookReceived
 from src.services.audit_service import AuditService
+from src.services.user_service import UserService
+from src.services.webhook_retry_service import WebhookRetryError, retry_failed_webhook
 
 router = APIRouter(prefix="/admin")
 
@@ -49,13 +50,13 @@ class DashboardResponse(BaseModel):
     total_documents: int = 0
     storage_used_mb: float = 0.0
     system_uptime_seconds: float = 0.0
-    users_by_role: dict[str, int] = {}
+    users_by_role: dict[str, int] = Field(default_factory=dict)
 
 
 class UserListResponse(BaseModel):
     """用户列表响应"""
     total: int
-    items: List[dict]
+    items: list[dict[str, Any]]
     skip: int
     limit: int
 
@@ -67,11 +68,11 @@ class UserDetailResponse(BaseModel):
     name: str
     role: str
     is_active: bool
-    org_id: Optional[str] = None
-    avatar_url: Optional[str] = None
+    org_id: str | None = None
+    avatar_url: str | None = None
     login_type: str = "email"
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: str | None = None
+    updated_at: str | None = None
 
 
 class AdminCreateUserRequest(BaseModel):
@@ -80,17 +81,17 @@ class AdminCreateUserRequest(BaseModel):
     password: str = Field(..., min_length=6, description="密码，至少6位")
     name: str = Field(..., min_length=1, max_length=100)
     role: str = Field(default="member", description="角色: admin/lawyer/paralegal/client/member/viewer")
-    org_id: Optional[str] = None
+    org_id: str | None = None
     is_active: bool = True
 
 
 class AdminUpdateUserRequest(BaseModel):
     """管理员更新用户请求"""
-    name: Optional[str] = Field(None, min_length=1, max_length=100)
-    role: Optional[str] = None
-    is_active: Optional[bool] = None
-    org_id: Optional[str] = None
-    avatar_url: Optional[str] = None
+    name: str | None = Field(None, min_length=1, max_length=100)
+    role: str | None = None
+    is_active: bool | None = None
+    org_id: str | None = None
+    avatar_url: str | None = None
 
 
 class ToggleStatusRequest(BaseModel):
@@ -107,27 +108,27 @@ class RoleDefinition(BaseModel):
     """角色定义"""
     role_name: str
     display_name: str
-    permissions: List[str]
+    permissions: list[str]
 
 
 class UpdateRolePermissionsRequest(BaseModel):
     """更新角色权限请求"""
-    permissions: List[str]
+    permissions: list[str]
 
 
 class AuditLogListResponse(BaseModel):
     """审计日志列表响应"""
     total: int
-    items: List[dict]
+    items: list[dict[str, Any]]
     skip: int
     limit: int
 
 
 class AuditLogStatsResponse(BaseModel):
     """审计统计响应"""
-    actions_per_day: List[dict] = []
-    top_users: List[dict] = []
-    top_actions: List[dict] = []
+    actions_per_day: list[dict[str, Any]] = Field(default_factory=list)
+    top_users: list[dict[str, Any]] = Field(default_factory=list)
+    top_actions: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class SystemConfigResponse(BaseModel):
@@ -138,14 +139,14 @@ class SystemConfigResponse(BaseModel):
     debug: bool
     rate_limit_enabled: bool
     rate_limit_per_minute: int
-    cors_origins: List[str]
+    cors_origins: list[str]
     password_min_length: int
 
 
 class UpdateSystemConfigRequest(BaseModel):
     """更新系统配置请求"""
-    rate_limit_per_minute: Optional[int] = None
-    password_min_length: Optional[int] = None
+    rate_limit_per_minute: int | None = None
+    password_min_length: int | None = None
 
 
 class SystemHealthResponse(BaseModel):
@@ -159,22 +160,22 @@ class SystemHealthResponse(BaseModel):
 class OrgCreateRequest(BaseModel):
     """创建组织请求"""
     name: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = None
-    logo_url: Optional[str] = None
+    description: str | None = None
+    logo_url: str | None = None
 
 
 class OrgUpdateRequest(BaseModel):
     """更新组织请求"""
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    description: Optional[str] = None
-    logo_url: Optional[str] = None
-    is_active: Optional[bool] = None
+    name: str | None = Field(None, min_length=1, max_length=255)
+    description: str | None = None
+    logo_url: str | None = None
+    is_active: bool | None = None
 
 
 class OrgListResponse(BaseModel):
     """组织列表响应"""
     total: int
-    items: List[dict]
+    items: list[dict[str, Any]]
     skip: int
     limit: int
 
@@ -182,7 +183,7 @@ class OrgListResponse(BaseModel):
 # ========== 辅助函数 ==========
 
 
-def _user_to_dict(user: User) -> dict:
+def _user_to_dict(user: User) -> dict[str, Any]:
     """将用户模型转为字典"""
     return {
         "id": user.id,
@@ -198,7 +199,7 @@ def _user_to_dict(user: User) -> dict:
     }
 
 
-def _org_to_dict(org: Organization) -> dict:
+def _org_to_dict(org: Organization) -> dict[str, Any]:
     """将组织模型转为字典"""
     return {
         "id": org.id,
@@ -208,6 +209,22 @@ def _org_to_dict(org: Organization) -> dict:
         "is_active": org.is_active,
         "created_at": org.created_at.isoformat() if org.created_at else None,
         "updated_at": org.updated_at.isoformat() if org.updated_at else None,
+    }
+
+
+def _webhook_to_dict(record: WebhookReceived) -> dict[str, Any]:
+    """将 webhook 处理记录转为后台可展示字典"""
+    return {
+        "id": record.id,
+        "scope": record.scope,
+        "idempotency_key": record.idempotency_key,
+        "status": record.status,
+        "payload": record.payload,
+        "processed_at": record.processed_at.isoformat() if record.processed_at else None,
+        "error": record.error,
+        "retry_count": record.retry_count,
+        "created_at": record.created_at.isoformat() if record.created_at else None,
+        "updated_at": record.updated_at.isoformat() if record.updated_at else None,
     }
 
 
@@ -229,7 +246,7 @@ ROLE_DISPLAY_NAMES = {
 async def get_dashboard(
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> DashboardResponse:
     """获取系统概览统计数据"""
     # 用户总数
     total_users_result = await db.execute(select(func.count(User.id)))
@@ -286,6 +303,77 @@ async def get_dashboard(
     )
 
 
+@router.get("/webhooks", summary="Webhook 处理记录")
+async def list_webhook_records(
+    scope: str | None = Query(None, description="按 webhook scope 过滤"),
+    status_filter: str | None = Query(None, alias="status", description="按处理状态过滤"),
+    skip: int = Query(0, ge=0, description="跳过记录数"),
+    limit: int = Query(50, ge=1, le=200, description="返回数量上限"),
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """查看 webhook 幂等处理记录，供支付/电签回调排障使用。"""
+    query = select(WebhookReceived)
+    count_query = select(func.count(WebhookReceived.id))
+    conditions = []
+    if scope:
+        conditions.append(WebhookReceived.scope == scope)
+    if status_filter:
+        conditions.append(WebhookReceived.status == status_filter)
+    if conditions:
+        query = query.where(and_(*conditions))
+        count_query = count_query.where(and_(*conditions))
+
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+    result = await db.execute(
+        query.order_by(WebhookReceived.created_at.desc()).offset(skip).limit(limit)
+    )
+    records = result.scalars().all()
+
+    stats_result = await db.execute(
+        select(WebhookReceived.status, func.count(WebhookReceived.id)).group_by(WebhookReceived.status)
+    )
+    stats: dict[str, int] = {}
+    for status, count in stats_result.all():
+        stats[status] = count
+
+    return {
+        "total": total,
+        "items": [_webhook_to_dict(record) for record in records],
+        "skip": skip,
+        "limit": limit,
+        "stats": stats,
+    }
+
+
+@router.post("/webhooks/{record_id}/retry", summary="重试失败 Webhook")
+async def retry_webhook_record(
+    record_id: str,
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """手动重试失败 webhook，供支付/电签回调排障后恢复业务状态。"""
+    record = await db.get(WebhookReceived, record_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Webhook 记录不存在")
+    if record.status != "failed":
+        raise HTTPException(status_code=409, detail="仅 failed webhook 记录可重试")
+
+    try:
+        result = await retry_failed_webhook(db, record)
+        await db.commit()
+    except WebhookRetryError as exc:
+        await db.commit()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    await db.refresh(record)
+    return {
+        "record": _webhook_to_dict(record),
+        "result": result,
+    }
+
+
 # ========== 用户管理 ==========
 
 
@@ -293,12 +381,12 @@ async def get_dashboard(
 async def list_users(
     skip: int = Query(0, ge=0, description="跳过记录数"),
     limit: int = Query(20, ge=1, le=100, description="每页记录数"),
-    search: Optional[str] = Query(None, description="搜索关键词（邮箱/姓名）"),
-    role: Optional[str] = Query(None, description="按角色筛选"),
-    is_active: Optional[bool] = Query(None, description="按状态筛选"),
+    search: str | None = Query(None, description="搜索关键词（邮箱/姓名）"),
+    role: str | None = Query(None, description="按角色筛选"),
+    is_active: bool | None = Query(None, description="按状态筛选"),
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> UserListResponse:
     """获取用户列表，支持分页、搜索和筛选"""
     query = select(User)
     count_query = select(func.count(User.id))
@@ -346,7 +434,7 @@ async def get_user_detail(
     user_id: str,
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> UserDetailResponse:
     """获取单个用户详情"""
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
@@ -364,7 +452,7 @@ async def create_user(
     request: Request,
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> UserDetailResponse:
     """管理员创建用户"""
     # 验证密码强度
     from src.api.routes.auth import validate_password
@@ -392,7 +480,7 @@ async def create_user(
             user.is_active = False
             await db.flush()
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     # 审计日志
     audit_service = AuditService(db)
@@ -416,7 +504,7 @@ async def update_user(
     request: Request,
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> UserDetailResponse:
     """管理员更新用户信息"""
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
@@ -472,7 +560,7 @@ async def toggle_user_status(
     request: Request,
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> UserDetailResponse:
     """启用/禁用用户"""
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
@@ -512,7 +600,7 @@ async def reset_user_password(
     request: Request,
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, str]:
     """管理员重置用户密码"""
     from src.api.routes.auth import validate_password
     validate_password(body.new_password)
@@ -543,10 +631,10 @@ async def reset_user_password(
 # ========== 角色与权限管理 ==========
 
 
-@router.get("/roles", response_model=List[RoleDefinition], summary="角色列表")
+@router.get("/roles", response_model=list[RoleDefinition], summary="角色列表")
 async def list_roles(
     admin: User = Depends(get_admin_user),
-):
+) -> list[RoleDefinition]:
     """获取所有角色定义及其权限"""
     roles = []
     for role_value, permissions in ROLE_PERMISSIONS.items():
@@ -565,7 +653,7 @@ async def update_role_permissions(
     request: Request,
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> RoleDefinition:
     """更新指定角色的权限（运行时修改，重启后恢复默认）"""
     if role_name not in ROLE_PERMISSIONS:
         raise HTTPException(status_code=404, detail=f"角色 {role_name} 不存在")
@@ -621,7 +709,7 @@ async def get_audit_stats(
     days: int = Query(7, ge=1, le=90, description="统计天数"),
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> AuditLogStatsResponse:
     """获取审计日志统计数据"""
     start_time = datetime.utcnow() - timedelta(days=days)
 
@@ -678,14 +766,14 @@ async def get_audit_stats(
 async def list_audit_logs(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
-    action: Optional[str] = Query(None, description="按操作类型筛选"),
-    user_id: Optional[str] = Query(None, description="按用户ID筛选"),
-    resource_type: Optional[str] = Query(None, description="按资源类型筛选"),
-    start_date: Optional[datetime] = Query(None, description="开始时间"),
-    end_date: Optional[datetime] = Query(None, description="结束时间"),
+    action: str | None = Query(None, description="按操作类型筛选"),
+    user_id: str | None = Query(None, description="按用户ID筛选"),
+    resource_type: str | None = Query(None, description="按资源类型筛选"),
+    start_date: datetime | None = Query(None, description="开始时间"),
+    end_date: datetime | None = Query(None, description="结束时间"),
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> AuditLogListResponse:
     """获取审计日志列表，支持多维度筛选"""
     audit_service = AuditService(db)
 
@@ -722,7 +810,7 @@ async def get_audit_log_detail(
     log_id: str,
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """获取单条审计日志详情"""
     result = await db.execute(select(AuditLog).where(AuditLog.id == log_id))
     log = result.scalar_one_or_none()
@@ -741,7 +829,7 @@ async def export_audit_report(
     days: int = Query(30, ge=1, le=365, description="导出天数范围"),
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """导出合规审计报告（JSON 格式，可用于律所合规证明）"""
     start_time = datetime.utcnow() - timedelta(days=days)
     audit_service = AuditService(db)
@@ -757,18 +845,17 @@ async def get_compliance_report(
     days: int = Query(30, ge=1, le=365, description="报告天数范围"),
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """
     V2：生成律所合规审计报告（用于导出 PDF）
 
     返回结构化数据：操作统计 / 用户活跃度 / 异常操作。
     前端接到数据后渲染为 PDF 格式下载。
     """
-    from datetime import timezone
     org_id = getattr(admin, 'org_id', None)
     if not org_id:
         return UnifiedResponse.error(code=400, message="当前账号无组织归属，无法生成合规报告")
-    end_time = datetime.now(timezone.utc)
+    end_time = datetime.now(UTC)
     start_time = end_time - timedelta(days=days)
     audit_service = AuditService(db)
     report = await audit_service.generate_compliance_report(
@@ -785,7 +872,7 @@ async def get_compliance_report(
 @router.get("/system/config", response_model=SystemConfigResponse, summary="获取系统配置")
 async def get_system_config(
     admin: User = Depends(get_admin_user),
-):
+) -> SystemConfigResponse:
     """获取系统配置（仅非敏感项）"""
     from src.core.config import settings
 
@@ -807,7 +894,7 @@ async def update_system_config(
     request: Request,
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> SystemConfigResponse:
     """更新系统配置（运行时修改，重启后恢复默认）"""
     from src.core.config import settings
 
@@ -856,7 +943,7 @@ async def update_system_config(
 async def system_health_check(
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> SystemHealthResponse:
     """系统健康检查（数据库、Redis、Qdrant 连接状态）"""
     uptime = time.time() - _system_start_time
 
@@ -898,10 +985,10 @@ async def system_health_check(
 async def list_organizations(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
-    search: Optional[str] = Query(None, description="搜索组织名称"),
+    search: str | None = Query(None, description="搜索组织名称"),
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> OrgListResponse:
     """获取组织列表"""
     query = select(Organization)
     count_query = select(func.count(Organization.id))
@@ -932,7 +1019,7 @@ async def create_organization(
     request: Request,
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """创建新组织"""
     # 检查名称是否重复
     existing = await db.execute(
@@ -971,7 +1058,7 @@ async def update_organization(
     request: Request,
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """更新组织信息"""
     result = await db.execute(select(Organization).where(Organization.id == org_id))
     org = result.scalar_one_or_none()

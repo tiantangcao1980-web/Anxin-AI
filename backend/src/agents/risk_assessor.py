@@ -2,19 +2,18 @@
 风险评估智能体
 """
 
-from typing import Any, Dict, List
+from typing import Any
 
-from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
+from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
-
 
 _FALLBACK_PROMPT = "你是一位专业的法律风险评估专家，擅长识别和评估各类法律风险。"
 
 
 class RiskAssessmentAgent(BaseLegalAgent):
     """风险评估智能体"""
-    
-    def __init__(self):
+
+    def __init__(self) -> None:
         config = AgentConfig(
             name="风险评估Agent",
             role="风险评估专家",
@@ -23,13 +22,14 @@ class RiskAssessmentAgent(BaseLegalAgent):
             tools=["risk_database", "case_analysis"],
         )
         super().__init__(config)
-    
-    async def process(self, task: Dict[str, Any]) -> AgentResponse:
+
+    async def process(self, task: dict[str, Any]) -> AgentResponse:
         """处理风险评估任务 (支持 A2UI 动态输出)"""
         description = task.get("description", "")
         context = task.get("context", {})
         dependent_results = task.get("dependent_results", {})
-        
+        context_text = f"\n补充背景：{context}\n" if context else ""
+
         # 整合前置智能体的结果
         context_info = ""
         if dependent_results:
@@ -37,12 +37,13 @@ class RiskAssessmentAgent(BaseLegalAgent):
             for t_id, result in dependent_results.items():
                 if isinstance(result, AgentResponse):
                     context_info += f"- {result.agent_name} (任务 {t_id})：{result.content[:200]}...\n"
-        
+
         # 构建评估提示，要求输出包含 A2UI 结构
         prompt = f"""
 请对以下事项进行法律风险评估：
 
 评估对象：{description}
+{context_text}
 {context_info}
 
 请提供：
@@ -78,10 +79,10 @@ JSON 格式示例：
 }}
 ```
 """
-        
+
         # 调用Agent
         response_text = await self.chat(prompt)
-        
+
         # 提取 A2UI JSON
         import json
         import re
@@ -89,14 +90,14 @@ JSON 格式示例：
         json_match = re.search(r'```json\s*(\{.*?\})\s*```', response_text, re.DOTALL)
         if not json_match:
             json_match = re.search(r'(\{.*"a2ui".*\})', response_text, re.DOTALL)
-            
+
         if json_match:
             try:
                 raw_json = json.loads(json_match.group(1))
                 a2ui_data = raw_json.get("a2ui", {})
-            except:
+            except Exception:
                 pass
-        
+
         return AgentResponse(
             agent_name=self.name,
             content=response_text,
@@ -106,8 +107,8 @@ JSON 格式示例：
                 {"type": "risk_assessment", "description": "风险评估完成"}
             ]
         )
-    
-    async def assess_transaction(self, transaction_info: Dict[str, Any]) -> Dict[str, Any]:
+
+    async def assess_transaction(self, transaction_info: dict[str, Any]) -> dict[str, Any]:
         """评估交易风险"""
         prompt = f"""
 请评估以下交易的法律风险：
@@ -127,20 +128,20 @@ JSON 格式示例：
 给出综合风险评级和建议。
 """
         response = await self.chat(prompt)
-        
+
         return {
             "transaction": transaction_info,
             "assessment": response,
             "agent": self.name
         }
-    
-    async def generate_risk_matrix(self, risks: List[Dict[str, Any]]) -> str:
+
+    async def generate_risk_matrix(self, risks: list[dict[str, Any]]) -> str:
         """生成风险矩阵"""
         risks_str = "\n".join([
             f"- {r.get('name', '未知风险')}：{r.get('description', '')}"
             for r in risks
         ])
-        
+
         prompt = f"""
 请为以下风险生成风险矩阵：
 
@@ -157,28 +158,28 @@ JSON 格式示例：
 请以表格形式输出。
 """
         return await self.chat(prompt)
-    
-    async def calculate_risk_score(self, factors: Dict[str, Any]) -> Dict[str, Any]:
+
+    async def calculate_risk_score(self, factors: dict[str, Any]) -> dict[str, Any]:
         """计算风险评分"""
         # 简单的风险评分逻辑
         score = 0.0
-        
+
         # 合同风险
         contract_risk = factors.get("contract_risk", 0.5)
         score += contract_risk * 0.3
-        
+
         # 诉讼风险
         litigation_risk = factors.get("litigation_risk", 0.3)
         score += litigation_risk * 0.25
-        
+
         # 合规风险
         compliance_risk = factors.get("compliance_risk", 0.4)
         score += compliance_risk * 0.25
-        
+
         # 其他风险
         other_risk = factors.get("other_risk", 0.3)
         score += other_risk * 0.2
-        
+
         # 确定风险等级
         if score >= 0.75:
             level = "critical"
@@ -188,7 +189,7 @@ JSON 格式示例：
             level = "medium"
         else:
             level = "low"
-        
+
         return {
             "score": round(score, 2),
             "level": level,

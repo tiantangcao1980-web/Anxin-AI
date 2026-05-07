@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 CLI 命令接口
 
@@ -16,21 +15,32 @@ CLI 命令接口
 import hashlib
 import time
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any, TypedDict
 
-from fastapi import APIRouter, Depends, HTTPException, Header, Query
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, Header, HTTPException
 from loguru import logger
+from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/cli", tags=["CLI"])
 
 
+class APIKeyRecord(TypedDict):
+    key_id: str
+    key_hash: str
+    name: str
+    user_id: str
+    scopes: list[str]
+    expires_at: str
+    created_at: str
+    last_used_at: str | None
+
+
 # ===== API Key 存储（内存版，生产环境应持久化到数据库） =====
-_api_keys: Dict[str, Dict[str, Any]] = {}
+_api_keys: dict[str, APIKeyRecord] = {}
 
 # CLI 命令频率限制
-_rate_limits: Dict[str, List[float]] = {}
+_rate_limits: dict[str, list[float]] = {}
 CLI_RATE_LIMIT = 30  # 每分钟最多 30 条
 
 
@@ -39,16 +49,16 @@ CLI_RATE_LIMIT = 30  # 每分钟最多 30 条
 class APIKeyCreateRequest(BaseModel):
     """创建 API Key"""
     name: str = Field(..., description="Key 名称（用于标识）")
-    scopes: List[str] = Field(default=["read", "chat"], description="权限范围")
+    scopes: list[str] = Field(default=["read", "chat"], description="权限范围")
     expires_days: int = Field(default=90, le=90, description="有效期（天），最长90天")
 
 
 class APIKeyResponse(BaseModel):
     """API Key 响应（仅创建时返回明文）"""
     key_id: str
-    api_key: Optional[str] = None  # 仅创建时返回
+    api_key: str | None = None  # 仅创建时返回
     name: str
-    scopes: List[str]
+    scopes: list[str]
     expires_at: str
     created_at: str
 
@@ -56,7 +66,7 @@ class APIKeyResponse(BaseModel):
 class CLICommandRequest(BaseModel):
     """CLI 命令请求"""
     command: str = Field(..., description="命令: consult/review/draft/search/template/status")
-    args: Dict[str, Any] = Field(default_factory=dict, description="命令参数")
+    args: dict[str, Any] = Field(default_factory=dict, description="命令参数")
 
 
 class CLICommandResponse(BaseModel):
@@ -64,13 +74,13 @@ class CLICommandResponse(BaseModel):
     success: bool
     command: str
     result: Any = None
-    error: Optional[str] = None
+    error: str | None = None
     execution_time_ms: float = 0
 
 
 # ===== API Key 认证 =====
 
-async def verify_api_key(x_api_key: str = Header(..., alias="X-API-Key")) -> Dict[str, Any]:
+async def verify_api_key(x_api_key: str = Header(..., alias="X-API-Key")) -> APIKeyRecord:
     """验证 API Key"""
     key_hash = hashlib.sha256(x_api_key.encode()).hexdigest()
 
@@ -79,7 +89,7 @@ async def verify_api_key(x_api_key: str = Header(..., alias="X-API-Key")) -> Dic
         raise HTTPException(status_code=401, detail="无效的 API Key")
 
     # 检查过期
-    if datetime.fromisoformat(key_data["expires_at"]) < datetime.now(timezone.utc):
+    if datetime.fromisoformat(key_data["expires_at"]) < datetime.now(UTC):
         raise HTTPException(status_code=401, detail="API Key 已过期，请重新生成")
 
     # 频率限制
@@ -93,7 +103,7 @@ async def verify_api_key(x_api_key: str = Header(..., alias="X-API-Key")) -> Dic
     _rate_limits[user_id].append(now)
 
     # 更新最后使用时间
-    key_data["last_used_at"] = datetime.now(timezone.utc).isoformat()
+    key_data["last_used_at"] = datetime.now(UTC).isoformat()
 
     return key_data
 
@@ -101,14 +111,13 @@ async def verify_api_key(x_api_key: str = Header(..., alias="X-API-Key")) -> Dic
 # ===== API Key 管理 =====
 
 @router.post("/keys", summary="创建 API Key")
-async def create_api_key(request: APIKeyCreateRequest):
+async def create_api_key(request: APIKeyCreateRequest) -> APIKeyResponse:
     """
     创建新的 CLI API Key。
 
     注意：API Key 仅在创建时显示一次，请妥善保存。
     有效期最长 90 天，到期后需重新创建。
     """
-    from src.core.deps import get_current_user_required
 
     # 生成 Key
     raw_key = f"anxin_cli_{uuid.uuid4().hex}"
@@ -116,16 +125,16 @@ async def create_api_key(request: APIKeyCreateRequest):
     key_id = uuid.uuid4().hex[:12]
 
     from datetime import timedelta
-    expires_at = datetime.now(timezone.utc) + timedelta(days=request.expires_days)
+    expires_at = datetime.now(UTC) + timedelta(days=request.expires_days)
 
-    key_data = {
+    key_data: APIKeyRecord = {
         "key_id": key_id,
         "key_hash": key_hash,
         "name": request.name,
         "user_id": "system",  # 实际应从认证用户获取
         "scopes": request.scopes,
         "expires_at": expires_at.isoformat(),
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "last_used_at": None,
     }
 
@@ -144,7 +153,7 @@ async def create_api_key(request: APIKeyCreateRequest):
 
 
 @router.get("/keys", summary="列出 API Keys")
-async def list_api_keys():
+async def list_api_keys() -> dict[str, str | list[APIKeyResponse]]:
     """列出所有有效的 API Keys（不返回 key 值）"""
     keys = []
     for key_data in _api_keys.values():
@@ -159,7 +168,7 @@ async def list_api_keys():
 
 
 @router.delete("/keys/{key_id}", summary="撤销 API Key")
-async def revoke_api_key(key_id: str):
+async def revoke_api_key(key_id: str) -> dict[str, str]:
     """撤销指定的 API Key"""
     for key_hash, key_data in list(_api_keys.items()):
         if key_data["key_id"] == key_id:
@@ -190,8 +199,8 @@ BLOCKED_COMMANDS = {"delete", "payment", "sign", "admin"}
 @router.post("/execute", response_model=CLICommandResponse, summary="执行 CLI 命令")
 async def execute_command(
     request: CLICommandRequest,
-    key_data: Dict = Depends(verify_api_key),
-):
+    key_data: APIKeyRecord = Depends(verify_api_key),
+) -> CLICommandResponse:
     """
     执行 CLI 命令。
 
@@ -221,7 +230,7 @@ async def execute_command(
 
     # 安全检查2：权限 scope 校验
     required_scope = COMMAND_SCOPES.get(command, "read")
-    if required_scope not in key_data.get("scopes", []):
+    if required_scope not in key_data["scopes"]:
         return CLICommandResponse(
             success=False,
             command=command,
@@ -251,7 +260,7 @@ async def execute_command(
         )
 
 
-async def _dispatch_command(command: str, args: Dict[str, Any]) -> Any:
+async def _dispatch_command(command: str, args: dict[str, Any]) -> Any:
     """命令路由分发"""
 
     if command == "status":

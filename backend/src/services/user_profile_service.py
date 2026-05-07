@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 用户画像服务 (User Profile Service)
 
@@ -11,16 +10,16 @@
 """
 
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, cast
+
 from loguru import logger
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.user import User
 
-
 # 默认画像结构
-DEFAULT_AI_PROFILE = {
+DEFAULT_AI_PROFILE: dict[str, Any] = {
     "legal_sophistication": "intermediate",  # novice / intermediate / expert
     "industry": "",
     "common_scenarios": {},  # {"CONTRACT_REVIEW": 12, "LABOR_HR": 5}
@@ -58,15 +57,16 @@ class UserProfileService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_profile(self, user_id: str) -> Dict[str, Any]:
+    async def get_profile(self, user_id: str) -> dict[str, Any]:
         """
         加载用户 AI 画像，不存在则返回默认值。
         """
         result = await self.db.execute(
             select(User.ai_profile).where(User.id == user_id)
         )
-        row = result.scalar_one_or_none()
-        if row and isinstance(row, dict) and row:
+        raw_profile = result.scalar_one_or_none()
+        if raw_profile and isinstance(raw_profile, dict):
+            row = cast(dict[str, Any], raw_profile)
             # 合并默认值确保字段完整
             profile = {**DEFAULT_AI_PROFILE, **row}
             profile["interaction_stats"] = {
@@ -76,7 +76,7 @@ class UserProfileService:
             return profile
         return dict(DEFAULT_AI_PROFILE)
 
-    async def save_profile(self, user_id: str, profile: Dict[str, Any]) -> None:
+    async def save_profile(self, user_id: str, profile: dict[str, Any]) -> None:
         """持久化用户画像到数据库"""
         profile["updated_at"] = datetime.now().isoformat()
         await self.db.execute(
@@ -91,7 +91,7 @@ class UserProfileService:
         clarification_rounds: int = 0,
         clarification_abandoned: bool = False,
         user_input_sample: str = "",
-        feedback_rating: Optional[int] = None,
+        feedback_rating: int | None = None,
     ) -> None:
         """
         会话结束后更新用户画像。
@@ -156,7 +156,7 @@ class UserProfileService:
 
     async def get_clarification_config(
         self, user_id: str, intent: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         根据用户画像返回追问配置（置信度门控 + 耐心度自适应）。
 

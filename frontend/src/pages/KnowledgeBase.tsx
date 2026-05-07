@@ -29,6 +29,7 @@ import {
 } from '@/lib/design-tokens'
 import { StatCard as UnifiedStatCard } from '@/components/ui-unified'
 import { knowledgeApi, type KnowledgeBase as KB, type KnowledgeDocument } from '@/lib/api'
+import { SmartSearch } from '@/components/knowledge-center/SmartSearch'
 import { toast } from 'sonner'
 
 // ============================================================
@@ -110,6 +111,7 @@ function Overlay({ open, onClose, title, wide, children }: {
 
 export default function KnowledgeBase() {
   const navigate = useNavigate()
+  const [viewMode, setViewMode] = useState<'manage' | 'search'>('manage')
   // ---- 列表视图状态 ----
   const [bases, setBases] = useState<KB[]>([])
   const [loading, setLoading] = useState(false)
@@ -852,13 +854,37 @@ export default function KnowledgeBase() {
     <PageContainer
       title="司法智库"
       actions={
+        viewMode === 'manage' ? (
         <button onClick={() => { setBaseForm({ name: '', description: '', knowledge_type: 'general', is_public: false }); setShowCreate(true) }} className={buttonStyle.primary}>
           <icons.Plus className={`${iconSize.sm} inline-block mr-1`} />
           新建知识库
         </button>
+        ) : null
       }
       toolbar={
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full">
+        <div className="flex w-full flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex w-fit gap-1.5 rounded-xl bg-muted p-1">
+            {[
+              { key: 'manage', label: '知识库管理', icon: icons.Database },
+              { key: 'search', label: '智慧搜索', icon: icons.Search },
+            ].map(item => (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => setViewMode(item.key as 'manage' | 'search')}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                  viewMode === item.key
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <item.icon className={iconSize.xs} />
+                {item.label}
+              </button>
+            ))}
+          </div>
+          {viewMode === 'manage' && (
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full xl:w-auto xl:flex-1 xl:justify-end">
           <div className="relative flex-1 max-w-md">
             <icons.Search className={`${iconSize.sm} absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground`} />
             <input
@@ -872,9 +898,16 @@ export default function KnowledgeBase() {
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
+          </div>
+          )}
         </div>
       }
     >
+      {viewMode === 'search' ? (
+        <div className="min-h-[720px] overflow-hidden rounded-xl border border-border bg-background">
+          <SmartSearch />
+        </div>
+      ) : (
       <div>
         {loading ? (
           <LoadingState />
@@ -951,6 +984,7 @@ export default function KnowledgeBase() {
           </>
         )}
       </div>
+      )}
 
       {/* 弹窗 */}
       {renderCreateEditModal()}

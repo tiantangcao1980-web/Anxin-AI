@@ -1,13 +1,12 @@
-# -*- coding: utf-8 -*-
 """
 LLM 法律实体关系抽取服务
 使用 LLM 从法律文本中提取实体和关系
 """
 
 import json
-from typing import Dict, Any, List
-from loguru import logger
+from typing import Any
 
+from loguru import logger
 
 EXTRACTION_PROMPT = """你是一个专业的法律信息抽取助手。请从以下法律文本中提取实体和关系。
 
@@ -33,7 +32,7 @@ EXTRACTION_PROMPT = """你是一个专业的法律信息抽取助手。请从以
 class EntityExtractionService:
     """LLM 法律实体关系抽取服务"""
 
-    async def extract(self, text: str) -> Dict[str, Any]:
+    async def extract(self, text: str) -> dict[str, Any]:
         """从文本中抽取实体和关系"""
         if not text or not text.strip():
             return {"entities": [], "relations": [], "error": "文本为空"}
@@ -62,7 +61,7 @@ class EntityExtractionService:
             logger.error(f"LLM 实体抽取失败: {e}")
             return self._rule_based_extract(text)
 
-    def _parse_extraction_result(self, content: str) -> Dict[str, Any]:
+    def _parse_extraction_result(self, content: str) -> dict[str, Any]:
         """解析LLM输出的JSON"""
         try:
             # 尝试直接解析
@@ -87,11 +86,11 @@ class EntityExtractionService:
             logger.warning(f"JSON解析失败: {e}")
         return {"entities": [], "relations": [], "parse_error": "无法解析LLM输出"}
 
-    def _rule_based_extract(self, text: str) -> Dict[str, Any]:
+    def _rule_based_extract(self, text: str) -> dict[str, Any]:
         """基于规则的简单实体抽取（回退方案）"""
         import re
-        entities = []
-        relations = []
+        entities: list[dict[str, Any]] = []
+        relations: list[dict[str, Any]] = []
 
         # 法院
         courts = re.findall(r'[\u4e00-\u9fa5]+(?:人民法院|仲裁委员会)', text)
@@ -99,7 +98,7 @@ class EntityExtractionService:
             entities.append({"name": court, "type": "Court", "properties": {}})
 
         # 法律法规
-        laws = re.findall(r'《([\u4e00-\u9fa5]+(?:法|条例|规定|办法|细则))》', text)
+        laws = re.findall(r'《([\u4e00-\u9fa5]+(?:法|典|条例|规定|办法|细则))》', text)
         for law in set(laws):
             entities.append({"name": law, "type": "Law", "properties": {}})
 

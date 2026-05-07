@@ -1,0 +1,262 @@
+{
+  "generated_at": "2026-05-07T08:05:27.392937+00:00",
+  "run_label": "rag-live-qdrant-full50",
+  "mode": "rag_full50_preflight_failure",
+  "status": "failed",
+  "error": {
+    "type": "ValueError",
+    "message": "Corpus is missing 30 golden relevant chunks: advertising_law_9_0, civil_code_188_0, civil_procedure_evidence_rules_2_0, civil_procedure_law_103_0, civil_procedure_law_122_0, civil_procedure_law_161_0, civil_procedure_law_171_0, civil_procedure_law_182_0, civil_procedure_law_246_0, civil_procedure_law_24_0, civil_procedure_law_34_0, civil_procedure_law_35_0, civil_procedure_law_84_0, company_law_147_0, company_law_149_0, company_law_15_0, company_law_16_0, company_law_37_0, consumer_rights_law_29_0, cybersecurity_law_41_0"
+  },
+  "corpus": {
+    "path": "builtin://legal_corpus_loader",
+    "sha256": "a6b63be3fd4fc8e6edd926e1e47cbf8023cbab04c80f8d3d699f005ca8367553",
+    "chunk_count": 42,
+    "available_chunk_count": 42
+  },
+  "golden": {
+    "path": "eval/rag_golden_set.jsonl",
+    "sha256": "4855aeb8a4c1088cb7a4dddaaf586412796e61a327989bce7399c41d1daa9002",
+    "question_count": 50,
+    "min_questions": 50,
+    "smoke_question_count": 10,
+    "smoke_question_sample": [
+      "Q-0001",
+      "Q-0002",
+      "Q-0003",
+      "Q-0004",
+      "Q-0005",
+      "Q-0006",
+      "Q-0007",
+      "Q-0008",
+      "Q-0009",
+      "Q-0010"
+    ]
+  },
+  "diagnostics": {
+    "required_chunk_count": 60,
+    "missing_chunk_count": 30,
+    "missing_chunk_sample": [
+      "advertising_law_9_0",
+      "civil_code_188_0",
+      "civil_procedure_evidence_rules_2_0",
+      "civil_procedure_law_103_0",
+      "civil_procedure_law_122_0",
+      "civil_procedure_law_161_0",
+      "civil_procedure_law_171_0",
+      "civil_procedure_law_182_0",
+      "civil_procedure_law_246_0",
+      "civil_procedure_law_24_0",
+      "civil_procedure_law_34_0",
+      "civil_procedure_law_35_0",
+      "civil_procedure_law_84_0",
+      "company_law_147_0",
+      "company_law_149_0",
+      "company_law_15_0",
+      "company_law_16_0",
+      "company_law_37_0",
+      "consumer_rights_law_29_0",
+      "cybersecurity_law_41_0",
+      "cybersecurity_law_42_0",
+      "data_security_law_27_0",
+      "ecommerce_law_24_0",
+      "ecommerce_law_25_0",
+      "pipl_13_0",
+      "pipl_14_0",
+      "pipl_28_0",
+      "pipl_29_0",
+      "pipl_38_0",
+      "pipl_39_0"
+    ],
+    "law_ref_gap_sample": [
+      {
+        "question_id": "Q-0009",
+        "missing_law_refs": "民事诉讼法:第34条, 民事诉讼法:第35条"
+      },
+      {
+        "question_id": "Q-0010",
+        "missing_law_refs": "个人信息保护法:第13条, 个人信息保护法:第14条"
+      },
+      {
+        "question_id": "Q-0031",
+        "missing_law_refs": "个人信息保护法:第28条, 个人信息保护法:第29条"
+      },
+      {
+        "question_id": "Q-0032",
+        "missing_law_refs": "个人信息保护法:第38条, 个人信息保护法:第39条"
+      },
+      {
+        "question_id": "Q-0033",
+        "missing_law_refs": "数据安全法:第27条"
+      },
+      {
+        "question_id": "Q-0034",
+        "missing_law_refs": "网络安全法:第41条, 网络安全法:第42条"
+      },
+      {
+        "question_id": "Q-0035",
+        "missing_law_refs": "公司法:第15条, 公司法:第16条"
+      },
+      {
+        "question_id": "Q-0036",
+        "missing_law_refs": "公司法:第37条"
+      },
+      {
+        "question_id": "Q-0037",
+        "missing_law_refs": "公司法:第147条, 公司法:第149条"
+      },
+      {
+        "question_id": "Q-0038",
+        "missing_law_refs": "广告法:第9条"
+      },
+      {
+        "question_id": "Q-0039",
+        "missing_law_refs": "消费者权益保护法:第29条"
+      },
+      {
+        "question_id": "Q-0040",
+        "missing_law_refs": "电子商务法:第24条, 电子商务法:第25条"
+      },
+      {
+        "question_id": "Q-0041",
+        "missing_law_refs": "民事诉讼证据规定:第2条"
+      },
+      {
+        "question_id": "Q-0042",
+        "missing_law_refs": "民法典:第188条"
+      },
+      {
+        "question_id": "Q-0043",
+        "missing_law_refs": "民事诉讼法:第103条"
+      },
+      {
+        "question_id": "Q-0044",
+        "missing_law_refs": "民事诉讼法:第122条"
+      },
+      {
+        "question_id": "Q-0045",
+        "missing_law_refs": "民事诉讼法:第161条"
+      },
+      {
+        "question_id": "Q-0046",
+        "missing_law_refs": "民事诉讼法:第246条"
+      },
+      {
+        "question_id": "Q-0047",
+        "missing_law_refs": "民事诉讼法:第24条, 民事诉讼法:第35条"
+      },
+      {
+        "question_id": "Q-0048",
+        "missing_law_refs": "民事诉讼法:第182条"
+      }
+    ]
+  },
+  "commercial_provenance": {
+    "artifact_kind": "preflight_failure",
+    "commercial_baseline_candidate": false,
+    "non_commercial_overrides": {
+      "allow_fixture_corpus": false,
+      "allow_smoke_golden": true,
+      "allow_missing_law_refs": false
+    },
+    "non_commercial_override_count": 1,
+    "smoke_question_count": 10,
+    "law_ref_coverage_required": true,
+    "fixture_corpus_rejected": true,
+    "smoke_golden_rejected": false
+  },
+  "readiness": {
+    "uses_repo_local_corpus": true,
+    "repo_relative_corpus_path": "backend/src/services/legal_corpus_loader.py",
+    "repo_relative_golden_path": "eval/rag_golden_set.jsonl",
+    "available_chunk_count": 42,
+    "smoke_question_count": 10,
+    "all_questions": {
+      "question_count": 50,
+      "required_chunk_count": 60,
+      "available_required_chunk_count": 30,
+      "missing_chunk_count": 30,
+      "missing_chunk_sample": [
+        "advertising_law_9_0",
+        "civil_code_188_0",
+        "civil_procedure_evidence_rules_2_0",
+        "civil_procedure_law_103_0",
+        "civil_procedure_law_122_0",
+        "civil_procedure_law_161_0",
+        "civil_procedure_law_171_0",
+        "civil_procedure_law_182_0",
+        "civil_procedure_law_246_0",
+        "civil_procedure_law_24_0",
+        "civil_procedure_law_34_0",
+        "civil_procedure_law_35_0",
+        "civil_procedure_law_84_0",
+        "company_law_147_0",
+        "company_law_149_0",
+        "company_law_15_0",
+        "company_law_16_0",
+        "company_law_37_0",
+        "consumer_rights_law_29_0",
+        "cybersecurity_law_41_0",
+        "cybersecurity_law_42_0",
+        "data_security_law_27_0",
+        "ecommerce_law_24_0",
+        "ecommerce_law_25_0",
+        "pipl_13_0",
+        "pipl_14_0",
+        "pipl_28_0",
+        "pipl_29_0",
+        "pipl_38_0",
+        "pipl_39_0"
+      ],
+      "coverage_ratio": 0.5
+    },
+    "non_smoke_questions": {
+      "question_count": 40,
+      "required_chunk_count": 47,
+      "available_required_chunk_count": 20,
+      "missing_chunk_count": 27,
+      "missing_chunk_sample": [
+        "advertising_law_9_0",
+        "civil_code_188_0",
+        "civil_procedure_evidence_rules_2_0",
+        "civil_procedure_law_103_0",
+        "civil_procedure_law_122_0",
+        "civil_procedure_law_161_0",
+        "civil_procedure_law_171_0",
+        "civil_procedure_law_182_0",
+        "civil_procedure_law_246_0",
+        "civil_procedure_law_24_0",
+        "civil_procedure_law_35_0",
+        "civil_procedure_law_84_0",
+        "company_law_147_0",
+        "company_law_149_0",
+        "company_law_15_0",
+        "company_law_16_0",
+        "company_law_37_0",
+        "consumer_rights_law_29_0",
+        "cybersecurity_law_41_0",
+        "cybersecurity_law_42_0",
+        "data_security_law_27_0",
+        "ecommerce_law_24_0",
+        "ecommerce_law_25_0",
+        "pipl_28_0",
+        "pipl_29_0",
+        "pipl_38_0",
+        "pipl_39_0"
+      ],
+      "coverage_ratio": 0.4255
+    },
+    "commercial_full50_ready": false,
+    "blockers": [
+      "golden_contains_smoke_questions:10",
+      "corpus_missing_required_chunks:30",
+      "corpus_missing_non_smoke_required_chunks:27"
+    ]
+  },
+  "next_steps": [
+    "Replace or split the current golden file with a non-smoke commercial export: the repo golden currently has 10 smoke rows and cannot serve as full50 release evidence.",
+    "Generate a built-in legal corpus export that covers every required chunk_id from the golden set: current input exposes 42 chunks and is missing 30 of 60 required chunks.",
+    "If you want a local non-smoke preflight before live Qdrant work, start with the 40 non-smoke questions already in repo and add the 27 missing chunks with `doc_id`, `chunk_id`, `content`, and `metadata.law_ref`/`source_url`.",
+    "Extend `backend/src/services/legal_corpus_loader.py::get_all_legal_corpus()` to add the missing compliance/litigation statutes required by full50 (currently missing PIPL, Data Security Law, Cybersecurity Law, Company Law, Advertising Law, Consumer Rights Protection Law, E-commerce Law, Civil Procedure Law, and Civil Procedure Evidence Rules coverage)."
+  ],
+  "completion_note": "Failure diagnostics only. Keep release evidence Status: pending until commercial golden/corpus coverage and live Qdrant metrics pass."
+}

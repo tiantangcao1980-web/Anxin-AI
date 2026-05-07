@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 安全挑战 API
 
@@ -7,13 +6,11 @@
 """
 
 import hashlib
-import secrets
-import time
-from typing import Optional
+from typing import Any, cast
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, status
 from loguru import logger
+from pydantic import BaseModel
 
 from src.core.config import settings
 
@@ -25,14 +22,14 @@ router = APIRouter()
 class SecurityConfigResponse(BaseModel):
     hmac_enabled: bool = False
     hmac_enforce: bool = False
-    public_signing_key: Optional[str] = None
+    public_signing_key: str | None = None
     fingerprint_enabled: bool = False
     pow_enabled: bool = False
     pow_difficulty: int = 4
 
 
 @router.get("/security-config", response_model=SecurityConfigResponse)
-async def get_security_config():
+async def get_security_config() -> SecurityConfigResponse:
     """返回前端需要的安全功能配置"""
     return SecurityConfigResponse(
         hmac_enabled=getattr(settings, "ANTIBOT_HMAC_ENABLED", False),
@@ -57,11 +54,12 @@ class ChallengeResponse(BaseModel):
 
 
 @router.post("/security-challenge", response_model=ChallengeResponse)
-async def verify_challenge(req: ChallengeRequest):
+async def verify_challenge(req: ChallengeRequest) -> ChallengeResponse:
     """验证 PoW 挑战解答"""
     try:
         import redis.asyncio as aioredis
-        redis_client = aioredis.from_url(
+        redis_from_url = cast(Any, aioredis.from_url)
+        redis_client = redis_from_url(
             settings.REDIS_URL, encoding="utf-8", decode_responses=True
         )
         key = f"antibot:challenge:{req.challenge_id}"

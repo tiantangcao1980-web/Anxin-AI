@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 阿里云邮件推送服务 (DirectMail)
 
@@ -12,13 +11,11 @@
 阿里云控制台：https://dm.console.aliyun.com
 SDK 文档：https://help.aliyun.com/document_detail/29444.html
 """
-
-from typing import Optional
+from typing import Any
 
 from loguru import logger
 
 from src.core.config import settings
-
 
 # ========== 邮件模板 ==========
 
@@ -51,10 +48,10 @@ VERIFY_EMAIL_TEMPLATE = """
 class EmailService:
     """阿里云邮件推送服务"""
 
-    _client = None
+    _client: Any | None = None
 
     @classmethod
-    def _get_client(cls):
+    def _get_client(cls) -> Any | None:
         """懒加载阿里云邮件客户端"""
         if cls._client is not None:
             return cls._client
@@ -138,7 +135,7 @@ class EmailService:
                 from_alias=settings.ALIYUN_EMAIL_ALIAS,
             )
 
-            response = client.single_send_mail(request)
+            client.single_send_mail(request)
             logger.info(f"邮件发送成功: to={to_address}, subject={subject}")
             return True
 

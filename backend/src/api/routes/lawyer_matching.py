@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 找律师 API 路由
 
@@ -11,23 +10,37 @@
 6. GET  /lawyers/hall — 入驻律师接单大厅
 """
 
-from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
-from pydantic import BaseModel, Field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from loguru import logger
+from pydantic import BaseModel, Field
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
-from src.core.deps import get_current_user_required, require_permission, Permission
-from src.models.user import User
+from src.core.deps import get_current_user_required
 from src.models.lawyer_matching import (
-    LawyerProfile, Consultation, Delegation,
-    ConsultationStatus, UrgencyLevel, PrivacyLevel, DelegationStatus
+    Consultation,
+    ConsultationStatus,
+    Delegation,
+    DelegationStatus,
+    LawyerProfile,
+    PrivacyLevel,
 )
+from src.models.user import User
 
 router = APIRouter(prefix="/lawyer", tags=["找律师"])
+
+
+def _reject_local_lawyer_mode(request: Request) -> None:
+    mode = (request.headers.get("X-Privacy-Mode") or "").lower()
+    if mode == "local":
+        raise HTTPException(
+            status_code=403,
+            detail="本地模式不支持律师撮合，请切换到 hybrid/cloud 模式后重试",
+        )
 
 
 # ===== 请求/响应模型 =====
@@ -35,7 +48,7 @@ router = APIRouter(prefix="/lawyer", tags=["找律师"])
 class CreateConsultationRequest(BaseModel):
     """发起咨询请求"""
     description: str = Field(..., min_length=10, max_length=5000, description="问题描述")
-    legal_domain: Optional[str] = Field(None, description="法律领域（可选，AI 会自动识别）")
+    legal_domain: str | None = Field(None, description="法律领域（可选，AI 会自动识别）")
     urgency: str = Field("medium", description="紧急程度: low/medium/high/urgent")
 
 
@@ -44,17 +57,17 @@ class LawyerProfileResponse(BaseModel):
     id: str
     real_name: str
     license_number: str
-    law_firm: Optional[str]
+    law_firm: str | None
     years_of_practice: int
-    city: Optional[str]
-    specializations: list
-    bio: Optional[str]
-    avatar_url: Optional[str]
+    city: str | None
+    specializations: list[str]
+    bio: str | None
+    avatar_url: str | None
     rating: float
     total_cases: int
     success_cases: int
-    hourly_rate_min: Optional[int]
-    hourly_rate_max: Optional[int]
+    hourly_rate_min: int | None
+    hourly_rate_max: int | None
     is_online: bool
     is_verified: bool
 
@@ -62,7 +75,7 @@ class LawyerProfileResponse(BaseModel):
 class CreateDelegationRequest(BaseModel):
     """一键委托"""
     title: str = Field(..., min_length=2, max_length=200)
-    description: Optional[str] = None
+    description: str | None = None
     service_type: str = Field("instant", description="即时咨询/预约咨询/案件委托")
 
 
@@ -71,10 +84,12 @@ class CreateDelegationRequest(BaseModel):
 @router.post("/consultations")
 async def create_consultation(
     req: CreateConsultationRequest,
+    request: Request,
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """发起咨询请求 — AI 预分析并生成匿名摘要"""
+    _reject_local_lawyer_mode(request)
     from src.services.lawyer_matching_service import lawyer_matching_service
 
     # AI 案情分析：领域识别 + 脱敏 + 要素提取
@@ -114,12 +129,12 @@ async def create_consultation(
 
 @router.get("/consultations")
 async def list_consultations(
-    status: Optional[str] = None,
+    status: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """查询我的咨询记录"""
     query = select(Consultation).where(Consultation.user_id == user.id)
     if status:
@@ -161,7 +176,7 @@ async def create_delegation(
     req: CreateDelegationRequest,
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """一键委托 — 创建委托记录"""
     consultation = await db.get(Consultation, consultation_id)
     if not consultation or consultation.user_id != user.id:
@@ -198,14 +213,16 @@ async def create_delegation(
 
 @router.get("/lawyers")
 async def list_lawyers(
-    domain: Optional[str] = None,
-    city: Optional[str] = None,
+    request: Request,
+    domain: str | None = None,
+    city: str | None = None,
     min_rating: float = Query(0, ge=0, le=5),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """律师列表 — 支持智能匹配排序"""
+    _reject_local_lawyer_mode(request)
     from src.services.lawyer_matching_service import lawyer_matching_service
 
     # 如果指定了领域，使用智能匹配
@@ -271,7 +288,7 @@ async def list_lawyers(
 async def lawyer_hall(
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """接单大厅 — 入驻律师查看待接单的匿名咨询"""
     # 验证是入驻律师
     profile = await db.execute(
@@ -308,7 +325,7 @@ async def accept_consultation(
     consultation_id: str,
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, str]:
     """律师接单"""
     # 验证是入驻律师
     profile = await db.execute(
@@ -324,7 +341,7 @@ async def accept_consultation(
         raise HTTPException(status_code=400, detail="该咨询已被其他律师接单")
 
     consultation.matched_lawyer_id = user.id
-    consultation.matched_at = datetime.now(timezone.utc)
+    consultation.matched_at = datetime.now(UTC)
     consultation.status = ConsultationStatus.IN_PROGRESS.value
 
     await db.commit()
@@ -338,11 +355,11 @@ async def accept_consultation(
 class CreateReviewRequest(BaseModel):
     """提交评价"""
     rating: int = Field(..., ge=1, le=5, description="评分 1-5 星")
-    content: Optional[str] = Field(None, max_length=2000, description="评价内容")
-    tags: Optional[List[str]] = Field(None, description="标签列表")
+    content: str | None = Field(None, max_length=2000, description="评价内容")
+    tags: list[str] | None = Field(None, description="标签列表")
     is_anonymous: bool = Field(False, description="是否匿名评价")
-    consultation_id: Optional[str] = Field(None, description="关联的咨询 ID")
-    delegation_id: Optional[str] = Field(None, description="关联的委托 ID")
+    consultation_id: str | None = Field(None, description="关联的咨询 ID")
+    delegation_id: str | None = Field(None, description="关联的委托 ID")
 
 
 class ReplyReviewRequest(BaseModel):
@@ -356,7 +373,7 @@ async def list_lawyer_reviews(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=50),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """获取律师评价列表"""
     from src.services.review_service import ReviewService
     service = ReviewService(db)
@@ -374,7 +391,7 @@ async def create_lawyer_review(
     req: CreateReviewRequest,
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """提交律师评价"""
     from src.services.review_service import ReviewService
     service = ReviewService(db)
@@ -395,7 +412,7 @@ async def create_lawyer_review(
             "message": "评价提交成功",
         }
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.post("/lawyers/reviews/{review_id}/reply")
@@ -404,7 +421,7 @@ async def reply_to_review(
     req: ReplyReviewRequest,
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """律师回复评价"""
     from src.services.review_service import ReviewService
     service = ReviewService(db)
@@ -420,16 +437,16 @@ async def reply_to_review(
             "message": "回复成功",
         }
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+        raise HTTPException(status_code=403, detail=str(e)) from e
 
 
 @router.get("/lawyers/{profile_id}/review-stats")
 async def get_lawyer_review_stats(
     profile_id: str,
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """获取律师评价统计"""
     from src.services.review_service import ReviewService
     service = ReviewService(db)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 数据清洗服务
 使用 LLM 从原始 HTML 中提取法律实体
@@ -6,12 +5,12 @@
 """
 
 import json
-from typing import Dict, Any
-from loguru import logger
+from typing import Any, cast
+
 import httpx
+from loguru import logger
 
-from src.core.llm_helper import get_llm_config_sync
-
+from src.core.llm_helper import LLMConfigResult, get_llm_config_sync
 
 SYSTEM_PROMPT = (
     "你是一个法务数据专家。你的任务是从原始 HTML 或文本中提取法律案件关键信息。"
@@ -27,15 +26,15 @@ SYSTEM_PROMPT = (
 class DataCleaner:
     """法务情报数据清洗管道"""
 
-    def __init__(self):
-        self._llm_config = None
+    def __init__(self) -> None:
+        self._llm_config: LLMConfigResult | None = None
         self._is_local_api = False
         self._url = ""
-        self._headers: Dict[str, str] = {}
+        self._headers: dict[str, str] = {}
         self._model_name = ""
         self._init()
 
-    def _init(self):
+    def _init(self) -> None:
         """初始化 LLM 配置"""
         try:
             cfg = get_llm_config_sync("llm")
@@ -102,7 +101,7 @@ class DataCleaner:
         logger.warning(f"JSON 容错解析仍失败: {text[:150]}")
         return None
 
-    async def clean_html(self, html_content: str) -> Dict[str, Any]:
+    async def clean_html(self, html_content: str) -> dict[str, Any]:
         """从 HTML 中提取法务实体"""
         if not self._url:
             logger.error("DataCleaner 未初始化，无法调用 LLM")
@@ -183,13 +182,14 @@ class DataCleaner:
             if start != -1 and end > start:
                 json_str = content[start:end]
                 result = self._parse_json_tolerant(json_str)
-                if result is not None:
-                    non_null = [k for k, v in result.items() if v is not None]
+                if isinstance(result, dict):
+                    result_dict = cast(dict[str, Any], result)
+                    non_null = [k for k, v in result_dict.items() if v is not None]
                     logger.info(
-                        f"数据清洗完成: 提取到 {len(non_null)}/{len(result)} 个字段 "
+                        f"数据清洗完成: 提取到 {len(non_null)}/{len(result_dict)} 个字段 "
                         f"{non_null or '(无有效数据)'}"
                     )
-                    return result
+                    return result_dict
 
             logger.warning(f"未能从 LLM 响应中解析出 JSON: {content[:200]}")
             return {}

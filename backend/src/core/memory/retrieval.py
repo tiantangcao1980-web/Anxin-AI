@@ -3,33 +3,34 @@
 实现工作记忆 → 情景记忆 → 语义记忆的跨层检索
 """
 
-from typing import List, Dict, Any, Optional
 from datetime import datetime
+from typing import Any
+
 from loguru import logger
 from pydantic import BaseModel
 
-from .semantic_memory import SemanticMemoryService
 from .episodic_memory import EnhancedEpisodicMemoryService
+from .semantic_memory import SemanticMemoryService
 from .working_memory import WorkingMemoryService
 
 
 class MemoryRetrievalResult(BaseModel):
     """记忆检索结果"""
     # 工作记忆 (最快)
-    working: Optional[Dict[str, Any]] = None
+    working: dict[str, Any] | None = None
 
     # 情景记忆 (中速)
-    episodic: List[Dict[str, Any]] = []
+    episodic: list[dict[str, Any]] = []
 
     # 语义记忆 (慢速)
-    semantic: List[Dict[str, Any]] = []
+    semantic: list[dict[str, Any]] = []
 
     # 是否找到足够信息
     is_sufficient: bool = False
 
     # 元数据
     retrieval_time: float = 0.0
-    source_counts: Dict[str, int] = {}
+    source_counts: dict[str, int] = {}
 
 
 class MultiTierMemoryRetrieval:
@@ -58,7 +59,7 @@ class MultiTierMemoryRetrieval:
         self,
         query: str,
         session_id: str,
-        context: Optional[Dict[str, Any]] = None
+        context: dict[str, Any] | None = None
     ) -> MemoryRetrievalResult:
         """
         跨层检索
@@ -115,7 +116,7 @@ class MultiTierMemoryRetrieval:
     async def _retrieve_working(
         self,
         session_id: str
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         从工作记忆检索
 
@@ -133,8 +134,8 @@ class MultiTierMemoryRetrieval:
     async def _retrieve_episodic(
         self,
         query: str,
-        context: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        context: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """
         从情景记忆检索
 
@@ -168,8 +169,8 @@ class MultiTierMemoryRetrieval:
     async def _retrieve_semantic(
         self,
         query: str,
-        context: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        context: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """
         从语义记忆检索
 
@@ -239,7 +240,7 @@ class MultiTierMemoryRetrieval:
         self,
         session_id: str,
         result: MemoryRetrievalResult
-    ):
+    ) -> None:
         """
         缓存检索结果到工作记忆
 
@@ -266,7 +267,7 @@ class MultiTierMemoryRetrieval:
 
     def _is_sufficient(
         self,
-        working: Optional[Dict[str, Any]],
+        working: dict[str, Any] | None,
         query: str
     ) -> bool:
         """
@@ -295,7 +296,7 @@ class MultiTierMemoryRetrieval:
         self,
         result: MemoryRetrievalResult,
         query: str
-    ):
+    ) -> None:
         """记录检索日志"""
         logger.info(
             f"[记忆检索] 查询: {query[:50]}... "
@@ -311,7 +312,7 @@ async def retrieve_memories(
     retrieval: MultiTierMemoryRetrieval,
     query: str,
     session_id: str,
-    context: Optional[Dict[str, Any]] = None
+    context: dict[str, Any] | None = None
 ) -> MemoryRetrievalResult:
     """
     便捷的跨层检索函数

@@ -1,0 +1,67 @@
+{
+  "generated_at": "2026-05-07T11:44:00Z",
+  "mode": "frontend_npm_audit_prod",
+  "status": "passed",
+  "release_evidence_complete": true,
+  "command": "cd frontend && npm audit --omit=dev --json",
+  "summary": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  },
+  "dependencies": {
+    "prod": 480,
+    "dev": 288,
+    "optional": 86,
+    "peer": 34,
+    "peerOptional": 0,
+    "total": 824
+  },
+  "remediation": {
+    "removed_unused_dependencies": [
+      "react-force-graph",
+      "@tauri-apps/plugin-sql"
+    ],
+    "updated_direct_dependencies": [
+      "uuid@^13.0.2",
+      "postcss@^8.5.14"
+    ],
+    "targeted_overrides": [
+      "lodash@4.18.1",
+      "lodash-es@4.18.1",
+      "markdown-it@14.1.1",
+      "anymatch -> picomatch@2.3.2",
+      "micromatch -> picomatch@2.3.2",
+      "readdirp -> picomatch@2.3.2",
+      "vite -> picomatch@4.0.4",
+      "tinyglobby -> picomatch@4.0.4",
+      "fdir -> picomatch@4.0.4"
+    ],
+    "risk_note": "picomatch v2 and v4 chains are overridden separately to avoid forcing chokidar/anymatch/readdirp/micromatch onto the v4 API surface."
+  },
+  "raw_audit": {
+    "auditReportVersion": 2,
+    "vulnerabilities": {},
+    "metadata": {
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      },
+      "dependencies": {
+        "prod": 480,
+        "dev": 288,
+        "optional": 86,
+        "peer": 34,
+        "peerOptional": 0,
+        "total": 824
+      }
+    }
+  }
+}

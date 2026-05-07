@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, Header
-from typing import Dict, Any, Optional
+from typing import Any
+
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 
 from src.core.config import settings
 from src.core.deps import get_current_user_required
-from src.services.oa_integration_service import oa_service, OAProviderType
 from src.models.user import User
+from src.services.oa_integration_service import oa_service
 
 router = APIRouter()
 
@@ -14,7 +15,7 @@ router = APIRouter()
 
 async def verify_integration_key(
     x_integration_key: str = Header(..., alias="X-Integration-Key"),
-):
+) -> None:
     """校验集成 API 密钥（用于外部系统回调和 API 调用）"""
     expected_key = getattr(settings, "INTEGRATION_API_KEY", None)
     if not expected_key:
@@ -25,25 +26,25 @@ async def verify_integration_key(
 
 
 class NotificationRequest(BaseModel):
-    user_id: Optional[str] = None
+    user_id: str | None = None
     title: str
     content: str
-    provider: Optional[str] = None # feishu, dingtalk, wecom
+    provider: str | None = None # feishu, dingtalk, wecom
 
 class ApprovalRequest(BaseModel):
     title: str
-    details: Dict[str, Any]
-    initiator_id: Optional[str] = None
-    provider: Optional[str] = None
+    details: dict[str, Any]
+    initiator_id: str | None = None
+    provider: str | None = None
 
 class SyncRequest(BaseModel):
-    provider: Optional[str] = None
+    provider: str | None = None
 
 @router.post("/notify", summary="发送OA通知")
 async def send_oa_notification(
     req: NotificationRequest,
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """
     向当前登录用户在 OA 平台的账户发送通知消息。
 
@@ -62,7 +63,7 @@ async def send_oa_notification(
 async def create_oa_approval(
     req: ApprovalRequest,
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """
     在OA系统中创建审批流程（如合同审批、用印申请）
     """
@@ -75,7 +76,7 @@ async def create_oa_approval(
 async def sync_oa_users(
     req: SyncRequest,
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """
     从OA系统同步用户和组织架构
     """
@@ -85,9 +86,9 @@ async def sync_oa_users(
 @router.post("/webhook/{provider}", summary="OA回调接收")
 async def oa_webhook(
     provider: str,
-    payload: Dict[str, Any],
+    payload: dict[str, Any],
     _: None = Depends(verify_integration_key),
-):
+) -> dict[str, str]:
     """
     接收OA系统的回调通知（如审批状态变更）
     需要通过 X-Integration-Key 头部验证密钥

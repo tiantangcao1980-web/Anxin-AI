@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 支付管理 API 路由
 
@@ -6,29 +5,37 @@
 """
 
 import uuid
-from datetime import datetime, timezone
-from typing import Optional, List
+from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Query, status
-from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
+from fastapi.responses import PlainTextResponse
 from loguru import logger
+from pydantic import BaseModel
+from sqlalchemy import desc, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.database import get_db
 from src.core.config import settings
-from src.core.deps import get_current_user_required, require_permission, Permission
-from src.models.user import User
+from src.core.database import get_db
+from src.core.deps import get_current_user_required
 from src.models.payment import PaymentOrder as PaymentOrderModel
-from src.services.webhook_security import WebhookSecurity
+from src.models.user import User
+from src.services.official_webhook_security import (
+    OfficialWebhookVerificationError,
+    parse_wechat_pay_notification,
+    verify_alipay_notification,
+)
 from src.services.payment_service import (
     CreateOrderRequest,
-    RefundRequest,
-    PaymentStatusEnum,
+    PaymentProviderConfigError,
     PaymentProviderType,
-    OrderType,
+    PaymentStatusEnum,
+    RefundRequest,
     get_payment_provider,
 )
+from src.services.refund_service import RefundService
+from src.services.webhook_handler import WebhookBusinessError, handle_verified_webhook
+from src.services.webhook_idempotency_service import build_webhook_idempotency_key
+from src.services.webhook_security import WebhookSecurity
 
 router = APIRouter()
 
@@ -43,21 +50,21 @@ class OrderResponse(BaseModel):
     amount: float
     status: str
     description: str
-    related_id: Optional[str] = None
+    related_id: str | None = None
     payment_provider: str
-    payment_url: Optional[str] = None
-    qr_code: Optional[str] = None
-    transaction_id: Optional[str] = None
-    paid_at: Optional[datetime] = None
-    refunded_at: Optional[datetime] = None
-    expires_at: Optional[datetime] = None
+    payment_url: str | None = None
+    qr_code: str | None = None
+    transaction_id: str | None = None
+    paid_at: datetime | None = None
+    refunded_at: datetime | None = None
+    expires_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
 
 class OrderListResponse(BaseModel):
     """订单列表响应"""
-    items: List[OrderResponse]
+    items: list[OrderResponse]
     total: int
 
 
@@ -91,7 +98,7 @@ async def create_order(
     body: CreateOrderRequest,
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> OrderResponse:
     """
     创建支付订单。
 
@@ -101,18 +108,18 @@ async def create_order(
     - **related_id**: 关联的业务 ID（可选）
     - **provider**: 支付渠道（默认 mock）
     """
-    order_id = str(uuid.uuid4())
-    provider = get_payment_provider()
+    order_id = uuid.uuid4().hex
 
     try:
+        provider = get_payment_provider(body.provider.value)
         pay_result = await provider.create_order(
             order_id=order_id,
             amount=body.amount,
             description=body.description,
             notify_url=f"/api/v1/payments/webhook/{body.provider.value}",
         )
-    except NotImplementedError as e:
-        raise HTTPException(status_code=501, detail=str(e))
+    except (NotImplementedError, PaymentProviderConfigError) as e:
+        raise HTTPException(status_code=501, detail=str(e)) from e
 
     # 持久化到数据库
     db_order = PaymentOrderModel(
@@ -138,13 +145,13 @@ async def create_order(
 
 @router.get("/orders", response_model=OrderListResponse, summary="查询当前用户订单列表")
 async def list_orders(
-    status_filter: Optional[str] = Query(None, alias="status", description="按状态筛选"),
-    order_type: Optional[str] = Query(None, description="按订单类型筛选"),
+    status_filter: str | None = Query(None, alias="status", description="按状态筛选"),
+    order_type: str | None = Query(None, description="按订单类型筛选"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> OrderListResponse:
     """查询当前用户的支付订单列表，支持状态和类型筛选。"""
     query = select(PaymentOrderModel).where(PaymentOrderModel.user_id == user.id)
 
@@ -179,7 +186,7 @@ async def get_order(
     order_id: str,
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> OrderResponse:
     """查询指定订单的详情和支付状态。同时向支付渠道查询最新状态并同步。"""
     result = await db.execute(
         select(PaymentOrderModel).where(
@@ -194,7 +201,7 @@ async def get_order(
     # 如果订单仍待支付，向渠道查询最新状态
     if db_order.status == PaymentStatusEnum.PENDING.value:
         try:
-            provider = get_payment_provider()
+            provider = get_payment_provider(db_order.payment_provider)
             pay_status = await provider.query_order(order_id)
             if pay_status.status != PaymentStatusEnum.PENDING:
                 db_order.status = pay_status.status.value
@@ -202,7 +209,7 @@ async def get_order(
                 db_order.paid_at = pay_status.paid_at
                 await db.commit()
                 await db.refresh(db_order)
-        except NotImplementedError:
+        except (NotImplementedError, PaymentProviderConfigError):
             pass  # 渠道未配置时忽略主动查询
 
     return _model_to_response(db_order)
@@ -212,38 +219,33 @@ async def get_order(
 async def refund_order(
     order_id: str,
     body: RefundRequest,
+    idempotency_key_header: str | None = Header(None, alias="Idempotency-Key"),
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> OrderResponse:
     """对已支付的订单发起退款。"""
-    result = await db.execute(
-        select(PaymentOrderModel).where(
-            PaymentOrderModel.id == order_id,
-            PaymentOrderModel.user_id == user.id,
+    service = RefundService(db)
+    try:
+        refund = await service.refund(
+            user_id=user.id,
+            order_id=order_id,
+            amount=body.amount,
+            reason=body.reason,
+            idempotency_key=body.idempotency_key or idempotency_key_header,
         )
-    )
-    db_order = result.scalar_one_or_none()
+    except (NotImplementedError, PaymentProviderConfigError) as e:
+        raise HTTPException(status_code=501, detail=str(e)) from e
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e)) from e
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    db_order = await db.get(PaymentOrderModel, refund["order_id"])
     if not db_order:
         raise HTTPException(status_code=404, detail="订单不存在")
-
-    if db_order.status != PaymentStatusEnum.PAID.value:
-        raise HTTPException(status_code=400, detail="只有已支付的订单可以退款")
-
-    refund_amount = body.amount or db_order.amount
-
-    try:
-        provider = get_payment_provider()
-        refund_result = await provider.refund(order_id, refund_amount, body.reason)
-    except NotImplementedError as e:
-        raise HTTPException(status_code=501, detail=str(e))
-
-    if refund_result.status == "success":
-        db_order.status = PaymentStatusEnum.REFUNDED.value
-        db_order.refunded_at = datetime.now(timezone.utc)
-        db_order.refund_reason = body.reason
-        await db.commit()
-        await db.refresh(db_order)
-        logger.info(f"订单退款成功: {order_id}, 金额: {refund_amount}")
+    await db.refresh(db_order)
 
     return _model_to_response(db_order)
 
@@ -253,7 +255,7 @@ async def close_order(
     order_id: str,
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> OrderResponse:
     """关闭未支付的订单。"""
     result = await db.execute(
         select(PaymentOrderModel).where(
@@ -269,9 +271,9 @@ async def close_order(
         raise HTTPException(status_code=400, detail="只有待支付的订单可以关闭")
 
     try:
-        provider = get_payment_provider()
+        provider = get_payment_provider(db_order.payment_provider)
         await provider.close_order(order_id)
-    except NotImplementedError:
+    except (NotImplementedError, PaymentProviderConfigError):
         pass  # 渠道未配置时直接在本地关闭
 
     db_order.status = PaymentStatusEnum.CLOSED.value
@@ -286,50 +288,120 @@ async def close_order(
 
 
 @router.post("/webhook/wechat", summary="微信支付回调", include_in_schema=False)
-async def wechat_webhook(request: Request, db: AsyncSession = Depends(get_db)):
+async def wechat_webhook(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
     """
     微信支付异步通知回调。
 
-    生产环境需验证签名，当前为占位实现。
+    显式启用官方模式时按微信支付 v3 RSA-SHA256 验签，未启用时走通用 HMAC 回归路径。
     """
     body = await request.body()
-    logger.info(f"[Webhook] 微信支付回调: {body[:200]}")
-    signature = request.headers.get("X-Wechat-Signature")
-    timestamp = request.headers.get("X-Webhook-Timestamp")
-    if not WebhookSecurity.verify(
-        scope="wechat_pay",
-        body=body,
-        signature=signature,
-        secret=settings.WECHAT_PAY_WEBHOOK_SECRET,
-        timestamp=timestamp,
-    ):
-        raise HTTPException(status_code=403, detail="微信支付回调签名验证失败")
+    logger.info(
+        "[Webhook] 微信支付回调: {}",
+        body[:200].decode("utf-8", errors="replace"),
+    )
+    scope = PaymentProviderType.WECHAT_PAY.value
+    if settings.WECHAT_PAY_OFFICIAL_WEBHOOK_ENABLED:
+        try:
+            payload, idempotency_payload = parse_wechat_pay_notification(
+                headers=request.headers,
+                body=body,
+                public_key=settings.WECHAT_PAY_PLATFORM_PUBLIC_KEY,
+                public_key_path=settings.WECHAT_PAY_PLATFORM_PUBLIC_KEY_PATH,
+                expected_serial=settings.WECHAT_PAY_PLATFORM_SERIAL,
+                api_v3_key=settings.WECHAT_PAY_API_V3_KEY,
+                max_age_seconds=settings.WEBHOOK_SIGNATURE_MAX_AGE_SECONDS,
+            )
+        except OfficialWebhookVerificationError as exc:
+            raise HTTPException(status_code=403, detail=f"微信支付官方验签失败: {exc}") from exc
+    else:
+        signature = request.headers.get("X-Wechat-Signature")
+        timestamp = request.headers.get("X-Webhook-Timestamp")
+        if not WebhookSecurity.verify(
+            scope="wechat_pay",
+            body=body,
+            signature=signature,
+            secret=settings.WECHAT_PAY_WEBHOOK_SECRET,
+            timestamp=timestamp,
+        ):
+            raise HTTPException(status_code=403, detail="微信支付回调签名验证失败")
+        payload = await request.json()
+        idempotency_payload = payload
 
-    # TODO: 验证签名 + 解析报文 + 更新订单状态
-    # 占位返回成功
+    idempotency_key = str(
+        idempotency_payload.get("id")
+        or build_webhook_idempotency_key(scope, payload=idempotency_payload, body=body)
+    )
+    try:
+        await handle_verified_webhook(
+            db,
+            scope=scope,
+            payload=payload,
+            body=body,
+            idempotency_key=idempotency_key,
+        )
+    except WebhookBusinessError as e:
+        logger.warning(f"微信支付回调业务回写失败: {e}")
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        logger.exception(f"微信支付回调处理异常: {e}")
+        raise HTTPException(status_code=500, detail="微信支付回调处理失败") from e
+
     return {"code": "SUCCESS", "message": "OK"}
 
 
 @router.post("/webhook/alipay", summary="支付宝回调", include_in_schema=False)
-async def alipay_webhook(request: Request, db: AsyncSession = Depends(get_db)):
+async def alipay_webhook(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> PlainTextResponse:
     """
     支付宝异步通知回调。
 
-    生产环境需验证签名，当前为占位实现。
+    显式启用官方模式时按支付宝 RSA2 异步通知验签，未启用时走通用 HMAC 回归路径。
     """
     body = await request.body()
     form = await request.form()
     logger.info(f"[Webhook] 支付宝回调: trade_no={form.get('trade_no')}")
-    signature = request.headers.get("X-Alipay-Signature")
-    timestamp = request.headers.get("X-Webhook-Timestamp")
-    if not WebhookSecurity.verify(
-        scope="alipay",
-        body=body,
-        signature=signature,
-        secret=settings.ALIPAY_WEBHOOK_SECRET,
-        timestamp=timestamp,
-    ):
-        raise HTTPException(status_code=403, detail="支付宝回调签名验证失败")
+    scope = PaymentProviderType.ALIPAY.value
+    payload = dict(form)
+    if settings.ALIPAY_OFFICIAL_WEBHOOK_ENABLED:
+        try:
+            verify_alipay_notification(
+                params=payload,
+                public_key=settings.ALIPAY_PUBLIC_KEY,
+                public_key_path=settings.ALIPAY_PUBLIC_KEY_PATH,
+            )
+        except OfficialWebhookVerificationError as exc:
+            raise HTTPException(status_code=403, detail=f"支付宝官方验签失败: {exc}") from exc
+    else:
+        signature = request.headers.get("X-Alipay-Signature")
+        timestamp = request.headers.get("X-Webhook-Timestamp")
+        if not WebhookSecurity.verify(
+            scope="alipay",
+            body=body,
+            signature=signature,
+            secret=settings.ALIPAY_WEBHOOK_SECRET,
+            timestamp=timestamp,
+        ):
+            raise HTTPException(status_code=403, detail="支付宝回调签名验证失败")
 
-    # TODO: 验证签名 + 更新订单状态
-    return "success"
+    idempotency_key = str(payload.get("notify_id") or build_webhook_idempotency_key(scope, payload=payload, body=body))
+    try:
+        await handle_verified_webhook(
+            db,
+            scope=scope,
+            payload=payload,
+            body=body,
+            idempotency_key=idempotency_key,
+        )
+    except WebhookBusinessError as e:
+        logger.warning(f"支付宝回调业务回写失败: {e}")
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        logger.exception(f"支付宝回调处理异常: {e}")
+        raise HTTPException(status_code=500, detail="支付宝回调处理失败") from e
+
+    return PlainTextResponse("success")

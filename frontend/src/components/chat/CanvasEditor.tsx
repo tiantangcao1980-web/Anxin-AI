@@ -18,6 +18,7 @@ import { useChatStore } from'@/lib/store';
 import { toast } from'sonner';
 import { cn } from'@/lib/utils';
 import { heading } from'@/lib/design-tokens';
+import { buildApiHeaders } from'@/lib/api';
 
 /**
  * 将 Markdown 文本转为 HTML（覆盖法律文书常用格式）
@@ -213,7 +214,7 @@ export const CanvasEditor = memo(function CanvasEditor({
  try {
  const response = await fetch('/api/v1/chat/ai-optimize', {
  method:'POST',
- headers: {'Content-Type':'application/json' },
+ headers: buildApiHeaders(),
  body: JSON.stringify({ content }),
  });
  const data = await response.json();
@@ -332,7 +333,7 @@ export const CanvasEditor = memo(function CanvasEditor({
  try {
  const response = await fetch('/api/v1/chat/ai-optimize', {
  method:'POST',
- headers: {'Content-Type':'application/json' },
+ headers: buildApiHeaders(),
  body: JSON.stringify({ content, action: actionId }),
  });
  const data = await response.json();

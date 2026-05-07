@@ -10,12 +10,9 @@ use tauri::{
 /// 创建系统托盘
 pub fn create_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let show = MenuItem::with_id(app, "show", "显示主窗口", true, None::<&str>)?;
-    let mode_secret =
-        MenuItem::with_id(app, "mode_secret", "🔒 绝密模式", true, None::<&str>)?;
-    let mode_hybrid =
-        MenuItem::with_id(app, "mode_hybrid", "🔄 混合模式", true, None::<&str>)?;
-    let mode_cloud =
-        MenuItem::with_id(app, "mode_cloud", "☁️ 云端模式", true, None::<&str>)?;
+    let mode_secret = MenuItem::with_id(app, "mode_secret", "🔒 绝密模式", true, None::<&str>)?;
+    let mode_hybrid = MenuItem::with_id(app, "mode_hybrid", "🔄 混合模式", true, None::<&str>)?;
+    let mode_cloud = MenuItem::with_id(app, "mode_cloud", "☁️ 云端模式", true, None::<&str>)?;
     let sep = PredefinedMenuItem::separator(app)?;
     let sync = MenuItem::with_id(app, "sync", "立即同步", true, None::<&str>)?;
     let sep2 = PredefinedMenuItem::separator(app)?;

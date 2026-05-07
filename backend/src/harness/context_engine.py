@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 统一上下文装配引擎
 
@@ -12,7 +11,7 @@
 4. 跨会话 artifact handoff
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -36,13 +35,13 @@ class ContextEngine:
 
     async def assemble(
         self,
-        messages: List[Dict[str, Any]],
-        user_id: Optional[str] = None,
-        session_id: Optional[str] = None,
+        messages: list[dict[str, Any]],
+        user_id: str | None = None,
+        session_id: str | None = None,
         query: str = "",
         include_memory: bool = True,
         include_experience: bool = True,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         装配完整上下文
 
@@ -83,8 +82,8 @@ class ContextEngine:
         return result_messages
 
     async def _maybe_compress(
-        self, messages: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, messages: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """检查并执行上下文压缩"""
         try:
             from src.services.context_compressor import context_compressor
@@ -109,11 +108,11 @@ class ContextEngine:
 
     async def _inject_memory(
         self,
-        messages: List[Dict[str, Any]],
+        messages: list[dict[str, Any]],
         user_id: str,
-        session_id: Optional[str],
+        session_id: str | None,
         query: str,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """注入用户画像和记忆上下文"""
         try:
             from src.services.memory_layer import memory_layer
@@ -139,10 +138,10 @@ class ContextEngine:
 
     async def _inject_experience(
         self,
-        messages: List[Dict[str, Any]],
+        messages: list[dict[str, Any]],
         user_id: str,
         query: str,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """注入经验上下文"""
         try:
             from src.services.experience_engine import experience_engine
@@ -164,8 +163,8 @@ class ContextEngine:
         self,
         source_session_id: str,
         target_session_id: str,
-        artifact_types: Optional[List[str]] = None,
-    ) -> Dict[str, Any]:
+        artifact_types: list[str] | None = None,
+    ) -> dict[str, Any]:
         """
         跨会话 artifact 交接
 

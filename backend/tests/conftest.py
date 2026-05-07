@@ -3,57 +3,92 @@ Pytest配置和Fixtures
 """
 
 import asyncio
-import pytest
-import pytest_asyncio
-from typing import AsyncGenerator
-from unittest.mock import AsyncMock, MagicMock, patch
+
+# ============ 测试数据库配置 ============
+import os
+from collections.abc import AsyncGenerator
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
+import pytest
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
 from sqlalchemy.pool import NullPool, StaticPool
-from httpx import AsyncClient, ASGITransport
 
-from src.models.base import Base
 # 导入所有模型，确保 Base.metadata 包含完整的表定义
 from src.models import (  # noqa: F401 — side-effect import
-    User, Organization,
-    Case, CaseEvent,
-    Document, DocumentVersion,
-    Contract, ContractClause, ContractRisk,
-    Conversation, Message,
-    KnowledgeBase, KnowledgeDocument,
-    LLMConfig,
+    AIAssistantConfig,
+    AIAssistantFeedback,
+    Approval,
+    ApprovalTemplate,
+    Asset,
     AuditLog,
-    SentimentRecord, SentimentAlert, SentimentMonitor,
-    DocumentSession, DocumentCollaborator, DocumentEdit, DocumentSnapshot,
-    Asset, Notification, NotificationPreference,
-    Task, Lead, Expert, Course, CourseProgress,
-    Approval, ApprovalTemplate,
-    LawyerProfile, Consultation, Delegation,
-    PaymentOrderModel, FeatureFlag,
-    IMConversation, IMParticipant, IMMessage,
+    BillingPlan,
+    Case,
+    CaseAssignment,
+    CaseEvent,
+    Consultation,
+    Contract,
+    ContractAttachment,
+    ContractClause,
+    ContractRisk,
+    Conversation,
+    ConversationSummary,
+    Course,
+    CourseProgress,
+    Delegation,
+    Document,
+    DocumentCollaborator,
+    DocumentEdit,
+    DocumentSession,
+    DocumentSnapshot,
+    DocumentVersion,
+    Expert,
+    FeatureFlag,
+    IMConversation,
+    IMMessage,
+    IMParticipant,
+    Invoice,
+    KnowledgeBase,
+    KnowledgeDocument,
+    LawyerCertification,
+    LawyerProfile,
     LawyerReview,
-    Team, TeamMember, CaseAssignment, TimeEntry, Invoice,
-    LawyerCertification, LawyerServiceConfig,
-    BillingPlan, Subscription, Refund,
-    AIAssistantConfig, ConversationSummary, AIAssistantFeedback,
+    LawyerServiceConfig,
+    Lead,
+    LLMConfig,
     McpServerConfig,
+    Message,
+    Notification,
+    NotificationPreference,
+    Organization,
+    PasswordResetToken,
+    PaymentOrderModel,
+    Refund,
+    SentimentAlert,
+    SentimentMonitor,
+    SentimentRecord,
+    Subscription,
+    SubscriptionEvent,
+    SyncLog,
+    Task,
+    Team,
+    TeamMember,
+    TimeEntry,
+    User,
 )
-from src.models.case import CaseStatus, CasePriority, CaseType
-
-
-# ============ 测试数据库配置 ============
-
-import os
+from src.models.base import Base
+from src.models.case import CasePriority, CaseStatus, CaseType
 
 # 优先从环境变量获取测试数据库 URL
 TEST_DATABASE_URL = os.getenv(
-    "TEST_DATABASE_URL", 
+    "TEST_DATABASE_URL",
     "sqlite+aiosqlite:///:memory:"
 )
 
@@ -137,9 +172,9 @@ async def setup_test_db():
         # 先尝试删除旧表，确保环境干净
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
-    
+
     yield
-    
+
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
@@ -177,17 +212,17 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """
     from src.api.main import app
     from src.core.database import get_db
-    
+
     # 覆盖数据库依赖
     async def override_get_db():
         yield db_session
-    
+
     app.dependency_overrides[get_db] = override_get_db
-    
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
-    
+
     # 清理依赖覆盖
     app.dependency_overrides.clear()
 
@@ -336,7 +371,7 @@ async def test_cases(db_session: AsyncSession, test_user: User, test_organizatio
         )
         db_session.add(case)
         cases.append(case)
-    
+
     await db_session.flush()
     return cases
 
@@ -347,7 +382,7 @@ async def test_cases(db_session: AsyncSession, test_user: User, test_organizatio
 async def test_document(db_session: AsyncSession, test_user: User, test_organization: Organization) -> Document:
     """创建测试文档"""
     from src.models.document import DocumentType
-    
+
     doc = Document(
         id=str(uuid4()),
         name="测试合同.pdf",
@@ -391,14 +426,14 @@ async def test_sentiment_records(
 ) -> list[SentimentRecord]:
     """创建测试舆情记录"""
     records = []
-    from src.models.sentiment import SentimentType, RiskLevel, SourceType
-    
+    from src.models.sentiment import RiskLevel, SentimentType, SourceType
+
     test_data = [
         ("正面新闻", "公司获得行业最佳法务团队奖", "positive", 0.8, "low", 0.1),
         ("负面新闻", "公司涉嫌合同违约被起诉", "negative", -0.7, "high", 0.8),
         ("中性报道", "公司法务部门进行常规培训", "neutral", 0.0, "low", 0.2),
     ]
-    
+
     for title, content, sentiment, score, risk, risk_score in test_data:
         record = SentimentRecord(
             id=str(uuid4()),
@@ -415,7 +450,7 @@ async def test_sentiment_records(
         )
         db_session.add(record)
         records.append(record)
-    
+
     await db_session.flush()
     return records
 
@@ -429,8 +464,8 @@ async def test_session(
     test_user: User
 ) -> DocumentSession:
     """创建测试协作会话"""
-    from src.models.collaboration import SessionStatus, CollaboratorRole
-    
+    from src.models.collaboration import CollaboratorRole, SessionStatus
+
     session = DocumentSession(
         id=str(uuid4()),
         document_id=test_document.id,
@@ -513,7 +548,7 @@ async def create_test_data(db: AsyncSession, count: int = 10) -> dict:
         name="批量测试组织",
     )
     db.add(org)
-    
+
     user = User(
         id=str(uuid4()),
         email="batch@example.com",
@@ -522,7 +557,7 @@ async def create_test_data(db: AsyncSession, count: int = 10) -> dict:
         org_id=org.id,
     )
     db.add(user)
-    
+
     cases = []
     for i in range(count):
         case = Case(
@@ -535,9 +570,9 @@ async def create_test_data(db: AsyncSession, count: int = 10) -> dict:
         )
         db.add(case)
         cases.append(case)
-    
+
     await db.flush()
-    
+
     return {
         "organization": org,
         "user": user,

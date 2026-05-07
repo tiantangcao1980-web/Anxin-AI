@@ -19,9 +19,10 @@ A2UI StreamObject 协议 — 流式生成式 UI 助手
     await stream.end()
 """
 
-import uuid
 import logging
-from typing import Any, Callable, Coroutine, Dict, List, Optional
+import uuid
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -31,53 +32,53 @@ class A2UIStream:
 
     def __init__(
         self,
-        ws_callback: Callable[..., Coroutine],
-        stream_id: Optional[str] = None,
+        ws_callback: Callable[[str, dict[str, Any]], Awaitable[None]],
+        stream_id: str | None = None,
         agent: str = "AI 助手",
-    ):
+    ) -> None:
         self.ws_callback = ws_callback
         self.stream_id = stream_id or str(uuid.uuid4())[:12]
         self.agent = agent
-        self._components: List[Dict[str, Any]] = []
+        self._components: list[dict[str, Any]] = []
         self._started = False
         self._ended = False
 
-    async def start(self, metadata: Optional[Dict] = None):
+    async def start(self, metadata: dict[str, Any] | None = None) -> None:
         """发送 stream_start 事件"""
         if self._started:
             return
         self._started = True
         await self._send("stream_start", metadata=metadata)
 
-    async def push_component(self, component: Dict[str, Any]):
+    async def push_component(self, component: dict[str, Any]) -> None:
         """推送一个完整的 A2UI 组件"""
         if self._ended:
             logger.warning(f"[A2UIStream] 流已结束，忽略 push_component: {component.get('type')}")
             return
         if not self._started:
             await self.start()
-        
+
         # 确保组件有 id
         if "id" not in component:
             component["id"] = f"comp-{len(self._components)}-{uuid.uuid4().hex[:6]}"
-        
+
         self._components.append(component)
         await self._send("stream_component", component=component)
 
-    async def update_component(self, component_id: str, delta: Dict[str, Any]):
+    async def update_component(self, component_id: str, delta: dict[str, Any]) -> None:
         """增量更新已推送组件的数据字段"""
         if self._ended:
             return
         await self._send("stream_delta", component_id=component_id, delta=delta)
 
-    async def end(self, metadata: Optional[Dict] = None):
+    async def end(self, metadata: dict[str, Any] | None = None) -> None:
         """结束流式"""
         if self._ended:
             return
         self._ended = True
         await self._send("stream_end", metadata=metadata)
 
-    async def _send(self, action: str, **kwargs):
+    async def _send(self, action: str, **kwargs: Any) -> None:
         """发送 a2ui_stream 事件"""
         try:
             payload = {
@@ -101,7 +102,7 @@ class A2UIStream:
             logger.warning(f"[A2UIStream] 发送失败: {e}")
 
     @property
-    def components(self) -> List[Dict[str, Any]]:
+    def components(self) -> list[dict[str, Any]]:
         """获取已推送的组件列表"""
         return list(self._components)
 
@@ -112,11 +113,11 @@ def make_lawyer_card(
     lawyer_id: str,
     name: str,
     firm: str,
-    specialties: List[str],
+    specialties: list[str],
     rating: float = 4.5,
     status: str = "online",
-    **kwargs,
-) -> Dict[str, Any]:
+    **kwargs: Any,
+) -> dict[str, Any]:
     """构建律师推荐卡片组件"""
     return {
         "id": f"lawyer-{lawyer_id}",
@@ -148,9 +149,9 @@ def make_contract_compare_card(
     title: str,
     left_label: str,
     right_label: str,
-    clauses: List[Dict],
-    **kwargs,
-) -> Dict[str, Any]:
+    clauses: list[dict[str, Any]],
+    **kwargs: Any,
+) -> dict[str, Any]:
     """构建合同条款对比卡片组件"""
     return {
         "id": f"compare-{uuid.uuid4().hex[:8]}",
@@ -172,10 +173,10 @@ def make_contract_compare_card(
 
 def make_fee_estimate_card(
     title: str,
-    items: List[Dict],
-    total: Dict,
-    **kwargs,
-) -> Dict[str, Any]:
+    items: list[dict[str, Any]],
+    total: dict[str, Any],
+    **kwargs: Any,
+) -> dict[str, Any]:
     """构建费用估算卡片组件"""
     return {
         "id": f"fee-{uuid.uuid4().hex[:8]}",

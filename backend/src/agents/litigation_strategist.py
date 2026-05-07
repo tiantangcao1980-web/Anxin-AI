@@ -2,19 +2,18 @@
 诉讼策略专家智能体
 """
 
-from typing import Any, Dict
+from typing import Any
 
-from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
+from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
-
 
 _FALLBACK_PROMPT = "你是一位资深的诉讼策略专家，擅长处理复杂的民商事诉讼和仲裁案件。"
 
 
 class LitigationStrategistAgent(BaseLegalAgent):
     """诉讼策略专家智能体"""
-    
-    def __init__(self):
+
+    def __init__(self) -> None:
         config = AgentConfig(
             name="诉讼策略Agent",
             role="资深诉讼律师",
@@ -23,13 +22,13 @@ class LitigationStrategistAgent(BaseLegalAgent):
             tools=["case_search", "law_search", "evidence_analysis"],
         )
         super().__init__(config)
-    
-    async def process(self, task: Dict[str, Any]) -> AgentResponse:
+
+    async def process(self, task: dict[str, Any]) -> AgentResponse:
         """处理诉讼策略任务"""
         case_info = task.get("case_info", {})
         evidence_list = task.get("evidence", [])
         opponent_info = task.get("opponent", {})
-        
+
         # 构建提示
         prompt = f"""
 请为以下案件制定诉讼策略：
@@ -50,10 +49,10 @@ class LitigationStrategistAgent(BaseLegalAgent):
 4. **风险提示**：最大的败诉风险点及应对预案。
 5. **行动计划**：下一阶段的具体行动步骤。
 """
-        
+
         # 调用Agent
         response = await self.chat(prompt)
-        
+
         return AgentResponse(
             agent_name=self.name,
             content=response,

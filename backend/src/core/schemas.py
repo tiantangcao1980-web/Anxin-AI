@@ -1,12 +1,17 @@
-# -*- coding: utf-8 -*-
 """
 通用 Pydantic 模型：分页参数、分页响应等。
 """
 
-from typing import TypeVar, Generic, List, Optional
-from pydantic import BaseModel, Field
+from typing import Any
 
-T = TypeVar('T')
+from pydantic import BaseModel, ConfigDict, Field
+from pydantic.alias_generators import to_camel
+
+
+class CamelModel(BaseModel):
+    """Pydantic model that preserves camelCase API fields with snake_case Python names."""
+
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
 
 class PaginationParams(BaseModel):
@@ -19,7 +24,7 @@ class PaginationParams(BaseModel):
 
 
 class PaginatedResponse(BaseModel):
-    items: list = Field(default_factory=list)
+    items: list[Any] = Field(default_factory=list)
     total: int = Field(default=0)
     page: int = Field(default=1)
     page_size: int = Field(default=20)

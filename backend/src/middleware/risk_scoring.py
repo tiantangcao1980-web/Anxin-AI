@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 风控评分引擎中间件（Phase 3）
 
@@ -17,14 +16,15 @@
 import hashlib
 import secrets
 import time
+from collections.abc import Awaitable, Callable
+from typing import Any, cast
 
+from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import JSONResponse
-from loguru import logger
+from starlette.responses import JSONResponse, Response
 
 from src.core.config import settings
-
 
 _SKIP_PATHS = frozenset({
     "/health", "/docs", "/redoc", "/openapi.json",
@@ -36,14 +36,14 @@ _SKIP_PATHS = frozenset({
 class RiskScoringMiddleware(BaseHTTPMiddleware):
     """风控评分引擎"""
 
-    def __init__(self, app):
+    def __init__(self, app: Any) -> None:
         super().__init__(app)
-        self._redis = None
+        self._redis: Any | None = None
 
-    async def _get_redis(self):
+    async def _get_redis(self) -> Any:
         if self._redis is None:
             import redis.asyncio as aioredis
-            self._redis = aioredis.from_url(
+            self._redis = aioredis.from_url(  # type: ignore[no-untyped-call]
                 settings.REDIS_URL, encoding="utf-8", decode_responses=True
             )
         return self._redis
@@ -60,7 +60,7 @@ class RiskScoringMiddleware(BaseHTTPMiddleware):
     def _score_hmac(self, request: Request) -> int:
         """HMAC 维度评分 (0-30)"""
         result = getattr(request.state, "hmac_result", None)
-        if not result:
+        if not isinstance(result, dict):
             return 15  # 无 HMAC 结果，中等风险
         if result.get("skipped"):
             return 0
@@ -78,9 +78,13 @@ class RiskScoringMiddleware(BaseHTTPMiddleware):
     def _score_intel(self, request: Request) -> int:
         """客户端情报维度评分 (0-25)"""
         result = getattr(request.state, "intel_result", None)
-        if not result:
+        if not isinstance(result, dict):
             return 0
-        return min(result.get("risk_score", 0), 25)
+        try:
+            score = int(result.get("risk_score", 0))
+        except (TypeError, ValueError):
+            return 0
+        return min(max(score, 0), 25)
 
     async def _score_behavior(self, identifier: str) -> int:
         """行为分析维度评分 (0-15)"""
@@ -118,7 +122,7 @@ class RiskScoringMiddleware(BaseHTTPMiddleware):
         except Exception:
             return 0
 
-    async def _issue_challenge(self) -> dict:
+    async def _issue_challenge(self) -> dict[str, Any]:
         """生成 PoW 挑战"""
         difficulty = getattr(settings, "ANTIBOT_POW_DIFFICULTY", 4)
         challenge_id = f"ch_{secrets.token_hex(12)}"
@@ -128,11 +132,14 @@ class RiskScoringMiddleware(BaseHTTPMiddleware):
         try:
             redis_client = await self._get_redis()
             key = f"antibot:challenge:{challenge_id}"
-            await redis_client.hset(key, mapping={
-                "data": data,
-                "difficulty": str(difficulty),
-                "expires_at": str(expires_at),
-            })
+            await redis_client.hset(
+                key,
+                mapping={
+                    "data": data,
+                    "difficulty": str(difficulty),
+                    "expires_at": str(expires_at),
+                },
+            )
             await redis_client.expire(key, 120)
         except Exception as e:
             logger.warning(f"无法存储 PoW 挑战: {e}")
@@ -146,7 +153,11 @@ class RiskScoringMiddleware(BaseHTTPMiddleware):
             "expires_at": expires_at,
         }
 
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
         if request.url.path in _SKIP_PATHS or request.method == "OPTIONS":
             return await call_next(request)
 
@@ -185,11 +196,12 @@ class RiskScoringMiddleware(BaseHTTPMiddleware):
                         redis_client = await self._get_redis()
                         ch_key = f"antibot:challenge:{challenge_id}"
                         ch_data = await redis_client.hgetall(ch_key)
-                        if ch_data:
+                        if isinstance(ch_data, dict) and ch_data:
+                            challenge_data = cast(dict[str, Any], ch_data)
                             test_hash = hashlib.sha256(
-                                f"{ch_data['data']}{challenge_solution}".encode()
+                                f"{challenge_data['data']}{challenge_solution}".encode()
                             ).hexdigest()
-                            if test_hash.startswith("0" * int(ch_data["difficulty"])):
+                            if test_hash.startswith("0" * int(challenge_data["difficulty"])):
                                 await redis_client.delete(ch_key)
                                 # 挑战通过，放行
                                 return await call_next(request)

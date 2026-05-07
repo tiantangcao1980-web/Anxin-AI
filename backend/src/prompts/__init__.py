@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Prompt 模板管理模块
 
@@ -10,16 +9,16 @@ Prompt 模板管理模块
 """
 
 import os
-import time
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any
+
 from loguru import logger
 
 # 模板文件根目录
 _PROMPTS_DIR = Path(__file__).parent
 
 # 缓存：{文件路径: (内容, 文件修改时间)}
-_cache: Dict[str, tuple] = {}
+_cache: dict[str, tuple[str, float]] = {}
 
 
 def load_prompt(
@@ -68,7 +67,7 @@ def load_prompt(
     return content
 
 
-def _load_from_cache(file_path: str) -> Optional[str]:
+def _load_from_cache(file_path: str) -> str | None:
     """基于文件修改时间的缓存检查"""
     if file_path not in _cache:
         return None
@@ -88,7 +87,7 @@ def _load_from_cache(file_path: str) -> Optional[str]:
     return cached_content
 
 
-def invalidate_cache(relative_path: Optional[str] = None):
+def invalidate_cache(relative_path: str | None = None) -> None:
     """手动清除缓存（用于测试或管理页面触发刷新）"""
     if relative_path:
         file_path = str(_PROMPTS_DIR / relative_path)

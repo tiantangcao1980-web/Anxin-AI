@@ -5,9 +5,31 @@ OA集成服务 (OA Integration Service)
 
 import json
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from enum import Enum
+from typing import Any, TypedDict
 
 from loguru import logger
+
+
+class TokenCache(TypedDict):
+    token: str
+    expires_at: float
+
+
+def _string_value(data: Mapping[str, Any], key: str, default: str = "") -> str:
+    value = data.get(key, default)
+    return value if isinstance(value, str) else default
+
+
+def _number_value(data: Mapping[str, Any], key: str, default: float) -> float:
+    value = data.get(key, default)
+    return float(value) if isinstance(value, int | float) else default
+
+
+def _mapping_value(data: Mapping[str, Any], key: str) -> dict[str, Any]:
+    value = data.get(key, {})
+    return value if isinstance(value, dict) else {}
 
 
 class OAProviderType(Enum):
@@ -48,17 +70,17 @@ class FeishuProvider(BaseOAProvider):
     审批 API: POST https://open.feishu.cn/open-apis/approval/v4/instances
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         import os
         self.app_id = os.getenv("FEISHU_APP_ID", "")
         self.app_secret = os.getenv("FEISHU_APP_SECRET", "")
         self.base_url = "https://open.feishu.cn/open-apis"
-        self._token_cache: dict[str, object] | None = None
+        self._token_cache: TokenCache | None = None
 
     async def _get_token(self) -> str:
         """获取 tenant_access_token（带缓存）"""
         import time
-        if self._token_cache and time.time() < self._token_cache.get("expires_at", 0):
+        if self._token_cache and time.time() < self._token_cache["expires_at"]:
             return self._token_cache["token"]
 
         if not self.app_id or not self.app_secret:
@@ -72,8 +94,9 @@ class FeishuProvider(BaseOAProvider):
                 json={"app_id": self.app_id, "app_secret": self.app_secret},
             )
             data = resp.json()
-            token = data.get("tenant_access_token", "")
-            self._token_cache = {"token": token, "expires_at": time.time() + data.get("expire", 7200) - 300}
+            token = _string_value(data, "tenant_access_token")
+            expires_in = _number_value(data, "expire", 7200)
+            self._token_cache = {"token": token, "expires_at": time.time() + expires_in - 300}
             return token
 
     async def send_notification(self, user_id: str, title: str, content: str, url: str | None = None) -> bool:
@@ -83,15 +106,15 @@ class FeishuProvider(BaseOAProvider):
             return True
 
         import httpx
-        card = {
-            "msg_type": "interactive",
-            "card": {
-                "header": {"title": {"content": title, "tag": "plain_text"}},
-                "elements": [{"tag": "div", "text": {"content": content, "tag": "lark_md"}}],
-            },
+        elements: list[dict[str, object]] = [
+            {"tag": "div", "text": {"content": content, "tag": "lark_md"}},
+        ]
+        card_payload: dict[str, object] = {
+            "header": {"title": {"content": title, "tag": "plain_text"}},
+            "elements": elements,
         }
         if url:
-            card["card"]["elements"].append({
+            elements.append({
                 "tag": "action",
                 "actions": [{"tag": "button", "text": {"content": "查看详情", "tag": "plain_text"}, "url": url, "type": "primary"}],
             })
@@ -100,7 +123,7 @@ class FeishuProvider(BaseOAProvider):
             resp = await client.post(
                 f"{self.base_url}/im/v1/messages?receive_id_type=user_id",
                 headers={"Authorization": f"Bearer {token}"},
-                json={"receive_id": user_id, "content": json.dumps(card["card"]), "msg_type": "interactive"},
+                json={"receive_id": user_id, "content": json.dumps(card_payload), "msg_type": "interactive"},
             )
             ok = resp.status_code < 400
             if not ok:
@@ -122,7 +145,8 @@ class FeishuProvider(BaseOAProvider):
                 json={"approval_code": template_id, "user_id": initiator_id, "form": json.dumps(form_data)},
             )
             data = resp.json()
-            return data.get("data", {}).get("instance_code", f"feishu_err_{resp.status_code}")
+            payload = _mapping_value(data, "data")
+            return _string_value(payload, "instance_code", f"feishu_err_{resp.status_code}")
 
     async def get_approval_status(self, instance_id: str) -> str:
         return "PENDING"  # 实际应查询飞书 API
@@ -139,8 +163,15 @@ class FeishuProvider(BaseOAProvider):
                 headers={"Authorization": f"Bearer {token}"},
             )
             data = resp.json()
-            items = data.get("data", {}).get("items", [])
-            return [{"id": u.get("user_id"), "name": u.get("name")} for u in items]
+            payload = _mapping_value(data, "data")
+            items = payload.get("items", [])
+            if not isinstance(items, list):
+                return []
+            return [
+                {"id": _string_value(u, "user_id"), "name": _string_value(u, "name")}
+                for u in items
+                if isinstance(u, dict)
+            ]
 
 
 class DingTalkProvider(BaseOAProvider):
@@ -152,17 +183,17 @@ class DingTalkProvider(BaseOAProvider):
     审批 API: POST https://oapi.dingtalk.com/topapi/processinstance/create
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         import os
         self.app_key = os.getenv("DINGTALK_APP_KEY", "")
         self.app_secret = os.getenv("DINGTALK_APP_SECRET", "")
         self.agent_id = os.getenv("DINGTALK_AGENT_ID", "")
         self.base_url = "https://oapi.dingtalk.com"
-        self._token_cache: dict[str, object] | None = None
+        self._token_cache: TokenCache | None = None
 
     async def _get_token(self) -> str:
         import time
-        if self._token_cache and time.time() < self._token_cache.get("expires_at", 0):
+        if self._token_cache and time.time() < self._token_cache["expires_at"]:
             return self._token_cache["token"]
 
         if not self.app_key or not self.app_secret:
@@ -175,8 +206,9 @@ class DingTalkProvider(BaseOAProvider):
                 f"{self.base_url}/gettoken?appkey={self.app_key}&appsecret={self.app_secret}"
             )
             data = resp.json()
-            token = data.get("access_token", "")
-            self._token_cache = {"token": token, "expires_at": time.time() + data.get("expires_in", 7200) - 300}
+            token = _string_value(data, "access_token")
+            expires_in = _number_value(data, "expires_in", 7200)
+            self._token_cache = {"token": token, "expires_at": time.time() + expires_in - 300}
             return token
 
     async def send_notification(self, user_id: str, title: str, content: str, url: str | None = None) -> bool:
@@ -192,7 +224,8 @@ class DingTalkProvider(BaseOAProvider):
                 f"{self.base_url}/topapi/message/corpconversation/asyncsend_v2?access_token={token}",
                 json={"agent_id": self.agent_id, "userid_list": user_id, "msg": msg},
             )
-            return resp.json().get("errcode", -1) == 0
+            data = resp.json()
+            return _number_value(data, "errcode", -1) == 0
 
     async def create_approval_instance(self, template_id: str, initiator_id: str, form_data: dict[str, object]) -> str:
         token = await self._get_token()
@@ -207,7 +240,8 @@ class DingTalkProvider(BaseOAProvider):
                 f"{self.base_url}/topapi/processinstance/create?access_token={token}",
                 json={"process_code": template_id, "originator_user_id": initiator_id, "form_component_values": form_data},
             )
-            return resp.json().get("process_instance_id", "dingtalk_err")
+            data = resp.json()
+            return _string_value(data, "process_instance_id", "dingtalk_err")
 
     async def get_approval_status(self, instance_id: str) -> str:
         return "RUNNING"
@@ -225,17 +259,17 @@ class WeComProvider(BaseOAProvider):
     审批 API: POST https://qyapi.weixin.qq.com/cgi-bin/oa/applyevent
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         import os
         self.corp_id = os.getenv("WECOM_CORP_ID", "")
         self.corp_secret = os.getenv("WECOM_CORP_SECRET", "")
         self.agent_id = os.getenv("WECOM_AGENT_ID", "")
         self.base_url = "https://qyapi.weixin.qq.com/cgi-bin"
-        self._token_cache: dict[str, object] | None = None
+        self._token_cache: TokenCache | None = None
 
     async def _get_token(self) -> str:
         import time
-        if self._token_cache and time.time() < self._token_cache.get("expires_at", 0):
+        if self._token_cache and time.time() < self._token_cache["expires_at"]:
             return self._token_cache["token"]
 
         if not self.corp_id or not self.corp_secret:
@@ -248,8 +282,9 @@ class WeComProvider(BaseOAProvider):
                 f"{self.base_url}/gettoken?corpid={self.corp_id}&corpsecret={self.corp_secret}"
             )
             data = resp.json()
-            token = data.get("access_token", "")
-            self._token_cache = {"token": token, "expires_at": time.time() + data.get("expires_in", 7200) - 300}
+            token = _string_value(data, "access_token")
+            expires_in = _number_value(data, "expires_in", 7200)
+            self._token_cache = {"token": token, "expires_at": time.time() + expires_in - 300}
             return token
 
     async def send_notification(self, user_id: str, title: str, content: str, url: str | None = None) -> bool:
@@ -267,7 +302,8 @@ class WeComProvider(BaseOAProvider):
         }
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(f"{self.base_url}/message/send?access_token={token}", json=msg)
-            return resp.json().get("errcode", -1) == 0
+            data = resp.json()
+            return _number_value(data, "errcode", -1) == 0
 
     async def create_approval_instance(self, template_id: str, initiator_id: str, form_data: dict[str, object]) -> str:
         token = await self._get_token()
@@ -282,7 +318,8 @@ class WeComProvider(BaseOAProvider):
                 f"{self.base_url}/oa/applyevent?access_token={token}",
                 json={"creator_userid": initiator_id, "template_id": template_id, "apply_data": {"contents": form_data}},
             )
-            return resp.json().get("sp_no", "wecom_err")
+            data = resp.json()
+            return _string_value(data, "sp_no", "wecom_err")
 
     async def get_approval_status(self, instance_id: str) -> str:
         return "1"  # 1=审批中
@@ -292,7 +329,7 @@ class WeComProvider(BaseOAProvider):
 
 class OAIntegrationService:
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.providers: dict[str, BaseOAProvider] = {
             OAProviderType.FEISHU.value: FeishuProvider(),
             OAProviderType.DINGTALK.value: DingTalkProvider(),

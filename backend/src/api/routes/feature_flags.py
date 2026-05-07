@@ -1,15 +1,15 @@
-# -*- coding: utf-8 -*-
 
-from typing import Optional, List
 from datetime import datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
-from src.core.deps import get_current_user_required, require_role, UserRole
+from src.core.deps import UserRole, get_current_user_required, require_role
 from src.core.responses import UnifiedResponse
+from src.models.feature_flag import FeatureFlag
 from src.models.user import User
 from src.services.feature_flag_service import FeatureFlagService
 
@@ -19,27 +19,27 @@ router = APIRouter()
 class FeatureFlagCreate(BaseModel):
     key: str = Field(..., min_length=1, max_length=100, pattern=r"^[a-z][a-z0-9_]*$")
     name: str = Field(..., min_length=1, max_length=200)
-    description: Optional[str] = None
+    description: str | None = None
     enabled: bool = False
     rollout_percentage: int = Field(default=10000, ge=0, le=10000)  # 万分比，10000=100%
-    target_roles: Optional[List[str]] = None
-    target_org_ids: Optional[List[str]] = None
-    metadata: Optional[dict] = None
-    expires_at: Optional[datetime] = None
+    target_roles: list[str] | None = None
+    target_org_ids: list[str] | None = None
+    metadata: dict[str, Any] | None = None
+    expires_at: datetime | None = None
 
 
 class FeatureFlagUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    enabled: Optional[bool] = None
-    rollout_percentage: Optional[int] = Field(None, ge=0, le=10000)  # 万分比，10000=100%
-    target_roles: Optional[List[str]] = None
-    target_org_ids: Optional[List[str]] = None
-    metadata: Optional[dict] = None
-    expires_at: Optional[datetime] = None
+    name: str | None = None
+    description: str | None = None
+    enabled: bool | None = None
+    rollout_percentage: int | None = Field(None, ge=0, le=10000)  # 万分比，10000=100%
+    target_roles: list[str] | None = None
+    target_org_ids: list[str] | None = None
+    metadata: dict[str, Any] | None = None
+    expires_at: datetime | None = None
 
 
-def _flag_to_dict(flag) -> dict:
+def _flag_to_dict(flag: FeatureFlag) -> dict[str, Any]:
     return {
         "id": flag.id,
         "key": flag.key,
@@ -60,7 +60,7 @@ def _flag_to_dict(flag) -> dict:
 async def get_user_flags(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     service = FeatureFlagService(db)
     flags = await service.get_flags_for_user(
         user_id=user.id,
@@ -74,10 +74,10 @@ async def get_user_flags(
 async def admin_list_flags(
     skip: int = Query(0, ge=0, description="跳过记录数"),
     limit: int = Query(50, ge=1, le=200, description="返回数量上限"),
-    search: Optional[str] = Query(None, description="按 key 或 name 模糊搜索"),
+    search: str | None = Query(None, description="按 key 或 name 模糊搜索"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_role(UserRole.ADMIN, UserRole.ORG_ADMIN, UserRole.SUPER_ADMIN)),
-):
+) -> dict[str, Any]:
     service = FeatureFlagService(db)
     flags = await service.list_all()
     if user.role == UserRole.ORG_ADMIN.value:
@@ -106,7 +106,7 @@ async def admin_create_flag(
     data: FeatureFlagCreate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_role(UserRole.ADMIN, UserRole.ORG_ADMIN, UserRole.SUPER_ADMIN)),
-):
+) -> dict[str, Any]:
     service = FeatureFlagService(db)
     existing = await service.get_by_key(data.key)
     if existing:
@@ -131,9 +131,9 @@ async def admin_update_flag(
     data: FeatureFlagUpdate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_role(UserRole.ADMIN, UserRole.ORG_ADMIN, UserRole.SUPER_ADMIN)),
-):
+) -> dict[str, Any]:
     service = FeatureFlagService(db)
-    update_data = {}
+    update_data: dict[str, Any] = {}
     if data.name is not None:
         update_data["name"] = data.name
     if data.description is not None:
@@ -162,7 +162,7 @@ async def admin_delete_flag(
     key: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_role(UserRole.ADMIN, UserRole.ORG_ADMIN, UserRole.SUPER_ADMIN)),
-):
+) -> dict[str, Any]:
     service = FeatureFlagService(db)
     success = await service.delete(key)
     if not success:

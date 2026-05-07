@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Citation Tracker — 精确引文追踪系统
 
@@ -16,8 +15,22 @@ Citation Tracker — 精确引文追踪系统
 
 import os
 import re
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Any
+
 from loguru import logger
+
+from src.core.config import settings
+from src.services.pii_service import pii_service
+
+MAX_CITATION_FIELD_LENGTH = 120
+
+
+def _safe_citation_text(value: str, max_length: int = MAX_CITATION_FIELD_LENGTH) -> str:
+    """Mask PII and bound citation fields before returning or sinking to graph."""
+    scrubbed = str(pii_service.scrub_for_output(value or ""))
+    if len(scrubbed) <= max_length:
+        return scrubbed
+    return scrubbed[: max_length - 3] + "..."
 
 
 class Citation:
@@ -28,9 +41,9 @@ class Citation:
         text: str,
         source_type: str,  # law / regulation / case / interpretation / article
         source_name: str,
-        article: Optional[str] = None,  # 第X条
-        paragraph: Optional[str] = None,  # 第X款
-        item: Optional[str] = None,  # 第X项
+        article: str | None = None,  # 第X条
+        paragraph: str | None = None,  # 第X款
+        item: str | None = None,  # 第X项
         confidence: float = 1.0,
         verified: bool = False,
     ):
@@ -43,17 +56,17 @@ class Citation:
         self.confidence = confidence
         self.verified = verified
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
-            "text": self.text,
+            "text": _safe_citation_text(self.text),
             "source_type": self.source_type,
-            "source_name": self.source_name,
+            "source_name": _safe_citation_text(self.source_name),
             "article": self.article,
             "paragraph": self.paragraph,
             "item": self.item,
             "confidence": self.confidence,
             "verified": self.verified,
-            "reference": self.full_reference,
+            "reference": _safe_citation_text(self.full_reference, max_length=200),
         }
 
     @property
@@ -82,9 +95,12 @@ class CitationTracker:
     # 案号引用
     RE_CASE_REF = re.compile(r'[（(](\d{4})[）)]([^，,。\s]{2,20}?)第?\s*(\d+)\s*号')
     # 司法解释引用
-    RE_INTERPRETATION = re.compile(r'(?:最高人民法院|最高人民检察院|两高)(?:关于[^的]{2,30}的)?(?:解释|规定|意见|批复|通知)')
+    RE_INTERPRETATION = re.compile(
+        r"(?:最高人民法院|最高人民检察院|两高)(?:关于[^的]{2,30}的)?"
+        r"(?:解释|规定|意见|批复|通知)"
+    )
 
-    def extract_citations(self, text: str) -> List[Citation]:
+    def extract_citations(self, text: str) -> list[Citation]:
         """从文本中提取所有法律引用"""
         citations = []
 
@@ -139,15 +155,14 @@ class CitationTracker:
 
     async def verify_citations(
         self,
-        citations: List[Citation],
-    ) -> List[Citation]:
+        citations: list[Citation],
+    ) -> list[Citation]:
         """
         验证引文准确性（查知识库）
 
         将每条引用与知识库中的法规文本进行匹配验证
         """
         try:
-            from src.services.knowledge_service import KnowledgeService
             # 尝试在知识库中查找引用的法规
             for citation in citations:
                 try:
@@ -155,6 +170,7 @@ class CitationTracker:
                     from src.services.vector_store import vector_store
                     if vector_store and vector_store.is_available:
                         results = await vector_store.search(
+                            collection_name=settings.QDRANT_COLLECTION_NAME,
                             query=citation.full_reference,
                             top_k=1,
                         )
@@ -171,8 +187,8 @@ class CitationTracker:
 
     def build_citation_graph(
         self,
-        citations: List[Citation],
-    ) -> Dict[str, Any]:
+        citations: list[Citation],
+    ) -> dict[str, Any]:
         """
         构建引文关系图
 
@@ -184,18 +200,18 @@ class CitationTracker:
         seen = set()
 
         for citation in citations:
-            node_id = citation.source_name
+            node_id = _safe_citation_text(citation.source_name)
             if node_id not in seen:
                 seen.add(node_id)
                 nodes.append({
                     "id": node_id,
-                    "name": citation.source_name,
+                    "name": node_id,
                     "type": citation.source_type,
                     "verified": citation.verified,
                 })
 
         # 相同类型的引文之间建立"共引"关系
-        source_names = [c.source_name for c in citations]
+        source_names = [_safe_citation_text(c.source_name) for c in citations]
         for i in range(len(source_names)):
             for j in range(i + 1, len(source_names)):
                 if source_names[i] != source_names[j]:
@@ -211,7 +227,7 @@ class CitationTracker:
         self,
         text: str,
         auto_sink_to_graph: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         完整的引文追踪流程
 
@@ -250,7 +266,7 @@ class CitationTracker:
             "sunk_count": sunk_count,
         }
 
-    async def _sink_to_knowledge_graph(self, citations: List[Citation]) -> int:
+    async def _sink_to_knowledge_graph(self, citations: list[Citation]) -> int:
         """将引文实体沉淀到知识图谱"""
         sunk = 0
         try:
@@ -258,8 +274,9 @@ class CitationTracker:
 
             for citation in citations:
                 try:
+                    source_name = _safe_citation_text(citation.source_name)
                     await graph_service.create_entity(
-                        name=citation.source_name,
+                        name=source_name,
                         entity_type=citation.source_type,
                         properties={
                             "source": "citation_tracker",
@@ -272,14 +289,14 @@ class CitationTracker:
                     pass  # 实体可能已存在
 
             # 创建共引关系
-            names = list(set(c.source_name for c in citations))
+            names = list({_safe_citation_text(c.source_name) for c in citations})
             for i in range(len(names)):
                 for j in range(i + 1, len(names)):
                     try:
                         await graph_service.create_relation(
                             subject=names[i],
                             predicate="CITED_WITH",
-                            object_name=names[j],
+                            obj=names[j],
                         )
                     except Exception:
                         pass

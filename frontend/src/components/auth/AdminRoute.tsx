@@ -15,7 +15,7 @@ export function AdminRoute({ children }: { children: React.ReactNode }) {
   const { user, token, logout } = useAuthStore()
   const { isAdmin } = usePermission()
   const location = useLocation()
-  const storedToken = token || localStorage.getItem('access_token')
+  const storedToken = token
 
   if (!storedToken || isTokenExpired(storedToken)) {
     if (storedToken) {

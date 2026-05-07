@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 IM 即时通讯业务服务
 
@@ -6,13 +5,13 @@ IM 即时通讯业务服务
 """
 
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
-from sqlalchemy import and_, desc, func, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 from loguru import logger
+from sqlalchemy import and_, desc, func, or_, select, update
+from sqlalchemy.engine import CursorResult
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.im import IMConversation, IMMessage, IMParticipant
 
@@ -30,10 +29,10 @@ class IMService:
         type: str,
         creator_id: str,
         participant_ids: list[str],
-        title: Optional[str] = None,
-        case_id: Optional[str] = None,
-        contract_id: Optional[str] = None,
-        metadata_: Optional[dict] = None,
+        title: str | None = None,
+        case_id: str | None = None,
+        contract_id: str | None = None,
+        metadata_: dict[str, Any] | None = None,
     ) -> IMConversation:
         """
         创建对话
@@ -66,7 +65,7 @@ class IMService:
         await self.db.flush()
 
         # 创建参与者
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for uid in participant_ids:
             role = "owner" if uid == creator_id else "member"
             participant = IMParticipant(
@@ -88,7 +87,7 @@ class IMService:
 
     async def _find_private_conversation(
         self, user_id_1: str, user_id_2: str
-    ) -> Optional[IMConversation]:
+    ) -> IMConversation | None:
         """查找两人之间已存在的私聊对话"""
         # 子查询：找到两个用户都参与的、类型为 private 的对话
         subq1 = (
@@ -121,7 +120,7 @@ class IMService:
         user_id: str,
         limit: int = 50,
         offset: int = 0,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """
         获取用户参与的所有对话列表
 
@@ -144,7 +143,7 @@ class IMService:
         )
         rows = result.all()
 
-        conversations = []
+        conversations: list[dict[str, Any]] = []
         for conv, unread_count in rows:
             # 获取参与者列表
             p_result = await self.db.execute(
@@ -184,7 +183,7 @@ class IMService:
 
     async def get_conversation(
         self, conversation_id: str, user_id: str
-    ) -> Optional[dict]:
+    ) -> dict[str, Any] | None:
         """获取单个对话详情（验证用户是参与者）"""
         result = await self.db.execute(
             select(IMConversation, IMParticipant.unread_count)
@@ -261,9 +260,9 @@ class IMService:
         self,
         conversation_id: str,
         user_id: str,
-        before_id: Optional[str] = None,
+        before_id: str | None = None,
         limit: int = 50,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """
         游标分页获取消息列表
 
@@ -297,15 +296,87 @@ class IMService:
 
         return [self._message_to_dict(msg) for msg in messages]
 
+    async def get_offline_messages(
+        self,
+        user_id: str,
+        last_ack_message_id: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """
+        获取用户离线期间未确认的消息。
+
+        如果客户端提供 last_ack_message_id，则返回该消息之后、用户参与的所有对话消息；
+        否则按每个参与关系的 last_read_at / joined_at 返回未读增量。
+        """
+        limit = max(1, min(limit, 500))
+        ack_conversation_id = None
+        ack_sequence = None
+        if last_ack_message_id:
+            ack_result = await self.db.execute(
+                select(IMMessage.conversation_id, IMMessage.sequence)
+                .join(
+                    IMParticipant,
+                    and_(
+                        IMParticipant.conversation_id == IMMessage.conversation_id,
+                        IMParticipant.user_id == user_id,
+                    ),
+                )
+                .where(IMMessage.id == last_ack_message_id)
+            )
+            ack_row = ack_result.first()
+            if ack_row:
+                ack_conversation_id, ack_sequence = ack_row
+
+        query = (
+            select(IMMessage)
+            .join(
+                IMParticipant,
+                and_(
+                    IMParticipant.conversation_id == IMMessage.conversation_id,
+                    IMParticipant.user_id == user_id,
+                ),
+            )
+            .where(IMMessage.sender_id != user_id)
+        )
+        if ack_conversation_id and ack_sequence is not None:
+            query = query.where(
+                or_(
+                    and_(
+                        IMMessage.conversation_id == ack_conversation_id,
+                        IMMessage.sequence > ack_sequence,
+                    ),
+                    and_(
+                        IMMessage.conversation_id != ack_conversation_id,
+                        IMMessage.created_at >= IMParticipant.joined_at,
+                        or_(
+                            IMParticipant.last_read_at.is_(None),
+                            IMMessage.created_at > IMParticipant.last_read_at,
+                        ),
+                    ),
+                )
+            )
+        else:
+            query = query.where(
+                IMMessage.created_at >= IMParticipant.joined_at,
+                or_(
+                    IMParticipant.last_read_at.is_(None),
+                    IMMessage.created_at > IMParticipant.last_read_at,
+                ),
+            )
+
+        query = query.order_by(IMMessage.created_at.asc(), IMMessage.sequence.asc()).limit(limit)
+        result = await self.db.execute(query)
+        return [self._message_to_dict(msg) for msg in result.scalars().all()]
+
     async def send_message(
         self,
         conversation_id: str,
         sender_id: str,
         content: str,
         message_type: str = "text",
-        reply_to_id: Optional[str] = None,
-        metadata_: Optional[dict] = None,
-    ) -> Optional[dict]:
+        reply_to_id: str | None = None,
+        metadata_: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | None:
         """
         发送消息
 
@@ -315,7 +386,13 @@ class IMService:
         if not await self.is_participant(conversation_id, sender_id):
             return None
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
+        sequence_result = await self.db.execute(
+            select(func.coalesce(func.max(IMMessage.sequence), 0)).where(
+                IMMessage.conversation_id == conversation_id
+            )
+        )
+        next_sequence = (sequence_result.scalar_one() or 0) + 1
 
         # 创建消息
         message = IMMessage(
@@ -324,6 +401,7 @@ class IMService:
             sender_id=sender_id,
             content=content,
             message_type=message_type,
+            sequence=next_sequence,
             reply_to_id=reply_to_id,
             metadata_=metadata_,
             read_by=[sender_id],
@@ -363,7 +441,7 @@ class IMService:
 
     async def mark_as_read(self, conversation_id: str, user_id: str) -> bool:
         """标记对话为已读：重置未读数，更新 last_read_at"""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         result = await self.db.execute(
             update(IMParticipant)
             .where(
@@ -375,11 +453,53 @@ class IMService:
             .values(unread_count=0, last_read_at=now)
         )
         await self.db.commit()
-        return result.rowcount > 0
+        return cast(CursorResult[Any], result).rowcount > 0
+
+    async def ack_message(self, message_id: str, user_id: str) -> bool:
+        """确认客户端已收到某条消息，并推进该会话的已读游标。"""
+        result = await self.db.execute(
+            select(IMMessage).where(IMMessage.id == message_id)
+        )
+        message = result.scalar_one_or_none()
+        if not message:
+            return False
+
+        participant_result = await self.db.execute(
+            select(IMParticipant).where(
+                and_(
+                    IMParticipant.conversation_id == message.conversation_id,
+                    IMParticipant.user_id == user_id,
+                )
+            )
+        )
+        participant = participant_result.scalar_one_or_none()
+        if not participant:
+            return False
+
+        read_by = set(message.read_by or [])
+        read_by.add(user_id)
+        message.read_by = sorted(read_by)
+        participant.last_read_at = message.created_at
+
+        remaining_result = await self.db.execute(
+            select(func.count())
+            .select_from(IMMessage)
+            .where(
+                and_(
+                    IMMessage.conversation_id == message.conversation_id,
+                    IMMessage.sender_id != user_id,
+                    IMMessage.sequence > message.sequence,
+                )
+            )
+        )
+        participant.unread_count = remaining_result.scalar_one() or 0
+
+        await self.db.commit()
+        return True
 
     async def recall_message(
         self, message_id: str, user_id: str
-    ) -> Optional[dict]:
+    ) -> dict[str, Any] | None:
         """
         撤回消息
 
@@ -399,8 +519,8 @@ class IMService:
             return None
 
         # 验证 2 分钟内
-        now = datetime.now(timezone.utc)
-        if now - message.created_at.replace(tzinfo=timezone.utc) > timedelta(minutes=2):
+        now = datetime.now(UTC)
+        if now - message.created_at.replace(tzinfo=UTC) > timedelta(minutes=2):
             return None
 
         # 执行撤回
@@ -416,7 +536,7 @@ class IMService:
     # ==================== 辅助方法 ====================
 
     @staticmethod
-    def _message_to_dict(msg: IMMessage) -> dict:
+    def _message_to_dict(msg: IMMessage) -> dict[str, Any]:
         """将消息模型转换为字典"""
         return {
             "id": msg.id,
@@ -424,6 +544,7 @@ class IMService:
             "sender_id": msg.sender_id,
             "content": msg.content,
             "message_type": msg.message_type,
+            "sequence": msg.sequence,
             "reply_to_id": msg.reply_to_id,
             "metadata_": msg.metadata_,
             "is_recalled": msg.is_recalled,

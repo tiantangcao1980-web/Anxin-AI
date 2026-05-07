@@ -1,0 +1,68 @@
+{
+  "generated_at": "2026-05-07T08:05:39.161685+00:00",
+  "run_label": "built-in-legal-full50-20260507",
+  "mode": "rag_full50_preflight",
+  "status": "passed",
+  "corpus": {
+    "path": "eval/legal_full50_corpus.jsonl",
+    "sha256": "09c2583a9dbb47dcb13bb319525828e8da5cd2c1aaa87bcd85c462cbb2cc3e70",
+    "chunk_count": 42,
+    "required_chunk_count": 42
+  },
+  "golden": {
+    "path": "eval/legal_full50_golden.jsonl",
+    "sha256": "45e0ea2dd43acdeb291600914d3e1257c0394bcb1842d3d9c1c39360ca4ea7f0",
+    "question_count": 50,
+    "min_questions": 50,
+    "smoke_question_count": 0
+  },
+  "checks": {
+    "fixture_corpus_rejected": true,
+    "smoke_golden_rejected": true,
+    "law_ref_coverage_required": true,
+    "full_golden_chunk_coverage": true
+  },
+  "commercial_provenance": {
+    "artifact_kind": "preflight",
+    "commercial_baseline_candidate": false,
+    "non_commercial_overrides": {
+      "allow_fixture_corpus": false,
+      "allow_smoke_golden": false,
+      "allow_missing_law_refs": false
+    },
+    "non_commercial_override_count": 0,
+    "smoke_question_count": 0,
+    "law_ref_coverage_required": true,
+    "fixture_corpus_rejected": true,
+    "smoke_golden_rejected": true
+  },
+  "readiness": {
+    "uses_repo_local_corpus": true,
+    "repo_relative_corpus_path": "eval/legal_full50_corpus.jsonl",
+    "repo_relative_golden_path": "eval/legal_full50_golden.jsonl",
+    "available_chunk_count": 42,
+    "smoke_question_count": 0,
+    "all_questions": {
+      "question_count": 50,
+      "required_chunk_count": 42,
+      "available_required_chunk_count": 42,
+      "missing_chunk_count": 0,
+      "missing_chunk_sample": [],
+      "coverage_ratio": 1.0
+    },
+    "non_smoke_questions": {
+      "question_count": 50,
+      "required_chunk_count": 42,
+      "available_required_chunk_count": 42,
+      "missing_chunk_count": 0,
+      "missing_chunk_sample": [],
+      "coverage_ratio": 1.0
+    },
+    "commercial_full50_ready": true,
+    "blockers": []
+  },
+  "notes": [
+    "No Qdrant or embedding provider calls were made in preflight-only mode.",
+    "This artifact proves corpus/golden shape and coverage only; it is not a live recall baseline."
+  ]
+}

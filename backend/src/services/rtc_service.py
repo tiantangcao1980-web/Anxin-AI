@@ -1,11 +1,9 @@
-# -*- coding: utf-8 -*-
 """
 LiveKit RTC 服务
 
 管理音视频通话房间和 Token 签发。
 """
-
-from typing import Optional
+from typing import Any, ClassVar
 
 from loguru import logger
 
@@ -15,10 +13,10 @@ from src.core.config import settings
 class RTCService:
     """LiveKit 房间管理和 Token 签发"""
 
-    _api = None
+    _api: ClassVar[Any | None] = None
 
     @classmethod
-    def _get_api(cls):
+    def _get_api(cls) -> Any | None:
         if cls._api is not None:
             return cls._api
 
@@ -42,7 +40,7 @@ class RTCService:
         user_name: str,
         can_publish: bool = True,
         can_subscribe: bool = True,
-    ) -> Optional[str]:
+    ) -> str | None:
         """生成前端连接 LiveKit 用的 JWT Token"""
         if not settings.LIVEKIT_API_KEY or not settings.LIVEKIT_API_SECRET:
             logger.warning("LiveKit 密钥未配置")
@@ -75,7 +73,7 @@ class RTCService:
             return None
 
     @classmethod
-    async def create_room(cls, room_name: str) -> Optional[dict]:
+    async def create_room(cls, room_name: str) -> dict[str, Any] | None:
         """创建 LiveKit 房间"""
         api = cls._get_api()
         if not api:
@@ -111,7 +109,7 @@ class RTCService:
             return False
 
     @classmethod
-    async def list_rooms(cls) -> list:
+    async def list_rooms(cls) -> list[dict[str, Any]]:
         """列出所有活跃房间"""
         api = cls._get_api()
         if not api:

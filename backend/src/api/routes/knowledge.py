@@ -1,16 +1,18 @@
 """知识库路由"""
 
 from datetime import datetime
-from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Query, Depends, File, UploadFile
-from pydantic import BaseModel
+from typing import Any
+
+from fastapi import APIRouter, Depends, File, Query, UploadFile
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.api.routes.upload_validation import read_validated_upload_file
 from src.core.database import get_db
-from src.core.deps import get_current_user, get_current_user_required
+from src.core.deps import get_current_user_required
 from src.core.responses import UnifiedResponse
-from src.services.knowledge_service import KnowledgeService
 from src.models.user import User
+from src.services.knowledge_service import KnowledgeService
 
 router = APIRouter()
 
@@ -19,7 +21,7 @@ class KnowledgeBaseCreate(BaseModel):
     """创建知识库"""
     name: str
     knowledge_type: str = "other"
-    description: Optional[str] = None
+    description: str | None = None
     is_public: bool = False
 
 
@@ -28,7 +30,7 @@ class KnowledgeBaseResponse(BaseModel):
     id: str
     name: str
     knowledge_type: str
-    description: Optional[str] = None
+    description: str | None = None
     doc_count: int
     is_public: bool
     created_at: datetime
@@ -36,7 +38,7 @@ class KnowledgeBaseResponse(BaseModel):
 
 class KnowledgeBaseListResponse(BaseModel):
     """知识库列表响应"""
-    items: List[KnowledgeBaseResponse]
+    items: list[KnowledgeBaseResponse]
     total: int
     page: int
     page_size: int
@@ -46,29 +48,29 @@ class DocumentCreate(BaseModel):
     """添加文档"""
     title: str
     content: str
-    source: Optional[str] = None
-    source_url: Optional[str] = None
-    tags: Optional[list] = None
-    law_category: Optional[str] = None
-    effective_date: Optional[str] = None
-    issuing_authority: Optional[str] = None
+    source: str | None = None
+    source_url: str | None = None
+    tags: list[str] | None = None
+    law_category: str | None = None
+    effective_date: str | None = None
+    issuing_authority: str | None = None
 
 
 class KnowledgeDocumentResponse(BaseModel):
     """知识库文档响应"""
     id: str
     title: str
-    source: Optional[str] = None
-    summary: Optional[str] = None
+    source: str | None = None
+    summary: str | None = None
     is_processed: bool
-    tags: Optional[list] = None
+    tags: list[str] | None = None
     created_at: datetime
 
 
 class SearchRequest(BaseModel):
     """搜索请求"""
     query: str
-    kb_ids: Optional[List[str]] = None
+    kb_ids: list[str] | None = None
     top_k: int = 10
     use_vector: bool = True  # 是否使用向量搜索
     hybrid: bool = False  # 是否使用混合搜索
@@ -79,59 +81,59 @@ class SearchResultItem(BaseModel):
     id: str
     title: str
     content: str
-    source: Optional[str] = None
+    source: str | None = None
     score: float
-    match_type: Optional[str] = None  # vector / text / hybrid
+    match_type: str | None = None  # vector / text / hybrid
 
 
 class RAGQueryRequest(BaseModel):
     """RAG 智能问答请求"""
     query: str  # 用户问题
-    kb_ids: Optional[List[str]] = None  # 限制搜索的知识库
-    top_k: Optional[int] = 5  # 检索的文档数量
+    kb_ids: list[str] | None = None  # 限制搜索的知识库
+    top_k: int | None = 5  # 检索的文档数量
     include_sources: bool = True  # 是否返回来源信息
-    system_prompt: Optional[str] = None  # 自定义系统提示词
+    system_prompt: str | None = None  # 自定义系统提示词
 
 
 class RAGQueryResponse(BaseModel):
     """RAG 智能问答响应"""
     answer: str  # 生成的答案
-    sources: List[dict] = []  # 引用的来源
+    sources: list[dict[str, Any]] = Field(default_factory=list)  # 引用的来源
     context_used: bool = True  # 是否使用了检索上下文
-    chunks_used: Optional[int] = None  # 使用的分块数量
-    error: Optional[str] = None  # 错误信息
+    chunks_used: int | None = None  # 使用的分块数量
+    error: str | None = None  # 错误信息
 
 
 class IndexDocumentRequest(BaseModel):
     """索引文档请求"""
     title: str  # 文档标题
     content: str  # 文档内容
-    source: Optional[str] = None  # 文档来源
-    metadata: Optional[dict] = None  # 额外元数据
-    chunk_size: Optional[int] = None  # 分块大小（可选）
-    chunk_overlap: Optional[int] = None  # 分块重叠（可选）
+    source: str | None = None  # 文档来源
+    metadata: dict[str, Any] | None = None  # 额外元数据
+    chunk_size: int | None = None  # 分块大小（可选）
+    chunk_overlap: int | None = None  # 分块重叠（可选）
 
 
 class IndexDocumentResponse(BaseModel):
     """索引文档响应"""
     success: bool
-    doc_id: Optional[str] = None
+    doc_id: str | None = None
     chunk_count: int = 0  # 分块数量
     indexed_count: int = 0  # 成功索引的分块数量
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class SemanticSearchRequest(BaseModel):
     """语义搜索请求"""
     query: str  # 搜索查询
-    kb_id: Optional[str] = None  # 知识库 ID
-    top_k: Optional[int] = 10  # 返回结果数量
+    kb_id: str | None = None  # 知识库 ID
+    top_k: int | None = 10  # 返回结果数量
 
 
 class DeepResearchRequest(BaseModel):
     """深度研究请求"""
     topic: str
-    kb_ids: Optional[List[str]] = None
+    kb_ids: list[str] | None = None
 
 
 @router.post("/deep-research")
@@ -139,7 +141,7 @@ async def deep_research(
     request: DeepResearchRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """
     深度法律研究报告生成
     """
@@ -153,22 +155,23 @@ async def deep_research(
 
 @router.get("/bases")
 async def list_knowledge_bases(
-    knowledge_type: Optional[str] = None,
+    knowledge_type: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取知识库列表"""
     service = KnowledgeService(db)
-    
+
     kbs, total = await service.list_knowledge_bases(
         org_id=user.org_id,
+        user_id=user.id,
         knowledge_type=knowledge_type,
         page=page,
         page_size=page_size,
     )
-    
+
     data = KnowledgeBaseListResponse(
         items=[
             KnowledgeBaseResponse(
@@ -194,10 +197,10 @@ async def create_knowledge_base(
     kb: KnowledgeBaseCreate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """创建知识库"""
     service = KnowledgeService(db)
-    
+
     created_kb = await service.create_knowledge_base(
         name=kb.name,
         knowledge_type=kb.knowledge_type,
@@ -206,7 +209,7 @@ async def create_knowledge_base(
         created_by=user.id,
         is_public=kb.is_public,
     )
-    
+
     data = KnowledgeBaseResponse(
         id=created_kb.id,
         name=created_kb.name,
@@ -221,17 +224,17 @@ async def create_knowledge_base(
 
 @router.get("/bases/{kb_id}")
 async def get_knowledge_base(
-    kb_id: str, 
+    kb_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required)
-):
+) -> dict[str, Any]:
     """获取知识库详情"""
     service = KnowledgeService(db)
     kb = await service.get_knowledge_base(kb_id, user_id=user.id, org_id=user.org_id)
-    
+
     if not kb:
         return UnifiedResponse.error(code=404, message="知识库不存在")
-    
+
     data = KnowledgeBaseResponse(
         id=kb.id,
         name=kb.name,
@@ -251,10 +254,10 @@ async def list_kb_documents(
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取知识库文档列表"""
     service = KnowledgeService(db)
-    
+
     docs, total = await service.list_documents(
         kb_id,
         page,
@@ -262,7 +265,7 @@ async def list_kb_documents(
         user_id=user.id,
         org_id=user.org_id,
     )
-    
+
     data = {
         "items": [
             KnowledgeDocumentResponse(
@@ -289,15 +292,15 @@ async def add_document_to_kb(
     doc: DocumentCreate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """添加文档到知识库"""
     service = KnowledgeService(db)
-    
+
     # 检查知识库是否存在
     kb = await service.get_knowledge_base(kb_id, user_id=user.id, org_id=user.org_id)
     if not kb:
         return UnifiedResponse.error(code=404, message="知识库不存在")
-    
+
     created_doc = await service.add_document(
         kb_id=kb_id,
         title=doc.title,
@@ -309,7 +312,7 @@ async def add_document_to_kb(
         effective_date=doc.effective_date,
         issuing_authority=doc.issuing_authority,
     )
-    
+
     data = KnowledgeDocumentResponse(
         id=created_doc.id,
         title=created_doc.title,
@@ -327,7 +330,7 @@ async def search_knowledge(
     request: SearchRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """
     搜索知识库
     
@@ -337,7 +340,7 @@ async def search_knowledge(
     - 混合搜索 (hybrid=True)
     """
     service = KnowledgeService(db)
-    
+
     if request.hybrid:
         results = await service.hybrid_search(
             query=request.query,
@@ -354,7 +357,7 @@ async def search_knowledge(
             user_id=user.id,
             org_id=user.org_id,
         )
-    
+
     data = [
         SearchResultItem(
             id=r.get("id", ""),
@@ -370,10 +373,10 @@ async def search_knowledge(
 
 
 @router.get("/search/status")
-async def get_vector_status(user: User = Depends(get_current_user_required)):
+async def get_vector_status(user: User = Depends(get_current_user_required)) -> dict[str, Any]:
     """获取向量搜索服务状态"""
     from src.services.vector_store import vector_store
-    
+
     data = {
         "available": vector_store.is_available,
         "embedding_model": vector_store.embedding_model if vector_store.is_available else None,
@@ -383,17 +386,17 @@ async def get_vector_status(user: User = Depends(get_current_user_required)):
 
 @router.delete("/documents/{doc_id}")
 async def delete_kb_document(
-    doc_id: str, 
+    doc_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required)
-):
+) -> dict[str, Any]:
     """删除知识库文档"""
     service = KnowledgeService(db)
     success = await service.delete_document(doc_id, user_id=user.id, org_id=user.org_id)
-    
+
     if not success:
         return UnifiedResponse.error(code=404, message="文档不存在")
-    
+
     return UnifiedResponse.success(message="文档已删除")
 
 
@@ -405,12 +408,12 @@ async def rag_query(
     request: RAGQueryRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """
     RAG 智能问答
     """
     service = KnowledgeService(db)
-    
+
     result = await service.rag_query(
         query=request.query,
         kb_ids=request.kb_ids,
@@ -420,7 +423,7 @@ async def rag_query(
         user_id=user.id,
         org_id=user.org_id,
     )
-    
+
     data = RAGQueryResponse(
         answer=result.get("answer", ""),
         sources=result.get("sources", []),
@@ -437,17 +440,17 @@ async def index_document(
     request: IndexDocumentRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """
     索引文档到知识库
     """
     service = KnowledgeService(db)
-    
+
     # 检查知识库是否存在
     kb = await service.get_knowledge_base(kb_id, user_id=user.id, org_id=user.org_id)
     if not kb:
         return UnifiedResponse.error(code=404, message="知识库不存在")
-    
+
     result = await service.index_document(
         kb_id=kb_id,
         title=request.title,
@@ -457,7 +460,7 @@ async def index_document(
         chunk_size=request.chunk_size,
         chunk_overlap=request.chunk_overlap,
     )
-    
+
     data = IndexDocumentResponse(
         success=result.get("success", False),
         doc_id=result.get("doc_id"),
@@ -474,45 +477,45 @@ async def upload_document_to_kb(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """
     上传文件并索引到知识库
     """
     service = KnowledgeService(db)
-    
+
     # 检查知识库是否存在
     kb = await service.get_knowledge_base(kb_id, user_id=user.id, org_id=user.org_id)
     if not kb:
         return UnifiedResponse.error(code=404, message="知识库不存在")
-    
-    content = await file.read()
-    
+
+    content, filename, _content_type = await read_validated_upload_file(file)
+
     result = await service.index_file(
         kb_id=kb_id,
         file_content=content,
-        file_name=file.filename,
+        file_name=filename,
         metadata={"uploaded_by": user.id}
     )
-    
+
     if not result.get("success"):
         return UnifiedResponse.error(message=result.get("error", "上传并索引失败"))
-    
+
     return UnifiedResponse.success(data=result, message="文件已上传并开始处理")
 
 
 @router.get("/semantic-search")
 async def semantic_search(
     query: str = Query(..., description="搜索查询"),
-    kb_id: Optional[str] = Query(None, description="知识库 ID"),
+    kb_id: str | None = Query(None, description="知识库 ID"),
     top_k: int = Query(10, ge=1, le=50, description="返回结果数量"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """
     语义搜索
     """
     service = KnowledgeService(db)
-    
+
     results = await service.semantic_search_simple(
         query=query,
         kb_id=kb_id,
@@ -520,7 +523,7 @@ async def semantic_search(
         user_id=user.id,
         org_id=user.org_id,
     )
-    
+
     data = [
         SearchResultItem(
             id=r.get("id", ""),
@@ -536,14 +539,14 @@ async def semantic_search(
 
 
 @router.get("/vector-store/info")
-async def get_vector_store_info(user: User = Depends(get_current_user_required)):
+async def get_vector_store_info(user: User = Depends(get_current_user_required)) -> dict[str, Any]:
     """
     获取向量存储服务详细信息
     """
     from src.services.vector_store import vector_store
-    
+
     collections = await vector_store.list_collections() if vector_store.is_available else []
-    
+
     data = {
         "available": vector_store.is_available,
         "embedding": vector_store.embedding_info,
@@ -554,21 +557,21 @@ async def get_vector_store_info(user: User = Depends(get_current_user_required))
 
 class KnowledgeBaseUpdate(BaseModel):
     """更新知识库"""
-    name: Optional[str] = None
-    description: Optional[str] = None
-    knowledge_type: Optional[str] = None
-    is_public: Optional[bool] = None
+    name: str | None = None
+    description: str | None = None
+    knowledge_type: str | None = None
+    is_public: bool | None = None
 
 
 class DocumentUpdate(BaseModel):
     """更新文档"""
-    title: Optional[str] = None
-    content: Optional[str] = None
-    source: Optional[str] = None
-    tags: Optional[list] = None
-    law_category: Optional[str] = None
-    effective_date: Optional[str] = None
-    issuing_authority: Optional[str] = None
+    title: str | None = None
+    content: str | None = None
+    source: str | None = None
+    tags: list[str] | None = None
+    law_category: str | None = None
+    effective_date: str | None = None
+    issuing_authority: str | None = None
 
 
 class DocumentDetailResponse(BaseModel):
@@ -576,15 +579,15 @@ class DocumentDetailResponse(BaseModel):
     id: str
     title: str
     content: str
-    source: Optional[str] = None
-    source_url: Optional[str] = None
-    summary: Optional[str] = None
+    source: str | None = None
+    source_url: str | None = None
+    summary: str | None = None
     is_processed: bool
     chunk_count: int = 0
-    tags: Optional[list] = None
-    law_category: Optional[str] = None
-    effective_date: Optional[str] = None
-    issuing_authority: Optional[str] = None
+    tags: list[str] | None = None
+    law_category: str | None = None
+    effective_date: str | None = None
+    issuing_authority: str | None = None
     created_at: datetime
 
 
@@ -594,7 +597,7 @@ async def update_knowledge_base(
     update: KnowledgeBaseUpdate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """更新知识库"""
     service = KnowledgeService(db)
     update_data = update.model_dump(exclude_none=True)
@@ -618,7 +621,7 @@ async def delete_knowledge_base(
     kb_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """删除知识库"""
     service = KnowledgeService(db)
     success = await service.delete_knowledge_base(kb_id, user_id=user.id, org_id=user.org_id)
@@ -632,7 +635,7 @@ async def get_document_detail(
     doc_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取文档完整内容"""
     service = KnowledgeService(db)
     doc = await service.get_document(doc_id, user_id=user.id, org_id=user.org_id)
@@ -656,7 +659,7 @@ async def update_document(
     update: DocumentUpdate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """更新文档"""
     service = KnowledgeService(db)
     update_data = update.model_dump(exclude_none=True)
@@ -680,7 +683,7 @@ async def get_kb_stats(
     kb_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取知识库统计"""
     service = KnowledgeService(db)
     stats = await service.get_kb_stats_detail(kb_id, user_id=user.id, org_id=user.org_id)
@@ -694,7 +697,7 @@ async def export_knowledge_base(
     kb_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """导出知识库为JSON"""
     service = KnowledgeService(db)
     result = await service.export_knowledge_base(kb_id, user_id=user.id, org_id=user.org_id)
@@ -706,26 +709,30 @@ async def export_knowledge_base(
 @router.post("/bases/{kb_id}/batch-upload")
 async def batch_upload_documents(
     kb_id: str,
-    files: List[UploadFile] = File(...),
+    files: list[UploadFile] = File(...),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """批量上传文件到知识库"""
     service = KnowledgeService(db)
     kb = await service.get_knowledge_base(kb_id, user_id=user.id, org_id=user.org_id)
     if not kb:
         return UnifiedResponse.error(code=404, message="知识库不存在")
 
-    results = []
+    validated_files: list[tuple[str, bytes]] = []
     for file in files:
-        content = await file.read()
+        content, filename, _content_type = await read_validated_upload_file(file)
+        validated_files.append((filename, content))
+
+    results: list[dict[str, Any]] = []
+    for filename, content in validated_files:
         result = await service.index_file(
             kb_id=kb_id,
             file_content=content,
-            file_name=file.filename,
+            file_name=filename,
             metadata={"uploaded_by": user.id}
         )
-        results.append({"filename": file.filename, **result})
+        results.append({"filename": filename, **result})
 
     success_count = sum(1 for r in results if r.get("success"))
     return UnifiedResponse.success(

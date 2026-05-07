@@ -10,6 +10,37 @@ const REQUEST_TIMEOUT = 30000
 
 let refreshPromise: Promise<string> | null = null
 
+class AuthExpiredError extends Error {
+  constructor(message = '登录已过期') {
+    super(message)
+    this.name = 'AuthExpiredError'
+  }
+}
+
+class RefreshUnavailableError extends Error {
+  constructor(message = '暂时无法刷新登录状态，请稍后重试') {
+    super(message)
+    this.name = 'RefreshUnavailableError'
+  }
+}
+
+function isAuthExpiredError(error: unknown): error is AuthExpiredError {
+  return error instanceof AuthExpiredError
+}
+
+function isNetworkLikeError(error: unknown): boolean {
+  const maybeError = error as { name?: string; message?: string } | null
+  return (
+    maybeError?.name === 'AbortError' ||
+    maybeError?.message?.includes('Network') === true ||
+    maybeError?.message?.includes('Failed to fetch') === true
+  )
+}
+
+function isRefreshAuthFailure(status: number, code?: number): boolean {
+  return status === 401 || status === 403 || code === 401 || code === 403
+}
+
 export interface LoginRequest {
   email: string
   password: string
@@ -41,24 +72,38 @@ async function getBaseUrl(): Promise<string> {
 async function refreshToken(): Promise<string> {
   if (refreshPromise) return refreshPromise
   refreshPromise = (async () => {
+    const storage = getAuthStorage()
+    const rt = await storage.getRefreshToken()
+    if (!rt) {
+      await clearAuth()
+      throw new AuthExpiredError()
+    }
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT)
     try {
-      const storage = getAuthStorage()
-      const rt = await storage.getRefreshToken()
-      if (!rt) throw new Error('无刷新令牌')
       const res = await fetch(`${await getBaseUrl()}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: rt }),
+        signal: controller.signal,
       })
       const body: ApiResponse<{ access_token: string; refresh_token?: string }> = await res.json()
-      if (body.code !== 200) throw new Error(body.message)
+      if (isRefreshAuthFailure(res.status, body.code)) {
+        await clearAuth()
+        throw new AuthExpiredError(body.message || '登录已过期')
+      }
+      if (!res.ok || body.code !== 200) {
+        throw new RefreshUnavailableError(body.message || undefined)
+      }
       await setToken(body.data.access_token)
       if (body.data.refresh_token) await storage.setRefreshToken(body.data.refresh_token)
       return body.data.access_token
-    } catch {
-      await clearAuth()
-      throw new Error('登录已过期')
+    } catch (error) {
+      if (isAuthExpiredError(error)) throw error
+      if (isNetworkLikeError(error)) throw new RefreshUnavailableError()
+      throw error
     } finally {
+      clearTimeout(timeout)
       refreshPromise = null
     }
   })()
@@ -101,11 +146,13 @@ export async function request<T>(options: {
             const { useAuthStore } = await import('../lib/store')
             await useAuthStore.getState().syncAuth()
             continue
-          } catch {
-            // 刷新失败：清登录态，让守卫重定向到登录页
-            const { useAuthStore } = await import('../lib/store')
-            await useAuthStore.getState().logout()
-            throw new Error('登录已过期')
+          } catch (error) {
+            if (isAuthExpiredError(error)) {
+              const { useAuthStore } = await import('../lib/store')
+              await useAuthStore.getState().logout()
+              throw new Error('登录已过期')
+            }
+            throw error instanceof Error ? error : new Error('暂时无法刷新登录状态，请稍后重试')
           }
         }
       }

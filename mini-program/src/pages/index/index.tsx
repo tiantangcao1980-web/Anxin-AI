@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { View, Text, Input, Image } from '@tarojs/components'
+import { View, Text, Input } from '@tarojs/components'
 import Taro, { usePullDownRefresh } from '@tarojs/taro'
 import { api } from '../../services/api'
 import './index.scss'
@@ -18,16 +18,10 @@ interface NewsItem {
   tag: string
 }
 
-const fallbackNews: NewsItem[] = [
-  { id: '1', title: '最高法发布2026年度十大知识产权案例', date: '2026-03-25', tag: '知产' },
-  { id: '2', title: '新《公司法》实施细则解读：注册资本五年实缴制', date: '2026-03-24', tag: '公司法' },
-  { id: '3', title: '劳动合同法修订草案：灵活用工新规定', date: '2026-03-22', tag: '劳动法' },
-  { id: '4', title: '数据安全法合规指南：企业必须知道的十件事', date: '2026-03-20', tag: '数据安全' },
-]
-
 export default function Index() {
   const [newsItems, setNewsItems] = useState<NewsItem[]>([])
   const [newsLoading, setNewsLoading] = useState(true)
+  const [newsError, setNewsError] = useState('')
 
   useEffect(() => {
     loadNews()
@@ -44,10 +38,13 @@ export default function Index() {
     setNewsLoading(true)
     try {
       const data = await api.get<NewsItem[]>('/news/latest')
-      setNewsItems(data && data.length > 0 ? data : fallbackNews)
-    } catch {
-      // API 不可用时使用 mock 数据
-      setNewsItems(fallbackNews)
+      const items = Array.isArray(data) ? data : []
+      setNewsItems(items)
+      setNewsError(items.length > 0 ? '' : '暂无资讯，下拉刷新重试')
+    } catch (error) {
+      console.warn('资讯加载失败', error)
+      setNewsItems([])
+      setNewsError('资讯加载失败，下拉刷新重试')
     } finally {
       setNewsLoading(false)
     }
@@ -125,6 +122,11 @@ export default function Index() {
                 </View>
               </View>
             ))
+          ) : newsItems.length === 0 ? (
+            <View className='news-empty'>
+              <Text className='news-empty-title'>暂无资讯</Text>
+              <Text className='news-empty-desc'>{newsError || '下拉刷新重试'}</Text>
+            </View>
           ) : (
             newsItems.map((item) => (
               <View

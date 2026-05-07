@@ -16,7 +16,9 @@ async def test_chat_service_routes_company_investigation_to_due_diligence(
     service._load_llm_config = AsyncMock(return_value=None)
     service._workforce = MagicMock()
     service.create_conversation = AsyncMock(return_value=SimpleNamespace(id="conv-1"))
-    service.add_message = AsyncMock(return_value=SimpleNamespace(id="msg-1", citations=None, actions=None))
+    service.add_message = AsyncMock(
+        return_value=SimpleNamespace(id="msg-1", citations=None, actions=None)
+    )
     service.get_messages = AsyncMock(return_value=[])
 
     mock_get_company_info.return_value = {
@@ -59,7 +61,9 @@ async def test_chat_service_due_diligence_without_company_name_asks_for_clarific
     service._load_llm_config = AsyncMock(return_value=None)
     service._workforce = MagicMock()
     service.create_conversation = AsyncMock(return_value=SimpleNamespace(id="conv-2"))
-    service.add_message = AsyncMock(return_value=SimpleNamespace(id="msg-2", citations=None, actions=None))
+    service.add_message = AsyncMock(
+        return_value=SimpleNamespace(id="msg-2", citations=None, actions=None)
+    )
     service.get_messages = AsyncMock(return_value=[])
 
     result = await service.chat("帮我调查一家公司是否可靠，重点看诉讼和工商")
@@ -77,7 +81,9 @@ async def test_chat_service_supplier_reliability_phrase_asks_for_company_name(
     service._load_llm_config = AsyncMock(return_value=None)
     service._workforce = MagicMock()
     service.create_conversation = AsyncMock(return_value=SimpleNamespace(id="conv-3"))
-    service.add_message = AsyncMock(return_value=SimpleNamespace(id="msg-3", citations=None, actions=None))
+    service.add_message = AsyncMock(
+        return_value=SimpleNamespace(id="msg-3", citations=None, actions=None)
+    )
     service.get_messages = AsyncMock(return_value=[])
 
     result = await service.chat("帮我看看这个供应商靠不靠谱，重点查信用和诉讼")
@@ -85,6 +91,23 @@ async def test_chat_service_supplier_reliability_phrase_asks_for_company_name(
     assert result["agent"] == "尽职调查Agent"
     assert "完整名称" in result["content"]
     assert not service._workforce.process_task.called
+
+
+def test_chat_service_routes_investigation_adjacent_intents_to_agents():
+    service = ChatService.__new__(ChatService)
+
+    assert service._decide_route(
+        "搜索腾讯公司的负面新闻和媒体报道",
+        agent_name=None,
+    ) == ("specific_agent", "legal_researcher", None)
+    assert service._decide_route(
+        "监测腾讯公司适用的数据合规新规",
+        agent_name=None,
+    ) == ("specific_agent", "regulatory_monitor", None)
+    assert service._decide_route(
+        "查一下腾讯公司的工商信息和诉讼记录",
+        agent_name=None,
+    ) == ("due_diligence", "尽职调查Agent", "腾讯公司")
 
 
 @pytest.mark.asyncio
@@ -130,7 +153,11 @@ async def test_stream_chat_routes_company_investigation_to_due_diligence(
         events.append(event)
 
     assert any(event.get("agent") == "尽职调查Agent" for event in events)
-    assert any("尽调摘要" in event.get("text", "") for event in events if event.get("type") == "content")
+    assert any(
+        "尽调摘要" in event.get("text", "")
+        for event in events
+        if event.get("type") == "content"
+    )
     assert events[-1]["type"] == "done"
     assert events[-1]["agent"] == "尽职调查Agent"
     assert not service._workforce.process_task.called

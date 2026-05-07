@@ -1,0 +1,28 @@
+{
+  "generated_at": "2026-05-07T08:47:41.138113+00:00",
+  "mode": "desktop_runtime_code_smoke",
+  "status": "passed",
+  "release_evidence_complete": false,
+  "checks": {
+    "frontend_desktop_sync_vitest": "passed",
+    "desktop_cargo_test": "passed",
+    "desktop_cargo_check": "passed",
+    "sqlite_migration_sql_smoke": "passed",
+    "sqlite_sync_performance_smoke": {
+      "status": "passed",
+      "push_100_rows_p95_ms": 12.4,
+      "pull_500_rows_p95_ms": 14.2,
+      "push_threshold_ms": 2000,
+      "pull_threshold_ms": 3000
+    },
+    "tauri_debug_build": "passed",
+    "debug_binary_or_bundle_self_test": "passed",
+    "debug_app_bundle_runtime_startup": "passed",
+    "debug_app_bundle_ui_load": "passed"
+  },
+  "artifacts": {
+    "debug_app_bundle": "desktop/target/debug/bundle/macos/安心法务.app",
+    "ui_log": "/Users/pengchengkeji/Documents/GitHub/Anxin-Smart-Legal-Services/docs/release/evidence/artifacts/desktop-runtime-ui-smoke-20260507.log"
+  },
+  "completion_note": "Code-level supporting evidence only. Keep desktop runtime evidence Status: pending until a signed/notarized package has packaged UI interaction, packaged-profile migration, packaged runtime performance, and cross-device continuation evidence."
+}

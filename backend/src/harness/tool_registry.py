@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 工具注册中心
 
@@ -13,7 +12,7 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any
 
 from loguru import logger
 
@@ -36,14 +35,14 @@ class ToolDefinition:
     risk_level: RiskLevel              # 风险等级
     service_module: str                # 所在服务模块，如 "src.services.knowledge_service"
     method_name: str                   # 方法名，如 "search"
-    input_schema: Optional[Dict] = None    # 输入参数 schema
-    output_schema: Optional[Dict] = None   # 输出格式 schema
-    allowed_agents: Optional[Set[str]] = None  # 允许调用的 Agent 列表（None=全部可用）
+    input_schema: dict[str, Any] | None = None    # 输入参数 schema
+    output_schema: dict[str, Any] | None = None   # 输出格式 schema
+    allowed_agents: set[str] | None = None  # 允许调用的 Agent 列表（None=全部可用）
     requires_approval: bool = False     # 是否需要人工审批
     timeout_seconds: int = 30          # 超时时间
     retry_count: int = 1              # 重试次数
-    fallback_tool: Optional[str] = None  # 失败时回退到的工具
-    tags: List[str] = field(default_factory=list)  # 标签分类
+    fallback_tool: str | None = None  # 失败时回退到的工具
+    tags: list[str] = field(default_factory=list)  # 标签分类
 
 
 @dataclass
@@ -54,7 +53,7 @@ class ToolCallRecord:
     timestamp: float
     latency_ms: float
     success: bool
-    error_msg: Optional[str] = None
+    error_msg: str | None = None
 
 
 class ToolRegistry:
@@ -68,16 +67,16 @@ class ToolRegistry:
     - 失败回退
     """
 
-    def __init__(self):
-        self._tools: Dict[str, ToolDefinition] = {}
-        self._call_history: List[ToolCallRecord] = []
-        self._call_counts: Dict[str, int] = defaultdict(int)
-        self._success_counts: Dict[str, int] = defaultdict(int)
-        self._total_latency: Dict[str, float] = defaultdict(float)
+    def __init__(self) -> None:
+        self._tools: dict[str, ToolDefinition] = {}
+        self._call_history: list[ToolCallRecord] = []
+        self._call_counts: dict[str, int] = defaultdict(int)
+        self._success_counts: dict[str, int] = defaultdict(int)
+        self._total_latency: dict[str, float] = defaultdict(float)
         self._max_history = 5000
         self._register_builtin_tools()
 
-    def _register_builtin_tools(self):
+    def _register_builtin_tools(self) -> None:
         """注册内置工具集"""
         builtin_tools = [
             # ===== 知识检索类（只读）=====
@@ -244,20 +243,20 @@ class ToolRegistry:
 
         logger.info(f"[ToolRegistry] 注册 {len(self._tools)} 个内置工具")
 
-    def register(self, tool: ToolDefinition):
+    def register(self, tool: ToolDefinition) -> None:
         """注册工具"""
         self._tools[tool.name] = tool
 
-    def get(self, tool_name: str) -> Optional[ToolDefinition]:
+    def get(self, tool_name: str) -> ToolDefinition | None:
         """获取工具定义"""
         return self._tools.get(tool_name)
 
     def list_tools(
         self,
-        risk_level: Optional[RiskLevel] = None,
-        tag: Optional[str] = None,
-        agent_name: Optional[str] = None,
-    ) -> List[ToolDefinition]:
+        risk_level: RiskLevel | None = None,
+        tag: str | None = None,
+        agent_name: str | None = None,
+    ) -> list[ToolDefinition]:
         """列出工具（支持过滤）"""
         tools = list(self._tools.values())
 
@@ -290,8 +289,8 @@ class ToolRegistry:
         agent_name: str,
         latency_ms: float,
         success: bool,
-        error_msg: Optional[str] = None,
-    ):
+        error_msg: str | None = None,
+    ) -> None:
         """记录工具调用"""
         record = ToolCallRecord(
             tool_name=tool_name,
@@ -310,7 +309,7 @@ class ToolRegistry:
             self._success_counts[tool_name] += 1
         self._total_latency[tool_name] += latency_ms
 
-    def get_tool_stats(self, tool_name: Optional[str] = None) -> Dict[str, Any]:
+    def get_tool_stats(self, tool_name: str | None = None) -> dict[str, Any]:
         """获取工具调用统计"""
         if tool_name:
             total = self._call_counts.get(tool_name, 0)
@@ -326,7 +325,7 @@ class ToolRegistry:
             }
 
         # 全局统计
-        stats = {}
+        stats: dict[str, dict[str, int | float]] = {}
         for name in self._tools:
             total = self._call_counts.get(name, 0)
             if total == 0:
@@ -340,9 +339,9 @@ class ToolRegistry:
             }
         return stats
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """获取注册中心摘要"""
-        by_risk = defaultdict(int)
+        by_risk: defaultdict[str, int] = defaultdict(int)
         for t in self._tools.values():
             by_risk[t.risk_level.value] += 1
         return {

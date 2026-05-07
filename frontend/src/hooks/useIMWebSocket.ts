@@ -6,13 +6,17 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useIMStore, useNotificationStore } from '@/lib/store'
+import { useAuthStore, useIMStore, useNotificationStore, type IMMessage } from '@/lib/store'
+import { getAccessTokenSnapshot } from '@/lib/platform/storage'
 
 // 模块级单例状态
 let imSocket: WebSocket | null = null
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 let reconnectCount = 0
 const MAX_RECONNECT = 10
+export const IM_ACK_CURSOR_STORAGE_PREFIX = 'anxin_im_last_ack_message_id'
+
+type AckSender = (messageId: string) => boolean
 
 export function useIMWebSocket() {
   const [isConnected, setIsConnected] = useState(false)
@@ -57,7 +61,7 @@ export function useIMWebSocket() {
       return
     }
 
-    const token = localStorage.getItem('access_token')
+    const token = getAccessTokenSnapshot()
     if (!token) {
       console.warn('[IM WS] 无 token，跳过连接')
       return
@@ -68,19 +72,23 @@ export function useIMWebSocket() {
     // 生产环境：根据当前域名自动构建
     const wsBase = import.meta.env.VITE_WS_URL
       || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
-    const wsUrl = `${wsBase}/api/v1/im/ws?token=${encodeURIComponent(token)}`
+    const wsUrl = `${wsBase}/api/v1/im/ws`
 
     const ws = new WebSocket(wsUrl)
 
     ws.onopen = () => {
-      setIsConnected(true)
-      reconnectCount = 0
-      console.info('[IM WS] 连接成功')
+      ws.send(JSON.stringify({ type: 'auth', data: buildAuthPayload(token) }))
     }
 
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data)
+        if (data.type === 'auth_ok') {
+          setIsConnected(true)
+          reconnectCount = 0
+          console.info('[IM WS] 鉴权成功')
+          return
+        }
         _routeMessage(data, storeRef.current)
       } catch (e) {
         console.error('[IM WS] 消息解析失败:', e)
@@ -154,25 +162,40 @@ export function useIMWebSocket() {
 
 // ===== 消息路由 =====
 
-function _routeMessage(
+export function _routeMessage(
   data: Record<string, unknown>,
   store: {
-    addMessage: (msg: any) => void
+    addMessage: (msg: IMMessage) => void
     setTyping: (convId: string, userId: string) => void
     clearTyping: (convId: string, userId: string) => void
     recallMessage: (messageId: string) => void
     updateReadReceipt: (convId: string, userId: string) => void
     addNotification: (item: any) => void
-  }
+  },
+  sendAck: AckSender = acknowledgeIncomingMessage
 ) {
   const type = data.type as string
 
   switch (type) {
     case 'message':
-      if (data.message) {
-        store.addMessage(data.message as any)
+      routeIncomingMessage(data.message, store, sendAck)
+      break
+
+    case 'offline_messages':
+      if (Array.isArray(data.messages)) {
+        for (const message of data.messages) {
+          routeIncomingMessage(message, store, sendAck)
+        }
       }
       break
+
+    case 'ack_ok': {
+      const messageId = data.message_id as string
+      if (messageId) {
+        rememberIMLastAckMessageId(useAuthStore.getState().user?.id, messageId)
+      }
+      break
+    }
 
     case 'typing': {
       const convId = data.conversation_id as string
@@ -226,5 +249,72 @@ function _routeMessage(
 
     default:
       console.warn('[IM WS] 未知消息类型:', type)
+  }
+}
+
+export function buildAuthPayload(token: string) {
+  const lastAckMessageId = getIMLastAckMessageId(useAuthStore.getState().user?.id)
+  if (!lastAckMessageId) {
+    return { token }
+  }
+  return { token, last_ack_message_id: lastAckMessageId }
+}
+
+export function getIMLastAckMessageId(userId: string | null | undefined): string | null {
+  if (!userId) return null
+  try {
+    return getLocalStorage()?.getItem(getAckCursorStorageKey(userId)) ?? null
+  } catch {
+    return null
+  }
+}
+
+export function rememberIMLastAckMessageId(
+  userId: string | null | undefined,
+  messageId: string
+): void {
+  if (!userId || !messageId) return
+  try {
+    getLocalStorage()?.setItem(getAckCursorStorageKey(userId), messageId)
+  } catch {
+    // localStorage may be unavailable in privacy modes; ACK still reached the server.
+  }
+}
+
+function routeIncomingMessage(
+  message: unknown,
+  store: { addMessage: (msg: IMMessage) => void },
+  sendAck: AckSender
+) {
+  if (!isIMMessagePayload(message)) return
+  store.addMessage(message)
+  sendAck(message.id)
+}
+
+function acknowledgeIncomingMessage(messageId: string): boolean {
+  if (!imSocket || imSocket.readyState !== WebSocket.OPEN) return false
+  try {
+    imSocket.send(JSON.stringify({ type: 'ack', message_id: messageId }))
+    return true
+  } catch {
+    return false
+  }
+}
+
+function isIMMessagePayload(value: unknown): value is IMMessage {
+  if (!value || typeof value !== 'object') return false
+  const message = value as { id?: unknown; conversation_id?: unknown }
+  return typeof message.id === 'string' && typeof message.conversation_id === 'string'
+}
+
+function getAckCursorStorageKey(userId: string): string {
+  return `${IM_ACK_CURSOR_STORAGE_PREFIX}:${userId}`
+}
+
+function getLocalStorage(): Storage | null {
+  try {
+    return typeof globalThis.localStorage === 'undefined' ? null : globalThis.localStorage
+  } catch {
+    return null
   }
 }

@@ -1,0 +1,305 @@
+{
+  "$schema": "https://anxin.local/schemas/commercial-delivery-lanes.v1.json",
+  "generated_at": "2026-05-07T13:50:00+08:00",
+  "status": "not_ready",
+  "status_reason": "Parallel lanes are defined for commercial delivery, but external sandbox, packaged desktop, device evidence, and final clean-worktree/GitNexus gates remain incomplete.",
+  "parallelization": {
+    "max_concurrent_lanes": 6,
+    "final_lane": "final-commercial-gate",
+    "coordination_rule": "Each lane owns only its listed evidence files and artifacts. The final commercial gate lane integrates all lane outputs after every evidence file is complete."
+  },
+  "lanes": [
+    {
+      "id": "release-control",
+      "category": "local",
+      "status": "in_progress",
+      "can_parallelize": true,
+      "write_scope": [
+        "docs/release/completion-audit.md",
+        "docs/release/test-evidence.md",
+        "docs/release/evidence-collection-runbook.md",
+        "docs/release/commercial-delivery-lanes.json"
+      ],
+      "evidence": [
+        "docs/release/completion-audit.md",
+        "docs/release/test-evidence.md",
+        "docs/release/evidence-collection-runbook.md",
+        "scripts/release-worktree-inventory.py"
+      ],
+      "local_commands": [
+        "python3 scripts/release-worktree-inventory.py --json",
+        "git diff --check",
+        "bash scripts/release-evidence-secret-scan.sh"
+      ],
+      "external_inputs": [],
+      "current_blockers": [
+        "Working tree is not clean; tracked and untracked release artifacts must be reviewed before final GitNexus rerun."
+      ],
+      "completion_gate": [
+        "local_secret=0 and unknown=0 in release-worktree-inventory",
+        "All generated/runtime dirty paths explicitly accepted or removed before staging",
+        "Final GitNexus rerun occurs after release artifacts are committed"
+      ]
+    },
+    {
+      "id": "payment-sandbox",
+      "category": "external-sandbox",
+      "status": "pending_external_input",
+      "can_parallelize": true,
+      "write_scope": [
+        "docs/release/evidence/payment-sandbox.md",
+        "docs/release/evidence/artifacts/*payment*.json",
+        "docs/release/evidence/artifacts/*wechat-pay*.json",
+        "docs/release/evidence/artifacts/*alipay*.json"
+      ],
+      "evidence": [
+        "docs/release/evidence/payment-sandbox.md",
+        "docs/release/evidence/artifacts/payment-sandbox-preflight-20260507.json",
+        "docs/release/external-resource-handoff.md",
+        "scripts/sandbox-evidence-runner.py"
+      ],
+      "local_commands": [
+        "python3 scripts/sandbox-evidence-runner.py --scope payment --out docs/release/evidence/artifacts/payment-sandbox-preflight-YYYYMMDD.json",
+        "python3 scripts/sandbox-evidence-runner.py --scope wechat_pay --live --confirm-live-side-effects --out docs/release/evidence/artifacts/wechat-pay-live-YYYYMMDD.json",
+        "python3 scripts/sandbox-evidence-runner.py --scope alipay --live --confirm-live-side-effects --out docs/release/evidence/artifacts/alipay-live-YYYYMMDD.json"
+      ],
+      "external_inputs": [
+        "PAYMENT_NOTIFY_BASE_URL",
+        "WECHAT_PAY_APP_ID",
+        "WECHAT_PAY_MCH_ID",
+        "WECHAT_PAY_MERCHANT_SERIAL_NO",
+        "WECHAT_PAY_MERCHANT_PRIVATE_KEY or WECHAT_PAY_MERCHANT_PRIVATE_KEY_PATH",
+        "WECHAT_PAY_PLATFORM_SERIAL",
+        "WECHAT_PAY_PLATFORM_PUBLIC_KEY or WECHAT_PAY_PLATFORM_PUBLIC_KEY_PATH",
+        "WECHAT_PAY_API_V3_KEY",
+        "WECHAT_PAY_OFFICIAL_WEBHOOK_ENABLED=true",
+        "ALIPAY_APP_ID",
+        "ALIPAY_PRIVATE_KEY or ALIPAY_PRIVATE_KEY_PATH",
+        "ALIPAY_PUBLIC_KEY or ALIPAY_PUBLIC_KEY_PATH",
+        "ALIPAY_GATEWAY_URL",
+        "ALIPAY_OFFICIAL_WEBHOOK_ENABLED=true",
+        "Paid/open sandbox order IDs for query, refund, and close runtime evidence"
+      ],
+      "current_blockers": [
+        "WeChat Pay and Alipay sandbox credentials are not present in the local environment.",
+        "Runtime order IDs, external_evidence_requirements artifact refs, official callback, duplicate idempotency, retry, and platform key/cert rotation artifacts are missing."
+      ],
+      "completion_gate": [
+        "docs/release/evidence/payment-sandbox.md has Status: complete",
+        "Every required payment evidence row has a real artifact reference",
+        "release evidence secret scan passes after live artifacts are added"
+      ]
+    },
+    {
+      "id": "esign-sandbox",
+      "category": "external-sandbox",
+      "status": "pending_external_input",
+      "can_parallelize": true,
+      "write_scope": [
+        "docs/release/evidence/esign-sandbox.md",
+        "docs/release/evidence/artifacts/*esign*.json",
+        "docs/release/evidence/artifacts/*esignbao*.json",
+        "docs/release/evidence/artifacts/*fadada*.json"
+      ],
+      "evidence": [
+        "docs/release/evidence/esign-sandbox.md",
+        "docs/release/evidence/artifacts/esign-sandbox-preflight-20260507.json",
+        "docs/release/external-resource-handoff.md",
+        "scripts/sandbox-evidence-runner.py"
+      ],
+      "local_commands": [
+        "python3 scripts/sandbox-evidence-runner.py --scope esign --out docs/release/evidence/artifacts/esign-sandbox-preflight-YYYYMMDD.json",
+        "python3 scripts/sandbox-evidence-runner.py --scope esignbao --live --confirm-live-side-effects --esign-document-url <sandbox-doc-url> --out docs/release/evidence/artifacts/esignbao-live-YYYYMMDD.json",
+        "python3 scripts/sandbox-evidence-runner.py --scope fadada --live --confirm-live-side-effects --esign-document-url <sandbox-doc-url> --out docs/release/evidence/artifacts/fadada-live-YYYYMMDD.json"
+      ],
+      "external_inputs": [
+        "ESIGN_BAO_APP_ID",
+        "ESIGN_BAO_APP_SECRET",
+        "ESIGN_BAO_API_URL",
+        "FADADA_APP_ID",
+        "FADADA_APP_SECRET",
+        "FADADA_API_URL",
+        "ESIGN_OFFICIAL_WEBHOOK_ENABLED=true",
+        "Sandbox contract document URL or file ID",
+        "Completed sandbox signing flow IDs for download evidence"
+      ],
+      "current_blockers": [
+        "e签宝 and FaDaDa sandbox credentials are not present in the local environment.",
+        "Sandbox test document/completed flow IDs, external_evidence_requirements artifact refs, signed, canceled, downloaded, callback, duplicate idempotency, and retry artifacts are missing."
+      ],
+      "completion_gate": [
+        "docs/release/evidence/esign-sandbox.md has Status: complete",
+        "Every required e-sign evidence row has a real artifact reference",
+        "release evidence secret scan passes after live artifacts are added"
+      ]
+    },
+    {
+      "id": "desktop-release",
+      "category": "signed-runtime",
+      "status": "pending_external_input",
+      "can_parallelize": true,
+      "write_scope": [
+        "docs/release/evidence/desktop-runtime-smoke.md",
+        "docs/release/evidence/artifacts/*desktop*.json",
+        "docs/release/evidence/artifacts/*desktop*.log"
+      ],
+      "evidence": [
+        "docs/release/evidence/desktop-runtime-smoke.md",
+        "docs/release/evidence/artifacts/desktop-release-package-dry-run-20260507.json",
+        "docs/release/evidence/artifacts/desktop-release-preflight-20260507.json",
+        "docs/release/evidence/artifacts/desktop-release-runtime-unsigned-smoke-20260507.json",
+        "docs/release/evidence/artifacts/desktop-release-runtime-ui-smoke-unsigned-20260507.log",
+        "docs/release/evidence/artifacts/desktop-release-profile-unsigned-smoke-20260508.json",
+        "docs/release/evidence/artifacts/desktop-installed-profile-smoke-20260507.json",
+        "docs/release/evidence/artifacts/desktop-runtime-code-smoke-20260507.json",
+        "docs/release/evidence/artifacts/desktop-runtime-ui-smoke-20260507.log",
+        "docs/release/external-resource-handoff.md",
+        "scripts/desktop-release-package.sh",
+        "scripts/desktop-release-preflight.sh",
+        "scripts/desktop-release-runtime-smoke.sh",
+        "scripts/desktop-release-profile-smoke.sh",
+        "scripts/desktop-runtime-smoke.sh",
+        "scripts/desktop-installed-profile-smoke.sh"
+      ],
+      "local_commands": [
+        "bash scripts/desktop-release-package.sh --dry-run --out docs/release/evidence/artifacts/desktop-release-package-dry-run-YYYYMMDD.json --preflight-out docs/release/evidence/artifacts/desktop-release-preflight-YYYYMMDD.json",
+        "bash scripts/desktop-release-preflight.sh --out docs/release/evidence/artifacts/desktop-release-preflight-YYYYMMDD.json",
+        "bash scripts/desktop-release-runtime-smoke.sh --out docs/release/evidence/artifacts/desktop-release-runtime-unsigned-smoke-YYYYMMDD.json --ui-log-out docs/release/evidence/artifacts/desktop-release-runtime-ui-smoke-unsigned-YYYYMMDD.log",
+        "bash scripts/desktop-release-profile-smoke.sh --out docs/release/evidence/artifacts/desktop-release-profile-unsigned-smoke-YYYYMMDD.json",
+        "bash scripts/desktop-runtime-smoke.sh --with-app-bundle --out docs/release/evidence/artifacts/desktop-runtime-code-smoke-YYYYMMDD.json --ui-log-out docs/release/evidence/artifacts/desktop-runtime-ui-smoke-YYYYMMDD.log",
+        "bash scripts/desktop-installed-profile-smoke.sh --out docs/release/evidence/artifacts/desktop-installed-profile-smoke-YYYYMMDD.json"
+      ],
+      "external_inputs": [
+        "Tauri macOS signing identity",
+        "Apple code signing identity",
+        "notarytool credential",
+        "signed/notarized release .app and DMG",
+        "packaged cross-device test environment"
+      ],
+      "current_blockers": [
+        "desktop-release-package dry-run and desktop-release-preflight now report hdiutil/DiskManagement, unsigned release app, and unsigned release DMG as passing, but still report missing signing identity, codesign identity, notary credential, code-sign verification, and signature authority.",
+        "Unsigned release packaged runtime and packaged-profile/performance smoke now pass, but signed/notarized packaged-profile migration, signed packaged runtime performance, and cross-device evidence are missing."
+      ],
+      "completion_gate": [
+        "desktop-release-preflight reports release_ready=true",
+        "docs/release/evidence/desktop-runtime-smoke.md has Status: complete",
+        "Packaged runtime transcript covers migration, performance, retry/backoff, and cross-device continuation"
+      ]
+    },
+    {
+      "id": "rag-full50",
+      "category": "built-in-rag",
+      "status": "complete",
+      "can_parallelize": true,
+      "write_scope": [
+        "docs/release/evidence/rag-full50-live-baseline.md",
+        "docs/release/evidence/artifacts/*rag-full50*.json",
+        "eval/legal_full50_corpus.jsonl",
+        "eval/legal_full50_golden.jsonl"
+      ],
+      "evidence": [
+        "docs/release/evidence/rag-full50-live-baseline.md",
+        "eval/export_builtin_legal_full50.py",
+        "eval/legal_full50_corpus.jsonl",
+        "eval/legal_full50_golden.jsonl",
+        "docs/release/evidence/artifacts/rag-full50-built-in-preflight-20260507.json",
+        "docs/release/evidence/artifacts/rag-full50-built-in-predictions-20260507.json",
+        "docs/release/evidence/artifacts/rag-full50-built-in-metrics-20260507.json",
+        "docs/release/evidence/artifacts/rag-full50-preflight-failure-20260507.json",
+        "docs/release/evidence/artifacts/rag-full50-smoke-golden-failure-20260507.json",
+        "eval/rag_live_qdrant_full50.py"
+      ],
+      "local_commands": [
+        "python3 eval/export_builtin_legal_full50.py --corpus eval/legal_full50_corpus.jsonl --golden eval/legal_full50_golden.jsonl",
+        "python3 eval/rag_live_qdrant_full50.py --golden eval/legal_full50_golden.jsonl --corpus eval/legal_full50_corpus.jsonl --preflight-only --out docs/release/evidence/artifacts/rag-full50-built-in-preflight-YYYYMMDD.json --run-label built-in-legal-full50-YYYYMMDD",
+        "./backend/.venv/bin/python eval/rag_live_qdrant_full50.py --golden eval/legal_full50_golden.jsonl --corpus eval/legal_full50_corpus.jsonl --out docs/release/evidence/artifacts/rag-full50-built-in-predictions-YYYYMMDD.json --collection rag_eval_full50_builtin_YYYYMMDD --run-label built-in-legal-full50-YYYYMMDD",
+        "python3 eval/rag_quality.py --golden eval/legal_full50_golden.jsonl --predictions docs/release/evidence/artifacts/rag-full50-built-in-predictions-YYYYMMDD.json --out docs/release/evidence/artifacts/rag-full50-built-in-metrics-YYYYMMDD.json --run-label built-in-legal-full50-YYYYMMDD"
+      ],
+      "external_inputs": [],
+      "current_blockers": [],
+      "completion_gate": [
+        "docs/release/evidence/rag-full50-live-baseline.md has Status: complete",
+        "Preflight, predictions, and metrics artifacts are all present and non-empty",
+        "Built-in RAG artifacts are generated from non-smoke golden data and built-in legal corpus"
+      ]
+    },
+    {
+      "id": "mobile-mini-device",
+      "category": "device-evidence",
+      "status": "pending_device_evidence",
+      "can_parallelize": true,
+      "write_scope": [
+        "docs/release/evidence/mobile-device-smoke.md",
+        "docs/release/evidence/artifacts/*mobile*.json",
+        "docs/release/evidence/artifacts/*mini*.json"
+      ],
+      "evidence": [
+        "docs/release/evidence/mobile-device-smoke.md",
+        "docs/release/evidence/artifacts/mobile-device-manual-template-20260508.json",
+        "docs/release/evidence/artifacts/mobile-mini-code-smoke-20260508.json",
+        "docs/release/external-resource-handoff.md",
+        "scripts/mobile-device-smoke.sh"
+      ],
+      "local_commands": [
+        "bash scripts/mobile-device-smoke.sh --out docs/release/evidence/artifacts/mobile-mini-code-smoke-YYYYMMDD.json --manual-template-out docs/release/evidence/artifacts/mobile-device-manual-template-YYYYMMDD.json",
+        "Record iOS device transcript with screenshots/log artifact references",
+        "Record Android device transcript with screenshots/log artifact references",
+        "Record WeChat DevTools or real-device mini-program transcript"
+      ],
+      "external_inputs": [
+        "iOS test build and device or TestFlight run",
+        "Android test build and device",
+        "WeChat DevTools or real-device environment",
+        "staging backend environment",
+        "redacted test account role"
+      ],
+      "current_blockers": [
+        "Local code-level smoke was refreshed on 2026-05-08, including Expo config/SDK dependency guard, WeChat DevTools CLI project smoke, refresh-auth guards, and structured mobile_npm_audit status=passed tracking; npx expo-doctor passes 17/17 and mobile production npm audit is 0, but iOS, Android, interactive WeChat DevTools/device, and cross-device continuation evidence are not attached."
+      ],
+      "completion_gate": [
+        "docs/release/evidence/mobile-device-smoke.md has Status: complete",
+        "iOS, Android, WeChat, error-state, cross-device, and mobile security rows all have real artifact references",
+        "release evidence secret scan passes after device artifacts are added"
+      ]
+    },
+    {
+      "id": "final-commercial-gate",
+      "category": "final-release",
+      "status": "pending_final_release",
+      "can_parallelize": false,
+      "write_scope": [
+        "docs/release/commercial-delivery-readiness.md",
+        "docs/release/completion-audit.md",
+        "docs/release/test-evidence.md"
+      ],
+      "evidence": [
+        "scripts/commercial-readiness-gate.sh",
+        "scripts/gitnexus-index.sh",
+        "docs/release/commercial-delivery-readiness.md",
+        "docs/release/completion-audit.md",
+        "docs/release/external-resource-handoff.md"
+      ],
+      "local_commands": [
+        "git diff --check",
+        "bash scripts/release-evidence-secret-scan.sh",
+        "GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/gitnexus-index.sh --embeddings",
+        "GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/commercial-readiness-gate.sh --quick",
+        "GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/commercial-readiness-gate.sh --with-local-tests"
+      ],
+      "external_inputs": [
+        "All other lanes complete",
+        "clean release branch",
+        "final commit-scoped GitNexus metadata"
+      ],
+      "current_blockers": [
+        "Commercial readiness gate currently fails until payment, e-sign, desktop, mobile/device, worktree, and final GitNexus evidence are complete."
+      ],
+      "completion_gate": [
+        "working tree clean",
+        "GitNexus metadata corresponds to final release commit",
+        "commercial-readiness-gate --quick passes",
+        "commercial-readiness-gate --with-local-tests passes or an explicitly approved equivalent release transcript exists"
+      ]
+    }
+  ]
+}

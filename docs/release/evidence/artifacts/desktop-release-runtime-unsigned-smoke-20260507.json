@@ -1,0 +1,27 @@
+{
+  "generated_at": "2026-05-07T17:38:34.016659+00:00",
+  "mode": "desktop_release_runtime_unsigned_smoke",
+  "status": "passed",
+  "release_evidence_complete": false,
+  "signed_or_notarized": false,
+  "checks": {
+    "release_app_exists": "passed",
+    "release_dmg_exists": "passed",
+    "release_binary_self_test": "passed",
+    "release_runtime_startup": "passed",
+    "release_webview_ui_load": "passed",
+    "sqlite_security": {
+      "status": "passed",
+      "encrypted": true,
+      "keyring_backed": true,
+      "release_blocking": false
+    }
+  },
+  "artifacts": {
+    "release_app": "/Users/pengchengkeji/Documents/GitHub/Anxin-Smart-Legal-Services/desktop/target/release/bundle/macos/安心法务.app",
+    "release_binary": "/Users/pengchengkeji/Documents/GitHub/Anxin-Smart-Legal-Services/desktop/target/release/bundle/macos/安心法务.app/Contents/MacOS/anxin-legal-desktop",
+    "release_dmg": "/Users/pengchengkeji/Documents/GitHub/Anxin-Smart-Legal-Services/desktop/target/release/bundle/dmg/安心法务_1.0.0_aarch64.dmg",
+    "ui_log": "/Users/pengchengkeji/Documents/GitHub/Anxin-Smart-Legal-Services/docs/release/evidence/artifacts/desktop-release-runtime-ui-smoke-unsigned-20260507.log"
+  },
+  "completion_note": "Unsigned release packaged-runtime supporting evidence only. Keep desktop runtime evidence Status: pending until the package is signed/notarized and signed packaged-profile migration, signed packaged runtime performance, and cross-device continuation evidence are attached."
+}

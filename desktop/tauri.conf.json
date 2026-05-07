@@ -6,7 +6,7 @@
   "build": {
     "frontendDist": "../frontend/dist",
     "devUrl": "http://localhost:3001",
-    "beforeBuildCommand": "cd ../frontend && npm run build",
+    "beforeBuildCommand": "cd frontend && npm run build",
     "beforeDevCommand": ""
   },
   "app": {
@@ -65,9 +65,6 @@
         "https://api.anxin-legal.com/api/v1/updates/{{target}}/{{arch}}/{{current_version}}"
       ],
       "pubkey": ""
-    },
-    "sql": {
-      "preload": ["sqlite:anxin_local.db"]
     }
   }
 }

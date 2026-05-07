@@ -2,38 +2,41 @@
 MCP Server Management Routes
 """
 
-from typing import List, Optional, Dict, Any
+
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.deps import UserRole, get_admin_user, require_role
-from src.services.mcp_client_service import mcp_client_service
-from src.models.mcp_config import McpServerConfig
 from src.core.database import get_db
+from src.core.deps import UserRole, get_admin_user, require_role
+from src.models.mcp_config import McpServerConfig
+from src.models.user import User
+from src.services.mcp_client_service import mcp_client_service
 
 router = APIRouter()
 
 class McpConfigCreate(BaseModel):
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     type: str = "stdio"
-    command: Optional[str] = None
-    args: Optional[List[str]] = []
-    env: Optional[Dict[str, str]] = {}
-    url: Optional[str] = None
+    command: str | None = None
+    args: list[str] | None = []
+    env: dict[str, str] | None = {}
+    url: str | None = None
     is_enabled: bool = True
 
 class McpConfigUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    type: Optional[str] = None
-    command: Optional[str] = None
-    args: Optional[List[str]] = None
-    env: Optional[Dict[str, str]] = None
-    url: Optional[str] = None
-    is_enabled: Optional[bool] = None
+    name: str | None = None
+    description: str | None = None
+    type: str | None = None
+    command: str | None = None
+    args: list[str] | None = None
+    env: dict[str, str] | None = None
+    url: str | None = None
+    is_enabled: bool | None = None
 
 class McpConfigResponse(BaseModel):
     """MCP 服务器响应 — 隐藏 env 中的敏感值"""
@@ -41,19 +44,22 @@ class McpConfigResponse(BaseModel):
 
     id: str
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     type: str = "stdio"
-    command: Optional[str] = None
-    args: Optional[List[str]] = []
-    url: Optional[str] = None
+    command: str | None = None
+    args: list[str] | None = []
+    url: str | None = None
     is_enabled: bool = True
-    cached_tools: Optional[List[Dict]] = []
-    env_keys: Optional[List[str]] = []  # 仅返回键名，不返回值
+    cached_tools: list[dict[str, Any]] | None = []
+    env_keys: list[str] | None = []  # 仅返回键名，不返回值
 
     @classmethod
-    def from_orm_masked(cls, obj):
+    def from_orm_masked(
+        cls,
+        obj: McpServerConfig,
+    ) -> "McpConfigResponse":
         """从 ORM 对象创建响应，遮罩 env 值"""
-        data = {
+        data: dict[str, Any] = {
             "id": obj.id,
             "name": obj.name,
             "description": obj.description,
@@ -70,8 +76,8 @@ class McpConfigResponse(BaseModel):
 @router.get("/servers")
 async def list_servers(
     db: AsyncSession = Depends(get_db),
-    user = Depends(get_admin_user)
-):
+    user: User = Depends(get_admin_user),
+) -> list[McpConfigResponse]:
     """List all configured MCP servers (env values masked)."""
     result = await db.execute(select(McpServerConfig))
     return [McpConfigResponse.from_orm_masked(s) for s in result.scalars().all()]
@@ -80,8 +86,8 @@ async def list_servers(
 async def create_server(
     config: McpConfigCreate,
     db: AsyncSession = Depends(get_db),
-    user = Depends(get_admin_user)
-):
+    user: User = Depends(get_admin_user),
+) -> McpConfigResponse:
     """Add a new MCP server configuration."""
     existing = await db.execute(select(McpServerConfig).where(McpServerConfig.name == config.name))
     if existing.scalar_one_or_none():
@@ -98,8 +104,8 @@ async def update_server(
     server_id: str,
     config: McpConfigUpdate,
     db: AsyncSession = Depends(get_db),
-    user = Depends(get_admin_user)
-):
+    user: User = Depends(get_admin_user),
+) -> McpConfigResponse:
     """Update an MCP server configuration."""
     db_config = await db.get(McpServerConfig, server_id)
     if not db_config:
@@ -117,8 +123,8 @@ async def update_server(
 async def delete_server(
     server_id: str,
     db: AsyncSession = Depends(get_db),
-    user = Depends(get_admin_user)
-):
+    user: User = Depends(get_admin_user),
+) -> dict[str, bool]:
     """Delete an MCP server configuration."""
     db_config = await db.get(McpServerConfig, server_id)
     if not db_config:
@@ -132,28 +138,28 @@ async def delete_server(
 async def connect_server(
     server_id: str,
     db: AsyncSession = Depends(get_db),
-    user = Depends(get_admin_user)
-):
+    user: User = Depends(get_admin_user),
+) -> dict[str, Any]:
     """Test connection and refresh tools."""
     config = await db.get(McpServerConfig, server_id)
     if not config:
         raise HTTPException(status_code=404, detail="Server not found")
-    
+
     try:
         await mcp_client_service.connect_server(config)
-        
+
         # Update cache
         tools = mcp_client_service._tools_cache.get(config.name, [])
         config.cached_tools = tools
         await db.commit()
-        
+
         return {"status": "connected", "tools_count": len(tools), "tools": tools}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Connection failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Connection failed: {str(e)}") from e
 
 @router.get("/tools")
 async def list_available_tools(
-    user = Depends(require_role(UserRole.ADMIN, UserRole.SUPER_ADMIN))
-):
+    user: User = Depends(require_role(UserRole.ADMIN, UserRole.SUPER_ADMIN)),
+) -> list[dict[str, Any]]:
     """List all available tools from connected servers."""
     return await mcp_client_service.get_all_tools()

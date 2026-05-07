@@ -1,13 +1,12 @@
-# -*- coding: utf-8 -*-
 """
 团队管理服务
 """
 
-from typing import Optional
+from typing import Any, cast
 
-from sqlalchemy import select, func, delete
-from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
+from sqlalchemy import delete, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.firm_management import Team, TeamMember
 from src.models.user import User
@@ -19,7 +18,7 @@ class TeamService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def list_teams(self, org_id: str) -> list[dict]:
+    async def list_teams(self, org_id: str) -> list[dict[str, Any]]:
         """获取组织下所有团队（含成员数）"""
         # 子查询：每个团队的成员数
         member_count_sq = (
@@ -40,7 +39,7 @@ class TeamService:
         result = await self.db.execute(stmt)
         rows = result.all()
 
-        teams = []
+        teams: list[dict[str, Any]] = []
         for team, count in rows:
             d = team.to_dict()
             d["member_count"] = count or 0
@@ -80,9 +79,9 @@ class TeamService:
         self,
         org_id: str,
         name: str,
-        description: Optional[str] = None,
-        leader_id: Optional[str] = None,
-    ) -> dict:
+        description: str | None = None,
+        leader_id: str | None = None,
+    ) -> dict[str, Any]:
         """创建团队"""
         team = Team(
             org_id=org_id,
@@ -103,7 +102,7 @@ class TeamService:
         logger.info(f"创建团队: {team.id} - {name}")
         return team.to_dict()
 
-    async def update_team(self, team_id: str, data: dict) -> Optional[dict]:
+    async def update_team(self, team_id: str, data: dict[str, Any]) -> dict[str, Any] | None:
         """更新团队信息"""
         result = await self.db.execute(select(Team).where(Team.id == team_id))
         team = result.scalar_one_or_none()
@@ -130,7 +129,7 @@ class TeamService:
         logger.info(f"删除团队: {team_id}")
         return True
 
-    async def add_member(self, team_id: str, user_id: str, role: str = "member") -> dict:
+    async def add_member(self, team_id: str, user_id: str, role: str = "member") -> dict[str, Any]:
         """添加团队成员"""
         member = TeamMember(team_id=team_id, user_id=user_id, role=role)
         self.db.add(member)
@@ -146,9 +145,10 @@ class TeamService:
         )
         result = await self.db.execute(stmt)
         await self.db.commit()
-        return result.rowcount > 0
+        deleted_count = cast(Any, result).rowcount
+        return bool(deleted_count > 0)
 
-    async def list_members(self, team_id: str) -> list[dict]:
+    async def list_members(self, team_id: str) -> list[dict[str, Any]]:
         """获取团队成员列表"""
         stmt = (
             select(TeamMember)

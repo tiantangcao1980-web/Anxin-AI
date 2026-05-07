@@ -1,13 +1,23 @@
-# -*- coding: utf-8 -*-
 """律师认证与接单配置模型"""
 
-from datetime import datetime, date
-from typing import Optional
+from datetime import date, datetime
+from typing import Any
 
-from sqlalchemy import String, Text, ForeignKey, Boolean, DateTime, Integer, Float, JSON, Date, Index
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.models.base import Base, TimestampMixin, GUID
+from src.models.base import GUID, Base, TimestampMixin
 
 
 class LawyerCertification(Base, TimestampMixin):
@@ -21,7 +31,7 @@ class LawyerCertification(Base, TimestampMixin):
     license_image_url: Mapped[str] = mapped_column(
         String(500), nullable=False, comment="执业证照片URL"
     )
-    id_card_image_url: Mapped[Optional[str]] = mapped_column(
+    id_card_image_url: Mapped[str | None] = mapped_column(
         String(500), nullable=True, comment="身份证照片URL（可选）"
     )
     license_issue_date: Mapped[date] = mapped_column(
@@ -30,7 +40,7 @@ class LawyerCertification(Base, TimestampMixin):
     license_expiry_date: Mapped[date] = mapped_column(
         Date, nullable=False, comment="执业证到期日期"
     )
-    bar_association: Mapped[Optional[str]] = mapped_column(
+    bar_association: Mapped[str | None] = mapped_column(
         String(100), nullable=True, comment="所属律师协会"
     )
 
@@ -38,13 +48,13 @@ class LawyerCertification(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="pending", comment="认证状态: pending/approved/rejected/expired"
     )
-    rejection_reason: Mapped[Optional[str]] = mapped_column(
+    rejection_reason: Mapped[str | None] = mapped_column(
         Text, nullable=True, comment="驳回原因"
     )
-    verified_by: Mapped[Optional[str]] = mapped_column(
+    verified_by: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, comment="审核人ID"
     )
-    verified_at: Mapped[Optional[datetime]] = mapped_column(
+    verified_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, comment="审核时间"
     )
 
@@ -66,7 +76,7 @@ class LawyerServiceConfig(Base, TimestampMixin):
         GUID(), ForeignKey("lawyer_profiles.id", ondelete="CASCADE"),
         unique=True, nullable=False, comment="律师档案ID"
     )
-    service_types: Mapped[Optional[dict]] = mapped_column(
+    service_types: Mapped[list[str] | None] = mapped_column(
         JSON, default=list, comment='服务类型: ["instant_consultation","appointment","case_delegation"]'
     )
     auto_accept: Mapped[bool] = mapped_column(
@@ -78,10 +88,10 @@ class LawyerServiceConfig(Base, TimestampMixin):
     response_time_hours: Mapped[int] = mapped_column(
         Integer, default=24, nullable=False, comment="承诺响应时间（小时）"
     )
-    working_hours: Mapped[Optional[dict]] = mapped_column(
+    working_hours: Mapped[dict[str, Any] | None] = mapped_column(
         JSON, nullable=True, comment='工作时间: {"mon":"09:00-18:00", ...}'
     )
-    min_case_amount: Mapped[Optional[float]] = mapped_column(
+    min_case_amount: Mapped[float | None] = mapped_column(
         Float, nullable=True, comment="最低接案金额"
     )
 

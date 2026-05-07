@@ -1,8 +1,9 @@
-# -*- coding: utf-8 -*-
 """AI 旁听助手 API 路由"""
 
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,8 +26,8 @@ class StopListeningRequest(BaseModel):
 
 
 class LinkCaseRequest(BaseModel):
-    case_id: Optional[str] = None
-    contract_id: Optional[str] = None
+    case_id: str | None = None
+    contract_id: str | None = None
 
 
 @router.post("/start", response_model=UnifiedResponse)
@@ -34,7 +35,7 @@ async def start_listening(
     req: StartListeningRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """开启 AI 旁听"""
     if req.conversation_type not in ("im", "anonymous_chat"):
         raise HTTPException(status_code=400, detail="不支持的对话类型")
@@ -67,7 +68,7 @@ async def stop_listening(
     req: StopListeningRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """停止旁听并生成纪要"""
     existing = await meeting_assistant.get_record(db, req.conversation_id)
     if existing and str(existing.started_by) != str(user.id):
@@ -99,7 +100,7 @@ async def get_status(
     conversation_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """查询旁听状态"""
     record = await meeting_assistant.get_record(db, conversation_id)
     is_active = bool(record and str(record.started_by) == str(user.id) and meeting_assistant.is_listening(conversation_id))
@@ -111,7 +112,7 @@ async def get_insights(
     conversation_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取实时分析结果"""
     record = await meeting_assistant.get_record(db, conversation_id)
     if not record or str(record.started_by) != str(user.id):
@@ -125,7 +126,7 @@ async def get_summary(
     conversation_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取结构化纪要"""
     record = await meeting_assistant.get_record(db, conversation_id)
     if not record or str(record.started_by) != str(user.id):
@@ -150,7 +151,7 @@ async def list_records(
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取用户的旁听记录列表"""
     records, total = await meeting_assistant.get_records_by_user(
         db, str(user.id), page, page_size
@@ -182,9 +183,10 @@ async def link_case(
     req: LinkCaseRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """将旁听记录关联到案件或合同"""
     from sqlalchemy import select
+
     from src.models.meeting_record import MeetingRecord
 
     result = await db.execute(

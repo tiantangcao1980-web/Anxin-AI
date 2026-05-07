@@ -3,19 +3,19 @@
 负责合同的全生命周期管理：归档、关键要素提取、履约监控、风险预警。
 """
 
-from typing import Any, Dict, List
-from datetime import datetime, timedelta
 import json
+from datetime import datetime
+from typing import Any
 
-from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
+from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
 
 _FALLBACK_PROMPT = "你是一位细致入微的合同管家（Contract Steward）。"
 
 class ContractStewardAgent(BaseLegalAgent):
     """合同管家智能体"""
-    
-    def __init__(self):
+
+    def __init__(self) -> None:
         config = AgentConfig(
             name="合同管家Agent",
             role="合同全生命周期管理员",
@@ -24,14 +24,14 @@ class ContractStewardAgent(BaseLegalAgent):
             tools=["signature_service", "calendar_tool", "risk_radar"],
         )
         super().__init__(config)
-    
-    async def process(self, task: Dict[str, Any]) -> AgentResponse:
+
+    async def process(self, task: dict[str, Any]) -> AgentResponse:
         """处理合同管理任务"""
         action = task.get("action", "archive") # archive, check_status, analyze_risk
         context = task.get("context", {})
         contract_text = context.get("contract_text", "")
         contract_id = context.get("contract_id", "unknown")
-        
+
         if action == "archive":
             return await self._archive_contract(contract_text, contract_id)
         elif action == "check_status":
@@ -58,7 +58,7 @@ class ContractStewardAgent(BaseLegalAgent):
 - risk_points: [风险点1]
 """
         response = await self.chat(prompt)
-        
+
         return AgentResponse(
             agent_name=self.name,
             content=response,
@@ -68,10 +68,10 @@ class ContractStewardAgent(BaseLegalAgent):
             ]
         )
 
-    async def _check_contract_status(self, metadata: Dict[str, Any]) -> AgentResponse:
+    async def _check_contract_status(self, metadata: dict[str, Any]) -> AgentResponse:
         """检查状态并生成提醒"""
         current_date = datetime.now().strftime("%Y-%m-%d")
-        
+
         prompt = f"""
 当前日期：{current_date}
 
@@ -89,7 +89,7 @@ class ContractStewardAgent(BaseLegalAgent):
 - recommendations: [建议1, 建议2]
 """
         response = await self.chat(prompt)
-        
+
         return AgentResponse(
             agent_name=self.name,
             content=response,

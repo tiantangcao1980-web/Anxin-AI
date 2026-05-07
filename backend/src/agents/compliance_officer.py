@@ -2,19 +2,18 @@
 合规审核智能体
 """
 
-from typing import Any, Dict, List
+from typing import Any
 
-from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
+from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
-
 
 _FALLBACK_PROMPT = "你是一位资深的企业合规官，精通企业合规管理和法律风险防控。"
 
 
 class ComplianceAgent(BaseLegalAgent):
     """合规审核智能体"""
-    
-    def __init__(self):
+
+    def __init__(self) -> None:
         config = AgentConfig(
             name="合规审核Agent",
             role="合规官",
@@ -23,13 +22,13 @@ class ComplianceAgent(BaseLegalAgent):
             tools=["regulation_database", "compliance_checklist"],
         )
         super().__init__(config)
-    
-    async def process(self, task: Dict[str, Any]) -> AgentResponse:
+
+    async def process(self, task: dict[str, Any]) -> AgentResponse:
         """处理合规审核任务"""
         description = task.get("description", "")
         context = task.get("context", {})
         compliance_area = context.get("area", "")
-        
+
         # 构建审核提示
         prompt = f"""
 请对以下事项进行合规审核：
@@ -47,10 +46,10 @@ class ComplianceAgent(BaseLegalAgent):
 
 请详细分析并给出专业意见。
 """
-        
+
         # 调用Agent
         response = await self.chat(prompt)
-        
+
         return AgentResponse(
             agent_name=self.name,
             content=response,
@@ -60,15 +59,15 @@ class ComplianceAgent(BaseLegalAgent):
                 {"type": "compliance_review", "description": "合规审核完成"}
             ]
         )
-    
+
     async def check_compliance(
         self,
         area: str,
-        checklist_items: List[str],
-    ) -> Dict[str, Any]:
+        checklist_items: list[str],
+    ) -> dict[str, Any]:
         """按清单检查合规性"""
         items_str = "\n".join([f"- {item}" for item in checklist_items])
-        
+
         prompt = f"""
 请对以下{area}合规检查项进行评估：
 
@@ -80,22 +79,22 @@ class ComplianceAgent(BaseLegalAgent):
 3. 如不合规，给出整改建议
 """
         response = await self.chat(prompt)
-        
+
         return {
             "area": area,
             "checklist": checklist_items,
             "assessment": response,
             "agent": self.name
         }
-    
+
     async def generate_compliance_report(
         self,
         company_name: str,
-        review_areas: List[str],
+        review_areas: list[str],
     ) -> str:
         """生成合规报告"""
         areas_str = "、".join(review_areas) if review_areas else "综合合规"
-        
+
         prompt = f"""
 请为企业 "{company_name}" 生成{areas_str}领域的合规评估报告：
 

@@ -1,6 +1,8 @@
+@import '../../styles/design-tokens';
+
 .profile-page {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: $color-background;
 }
 
 // 用户头部
@@ -8,7 +10,7 @@
   display: flex;
   align-items: center;
   padding: 40rpx 30rpx;
-  background: linear-gradient(135deg, #D4A574 0%, #B8864E 100%);
+  background: $color-brand-gradient;
 }
 
 .avatar-wrapper {
@@ -25,7 +27,7 @@
   width: 120rpx;
   height: 120rpx;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.3);
+  background: $color-inverse-surface;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -42,28 +44,28 @@
 .user-name {
   font-size: 36rpx;
   font-weight: 600;
-  color: #fff;
+  color: $color-text-inverse;
   display: block;
   margin-bottom: 8rpx;
 }
 
 .user-desc {
   font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.8);
+  color: $color-inverse-weak;
 }
 
 .arrow {
-  color: rgba(255, 255, 255, 0.6);
+  color: $color-inverse-muted;
   font-size: 32rpx;
 }
 
 // 菜单列表
 .menu-section {
   margin: 20rpx 24rpx;
-  background: #fff;
-  border-radius: 16rpx;
+  background: $color-surface;
+  border-radius: $radius-card;
   overflow: hidden;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+  box-shadow: $shadow-card;
 }
 
 .menu-item {
@@ -71,14 +73,14 @@
   align-items: center;
   justify-content: space-between;
   padding: 28rpx 24rpx;
-  border-bottom: 1px solid #f5f5f5;
+  border-bottom: 1px solid $color-background;
 
   &:last-child {
     border-bottom: none;
   }
 
   &:active {
-    background: #f9f9f9;
+    background: $color-surface-subtle;
   }
 }
 
@@ -99,16 +101,16 @@
 
 .menu-title {
   font-size: 30rpx;
-  color: #333;
+  color: $color-text-primary;
   margin-bottom: 4rpx;
 }
 
 .menu-desc {
   font-size: 22rpx;
-  color: #999;
+  color: $color-text-tertiary;
 }
 
 .menu-arrow {
-  color: #ccc;
+  color: $color-text-disabled;
   font-size: 28rpx;
 }

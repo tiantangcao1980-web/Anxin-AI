@@ -1,30 +1,36 @@
-# -*- coding: utf-8 -*-
 """审批流路由 — 支持审批链、审批模板、统计、批量审批"""
 
-from datetime import datetime, timezone
-from typing import Optional, List
+from datetime import UTC, datetime
+from typing import Any, TypeAlias
 
-from fastapi import APIRouter, HTTPException, Query, Depends
-from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
+from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
+from pydantic import BaseModel, Field
+from sqlalchemy import and_, func, select, true
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 from src.core.database import get_db
 from src.core.deps import get_current_user_required
 from src.core.responses import UnifiedResponse
-from src.models.user import User
 from src.models.approval import (
-    Approval, ApprovalStatus, ApprovalType,
-    ApprovalTemplate, ChainMode,
+    Approval,
+    ApprovalStatus,
+    ApprovalTemplate,
+    ApprovalType,
+    ChainMode,
 )
+from src.models.user import User
 
 router = APIRouter()
 
+JsonObject: TypeAlias = dict[str, Any]
+RouteResponse: TypeAlias = dict[str, Any]
 
-def _approval_scope_filter(user: User):
+
+def _approval_scope_filter(user: User) -> ColumnElement[bool]:
     if user.role in {"super_admin", "admin"}:
-        return True
+        return true()
     if user.role == "org_admin":
         return Approval.org_id == str(user.org_id)
     return (Approval.requester_id == str(user.id)) | (Approval.approver_id == str(user.id))
@@ -36,30 +42,30 @@ class ChainStepConfig(BaseModel):
     """审批链步骤配置"""
     step: int = Field(..., description="步骤序号，从 1 开始")
     approver_id: str = Field(..., description="审批人ID")
-    approver_name: Optional[str] = Field(None, description="审批人姓名")
+    approver_name: str | None = Field(None, description="审批人姓名")
     status: str = Field(default="pending", description="步骤状态")
-    comment: Optional[str] = Field(None, description="审批意见")
-    resolved_at: Optional[datetime] = Field(None, description="审批时间")
+    comment: str | None = Field(None, description="审批意见")
+    resolved_at: datetime | None = Field(None, description="审批时间")
 
 
 class ChainConfig(BaseModel):
     """审批链配置"""
     mode: str = Field(default="sequential", description="sequential | parallel")
-    steps: List[ChainStepConfig] = Field(default_factory=list)
+    steps: list[ChainStepConfig] = Field(default_factory=list)
 
 
 class ApprovalCreate(BaseModel):
     """创建审批请求"""
     title: str = Field(..., max_length=500, description="审批标题")
     type: str = Field(default=ApprovalType.custom.value, description="审批类型")
-    description: Optional[str] = Field(None, description="审批说明")
-    approver_id: Optional[str] = Field(None, description="审批人ID（单人审批时使用）")
-    resource_type: Optional[str] = Field(None, description="关联资源类型")
-    resource_id: Optional[str] = Field(None, description="关联资源ID")
+    description: str | None = Field(None, description="审批说明")
+    approver_id: str | None = Field(None, description="审批人ID（单人审批时使用）")
+    resource_type: str | None = Field(None, description="关联资源类型")
+    resource_id: str | None = Field(None, description="关联资源ID")
     priority: int = Field(default=1, ge=1, le=3, description="优先级")
     # 审批链支持
-    approval_chain: Optional[ChainConfig] = Field(None, description="审批链配置")
-    template_id: Optional[str] = Field(None, description="使用审批模板ID")
+    approval_chain: ChainConfig | None = Field(None, description="审批链配置")
+    template_id: str | None = Field(None, description="使用审批模板ID")
 
 
 class ApprovalResponse(BaseModel):
@@ -68,35 +74,35 @@ class ApprovalResponse(BaseModel):
     title: str
     type: str
     status: str
-    description: Optional[str] = None
+    description: str | None = None
     requester_id: str
-    requester_name: Optional[str] = None
-    approver_id: Optional[str] = None
-    approver_name: Optional[str] = None
-    resource_type: Optional[str] = None
-    resource_id: Optional[str] = None
-    comment: Optional[str] = None
+    requester_name: str | None = None
+    approver_id: str | None = None
+    approver_name: str | None = None
+    resource_type: str | None = None
+    resource_id: str | None = None
+    comment: str | None = None
     priority: int = 1
     risk_level: str = "low"
     created_at: datetime
     updated_at: datetime
-    resolved_at: Optional[datetime] = None
-    approved_at: Optional[datetime] = None
+    resolved_at: datetime | None = None
+    approved_at: datetime | None = None
     # 审批链字段
-    approval_chain: Optional[dict] = None
+    approval_chain: JsonObject | None = None
     current_step: int = 0
-    template_id: Optional[str] = None
+    template_id: str | None = None
 
 
 class ApprovalListResponse(BaseModel):
-    items: List[ApprovalResponse]
+    items: list[ApprovalResponse]
     total: int
     page: int
     page_size: int
 
 
 class ApprovalActionRequest(BaseModel):
-    comment: Optional[str] = Field(None, description="审批意见")
+    comment: str | None = Field(None, description="审批意见")
 
 
 class ApprovalStatsResponse(BaseModel):
@@ -109,7 +115,7 @@ class ApprovalStatsResponse(BaseModel):
     pending_count: int = 0
     approved_today: int = 0
     rejected_today: int = 0
-    avg_approval_time_hours: Optional[float] = None
+    avg_approval_time_hours: float | None = None
 
 
 # ---------- 审批模板 Pydantic ----------
@@ -117,26 +123,26 @@ class ApprovalStatsResponse(BaseModel):
 class TemplateCreate(BaseModel):
     """创建审批模板"""
     name: str = Field(..., max_length=200, description="模板名称")
-    description: Optional[str] = Field(None, description="模板说明")
+    description: str | None = Field(None, description="模板说明")
     type: str = Field(default=ApprovalType.custom.value, description="适用审批类型")
-    chain_config: Optional[dict] = Field(None, description="审批链配置JSON")
+    chain_config: JsonObject | None = Field(None, description="审批链配置JSON")
 
 
 class TemplateUpdate(BaseModel):
     """更新审批模板"""
-    name: Optional[str] = Field(None, max_length=200)
-    description: Optional[str] = None
-    type: Optional[str] = None
-    chain_config: Optional[dict] = None
-    enabled: Optional[bool] = None
+    name: str | None = Field(None, max_length=200)
+    description: str | None = None
+    type: str | None = None
+    chain_config: JsonObject | None = None
+    enabled: bool | None = None
 
 
 class TemplateResponse(BaseModel):
     id: str
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     type: str
-    chain_config: Optional[dict] = None
+    chain_config: JsonObject | None = None
     created_by: str
     enabled: bool
     created_at: datetime
@@ -144,7 +150,7 @@ class TemplateResponse(BaseModel):
 
 
 class TemplateListResponse(BaseModel):
-    items: List[TemplateResponse]
+    items: list[TemplateResponse]
     total: int
 
 
@@ -152,9 +158,9 @@ class TemplateListResponse(BaseModel):
 
 class BatchApprovalRequest(BaseModel):
     """批量审批请求"""
-    approval_ids: List[str] = Field(..., min_length=1, max_length=50, description="审批ID列表")
+    approval_ids: list[str] = Field(..., min_length=1, max_length=50, description="审批ID列表")
     action: str = Field(..., pattern="^(approve|reject)$", description="操作：approve / reject")
-    comment: Optional[str] = Field(None, description="审批意见")
+    comment: str | None = Field(None, description="审批意见")
 
 
 class BatchApprovalResultItem(BaseModel):
@@ -167,7 +173,7 @@ class BatchApprovalResponse(BaseModel):
     total: int
     succeeded: int
     failed: int
-    results: List[BatchApprovalResultItem]
+    results: list[BatchApprovalResultItem]
 
 
 # ========== 辅助函数 ==========
@@ -181,7 +187,7 @@ def _extract_priority(a: Approval) -> int:
     return 1
 
 
-def _to_response(a: Approval, user_map: Optional[dict[str, str]] = None) -> ApprovalResponse:
+def _to_response(a: Approval, user_map: dict[str, str] | None = None) -> ApprovalResponse:
     return ApprovalResponse(
         id=str(a.id),
         title=a.title,
@@ -230,7 +236,7 @@ async def _load_user_name_map(db: AsyncSession, user_ids: list[str]) -> dict[str
     return {str(user_id): name for user_id, name in result.all()}
 
 
-def _advance_chain(approval: Approval, user_id: str, action: str, comment: Optional[str]) -> bool:
+def _advance_chain(approval: Approval, user_id: str, action: str, comment: str | None) -> bool:
     """处理审批链推进逻辑。
     返回 True 表示整个审批已最终完成（通过或驳回），False 表示链尚未走完。
     """
@@ -241,7 +247,7 @@ def _advance_chain(approval: Approval, user_id: str, action: str, comment: Optio
 
     mode = chain.get("mode", "sequential")
     steps = chain["steps"]
-    now_str = datetime.now(timezone.utc).isoformat()
+    now_str = datetime.now(UTC).isoformat()
 
     if mode == ChainMode.sequential.value:
         # 顺序审批：只处理 current_step 指向的步骤
@@ -319,13 +325,13 @@ def _can_current_user_act_on_approval(approval: Approval, user: User) -> bool:
 async def get_approval_stats(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> RouteResponse:
     """获取审批统计（增强版：含今日审批数、平均审批时长）"""
     try:
         total_r = await db.execute(select(func.count(Approval.id)))
         total = total_r.scalar() or 0
 
-        stats = {}
+        stats: dict[str, int] = {}
         for s in ApprovalStatus:
             r = await db.execute(
                 select(func.count(Approval.id)).where(Approval.status == s.value)
@@ -333,7 +339,7 @@ async def get_approval_stats(
             stats[s.value] = r.scalar() or 0
 
         # 今日统计
-        today_start = datetime.now(timezone.utc).replace(
+        today_start = datetime.now(UTC).replace(
             hour=0, minute=0, second=0, microsecond=0
         )
 
@@ -397,21 +403,21 @@ async def get_approval_stats(
         return UnifiedResponse.success(data=data)
     except Exception as e:
         logger.error(f"获取审批统计失败: {e}")
-        raise HTTPException(status_code=500, detail="获取审批统计失败")
+        raise HTTPException(status_code=500, detail="获取审批统计失败") from e
 
 
 # ========== 审批模板 CRUD ==========
 
 @router.get("/templates", response_model=UnifiedResponse)
 async def list_templates(
-    type: Optional[str] = Query(None, description="按类型筛选"),
-    enabled: Optional[bool] = Query(None, description="按启用状态筛选"),
+    type: str | None = Query(None, description="按类型筛选"),
+    enabled: bool | None = Query(None, description="按启用状态筛选"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> RouteResponse:
     """获取审批模板列表"""
     try:
-        conditions = []
+        conditions: list[ColumnElement[bool]] = []
         if type:
             conditions.append(ApprovalTemplate.type == type)
         if enabled is not None:
@@ -438,7 +444,7 @@ async def list_templates(
         return UnifiedResponse.success(data=data)
     except Exception as e:
         logger.error(f"获取审批模板列表失败: {e}")
-        raise HTTPException(status_code=500, detail="获取审批模板列表失败")
+        raise HTTPException(status_code=500, detail="获取审批模板列表失败") from e
 
 
 @router.post("/templates", response_model=UnifiedResponse)
@@ -446,7 +452,7 @@ async def create_template(
     body: TemplateCreate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> RouteResponse:
     """创建审批模板"""
     try:
         template = ApprovalTemplate(
@@ -466,7 +472,7 @@ async def create_template(
     except Exception as e:
         logger.error(f"创建审批模板失败: {e}")
         await db.rollback()
-        raise HTTPException(status_code=500, detail="创建审批模板失败")
+        raise HTTPException(status_code=500, detail="创建审批模板失败") from e
 
 
 @router.get("/templates/{template_id}", response_model=UnifiedResponse)
@@ -474,7 +480,7 @@ async def get_template(
     template_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> RouteResponse:
     """获取审批模板详情"""
     result = await db.execute(
         select(ApprovalTemplate).where(ApprovalTemplate.id == template_id)
@@ -491,7 +497,7 @@ async def update_template(
     body: TemplateUpdate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> RouteResponse:
     """更新审批模板"""
     try:
         result = await db.execute(
@@ -521,7 +527,7 @@ async def update_template(
     except Exception as e:
         logger.error(f"更新审批模板失败: {e}")
         await db.rollback()
-        raise HTTPException(status_code=500, detail="更新审批模板失败")
+        raise HTTPException(status_code=500, detail="更新审批模板失败") from e
 
 
 @router.delete("/templates/{template_id}", response_model=UnifiedResponse)
@@ -529,7 +535,7 @@ async def delete_template(
     template_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> RouteResponse:
     """删除审批模板"""
     try:
         result = await db.execute(
@@ -545,7 +551,7 @@ async def delete_template(
     except Exception as e:
         logger.error(f"删除审批模板失败: {e}")
         await db.rollback()
-        raise HTTPException(status_code=500, detail="删除审批模板失败")
+        raise HTTPException(status_code=500, detail="删除审批模板失败") from e
 
 
 # ========== 批量审批 ==========
@@ -555,9 +561,9 @@ async def batch_approval(
     body: BatchApprovalRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> RouteResponse:
     """批量审批（通过或驳回）"""
-    results: List[BatchApprovalResultItem] = []
+    results: list[BatchApprovalResultItem] = []
     succeeded = 0
     failed = 0
 
@@ -590,7 +596,7 @@ async def batch_approval(
                     approval.status = ApprovalStatus.approved.value
                 else:
                     approval.status = ApprovalStatus.rejected.value
-                approval.resolved_at = datetime.now(timezone.utc)
+                approval.resolved_at = datetime.now(UTC)
 
             approval.approver_id = str(user.id)
             if body.comment:
@@ -614,7 +620,7 @@ async def batch_approval(
     except Exception as e:
         logger.error(f"批量审批提交失败: {e}")
         await db.rollback()
-        raise HTTPException(status_code=500, detail="批量审批提交失败")
+        raise HTTPException(status_code=500, detail="批量审批提交失败") from e
 
     data = BatchApprovalResponse(
         total=len(body.approval_ids),
@@ -629,18 +635,18 @@ async def batch_approval(
 
 @router.get("/", response_model=UnifiedResponse)
 async def list_approvals(
-    status: Optional[str] = Query(None),
-    type: Optional[str] = Query(None),
-    requester_id: Optional[str] = Query(None),
-    approver_id: Optional[str] = Query(None),
+    status: str | None = Query(None),
+    type: str | None = Query(None),
+    requester_id: str | None = Query(None),
+    approver_id: str | None = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> RouteResponse:
     """获取审批列表"""
     try:
-        conditions = []
+        conditions: list[ColumnElement[bool]] = []
         if status:
             conditions.append(Approval.status == status)
         if type:
@@ -650,17 +656,18 @@ async def list_approvals(
         if approver_id:
             conditions.append(Approval.approver_id == approver_id)
 
-        where = and_(*conditions) if conditions else True
+        offset = (page - 1) * page_size
+        count_stmt = select(func.count(Approval.id))
+        list_stmt = select(Approval).order_by(Approval.created_at.desc()).offset(offset).limit(page_size)
+        if conditions:
+            where = and_(*conditions)
+            count_stmt = count_stmt.where(where)
+            list_stmt = list_stmt.where(where)
 
-        count_r = await db.execute(select(func.count(Approval.id)).where(where))
+        count_r = await db.execute(count_stmt)
         total = count_r.scalar() or 0
 
-        offset = (page - 1) * page_size
-        result = await db.execute(
-            select(Approval).where(where)
-            .order_by(Approval.created_at.desc())
-            .offset(offset).limit(page_size)
-        )
+        result = await db.execute(list_stmt)
         items = result.scalars().all()
         user_map = await _load_user_name_map(
             db,
@@ -674,7 +681,7 @@ async def list_approvals(
         return UnifiedResponse.success(data=data)
     except Exception as e:
         logger.error(f"获取审批列表失败: {e}")
-        raise HTTPException(status_code=500, detail="获取审批列表失败")
+        raise HTTPException(status_code=500, detail="获取审批列表失败") from e
 
 
 @router.post("/", response_model=UnifiedResponse)
@@ -682,12 +689,12 @@ async def create_approval(
     body: ApprovalCreate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> RouteResponse:
     """创建审批（支持审批链和模板）"""
     try:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
-        chain_data = None
+        chain_data: JsonObject | None = None
         first_approver_id = body.approver_id
 
         # 如果指定了 template_id，从模板加载审批链配置
@@ -738,7 +745,7 @@ async def create_approval(
     except Exception as e:
         logger.error(f"创建审批失败: {e}")
         await db.rollback()
-        raise HTTPException(status_code=500, detail="创建审批失败")
+        raise HTTPException(status_code=500, detail="创建审批失败") from e
 
 
 @router.get("/{approval_id}", response_model=UnifiedResponse)
@@ -746,7 +753,7 @@ async def get_approval(
     approval_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> RouteResponse:
     """获取审批详情"""
     result = await db.execute(select(Approval).where(Approval.id == approval_id))
     approval = result.scalar_one_or_none()
@@ -768,10 +775,10 @@ async def get_approval(
 @router.put("/{approval_id}/approve", response_model=UnifiedResponse)
 async def approve_approval(
     approval_id: str,
-    body: ApprovalActionRequest = None,
+    body: ApprovalActionRequest | None = None,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> RouteResponse:
     """通过审批（支持审批链自动推进）"""
     try:
         result = await db.execute(select(Approval).where(Approval.id == approval_id))
@@ -788,7 +795,7 @@ async def approve_approval(
 
         if chain_done:
             approval.status = ApprovalStatus.approved.value
-            approval.resolved_at = datetime.now(timezone.utc)
+            approval.resolved_at = datetime.now(UTC)
 
         approval.approver_id = str(user.id)
         if comment:
@@ -810,7 +817,7 @@ async def approve_approval(
     except Exception as e:
         logger.error(f"审批通过失败: {e}")
         await db.rollback()
-        raise HTTPException(status_code=500, detail="审批操作失败")
+        raise HTTPException(status_code=500, detail="审批操作失败") from e
 
 
 @router.put("/{approval_id}/reject", response_model=UnifiedResponse)
@@ -819,7 +826,7 @@ async def reject_approval(
     body: ApprovalActionRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> RouteResponse:
     """驳回审批"""
     try:
         result = await db.execute(select(Approval).where(Approval.id == approval_id))
@@ -836,7 +843,7 @@ async def reject_approval(
 
         approval.status = ApprovalStatus.rejected.value
         approval.approver_id = str(user.id)
-        approval.resolved_at = datetime.now(timezone.utc)
+        approval.resolved_at = datetime.now(UTC)
         approval.resolution_note = comment
 
         await db.commit()
@@ -849,7 +856,7 @@ async def reject_approval(
     except Exception as e:
         logger.error(f"驳回审批失败: {e}")
         await db.rollback()
-        raise HTTPException(status_code=500, detail="驳回审批失败")
+        raise HTTPException(status_code=500, detail="驳回审批失败") from e
 
 
 @router.put("/{approval_id}/withdraw", response_model=UnifiedResponse)
@@ -857,7 +864,7 @@ async def withdraw_approval(
     approval_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> RouteResponse:
     """撤回审批"""
     try:
         result = await db.execute(select(Approval).where(Approval.id == approval_id))
@@ -880,4 +887,4 @@ async def withdraw_approval(
     except Exception as e:
         logger.error(f"撤回审批失败: {e}")
         await db.rollback()
-        raise HTTPException(status_code=500, detail="撤回审批失败")
+        raise HTTPException(status_code=500, detail="撤回审批失败") from e

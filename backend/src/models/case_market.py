@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 案源市场模型 (V2 架构)
 
@@ -12,14 +11,13 @@
 
 import enum
 from datetime import datetime
-from typing import Optional
+from typing import Any
 
-from sqlalchemy import String, Text, Integer, Float, Boolean, DateTime, ForeignKey, Index
 from sqlalchemy import JSON as JSONB
-from sqlalchemy import Enum as SQLEnum
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.models.base import Base, TimestampMixin, GUID, ValueEnum
+from src.models.base import GUID, Base, TimestampMixin, ValueEnum
 
 
 class RequestStatus(str, enum.Enum):
@@ -53,7 +51,7 @@ class CaseRequest(Base, TimestampMixin):
     user_id: Mapped[str] = mapped_column(
         GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    org_id: Mapped[Optional[str]] = mapped_column(
+    org_id: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("organizations.id", ondelete="SET NULL")
     )
 
@@ -62,9 +60,9 @@ class CaseRequest(Base, TimestampMixin):
     description: Mapped[str] = mapped_column(Text, nullable=False)
     legal_area: Mapped[str] = mapped_column(String(50), nullable=False)  # 合同/劳动/知产/诉讼...
     urgency: Mapped[str] = mapped_column(String(20), default="normal")  # urgent/normal/flexible
-    budget_min: Mapped[Optional[float]] = mapped_column(Float)
-    budget_max: Mapped[Optional[float]] = mapped_column(Float)
-    location: Mapped[Optional[str]] = mapped_column(String(100))  # 所在城市
+    budget_min: Mapped[float | None] = mapped_column(Float)
+    budget_max: Mapped[float | None] = mapped_column(Float)
+    location: Mapped[str | None] = mapped_column(String(100))  # 所在城市
 
     # 隐私控制
     is_anonymous: Mapped[bool] = mapped_column(Boolean, default=True)  # 默认匿名
@@ -74,16 +72,16 @@ class CaseRequest(Base, TimestampMixin):
     status: Mapped[RequestStatus] = mapped_column(
         ValueEnum(RequestStatus), default=RequestStatus.PUBLISHED
     )
-    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # 匹配结果
-    matched_lawyer_id: Mapped[Optional[str]] = mapped_column(
+    matched_lawyer_id: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("users.id", ondelete="SET NULL")
     )
 
     # 扩展数据
-    tags: Mapped[Optional[list]] = mapped_column(JSONB)  # ["合同纠纷", "50万以上"]
-    extra_data: Mapped[Optional[dict]] = mapped_column(JSONB)
+    tags: Mapped[list[str] | None] = mapped_column(JSONB)  # ["合同纠纷", "50万以上"]
+    extra_data: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
     # 统计
     view_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -118,9 +116,9 @@ class LawyerBid(Base, TimestampMixin):
     )
 
     # 报价
-    quoted_price: Mapped[Optional[float]] = mapped_column(Float)
+    quoted_price: Mapped[float | None] = mapped_column(Float)
     proposal: Mapped[str] = mapped_column(Text, nullable=False)  # 方案说明
-    estimated_days: Mapped[Optional[int]] = mapped_column(Integer)  # 预计完成天数
+    estimated_days: Mapped[int | None] = mapped_column(Integer)  # 预计完成天数
 
     # 状态
     status: Mapped[BidStatus] = mapped_column(
@@ -128,12 +126,12 @@ class LawyerBid(Base, TimestampMixin):
     )
 
     # 需求方评价
-    client_rating: Mapped[Optional[int]] = mapped_column(Integer)  # 1-5
-    client_comment: Mapped[Optional[str]] = mapped_column(Text)
+    client_rating: Mapped[int | None] = mapped_column(Integer)  # 1-5
+    client_comment: Mapped[str | None] = mapped_column(Text)
 
     # 律师评价（双向评价）
-    lawyer_rating: Mapped[Optional[int]] = mapped_column(Integer)
-    lawyer_comment: Mapped[Optional[str]] = mapped_column(Text)
+    lawyer_rating: Mapped[int | None] = mapped_column(Integer)
+    lawyer_comment: Mapped[str | None] = mapped_column(Text)
 
     # 关系
     case_request = relationship("CaseRequest", back_populates="bids")

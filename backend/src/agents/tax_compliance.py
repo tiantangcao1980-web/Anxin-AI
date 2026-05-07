@@ -2,19 +2,18 @@
 财税合规专家智能体
 """
 
-from typing import Any, Dict
+from typing import Any
 
-from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
+from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
-
 
 _FALLBACK_PROMPT = "你是一位资深的财税合规专家，精通税法、会计准则及财务风险控制。"
 
 
 class TaxComplianceAgent(BaseLegalAgent):
     """财税合规专家智能体"""
-    
-    def __init__(self):
+
+    def __init__(self) -> None:
         config = AgentConfig(
             name="财税合规Agent",
             role="税务专家",
@@ -23,12 +22,12 @@ class TaxComplianceAgent(BaseLegalAgent):
             tools=["tax_law_search", "financial_analysis", "invoice_check"],
         )
         super().__init__(config)
-    
-    async def process(self, task: Dict[str, Any]) -> AgentResponse:
+
+    async def process(self, task: dict[str, Any]) -> AgentResponse:
         """处理财税任务"""
         description = task.get("description", "")
         financial_data = task.get("context", {}).get("financial_data", {})
-        
+
         prompt = f"""
 请进行财税合规分析：
 
@@ -44,10 +43,10 @@ class TaxComplianceAgent(BaseLegalAgent):
 3. **风险提示**：潜在的稽查风险点及后果（滞纳金、罚款、刑事责任）。
 4. **优化建议**：合规的改进措施或筹划方案。
 """
-        
+
         # 调用Agent
         response = await self.chat(prompt)
-        
+
         return AgentResponse(
             agent_name=self.name,
             content=response,

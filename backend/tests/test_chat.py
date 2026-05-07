@@ -2,14 +2,12 @@
 聊天API测试
 """
 
-import pytest
-import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 from httpx import AsyncClient
 
-from src.models.user import User, Organization
-from src.models.conversation import Conversation, Message
-
+from src.models.user import User
 
 # ============ 接口响应测试 ============
 

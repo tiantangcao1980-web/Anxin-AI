@@ -218,7 +218,7 @@ export default function Login() {
  setVerifyEmail(email)
  setMode('verify')
  // 自动发送验证码
- authApi.resendVerification(email).catch(() => {})
+ if (!captchaRequired) authApi.resendVerification(email).catch(() => {})
  } else {
  toast.error(msg)
  }
@@ -316,16 +316,20 @@ export default function Login() {
  const handleResetPassword = async (e: React.FormEvent) => {
  e.preventDefault()
  if (!resetToken || !newPassword) {
- toast.error('请填写验证码和新密码')
+ toast.error('请填写重置令牌和新密码')
  return
  }
  if (newPassword.length < 8) {
  toast.error('密码长度不能少于8位')
  return
  }
+ if (captchaRequired && !captchaToken) {
+ toast.error('请先完成人机验证')
+ return
+ }
  setLoading(true)
  try {
- await authApi.resetPassword(resetToken, newPassword)
+ await authApi.resetPassword(resetToken, newPassword, captchaToken || undefined)
  toast.success('密码重置成功！请使用新密码登录')
  setForgotStep('done')
  setTimeout(() => {
@@ -340,6 +344,7 @@ export default function Login() {
  } catch (err: any) {
  toast.error(err.message ||'重置失败')
  } finally {
+ if (captchaRequired) resetCaptcha()
  setLoading(false)
  }
  }
@@ -365,8 +370,12 @@ export default function Login() {
 
  const handleResendVerification = async () => {
  if (resendCountdown > 0) return
+ if (captchaRequired && !captchaToken) {
+ toast.error('请先完成人机验证')
+ return
+ }
  try {
- await authApi.resendVerification(verifyEmail)
+ await authApi.resendVerification(verifyEmail, captchaToken || undefined)
  toast.success('验证码已重新发送')
  setResendCountdown(60)
  const timer = setInterval(() => {
@@ -377,6 +386,8 @@ export default function Login() {
  }, 1000)
  } catch (err: any) {
  toast.error(err.message ||'发送失败')
+ } finally {
+ if (captchaRequired) resetCaptcha()
  }
  }
 
@@ -572,16 +583,16 @@ export default function Login() {
  {forgotStep ==='code' && (
  <form onSubmit={handleResetPassword} className="space-y-4">
  <div>
- <label className="block text-sm font-medium text-foreground mb-1.5">验证码</label>
+ <label className="block text-sm font-medium text-foreground mb-1.5">重置令牌</label>
  <div className="relative">
  <icons.Key className={`absolute left-3 top-1/2 -translate-y-1/2 ${iconSize.sm} text-muted-foreground`} />
  <input
  type="text"
  value={resetToken}
  onChange={(e) => setResetToken(e.target.value)}
- placeholder="请输入6位验证码"
- maxLength={6}
- className={inputCls +' tracking-[0.3em] text-center font-mono text-lg'}
+ placeholder="请输入邮箱中的重置令牌"
+ maxLength={128}
+ className={inputCls +' font-mono text-sm'}
  autoFocus
  />
  </div>
@@ -599,9 +610,10 @@ export default function Login() {
  />
  </div>
  </div>
+ {captchaBlock}
  <button
  type="submit"
- disabled={loading}
+ disabled={loading || (captchaRequired && !captchaToken)}
  className={`${buttonStyle.primary} w-full py-2.5 disabled:opacity-60 flex items-center justify-center gap-2`}
  >
  {loading && <icons.Loader2 className={`${iconSize.sm} animate-spin`} />}
@@ -657,12 +669,13 @@ export default function Login() {
  >
  {loading ?'验证中...' :'验证邮箱'}
  </button>
+ {captchaBlock}
  <div className="text-center text-sm text-muted-foreground">
  没收到验证码？{''}
  <button
  type="button"
  onClick={handleResendVerification}
- disabled={resendCountdown > 0}
+ disabled={resendCountdown > 0 || (captchaRequired && !captchaToken)}
  className="text-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
  >
  {resendCountdown > 0 ? `${resendCountdown}秒后重发` :'重新发送'}

@@ -4,13 +4,13 @@
 """
 
 import asyncio
-from typing import Dict, Any, Optional, List
 from datetime import datetime
+from typing import Any
+
 from loguru import logger
 from pydantic import BaseModel
 
 from src.core.evolution.experience_extractor import ExperienceExtractor
-from src.core.memory.episodic_memory import EnhancedEpisodicMemoryService
 from src.services.event_bus import event_bus
 
 
@@ -20,8 +20,8 @@ class UserFeedback(BaseModel):
     rating: int  # 1-5 分
     comment: str = ""
     timestamp: datetime = datetime.now()
-    session_id: Optional[str] = None
-    message_id: Optional[str] = None
+    session_id: str | None = None
+    message_id: str | None = None
 
 
 class FeedbackPipeline:
@@ -38,7 +38,7 @@ class FeedbackPipeline:
     def __init__(
         self,
         episodic_memory: Any,
-        experience_extractor: Optional[Any] = None,
+        experience_extractor: Any | None = None,
         db: Any = None,
     ):
         if experience_extractor is not None and not isinstance(experience_extractor, ExperienceExtractor):
@@ -51,7 +51,7 @@ class FeedbackPipeline:
         self._feedback_queue: asyncio.Queue[UserFeedback] = asyncio.Queue()
         self._processing = False
 
-    async def start(self):
+    async def start(self) -> None:
         """启动反馈处理循环"""
         if self._processing:
             return
@@ -61,7 +61,7 @@ class FeedbackPipeline:
 
         asyncio.create_task(self._process_loop())
 
-    async def stop(self):
+    async def stop(self) -> None:
         """停止反馈处理"""
         self._processing = False
         logger.info("反馈处理管道已停止")
@@ -116,7 +116,7 @@ class FeedbackPipeline:
             logger.error(f"提交反馈失败: {e}")
             return False
 
-    async def _process_loop(self):
+    async def _process_loop(self) -> None:
         """反馈处理循环"""
         while self._processing:
             try:
@@ -129,13 +129,13 @@ class FeedbackPipeline:
                 # 处理反馈
                 await self._process_feedback(feedback)
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
             except Exception as e:
                 logger.error(f"处理反馈异常: {e}")
                 await asyncio.sleep(1)
 
-    async def _process_feedback(self, feedback: UserFeedback):
+    async def _process_feedback(self, feedback: UserFeedback) -> None:
         """
         处理单条反馈
 
@@ -179,7 +179,7 @@ class FeedbackPipeline:
 
         return True
 
-    async def _trigger_experience_extraction(self, feedback: UserFeedback):
+    async def _trigger_experience_extraction(self, feedback: UserFeedback) -> None:
         """
         触发经验提取
 
@@ -209,9 +209,9 @@ class FeedbackPipeline:
 
     async def get_feedback_stats(
         self,
-        episode_id: Optional[str] = None,
+        episode_id: str | None = None,
         limit: int = 100
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取反馈统计
 
@@ -231,4 +231,4 @@ class FeedbackPipeline:
 
 
 # 全局实例 (将在主应用中初始化)
-feedback_pipeline: Optional[FeedbackPipeline] = None
+feedback_pipeline: FeedbackPipeline | None = None

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Web Search Service — 多源网络搜索服务
 
@@ -12,14 +11,10 @@ Web Search Service — 多源网络搜索服务
 4. 直接网页抓取
 """
 
-import asyncio
-import json
-import re
-from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
-from loguru import logger
+from typing import Any
 
 import httpx
+from loguru import logger
 
 from src.core.config import settings
 
@@ -27,7 +22,7 @@ from src.core.config import settings
 class WebSearchService:
     """多源网络搜索统一服务"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._tavily_key = getattr(settings, "TAVILY_API_KEY", None) or ""
         self._bing_key = getattr(settings, "BING_SEARCH_KEY", None) or ""
         self._headers = {
@@ -43,8 +38,8 @@ class WebSearchService:
         query: str,
         max_results: int = 10,
         search_depth: str = "basic",
-        time_range: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        time_range: str | None = None,
+    ) -> list[dict[str, Any]]:
         """
         统一搜索入口，自动选择可用引擎
 
@@ -89,7 +84,7 @@ class WebSearchService:
         query: str,
         max_results: int = 10,
         days: int = 7,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """搜索最近新闻"""
         return await self.search(
             query,
@@ -101,7 +96,7 @@ class WebSearchService:
         self,
         query: str,
         max_results: int = 10,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """法律相关搜索（附加法律域限定词）"""
         legal_query = f"{query} 诉讼 裁判 法律风险"
         return await self.search(legal_query, max_results)
@@ -113,13 +108,13 @@ class WebSearchService:
         query: str,
         max_results: int,
         search_depth: str,
-        time_range: Optional[str],
-    ) -> List[Dict[str, Any]]:
+        time_range: str | None,
+    ) -> list[dict[str, Any]]:
         """Tavily Search API"""
         if not self._tavily_key:
             return []
 
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "api_key": self._tavily_key,
             "query": query,
             "max_results": max_results,
@@ -167,13 +162,13 @@ class WebSearchService:
         query: str,
         max_results: int,
         search_depth: str,
-        time_range: Optional[str],
-    ) -> List[Dict[str, Any]]:
+        time_range: str | None,
+    ) -> list[dict[str, Any]]:
         """Bing Web Search API"""
         if not self._bing_key:
             return []
 
-        params: Dict[str, Any] = {
+        params: dict[str, Any] = {
             "q": query,
             "count": max_results,
             "mkt": "zh-CN",
@@ -211,10 +206,10 @@ class WebSearchService:
         query: str,
         max_results: int,
         search_depth: str,
-        time_range: Optional[str],
-    ) -> List[Dict[str, Any]]:
+        time_range: str | None,
+    ) -> list[dict[str, Any]]:
         """DuckDuckGo 搜索 (免费 fallback)"""
-        params = {
+        params: dict[str, str | int] = {
             "q": query,
             "format": "json",
             "no_html": 1,
@@ -263,14 +258,14 @@ class WebSearchService:
         query: str,
         max_results: int,
         search_depth: str,
-        time_range: Optional[str],
-    ) -> List[Dict[str, Any]]:
+        time_range: str | None,
+    ) -> list[dict[str, Any]]:
         """SearXNG 自建搜索引擎（250+ 引擎聚合）"""
         searxng_url = getattr(settings, "SEARXNG_URL", "")
         if not searxng_url:
             return []
 
-        params: Dict[str, Any] = {
+        params: dict[str, Any] = {
             "q": query,
             "format": "json",
             "language": "zh-CN",
@@ -304,8 +299,8 @@ class WebSearchService:
         query: str,
         max_results: int,
         search_depth: str,
-        time_range: Optional[str],
-    ) -> List[Dict[str, Any]]:
+        time_range: str | None,
+    ) -> list[dict[str, Any]]:
         """Open-WebSearch 免费搜索（无需 API Key）"""
         ows_url = getattr(settings, "OPEN_WEBSEARCH_URL", "")
         if not ows_url:

@@ -14,7 +14,7 @@
  * 添加 404 兜底路由
  */
 
-import { lazy, Suspense, useEffect } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import Layout from '@/components/Layout'
@@ -27,10 +27,11 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { AdminRoute } from '@/components/auth/AdminRoute'
 import AdminLayout from '@/components/admin/AdminLayout'
 import { initLocalDatabase } from '@/lib/api-adapter'
+import { fetchCurrentUserWithToken, refreshAuthSession } from '@/lib/api'
 import { getTokenStorage } from '@/lib/platform/storage'
 import { ModeGate } from '@/components/mode/ModeGate'
 import { SubscriptionGate } from '@/components/mode/SubscriptionGate'
-import { useAppModeStore } from '@/lib/store'
+import { useAppModeStore, useAuthStore } from '@/lib/store'
 import { getAppState, isTauri, saveAuthToken } from '@/lib/tauri-bridge'
 
 // ===== 路由懒加载 =====
@@ -70,6 +71,7 @@ const LawyerDashboard = lazy(() => import('@/pages/LawyerDashboard'))
 const Pricing = lazy(() => import('@/pages/Pricing'))
 const MySubscription = lazy(() => import('@/pages/MySubscription'))
 const PrivateLLMSetup = lazy(() => import('@/pages/PrivateLLMSetup'))
+const SyncConflicts = lazy(() => import('@/pages/SyncConflicts'))
 const CaseMarket = lazy(() => import('@/pages/CaseMarket'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
 
@@ -115,6 +117,7 @@ function CollaborationRedirect() {
 
 function App() {
   const { setLastSyncTime, setMode, setOnline, setSyncStatus } = useAppModeStore()
+  const [authBootstrapped, setAuthBootstrapped] = useState(false)
 
   // 全局监听 auth:redirect 事件，统一处理页面跳转
   // 在 Tauri 桌面端可替换为 Tauri 路由方式，Web 端保持 window.location 行为
@@ -124,6 +127,47 @@ function App() {
     }
     window.addEventListener('auth:redirect', handler as EventListener)
     return () => window.removeEventListener('auth:redirect', handler as EventListener)
+  }, [])
+
+  useEffect(() => {
+    let active = true
+
+    const bootstrapAuth = async () => {
+      const storage = getTokenStorage()
+      let accessToken = await storage.getAccessToken()
+
+      if (!accessToken) {
+        accessToken = await refreshAuthSession()
+      }
+
+      if (!accessToken || !active) {
+        return
+      }
+
+      const auth = useAuthStore.getState()
+      auth.setToken(accessToken)
+
+      if (!auth.user) {
+        const user = await fetchCurrentUserWithToken(accessToken)
+        if (user && active) {
+          useAuthStore.getState().setUser(user)
+        }
+      }
+    }
+
+    bootstrapAuth()
+      .catch((error) => {
+        console.debug('[Auth] 启动会话恢复失败:', error)
+      })
+      .finally(() => {
+        if (active) {
+          setAuthBootstrapped(true)
+        }
+      })
+
+    return () => {
+      active = false
+    }
   }, [])
 
   useEffect(() => {
@@ -166,6 +210,10 @@ function App() {
     }
   }, [setLastSyncTime, setMode, setOnline, setSyncStatus])
 
+  if (!authBootstrapped) {
+    return <PageSkeleton />
+  }
+
   return (
     <ErrorBoundary>
       <ThemeProvider>
@@ -204,8 +252,8 @@ function App() {
               </Route>
 
               {/* ===== V2 架构：服务方端（律师/律所独立布局） ===== */}
-              <Route path="/pro" element={<ProtectedRoute><ProLayout /></ProtectedRoute>}>
-                <Route index element={<Navigate to="/lawyer-dashboard" replace />} />
+              <Route path="/pro" element={<ProtectedRoute requirePrimaryClient="provider"><ProLayout /></ProtectedRoute>}>
+                <Route index element={<Navigate to="/pro/dashboard" replace />} />
                 <Route path="dashboard" element={<LawyerDashboard />} />
                 <Route path="cases" element={<CaseCenter />} />
                 <Route path="contracts" element={<ManagementCenter />} />
@@ -308,6 +356,7 @@ function App() {
                 {/* ===== AI 配置已迁移到后台管理 ===== */}
                 <Route path="ai-assistant-settings" element={<Navigate to="/private-llm" replace />} />
                 <Route path="private-llm" element={<ProtectedRoute feature="private_llm"><PrivateLLMSetup /></ProtectedRoute>} />
+                <Route path="sync-conflicts" element={<SyncConflicts />} />
                 <Route path="conversation-insights" element={<Navigate to="/admin" replace />} />
                 <Route path="agent-workflow" element={<Navigate to="/admin" replace />} />
 

@@ -2,7 +2,7 @@
   "miniprogramRoot": "dist/",
   "projectname": "anxin-legal-miniprogram",
   "description": "安心法务微信小程序",
-  "appid": "wx_your_appid_here",
+  "appid": "touristappid",
   "setting": {
     "urlCheck": true,
     "es6": true,
@@ -23,7 +23,8 @@
       "ignore": [],
       "disablePlugins": [],
       "outputPath": ""
-    }
+    },
+    "minifyWXML": true
   },
   "compileType": "miniprogram",
   "condition": {}

@@ -1,27 +1,33 @@
-# -*- coding: utf-8 -*-
 """
 律所内部管理 API 路由
 
 提供团队管理、工时管理、账单管理接口。
 """
 
-from datetime import date as DateType
-from typing import Literal, Optional, List
+import datetime as dt
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from loguru import logger
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
-from loguru import logger
 
 from src.core.database import get_db
-from src.core.deps import get_current_user_required, require_permission, Permission
+from src.core.deps import Permission, require_permission
 from src.core.responses import UnifiedResponse
 from src.models.user import User
+from src.services.billing_service import BillingService
 from src.services.team_service import TeamService
 from src.services.timesheet_service import TimesheetService
-from src.services.billing_service import BillingService
 
 router = APIRouter(prefix="/firm", tags=["律所管理"])
+
+
+def _require_org_id(user: User) -> str:
+    """Firm-management APIs are organization-scoped and must fail closed."""
+    if not user.org_id:
+        raise HTTPException(status_code=403, detail="用户未绑定组织，无法访问律所管理")
+    return user.org_id
 
 
 # ========== 请求模型 ==========
@@ -29,14 +35,14 @@ router = APIRouter(prefix="/firm", tags=["律所管理"])
 
 class CreateTeamRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=100, description="团队名称")
-    description: Optional[str] = Field(None, description="团队描述")
-    leader_id: Optional[str] = Field(None, description="团队负责人ID")
+    description: str | None = Field(None, description="团队描述")
+    leader_id: str | None = Field(None, description="团队负责人ID")
 
 
 class UpdateTeamRequest(BaseModel):
-    name: Optional[str] = Field(None, max_length=100)
-    description: Optional[str] = None
-    leader_id: Optional[str] = None
+    name: str | None = Field(None, max_length=100)
+    description: str | None = None
+    leader_id: str | None = None
 
 
 class AddMemberRequest(BaseModel):
@@ -45,16 +51,16 @@ class AddMemberRequest(BaseModel):
 
 
 class CreateTimeEntryRequest(BaseModel):
-    date: DateType = Field(..., description="工时日期")
+    date: dt.date = Field(..., description="工时日期")
     minutes: int = Field(..., gt=0, le=1440, description="工时（分钟），最大1440（24小时）")
-    description: Optional[str] = Field(None, max_length=500, description="工时说明")
+    description: str | None = Field(None, max_length=500, description="工时说明")
     billable: bool = Field(True, description="是否可计费")
-    rate: Optional[float] = Field(None, ge=0, description="费率（元/小时）")
-    case_id: Optional[str] = Field(None, description="关联案件ID")
+    rate: float | None = Field(None, ge=0, description="费率（元/小时）")
+    case_id: str | None = Field(None, description="关联案件ID")
 
 
 class EntryIdsRequest(BaseModel):
-    entry_ids: List[str] = Field(..., min_length=1, description="工时记录ID列表")
+    entry_ids: list[str] = Field(..., min_length=1, description="工时记录ID列表")
 
 
 class InvoiceItem(BaseModel):
@@ -67,10 +73,10 @@ class InvoiceItem(BaseModel):
 
 class CreateInvoiceRequest(BaseModel):
     client_name: str = Field(..., min_length=1, max_length=200, description="客户名称")
-    items: List[InvoiceItem] = Field(..., min_length=1, description="发票明细")
-    case_id: Optional[str] = Field(None, description="关联案件ID")
-    due_date: Optional[DateType] = Field(None, description="到期日")
-    notes: Optional[str] = Field(None, description="备注")
+    items: list[InvoiceItem] = Field(..., min_length=1, description="发票明细")
+    case_id: str | None = Field(None, description="关联案件ID")
+    due_date: dt.date | None = Field(None, description="到期日")
+    notes: str | None = Field(None, description="备注")
 
 
 class UpdateInvoiceStatusRequest(BaseModel):
@@ -88,10 +94,10 @@ async def list_teams(
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     user: User = Depends(require_permission(Permission.MANAGE_CRM)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """获取团队列表"""
     service = TeamService(db)
-    teams = await service.list_teams(user.org_id)
+    teams = await service.list_teams(_require_org_id(user))
     total = len(teams)
     start = (page - 1) * page_size
     items = teams[start: start + page_size]
@@ -108,11 +114,11 @@ async def create_team(
     req: CreateTeamRequest,
     user: User = Depends(require_permission(Permission.MANAGE_CRM)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """创建团队"""
     service = TeamService(db)
     team = await service.create_team(
-        org_id=user.org_id,
+        org_id=_require_org_id(user),
         name=req.name,
         description=req.description,
         leader_id=req.leader_id,
@@ -126,7 +132,7 @@ async def update_team(
     req: UpdateTeamRequest,
     user: User = Depends(require_permission(Permission.MANAGE_CRM)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """更新团队"""
     service = TeamService(db)
     data = req.model_dump(exclude_none=True)
@@ -141,7 +147,7 @@ async def delete_team(
     team_id: str,
     user: User = Depends(require_permission(Permission.MANAGE_CRM)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """删除团队"""
     service = TeamService(db)
     ok = await service.delete_team(team_id)
@@ -156,7 +162,7 @@ async def add_team_member(
     req: AddMemberRequest,
     user: User = Depends(require_permission(Permission.MANAGE_CRM)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """添加团队成员"""
     service = TeamService(db)
     try:
@@ -164,7 +170,7 @@ async def add_team_member(
         return UnifiedResponse.success(data=member, message="成员添加成功")
     except Exception as e:
         logger.warning(f"添加团队成员失败: {e}")
-        raise HTTPException(status_code=400, detail="成员已存在或参数错误")
+        raise HTTPException(status_code=400, detail="成员已存在或参数错误") from e
 
 
 @router.delete("/teams/{team_id}/members/{member_user_id}")
@@ -173,7 +179,7 @@ async def remove_team_member(
     member_user_id: str,
     user: User = Depends(require_permission(Permission.MANAGE_CRM)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """移除团队成员"""
     service = TeamService(db)
     ok = await service.remove_member(team_id, member_user_id)
@@ -187,16 +193,16 @@ async def remove_team_member(
 
 @router.get("/timesheet")
 async def list_timesheet(
-    user_id: Optional[str] = Query(None, description="用户ID"),
-    date_from: Optional[DateType] = Query(None, description="开始日期"),
-    date_to: Optional[DateType] = Query(None, description="结束日期"),
-    status: Optional[str] = Query(None, description="状态"),
-    case_id: Optional[str] = Query(None, description="案件ID"),
+    user_id: str | None = Query(None, description="用户ID"),
+    date_from: dt.date | None = Query(None, description="开始日期"),
+    date_to: dt.date | None = Query(None, description="结束日期"),
+    status: str | None = Query(None, description="状态"),
+    case_id: str | None = Query(None, description="案件ID"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     user: User = Depends(require_permission(Permission.MANAGE_TIMESHEET)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """查询工时记录"""
     service = TimesheetService(db)
     entries = await service.list_entries(
@@ -222,7 +228,7 @@ async def create_time_entry(
     req: CreateTimeEntryRequest,
     user: User = Depends(require_permission(Permission.MANAGE_TIMESHEET)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """创建工时记录"""
     service = TimesheetService(db)
     entry = await service.create_entry(
@@ -242,7 +248,7 @@ async def submit_time_entries(
     req: EntryIdsRequest,
     user: User = Depends(require_permission(Permission.MANAGE_TIMESHEET)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """批量提交工时记录"""
     service = TimesheetService(db)
     count = await service.submit_entries(req.entry_ids, user.id)
@@ -254,7 +260,7 @@ async def approve_time_entries(
     req: EntryIdsRequest,
     user: User = Depends(require_permission(Permission.MANAGE_TIMESHEET)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """批量审批工时记录"""
     service = TimesheetService(db)
     count = await service.approve_entries(req.entry_ids, user.id)
@@ -266,7 +272,7 @@ async def reject_time_entries(
     req: EntryIdsRequest,
     user: User = Depends(require_permission(Permission.MANAGE_TIMESHEET)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """批量拒绝工时记录"""
     service = TimesheetService(db)
     count = await service.reject_entries(req.entry_ids, user.id)
@@ -275,15 +281,15 @@ async def reject_time_entries(
 
 @router.get("/timesheet/summary")
 async def get_timesheet_summary(
-    date_from: Optional[DateType] = Query(None, description="开始日期"),
-    date_to: Optional[DateType] = Query(None, description="结束日期"),
+    date_from: dt.date | None = Query(None, description="开始日期"),
+    date_to: dt.date | None = Query(None, description="结束日期"),
     user: User = Depends(require_permission(Permission.MANAGE_TIMESHEET)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """获取工时汇总"""
     service = TimesheetService(db)
     summary = await service.get_summary(
-        org_id=user.org_id,
+        org_id=_require_org_id(user),
         date_from=date_from,
         date_to=date_to,
     )
@@ -295,17 +301,17 @@ async def get_timesheet_summary(
 
 @router.get("/invoices")
 async def list_invoices(
-    status: Optional[Literal["draft", "sent", "paid", "overdue", "cancelled"]] = Query(
+    status: Literal["draft", "sent", "paid", "overdue", "cancelled"] | None = Query(
         None, description="状态过滤"
     ),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     user: User = Depends(require_permission(Permission.MANAGE_BILLING)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """查询发票列表"""
     service = BillingService(db)
-    invoices = await service.list_invoices(org_id=user.org_id, status=status)
+    invoices = await service.list_invoices(org_id=_require_org_id(user), status=status)
     total = len(invoices)
     start = (page - 1) * page_size
     items = invoices[start: start + page_size]
@@ -322,11 +328,11 @@ async def create_invoice(
     req: CreateInvoiceRequest,
     user: User = Depends(require_permission(Permission.MANAGE_BILLING)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """创建发票"""
     service = BillingService(db)
     invoice = await service.create_invoice(
-        org_id=user.org_id,
+        org_id=_require_org_id(user),
         client_name=req.client_name,
         items=[item.model_dump() for item in req.items],
         case_id=req.case_id,
@@ -342,7 +348,7 @@ async def update_invoice_status(
     req: UpdateInvoiceStatusRequest,
     user: User = Depends(require_permission(Permission.MANAGE_BILLING)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """更新发票状态"""
     service = BillingService(db)
     invoice = await service.update_invoice_status(invoice_id, req.status)
@@ -353,15 +359,15 @@ async def update_invoice_status(
 
 @router.get("/revenue-report")
 async def get_revenue_report(
-    date_from: Optional[DateType] = Query(None, description="开始日期"),
-    date_to: Optional[DateType] = Query(None, description="结束日期"),
+    date_from: dt.date | None = Query(None, description="开始日期"),
+    date_to: dt.date | None = Query(None, description="结束日期"),
     user: User = Depends(require_permission(Permission.MANAGE_BILLING)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """获取收入报表"""
     service = BillingService(db)
     report = await service.get_revenue_report(
-        org_id=user.org_id,
+        org_id=_require_org_id(user),
         date_from=date_from,
         date_to=date_to,
     )

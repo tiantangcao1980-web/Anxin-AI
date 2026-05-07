@@ -30,6 +30,7 @@ import {
 interface PricingPlan {
  id: string
  name: string
+ clientType: PlanClientType
  monthlyPrice: number
  recommended?: boolean
  features: string[]
@@ -45,6 +46,7 @@ interface FeatureRow {
 
 // V2 架构：双端分组标签
 type ClientTab = 'needer' | 'provider'
+type PlanClientType = ClientTab | 'both'
 const CLIENT_TABS: { key: ClientTab; label: string; description: string }[] = [
   { key: 'needer', label: '个人/企业用户', description: '获取法律服务' },
   { key: 'provider', label: '律师/律所', description: '获客与案件管理' },
@@ -62,6 +64,37 @@ const FEATURE_COMPARE: FeatureRow[] = [
  { label:'API 接入', basic: false, pro: false, enterprise: true },
  { label:'专属顾问', basic: false, pro: false, enterprise: true },
 ]
+
+export function normalizePricingPlans(raw: any): PricingPlan[] {
+ const planList = Array.isArray(raw) ? raw : raw?.plans || []
+ return planList.map((p: any) => ({
+ id: p.id || p.code ||'',
+ name: p.name ||'',
+ clientType: normalizePlanClientType(p.client_type || p.clientType),
+ monthlyPrice: p.monthly_price ?? p.monthlyPrice ?? p.base_price ?? 0,
+ recommended: p.recommended ?? p.highlight ?? p.code ==='pro',
+ features: normalizePlanFeatures(p.features),
+ highlight: p.highlight || (p.recommended ?'最受欢迎' : undefined),
+ }))
+}
+
+export function filterPlansForClient(plans: PricingPlan[], clientTab: ClientTab): PricingPlan[] {
+ return plans.filter(plan => plan.clientType === clientTab || plan.clientType ==='both')
+}
+
+function normalizePlanClientType(value: unknown): PlanClientType {
+ return value ==='provider' || value ==='both' ? value :'needer'
+}
+
+function normalizePlanFeatures(value: unknown): string[] {
+ if (Array.isArray(value)) return value.map(String)
+ if (value && typeof value ==='object') {
+ return Object.entries(value as Record<string, unknown>)
+ .filter(([, enabled]) => Boolean(enabled))
+ .map(([key]) => key)
+ }
+ return []
+}
 
 // ============ 主组件 ============
 
@@ -82,15 +115,7 @@ export default function Pricing() {
  const data = await billingApi.listPlans()
  if (cancelled) return
 
- const planList = Array.isArray(data) ? data : data?.plans || []
- setPlans(planList.map((p: any) => ({
- id: p.id || p.code ||'',
- name: p.name ||'',
- monthlyPrice: p.monthly_price ?? p.monthlyPrice ?? 0,
- recommended: p.recommended ?? p.code ==='pro',
- features: p.features || [],
- highlight: p.highlight || (p.recommended ?'最受欢迎' : undefined),
- })))
+ setPlans(normalizePricingPlans(data))
  } catch (err: any) {
  if (!cancelled) {
  console.error('套餐加载失败:', err)
@@ -175,6 +200,8 @@ export default function Pricing() {
  )
  }
 
+ const visiblePlans = filterPlansForClient(plans, clientTab)
+
  return (
  <PageContainer title="选择套餐" description="为您的法律服务需求选择最合适的方案">
  {/* V2: 双端 Tab 切换 */}
@@ -210,8 +237,15 @@ export default function Pricing() {
  </div>
 
  {/* 套餐卡片 */}
+ {visiblePlans.length === 0 ? (
+ <div className={`${cardStyle.base} flex flex-col items-center justify-center py-16`}>
+ <icons.Box className={`${iconSize.xl} text-muted-foreground mb-3`} />
+ <p className={heading.section}>暂无适用套餐</p>
+ <p className="text-sm text-muted-foreground mt-1">当前端侧套餐正在准备中</p>
+ </div>
+ ) : (
  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
- {plans.map(plan => (
+ {visiblePlans.map(plan => (
  <div
  key={plan.id}
  className={`relative ${
@@ -267,6 +301,7 @@ export default function Pricing() {
  </div>
  ))}
  </div>
+ )}
 
  {/* 功能对比表 */}
  <div className="pt-4">

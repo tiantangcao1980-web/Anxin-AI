@@ -13,7 +13,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#D4A574"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "extra": {
       "apiBaseUrl": "https://api.anxinlegal.com/api/v1",
       "apiBaseUrlDev": "http://127.0.0.1:8001/api/v1"
@@ -35,7 +37,9 @@
         "NSMicrophoneUsageDescription": "安心法务需要使用麦克风以便进行语音咨询、RTC 通话",
         "NSFaceIDUsageDescription": "安心法务使用 Face ID 保护您的账户安全"
       },
-      "associatedDomains": ["applinks:anxinlegal.com"]
+      "associatedDomains": [
+        "applinks:anxinlegal.com"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -60,9 +64,15 @@
           "action": "VIEW",
           "autoVerify": true,
           "data": [
-            { "scheme": "https", "host": "anxinlegal.com" }
+            {
+              "scheme": "https",
+              "host": "anxinlegal.com"
+            }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -78,7 +88,8 @@
           "icon": "./assets/icon.png",
           "color": "#D4A574"
         }
-      ]
+      ],
+      "expo-font"
     ]
   }
 }

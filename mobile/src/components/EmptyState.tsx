@@ -67,9 +67,11 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: Colors.primary,
+    minHeight: Layout.touchTarget.min,
     paddingVertical: Layout.spacing.sm + 4,
     paddingHorizontal: Layout.spacing.lg,
     borderRadius: Layout.borderRadius.full,
+    justifyContent: 'center',
   },
   buttonText: {
     color: Colors.white,

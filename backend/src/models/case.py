@@ -6,29 +6,20 @@
 
 
 
+import enum
 from datetime import datetime
-
-from typing import Optional, TYPE_CHECKING
-
-from sqlalchemy import String, Text, ForeignKey, DateTime, Enum as SQLEnum
+from typing import TYPE_CHECKING, Any, Optional
 
 from sqlalchemy import JSON as JSONB
-
+from sqlalchemy import DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-import enum
-
-
-
-from src.models.base import Base, TimestampMixin, GUID, ValueEnum
-
-
+from src.models.base import GUID, Base, TimestampMixin, ValueEnum
 
 if TYPE_CHECKING:
 
-    from src.models.user import User, Organization
-
     from src.models.document import Document
+    from src.models.user import Organization, User
 
 
 
@@ -98,15 +89,15 @@ class Case(Base, TimestampMixin):
 
     """????"""
 
-    
+
 
     __tablename__ = "cases"
 
-    
+
 
     title: Mapped[str] = mapped_column(String(255), nullable=False)
 
-    case_number: Mapped[Optional[str]] = mapped_column(String(50), unique=True)
+    case_number: Mapped[str | None] = mapped_column(String(50), unique=True)
 
     case_type: Mapped[CaseType] = mapped_column(
 
@@ -126,53 +117,53 @@ class Case(Base, TimestampMixin):
 
     )
 
-    description: Mapped[Optional[str]] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text)
 
-    
+
 
     # ?????
 
-    parties: Mapped[Optional[dict]] = mapped_column(JSONB)  # ?????
+    parties: Mapped[dict[str, Any] | None] = mapped_column(JSONB)  # ?????
 
-    
+
 
     # AI????
 
-    ai_analysis: Mapped[Optional[dict]] = mapped_column(JSONB)
+    ai_analysis: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
-    risk_score: Mapped[Optional[float]] = mapped_column()
+    risk_score: Mapped[float | None] = mapped_column()
 
-    
+
 
     # ????
 
-    deadline: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
-    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
-    
+
 
     # ??
 
-    org_id: Mapped[Optional[str]] = mapped_column(
+    org_id: Mapped[str | None] = mapped_column(
 
         GUID(), ForeignKey("organizations.id", ondelete="CASCADE")
 
     )
 
-    created_by: Mapped[Optional[str]] = mapped_column(
+    created_by: Mapped[str | None] = mapped_column(
 
         GUID(), ForeignKey("users.id", ondelete="SET NULL")
 
     )
 
-    assignee_id: Mapped[Optional[str]] = mapped_column(
+    assignee_id: Mapped[str | None] = mapped_column(
 
         GUID(), ForeignKey("users.id", ondelete="SET NULL")
 
     )
 
-    
+
 
     # ??
 
@@ -214,19 +205,19 @@ class CaseEvent(Base, TimestampMixin):
 
     """????/???"""
 
-    
+
 
     __tablename__ = "case_events"
 
-    
+
 
     event_type: Mapped[str] = mapped_column(String(50), nullable=False)
 
     title: Mapped[str] = mapped_column(String(255), nullable=False)
 
-    description: Mapped[Optional[str]] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text)
 
-    event_data: Mapped[Optional[dict]] = mapped_column(JSONB)
+    event_data: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
     event_time: Mapped[datetime] = mapped_column(
 
@@ -234,7 +225,7 @@ class CaseEvent(Base, TimestampMixin):
 
     )
 
-    
+
 
     # ??
 
@@ -244,15 +235,14 @@ class CaseEvent(Base, TimestampMixin):
 
     )
 
-    created_by: Mapped[Optional[str]] = mapped_column(
+    created_by: Mapped[str | None] = mapped_column(
 
         GUID(), ForeignKey("users.id", ondelete="SET NULL")
 
     )
 
-    
+
 
     # ??
 
     case: Mapped["Case"] = relationship("Case", back_populates="events")
-

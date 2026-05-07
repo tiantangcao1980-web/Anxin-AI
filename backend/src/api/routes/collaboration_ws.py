@@ -10,32 +10,40 @@
 """
 
 import asyncio
-import json
 import uuid
 from dataclasses import asdict
-from typing import Optional
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from typing import Any, cast
+
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from loguru import logger
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
 from src.core.deps import get_current_user_required
-from src.core.security import verify_token, verify_token_with_blacklist
-from src.models.collaboration import DocumentSession, DocumentCollaborator, SessionStatus
+from src.core.security import verify_token_with_blacklist
+from src.models.collaboration import DocumentCollaborator, DocumentSession, SessionStatus
 from src.models.user import User
 from src.services.collaboration_service import CollaborationService
 
 router = APIRouter()
 
 
+JsonDict = dict[str, Any]
+
+
+def _json_dict(value: object) -> JsonDict:
+    """将 WebSocket/HTTP 负载收窄为 JSON 对象。"""
+    return cast(JsonDict, value) if isinstance(value, dict) else {}
+
+
 @router.websocket("/ws/document/{document_id}")
 async def document_collaboration_websocket(
     websocket: WebSocket,
     document_id: str,
-    token: Optional[str] = Query(None),
+    token: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
-):
+) -> None:
     """
     文档协作 WebSocket 端点
 
@@ -73,10 +81,10 @@ async def document_collaboration_websocket(
         try:
             verified_user_id = await verify_token_with_blacklist(token)
             if verified_user_id:
-                result = await db.execute(
+                user_result = await db.execute(
                     select(User).where(User.id == verified_user_id, User.is_active == True)
                 )
-                user = result.scalar_one_or_none()
+                user = user_result.scalar_one_or_none()
                 if user:
                     user_id = str(user.id)
                     user_name = user.name
@@ -88,11 +96,11 @@ async def document_collaboration_websocket(
 
     try:
         # 等待第一条消息（可能是 auth 或 join）
-        init_message = await asyncio.wait_for(
+        init_message = _json_dict(await asyncio.wait_for(
             websocket.receive_json(), timeout=15
-        )
+        ))
         init_type = init_message.get("type")
-        init_data = init_message.get("data", {})
+        init_data = _json_dict(init_message.get("data"))
 
         # 如果首条消息是 auth 类型，先处理认证，再等 join
         if init_type == "auth" and not authenticated:
@@ -101,10 +109,10 @@ async def document_collaboration_websocket(
                 try:
                     verified_user_id = await verify_token_with_blacklist(auth_token)
                     if verified_user_id:
-                        result = await db.execute(
+                        user_result = await db.execute(
                             select(User).where(User.id == verified_user_id, User.is_active == True)
                         )
-                        user = result.scalar_one_or_none()
+                        user = user_result.scalar_one_or_none()
                         if user:
                             user_id = str(user.id)
                             user_name = user.name
@@ -121,9 +129,9 @@ async def document_collaboration_websocket(
                 return
 
             # 认证成功后，等待 join 消息
-            join_msg = await asyncio.wait_for(websocket.receive_json(), timeout=10)
+            join_msg = _json_dict(await asyncio.wait_for(websocket.receive_json(), timeout=10))
             init_type = join_msg.get("type")
-            init_data = join_msg.get("data", {})
+            init_data = _json_dict(join_msg.get("data"))
 
         if init_type == "join":
             session_result = await db.execute(
@@ -157,13 +165,15 @@ async def document_collaboration_websocket(
                 return
 
             # 加入文档协作
-            result = await collaboration_service.join_document(
+            join_result = await collaboration_service.join_document(
                 document_id=document_id,
                 user_id=user_id,
                 user_name=user_name,
                 session_id=session_id,
                 websocket=websocket,
                 initial_content=init_data.get("initial_content", "")
+                if isinstance(init_data.get("initial_content", ""), str)
+                else "",
             )
 
             # 发送初始化数据
@@ -172,7 +182,7 @@ async def document_collaboration_websocket(
                 "data": {
                     "session_id": session_id,
                     "document_id": document_id,
-                    **result
+                    **join_result
                 }
             })
         else:
@@ -185,13 +195,13 @@ async def document_collaboration_websocket(
 
         # 消息循环
         while True:
-            message = await websocket.receive_json()
+            message = _json_dict(await websocket.receive_json())
             msg_type = message.get("type")
-            msg_data = message.get("data", {})
+            msg_data = _json_dict(message.get("data"))
 
             if msg_type == "operation":
                 # 处理文档操作
-                result = await collaboration_service.handle_operation(
+                operation_result = await collaboration_service.handle_operation(
                     document_id=document_id,
                     user_id=user_id,
                     operation={
@@ -201,73 +211,87 @@ async def document_collaboration_websocket(
                 )
                 await websocket.send_json({
                     "type": "operation_ack",
-                    "data": result
+                    "data": operation_result
                 })
 
             elif msg_type == "cursor_update":
                 # 更新光标位置
+                position_raw = msg_data.get("position", 0)
+                position = position_raw if isinstance(position_raw, int) else 0
+                selection_raw = msg_data.get("selection")
                 await collaboration_service.update_cursor(
                     document_id=document_id,
                     user_id=user_id,
-                    position=msg_data.get("position", 0),
-                    selection=msg_data.get("selection")
+                    position=position,
+                    selection=cast(dict[str, int] | None, selection_raw)
+                    if isinstance(selection_raw, dict)
+                    else None,
                 )
 
             elif msg_type in ("comment", "comment_add"):
                 # 添加评论（支持行号范围 start_line/end_line）
-                position = msg_data.get("position", {})
+                position_payload = _json_dict(msg_data.get("position"))
                 # 兼容行号范围参数
                 if "start_line" in msg_data:
-                    position["start_line"] = msg_data["start_line"]
+                    position_payload["start_line"] = msg_data["start_line"]
                 if "end_line" in msg_data:
-                    position["end_line"] = msg_data["end_line"]
+                    position_payload["end_line"] = msg_data["end_line"]
 
-                result = await collaboration_service.add_comment(
+                comment_content = msg_data.get("content", "")
+
+                comment_result = await collaboration_service.add_comment(
                     document_id=document_id,
                     user_id=user_id,
                     user_name=user_name,
-                    content=msg_data.get("content", ""),
-                    position=position,
+                    content=comment_content if isinstance(comment_content, str) else "",
+                    position=cast(dict[str, int], position_payload),
                 )
                 await websocket.send_json({
                     "type": "comment_add_ack",
-                    "data": result,
+                    "data": comment_result,
                 })
 
             elif msg_type == "comment_reply":
                 # 回复评论
-                parent_id = msg_data.get("parent_id") or msg_data.get("comment_id")
+                parent_id_value = msg_data.get("parent_id") or msg_data.get("comment_id")
                 reply_content = msg_data.get("content", "")
 
-                if not parent_id:
+                if not isinstance(parent_id_value, str) or not parent_id_value:
                     await websocket.send_json({
                         "type": "error",
                         "data": {"message": "缺少 parent_id 参数"},
                     })
                 else:
                     # 使用 add_comment 并附带 parent_id
-                    result = await collaboration_service.add_comment(
+                    reply_result = await collaboration_service.add_comment(
                         document_id=document_id,
                         user_id=user_id,
                         user_name=user_name,
-                        content=reply_content,
-                        position={"parent_id": parent_id},
+                        content=reply_content if isinstance(reply_content, str) else "",
+                        position=cast(dict[str, int], {"parent_id": parent_id_value}),
                     )
                     await websocket.send_json({
                         "type": "comment_reply_ack",
-                        "data": {**result, "parent_id": parent_id},
+                        "data": {**reply_result, "parent_id": parent_id_value},
                     })
 
             elif msg_type in ("resolve_comment", "comment_resolve"):
                 # 解决评论
-                result = await collaboration_service.resolve_comment(
-                    document_id=document_id,
-                    comment_id=msg_data.get("comment_id"),
-                )
-                await websocket.send_json({
-                    "type": "comment_resolve_ack",
-                    "data": result,
-                })
+                comment_id = msg_data.get("comment_id")
+                if not isinstance(comment_id, str) or not comment_id:
+                    await websocket.send_json({
+                        "type": "error",
+                        "data": {"message": "缺少 comment_id 参数"},
+                    })
+                else:
+                    resolve_result = await collaboration_service.resolve_comment(
+                        document_id=document_id,
+                        comment_id=comment_id,
+                    )
+                    await websocket.send_json({
+                        "type": "comment_resolve_ack",
+                        "data": resolve_result,
+                    })
 
             elif msg_type == "comment_delete":
                 # 删除评论
@@ -310,13 +334,14 @@ async def document_collaboration_websocket(
 
             elif msg_type == "save":
                 # 保存文档
-                result = await collaboration_service.save_document(
+                save_content = msg_data.get("content", "")
+                save_result = await collaboration_service.save_document(
                     document_id=document_id,
-                    content=msg_data.get("content", "")
+                    content=save_content if isinstance(save_content, str) else "",
                 )
                 await websocket.send_json({
                     "type": "save_ack",
-                    "data": result
+                    "data": save_result
                 })
 
             elif msg_type == "ping":
@@ -356,10 +381,10 @@ async def document_collaboration_websocket(
 @router.post("/document/{document_id}/operations")
 async def apply_document_operation(
     document_id: str,
-    operation: dict,
+    operation: dict[str, Any],
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """通过 HTTP 应用文档操作（备用）"""
     session_result = await db.execute(
         select(DocumentSession).where(
@@ -395,10 +420,10 @@ async def apply_document_operation(
 @router.post("/document/{document_id}/comments")
 async def create_document_comment(
     document_id: str,
-    comment: dict,
+    comment: dict[str, Any],
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """创建文档评论"""
     session_result = await db.execute(
         select(DocumentSession).where(
@@ -427,8 +452,8 @@ async def create_document_comment(
         document_id=document_id,
         user_id=str(user.id),
         user_name=collaborator.nickname or user.name,
-        content=comment.get("content", ""),
-        position=comment.get("position", {})
+        content=comment.get("content", "") if isinstance(comment.get("content", ""), str) else "",
+        position=cast(dict[str, int], _json_dict(comment.get("position"))),
     )
 
     return result
@@ -439,7 +464,7 @@ async def list_document_comments(
     document_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, list[dict[str, Any]]]:
     """获取文档当前评论列表（内存态）"""
     from src.services.collaboration_service import collaboration_manager
 
@@ -467,7 +492,7 @@ async def list_document_comments(
     if not session:
         return {"comments": []}
 
-    comments = []
+    comments: list[dict[str, Any]] = []
     for comment in session.comments.values():
         item = asdict(comment)
         item["timestamp"] = comment.timestamp.isoformat() if comment.timestamp else None
@@ -482,7 +507,7 @@ async def resolve_document_comment(
     comment_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """标记评论为已解决"""
     session_result = await db.execute(
         select(DocumentSession).where(
@@ -513,7 +538,7 @@ async def get_active_users(
     document_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, list[dict[str, Any]]]:
     """获取文档的活跃用户列表"""
     from src.services.collaboration_service import collaboration_manager
 
@@ -542,5 +567,5 @@ async def get_active_users(
         return {"users": []}
 
     return {
-        "users": [u.__dict__ for u in session.get_active_users()]
+        "users": [u.__dict__.copy() for u in session.get_active_users()]
     }

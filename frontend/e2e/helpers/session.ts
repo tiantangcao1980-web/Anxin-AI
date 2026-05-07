@@ -6,6 +6,9 @@ type AuthSeed = {
   name?: string
   email?: string
   expired?: boolean
+  /** V2: 可选的客户端类型（needer=需求方端 / provider=服务方端）。
+   *  不传时让 ProtectedRoute 按 role 推断：lawyer/partner/paralegal/platform_lawyer → provider。 */
+  primary_client?: 'needer' | 'provider'
 }
 
 type MockOptions = {
@@ -27,6 +30,21 @@ type MockOptions = {
     consultation?: unknown
     lawyers?: unknown
     delegation?: unknown
+  }
+  knowledge?: {
+    bases?: unknown
+    ragQuery?: unknown
+    search?: unknown
+    document?: unknown
+    stats?: unknown
+    documents?: unknown
+  }
+  graph?: {
+    overview?: unknown
+    search?: unknown
+    types?: unknown
+    detail?: unknown
+    subgraph?: unknown
   }
   collaboration?: {
     sessions?: unknown
@@ -147,6 +165,98 @@ export async function installApiMocks(page: Page, options: MockOptions = {}) {
         status: 'ok',
         data: { decision: 'deny' },
       })
+    }
+
+    if (pathname.endsWith('/knowledge-center/graph/overview') && request.method() === 'GET') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.graph?.overview ?? {
+            available: true,
+            total_nodes: 0,
+            total_edges: 0,
+            node_types: {},
+            relation_types: {},
+          },
+        ),
+      )
+    }
+
+    if (pathname.endsWith('/knowledge-center/graph/search') && request.method() === 'GET') {
+      return fulfillJson(
+        route,
+        buildUnified(options.graph?.search ?? { nodes: [], edges: [], total: 0 }),
+      )
+    }
+
+    if (pathname.endsWith('/knowledge-center/graph/types') && request.method() === 'GET') {
+      return fulfillJson(route, buildUnified(options.graph?.types ?? []))
+    }
+
+    if (/\/knowledge-center\/graph\/entity\/[^/]+\/detail$/.test(pathname) && request.method() === 'GET') {
+      return fulfillJson(route, buildUnified(options.graph?.detail ?? {}))
+    }
+
+    if (/\/knowledge-center\/graph\/subgraph\/[^/]+$/.test(pathname) && request.method() === 'GET') {
+      return fulfillJson(
+        route,
+        buildUnified(options.graph?.subgraph ?? { center: 'e2e', nodes: [], edges: [] }),
+      )
+    }
+
+    if (pathname.endsWith('/knowledge/bases') && request.method() === 'GET') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.knowledge?.bases ?? { items: [], total: 0, page: 1, page_size: 20 },
+        ),
+      )
+    }
+
+    if (/\/knowledge\/bases\/[^/]+\/documents$/.test(pathname) && request.method() === 'GET') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.knowledge?.documents ?? { items: [], total: 0, page: 1, page_size: 50 },
+        ),
+      )
+    }
+
+    if (/\/knowledge\/bases\/[^/]+\/stats$/.test(pathname) && request.method() === 'GET') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.knowledge?.stats ?? {
+            kb_id: 'kb-e2e',
+            name: '默认知识库',
+            doc_count: 0,
+            processed_count: 0,
+            total_chunks: 0,
+            categories: {},
+          },
+        ),
+      )
+    }
+
+    if (pathname.endsWith('/knowledge/search') && request.method() === 'POST') {
+      return fulfillJson(route, buildUnified(options.knowledge?.search ?? []))
+    }
+
+    if (pathname.endsWith('/knowledge/rag-query') && request.method() === 'POST') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.knowledge?.ragQuery ?? {
+            answer: '未找到可用知识库内容。',
+            sources: [],
+            context_used: false,
+          },
+        ),
+      )
+    }
+
+    if (/\/knowledge\/documents\/[^/]+$/.test(pathname) && request.method() === 'GET') {
+      return fulfillJson(route, buildUnified(options.knowledge?.document ?? {}))
     }
 
     if (pathname.endsWith('/contracts/') || pathname.endsWith('/contracts')) {
@@ -388,11 +498,14 @@ export async function seedAuthState(page: Page, seed: AuthSeed) {
       }),
     )
     const token = `${header}.${payload}.signature`
-    const user = {
+    const user: Record<string, unknown> = {
       id: input.userId ?? 'e2e-user',
       email: input.email ?? `${input.role}@example.com`,
       name: input.name ?? 'E2E User',
       role: input.role,
+    }
+    if (input.primary_client) {
+      user.primary_client = input.primary_client
     }
 
     localStorage.setItem('access_token', token)

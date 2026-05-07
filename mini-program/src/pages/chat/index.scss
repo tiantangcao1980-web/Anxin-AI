@@ -1,8 +1,10 @@
+@import '../../styles/design-tokens';
+
 .chat-page {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #f5f5f5;
+  background: $color-background;
 }
 
 .message-list {
@@ -20,25 +22,25 @@
     flex-direction: row-reverse;
 
     .bubble {
-      background: #D4A574;
+      background: $color-brand-primary;
       margin-right: 16rpx;
       margin-left: 80rpx;
     }
 
     .bubble-text {
-      color: #fff;
+      color: $color-text-inverse;
     }
   }
 
   &.assistant {
     .bubble {
-      background: #fff;
+      background: $color-surface;
       margin-left: 16rpx;
       margin-right: 80rpx;
     }
 
     .bubble-text {
-      color: #333;
+      color: $color-text-primary;
     }
   }
 }
@@ -47,19 +49,19 @@
   width: 72rpx;
   height: 72rpx;
   border-radius: 50%;
-  background: #fff;
+  background: $color-surface;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 36rpx;
   flex-shrink: 0;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
+  box-shadow: $shadow-avatar;
 }
 
 .bubble {
   padding: 20rpx 24rpx;
-  border-radius: 16rpx;
-  box-shadow: 0 1px 4rpx rgba(0, 0, 0, 0.06);
+  border-radius: $radius-card;
+  box-shadow: $shadow-bubble;
 }
 
 .bubble-text {
@@ -73,8 +75,8 @@
   align-items: center;
   padding: 16rpx 24rpx;
   padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
-  background: #fff;
-  border-top: 1px solid #eee;
+  background: $color-surface;
+  border-top: 1px solid $color-border;
   position: fixed;
   bottom: 0;
   left: 0;
@@ -84,7 +86,7 @@
 .chat-input {
   flex: 1;
   height: 72rpx;
-  background: #f5f5f5;
+  background: $color-background;
   border-radius: 36rpx;
   padding: 0 24rpx;
   font-size: 28rpx;
@@ -93,13 +95,13 @@
 .send-btn {
   margin-left: 16rpx;
   padding: 16rpx 32rpx;
-  background: #D4A574;
+  background: $color-brand-primary;
   border-radius: 36rpx;
   flex-shrink: 0;
 }
 
 .send-text {
-  color: #fff;
+  color: $color-text-inverse;
   font-size: 28rpx;
 }
 

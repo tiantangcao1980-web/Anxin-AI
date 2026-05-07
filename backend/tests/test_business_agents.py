@@ -1,7 +1,9 @@
 import pytest
-from src.agents.tax_compliance import TaxComplianceAgent
-from src.agents.labor_compliance import LaborComplianceAgent
+
 from src.agents.evidence_analyst import EvidenceAnalystAgent
+from src.agents.labor_compliance import LaborComplianceAgent
+from src.agents.tax_compliance import TaxComplianceAgent
+
 
 @pytest.mark.asyncio
 async def test_tax_compliance_init():
@@ -29,7 +31,7 @@ async def test_evidence_processing():
     async def mock_chat(msg):
         return "Mock evidence analysis"
     agent.chat = mock_chat
-    
+
     response = await agent.process({
         "description": "Analyze this image",
         "context": {
@@ -38,9 +40,9 @@ async def test_evidence_processing():
             ]
         }
     })
-    
+
     assert response.agent_name == "证据分析Agent"
     assert response.actions[0]["type"] == "evidence_processing"
     # Ensure the prompt generation logic (which runs before chat) didn't crash
-    # We can't easily check the prompt content without mocking chat details more deeply, 
+    # We can't easily check the prompt content without mocking chat details more deeply,
     # but successful execution implies the prompt formatting logic worked.

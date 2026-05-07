@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { buildApiHeaders, setApiPrivacyMode } from '@/lib/api';
+import { getTokenStorage } from '@/lib/platform/storage';
 
 export enum PrivacyMode {
   LOCAL = 'LOCAL', // L1
@@ -42,15 +44,20 @@ export const usePrivacy = () => {
 };
 
 export const PrivacyProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [mode, setMode] = useState<PrivacyMode>(PrivacyMode.HYBRID);
+  const [mode, setModeState] = useState<PrivacyMode>(PrivacyMode.HYBRID);
   const [hardwareStatus, setHardwareStatus] = useState<HardwareStatus>(HardwareStatus.DISCONNECTED);
   const [hardwareName, setHardwareName] = useState<string>('AI私有助手');
   const [secureComputeUsage, setSecureComputeUsage] = useState<number>(0);
   const [openClawInstalled, setOpenClawInstalled] = useState<boolean>(false);
   // V2: 订阅检查状态
   const [subscriptionRequired, setSubscriptionRequired] = useState<boolean>(false);
+  const setMode = React.useCallback((nextMode: PrivacyMode) => {
+    setApiPrivacyMode(nextMode);
+    setModeState(nextMode);
+  }, []);
 
-  // V2: 带订阅检查的模式切换
+  // V2: 带订阅检查的模式切换 — fail-closed
+  // 任何无法证明用户有权访问目标模式的情况，都拒绝切换并提示订阅。
   const requestModeSwitch = async (targetMode: PrivacyMode): Promise<boolean> => {
     // 切到本地模式无需检查
     if (targetMode === PrivacyMode.LOCAL) {
@@ -60,29 +67,35 @@ export const PrivacyProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
     // 切到混合/云端需要检查订阅
     try {
-      const token = localStorage.getItem('access_token');
+      const token = await getTokenStorage().getAccessToken();
       if (!token) {
         setSubscriptionRequired(true);
         return false;
       }
-      const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8003/api/v1';
+      // 默认 8001 与后端 uvicorn 端口一致；生产由 VITE_API_BASE_URL 覆盖为相对 /api/v1
+      const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api/v1';
       const resp = await fetch(`${API}/billing/v2/can-use-mode?mode=${targetMode.toLowerCase()}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: buildApiHeaders(undefined, { token, privacyMode: targetMode }),
       });
+      if (!resp.ok) {
+        // 非 2xx：不允许切换（fail-closed），提示订阅
+        setSubscriptionRequired(true);
+        return false;
+      }
       const json = await resp.json();
-      const allowed = json?.data?.allowed ?? true; // 默认允许（API 不可用时不阻断）
+      // S-审计修复：默认值改为 false（fail-closed），缺字段也按拒绝处理
+      const allowed = json?.data?.allowed ?? false;
       if (allowed) {
         setMode(targetMode);
         setSubscriptionRequired(false);
         return true;
-      } else {
-        setSubscriptionRequired(true);
-        return false;
       }
+      setSubscriptionRequired(true);
+      return false;
     } catch {
-      // API 调用失败时不阻断，允许切换
-      setMode(targetMode);
-      return true;
+      // API 调用失败时不允许切换（fail-closed）
+      setSubscriptionRequired(true);
+      return false;
     }
   };
 

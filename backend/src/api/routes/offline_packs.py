@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 离线数据包 API —— LOCAL 运行模式核心支撑。
 
@@ -23,13 +22,13 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
-from datetime import datetime, timezone
-from typing import Literal, Optional
+from datetime import UTC, datetime
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Path, Query
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 router = APIRouter()
@@ -69,7 +68,7 @@ class OfflinePack(BaseModel):
     # 依赖关系：例如 case_library_industry 需要先装 regulation_core
     requires: list[str] = Field(default_factory=list)
     # 最小客户端版本：防止老客户端装入不兼容的结构
-    min_client_version: Optional[str] = None
+    min_client_version: str | None = None
 
 
 class PackManifest(BaseModel):
@@ -97,7 +96,7 @@ def _load_packs() -> list[OfflinePack]:
     if not os.path.exists(_DEFAULT_PACKS_FILE):
         return _built_in_packs()
     try:
-        with open(_DEFAULT_PACKS_FILE, "r", encoding="utf-8") as f:
+        with open(_DEFAULT_PACKS_FILE, encoding="utf-8") as f:
             raw = json.load(f)
         return [OfflinePack(**item) for item in raw.get("packs", [])]
     except Exception:
@@ -106,7 +105,7 @@ def _load_packs() -> list[OfflinePack]:
 
 def _built_in_packs() -> list[OfflinePack]:
     """硬编码兜底：便于新环境立即可见"目录"（但下载 URL 留空，需运维填）。"""
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     return [
         OfflinePack(
             id="regulation-core-v1",
@@ -158,8 +157,8 @@ def _built_in_packs() -> list[OfflinePack]:
 
 @router.get("/", summary="列出所有可下载的离线包")
 async def list_packs(
-    kind: Optional[PackKind] = Query(None, description="按类别筛选"),
-):
+    kind: PackKind | None = Query(None, description="按类别筛选"),
+) -> dict[str, Any]:
     packs = _load_packs()
     if kind:
         packs = [p for p in packs if p.kind == kind]
@@ -167,7 +166,7 @@ async def list_packs(
 
 
 @router.get("/{pack_id}", summary="获取离线包详情")
-async def get_pack(pack_id: str = Path(..., min_length=1)):
+async def get_pack(pack_id: str = Path(..., min_length=1)) -> OfflinePack:
     packs = _load_packs()
     for p in packs:
         if p.id == pack_id:
@@ -176,7 +175,7 @@ async def get_pack(pack_id: str = Path(..., min_length=1)):
 
 
 @router.get("/{pack_id}/manifest", summary="获取离线包文件清单（用于断点续传/校验）")
-async def get_manifest(pack_id: str = Path(..., min_length=1)):
+async def get_manifest(pack_id: str = Path(..., min_length=1)) -> PackManifest:
     """实际应从对象存储读取每个文件的 sha256。
 
     当前实现：返回空 files 列表的占位 manifest，方便客户端先跑通骨架。
@@ -190,13 +189,13 @@ async def get_manifest(pack_id: str = Path(..., min_length=1)):
                 version=p.version,
                 files=[],  # TODO: 从 S3/MinIO listing 生成
                 total_size=p.size_bytes,
-                generated_at=datetime.now(timezone.utc).isoformat(),
+                generated_at=datetime.now(UTC).isoformat(),
             )
     raise HTTPException(status_code=404, detail=f"pack {pack_id} not found")
 
 
 @router.get("/{pack_id}/download", summary="请求离线包下载链接（302）")
-async def download_pack(pack_id: str = Path(..., min_length=1)):
+async def download_pack(pack_id: str = Path(..., min_length=1)) -> RedirectResponse:
     """返回 302 重定向到对象存储的签名 URL。
 
     生产建议：
@@ -204,8 +203,6 @@ async def download_pack(pack_id: str = Path(..., min_length=1)):
     - 配合 CDN 回源
     - 记录下载请求到审计日志
     """
-    from fastapi.responses import RedirectResponse
-
     packs = _load_packs()
     for p in packs:
         if p.id == pack_id:
@@ -220,7 +217,7 @@ async def download_pack(pack_id: str = Path(..., min_length=1)):
 
 
 @router.get("/healthz", summary="离线包服务健康检查")
-async def healthz():
+async def healthz() -> dict[str, Any]:
     packs = _load_packs()
     configured = sum(1 for p in packs if p.download_url)
     return {
@@ -228,5 +225,5 @@ async def healthz():
         "total_packs": len(packs),
         "configured_packs": configured,
         "unconfigured": [p.id for p in packs if not p.download_url],
-        "server_time": datetime.now(timezone.utc).isoformat(),
+        "server_time": datetime.now(UTC).isoformat(),
     }

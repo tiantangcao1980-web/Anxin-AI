@@ -1,19 +1,20 @@
 """文档管理路由"""
 
 from datetime import datetime
-from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, HTTPException, Query, Depends, UploadFile, File, Form, Body, status
+from typing import Any
+
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
+from loguru import logger
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from loguru import logger
 
-from src.core.config import settings
-from src.core.responses import UnifiedResponse
+from src.api.routes.upload_validation import read_validated_upload_file
 from src.core.database import get_db
 from src.core.deps import get_current_user_required, rate_limit_upload
+from src.core.responses import UnifiedResponse
+from src.models.user import User
 from src.services.document_generation_service import DocumentGenerationService
 from src.services.document_service import DocumentService
-from src.models.user import User
 
 router = APIRouter()
 
@@ -23,21 +24,21 @@ class DocumentResponse(BaseModel):
     id: str
     name: str
     doc_type: str
-    description: Optional[str] = None
+    description: str | None = None
     file_size: int
-    mime_type: Optional[str] = None
+    mime_type: str | None = None
     version: int
-    ai_summary: Optional[str] = None
-    ai_metadata: Optional[Dict[str, Any]] = None
-    extracted_text: Optional[str] = None # 支持在线编辑
-    tags: Optional[list] = None
+    ai_summary: str | None = None
+    ai_metadata: dict[str, Any] | None = None
+    extracted_text: str | None = None # 支持在线编辑
+    tags: list[str] | None = None
     created_at: datetime
     updated_at: datetime
 
 
 class DocumentListResponse(BaseModel):
     """文档列表响应"""
-    items: List[DocumentResponse]
+    items: list[DocumentResponse]
     total: int
     page: int
     page_size: int
@@ -45,15 +46,15 @@ class DocumentListResponse(BaseModel):
 
 class DocumentUpdate(BaseModel):
     """更新文档元数据"""
-    name: Optional[str] = None
-    description: Optional[str] = None
-    tags: Optional[list] = None
+    name: str | None = None
+    description: str | None = None
+    tags: list[str] | None = None
 
 
 class DocumentContentUpdate(BaseModel):
     """更新文档内容"""
     content: str
-    change_summary: Optional[str] = None
+    change_summary: str | None = None
 
 
 class TextDocumentCreate(BaseModel):
@@ -61,17 +62,17 @@ class TextDocumentCreate(BaseModel):
     name: str
     content: str
     doc_type: str = "other"
-    description: Optional[str] = None
-    case_id: Optional[str] = None
-    tags: Optional[List[str]] = None
+    description: str | None = None
+    case_id: str | None = None
+    tags: list[str] | None = None
 
 
 class DocumentGenerateRequest(BaseModel):
     """文档生成请求"""
     doc_type: str
     scenario: str
-    requirements: Dict[str, Any] # 动态参数
-    case_id: Optional[str] = None
+    requirements: dict[str, Any] # 动态参数
+    case_id: str | None = None
 
 
 class ParagraphGenerateRequest(BaseModel):
@@ -79,7 +80,7 @@ class ParagraphGenerateRequest(BaseModel):
     doc_type: str
     document_title: str
     current_content: str
-    missing_field: Dict[str, Any]
+    missing_field: dict[str, Any]
 
 
 class ParagraphGenerateResponse(BaseModel):
@@ -90,16 +91,16 @@ class ParagraphGenerateResponse(BaseModel):
 
 @router.get("/", response_model=UnifiedResponse)
 async def list_documents(
-    case_id: Optional[str] = None,
-    doc_type: Optional[str] = None,
+    case_id: str | None = None,
+    doc_type: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取文档列表"""
     service = DocumentService(db)
-    
+
     documents, total = await service.list_documents(
         org_id=user.org_id if user else None,
         case_id=case_id,
@@ -107,7 +108,7 @@ async def list_documents(
         page=page,
         page_size=page_size,
     )
-    
+
     data = DocumentListResponse(
         items=[
             DocumentResponse(
@@ -138,60 +139,31 @@ async def list_documents(
 async def upload_document(
     file: UploadFile = File(...),
     doc_type: str = Form("other"),
-    description: Optional[str] = Form(None),
-    case_id: Optional[str] = Form(None),
-    tags: Optional[str] = Form(None),  # JSON字符串
+    description: str | None = Form(None),
+    case_id: str | None = Form(None),
+    tags: str | None = Form(None),  # JSON字符串
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
     _: None = Depends(rate_limit_upload),
-):
+) -> dict[str, Any]:
     """上传文档"""
-    import os
     service = DocumentService(db)
 
-    # 文件类型白名单校验
-    ALLOWED_EXTENSIONS = {".pdf", ".doc", ".docx", ".txt", ".md", ".xlsx", ".xls", ".csv", ".pptx"}
-    ALLOWED_MIMETYPES = {
-        "application/pdf",
-        "application/msword",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "application/vnd.ms-excel",
-        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        "text/plain",
-        "text/markdown",
-        "text/csv",
-    }
-    ext = os.path.splitext(file.filename or "")[1].lower()
-    if ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"不支持的文件类型: {ext}，允许: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
-        )
+    file_content, filename, content_type = await read_validated_upload_file(file)
 
-    # 读取文件内容
-    file_content = await file.read()
-
-    # 文件大小校验
-    if len(file_content) > settings.MAX_UPLOAD_SIZE:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"文件大小超过限制（最大 {settings.MAX_UPLOAD_SIZE // 1024 // 1024}MB）"
-        )
-    
     # 解析tags
     parsed_tags = None
     if tags:
         import json
         try:
             parsed_tags = json.loads(tags)
-        except:
+        except Exception:
             parsed_tags = [t.strip() for t in tags.split(",")]
-    
+
     document = await service.upload_document(
-        name=file.filename or "未命名文档",
+        name=filename,
         file_content=file_content,
-        mime_type=file.content_type or "application/octet-stream",
+        mime_type=content_type,
         doc_type=doc_type,
         org_id=user.org_id if user else None,
         case_id=case_id,
@@ -199,7 +171,7 @@ async def upload_document(
         description=description,
         tags=parsed_tags,
     )
-    
+
     data = DocumentResponse(
         id=document.id,
         name=document.name,
@@ -220,10 +192,10 @@ async def create_text_document(
     request: TextDocumentCreate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """创建在线文本文档"""
     service = DocumentService(db)
-    
+
     document = await service.create_text_document(
         name=request.name,
         content=request.content,
@@ -234,7 +206,7 @@ async def create_text_document(
         description=request.description,
         tags=request.tags,
     )
-    
+
     data = DocumentResponse(
         id=document.id,
         name=document.name,
@@ -256,7 +228,7 @@ async def generate_document(
     request: DocumentGenerateRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """AI 生成文档"""
     try:
         generation_service = DocumentGenerationService(db)
@@ -311,7 +283,7 @@ async def generate_paragraph(
     request: ParagraphGenerateRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """AI 生成补写段落"""
     try:
         generation_service = DocumentGenerationService(db)
@@ -336,14 +308,14 @@ async def get_document(
     document_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取文档详情"""
     service = DocumentService(db)
     document = await service.get_document(document_id, org_id=user.org_id)
-    
+
     if not document:
         return UnifiedResponse.error(code=404, message="文档不存在")
-    
+
     data = DocumentResponse(
         id=document.id,
         name=document.name,
@@ -367,10 +339,10 @@ async def update_document(
     update: DocumentUpdate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """更新文档元数据"""
     service = DocumentService(db)
-    
+
     document = await service.update_document(
         document_id=document_id,
         org_id=user.org_id,
@@ -378,10 +350,10 @@ async def update_document(
         description=update.description,
         tags=update.tags,
     )
-    
+
     if not document:
         return UnifiedResponse.error(code=404, message="文档不存在")
-    
+
     data = DocumentResponse(
         id=document.id,
         name=document.name,
@@ -406,10 +378,10 @@ async def update_document_content(
     update: DocumentContentUpdate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """更新文档内容（创建新版本）"""
     service = DocumentService(db)
-    
+
     document = await service.update_document_content(
         document_id=document_id,
         content=update.content,
@@ -417,10 +389,10 @@ async def update_document_content(
         updated_by=user.id if user else None,
         change_summary=update.change_summary
     )
-    
+
     if not document:
         return UnifiedResponse.error(code=404, message="文档不存在")
-        
+
     data = DocumentResponse(
         id=document.id,
         name=document.name,
@@ -444,7 +416,7 @@ async def analyze_document(
     document_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """AI 分析文档"""
     service = DocumentService(db)
 
@@ -461,14 +433,14 @@ async def delete_document(
     document_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """删除文档"""
     service = DocumentService(db)
     success = await service.delete_document(document_id, org_id=user.org_id)
-    
+
     if not success:
         return UnifiedResponse.error(code=404, message="文档不存在")
-    
+
     return UnifiedResponse.success(message="文档已删除")
 
 
@@ -477,7 +449,7 @@ async def get_document_versions(
     document_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取文档版本历史"""
     service = DocumentService(db)
     document = await service.get_document(document_id, org_id=user.org_id)
@@ -485,7 +457,7 @@ async def get_document_versions(
         return UnifiedResponse.error(code=404, message="文档不存在")
 
     versions = await service.get_versions(document_id, org_id=user.org_id)
-    
+
     data = {
         "versions": [
             {

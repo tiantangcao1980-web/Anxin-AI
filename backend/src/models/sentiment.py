@@ -6,27 +6,19 @@
 
 
 
+import enum
 from datetime import datetime
+from typing import TYPE_CHECKING, Any, Optional
 
-from typing import Optional, List, TYPE_CHECKING
-
-from sqlalchemy import String, Text, ForeignKey, DateTime, Float, Boolean, Enum as SQLEnum, Integer
-
-from sqlalchemy import JSON as JSONB, JSON as ARRAY
-
+from sqlalchemy import JSON as JSONB
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-import enum
-
-
-
-from src.models.base import Base, TimestampMixin, GUID, ValueEnum
-
-
+from src.models.base import GUID, Base, TimestampMixin, ValueEnum
 
 if TYPE_CHECKING:
 
-    from src.models.user import User, Organization
+    from src.models.user import Organization, User
 
 
 
@@ -120,21 +112,21 @@ class SentimentRecord(Base, TimestampMixin):
 
     """èæè®°å½æ¨¡å"""
 
-    
+
 
     __tablename__ = "sentiment_records"
 
-    
+
 
     # åºæ¬ä¿¡æ¯
 
-    title: Mapped[Optional[str]] = mapped_column(String(500))
+    title: Mapped[str | None] = mapped_column(String(500))
 
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
     keyword: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
 
-    source: Mapped[Optional[str]] = mapped_column(String(255))  # æ¥æºURLæåç§?
+    source: Mapped[str | None] = mapped_column(String(255))  # æ¥æºURLæåç§?
 
     source_type: Mapped[SourceType] = mapped_column(
 
@@ -142,7 +134,7 @@ class SentimentRecord(Base, TimestampMixin):
 
     )
 
-    
+
 
     # ææåæç»æ
 
@@ -154,7 +146,7 @@ class SentimentRecord(Base, TimestampMixin):
 
     sentiment_score: Mapped[float] = mapped_column(Float, default=0.0)  # -1.0 å?1.0
 
-    
+
 
     # é£é©è¯ä¼°
 
@@ -166,43 +158,43 @@ class SentimentRecord(Base, TimestampMixin):
 
     risk_score: Mapped[float] = mapped_column(Float, default=0.0)  # 0 å?1.0
 
-    risk_factors: Mapped[Optional[dict]] = mapped_column(JSONB)  # é£é©å ç´ è¯¦æ
+    risk_factors: Mapped[dict[str, Any] | None] = mapped_column(JSONB)  # é£é©å ç´ è¯¦æ
 
-    
+
 
     # AIåæç»æ
 
-    ai_analysis: Mapped[Optional[dict]] = mapped_column(JSONB)  # AIåæè¯¦æ
+    ai_analysis: Mapped[dict[str, Any] | None] = mapped_column(JSONB)  # AIåæè¯¦æ
 
-    summary: Mapped[Optional[str]] = mapped_column(Text)  # AIçææè¦
+    summary: Mapped[str | None] = mapped_column(Text)  # AIçææè¦
 
-    
+
 
     # åæ°æ?
 
-    publish_time: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    publish_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
-    author: Mapped[Optional[str]] = mapped_column(String(100))
+    author: Mapped[str | None] = mapped_column(String(100))
 
-    engagement: Mapped[Optional[dict]] = mapped_column(JSONB)  # äºå¨æ°æ®ï¼ç¹èµãè¯è®ºãè½¬åç­
+    engagement: Mapped[dict[str, Any] | None] = mapped_column(JSONB)  # äºå¨æ°æ®ï¼ç¹èµãè¯è®ºãè½¬åç­
 
-    
+
 
     # å¤é®
 
-    org_id: Mapped[Optional[str]] = mapped_column(
+    org_id: Mapped[str | None] = mapped_column(
 
         GUID(), ForeignKey("organizations.id", ondelete="CASCADE")
 
     )
 
-    monitor_id: Mapped[Optional[str]] = mapped_column(
+    monitor_id: Mapped[str | None] = mapped_column(
 
         GUID(), ForeignKey("sentiment_monitors.id", ondelete="SET NULL")
 
     )
 
-    
+
 
     # å³ç³»
 
@@ -226,11 +218,11 @@ class SentimentAlert(Base, TimestampMixin):
 
     """èæé¢è­¦æ¨¡å"""
 
-    
+
 
     __tablename__ = "sentiment_alerts"
 
-    
+
 
     # é¢è­¦ä¿¡æ¯
 
@@ -250,7 +242,7 @@ class SentimentAlert(Base, TimestampMixin):
 
     message: Mapped[str] = mapped_column(Text, nullable=False)
 
-    
+
 
     # ç¶æ?
 
@@ -258,41 +250,41 @@ class SentimentAlert(Base, TimestampMixin):
 
     is_handled: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    handled_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    handled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
-    handled_by: Mapped[Optional[str]] = mapped_column(
+    handled_by: Mapped[str | None] = mapped_column(
 
         GUID(), ForeignKey("users.id", ondelete="SET NULL")
 
     )
 
-    handle_note: Mapped[Optional[str]] = mapped_column(Text)
+    handle_note: Mapped[str | None] = mapped_column(Text)
 
-    
+
 
     # å³èæ°æ®
 
-    related_records: Mapped[Optional[list]] = mapped_column(JSONB)  # ç¸å³èæè®°å½IDåè¡¨
+    related_records: Mapped[list[Any] | None] = mapped_column(JSONB)  # ç¸å³èæè®°å½IDåè¡¨
 
-    statistics: Mapped[Optional[dict]] = mapped_column(JSONB)  # ç»è®¡æ°æ®
+    statistics: Mapped[dict[str, Any] | None] = mapped_column(JSONB)  # ç»è®¡æ°æ®
 
-    
+
 
     # å¤é®
 
-    org_id: Mapped[Optional[str]] = mapped_column(
+    org_id: Mapped[str | None] = mapped_column(
 
         GUID(), ForeignKey("organizations.id", ondelete="CASCADE")
 
     )
 
-    monitor_id: Mapped[Optional[str]] = mapped_column(
+    monitor_id: Mapped[str | None] = mapped_column(
 
         GUID(), ForeignKey("sentiment_monitors.id", ondelete="SET NULL")
 
     )
 
-    
+
 
     # å³ç³»
 
@@ -318,29 +310,29 @@ class SentimentMonitor(Base, TimestampMixin):
 
     """çæ§éç½®æ¨¡å"""
 
-    
+
 
     __tablename__ = "sentiment_monitors"
 
-    
+
 
     # åºæ¬ä¿¡æ¯
 
     name: Mapped[str] = mapped_column(String(100), nullable=False)
 
-    description: Mapped[Optional[str]] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text)
 
-    
+
 
     # çæ§éç½®
 
-    keywords: Mapped[list] = mapped_column(JSONB, nullable=False)  # çæ§å³é®è¯åè¡?
+    keywords: Mapped[list[Any]] = mapped_column(JSONB, nullable=False)  # çæ§å³é®è¯åè¡?
 
-    sources: Mapped[Optional[list]] = mapped_column(JSONB)  # çæ§æ¥æºåè¡¨
+    sources: Mapped[list[Any] | None] = mapped_column(JSONB)  # çæ§æ¥æºåè¡¨
 
-    exclude_keywords: Mapped[Optional[list]] = mapped_column(JSONB)  # æé¤å³é®è¯?
+    exclude_keywords: Mapped[list[Any] | None] = mapped_column(JSONB)  # æé¤å³é®è¯?
 
-    
+
 
     # é¢è­¦éå?
 
@@ -350,17 +342,17 @@ class SentimentMonitor(Base, TimestampMixin):
 
     risk_threshold: Mapped[float] = mapped_column(Float, default=0.8)  # é£é©éå?
 
-    
+
 
     # çæ§ç¶æ?
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    last_scan_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    last_scan_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     scan_interval: Mapped[int] = mapped_column(Integer, default=3600)  # æ«æé´éï¼ç§ï¼?
 
-    
+
 
     # ç»è®¡
 
@@ -370,23 +362,23 @@ class SentimentMonitor(Base, TimestampMixin):
 
     alert_count: Mapped[int] = mapped_column(Integer, default=0)
 
-    
+
 
     # å¤é®
 
-    org_id: Mapped[Optional[str]] = mapped_column(
+    org_id: Mapped[str | None] = mapped_column(
 
         GUID(), ForeignKey("organizations.id", ondelete="CASCADE")
 
     )
 
-    created_by: Mapped[Optional[str]] = mapped_column(
+    created_by: Mapped[str | None] = mapped_column(
 
         GUID(), ForeignKey("users.id", ondelete="SET NULL")
 
     )
 
-    
+
 
     # å³ç³»
 
@@ -409,4 +401,3 @@ class SentimentMonitor(Base, TimestampMixin):
         "SentimentAlert", back_populates="monitor"
 
     )
-

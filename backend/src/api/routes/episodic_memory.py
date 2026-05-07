@@ -1,19 +1,18 @@
-# -*- coding: utf-8 -*-
 """
 情景记忆/经验中心 API 路由
 提供经验记忆的 CRUD、评分、检索功能
 """
 
-from typing import Optional, List
-from datetime import datetime
-from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, Field
-from loguru import logger
+from typing import Any
 
-from src.core.deps import get_current_user_required, require_permission, Permission
+from fastapi import APIRouter, Depends, Query
+from loguru import logger
+from pydantic import BaseModel, Field
+
+from src.core.deps import Permission, get_current_user_required, require_permission
 from src.core.responses import UnifiedResponse
-from src.services.episodic_memory_service import episodic_memory
 from src.models.user import User
+from src.services.episodic_memory_service import episodic_memory
 
 router = APIRouter()
 
@@ -23,10 +22,10 @@ router = APIRouter()
 class MemoryCreate(BaseModel):
     """创建经验记忆"""
     task_description: str = Field(..., description="任务描述")
-    plan: List[dict] = Field(default_factory=list, description="执行计划")
-    final_result: dict = Field(default_factory=dict, description="最终结果")
-    user_feedback: Optional[dict] = Field(None, description="用户反馈 {rating, comment}")
-    metadata: Optional[dict] = Field(None, description="额外元数据")
+    plan: list[dict[str, Any]] = Field(default_factory=list, description="执行计划")
+    final_result: dict[str, Any] = Field(default_factory=dict, description="最终结果")
+    user_feedback: dict[str, Any] | None = Field(None, description="用户反馈 {rating, comment}")
+    metadata: dict[str, Any] | None = Field(None, description="额外元数据")
 
 
 class MemoryFeedback(BaseModel):
@@ -44,13 +43,13 @@ class MemorySearchRequest(BaseModel):
 
 class MemoryItem(BaseModel):
     """经验记忆条目"""
-    memory_id: Optional[str] = None
-    task: Optional[str] = None
-    plan: List[dict] = []
-    result_summary: Optional[str] = None
-    timestamp: Optional[str] = None
-    rating: Optional[int] = None
-    similarity_score: Optional[float] = None
+    memory_id: str | None = None
+    task: str | None = None
+    plan: list[dict[str, Any]] = Field(default_factory=list)
+    result_summary: str | None = None
+    timestamp: str | None = None
+    rating: int | None = None
+    similarity_score: float | None = None
 
 
 class EvolutionStatus(BaseModel):
@@ -60,7 +59,7 @@ class EvolutionStatus(BaseModel):
     high_rated_count: int = 0  # 4-5分
     low_rated_count: int = 0   # 1-2分
     unrated_count: int = 0     # 未评分
-    last_evolution_time: Optional[str] = None
+    last_evolution_time: str | None = None
     evolution_tasks_total: int = 0
 
 
@@ -70,7 +69,7 @@ class EvolutionStatus(BaseModel):
 async def create_memory(
     request: MemoryCreate,
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """
     创建一条新的经验记忆
     """
@@ -97,7 +96,7 @@ async def create_memory(
 async def search_memories(
     request: MemorySearchRequest,
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """
     语义检索相似的历史经验
     """
@@ -119,7 +118,7 @@ async def search_memories(
 async def list_recent_memories(
     limit: int = Query(20, ge=1, le=100),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """
     获取最近的经验记忆列表
     """
@@ -142,7 +141,7 @@ async def update_memory_feedback(
     memory_id: str,
     feedback: MemoryFeedback,
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """
     更新经验记忆的评分和反馈
     """
@@ -160,7 +159,7 @@ async def update_memory_feedback(
 @router.get("/evolution/status")
 async def get_evolution_status(
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """
     获取自进化引擎状态概览
     """
@@ -172,7 +171,7 @@ async def get_evolution_status(
     last_time = None
     if tasks:
         # 找到最近完成的任务时间
-        for tid, task in tasks.items():
+        for _, task in tasks.items():
             task_time = task.get("updated_at") or task.get("created_at")
             if task_time and (not last_time or task_time > last_time):
                 last_time = task_time
@@ -215,7 +214,7 @@ async def get_evolution_status(
 @router.get("/graph/overview")
 async def get_graph_overview(
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """
     获取知识图谱概览统计
     """
@@ -231,9 +230,9 @@ async def search_graph_entities(
     depth: int = Query(1, ge=1, le=3, description="关系深度"),
     limit: int = Query(30, ge=1, le=100, description="返回结果限制"),
     skip: int = Query(0, ge=0, description="分页偏移量"),
-    entity_type: Optional[str] = Query(None, description="实体类型过滤"),
+    entity_type: str | None = Query(None, description="实体类型过滤"),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """
     搜索知识图谱中的实体及其关联关系
     支持分页和实体类型过滤
@@ -256,7 +255,7 @@ async def get_entity_relations(
     depth: int = Query(1, ge=1, le=3, description="关系深度"),
     max_nodes: int = Query(50, ge=10, le=200, description="最大节点数"),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """
     获取指定实体的关联实体和关系（用于图谱展开）
     支持深度和最大节点数限制
@@ -266,8 +265,8 @@ async def get_entity_relations(
     relations = graph_service.get_related_entities(entity_name, depth=depth)
 
     # 转换为前端图谱格式
-    nodes = {}
-    edges = []
+    nodes: dict[str, dict[str, str]] = {}
+    edges: list[dict[str, str]] = []
 
     # 添加中心节点
     nodes[entity_name] = {
@@ -328,7 +327,7 @@ def _infer_node_type(name: str, relation: str) -> str:
 async def get_entity_detail(
     entity_name: str,
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """
     获取实体详情 + 所有出入关系
     """
@@ -346,7 +345,7 @@ async def get_shortest_path(
     to_entity: str = Query(..., alias="to", description="目标实体名称"),
     max_depth: int = Query(10, ge=1, le=20, description="最大搜索深度"),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """
     查询两个实体间的最短路径
     """
@@ -367,7 +366,7 @@ async def get_subgraph(
     depth: int = Query(2, ge=1, le=5, description="子图深度"),
     max_nodes: int = Query(50, ge=10, le=200, description="最大节点数"),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """
     提取实体子图（限制节点数防止数据爆炸）
     """
@@ -379,9 +378,9 @@ async def get_subgraph(
 
 @router.post("/graph/import")
 async def batch_import(
-    entities: List[dict],
+    entities: list[dict[str, Any]],
     user: User = Depends(require_permission(Permission.WRITE_KNOWLEDGE)),
-):
+) -> dict[str, Any]:
     """
     批量导入实体三元组
     每条记录格式: {subject, predicate, object, properties?}
@@ -401,7 +400,7 @@ async def batch_import(
 @router.get("/graph/types")
 async def get_entity_types(
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """
     获取所有实体类型列表及统计
     """
@@ -417,12 +416,12 @@ class EntityCreate(BaseModel):
     """创建实体"""
     name: str = Field(..., description="实体名称")
     entity_type: str = Field("Entity", description="实体类型（Neo4j标签）")
-    properties: Optional[dict] = Field(None, description="实体属性")
+    properties: dict[str, Any] | None = Field(None, description="实体属性")
 
 
 class EntityUpdate(BaseModel):
     """更新实体"""
-    properties: dict = Field(..., description="要更新的属性")
+    properties: dict[str, Any] = Field(..., description="要更新的属性")
 
 
 class RelationCreate(BaseModel):
@@ -449,7 +448,7 @@ class EntityExtractRequest(BaseModel):
 async def create_entity(
     request: EntityCreate,
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """创建图谱实体"""
     from src.services.graph_service import graph_service
     result = await graph_service.create_entity(
@@ -465,7 +464,7 @@ async def update_entity(
     entity_name: str,
     request: EntityUpdate,
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """更新图谱实体属性"""
     from src.services.graph_service import graph_service
     result = await graph_service.update_entity(entity_name, request.properties)
@@ -478,7 +477,7 @@ async def update_entity(
 async def delete_entity(
     entity_name: str,
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """删除图谱实体（DETACH DELETE）"""
     from src.services.graph_service import graph_service
     result = await graph_service.delete_entity(entity_name)
@@ -491,7 +490,7 @@ async def delete_entity(
 async def create_relation(
     request: RelationCreate,
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """创建图谱关系"""
     from src.services.graph_service import graph_service
     result = await graph_service.create_relation(
@@ -506,7 +505,7 @@ async def create_relation(
 async def delete_relation(
     request: RelationDelete,
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """删除图谱关系"""
     from src.services.graph_service import graph_service
     result = await graph_service.delete_relation(
@@ -519,10 +518,10 @@ async def delete_relation(
 
 @router.post("/graph/export")
 async def export_graph(
-    entity_type: Optional[str] = Query(None, description="按实体类型过滤"),
+    entity_type: str | None = Query(None, description="按实体类型过滤"),
     limit: int = Query(10000, ge=1, le=50000, description="导出上限"),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """导出图谱三元组（CSV格式数据）"""
     from src.services.graph_service import graph_service
     triples = await graph_service.export_triples(entity_type=entity_type, limit=limit)
@@ -537,7 +536,7 @@ async def export_graph(
 async def extract_entities(
     request: EntityExtractRequest,
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """LLM智能实体关系抽取"""
     from src.services.entity_extraction_service import entity_extraction_service
     from src.services.graph_service import graph_service

@@ -3,28 +3,30 @@ FastAPI依赖注入
 包含认证、授权、权限控制、频率限制等
 """
 
+from collections.abc import Awaitable, Callable
 from enum import Enum
-from typing import Optional, List, Callable, Set
-from functools import wraps
 
-from fastapi import Depends, HTTPException, status, Request
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from loguru import logger
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
 from src.core.database import get_db
 from src.core.security import (
+    RateLimitBackendUnavailable,
+    RateLimitConfig,
+    get_rate_limiter,
     verify_token,
     verify_token_with_blacklist,
-    get_rate_limiter,
-    RateLimitConfig,
 )
 from src.models.user import User
 
-
 # HTTP Bearer认证
 security = HTTPBearer(auto_error=False)
+UserDependency = Callable[..., Awaitable[User]]
+RateLimitDependency = Callable[..., Awaitable[None]]
 
 
 # ========== 角色枚举 ==========
@@ -66,45 +68,45 @@ class Permission(str, Enum):
     WRITE_CASES = "write:cases"
     DELETE_CASES = "delete:cases"
     ASSIGN_CASES = "assign:cases"
-    
+
     # 文档权限
     READ_DOCUMENTS = "read:documents"
     WRITE_DOCUMENTS = "write:documents"
     DELETE_DOCUMENTS = "delete:documents"
     DOWNLOAD_DOCUMENTS = "download:documents"
-    
+
     # 合同权限
     READ_CONTRACTS = "read:contracts"
     WRITE_CONTRACTS = "write:contracts"
     DELETE_CONTRACTS = "delete:contracts"
     REVIEW_CONTRACTS = "review:contracts"
     SIGN_CONTRACTS = "sign:contracts"
-    
+
     # 用户权限
     READ_USERS = "read:users"
     WRITE_USERS = "write:users"
     DELETE_USERS = "delete:users"
     MANAGE_ROLES = "manage:roles"
-    
+
     # 组织权限
     READ_ORGANIZATION = "read:organization"
     WRITE_ORGANIZATION = "write:organization"
     MANAGE_ORGANIZATION = "manage:organization"
-    
+
     # 知识库权限
     READ_KNOWLEDGE = "read:knowledge"
     WRITE_KNOWLEDGE = "write:knowledge"
     DELETE_KNOWLEDGE = "delete:knowledge"
-    
+
     # 对话权限
     USE_CHAT = "use:chat"
     VIEW_ALL_CHATS = "view:all_chats"
-    
+
     # 资产权限
     READ_ASSETS = "read:assets"
     WRITE_ASSETS = "write:assets"
     DELETE_ASSETS = "delete:assets"
-    
+
     # 系统权限
     VIEW_AUDIT_LOGS = "view:audit_logs"
     MANAGE_SYSTEM = "manage:system"
@@ -148,11 +150,11 @@ class Permission(str, Enum):
 # ========== 角色权限映射 ==========
 
 
-ROLE_PERMISSIONS: dict[str, Set[Permission]] = {
+ROLE_PERMISSIONS: dict[str, set[Permission]] = {
     # ===== 平台层 =====
-    UserRole.SUPER_ADMIN.value: {p for p in Permission},  # 超管拥有所有权限
+    UserRole.SUPER_ADMIN.value: set(Permission),  # 超管拥有所有权限
 
-    UserRole.ADMIN.value: {p for p in Permission},  # 管理员（兼容旧角色）
+    UserRole.ADMIN.value: set(Permission),  # 管理员（兼容旧角色）
 
     # ===== 租户层 =====
     UserRole.ORG_ADMIN.value: {
@@ -281,7 +283,7 @@ ROLE_PERMISSIONS: dict[str, Set[Permission]] = {
 }
 
 
-def get_user_permissions(role: str) -> Set[Permission]:
+def get_user_permissions(role: str) -> set[Permission]:
     """获取角色对应的权限集合"""
     return ROLE_PERMISSIONS.get(role, set())
 
@@ -296,9 +298,9 @@ def has_permission(role: str, permission: Permission) -> bool:
 
 
 async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
     db: AsyncSession = Depends(get_db),
-) -> Optional[User]:
+) -> User | None:
     """
     获取当前用户（可选认证）
     """
@@ -326,7 +328,7 @@ async def get_current_user(
 
 
 async def get_current_user_required(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
     db: AsyncSession = Depends(get_db),
 ) -> User:
     """
@@ -338,35 +340,35 @@ async def get_current_user_required(
             detail="未提供认证信息",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     token = credentials.credentials
-    
+
     # 使用带黑名单检查的验证（Redis 不可用时降级）
     try:
         user_id = await verify_token_with_blacklist(token)
     except Exception:
         logger.warning("Redis不可用，降级为无黑名单Token验证")
         user_id = verify_token(token)
-    
+
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="无效的认证Token或Token已失效",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     result = await db.execute(
         select(User).where(User.id == user_id, User.is_active == True)
     )
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="用户不存在或已被禁用",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     return user
 
 
@@ -388,7 +390,7 @@ async def get_admin_user(
 # ========== 权限依赖工厂 ==========
 
 
-def require_permission(*permissions: Permission):
+def require_permission(*permissions: Permission) -> UserDependency:
     """
     创建权限检查依赖
     
@@ -405,7 +407,7 @@ def require_permission(*permissions: Permission):
         async def delete_case(
             case_id: str,
             user: User = Depends(require_permission(
-                Permission.READ_CASES, 
+                Permission.READ_CASES,
                 Permission.DELETE_CASES
             ))
         ):
@@ -415,12 +417,12 @@ def require_permission(*permissions: Permission):
         user: User = Depends(get_current_user_required),
     ) -> User:
         user_permissions = get_user_permissions(user.role)
-        
+
         missing_permissions = []
         for permission in permissions:
             if permission not in user_permissions:
                 missing_permissions.append(permission.value)
-        
+
         if missing_permissions:
             logger.warning(
                 f"权限不足: user={user.email}, role={user.role}, "
@@ -430,13 +432,13 @@ def require_permission(*permissions: Permission):
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"权限不足，缺少以下权限: {', '.join(missing_permissions)}",
             )
-        
+
         return user
-    
+
     return dependency
 
 
-def require_any_permission(*permissions: Permission):
+def require_any_permission(*permissions: Permission) -> UserDependency:
     """
     创建权限检查依赖（满足任一权限即可）
     
@@ -444,7 +446,7 @@ def require_any_permission(*permissions: Permission):
         @router.get("/cases/{case_id}")
         async def get_case(
             user: User = Depends(require_any_permission(
-                Permission.READ_CASES, 
+                Permission.READ_CASES,
                 Permission.WRITE_CASES
             ))
         ):
@@ -454,11 +456,11 @@ def require_any_permission(*permissions: Permission):
         user: User = Depends(get_current_user_required),
     ) -> User:
         user_permissions = get_user_permissions(user.role)
-        
+
         for permission in permissions:
             if permission in user_permissions:
                 return user
-        
+
         permission_names = [p.value for p in permissions]
         logger.warning(
             f"权限不足: user={user.email}, role={user.role}, "
@@ -468,11 +470,11 @@ def require_any_permission(*permissions: Permission):
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"权限不足，需要以下权限之一: {', '.join(permission_names)}",
         )
-    
+
     return dependency
 
 
-def require_role(*roles: UserRole):
+def require_role(*roles: UserRole) -> UserDependency:
     """
     创建角色检查依赖
     
@@ -487,7 +489,7 @@ def require_role(*roles: UserRole):
         user: User = Depends(get_current_user_required),
     ) -> User:
         role_values = [r.value for r in roles]
-        
+
         if user.role not in role_values:
             logger.warning(
                 f"角色不匹配: user={user.email}, current_role={user.role}, "
@@ -497,9 +499,9 @@ def require_role(*roles: UserRole):
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"需要以下角色之一: {', '.join(role_values)}",
             )
-        
+
         return user
-    
+
     return dependency
 
 
@@ -509,9 +511,10 @@ def require_role(*roles: UserRole):
 def rate_limit(
     limit: int = RateLimitConfig.API_DEFAULT["limit"],
     window: int = RateLimitConfig.API_DEFAULT["window"],
-    endpoint: Optional[str] = None,
+    endpoint: str | None = None,
     by_user: bool = True,
-):
+    fail_closed: bool = False,
+) -> RateLimitDependency:
     """
     创建频率限制依赖
     
@@ -520,6 +523,7 @@ def rate_limit(
         window: 时间窗口（秒）
         endpoint: 端点标识（默认使用路由路径）
         by_user: 是否按用户限制（否则按IP）
+        fail_closed: Redis 后端不可用时是否拒绝服务（认证敏感入口使用）
         
     Example:
         @router.post("/chat")
@@ -531,10 +535,10 @@ def rate_limit(
     """
     async def dependency(
         request: Request,
-        user: Optional[User] = Depends(get_current_user),
+        user: User | None = Depends(get_current_user),
     ) -> None:
         rate_limiter = get_rate_limiter()
-        
+
         # 确定标识符
         if by_user and user:
             identifier = user.id
@@ -545,18 +549,31 @@ def rate_limit(
                 identifier = forwarded.split(",")[0].strip()
             else:
                 identifier = request.client.host if request.client else "unknown"
-        
+
         # 确定端点
         ep = endpoint or request.url.path
-        
-        # 检查频率限制
-        allowed, current, remaining = await rate_limiter.check_rate_limit(
-            identifier=identifier,
-            endpoint=ep,
-            limit=limit,
-            window=window,
+
+        auth_fail_closed = fail_closed and bool(
+            settings.AUTH_REDIS_FAIL_CLOSED
+            or settings.ENVIRONMENT.lower() in {"staging", "production"}
         )
-        
+
+        # 检查频率限制
+        try:
+            allowed, current, remaining = await rate_limiter.check_rate_limit(
+                identifier=identifier,
+                endpoint=ep,
+                limit=limit,
+                window=window,
+                fail_closed=auth_fail_closed,
+            )
+        except RateLimitBackendUnavailable:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="认证限流服务暂不可用，请稍后重试",
+                headers={"Retry-After": str(window)},
+            ) from None
+
         if not allowed:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -567,14 +584,14 @@ def rate_limit(
                     "X-RateLimit-Reset": str(window),
                 },
             )
-        
+
         # 可以在响应头中添加限流信息（需要在路由中处理）
         request.state.rate_limit_info = {
             "limit": limit,
             "remaining": remaining,
             "reset": window,
         }
-    
+
     return dependency
 
 
@@ -584,6 +601,7 @@ rate_limit_auth = rate_limit(
     limit=RateLimitConfig.AUTH_LOGIN["limit"],
     window=RateLimitConfig.AUTH_LOGIN["window"],
     endpoint="auth",
+    fail_closed=True,
 )
 rate_limit_chat = rate_limit(
     limit=RateLimitConfig.CHAT["limit"],
@@ -605,7 +623,7 @@ rate_limit_upload = rate_limit(
 # ========== 组合依赖 ==========
 
 
-def authenticated_with_permission(*permissions: Permission):
+def authenticated_with_permission(*permissions: Permission) -> UserDependency:
     """
     组合认证和权限检查
     
@@ -623,7 +641,7 @@ def authenticated_with_permission(*permissions: Permission):
 def rate_limited_user(
     limit: int = 60,
     window: int = 60,
-):
+) -> UserDependency:
     """
     组合认证和频率限制
     
@@ -634,22 +652,22 @@ def rate_limited_user(
         user: User = Depends(get_current_user_required),
     ) -> User:
         rate_limiter = get_rate_limiter()
-        
+
         allowed, _, _ = await rate_limiter.check_rate_limit(
             identifier=user.id,
             endpoint=request.url.path,
             limit=limit,
             window=window,
         )
-        
+
         if not allowed:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=f"请求过于频繁，请在{window}秒后重试",
             )
-        
+
         return user
-    
+
     return dependency
 
 
@@ -680,8 +698,8 @@ async def get_tenant_context(
 
 
 async def get_optional_tenant_context(
-    user: Optional[User] = Depends(get_current_user),
-) -> Optional[TenantContext]:
+    user: User | None = Depends(get_current_user),
+) -> TenantContext | None:
     """
     获取可选的租户上下文（用于可选认证场景）
     """

@@ -1,14 +1,14 @@
-# -*- coding: utf-8 -*-
 """工作台确认/动作处理器"""
+from typing import Any
 
-from typing import Optional, Tuple
 from loguru import logger
+
 from src.api.routes.chat_handlers.context import WebSocketContext
 
 
 async def handle_workspace_message(
-    ctx: WebSocketContext, msg_type: str, data: dict
-) -> Tuple[bool, Optional[str], Optional[dict]]:
+    ctx: WebSocketContext, msg_type: str, data: dict[str, Any]
+) -> tuple[bool, str | None, dict[str, Any] | None]:
     """
     处理工作台确认回复和工作台动作事件。
 

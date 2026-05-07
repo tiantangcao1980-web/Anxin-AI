@@ -27,8 +27,8 @@ pub async fn local_llm_chat(
     }
 
     let model_name = model.unwrap_or_else(|| "qwen2.5:7b".to_string());
-    let ollama_url = std::env::var("OLLAMA_URL")
-        .unwrap_or_else(|_| "http://localhost:11434".to_string());
+    let ollama_url =
+        std::env::var("OLLAMA_URL").unwrap_or_else(|_| "http://localhost:11434".to_string());
 
     let client = reqwest::Client::new();
 
@@ -60,10 +60,7 @@ pub async fn local_llm_chat(
         .map_err(|e| format!("本地 LLM 连接失败: {}。请确保 Ollama 已启动。", e))?;
 
     if !response.status().is_success() {
-        return Err(format!(
-            "本地 LLM 返回错误: {}",
-            response.status()
-        ));
+        return Err(format!("本地 LLM 返回错误: {}", response.status()));
     }
 
     let body: serde_json::Value = response
@@ -83,8 +80,8 @@ pub async fn local_llm_chat(
 /// 列出本地可用的 LLM 模型
 #[tauri::command]
 pub async fn list_local_models() -> Result<serde_json::Value, String> {
-    let ollama_url = std::env::var("OLLAMA_URL")
-        .unwrap_or_else(|_| "http://localhost:11434".to_string());
+    let ollama_url =
+        std::env::var("OLLAMA_URL").unwrap_or_else(|_| "http://localhost:11434".to_string());
 
     let client = reqwest::Client::new();
 
@@ -102,10 +99,7 @@ pub async fn list_local_models() -> Result<serde_json::Value, String> {
         }));
     }
 
-    let body: serde_json::Value = response
-        .json()
-        .await
-        .map_err(|e| e.to_string())?;
+    let body: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
 
     Ok(serde_json::json!({
         "available": true,
@@ -116,8 +110,8 @@ pub async fn list_local_models() -> Result<serde_json::Value, String> {
 /// 检查本地 LLM 服务是否可用
 #[tauri::command]
 pub async fn check_local_llm_status() -> Result<serde_json::Value, String> {
-    let ollama_url = std::env::var("OLLAMA_URL")
-        .unwrap_or_else(|_| "http://localhost:11434".to_string());
+    let ollama_url =
+        std::env::var("OLLAMA_URL").unwrap_or_else(|_| "http://localhost:11434".to_string());
 
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(3))

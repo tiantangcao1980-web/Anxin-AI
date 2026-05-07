@@ -15,6 +15,7 @@ import { ConfirmDialog } from'@/components/ui/ConfirmDialog';
 import { toast } from'sonner';
 import { icons } from'@/lib/icons';
 import { collaborationApi, documentsApi, buildWebSocketUrl, type CollaborationSession, type Collaborator, type CollaborationSnapshot } from'@/lib/api';
+import { getAccessTokenSnapshot } from'@/lib/platform/storage';
 import { cardStyle, heading, iconSize, statusBadge, statusColor, buttonStyle, spacing, collaborationAccentColors } from'@/lib/design-tokens';
 import { PageContainer } from'@/components/ui/PageContainer';
 
@@ -315,7 +316,7 @@ export default function Collaboration() {
  const ws = new WebSocket(wsUrl);
 
  ws.onopen = () => {
- const token = localStorage.getItem('access_token');
+ const token = getAccessTokenSnapshot();
  if (!token) {
  setError('认证已失效，请重新登录');
  ws.close();

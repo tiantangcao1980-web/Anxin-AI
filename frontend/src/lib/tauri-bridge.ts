@@ -96,7 +96,27 @@ export async function getBackendUrl(): Promise<string> {
 // ===== 同步 =====
 
 /** 触发手动同步 */
-export async function triggerSync(): Promise<{ success: boolean; message: string } | null> {
+export async function triggerSync(): Promise<{
+  success: boolean
+  message: string
+  sync_time?: string | null
+  pushed?: number
+  pulled?: number
+  conflicts?: number
+  deferred?: number
+  needs_human?: number
+  push_ok?: boolean
+  pull_ok?: boolean
+} | null> {
+  if (isTauri()) {
+    try {
+      const { triggerLocalSync } = await import('./api-adapter')
+      const result = await triggerLocalSync()
+      if (result) return result
+    } catch (error) {
+      console.debug('[Tauri] 本地 SQLite 同步失败，降级到 Rust IPC:', error)
+    }
+  }
   return invokeCommand('trigger_sync')
 }
 
@@ -107,8 +127,46 @@ export async function getSyncStatus() {
 
 /** 获取待同步记录数 */
 export async function getPendingSyncCount(): Promise<number> {
+  if (isTauri()) {
+    try {
+      const { getPendingLocalSyncCount } = await import('./api-adapter')
+      const result = await getPendingLocalSyncCount()
+      if (result !== null) return result
+    } catch (error) {
+      console.debug('[Tauri] 本地待同步统计失败，降级到 Rust IPC:', error)
+    }
+  }
   const result = await invokeCommand<number>('get_pending_sync_count')
   return result ?? 0
+}
+
+/** 获取本地同步冲突列表 */
+export async function getSyncConflicts() {
+  if (!isTauri()) return []
+  try {
+    const { listLocalSyncConflicts } = await import('./api-adapter')
+    return await listLocalSyncConflicts() ?? []
+  } catch (error) {
+    console.debug('[Tauri] 读取本地同步冲突失败:', error)
+    return []
+  }
+}
+
+/** 解决本地同步冲突 */
+export async function resolveSyncConflict(
+  logId: number,
+  resolution: 'keep_local' | 'keep_remote' | 'merge',
+  mergedData?: Record<string, unknown>,
+) {
+  if (!isTauri()) return { success: false, message: '仅桌面端支持同步冲突处理' }
+  try {
+    const { resolveLocalSyncConflict } = await import('./api-adapter')
+    const result = await resolveLocalSyncConflict(logId, resolution, mergedData)
+    return result ?? { success: false, message: '本地同步数据库不可用' }
+  } catch (error) {
+    console.debug('[Tauri] 解决本地同步冲突失败:', error)
+    return { success: false, message: '同步冲突处理失败' }
+  }
 }
 
 // ===== 本地 LLM =====

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 用户偏好与长期记忆服务 (Preference Service v2)
 
@@ -6,7 +5,8 @@
 兼容原有接口，同时新增与 UserProfileService 的集成。
 """
 
-from typing import Dict, Any, Optional
+from typing import Any
+
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,18 +16,18 @@ from src.services.user_profile_service import UserProfileService
 class PreferenceService:
     """用户偏好服务（v2 — DB 持久化版）"""
 
-    def __init__(self, db: Optional[AsyncSession] = None):
+    def __init__(self, db: AsyncSession | None = None):
         self._db = db
-        self._profile_svc: Optional[UserProfileService] = None
+        self._profile_svc: UserProfileService | None = None
         # 内存缓存兜底（无 DB session 时使用）
-        self._memory_fallback: Dict[str, Dict[str, Any]] = {}
+        self._memory_fallback: dict[str, dict[str, Any]] = {}
 
-    def _ensure_profile_svc(self) -> Optional[UserProfileService]:
+    def _ensure_profile_svc(self) -> UserProfileService | None:
         if self._profile_svc is None and self._db is not None:
             self._profile_svc = UserProfileService(self._db)
         return self._profile_svc
 
-    async def get_user_preferences(self, user_id: str) -> Dict[str, Any]:
+    async def get_user_preferences(self, user_id: str) -> dict[str, Any]:
         """获取用户的所有偏好"""
         default_prefs = {
             "professional_level": "intermediate",
@@ -89,7 +89,7 @@ class PreferenceService:
         logger.info(f"用户 {user_id} 更新偏好: {key} = {value}")
         return True
 
-    async def batch_update_preferences(self, user_id: str, prefs: Dict[str, Any]) -> bool:
+    async def batch_update_preferences(self, user_id: str, prefs: dict[str, Any]) -> bool:
         """批量更新偏好"""
         for key, value in prefs.items():
             await self.update_preference(user_id, key, value)

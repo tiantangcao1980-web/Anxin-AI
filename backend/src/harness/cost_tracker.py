@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Token 用量与费用统计
 
@@ -8,15 +7,12 @@ Token 用量与费用统计
 
 import time
 from collections import defaultdict
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
-
-from loguru import logger
-
+from dataclasses import dataclass
+from typing import Any
 
 # ===== 主流模型定价（$/M tokens, 2026-04 更新）=====
 # 来源: OpenAI / Anthropic / DeepSeek 官方定价
-PRICING_TABLE: Dict[str, Dict[str, float]] = {
+PRICING_TABLE: dict[str, dict[str, float]] = {
     # OpenAI
     "gpt-4o": {"input": 2.50, "output": 10.00},
     "gpt-4o-mini": {"input": 0.15, "output": 0.60},
@@ -57,11 +53,11 @@ class CostRecord:
     completion_tokens: int
     total_tokens: int
     cost_usd: float
-    agent_name: Optional[str] = None
-    operation: Optional[str] = None
-    trace_id: Optional[str] = None
-    conversation_id: Optional[str] = None
-    user_id: Optional[str] = None
+    agent_name: str | None = None
+    operation: str | None = None
+    trace_id: str | None = None
+    conversation_id: str | None = None
+    user_id: str | None = None
 
 
 class CostTracker:
@@ -73,17 +69,17 @@ class CostTracker:
     """
 
     def __init__(self, max_records: int = 10000):
-        self._records: List[CostRecord] = []
+        self._records: list[CostRecord] = []
         self._max_records = max_records
         # 聚合缓存
-        self._by_user: Dict[str, float] = defaultdict(float)
-        self._by_agent: Dict[str, float] = defaultdict(float)
-        self._by_model: Dict[str, float] = defaultdict(float)
-        self._by_conversation: Dict[str, float] = defaultdict(float)
+        self._by_user: dict[str, float] = defaultdict(float)
+        self._by_agent: dict[str, float] = defaultdict(float)
+        self._by_model: dict[str, float] = defaultdict(float)
+        self._by_conversation: dict[str, float] = defaultdict(float)
         self._total_tokens: int = 0
         self._total_cost: float = 0.0
 
-    def get_pricing(self, model: str) -> Dict[str, float]:
+    def get_pricing(self, model: str) -> dict[str, float]:
         """查找模型定价，支持模糊匹配"""
         if model in PRICING_TABLE:
             return PRICING_TABLE[model]
@@ -108,11 +104,11 @@ class CostTracker:
         provider: str,
         prompt_tokens: int,
         completion_tokens: int,
-        agent_name: Optional[str] = None,
-        operation: Optional[str] = None,
-        trace_id: Optional[str] = None,
-        conversation_id: Optional[str] = None,
-        user_id: Optional[str] = None,
+        agent_name: str | None = None,
+        operation: str | None = None,
+        trace_id: str | None = None,
+        conversation_id: str | None = None,
+        user_id: str | None = None,
     ) -> CostRecord:
         """记录一次 LLM 调用"""
         total = prompt_tokens + completion_tokens
@@ -156,7 +152,7 @@ class CostTracker:
 
         return record
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """获取全局统计"""
         return {
             "total_records": len(self._records),
@@ -169,7 +165,7 @@ class CostTracker:
             ),
         }
 
-    def get_conversation_cost(self, conversation_id: str) -> Dict[str, Any]:
+    def get_conversation_cost(self, conversation_id: str) -> dict[str, Any]:
         """获取单个会话的费用明细"""
         conv_records = [r for r in self._records if r.conversation_id == str(conversation_id)]
         total_cost = sum(r.cost_usd for r in conv_records)
@@ -181,7 +177,7 @@ class CostTracker:
             "total_cost_usd": round(total_cost, 6),
             "by_agent": {
                 agent: round(sum(r.cost_usd for r in conv_records if r.agent_name == agent), 6)
-                for agent in set(r.agent_name for r in conv_records if r.agent_name)
+                for agent in {r.agent_name for r in conv_records if r.agent_name}
             },
         }
 

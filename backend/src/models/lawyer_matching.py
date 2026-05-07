@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 找律师模块 — 数据模型
 
@@ -15,17 +14,13 @@
 """
 
 from datetime import datetime
-from typing import Optional
 from enum import Enum as PyEnum
+from typing import Any
 
-from sqlalchemy import (
-    String, Text, ForeignKey, Boolean, DateTime, Integer,
-    Float, JSON, Enum as SAEnum
-)
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.models.base import Base, TimestampMixin, GUID
-
+from src.models.base import GUID, Base, TimestampMixin
 
 # ===== 枚举定义 =====
 
@@ -82,17 +77,17 @@ class LawyerProfile(Base, TimestampMixin):
     # 基本信息
     real_name: Mapped[str] = mapped_column(String(100), nullable=False)
     license_number: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
-    law_firm: Mapped[Optional[str]] = mapped_column(String(200))
+    law_firm: Mapped[str | None] = mapped_column(String(200))
     years_of_practice: Mapped[int] = mapped_column(Integer, default=0)
-    city: Mapped[Optional[str]] = mapped_column(String(50))
-    province: Mapped[Optional[str]] = mapped_column(String(50))
+    city: Mapped[str | None] = mapped_column(String(50))
+    province: Mapped[str | None] = mapped_column(String(50))
 
     # 专业领域（JSON 数组）
-    specializations: Mapped[Optional[dict]] = mapped_column(JSON, default=list)
+    specializations: Mapped[list[str] | None] = mapped_column(JSON, default=list)
     # 简介
-    bio: Mapped[Optional[str]] = mapped_column(Text)
+    bio: Mapped[str | None] = mapped_column(Text)
     # 头像
-    avatar_url: Mapped[Optional[str]] = mapped_column(String(500))
+    avatar_url: Mapped[str | None] = mapped_column(String(500))
 
     # 评分与统计
     rating: Mapped[float] = mapped_column(Float, default=5.0)
@@ -101,17 +96,17 @@ class LawyerProfile(Base, TimestampMixin):
     total_reviews: Mapped[int] = mapped_column(Integer, default=0)
 
     # 价格区间（元/小时）
-    hourly_rate_min: Mapped[Optional[int]] = mapped_column(Integer)
-    hourly_rate_max: Mapped[Optional[int]] = mapped_column(Integer)
+    hourly_rate_min: Mapped[int | None] = mapped_column(Integer)
+    hourly_rate_max: Mapped[int | None] = mapped_column(Integer)
 
     # 在线状态
     is_online: Mapped[bool] = mapped_column(Boolean, default=False)
     is_accepting: Mapped[bool] = mapped_column(Boolean, default=True)
-    available_hours: Mapped[Optional[dict]] = mapped_column(JSON)  # 可接单时段
+    available_hours: Mapped[dict[str, Any] | None] = mapped_column(JSON)  # 可接单时段
 
     # 认证状态
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
-    verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # 关系
     user = relationship("User", backref="lawyer_profile")
@@ -128,13 +123,13 @@ class Consultation(Base, TimestampMixin):
     )
 
     # AI 生成的匿名案情摘要（脱敏后）
-    anonymous_summary: Mapped[Optional[str]] = mapped_column(Text)
+    anonymous_summary: Mapped[str | None] = mapped_column(Text)
     # 原始描述（仅系统内部可见，律师不可见）
-    original_description: Mapped[Optional[str]] = mapped_column(Text)
+    original_description: Mapped[str | None] = mapped_column(Text)
 
     # 法律领域标签
-    legal_domain: Mapped[Optional[str]] = mapped_column(String(100))  # 合同纠纷/劳动争议/知识产权等
-    legal_tags: Mapped[Optional[dict]] = mapped_column(JSON, default=list)
+    legal_domain: Mapped[str | None] = mapped_column(String(100))  # 合同纠纷/劳动争议/知识产权等
+    legal_tags: Mapped[list[str] | None] = mapped_column(JSON, default=list)
 
     # 紧急程度
     urgency: Mapped[str] = mapped_column(
@@ -150,18 +145,18 @@ class Consultation(Base, TimestampMixin):
     privacy_level: Mapped[int] = mapped_column(Integer, default=0)
 
     # 匹配的律师
-    matched_lawyer_id: Mapped[Optional[str]] = mapped_column(
+    matched_lawyer_id: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
 
     # 匹配时间
-    matched_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    matched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # 完成时间
-    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # 用户评分
-    user_rating: Mapped[Optional[int]] = mapped_column(Integer)  # 1-5
-    user_review: Mapped[Optional[str]] = mapped_column(Text)
+    user_rating: Mapped[int | None] = mapped_column(Integer)  # 1-5
+    user_review: Mapped[str | None] = mapped_column(Text)
 
     # 关系
     user = relationship("User", foreign_keys=[user_id], backref="consultations")
@@ -173,7 +168,7 @@ class Delegation(Base, TimestampMixin):
 
     __tablename__ = "delegations"
 
-    consultation_id: Mapped[Optional[str]] = mapped_column(
+    consultation_id: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("consultations.id", ondelete="SET NULL"), nullable=True
     )
 
@@ -187,8 +182,8 @@ class Delegation(Base, TimestampMixin):
 
     # 委托内容
     title: Mapped[str] = mapped_column(String(200), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text)
-    service_type: Mapped[Optional[str]] = mapped_column(String(50))  # 即时咨询/预约咨询/案件委托
+    description: Mapped[str | None] = mapped_column(Text)
+    service_type: Mapped[str | None] = mapped_column(String(50))  # 即时咨询/预约咨询/案件委托
 
     # 状态
     status: Mapped[str] = mapped_column(
@@ -196,16 +191,16 @@ class Delegation(Base, TimestampMixin):
     )
 
     # 费用
-    quoted_amount: Mapped[Optional[float]] = mapped_column(Float)  # 报价金额
-    platform_fee: Mapped[Optional[float]] = mapped_column(Float)   # 平台服务费
-    total_amount: Mapped[Optional[float]] = mapped_column(Float)   # 总金额
-    paid_amount: Mapped[Optional[float]] = mapped_column(Float)    # 已支付金额
+    quoted_amount: Mapped[float | None] = mapped_column(Float)  # 报价金额
+    platform_fee: Mapped[float | None] = mapped_column(Float)   # 平台服务费
+    total_amount: Mapped[float | None] = mapped_column(Float)   # 总金额
+    paid_amount: Mapped[float | None] = mapped_column(Float)    # 已支付金额
 
     # 签署
-    contract_url: Mapped[Optional[str]] = mapped_column(String(500))  # 委托协议文件
-    signed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    paid_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    contract_url: Mapped[str | None] = mapped_column(String(500))  # 委托协议文件
+    signed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # 关系
     consultation = relationship("Consultation", backref="delegation")

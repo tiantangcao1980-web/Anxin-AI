@@ -1,34 +1,42 @@
-# -*- coding: utf-8 -*-
 """
 事件总线服务 (Event Bus Service)
 基于 Redis 实现的轻量级事件分发系统
 用于实现 Agent 之间的异步通信和解耦
 """
 
-import json
 import asyncio
-from typing import Dict, Any, Callable, Awaitable, List
-from loguru import logger
+import json
+from collections.abc import Awaitable, Callable
+from typing import Any, cast
+
 import redis.asyncio as redis
+from loguru import logger
+
 from src.core.config import settings
+
+EventPayload = dict[str, Any]
+EventCallback = Callable[[EventPayload], Awaitable[None]]
 
 
 class EventBus:
-    def __init__(self):
+    def __init__(self) -> None:
         self.redis_url = settings.REDIS_URL
-        self.redis: redis.Redis = None
-        self.subscribers: Dict[str, List[Callable[[Dict[str, Any]], Awaitable[None]]]] = {}
+        self.redis: redis.Redis | None = None
+        self.subscribers: dict[str, list[EventCallback]] = {}
         self.is_connected = False
-        self._pubsub = None
-        self._listen_task = None
+        self._pubsub: Any | None = None
+        self._listen_task: asyncio.Task[None] | None = None
 
-    async def connect(self):
+    async def connect(self) -> None:
         """连接到 Redis（仅建立连接，不启动监听循环）"""
         if self.is_connected:
             return
 
         try:
-            self.redis = redis.from_url(self.redis_url, decode_responses=True)
+            self.redis = redis.from_url(  # type: ignore[no-untyped-call]
+                self.redis_url,
+                decode_responses=True,
+            )
             await self.redis.ping()
             self.is_connected = True
             self._pubsub = self.redis.pubsub()
@@ -37,7 +45,7 @@ class EventBus:
             logger.error(f"EventBus 连接失败: {e}")
             self.is_connected = False
 
-    async def disconnect(self):
+    async def disconnect(self) -> None:
         """断开连接"""
         if self._listen_task:
             self._listen_task.cancel()
@@ -58,23 +66,28 @@ class EventBus:
         self.is_connected = False
         logger.info("EventBus 已断开连接")
 
-    async def publish(self, channel: str, message: Dict[str, Any]):
+    async def publish(self, channel: str, message: EventPayload) -> None:
         """发布事件"""
         if not self.is_connected:
             await self.connect()
 
         try:
-            if "timestamp" not in message:
-                import time
-                message["timestamp"] = time.time()
+            if not self.redis:
+                logger.warning("EventBus 未连接，跳过消息发布")
+                return
 
-            payload = json.dumps(message, ensure_ascii=False)
+            event = dict(message)
+            if "timestamp" not in event:
+                import time
+                event["timestamp"] = time.time()
+
+            payload = json.dumps(event, ensure_ascii=False)
             await self.redis.publish(channel, payload)
             logger.debug(f"EventBus 发布消息到 [{channel}]: {payload[:100]}...")
         except Exception as e:
             logger.error(f"EventBus 发布失败: {e}")
 
-    async def subscribe(self, channel: str, callback: Callable[[Dict[str, Any]], Awaitable[None]]):
+    async def subscribe(self, channel: str, callback: EventCallback) -> None:
         """订阅频道"""
         if not self.is_connected:
             await self.connect()
@@ -93,7 +106,7 @@ class EventBus:
             self._listen_task = asyncio.create_task(self._listen_loop())
             logger.info("EventBus 监听循环已启动")
 
-    async def _listen_loop(self):
+    async def _listen_loop(self) -> None:
         """监听循环（仅在至少有一个 subscribe 后才会被启动）"""
         while True:
             try:
@@ -105,13 +118,17 @@ class EventBus:
                     ignore_subscribe_messages=True, timeout=1.0
                 )
                 if message and message["type"] == "message":
-                    channel = message["channel"]
+                    channel = str(message["channel"])
                     data = message["data"]
 
                     try:
                         payload = json.loads(data)
+                        if not isinstance(payload, dict):
+                            logger.warning(f"EventBus 收到非对象 JSON 消息: {data}")
+                            continue
+                        event_payload = cast(EventPayload, payload)
                         if channel in self.subscribers:
-                            tasks = [cb(payload) for cb in self.subscribers[channel]]
+                            tasks = [cb(event_payload) for cb in self.subscribers[channel]]
                             if tasks:
                                 await asyncio.gather(*tasks, return_exceptions=True)
                     except json.JSONDecodeError:

@@ -2,13 +2,11 @@
 法规研究智能体
 """
 
-import re
 import json
-from typing import Any, Dict, List
+from typing import Any
 
-from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
+from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
-
 
 _FALLBACK_PROMPT = "你是一位专业的法律研究员，精通法律法规检索和判例分析。"
 
@@ -17,8 +15,8 @@ _FALLBACK_DEEP_RESEARCH_PROMPT = "你是一位资深的法律科学家，擅长�
 
 class LegalResearchAgent(BaseLegalAgent):
     """法规研究智能体"""
-    
-    def __init__(self):
+
+    def __init__(self) -> None:
         config = AgentConfig(
             name="法规研究Agent",
             role="法律研究员",
@@ -27,13 +25,13 @@ class LegalResearchAgent(BaseLegalAgent):
             tools=["legal_database", "case_search", "knowledge_search", "web_search"],
         )
         super().__init__(config)
-    
-    async def deep_research(self, topic: str, context: Dict[str, Any] = None) -> AgentResponse:
+
+    async def deep_research(self, topic: str, context: dict[str, Any] | None = None) -> AgentResponse:
         """执行深度法律研究"""
         # 切换到深度提示词
         original_prompt = self.config.system_prompt
         self.config.system_prompt = load_prompt("agents/legal_researcher_deep.txt", fallback=_FALLBACK_DEEP_RESEARCH_PROMPT)
-        
+
         try:
             prompt = f"""
 请对以下课题进行深度法律研究：
@@ -49,7 +47,7 @@ class LegalResearchAgent(BaseLegalAgent):
 """
             response = await self.chat(prompt)
             citations = self._extract_citations(response)
-            
+
             return AgentResponse(
                 agent_name=self.name,
                 content=response,
@@ -63,16 +61,18 @@ class LegalResearchAgent(BaseLegalAgent):
             # 还原提示词
             self.config.system_prompt = original_prompt
 
-    async def process(self, task: Dict[str, Any]) -> AgentResponse:
+    async def process(self, task: dict[str, Any]) -> AgentResponse:
         """处理法律研究任务"""
         description = task.get("description", "")
         context = task.get("context", {})
-        
+        context_text = f"\n相关背景：{context}\n" if context else ""
+
         # 构建研究提示
         prompt = f"""
 请对以下法律问题进行研究：
 
 研究问题：{description}
+{context_text}
 
 请提供：
 1. 相关法律法规（列明法律名称、条款号、具体内容）
@@ -83,13 +83,13 @@ class LegalResearchAgent(BaseLegalAgent):
 
 请确保引用准确，注明法律法规的时效性。
 """
-        
+
         # 调用Agent
         response = await self.chat(prompt)
-        
+
         # 提取引用
         citations = self._extract_citations(response)
-        
+
         return AgentResponse(
             agent_name=self.name,
             content=response,
@@ -99,15 +99,15 @@ class LegalResearchAgent(BaseLegalAgent):
                 {"type": "research_complete", "description": "法律研究完成"}
             ]
         )
-    
-    def _extract_citations(self, response: str) -> List[Dict]:
+
+    def _extract_citations(self, response: str) -> list[dict[str, Any]]:
         """提取法律引用"""
         citations = []
-        
+
         # 简单的引用提取逻辑
         # 实际应用中需要更复杂的NLP处理
         import re
-        
+
         # 匹配《法律名称》第X条
         law_pattern = r'《([^》]+)》[第]*(\d+)[条款]'
         for match in re.finditer(law_pattern, response):
@@ -116,7 +116,7 @@ class LegalResearchAgent(BaseLegalAgent):
                 "name": match.group(1),
                 "article": match.group(2),
             })
-        
+
         # 匹配案号
         case_pattern = r'\((\d{4})\)[^号]*号'
         for match in re.finditer(case_pattern, response):
@@ -124,10 +124,10 @@ class LegalResearchAgent(BaseLegalAgent):
                 "type": "case",
                 "case_number": match.group(0),
             })
-        
+
         return citations
-    
-    async def search_laws(self, keywords: List[str]) -> Dict[str, Any]:
+
+    async def search_laws(self, keywords: list[str]) -> dict[str, Any]:
         """检索法律法规"""
         keywords_str = "、".join(keywords)
         prompt = f"""
@@ -144,14 +144,14 @@ class LegalResearchAgent(BaseLegalAgent):
 按相关性排序，每类列出最相关的3-5部。
 """
         response = await self.chat(prompt)
-        
+
         return {
             "keywords": keywords,
             "results": response,
             "agent": self.name
         }
-    
-    async def analyze_case(self, case_number: str) -> Dict[str, Any]:
+
+    async def analyze_case(self, case_number: str) -> dict[str, Any]:
         """分析判例"""
         prompt = f"""
 请分析案号为 "{case_number}" 的判例：
@@ -165,7 +165,7 @@ class LegalResearchAgent(BaseLegalAgent):
 请提供详细分析。
 """
         response = await self.chat(prompt)
-        
+
         return {
             "case_number": case_number,
             "analysis": response,

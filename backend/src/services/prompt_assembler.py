@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Prompt 组装与质量评分服务 (Prompt Assembler)
 
@@ -10,8 +9,7 @@ Prompt 组装与质量评分服务 (Prompt Assembler)
 """
 
 import re
-from typing import Any, Dict, List, Optional
-from loguru import logger
+from typing import Any
 
 
 class PromptAssembler:
@@ -21,11 +19,11 @@ class PromptAssembler:
         self,
         user_input: str,
         intent: str,
-        filled_slots: List[Dict[str, Any]],
-        missing_elements: List[str],
-        user_profile: Optional[Dict[str, Any]] = None,
-        conversation_history: Optional[List[Dict[str, str]]] = None,
-    ) -> Dict[str, Any]:
+        filled_slots: list[dict[str, Any]],
+        missing_elements: list[str],
+        user_profile: dict[str, Any] | None = None,
+        conversation_history: list[dict[str, str]] | None = None,
+    ) -> dict[str, Any]:
         """
         组装最终 Prompt 并评分。
 
@@ -108,8 +106,8 @@ class PromptAssembler:
     def detect_contradiction(
         self,
         current_input: str,
-        conversation_history: List[Dict[str, str]],
-    ) -> Optional[Dict[str, Any]]:
+        conversation_history: list[dict[str, str]],
+    ) -> dict[str, Any] | None:
         """
         检测当前输入与历史对话的矛盾或主题跑偏。
 
@@ -207,9 +205,9 @@ class PromptAssembler:
     @staticmethod
     def _calculate_readiness(
         user_input: str,
-        filled_slots: List[Dict[str, Any]],
-        missing_elements: List[str],
-        history: List[Dict[str, str]],
+        filled_slots: list[dict[str, Any]],
+        missing_elements: list[str],
+        history: list[dict[str, str]],
     ) -> float:
         """计算 prompt 就绪度评分"""
         score = 0.3  # 基础分（有用户输入就有 0.3）

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 LiveKit 实时转录 Agent
 
@@ -20,20 +19,21 @@ LiveKit 实时转录 Agent
 import asyncio
 import os
 import sys
+from collections.abc import Awaitable, Callable
+from typing import Any, cast
+
+from dotenv import load_dotenv
+from loguru import logger
 
 # 确保项目根目录在 sys.path 中（独立进程运行时需要）
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-
-from dotenv import load_dotenv
 load_dotenv()
 
-from loguru import logger
 
-
-def create_agent_server():
+def create_agent_server() -> Any:
     """创建 LiveKit Agent 服务器"""
     try:
-        from livekit.agents import AgentServer, JobContext, AgentSession, Agent, cli
+        from livekit.agents import Agent, AgentServer, AgentSession, JobContext
     except ImportError:
         logger.error(
             "LiveKit Agents 未安装，请执行:\n"
@@ -48,17 +48,25 @@ def create_agent_server():
         sys.exit(1)
 
     server = AgentServer()
+    rtc_session = cast(
+        Callable[[Callable[[JobContext], Awaitable[None]]], Callable[[JobContext], Awaitable[None]]],
+        server.rtc_session(agent_name="anxin-transcriber"),
+    )
 
-    @server.rtc_session(agent_name="anxin-transcriber")
-    async def entrypoint(ctx: JobContext):
+    @rtc_session
+    async def entrypoint(ctx: JobContext) -> None:
         """转录 Agent 入口"""
         room_name = ctx.room.name
         logger.info(f"转录 Agent 加入房间: {room_name}")
 
         session = AgentSession(stt=stt_engine)
+        transcript_handler = cast(
+            Callable[[Callable[[Any], None]], Callable[[Any], None]],
+            session.on("user_input_transcribed"),
+        )
 
-        @session.on("user_input_transcribed")
-        def on_transcript(transcript):
+        @transcript_handler
+        def on_transcript(transcript: Any) -> None:
             """收到转录结果"""
             if not transcript.is_final:
                 return
@@ -85,7 +93,7 @@ def create_agent_server():
     return server
 
 
-def _get_stt_engine():
+def _get_stt_engine() -> Any | None:
     """获取 STT 引擎（优先阿里云 Paraformer）"""
     # 优先阿里云 Paraformer
     if os.environ.get("DASHSCOPE_API_KEY"):
@@ -109,7 +117,7 @@ def _get_stt_engine():
     return None
 
 
-async def _push_to_assistant(conversation_id: str, text: str):
+async def _push_to_assistant(conversation_id: str, text: str) -> None:
     """将转录文本推送到 AI 旁听助手"""
     try:
         from src.services.meeting_assistant_service import meeting_assistant

@@ -1,18 +1,19 @@
 """案件管理路由"""
 
 from datetime import datetime
-from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Query, Depends
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.database import get_db
-from src.core.deps import get_current_user, get_current_user_required
-from src.core.responses import UnifiedResponse
-from src.services.case_service import CaseService
-from src.models.user import User
 from src.agents.workforce import get_workforce
+from src.core.database import get_db
+from src.core.deps import get_current_user_required
+from src.core.responses import UnifiedResponse
+from src.models.user import User
+from src.services.case_service import CaseService
 
 router = APIRouter()
 
@@ -21,40 +22,40 @@ class CaseCreate(BaseModel):
     """创建案件"""
     title: str
     case_type: str
-    description: Optional[str] = None
+    description: str | None = None
     priority: str = "medium"
-    parties: Optional[dict] = None
-    deadline: Optional[datetime] = None
+    parties: dict[str, Any] | None = None
+    deadline: datetime | None = None
 
 
 class CaseUpdate(BaseModel):
     """更新案件"""
-    title: Optional[str] = None
-    case_type: Optional[str] = None
-    description: Optional[str] = None
-    status: Optional[str] = None
-    priority: Optional[str] = None
-    assignee_id: Optional[str] = None
+    title: str | None = None
+    case_type: str | None = None
+    description: str | None = None
+    status: str | None = None
+    priority: str | None = None
+    assignee_id: str | None = None
 
 
 class CaseResponse(BaseModel):
     """案件响应"""
     id: str
-    case_number: Optional[str] = None
+    case_number: str | None = None
     title: str
     case_type: str
     status: str
     priority: str
-    description: Optional[str] = None
-    assignee_id: Optional[str] = None
-    risk_score: Optional[float] = None
+    description: str | None = None
+    assignee_id: str | None = None
+    risk_score: float | None = None
     created_at: datetime
     updated_at: datetime
 
 
 class CaseListResponse(BaseModel):
     """案件列表响应"""
-    items: List[CaseResponse]
+    items: list[CaseResponse]
     total: int
     page: int
     page_size: int
@@ -65,7 +66,7 @@ class CaseEventResponse(BaseModel):
     id: str
     event_type: str
     title: str
-    description: Optional[str] = None
+    description: str | None = None
     event_time: datetime
     created_at: datetime
 
@@ -76,7 +77,7 @@ class CaseDocumentResponse(BaseModel):
     name: str
     doc_type: str
     file_size: int
-    ai_summary: Optional[str] = None
+    ai_summary: str | None = None
     created_at: datetime
 
 
@@ -88,22 +89,29 @@ class LinkDocumentRequest(BaseModel):
 class LegalBriefingResponse(BaseModel):
     """案件简报响应"""
     briefing: str
-    key_points: List[str]
-    risk_list: List[dict]
-    action_items: List[str]
+    key_points: list[str]
+    risk_list: list[dict[str, Any]]
+    action_items: list[str]
     generated_at: datetime
+
+
+def _require_org_id(user: User) -> str:
+    """案件数据必须归属组织范围。"""
+    if not user.org_id:
+        raise HTTPException(status_code=400, detail="当前用户未归属组织")
+    return str(user.org_id)
 
 
 @router.get("/")
 async def list_cases(
-    status: Optional[str] = None,
-    case_type: Optional[str] = None,
-    priority: Optional[str] = None,
+    status: str | None = None,
+    case_type: str | None = None,
+    priority: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取案件列表"""
     service = CaseService(db)
 
@@ -114,9 +122,10 @@ async def list_cases(
     _scope_user_id = None
     if user.role in ("lawyer", "platform_lawyer", "paralegal"):
         _scope_user_id = user.id
+    org_id = _require_org_id(user)
 
     cases, total = await service.list_cases(
-        org_id=user.org_id,
+        org_id=org_id,
         assignee_id=_scope_user_id,
         status=status,
         case_type=case_type,
@@ -124,7 +133,7 @@ async def list_cases(
         page=page,
         page_size=page_size,
     )
-    
+
     data = CaseListResponse(
         items=[
             CaseResponse(
@@ -154,21 +163,21 @@ async def create_case(
     case: CaseCreate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """创建案件"""
     service = CaseService(db)
-    
+
     created_case = await service.create_case(
         title=case.title,
         case_type=case.case_type,
         description=case.description,
         priority=case.priority,
-        org_id=user.org_id,
+        org_id=_require_org_id(user),
         created_by=user.id,
         parties=case.parties,
         deadline=case.deadline,
     )
-    
+
     data = CaseResponse(
         id=created_case.id,
         case_number=created_case.case_number,
@@ -190,10 +199,10 @@ async def create_case(
 async def get_cases_statistics(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取案件统计概览"""
     service = CaseService(db)
-    stats = await service.get_case_statistics(org_id=user.org_id)
+    stats = await service.get_case_statistics(org_id=_require_org_id(user))
     return UnifiedResponse.success(data=stats)
 
 
@@ -202,10 +211,10 @@ async def get_recent_events(
     limit: int = Query(10, ge=1, le=50),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取最近的案件事件"""
     service = CaseService(db)
-    events = await service.get_recent_events(org_id=user.org_id, limit=limit)
+    events = await service.get_recent_events(org_id=_require_org_id(user), limit=limit)
     data = []
     for event, case in events:
         data.append({
@@ -226,10 +235,10 @@ async def get_recent_events(
 async def get_alerts(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取系统预警"""
     service = CaseService(db)
-    alerts = await service.get_alerts(org_id=user.org_id)
+    alerts = await service.get_alerts(org_id=_require_org_id(user))
     return UnifiedResponse.success(data=alerts)
 
 
@@ -237,10 +246,10 @@ async def get_alerts(
 async def get_compliance_score(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取合规健康分"""
     service = CaseService(db)
-    score_data = await service.get_compliance_score(org_id=user.org_id)
+    score_data = await service.get_compliance_score(org_id=_require_org_id(user))
     return UnifiedResponse.success(data=score_data)
 
 
@@ -251,24 +260,17 @@ async def get_case(
     case_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required)
-):
+) -> Any:
     """获取案件详情"""
     service = CaseService(db)
-    case = await service.get_case(case_id)
-    
+    case = await service.get_case(case_id, org_id=_require_org_id(user))
+
     if not case:
         return JSONResponse(
             status_code=404,
             content=UnifiedResponse.error(code=404, message="案件不存在"),
         )
-    
-    # 简单的越权检查
-    if case.org_id != user.org_id:
-        return JSONResponse(
-            status_code=403,
-            content=UnifiedResponse.error(code=403, message="无权访问该案件"),
-        )
-    
+
     data = CaseResponse(
         id=case.id,
         case_number=case.case_number,
@@ -291,22 +293,28 @@ async def update_case(
     case: CaseUpdate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """更新案件"""
     service = CaseService(db)
-    
+
     # 先检查权限
-    existing_case = await service.get_case(case_id)
+    org_id = _require_org_id(user)
+    existing_case = await service.get_case(case_id, org_id=org_id)
     if not existing_case:
         return UnifiedResponse.error(code=404, message="案件不存在")
-    if existing_case.org_id != user.org_id:
-        return UnifiedResponse.error(code=403, message="无权修改该案件")
-    
-    updated_case = await service.update_case(
-        case_id=case_id,
-        **case.model_dump(exclude_unset=True)
-    )
-    
+
+    try:
+        updated_case = await service.update_case(
+            case_id=case_id,
+            org_id=org_id,
+            updated_by=user.id,
+            **case.model_dump(exclude_unset=True),
+        )
+    except ValueError as exc:
+        return UnifiedResponse.error(code=409, message=str(exc))
+    if not updated_case:
+        return UnifiedResponse.error(code=404, message="案件不存在")
+
     data = CaseResponse(
         id=updated_case.id,
         case_number=updated_case.case_number,
@@ -325,40 +333,39 @@ async def update_case(
 
 @router.delete("/{case_id}")
 async def delete_case(
-    case_id: str, 
+    case_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required)
-):
+) -> dict[str, Any]:
     """删除案件"""
     service = CaseService(db)
-    
+
     # 先检查权限
-    existing_case = await service.get_case(case_id)
+    existing_case = await service.get_case(case_id, org_id=_require_org_id(user))
     if not existing_case:
         return UnifiedResponse.error(code=404, message="案件不存在")
-    if existing_case.org_id != user.org_id:
-        return UnifiedResponse.error(code=403, message="无权删除该案件")
-        
-    success = await service.delete_case(case_id)
+
+    if not await service.delete_case(case_id):
+        return UnifiedResponse.error(code=400, message="案件删除失败")
     return UnifiedResponse.success(message="案件已删除")
 
 
 @router.get("/{case_id}/timeline")
 async def get_case_timeline(
-    case_id: str, 
+    case_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required)
-):
+) -> dict[str, Any]:
     """获取案件时间线"""
     service = CaseService(db)
-    
+
     # 权限检查
-    case = await service.get_case(case_id)
-    if not case or case.org_id != user.org_id:
+    case = await service.get_case(case_id, org_id=_require_org_id(user))
+    if not case:
         return UnifiedResponse.error(code=404, message="案件不存在")
-        
+
     events = await service.get_timeline(case_id)
-    
+
     data = [
         CaseEventResponse(
             id=e.id,
@@ -375,18 +382,18 @@ async def get_case_timeline(
 
 @router.post("/{case_id}/analyze")
 async def analyze_case(
-    case_id: str, 
+    case_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required)
-):
+) -> dict[str, Any]:
     """AI分析案件"""
     service = CaseService(db)
-    
+
     # 权限检查
-    case = await service.get_case(case_id)
-    if not case or case.org_id != user.org_id:
+    case = await service.get_case(case_id, org_id=_require_org_id(user))
+    if not case:
         return UnifiedResponse.error(code=404, message="案件不存在")
-        
+
     try:
         result = await service.analyze_case(case_id)
         return UnifiedResponse.success(data=result)
@@ -399,23 +406,24 @@ async def generate_case_briefing(
     case_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required)
-):
+) -> dict[str, Any]:
     """生成案件简报 (Legal Briefing)"""
     service = CaseService(db)
-    case = await service.get_case(case_id)
-    
-    if not case or case.org_id != user.org_id:
+    org_id = _require_org_id(user)
+    case = await service.get_case(case_id, org_id=org_id)
+
+    if not case:
         return UnifiedResponse.error(code=404, message="案件不存在")
-        
+
     # 获取案件时间线和相关文档摘要
     timeline = await service.get_timeline(case_id)
-    documents = await service.get_case_documents(case_id, org_id=user.org_id)
-    
+    documents = await service.get_case_documents(case_id, org_id=org_id)
+
     # 构建上下文
     context = f"案件标题: {case.title}\n案件类型: {case.case_type.value}\n描述: {case.description}\n"
     context += "\n[关键时间节点]:\n" + "\n".join([f"- {e.event_time.date()}: {e.title}" for e in timeline])
     context += "\n[关键文档]:\n" + "\n".join([f"- {d.name}: {d.ai_summary or '暂无摘要'}" for d in documents])
-    
+
     # 调用 Workforce 生成简报
     workforce = get_workforce()
     prompt = f"""
@@ -429,20 +437,20 @@ async def generate_case_briefing(
     2. 结构清晰：案情摘要、争议焦点、风险清单、行动建议。
     3. 重点提示截止日期 (Deadline) 和程序性事项。
     """
-    
+
     try:
         # 这里可以直接调用 legal_advisor，或者专门的 document_drafter
         briefing_text = await workforce.chat(prompt, agent_name="document_drafter")
-        
+
         # 简单解析（实际生产中应使用 Structured Output）
         # 这里为了演示，我们假设 LLM 返回了 Markdown，我们直接返回 Text
         # 前端负责渲染 Markdown
-        
+
         return UnifiedResponse.success(data={
             "briefing": briefing_text,
             "generated_at": datetime.now()
         })
-        
+
     except Exception as e:
         return UnifiedResponse.error(code=500, message=f"生成简报失败: {str(e)}")
 
@@ -454,17 +462,18 @@ async def get_case_documents(
     case_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取案件关联的文档"""
     service = CaseService(db)
-    
+
     # 权限检查
-    case = await service.get_case(case_id)
-    if not case or case.org_id != user.org_id:
+    org_id = _require_org_id(user)
+    case = await service.get_case(case_id, org_id=org_id)
+    if not case:
         return UnifiedResponse.error(code=404, message="案件不存在")
-        
-    documents = await service.get_case_documents(case_id)
-    
+
+    documents = await service.get_case_documents(case_id, org_id=org_id)
+
     data = [
         CaseDocumentResponse(
             id=doc.id,
@@ -485,25 +494,26 @@ async def link_document_to_case(
     request: LinkDocumentRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """关联文档到案件"""
     service = CaseService(db)
-    
+
     # 权限检查
-    case = await service.get_case(case_id)
-    if not case or case.org_id != user.org_id:
+    org_id = _require_org_id(user)
+    case = await service.get_case(case_id, org_id=org_id)
+    if not case:
         return UnifiedResponse.error(code=404, message="案件不存在")
-        
+
     success = await service.link_document(
         case_id=case_id,
         document_id=request.document_id,
-        org_id=user.org_id,
+        org_id=org_id,
         created_by=user.id,
     )
-    
+
     if not success:
         return UnifiedResponse.error(code=404, message="案件或文档不存在")
-    
+
     await db.commit()
     return UnifiedResponse.success(message="文档已关联到案件")
 
@@ -514,24 +524,24 @@ async def unlink_document_from_case(
     document_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """取消文档与案件的关联"""
     service = CaseService(db)
-    
+
     # 权限检查
-    case = await service.get_case(case_id)
-    if not case or case.org_id != user.org_id:
+    case = await service.get_case(case_id, org_id=_require_org_id(user))
+    if not case:
         return UnifiedResponse.error(code=404, message="案件不存在")
-        
+
     success = await service.unlink_document(
         case_id=case_id,
         document_id=document_id,
         created_by=user.id,
     )
-    
+
     if not success:
         return UnifiedResponse.error(code=404, message="文档未关联到该案件")
-    
+
     await db.commit()
     return UnifiedResponse.success(message="已取消文档关联")
 

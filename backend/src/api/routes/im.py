@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 IM 即时通讯路由
 
@@ -6,22 +5,22 @@ REST API + WebSocket 端点，提供对话管理、消息收发、实时通信�
 """
 
 import asyncio
-from typing import Optional
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 from loguru import logger
-
-from sqlalchemy import or_, select as sa_select
+from pydantic import BaseModel, Field
+from sqlalchemy import or_
+from sqlalchemy import select as sa_select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
-from src.core.deps import get_current_user_required, Permission, require_permission
+from src.core.deps import Permission, require_permission
 from src.core.responses import UnifiedResponse
-from src.core.security import verify_token
+from src.core.security import verify_token_with_blacklist
 from src.models.user import User
-from src.services.im_service import IMService
 from src.services.im_hub import im_manager
+from src.services.im_service import IMService
 
 router = APIRouter(prefix="/im", tags=["即时通讯"])
 
@@ -37,10 +36,10 @@ class ConversationResponse(BaseModel):
     """对话响应模型"""
     id: str
     type: str
-    title: Optional[str] = None
-    avatar_url: Optional[str] = None
-    last_message_preview: Optional[str] = None
-    last_message_at: Optional[str] = None
+    title: str | None = None
+    avatar_url: str | None = None
+    last_message_preview: str | None = None
+    last_message_at: str | None = None
     unread_count: int = 0
 
 
@@ -51,7 +50,7 @@ class MessageResponse(BaseModel):
     sender_id: str
     content: str
     message_type: str = "text"
-    reply_to_id: Optional[str] = None
+    reply_to_id: str | None = None
     is_recalled: bool = False
     created_at: str
 
@@ -63,9 +62,9 @@ class CreateConversationRequest(BaseModel):
     """创建对话请求"""
     type: str = Field(..., description="对话类型: private|group|case|contract")
     participant_ids: list[str] = Field(..., description="参与者用户 ID 列表")
-    title: Optional[str] = Field(None, description="对话标题（群聊时使用）")
-    case_id: Optional[str] = Field(None, description="关联案件 ID")
-    contract_id: Optional[str] = Field(None, description="关联合同 ID")
+    title: str | None = Field(None, description="对话标题（群聊时使用）")
+    case_id: str | None = Field(None, description="关联案件 ID")
+    contract_id: str | None = Field(None, description="关联合同 ID")
 
 
 # ===== REST API =====
@@ -77,7 +76,7 @@ async def search_users_for_im(
     limit: int = Query(20, ge=1, le=50),
     user: User = Depends(require_permission(Permission.USE_CHAT)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """搜索用户（用于创建对话时选择成员），排除当前用户"""
     query = sa_select(User).where(User.is_active == True, User.id != user.id)
     if user.role not in {"super_admin", "admin"} and getattr(user, "org_id", None):
@@ -112,7 +111,7 @@ async def get_conversations(
     offset: int = Query(0, ge=0),
     user: User = Depends(require_permission(Permission.USE_CHAT)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """获取当前用户的对话列表"""
     service = IMService(db)
     conversations = await service.get_conversations(user.id, limit=limit, offset=offset)
@@ -124,7 +123,7 @@ async def create_conversation(
     req: CreateConversationRequest,
     user: User = Depends(require_permission(Permission.USE_CHAT)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """创建新对话"""
     if req.type not in ("private", "group", "case", "contract"):
         return UnifiedResponse.error(code=400, message="无效的对话类型")
@@ -150,11 +149,11 @@ async def create_conversation(
 @router.get("/conversations/{conversation_id}/messages")
 async def get_messages(
     conversation_id: str,
-    before_id: Optional[str] = Query(None, description="游标：获取此消息之前的记录"),
+    before_id: str | None = Query(None, description="游标：获取此消息之前的记录"),
     limit: int = Query(50, ge=1, le=100),
     user: User = Depends(require_permission(Permission.USE_CHAT)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """获取对话消息历史（游标分页）"""
     service = IMService(db)
 
@@ -176,7 +175,7 @@ async def mark_as_read(
     conversation_id: str,
     user: User = Depends(require_permission(Permission.USE_CHAT)),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """标记对话为已读"""
     service = IMService(db)
 
@@ -193,34 +192,76 @@ async def mark_as_read(
 @router.websocket("/ws")
 async def im_websocket(
     websocket: WebSocket,
-    token: str = Query(..., description="JWT Token"),
     db: AsyncSession = Depends(get_db),
-):
+) -> None:
     """
     IM WebSocket 连接
 
     消息协议（客户端 → 服务端）:
+    - 首包必须为 { type: "auth", data: { token } }，禁止通过 URL query 携带 token
+    - 首包可附带 { data: { last_ack_message_id } }，服务端认证后推送离线增量
     - { type: "message", conversation_id, content, message_type?, reply_to_id? }
+    - { type: "ack", message_id }
     - { type: "typing", conversation_id }
     - { type: "read_receipt", conversation_id }
     - { type: "recall", message_id }
 
     消息协议（服务端 → 客户端）:
     - { type: "message", message: {...} }
+    - { type: "offline_messages", messages: [...], count: n }
+    - { type: "ack_ok", message_id }
     - { type: "typing", conversation_id, user_id }
     - { type: "read_receipt", conversation_id, user_id }
     - { type: "recall", message_id, conversation_id }
     - { type: "notification", notification: {...} }
+    - { type: "auth_ok", user_id }
     - { type: "error", message: "..." }
     """
-    # 验证 JWT
-    user_id = verify_token(token)
+    await websocket.accept()
+
+    try:
+        init_msg = await asyncio.wait_for(websocket.receive_json(), timeout=10)
+    except TimeoutError:
+        await websocket.send_json({"type": "error", "message": "认证超时，请在连接后 10s 内发送 auth 首包"})
+        await websocket.close(code=4001, reason="认证超时")
+        return
+    except WebSocketDisconnect:
+        return
+
+    if not isinstance(init_msg, dict) or init_msg.get("type") != "auth":
+        await websocket.send_json({"type": "error", "message": "首包必须为 auth"})
+        await websocket.close(code=4001, reason="首包必须为 auth")
+        return
+
+    auth_data = init_msg.get("data") or {}
+    auth_token = auth_data.get("token") if isinstance(auth_data, dict) else None
+    auth_token = auth_token or init_msg.get("token") or ""
+    last_ack_message_id = (
+        auth_data.get("last_ack_message_id") if isinstance(auth_data, dict) else None
+    )
+
+    user_id = await verify_token_with_blacklist(auth_token)
     if not user_id:
+        await websocket.send_json({"type": "error", "message": "认证失败"})
         await websocket.close(code=4001, reason="认证失败")
         return
 
     # 注册连接
-    await im_manager.connect(user_id, websocket)
+    if not await im_manager.connect(user_id, websocket):
+        return
+    await websocket.send_json({"type": "auth_ok", "user_id": user_id})
+    if db is not None:
+        offline_messages = await IMService(db).get_offline_messages(
+            user_id,
+            last_ack_message_id=last_ack_message_id,
+        )
+        await websocket.send_json(
+            {
+                "type": "offline_messages",
+                "messages": offline_messages,
+                "count": len(offline_messages),
+            }
+        )
 
     try:
         while True:
@@ -229,6 +270,8 @@ async def im_websocket(
 
             if msg_type == "message":
                 await _handle_message(db, user_id, data, websocket)
+            elif msg_type == "ack":
+                await _handle_ack(db, user_id, data, websocket)
             elif msg_type == "typing":
                 await _handle_typing(db, user_id, data)
             elif msg_type == "read_receipt":
@@ -252,7 +295,7 @@ async def im_websocket(
 
 
 async def _handle_message(
-    db: AsyncSession, sender_id: str, data: dict, websocket: WebSocket
+    db: AsyncSession, sender_id: str, data: dict[str, Any], websocket: WebSocket
 ) -> None:
     """处理发送消息"""
     conversation_id = data.get("conversation_id")
@@ -317,7 +360,7 @@ async def _handle_message(
 
 
 async def _handle_typing(
-    db: AsyncSession, user_id: str, data: dict
+    db: AsyncSession, user_id: str, data: dict[str, Any]
 ) -> None:
     """处理正在输入状态"""
     conversation_id = data.get("conversation_id")
@@ -337,8 +380,25 @@ async def _handle_typing(
     )
 
 
+async def _handle_ack(
+    db: AsyncSession, user_id: str, data: dict[str, Any], websocket: WebSocket
+) -> None:
+    """处理客户端消息确认"""
+    message_id = data.get("message_id")
+    if not message_id:
+        await websocket.send_json({"type": "error", "message": "message_id 为必填项"})
+        return
+
+    service = IMService(db)
+    if not await service.ack_message(message_id, user_id):
+        await websocket.send_json({"type": "error", "message": "确认失败，消息不存在或无权访问"})
+        return
+
+    await websocket.send_json({"type": "ack_ok", "message_id": message_id})
+
+
 async def _handle_read_receipt(
-    db: AsyncSession, user_id: str, data: dict
+    db: AsyncSession, user_id: str, data: dict[str, Any]
 ) -> None:
     """处理已读回执"""
     conversation_id = data.get("conversation_id")
@@ -361,7 +421,7 @@ async def _handle_read_receipt(
 
 
 async def _handle_recall(
-    db: AsyncSession, user_id: str, data: dict
+    db: AsyncSession, user_id: str, data: dict[str, Any]
 ) -> None:
     """处理撤回消息"""
     message_id = data.get("message_id")

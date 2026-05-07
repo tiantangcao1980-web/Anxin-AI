@@ -2,22 +2,21 @@
 合同审查智能体
 """
 
-from typing import Any, Dict
 import json
+from typing import Any, cast
 
-from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
+from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
-from src.services.legal_citation import LegalCitationService
 from src.services.agent_rag_service import AgentRAGService
-
+from src.services.legal_citation import LegalCitationService
 
 _FALLBACK_PROMPT = "你是一位资深的合同审查专家，拥有丰富的合同法律实务经验。"
 
 
 class ContractReviewAgent(BaseLegalAgent):
     """合同审查智能体"""
-    
-    def __init__(self):
+
+    def __init__(self) -> None:
         config = AgentConfig(
             name="合同审查Agent",
             role="合同审查专家",
@@ -27,8 +26,8 @@ class ContractReviewAgent(BaseLegalAgent):
             tools=["contract_parser", "template_compare"],
         )
         super().__init__(config)
-    
-    async def process(self, task: Dict[str, Any]) -> AgentResponse:
+
+    async def process(self, task: dict[str, Any]) -> AgentResponse:
         """处理合同审查任务"""
         description = task.get("description", "")
         context = task.get("context") or {}
@@ -107,8 +106,8 @@ class ContractReviewAgent(BaseLegalAgent):
             if key in contract_type:
                 return guide
         return "【审查要求】：请按照通用合同审查标准，重点关注核心条款完整性和风险防控。"
-    
-    def _parse_review_result(self, response: str) -> Dict[str, Any]:
+
+    def _parse_review_result(self, response: str) -> dict[str, Any]:
         """解析审查结果，兼容增强后的输出格式"""
         import re
 
@@ -125,6 +124,8 @@ class ContractReviewAgent(BaseLegalAgent):
                     result = json.loads(json_match.group())
                 else:
                     raise ValueError("未找到JSON内容")
+
+            result = cast(dict[str, Any], result)
 
             # 确保核心字段存在
             result.setdefault("summary", "")
@@ -149,8 +150,8 @@ class ContractReviewAgent(BaseLegalAgent):
             "key_terms": {},
             "missing_clauses": [],
         }
-    
-    async def quick_review(self, contract_text: str) -> Dict[str, Any]:
+
+    async def quick_review(self, contract_text: str) -> dict[str, Any]:
         """快速审查合同（简化版）"""
         prompt = f"""请快速审查以下合同，识别最重要的风险点：
 

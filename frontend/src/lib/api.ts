@@ -2,12 +2,46 @@
  * API服务层
  */
 
-import { getTokenStorage } from './platform/storage'
+import { getAccessTokenSnapshot, getTokenStorage } from './platform/storage'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
+const DEFAULT_PRIVACY_MODE = 'hybrid'
+const VALID_PRIVACY_MODES = new Set(['local', 'hybrid', 'cloud'])
+let currentPrivacyMode = DEFAULT_PRIVACY_MODE
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '')
+}
+
+function normalizePrivacyMode(mode: string | null | undefined): string | null {
+  const normalized = mode?.toLowerCase()
+  return normalized && VALID_PRIVACY_MODES.has(normalized) ? normalized : null
+}
+
+export function setApiPrivacyMode(mode: string): void {
+  currentPrivacyMode = normalizePrivacyMode(mode) ?? DEFAULT_PRIVACY_MODE
+}
+
+export function getApiPrivacyMode(): string {
+  return currentPrivacyMode
+}
+
+export function buildApiHeaders(
+  headers: HeadersInit = {},
+  options: { token?: string | null; json?: boolean; privacyMode?: string | null } = {},
+): Headers {
+  const result = new Headers(headers)
+  const mode = normalizePrivacyMode(options.privacyMode) ?? currentPrivacyMode
+
+  if (options.json !== false && !result.has('Content-Type')) {
+    result.set('Content-Type', 'application/json')
+  }
+  if (options.token) {
+    result.set('Authorization', `Bearer ${options.token}`)
+  }
+  result.set('X-Privacy-Mode', mode)
+
+  return result
 }
 
 export function getWebSocketBaseUrl(): string {
@@ -46,15 +80,7 @@ async function request<T>(
 ): Promise<T> {
   const storage = getTokenStorage()
   const token = await storage.getAccessToken()
-  
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string>),
-  }
-  
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
+  const headers = buildApiHeaders(options.headers, { token })
 
   // 反Bot: 注入 HMAC 签名头 + 客户端情报头
   try {
@@ -65,23 +91,26 @@ async function request<T>(
         endpoint,
         typeof options.body === 'string' ? options.body : undefined,
       )
-      Object.assign(headers, sigHeaders)
+      Object.entries(sigHeaders).forEach(([key, value]) => {
+        headers.set(key, value)
+      })
     }
   } catch { /* 签名模块不可用，静默降级 */ }
 
   try {
     const { getVisitorId } = await import('./security/fingerprint')
     const vid = getVisitorId()
-    if (vid) headers['X-Client-ID'] = vid
+    if (vid) headers.set('X-Client-ID', vid)
 
     const { getBotSignalsHeader } = await import('./security/bot-detection')
     const bs = getBotSignalsHeader()
-    if (bs) headers['X-Bot-Signals'] = bs
+    if (bs) headers.set('X-Bot-Signals', bs)
   } catch { /* 指纹/Bot检测不可用，静默降级 */ }
 
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
     headers,
+    credentials: options.credentials ?? 'include',
   })
 
   // 反Bot: 处理 PoW 挑战（429 + X-Challenge-Required）
@@ -92,9 +121,9 @@ async function request<T>(
         const { solvePow } = await import('./security/pow-solver')
         const nonce = await solvePow(body.challenge)
         // 带上挑战解答重试
-        const retryHeaders = { ...headers }
-        retryHeaders['X-Challenge-ID'] = body.challenge.challenge_id
-        retryHeaders['X-Challenge-Solution'] = String(nonce)
+        const retryHeaders = new Headers(headers)
+        retryHeaders.set('X-Challenge-ID', body.challenge.challenge_id)
+        retryHeaders.set('X-Challenge-Solution', String(nonce))
         const retryResp = await fetch(`${API_BASE_URL}${endpoint}`, {
           ...options,
           headers: retryHeaders,
@@ -113,18 +142,9 @@ async function request<T>(
   if (response.status === 401 && !_retry && token) {
     // Try to refresh token
     try {
-      const refreshResp = await fetch(`${API_BASE_URL}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include' // 允许携带 HttpOnly Cookie
-      })
-      if (refreshResp.ok) {
-        const refreshData = await refreshResp.json()
-        const newToken = refreshData.data?.access_token || refreshData.access_token
-        if (newToken) {
-          await storage.setAccessToken(newToken)
-          return request<T>(endpoint, options, true)
-        }
+      const newToken = await refreshAuthSession()
+      if (newToken) {
+        return request<T>(endpoint, options, true)
       }
     } catch {
       // Refresh failed, proceed to logout
@@ -165,7 +185,7 @@ export interface LoginRequest {
 
 export interface LoginResponse {
   access_token: string
-  refresh_token: string
+  refresh_token?: string
   token_type: string
   user: {
     id: string
@@ -184,6 +204,44 @@ export interface User {
   user_type?: string
   avatar_url?: string
   email_verified?: boolean
+}
+
+export async function refreshAuthSession(): Promise<string | null> {
+  const storage = getTokenStorage()
+  const legacyRefreshToken = await storage.getRefreshToken()
+  const body = legacyRefreshToken ? { refresh_token: legacyRefreshToken } : {}
+
+  const refreshResp = await fetch(`${API_BASE_URL}/auth/refresh`, {
+    method: 'POST',
+    headers: buildApiHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(body),
+  })
+
+  if (!refreshResp.ok) {
+    return null
+  }
+
+  const refreshData = await refreshResp.json()
+  const newToken = refreshData.data?.access_token || refreshData.access_token
+  if (!newToken) {
+    return null
+  }
+
+  await storage.setAccessToken(newToken)
+  return newToken
+}
+
+export async function fetchCurrentUserWithToken(accessToken: string): Promise<User | null> {
+  const resp = await fetch(`${API_BASE_URL}/auth/me`, {
+    headers: buildApiHeaders(undefined, { token: accessToken, json: false }),
+    credentials: 'include',
+  })
+  if (!resp.ok) {
+    return null
+  }
+  const json = await resp.json()
+  return (json.data ?? json) as User
 }
 
 export const authApi = {
@@ -215,10 +273,10 @@ export const authApi = {
       body: JSON.stringify({ email, captcha_token }),
     }),
 
-  resetPassword: (token: string, new_password: string) =>
+  resetPassword: (token: string, new_password: string, captcha_token?: string) =>
     request<{ message: string }>('/auth/reset-password', {
       method: 'POST',
-      body: JSON.stringify({ token, new_password }),
+      body: JSON.stringify({ token, new_password, captcha_token }),
     }),
 
   changePassword: (old_password: string, new_password: string) =>
@@ -233,10 +291,10 @@ export const authApi = {
       body: JSON.stringify({ email, code }),
     }),
 
-  resendVerification: (email: string) =>
+  resendVerification: (email: string, captcha_token?: string) =>
     request<{ message: string; debug_verify_code?: string }>('/auth/resend-verification', {
       method: 'POST',
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, captcha_token }),
     }),
 }
 
@@ -346,12 +404,7 @@ export const chatApi = {
     onError?: (error: Error) => void
   ): Promise<void> => {
     const token = await getTokenStorage().getAccessToken()
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    }
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`
-    }
+    const headers = buildApiHeaders(undefined, { token })
     
     try {
       const response = await fetch(`${API_BASE_URL}/chat/stream`, {
@@ -659,11 +712,24 @@ export interface Contract {
   status: string
   risk_level?: string
   risk_score?: number
+  risk_factors?: RiskFactor[]
+  risk_explain?: string
   amount?: number
   effective_date?: string
   expiry_date?: string
   created_at: string
   updated_at: string
+}
+
+export interface RiskFactor {
+  key: string
+  name: string
+  score: number
+  weight?: number
+  contribution?: number
+  label?: string
+  evidence?: string[]
+  explain?: string
 }
 
 export interface ContractCreate {
@@ -765,6 +831,50 @@ export interface ContractReviewStreamEvent {
   risk_score?: number
 }
 
+export interface ContractVersion {
+  id: string
+  version: number
+  source: string
+  description?: string
+  created_at?: string
+  created_by?: string
+}
+
+export interface ContractVersionDiff {
+  contract_id: string
+  from_version: number
+  to_version: number
+  summary: {
+    changes: number
+    insertions: number
+    deletions: number
+    replacements: number
+  }
+  changes: Array<{
+    type: 'insert' | 'delete' | 'replace'
+    old_start: number
+    old_end: number
+    new_start: number
+    new_end: number
+    old_text: string
+    new_text: string
+  }>
+}
+
+export interface ContractAttachment {
+  id: string
+  contract_id: string
+  filename: string
+  content_type: string
+  file_size: number
+  file_hash: string
+  storage_backend: string
+  object_key: string
+  uploaded_by?: string
+  created_at?: string
+  updated_at?: string
+}
+
 export const contractsApi = {
   list: (params?: { status?: string; contract_type?: string; page?: number; page_size?: number }) => {
     const query = new URLSearchParams()
@@ -806,8 +916,7 @@ export const contractsApi = {
     formData.append('file', file)
     
     const token = await getTokenStorage().getAccessToken()
-    const headers: HeadersInit = {}
-    if (token) headers['Authorization'] = `Bearer ${token}`
+    const headers = buildApiHeaders(undefined, { token, json: false })
     
     const response = await fetch(`${API_BASE_URL}/contracts/parse`, {
       method: 'POST',
@@ -844,8 +953,7 @@ export const contractsApi = {
     }
     
     const token = await getTokenStorage().getAccessToken()
-    const headers: HeadersInit = {}
-    if (token) headers['Authorization'] = `Bearer ${token}`
+    const headers = buildApiHeaders(undefined, { token, json: false })
     
     try {
       const response = await fetch(`${API_BASE_URL}/contracts/review-stream`, {
@@ -899,8 +1007,7 @@ export const contractsApi = {
     if (title) formData.append('title', title)
     
     const token = await getTokenStorage().getAccessToken()
-    const headers: HeadersInit = {}
-    if (token) headers['Authorization'] = `Bearer ${token}`
+    const headers = buildApiHeaders(undefined, { token, json: false })
     
     const response = await fetch(`${API_BASE_URL}/contracts/upload-and-review`, {
       method: 'POST',
@@ -923,17 +1030,99 @@ export const contractsApi = {
       body: JSON.stringify({ accepted_risk_ids: acceptedRiskIds }),
     }),
 
+  listVersions: (contractId: string) =>
+    request<{ contract_id: string; versions: ContractVersion[] }>(`/contracts/${contractId}/versions`),
+
+  diffVersions: (contractId: string, fromVersion: number, toVersion: number) =>
+    request<ContractVersionDiff>(
+      `/contracts/${contractId}/versions/diff?from_version=${fromVersion}&to_version=${toVersion}`,
+    ),
+
+  rollbackVersion: (contractId: string, version: number, reason?: string) =>
+    request<{ contract_id: string; status: string; version: number; text: string }>(
+      `/contracts/${contractId}/versions/${version}/rollback`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      },
+    ),
+
   // 保存合同文件
   saveContractFile: (contractId: string) =>
     request<{ file_path: string }>(`/contracts/${contractId}/save-file`, {
       method: 'POST',
     }),
 
+  uploadAttachment: async (contractId: string, file: File): Promise<ContractAttachment> => {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const token = await getTokenStorage().getAccessToken()
+    const headers = buildApiHeaders(undefined, { token, json: false })
+
+    const response = await fetch(`${API_BASE_URL}/contracts/${contractId}/attachments`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    })
+    const json = await response.json().catch(() => ({ message: '附件上传失败' }))
+
+    if (!response.ok || (json.code && json.code >= 400)) {
+      throw new Error(json.message || json.detail || '附件上传失败')
+    }
+
+    return json.data as ContractAttachment
+  },
+
+  listAttachments: (contractId: string) =>
+    request<{ contract_id: string; attachments: ContractAttachment[] }>(
+      `/contracts/${contractId}/attachments`,
+    ),
+
+  getAttachmentDownloadUrl: (contractId: string, attachmentId: string, expiresSeconds = 3600) =>
+    request<{ attachment: ContractAttachment; download_url: string; expires_seconds: number }>(
+      `/contracts/${contractId}/attachments/${attachmentId}/download-url?expires_seconds=${expiresSeconds}`,
+    ),
+
+  downloadAttachment: async (contractId: string, attachmentId: string): Promise<void> => {
+    const token = await getTokenStorage().getAccessToken()
+    const headers = buildApiHeaders(undefined, { token, json: false })
+
+    const response = await fetch(
+      `${API_BASE_URL}/contracts/${contractId}/attachments/${attachmentId}/download`,
+      { headers },
+    )
+
+    if (!response.ok) throw new Error('附件下载失败')
+
+    const blob = await response.blob()
+    const contentDisposition = response.headers.get('Content-Disposition')
+    let filename = '合同附件'
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename\*=UTF-8''(.+)/)
+      if (match) filename = decodeURIComponent(match[1])
+    }
+
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  },
+
+  deleteAttachment: (contractId: string, attachmentId: string) =>
+    request<{ deleted: boolean; attachment: ContractAttachment }>(
+      `/contracts/${contractId}/attachments/${attachmentId}`,
+      { method: 'DELETE' },
+    ),
+
   // 下载合同
   downloadContract: async (contractId: string, format: 'pdf' | 'docx' = 'docx'): Promise<void> => {
     const token = await getTokenStorage().getAccessToken()
-    const headers: HeadersInit = {}
-    if (token) headers['Authorization'] = `Bearer ${token}`
+    const headers = buildApiHeaders(undefined, { token, json: false })
 
     const response = await fetch(`${API_BASE_URL}/contracts/${contractId}/download?format=${format}`, {
       headers,
@@ -1010,8 +1199,7 @@ export const documentsApi = {
     if (data.tags) formData.append('tags', JSON.stringify(data.tags))
     
     const token = await getTokenStorage().getAccessToken()
-    const headers: HeadersInit = {}
-    if (token) headers['Authorization'] = `Bearer ${token}`
+    const headers = buildApiHeaders(undefined, { token, json: false })
     
     const response = await fetch(`${API_BASE_URL}/documents/`, {
       method: 'POST',
@@ -1200,9 +1388,8 @@ export const dueDiligenceApi = {
     onEvent: (event: InvestigationStreamEvent) => void,
     onError?: (error: Error) => void
   ): Promise<void> => {
-    const token = localStorage.getItem('access_token')
-    const headers: HeadersInit = { 'Content-Type': 'application/json' }
-    if (token) headers['Authorization'] = `Bearer ${token}`
+    const token = await getTokenStorage().getAccessToken()
+    const headers = buildApiHeaders(undefined, { token })
 
     // 后端最多重试 3 次（每次 60s + 等待间隔），前端总超时 200s
     const controller = new AbortController()
@@ -1293,9 +1480,8 @@ export const dueDiligenceApi = {
     onEvent: (event: InvestigationStreamEvent) => void,
     onError?: (error: Error) => void
   ): Promise<void> => {
-    const token = localStorage.getItem('access_token')
-    const headers: HeadersInit = { 'Content-Type': 'application/json' }
-    if (token) headers['Authorization'] = `Bearer ${token}`
+    const token = await getTokenStorage().getAccessToken()
+    const headers = buildApiHeaders(undefined, { token })
 
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 300000) // 5min timeout
@@ -1502,12 +1688,11 @@ export const knowledgeApi = {
     request(`/knowledge/documents/${docId}`, { method: 'DELETE' }),
 
   // 文件上传并索引
-  uploadDocument: (kbId: string, file: File) => {
+  uploadDocument: async (kbId: string, file: File) => {
     const formData = new FormData()
     formData.append('file', file)
-    const token = localStorage.getItem('access_token')
-    const headers: Record<string, string> = {}
-    if (token) headers['Authorization'] = `Bearer ${token}`
+    const token = await getTokenStorage().getAccessToken()
+    const headers = buildApiHeaders(undefined, { token, json: false })
     return fetch(`${API_BASE_URL}/knowledge/bases/${kbId}/upload`, {
       method: 'POST',
       headers,
@@ -1568,12 +1753,11 @@ export const knowledgeApi = {
     request<{ knowledge_base: any; documents: any[]; exported_at: string; total_documents: number }>(`/knowledge/bases/${kbId}/export`, { method: 'POST' }),
 
   // 批量上传
-  batchUpload: (kbId: string, files: File[]) => {
+  batchUpload: async (kbId: string, files: File[]) => {
     const formData = new FormData()
     files.forEach(f => formData.append('files', f))
-    const token = localStorage.getItem('access_token')
-    const headers: Record<string, string> = {}
-    if (token) headers['Authorization'] = `Bearer ${token}`
+    const token = await getTokenStorage().getAccessToken()
+    const headers = buildApiHeaders(undefined, { token, json: false })
     return fetch(`${API_BASE_URL}/knowledge/bases/${kbId}/batch-upload`, {
       method: 'POST', headers, body: formData,
     }).then(async res => {
@@ -2167,7 +2351,7 @@ export const collaborationApi = {
       ws,
       // ===== [S-06] 新增 auth 方法：连接后首先发送认证消息 =====
       auth: () => {
-        const token = localStorage.getItem('access_token')
+        const token = getAccessTokenSnapshot()
         if (ws.readyState === WebSocket.OPEN && token) {
           ws.sendJSON({
             type: 'auth',

@@ -2,22 +2,23 @@
 智能体团队测试
 """
 
-import pytest
-import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
-from typing import Dict, Any
 
-from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
-from src.agents.workforce import LegalWorkforce, get_workforce
-from src.agents.legal_advisor import LegalAdvisorAgent
+import pytest
+
+from src.agents.base import AgentConfig, AgentResponse
 from src.agents.contract_reviewer import ContractReviewAgent
+from src.agents.legal_advisor import LegalAdvisorAgent
 from src.agents.risk_assessor import RiskAssessmentAgent
 from src.agents.sentiment_agent import SentimentAnalysisAgent
 
-
 # 当前 workforce 中专业智能体的数量（不含 coordinator 和 requirement_analyst）
 # 直接从注册表读取，避免"新增 agent 忘改测试"的维护成本。
-from src.agents.workforce import AGENT_REGISTRY  # noqa: E402
+from src.agents.workforce import (
+    AGENT_REGISTRY,  # noqa: E402
+    LegalWorkforce,
+    get_workforce,
+)
 
 EXPECTED_AGENT_COUNT = len(AGENT_REGISTRY)
 
@@ -228,7 +229,7 @@ class TestAgentProcess:
             assert isinstance(result, AgentResponse)
             assert result.agent_name == "风险评估Agent"
             assert "风险评估" in result.content
-    
+
     @pytest.mark.asyncio
     @patch('src.agents.base.get_llm_config_sync')
     @patch('src.agents.base.ModelFactory.create')
@@ -427,19 +428,19 @@ class TestLegalWorkforce:
 
 class TestWorkforceSingleton:
     """测试智能体团队单例"""
-    
+
     @patch('src.agents.workforce.LegalWorkforce')
     def test_get_workforce_singleton(self, mock_workforce_class):
         """测试获取智能体团队单例"""
         import src.agents.workforce as workforce_module
-        
+
         # 重置单例
         workforce_module._workforce = None
-        
+
         mock_workforce_class.return_value = MagicMock()
-        
+
         workforce1 = get_workforce()
         workforce2 = get_workforce()
-        
+
         # 应该只创建一次实例
         assert workforce1 is workforce2

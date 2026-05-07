@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 合同调查Agent（分析循环的第一步）
 
@@ -13,13 +12,11 @@
   审查循环: ContractReviewer → ReviewChecker
 """
 
-from typing import Any, Dict
 import json
+from typing import Any, cast
 
-from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
-from src.prompts import load_prompt
+from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.services.agent_rag_service import AgentRAGService
-
 
 _SYSTEM_PROMPT = """你是一位合同分析调查专家，负责合同审查的前置调查工作。
 
@@ -64,7 +61,7 @@ _SYSTEM_PROMPT = """你是一位合同分析调查专家，负责合同审查的
 class ContractInvestigatorAgent(BaseLegalAgent):
     """合同调查Agent — 双循环审查的分析阶段"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         config = AgentConfig(
             name="合同调查Agent",
             role="合同分析调查专家",
@@ -75,7 +72,7 @@ class ContractInvestigatorAgent(BaseLegalAgent):
         )
         super().__init__(config)
 
-    async def process(self, task: Dict[str, Any]) -> AgentResponse:
+    async def process(self, task: dict[str, Any]) -> AgentResponse:
         """执行合同调查分析"""
         description = task.get("description", "")
         context = task.get("context") or {}
@@ -123,16 +120,16 @@ class ContractInvestigatorAgent(BaseLegalAgent):
             ],
         )
 
-    def _parse_investigation(self, response: str) -> Dict[str, Any]:
+    def _parse_investigation(self, response: str) -> dict[str, Any]:
         """解析调查结果"""
         import re
         try:
             code_block = re.search(r'```json\s*([\s\S]*?)\s*```', response)
             if code_block:
-                return json.loads(code_block.group(1))
+                return cast(dict[str, Any], json.loads(code_block.group(1)))
             json_match = re.search(r'\{[\s\S]*\}', response)
             if json_match:
-                return json.loads(json_match.group())
+                return cast(dict[str, Any], json.loads(json_match.group()))
         except json.JSONDecodeError:
             pass
 

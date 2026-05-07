@@ -1,34 +1,34 @@
 """认证路由"""
 
+import hashlib
 import secrets
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any, TypedDict
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel, EmailStr
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from loguru import logger
+from pydantic import BaseModel, EmailStr
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.database import get_db
 from src.core.deps import get_current_user_required, rate_limit, rate_limit_auth
 from src.core.security import (
-    refresh_access_token,
-    revoke_token,
-    get_token_blacklist,
     create_token_pair,
     get_password_hash,
-    TokenPair,
+    get_token_blacklist,
+    refresh_access_token,
+    revoke_token,
 )
-from src.services.user_service import UserService
-from src.services.audit_service import AuditService
-from src.services.oauth_service import WeChatOAuth, AlipayOAuth
-from src.services.captcha_service import captcha_service
 from src.models.audit import AuditAction, ResourceType
-from src.models.user import User
+from src.models.user import PasswordResetToken, User
+from src.services.audit_service import AuditService
+from src.services.captcha_service import captcha_service
+from src.services.oauth_service import AlipayOAuth, WeChatMiniProgramOAuth, WeChatOAuth
+from src.services.user_service import UserService
 
 router = APIRouter()
 
@@ -40,7 +40,7 @@ class LoginRequest(BaseModel):
     """登录请求"""
     email: EmailStr
     password: str
-    captcha_token: Optional[str] = None
+    captcha_token: str | None = None
 
 
 class RegisterRequest(BaseModel):
@@ -49,8 +49,8 @@ class RegisterRequest(BaseModel):
     password: str
     name: str
     user_type: str = "individual"  # individual / enterprise / platform_lawyer / institution
-    phone: Optional[str] = None  # 手机号（用于短信验证）
-    captcha_token: Optional[str] = None
+    phone: str | None = None  # 手机号（用于短信验证）
+    captcha_token: str | None = None
 
 
 class VerifyEmailRequest(BaseModel):
@@ -62,11 +62,12 @@ class VerifyEmailRequest(BaseModel):
 class ResendVerificationRequest(BaseModel):
     """重发验证码请求"""
     email: EmailStr
+    captcha_token: str | None = None
 
 
 class RefreshTokenRequest(BaseModel):
     """Token刷新请求"""
-    refresh_token: Optional[str] = None
+    refresh_token: str | None = None
 
 
 class TokenResponse(BaseModel):
@@ -74,7 +75,7 @@ class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str
-    user: dict
+    user: dict[str, Any]
 
 
 class TokenPairResponse(BaseModel):
@@ -95,14 +96,14 @@ class UserResponse(BaseModel):
     user_type: str = "individual"
     # V2 架构：主客户端偏好 (needer=需求方端 / provider=服务方端)
     primary_client: str = "needer"
-    avatar_url: Optional[str] = None
+    avatar_url: str | None = None
     email_verified: bool = True
 
 
 class UserUpdate(BaseModel):
     """用户更新请求"""
-    name: Optional[str] = None
-    avatar_url: Optional[str] = None
+    name: str | None = None
+    avatar_url: str | None = None
 
 
 class LogoutRequest(BaseModel):
@@ -116,16 +117,27 @@ ACCOUNT_LOCKOUT_MINUTES = 30
 OAUTH_STATE_EXPIRES_MINUTES = 10
 
 
+class EmailVerifyTokenData(TypedDict):
+    user_id: str
+    email: str
+    expires_at: datetime
+
+
+class OAuthStateTokenData(TypedDict):
+    provider: str
+    expires_at: datetime
+
+
 def _issue_oauth_state(provider: str) -> str:
     state = secrets.token_urlsafe(24)
     _oauth_state_tokens[state] = {
         "provider": provider,
-        "expires_at": datetime.now(timezone.utc) + timedelta(minutes=OAUTH_STATE_EXPIRES_MINUTES),
+        "expires_at": datetime.now(UTC) + timedelta(minutes=OAUTH_STATE_EXPIRES_MINUTES),
     }
     return state
 
 
-def _consume_oauth_state(provider: str, state: Optional[str]) -> None:
+def _consume_oauth_state(provider: str, state: str | None) -> None:
     if not state:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="OAuth state 缺失")
 
@@ -137,7 +149,7 @@ def _consume_oauth_state(provider: str, state: Optional[str]) -> None:
         _oauth_state_tokens.pop(state, None)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="OAuth state 不匹配")
 
-    if datetime.now(timezone.utc) > token_data["expires_at"]:
+    if datetime.now(UTC) > token_data["expires_at"]:
         _oauth_state_tokens.pop(state, None)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="OAuth state 已过期")
 
@@ -168,7 +180,7 @@ def validate_password(password: str) -> None:
         )
 
 
-async def _require_captcha(request: Request, captcha_token: Optional[str]) -> None:
+async def _require_captcha(request: Request, captcha_token: str | None) -> None:
     if not captcha_service.is_enabled():
         return
     if not captcha_token:
@@ -193,7 +205,7 @@ async def login(
     login_request: LoginRequest,
     db: AsyncSession = Depends(get_db),
     _: None = Depends(rate_limit_auth),
-):
+) -> dict[str, Any]:
     """
     用户登录
     
@@ -210,7 +222,7 @@ async def login(
         if (
             existing_user.login_attempts >= ACCOUNT_LOCKOUT_THRESHOLD
             and existing_user.last_login_at
-            and existing_user.last_login_at > datetime.now(timezone.utc) - timedelta(minutes=ACCOUNT_LOCKOUT_MINUTES)
+            and existing_user.last_login_at > datetime.now(UTC) - timedelta(minutes=ACCOUNT_LOCKOUT_MINUTES)
         ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -227,7 +239,7 @@ async def login(
         # 更新登录失败计数
         if existing_user:
             existing_user.login_attempts = (existing_user.login_attempts or 0) + 1
-            existing_user.last_login_at = datetime.now(timezone.utc)
+            existing_user.last_login_at = datetime.now(UTC)
 
         # 记录登录失败
         await audit_service.log_from_request(
@@ -255,7 +267,7 @@ async def login(
     # 登录成功：重置登录失败计数，更新最后登录时间
     if existing_user:
         existing_user.login_attempts = 0
-        existing_user.last_login_at = datetime.now(timezone.utc)
+        existing_user.last_login_at = datetime.now(UTC)
 
     # 记录登录成功
     await audit_service.log_from_request(
@@ -285,8 +297,8 @@ async def register(
     request: Request,
     register_request: RegisterRequest,
     db: AsyncSession = Depends(get_db),
-    _: None = Depends(rate_limit(limit=5, window=300, endpoint="auth_register")),
-):
+    _: None = Depends(rate_limit(limit=5, window=300, endpoint="auth_register", fail_closed=True)),
+) -> dict[str, Any]:
     """
     用户注册
 
@@ -304,19 +316,19 @@ async def register(
     validate_password(register_request.password)
 
     # 验证用户类型并映射初始角色
-    USER_TYPE_ROLE_MAP = {
+    user_type_role_map = {
         "individual": "individual_user",
         "enterprise": "enterprise_user",
         "platform_lawyer": "viewer",  # 待律师认证通过后升级
         "institution": "viewer",  # 待机构审核通过后升级
     }
     user_type = register_request.user_type
-    if user_type not in USER_TYPE_ROLE_MAP:
+    if user_type not in user_type_role_map:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"不支持的用户类型: {user_type}，可选: individual, enterprise, platform_lawyer, institution",
         )
-    initial_role = USER_TYPE_ROLE_MAP[user_type]
+    initial_role = user_type_role_map[user_type]
 
     service = UserService(db)
     audit_service = AuditService(db)
@@ -338,7 +350,7 @@ async def register(
             _email_verify_tokens[verify_code] = {
                 "user_id": str(user.id),
                 "email": user.email,
-                "expires_at": datetime.now(timezone.utc) + timedelta(minutes=15),
+                "expires_at": datetime.now(UTC) + timedelta(minutes=15),
             }
             logger.info(f"邮箱验证码已生成 (用户: {user.email}, 类型: {user_type})")
             debug_code = verify_code
@@ -392,11 +404,11 @@ async def register(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
-        )
+        ) from e
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user_info(user: User = Depends(get_current_user_required)):
+async def get_current_user_info(user: User = Depends(get_current_user_required)) -> UserResponse:
     """获取当前用户信息"""
     return UserResponse(
         id=user.id,
@@ -415,7 +427,7 @@ async def update_current_user(
     update: UserUpdate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> UserResponse:
     """更新当前用户信息"""
     service = UserService(db)
     updated_user = await service.update_user(
@@ -423,13 +435,13 @@ async def update_current_user(
         name=update.name,
         avatar_url=update.avatar_url
     )
-    
+
     if not updated_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="用户不存在"
         )
-        
+
     return UserResponse(
         id=updated_user.id,
         email=updated_user.email,
@@ -443,11 +455,11 @@ async def update_current_user(
 @router.post("/logout")
 async def logout(
     request: Request,
-    logout_request: Optional[LogoutRequest] = None,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    logout_request: LogoutRequest | None = None,
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
     db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_current_user_required),
-):
+    user: User | None = Depends(get_current_user_required),
+) -> dict[str, str]:
     """
     用户登出
     
@@ -458,7 +470,7 @@ async def logout(
     """
     if credentials:
         token = credentials.credentials
-        
+
         if logout_request and logout_request.all_devices and user:
             # 撤销用户所有Token
             blacklist = get_token_blacklist()
@@ -468,7 +480,7 @@ async def logout(
             # 只撤销当前Token
             await revoke_token(token, reason="logout")
             message = "登出成功"
-        
+
         # 记录审计日志
         audit_service = AuditService(db)
         await audit_service.log_from_request(
@@ -482,9 +494,9 @@ async def logout(
             }
         )
         await db.commit()
-        
+
         return {"message": message}
-    
+
     return {"message": "登出成功"}
 
 
@@ -492,35 +504,49 @@ async def logout(
 async def refresh_token_endpoint(
     request: Request,
     response: Response,
-    refresh_request: RefreshTokenRequest,
+    refresh_request: RefreshTokenRequest | None = Body(default=None),
     db: AsyncSession = Depends(get_db),
-    _: None = Depends(rate_limit(limit=30, window=60, endpoint="auth_refresh")),
-):
+    _: None = Depends(rate_limit(limit=30, window=60, endpoint="auth_refresh", fail_closed=True)),
+) -> TokenPairResponse:
     """
     刷新访问Token
     
-    优先从 HttpOnly Cookie 获取 refresh_token，降级使用请求体。
+    优先从 HttpOnly Cookie 获取 refresh_token。
+    请求体 refresh_token 仅在 AUTH_REFRESH_BODY_COMPAT_ENABLED=true 时作为迁移兼容路径启用。
     旧的refresh_token会被加入黑名单，只能使用一次。
     
     限流：30次/分钟
     """
-    token = request.cookies.get("refresh_token") or refresh_request.refresh_token
-    
+    cookie_token = request.cookies.get("refresh_token")
+    body_token = refresh_request.refresh_token if refresh_request else None
+
+    if cookie_token:
+        token = cookie_token
+    elif body_token and settings.AUTH_REFRESH_BODY_COMPAT_ENABLED:
+        token = body_token
+    elif body_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="refresh_token 请求体兼容期已结束，请使用 HttpOnly Cookie 刷新会话",
+        )
+    else:
+        token = None
+
     if not token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="未提供 refresh_token",
         )
-        
+
     token_pair = await refresh_access_token(token)
-    
+
     if not token_pair:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="刷新Token无效或已过期",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     # 记录审计日志
     audit_service = AuditService(db)
     await audit_service.log_from_request(
@@ -529,7 +555,7 @@ async def refresh_token_endpoint(
         resource_type=ResourceType.TOKEN.value,
     )
     await db.commit()
-    
+
     # 更新 HttpOnly Cookie 中的 refresh_token
     response.set_cookie(
         key="refresh_token",
@@ -539,9 +565,9 @@ async def refresh_token_endpoint(
         samesite="lax",
         max_age=settings.REFRESH_TOKEN_EXPIRE_MINUTES * 60,
     )
-    
+
     logger.info("Token刷新成功")
-    
+
     return TokenPairResponse(
         access_token=token_pair.access_token,
         refresh_token=token_pair.refresh_token,
@@ -557,7 +583,7 @@ async def revoke_token_endpoint(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, str]:
     """
     撤销Token
     
@@ -568,10 +594,10 @@ async def revoke_token_endpoint(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="未提供Token"
         )
-    
+
     token = credentials.credentials
     success = await revoke_token(token, reason="user_revoke")
-    
+
     if success:
         # 记录审计日志
         audit_service = AuditService(db)
@@ -582,12 +608,12 @@ async def revoke_token_endpoint(
             user=user,
         )
         await db.commit()
-        
+
         # 清除 Cookie
         response.delete_cookie("refresh_token")
-        
+
         return {"message": "Token已撤销"}
-    
+
     raise HTTPException(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         detail="Token撤销失败"
@@ -602,8 +628,8 @@ async def verify_email(
     req: VerifyEmailRequest,
     response: Response,
     db: AsyncSession = Depends(get_db),
-    _: None = Depends(rate_limit(limit=10, window=300, endpoint="verify_email", by_user=False)),
-):
+    _: None = Depends(rate_limit(limit=10, window=300, endpoint="verify_email", by_user=False, fail_closed=True)),
+) -> dict[str, Any]:
     """使用验证码完成邮箱验证"""
     token_data = _email_verify_tokens.get(req.code)
     if not token_data:
@@ -612,7 +638,7 @@ async def verify_email(
             detail="验证码无效或已过期"
         )
 
-    if datetime.now(timezone.utc) > token_data["expires_at"]:
+    if datetime.now(UTC) > token_data["expires_at"]:
         del _email_verify_tokens[req.code]
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -641,7 +667,7 @@ async def verify_email(
 
     # 验证成功后自动颁发 Token，允许直接登录
     tokens = create_token_pair(user.id)
-    
+
     # 设置 HttpOnly Cookie
     response.set_cookie(
         key="refresh_token",
@@ -651,7 +677,7 @@ async def verify_email(
         samesite="lax",
         max_age=settings.REFRESH_TOKEN_EXPIRE_MINUTES * 60,
     )
-    
+
     return {
         "message": "邮箱验证成功",
         "access_token": tokens.access_token,
@@ -668,11 +694,14 @@ async def verify_email(
 
 @router.post("/resend-verification", summary="重发邮箱验证码")
 async def resend_verification(
+    request: Request,
     req: ResendVerificationRequest,
     db: AsyncSession = Depends(get_db),
-    _: None = Depends(rate_limit(limit=3, window=300, endpoint="resend_verify")),
-):
+    _: None = Depends(rate_limit(limit=3, window=300, endpoint="resend_verify", fail_closed=True)),
+) -> dict[str, Any]:
     """重新发送邮箱验证码（限流：3次/5分钟）"""
+    await _require_captcha(request, req.captcha_token)
+
     result = await db.execute(select(User).where(User.email == req.email))
     user = result.scalar_one_or_none()
 
@@ -688,7 +717,7 @@ async def resend_verification(
         _email_verify_tokens[verify_code] = {
             "user_id": str(user.id),
             "email": user.email,
-            "expires_at": datetime.now(timezone.utc) + timedelta(minutes=15),
+            "expires_at": datetime.now(UTC) + timedelta(minutes=15),
         }
         logger.info(f"邮箱验证码已重新发送 (用户: {user.email})")
         logger.debug(f"[DEV] 验证码: {verify_code}")
@@ -710,7 +739,7 @@ async def resend_verification(
 
 
 @router.get("/features")
-async def get_auth_features():
+async def get_auth_features() -> dict[str, Any]:
     """查询认证相关功能开关状态（公开端点，供前端判断UI展示）"""
     return {
         "email_verify_enabled": settings.EMAIL_VERIFY_ENABLED,
@@ -726,11 +755,80 @@ async def get_auth_features():
 class OAuthCallbackRequest(BaseModel):
     """OAuth 回调请求"""
     code: str
-    state: Optional[str] = None
+    state: str | None = None
+
+
+class WeChatCode2SessionRequest(BaseModel):
+    """微信小程序登录请求"""
+    code: str
+
+
+def _wechat_user_email(openid: str) -> str:
+    return f"wx_{openid[:16]}@wechat.user"
+
+
+async def _find_or_create_wechat_user(
+    db: AsyncSession,
+    *,
+    openid: str,
+    unionid: str | None = None,
+    nickname: str = "微信用户",
+    avatar: str = "",
+) -> tuple[User, bool]:
+    query = select(User).where(User.wechat_openid == openid)
+    result = await db.execute(query)
+    user = result.scalar_one_or_none()
+
+    if not user and unionid:
+        query = select(User).where(User.wechat_unionid == unionid)
+        result = await db.execute(query)
+        user = result.scalar_one_or_none()
+
+    if user:
+        return user, False
+
+    default_org_id = "00000000-0000-0000-0000-000000000001"
+    user = User(
+        id=str(uuid4()),
+        email=_wechat_user_email(openid),
+        hashed_password=get_password_hash(secrets.token_urlsafe(32)),
+        name=nickname,
+        avatar_url=avatar,
+        role="member",
+        org_id=default_org_id,
+        is_active=True,
+        email_verified=True,
+        wechat_openid=openid,
+        wechat_unionid=unionid,
+        login_type="wechat",
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user, True
+
+
+def _wechat_token_response(user: User, *, is_new_user: bool) -> dict[str, Any]:
+    tokens = create_token_pair(user.id)
+    return {
+        "access_token": tokens.access_token,
+        "refresh_token": tokens.refresh_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "nickname": user.name,
+            "role": user.role,
+            "avatar_url": user.avatar_url,
+            "login_type": user.login_type,
+        },
+        "is_new_user": is_new_user,
+    }
 
 
 @router.get("/oauth/wechat/url")
-async def get_wechat_login_url():
+async def get_wechat_login_url() -> dict[str, str]:
     """获取微信登录授权 URL"""
     if not settings.OAUTH_WECHAT_ENABLED:
         raise HTTPException(status_code=404, detail="微信登录未启用")
@@ -743,7 +841,7 @@ async def get_wechat_login_url():
 async def wechat_oauth_callback(
     request: OAuthCallbackRequest,
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """微信 OAuth 回调 -- 用 code 换 token，查找或创建用户"""
     try:
         _consume_oauth_state("wechat", request.state)
@@ -757,64 +855,73 @@ async def wechat_oauth_callback(
         nickname = user_info.get("nickname", "微信用户")
         avatar = user_info.get("headimgurl", "")
 
-        # 查找已绑定用户
-        query = select(User).where(User.wechat_openid == openid)
-        result = await db.execute(query)
-        user = result.scalar_one_or_none()
-
-        if not user and unionid:
-            query = select(User).where(User.wechat_unionid == unionid)
-            result = await db.execute(query)
-            user = result.scalar_one_or_none()
-
-        if not user:
-            # 自动创建新用户
-            default_org_id = "00000000-0000-0000-0000-000000000001"
-            user = User(
-                id=str(uuid4()),
-                email=f"wx_{openid[:16]}@wechat.user",
-                hashed_password=get_password_hash(secrets.token_urlsafe(32)),
-                name=nickname,
-                avatar_url=avatar,
-                role="member",
-                org_id=default_org_id,
-                is_active=True,
-                email_verified=True,  # 第三方登录视为已验证
-                wechat_openid=openid,
-                wechat_unionid=unionid,
-                login_type="wechat",
-            )
-            db.add(user)
-            await db.commit()
-            await db.refresh(user)
-
-        # 颁发 JWT
-        tokens = create_token_pair(user.id)
-        return {
-            "access_token": tokens.access_token,
-            "refresh_token": tokens.refresh_token,
-            "token_type": "bearer",
-            "user": {
-                "id": user.id,
-                "email": user.email,
-                "name": user.name,
-                "role": user.role,
-                "avatar_url": user.avatar_url,
-                "login_type": user.login_type,
-            },
-            "is_new_user": user.email.endswith("@wechat.user"),
-        }
+        user, created = await _find_or_create_wechat_user(
+            db,
+            openid=openid,
+            unionid=unionid,
+            nickname=nickname,
+            avatar=avatar,
+        )
+        return _wechat_token_response(user, is_new_user=created)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"微信 OAuth 回调失败: {e}")
-        raise HTTPException(status_code=500, detail="微信登录失败，请重试")
+        raise HTTPException(status_code=500, detail="微信登录失败，请重试") from e
+
+
+@router.post("/wechat/code2session", response_model=TokenResponse)
+async def wechat_mini_code2session(
+    request: WeChatCode2SessionRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(rate_limit_auth),
+) -> dict[str, Any]:
+    """微信小程序登录：wx.login code -> 本地 JWT 会话。"""
+    if not settings.OAUTH_WECHAT_ENABLED:
+        raise HTTPException(status_code=404, detail="微信登录未启用")
+    try:
+        session = await WeChatMiniProgramOAuth.code2session(request.code)
+        user, created = await _find_or_create_wechat_user(
+            db,
+            openid=session["openid"],
+            unionid=session.get("unionid"),
+            nickname="微信用户",
+            avatar="",
+        )
+        result = _wechat_token_response(user, is_new_user=created)
+        response.set_cookie(
+            key="refresh_token",
+            value=result["refresh_token"],
+            httponly=True,
+            secure=not settings.DEV_MODE,
+            samesite="lax",
+            max_age=settings.REFRESH_TOKEN_EXPIRE_MINUTES * 60,
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"微信小程序登录失败: {e}")
+        raise HTTPException(status_code=500, detail="微信登录失败，请重试") from e
+
+
+@router.post("/wechat-login", response_model=TokenResponse, include_in_schema=False)
+async def wechat_login_compat(
+    request: WeChatCode2SessionRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(rate_limit_auth),
+) -> dict[str, Any]:
+    return await wechat_mini_code2session(request, response, db, _)
 
 
 @router.get("/oauth/alipay/url")
-async def get_alipay_login_url():
+async def get_alipay_login_url() -> dict[str, str]:
     """获取支付宝登录授权 URL"""
     if not settings.OAUTH_ALIPAY_ENABLED:
         raise HTTPException(status_code=404, detail="支付宝登录未启用")
@@ -827,7 +934,7 @@ async def get_alipay_login_url():
 async def alipay_oauth_callback(
     request: OAuthCallbackRequest,
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """支付宝 OAuth 回调"""
     try:
         _consume_oauth_state("alipay", request.state)
@@ -835,6 +942,8 @@ async def alipay_oauth_callback(
         user_info = await AlipayOAuth.get_user_info(token_data["access_token"])
 
         alipay_uid = user_info.get("user_id") or token_data.get("user_id")
+        if not alipay_uid:
+            raise HTTPException(status_code=400, detail="支付宝用户信息缺失")
         nickname = user_info.get("nick_name", "支付宝用户")
         avatar = user_info.get("avatar", "")
 
@@ -876,33 +985,58 @@ async def alipay_oauth_callback(
             },
         }
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"支付宝 OAuth 回调失败: {e}")
-        raise HTTPException(status_code=500, detail="支付宝登录失败，请重试")
+        raise HTTPException(status_code=500, detail="支付宝登录失败，请重试") from e
 
 
 # ==================== 忘记密码 ====================
 
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
-    captcha_token: Optional[str] = None
+    captcha_token: str | None = None
 
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
+    captcha_token: str | None = None
 
 class ChangePasswordRequest(BaseModel):
     old_password: str
     new_password: str
 
 
-# 内存中的令牌存储（生产环境应用 Redis）
-_reset_tokens: dict[str, dict] = {}
-_email_verify_tokens: dict[str, dict] = {}  # key=验证码, value={user_id, email, expires_at}
-_oauth_state_tokens: dict[str, dict] = {}
+_email_verify_tokens: dict[str, EmailVerifyTokenData] = {}  # key=验证码, value={user_id, email, expires_at}
+_oauth_state_tokens: dict[str, OAuthStateTokenData] = {}
+
+
+def _get_request_ip(request: Request) -> str:
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _hash_reset_context(request: Request) -> dict[str, str]:
+    ip = _get_request_ip(request)
+    user_agent = request.headers.get("user-agent", "")
+    return {
+        "ip_hash": hashlib.sha256(ip.encode("utf-8")).hexdigest(),
+        "ua_hash": hashlib.sha256(user_agent.encode("utf-8")).hexdigest(),
+    }
+
+
+def _hash_reset_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _ensure_aware(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=UTC)
+    return dt
 
 
 @router.post("/forgot-password", summary="忘记密码 - 发送重置链接")
@@ -910,8 +1044,8 @@ async def forgot_password(
     request: Request,
     req: ForgotPasswordRequest,
     db: AsyncSession = Depends(get_db),
-    _: None = Depends(rate_limit(limit=5, window=300, endpoint="forgot_password", by_user=False)),
-):
+    _: None = Depends(rate_limit(limit=5, window=300, endpoint="forgot_password", by_user=False, fail_closed=True)),
+) -> dict[str, Any]:
     """
     发送密码重置链接到用户邮箱。
     无论邮箱是否存在都返回成功（防止枚举攻击）。
@@ -925,18 +1059,33 @@ async def forgot_password(
     if user:
         # 生成高熵重置令牌（32 字符 URL-safe token，15 分钟有效）
         # S-003 修复：从 6 位数字升级为 32 字符随机 token，防暴力枚举
+        now = datetime.now(UTC)
         token = secrets.token_urlsafe(24)  # 192 bits entropy
-        _reset_tokens[token] = {
-            "user_id": str(user.id),
-            "email": user.email,
-            "bound_email": req.email,  # 绑定请求邮箱，防止 token 被用于其他邮箱
-            "expires_at": datetime.now(timezone.utc) + timedelta(minutes=15),
-        }
+        reset_context = _hash_reset_context(request)
+        await db.execute(
+            update(PasswordResetToken)
+            .where(
+                PasswordResetToken.user_id == user.id,
+                PasswordResetToken.consumed_at.is_(None),
+            )
+            .values(consumed_at=now)
+        )
+        db.add(PasswordResetToken(
+            token_hash=_hash_reset_token(token),
+            user_id=str(user.id),
+            email=user.email,
+            bound_email=req.email,  # 绑定请求邮箱，防止 token 被用于其他邮箱
+            ip_hash=reset_context["ip_hash"],
+            ua_hash=reset_context["ua_hash"],
+            channel="email",
+            expires_at=now + timedelta(minutes=15),
+        ))
         logger.info(f"密码重置令牌已生成 (用户: {user.email})")
 
         # 发送密码重置令牌
         from src.services.email_service import email_service
         await email_service.send_reset_code(user.email, token)
+        await db.commit()
 
     # 始终返回成功（防止邮箱枚举）
     return {
@@ -949,52 +1098,68 @@ async def forgot_password(
 
 @router.post("/reset-password", summary="重置密码 - 使用重置令牌")
 async def reset_password(
+    request: Request,
     req: ResetPasswordRequest,
     db: AsyncSession = Depends(get_db),
-    _: None = Depends(rate_limit(limit=5, window=300, endpoint="reset_password", by_user=False)),
-):
+    _: None = Depends(rate_limit(limit=5, window=300, endpoint="reset_password", by_user=False, fail_closed=True)),
+) -> dict[str, str]:
     """使用高熵重置令牌重置密码"""
-    # 查找并验证令牌
-    token_data = _reset_tokens.get(req.token)
-    if not token_data:
+    await _require_captcha(request, req.captcha_token)
+
+    token_hash = _hash_reset_token(req.token)
+    token_result = await db.execute(
+        select(PasswordResetToken).where(PasswordResetToken.token_hash == token_hash)
+    )
+    token_record: PasswordResetToken | None = token_result.scalar_one_or_none()
+    if not token_record or token_record.consumed_at is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="验证码无效或已过期"
         )
 
-    if datetime.now(timezone.utc) > token_data["expires_at"]:
-        del _reset_tokens[req.token]
+    now = datetime.now(UTC)
+    if now > _ensure_aware(token_record.expires_at):
+        token_record.consumed_at = now
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="验证码已过期，请重新获取"
+        )
+
+    reset_context = _hash_reset_context(request)
+    if (
+        token_record.ip_hash != reset_context["ip_hash"]
+        or token_record.ua_hash != reset_context["ua_hash"]
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="重置上下文不匹配，请重新获取验证码",
         )
 
     # 密码强度验证
     validate_password(req.new_password)
 
     # 更新密码
-    result = await db.execute(select(User).where(User.id == token_data["user_id"]))
-    user = result.scalar_one_or_none()
+    user_result = await db.execute(select(User).where(User.id == token_record.user_id))
+    user: User | None = user_result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
 
     user.hashed_password = get_password_hash(req.new_password)
-    user.password_changed_at = datetime.now(timezone.utc)
+    user.password_changed_at = now
     user.login_attempts = 0  # 重置登录失败计数
+    token_record.consumed_at = now
     await db.commit()
-
-    # 清除已使用的令牌
-    del _reset_tokens[req.token]
 
     # 审计日志
     try:
         audit = AuditService(db)
         await audit.log(
-            user_id=user.id,
-            action=AuditAction.UPDATE,
-            resource_type=ResourceType.USER,
+            action=AuditAction.USER_PASSWORD_CHANGE.value,
+            resource_type=ResourceType.USER.value,
             resource_id=str(user.id),
-            details={"action": "password_reset"},
+            user=user,
+            extra_data={"action": "password_reset"},
         )
     except Exception as e:
         logger.error(f"密码重置审计日志写入失败: {e}")
@@ -1008,7 +1173,7 @@ async def change_password(
     req: ChangePasswordRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, str]:
     """已登录用户修改密码（需验证旧密码）"""
     from src.core.security import verify_password
 
@@ -1027,7 +1192,7 @@ async def change_password(
         )
 
     user.hashed_password = get_password_hash(req.new_password)
-    user.password_changed_at = datetime.now(timezone.utc)
+    user.password_changed_at = datetime.now(UTC)
     await db.commit()
 
     logger.info(f"用户 {user.email} 修改密码成功")

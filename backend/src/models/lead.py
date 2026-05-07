@@ -1,13 +1,16 @@
-# -*- coding: utf-8 -*-
 """
 案源管理模型
 """
 
-from typing import Optional
-from sqlalchemy import String, Text, Float, ForeignKey, JSON
+from typing import TYPE_CHECKING, Any, Optional
+
+from sqlalchemy import JSON, Float, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.models.base import Base, TimestampMixin, GUID
+from src.models.base import GUID, Base, TimestampMixin
+
+if TYPE_CHECKING:
+    from src.models.user import User
 
 
 class Lead(Base, TimestampMixin):
@@ -15,21 +18,21 @@ class Lead(Base, TimestampMixin):
     __tablename__ = "leads"
 
     client_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    contact_info: Mapped[Optional[str]] = mapped_column(String(255))
-    source: Mapped[Optional[str]] = mapped_column(String(100))  # 转介绍, 线上咨询, 主动拓展, 电话咨询
-    case_type: Mapped[Optional[str]] = mapped_column(String(100))
+    contact_info: Mapped[str | None] = mapped_column(String(255))
+    source: Mapped[str | None] = mapped_column(String(100))  # 转介绍, 线上咨询, 主动拓展, 电话咨询
+    case_type: Mapped[str | None] = mapped_column(String(100))
     estimated_amount: Mapped[float] = mapped_column(Float, default=0.0)
     stage: Mapped[str] = mapped_column(String(20), default="new")  # new, contacted, qualified, proposal, won, lost
-    follow_ups: Mapped[Optional[list]] = mapped_column(JSON, default=list)
+    follow_ups: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, default=list)
 
     # 关联
-    assignee_id: Mapped[Optional[str]] = mapped_column(
+    assignee_id: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("users.id", ondelete="SET NULL")
     )
-    created_by: Mapped[Optional[str]] = mapped_column(
+    created_by: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("users.id", ondelete="SET NULL")
     )
-    org_id: Mapped[Optional[str]] = mapped_column(
+    org_id: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("organizations.id", ondelete="CASCADE")
     )
 

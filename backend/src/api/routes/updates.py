@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 OTA 更新 API —— Tauri 客户端自动更新端点。
 
@@ -18,8 +17,8 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Path, Query, Response
 from pydantic import BaseModel, Field
@@ -68,7 +67,7 @@ class FullManifest(BaseModel):
     pub_date: str
     platforms: dict[str, PlatformAsset] = Field(default_factory=dict)
     # 若客户端版本 < min_version 则强制更新（不允许"跳过此版本"）
-    min_version: Optional[str] = None
+    min_version: str | None = None
 
 
 # ============================================================================
@@ -76,13 +75,13 @@ class FullManifest(BaseModel):
 # ============================================================================
 
 
-def _load_manifest_from_disk() -> Optional[FullManifest]:
+def _load_manifest_from_disk() -> FullManifest | None:
     """优先读 JSON 文件。失败返回 None。"""
     path = _DEFAULT_MANIFEST_PATH
     if not os.path.exists(path):
         return None
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
         return FullManifest(**data)
     except Exception:
@@ -107,7 +106,7 @@ def _compare_versions(v1: str, v2: str) -> int:
             parts1.append(0)
         while len(parts2) < 3:
             parts2.append(0)
-        for p1, p2 in zip(parts1, parts2):
+        for p1, p2 in zip(parts1, parts2, strict=False):
             if p1 < p2:
                 return -1
             if p1 > p2:
@@ -139,7 +138,7 @@ async def check_update(
         ..., pattern="^(x86_64|aarch64|arm64|i686)$", description="CPU 架构"
     ),
     current_version: str = Path(..., min_length=1, max_length=32),
-):
+) -> UpdateManifest | Response:
     """Tauri Updater 插件定期调用此端点检查更新。
 
     无可用更新或配置缺失时返回 204。
@@ -170,7 +169,7 @@ async def check_update(
 
 
 @router.get("/", summary="运维接口：查看当前 manifest")
-async def read_manifest():
+async def read_manifest() -> FullManifest:
     """供运维 / CI 验证 manifest 是否已生效。生产应加 admin 鉴权。"""
     m = _load_manifest_from_disk()
     if m is None:
@@ -179,7 +178,7 @@ async def read_manifest():
 
 
 @router.get("/latest", summary="前端展示：最新版本摘要")
-async def get_latest_release():
+async def get_latest_release() -> dict[str, Any]:
     """给用户在 UI 上展示最新版本的简化结构。"""
     m = _load_manifest_from_disk()
     if m is None:
@@ -199,7 +198,7 @@ async def get_latest_release():
 async def get_changelog(
     limit: int = Query(10, le=50),
     offset: int = Query(0),
-):
+) -> dict[str, Any]:
     """返回版本历史列表。当前只返回最新一条（来自 manifest），
     未来可接入 `software_releases` 表提供完整历史。
     """
@@ -215,16 +214,16 @@ async def get_changelog(
 
 
 @router.get("/healthz", summary="Updater 服务健康检查")
-async def healthz():
+async def healthz() -> dict[str, Any]:
     m = _load_manifest_from_disk()
     return {
         "status": "ok" if m is not None else "degraded",
         "has_manifest": m is not None,
         "manifest_path": _DEFAULT_MANIFEST_PATH,
         "latest_version": m.version if m else None,
-        "server_time": datetime.now(timezone.utc).isoformat(),
+        "server_time": datetime.now(UTC).isoformat(),
     }
 
 
 # 供测试/手动发布使用的内存常量；文件源优先。
-CURRENT_RELEASES: dict[str, dict] = {}
+CURRENT_RELEASES: dict[str, dict[str, Any]] = {}

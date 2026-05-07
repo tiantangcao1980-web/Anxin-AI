@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 记忆系统集成测试
 测试三层记忆架构和跨层检索功能
@@ -6,18 +5,16 @@
 所有外部服务（Qdrant, Redis）均通过 mock 模拟，无需真实连接。
 """
 
-import asyncio
-import json
+from unittest.mock import AsyncMock, Mock
+
 import pytest
-from datetime import datetime
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
 
 from src.core.memory import (
-    SemanticMemoryService,
     EnhancedEpisodicMemoryService,
-    WorkingMemoryService,
+    MemoryRetrievalResult,
     MultiTierMemoryRetrieval,
-    MemoryRetrievalResult
+    SemanticMemoryService,
+    WorkingMemoryService,
 )
 
 # 测试数据
@@ -134,6 +131,30 @@ class TestMemoryIntegration:
 
         assert knowledge_id is not None
 
+    async def test_semantic_memory_update_reinserts_merged_knowledge(self, memory_services):
+        """测试语义记忆更新会删除旧记录并重新插入合并后的知识。"""
+        semantic = memory_services["semantic"]
+        old = {
+            "knowledge_id": "knowledge-001",
+            "knowledge_type": "statute",
+            "title": "旧标题",
+            "content": "旧内容",
+        }
+        semantic.vector_store.search = AsyncMock(return_value=[{"metadata": old}])
+        semantic.delete = AsyncMock(return_value=True)
+
+        updated = await semantic.update(
+            "knowledge-001",
+            {"title": "新标题", "content": "新内容"},
+        )
+
+        assert updated is True
+        semantic.delete.assert_awaited_once_with("knowledge-001")
+        document = semantic.vector_store.add_documents.await_args.args[1][0]
+        assert document["metadata"]["knowledge_type"] == "statute"
+        assert document["metadata"]["title"] == "新标题"
+        assert document["metadata"]["content"] == "新内容"
+
     async def test_episodic_memory_add(self, memory_services):
         """测试情景记忆添加"""
         episodic = memory_services["episodic"]
@@ -195,7 +216,6 @@ class TestMemoryIntegration:
     async def test_memory_migration(self, memory_services):
         """测试记忆迁移 (工作 -> 情景)"""
         working = memory_services["working"]
-        episodic = memory_services["episodic"]
 
         # 1. 创建工作记忆会话
         await working.create_session("test-migration-001", "user-001")

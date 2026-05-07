@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Scenario Simulation — 风险场景推演服务
 
@@ -7,12 +6,26 @@ Scenario Simulation — 风险场景推演服务
 """
 
 import asyncio
-from typing import AsyncGenerator, Dict, Any, Optional, List
-from loguru import logger
+from collections.abc import AsyncGenerator
+from typing import Any, NotRequired, TypedDict
 
+
+class ImpactStep(TypedDict):
+    event: str
+    probability: float
+    severity: str
+
+
+class ScenarioTemplate(TypedDict):
+    name: str
+    description: str
+    impact_chain: list[ImpactStep]
+    risk_delta: dict[str, int]
+    recommendations: list[str]
+    assessment_suffix: NotRequired[str]
 
 # 预设场景模板
-SCENARIO_TEMPLATES = {
+SCENARIO_TEMPLATES: dict[str, ScenarioTemplate] = {
     "customer_default": {
         "name": "主要客户违约",
         "description": "主要客户发生债务违约，无法按期支付应收款项",
@@ -104,9 +117,9 @@ class ScenarioSimulationService:
         self,
         scenario_id: str,
         company_name: str,
-        current_risk: Optional[Dict[str, Any]] = None,
-        custom_scenario: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        current_risk: dict[str, Any] | None = None,
+        custom_scenario: str | None = None,
+    ) -> dict[str, Any]:
         """
         执行场景推演（非流式）
 
@@ -153,8 +166,8 @@ class ScenarioSimulationService:
         self,
         scenario_id: str,
         company_name: str,
-        current_risk: Optional[Dict[str, Any]] = None,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+        current_risk: dict[str, Any] | None = None,
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """
         流式场景推演 — 逐步输出影响链
 
@@ -195,7 +208,7 @@ class ScenarioSimulationService:
 
         yield {"type": "done", "scenario": template["name"]}
 
-    def list_scenarios(self) -> List[Dict[str, str]]:
+    def list_scenarios(self) -> list[dict[str, str]]:
         """列出所有可用场景"""
         return [
             {"id": k, "name": v["name"], "description": v["description"]}

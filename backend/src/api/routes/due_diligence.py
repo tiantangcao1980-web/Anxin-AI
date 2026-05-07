@@ -1,21 +1,34 @@
 """尽职调查路由"""
 
-import json
 import asyncio
-from typing import Optional, List
-from fastapi import APIRouter, Depends, Query
+import json
+from collections.abc import AsyncIterator
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
+from loguru import logger
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from loguru import logger
 
 from src.core.database import get_db
-from src.core.deps import get_current_user, get_current_user_required
+from src.core.deps import get_current_user_required
+from src.core.mode_deps import require_mode, require_subscription_feature
 from src.core.responses import UnifiedResponse
-from src.services.due_diligence_service import due_diligence_service, get_company_info
 from src.models.user import User
+from src.services.due_diligence_service import due_diligence_service, get_company_info
 
 router = APIRouter()
+
+
+def _require_cache_org_id(user: User) -> str | None:
+    """Resolve the organization scope used by due diligence caches."""
+    org_id = getattr(user, "org_id", None)
+    if org_id:
+        return str(org_id)
+    if getattr(user, "role", None) == "super_admin":
+        return None
+    raise HTTPException(status_code=403, detail="用户未绑定组织，无法访问尽调缓存")
 
 
 class CompanyInvestigateRequest(BaseModel):
@@ -29,19 +42,19 @@ class InvestigationResponse(BaseModel):
     company_name: str
     investigation_type: str
     timestamp: str
-    results: dict
-    report: dict
+    results: dict[str, Any]
+    report: dict[str, Any]
 
 
 class CompanyBasicInfo(BaseModel):
     """企业基本信息"""
     name: str
-    legal_representative: Optional[str] = None
-    registered_capital: Optional[str] = None
-    established_date: Optional[str] = None
-    business_scope: Optional[str] = None
-    address: Optional[str] = None
-    company_type: Optional[str] = None
+    legal_representative: str | None = None
+    registered_capital: str | None = None
+    established_date: str | None = None
+    business_scope: str | None = None
+    address: str | None = None
+    company_type: str | None = None
     status: str = "正常"
 
 
@@ -53,16 +66,17 @@ class RiskAssessment(BaseModel):
     compliance_risk: int = 0
     relation_risk: int = 0
     overall_rating: str = "low"
-    risk_points: List[str] = []
-    recommendations: List[str] = []
+    risk_points: list[str] = []
+    recommendations: list[str] = []
 
 
 @router.post("/company", response_model=UnifiedResponse)
 async def investigate_company(
     request: CompanyInvestigateRequest,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_required),
-):
+    user: User = Depends(require_mode(["hybrid", "cloud"])),
+    _sub: User = Depends(require_subscription_feature("due_diligence")),
+) -> dict[str, Any]:
     """
     企业综合尽职调查
     
@@ -76,7 +90,7 @@ async def investigate_company(
         company_name=request.company_name,
         investigation_type=request.investigation_type,
     )
-    
+
     data = InvestigationResponse(
         company_name=result["company_name"],
         investigation_type=result["investigation_type"],
@@ -90,16 +104,17 @@ async def investigate_company(
 @router.post("/company/stream")
 async def stream_investigate_company(
     request: CompanyInvestigateRequest,
-    user: User = Depends(get_current_user_required),
-):
+    user: User = Depends(require_mode(["hybrid", "cloud"])),
+    _sub: User = Depends(require_subscription_feature("due_diligence")),
+) -> StreamingResponse:
     """流式企业调查（SSE）— 真正并行，完成一个推送一个"""
 
-    async def generate_stream():
+    async def generate_stream() -> AsyncIterator[str]:
         company_name = request.company_name
         investigation_type = request.investigation_type
         svc = due_diligence_service
 
-        yield f"data: {json.dumps({'type': 'start', 'message': f'开始调查企业: {company_name}'})}\n\n"
+        yield f"data: {json.dumps({'type': 'start', 'message': f'开始调查企业: {company_name}', 'investigation_type': investigation_type})}\n\n"
 
         # ---------- 检查预置数据（秒回） ----------
         from src.services.due_diligence_service import MOCK_COMPANY_DATA
@@ -137,12 +152,12 @@ async def stream_investigate_company(
 
             yield f"data: {json.dumps({'type': 'done', 'message': '调查完成'})}\n\n"
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             yield f"data: {json.dumps({'type': 'error', 'message': 'AI 调查超时（60秒），请检查 LLM 服务是否可用'})}\n\n"
         except Exception as e:
             logger.error(f"流式调查失败: {e}")
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
-    
+
     return StreamingResponse(
         generate_stream(),
         media_type="text/event-stream",
@@ -158,7 +173,7 @@ async def get_company_profile(
     company_name: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取企业画像"""
     try:
         company_data = await get_company_info(company_name)
@@ -178,7 +193,7 @@ async def get_company_risks(
     company_name: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取企业风险报告"""
     try:
         company_data = await get_company_info(company_name)
@@ -186,7 +201,7 @@ async def get_company_risks(
         logger.error(f"获取企业风险失败: {e}")
         return UnifiedResponse.error(message=str(e))
     risk_data = company_data.get("risk", {})
-    
+
     # 计算总体风险分数
     scores = [
         risk_data.get("operation_risk", 0),
@@ -197,7 +212,7 @@ async def get_company_risks(
     ]
     valid_scores = [s for s in scores if s > 0]
     avg_score = sum(valid_scores) / len(valid_scores) if valid_scores else 0
-    
+
     data = {
         "company_name": company_name,
         "risk_score": round(avg_score, 1),
@@ -220,7 +235,7 @@ async def get_company_litigation(
     company_name: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取企业诉讼信息"""
     try:
         company_data = await get_company_info(company_name)
@@ -228,7 +243,7 @@ async def get_company_litigation(
         logger.error(f"获取企业诉讼信息失败: {e}")
         return UnifiedResponse.error(message=str(e))
     litigation = company_data.get("litigation", {})
-    
+
     data = {
         "company_name": company_name,
         "summary": {
@@ -254,21 +269,21 @@ async def get_company_graph(
     depth: int = Query(1, ge=1, le=3),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取企业关系图谱"""
     # ... (nodes/edges construction omitted for brevity, keeping existing logic)
     nodes = [
         {"id": "center", "name": company_name, "type": "target", "level": 0},
     ]
     edges = []
-    
+
     # 添加模拟股东
     shareholders = [
         {"name": "大股东A", "ratio": "35%"},
         {"name": "投资机构B", "ratio": "25%"},
         {"name": "自然人C", "ratio": "15%"},
     ]
-    
+
     for i, sh in enumerate(shareholders):
         node_id = f"sh_{i}"
         nodes.append({
@@ -283,13 +298,13 @@ async def get_company_graph(
             "relation": "股东",
             "label": sh["ratio"],
         })
-    
+
     # 添加模拟投资
     investments = [
         {"name": "子公司A", "ratio": "100%"},
         {"name": "参股公司B", "ratio": "30%"},
     ]
-    
+
     for i, inv in enumerate(investments):
         node_id = f"inv_{i}"
         nodes.append({
@@ -304,13 +319,13 @@ async def get_company_graph(
             "relation": "投资",
             "label": inv["ratio"],
         })
-    
+
     # 添加高管
     executives = [
         {"name": "张总", "position": "法定代表人"},
         {"name": "李总", "position": "总经理"},
     ]
-    
+
     for i, ex in enumerate(executives):
         node_id = f"ex_{i}"
         nodes.append({
@@ -324,7 +339,7 @@ async def get_company_graph(
             "target": "center",
             "relation": ex["position"],
         })
-    
+
     data = {
         "company_name": company_name,
         "graph": {
@@ -345,11 +360,11 @@ async def search_companies(
     keyword: str = Query(..., min_length=2),
     limit: int = Query(10, ge=1, le=50),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """搜索企业"""
     # 返回模拟搜索结果
     results = []
-    
+
     # 模拟搜索结果
     if "阿里" in keyword or "alibaba" in keyword.lower():
         results.append({
@@ -358,7 +373,7 @@ async def search_companies(
             "legal_representative": "蔡崇信",
             "status": "正常",
         })
-    
+
     if "腾讯" in keyword or "tencent" in keyword.lower():
         results.append({
             "name": "腾讯控股有限公司",
@@ -366,7 +381,7 @@ async def search_companies(
             "legal_representative": "马化腾",
             "status": "正常",
         })
-    
+
     # 添加通用模拟结果
     if len(results) < limit:
         for i in range(min(3, limit - len(results))):
@@ -376,7 +391,7 @@ async def search_companies(
                 "legal_representative": "张三",
                 "status": "正常",
             })
-    
+
     data = {
         "keyword": keyword,
         "total": len(results),
@@ -396,24 +411,27 @@ class OrchestratedInvestigateRequest(BaseModel):
     enable_report: bool = False
     report_template: str = "comprehensive"
     # 历史时间范围：支持用户选择搜索过去N个月/年的数据
-    time_range_start: Optional[str] = None  # ISO 格式 "2023-01-01"
-    time_range_end: Optional[str] = None    # ISO 格式 "2024-12-31"，默认今天
+    time_range_start: str | None = None  # ISO 格式 "2023-01-01"
+    time_range_end: str | None = None    # ISO 格式 "2024-12-31"，默认今天
 
 
 @router.post("/company/orchestrated-stream")
 async def orchestrated_stream_investigate(
     request: CompanyInvestigateRequest,
-    user: User = Depends(get_current_user_required),
-):
+    user: User = Depends(require_mode(["hybrid", "cloud"])),
+    _sub: User = Depends(require_subscription_feature("due_diligence")),
+) -> StreamingResponse:
     """多 Agent 协同流式调查 — 支持增强 SSE 事件（v1 兼容）"""
+    org_id = _require_cache_org_id(user)
 
-    async def generate_stream():
+    async def generate_stream() -> AsyncIterator[str]:
         try:
             from src.services.investigation_orchestrator import investigation_orchestrator
             async for event in investigation_orchestrator.orchestrate_investigation(
                 company_name=request.company_name,
                 investigation_type=request.investigation_type,
                 user_id=str(user.id) if user else None,
+                org_id=org_id,
             ):
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
         except Exception as e:
@@ -430,8 +448,9 @@ async def orchestrated_stream_investigate(
 @router.post("/company/deep-investigate")
 async def deep_investigate_stream(
     request: OrchestratedInvestigateRequest,
-    user: User = Depends(get_current_user_required),
-):
+    user: User = Depends(require_mode(["hybrid", "cloud"])),
+    _sub: User = Depends(require_subscription_feature("due_diligence")),
+) -> StreamingResponse:
     """
     增强版深度调查（v2）— 六阶段管线
 
@@ -440,14 +459,16 @@ async def deep_investigate_stream(
     - 多专家论坛辩论
     - 模板化报告生成
     """
+    org_id = _require_cache_org_id(user)
 
-    async def generate_stream():
+    async def generate_stream() -> AsyncIterator[str]:
         try:
             from src.services.investigation_orchestrator import investigation_orchestrator
             async for event in investigation_orchestrator.orchestrate_investigation_v2(
                 company_name=request.company_name,
                 investigation_type=request.investigation_type,
                 user_id=str(user.id) if user else None,
+                org_id=org_id,
                 enable_deep_research=request.enable_deep_research,
                 enable_forum=request.enable_forum,
                 enable_report=request.enable_report,
@@ -477,10 +498,11 @@ async def list_investigations(
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取调查历史列表"""
     try:
-        from sqlalchemy import select, desc
+        from sqlalchemy import desc, select
+
         from src.models.investigation import Investigation
         stmt = (
             select(Investigation)
@@ -502,7 +524,7 @@ async def get_investigation(
     investigation_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取单条调查详情"""
     try:
         from src.models.investigation import Investigation
@@ -528,12 +550,13 @@ async def generate_investigation_report(
     investigation_id: str,
     request: ReportRequest = ReportRequest(),
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_required),
-):
+    user: User = Depends(require_mode(["hybrid", "cloud"])),
+    _sub: User = Depends(require_subscription_feature("due_diligence")),
+) -> dict[str, Any]:
     """生成调查报告"""
     try:
-        from src.services.report_engine import report_engine
         from src.models.investigation import Investigation
+        from src.services.report_engine import report_engine
 
         inv = await db.get(Investigation, investigation_id)
         if not inv:
@@ -563,8 +586,9 @@ async def generate_investigation_report(
 @router.post("/report/generate")
 async def generate_report_direct(
     request: CompanyInvestigateRequest,
-    user: User = Depends(get_current_user_required),
-):
+    user: User = Depends(require_mode(["hybrid", "cloud"])),
+    _sub: User = Depends(require_subscription_feature("due_diligence")),
+) -> dict[str, Any]:
     """直接根据企业名生成报告（无需先保存调查）"""
     try:
         from src.services.report_engine import report_engine
@@ -587,7 +611,7 @@ async def generate_report_direct(
 @router.get("/report/templates")
 async def list_report_templates(
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """列出所有可用报告模板"""
     try:
         from src.services.report_engine import report_engine
@@ -601,11 +625,12 @@ async def list_report_templates(
 async def generate_report_stream(
     request: ReportRequest,
     company_name: str = Query(..., min_length=1),
-    user: User = Depends(get_current_user_required),
-):
+    user: User = Depends(require_mode(["hybrid", "cloud"])),
+    _sub: User = Depends(require_subscription_feature("due_diligence")),
+) -> StreamingResponse:
     """流式报告生成（逐章返回进度）"""
 
-    async def generate_stream():
+    async def generate_stream() -> AsyncIterator[str]:
         try:
             from src.services.report_engine import report_engine
 
@@ -637,14 +662,15 @@ class SimulationRequest(BaseModel):
     """场景推演请求"""
     scenario_id: str
     company_name: str
-    current_risk: Optional[dict] = None
+    current_risk: dict[str, Any] | None = None
 
 
 @router.post("/simulate")
 async def simulate_scenario(
     request: SimulationRequest,
-    user: User = Depends(get_current_user_required),
-):
+    user: User = Depends(require_mode(["hybrid", "cloud"])),
+    _sub: User = Depends(require_subscription_feature("due_diligence")),
+) -> dict[str, Any]:
     """执行风险场景推演"""
     try:
         from src.services.scenario_simulation import scenario_simulation_service
@@ -662,11 +688,12 @@ async def simulate_scenario(
 @router.post("/simulate/stream")
 async def simulate_scenario_stream(
     request: SimulationRequest,
-    user: User = Depends(get_current_user_required),
-):
+    user: User = Depends(require_mode(["hybrid", "cloud"])),
+    _sub: User = Depends(require_subscription_feature("due_diligence")),
+) -> StreamingResponse:
     """流式风险场景推演"""
 
-    async def generate_stream():
+    async def generate_stream() -> AsyncIterator[str]:
         try:
             from src.services.scenario_simulation import scenario_simulation_service
             async for event in scenario_simulation_service.simulate_stream(
@@ -688,7 +715,7 @@ async def simulate_scenario_stream(
 @router.get("/simulate/scenarios")
 async def list_simulation_scenarios(
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """列出可用的推演场景"""
     try:
         from src.services.scenario_simulation import scenario_simulation_service
@@ -705,7 +732,7 @@ async def get_company_snapshots(
     company_name: str,
     limit: int = Query(20, ge=1, le=100),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取企业历史快照列表"""
     try:
         from src.services.investigation_data_store import investigation_data_store
@@ -725,7 +752,7 @@ async def get_risk_trend(
     company_name: str,
     limit: int = Query(30, ge=1, le=100),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取企业风险趋势数据（用于折线图）"""
     try:
         from src.services.investigation_data_store import investigation_data_store
@@ -745,7 +772,7 @@ async def compare_snapshots(
     snapshot_a: str,
     snapshot_b: str,
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """对比两个快照的差异"""
     try:
         from src.services.investigation_data_store import investigation_data_store
@@ -763,11 +790,16 @@ async def compare_snapshots(
 async def get_cache_status(
     company_name: str,
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取某企业各维度的缓存状态"""
     try:
         from src.services.investigation_data_store import investigation_data_store
-        dimensions = await investigation_data_store.get_cached_dimensions(company_name, user_id=str(user.id))
+        org_id = _require_cache_org_id(user)
+        dimensions = await investigation_data_store.get_cached_dimensions(
+            company_name,
+            user_id=str(user.id),
+            org_id=org_id,
+        )
         if not dimensions and user.role not in {"super_admin", "admin"}:
             return UnifiedResponse.error(code=403, message="无权查看缓存状态")
         return UnifiedResponse.success(data=dimensions)
@@ -779,16 +811,18 @@ async def get_cache_status(
 @router.delete("/cache/{company_name}")
 async def invalidate_cache(
     company_name: str,
-    data_source: Optional[str] = Query(None, description="指定失效的数据源，不传则全部失效"),
+    data_source: str | None = Query(None, description="指定失效的数据源，不传则全部失效"),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """使某企业的缓存失效（强制下次调查重新抓取）"""
     try:
         from src.services.investigation_data_store import investigation_data_store
+        org_id = _require_cache_org_id(user)
         count = await investigation_data_store.invalidate_cache(
             company_name,
             data_source,
             None if user.role in {"super_admin", "admin"} else str(user.id),
+            org_id=org_id,
         )
         if count == 0 and user.role not in {"super_admin", "admin"}:
             return UnifiedResponse.error(code=403, message="无权执行缓存失效")
@@ -802,7 +836,7 @@ async def invalidate_cache(
 @router.get("/preferences")
 async def get_user_preferences(
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取当前用户的调查偏好"""
     try:
         from src.services.investigation_data_store import investigation_data_store
@@ -815,9 +849,9 @@ async def get_user_preferences(
 
 @router.get("/preferences/recommendations")
 async def get_smart_recommendations(
-    company_name: Optional[str] = Query(None),
+    company_name: str | None = Query(None),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取基于用户偏好的智能推荐"""
     try:
         from src.services.investigation_data_store import investigation_data_store
@@ -826,7 +860,7 @@ async def get_smart_recommendations(
             company_name=company_name,
         )
         return UnifiedResponse.success(data=rec)
-    except Exception as e:
+    except Exception:
         return UnifiedResponse.success(data={})
 
 
@@ -835,9 +869,9 @@ async def get_smart_recommendations(
 @router.get("/memory/status")
 async def get_memory_status(
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取用户记忆系统状态"""
-    result = {}
+    result: dict[str, Any] = {}
     try:
         from src.services.auto_dream import auto_dream_engine
         result["dream"] = auto_dream_engine.get_dream_status(str(user.id))
@@ -862,8 +896,9 @@ async def get_memory_status(
 @router.post("/memory/dream")
 async def trigger_dream(
     force: bool = Query(False),
-    user: User = Depends(get_current_user_required),
-):
+    user: User = Depends(require_mode(["hybrid", "cloud"])),
+    _sub: User = Depends(require_subscription_feature("due_diligence")),
+) -> dict[str, Any]:
     """手动触发做梦（记忆巩固）"""
     try:
         from src.services.auto_dream import auto_dream_engine
@@ -876,7 +911,7 @@ async def trigger_dream(
 @router.get("/memory/profile")
 async def get_user_legal_profile(
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取用户法律画像"""
     try:
         from src.services.memory_layer import memory_layer
@@ -888,10 +923,10 @@ async def get_user_legal_profile(
 
 @router.get("/memory/context")
 async def get_enriched_context(
-    session_id: Optional[str] = None,
+    session_id: str | None = None,
     query: str = Query(""),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取增强上下文（用于注入 system prompt）"""
     try:
         from src.services.memory_layer import memory_layer
@@ -901,7 +936,7 @@ async def get_enriched_context(
             query=query,
         )
         return UnifiedResponse.success(data={"context": context})
-    except Exception as e:
+    except Exception:
         return UnifiedResponse.success(data={"context": ""})
 
 
@@ -909,13 +944,13 @@ async def get_enriched_context(
 async def get_upcoming_events(
     days: int = Query(30, ge=1, le=365),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取即将到来的法律时效事件"""
     try:
         from src.services.memory_layer import memory_layer
         events = await memory_layer.get_upcoming_events(str(user.id), days)
         return UnifiedResponse.success(data=events)
-    except Exception as e:
+    except Exception:
         return UnifiedResponse.success(data=[])
 
 
@@ -924,7 +959,7 @@ async def extract_citations(
     text: str = "",
     auto_sink: bool = Query(True),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """从文本中提取法律引文并追踪"""
     try:
         from src.services.citation_tracker import citation_tracker
@@ -938,7 +973,7 @@ async def extract_citations(
 
 class CompressRequest(BaseModel):
     """压缩请求"""
-    messages: list
+    messages: list[dict[str, Any]]
     max_context_tokens: int = 200000
 
 
@@ -946,7 +981,7 @@ class CompressRequest(BaseModel):
 async def compress_context(
     req: CompressRequest,
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """对话上下文渐进式压缩"""
     try:
         from src.services.context_compressor import context_compressor
@@ -966,12 +1001,12 @@ async def compress_context(
 @router.get("/context/compress/stats")
 async def get_compression_stats(
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取上下文压缩统计"""
     try:
         from src.services.context_compressor import context_compressor
         return UnifiedResponse.success(data=context_compressor.get_stats())
-    except Exception as e:
+    except Exception:
         return UnifiedResponse.success(data={})
 
 
@@ -979,14 +1014,14 @@ async def get_compression_stats(
 
 class ExtractExperienceRequest(BaseModel):
     """经验提取请求"""
-    messages: list
+    messages: list[dict[str, Any]]
 
 
 @router.post("/experience/extract")
 async def extract_experiences(
     req: ExtractExperienceRequest,
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """从会话中提取经验模式"""
     try:
         from src.services.experience_engine import experience_engine
@@ -1002,10 +1037,10 @@ async def extract_experiences(
 @router.get("/experience/search")
 async def search_experiences(
     query: str = Query(""),
-    category: Optional[str] = None,
+    category: str | None = None,
     top_k: int = Query(5, ge=1, le=20),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """搜索相关经验"""
     try:
         from src.services.experience_engine import experience_engine
@@ -1013,7 +1048,7 @@ async def search_experiences(
             str(user.id), query, category, top_k
         )
         return UnifiedResponse.success(data=results)
-    except Exception as e:
+    except Exception:
         return UnifiedResponse.success(data=[])
 
 
@@ -1021,7 +1056,7 @@ async def search_experiences(
 async def confirm_experience(
     experience_id: str,
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """确认经验有效"""
     try:
         from src.services.experience_engine import experience_engine
@@ -1036,7 +1071,7 @@ async def contradict_experience(
     experience_id: str,
     evidence: str = "",
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """标记经验矛盾"""
     try:
         from src.services.experience_engine import experience_engine
@@ -1049,10 +1084,10 @@ async def contradict_experience(
 @router.get("/experience/stats")
 async def get_experience_stats(
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """获取经验统计"""
     try:
         from src.services.experience_engine import experience_engine
         return UnifiedResponse.success(data=experience_engine.get_stats(str(user.id)))
-    except Exception as e:
+    except Exception:
         return UnifiedResponse.success(data={})

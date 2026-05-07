@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Prometheus Metrics 端点
 
@@ -9,14 +8,20 @@ Prometheus Metrics 端点
 - 知识库和调查模块指标
 """
 
-import time
-from fastapi import APIRouter, Request, Response
+from typing import Any, cast
+
+from fastapi import APIRouter, Depends, Response
 from loguru import logger
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.core.database import get_db
+from src.models.webhook import WebhookReceived
 
 router = APIRouter()
 
 # 简易指标收集器（生产环境建议用 prometheus_client 库）
-_metrics = {
+_metrics: dict[str, float] = {
     "http_requests_total": 0,
     "http_request_duration_seconds_sum": 0.0,
     "active_investigations": 0,
@@ -28,20 +33,20 @@ _metrics = {
 }
 
 
-def increment(metric: str, value: float = 1.0):
+def increment(metric: str, value: float = 1.0) -> None:
     """递增指标"""
     _metrics[metric] = _metrics.get(metric, 0) + value
 
 
-def set_gauge(metric: str, value: float):
+def set_gauge(metric: str, value: float) -> None:
     """设置 gauge 指标"""
     _metrics[metric] = value
 
 
 @router.get("/metrics")
-async def prometheus_metrics():
+async def prometheus_metrics(db: AsyncSession = Depends(get_db)) -> Response:
     """Prometheus 拉取端点（text/plain 格式）"""
-    lines = []
+    lines: list[str] = []
 
     for key, value in _metrics.items():
         metric_type = "counter" if "total" in key or "errors" in key else "gauge"
@@ -52,9 +57,9 @@ async def prometheus_metrics():
     try:
         import psutil
         proc = psutil.Process()
-        lines.append(f"# TYPE anxin_process_memory_bytes gauge")
+        lines.append("# TYPE anxin_process_memory_bytes gauge")
         lines.append(f"anxin_process_memory_bytes {proc.memory_info().rss}")
-        lines.append(f"# TYPE anxin_process_cpu_percent gauge")
+        lines.append("# TYPE anxin_process_cpu_percent gauge")
         lines.append(f"anxin_process_cpu_percent {proc.cpu_percent()}")
     except ImportError:
         pass
@@ -62,15 +67,33 @@ async def prometheus_metrics():
     # 追加数据库连接池信息
     try:
         from src.core.database import engine
-        pool = engine.pool
-        lines.append(f"# TYPE anxin_db_pool_size gauge")
+        pool = cast(Any, engine.pool)
+        lines.append("# TYPE anxin_db_pool_size gauge")
         lines.append(f"anxin_db_pool_size {pool.size()}")
-        lines.append(f"# TYPE anxin_db_pool_checkedin gauge")
+        lines.append("# TYPE anxin_db_pool_checkedin gauge")
         lines.append(f"anxin_db_pool_checkedin {pool.checkedin()}")
-        lines.append(f"# TYPE anxin_db_pool_checkedout gauge")
+        lines.append("# TYPE anxin_db_pool_checkedout gauge")
         lines.append(f"anxin_db_pool_checkedout {pool.checkedout()}")
     except Exception:
         pass
+
+    try:
+        result = await db.execute(
+            select(WebhookReceived.status, func.count(WebhookReceived.id)).group_by(WebhookReceived.status)
+        )
+        webhook_stats: dict[str, int] = {
+            str(row[0]): int(row[1])
+            for row in result.all()
+        }
+        webhook_total = sum(webhook_stats.values())
+        lines.append("# TYPE anxin_webhook_received_total counter")
+        lines.append(f"anxin_webhook_received_total {webhook_total}")
+        lines.append("# TYPE anxin_webhook_failed_total counter")
+        lines.append(f"anxin_webhook_failed_total {webhook_stats.get('failed', 0)}")
+        lines.append("# TYPE anxin_webhook_processing gauge")
+        lines.append(f"anxin_webhook_processing {webhook_stats.get('processing', 0)}")
+    except Exception as exc:
+        logger.warning(f"导出 webhook 指标失败: {exc}")
 
     return Response(
         content="\n".join(lines) + "\n",

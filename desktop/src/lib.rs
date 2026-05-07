@@ -3,13 +3,212 @@ mod models;
 mod services;
 
 use models::create_shared_state;
-use tauri::{Emitter, Event, Listener, Manager};
+use serde::Serialize;
+use serde_json::Value;
+use std::io::Write;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use tauri::webview::PageLoadEvent;
+use tauri::{AppHandle, Emitter, Event, Listener, Manager, State};
+
+#[derive(Debug, Serialize)]
+pub struct DesktopRuntimeSelfTest {
+    pub app: &'static str,
+    pub local_db_url: &'static str,
+    pub migration_count: usize,
+    pub migration_versions: Vec<i64>,
+    pub required_tables_present: Vec<&'static str>,
+    pub sync_retry_schema_present: bool,
+    pub sqlite_security: DesktopSQLiteSecuritySelfTest,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DesktopSQLiteSecuritySelfTest {
+    pub encrypted: bool,
+    pub keyring_backed: bool,
+    pub release_blocking: bool,
+    pub reason: &'static str,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct DesktopRunOptions {
+    pub runtime_smoke_exit_after_ms: Option<u64>,
+    pub runtime_ui_smoke_timeout_ms: Option<u64>,
+}
+
+struct DesktopRuntimeSmokeState {
+    runtime_ui_smoke_enabled: AtomicBool,
+}
+
+impl DesktopRuntimeSmokeState {
+    fn new(runtime_ui_smoke_enabled: bool) -> Self {
+        Self {
+            runtime_ui_smoke_enabled: AtomicBool::new(runtime_ui_smoke_enabled),
+        }
+    }
+}
+
+impl DesktopRunOptions {
+    pub fn runtime_smoke(exit_after_ms: u64) -> Self {
+        Self {
+            runtime_smoke_exit_after_ms: Some(exit_after_ms),
+            runtime_ui_smoke_timeout_ms: None,
+        }
+    }
+
+    pub fn runtime_ui_smoke(timeout_ms: u64) -> Self {
+        Self {
+            runtime_smoke_exit_after_ms: None,
+            runtime_ui_smoke_timeout_ms: Some(timeout_ms),
+        }
+    }
+}
+
+pub fn desktop_runtime_self_test() -> DesktopRuntimeSelfTest {
+    let migrations = services::local_db::sqlite_migrations();
+    let init_sql = services::local_db::build_init_sql();
+    let required_tables = [
+        "offline_tasks",
+        "app_settings",
+        "sync_log",
+        "local_messages",
+        "local_documents",
+        "local_cases",
+        "local_contracts",
+        "local_artifacts",
+    ];
+
+    DesktopRuntimeSelfTest {
+        app: "anxin-legal-desktop",
+        local_db_url: services::local_db::LOCAL_DB_URL,
+        migration_count: migrations.len(),
+        migration_versions: migrations
+            .iter()
+            .map(|migration| migration.version)
+            .collect(),
+        required_tables_present: required_tables
+            .into_iter()
+            .filter(|table| init_sql.contains(&format!("CREATE TABLE IF NOT EXISTS {table}")))
+            .collect(),
+        sync_retry_schema_present: init_sql.contains("next_retry_at DATETIME")
+            && init_sql.contains("needs_human BOOLEAN DEFAULT 0"),
+        sqlite_security: DesktopSQLiteSecuritySelfTest {
+            encrypted: services::secure_db::security_contract().encrypted,
+            keyring_backed: services::secure_db::security_contract().keyring_backed,
+            release_blocking: services::secure_db::security_contract().release_blocking,
+            reason: services::secure_db::security_contract().reason,
+        },
+    }
+}
+
+pub fn desktop_runtime_self_test_json() -> Result<String, serde_json::Error> {
+    serde_json::to_string_pretty(&desktop_runtime_self_test())
+}
+
+pub fn desktop_secure_db_installed_profile_smoke_json() -> Result<String, String> {
+    let path = std::env::var("ANXIN_DESKTOP_DB_PATH")
+        .map_err(|_| "ANXIN_DESKTOP_DB_PATH must be set for installed-profile smoke".to_string())?;
+    let report = services::secure_db::installed_profile_smoke(std::path::Path::new(&path))?;
+    serde_json::to_string_pretty(&report)
+        .map_err(|err| format!("无法序列化 installed-profile smoke 报告: {err}"))
+}
+
+pub fn desktop_secure_db_performance_smoke_json() -> Result<String, String> {
+    let path = std::env::var("ANXIN_DESKTOP_DB_PATH")
+        .map_err(|_| "ANXIN_DESKTOP_DB_PATH must be set for performance smoke".to_string())?;
+    let report = services::secure_db::performance_smoke(std::path::Path::new(&path))?;
+    serde_json::to_string_pretty(&report)
+        .map_err(|err| format!("无法序列化 performance smoke 报告: {err}"))
+}
+
+pub fn delete_desktop_secure_db_smoke_key() -> Result<(), String> {
+    services::secure_db::delete_keyring_entry()
+}
+
+fn exit_runtime_smoke(handle: &AppHandle, code: i32) -> ! {
+    let _ = std::io::stdout().flush();
+    let _ = std::io::stderr().flush();
+    handle.exit(code);
+    std::process::exit(code);
+}
+
+fn desktop_runtime_ui_smoke_payload_ready(payload: &Value) -> bool {
+    let platform_ready = payload
+        .get("platform")
+        .and_then(Value::as_str)
+        .is_some_and(|platform| platform.starts_with("tauri-"));
+    let has_root = payload
+        .get("hasRoot")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let root_child_count = payload
+        .get("rootChildCount")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let has_title = payload
+        .get("title")
+        .and_then(Value::as_str)
+        .is_some_and(|title| !title.is_empty());
+
+    has_root && root_child_count > 0 && platform_ready && has_title
+}
+
+fn complete_desktop_runtime_ui_smoke(handle: &AppHandle, payload: &Value) -> ! {
+    println!("desktop runtime UI smoke response: {payload}");
+    println!("desktop runtime UI smoke exiting: frontend response received");
+    exit_runtime_smoke(handle, 0);
+}
+
+#[tauri::command]
+fn desktop_runtime_ui_smoke_report(
+    app: AppHandle,
+    state: State<'_, DesktopRuntimeSmokeState>,
+    payload: Value,
+) -> Result<(), String> {
+    if !state.runtime_ui_smoke_enabled.load(Ordering::Relaxed) {
+        return Err("desktop runtime UI smoke is not enabled".to_string());
+    }
+
+    if desktop_runtime_ui_smoke_payload_ready(&payload) {
+        complete_desktop_runtime_ui_smoke(&app, &payload);
+    }
+
+    println!("desktop runtime UI smoke observed: {payload}");
+    Ok(())
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    run_with_options(DesktopRunOptions::default());
+}
+
+pub fn run_with_options(options: DesktopRunOptions) {
     let shared_state = create_shared_state();
+    let runtime_smoke_exit_after_ms = options.runtime_smoke_exit_after_ms;
+    let runtime_ui_smoke_timeout_ms = options.runtime_ui_smoke_timeout_ms;
+    let runtime_ui_smoke_enabled = runtime_ui_smoke_timeout_ms.is_some();
+    let runtime_ui_smoke_page_load_completed = Arc::new(AtomicBool::new(false));
+    let runtime_ui_smoke_page_load_completed_for_handler =
+        Arc::clone(&runtime_ui_smoke_page_load_completed);
 
     tauri::Builder::default()
+        .on_page_load(move |webview, payload| {
+            if !runtime_ui_smoke_enabled || !matches!(payload.event(), PageLoadEvent::Finished) {
+                return;
+            }
+            if runtime_ui_smoke_page_load_completed_for_handler.swap(true, Ordering::SeqCst) {
+                return;
+            }
+
+            let app = webview.app_handle().clone();
+            let report = serde_json::json!({
+                "pageLoadFinished": true,
+                "url": payload.url().as_str(),
+                "webviewLabel": webview.label(),
+                "windowLabel": webview.window().label(),
+            });
+            complete_desktop_runtime_ui_smoke(&app, &report);
+        })
         // ===== 官方插件注册 =====
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_http::init())
@@ -19,7 +218,6 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_store::Builder::default().build())
-        .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_process::init())
@@ -29,8 +227,12 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::new().build())
         // ===== 全局状态 =====
         .manage(shared_state.clone())
+        .manage(DesktopRuntimeSmokeState::new(
+            runtime_ui_smoke_timeout_ms.is_some(),
+        ))
         // ===== IPC 命令注册 =====
         .invoke_handler(tauri::generate_handler![
+            desktop_runtime_ui_smoke_report,
             // 应用模式
             commands::app_mode::get_app_state,
             commands::app_mode::switch_mode,
@@ -58,6 +260,10 @@ pub fn run() {
             commands::offline_tasks::flush_offline_queue,
             commands::offline_tasks::push_harness_artifacts,
             commands::offline_tasks::pull_harness_artifacts,
+            // 安全本地 SQLCipher
+            commands::secure_db::secure_sql_execute,
+            commands::secure_db::secure_sql_select,
+            commands::secure_db::secure_db_reset_local_data,
             // 认证
             commands::auth::biometric_authenticate,
             commands::auth::save_auth_token,
@@ -78,27 +284,34 @@ pub fn run() {
 
                 // 全局快捷键：Cmd+Shift+Space (macOS) / Ctrl+Shift+Space (Win/Linux)
                 // 呼出/隐藏主窗口 —— 类似 Spotlight / Alfred / ClawX
-                use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+                use tauri_plugin_global_shortcut::{
+                    Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState,
+                };
                 #[cfg(target_os = "macos")]
-                let summon_shortcut = Shortcut::new(Some(Modifiers::SUPER | Modifiers::SHIFT), Code::Space);
+                let summon_shortcut =
+                    Shortcut::new(Some(Modifiers::SUPER | Modifiers::SHIFT), Code::Space);
                 #[cfg(not(target_os = "macos"))]
-                let summon_shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
+                let summon_shortcut =
+                    Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
 
-                if let Err(e) = app.global_shortcut().on_shortcut(summon_shortcut, move |app, _shortcut, event| {
-                    if event.state() == ShortcutState::Pressed {
-                        if let Some(window) = app.get_webview_window("main") {
-                            let is_visible = window.is_visible().unwrap_or(false);
-                            let is_focused = window.is_focused().unwrap_or(false);
-                            if is_visible && is_focused {
-                                let _ = window.hide();
-                            } else {
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                                let _ = window.center();
+                if let Err(e) = app.global_shortcut().on_shortcut(
+                    summon_shortcut,
+                    move |app, _shortcut, event| {
+                        if event.state() == ShortcutState::Pressed {
+                            if let Some(window) = app.get_webview_window("main") {
+                                let is_visible = window.is_visible().unwrap_or(false);
+                                let is_focused = window.is_focused().unwrap_or(false);
+                                if is_visible && is_focused {
+                                    let _ = window.hide();
+                                } else {
+                                    let _ = window.show();
+                                    let _ = window.set_focus();
+                                    let _ = window.center();
+                                }
                             }
                         }
-                    }
-                }) {
+                    },
+                ) {
                     log::error!("全局快捷键注册失败: {}", e);
                 } else {
                     log::info!("全局快捷键已注册: Cmd/Ctrl+Shift+Space");
@@ -108,8 +321,10 @@ pub fn run() {
             // 开发模式：打开 DevTools
             #[cfg(debug_assertions)]
             {
-                if let Some(window) = app.get_webview_window("main") {
-                    window.open_devtools();
+                if runtime_smoke_exit_after_ms.is_none() && runtime_ui_smoke_timeout_ms.is_none() {
+                    if let Some(window) = app.get_webview_window("main") {
+                        window.open_devtools();
+                    }
                 }
             }
 
@@ -121,25 +336,139 @@ pub fn run() {
                 let _ = handle_clone.emit("deep-link-received", event.payload());
             });
 
-            // 启动控制面心跳（后台定时检查）
-            let state_for_heartbeat = shared_state.clone();
-            tauri::async_runtime::spawn(async move {
-                let engine = services::sync_engine::SyncEngine::new(
-                    state_for_heartbeat.clone(),
-                    {
-                        state_for_heartbeat.read().await.backend_url.clone()
-                    },
-                );
+            if let Some(timeout_ms) = runtime_ui_smoke_timeout_ms {
+                let request_handle = handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    let interval_ms = 500;
+                    let mut elapsed_ms = 0;
 
-                loop {
-                    let _ = engine.control_plane_heartbeat().await;
-                    tokio::time::sleep(std::time::Duration::from_secs(60)).await;
-                }
-            });
+                    while elapsed_ms < timeout_ms {
+                        if let Some(window) = request_handle.get_webview_window("main") {
+                            if let Err(error) = window.eval(
+                                r#"
+(() => {
+  const root = document.getElementById('root');
+  const bodyText = (document.body?.innerText || '').trim();
+  const payload = {
+    bodyTextLength: bodyText.length,
+    hasRoot: Boolean(root),
+    platform: document.documentElement.getAttribute('data-platform'),
+    rootChildCount: root ? root.childElementCount : 0,
+    title: document.title,
+    hasTauriInvoke: Boolean(window.__TAURI_INTERNALS__ && typeof window.__TAURI_INTERNALS__.invoke === 'function')
+  };
+  if (payload.hasTauriInvoke) {
+    window.__TAURI_INTERNALS__.invoke('desktop_runtime_ui_smoke_report', { payload }).catch(() => {});
+  }
+})();
+"#,
+                            ) {
+                                eprintln!(
+                                    "desktop runtime UI smoke webview probe eval failed: elapsed_ms={elapsed_ms}, error={error}"
+                                );
+                            }
+                        }
+                        println!(
+                            "desktop runtime UI smoke webview probe emitted: elapsed_ms={elapsed_ms}"
+                        );
+                        tokio::time::sleep(std::time::Duration::from_millis(interval_ms)).await;
+                        elapsed_ms += interval_ms;
+                    }
+
+                    eprintln!("desktop runtime UI smoke timed out: timeout_after_ms={timeout_ms}");
+                    exit_runtime_smoke(&request_handle, 1);
+                });
+            } else if let Some(exit_after_ms) = runtime_smoke_exit_after_ms {
+                let smoke_handle = handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(std::time::Duration::from_millis(exit_after_ms)).await;
+                    println!("desktop runtime smoke exiting: exit_after_ms={exit_after_ms}");
+                    exit_runtime_smoke(&smoke_handle, 0);
+                });
+            } else {
+                // 启动控制面心跳（后台定时检查）
+                let state_for_heartbeat = shared_state.clone();
+                tauri::async_runtime::spawn(async move {
+                    let engine =
+                        services::sync_engine::SyncEngine::new(state_for_heartbeat.clone(), {
+                            state_for_heartbeat.read().await.backend_url.clone()
+                        });
+
+                    loop {
+                        let _ = engine.control_plane_heartbeat().await;
+                        tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+                    }
+                });
+            }
 
             log::info!("安心法务客户端启动完成");
             Ok(())
         })
         .run(tauri::generate_context!())
         .expect("安心法务客户端启动失败");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::desktop_runtime_self_test;
+
+    #[test]
+    fn runtime_self_test_reports_local_db_contract() {
+        let report = desktop_runtime_self_test();
+
+        assert_eq!(report.app, "anxin-legal-desktop");
+        assert_eq!(report.local_db_url, "sqlcipher:anxin_local.db");
+        assert_eq!(report.migration_count, 1);
+        assert_eq!(report.migration_versions, vec![1]);
+        assert_eq!(report.required_tables_present.len(), 8);
+        assert!(report.sync_retry_schema_present);
+    }
+
+    #[test]
+    fn runtime_self_test_reports_secure_sqlite_contract() {
+        let report = desktop_runtime_self_test();
+
+        assert!(report.sqlite_security.encrypted);
+        assert!(report.sqlite_security.keyring_backed);
+        assert!(!report.sqlite_security.release_blocking);
+    }
+
+    #[test]
+    fn runtime_smoke_options_are_explicitly_timed() {
+        let options = super::DesktopRunOptions::runtime_smoke(1500);
+
+        assert_eq!(options.runtime_smoke_exit_after_ms, Some(1500));
+        assert_eq!(options.runtime_ui_smoke_timeout_ms, None);
+    }
+
+    #[test]
+    fn runtime_ui_smoke_options_are_explicitly_timed() {
+        let options = super::DesktopRunOptions::runtime_ui_smoke(10_000);
+
+        assert_eq!(options.runtime_smoke_exit_after_ms, None);
+        assert_eq!(options.runtime_ui_smoke_timeout_ms, Some(10_000));
+    }
+
+    #[test]
+    fn runtime_ui_smoke_payload_requires_rendered_tauri_root() {
+        let ready_payload = serde_json::json!({
+            "hasRoot": true,
+            "platform": "tauri-macos",
+            "rootChildCount": 1,
+            "title": "安心法务"
+        });
+        let missing_platform = serde_json::json!({
+            "hasRoot": true,
+            "platform": "web",
+            "rootChildCount": 1,
+            "title": "安心法务"
+        });
+
+        assert!(super::desktop_runtime_ui_smoke_payload_ready(
+            &ready_payload
+        ));
+        assert!(!super::desktop_runtime_ui_smoke_payload_ready(
+            &missing_platform
+        ));
+    }
 }

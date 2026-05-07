@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 阿里云短信服务 (Dysmsapi)
 
@@ -16,7 +15,7 @@ SDK 文档：https://help.aliyun.com/document_detail/419273.html
 """
 
 import json
-from typing import Optional
+from typing import Any
 
 from loguru import logger
 
@@ -26,10 +25,10 @@ from src.core.config import settings
 class SMSService:
     """阿里云短信服务"""
 
-    _client = None
+    _client: Any | None = None
 
     @classmethod
-    def _get_client(cls):
+    def _get_client(cls) -> Any | None:
         """懒加载阿里云短信客户端"""
         if cls._client is not None:
             return cls._client

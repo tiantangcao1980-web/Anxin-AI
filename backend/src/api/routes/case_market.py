@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 案源市场 API (V2 架构)
 
@@ -6,21 +5,46 @@
 服务方端：浏览案源、提交投标、查看接单记录
 """
 
-from typing import Optional, List
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import select, func, and_, or_
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
 from src.core.deps import get_current_user_required
 from src.core.responses import UnifiedResponse
+from src.models.case_market import BidStatus, CaseRequest, LawyerBid, RequestStatus
 from src.models.user import User
-from src.models.case_market import CaseRequest, LawyerBid, RequestStatus, BidStatus
 
 router = APIRouter(prefix="/case-market", tags=["案源市场"])
+
+
+def _reject_local_market_mode(request: Request) -> None:
+    mode = (request.headers.get("X-Privacy-Mode") or "").lower()
+    if mode == "local":
+        raise HTTPException(
+            status_code=403,
+            detail="本地模式不支持案源市场，请切换到 hybrid/cloud 模式后重试",
+        )
+
+
+def _extract_conflict_party_names(req: CaseRequest) -> list[str]:
+    names: list[str] = []
+    for tag in req.tags or []:
+        if isinstance(tag, str):
+            names.append(tag)
+    extra = req.extra_data or {}
+    if isinstance(extra, dict):
+        for item in extra.get("parties", []):
+            if isinstance(item, dict) and item.get("name"):
+                names.append(str(item["name"]))
+            elif isinstance(item, str):
+                names.append(item)
+    names.append(req.title)
+    return [name.strip() for name in names if isinstance(name, str) and name.strip()]
 
 
 # ===== 请求模型 =====
@@ -30,22 +54,22 @@ class PublishRequestBody(BaseModel):
     description: str = Field(..., min_length=10)
     legal_area: str = Field(..., min_length=1, max_length=50)
     urgency: str = Field("normal", pattern=r"^(urgent|normal|flexible)$")
-    budget_min: Optional[float] = None
-    budget_max: Optional[float] = None
-    location: Optional[str] = None
+    budget_min: float | None = None
+    budget_max: float | None = None
+    location: str | None = None
     is_anonymous: bool = True
-    tags: Optional[List[str]] = None
+    tags: list[str] | None = None
 
 
 class SubmitBidBody(BaseModel):
     proposal: str = Field(..., min_length=10)
-    quoted_price: Optional[float] = None
-    estimated_days: Optional[int] = Field(None, ge=1)
+    quoted_price: float | None = None
+    estimated_days: int | None = Field(None, ge=1)
 
 
 class RatingBody(BaseModel):
     rating: int = Field(..., ge=1, le=5)
-    comment: Optional[str] = None
+    comment: str | None = None
 
 
 # ===== 需求方端 API =====
@@ -53,10 +77,12 @@ class RatingBody(BaseModel):
 @router.post("/requests")
 async def publish_request(
     body: PublishRequestBody,
+    request: Request,
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """发布法律需求到案源市场"""
+    _reject_local_market_mode(request)
     req = CaseRequest(
         user_id=user.id,
         org_id=getattr(user, 'org_id', None),
@@ -70,7 +96,7 @@ async def publish_request(
         is_anonymous=body.is_anonymous,
         tags=body.tags,
         status=RequestStatus.PUBLISHED,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+        expires_at=datetime.now(UTC) + timedelta(days=30),
     )
     db.add(req)
     await db.flush()
@@ -80,12 +106,12 @@ async def publish_request(
 
 @router.get("/requests/mine")
 async def list_my_requests(
-    status: Optional[str] = Query(None),
+    status: str | None = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=50),
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """查看我发布的需求列表"""
     query = select(CaseRequest).where(CaseRequest.user_id == user.id)
     if status:
@@ -109,7 +135,7 @@ async def list_bids_for_request(
     request_id: str,
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """查看某个需求收到的投标"""
     req = await db.get(CaseRequest, request_id)
     if not req:
@@ -132,7 +158,7 @@ async def accept_bid(
     bid_id: str,
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """接受律师投标"""
     req = await db.get(CaseRequest, request_id)
     if not req or req.user_id != user.id:
@@ -168,20 +194,22 @@ async def accept_bid(
 
 @router.get("/market")
 async def browse_market(
-    legal_area: Optional[str] = Query(None),
-    location: Optional[str] = Query(None),
-    urgency: Optional[str] = Query(None),
+    request: Request,
+    legal_area: str | None = Query(None),
+    location: str | None = Query(None),
+    urgency: str | None = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=50),
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """浏览案源市场（服务方端）"""
+    _reject_local_market_mode(request)
     query = select(CaseRequest).where(
         and_(
             CaseRequest.status == RequestStatus.PUBLISHED,
             CaseRequest.visible_to_market == True,
-            or_(CaseRequest.expires_at == None, CaseRequest.expires_at > datetime.now(timezone.utc)),
+            or_(CaseRequest.expires_at.is_(None), CaseRequest.expires_at > datetime.now(UTC)),
         )
     )
     if legal_area:
@@ -209,13 +237,17 @@ async def browse_market(
 async def submit_bid(
     request_id: str,
     body: SubmitBidBody,
+    request: Request,
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """律师提交投标"""
+    _reject_local_market_mode(request)
     req = await db.get(CaseRequest, request_id)
     if not req or req.status != RequestStatus.PUBLISHED:
         raise HTTPException(404, "需求不存在或已关闭")
+    if req.user_id == user.id:
+        raise HTTPException(403, "不能对自己发布的需求投标")
 
     # 检查是否已投标
     existing = await db.execute(
@@ -230,22 +262,21 @@ async def submit_bid(
     if existing.scalar_one_or_none():
         raise HTTPException(409, "您已经对此需求投标")
 
-    # V2: 利益冲突检查
-    conflict_warning = None
-    try:
-        from src.services.conflict_check_service import ConflictCheckService
-        conflict_svc = ConflictCheckService(db)
-        # 从需求标题/描述中提取当事人名称（简化：用 tags 或标题）
-        party_names = (req.tags or []) + [req.title]
-        conflict_result = await conflict_svc.check_conflict(
-            lawyer_id=user.id,
-            party_names=party_names,
-            org_id=getattr(user, 'org_id', None),
+    from src.services.conflict_check_service import ConflictCheckService
+    conflict_svc = ConflictCheckService(db)
+    conflict_result = await conflict_svc.check_conflict(
+        lawyer_id=user.id,
+        party_names=_extract_conflict_party_names(req),
+        org_id=getattr(user, 'org_id', None),
+    )
+    if conflict_result.has_conflict:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "检测到潜在利益冲突，已阻止投标，请走人工复核",
+                "conflict": conflict_result.to_dict(),
+            },
         )
-        if conflict_result.has_conflict:
-            conflict_warning = conflict_result.to_dict()
-    except Exception as e:
-        pass  # 冲突检查失败不阻断投标
 
     bid = LawyerBid(
         case_request_id=request_id,
@@ -259,19 +290,15 @@ async def submit_bid(
     req.bid_count = (req.bid_count or 0) + 1
     await db.commit()
 
-    response_data = {"id": str(bid.id), "message": "投标已提交"}
-    if conflict_warning:
-        response_data["conflict_warning"] = conflict_warning
-        response_data["message"] = "投标已提交，但检测到潜在利益冲突，请注意审查"
-    return UnifiedResponse.success(data=response_data)
+    return UnifiedResponse.success(data={"id": str(bid.id), "message": "投标已提交"})
 
 
 @router.get("/bids/mine")
 async def list_my_bids(
-    status: Optional[str] = Query(None),
+    status: str | None = Query(None),
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """查看我的投标记录（律师端）"""
     query = select(LawyerBid).where(LawyerBid.lawyer_id == user.id)
     if status:
@@ -289,7 +316,7 @@ async def rate_service(
     body: RatingBody,
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """双向评价"""
     bid = await db.get(LawyerBid, bid_id)
     if not bid:
@@ -311,8 +338,8 @@ async def rate_service(
 
 # ===== 辅助函数 =====
 
-def _request_to_dict(r: CaseRequest, anonymous: bool = False) -> dict:
-    d = {
+def _request_to_dict(r: CaseRequest, anonymous: bool = False) -> dict[str, Any]:
+    d: dict[str, Any] = {
         "id": str(r.id),
         "title": r.title,
         "description": r.description[:200] + ("..." if len(r.description) > 200 else ""),
@@ -333,7 +360,7 @@ def _request_to_dict(r: CaseRequest, anonymous: bool = False) -> dict:
     return d
 
 
-def _bid_to_dict(b: LawyerBid) -> dict:
+def _bid_to_dict(b: LawyerBid) -> dict[str, Any]:
     return {
         "id": str(b.id),
         "case_request_id": str(b.case_request_id),

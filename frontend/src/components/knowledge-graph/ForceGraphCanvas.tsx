@@ -12,6 +12,7 @@ import * as THREE from 'three'
 import SpriteText from 'three-spritetext'
 import { graphCanvasColors, graphNodeColors } from '@/lib/design-tokens'
 import { measureAndCache, truncateToWidth, setFontIfChanged } from './textMeasureCache'
+import { createGraphRenderPlan, GRAPH_RENDER_LIMITS } from './graphPerformance'
 
 // 节点类型配置（颜色 + 发光 + 图标 + 中文标签）
 const NODE_CONFIG: Record<string, { color: string; emissive: string; char: string; label: string }> = {
@@ -187,11 +188,29 @@ export const ForceGraphCanvas = forwardRef<ForceGraphCanvasHandle, Props>(functi
     return () => observer.disconnect()
   }, [])
 
-  // 数据转换
-  const fgData = useMemo(
+  const rawFgData = useMemo(
     () => toFGData(nodes, edges, activeTypes),
     [nodes, edges, activeTypes]
   )
+
+  const renderPlan = useMemo(
+    () => createGraphRenderPlan(rawFgData.nodes, rawFgData.links, {
+      maxNodes: GRAPH_RENDER_LIMITS.maxNodes,
+      maxLinks: GRAPH_RENDER_LIMITS.maxLinks,
+      selectedNodeId,
+    }),
+    [rawFgData.nodes, rawFgData.links, selectedNodeId]
+  )
+
+  // 数据转换
+  const fgData = useMemo(
+    () => ({ nodes: renderPlan.nodes, links: renderPlan.links }),
+    [renderPlan.nodes, renderPlan.links]
+  )
+
+  const particleCount = renderPlan.isDownsampled ? 0 : 2
+  const warmupTicks = renderPlan.isDownsampled ? 20 : 60
+  const cooldownTicks = renderPlan.isDownsampled ? 80 : 200
 
   // 选中节点的关联节点 ID（用于高亮）
   const highlightIds = useMemo(() => {
@@ -402,7 +421,15 @@ export const ForceGraphCanvas = forwardRef<ForceGraphCanvasHandle, Props>(functi
     : (viewMode === '3d' ? graphCanvasColors.light3d : graphCanvasColors.light2d)
 
   return (
-    <div ref={containerRef} className="w-full h-full relative" style={{ background: bgColor }}>
+    <div
+      ref={containerRef}
+      className="w-full h-full relative"
+      data-testid="knowledge-graph-canvas"
+      data-rendered-nodes={fgData.nodes.length}
+      data-rendered-links={fgData.links.length}
+      data-downsampled={renderPlan.isDownsampled ? 'true' : 'false'}
+      style={{ background: bgColor }}
+    >
       {viewMode === '3d' ? (
         <FG3D
           ref={graphRef}
@@ -418,7 +445,7 @@ export const ForceGraphCanvas = forwardRef<ForceGraphCanvasHandle, Props>(functi
           linkColor={(l: any) => l.color || (isDark ? graphCanvasColors.linkDark : graphCanvasColors.linkLight)}
           linkWidth={1.2}
           linkOpacity={isDark ? 0.5 : 0.6}
-          linkDirectionalParticles={2}
+          linkDirectionalParticles={particleCount}
           linkDirectionalParticleWidth={1.5}
           linkDirectionalParticleColor={() => graphCanvasColors.particle}
           linkDirectionalParticleSpeed={0.004}
@@ -426,8 +453,8 @@ export const ForceGraphCanvas = forwardRef<ForceGraphCanvasHandle, Props>(functi
           enableNodeDrag
           enableNavigationControls
           showNavInfo={false}
-          warmupTicks={60}
-          cooldownTicks={200}
+          warmupTicks={warmupTicks}
+          cooldownTicks={cooldownTicks}
           d3AlphaDecay={0.02}
           d3VelocityDecay={0.3}
         />
@@ -445,14 +472,14 @@ export const ForceGraphCanvas = forwardRef<ForceGraphCanvasHandle, Props>(functi
           onBackgroundClick={() => onSelectNode(null)}
           linkColor={() => isDark ? graphCanvasColors.linkDark : graphCanvasColors.linkLight}
           linkWidth={1.5}
-          linkDirectionalParticles={2}
+          linkDirectionalParticles={particleCount}
           linkDirectionalParticleWidth={2}
           linkDirectionalParticleColor={() => graphCanvasColors.particle}
           linkCanvasObjectMode={() => 'after' as any}
           linkCanvasObject={linkCanvasObject}
           enableNodeDrag
-          warmupTicks={40}
-          cooldownTicks={150}
+          warmupTicks={renderPlan.isDownsampled ? 20 : 40}
+          cooldownTicks={renderPlan.isDownsampled ? 80 : 150}
           d3AlphaDecay={0.025}
           d3VelocityDecay={0.3}
         />

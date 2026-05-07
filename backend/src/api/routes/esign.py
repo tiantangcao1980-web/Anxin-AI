@@ -1,29 +1,59 @@
-# -*- coding: utf-8 -*-
 """
 电子签章 API 路由
 
 提供合同电子签署流程的创建、查询、签署链接获取和 Webhook 回调。
 """
 
-from datetime import datetime
-from typing import Optional
+import json
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from loguru import logger
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.core.deps import get_current_user_required, get_current_user
+from src.core.database import get_db
+from src.core.deps import get_current_user_required
+from src.models.contract import Contract, ContractStatus
 from src.models.user import User
 from src.services.esign_service import (
-    get_esign_provider,
+    ESignProviderAPIError,
+    ESignProviderConfigError,
+    MockESignProvider,
     SignerInfo,
     SignType,
-    FlowStatus,
+    get_esign_provider,
 )
+from src.services.official_webhook_security import (
+    OfficialWebhookVerificationError,
+    verify_esignbao_notification,
+    verify_fadada_notification,
+)
+from src.services.webhook_handler import WebhookBusinessError, handle_verified_webhook
 from src.services.webhook_security import WebhookSecurity
 
 router = APIRouter()
+
+
+async def _parse_webhook_payload(request: Request, body: bytes) -> dict[str, Any]:
+    content_type = request.headers.get("content-type", "")
+    if "application/x-www-form-urlencoded" in content_type or request.headers.get("X-FASC-App-Id"):
+        form = await request.form()
+        biz_content = form.get("bizContent")
+        if isinstance(biz_content, str) and biz_content:
+            payload = json.loads(biz_content)
+            if not isinstance(payload, dict):
+                raise ValueError("bizContent must be a JSON object")
+            payload["eventType"] = request.headers.get("X-FASC-Event") or payload.get("eventType")
+            return payload
+    if not body:
+        return {}
+    payload = json.loads(body)
+    if not isinstance(payload, dict):
+        raise ValueError("webhook body must be a JSON object")
+    return payload
 
 # ========== 请求/响应模型 ==========
 
@@ -31,9 +61,9 @@ router = APIRouter()
 class SignerInput(BaseModel):
     """创建签署流程时的签署人输入"""
     name: str = Field(..., description="签署人姓名/企业名称")
-    id_number: Optional[str] = Field(None, description="身份证号/统一社会信用代码")
-    mobile: Optional[str] = Field(None, description="手机号码")
-    email: Optional[str] = Field(None, description="邮箱")
+    id_number: str | None = Field(None, description="身份证号/统一社会信用代码")
+    mobile: str | None = Field(None, description="手机号码")
+    email: str | None = Field(None, description="邮箱")
     sign_type: str = Field(default="personal", description="签署类型: personal/company")
     sign_order: int = Field(default=0, description="签署顺序，0 表示不限顺序")
 
@@ -43,7 +73,7 @@ class CreateFlowRequest(BaseModel):
     contract_id: str = Field(..., description="合同ID")
     title: str = Field(..., description="签署流程标题")
     signers: list[SignerInput] = Field(..., min_length=1, description="签署人列表")
-    document_url: Optional[str] = Field(None, description="待签署文件URL")
+    document_url: str | None = Field(None, description="待签署文件URL")
     expire_hours: int = Field(default=72, ge=1, le=720, description="过期时间（小时）")
 
 
@@ -53,8 +83,8 @@ class FlowResponse(BaseModel):
     contract_id: str
     status: str
     sign_urls: dict[str, str] = {}
-    created_at: Optional[str] = None
-    expires_at: Optional[str] = None
+    created_at: str | None = None
+    expires_at: str | None = None
 
 
 class FlowStatusResponse(BaseModel):
@@ -62,10 +92,10 @@ class FlowStatusResponse(BaseModel):
     flow_id: str
     contract_id: str
     status: str
-    signers: list[dict] = []
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
-    completed_at: Optional[str] = None
+    signers: list[dict[str, str | None]] = []
+    created_at: str | None = None
+    updated_at: str | None = None
+    completed_at: str | None = None
 
 
 class SignUrlResponse(BaseModel):
@@ -77,13 +107,19 @@ class SignUrlResponse(BaseModel):
 
 class WebhookPayload(BaseModel):
     """Webhook 回调载荷（通用格式，各提供商格式不同）"""
-    flow_id: Optional[str] = None
-    action: Optional[str] = None
-    signer_id: Optional[str] = None
-    status: Optional[str] = None
-    timestamp: Optional[str] = None
+    model_config = ConfigDict(populate_by_name=True)
+
+    flow_id: str | None = None
+    contract_id: str | None = None
+    action: str | None = None
+    signer_id: str | None = None
+    status: str | None = None
+    timestamp: str | None = None
+    event_id: str | None = Field(default=None, alias="eventId")
+    event_type: str | None = Field(default=None, alias="eventType")
+    notify_id: str | None = Field(default=None, alias="notifyId")
     # 预留字段，不同提供商可能有不同字段
-    extra: Optional[dict] = None
+    extra: dict[str, Any] | None = None
 
 
 # ========== API 端点 ==========
@@ -98,9 +134,22 @@ class WebhookPayload(BaseModel):
 async def create_sign_flow(
     req: CreateFlowRequest,
     user: User = Depends(get_current_user_required),
-):
+    db: AsyncSession = Depends(get_db),
+) -> FlowResponse:
     """创建签署流程"""
     provider = get_esign_provider()
+    contract_result = await db.execute(select(Contract).where(Contract.id == req.contract_id))
+    contract = contract_result.scalar_one_or_none()
+    if contract is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="合同不存在",
+        )
+    if contract.status != ContractStatus.APPROVED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="合同必须审批通过后才能发起电签",
+        )
 
     # 构造签署人列表
     signers = []
@@ -122,21 +171,34 @@ async def create_sign_flow(
             document_url=req.document_url,
             expire_hours=req.expire_hours,
         )
+    except ESignProviderConfigError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e),
+        ) from e
+    except ESignProviderAPIError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(e),
+        ) from e
     except NotImplementedError as e:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
             detail=str(e),
-        )
+        ) from e
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
 
     logger.info(
         f"用户 {user.email} 创建签署流程: flow_id={result.flow_id}, "
         f"contract_id={req.contract_id}"
     )
+    contract.esign_flow_id = result.flow_id
+    contract.esign_provider = provider.__class__.__name__
+    await db.commit()
 
     return FlowResponse(
         flow_id=result.flow_id,
@@ -154,17 +216,15 @@ async def create_sign_flow(
     description="列出当前用户相关的签署流程（Mock 模式下返回所有流程）",
 )
 async def list_flows(
-    contract_id: Optional[str] = None,
-    status_filter: Optional[str] = None,
+    contract_id: str | None = None,
+    status_filter: str | None = None,
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """列出签署流程"""
     provider = get_esign_provider()
 
-    # Mock 实现通过内部存储列出
-    from src.services.esign_service import MockESignProvider
     if isinstance(provider, MockESignProvider):
-        flows = []
+        flows: list[dict[str, Any]] = []
         for flow_data in provider._flows.values():
             # 可选按 contract_id 过滤
             if contract_id and flow_data["contract_id"] != contract_id:
@@ -195,24 +255,34 @@ async def list_flows(
 async def get_flow_status(
     flow_id: str,
     user: User = Depends(get_current_user_required),
-):
+) -> FlowStatusResponse:
     """查询签署流程状态"""
     provider = get_esign_provider()
 
     try:
         result = await provider.get_flow_status(flow_id)
+    except ESignProviderConfigError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e),
+        ) from e
+    except ESignProviderAPIError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(e),
+        ) from e
     except NotImplementedError as e:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
             detail=str(e),
-        )
+        ) from e
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
+        ) from e
 
-    signers = []
+    signers: list[dict[str, str | None]] = []
     for s in result.signers_status:
         signers.append({
             "signer_id": s.signer_id,
@@ -244,22 +314,32 @@ async def get_sign_url(
     flow_id: str,
     signer_id: str,
     user: User = Depends(get_current_user_required),
-):
+) -> SignUrlResponse:
     """获取签署链接"""
     provider = get_esign_provider()
 
     try:
         url = await provider.get_sign_url(flow_id, signer_id)
+    except ESignProviderConfigError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e),
+        ) from e
+    except ESignProviderAPIError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(e),
+        ) from e
     except NotImplementedError as e:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
             detail=str(e),
-        )
+        ) from e
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
+        ) from e
 
     return SignUrlResponse(
         flow_id=flow_id,
@@ -277,22 +357,32 @@ async def cancel_flow(
     flow_id: str,
     reason: str = "",
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, str]:
     """取消签署流程"""
     provider = get_esign_provider()
 
     try:
         success = await provider.cancel_flow(flow_id, reason)
+    except ESignProviderConfigError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e),
+        ) from e
+    except ESignProviderAPIError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(e),
+        ) from e
     except NotImplementedError as e:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
             detail=str(e),
-        )
+        ) from e
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
+        ) from e
 
     if not success:
         raise HTTPException(
@@ -310,33 +400,71 @@ async def cancel_flow(
     description="接收电子签章平台的签署状态 Webhook 回调（无需认证）",
 )
 async def esign_webhook(
-    payload: WebhookPayload,
     request: Request,
-):
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
     """
     Webhook 回调端点
 
     接收来自电子签章平台（e签宝/法大大）的签署状态变更通知。
     生产环境应验证回调签名。
     """
-    logger.info(
-        f"[ESign Webhook] 收到回调: flow_id={payload.flow_id}, "
-        f"action={payload.action}, status={payload.status}"
-    )
     signature = request.headers.get("X-ESign-Signature", "")
     timestamp = request.headers.get("X-Webhook-Timestamp")
-    if not WebhookSecurity.verify(
+    body = await request.body()
+    try:
+        webhook_payload = await _parse_webhook_payload(request, body)
+    except (ValueError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=400, detail=f"无效 webhook payload: {exc}") from exc
+
+    logger.info(
+        f"[ESign Webhook] 收到回调: flow_id={webhook_payload.get('flow_id') or webhook_payload.get('flowId')}, "
+        f"action={webhook_payload.get('action')}, status={webhook_payload.get('status')}"
+    )
+    if settings.ESIGN_OFFICIAL_WEBHOOK_ENABLED:
+        try:
+            if request.headers.get("X-FASC-App-Id"):
+                webhook_payload = verify_fadada_notification(
+                    headers=request.headers,
+                    body=body,
+                    app_id=settings.FADADA_APP_ID,
+                    app_secret=settings.FADADA_APP_SECRET,
+                    max_age_seconds=settings.WEBHOOK_SIGNATURE_MAX_AGE_SECONDS,
+                )
+            else:
+                verify_esignbao_notification(
+                    headers=request.headers,
+                    body=body,
+                    query_params=dict(request.query_params),
+                    app_id=settings.ESIGN_BAO_APP_ID,
+                    app_secret=settings.ESIGN_BAO_APP_SECRET,
+                    max_age_seconds=settings.WEBHOOK_SIGNATURE_MAX_AGE_SECONDS,
+                )
+        except OfficialWebhookVerificationError as exc:
+            raise HTTPException(status_code=403, detail=f"电签官方验签失败: {exc}") from exc
+    elif not WebhookSecurity.verify(
         scope="esign",
-        body=await request.body(),
+        body=body,
         signature=signature,
         secret=settings.ESIGN_WEBHOOK_SECRET,
         timestamp=timestamp,
     ):
         raise HTTPException(status_code=403, detail="签名验证失败")
+    try:
+        handle_result = await handle_verified_webhook(
+            db,
+            scope="esign",
+            payload=webhook_payload,
+            body=body,
+        )
+    except WebhookBusinessError as exc:
+        logger.warning(f"[ESign Webhook] 回写失败: {exc}")
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("[ESign Webhook] 回写异常")
+        raise HTTPException(status_code=500, detail="签署状态回写失败") from exc
 
-    # TODO: 根据回调内容更新合同签署状态
-    # 1. 查找对应的合同记录
-    # 2. 更新签署状态
-    # 3. 如果所有方签署完成，自动归档
-
-    return {"code": 0, "message": "ok"}
+    response: dict[str, Any] = {"code": 0, "message": "ok"}
+    if handle_result.result is not None:
+        response["data"] = handle_result.result
+    return response

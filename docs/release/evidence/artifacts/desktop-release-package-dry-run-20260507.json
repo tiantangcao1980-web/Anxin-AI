@@ -1,0 +1,138 @@
+{
+  "generated_at": "2026-05-07T17:38:35.888Z",
+  "mode": "desktop_release_package",
+  "status": "dry_run",
+  "release_evidence_complete": false,
+  "release_ready": false,
+  "release_blockers": [
+    "signing.identity",
+    "notary.credentials",
+    "tauri.signing_identity",
+    "codesign.identities",
+    "release.app.codesign_verify",
+    "release.app.signature_authority"
+  ],
+  "inputs": {
+    "dry_run": true,
+    "skip_build": false,
+    "skip_stapling": false,
+    "bundles": "app,dmg",
+    "target": null,
+    "signing_identity_configured": false
+  },
+  "checks": [
+    {
+      "id": "platform",
+      "label": "macOS release packaging host",
+      "status": "pass",
+      "release_blocking": true,
+      "detail": {
+        "platform": "darwin"
+      }
+    },
+    {
+      "id": "command.cargo",
+      "label": "cargo available",
+      "status": "pass",
+      "release_blocking": true,
+      "detail": {}
+    },
+    {
+      "id": "command.xcrun",
+      "label": "xcrun available",
+      "status": "pass",
+      "release_blocking": true,
+      "detail": {}
+    },
+    {
+      "id": "command.codesign",
+      "label": "codesign available",
+      "status": "pass",
+      "release_blocking": true,
+      "detail": {}
+    },
+    {
+      "id": "command.hdiutil",
+      "label": "hdiutil available",
+      "status": "pass",
+      "release_blocking": true,
+      "detail": {}
+    },
+    {
+      "id": "dmg.hdiutil_create_probe",
+      "label": "hdiutil can create a temporary DMG",
+      "status": "pass",
+      "release_blocking": true,
+      "detail": {
+        "ok": true,
+        "exit_code": 0,
+        "stdout_tail": [
+          "created: /var/folders/nj/gp3tmfq54vl6vkldj7f8f7xc0000gn/T/anxin-hdiutil-probe.ZLmyv2/probe.dmg"
+        ],
+        "stderr_tail": []
+      }
+    },
+    {
+      "id": "signing.identity",
+      "label": "Developer ID signing identity provided",
+      "status": "fail",
+      "release_blocking": true,
+      "detail": {
+        "configured": false
+      }
+    },
+    {
+      "id": "notary.credentials",
+      "label": "Notarization credentials configured",
+      "status": "fail",
+      "release_blocking": true,
+      "detail": {
+        "keychain_profile_configured": false,
+        "apple_id_flow_configured": false,
+        "app_store_connect_api_configured": false
+      }
+    },
+    {
+      "id": "entitlements.aps_environment",
+      "label": "APNs entitlement is production",
+      "status": "pass",
+      "release_blocking": true,
+      "detail": {
+        "aps_environment": "production",
+        "required_for_release": "production"
+      }
+    }
+  ],
+  "commands": [
+    {
+      "command": "bash scripts/desktop-release-preflight.sh --out docs/release/evidence/artifacts/desktop-release-preflight-20260507.json",
+      "exit_code": 0,
+      "status": "pass",
+      "stdout_tail": [
+        "  - tauri.entitlements: pass",
+        "  - tauri.entitlements.aps_environment: pass",
+        "  - codesign.identities: missing",
+        "  - notary.credentials: missing",
+        "  - notary.tool: pass",
+        "  - stapler.tool: pass",
+        "  - release.app.exists: pass",
+        "  - release.app.codesign_verify: missing",
+        "  - release.app.signature_authority: missing",
+        "  - release.app.gatekeeper_assess: pass",
+        "  - release.dmg.exists: pass",
+        "  - support.debug_app.exists: pass",
+        "  - support.debug_runtime_transcript: pass",
+        "  - support.installed_profile_report: pass",
+        "  release_ready: false",
+        "    blocker: tauri.signing_identity",
+        "    blocker: codesign.identities",
+        "    blocker: notary.credentials",
+        "    blocker: release.app.codesign_verify",
+        "    blocker: release.app.signature_authority"
+      ],
+      "stderr_tail": []
+    }
+  ],
+  "preflight_artifact": "docs/release/evidence/artifacts/desktop-release-preflight-20260507.json",
+  "completion_note": "Supporting evidence only. Keep desktop runtime evidence pending until signed/notarized package smoke, signed packaged-profile migration, signed packaged runtime performance, and cross-device continuation artifacts are attached."
+}

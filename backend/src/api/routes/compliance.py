@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 企业合规自检 API
 
@@ -12,23 +11,41 @@
 4. 引导注册/升级获取完整报告
 """
 
-from typing import Optional, List
-from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, Field
 from datetime import datetime
-from loguru import logger
+from typing import Any, Literal, TypedDict
 
-from src.core.database import get_db
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel, Field
+
 from src.core.deps import get_current_user_required
 from src.models.user import User
-from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/compliance-check", tags=["合规自检"])
 
 
 # ===== 行业模板数据 =====
 
-INDUSTRY_TEMPLATES = {
+RiskLevel = Literal["high", "medium", "low"]
+
+
+class ComplianceTemplateItem(TypedDict):
+    id: str
+    question: str
+    risk_level: RiskLevel
+    law_ref: str
+
+
+class ComplianceTemplateCategory(TypedDict):
+    name: str
+    items: list[ComplianceTemplateItem]
+
+
+class ComplianceTemplate(TypedDict):
+    name: str
+    categories: list[ComplianceTemplateCategory]
+
+
+INDUSTRY_TEMPLATES: dict[str, ComplianceTemplate] = {
     "technology": {
         "name": "科技/互联网",
         "categories": [
@@ -137,13 +154,13 @@ class ComplianceAnswer(BaseModel):
 class ComplianceCheckRequest(BaseModel):
     industry: str = Field(..., description="行业: technology/manufacturing/retail")
     company_size: str = Field("small", description="规模: micro/small/medium/large")
-    answers: List[ComplianceAnswer] = Field(..., description="每道题的回答")
+    answers: list[ComplianceAnswer] = Field(..., description="每道题的回答")
 
 
 # ===== API 端点 =====
 
 @router.get("/industries")
-async def list_industries():
+async def list_industries() -> dict[str, list[dict[str, str | int]]]:
     """获取支持的行业列表（无需登录）"""
     return {
         "industries": [
@@ -155,7 +172,7 @@ async def list_industries():
 
 
 @router.get("/checklist/{industry}")
-async def get_checklist(industry: str):
+async def get_checklist(industry: str) -> dict[str, Any]:
     """获取行业合规检查清单（无需登录）"""
     template = INDUSTRY_TEMPLATES.get(industry)
     if not template:
@@ -171,23 +188,22 @@ async def get_checklist(industry: str):
 async def evaluate_compliance(
     req: ComplianceCheckRequest,
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """评估合规状况，生成报告（基础版免费，完整版需登录）"""
     template = INDUSTRY_TEMPLATES.get(req.industry)
     if not template:
         return {"error": "不支持的行业"}
 
     # 收集所有检查项
-    all_items = {}
+    all_items: dict[str, ComplianceTemplateItem] = {}
     for cat in template["categories"]:
         for item in cat["items"]:
             all_items[item["id"]] = item
 
     # 计算评分
-    answer_map = {a.item_id: a.answer for a in req.answers}
     total = len(all_items)
     compliant = sum(1 for a in req.answers if a.answer)
-    non_compliant_items = []
+    non_compliant_items: list[ComplianceTemplateItem] = []
 
     for a in req.answers:
         if not a.answer and a.item_id in all_items:
@@ -220,7 +236,7 @@ async def evaluate_compliance(
         grade_label = "风险较高"
 
     # 基础报告（免费）
-    report = {
+    report: dict[str, Any] = {
         "score": score,
         "grade": grade,
         "grade_label": grade_label,
@@ -257,7 +273,7 @@ async def evaluate_compliance(
 
 class ReportRequest(BaseModel):
     """报告生成请求"""
-    evaluation: dict = Field(..., description="评估结果数据")
+    evaluation: dict[str, Any] = Field(..., description="评估结果数据")
     company_name: str = Field("被检企业", description="企业名称")
 
 
@@ -265,7 +281,7 @@ class ReportRequest(BaseModel):
 async def generate_compliance_report(
     req: ReportRequest,
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """生成合规检查 HTML 报告"""
     from src.services.compliance_service import compliance_service
     result = await compliance_service.generate_report(
@@ -277,10 +293,10 @@ async def generate_compliance_report(
 
 @router.post("/compare")
 async def compare_evaluations(
-    current: dict,
-    previous: dict,
+    current: dict[str, Any],
+    previous: dict[str, Any],
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     """对比两次合规检查结果"""
     from src.services.compliance_service import compliance_service
     result = await compliance_service.compare_evaluations(current, previous)

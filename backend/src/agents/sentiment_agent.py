@@ -2,20 +2,19 @@
 舆情分析智能体
 """
 
-from typing import Any, Dict, List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime
+from typing import Any
 
-from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
+from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
-
 
 _FALLBACK_PROMPT = "你是一位专业的法律舆情分析专家，擅长分析和评估与法律相关的舆情信息。"
 
 
 class SentimentAnalysisAgent(BaseLegalAgent):
     """舆情分析智能体"""
-    
-    def __init__(self):
+
+    def __init__(self) -> None:
         config = AgentConfig(
             name="舆情分析Agent",
             role="舆情分析专家",
@@ -24,16 +23,18 @@ class SentimentAnalysisAgent(BaseLegalAgent):
             tools=["sentiment_analysis", "risk_assessment", "trend_analysis"],
         )
         super().__init__(config)
-    
-    async def process(self, task: Dict[str, Any]) -> AgentResponse:
+
+    async def process(self, task: dict[str, Any]) -> AgentResponse:
         """处理舆情分析任务"""
         description = task.get("description", "")
         context = task.get("context", {})
-        
+        context_text = f"\n背景信息：{context}\n" if context else ""
+
         prompt = f"""
 请分析以下舆情信息：
 
 内容：{description}
+{context_text}
 
 请提供：
 1. 情感分析结果
@@ -43,9 +44,9 @@ class SentimentAnalysisAgent(BaseLegalAgent):
 
 请以结构化的JSON格式输出分析结果。
 """
-        
+
         response = await self.chat(prompt)
-        
+
         return AgentResponse(
             agent_name=self.name,
             content=response,
@@ -54,8 +55,8 @@ class SentimentAnalysisAgent(BaseLegalAgent):
                 {"type": "sentiment_analysis", "description": "舆情分析完成"}
             ]
         )
-    
-    async def analyze_sentiment(self, content: str, keywords: Optional[List[str]] = None) -> Dict[str, Any]:
+
+    async def analyze_sentiment(self, content: str, keywords: list[str] | None = None) -> dict[str, Any]:
         """
         分析文本情感
         
@@ -67,7 +68,7 @@ class SentimentAnalysisAgent(BaseLegalAgent):
             情感分析结果
         """
         keywords_str = ", ".join(keywords) if keywords else "无特定关键词"
-        
+
         prompt = f"""
 请对以下内容进行情感分析：
 
@@ -87,9 +88,9 @@ class SentimentAnalysisAgent(BaseLegalAgent):
     "key_points": ["核心观点1", "核心观点2"]
 }}
 """
-        
+
         response = await self.chat(prompt)
-        
+
         # 解析响应（实际应用中需要更健壮的解析逻辑）
         return {
             "content": content[:200] + "..." if len(content) > 200 else content,
@@ -97,8 +98,8 @@ class SentimentAnalysisAgent(BaseLegalAgent):
             "analyzed_at": datetime.now().isoformat(),
             "agent": self.name
         }
-    
-    async def assess_risk(self, content: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+
+    async def assess_risk(self, content: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
         """
         评估舆情风险
         
@@ -117,7 +118,7 @@ class SentimentAnalysisAgent(BaseLegalAgent):
 - 公司：{context.get('company', '未知')}
 - 历史事件：{context.get('history', '无')}
 """
-        
+
         prompt = f"""
 请评估以下舆情的法律风险：
 
@@ -141,22 +142,22 @@ class SentimentAnalysisAgent(BaseLegalAgent):
     "recommendations": ["建议1", "建议2"]
 }}
 """
-        
+
         response = await self.chat(prompt)
-        
+
         return {
             "content_preview": content[:200] + "..." if len(content) > 200 else content,
             "risk_assessment": response,
             "assessed_at": datetime.now().isoformat(),
             "agent": self.name
         }
-    
+
     async def generate_report(
         self,
-        records: List[Dict[str, Any]],
+        records: list[dict[str, Any]],
         period: str = "daily",
-        focus_keywords: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+        focus_keywords: list[str] | None = None
+    ) -> dict[str, Any]:
         """
         生成舆情分析报告
         
@@ -170,25 +171,25 @@ class SentimentAnalysisAgent(BaseLegalAgent):
         """
         # 汇总统计
         total_count = len(records)
-        
+
         # 情感分布统计
         sentiment_counts = {"positive": 0, "negative": 0, "neutral": 0}
         risk_counts = {"low": 0, "medium": 0, "high": 0, "critical": 0}
-        
+
         for record in records:
             sentiment_type = record.get("sentiment_type", "neutral")
             risk_level = record.get("risk_level", "low")
             sentiment_counts[sentiment_type] = sentiment_counts.get(sentiment_type, 0) + 1
             risk_counts[risk_level] = risk_counts.get(risk_level, 0) + 1
-        
+
         # 构建报告提示
         records_summary = "\n".join([
             f"- {r.get('keyword', '未知')}: {r.get('content', '')[:100]}..."
             for r in records[:20]  # 限制数量
         ])
-        
+
         period_names = {"daily": "日报", "weekly": "周报", "monthly": "月报"}
-        
+
         prompt = f"""
 请生成法律舆情分析{period_names.get(period, '报告')}：
 
@@ -217,9 +218,9 @@ class SentimentAnalysisAgent(BaseLegalAgent):
 
 请以结构化、专业的报告格式输出。
 """
-        
+
         response = await self.chat(prompt)
-        
+
         return {
             "report_type": period,
             "generated_at": datetime.now().isoformat(),
@@ -232,12 +233,12 @@ class SentimentAnalysisAgent(BaseLegalAgent):
             "focus_keywords": focus_keywords or [],
             "agent": self.name
         }
-    
+
     async def detect_trend(
         self,
-        records: List[Dict[str, Any]],
+        records: list[dict[str, Any]],
         keyword: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         检测舆情趋势
         
@@ -249,17 +250,17 @@ class SentimentAnalysisAgent(BaseLegalAgent):
             趋势分析结果
         """
         # 按日期分组统计
-        daily_counts = {}
+        daily_counts: dict[str, int] = {}
         for record in records:
             date = record.get("created_at", "")[:10]  # 取日期部分
             if date:
                 daily_counts[date] = daily_counts.get(date, 0) + 1
-        
+
         trend_data = "\n".join([
             f"- {date}: {count}条"
             for date, count in sorted(daily_counts.items())[-7:]  # 最近7天
         ])
-        
+
         prompt = f"""
 请分析关键词"{keyword}"的舆情趋势：
 
@@ -272,9 +273,9 @@ class SentimentAnalysisAgent(BaseLegalAgent):
 3. 可能的爆发点
 4. 建议关注事项
 """
-        
+
         response = await self.chat(prompt)
-        
+
         return {
             "keyword": keyword,
             "daily_statistics": daily_counts,

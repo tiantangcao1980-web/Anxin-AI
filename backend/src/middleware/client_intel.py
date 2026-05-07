@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 客户端情报中间件（Phase 2）
 
@@ -10,10 +9,14 @@
 
 import base64
 import json
+from collections.abc import Awaitable, Callable
+from typing import Any, cast
 
+from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from loguru import logger
+from starlette.responses import Response
+from starlette.types import ASGIApp
 
 from src.core.config import settings
 
@@ -21,15 +24,17 @@ from src.core.config import settings
 class ClientIntelMiddleware(BaseHTTPMiddleware):
     """客户端情报采集与异常检测"""
 
-    def __init__(self, app):
+    def __init__(self, app: ASGIApp) -> None:
         super().__init__(app)
-        self._redis = None
+        self._redis: Any | None = None
         self._redis_warning_logged = False
 
-    async def _get_redis(self):
+    async def _get_redis(self) -> Any:
         if self._redis is None:
             import redis.asyncio as aioredis
-            self._redis = aioredis.from_url(
+
+            redis_module = cast(Any, aioredis)
+            self._redis = redis_module.from_url(
                 settings.REDIS_URL, encoding="utf-8", decode_responses=True
             )
         return self._redis
@@ -40,9 +45,13 @@ class ClientIntelMiddleware(BaseHTTPMiddleware):
             return forwarded.split(",")[0].strip()
         return request.client.host if request.client else "unknown"
 
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
         risk_score = 0
-        reasons = []
+        reasons: list[str] = []
 
         try:
             client_id = request.headers.get("x-client-id")
@@ -53,13 +62,14 @@ class ClientIntelMiddleware(BaseHTTPMiddleware):
             if bot_signals_raw:
                 try:
                     signals = json.loads(base64.b64decode(bot_signals_raw))
-                    if signals.get("webdriver"):
+                    signal_map = signals if isinstance(signals, dict) else {}
+                    if signal_map.get("webdriver"):
                         risk_score += 20
                         reasons.append("webdriver_detected")
-                    if signals.get("headlessChrome"):
+                    if signal_map.get("headlessChrome"):
                         risk_score += 10
                         reasons.append("headless_chrome")
-                    if signals.get("noPlugins") and signals.get("noLanguages"):
+                    if signal_map.get("noPlugins") and signal_map.get("noLanguages"):
                         risk_score += 10
                         reasons.append("no_plugins_no_languages")
                 except Exception:

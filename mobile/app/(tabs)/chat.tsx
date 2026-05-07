@@ -25,17 +25,11 @@ interface ChatMessage {
   status?: 'sending' | 'sent' | 'error'
 }
 
-// @mock-data FALLBACK
-const welcomeMessage: ChatMessage = {
-  id: 'welcome',
-  role: 'assistant',
-  content:
-    '你好！我是安心法务 AI 助手。我可以帮你解答法律问题、审查合同、分析案件等。请描述你的法律问题，我会尽力为你提供专业建议。\n\n你可以试试问我：\n- 劳动合同纠纷怎么处理？\n- 公司章程需要注意什么？\n- 知识产权侵权如何维权？',
-  created_at: new Date().toISOString(),
-}
+const welcomeText =
+  '你好！我是安心法务 AI 助手。我可以帮你解答法律问题、审查合同、分析案件等。请描述你的法律问题，我会尽力为你提供专业建议。\n\n你可以试试问我：\n- 劳动合同纠纷怎么处理？\n- 公司章程需要注意什么？\n- 知识产权侵权如何维权？'
 
 export default function ChatScreen() {
-  const [messages, setMessages] = useState<ChatMessage[]>([welcomeMessage])
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputText, setInputText] = useState('')
   const [sending, setSending] = useState(false)
   const [conversationId, setConversationId] = useState<string | null>(null)
@@ -140,6 +134,17 @@ export default function ChatScreen() {
     )
   }
 
+  const renderWelcomeMessage = () => (
+    <View style={[styles.messageRow, styles.messageRowAI]}>
+      <View style={styles.avatarAI}>
+        <Ionicons name="sparkles" size={16} color={Colors.primary} />
+      </View>
+      <View style={[styles.messageBubble, styles.bubbleAI]}>
+        <Text style={[styles.messageText, styles.textAI]}>{welcomeText}</Text>
+      </View>
+    </View>
+  )
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
@@ -153,6 +158,7 @@ export default function ChatScreen() {
           data={messages}
           keyExtractor={(item) => item.id}
           renderItem={renderMessage}
+          ListHeaderComponent={renderWelcomeMessage}
           ListFooterComponent={renderTypingIndicator}
           contentContainerStyle={styles.messageList}
           showsVerticalScrollIndicator={false}

@@ -7,6 +7,8 @@
 
 import { useState, useEffect, useCallback, memo } from'react';
 import { icons } from'@/lib/icons';
+import { buildApiHeaders } from'@/lib/api';
+import { getAccessTokenSnapshot } from'@/lib/platform/storage';
 import {
  cardStyle,
  buttonStyle,
@@ -74,11 +76,8 @@ const WORKFLOW_STEPS = [
 const API_BASE = import.meta.env.VITE_API_BASE_URL ||'http://localhost:8003/api/v1';
 
 function getAuthHeaders(): Record<string, string> {
- const token = localStorage.getItem('access_token');
- return {
-'Content-Type':'application/json',
- ...(token ? { Authorization: `Bearer ${token}` } : {}),
- };
+ const token = getAccessTokenSnapshot();
+ return Object.fromEntries(buildApiHeaders(undefined, { token }).entries());
 }
 
 async function apiCreateFlow(

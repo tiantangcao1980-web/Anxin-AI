@@ -2,19 +2,18 @@
 监管合规监测智能体
 """
 
-from typing import Any, Dict
+from typing import Any
 
-from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
+from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
-
 
 _FALLBACK_PROMPT = "你是一位敏锐的监管合规监测专家，专注于跟踪和解读最新的法律法规、监管政策及行业动态。"
 
 
 class RegulatoryMonitorAgent(BaseLegalAgent):
     """监管合规监测智能体"""
-    
-    def __init__(self):
+
+    def __init__(self) -> None:
         config = AgentConfig(
             name="监管监测Agent",
             role="政策分析师",
@@ -23,13 +22,13 @@ class RegulatoryMonitorAgent(BaseLegalAgent):
             tools=["news_search", "regulation_database", "impact_analysis"],
         )
         super().__init__(config)
-    
-    async def process(self, task: Dict[str, Any]) -> AgentResponse:
+
+    async def process(self, task: dict[str, Any]) -> AgentResponse:
         """处理监管监测任务"""
         industry = task.get("industry", "通用")
         region = task.get("region", "中国")
         keywords = task.get("keywords", [])
-        
+
         prompt = f"""
 请针对以下领域进行监管政策监测和解读：
 
@@ -43,10 +42,10 @@ class RegulatoryMonitorAgent(BaseLegalAgent):
 3. **合规义务清单**：企业新增或变更的合规义务。
 4. **行动建议**：企业应采取的应对措施（如制度修订、流程改造）。
 """
-        
+
         # 调用Agent
         response = await self.chat(prompt)
-        
+
         return AgentResponse(
             agent_name=self.name,
             content=response,

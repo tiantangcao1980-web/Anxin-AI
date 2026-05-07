@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 WAF 中间件 — 激活 security_config.py 中已定义的 SQL 注入 / XSS 规则
 
@@ -9,18 +8,18 @@ WAF 中间件 — 激活 security_config.py 中已定义的 SQL 注入 / XSS 规
 - LOG_ONLY 模式仅记录不拦截
 """
 
-import re
 import json
-from typing import List, Tuple
+import re
+from collections.abc import Awaitable, Callable
+from typing import Any
 
+from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import JSONResponse
-from loguru import logger
+from starlette.responses import JSONResponse, Response
 
 from src.core.config import settings
 from src.core.security_config import INPUT_VALIDATION
-
 
 # 白名单路径（不做 WAF 检查）
 _SKIP_PATHS = frozenset({"/health", "/docs", "/redoc", "/openapi.json"})
@@ -29,17 +28,27 @@ _SKIP_PATHS = frozenset({"/health", "/docs", "/redoc", "/openapi.json"})
 class _CompiledRules:
     """启动时预编译的 WAF 规则"""
 
-    def __init__(self):
-        self.sql_patterns: List[Tuple[re.Pattern, str]] = []
-        self.xss_patterns: List[Tuple[re.Pattern, str]] = []
+    def __init__(self) -> None:
+        self.sql_patterns: list[tuple[re.Pattern[str], str]] = []
+        self.xss_patterns: list[tuple[re.Pattern[str], str]] = []
 
-        for p in INPUT_VALIDATION.get("sql_injection_patterns", []):
+        sql_patterns = INPUT_VALIDATION.get("sql_injection_patterns", [])
+        if not isinstance(sql_patterns, list):
+            sql_patterns = []
+        for p in sql_patterns:
+            if not isinstance(p, str):
+                continue
             try:
                 self.sql_patterns.append((re.compile(p, re.IGNORECASE), p))
             except re.error as e:
                 logger.warning(f"WAF: 无法编译 SQL 规则 {p!r}: {e}")
 
-        for p in INPUT_VALIDATION.get("xss_patterns", []):
+        xss_patterns = INPUT_VALIDATION.get("xss_patterns", [])
+        if not isinstance(xss_patterns, list):
+            xss_patterns = []
+        for p in xss_patterns:
+            if not isinstance(p, str):
+                continue
             try:
                 self.xss_patterns.append((re.compile(p, re.IGNORECASE), p))
             except re.error as e:
@@ -64,7 +73,7 @@ def _scan_value(value: str) -> str | None:
     return None
 
 
-def _scan_dict(data: dict, path: str = "") -> str | None:
+def _scan_dict(data: dict[str, Any], path: str = "") -> str | None:
     """递归扫描 dict 中所有字符串值"""
     for key, value in data.items():
         current = f"{path}.{key}" if path else key
@@ -92,7 +101,11 @@ def _scan_dict(data: dict, path: str = "") -> str | None:
 class WAFMiddleware(BaseHTTPMiddleware):
     """Web Application Firewall 中间件"""
 
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
         # 跳过白名单路径
         if request.url.path in _SKIP_PATHS:
             return await call_next(request)

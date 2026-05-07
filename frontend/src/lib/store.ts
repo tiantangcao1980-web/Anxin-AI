@@ -4,6 +4,7 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { getAccessTokenSnapshot, getTokenStorage, setAccessTokenSnapshot } from '@/lib/platform/storage'
 
 // ========== 类型定义 ==========
 
@@ -266,28 +267,30 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       user: null,
-      token: null,
+      token: getAccessTokenSnapshot(),
       isAuthenticated: false,
       setUser: (user) => set({ user, isAuthenticated: !!user }),
       setToken: (token) => {
-        if (token) {
-          localStorage.setItem('access_token', token)
-        } else {
-          localStorage.removeItem('access_token')
-        }
+        setAccessTokenSnapshot(token)
         set({ token })
       },
       login: (user, token) => {
-        localStorage.setItem('access_token', token)
+        setAccessTokenSnapshot(token)
         set({ user, token, isAuthenticated: true })
       },
       logout: () => {
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
+        void getTokenStorage().clearAuth()
         set({ user: null, token: null, isAuthenticated: false })
       },
     }),
-    { name: 'auth-storage' }
+    {
+      name: 'auth-storage',
+      // token 不入 zustand/localStorage 持久化层；Web 端 access token 仅保存在内存。
+      partialize: (state) => ({
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+      }),
+    }
   )
 )
 

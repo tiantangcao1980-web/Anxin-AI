@@ -2,19 +2,18 @@
 知识产权专家智能体
 """
 
-from typing import Any, Dict
+from typing import Any
 
-from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
+from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
-
 
 _FALLBACK_PROMPT = "你是一位知识产权领域的专家律师，精通专利、商标、著作权及商业秘密保护。"
 
 
 class IPSpecialistAgent(BaseLegalAgent):
     """知识产权专家智能体"""
-    
-    def __init__(self):
+
+    def __init__(self) -> None:
         config = AgentConfig(
             name="知识产权Agent",
             role="IP专家",
@@ -23,15 +22,15 @@ class IPSpecialistAgent(BaseLegalAgent):
             tools=["patent_search", "trademark_search", "ip_law_search"],
         )
         super().__init__(config)
-    
-    async def process(self, task: Dict[str, Any]) -> AgentResponse:
+
+    async def process(self, task: dict[str, Any]) -> AgentResponse:
         """处理知识产权任务"""
         query_type = task.get("type", "consultation") # consultation, infringement_check, registration
         details = task.get("details", "")
         context = task.get("context", {})
-        
+
         prompt = ""
-        
+
         if query_type == "infringement_check":
             prompt = f"""
 请进行知识产权侵权初步分析：
@@ -63,10 +62,10 @@ class IPSpecialistAgent(BaseLegalAgent):
 
 请提供专业解答和建议。
 """
-        
+
         # 调用Agent
         response = await self.chat(prompt)
-        
+
         return AgentResponse(
             agent_name=self.name,
             content=response,

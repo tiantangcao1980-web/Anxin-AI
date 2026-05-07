@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from'react';
 import { motion, AnimatePresence } from'framer-motion';
 import { icons } from'@/lib/icons';
-import { contractsApi, DocumentParseResult, QuickReviewResult, ContractReviewStreamEvent, ReviewRiskItem, UploadAndReviewResult } from'@/lib/api';
+import { contractsApi, DocumentParseResult, QuickReviewResult, ContractReviewStreamEvent, ReviewRiskItem, UploadAndReviewResult, ContractVersion, ContractVersionDiff, ContractAttachment } from'@/lib/api';
 import { toast } from'sonner';
 import { PageContainer } from'@/components/ui/PageContainer';
 import { cardStyle, heading, buttonStyle, iconSize, statusBadge, radius, inputStyle } from'@/lib/design-tokens';
@@ -71,6 +71,12 @@ function normalizeFullReviewResult(payload: UploadAndReviewResult): QuickReviewR
  missing_clauses: review.missing_clauses || [],
  contract_id: payload.contract_id,
  };
+}
+
+function formatAttachmentSize(size: number) {
+ if (size < 1024) return `${size} B`;
+ if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+ return `${(size / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function renderContractText(
@@ -172,10 +178,45 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
  const [isSaving, setIsSaving] = useState(false);
  const [isDownloading, setIsDownloading] = useState(false);
  const [isApplying, setIsApplying] = useState(false);
+ const [isVersionLoading, setIsVersionLoading] = useState(false);
+ const [isAttachmentLoading, setIsAttachmentLoading] = useState(false);
+ const [isAttachmentUploading, setIsAttachmentUploading] = useState(false);
  const [appliedCount, setAppliedCount] = useState(0);
+ const [versions, setVersions] = useState<ContractVersion[]>([]);
+ const [versionDiff, setVersionDiff] = useState<ContractVersionDiff | null>(null);
+ const [attachments, setAttachments] = useState<ContractAttachment[]>([]);
 
  const fileInputRef = useRef<HTMLInputElement>(null);
+ const attachmentInputRef = useRef<HTMLInputElement>(null);
  const riskRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+ const loadContractVersions = useCallback(async (targetContractId?: string) => {
+ const id = targetContractId || contractId;
+ if (!id) return;
+ setIsVersionLoading(true);
+ try {
+ const result = await contractsApi.listVersions(id);
+ setVersions(result.versions);
+ } catch {
+ setVersions([]);
+ } finally {
+ setIsVersionLoading(false);
+ }
+ }, [contractId]);
+
+ const loadContractAttachments = useCallback(async (targetContractId?: string) => {
+ const id = targetContractId || contractId;
+ if (!id) return;
+ setIsAttachmentLoading(true);
+ try {
+ const result = await contractsApi.listAttachments(id);
+ setAttachments(result.attachments ?? []);
+ } catch {
+ setAttachments([]);
+ } finally {
+ setIsAttachmentLoading(false);
+ }
+ }, [contractId]);
 
  const handleFileDrop = useCallback((e: React.DragEvent) => {
  e.preventDefault();
@@ -197,6 +238,9 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
  setKeyTerms({});
  setAcceptedRisks(new Set());
  setContractId('');
+ setVersions([]);
+ setVersionDiff(null);
+ setAttachments([]);
  setAppliedCount(0);
 
  try {
@@ -219,6 +263,8 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
  const uploadResult = await contractsApi.uploadAndReview(selectedFile, selectedFile.name);
  const fullReviewResult = normalizeFullReviewResult(uploadResult);
  setContractId(uploadResult.contract_id);
+ void loadContractVersions(uploadResult.contract_id);
+ void loadContractAttachments(uploadResult.contract_id);
  setReviewResult(fullReviewResult);
  setDetectedRisks(fullReviewResult.key_risks);
  setMissingClauses(fullReviewResult.missing_clauses || []);
@@ -244,6 +290,9 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
  setMissingClauses([]);
  setKeyTerms({});
  setAcceptedRisks(new Set());
+ setVersions([]);
+ setVersionDiff(null);
+ setAttachments([]);
  setAppliedCount(0);
 
  let streamRisks: ReviewRiskItem[] = [];
@@ -330,6 +379,8 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
  setDetectedRisks(result.key_risks);
  if (result.contract_id) {
  setContractId(result.contract_id);
+ void loadContractVersions(result.contract_id);
+ void loadContractAttachments(result.contract_id);
  }
  setStep('review');
  } catch (error: any) {
@@ -347,6 +398,9 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
  setDetectedRisks([]);
  setAcceptedRisks(new Set());
  setContractId('');
+ setVersions([]);
+ setVersionDiff(null);
+ setAttachments([]);
  setAppliedCount(0);
  };
 
@@ -390,6 +444,7 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
  if (result.modified_text) {
  setContractText(result.modified_text);
  }
+ await loadContractVersions(contractId);
  } else {
  // Local text replacement for paste-mode / no contractId
  let text = contractText;
@@ -416,6 +471,38 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
  toast.error(error.message ||'应用修改失败');
  } finally {
  setIsApplying(false);
+ }
+ };
+
+ const showVersionDiff = async (fromVersion: number, toVersion: number) => {
+ if (!contractId) return;
+ setIsVersionLoading(true);
+ try {
+ const diff = await contractsApi.diffVersions(contractId, fromVersion, toVersion);
+ setVersionDiff(diff);
+ } catch (error: any) {
+ toast.error(error.message ||'版本对比失败');
+ } finally {
+ setIsVersionLoading(false);
+ }
+ };
+
+ const rollbackVersion = async (version: number) => {
+ if (!contractId) return;
+ if (!window.confirm(`确认回滚到版本 ${version}？`)) return;
+ setIsVersionLoading(true);
+ try {
+ const result = await contractsApi.rollbackVersion(contractId, version, `rollback to v${version}`);
+ setContractText(result.text);
+ setAcceptedRisks(new Set());
+ setAppliedCount(0);
+ setStep('review');
+ await loadContractVersions(contractId);
+ toast.success(`已回滚到版本 ${version}`);
+ } catch (error: any) {
+ toast.error(error.message ||'版本回滚失败');
+ } finally {
+ setIsVersionLoading(false);
  }
  };
 
@@ -448,6 +535,47 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
  toast.error(error.message ||'下载失败');
  } finally {
  setIsDownloading(false);
+ }
+ };
+
+ const handleAttachmentUpload = async (selectedFile?: File) => {
+ if (!contractId) {
+ toast.error('请先上传文档后再添加附件');
+ return;
+ }
+ if (!selectedFile) return;
+ setIsAttachmentUploading(true);
+ try {
+ const attachment = await contractsApi.uploadAttachment(contractId, selectedFile);
+ setAttachments((prev) => [attachment, ...prev.filter((item) => item.id !== attachment.id)]);
+ toast.success('附件已上传');
+ } catch (error: any) {
+ toast.error(error.message ||'附件上传失败');
+ } finally {
+ setIsAttachmentUploading(false);
+ if (attachmentInputRef.current) attachmentInputRef.current.value = '';
+ }
+ };
+
+ const handleAttachmentDownload = async (attachment: ContractAttachment) => {
+ if (!contractId) return;
+ try {
+ await contractsApi.downloadAttachment(contractId, attachment.id);
+ toast.success('附件下载成功');
+ } catch (error: any) {
+ toast.error(error.message ||'附件下载失败');
+ }
+ };
+
+ const handleAttachmentDelete = async (attachment: ContractAttachment) => {
+ if (!contractId) return;
+ if (!window.confirm(`确认删除附件「${attachment.filename}」？`)) return;
+ try {
+ await contractsApi.deleteAttachment(contractId, attachment.id);
+ setAttachments((prev) => prev.filter((item) => item.id !== attachment.id));
+ toast.success('附件已删除');
+ } catch (error: any) {
+ toast.error(error.message ||'附件删除失败');
  }
  };
 
@@ -610,6 +738,195 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
  </div>
  </motion.div>
  );
+
+ const renderVersionPanel = () => {
+ if (!contractId) return null;
+ const sortedVersions = versions.slice().sort((a, b) => b.version - a.version);
+ return (
+ <div className={`${cardStyle.base} !p-0 mt-4 overflow-hidden`}>
+ <div className="px-5 py-3 border-b border-border flex items-center justify-between">
+ <div className="flex items-center gap-2">
+ <icons.ListOrdered className={`${iconSize.sm} text-primary`} />
+ <h3 className={heading.card}>版本时间线</h3>
+ </div>
+ <button
+ onClick={() => loadContractVersions(contractId)}
+ disabled={isVersionLoading}
+ className={`${buttonStyle.ghost} disabled:opacity-50`}
+ title="刷新版本"
+ >
+ {isVersionLoading ? <icons.Loader2 className={`${iconSize.sm} animate-spin`} /> : <icons.RefreshCw className={iconSize.sm} />}
+ </button>
+ </div>
+ <div className="p-4 grid grid-cols-1 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] gap-4">
+ <div className="space-y-2 max-h-64 overflow-auto pr-1">
+ {sortedVersions.length === 0 && (
+ <div className="text-sm text-muted-foreground py-4 text-center">暂无版本</div>
+ )}
+ {sortedVersions.map((version, index) => {
+ const previous = sortedVersions[index + 1];
+ const isLatest = index === 0;
+ return (
+ <div key={version.id} className={`p-3 ${radius.card} border ${isLatest ?'border-primary/30 bg-primary/5' :'border-border bg-background'}`}>
+ <div className="flex items-start justify-between gap-3">
+ <div className="min-w-0">
+ <div className="flex items-center gap-2">
+ <span className="font-medium text-sm text-foreground">v{version.version}</span>
+ {isLatest && <span className={`${statusBadge.info} text-xs px-2 py-0.5`}>当前</span>}
+ </div>
+ <p className="text-xs text-muted-foreground truncate">{version.description || version.source}</p>
+ <p className="text-xs text-muted-foreground">
+ {version.created_at ? new Date(version.created_at).toLocaleString() :'--'}
+ </p>
+ </div>
+ <div className="flex items-center gap-1 flex-shrink-0">
+ {previous && (
+ <button
+ onClick={() => showVersionDiff(previous.version, version.version)}
+ className={`${buttonStyle.ghost} border border-border`}
+ title="对比上一版"
+ >
+ <icons.Eye className={iconSize.sm} />
+ </button>
+ )}
+ {!isLatest && (
+ <button
+ onClick={() => rollbackVersion(version.version)}
+ className={`${buttonStyle.ghost} border border-border text-warning`}
+ title="回滚到此版本"
+ >
+ <icons.RotateCcw className={iconSize.sm} />
+ </button>
+ )}
+ </div>
+ </div>
+ </div>
+ );
+ })}
+ </div>
+ <div className={`min-h-40 ${radius.card} border border-border bg-muted/40 p-3 overflow-auto`}>
+ {!versionDiff ? (
+ <div className="h-full min-h-32 flex items-center justify-center text-sm text-muted-foreground">
+ 选择版本对比
+ </div>
+ ) : (
+ <div className="space-y-3">
+ <div className="flex items-center justify-between text-sm">
+ <span className="font-medium text-foreground">v{versionDiff.from_version} → v{versionDiff.to_version}</span>
+ <span className="text-muted-foreground">{versionDiff.summary.changes} 处变化</span>
+ </div>
+ {versionDiff.changes.length === 0 && (
+ <div className="text-sm text-muted-foreground py-6 text-center">无变化</div>
+ )}
+ {versionDiff.changes.map((change, index) => (
+ <div key={index} className="space-y-2">
+ {change.old_text && (
+ <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+ <p className="text-xs text-destructive mb-1">原版本</p>
+ <p className="text-sm text-destructive whitespace-pre-wrap line-through">{change.old_text}</p>
+ </div>
+ )}
+ {change.new_text && (
+ <div className="p-3 bg-success/10 border border-success/20 rounded-lg">
+ <p className="text-xs text-success mb-1">新版本</p>
+ <p className="text-sm text-success whitespace-pre-wrap">{change.new_text}</p>
+ </div>
+ )}
+ </div>
+ ))}
+ </div>
+ )}
+ </div>
+ </div>
+ </div>
+ );
+ };
+
+ const renderAttachmentPanel = () => {
+ if (!contractId) return null;
+ return (
+ <div className={`${cardStyle.base} !p-0 mt-4 overflow-hidden`}>
+ <div className="px-5 py-3 border-b border-border flex items-center justify-between gap-3">
+ <div className="flex items-center gap-2 min-w-0">
+ <icons.Paperclip className={`${iconSize.sm} text-primary flex-shrink-0`} />
+ <h3 className={`${heading.card} truncate`}>合同附件</h3>
+ <span className="text-xs text-muted-foreground">({attachments.length})</span>
+ </div>
+ <div className="flex items-center gap-2">
+ <button
+ onClick={() => loadContractAttachments(contractId)}
+ disabled={isAttachmentLoading}
+ className={`${buttonStyle.ghost} disabled:opacity-50`}
+ title="刷新附件"
+ >
+ {isAttachmentLoading ? <icons.Loader2 className={`${iconSize.sm} animate-spin`} /> : <icons.RefreshCw className={iconSize.sm} />}
+ </button>
+ <button
+ onClick={() => attachmentInputRef.current?.click()}
+ disabled={isAttachmentUploading}
+ className={`${buttonStyle.secondary} border border-border disabled:opacity-50 flex items-center gap-2`}
+ >
+ {isAttachmentUploading ? <icons.Loader2 className={`${iconSize.sm} animate-spin`} /> : <icons.Upload className={iconSize.sm} />}
+ 上传附件
+ </button>
+ <input
+ ref={attachmentInputRef}
+ type="file"
+ className="hidden"
+ onChange={(event) => void handleAttachmentUpload(event.target.files?.[0])}
+ accept=".pdf,.doc,.docx,.txt,.md,.csv,.xls,.xlsx,.pptx"
+ />
+ </div>
+ </div>
+ <div className="p-4">
+ {isAttachmentLoading && attachments.length === 0 ? (
+ <div className="py-8 flex items-center justify-center text-muted-foreground">
+ <icons.Loader2 className={`${iconSize.md} animate-spin mr-2`} />
+ 加载中
+ </div>
+ ) : attachments.length === 0 ? (
+ <div className="py-8 text-center text-sm text-muted-foreground">
+ <icons.Paperclip className={`${iconSize.xl} mx-auto mb-2 opacity-50`} />
+ 暂无附件
+ </div>
+ ) : (
+ <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+ {attachments.map((attachment) => (
+ <div key={attachment.id} className={`${radius.card} border border-border bg-background p-3 flex items-center gap-3 min-w-0`}>
+ <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+ <icons.FileText className={`${iconSize.sm} text-primary`} />
+ </div>
+ <div className="min-w-0 flex-1">
+ <p className="text-sm font-medium text-foreground truncate">{attachment.filename}</p>
+ <p className="text-xs text-muted-foreground truncate">
+ {formatAttachmentSize(attachment.file_size)}
+ {attachment.created_at ? ` · ${new Date(attachment.created_at).toLocaleString()}` : ''}
+ </p>
+ </div>
+ <div className="flex items-center gap-1 flex-shrink-0">
+ <button
+ onClick={() => void handleAttachmentDownload(attachment)}
+ className={`${buttonStyle.ghost} border border-border`}
+ title="下载附件"
+ >
+ <icons.Download className={iconSize.sm} />
+ </button>
+ <button
+ onClick={() => void handleAttachmentDelete(attachment)}
+ className={`${buttonStyle.ghost} border border-border text-destructive`}
+ title="删除附件"
+ >
+ <icons.Trash2 className={iconSize.sm} />
+ </button>
+ </div>
+ </div>
+ ))}
+ </div>
+ )}
+ </div>
+ </div>
+ );
+ };
 
  const renderReviewStep = () => (
  <motion.div
@@ -851,6 +1168,9 @@ export default function ContractReview({ embedded = false }: { embedded?: boolea
  </div>
  </div>
  </div>
+
+ {renderAttachmentPanel()}
+ {renderVersionPanel()}
  </motion.div>
  );
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 WebSocket 消息处理器模块
 
@@ -10,12 +9,12 @@ WebSocket 消息处理器模块
     各 Handler:      接收 context + data，返回是否已处理（bool）
 """
 
-from src.api.routes.chat_handlers.context import WebSocketContext
 from src.api.routes.chat_handlers.a2ui_handler import handle_a2ui_event
-from src.api.routes.chat_handlers.workspace_handler import handle_workspace_message
 from src.api.routes.chat_handlers.canvas_handler import handle_canvas_message
+from src.api.routes.chat_handlers.context import WebSocketContext
 from src.api.routes.chat_handlers.due_diligence_handler import handle_due_diligence
 from src.api.routes.chat_handlers.rag_handler import handle_rag_query
+from src.api.routes.chat_handlers.workspace_handler import handle_workspace_message
 
 __all__ = [
     "WebSocketContext",

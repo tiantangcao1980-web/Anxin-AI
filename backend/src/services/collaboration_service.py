@@ -9,20 +9,19 @@
 5. 光标同步
 """
 
-import difflib
 import asyncio
-import json
+import difflib
 import uuid
-from datetime import datetime, timezone
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
 from typing import Any, Optional
-from dataclasses import dataclass, asdict, field
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+
 from loguru import logger
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.collaboration import DocumentSession, DocumentEdit, DocumentCollaborator, DocumentSnapshot, SessionStatus
+from src.models.collaboration import DocumentSession, DocumentSnapshot
 from src.models.document import Document
-
 
 # ==================== 数据模型 ====================
 
@@ -32,8 +31,8 @@ class CollaborativeUser:
     id: str
     name: str
     color: str
-    cursor_pos: Optional[int] = None
-    selection: Optional[dict[str, int]] = None  # {from: int, to: int}
+    cursor_pos: int | None = None
+    selection: dict[str, int] | None = None  # {from: int, to: int}
 
 
 @dataclass
@@ -47,7 +46,8 @@ class DocumentOperation:
     length: int = 0
     content: str = ""
     attributes: dict[str, Any] = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    base_version: int = 0
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -60,7 +60,14 @@ class DocumentComment:
     content: str
     position: dict[str, int]  # {from: int, to: int}
     resolved: bool = False
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+
+
+def _operation_to_dict(op: DocumentOperation) -> dict[str, Any]:
+    data = asdict(op)
+    if isinstance(op.timestamp, datetime):
+        data["timestamp"] = op.timestamp.isoformat()
+    return data
 
 
 # ==================== 协作会话管理 ====================
@@ -75,7 +82,7 @@ class CollaborationSession:
         self.comments: dict[str, DocumentComment] = {}
         self.operations: list[DocumentOperation] = []
         self.version = 0
-        self.created_at = datetime.now(timezone.utc)
+        self.created_at = datetime.now(UTC)
         self._lock = asyncio.Lock()
 
     async def add_user(self, user: CollaborativeUser) -> None:
@@ -99,12 +106,15 @@ class CollaborationSession:
         """应用操作到文档"""
         async with self._lock:
             try:
+                op = self._transform_operation(op)
+
                 if op.operation_type == "insert":
                     self.content = self.content[:op.position] + op.content + self.content[op.position:]
                 elif op.operation_type == "delete":
                     self.content = self.content[:op.position] + self.content[op.position + op.length:]
                 elif op.operation_type == "replace":
-                    self.content = self.content[:op.position] + op.content + self.content[op.position + len(op.content):]
+                    replace_length = op.length or len(op.content)
+                    self.content = self.content[:op.position] + op.content + self.content[op.position + replace_length:]
 
                 self.operations.append(op)
                 self.version += 1
@@ -117,6 +127,60 @@ class CollaborationSession:
             except Exception as e:
                 logger.error(f"应用操作失败: {e}")
                 return False
+
+    def _transform_operation(self, op: DocumentOperation) -> DocumentOperation:
+        """把离线客户端基于旧版本的 position 转换到当前文档版本。"""
+        history_start_version = self.version - len(self.operations)
+        if op.base_version < history_start_version:
+            raise ValueError("操作基线版本过旧，无法合并")
+        if op.base_version > self.version:
+            raise ValueError("操作基线版本超前，无法合并")
+
+        pending_ops = self.operations[op.base_version - history_start_version:]
+        position = op.position
+        length = max(0, op.length)
+
+        if op.operation_type == "delete":
+            start = position
+            end = position + length
+            for applied in pending_ops:
+                start = self._transform_position(start, applied, shift_on_equal=True)
+                end = self._transform_position(end, applied, shift_on_equal=False)
+            position = start
+            length = max(0, end - start)
+        else:
+            for applied in pending_ops:
+                position = self._transform_position(position, applied, shift_on_equal=True)
+
+        op.position = max(0, min(position, len(self.content)))
+        op.length = max(0, min(length, len(self.content) - op.position))
+        return op
+
+    @staticmethod
+    def _transform_position(
+        position: int,
+        applied: DocumentOperation,
+        *,
+        shift_on_equal: bool,
+    ) -> int:
+        if applied.operation_type == "insert":
+            should_shift = applied.position < position or (shift_on_equal and applied.position == position)
+            if should_shift:
+                return position + len(applied.content)
+            return position
+
+        if applied.operation_type == "delete":
+            if applied.position < position:
+                return position - min(applied.length, position - applied.position)
+            return position
+
+        if applied.operation_type == "replace":
+            old_length = applied.length or len(applied.content)
+            if applied.position < position:
+                removed_before_position = min(old_length, position - applied.position)
+                return position - removed_before_position + len(applied.content)
+
+        return position
 
     async def add_comment(self, comment: DocumentComment) -> None:
         """添加评论"""
@@ -187,11 +251,11 @@ class CollaborationManager:
                 await doc_session.remove_user(conn["user_id"])
             logger.info(f"连接已注销: session={session_id}")
 
-    def get_session(self, document_id: str) -> Optional[CollaborationSession]:
+    def get_session(self, document_id: str) -> CollaborationSession | None:
         """获取会话"""
         return self.sessions.get(document_id)
 
-    async def broadcast_to_document(self, document_id: str, message: dict[str, Any], exclude_session: Optional[str] = None) -> None:
+    async def broadcast_to_document(self, document_id: str, message: dict[str, Any], exclude_session: str | None = None) -> None:
         """广播消息到文档的所有协作者"""
         for session_id, conn in list(self.websocket_connections.items()):
             if conn["document_id"] == document_id and session_id != exclude_session:
@@ -239,7 +303,7 @@ class CollaborationService:
         if not initial_content:
             result = await self.db.execute(select(Document).where(Document.id == document_id))
             doc = result.scalar_one_or_none()
-            initial_content = doc.extracted_text if doc else ""
+            initial_content = doc.extracted_text or "" if doc else ""
 
         # 获取或创建会话
         session = self.manager.get_or_create_session(document_id, initial_content)
@@ -294,7 +358,8 @@ class CollaborationService:
             position=operation.get("position", 0),
             length=operation.get("length", 0),
             content=operation.get("content", ""),
-            attributes=operation.get("attributes", {})
+            attributes=operation.get("attributes", {}),
+            base_version=operation.get("base_version", operation.get("baseVersion", session.version)),
         )
 
         success = await session.apply_operation(op)
@@ -303,11 +368,11 @@ class CollaborationService:
             # 广播操作
             await self.manager.broadcast_to_document(document_id, {
                 "type": "operation",
-                "operation": asdict(op),
+                "operation": _operation_to_dict(op),
                 "version": session.version
             }, exclude_session=operation.get("session_id"))
 
-            return {"success": True, "version": session.version}
+            return {"success": True, "version": session.version, "content": session.content}
 
         return {"success": False, "error": "操作失败"}
 
@@ -316,7 +381,7 @@ class CollaborationService:
         document_id: str,
         user_id: str,
         position: int,
-        selection: Optional[dict[str, int]] = None
+        selection: dict[str, int] | None = None
     ) -> None:
         """更新光标位置"""
         session = self.manager.get_session(document_id)

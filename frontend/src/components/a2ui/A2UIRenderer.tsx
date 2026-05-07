@@ -136,9 +136,22 @@ const ComponentRenderer = memo(function ComponentRenderer({
       return <FeedbackCard component={component as any} onEvent={onEvent} />;
     case 'plugin-container':
       return <PluginContainer component={component as any} onEvent={onEvent} />;
-    default:
-      console.warn('[A2UI] Unknown component type:', (component as any).type);
-      return null;
+    default: {
+      // V2 修复 (TASK-04 P0-3)：未知组件类型不再静默 return null（layout 抽格、用户无感知），
+      // 改为渲染"待支持"占位卡，提示客户端可能需要升级或服务器返回了未知字段。
+      const unknownType = (component as any).type ?? 'unknown';
+      console.warn('[A2UI] Unknown component type:', unknownType);
+      return (
+        <div
+          className="a2ui-unknown-component rounded-md border border-dashed border-warning/40 bg-warning/5 px-3 py-2 text-xs text-muted-foreground"
+          data-component-type={unknownType}
+        >
+          <span className="font-medium text-warning">待支持的组件</span>
+          <span className="ml-2 opacity-70">{unknownType}</span>
+          <span className="ml-2 opacity-50">（请尝试更新客户端）</span>
+        </div>
+      );
+    }
   }
 });
 

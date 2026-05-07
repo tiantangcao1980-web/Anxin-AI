@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Context Compressor — 四层渐进式上下文压缩
 
@@ -16,14 +15,14 @@ Context Compressor — 四层渐进式上下文压缩
 """
 
 import re
-from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime
-from loguru import logger
+from typing import Any
 
+from loguru import logger
 
 # ===== 压缩配置 =====
 
-COMPRESS_CONFIG = {
+COMPRESS_CONFIG: dict[str, Any] = {
     # 各层触发阈值（占最大上下文窗口的比例）
     "micro_threshold": 0.80,     # 80% → MicroCompact
     "auto_threshold": 0.85,      # 85% → AutoCompact
@@ -52,7 +51,7 @@ RE_CASE_NUMBER = re.compile(r'[（(]\d{4}[）)][^，,。]+号')
 class CompressedSegment:
     """压缩段落"""
 
-    def __init__(self, original_tokens: int, compressed_text: str, tier: int):
+    def __init__(self, original_tokens: int, compressed_text: str, tier: int) -> None:
         self.original_tokens = original_tokens
         self.compressed_text = compressed_text
         self.compressed_tokens = len(compressed_text) // 2  # 粗估
@@ -60,7 +59,7 @@ class CompressedSegment:
         self.timestamp = datetime.now()
         self.savings = original_tokens - self.compressed_tokens
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "original_tokens": self.original_tokens,
             "compressed_tokens": self.compressed_tokens,
@@ -81,8 +80,8 @@ class ContextCompressor:
     - 合同条款提取 L0 摘要替代全文
     """
 
-    def __init__(self):
-        self._compress_history: List[Dict] = []  # 压缩历史
+    def __init__(self) -> None:
+        self._compress_history: list[dict[str, Any]] = []  # 压缩历史
         self._total_saved: int = 0
 
     def estimate_tokens(self, text: str) -> int:
@@ -95,9 +94,9 @@ class ContextCompressor:
 
     def should_compress(
         self,
-        messages: List[Dict[str, Any]],
+        messages: list[dict[str, Any]],
         max_context_tokens: int = 200000,
-    ) -> Optional[int]:
+    ) -> int | None:
         """
         检查是否需要压缩，返回应触发的层级
 
@@ -119,10 +118,10 @@ class ContextCompressor:
 
     async def compress(
         self,
-        messages: List[Dict[str, Any]],
+        messages: list[dict[str, Any]],
         tier: int,
         max_context_tokens: int = 200000,
-    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         """
         执行压缩
 
@@ -142,19 +141,19 @@ class ContextCompressor:
 
     async def _micro_compact(
         self,
-        messages: List[Dict[str, Any]],
-    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        messages: list[dict[str, Any]],
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         """
         外科手术式清理：替换旧工具输出为占位符
 
         零 API 调用，只操作本地缓存
         保留最近 N 条消息不动
         """
-        preserve_count = COMPRESS_CONFIG["preserve_recent_messages"]
+        preserve_count = int(COMPRESS_CONFIG["preserve_recent_messages"])
         total_saved = 0
         cleaned_count = 0
 
-        result = []
+        result: list[dict[str, Any]] = []
         cutoff = len(messages) - preserve_count
 
         for i, msg in enumerate(messages):
@@ -204,8 +203,8 @@ class ContextCompressor:
     def _generate_micro_summary(
         self,
         content: str,
-        citations: List[str],
-        cases: List[str],
+        citations: list[str],
+        cases: list[str],
     ) -> str:
         """生成 MicroCompact 摘要"""
         # 保留首段作为上下文
@@ -223,15 +222,15 @@ class ContextCompressor:
 
     async def _auto_compact(
         self,
-        messages: List[Dict[str, Any]],
+        messages: list[dict[str, Any]],
         max_context_tokens: int,
-    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         """
         模型驱动摘要：用 LLM 生成结构化摘要
 
         保留关键上下文：法律引用、用户指令、最近对话
         """
-        preserve_count = COMPRESS_CONFIG["preserve_recent_messages"]
+        preserve_count = int(COMPRESS_CONFIG["preserve_recent_messages"])
         cutoff = len(messages) - preserve_count
 
         old_messages = messages[:cutoff]
@@ -291,44 +290,23 @@ class ContextCompressor:
     async def _llm_summarize(
         self,
         text: str,
-        citations: List[str],
-        cases: List[str],
-        corrections: List[str],
-    ) -> Optional[str]:
+        citations: list[str],
+        cases: list[str],
+        corrections: list[str],
+    ) -> str | None:
         """用 LLM 生成结构化摘要"""
-        try:
-            from src.services.llm_service import llm_service
-
-            prompt = f"""请将以下对话历史压缩为结构化摘要，控制在 2000 字以内。
-
-必须保留的内容：
-1. 法律引用：{', '.join(citations[:10]) if citations else '无'}
-2. 案号：{', '.join(cases[:5]) if cases else '无'}
-3. 用户纠正：{'; '.join(c[:100] for c in corrections[:3]) if corrections else '无'}
-4. 核心任务目标和当前进度
-5. 关键决策和理由
-
-可以丢弃的内容：
-1. 具体的工具输出文本
-2. 中间过程的尝试（只保留最终结论）
-3. 寒暄和确认性回复
-
-对话历史：
-{text[:8000]}
-
-请直接输出摘要，不要解释："""
-
-            result = await llm_service.chat(prompt, max_tokens=3000)
-            return result if result and len(result) > 50 else None
-        except Exception as e:
-            logger.debug(f"LLM 摘要不可用: {e}")
-            return None
+        logger.debug(
+            "LLM 摘要服务未配置，使用规则摘要 "
+            f"(text={len(text)}, citations={len(citations)}, cases={len(cases)}, "
+            f"corrections={len(corrections)})"
+        )
+        return None
 
     def _rule_based_summary(
         self,
-        messages: List[Dict],
-        citations: List[str],
-        cases: List[str],
+        messages: list[dict[str, Any]],
+        citations: list[str],
+        cases: list[str],
     ) -> str:
         """基于规则的摘要（LLM 不可用时的降级方案）"""
         parts = []
@@ -361,8 +339,8 @@ class ContextCompressor:
 
     async def _session_compact(
         self,
-        messages: List[Dict[str, Any]],
-    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        messages: list[dict[str, Any]],
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         """
         会话压缩：激进缩减，只保留核心上下文
 
@@ -409,8 +387,8 @@ class ContextCompressor:
 
     def _reactive_compact(
         self,
-        messages: List[Dict[str, Any]],
-    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        messages: list[dict[str, Any]],
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         """
         最后手段：纯截断，只保留最近 2 条
 
@@ -431,7 +409,7 @@ class ContextCompressor:
 
     # ===== 统计 =====
 
-    def _record_compression(self, stats: Dict):
+    def _record_compression(self, stats: dict[str, Any]) -> None:
         self._compress_history.append({
             **stats,
             "timestamp": datetime.now().isoformat(),
@@ -441,7 +419,7 @@ class ContextCompressor:
         if len(self._compress_history) > 50:
             self._compress_history = self._compress_history[-50:]
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """获取压缩统计"""
         return {
             "total_compressions": len(self._compress_history),

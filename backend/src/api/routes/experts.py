@@ -1,65 +1,66 @@
-# -*- coding: utf-8 -*-
 """
 律师精英路由
 """
 
-from typing import List, Optional
+from typing import Any
+
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
 from src.core.deps import get_current_user_required
 from src.core.responses import UnifiedResponse
+from src.core.schemas import CamelModel
+from src.models.expert import Expert
 from src.models.user import User
 from src.services.expert_service import ExpertService
 
 router = APIRouter()
 
 
-class ExpertCreate(BaseModel):
+class ExpertCreate(CamelModel):
     name: str
-    title: Optional[str] = None
-    specialty: Optional[List[str]] = None
-    yearsOfExperience: int = 0
+    title: str | None = None
+    specialty: list[str] | None = None
+    years_of_experience: int = 0
     rating: float = 0.0
-    casesHandled: int = 0
-    description: Optional[str] = None
-    achievements: Optional[List[str]] = None
+    cases_handled: int = 0
+    description: str | None = None
+    achievements: list[str] | None = None
 
 
-class ExpertUpdate(BaseModel):
-    name: Optional[str] = None
-    title: Optional[str] = None
-    specialty: Optional[List[str]] = None
-    yearsOfExperience: Optional[int] = None
-    rating: Optional[float] = None
-    casesHandled: Optional[int] = None
-    description: Optional[str] = None
-    achievements: Optional[List[str]] = None
+class ExpertUpdate(CamelModel):
+    name: str | None = None
+    title: str | None = None
+    specialty: list[str] | None = None
+    years_of_experience: int | None = None
+    rating: float | None = None
+    cases_handled: int | None = None
+    description: str | None = None
+    achievements: list[str] | None = None
 
 
-class ExpertResponse(BaseModel):
+class ExpertResponse(CamelModel):
     id: str
     name: str
-    title: Optional[str] = None
-    specialty: List[str] = []
-    yearsOfExperience: int = 0
+    title: str | None = None
+    specialty: list[str] = []
+    years_of_experience: int = 0
     rating: float = 0.0
-    casesHandled: int = 0
-    description: Optional[str] = None
-    achievements: List[str] = []
+    cases_handled: int = 0
+    description: str | None = None
+    achievements: list[str] = []
 
 
-def expert_to_response(expert) -> ExpertResponse:
+def expert_to_response(expert: Expert) -> ExpertResponse:
     return ExpertResponse(
         id=expert.id,
         name=expert.name,
         title=expert.title,
         specialty=expert.specialty or [],
-        yearsOfExperience=expert.years_of_experience,
+        years_of_experience=expert.years_of_experience,
         rating=expert.rating,
-        casesHandled=expert.cases_handled,
+        cases_handled=expert.cases_handled,
         description=expert.description,
         achievements=expert.achievements or [],
     )
@@ -67,12 +68,12 @@ def expert_to_response(expert) -> ExpertResponse:
 
 @router.get("/")
 async def list_experts(
-    specialty: Optional[str] = Query(None),
+    specialty: str | None = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     service = ExpertService(db)
     experts, total = await service.list_experts(
         org_id=user.org_id,
@@ -93,15 +94,15 @@ async def create_expert(
     data: ExpertCreate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     service = ExpertService(db)
     expert = await service.create_expert(
         name=data.name,
         title=data.title,
         specialty=data.specialty or [],
-        years_of_experience=data.yearsOfExperience,
+        years_of_experience=data.years_of_experience,
         rating=data.rating,
-        cases_handled=data.casesHandled,
+        cases_handled=data.cases_handled,
         description=data.description,
         achievements=data.achievements or [],
         org_id=user.org_id,
@@ -114,7 +115,7 @@ async def get_expert(
     expert_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     service = ExpertService(db)
     expert = await service.get_expert(expert_id)
     if not expert:
@@ -128,21 +129,21 @@ async def update_expert(
     data: ExpertUpdate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     service = ExpertService(db)
-    update_data = {}
+    update_data: dict[str, Any] = {}
     if data.name is not None:
         update_data["name"] = data.name
     if data.title is not None:
         update_data["title"] = data.title
     if data.specialty is not None:
         update_data["specialty"] = data.specialty
-    if data.yearsOfExperience is not None:
-        update_data["years_of_experience"] = data.yearsOfExperience
+    if data.years_of_experience is not None:
+        update_data["years_of_experience"] = data.years_of_experience
     if data.rating is not None:
         update_data["rating"] = data.rating
-    if data.casesHandled is not None:
-        update_data["cases_handled"] = data.casesHandled
+    if data.cases_handled is not None:
+        update_data["cases_handled"] = data.cases_handled
     if data.description is not None:
         update_data["description"] = data.description
     if data.achievements is not None:
@@ -159,7 +160,7 @@ async def delete_expert(
     expert_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     service = ExpertService(db)
     success = await service.delete_expert(expert_id, org_id=user.org_id)
     if not success:

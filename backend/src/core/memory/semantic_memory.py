@@ -3,12 +3,10 @@
 负责存储长期知识：法规、概念、模板等
 """
 
-import uuid
-import json
 import inspect
-from typing import List, Dict, Any, Optional
+import uuid
 from datetime import datetime
-from loguru import logger
+from typing import Any, cast
 
 from .base import BaseMemoryService
 
@@ -38,12 +36,12 @@ class SemanticMemoryService(BaseMemoryService):
         "faq": "常见问题"
     }
 
-    def __init__(self, vector_store=None, db=None):
+    def __init__(self, vector_store: Any = None, db: Any = None) -> None:
         super().__init__()
         self.vector_store = vector_store
         self.db = db
 
-    async def ensure_initialized(self):
+    async def ensure_initialized(self) -> None:
         """确保向量集合和数据库表存在"""
         if not self._initialized and self.vector_store:
             result = self.vector_store.create_collection(self.COLLECTION_NAME)
@@ -52,7 +50,7 @@ class SemanticMemoryService(BaseMemoryService):
             self._initialized = True
             self._log_info("语义记忆服务初始化完成")
 
-    async def add(self, data: Dict[str, Any]) -> Optional[str]:
+    async def add(self, data: dict[str, Any]) -> str | None:
         """兼容统一记忆接口，转发到 add_knowledge。"""
         return await self.add_knowledge(
             knowledge_type=data.get("knowledge_type", "concept"),
@@ -66,8 +64,8 @@ class SemanticMemoryService(BaseMemoryService):
         knowledge_type: str,
         content: str,
         title: str,
-        metadata: Optional[Dict[str, Any]] = None
-    ) -> Optional[str]:
+        metadata: dict[str, Any] | None = None
+    ) -> str | None:
         """
         添加知识到语义记忆
 
@@ -125,8 +123,8 @@ class SemanticMemoryService(BaseMemoryService):
         self,
         query: str,
         top_k: int = 5,
-        filters: Optional[Dict[str, Any]] = None
-    ) -> List[Dict[str, Any]]:
+        filters: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
         """
         搜索语义记忆
 
@@ -186,7 +184,7 @@ class SemanticMemoryService(BaseMemoryService):
 
         return memories[:top_k]
 
-    async def get(self, knowledge_id: str) -> Optional[Dict[str, Any]]:
+    async def get(self, knowledge_id: str) -> dict[str, Any] | None:
         """获取单个知识"""
         # TODO: 从数据库获取完整记录
         await self.ensure_initialized()
@@ -198,10 +196,11 @@ class SemanticMemoryService(BaseMemoryService):
         )
 
         if results:
-            return results[0].get("metadata")
+            metadata = results[0].get("metadata")
+            return cast(dict[str, Any], metadata) if isinstance(metadata, dict) else None
         return None
 
-    async def update(self, knowledge_id: str, updates: Dict[str, Any]) -> bool:
+    async def update(self, knowledge_id: str, updates: dict[str, Any]) -> bool:
         """更新知识 — 删除旧记录后重新插入"""
         await self.ensure_initialized()
         try:
@@ -215,12 +214,13 @@ class SemanticMemoryService(BaseMemoryService):
 
             # 合并更新并重新插入
             merged = {**old, **updates}
-            await self.store(
-                content=merged.get("content", ""),
-                knowledge_type=merged.get("knowledge_type", "concept"),
+            new_id = await self.add_knowledge(
+                knowledge_type=str(merged.get("knowledge_type", "concept")),
+                title=str(merged.get("title", "")),
+                content=str(merged.get("content", "")),
                 metadata=merged,
             )
-            return True
+            return new_id is not None
         except Exception as e:
             self._log_warning(f"更新语义知识失败: {knowledge_id}, {e}")
             return False
@@ -240,11 +240,9 @@ class SemanticMemoryService(BaseMemoryService):
             self._log_warning(f"删除语义知识失败: {knowledge_id}, {e}")
             return False
 
-    async def _increment_access_count(self, knowledge_id: str):
+    async def _increment_access_count(self, knowledge_id: str) -> None:
         """增加访问计数（非关键路径，失败不影响主流程）"""
         try:
-            from src.services.vector_store import VectorStoreService
-            vs = VectorStoreService()
             # Qdrant支持payload更新，此处为降级实现
             # 正式方案应通过 qdrant_client.set_payload 更新
             pass
@@ -255,7 +253,7 @@ class SemanticMemoryService(BaseMemoryService):
         self,
         concept: str,
         top_k: int = 10
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         获取相关概念 (用于知识图谱关联)
         """
@@ -266,13 +264,13 @@ class SemanticMemoryService(BaseMemoryService):
         )
         return results
 
-    async def get_statistics(self) -> Dict[str, Any]:
+    async def get_statistics(self) -> dict[str, Any]:
         """获取语义记忆统计信息"""
         await self.ensure_initialized()
 
         # TODO: 从数据库获取统计
         return {
             "total_knowledge": 0,
-            "by_type": {k: 0 for k in self.KNOWLEDGE_TYPES.keys()},
+            "by_type": dict.fromkeys(self.KNOWLEDGE_TYPES.keys(), 0),
             "total_accesses": 0
         }

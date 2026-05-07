@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 合规自检服务
 
@@ -8,8 +7,9 @@
 3. 历史对比 — 对比多次检查结果的改善情况
 """
 
-from typing import Dict, Any, Optional, List
 from datetime import datetime
+from typing import Any
+
 from loguru import logger
 
 
@@ -18,9 +18,9 @@ class ComplianceService:
 
     async def generate_report(
         self,
-        evaluation_result: Dict[str, Any],
+        evaluation_result: dict[str, Any],
         company_name: str = "被检企业",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         生成合规检查报告
 
@@ -68,15 +68,19 @@ class ComplianceService:
 
     async def _ai_enhance(
         self,
-        non_compliant: List[Dict],
+        non_compliant: list[dict[str, Any]],
         industry: str,
-    ) -> List[Dict[str, str]]:
+    ) -> list[dict[str, str]]:
         """调用 LLM 生成专业整改建议"""
         if not non_compliant:
             return []
 
         try:
-            from src.services.llm_service import llm_service
+            from src.services import llm_service as llm_module
+
+            llm_service = getattr(llm_module, "llm_service", None)
+            if llm_service is None:
+                raise RuntimeError("llm_service singleton is not configured")
 
             items_text = "\n".join(
                 f"- [{item.get('risk_level', 'medium')}] {item.get('question', '')}（法规依据：{item.get('law_ref', '')}）"
@@ -96,7 +100,19 @@ class ComplianceService:
             if result:
                 import json
                 try:
-                    return json.loads(result)
+                    parsed = json.loads(result)
+                    if isinstance(parsed, list):
+                        suggestions: list[dict[str, str]] = []
+                        for item in parsed:
+                            if isinstance(item, dict):
+                                suggestions.append(
+                                    {
+                                        "item_id": str(item.get("item_id", "")),
+                                        "suggestion": str(item.get("suggestion", "")),
+                                    }
+                                )
+                        if suggestions:
+                            return suggestions
                 except json.JSONDecodeError:
                     pass
         except Exception as e:
@@ -118,9 +134,9 @@ class ComplianceService:
         score: int,
         grade: str,
         grade_label: str,
-        risk_summary: Dict,
-        non_compliant: List[Dict],
-        recommendations: List[str],
+        risk_summary: dict[str, Any],
+        non_compliant: list[dict[str, Any]],
+        recommendations: list[str],
         generated_at: str,
     ) -> str:
         """渲染 HTML 合规报告"""
@@ -189,9 +205,9 @@ th {{ background: #F2F2F7; padding: 10px 8px; text-align: left; font-weight: 600
 
     async def compare_evaluations(
         self,
-        current: Dict[str, Any],
-        previous: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        current: dict[str, Any],
+        previous: dict[str, Any],
+    ) -> dict[str, Any]:
         """对比两次合规检查结果"""
         current_score = current.get("score", 0)
         previous_score = previous.get("score", 0)

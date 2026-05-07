@@ -72,10 +72,7 @@ pub async fn set_user_token(
 
 /// 设置后端 URL
 #[tauri::command]
-pub async fn set_backend_url(
-    url: String,
-    state: State<'_, SharedAppState>,
-) -> Result<(), String> {
+pub async fn set_backend_url(url: String, state: State<'_, SharedAppState>) -> Result<(), String> {
     let mut s = state.write().await;
     s.backend_url = url;
     Ok(())

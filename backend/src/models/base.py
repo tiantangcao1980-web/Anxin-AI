@@ -2,18 +2,18 @@
 ???????
 """
 
-from datetime import datetime
-from typing import Any
 import enum as _enum
 import uuid
+from datetime import datetime
+from typing import Any
 
-from sqlalchemy import DateTime, func, String, TypeDecorator, CHAR
+from sqlalchemy import CHAR, DateTime, TypeDecorator, func
 from sqlalchemy import Enum as _SAEnum
-from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
-def ValueEnum(enum_cls: type[_enum.Enum], **kwargs: Any):
+def value_enum(enum_cls: type[_enum.Enum], **kwargs: Any) -> Any:
     """
     统一的 Enum 列类型 — 使用 enum.value（小写）而非 enum.name（大写）写入 DB，
     与 PostgreSQL 已创建的小写枚举类型匹配。
@@ -22,20 +22,23 @@ def ValueEnum(enum_cls: type[_enum.Enum], **kwargs: Any):
     return _SAEnum(enum_cls, **kwargs)
 
 
-class GUID(TypeDecorator):
+ValueEnum = value_enum  # noqa: N816
+
+
+class GUID(TypeDecorator[str]):
     """Platform-independent GUID type.
     Uses PostgreSQL's UUID type, otherwise uses CHAR(36), storing as string.
     """
     impl = CHAR
     cache_ok = True
 
-    def load_dialect_impl(self, dialect):
+    def load_dialect_impl(self, dialect: Any) -> Any:
         if dialect.name == 'postgresql':
-            return dialect.type_descriptor(PostgreSQLUUID(as_uuid=False))
+            return dialect.type_descriptor(postgresql.UUID(as_uuid=False))
         else:
             return dialect.type_descriptor(CHAR(36))
 
-    def process_bind_param(self, value, dialect):
+    def process_bind_param(self, value: Any, dialect: Any) -> str | None:
         if value is None:
             return value
         elif dialect.name == 'postgresql':
@@ -46,7 +49,7 @@ class GUID(TypeDecorator):
             else:
                 return str(value)
 
-    def process_result_value(self, value, dialect):
+    def process_result_value(self, value: Any, dialect: Any) -> str | None:
         if value is None:
             return value
         else:
@@ -58,13 +61,13 @@ class GUID(TypeDecorator):
 
 class Base(DeclarativeBase):
     """SQLAlchemy ??"""
-    
+
     id: Mapped[str] = mapped_column(
         GUID(),
         primary_key=True,
         default=lambda: str(uuid.uuid4()),
     )
-    
+
     def to_dict(self) -> dict[str, Any]:
         """?????"""
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
@@ -72,7 +75,7 @@ class Base(DeclarativeBase):
 
 class TimestampMixin:
     """??????"""
-    
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

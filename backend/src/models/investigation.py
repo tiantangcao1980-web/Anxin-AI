@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 调查持久化模型 — Investigation Model (v3)
 
@@ -9,12 +8,13 @@
 - 用户偏好（越用越聪明）
 """
 
-from typing import Optional, List
-from sqlalchemy import String, Text, JSON, Integer, Float, Boolean, ForeignKey, Index
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 import enum
+from typing import Any
 
-from src.models.base import Base, TimestampMixin, GUID
+from sqlalchemy import JSON, Boolean, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy.orm import Mapped, mapped_column
+
+from src.models.base import GUID, Base, TimestampMixin
 
 
 class InvestigationStatus(str, enum.Enum):
@@ -46,37 +46,37 @@ class Investigation(Base, TimestampMixin):
         nullable=False,
         default=InvestigationStatus.PENDING.value,
     )
-    user_id: Mapped[Optional[str]] = mapped_column(
+    user_id: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
 
     # 调查结果 (JSON)
-    basic_info: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    litigation: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    credit: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    risk: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    relations: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    basic_info: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    litigation: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    credit: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    risk: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    relations: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     # 综合报告
-    report_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    report_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     risk_level: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
         default=InvestigationRiskLevel.UNKNOWN.value,
     )
-    risk_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    risk_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Agent 协同元数据
-    agent_metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    consensus_result: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    conflicts: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    agent_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    consensus_result: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    conflicts: Mapped[list[Any] | None] = mapped_column(JSON, nullable=True)
 
     # v2: 深度研究 & 论坛数据
-    research_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    forum_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    stages_completed: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    research_data: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    forum_data: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    stages_completed: Mapped[list[Any] | None] = mapped_column(JSON, nullable=True)
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         d = super().to_dict()
         d["created_at"] = str(d.get("created_at", ""))
         d["updated_at"] = str(d.get("updated_at", ""))
@@ -101,10 +101,10 @@ class InvestigationSnapshot(Base, TimestampMixin):
     )
 
     company_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    user_id: Mapped[Optional[str]] = mapped_column(
+    user_id: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
-    investigation_id: Mapped[Optional[str]] = mapped_column(
+    investigation_id: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("investigations.id", ondelete="SET NULL"), nullable=True
     )
 
@@ -112,21 +112,21 @@ class InvestigationSnapshot(Base, TimestampMixin):
     snapshot_time: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
 
     # 核心数据快照
-    basic_info: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    litigation: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    credit: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    risk: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    relations: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    basic_info: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    litigation: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    credit: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    risk: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    relations: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     # 风险指标快照（方便快速查询趋势）
-    risk_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    risk_level: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    risk_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    risk_level: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     # 与上一快照的差异摘要
-    diff_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    changes_detected: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    diff_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    changes_detected: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         d = super().to_dict()
         d["created_at"] = str(d.get("created_at", ""))
         d["updated_at"] = str(d.get("updated_at", ""))
@@ -148,17 +148,22 @@ class SearchCache(Base, TimestampMixin):
     __table_args__ = (
         Index("ix_cache_key_source", "cache_key", "data_source"),
         Index("ix_cache_company", "company_name"),
+        Index("ix_cache_org_key_source", "org_id", "cache_key", "data_source"),
+        Index("ix_cache_org_company", "org_id", "company_name"),
     )
 
     # 缓存键（company_name + data_source + query_hash）
     cache_key: Mapped[str] = mapped_column(String(512), nullable=False, index=True)
+    org_id: Mapped[str | None] = mapped_column(
+        GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     company_name: Mapped[str] = mapped_column(String(255), nullable=False)
     data_source: Mapped[str] = mapped_column(String(50), nullable=False)  # web_search / knowledge_base / business_registry / llm_analysis
-    query_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    query_text: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # 缓存数据
-    raw_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    parsed_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    raw_data: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    parsed_data: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     result_count: Mapped[int] = mapped_column(Integer, default=0)
 
     # 缓存控制
@@ -166,7 +171,7 @@ class SearchCache(Base, TimestampMixin):
     hit_count: Mapped[int] = mapped_column(Integer, default=0)
     is_valid: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         d = super().to_dict()
         d["created_at"] = str(d.get("created_at", ""))
         d["updated_at"] = str(d.get("updated_at", ""))
@@ -196,12 +201,12 @@ class UserInvestigationPreference(Base, TimestampMixin):
 
     # 调查偏好统计
     total_investigations: Mapped[int] = mapped_column(Integer, default=0)
-    favorite_companies: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)  # [{name, count, last_investigated}]
-    frequent_industries: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)  # [{industry, count}]
-    frequent_regions: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)  # [{region, count}]
+    favorite_companies: Mapped[list[Any] | None] = mapped_column(JSON, nullable=True)  # [{name, count, last_investigated}]
+    frequent_industries: Mapped[list[Any] | None] = mapped_column(JSON, nullable=True)  # [{industry, count}]
+    frequent_regions: Mapped[list[Any] | None] = mapped_column(JSON, nullable=True)  # [{region, count}]
 
     # 风险关注偏好（哪些维度用户更关注）
-    risk_focus_weights: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    risk_focus_weights: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     # 例: {"litigation_risk": 0.9, "credit_risk": 0.8, "operation_risk": 0.5}
 
     # 调查参数偏好
@@ -212,14 +217,14 @@ class UserInvestigationPreference(Base, TimestampMixin):
     max_search_rounds: Mapped[int] = mapped_column(Integer, default=3)
 
     # 用户行为画像
-    avg_investigation_duration: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 平均每次调查耗时（秒）
-    most_viewed_sections: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # 最常查看的模块
-    custom_dimensions: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)  # 用户自定义的调查维度
+    avg_investigation_duration: Mapped[float | None] = mapped_column(Float, nullable=True)  # 平均每次调查耗时（秒）
+    most_viewed_sections: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)  # 最常查看的模块
+    custom_dimensions: Mapped[list[Any] | None] = mapped_column(JSON, nullable=True)  # 用户自定义的调查维度
 
     # 搜索历史关键词（用于智能补全）
-    search_keywords_history: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    search_keywords_history: Mapped[list[Any] | None] = mapped_column(JSON, nullable=True)
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         d = super().to_dict()
         d["created_at"] = str(d.get("created_at", ""))
         d["updated_at"] = str(d.get("updated_at", ""))

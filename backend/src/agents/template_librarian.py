@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 模板管理员 Agent
 
@@ -8,17 +7,15 @@
 Harness 设计理念：区分"模板请求"和"生成请求"，避免不必要的 LLM 调用和等待。
 """
 
-import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
 from src.agents.base import AgentResponse
 
-
 # ===== 内置模板注册表 =====
 # 实际生产环境应从数据库/知识库动态加载
-TEMPLATE_CATALOG = [
+TEMPLATE_CATALOG: list[dict[str, Any]] = [
     {
         "id": "tpl_sales_contract",
         "name": "商品买卖合同",
@@ -140,12 +137,12 @@ class TemplateLirarianAgent:
     不调用 LLM，纯规则匹配，响应时间 < 10ms。
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.name = "模板管理员"
         self.role = "template_librarian"
         self.templates = TEMPLATE_CATALOG
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         """返回智能体元信息，保持与其他 Agent 的查询契约一致。"""
         return {
             "name": self.name,
@@ -154,7 +151,7 @@ class TemplateLirarianAgent:
             "tools": ["template_library", "knowledge_base_navigation"],
         }
 
-    async def process(self, task: Dict[str, Any]) -> AgentResponse:
+    async def process(self, task: dict[str, Any]) -> AgentResponse:
         """
         处理模板请求
 
@@ -225,7 +222,7 @@ class TemplateLirarianAgent:
                 ],
             )
 
-    def _match_templates(self, query: str) -> List[Dict[str, Any]]:
+    def _match_templates(self, query: str) -> list[dict[str, Any]]:
         """基于关键词匹配模板"""
         query_lower = query.lower()
         scored = []

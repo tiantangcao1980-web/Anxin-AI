@@ -1,7 +1,8 @@
+from uuid import uuid4
+
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from uuid import uuid4
 
 from src.core.security import create_access_token
 from src.models.user import Organization, User

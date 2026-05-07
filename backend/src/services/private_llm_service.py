@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 """私有 LLM 检测与配置服务"""
 
-from typing import List, Dict, Any, Optional
+from typing import Any
 
 import httpx
 from loguru import logger
@@ -14,7 +13,7 @@ class PrivateLLMService:
     并提供连接测试、推荐模型和部署指南。
     """
 
-    LOCAL_PROVIDERS: Dict[str, Dict[str, Any]] = {
+    LOCAL_PROVIDERS: dict[str, dict[str, Any]] = {
         "ollama": {"port": 11434, "health": "/api/tags", "name": "Ollama"},
         "vllm": {"port": 8000, "health": "/health", "name": "vLLM"},
         "localai": {"port": 8080, "health": "/readyz", "name": "LocalAI"},
@@ -25,14 +24,14 @@ class PrivateLLMService:
     # 检测
     # ------------------------------------------------------------------
 
-    async def detect_local_llm(self) -> List[Dict[str, Any]]:
+    async def detect_local_llm(self) -> list[dict[str, Any]]:
         """
         扫描本地端口检测运行中的 LLM 服务。
 
         Returns:
             [{ provider, endpoint, status, models }]
         """
-        detected: List[Dict[str, Any]] = []
+        detected: list[dict[str, Any]] = []
 
         async with httpx.AsyncClient(timeout=3) as client:
             for provider_key, info in self.LOCAL_PROVIDERS.items():
@@ -61,8 +60,8 @@ class PrivateLLMService:
     # ------------------------------------------------------------------
 
     async def test_connection(
-        self, endpoint: str, model: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, endpoint: str, model: str | None = None
+    ) -> dict[str, Any]:
         """
         测试连接 + 简单推理测试。
 
@@ -74,7 +73,7 @@ class PrivateLLMService:
         endpoint = endpoint.rstrip("/")
         # 先测试 /v1/models
         models_url = f"{endpoint}/v1/models"
-        model_info: dict = {}
+        model_info: dict[str, Any] = {}
 
         async with httpx.AsyncClient(timeout=10) as client:
             try:
@@ -134,7 +133,7 @@ class PrivateLLMService:
     # 推荐模型
     # ------------------------------------------------------------------
 
-    def get_recommended_models(self) -> List[Dict[str, Any]]:
+    def get_recommended_models(self) -> list[dict[str, Any]]:
         """返回法律场景推荐模型列表"""
         return [
             {
@@ -191,9 +190,9 @@ class PrivateLLMService:
     # 部署指南
     # ------------------------------------------------------------------
 
-    def get_deployment_guide(self, provider: str) -> Dict[str, Any]:
+    def get_deployment_guide(self, provider: str) -> dict[str, Any]:
         """返回指定提供商的部署指南"""
-        guides: Dict[str, Dict[str, Any]] = {
+        guides: dict[str, dict[str, Any]] = {
             "ollama": {
                 "provider": "ollama",
                 "title": "Ollama 本地部署指南",
@@ -313,7 +312,7 @@ class PrivateLLMService:
     @staticmethod
     def _extract_models(
         provider_key: str, resp: httpx.Response
-    ) -> List[str]:
+    ) -> list[str]:
         """从健康检查响应中提取模型列表"""
         try:
             data = resp.json()

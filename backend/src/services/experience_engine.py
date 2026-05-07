@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Experience Engine — 经验积累与持续学习引擎
 
@@ -22,15 +21,29 @@ Experience Engine — 经验积累与持续学习引擎
 """
 
 import hashlib
-import json
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List
-from loguru import logger
+from datetime import datetime
+from typing import Any, TypedDict
 
+from loguru import logger
 
 # ===== 配置 =====
 
-EXPERIENCE_CONFIG = {
+SessionMessage = dict[str, Any]
+StringMap = dict[str, str]
+ExperienceData = dict[str, Any]
+
+
+class ExperienceConfig(TypedDict):
+    min_confidence: float
+    initial_confidence: float
+    confirmed_boost: float
+    contradiction_penalty: float
+    decay_rate_per_day: float
+    max_experiences: int
+    extraction_threshold: int
+
+
+EXPERIENCE_CONFIG: ExperienceConfig = {
     "min_confidence": 0.3,         # 最低置信度（低于此值标记过期）
     "initial_confidence": 0.6,     # 新经验初始置信度
     "confirmed_boost": 0.15,       # 每次确认提升
@@ -65,8 +78,8 @@ class Experience:
         solution: str = "",
         confidence: float = 0.6,
         source: str = "auto",
-        user_id: Optional[str] = None,
-    ):
+        user_id: str | None = None,
+    ) -> None:
         self.id = hashlib.md5(f"{pattern}{context}{datetime.now().isoformat()}".encode()).hexdigest()[:12]
         self.pattern = pattern       # 触发条件
         self.category = category     # 模式类别
@@ -82,25 +95,25 @@ class Experience:
         self.contradicted_count = 0
         self.is_active = True
 
-    def use(self):
+    def use(self) -> None:
         """标记为使用过"""
         self.last_used_at = datetime.now()
         self.use_count += 1
 
-    def confirm(self):
+    def confirm(self) -> None:
         """确认有效，提升置信度"""
         self.confirmed_count += 1
         self.confidence = min(0.95, self.confidence + EXPERIENCE_CONFIG["confirmed_boost"])
         self.last_used_at = datetime.now()
 
-    def contradict(self, new_evidence: str = ""):
+    def contradict(self, new_evidence: str = "") -> None:
         """矛盾，降低置信度"""
         self.contradicted_count += 1
         self.confidence -= EXPERIENCE_CONFIG["contradiction_penalty"]
         if self.confidence < EXPERIENCE_CONFIG["min_confidence"]:
             self.is_active = False
 
-    def decay(self):
+    def decay(self) -> None:
         """日常衰减"""
         days_since = (datetime.now() - self.last_used_at).days
         if days_since > 0:
@@ -108,7 +121,7 @@ class Experience:
             if self.confidence < EXPERIENCE_CONFIG["min_confidence"]:
                 self.is_active = False
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> ExperienceData:
         return {
             "id": self.id,
             "pattern": self.pattern,
@@ -133,32 +146,32 @@ class ExperienceEngine:
     服务重启后自动恢复，不再丢失学习成果。
     """
 
-    def __init__(self):
-        self._store: Dict[str, List[Experience]] = {}  # user_id -> experiences（内存缓存）
+    def __init__(self) -> None:
+        self._store: dict[str, list[Experience]] = {}  # user_id -> experiences（内存缓存）
         self._persistence_enabled = False
         self._try_enable_persistence()
 
-    def _try_enable_persistence(self):
+    def _try_enable_persistence(self) -> None:
         """尝试启用数据库持久化"""
         try:
-            from src.core.database import async_session_maker
             self._persistence_enabled = True
             logger.info("[ExperienceEngine] 数据库持久化已启用")
         except Exception:
             logger.debug("[ExperienceEngine] 数据库不可用，使用内存模式")
 
-    def _get_user_experiences(self, user_id: str) -> List[Experience]:
+    def _get_user_experiences(self, user_id: str) -> list[Experience]:
         if user_id not in self._store:
             self._store[user_id] = []
         return self._store[user_id]
 
-    async def _persist_experience(self, exp: Experience):
+    async def _persist_experience(self, exp: Experience) -> None:
         """将经验持久化到数据库"""
         if not self._persistence_enabled:
             return
         try:
-            from src.core.database import async_session_maker
             from sqlalchemy import text
+
+            from src.core.database import async_session_maker
             async with async_session_maker() as db:
                 await db.execute(
                     text("""
@@ -196,15 +209,16 @@ class ExperienceEngine:
         except Exception as e:
             logger.debug(f"[ExperienceEngine] 持久化失败: {e}")
 
-    async def load_user_experiences(self, user_id: str) -> List[Experience]:
+    async def load_user_experiences(self, user_id: str) -> list[Experience]:
         """从数据库加载用户经验（启动时或首次访问时）"""
         if user_id in self._store and self._store[user_id]:
             return self._store[user_id]
         if not self._persistence_enabled:
             return []
         try:
-            from src.core.database import async_session_maker
             from sqlalchemy import text
+
+            from src.core.database import async_session_maker
             async with async_session_maker() as db:
                 result = await db.execute(
                     text("""
@@ -248,8 +262,8 @@ class ExperienceEngine:
     async def extract_from_session(
         self,
         user_id: str,
-        messages: List[Dict[str, Any]],
-    ) -> List[Experience]:
+        messages: list[SessionMessage],
+    ) -> list[Experience]:
         """
         从会话中自动提取经验模式
 
@@ -258,7 +272,7 @@ class ExperienceEngine:
         if len(messages) < EXPERIENCE_CONFIG["extraction_threshold"]:
             return []
 
-        extracted: List[Experience] = []
+        extracted: list[Experience] = []
 
         # 1. 提取用户纠正模式
         corrections = self._detect_corrections(messages)
@@ -319,9 +333,9 @@ class ExperienceEngine:
         logger.info(f"经验提取完成 (user={user_id}): 新增 {len(extracted)} 条，已持久化")
         return extracted
 
-    def _detect_corrections(self, messages: List[Dict]) -> List[Dict]:
+    def _detect_corrections(self, messages: list[SessionMessage]) -> list[StringMap]:
         """检测用户纠正模式"""
-        corrections = []
+        corrections: list[StringMap] = []
         for i, msg in enumerate(messages):
             if msg.get("role") != "user":
                 continue
@@ -335,14 +349,14 @@ class ExperienceEngine:
                         break
                 corrections.append({
                     "trigger": prev_ai[:100] if prev_ai else "未知触发",
-                    "context": f"AI回复后用户纠正",
+                    "context": "AI回复后用户纠正",
                     "correction": content[:200],
                 })
         return corrections
 
-    def _detect_legal_patterns(self, messages: List[Dict]) -> List[Dict]:
+    def _detect_legal_patterns(self, messages: list[SessionMessage]) -> list[StringMap]:
         """检测法律实务模式"""
-        patterns = []
+        patterns: list[StringMap] = []
         for i, msg in enumerate(messages):
             if msg.get("role") != "assistant":
                 continue
@@ -365,10 +379,10 @@ class ExperienceEngine:
                     })
         return patterns
 
-    def _detect_error_resolutions(self, messages: List[Dict]) -> List[Dict]:
+    def _detect_error_resolutions(self, messages: list[SessionMessage]) -> list[StringMap]:
         """检测错误解决模式"""
-        resolutions = []
-        error_context = None
+        resolutions: list[StringMap] = []
+        error_context: str | None = None
 
         for msg in messages:
             content = msg.get("content", "")
@@ -387,7 +401,7 @@ class ExperienceEngine:
 
         return resolutions
 
-    def _find_similar(self, experiences: List[Experience], new: Experience) -> Optional[Experience]:
+    def _find_similar(self, experiences: list[Experience], new: Experience) -> Experience | None:
         """找相似的已有经验"""
         for exp in experiences:
             if not exp.is_active:
@@ -405,9 +419,9 @@ class ExperienceEngine:
         self,
         user_id: str,
         query: str,
-        category: Optional[str] = None,
+        category: str | None = None,
         top_k: int = 5,
-    ) -> List[Dict]:
+    ) -> list[ExperienceData]:
         """搜索相关经验"""
         experiences = self._get_user_experiences(user_id)
 
@@ -417,10 +431,10 @@ class ExperienceEngine:
             active = [e for e in active if e.category == category]
 
         # 简单关键词匹配评分
-        scored = []
+        scored: list[tuple[Experience, float]] = []
         query_lower = query.lower()
         for exp in active:
-            score = 0
+            score = 0.0
             if query_lower in exp.pattern.lower():
                 score += 3
             if query_lower in exp.context.lower():
@@ -434,7 +448,7 @@ class ExperienceEngine:
 
         scored.sort(key=lambda x: x[1], reverse=True)
 
-        results = []
+        results: list[ExperienceData] = []
         for exp, score in scored[:top_k]:
             exp.use()  # 标记使用
             results.append({**exp.to_dict(), "relevance_score": round(score, 2)})
@@ -443,7 +457,7 @@ class ExperienceEngine:
 
     # ===== 经验反馈 =====
 
-    def confirm_experience(self, user_id: str, experience_id: str):
+    def confirm_experience(self, user_id: str, experience_id: str) -> bool:
         """确认经验有效"""
         for exp in self._get_user_experiences(user_id):
             if exp.id == experience_id:
@@ -451,7 +465,7 @@ class ExperienceEngine:
                 return True
         return False
 
-    def contradict_experience(self, user_id: str, experience_id: str, new_evidence: str = ""):
+    def contradict_experience(self, user_id: str, experience_id: str, new_evidence: str = "") -> bool:
         """标记经验矛盾"""
         for exp in self._get_user_experiences(user_id):
             if exp.id == experience_id:
@@ -472,7 +486,7 @@ class ExperienceEngine:
                 decayed += 1
         return decayed
 
-    def get_stats(self, user_id: str) -> Dict[str, Any]:
+    def get_stats(self, user_id: str) -> dict[str, Any]:
         """获取用户经验统计"""
         experiences = self._get_user_experiences(user_id)
         active = [e for e in experiences if e.is_active]

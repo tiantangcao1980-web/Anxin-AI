@@ -5,9 +5,8 @@
 先检查关键信息是否充足，再决定是否继续走通用智能体流程。
 """
 
-from typing import Dict, Any
 import re
-
+from typing import Any
 
 _CONTRACT_REVIEW_PATTERNS = [
     re.compile(r"(审[查阅看核].{0,8}合同)"),
@@ -34,7 +33,7 @@ _PARTY_MARKERS = ["甲方", "乙方", "原告", "被告", "委托人", "受托�
 _FACT_MARKERS = ["因为", "由于", "未支付", "违约", "欠款", "争议", "金额", "时间", "日期", "事实"]
 
 
-def detect_high_risk_guardrail(message: str) -> Dict[str, Any]:
+def detect_high_risk_guardrail(message: str) -> dict[str, Any]:
     text = (message or "").strip()
     if not text:
         return {"matched": False}

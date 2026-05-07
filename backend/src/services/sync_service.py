@@ -1,25 +1,28 @@
-"""Minimal secure sync service with per-user/device isolation."""
+"""Durable client sync service with per-user/device isolation."""
 
 from __future__ import annotations
 
-import asyncio
 import json
-from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
+from typing import Any
+
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.models.sync import SyncLog
 
 
 @dataclass
 class SyncConflictItem:
     entity_type: str
     entity_id: str
-    local_data: dict
-    remote_data: dict
+    local_data: dict[str, Any]
+    remote_data: dict[str, Any]
     local_timestamp: str
     remote_timestamp: str
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "entity_type": self.entity_type,
             "entity_id": self.entity_id,
@@ -31,222 +34,286 @@ class SyncConflictItem:
 
 
 class SyncService:
-    """In-memory sync store used as a safe starter implementation."""
+    """Append-only sync log used by desktop/mobile clients."""
 
-    def __init__(self) -> None:
-        self._records_by_user: dict[str, list[dict]] = defaultdict(list)
-        self._conflicts_by_user: dict[str, list[SyncConflictItem]] = defaultdict(list)
-        self._server_version_by_user: dict[str, int] = defaultdict(int)
-        self._last_sync_by_device: dict[tuple[str, str], str] = {}
-        self._lock = asyncio.Lock()
+    def __init__(self, db: AsyncSession) -> None:
+        self.db = db
 
-    async def push(self, user_id: str, device_id: str, records: list[dict], last_sync_version: int) -> dict:
+    async def push(
+        self,
+        user_id: str,
+        device_id: str,
+        records: list[dict[str, Any]],
+        last_sync_version: int,
+    ) -> dict[str, Any]:
         accepted = 0
         rejected = 0
-        conflicts: list[dict] = []
+        conflicts: list[dict[str, Any]] = []
+        next_version = await self._current_version(user_id)
 
-        async with self._lock:
-            existing_records = self._records_by_user[user_id]
-
-            for record in records:
-                latest_remote = next(
-                    (
-                        item for item in reversed(existing_records)
-                        if item["entity_type"] == record["entity_type"]
-                        and item["entity_id"] == record["entity_id"]
-                    ),
-                    None,
+        for record in records:
+            latest_remote = await self._latest_for_entity(
+                user_id=user_id,
+                entity_type=record["entity_type"],
+                entity_id=record["entity_id"],
+            )
+            if latest_remote and latest_remote.version > last_sync_version:
+                conflict = SyncConflictItem(
+                    entity_type=record["entity_type"],
+                    entity_id=record["entity_id"],
+                    local_data=record.get("data") or {},
+                    remote_data=latest_remote.payload or {},
+                    local_timestamp=record.get("timestamp") or "",
+                    remote_timestamp=_iso(latest_remote.client_timestamp or latest_remote.created_at) or "",
                 )
+                conflicts.append(conflict.to_dict())
+                rejected += 1
+                continue
 
-                if latest_remote and latest_remote["server_version"] > last_sync_version:
-                    conflict = SyncConflictItem(
-                        entity_type=record["entity_type"],
-                        entity_id=record["entity_id"],
-                        local_data=record["data"],
-                        remote_data=latest_remote["data"],
-                        local_timestamp=record["timestamp"],
-                        remote_timestamp=latest_remote["timestamp"],
-                    )
-                    self._conflicts_by_user[user_id].append(conflict)
-                    conflicts.append(conflict.to_dict())
-                    rejected += 1
-                    continue
+            next_version += 1
+            self.db.add(
+                SyncLog(
+                    user_id=user_id,
+                    device_id=device_id,
+                    entity_type=record["entity_type"],
+                    entity_id=record["entity_id"],
+                    action=record["action"],
+                    payload=record.get("data") or {},
+                    version=next_version,
+                    client_version=int(record.get("version") or 0),
+                    client_timestamp=_parse_timestamp(record.get("timestamp")),
+                )
+            )
+            accepted += 1
 
-                self._server_version_by_user[user_id] += 1
-                stored = {
-                    **record,
-                    "server_version": self._server_version_by_user[user_id],
-                    "device_id": device_id,
-                    "synced_at": datetime.now(timezone.utc).isoformat(),
-                }
-                existing_records.append(stored)
-                accepted += 1
-
-            self._last_sync_by_device[(user_id, device_id)] = datetime.now(timezone.utc).isoformat()
-
-            return {
-                "accepted": accepted,
-                "rejected": rejected,
-                "conflicts": conflicts,
-                "server_version": self._server_version_by_user[user_id],
-            }
+        await self.db.flush()
+        return {
+            "accepted": accepted,
+            "rejected": rejected,
+            "conflicts": conflicts,
+            "server_version": await self._current_version(user_id),
+        }
 
     async def pull(
         self,
         user_id: str,
         since_version: int,
-        entity_types: Optional[list[str]] = None,
+        entity_types: list[str] | None = None,
         limit: int = 100,
-    ) -> dict:
-        async with self._lock:
-            records = [
-                item for item in self._records_by_user[user_id]
-                if item["server_version"] > since_version
-            ]
-            if entity_types:
-                records = [item for item in records if item["entity_type"] in entity_types]
+    ) -> dict[str, Any]:
+        query = (
+            select(SyncLog)
+            .where(SyncLog.user_id == user_id, SyncLog.version > since_version)
+            .order_by(SyncLog.version.asc())
+            .limit(limit + 1)
+        )
+        if entity_types:
+            query = query.where(SyncLog.entity_type.in_(entity_types))
 
-            records = sorted(records, key=lambda item: item["server_version"])
-            sliced = records[:limit]
-            has_more = len(records) > limit
+        result = await self.db.execute(query)
+        logs = list(result.scalars().all())
+        has_more = len(logs) > limit
+        sliced = logs[:limit]
+        return {
+            "records": [_to_record(log) for log in sliced],
+            "server_version": await self._current_version(user_id),
+            "has_more": has_more,
+        }
 
-            return {
-                "records": sliced,
-                "server_version": self._server_version_by_user[user_id],
-                "has_more": has_more,
-            }
+    async def status(self, user_id: str, device_id: str | None = None) -> dict[str, Any]:
+        query = select(SyncLog).where(SyncLog.user_id == user_id)
+        if device_id:
+            query = query.where(SyncLog.device_id == device_id)
+        query = query.order_by(SyncLog.created_at.desc()).limit(1)
+        latest = (await self.db.execute(query)).scalar_one_or_none()
 
-    async def status(self, user_id: str, device_id: Optional[str] = None) -> dict:
-        async with self._lock:
-            records = self._records_by_user[user_id]
-            storage_used_bytes = sum(len(json.dumps(item, ensure_ascii=False)) for item in records)
-            last_sync_time = self._last_sync_by_device.get((user_id, device_id), None) if device_id else None
-            return {
-                "server_version": self._server_version_by_user[user_id],
-                "last_sync_time": last_sync_time,
-                "pending_conflicts": len(self._conflicts_by_user[user_id]),
-                "storage_used_bytes": storage_used_bytes,
-                "storage_limit_bytes": 10 * 1024 * 1024 * 1024,
-            }
+        records = (
+            await self.db.execute(select(SyncLog).where(SyncLog.user_id == user_id))
+        ).scalars().all()
+        storage_used_bytes = sum(
+            len(json.dumps(_to_record(record), ensure_ascii=False))
+            for record in records
+        )
+        return {
+            "server_version": await self._current_version(user_id),
+            "last_sync_time": _iso(latest.created_at) if latest else None,
+            "pending_conflicts": 0,
+            "storage_used_bytes": storage_used_bytes,
+            "storage_limit_bytes": 10 * 1024 * 1024 * 1024,
+        }
 
-    async def resolve(self, user_id: str, entity_type: str, entity_id: str, resolution: str, merged_data: Optional[dict]) -> dict:
-        async with self._lock:
-            remaining = []
-            resolved = False
-            for conflict in self._conflicts_by_user[user_id]:
-                if conflict.entity_type == entity_type and conflict.entity_id == entity_id:
-                    resolved = True
-                    if resolution == "merge" and merged_data is not None:
-                        self._server_version_by_user[user_id] += 1
-                        self._records_by_user[user_id].append({
-                            "entity_type": entity_type,
-                            "entity_id": entity_id,
-                            "action": "update",
-                            "data": merged_data,
-                            "timestamp": datetime.now(timezone.utc).isoformat(),
-                            "version": self._server_version_by_user[user_id],
-                            "server_version": self._server_version_by_user[user_id],
-                            "device_id": "server-merge",
-                            "synced_at": datetime.now(timezone.utc).isoformat(),
-                        })
-                    continue
-                remaining.append(conflict)
-            self._conflicts_by_user[user_id] = remaining
+    async def resolve(
+        self,
+        user_id: str,
+        entity_type: str,
+        entity_id: str,
+        resolution: str,
+        merged_data: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        if resolution == "merge" and merged_data is not None:
+            self.db.add(
+                SyncLog(
+                    user_id=user_id,
+                    device_id="server-merge",
+                    entity_type=entity_type,
+                    entity_id=entity_id,
+                    action="update",
+                    payload=merged_data,
+                    version=await self._next_version(user_id),
+                    client_version=0,
+                    client_timestamp=datetime.now(UTC),
+                )
+            )
+            await self.db.flush()
+            success = True
+        else:
+            success = resolution in {"keep_local", "keep_remote"}
 
-            return {
-                "success": resolved,
-                "entity_type": entity_type,
-                "entity_id": entity_id,
-                "resolution": resolution,
-            }
+        return {
+            "success": success,
+            "entity_type": entity_type,
+            "entity_id": entity_id,
+            "resolution": resolution,
+        }
 
-    async def full_sync(self, user_id: str, device_id: str) -> dict:
-        async with self._lock:
-            self._last_sync_by_device[(user_id, device_id)] = datetime.now(timezone.utc).isoformat()
-            return {
-                "success": True,
-                "message": "全量同步已触发",
-                "entity_counts": {
-                    "messages": sum(1 for item in self._records_by_user[user_id] if item["entity_type"] == "message"),
-                    "documents": sum(1 for item in self._records_by_user[user_id] if item["entity_type"] == "document"),
-                    "cases": sum(1 for item in self._records_by_user[user_id] if item["entity_type"] == "case"),
-                    "contracts": sum(1 for item in self._records_by_user[user_id] if item["entity_type"] == "contract"),
-                    "settings": sum(1 for item in self._records_by_user[user_id] if item["entity_type"] == "setting"),
-                },
-            }
-
-
-    # ========== Harness Artifact 同步 ==========
+    async def full_sync(self, user_id: str, device_id: str) -> dict[str, Any]:
+        counts = {}
+        for entity_type in ("message", "document", "case", "contract", "setting"):
+            counts[f"{entity_type}s"] = await self._count_entity(user_id, entity_type)
+        return {
+            "success": True,
+            "message": "全量同步已触发",
+            "device_id": device_id,
+            "entity_counts": counts,
+        }
 
     async def push_artifacts(
         self,
         user_id: str,
         device_id: str,
         session_id: str,
-        artifacts: dict[str, any],
-    ) -> dict:
-        """
-        从客户端推送 Harness artifact（任务摘要、引用、风险标记等）到云端。
-
-        桌面端完成一个任务后，将中间结论推送到云端，
-        这样用户在 Web/移动端打开同一会话时可以看到结论。
-        """
-        async with self._lock:
-            for art_type, art_data in artifacts.items():
-                self._server_version_by_user[user_id] += 1
-                record = {
-                    "entity_type": f"harness_artifact_{art_type}",
-                    "entity_id": f"{session_id}:{art_type}",
-                    "action": "upsert",
-                    "data": art_data,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "server_version": self._server_version_by_user[user_id],
-                    "device_id": device_id,
-                    "synced_at": datetime.now(timezone.utc).isoformat(),
-                    "session_id": session_id,
-                }
-                # 替换同 session 同类型的旧 artifact
-                self._records_by_user[user_id] = [
-                    r for r in self._records_by_user[user_id]
-                    if not (r.get("entity_id") == record["entity_id"])
-                ] + [record]
-
-            self._last_sync_by_device[(user_id, device_id)] = datetime.now(timezone.utc).isoformat()
-
-            return {
-                "accepted": len(artifacts),
-                "session_id": session_id,
-                "server_version": self._server_version_by_user[user_id],
-            }
+        artifacts: dict[str, Any],
+    ) -> dict[str, Any]:
+        next_version = await self._current_version(user_id)
+        for artifact_type, artifact_data in artifacts.items():
+            next_version += 1
+            self.db.add(
+                SyncLog(
+                    user_id=user_id,
+                    device_id=device_id,
+                    entity_type=f"harness_artifact_{artifact_type}",
+                    entity_id=f"{session_id}:{artifact_type}",
+                    action="upsert",
+                    payload={
+                        "session_id": session_id,
+                        "artifact_type": artifact_type,
+                        "data": artifact_data,
+                    },
+                    version=next_version,
+                    client_version=0,
+                    client_timestamp=datetime.now(UTC),
+                )
+            )
+        await self.db.flush()
+        return {
+            "accepted": len(artifacts),
+            "session_id": session_id,
+            "server_version": await self._current_version(user_id),
+        }
 
     async def pull_artifacts(
         self,
         user_id: str,
         session_id: str,
-        artifact_types: Optional[list[str]] = None,
-    ) -> dict:
-        """
-        拉取指定会话的 Harness artifact。
+        artifact_types: list[str] | None = None,
+    ) -> dict[str, Any]:
+        result = await self.db.execute(
+            select(SyncLog)
+            .where(
+                SyncLog.user_id == user_id,
+                SyncLog.entity_type.like("harness_artifact_%"),
+            )
+            .order_by(SyncLog.version.asc())
+        )
+        artifacts: dict[str, Any] = {}
+        for record in result.scalars().all():
+            payload = record.payload or {}
+            if payload.get("session_id") != session_id:
+                continue
+            artifact_type = payload.get("artifact_type") or record.entity_type.replace(
+                "harness_artifact_",
+                "",
+            )
+            if artifact_types and artifact_type not in artifact_types:
+                continue
+            artifacts[artifact_type] = payload.get("data")
 
-        用户从桌面端切换到 Web 端时，拉取桌面端产生的中间结论。
-        """
-        async with self._lock:
-            artifacts = {}
-            for record in self._records_by_user[user_id]:
-                if not record.get("entity_type", "").startswith("harness_artifact_"):
-                    continue
-                if record.get("session_id") != session_id:
-                    continue
-                art_type = record["entity_type"].replace("harness_artifact_", "")
-                if artifact_types and art_type not in artifact_types:
-                    continue
-                artifacts[art_type] = record["data"]
+        return {
+            "session_id": session_id,
+            "artifacts": artifacts,
+            "count": len(artifacts),
+        }
 
-            return {
-                "session_id": session_id,
-                "artifacts": artifacts,
-                "count": len(artifacts),
-            }
+    async def _latest_for_entity(
+        self,
+        user_id: str,
+        entity_type: str,
+        entity_id: str,
+    ) -> SyncLog | None:
+        return (
+            await self.db.execute(
+                select(SyncLog)
+                .where(
+                    SyncLog.user_id == user_id,
+                    SyncLog.entity_type == entity_type,
+                    SyncLog.entity_id == entity_id,
+                )
+                .order_by(SyncLog.version.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+
+    async def _current_version(self, user_id: str) -> int:
+        result = await self.db.execute(
+            select(func.max(SyncLog.version)).where(SyncLog.user_id == user_id)
+        )
+        return int(result.scalar() or 0)
+
+    async def _next_version(self, user_id: str) -> int:
+        return await self._current_version(user_id) + 1
+
+    async def _count_entity(self, user_id: str, entity_type: str) -> int:
+        result = await self.db.execute(
+            select(func.count())
+            .select_from(SyncLog)
+            .where(SyncLog.user_id == user_id, SyncLog.entity_type == entity_type)
+        )
+        return int(result.scalar() or 0)
 
 
-sync_service = SyncService()
+def _parse_timestamp(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _iso(value: datetime | None) -> str | None:
+    return value.isoformat() if value else None
+
+
+def _to_record(log: SyncLog) -> dict[str, Any]:
+    return {
+        "id": log.id,
+        "entity_type": log.entity_type,
+        "entity_id": log.entity_id,
+        "action": log.action,
+        "data": log.payload or {},
+        "timestamp": _iso(log.client_timestamp or log.created_at),
+        "version": log.client_version,
+        "server_version": log.version,
+        "device_id": log.device_id,
+        "synced_at": _iso(log.created_at),
+    }

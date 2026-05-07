@@ -1,11 +1,13 @@
-# -*- coding: utf-8 -*-
 """Canvas 编辑/请求处理器"""
 
+from typing import Any
+
 from loguru import logger
+
 from src.api.routes.chat_handlers.context import WebSocketContext
 
 
-async def handle_canvas_message(ctx: WebSocketContext, msg_type: str, data: dict) -> bool:
+async def handle_canvas_message(ctx: WebSocketContext, msg_type: str, data: dict[str, Any]) -> bool:
     """
     处理 Canvas 编辑保存和 AI 优化请求。
 
@@ -20,10 +22,12 @@ async def handle_canvas_message(ctx: WebSocketContext, msg_type: str, data: dict
         logger.info(f"Canvas edit received: {len(content)} chars, title={canvas_title}")
 
         try:
+            from sqlalchemy import String, and_, cast
+            from sqlalchemy import select as sa_select
+
             from src.core.database import async_session_maker
-            from src.services.document_service import DocumentService
             from src.models.document import Document as DocModel
-            from sqlalchemy import select as sa_select, and_, cast, String
+            from src.services.document_service import DocumentService
 
             async with async_session_maker() as db_session:
                 doc_svc = DocumentService(db_session)

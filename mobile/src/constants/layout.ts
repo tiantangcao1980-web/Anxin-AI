@@ -6,8 +6,13 @@ export const Layout = {
   window: { width, height },
   isSmallDevice: width < 375,
   statusBarHeight: Platform.OS === 'ios' ? 44 : StatusBar.currentHeight || 0,
+  tabBarBaseHeight: 56,
   tabBarHeight: Platform.OS === 'ios' ? 83 : 56,
   headerHeight: 56,
+  touchTarget: {
+    min: 44,
+    hitSlop: 8,
+  },
   spacing: {
     xs: 4,
     sm: 8,

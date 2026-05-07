@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 律所知识管理平台
 
@@ -9,10 +8,12 @@
 4. 知识沉淀 — 从日常工作中自动提取可复用知识
 """
 
-from typing import Dict, Any, Optional, List
+from dataclasses import asdict
 from datetime import datetime
-from loguru import logger
+from typing import Any, cast
+from uuid import uuid4
 
+from src.services.pii_service import pii_service
 
 # ===== 案例经验分类 =====
 
@@ -38,6 +39,8 @@ OUTCOME_TYPES = {
     "withdrawn": "撤诉",
 }
 
+KnowledgeDict = dict[str, Any]
+
 
 class CaseExperience:
     """单条案例经验"""
@@ -47,15 +50,15 @@ class CaseExperience:
         title: str,
         category: str,
         summary: str,
-        key_points: List[str],
+        key_points: list[str],
         outcome: str = "",
-        applicable_laws: List[str] = None,
+        applicable_laws: list[str] | None = None,
         lessons_learned: str = "",
-        org_id: Optional[str] = None,
-        author_id: Optional[str] = None,
-        tags: List[str] = None,
-    ):
-        self.id = f"exp_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        org_id: str | None = None,
+        author_id: str | None = None,
+        tags: list[str] | None = None,
+    ) -> None:
+        self.id = f"exp_{uuid4().hex}"
         self.title = title
         self.category = category
         self.summary = summary
@@ -70,8 +73,8 @@ class CaseExperience:
         self.view_count = 0
         self.useful_count = 0
 
-    def to_dict(self) -> Dict:
-        return {
+    def to_dict(self) -> KnowledgeDict:
+        return cast(KnowledgeDict, pii_service.scrub_for_output({
             "id": self.id,
             "title": self.title,
             "category": self.category,
@@ -86,15 +89,15 @@ class CaseExperience:
             "created_at": self.created_at.isoformat(),
             "view_count": self.view_count,
             "useful_count": self.useful_count,
-        }
+        }))
 
 
 class KnowledgeManagementService:
     """律所知识管理服务"""
 
-    def __init__(self):
-        self._experiences: Dict[str, List[CaseExperience]] = {}  # org_id -> experiences
-        self._custom_templates: Dict[str, List[Dict]] = {}  # org_id -> templates
+    def __init__(self) -> None:
+        self._experiences: dict[str, list[CaseExperience]] = {}  # org_id -> experiences
+        self._custom_templates: dict[str, list[KnowledgeDict]] = {}  # org_id -> templates
 
     # ===== 案例经验库 =====
 
@@ -104,12 +107,12 @@ class KnowledgeManagementService:
         title: str,
         category: str,
         summary: str,
-        key_points: List[str],
+        key_points: list[str],
         outcome: str = "",
-        applicable_laws: List[str] = None,
+        applicable_laws: list[str] | None = None,
         lessons_learned: str = "",
-        author_id: Optional[str] = None,
-        tags: List[str] = None,
+        author_id: str | None = None,
+        tags: list[str] | None = None,
     ) -> CaseExperience:
         """添加案例经验"""
         exp = CaseExperience(
@@ -133,11 +136,12 @@ class KnowledgeManagementService:
         self,
         org_id: str,
         query: str = "",
-        category: Optional[str] = None,
-        outcome: Optional[str] = None,
+        category: str | None = None,
+        outcome: str | None = None,
         top_k: int = 10,
-    ) -> List[Dict]:
+    ) -> list[KnowledgeDict]:
         """搜索案例经验"""
+        bounded_top_k = max(1, min(top_k, 50))
         experiences = self._experiences.get(org_id, [])
 
         if category:
@@ -146,7 +150,7 @@ class KnowledgeManagementService:
             experiences = [e for e in experiences if e.outcome == outcome]
 
         if query:
-            scored = []
+            scored: list[tuple[CaseExperience, int]] = []
             query_lower = query.lower()
             for exp in experiences:
                 score = 0
@@ -165,13 +169,13 @@ class KnowledgeManagementService:
             scored.sort(key=lambda x: x[1], reverse=True)
             experiences = [e for e, _ in scored]
 
-        results = []
-        for exp in experiences[:top_k]:
+        results: list[KnowledgeDict] = []
+        for exp in experiences[:bounded_top_k]:
             exp.view_count += 1
             results.append(exp.to_dict())
         return results
 
-    async def get_experience(self, org_id: str, experience_id: str) -> Optional[Dict]:
+    async def get_experience(self, org_id: str, experience_id: str) -> KnowledgeDict | None:
         """获取单条经验详情"""
         for exp in self._experiences.get(org_id, []):
             if exp.id == experience_id:
@@ -195,9 +199,9 @@ class KnowledgeManagementService:
         task_description: str,
         task_type: str = "general",
         top_k: int = 5,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """根据当前任务智能推荐相关经验和模板"""
-        recommendations = {
+        recommendations: KnowledgeDict = {
             "experiences": [],
             "templates": [],
             "related_laws": [],
@@ -209,8 +213,8 @@ class KnowledgeManagementService:
 
         # 2. 推荐相关模板
         try:
-            from src.services.template_engine import template_engine
-            templates = template_engine.list_templates()
+            from src.services.template_engine import get_template_library
+            templates = [asdict(template) for template in get_template_library()]
             # 简单关键词匹配
             for tmpl in templates:
                 name = tmpl.get("name", "")
@@ -227,7 +231,7 @@ class KnowledgeManagementService:
         except Exception:
             pass
 
-        return recommendations
+        return cast(KnowledgeDict, pii_service.scrub_for_output(recommendations))
 
     # ===== 自定义模板 =====
 
@@ -237,12 +241,12 @@ class KnowledgeManagementService:
         name: str,
         content: str,
         template_type: str = "contract",
-        author_id: Optional[str] = None,
-        tags: List[str] = None,
-    ) -> Dict:
+        author_id: str | None = None,
+        tags: list[str] | None = None,
+    ) -> KnowledgeDict:
         """添加律所自定义模板"""
         template = {
-            "id": f"tmpl_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            "id": f"tmpl_{uuid4().hex}",
             "name": name,
             "content": content,
             "template_type": template_type,
@@ -255,27 +259,27 @@ class KnowledgeManagementService:
         if org_id not in self._custom_templates:
             self._custom_templates[org_id] = []
         self._custom_templates[org_id].append(template)
-        return template
+        return cast(KnowledgeDict, pii_service.scrub_for_output(template))
 
     async def list_custom_templates(
         self,
         org_id: str,
-        template_type: Optional[str] = None,
-    ) -> List[Dict]:
+        template_type: str | None = None,
+    ) -> list[KnowledgeDict]:
         """列出律所自定义模板"""
         templates = self._custom_templates.get(org_id, [])
         if template_type:
             templates = [t for t in templates if t.get("template_type") == template_type]
-        return templates
+        return cast(list[KnowledgeDict], pii_service.scrub_for_output(templates))
 
     # ===== 知识沉淀（从审查/咨询中自动提取） =====
 
     async def extract_from_review(
         self,
         org_id: str,
-        review_result: Dict[str, Any],
-        author_id: Optional[str] = None,
-    ) -> Optional[CaseExperience]:
+        review_result: dict[str, Any],
+        author_id: str | None = None,
+    ) -> CaseExperience | None:
         """从合同审查结果中自动提取可复用经验"""
         risk_points = review_result.get("risk_points", [])
         suggestions = review_result.get("suggestions", [])
@@ -307,7 +311,7 @@ class KnowledgeManagementService:
 
     # ===== 统计 =====
 
-    def get_stats(self, org_id: str) -> Dict[str, Any]:
+    def get_stats(self, org_id: str) -> dict[str, Any]:
         """获取知识库统计"""
         experiences = self._experiences.get(org_id, [])
         templates = self._custom_templates.get(org_id, [])

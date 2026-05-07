@@ -27,42 +27,43 @@ interface NavGroup {
   items: NavItem[]
 }
 
+// V2: 全部导航指向 /pro/* 子路径，与 App.tsx 中 /pro 的子路由对齐
 const navGroups: NavGroup[] = [
   {
     label: '',
     items: [
-      { path: '/lawyer-dashboard', label: '工作台', icon: icons.Dashboard },
+      { path: '/pro/dashboard', label: '工作台', icon: icons.Dashboard },
     ],
   },
   {
     label: '业务管理',
     items: [
-      { path: '/case-center', label: '案件管理', icon: icons.Briefcase },
-      { path: '/management', label: '合同管理', icon: icons.FileText },
-      { path: '/documents', label: '文档工作台', icon: icons.Edit },
+      { path: '/pro/cases', label: '案件管理', icon: icons.Briefcase },
+      { path: '/pro/contracts', label: '合同管理', icon: icons.FileText },
+      { path: '/pro/documents', label: '文档工作台', icon: icons.Edit },
     ],
   },
   {
     label: '客户与案源',
     items: [
-      { path: '/find-lawyer', label: '案源市场', icon: icons.Search },
-      { path: '/messages', label: '客户消息', icon: icons.MessageCircle },
+      { path: '/pro/market', label: '案源市场', icon: icons.Search },
+      { path: '/pro/messages', label: '客户消息', icon: icons.MessageCircle },
     ],
   },
   {
     label: '智能工具',
     items: [
-      { path: '/chat', label: 'AI 法律助手', icon: icons.Sparkles },
-      { path: '/knowledge-base', label: '法律智库', icon: icons.BookOpen },
-      { path: '/investigation', label: '尽职调查', icon: icons.BarChart3 },
+      { path: '/pro/chat', label: 'AI 法律助手', icon: icons.Sparkles },
+      { path: '/pro/knowledge', label: '法律智库', icon: icons.BookOpen },
+      { path: '/pro/investigation', label: '尽职调查', icon: icons.BarChart3 },
     ],
   },
   {
     label: '账户',
     items: [
-      { path: '/lawyer-onboarding', label: '执业认证', icon: icons.Shield },
-      { path: '/my-subscription', label: '订阅与账单', icon: icons.DollarSign },
-      { path: '/settings', label: '设置', icon: icons.Settings },
+      { path: '/pro/onboarding', label: '执业认证', icon: icons.Shield },
+      { path: '/pro/subscription', label: '订阅与账单', icon: icons.DollarSign },
+      { path: '/pro/settings', label: '设置', icon: icons.Settings },
     ],
   },
 ]
@@ -79,7 +80,7 @@ export default function ProLayout() {
   const currentNav = allNavItems.find(
     (item) =>
       item.path === location.pathname ||
-      (item.path !== '/lawyer-dashboard' && location.pathname.startsWith(item.path))
+      (item.path !== '/pro/dashboard' && location.pathname.startsWith(item.path))
   ) || allNavItems[0]
 
   return (
@@ -150,7 +151,7 @@ export default function ProLayout() {
               {group.items.map((item) => {
                 const isActive =
                   item.path === location.pathname ||
-                  (item.path !== '/lawyer-dashboard' && location.pathname.startsWith(item.path))
+                  (item.path !== '/pro/dashboard' && location.pathname.startsWith(item.path))
                 const Icon = item.icon
                 return (
                   <NavLink

@@ -4,10 +4,10 @@
 """
 
 import secrets
-from typing import Optional, List
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
-import os
+from typing import Any
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     DEV_MODE: bool = False  # 开发模式：启用后允许无Token访问API
     ENVIRONMENT: str = "development"  # development, staging, production
-    ADMIN_INITIAL_PASSWORD: Optional[str] = None  # 管理员初始密码（开发环境用）
+    ADMIN_INITIAL_PASSWORD: str | None = None  # 管理员初始密码（开发环境用）
 
     # 服务端口
     BACKEND_PORT: int = 8001
@@ -60,9 +60,15 @@ class Settings(BaseSettings):
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_PER_MINUTE: int = 60
     RATE_LIMIT_PER_HOUR: int = 1000
+    # 认证敏感入口在 Redis 不可用时是否 fail-closed。
+    # staging/production 会在依赖层自动按 fail-closed 处理；此开关用于开发/测试显式演练。
+    AUTH_REDIS_FAIL_CLOSED: bool = False
+    # 临时迁移开关：是否继续接受 /auth/refresh 请求体中的 refresh_token。
+    # 商业交付默认只接受 HttpOnly Cookie；旧客户端迁移窗口需显式开启。
+    AUTH_REFRESH_BODY_COMPAT_ENABLED: bool = False
 
     # CORS配置
-    CORS_ORIGINS: List[str] = [
+    CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
         "http://localhost:3001",
         "tauri://localhost",          # Tauri 桌面端
@@ -70,8 +76,8 @@ class Settings(BaseSettings):
         "http://tauri.localhost",     # Tauri v2 移动端 (备用)
     ]
     CORS_ALLOW_CREDENTIALS: bool = True
-    CORS_ALLOW_METHODS: List[str] = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-    CORS_ALLOW_HEADERS: List[str] = [
+    CORS_ALLOW_METHODS: list[str] = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    CORS_ALLOW_HEADERS: list[str] = [
         "Authorization", "Content-Type", "Accept", "X-Requested-With",
         "X-Integration-Key", "X-Request-ID",
         # 反Bot防御头
@@ -83,16 +89,16 @@ class Settings(BaseSettings):
     # 输入验证配置
     MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024  # 10MB
     MAX_QUERY_LENGTH: int = 1000  # 最大查询长度
-    ALLOWED_FILE_EXTENSIONS: List[str] = [
+    ALLOWED_FILE_EXTENSIONS: list[str] = [
         ".pdf", ".doc", ".docx", ".txt", ".md",
         ".xlsx", ".xls", ".csv", ".pptx",
     ]
 
     # 敏感数据加密
-    ENCRYPTION_KEY: Optional[str] = None  # 用于加密敏感数据
+    ENCRYPTION_KEY: str | None = None  # 用于加密敏感数据
 
     # 集成 API 密钥（用于 OA/Webhook 回调验证）
-    INTEGRATION_API_KEY: Optional[str] = None
+    INTEGRATION_API_KEY: str | None = None
 
     # ========== 反Bot防御配置 ==========
     ANTIBOT_ENABLED: bool = False               # 总开关
@@ -111,11 +117,62 @@ class Settings(BaseSettings):
     ANTIBOT_BLOCK_THRESHOLD: int = 70           # 阻断阈值
     ANTIBOT_POW_ENABLED: bool = False           # PoW 挑战
     ANTIBOT_POW_DIFFICULTY: int = 4             # PoW 难度（前缀零个数）
-    WECHAT_PAY_WEBHOOK_SECRET: Optional[str] = None
-    ALIPAY_WEBHOOK_SECRET: Optional[str] = None
-    ESIGN_WEBHOOK_SECRET: Optional[str] = None
+    WECHAT_PAY_WEBHOOK_SECRET: str | None = None
+    PAYMENT_NOTIFY_BASE_URL: str | None = None
+    WECHAT_PAY_APP_ID: str | None = None
+    WECHAT_PAY_MCH_ID: str | None = None
+    WECHAT_PAY_MERCHANT_SERIAL_NO: str | None = None
+    WECHAT_PAY_MERCHANT_PRIVATE_KEY: str | None = None
+    WECHAT_PAY_MERCHANT_PRIVATE_KEY_PATH: str | None = None
+    WECHAT_PAY_API_BASE_URL: str = "https://api.mch.weixin.qq.com"
+    WECHAT_PAY_OFFICIAL_WEBHOOK_ENABLED: bool = False
+    WECHAT_PAY_PLATFORM_SERIAL: str | None = None
+    WECHAT_PAY_PLATFORM_PUBLIC_KEY: str | None = None
+    WECHAT_PAY_PLATFORM_PUBLIC_KEY_PATH: str | None = None
+    WECHAT_PAY_API_V3_KEY: str | None = None
+    ALIPAY_WEBHOOK_SECRET: str | None = None
+    ALIPAY_APP_ID: str = ""
+    ALIPAY_PRIVATE_KEY: str = ""
+    ALIPAY_PRIVATE_KEY_PATH: str | None = None
+    ALIPAY_GATEWAY_URL: str = "https://openapi.alipay.com/gateway.do"
+    ALIPAY_OFFICIAL_WEBHOOK_ENABLED: bool = False
+    ALIPAY_PUBLIC_KEY: str = ""
+    ALIPAY_PUBLIC_KEY_PATH: str | None = None
+    ESIGN_OFFICIAL_WEBHOOK_ENABLED: bool = False
+    ESIGN_BAO_APP_ID: str | None = None
+    ESIGN_BAO_APP_SECRET: str | None = None
+    ESIGN_BAO_API_URL: str = "https://smlopenapi.esign.cn"
+    ESIGN_BAO_CREATE_FLOW_PATH: str = "/api/v2/signflows/createFlowOneStep"
+    ESIGN_BAO_START_FLOW_PATH: str = "/v1/signflows/{flow_id}/start"
+    ESIGN_BAO_SIGN_URL_PATH: str = "/v1/signflows/{flow_id}/executeUrl"
+    ESIGN_BAO_STATUS_PATH: str = "/v1/signflows/{flow_id}"
+    ESIGN_BAO_DOWNLOAD_PATH: str = "/v1/signflows/{flow_id}/documents"
+    ESIGN_BAO_CANCEL_PATH: str = "/v1/signflows/{flow_id}/revoke"
+    ESIGN_WEBHOOK_SECRET: str | None = None
+    FADADA_APP_ID: str | None = None
+    FADADA_APP_SECRET: str | None = None
+    FADADA_API_URL: str = "https://api.fadada.com/api/v5"
+    FADADA_ACCESS_TOKEN: str | None = None
+    FADADA_ACCESS_TOKEN_PATH: str = "/service/get-access-token"
+    FADADA_CREATE_TASK_PATH: str = "/sign-task/create"
+    FADADA_SIGN_URL_PATH: str = "/sign-task/actor/get-url"
+    FADADA_STATUS_PATH: str = "/sign-task/app/get-detail"
+    FADADA_DOWNLOAD_URL_PATH: str = "/sign-task/owner/get-download-url"
+    FADADA_CANCEL_PATH: str = "/sign-task/cancel"
     WEBHOOK_SIGNATURE_MAX_AGE_SECONDS: int = 300
-    LIC_ALLOWED_HOSTS: List[str] = []
+    WEBHOOK_RETRY_WORKER_ENABLED: bool = False
+    WEBHOOK_RETRY_INTERVAL_SECONDS: int = 60
+    WEBHOOK_RETRY_BATCH_SIZE: int = 20
+    WEBHOOK_RETRY_MAX_ATTEMPTS: int = 5
+    WEBHOOK_RETRY_BASE_DELAY_SECONDS: int = 60
+    WEBHOOK_RETRY_MAX_DELAY_SECONDS: int = 3600
+    WEBHOOK_PROCESSING_LOCK_TTL_SECONDS: int = 30
+    WEBHOOK_PROCESSING_LOCK_WAIT_SECONDS: float = 5.0
+    # auto=生产/预发布走 Redis，开发/测试走本地锁；redis=强制 Redis；local=仅本地开发
+    WEBHOOK_PROCESSING_LOCK_BACKEND: str = "auto"
+    LIC_ALLOWED_HOSTS: list[str] = []
+    LIC_DEFAULT_HOST_RATE_LIMIT_SECONDS: float = 1.0
+    LIC_HOST_RATE_LIMIT_SECONDS: dict[str, float] = {}
 
     # ========== 阿里云服务（短信 + 邮件共用 AccessKey） ==========
     ALIYUN_ACCESS_KEY_ID: str = ""
@@ -154,7 +211,7 @@ class Settings(BaseSettings):
     LLM_TEMPERATURE: float = 0.7
     LLM_MAX_TOKENS: int = 4096
     LLM_PROVIDER: str = "openai"
-    LLM_ENCRYPTION_KEY: Optional[str] = None
+    LLM_ENCRYPTION_KEY: str | None = None
     LLM_DEFAULT_CONFIG_CACHE_TTL_SECONDS: int = 3600  # Harness优化: 60s→1h（配置很少变）
 
     # ========== 本地 LLM 兜底配置（支持 LOCAL / NAS-Lite 运行模式） ==========
@@ -168,7 +225,7 @@ class Settings(BaseSettings):
     RUNTIME_MODE: str = "cloud"
 
     # ========== Embedding配置 ==========
-    EMBEDDING_API_KEY: Optional[str] = None
+    EMBEDDING_API_KEY: str | None = None
     EMBEDDING_BASE_URL: str = "https://api.openai.com/v1"
     EMBEDDING_MODEL: str = "text-embedding-3-large"
     EMBEDDING_DIMENSIONS: int = 3072
@@ -187,7 +244,7 @@ class Settings(BaseSettings):
     QDRANT_URL: str = "http://localhost:6333"
     QDRANT_HOST: str = "localhost"
     QDRANT_PORT: int = 6333
-    QDRANT_API_KEY: Optional[str] = None
+    QDRANT_API_KEY: str | None = None
     QDRANT_COLLECTION_NAME: str = "legal_knowledge"
 
     # ========== RAG配置 ==========
@@ -203,6 +260,8 @@ class Settings(BaseSettings):
     NEO4J_PASSWORD: str = "password"
 
     # ========== MinIO配置 ==========
+    STORAGE_BACKEND: str = "local"  # local / minio
+    STORAGE_LOCAL_PATH: str = "data/storage"
     MINIO_ENDPOINT: str = "localhost:9000"
     MINIO_ACCESS_KEY: str = "admin"
     MINIO_SECRET_KEY: str = "password"
@@ -211,7 +270,7 @@ class Settings(BaseSettings):
 
     # ========== 搜索服务 ==========
     SEARCH_PROVIDER: str = "perplexity"
-    SEARCH_API_KEY: Optional[str] = None
+    SEARCH_API_KEY: str | None = None
 
     # ========== 智能体并行与资源配置 ==========
     # 同一 DAG 层级最大并行 Agent 数（当前推荐 30，未来可扩至 200）
@@ -236,6 +295,12 @@ class Settings(BaseSettings):
     AGENT_TASK_TIMEOUT: int = 120
     # 全局任务超时时间（秒，所有 Agent 完成的总时限）
     AGENT_GLOBAL_TIMEOUT: int = 600
+    # 合同审查业务超时（秒）：商业交付 P0 要求单次审查 90s 内完成或标记失败
+    CONTRACT_REVIEW_TIMEOUT_SECONDS: int = 90
+    # 合同审查互斥锁 TTL（秒），应大于 CONTRACT_REVIEW_TIMEOUT_SECONDS
+    CONTRACT_REVIEW_LOCK_TTL_SECONDS: int = 150
+    # auto=生产/预发布走 Redis，开发/测试走本地锁；redis=强制 Redis；local=仅本地开发
+    CONTRACT_REVIEW_LOCK_BACKEND: str = "auto"
     # DAG 最大执行轮次（防止无限循环）
     AGENT_MAX_DAG_ROUNDS: int = 30
     # 单个 Agent 最大重试次数
@@ -249,18 +314,18 @@ class Settings(BaseSettings):
     COLLECTOR_MAX_CONCURRENT: int = 3  # 最大并发采集器数
 
     # ========== 企业调查数据源 API ==========
-    TIANYANCHA_API_KEY: Optional[str] = None  # 天眼查 API
-    QICHACHA_API_KEY: Optional[str] = None  # 企查查 API
-    AIQICHA_API_KEY: Optional[str] = None  # 爱企查 API
-    CREDIT_CHINA_API_KEY: Optional[str] = None  # 信用中国 API
+    TIANYANCHA_API_KEY: str | None = None  # 天眼查 API
+    QICHACHA_API_KEY: str | None = None  # 企查查 API
+    AIQICHA_API_KEY: str | None = None  # 爱企查 API
+    CREDIT_CHINA_API_KEY: str | None = None  # 信用中国 API
 
     # ========== 日志配置 ==========
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "json"
-    LOG_FILE: Optional[str] = None
+    LOG_FILE: str | None = None
 
     # ========== OpenAI兼容 ==========
-    OPENAI_API_KEY: Optional[str] = None
+    OPENAI_API_KEY: str | None = None
 
     # ========== 搜索服务 API ==========
     TAVILY_API_KEY: str = ""        # Tavily Search API (https://tavily.com)
@@ -289,16 +354,15 @@ class Settings(BaseSettings):
     WECHAT_APP_ID: str = ""
     WECHAT_APP_SECRET: str = ""
     WECHAT_REDIRECT_URI: str = ""
+    WECHAT_MINI_APP_ID: str = ""
+    WECHAT_MINI_APP_SECRET: str = ""
 
-    ALIPAY_APP_ID: str = ""
-    ALIPAY_PRIVATE_KEY: str = ""
-    ALIPAY_PUBLIC_KEY: str = ""
     ALIPAY_REDIRECT_URI: str = ""
 
     # 前端登录页 URL（OAuth 回调后重定向）
     FRONTEND_LOGIN_URL: str = "http://localhost:3001/login"
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         # 自动生成安全的 JWT 密钥（如果未设置）
         if self.JWT_SECRET_KEY == "your-super-secret-jwt-key-change-in-production":
@@ -320,7 +384,7 @@ class Settings(BaseSettings):
         return self.ENVIRONMENT in ("development", "dev")
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     """获取配置单例"""
     return Settings()

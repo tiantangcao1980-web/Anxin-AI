@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { icons } from '@/lib/icons'
-import { adminApi } from '@/lib/api'
+import { API_BASE_URL, adminApi, buildApiHeaders } from '@/lib/api'
+import { getTokenStorage } from '@/lib/platform/storage'
 import { toast } from 'sonner'
 import { PageContainer } from '@/components/ui/PageContainer'
 import { Button } from '@/components/ui/button'
@@ -88,10 +89,9 @@ export default function AdminAudit() {
   // V2：导出合规报告（PDF via window.print）
   const handleExportComplianceReport = async () => {
     try {
-      const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8003/api/v1'
-      const token = localStorage.getItem('access_token')
-      const resp = await fetch(`${API}/admin/audit-logs/compliance-report?days=30`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const token = await getTokenStorage().getAccessToken()
+      const resp = await fetch(`${API_BASE_URL}/admin/audit-logs/compliance-report?days=30`, {
+        headers: buildApiHeaders(undefined, { token, json: false }),
       })
       const json = await resp.json()
       const report = json?.data

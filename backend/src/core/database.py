@@ -2,19 +2,20 @@
 数据库连接和会话管理
 """
 
+import asyncio
 import os
 import sys
-import asyncio
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import Any
 
+from loguru import logger
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy import text
-from loguru import logger
 
 from src.core.config import settings
 from src.models.base import Base
@@ -25,7 +26,7 @@ if sys.platform == "win32":
 
 # 创建异步引擎（启用连接池，替代 NullPool）
 # Harness 性能优化: NullPool 每次新建/关闭连接，高并发损失 50-70%
-engine_args = {
+engine_args: dict[str, Any] = {
     "echo": settings.DEBUG,
     "pool_pre_ping": True,
     "pool_size": settings.DATABASE_POOL_SIZE,       # 默认 10
@@ -71,6 +72,13 @@ async def _ensure_additive_schema_columns() -> None:
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT false",
         "ALTER TABLE contracts ADD COLUMN IF NOT EXISTS original_text TEXT",
         "ALTER TABLE contracts ADD COLUMN IF NOT EXISTS modified_text TEXT",
+        "ALTER TABLE contracts ADD COLUMN IF NOT EXISTS version INTEGER DEFAULT 1 NOT NULL",
+        "ALTER TABLE contracts ADD COLUMN IF NOT EXISTS esign_flow_id VARCHAR(128)",
+        "ALTER TABLE contracts ADD COLUMN IF NOT EXISTS esign_provider VARCHAR(50)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS ix_contracts_esign_flow_id ON contracts (esign_flow_id)",
+        "ALTER TABLE webhook_received ADD COLUMN IF NOT EXISTS last_retry_at TIMESTAMP WITH TIME ZONE",
+        "ALTER TABLE webhook_received ADD COLUMN IF NOT EXISTS next_retry_at TIMESTAMP WITH TIME ZONE",
+        "CREATE INDEX IF NOT EXISTS ix_webhook_received_next_retry_at ON webhook_received (next_retry_at)",
         "ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS external_id VARCHAR(255)",
         "ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64)",
         "ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS version INTEGER DEFAULT 1 NOT NULL",
@@ -83,6 +91,10 @@ async def _ensure_additive_schema_columns() -> None:
         "ALTER TABLE investigations ADD COLUMN IF NOT EXISTS forum_data JSON",
         "ALTER TABLE investigations ADD COLUMN IF NOT EXISTS stages_completed JSON",
         # v3 调查引擎：快照、缓存、偏好表由 create_all 自动创建
+        "ALTER TABLE search_cache ADD COLUMN IF NOT EXISTS org_id UUID",
+        "CREATE INDEX IF NOT EXISTS ix_search_cache_org_id ON search_cache (org_id)",
+        "CREATE INDEX IF NOT EXISTS ix_cache_org_key_source ON search_cache (org_id, cache_key, data_source)",
+        "CREATE INDEX IF NOT EXISTS ix_cache_org_company ON search_cache (org_id, company_name)",
         # v4 智能需求发掘引擎：用户 AI 画像
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_profile JSONB DEFAULT '{}'",
         # V2 架构：用户主客户端偏好（needer/provider）
@@ -117,19 +129,19 @@ async def init_db() -> None:
             await conn.run_sync(Base.metadata.create_all)
         logger.info("数据库表结构同步完成")
         await _ensure_additive_schema_columns()
-        
+
         # 创建默认数据
         async with async_session_maker() as session:
-            from src.models.user import User, Organization
-            from src.models.mcp_config import McpServerConfig
-            from src.core.security import get_password_hash
             from sqlalchemy import select
-            
+
+            from src.core.security import get_password_hash
+            from src.models.user import Organization, User
+
             # 1. 创建默认组织
             org_id = "00000000-0000-0000-0000-000000000001"
-            result = await session.execute(select(Organization).where(Organization.id == org_id))
-            org = result.scalar_one_or_none()
-            
+            org_result = await session.execute(select(Organization).where(Organization.id == org_id))
+            org = org_result.scalar_one_or_none()
+
             if not org:
                 org = Organization(
                     id=org_id,
@@ -138,12 +150,12 @@ async def init_db() -> None:
                 )
                 session.add(org)
                 logger.info(f"创建默认组织: {org.name}")
-            
+
             # 2. 创建默认管理员用户
             user_email = "admin@anxinfawu.com"
-            result = await session.execute(select(User).where(User.email == user_email))
-            admin = result.scalar_one_or_none()
-            
+            admin_result = await session.execute(select(User).where(User.email == user_email))
+            admin = admin_result.scalar_one_or_none()
+
             if not admin:
                 # ===== [S-05] 不再使用硬编码默认密码 "admin123" =====
                 # 原因：默认密码 admin123 是公开已知的，任何人可直接登录
@@ -164,7 +176,7 @@ async def init_db() -> None:
                 except Exception as e:
                     logger.error(f"密码哈希失败，无法创建管理员账号: {e}")
                     raise RuntimeError("bcrypt 密码哈希失败，请检查依赖安装") from e
-                
+
                 admin = User(
                     id="00000000-0000-0000-0000-000000000001",
                     email=user_email,
@@ -177,7 +189,7 @@ async def init_db() -> None:
                 )
                 session.add(admin)
                 logger.info(f"创建默认管理员: {user_email}")
-            
+
             await session.commit()
             logger.info("默认数据初始化完成")
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 AutoDream — 后台记忆巩固引擎（做梦机制）
 
@@ -15,12 +14,11 @@ AutoDream — 后台记忆巩固引擎（做梦机制）
 """
 
 import asyncio
-import hashlib
-import json
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List
-from loguru import logger
+from typing import Any, TypedDict, cast
 
+from loguru import logger
 
 # ===== 触发门控配置 =====
 DREAM_CONFIG = {
@@ -32,16 +30,70 @@ DREAM_CONFIG = {
 }
 
 
+class UserProfiles(TypedDict):
+    total_investigations: int
+    favorite_companies: list[dict[str, Any]]
+    frequent_industries: list[dict[str, Any]]
+
+
+class OrientResult(TypedDict):
+    user_profiles: UserProfiles
+    investigation_count: int
+    memory_entries: int
+    graph_entities: int
+    stale_memories: list[str]
+
+
+class InvestigationSignal(TypedDict, total=False):
+    type: str
+    company: str
+    dimension: str
+    score: float
+    time: str
+    count: int
+    task: str
+
+
+class ConsolidationResult(TypedDict):
+    memories_updated: int
+    profiles_enriched: int
+    graph_entities_added: int
+    insights_generated: list[str]
+
+
+class PruneResult(TypedDict):
+    memories_pruned: int
+    cache_cleaned: int
+
+
+def _as_dict_list(value: object) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    return [cast(dict[str, Any], item) for item in value if isinstance(item, dict)]
+
+
+def _as_str(value: object) -> str:
+    return value if isinstance(value, str) else ""
+
+
+def _as_int(value: object) -> int:
+    return value if isinstance(value, int) and not isinstance(value, bool) else 0
+
+
+def _as_mapping(value: object) -> dict[str, Any]:
+    return cast(dict[str, Any], value) if isinstance(value, dict) else {}
+
+
 class DreamState:
     """做梦状态追踪"""
 
-    def __init__(self):
-        self.last_dream_time: Optional[datetime] = None
+    def __init__(self) -> None:
+        self.last_dream_time: datetime | None = None
         self.activities_since_last: int = 0
         self.is_dreaming: bool = False
-        self.dream_history: List[Dict[str, Any]] = []
+        self.dream_history: list[dict[str, Any]] = []
 
-    def record_activity(self):
+    def record_activity(self) -> None:
         """记录一次用户活动"""
         self.activities_since_last += 1
 
@@ -62,10 +114,10 @@ class DreamState:
 
         return True
 
-    def start_dream(self):
+    def start_dream(self) -> None:
         self.is_dreaming = True
 
-    def end_dream(self, summary: Dict[str, Any]):
+    def end_dream(self, summary: dict[str, Any]) -> None:
         self.is_dreaming = False
         self.last_dream_time = datetime.now()
         self.activities_since_last = 0
@@ -89,15 +141,15 @@ class AutoDreamEngine:
     4. Prune（修剪）— 清理过期/矛盾记忆，更新索引
     """
 
-    def __init__(self):
-        self._state: Dict[str, DreamState] = {}  # per-user state
+    def __init__(self) -> None:
+        self._state: dict[str, DreamState] = {}  # per-user state
 
     def get_state(self, user_id: str) -> DreamState:
         if user_id not in self._state:
             self._state[user_id] = DreamState()
         return self._state[user_id]
 
-    def record_activity(self, user_id: str, activity_type: str = "general"):
+    def record_activity(self, user_id: str, activity_type: str = "general") -> None:
         """记录用户活动（由各服务调用）"""
         state = self.get_state(user_id)
         state.record_activity()
@@ -107,7 +159,7 @@ class AutoDreamEngine:
             # 异步触发，不阻塞当前请求
             asyncio.create_task(self._dream_background(user_id))
 
-    async def trigger_dream(self, user_id: str, force: bool = False) -> Dict[str, Any]:
+    async def trigger_dream(self, user_id: str, force: bool = False) -> dict[str, Any]:
         """手动触发做梦（管理接口或定时任务）"""
         state = self.get_state(user_id)
         if state.is_dreaming:
@@ -117,19 +169,19 @@ class AutoDreamEngine:
 
         return await self._dream(user_id)
 
-    async def _dream_background(self, user_id: str):
+    async def _dream_background(self, user_id: str) -> None:
         """后台执行做梦，不阻塞"""
         try:
             await self._dream(user_id)
         except Exception as e:
             logger.error(f"AutoDream 后台巩固失败 (user={user_id}): {e}")
 
-    async def _dream(self, user_id: str) -> Dict[str, Any]:
+    async def _dream(self, user_id: str) -> dict[str, Any]:
         """执行完整的四阶段做梦流程"""
         state = self.get_state(user_id)
         state.start_dream()
         start_time = datetime.now()
-        summary: Dict[str, Any] = {
+        summary: dict[str, Any] = {
             "user_id": user_id,
             "start_time": start_time.isoformat(),
             "phases": {},
@@ -144,7 +196,7 @@ class AutoDreamEngine:
             signals = await self._phase_gather(user_id, orient_result)
             summary["phases"]["gather"] = {
                 "signals_found": len(signals),
-                "signal_types": list(set(s.get("type", "unknown") for s in signals)),
+                "signal_types": list({s.get("type", "unknown") for s in signals}),
             }
 
             # Phase 3: Consolidate — 巩固记忆
@@ -176,12 +228,62 @@ class AutoDreamEngine:
 
         return summary
 
+    async def _get_recent_memories(self, limit: int) -> list[dict[str, Any]]:
+        """兼容性读取近期情景记忆；当前服务未提供该接口时安全降级为空。"""
+        from src.services.episodic_memory_service import episodic_memory
+
+        recent_getter = getattr(episodic_memory, "get_recent_memories", None)
+        if not callable(recent_getter):
+            logger.debug("AutoDream - episodic_memory 未提供 get_recent_memories，跳过近期记忆扫描")
+            return []
+
+        get_recent_memories = cast(Callable[[int], Awaitable[object]], recent_getter)
+        recent = await get_recent_memories(limit)
+        return _as_dict_list(recent)
+
+    async def _get_recent_investigations(
+        self, user_id: str, limit: int
+    ) -> list[dict[str, Any]]:
+        """兼容性读取近期调查记录；当前服务未提供该接口时安全降级为空。"""
+        from src.services.investigation_data_store import investigation_data_store
+
+        recent_getter = getattr(investigation_data_store, "get_recent_investigations", None)
+        if not callable(recent_getter):
+            logger.debug(
+                "AutoDream - investigation_data_store 未提供 get_recent_investigations，跳过近期调查扫描"
+            )
+            return []
+
+        get_recent_investigations = cast(
+            Callable[[str, int], Awaitable[object]],
+            recent_getter,
+        )
+        recent = await get_recent_investigations(user_id, limit)
+        return _as_dict_list(recent)
+
+    async def _clean_expired_cache(self) -> int:
+        """兼容性执行缓存清理；当前服务未提供该接口时返回 0。"""
+        from src.services.investigation_data_store import investigation_data_store
+
+        clean_cache = getattr(investigation_data_store, "clean_expired_cache", None)
+        if not callable(clean_cache):
+            logger.debug("AutoDream - investigation_data_store 未提供 clean_expired_cache，跳过缓存清理")
+            return 0
+
+        clean_expired_cache = cast(Callable[[], Awaitable[object]], clean_cache)
+        cleaned = await clean_expired_cache()
+        return _as_int(cleaned)
+
     # ===== Phase 1: Orient =====
 
-    async def _phase_orient(self, user_id: str) -> Dict[str, Any]:
+    async def _phase_orient(self, user_id: str) -> OrientResult:
         """扫描当前记忆系统状态，建立心智地图"""
-        result = {
-            "user_profiles": {},
+        result: OrientResult = {
+            "user_profiles": {
+                "total_investigations": 0,
+                "favorite_companies": [],
+                "frequent_industries": [],
+            },
             "investigation_count": 0,
             "memory_entries": 0,
             "graph_entities": 0,
@@ -194,35 +296,37 @@ class AutoDreamEngine:
             if investigation_data_store:
                 prefs = await investigation_data_store.get_user_preference(user_id)
                 if prefs:
+                    total_investigations = _as_int(prefs.get("total_investigations", 0))
                     result["user_profiles"] = {
-                        "total_investigations": prefs.get("total_investigations", 0),
-                        "favorite_companies": prefs.get("favorite_companies", []),
-                        "frequent_industries": prefs.get("frequent_industries", []),
+                        "total_investigations": total_investigations,
+                        "favorite_companies": _as_dict_list(prefs.get("favorite_companies", [])),
+                        "frequent_industries": _as_dict_list(prefs.get("frequent_industries", [])),
                     }
-                    result["investigation_count"] = prefs.get("total_investigations", 0)
+                    result["investigation_count"] = total_investigations
         except Exception as e:
             logger.debug(f"Orient - 调查偏好扫描跳过: {e}")
 
         try:
             # 扫描情景记忆
-            from src.services.episodic_memory_service import episodic_memory_service
-            recent = await episodic_memory_service.get_recent_memories(limit=50)
+            recent = await self._get_recent_memories(limit=50)
             result["memory_entries"] = len(recent) if recent else 0
 
             # 识别过期记忆
             cutoff = datetime.now() - timedelta(days=DREAM_CONFIG["stale_memory_days"])
-            for mem in (recent or []):
-                mem_time = mem.get("timestamp", "")
+            for mem in recent:
+                mem_time = _as_str(mem.get("timestamp", ""))
                 if mem_time and mem_time < cutoff.isoformat():
-                    result["stale_memories"].append(mem.get("memory_id", ""))
+                    memory_id = _as_str(mem.get("memory_id", ""))
+                    if memory_id:
+                        result["stale_memories"].append(memory_id)
         except Exception as e:
             logger.debug(f"Orient - 情景记忆扫描跳过: {e}")
 
         try:
             # 扫描知识图谱
             from src.services.graph_service import graph_service
-            stats = await graph_service.get_graph_stats()
-            result["graph_entities"] = stats.get("total_nodes", 0)
+            stats = graph_service.get_graph_stats()
+            result["graph_entities"] = _as_int(stats.get("total_nodes", 0))
         except Exception as e:
             logger.debug(f"Orient - 图谱扫描跳过: {e}")
 
@@ -231,31 +335,27 @@ class AutoDreamEngine:
     # ===== Phase 2: Gather =====
 
     async def _phase_gather(
-        self, user_id: str, orient: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, user_id: str, orient: OrientResult
+    ) -> list[InvestigationSignal]:
         """从近期活动中收集信号（模式识别）"""
-        signals: List[Dict[str, Any]] = []
+        signals: list[InvestigationSignal] = []
 
         try:
             # 信号1: 最近的调查结果
-            from src.services.investigation_data_store import investigation_data_store
-            if investigation_data_store:
-                recent_investigations = await investigation_data_store.get_recent_investigations(
-                    user_id, limit=10
-                )
-                for inv in (recent_investigations or []):
-                    risk = inv.get("risk", {})
-                    if risk:
-                        # 识别高风险模式
-                        for dim, score in risk.items():
-                            if isinstance(score, (int, float)) and score > 60:
-                                signals.append({
-                                    "type": "high_risk_pattern",
-                                    "company": inv.get("company_name", ""),
-                                    "dimension": dim,
-                                    "score": score,
-                                    "time": inv.get("created_at", ""),
-                                })
+            recent_investigations = await self._get_recent_investigations(user_id, limit=10)
+            for inv in recent_investigations:
+                risk = _as_mapping(inv.get("risk", {}))
+                if risk:
+                    # 识别高风险模式
+                    for dim, score in risk.items():
+                        if isinstance(dim, str) and isinstance(score, (int, float)) and score > 60:
+                            signals.append({
+                                "type": "high_risk_pattern",
+                                "company": _as_str(inv.get("company_name", "")),
+                                "dimension": dim,
+                                "score": float(score),
+                                "time": _as_str(inv.get("created_at", "")),
+                            })
         except Exception as e:
             logger.debug(f"Gather - 调查信号收集跳过: {e}")
 
@@ -265,26 +365,25 @@ class AutoDreamEngine:
             if investigation_data_store:
                 prefs = await investigation_data_store.get_user_preference(user_id)
                 if prefs:
-                    favorites = prefs.get("favorite_companies", [])
-                    for fav in (favorites or []):
-                        if isinstance(fav, dict) and fav.get("count", 0) >= 3:
+                    favorites = _as_dict_list(prefs.get("favorite_companies", []))
+                    for fav in favorites:
+                        if _as_int(fav.get("count", 0)) >= 3:
                             signals.append({
                                 "type": "repeated_interest",
-                                "company": fav.get("name", ""),
-                                "count": fav.get("count", 0),
+                                "company": _as_str(fav.get("name", "")),
+                                "count": _as_int(fav.get("count", 0)),
                             })
         except Exception as e:
             logger.debug(f"Gather - 重复模式识别跳过: {e}")
 
         try:
             # 信号3: 从情景记忆中提取跨会话模式
-            from src.services.episodic_memory_service import episodic_memory_service
-            recent = await episodic_memory_service.get_recent_memories(limit=20)
+            recent = await self._get_recent_memories(limit=20)
             if recent:
                 # 统计高频任务类型
-                task_types: Dict[str, int] = {}
+                task_types: dict[str, int] = {}
                 for mem in recent:
-                    task = mem.get("task_type", mem.get("original_task", ""))
+                    task = _as_str(mem.get("task_type", mem.get("original_task", "")))
                     if task:
                         key = task[:50]  # 截断
                         task_types[key] = task_types.get(key, 0) + 1
@@ -306,9 +405,9 @@ class AutoDreamEngine:
     async def _phase_consolidate(
         self,
         user_id: str,
-        orient: Dict[str, Any],
-        signals: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        orient: OrientResult,
+        signals: list[InvestigationSignal],
+    ) -> ConsolidationResult:
         """
         巩固记忆：将信号转化为长期记忆
 
@@ -318,7 +417,7 @@ class AutoDreamEngine:
         3. 合并重复的情景记忆
         4. 生成跨会话洞察
         """
-        result = {
+        result: ConsolidationResult = {
             "memories_updated": 0,
             "profiles_enriched": 0,
             "graph_entities_added": 0,
@@ -327,34 +426,31 @@ class AutoDreamEngine:
 
         # 1. 更新用户偏好画像
         try:
-            from src.services.investigation_data_store import investigation_data_store
-            if investigation_data_store:
-                risk_signals = [s for s in signals if s["type"] == "high_risk_pattern"]
-                if risk_signals:
-                    # 统计用户最关注的风险维度
-                    dim_counts: Dict[str, int] = {}
-                    for s in risk_signals:
-                        dim = s.get("dimension", "")
+            risk_signals = [s for s in signals if s.get("type") == "high_risk_pattern"]
+            if risk_signals:
+                # 统计用户最关注的风险维度
+                dim_counts: dict[str, int] = {}
+                for signal in risk_signals:
+                    dim = _as_str(signal.get("dimension", ""))
+                    if dim:
                         dim_counts[dim] = dim_counts.get(dim, 0) + 1
 
-                    # 转化为权重
-                    total = sum(dim_counts.values())
-                    weights = {d: round(c / total, 2) for d, c in dim_counts.items()}
-
-                    await investigation_data_store.update_user_preference(
-                        user_id, risk_focus_weights=weights
+                if dim_counts:
+                    logger.debug(
+                        "Consolidate - 当前 investigation_data_store 接口不支持风险权重写回，跳过画像更新: user=%s",
+                        user_id,
                     )
-                    result["profiles_enriched"] += 1
         except Exception as e:
             logger.debug(f"Consolidate - 画像更新跳过: {e}")
 
         # 2. 将调查发现沉淀到知识图谱
         try:
             from src.services.graph_service import graph_service
-            high_risk_companies = set()
-            for s in signals:
-                if s["type"] == "high_risk_pattern" and s.get("company"):
-                    high_risk_companies.add(s["company"])
+            high_risk_companies: set[str] = set()
+            for signal in signals:
+                company = _as_str(signal.get("company", ""))
+                if signal.get("type") == "high_risk_pattern" and company:
+                    high_risk_companies.add(company)
 
             for company in high_risk_companies:
                 try:
@@ -370,39 +466,40 @@ class AutoDreamEngine:
             logger.debug(f"Consolidate - 图谱沉淀跳过: {e}")
 
         # 3. 生成跨会话洞察
-        repeated = [s for s in signals if s["type"] == "repeated_interest"]
-        frequent_tasks = [s for s in signals if s["type"] == "frequent_task"]
+        repeated = [s for s in signals if s.get("type") == "repeated_interest"]
+        frequent_tasks = [s for s in signals if s.get("type") == "frequent_task"]
 
         if repeated:
-            companies = [s["company"] for s in repeated]
-            result["insights_generated"].append(
-                f"用户持续关注以下企业：{'、'.join(companies[:5])}，建议设置自动监控"
-            )
+            companies = [_as_str(signal.get("company", "")) for signal in repeated]
+            companies = [company for company in companies if company]
+            if companies:
+                result["insights_generated"].append(
+                    f"用户持续关注以下企业：{'、'.join(companies[:5])}，建议设置自动监控"
+                )
 
         if frequent_tasks:
-            tasks = [s["task"] for s in frequent_tasks[:3]]
-            result["insights_generated"].append(
-                f"用户高频操作模式：{'；'.join(tasks)}，可优化快捷入口"
-            )
+            tasks = [_as_str(signal.get("task", "")) for signal in frequent_tasks[:3]]
+            tasks = [task for task in tasks if task]
+            if tasks:
+                result["insights_generated"].append(
+                    f"用户高频操作模式：{'；'.join(tasks)}，可优化快捷入口"
+                )
 
         result["memories_updated"] = result["profiles_enriched"] + result["graph_entities_added"]
         return result
 
     # ===== Phase 4: Prune =====
 
-    async def _phase_prune(self, user_id: str) -> Dict[str, Any]:
+    async def _phase_prune(self, user_id: str) -> PruneResult:
         """修剪过期记忆，维护索引健康"""
-        result = {
+        result: PruneResult = {
             "memories_pruned": 0,
             "cache_cleaned": 0,
         }
 
         # 清理过期搜索缓存
         try:
-            from src.services.investigation_data_store import investigation_data_store
-            if investigation_data_store:
-                cleaned = await investigation_data_store.clean_expired_cache()
-                result["cache_cleaned"] = cleaned or 0
+            result["cache_cleaned"] = await self._clean_expired_cache()
         except Exception as e:
             logger.debug(f"Prune - 缓存清理跳过: {e}")
 
@@ -410,7 +507,7 @@ class AutoDreamEngine:
 
     # ===== 状态查询 =====
 
-    def get_dream_status(self, user_id: str) -> Dict[str, Any]:
+    def get_dream_status(self, user_id: str) -> dict[str, Any]:
         """获取用户的做梦状态"""
         state = self.get_state(user_id)
         return {

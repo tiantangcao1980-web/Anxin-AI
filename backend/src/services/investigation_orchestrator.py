@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Investigation Orchestrator v3 — 多 Agent 协同调查引擎（增强版）
 
@@ -24,8 +23,10 @@ Investigation Orchestrator v3 — 多 Agent 协同调查引擎（增强版）
 """
 
 import asyncio
-from typing import AsyncGenerator, Dict, Any, Optional, List
+from collections.abc import AsyncGenerator
 from datetime import datetime
+from typing import Any
+
 from loguru import logger
 
 from src.services.due_diligence_service import due_diligence_service
@@ -34,25 +35,25 @@ from src.services.due_diligence_service import due_diligence_service
 class InvestigationOrchestrator:
     """多 Agent 协同调查编排器 v3"""
 
-    def __init__(self):
-        self._workforce = None
-        self._deep_research = None
-        self._forum = None
-        self._report_engine = None
-        self._data_store = None
+    def __init__(self) -> None:
+        self._workforce: Any = None
+        self._deep_research: Any = None
+        self._forum: Any = None
+        self._report_engine: Any = None
+        self._data_store: Any = None
 
     @property
-    def workforce(self):
+    def workforce(self) -> Any:
         if self._workforce is None:
             try:
-                from src.agents.workforce import legal_workforce
-                self._workforce = legal_workforce
+                from src.agents.workforce import get_workforce
+                self._workforce = get_workforce()
             except ImportError:
                 logger.warning("无法加载 LegalWorkforce，将使用简化调查流程")
         return self._workforce
 
     @property
-    def deep_research(self):
+    def deep_research(self) -> Any:
         if self._deep_research is None:
             try:
                 from src.services.deep_research_engine import deep_research_engine
@@ -62,7 +63,7 @@ class InvestigationOrchestrator:
         return self._deep_research
 
     @property
-    def forum(self):
+    def forum(self) -> Any:
         if self._forum is None:
             try:
                 from src.services.agent_forum import agent_forum
@@ -72,7 +73,7 @@ class InvestigationOrchestrator:
         return self._forum
 
     @property
-    def report_engine_v2(self):
+    def report_engine_v2(self) -> Any:
         if self._report_engine is None:
             try:
                 from src.services.report_engine import report_engine
@@ -82,7 +83,7 @@ class InvestigationOrchestrator:
         return self._report_engine
 
     @property
-    def data_store(self):
+    def data_store(self) -> Any:
         if self._data_store is None:
             try:
                 from src.services.investigation_data_store import investigation_data_store
@@ -97,14 +98,15 @@ class InvestigationOrchestrator:
         self,
         company_name: str,
         investigation_type: str = "comprehensive",
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
+        org_id: str | None = None,
         enable_deep_research: bool = True,
         enable_forum: bool = True,
         enable_report: bool = False,
         report_template: str = "comprehensive",
-        time_range_start: Optional[str] = None,
-        time_range_end: Optional[str] = None,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+        time_range_start: str | None = None,
+        time_range_end: str | None = None,
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """
         增强版多 Agent 协同调查，七阶段流水线（含缓存预检）
 
@@ -124,9 +126,9 @@ class InvestigationOrchestrator:
         """
         start_time = datetime.now()
         timestamp = start_time.isoformat()
-        collected_data: Dict[str, Any] = {}
-        research_data: Dict[str, Any] = {}
-        forum_data: Dict[str, Any] = {}
+        collected_data: dict[str, Any] = {}
+        research_data: dict[str, Any] = {}
+        forum_data: dict[str, Any] = {}
         conflicts = []
         cache_used = False
 
@@ -155,7 +157,7 @@ class InvestigationOrchestrator:
 
         # ===== 阶段零：缓存预检与热加载 =====
         if self.data_store:
-            cached_data, cache_status = await self._stage_cache_precheck(company_name)
+            cached_data, cache_status = await self._stage_cache_precheck(company_name, org_id=org_id)
             if cache_status:
                 yield {
                     "type": "cache_status",
@@ -177,7 +179,11 @@ class InvestigationOrchestrator:
         # ===== 阶段一：快速数据采集（跳过已缓存维度） =====
         yield {"type": "stage", "step": "collection", "message": "多 Agent 并行数据采集中"}
 
-        async for event in self._stage_collection(company_name, cached_dims=set(collected_data.keys())):
+        async for event in self._stage_collection(
+            company_name,
+            cached_dims=set(collected_data.keys()),
+            org_id=org_id,
+        ):
             if event.get("_collected"):
                 # 合并：新采集的数据覆盖缓存
                 for k, v in event["_collected"].items():
@@ -187,7 +193,7 @@ class InvestigationOrchestrator:
 
         # 保存采集数据到缓存
         if self.data_store and collected_data:
-            await self._save_collection_to_cache(company_name, collected_data)
+            await self._save_collection_to_cache(company_name, collected_data, org_id=org_id)
 
         # ===== 阶段二：深度研究（可选） =====
         if enable_deep_research and self.deep_research:
@@ -198,6 +204,7 @@ class InvestigationOrchestrator:
             async for event in self._stage_deep_research(
                 company_name, max_rounds=max_rounds,
                 time_range_start=time_range_start, time_range_end=time_range_end,
+                org_id=org_id,
             ):
                 if event.get("_research_data"):
                     research_data = event["_research_data"]
@@ -326,8 +333,9 @@ class InvestigationOrchestrator:
         self,
         company_name: str,
         investigation_type: str = "comprehensive",
-        user_id: Optional[str] = None,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+        user_id: str | None = None,
+        org_id: str | None = None,
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """编排多 Agent 协同调查（v1 兼容版）"""
         has_deep_research = self.deep_research is not None
         has_forum = self.forum is not None
@@ -336,6 +344,7 @@ class InvestigationOrchestrator:
             company_name=company_name,
             investigation_type=investigation_type,
             user_id=user_id,
+            org_id=org_id,
             enable_deep_research=has_deep_research,
             enable_forum=has_forum,
             enable_report=False,
@@ -345,14 +354,16 @@ class InvestigationOrchestrator:
     # ========== 各阶段实现 ==========
 
     async def _stage_cache_precheck(
-        self, company_name: str
-    ) -> tuple:
+        self,
+        company_name: str,
+        org_id: str | None = None,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         """阶段零：缓存预检 — 检查哪些维度已有有效缓存"""
-        cached_data = {}
-        cache_status = {}
+        cached_data: dict[str, Any] = {}
+        cache_status: dict[str, Any] = {}
 
         try:
-            dimensions = await self.data_store.get_cached_dimensions(company_name)
+            dimensions = await self.data_store.get_cached_dimensions(company_name, org_id=org_id)
             data_dims = {
                 "basic_info": "business_registry",
                 "litigation": "litigation",
@@ -365,7 +376,9 @@ class InvestigationOrchestrator:
                 if dim_info.get("cached") and not dim_info.get("expired"):
                     # 缓存有效，热加载
                     data = await self.data_store.get_cached_data(
-                        company_name, source_key
+                        company_name,
+                        source_key,
+                        org_id=org_id,
                     )
                     if data:
                         cached_data[data_key] = data
@@ -388,10 +401,13 @@ class InvestigationOrchestrator:
         return cached_data, cache_status
 
     async def _stage_collection(
-        self, company_name: str, cached_dims: Optional[set] = None
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+        self,
+        company_name: str,
+        cached_dims: set[str] | None = None,
+        org_id: str | None = None,
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """阶段一：并行数据采集（跳过已缓存维度）"""
-        collected_data = {}
+        collected_data: dict[str, Any] = {}
         cached_dims = cached_dims or set()
 
         # 如果所有关键维度都已缓存，快速完成
@@ -450,7 +466,10 @@ class InvestigationOrchestrator:
         yield {"_collected": collected_data}
 
     async def _save_collection_to_cache(
-        self, company_name: str, collected_data: Dict[str, Any]
+        self,
+        company_name: str,
+        collected_data: dict[str, Any],
+        org_id: str | None = None,
     ) -> None:
         """将采集到的数据分维度写入缓存"""
         if not self.data_store:
@@ -469,15 +488,17 @@ class InvestigationOrchestrator:
                     data_source=source_key,
                     raw_data=collected_data[data_key],
                     parsed_data=collected_data[data_key],
+                    org_id=org_id,
                 )
 
     async def _stage_deep_research(
         self,
         company_name: str,
         max_rounds: int = 3,
-        time_range_start: Optional[str] = None,
-        time_range_end: Optional[str] = None,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+        time_range_start: str | None = None,
+        time_range_end: str | None = None,
+        org_id: str | None = None,
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """阶段二：深度研究"""
         research_data = {}
 
@@ -487,6 +508,7 @@ class InvestigationOrchestrator:
                 max_rounds=max_rounds,
                 time_range_start=time_range_start,
                 time_range_end=time_range_end,
+                org_id=org_id,
             ):
                 yield event
                 # 捕获最终数据
@@ -508,6 +530,7 @@ class InvestigationOrchestrator:
                 data_source="deep_research",
                 raw_data=research_data,
                 ttl_seconds=86400,
+                org_id=org_id,
             )
 
         yield {"_research_data": research_data}
@@ -515,9 +538,9 @@ class InvestigationOrchestrator:
     async def _stage_forum(
         self,
         company_name: str,
-        collected_data: Dict[str, Any],
+        collected_data: dict[str, Any],
         research_summary: str,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """阶段三：多 Agent 论坛"""
         forum_data = {}
 
@@ -539,10 +562,10 @@ class InvestigationOrchestrator:
         yield {"_forum_data": forum_data}
 
     def _cross_validate(
-        self, collected_data: Dict, forum_data: Dict
-    ) -> list:
+        self, collected_data: dict[str, Any], forum_data: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """阶段四：交叉验证"""
-        conflicts = []
+        conflicts: list[dict[str, Any]] = []
         risk_data = collected_data.get("risk", {})
         credit_data = collected_data.get("credit", {})
         basic_info = collected_data.get("basic_info", {})
@@ -586,11 +609,11 @@ class InvestigationOrchestrator:
     def _build_consensus(
         self,
         company_name: str,
-        collected_data: Dict,
-        conflicts: list,
-        forum_data: Dict,
-        research_data: Dict,
-    ) -> Dict[str, Any]:
+        collected_data: dict[str, Any],
+        conflicts: list[dict[str, Any]],
+        forum_data: dict[str, Any],
+        research_data: dict[str, Any],
+    ) -> dict[str, Any]:
         """阶段五：构建共识结论"""
         risk_data = collected_data.get("risk", {})
         risk_scores = [
@@ -644,12 +667,12 @@ class InvestigationOrchestrator:
     def _generate_consensus_summary(
         self,
         company_name: str,
-        data: Dict,
-        conflicts: list,
+        data: dict[str, Any],
+        conflicts: list[dict[str, Any]],
         risk_level: str,
         avg_risk: float,
-        forum_data: Dict,
-        research_data: Dict,
+        forum_data: dict[str, Any],
+        research_data: dict[str, Any],
     ) -> str:
         """生成共识摘要"""
         risk_label = {"high": "高风险", "medium": "中风险", "low": "低风险"}.get(risk_level, "未知")
@@ -686,14 +709,16 @@ class InvestigationOrchestrator:
 
         return "".join(parts)
 
-    def _get_participated_agents(self, forum_data: Dict) -> list:
+    def _get_participated_agents(self, forum_data: dict[str, Any]) -> list[str]:
         if forum_data and forum_data.get("consensus", {}).get("agents_participated"):
-            return forum_data["consensus"]["agents_participated"]
+            agents = forum_data["consensus"]["agents_participated"]
+            if isinstance(agents, list):
+                return [str(agent) for agent in agents]
         return ["due_diligence", "risk_assessor", "compliance"]
 
     def _get_stages_config(
         self, deep_research: bool, forum: bool, report: bool
-    ) -> list:
+    ) -> list[str]:
         stages = ["collection"]
         if deep_research:
             stages.append("deep_research")
@@ -706,7 +731,7 @@ class InvestigationOrchestrator:
 
     def _get_completed_stages(
         self, deep_research: bool, forum: bool, report: bool
-    ) -> list:
+    ) -> list[str]:
         return self._get_stages_config(deep_research, forum, report)
 
     # ========== 持久化 ==========
@@ -715,21 +740,21 @@ class InvestigationOrchestrator:
         self,
         company_name: str,
         investigation_type: str,
-        user_id: Optional[str],
-        collected_data: Dict[str, Any],
-        consensus_result: Dict[str, Any],
-        conflicts: list,
-        research_data: Dict[str, Any],
-        forum_data: Dict[str, Any],
-        stages: list,
-    ) -> Optional[str]:
+        user_id: str | None,
+        collected_data: dict[str, Any],
+        consensus_result: dict[str, Any],
+        conflicts: list[dict[str, Any]],
+        research_data: dict[str, Any],
+        forum_data: dict[str, Any],
+        stages: list[str],
+    ) -> str | None:
         """将调查结果持久化到数据库，返回 investigation_id。"""
         try:
             from src.core.database import get_db_context
             from src.models.investigation import (
                 Investigation,
-                InvestigationStatus,
                 InvestigationRiskLevel,
+                InvestigationStatus,
             )
 
             risk_level_raw = consensus_result.get("risk_level", "unknown")

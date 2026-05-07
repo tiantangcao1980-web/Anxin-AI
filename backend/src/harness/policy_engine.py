@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Agent 权限与审批引擎
 
@@ -11,7 +10,7 @@ Agent 权限与审批引擎
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 from loguru import logger
 
@@ -39,9 +38,9 @@ class PolicyCheckResult:
     """权限检查结果"""
     decision: PolicyDecision
     reason: str
-    tool_name: Optional[str] = None
-    agent_name: Optional[str] = None
-    required_approver_role: Optional[str] = None  # 需要谁审批
+    tool_name: str | None = None
+    agent_name: str | None = None
+    required_approver_role: str | None = None  # 需要谁审批
 
 
 @dataclass
@@ -49,9 +48,9 @@ class AgentPolicy:
     """单个 Agent 的策略配置"""
     agent_name: str
     # 允许的工具列表（None = 遵从 tool_registry 的 allowed_agents）
-    allowed_tools: Optional[Set[str]] = None
+    allowed_tools: set[str] | None = None
     # 明确禁止的工具
-    denied_tools: Set[str] = field(default_factory=set)
+    denied_tools: set[str] = field(default_factory=set)
     # 允许的最高风险等级
     max_risk_level: RiskLevel = RiskLevel.WRITE
     # 允许访问的最高数据敏感度
@@ -75,13 +74,13 @@ class PolicyEngine:
     4. 高风险操作强制需要审批
     """
 
-    def __init__(self):
-        self._policies: Dict[str, AgentPolicy] = {}
-        self._audit_log: List[Dict[str, Any]] = []
+    def __init__(self) -> None:
+        self._policies: dict[str, AgentPolicy] = {}
+        self._audit_log: list[dict[str, Any]] = []
         self._max_audit = 3000
         self._register_default_policies()
 
-    def _register_default_policies(self):
+    def _register_default_policies(self) -> None:
         """注册默认 Agent 策略"""
 
         # 法律顾问：广泛权限但不可对外发送
@@ -206,11 +205,11 @@ class PolicyEngine:
 
         logger.info(f"[PolicyEngine] 注册 {len(self._policies)} 个 Agent 策略")
 
-    def set_policy(self, policy: AgentPolicy):
+    def set_policy(self, policy: AgentPolicy) -> None:
         """设置或更新 Agent 策略"""
         self._policies[policy.agent_name] = policy
 
-    def get_policy(self, agent_name: str) -> Optional[AgentPolicy]:
+    def get_policy(self, agent_name: str) -> AgentPolicy | None:
         """获取 Agent 策略"""
         return self._policies.get(agent_name)
 
@@ -290,7 +289,7 @@ class PolicyEngine:
             agent_name=agent_name,
         )
 
-    def get_agent_available_tools(self, agent_name: str) -> List[str]:
+    def get_agent_available_tools(self, agent_name: str) -> list[str]:
         """获取 Agent 可用的所有工具列表"""
         available = []
         for tool_name in tool_registry._tools:
@@ -299,7 +298,13 @@ class PolicyEngine:
                 available.append(tool_name)
         return available
 
-    def _log_audit(self, agent_name: str, tool_name: str, decision: str, reason: str):
+    def _log_audit(
+        self,
+        agent_name: str,
+        tool_name: str,
+        decision: str,
+        reason: str,
+    ) -> None:
         """记录审计日志"""
         import time
         self._audit_log.append({
@@ -312,7 +317,7 @@ class PolicyEngine:
         if len(self._audit_log) > self._max_audit:
             self._audit_log = self._audit_log[-self._max_audit:]
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """获取策略统计"""
         from collections import Counter
         decisions = Counter(log["decision"] for log in self._audit_log)

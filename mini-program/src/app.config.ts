@@ -1,4 +1,6 @@
 // 注意: tabBar 图标文件需要先运行 node scripts/generate-icons.js 生成
+import { miniProgramTheme } from './styles/design-tokens'
+
 export default defineAppConfig({
   pages: [
     'pages/index/index',
@@ -7,16 +9,16 @@ export default defineAppConfig({
   ],
   window: {
     backgroundTextStyle: 'dark',
-    navigationBarBackgroundColor: '#D4A574',
+    navigationBarBackgroundColor: miniProgramTheme.brandPrimary,
     navigationBarTitleText: '安心法务',
     navigationBarTextStyle: 'white',
     enablePullDownRefresh: false,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: miniProgramTheme.background,
   },
   tabBar: {
-    color: '#999999',
-    selectedColor: '#D4A574',
-    backgroundColor: '#ffffff',
+    color: miniProgramTheme.textTertiary,
+    selectedColor: miniProgramTheme.brandPrimary,
+    backgroundColor: miniProgramTheme.surface,
     borderStyle: 'black',
     list: [
       {

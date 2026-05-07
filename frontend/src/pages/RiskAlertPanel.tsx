@@ -8,7 +8,7 @@ import {
   AlertTriangle, Shield, TrendingUp, Clock, CheckCircle2,
   FileText, Radio, ChevronDown, ChevronRight, Eye,
 } from 'lucide-react'
-import { contractsApi, sentimentApi, type Contract, type SentimentAlert } from '@/lib/api'
+import { contractsApi, sentimentApi, type Contract, type RiskFactor, type SentimentAlert } from '@/lib/api'
 import { spacing } from '@/lib/design-tokens'
 import { StatCard as UnifiedStatCard, StatGrid } from '@/components/ui-unified'
 import { toast } from 'sonner'
@@ -23,6 +23,7 @@ interface RiskItem {
   time: string
   handled: boolean
   sourceId: string
+  factors?: RiskFactor[]
 }
 
 // 风险级别配置
@@ -94,6 +95,7 @@ export function RiskAlertPanel() {
               time: c.updated_at,
               handled: false,
               sourceId: c.id,
+              factors: getContractRiskFactors(c),
             })
           }
         }
@@ -245,6 +247,26 @@ export function RiskAlertPanel() {
                 {isExpanded && (
                   <div className="px-4 pb-4 border-t border-border/50">
                     <p className="text-sm text-muted-foreground mt-3 leading-relaxed">{item.description}</p>
+                    {item.factors && item.factors.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        {item.factors.slice(0, 5).map(factor => (
+                          <div key={factor.key} className="space-y-1">
+                            <div className="flex items-center justify-between gap-3 text-xs">
+                              <span className="font-medium text-foreground truncate">{factor.name}</span>
+                              <span className="text-muted-foreground shrink-0">
+                                贡献 {Number(factor.contribution ?? 0).toFixed(1)}
+                              </span>
+                            </div>
+                            <div className="h-2 rounded-full bg-muted overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-primary"
+                                style={{ width: `${Math.min(100, Math.max(0, factor.score))}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <div className="flex items-center gap-2 mt-3">
                       {item.source === 'sentiment' && !item.handled && (
                         <button
@@ -283,6 +305,9 @@ function getContractRiskDescription(contract: Contract): string {
   if (contract.risk_score !== undefined) {
     parts.push(`风险评分: ${contract.risk_score}`)
   }
+  if (contract.risk_explain) {
+    parts.push(contract.risk_explain)
+  }
   if (contract.expiry_date) {
     const expiry = new Date(contract.expiry_date)
     const now = new Date()
@@ -297,4 +322,14 @@ function getContractRiskDescription(contract: Contract): string {
     parts.push(`类型: ${contract.contract_type}`)
   }
   return parts.length > 0 ? parts.join(' · ') : `合同 ${contract.title} 存在风险`
+}
+
+function getContractRiskFactors(contract: Contract): RiskFactor[] {
+  const flexible = contract as Contract & { factors?: RiskFactor[] }
+  const factors = flexible.risk_factors ?? flexible.factors ?? []
+  return factors.filter(factor => (
+    typeof factor?.key === 'string'
+    && typeof factor?.name === 'string'
+    && typeof factor?.score === 'number'
+  ))
 }

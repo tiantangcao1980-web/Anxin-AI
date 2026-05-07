@@ -1,23 +1,19 @@
-# -*- coding: utf-8 -*-
 """
 律师入驻服务
 
 覆盖入驻全生命周期：创建档案 -> 提交认证 -> 审核 -> 配置接单 -> 上线
 """
 
-import uuid
-from datetime import datetime, timezone, date
-from typing import Optional
+from datetime import UTC, date, datetime
+from typing import Any
 
-from sqlalchemy import select, func, and_, extract
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 from loguru import logger
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.user import User
-from src.models.lawyer_matching import LawyerProfile, Consultation, Delegation
 from src.models.lawyer_certification import LawyerCertification, LawyerServiceConfig
-from src.models.payment import PaymentOrder
+from src.models.lawyer_matching import Consultation, Delegation, LawyerProfile
+from src.models.user import User
 
 
 class LawyerOnboardingService:
@@ -30,7 +26,9 @@ class LawyerOnboardingService:
     # 档案管理
     # ------------------------------------------------------------------
 
-    async def create_or_update_profile(self, user_id: str, data: dict) -> dict:
+    async def create_or_update_profile(
+        self, user_id: str, data: dict[str, Any]
+    ) -> dict[str, Any]:
         """创建或更新律师档案，自动将 user.role 设为 platform_lawyer"""
 
         result = await self.db.execute(
@@ -79,9 +77,9 @@ class LawyerOnboardingService:
         license_image_url: str,
         issue_date: date,
         expiry_date: date,
-        bar_association: Optional[str] = None,
-        id_card_image_url: Optional[str] = None,
-    ) -> dict:
+        bar_association: str | None = None,
+        id_card_image_url: str | None = None,
+    ) -> dict[str, Any]:
         """提交或重新提交执业证认证"""
 
         # 查找已有认证记录
@@ -127,7 +125,7 @@ class LawyerOnboardingService:
     # 入驻进度
     # ------------------------------------------------------------------
 
-    async def get_onboarding_status(self, user_id: str) -> dict:
+    async def get_onboarding_status(self, user_id: str) -> dict[str, Any]:
         """
         返回入驻进度:
         step 1: profile  — 是否已创建档案
@@ -142,7 +140,7 @@ class LawyerOnboardingService:
         )
         profile = result.scalar_one_or_none()
 
-        steps = [
+        steps: list[dict[str, Any]] = [
             {"name": "profile", "status": "pending", "detail": None},
             {"name": "certification", "status": "pending", "detail": None},
             {"name": "service_config", "status": "pending", "detail": None},
@@ -205,8 +203,8 @@ class LawyerOnboardingService:
         cert_id: str,
         approver_id: str,
         approved: bool,
-        rejection_reason: Optional[str] = None,
-    ) -> dict:
+        rejection_reason: str | None = None,
+    ) -> dict[str, Any]:
         """管理员审核认证"""
 
         cert = await self.db.get(LawyerCertification, cert_id)
@@ -215,7 +213,7 @@ class LawyerOnboardingService:
         if cert.status != "pending":
             raise ValueError(f"认证状态为 {cert.status}，无法审核")
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         if approved:
             cert.status = "approved"
@@ -249,7 +247,7 @@ class LawyerOnboardingService:
 
     async def get_pending_certifications(
         self, page: int = 1, page_size: int = 20
-    ) -> dict:
+    ) -> dict[str, Any]:
         """管理员查询待审核列表"""
 
         base_query = (
@@ -270,7 +268,7 @@ class LawyerOnboardingService:
             )
         ).scalars().all()
 
-        items = []
+        items: list[dict[str, Any]] = []
         for cert in rows:
             # 加载关联的 profile
             profile_result = await self.db.execute(
@@ -306,7 +304,9 @@ class LawyerOnboardingService:
     # 接单设置
     # ------------------------------------------------------------------
 
-    async def update_service_config(self, profile_id: str, data: dict) -> dict:
+    async def update_service_config(
+        self, profile_id: str, data: dict[str, Any]
+    ) -> dict[str, Any]:
         """创建或更新接单设置"""
 
         result = await self.db.execute(
@@ -337,7 +337,7 @@ class LawyerOnboardingService:
     # 律师仪表板
     # ------------------------------------------------------------------
 
-    async def get_lawyer_dashboard(self, user_id: str) -> dict:
+    async def get_lawyer_dashboard(self, user_id: str) -> dict[str, Any]:
         """
         律师工作台数据:
         1. 基本统计: 本月收入、接单数、评分
@@ -354,7 +354,7 @@ class LawyerOnboardingService:
         if not profile:
             raise ValueError("律师档案不存在")
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         current_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
         # 1. 本月接单数（已匹配给该律师的咨询）
@@ -390,7 +390,7 @@ class LawyerOnboardingService:
         pending_count = (await self.db.execute(pending_q)).scalar() or 0
 
         # 4. 近6个月收入趋势（简化实现）
-        revenue_trend = []
+        revenue_trend: list[dict[str, Any]] = []
         for i in range(5, -1, -1):
             month = now.month - i
             year = now.year
@@ -400,7 +400,7 @@ class LawyerOnboardingService:
             revenue_trend.append({"month": f"{year}-{month:02d}", "revenue": 0})
 
         # 5. 近6个月评分趋势（简化实现）
-        rating_trend = []
+        rating_trend: list[dict[str, Any]] = []
         for i in range(5, -1, -1):
             month = now.month - i
             year = now.year

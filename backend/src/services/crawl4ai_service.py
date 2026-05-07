@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Crawl4AI 适配层 — LLM 友好的网页爬取服务
 
@@ -14,22 +13,59 @@ Crawl4AI 不可用时（未安装/导入失败），自动降级到 httpx + 简�
 
 import asyncio
 import re
-from typing import Dict, Any, Optional, List
+from collections.abc import Coroutine
+from typing import Any, Protocol, TypedDict, cast
+
 from loguru import logger
 
 from src.core.config import settings
 
 
+class CrawlLink(TypedDict):
+    text: str
+    url: str
+
+
+class CrawlResult(TypedDict):
+    title: str
+    content: str
+    html: str
+    metadata: dict[str, Any]
+    links: list[CrawlLink]
+    success: bool
+    error: str | None
+    source: str
+
+
+class Crawl4AIRunResult(Protocol):
+    success: bool
+    metadata: dict[str, Any] | None
+    markdown: str | None
+    cleaned_html: str | None
+    html: str | None
+    links: dict[str, list[dict[str, Any]]] | None
+    error_message: str | None
+    extracted_content: str | None
+
+
+class Crawl4AICrawler(Protocol):
+    async def awarmup(self) -> None: ...
+
+    async def arun(self, *, url: str, config: Any) -> Crawl4AIRunResult: ...
+
+    async def aclose(self) -> None: ...
+
+
 class Crawl4AIService:
     """Crawl4AI 网页爬取适配层"""
 
-    def __init__(self):
-        self._crawler = None
+    def __init__(self) -> None:
+        self._crawler: Crawl4AICrawler | None = None
         self._available = False
         self._init_attempted = False
         self._semaphore = asyncio.Semaphore(settings.CRAWL4AI_MAX_CONCURRENT)
 
-    async def _ensure_init(self):
+    async def _ensure_init(self) -> None:
         """延迟初始化 Crawl4AI（首次使用时才加载）"""
         if self._init_attempted:
             return
@@ -41,7 +77,8 @@ class Crawl4AIService:
 
         try:
             from crawl4ai import AsyncWebCrawler
-            self._crawler = AsyncWebCrawler(verbose=settings.CRAWL4AI_VERBOSE)
+
+            self._crawler = cast(Crawl4AICrawler, AsyncWebCrawler(verbose=settings.CRAWL4AI_VERBOSE))
             await self._crawler.awarmup()
             self._available = True
             logger.info("[Crawl4AI] 初始化成功，LLM 友好爬取已就绪")
@@ -58,8 +95,8 @@ class Crawl4AIService:
         self,
         url: str,
         extract_strategy: str = "auto",
-        timeout: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        timeout: int | None = None,
+    ) -> CrawlResult:
         """
         爬取单个 URL，返回结构化内容
 
@@ -80,19 +117,52 @@ class Crawl4AIService:
                 "source": "crawl4ai" | "httpx_fallback",
             }
         """
-        await self._ensure_init()
         effective_timeout = timeout or settings.CRAWL4AI_TIMEOUT
 
         async with self._semaphore:
-            if self._available and self._crawler:
-                return await self._crawl_with_crawl4ai(url, effective_timeout)
-            else:
-                return await self._crawl_with_httpx(url, effective_timeout)
+            return await self._crawl_with_compliant_fetch(url, effective_timeout)
 
-    async def _crawl_with_crawl4ai(self, url: str, timeout: int) -> Dict[str, Any]:
+    async def _crawl_with_compliant_fetch(self, url: str, timeout: int) -> CrawlResult:
+        """Use the central crawler compliance gate for every outbound fetch."""
+        try:
+            from src.services.crawler_service import crawler_service
+
+            result = await crawler_service.fetch(url, timeout=timeout)
+            html = result["text"]
+            return {
+                "title": self._extract_title(html),
+                "content": self._html_to_markdown(html),
+                "html": html[:5000],
+                "metadata": {
+                    "url": result.get("url", url),
+                    "status_code": result.get("status_code"),
+                    "compliance": result.get("compliance", {}),
+                },
+                "links": self._extract_links(html, result.get("url", url))[:20],
+                "success": True,
+                "error": None,
+                "source": "crawler_service.fetch",
+            }
+        except Exception as e:
+            return {
+                "title": "",
+                "content": "",
+                "html": "",
+                "metadata": {},
+                "links": [],
+                "success": False,
+                "error": str(e),
+                "source": "crawler_service.fetch",
+            }
+
+    async def _crawl_with_crawl4ai(self, url: str, timeout: int) -> CrawlResult:
         """使用 Crawl4AI 爬取"""
         try:
-            from crawl4ai import CrawlerRunConfig, CacheMode
+            from crawl4ai import CacheMode, CrawlerRunConfig
+
+            crawler = self._crawler
+            if crawler is None:
+                raise RuntimeError("Crawl4AI crawler is not initialized")
 
             config = CrawlerRunConfig(
                 cache_mode=CacheMode.ENABLED if settings.CRAWL4AI_CACHE_ENABLED else CacheMode.DISABLED,
@@ -101,20 +171,23 @@ class Crawl4AIService:
             )
 
             result = await asyncio.wait_for(
-                self._crawler.arun(url=url, config=config),
+                crawler.arun(url=url, config=config),
                 timeout=timeout + 5,
             )
 
             if result.success:
+                links: list[CrawlLink] = []
+                if result.links:
+                    raw_links = result.links.get("internal", []) + result.links.get("external", [])
+                    for link in raw_links[:20]:
+                        links.append({"text": link.get("text", ""), "url": link.get("href", "")})
+
                 return {
                     "title": result.metadata.get("title", "") if result.metadata else "",
                     "content": result.markdown or result.cleaned_html or "",
                     "html": result.html[:5000] if result.html else "",
                     "metadata": result.metadata or {},
-                    "links": [
-                        {"text": link.get("text", ""), "url": link.get("href", "")}
-                        for link in (result.links.get("internal", []) + result.links.get("external", []))[:20]
-                    ] if result.links else [],
+                    "links": links,
                     "success": True,
                     "error": None,
                     "source": "crawl4ai",
@@ -123,14 +196,14 @@ class Crawl4AIService:
                 logger.debug(f"[Crawl4AI] 爬取失败: {url}, error={result.error_message}")
                 return await self._crawl_with_httpx(url, timeout)
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.debug(f"[Crawl4AI] 爬取超时: {url}")
             return await self._crawl_with_httpx(url, timeout)
         except Exception as e:
             logger.debug(f"[Crawl4AI] 爬取异常: {url}, {e}")
             return await self._crawl_with_httpx(url, timeout)
 
-    async def _crawl_with_httpx(self, url: str, timeout: int) -> Dict[str, Any]:
+    async def _crawl_with_httpx(self, url: str, timeout: int) -> CrawlResult:
         """httpx 降级爬取（无 JS 渲染）"""
         try:
             import httpx
@@ -177,17 +250,19 @@ class Crawl4AIService:
                 "source": "httpx_fallback",
             }
 
-    async def crawl_batch(self, urls: List[str], timeout: Optional[int] = None) -> List[Dict]:
+    async def crawl_batch(self, urls: list[str], timeout: int | None = None) -> list[CrawlResult]:
         """批量爬取"""
-        tasks = [self.crawl_url(url, timeout=timeout) for url in urls]
+        tasks: list[Coroutine[Any, Any, CrawlResult]] = [
+            self.crawl_url(url, timeout=timeout) for url in urls
+        ]
         return await asyncio.gather(*tasks, return_exceptions=False)
 
     async def extract_structured(
         self,
         url: str,
-        schema: Dict[str, str],
-        timeout: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        schema: dict[str, str],
+        timeout: int | None = None,
+    ) -> dict[str, Any]:
         """
         按 schema 提取结构化数据
 
@@ -205,13 +280,17 @@ class Crawl4AIService:
         # 如果 Crawl4AI 可用且支持 LLM 提取
         if self._available:
             try:
-                from crawl4ai import AsyncWebCrawler, CrawlerRunConfig
+                from crawl4ai import CrawlerRunConfig
                 from crawl4ai.extraction_strategy import JsonCssExtractionStrategy
+
+                crawler = self._crawler
+                if crawler is None:
+                    raise RuntimeError("Crawl4AI crawler is not initialized")
 
                 extraction_config = CrawlerRunConfig(
                     extraction_strategy=JsonCssExtractionStrategy(schema)
                 )
-                structured_result = await self._crawler.arun(url=url, config=extraction_config)
+                structured_result = await crawler.arun(url=url, config=extraction_config)
                 if structured_result.success and structured_result.extracted_content:
                     import json
                     data = json.loads(structured_result.extracted_content)
@@ -253,9 +332,9 @@ class Crawl4AIService:
         match = re.search(r'<title[^>]*>(.*?)</title>', html, re.IGNORECASE | re.DOTALL)
         return match.group(1).strip() if match else ""
 
-    def _extract_links(self, html: str, base_url: str) -> List[Dict]:
+    def _extract_links(self, html: str, base_url: str) -> list[CrawlLink]:
         """提取页面链接"""
-        links = []
+        links: list[CrawlLink] = []
         for match in re.finditer(r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>(.*?)</a>', html, re.IGNORECASE):
             href = match.group(1)
             text = re.sub(r'<[^>]+>', '', match.group(2)).strip()
@@ -263,11 +342,12 @@ class Crawl4AIService:
                 links.append({"text": text[:100], "url": href})
         return links
 
-    async def close(self):
+    async def close(self) -> None:
         """关闭 Crawl4AI 资源"""
-        if self._crawler:
+        crawler = self._crawler
+        if crawler is not None:
             try:
-                await self._crawler.aclose()
+                await crawler.aclose()
             except Exception:
                 pass
 

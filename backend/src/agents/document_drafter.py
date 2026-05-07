@@ -11,6 +11,7 @@ from src.services.agent_rag_service import AgentRAGService
 from src.services.document_validator import DocumentValidator
 
 _FALLBACK_PROMPT = "你是一位专业的法律文书起草专家，精通各类法律文书的撰写。"
+MissingFieldSpec = dict[str, str | float]
 
 
 @dataclass
@@ -24,7 +25,7 @@ class DraftPlan:
 class DocumentDraftAgent(BaseLegalAgent):
     """文书起草智能体"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         config = AgentConfig(
             name="文书起草Agent",
             role="法律文书专家",
@@ -166,17 +167,29 @@ class DocumentDraftAgent(BaseLegalAgent):
         missing_labels: list[str],
     ) -> list[dict[str, str]]:
         specs = self._get_missing_field_specs(normalized)
-        return [
-            {
-                "key": label,
-                "label": label,
-                "severity": specs.get(label, {}).get("severity", "medium"),
-                "group": specs.get(label, {}).get("group", "基础信息"),
-                "suggestion": specs.get(label, {}).get("suggestion", f"建议补充：完善{label}相关事实"),
-                "weight": str(specs.get(label, {}).get("weight", 1.0)),
-            }
-            for label in missing_labels
-        ]
+        items: list[dict[str, str]] = []
+        for label in missing_labels:
+            spec: MissingFieldSpec = specs.get(label) or {}
+            items.append(
+                {
+                    "key": label,
+                    "label": label,
+                    "severity": self._spec_text(spec, "severity", "medium"),
+                    "group": self._spec_text(spec, "group", "基础信息"),
+                    "suggestion": self._spec_text(
+                        spec,
+                        "suggestion",
+                        f"建议补充：完善{label}相关事实",
+                    ),
+                    "weight": str(spec.get("weight", 1.0)),
+                }
+            )
+        return items
+
+    @staticmethod
+    def _spec_text(spec: MissingFieldSpec, key: str, default: str) -> str:
+        value = spec.get(key, default)
+        return value if isinstance(value, str) else default
 
     def _sort_missing_fields(
         self,
@@ -192,8 +205,8 @@ class DocumentDraftAgent(BaseLegalAgent):
             ),
         )
 
-    def _get_missing_field_specs(self, normalized: str) -> dict[str, dict[str, str]]:
-        common = {
+    def _get_missing_field_specs(self, normalized: str) -> dict[str, MissingFieldSpec]:
+        common: dict[str, MissingFieldSpec] = {
             "主体信息": {"severity": "high", "group": "基础信息", "suggestion": "建议补充：明确文书涉及的主体身份与角色"},
             "事实细节": {"severity": "high", "group": "事实背景", "suggestion": "建议补充：按时间顺序说明关键事实经过"},
             "金额或核心条件": {"severity": "high", "group": "交易条件", "suggestion": "建议补充：明确金额、价格或核心商务条件"},

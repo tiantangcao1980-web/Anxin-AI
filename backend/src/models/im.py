@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 IM 即时通讯数据模型
 
@@ -6,6 +5,7 @@ IM 即时通讯数据模型
 """
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import (
     Boolean,
@@ -20,7 +20,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.models.base import Base, GUID, TimestampMixin
+from src.models.base import GUID, Base, TimestampMixin
 
 
 class IMConversation(Base, TimestampMixin):
@@ -40,7 +40,7 @@ class IMConversation(Base, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(
         Boolean, default=True, server_default="true", comment="是否激活"
     )
-    metadata_: Mapped[dict | None] = mapped_column(
+    metadata_: Mapped[dict[str, Any] | None] = mapped_column(
         JSON, nullable=True, comment="额外元数据"
     )
     last_message_at: Mapped[datetime | None] = mapped_column(
@@ -163,19 +163,26 @@ class IMMessage(Base, TimestampMixin):
         server_default="text",
         comment="消息类型: text|image|file|system|card",
     )
+    sequence: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        server_default="0",
+        nullable=False,
+        comment="对话内递增消息序号",
+    )
     reply_to_id: Mapped[str | None] = mapped_column(
         GUID(),
         ForeignKey("im_messages.id", ondelete="SET NULL"),
         nullable=True,
         comment="回复消息 ID",
     )
-    metadata_: Mapped[dict | None] = mapped_column(
+    metadata_: Mapped[dict[str, Any] | None] = mapped_column(
         JSON, nullable=True, comment="附件/额外信息"
     )
     is_recalled: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="false", comment="是否已撤回"
     )
-    read_by: Mapped[list | None] = mapped_column(
+    read_by: Mapped[list[str] | None] = mapped_column(
         JSON, nullable=True, comment="已读用户 ID 列表"
     )
 
@@ -193,5 +200,10 @@ class IMMessage(Base, TimestampMixin):
             "ix_im_messages_conv_created",
             "conversation_id",
             "created_at",
+        ),
+        Index(
+            "ix_im_messages_conv_sequence",
+            "conversation_id",
+            "sequence",
         ),
     )

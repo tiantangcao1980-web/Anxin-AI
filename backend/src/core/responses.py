@@ -2,9 +2,11 @@
 统一响应格式处理
 """
 
-from typing import Any, Optional, Dict
-from pydantic import BaseModel
 import uuid
+from typing import Any
+
+from pydantic import BaseModel
+
 
 class UnifiedResponse(BaseModel):
     """统一响应结构"""
@@ -14,7 +16,7 @@ class UnifiedResponse(BaseModel):
     request_id: str = ""
 
     @classmethod
-    def success(cls, data: Any = None, message: str = "success") -> Dict[str, Any]:
+    def success(cls, data: Any = None, message: str = "success") -> dict[str, Any]:
         """成功响应"""
         return {
             "code": 200,
@@ -24,7 +26,7 @@ class UnifiedResponse(BaseModel):
         }
 
     @classmethod
-    def error(cls, code: int = 400, message: str = "error", data: Any = None) -> Dict[str, Any]:
+    def error(cls, code: int = 400, message: str = "error", data: Any = None) -> dict[str, Any]:
         """错误响应"""
         return {
             "code": code,

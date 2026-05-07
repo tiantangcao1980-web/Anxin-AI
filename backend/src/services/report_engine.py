@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Report Engine v2 — 调查报告生成引擎（增强版）
 
@@ -16,14 +15,13 @@ Report Engine v2 — 调查报告生成引擎（增强版）
 章节生成支持 LLM 增强（可选）和流式进度回调。
 """
 
-import asyncio
 import json
-import re
-from typing import Dict, Any, Optional, List, AsyncGenerator, Callable
-from datetime import datetime
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
-from loguru import logger
+from datetime import datetime
+from typing import Any, Protocol, cast
 
+from loguru import logger
 
 # ===== 报告模板定义 =====
 
@@ -35,7 +33,7 @@ class ChapterTemplate:
     description: str
     word_budget: int  # 目标字数
     required: bool = True
-    data_keys: List[str] = field(default_factory=list)  # 所需数据字段
+    data_keys: list[str] = field(default_factory=list)  # 所需数据字段
 
 
 @dataclass
@@ -44,12 +42,12 @@ class ReportTemplate:
     id: str
     name: str
     description: str
-    chapters: List[ChapterTemplate] = field(default_factory=list)
+    chapters: list[ChapterTemplate] = field(default_factory=list)
     total_word_budget: int = 3000
 
 
 # 预定义报告模板
-REPORT_TEMPLATES: Dict[str, ReportTemplate] = {
+REPORT_TEMPLATES: dict[str, ReportTemplate] = {
     "comprehensive": ReportTemplate(
         id="comprehensive",
         name="综合尽职调查报告",
@@ -149,7 +147,7 @@ class ReportSection:
         self.status = status  # normal, pass, warning, fail
         self.word_count = word_count or len(content)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "title": self.title,
@@ -159,22 +157,33 @@ class ReportSection:
         }
 
 
+class ReportChatAgent(Protocol):
+    async def chat(
+        self,
+        *,
+        message: str,
+        system_prompt_override: str,
+    ) -> str: ...
+
+
 class ReportEngine:
     """调查报告生成引擎 v2"""
 
-    def __init__(self):
-        self._llm_agent = None
+    def __init__(self) -> None:
+        self._llm_agent: ReportChatAgent | None = None
 
     @property
-    def llm_agent(self):
+    def llm_agent(self) -> ReportChatAgent | None:
         if self._llm_agent is None:
             try:
                 from src.agents.workforce import get_workforce
+
                 wf = get_workforce()
+                agents = cast(dict[str, ReportChatAgent], wf.agents)
                 self._llm_agent = (
-                    wf.agents.get("due_diligence")
-                    or wf.agents.get("legal_advisor")
-                    or (list(wf.agents.values())[0] if wf.agents else None)
+                    agents.get("due_diligence")
+                    or agents.get("legal_advisor")
+                    or (list(agents.values())[0] if agents else None)
                 )
             except Exception:
                 pass
@@ -182,7 +191,7 @@ class ReportEngine:
 
     # ========== 模板管理 ==========
 
-    def list_templates(self) -> List[Dict[str, Any]]:
+    def list_templates(self) -> list[dict[str, Any]]:
         """列出所有可用报告模板"""
         return [
             {
@@ -195,7 +204,7 @@ class ReportEngine:
             for t in REPORT_TEMPLATES.values()
         ]
 
-    def get_template(self, template_id: str) -> Optional[ReportTemplate]:
+    def get_template(self, template_id: str) -> ReportTemplate | None:
         return REPORT_TEMPLATES.get(template_id)
 
     # ========== 阶段 1: 选择模板 ==========
@@ -203,7 +212,7 @@ class ReportEngine:
     def select_template(
         self,
         investigation_type: str = "comprehensive",
-        data: Optional[Dict[str, Any]] = None,
+        data: dict[str, Any] | None = None,
     ) -> ReportTemplate:
         """根据调查类型自动选择报告模板"""
         mapping = {
@@ -222,8 +231,8 @@ class ReportEngine:
     def plan_chapters(
         self,
         template: ReportTemplate,
-        data: Dict[str, Any],
-    ) -> List[ChapterTemplate]:
+        data: dict[str, Any],
+    ) -> list[ChapterTemplate]:
         """根据数据可用性规划实际章节"""
         planned = []
         for chapter in template.chapters:
@@ -241,9 +250,9 @@ class ReportEngine:
 
     def allocate_word_budget(
         self,
-        chapters: List[ChapterTemplate],
+        chapters: list[ChapterTemplate],
         total_budget: int,
-    ) -> Dict[str, int]:
+    ) -> dict[str, int]:
         """分配各章节字数预算"""
         # 按模板预设比例分配
         total_preset = sum(c.word_budget for c in chapters)
@@ -261,7 +270,7 @@ class ReportEngine:
     async def generate_chapter(
         self,
         chapter: ChapterTemplate,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         company_name: str,
         word_budget: int,
         use_llm: bool = True,
@@ -305,11 +314,15 @@ class ReportEngine:
     async def _llm_generate_chapter(
         self,
         chapter: ChapterTemplate,
-        chapter_data: Dict[str, Any],
+        chapter_data: dict[str, Any],
         company_name: str,
         word_budget: int,
     ) -> str:
         """使用 LLM 生成章节内容"""
+        agent = self.llm_agent
+        if agent is None:
+            return ""
+
         data_str = json.dumps(chapter_data, ensure_ascii=False, default=str)[:2000]
 
         prompt = f"""请为「{company_name}」的尽职调查报告撰写以下章节：
@@ -330,7 +343,7 @@ class ReportEngine:
 
 请直接输出章节正文内容（纯文本，可用序号和项目符号）。"""
 
-        return await self.llm_agent.chat(
+        return await agent.chat(
             message=prompt,
             system_prompt_override=(
                 "你是资深法律尽职调查报告撰写专家。"
@@ -341,7 +354,7 @@ class ReportEngine:
     def _template_generate_chapter(
         self,
         chapter: ChapterTemplate,
-        chapter_data: Dict[str, Any],
+        chapter_data: dict[str, Any],
         company_name: str,
     ) -> str:
         """模板化生成章节（fallback）"""
@@ -366,7 +379,7 @@ class ReportEngine:
         generator = generators.get(chapter.id, self._gen_generic)
         return generator(company_name, chapter_data)
 
-    def _assess_chapter_status(self, chapter_id: str, data: Dict[str, Any]) -> str:
+    def _assess_chapter_status(self, chapter_id: str, data: dict[str, Any]) -> str:
         """评估章节状态"""
         risk = data.get("risk", {})
         litigation = data.get("litigation", {})
@@ -399,7 +412,7 @@ class ReportEngine:
 
     # ========== 模板化章节生成器 ==========
 
-    def _gen_executive_summary(self, company_name: str, data: Dict) -> str:
+    def _gen_executive_summary(self, company_name: str, data: dict[str, Any]) -> str:
         risk = data.get("risk", {})
         consensus = data.get("consensus", {})
         scores = [risk.get(k, 0) for k in ("operation_risk", "litigation_risk", "credit_risk", "compliance_risk", "relation_risk")]
@@ -408,7 +421,7 @@ class ReportEngine:
 
         parts = [
             f"本报告对「{company_name}」进行了全面的尽职调查分析。",
-            f"调查涵盖企业基本信息、风险评估、诉讼分析、信用合规及关联关系等多个维度。",
+            "调查涵盖企业基本信息、风险评估、诉讼分析、信用合规及关联关系等多个维度。",
             f"\n综合风险评分：{avg_risk:.0f}/100，整体风险等级：{risk_label}。",
         ]
 
@@ -422,7 +435,7 @@ class ReportEngine:
 
         return "\n".join(parts)
 
-    def _gen_company_profile(self, company_name: str, data: Dict) -> str:
+    def _gen_company_profile(self, company_name: str, data: dict[str, Any]) -> str:
         basic = data.get("basic_info", {})
         fields = [
             ("name", "企业名称"), ("legal_representative", "法定代表人"),
@@ -438,7 +451,7 @@ class ReportEngine:
                 lines.append(f"{label}：{val}")
         return "\n".join(lines) if lines else "暂无企业基本信息"
 
-    def _gen_risk_assessment(self, company_name: str, data: Dict) -> str:
+    def _gen_risk_assessment(self, company_name: str, data: dict[str, Any]) -> str:
         risk = data.get("risk", {})
         dimensions = [
             ("operation_risk", "经营风险"), ("litigation_risk", "诉讼风险"),
@@ -463,7 +476,7 @@ class ReportEngine:
 
         return "\n".join(lines)
 
-    def _gen_litigation_analysis(self, company_name: str, data: Dict) -> str:
+    def _gen_litigation_analysis(self, company_name: str, data: dict[str, Any]) -> str:
         lit = data.get("litigation", {})
         lines = [
             f"涉诉总数：{int(lit.get('plaintiff_cases', 0)) + int(lit.get('defendant_cases', 0))} 起",
@@ -481,7 +494,7 @@ class ReportEngine:
                 lines.append(f"  {i}. {case_no} — {case_type}")
         return "\n".join(lines)
 
-    def _gen_credit_compliance(self, company_name: str, data: Dict) -> str:
+    def _gen_credit_compliance(self, company_name: str, data: dict[str, Any]) -> str:
         credit = data.get("credit", {})
         lines = [
             f"信用评级：{credit.get('credit_rating', '-')}",
@@ -493,10 +506,10 @@ class ReportEngine:
         ]
         return "\n".join(lines)
 
-    def _gen_relationship_analysis(self, company_name: str, data: Dict) -> str:
+    def _gen_relationship_analysis(self, company_name: str, data: dict[str, Any]) -> str:
         return f"「{company_name}」的股权结构和关联关系分析。\n\n（详细关联图谱请参见平台交互式图谱功能）"
 
-    def _gen_forum_debate(self, company_name: str, data: Dict) -> str:
+    def _gen_forum_debate(self, company_name: str, data: dict[str, Any]) -> str:
         forum = data.get("forum", {})
         conflicts = data.get("conflicts", [])
         if not forum and not conflicts:
@@ -518,7 +531,7 @@ class ReportEngine:
 
         return "\n".join(parts)
 
-    def _gen_deep_research(self, company_name: str, data: Dict) -> str:
+    def _gen_deep_research(self, company_name: str, data: dict[str, Any]) -> str:
         research = data.get("research", {})
         if not research:
             return "本次调查未进行深度研究。"
@@ -532,7 +545,7 @@ class ReportEngine:
             parts.append(f"\n研究摘要：\n{research['summary']}")
         return "\n".join(parts)
 
-    def _gen_recommendations(self, company_name: str, data: Dict) -> str:
+    def _gen_recommendations(self, company_name: str, data: dict[str, Any]) -> str:
         risk = data.get("risk", {})
         consensus = data.get("consensus", {})
 
@@ -549,7 +562,7 @@ class ReportEngine:
         )
         return "\n".join(f"{i}. {r}" for i, r in enumerate(items, 1))
 
-    def _gen_key_findings(self, company_name: str, data: Dict) -> str:
+    def _gen_key_findings(self, company_name: str, data: dict[str, Any]) -> str:
         risk = data.get("risk", {})
         lit = data.get("litigation", {})
         points = risk.get("risk_points", [])
@@ -562,20 +575,20 @@ class ReportEngine:
             lines.append(f"\n涉诉案件共 {total_cases} 起，需要重点关注。")
         return "\n".join(lines) if lines else "未发现显著风险点。"
 
-    def _gen_action_items(self, company_name: str, data: Dict) -> str:
+    def _gen_action_items(self, company_name: str, data: dict[str, Any]) -> str:
         return self._gen_recommendations(company_name, data)
 
-    def _gen_generic(self, company_name: str, data: Dict) -> str:
+    def _gen_generic(self, company_name: str, data: dict[str, Any]) -> str:
         return f"「{company_name}」相关分析。\n\n数据摘要：{json.dumps(data, ensure_ascii=False, default=str)[:500]}"
 
     # ========== 阶段 6: 组装与渲染 ==========
 
     async def generate_report_stream(
         self,
-        investigation_data: Dict[str, Any],
+        investigation_data: dict[str, Any],
         template_id: str = "comprehensive",
         use_llm: bool = True,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """
         流式生成报告，逐章返回进度
 
@@ -611,7 +624,7 @@ class ReportEngine:
         budget_map = self.allocate_word_budget(planned_chapters, template.total_word_budget)
 
         # 阶段 5: 逐章生成
-        sections: List[ReportSection] = []
+        sections: list[ReportSection] = []
         for i, chapter in enumerate(planned_chapters, 1):
             yield {
                 "type": "chapter_start",
@@ -668,7 +681,7 @@ class ReportEngine:
 
     # ========== 兼容旧接口 ==========
 
-    def generate_ir(self, investigation_data: Dict[str, Any]) -> List[ReportSection]:
+    def generate_ir(self, investigation_data: dict[str, Any]) -> list[ReportSection]:
         """生成中间表示（IR）— 兼容旧接口"""
         template = self.select_template("comprehensive")
         chapters = self.plan_chapters(template, investigation_data)
@@ -685,7 +698,7 @@ class ReportEngine:
             ))
         return sections
 
-    def render_html(self, sections: List[ReportSection], company_name: str) -> str:
+    def render_html(self, sections: list[ReportSection], company_name: str) -> str:
         """渲染为 HTML 报告"""
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -761,11 +774,11 @@ class ReportEngine:
 
     async def generate_report(
         self,
-        investigation_data: Dict[str, Any],
+        investigation_data: dict[str, Any],
         output_format: str = "html",
         template_id: str = "comprehensive",
         use_llm: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         生成完整调查报告（兼容旧接口 + 新功能）
         """

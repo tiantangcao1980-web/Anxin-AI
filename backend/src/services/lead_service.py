@@ -1,11 +1,12 @@
-# -*- coding: utf-8 -*-
 """
 案源管理服务
 """
 
-from typing import List, Optional
+
+from typing import Any
+
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
 from src.models.lead import Lead
@@ -17,11 +18,11 @@ class LeadService:
 
     async def list_leads(
         self,
-        org_id: Optional[str] = None,
-        stage: Optional[str] = None,
+        org_id: str | None = None,
+        stage: str | None = None,
         page: int = 1,
         page_size: int = 50,
-    ) -> tuple[List[Lead], int]:
+    ) -> tuple[list[Lead], int]:
         query = select(Lead).options(selectinload(Lead.assignee))
         if org_id:
             query = query.where(Lead.org_id == org_id)
@@ -35,7 +36,7 @@ class LeadService:
         result = await self.db.execute(query)
         return list(result.scalars().all()), total
 
-    async def get_lead(self, lead_id: str) -> Optional[Lead]:
+    async def get_lead(self, lead_id: str) -> Lead | None:
         result = await self.db.execute(
             select(Lead)
             .options(selectinload(Lead.assignee))
@@ -43,13 +44,18 @@ class LeadService:
         )
         return result.scalar_one_or_none()
 
-    async def create_lead(self, **kwargs) -> Lead:
+    async def create_lead(self, **kwargs: Any) -> Lead:
         lead = Lead(**kwargs)
         self.db.add(lead)
         await self.db.flush()
         return lead
 
-    async def update_lead(self, lead_id: str, org_id: Optional[str] = None, **kwargs) -> Optional[Lead]:
+    async def update_lead(
+        self,
+        lead_id: str,
+        org_id: str | None = None,
+        **kwargs: Any,
+    ) -> Lead | None:
         query = select(Lead).where(Lead.id == lead_id)
         if org_id:
             query = query.where(Lead.org_id == org_id)
@@ -63,10 +69,15 @@ class LeadService:
         await self.db.flush()
         return lead
 
-    async def update_stage(self, lead_id: str, stage: str, org_id: Optional[str] = None) -> Optional[Lead]:
+    async def update_stage(self, lead_id: str, stage: str, org_id: str | None = None) -> Lead | None:
         return await self.update_lead(lead_id, org_id=org_id, stage=stage)
 
-    async def add_follow_up(self, lead_id: str, follow_up: dict, org_id: Optional[str] = None) -> Optional[Lead]:
+    async def add_follow_up(
+        self,
+        lead_id: str,
+        follow_up: dict[str, Any],
+        org_id: str | None = None,
+    ) -> Lead | None:
         query = select(Lead).where(Lead.id == lead_id)
         if org_id:
             query = query.where(Lead.org_id == org_id)
@@ -81,7 +92,7 @@ class LeadService:
         await self.db.flush()
         return lead
 
-    async def delete_lead(self, lead_id: str, org_id: Optional[str] = None) -> bool:
+    async def delete_lead(self, lead_id: str, org_id: str | None = None) -> bool:
         query = select(Lead).where(Lead.id == lead_id)
         if org_id:
             query = query.where(Lead.org_id == org_id)

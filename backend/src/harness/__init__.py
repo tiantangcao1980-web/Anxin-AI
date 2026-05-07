@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Harness Engineering 核心层
 
@@ -11,14 +10,14 @@ Harness Engineering 核心层
 - context_engine: 统一上下文装配
 """
 
-from src.harness.trace_context import TraceContext, current_trace, start_trace
-from src.harness.cost_tracker import cost_tracker, CostRecord
-from src.harness.output_validator import output_validator
-from src.harness.tool_registry import tool_registry
-from src.harness.policy_engine import policy_engine
-from src.harness.context_engine import context_engine
-from src.harness.task_engine import task_engine, TaskState, TaskPriority
 from src.harness.capability_negotiator import capability_negotiator
+from src.harness.context_engine import context_engine
+from src.harness.cost_tracker import CostRecord, cost_tracker
+from src.harness.output_validator import output_validator
+from src.harness.policy_engine import policy_engine
+from src.harness.task_engine import TaskPriority, TaskState, task_engine
+from src.harness.tool_registry import tool_registry
+from src.harness.trace_context import TraceContext, current_trace, start_trace
 
 __all__ = [
     "TraceContext",

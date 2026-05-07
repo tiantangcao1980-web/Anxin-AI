@@ -11,6 +11,8 @@ import { icons } from'@/lib/icons';
 import { cn } from'@/lib/utils';
 import { toast } from'sonner';
 import ReactMarkdown from'react-markdown';
+import { buildApiHeaders } from'@/lib/api';
+import { getTokenStorage } from'@/lib/platform/storage';
 
 // ==================== Types ====================
 
@@ -175,9 +177,9 @@ export function TemplateWizard({ templateId, onGenerate, onClose, apiBaseUrl =''
  useEffect(() => {
  const fetchTemplate = async () => {
  try {
- const token = localStorage.getItem('auth_token');
+ const token = await getTokenStorage().getAccessToken();
  const res = await fetch(`${apiBaseUrl}/api/v1/contracts/templates/${templateId}`, {
- headers: {'Authorization': `Bearer ${token}` },
+ headers: buildApiHeaders(undefined, { token, json: false }),
  });
  const data = await res.json();
  if (data.success) {
@@ -240,13 +242,10 @@ export function TemplateWizard({ templateId, onGenerate, onClose, apiBaseUrl =''
  const handleRender = async () => {
  setRendering(true);
  try {
- const token = localStorage.getItem('auth_token');
+ const token = await getTokenStorage().getAccessToken();
  const res = await fetch(`${apiBaseUrl}/api/v1/contracts/templates/${templateId}/render`, {
  method:'POST',
- headers: {
-'Authorization': `Bearer ${token}`,
-'Content-Type':'application/json',
- },
+ headers: buildApiHeaders(undefined, { token }),
  body: JSON.stringify({ variables }),
  });
  const data = await res.json();

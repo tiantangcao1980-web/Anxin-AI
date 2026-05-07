@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 搜索结果去重与质量评分
 
@@ -10,13 +9,11 @@
 """
 
 import re
-from typing import List, Dict, Any
+from typing import Any
 from urllib.parse import urlparse
-from loguru import logger
-
 
 # 域名可信度分级
-DOMAIN_TRUST_SCORES: Dict[str, float] = {
+DOMAIN_TRUST_SCORES: dict[str, float] = {
     # 政府官方（最可信）
     "gov.cn": 1.0,
     "court.gov.cn": 1.0,
@@ -61,7 +58,7 @@ DEFAULT_TRUST = 0.5
 class SearchDedupService:
     """搜索结果去重与质量评分"""
 
-    def deduplicate(self, results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def deduplicate(self, results: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         URL 去重 + 内容相似度去重
 
@@ -70,9 +67,9 @@ class SearchDedupService:
         if not results:
             return []
 
-        seen_urls = {}  # url → result index
-        seen_titles = {}  # normalized_title → result index
-        deduped = []
+        seen_urls: dict[str, int] = {}  # url → result index
+        seen_titles: dict[str, int] = {}  # normalized_title → result index
+        deduped: list[dict[str, Any]] = []
 
         for r in results:
             url = r.get("url", "")
@@ -103,7 +100,7 @@ class SearchDedupService:
 
         return deduped
 
-    def score_quality(self, result: Dict[str, Any]) -> float:
+    def score_quality(self, result: dict[str, Any]) -> float:
         """
         来源可信度评分
 
@@ -125,17 +122,17 @@ class SearchDedupService:
 
     def merge_multi_source(
         self,
-        *result_lists: List[Dict[str, Any]],
+        *result_lists: list[dict[str, Any]],
         k: int = 60,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         多源结果 RRF 合并排序
 
         Reciprocal Rank Fusion: 综合多个引擎的排名
         最终排序 = RRF_score + quality_score * 0.3
         """
-        score_map: Dict[str, float] = {}
-        item_map: Dict[str, Dict] = {}
+        score_map: dict[str, float] = {}
+        item_map: dict[str, dict[str, Any]] = {}
 
         for list_idx, results in enumerate(result_lists):
             weight = 1.0 / (list_idx + 1)  # 前面的列表权重更高
@@ -150,7 +147,7 @@ class SearchDedupService:
                     item_map[key] = result
 
         # 排序
-        sorted_keys = sorted(score_map, key=score_map.get, reverse=True)
+        sorted_keys = sorted(score_map, key=lambda key: score_map[key], reverse=True)
 
         merged = []
         for key in sorted_keys:
@@ -189,7 +186,7 @@ class SearchDedupService:
         except Exception:
             return ""
 
-    def _result_key(self, result: Dict) -> str:
+    def _result_key(self, result: dict[str, Any]) -> str:
         """生成结果唯一键"""
         url = self._normalize_url(result.get("url", ""))
         if url:

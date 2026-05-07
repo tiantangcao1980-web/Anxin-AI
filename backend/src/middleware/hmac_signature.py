@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 HMAC 请求签名验证中间件
 
@@ -21,11 +20,13 @@ import base64
 import hashlib
 import hmac
 import time
+from collections.abc import Awaitable, Callable
+from typing import Any
 
+from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import JSONResponse
-from loguru import logger
+from starlette.responses import JSONResponse, Response
 
 from src.core.config import settings
 
@@ -39,15 +40,15 @@ _SKIP_PATHS = frozenset({
 class HMACSignatureMiddleware(BaseHTTPMiddleware):
     """HMAC 请求签名验证"""
 
-    def __init__(self, app):
+    def __init__(self, app: Any) -> None:
         super().__init__(app)
-        self._redis = None
+        self._redis: Any | None = None
         self._redis_warning_logged = False
 
-    async def _get_redis(self):
+    async def _get_redis(self) -> Any:
         if self._redis is None:
             import redis.asyncio as aioredis
-            self._redis = aioredis.from_url(
+            self._redis = aioredis.from_url(  # type: ignore[no-untyped-call]
                 settings.REDIS_URL, encoding="utf-8", decode_responses=True
             )
         return self._redis
@@ -78,7 +79,7 @@ class HMACSignatureMiddleware(BaseHTTPMiddleware):
                     redis_client = await self._get_redis()
                     user_key = await redis_client.get(f"antibot:signing_key:{user_id}")
                     if user_key:
-                        return user_key
+                        return str(user_key)
             except Exception:
                 pass
 
@@ -100,7 +101,11 @@ class HMACSignatureMiddleware(BaseHTTPMiddleware):
         expected_b64 = base64.b64encode(expected).decode("utf-8")
         return hmac.compare_digest(expected_b64, provided_sig)
 
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
         # 跳过白名单路径和 OPTIONS 预检
         if request.url.path in _SKIP_PATHS or request.method == "OPTIONS":
             request.state.hmac_result = {"valid": True, "skipped": True}
@@ -112,7 +117,7 @@ class HMACSignatureMiddleware(BaseHTTPMiddleware):
             signature = request.headers.get("x-request-signature")
 
             # 无签名头 — 标记为 missing
-            if not all([timestamp, nonce, signature]):
+            if timestamp is None or nonce is None or signature is None:
                 request.state.hmac_result = {"valid": False, "reason": "missing_headers"}
                 if getattr(settings, "ANTIBOT_HMAC_ENFORCE", False):
                     return JSONResponse(

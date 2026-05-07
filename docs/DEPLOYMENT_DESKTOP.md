@@ -117,7 +117,7 @@ pnpm tauri signer generate -w ~/.tauri/anxin-updater.key
 }
 ```
 
-**Entitlements.plist** 需要从 `development` 改成 `production`（后台已存在文件，检查 `aps-environment` 字段）。
+**Entitlements.plist** 已配置为 `production`（发布前仍需在 `desktop/Entitlements.plist` 检查 `aps-environment` 字段未回退）。
 
 ---
 

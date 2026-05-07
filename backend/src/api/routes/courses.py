@@ -1,63 +1,65 @@
-# -*- coding: utf-8 -*-
 """
 司法学院课程路由
 """
 
-from typing import List, Optional
+
+from typing import Any
+
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
 from src.core.deps import get_current_user_required
 from src.core.responses import UnifiedResponse
+from src.core.schemas import CamelModel
+from src.models.course import Course
 from src.models.user import User
 from src.services.course_service import CourseService
 
 router = APIRouter()
 
 
-class CourseCreate(BaseModel):
+class CourseCreate(CamelModel):
     title: str
-    instructor: Optional[str] = None
+    instructor: str | None = None
     category: str = "regulation"
-    duration: Optional[str] = None
+    duration: str | None = None
     lessons: int = 0
-    description: Optional[str] = None
+    description: str | None = None
     level: str = "入门"
-    tags: Optional[List[str]] = None
+    tags: list[str] | None = None
 
 
-class CourseUpdate(BaseModel):
-    title: Optional[str] = None
-    instructor: Optional[str] = None
-    category: Optional[str] = None
-    duration: Optional[str] = None
-    lessons: Optional[int] = None
-    description: Optional[str] = None
-    level: Optional[str] = None
-    tags: Optional[List[str]] = None
+class CourseUpdate(CamelModel):
+    title: str | None = None
+    instructor: str | None = None
+    category: str | None = None
+    duration: str | None = None
+    lessons: int | None = None
+    description: str | None = None
+    level: str | None = None
+    tags: list[str] | None = None
 
 
-class ProgressUpdate(BaseModel):
+class ProgressUpdate(CamelModel):
     progress: int
-    completedLessons: Optional[List[int]] = None
+    completed_lessons: list[int] | None = None
 
 
-class CourseResponse(BaseModel):
+class CourseResponse(CamelModel):
     id: str
     title: str
-    instructor: Optional[str] = None
+    instructor: str | None = None
     category: str
-    duration: Optional[str] = None
+    duration: str | None = None
     lessons: int = 0
-    description: Optional[str] = None
+    description: str | None = None
     level: str = "入门"
-    tags: List[str] = []
+    tags: list[str] = []
     progress: int = 0
 
 
-def course_to_response(course, progress: int = 0) -> CourseResponse:
+def course_to_response(course: Course, progress: int = 0) -> CourseResponse:
     return CourseResponse(
         id=course.id,
         title=course.title,
@@ -74,13 +76,13 @@ def course_to_response(course, progress: int = 0) -> CourseResponse:
 
 @router.get("/")
 async def list_courses(
-    category: Optional[str] = Query(None),
-    level: Optional[str] = Query(None),
+    category: str | None = Query(None),
+    level: str | None = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     service = CourseService(db)
     courses, total = await service.list_courses(
         category=category,
@@ -106,7 +108,7 @@ async def create_course(
     data: CourseCreate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     service = CourseService(db)
     course = await service.create_course(
         title=data.title,
@@ -128,7 +130,7 @@ async def get_course(
     course_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     service = CourseService(db)
     course = await service.get_course(course_id)
     if not course:
@@ -143,7 +145,7 @@ async def update_course(
     data: CourseUpdate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     service = CourseService(db)
     update_data = {}
     for field in ["title", "instructor", "category", "duration", "lessons", "description", "level", "tags"]:
@@ -163,13 +165,13 @@ async def update_progress(
     data: ProgressUpdate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     service = CourseService(db)
     cp = await service.update_progress(
         user_id=user.id,
         course_id=course_id,
         progress=data.progress,
-        completed_lessons=data.completedLessons,
+        completed_lessons=data.completed_lessons,
     )
     return UnifiedResponse.success(data={
         "courseId": course_id,
@@ -183,7 +185,7 @@ async def delete_course(
     course_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
-):
+) -> dict[str, Any]:
     service = CourseService(db)
     success = await service.delete_course(course_id)
     if not success:

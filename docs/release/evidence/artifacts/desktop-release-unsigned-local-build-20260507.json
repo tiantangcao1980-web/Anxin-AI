@@ -1,0 +1,61 @@
+{
+  "generated_at": "2026-05-07T14:51:07Z",
+  "mode": "desktop_release_unsigned_support",
+  "status": "supporting_pass_with_release_blockers",
+  "release_evidence_complete": false,
+  "checks": {
+    "unsigned_release_app_build": "passed",
+    "unsigned_release_app_dmg_build": "passed",
+    "hdiutil_diskmanagement_probe": "passed",
+    "unsigned_release_preflight": "blocked"
+  },
+  "commands": [
+    {
+      "command": "cd desktop && cargo tauri build --ci --bundles app,dmg --no-sign (Codex sandbox)",
+      "exit_code": 1,
+      "summary": "Release binary and unsigned .app were built; DMG bundling failed because hdiutil/DiskManagement was blocked by the sandbox."
+    },
+    {
+      "command": "cd desktop && cargo tauri build --ci --bundles app,dmg --no-sign (unsandboxed macOS)",
+      "exit_code": 0,
+      "summary": "Unsigned release .app and unsigned DMG were built successfully."
+    },
+    {
+      "command": "cd desktop && cargo tauri build --ci --bundles app --no-sign",
+      "exit_code": 0,
+      "summary": "Unsigned release .app bundle was built successfully."
+    },
+    {
+      "command": "ANXIN_DESKTOP_RELEASE_APP=desktop/target/release/bundle/macos/安心法务.app bash scripts/desktop-release-preflight.sh --out docs/release/evidence/artifacts/desktop-release-preflight-unsigned-20260507.json",
+      "exit_code": 0,
+      "summary": "Release .app and DMG exist, and hdiutil/DiskManagement probe passes; signing, notarization, code-sign verification, and signature authority remain blocked."
+    }
+  ],
+  "artifacts": {
+    "release_app": "desktop/target/release/bundle/macos/安心法务.app",
+    "release_dmg": "desktop/target/release/bundle/dmg/安心法务_1.0.0_aarch64.dmg",
+    "unsigned_preflight": "docs/release/evidence/artifacts/desktop-release-preflight-unsigned-20260507.json",
+    "dmg_script": "desktop/target/release/bundle/dmg/bundle_dmg.sh",
+    "dmg_directory": "desktop/target/release/bundle/dmg"
+  },
+  "dmg_failure_diagnosis": {
+    "most_likely_root_cause": "The original DMG failure was caused by the Codex sandbox blocking hdiutil access to macOS DiskManagement; this was not caused by missing signing or notarization credentials.",
+    "observed_errors": [
+      "hdiutil create failed with device not configured",
+      "hdiutil verbose mode reported that hdiejectd could not start because the app is sandboxed",
+      "hdiutil verbose mode reported inability to use the DiskManagement framework"
+    ],
+    "unsandboxed_result": "The same unsigned app+DMG build succeeded after running outside the sandbox.",
+    "unsigned_dmg_feasibility": "The generated Tauri DMG script can produce an unsigned DMG when signing/notarization credentials are absent, provided hdiutil/DiskManagement is available.",
+    "recommended_next_step": "Continue using the hdiutil/DiskManagement preflight before DMG creation, then collect signed/notarized package and packaged-runtime evidence once Apple signing inputs are available."
+  },
+  "release_blockers": [
+    "tauri.signing_identity",
+    "codesign.identities",
+    "notary.credentials",
+    "release.app.codesign_verify",
+    "release.app.signature_authority",
+    "unsigned app is not signed/notarized and has no packaged runtime/profile/cross-device evidence"
+  ],
+  "completion_note": "Supporting evidence only. This does not complete desktop runtime evidence; signed/notarized package, packaged runtime/profile evidence, packaged runtime performance, and cross-device continuation remain pending."
+}

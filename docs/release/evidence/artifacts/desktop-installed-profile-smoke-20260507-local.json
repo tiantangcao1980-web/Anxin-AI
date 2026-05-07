@@ -1,0 +1,29 @@
+{
+  "generated_at": "2026-05-07T12:09:57.014Z",
+  "mode": "desktop_installed_profile_smoke",
+  "status": "passed",
+  "release_evidence_complete": false,
+  "firstLaunch": {
+    "dbPath": "/var/folders/nj/gp3tmfq54vl6vkldj7f8f7xc0000gn/T//anxin-desktop-installed-profile.ipIWKO/anxin_local.db",
+    "keyringService": "com.anxin.legal.desktop.installed-smoke.1778155794.87977",
+    "keyringUser": "sqlcipher-db-key-v1",
+    "keyringRoundTrip": true,
+    "encryptedReopen": true,
+    "plaintextBackupPresent": true,
+    "plaintextOpenBlocked": true,
+    "sentinelId": "installed-profile-smoke",
+    "sentinelContent": "installed profile SQLCipher keyring reopen smoke"
+  },
+  "secondLaunch": {
+    "dbPath": "/var/folders/nj/gp3tmfq54vl6vkldj7f8f7xc0000gn/T//anxin-desktop-installed-profile.ipIWKO/anxin_local.db",
+    "keyringService": "com.anxin.legal.desktop.installed-smoke.1778155794.87977",
+    "keyringUser": "sqlcipher-db-key-v1",
+    "keyringRoundTrip": true,
+    "encryptedReopen": true,
+    "plaintextBackupPresent": true,
+    "plaintextOpenBlocked": true,
+    "sentinelId": "installed-profile-smoke",
+    "sentinelContent": "installed profile SQLCipher keyring reopen smoke"
+  },
+  "completion_note": "Supporting evidence only. Keep desktop runtime evidence pending until a signed/notarized package has packaged-profile migration and packaged runtime evidence."
+}

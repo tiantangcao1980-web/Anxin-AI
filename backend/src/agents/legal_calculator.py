@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 法务分析智能体 — 综合法律量化分析与咨询
 
@@ -18,12 +17,11 @@
 
 import json
 import re
-from typing import Any, Dict
+from typing import Any
 
-from src.agents.base import BaseLegalAgent, AgentConfig, AgentResponse
+from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
-from src.services.legal_calculator_service import legal_calculator_service, CalculationResult
-
+from src.services.legal_calculator_service import legal_calculator_service
 
 _FALLBACK_PROMPT = (
     "你是一位资深法务分析师，精通中国劳动法、民事诉讼法、合同法。"
@@ -34,7 +32,7 @@ _FALLBACK_PROMPT = (
 class LegalCalculatorAgent(BaseLegalAgent):
     """法务分析智能体 — 综合法律量化分析与咨询"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         config = AgentConfig(
             name="法务分析Agent",
             role="资深法务分析师",
@@ -44,10 +42,11 @@ class LegalCalculatorAgent(BaseLegalAgent):
         )
         super().__init__(config)
 
-    async def process(self, task: Dict[str, Any]) -> AgentResponse:
+    async def process(self, task: dict[str, Any]) -> AgentResponse:
         """处理法务分析任务"""
-        description = task.get("description", "")
-        context = task.get("context", {})
+        description = str(task.get("description", ""))
+        context_raw = task.get("context", {})
+        context: dict[str, Any] = context_raw if isinstance(context_raw, dict) else {}
 
         # Step 1: 判断服务模式 — 是否包含可计算的量化需求
         analysis_prompt = f"""请分析以下用户需求，判断服务模式并提取信息。
@@ -93,12 +92,13 @@ mode 判断规则：
         if not request:
             return await self._full_consult(description, context)
 
-        mode = request.get("mode", "consult")
-        calc_type = request.get("calc_type", "none")
-        params = request.get("params", {})
-        missing = request.get("missing_params", [])
-        clarification = request.get("clarification_needed", "")
-        consult_topics = request.get("consult_topics", [])
+        mode = str(request.get("mode", "consult"))
+        calc_type = str(request.get("calc_type", "none"))
+        params_raw = request.get("params", {})
+        params: dict[str, Any] = params_raw if isinstance(params_raw, dict) else {}
+        missing = self._as_string_list(request.get("missing_params", []))
+        clarification = str(request.get("clarification_needed", ""))
+        consult_topics = self._as_string_list(request.get("consult_topics", []))
 
         # ===== 纯咨询模式 =====
         if mode == "consult" or calc_type == "none":
@@ -150,17 +150,20 @@ mode 判断规则：
         return AgentResponse(
             agent_name=self.config.name,
             content=full_response,
-            confidence=0.95,
             metadata={
                 "mode": mode,
                 "calc_type": calc_type,
                 "total_amount": calc_result.total_amount,
                 "has_calculation": True,
+                "confidence": 0.95,
             },
         )
 
     async def _full_consult(
-        self, description: str, context: Dict, topics: list = None
+        self,
+        description: str,
+        context: dict[str, Any],
+        topics: list[str] | None = None,
     ) -> AgentResponse:
         """纯咨询模式 — 深度法律分析（不涉及具体计算）"""
         topics_hint = f"\n重点分析方向：{', '.join(topics)}" if topics else ""
@@ -193,13 +196,16 @@ mode 判断规则：
         return AgentResponse(
             agent_name=self.config.name,
             content=response,
-            confidence=0.85,
-            metadata={"mode": "consult", "has_calculation": False},
+            metadata={"mode": "consult", "has_calculation": False, "confidence": 0.85},
         )
 
     async def _ask_for_details(
-        self, calc_type: str, clarification: str, missing: list,
-        description: str, context: Dict,
+        self,
+        calc_type: str,
+        clarification: str,
+        missing: list[str],
+        description: str,
+        context: dict[str, Any],
     ) -> AgentResponse:
         """信息不足时：先给初步分析，再追问具体参数"""
         type_labels = {
@@ -231,21 +237,34 @@ mode 判断规则：
         return AgentResponse(
             agent_name=self.config.name,
             content=response,
-            confidence=0.7,
             metadata={
                 "mode": "hybrid",
                 "needs_clarification": True,
                 "calc_type": calc_type,
                 "missing_params": missing,
+                "confidence": 0.7,
             },
         )
 
-    def _parse_json(self, text: str) -> Dict:
+    @staticmethod
+    def _as_string_list(value: Any) -> list[str]:
+        """Normalize loose LLM JSON list fields into display-safe strings."""
+        if not isinstance(value, list):
+            return []
+        return [str(item) for item in value if item is not None]
+
+    def _parse_json(self, text: str) -> dict[str, Any]:
         """从 LLM 输出中提取 JSON"""
         match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', text, re.DOTALL)
         if match:
-            return json.loads(match.group(1))
+            parsed = json.loads(match.group(1))
+            if isinstance(parsed, dict):
+                return parsed
+            raise ValueError("JSON 根节点不是对象")
         match = re.search(r'\{.*\}', text, re.DOTALL)
         if match:
-            return json.loads(match.group(0))
+            parsed = json.loads(match.group(0))
+            if isinstance(parsed, dict):
+                return parsed
+            raise ValueError("JSON 根节点不是对象")
         raise ValueError("无法解析 JSON")

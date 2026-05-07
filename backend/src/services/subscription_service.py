@@ -1,20 +1,32 @@
-# -*- coding: utf-8 -*-
 """
 订阅与计费服务
 
 管理计费方案（BillingPlan）、用户订阅（Subscription）及订阅访问控制。
 """
 
-import uuid
-from datetime import datetime, timezone, date, timedelta
-from typing import Optional
+from datetime import UTC, date, datetime, timedelta
+from typing import Any
 
-from sqlalchemy import select, func, and_
-from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.billing import BillingPlan, Subscription
+from src.models.billing import BillingPlan, Subscription, SubscriptionEvent
 from src.models.payment import PaymentOrder
+
+
+class SubscriptionStateError(ValueError):
+    """Raised when a subscription status transition is not allowed."""
+
+
+SUBSCRIPTION_TRANSITIONS = {
+    "pending": {"active", "past_due", "cancelled", "expired"},
+    "trial": {"active", "cancelled", "expired"},
+    "active": {"active", "past_due", "cancelled", "expired"},
+    "past_due": {"active", "cancelled", "expired"},
+    "cancelled": set(),
+    "expired": set(),
+}
 
 
 class SubscriptionService:
@@ -29,9 +41,9 @@ class SubscriptionService:
 
     async def list_plans(
         self,
-        billing_mode: Optional[str] = None,
+        billing_mode: str | None = None,
         active_only: bool = True,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """获取计费方案列表，按 sort_order 排序"""
 
         query = select(BillingPlan)
@@ -46,7 +58,7 @@ class SubscriptionService:
 
         return [p.to_dict() for p in plans]
 
-    async def create_plan(self, data: dict) -> dict:
+    async def create_plan(self, data: dict[str, Any]) -> dict[str, Any]:
         """管理员创建方案"""
 
         # 检查 code 唯一
@@ -77,7 +89,7 @@ class SubscriptionService:
         logger.info(f"创建计费方案: {plan.code} ({plan.name})")
         return plan.to_dict()
 
-    async def update_plan(self, plan_id: str, data: dict) -> dict:
+    async def update_plan(self, plan_id: str, data: dict[str, Any]) -> dict[str, Any]:
         """管理员更新方案"""
 
         plan = await self.db.get(BillingPlan, plan_id)
@@ -106,8 +118,9 @@ class SubscriptionService:
         self,
         user_id: str,
         plan_id: str,
-        org_id: Optional[str] = None,
-    ) -> dict:
+        org_id: str | None = None,
+        client_type: str = "needer",
+    ) -> dict[str, Any]:
         """
         创建订阅:
         1. 查找方案
@@ -121,6 +134,13 @@ class SubscriptionService:
             raise ValueError("计费方案不存在")
         if not plan.is_active:
             raise ValueError("该方案已下架")
+        if client_type not in {"needer", "provider"}:
+            raise ValueError("客户端类型无效")
+        plan_client = getattr(plan, "client_type", "needer") or "needer"
+        if plan_client != "both" and plan_client != client_type:
+            raise ValueError("该方案不适用于当前客户端类型")
+
+        plan_features = plan.features if isinstance(plan.features, dict) else {}
 
         # 计算周期
         today = date.today()
@@ -136,7 +156,9 @@ class SubscriptionService:
             user_id=user_id,
             plan_id=plan_id,
             org_id=org_id,
-            status="active",
+            client_type=client_type,
+            allowed_modes=plan_features.get("modes"),
+            status="pending",
             current_period_start=today,
             current_period_end=period_end,
             auto_renew=True,
@@ -162,6 +184,15 @@ class SubscriptionService:
         subscription.last_payment_id = payment_order.id
         payment_order.related_id = subscription.id
 
+        await self._record_event(
+            subscription,
+            from_status=None,
+            to_status=subscription.status,
+            event_type="created",
+            reason="subscription_created",
+            payment_id=payment_order.id,
+        )
+
         await self.db.commit()
         await self.db.refresh(subscription)
         await self.db.refresh(payment_order)
@@ -176,7 +207,7 @@ class SubscriptionService:
             "payment_order": payment_order.to_dict(),
         }
 
-    async def get_user_subscriptions(self, user_id: str) -> list[dict]:
+    async def get_user_subscriptions(self, user_id: str) -> list[dict[str, Any]]:
         """获取用户的订阅列表（含方案详情）"""
 
         result = await self.db.execute(
@@ -187,7 +218,7 @@ class SubscriptionService:
         )
         rows = result.all()
 
-        items = []
+        items: list[dict[str, Any]] = []
         for sub, plan in rows:
             item = sub.to_dict()
             item["plan"] = plan.to_dict()
@@ -201,7 +232,7 @@ class SubscriptionService:
         user_id: str,
         reason: str,
         immediate: bool = False,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         取消订阅:
         - immediate=True: 立即失效
@@ -213,16 +244,28 @@ class SubscriptionService:
             raise ValueError("订阅不存在")
         if sub.user_id != user_id:
             raise PermissionError("无权操作此订阅")
-        if sub.status not in ("active", "past_due"):
-            raise ValueError(f"订阅状态为 {sub.status}，无法取消")
+        if sub.status not in ("pending", "active", "trial", "past_due"):
+            raise SubscriptionStateError(f"订阅状态为 {sub.status}，无法取消")
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         if immediate:
-            sub.status = "cancelled"
+            await self.transition_subscription(
+                sub,
+                "cancelled",
+                event_type="cancelled",
+                reason=reason,
+            )
         else:
             # 标记为取消中，到期后自然失效
             sub.auto_renew = False
+            await self._record_event(
+                sub,
+                from_status=sub.status,
+                to_status=sub.status,
+                event_type="cancel_scheduled",
+                reason=reason,
+            )
 
         sub.cancelled_at = now
         sub.cancellation_reason = reason
@@ -233,7 +276,152 @@ class SubscriptionService:
         logger.info(f"取消订阅: sub={sub_id}, immediate={immediate}")
         return sub.to_dict()
 
-    async def check_subscription_access(self, user_id: str) -> dict:
+    async def transition_subscription(
+        self,
+        subscription: Subscription,
+        to_status: str,
+        *,
+        event_type: str,
+        reason: str | None = None,
+        payment_id: str | None = None,
+        event_data: dict[str, Any] | None = None,
+    ) -> Subscription:
+        """Apply a validated subscription status transition and audit it."""
+
+        from_status = subscription.status
+        allowed = SUBSCRIPTION_TRANSITIONS.get(from_status, set())
+        if to_status != from_status and to_status not in allowed:
+            raise SubscriptionStateError(f"订阅状态不允许从 {from_status} 转为 {to_status}")
+
+        subscription.status = to_status
+        if payment_id:
+            subscription.last_payment_id = payment_id
+        await self._record_event(
+            subscription,
+            from_status=from_status,
+            to_status=to_status,
+            event_type=event_type,
+            reason=reason,
+            payment_id=payment_id,
+            event_data=event_data,
+        )
+        await self.db.flush()
+        return subscription
+
+    async def activate_or_renew_from_payment(
+        self,
+        subscription: Subscription,
+        *,
+        payment_id: str,
+        event_data: dict[str, Any] | None = None,
+    ) -> Subscription:
+        """Activate a trial/past-due subscription or renew an active subscription."""
+
+        if subscription.status == "active":
+            if subscription.last_payment_id == payment_id:
+                return await self.transition_subscription(
+                    subscription,
+                    "active",
+                    event_type="payment_duplicate",
+                    reason="payment_already_applied",
+                    payment_id=payment_id,
+                    event_data=event_data,
+                )
+            await self._extend_period(subscription)
+            return await self.transition_subscription(
+                subscription,
+                "active",
+                event_type="renewed",
+                reason="payment_success",
+                payment_id=payment_id,
+                event_data=event_data,
+            )
+
+        if subscription.status in {"pending", "trial", "past_due"}:
+            today = date.today()
+            subscription.current_period_start = today
+            subscription.current_period_end = await self._period_end(subscription, today)
+            subscription.next_billing_date = subscription.current_period_end
+            return await self.transition_subscription(
+                subscription,
+                "active",
+                event_type="activated",
+                reason="payment_success",
+                payment_id=payment_id,
+                event_data=event_data,
+            )
+
+        raise SubscriptionStateError(f"订阅状态为 {subscription.status}，无法激活或续费")
+
+    async def mark_past_due_from_payment(
+        self,
+        subscription: Subscription,
+        *,
+        payment_id: str,
+        reason: str = "payment_failed",
+    ) -> Subscription:
+        return await self.transition_subscription(
+            subscription,
+            "past_due",
+            event_type="payment_failed",
+            reason=reason,
+            payment_id=payment_id,
+        )
+
+    async def expire_from_refund(
+        self,
+        subscription: Subscription,
+        *,
+        payment_id: str,
+        reason: str = "payment_refunded",
+    ) -> Subscription:
+        subscription.auto_renew = False
+        subscription.next_billing_date = None
+        return await self.transition_subscription(
+            subscription,
+            "expired",
+            event_type="refunded",
+            reason=reason,
+            payment_id=payment_id,
+        )
+
+    async def _period_end(self, subscription: Subscription, start: date) -> date:
+        plan = await self.db.get(BillingPlan, subscription.plan_id)
+        if plan and plan.billing_mode == "yearly":
+            return start + timedelta(days=365)
+        return start + timedelta(days=30)
+
+    async def _extend_period(self, subscription: Subscription) -> None:
+        base = max(subscription.current_period_end, date.today())
+        subscription.current_period_start = date.today()
+        subscription.current_period_end = await self._period_end(subscription, base)
+        subscription.next_billing_date = subscription.current_period_end
+
+    async def _record_event(
+        self,
+        subscription: Subscription,
+        *,
+        from_status: str | None,
+        to_status: str,
+        event_type: str,
+        reason: str | None = None,
+        payment_id: str | None = None,
+        event_data: dict[str, Any] | None = None,
+    ) -> None:
+        self.db.add(
+            SubscriptionEvent(
+                subscription_id=subscription.id,
+                user_id=subscription.user_id,
+                from_status=from_status,
+                to_status=to_status,
+                event_type=event_type,
+                reason=reason,
+                payment_id=payment_id,
+                event_data=event_data,
+            )
+        )
+
+    async def check_subscription_access(self, user_id: str) -> dict[str, Any]:
         """检查用户是否有有效订阅"""
 
         today = date.today()
@@ -271,7 +459,7 @@ class SubscriptionService:
             "auto_renew": sub.auto_renew,
         }
 
-    async def get_subscription_stats(self, org_id: Optional[str] = None) -> dict:
+    async def get_subscription_stats(self, org_id: str | None = None) -> dict[str, Any]:
         """订阅统计: active_count, cancelled_count, mrr"""
 
         base = select(Subscription)
@@ -314,7 +502,7 @@ class SubscriptionService:
     # ------------------------------------------------------------------
 
     # 免费方案默认功能（仅本地模式）
-    _FREE_FEATURES = {
+    _FREE_FEATURES: dict[str, Any] = {
         "modes": ["local"],
         "ai_quota_tokens": 0,
         "sentiment_monitoring": False,
@@ -330,7 +518,7 @@ class SubscriptionService:
         self,
         user_id: str,
         client_type: str = "needer",
-    ) -> Optional[Subscription]:
+    ) -> Subscription | None:
         """获取用户在指定客户端的当前有效订阅"""
         today = date.today()
         result = await self.db.execute(
@@ -352,7 +540,7 @@ class SubscriptionService:
         self,
         user_id: str,
         client_type: str = "needer",
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         获取用户当前生效的功能权限。
         优先级：features_override > plan.features > FREE
@@ -363,9 +551,13 @@ class SubscriptionService:
 
         # 检查试用期
         if sub.status == "trial" and sub.trial_ends_at:
-            from datetime import timezone as tz
-            if sub.trial_ends_at.replace(tzinfo=tz.utc) < datetime.now(tz.utc):
-                sub.status = "expired"
+            if sub.trial_ends_at.replace(tzinfo=UTC) < datetime.now(UTC):
+                await self.transition_subscription(
+                    sub,
+                    "expired",
+                    event_type="trial_expired",
+                    reason="trial_period_elapsed",
+                )
                 await self.db.flush()
                 return dict(self._FREE_FEATURES)
 
@@ -413,7 +605,7 @@ class SubscriptionService:
         user_id: str,
         client_type: str = "needer",
         trial_days: int = 3,
-    ) -> Optional[Subscription]:
+    ) -> Subscription | None:
         """为新用户创建试用订阅（3天云端体验）"""
         existing = await self.get_active_by_client(user_id, client_type)
         if existing:
@@ -430,7 +622,7 @@ class SubscriptionService:
             return None
 
         today = date.today()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         sub = Subscription(
             user_id=user_id,
             plan_id=trial_plan.id,
@@ -443,5 +635,12 @@ class SubscriptionService:
         )
         self.db.add(sub)
         await self.db.flush()
+        await self._record_event(
+            sub,
+            from_status=None,
+            to_status="trial",
+            event_type="trial_started",
+            reason="trial_created",
+        )
         logger.info(f"创建试用订阅: user={user_id}, client={client_type}, days={trial_days}")
         return sub
