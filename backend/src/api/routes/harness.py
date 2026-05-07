@@ -10,7 +10,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 
-from src.core.deps import get_admin_user
+from src.core.deps import get_admin_user, get_user_permissions
 
 router = APIRouter(prefix="/harness", tags=["harness"])
 ResponsePayload = dict[str, Any]
@@ -108,11 +108,29 @@ async def get_tool_stats(
 async def check_policy(
     agent: str = Query(..., description="Agent 名称"),
     tool: str = Query(..., description="工具名称"),
+    privacy_mode: str | None = Query(None, description="运行/隐私模式"),
+    device_trusted: bool = Query(True, description="是否受信设备"),
+    channel_allowed: bool = Query(True, description="当前通道策略是否允许执行"),
+    approval_state: str | None = Query(None, description="审批状态"),
+    subscription_feature: list[str] | None = Query(None, description="已生效订阅能力"),
     user: Any = Depends(get_admin_user),
 ) -> ResponsePayload:
     """检查 Agent 是否有权限调用工具"""
-    from src.harness.policy_engine import policy_engine
-    result = policy_engine.check_tool_access(agent, tool)
+    from src.harness.policy_engine import PolicyContext, policy_engine
+    result = policy_engine.check_tool_access(
+        agent,
+        tool,
+        context=PolicyContext(
+            subscription_features=subscription_feature,
+            user_role=getattr(user, "role", None),
+            permissions={p.value for p in get_user_permissions(user.role)},
+            privacy_mode=privacy_mode,
+            device_trusted=device_trusted,
+            channel_allowed=channel_allowed,
+            approval_state=approval_state,
+            approver_role=getattr(user, "role", None),
+        ),
+    )
     return {
         "status": "ok",
         "data": {
@@ -121,6 +139,7 @@ async def check_policy(
             "agent": result.agent_name,
             "tool": result.tool_name,
             "required_approver": result.required_approver_role,
+            "missing_permissions": sorted(result.missing_permissions),
         },
     }
 

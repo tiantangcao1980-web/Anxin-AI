@@ -178,6 +178,10 @@
 - 能力中心按老板/Owner、超级管理员、部门管理员、普通员工、外部专业服务方展示不同能力、限制和申请入口。
 - Skill Evolution Gate 覆盖 Skill 版本、owner、评测、审批、灰度、回滚和自我改进提案；agent 只能提案、生成测试和提交审批，不能自行启用生产能力。
 
+当前进展：
+- 已补第一层 agent capability policy：未注册工具 fail-closed、显式 allowlist、订阅 feature、角色 permission、绝密模式、设备信任、通道策略、高风险审批上下文，以及 MCP tool list 过滤 + runtime 二次判权。
+- 仍缺 CapabilityRoute/短期 route token、MCP stdio/url/env allowlist、Human-in-the-loop 工作室、Skill Evolution Gate 和撤销后立即失权证据。
+
 ## 4. 统一开发规则
 
 - 每个任务先产出 `00-prd-reality-gap.md`，再改代码。

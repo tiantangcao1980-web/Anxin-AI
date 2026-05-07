@@ -123,6 +123,12 @@ cd backend && ./.venv/bin/ruff check src/api/routes/cli.py src/api/routes/esign.
 cd backend && ./.venv/bin/pytest -q tests/test_config_commercial_guards.py tests/test_external_surface_guards.py tests/test_cli_route.py tests/test_mode_subscription_guards.py
 # 48 passed
 
+cd backend && ./.venv/bin/pytest -q tests/test_harness.py -k 'PolicyEngine or AgentMcpToolPolicy'
+# 13 passed, 21 deselected
+
+cd backend && ./.venv/bin/pytest -q tests/test_harness.py tests/test_external_surface_guards.py tests/test_cli_route.py tests/test_mode_subscription_guards.py
+# 80 passed
+
 cd backend && ./.venv/bin/pytest -q tests/test_payment_provider_clients.py tests/test_esign_provider_clients.py tests/test_oa_integration.py tests/test_external_surface_guards.py tests/test_cli_route.py tests/test_config_commercial_guards.py tests/test_mode_subscription_guards.py tests/test_contract_state_machine.py
 # 88 passed
 ```
@@ -134,6 +140,7 @@ cd backend && ./.venv/bin/pytest -q tests/test_payment_provider_clients.py tests
 - CLI Key 创建/列表/撤销已绑定真实登录用户，`export` scope 需要对应角色权限，禁止匿名或跨用户管理。
 - CLI Key 创建/撤销和 CLI execute 已写入 `AuditLog`；命令失败、scope 缺失和高危命令拒绝也会留审计轨迹。
 - MCP 管理接口收紧到 `manage:system`，独立 MCP Server 在 staging/production 默认 fail-closed；MCP server 创建/更新/删除/连接会写入脱敏 `AuditLog`，只记录 env key 名不记录 secret 值。
+- Agent capability policy 已补 fail-closed 基线：未注册工具默认拒绝；`AgentPolicy.allowed_tools` 生效；订阅 feature、角色 permission、绝密模式、设备信任、通道策略和高风险审批上下文可进入 `PolicyContext`；agent 看到 MCP tool list 前会先过滤，模型返回 tool call 后执行前会二次判权，拒绝结果结构化回传。
 - 未知订阅 feature 默认拒绝，staging 也拒绝默认 JWT secret。
 
 ### 前端/移动/小程序
@@ -221,7 +228,7 @@ cd desktop && cargo test sync_engine
 | 调查意图路由 | 200 条 JSONL 离线评测集；`test_due_diligence_intent.py` + `test_chat_due_diligence_routing.py` 组合 `13 passed`；意图准确率 `1.000`、企业名抽取准确率 `1.000`（150 条含企业名）；ChatService 已分流尽调/舆情/法规监测 | 代码级充分；真实用户 query 分布上线后需持续采样复核 |
 | 案件/任务 | 案件状态机/终态只读/时间线 event_at 语义、任务 owner/assignee/admin 过滤；`test_case_service.py` + `test_lawyer_matching_and_tasks_api.py` 组合 `46 passed` | 代码级核心充分；全矩阵和 Playwright 全流程仍需发布前扩展 |
 | 专业服务市场 P0（律师/律所） | local 模式固定拒绝、投标前利益冲突命中 409、同分律师曝光轮询；`test_lawyer_matching_and_tasks_api.py` `17 passed` | 律师/律所代码级核心充分；律所 RBAC 全矩阵、8 API 打勾、1000 次公平报告仍需补；税务师/税务事务所/财务顾问/会计审计仍为后续扩展验收 |
-| 全设备智能助手底座 | 后端 LLM/private LLM/MCP/Skills/knowledge 代码基础、桌面 local LLM/SQLCipher/keyring/本地队列、移动隐私模式语义已存在 | 底座存在但商业证据不足；桌面主工作站配置面、移动远控桌面、任意 LLM/Skills/MCP 组织策略、独立本地知识库体验和绝密模式出站拦截仍需测试 |
+| 全设备智能助手底座 | 后端 LLM/private LLM/MCP/Skills/knowledge 代码基础、桌面 local LLM/SQLCipher/keyring/本地队列、移动隐私模式语义已存在；agent capability policy 现在覆盖未知工具 fail-closed、agent tool allowlist、订阅 feature、角色 permission、绝密模式、设备信任、通道策略、高风险审批上下文，以及 MCP tool list/filter + runtime 二次判权 | 底座存在但商业证据不足；桌面主工作站配置面、移动远控桌面、任意 LLM/Skills/MCP 组织策略、独立本地知识库体验、route-token 撤销、MCP stdio/url/env allowlist 和桌面 top-secret 出站熔断仍需测试 |
 | 可信会话与 Skills 进化 | OpenSpec、参考分析、TASK-03 和 TASK-12 已把 Codex/Claude 式工作台体验、Skill lifecycle、SkillEvolutionProposal、eval gate、审批和回滚纳入验收 | 当前仍是规范和任务级证据；缺前后端长任务事件、artifact 编辑、跨设备恢复、Skill 评测/审批/回滚代码测试 |
 | 移动/小程序 | `bash scripts/mobile-device-smoke.sh --out docs/release/evidence/artifacts/mobile-mini-code-smoke-20260508.json --manual-template-out docs/release/evidence/artifacts/mobile-device-manual-template-20260508.json` 当前通过：mobile Vitest `7 files / 17 tests passed`、mobile tsc、Expo config/SDK dependency guard、`npx expo-doctor` `17/17 checks passed`、mobile production `npm audit --omit=dev` `0`、mini-program tsc、Taro weapp build、WeChat DevTools CLI project smoke、refresh auth guard、fake fallback guard、mini-program design token guard，并写出包含 `mobile_expo_doctor=passed` 的代码级 artifact 与手工设备证据模板；`mobile_npm_audit` artifact 字段记录 `status=passed/critical=0/high=0/total=0`，并由 validator 锁住；host probe 已写入 `mobile-device-host-probe-20260508.json`，确认本机 iOS Simulator 当前可用且列出 iOS 26.4 设备、ADB 无连接 Android device、Android emulator CLI 不在 PATH、WeChat DevTools 与 WeChat app 存在；移动端弱网 refresh-token 不误清会话已有单测；小程序 refresh-token 已区分认证失效和临时刷新失败；消息详情和任务详情已移除 synthetic fallback 数据；`getDetailLoadErrorMessage` 已补字符串 transport error 和 status 优先级用例；移动/小程序已补最小触控 token 底座；小程序语义 token 层已补并迁移首页/聊天/个人中心与 `app.config.ts`；`docs/design/cross-platform-token-drift.md` 已产出三端 token 漂移清单；`docs/release/mobile-error-state-release-notes.md` 已补错误态发布说明草案 | 代码级充分；品牌主色最终统一仍待定；iOS app-run、Android、交互式 WeChat DevTools 或真机证据仍不足 |
 

@@ -38,6 +38,7 @@ class ToolDefinition:
     input_schema: dict[str, Any] | None = None    # 输入参数 schema
     output_schema: dict[str, Any] | None = None   # 输出格式 schema
     allowed_agents: set[str] | None = None  # 允许调用的 Agent 列表（None=全部可用）
+    required_permissions: set[str] = field(default_factory=set)  # 用户权限要求（可选）
     requires_approval: bool = False     # 是否需要人工审批
     timeout_seconds: int = 30          # 超时时间
     retry_count: int = 1              # 重试次数
@@ -87,6 +88,7 @@ class ToolRegistry:
                 risk_level=RiskLevel.READ_ONLY,
                 service_module="src.services.knowledge_service",
                 method_name="search",
+                required_permissions={"read:knowledge"},
                 tags=["knowledge", "search", "rag"],
             ),
             ToolDefinition(
@@ -96,6 +98,7 @@ class ToolRegistry:
                 risk_level=RiskLevel.READ_ONLY,
                 service_module="src.services.vector_store",
                 method_name="search",
+                required_permissions={"read:knowledge"},
                 tags=["knowledge", "search", "vector"],
             ),
             ToolDefinition(
@@ -105,6 +108,7 @@ class ToolRegistry:
                 risk_level=RiskLevel.READ_ONLY,
                 service_module="src.services.graph_service",
                 method_name="query",
+                required_permissions={"read:knowledge"},
                 tags=["knowledge", "graph"],
             ),
             ToolDefinition(
@@ -114,6 +118,7 @@ class ToolRegistry:
                 risk_level=RiskLevel.READ_ONLY,
                 service_module="src.services.legal_rag",
                 method_name="search_cases",
+                required_permissions={"read:knowledge"},
                 tags=["knowledge", "search", "case"],
             ),
 
@@ -126,6 +131,7 @@ class ToolRegistry:
                 service_module="src.services.template_engine",
                 method_name="generate_contract",
                 allowed_agents={"document_drafter", "contract_reviewer", "contract_steward", "legal_advisor"},
+                required_permissions={"write:contracts"},
                 tags=["document", "contract", "generate"],
             ),
             ToolDefinition(
@@ -136,6 +142,7 @@ class ToolRegistry:
                 service_module="src.services.template_engine",
                 method_name="generate_document",
                 allowed_agents={"document_drafter", "legal_advisor", "litigation_strategist"},
+                required_permissions={"write:documents"},
                 tags=["document", "generate"],
             ),
             ToolDefinition(
@@ -145,6 +152,7 @@ class ToolRegistry:
                 risk_level=RiskLevel.READ_ONLY,
                 service_module="src.services.document_validator",
                 method_name="validate",
+                required_permissions={"read:documents"},
                 tags=["document", "validate"],
             ),
 
@@ -157,6 +165,7 @@ class ToolRegistry:
                 service_module="src.services.compliance_service",
                 method_name="analyze_risk",
                 allowed_agents={"risk_assessor", "compliance_officer", "contract_reviewer", "legal_advisor"},
+                required_permissions={"review:contracts"},
                 tags=["analysis", "risk"],
             ),
             ToolDefinition(
@@ -167,6 +176,7 @@ class ToolRegistry:
                 service_module="src.services.sentiment_service",
                 method_name="analyze",
                 allowed_agents={"sentiment_agent", "due_diligence", "regulatory_monitor"},
+                required_permissions={"view:analytics"},
                 tags=["analysis", "sentiment"],
             ),
             ToolDefinition(
@@ -176,6 +186,7 @@ class ToolRegistry:
                 risk_level=RiskLevel.READ_ONLY,
                 service_module="src.services.citation_tracker",
                 method_name="verify_citations",
+                required_permissions={"read:knowledge"},
                 tags=["validate", "citation"],
             ),
 
@@ -188,6 +199,7 @@ class ToolRegistry:
                 service_module="src.services.crawler_service",
                 method_name="crawl_company",
                 allowed_agents={"due_diligence", "evidence_analyst"},
+                required_permissions={"read:assets"},
                 timeout_seconds=60,
                 tags=["external", "crawl", "company"],
             ),
@@ -198,6 +210,7 @@ class ToolRegistry:
                 risk_level=RiskLevel.EXTERNAL_SEND,
                 service_module="src.services.crawler_service",
                 method_name="web_search",
+                required_permissions={"read:knowledge"},
                 timeout_seconds=30,
                 tags=["external", "search", "web"],
             ),
@@ -210,6 +223,7 @@ class ToolRegistry:
                 risk_level=RiskLevel.HIGH_RISK,
                 service_module="src.services.email_service",
                 method_name="send",
+                required_permissions={"manage:system"},
                 requires_approval=True,
                 allowed_agents=set(),  # 默认禁止所有 Agent 直接调用
                 tags=["external", "email", "high_risk"],
@@ -221,6 +235,7 @@ class ToolRegistry:
                 risk_level=RiskLevel.HIGH_RISK,
                 service_module="src.services.payment_service",
                 method_name="create_order",
+                required_permissions={"manage:payments"},
                 requires_approval=True,
                 allowed_agents=set(),  # 禁止 Agent 直接调用
                 tags=["payment", "high_risk"],
@@ -232,6 +247,7 @@ class ToolRegistry:
                 risk_level=RiskLevel.HIGH_RISK,
                 service_module="src.services.report_engine",
                 method_name="generate_opinion",
+                required_permissions={"review:contracts", "sign:contracts"},
                 requires_approval=True,
                 allowed_agents={"legal_advisor", "litigation_strategist"},
                 tags=["document", "opinion", "high_risk"],

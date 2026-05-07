@@ -360,6 +360,44 @@ class BaseLegalAgent(ABC):
 
         raise RuntimeError("API调用失败：重试器未返回结果")
 
+    @staticmethod
+    def _extract_tool_name(tool: JSONDict) -> str | None:
+        function_def = tool.get("function")
+        if isinstance(function_def, dict):
+            name = function_def.get("name")
+            return str(name) if name else None
+        return None
+
+    def _check_mcp_tool_policy(self, tool_name: str) -> Any:
+        from src.harness.policy_engine import policy_engine
+
+        return policy_engine.check_tool_access(self.name, tool_name)
+
+    def _filter_mcp_tools_for_policy(self, tools: list[JSONDict]) -> list[JSONDict]:
+        from src.harness.policy_engine import PolicyDecision
+
+        allowed_tools: list[JSONDict] = []
+        for tool in tools:
+            tool_name = self._extract_tool_name(tool)
+            if not tool_name:
+                logger.warning(f"Agent {self.name}: 跳过无名称 MCP 工具")
+                continue
+            decision = self._check_mcp_tool_policy(tool_name)
+            if decision.decision == PolicyDecision.ALLOW:
+                allowed_tools.append(tool)
+            else:
+                logger.warning(
+                    f"Agent {self.name}: MCP 工具 {tool_name} 被策略拒绝: {decision.reason}"
+                )
+        return allowed_tools
+
+    @staticmethod
+    def _tool_policy_denial(tool_name: str, reason: str) -> str:
+        return (
+            f"[工具调用被拒绝] {tool_name}: {reason}。"
+            "请基于已有信息回答，不要尝试绕过工具权限。"
+        )
+
     async def chat(
         self,
         message: str,
@@ -470,6 +508,7 @@ class BaseLegalAgent(ABC):
             except Exception as e:
                 logger.warning(f"获取 MCP 工具失败: {e}")
                 available_tools = []
+            available_tools = self._filter_mcp_tools_for_policy(available_tools)
 
             max_turns = 5  # Prevent infinite loops
             current_turn = 0
@@ -587,6 +626,19 @@ class BaseLegalAgent(ABC):
                         fn_name = fn["name"]
                         fn_args_str = fn["arguments"]
                         try:
+                            from src.harness.policy_engine import PolicyDecision
+
+                            decision = self._check_mcp_tool_policy(fn_name)
+                            if decision.decision != PolicyDecision.ALLOW:
+                                tool_output = self._tool_policy_denial(fn_name, decision.reason)
+                                logger.warning(
+                                    f"Tool execution denied for {fn_name}: {decision.reason}"
+                                )
+                                return {
+                                    "role": "tool",
+                                    "tool_call_id": call_id,
+                                    "content": tool_output,
+                                }
                             fn_args = json.loads(fn_args_str)
                             result = await mcp_client_service.call_tool(fn_name, fn_args)
                             tool_output = str(result)

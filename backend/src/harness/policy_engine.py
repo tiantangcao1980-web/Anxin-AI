@@ -8,6 +8,7 @@ Agent 权限与审批引擎
 4. 审批门控：与 approval 模块对接
 """
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -41,6 +42,27 @@ class PolicyCheckResult:
     tool_name: str | None = None
     agent_name: str | None = None
     required_approver_role: str | None = None  # 需要谁审批
+    missing_permissions: set[str] = field(default_factory=set)
+
+
+@dataclass(frozen=True)
+class PolicyContext:
+    """
+    一次工具调用的组织治理上下文。
+
+    这些字段都是可选的，便于现有调用点逐步接入；只要传入，就按
+    fail-closed 解释，避免 agent 在订阅、隐私模式、设备信任或通道策略
+    缺失时拿到过宽权限。
+    """
+
+    subscription_features: dict[str, Any] | Iterable[str] | None = None
+    user_role: str | None = None
+    permissions: Iterable[str] | None = None
+    privacy_mode: str | None = None
+    device_trusted: bool = True
+    channel_allowed: bool = True
+    approval_state: str | None = None
+    approver_role: str | None = None
 
 
 @dataclass
@@ -61,6 +83,72 @@ class AgentPolicy:
     max_tokens_per_task: int = 50000
     # 是否需要人工确认才能输出
     output_requires_review: bool = False
+
+
+_FEATURE_TOOL_ALIASES: dict[str, set[str]] = {
+    "legal_knowledge_base": {
+        "search_knowledge",
+        "search_vector",
+        "query_graph",
+        "search_case_law",
+        "verify_citation",
+    },
+    "template_marketplace": {"draft_contract", "draft_document"},
+    "due_diligence": {"crawl_company_info"},
+    "sentiment_monitoring": {"analyze_sentiment"},
+    "lawyer_matching": {"generate_legal_opinion"},
+}
+
+_APPROVER_ROLES = {
+    "super_admin",
+    "admin",
+    "org_admin",
+    "partner",
+    "lawyer",
+}
+
+
+def _normalize_string_set(values: Iterable[str] | None) -> set[str] | None:
+    if values is None:
+        return None
+    return {str(value).strip().lower() for value in values if str(value).strip()}
+
+
+def _active_feature_names(features: dict[str, Any] | Iterable[str] | None) -> set[str] | None:
+    if features is None:
+        return None
+    if isinstance(features, dict):
+        active: set[str] = set()
+        for key, value in features.items():
+            if isinstance(value, bool) and value:
+                active.add(key)
+            elif isinstance(value, int) and value > 0:
+                active.add(key)
+            elif isinstance(value, str) and value.strip():
+                active.add(key)
+            elif isinstance(value, list) and value:
+                active.add(key)
+        return {item.lower() for item in active}
+    return _normalize_string_set(features) or set()
+
+
+def _feature_allows_tool(tool_name: str, tags: list[str], active_features: set[str]) -> bool:
+    if "*" in active_features or "all" in active_features:
+        return True
+
+    selectors = {tool_name, f"tool:{tool_name}"}
+    for tag in tags:
+        selectors.add(tag)
+        selectors.add(f"tag:{tag}")
+    for feature, tool_names in _FEATURE_TOOL_ALIASES.items():
+        if tool_name in tool_names:
+            selectors.add(feature)
+
+    return bool(active_features & {selector.lower() for selector in selectors})
+
+
+def _is_valid_approver(role: str | None) -> bool:
+    return (role or "").lower() in _APPROVER_ROLES
 
 
 class PolicyEngine:
@@ -213,7 +301,12 @@ class PolicyEngine:
         """获取 Agent 策略"""
         return self._policies.get(agent_name)
 
-    def check_tool_access(self, agent_name: str, tool_name: str) -> PolicyCheckResult:
+    def check_tool_access(
+        self,
+        agent_name: str,
+        tool_name: str,
+        context: PolicyContext | None = None,
+    ) -> PolicyCheckResult:
         """
         检查 Agent 是否可以调用指定工具
 
@@ -225,9 +318,19 @@ class PolicyEngine:
         # 第一层：tool_registry
         tool_def = tool_registry.get(tool_name)
         if not tool_def:
+            self._log_audit(agent_name, tool_name, "DENY", "unknown tool")
             return PolicyCheckResult(
-                decision=PolicyDecision.ALLOW,
-                reason="工具未注册，默认放行（向后兼容）",
+                decision=PolicyDecision.DENY,
+                reason="工具未注册，已按 fail-closed 拒绝",
+                tool_name=tool_name,
+                agent_name=agent_name,
+            )
+
+        if context and not context.channel_allowed:
+            self._log_audit(agent_name, tool_name, "DENY", "channel policy denied")
+            return PolicyCheckResult(
+                decision=PolicyDecision.DENY,
+                reason="当前通道策略不允许 Agent 执行该工具",
                 tool_name=tool_name,
                 agent_name=agent_name,
             )
@@ -244,11 +347,32 @@ class PolicyEngine:
         # 第二层：policy_engine
         policy = self._policies.get(agent_name)
         if policy:
+            if policy.allowed_tools is not None and tool_name not in policy.allowed_tools:
+                self._log_audit(agent_name, tool_name, "DENY", "policy allowed_tools")
+                return PolicyCheckResult(
+                    decision=PolicyDecision.DENY,
+                    reason=f"工具 {tool_name} 不在 Agent {agent_name} 的显式允许列表中",
+                    tool_name=tool_name,
+                    agent_name=agent_name,
+                )
+
             if tool_name in policy.denied_tools:
                 self._log_audit(agent_name, tool_name, "DENY", "policy denied_tools")
                 return PolicyCheckResult(
                     decision=PolicyDecision.DENY,
                     reason=f"Agent {agent_name} 的策略明确禁止调用 {tool_name}",
+                    tool_name=tool_name,
+                    agent_name=agent_name,
+                )
+
+            if (
+                tool_def.risk_level == RiskLevel.EXTERNAL_SEND
+                and not policy.can_external_send
+            ):
+                self._log_audit(agent_name, tool_name, "DENY", "external send disabled")
+                return PolicyCheckResult(
+                    decision=PolicyDecision.DENY,
+                    reason=f"Agent {agent_name} 不允许对外发送或调用外部数据源",
                     tool_name=tool_name,
                     agent_name=agent_name,
                 )
@@ -270,8 +394,20 @@ class PolicyEngine:
                     agent_name=agent_name,
                 )
 
+        context_result = self._check_context(agent_name, tool_name, context)
+        if context_result:
+            return context_result
+
         # 审批门控
         if tool_def.requires_approval:
+            if context and context.approval_state == "approved" and _is_valid_approver(context.approver_role):
+                self._log_audit(agent_name, tool_name, "ALLOW", "approved high-risk tool")
+                return PolicyCheckResult(
+                    decision=PolicyDecision.ALLOW,
+                    reason="已由授权角色审批",
+                    tool_name=tool_name,
+                    agent_name=agent_name,
+                )
             self._log_audit(agent_name, tool_name, "REQUIRE_APPROVAL", "工具要求审批")
             return PolicyCheckResult(
                 decision=PolicyDecision.REQUIRE_APPROVAL,
@@ -288,6 +424,67 @@ class PolicyEngine:
             tool_name=tool_name,
             agent_name=agent_name,
         )
+
+    def _check_context(
+        self,
+        agent_name: str,
+        tool_name: str,
+        context: PolicyContext | None,
+    ) -> PolicyCheckResult | None:
+        if not context:
+            return None
+
+        tool_def = tool_registry.get(tool_name)
+        if not tool_def:
+            return None
+
+        active_features = _active_feature_names(context.subscription_features)
+        if active_features is not None and not _feature_allows_tool(tool_def.name, tool_def.tags, active_features):
+            self._log_audit(agent_name, tool_name, "DENY", "subscription feature denied")
+            return PolicyCheckResult(
+                decision=PolicyDecision.DENY,
+                reason=f"当前订阅能力不包含工具 {tool_name}",
+                tool_name=tool_name,
+                agent_name=agent_name,
+            )
+
+        permissions = _normalize_string_set(context.permissions)
+        if permissions is not None:
+            missing = set(tool_def.required_permissions) - permissions
+            if missing:
+                self._log_audit(agent_name, tool_name, "DENY", "missing permissions")
+                return PolicyCheckResult(
+                    decision=PolicyDecision.DENY,
+                    reason=f"当前角色缺少权限: {', '.join(sorted(missing))}",
+                    tool_name=tool_name,
+                    agent_name=agent_name,
+                    missing_permissions=missing,
+                )
+
+        if (context.privacy_mode or "").lower() in {"top_secret", "local_only", "offline"}:
+            if tool_def.risk_level in {RiskLevel.EXTERNAL_SEND, RiskLevel.HIGH_RISK} or "external" in tool_def.tags:
+                self._log_audit(agent_name, tool_name, "DENY", "privacy mode denied")
+                return PolicyCheckResult(
+                    decision=PolicyDecision.DENY,
+                    reason="绝密/本地模式不允许外部发送、高风险或外部数据源工具",
+                    tool_name=tool_name,
+                    agent_name=agent_name,
+                )
+
+        if not context.device_trusted and tool_def.risk_level in {
+            RiskLevel.EXECUTE,
+            RiskLevel.EXTERNAL_SEND,
+            RiskLevel.HIGH_RISK,
+        }:
+            self._log_audit(agent_name, tool_name, "DENY", "untrusted device")
+            return PolicyCheckResult(
+                decision=PolicyDecision.DENY,
+                reason="未受信设备不允许执行可执行、外部发送或高风险工具",
+                tool_name=tool_name,
+                agent_name=agent_name,
+            )
+
+        return None
 
     def get_agent_available_tools(self, agent_name: str) -> list[str]:
         """获取 Agent 可用的所有工具列表"""

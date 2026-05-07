@@ -339,6 +339,8 @@ if [ "$RUN_LOCAL_TESTS" -eq 1 ]; then
   require_command "desktop installed-profile SQLCipher/keyring smoke" \
     bash scripts/desktop-installed-profile-smoke.sh --out /tmp/anxin-desktop-installed-profile-gate.json
   require_command "backend mypy zero-baseline gate" bash scripts/mypy-baseline-check.sh
+  require_command "agent capability policy tests" \
+    bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_harness.py -k 'PolicyEngine or AgentMcpToolPolicy'"
   require_command "RAG full50 runner tests" \
     bash -lc "backend/.venv/bin/pytest -q backend/tests/eval/test_rag_full50_runner.py"
   require_command "RAG quality metrics tests" \

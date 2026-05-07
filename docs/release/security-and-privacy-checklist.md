@@ -17,7 +17,7 @@
 
 - LLM 配置必须按组织隔离，superuser 例外必须有测试。
 - 任意 LLM provider/endpoint/model/key、Skills 和 MCP Server 配置必须按组织/用户 scope 隔离，启用前有最小权限说明，调用后有审计日志。
-- 当前 CLI Key 与 execute 已写入审计日志；MCP Server 管理 API 已收紧到 `manage:system`，管理动作写入脱敏审计，独立 MCP Server 在 staging/production 默认关闭；发布前仍需补组织级 route-token、工具调用细粒度审计、撤销后失权和隐私模式拦截证据。
+- 当前 CLI Key 与 execute 已写入审计日志；MCP Server 管理 API 已收紧到 `manage:system`，管理动作写入脱敏审计，独立 MCP Server 在 staging/production 默认关闭；agent capability policy 已补未注册工具 fail-closed、订阅 feature、角色 permission、隐私模式、设备信任、通道策略和审批上下文判定，并在 agent MCP tool list 与 runtime tool call 前二次判权；发布前仍需补组织级 route-token、MCP stdio/url/env allowlist、工具调用细粒度审计、撤销后失权和桌面/移动隐私模式出站拦截证据。
 - 企业组织默认只开放 L0/L1 基础能力；完整能力必须同时满足订阅/购买状态、老板或 Owner/超级管理员授权、角色权限、风险级别、隐私模式、设备信任、通信策略和审批状态。
 - Agent/Worker 不得持有真实 API key、PAT、财税接口密钥、浏览器账号密码或桌面本地密钥；必须通过 Gateway/密钥服务发放短期 consumer token 或 route token，撤销后下一次调用必须 401/403 并写审计。
 - 高风险智能体动作必须进入可审计工作室，支持旁听、暂停、接管、终止、导出 artifact；外部专业服务方只能访问授权材料包和沟通区。

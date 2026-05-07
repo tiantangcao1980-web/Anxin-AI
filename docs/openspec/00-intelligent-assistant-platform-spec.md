@@ -174,7 +174,7 @@ Skills 和智能体进化必须受治理：
 - 通用工作助手、软件/原型工作台、浏览器执行器、CLI harness 和定时自动化尚缺统一产品入口、沙盒执行和企业审批。
 - Codex/Claude 风格的可信会话体验尚缺完整产品化：长任务计划/进度/证据/可恢复状态、artifact 编辑、能力命令面板和跨设备接续仍需统一设计与验收。
 - Skills 进化和智能体自我改进尚缺生命周期模型、评测门禁、审批、回滚和记忆治理。
-- 企业智能体治理尚缺统一的 `subscription + role + permission + risk_level + privacy_mode + device_trust + channel_policy + approval_state` 决策引擎。
+- 企业智能体治理已补第一层 agent capability policy 决策引擎，覆盖未注册工具 fail-closed、订阅 feature、角色 permission、隐私模式、设备信任、通道策略和审批上下文；仍缺 CapabilityRoute/短期 route token、MCP stdio/url/env allowlist、Human-in-the-loop 工作室和撤销后立即失权证据。
 - 协作式多智能体控制面尚缺 AgentManager、AgentTeam、AgentWorker、HumanParticipant、ChannelPolicy、CapabilityRoute 和 SharedArtifactStore 的正式数据模型与审计闭环。
 - 税务师、税务事务所、财务顾问、会计/审计人员等专业服务方仍处于规范预留和后续扩展阶段。
 - 舆情监测到专业处置和服务方获客的商业闭环仍需产品与代码验收。

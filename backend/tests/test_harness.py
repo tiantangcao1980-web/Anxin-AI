@@ -203,6 +203,201 @@ class TestPolicyEngine:
         result = policy_engine.check_tool_access('risk_assessor', 'draft_contract')
         assert result.decision == PolicyDecision.DENY
 
+    def test_unknown_tool_is_fail_closed(self):
+        """未注册工具必须 fail-closed，避免 agent 绕过注册中心。"""
+        from src.harness.policy_engine import PolicyDecision, PolicyEngine
+
+        engine = PolicyEngine()
+        result = engine.check_tool_access('legal_advisor', 'unregistered_shell_tool')
+
+        assert result.decision == PolicyDecision.DENY
+
+    def test_explicit_allowed_tools_are_enforced(self):
+        """AgentPolicy.allowed_tools 生效，不能只靠 denied_tools。"""
+        from src.harness.policy_engine import (
+            AgentPolicy,
+            PolicyDecision,
+            PolicyEngine,
+        )
+        from src.harness.tool_registry import RiskLevel
+
+        engine = PolicyEngine()
+        engine.set_policy(AgentPolicy(
+            agent_name='strict_agent',
+            allowed_tools={'search_knowledge'},
+            max_risk_level=RiskLevel.READ_ONLY,
+        ))
+
+        allowed = engine.check_tool_access('strict_agent', 'search_knowledge')
+        denied = engine.check_tool_access('strict_agent', 'validate_document')
+
+        assert allowed.decision == PolicyDecision.ALLOW
+        assert denied.decision == PolicyDecision.DENY
+
+    def test_subscription_feature_context_is_fail_closed(self):
+        """传入订阅能力后，缺失能力不能继续调用工具。"""
+        from src.harness.policy_engine import PolicyContext, PolicyDecision, PolicyEngine
+
+        engine = PolicyEngine()
+        result = engine.check_tool_access(
+            'legal_advisor',
+            'draft_contract',
+            context=PolicyContext(subscription_features={'legal_knowledge_base'}),
+        )
+
+        assert result.decision == PolicyDecision.DENY
+
+    def test_subscription_feature_alias_can_allow_tool(self):
+        """订阅能力可通过业务 feature 映射到工具，而不是只认工具名。"""
+        from src.harness.policy_engine import PolicyContext, PolicyDecision, PolicyEngine
+
+        engine = PolicyEngine()
+        result = engine.check_tool_access(
+            'legal_researcher',
+            'search_knowledge',
+            context=PolicyContext(
+                subscription_features={'legal_knowledge_base'},
+                permissions={'read:knowledge'},
+            ),
+        )
+
+        assert result.decision == PolicyDecision.ALLOW
+
+    def test_missing_role_permission_denies_tool(self):
+        """上下文传入角色权限后，缺少工具所需 permission 应拒绝。"""
+        from src.harness.policy_engine import PolicyContext, PolicyDecision, PolicyEngine
+
+        engine = PolicyEngine()
+        result = engine.check_tool_access(
+            'legal_researcher',
+            'search_knowledge',
+            context=PolicyContext(
+                subscription_features={'legal_knowledge_base'},
+                permissions=set(),
+            ),
+        )
+
+        assert result.decision == PolicyDecision.DENY
+        assert result.missing_permissions == {'read:knowledge'}
+
+    def test_top_secret_mode_denies_external_tool(self):
+        """绝密模式下外部数据采集必须 fail-closed。"""
+        from src.harness.policy_engine import PolicyContext, PolicyDecision, PolicyEngine
+
+        engine = PolicyEngine()
+        result = engine.check_tool_access(
+            'due_diligence',
+            'crawl_company_info',
+            context=PolicyContext(
+                subscription_features={'due_diligence'},
+                permissions={'read:assets'},
+                privacy_mode='top_secret',
+            ),
+        )
+
+        assert result.decision == PolicyDecision.DENY
+
+    def test_untrusted_device_denies_high_risk_tool(self):
+        """未受信设备不能进入高风险审批路径。"""
+        from src.harness.policy_engine import (
+            AgentPolicy,
+            PolicyContext,
+            PolicyDecision,
+            PolicyEngine,
+        )
+        from src.harness.tool_registry import RiskLevel
+
+        engine = PolicyEngine()
+        engine.set_policy(AgentPolicy(
+            agent_name='legal_advisor',
+            max_risk_level=RiskLevel.HIGH_RISK,
+        ))
+        result = engine.check_tool_access(
+            'legal_advisor',
+            'generate_legal_opinion',
+            context=PolicyContext(
+                subscription_features={'lawyer_matching'},
+                permissions={'review:contracts', 'sign:contracts'},
+                device_trusted=False,
+            ),
+        )
+
+        assert result.decision == PolicyDecision.DENY
+
+    def test_authorized_approval_allows_high_risk_tool(self):
+        """高风险工具在授权角色审批后才可放行。"""
+        from src.harness.policy_engine import (
+            AgentPolicy,
+            PolicyContext,
+            PolicyDecision,
+            PolicyEngine,
+        )
+        from src.harness.tool_registry import RiskLevel
+
+        engine = PolicyEngine()
+        engine.set_policy(AgentPolicy(
+            agent_name='legal_advisor',
+            max_risk_level=RiskLevel.HIGH_RISK,
+        ))
+        result = engine.check_tool_access(
+            'legal_advisor',
+            'generate_legal_opinion',
+            context=PolicyContext(
+                subscription_features={'lawyer_matching'},
+                permissions={'review:contracts', 'sign:contracts'},
+                approval_state='approved',
+                approver_role='admin',
+            ),
+        )
+
+        assert result.decision == PolicyDecision.ALLOW
+
+
+class TestAgentMcpToolPolicy:
+    """测试 Agent 运行时 MCP 工具判权。"""
+
+    @staticmethod
+    def _agent(name: str = 'legal_researcher'):
+        from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
+
+        class PolicyProbeAgent(BaseLegalAgent):
+            def _init_agent(self) -> None:
+                self.llm_config = None
+                self.model_name = None
+
+            async def process(self, task):
+                return AgentResponse(agent_name=self.name, content=str(task))
+
+        return PolicyProbeAgent(AgentConfig(
+            name=name,
+            role='policy probe',
+            description='policy probe',
+            system_prompt='policy probe',
+        ))
+
+    def test_agent_only_exposes_policy_allowed_tools(self):
+        """给模型的 MCP tool list 必须先经过 policy_engine。"""
+        agent = self._agent('legal_researcher')
+        tools = [
+            {'type': 'function', 'function': {'name': 'search_knowledge'}},
+            {'type': 'function', 'function': {'name': 'untrusted_server__shell'}},
+        ]
+
+        filtered = agent._filter_mcp_tools_for_policy(tools)
+
+        assert [tool['function']['name'] for tool in filtered] == ['search_knowledge']
+
+    def test_model_returned_forbidden_tool_is_denied_at_runtime(self):
+        """即使模型返回被禁工具名，执行前仍应二次判权。"""
+        from src.harness.policy_engine import PolicyDecision
+
+        agent = self._agent('legal_researcher')
+        decision = agent._check_mcp_tool_policy('untrusted_server__shell')
+        denial = agent._tool_policy_denial('untrusted_server__shell', decision.reason)
+
+        assert decision.decision == PolicyDecision.DENY
+        assert '工具调用被拒绝' in denial
+
 
 # ===== 6. 任务状态机 =====
 
