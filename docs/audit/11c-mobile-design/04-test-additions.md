@@ -8,10 +8,14 @@ bash scripts/mobile-device-smoke.sh
 
 最近记录：
 
-- mobile Vitest：`6 files / 15 tests passed`
+- mobile Vitest：`7 files / 17 tests passed`
 - mobile TypeScript：exit `0`
+- Expo doctor：`17/17 checks passed`
+- mobile production npm audit：exit `0`
 - mini-program TypeScript：exit `0`
 - mini-program `build:weapp`：exit `0`
+- WeChat DevTools CLI project smoke：exit `0`
+- refresh auth guard：exit `0`
 - fake fallback guard：exit `0`
 - mini-program design token guard：`bash scripts/mobile-device-smoke.sh` 会扫描小程序 `*.scss` / `*.ts`，只允许 `mini-program/src/styles/design-tokens.(scss|ts)` 保留原始色值；页面样式和 `app.config.ts` 必须走 token
 

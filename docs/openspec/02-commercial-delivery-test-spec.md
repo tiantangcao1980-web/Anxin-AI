@@ -37,7 +37,7 @@ cd backend && ./.venv/bin/mypy src
 cd frontend && npm run lint
 cd frontend && npm run build
 bash scripts/mobile-device-smoke.sh
-# mobile: 6 files / 15 tests passed; mobile tsc exit 0; mini-program tsc/build exit 0; fake fallback guard exit 0; mini-program design token guard exit 0
+# mobile: 7 files / 17 tests passed; mobile tsc exit 0; Expo doctor 17/17; mobile npm audit exit 0; mini-program tsc/build exit 0; WeChat DevTools CLI project smoke exit 0; refresh-auth/fake-fallback/design-token guards exit 0
 
 python3 scripts/sandbox-evidence-runner.py --scope payment --out /tmp/anxin-payment-sandbox-preflight.json
 python3 scripts/sandbox-evidence-runner.py --scope esign --out /tmp/anxin-esign-sandbox-preflight.json
@@ -55,7 +55,7 @@ bash scripts/desktop-sqlite-security-gate.sh
 - 每个任务至少收口其 touched files 的类型/静态检查问题。
 - 全仓 ruff/mypy 必须保持零回退；任何非零结果都应阻断 release readiness。
 
-`scripts/commercial-readiness-gate.sh` 是商业发布硬门禁，不是普通开发门禁。当前它应当失败；GitNexus embeddings 零值阻断已解除，移动/小程序本地 smoke 已建立，但支付/电签真实沙箱、桌面 runtime smoke + 加密、RAG full 50 live baseline 和移动真机仍未闭合。RAG full50 还需要非 smoke 标记的商业 golden set；外部证据模板在 `docs/release/evidence/`，gate 只接受 `Status: complete`。
+`scripts/commercial-readiness-gate.sh` 是商业发布硬门禁，不是普通开发门禁。当前它应当失败；GitNexus embeddings 零值阻断已解除，内建 RAG full50 release evidence 已完成，移动/小程序本地 smoke 已建立，但支付/电签真实沙箱、桌面 signed/notarized runtime 和移动真机仍未闭合。外部证据模板在 `docs/release/evidence/`，gate 只接受 `Status: complete`。
 
 静态质量基线可用以下命令采集；当前 evidence 要求 backend mypy `0` 错误，并由 `scripts/mypy-baseline-check.sh` 的 zero-baseline gate 保护：
 
@@ -219,7 +219,7 @@ cd mini-program && npm run build:weapp
 # exit 0
 
 bash scripts/mobile-device-smoke.sh
-# mobile Vitest 6 files / 15 tests passed; mobile tsc exit 0; mini-program tsc/build exit 0; fake fallback guard exit 0; mini-program design token guard exit 0
+# mobile Vitest 7 files / 17 tests passed; mobile tsc exit 0; Expo doctor 17/17; mobile npm audit exit 0; mini-program tsc/build exit 0; WeChat DevTools CLI project smoke exit 0; refresh-auth/fake-fallback/design-token guards exit 0
 
 cd frontend && npx playwright test e2e/role-access.spec.ts
 # 10 passed, 10 skipped
@@ -239,12 +239,11 @@ cd frontend && npx playwright test e2e/rag-source-links.spec.ts --project=chromi
 python3 eval/rag_quality.py --golden eval/rag_golden_set.jsonl --predictions eval/rag_live_predictions_smoke.json --out eval/rag_live_baseline_smoke.json --smoke --run-label rag-live-qdrant-smoke-2026-05-06
 # recall@10=1.000, MRR=1.000, NDCG@10=1.000
 
-python3 eval/rag_live_qdrant_full50.py --golden <commercial-full50-golden.jsonl> --corpus <business-corpus.jsonl> --preflight-only --out docs/release/evidence/artifacts/rag-full50-preflight-YYYYMMDD.json
-# must pass before any full50 commercial baseline run; refuses smoke/demo/sample corpus markers by default
-
-./backend/.venv/bin/python eval/rag_live_qdrant_full50.py --golden eval/rag_golden_set.jsonl --corpus <business-corpus.jsonl> --out eval/rag_live_predictions_full50.json --collection <rag_eval_full50_live_collection> --run-label <label>
-python3 eval/rag_quality.py --golden eval/rag_golden_set.jsonl --predictions eval/rag_live_predictions_full50.json --out eval/rag_live_baseline_full50.json --run-label <label>
-# pending real business corpus and staging/live Qdrant evidence
+python3 eval/export_builtin_legal_full50.py --corpus eval/legal_full50_corpus.jsonl --golden eval/legal_full50_golden.jsonl
+python3 eval/rag_live_qdrant_full50.py --golden eval/legal_full50_golden.jsonl --corpus eval/legal_full50_corpus.jsonl --preflight-only --out docs/release/evidence/artifacts/rag-full50-built-in-preflight-YYYYMMDD.json --run-label built-in-legal-full50-YYYYMMDD
+./backend/.venv/bin/python eval/rag_live_qdrant_full50.py --golden eval/legal_full50_golden.jsonl --corpus eval/legal_full50_corpus.jsonl --out docs/release/evidence/artifacts/rag-full50-built-in-predictions-YYYYMMDD.json --collection <rag_eval_full50_builtin_collection> --run-label built-in-legal-full50-YYYYMMDD
+python3 eval/rag_quality.py --golden eval/legal_full50_golden.jsonl --predictions docs/release/evidence/artifacts/rag-full50-built-in-predictions-YYYYMMDD.json --out docs/release/evidence/artifacts/rag-full50-built-in-metrics-YYYYMMDD.json --run-label built-in-legal-full50-YYYYMMDD
+# current release evidence is complete in docs/release/evidence/rag-full50-live-baseline.md; external customer corpus evaluation is a post-release quality expansion
 ```
 
 注意：Playwright 本地运行前必须确认 `3001` 没有旧 Vite 进程；`reuseExistingServer` 会复用旧进程，可能导致测试跑到旧路由。

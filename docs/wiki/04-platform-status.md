@@ -32,7 +32,7 @@
 
 ## 后端
 
-状态：主线可用，生产化收口中。
+状态：主线可用，商业证据收口中。
 
 已具备：
 
@@ -44,20 +44,20 @@
 
 验证结果：
 
-- 抽样 32 个关键测试通过
-- 文档中记录过后端全量回归 `430 passed, 1 skipped`
+- 后端默认全量回归最近记录为 `467 passed, 1 skipped, 17 warnings`
+- 商业门禁中的 mypy zero-baseline、RAG、支付/电签 provider/webhook/refund/action-audit、release artifact/evidence/checklist/lanes 等切片通过
 
 重点风险：
 
-- 外部支付/电签生产配置
-- webhook 官方协议和幂等
+- 外部支付/电签 sandbox 配置与真实回调证据
+- webhook 官方协议、幂等和关键动作审计需要在 sandbox 对账复验
 - 密钥治理
 - token 存储策略
-- 新增未提交文件尚未全部进入 GitNexus 图谱
+- 新提交后需要重跑 GitNexus，避免索引漂移
 
 ## 桌面端
 
-状态：内测可用，正式分发前仍需收口。
+状态：内测可用，正式分发前仍需签名/公证和真实包验收。
 
 已具备：
 
@@ -71,18 +71,19 @@
 
 验证结果：
 
-- `desktop cargo check` 通过
+- `desktop cargo check` 与 `cargo test` 通过
+- 本地 installed-profile SQLCipher/keyring smoke、unsigned release app+DMG、unsigned packaged runtime/profile/performance smoke 已作为支持性证据通过
 
 主要缺口：
 
 - 本地 SQLite 同步路径需要统一
 - 自动更新 pubkey / 发布链路未闭环
-- 打包签名、公证、安装包验收缺证据
+- signed/notarized installer、signed packaged-profile migration、signed packaged runtime 性能和跨设备连续会话缺证据
 - CSP 仍允许 `unsafe-eval`
 
 ## 移动 App
 
-状态：MVP。
+状态：代码级 smoke 稳定，真机商业验收未完成。
 
 已具备：
 
@@ -96,35 +97,36 @@
 
 验证结果：
 
-- `mobile npm test` 通过，5 个文件 11 个测试
+- `mobile npm test` 通过，`7 files / 17 tests passed`
+- mobile TypeScript、Expo config/SDK guard、Expo doctor `17/17`、mobile production npm audit 均通过
 
 主要缺口：
 
-- `npx tsc --noEmit` 当前失败，需要调整 TS module 配置或动态 import 写法
-- 智能调查提交未接真实详情流
-- 法律智库搜索未接结果页
-- 微信登录仍提示即将开放
-- 不具备 Web 的复杂工作台和后台能力
+- iOS app-run、Android 真机/模拟器和跨设备连续会话 transcript 缺失
+- 移动远程控制桌面仍需设备配对、命令下发、撤销/二次确认和审计证据
+- 不具备 Web/桌面完整工作台和后台能力
 
 ## 微信小程序
 
-状态：早期入口版。
+状态：代码级 smoke 通过，交互式微信验收未完成。
 
 已具备：
 
 - 首页
 - 聊天
 - 个人中心
-- Taro H5 构建
+- Taro WeChat build
+- `wx.login -> code2session -> JWT` 登录链路
+- 首页资讯空态不再使用假新闻 fallback
 
 验证结果：
 
-- `mini-program npm run build:h5` 通过
-- 包体检查通过
+- mini-program TypeScript 与 `build:weapp` 通过
+- WeChat DevTools CLI project smoke 通过
+- refresh auth guard、fake fallback guard、mini-program design token guard 通过
 
 主要缺口：
 
 - 合同审查、找律师、合规自检等首页快捷入口仍开发中
 - 页面数量少
-- 业务深度明显低于移动 App 和 Web
-
+- 交互式微信开发者工具或真机 transcript、正式 appid 环境和跨设备连续会话证据缺失

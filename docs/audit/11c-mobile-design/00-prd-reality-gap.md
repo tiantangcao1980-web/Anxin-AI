@@ -10,7 +10,7 @@
 | 移动端失败不再渲染假数据 | `mobile/app/approvals/[id].tsx`、`mobile/app/cases.tsx`、`mobile/app/messages/[id].tsx`、`mobile/app/tasks/[id].tsx` 已改为 loading/empty/error；`detail-model.test.ts` 覆盖错误文案 | 代码级完成 |
 | 小程序登录不使用 mock token | `mini-program/src/pages/profile/index.tsx` 走 `wx.login -> code2session`；后端测试确认不返回 `session_key` | 代码级完成 |
 | 小程序资讯无假新闻 fallback | `mini-program/src/pages/index/index.tsx` 失败/空列表显示空态 | 代码级完成 |
-| 移动/小程序本地 smoke | `bash scripts/mobile-device-smoke.sh`：mobile Vitest `6 files / 15 tests passed`、mobile tsc、mini tsc、Taro build、fake fallback guard、mini-program design token guard 通过 | 代码级完成 |
+| 移动/小程序本地 smoke | `bash scripts/mobile-device-smoke.sh`：mobile Vitest `7 files / 17 tests passed`、mobile tsc、Expo doctor `17/17`、mobile production npm audit、mini tsc、Taro build、WeChat DevTools CLI project smoke、refresh auth guard、fake fallback guard、mini-program design token guard 通过 | 代码级完成 |
 | 跨平台 token 漂移清单 | `docs/design/cross-platform-token-drift.md` 已产出 P0/P1/P2 | 审计完成，修复未做 |
 | 小程序语义 token 层 | `mini-program/src/styles/design-tokens.scss` 和 `design-tokens.ts` 已新增；首页、聊天、个人中心 SCSS 与 `app.config.ts` 已迁移到 token；`bash scripts/mobile-device-smoke.sh` 的 design token guard 已通过 | 代码级完成 |
 
