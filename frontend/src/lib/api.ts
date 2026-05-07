@@ -6,24 +6,179 @@ import { getAccessTokenSnapshot, getTokenStorage } from './platform/storage'
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
 const DEFAULT_PRIVACY_MODE = 'hybrid'
-const VALID_PRIVACY_MODES = new Set(['local', 'hybrid', 'cloud'])
+const VALID_PRIVACY_MODES = new Set(['local', 'top-secret', 'hybrid', 'cloud'])
 let currentPrivacyMode = DEFAULT_PRIVACY_MODE
+let desktopDataNetworkGuardInstalled = false
+let desktopRuntimeModeKnown = false
+let desktopRuntimeMode: string | null = null
+let originalWindowFetch: typeof fetch | null = null
+let originalWindowWebSocket: typeof WebSocket | null = null
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '')
 }
 
 function normalizePrivacyMode(mode: string | null | undefined): string | null {
-  const normalized = mode?.toLowerCase()
+  const normalized = mode?.toLowerCase().replace(/_/g, '-')
   return normalized && VALID_PRIVACY_MODES.has(normalized) ? normalized : null
+}
+
+function privacyHeaderMode(mode: string): string {
+  return mode === 'top-secret' ? 'local' : mode
+}
+
+function dataNetworkBlockedError(action: string): DataNetworkBlockedError {
+  return new DataNetworkBlockedError(`绝密模式下不允许${action}；请切换到混合或云端模式后再执行外部数据操作`)
+}
+
+function isApiLikeUrl(value: string): boolean {
+  return (
+    /^https?:\/\//i.test(value)
+    || /^wss?:\/\//i.test(value)
+    || value.startsWith('/api')
+    || value.includes('/api/')
+  )
+}
+
+function requestInputToUrl(input: RequestInfo | URL): string {
+  if (typeof input === 'string') return input
+  if (input instanceof URL) return input.toString()
+  return input.url
+}
+
+function normalizeTauriMode(mode: unknown): string | null {
+  if (typeof mode !== 'string') return null
+  const trimmed = mode.trim()
+  try {
+    const parsed = JSON.parse(trimmed)
+    return normalizePrivacyMode(String(parsed))
+  } catch {
+    return normalizePrivacyMode(trimmed.replace(/^"+|"+$/g, ''))
+  }
+}
+
+async function getTauriModeSnapshot(): Promise<string | null> {
+  const internals = typeof window !== 'undefined'
+    ? (window as any).__TAURI_INTERNALS__
+    : undefined
+  if (!internals || typeof internals.invoke !== 'function') return null
+  try {
+    const mode = normalizeTauriMode(await internals.invoke('get_current_mode'))
+    if (mode) {
+      desktopRuntimeMode = mode
+      desktopRuntimeModeKnown = true
+    }
+    return mode
+  } catch {
+    return null
+  }
+}
+
+function hasTauriRuntime(): boolean {
+  const internals = typeof window !== 'undefined'
+    ? (window as any).__TAURI_INTERNALS__
+    : undefined
+  return !!(internals && typeof internals.invoke === 'function')
+}
+
+export class DataNetworkBlockedError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'DataNetworkBlockedError'
+  }
 }
 
 export function setApiPrivacyMode(mode: string): void {
   currentPrivacyMode = normalizePrivacyMode(mode) ?? DEFAULT_PRIVACY_MODE
 }
 
+export function setDesktopRuntimePrivacyMode(mode: string): void {
+  const normalized = normalizePrivacyMode(mode)
+  if (!normalized) {
+    setApiPrivacyMode(mode)
+    return
+  }
+  currentPrivacyMode = normalized
+  if (normalized === 'top-secret' || normalized === 'hybrid' || normalized === 'cloud') {
+    desktopRuntimeMode = normalized
+    desktopRuntimeModeKnown = true
+  }
+}
+
 export function getApiPrivacyMode(): string {
   return currentPrivacyMode
+}
+
+export function isApiDataNetworkBlocked(mode: string | null | undefined = currentPrivacyMode): boolean {
+  const normalized = normalizePrivacyMode(mode) ?? currentPrivacyMode
+  return normalized === 'local' || normalized === 'top-secret'
+}
+
+export function assertApiDataNetworkAllowed(action = '访问外部 API'): void {
+  if (isApiDataNetworkBlocked()) {
+    throw dataNetworkBlockedError(action)
+  }
+}
+
+export async function apiFetch(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  options: { action?: string } = {},
+): Promise<Response> {
+  assertApiDataNetworkAllowed(options.action ?? '访问外部 API')
+  return fetch(input, init)
+}
+
+export function installDesktopDataNetworkGuard(): void {
+  if (typeof window === 'undefined' || desktopDataNetworkGuardInstalled) return
+
+  void getTauriModeSnapshot().then((mode) => {
+    if (mode) setDesktopRuntimePrivacyMode(mode)
+  })
+
+  originalWindowFetch = window.fetch.bind(window)
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const mode = await getTauriModeSnapshot()
+    if (mode === 'top-secret' && isApiLikeUrl(requestInputToUrl(input))) {
+      throw dataNetworkBlockedError('通过 WebView 发起数据网络请求')
+    }
+    return originalWindowFetch!(input, init)
+  }
+
+  if (typeof window.WebSocket === 'function') {
+    originalWindowWebSocket = window.WebSocket
+    const GuardedWebSocket = function (
+      this: WebSocket,
+      url: string | URL,
+      protocols?: string | string[],
+    ) {
+      const isTauriModeUnknown = hasTauriRuntime() && !desktopRuntimeModeKnown
+      const isTopSecretRuntime = desktopRuntimeMode === 'top-secret'
+      if (isApiLikeUrl(String(url)) && (isApiDataNetworkBlocked() || isTopSecretRuntime || isTauriModeUnknown)) {
+        throw dataNetworkBlockedError('建立 WebSocket 数据连接')
+      }
+      return protocols === undefined
+        ? new originalWindowWebSocket!(url)
+        : new originalWindowWebSocket!(url, protocols)
+    } as unknown as typeof WebSocket
+    GuardedWebSocket.prototype = originalWindowWebSocket.prototype
+    Object.setPrototypeOf(GuardedWebSocket, originalWindowWebSocket)
+    window.WebSocket = GuardedWebSocket
+  }
+
+  desktopDataNetworkGuardInstalled = true
+}
+
+export function resetDesktopDataNetworkGuardForTests(): void {
+  if (typeof window !== 'undefined') {
+    if (originalWindowFetch) window.fetch = originalWindowFetch
+    if (originalWindowWebSocket) window.WebSocket = originalWindowWebSocket
+  }
+  desktopDataNetworkGuardInstalled = false
+  desktopRuntimeModeKnown = false
+  desktopRuntimeMode = null
+  originalWindowFetch = null
+  originalWindowWebSocket = null
 }
 
 export function buildApiHeaders(
@@ -39,7 +194,7 @@ export function buildApiHeaders(
   if (options.token) {
     result.set('Authorization', `Bearer ${options.token}`)
   }
-  result.set('X-Privacy-Mode', mode)
+  result.set('X-Privacy-Mode', privacyHeaderMode(mode))
 
   return result
 }
@@ -60,6 +215,7 @@ export function getWebSocketBaseUrl(): string {
 }
 
 export function buildWebSocketUrl(path: string): string {
+  assertApiDataNetworkAllowed('建立 WebSocket 数据连接')
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
   return `${getWebSocketBaseUrl()}${normalizedPath}`
 }
@@ -107,7 +263,7 @@ async function request<T>(
     if (bs) headers.set('X-Bot-Signals', bs)
   } catch { /* 指纹/Bot检测不可用，静默降级 */ }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const response = await apiFetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
     headers,
     credentials: options.credentials ?? 'include',
@@ -124,7 +280,7 @@ async function request<T>(
         const retryHeaders = new Headers(headers)
         retryHeaders.set('X-Challenge-ID', body.challenge.challenge_id)
         retryHeaders.set('X-Challenge-Solution', String(nonce))
-        const retryResp = await fetch(`${API_BASE_URL}${endpoint}`, {
+        const retryResp = await apiFetch(`${API_BASE_URL}${endpoint}`, {
           ...options,
           headers: retryHeaders,
         })
@@ -211,7 +367,7 @@ export async function refreshAuthSession(): Promise<string | null> {
   const legacyRefreshToken = await storage.getRefreshToken()
   const body = legacyRefreshToken ? { refresh_token: legacyRefreshToken } : {}
 
-  const refreshResp = await fetch(`${API_BASE_URL}/auth/refresh`, {
+  const refreshResp = await apiFetch(`${API_BASE_URL}/auth/refresh`, {
     method: 'POST',
     headers: buildApiHeaders(),
     credentials: 'include',
@@ -233,7 +389,7 @@ export async function refreshAuthSession(): Promise<string | null> {
 }
 
 export async function fetchCurrentUserWithToken(accessToken: string): Promise<User | null> {
-  const resp = await fetch(`${API_BASE_URL}/auth/me`, {
+  const resp = await apiFetch(`${API_BASE_URL}/auth/me`, {
     headers: buildApiHeaders(undefined, { token: accessToken, json: false }),
     credentials: 'include',
   })
@@ -407,7 +563,7 @@ export const chatApi = {
     const headers = buildApiHeaders(undefined, { token })
     
     try {
-      const response = await fetch(`${API_BASE_URL}/chat/stream`, {
+      const response = await apiFetch(`${API_BASE_URL}/chat/stream`, {
         method: 'POST',
         headers,
         body: JSON.stringify(message),
@@ -918,7 +1074,7 @@ export const contractsApi = {
     const token = await getTokenStorage().getAccessToken()
     const headers = buildApiHeaders(undefined, { token, json: false })
     
-    const response = await fetch(`${API_BASE_URL}/contracts/parse`, {
+    const response = await apiFetch(`${API_BASE_URL}/contracts/parse`, {
       method: 'POST',
       headers,
       body: formData,
@@ -956,7 +1112,7 @@ export const contractsApi = {
     const headers = buildApiHeaders(undefined, { token, json: false })
     
     try {
-      const response = await fetch(`${API_BASE_URL}/contracts/review-stream`, {
+      const response = await apiFetch(`${API_BASE_URL}/contracts/review-stream`, {
         method: 'POST',
         headers,
         body: formData,
@@ -1009,7 +1165,7 @@ export const contractsApi = {
     const token = await getTokenStorage().getAccessToken()
     const headers = buildApiHeaders(undefined, { token, json: false })
     
-    const response = await fetch(`${API_BASE_URL}/contracts/upload-and-review`, {
+    const response = await apiFetch(`${API_BASE_URL}/contracts/upload-and-review`, {
       method: 'POST',
       headers,
       body: formData,
@@ -1060,7 +1216,7 @@ export const contractsApi = {
     const token = await getTokenStorage().getAccessToken()
     const headers = buildApiHeaders(undefined, { token, json: false })
 
-    const response = await fetch(`${API_BASE_URL}/contracts/${contractId}/attachments`, {
+    const response = await apiFetch(`${API_BASE_URL}/contracts/${contractId}/attachments`, {
       method: 'POST',
       headers,
       body: formData,
@@ -1088,7 +1244,7 @@ export const contractsApi = {
     const token = await getTokenStorage().getAccessToken()
     const headers = buildApiHeaders(undefined, { token, json: false })
 
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_BASE_URL}/contracts/${contractId}/attachments/${attachmentId}/download`,
       { headers },
     )
@@ -1124,7 +1280,7 @@ export const contractsApi = {
     const token = await getTokenStorage().getAccessToken()
     const headers = buildApiHeaders(undefined, { token, json: false })
 
-    const response = await fetch(`${API_BASE_URL}/contracts/${contractId}/download?format=${format}`, {
+    const response = await apiFetch(`${API_BASE_URL}/contracts/${contractId}/download?format=${format}`, {
       headers,
     })
 
@@ -1201,7 +1357,7 @@ export const documentsApi = {
     const token = await getTokenStorage().getAccessToken()
     const headers = buildApiHeaders(undefined, { token, json: false })
     
-    const response = await fetch(`${API_BASE_URL}/documents/`, {
+    const response = await apiFetch(`${API_BASE_URL}/documents/`, {
       method: 'POST',
       headers,
       body: formData,
@@ -1396,7 +1552,7 @@ export const dueDiligenceApi = {
     const timeoutId = setTimeout(() => controller.abort(), 200000)
 
     try {
-      const response = await fetch(`${API_BASE_URL}/due-diligence/company/stream`, {
+      const response = await apiFetch(`${API_BASE_URL}/due-diligence/company/stream`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ company_name: companyName, investigation_type: investigationType }),
@@ -1487,7 +1643,7 @@ export const dueDiligenceApi = {
     const timeoutId = setTimeout(() => controller.abort(), 300000) // 5min timeout
 
     try {
-      const response = await fetch(`${API_BASE_URL}/due-diligence/company/deep-investigate`, {
+      const response = await apiFetch(`${API_BASE_URL}/due-diligence/company/deep-investigate`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -1693,7 +1849,7 @@ export const knowledgeApi = {
     formData.append('file', file)
     const token = await getTokenStorage().getAccessToken()
     const headers = buildApiHeaders(undefined, { token, json: false })
-    return fetch(`${API_BASE_URL}/knowledge/bases/${kbId}/upload`, {
+    return apiFetch(`${API_BASE_URL}/knowledge/bases/${kbId}/upload`, {
       method: 'POST',
       headers,
       body: formData,
@@ -1758,7 +1914,7 @@ export const knowledgeApi = {
     files.forEach(f => formData.append('files', f))
     const token = await getTokenStorage().getAccessToken()
     const headers = buildApiHeaders(undefined, { token, json: false })
-    return fetch(`${API_BASE_URL}/knowledge/bases/${kbId}/batch-upload`, {
+    return apiFetch(`${API_BASE_URL}/knowledge/bases/${kbId}/batch-upload`, {
       method: 'POST', headers, body: formData,
     }).then(async res => {
       const json = await res.json()

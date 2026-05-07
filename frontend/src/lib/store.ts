@@ -4,6 +4,7 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { setDesktopRuntimePrivacyMode } from '@/lib/api'
 import { getAccessTokenSnapshot, getTokenStorage, setAccessTokenSnapshot } from '@/lib/platform/storage'
 
 // ========== 类型定义 ==========
@@ -1112,7 +1113,10 @@ export const useAppModeStore = create<AppModeState>()(
       isOnline: true,
       localLLMAvailable: false,
 
-      setMode: (mode) => set({ mode }),
+      setMode: (mode) => {
+        setDesktopRuntimePrivacyMode(mode)
+        set({ mode })
+      },
       setSyncStatus: (syncStatus) => set({ syncStatus }),
       setLastSyncTime: (lastSyncTime) => set({ lastSyncTime }),
       setOnline: (isOnline) => set({ isOnline }),

@@ -27,7 +27,7 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { AdminRoute } from '@/components/auth/AdminRoute'
 import AdminLayout from '@/components/admin/AdminLayout'
 import { initLocalDatabase } from '@/lib/api-adapter'
-import { fetchCurrentUserWithToken, refreshAuthSession } from '@/lib/api'
+import { fetchCurrentUserWithToken, installDesktopDataNetworkGuard, refreshAuthSession, setDesktopRuntimePrivacyMode } from '@/lib/api'
 import { getTokenStorage } from '@/lib/platform/storage'
 import { ModeGate } from '@/components/mode/ModeGate'
 import { SubscriptionGate } from '@/components/mode/SubscriptionGate'
@@ -119,6 +119,10 @@ function App() {
   const { setLastSyncTime, setMode, setOnline, setSyncStatus } = useAppModeStore()
   const [authBootstrapped, setAuthBootstrapped] = useState(false)
 
+  useEffect(() => {
+    installDesktopDataNetworkGuard()
+  }, [])
+
   // 全局监听 auth:redirect 事件，统一处理页面跳转
   // 在 Tauri 桌面端可替换为 Tauri 路由方式，Web 端保持 window.location 行为
   useEffect(() => {
@@ -195,6 +199,7 @@ function App() {
         return
       }
 
+      setDesktopRuntimePrivacyMode(appState.mode)
       setMode(appState.mode)
       setSyncStatus(appState.sync_status)
       setLastSyncTime(appState.last_sync_time)
