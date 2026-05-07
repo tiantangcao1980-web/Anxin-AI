@@ -21,21 +21,37 @@ import { llmApi, mcpApi, authApi, notificationsApi, LLMConfig, LLMProvider, McpS
 import { useAuthStore, useUIStore } from'@/lib/store'
 import { ErrorState, LoadingState } from'@/components/common'
 import { usePermission } from'@/hooks/usePermission'
+import { DesktopWorkstationPanel } from'@/components/desktop/DesktopWorkstationPanel'
+import { normalizeSettingsTab } from'./settingsTabs'
 
 export default function Settings() {
- const [searchParams] = useSearchParams()
- const initialTab = searchParams.get('tab') ||'profile'
+ const [searchParams, setSearchParams] = useSearchParams()
+ const [activeTab, setActiveTab] = useState(() => normalizeSettingsTab(searchParams.get('tab')))
+
+ useEffect(() => {
+ setActiveTab(normalizeSettingsTab(searchParams.get('tab')))
+ }, [searchParams])
+
+ const handleTabChange = (value: string) => {
+ const nextTab = normalizeSettingsTab(value)
+ setActiveTab(nextTab)
+ setSearchParams(nextTab ==='profile' ? {} : { tab: nextTab }, { replace: true })
+ }
 
  return (
  <PageContainer
  title="系统设置"
  description="管理个人信息、模型配置、第三方服务集成和监控看板"
  >
- <Tabs defaultValue={initialTab} className="space-y-4">
+ <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
  <TabsList className="w-full sm:w-auto overflow-x-auto scrollbar-hide">
  <TabsTrigger value="profile" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
  <icons.User className={`${iconSize.sm} shrink-0`} />
  <span className="whitespace-nowrap">个人中心</span>
+ </TabsTrigger>
+ <TabsTrigger value="workstation" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
+ <icons.LayoutDashboard className={`${iconSize.sm} shrink-0`} />
+ <span className="whitespace-nowrap">工作站</span>
  </TabsTrigger>
  <TabsTrigger value="llm" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
  <icons.Cpu className={`${iconSize.sm} shrink-0`} />
@@ -53,6 +69,10 @@ export default function Settings() {
 
  <TabsContent value="profile" className="space-y-4">
  <ProfilePanel />
+ </TabsContent>
+
+ <TabsContent value="workstation" className="space-y-4">
+ <DesktopWorkstationPanel />
  </TabsContent>
 
  <TabsContent value="llm" className="space-y-4">

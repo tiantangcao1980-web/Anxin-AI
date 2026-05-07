@@ -17,7 +17,7 @@
 
 - LLM 配置必须按组织隔离，superuser 例外必须有测试。
 - 任意 LLM provider/endpoint/model/key、Skills 和 MCP Server 配置必须按组织/用户 scope 隔离，启用前有最小权限说明，调用后有审计日志。
-- 当前 CLI Key 与 execute 已写入审计日志；MCP Server 管理 API 已收紧到 `manage:system`，管理动作写入脱敏审计，独立 MCP Server 在 staging/production 默认关闭；外部 MCP 连接已补 stdio 默认关闭、stdio command/command-line/env allowlist、SSE scheme/host allowlist 和子进程不继承全量环境变量的基线；桌面 CLI/sync/Harness IPC、本地同步桥、统一 API fetch、WebView 全局 fetch 与 WebSocket 已补 TopSecret data-network guard；Tauri 原生 HTTP 插件和前端 HTTP 插件包已移除，默认 capability 不再启用 `http:*`，CSP 已收紧并由 `scripts/desktop-network-surface-gate.sh` 守住；agent capability policy 已补未注册工具 fail-closed、订阅 feature、角色 permission、隐私模式、设备信任、通道策略和审批上下文判定，并在 agent MCP tool list 与 runtime tool call 前二次判权；发布前仍需补组织级 route-token、工具调用细粒度审计、撤销后失权、真实 approved MCP connector 演练、桌面 signed/notarized packaged runtime 出站拦截复验和移动隐私模式出站拦截证据。
+- 当前 CLI Key 与 execute 已写入审计日志；MCP Server 管理 API 已收紧到 `manage:system`，管理动作写入脱敏审计，独立 MCP Server 在 staging/production 默认关闭；外部 MCP 连接已补 stdio 默认关闭、stdio command/command-line/env allowlist、SSE scheme/host allowlist 和子进程不继承全量环境变量的基线；桌面 CLI/sync/Harness IPC、本地同步桥、统一 API fetch、WebView 全局 fetch 与 WebSocket 已补 TopSecret data-network guard；Tauri 原生 HTTP 插件和前端 HTTP 插件包已移除，默认 capability 不再启用 `http:*`，CSP 已收紧并由 `scripts/desktop-network-surface-gate.sh` 守住；设置页工作站入口已用 `desktopWorkstationModel` 锁住 TopSecret 下同步/远控 action disabled；agent capability policy 已补未注册工具 fail-closed、订阅 feature、角色 permission、隐私模式、设备信任、通道策略和审批上下文判定，并在 agent MCP tool list 与 runtime tool call 前二次判权；发布前仍需补组织级 route-token、工具调用细粒度审计、撤销后失权、真实 approved MCP connector 演练、桌面 signed/notarized packaged runtime 出站拦截复验和移动隐私模式出站拦截证据。
 - 企业组织默认只开放 L0/L1 基础能力；完整能力必须同时满足订阅/购买状态、老板或 Owner/超级管理员授权、角色权限、风险级别、隐私模式、设备信任、通信策略和审批状态。
 - Agent/Worker 不得持有真实 API key、PAT、财税接口密钥、浏览器账号密码或桌面本地密钥；必须通过 Gateway/密钥服务发放短期 consumer token 或 route token，撤销后下一次调用必须 401/403 并写审计。
 - 高风险智能体动作必须进入可审计工作室，支持旁听、暂停、接管、终止、导出 artifact；外部专业服务方只能访问授权材料包和沟通区。
@@ -47,7 +47,7 @@
 - 生产日志中手机号、身份证号、统一社会信用代码、银行卡/订单敏感字段需要脱敏。
 - `docs/release/evidence/` 中保存的沙箱日志、回调摘录和 JSON 证据必须先通过 `scripts/release-evidence-secret-scan.sh`，不得包含明文密钥、access/refresh token、手机号或身份证号。
 - RAG/尽调缓存必须带 org namespace，不能跨组织复用。
-- 本地/绝密模式下，云端模型、外部 MCP、同步上传、移动远控外传默认 fail-closed；只有用户显式授权后才允许出站。当前桌面 CLI/sync/Harness IPC、本地同步桥、统一 API fetch、WebView 全局 fetch 和 WebSocket 已有代码级 guard，Tauri/前端 HTTP 插件面和宽松 CSP 已由 `scripts/desktop-network-surface-gate.sh` 收紧；signed/notarized packaged runtime 出站拦截、外部脚本运行时复验和移动真机证据仍需补齐。
+- 本地/绝密模式下，云端模型、外部 MCP、同步上传、移动远控外传默认 fail-closed；只有用户显式授权后才允许出站。当前桌面 CLI/sync/Harness IPC、本地同步桥、统一 API fetch、WebView 全局 fetch 和 WebSocket 已有代码级 guard，Tauri/前端 HTTP 插件面和宽松 CSP 已由 `scripts/desktop-network-surface-gate.sh` 收紧；工作站 UI 在 TopSecret 下不启用同步/远控动作，只允许进入本地能力或治理视图；signed/notarized packaged runtime 出站拦截、外部脚本运行时复验和移动真机证据仍需补齐。
 - 移动远程控制桌面必须有设备配对、权限范围、命令过期、取消/撤销、敏感动作二次确认和审计日志；未授权设备不能读取本地文件、密钥或知识库内容。
 - 外部抓取必须遵守 robots、UA、频控和法定数据源白名单。
 

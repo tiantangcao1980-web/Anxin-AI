@@ -241,6 +241,33 @@ bash scripts/desktop-network-surface-gate.sh
 - Tauri 原生 HTTP 插件、前端 `@tauri-apps/plugin-http`、活跃 `http:*` capability 和宽松 CSP 已由 `scripts/desktop-network-surface-gate.sh` 守住。
 - 仍不能把绝密模式称为全链路完成：signed/notarized packaged runtime 出站拦截、外部脚本运行时复验和跨设备连续会话证据仍需补。
 
+2026-05-08 本轮桌面主工作站入口切片：
+
+```bash
+cd frontend && npm test -- desktopWorkstationModel.test.ts settingsTabs.test.ts
+# 2 files / 6 tests passed
+
+cd frontend && npm exec tsc -- --noEmit
+# exit 0
+
+cd frontend && npm run lint
+# exit 0
+
+cd frontend && npm test
+# 12 files / 45 tests passed
+
+cd frontend && npm run build
+# exit 0; 保留既有 Vite dynamic import / lottie eval / large chunk warnings
+```
+
+覆盖增量：
+
+- 设置页新增受控 `工作站` tab，并兼容历史 `/settings?tab=privacy` 跳转到工作站入口；tab 归一化已有单测覆盖。
+- 顶部系统操作新增 `工作站` 入口，桌面壳与 Web 预览均可看到本地模型、独立知识库、Skills/MCP、跨端同步和移动远控状态。
+- `desktopWorkstationModel` 明确 TopSecret 下跨端同步和移动远控默认 `blocked` 且 action disabled；非桌面预览下本地模型、同步和移动远控也保持 disabled，只允许知识库与 Skills/MCP 治理入口；Skills/MCP 在 TopSecret 下只能进入治理视图，不诱导外部连接。
+- 新增回归测试锁定“绝密模式无 unsafe outbound enabled action”和“非绝密模式才展示连接动作”。
+- 仍不能把桌面主工作站称为完成态：缺完整配置 CRUD、真实本地模型/知识库状态探针、approved MCP connector 演练、移动远控设备配对、signed packaged runtime UI/出站复验证据。
+
 ## 2. 证据覆盖矩阵
 
 | 能力 | 当前证据 | 覆盖是否充分 |
@@ -266,7 +293,7 @@ bash scripts/desktop-network-surface-gate.sh
 | 调查意图路由 | 200 条 JSONL 离线评测集；`test_due_diligence_intent.py` + `test_chat_due_diligence_routing.py` 组合 `13 passed`；意图准确率 `1.000`、企业名抽取准确率 `1.000`（150 条含企业名）；ChatService 已分流尽调/舆情/法规监测 | 代码级充分；真实用户 query 分布上线后需持续采样复核 |
 | 案件/任务 | 案件状态机/终态只读/时间线 event_at 语义、任务 owner/assignee/admin 过滤；`test_case_service.py` + `test_lawyer_matching_and_tasks_api.py` 组合 `46 passed` | 代码级核心充分；全矩阵和 Playwright 全流程仍需发布前扩展 |
 | 专业服务市场 P0（律师/律所） | local 模式固定拒绝、投标前利益冲突命中 409、同分律师曝光轮询；`test_lawyer_matching_and_tasks_api.py` `17 passed` | 律师/律所代码级核心充分；律所 RBAC 全矩阵、8 API 打勾、1000 次公平报告仍需补；税务师/税务事务所/财务顾问/会计审计仍为后续扩展验收 |
-| 全设备智能助手底座 | 后端 LLM/private LLM/MCP/Skills/knowledge 代码基础、桌面 local LLM/SQLCipher/keyring/本地队列、移动隐私模式语义已存在；agent capability policy 现在覆盖未知工具 fail-closed、agent tool allowlist、订阅 feature、角色 permission、绝密模式、设备信任、通道策略、高风险审批上下文，以及 MCP tool list/filter + runtime 二次判权；MCP 外部连接已补 stdio/SSE/env/command-line allowlist 和子进程最小环境；桌面 CLI/sync/Harness IPC、本地同步桥、统一 API fetch、WebView 全局 fetch 与 WebSocket 已补 top-secret data-network guard；Tauri/前端 HTTP 插件面和宽松 CSP 已由桌面网络面门禁移除 | 底座存在但商业证据不足；桌面主工作站配置面、移动远控桌面、任意 LLM/Skills/MCP 组织策略、独立本地知识库体验、route-token 撤销、真实 approved MCP connector 演练和桌面 top-secret signed packaged runtime 出站证据仍需测试 |
+| 全设备智能助手底座 | 后端 LLM/private LLM/MCP/Skills/knowledge 代码基础、桌面 local LLM/SQLCipher/keyring/本地队列、移动隐私模式语义已存在；agent capability policy 现在覆盖未知工具 fail-closed、agent tool allowlist、订阅 feature、角色 permission、绝密模式、设备信任、通道策略、高风险审批上下文，以及 MCP tool list/filter + runtime 二次判权；MCP 外部连接已补 stdio/SSE/env/command-line allowlist 和子进程最小环境；桌面 CLI/sync/Harness IPC、本地同步桥、统一 API fetch、WebView 全局 fetch 与 WebSocket 已补 top-secret data-network guard；Tauri/前端 HTTP 插件面和宽松 CSP 已由桌面网络面门禁移除；`/settings?tab=workstation` 已补最小可见入口和 TopSecret-safe action model | 底座存在但商业证据不足；完整桌面主工作站配置面、移动远控桌面、任意 LLM/Skills/MCP 组织策略、独立本地知识库状态探针、route-token 撤销、真实 approved MCP connector 演练和桌面 top-secret signed packaged runtime 出站证据仍需测试 |
 | 可信会话与 Skills 进化 | OpenSpec、参考分析、TASK-03 和 TASK-12 已把 Codex/Claude 式工作台体验、Skill lifecycle、SkillEvolutionProposal、eval gate、审批和回滚纳入验收 | 当前仍是规范和任务级证据；缺前后端长任务事件、artifact 编辑、跨设备恢复、Skill 评测/审批/回滚代码测试 |
 | 移动/小程序 | `bash scripts/mobile-device-smoke.sh --out docs/release/evidence/artifacts/mobile-mini-code-smoke-20260508.json --manual-template-out docs/release/evidence/artifacts/mobile-device-manual-template-20260508.json` 当前通过：mobile Vitest `7 files / 17 tests passed`、mobile tsc、Expo config/SDK dependency guard、`npx expo-doctor` `17/17 checks passed`、mobile production `npm audit --omit=dev` `0`、mini-program tsc、Taro weapp build、WeChat DevTools CLI project smoke、refresh auth guard、fake fallback guard、mini-program design token guard，并写出包含 `mobile_expo_doctor=passed` 的代码级 artifact 与手工设备证据模板；`mobile_npm_audit` artifact 字段记录 `status=passed/critical=0/high=0/total=0`，并由 validator 锁住；host probe 已写入 `mobile-device-host-probe-20260508.json`，确认本机 iOS Simulator 当前可用且列出 iOS 26.4 设备、ADB 无连接 Android device、Android emulator CLI 不在 PATH、WeChat DevTools 与 WeChat app 存在；移动端弱网 refresh-token 不误清会话已有单测；小程序 refresh-token 已区分认证失效和临时刷新失败；消息详情和任务详情已移除 synthetic fallback 数据；`getDetailLoadErrorMessage` 已补字符串 transport error 和 status 优先级用例；移动/小程序已补最小触控 token 底座；小程序语义 token 层已补并迁移首页/聊天/个人中心与 `app.config.ts`；`docs/design/cross-platform-token-drift.md` 已产出三端 token 漂移清单；`docs/release/mobile-error-state-release-notes.md` 已补错误态发布说明草案 | 代码级充分；品牌主色最终统一仍待定；iOS app-run、Android、交互式 WeChat DevTools 或真机证据仍不足 |
 
@@ -277,7 +304,7 @@ bash scripts/desktop-network-surface-gate.sh
 - RAG：内建法律知识库 full50 已闭合；后续如果接入外部客户知识库，需要另建外部语料 golden/corpus、复跑 `eval/rag_live_qdrant_full50.py` 和 `eval/rag_quality.py`，并把它作为上线后质量扩展而不是当前内建 RAG 阻断项。
 - 案件/任务：已补核心状态机非法跳转、终态只读、owner/assignee/admin 过滤；仍需 Playwright 全流程和全矩阵。
 - 专业服务市场：已补律师/律所 P0 的 local 模式拒绝、历史当事人利益冲突投标阻断和同分曝光轮询；仍需律所 RBAC 全矩阵、8 API 打勾、重复评价，并继续扩展税务/财务服务方模型和验收。
-- 全设备智能助手：补桌面主工作站配置面、移动远控桌面、任意 LLM/Skills/MCP 配置、独立本地知识库和绝密模式出站 fail-closed 测试。
+- 全设备智能助手：桌面主工作站最小入口和 TopSecret-safe action model 已补；下一步补完整配置 CRUD、移动远控桌面、任意 LLM/Skills/MCP 配置、独立本地知识库状态探针、approved connector 演练和 signed runtime 出站 fail-closed 测试。
 - 可信会话与 Skills 进化：补长任务事件流、任务时间线、工具状态、artifact 编辑、暂停/恢复/接管、跨设备恢复、SkillEvolutionProposal、eval gate、审批、灰度和回滚测试。
 - 风险调查：缓存 org 隔离、风险分可解释性、robots/UA/频控入口、200 条意图路由评测已有代码级证据；仍需预发网络真实 dry-run。
 - 移动/小程序：按 `docs/design/cross-platform-token-drift.md` 决定品牌主色最终统一方向，并补 iPhone/Android/微信开发者工具关键故事手测记录，再更新 `docs/release/evidence/mobile-device-smoke.md`。

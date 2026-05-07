@@ -156,3 +156,5 @@ docs/audit/11a-desktop-mvp/
 - [ ] 跨平台手测脚本：macOS + Windows 各跑一遍三件套，截图归档到 `docs/desktop/`
 - [ ] `docs/audit/11a-desktop-mvp/01..05.md` 全产出
 - [ ] 经验沉淀到 hierarchical-memory（add-feature 至少 1 条，记录三件套的 Tauri 平台分支模式）
+
+2026-05-08 本地收口记录：`frontend/src/components/desktop/DesktopWorkstationPanel.tsx`、`desktopWorkstationModel.ts`、`desktopWorkstationModel.test.ts`、`frontend/src/pages/settingsTabs.ts` 和 `settingsTabs.test.ts` 已补桌面主工作站最小可见入口；`/settings?tab=workstation` 展示隐私模式、本地模型、知识库、Skills/MCP、同步和移动远控状态；绝密模式下同步/远控 action disabled，非桌面预览下本地模型/同步/远控 action disabled，测试锁住无 unsafe outbound enabled action 和历史 `privacy` tab 映射。此记录只覆盖 P0-6 的最小入口，不关闭完整 DoD；仍需真实状态探针、完整配置面、移动远控 host、跨平台截图和 signed runtime 证据。
