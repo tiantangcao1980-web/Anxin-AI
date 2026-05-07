@@ -587,7 +587,7 @@ class SubscriptionService:
             return val > 0
         if isinstance(val, list):
             return len(val) > 0
-        return True  # 未定义的功能默认允许
+        return False
 
     async def can_use_mode(
         self,

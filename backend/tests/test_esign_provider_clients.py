@@ -9,10 +9,14 @@ from src.core.config import settings
 from src.services import esign_service
 from src.services.esign_service import (
     ESignBaoProvider,
+    ESignProviderConfigError,
     FaDaDaProvider,
     FlowStatus,
+    MockESignProvider,
     SignerInfo,
     SignType,
+    get_esign_provider,
+    reset_esign_provider,
 )
 
 
@@ -26,6 +30,36 @@ class _FakeResponse:
 
     def json(self):
         return self._payload
+
+
+@pytest.fixture(autouse=True)
+def reset_provider_cache():
+    reset_esign_provider()
+    yield
+    reset_esign_provider()
+
+
+def test_esign_provider_factory_rejects_mock_in_commercial_environment(monkeypatch):
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    monkeypatch.delenv("ESIGN_PROVIDER", raising=False)
+
+    with pytest.raises(ESignProviderConfigError, match="真实 ESIGN_PROVIDER"):
+        get_esign_provider()
+
+
+def test_esign_provider_factory_rejects_unknown_provider(monkeypatch):
+    monkeypatch.setattr(settings, "ENVIRONMENT", "development")
+    monkeypatch.setenv("ESIGN_PROVIDER", "typo_provider")
+
+    with pytest.raises(ESignProviderConfigError, match="未知电子签章渠道"):
+        get_esign_provider()
+
+
+def test_esign_provider_factory_allows_mock_in_development(monkeypatch):
+    monkeypatch.setattr(settings, "ENVIRONMENT", "development")
+    monkeypatch.delenv("ESIGN_PROVIDER", raising=False)
+
+    assert isinstance(get_esign_provider(), MockESignProvider)
 
 
 @pytest.mark.asyncio

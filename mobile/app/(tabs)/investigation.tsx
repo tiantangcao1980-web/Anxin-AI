@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
+  Alert,
   View,
   Text,
   StyleSheet,
@@ -43,6 +44,7 @@ export default function InvestigationScreen() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
   const loadData = useCallback(async () => {
     try {
@@ -61,23 +63,46 @@ export default function InvestigationScreen() {
     }
   }, [])
 
-  useState(() => {
+  useEffect(() => {
     loadData()
-  })
+  }, [loadData])
 
   const onRefresh = useCallback(() => {
     setRefreshing(true)
     loadData()
   }, [loadData])
 
-  const onSubmit = useCallback(() => {
-    // TODO(阶段 2.14)：对接 `dueDiligenceApi.streamInvestigate` 开启 SSE 流，
-    // 跳转到 /investigation/[companyId] 的详情页展示实时进度。
-    if (query.trim()) {
-      // 暂时以 console 标注，避免静默消化用户输入
-      console.log('[investigation] start with query:', query)
+  const onSubmit = useCallback(async () => {
+    const companyName = query.trim()
+    if (!companyName || submitting) return
+
+    try {
+      setSubmitting(true)
+      setError(null)
+      const result = await api.post<{
+        company_name: string
+        timestamp?: string
+      }>('/due-diligence/company', {
+        company_name: companyName,
+        investigation_type: 'comprehensive',
+      })
+      const startedAt = result.timestamp ?? new Date().toISOString()
+      setRecent((items) => [
+        {
+          id: `${companyName}-${startedAt}`,
+          company_name: result.company_name || companyName,
+          started_at: startedAt,
+          status: 'completed',
+        },
+        ...items.filter((item) => item.company_name !== companyName),
+      ])
+      Alert.alert('调查已生成', '已将结果加入最近调查。')
+    } catch (err: any) {
+      setError(err?.message || '启动调查失败，请稍后重试')
+    } finally {
+      setSubmitting(false)
     }
-  }, [query])
+  }, [query, submitting])
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -110,13 +135,17 @@ export default function InvestigationScreen() {
           )}
         </View>
 
-        <TouchableOpacity
-          style={[styles.primaryButton, !query.trim() && styles.primaryButtonDisabled]}
-          disabled={!query.trim()}
+          <TouchableOpacity
+          style={[styles.primaryButton, (!query.trim() || submitting) && styles.primaryButtonDisabled]}
+          disabled={!query.trim() || submitting}
           onPress={onSubmit}
         >
-          <Ionicons name="flash" size={16} color={Colors.white} />
-          <Text style={styles.primaryButtonText}>开始调查</Text>
+          {submitting ? (
+            <ActivityIndicator size="small" color={Colors.white} />
+          ) : (
+            <Ionicons name="flash" size={16} color={Colors.white} />
+          )}
+          <Text style={styles.primaryButtonText}>{submitting ? '调查中...' : '开始调查'}</Text>
         </TouchableOpacity>
 
         {loading ? (

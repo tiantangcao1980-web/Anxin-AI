@@ -94,8 +94,9 @@ GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/g
 # release evidence validation tests 9 passed, commercial checklist tests 5 passed, commercial delivery lanes tests 3 passed,
 # commercial checklist/lane validators + Ruff/JSON smoke, sandbox evidence preflight,
 # mobile-device-smoke 7 files / 17 tests + mobile/mini tsc + Expo config/SDK guard + weapp build + WeChat DevTools CLI + refresh-auth/fake-fallback/design-token guards.
-# final gate still fails because the worktree is dirty, release docs declare Not ready,
-# and payment/e-sign/desktop/mobile release evidence remains pending.
+# on a clean baseline, final gate still fails because release docs declare Not ready
+# and payment/e-sign/desktop/mobile release evidence remains pending; any new evidence
+# docs must be committed before final clean-worktree/GitNexus rerun.
 ```
 
 补充扩展切片：
@@ -111,6 +112,28 @@ backend/.venv/bin/pytest -q \
   backend/tests/test_external_surface_guards.py
 # 54 passed
 ```
+
+2026-05-08 本轮商业硬化切片：
+
+```bash
+cd backend && ./.venv/bin/ruff check src/api/routes/cli.py src/api/routes/esign.py src/api/routes/integrations.py src/api/routes/mcp_routes.py src/core/config.py src/mcp_server.py src/services/subscription_service.py tests/test_cli_route.py tests/test_config_commercial_guards.py tests/test_external_surface_guards.py tests/test_mode_subscription_guards.py
+# All checks passed
+
+cd backend && ./.venv/bin/pytest -q tests/test_config_commercial_guards.py tests/test_external_surface_guards.py tests/test_cli_route.py tests/test_mode_subscription_guards.py
+# 48 passed
+
+cd backend && ./.venv/bin/pytest -q tests/test_payment_provider_clients.py tests/test_esign_provider_clients.py tests/test_oa_integration.py tests/test_external_surface_guards.py tests/test_cli_route.py tests/test_config_commercial_guards.py tests/test_mode_subscription_guards.py tests/test_contract_state_machine.py
+# 88 passed
+```
+
+覆盖增量：
+
+- 支付、电签、OA 在 staging/production 不再静默回落 mock/fake；配置缺失或未知 provider 进入明确 503/配置错误路径。
+- 电签 flow 查询、签署链接、撤销和创建已按当前用户组织过滤合同，不再仅凭外部 flow id 操作。
+- CLI Key 创建/列表/撤销已绑定真实登录用户，`export` scope 需要对应角色权限，禁止匿名或跨用户管理。
+- CLI Key 创建/撤销和 CLI execute 已写入 `AuditLog`；命令失败、scope 缺失和高危命令拒绝也会留审计轨迹。
+- MCP 管理接口收紧到 `manage:system`，独立 MCP Server 在 staging/production 默认 fail-closed；MCP server 创建/更新/删除/连接会写入脱敏 `AuditLog`，只记录 env key 名不记录 secret 值。
+- 未知订阅 feature 默认拒绝，staging 也拒绝默认 JWT secret。
 
 ### 前端/移动/小程序
 
@@ -144,13 +167,41 @@ backend/.venv/bin/pytest -q \
 - `bash scripts/desktop-release-profile-smoke.sh --out docs/release/evidence/artifacts/desktop-release-profile-unsigned-smoke-20260508.json` -> exit `0` in unsandboxed macOS Keychain context; unsigned release `.app` binary migrates a seeded plaintext profile DB to SQLCipher, creates an isolated real keyring key, reopens without explicit DB key, ordinary `sqlite3` read is rejected, and SQLCipher 100 push / 500 pull performance passes with P95 `3.5ms` / `1.8ms`; artifact has `signed_or_notarized=false` and remains supporting evidence only
 - `bash scripts/mobile-device-smoke.sh --out docs/release/evidence/artifacts/mobile-mini-code-smoke-20260508.json --manual-template-out docs/release/evidence/artifacts/mobile-device-manual-template-20260508.json` -> mobile Vitest `7 files / 17 tests passed`; mobile tsc `0`; Expo config/SDK guard `0`; Expo doctor `17/17`; mobile npm audit `critical=0/high=0/total=0`; mini-program tsc `0`; mini-program `build:weapp` `0`; WeChat DevTools CLI project smoke `0`; refresh auth guard `0`; fake fallback guard `0`; mini-program design token guard `0`; code-level JSON artifact and manual device evidence template written
 
+2026-05-08 本轮 UI/UX 与桌面同步切片：
+
+```bash
+cd frontend && npx eslint src/components/chat/DocumentDiff.tsx src/components/chat/AnalysisView.tsx src/components/chat/ContextPane.tsx --max-warnings 0
+# exit 0
+
+cd frontend && npm test
+# 10 files / 34 tests passed
+
+cd frontend && npm run build
+# exit 0; 保留既有 Vite dynamic import / lottie eval / large chunk warnings
+
+cd mobile && npm run typecheck
+# exit 0
+
+cd mobile && npm test
+# 7 files / 17 tests passed
+
+cd desktop && cargo test sync_engine
+# 3 passed
+```
+
+覆盖增量：
+
+- `DocumentDiff` 删除静态演示合同条款，只渲染当前会话传入的真实 diff 数据；`AnalysisView` 和 `ContextPane` 已传入真实数据。
+- 移动端尽调和知识库搜索入口去掉 `console.log`/伪提交，改为真实 API 调用、加载态和错误态。
+- Rust 同步引擎云同步数据面未启用时不再返回 `Ok(0)` 假成功，改为同步状态 Error + 明确错误。
+
 ## 2. 证据覆盖矩阵
 
 | 能力 | 当前证据 | 覆盖是否充分 |
 |---|---|---|
 | 商业发布 gate | `scripts/commercial-readiness-gate.sh` 已建立，默认 quick 模式检查 release artifacts、`commercial-delivery-checklist.json`、`commercial-delivery-lanes.json`、支付/电签 live runner 必需 env 模板字段、GitNexus embeddings、dirty worktree release-blocking gate、`docs/release/evidence/*` 的 `Status: complete`、complete evidence 的 Owner/Environment/Date range 元数据、Required Scope 未闭合行、空 artifact reference 和正文 pending/not-ready 冲突、发布证据 secret/PII 扫描、RAG full50 provenance、桌面加密 gate 和全仓静态质量基线声明；`--with-local-tests` 已覆盖 diff check、frontend lint/test/build、desktop check/test、desktop installed-profile SQLCipher/keyring smoke、RAG full50 runner tests、RAG quality tests、sandbox evidence runner tests、payment/e-sign provider/webhook tests、release evidence secret scan tests、release artifact/evidence validation tests、commercial readiness gate warning propagation test、Ruff、sandbox evidence preflight 和 mobile/mini local smoke | gate 本身充分；当前预期 FAIL，说明商业证据未齐且交付文件尚未提交复验 |
 | 静态质量基线采集 | `scripts/static-quality-baseline.sh` 可生成 diff/ruff/mypy/frontend/desktop/release-evidence secret+PII/full-repo secret/mock scan 摘要；当前采集 ruff `0`、mypy `0`、mypy zero-baseline gate `0`、release evidence secret/PII scan `0`、secret scan `0`、mock/fallback scan `0`；全仓 Ruff 与 backend mypy 已清零；`docs/release/evidence/static-quality-baseline.md` 已记录 zero-baseline 规则 | 当前发布静态质量证据充分；后续需保持零回退 |
-| GitNexus 索引 | `bash scripts/gitnexus-index.sh` 可重建结构图并显式报告 dirty worktree drift；`GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/gitnexus-index.sh --embeddings --skip-context-checks` 已生成主仓 embedding；当前 `.gitnexus/meta.json` 为 `1181 files / 30003 nodes / 54587 edges / 300 flows / embeddings 28219`，`capabilities.vectorSearch.status=vector-index`；`cypher` 真实计数返回 `28219`，repo-scoped `query --repo Anxin-Smart-Legal-Services` timing 显示 vector/BM25 路径可读，`context/query` smoke 和 `npx -y gitnexus@latest status` 可读；`scripts/gitnexus-index.sh` 已纳入 repo-scoped query smoke | 结构、embedding 数据和 direct rc 读取充分；semantic query 不能单独放行；当前未提交/未跟踪文件需用 `detect-changes`、`rg` 和测试补盲，发布 Go 前需提交后重建/复验 |
+| GitNexus 索引 | `bash scripts/gitnexus-index.sh` 可重建结构图并显式报告 dirty worktree drift；`GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/gitnexus-index.sh --embeddings --skip-context-checks` 已在本轮本地交付提交后生成主仓 embedding；当前 `.gitnexus/meta.json` 为 `1304 files / ~32.5k nodes / 58785 edges / 300 flows / embeddings 30417`，`capabilities.vectorSearch.status=vector-index`，精确 nodes/clusters 以最新 meta 为准；`cypher` 真实计数返回 `30417`，`status` 显示 indexed/current commit 一致，`detect-changes` 返回 `No changes detected`；`scripts/gitnexus-index.sh` 已纳入 repo-scoped query smoke | 结构、embedding 数据和 direct rc 读取充分；semantic query 不能单独放行；后续新增提交仍需重建/复验并用 `rg` 和测试补盲 |
 | 合同状态机 | 单元/API 测试 + webhook 回写测试 | 充分 |
 | 电签 provider 代码级协议 | fake `httpx.AsyncClient` 校验官方 header/body/path | 代码级充分，商业级不足 |
 | 电签真实沙箱 | `scripts/sandbox-evidence-runner.py` 已提供配置预检和可选 live 采集入口，预检 artifact 会列出 env 之外的 `runtime_prerequisites` 和 `external_evidence_requirements`，避免签署文件/完成 flow、官方回调、重复幂等、失败重试缺失导致 live 步骤被误当完整；live step validator 会把无 signer URL 标为 `pending`、空签署文件下载标为 `fail`；`backend/tests/test_sandbox_evidence_runner.py` 覆盖 live 确认门、脱敏写出、env 模板同步、runtime prerequisite、外部证据槽输出、honest-gating validators 和外部交接文档 live 参数防漂移；当前本地预检缺少真实账号配置，未运行 live | 不充分 |
@@ -167,8 +218,10 @@ backend/.venv/bin/pytest -q \
 | 爬虫合规入口 | `crawler_service.fetch()` 统一白名单/robots/UA/host 频控；`crawl4ai_service` 与尽调抓取不再绕过；`test_crawler_compliance.py` `4 passed` | 代码级充分；真实外网 dry-run 被本机 DNS 私网解析防护阻断，发布前需在预发网络复跑 |
 | 调查意图路由 | 200 条 JSONL 离线评测集；`test_due_diligence_intent.py` + `test_chat_due_diligence_routing.py` 组合 `13 passed`；意图准确率 `1.000`、企业名抽取准确率 `1.000`（150 条含企业名）；ChatService 已分流尽调/舆情/法规监测 | 代码级充分；真实用户 query 分布上线后需持续采样复核 |
 | 案件/任务 | 案件状态机/终态只读/时间线 event_at 语义、任务 owner/assignee/admin 过滤；`test_case_service.py` + `test_lawyer_matching_and_tasks_api.py` 组合 `46 passed` | 代码级核心充分；全矩阵和 Playwright 全流程仍需发布前扩展 |
-| 律师市场 | local 模式固定拒绝、投标前利益冲突命中 409、同分律师曝光轮询；`test_lawyer_matching_and_tasks_api.py` `17 passed` | 代码级核心充分；律所 RBAC 全矩阵、8 API 打勾、1000 次公平报告仍需补 |
-| 移动/小程序 | `bash scripts/mobile-device-smoke.sh --out docs/release/evidence/artifacts/mobile-mini-code-smoke-20260508.json --manual-template-out docs/release/evidence/artifacts/mobile-device-manual-template-20260508.json` 当前通过：mobile Vitest `7 files / 17 tests passed`、mobile tsc、Expo config/SDK dependency guard、`npx expo-doctor` `17/17 checks passed`、mobile production `npm audit --omit=dev` `0`、mini-program tsc、Taro weapp build、WeChat DevTools CLI project smoke、refresh auth guard、fake fallback guard、mini-program design token guard，并写出包含 `mobile_expo_doctor=passed` 的代码级 artifact 与手工设备证据模板；`mobile_npm_audit` artifact 字段记录 `status=passed/critical=0/high=0/total=0`，并由 validator 锁住；host probe 已写入 `mobile-device-host-probe-20260507.json`，确认本机当前无可用 iOS Simulator device、无连接 Android device、无 Android emulator CLI，但 WeChat DevTools app 存在；移动端弱网 refresh-token 不误清会话已有单测；小程序 refresh-token 已区分认证失效和临时刷新失败；消息详情和任务详情已移除 synthetic fallback 数据；`getDetailLoadErrorMessage` 已补字符串 transport error 和 status 优先级用例；移动/小程序已补最小触控 token 底座；小程序语义 token 层已补并迁移首页/聊天/个人中心与 `app.config.ts`；`docs/design/cross-platform-token-drift.md` 已产出三端 token 漂移清单；`docs/release/mobile-error-state-release-notes.md` 已补错误态发布说明草案 | 代码级充分；品牌主色最终统一仍待定；iOS/Android/交互式 WeChat DevTools 或真机证据仍不足 |
+| 专业服务市场 P0（律师/律所） | local 模式固定拒绝、投标前利益冲突命中 409、同分律师曝光轮询；`test_lawyer_matching_and_tasks_api.py` `17 passed` | 律师/律所代码级核心充分；律所 RBAC 全矩阵、8 API 打勾、1000 次公平报告仍需补；税务师/税务事务所/财务顾问/会计审计仍为后续扩展验收 |
+| 全设备智能助手底座 | 后端 LLM/private LLM/MCP/Skills/knowledge 代码基础、桌面 local LLM/SQLCipher/keyring/本地队列、移动隐私模式语义已存在 | 底座存在但商业证据不足；桌面主工作站配置面、移动远控桌面、任意 LLM/Skills/MCP 组织策略、独立本地知识库体验和绝密模式出站拦截仍需测试 |
+| 可信会话与 Skills 进化 | OpenSpec、参考分析、TASK-03 和 TASK-12 已把 Codex/Claude 式工作台体验、Skill lifecycle、SkillEvolutionProposal、eval gate、审批和回滚纳入验收 | 当前仍是规范和任务级证据；缺前后端长任务事件、artifact 编辑、跨设备恢复、Skill 评测/审批/回滚代码测试 |
+| 移动/小程序 | `bash scripts/mobile-device-smoke.sh --out docs/release/evidence/artifacts/mobile-mini-code-smoke-20260508.json --manual-template-out docs/release/evidence/artifacts/mobile-device-manual-template-20260508.json` 当前通过：mobile Vitest `7 files / 17 tests passed`、mobile tsc、Expo config/SDK dependency guard、`npx expo-doctor` `17/17 checks passed`、mobile production `npm audit --omit=dev` `0`、mini-program tsc、Taro weapp build、WeChat DevTools CLI project smoke、refresh auth guard、fake fallback guard、mini-program design token guard，并写出包含 `mobile_expo_doctor=passed` 的代码级 artifact 与手工设备证据模板；`mobile_npm_audit` artifact 字段记录 `status=passed/critical=0/high=0/total=0`，并由 validator 锁住；host probe 已写入 `mobile-device-host-probe-20260508.json`，确认本机 iOS Simulator 当前可用且列出 iOS 26.4 设备、ADB 无连接 Android device、Android emulator CLI 不在 PATH、WeChat DevTools 与 WeChat app 存在；移动端弱网 refresh-token 不误清会话已有单测；小程序 refresh-token 已区分认证失效和临时刷新失败；消息详情和任务详情已移除 synthetic fallback 数据；`getDetailLoadErrorMessage` 已补字符串 transport error 和 status 优先级用例；移动/小程序已补最小触控 token 底座；小程序语义 token 层已补并迁移首页/聊天/个人中心与 `app.config.ts`；`docs/design/cross-platform-token-drift.md` 已产出三端 token 漂移清单；`docs/release/mobile-error-state-release-notes.md` 已补错误态发布说明草案 | 代码级充分；品牌主色最终统一仍待定；iOS app-run、Android、交互式 WeChat DevTools 或真机证据仍不足 |
 
 ## 3. 发布前新增测试要求
 
@@ -176,7 +229,9 @@ backend/.venv/bin/pytest -q \
 - 桌面同步：unsigned `app,dmg`、unsigned release packaged runtime smoke 和 unsigned release packaged-profile/performance smoke 已通过；下一步补齐 Tauri signingIdentity、Apple codesign identity 和 notary credentials，再补 signed/notarized installer packaging、signed packaged-profile plaintext-to-SQLCipher 迁移实录、signed packaged runtime performance 和跨设备连续会话证据，并更新 `docs/release/evidence/desktop-runtime-smoke.md`。
 - RAG：内建法律知识库 full50 已闭合；后续如果接入外部客户知识库，需要另建外部语料 golden/corpus、复跑 `eval/rag_live_qdrant_full50.py` 和 `eval/rag_quality.py`，并把它作为上线后质量扩展而不是当前内建 RAG 阻断项。
 - 案件/任务：已补核心状态机非法跳转、终态只读、owner/assignee/admin 过滤；仍需 Playwright 全流程和全矩阵。
-- 律师市场：已补 local 模式拒绝、历史当事人利益冲突投标阻断和同分曝光轮询；仍需律所 RBAC 全矩阵、8 API 打勾、重复评价。
+- 专业服务市场：已补律师/律所 P0 的 local 模式拒绝、历史当事人利益冲突投标阻断和同分曝光轮询；仍需律所 RBAC 全矩阵、8 API 打勾、重复评价，并继续扩展税务/财务服务方模型和验收。
+- 全设备智能助手：补桌面主工作站配置面、移动远控桌面、任意 LLM/Skills/MCP 配置、独立本地知识库和绝密模式出站 fail-closed 测试。
+- 可信会话与 Skills 进化：补长任务事件流、任务时间线、工具状态、artifact 编辑、暂停/恢复/接管、跨设备恢复、SkillEvolutionProposal、eval gate、审批、灰度和回滚测试。
 - 风险调查：缓存 org 隔离、风险分可解释性、robots/UA/频控入口、200 条意图路由评测已有代码级证据；仍需预发网络真实 dry-run。
 - 移动/小程序：按 `docs/design/cross-platform-token-drift.md` 决定品牌主色最终统一方向，并补 iPhone/Android/微信开发者工具关键故事手测记录，再更新 `docs/release/evidence/mobile-device-smoke.md`。
 

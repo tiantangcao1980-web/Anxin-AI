@@ -62,7 +62,7 @@ Result refreshed on 2026-05-08 local time:
 | cross-platform token drift audit | `docs/design/cross-platform-token-drift.md` created; mini-program semantic token layer and touch-target baseline are code-level complete; remaining P0 items are brand primary direction and real-device touch-target verification |
 | code-level JSON artifact | `docs/release/evidence/artifacts/mobile-mini-code-smoke-20260508.json`; `status=passed`, `release_evidence_complete=false`, includes Expo guard and `mobile_npm_audit.status=passed,total=0` |
 | manual device template | `docs/release/evidence/artifacts/mobile-device-manual-template-20260508.json`; `status=template`, `release_evidence_complete=false` |
-| host device probe | `docs/release/evidence/artifacts/mobile-device-host-probe-20260507.json`; iOS simulator has no available device, ADB has no connected devices, Android emulator CLI is missing, WeChat DevTools app is present |
+| host device probe | `docs/release/evidence/artifacts/mobile-device-host-probe-20260508.json`; iOS Simulator is available with iOS 26.4 devices, ADB has no connected devices, Android emulator CLI is missing, WeChat DevTools and WeChat apps are present |
 
 Code-level hardening added in this collection:
 

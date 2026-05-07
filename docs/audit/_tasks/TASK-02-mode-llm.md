@@ -3,6 +3,8 @@
 > 波次：1 / 工时估：3-4 天 / 负责人：待分配
 > 必读前置：../PLAN.md、../00-platform/01-prd-reality-gap.md、../00-platform/03-cross-cutting-gaps.md
 
+> 2026-05-08 定位补充：本任务同时承载“用户可配置任意大模型”的安全边界。provider/endpoint/model/key 必须按组织和隐私模式隔离；本地/绝密模式默认禁止云端模型、外部 MCP 和同步出站，除非用户显式授权。
+
 ## 1. 范围
 
 ### 要碰的文件

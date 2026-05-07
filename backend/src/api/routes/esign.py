@@ -19,6 +19,7 @@ from src.core.deps import get_current_user_required
 from src.models.contract import Contract, ContractStatus
 from src.models.user import User
 from src.services.esign_service import (
+    ESignProvider,
     ESignProviderAPIError,
     ESignProviderConfigError,
     MockESignProvider,
@@ -35,6 +36,49 @@ from src.services.webhook_handler import WebhookBusinessError, handle_verified_w
 from src.services.webhook_security import WebhookSecurity
 
 router = APIRouter()
+
+
+def _require_user_org_id(user: User) -> str:
+    org_id = str(user.org_id) if user.org_id else ""
+    if not org_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="用户未加入组织，不能执行电子签章操作",
+        )
+    return org_id
+
+
+async def _get_contract_for_user(
+    db: AsyncSession,
+    user: User,
+    *,
+    contract_id: str | None = None,
+    flow_id: str | None = None,
+) -> Contract:
+    org_id = _require_user_org_id(user)
+    conditions = [Contract.org_id == org_id]
+    if contract_id is not None:
+        conditions.append(Contract.id == contract_id)
+    if flow_id is not None:
+        conditions.append(Contract.esign_flow_id == flow_id)
+    result = await db.execute(select(Contract).where(*conditions))
+    contract = result.scalar_one_or_none()
+    if contract is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="合同或签署流程不存在",
+        )
+    return contract
+
+
+def _get_provider_or_503() -> ESignProvider:
+    try:
+        return get_esign_provider()
+    except ESignProviderConfigError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e),
+        ) from e
 
 
 async def _parse_webhook_payload(request: Request, body: bytes) -> dict[str, Any]:
@@ -137,14 +181,7 @@ async def create_sign_flow(
     db: AsyncSession = Depends(get_db),
 ) -> FlowResponse:
     """创建签署流程"""
-    provider = get_esign_provider()
-    contract_result = await db.execute(select(Contract).where(Contract.id == req.contract_id))
-    contract = contract_result.scalar_one_or_none()
-    if contract is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="合同不存在",
-        )
+    contract = await _get_contract_for_user(db, user, contract_id=req.contract_id)
     if contract.status != ContractStatus.APPROVED:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -163,6 +200,7 @@ async def create_sign_flow(
             sign_order=s.sign_order,
         ))
 
+    provider = _get_provider_or_503()
     try:
         result = await provider.create_sign_flow(
             contract_id=req.contract_id,
@@ -219,13 +257,22 @@ async def list_flows(
     contract_id: str | None = None,
     status_filter: str | None = None,
     user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """列出签署流程"""
-    provider = get_esign_provider()
+    org_id = _require_user_org_id(user)
+    provider = _get_provider_or_503()
+    contract_query = select(Contract).where(Contract.org_id == org_id, Contract.esign_flow_id.is_not(None))
+    if contract_id:
+        contract_query = contract_query.where(Contract.id == contract_id)
+    contract_result = await db.execute(contract_query)
+    allowed_flows = {contract.esign_flow_id for contract in contract_result.scalars().all() if contract.esign_flow_id}
 
     if isinstance(provider, MockESignProvider):
         flows: list[dict[str, Any]] = []
         for flow_data in provider._flows.values():
+            if flow_data["flow_id"] not in allowed_flows:
+                continue
             # 可选按 contract_id 过滤
             if contract_id and flow_data["contract_id"] != contract_id:
                 continue
@@ -255,9 +302,11 @@ async def list_flows(
 async def get_flow_status(
     flow_id: str,
     user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db),
 ) -> FlowStatusResponse:
     """查询签署流程状态"""
-    provider = get_esign_provider()
+    await _get_contract_for_user(db, user, flow_id=flow_id)
+    provider = _get_provider_or_503()
 
     try:
         result = await provider.get_flow_status(flow_id)
@@ -314,9 +363,11 @@ async def get_sign_url(
     flow_id: str,
     signer_id: str,
     user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db),
 ) -> SignUrlResponse:
     """获取签署链接"""
-    provider = get_esign_provider()
+    await _get_contract_for_user(db, user, flow_id=flow_id)
+    provider = _get_provider_or_503()
 
     try:
         url = await provider.get_sign_url(flow_id, signer_id)
@@ -357,9 +408,11 @@ async def cancel_flow(
     flow_id: str,
     reason: str = "",
     user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
     """取消签署流程"""
-    provider = get_esign_provider()
+    await _get_contract_for_user(db, user, flow_id=flow_id)
+    provider = _get_provider_or_503()
 
     try:
         success = await provider.cancel_flow(flow_id, reason)

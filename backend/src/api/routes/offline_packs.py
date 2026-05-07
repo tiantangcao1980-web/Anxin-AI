@@ -179,7 +179,7 @@ async def get_manifest(pack_id: str = Path(..., min_length=1)) -> PackManifest:
     """实际应从对象存储读取每个文件的 sha256。
 
     当前实现：返回空 files 列表的占位 manifest，方便客户端先跑通骨架。
-    运维层实现见 `docs/2026-04-21_离线数据包 runbook.md`。
+    离线包机制见 `docs/ARCHITECTURE_V2.md` 的本地模式资源下载设计。
     """
     packs = _load_packs()
     for p in packs:

@@ -1,6 +1,6 @@
 # 商业交付审计摘要
 
-> 日期：2026-05-07
+> 日期：2026-05-08
 > 范围：从当前代码现状推进到商业交付候选版的证据总览。
 > 结论：当前不是商业交付完成态；已完成 GitNexus 结构索引、主仓 embeddings、可复跑脚本、OpenSpec/验收规范、多项 P0 代码级收口、内建 RAG full50、桌面 release package dry-run/preflight 和完成度审计，剩余阻断集中在真实渠道沙箱、桌面签名/公证发布包、移动/小程序真机、案件/市场等未闭环模块和发布前全量门禁。
 
@@ -8,13 +8,15 @@
 
 | 用户目标/显式要求 | 当前证据 | 状态 |
 |---|---|---|
-| 使用 CLI/MCP 对代码仓库做代码级扫描 | GitNexus 本轮结构索引已重建；`detect-changes` 当前返回 `changed_files: 354`、`changed_symbols: 5685`、`affected_processes: 240`、`risk_level: critical` | 已完成，但 dirty worktree 仍需源码补盲 |
-| 创建并优化 GitNexus 索引知识图、配置 embeddings | `.gitnexusignore` 已生效；当前 `.gitnexus/meta.json` 为 `1181 files / 30003 nodes / 54587 edges / 300 flows / 28219 embeddings`，`capabilities.vectorSearch.status=vector-index`；`scripts/gitnexus-index.sh` 支持 `GITNEXUS_BIN`、`GITNEXUS_NPX_SPEC=gitnexus@rc` 和 embedding/vector-index preflight；direct rc binary 的 `context/query/cypher` 与 `gitnexus@latest status` 均已验证，`query` timing 显示 vector/BM25 路径可读 | embeddings 已生成并可读 |
+| 使用 CLI/MCP 对代码仓库做代码级扫描 | GitNexus 结构索引已在本轮本地交付提交后重建并有 `30417` embeddings；历史大 dirty snapshot 曾返回 `380 files / 6037 symbols / 240 affected processes / critical`；本轮以 direct CLI + `rg` + 源码阅读 + 测试互证为准 | 已完成当前提交审计基线；后续新提交后仍需重跑 GitNexus |
+| 创建并优化 GitNexus 索引知识图、配置 embeddings | `.gitnexusignore` 已生效；当前 `.gitnexus/meta.json` 为 `1304 files / ~32.5k nodes / 58785 edges / 300 flows / 30417 embeddings`，`capabilities.vectorSearch.status=vector-index`，精确 nodes/clusters 以最新 meta 为准；`scripts/gitnexus-index.sh` 支持 `GITNEXUS_BIN`、`GITNEXUS_NPX_SPEC=gitnexus@rc` 和 embedding/vector-index preflight；direct rc binary 的 `cypher/status/detect-changes` 已验证，current/indexed commit 一致 | embeddings 已生成并可读 |
 | 在后续开发前验证 GitNexus 信息准确性 | GitNexus metadata/status/cypher 可验证索引新鲜度与 embedding 数量；当前策略为 direct rc GitNexus CLI + `rg` + 源码阅读 + pytest/Vitest 三证合一 | 已建立边界 |
-| 使用 OpenSpec/规范完成项目规范 | `docs/openspec/commercial-delivery-spec.md` 和 `commercial-delivery-test-spec.md` 已存在并持续更新 | 已完成初版 |
+| 使用 OpenSpec/规范完成项目规范 | `docs/openspec/01-commercial-delivery-spec.md`、`docs/openspec/02-commercial-delivery-test-spec.md` 和 `docs/openspec/00-intelligent-assistant-platform-spec.md` 已存在并持续更新；2026-05-08 已把中小企业双边平台、桌面主工作站、移动远控、本地模型/知识库、任意 LLM/Skills/MCP 配置写入规范 | 已完成当前定位版 |
 | 建立商业发布门禁 | `scripts/commercial-readiness-gate.sh` 已建立，`docs/release/evidence/` 外部证据模板已建立；`scripts/sandbox-evidence-runner.py` 已补支付/电签脱敏预检和可选 live 采集入口；`scripts/desktop-release-package.sh` 和 `scripts/desktop-release-preflight.sh` 已补桌面 signed/notarized release 前置条件预检；`backend/tests/test_sandbox_evidence_runner.py` 覆盖 live 确认门、脱敏写出和外部证据槽；当前预期失败以阻止缺少 `Status: complete` 证据时误发布 | 已完成 gate 和采集入口，商业证据未齐 |
 | 按规范推进开发与测试 | 已收口 TASK-01/02/05/06/07/09/10/11c 的若干 P0/P1 切片；TASK-11b 桌面同步新增注入式 SQLite push/pull/retry 代码级闭环；后端全量 `467 passed, 1 skipped, 17 warnings in 36.11s`，前端 lint/tsc 当前通过，Vitest 基线 `10 files / 34 tests passed` | 进行中 |
 | 形成商业交付准备包 | 本摘要、completion audit、release readiness、rollback runbook、security/privacy checklist、test evidence 已补齐 | 已完成当前版本 |
+| 补充 UI/UX 与真实状态审计 | `docs/audit/current-state-ui-ux-audit-2026-05-08.md` 已按移动端、小程序、桌面端拆出 P0/P1 问题，并补充中小企业需求方、专业服务方、全设备智能助手和高可信试点门槛 | 已完成审计基线 |
+| 参考项目与智能体治理升级 | `docs/references/agentic-platform-benchmark-2026-05-08.md`、`docs/openspec/00-intelligent-assistant-platform-spec.md` 和 `TASK-12-agent-control-plane-skill-evolution.md` 已吸收 Hermes/OpenClaw/HiClaw/DeepTutor/CLI-Anything/RAG-Anything/browser-use/Scrapling，并补充 Codex/Claude 式可信会话体验、Skills 进化与智能体自我改进治理 | 已完成规范基线，代码实现待执行 |
 
 ## 2. 当前已收口的高风险面
 

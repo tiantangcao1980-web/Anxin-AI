@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import codecs
 import json
 import subprocess
 from dataclasses import dataclass
@@ -14,6 +15,8 @@ DELIVERY_PREFIXES = (
     ".env.example",
     ".gitignore",
     ".gitnexusignore",
+    "PROJECT_STATUS.md",
+    "README.md",
     "backend/.env.example",
     "backend/alembic/",
     "backend/pyproject.toml",
@@ -28,14 +31,20 @@ DELIVERY_PREFIXES = (
     "desktop/tauri.conf.json",
     "docker-compose.dev.yml",
     "docker-compose.yml",
+    "docs/2026-",
+    "docs/202603",
+    "docs/00-project-execution-map.md",
     "docs/architecture/",
+    "docs/archive/",
     "docs/DEPLOYMENT_DESKTOP.md",
     "docs/audit/",
     "docs/design/",
     "docs/desktop/",
     "docs/mobile/",
     "docs/openspec/",
+    "docs/references/",
     "docs/release/",
+    "docs/strategy/",
     "docs/wiki/",
     "eval/",
     "frontend/e2e/",
@@ -97,7 +106,20 @@ def normalize_status_path(raw_path: str) -> str:
     path = raw_path.strip()
     if " -> " in path:
         path = path.rsplit(" -> ", 1)[1]
+    path = decode_git_quoted_path(path)
     return path
+
+
+def decode_git_quoted_path(path: str) -> str:
+    """Decode Git's C-style quoted paths for non-ASCII filenames."""
+    if len(path) < 2 or path[0] != '"' or path[-1] != '"':
+        return path
+
+    decoded = codecs.decode(path[1:-1], "unicode_escape")
+    try:
+        return decoded.encode("latin-1").decode("utf-8")
+    except UnicodeDecodeError:
+        return decoded
 
 
 def parse_status_line(line: str) -> StatusEntry:

@@ -1,9 +1,11 @@
-# TASK-08b 找律师 + 案源市场 + 律所端
+# TASK-08b 专业服务市场（P0 找律师 + 案源市场 + 律所端）
 
 > 波次 3 · 工时估 3-4 天
 > 前置依赖：任务 0、任务 1（认证 + 权限）、任务 2（三态运行 / 私有 LLM / Compute Router — `require_mode` 守卫复用）、任务 6（对象存储抽象层 — 投标附件）
 > 兄弟任务：任务 8a（案件 + 任务）
 > 必读：`../PLAN.md`、`../00-platform/01-prd-reality-gap.md`、`../00-platform/03-cross-cutting-gaps.md`
+
+> 2026-05-08 定位补充：本任务的 P0 仍以律师/律所闭环为主，但产品规范已升级为“专业服务市场”。模型、权限、服务目录、获客和结算应预留 `legal / tax / accounting / finance / compliance` 服务类型；税务师、税务师事务所、财务顾问、会计/审计人员进入 P1/P2 扩展验收。
 
 ---
 

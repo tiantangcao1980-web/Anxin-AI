@@ -30,12 +30,18 @@ def test_release_worktree_inventory_classifies_dirty_paths(tmp_path):
     fixture.write_text(
         "\n".join(
             [
+                " M README.md",
+                " M PROJECT_STATUS.md",
                 " M backend/src/services/payment_service.py",
                 "?? docs/release/evidence/payment-sandbox.md",
                 "?? scripts/validate-release-artifacts.py",
                 "?? docker-compose.yml",
                 "?? desktop/Entitlements.plist",
                 "?? docs/DEPLOYMENT_DESKTOP.md",
+                "?? docs/00-project-execution-map.md",
+                "?? docs/references/agentic-platform-benchmark-2026-05-08.md",
+                " M docs/strategy/product-architecture-and-requirements-2026-05-08.md",
+                ' M "docs/archive/legacy-root-docs/\\346\\227\\247\\346\\226\\207\\346\\241\\243.md"',
                 "?? docs/design/cross-platform-token-drift.md",
                 "?? frontend/package-lock.json",
                 "?? .env",
@@ -50,13 +56,28 @@ def test_release_worktree_inventory_classifies_dirty_paths(tmp_path):
 
     assert result.returncode == 0, result.stdout + result.stderr
     payload = json.loads(result.stdout)
-    assert payload["tracked_changes"] == 1
-    assert payload["untracked_files"] == 10
+    assert payload["tracked_changes"] == 5
+    assert payload["untracked_files"] == 12
     assert "backend/src/services/payment_service.py" in payload["categories"]["release_delivery"]
+    assert "README.md" in payload["categories"]["release_delivery"]
+    assert "PROJECT_STATUS.md" in payload["categories"]["release_delivery"]
     assert "docs/release/evidence/payment-sandbox.md" in payload["categories"]["release_delivery"]
     assert "docker-compose.yml" in payload["categories"]["release_delivery"]
     assert "desktop/Entitlements.plist" in payload["categories"]["release_delivery"]
     assert "docs/DEPLOYMENT_DESKTOP.md" in payload["categories"]["release_delivery"]
+    assert "docs/00-project-execution-map.md" in payload["categories"]["release_delivery"]
+    assert (
+        "docs/references/agentic-platform-benchmark-2026-05-08.md"
+        in payload["categories"]["release_delivery"]
+    )
+    assert (
+        "docs/strategy/product-architecture-and-requirements-2026-05-08.md"
+        in payload["categories"]["release_delivery"]
+    )
+    assert (
+        "docs/archive/legacy-root-docs/旧文档.md"
+        in payload["categories"]["release_delivery"]
+    )
     assert "docs/design/cross-platform-token-drift.md" in payload["categories"]["release_delivery"]
     assert "frontend/package-lock.json" in payload["categories"]["release_delivery"]
     assert ".env" in payload["categories"]["local_secret"]

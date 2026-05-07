@@ -1,0 +1,42 @@
+{
+  "generated_at": "2026-05-07T17:48:13Z",
+  "mode": "mobile_device_host_probe",
+  "status": "blocked",
+  "release_evidence_complete": false,
+  "checks": {
+    "ios_simctl_available": "available_devices_present",
+    "android_adb_available": "available_no_devices",
+    "android_emulator_cli": "missing",
+    "wechat_devtools_app": "present",
+    "wechat_devtools_cli_project_smoke": "passed"
+  },
+  "commands": [
+    {
+      "command": "xcrun simctl list devices available",
+      "exit_code": 0,
+      "summary": "CoreSimulator is accessible and lists iOS 26.4 simulator devices, including iPhone 17 family and iPad devices, currently shutdown."
+    },
+    {
+      "command": "adb devices -l",
+      "exit_code": 0,
+      "summary": "ADB is available, but the connected device list is empty."
+    },
+    {
+      "command": "emulator -list-avds",
+      "exit_code": 127,
+      "summary": "Android emulator CLI is not installed on PATH."
+    },
+    {
+      "command": "ls -ld /Applications/wechatwebdevtools.app /Applications/WeChat.app",
+      "exit_code": 0,
+      "summary": "WeChat DevTools and WeChat apps are installed locally."
+    }
+  ],
+  "blocking_inputs": [
+    "iOS simulator app-run transcript or physical iOS test device evidence",
+    "Android emulator CLI/AVD or physical Android test device",
+    "redacted tester role and backend staging environment for runtime device smoke",
+    "interactive WeChat DevTools or real mini-program device transcript"
+  ],
+  "completion_note": "Host probe only; release evidence still requires iOS app-run, Android, interactive WeChat DevTools or real-device runs, plus cross-device continuation."
+}

@@ -40,6 +40,10 @@ from src.services.webhook_security import WebhookSecurity
 router = APIRouter()
 
 
+def _commercial_environment() -> bool:
+    return settings.ENVIRONMENT.lower() in {"production", "staging"}
+
+
 # ========== 响应模型 ==========
 
 
@@ -209,7 +213,9 @@ async def get_order(
                 db_order.paid_at = pay_status.paid_at
                 await db.commit()
                 await db.refresh(db_order)
-        except (NotImplementedError, PaymentProviderConfigError):
+        except (NotImplementedError, PaymentProviderConfigError) as e:
+            if _commercial_environment():
+                raise HTTPException(status_code=503, detail=str(e)) from e
             pass  # 渠道未配置时忽略主动查询
 
     return _model_to_response(db_order)
@@ -273,7 +279,9 @@ async def close_order(
     try:
         provider = get_payment_provider(db_order.payment_provider)
         await provider.close_order(order_id)
-    except (NotImplementedError, PaymentProviderConfigError):
+    except (NotImplementedError, PaymentProviderConfigError) as e:
+        if _commercial_environment():
+            raise HTTPException(status_code=503, detail=str(e)) from e
         pass  # 渠道未配置时直接在本地关闭
 
     db_order.status = PaymentStatusEnum.CLOSED.value

@@ -256,10 +256,15 @@ npm run build
 │       ├── hooks/           # 自定义 Hook
 │       └── lib/             # API、Store、设计令牌
 ├── docs/                    # 项目文档
+│   ├── 00-project-execution-map.md  # 当前推进总索引
+│   ├── openspec/            # 权威产品/商业/测试规范
+│   ├── strategy/            # 当前产品架构与需求规划
 │   ├── architecture/        # 架构设计
-│   ├── issues/              # 问题反馈与修复记录
+│   ├── audit/               # 代码级审计与任务拆分
+│   ├── release/             # 发布证据、门禁、Go/No-Go
+│   ├── design/              # 跨端设计与 UI/UX 资料
 │   ├── references/          # 参考资料
-│   └── plans/               # 开发计划
+│   └── archive/             # 旧版历史文档归档
 ├── skills/                  # AI Skills 定义
 ├── docker-compose.yml       # 生产部署配置
 └── docker-compose.dev.yml   # 开发环境配置
@@ -269,15 +274,17 @@ npm run build
 
 | 文档 | 说明 |
 |------|------|
-| [产品架构文档](docs/2026-03-26_安心法务-产品架构文档.md) | 产品定位、功能全景、技术架构 |
+| [项目推进总索引](docs/00-project-execution-map.md) | 后续设计、开发、测试、发布的 12 环节入口 |
 | [项目状态](PROJECT_STATUS.md) | 最新开发进度、近期变更与下一步计划 |
-| [开发路线图](docs/2026-03-26_安心法务-开发路线图.md) | 分阶段开发计划和里程碑 |
-| [新架构与功能需求规划](docs/2026-03-25_新架构与功能需求规划.md) | 多端架构蓝图与增量需求同步 |
-| [前端统一优化方案](docs/2026-03-25_前端统一优化方案.md) | 前端体验统一、视觉和交互优化计划 |
-| [设计系统规范](docs/2026-03-26_安心法务-设计系统规范.md) | 色彩、排版、组件、动效规范 |
-| [权限体系设计](docs/2026-03-26_安心法务-权限体系设计.md) | 用户角色、权限矩阵 |
-| [部署指南](docs/2026-03-26_安心法务-部署指南.md) | Docker 部署、私有化部署 |
-| [系统架构](docs/ARCHITECTURE.md) | 详细技术架构设计 |
+| [产品架构与需求规划](docs/strategy/product-architecture-and-requirements-2026-05-08.md) | 当前产品定位、端侧能力、企业智能体治理和实施影响 |
+| [全设备智能助手 OpenSpec](docs/openspec/00-intelligent-assistant-platform-spec.md) | 上层产品合同，定义桌面/移动/本地模型/Skills/MCP/治理目标 |
+| [商业交付规范](docs/openspec/01-commercial-delivery-spec.md) | 商业候选版必须满足的交付定义和阶段门槛 |
+| [商业交付测试规范](docs/openspec/02-commercial-delivery-test-spec.md) | 各任务、端侧和发布前的必跑测试矩阵 |
+| [审计摘要](docs/audit/SUMMARY.md) | 真实开发状态、阻断项和下一步顺序 |
+| [UI/UX 审计与优化方案](docs/audit/current-state-ui-ux-audit-2026-05-08.md) | 移动端、小程序、桌面端的 UI/UX 问题和优化路线 |
+| [任务提示词索引](docs/audit/_tasks/README.md) | TASK-01..12 的并行开发任务入口 |
+| [发布就绪评估](docs/release/commercial-delivery-readiness.md) | Go/No-Go 判定、真实证据缺口和发布前命令 |
+| [归档文档索引](docs/archive/README.md) | 已过时根目录文档的归档说明 |
 
 ## 开源协议
 

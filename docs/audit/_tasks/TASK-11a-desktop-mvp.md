@@ -5,6 +5,8 @@
 > 下游依赖：任务 11c（移动端跨设备延续要先确认桌面会话语义）
 > 必读：`../PLAN.md`、`../00-platform/01-prd-reality-gap.md`、`../00-platform/03-cross-cutting-gaps.md` §1 缺口 C、`PRODUCT_ROADMAP.md` 桌面端 P0-1 / P0-2 / P0-3、`DESIGN.md` 跨平台一致性章节
 
+> 2026-05-08 定位补充：桌面端是项目未来的主要工作站，不只是 WebView 外壳。MVP 除窗口、快捷问答、拖拽分析外，还必须预留本地模型、独立知识库、Skills/MCP 配置入口，以及移动端远程控制桌面的 host 能力。
+
 ---
 
 ## 1. 范围
@@ -18,11 +20,17 @@
 - 桌面 Rust commands：
   - `desktop/src/commands/global_shortcut.rs`（已注册快捷键，需补窗口呼出 / 隐藏逻辑）
   - `desktop/src/commands/tray.rs`
+  - `desktop/src/commands/local_llm.rs`（只读/轻接入：展示本地模型状态，不重写模型服务）
   - **新建** `desktop/src/commands/file_drop.rs`
+  - **预留/新建** `desktop/src/commands/remote_control.rs`（移动端配对、远程命令确认和执行状态回传；具体队列依赖 11b）
 - 共享前端（桌面壳复用 Web 前端）：
   - **新建** `frontend/src/pages/QuickQuery.tsx`（精简对话窗口）
-  - **新建** `frontend/src/components/desktop/`（桌面专用组件目录：标题栏 / 托盘提示 / 拖拽 overlay）
+  - **新建** `frontend/src/components/desktop/`（桌面专用组件目录：标题栏 / 托盘提示 / 拖拽 overlay / 本地能力状态）
   - `frontend/src/App.tsx`（仅加 `/desktop/quick-query` 路由，不动其他）
+- 扩展与配置入口（按现有能力轻接入，不在本任务重写后端）：
+  - `backend/src/api/routes/llm.py`、`backend/src/api/routes/mcp_routes.py`、`backend/src/services/skill_service.py`
+  - `backend/src/api/routes/knowledge.py`、`backend/src/services/knowledge_management.py`
+  - `frontend/src/components/settings/OfflineResourceManager.tsx`（如存在则复用本地资源状态）
 - 桌面图标 / 托盘 icon 资源：
   - `desktop/icons/`（仅在缺资源时补，不重做）
 
@@ -46,6 +54,8 @@
 | P0-3 | `desktop/src/commands/tray.rs` + 新建 `desktop/src/commands/file_drop.rs` | 托盘存在，无文件拖入处理 | 文件拖到托盘图标即 emit `desktop://file-drop`；按扩展名路由（PDF / DOCX → 合同审查；TXT / MD → 文档摘要）；落地路径走任务 11b 的同步引擎 offline_tasks 队列；UI 弹"已加入待分析队列"提示 |
 | P0-4 | `frontend/src/components/desktop/TitleBar.tsx`（新建） | 无 | 跨平台一致的自绘标题栏：macOS 显示窗口标题居中 + 红黄绿按钮原位；Windows 显示标题左对齐 + 自绘最小化/最大化/关闭 |
 | P0-5 | `desktop/src/main.rs` 启动 | 当前模式选择/绝密本地状态在前端 localStorage | 桌面启动时从 SQLite `sync_state` 读取 `mode`（绝密 / 混合 / 云端），与前端 PrivacyContext 对齐（不重做模式切换逻辑，仅打通启动加载） |
+| P0-6 | `frontend/src/components/desktop/` + `desktop/src/commands/local_llm.rs` + LLM/knowledge/MCP/skill routes | 已有零散本地模型、知识库、MCP/Skill 底座，但桌面没有主工作站统一入口 | 桌面壳展示当前隐私模式、本地模型状态、知识库状态、Skills/MCP 状态和配置入口；不允许在绝密模式下诱导云端调用 |
+| P0-7 | 新建 `desktop/src/commands/remote_control.rs` + 11b command queue | 移动端远控桌面未定义 | 桌面作为 remote-control host：展示配对请求、权限范围、远程命令确认、执行状态、取消/撤销入口和审计日志；高风险动作必须二次确认 |
 
 ---
 
@@ -57,6 +67,7 @@
 - ROADMAP 桌面端 P0-1 / P0-2 / P0-3 vs 当前桌面代码三件套实测能力差距
 - 列横切缺口 C（同步引擎）对本任务 P0-3 的影响（拖拽分析的文件无处可放就是死代码）
 - 跨平台一致性：桌面端的标题栏 / 字号 / 间距与 `frontend/src/lib/design-tokens.ts` 是否漂移
+- 新定位差分：桌面主工作站、本地模型、独立知识库、Skills/MCP 配置和移动远控 host 当前有哪些代码基础、哪些仍只是规范预留
 
 ### Step 1 · 检索复用
 
@@ -140,6 +151,8 @@ docs/audit/11a-desktop-mvp/
 - [ ] 拖拽 .txt / .md 走文档摘要分支；不支持的扩展名给明确提示
 - [ ] `frontend/src/components/desktop/` 新增组件全部不引入硬编码颜色 / padding（`/designdna` 校验通过）
 - [ ] 桌面 `cargo clippy` 无新增 warning；前端 build 无新增警告
+- [ ] 桌面主工作站入口可见本地模型、知识库、Skills/MCP 和隐私模式状态；绝密模式不展示会导致数据出站的默认动作
+- [ ] 移动远控 host 最小闭环：配对请求、权限说明、远程命令确认、执行状态、取消/撤销和审计日志至少有开发环境 smoke
 - [ ] 跨平台手测脚本：macOS + Windows 各跑一遍三件套，截图归档到 `docs/desktop/`
 - [ ] `docs/audit/11a-desktop-mvp/01..05.md` 全产出
 - [ ] 经验沉淀到 hierarchical-memory（add-feature 至少 1 条，记录三件套的 Tauri 平台分支模式）

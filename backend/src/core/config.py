@@ -99,6 +99,8 @@ class Settings(BaseSettings):
 
     # 集成 API 密钥（用于 OA/Webhook 回调验证）
     INTEGRATION_API_KEY: str | None = None
+    # 独立 MCP Server 没有 HTTP 用户上下文；商业环境默认关闭，统一走带 RBAC 的 /api/v1/mcp。
+    MCP_STANDALONE_ENABLED: bool = False
 
     # ========== 反Bot防御配置 ==========
     ANTIBOT_ENABLED: bool = False               # 总开关
@@ -366,9 +368,9 @@ class Settings(BaseSettings):
         super().__init__(**kwargs)
         # 自动生成安全的 JWT 密钥（如果未设置）
         if self.JWT_SECRET_KEY == "your-super-secret-jwt-key-change-in-production":
-            if self.ENVIRONMENT == "production":
+            if self.ENVIRONMENT in {"production", "staging"}:
                 raise ValueError(
-                    "生产环境必须设置安全的 JWT_SECRET_KEY！"
+                    "生产/预发环境必须设置安全的 JWT_SECRET_KEY！"
                     "请在环境变量中设置强密钥。"
                 )
             elif self.ENVIRONMENT == "development":

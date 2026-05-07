@@ -65,7 +65,7 @@ export const AnalysisView = memo(function AnalysisView({ data }: AnalysisViewPro
  iconColor="text-primary bg-primary/5"
  defaultOpen
  >
- <DocumentDiff />
+ <DocumentDiff data={data.documentDiff} />
  </AnalysisSection>
  )}
 

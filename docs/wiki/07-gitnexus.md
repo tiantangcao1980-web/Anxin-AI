@@ -72,7 +72,7 @@ Status: up-to-date
 /Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus detect-changes -r Anxin-Smart-Legal-Services --scope all
 ```
 
-2026-05-07 当前 dirty worktree 影响面：
+2026-05-07 历史 dirty worktree 影响面：
 
 ```text
 Changes: 380 files, 6037 symbols
@@ -80,7 +80,7 @@ Affected processes: 240
 Risk level: critical
 ```
 
-该结果说明 GitNexus 只能作为索引和影响面导航；发布前必须整理提交交付文件，然后重跑索引和商业门禁。
+该结果说明 GitNexus 只能作为索引和影响面导航；即使历史大 dirty snapshot 已收束，发布前仍必须整理提交当前交付文件，然后重跑索引和商业门禁。
 
 ## 生成 GitNexus 官方 Wiki
 
@@ -136,7 +136,8 @@ pkill -f "gitnexus.*wiki" || true
 pkill -f "gitnexus.*serve" || true
 STAMP=$(date +%Y%m%d-%H%M%S)
 mv .gitnexus ".gitnexus.corrupt-${STAMP}"
-cp -R .gitnexus.backup-20260506-091041 .gitnexus
+# 若仍保留可信 .gitnexus.backup-*，可从最近一次备份恢复；
+# 若旧备份已被清理，则直接运行下方 scripts/gitnexus-index.sh 重建。
 npx -y gitnexus@latest status
 ```
 
@@ -165,8 +166,8 @@ bash scripts/gitnexus-index.sh --embeddings
 
 ## 已知限制
 
-- 当前索引停在 commit `b01122d`，很多未提交新符号未必进入图谱。
-- 当前 dirty worktree 的 `detect-changes --scope all` 风险为 critical，发布前必须提交后重建/复验索引。
+- 当前索引是 commit-scoped，最终 release 提交后的新符号未必已经进入图谱。
+- 历史 dirty worktree 的 `detect-changes --scope all` 风险为 critical；本轮 release 文档/host-probe 增量提交后仍必须重建/复验索引。
 - Codex MCP `list_repos` 可用，但本次会话中 `query/detect_changes` transport closed；需要 query/detect 时优先用 direct CLI。
 - `shape_check` 当前没有可用 route shape 结果。
 - 自然语言 `query` 对部分中文/业务概念可能返回空。

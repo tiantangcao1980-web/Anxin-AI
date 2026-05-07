@@ -14,6 +14,7 @@ from sqlalchemy import select
 
 from src.core.config import settings
 from src.core.security import create_access_token
+from src.models.audit import AuditLog
 from src.models.billing import BillingPlan, Subscription
 from src.models.contract import Contract, ContractStatus
 from src.models.payment import PaymentOrder
@@ -358,13 +359,14 @@ async def test_esign_webhook_accepts_valid_signature(client, db_session, monkeyp
 
 
 @pytest.mark.asyncio
-async def test_create_sign_flow_persists_provider_flow_mapping(auth_client, db_session):
+async def test_create_sign_flow_persists_provider_flow_mapping(auth_client, db_session, test_user):
     contract = Contract(
         id=str(uuid4()),
         title="待发起电签合同",
         contract_number=f"ESIGN-FLOW-{uuid4().hex[:8]}",
         contract_type="service",
         status=ContractStatus.APPROVED,
+        org_id=test_user.org_id,
     )
     db_session.add(contract)
     await db_session.flush()
@@ -383,6 +385,67 @@ async def test_create_sign_flow_persists_provider_flow_mapping(auth_client, db_s
     await db_session.refresh(contract)
     assert payload["flow_id"] == contract.esign_flow_id
     assert contract.esign_provider == "MockESignProvider"
+
+
+@pytest.mark.asyncio
+async def test_esign_flow_creation_requires_contract_org_scope(
+    outsider_auth_client,
+    db_session,
+    test_user,
+):
+    contract = Contract(
+        id=str(uuid4()),
+        title="跨组织电签合同",
+        contract_number=f"ESIGN-XORG-{uuid4().hex[:8]}",
+        contract_type="service",
+        status=ContractStatus.APPROVED,
+        org_id=test_user.org_id,
+    )
+    db_session.add(contract)
+    await db_session.flush()
+
+    response = await outsider_auth_client.post(
+        "/api/v1/esign/flows",
+        json={
+            "contract_id": contract.id,
+            "title": "跨组织电签合同",
+            "signers": [{"name": "张三"}],
+        },
+    )
+
+    assert response.status_code == 404
+    await db_session.refresh(contract)
+    assert contract.esign_flow_id is None
+
+
+@pytest.mark.asyncio
+async def test_esign_flow_operations_require_flow_org_scope(
+    outsider_auth_client,
+    db_session,
+    test_user,
+):
+    contract = Contract(
+        id=str(uuid4()),
+        title="跨组织签署流程",
+        contract_number=f"ESIGN-FLOW-XORG-{uuid4().hex[:8]}",
+        contract_type="service",
+        status=ContractStatus.APPROVED,
+        org_id=test_user.org_id,
+        esign_flow_id="provider-flow-xorg",
+        esign_provider="MockESignProvider",
+    )
+    db_session.add(contract)
+    await db_session.flush()
+
+    status_response = await outsider_auth_client.get("/api/v1/esign/flows/provider-flow-xorg")
+    sign_url_response = await outsider_auth_client.get(
+        "/api/v1/esign/flows/provider-flow-xorg/sign-url/signer-1"
+    )
+    cancel_response = await outsider_auth_client.post("/api/v1/esign/flows/provider-flow-xorg/cancel")
+
+    assert status_response.status_code == 404
+    assert sign_url_response.status_code == 404
+    assert cancel_response.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -773,6 +836,16 @@ async def test_oa_notification_ignores_admin_override_target(admin_auth_client, 
 
 
 @pytest.mark.asyncio
+async def test_oa_user_sync_requires_org_admin(auth_client, admin_auth_client):
+    with patch("src.api.routes.integrations.oa_service.sync_org_structure", new=AsyncMock(return_value={"synced_count": 0})):
+        forbidden = await auth_client.post("/api/v1/integrations/oa/sync/users", json={"provider": "feishu"})
+        allowed = await admin_auth_client.post("/api/v1/integrations/oa/sync/users", json={"provider": "feishu"})
+
+    assert forbidden.status_code == 403
+    assert allowed.status_code == 200
+
+
+@pytest.mark.asyncio
 async def test_lic_status_requires_task_owner(auth_client, outsider_auth_client, test_user):
     task = CrawlerTask(url="https://example.com", keyword="k", task_id="task-owner", owner_id=str(test_user.id))
     crawler_service.tasks[task.id] = task
@@ -832,6 +905,57 @@ async def test_mcp_tools_require_platform_admin(client, auth_client, admin_auth_
 
     assert allowed.status_code == 200
     assert allowed.json() == [{"name": "tool-a"}]
+
+
+@pytest.mark.asyncio
+async def test_mcp_server_management_requires_system_admin(client, admin_auth_client, db_session, test_organization):
+    org_admin = User(
+        id=str(uuid4()),
+        email=f"mcp-org-admin-{uuid4().hex[:8]}@example.com",
+        name="MCP 组织管理员",
+        hashed_password="hashed_password",
+        org_id=test_organization.id,
+        is_active=True,
+        role="org_admin",
+    )
+    db_session.add(org_admin)
+    await db_session.flush()
+
+    org_admin_response = await client.get(
+        "/api/v1/mcp/servers",
+        headers={"Authorization": f"Bearer {create_access_token(user_id=org_admin.id)}"},
+    )
+    platform_admin_response = await admin_auth_client.get("/api/v1/mcp/servers")
+
+    assert org_admin_response.status_code == 403
+    assert platform_admin_response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_mcp_server_create_writes_masked_audit_log(admin_auth_client, db_session):
+    response = await admin_auth_client.post(
+        "/api/v1/mcp/servers",
+        json={
+            "name": "ci-mcp",
+            "description": "test server",
+            "type": "stdio",
+            "command": "npx",
+            "args": ["tool"],
+            "env": {"API_TOKEN": "secret-value"},
+            "is_enabled": False,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["env_keys"] == ["API_TOKEN"]
+
+    audit_result = await db_session.execute(select(AuditLog).where(AuditLog.action == "mcp.server.create"))
+    audit_log = audit_result.scalar_one()
+    assert audit_log.resource_id == payload["id"]
+    assert audit_log.extra_data == {"source": "mcp"}
+    assert audit_log.new_value["env_keys"] == ["API_TOKEN"]
+    assert "secret-value" not in json.dumps(audit_log.new_value, ensure_ascii=False)
 
 
 @pytest.mark.asyncio

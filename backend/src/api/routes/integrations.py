@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 
 from src.core.config import settings
-from src.core.deps import get_current_user_required
+from src.core.deps import UserRole, get_current_user_required, require_role
 from src.models.user import User
-from src.services.oa_integration_service import oa_service
+from src.services.oa_integration_service import OAProviderConfigError, oa_service
 
 router = APIRouter()
 
@@ -52,9 +52,12 @@ async def send_oa_notification(
     """
     target_user_id = str(user.id)
 
-    success = await oa_service.send_notification(
-        target_user_id, req.title, req.content, req.provider
-    )
+    try:
+        success = await oa_service.send_notification(
+            target_user_id, req.title, req.content, req.provider
+        )
+    except OAProviderConfigError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
     if not success:
         raise HTTPException(status_code=500, detail="Failed to send notification")
     return {"status": "success", "message": "Notification sent"}
@@ -67,20 +70,26 @@ async def create_oa_approval(
     """
     在OA系统中创建审批流程（如合同审批、用印申请）
     """
-    instance_id = await oa_service.initiate_approval(
-        req.title, req.details, str(user.id), req.provider
-    )
+    try:
+        instance_id = await oa_service.initiate_approval(
+            req.title, req.details, str(user.id), req.provider
+        )
+    except OAProviderConfigError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
     return {"status": "success", "instance_id": instance_id}
 
 @router.post("/sync/users", summary="同步OA用户")
 async def sync_oa_users(
     req: SyncRequest,
-    user: User = Depends(get_current_user_required),
+    user: User = Depends(require_role(UserRole.ADMIN, UserRole.ORG_ADMIN, UserRole.SUPER_ADMIN)),
 ) -> dict[str, Any]:
     """
     从OA系统同步用户和组织架构
     """
-    result = await oa_service.sync_org_structure(req.provider)
+    try:
+        result = await oa_service.sync_org_structure(req.provider)
+    except OAProviderConfigError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
     return {"status": "success", "data": result}
 
 @router.post("/webhook/{provider}", summary="OA回调接收")

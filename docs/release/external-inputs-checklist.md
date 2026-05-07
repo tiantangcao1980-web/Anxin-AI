@@ -77,7 +77,7 @@
 
 | 输入 | 用途 | 对应字段或 artifact | 当前状态 |
 |---|---|---|---|
-| iOS 测试构建 | 真机或 TestFlight smoke | build hash + device transcript | 缺；本机 host probe 未发现可用 iOS Simulator device |
+| iOS 测试构建 | 真机、TestFlight 或 iOS Simulator app-run smoke | build hash + device transcript | 缺；本机 host probe 已确认 iOS Simulator 可用，但尚未生成 app-run transcript |
 | Android 测试构建 | 真机 smoke | build hash + device transcript | 缺；ADB 可启动但当前无连接设备，`emulator` CLI 不在 PATH |
 | 微信开发者工具或真机环境 | 小程序 smoke | DevTools/project transcript | 本机 WeChat DevTools CLI project smoke 已通过；交互式/真机证据仍缺 |
 | 测试账号 | 登录、审批、消息、任务、聊天延续 | redacted tester/account role | 缺 |
@@ -90,6 +90,6 @@
 | 输入 | 用途 | 当前状态 |
 |---|---|---|
 | 已整理提交的 release 分支 | GitNexus commit-scoped 复验 | 缺 |
-| 重跑后的 GitNexus metadata | 知识图覆盖最终提交 | 当前旧 commit 可读；最终提交后仍需复跑 |
+| 重跑后的 GitNexus metadata | 知识图覆盖最终提交 | 当前本地交付提交已重建并可读；新增真实证据提交后仍需复跑 |
 | `scripts/commercial-readiness-gate.sh --quick` PASS transcript | 商业 Go 证据 | 缺 |
 | `scripts/commercial-readiness-gate.sh --with-local-tests` PASS transcript | 代码级 + 商业证据双闭环 | 缺 |

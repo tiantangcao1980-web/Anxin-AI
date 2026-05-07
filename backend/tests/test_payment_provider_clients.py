@@ -11,8 +11,11 @@ from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from src.models.payment import PaymentOrder
 from src.services.payment_service import (
     AlipayProvider,
+    MockPaymentProvider,
+    PaymentProviderConfigError,
     PaymentStatusEnum,
     WeChatPayProvider,
+    get_payment_provider,
     reset_payment_providers,
 )
 from src.services.payment_webhook_service import apply_payment_webhook
@@ -94,6 +97,35 @@ def reset_providers():
     reset_payment_providers()
     yield
     reset_payment_providers()
+
+
+def test_payment_provider_factory_rejects_mock_in_commercial_environment(monkeypatch):
+    from src.core.config import settings
+
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    monkeypatch.delenv("PAYMENT_PROVIDER", raising=False)
+
+    with pytest.raises(PaymentProviderConfigError, match="真实 PAYMENT_PROVIDER"):
+        get_payment_provider()
+
+
+def test_payment_provider_factory_rejects_unknown_provider(monkeypatch):
+    from src.core.config import settings
+
+    monkeypatch.setattr(settings, "ENVIRONMENT", "development")
+    monkeypatch.setenv("PAYMENT_PROVIDER", "typo_provider")
+
+    with pytest.raises(PaymentProviderConfigError, match="未知支付渠道"):
+        get_payment_provider()
+
+
+def test_payment_provider_factory_allows_mock_in_development(monkeypatch):
+    from src.core.config import settings
+
+    monkeypatch.setattr(settings, "ENVIRONMENT", "development")
+    monkeypatch.delenv("PAYMENT_PROVIDER", raising=False)
+
+    assert isinstance(get_payment_provider(), MockPaymentProvider)
 
 
 @pytest.mark.asyncio

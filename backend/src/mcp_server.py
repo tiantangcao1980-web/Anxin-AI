@@ -12,6 +12,7 @@ from typing import TypeVar
 from mcp.server.fastmcp import FastMCP
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
 from src.core.database import async_session_maker
 from src.services.case_service import CaseService
 from src.services.knowledge_service import KnowledgeService
@@ -21,6 +22,12 @@ ResultT = TypeVar("ResultT")
 
 # Create an MCP server
 mcp = FastMCP("AI Legal Agent")
+
+
+def _ensure_standalone_mcp_enabled() -> None:
+    if settings.ENVIRONMENT.lower() in {"staging", "production"} and not settings.MCP_STANDALONE_ENABLED:
+        raise RuntimeError("Standalone MCP is disabled in commercial environments; use authenticated /api/v1/mcp routes.")
+
 
 # Helper to get DB session
 async def get_session() -> AsyncIterator[AsyncSession]:
@@ -41,6 +48,8 @@ async def with_service(
 @mcp.resource("legal://cases/list")
 async def list_cases_resource() -> str:
     """List recent legal cases as a resource."""
+    _ensure_standalone_mcp_enabled()
+
     async def _list(service: CaseService) -> str:
         cases, _ = await service.list_cases(page_size=10)
         return "\n".join([f"- [{c.case_number}] {c.title} ({c.status.value})" for c in cases])
@@ -50,6 +59,8 @@ async def list_cases_resource() -> str:
 @mcp.resource("legal://knowledge/stats")
 async def knowledge_stats_resource() -> str:
     """Get knowledge base statistics."""
+    _ensure_standalone_mcp_enabled()
+
     async def _stats(service: KnowledgeService) -> str:
         kbs, _ = await service.list_knowledge_bases()
         stats = []
@@ -70,6 +81,8 @@ async def search_knowledge_base(query: str, kb_id: str | None = None) -> str:
         query: The search query (e.g., "contract breach penalties")
         kb_id: Optional ID of specific knowledge base to search
     """
+    _ensure_standalone_mcp_enabled()
+
     async def _search(service: KnowledgeService) -> str:
         results = await service.semantic_search_simple(query, kb_id=kb_id, top_k=5)
         formatted_results = []
@@ -91,6 +104,8 @@ async def analyze_legal_case(case_id: str) -> str:
     Args:
         case_id: The UUID of the case to analyze
     """
+    _ensure_standalone_mcp_enabled()
+
     async def _analyze(service: CaseService) -> str:
         # Use default admin ID for system-triggered analysis
         admin_id = "00000000-0000-0000-0000-000000000001"
@@ -117,6 +132,8 @@ async def get_case_details(case_id: str) -> str:
     Args:
         case_id: The UUID of the case
     """
+    _ensure_standalone_mcp_enabled()
+
     async def _get(service: CaseService) -> str:
         case = await service.get_case(case_id)
         if not case:
@@ -145,6 +162,8 @@ async def get_case_details(case_id: str) -> str:
 @mcp.tool()
 async def list_pending_cases() -> str:
     """List all pending legal cases that require attention."""
+    _ensure_standalone_mcp_enabled()
+
     async def _list(service: CaseService) -> str:
         cases, _ = await service.list_cases(status="pending", page_size=20)
         if not cases:
@@ -162,4 +181,5 @@ if __name__ == "__main__":
     # But usually assume python path is set correctly
 
     # Run the server
+    _ensure_standalone_mcp_enabled()
     mcp.run()

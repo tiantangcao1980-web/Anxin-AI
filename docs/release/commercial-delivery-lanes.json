@@ -2,7 +2,7 @@
   "$schema": "https://anxin.local/schemas/commercial-delivery-lanes.v1.json",
   "generated_at": "2026-05-07T13:50:00+08:00",
   "status": "not_ready",
-  "status_reason": "Parallel lanes are defined for commercial delivery, but external sandbox, packaged desktop, device evidence, and final clean-worktree/GitNexus gates remain incomplete.",
+  "status_reason": "Parallel lanes are defined for commercial delivery, but external sandbox, packaged desktop, device evidence, enterprise agent governance, and final clean-worktree/GitNexus gates remain incomplete.",
   "parallelization": {
     "max_concurrent_lanes": 6,
     "final_lane": "final-commercial-gate",
@@ -33,7 +33,7 @@
       ],
       "external_inputs": [],
       "current_blockers": [
-        "Working tree is not clean; tracked and untracked release artifacts must be reviewed before final GitNexus rerun."
+        "Current release docs and host-probe evidence increments must be reviewed, validated, and committed before final GitNexus rerun."
       ],
       "completion_gate": [
         "local_secret=0 and unknown=0 in release-worktree-inventory",
@@ -235,6 +235,7 @@
       ],
       "evidence": [
         "docs/release/evidence/mobile-device-smoke.md",
+        "docs/release/evidence/artifacts/mobile-device-host-probe-20260508.json",
         "docs/release/evidence/artifacts/mobile-device-manual-template-20260508.json",
         "docs/release/evidence/artifacts/mobile-mini-code-smoke-20260508.json",
         "docs/release/external-resource-handoff.md",
@@ -254,12 +255,50 @@
         "redacted test account role"
       ],
       "current_blockers": [
-        "Local code-level smoke was refreshed on 2026-05-08, including Expo config/SDK dependency guard, WeChat DevTools CLI project smoke, refresh-auth guards, and structured mobile_npm_audit status=passed tracking; npx expo-doctor passes 17/17 and mobile production npm audit is 0, but iOS, Android, interactive WeChat DevTools/device, and cross-device continuation evidence are not attached."
+        "Local code-level smoke was refreshed on 2026-05-08, including Expo config/SDK dependency guard, WeChat DevTools CLI project smoke, refresh-auth guards, and structured mobile_npm_audit status=passed tracking; npx expo-doctor passes 17/17 and mobile production npm audit is 0. Host probe confirms iOS Simulator is available, but iOS app-run, Android, interactive WeChat DevTools/device, and cross-device continuation evidence are not attached."
       ],
       "completion_gate": [
         "docs/release/evidence/mobile-device-smoke.md has Status: complete",
         "iOS, Android, WeChat, error-state, cross-device, and mobile security rows all have real artifact references",
         "release evidence secret scan passes after device artifacts are added"
+      ]
+    },
+    {
+      "id": "enterprise-agent-governance",
+      "category": "local-governance",
+      "status": "in_progress",
+      "can_parallelize": true,
+      "write_scope": [
+        "docs/audit/_tasks/TASK-12-agent-control-plane-skill-evolution.md",
+        "docs/audit/12-enterprise-agent-governance/",
+        "docs/security/agent-governance-policy.md",
+        "docs/architecture/agent-control-plane.md",
+        "docs/release/evidence/agent-governance-smoke.md"
+      ],
+      "evidence": [
+        "docs/audit/_tasks/TASK-12-agent-control-plane-skill-evolution.md",
+        "docs/openspec/00-intelligent-assistant-platform-spec.md",
+        "docs/openspec/01-commercial-delivery-spec.md",
+        "docs/openspec/02-commercial-delivery-test-spec.md",
+        "docs/references/agentic-platform-benchmark-2026-05-08.md"
+      ],
+      "local_commands": [
+        "test -s docs/audit/_tasks/TASK-12-agent-control-plane-skill-evolution.md",
+        "rg -n \"AgentManager|CapabilityRoute|consumer token|Human-in-the-loop|SkillEvolutionProposal|可信会话|企业智能体治理\" docs/openspec docs/audit/_tasks docs/references",
+        "future: cd backend && ./.venv/bin/pytest -q tests/test_agent_governance_policy.py tests/test_capability_routes.py tests/test_agent_approval_flow.py",
+        "future: cd frontend && npm test -- AgentGovernance"
+      ],
+      "external_inputs": [],
+      "current_blockers": [
+        "Governance specs and implementation task are ready, including trusted conversation UX and Skill Evolution Gate, but code-level AgentManager/Team/Worker/Human models, CapabilityRoute route-token isolation, approval workspace, capability center, long-task artifact workflow, and skill eval/approval/rollback are not implemented yet."
+      ],
+      "completion_gate": [
+        "capability_policy_engine covers subscription, role, permission, risk, privacy mode, device trust, channel policy, and approval status",
+        "Agent/Worker never stores real secrets and route revocation fails the next tool call",
+        "trusted conversation UX covers long-task timeline, tool status, editable artifacts, pause/resume/takeover, and cross-device recovery",
+        "Skill Evolution Gate covers proposal, eval, approval, gray release, rollback, and audit",
+        "Five permission regressions pass: employee browser-fill rejected, department admin report agent, boss desktop-control approval, super admin MCP route revocation, external provider material-package boundary",
+        "docs/release/evidence/agent-governance-smoke.md has Status: complete"
       ]
     },
     {
@@ -292,7 +331,7 @@
         "final commit-scoped GitNexus metadata"
       ],
       "current_blockers": [
-        "Commercial readiness gate currently fails until payment, e-sign, desktop, mobile/device, worktree, and final GitNexus evidence are complete."
+        "Commercial readiness gate currently fails until payment, e-sign, desktop, mobile/device, enterprise agent governance, final clean-worktree, and final GitNexus evidence are complete."
       ],
       "completion_gate": [
         "working tree clean",

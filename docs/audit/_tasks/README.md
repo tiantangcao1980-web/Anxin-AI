@@ -1,6 +1,6 @@
 # 任务提示词索引
 
-> 14 份独立任务提示词。可作为：
+> 15 份独立任务提示词。可作为：
 > 1. 主对话内 spawn 子代理时的 prompt 内容
 > 2. 拆分到独立会话执行（建议每个独立 git worktree）
 > 3. 团队成员分工执行的工单
@@ -34,3 +34,4 @@
 | 任务 11a | TASK-11a-desktop-mvp.md | 波次 4 | 5-7 天 |
 | 任务 11b | TASK-11b-sync-engine.md | 波次 4 | 7-10 天（实质从零）|
 | 任务 11c | TASK-11c-mobile-design.md | 波次 4 | 4-5 天 |
+| 任务 12 | TASK-12-agent-control-plane-skill-evolution.md | 波次 5 | 8-12 天 |

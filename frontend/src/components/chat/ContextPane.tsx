@@ -100,7 +100,7 @@ export function ContextPane({ content }: ContextPaneProps) {
  }
 
  if (content.type ==='document-diff') {
- return <DocumentDiff />;
+ return <DocumentDiff data={content.data} />;
  }
 
  return null;

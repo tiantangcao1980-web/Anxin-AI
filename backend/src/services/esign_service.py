@@ -956,6 +956,8 @@ def get_esign_provider() -> ESignProvider:
         return _provider_instance
 
     provider_name = os.getenv("ESIGN_PROVIDER", "mock").lower()
+    if settings.ENVIRONMENT.lower() in {"production", "staging"} and provider_name == "mock":
+        raise ESignProviderConfigError("staging/production 环境必须配置真实 ESIGN_PROVIDER，禁止使用 Mock 电子签章渠道。")
 
     if provider_name == "esignbao":
         _provider_instance = ESignBaoProvider()
@@ -963,9 +965,11 @@ def get_esign_provider() -> ESignProvider:
     elif provider_name == "fadada":
         _provider_instance = FaDaDaProvider()
         logger.info("电子签章提供商: 法大大")
-    else:
+    elif provider_name == "mock":
         _provider_instance = MockESignProvider()
         logger.info("电子签章提供商: Mock（开发模式）")
+    else:
+        raise ESignProviderConfigError(f"未知电子签章渠道 '{provider_name}'，请配置 esignbao 或 fadada。")
 
     return _provider_instance
 

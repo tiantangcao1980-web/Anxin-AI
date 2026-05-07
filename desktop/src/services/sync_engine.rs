@@ -189,18 +189,16 @@ impl SyncEngine {
 
     /// 推送本地待同步记录
     async fn push_pending_records(&self) -> Result<u32, String> {
-        // TODO: 从 SQLite sync_log 查询 status='pending' 的记录
-        // 然后 POST /api/v1/sync/push
         log::info!("推送待同步记录到: {}/api/v1/sync/push", self.backend_url);
-        Ok(0)
+        self.set_sync_status(SyncStatus::Error).await;
+        Err("Rust 同步引擎数据面未启用；请使用前端 Tauri bridge 的 SQLCipher 本地同步路径".to_string())
     }
 
     /// 拉取云端增量更新
     async fn pull_incremental_updates(&self) -> Result<u32, String> {
-        // TODO: GET /api/v1/sync/pull?since={last_sync_version}
-        // 然后写入本地 SQLite
         log::info!("拉取增量更新从: {}/api/v1/sync/pull", self.backend_url);
-        Ok(0)
+        self.set_sync_status(SyncStatus::Error).await;
+        Err("Rust 同步引擎数据面未启用；请使用前端 Tauri bridge 的 SQLCipher 本地同步路径".to_string())
     }
 
     /// 控制面心跳（所有模式都执行）
@@ -254,7 +252,9 @@ pub struct SyncResult {
 mod tests {
     use super::{
         decode_local_sync_snapshot, read_local_sync_snapshot_from_connection, LocalSyncSnapshot,
+        SyncEngine,
     };
+    use crate::models::{create_shared_state, AppMode, SyncStatus};
     use rusqlite::Connection;
     use serde_json::json;
 
@@ -320,5 +320,25 @@ mod tests {
         assert_eq!(snapshot.deferred, 1);
         assert_eq!(snapshot.conflicts, 1);
         assert_eq!(snapshot.needs_human, 2);
+    }
+
+    #[tokio::test]
+    async fn cloud_sync_fails_closed_when_rust_data_plane_is_not_enabled() {
+        let state = create_shared_state();
+        {
+            let mut s = state.write().await;
+            s.mode = AppMode::Cloud;
+        }
+        let engine = SyncEngine::new(state.clone(), "http://localhost:8001".to_string());
+
+        let result = engine.sync().await;
+
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .contains("Rust 同步引擎数据面未启用"));
+        let s = state.read().await;
+        assert_eq!(s.sync_status, SyncStatus::Error);
+        assert!(s.last_sync_time.is_none());
     }
 }

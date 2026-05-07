@@ -5,6 +5,8 @@
 > 下游依赖：任务 11a（拖拽分析的文件需要同步管道）、任务 11c（移动端跨设备会话延续 = ROADMAP M3 直接依赖本任务）
 > 必读：`../PLAN.md`、`../00-platform/01-prd-reality-gap.md`、`../00-platform/03-cross-cutting-gaps.md` §1 缺口 C（**本任务的全部背景**）、`PRODUCT_ROADMAP.md` M3 跨设备会话延续
 
+> 2026-05-08 定位补充：同步引擎不只同步业务数据，还要成为桌面主工作站与移动随身助手之间的会话连续、远程命令、审批确认和执行状态回传底座。绝密/本地模式下默认不上行，移动远控也必须遵守用户授权和隐私模式。
+
 ---
 
 ## 1. 范围
@@ -26,9 +28,12 @@
   - **新建** `desktop/migrations/001_offline_queue.sql`（SQLite schema）
   - **新建** `desktop/src/models/sync.rs`（OfflineTask / SyncState / ConflictRecord 数据模型）
   - 已有 `desktop/src/commands/sync.rs:155 resolve_conflict`（保留接口，重写实现）
+  - **新建/预留** `desktop/src/models/remote_command.rs`（RemoteCommand / DevicePairing / RemoteCommandAudit 数据模型）
+  - **新建/预留** `desktop/src/services/remote_command_queue.rs`（移动远控命令入队、确认、取消、状态回传）
 - 后端：
   - `backend/src/services/sync_service.py`（适配 device_id + user_id 隔离 + version 增量）
   - `backend/src/api/routes/sync.py`（push / pull 路由实现）
+  - **新建/预留** `backend/src/api/routes/device_pairing.py` 或同步路由子路径（设备配对、撤销和远控审计）
   - **新建** alembic 迁移：`sync_log` 表（记录所有变更供 pull 增量回放）
 - 测试：
   - **新建** `desktop/tests/sync_push.rs`
@@ -63,6 +68,7 @@
 | P0-5 | `backend/src/services/sync_service.py` + `backend/src/api/routes/sync.py` | sync 接口未实现 device_id 隔离 + version 增量 | push: 校验 user 拥有 entity；按 entity_type 路由到对应 service upsert；写 sync_log（含 device_id 来源）。pull: 基于 sync_log `WHERE user_id=? AND version > ?` 增量返回；同 user 不同 device 互通，跨 user 完全隔离 |
 | P0-6 | `frontend/src/lib/api-adapter.ts` retry scheduler | ✅ 代码级已补；runtime 未验 | 失败 push 行写入 `retry_count` / `next_retry_at` / `needs_human`，按有界指数退避排队；仍需 packaged Tauri runtime smoke 证明 |
 | P0-7 | `desktop/src/services/sync_engine.rs` SQLite 加密 | 本地 SQLite 明文 | 接 `sqlcipher`（或 `tauri-plugin-sql` + sqlcipher feature）；密钥从系统 keyring 读（macOS Keychain / Windows DPAPI）；首次启动生成；绝密模式数据强制加密 |
+| P0-8 | 远程命令队列 + 设备配对 + 审计 | 移动端远程控制桌面未定义 | 支持 mobile -> desktop 的 command queue：pairing、permission scope、pending/accepted/running/succeeded/failed/cancelled 状态、敏感动作确认、撤销、过期、审计日志；绝密模式默认拒绝外部命令，除非用户在桌面端显式授权 |
 
 ---
 
@@ -75,6 +81,7 @@
 - 列横切缺口 C（本任务自身）
 - 列任务 11a 拖拽落地、任务 11c 跨设备会话延续对本任务的依赖
 - 列后端 sync_service 当前状态（是否已有 sync_log 表；是否已有 device_id 字段；是否已有 user_id 隔离查询）
+- 列移动远控桌面的协议差分：当前是否有 device pairing、remote command、command audit、permission scope、revocation、local-mode deny 相关实现
 
 ### Step 1 · 检索复用
 
@@ -116,12 +123,13 @@
 3. 复用 `commands/sync.rs:155 resolve_conflict` 上行接口让用户手动选择
 4. 单测：覆盖 仅本地改 / 仅云端改 / 双方都改时间戳同 / 双方都改本地新 / 双方都改云端新 五种路径
 
-### Step 6 · P0-5 后端隔离 + P0-6 自动重试 + P0-7 加密
+### Step 6 · P0-5 后端隔离 + P0-6 自动重试 + P0-7 加密 + P0-8 远程命令
 
 1. 后端：sync_service push / pull 全部加 `user_id` 过滤（fail-closed，未传 user_id 直接 401）
 2. 后端：限流按 `device_id + user_id` 维度（防恶意刷），用现有 Redis 限流中间件
 3. 桌面：新建 tokio background task `retry_failed_tasks`：每 60s 扫描 + 指数退避；超 24h 标 `needs_human`
 4. 桌面：SQLite 接 sqlcipher，密钥经 keyring；绝密模式强制加密；非绝密模式可选
+5. 远程命令：新增 mobile -> desktop command queue，命令状态进入本地 SQLite 和后端审计；桌面端确认后执行，高风险动作二次确认；用户撤销配对后所有未执行命令过期
 
 ### Step 7 · 验证 + 沉淀
 
@@ -166,6 +174,7 @@ docs/audit/11b-sync-engine/
 - **本任务是任务 11a 的运行时基础**：任务 11a P0-3 拖拽分析落地的文件依赖本同步队列，未交付前任务 11a 的拖拽只能"入队但不上行"
 - **不动**：sync 协议字段不允许擅自改名（要兼容已上线设备）；冲突合并默认策略要先 PR 评审后才能切换为非 last-writer-wins
 - **绝密模式**：本同步在绝密模式下默认完全不上行，仅本地 SQLite；混合模式按隐私层级过滤；云端模式全量；任何模式切换必须用户主动确认
+- **远程控制**：移动端远控桌面在绝密模式下默认拒绝；允许时必须桌面端显式配对和授权，所有命令有过期时间、可取消、可审计，不能让手机静默读取本地文件或密钥
 - **不动**：design-tokens / payment / prompts / 任务 11a 的窗口外观文件
 - **测试 fixture**：禁止用真实生产数据，全部用 factory + faker
 
@@ -181,6 +190,7 @@ docs/audit/11b-sync-engine/
 - [ ] 自动重试 runtime：代码级退避与 `needs_human` 已补；仍需在真实 Tauri runtime 中验证失败、延迟重试、达到上限转人工处理
 - [ ] sqlcipher 接通：本地 SQLite 文件用 hex 工具打开看不到明文；密钥在 macOS Keychain / Windows Credential Manager 可查
 - [ ] 后端 sync 接口：跨 user 完全隔离（A 用户 pull 永远拿不到 B 用户的 sync_log）；按 device_id + user_id 限流生效
+- [ ] 移动远控命令队列：设备配对、命令入队、桌面确认、状态回传、取消/撤销、过期、审计和绝密模式拒绝均有测试或 runtime smoke
 - [ ] 桌面 `cargo test` 新增至少 15 个用例全绿；后端 `pytest` 新增至少 10 个用例全绿；全栈 273 baseline 不退化
 - [ ] 性能基线达标：push 100 条 P95 < 2s；pull 500 条 P95 < 3s
 - [ ] `docs/audit/11b-sync-engine/01..05.md` + `docs/desktop/sync-engine-{design,protocol,runbook}.md` 全部产出

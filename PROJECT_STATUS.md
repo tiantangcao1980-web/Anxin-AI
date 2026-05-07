@@ -98,8 +98,8 @@
 - [x] 获客分析、订阅报表、功能开关、审批列表/详情、舆情、尽调详情/报告等核心越权面已收口
 
 ### 已完成沉淀
-- [x] 审计记录已写入 `docs/2026-04-03_安全审计记录.md`
-- [x] 整改矩阵已写入 `docs/2026-04-03_安全整改矩阵.md`
+- [x] 审计记录已写入 `docs/archive/legacy-root-docs/2026-04-03-security-audit-record.md`
+- [x] 整改矩阵已写入 `docs/archive/legacy-root-docs/2026-04-03-security-remediation-matrix.md`
 - [x] OMX working memory / project memory 已记录当前发现与后续检查方向
 
 ### 已开始落地（Batch 1）
@@ -803,8 +803,8 @@ DASHSCOPE_API_KEY=<阿里云百炼 API Key>
 ### AI 生成管线性能分析与优化规划
 - [x] 深度分析 [chenglou/pretext](https://github.com/chenglou/pretext) 项目架构，验证"几百倍性能提升"属实（Chrome 468x，Safari 1,296x）
 - [x] 完成当前 AI 生成管线全链路瓶颈诊断（多 Agent 串行阻塞、3 次串行 LLM、无对话历史等 8 项问题）
-- [x] 输出技术分析文档：`docs/2026-03-31_Pretext技术分析与性能优化借鉴.md`
-- [x] 输出优化方案文档：`docs/2026-03-31_AI生成管线性能优化方案.md`
+- [x] 输出技术分析文档：`docs/archive/legacy-root-docs/2026-03-31-pretext-technical-analysis.md`
+- [x] 输出优化方案文档：`docs/archive/legacy-root-docs/2026-03-31-ai-generation-pipeline-performance-plan.md`
 - [x] P0 小步落地（第一批）：`LLMService` 默认配置 TTL 缓存（60s）+ Agent 热路径统一自愈入口，避免 `chat/stream_chat` 重复回库
 - [x] P0 小步落地（第一批）：聊天入口新增空消息校验，阻断无效请求进入多 Agent/LLM 链路
 - [x] P0 小步落地（第二批）：单 Agent 流式链路与 WebSocket 单 Agent 回复补齐最近 10 条历史透传

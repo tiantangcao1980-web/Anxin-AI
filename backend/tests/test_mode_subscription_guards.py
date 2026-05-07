@@ -24,6 +24,7 @@ from fastapi import HTTPException
 from src.core.mode_deps import require_mode, require_subscription_feature
 from src.models.billing import BillingPlan, Subscription
 from src.models.user import User
+from src.services.subscription_service import SubscriptionService
 
 
 def _build_request(mode_header: str | None = None) -> MagicMock:
@@ -200,3 +201,13 @@ async def test_require_subscription_feature_pro_user_passes(hybrid_pro_user, db_
     dep = require_subscription_feature("due_diligence")
     result = await dep(user=hybrid_pro_user, db=db_session)
     assert result is hybrid_pro_user
+
+
+@pytest.mark.asyncio
+async def test_unknown_subscription_feature_denied_by_default(hybrid_pro_user, db_session):
+    """新增商业能力未进入套餐配置前必须 fail-closed。"""
+    allowed = await SubscriptionService(db_session).can_access_feature(
+        hybrid_pro_user.id,
+        "remote_desktop_control",
+    )
+    assert allowed is False

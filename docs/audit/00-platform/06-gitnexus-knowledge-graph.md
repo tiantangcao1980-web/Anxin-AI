@@ -1,6 +1,6 @@
 # GitNexus 知识图验证记录
 
-> 日期：2026-05-07
+> 日期：2026-05-08
 > 目标：在进入下一步商业交付开发前，确认 GitNexus 索引可作为代码级导航依据。
 
 ## 1. 当前索引状态
@@ -9,16 +9,16 @@
 |---|---|
 | repo | `Anxin-Smart-Legal-Services` |
 | path | `/Users/pengchengkeji/Documents/GitHub/Anxin-Smart-Legal-Services` |
-| commit | `b01122d916f653b974ece08628a8d18fb4f581a3` |
-| files | 1181 |
-| symbols/nodes | 30003 |
-| edges | 54587 |
-| clusters | 1028 |
+| commit | 当前本地交付提交（以 `gitnexus status` 为准） |
+| files | 1304 |
+| symbols/nodes | 以 `.gitnexus/meta.json` 为准（本轮约 32.5k） |
+| edges | 58785 |
+| clusters | 以 `.gitnexus/meta.json` 为准（本轮约 1.1k） |
 | flows/processes | 300 |
-| embeddings rows | 28219 |
+| embeddings rows | 30417 |
 | distinct embedded nodes | not separately verified |
 
-`npx -y gitnexus@latest status` 显示索引与当前 commit 一致。2026-05-06 23:06 使用 rc 版直接二进制完成主仓 embedding 生成；当前 `.gitnexus/meta.json` 显示 `capabilities.vectorSearch.status=vector-index`，embedding stats 和 store 均可读。验证通过：`cypher MATCH (e:CodeEmbedding) RETURN count(e) AS cnt` 返回 `28219`，`context getDesktopSQLiteSecurityStatus` 可定位到 `frontend/src/lib/api-adapter.ts:97`，`query "desktop sqlite security status"` 的 timing 显示走 vector/BM25 merge 并返回相关定义。注意：`npx gitnexus@rc` 在本机仍可能触发 npm/arborist rebuild bug；推荐使用 `GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus`。
+`GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/gitnexus-index.sh --embeddings --skip-context-checks` 已在本轮本地交付提交后完成全量重建。当前 `.gitnexus/meta.json` 显示 `capabilities.vectorSearch.status=vector-index`，embedding stats 和 store 均可读。验证通过：`cypher MATCH (e:CodeEmbedding) RETURN count(e) AS cnt` 返回 `30417`，`gitnexus status` 显示 indexed/current commit 一致且 `Status: up-to-date`，`detect-changes --repo Anxin-Smart-Legal-Services` 返回 `No changes detected`。注意：`npx gitnexus@rc` 在本机仍可能触发 npm/arborist rebuild bug；推荐使用 `GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus`。
 
 ## 2. 配置修正
 
@@ -86,7 +86,7 @@ npx -y gitnexus@latest context -r Anxin-Smart-Legal-Services DocumentService
   - 桌面同步事实以 `frontend/src/lib/api-adapter.ts`、`frontend/src/lib/tauri-bridge.ts`、`frontend/src/components/mode-switcher/SyncStatus.tsx`、`frontend/src/pages/SyncConflicts.tsx`、`desktop/src/commands/sync.rs` 的源码审计，以及 `frontend/src/lib/api-adapter.sync.test.ts`、`frontend/src/lib/sync-conflict-utils.test.ts`、`npm run test`（当前最新 `10 files / 34 tests passed`）、`npm run lint`、`npx tsc --noEmit`、`desktop cargo check` 为准。
 - 2026-05-06 TASK-07 RAG 引用/权限/PII 收口后复核：
   - 历史快照：MCP `list_repos` 当时显示本仓库 `files: 1026`、`nodes: 25735`、`edges: 38986`、`processes: 167`、`embeddings: 23318`。
-  - 历史快照：MCP `detect_changes(scope=unstaged)` 当时在大工作树上返回 `changed_files: 108`、`changed_symbols: 1144`、`affected_processes: 68`、`risk_level: critical`。当前最新 CLI detect-changes 为 `354/5685/240/critical`。
+  - 历史快照：MCP `detect_changes(scope=unstaged)` 当时在大工作树上返回 `changed_files: 108`、`changed_symbols: 1144`、`affected_processes: 68`、`risk_level: critical`。当时补充 CLI detect-changes 为 `354/5685/240/critical`。
   - MCP `context(name="build_context", file_path="backend/src/services/rag_service.py")` 可定位 `RAGService.build_context`，入边为 `query`、`stream_query`、`multi_query_rag`。
   - MCP `impact(target="build_context", direction="upstream", includeTests=true)` 返回 `risk: LOW`、直接影响 3 个调用者、2 个流程、1 个模块。
   - MCP `context(name="rag_query", file_path="backend/src/services/knowledge_service.py")` 可定位 `KnowledgeService.rag_query`，入边为 API route `knowledge.rag_query` 和 chat handler `handle_rag_query`。
@@ -129,7 +129,7 @@ npx -y gitnexus@latest context -r Anxin-Smart-Legal-Services DocumentService
   - `npx -y gitnexus@latest context --repo Anxin-Smart-Legal-Services runLocalSyncWithDependencies` 已可定位 `frontend/src/lib/api-adapter.ts:986`，出边包括 `writeSetting`、`getDeviceId`、`pushPendingRecords`、`pullIncrementalUpdates`，入边来自 `frontend/src/lib/api-adapter.sync.test.ts`。
   - `npx -y gitnexus@latest context --repo Anxin-Smart-Legal-Services getDesktopSQLiteSecurityStatus` 已可定位 `frontend/src/lib/api-adapter.ts:97`，入边来自 `frontend/src/lib/api-adapter.sync.test.ts`。
   - `npx -y gitnexus@latest context --repo Anxin-Smart-Legal-Services sqlite_migrations` 已可定位 `desktop/src/services/local_db.rs:12`，入边来自 `desktop/src/lib.rs::run` 与 `sqlite_migrations_register_initial_schema`。
-  - direct rc CLI `detect-changes --repo Anxin-Smart-Legal-Services` 在当前大工作树上返回 `changed_files: 354`、`changed_symbols: 5685`、`affected_processes: 240`、`risk_level: critical`。
+  - direct rc CLI `detect-changes --repo Anxin-Smart-Legal-Services` 在当时大工作树上返回 `changed_files: 354`、`changed_symbols: 5685`、`affected_processes: 240`、`risk_level: critical`。
   - 历史结构-only 快照中 `.gitnexus/meta.json` 为 `embeddings: 0`。`analyze --embeddings` 在 up-to-date 状态下直接 `Already up to date`，不会补生成 embeddings；`analyze --force --embeddings --verbose --skip-agents-md .` 两次在长时间本地 embedding 阶段后退出码 1，并让后续 `context` 报 `Corrupted wal file`，因此当时已清理并恢复为无 embeddings 的结构索引。
   - 2026-05-06 19:20 使用 `.env` 现有 `EMBEDDING_BASE_URL/MODEL/DIMENSIONS/API_KEY` 复用 OpenAI-compatible endpoint，最小 `/embeddings` probe 返回 HTTP 200，向量维度 1024。随后运行 `scripts/gitnexus-index.sh --embeddings --skip-context-checks`，脚本备份 `.gitnexus` 到 `.gitnexus.backup-20260506-192019`，约 42 分钟后退出码 1；半写索引已移到 `.gitnexus.failed-20260506-200138`，并恢复备份结构索引。失败索引体积约 213M，`meta.json` 仍为 `embeddings: 0`。
   - `scripts/gitnexus-index.sh --embeddings` 已支持在未显式设置 `GITNEXUS_EMBEDDING_*` 时，自动从 `.env` / `backend/.env` 的 `EMBEDDING_*` 读取 base URL、model、dims 和 API key。
@@ -138,7 +138,8 @@ npx -y gitnexus@latest context -r Anxin-Smart-Legal-Services DocumentService
   - 2026-05-06 21:52 使用 `GITNEXUS_NPX_SPEC=gitnexus@rc` 成功完成主仓 embedding 写入：`1181 files / 29999 nodes / 54587 edges / 1024 clusters / 300 flows / 28219 embeddings`；当时 meta 中记录过 vector-index 状态。
   - 同次运行中，analyze 已成功，但后置 `gitnexus@rc status` 触发 npm/arborist rebuild bug，脚本误恢复旧索引；已从 `.gitnexus.failed-20260506-215230` 恢复成功索引，并修正 `scripts/gitnexus-index.sh`，使 meta stats 已验证后不再因后置 status 失败恢复旧索引。
   - 2026-05-06 23:06 使用 `GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus` 重新完成全量 embedding 写入：`1181 files / 30003 nodes / 54587 edges / 1028 clusters / 300 flows / 28219 embeddings`，并通过 `cypher` 真实计数、`context getDesktopSQLiteSecurityStatus`、`query "desktop sqlite security status"` 和 `npx -y gitnexus@latest status` 验证。
-- 当前结论：GitNexus 结构知识图、embedding 数据和读取型 CLI（直接 rc binary）对提交级索引可读，`detect-changes` 可给出当前 dirty worktree 的影响面提示；但当前 worktree 仍存在大量未提交/未跟踪改动，semantic query 不能单独作为需求覆盖或风险放行依据。未提交的新文件与新符号仍需结合 `detect_changes`、`git status --short`、`rg`、直接源码阅读和专项 pytest/Vitest/Playwright 补齐事实。
+  - 2026-05-08 05:11 在本轮本地交付提交后使用同一 direct binary 重新完成全量 embedding 写入：`1304 files / ~32.5k nodes / 58785 edges / ~1.1k clusters / 300 flows / 30417 embeddings`，并通过 `cypher` 真实计数、`gitnexus status` commit 一致性和 `detect-changes` clean check 验证；精确 nodes/clusters 以最新 `.gitnexus/meta.json` 为准。
+- 当前结论：GitNexus 结构知识图、embedding 数据和读取型 CLI（直接 rc binary）对当前本地交付提交的索引可读且 up-to-date。semantic query 不能单独作为需求覆盖或风险放行依据；后续新增提交仍需结合 `detect_changes`、`git status --short`、`rg`、直接源码阅读和专项 pytest/Vitest/Playwright 补齐事实。
 
 ## 4. 已知限制
 
@@ -151,8 +152,8 @@ npx -y gitnexus@latest context -r Anxin-Smart-Legal-Services DocumentService
 | 本机存在多个 GitNexus 仓库索引 | 未带 repo 的 `query` 会因 multi-repo disambiguation 失败 | 所有 query 使用 `--repo Anxin-Smart-Legal-Services`；`scripts/gitnexus-index.sh` 已纳入 repo-scoped query smoke |
 | `gitnexus@latest` embedding 重建会在 LadybugDB HNSW vector index 阶段崩溃 | 稳定版不能安全生成主仓 embeddings | 当前 embedding 路径使用 `GITNEXUS_NPX_SPEC=gitnexus@rc`；脚本先跑 tiny preflight，通过后才写主仓 |
 | `npx gitnexus@rc` wrapper 可能触发 npm/arborist rebuild bug | 通过 npx 调 rc 的读取命令可能失败，但直接 rc binary 已通过 `context/query/cypher` | 使用 `GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus`；semantic/context 结果仍需用 `rg`、源码阅读和测试补盲 |
-| `status: up-to-date` 是 commit 口径，不是 clean-worktree 口径 | 当前工作树很脏，后续新增编辑不会自动入图；GitNexus status 仍可能显示 commit 一致 | 每轮开发前后必须读取 `git status --short`，大改后重跑结构 `analyze --force --skip-agents-md`，并用 `context` 抽查新增符号 |
-| 当前索引覆盖本轮工作树且已有 embeddings | 新 helper 和 embedding rows 已进入 `.gitnexus`；direct rc binary 的 `context/query/cypher` 已可读 | 以 `.gitnexus/meta.json`、`status`、direct rc CLI、源码阅读和测试作为硬证据；对 P0 仍以 `rg` + 直接源码阅读 + pytest/Vitest/Playwright 作为事实源 |
+| `status: up-to-date` 是 commit 口径，不是 clean-worktree 口径 | 后续新增编辑不会自动入图；GitNexus status 仍可能显示 commit 一致 | 每轮开发前后必须读取 `git status --short`，大改后重跑结构 `analyze --force --skip-agents-md`，并用 `context` 抽查新增符号 |
+| 当前索引覆盖最近提交级结构且已有 embeddings | embedding rows 已进入 `.gitnexus`；direct rc binary 的 `context/query/cypher` 已可读 | 以 `.gitnexus/meta.json`、`status`、direct rc CLI、源码阅读和测试作为硬证据；对 P0 仍以 `rg` + 直接源码阅读 + pytest/Vitest/Playwright 作为事实源 |
 
 触发过 scope extraction 警告的关键文件：
 
@@ -194,4 +195,4 @@ GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/g
 bash scripts/gitnexus-index.sh --embeddings
 ```
 
-`GITNEXUS_EMBEDDING_URL` 必须是 `/v1` base URL，GitNexus 会自行追加 `/embeddings`。`scripts/gitnexus-index.sh --embeddings` 会先运行 tiny preflight；通过 preflight 后脚本才会备份现有 `.gitnexus` 并执行主仓全量 embedding；如 `meta.json` 仍为 `embeddings: 0` 或 `cypher` 计数不可读，脚本会失败并恢复备份。当前主仓已完成 `28219` 条 embedding rows；direct rc binary 的 `context/query/cypher` 已通过 smoke，`npx gitnexus@rc` wrapper 仍需规避。
+`GITNEXUS_EMBEDDING_URL` 必须是 `/v1` base URL，GitNexus 会自行追加 `/embeddings`。`scripts/gitnexus-index.sh --embeddings` 会先运行 tiny preflight；通过 preflight 后脚本才会备份现有 `.gitnexus` 并执行主仓全量 embedding；如 `meta.json` 仍为 `embeddings: 0` 或 `cypher` 计数不可读，脚本会失败并恢复备份。当前主仓已完成 `30417` 条 embedding rows；direct rc binary 的 `context/query/cypher/status/detect-changes` 已通过 smoke，`npx gitnexus@rc` wrapper 仍需规避。

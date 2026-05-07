@@ -11,10 +11,29 @@ from typing import Any, TypedDict
 
 from loguru import logger
 
+from src.core.config import settings
+
+
+class OAProviderConfigError(RuntimeError):
+    """Raised when an OA provider would otherwise fall back to mock data."""
+
 
 class TokenCache(TypedDict):
     token: str
     expires_at: float
+
+
+def _commercial_environment() -> bool:
+    return settings.ENVIRONMENT.lower() in {"production", "staging"}
+
+
+def _missing_config_message(provider: str, env_names: list[str]) -> str:
+    return f"{provider} 未配置 {', '.join(env_names)}，staging/production 环境禁止使用模拟 OA 集成。"
+
+
+def _require_non_mock_capability(provider: str, capability: str) -> None:
+    if _commercial_environment():
+        raise OAProviderConfigError(f"{provider} {capability} 尚未接入真实 API，staging/production 环境禁止返回模拟结果。")
 
 
 def _string_value(data: Mapping[str, Any], key: str, default: str = "") -> str:
@@ -84,6 +103,8 @@ class FeishuProvider(BaseOAProvider):
             return self._token_cache["token"]
 
         if not self.app_id or not self.app_secret:
+            if _commercial_environment():
+                raise OAProviderConfigError(_missing_config_message("Feishu", ["FEISHU_APP_ID", "FEISHU_APP_SECRET"]))
             logger.warning("[Feishu] app_id/app_secret 未配置，使用模拟模式")
             return "mock_token"
 
@@ -149,6 +170,7 @@ class FeishuProvider(BaseOAProvider):
             return _string_value(payload, "instance_code", f"feishu_err_{resp.status_code}")
 
     async def get_approval_status(self, instance_id: str) -> str:
+        _require_non_mock_capability("Feishu", "审批状态查询")
         return "PENDING"  # 实际应查询飞书 API
 
     async def sync_department_users(self, dept_id: str) -> list[dict[str, object]]:
@@ -197,6 +219,8 @@ class DingTalkProvider(BaseOAProvider):
             return self._token_cache["token"]
 
         if not self.app_key or not self.app_secret:
+            if _commercial_environment():
+                raise OAProviderConfigError(_missing_config_message("DingTalk", ["DINGTALK_APP_KEY", "DINGTALK_APP_SECRET"]))
             logger.warning("[DingTalk] appkey/appsecret 未配置，使用模拟模式")
             return "mock_token"
 
@@ -244,9 +268,11 @@ class DingTalkProvider(BaseOAProvider):
             return _string_value(data, "process_instance_id", "dingtalk_err")
 
     async def get_approval_status(self, instance_id: str) -> str:
+        _require_non_mock_capability("DingTalk", "审批状态查询")
         return "RUNNING"
 
     async def sync_department_users(self, dept_id: str) -> list[dict[str, object]]:
+        _require_non_mock_capability("DingTalk", "组织架构同步")
         return [{"id": "mock_d1", "name": "模拟钉钉用户"}]
 
 
@@ -273,6 +299,8 @@ class WeComProvider(BaseOAProvider):
             return self._token_cache["token"]
 
         if not self.corp_id or not self.corp_secret:
+            if _commercial_environment():
+                raise OAProviderConfigError(_missing_config_message("WeCom", ["WECOM_CORP_ID", "WECOM_CORP_SECRET"]))
             logger.warning("[WeCom] corpid/corpsecret 未配置，使用模拟模式")
             return "mock_token"
 
@@ -322,9 +350,11 @@ class WeComProvider(BaseOAProvider):
             return _string_value(data, "sp_no", "wecom_err")
 
     async def get_approval_status(self, instance_id: str) -> str:
+        _require_non_mock_capability("WeCom", "审批状态查询")
         return "1"  # 1=审批中
 
     async def sync_department_users(self, dept_id: str) -> list[dict[str, object]]:
+        _require_non_mock_capability("WeCom", "组织架构同步")
         return [{"id": "mock_w1", "name": "模拟企微用户"}]
 
 class OAIntegrationService:

@@ -1,14 +1,43 @@
 # OpenSpec — 商业交付总规范
 
-> 日期：2026-05-06
+> 日期：2026-05-08
 > 范围：将安心 AI 法务从当前 V2 架构骨架推进到可商业交付候选版。
 > 前置：`docs/audit/00-platform/06-gitnexus-knowledge-graph.md` 已确认索引可用边界。
+
+## 0. 产品定位与全设备智能助手规范
+
+商业交付候选版必须同时满足两个定位：一是面向中小企业经营风险的法务、财务、税务、合规和舆情平台；二是桌面优先、移动协同、可扩展模型/Skills/MCP/知识库的全设备智能助手。
+
+| 角色/端侧 | 目标用户 | 必须可交付的价值 |
+|---|---|---|
+| 企业需求方 | 中小企业老板、股东、高管、行政、人事、财务、法务/合规兼岗人员 | 用 AI 低成本处理日常合同、劳动人事、回款、税务、工商、尽调、舆情和内部办公问题；重大事项可转可信专业人士 |
+| 专业服务方 | 律师、律所、税务师、税务师事务所、财务顾问、会计/审计人员及机构 | 通过资质认证、服务目录、利益冲突检查、SLA、评价、线索归因和结算获得可信客户 |
+| 桌面客户端 | 企业用户、专业服务人员、平台运营人员 | 成为主要工作站：安装包、本地加密库、本地模型、独立知识库、文件拖拽分析、任务队列、Skills/MCP 配置和审计日志 |
+| 移动端/小程序 | 企业用户和服务方外勤/随身场景 | 成为随身助手：咨询、审批、通知、材料查看、跨设备会话继续，并可安全远程控制已配对桌面客户端 |
+| 平台运营端 | 审核、风控、客服、商业运营 | 供需匹配质量、资质审核、投诉处理、舆情处置、推广获客、数据脱敏和发布证据可追踪 |
+
+平台能力合同：
+
+- **AI 处理日常，专业人员处理重大事项**：高金额合同、劳动争议、税务稽查、行政处罚、诉讼仲裁、重大舆情、股权融资、并购重组等场景必须给出专业协助入口和授权材料包。
+- **专业协助通道不只覆盖律师**：当前 P0 可先把律师/律所做实，但模型、接口和文档必须预留 legal / tax / accounting / finance / compliance 服务类型。
+- **桌面主工作站是未来重点**：桌面端必须可安装、可本地运行、可本地加密、可接本地模型和本地知识库；不能只作为 WebView 外壳。
+- **移动端是助手和远控端**：移动端除具备核心工作能力外，必须支持设备配对、远程命令、状态回传、取消/撤销、敏感动作二次确认和审计。
+- **用户可配置任意模型、Skills、MCP**：系统必须支持组织/个人维度的 provider、endpoint、model、key、skill、MCP Server 和权限策略配置。
+- **独立知识库与本地模型保障数据安全**：个人/组织/项目/客户知识库必须有来源、引用、权限、版本和本地缓存；绝密/本地模式默认禁止云端调用、外部 MCP 调用和数据外传。
+- **企业智能体必须管得住**：组织用户默认只开放基础能力；完整能力必须受订阅、老板/Owner、超级管理员、角色、风险级别、隐私模式、设备信任、通信策略和审批状态共同约束。
+- **Agent/Worker 不持有真实密钥**：借鉴 HiClaw 的 Manager/Leader/Worker/Human、Human-in-the-loop、声明式通信策略和 AI Gateway credential isolation，LLM/MCP/Skills/浏览器/CLI/桌面远控都必须经统一 CapabilityRoute 和短期 consumer token。
+- **交互体验必须像可信 AI 工作台**：借鉴 Codex/Claude 的公开产品体验原则，长任务要过程可见、证据可点、artifact 可编辑、可打断可恢复、能力可发现。
+- **Skills 和智能体允许进化但必须受控**：Skill 创建、升级、自我改进提案、评测、审批、灰度、回滚和记忆治理必须进入能力中心和审计，不允许 agent 无审批自改生产能力。
+- **舆情监测与推广获客是商业价值入口**：舆情监测要连接风险预警、处置建议和人工服务转介；推广获客必须标识清楚、授权清楚、来源可追踪、反骚扰。
 
 ## 1. 商业交付定义
 
 本项目达到商业交付候选版，必须同时满足：
 
-- C 端需求方、Pro 服务方、桌面端、移动/小程序端的核心路径不再依赖 mock 或仅 UI 骨架。
+- 中小企业需求方、专业服务方、桌面端、移动/小程序端的核心路径不再依赖 mock 或仅 UI 骨架。
+- 桌面主工作站、移动随身助手/远程控制、LLM/Skills/MCP/知识库可配置路径有验收证据。
+- 可信会话体验有验收证据：长任务时间线、工具状态、引用证据、artifact 编辑、暂停/恢复/取消/接管、跨设备继续和能力中心。
+- 企业智能体治理有验收证据：普通员工边界、老板/Owner 和超级管理员完整控制、外部服务方材料包边界、高风险审批、route token 撤销、工作室旁听/接管/终止。
 - 三态运行模式（本地/混合/云端）具备后端守卫、前端门控、订阅策略和失败语义一致性。
 - 认证、授权、token、Webhook、对象存储、同步、支付/电签等高风险面有测试证据。
 - 对外文档、部署手册、回滚预案、灰度方案齐全。
@@ -24,6 +53,10 @@
 - 移动/小程序本地门禁：`bash scripts/mobile-device-smoke.sh` 通过，移动 Vitest `6 files / 15 tests passed`，移动 tsc、小程序 tsc/build、fake fallback guard 和 mini-program design token guard 均为 exit `0`。
 - 桌面端 `cargo check` 可通过。
 - GitNexus 索引可用：1181 files、30003 nodes、54587 edges、300 flows、28219 embeddings；当前 `.gitnexus/meta.json` 显示 `capabilities.vectorSearch.status=vector-index`，direct rc binary 的 `context/query/cypher` 已通过 smoke，semantic query 仍不作为唯一放行依据。
+- 本地/混合/云端与可配置模型已有架构基础：`docs/ARCHITECTURE_V2.md` 已定义本地模式数据不离开设备、Ollama/LM Studio 等自配置本地模型，以及 Enterprise 自定义 LLM endpoint；后端存在 `src/services/llm_service.py`、`src/services/private_llm_service.py`、`src/api/routes/llm.py`，桌面存在 `desktop/src/commands/local_llm.rs`。
+- MCP/Skills 已有代码基础：后端存在 `backend/src/mcp_server.py`、`backend/src/api/routes/mcp_routes.py`、`backend/src/services/mcp_client_service.py`、`backend/src/models/mcp_config.py`、`backend/src/services/skill_service.py`；这些证明扩展底座存在，但尚不能证明“任意 Skills/MCP 商业可配置”已经闭环。
+- 独立知识库已有代码基础：后端存在 `backend/src/services/knowledge_management.py`、`backend/src/services/knowledge_service.py`、`backend/src/api/routes/knowledge.py`；仍需把本地知识库、组织知识库、来源引用、离线索引和移动/桌面可视化配置纳入发布验收。
+- 桌面/移动本地安全已有局部基础：桌面 SQLCipher/keyring、offline queue 和 local LLM 命令已有代码级证据；移动 `privacy-context` 已覆盖 LAN Ollama 等本地模型语义。仍缺完整的桌面主工作站配置面、移动远程控制桌面协议和真机/packaged runtime 证据。
 - 商业发布门禁脚本 `scripts/commercial-readiness-gate.sh` 已建立；当前预期为 FAIL，用于防止在外部证据未齐时误判 Go。
 - 支付/电签沙箱证据采集入口 `scripts/sandbox-evidence-runner.py` 已建立；默认只做脱敏配置预检，live 调用必须显式传 `--live --confirm-live-side-effects`。
 - 第一波 V2 守卫已完成：`/pro` provider 守卫、ModeGate/PrivacyContext fail-closed、LLM 组织隔离、尽调模式/订阅守卫、匿名聊天 token 拆分、A2UI/WS 鉴权。
@@ -70,7 +103,7 @@
 
 完成条件：
 - `docs/audit/00-platform/06-gitnexus-knowledge-graph.md` 存在。
-- `docs/openspec/commercial-delivery-spec.md` 与 `commercial-delivery-test-spec.md` 存在。
+- `docs/openspec/01-commercial-delivery-spec.md` 与 `docs/openspec/02-commercial-delivery-test-spec.md` 存在。
 - 当前工作区改动通过 `git status` 归类：索引配置、规范文档、业务代码改动分别说明。
 
 ### Phase 1 — P0 安全与商业模式守卫
@@ -114,9 +147,10 @@
 
 必须完成：
 - 案件/任务状态机清晰。
-- 找律师/案源市场利益冲突与权限模型真实有效。
-- 尽调/舆情/匿名咨询边界收口。
-- 订阅、支付、退款、IM/RTC 通知形成状态机与幂等闭环。
+- 专业服务市场利益冲突与权限模型真实有效；P0 先覆盖律师/律所，P1/P2 预留税务师、税务事务所、财务顾问、会计/审计人员。
+- 尽调/舆情/匿名咨询边界收口；舆情监测必须连接风险告警、处置建议、材料包和专业服务转介。
+- 推广获客功能必须有授权、广告/推荐标识、线索来源、反骚扰和服务方结算证据。
+- 订阅、支付、退款、IM/RTC 通知形成状态机与幂等闭环，并区分企业侧 AI 套餐、专业服务按次/项目计费和服务方获客产品。
 
 ### Phase 4 — 多端交付
 
@@ -126,9 +160,23 @@
 - `TASK-11c-mobile-design`
 
 必须完成：
-- 桌面端快速问答、拖拽分析、本地模式状态一致。
-- 同步引擎 push/pull/conflict 真实可用。
-- 移动端/小程序关键场景不依赖 mock token。
+- 桌面端是可安装主工作站：快速问答、拖拽分析、本地加密库、本地模型、独立知识库、Skills/MCP 配置入口和本地/混合/云端模式状态一致。
+- 同步引擎 push/pull/conflict 真实可用，并支持跨设备会话、移动远控命令、审批确认和执行状态回传。
+- 移动端/小程序关键场景不依赖 mock token；移动端必须具备随身助手能力和安全远程控制桌面客户端能力。
+- 远程控制必须通过设备配对、权限确认、敏感动作二次确认、取消/撤销、审计日志和端到端加密/通道安全验收。
+
+### Phase 5 — 企业智能体治理
+
+范围：
+- `TASK-12-agent-control-plane-skill-evolution.md`
+
+必须完成：
+- 统一 `capability_policy_engine`，覆盖 `subscription + role + permission + risk_level + privacy_mode + device_trust + channel_policy + approval_state`。
+- 建立 AgentManager、AgentTeam、AgentWorker、HumanParticipant、ChannelPolicy、CapabilityRoute、Approval、AuditEvent 数据模型和迁移。
+- Agent/Worker 不持有真实密钥；真实密钥只在 Gateway/密钥服务侧，Agent 只拿可撤销短期 route token。
+- 高风险任务进入 Human-in-the-loop 工作室，可旁听、暂停、接管、终止并导出证据。
+- 能力中心按老板/Owner、超级管理员、部门管理员、普通员工、外部专业服务方展示不同能力、限制和申请入口。
+- Skill Evolution Gate 覆盖 Skill 版本、owner、评测、审批、灰度、回滚和自我改进提案；agent 只能提案、生成测试和提交审批，不能自行启用生产能力。
 
 ## 4. 统一开发规则
 
@@ -136,6 +184,9 @@
 - 每个 P0 必须有失败测试先行或等价的回归证明。
 - 改 schema 必须有 alembic migration 和 downgrade。
 - 改支付、电签、密钥、prompt、桌面签名、公证、自动更新前必须单独审查。
+- 改模型 provider、Skills/MCP 权限、知识库出站策略或移动远程控制桌面协议前必须单独做安全审查和隐私模式回归。
+- 改 Agent control plane、CapabilityRoute、route token、审批流或工作室可见性前必须单独做安全审查、权限矩阵回归和审计日志回归。
+- 改 Skill 生命周期、进化策略、记忆治理、自动改写 prompt 或自我改进流程前必须单独做评测门禁、权限回归和人工审批。
 - 不新增依赖，除非任务文档明确要求且先记录理由。
 - GitNexus 用作导航，不作为唯一事实；前端 JSX 与 Python warning 文件必须用 `rg` 补查。
 

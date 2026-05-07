@@ -1,6 +1,13 @@
 import pytest
 
-from src.services.oa_integration_service import oa_service
+from src.core.config import settings
+from src.services.oa_integration_service import (
+    DingTalkProvider,
+    FeishuProvider,
+    OAProviderConfigError,
+    WeComProvider,
+    oa_service,
+)
 
 
 @pytest.mark.asyncio
@@ -26,3 +33,34 @@ async def test_org_sync():
     data = await oa_service.sync_org_structure("feishu")
     assert data["synced_count"] > 0
     assert data["users"][0]["name"] == "Feishu User 1"
+
+
+@pytest.mark.asyncio
+async def test_feishu_missing_credentials_fail_closed_in_commercial_environment(monkeypatch):
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    monkeypatch.delenv("FEISHU_APP_ID", raising=False)
+    monkeypatch.delenv("FEISHU_APP_SECRET", raising=False)
+    provider = FeishuProvider()
+
+    with pytest.raises(OAProviderConfigError, match="FEISHU_APP_ID"):
+        await provider.send_notification("u1", "Title", "Content")
+
+
+@pytest.mark.asyncio
+async def test_dingtalk_missing_credentials_fail_closed_in_commercial_environment(monkeypatch):
+    monkeypatch.setattr(settings, "ENVIRONMENT", "staging")
+    monkeypatch.delenv("DINGTALK_APP_KEY", raising=False)
+    monkeypatch.delenv("DINGTALK_APP_SECRET", raising=False)
+    provider = DingTalkProvider()
+
+    with pytest.raises(OAProviderConfigError, match="DINGTALK_APP_KEY"):
+        await provider.create_approval_instance("tpl", "u1", {"amount": 100})
+
+
+@pytest.mark.asyncio
+async def test_wecom_mock_org_sync_fail_closed_in_commercial_environment(monkeypatch):
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    provider = WeComProvider()
+
+    with pytest.raises(OAProviderConfigError, match="组织架构同步"):
+        await provider.sync_department_users("root")

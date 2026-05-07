@@ -677,7 +677,10 @@ def get_payment_provider(provider_name: str | None = None) -> PaymentProvider:
     - "wechat_pay" → WeChatPayProvider
     - "alipay"     → AlipayProvider
     """
-    provider_name = (provider_name or os.getenv("PAYMENT_PROVIDER") or "mock").lower()
+    raw_provider_name = provider_name or os.getenv("PAYMENT_PROVIDER")
+    provider_name = (raw_provider_name or "mock").lower()
+    if settings.ENVIRONMENT.lower() in {"production", "staging"} and provider_name == "mock":
+        raise PaymentProviderConfigError("staging/production 环境必须配置真实 PAYMENT_PROVIDER，禁止使用 Mock 支付渠道。")
 
     # 单例模式：同一进程内复用实例
     if provider_name in _provider_instances:
@@ -691,8 +694,7 @@ def get_payment_provider(provider_name: str | None = None) -> PaymentProvider:
 
     provider_cls = providers.get(provider_name)
     if provider_cls is None:
-        logger.warning(f"未知支付渠道 '{provider_name}'，回退到 MockPaymentProvider")
-        provider_cls = MockPaymentProvider
+        raise PaymentProviderConfigError(f"未知支付渠道 '{provider_name}'，请配置 wechat_pay 或 alipay。")
 
     _provider_instances[provider_name] = provider_cls()
     logger.info(f"支付渠道已初始化: {provider_cls.__name__}")

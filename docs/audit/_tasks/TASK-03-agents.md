@@ -5,6 +5,9 @@
 > 前置：任务 0（基础设施 SOP）+ 任务 1/2（认证 + 三态运行）已收口
 > 输出目录：`docs/audit/03-agents/`
 
+> 2026-05-08 定位补充：Agent/对话层需要逐步升级为 capability registry 驱动，统一管理模型、Skills、MCP、知识库和专业服务转接能力。任意 Skills/MCP 调用必须带权限、隐私模式、参数审计和失败回滚。
+> 交互补充：借鉴 Codex/Claude 的可信工作台体验，长任务必须过程可见、证据可点、artifact 可编辑、可打断可恢复；Skills 进化和智能体自我改进必须先生成提案、评测和审批，不得直接自改生产能力。
+
 ---
 
 ## §1 范围
@@ -89,6 +92,25 @@
 - 现状：智能体类存在，但部分（尤其 contract_steward / consensus_agent / review_checker）缺少端到端"输入 → 期望输出"测试，回归无依据
 - 期望：每个智能体至少 1 条最小 happy-path + 1 条边界 case 测试；统一契约接口（`name / accepts / produces / max_latency_ms / fallback_strategy`）；契约通过 `tests/test_agent_contracts.py` 自动校验
 
+### P0-6 可信会话体验契约
+
+- 位置：`backend/src/services/chat_service.py`、`backend/src/services/context_compressor.py`、`frontend/src/components/chat/`、`frontend/src/components/ai-assistant/`
+- 现状：聊天体验仍偏“问答流”，长任务计划、工具状态、引用证据、artifact、暂停/恢复和跨设备继续没有统一契约
+- 期望：
+  - 服务端事件至少包含 `plan_started / step_started / tool_started / tool_finished / artifact_created / waiting_for_approval / interrupted / resumed / failed` 等可观察状态
+  - 前端展示任务时间线、引用入口、artifact 编辑入口和恢复/取消/接管按钮
+  - 长任务失败时保留已生成 artifact 和可恢复状态，不把失败吞成一条泛化错误
+
+### P0-7 Skills 进化与自我改进治理
+
+- 位置：`backend/src/services/skill_service.py`、`backend/src/services/memory_layer.py`、`backend/src/services/review_memory.py`、未来 `capability_policy_engine`
+- 现状：已有 Skills 底座，但缺少版本、owner、评测、审批、回滚和“自我改进只能提案”的安全边界
+- 期望：
+  - Skill 增加 `version / owner / risk_level / input_schema / output_schema / eval_suite / approval_status / rollback_to` 等契约
+  - Agent 可以根据失败案例生成 `SkillEvolutionProposal`，但默认状态为 draft
+  - 未通过评测或缺少管理员批准的 Skill 不能进入 enabled 状态
+  - Skill 升级、降级、禁用和越权拒绝都写审计，并可在能力中心查看
+
 ---
 
 ## §3 流程
@@ -115,7 +137,7 @@
 
 ### Step 4 — P0 修复
 
-按 P0-1 → P0-5 顺序修复，每个 P0 单独 commit + 单独测试运行通过。
+按 P0-1 → P0-7 顺序修复，每个 P0 单独 commit + 单独测试运行通过。
 
 ### Step 5 — 测试补全
 
@@ -161,6 +183,8 @@ docs/audit/03-agents/
 - [ ] P0-3 `pytest -k citation_after_compress` 全绿；前端引用点击 e2e 通过
 - [ ] P0-4 SSE 断线重连 e2e 通过；`llm_usage_log.interrupted_at` 有数据
 - [ ] P0-5 22 个智能体契约测试 100% 通过
+- [ ] P0-6 长任务过程可见、artifact 可编辑、可打断/恢复和失败保留状态有前后端测试
+- [ ] P0-7 Skill 进化提案、评测门禁、审批、回滚和审计测试通过
 - [ ] `pytest backend/tests/test_chat_*.py test_business_agents.py test_chat_template_context.py` 全绿
 - [ ] `frontend/e2e/chat.spec.ts` 全绿
 - [ ] `02-issues.md` 中 P0 全部状态 = "已修复"，P1 / P2 列入 followups

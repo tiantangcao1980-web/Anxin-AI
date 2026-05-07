@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-05-07",
+  "generated_at": "2026-05-08",
   "objective": "将 Anxin-Smart-Legal-Services 从当前代码现状推进到可商业交付：先验证并优化 GitNexus 索引知识图，再建立项目规范/验收标准，最后按规范完成开发、测试与交付准备。",
   "status": "not_ready",
-  "status_reason": "Code-level gates, GitNexus embeddings, and built-in RAG full50 evidence are available, but commercial release evidence still has pending external sandbox, packaged desktop, and device-smoke requirements.",
+  "status_reason": "Code-level gates, GitNexus embeddings, built-in RAG full50 evidence, and updated intelligent-assistant specs are available, but commercial release evidence still has pending external sandbox, packaged desktop, device-smoke, enterprise agent governance, and final clean-worktree requirements.",
   "success_criteria": [
     {
       "id": "gitnexus-knowledge-graph",
@@ -17,20 +17,20 @@
         "node -e \"const fs=require('fs'); const m=JSON.parse(fs.readFileSync('.gitnexus/meta.json','utf8')); console.log(m.stats)\"",
         "GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/commercial-readiness-gate.sh --quick"
       ],
-      "current_result": "1181 files / 30003 nodes / 54587 edges / 300 flows / 28219 embeddings; vectorSearch.status=vector-index. Must rerun after final release commit."
+      "current_result": "After the local delivery commit, GitNexus was rebuilt with 1304 files / ~32.5k nodes / 58785 edges / 300 flows / 30417 embeddings; vectorSearch.status=vector-index; exact nodes/clusters are read from the latest .gitnexus/meta.json; indexed/current commit match; detect-changes reports no changes."
     },
     {
       "id": "openspec-commercial-spec",
       "prompt_requirement": "使用 goal-prompt-builder 或 OpenSpec 完成项目规范之后再开始下一步开发。",
       "status": "complete",
       "evidence": [
-        "docs/openspec/commercial-delivery-spec.md",
-        "docs/openspec/commercial-delivery-test-spec.md",
+        "docs/openspec/01-commercial-delivery-spec.md",
+        "docs/openspec/02-commercial-delivery-test-spec.md",
         "docs/release/commercial-delivery-readiness.md"
       ],
       "verification": [
-        "test -s docs/openspec/commercial-delivery-spec.md",
-        "test -s docs/openspec/commercial-delivery-test-spec.md"
+        "test -s docs/openspec/01-commercial-delivery-spec.md",
+        "test -s docs/openspec/02-commercial-delivery-test-spec.md"
       ],
       "current_result": "Commercial delivery spec, test spec, readiness model, release audit, rollback, security, and evidence templates exist."
     },
@@ -143,6 +143,7 @@
       "evidence": [
         "scripts/mobile-device-smoke.sh",
         "docs/release/evidence/mobile-device-smoke.md",
+        "docs/release/evidence/artifacts/mobile-device-host-probe-20260508.json",
         "docs/release/evidence/artifacts/mobile-device-manual-template-20260508.json",
         "docs/release/evidence/artifacts/mobile-mini-code-smoke-20260508.json",
         "docs/release/external-inputs-checklist.md",
@@ -152,7 +153,26 @@
         "bash scripts/mobile-device-smoke.sh --out docs/release/evidence/artifacts/mobile-mini-code-smoke-YYYYMMDD.json --manual-template-out docs/release/evidence/artifacts/mobile-device-manual-template-YYYYMMDD.json",
         "device/DevTools transcripts with screenshots/log artifact references"
       ],
-      "current_result": "Local mobile/mini code smoke was refreshed on 2026-05-08, including Expo config/SDK dependency guard, WeChat DevTools CLI project smoke, refresh-auth guards, and structured mobile_npm_audit status=passed tracking, and writes a code-level artifact plus manual device evidence template. npx expo-doctor passes 17/17 and mobile production npm audit is 0. Status remains pending until real iOS, Android, interactive WeChat DevTools/device evidence and cross-device continuation are attached."
+      "current_result": "Local mobile/mini code smoke was refreshed on 2026-05-08, including Expo config/SDK dependency guard, WeChat DevTools CLI project smoke, refresh-auth guards, and structured mobile_npm_audit status=passed tracking, and writes a code-level artifact plus manual device evidence template. npx expo-doctor passes 17/17 and mobile production npm audit is 0. The host probe now confirms iOS Simulator is available, while Android device/emulator evidence is still missing. Status remains pending until iOS app-run, Android, interactive WeChat DevTools/device evidence and cross-device continuation are attached."
+    },
+    {
+      "id": "enterprise-agent-governance",
+      "prompt_requirement": "结合 HiClaw 等项目完善企业组织权限管控，让企业 AI 智能体既能用、能解决问题，又能被管住、控稳且不暴露重大风险。",
+      "status": "pending_final_release",
+      "evidence": [
+        "docs/openspec/00-intelligent-assistant-platform-spec.md",
+        "docs/openspec/01-commercial-delivery-spec.md",
+        "docs/openspec/02-commercial-delivery-test-spec.md",
+        "docs/references/agentic-platform-benchmark-2026-05-08.md",
+        "docs/audit/_tasks/TASK-12-agent-control-plane-skill-evolution.md",
+        "docs/release/external-resource-handoff.md"
+      ],
+      "verification": [
+        "test -s docs/audit/_tasks/TASK-12-agent-control-plane-skill-evolution.md",
+        "rg -n \"AgentManager|CapabilityRoute|consumer token|Human-in-the-loop|SkillEvolutionProposal|可信会话|企业智能体治理\" docs/openspec docs/audit/_tasks docs/references",
+        "future: backend/tests/test_agent_governance_policy.py backend/tests/test_capability_routes.py backend/tests/test_agent_approval_flow.py"
+      ],
+      "current_result": "Specs and task prompt are updated, including Codex/Claude-style trusted conversation UX and Skill Evolution Gate. Local hardening now covers CLI user-bound API keys/scopes/audit logs, MCP manage:system API gating and masked management audit logs, standalone MCP commercial fail-closed, unknown subscription feature denial, and staging JWT default-secret rejection. Implementation is still pending: unified capability policy engine, AgentManager/Team/Worker/Human models, route-token revocation, high-risk approval workspace, role-specific capability center, long-task artifact workflow, and skill eval/approval/rollback must be built before full commercial Go."
     },
     {
       "id": "final-commercial-gate",
@@ -177,7 +197,7 @@
         "GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/commercial-readiness-gate.sh --quick",
         "GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/commercial-readiness-gate.sh --with-local-tests"
       ],
-      "current_result": "Gate currently FAILS on dirty worktree, Not ready declarations, and pending payment/e-sign/desktop/mobile evidence."
+      "current_result": "After the local delivery commit and GitNexus rebuild, the gate still fails on Not ready declarations and pending payment/e-sign/desktop/mobile evidence. Any new release docs or evidence artifacts must be committed before another clean-worktree and GitNexus rerun."
     }
   ]
 }

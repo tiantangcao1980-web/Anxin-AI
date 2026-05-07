@@ -4,6 +4,8 @@
 > 前置依赖：任务 0（密钥治理 SOP）、任务 1（认证 + token 存储 → 移动端 / 小程序登录链路依赖）、任务 11b（同步引擎 → 跨设备会话延续直接依赖）
 > 必读：`../PLAN.md`、`../00-platform/01-prd-reality-gap.md`、`../00-platform/03-cross-cutting-gaps.md`、`PRODUCT_ROADMAP.md` M3（移动端 Beta）+ M4（多端闭环）、`DESIGN.md` 跨平台一致性章节、`frontend/src/lib/design-tokens.ts`
 
+> 2026-05-08 定位补充：移动端是随身智能助手，也是桌面主工作站的远程控制端。移动端必须能继续桌面会话、审批高风险动作、查看桌面任务状态，并在安全配对后远程控制桌面执行工作。
+
 ---
 
 ## 1. 范围
@@ -15,6 +17,7 @@
   - `mobile/app/cases.tsx`（同类 fallback 模式排查）
   - `mobile/app/(tabs)/index.tsx`、`mobile/app/(tabs)/chat.tsx`、`mobile/app/settings.tsx`（去掉首页假数据兜底与误导性 mock 标记）
   - `mobile/app/_layout.tsx`（底部 Tab + safe-area-inset 校验）
+  - **新建/预留** `mobile/app/desktop-control/`（设备配对、桌面状态、远程命令、取消/撤销、审计记录）
   - `mobile/components/`（按钮 / 卡片 / 列表项最小点击区 44px）
   - `mobile/lib/design-tokens.ts`（如不存在则新建，引用规则与 frontend 对齐）
 - 小程序：
@@ -36,6 +39,7 @@
 - `frontend/src/lib/store.ts`
 - 任何 secret / `.env`
 - 跨设备会话延续的同步协议字段（任务 11b 已定义，本任务只调用）
+- 桌面端远程命令执行细节（任务 11a/11b 处理；本任务只做移动端交互与 API 调用）
 
 ---
 
@@ -51,6 +55,7 @@
 | P0-4 | `mini-program/src/pages/index/index.tsx` | ✅ 2026-05-06 已修：加载失败/空列表不再渲染假新闻 fallback | 已改为明确空状态（"暂无资讯，下拉刷新重试"）+ `console.warn` telemetry；不再混淆假数据与真数据 |
 | P0-5 | 新建 `docs/design/cross-platform-token-drift.md` | 缺漂移清单 | 用 `/designdna` 校验：列出 desktop / mobile / mini-program 的 token 与 `frontend/src/lib/design-tokens.ts` 的差异；标 P0/P1/P2；**不重新设计**，仅产出清单 |
 | P0-6 | `mobile/app/sessions/`（含跨设备会话延续入口） | 桌面开始 → 手机继续未实现 | 复用任务 11b 的 sync 协议；移动端拉 pull 后渲染当前活跃 session（含未读消息 + 未提交输入框草稿）；纯前端工作，不改后端协议 |
+| P0-7 | `mobile/app/desktop-control/` + 11b remote command API | 移动端远程控制桌面未实现 | 设备配对、桌面在线状态、远程命令下发、执行状态、取消/撤销、敏感动作二次确认和审计记录可见；绝密模式/未授权设备必须 fail-closed |
 
 ---
 
@@ -62,6 +67,7 @@
 - ROADMAP M3（移动端 Beta）+ M4（多端闭环）vs 当前移动端 / 小程序实测能力差距
 - PROJECT_STATUS 早期移动端测试基线 vs 代码现实（fallback 假数据掩盖真实错误）的差距
 - 跨平台一致性：列三端 token 与 `design-tokens.ts` 漂移项
+- 新定位差分：移动端作为随身助手和桌面远控端，当前是否具备设备配对、远程命令、状态回传、撤销、审计和隐私模式拒绝能力
 
 ### Step 1 · 检索复用
 
@@ -70,11 +76,12 @@
 - `/hierarchical-memory find-feature "跨设备会话延续 sync"`
 - `/iterative-retrieval` 按 移动端路由 → 页面 → 组件 → service → tokens / 小程序同上 分层读
 
-### Step 2 · 移动端 P0-1 / P0-2 / P0-6
+### Step 2 · 移动端 P0-1 / P0-2 / P0-6 / P0-7
 
 1. P0-1：审查 `mobile/app/_layout.tsx` 底部 Tab；对所有 Pressable / TouchableOpacity 最小命中区做 44pt 校验，必要时加 hitSlop；`SafeAreaProvider` 全局包裹
 2. P0-2：grep `catch.*=>.*fallback|return.*\[\]|return mock` 找出所有静默 catch；逐一改为按 HTTP 状态分支 + empty state 组件
 3. P0-6：移动端"会话列表"页加 sync pull 触发；活跃 session 渲染 pull 回的 last_message + draft（草稿来自任务 11b 同步队列）；不改后端协议
+4. P0-7：新增桌面控制入口；展示已配对桌面、在线状态、当前任务、可执行命令、权限范围和审计历史；下发命令前展示风险说明，高风险动作必须二次确认；取消/撤销必须可见
 
 ### Step 3 · 小程序 P0-3 / P0-4
 
@@ -127,6 +134,7 @@ docs/audit/11c-mobile-design/
 - **fallback 移除**：移除移动端静默 fallback 后，用户在弱网 / 后端故障时会看到更多空状态 / 错误页，**必须在 release notes 显式说明**，让用户知道"看到错误页 = 后端真的有问题，不是 app bug"
 - **mock_token**：小程序 mock_token 移除前必须确认后端登录链路（任务 1 已交付）真实工作；否则会导致小程序登录全断；建议先在测试环境验证 7 天再发版
 - **跨设备会话延续**：依赖任务 11b 的同步协议字段；任务 11b 未交付前本任务 P0-6 只能 mock 或延后（标 P1）
+- **移动远控桌面**：依赖任务 11a/11b 的 host 与 command queue；未交付前不能用假成功 UI，必须显示“等待桌面端支持”或禁用入口
 - **真机灰度**：iOS / Android 各灰度 50 用户跑 14 天，再扩量；微信小程序开"开发版 → 体验版 → 正式发布"三阶
 - **不改后端**：本任务理论上不动 backend/；如发现移动端 fallback 是因后端缺接口，记到 followups.md 不在本任务修
 - **不动**：desktop / payment / prompts / store.ts / 任务 11b 的同步协议
@@ -143,6 +151,7 @@ docs/audit/11c-mobile-design/
 - [x] 小程序 `mini-program/src/pages/index/index.tsx` 假新闻 fallback 改为 EmptyState 组件。证据：`rg "fallbackNews|mock 数据|假新闻|mock_token_|登录成功（体验模式）|/auth/wechat-login" mini-program/src backend/src backend/tests` 对源码无命中、`cd mini-program && npx tsc --noEmit --skipLibCheck --noUnusedLocals false` 通过、`cd mini-program && npm run build:weapp` 通过
 - [x] `docs/design/cross-platform-token-drift.md` 产出三端 vs `design-tokens.ts` 漂移清单（P0/P1/P2 分级）；小程序语义 token 层和触控 token 底座已补，品牌主色最终统一方向仍待定
 - [ ] 移动端跨设备会话延续：桌面开始一段对话 → 移动端 pull 后能看到 last_message + draft（依赖任务 11b 已交付）
+- [ ] 移动端远程控制桌面：设备配对、桌面在线状态、命令下发、状态回传、取消/撤销、敏感动作二次确认和审计记录通过真机/模拟器 transcript；未授权或绝密模式下 fail-closed
 - [x] 移动端测试 baseline 10 → 至少 +3（覆盖错误分支）；当前 `npm test` 为 `6 files / 15 tests passed`，`npx tsc --noEmit --module esnext` 通过；新增字符串 transport error、status 优先级错误分支和触控 token 用例
 - [ ] 小程序 tsc + lint 全绿；微信开发者工具登录链路真机验证通过
 - [ ] iPhone 14 + Android 13 真机手测通过：登录 / 审批 / 会话延续 三个用户故事

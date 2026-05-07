@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
+  Alert,
   View,
   Text,
   StyleSheet,
@@ -46,6 +47,7 @@ export default function KnowledgeScreen() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [searching, setSearching] = useState(false)
 
   const loadRecent = useCallback(async () => {
     try {
@@ -70,12 +72,35 @@ export default function KnowledgeScreen() {
     loadRecent()
   }, [loadRecent])
 
-  const onSearchSubmit = useCallback(() => {
-    // TODO(阶段 2.14)：接入 /knowledge/search + 跳转 /knowledge/[id] 详情页
-    if (query.trim()) {
-      console.log('[knowledge] search:', query)
+  const onSearchSubmit = useCallback(async () => {
+    const keyword = query.trim()
+    if (!keyword || searching) return
+
+    try {
+      setSearching(true)
+      setError(null)
+      const results = await api.post<Array<KnowledgeItem & { content?: string; match_type?: string }>>('/knowledge/search', {
+        query: keyword,
+        top_k: 10,
+        hybrid: true,
+      })
+      setRecent(
+        (results ?? []).map((item) => ({
+          id: item.id,
+          title: item.title || item.content?.slice(0, 36) || keyword,
+          category: item.category || item.match_type || '知识检索',
+          source: item.source,
+        })),
+      )
+      if (!results?.length) {
+        Alert.alert('未找到结果', '请换一个关键词，或确认当前账号有可访问的知识库。')
+      }
+    } catch (err: any) {
+      setError(err?.message || '知识检索失败，请稍后重试')
+    } finally {
+      setSearching(false)
     }
-  }, [query])
+  }, [query, searching])
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -101,7 +126,9 @@ export default function KnowledgeScreen() {
             onChangeText={setQuery}
             returnKeyType="search"
             onSubmitEditing={onSearchSubmit}
+            editable={!searching}
           />
+          {searching && <ActivityIndicator size="small" color={Colors.primary} />}
         </View>
 
         {/* 三大类别 */}

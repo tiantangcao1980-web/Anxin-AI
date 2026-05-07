@@ -18,9 +18,15 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any, TypedDict
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from loguru import logger
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.core.database import get_db
+from src.core.deps import Permission, get_current_user_required, has_permission
+from src.models.user import User
+from src.services.audit_service import AuditService
 
 router = APIRouter(prefix="/cli", tags=["CLI"])
 
@@ -30,6 +36,7 @@ class APIKeyRecord(TypedDict):
     key_hash: str
     name: str
     user_id: str
+    org_id: str | None
     scopes: list[str]
     expires_at: str
     created_at: str
@@ -42,6 +49,7 @@ _api_keys: dict[str, APIKeyRecord] = {}
 # CLI 命令频率限制
 _rate_limits: dict[str, list[float]] = {}
 CLI_RATE_LIMIT = 30  # 每分钟最多 30 条
+ALLOWED_SCOPES = {"read", "chat", "export"}
 
 
 # ===== 数据模型 =====
@@ -110,8 +118,30 @@ async def verify_api_key(x_api_key: str = Header(..., alias="X-API-Key")) -> API
 
 # ===== API Key 管理 =====
 
+
+def _validate_requested_scopes(scopes: list[str], user: User) -> list[str]:
+    normalized = []
+    for scope in scopes:
+        value = scope.strip().lower()
+        if value and value not in normalized:
+            normalized.append(value)
+    if not normalized:
+        raise HTTPException(status_code=400, detail="至少需要选择一个 CLI 权限范围")
+    invalid = [scope for scope in normalized if scope not in ALLOWED_SCOPES]
+    if invalid:
+        raise HTTPException(status_code=400, detail=f"无效 CLI 权限范围: {', '.join(invalid)}")
+    if "export" in normalized and not has_permission(user.role, Permission.EXPORT_DATA):
+        raise HTTPException(status_code=403, detail="当前角色不能创建 export 权限的 CLI Key")
+    return normalized
+
+
 @router.post("/keys", summary="创建 API Key")
-async def create_api_key(request: APIKeyCreateRequest) -> APIKeyResponse:
+async def create_api_key(
+    request: APIKeyCreateRequest,
+    http_request: Request,
+    user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db),
+) -> APIKeyResponse:
     """
     创建新的 CLI API Key。
 
@@ -127,36 +157,55 @@ async def create_api_key(request: APIKeyCreateRequest) -> APIKeyResponse:
     from datetime import timedelta
     expires_at = datetime.now(UTC) + timedelta(days=request.expires_days)
 
+    scopes = _validate_requested_scopes(request.scopes, user)
     key_data: APIKeyRecord = {
         "key_id": key_id,
         "key_hash": key_hash,
         "name": request.name,
-        "user_id": "system",  # 实际应从认证用户获取
-        "scopes": request.scopes,
+        "user_id": str(user.id),
+        "org_id": str(user.org_id) if user.org_id else None,
+        "scopes": scopes,
         "expires_at": expires_at.isoformat(),
         "created_at": datetime.now(UTC).isoformat(),
         "last_used_at": None,
     }
 
     _api_keys[key_hash] = key_data
+    await AuditService(db).log_from_request(
+        http_request,
+        action="cli.key.create",
+        resource_type="token",
+        resource_id=key_id,
+        user=user,
+        new_value={
+            "name": request.name,
+            "scopes": scopes,
+            "expires_at": expires_at.isoformat(),
+        },
+        extra_data={"source": "cli"},
+    )
 
-    logger.info(f"[CLI] 创建 API Key: {key_id} ({request.name}), 有效期 {request.expires_days} 天")
+    logger.info(f"[CLI] 创建 API Key: {key_id} ({request.name}), user={user.id}, 有效期 {request.expires_days} 天")
 
     return APIKeyResponse(
         key_id=key_id,
         api_key=raw_key,  # 仅此一次返回明文
         name=request.name,
-        scopes=request.scopes,
+        scopes=scopes,
         expires_at=expires_at.isoformat(),
         created_at=key_data["created_at"],
     )
 
 
 @router.get("/keys", summary="列出 API Keys")
-async def list_api_keys() -> dict[str, str | list[APIKeyResponse]]:
+async def list_api_keys(
+    user: User = Depends(get_current_user_required),
+) -> dict[str, str | list[APIKeyResponse]]:
     """列出所有有效的 API Keys（不返回 key 值）"""
     keys = []
     for key_data in _api_keys.values():
+        if key_data["user_id"] != str(user.id):
+            continue
         keys.append(APIKeyResponse(
             key_id=key_data["key_id"],
             name=key_data["name"],
@@ -168,11 +217,29 @@ async def list_api_keys() -> dict[str, str | list[APIKeyResponse]]:
 
 
 @router.delete("/keys/{key_id}", summary="撤销 API Key")
-async def revoke_api_key(key_id: str) -> dict[str, str]:
+async def revoke_api_key(
+    key_id: str,
+    http_request: Request,
+    user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
     """撤销指定的 API Key"""
     for key_hash, key_data in list(_api_keys.items()):
-        if key_data["key_id"] == key_id:
+        if key_data["key_id"] == key_id and key_data["user_id"] == str(user.id):
             del _api_keys[key_hash]
+            await AuditService(db).log_from_request(
+                http_request,
+                action="cli.key.revoke",
+                resource_type="token",
+                resource_id=key_id,
+                user=user,
+                old_value={
+                    "name": key_data["name"],
+                    "scopes": key_data["scopes"],
+                    "expires_at": key_data["expires_at"],
+                },
+                extra_data={"source": "cli"},
+            )
             logger.info(f"[CLI] 撤销 API Key: {key_id}")
             return {"status": "ok", "message": f"Key {key_id} 已撤销"}
     raise HTTPException(status_code=404, detail="Key 不存在")
@@ -199,7 +266,9 @@ BLOCKED_COMMANDS = {"delete", "payment", "sign", "admin"}
 @router.post("/execute", response_model=CLICommandResponse, summary="执行 CLI 命令")
 async def execute_command(
     request: CLICommandRequest,
+    http_request: Request,
     key_data: APIKeyRecord = Depends(verify_api_key),
+    db: AsyncSession = Depends(get_db),
 ) -> CLICommandResponse:
     """
     执行 CLI 命令。
@@ -222,19 +291,23 @@ async def execute_command(
 
     # 安全检查1：阻止高危命令
     if command in BLOCKED_COMMANDS:
+        error = f"命令 '{command}' 不允许通过 CLI 执行（安全限制）"
+        await _audit_cli_execute(db, http_request, key_data, command, status="failed", error_message=error)
         return CLICommandResponse(
             success=False,
             command=command,
-            error=f"命令 '{command}' 不允许通过 CLI 执行（安全限制）",
+            error=error,
         )
 
     # 安全检查2：权限 scope 校验
     required_scope = COMMAND_SCOPES.get(command, "read")
     if required_scope not in key_data["scopes"]:
+        error = f"API Key 缺少 '{required_scope}' 权限"
+        await _audit_cli_execute(db, http_request, key_data, command, status="failed", error_message=error)
         return CLICommandResponse(
             success=False,
             command=command,
-            error=f"API Key 缺少 '{required_scope}' 权限",
+            error=error,
         )
 
     # 审计记录
@@ -243,6 +316,14 @@ async def execute_command(
     try:
         result = await _dispatch_command(command, args)
         elapsed = round((time.time() - start_time) * 1000, 2)
+        await _audit_cli_execute(
+            db,
+            http_request,
+            key_data,
+            command,
+            status="success",
+            extra_data={"execution_time_ms": elapsed},
+        )
         return CLICommandResponse(
             success=True,
             command=command,
@@ -252,12 +333,52 @@ async def execute_command(
     except Exception as e:
         elapsed = round((time.time() - start_time) * 1000, 2)
         logger.error(f"[CLI] 命令执行失败: {command} | {e}")
+        await _audit_cli_execute(
+            db,
+            http_request,
+            key_data,
+            command,
+            status="failed",
+            error_message=str(e),
+            extra_data={"execution_time_ms": elapsed},
+        )
         return CLICommandResponse(
             success=False,
             command=command,
             error=str(e),
             execution_time_ms=elapsed,
         )
+
+
+async def _audit_cli_execute(
+    db: AsyncSession,
+    http_request: Request,
+    key_data: APIKeyRecord,
+    command: str,
+    *,
+    status: str,
+    error_message: str | None = None,
+    extra_data: dict[str, Any] | None = None,
+) -> None:
+    actor = await db.get(User, key_data["user_id"])
+    audit_extra = {
+        "source": "cli",
+        "command": command,
+        "key_id": key_data["key_id"],
+        "scopes": key_data["scopes"],
+    }
+    if extra_data:
+        audit_extra.update(extra_data)
+    await AuditService(db).log_from_request(
+        http_request,
+        action="cli.execute",
+        resource_type="config",
+        resource_id=key_data["key_id"],
+        user=actor,
+        status=status,
+        error_message=error_message,
+        extra_data=audit_extra,
+    )
 
 
 async def _dispatch_command(command: str, args: dict[str, Any]) -> Any:

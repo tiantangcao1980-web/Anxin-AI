@@ -32,7 +32,7 @@ docs(audit): 加入 V2 实质就绪度审计计划与任务提示词
 - PLAN.md 主计划书（修订版，融合 18 处代码点位实测）
 - 00-platform/ 任务 0 全部产出（PRD vs 现实差分、密钥治理 SOP、
   横切系统缺口、CI 安全扫描方案、followups）
-- _tasks/ 14 份独立任务提示词（TASK-01..11c）
+- _tasks/ 15 份独立任务提示词（TASK-01..12）
 - 09-risk/PROPOSAL-mode-guard.md 调研提案
 - _pr/ PR 描述模板
 
