@@ -16,8 +16,8 @@
 | 桌面主工作站 | 桌面可安装、可本地安全运行、可配置模型/知识库/Skills/MCP | packaged runtime smoke、SQLCipher/keyring、安全门禁、本地 LLM/KB/config UI 或 transcript |
 | 移动随身助手 | 移动端具备核心咨询、审批、通知、材料查看和跨设备继续能力 | iOS/Android 真机或模拟器 transcript + `scripts/mobile-device-smoke.sh` |
 | 移动远程控制桌面 | 手机可安全控制已配对桌面客户端，而不是伪 UI | 设备配对、命令下发、状态回传、取消/撤销、敏感动作二次确认、审计日志和通道安全测试 |
-| 任意模型/Skills/MCP | 用户或组织可配置 provider/endpoint/model/key、Skills、MCP Server 和权限策略 | 配置 CRUD、组织隔离、权限拒绝、调用日志、失败回滚和隐私模式回归 |
-| 独立知识库/本地模型安全 | 本地/绝密模式下数据默认不出设备 | 云调用/MCP 出站拦截测试、日志脱敏、来源引用、本地索引和本地模型调用证据 |
+| 任意模型/Skills/MCP | 用户或组织可配置 provider/endpoint/model/key、Skills、MCP Server 和权限策略 | 配置 CRUD、组织隔离、权限拒绝、MCP stdio/SSE/env/command-line allowlist、调用日志、失败回滚和隐私模式回归 |
+| 独立知识库/本地模型安全 | 本地/绝密模式下数据默认不出设备 | 云调用/MCP 出站拦截测试、MCP 子进程最小环境、日志脱敏、来源引用、本地索引和本地模型调用证据 |
 | 可信会话体验 | 长任务像 Codex/Claude 式可信工作台一样过程可见、证据可点、artifact 可编辑、可打断可恢复 | 任务时间线、工具状态、引用链接、artifact 编辑、暂停/恢复/取消/接管、跨设备继续 E2E |
 | Skills 进化与智能体自我改进 | Skill 可以从失败中改进，但不能无评测、无审批自改生产能力 | SkillEvolutionProposal、eval gate、审批、灰度、回滚、审计日志和越权拒绝测试 |
 | 企业智能体治理 | 组织默认只开放基础能力，完整能力受订阅、老板/Owner、超级管理员、角色、风险级别和设备信任约束 | 权限矩阵、审批流、审计日志、拒绝原因、撤销/回滚测试 |

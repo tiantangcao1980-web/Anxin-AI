@@ -17,6 +17,7 @@ from src.core.security import create_access_token
 from src.models.audit import AuditLog
 from src.models.billing import BillingPlan, Subscription
 from src.models.contract import Contract, ContractStatus
+from src.models.mcp_config import McpServerConfig
 from src.models.payment import PaymentOrder
 from src.models.user import Organization, User
 from src.models.webhook import WebhookReceived
@@ -956,6 +957,33 @@ async def test_mcp_server_create_writes_masked_audit_log(admin_auth_client, db_s
     assert audit_log.extra_data == {"source": "mcp"}
     assert audit_log.new_value["env_keys"] == ["API_TOKEN"]
     assert "secret-value" not in json.dumps(audit_log.new_value, ensure_ascii=False)
+
+
+@pytest.mark.asyncio
+async def test_mcp_server_create_rejects_unapproved_sse_in_staging(admin_auth_client, db_session, monkeypatch):
+    from src.services import mcp_client_service
+
+    monkeypatch.setattr(mcp_client_service.settings, "ENVIRONMENT", "staging")
+    monkeypatch.setattr(mcp_client_service.settings, "MCP_SSE_ALLOWED_SCHEMES", ["https"])
+    monkeypatch.setattr(mcp_client_service.settings, "MCP_SSE_ALLOWED_HOSTS", [])
+
+    response = await admin_auth_client.post(
+        "/api/v1/mcp/servers",
+        json={
+            "name": "ci-mcp-blocked",
+            "description": "blocked server",
+            "type": "sse",
+            "url": "https://mcp.example.com/sse",
+            "is_enabled": False,
+        },
+    )
+
+    assert response.status_code == 400
+    assert "MCP_SSE_ALLOWED_HOSTS" in response.json()["detail"]
+    result = await db_session.execute(
+        select(McpServerConfig).where(McpServerConfig.name == "ci-mcp-blocked")
+    )
+    assert result.scalar_one_or_none() is None
 
 
 @pytest.mark.asyncio

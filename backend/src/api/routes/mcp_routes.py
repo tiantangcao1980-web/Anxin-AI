@@ -15,7 +15,11 @@ from src.core.deps import Permission, require_permission
 from src.models.mcp_config import McpServerConfig
 from src.models.user import User
 from src.services.audit_service import AuditService
-from src.services.mcp_client_service import mcp_client_service
+from src.services.mcp_client_service import (
+    McpConfigSecurityError,
+    mcp_client_service,
+    validate_mcp_server_config,
+)
 
 router = APIRouter()
 
@@ -110,6 +114,10 @@ async def create_server(
         raise HTTPException(status_code=400, detail="Server with this name already exists")
 
     db_config = McpServerConfig(**config.model_dump())
+    try:
+        validate_mcp_server_config(db_config)
+    except McpConfigSecurityError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     db.add(db_config)
     await db.commit()
     await db.refresh(db_config)
@@ -141,6 +149,10 @@ async def update_server(
     update_data = config.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_config, key, value)
+    try:
+        validate_mcp_server_config(db_config)
+    except McpConfigSecurityError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     await db.commit()
     await db.refresh(db_config)
@@ -193,6 +205,20 @@ async def connect_server(
     config = await db.get(McpServerConfig, server_id)
     if not config:
         raise HTTPException(status_code=404, detail="Server not found")
+    try:
+        validate_mcp_server_config(config)
+    except McpConfigSecurityError as exc:
+        await AuditService(db).log_from_request(
+            request,
+            action="mcp.server.connect",
+            resource_type="config",
+            resource_id=server_id,
+            user=user,
+            status="failed",
+            error_message=str(exc),
+            extra_data={"source": "mcp", "policy": "connection_config"},
+        )
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     try:
         await mcp_client_service.connect_server(config)

@@ -186,10 +186,25 @@ sandbox_required_env=(
   "FADADA_API_URL"
 )
 
+mcp_governance_env=(
+  "MCP_STANDALONE_ENABLED"
+  "MCP_STDIO_ENABLED"
+  "MCP_STDIO_ALLOWED_COMMANDS"
+  "MCP_STDIO_ALLOWED_COMMAND_LINES"
+  "MCP_STDIO_ALLOWED_ENV_KEYS"
+  "MCP_SSE_ALLOWED_HOSTS"
+  "MCP_SSE_ALLOWED_SCHEMES"
+)
+
 for template in ".env.example" "backend/.env.example"; do
   for env_name in "${sandbox_required_env[@]}"; do
     if ! rg -q "^${env_name}=" "$template"; then
       add_failure "sandbox evidence config template is missing ${env_name}: ${template}"
+    fi
+  done
+  for env_name in "${mcp_governance_env[@]}"; do
+    if ! rg -q "^${env_name}=" "$template"; then
+      add_failure "MCP governance config template is missing ${env_name}: ${template}"
     fi
   done
 done
@@ -341,6 +356,8 @@ if [ "$RUN_LOCAL_TESTS" -eq 1 ]; then
   require_command "backend mypy zero-baseline gate" bash scripts/mypy-baseline-check.sh
   require_command "agent capability policy tests" \
     bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_harness.py -k 'PolicyEngine or AgentMcpToolPolicy'"
+  require_command "MCP connection config policy tests" \
+    bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_config_commercial_guards.py -k mcp"
   require_command "RAG full50 runner tests" \
     bash -lc "backend/.venv/bin/pytest -q backend/tests/eval/test_rag_full50_runner.py"
   require_command "RAG quality metrics tests" \

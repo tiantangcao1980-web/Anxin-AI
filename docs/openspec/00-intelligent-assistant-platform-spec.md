@@ -170,11 +170,11 @@ Skills 和智能体进化必须受治理：
 
 - 桌面主工作站尚缺完整的模型/知识库/Skills/MCP 配置 UI 与 packaged runtime 验收。
 - 移动远程控制桌面尚缺设备配对、远程命令、状态回传、撤销和审计闭环。
-- 任意模型/Skills/MCP 的组织策略、权限拒绝、调用日志和隐私模式回归仍需补证据。
+- 任意模型/Skills/MCP 的组织策略、权限拒绝、调用日志和隐私模式回归仍需补完整商业证据；当前 MCP 外部连接只完成了商业环境 fail-closed allowlist 基线。
 - 通用工作助手、软件/原型工作台、浏览器执行器、CLI harness 和定时自动化尚缺统一产品入口、沙盒执行和企业审批。
 - Codex/Claude 风格的可信会话体验尚缺完整产品化：长任务计划/进度/证据/可恢复状态、artifact 编辑、能力命令面板和跨设备接续仍需统一设计与验收。
 - Skills 进化和智能体自我改进尚缺生命周期模型、评测门禁、审批、回滚和记忆治理。
-- 企业智能体治理已补第一层 agent capability policy 决策引擎，覆盖未注册工具 fail-closed、订阅 feature、角色 permission、隐私模式、设备信任、通道策略和审批上下文；仍缺 CapabilityRoute/短期 route token、MCP stdio/url/env allowlist、Human-in-the-loop 工作室和撤销后立即失权证据。
+- 企业智能体治理已补第一层 agent capability policy 决策引擎，覆盖未注册工具 fail-closed、订阅 feature、角色 permission、隐私模式、设备信任、通道策略和审批上下文；MCP 外部连接已补 stdio command/command-line/env allowlist、SSE scheme/host allowlist 和子进程最小环境；仍缺 CapabilityRoute/短期 route token、Human-in-the-loop 工作室、真实 approved MCP connector 演练和撤销后立即失权证据。
 - 协作式多智能体控制面尚缺 AgentManager、AgentTeam、AgentWorker、HumanParticipant、ChannelPolicy、CapabilityRoute 和 SharedArtifactStore 的正式数据模型与审计闭环。
 - 税务师、税务事务所、财务顾问、会计/审计人员等专业服务方仍处于规范预留和后续扩展阶段。
 - 舆情监测到专业处置和服务方获客的商业闭环仍需产品与代码验收。

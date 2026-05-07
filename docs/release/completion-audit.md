@@ -73,10 +73,10 @@
 
 | 范围 | 证据 | 当前结论 |
 |---|---|---|
-| 支付/电签/OA fail-closed | `backend/src/services/payment_service.py`、`backend/src/services/esign_service.py`、`backend/src/services/oa_integration_service.py`；`cd backend && ./.venv/bin/pytest -q tests/test_payment_provider_clients.py tests/test_esign_provider_clients.py tests/test_oa_integration.py ...` -> `88 passed` | staging/production 不再对 mock/未知 provider 静默成功，缺配置会进入明确错误/503 路径 |
+| 支付/电签/OA fail-closed | `backend/src/services/payment_service.py`、`backend/src/services/esign_service.py`、`backend/src/services/oa_integration_service.py`；`cd backend && ./.venv/bin/pytest -q tests/test_payment_provider_clients.py tests/test_esign_provider_clients.py tests/test_oa_integration.py ...` -> `95 passed` | staging/production 不再对 mock/未知 provider 静默成功，缺配置会进入明确错误/503 路径 |
 | 支付/电签关键动作审计 | `backend/src/api/routes/payments.py`、`backend/src/api/routes/esign.py`、`backend/tests/test_commercial_action_audit.py` | 支付下单、关单、退款和电签发起、取签署链接、取消流程均写入 `AuditLog`；签署 URL 不进入审计内容；真实沙箱阶段需继续校验外部事件与本地审计可对账 |
 | 电签组织隔离 | `backend/src/api/routes/esign.py`、`backend/tests/test_external_surface_guards.py` | flow 创建、查询、签署链接和撤销都必须先命中当前用户组织内合同 |
-| CLI/MCP 治理 | `backend/src/api/routes/cli.py`、`backend/src/api/routes/mcp_routes.py`、`backend/src/mcp_server.py`、`backend/tests/test_cli_route.py`、`backend/tests/test_config_commercial_guards.py` | CLI Key 绑定真实用户/scope；key create/revoke/execute 写审计；MCP 管理 API 需要 `manage:system`；MCP 管理动作写脱敏审计；独立 MCP 在商业环境默认关闭 |
+| CLI/MCP 治理 | `backend/src/api/routes/cli.py`、`backend/src/api/routes/mcp_routes.py`、`backend/src/mcp_server.py`、`backend/src/services/mcp_client_service.py`、`backend/tests/test_cli_route.py`、`backend/tests/test_config_commercial_guards.py` | CLI Key 绑定真实用户/scope；key create/revoke/execute 写审计；MCP 管理 API 需要 `manage:system`；MCP 管理动作写脱敏审计；独立 MCP 在商业环境默认关闭；外部 MCP 连接已补 stdio command/command-line/env allowlist、SSE scheme/host allowlist 和子进程最小环境 |
 | Agent capability policy | `backend/src/harness/policy_engine.py`、`backend/src/harness/tool_registry.py`、`backend/src/agents/base.py`、`backend/tests/test_harness.py` | 未注册工具 fail-closed；显式 `allowed_tools` 生效；订阅 feature、角色 permission、绝密模式、设备信任、通道策略和高风险审批上下文可进入统一判定；agent 暴露 MCP tool list 前会过滤，模型返回 tool call 后执行前会二次判权；`tests/test_harness.py -k 'PolicyEngine or AgentMcpToolPolicy'` 为 `13 passed` |
 | 订阅/JWT 默认安全 | `backend/src/services/subscription_service.py`、`backend/src/core/config.py`、`backend/tests/test_mode_subscription_guards.py`、`backend/tests/test_config_commercial_guards.py` | 未知 feature 默认拒绝；staging 也拒绝默认 JWT secret |
 | UI/UX 静态演示去除 | `frontend/src/components/chat/DocumentDiff.tsx`、`AnalysisView.tsx`、`ContextPane.tsx`；`cd frontend && npx eslint ... --max-warnings 0`、`npm test`、`npm run build` | `DocumentDiff` 不再展示静态合同样例，只渲染当前会话真实 diff 数据 |
@@ -92,7 +92,7 @@
 4. 移动/小程序真机验收缺失：`docs/release/evidence/mobile-device-smoke.md` 仍为 pending；本地 `scripts/mobile-device-smoke.sh --out docs/release/evidence/artifacts/mobile-mini-code-smoke-20260508.json --manual-template-out docs/release/evidence/artifacts/mobile-device-manual-template-20260508.json` 已通过并覆盖移动测试、tsc、Expo config/SDK guard、Expo doctor、mobile npm audit、小程序 tsc/build、WeChat DevTools CLI project smoke、refresh auth guard、fake fallback guard 与 mini-program design token guard，且写出代码级 artifact 和手工设备证据模板；`mobile-device-host-probe-20260508.json` 确认 iOS Simulator 可用，但 iOS app-run、Android、交互式微信开发者工具关键路径手测和跨设备连续会话记录未完成。
 5. mypy 已清零：当前 backend mypy `0` 个错误，`scripts/mypy-baseline-check.sh` 默认 ceiling 已降为 `0`；后续任何非零 mypy 都应阻断 release readiness。
 6. 全设备智能助手未闭环：桌面主工作站配置面、移动远程控制桌面、任意 LLM/Skills/MCP 的组织级策略、独立本地知识库体验和绝密模式出站 fail-closed 证据仍缺失；当前只能称为已有基础，不能称为完成态。
-7. 企业智能体治理仍是局部硬化：CLI/MCP 已有用户绑定、系统权限和审计防线，agent capability policy 已补未注册工具 fail-closed、上下文判权和 MCP runtime 二次判权；但 route-token 撤销、MCP stdio/url/env allowlist、Human-in-the-loop 高风险工作室、Skill eval/审批/灰度/回滚仍未实现为完整闭环。
+7. 企业智能体治理仍是局部硬化：CLI/MCP 已有用户绑定、系统权限和审计防线，外部 MCP 连接已补商业环境 allowlist 基线，agent capability policy 已补未注册工具 fail-closed、上下文判权和 MCP runtime 二次判权；但 route-token 撤销、真实 approved MCP connector 演练、Human-in-the-loop 高风险工作室、Skill eval/审批/灰度/回滚仍未实现为完整闭环。
 
 ## 5. 完成判定
 

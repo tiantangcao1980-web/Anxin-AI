@@ -101,6 +101,13 @@ class Settings(BaseSettings):
     INTEGRATION_API_KEY: str | None = None
     # 独立 MCP Server 没有 HTTP 用户上下文；商业环境默认关闭，统一走带 RBAC 的 /api/v1/mcp。
     MCP_STANDALONE_ENABLED: bool = False
+    # 外部 MCP 连接治理：商业环境下 stdio 默认禁用，SSE/stdio 需显式 allowlist。
+    MCP_STDIO_ENABLED: bool = False
+    MCP_STDIO_ALLOWED_COMMANDS: list[str] = []
+    MCP_STDIO_ALLOWED_COMMAND_LINES: list[str] = []
+    MCP_STDIO_ALLOWED_ENV_KEYS: list[str] = []
+    MCP_SSE_ALLOWED_HOSTS: list[str] = []
+    MCP_SSE_ALLOWED_SCHEMES: list[str] = ["https"]
 
     # ========== 反Bot防御配置 ==========
     ANTIBOT_ENABLED: bool = False               # 总开关

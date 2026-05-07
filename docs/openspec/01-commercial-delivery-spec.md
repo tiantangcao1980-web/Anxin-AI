@@ -180,7 +180,7 @@
 
 当前进展：
 - 已补第一层 agent capability policy：未注册工具 fail-closed、显式 allowlist、订阅 feature、角色 permission、绝密模式、设备信任、通道策略、高风险审批上下文，以及 MCP tool list 过滤 + runtime 二次判权。
-- 仍缺 CapabilityRoute/短期 route token、MCP stdio/url/env allowlist、Human-in-the-loop 工作室、Skill Evolution Gate 和撤销后立即失权证据。
+- MCP 外部连接已补商业环境 fail-closed allowlist 基线：stdio 默认关闭、command/command-line/env allowlist、SSE scheme/host allowlist 和子进程最小环境；仍缺 CapabilityRoute/短期 route token、Human-in-the-loop 工作室、Skill Evolution Gate、真实 approved MCP connector 演练和撤销后立即失权证据。
 
 ## 4. 统一开发规则
 
