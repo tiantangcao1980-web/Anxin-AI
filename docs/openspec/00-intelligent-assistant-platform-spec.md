@@ -163,6 +163,7 @@ Skills 和智能体进化必须受治理：
 - MCP/Skills：`backend/src/mcp_server.py`、`backend/src/api/routes/mcp_routes.py`、`backend/src/services/mcp_client_service.py`、`backend/src/models/mcp_config.py`、`backend/src/services/skill_service.py`。
 - 知识库：`backend/src/services/knowledge_management.py`、`backend/src/services/knowledge_service.py`、`backend/src/api/routes/knowledge.py`。
 - 桌面同步/本地安全：SQLCipher/keyring、offline queue、sync_log、desktop security gate 已有代码级证据。
+- 桌面绝密模式：CLI、同步冲突、Harness artifact 和本地同步桥已补第一层 TopSecret data-network guard；全 WebView/API 出站拦截和 packaged runtime 证据仍需补。
 - 移动隐私上下文：移动端已有本地模型/LAN Ollama 语义基础。
 - 外部参考分析：`docs/references/agentic-platform-benchmark-2026-05-08.md` 已整理可借鉴能力和风险边界，并纳入 HiClaw 的多智能体控制面、Human-in-the-loop、Gateway credential isolation 和声明式通信策略。
 

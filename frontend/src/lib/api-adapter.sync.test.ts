@@ -5,6 +5,7 @@ import {
   buildSyncPushPayload,
   calculateSyncRetryState,
   getDesktopSQLiteSecurityStatus,
+  isDesktopDataNetworkAllowed,
   isSyncRetryDue,
   MAX_SYNC_RETRIES,
   normalizeRemoteSyncRecord,
@@ -178,6 +179,30 @@ describe('desktop sync helpers', () => {
     expect(normalizeSyncApiBase('http://localhost:8000/api')).toBe('http://localhost:8000/api/v1')
     expect(normalizeSyncApiBase('http://localhost:8000/api/v1/')).toBe('http://localhost:8000/api/v1')
     expect(normalizeSyncApiBase(null, '/api/v1')).toBe('/api/v1')
+  })
+
+  it('blocks desktop data-network operations in top-secret mode', async () => {
+    expect(isDesktopDataNetworkAllowed('top-secret')).toBe(false)
+    expect(isDesktopDataNetworkAllowed('hybrid')).toBe(true)
+    expect(isDesktopDataNetworkAllowed('cloud')).toBe(true)
+
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+    const result = await runLocalSyncWithDependencies({
+      db: new FakeSQLiteDB(),
+      apiBase: 'https://api.example.test/api/v1',
+      token: 'token-a',
+      mode: 'top-secret',
+    })
+
+    expect(result).toMatchObject({
+      success: false,
+      pushed: 0,
+      pulled: 0,
+      push_ok: false,
+      pull_ok: false,
+      message: '绝密模式下不允许同步本地数据到外部服务',
+    })
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('builds the backend push payload without leaking local sync_log ids', () => {
@@ -359,6 +384,7 @@ describe('desktop sync helpers', () => {
       token: 'token-a',
       deviceId: 'desktop-a',
       now: () => new Date('2026-05-06T10:02:00.000Z'),
+      mode: 'hybrid',
     })
 
     expect(result).toMatchObject({
@@ -416,6 +442,7 @@ describe('desktop sync helpers', () => {
       apiBase: 'https://api.example.test/api/v1',
       token: 'token-a',
       deviceId: 'desktop-a',
+      mode: 'hybrid',
     })
 
     expect(result).toMatchObject({

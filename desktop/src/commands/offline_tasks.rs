@@ -7,6 +7,7 @@
 /// 2. 查询队列状态
 /// 3. 触发批量同步
 /// 4. 管理 Harness Artifact
+use crate::commands::privacy_guard::ensure_data_network_allowed;
 use crate::models::{AppMode, SharedAppState};
 use crate::services::{offline_queue, secure_db};
 use serde::{Deserialize, Serialize};
@@ -135,10 +136,13 @@ pub async fn flush_offline_queue(
 /// 桌面端完成一个任务后，将中间结论推送到云端供其他端使用
 #[command]
 pub async fn push_harness_artifacts(
+    state: State<'_, SharedAppState>,
     session_id: String,
     artifacts: std::collections::HashMap<String, serde_json::Value>,
     _device_id: String,
 ) -> Result<String, String> {
+    ensure_data_network_allowed(state.inner(), "推送 Harness Artifact").await?;
+
     log::info!(
         "推送 Harness Artifact: session={}, types={:?}",
         session_id,
@@ -160,9 +164,12 @@ pub async fn push_harness_artifacts(
 /// 从云端拉取其他设备产出的中间结论
 #[command]
 pub async fn pull_harness_artifacts(
+    state: State<'_, SharedAppState>,
     session_id: String,
     _artifact_types: Option<Vec<String>>,
 ) -> Result<std::collections::HashMap<String, serde_json::Value>, String> {
+    ensure_data_network_allowed(state.inner(), "拉取 Harness Artifact").await?;
+
     log::info!("拉取 Harness Artifact: session={}", session_id);
 
     // 实际实现：POST /api/v1/sync/artifacts/pull

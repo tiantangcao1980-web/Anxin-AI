@@ -82,6 +82,7 @@
 | UI/UX 静态演示去除 | `frontend/src/components/chat/DocumentDiff.tsx`、`AnalysisView.tsx`、`ContextPane.tsx`；`cd frontend && npx eslint ... --max-warnings 0`、`npm test`、`npm run build` | `DocumentDiff` 不再展示静态合同样例，只渲染当前会话真实 diff 数据 |
 | 移动端假提交去除 | `mobile/app/(tabs)/investigation.tsx`、`mobile/app/(tabs)/knowledge.tsx`；`cd mobile && npm run typecheck`、`npm test` | 尽调与知识库搜索改为真实 API 调用，并补加载态/错误态 |
 | 桌面同步假成功去除 | `desktop/src/services/sync_engine.rs`；`cd desktop && cargo test sync_engine` -> `3 passed` | Rust 云同步数据面未启用时返回 Error 状态，不再 `Ok(0)` 假成功 |
+| 桌面绝密模式出站熔断 | `desktop/src/commands/privacy_guard.rs`、`desktop/src/commands/cli.rs`、`desktop/src/commands/sync.rs`、`desktop/src/commands/offline_tasks.rs`、`frontend/src/lib/api-adapter.ts`、`frontend/src/lib/api-adapter.sync.test.ts`；`cd desktop && cargo test` -> `19 passed`；`cd frontend && npm test -- api-adapter.sync.test.ts` -> `10 passed` | TopSecret 下桌面 CLI、同步冲突上报、Harness artifact 推/拉和前端本地同步桥先 fail-closed，不再直接出站；全 WebView API 出站治理和 packaged runtime 证据仍需补 |
 | 发布证据链 | `docs/release/test-evidence.md`、`docs/release/commercial-delivery-readiness.md`、`docs/release/security-and-privacy-checklist.md`、`docs/release/commercial-delivery-checklist.json` | 本轮新增代码级证据已同步进 release 文档，仍保留 payment/e-sign/desktop/mobile pending |
 
 ## 4. 仍阻断商业完成的要求
@@ -91,7 +92,7 @@
 3. 桌面商业安全未闭环：`docs/release/evidence/desktop-runtime-smoke.md` 仍为 pending；SQLCipher/keyring 安全门禁、本地 installed-profile keyring/reopen 与 plaintext migration smoke、debug binary self-test、SQLite 100/500 本地性能基线、production APNs entitlement、release package dry-run、signed/notarized release preflight、unsigned release app+DMG build、unsigned release packaged runtime smoke 和 unsigned release packaged-profile/performance smoke 已补；fresh debug `.app` runtime 复跑当前在 AppKit registration 前 abort；preflight 明确缺 Tauri signingIdentity、Apple codesign identity、notary credentials、codesign verify、signature authority，且 signed/notarized installer、signed packaged-profile migration transcript、跨端连续会话、signed packaged runtime 性能基线仍缺失。
 4. 移动/小程序真机验收缺失：`docs/release/evidence/mobile-device-smoke.md` 仍为 pending；本地 `scripts/mobile-device-smoke.sh --out docs/release/evidence/artifacts/mobile-mini-code-smoke-20260508.json --manual-template-out docs/release/evidence/artifacts/mobile-device-manual-template-20260508.json` 已通过并覆盖移动测试、tsc、Expo config/SDK guard、Expo doctor、mobile npm audit、小程序 tsc/build、WeChat DevTools CLI project smoke、refresh auth guard、fake fallback guard 与 mini-program design token guard，且写出代码级 artifact 和手工设备证据模板；`mobile-device-host-probe-20260508.json` 确认 iOS Simulator 可用，但 iOS app-run、Android、交互式微信开发者工具关键路径手测和跨设备连续会话记录未完成。
 5. mypy 已清零：当前 backend mypy `0` 个错误，`scripts/mypy-baseline-check.sh` 默认 ceiling 已降为 `0`；后续任何非零 mypy 都应阻断 release readiness。
-6. 全设备智能助手未闭环：桌面主工作站配置面、移动远程控制桌面、任意 LLM/Skills/MCP 的组织级策略、独立本地知识库体验和绝密模式出站 fail-closed 证据仍缺失；当前只能称为已有基础，不能称为完成态。
+6. 全设备智能助手未闭环：桌面主工作站配置面、移动远程控制桌面、任意 LLM/Skills/MCP 的组织级策略、独立本地知识库体验和绝密模式全 WebView/API 出站 fail-closed 证据仍缺失；当前只能称为已有基础，不能称为完成态。桌面 CLI/sync/Harness IPC 与本地同步桥已先补代码级 TopSecret guard。
 7. 企业智能体治理仍是局部硬化：CLI/MCP 已有用户绑定、系统权限和审计防线，外部 MCP 连接已补商业环境 allowlist 基线，agent capability policy 已补未注册工具 fail-closed、上下文判权和 MCP runtime 二次判权；但 route-token 撤销、真实 approved MCP connector 演练、Human-in-the-loop 高风险工作室、Skill eval/审批/灰度/回滚仍未实现为完整闭环。
 
 ## 5. 完成判定

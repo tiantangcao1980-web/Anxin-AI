@@ -1,3 +1,4 @@
+use crate::commands::privacy_guard::ensure_data_network_allowed;
 use crate::models::{AppMode, SharedAppState};
 use crate::services::{offline_queue, secure_db, sync_engine};
 use serde_json::json;
@@ -143,6 +144,7 @@ pub async fn resolve_conflict(
         entity_id,
         resolution
     );
+    ensure_data_network_allowed(state.inner(), "上报同步冲突决议").await?;
 
     let (backend_url, token) = {
         let s = state.read().await;

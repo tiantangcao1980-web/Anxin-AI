@@ -10,8 +10,10 @@
 /// - 每条命令审计记录
 /// - 高危操作禁止（delete/payment/sign）
 /// - 频率限制 30 req/min
+use crate::commands::privacy_guard::ensure_data_network_allowed;
+use crate::models::SharedAppState;
 use serde::{Deserialize, Serialize};
-use tauri::command;
+use tauri::{command, State};
 
 /// CLI 命令请求
 #[allow(dead_code)]
@@ -40,7 +42,10 @@ pub async fn cli_execute(
     command: String,
     args: std::collections::HashMap<String, serde_json::Value>,
     api_key: Option<String>,
+    state: State<'_, SharedAppState>,
 ) -> Result<CLIResponse, String> {
+    ensure_data_network_allowed(state.inner(), "执行 CLI 命令").await?;
+
     let api_key = api_key.unwrap_or_default();
     if api_key.is_empty() {
         return Ok(CLIResponse {
@@ -105,7 +110,10 @@ pub async fn cli_create_key(
     name: String,
     scopes: Vec<String>,
     expires_days: Option<u32>,
+    state: State<'_, SharedAppState>,
 ) -> Result<serde_json::Value, String> {
+    ensure_data_network_allowed(state.inner(), "创建 CLI API Key").await?;
+
     let backend_url =
         std::env::var("ANXIN_BACKEND_URL").unwrap_or_else(|_| "http://localhost:8001".to_string());
 
@@ -138,7 +146,9 @@ pub async fn cli_create_key(
 
 /// 列出 API Keys
 #[command]
-pub async fn cli_list_keys() -> Result<serde_json::Value, String> {
+pub async fn cli_list_keys(state: State<'_, SharedAppState>) -> Result<serde_json::Value, String> {
+    ensure_data_network_allowed(state.inner(), "列出 CLI API Key").await?;
+
     let backend_url =
         std::env::var("ANXIN_BACKEND_URL").unwrap_or_else(|_| "http://localhost:8001".to_string());
 

@@ -7,7 +7,7 @@
  * - TopSecret：仅本地 SQLite + 本地 LLM
  */
 
-import { getBackendUrl, isTauri, type AppMode } from './tauri-bridge'
+import { getBackendUrl, getCurrentMode, isTauri, type AppMode } from './tauri-bridge'
 import { API_BASE_URL, buildApiHeaders } from './api'
 import { getTokenStorage } from './platform/storage'
 
@@ -450,6 +450,29 @@ export function normalizeSyncApiBase(configuredUrl: string | null | undefined, f
   if (/\/api\/v\d+$/i.test(trimmed)) return trimmed
   if (/\/api$/i.test(trimmed)) return `${trimmed}/v1`
   return `${trimmed}/api/v1`
+}
+
+export function isDesktopDataNetworkAllowed(mode: AppMode): boolean {
+  return mode !== 'top-secret'
+}
+
+function topSecretDataNetworkResult(message: string): DesktopSyncResult {
+  return {
+    success: false,
+    message,
+    sync_time: null,
+    pushed: 0,
+    pulled: 0,
+    conflicts: 0,
+    deferred: 0,
+    needs_human: 0,
+    push_ok: false,
+    pull_ok: false,
+  }
+}
+
+async function getCurrentDesktopMode(): Promise<AppMode> {
+  return isTauri() ? await getCurrentMode() : 'cloud'
 }
 
 function parseJsonObject(value: string | null | undefined): Record<string, unknown> {
@@ -1031,7 +1054,12 @@ export async function runLocalSyncWithDependencies(params: {
   token: string
   deviceId?: string
   now?: () => Date
+  mode: AppMode
 }): Promise<DesktopSyncResult> {
+  if (!isDesktopDataNetworkAllowed(params.mode)) {
+    return topSecretDataNetworkResult('绝密模式下不允许同步本地数据到外部服务')
+  }
+
   const deviceId = params.deviceId ?? await getDeviceId(params.db)
   const push = await pushPendingRecords(params.db, params.apiBase, params.token, deviceId)
   const pull = await pullIncrementalUpdates(params.db, params.apiBase, params.token)
@@ -1158,6 +1186,11 @@ export async function resolveLocalSyncConflict(
     return { success: false, message: '请先登录后再解决同步冲突' }
   }
 
+  const mode = await getCurrentDesktopMode()
+  if (!isDesktopDataNetworkAllowed(mode)) {
+    return { success: false, message: '绝密模式下不允许上报同步冲突决议' }
+  }
+
   const apiBase = await resolveBackendApiBase()
   const response = await fetch(`${apiBase}/sync/resolve`, {
     method: 'POST',
@@ -1218,8 +1251,13 @@ export async function triggerLocalSync(): Promise<DesktopSyncResult | null> {
     }
   }
 
+  const mode = await getCurrentDesktopMode()
+  if (!isDesktopDataNetworkAllowed(mode)) {
+    return topSecretDataNetworkResult('绝密模式下不允许同步本地数据到外部服务')
+  }
+
   const apiBase = await resolveBackendApiBase()
-  return runLocalSyncWithDependencies({ db, apiBase, token })
+  return runLocalSyncWithDependencies({ db, apiBase, token, mode })
 }
 
 // ===== 模式感知请求 =====
