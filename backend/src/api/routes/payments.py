@@ -19,6 +19,7 @@ from src.core.database import get_db
 from src.core.deps import get_current_user_required
 from src.models.payment import PaymentOrder as PaymentOrderModel
 from src.models.user import User
+from src.services.audit_service import AuditService
 from src.services.official_webhook_security import (
     OfficialWebhookVerificationError,
     parse_wechat_pay_notification,
@@ -94,12 +95,23 @@ def _model_to_response(order: PaymentOrderModel) -> OrderResponse:
         updated_at=order.updated_at,
     )
 
+
+def _payment_audit_value(order: PaymentOrderModel) -> dict[str, object]:
+    return {
+        "order_type": order.order_type,
+        "amount": order.amount,
+        "status": order.status,
+        "provider": order.payment_provider,
+        "related_id": order.related_id,
+    }
+
 # ========== 接口 ==========
 
 
 @router.post("/orders", response_model=OrderResponse, summary="创建支付订单")
 async def create_order(
     body: CreateOrderRequest,
+    request: Request,
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
 ) -> OrderResponse:
@@ -122,7 +134,12 @@ async def create_order(
             description=body.description,
             notify_url=f"/api/v1/payments/webhook/{body.provider.value}",
         )
-    except (NotImplementedError, PaymentProviderConfigError) as e:
+    except PaymentProviderConfigError as e:
+        raise HTTPException(
+            status_code=503 if _commercial_environment() else 501,
+            detail=str(e),
+        ) from e
+    except NotImplementedError as e:
         raise HTTPException(status_code=501, detail=str(e)) from e
 
     # 持久化到数据库
@@ -142,6 +159,15 @@ async def create_order(
     db.add(db_order)
     await db.commit()
     await db.refresh(db_order)
+    await AuditService(db).log_from_request(
+        request,
+        action="payment.order.create",
+        resource_type="payment_order",
+        resource_id=db_order.id,
+        user=user,
+        new_value=_payment_audit_value(db_order),
+        extra_data={"source": "payment", "provider": db_order.payment_provider},
+    )
 
     logger.info(f"订单已创建: {order_id}, 用户: {user.id}, 金额: {body.amount}")
     return _model_to_response(db_order)
@@ -225,11 +251,14 @@ async def get_order(
 async def refund_order(
     order_id: str,
     body: RefundRequest,
+    request: Request,
     idempotency_key_header: str | None = Header(None, alias="Idempotency-Key"),
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
 ) -> OrderResponse:
     """对已支付的订单发起退款。"""
+    previous_order = await db.get(PaymentOrderModel, order_id)
+    previous_status = previous_order.status if previous_order and previous_order.user_id == user.id else None
     service = RefundService(db)
     try:
         refund = await service.refund(
@@ -252,6 +281,25 @@ async def refund_order(
     if not db_order:
         raise HTTPException(status_code=404, detail="订单不存在")
     await db.refresh(db_order)
+    await AuditService(db).log_from_request(
+        request,
+        action="payment.order.refund",
+        resource_type="payment_order",
+        resource_id=db_order.id,
+        user=user,
+        old_value={"status": previous_status} if previous_status else None,
+        new_value={
+            **_payment_audit_value(db_order),
+            "refund_amount": refund.get("amount"),
+            "refund_status": refund.get("status"),
+            "refund_id": refund.get("id"),
+        },
+        extra_data={
+            "source": "payment",
+            "provider": db_order.payment_provider,
+            "idempotency_key_present": bool(body.idempotency_key or idempotency_key_header),
+        },
+    )
 
     return _model_to_response(db_order)
 
@@ -259,6 +307,7 @@ async def refund_order(
 @router.post("/orders/{order_id}/close", summary="关闭订单")
 async def close_order(
     order_id: str,
+    request: Request,
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
 ) -> OrderResponse:
@@ -276,6 +325,7 @@ async def close_order(
     if db_order.status != PaymentStatusEnum.PENDING.value:
         raise HTTPException(status_code=400, detail="只有待支付的订单可以关闭")
 
+    old_value = _payment_audit_value(db_order)
     try:
         provider = get_payment_provider(db_order.payment_provider)
         await provider.close_order(order_id)
@@ -287,6 +337,16 @@ async def close_order(
     db_order.status = PaymentStatusEnum.CLOSED.value
     await db.commit()
     await db.refresh(db_order)
+    await AuditService(db).log_from_request(
+        request,
+        action="payment.order.close",
+        resource_type="payment_order",
+        resource_id=db_order.id,
+        user=user,
+        old_value=old_value,
+        new_value=_payment_audit_value(db_order),
+        extra_data={"source": "payment", "provider": db_order.payment_provider},
+    )
 
     logger.info(f"订单已关闭: {order_id}")
     return _model_to_response(db_order)

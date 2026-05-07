@@ -88,7 +88,7 @@ GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/g
   bash scripts/commercial-readiness-gate.sh --with-local-tests
 # local code-level commands passed: git diff --check, frontend lint, frontend Vitest 10 files / 34 tests,
 # frontend build, desktop cargo check, desktop cargo test 16 passed, desktop installed-profile SQLCipher/keyring smoke, backend mypy zero baseline now 0/0, RAG full50 runner tests 8 passed,
-# RAG quality metrics tests 4 passed, sandbox evidence runner tests 7 passed, payment/e-sign provider and webhook/refund tests 48 passed,
+# RAG quality metrics tests 4 passed, sandbox evidence runner tests 7 passed, payment/e-sign provider/webhook/refund/action-audit tests 61 passed,
 # release evidence secret scan tests 2 passed, release worktree inventory tests 2 passed, release evidence artifact validation tests 28 passed,
 # commercial readiness gate warning propagation test 1 passed,
 # release evidence validation tests 9 passed, commercial checklist tests 5 passed, commercial delivery lanes tests 3 passed,
@@ -109,8 +109,9 @@ backend/.venv/bin/pytest -q \
   backend/tests/test_official_webhook_security.py \
   backend/tests/test_webhook_business_events.py \
   backend/tests/test_refund_idempotency.py \
-  backend/tests/test_external_surface_guards.py
-# 54 passed
+  backend/tests/test_external_surface_guards.py \
+  backend/tests/test_commercial_action_audit.py
+# 68 passed
 ```
 
 2026-05-08 本轮商业硬化切片：
@@ -199,13 +200,14 @@ cd desktop && cargo test sync_engine
 
 | 能力 | 当前证据 | 覆盖是否充分 |
 |---|---|---|
-| 商业发布 gate | `scripts/commercial-readiness-gate.sh` 已建立，默认 quick 模式检查 release artifacts、`commercial-delivery-checklist.json`、`commercial-delivery-lanes.json`、支付/电签 live runner 必需 env 模板字段、GitNexus embeddings、dirty worktree release-blocking gate、`docs/release/evidence/*` 的 `Status: complete`、complete evidence 的 Owner/Environment/Date range 元数据、Required Scope 未闭合行、空 artifact reference 和正文 pending/not-ready 冲突、发布证据 secret/PII 扫描、RAG full50 provenance、桌面加密 gate 和全仓静态质量基线声明；`--with-local-tests` 已覆盖 diff check、frontend lint/test/build、desktop check/test、desktop installed-profile SQLCipher/keyring smoke、RAG full50 runner tests、RAG quality tests、sandbox evidence runner tests、payment/e-sign provider/webhook tests、release evidence secret scan tests、release artifact/evidence validation tests、commercial readiness gate warning propagation test、Ruff、sandbox evidence preflight 和 mobile/mini local smoke | gate 本身充分；当前预期 FAIL，说明商业证据未齐且交付文件尚未提交复验 |
+| 商业发布 gate | `scripts/commercial-readiness-gate.sh` 已建立，默认 quick 模式检查 release artifacts、`commercial-delivery-checklist.json`、`commercial-delivery-lanes.json`、支付/电签 live runner 必需 env 模板字段、GitNexus embeddings、dirty worktree release-blocking gate、`docs/release/evidence/*` 的 `Status: complete`、complete evidence 的 Owner/Environment/Date range 元数据、Required Scope 未闭合行、空 artifact reference 和正文 pending/not-ready 冲突、发布证据 secret/PII 扫描、RAG full50 provenance、桌面加密 gate 和全仓静态质量基线声明；`--with-local-tests` 已覆盖 diff check、frontend lint/test/build、desktop check/test、desktop installed-profile SQLCipher/keyring smoke、RAG full50 runner tests、RAG quality tests、sandbox evidence runner tests、payment/e-sign provider/webhook/action-audit tests、release evidence secret scan tests、release artifact/evidence validation tests、commercial readiness gate warning propagation test、Ruff、sandbox evidence preflight 和 mobile/mini local smoke | gate 本身充分；当前预期 FAIL，说明商业证据未齐且交付文件尚未提交复验 |
 | 静态质量基线采集 | `scripts/static-quality-baseline.sh` 可生成 diff/ruff/mypy/frontend/desktop/release-evidence secret+PII/full-repo secret/mock scan 摘要；当前采集 ruff `0`、mypy `0`、mypy zero-baseline gate `0`、release evidence secret/PII scan `0`、secret scan `0`、mock/fallback scan `0`；全仓 Ruff 与 backend mypy 已清零；`docs/release/evidence/static-quality-baseline.md` 已记录 zero-baseline 规则 | 当前发布静态质量证据充分；后续需保持零回退 |
-| GitNexus 索引 | `bash scripts/gitnexus-index.sh` 可重建结构图并显式报告 dirty worktree drift；`GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/gitnexus-index.sh --embeddings --skip-context-checks` 已在本轮本地交付提交后生成主仓 embedding；当前 `.gitnexus/meta.json` 为 `1304 files / ~32.5k nodes / 58785 edges / 300 flows / embeddings 30417`，`capabilities.vectorSearch.status=vector-index`，精确 nodes/clusters 以最新 meta 为准；`cypher` 真实计数返回 `30417`，`status` 显示 indexed/current commit 一致，`detect-changes` 返回 `No changes detected`；`scripts/gitnexus-index.sh` 已纳入 repo-scoped query smoke | 结构、embedding 数据和 direct rc 读取充分；semantic query 不能单独放行；后续新增提交仍需重建/复验并用 `rg` 和测试补盲 |
+| GitNexus 索引 | `bash scripts/gitnexus-index.sh` 可重建结构图并显式报告 dirty worktree drift；`GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/gitnexus-index.sh --embeddings --skip-context-checks` 已在本轮本地交付提交后生成主仓 embedding；当前 `.gitnexus/meta.json` 为约 `1.3k files / 32.5k nodes / 58.8k edges / 300 flows / 30.4k embeddings`，`capabilities.vectorSearch.status=vector-index`，精确统计以最新 meta 为准；`cypher` 真实计数为非零，`status` 显示 indexed/current commit 一致，`detect-changes` 返回 `No changes detected`；`scripts/gitnexus-index.sh` 已纳入 repo-scoped query smoke | 结构、embedding 数据和 direct rc 读取充分；semantic query 不能单独放行；后续新增提交仍需重建/复验并用 `rg` 和测试补盲 |
 | 合同状态机 | 单元/API 测试 + webhook 回写测试 | 充分 |
 | 电签 provider 代码级协议 | fake `httpx.AsyncClient` 校验官方 header/body/path | 代码级充分，商业级不足 |
 | 电签真实沙箱 | `scripts/sandbox-evidence-runner.py` 已提供配置预检和可选 live 采集入口，预检 artifact 会列出 env 之外的 `runtime_prerequisites` 和 `external_evidence_requirements`，避免签署文件/完成 flow、官方回调、重复幂等、失败重试缺失导致 live 步骤被误当完整；live step validator 会把无 signer URL 标为 `pending`、空签署文件下载标为 `fail`；`backend/tests/test_sandbox_evidence_runner.py` 覆盖 live 确认门、脱敏写出、env 模板同步、runtime prerequisite、外部证据槽输出、honest-gating validators 和外部交接文档 live 参数防漂移；当前本地预检缺少真实账号配置，未运行 live | 不充分 |
 | 支付 provider 代码级协议 | provider/client/webhook 单测 | 代码级充分，商业级不足 |
+| 支付/电签关键动作审计 | `backend/tests/test_commercial_action_audit.py` 覆盖支付下单、关单、退款与电签发起、取签署链接、取消流程均写入 `AuditLog`；签署链接 URL 不进入审计内容 | 代码级充分；真实沙箱仍需验证外部渠道事件与本地审计可对账 |
 | 支付真实沙箱 | `scripts/sandbox-evidence-runner.py` 已提供配置预检和可选 live 采集入口，预检 artifact 会列出 env 之外的 `runtime_prerequisites` 和 `external_evidence_requirements`，避免退款/查单/关单订单 ID、官方回调、重复幂等、失败重试、平台 key/cert 轮换缺失导致 live 步骤被误当完整；live step validator 会把退款 `pending` 和关单/取消 `False` 标为 `pending`，不会误报 `pass`；`backend/tests/test_sandbox_evidence_runner.py` 覆盖 live 确认门、脱敏写出、env 模板同步、runtime prerequisite、外部证据槽输出、honest-gating validators 和外部交接文档 live 参数防漂移；当前本地预检缺少真实渠道配置，未运行 live | 不充分 |
 | 文档对象存储 | local backend 单测、迁移测试、上传校验测试 | 本地充分，生产 MinIO/S3 不足 |
 | IM 首包鉴权/离线 ACK | 后端和前端测试 | 当前切片充分 |

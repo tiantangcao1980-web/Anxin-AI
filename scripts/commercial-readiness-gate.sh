@@ -346,7 +346,7 @@ if [ "$RUN_LOCAL_TESTS" -eq 1 ]; then
   require_command "sandbox evidence runner tests" \
     bash -lc "backend/.venv/bin/pytest -q backend/tests/test_sandbox_evidence_runner.py"
   require_command "payment/e-sign provider and webhook tests" \
-    bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_payment_provider_clients.py tests/test_esign_provider_clients.py tests/test_official_webhook_security.py tests/test_webhook_business_events.py tests/test_refund_idempotency.py tests/test_external_surface_guards.py"
+    bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_payment_provider_clients.py tests/test_esign_provider_clients.py tests/test_official_webhook_security.py tests/test_webhook_business_events.py tests/test_refund_idempotency.py tests/test_external_surface_guards.py tests/test_commercial_action_audit.py"
   require_command "release evidence secret scan tests" \
     bash -lc "backend/.venv/bin/pytest -q backend/tests/test_release_evidence_secret_scan.py"
   require_command "release evidence artifact validation tests" \

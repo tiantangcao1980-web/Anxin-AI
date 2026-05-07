@@ -18,6 +18,7 @@ from src.core.database import get_db
 from src.core.deps import get_current_user_required
 from src.models.contract import Contract, ContractStatus
 from src.models.user import User
+from src.services.audit_service import AuditService
 from src.services.esign_service import (
     ESignProvider,
     ESignProviderAPIError,
@@ -79,6 +80,16 @@ def _get_provider_or_503() -> ESignProvider:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=str(e),
         ) from e
+
+
+def _esign_contract_audit_value(contract: Contract) -> dict[str, object | None]:
+    return {
+        "contract_id": contract.id,
+        "status": contract.status.value if isinstance(contract.status, ContractStatus) else str(contract.status),
+        "flow_id": contract.esign_flow_id,
+        "provider": contract.esign_provider,
+        "org_id": str(contract.org_id) if contract.org_id else None,
+    }
 
 
 async def _parse_webhook_payload(request: Request, body: bytes) -> dict[str, Any]:
@@ -177,6 +188,7 @@ class WebhookPayload(BaseModel):
 )
 async def create_sign_flow(
     req: CreateFlowRequest,
+    request: Request,
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
 ) -> FlowResponse:
@@ -234,9 +246,26 @@ async def create_sign_flow(
         f"用户 {user.email} 创建签署流程: flow_id={result.flow_id}, "
         f"contract_id={req.contract_id}"
     )
+    old_value = _esign_contract_audit_value(contract)
     contract.esign_flow_id = result.flow_id
     contract.esign_provider = provider.__class__.__name__
     await db.commit()
+    await db.refresh(contract)
+    await AuditService(db).log_from_request(
+        request,
+        action="esign.flow.create",
+        resource_type="contract",
+        resource_id=contract.id,
+        user=user,
+        old_value=old_value,
+        new_value={
+            **_esign_contract_audit_value(contract),
+            "signers_count": len(req.signers),
+            "has_document_url": bool(req.document_url),
+            "flow_status": result.status.value,
+        },
+        extra_data={"source": "esign", "provider": provider.__class__.__name__},
+    )
 
     return FlowResponse(
         flow_id=result.flow_id,
@@ -362,11 +391,12 @@ async def get_flow_status(
 async def get_sign_url(
     flow_id: str,
     signer_id: str,
+    request: Request,
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
 ) -> SignUrlResponse:
     """获取签署链接"""
-    await _get_contract_for_user(db, user, flow_id=flow_id)
+    contract = await _get_contract_for_user(db, user, flow_id=flow_id)
     provider = _get_provider_or_503()
 
     try:
@@ -391,6 +421,15 @@ async def get_sign_url(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
         ) from e
+    await AuditService(db).log_from_request(
+        request,
+        action="esign.flow.sign_url",
+        resource_type="contract",
+        resource_id=contract.id,
+        user=user,
+        new_value={**_esign_contract_audit_value(contract), "signer_id": signer_id},
+        extra_data={"source": "esign", "provider": provider.__class__.__name__},
+    )
 
     return SignUrlResponse(
         flow_id=flow_id,
@@ -406,12 +445,13 @@ async def get_sign_url(
 )
 async def cancel_flow(
     flow_id: str,
+    request: Request,
     reason: str = "",
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
     """取消签署流程"""
-    await _get_contract_for_user(db, user, flow_id=flow_id)
+    contract = await _get_contract_for_user(db, user, flow_id=flow_id)
     provider = _get_provider_or_503()
 
     try:
@@ -444,6 +484,19 @@ async def cancel_flow(
         )
 
     logger.info(f"用户 {user.email} 取消签署流程: flow_id={flow_id}, reason={reason}")
+    await AuditService(db).log_from_request(
+        request,
+        action="esign.flow.cancel",
+        resource_type="contract",
+        resource_id=contract.id,
+        user=user,
+        new_value={**_esign_contract_audit_value(contract), "cancelled": True},
+        extra_data={
+            "source": "esign",
+            "provider": provider.__class__.__name__,
+            "reason_present": bool(reason),
+        },
+    )
     return {"message": "签署流程已取消", "flow_id": flow_id}
 
 

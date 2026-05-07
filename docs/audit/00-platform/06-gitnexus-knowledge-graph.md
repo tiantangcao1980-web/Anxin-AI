@@ -15,10 +15,10 @@
 | edges | 58785 |
 | clusters | 以 `.gitnexus/meta.json` 为准（本轮约 1.1k） |
 | flows/processes | 300 |
-| embeddings rows | 30417 |
+| embeddings rows | 以 `.gitnexus/meta.json` 为准（本轮约 30.4k） |
 | distinct embedded nodes | not separately verified |
 
-`GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/gitnexus-index.sh --embeddings --skip-context-checks` 已在本轮本地交付提交后完成全量重建。当前 `.gitnexus/meta.json` 显示 `capabilities.vectorSearch.status=vector-index`，embedding stats 和 store 均可读。验证通过：`cypher MATCH (e:CodeEmbedding) RETURN count(e) AS cnt` 返回 `30417`，`gitnexus status` 显示 indexed/current commit 一致且 `Status: up-to-date`，`detect-changes --repo Anxin-Smart-Legal-Services` 返回 `No changes detected`。注意：`npx gitnexus@rc` 在本机仍可能触发 npm/arborist rebuild bug；推荐使用 `GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus`。
+`GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/gitnexus-index.sh --embeddings --skip-context-checks` 已在本轮本地交付提交后完成全量重建。当前 `.gitnexus/meta.json` 显示 `capabilities.vectorSearch.status=vector-index`，embedding stats 和 store 均可读。验证通过：`cypher MATCH (e:CodeEmbedding) RETURN count(e) AS cnt` 返回非零计数，`gitnexus status` 显示 indexed/current commit 一致且 `Status: up-to-date`，`detect-changes --repo Anxin-Smart-Legal-Services` 返回 `No changes detected`。注意：`npx gitnexus@rc` 在本机仍可能触发 npm/arborist rebuild bug；推荐使用 `GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus`。
 
 ## 2. 配置修正
 
@@ -138,7 +138,7 @@ npx -y gitnexus@latest context -r Anxin-Smart-Legal-Services DocumentService
   - 2026-05-06 21:52 使用 `GITNEXUS_NPX_SPEC=gitnexus@rc` 成功完成主仓 embedding 写入：`1181 files / 29999 nodes / 54587 edges / 1024 clusters / 300 flows / 28219 embeddings`；当时 meta 中记录过 vector-index 状态。
   - 同次运行中，analyze 已成功，但后置 `gitnexus@rc status` 触发 npm/arborist rebuild bug，脚本误恢复旧索引；已从 `.gitnexus.failed-20260506-215230` 恢复成功索引，并修正 `scripts/gitnexus-index.sh`，使 meta stats 已验证后不再因后置 status 失败恢复旧索引。
   - 2026-05-06 23:06 使用 `GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus` 重新完成全量 embedding 写入：`1181 files / 30003 nodes / 54587 edges / 1028 clusters / 300 flows / 28219 embeddings`，并通过 `cypher` 真实计数、`context getDesktopSQLiteSecurityStatus`、`query "desktop sqlite security status"` 和 `npx -y gitnexus@latest status` 验证。
-  - 2026-05-08 05:11 在本轮本地交付提交后使用同一 direct binary 重新完成全量 embedding 写入：`1304 files / ~32.5k nodes / 58785 edges / ~1.1k clusters / 300 flows / 30417 embeddings`，并通过 `cypher` 真实计数、`gitnexus status` commit 一致性和 `detect-changes` clean check 验证；精确 nodes/clusters 以最新 `.gitnexus/meta.json` 为准。
+  - 2026-05-08 05:11 在本轮本地交付提交后使用同一 direct binary 重新完成全量 embedding 写入：约 `1.3k files / 32.5k nodes / 58.8k edges / 1.1k clusters / 300 flows / 30.4k embeddings`，并通过 `cypher` 真实计数、`gitnexus status` commit 一致性和 `detect-changes` clean check 验证；精确统计以最新 `.gitnexus/meta.json` 为准。
 - 当前结论：GitNexus 结构知识图、embedding 数据和读取型 CLI（直接 rc binary）对当前本地交付提交的索引可读且 up-to-date。semantic query 不能单独作为需求覆盖或风险放行依据；后续新增提交仍需结合 `detect_changes`、`git status --short`、`rg`、直接源码阅读和专项 pytest/Vitest/Playwright 补齐事实。
 
 ## 4. 已知限制
@@ -195,4 +195,4 @@ GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/g
 bash scripts/gitnexus-index.sh --embeddings
 ```
 
-`GITNEXUS_EMBEDDING_URL` 必须是 `/v1` base URL，GitNexus 会自行追加 `/embeddings`。`scripts/gitnexus-index.sh --embeddings` 会先运行 tiny preflight；通过 preflight 后脚本才会备份现有 `.gitnexus` 并执行主仓全量 embedding；如 `meta.json` 仍为 `embeddings: 0` 或 `cypher` 计数不可读，脚本会失败并恢复备份。当前主仓已完成 `30417` 条 embedding rows；direct rc binary 的 `context/query/cypher/status/detect-changes` 已通过 smoke，`npx gitnexus@rc` wrapper 仍需规避。
+`GITNEXUS_EMBEDDING_URL` 必须是 `/v1` base URL，GitNexus 会自行追加 `/embeddings`。`scripts/gitnexus-index.sh --embeddings` 会先运行 tiny preflight；通过 preflight 后脚本才会备份现有 `.gitnexus` 并执行主仓全量 embedding；如 `meta.json` 仍为 `embeddings: 0` 或 `cypher` 计数不可读，脚本会失败并恢复备份。当前主仓已完成非零 embedding rows；direct rc binary 的 `context/query/cypher/status/detect-changes` 已通过 smoke，`npx gitnexus@rc` wrapper 仍需规避。

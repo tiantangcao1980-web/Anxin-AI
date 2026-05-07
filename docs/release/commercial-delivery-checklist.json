@@ -17,7 +17,7 @@
         "node -e \"const fs=require('fs'); const m=JSON.parse(fs.readFileSync('.gitnexus/meta.json','utf8')); console.log(m.stats)\"",
         "GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/commercial-readiness-gate.sh --quick"
       ],
-      "current_result": "After the local delivery commit, GitNexus was rebuilt with 1304 files / ~32.5k nodes / 58785 edges / 300 flows / 30417 embeddings; vectorSearch.status=vector-index; exact nodes/clusters are read from the latest .gitnexus/meta.json; indexed/current commit match; detect-changes reports no changes."
+      "current_result": "After the local delivery commit, GitNexus was rebuilt with non-zero embeddings and vectorSearch.status=vector-index; exact files/nodes/edges/embeddings are read from the latest .gitnexus/meta.json; indexed/current commit match; detect-changes reports no changes."
     },
     {
       "id": "openspec-commercial-spec",

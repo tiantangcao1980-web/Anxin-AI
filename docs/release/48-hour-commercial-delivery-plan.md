@@ -8,7 +8,7 @@
 
 | 维度 | 当前事实 | 48 小时内处理口径 |
 |---|---|---|
-| GitNexus | commit-scoped index 已在本轮本地交付提交后重建为 `1304 files / ~32.5k nodes / 58785 edges / 300 flows / 30417 embeddings`，vector gate 已过，精确 nodes/clusters 以最新 `.gitnexus/meta.json` 为准；历史 dirty snapshot 曾为 `380 files / 6037 symbols / critical`，当前不能把该历史影响面当作最新工作树结论 | 本轮开发继续用 GitNexus direct CLI、`rg` 和测试互证；后续新增提交后必须重跑 GitNexus |
+| GitNexus | commit-scoped index 已在本轮本地交付提交后重建为约 `1.3k files / 32.5k nodes / 58.8k edges / 300 flows / 30.4k embeddings`，vector gate 已过，精确统计以最新 `.gitnexus/meta.json` 为准；历史 dirty snapshot 曾为 `380 files / 6037 symbols / critical`，当前不能把该历史影响面当作最新工作树结论 | 本轮开发继续用 GitNexus direct CLI、`rg` 和测试互证；后续新增提交后必须重跑 GitNexus |
 | release artifacts | `python3 scripts/validate-release-artifacts.py` -> `PASS (25 JSON artifacts)`；`bash scripts/release-evidence-secret-scan.sh` -> `PASS`；`git diff --check` -> `PASS` | 新增真实证据后立即复跑 artifact validator 和 secret scan |
 | 工作树 | 本轮本地交付已提交，GitNexus 已重建到该提交；后续外部证据增量仍只接受可追踪 release artifact | 42-48h 必须复跑 `release-worktree-inventory`，确认 `local_secret=0`、`unknown=0`，并在新增交付文件后重新提交和复验 GitNexus |
 | 桌面 | unsigned release `.app` + DMG 已在 unsandboxed macOS 环境构建通过；unsigned release packaged runtime self-test/startup/WebView page-load smoke 已通过；unsigned release packaged-profile plaintext-to-SQLCipher/keyring reopen 和 SQLCipher 100/500 performance smoke 已通过；release preflight 新增 `hdiutil` / DiskManagement probe 且当前通过；preflight 仍缺 signing identity / codesign identity / notarization / code-sign verification / signature authority | 补签名/公证输入和 signed packaged-profile/performance/cross-device evidence |
