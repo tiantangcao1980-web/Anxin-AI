@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-07T17:43:39.960504+00:00",
+  "generated_at": "2026-05-08T05:33:09.850120+00:00",
   "mode": "mobile_mini_code_smoke",
   "status": "passed",
   "release_evidence_complete": false,
@@ -9,10 +9,12 @@
     "mobile_expo_config_guard": "passed",
     "mobile_expo_doctor": "passed",
     "mini_program_typescript": "passed",
+    "mini_program_privacy_boundary_guard": "passed",
     "mini_program_wechat_build": "passed",
     "mini_program_wechat_devtools_cli": "passed",
     "mobile_refresh_auth_guard": "passed",
     "mini_program_refresh_auth_guard": "passed",
+    "mobile_mini_privacy_network_guard": "passed",
     "fake_fallback_guard": "passed",
     "mini_program_design_token_guard": "passed"
   },

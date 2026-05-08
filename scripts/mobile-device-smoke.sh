@@ -28,6 +28,7 @@ Checks:
   - WeChat DevTools CLI can open/trust the built mini-program project unless skipped
   - static guards against known fake mobile/mini fallback regressions
   - static guard against refresh-token network failures clearing auth state
+  - static guard that mobile and mini-program privacy modes fail closed before data network I/O
   - static guard that mini-program page/config colors come from design tokens
 EOF
 }
@@ -151,6 +152,9 @@ PY
 run_step "mini-program TypeScript check" \
   bash -lc "cd mini-program && npx tsc --noEmit --skipLibCheck --noUnusedLocals false"
 
+run_step "mini-program privacy boundary guard" \
+  bash -lc "cd mini-program && npm run check-privacy-boundary"
+
 if [ "$SKIP_MINI_BUILD" -eq 0 ]; then
   run_step "mini-program WeChat build" \
     bash -lc "cd mini-program && npm run build:weapp"
@@ -183,11 +187,14 @@ run_step "mobile and mini refresh auth guard" \
     rg -n "MobilePrivacyNetworkBlockedError|X-Privacy-Mode" mobile/src/services/api.ts >/dev/null
     rg -n "fails closed before network I/O in local privacy mode" mobile/src/services/api.test.ts >/dev/null
     rg -n "MiniProgramAuthExpiredError|MiniProgramRefreshUnavailableError" mini-program/src/services/api.ts >/dev/null
+    rg -n "MiniProgramPrivacyNetworkBlockedError|X-Privacy-Mode|assertMiniProgramDataNetworkAllowed" mini-program/src/services/api.ts >/dev/null
+    rg -n "assertMiniProgramDataNetworkAllowed\\(currentMode\\)" mini-program/src/pages/profile/index.tsx >/dev/null
+    rg -n "isMiniProgramPrivacyNetworkBlockedError" mini-program/src/pages/index/index.tsx mini-program/src/pages/chat/index.tsx >/dev/null
     if rg -n "catch \\{[[:space:]]*await clearAuth\\(\\)|catch \\(e\\) \\{[[:space:]]*Taro\\.removeStorageSync\\('\"'\"'token'\"'\"'\\)" mobile/src/services/api.ts mini-program/src/services/api.ts; then
       echo "Refresh-token transient failures must not clear auth state unconditionally" >&2
       exit 1
     fi
-    echo "refresh auth and mobile privacy network guard ok"
+    echo "refresh auth and mobile/mini privacy network guards ok"
   '
 
 run_step "mini-program design token guard" \
@@ -307,10 +314,12 @@ report = {
         "mobile_expo_config_guard": "passed",
         "mobile_expo_doctor": "passed",
         "mini_program_typescript": "passed",
+        "mini_program_privacy_boundary_guard": "passed",
         "mini_program_wechat_build": "skipped" if skip_mini_build else "passed",
         "mini_program_wechat_devtools_cli": wechat_devtools_status,
         "mobile_refresh_auth_guard": "passed",
         "mini_program_refresh_auth_guard": "passed",
+        "mobile_mini_privacy_network_guard": "passed",
         "fake_fallback_guard": "passed",
         "mini_program_design_token_guard": "passed",
     },

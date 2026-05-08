@@ -1,7 +1,14 @@
 import { useState } from 'react'
 import { View, Text, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { api } from '../../services/api'
+import {
+  api,
+  assertMiniProgramDataNetworkAllowed,
+  getStoredPrivacyMode,
+  isMiniProgramDataNetworkBlockedMode,
+  setStoredPrivacyMode,
+  type MiniProgramPrivacyMode,
+} from '../../services/api'
 import './index.scss'
 
 const menuItems = [
@@ -9,6 +16,20 @@ const menuItems = [
   { icon: '📄', title: '我的合同', desc: '合同管理', path: '' },
   { icon: '📁', title: '我的案件', desc: '案件进度跟踪', path: '' },
   { icon: '👨‍⚖️', title: '联系律师', desc: '专业律师对接', path: '' },
+]
+
+const privacyModeLabels: Record<MiniProgramPrivacyMode, string> = {
+  cloud: '云端模式',
+  hybrid: '混合模式',
+  local: '本地模式',
+  'top-secret': '绝密模式',
+}
+
+const privacyModeOptions: Array<{ mode: MiniProgramPrivacyMode; label: string }> = [
+  { mode: 'cloud', label: privacyModeLabels.cloud },
+  { mode: 'hybrid', label: privacyModeLabels.hybrid },
+  { mode: 'local', label: privacyModeLabels.local },
+  { mode: 'top-secret', label: privacyModeLabels['top-secret'] },
 ]
 
 interface UserInfo {
@@ -28,9 +49,11 @@ export default function Profile() {
     }
   })
   const [avatarUrl, setAvatarUrl] = useState<string>('')
+  const [privacyMode, setPrivacyMode] = useState<MiniProgramPrivacyMode>(() => getStoredPrivacyMode())
 
   // 每次页面显示时同步登录状态（从其他页面返回时）
   useDidShow(() => {
+    setPrivacyMode(getStoredPrivacyMode())
     const token = Taro.getStorageSync('token')
     setIsLoggedIn(!!token)
     if (token) {
@@ -47,6 +70,9 @@ export default function Profile() {
 
   const handleLogin = async () => {
     try {
+      const currentMode = getStoredPrivacyMode()
+      setPrivacyMode(currentMode)
+      assertMiniProgramDataNetworkAllowed(currentMode)
       const loginRes = await Taro.login()
       if (!loginRes.code) {
         Taro.showToast({ title: '微信登录失败', icon: 'none' })
@@ -114,7 +140,24 @@ export default function Profile() {
   }
 
   const handleSettings = () => {
-    Taro.showToast({ title: '设置功能开发中', icon: 'none' })
+    Taro.showActionSheet({
+      itemList: privacyModeOptions.map((option) => option.label),
+      success: (res) => {
+        const option = privacyModeOptions[res.tapIndex]
+        if (!option) return
+        setStoredPrivacyMode(option.mode)
+        setPrivacyMode(option.mode)
+        if (isMiniProgramDataNetworkBlockedMode(option.mode)) {
+          Taro.showModal({
+            title: `${option.label}已开启`,
+            content: '小程序将阻止登录、资讯和 AI 问答等联网请求。本地模型、知识库和绝密数据处理请使用桌面客户端。',
+            showCancel: false,
+          })
+        } else {
+          Taro.showToast({ title: `已切换到${option.label}`, icon: 'none' })
+        }
+      },
+    })
   }
 
   return (
@@ -171,7 +214,7 @@ export default function Profile() {
             <Text className='menu-icon'>⚙️</Text>
             <View className='menu-text'>
               <Text className='menu-title'>设置</Text>
-              <Text className='menu-desc'>账号安全、隐私、关于</Text>
+              <Text className='menu-desc'>隐私模式：{privacyModeLabels[privacyMode]}</Text>
             </View>
           </View>
           <Text className='menu-arrow'>&gt;</Text>

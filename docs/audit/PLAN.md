@@ -38,7 +38,7 @@
 
 - 后端默认测试当前最新 `467 passed, 1 skipped, 17 warnings in 36.11s`（Codex 实测；PROJECT_STATUS 写的 172 passed 是较早数字，不必纠结；`test_comprehensive_flow` 已改为 opt-in smoke）
 - 前端 lint + 最新完整本地门禁 Vitest `12 files / 45 tests passed` + build 通过；角色访问 e2e `10 passed / 10 skipped`
-- 移动/小程序本地门禁通过：移动 Vitest 7 files / 19 tests passed，移动 tsc、Expo doctor 17/17、mobile production npm audit、小程序 tsc/build、WeChat DevTools CLI project smoke、refresh auth guard、mobile privacy network guard、fake fallback guard 和 mini-program design token guard 均通过
+- 移动/小程序本地门禁通过：移动 Vitest 7 files / 19 tests passed，移动 tsc、Expo doctor 17/17、mobile production npm audit、小程序 tsc/build、mini-program privacy boundary guard、WeChat DevTools CLI project smoke、refresh auth guard、mobile/mini privacy network guard、fake fallback guard 和 mini-program design token guard 均通过
 - 桌面端 cargo check 通过
 - 设计系统 A(95+/100)，硬编码颜色/padding/tracking 已清零
 

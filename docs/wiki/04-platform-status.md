@@ -123,7 +123,7 @@
 
 - mini-program TypeScript 与 `build:weapp` 通过
 - WeChat DevTools CLI project smoke 通过
-- refresh auth guard、fake fallback guard、mini-program design token guard 通过
+- refresh auth guard、mobile/mini privacy network guard、fake fallback guard、mini-program design token guard 通过
 
 主要缺口：
 

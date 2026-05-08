@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { View, Text, Input } from '@tarojs/components'
 import Taro, { usePullDownRefresh } from '@tarojs/taro'
-import { api } from '../../services/api'
+import { api, isMiniProgramPrivacyNetworkBlockedError } from '../../services/api'
 import './index.scss'
 
 const quickActions = [
@@ -44,7 +44,11 @@ export default function Index() {
     } catch (error) {
       console.warn('资讯加载失败', error)
       setNewsItems([])
-      setNewsError('资讯加载失败，下拉刷新重试')
+      setNewsError(
+        isMiniProgramPrivacyNetworkBlockedError(error)
+          ? '当前隐私模式已阻止小程序联网资讯'
+          : '资讯加载失败，下拉刷新重试',
+      )
     } finally {
       setNewsLoading(false)
     }

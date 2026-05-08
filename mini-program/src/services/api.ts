@@ -3,6 +3,12 @@ import Taro from '@tarojs/taro'
 declare const TARO_APP_API_BASE: string | undefined
 const BASE_URL = (typeof TARO_APP_API_BASE !== 'undefined' ? TARO_APP_API_BASE : '') || 'http://localhost:8001/api/v1'
 const REQUEST_TIMEOUT = 30000
+const PRIVACY_MODE_STORAGE_KEY = 'anxin-privacy-mode'
+const DEFAULT_PRIVACY_MODE: MiniProgramPrivacyMode = 'cloud'
+
+export type MiniProgramPrivacyMode = 'local' | 'hybrid' | 'cloud' | 'top-secret'
+
+const DATA_NETWORK_BLOCKED_MODES = new Set<MiniProgramPrivacyMode>(['local', 'top-secret'])
 
 interface ApiResponse<T = any> {
   code: number
@@ -44,6 +50,52 @@ class MiniProgramRefreshUnavailableError extends Error {
   }
 }
 
+export class MiniProgramPrivacyNetworkBlockedError extends Error {
+  constructor(message = '当前隐私模式已阻止小程序联网请求') {
+    super(message)
+    this.name = 'MiniProgramPrivacyNetworkBlockedError'
+  }
+}
+
+function normalizePrivacyMode(value: unknown): MiniProgramPrivacyMode {
+  return value === 'local' || value === 'hybrid' || value === 'cloud' || value === 'top-secret'
+    ? value
+    : DEFAULT_PRIVACY_MODE
+}
+
+export function getStoredPrivacyMode(): MiniProgramPrivacyMode {
+  try {
+    const value = Taro.getStorageSync(PRIVACY_MODE_STORAGE_KEY)
+    return normalizePrivacyMode(typeof value === 'string' ? value : value?.mode)
+  } catch {
+    return DEFAULT_PRIVACY_MODE
+  }
+}
+
+export function setStoredPrivacyMode(mode: MiniProgramPrivacyMode): void {
+  Taro.setStorageSync(PRIVACY_MODE_STORAGE_KEY, mode)
+}
+
+export function isMiniProgramDataNetworkBlockedMode(mode: MiniProgramPrivacyMode): boolean {
+  return DATA_NETWORK_BLOCKED_MODES.has(mode)
+}
+
+export function assertMiniProgramDataNetworkAllowed(mode = getStoredPrivacyMode()): void {
+  if (isMiniProgramDataNetworkBlockedMode(mode)) {
+    throw new MiniProgramPrivacyNetworkBlockedError()
+  }
+}
+
+export function isMiniProgramPrivacyNetworkBlockedError(
+  error: unknown,
+): error is MiniProgramPrivacyNetworkBlockedError {
+  return error instanceof MiniProgramPrivacyNetworkBlockedError
+}
+
+function privacyHeaders(mode: MiniProgramPrivacyMode): Record<string, string> {
+  return { 'X-Privacy-Mode': mode }
+}
+
 function isRefreshAuthFailure(statusCode: number, code?: number): boolean {
   return statusCode === 401 || statusCode === 403 || code === 401 || code === 403
 }
@@ -60,6 +112,8 @@ function clearStoredAuth(): void {
 async function refreshToken(): Promise<string> {
   if (refreshPromise) return refreshPromise
   refreshPromise = (async () => {
+    const privacyMode = getStoredPrivacyMode()
+    assertMiniProgramDataNetworkAllowed(privacyMode)
     const rt = Taro.getStorageSync('refresh_token')
     if (!rt) {
       clearStoredAuth()
@@ -71,6 +125,7 @@ async function refreshToken(): Promise<string> {
         method: 'POST',
         data: { refresh_token: rt },
         timeout: 10000,
+        header: privacyHeaders(privacyMode),
       })
       const apiCode = isApiResponse(res.data) ? res.data.code : undefined
       if (isRefreshAuthFailure(res.statusCode, apiCode)) {
@@ -108,6 +163,8 @@ export async function request<T>(options: {
 
   for (let attempt = 0; attempt <= retry; attempt++) {
     try {
+      const privacyMode = getStoredPrivacyMode()
+      assertMiniProgramDataNetworkAllowed(privacyMode)
       const token = Taro.getStorageSync('token')
       const res = await Taro.request({
         url: `${BASE_URL}${url}`,
@@ -116,6 +173,7 @@ export async function request<T>(options: {
         timeout: REQUEST_TIMEOUT,
         header: {
           'Content-Type': 'application/json',
+          ...privacyHeaders(privacyMode),
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       })

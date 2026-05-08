@@ -164,7 +164,7 @@ Skills 和智能体进化必须受治理：
 - 知识库：`backend/src/services/knowledge_management.py`、`backend/src/services/knowledge_service.py`、`backend/src/api/routes/knowledge.py`。
 - 桌面同步/本地安全：SQLCipher/keyring、offline queue、sync_log、desktop security gate 已有代码级证据。
 - 桌面绝密模式：CLI、同步冲突、Harness artifact、本地同步桥、统一 API fetch、WebView 全局 fetch 与 WebSocket 已补 TopSecret/local data-network guard；Tauri 原生 HTTP 插件与前端 `@tauri-apps/plugin-http` 已移除，默认 capability 不再启用 `http:*`，CSP 已去掉 `script-src 'unsafe-eval'` 和 `img-src https://*`，并由 `scripts/desktop-network-surface-gate.sh` 纳入发布门禁；signed/notarized packaged runtime 出站拦截和外部脚本运行时复验证据仍需补。
-- 移动隐私上下文：移动端已有本地模型/LAN Ollama 语义基础，请求层已透传 `X-Privacy-Mode`，且 `local` 模式在 fetch 前 fail-closed；小程序仍需补隐私模式边界或明确不支持本地/绝密模式。
+- 移动/小程序隐私上下文：移动端已有本地模型/LAN Ollama 语义基础，请求层已透传 `X-Privacy-Mode`，且 `local` 模式在 fetch 前 fail-closed；小程序请求层也已透传 `X-Privacy-Mode`，`local` / `top-secret` 会在 `Taro.request` 前 fail-closed，登录入口会在 `Taro.login` 前阻断，并由 `mini-program/scripts/check-privacy-boundary.js` 纳入本地门禁。
 - 外部参考分析：`docs/references/agentic-platform-benchmark-2026-05-08.md` 已整理可借鉴能力和风险边界，并纳入 HiClaw 的多智能体控制面、Human-in-the-loop、Gateway credential isolation 和声明式通信策略。
 
 仍不能宣称完成的缺口：

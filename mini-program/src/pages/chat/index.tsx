@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { View, Text, ScrollView, Input } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { api } from '../../services/api'
+import { api, isMiniProgramPrivacyNetworkBlockedError } from '../../services/api'
 import './index.scss'
 
 interface ChatMessage {
@@ -69,16 +69,21 @@ export default function Chat() {
       setMessages((prev) => [...prev, aiMsg])
       setScrollIntoViewId(`msg-${aiMsgId}`)
     } catch (e: any) {
-      // API 不可用时降级为提示
+      const privacyBlocked = isMiniProgramPrivacyNetworkBlockedError(e)
       const fallbackId = `ai-${Date.now()}`
       const fallbackMsg: ChatMessage = {
         id: fallbackId,
         role: 'assistant',
-        content: '抱歉，AI 服务暂时不可用，请稍后重试。如需紧急法律帮助，请通过"联系律师"功能直接对接专业律师。',
+        content: privacyBlocked
+          ? '当前本地/绝密模式已阻止小程序联网问答。请使用桌面客户端本地模型，或切换到混合/云端模式后再试。'
+          : '抱歉，AI 服务暂时不可用，请稍后重试。如需紧急法律帮助，请通过"联系律师"功能直接对接专业律师。',
       }
       setMessages((prev) => [...prev, fallbackMsg])
       setScrollIntoViewId(`msg-${fallbackId}`)
-      Taro.showToast({ title: '网络异常，请稍后重试', icon: 'none' })
+      Taro.showToast({
+        title: privacyBlocked ? '已阻止联网请求' : '网络异常，请稍后重试',
+        icon: 'none',
+      })
     } finally {
       setLoading(false)
     }
