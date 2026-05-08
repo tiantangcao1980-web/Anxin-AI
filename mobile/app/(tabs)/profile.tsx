@@ -21,6 +21,7 @@ const menuItems: MenuItem[] = [
   { icon: 'document-text-outline', label: '我的合同', route: '/contracts' },
   { icon: 'briefcase-outline', label: '我的案件', route: '/cases' },
   { icon: 'people-outline', label: '找律师', route: '/find-lawyer' },
+  { icon: 'desktop-outline', label: '桌面控制', route: '/desktop-control' },
   { icon: 'settings-outline', label: '设置', route: '/settings' },
 ]
 

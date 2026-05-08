@@ -1,4 +1,5 @@
 import { Platform } from 'react-native'
+import type { RemoteControlStatusResponse } from '../features/desktop-control/model'
 import { getAuthStorage } from '../lib/auth-storage'
 import { getStoredPrivacyMode, type PrivacyMode } from '../lib/privacy-mode'
 import type { ApiResponse, User } from '../types/api'
@@ -204,4 +205,13 @@ export const api = {
 
 export const authApi = {
   login: (data: LoginRequest) => api.post<LoginResponse>('/auth/login', data),
+}
+
+export const desktopControlApi = {
+  getStatus: (desktopDeviceId?: string) => {
+    const query = desktopDeviceId
+      ? `?desktop_device_id=${encodeURIComponent(desktopDeviceId)}`
+      : ''
+    return api.get<RemoteControlStatusResponse>(`/sync/remote-control/status${query}`)
+  },
 }

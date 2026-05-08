@@ -32,7 +32,7 @@
   - `frontend/src/components/pro/ProLayout.tsx`（增加治理入口，仅老板/超级管理员可见）
 - 桌面/移动协同：
   - `frontend/src/components/desktop/`（显示当前 agent 能力、风险级别、审批状态、执行审计）
-  - `mobile/app/desktop-control/`（消费审批和远控状态，不在本任务实现底层远控）
+  - `mobile/app/desktop-control.tsx`（消费审批和远控状态，不在本任务实现底层远控）
 - 测试：
   - **新建** `backend/tests/test_agent_governance_policy.py`
   - **新建** `backend/tests/test_capability_routes.py`

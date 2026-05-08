@@ -78,6 +78,47 @@ describe('mobile API refresh behavior', () => {
     )
   })
 
+  it('requests remote desktop-control status through the governed sync endpoint', async () => {
+    const { desktopControlApi } = await import('./api')
+    vi.mocked(fetch).mockResolvedValueOnce(
+      jsonResponse(200, {
+        code: 200,
+        data: {
+          available: false,
+          status: 'not_configured',
+          desktop_device_id: 'desktop-a',
+          required_controls: ['device_pairing'],
+          message: '尚未配置',
+        },
+        message: 'ok',
+      }) as unknown as Response,
+    )
+
+    await expect(desktopControlApi.getStatus('desktop-a')).resolves.toMatchObject({
+      available: false,
+      status: 'not_configured',
+    })
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:8001/api/v1/sync/remote-control/status?desktop_device_id=desktop-a',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer access-token',
+          'X-Privacy-Mode': 'cloud',
+        }),
+      }),
+    )
+  })
+
+  it('fails closed before desktop-control status network I/O in local privacy mode', async () => {
+    const { desktopControlApi } = await import('./api')
+    mocks.asyncStorage.getItem.mockResolvedValue('local')
+
+    await expect(desktopControlApi.getStatus()).rejects.toThrow('本地模式下禁止连接云端服务')
+
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
   it('fails closed before network I/O in local privacy mode', async () => {
     const { request } = await import('./api')
     mocks.asyncStorage.getItem.mockResolvedValue('local')

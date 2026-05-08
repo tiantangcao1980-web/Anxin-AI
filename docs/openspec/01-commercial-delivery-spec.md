@@ -50,7 +50,7 @@
 - 后端默认全量 pytest 当前达到 `736 passed, 1 skipped, 12 warnings in 44.61s`；`test_comprehensive_flow` 作为显式 opt-in smoke，需 `RUN_COMPREHENSIVE_FLOW=1` 才运行。
 - 前端 `lint`、`npm test` 与 `build` 可通过，最新完整本地门禁中 Vitest 为 `12 files / 45 tests passed`，`npm run build` 当前通过。
 - 角色访问 E2E 当前达到 `10 passed, 10 skipped`。
-- 移动/小程序本地门禁：`bash scripts/mobile-device-smoke.sh` 通过，移动 Vitest `7 files / 19 tests passed`，移动 tsc、Expo doctor `17/17`、mobile production npm audit、小程序 tsc/build、WeChat DevTools CLI project smoke、mobile result surface guard、refresh auth guard、mobile/mini privacy network guard、fake fallback guard、mini-program navigation boundary guard 和 mini-program design token guard 均为 exit `0`。
+- 移动/小程序本地门禁：`bash scripts/mobile-device-smoke.sh` 通过，移动 Vitest `8 files / 27 tests passed`，移动 tsc、Expo doctor `17/17`、mobile production npm audit、小程序 tsc/build、WeChat DevTools CLI project smoke、mobile result surface guard、refresh auth guard、mobile/mini privacy network guard、fake fallback guard、mini-program navigation boundary guard 和 mini-program design token guard 均为 exit `0`。
 - 桌面端 `cargo check` 可通过。
 - GitNexus 索引复验：当前精确统计以 `.gitnexus/meta.json` 为准；最终商业 release 前必须重新证明 `capabilities.vectorSearch.status=vector-index`、embedding meta count 与 `gitnexus cypher` count 非零且一致，并让 direct binary 的 `status/cypher/detect-changes` 与当前 commit 一致；当前 direct CLI repo 解析未通过，semantic query 不作为唯一放行依据。
 - 本地/混合/云端与可配置模型已有架构基础：`docs/ARCHITECTURE_V2.md` 已定义本地模式数据不离开设备、Ollama/LM Studio 等自配置本地模型，以及 Enterprise 自定义 LLM endpoint；后端存在 `src/services/llm_service.py`、`src/services/private_llm_service.py`、`src/api/routes/llm.py`，桌面存在 `desktop/src/commands/local_llm.rs`。

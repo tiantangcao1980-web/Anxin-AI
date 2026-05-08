@@ -17,7 +17,7 @@
   - `mobile/app/cases.tsx`（同类 fallback 模式排查）
   - `mobile/app/(tabs)/index.tsx`、`mobile/app/(tabs)/chat.tsx`、`mobile/app/settings.tsx`（去掉首页假数据兜底与误导性 mock 标记）
   - `mobile/app/_layout.tsx`（底部 Tab + safe-area-inset 校验）
-  - **新建/预留** `mobile/app/desktop-control/`（设备配对、桌面状态、远程命令、取消/撤销、审计记录）
+  - **新建/预留** `mobile/app/desktop-control.tsx`（设备配对、桌面状态、远程命令、取消/撤销、审计记录）
   - `mobile/components/`（按钮 / 卡片 / 列表项最小点击区 44px）
   - `mobile/lib/design-tokens.ts`（如不存在则新建，引用规则与 frontend 对齐）
 - 小程序：
@@ -55,7 +55,7 @@
 | P0-4 | `mini-program/src/pages/index/index.tsx` | ✅ 2026-05-06 已修：加载失败/空列表不再渲染假新闻 fallback | 已改为明确空状态（"暂无资讯，下拉刷新重试"）+ `console.warn` telemetry；不再混淆假数据与真数据 |
 | P0-5 | 新建 `docs/design/cross-platform-token-drift.md` | 缺漂移清单 | 用 `/designdna` 校验：列出 desktop / mobile / mini-program 的 token 与 `frontend/src/lib/design-tokens.ts` 的差异；标 P0/P1/P2；**不重新设计**，仅产出清单 |
 | P0-6 | `mobile/app/sessions/`（含跨设备会话延续入口） | 桌面开始 → 手机继续未实现 | 复用任务 11b 的 sync 协议；移动端拉 pull 后渲染当前活跃 session（含未读消息 + 未提交输入框草稿）；纯前端工作，不改后端协议 |
-| P0-7 | `mobile/app/desktop-control/` + 11b remote command API | 后端已补远控 status/pairing/command fail-closed 契约，能拒绝未配置、绝密/本地模式、缺二次确认、缺配对、缺 route token 和缺队列/审计场景；移动端 UI、真实配对、命令队列和真机证据仍未实现 | 设备配对、桌面在线状态、远程命令下发、执行状态、取消/撤销、敏感动作二次确认和审计记录可见；绝密模式/未授权设备必须 fail-closed |
+| P0-7 | `mobile/app/desktop-control.tsx` + 11b remote command API | 后端已补远控 status/pairing/command fail-closed 契约，能拒绝未配置、绝密/本地模式、缺二次确认、缺配对、缺 route token 和缺队列/审计场景；移动端已补 `/desktop-control` 状态入口和个人中心入口，local 模式不发网络请求，hybrid/cloud 只读取后端安全闸并展示不可用原因；真实配对、命令队列、状态回传、撤销、审计和真机证据仍未实现 | 设备配对、桌面在线状态、远程命令下发、执行状态、取消/撤销、敏感动作二次确认和审计记录可见；绝密模式/未授权设备必须 fail-closed |
 
 ---
 
@@ -152,7 +152,7 @@ docs/audit/11c-mobile-design/
 - [x] `docs/design/cross-platform-token-drift.md` 产出三端 vs `design-tokens.ts` 漂移清单（P0/P1/P2 分级）；小程序语义 token 层和触控 token 底座已补，品牌主色最终统一方向仍待定
 - [ ] 移动端跨设备会话延续：桌面开始一段对话 → 移动端 pull 后能看到 last_message + draft（依赖任务 11b 已交付）
 - [ ] 移动端远程控制桌面：设备配对、桌面在线状态、命令下发、状态回传、取消/撤销、敏感动作二次确认和审计记录通过真机/模拟器 transcript；未授权或绝密模式下 fail-closed
-- [x] 移动端测试 baseline 10 → 至少 +3（覆盖错误分支）；当前 `npm test` 为 `7 files / 19 tests passed`，`npx tsc --noEmit --module esnext` 通过；新增字符串 transport error、status 优先级错误分支、触控 token、弱网 refresh-token、`X-Privacy-Mode` 透传和 local 模式零网络调用用例
+- [x] 移动端测试 baseline 10 → 至少 +3（覆盖错误分支）；当前 `npm test` 为 `8 files / 27 tests passed`，`npx tsc --noEmit --module esnext` 通过；新增字符串 transport error、status 优先级错误分支、触控 token、弱网 refresh-token、`X-Privacy-Mode` 透传、local 模式零网络调用、desktop-control status endpoint routing、local-mode desktop-control no-network state 和 fail-closed desktop-control gate copy 用例
 - [ ] 小程序 tsc + lint 全绿；微信开发者工具登录链路真机验证通过
 - [ ] iPhone 14 + Android 13 真机手测通过：登录 / 审批 / 会话延续 三个用户故事
 - [x] `docs/audit/11c-mobile-design/01..05.md` + `docs/design/cross-platform-token-drift.md` + `docs/mobile/error-handling-guidelines.md` 全部产出；另补 `00-prd-reality-gap.md`
