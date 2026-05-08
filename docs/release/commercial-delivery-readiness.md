@@ -87,7 +87,7 @@ bash scripts/desktop-release-preflight.sh --out docs/release/evidence/artifacts/
 bash scripts/commercial-readiness-gate.sh --quick
 ```
 
-当前该命令应当失败；RAG 内建 full50、桌面 SQLCipher/keyring 代码级门禁、unsigned release `.app`/DMG build、unsigned release packaged runtime smoke、unsigned release packaged-profile/performance smoke 和 signed/notarized release preflight 已通过，但只有当外部证据、桌面 signed/packaged-profile/performance/cross-device 证据、移动真机、全仓质量基线和最终提交 GitNexus 复验全部补齐后才允许转 Go。
+当前该命令应当失败；RAG 内建 full50、桌面 SQLCipher/keyring 代码级门禁、unsigned release `.app`/DMG build、unsigned release packaged runtime smoke、unsigned release packaged-profile/performance smoke 和 signed/notarized release preflight 已通过，但只有当外部证据、桌面 signed/packaged-profile/performance/cross-device 证据、移动真机、企业智能体治理 runtime evidence、全仓质量基线和最终提交 GitNexus 复验全部补齐后才允许转 Go。
 GitNexus metadata 是 commit-scoped，只用于最终发布索引卫生检查。`scripts/commercial-readiness-gate.sh` 仍会将 dirty worktree、direct CLI cypher integrity failure 和 indexed/current commit 不一致作为 release-blocking failure；但在当前开发主线上，GitNexus embedding 不再作为优先排障项，不能替代源码审查、测试、UI/UX、渠道或真机证据。
 
 外部证据模板位于 `docs/release/evidence/`，每份模板只有在对应真实证据齐全后才能把 `Status: pending` 改为 `Status: complete`。

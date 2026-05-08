@@ -278,6 +278,7 @@ release_evidence=(
   "docs/release/evidence/desktop-runtime-smoke.md|desktop runtime smoke"
   "docs/release/evidence/rag-full50-live-baseline.md|RAG full 50 live baseline"
   "docs/release/evidence/mobile-device-smoke.md|mobile and mini-program device smoke"
+  "docs/release/evidence/agent-governance-smoke.md|enterprise agent governance smoke"
   "docs/release/evidence/static-quality-baseline.md|static quality baseline"
 )
 

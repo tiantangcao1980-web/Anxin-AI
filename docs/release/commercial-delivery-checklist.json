@@ -222,7 +222,7 @@
         "GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/commercial-readiness-gate.sh --quick",
         "GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/commercial-readiness-gate.sh --with-local-tests"
       ],
-      "current_result": "After the local delivery commit and GitNexus rebuild, the gate still fails on Not ready declarations and pending payment/e-sign/desktop/mobile evidence. Any new release docs or evidence artifacts must be committed before another clean-worktree and GitNexus rerun."
+      "current_result": "After the local delivery commit and GitNexus rebuild, the gate still fails on Not ready declarations and pending payment/e-sign/desktop/mobile/agent-governance evidence. Any new release docs or evidence artifacts must be committed before another clean-worktree and GitNexus rerun."
     }
   ]
 }
