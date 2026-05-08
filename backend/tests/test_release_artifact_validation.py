@@ -322,6 +322,8 @@ def _mobile_mini_code_checks() -> dict:
     return {
         "mobile_vitest": "passed",
         "mobile_typescript": "passed",
+        "mobile_result_surface_guard": "passed",
+        "mobile_lawyer_conversion_guard": "passed",
         "mobile_expo_config_guard": "passed",
         "mobile_expo_doctor": "passed",
         "mini_program_typescript": "passed",

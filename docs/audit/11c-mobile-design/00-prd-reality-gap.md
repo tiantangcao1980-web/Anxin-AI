@@ -9,9 +9,10 @@
 |---|---|---|
 | 移动端失败不再渲染假数据 | `mobile/app/approvals/[id].tsx`、`mobile/app/cases.tsx`、`mobile/app/messages/[id].tsx`、`mobile/app/tasks/[id].tsx` 已改为 loading/empty/error；`detail-model.test.ts` 覆盖错误文案 | 代码级完成 |
 | 移动端提交后有结果承接 | `mobile/app/(tabs)/investigation.tsx` 和 `mobile/app/(tabs)/knowledge.tsx` 已从 Alert-only 反馈改为页面内结果摘要卡；`mobile-device-smoke.sh` 的 mobile result surface guard 防回归 | 代码级完成；真机交互证据仍需补 |
+| 移动端找律师不是纯列表 | `mobile/app/find-lawyer.tsx` 已补匿名咨询创建、AI 匿名摘要、律师选择、匿名聊天室和委托 API 路径；`mobile-device-smoke.sh` 的 mobile lawyer conversion guard 防止回退到缺闭环列表页 | 代码级完成；真机交互证据仍需补 |
 | 小程序登录不使用 mock token | `mini-program/src/pages/profile/index.tsx` 走 `wx.login -> code2session`；后端测试确认不返回 `session_key` | 代码级完成 |
 | 小程序资讯无假新闻 fallback | `mini-program/src/pages/index/index.tsx` 失败/空列表显示空态 | 代码级完成 |
-| 移动/小程序本地 smoke | `bash scripts/mobile-device-smoke.sh`：mobile Vitest `7 files / 19 tests passed`、mobile tsc、mobile result surface guard、Expo doctor `17/17`、mobile production npm audit、mini tsc、mini privacy boundary guard、mini navigation boundary guard、Taro build、WeChat DevTools CLI project smoke、refresh auth guard、mobile/mini privacy network guard、fake fallback guard、mini-program design token guard 通过 | 代码级完成；真机/交互式微信开发者工具证据仍需补 |
+| 移动/小程序本地 smoke | `bash scripts/mobile-device-smoke.sh`：mobile Vitest `7 files / 19 tests passed`、mobile tsc、mobile result surface guard、mobile lawyer conversion guard、Expo doctor `17/17`、mobile production npm audit、mini tsc、mini privacy boundary guard、mini navigation boundary guard、Taro build、WeChat DevTools CLI project smoke、refresh auth guard、mobile/mini privacy network guard、fake fallback guard、mini-program design token guard 通过 | 代码级完成；真机/交互式微信开发者工具证据仍需补 |
 | 小程序主入口无死胡同 | 首页合同审查/找律师/合规自检与个人中心合同审查/案件协助/联系律师均跳转 AI 助手并预填业务问题；`mini-program/scripts/check-navigation-boundary.js` 阻断空路径和“功能开发中”回归 | 代码级完成；真机点击证据仍需补 |
 | 跨平台 token 漂移清单 | `docs/design/cross-platform-token-drift.md` 已产出 P0/P1/P2 | 审计完成，修复未做 |
 | 小程序语义 token 层 | `mini-program/src/styles/design-tokens.scss` 和 `design-tokens.ts` 已新增；首页、聊天、个人中心 SCSS 与 `app.config.ts` 已迁移到 token；`bash scripts/mobile-device-smoke.sh` 的 design token guard 已通过 | 代码级完成 |

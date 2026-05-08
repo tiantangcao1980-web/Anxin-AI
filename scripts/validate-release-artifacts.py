@@ -300,7 +300,7 @@ def _validate_mobile_mini_code_smoke(path: Path, payload: dict[str, Any], failur
     if not isinstance(checks, dict):
         failures.append(f"{path}: mobile/mini code smoke must include checks object")
         return
-    for check_name in (
+    required_checks = [
         "mobile_vitest",
         "mobile_typescript",
         "mobile_expo_config_guard",
@@ -312,7 +312,15 @@ def _validate_mobile_mini_code_smoke(path: Path, payload: dict[str, Any], failur
         "mini_program_refresh_auth_guard",
         "fake_fallback_guard",
         "mini_program_design_token_guard",
-    ):
+    ]
+    if str(payload.get("generated_at") or "")[:10] >= "2026-05-08":
+        required_checks.extend(
+            [
+                "mobile_result_surface_guard",
+                "mobile_lawyer_conversion_guard",
+            ]
+        )
+    for check_name in required_checks:
         if checks.get(check_name) != "passed":
             failures.append(f"{path}: mobile/mini code smoke {check_name} must be passed")
 

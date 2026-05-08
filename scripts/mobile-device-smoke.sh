@@ -28,6 +28,7 @@ Checks:
   - WeChat DevTools CLI can open/trust the built mini-program project unless skipped
   - static guards against known fake mobile/mini fallback regressions
   - static guard that mobile investigation/knowledge submissions render in-page result surfaces
+  - static guard that mobile find-lawyer keeps the anonymous consultation conversion flow
   - static guard against mini-program primary navigation dead ends
   - static guard against refresh-token network failures clearing auth state
   - static guard that mobile and mini-program privacy modes fail closed before data network I/O
@@ -123,6 +124,30 @@ assert(knowledge.includes("resultCard"), "knowledge tab must render an in-page r
 assert(!knowledge.includes("Alert.alert"), "knowledge tab must not rely on Alert-only search feedback");
 
 console.log("mobile result surface guard ok");
+NODE
+  '
+
+run_step "mobile lawyer conversion guard" \
+  bash -lc '
+    node - <<'"'"'NODE'"'"'
+const fs = require("fs");
+
+function assert(condition, message) {
+  if (!condition) {
+    throw new Error(message);
+  }
+}
+
+const source = fs.readFileSync("mobile/app/find-lawyer.tsx", "utf8");
+
+assert(source.includes("/lawyer/consultations"), "find-lawyer must create real consultation records");
+assert(source.includes("/anonymous-chat/rooms"), "find-lawyer must create anonymous chat rooms after lawyer selection");
+assert(source.includes("/delegate"), "find-lawyer must expose the delegation API path");
+assert(source.includes("anonymousSummaryCard"), "find-lawyer must render the AI anonymous summary in-page");
+assert(source.includes("selectedLawyerId"), "find-lawyer must select lawyers in-page before actions");
+assert(!source.includes("router.push(`/lawyer/"), "find-lawyer must not route selected lawyers to a missing detail page");
+
+console.log("mobile lawyer conversion guard ok");
 NODE
   '
 
@@ -347,6 +372,7 @@ report = {
         "mobile_vitest": "passed",
         "mobile_typescript": "passed",
         "mobile_result_surface_guard": "passed",
+        "mobile_lawyer_conversion_guard": "passed",
         "mobile_expo_config_guard": "passed",
         "mobile_expo_doctor": "passed",
         "mini_program_typescript": "passed",
