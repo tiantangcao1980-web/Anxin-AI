@@ -240,6 +240,7 @@ bash scripts/desktop-network-surface-gate.sh
 
 - 桌面 Rust IPC 新增统一 data-network guard：TopSecret 下拒绝 CLI execute/key 管理、同步冲突上报、Harness artifact 推送/拉取等外部数据动作。
 - 前端桌面本地同步桥在 `top-secret` 下不会发起 `sync/push`、`sync/pull` 或同步冲突上报，`runLocalSyncWithDependencies` 已有 no-fetch 回归。
+- `SyncStatus` 冲突弹窗已从双栏原始 JSON 改为字段差异摘要，并把原始数据保留在高级详情折叠；`cd frontend && npm test -- sync-conflict-utils.test.ts` 当前 `1 file / 5 tests passed`，`npm exec tsc -- --noEmit` 与 `npm run lint` 通过。
 - 前端统一 API fetch、新增 WebView 全局 fetch guard 和 WebSocket guard：`cd frontend && npm test -- api.test.ts api-adapter.sync.test.ts` -> `2 files / 17 tests passed`；`cd frontend && npm run lint`、`npm exec tsc -- --noEmit`、`npm run build` 通过。
 - Tauri 原生 HTTP 插件、前端 `@tauri-apps/plugin-http`、活跃 `http:*` capability、宽泛 `shell:allow-open` / `opener:*` launch capability 和宽松 CSP 已由 `scripts/desktop-network-surface-gate.sh` 守住。
 - 仍不能把绝密模式称为全链路完成：signed/notarized packaged runtime 出站拦截、外部脚本运行时复验和跨设备连续会话证据仍需补。

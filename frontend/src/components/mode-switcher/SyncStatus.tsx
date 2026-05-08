@@ -9,6 +9,12 @@ import { useCallback, useEffect, useState } from'react'
 import { useNavigate } from'react-router-dom'
 import { useAppModeStore } from'@/lib/store'
 import { getSyncConflicts, isTauri, resolveSyncConflict, triggerSync } from'@/lib/tauri-bridge'
+import {
+ countChangedConflictFields,
+ formatConflictData,
+ formatConflictEntityType,
+ summarizeConflictData,
+} from'@/lib/sync-conflict-utils'
 import { Button } from'@/components/ui/button'
 import {
  Dialog,
@@ -157,25 +163,52 @@ export function SyncStatus() {
  </button>
  )}
  <Dialog open={conflictOpen} onOpenChange={setConflictOpen}>
- <DialogContent className="max-w-2xl">
+ <DialogContent className="max-w-3xl">
  <DialogHeader>
  <DialogTitle>同步冲突</DialogTitle>
  </DialogHeader>
  <div className="max-h-[55vh] space-y-3 overflow-y-auto">
  {conflicts.length === 0 ? (
  <p className="text-sm text-muted-foreground">当前没有待处理的同步冲突。</p>
- ) : conflicts.map((conflict) => (
+ ) : conflicts.map((conflict) => {
+ const changedFields = summarizeConflictData(conflict.local_data, conflict.remote_data)
+ const changedCount = countChangedConflictFields(conflict.local_data, conflict.remote_data)
+ return (
  <div key={conflict.log_id} className="rounded-md border border-border p-3">
  <div className="mb-2 flex items-center justify-between gap-3">
  <div className="min-w-0">
- <p className="truncate text-sm font-medium">{conflict.entity_type} / {conflict.entity_id}</p>
- <p className="text-xs text-muted-foreground">请选择保留本地版本或云端版本。</p>
+ <p className="truncate text-sm font-medium">
+ {formatConflictEntityType(conflict.entity_type)} / {conflict.entity_id}
+ </p>
+ <p className="text-xs text-muted-foreground">
+ {changedCount} 个字段存在差异，请选择保留本地版本或云端版本。
+ </p>
  </div>
  </div>
- <div className="grid gap-2 md:grid-cols-2">
- <pre className="max-h-32 overflow-auto rounded bg-muted p-2 text-xs">{JSON.stringify(conflict.local_data, null, 2)}</pre>
- <pre className="max-h-32 overflow-auto rounded bg-muted p-2 text-xs">{JSON.stringify(conflict.remote_data, null, 2)}</pre>
+ <div className="space-y-2 rounded-md border border-border bg-muted/30 p-2">
+ {changedFields.length === 0 ? (
+ <p className="text-xs text-muted-foreground">系统未识别到字段级差异，请打开冲突管理查看详情。</p>
+ ) : changedFields.map((field) => (
+ <div key={field.key} className="grid gap-2 rounded bg-background p-2 md:grid-cols-[120px_minmax(0,1fr)_minmax(0,1fr)]">
+ <div className="text-xs font-medium text-foreground">{field.label}</div>
+ <div className="min-w-0 text-xs">
+ <p className="mb-1 text-muted-foreground">本地版本</p>
+ <p className="break-words text-foreground">{field.localPreview}</p>
  </div>
+ <div className="min-w-0 text-xs">
+ <p className="mb-1 text-muted-foreground">云端版本</p>
+ <p className="break-words text-foreground">{field.remotePreview}</p>
+ </div>
+ </div>
+ ))}
+ </div>
+ <details className="mt-2 rounded-md border border-border bg-background px-3 py-2">
+ <summary className="cursor-pointer text-xs font-medium text-muted-foreground">查看原始数据</summary>
+ <div className="mt-2 grid gap-2 md:grid-cols-2">
+ <pre className="max-h-32 overflow-auto rounded bg-muted p-2 text-xs">{formatConflictData(conflict.local_data)}</pre>
+ <pre className="max-h-32 overflow-auto rounded bg-muted p-2 text-xs">{formatConflictData(conflict.remote_data)}</pre>
+ </div>
+ </details>
  <div className="mt-3 flex justify-end gap-2">
  <Button
  variant="outline"
@@ -194,7 +227,8 @@ export function SyncStatus() {
  </Button>
  </div>
  </div>
- ))}
+ )
+ })}
  </div>
  <DialogFooter>
  <Button variant="outline" onClick={() => navigate('/sync-conflicts')}>打开冲突管理</Button>
