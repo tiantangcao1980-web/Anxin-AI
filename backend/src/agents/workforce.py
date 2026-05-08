@@ -668,9 +668,14 @@ class LegalWorkforce:
 
             # 通过 contextvars 设置任务级 LLM 配置和对话历史
             # 这样所有子 Agent 的 chat() 调用都能自动获取，无需修改每个 Agent
-            from src.agents.base import _task_history_var, _task_llm_config_var
+            from src.agents.base import (
+                _task_history_var,
+                _task_llm_config_var,
+                _task_mcp_route_context_var,
+            )
             token_cfg = _task_llm_config_var.set(llm_config)
             token_hist = _task_history_var.set(history)
+            token_mcp = _task_mcp_route_context_var.set(context.get("mcp_route_context"))
 
             try:
                 # process() 本身是协程，直接交给 wait_for 做超时包装，
@@ -690,6 +695,7 @@ class LegalWorkforce:
                 # 恢复 contextvars
                 _task_llm_config_var.reset(token_cfg)
                 _task_history_var.reset(token_hist)
+                _task_mcp_route_context_var.reset(token_mcp)
 
         except TimeoutError:
             logger.error(f"智能体 {agent_name} 执行超时 ({TASK_TIMEOUT_SECONDS}s)")
@@ -1067,11 +1073,22 @@ class LegalWorkforce:
         """
         llm_config = context.get("llm_config") if context else None
         history = context.get("history") if context else None
+        mcp_route_context = context.get("mcp_route_context") if context else None
 
         if agent_name and agent_name in self.agents:
-            return cast(str, await self.agents[agent_name].chat(message, llm_config=llm_config, history=history))
+            return cast(str, await self.agents[agent_name].chat(
+                message,
+                llm_config=llm_config,
+                history=history,
+                mcp_route_context=mcp_route_context,
+            ))
         else:
-            return cast(str, await self.agents["legal_advisor"].chat(message, llm_config=llm_config, history=history))
+            return cast(str, await self.agents["legal_advisor"].chat(
+                message,
+                llm_config=llm_config,
+                history=history,
+                mcp_route_context=mcp_route_context,
+            ))
 
     def get_agents_info(self) -> list[dict[str, Any]]:
         """获取所有智能体信息"""

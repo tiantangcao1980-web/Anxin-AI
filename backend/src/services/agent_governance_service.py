@@ -226,6 +226,7 @@ class AgentGovernanceService:
         org_id: str,
         raw_token: str | None,
         required_scope: str | None = None,
+        consumer_id: str | None = None,
         actor_user_id: str | None = None,
         actor_type: str = "agent_worker",
         now: datetime | None = None,
@@ -259,7 +260,13 @@ class AgentGovernanceService:
             return AgentCapabilityDecision(False, "unknown_route_token", "能力路由 token 无效", audit_event_id=event.id)
 
         lease, route = lease_route
-        denial = self._lease_denial(lease=lease, route=route, required_scope=required_scope, now=checked_at)
+        denial = self._lease_denial(
+            lease=lease,
+            route=route,
+            required_scope=required_scope,
+            consumer_id=consumer_id,
+            now=checked_at,
+        )
         if denial:
             event = self._audit_route_decision(
                 route=route,
@@ -268,7 +275,10 @@ class AgentGovernanceService:
                 reason_code=denial,
                 actor_user_id=actor_user_id,
                 actor_type=actor_type,
-                metadata={"consumer_id": lease.consumer_id},
+                metadata={
+                    "consumer_id": lease.consumer_id,
+                    "requested_consumer_id": (consumer_id or "").strip(),
+                },
                 now=checked_at,
             )
             await self.db.flush()
@@ -414,6 +424,7 @@ class AgentGovernanceService:
         lease: CapabilityRouteTokenLease,
         route: CapabilityRoute,
         required_scope: str | None,
+        consumer_id: str | None,
         now: datetime,
     ) -> str | None:
         route_denial = self._route_denial(route)
@@ -426,6 +437,9 @@ class AgentGovernanceService:
         normalized_scope = (required_scope or "").strip().lower()
         if normalized_scope and normalized_scope not in (lease.scopes or []):
             return "missing_route_scope"
+        normalized_consumer = (consumer_id or "").strip().lower()
+        if normalized_consumer and lease.consumer_id.strip().lower() != normalized_consumer:
+            return "route_token_consumer_mismatch"
         return None
 
     def _audit_route_decision(
@@ -548,5 +562,6 @@ def _reason_message(reason_code: str) -> str:
         "capability_route_revoked": "能力路由已撤销",
         "route_token_revoked": "能力路由 token 已撤销",
         "route_token_expired": "能力路由 token 已过期",
+        "route_token_consumer_mismatch": "能力路由 token 不属于当前 Agent/Worker",
         "missing_route_scope": "能力路由缺少所需 scope",
     }.get(reason_code, "能力路由请求被拒绝")

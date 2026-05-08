@@ -163,6 +163,41 @@ async def test_issue_route_token_enforces_consumer_and_scope(db_session, test_or
 
 
 @pytest.mark.asyncio
+async def test_validate_route_token_enforces_bound_consumer(db_session, test_organization):
+    service = AgentGovernanceService(db_session)
+    await service.create_capability_route(
+        org_id=test_organization.id,
+        route_key="bound-consumer-route",
+        route_type="mcp",
+        allowed_consumers=["worker-bound"],
+        allowed_scopes=["mcp:call"],
+    )
+    issued = await service.issue_route_token(
+        org_id=test_organization.id,
+        route_key="bound-consumer-route",
+        consumer_id="worker-bound",
+        requested_scopes=["mcp:call"],
+    )
+
+    allowed = await service.validate_route_token(
+        org_id=test_organization.id,
+        raw_token=issued.token,
+        required_scope="mcp:call",
+        consumer_id="worker-bound",
+    )
+    denied = await service.validate_route_token(
+        org_id=test_organization.id,
+        raw_token=issued.token,
+        required_scope="mcp:call",
+        consumer_id="worker-other",
+    )
+
+    assert allowed.allowed is True
+    assert denied.allowed is False
+    assert denied.reason_code == "route_token_consumer_mismatch"
+
+
+@pytest.mark.asyncio
 async def test_expired_route_token_fails_closed(db_session, test_organization):
     issued_at = datetime(2026, 5, 8, tzinfo=UTC)
     service = AgentGovernanceService(db_session)

@@ -263,7 +263,12 @@ class AgentLifecycleManager:
         Returns:
             AgentResponse 或降级响应
         """
-        from src.agents.base import AgentResponse, _task_history_var, _task_llm_config_var
+        from src.agents.base import (
+            AgentResponse,
+            _task_history_var,
+            _task_llm_config_var,
+            _task_mcp_route_context_var,
+        )
 
         for attempt in range(MAX_TASK_RETRIES + 1):
             try:
@@ -278,6 +283,7 @@ class AgentLifecycleManager:
                 history = context.get("history")
                 token = _task_llm_config_var.set(llm_config)
                 token_hist = _task_history_var.set(history)
+                token_mcp = _task_mcp_route_context_var.set(context.get("mcp_route_context"))
 
                 try:
                     agent_obj = self.agents.get(agent_name)
@@ -296,6 +302,7 @@ class AgentLifecycleManager:
                 finally:
                     _task_llm_config_var.reset(token)
                     _task_history_var.reset(token_hist)
+                    _task_mcp_route_context_var.reset(token_mcp)
 
                 # 检查结果
                 if isinstance(result, AgentResponse) and not result.metadata.get("error"):
@@ -362,6 +369,7 @@ class AgentLifecycleManager:
                         if replacement_obj:
                             token2 = _task_llm_config_var.set(llm_config)
                             token2_hist = _task_history_var.set(history)
+                            token2_mcp = _task_mcp_route_context_var.set(context.get("mcp_route_context"))
                             try:
                                 takeover_instruction = (
                                     task_info.get("instruction", "")
@@ -381,6 +389,7 @@ class AgentLifecycleManager:
                             finally:
                                 _task_llm_config_var.reset(token2)
                                 _task_history_var.reset(token2_hist)
+                                _task_mcp_route_context_var.reset(token2_mcp)
                     except Exception as rep_err:
                         logger.error(f"替代 Agent {replacement} 也失败: {rep_err}")
 

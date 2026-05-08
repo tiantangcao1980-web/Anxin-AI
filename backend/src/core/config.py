@@ -108,6 +108,9 @@ class Settings(BaseSettings):
     MCP_STDIO_ALLOWED_ENV_KEYS: list[str] = []
     MCP_SSE_ALLOWED_HOSTS: list[str] = []
     MCP_SSE_ALLOWED_SCHEMES: list[str] = ["https"]
+    # MCP tool execution route governance. staging/production fail closed even
+    # when this explicit switch is false; the switch lets tests/dev rehearse it.
+    MCP_TOOL_ROUTE_TOKEN_REQUIRED: bool = False
 
     # ========== 反Bot防御配置 ==========
     ANTIBOT_ENABLED: bool = False               # 总开关

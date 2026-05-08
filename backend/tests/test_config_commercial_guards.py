@@ -30,6 +30,7 @@ def test_mcp_allowlist_settings_accept_json_env(monkeypatch):
     monkeypatch.setenv("MCP_STDIO_ALLOWED_ENV_KEYS", '["MCP_TOKEN"]')
     monkeypatch.setenv("MCP_SSE_ALLOWED_HOSTS", '["mcp.example.com"]')
     monkeypatch.setenv("MCP_SSE_ALLOWED_SCHEMES", '["https"]')
+    monkeypatch.setenv("MCP_TOOL_ROUTE_TOKEN_REQUIRED", "true")
 
     settings = Settings(_env_file=None)
 
@@ -38,6 +39,7 @@ def test_mcp_allowlist_settings_accept_json_env(monkeypatch):
     assert settings.MCP_STDIO_ALLOWED_ENV_KEYS == ["MCP_TOKEN"]
     assert settings.MCP_SSE_ALLOWED_HOSTS == ["mcp.example.com"]
     assert settings.MCP_SSE_ALLOWED_SCHEMES == ["https"]
+    assert settings.MCP_TOOL_ROUTE_TOKEN_REQUIRED is True
 
 
 def test_standalone_mcp_is_disabled_in_staging_by_default(monkeypatch):

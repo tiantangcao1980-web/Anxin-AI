@@ -6,7 +6,7 @@ Manages connections to external MCP servers and exposes their tools to agents.
 import shlex
 from collections.abc import Iterable
 from contextlib import AsyncExitStack
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 from loguru import logger
@@ -19,13 +19,27 @@ from src.core.config import settings
 from src.core.database import async_session_maker
 from src.models.mcp_config import McpServerConfig
 
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+
+MCP_TOOL_ROUTE_SCOPE = "mcp:call"
+
 
 class McpConfigSecurityError(ValueError):
     """Raised when an MCP server config violates commercial safety policy."""
 
 
+class McpRouteAuthorizationError(PermissionError):
+    """Raised when MCP tool execution lacks a valid governed route token."""
+
+
 def _commercial_environment() -> bool:
     return settings.ENVIRONMENT.lower() in {"staging", "production"}
+
+
+def mcp_tool_route_governance_required() -> bool:
+    return bool(settings.MCP_TOOL_ROUTE_TOKEN_REQUIRED or _commercial_environment())
 
 
 def _normalized_set(values: Iterable[str]) -> set[str]:
@@ -210,7 +224,17 @@ class McpClientService:
 
         return openai_tools
 
-    async def call_tool(self, unique_tool_name: str, arguments: dict[str, Any]) -> Any:
+    async def call_tool(
+        self,
+        unique_tool_name: str,
+        arguments: dict[str, Any],
+        *,
+        org_id: str | None = None,
+        route_token: str | None = None,
+        consumer_id: str | None = None,
+        actor_user_id: str | None = None,
+        db: "AsyncSession | None" = None,
+    ) -> Any:
         """
         Call a tool by its unique name (server__tool).
         """
@@ -218,6 +242,14 @@ class McpClientService:
             raise ValueError(f"Invalid tool name format: {unique_tool_name}")
 
         server_name, tool_name = unique_tool_name.split("__", 1)
+        await self._authorize_tool_route(
+            unique_tool_name=unique_tool_name,
+            org_id=org_id,
+            route_token=route_token,
+            consumer_id=consumer_id,
+            actor_user_id=actor_user_id,
+            db=db,
+        )
 
         session = self._sessions.get(server_name)
         if not session:
@@ -225,6 +257,52 @@ class McpClientService:
 
         result = await session.call_tool(tool_name, arguments)
         return result
+
+    async def _authorize_tool_route(
+        self,
+        *,
+        unique_tool_name: str,
+        org_id: str | None,
+        route_token: str | None,
+        consumer_id: str | None,
+        actor_user_id: str | None,
+        db: "AsyncSession | None",
+    ) -> None:
+        if not mcp_tool_route_governance_required():
+            return
+
+        missing = [
+            name
+            for name, value in {
+                "org_id": org_id,
+                "consumer_id": consumer_id,
+                "route_token": route_token,
+                "db": db,
+            }.items()
+            if value is None or (isinstance(value, str) and not value.strip())
+        ]
+        if missing:
+            raise McpRouteAuthorizationError(
+                "MCP route token required before tool execution; missing "
+                + ", ".join(sorted(missing))
+            )
+
+        from src.services.agent_governance_service import AgentGovernanceService
+
+        assert db is not None
+        assert org_id is not None
+        decision = await AgentGovernanceService(db).validate_route_token(
+            org_id=org_id,
+            raw_token=route_token,
+            required_scope=MCP_TOOL_ROUTE_SCOPE,
+            consumer_id=consumer_id,
+            actor_user_id=actor_user_id,
+            actor_type="agent_worker",
+        )
+        if not decision.allowed:
+            raise McpRouteAuthorizationError(
+                f"MCP tool route denied for {unique_tool_name}: {decision.reason_code}"
+            )
 
     async def close(self) -> None:
         """Close all connections."""

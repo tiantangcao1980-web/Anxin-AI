@@ -59,6 +59,14 @@ def test_commercial_gate_runs_agent_governance_service_tests():
     assert "tests/test_agent_governance_service.py" in script
 
 
+def test_commercial_gate_runs_mcp_route_governance_tests():
+    repo_root = Path(__file__).resolve().parents[2]
+    script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
+
+    assert 'require_command "MCP route governance tests"' in script
+    assert "tests/test_mcp_route_governance.py" in script
+
+
 def test_commercial_gate_runs_skill_evolution_gate_tests():
     repo_root = Path(__file__).resolve().parents[2]
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")

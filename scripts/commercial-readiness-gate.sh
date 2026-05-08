@@ -195,6 +195,7 @@ mcp_governance_env=(
   "MCP_STDIO_ALLOWED_ENV_KEYS"
   "MCP_SSE_ALLOWED_HOSTS"
   "MCP_SSE_ALLOWED_SCHEMES"
+  "MCP_TOOL_ROUTE_TOKEN_REQUIRED"
 )
 
 for template in ".env.example" "backend/.env.example"; do
@@ -375,6 +376,8 @@ if [ "$RUN_LOCAL_TESTS" -eq 1 ]; then
     bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_agent_governance_models.py"
   require_command "agent governance service tests" \
     bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_agent_governance_service.py"
+  require_command "MCP route governance tests" \
+    bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_mcp_route_governance.py"
   require_command "skill evolution gate tests" \
     bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_skill_evolution_service.py tests/test_skill_service.py"
   require_command "approval authorization guard tests" \

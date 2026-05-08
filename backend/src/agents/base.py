@@ -41,6 +41,13 @@ _task_history_var: contextvars.ContextVar[list[ChatMessage] | None] = contextvar
     default=None,
 )
 
+# 任务级 MCP route-token 上下文。用于把 DB-backed AgentGovernanceService
+# 授权结果传递到真实 MCP tool execution，而不要求每个子 Agent 改签名。
+_task_mcp_route_context_var: contextvars.ContextVar[dict[str, Any] | None] = contextvars.ContextVar(
+    "task_mcp_route_context",
+    default=None,
+)
+
 
 class AgentConfig(BaseModel):
     """智能体配置"""
@@ -407,6 +414,7 @@ class BaseLegalAgent(ABC):
         enable_reflection: bool = False,
         max_tokens: int | None = None,
         history: list[ChatMessage] | None = None,
+        mcp_route_context: dict[str, Any] | None = None,
     ) -> str:
         """
         对话接口 (v2 优化版)
@@ -503,6 +511,7 @@ class BaseLegalAgent(ABC):
             url, headers, model_name = self._prepare_llm_request(active_config)
 
             # --- MCP Tools Integration ---
+            effective_mcp_route_context = mcp_route_context or _task_mcp_route_context_var.get(None) or {}
             try:
                 available_tools = await mcp_client_service.get_all_tools()
             except Exception as e:
@@ -640,7 +649,11 @@ class BaseLegalAgent(ABC):
                                     "content": tool_output,
                                 }
                             fn_args = json.loads(fn_args_str)
-                            result = await mcp_client_service.call_tool(fn_name, fn_args)
+                            result = await mcp_client_service.call_tool(
+                                fn_name,
+                                fn_args,
+                                **effective_mcp_route_context,
+                            )
                             tool_output = str(result)
                             logger.info(f"Tool {fn_name} executed successfully")
                         except Exception as e:
@@ -652,10 +665,19 @@ class BaseLegalAgent(ABC):
                             "content": tool_output
                         }
 
-                    tool_results = await asyncio.gather(
-                        *[_execute_tool(tc) for tc in tool_calls],
-                        return_exceptions=True
-                    )
+                    tool_results: list[ChatMessage | BaseException]
+                    if effective_mcp_route_context.get("db") is not None:
+                        tool_results = []
+                        for tc in tool_calls:
+                            try:
+                                tool_results.append(await _execute_tool(tc))
+                            except Exception as exc:
+                                tool_results.append(exc)
+                    else:
+                        tool_results = await asyncio.gather(
+                            *[_execute_tool(tc) for tc in tool_calls],
+                            return_exceptions=True,
+                        )
 
                     for tr in tool_results:
                         if isinstance(tr, BaseException):
