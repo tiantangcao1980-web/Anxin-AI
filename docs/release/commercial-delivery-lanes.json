@@ -269,12 +269,14 @@
       "status": "in_progress",
       "can_parallelize": true,
       "write_scope": [
+        "backend/src/api/routes/approvals.py",
         "backend/src/harness/policy_engine.py",
         "backend/src/api/routes/harness.py",
         "backend/src/services/capability_route_service.py",
         "backend/src/services/skill_evolution_service.py",
         "backend/src/services/skill_service.py",
         "backend/tests/test_agent_governance_policy.py",
+        "backend/tests/test_business_authorization_guards.py",
         "backend/tests/test_capability_routes.py",
         "backend/tests/test_skill_evolution_service.py",
         "backend/tests/test_skill_service.py",
@@ -287,6 +289,7 @@
       "evidence": [
         "docs/audit/_tasks/TASK-12-agent-control-plane-skill-evolution.md",
         "backend/tests/test_agent_governance_policy.py",
+        "backend/tests/test_business_authorization_guards.py",
         "backend/tests/test_capability_routes.py",
         "backend/tests/test_skill_evolution_service.py",
         "backend/tests/test_skill_service.py",
@@ -299,6 +302,7 @@
         "test -s docs/audit/_tasks/TASK-12-agent-control-plane-skill-evolution.md",
         "rg -n \"AgentManager|CapabilityRoute|consumer token|Human-in-the-loop|SkillEvolutionProposal|可信会话|企业智能体治理\" docs/openspec docs/audit/_tasks docs/references",
         "backend/.venv/bin/pytest -q backend/tests/test_agent_governance_policy.py",
+        "backend/.venv/bin/pytest -q backend/tests/test_business_authorization_guards.py -k 'approval or template'",
         "backend/.venv/bin/pytest -q backend/tests/test_capability_routes.py",
         "backend/.venv/bin/pytest -q backend/tests/test_skill_evolution_service.py backend/tests/test_skill_service.py",
         "future: cd backend && ./.venv/bin/pytest -q tests/test_agent_approval_flow.py",
@@ -306,7 +310,7 @@
       ],
       "external_inputs": [],
       "current_blockers": [
-        "Governance specs and implementation task are ready, including trusted conversation UX and Skill Evolution Gate. Policy engine and Harness capability listing now have code-level context filtering; the minimal route-token broker proves hash-only storage, scope checks, revocation next-call failure, expiration, and audit events; the local Skill Evolution Gate proves draft-only agent proposals, required eval checks, restricted approval roles, bounded gray release, rollback, audit events, and governed Skill version filtering. Persistent AgentManager/Team/Worker/Human/CapabilityRoute/SkillGovernance models, database-backed route-token isolation, approval workspace, full capability center UI, long-task artifact workflow, memory governance, real connector rehearsal, and commercial release evidence are still missing."
+        "Governance specs and implementation task are ready, including trusted conversation UX and Skill Evolution Gate. Policy engine and Harness capability listing now have code-level context filtering; approval routes now guard single/batch actions, list scope, admin org scope, template writes, template use, and expiry; the minimal route-token broker proves hash-only storage, scope checks, revocation next-call failure, expiration, and audit events; the local Skill Evolution Gate proves draft-only agent proposals, required eval checks, restricted approval roles, bounded gray release, rollback, audit events, and governed Skill version filtering. Persistent AgentManager/Team/Worker/Human/CapabilityRoute/SkillGovernance models, database-backed route-token isolation, formal approval workspace, full capability center UI, long-task artifact workflow, memory governance, real connector rehearsal, and commercial release evidence are still missing."
       ],
       "completion_gate": [
         "capability_policy_engine covers subscription, role, permission, risk, privacy mode, device trust, channel policy, and approval status",

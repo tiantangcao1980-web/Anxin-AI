@@ -49,3 +49,11 @@ def test_commercial_gate_runs_skill_evolution_gate_tests():
 
     assert 'require_command "skill evolution gate tests"' in script
     assert "tests/test_skill_evolution_service.py tests/test_skill_service.py" in script
+
+
+def test_commercial_gate_runs_approval_authorization_guard_tests():
+    repo_root = Path(__file__).resolve().parents[2]
+    script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
+
+    assert 'require_command "approval authorization guard tests"' in script
+    assert "tests/test_business_authorization_guards.py -k 'approval or template'" in script

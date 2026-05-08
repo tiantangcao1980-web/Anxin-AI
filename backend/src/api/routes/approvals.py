@@ -26,14 +26,50 @@ router = APIRouter()
 
 JsonObject: TypeAlias = dict[str, Any]
 RouteResponse: TypeAlias = dict[str, Any]
+GLOBAL_APPROVAL_ADMIN_ROLES = {"super_admin"}
+ORG_APPROVAL_ADMIN_ROLES = {"admin", "org_admin"}
 
 
 def _approval_scope_filter(user: User) -> ColumnElement[bool]:
-    if user.role in {"super_admin", "admin"}:
+    if user.role in GLOBAL_APPROVAL_ADMIN_ROLES:
         return true()
-    if user.role == "org_admin":
+    if user.role in ORG_APPROVAL_ADMIN_ROLES:
         return Approval.org_id == str(user.org_id)
     return (Approval.requester_id == str(user.id)) | (Approval.approver_id == str(user.id))
+
+
+def _template_scope_filter(user: User) -> ColumnElement[bool]:
+    if user.role in GLOBAL_APPROVAL_ADMIN_ROLES:
+        return true()
+    return ApprovalTemplate.created_by == str(user.id)
+
+
+def _can_current_user_view_approval(approval: Approval, user: User) -> bool:
+    if user.role in GLOBAL_APPROVAL_ADMIN_ROLES:
+        return True
+    if user.role in ORG_APPROVAL_ADMIN_ROLES:
+        return bool(approval.org_id) and str(approval.org_id) == str(user.org_id)
+    return str(approval.requester_id) == str(user.id) or str(approval.approver_id) == str(user.id)
+
+
+def _can_current_user_create_template(user: User) -> bool:
+    return user.role in GLOBAL_APPROVAL_ADMIN_ROLES | ORG_APPROVAL_ADMIN_ROLES
+
+
+def _can_current_user_manage_template(template: ApprovalTemplate, user: User) -> bool:
+    if user.role in GLOBAL_APPROVAL_ADMIN_ROLES:
+        return True
+    return user.role in ORG_APPROVAL_ADMIN_ROLES and str(template.created_by) == str(user.id)
+
+
+def _approval_is_expired(approval: Approval, now: datetime | None = None) -> bool:
+    if approval.expires_at is None:
+        return False
+    checked_at = now or datetime.now(UTC)
+    expires_at = approval.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=UTC)
+    return expires_at <= checked_at
 
 
 # ========== Pydantic 模型 ==========
@@ -300,8 +336,10 @@ def _advance_chain(approval: Approval, user_id: str, action: str, comment: str |
 
 
 def _can_current_user_act_on_approval(approval: Approval, user: User) -> bool:
-    if user.role in {"super_admin", "admin"}:
+    if user.role in GLOBAL_APPROVAL_ADMIN_ROLES:
         return True
+    if user.role in ORG_APPROVAL_ADMIN_ROLES:
+        return bool(approval.org_id) and str(approval.org_id) == str(user.org_id)
 
     if approval.approval_chain and approval.approval_chain.get("steps"):
         steps = approval.approval_chain["steps"]
@@ -328,13 +366,19 @@ async def get_approval_stats(
 ) -> RouteResponse:
     """获取审批统计（增强版：含今日审批数、平均审批时长）"""
     try:
-        total_r = await db.execute(select(func.count(Approval.id)))
+        scope_filter = _approval_scope_filter(user)
+        total_r = await db.execute(select(func.count(Approval.id)).where(scope_filter))
         total = total_r.scalar() or 0
 
         stats: dict[str, int] = {}
         for s in ApprovalStatus:
             r = await db.execute(
-                select(func.count(Approval.id)).where(Approval.status == s.value)
+                select(func.count(Approval.id)).where(
+                    and_(
+                        scope_filter,
+                        Approval.status == s.value,
+                    )
+                )
             )
             stats[s.value] = r.scalar() or 0
 
@@ -346,6 +390,7 @@ async def get_approval_stats(
         approved_today_r = await db.execute(
             select(func.count(Approval.id)).where(
                 and_(
+                    scope_filter,
                     Approval.status == ApprovalStatus.approved.value,
                     Approval.resolved_at >= today_start,
                 )
@@ -356,6 +401,7 @@ async def get_approval_stats(
         rejected_today_r = await db.execute(
             select(func.count(Approval.id)).where(
                 and_(
+                    scope_filter,
                     Approval.status == ApprovalStatus.rejected.value,
                     Approval.resolved_at >= today_start,
                 )
@@ -374,6 +420,7 @@ async def get_approval_stats(
                     )
                 ).where(
                     and_(
+                        scope_filter,
                         Approval.resolved_at.isnot(None),
                         Approval.status.in_([
                             ApprovalStatus.approved.value,
@@ -423,7 +470,7 @@ async def list_templates(
         if enabled is not None:
             conditions.append(ApprovalTemplate.enabled == enabled)
 
-        conditions.append(_approval_scope_filter(user))
+        conditions.append(_template_scope_filter(user))
         where = and_(*conditions)
 
         count_r = await db.execute(
@@ -454,6 +501,8 @@ async def create_template(
     user: User = Depends(get_current_user_required),
 ) -> RouteResponse:
     """创建审批模板"""
+    if not _can_current_user_create_template(user):
+        return UnifiedResponse.error(code=403, message="无权创建审批模板")
     try:
         template = ApprovalTemplate(
             name=body.name,
@@ -488,6 +537,8 @@ async def get_template(
     template = result.scalar_one_or_none()
     if not template:
         return UnifiedResponse.error(code=404, message="审批模板不存在")
+    if not _can_current_user_manage_template(template, user) and str(template.created_by) != str(user.id):
+        return UnifiedResponse.error(code=403, message="无权查看该审批模板")
     return UnifiedResponse.success(data=_to_template_response(template))
 
 
@@ -506,6 +557,8 @@ async def update_template(
         template = result.scalar_one_or_none()
         if not template:
             return UnifiedResponse.error(code=404, message="审批模板不存在")
+        if not _can_current_user_manage_template(template, user):
+            return UnifiedResponse.error(code=403, message="无权更新该审批模板")
 
         if body.name is not None:
             template.name = body.name
@@ -544,6 +597,8 @@ async def delete_template(
         template = result.scalar_one_or_none()
         if not template:
             return UnifiedResponse.error(code=404, message="审批模板不存在")
+        if not _can_current_user_manage_template(template, user):
+            return UnifiedResponse.error(code=403, message="无权删除该审批模板")
 
         await db.delete(template)
         await db.commit()
@@ -584,6 +639,27 @@ async def batch_approval(
             if approval.status != ApprovalStatus.pending.value:
                 results.append(BatchApprovalResultItem(
                     approval_id=aid, success=False, message="当前状态无法审批"
+                ))
+                failed += 1
+                continue
+
+            if not _can_current_user_view_approval(approval, user):
+                results.append(BatchApprovalResultItem(
+                    approval_id=aid, success=False, message="无权操作该审批记录"
+                ))
+                failed += 1
+                continue
+
+            if not _can_current_user_act_on_approval(approval, user):
+                results.append(BatchApprovalResultItem(
+                    approval_id=aid, success=False, message="当前用户不是该审批的有效审批人"
+                ))
+                failed += 1
+                continue
+
+            if _approval_is_expired(approval):
+                results.append(BatchApprovalResultItem(
+                    approval_id=aid, success=False, message="审批已过期"
                 ))
                 failed += 1
                 continue
@@ -655,14 +731,14 @@ async def list_approvals(
             conditions.append(Approval.requester_id == requester_id)
         if approver_id:
             conditions.append(Approval.approver_id == approver_id)
+        conditions.append(_approval_scope_filter(user))
 
         offset = (page - 1) * page_size
         count_stmt = select(func.count(Approval.id))
         list_stmt = select(Approval).order_by(Approval.created_at.desc()).offset(offset).limit(page_size)
-        if conditions:
-            where = and_(*conditions)
-            count_stmt = count_stmt.where(where)
-            list_stmt = list_stmt.where(where)
+        where = and_(*conditions)
+        count_stmt = count_stmt.where(where)
+        list_stmt = list_stmt.where(where)
 
         count_r = await db.execute(count_stmt)
         total = count_r.scalar() or 0
@@ -705,6 +781,8 @@ async def create_approval(
             template = tpl_r.scalar_one_or_none()
             if not template:
                 return UnifiedResponse.error(code=404, message="审批模板不存在")
+            if not _can_current_user_manage_template(template, user) and str(template.created_by) != str(user.id):
+                return UnifiedResponse.error(code=403, message="无权使用该审批模板")
             if not template.enabled:
                 return UnifiedResponse.error(code=400, message="审批模板已停用")
             chain_data = template.chain_config
@@ -759,8 +837,8 @@ async def get_approval(
     approval = result.scalar_one_or_none()
     if not approval:
         return UnifiedResponse.error(code=404, message="审批记录不存在")
-    if user.role not in {"super_admin", "admin"}:
-        if user.role == "org_admin":
+    if user.role not in GLOBAL_APPROVAL_ADMIN_ROLES:
+        if user.role in ORG_APPROVAL_ADMIN_ROLES:
             if str(approval.org_id) != str(user.org_id):
                 return UnifiedResponse.error(code=403, message="无权查看该审批记录")
         elif str(approval.requester_id) != str(user.id) and str(approval.approver_id) != str(user.id):
@@ -787,6 +865,8 @@ async def approve_approval(
             return UnifiedResponse.error(code=404, message="审批记录不存在")
         if approval.status != ApprovalStatus.pending.value:
             return UnifiedResponse.error(code=400, message="当前状态无法审批")
+        if _approval_is_expired(approval):
+            return UnifiedResponse.error(code=400, message="审批已过期")
         if not _can_current_user_act_on_approval(approval, user):
             return UnifiedResponse.error(code=403, message="当前用户不是该审批的有效审批人")
 
@@ -835,6 +915,8 @@ async def reject_approval(
             return UnifiedResponse.error(code=404, message="审批记录不存在")
         if approval.status != ApprovalStatus.pending.value:
             return UnifiedResponse.error(code=400, message="当前状态无法驳回")
+        if _approval_is_expired(approval):
+            return UnifiedResponse.error(code=400, message="审批已过期")
         if not _can_current_user_act_on_approval(approval, user):
             return UnifiedResponse.error(code=403, message="当前用户不是该审批的有效审批人")
 

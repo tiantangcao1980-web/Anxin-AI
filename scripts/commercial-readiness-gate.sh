@@ -373,6 +373,8 @@ if [ "$RUN_LOCAL_TESTS" -eq 1 ]; then
     bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_capability_routes.py"
   require_command "skill evolution gate tests" \
     bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_skill_evolution_service.py tests/test_skill_service.py"
+  require_command "approval authorization guard tests" \
+    bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_business_authorization_guards.py -k 'approval or template'"
   require_command "MCP connection config policy tests" \
     bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_config_commercial_guards.py -k mcp"
   require_command "RAG full50 runner tests" \

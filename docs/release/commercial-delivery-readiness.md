@@ -46,7 +46,8 @@ cd backend && ./.venv/bin/pytest -q
 cd backend && ./.venv/bin/ruff check src tests
 cd backend && ./.venv/bin/mypy src
 cd backend && ./.venv/bin/pytest -q tests/test_config_commercial_guards.py tests/test_harness.py -k 'mcp or PolicyEngine or AgentMcpToolPolicy'
-cd backend && ./.venv/bin/pytest -q tests/test_agent_governance_policy.py tests/test_capability_routes.py tests/test_skill_evolution_service.py tests/test_skill_service.py
+cd backend && ./.venv/bin/pytest -q tests/test_agent_governance_policy.py tests/test_capability_routes.py tests/test_business_authorization_guards.py -k 'approval or template'
+cd backend && ./.venv/bin/pytest -q tests/test_skill_evolution_service.py tests/test_skill_service.py
 cd frontend && npm run lint
 cd frontend && npm test
 cd frontend && npm run build
