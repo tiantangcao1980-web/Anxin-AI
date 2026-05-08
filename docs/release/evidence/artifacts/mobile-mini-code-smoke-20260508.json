@@ -1,11 +1,12 @@
 {
-  "generated_at": "2026-05-08T06:00:54.193496+00:00",
+  "generated_at": "2026-05-08T06:09:26.065247+00:00",
   "mode": "mobile_mini_code_smoke",
   "status": "passed",
   "release_evidence_complete": false,
   "checks": {
     "mobile_vitest": "passed",
     "mobile_typescript": "passed",
+    "mobile_result_surface_guard": "passed",
     "mobile_expo_config_guard": "passed",
     "mobile_expo_doctor": "passed",
     "mini_program_typescript": "passed",

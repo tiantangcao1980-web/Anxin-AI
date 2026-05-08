@@ -27,6 +27,7 @@ Checks:
   - mini-program WeChat build unless skipped
   - WeChat DevTools CLI can open/trust the built mini-program project unless skipped
   - static guards against known fake mobile/mini fallback regressions
+  - static guard that mobile investigation/knowledge submissions render in-page result surfaces
   - static guard against mini-program primary navigation dead ends
   - static guard against refresh-token network failures clearing auth state
   - static guard that mobile and mini-program privacy modes fail closed before data network I/O
@@ -94,6 +95,36 @@ run_step "mobile Vitest suite" \
 
 run_step "mobile TypeScript check" \
   bash -lc "cd mobile && npx tsc --noEmit --module esnext"
+
+run_step "mobile result surface guard" \
+  bash -lc '
+    node - <<'"'"'NODE'"'"'
+const fs = require("fs");
+
+function read(path) {
+  return fs.readFileSync(path, "utf8");
+}
+
+function assert(condition, message) {
+  if (!condition) {
+    throw new Error(message);
+  }
+}
+
+const investigation = read("mobile/app/(tabs)/investigation.tsx");
+const knowledge = read("mobile/app/(tabs)/knowledge.tsx");
+
+assert(investigation.includes("latestResult"), "investigation tab must keep an in-page latestResult state");
+assert(investigation.includes("resultCard"), "investigation tab must render an in-page resultCard");
+assert(!investigation.includes("Alert.alert"), "investigation tab must not rely on Alert-only submission feedback");
+
+assert(knowledge.includes("searchSummary"), "knowledge tab must keep an in-page searchSummary state");
+assert(knowledge.includes("resultCard"), "knowledge tab must render an in-page resultCard");
+assert(!knowledge.includes("Alert.alert"), "knowledge tab must not rely on Alert-only search feedback");
+
+console.log("mobile result surface guard ok");
+NODE
+  '
 
 run_step "mobile Expo config/dependency guard" \
   bash -lc '
@@ -315,6 +346,7 @@ report = {
     "checks": {
         "mobile_vitest": "passed",
         "mobile_typescript": "passed",
+        "mobile_result_surface_guard": "passed",
         "mobile_expo_config_guard": "passed",
         "mobile_expo_doctor": "passed",
         "mini_program_typescript": "passed",

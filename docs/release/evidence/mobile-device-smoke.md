@@ -2,7 +2,7 @@
 
 Status: pending
 Owner: TBD
-Environment: code-level mobile/mini smoke complete; Expo config, SDK dependency guard, Expo doctor, mini-program privacy and navigation boundary guards, and WeChat DevTools CLI project smoke complete; cross-platform token drift audit complete; iOS, Android, interactive WeChat DevTools / real device pending
+Environment: code-level mobile/mini smoke complete; Expo config, SDK dependency guard, Expo doctor, mobile result surface guard, mini-program privacy and navigation boundary guards, and WeChat DevTools CLI project smoke complete; cross-platform token drift audit complete; iOS, Android, interactive WeChat DevTools / real device pending
 Date range: 2026-05-06 to 2026-05-08 local collection
 
 > Simulator/unit tests are useful but insufficient. This evidence requires real or official-device-tool runs for the critical user stories.
@@ -53,6 +53,7 @@ Result refreshed on 2026-05-08 local time:
 |---|---|
 | mobile Vitest suite | `7 files / 19 tests passed` |
 | mobile TypeScript check | exit `0` |
+| mobile result surface guard | exit `0`; static guard verifies investigation and knowledge submissions render in-page result cards instead of relying on Alert-only feedback |
 | mobile Expo config/dependency guard | exit `0`; `expo-notifications`, `expo-device`, and `expo-font` are installed and aligned with `mobile/app.json`; `npx expo config --json --full` and `npx expo install --check` pass |
 | mobile Expo doctor | exit `0`; `17/17 checks passed` |
 | mobile npm audit security summary | exit `0`; `critical=0`, `high=0`, `total=0`; `@xmldom/xmldom`, `@expo/plist`, Expo CLI `tar`, and Metro `postcss` findings are remediated by targeted overrides; `tar@7.5.14` crosses Expo CLI's declared semver range, so Expo doctor and real-device smoke remain required release verification |

@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
-  Alert,
   View,
   Text,
   StyleSheet,
@@ -35,6 +34,12 @@ interface KnowledgeItem {
   source?: string
 }
 
+interface SearchSummary {
+  keyword: string
+  count: number
+  searched_at: string
+}
+
 const CATEGORIES = [
   { key: 'regulation', label: '法规', icon: 'book-outline', color: '#3B82F6' },
   { key: 'case', label: '判例', icon: 'hammer-outline', color: '#EF4444' },
@@ -48,6 +53,7 @@ export default function KnowledgeScreen() {
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [searching, setSearching] = useState(false)
+  const [searchSummary, setSearchSummary] = useState<SearchSummary | null>(null)
 
   const loadRecent = useCallback(async () => {
     try {
@@ -92,9 +98,11 @@ export default function KnowledgeScreen() {
           source: item.source,
         })),
       )
-      if (!results?.length) {
-        Alert.alert('未找到结果', '请换一个关键词，或确认当前账号有可访问的知识库。')
-      }
+      setSearchSummary({
+        keyword,
+        count: results?.length ?? 0,
+        searched_at: new Date().toISOString(),
+      })
     } catch (err: any) {
       setError(err?.message || '知识检索失败，请稍后重试')
     } finally {
@@ -130,6 +138,33 @@ export default function KnowledgeScreen() {
           />
           {searching && <ActivityIndicator size="small" color={Colors.primary} />}
         </View>
+
+        {searchSummary && (
+          <View style={styles.resultCard}>
+            <View style={styles.resultHeader}>
+              <View style={styles.resultIcon}>
+                <Ionicons
+                  name={searchSummary.count > 0 ? 'checkmark-circle' : 'information-circle-outline'}
+                  size={20}
+                  color={searchSummary.count > 0 ? Colors.success : Colors.info}
+                />
+              </View>
+              <View style={styles.resultHeaderText}>
+                <Text style={styles.resultTitle}>
+                  {searchSummary.count > 0 ? '已生成检索结果' : '未找到匹配内容'}
+                </Text>
+                <Text style={styles.resultMeta}>
+                  {searchSummary.keyword} · {new Date(searchSummary.searched_at).toLocaleString('zh-CN')}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.resultBody}>
+              {searchSummary.count > 0
+                ? `找到 ${searchSummary.count} 条可读内容。请优先查看来源、发布日期和适用范围，重大事项建议结合合同或案件材料继续咨询。`
+                : '当前账号可访问的知识库中暂无匹配内容。可以换用更短关键词，或确认组织知识库是否已上传相关法规、模板和案例。'}
+            </Text>
+          </View>
+        )}
 
         {/* 三大类别 */}
         <View style={styles.categoryRow}>
@@ -210,6 +245,36 @@ const styles = StyleSheet.create({
     marginBottom: Layout.spacing.lg,
   },
   searchInput: { flex: 1, fontSize: Layout.fontSize.md, color: Colors.text, padding: 0 },
+  resultCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: Layout.borderRadius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    padding: Layout.spacing.md,
+    marginBottom: Layout.spacing.lg,
+    gap: Layout.spacing.sm,
+  },
+  resultHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Layout.spacing.sm,
+  },
+  resultIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: Colors.info + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resultHeaderText: { flex: 1 },
+  resultTitle: { fontSize: Layout.fontSize.md, fontWeight: '700', color: Colors.text },
+  resultMeta: { fontSize: Layout.fontSize.xs, color: Colors.textSecondary, marginTop: 2 },
+  resultBody: {
+    fontSize: Layout.fontSize.sm,
+    lineHeight: 20,
+    color: Colors.text,
+  },
   categoryRow: {
     flexDirection: 'row',
     gap: Layout.spacing.md,

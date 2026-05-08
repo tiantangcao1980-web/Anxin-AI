@@ -10,7 +10,7 @@
 | Web build | `cd frontend && npm run build` | 通过，有构建告警 |
 | 后端抽样测试 | `pytest` 关键切片 32 项 | 32 passed，6 warnings |
 | 桌面 Rust | `cd desktop && cargo check` | 通过 |
-| 移动/小程序本地门禁 | `bash scripts/mobile-device-smoke.sh` | 通过：mobile Vitest 7 files / 19 tests passed；mobile tsc、Expo doctor 17/17、mobile production npm audit、小程序 tsc/build、mini-program privacy boundary guard、mini-program navigation boundary guard、WeChat DevTools CLI project smoke、refresh auth guard、mobile/mini privacy network guard、fake fallback guard、mini-program design token guard 均为 exit 0 |
+| 移动/小程序本地门禁 | `bash scripts/mobile-device-smoke.sh` | 通过：mobile Vitest 7 files / 19 tests passed；mobile tsc、mobile result surface guard、Expo doctor 17/17、mobile production npm audit、小程序 tsc/build、mini-program privacy boundary guard、mini-program navigation boundary guard、WeChat DevTools CLI project smoke、refresh auth guard、mobile/mini privacy network guard、fake fallback guard、mini-program design token guard 均为 exit 0 |
 | 小程序 H5 | `cd mini-program && npm run build:h5` | 历史通过，1 个 webpack warning；当前发布基线以 `build:weapp` 为准 |
 
 ## Web build 告警
@@ -69,7 +69,7 @@ npx tsc --noEmit --module esnext
 bash scripts/mobile-device-smoke.sh
 ```
 
-该脚本覆盖移动 Vitest、移动 tsc、Expo config/SDK guard、Expo doctor、mobile production npm audit、小程序 tsc/build、mini-program privacy boundary guard、mini-program navigation boundary guard、WeChat DevTools CLI project smoke、refresh auth guard、mobile/mini privacy network guard、fake fallback guard 与小程序设计 token guard。它不能替代 iOS、Android、交互式微信开发者工具或真机 transcript。
+该脚本覆盖移动 Vitest、移动 tsc、mobile result surface guard、Expo config/SDK guard、Expo doctor、mobile production npm audit、小程序 tsc/build、mini-program privacy boundary guard、mini-program navigation boundary guard、WeChat DevTools CLI project smoke、refresh auth guard、mobile/mini privacy network guard、fake fallback guard 与小程序设计 token guard。它不能替代 iOS、Android、交互式微信开发者工具或真机 transcript。
 
 ## GitNexus 风险信号
 

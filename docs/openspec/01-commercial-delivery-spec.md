@@ -50,7 +50,7 @@
 - 后端默认全量 pytest 当前达到 `467 passed, 1 skipped, 17 warnings in 36.11s`；`test_comprehensive_flow` 作为显式 opt-in smoke，需 `RUN_COMPREHENSIVE_FLOW=1` 才运行。
 - 前端 `lint`、`npm test` 与 `build` 可通过，最新完整本地门禁中 Vitest 为 `12 files / 45 tests passed`，`npm run build` 当前通过。
 - 角色访问 E2E 当前达到 `10 passed, 10 skipped`。
-- 移动/小程序本地门禁：`bash scripts/mobile-device-smoke.sh` 通过，移动 Vitest `7 files / 19 tests passed`，移动 tsc、Expo doctor `17/17`、mobile production npm audit、小程序 tsc/build、WeChat DevTools CLI project smoke、refresh auth guard、mobile/mini privacy network guard、fake fallback guard、mini-program navigation boundary guard 和 mini-program design token guard 均为 exit `0`。
+- 移动/小程序本地门禁：`bash scripts/mobile-device-smoke.sh` 通过，移动 Vitest `7 files / 19 tests passed`，移动 tsc、Expo doctor `17/17`、mobile production npm audit、小程序 tsc/build、WeChat DevTools CLI project smoke、mobile result surface guard、refresh auth guard、mobile/mini privacy network guard、fake fallback guard、mini-program navigation boundary guard 和 mini-program design token guard 均为 exit `0`。
 - 桌面端 `cargo check` 可通过。
 - GitNexus 索引复验：当前精确统计以 `.gitnexus/meta.json` 为准；最终商业 release 前必须重新证明 `capabilities.vectorSearch.status=vector-index`、embedding meta count 与 `gitnexus cypher` count 非零且一致，并让 direct binary 的 `status/cypher/detect-changes` 与当前 commit 一致；当前 direct CLI repo 解析未通过，semantic query 不作为唯一放行依据。
 - 本地/混合/云端与可配置模型已有架构基础：`docs/ARCHITECTURE_V2.md` 已定义本地模式数据不离开设备、Ollama/LM Studio 等自配置本地模型，以及 Enterprise 自定义 LLM endpoint；后端存在 `src/services/llm_service.py`、`src/services/private_llm_service.py`、`src/api/routes/llm.py`，桌面存在 `desktop/src/commands/local_llm.rs`。
@@ -72,7 +72,7 @@
 - TASK-10 P0-6 已收口：订阅新增显式状态机与 `subscription_events` 审计表，覆盖待支付、试用转付费、续费、退款过期和非法终态 409。
 - TASK-10 P0-7 已收口：`create_subscription` 服务层原生写入 `client_type` 与套餐适用端校验，需求方/服务方订阅的支付、退款、事件日志互不串线；`MySubscription` 前端已按需求方/服务方双栏展示，不再只消费第一条订阅；`Pricing` 已按所选端侧过滤 `client_type` / `both` 套餐，避免用户选到后端会拒绝的跨端套餐。
 - TASK-10 P0-8 已收口：IM 消息增加 conversation 内递增 `sequence`，WebSocket 首包可携 `last_ack_message_id` 拉离线增量；前端 `useIMWebSocket` 会在认证首包携带用户维度 ACK 游标，收到实时/离线消息后自动发送 `ack`，并在服务端 `ack_ok` 后持久化游标。
-- TASK-11c P0-2/P0-3/P0-4 已部分收口：移动端 `approvals/[id].tsx` 不再用静默 fallback 假审批，`cases.tsx` 已复核为错误三态，首页任务/审批/通知不再用假数据兜底，聊天欢迎语移出消息历史，设置页移除误导性 mock 标记，`messages/[id].tsx` 和 `tasks/[id].tsx` 已移除 fallback 对话/任务并显示真实 loading/empty/error 状态；小程序 `Profile` 登录失败不再写入 `mock_token` 或提示体验模式，且本地/绝密模式会在 `Taro.login` 前阻断；后端新增 `/api/v1/auth/wechat/code2session`，按微信小程序 `wx.login` code 换取 openid 后签发本地 JWT，且不向客户端下发 `session_key`。小程序首页资讯接口失败/为空时不再渲染假新闻 fallback，隐私阻断时显示明确空状态；首页与个人中心主入口已去掉空路径/“功能开发中”死胡同，改由 AI 助手承接合同审查、找律师、合规自检和案件协助。`scripts/mobile-device-smoke.sh` 已建立本地门禁，覆盖移动测试、移动 tsc、小程序 tsc/build、mini privacy boundary guard、mini navigation boundary guard、fake fallback guard 和 mini-program design token guard。
+- TASK-11c P0-2/P0-3/P0-4 已部分收口：移动端 `approvals/[id].tsx` 不再用静默 fallback 假审批，`cases.tsx` 已复核为错误三态，首页任务/审批/通知不再用假数据兜底，聊天欢迎语移出消息历史，设置页移除误导性 mock 标记，`messages/[id].tsx` 和 `tasks/[id].tsx` 已移除 fallback 对话/任务并显示真实 loading/empty/error 状态；移动端尽调和知识库搜索已从 Alert-only 反馈改为页面内结果摘要卡；小程序 `Profile` 登录失败不再写入 `mock_token` 或提示体验模式，且本地/绝密模式会在 `Taro.login` 前阻断；后端新增 `/api/v1/auth/wechat/code2session`，按微信小程序 `wx.login` code 换取 openid 后签发本地 JWT，且不向客户端下发 `session_key`。小程序首页资讯接口失败/为空时不再渲染假新闻 fallback，隐私阻断时显示明确空状态；首页与个人中心主入口已去掉空路径/“功能开发中”死胡同，改由 AI 助手承接合同审查、找律师、合规自检和案件协助。`scripts/mobile-device-smoke.sh` 已建立本地门禁，覆盖移动测试、移动 tsc、mobile result surface guard、小程序 tsc/build、mini privacy boundary guard、mini navigation boundary guard、fake fallback guard 和 mini-program design token guard。
 
 仍为商业交付阻断：
 

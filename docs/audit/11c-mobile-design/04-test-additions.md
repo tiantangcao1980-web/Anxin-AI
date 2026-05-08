@@ -12,6 +12,7 @@ bash scripts/mobile-device-smoke.sh
 - mobile TypeScript：exit `0`
 - Expo doctor：`17/17 checks passed`
 - mobile production npm audit：exit `0`
+- mobile result surface guard：`scripts/mobile-device-smoke.sh` 会确认移动端尽调和知识库搜索保留页面内结果卡，且不回退到 Alert-only 反馈。
 - mini-program TypeScript：exit `0`
 - mini-program `build:weapp`：exit `0`
 - WeChat DevTools CLI project smoke：exit `0`

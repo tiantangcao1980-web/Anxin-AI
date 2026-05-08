@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  Alert,
   View,
   Text,
   StyleSheet,
@@ -37,6 +36,16 @@ interface HotTopic {
   reason: string
 }
 
+interface InvestigationResult {
+  company_name: string
+  started_at: string
+  status: RecentItem['status']
+  risk_level?: string
+  risk_score?: number
+  summary?: string
+  report_id?: string
+}
+
 export default function InvestigationScreen() {
   const [query, setQuery] = useState('')
   const [recent, setRecent] = useState<RecentItem[]>([])
@@ -45,6 +54,7 @@ export default function InvestigationScreen() {
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [latestResult, setLatestResult] = useState<InvestigationResult | null>(null)
 
   const loadData = useCallback(async () => {
     try {
@@ -82,21 +92,35 @@ export default function InvestigationScreen() {
       const result = await api.post<{
         company_name: string
         timestamp?: string
+        status?: RecentItem['status']
+        risk_level?: string
+        risk_score?: number
+        summary?: string
+        report_id?: string
       }>('/due-diligence/company', {
         company_name: companyName,
         investigation_type: 'comprehensive',
       })
       const startedAt = result.timestamp ?? new Date().toISOString()
+      const completedResult = {
+        company_name: result.company_name || companyName,
+        started_at: startedAt,
+        status: result.status ?? 'completed',
+        risk_level: result.risk_level,
+        risk_score: result.risk_score,
+        summary: result.summary,
+        report_id: result.report_id,
+      }
       setRecent((items) => [
         {
           id: `${companyName}-${startedAt}`,
-          company_name: result.company_name || companyName,
+          company_name: completedResult.company_name,
           started_at: startedAt,
-          status: 'completed',
+          status: completedResult.status,
         },
         ...items.filter((item) => item.company_name !== companyName),
       ])
-      Alert.alert('调查已生成', '已将结果加入最近调查。')
+      setLatestResult(completedResult)
     } catch (err: any) {
       setError(err?.message || '启动调查失败，请稍后重试')
     } finally {
@@ -147,6 +171,34 @@ export default function InvestigationScreen() {
           )}
           <Text style={styles.primaryButtonText}>{submitting ? '调查中...' : '开始调查'}</Text>
         </TouchableOpacity>
+
+        {latestResult && (
+          <View style={styles.resultCard}>
+            <View style={styles.resultHeader}>
+              <View style={styles.resultIcon}>
+                <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
+              </View>
+              <View style={styles.resultHeaderText}>
+                <Text style={styles.resultTitle}>{latestResult.company_name}</Text>
+                <Text style={styles.resultMeta}>
+                  {new Date(latestResult.started_at).toLocaleString('zh-CN')} · {statusLabel(latestResult.status)}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.resultBody}>
+              {latestResult.summary ||
+                '调查结果已生成并加入最近调查。请先核对企业主体、关联方和风险项；重大事项建议转交专业律师复核。'}
+            </Text>
+            <View style={styles.resultChips}>
+              <Text style={styles.resultChip}>
+                风险等级：{latestResult.risk_level || '待复核'}
+              </Text>
+              <Text style={styles.resultChip}>
+                报告编号：{latestResult.report_id || '本次会话'}
+              </Text>
+            </View>
+          </View>
+        )}
 
         {loading ? (
           <View style={styles.loadingBox}>
@@ -264,6 +316,51 @@ const styles = StyleSheet.create({
     fontSize: Layout.fontSize.md,
     fontWeight: '600',
     color: Colors.white,
+  },
+  resultCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: Layout.borderRadius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    padding: Layout.spacing.md,
+    marginTop: Layout.spacing.md,
+    gap: Layout.spacing.sm,
+  },
+  resultHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Layout.spacing.sm,
+  },
+  resultIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: Colors.success + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resultHeaderText: { flex: 1 },
+  resultTitle: { fontSize: Layout.fontSize.md, fontWeight: '700', color: Colors.text },
+  resultMeta: { fontSize: Layout.fontSize.xs, color: Colors.textSecondary, marginTop: 2 },
+  resultBody: {
+    fontSize: Layout.fontSize.sm,
+    lineHeight: 20,
+    color: Colors.text,
+  },
+  resultChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Layout.spacing.sm,
+  },
+  resultChip: {
+    minHeight: Layout.touchTarget.min,
+    paddingHorizontal: Layout.spacing.md,
+    paddingVertical: Layout.spacing.sm,
+    borderRadius: Layout.borderRadius.full,
+    backgroundColor: Colors.background,
+    color: Colors.textSecondary,
+    fontSize: Layout.fontSize.xs,
+    textAlignVertical: 'center',
   },
   sectionTitle: {
     fontSize: Layout.fontSize.sm,
