@@ -374,6 +374,8 @@ if [ "$RUN_LOCAL_TESTS" -eq 1 ]; then
     bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_harness.py -k 'PolicyEngine or AgentMcpToolPolicy'"
   require_command "agent governance policy tests" \
     bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_agent_governance_policy.py"
+  require_command "unified capability policy engine tests" \
+    bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_capability_policy_engine.py"
   require_command "capability route token tests" \
     bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_capability_routes.py"
   require_command "agent governance model tests" \

@@ -117,6 +117,12 @@ can_execute_capability(actor, org, capability, risk_level, data_scope, privacy_m
 - `required_action`（subscribe / request_approval / switch_mode / pair_device / contact_admin）
 - `audit_event_id`
 
+当前本地进展：
+
+- `backend/src/services/capability_policy_engine.py` 已补统一能力决策入口 `CapabilityPolicyEngine.can_execute_capability()`，把订阅 feature、角色、权限、风险级别、隐私模式、数据范围、设备信任、通道策略、CapabilityRoute 状态和 AgentApproval 审批状态串为单次可审计决策，并写入 `AgentAuditEvent`。
+- `backend/tests/test_capability_policy_engine.py` 已覆盖通过路径、订阅缺失、权限缺失、绝密/本地模式拒绝 networked/external 能力、未受信设备拒绝桌面控制、通道策略拒绝和 L3/L4 高风险能力审批前拒绝/审批后放行；当前 `6 passed`。
+- `scripts/commercial-readiness-gate.sh --with-local-tests` 已加入 unified capability policy engine tests。该切片只关闭服务层统一判定，不替代真实 LLM/browser/desktop-control 执行链路接入和真实 runtime evidence。
+
 ### Step 3 · Gateway/Consumer Token 模型
 
 - Agent/Worker 不直接读取真实密钥。
@@ -211,7 +217,7 @@ docs/audit/12-enterprise-agent-governance/
 
 ## 6. 完成标准
 
-- [ ] `capability_policy_engine` 覆盖订阅、角色、权限、风险级别、隐私模式、设备信任、通信策略和审批状态。
+- [x] `capability_policy_engine` 服务层覆盖订阅、角色、权限、风险级别、隐私模式、设备信任、通信策略和审批状态；真实 LLM/browser/desktop-control 运行时链路接入仍需后续闭环。
 - [x] AgentManager / AgentTeam / AgentWorker / HumanParticipant / ChannelPolicy / CapabilityRoute / TokenLease / Approval / AuditEvent 模型与 migration 有 upgrade/downgrade。
 - [x] AgentApproval service/API 和最小前端工作台具备创建、列表/count、审批/驳回/撤销、过期、action/route 匹配、执行前 validate、组织/本人 scope、审批审计时间线、审批审计 JSON 导出、运行时未接入时 workspace-control fail-closed、移动视口回归和审计回归；完整工作室和真实执行链路接入仍未完成。
 - [ ] Worker/Agent 不持有真实密钥；MCP tool execution、CLI `/execute` 和桌面端 CLI route-token 获取/传递已有 DB-backed route-token fail-closed 代码级回归，LLM/browser/desktop-control 和真实 approved connector 演练仍待闭环。

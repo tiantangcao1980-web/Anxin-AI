@@ -11,7 +11,7 @@ This evidence file tracks the enterprise-agent governance lane. It is intentiona
 
 | Scope | Current result | Artifact reference |
 |---|---|---|
-| Capability policy | code-level complete for subscription, permission, privacy, device, channel, high-risk approval context, unknown-tool fail-closed, MCP runtime re-checks, and a minimal frontend capability policy panel for available/blocked tool visibility | `backend/tests/test_agent_governance_policy.py`, `backend/tests/test_capability_routes.py`, `frontend/src/lib/api.ts`, `frontend/src/pages/AgentApprovalWorkspace.tsx`, `frontend/e2e/agent-approval-workspace.spec.ts` |
+| Capability policy | code-level complete for harness tool filtering plus service-level unified capability decisions covering subscription, role, permission, risk level, privacy mode, device trust, channel policy, high-risk approval context, audit events, unknown-tool/unknown-route fail-closed, MCP runtime re-checks, and a minimal frontend capability policy panel for available/blocked tool visibility | `backend/src/services/capability_policy_engine.py`, `backend/tests/test_capability_policy_engine.py`, `backend/tests/test_agent_governance_policy.py`, `backend/tests/test_capability_routes.py`, `frontend/src/lib/api.ts`, `frontend/src/pages/AgentApprovalWorkspace.tsx`, `frontend/e2e/agent-approval-workspace.spec.ts` |
 | Route-token broker | code-level complete for hash-only lease storage, scope checks, expiration, consumer mismatch, revocation next-call failure, and audit events | `backend/tests/test_agent_governance_service.py`, `backend/tests/test_mcp_route_governance.py`, `backend/tests/test_cli_route.py` |
 | High-risk approvals | code-level complete for service/API creation, scope, authorized decisions, revocation, expiration, validate, audit timeline, audit export, payload redaction, and workspace-control fail-closed | `backend/tests/test_agent_approval_service.py`, `backend/tests/test_agent_approval_api.py`, `frontend/e2e/agent-approval-workspace.spec.ts` |
 | Skill governance | code-level complete for proposal, required eval, authorized approval, gray release, rollback, enabled-version persistence, org isolation, API scope, API audit export, append-only audit events, migration upgrade/downgrade, no raw secret/token columns, and a minimal frontend governance panel for create/eval/approve/gray/audit flows | `backend/tests/test_skill_evolution_service.py`, `backend/tests/test_skill_service.py`, `backend/tests/test_skill_governance_models.py`, `backend/tests/test_skill_governance_service.py`, `backend/tests/test_skill_governance_api.py`, `frontend/src/lib/api.ts`, `frontend/src/pages/AgentApprovalWorkspace.tsx`, `frontend/e2e/agent-approval-workspace.spec.ts` |
@@ -27,6 +27,7 @@ This evidence file tracks the enterprise-agent governance lane. It is intentiona
 
 ```bash
 cd backend && ./.venv/bin/pytest -q tests/test_agent_governance_policy.py
+cd backend && ./.venv/bin/pytest -q tests/test_capability_policy_engine.py
 cd backend && ./.venv/bin/pytest -q tests/test_capability_routes.py
 cd backend && ./.venv/bin/pytest -q tests/test_agent_governance_models.py
 cd backend && ./.venv/bin/pytest -q tests/test_agent_governance_service.py
