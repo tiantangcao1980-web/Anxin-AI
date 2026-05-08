@@ -38,6 +38,37 @@ test.describe('桌面主工作站设置入口', () => {
     await expect(page.getByRole('button', { name: '查看任务' })).toBeDisabled()
     await expect(page.getByText('请在桌面客户端启用')).toHaveCount(3)
   })
+
+  test('desktop runtime shows local model and queue probes', async ({ page }) => {
+    await page.addInitScript(() => {
+      (window as any).__TAURI_INTERNALS__ = {
+        invoke: async (cmd: string) => {
+          if (cmd === 'check_local_llm_status') {
+            return { available: true, url: 'http://localhost:11434', status: 200 }
+          }
+          if (cmd === 'list_local_models') {
+            return { available: true, models: [{ name: 'qwen2.5:7b' }] }
+          }
+          if (cmd === 'get_queue_stats') {
+            return { queued: 2, local_processing: 0, local_completed: 0, synced: 0, failed: 1, total: 3 }
+          }
+          if (cmd === 'get_current_mode') {
+            return '"hybrid"'
+          }
+          return null
+        },
+      }
+    })
+
+    await page.goto('/settings?tab=workstation')
+
+    await expect(page.getByText('桌面在线')).toBeVisible()
+    await expect(page.getByTestId('workstation-probe-local-model')).toContainText('可用')
+    await expect(page.getByTestId('workstation-probe-local-model')).toContainText('1 个模型')
+    await expect(page.getByTestId('workstation-probe-offline-queue')).toContainText('3 条')
+    await expect(page.getByTestId('workstation-probe-offline-queue')).toContainText('1 条失败需处理')
+    await expect(page.getByTestId('workstation-probe-remote-control')).toContainText('待验收')
+  })
 })
 
 test.describe('桌面主工作站移动宽度', () => {

@@ -1,11 +1,11 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAppModeStore } from '@/lib/store'
-import { isTauri } from '@/lib/tauri-bridge'
+import { checkLocalLLMStatus, getQueueStats, isTauri, listLocalModels } from '@/lib/tauri-bridge'
 import { heading, iconSize, statusBadge } from '@/lib/design-tokens'
 import { icons } from '@/lib/icons'
 import {
@@ -38,14 +38,74 @@ const RESOURCE_ICON: Record<WorkstationResource['id'], typeof icons.LayoutDashbo
   'remote-control': icons.Phone,
 }
 
+type ProbeStatus = 'preview' | 'loading' | 'ready'
+
+interface WorkstationProbeState {
+  status: ProbeStatus
+  localModelAvailable: boolean
+  localModelUrl: string
+  localModelCount: number
+  queueTotal: number
+  queueFailed: number
+}
+
+const PREVIEW_PROBES: WorkstationProbeState = {
+  status: 'preview',
+  localModelAvailable: false,
+  localModelUrl: '',
+  localModelCount: 0,
+  queueTotal: 0,
+  queueFailed: 0,
+}
+
 export function DesktopWorkstationPanel() {
   const navigate = useNavigate()
   const mode = useAppModeStore((state) => state.mode)
   const desktopClient = isTauri()
+  const [probes, setProbes] = useState<WorkstationProbeState>(PREVIEW_PROBES)
   const resources = useMemo(
     () => buildDesktopWorkstationResources(mode, desktopClient ? 'desktop' : 'preview'),
     [desktopClient, mode]
   )
+
+  useEffect(() => {
+    let cancelled = false
+
+    if (!desktopClient) {
+      setProbes(PREVIEW_PROBES)
+      return () => {
+        cancelled = true
+      }
+    }
+
+    setProbes((current) => ({ ...current, status: 'loading' }))
+
+    Promise.allSettled([
+      checkLocalLLMStatus(),
+      listLocalModels(),
+      getQueueStats(),
+    ]).then(([llmResult, modelsResult, queueResult]) => {
+      if (cancelled) return
+
+      const llm = llmResult.status === 'fulfilled' ? llmResult.value as Record<string, unknown> | null : null
+      const models = modelsResult.status === 'fulfilled' ? modelsResult.value as Record<string, unknown> | null : null
+      const queue = queueResult.status === 'fulfilled' ? queueResult.value as Record<string, unknown> | null : null
+      const modelItems = Array.isArray(models?.models) ? models.models : []
+
+      setProbes({
+        status: 'ready',
+        localModelAvailable: Boolean(llm?.available || models?.available),
+        localModelUrl: typeof llm?.url === 'string' ? llm.url : '',
+        localModelCount: modelItems.length,
+        queueTotal: Number(queue?.total ?? 0),
+        queueFailed: Number(queue?.failed ?? 0),
+      })
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [desktopClient])
 
   return (
     <div className="space-y-4" data-testid="desktop-workstation-panel">
@@ -113,6 +173,53 @@ export function DesktopWorkstationPanel() {
         </CardContent>
       </Card>
 
+      <Card className="border-border rounded-xl" data-testid="desktop-workstation-probes">
+        <CardHeader className="pb-3">
+          <CardTitle className={heading.card}>本机状态探针</CardTitle>
+          <CardDescription className={heading.muted}>
+            {desktopClient ? '读取桌面运行时本地状态，不上传业务数据' : '非桌面环境仅展示待接入状态'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <ProbeCell
+            testId="workstation-probe-local-model"
+            label="本地模型"
+            value={
+              !desktopClient
+                ? '需桌面端'
+                : probes.status === 'loading'
+                  ? '检测中'
+                  : probes.localModelAvailable
+                    ? '可用'
+                    : '未连接'
+            }
+            detail={
+              probes.localModelAvailable
+                ? `${probes.localModelCount} 个模型${probes.localModelUrl ? ` · ${probes.localModelUrl}` : ''}`
+                : 'Ollama / 本地兼容端点'
+            }
+          />
+          <ProbeCell
+            testId="workstation-probe-offline-queue"
+            label="离线任务队列"
+            value={
+              !desktopClient
+                ? '需桌面端'
+                : probes.status === 'loading'
+                  ? '检测中'
+                  : `${probes.queueTotal} 条`
+            }
+            detail={probes.queueFailed > 0 ? `${probes.queueFailed} 条失败需处理` : '本地队列统计只读'}
+          />
+          <ProbeCell
+            testId="workstation-probe-remote-control"
+            label="移动远控安全闸"
+            value={mode === 'top-secret' ? '已阻断' : desktopClient ? '待验收' : '需桌面端'}
+            detail={mode === 'top-secret' ? '绝密模式禁止远控出站' : '需配对、确认、撤销和审计证据'}
+          />
+        </CardContent>
+      </Card>
+
       <Card className="border-border rounded-xl">
         <CardHeader className="pb-3">
           <CardTitle className={heading.card}>发布缺口</CardTitle>
@@ -133,6 +240,26 @@ export function DesktopWorkstationPanel() {
           ))}
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+function ProbeCell({
+  testId,
+  label,
+  value,
+  detail,
+}: {
+  testId: string
+  label: string
+  value: string
+  detail: string
+}) {
+  return (
+    <div data-testid={testId} className="rounded-lg border border-border bg-surface-1 p-3">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="mt-2 text-sm font-semibold text-foreground">{value}</p>
+      <p className="mt-1 break-words text-xs text-muted-foreground">{detail}</p>
     </div>
   )
 }
