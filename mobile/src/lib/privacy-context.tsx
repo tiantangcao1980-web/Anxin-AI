@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import AsyncStorage from '@react-native-async-storage/async-storage'
+import { DEFAULT_PRIVACY_MODE, getStoredPrivacyMode, setStoredPrivacyMode, type PrivacyMode } from './privacy-mode'
+
+export type { PrivacyMode } from './privacy-mode'
 
 /**
  * 移动端三态运行模式。与 Web / Desktop 端的 `AppMode` 对齐：
@@ -13,10 +15,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
  * - 写入 AsyncStorage（冷启动恢复）
  * - 触发 modeGate 事件（订阅方根据需要重连 / 关断 / 提示）
  */
-
-export type PrivacyMode = 'local' | 'hybrid' | 'cloud'
-
-const STORAGE_KEY = 'anxin-privacy-mode'
 
 interface PrivacyContextValue {
   mode: PrivacyMode
@@ -36,16 +34,13 @@ interface PrivacyContextValue {
 const PrivacyContext = createContext<PrivacyContextValue | null>(null)
 
 export function PrivacyProvider({ children }: { children: ReactNode }) {
-  const [mode, setModeState] = useState<PrivacyMode>('cloud')
+  const [mode, setModeState] = useState<PrivacyMode>(DEFAULT_PRIVACY_MODE)
   const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
     const hydrate = async () => {
       try {
-        const stored = await AsyncStorage.getItem(STORAGE_KEY)
-        if (stored === 'local' || stored === 'hybrid' || stored === 'cloud') {
-          setModeState(stored)
-        }
+        setModeState(await getStoredPrivacyMode())
       } catch {
         // 读失败用默认 cloud
       } finally {
@@ -58,7 +53,7 @@ export function PrivacyProvider({ children }: { children: ReactNode }) {
   const setMode = async (next: PrivacyMode) => {
     setModeState(next)
     try {
-      await AsyncStorage.setItem(STORAGE_KEY, next)
+      await setStoredPrivacyMode(next)
     } catch {
       // 持久化失败不阻塞 UI
     }

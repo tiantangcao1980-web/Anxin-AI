@@ -8,7 +8,7 @@ bash scripts/mobile-device-smoke.sh
 
 最近记录：
 
-- mobile Vitest：`7 files / 17 tests passed`
+- mobile Vitest：`7 files / 19 tests passed`
 - mobile TypeScript：exit `0`
 - Expo doctor：`17/17 checks passed`
 - mobile production npm audit：exit `0`

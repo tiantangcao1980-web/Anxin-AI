@@ -10,7 +10,7 @@
 | Web build | `cd frontend && npm run build` | 通过，有构建告警 |
 | 后端抽样测试 | `pytest` 关键切片 32 项 | 32 passed，6 warnings |
 | 桌面 Rust | `cd desktop && cargo check` | 通过 |
-| 移动/小程序本地门禁 | `bash scripts/mobile-device-smoke.sh` | 通过：mobile Vitest 7 files / 17 tests passed；mobile tsc、Expo doctor 17/17、mobile production npm audit、小程序 tsc/build、WeChat DevTools CLI project smoke、refresh auth guard、fake fallback guard、mini-program design token guard 均为 exit 0 |
+| 移动/小程序本地门禁 | `bash scripts/mobile-device-smoke.sh` | 通过：mobile Vitest 7 files / 19 tests passed；mobile tsc、Expo doctor 17/17、mobile production npm audit、小程序 tsc/build、WeChat DevTools CLI project smoke、refresh auth guard、mobile privacy network guard、fake fallback guard、mini-program design token guard 均为 exit 0 |
 | 小程序 H5 | `cd mini-program && npm run build:h5` | 历史通过，1 个 webpack warning；当前发布基线以 `build:weapp` 为准 |
 
 ## Web build 告警

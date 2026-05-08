@@ -180,12 +180,14 @@ run_step "mobile and mini fake fallback guard" \
 run_step "mobile and mini refresh auth guard" \
   bash -lc '
     rg -n "AuthExpiredError|RefreshUnavailableError" mobile/src/services/api.ts >/dev/null
+    rg -n "MobilePrivacyNetworkBlockedError|X-Privacy-Mode" mobile/src/services/api.ts >/dev/null
+    rg -n "fails closed before network I/O in local privacy mode" mobile/src/services/api.test.ts >/dev/null
     rg -n "MiniProgramAuthExpiredError|MiniProgramRefreshUnavailableError" mini-program/src/services/api.ts >/dev/null
     if rg -n "catch \\{[[:space:]]*await clearAuth\\(\\)|catch \\(e\\) \\{[[:space:]]*Taro\\.removeStorageSync\\('\"'\"'token'\"'\"'\\)" mobile/src/services/api.ts mini-program/src/services/api.ts; then
       echo "Refresh-token transient failures must not clear auth state unconditionally" >&2
       exit 1
     fi
-    echo "refresh auth guard ok"
+    echo "refresh auth and mobile privacy network guard ok"
   '
 
 run_step "mini-program design token guard" \

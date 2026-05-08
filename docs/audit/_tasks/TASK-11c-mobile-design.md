@@ -152,7 +152,7 @@ docs/audit/11c-mobile-design/
 - [x] `docs/design/cross-platform-token-drift.md` 产出三端 vs `design-tokens.ts` 漂移清单（P0/P1/P2 分级）；小程序语义 token 层和触控 token 底座已补，品牌主色最终统一方向仍待定
 - [ ] 移动端跨设备会话延续：桌面开始一段对话 → 移动端 pull 后能看到 last_message + draft（依赖任务 11b 已交付）
 - [ ] 移动端远程控制桌面：设备配对、桌面在线状态、命令下发、状态回传、取消/撤销、敏感动作二次确认和审计记录通过真机/模拟器 transcript；未授权或绝密模式下 fail-closed
-- [x] 移动端测试 baseline 10 → 至少 +3（覆盖错误分支）；当前 `npm test` 为 `7 files / 17 tests passed`，`npx tsc --noEmit --module esnext` 通过；新增字符串 transport error、status 优先级错误分支、触控 token 和弱网 refresh-token 用例
+- [x] 移动端测试 baseline 10 → 至少 +3（覆盖错误分支）；当前 `npm test` 为 `7 files / 19 tests passed`，`npx tsc --noEmit --module esnext` 通过；新增字符串 transport error、status 优先级错误分支、触控 token、弱网 refresh-token、`X-Privacy-Mode` 透传和 local 模式零网络调用用例
 - [ ] 小程序 tsc + lint 全绿；微信开发者工具登录链路真机验证通过
 - [ ] iPhone 14 + Android 13 真机手测通过：登录 / 审批 / 会话延续 三个用户故事
 - [x] `docs/audit/11c-mobile-design/01..05.md` + `docs/design/cross-platform-token-drift.md` + `docs/mobile/error-handling-guidelines.md` 全部产出；另补 `00-prd-reality-gap.md`

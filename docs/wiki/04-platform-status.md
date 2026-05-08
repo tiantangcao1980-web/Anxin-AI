@@ -97,7 +97,7 @@
 
 验证结果：
 
-- `mobile npm test` 通过，`7 files / 17 tests passed`
+- `mobile npm test` 通过，`7 files / 19 tests passed`
 - mobile TypeScript、Expo config/SDK guard、Expo doctor `17/17`、mobile production npm audit 均通过
 
 主要缺口：

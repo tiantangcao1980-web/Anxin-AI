@@ -49,7 +49,7 @@ Result refreshed on 2026-05-08 local time:
 
 | Check | Result |
 |---|---|
-| mobile Vitest suite | `7 files / 17 tests passed` |
+| mobile Vitest suite | `7 files / 19 tests passed` |
 | mobile TypeScript check | exit `0` |
 | mobile Expo config/dependency guard | exit `0`; `expo-notifications`, `expo-device`, and `expo-font` are installed and aligned with `mobile/app.json`; `npx expo config --json --full` and `npx expo install --check` pass |
 | mobile Expo doctor | exit `0`; `17/17 checks passed` |
@@ -58,7 +58,7 @@ Result refreshed on 2026-05-08 local time:
 | mini-program WeChat build | exit `0`; Taro compiled successfully |
 | mini-program WeChat DevTools CLI smoke | exit `0`; `/Applications/wechatwebdevtools.app/Contents/MacOS/cli auto --project <repo>/mini-program --trust-project` accepted `touristappid` |
 | mobile and mini fake fallback guard | exit `0`; guards against `fallbackMessages`, `fallbackTask`, `mock_token`, leaked `session_key`, fake success markers; confirms `wx.login/code2session` path and no fake news fallback |
-| mobile and mini refresh auth guard | exit `0`; mobile Vitest covers network refresh failure preserving auth; script guard verifies mobile/mini separate auth expiry from transient refresh failure |
+| mobile and mini refresh auth guard | exit `0`; mobile Vitest covers network refresh failure preserving auth; mobile privacy guard covers `local` mode fail-closed before network I/O and `X-Privacy-Mode` propagation; script guard verifies mobile/mini separate auth expiry from transient refresh failure |
 | cross-platform token drift audit | `docs/design/cross-platform-token-drift.md` created; mini-program semantic token layer and touch-target baseline are code-level complete; remaining P0 items are brand primary direction and real-device touch-target verification |
 | code-level JSON artifact | `docs/release/evidence/artifacts/mobile-mini-code-smoke-20260508.json`; `status=passed`, `release_evidence_complete=false`, includes Expo guard and `mobile_npm_audit.status=passed,total=0` |
 | manual device template | `docs/release/evidence/artifacts/mobile-device-manual-template-20260508.json`; `status=template`, `release_evidence_complete=false` |
@@ -71,6 +71,7 @@ Code-level hardening added in this collection:
 - `mobile/src/features/workflow/detail-model.ts` now maps string transport errors such as timeout or failed fetch to the explicit network failure copy, and tests status precedence over misleading backend text.
 - `mobile/src/constants/layout.ts` now exposes `touchTarget.min=44`; the bottom Tab and EmptyState action use the token, and `mobile/src/constants/layout.test.ts` guards it.
 - `mobile/src/services/api.ts` now keeps the stored session when refresh-token retry fails due to weak network/timeout; it clears auth only when the refresh endpoint confirms 401/403, with `mobile/src/services/api.test.ts` covering both paths.
+- `mobile/src/services/api.ts` now reads the stored privacy mode before outbound requests, sends `X-Privacy-Mode` in hybrid/cloud modes, and fails closed before `fetch` in local mode; `mobile/src/services/api.test.ts` covers header propagation and zero network calls in local mode.
 - `mobile/package.json` now declares Expo SDK 52-compatible `expo-notifications`, `expo-device`, `expo-font`, `@expo/vector-icons`, `@react-native-async-storage/async-storage`, `react-native`, and `react-native-safe-area-context` versions so `mobile/app.json` config plugins and native peer dependencies resolve before device smoke.
 - `mini-program/src/services/api.ts` now mirrors that refresh-token distinction so transient refresh failure does not silently erase `token`/`refresh_token`.
 - `mini-program/project.config.json` now uses `touristappid` for local WeChat DevTools CLI smoke; real upload still requires the official appid in the release environment.

@@ -1,5 +1,6 @@
 import { Platform } from 'react-native'
 import { getAuthStorage } from '../lib/auth-storage'
+import { getStoredPrivacyMode, type PrivacyMode } from '../lib/privacy-mode'
 import type { ApiResponse, User } from '../types/api'
 
 const DEFAULT_BASE_URL = __DEV__
@@ -21,6 +22,13 @@ class RefreshUnavailableError extends Error {
   constructor(message = '暂时无法刷新登录状态，请稍后重试') {
     super(message)
     this.name = 'RefreshUnavailableError'
+  }
+}
+
+class MobilePrivacyNetworkBlockedError extends Error {
+  constructor(message = '本地模式下禁止连接云端服务，请切换到混合或云端模式后重试') {
+    super(message)
+    this.name = 'MobilePrivacyNetworkBlockedError'
   }
 }
 
@@ -69,6 +77,16 @@ async function getBaseUrl(): Promise<string> {
   return (await getAuthStorage().getBackendUrl()) ?? DEFAULT_BASE_URL
 }
 
+function privacyHeaders(mode: PrivacyMode): Record<string, string> {
+  return { 'X-Privacy-Mode': mode }
+}
+
+function assertDataNetworkAllowed(mode: PrivacyMode): void {
+  if (mode === 'local') {
+    throw new MobilePrivacyNetworkBlockedError()
+  }
+}
+
 async function refreshToken(): Promise<string> {
   if (refreshPromise) return refreshPromise
   refreshPromise = (async () => {
@@ -81,9 +99,11 @@ async function refreshToken(): Promise<string> {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT)
     try {
+      const privacyMode = await getStoredPrivacyMode()
+      assertDataNetworkAllowed(privacyMode)
       const res = await fetch(`${await getBaseUrl()}/auth/refresh`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...privacyHeaders(privacyMode) },
         body: JSON.stringify({ refresh_token: rt }),
         signal: controller.signal,
       })
@@ -122,6 +142,8 @@ export async function request<T>(options: {
     try {
       const token = await getToken()
       const baseUrl = await getBaseUrl()
+      const privacyMode = await getStoredPrivacyMode()
+      assertDataNetworkAllowed(privacyMode)
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT)
 
@@ -129,6 +151,7 @@ export async function request<T>(options: {
         method,
         headers: {
           'Content-Type': 'application/json',
+          ...privacyHeaders(privacyMode),
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: data ? JSON.stringify(data) : undefined,

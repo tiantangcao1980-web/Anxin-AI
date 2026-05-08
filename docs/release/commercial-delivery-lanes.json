@@ -255,7 +255,7 @@
         "redacted test account role"
       ],
       "current_blockers": [
-        "Local code-level smoke was refreshed on 2026-05-08, including Expo config/SDK dependency guard, WeChat DevTools CLI project smoke, refresh-auth guards, and structured mobile_npm_audit status=passed tracking; npx expo-doctor passes 17/17 and mobile production npm audit is 0. Host probe confirms iOS Simulator is available, but iOS app-run, Android, interactive WeChat DevTools/device, and cross-device continuation evidence are not attached."
+      "Local code-level smoke was refreshed on 2026-05-08, including Expo config/SDK dependency guard, WeChat DevTools CLI project smoke, refresh-auth guards, mobile privacy network guard, and structured mobile_npm_audit status=passed tracking; mobile Vitest is 7 files / 19 tests and covers X-Privacy-Mode propagation plus local-mode zero-network calls; npx expo-doctor passes 17/17 and mobile production npm audit is 0. Host probe confirms iOS Simulator is available, but iOS app-run, Android, interactive WeChat DevTools/device, and cross-device continuation evidence are not attached. Mini-program local/top-secret mode must still be implemented or explicitly scoped out."
       ],
       "completion_gate": [
         "docs/release/evidence/mobile-device-smoke.md has Status: complete",
