@@ -21,6 +21,7 @@ from src.services.agent_approval_service import (
     AgentApprovalDecision,
     AgentApprovalService,
 )
+from src.services.agent_governance_service import AgentGovernanceService
 
 router = APIRouter()
 
@@ -66,6 +67,17 @@ class AgentApprovalWorkspaceControlBody(BaseModel):
     reason: str | None = Field(default=None, max_length=2000)
 
 
+class CapabilityRoutePolicyUpdateBody(BaseModel):
+    """Update org-scoped capability route policy from the capability center."""
+
+    status: Literal["active", "enabled", "disabled"] | None = None
+    allowed_consumers: list[str] | None = None
+    allowed_scopes: list[str] | None = None
+    risk_level: str | None = Field(default=None, min_length=1, max_length=20)
+    token_ttl_seconds: int | None = Field(default=None, ge=1, le=3600)
+    policy: dict[str, Any] | None = None
+
+
 def _org_id_for(user: User) -> str | None:
     return str(user.org_id) if user.org_id else None
 
@@ -75,6 +87,10 @@ def _role_for(user: User) -> str:
 
 
 def _can_view_all_org_approvals(user: User) -> bool:
+    return _role_for(user) in AUTHORIZED_APPROVER_ROLES
+
+
+def _can_manage_capability_routes(user: User) -> bool:
     return _role_for(user) in AUTHORIZED_APPROVER_ROLES
 
 
@@ -124,6 +140,26 @@ def _audit_event_to_payload(event: AgentAuditEvent) -> dict[str, Any]:
         "resource_snapshot": event.resource_snapshot,
         "metadata": event.metadata_json,
         "created_at": event.created_at.isoformat() if event.created_at else None,
+    }
+
+
+def _capability_route_to_payload(route: Any) -> dict[str, Any]:
+    return {
+        "id": route.id,
+        "org_id": route.org_id,
+        "route_key": route.route_key,
+        "route_type": route.route_type,
+        "provider": route.provider,
+        "risk_level": route.risk_level,
+        "status": route.status,
+        "allowed_consumers": list(route.allowed_consumers or []),
+        "allowed_scopes": list(route.allowed_scopes or []),
+        "policy": route.policy or {},
+        "token_ttl_seconds": route.token_ttl_seconds,
+        "revoked_at": route.revoked_at.isoformat() if route.revoked_at else None,
+        "revoked_reason": route.revoked_reason,
+        "created_at": route.created_at.isoformat() if route.created_at else None,
+        "updated_at": route.updated_at.isoformat() if route.updated_at else None,
     }
 
 
@@ -250,6 +286,88 @@ async def count_pending_agent_approvals(
     query = _approval_scope_query(user).where(AgentApproval.status == PENDING_STATUS)
     total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar_one()
     return UnifiedResponse.success(data={"pending": total})
+
+
+@router.get("/capability-routes", response_model=UnifiedResponse, summary="List organization capability routes")
+async def list_capability_routes(
+    status: str | None = Query(default=None, max_length=30),
+    route_type: str | None = Query(default=None, max_length=60),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+) -> RouteResponse:
+    org_id = _org_id_for(user)
+    if not org_id:
+        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+    if not _can_manage_capability_routes(user):
+        return UnifiedResponse.error(code=403, message="Current role cannot manage organization capability routes.")
+
+    routes = await AgentGovernanceService(db).list_capability_routes(
+        org_id=org_id,
+        status=status,
+        route_type=route_type,
+    )
+    return UnifiedResponse.success(
+        data={
+            "items": [_capability_route_to_payload(route) for route in routes],
+            "total": len(routes),
+        }
+    )
+
+
+@router.patch(
+    "/capability-routes/{route_key}",
+    response_model=UnifiedResponse,
+    summary="Update organization capability route policy",
+)
+async def update_capability_route_policy(
+    route_key: str,
+    body: CapabilityRoutePolicyUpdateBody,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+) -> RouteResponse:
+    org_id = _org_id_for(user)
+    if not org_id:
+        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+    if not _can_manage_capability_routes(user):
+        return UnifiedResponse.error(code=403, message="Current role cannot manage organization capability routes.")
+
+    fields = body.model_fields_set
+    update_kwargs: dict[str, Any] = {}
+    if "status" in fields:
+        update_kwargs["status"] = body.status
+    if "allowed_consumers" in fields:
+        update_kwargs["allowed_consumers"] = body.allowed_consumers or []
+    if "allowed_scopes" in fields:
+        update_kwargs["allowed_scopes"] = body.allowed_scopes or []
+    if "risk_level" in fields:
+        update_kwargs["risk_level"] = body.risk_level
+    if "token_ttl_seconds" in fields:
+        update_kwargs["token_ttl_seconds"] = body.token_ttl_seconds
+    if "policy" in fields:
+        update_kwargs["policy"] = body.policy or {}
+
+    service = AgentGovernanceService(db)
+    result = await service.update_capability_route_policy(
+        org_id=org_id,
+        route_key=route_key,
+        actor_user_id=str(user.id),
+        actor_type="api_user",
+        **update_kwargs,
+    )
+    if result.route is not None:
+        await db.refresh(result.route)
+    payload = {
+        "allowed": result.allowed,
+        "reason_code": result.reason_code,
+        "human_message": result.human_message,
+        "revoked_lease_count": result.revoked_lease_count,
+        "audit_event_id": result.audit_event_id,
+        "route": _capability_route_to_payload(result.route) if result.route is not None else None,
+    }
+    await db.commit()
+    if result.allowed:
+        return UnifiedResponse.success(data=payload, message="Capability route policy updated.")
+    return UnifiedResponse.error(code=_error_code_for_reason(result.reason_code), message=result.human_message, data=payload)
 
 
 @router.get("/{approval_id}", response_model=UnifiedResponse, summary="Get agent approval")

@@ -98,7 +98,7 @@
 - `backend/tests/test_agent_governance_models.py` 已锁住模型注册、CapabilityRoute 不保存真实密钥/原始 token、TokenLease 只保存 hash、组织级 route 唯一约束、复合租户外键、跨组织写入失败、审计不可变监听和迁移无敏感列。
 - `backend/alembic/versions/041_add_skill_governance_persistence.py` 已新增 SkillGovernanceProposal、SkillEnabledVersion 和 SkillGovernanceAuditEvent 持久化表；审计表同样在模型监听器和 PostgreSQL trigger 层拒绝 update/delete。
 - `backend/src/services/agent_approval_service.py` 已补 DB-backed 高风险 AgentApproval service，覆盖创建审批、授权角色审批/驳回、过期 fail-closed、撤销 fail-closed、action/route 匹配、workspace-control 未批准先拒绝、运行时未接入 fail-closed 和审计写入；`backend/tests/test_agent_approval_service.py` `7 passed`。
-- `backend/src/api/routes/agent_approvals.py` 已补正式高风险智能体审批 API，覆盖创建、列表/详情、pending count、audit-events、audit-export、workspace-control、approve/reject/revoke 和 validate；`backend/tests/test_agent_approval_api.py` `5 passed`。
+- `backend/src/api/routes/agent_approvals.py` 已补正式高风险智能体审批 API，覆盖创建、列表/详情、pending count、audit-events、audit-export、workspace-control、approve/reject/revoke、validate 和组织 CapabilityRoute list/update；`backend/tests/test_agent_approval_api.py` `6 passed`。
 - 后续仍需把这些模型接入完整 Human-in-the-loop 工作室、真实 approved MCP connector 演练、LLM/browser/desktop-control 能力链路和跨进程撤销失权证据；当前前端已先补最小高风险审批工作台入口。
 
 ### Step 2 · Policy Engine
@@ -133,11 +133,12 @@ can_execute_capability(actor, org, capability, risk_level, data_scope, privacy_m
 当前本地进展：
 
 - `backend/src/services/agent_governance_service.py` 已提供 DB-backed route token service：创建 CapabilityRoute、签发短期 token、持久化 `CapabilityRouteTokenLease.token_hash`、跨 service 实例验证、consumer 绑定验证、撤销 route 后下一次验证失败并写 `AgentAuditEvent`。
+- `backend/src/services/agent_governance_service.py` 已补组织级 CapabilityRoute 策略 CRUD 底座：管理员可列出/更新 route status、consumer、scope、risk、TTL 和 policy；policy 会递归脱敏 token/secret/password/credential/api_key 字段；禁用 route 会撤销现有 lease，并让下一次 token validate fail-closed。
 - `backend/src/services/mcp_client_service.py` 已在 `call_tool` 前接入 DB-backed route token；staging/production 默认 fail-closed，开发/测试可用 `MCP_TOOL_ROUTE_TOKEN_REQUIRED=true` 提前演练。
 - `backend/src/api/routes/cli.py` 已在 CLI `/execute` 前接入 DB-backed route token，并新增 `/cli/route-token` 供桌面端按 API Key `key_id` consumer 获取短期 token；staging/production 默认 fail-closed，开发/测试可用 `CLI_ROUTE_TOKEN_REQUIRED=true` 提前演练；consumer 绑定到 API Key `key_id`，并按命令 scope 校验 `cli:read/chat/export`。
 - `desktop/src/commands/cli.rs` 已在 CLI execute 前尝试获取短期 route token，并在调用 `/cli/execute` 时传递 `X-Capability-Route-Token`；开发环境 route 缺失时保持兼容，商业环境由后端 fail-closed。
 - `backend/src/agents/base.py` / `workforce.py` / `task_context.py` 已支持通过 `mcp_route_context`/contextvars 将 route token 传递到真实 MCP tool execution。
-- `backend/tests/test_agent_governance_service.py` 已覆盖 hash-only lease、原始 token 不入审计、组织隔离、consumer/scope 拒绝、过期 fail-closed、consumer mismatch 和 route 撤销后下一次调用失败。
+- `backend/tests/test_agent_governance_service.py` 已覆盖 hash-only lease、原始 token 不入审计、组织隔离、consumer/scope 拒绝、过期 fail-closed、consumer mismatch、route 撤销后下一次调用失败，以及组织策略更新脱敏/禁用撤销 lease。
 - `backend/tests/test_mcp_route_governance.py` 已覆盖 MCP 开发态兼容、商业环境缺 token fail-closed、DB route token 放行、route revoke 后拒绝和 consumer mismatch 拒绝。
 - `backend/tests/test_cli_route.py` 已覆盖 CLI 开发态兼容、商业环境缺 token fail-closed、DB route token 放行、`/cli/route-token` 签发和 consumer mismatch 拒绝。
 - `scripts/commercial-readiness-gate.sh --with-local-tests` 已加入 `agent governance service tests`、`MCP route governance tests` 与 `CLI route governance tests`。
@@ -166,7 +167,7 @@ can_execute_capability(actor, org, capability, risk_level, data_scope, privacy_m
 
 当前本地进展：
 
-- 最小 Agent 治理工作台中的能力策略面板已完成角色可见性收口：全量角色可见全部注册工具；普通员工只见低风险基础能力和需要审批的可申请能力；MCP 管理、远控桌面等高风险/full-only 能力在员工视角隐藏；`loginAsRole` Playwright harness 已能模拟 employee/admin 角色并锁住该边界。完整组织策略 CRUD、套餐购买联动、部门级申请流和真实 connector 演练仍待后续闭环。
+- 最小 Agent 治理工作台中的能力策略面板已完成角色可见性收口：全量角色可见全部注册工具；普通员工只见低风险基础能力和需要审批的可申请能力；MCP 管理、远控桌面等高风险/full-only 能力在员工视角隐藏；`loginAsRole` Playwright harness 已能模拟 employee/admin 角色并锁住该边界。组织能力策略面板已接入 `/agent-approvals/capability-routes`，全量角色可查看并启用/禁用 CapabilityRoute，禁用会走后端策略更新和 lease 撤销；套餐购买联动、部门级申请流、完整策略编辑器和真实 connector 演练仍待后续闭环。
 
 ### Step 6 · Skill Evolution Gate
 
@@ -226,7 +227,7 @@ docs/audit/12-enterprise-agent-governance/
 - [x] AgentApproval service/API 和最小前端工作台具备创建、列表/count、审批/驳回/撤销、过期、action/route 匹配、执行前 validate、组织/本人 scope、审批审计时间线、审批审计 JSON 导出、运行时未接入时 workspace-control fail-closed、移动视口回归和审计回归；完整工作室和真实执行链路接入仍未完成。
 - [ ] Worker/Agent 不持有真实密钥；MCP tool execution、CLI `/execute` 和桌面端 CLI route-token 获取/传递已有 DB-backed route-token fail-closed 代码级回归，LLM/browser/desktop-control 和真实 approved connector 演练仍待闭环。
 - [x] 五类权限回归通过：员工浏览器填表被拒、部门管理员创建部门报告 agent、老板批准桌面远控、超级管理员撤销 MCP route、外部服务方只能看授权材料包；真实运行时 connector/工作室证据仍需后续闭环。
-- [x] 能力中心最小可见性已按角色收口：老板/Owner/超级管理员/admin 看全量，普通员工只见基础能力和可申请项；完整能力中心策略 CRUD、订阅购买联动、部门申请流和真实 connector 演练仍待闭环。
+- [x] 能力中心最小可见性已按角色收口：老板/Owner/超级管理员/admin 看全量，普通员工只见基础能力和可申请项；组织级 CapabilityRoute 策略已具备最小 list/update API、policy 脱敏、禁用即撤销 lease 和前端启用/禁用面板；订阅购买联动、部门申请流、完整策略编辑器和真实 connector 演练仍待闭环。
 - [x] Skill 进化提案、评测门禁、管理员审批、灰度启用和回滚禁用已有本地与 DB-backed 正反向测试；组织级 UI、真实执行链路失权和商业发布证据仍未闭环。
 - [ ] 高风险工作室支持旁听、真实暂停/接管/终止执行效果和 artifact 导出。
 - [ ] 后端 pytest、前端 lint/build/test、release evidence secret scan 通过。

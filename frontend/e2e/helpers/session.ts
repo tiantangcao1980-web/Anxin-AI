@@ -62,6 +62,10 @@ export type MockOptions = {
     auditEvents?: unknown
     auditExport?: unknown
     pendingCount?: unknown
+    capabilityRoutes?: {
+      list?: unknown
+      update?: unknown
+    }
     approve?: unknown
     reject?: unknown
     revoke?: unknown
@@ -120,6 +124,27 @@ async function fulfillJson(route: Route, data: unknown) {
 }
 
 export async function installApiMocks(page: Page, options: MockOptions = {}) {
+  let capabilityRoutePolicyState = options.agentApprovals?.capabilityRoutes?.list ?? {
+    items: [
+      {
+        id: 'route-browser-fill',
+        org_id: 'org-e2e',
+        route_key: 'browser-fill',
+        route_type: 'browser',
+        provider: 'browser-use',
+        risk_level: 'l3',
+        status: 'enabled',
+        allowed_consumers: ['owner-agent'],
+        allowed_scopes: ['browser:read', 'browser:fill'],
+        policy: { required_feature: 'browser_automation', requires_approval: true },
+        token_ttl_seconds: 900,
+        created_at: '2026-05-08T10:00:00Z',
+        updated_at: '2026-05-08T10:00:00Z',
+      },
+    ],
+    total: 1,
+  }
+
   await page.route('**/api/**', async (route) => {
     const request = route.request()
     const { pathname } = new URL(request.url())
@@ -418,6 +443,50 @@ export async function installApiMocks(page: Page, options: MockOptions = {}) {
 
     if (pathname.endsWith('/agent-approvals/pending/count') && request.method() === 'GET') {
       return fulfillJson(route, buildUnified(options.agentApprovals?.pendingCount ?? { pending: 1 }))
+    }
+
+    if (pathname.endsWith('/agent-approvals/capability-routes') && request.method() === 'GET') {
+      return fulfillJson(route, buildUnified(capabilityRoutePolicyState))
+    }
+
+    if (/\/agent-approvals\/capability-routes\/[^/]+$/.test(pathname) && request.method() === 'PATCH') {
+      const routeKey = decodeURIComponent(pathname.split('/').pop() ?? '')
+      const patch = JSON.parse(request.postData() || '{}') as Record<string, unknown>
+      const list = capabilityRoutePolicyState as { items?: Array<Record<string, unknown>>; total?: number }
+      const current = list.items?.find((item) => item.route_key === routeKey) ?? {
+        id: `route-${routeKey}`,
+        org_id: 'org-e2e',
+        route_key: routeKey,
+        route_type: 'custom',
+        risk_level: 'l1',
+        status: 'enabled',
+        allowed_consumers: [],
+        allowed_scopes: [],
+        policy: {},
+        token_ttl_seconds: 900,
+      }
+      const updated = {
+        ...current,
+        ...patch,
+        updated_at: '2026-05-08T10:08:00Z',
+      }
+      capabilityRoutePolicyState = {
+        items: (list.items ?? [current]).map((item) => (item.route_key === routeKey ? updated : item)),
+        total: list.total ?? 1,
+      }
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.agentApprovals?.capabilityRoutes?.update ?? {
+            allowed: true,
+            reason_code: 'updated',
+            human_message: '能力路由策略已更新',
+            revoked_lease_count: patch.status === 'disabled' ? 1 : 0,
+            audit_event_id: 'audit-route-policy-e2e',
+            route: updated,
+          },
+        ),
+      )
     }
 
     if (pathname.endsWith('/agent-approvals') && request.method() === 'GET') {

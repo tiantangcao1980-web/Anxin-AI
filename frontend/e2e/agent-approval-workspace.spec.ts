@@ -229,6 +229,16 @@ test.describe('Agent 审批工作台', () => {
     await expect(page.getByTestId('capability-policy-panel')).toContainText('legal_researcher · 可用 2 · 阻断 1')
     await expect(page.getByTestId('capability-policy-tool-list')).toContainText('知识库检索')
     await expect(page.getByTestId('capability-policy-tool-list')).toContainText('可申请')
+    await expect(page.getByTestId('capability-route-policy-panel')).toContainText('组织能力策略')
+    await expect(page.getByTestId('capability-route-policy-list')).toContainText('browser-fill')
+
+    const routePolicyRequest = page.waitForRequest((request) =>
+      request.method() === 'PATCH' && request.url().includes('/agent-approvals/capability-routes/browser-fill'),
+    )
+    await page.getByTestId('capability-route-browser-fill-toggle').click()
+    await routePolicyRequest
+    await expect(page.getByText('能力路由已禁用', { exact: true })).toBeVisible()
+    await expect(page.getByTestId('capability-route-policy-list')).toContainText('禁用')
 
     const form = page.getByTestId('skill-governance-proposal-form')
     await form.getByLabel('目标版本').fill('1.2.0')

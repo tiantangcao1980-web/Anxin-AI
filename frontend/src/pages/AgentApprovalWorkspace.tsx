@@ -11,6 +11,7 @@ import {
   skillGovernanceApi,
   type AgentApprovalAuditExport,
   type AgentApprovalAuditEvent,
+  type AgentCapabilityRoutePolicy,
   type AgentApprovalItem,
   type AgentApprovalStatus,
   type AgentWorkspaceControlAction,
@@ -197,6 +198,7 @@ function capabilityToolState(tool: HarnessToolItem, isAvailable: boolean): 'avai
 
 export default function AgentApprovalWorkspace() {
   const currentUserRole = useAuthStore((state) => state.user?.role ?? 'employee')
+  const canManageCapabilityPolicies = hasFullCapabilityVisibility(currentUserRole)
   const [items, setItems] = useState<AgentApprovalItem[]>([])
   const [status, setStatus] = useState<FilterStatus>('pending')
   const [pendingCount, setPendingCount] = useState(0)
@@ -230,6 +232,10 @@ export default function AgentApprovalWorkspace() {
   const [capabilityAvailability, setCapabilityAvailability] = useState<HarnessAgentTools | null>(null)
   const [capabilityLoading, setCapabilityLoading] = useState(true)
   const [capabilityError, setCapabilityError] = useState<string | null>(null)
+  const [capabilityRoutes, setCapabilityRoutes] = useState<AgentCapabilityRoutePolicy[]>([])
+  const [capabilityRoutesLoading, setCapabilityRoutesLoading] = useState(true)
+  const [capabilityRoutesError, setCapabilityRoutesError] = useState<string | null>(null)
+  const [capabilityRouteBusyKey, setCapabilityRouteBusyKey] = useState<string | null>(null)
 
   const loadApprovals = useCallback(async () => {
     setLoading(true)
@@ -303,6 +309,30 @@ export default function AgentApprovalWorkspace() {
   useEffect(() => {
     void loadCapabilityPolicy()
   }, [loadCapabilityPolicy])
+
+  const loadCapabilityRoutes = useCallback(async () => {
+    if (!canManageCapabilityPolicies) {
+      setCapabilityRoutes([])
+      setCapabilityRoutesError(null)
+      setCapabilityRoutesLoading(false)
+      return
+    }
+
+    setCapabilityRoutesLoading(true)
+    setCapabilityRoutesError(null)
+    try {
+      const response = await agentApprovalsApi.capabilityRoutes.list()
+      setCapabilityRoutes(response.items)
+    } catch (err) {
+      setCapabilityRoutesError(err instanceof Error ? err.message : '加载组织能力策略失败')
+    } finally {
+      setCapabilityRoutesLoading(false)
+    }
+  }, [canManageCapabilityPolicies])
+
+  useEffect(() => {
+    void loadCapabilityRoutes()
+  }, [loadCapabilityRoutes])
 
   const stats = useMemo(() => {
     const base: Record<AgentApprovalStatus, number> = {
@@ -500,6 +530,22 @@ export default function AgentApprovalWorkspace() {
     }
   }
 
+  const toggleCapabilityRoute = async (route: AgentCapabilityRoutePolicy) => {
+    const isActive = route.status === 'active' || route.status === 'enabled'
+    setCapabilityRouteBusyKey(route.route_key)
+    try {
+      await agentApprovalsApi.capabilityRoutes.update(route.route_key, {
+        status: isActive ? 'disabled' : 'enabled',
+      })
+      toast.success(isActive ? '能力路由已禁用' : '能力路由已启用')
+      await Promise.all([loadCapabilityRoutes(), loadCapabilityPolicy()])
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '能力路由策略更新失败')
+    } finally {
+      setCapabilityRouteBusyKey(null)
+    }
+  }
+
   return (
     <PageContainer
       title="Agent 审批工作台"
@@ -552,6 +598,17 @@ export default function AgentApprovalWorkspace() {
         error={capabilityError}
         onAgentChange={setCapabilityAgent}
         onRefresh={() => void loadCapabilityPolicy()}
+      />
+
+      <CapabilityRoutePolicyPanel
+        role={currentUserRole}
+        canManage={canManageCapabilityPolicies}
+        routes={capabilityRoutes}
+        loading={capabilityRoutesLoading}
+        error={capabilityRoutesError}
+        busyKey={capabilityRouteBusyKey}
+        onRefresh={() => void loadCapabilityRoutes()}
+        onToggle={(route) => void toggleCapabilityRoute(route)}
       />
 
       <div className="flex flex-wrap items-center gap-2" data-testid="agent-approval-status-filter">
@@ -615,6 +672,120 @@ type SkillFormState = {
 }
 
 type SkillGovernanceAction = 'eval' | 'approve' | 'grayRelease' | 'rollback'
+
+function CapabilityRoutePolicyPanel({
+  role,
+  canManage,
+  routes,
+  loading,
+  error,
+  busyKey,
+  onRefresh,
+  onToggle,
+}: {
+  role: string
+  canManage: boolean
+  routes: AgentCapabilityRoutePolicy[]
+  loading: boolean
+  error: string | null
+  busyKey: string | null
+  onRefresh: () => void
+  onToggle: (route: AgentCapabilityRoutePolicy) => void
+}) {
+  const enabledCount = routes.filter((route) => route.status === 'active' || route.status === 'enabled').length
+  const disabledCount = routes.filter((route) => route.status === 'disabled').length
+
+  return (
+    <section className="rounded-lg border border-border bg-background p-4 shadow-sm" data-testid="capability-route-policy-panel">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700">
+            <icons.Target className="h-4 w-4" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="truncate text-base font-semibold text-foreground">组织能力策略</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {normalizeRole(role)} · 启用 {enabledCount} · 禁用 {disabledCount}
+            </p>
+          </div>
+        </div>
+        {canManage ? (
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted"
+          >
+            <icons.RefreshCw className="h-4 w-4" />
+            刷新
+          </button>
+        ) : null}
+      </div>
+
+      <div className="mt-4">
+        {!canManage ? (
+          <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+            当前角色只能查看基础与可申请能力，组织策略由老板或超级管理员维护
+          </div>
+        ) : loading ? (
+          <LoadingState variant="skeleton" rows={3} />
+        ) : error ? (
+          <ErrorState variant="card" message={error} onRetry={onRefresh} />
+        ) : routes.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+            暂无组织能力路由
+          </div>
+        ) : (
+          <div className="grid gap-2 lg:grid-cols-2" data-testid="capability-route-policy-list">
+            {routes.slice(0, 8).map((route) => {
+              const isActive = route.status === 'active' || route.status === 'enabled'
+              return (
+                <div key={route.id} className="flex min-h-[92px] min-w-0 items-start justify-between gap-3 rounded-lg border border-border bg-muted/20 p-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-foreground">{route.route_key}</p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <span className="rounded-md border border-border bg-background px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                        {route.route_type}
+                      </span>
+                      <span className="rounded-md border border-border bg-background px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                        {route.risk_level}
+                      </span>
+                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold ${
+                        isActive
+                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                          : 'border-muted bg-background text-muted-foreground'
+                      }`}>
+                        {isActive ? '启用' : '禁用'}
+                      </span>
+                    </div>
+                    <p className="mt-2 truncate text-xs text-muted-foreground">
+                      {route.allowed_scopes.length} scopes · {route.allowed_consumers.length} consumers
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={busyKey === route.route_key}
+                    onClick={() => onToggle(route)}
+                    data-testid={`capability-route-${route.route_key}-toggle`}
+                    className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {busyKey === route.route_key ? (
+                      <icons.Loader2 className="h-4 w-4 animate-spin" />
+                    ) : isActive ? (
+                      <icons.Ban className="h-4 w-4" />
+                    ) : (
+                      <icons.CheckCircle2 className="h-4 w-4" />
+                    )}
+                    {isActive ? '禁用' : '启用'}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
 
 function SkillGovernancePanel({
   proposals,

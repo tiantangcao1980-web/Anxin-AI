@@ -2968,6 +2968,33 @@ export interface AgentApprovalAuditExport {
 
 export type AgentWorkspaceControlAction = 'pause' | 'takeover' | 'terminate'
 
+export interface AgentCapabilityRoutePolicy {
+  id: string
+  org_id: string
+  route_key: string
+  route_type: string
+  provider?: string | null
+  risk_level: string
+  status: 'active' | 'enabled' | 'disabled' | string
+  allowed_consumers: string[]
+  allowed_scopes: string[]
+  policy: Record<string, unknown>
+  token_ttl_seconds: number
+  revoked_at?: string | null
+  revoked_reason?: string | null
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export interface AgentCapabilityRoutePolicyUpdate {
+  allowed: boolean
+  reason_code: string
+  human_message: string
+  revoked_lease_count: number
+  audit_event_id?: string | null
+  route?: AgentCapabilityRoutePolicy | null
+}
+
 export const agentApprovalsApi = {
   list: (params?: { status?: string; page?: number; page_size?: number }) => {
     const query = new URLSearchParams()
@@ -2993,6 +3020,37 @@ export const agentApprovalsApi = {
     ),
 
   pendingCount: () => request<{ pending: number }>('/agent-approvals/pending/count'),
+
+  capabilityRoutes: {
+    list: (params?: { status?: string; route_type?: string }) => {
+      const query = new URLSearchParams()
+      if (params?.status) query.set('status', params.status)
+      if (params?.route_type) query.set('route_type', params.route_type)
+      const suffix = query.toString()
+      return request<{ items: AgentCapabilityRoutePolicy[]; total: number }>(
+        suffix ? `/agent-approvals/capability-routes?${suffix}` : '/agent-approvals/capability-routes',
+      )
+    },
+
+    update: (
+      routeKey: string,
+      data: {
+        status?: 'active' | 'enabled' | 'disabled'
+        allowed_consumers?: string[]
+        allowed_scopes?: string[]
+        risk_level?: string
+        token_ttl_seconds?: number
+        policy?: Record<string, unknown>
+      },
+    ) =>
+      request<AgentCapabilityRoutePolicyUpdate>(
+        `/agent-approvals/capability-routes/${encodeURIComponent(routeKey)}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(data),
+        },
+      ),
+  },
 
   approve: (id: string, note?: string) =>
     request<AgentApprovalDecision>(`/agent-approvals/${id}/approve`, {

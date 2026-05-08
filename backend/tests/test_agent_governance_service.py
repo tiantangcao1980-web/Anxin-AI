@@ -6,7 +6,7 @@ from uuid import uuid4
 import pytest
 from sqlalchemy import select
 
-from src.models import AgentAuditEvent, CapabilityRouteTokenLease, Organization
+from src.models import AgentAuditEvent, CapabilityRoute, CapabilityRouteTokenLease, Organization
 from src.services.agent_governance_service import AgentGovernanceService
 
 
@@ -242,3 +242,87 @@ async def test_expired_route_token_fails_closed(db_session, test_organization):
 
     assert expired.allowed is False
     assert expired.reason_code == "route_token_expired"
+
+
+@pytest.mark.asyncio
+async def test_update_capability_route_policy_sanitizes_policy_and_revokes_leases(db_session, test_organization):
+    service = AgentGovernanceService(db_session)
+    await service.create_capability_route(
+        org_id=test_organization.id,
+        route_key="org-mcp-admin",
+        route_type="mcp",
+        allowed_consumers=["admin-agent"],
+        allowed_scopes=["mcp:call"],
+        status="enabled",
+        policy={"required_feature": "mcp_pack"},
+    )
+    issued = await service.issue_route_token(
+        org_id=test_organization.id,
+        route_key="org-mcp-admin",
+        consumer_id="admin-agent",
+        requested_scopes=["mcp:call"],
+    )
+
+    changed = await service.update_capability_route_policy(
+        org_id=test_organization.id,
+        route_key="org-mcp-admin",
+        actor_user_id=None,
+        status="disabled",
+        allowed_consumers=["owner-agent"],
+        allowed_scopes=["mcp:call", "mcp:admin"],
+        risk_level="l4",
+        token_ttl_seconds=7200,
+        policy={
+            "required_feature": "enterprise_agent_governance",
+            "api_key": "should-never-persist",
+            "nested": {"client_secret": "also-secret", "mode": "approval_required"},
+        },
+    )
+    after = await service.validate_route_token(
+        org_id=test_organization.id,
+        raw_token=issued.token,
+        required_scope="mcp:call",
+        consumer_id="admin-agent",
+    )
+    route = (
+        await db_session.execute(
+            select(CapabilityRoute).where(
+                CapabilityRoute.org_id == test_organization.id,
+                CapabilityRoute.route_key == "org-mcp-admin",
+            )
+        )
+    ).scalar_one()
+    lease = (
+        await db_session.execute(
+            select(CapabilityRouteTokenLease).where(CapabilityRouteTokenLease.org_id == test_organization.id)
+        )
+    ).scalar_one()
+    audits = (
+        await db_session.execute(
+            select(AgentAuditEvent)
+            .where(AgentAuditEvent.org_id == test_organization.id)
+            .order_by(AgentAuditEvent.created_at)
+        )
+    ).scalars().all()
+
+    assert changed.allowed is True
+    assert changed.revoked_lease_count == 1
+    assert route.status == "disabled"
+    assert route.allowed_consumers == ["owner-agent"]
+    assert route.allowed_scopes == ["mcp:admin", "mcp:call"]
+    assert route.risk_level == "l4"
+    assert route.token_ttl_seconds == 3600
+    assert route.policy == {
+        "required_feature": "enterprise_agent_governance",
+        "api_key": "[redacted]",
+        "nested": {"client_secret": "[redacted]", "mode": "approval_required"},
+    }
+    assert lease.revoked_reason == "policy_disabled"
+    assert after.allowed is False
+    assert after.reason_code == "capability_route_disabled"
+    assert "should-never-persist" not in str(route.policy)
+    assert [event.reason_code for event in audits] == [
+        "issued",
+        "updated",
+        "capability_route_disabled",
+    ]

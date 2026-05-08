@@ -3,7 +3,7 @@
 import pytest
 from sqlalchemy import select
 
-from src.models import AgentApproval, AgentAuditEvent
+from src.models import AgentApproval, AgentAuditEvent, CapabilityRoute
 from src.services.agent_governance_service import AgentGovernanceService
 
 
@@ -223,3 +223,77 @@ async def test_agent_approval_workspace_control_fails_closed_and_writes_audit(
     assert audits[-1].action == "agent_workspace.pause"
     assert audits[-1].status == "denied"
     assert audits[-1].reason_code == "runtime_not_integrated"
+
+
+@pytest.mark.asyncio
+async def test_capability_route_policy_api_is_admin_only_and_revokes_tokens(
+    auth_client,
+    admin_auth_client,
+    db_session,
+    test_organization,
+):
+    governance = AgentGovernanceService(db_session)
+    await governance.create_capability_route(
+        org_id=test_organization.id,
+        route_key="browser-fill",
+        route_type="browser",
+        allowed_consumers=["browser-worker"],
+        allowed_scopes=["browser:fill"],
+        risk_level="l3",
+        status="enabled",
+        policy={"requires_approval": True},
+    )
+    issued = await governance.issue_route_token(
+        org_id=test_organization.id,
+        route_key="browser-fill",
+        consumer_id="browser-worker",
+        requested_scopes=["browser:fill"],
+    )
+
+    employee_update = await auth_client.patch(
+        "/api/v1/agent-approvals/capability-routes/browser-fill",
+        json={"status": "disabled"},
+    )
+    admin_list = await admin_auth_client.get("/api/v1/agent-approvals/capability-routes")
+    admin_update = await admin_auth_client.patch(
+        "/api/v1/agent-approvals/capability-routes/browser-fill",
+        json={
+            "status": "disabled",
+            "allowed_consumers": ["owner-agent"],
+            "allowed_scopes": ["browser:fill", "browser:read"],
+            "policy": {
+                "required_feature": "browser_automation",
+                "secret_token": "should-never-leak",
+            },
+        },
+    )
+    after = await governance.validate_route_token(
+        org_id=test_organization.id,
+        raw_token=issued.token,
+        required_scope="browser:fill",
+        consumer_id="browser-worker",
+    )
+    route = (
+        await db_session.execute(
+            select(CapabilityRoute).where(
+                CapabilityRoute.org_id == test_organization.id,
+                CapabilityRoute.route_key == "browser-fill",
+            )
+        )
+    ).scalar_one()
+
+    assert employee_update.status_code == 200
+    assert employee_update.json()["code"] == 403
+    assert admin_list.status_code == 200
+    assert admin_list.json()["data"]["total"] == 1
+    assert admin_list.json()["data"]["items"][0]["route_key"] == "browser-fill"
+    assert admin_update.status_code == 200
+    assert admin_update.json()["code"] == 200
+    assert admin_update.json()["data"]["revoked_lease_count"] == 1
+    assert admin_update.json()["data"]["route"]["status"] == "disabled"
+    assert admin_update.json()["data"]["route"]["policy"]["secret_token"] == "[redacted]"
+    assert route.allowed_consumers == ["owner-agent"]
+    assert route.allowed_scopes == ["browser:fill", "browser:read"]
+    assert after.allowed is False
+    assert after.reason_code == "capability_route_disabled"
+    assert "should-never-leak" not in str(admin_update.json())

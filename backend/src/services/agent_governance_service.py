@@ -21,6 +21,7 @@ DEFAULT_AGENT_ROUTE_TOKEN_TTL_SECONDS = 15 * 60
 MAX_AGENT_ROUTE_TOKEN_TTL_SECONDS = 60 * 60
 ACTIVE_ROUTE_STATUSES = {"active", "enabled"}
 SENSITIVE_METADATA_FRAGMENTS = ("token", "secret", "password", "credential", "api_key")
+_UNSET = object()
 
 
 @dataclass(frozen=True)
@@ -53,6 +54,16 @@ class AgentRouteRevocation:
     reason_code: str
     human_message: str
     route_id: str | None = None
+    revoked_lease_count: int = 0
+    audit_event_id: str | None = None
+
+
+@dataclass(frozen=True)
+class AgentCapabilityRoutePolicyChange:
+    allowed: bool
+    reason_code: str
+    human_message: str
+    route: CapabilityRoute | None = None
     revoked_lease_count: int = 0
     audit_event_id: str | None = None
 
@@ -220,6 +231,128 @@ class AgentGovernanceService:
             audit_event_id=event.id,
         )
 
+    async def list_capability_routes(
+        self,
+        *,
+        org_id: str,
+        status: str | None = None,
+        route_type: str | None = None,
+    ) -> list[CapabilityRoute]:
+        query = select(CapabilityRoute).where(CapabilityRoute.org_id == org_id)
+        if status:
+            query = query.where(CapabilityRoute.status == status.strip().lower())
+        if route_type:
+            query = query.where(CapabilityRoute.route_type == route_type.strip().lower())
+        rows = (
+            await self.db.execute(query.order_by(CapabilityRoute.route_type, CapabilityRoute.route_key))
+        ).scalars().all()
+        return list(rows)
+
+    async def update_capability_route_policy(
+        self,
+        *,
+        org_id: str,
+        route_key: str,
+        actor_user_id: str | None,
+        actor_type: str = "user",
+        status: str | object = _UNSET,
+        allowed_consumers: list[str] | set[str] | tuple[str, ...] | object = _UNSET,
+        allowed_scopes: list[str] | set[str] | tuple[str, ...] | object = _UNSET,
+        risk_level: str | object = _UNSET,
+        token_ttl_seconds: int | object = _UNSET,
+        policy: dict[str, Any] | object = _UNSET,
+        now: datetime | None = None,
+    ) -> AgentCapabilityRoutePolicyChange:
+        changed_at = now or _now()
+        route = await self._get_route_by_key(org_id=org_id, route_key=route_key)
+        if route is None:
+            event = self._audit(
+                org_id=org_id,
+                action="capability_route.policy.update",
+                status="denied",
+                reason_code="unknown_capability_route",
+                actor_user_id=actor_user_id,
+                actor_type=actor_type,
+                metadata={"route_key": route_key},
+                now=changed_at,
+            )
+            await self.db.flush()
+            return AgentCapabilityRoutePolicyChange(
+                allowed=False,
+                reason_code="unknown_capability_route",
+                human_message="能力路由不存在或不属于当前组织",
+                audit_event_id=event.id,
+            )
+
+        revoked_lease_count = 0
+        if status is not _UNSET:
+            normalized_status = _required(str(status), "status").lower()
+            if normalized_status not in {"active", "enabled", "disabled"}:
+                event = self._audit_route_decision(
+                    route=route,
+                    action="capability_route.policy.update",
+                    status="denied",
+                    reason_code="invalid_route_status",
+                    actor_user_id=actor_user_id,
+                    actor_type=actor_type,
+                    metadata={"requested_status": normalized_status},
+                    now=changed_at,
+                )
+                await self.db.flush()
+                return AgentCapabilityRoutePolicyChange(
+                    allowed=False,
+                    reason_code="invalid_route_status",
+                    human_message="能力路由状态只能是 active、enabled 或 disabled",
+                    route=route,
+                    audit_event_id=event.id,
+                )
+            route.status = normalized_status
+            if normalized_status in ACTIVE_ROUTE_STATUSES:
+                route.revoked_at = None
+                route.revoked_reason = None
+            else:
+                revoked_lease_count = await self._revoke_active_leases(
+                    route=route,
+                    reason="policy_disabled",
+                    now=changed_at,
+                )
+
+        if allowed_consumers is not _UNSET:
+            route.allowed_consumers = list(_normalize_values(allowed_consumers))  # type: ignore[arg-type]
+        if allowed_scopes is not _UNSET:
+            route.allowed_scopes = list(_normalize_values(allowed_scopes))  # type: ignore[arg-type]
+        if risk_level is not _UNSET:
+            route.risk_level = _required(str(risk_level), "risk_level").lower()
+        if token_ttl_seconds is not _UNSET:
+            route.token_ttl_seconds = _clamp_ttl(int(token_ttl_seconds))
+        if policy is not _UNSET:
+            route.policy = _sanitize_policy(policy if isinstance(policy, dict) else {})
+
+        event = self._audit_route_decision(
+            route=route,
+            action="capability_route.policy.update",
+            status="success",
+            reason_code="updated",
+            actor_user_id=actor_user_id,
+            actor_type=actor_type,
+            metadata={
+                "status": route.status,
+                "allowed_consumer_count": str(len(route.allowed_consumers or [])),
+                "allowed_scope_count": str(len(route.allowed_scopes or [])),
+                "revoked_lease_count": str(revoked_lease_count),
+            },
+            now=changed_at,
+        )
+        await self.db.flush()
+        return AgentCapabilityRoutePolicyChange(
+            allowed=True,
+            reason_code="updated",
+            human_message="能力路由策略已更新",
+            route=route,
+            revoked_lease_count=revoked_lease_count,
+            audit_event_id=event.id,
+        )
+
     async def validate_route_token(
         self,
         *,
@@ -375,6 +508,27 @@ class AgentGovernanceService:
             revoked_lease_count=len(leases),
             audit_event_id=event.id,
         )
+
+    async def _revoke_active_leases(
+        self,
+        *,
+        route: CapabilityRoute,
+        reason: str,
+        now: datetime,
+    ) -> int:
+        leases = (
+            await self.db.execute(
+                select(CapabilityRouteTokenLease).where(
+                    CapabilityRouteTokenLease.org_id == route.org_id,
+                    CapabilityRouteTokenLease.route_id == route.id,
+                    CapabilityRouteTokenLease.revoked_at.is_(None),
+                )
+            )
+        ).scalars().all()
+        for lease in leases:
+            lease.revoked_at = now
+            lease.revoked_reason = reason
+        return len(leases)
 
     async def _get_route_by_key(self, *, org_id: str, route_key: str) -> CapabilityRoute | None:
         return (
@@ -554,6 +708,23 @@ def _sanitize_metadata(metadata: dict[str, Any] | None) -> dict[str, str] | None
         else:
             sanitized[normalized_key] = str(value)
     return sanitized
+
+
+def _sanitize_policy(value: Any) -> Any:
+    if isinstance(value, dict):
+        sanitized: dict[str, Any] = {}
+        for key, nested in value.items():
+            normalized_key = str(key)
+            if any(fragment in normalized_key.lower() for fragment in SENSITIVE_METADATA_FRAGMENTS):
+                sanitized[normalized_key] = "[redacted]"
+            else:
+                sanitized[normalized_key] = _sanitize_policy(nested)
+        return sanitized
+    if isinstance(value, list):
+        return [_sanitize_policy(item) for item in value]
+    if isinstance(value, tuple):
+        return [_sanitize_policy(item) for item in value]
+    return value
 
 
 def _reason_message(reason_code: str) -> str:
