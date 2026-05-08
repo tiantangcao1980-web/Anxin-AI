@@ -49,6 +49,7 @@ cd backend && ./.venv/bin/pytest -q tests/test_config_commercial_guards.py tests
 cd frontend && npm run lint
 cd frontend && npm test
 cd frontend && npm run build
+cd frontend && npx playwright test e2e/settings-workstation.spec.ts --project=chromium --project=mobile
 cd frontend && npx playwright test e2e/role-access.spec.ts e2e/document-flows.spec.ts e2e/contract-lifecycle.spec.ts --project=chromium
 bash scripts/mobile-device-smoke.sh
 python3 scripts/sandbox-evidence-runner.py --scope payment --out docs/release/evidence/artifacts/payment-sandbox-preflight-YYYYMMDD.json
