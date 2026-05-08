@@ -361,6 +361,8 @@ if [ "$RUN_LOCAL_TESTS" -eq 1 ]; then
   require_command "frontend build" bash -lc "cd frontend && npm run build"
   require_command "frontend workstation settings e2e" \
     bash -lc "cd frontend && npx playwright test e2e/settings-workstation.spec.ts --project=chromium --project=mobile"
+  require_command "frontend agent approval workspace e2e" \
+    bash -lc "cd frontend && npx playwright test e2e/agent-approval-workspace.spec.ts --project=chromium --project=mobile"
   require_command "desktop cargo check" bash -lc "cd desktop && cargo check"
   require_command "desktop cargo test" bash -lc "cd desktop && cargo test"
   require_command "desktop network surface gate" bash scripts/desktop-network-surface-gate.sh

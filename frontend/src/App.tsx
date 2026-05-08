@@ -46,6 +46,7 @@ const CaseCenter = lazy(() => import('@/pages/CaseCenter'))
 const CaseDetail = lazy(() => import('@/pages/CaseDetail'))
 const ManagementCenter = lazy(() => import('@/pages/ManagementCenter'))
 const DocumentWorkbench = lazy(() => import('@/pages/DocumentWorkbench'))
+const AgentApprovalWorkspace = lazy(() => import('@/pages/AgentApprovalWorkspace'))
 
 // 舆情监测（v3.0 由"智能调查"重构）
 const MonitoringCenter = lazy(() => import('@/pages/MonitoringCenter'))
@@ -285,6 +286,7 @@ function App() {
                 <Route path="case-center/:id" element={<ProtectedRoute feature="case_management"><CaseDetail /></ProtectedRoute>} />
                 <Route path="management" element={<ProtectedRoute feature="contract_management"><ManagementCenter /></ProtectedRoute>} />
                 <Route path="documents" element={<ProtectedRoute feature="document_management"><DocumentWorkbench /></ProtectedRoute>} />
+                <Route path="agent-approvals" element={<ProtectedRoute feature="approval_workflow"><AgentApprovalWorkspace /></ProtectedRoute>} />
                 {/* V2: 找律师需要云端数据库支持 */}
                 <Route path="find-lawyer" element={
                   <ProtectedRoute feature="lawyer_matching">

@@ -27,6 +27,14 @@ def test_commercial_gate_runs_workstation_settings_e2e():
     assert "e2e/settings-workstation.spec.ts --project=chromium --project=mobile" in script
 
 
+def test_commercial_gate_runs_agent_approval_workspace_e2e():
+    repo_root = Path(__file__).resolve().parents[2]
+    script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
+
+    assert 'require_command "frontend agent approval workspace e2e"' in script
+    assert "e2e/agent-approval-workspace.spec.ts --project=chromium --project=mobile" in script
+
+
 def test_commercial_gate_runs_agent_governance_policy_tests():
     repo_root = Path(__file__).resolve().parents[2]
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")

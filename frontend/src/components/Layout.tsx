@@ -67,10 +67,11 @@ const moduleSidebarConfig: { id: string; title: string; icon: React.ComponentTyp
     id: 'collaboration',
     title: '智能协作',
     icon: icons.CollaborationGroup,
-    paths: ['/case-center', '/management', '/documents', '/find-lawyer', '/firm', '/lawyer-dashboard', '/acquisition'],
+    paths: ['/case-center', '/management', '/documents', '/agent-approvals', '/find-lawyer', '/firm', '/lawyer-dashboard', '/acquisition'],
     items: [
       { path: '/case-center', label: '案件中心', icon: icons.Cases, feature: 'case_management' },
       { path: '/management', label: '管理中心', icon: icons.ShieldCheck, feature: 'contract_management' },
+      { path: '/agent-approvals', label: 'AI审批', icon: icons.ShieldAlert, feature: 'approval_workflow' },
       { path: '/find-lawyer', label: '律师精英', icon: icons.Scale, feature: 'lawyer_matching' },
       { path: '/documents', label: '智能文档', icon: icons.FileText, feature: 'document_management' },
     ],
@@ -182,7 +183,7 @@ const modulePathMap: Record<string, string[]> = {
   'ai-legal': ['/chat'],
   'collaboration': [
     '/case-center', '/management', '/cases', '/contracts', '/documents',
-    '/find-lawyer', '/compliance-check', '/leads', '/acquisition', '/firm',
+    '/agent-approvals', '/find-lawyer', '/compliance-check', '/leads', '/acquisition', '/firm',
     '/lawyer-dashboard',
   ],
   'investigation': ['/investigation', '/monitoring', '/due-diligence'],

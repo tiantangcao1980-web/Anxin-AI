@@ -2910,6 +2910,78 @@ export const coursesApi = {
     request(`/courses/${id}`, { method: 'DELETE' }),
 }
 
+// ============ Agent 高风险审批 API ============
+
+export type AgentApprovalStatus = 'pending' | 'approved' | 'rejected' | 'revoked' | 'expired'
+
+export interface AgentApprovalItem {
+  id: string
+  org_id: string
+  route_id?: string | null
+  requested_by?: string | null
+  decided_by?: string | null
+  action_type: string
+  risk_level: string
+  status: AgentApprovalStatus
+  payload?: Record<string, unknown> | null
+  expires_at?: string | null
+  resolved_at?: string | null
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export interface AgentApprovalDecision {
+  allowed: boolean
+  reason_code: string
+  human_message: string
+  approval_id?: string | null
+  route_id?: string | null
+  status?: AgentApprovalStatus | null
+  expires_at?: string | null
+  audit_event_id?: string | null
+}
+
+export const agentApprovalsApi = {
+  list: (params?: { status?: string; page?: number; page_size?: number }) => {
+    const query = new URLSearchParams()
+    if (params?.status) query.set('status', params.status)
+    if (params?.page) query.set('page', String(params.page))
+    if (params?.page_size) query.set('page_size', String(params.page_size))
+    const suffix = query.toString()
+    return request<{ items: AgentApprovalItem[]; total: number; page: number; page_size: number }>(
+      suffix ? `/agent-approvals?${suffix}` : '/agent-approvals',
+    )
+  },
+
+  get: (id: string) => request<AgentApprovalItem>(`/agent-approvals/${id}`),
+
+  pendingCount: () => request<{ pending: number }>('/agent-approvals/pending/count'),
+
+  approve: (id: string, note?: string) =>
+    request<AgentApprovalDecision>(`/agent-approvals/${id}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ note }),
+    }),
+
+  reject: (id: string, note?: string) =>
+    request<AgentApprovalDecision>(`/agent-approvals/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ note }),
+    }),
+
+  revoke: (id: string, reason: string) =>
+    request<AgentApprovalDecision>(`/agent-approvals/${id}/revoke`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+
+  validate: (data: { approval_id?: string | null; action_type: string; route_key?: string; route_id?: string }) =>
+    request<AgentApprovalDecision>('/agent-approvals/validate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+}
+
 // ============ 审批流 API ============
 
 export interface ApprovalItem {

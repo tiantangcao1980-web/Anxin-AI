@@ -56,6 +56,13 @@ export type MockOptions = {
     snapshots?: unknown
     restore?: unknown
   }
+  agentApprovals?: {
+    list?: unknown
+    pendingCount?: unknown
+    approve?: unknown
+    reject?: unknown
+    revoke?: unknown
+  }
 }
 
 function createMockToken(role: string, userId = 'e2e-user', expired = false) {
@@ -125,6 +132,86 @@ export async function installApiMocks(page: Page, options: MockOptions = {}) {
           name: 'E2E Admin',
           role: 'admin',
         }),
+      )
+    }
+
+    if (pathname.endsWith('/agent-approvals/pending/count') && request.method() === 'GET') {
+      return fulfillJson(route, buildUnified(options.agentApprovals?.pendingCount ?? { pending: 1 }))
+    }
+
+    if (pathname.endsWith('/agent-approvals') && request.method() === 'GET') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.agentApprovals?.list ?? {
+            items: [
+              {
+                id: 'approval-e2e-1',
+                org_id: 'org-e2e',
+                route_id: 'route-browser-control',
+                requested_by: 'employee-risk-owner',
+                action_type: 'browser.remote_control',
+                risk_level: 'high',
+                status: 'pending',
+                payload: {
+                  target: 'desktop-runtime',
+                  reason: '远程执行高风险桌面动作',
+                },
+                expires_at: '2026-05-08T10:30:00Z',
+                created_at: '2026-05-08T10:00:00Z',
+                updated_at: '2026-05-08T10:00:00Z',
+              },
+            ],
+            total: 1,
+            page: 1,
+            page_size: 50,
+          },
+        ),
+      )
+    }
+
+    if (/\/agent-approvals\/[^/]+\/approve$/.test(pathname) && request.method() === 'POST') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.agentApprovals?.approve ?? {
+            allowed: true,
+            reason_code: 'approved',
+            human_message: '审批已批准',
+            approval_id: 'approval-e2e-1',
+            status: 'approved',
+          },
+        ),
+      )
+    }
+
+    if (/\/agent-approvals\/[^/]+\/reject$/.test(pathname) && request.method() === 'POST') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.agentApprovals?.reject ?? {
+            allowed: false,
+            reason_code: 'rejected',
+            human_message: '审批已驳回',
+            approval_id: 'approval-e2e-1',
+            status: 'rejected',
+          },
+        ),
+      )
+    }
+
+    if (/\/agent-approvals\/[^/]+\/revoke$/.test(pathname) && request.method() === 'POST') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.agentApprovals?.revoke ?? {
+            allowed: false,
+            reason_code: 'revoked',
+            human_message: '审批已撤销',
+            approval_id: 'approval-e2e-1',
+            status: 'revoked',
+          },
+        ),
       )
     }
 

@@ -41,7 +41,7 @@ const NAV_ITEMS: NavItem[] = [
     label: '协作',
     icon: BriefcaseIcon,
     activeIcon: BriefcaseSolid,
-    matchPaths: ['/cases', '/contracts', '/collaboration', '/find-lawyer'],
+    matchPaths: ['/cases', '/case-center', '/contracts', '/collaboration', '/agent-approvals', '/find-lawyer'],
   },
   {
     path: '/messages',

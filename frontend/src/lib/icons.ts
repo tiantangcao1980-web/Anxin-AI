@@ -367,6 +367,7 @@ export const icons = {
   Zap: Zap,
   Lightbulb: Lightbulb,
   Lock: Lock,
+  Ban: Ban,
 
   // ===== 人物角色 =====
   Bot: Bot,
