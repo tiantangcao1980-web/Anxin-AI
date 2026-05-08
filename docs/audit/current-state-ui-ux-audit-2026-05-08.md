@@ -34,7 +34,7 @@
 | 政府场景可信交付 | 生产路径不能静默 mock，失败必须可审计 | 支付默认 `mock`，未知 provider 回退 Mock：`backend/src/services/payment_service.py:672`；电签默认 Mock：`backend/src/services/esign_service.py:941` | 生产误配可能被 mock success 掩盖 | 增加 production fail-closed provider guard，local/test 才允许 mock |
 | OA 通知可靠性 | 审批/通知不能伪成功 | 飞书、钉钉、企微配置缺失时返回 `mock_token` 并 `return True`：`backend/src/services/oa_integration_service.py:86`、`:199`、`:275` | 政务协同通知可能实际未送达但系统显示成功 | 按环境拆分 mock/dev 与 production hard fail，补审计日志 |
 | 桌面同步可信 | 本地 SQLCipher/keyring 和云同步必须真实 push/pull | 前端 secure SQL 路径已有进展；Rust IPC 直连同步已改为 fail-closed，不再返回 `Ok(0)` 假成功；真实云端 push/pull、跨设备延续和 packaged runtime 证据仍未闭合 | 假成功风险已清除，但商业级跨端同步仍未完成 | 保持 unsupported/fail-closed 文案，继续实现真实云同步数据面、移动远控和 signed packaged runtime 验收 |
-| 移动端关键流程 | 智能调查和法律智库应可完成搜索/详情 | `mobile/app/(tabs)/investigation.tsx:73`、`knowledge.tsx:73` 仍 console/TODO；investigation 用 `useState` 触发副作用：`:64` | 用户点击后无业务结果，且有 React 生命周期风险 | 先修 `useEffect`，再接入搜索/详情/SSE 或显式禁用未完成入口 |
+| 移动端关键流程 | 智能调查和法律智库应可完成搜索/详情 | `mobile/app/(tabs)/investigation.tsx` 已用 `useEffect` 加载最近调查/热点，并调用 `/due-diligence/company` 渲染页面内结果卡；`mobile/app/(tabs)/knowledge.tsx` 已调用 `/knowledge/search` 并渲染检索摘要卡；`scripts/mobile-device-smoke.sh` 已有 mobile result surface guard 防回归 | 代码级入口已收口，但真实/官方 iOS、Android 和交互式微信验收仍缺 | 保持代码级 guard，后续补真机 transcript 和跨设备连续会话证据 |
 | 小程序验收 | 微信端应有真实登录和设备证据 | WeChat DevTools CLI project smoke 通过，但 evidence 仍 pending；host probe 仅证明工具存在 | 还没有真实小程序交互闭环 | 用官方 appid/测试账号补交互式 DevTools 或真机 transcript |
 | 跨端设计系统 | Web/desktop/mobile/mini token 应统一 | `docs/design/cross-platform-token-drift.md` 已记录 Web `hsl(25 95% 53%)` 与 mobile/mini `#D4A574` 漂移 | 品牌和状态语义跨端不一致 | 冻结 token contract，再分端迁移硬编码颜色 |
 | 移动端视觉质量 | 状态色、错误态、空态应可维护 | `rg` 显示 mobile 多处 hardcoded hex，如 `mobile/app/find-lawyer.tsx:165`、`contracts.tsx:178`、`cases.tsx:165` | 暗色、无障碍和品牌统一风险 | 把 status/domain colors 纳入 `Colors`，补截图验收 |
@@ -50,8 +50,8 @@
 
 | 优先级 | 问题 | 证据 | 建议 |
 |---|---|---|---|
-| P0 | 智能调查初始加载使用 `useState` 执行副作用 | `mobile/app/(tabs)/investigation.tsx:64` | 改为 `useEffect`，补单测或组件 smoke，避免重复请求/生命周期异常 |
-| P0 | 智能调查、法律智库提交后只 `console.log` | `mobile/app/(tabs)/investigation.tsx:73`、`mobile/app/(tabs)/knowledge.tsx:73` | 接后端真实搜索/详情；若未完成，UI 应展示明确“暂未开放”而非吞掉输入 |
+| P0 | 智能调查初始加载使用 `useState` 执行副作用 | `mobile/app/(tabs)/investigation.tsx` 当前已改为 `useEffect` + `loadData`；`mobile-device-smoke` 的 result surface guard 保护入口结果展示 | 已代码级收口；真机弱网/重复提交体验仍需设备验收 |
+| P0 | 智能调查、法律智库提交后只 `console.log` | `mobile/app/(tabs)/investigation.tsx` 当前调用 `/due-diligence/company`，`mobile/app/(tabs)/knowledge.tsx` 当前调用 `/knowledge/search`，并均有页面内结果摘要卡 | 已代码级收口；真实后端数据、权限和真机 transcript 仍需补 |
 | P1 | 品牌主色、状态色硬编码过多 | `mobile/src/constants/colors.ts:1`、`rg` hardcoded hex 结果 | 统一 `brand/status/domain` token，迁移页面级颜色 |
 | P1 | 暗色和错误态不一致 | `docs/design/cross-platform-token-drift.md:29` | 给错误/成功/info 背景补 token，暗色下做截图验收 |
 | P1 | 真机证据缺失 | `docs/release/evidence/mobile-device-smoke.md:14` | iOS Simulator 已可用，先跑 iOS app-run transcript；Android 需补 AVD 或真机 |
@@ -90,7 +90,7 @@
 | 阶段 | 目标 | 主要任务 | 验收 |
 |---|---|---|---|
 | Phase 0 清场与基线 | 不让旧文档、缓存、历史索引备份干扰开发 | 更新过时 dirty/GitNexus 陈述；保留 host probe；清理 ignored runtime/cache/旧 `.gitnexus.*` 备份 | 文档 validator、secret scan、`git diff --check` 通过 |
-| Phase 1 P0 真实闭环 | 阻断政府交付的假成功和关键入口问题 | provider/OA production fail-closed；desktop old sync fallback 禁用；mobile investigation `useEffect` + 搜索/详情入口；真机/DevTools evidence | 相关单测、mobile/mini smoke、desktop cargo/frontend tests、commercial gate 失败原因减少 |
+| Phase 1 P0 真实闭环 | 阻断政府交付的假成功和关键入口问题 | provider/OA production fail-closed；desktop old sync fallback 禁用；mobile investigation/knowledge 入口已代码级闭环；真机/DevTools evidence | 相关单测、mobile/mini smoke、desktop cargo/frontend tests、commercial gate 失败原因减少 |
 | Phase 2 跨端 UI/UX | 让移动/小程序/桌面形成同一套专业体验 | token contract；移动硬编码颜色迁移；小程序暗色策略；桌面冲突管理和托盘菜单改造 | iOS/Android/WeChat/desktop 截图或 transcript，Design Craft gate 复验 |
 | Phase 2.5 可信交互 | 把 Codex/Claude 风格工作台体验落进关键路径 | 长任务时间线、工具状态、引用证据、artifact 编辑、暂停/恢复/接管、能力中心和命令面板 | chat/agent e2e、桌面/移动 transcript、artifact 编辑和恢复测试 |
 | Phase 3 商业证据 | 从代码级变成可交付证据 | payment/e-sign live sandbox；signed/notarized desktop；cross-device continuation；release runbook 演练 | 所有 evidence `Status: complete`，commercial gate quick 通过 |
