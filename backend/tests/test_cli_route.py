@@ -190,7 +190,9 @@ async def test_cli_execute_accepts_db_backed_route_token(
         },
         json={"command": "status", "args": {}},
     )
-    audits = (await db_session.execute(select(AgentAuditEvent))).scalars().all()
+    audits = (
+        await db_session.execute(select(AgentAuditEvent).where(AgentAuditEvent.org_id == test_organization.id))
+    ).scalars().all()
 
     assert response.status_code == 200
     body = response.json()
@@ -238,7 +240,9 @@ async def test_cli_route_token_endpoint_issues_key_bound_token(
         },
         json={"command": "status", "args": {}},
     )
-    audits = (await db_session.execute(select(AgentAuditEvent))).scalars().all()
+    audits = (
+        await db_session.execute(select(AgentAuditEvent).where(AgentAuditEvent.org_id == test_organization.id))
+    ).scalars().all()
 
     assert token_response.status_code == 200
     assert token_body["success"] is True

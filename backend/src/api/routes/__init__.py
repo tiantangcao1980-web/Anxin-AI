@@ -7,6 +7,7 @@ from fastapi import APIRouter
 from src.api.routes import (
     acquisition_analytics,
     admin,
+    agent_approvals,
     ai_assistant,
     anonymous_chat,
     approvals,
@@ -83,6 +84,7 @@ api_router.include_router(experts.router, prefix="/experts", tags=["律师精英
 api_router.include_router(courses.router, prefix="/courses", tags=["司法学院"])
 api_router.include_router(admin.router, tags=["管理后台"])
 api_router.include_router(approvals.router, prefix="/approvals", tags=["审批流"])
+api_router.include_router(agent_approvals.router, prefix="/agent-approvals", tags=["Agent审批治理"])
 api_router.include_router(lawyer_matching.router, tags=["找律师"])
 api_router.include_router(compliance.router, tags=["合规自检"])
 api_router.include_router(anonymous_chat.router, tags=["匿名聊天"])

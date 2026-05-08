@@ -34,8 +34,14 @@ async def test_route_token_lease_persists_hash_only_and_validates_after_service_
         required_scope="mcp:call",
     )
 
-    leases = (await db_session.execute(select(CapabilityRouteTokenLease))).scalars().all()
-    audits = (await db_session.execute(select(AgentAuditEvent))).scalars().all()
+    leases = (
+        await db_session.execute(
+            select(CapabilityRouteTokenLease).where(CapabilityRouteTokenLease.org_id == test_organization.id)
+        )
+    ).scalars().all()
+    audits = (
+        await db_session.execute(select(AgentAuditEvent).where(AgentAuditEvent.org_id == test_organization.id))
+    ).scalars().all()
 
     assert issued.allowed is True
     assert issued.token is not None
@@ -112,8 +118,18 @@ async def test_revoked_capability_route_fails_next_validation_and_audits(db_sess
         required_scope="mcp:call",
     )
 
-    lease = (await db_session.execute(select(CapabilityRouteTokenLease))).scalar_one()
-    audits = (await db_session.execute(select(AgentAuditEvent).order_by(AgentAuditEvent.created_at))).scalars().all()
+    lease = (
+        await db_session.execute(
+            select(CapabilityRouteTokenLease).where(CapabilityRouteTokenLease.org_id == test_organization.id)
+        )
+    ).scalar_one()
+    audits = (
+        await db_session.execute(
+            select(AgentAuditEvent)
+            .where(AgentAuditEvent.org_id == test_organization.id)
+            .order_by(AgentAuditEvent.created_at)
+        )
+    ).scalars().all()
 
     assert before.allowed is True
     assert revocation.revoked is True

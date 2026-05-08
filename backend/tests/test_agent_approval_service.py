@@ -36,8 +36,12 @@ async def test_request_approval_persists_sanitized_payload_and_audit(db_session,
         },
     )
 
-    approval = (await db_session.execute(select(AgentApproval))).scalar_one()
-    audits = (await db_session.execute(select(AgentAuditEvent))).scalars().all()
+    approval = (
+        await db_session.execute(select(AgentApproval).where(AgentApproval.id == requested.approval_id))
+    ).scalar_one()
+    audits = (
+        await db_session.execute(select(AgentAuditEvent).where(AgentAuditEvent.org_id == test_organization.id))
+    ).scalars().all()
 
     assert requested.allowed is True
     assert requested.reason_code == "requested"
@@ -86,8 +90,16 @@ async def test_decide_approval_requires_authorized_role_and_keeps_denied_pending
         note="desktop operator confirmed",
     )
 
-    approval = (await db_session.execute(select(AgentApproval))).scalar_one()
-    audits = (await db_session.execute(select(AgentAuditEvent).order_by(AgentAuditEvent.created_at))).scalars().all()
+    approval = (
+        await db_session.execute(select(AgentApproval).where(AgentApproval.id == requested.approval_id))
+    ).scalar_one()
+    audits = (
+        await db_session.execute(
+            select(AgentAuditEvent)
+            .where(AgentAuditEvent.org_id == test_organization.id)
+            .order_by(AgentAuditEvent.created_at)
+        )
+    ).scalars().all()
 
     assert denied.allowed is False
     assert denied.reason_code == "approver_role_not_allowed"
@@ -184,7 +196,9 @@ async def test_expired_approval_fails_closed_and_marks_status(db_session, test_o
         now=issued_at + timedelta(minutes=6),
     )
 
-    approval = (await db_session.execute(select(AgentApproval))).scalar_one()
+    approval = (
+        await db_session.execute(select(AgentApproval).where(AgentApproval.id == requested.approval_id))
+    ).scalar_one()
 
     assert expired.allowed is False
     assert expired.reason_code == "approval_expired"
