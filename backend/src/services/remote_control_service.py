@@ -21,6 +21,9 @@ REMOTE_CONTROL_REQUIRED_SCOPE = "desktop:control"
 REMOTE_CONTROL_ROUTE_KEY = "desktop-control"
 REMOTE_CONTROL_ACTIVE_PAIRING_STATUSES = {"confirmed"}
 REMOTE_CONTROL_PENDING_PAIRING_STATUSES = {"pending_desktop_confirmation"}
+REMOTE_CONTROL_ACTIVE_COMMAND_STATUSES = {"queued", "claimed", "running"}
+REMOTE_CONTROL_EXECUTION_UPDATE_STATUSES = {"running", "completed", "failed"}
+REMOTE_CONTROL_TERMINAL_COMMAND_STATUSES = {"cancelled", "completed", "expired", "failed"}
 
 
 class RemoteControlError(ValueError):
@@ -230,28 +233,15 @@ class RemoteControlService:
             raise RemoteControlError("remote_control_desktop_device_mismatch", "桌面设备与配对请求不匹配。", 403)
         self._ensure_pairing_confirmed(pairing, checked_at=queued_at)
 
-        decision = await AgentGovernanceService(self.db).validate_route_token(
+        decision = await self._validate_pairing_route_token(
             org_id=org_id,
-            raw_token=route_token,
-            required_scope=REMOTE_CONTROL_REQUIRED_SCOPE,
-            consumer_id=pairing.id,
-            actor_user_id=user_id,
-            actor_type="remote_control",
+            user_id=user_id,
+            pairing=pairing,
+            route_token=route_token,
+            action="remote_control.command.enqueue",
+            resource_snapshot={"desktop_device_id": desktop_device_id, "command_type": command_type},
+            now=queued_at,
         )
-        if not decision.allowed:
-            self._audit(
-                org_id=org_id,
-                user_id=user_id,
-                pairing_id=pairing.id,
-                action="remote_control.command.enqueue",
-                status="denied",
-                reason_code=decision.reason_code,
-                resource_snapshot={"desktop_device_id": desktop_device_id, "command_type": command_type},
-                metadata={"route_audit_event_id": decision.audit_event_id},
-                now=queued_at,
-            )
-            await self.db.flush()
-            raise RemoteControlError(decision.reason_code, decision.human_message, 403)
 
         command = RemoteControlCommand(
             org_id=org_id,
@@ -285,6 +275,171 @@ class RemoteControlService:
         await self.db.flush()
         return command
 
+    async def claim_commands(
+        self,
+        *,
+        org_id: str,
+        user_id: str,
+        desktop_device_id: str,
+        pairing_id: str,
+        route_token: str,
+        host_instance_id: str,
+        limit: int = 10,
+        now: datetime | None = None,
+    ) -> list[RemoteControlCommand]:
+        claimed_at = now or _now()
+        host_id = _required(host_instance_id, "host_instance_id")[:160]
+        pairing = await self._get_pairing(org_id=org_id, user_id=user_id, pairing_id=pairing_id)
+        if pairing is None:
+            raise RemoteControlError("remote_control_pairing_not_found", "远控配对不存在或不属于当前组织。", 404)
+        if pairing.desktop_device_id != desktop_device_id:
+            self._audit_pairing_denial(pairing, user_id, "desktop_device_mismatch", claimed_at)
+            await self.db.flush()
+            raise RemoteControlError("remote_control_desktop_device_mismatch", "桌面设备与配对请求不匹配。", 403)
+        self._ensure_pairing_confirmed(pairing, checked_at=claimed_at)
+        await self._validate_pairing_route_token(
+            org_id=org_id,
+            user_id=user_id,
+            pairing=pairing,
+            route_token=route_token,
+            action="remote_control.command.claim",
+            resource_snapshot={"desktop_device_id": desktop_device_id, "host_instance_id": host_id},
+            now=claimed_at,
+        )
+        await self._expire_stale_queued_commands(
+            org_id=org_id,
+            user_id=user_id,
+            pairing=pairing,
+            desktop_device_id=desktop_device_id,
+            now=claimed_at,
+        )
+        commands = (
+            await self.db.execute(
+                select(RemoteControlCommand)
+                .where(
+                    RemoteControlCommand.org_id == org_id,
+                    RemoteControlCommand.user_id == user_id,
+                    RemoteControlCommand.pairing_id == pairing.id,
+                    RemoteControlCommand.desktop_device_id == desktop_device_id,
+                    RemoteControlCommand.status == "queued",
+                    RemoteControlCommand.expires_at > claimed_at,
+                )
+                .order_by(RemoteControlCommand.created_at.asc())
+                .limit(limit)
+            )
+        ).scalars().all()
+        for command in commands:
+            command.status = "claimed"
+            command.claimed_at = claimed_at
+            command.claimed_by_host = host_id
+            self._audit(
+                org_id=org_id,
+                user_id=user_id,
+                pairing_id=pairing.id,
+                command_id=command.id,
+                action="remote_control.command.claim",
+                status="success",
+                reason_code="claimed",
+                resource_snapshot=_command_snapshot(command),
+                metadata={"host_instance_id": host_id},
+                now=claimed_at,
+            )
+        await self.db.flush()
+        return list(commands)
+
+    async def update_command_status(
+        self,
+        *,
+        org_id: str,
+        user_id: str,
+        command_id: str,
+        desktop_device_id: str,
+        pairing_id: str,
+        route_token: str,
+        host_instance_id: str,
+        status: str,
+        result_summary: dict[str, Any] | None = None,
+        failure_reason: str | None = None,
+        now: datetime | None = None,
+    ) -> RemoteControlCommand:
+        updated_at = now or _now()
+        next_status = (status or "").strip().lower()
+        if next_status not in REMOTE_CONTROL_EXECUTION_UPDATE_STATUSES:
+            raise RemoteControlError("remote_control_command_status_invalid", "远控命令状态回传值不受支持。", 400)
+        host_id = _required(host_instance_id, "host_instance_id")[:160]
+        pairing = await self._get_pairing(org_id=org_id, user_id=user_id, pairing_id=pairing_id)
+        if pairing is None:
+            raise RemoteControlError("remote_control_pairing_not_found", "远控配对不存在或不属于当前组织。", 404)
+        command = await self._get_command(org_id=org_id, user_id=user_id, command_id=command_id)
+        if command is None or command.pairing_id != pairing.id:
+            raise RemoteControlError("remote_control_command_not_found", "远控命令不存在或不属于当前组织。", 404)
+        if pairing.desktop_device_id != desktop_device_id or command.desktop_device_id != desktop_device_id:
+            self._audit_pairing_denial(pairing, user_id, "desktop_device_mismatch", updated_at)
+            await self.db.flush()
+            raise RemoteControlError("remote_control_desktop_device_mismatch", "桌面设备与配对请求不匹配。", 403)
+        self._ensure_pairing_confirmed(pairing, checked_at=updated_at)
+        await self._validate_pairing_route_token(
+            org_id=org_id,
+            user_id=user_id,
+            pairing=pairing,
+            route_token=route_token,
+            action="remote_control.command.status_update",
+            resource_snapshot=_command_snapshot(command),
+            now=updated_at,
+        )
+        if command.status in REMOTE_CONTROL_TERMINAL_COMMAND_STATUSES:
+            raise RemoteControlError("remote_control_command_transition_denied", "终态远控命令不能继续回传执行状态。", 409)
+        if _as_utc(command.expires_at) <= updated_at:
+            command.status = "expired"
+            self._audit(
+                org_id=org_id,
+                user_id=user_id,
+                pairing_id=pairing.id,
+                command_id=command.id,
+                action="remote_control.command.expire",
+                status="success",
+                reason_code="expired",
+                resource_snapshot=_command_snapshot(command),
+                metadata={"host_instance_id": host_id},
+                now=updated_at,
+            )
+            await self.db.flush()
+            raise RemoteControlError("remote_control_command_expired", "远控命令已过期，不能继续回传执行状态。", 409)
+        if command.claimed_by_host and command.claimed_by_host != host_id:
+            raise RemoteControlError("remote_control_command_host_mismatch", "远控命令已被其他桌面 host 领取。", 403)
+        if command.status == "queued":
+            raise RemoteControlError("remote_control_command_not_claimed", "远控命令必须先被桌面 host 领取再回传状态。", 409)
+        if next_status == "running" and command.status not in {"claimed", "running"}:
+            raise RemoteControlError("remote_control_command_transition_denied", "当前远控命令状态不能进入 running。", 409)
+        if next_status in {"completed", "failed"} and command.status not in {"claimed", "running"}:
+            raise RemoteControlError("remote_control_command_transition_denied", "当前远控命令状态不能结束。", 409)
+
+        command.status = next_status
+        command.claimed_by_host = host_id
+        if next_status == "running":
+            command.started_at = command.started_at or updated_at
+        elif next_status == "completed":
+            command.completed_at = updated_at
+            command.result_summary = _scrub_payload(result_summary or {})
+        elif next_status == "failed":
+            command.failed_at = updated_at
+            command.failure_reason = (failure_reason or "").strip()[:1000] or "desktop_host_failed"
+            command.result_summary = _scrub_payload(result_summary or {})
+        self._audit(
+            org_id=org_id,
+            user_id=user_id,
+            pairing_id=pairing.id,
+            command_id=command.id,
+            action="remote_control.command.status_update",
+            status="success",
+            reason_code=next_status,
+            resource_snapshot=_command_snapshot(command),
+            metadata={"host_instance_id": host_id, "result_summary": result_summary or {}},
+            now=updated_at,
+        )
+        await self.db.flush()
+        return command
+
     async def cancel_command(
         self,
         *,
@@ -298,8 +453,8 @@ class RemoteControlService:
         command = await self._get_command(org_id=org_id, user_id=user_id, command_id=command_id)
         if command is None:
             raise RemoteControlError("remote_control_command_not_found", "远控命令不存在或不属于当前组织。", 404)
-        if command.status != "queued":
-            raise RemoteControlError("remote_control_command_not_cancellable", "只有 queued 状态的远控命令可以取消。", 409)
+        if command.status not in {"queued", "claimed"}:
+            raise RemoteControlError("remote_control_command_not_cancellable", "只有 queued/claimed 状态的远控命令可以取消。", 409)
         command.status = "cancelled"
         command.cancelled_at = cancelled_at
         command.cancel_reason = (reason or "").strip()[:500]
@@ -345,6 +500,76 @@ class RemoteControlService:
             )
         )
         return int(result.scalar_one())
+
+    async def _validate_pairing_route_token(
+        self,
+        *,
+        org_id: str,
+        user_id: str,
+        pairing: RemoteControlPairing,
+        route_token: str,
+        action: str,
+        resource_snapshot: dict[str, Any],
+        now: datetime,
+    ) -> Any:
+        decision = await AgentGovernanceService(self.db).validate_route_token(
+            org_id=org_id,
+            raw_token=route_token,
+            required_scope=REMOTE_CONTROL_REQUIRED_SCOPE,
+            consumer_id=pairing.id,
+            actor_user_id=user_id,
+            actor_type="remote_control",
+        )
+        if not decision.allowed:
+            self._audit(
+                org_id=org_id,
+                user_id=user_id,
+                pairing_id=pairing.id,
+                action=action,
+                status="denied",
+                reason_code=decision.reason_code,
+                resource_snapshot=resource_snapshot,
+                metadata={"route_audit_event_id": decision.audit_event_id},
+                now=now,
+            )
+            await self.db.flush()
+            raise RemoteControlError(decision.reason_code, decision.human_message, 403)
+        return decision
+
+    async def _expire_stale_queued_commands(
+        self,
+        *,
+        org_id: str,
+        user_id: str,
+        pairing: RemoteControlPairing,
+        desktop_device_id: str,
+        now: datetime,
+    ) -> None:
+        expired_commands = (
+            await self.db.execute(
+                select(RemoteControlCommand).where(
+                    RemoteControlCommand.org_id == org_id,
+                    RemoteControlCommand.user_id == user_id,
+                    RemoteControlCommand.pairing_id == pairing.id,
+                    RemoteControlCommand.desktop_device_id == desktop_device_id,
+                    RemoteControlCommand.status == "queued",
+                    RemoteControlCommand.expires_at <= now,
+                )
+            )
+        ).scalars().all()
+        for command in expired_commands:
+            command.status = "expired"
+            self._audit(
+                org_id=org_id,
+                user_id=user_id,
+                pairing_id=pairing.id,
+                command_id=command.id,
+                action="remote_control.command.expire",
+                status="success",
+                reason_code="expired",
+                resource_snapshot=_command_snapshot(command),
+                now=now,
+            )
 
     async def _get_pairing(self, *, org_id: str, user_id: str, pairing_id: str) -> RemoteControlPairing | None:
         if not _looks_like_uuid(pairing_id):
@@ -474,6 +699,11 @@ def _command_snapshot(command: RemoteControlCommand) -> dict[str, Any]:
         "route_scopes": command.route_scopes,
         "second_confirmed": command.second_confirmed,
         "expires_at": _iso(command.expires_at),
+        "claimed_at": _iso(command.claimed_at),
+        "claimed_by_host": command.claimed_by_host,
+        "started_at": _iso(command.started_at),
+        "completed_at": _iso(command.completed_at),
+        "failed_at": _iso(command.failed_at),
     }
 
 
@@ -488,14 +718,18 @@ def _as_utc(value: datetime) -> datetime:
 
 
 def _scrub_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    redacted: dict[str, Any] = {}
-    for key, value in payload.items():
-        lowered = key.lower()
-        if any(fragment in lowered for fragment in ("token", "secret", "password", "credential", "api_key")):
-            redacted[key] = "[REDACTED]"
-        else:
-            redacted[key] = value
-    return redacted
+    return {key: _scrub_value(key, value) for key, value in payload.items()}
+
+
+def _scrub_value(key: str, value: Any) -> Any:
+    lowered = key.lower()
+    if any(fragment in lowered for fragment in ("token", "secret", "password", "credential", "api_key")):
+        return "[REDACTED]"
+    if isinstance(value, dict):
+        return {str(child_key): _scrub_value(str(child_key), child_value) for child_key, child_value in value.items()}
+    if isinstance(value, list):
+        return [_scrub_value(key, item) for item in value]
+    return value
 
 
 def _looks_like_uuid(value: str | None) -> bool:

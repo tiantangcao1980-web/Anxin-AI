@@ -143,6 +143,26 @@ class RemoteControlCancelCommandRequest(BaseModel):
     reason: str = Field(..., min_length=1, max_length=500)
 
 
+class RemoteControlHostClaimRequest(BaseModel):
+    """桌面 host 拉取待执行命令"""
+    desktop_device_id: str = Field(..., min_length=1, max_length=128)
+    pairing_id: str = Field(..., min_length=1, max_length=128)
+    route_token: str = Field(..., min_length=1, max_length=512)
+    host_instance_id: str = Field(..., min_length=1, max_length=160)
+    limit: int = Field(default=10, ge=1, le=50)
+
+
+class RemoteControlCommandStatusUpdateRequest(BaseModel):
+    """桌面 host 回传命令执行状态"""
+    desktop_device_id: str = Field(..., min_length=1, max_length=128)
+    pairing_id: str = Field(..., min_length=1, max_length=128)
+    route_token: str = Field(..., min_length=1, max_length=512)
+    host_instance_id: str = Field(..., min_length=1, max_length=160)
+    status: str = Field(..., min_length=1, max_length=40)
+    result_summary: dict[str, Any] = Field(default_factory=dict)
+    failure_reason: str | None = Field(default=None, max_length=1000)
+
+
 def _normalize_remote_control_mode(mode: str | None) -> str:
     return (mode or "hybrid").strip().lower()
 
@@ -198,8 +218,21 @@ def _command_payload(command: Any) -> dict[str, Any]:
         "route_scopes": command.route_scopes,
         "second_confirmed": command.second_confirmed,
         "expires_at": _iso(command.expires_at),
+        "claimed_at": _iso(command.claimed_at),
+        "claimed_by_host": command.claimed_by_host,
+        "started_at": _iso(command.started_at),
+        "completed_at": _iso(command.completed_at),
+        "failed_at": _iso(command.failed_at),
+        "failure_reason": command.failure_reason,
+        "result_summary": command.result_summary,
         "cancelled_at": _iso(command.cancelled_at),
     }
+
+
+def _host_command_payload(command: Any) -> dict[str, Any]:
+    payload = _command_payload(command)
+    payload["payload"] = command.payload
+    return payload
 
 
 def _audit_payload(event: Any) -> dict[str, Any]:
@@ -443,6 +476,35 @@ async def enqueue_remote_control_command(
     return payload
 
 
+@router.post("/remote-control/commands/claim", summary="桌面 host 拉取待执行远控命令")
+async def claim_remote_control_commands(
+    request: RemoteControlHostClaimRequest,
+    user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """桌面 host 领取 queued 命令；返回命令不等于已执行。"""
+    org_id = _org_id_for(user)
+    try:
+        commands = await RemoteControlService(db).claim_commands(
+            org_id=org_id,
+            user_id=str(user.id),
+            desktop_device_id=request.desktop_device_id,
+            pairing_id=request.pairing_id,
+            route_token=request.route_token,
+            host_instance_id=request.host_instance_id,
+            limit=request.limit,
+        )
+    except RemoteControlError as exc:
+        _remote_control_error(exc)
+    payload = {
+        "items": [_host_command_payload(command) for command in commands],
+        "total": len(commands),
+        "status": "claimed" if commands else "empty",
+    }
+    await db.commit()
+    return payload
+
+
 @router.post("/remote-control/commands/{command_id}/cancel", summary="取消未执行的远控命令")
 async def cancel_remote_control_command(
     command_id: str,
@@ -458,6 +520,35 @@ async def cancel_remote_control_command(
             user_id=str(user.id),
             command_id=command_id,
             reason=request.reason,
+        )
+    except RemoteControlError as exc:
+        _remote_control_error(exc)
+    payload = _command_payload(command)
+    await db.commit()
+    return payload
+
+
+@router.post("/remote-control/commands/{command_id}/status", summary="桌面 host 回传远控命令状态")
+async def update_remote_control_command_status(
+    command_id: str,
+    request: RemoteControlCommandStatusUpdateRequest,
+    user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """记录桌面 host 的 running/completed/failed 状态回传和脱敏结果摘要。"""
+    org_id = _org_id_for(user)
+    try:
+        command = await RemoteControlService(db).update_command_status(
+            org_id=org_id,
+            user_id=str(user.id),
+            command_id=command_id,
+            desktop_device_id=request.desktop_device_id,
+            pairing_id=request.pairing_id,
+            route_token=request.route_token,
+            host_instance_id=request.host_instance_id,
+            status=request.status,
+            result_summary=request.result_summary,
+            failure_reason=request.failure_reason,
         )
     except RemoteControlError as exc:
         _remote_control_error(exc)

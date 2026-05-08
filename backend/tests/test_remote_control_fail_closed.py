@@ -233,3 +233,122 @@ async def test_remote_control_pairing_confirm_route_token_queue_cancel_and_audit
     assert "queued" in reason_codes
     assert "cancelled" in reason_codes
     assert "must-redact" not in str(audit.json())
+
+
+@pytest.mark.asyncio
+async def test_remote_control_desktop_host_claims_and_reports_execution_status(
+    auth_client,
+    db_session,
+    test_organization,
+):
+    pairing_response = await auth_client.post(
+        "/api/v1/sync/remote-control/pairings",
+        json={
+            "mobile_device_id": "mobile-b",
+            "desktop_device_id": "desktop-b",
+            "requested_scopes": ["desktop:control"],
+            "privacy_mode": "hybrid",
+        },
+    )
+    pairing_id = pairing_response.json()["pairing_id"]
+    confirm_response = await auth_client.post(
+        f"/api/v1/sync/remote-control/pairings/{pairing_id}/confirm",
+        json={"desktop_device_id": "desktop-b"},
+    )
+    assert confirm_response.status_code == 200
+
+    await AgentGovernanceService(db_session).create_capability_route(
+        org_id=str(test_organization.id),
+        route_key="desktop-control",
+        route_type="desktop_control",
+        allowed_consumers=[pairing_id],
+        allowed_scopes=["desktop:control"],
+        status="enabled",
+    )
+    await db_session.flush()
+    token_response = await auth_client.post(
+        "/api/v1/sync/remote-control/route-token",
+        json={"pairing_id": pairing_id, "ttl_seconds": 300},
+    )
+    route_token = token_response.json()["route_token"]
+
+    command_response = await auth_client.post(
+        "/api/v1/sync/remote-control/commands",
+        json={
+            "desktop_device_id": "desktop-b",
+            "command_type": "open_case_review",
+            "payload": {"case_id": "case-b", "secret": "client-secret"},
+            "pairing_id": pairing_id,
+            "route_token": route_token,
+            "privacy_mode": "hybrid",
+            "risk_level": "l3",
+            "second_confirmed": True,
+        },
+    )
+    command_id = command_response.json()["command_id"]
+
+    claim_response = await auth_client.post(
+        "/api/v1/sync/remote-control/commands/claim",
+        json={
+            "desktop_device_id": "desktop-b",
+            "pairing_id": pairing_id,
+            "route_token": route_token,
+            "host_instance_id": "desktop-host-b",
+            "limit": 5,
+        },
+    )
+    assert claim_response.status_code == 200
+    claimed = claim_response.json()
+    assert claimed["total"] == 1
+    assert claimed["items"][0]["command_id"] == command_id
+    assert claimed["items"][0]["status"] == "claimed"
+    assert claimed["items"][0]["payload"]["secret"] == "[REDACTED]"
+
+    running_response = await auth_client.post(
+        f"/api/v1/sync/remote-control/commands/{command_id}/status",
+        json={
+            "desktop_device_id": "desktop-b",
+            "pairing_id": pairing_id,
+            "route_token": route_token,
+            "host_instance_id": "desktop-host-b",
+            "status": "running",
+        },
+    )
+    assert running_response.status_code == 200
+    assert running_response.json()["status"] == "running"
+    assert running_response.json()["started_at"]
+
+    completed_response = await auth_client.post(
+        f"/api/v1/sync/remote-control/commands/{command_id}/status",
+        json={
+            "desktop_device_id": "desktop-b",
+            "pairing_id": pairing_id,
+            "route_token": route_token,
+            "host_instance_id": "desktop-host-b",
+            "status": "completed",
+            "result_summary": {"ok": True, "route_token": "must-redact-result"},
+        },
+    )
+    assert completed_response.status_code == 200
+    completed = completed_response.json()
+    assert completed["status"] == "completed"
+    assert completed["completed_at"]
+
+    stored_command = (
+        await db_session.execute(select(RemoteControlCommand).where(RemoteControlCommand.id == command_id))
+    ).scalar_one()
+    assert stored_command.result_summary == {"ok": True, "route_token": "[REDACTED]"}
+
+    cancel_response = await auth_client.post(
+        f"/api/v1/sync/remote-control/commands/{command_id}/cancel",
+        json={"reason": "too late"},
+    )
+    assert cancel_response.status_code == 409
+    assert _detail(cancel_response)["code"] == "remote_control_command_not_cancellable"
+
+    audit = await auth_client.get("/api/v1/sync/remote-control/audit-events")
+    reason_codes = [item["reason_code"] for item in audit.json()["items"]]
+    assert "claimed" in reason_codes
+    assert "running" in reason_codes
+    assert "completed" in reason_codes
+    assert "must-redact-result" not in str(audit.json())
