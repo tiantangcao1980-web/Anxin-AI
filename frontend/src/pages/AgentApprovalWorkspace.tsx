@@ -23,6 +23,7 @@ import {
   type SkillGovernanceStatus,
 } from '@/lib/api'
 import { icons, type IconComponent } from '@/lib/icons'
+import { useAuthStore } from '@/lib/store'
 
 type FilterStatus = 'all' | AgentApprovalStatus
 
@@ -65,6 +66,13 @@ const CAPABILITY_AGENT_OPTIONS = [
   { value: 'legal_advisor', label: 'Legal Advisor' },
   { value: 'contract_analyzer', label: 'Contract Analyzer' },
 ]
+
+const FULL_CAPABILITY_ROLES = new Set(['admin', 'boss', 'owner', 'org_admin', 'super_admin'])
+const DEPARTMENT_CAPABILITY_ROLES = new Set(['department_admin', 'dept_admin'])
+const PROVIDER_CAPABILITY_ROLES = new Set(['accountant', 'external_provider', 'finance_advisor', 'lawyer', 'tax_advisor'])
+const BASIC_TOOL_RISKS = new Set(['', 'l0', 'l1', 'low', 'none', 'read', 'read_only', 'readonly'])
+const FULL_ONLY_TOOL_TAGS = new Set(['admin', 'billing', 'cli', 'code', 'desktop', 'export', 'mcp', 'system'])
+const PROVIDER_VISIBLE_TOOL_TAGS = new Set(['knowledge', 'material', 'package', 'provider'])
 
 function formatDateTime(value?: string | null): string {
   if (!value) return '未设置'
@@ -126,7 +134,69 @@ function downloadSkillAuditArtifact(proposalId: string, artifact: SkillGovernanc
   window.setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
+function normalizeRole(role?: string | null): string {
+  return (role || 'employee').trim().toLowerCase().replace(/-/g, '_')
+}
+
+function normalizeRiskLevel(value?: string): string {
+  return (value || '').trim().toLowerCase().replace(/-/g, '_')
+}
+
+function toolTags(tool: HarnessToolItem): Set<string> {
+  return new Set((tool.tags ?? []).map((tag) => tag.trim().toLowerCase()).filter(Boolean))
+}
+
+function hasFullCapabilityVisibility(role: string): boolean {
+  return FULL_CAPABILITY_ROLES.has(normalizeRole(role))
+}
+
+function roleVisibilityLabel(role: string): string {
+  const normalized = normalizeRole(role)
+  if (FULL_CAPABILITY_ROLES.has(normalized)) return '全量能力'
+  if (DEPARTMENT_CAPABILITY_ROLES.has(normalized)) return '部门能力'
+  if (PROVIDER_CAPABILITY_ROLES.has(normalized)) return '材料包能力'
+  return '基础与申请'
+}
+
+function isBasicCapabilityTool(tool: HarnessToolItem): boolean {
+  return !tool.requires_approval && BASIC_TOOL_RISKS.has(normalizeRiskLevel(tool.risk_level))
+}
+
+function hasFullOnlyTag(tool: HarnessToolItem): boolean {
+  const tags = toolTags(tool)
+  for (const tag of tags) {
+    if (FULL_ONLY_TOOL_TAGS.has(tag)) return true
+  }
+  return false
+}
+
+function providerCanSeeTool(tool: HarnessToolItem, isAvailable: boolean): boolean {
+  if (isAvailable || isBasicCapabilityTool(tool)) return true
+  const tags = toolTags(tool)
+  for (const tag of tags) {
+    if (PROVIDER_VISIBLE_TOOL_TAGS.has(tag)) return true
+  }
+  return false
+}
+
+function canRoleSeeCapabilityTool(tool: HarnessToolItem, role: string, isAvailable: boolean): boolean {
+  const normalized = normalizeRole(role)
+  if (FULL_CAPABILITY_ROLES.has(normalized)) return true
+  if (PROVIDER_CAPABILITY_ROLES.has(normalized)) return providerCanSeeTool(tool, isAvailable)
+  if (isAvailable || isBasicCapabilityTool(tool)) return true
+  if (hasFullOnlyTag(tool)) return false
+  if (DEPARTMENT_CAPABILITY_ROLES.has(normalized)) return Boolean(tool.requires_approval)
+  return Boolean(tool.requires_approval)
+}
+
+function capabilityToolState(tool: HarnessToolItem, isAvailable: boolean): 'available' | 'blocked' | 'requestable' {
+  if (isAvailable) return 'available'
+  if (tool.requires_approval) return 'requestable'
+  return 'blocked'
+}
+
 export default function AgentApprovalWorkspace() {
+  const currentUserRole = useAuthStore((state) => state.user?.role ?? 'employee')
   const [items, setItems] = useState<AgentApprovalItem[]>([])
   const [status, setStatus] = useState<FilterStatus>('pending')
   const [pendingCount, setPendingCount] = useState(0)
@@ -475,6 +545,7 @@ export default function AgentApprovalWorkspace() {
 
       <CapabilityPolicyPanel
         agent={capabilityAgent}
+        role={currentUserRole}
         tools={capabilityTools}
         availability={capabilityAvailability}
         loading={capabilityLoading}
@@ -902,6 +973,7 @@ function SkillAuditTrail({
 
 function CapabilityPolicyPanel({
   agent,
+  role,
   tools,
   availability,
   loading,
@@ -910,6 +982,7 @@ function CapabilityPolicyPanel({
   onRefresh,
 }: {
   agent: string
+  role: string
   tools: HarnessToolItem[]
   availability: HarnessAgentTools | null
   loading: boolean
@@ -918,9 +991,13 @@ function CapabilityPolicyPanel({
   onRefresh: () => void
 }) {
   const availableSet = new Set(availability?.available_tools ?? [])
-  const availableCount = tools.filter((tool) => availableSet.has(tool.name)).length
-  const blockedCount = Math.max(tools.length - availableCount, 0)
-  const approvalCount = tools.filter((tool) => tool.requires_approval).length
+  const visibleTools = tools.filter((tool) => canRoleSeeCapabilityTool(tool, role, availableSet.has(tool.name)))
+  const availableCount = visibleTools.filter((tool) => availableSet.has(tool.name)).length
+  const blockedCount = Math.max(visibleTools.length - availableCount, 0)
+  const hiddenCount = Math.max(tools.length - visibleTools.length, 0)
+  const approvalCount = visibleTools.filter((tool) => tool.requires_approval).length
+  const fullVisibility = hasFullCapabilityVisibility(role)
+  const visibilityLabel = roleVisibilityLabel(role)
 
   return (
     <section className="rounded-lg border border-border bg-background p-4 shadow-sm" data-testid="capability-policy-panel">
@@ -933,6 +1010,10 @@ function CapabilityPolicyPanel({
             <h2 className="truncate text-base font-semibold text-foreground">能力策略</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
               {availability?.agent ?? agent} · 可用 {availableCount} · 阻断 {blockedCount}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground" data-testid="capability-role-visibility">
+              {normalizeRole(role)} · {visibilityLabel}
+              {hiddenCount > 0 ? ` · 已隐藏 ${hiddenCount}` : ''}
             </p>
           </div>
         </div>
@@ -959,7 +1040,7 @@ function CapabilityPolicyPanel({
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <MiniMetric label="注册工具" value={tools.length} icon={icons.Wrench} />
+        <MiniMetric label={fullVisibility ? '注册工具' : '可见工具'} value={visibleTools.length} icon={icons.Wrench} />
         <MiniMetric label="当前可用" value={availableCount} icon={icons.CheckCircle2} />
         <MiniMetric label="需审批" value={approvalCount} icon={icons.ShieldAlert} />
       </div>
@@ -969,14 +1050,15 @@ function CapabilityPolicyPanel({
           <LoadingState variant="skeleton" rows={3} />
         ) : error ? (
           <ErrorState variant="card" message={error} onRetry={onRefresh} />
-        ) : tools.length === 0 ? (
+        ) : visibleTools.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground">
-            暂无注册工具
+            当前角色暂无可见能力
           </div>
         ) : (
           <div className="grid gap-2 lg:grid-cols-2" data-testid="capability-policy-tool-list">
-            {tools.slice(0, 8).map((tool) => {
+            {visibleTools.slice(0, 8).map((tool) => {
               const isAvailable = availableSet.has(tool.name)
+              const state = capabilityToolState(tool, isAvailable)
               return (
                 <div key={tool.name} className="flex min-h-[76px] min-w-0 items-start justify-between gap-3 rounded-lg border border-border bg-muted/20 p-3">
                   <div className="min-w-0">
@@ -998,11 +1080,13 @@ function CapabilityPolicyPanel({
                     </div>
                   </div>
                   <span className={`shrink-0 rounded-md border px-2 py-1 text-xs font-semibold ${
-                    isAvailable
+                    state === 'available'
                       ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                      : 'border-muted bg-background text-muted-foreground'
+                      : state === 'requestable'
+                        ? 'border-amber-200 bg-amber-50 text-amber-700'
+                        : 'border-muted bg-background text-muted-foreground'
                   }`}>
-                    {isAvailable ? '可用' : '阻断'}
+                    {state === 'available' ? '可用' : state === 'requestable' ? '可申请' : '阻断'}
                   </span>
                 </div>
               )

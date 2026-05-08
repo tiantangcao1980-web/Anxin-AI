@@ -13,11 +13,19 @@ export type UserRole =
   | 'super_admin'
   | 'admin'
   | 'org_admin'
+  | 'owner'
+  | 'boss'
+  | 'department_admin'
   | 'dept_admin'
   | 'partner'
   | 'lawyer'
   | 'paralegal'
   | 'enterprise_user'
+  | 'employee'
+  | 'external_provider'
+  | 'tax_advisor'
+  | 'accountant'
+  | 'finance_advisor'
   | 'individual_user'
   | 'platform_lawyer'
   | 'member'    // 兼容旧角色
@@ -76,15 +84,15 @@ export const FEATURE_FLAGS: Record<string, FeatureStatus> = {
 
 // ===== 角色层级（用于判断管理权限）=====
 const ADMIN_ROLES: Set<UserRole> = new Set([
-  'super_admin', 'admin', 'org_admin',
+  'super_admin', 'admin', 'org_admin', 'owner', 'boss',
 ]);
 
 const MANAGEMENT_ROLES: Set<UserRole> = new Set([
-  'super_admin', 'admin', 'org_admin', 'dept_admin', 'partner',
+  'super_admin', 'admin', 'org_admin', 'owner', 'boss', 'department_admin', 'dept_admin', 'partner',
 ]);
 
 const LAWYER_ROLES: Set<UserRole> = new Set([
-  'partner', 'lawyer', 'paralegal', 'platform_lawyer',
+  'partner', 'lawyer', 'paralegal', 'platform_lawyer', 'external_provider', 'tax_advisor', 'accountant', 'finance_advisor',
 ]);
 
 // ===== 功能-角色可见性矩阵 =====
@@ -92,27 +100,27 @@ const FEATURE_VISIBILITY: Record<string, Set<UserRole> | 'all'> = {
   ai_chat: 'all',
   contract_review: 'all',
   dashboard: new Set([
-    'super_admin', 'admin', 'org_admin', 'dept_admin', 'partner', 'lawyer',
-    'paralegal', 'enterprise_user', 'member',
+    'super_admin', 'admin', 'org_admin', 'owner', 'boss', 'department_admin', 'dept_admin', 'partner', 'lawyer',
+    'paralegal', 'enterprise_user', 'employee', 'member',
   ]),
   case_management: new Set([
-    'super_admin', 'admin', 'org_admin', 'dept_admin', 'partner', 'lawyer',
-    'paralegal', 'enterprise_user', 'platform_lawyer', 'member',
+    'super_admin', 'admin', 'org_admin', 'owner', 'boss', 'department_admin', 'dept_admin', 'partner', 'lawyer',
+    'paralegal', 'enterprise_user', 'employee', 'platform_lawyer', 'member',
   ]),
   admin_panel: ADMIN_ROLES,
   approval_workflow: new Set([
-    'super_admin', 'admin', 'org_admin', 'dept_admin', 'partner', 'lawyer',
-    'paralegal', 'enterprise_user', 'member',
+    'super_admin', 'admin', 'org_admin', 'owner', 'boss', 'department_admin', 'dept_admin', 'partner', 'lawyer',
+    'paralegal', 'enterprise_user', 'employee', 'member',
   ]),
   lawyer_matching: new Set([
-    'super_admin', 'admin', 'org_admin', 'enterprise_user', 'individual_user',
+    'super_admin', 'admin', 'org_admin', 'owner', 'boss', 'enterprise_user', 'employee', 'individual_user',
     'client', 'member',
   ]),
   leads: new Set([
-    'super_admin', 'admin', 'org_admin', 'partner', 'lawyer', 'platform_lawyer',
+    'super_admin', 'admin', 'org_admin', 'owner', 'boss', 'partner', 'lawyer', 'platform_lawyer',
   ]),
   experts: new Set([
-    'super_admin', 'admin', 'org_admin', 'partner', 'lawyer', 'enterprise_user',
+    'super_admin', 'admin', 'org_admin', 'owner', 'boss', 'partner', 'lawyer', 'enterprise_user', 'employee',
     'member',
   ]),
   lawyer_dashboard: new Set([

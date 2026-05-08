@@ -154,7 +154,7 @@ can_execute_capability(actor, org, capability, risk_level, data_scope, privacy_m
 
 - `AgentApprovalService` 已补后端 service 级审批底座：普通员工可发起待审批请求；只有 owner/boss/super_admin/org_admin/admin 可决定或撤销；审批过期、撤销、未批准、action mismatch、route mismatch 和 route disabled/revoked 都会 fail-closed 并写 `AgentAuditEvent`。
 - `backend/src/api/routes/agent_approvals.py` 已补正式 API：创建审批、按组织/本人 scope 列表与详情、pending count、audit-events、audit-export、approve/reject/revoke、workspace-control fail-closed、执行前 validate，并由 `backend/tests/test_agent_approval_api.py` 覆盖未登录拒绝、普通员工不能自批、管理员批准后 validate 放行、撤销后 fail-closed、审批审计时间线/导出、运行时未接入时暂停/接管/终止拒绝和 payload 脱敏。
-- `frontend/src/pages/AgentApprovalWorkspace.tsx` 已补最小 Human-in-the-loop 高风险审批入口：按状态筛选、展示风险动作/route/payload 预览、批准/驳回/撤销、审批审计时间线、JSON 导出和已批准工作室控制入口，并接入 `/agent-approvals` API、桌面侧边栏、移动协作导航；`frontend/e2e/agent-approval-workspace.spec.ts` 覆盖桌面审计/导出/批准动作、运行时未接入时控制 fail-closed 和移动端视口不横向溢出。
+- `frontend/src/pages/AgentApprovalWorkspace.tsx` 已补最小 Human-in-the-loop 高风险审批入口：按状态筛选、展示风险动作/route/payload 预览、批准/驳回/撤销、审批审计时间线、JSON 导出和已批准工作室控制入口，并接入 `/agent-approvals` API、桌面侧边栏、移动协作导航；能力策略面板已按当前组织角色过滤可见工具，老板/Owner/超级管理员/admin 类角色看全量，普通员工只看基础能力和可申请能力，高风险/full-only 工具保持隐藏；`frontend/e2e/agent-approval-workspace.spec.ts` 覆盖桌面审计/导出/批准动作、运行时未接入时控制 fail-closed、员工能力中心可见边界和移动端视口不横向溢出。
 - `scripts/commercial-readiness-gate.sh --with-local-tests` 已加入 `agent approval service tests`、`agent approval API tests` 与 `frontend agent approval workspace e2e`。
 - 仍缺完整工作室的旁听、真实暂停/接管/终止执行效果、长任务 artifact 导出和真实执行链路接入。
 
@@ -163,6 +163,10 @@ can_execute_capability(actor, org, capability, risk_level, data_scope, privacy_m
 - 能力列表：基础问答、知识库、文档草稿、浏览器执行、CLI harness、软件/原型、远控桌面、MCP、Skills。
 - 每个能力展示：订阅要求、可用角色、风险级别、隐私模式限制、版本、owner、评测状态、最近调用、失败率、审计入口。
 - 老板/超级管理员可启用/禁用能力，部门管理员只能申请部门级能力。
+
+当前本地进展：
+
+- 最小 Agent 治理工作台中的能力策略面板已完成角色可见性收口：全量角色可见全部注册工具；普通员工只见低风险基础能力和需要审批的可申请能力；MCP 管理、远控桌面等高风险/full-only 能力在员工视角隐藏；`loginAsRole` Playwright harness 已能模拟 employee/admin 角色并锁住该边界。完整组织策略 CRUD、套餐购买联动、部门级申请流和真实 connector 演练仍待后续闭环。
 
 ### Step 6 · Skill Evolution Gate
 
@@ -222,7 +226,7 @@ docs/audit/12-enterprise-agent-governance/
 - [x] AgentApproval service/API 和最小前端工作台具备创建、列表/count、审批/驳回/撤销、过期、action/route 匹配、执行前 validate、组织/本人 scope、审批审计时间线、审批审计 JSON 导出、运行时未接入时 workspace-control fail-closed、移动视口回归和审计回归；完整工作室和真实执行链路接入仍未完成。
 - [ ] Worker/Agent 不持有真实密钥；MCP tool execution、CLI `/execute` 和桌面端 CLI route-token 获取/传递已有 DB-backed route-token fail-closed 代码级回归，LLM/browser/desktop-control 和真实 approved connector 演练仍待闭环。
 - [x] 五类权限回归通过：员工浏览器填表被拒、部门管理员创建部门报告 agent、老板批准桌面远控、超级管理员撤销 MCP route、外部服务方只能看授权材料包；真实运行时 connector/工作室证据仍需后续闭环。
-- [ ] 能力中心只对老板/超级管理员展示全量能力；普通员工只见基础能力和可申请项。
+- [x] 能力中心最小可见性已按角色收口：老板/Owner/超级管理员/admin 看全量，普通员工只见基础能力和可申请项；完整能力中心策略 CRUD、订阅购买联动、部门申请流和真实 connector 演练仍待闭环。
 - [x] Skill 进化提案、评测门禁、管理员审批、灰度启用和回滚禁用已有本地与 DB-backed 正反向测试；组织级 UI、真实执行链路失权和商业发布证据仍未闭环。
 - [ ] 高风险工作室支持旁听、真实暂停/接管/终止执行效果和 artifact 导出。
 - [ ] 后端 pytest、前端 lint/build/test、release evidence secret scan 通过。

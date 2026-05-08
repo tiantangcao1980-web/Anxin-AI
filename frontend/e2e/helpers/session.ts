@@ -12,6 +12,7 @@ type AuthSeed = {
 }
 
 export type MockOptions = {
+  auth?: Partial<AuthSeed>
   contracts?: {
     list?: unknown
     create?: unknown
@@ -124,7 +125,9 @@ export async function installApiMocks(page: Page, options: MockOptions = {}) {
     const { pathname } = new URL(request.url())
 
     if (pathname.endsWith('/auth/login') && request.method() === 'POST') {
-      const accessToken = createMockToken('admin', 'e2e-admin')
+      const role = options.auth?.role ?? 'admin'
+      const userId = options.auth?.userId ?? 'e2e-admin'
+      const accessToken = createMockToken(role, userId)
       return fulfillJson(
         route,
         buildUnified({
@@ -132,23 +135,27 @@ export async function installApiMocks(page: Page, options: MockOptions = {}) {
           refresh_token: 'e2e-refresh-token',
           token_type: 'bearer',
           user: {
-            id: 'e2e-admin',
-            email: 'admin@anxinfawu.com',
-            name: 'E2E Admin',
-            role: 'admin',
+            id: userId,
+            email: options.auth?.email ?? `${role}@anxinfawu.com`,
+            name: options.auth?.name ?? 'E2E User',
+            role,
+            primary_client: options.auth?.primary_client,
           },
         }),
       )
     }
 
     if (pathname.endsWith('/auth/me') && request.method() === 'GET') {
+      const role = options.auth?.role ?? 'admin'
+      const userId = options.auth?.userId ?? 'e2e-admin'
       return fulfillJson(
         route,
         buildUnified({
-          id: 'e2e-admin',
-          email: 'admin@anxinfawu.com',
-          name: 'E2E Admin',
-          role: 'admin',
+          id: userId,
+          email: options.auth?.email ?? `${role}@anxinfawu.com`,
+          name: options.auth?.name ?? 'E2E User',
+          role,
+          primary_client: options.auth?.primary_client,
         }),
       )
     }

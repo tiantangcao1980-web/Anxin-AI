@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { loginAsAdmin } from './helpers/auth'
+import { loginAsAdmin, loginAsRole } from './helpers/auth'
 
 const agentApprovalFixture = {
   items: [
@@ -228,7 +228,7 @@ test.describe('Agent 审批工作台', () => {
     await expect(page.getByTestId('capability-policy-panel')).toContainText('能力策略')
     await expect(page.getByTestId('capability-policy-panel')).toContainText('legal_researcher · 可用 2 · 阻断 1')
     await expect(page.getByTestId('capability-policy-tool-list')).toContainText('知识库检索')
-    await expect(page.getByTestId('capability-policy-tool-list')).toContainText('阻断')
+    await expect(page.getByTestId('capability-policy-tool-list')).toContainText('可申请')
 
     const form = page.getByTestId('skill-governance-proposal-form')
     await form.getByLabel('目标版本').fill('1.2.0')
@@ -293,6 +293,65 @@ test.describe('Agent 审批工作台', () => {
     await row.getByRole('button', { name: '暂停' }).click()
     await controlRequest
     await expect(page.getByText(/runtime control is not integrated/)).toBeVisible()
+  })
+
+  test('普通员工能力中心只展示基础和可申请能力', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'desktop capability visibility coverage only')
+    await loginAsRole(page, 'employee', {
+      agentApprovals: {
+        list: agentApprovalFixture,
+        pendingCount: { pending: 1 },
+      },
+      harness: {
+        agentTools: {
+          agent: 'legal_researcher',
+          available_tools: ['search_knowledge'],
+        },
+        tools: [
+          {
+            name: 'search_knowledge',
+            display_name: '知识库检索',
+            description: '检索授权知识库',
+            risk_level: 'low',
+            requires_approval: false,
+            tags: ['knowledge'],
+          },
+          {
+            name: 'draft_contract',
+            display_name: '合同起草申请',
+            description: '申请生成合同草稿',
+            risk_level: 'medium',
+            requires_approval: true,
+            tags: ['contract'],
+          },
+          {
+            name: 'mcp_admin',
+            display_name: 'MCP 管理',
+            description: '管理组织外部 MCP 连接',
+            risk_level: 'high',
+            requires_approval: false,
+            tags: ['mcp', 'admin'],
+          },
+          {
+            name: 'desktop_remote',
+            display_name: '桌面远控',
+            description: '远程控制桌面客户端',
+            risk_level: 'high',
+            requires_approval: true,
+            tags: ['desktop'],
+          },
+        ],
+      },
+    })
+
+    await page.goto('/agent-approvals')
+
+    await expect(page.getByTestId('capability-role-visibility')).toContainText('employee · 基础与申请 · 已隐藏 2')
+    await expect(page.getByTestId('capability-policy-tool-list')).toContainText('知识库检索')
+    await expect(page.getByTestId('capability-policy-tool-list')).toContainText('合同起草申请')
+    await expect(page.getByTestId('capability-policy-tool-list')).toContainText('可申请')
+    await expect(page.getByTestId('capability-policy-tool-list')).not.toContainText('MCP 管理')
+    await expect(page.getByTestId('capability-policy-tool-list')).not.toContainText('桌面远控')
   })
 
   test('移动端工作台内容保持在视口内并高亮协作入口', async ({ page }, testInfo) => {
