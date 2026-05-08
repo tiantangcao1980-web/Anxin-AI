@@ -66,6 +66,17 @@ export type MockOptions = {
     revoke?: unknown
     workspaceControl?: unknown
   }
+  skillGovernance?: {
+    list?: unknown
+    enabled?: unknown
+    create?: unknown
+    auditEvents?: unknown
+    auditExport?: unknown
+    eval?: unknown
+    approve?: unknown
+    grayRelease?: unknown
+    rollback?: unknown
+  }
 }
 
 function createMockToken(role: string, userId = 'e2e-user', expired = false) {
@@ -135,6 +146,262 @@ export async function installApiMocks(page: Page, options: MockOptions = {}) {
           name: 'E2E Admin',
           role: 'admin',
         }),
+      )
+    }
+
+    if (pathname.endsWith('/skill-governance/enabled') && request.method() === 'GET') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.skillGovernance?.enabled ?? {
+            skill_name: 'contract-review',
+            enabled_version: '1.0.0',
+            enabled: true,
+          },
+        ),
+      )
+    }
+
+    if (pathname.endsWith('/skill-governance/proposals') && request.method() === 'GET') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.skillGovernance?.list ?? {
+            items: [
+              {
+                id: 'skill-e2e-1',
+                org_id: 'org-e2e',
+                skill_name: 'contract-review',
+                current_version: '1.0.0',
+                proposed_version: '1.1.0',
+                source: 'workspace:e2e',
+                created_by: 'employee-risk-owner',
+                created_by_role: 'employee',
+                risk_level: 'high',
+                status: 'draft',
+                eval_results: {},
+                created_at: '2026-05-08T10:00:00Z',
+                updated_at: '2026-05-08T10:00:00Z',
+              },
+            ],
+            total: 1,
+            page: 1,
+            page_size: 20,
+          },
+        ),
+      )
+    }
+
+    if (pathname.endsWith('/skill-governance/proposals') && request.method() === 'POST') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.skillGovernance?.create ?? {
+            id: 'skill-e2e-created',
+            org_id: 'org-e2e',
+            skill_name: 'contract-review',
+            current_version: '1.1.0',
+            proposed_version: '1.2.0',
+            source: 'workspace:manual-proposal',
+            created_by: 'e2e-admin',
+            created_by_role: 'admin',
+            risk_level: 'medium',
+            status: 'draft',
+            eval_results: {},
+            created_at: '2026-05-08T10:06:00Z',
+            updated_at: '2026-05-08T10:06:00Z',
+          },
+        ),
+      )
+    }
+
+    if (/\/skill-governance\/proposals\/[^/]+\/audit-events$/.test(pathname) && request.method() === 'GET') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.skillGovernance?.auditEvents ?? {
+            items: [
+              {
+                id: 'skill-audit-e2e-request',
+                org_id: 'org-e2e',
+                proposal_id: 'skill-e2e-1',
+                actor: 'employee-risk-owner',
+                action: 'skill_evolution.proposal.create',
+                status: 'success',
+                reason_code: 'draft_created',
+                resource_snapshot: {
+                  proposal_id: 'skill-e2e-1',
+                  skill_name: 'contract-review',
+                  status: 'draft',
+                },
+                metadata: { created_by_role: 'employee' },
+                created_at: '2026-05-08T10:01:00Z',
+              },
+            ],
+            total: 1,
+          },
+        ),
+      )
+    }
+
+    if (/\/skill-governance\/proposals\/[^/]+\/audit-export$/.test(pathname) && request.method() === 'GET') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.skillGovernance?.auditExport ?? {
+            schema_version: 'skill_governance_audit_export.v1',
+            generated_at: '2026-05-08T10:05:00Z',
+            proposal: {
+              id: 'skill-e2e-1',
+              org_id: 'org-e2e',
+              skill_name: 'contract-review',
+              current_version: '1.0.0',
+              proposed_version: '1.1.0',
+              source: 'workspace:e2e',
+              created_by: 'employee-risk-owner',
+              created_by_role: 'employee',
+              risk_level: 'high',
+              status: 'draft',
+              eval_results: {},
+              created_at: '2026-05-08T10:00:00Z',
+              updated_at: '2026-05-08T10:00:00Z',
+            },
+            audit_events: [
+              {
+                id: 'skill-audit-e2e-request',
+                org_id: 'org-e2e',
+                proposal_id: 'skill-e2e-1',
+                actor: 'employee-risk-owner',
+                action: 'skill_evolution.proposal.create',
+                status: 'success',
+                reason_code: 'draft_created',
+                created_at: '2026-05-08T10:01:00Z',
+              },
+            ],
+            total: 1,
+            limit: 500,
+          },
+        ),
+      )
+    }
+
+    if (/\/skill-governance\/proposals\/[^/]+\/eval$/.test(pathname) && request.method() === 'POST') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.skillGovernance?.eval ?? {
+            id: 'skill-e2e-1',
+            org_id: 'org-e2e',
+            skill_name: 'contract-review',
+            current_version: '1.0.0',
+            proposed_version: '1.1.0',
+            source: 'workspace:e2e',
+            created_by: 'employee-risk-owner',
+            created_by_role: 'employee',
+            risk_level: 'high',
+            status: 'evaluated',
+            eval_results: {
+              offline_eval: true,
+              permission_regression: true,
+              prompt_injection: true,
+              privacy_mode: true,
+              audit_log: true,
+            },
+            created_at: '2026-05-08T10:00:00Z',
+            updated_at: '2026-05-08T10:04:00Z',
+          },
+        ),
+      )
+    }
+
+    if (/\/skill-governance\/proposals\/[^/]+\/approve$/.test(pathname) && request.method() === 'POST') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.skillGovernance?.approve ?? {
+            id: 'skill-e2e-2',
+            org_id: 'org-e2e',
+            skill_name: 'tax-risk',
+            current_version: '2.0.0',
+            proposed_version: '2.1.0',
+            source: 'workspace:e2e',
+            created_by: 'employee-risk-owner',
+            created_by_role: 'employee',
+            risk_level: 'high',
+            status: 'approved',
+            eval_results: {
+              offline_eval: true,
+              permission_regression: true,
+              prompt_injection: true,
+              privacy_mode: true,
+              audit_log: true,
+            },
+            approved_by: 'e2e-admin',
+            approver_role: 'admin',
+            created_at: '2026-05-08T10:00:00Z',
+            updated_at: '2026-05-08T10:05:00Z',
+          },
+        ),
+      )
+    }
+
+    if (/\/skill-governance\/proposals\/[^/]+\/gray-release$/.test(pathname) && request.method() === 'POST') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.skillGovernance?.grayRelease ?? {
+            id: 'skill-e2e-3',
+            org_id: 'org-e2e',
+            skill_name: 'mcp-browser-use',
+            current_version: '0.2.0',
+            proposed_version: '0.3.0',
+            source: 'workspace:e2e',
+            created_by: 'employee-risk-owner',
+            created_by_role: 'employee',
+            risk_level: 'high',
+            status: 'gray_released',
+            gray_percentage: 100,
+            eval_results: {
+              offline_eval: true,
+              permission_regression: true,
+              prompt_injection: true,
+              privacy_mode: true,
+              audit_log: true,
+            },
+            created_at: '2026-05-08T10:00:00Z',
+            updated_at: '2026-05-08T10:06:00Z',
+          },
+        ),
+      )
+    }
+
+    if (/\/skill-governance\/proposals\/[^/]+\/rollback$/.test(pathname) && request.method() === 'POST') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.skillGovernance?.rollback ?? {
+            id: 'skill-e2e-3',
+            org_id: 'org-e2e',
+            skill_name: 'mcp-browser-use',
+            current_version: '0.2.0',
+            proposed_version: '0.3.0',
+            source: 'workspace:e2e',
+            created_by: 'employee-risk-owner',
+            created_by_role: 'employee',
+            risk_level: 'high',
+            status: 'rolled_back',
+            rollback_reason: 'rollback requested in workspace',
+            eval_results: {
+              offline_eval: true,
+              permission_regression: true,
+              prompt_injection: true,
+              privacy_mode: true,
+              audit_log: true,
+            },
+            created_at: '2026-05-08T10:00:00Z',
+            updated_at: '2026-05-08T10:07:00Z',
+          },
+        ),
       )
     }
 

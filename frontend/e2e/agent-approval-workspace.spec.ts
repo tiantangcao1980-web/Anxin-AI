@@ -39,6 +39,73 @@ const approvedAgentApprovalFixture = {
   ],
 }
 
+const skillGovernanceFixture = {
+  items: [
+    {
+      id: 'skill-e2e-1',
+      org_id: 'org-e2e',
+      skill_name: 'contract-review',
+      current_version: '1.0.0',
+      proposed_version: '1.1.0',
+      source: 'workspace:e2e',
+      created_by: 'employee-risk-owner',
+      created_by_role: 'employee',
+      risk_level: 'high',
+      status: 'draft',
+      eval_results: {},
+      created_at: '2026-05-08T10:00:00Z',
+      updated_at: '2026-05-08T10:00:00Z',
+    },
+    {
+      id: 'skill-e2e-2',
+      org_id: 'org-e2e',
+      skill_name: 'tax-risk',
+      current_version: '2.0.0',
+      proposed_version: '2.1.0',
+      source: 'workspace:e2e',
+      created_by: 'employee-risk-owner',
+      created_by_role: 'employee',
+      risk_level: 'high',
+      status: 'evaluated',
+      eval_results: {
+        offline_eval: true,
+        permission_regression: true,
+        prompt_injection: true,
+        privacy_mode: true,
+        audit_log: true,
+      },
+      created_at: '2026-05-08T10:00:00Z',
+      updated_at: '2026-05-08T10:04:00Z',
+    },
+    {
+      id: 'skill-e2e-3',
+      org_id: 'org-e2e',
+      skill_name: 'mcp-browser-use',
+      current_version: '0.2.0',
+      proposed_version: '0.3.0',
+      source: 'workspace:e2e',
+      created_by: 'employee-risk-owner',
+      created_by_role: 'employee',
+      risk_level: 'high',
+      status: 'approved',
+      eval_results: {
+        offline_eval: true,
+        permission_regression: true,
+        prompt_injection: true,
+        privacy_mode: true,
+        audit_log: true,
+      },
+      approved_by: 'e2e-admin',
+      approver_role: 'admin',
+      created_at: '2026-05-08T10:00:00Z',
+      updated_at: '2026-05-08T10:05:00Z',
+    },
+  ],
+  total: 3,
+  page: 1,
+  page_size: 20,
+}
+
 test.describe('Agent 审批工作台', () => {
   test('桌面端可以进入高风险 Agent 审批并执行批准动作', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name === 'mobile', 'desktop decision workflow coverage only')
@@ -134,6 +201,74 @@ test.describe('Agent 审批工作台', () => {
     await expect(page.getByText('审批已批准', { exact: true })).toBeVisible()
   })
 
+  test('桌面端可以治理 Skill 提案、审计和灰度发布', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'desktop skill governance coverage only')
+    await loginAsAdmin(page, {
+      agentApprovals: {
+        list: agentApprovalFixture,
+        pendingCount: { pending: 1 },
+      },
+      skillGovernance: {
+        list: skillGovernanceFixture,
+        enabled: {
+          skill_name: 'contract-review',
+          enabled_version: '1.0.0',
+          enabled: true,
+        },
+      },
+    })
+
+    await page.goto('/agent-approvals')
+
+    await expect(page.getByTestId('skill-governance-panel')).toContainText('Skills 进化治理')
+    await expect(page.getByTestId('skill-governance-panel')).toContainText('contract-review · 启用 1.0.0')
+    await expect(page.getByTestId('skill-governance-row-skill-e2e-1')).toContainText('contract-review 1.0.0 → 1.1.0')
+    await expect(page.getByTestId('skill-governance-row-skill-e2e-2')).toContainText('已评测')
+    await expect(page.getByTestId('skill-governance-row-skill-e2e-3')).toContainText('已批准')
+
+    const form = page.getByTestId('skill-governance-proposal-form')
+    await form.getByLabel('目标版本').fill('1.2.0')
+    const createRequest = page.waitForRequest((request) =>
+      request.method() === 'POST' && request.url().includes('/skill-governance/proposals'),
+    )
+    await form.getByRole('button', { name: '创建' }).click()
+    await createRequest
+    await expect(page.getByText('Skill 提案已创建', { exact: true })).toBeVisible()
+
+    const draftRow = page.getByTestId('skill-governance-row-skill-e2e-1')
+    await draftRow.getByRole('button', { name: '审计' }).click()
+    await expect(page.getByTestId('skill-governance-audit-trail')).toContainText('skill evolution / proposal / create')
+    await expect(page.getByTestId('skill-governance-audit-trail')).toContainText('success · draft_created')
+
+    const exportRequest = page.waitForRequest((request) =>
+      request.method() === 'GET' && request.url().includes('/skill-governance/proposals/skill-e2e-1/audit-export'),
+    )
+    await draftRow.getByRole('button', { name: '导出' }).click()
+    await exportRequest
+    await expect(page.getByText('Skill 审计导出已生成', { exact: true })).toBeVisible()
+
+    const evalRequest = page.waitForRequest((request) =>
+      request.method() === 'POST' && request.url().includes('/skill-governance/proposals/skill-e2e-1/eval'),
+    )
+    await draftRow.getByRole('button', { name: '评测' }).click()
+    await evalRequest
+    await expect(page.getByText('评测结果已记录', { exact: true })).toBeVisible()
+
+    const approveRequest = page.waitForRequest((request) =>
+      request.method() === 'POST' && request.url().includes('/skill-governance/proposals/skill-e2e-2/approve'),
+    )
+    await page.getByTestId('skill-governance-row-skill-e2e-2').getByRole('button', { name: '批准' }).click()
+    await approveRequest
+    await expect(page.getByText('Skill 提案已批准', { exact: true })).toBeVisible()
+
+    const grayRequest = page.waitForRequest((request) =>
+      request.method() === 'POST' && request.url().includes('/skill-governance/proposals/skill-e2e-3/gray-release'),
+    )
+    await page.getByTestId('skill-governance-row-skill-e2e-3').getByRole('button', { name: '灰度' }).click()
+    await grayRequest
+    await expect(page.getByText('Skill 已灰度启用', { exact: true })).toBeVisible()
+  })
+
   test('桌面端工作室控制在运行时未接入前 fail-closed', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name === 'mobile', 'desktop workspace control coverage only')
     await loginAsAdmin(page, {
@@ -169,6 +304,7 @@ test.describe('Agent 审批工作台', () => {
 
     await expect(page.getByRole('heading', { name: 'Agent 审批工作台' })).toBeVisible()
     await expect(page.getByRole('button', { name: '协作' })).toHaveClass(/text-primary/)
+    await expect(page.getByTestId('skill-governance-panel')).toBeVisible()
     await expect(page.getByTestId('agent-approval-row-approval-e2e-1')).toBeVisible()
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)

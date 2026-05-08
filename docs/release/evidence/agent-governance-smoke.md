@@ -14,13 +14,13 @@ This evidence file tracks the enterprise-agent governance lane. It is intentiona
 | Capability policy | code-level complete for subscription, permission, privacy, device, channel, high-risk approval context, unknown-tool fail-closed, and MCP runtime re-checks | `backend/tests/test_agent_governance_policy.py`, `backend/tests/test_capability_routes.py` |
 | Route-token broker | code-level complete for hash-only lease storage, scope checks, expiration, consumer mismatch, revocation next-call failure, and audit events | `backend/tests/test_agent_governance_service.py`, `backend/tests/test_mcp_route_governance.py`, `backend/tests/test_cli_route.py` |
 | High-risk approvals | code-level complete for service/API creation, scope, authorized decisions, revocation, expiration, validate, audit timeline, audit export, payload redaction, and workspace-control fail-closed | `backend/tests/test_agent_approval_service.py`, `backend/tests/test_agent_approval_api.py`, `frontend/e2e/agent-approval-workspace.spec.ts` |
-| Skill governance | code-level complete for proposal, required eval, authorized approval, gray release, rollback, enabled-version persistence, org isolation, API scope, API audit export, append-only audit events, migration upgrade/downgrade, and no raw secret/token columns | `backend/tests/test_skill_evolution_service.py`, `backend/tests/test_skill_service.py`, `backend/tests/test_skill_governance_models.py`, `backend/tests/test_skill_governance_service.py`, `backend/tests/test_skill_governance_api.py` |
+| Skill governance | code-level complete for proposal, required eval, authorized approval, gray release, rollback, enabled-version persistence, org isolation, API scope, API audit export, append-only audit events, migration upgrade/downgrade, no raw secret/token columns, and a minimal frontend governance panel for create/eval/approve/gray/audit flows | `backend/tests/test_skill_evolution_service.py`, `backend/tests/test_skill_service.py`, `backend/tests/test_skill_governance_models.py`, `backend/tests/test_skill_governance_service.py`, `backend/tests/test_skill_governance_api.py`, `frontend/src/lib/api.ts`, `frontend/src/pages/AgentApprovalWorkspace.tsx`, `frontend/e2e/agent-approval-workspace.spec.ts` |
 | Mobile remote-control safety gate | code-level complete for not-configured, local/top-secret, missing second confirmation, missing pairing, missing route token, and missing queue/audit fail-closed states | `backend/tests/test_remote_control_fail_closed.py`, `mobile/src/app/desktop-control.tsx` |
 | Real approved connector rehearsal | pending | TBD |
 | LLM/browser/desktop-control route-token integration | pending | TBD |
 | Human-in-the-loop observe/pause/takeover/terminate runtime | pending | TBD |
 | Artifact-first workspace and export flow | pending | TBD |
-| Full capability center UI and organization policy CRUD | pending | TBD |
+| Full capability center UI beyond the Agent approval and Skill governance panels, plus organization policy CRUD | pending | TBD |
 | Memory governance and cross-process revocation evidence | pending | TBD |
 
 ## Local Verification

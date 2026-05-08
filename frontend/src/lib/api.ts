@@ -3025,6 +3025,133 @@ export const agentApprovalsApi = {
     }),
 }
 
+export type SkillGovernanceStatus = 'draft' | 'evaluated' | 'approved' | 'gray_released' | 'rejected' | 'rolled_back'
+
+export const SKILL_GOVERNANCE_REQUIRED_CHECKS = [
+  'offline_eval',
+  'permission_regression',
+  'prompt_injection',
+  'privacy_mode',
+  'audit_log',
+] as const
+
+export interface SkillGovernanceProposal {
+  id: string
+  org_id: string
+  skill_name: string
+  current_version?: string | null
+  proposed_version: string
+  source: string
+  created_by?: string | null
+  created_by_role?: string | null
+  risk_level: string
+  status: SkillGovernanceStatus
+  eval_results?: Record<string, boolean> | null
+  approved_by?: string | null
+  approver_role?: string | null
+  approved_at?: string | null
+  gray_percentage?: number | null
+  released_at?: string | null
+  rolled_back_at?: string | null
+  rollback_reason?: string | null
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export interface SkillGovernanceAuditEvent {
+  id: string
+  org_id: string
+  proposal_id: string
+  actor: string
+  action: string
+  status: string
+  reason_code?: string | null
+  resource_snapshot?: Record<string, unknown> | null
+  metadata?: Record<string, unknown> | null
+  created_at?: string | null
+}
+
+export interface SkillGovernanceAuditExport {
+  schema_version: string
+  generated_at: string
+  proposal: SkillGovernanceProposal
+  audit_events: SkillGovernanceAuditEvent[]
+  total: number
+  limit: number
+}
+
+export interface SkillGovernanceEnabledVersion {
+  skill_name: string
+  enabled_version?: string | null
+  enabled: boolean
+}
+
+export const skillGovernanceApi = {
+  list: (params?: { status?: string; page?: number; page_size?: number }) => {
+    const query = new URLSearchParams()
+    if (params?.status) query.set('status', params.status)
+    if (params?.page) query.set('page', String(params.page))
+    if (params?.page_size) query.set('page_size', String(params.page_size))
+    const suffix = query.toString()
+    return request<{ items: SkillGovernanceProposal[]; total: number; page: number; page_size: number }>(
+      suffix ? `/skill-governance/proposals?${suffix}` : '/skill-governance/proposals',
+    )
+  },
+
+  get: (id: string) => request<SkillGovernanceProposal>(`/skill-governance/proposals/${id}`),
+
+  enabled: (skillName: string, version?: string | null) => {
+    const query = new URLSearchParams({ skill_name: skillName })
+    if (version) query.set('version', version)
+    return request<SkillGovernanceEnabledVersion>(`/skill-governance/enabled?${query}`)
+  },
+
+  create: (data: {
+    skill_name: string
+    proposed_version: string
+    source: string
+    current_version?: string | null
+    risk_level?: string
+  }) =>
+    request<SkillGovernanceProposal>('/skill-governance/proposals', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  auditEvents: (id: string, limit = 50) =>
+    request<{ items: SkillGovernanceAuditEvent[]; total: number }>(
+      `/skill-governance/proposals/${id}/audit-events?limit=${limit}`,
+    ),
+
+  auditExport: (id: string, limit = 500) =>
+    request<SkillGovernanceAuditExport>(
+      `/skill-governance/proposals/${id}/audit-export?limit=${limit}`,
+    ),
+
+  recordEval: (id: string, checks: Record<string, boolean>) =>
+    request<SkillGovernanceProposal>(`/skill-governance/proposals/${id}/eval`, {
+      method: 'POST',
+      body: JSON.stringify({ checks }),
+    }),
+
+  approve: (id: string) =>
+    request<SkillGovernanceProposal>(`/skill-governance/proposals/${id}/approve`, {
+      method: 'POST',
+    }),
+
+  grayRelease: (id: string, percentage: number) =>
+    request<SkillGovernanceProposal>(`/skill-governance/proposals/${id}/gray-release`, {
+      method: 'POST',
+      body: JSON.stringify({ percentage }),
+    }),
+
+  rollback: (id: string, reason: string) =>
+    request<SkillGovernanceProposal>(`/skill-governance/proposals/${id}/rollback`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+}
+
 // ============ 审批流 API ============
 
 export interface ApprovalItem {
