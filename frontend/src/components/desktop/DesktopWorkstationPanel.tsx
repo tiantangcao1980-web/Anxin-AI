@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { knowledgeApi, mcpApi } from '@/lib/api'
 import { useAppModeStore } from '@/lib/store'
 import { checkLocalLLMStatus, getQueueStats, isTauri, listLocalModels } from '@/lib/tauri-bridge'
 import { heading, iconSize, statusBadge } from '@/lib/design-tokens'
@@ -39,21 +40,36 @@ const RESOURCE_ICON: Record<WorkstationResource['id'], typeof icons.LayoutDashbo
 }
 
 type ProbeStatus = 'preview' | 'loading' | 'ready'
+type ServiceProbeStatus = ProbeStatus | 'skipped' | 'error'
 
 interface WorkstationProbeState {
   status: ProbeStatus
+  knowledgeStatus: ServiceProbeStatus
+  mcpStatus: ServiceProbeStatus
   localModelAvailable: boolean
   localModelUrl: string
   localModelCount: number
+  knowledgeBaseTotal: number
+  knowledgeDocumentCount: number
+  mcpServerCount: number
+  mcpEnabledCount: number
+  mcpToolCount: number
   queueTotal: number
   queueFailed: number
 }
 
 const PREVIEW_PROBES: WorkstationProbeState = {
   status: 'preview',
+  knowledgeStatus: 'preview',
+  mcpStatus: 'preview',
   localModelAvailable: false,
   localModelUrl: '',
   localModelCount: 0,
+  knowledgeBaseTotal: 0,
+  knowledgeDocumentCount: 0,
+  mcpServerCount: 0,
+  mcpEnabledCount: 0,
+  mcpToolCount: 0,
   queueTotal: 0,
   queueFailed: 0,
 }
@@ -78,25 +94,46 @@ export function DesktopWorkstationPanel() {
       }
     }
 
-    setProbes((current) => ({ ...current, status: 'loading' }))
+    setProbes((current) => ({
+      ...current,
+      status: 'loading',
+      knowledgeStatus: mode === 'top-secret' ? 'skipped' : 'loading',
+      mcpStatus: mode === 'top-secret' ? 'skipped' : 'loading',
+    }))
 
     Promise.allSettled([
       checkLocalLLMStatus(),
       listLocalModels(),
       getQueueStats(),
-    ]).then(([llmResult, modelsResult, queueResult]) => {
+      mode === 'top-secret' ? Promise.resolve(null) : knowledgeApi.listBases({ page_size: 100 }),
+      mode === 'top-secret' ? Promise.resolve(null) : mcpApi.listServers(),
+    ]).then(([llmResult, modelsResult, queueResult, knowledgeResult, mcpResult]) => {
       if (cancelled) return
 
       const llm = llmResult.status === 'fulfilled' ? llmResult.value as Record<string, unknown> | null : null
       const models = modelsResult.status === 'fulfilled' ? modelsResult.value as Record<string, unknown> | null : null
       const queue = queueResult.status === 'fulfilled' ? queueResult.value as Record<string, unknown> | null : null
+      const knowledge = knowledgeResult.status === 'fulfilled'
+        ? knowledgeResult.value as { items?: Array<{ doc_count?: number }>; total?: number } | null
+        : null
+      const mcpServers = mcpResult.status === 'fulfilled' && Array.isArray(mcpResult.value) ? mcpResult.value : []
       const modelItems = Array.isArray(models?.models) ? models.models : []
+      const knowledgeItems = Array.isArray(knowledge?.items) ? knowledge.items : []
 
       setProbes({
         status: 'ready',
+        knowledgeStatus: mode === 'top-secret' ? 'skipped' : knowledgeResult.status === 'fulfilled' ? 'ready' : 'error',
+        mcpStatus: mode === 'top-secret' ? 'skipped' : mcpResult.status === 'fulfilled' ? 'ready' : 'error',
         localModelAvailable: Boolean(llm?.available || models?.available),
         localModelUrl: typeof llm?.url === 'string' ? llm.url : '',
         localModelCount: modelItems.length,
+        knowledgeBaseTotal: Number(knowledge?.total ?? knowledgeItems.length),
+        knowledgeDocumentCount: knowledgeItems.reduce((total, item) => total + Number(item.doc_count ?? 0), 0),
+        mcpServerCount: mcpServers.length,
+        mcpEnabledCount: mcpServers.filter((server) => Boolean(server?.is_enabled)).length,
+        mcpToolCount: mcpServers.reduce((total, server) => {
+          return total + (Array.isArray(server?.cached_tools) ? server.cached_tools.length : 0)
+        }, 0),
         queueTotal: Number(queue?.total ?? 0),
         queueFailed: Number(queue?.failed ?? 0),
       })
@@ -105,7 +142,7 @@ export function DesktopWorkstationPanel() {
     return () => {
       cancelled = true
     }
-  }, [desktopClient])
+  }, [desktopClient, mode])
 
   return (
     <div className="space-y-4" data-testid="desktop-workstation-panel">
@@ -175,12 +212,12 @@ export function DesktopWorkstationPanel() {
 
       <Card className="border-border rounded-xl" data-testid="desktop-workstation-probes">
         <CardHeader className="pb-3">
-          <CardTitle className={heading.card}>本机状态探针</CardTitle>
+          <CardTitle className={heading.card}>工作站状态探针</CardTitle>
           <CardDescription className={heading.muted}>
-            {desktopClient ? '读取桌面运行时本地状态，不上传业务数据' : '非桌面环境仅展示待接入状态'}
+            {desktopClient ? '只读读取桌面运行时与治理状态，不上传业务数据' : '非桌面环境仅展示待接入状态'}
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <CardContent className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
           <ProbeCell
             testId="workstation-probe-local-model"
             label="本地模型"
@@ -198,6 +235,28 @@ export function DesktopWorkstationPanel() {
                 ? `${probes.localModelCount} 个模型${probes.localModelUrl ? ` · ${probes.localModelUrl}` : ''}`
                 : 'Ollama / 本地兼容端点'
             }
+          />
+          <ProbeCell
+            testId="workstation-probe-knowledge"
+            label="独立知识库"
+            value={getServiceProbeValue(desktopClient, probes.knowledgeStatus, `${probes.knowledgeBaseTotal} 个库`)}
+            detail={getServiceProbeDetail(
+              probes.knowledgeStatus,
+              `${probes.knowledgeDocumentCount} 份文档，按组织权限只读`,
+              '绝密模式不读取数据网络状态',
+              '知识库索引状态'
+            )}
+          />
+          <ProbeCell
+            testId="workstation-probe-mcp"
+            label="Skills / MCP"
+            value={getServiceProbeValue(desktopClient, probes.mcpStatus, `${probes.mcpServerCount} 个服务`)}
+            detail={getServiceProbeDetail(
+              probes.mcpStatus,
+              `${probes.mcpEnabledCount} 个启用 · ${probes.mcpToolCount} 个工具缓存`,
+              '绝密模式不读取 MCP 管理状态',
+              '服务治理状态'
+            )}
           />
           <ProbeCell
             testId="workstation-probe-offline-queue"
@@ -242,6 +301,27 @@ export function DesktopWorkstationPanel() {
       </Card>
     </div>
   )
+}
+
+function getServiceProbeValue(desktopClient: boolean, status: ServiceProbeStatus, readyValue: string) {
+  if (!desktopClient) return '需桌面端'
+  if (status === 'preview') return '待接入'
+  if (status === 'loading') return '检测中'
+  if (status === 'skipped') return '已阻断'
+  if (status === 'error') return '读取失败'
+  return readyValue
+}
+
+function getServiceProbeDetail(
+  status: ServiceProbeStatus,
+  readyDetail: string,
+  skippedDetail: string,
+  defaultDetail: string
+) {
+  if (status === 'skipped') return skippedDetail
+  if (status === 'error') return `${defaultDetail}读取失败`
+  if (status === 'ready') return readyDetail
+  return `${defaultDetail}只读读取`
 }
 
 function ProbeCell({

@@ -11,7 +11,7 @@ type AuthSeed = {
   primary_client?: 'needer' | 'provider'
 }
 
-type MockOptions = {
+export type MockOptions = {
   contracts?: {
     list?: unknown
     create?: unknown
@@ -45,6 +45,9 @@ type MockOptions = {
     types?: unknown
     detail?: unknown
     subgraph?: unknown
+  }
+  mcp?: {
+    servers?: unknown
   }
   collaboration?: {
     sessions?: unknown
@@ -165,6 +168,10 @@ export async function installApiMocks(page: Page, options: MockOptions = {}) {
         status: 'ok',
         data: { decision: 'deny' },
       })
+    }
+
+    if (pathname.endsWith('/mcp/servers') && request.method() === 'GET') {
+      return fulfillJson(route, options.mcp?.servers ?? [])
     }
 
     if (pathname.endsWith('/knowledge-center/graph/overview') && request.method() === 'GET') {

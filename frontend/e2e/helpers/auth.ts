@@ -1,8 +1,8 @@
 import { expect, type Page } from '@playwright/test'
-import { installApiMocks, seedAuthState } from './session'
+import { installApiMocks, type MockOptions, seedAuthState } from './session'
 
-export async function loginAsAdmin(page: Page) {
-  await installApiMocks(page)
+export async function loginAsAdmin(page: Page, options?: MockOptions) {
+  await installApiMocks(page, options)
   await seedAuthState(page, {
     role: 'admin',
     userId: 'e2e-admin',

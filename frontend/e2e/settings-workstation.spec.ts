@@ -3,8 +3,30 @@ import { expect, test } from '@playwright/test'
 import { loginAsAdmin } from './helpers/auth'
 
 test.describe('桌面主工作站设置入口', () => {
-  test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page)
+  test.beforeEach(async ({ page }, testInfo) => {
+    const workstationProbeFixtures = testInfo.title.includes('desktop runtime')
+      ? {
+          knowledge: {
+            bases: {
+              items: [
+                { id: 'kb-1', name: '制度库', knowledge_type: 'policy', doc_count: 5, is_public: false, created_at: '2026-05-08T00:00:00Z' },
+                { id: 'kb-2', name: '合同库', knowledge_type: 'contract', doc_count: 7, is_public: false, created_at: '2026-05-08T00:00:00Z' },
+              ],
+              total: 2,
+              page: 1,
+              page_size: 100,
+            },
+          },
+          mcp: {
+            servers: [
+              { id: 'mcp-1', name: 'files', type: 'stdio', is_enabled: true, cached_tools: [{ name: 'search' }, { name: 'read' }], created_at: '2026-05-08T00:00:00Z' },
+              { id: 'mcp-2', name: 'browser', type: 'sse', is_enabled: false, cached_tools: [{ name: 'open' }], created_at: '2026-05-08T00:00:00Z' },
+            ],
+          },
+        }
+      : undefined
+
+    await loginAsAdmin(page, workstationProbeFixtures)
   })
 
   test('direct and legacy links open the workstation tab', async ({ page }) => {
@@ -65,6 +87,11 @@ test.describe('桌面主工作站设置入口', () => {
     await expect(page.getByText('桌面在线')).toBeVisible()
     await expect(page.getByTestId('workstation-probe-local-model')).toContainText('可用')
     await expect(page.getByTestId('workstation-probe-local-model')).toContainText('1 个模型')
+    await expect(page.getByTestId('workstation-probe-knowledge')).toContainText('2 个库')
+    await expect(page.getByTestId('workstation-probe-knowledge')).toContainText('12 份文档')
+    await expect(page.getByTestId('workstation-probe-mcp')).toContainText('2 个服务')
+    await expect(page.getByTestId('workstation-probe-mcp')).toContainText('1 个启用')
+    await expect(page.getByTestId('workstation-probe-mcp')).toContainText('3 个工具缓存')
     await expect(page.getByTestId('workstation-probe-offline-queue')).toContainText('3 条')
     await expect(page.getByTestId('workstation-probe-offline-queue')).toContainText('1 条失败需处理')
     await expect(page.getByTestId('workstation-probe-remote-control')).toContainText('待验收')
