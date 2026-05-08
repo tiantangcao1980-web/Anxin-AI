@@ -140,6 +140,7 @@ can_execute_capability(actor, org, capability, risk_level, data_scope, privacy_m
 - `backend/src/services/llm_route_governance.py`、`backend/src/agents/base.py` 和 `backend/src/api/routes/chat.py` 已把 REST/SSE/WebSocket Chat Agent LLM runtime 接入 DB-backed route token：staging/production 默认 fail-closed，开发/测试可用 `LLM_ROUTE_TOKEN_REQUIRED=true` 提前演练；scope 固定为 `llm:chat`，`/chat/route-token` 可按当前用户 consumer 签发短期 token，WebSocket 首包、连接 header 或单条消息 payload 可传递 route token，Agent 同步/流式模型调用在真实 HTTP 前校验 token。
 - `backend/src/services/crawler_service.py` 已在 `crawler_service.fetch()` 的 robots/http 访问前接入 DB-backed browser route token；staging/production 默认 fail-closed，开发/测试可用 `BROWSER_FETCH_ROUTE_TOKEN_REQUIRED=true` 提前演练；scope 固定为 `browser:fetch`，route 撤销后下一次 fetch 在触网前拒绝；`due_diligence_service.py` 已移除执行信息/信用中国/裁判文书查询的直接 Playwright fallback，只允许走合规 crawl service 或返回无外部证据。
 - `backend/src/services/remote_control_service.py` 已在命令入队阶段把 desktop-control 控制面收紧为 safe-probe-only：有效 pairing 和 route token 之后仍会规范化 `command_type`，只允许 `ping/status_probe/desktop.ping/desktop.status_probe`，非 safe-probe 命令返回 `remote_control_command_type_not_supported` 并写 `unsupported_command_type` 审计，避免高风险真实桌面执行器未接入前出现“可排队但不可执行”的灰区。
+- `backend/src/services/memory_layer.py` 已补 governed session artifact 写入门禁：local/top-secret 模式拒绝跨会话持久化，org/user scope 和 consent 必填，artifact payload 递归脱敏 token/secret/api_key/private_key 字段；`backend/tests/test_memory_governance.py` 当前 `3 passed`。
 - `backend/src/agents/base.py` / `workforce.py` / `task_context.py` 已支持通过 `mcp_route_context`/contextvars 将 route token 传递到真实 MCP tool execution。
 - `backend/tests/test_agent_governance_service.py` 已覆盖 hash-only lease、原始 token 不入审计、组织隔离、consumer/scope 拒绝、过期 fail-closed、consumer mismatch、route 撤销后下一次调用失败，以及组织策略更新脱敏/禁用撤销 lease。
 - `backend/tests/test_mcp_route_governance.py` 已覆盖 MCP 开发态兼容、商业环境缺 token fail-closed、DB route token 放行、route revoke 后拒绝和 consumer mismatch 拒绝。
@@ -183,7 +184,7 @@ can_execute_capability(actor, org, capability, risk_level, data_scope, privacy_m
 - `backend/src/services/skill_service.py` 已支持在治理模式下只返回当前 enabled version。
 - `backend/tests/test_skill_evolution_service.py` 与 `backend/tests/test_skill_service.py` 已覆盖 agent 不能自启生产版本、评测失败/缺失拒绝审批、越权审批拒绝、灰度百分比边界、回滚后下一次技能匹配回到上一版本。
 - `backend/src/services/skill_governance_service.py` 已把 Skill 进化门禁生产化为 DB-backed SkillGovernance：proposal、required eval、授权审批、灰度启用、回滚、enabled version 查询、组织隔离和审计事件都可跨 service 实例持久化；`backend/src/api/routes/skill_governance.py` 已补正式 API，覆盖提案、列表/详情、enabled version、评测、审批、灰度、回滚、audit-events 和 audit-export；`backend/tests/test_skill_governance_models.py`、`backend/tests/test_skill_governance_service.py` 与 `backend/tests/test_skill_governance_api.py` 共 `16 passed`。
-- 仍需后续把 AgentApproval/AgentAuditEvent/SkillGovernance 接入完整 browser automation 和 desktop-control 执行链路、组织级能力中心 UI、真实 CapabilityRoute 撤销联动、记忆治理和商业发布证据；RAG direct LLM 的 route-token 代码级边界已收口，但还需纳入完整商业运行时演练。
+- 仍需后续把 AgentApproval/AgentAuditEvent/SkillGovernance/MemoryGovernance 接入完整 browser automation 和 desktop-control 执行链路、组织级能力中心 UI、真实 CapabilityRoute 撤销联动、记忆治理运行时与 UI、商业发布证据；RAG direct LLM 的 route-token 代码级边界已收口，但还需纳入完整商业运行时演练。
 
 - 定义 `SkillEvolutionProposal`：来源失败案例、用户反馈、评测失败、人工建议或 agent 观察。
 - Proposal 只能生成草案、测试和风险说明；不得自动修改 enabled Skill。

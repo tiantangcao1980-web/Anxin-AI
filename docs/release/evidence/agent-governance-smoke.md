@@ -21,7 +21,7 @@ This evidence file tracks the enterprise-agent governance lane. It is intentiona
 | Human-in-the-loop observe/pause/takeover/terminate runtime | pending | TBD |
 | Artifact-first workspace and export flow | code-level partial complete for approved-workspace summary artifact recording, list view, JSON export, API redaction, service redaction, and frontend workspace artifact panel; still missing runtime-generated long-task artifacts, artifact editing, desktop/local sync rehearsal, cross-device recovery, and commercial runtime evidence | `backend/src/services/agent_approval_service.py`, `backend/src/api/routes/agent_approvals.py`, `backend/tests/test_agent_approval_service.py`, `backend/tests/test_agent_approval_api.py`, `frontend/src/lib/api.ts`, `frontend/src/pages/AgentApprovalWorkspace.tsx`, `frontend/e2e/helpers/session.ts`, `frontend/e2e/agent-approval-workspace.spec.ts` |
 | Full capability center UI beyond the current role-filtered visibility panel, org route enable/disable panel, Agent approval panel, and Skill governance panel, plus full policy editor, subscription purchase linkage, and department request flow | pending | TBD |
-| Memory governance and cross-process revocation evidence | pending | TBD |
+| Memory governance and cross-process revocation evidence | code-level partial for governed session artifacts: local/top-secret modes fail closed before cross-session artifact persistence, org/user scope and explicit consent are required, persisted artifact payloads recursively redact token/secret/api_key/private_key fields, and the commercial local gate now runs `backend/tests/test_memory_governance.py`; cross-process revocation evidence beyond DB-backed route-token lease validation remains pending | `backend/src/services/memory_layer.py`, `backend/tests/test_memory_governance.py`, `scripts/commercial-readiness-gate.sh` |
 
 ## Local Verification
 
@@ -43,6 +43,8 @@ cd backend && ./.venv/bin/pytest -q tests/test_crawler_compliance.py
 cd backend && ./.venv/bin/pytest -q tests/test_due_diligence_intent.py tests/test_chat_due_diligence_routing.py
 # 21 passed on 2026-05-08, including no-direct-Playwright due-diligence Wenshu lookup coverage.
 cd backend && ./.venv/bin/pytest -q tests/test_skill_evolution_service.py tests/test_skill_service.py tests/test_skill_governance_models.py tests/test_skill_governance_service.py tests/test_skill_governance_api.py
+cd backend && ./.venv/bin/pytest -q tests/test_memory_governance.py
+# 3 passed on 2026-05-08, covering local/top-secret memory denial, org/user/consent requirement, and recursive artifact redaction.
 cd backend && ./.venv/bin/pytest -q tests/test_remote_control_fail_closed.py
 # 9 passed on 2026-05-08, including backend safe-probe-only enqueue rejection for unsupported command types.
 cd frontend && npx playwright test e2e/agent-approval-workspace.spec.ts --project=chromium --project=mobile

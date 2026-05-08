@@ -50,6 +50,7 @@
 - `docs/release/evidence/` 中保存的沙箱日志、回调摘录和 JSON 证据必须先通过 `scripts/release-evidence-secret-scan.sh`，不得包含明文密钥、access/refresh token、手机号或身份证号。
 - RAG/尽调缓存必须带 org namespace，不能跨组织复用。
 - 本地/绝密模式下，云端模型、外部 MCP、同步上传、移动远控外传默认 fail-closed；只有用户显式授权后才允许出站。当前桌面 CLI/sync/Harness IPC、本地同步桥、统一 API fetch、WebView 全局 fetch 和 WebSocket 已有代码级 guard，Tauri/前端 HTTP 插件面、宽泛 shell/opener launch capability 和宽松 CSP 已由 `scripts/desktop-network-surface-gate.sh` 收紧；工作站 UI 在 TopSecret 下不启用同步/远控动作，只允许进入本地能力或治理视图；后端远控 API 已有 DB-backed pairing/route-token/safe-probe-only queue/host-claim/status/cancel/audit 控制面，本地/绝密模式、缺配对、缺 route token、缺二次确认或非 safe-probe 命令时不入队；桌面 IPC host 客户端在 TopSecret 下会先被 data-network guard 阻断，显式单次 host cycle 和 bounded poll 只处理 safe probe；signed/notarized packaged runtime 出站拦截、外部脚本运行时复验、真正常驻后台 daemon、高风险真实执行器和移动真机证据仍需补齐。
+- 跨会话记忆和 agent workspace artifact 不得在 local/top-secret 模式持久化；必须带 org/user scope、明确 purpose/retention 和用户或组织 consent，payload 必须先递归脱敏。当前 `MemoryLayer.set_governed_session_artifact` 已补代码级门禁并由 `backend/tests/test_memory_governance.py` 覆盖，后续仍需接入完整 runtime/UI 和真实撤销失权证据。
 - 移动远程控制桌面必须有设备配对、权限范围、命令过期、取消/撤销、敏感动作二次确认和审计日志；未授权设备不能读取本地文件、密钥或知识库内容。
 - 外部抓取必须遵守 robots、UA、频控和法定数据源白名单。
 

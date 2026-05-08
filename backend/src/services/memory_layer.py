@@ -22,6 +22,7 @@ L0/L1/L2 分层加载：
 import copy
 import hashlib
 import json
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -54,6 +55,31 @@ DEFAULT_LEGAL_PROFILE: dict[str, Any] = {
     "confidence": 0.0,              # 画像置信度 (0-1)
     "last_updated": None,
 }
+
+MEMORY_WRITE_BLOCKING_PRIVACY_MODES = {"local", "top_secret", "top-secret", "topsecret"}
+SENSITIVE_MEMORY_FRAGMENTS = ("token", "secret", "password", "credential", "api_key", "private_key")
+
+
+@dataclass(frozen=True)
+class MemoryGovernanceContext:
+    """Governance context for durable/cross-session memory writes."""
+
+    org_id: str | None
+    user_id: str | None
+    privacy_mode: str = "hybrid"
+    consent: bool = False
+    purpose: str = "session_artifact"
+    retention: str = "session"
+
+
+@dataclass(frozen=True)
+class MemoryGovernanceDecision:
+    """Outcome of a governed memory write attempt."""
+
+    allowed: bool
+    reason_code: str
+    human_message: str
+    governance: dict[str, Any] | None = None
 
 
 class MemoryEntry:
@@ -377,6 +403,26 @@ class MemoryLayer:
         """保存会话级中间产物，用于跨会话上下文交接。"""
         self._session_artifacts.setdefault(session_id, {})[artifact_type] = data
 
+    async def set_governed_session_artifact(
+        self,
+        session_id: str,
+        artifact_type: str,
+        data: Any,
+        governance_context: MemoryGovernanceContext,
+    ) -> MemoryGovernanceDecision:
+        """Save a cross-session artifact only when memory governance allows it."""
+        decision = evaluate_memory_write(governance_context)
+        if not decision.allowed:
+            return decision
+
+        payload = {
+            "data": _sanitize_memory_payload(data),
+            "governance": decision.governance,
+            "recorded_at": datetime.now().isoformat(),
+        }
+        self._session_artifacts.setdefault(session_id, {})[artifact_type] = payload
+        return decision
+
     # ===== Buffer & Batch Processing (Memobase 思路) =====
 
     async def buffer_message(self, user_id: str, message: dict[str, Any]) -> None:
@@ -548,3 +594,74 @@ class MemoryLayer:
 
 # 全局实例
 memory_layer = MemoryLayer()
+
+
+def evaluate_memory_write(context: MemoryGovernanceContext) -> MemoryGovernanceDecision:
+    """Fail closed before persisting memory that can outlive a single request."""
+    normalized_privacy = (context.privacy_mode or "").strip().lower()
+    org_id = (context.org_id or "").strip()
+    user_id = (context.user_id or "").strip()
+    purpose = (context.purpose or "").strip()
+    retention = (context.retention or "").strip() or "session"
+
+    if normalized_privacy in MEMORY_WRITE_BLOCKING_PRIVACY_MODES:
+        return MemoryGovernanceDecision(
+            allowed=False,
+            reason_code="privacy_mode_blocks_memory",
+            human_message="Current privacy mode does not allow durable memory writes.",
+        )
+    if not org_id:
+        return MemoryGovernanceDecision(
+            allowed=False,
+            reason_code="missing_org_scope",
+            human_message="Durable memory writes require an organization scope.",
+        )
+    if not user_id:
+        return MemoryGovernanceDecision(
+            allowed=False,
+            reason_code="missing_user_scope",
+            human_message="Durable memory writes require a user scope.",
+        )
+    if not context.consent:
+        return MemoryGovernanceDecision(
+            allowed=False,
+            reason_code="memory_consent_required",
+            human_message="Durable memory writes require explicit user or organization consent.",
+        )
+    if not purpose:
+        return MemoryGovernanceDecision(
+            allowed=False,
+            reason_code="missing_memory_purpose",
+            human_message="Durable memory writes require a declared purpose.",
+        )
+
+    return MemoryGovernanceDecision(
+        allowed=True,
+        reason_code="allowed",
+        human_message="Memory write allowed by governance policy.",
+        governance={
+            "org_id": org_id,
+            "user_id": user_id,
+            "privacy_mode": normalized_privacy or "hybrid",
+            "purpose": purpose,
+            "retention": retention,
+            "consent": "true",
+        },
+    )
+
+
+def _sanitize_memory_payload(value: Any, key: str = "") -> Any:
+    if _is_sensitive_memory_key(key):
+        return "[redacted]"
+    if isinstance(value, dict):
+        return {str(child_key): _sanitize_memory_payload(child_value, str(child_key)) for child_key, child_value in value.items()}
+    if isinstance(value, list):
+        return [_sanitize_memory_payload(item, key) for item in value]
+    if isinstance(value, tuple):
+        return [_sanitize_memory_payload(item, key) for item in value]
+    return value
+
+
+def _is_sensitive_memory_key(key: str) -> bool:
+    normalized = key.lower()
+    return any(fragment in normalized for fragment in SENSITIVE_MEMORY_FRAGMENTS)
