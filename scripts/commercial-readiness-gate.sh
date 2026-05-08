@@ -367,6 +367,8 @@ if [ "$RUN_LOCAL_TESTS" -eq 1 ]; then
   require_command "backend mypy zero-baseline gate" bash scripts/mypy-baseline-check.sh
   require_command "agent capability policy tests" \
     bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_harness.py -k 'PolicyEngine or AgentMcpToolPolicy'"
+  require_command "agent governance policy tests" \
+    bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_agent_governance_policy.py"
   require_command "MCP connection config policy tests" \
     bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_config_commercial_guards.py -k mcp"
   require_command "RAG full50 runner tests" \

@@ -269,6 +269,9 @@
       "status": "in_progress",
       "can_parallelize": true,
       "write_scope": [
+        "backend/src/harness/policy_engine.py",
+        "backend/src/api/routes/harness.py",
+        "backend/tests/test_agent_governance_policy.py",
         "docs/audit/_tasks/TASK-12-agent-control-plane-skill-evolution.md",
         "docs/audit/12-enterprise-agent-governance/",
         "docs/security/agent-governance-policy.md",
@@ -277,6 +280,7 @@
       ],
       "evidence": [
         "docs/audit/_tasks/TASK-12-agent-control-plane-skill-evolution.md",
+        "backend/tests/test_agent_governance_policy.py",
         "docs/openspec/00-intelligent-assistant-platform-spec.md",
         "docs/openspec/01-commercial-delivery-spec.md",
         "docs/openspec/02-commercial-delivery-test-spec.md",
@@ -285,12 +289,13 @@
       "local_commands": [
         "test -s docs/audit/_tasks/TASK-12-agent-control-plane-skill-evolution.md",
         "rg -n \"AgentManager|CapabilityRoute|consumer token|Human-in-the-loop|SkillEvolutionProposal|可信会话|企业智能体治理\" docs/openspec docs/audit/_tasks docs/references",
-        "future: cd backend && ./.venv/bin/pytest -q tests/test_agent_governance_policy.py tests/test_capability_routes.py tests/test_agent_approval_flow.py",
+        "backend/.venv/bin/pytest -q backend/tests/test_agent_governance_policy.py",
+        "future: cd backend && ./.venv/bin/pytest -q tests/test_capability_routes.py tests/test_agent_approval_flow.py",
         "future: cd frontend && npm test -- AgentGovernance"
       ],
       "external_inputs": [],
       "current_blockers": [
-        "Governance specs and implementation task are ready, including trusted conversation UX and Skill Evolution Gate, but code-level AgentManager/Team/Worker/Human models, CapabilityRoute route-token isolation, approval workspace, capability center, long-task artifact workflow, and skill eval/approval/rollback are not implemented yet."
+        "Governance specs and implementation task are ready, including trusted conversation UX and Skill Evolution Gate. Policy engine and Harness capability listing now have code-level context filtering, but AgentManager/Team/Worker/Human models, CapabilityRoute route-token isolation, approval workspace, full capability center UI, long-task artifact workflow, and skill eval/approval/rollback are not implemented yet."
       ],
       "completion_gate": [
         "capability_policy_engine covers subscription, role, permission, risk, privacy mode, device trust, channel policy, and approval status",

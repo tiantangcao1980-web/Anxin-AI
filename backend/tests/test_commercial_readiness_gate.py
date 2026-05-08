@@ -25,3 +25,11 @@ def test_commercial_gate_runs_workstation_settings_e2e():
 
     assert 'require_command "frontend workstation settings e2e"' in script
     assert "e2e/settings-workstation.spec.ts --project=chromium --project=mobile" in script
+
+
+def test_commercial_gate_runs_agent_governance_policy_tests():
+    repo_root = Path(__file__).resolve().parents[2]
+    script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
+
+    assert 'require_command "agent governance policy tests"' in script
+    assert "tests/test_agent_governance_policy.py" in script

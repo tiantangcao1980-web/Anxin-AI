@@ -486,11 +486,15 @@ class PolicyEngine:
 
         return None
 
-    def get_agent_available_tools(self, agent_name: str) -> list[str]:
+    def get_agent_available_tools(
+        self,
+        agent_name: str,
+        context: PolicyContext | None = None,
+    ) -> list[str]:
         """获取 Agent 可用的所有工具列表"""
         available = []
         for tool_name in tool_registry._tools:
-            result = self.check_tool_access(agent_name, tool_name)
+            result = self.check_tool_access(agent_name, tool_name, context=context)
             if result.decision == PolicyDecision.ALLOW:
                 available.append(tool_name)
         return available
