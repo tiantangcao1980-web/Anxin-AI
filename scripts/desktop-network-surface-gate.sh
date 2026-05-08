@@ -72,6 +72,19 @@ function checkCapabilityFile(path, permissions) {
   if (httpPermissions.length > 0) {
     fail(`${path} enables active HTTP capability permissions: ${httpPermissions.join(", ")}`);
   }
+  const broadLaunchPermissions = permissions.filter(
+    (value) =>
+      typeof value === "string" &&
+      [
+        "shell:allow-open",
+        "opener:default",
+        "opener:allow-open-url",
+        "opener:allow-open-path",
+      ].includes(value)
+  );
+  if (broadLaunchPermissions.length > 0) {
+    fail(`${path} enables broad launch/open capability permissions: ${broadLaunchPermissions.join(", ")}`);
+  }
 }
 
 const capability = readJson("desktop/capabilities/default.json");

@@ -16,9 +16,6 @@
     "core:tray:allow-set-tooltip",
     "core:tray:allow-set-menu",
     "core:image:default",
-
-    "shell:allow-open",
-
     "fs:default",
     "fs:allow-read-text-file",
     "fs:allow-write-text-file",
@@ -83,10 +80,6 @@
     "process:default",
     "process:allow-exit",
     "process:allow-restart",
-
-    "opener:default",
-    "opener:allow-open-url",
-    "opener:allow-open-path",
 
     "global-shortcut:default",
     "global-shortcut:allow-register",
