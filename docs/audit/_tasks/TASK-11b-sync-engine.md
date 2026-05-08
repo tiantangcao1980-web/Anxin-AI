@@ -13,18 +13,16 @@
 
 ### 基础事实（不可绕过）
 
-- 当前 `desktop/src/commands/sync.rs` 第 18 行的 `build_push_body` push 体永远是空数组
-- 当前 `desktop/src/commands/sync.rs` 第 99 行 pull 拿到响应直接丢弃
-- 当前 `desktop/src/services/sync_engine.rs` 第 91 行 `push_pending_records` 仅 log + `Ok(0)`
-- 当前 `desktop/src/services/sync_engine.rs` 第 102 行 `pull_incremental_updates` 同上 `Ok(0)`
-- **HTTP 链路通了，但 SQLite 离线队列从未被读写**
-- **本任务实质是从零写**，不是"修补"。工时按 7-10 天计
+- 2026-05-08 后旧 Rust IPC 假成功已清除：未启用时返回 unsupported/fail-closed，并报告本地待同步、离线任务和冲突统计
+- `desktop/src/services/sync_engine.rs` 的 `push_pending_records` / `pull_incremental_updates` 未启用时返回 Error，不再 `Ok(0)`
+- 前端 `frontend/src/lib/api-adapter.ts` 已承担 SQLCipher 本地同步路径；仍缺 signed packaged runtime 证据证明真实环境可 push/pull/retry/conflict
+- **本任务现在不是修补假成功，而是补真实云端数据面、跨设备会话延续、移动远控命令队列和商业证据**。工时仍按 7-10 天计
 
 ### 要碰的文件
 
 - 桌面 Rust：
   - `desktop/src/services/sync_engine.rs`（整体重写 push / pull / 冲突合并 / 重试）
-  - `desktop/src/commands/sync.rs`（重写 `build_push_body` 与 pull 写回）
+  - `desktop/src/commands/sync.rs`（若启用 Rust IPC 数据面，接入真实 pending-record 序列化与 pull 写回；未启用时继续 fail-closed）
   - **新建** `desktop/migrations/001_offline_queue.sql`（SQLite schema）
   - **新建** `desktop/src/models/sync.rs`（OfflineTask / SyncState / ConflictRecord 数据模型）
   - 已有 `desktop/src/commands/sync.rs:155 resolve_conflict`（保留接口，重写实现）
@@ -60,10 +58,10 @@
 | # | 文件 | 现状 | 期望 |
 |---|---|---|---|
 | P0-1 | 新建 `desktop/migrations/001_offline_queue.sql` | 缺 | `offline_tasks`（id PK / entity_type / entity_id / operation / payload BLOB / created_at / status pending\|syncing\|synced\|failed / retry_count / last_error）+ `sync_state`（key PK / value）+ 索引 status / (entity_type, entity_id) |
-| P0-2 | `desktop/src/services/sync_engine.rs:91` 重写 `push_pending_records` | `Ok(0)` 占位 | 读 `WHERE status='pending'` 限 100 条 → POST `/api/v1/sync/push` → 按 `{accepted, rejected}` 标 synced / failed + last_error |
-| P0-2 | `desktop/src/commands/sync.rs:18` 重写 `build_push_body` | 永远空数组 | 从 SQLite 读 pending 任务序列化为 push body |
-| P0-3 | `desktop/src/services/sync_engine.rs:102` 重写 `pull_incremental_updates` | `Ok(0)` 占位 | GET `/api/v1/sync/pull?since_version=X` → 按 entity_type 写入本地 SQLite 各业务表 → 更新 `sync_state['last_sync_version']` |
-| P0-3 | `desktop/src/commands/sync.rs:99` 去掉响应丢弃 | `let _ = r.json()` | 真正解析响应 + 调 sync_engine 写回 |
+| P0-2 | `desktop/src/services/sync_engine.rs:191` 数据面 push | 已 fail-closed，不再 `Ok(0)`；真实云端 push 未启用 | 读真实本地待同步记录 → POST `/api/v1/sync/push` → 按 `{accepted, rejected}` 标 synced / failed + last_error，或继续保持明确 unsupported |
+| P0-2 | `desktop/src/commands/sync.rs` 直连同步 IPC | 已返回 unsupported/fail-closed，并展示本地统计 | 若启用 Rust IPC 数据面，必须从 SQLite 读 pending 任务序列化为 push body；未启用时继续禁止假成功 |
+| P0-3 | `desktop/src/services/sync_engine.rs:199` 数据面 pull | 已 fail-closed，不再 `Ok(0)`；真实云端 pull 未启用 | GET `/api/v1/sync/pull?since_version=X` → 按 entity_type 写入本地 SQLite 各业务表 → 更新 `sync_state['last_sync_version']`，或继续保持明确 unsupported |
+| P0-3 | `desktop/src/commands/sync.rs` pull 写回 | 直连 IPC 不再丢弃响应，而是整体未启用 | 若启用 Rust IPC 数据面，必须真正解析响应 + 写回；未启用时继续禁止假成功 |
 | P0-4 | `frontend/src/pages/SyncConflicts.tsx` + `frontend/src/lib/api-adapter.ts` | ✅ 代码级已补；runtime 未验 | conflict 行持久化到 `sync_log.status='conflict'`；前端 `/sync-conflicts` 展示本地/云端 JSON、提供 keep-local/keep-remote/merge；仍需 packaged Tauri runtime smoke |
 | P0-5 | `backend/src/services/sync_service.py` + `backend/src/api/routes/sync.py` | sync 接口未实现 device_id 隔离 + version 增量 | push: 校验 user 拥有 entity；按 entity_type 路由到对应 service upsert；写 sync_log（含 device_id 来源）。pull: 基于 sync_log `WHERE user_id=? AND version > ?` 增量返回；同 user 不同 device 互通，跨 user 完全隔离 |
 | P0-6 | `frontend/src/lib/api-adapter.ts` retry scheduler | ✅ 代码级已补；runtime 未验 | 失败 push 行写入 `retry_count` / `next_retry_at` / `needs_human`，按有界指数退避排队；仍需 packaged Tauri runtime smoke 证明 |
@@ -77,7 +75,7 @@
 ### Step 0 · PRD vs 代码差分（强制）
 
 产出 `docs/audit/11b-sync-engine/00-prd-reality-gap.md`：
-- PROJECT_STATUS / ROADMAP 自宣"离线任务队列 + 同步引擎已完成" vs 代码 4 处 `Ok(0)` / 空数组的真实状态
+- PROJECT_STATUS / ROADMAP 自宣"离线任务队列 + 同步引擎已完成" vs 当前 fail-closed Rust IPC、前端 SQLCipher 同步路径、packaged runtime 证据缺口的真实状态
 - 列横切缺口 C（本任务自身）
 - 列任务 11a 拖拽落地、任务 11c 跨设备会话延续对本任务的依赖
 - 列后端 sync_service 当前状态（是否已有 sync_log 表；是否已有 device_id 字段；是否已有 user_id 隔离查询）
@@ -100,18 +98,18 @@
 ### Step 3 · P0-2 push（SQLite → 云端）
 
 1. 新建 `desktop/src/models/sync.rs` 定义 `OfflineTask` 结构体 + `from_row` / `to_push_record`
-2. 重写 `commands/sync.rs:18 build_push_body`：从 SQLite 读 `status='pending' LIMIT 100`，按时序排序
-3. 重写 `services/sync_engine.rs:91 push_pending_records`：调 `build_push_body` → POST → 解析 `{accepted: [id...], rejected: [{id, reason}]}` → 批量更新本地状态
+2. 若启用 Rust IPC 数据面，在 `commands/sync.rs` 接入真实 pending-record 序列化：从 SQLite 读 `status='pending' LIMIT 100`，按时序排序；未启用时继续 fail-closed
+3. 重写 `services/sync_engine.rs` 的 `push_pending_records`：读取 pending records → POST → 解析 `{accepted: [id...], rejected: [{id, reason}]}` → 批量更新本地状态
 4. 后端 `routes/sync.py` push 路由：校验 Bearer Token → 校验每条 record 的 entity 归属 user → 路由到对应 service upsert → 写 `sync_log` → 返回结果
 5. 单测：mock SQLite + mock HTTP，覆盖 全部 accepted / 全部 rejected / 部分 accepted 三种路径
 
 ### Step 4 · P0-3 pull（云端 → SQLite）
 
-1. 重写 `services/sync_engine.rs:102 pull_incremental_updates`：从 `sync_state` 读 `last_sync_version` 作为 `since_version`，GET `/api/v1/sync/pull?since_version=X&limit=500`
+1. 重写 `services/sync_engine.rs` 的 `pull_incremental_updates`：从 `sync_state` 读 `last_sync_version` 作为 `since_version`，GET `/api/v1/sync/pull?since_version=X&limit=500`
 2. 后端 `routes/sync.py` pull 路由：`SELECT * FROM sync_log WHERE user_id = ? AND version > ? ORDER BY version LIMIT 500`
 3. 桌面端把响应按 entity_type 路由写入对应本地表（cases / contracts / documents / messages / ...）
 4. 写完后 `sync_state['last_sync_version'] = max(version)`
-5. 重写 `commands/sync.rs:99` 不再丢弃响应
+5. 若启用 Rust IPC 数据面，在 `commands/sync.rs` 真正解析响应并写回；未启用时继续禁止假成功
 6. 单测：覆盖 空响应 / 单 entity / 多 entity 混合 / 跨 user 不返回别人数据 三种路径
 
 ### Step 5 · P0-4 冲突合并

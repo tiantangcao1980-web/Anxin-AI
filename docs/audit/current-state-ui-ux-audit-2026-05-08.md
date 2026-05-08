@@ -33,7 +33,7 @@
 | 商业交付 ready | release evidence 全部 `Status: complete`，商业门禁通过 | 支付、电签、桌面 runtime、移动/小程序仍 pending | 证据不齐，门禁正确失败 | 保持 No-Go，补真实沙箱、signed/notarized desktop、真机证据后再改状态 |
 | 政府场景可信交付 | 生产路径不能静默 mock，失败必须可审计 | 支付默认 `mock`，未知 provider 回退 Mock：`backend/src/services/payment_service.py:672`；电签默认 Mock：`backend/src/services/esign_service.py:941` | 生产误配可能被 mock success 掩盖 | 增加 production fail-closed provider guard，local/test 才允许 mock |
 | OA 通知可靠性 | 审批/通知不能伪成功 | 飞书、钉钉、企微配置缺失时返回 `mock_token` 并 `return True`：`backend/src/services/oa_integration_service.py:86`、`:199`、`:275` | 政务协同通知可能实际未送达但系统显示成功 | 按环境拆分 mock/dev 与 production hard fail，补审计日志 |
-| 桌面同步可信 | 本地 SQLCipher/keyring 和云同步必须真实 push/pull | 前端 secure SQL 路径已有进展；Rust `desktop/src/services/sync_engine.rs:191`、`:199` 仍 TODO + `Ok(0)` | fallback 路径仍可能给出“同步完成”的假安全感 | 删除或显式禁用旧 Rust fallback，确保 UI 只展示真实队列/结果 |
+| 桌面同步可信 | 本地 SQLCipher/keyring 和云同步必须真实 push/pull | 前端 secure SQL 路径已有进展；Rust IPC 直连同步已改为 fail-closed，不再返回 `Ok(0)` 假成功；真实云端 push/pull、跨设备延续和 packaged runtime 证据仍未闭合 | 假成功风险已清除，但商业级跨端同步仍未完成 | 保持 unsupported/fail-closed 文案，继续实现真实云同步数据面、移动远控和 signed packaged runtime 验收 |
 | 移动端关键流程 | 智能调查和法律智库应可完成搜索/详情 | `mobile/app/(tabs)/investigation.tsx:73`、`knowledge.tsx:73` 仍 console/TODO；investigation 用 `useState` 触发副作用：`:64` | 用户点击后无业务结果，且有 React 生命周期风险 | 先修 `useEffect`，再接入搜索/详情/SSE 或显式禁用未完成入口 |
 | 小程序验收 | 微信端应有真实登录和设备证据 | WeChat DevTools CLI project smoke 通过，但 evidence 仍 pending；host probe 仅证明工具存在 | 还没有真实小程序交互闭环 | 用官方 appid/测试账号补交互式 DevTools 或真机 transcript |
 | 跨端设计系统 | Web/desktop/mobile/mini token 应统一 | `docs/design/cross-platform-token-drift.md` 已记录 Web `hsl(25 95% 53%)` 与 mobile/mini `#D4A574` 漂移 | 品牌和状态语义跨端不一致 | 冻结 token contract，再分端迁移硬编码颜色 |
@@ -69,7 +69,7 @@
 
 | 优先级 | 问题 | 证据 | 建议 |
 |---|---|---|---|
-| P0 | 旧 Rust sync engine 仍有 TODO + `Ok(0)` | `desktop/src/services/sync_engine.rs:191` | 移除旧路径或改成显式 unsupported，避免 UI 误报同步完成 |
+| P0 | 桌面云同步数据面仍未商业闭环 | `desktop/src/services/sync_engine.rs:191` 已 fail-closed；`docs/release/evidence/desktop-runtime-smoke.md` 仍 pending | 继续实现/验证真实 push/pull、跨设备延续和 signed packaged runtime，不允许把 unsupported 当完成 |
 | P1 | 冲突弹窗直接展示 JSON | `frontend/src/components/mode-switcher/SyncStatus.tsx:176` | 展示字段差异、更新时间、来源和推荐操作，保留高级详情折叠 |
 | P1 | toolbar 同步按钮偏小，冲突按钮文案拥挤 | `frontend/src/components/mode-switcher/SyncStatus.tsx:134` | 桌面端最小点击尺寸和状态文案重新设计 |
 | P1 | 托盘菜单用 emoji 表意 | `desktop/src/services/tray.rs:13` | 政府/专业交付建议用纯文本或系统图标，不依赖 emoji 字形 |

@@ -29,7 +29,7 @@
 | 三态运行 + 订阅商业化 | ✅ Web ModeGate 直接切换、PrivacyContext fail-open 与直连 fetch privacy header 已收口；仍需移动端/桌面端模式语义复核 | 🟠 P1（剩跨端面） |
 | S-104 LLM 配置组织隔离已修复 | ✅ `LLMService.list_configs` 组织隔离已 fail-closed，并有回归测试 | 🟢 已收口 |
 | 文档管理（上传/版本/协作） | ✅/⏳ 对象存储底座已接：`object_storage_service.py` + `029_document_object_storage` + 文档上传/删除/版本更新/合同保存真实写入；剩余 MinIO 凭据轮换、历史 backfill、IM/尽调/案件/模板/A2UI 附件入口切换 | 🟠 P1（剩扩展面） |
-| 桌面端"绝密本地"模式 + 同步引擎 | 后端 `/api/v1/sync/*` 已有 `SyncLog` 持久化增量日志；`desktop/src/commands/sync.rs` 仍 push 空数组 / pull 丢弃，`sync_engine.rs` 两个方法仍 `Ok(0)` | 🟠 P1 |
+| 桌面端"绝密本地"模式 + 同步引擎 | 后端 `/api/v1/sync/*` 已有 `SyncLog` 持久化增量日志；Rust IPC 直连同步已 fail-closed，不再伪造 `Ok(0)`；真实云端 push/pull、跨设备延续和 signed packaged runtime 证据仍未闭合 | 🟠 P1 |
 | 支付 / 电签 webhook 升级到 HMAC | ✅ 支付/电签通用 HMAC 路径已分别回写订单/订阅、合同签署状态；`webhook_received` 持久化幂等表、Admin `/admin/webhooks` 查询/手动重试入口、Prometheus webhook 指标、电签 flow 映射、失败 webhook 自动重试/backoff、统一 `webhook_handler.py`、稳定 `PaymentWebhookEvent` / `ESignWebhookEvent`、微信支付 v3/支付宝 RSA2 回调验签、微信/支付宝下单查询退款关单请求与同步响应验签、e签宝 provider/官方 HMAC 回调、法大大 FASC provider/webhook 代码级协议已落；仍缺真实商户沙箱闭环、账号事件映射与灰度证据 | 🔴 P0（真实渠道仍阻断） |
 
 **结论**：PROJECT_STATUS 不是不可信，而是"标完成"和"商业化可上线"之间还差一层。本计划书的目标就是把这层缺口补上。
@@ -297,8 +297,8 @@ Day 30-36   缓冲 + P2 质量基线（ruff/mypy 分层基线 + 性能调优）
 | 9 | [payment_service.py](../../backend/src/services/payment_service.py) | ✅ 微信支付 v3 Native 下单/查单/关单/退款、支付宝 page.pay/query/refund/close 签名请求与同步响应验签已实现；待真实沙箱验收与证书/公钥轮换验证 | 任务 10 |
 | 10 | [payments.py](../../backend/src/api/routes/payments.py) | ✅ 通用 HMAC 后调用 `payment_webhook_service` 回写订单/订阅，并接 `webhook_idempotency_service` + `webhook_received` + Admin 查询/重试入口 + Prometheus 指标 + 失败自动重试/backoff + 微信支付 v3/支付宝 RSA2 回调验签；真实沙箱闭环待补 | 任务 10 |
 | 11 | [esign.py](../../backend/src/api/routes/esign.py) | ✅ 通用 HMAC 后调用 `esign_webhook_service` 回写合同签署状态，并接 `webhook_idempotency_service` + `webhook_received` + `esign_flow_id` 映射；e签宝官方 HMAC 与法大大 FASC 回调验签已补，账号事件映射和沙箱灰度证据待补 | 任务 5 |
-| 12 | [sync.rs:18,99](../../desktop/src/commands/sync.rs) | push 空数组、pull 丢弃 | 任务 11b |
-| 13 | [sync_engine.rs:91,102](../../desktop/src/services/sync_engine.rs) | Rust service push/pull 仍为占位；当前真实路径在前端 `api-adapter.ts` | 任务 11b |
+| 12 | [sync.rs](../../desktop/src/commands/sync.rs) | Rust IPC 直连同步已返回 unsupported/fail-closed，并展示本地待同步/冲突统计；真实路径在前端 `api-adapter.ts`，仍缺 packaged runtime 证据 | 任务 11b |
+| 13 | [sync_engine.rs:191,199](../../desktop/src/services/sync_engine.rs) | Rust service push/pull 未启用时返回 Error，不再 `Ok(0)`；仍需真实云数据面或保持显式禁用 | 任务 11b |
 | 14 | [document_service.py](../../backend/src/services/document_service.py) | ✅ 2026-05-06 已接 `object_storage_service`，上传/删除/更新不再是空 TODO | 任务 6 |
 | 15 | [store.ts:272,281](../../frontend/src/lib/store.ts) | localStorage + persist 双重持久化 | 任务 1 |
 | 16 | [useIMWebSocket.ts:71](../../frontend/src/hooks/useIMWebSocket.ts) | URL query token | 任务 10 |

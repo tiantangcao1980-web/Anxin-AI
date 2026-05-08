@@ -119,24 +119,23 @@ async def handle_verified_webhook(scope: str, payload: dict, idempotency_key: st
 
 ---
 
-### 缺口 C — 桌面同步引擎实质未实现
+### 缺口 C — 桌面同步数据面仍未商业闭环（假成功已清除）
 
 **位置**：
-- [sync.rs:18](../../desktop/src/commands/sync.rs) push 体永远是空数组
-- [sync.rs:99](../../desktop/src/commands/sync.rs) pull 拿到响应直接丢弃
-- [sync_engine.rs:91](../../desktop/src/services/sync_engine.rs) `push_pending_records` 仅 log + `Ok(0)`
-- [sync_engine.rs:102](../../desktop/src/services/sync_engine.rs) `pull_incremental_updates` 同上
+- [sync.rs](../../desktop/src/commands/sync.rs) Rust IPC 直连同步当前返回 unsupported/fail-closed，并报告本地待同步、离线任务和冲突统计
+- [sync_engine.rs:191](../../desktop/src/services/sync_engine.rs) `push_pending_records` 未启用时返回 Error
+- [sync_engine.rs:199](../../desktop/src/services/sync_engine.rs) `pull_incremental_updates` 未启用时返回 Error
 
-**现状**：HTTP 链路打通了，但**SQLite 离线队列从未被读写过**，本地数据永远不会上行，云端数据永远不会下行。
+**现状**：2026-05-08 后旧的 `Ok(0)` 假成功已清除，未启用的 Rust 数据面会显式失败，不再告诉用户“同步完成”。商业缺口仍在：真实云端 push/pull、跨设备会话延续、移动远控命令队列和 signed packaged runtime 证据还没有闭合。
 
 **对其他模块的隐藏影响**：
-- ROADMAP M3「跨设备会话延续（桌面开始 → 手机继续）」依赖此引擎 → 不可能实现
-- 桌面端"绝密本地"模式声称"敏感数据本地保留"——实际上当前桌面写入的数据**根本没有去任何地方**（无云端 + 无云端备份）
-- 文档模块依赖（缺口 A）+ 同步依赖（缺口 C）双双未接 → 桌面端用户实际是"什么都没存"
+- ROADMAP M3「跨设备会话延续（桌面开始 → 手机继续）」依赖真实同步与远控协议，当前仍不能标记完成
+- 桌面端"绝密本地"模式已能保持不上行的安全边界，但非绝密/混合模式还缺真实云端同步证据
+- 文档模块依赖（缺口 A）+ 同步依赖（缺口 C）仍需要 packaged runtime smoke 证明数据可持久、可恢复、可跨设备延续
 
 **根本原因**：
-- ROADMAP 把"离线任务队列 + 同步引擎"标为已完成，因 `desktop/src/services/sync_engine.rs` 文件存在
-- 但文件存在 ≠ 实现完成。代码里 `// TODO 下个 Sprint 把 r.json() 的 records 写入 SQLite` 表明开发者自己也知道没做完
+- ROADMAP 曾把"离线任务队列 + 同步引擎"标为已完成，因 `desktop/src/services/sync_engine.rs` 文件存在
+- 代码级假成功已经被改为 fail-closed；下一步不是继续删除旧 fallback，而是补真实云数据面、远控审计和 packaged runtime 证据
 
 **修复策略**：
 
