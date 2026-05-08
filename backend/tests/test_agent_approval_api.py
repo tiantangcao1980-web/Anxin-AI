@@ -109,6 +109,22 @@ async def test_agent_approval_api_create_approve_validate_round_trip(
     assert {item["resource_id"] for item in audit_body["data"]["items"]} == {approval_id}
     assert "should-never-leak" not in str(audit_body)
 
+    export_response = await auth_client.get(f"/api/v1/agent-approvals/{approval_id}/audit-export")
+    assert export_response.status_code == 200
+    export_body = export_response.json()
+    assert export_body["code"] == 200
+    assert export_body["data"]["schema_version"] == "agent_approval_audit_export.v1"
+    assert export_body["data"]["approval"]["id"] == approval_id
+    assert export_body["data"]["approval"]["payload"]["api_key"] == "[redacted]"
+    assert export_body["data"]["total"] == 3
+    assert [item["reason_code"] for item in export_body["data"]["audit_events"]] == [
+        "allowed",
+        "approved",
+        "requested",
+    ]
+    assert export_body["data"]["generated_at"]
+    assert "should-never-leak" not in str(export_body)
+
 
 @pytest.mark.asyncio
 async def test_agent_approval_api_employee_cannot_decide_and_status_remains_pending(

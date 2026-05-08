@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Query
@@ -118,6 +118,27 @@ def _audit_event_to_payload(event: AgentAuditEvent) -> dict[str, Any]:
         "metadata": event.metadata_json,
         "created_at": event.created_at.isoformat() if event.created_at else None,
     }
+
+
+async def _list_audit_events_for_approval(
+    db: AsyncSession,
+    *,
+    approval: AgentApproval,
+    limit: int,
+) -> list[AgentAuditEvent]:
+    rows = (
+        await db.execute(
+            select(AgentAuditEvent)
+            .where(
+                AgentAuditEvent.org_id == approval.org_id,
+                AgentAuditEvent.resource_type == "agent_approval",
+                AgentAuditEvent.resource_id == approval.id,
+            )
+            .order_by(AgentAuditEvent.created_at.desc())
+            .limit(limit)
+        )
+    ).scalars().all()
+    return list(rows)
 
 
 def _approval_scope_query(user: User) -> Any:
@@ -245,23 +266,37 @@ async def list_agent_approval_audit_events(
     if approval is None:
         return UnifiedResponse.error(code=404, message="Agent approval does not exist or is not visible.")
 
-    rows = (
-        await db.execute(
-            select(AgentAuditEvent)
-            .where(
-                AgentAuditEvent.org_id == approval.org_id,
-                AgentAuditEvent.resource_type == "agent_approval",
-                AgentAuditEvent.resource_id == approval.id,
-            )
-            .order_by(AgentAuditEvent.created_at.desc())
-            .limit(limit)
-        )
-    ).scalars().all()
+    rows = await _list_audit_events_for_approval(db, approval=approval, limit=limit)
 
     return UnifiedResponse.success(
         data={
             "items": [_audit_event_to_payload(event) for event in rows],
             "total": len(rows),
+        }
+    )
+
+
+@router.get("/{approval_id}/audit-export", response_model=UnifiedResponse, summary="Export agent approval audit artifact")
+async def export_agent_approval_audit_artifact(
+    approval_id: str,
+    limit: int = Query(default=500, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+) -> RouteResponse:
+    approval = await _get_scoped_approval(db, approval_id=approval_id, user=user)
+    if approval is None:
+        return UnifiedResponse.error(code=404, message="Agent approval does not exist or is not visible.")
+
+    rows = await _list_audit_events_for_approval(db, approval=approval, limit=limit)
+
+    return UnifiedResponse.success(
+        data={
+            "schema_version": "agent_approval_audit_export.v1",
+            "generated_at": datetime.now(UTC).isoformat(),
+            "approval": _approval_to_payload(approval),
+            "audit_events": [_audit_event_to_payload(event) for event in rows],
+            "total": len(rows),
+            "limit": limit,
         }
     )
 

@@ -59,6 +59,7 @@ export type MockOptions = {
   agentApprovals?: {
     list?: unknown
     auditEvents?: unknown
+    auditExport?: unknown
     pendingCount?: unknown
     approve?: unknown
     reject?: unknown
@@ -200,6 +201,59 @@ export async function installApiMocks(page: Page, options: MockOptions = {}) {
               },
             ],
             total: 1,
+          },
+        ),
+      )
+    }
+
+    if (/\/agent-approvals\/[^/]+\/audit-export$/.test(pathname) && request.method() === 'GET') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.agentApprovals?.auditExport ?? {
+            schema_version: 'agent_approval_audit_export.v1',
+            generated_at: '2026-05-08T10:05:00Z',
+            approval: {
+              id: 'approval-e2e-1',
+              org_id: 'org-e2e',
+              route_id: 'route-browser-control',
+              requested_by: 'employee-risk-owner',
+              action_type: 'browser.remote_control',
+              risk_level: 'high',
+              status: 'pending',
+              payload: {
+                target: 'desktop-runtime',
+                reason: '远程执行高风险桌面动作',
+              },
+              expires_at: '2026-05-08T10:30:00Z',
+              created_at: '2026-05-08T10:00:00Z',
+              updated_at: '2026-05-08T10:00:00Z',
+            },
+            audit_events: [
+              {
+                id: 'audit-e2e-request',
+                org_id: 'org-e2e',
+                route_id: 'route-browser-control',
+                actor_user_id: 'employee-risk-owner',
+                actor_type: 'user',
+                action: 'agent_approval.request',
+                status: 'success',
+                reason_code: 'requested',
+                resource_type: 'agent_approval',
+                resource_id: 'approval-e2e-1',
+                resource_snapshot: {
+                  approval_id: 'approval-e2e-1',
+                  action_type: 'browser.remote_control',
+                  risk_level: 'high',
+                  status: 'pending',
+                  route_id: 'route-browser-control',
+                },
+                metadata: { action_type: 'browser.remote_control' },
+                created_at: '2026-05-08T10:01:00Z',
+              },
+            ],
+            total: 1,
+            limit: 500,
           },
         ),
       )

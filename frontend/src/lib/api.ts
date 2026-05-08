@@ -2957,6 +2957,15 @@ export interface AgentApprovalAuditEvent {
   created_at?: string | null
 }
 
+export interface AgentApprovalAuditExport {
+  schema_version: string
+  generated_at: string
+  approval: AgentApprovalItem
+  audit_events: AgentApprovalAuditEvent[]
+  total: number
+  limit: number
+}
+
 export const agentApprovalsApi = {
   list: (params?: { status?: string; page?: number; page_size?: number }) => {
     const query = new URLSearchParams()
@@ -2974,6 +2983,11 @@ export const agentApprovalsApi = {
   auditEvents: (id: string, limit = 50) =>
     request<{ items: AgentApprovalAuditEvent[]; total: number }>(
       `/agent-approvals/${id}/audit-events?limit=${limit}`,
+    ),
+
+  auditExport: (id: string, limit = 500) =>
+    request<AgentApprovalAuditExport>(
+      `/agent-approvals/${id}/audit-export?limit=${limit}`,
     ),
 
   pendingCount: () => request<{ pending: number }>('/agent-approvals/pending/count'),

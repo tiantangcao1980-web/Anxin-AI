@@ -55,7 +55,7 @@
 | P0-1 | 统一权限决策 | 目前 RBAC、订阅、隐私模式、工具调用分散 | `capability_policy_engine` 统一判定 `subscription + role + permission + risk_level + privacy_mode + device_trust + channel_policy + approval_state` |
 | P0-2 | Agent 控制面模型 | AgentManager/Team/Worker/Human/ChannelPolicy/CapabilityRoute/TokenLease/Approval/AuditEvent 模型与迁移已补；route-token 服务已接入 DB；UI/真实运行时接入未闭环 | 建立可审计数据模型，支持组织/部门/项目/客户维度 |
 | P0-3 | 真实密钥隔离 | 持久化 route-token lease 已只存 hash，跨服务实例可验证；MCP tool execution 与 CLI `/execute` 已在商业环境接入 DB-backed route token；LLM/browser/desktop-control 真实调用链尚未全部改造 | Agent/Worker 只拿短期 consumer token 或等价 route token；真实 API key/PAT/财税凭据只在密钥服务/网关侧 |
-| P0-4 | 高风险审批 | 高风险动作缺统一审批模型 | L3/L4 能力必须创建 approval request；老板/超级管理员或授权管理员批准后才能执行；过期/撤销 fail-closed |
+| P0-4 | 高风险审批 | 高风险动作已有最小 service/API/UI 审批模型；真实能力链路接入未闭环 | L3/L4 能力必须创建 approval request；老板/超级管理员或授权管理员批准后才能执行；过期/撤销 fail-closed |
 | P0-5 | 通信/房间策略 | 当前没有声明式 agent channel policy | 定义谁能看、谁能说、谁能 @、谁能分派、谁能接管；外部专业服务方只能看授权材料包 |
 | P0-6 | 可见审计与接管 | agent 执行过程散落在日志或消息中 | 高风险任务进入可审计工作室；支持旁听、暂停、接管、终止、导出 artifact |
 | P0-7 | 能力中心 | 模型、Skills、MCP、浏览器、CLI、远控分散 | 老板/超级管理员看到能力市场、启用状态、风险级别、调用次数、失败率、最近审计 |
@@ -143,10 +143,10 @@ can_execute_capability(actor, org, capability, risk_level, data_scope, privacy_m
 当前本地进展：
 
 - `AgentApprovalService` 已补后端 service 级审批底座：普通员工可发起待审批请求；只有 owner/boss/super_admin/org_admin/admin 可决定或撤销；审批过期、撤销、未批准、action mismatch、route mismatch 和 route disabled/revoked 都会 fail-closed 并写 `AgentAuditEvent`。
-- `backend/src/api/routes/agent_approvals.py` 已补正式 API：创建审批、按组织/本人 scope 列表与详情、pending count、approve/reject/revoke、执行前 validate，并由 `backend/tests/test_agent_approval_api.py` 覆盖未登录拒绝、普通员工不能自批、管理员批准后 validate 放行、撤销后 fail-closed 和 payload 脱敏。
-- `frontend/src/pages/AgentApprovalWorkspace.tsx` 已补最小 Human-in-the-loop 高风险审批入口：按状态筛选、展示风险动作/route/payload 预览、批准/驳回/撤销，并接入 `/agent-approvals` API、桌面侧边栏、移动协作导航；`frontend/e2e/agent-approval-workspace.spec.ts` 覆盖桌面批准动作和移动端视口不横向溢出。
+- `backend/src/api/routes/agent_approvals.py` 已补正式 API：创建审批、按组织/本人 scope 列表与详情、pending count、audit-events、audit-export、approve/reject/revoke、执行前 validate，并由 `backend/tests/test_agent_approval_api.py` 覆盖未登录拒绝、普通员工不能自批、管理员批准后 validate 放行、撤销后 fail-closed、审批审计时间线/导出和 payload 脱敏。
+- `frontend/src/pages/AgentApprovalWorkspace.tsx` 已补最小 Human-in-the-loop 高风险审批入口：按状态筛选、展示风险动作/route/payload 预览、批准/驳回/撤销、审批审计时间线和 JSON 导出，并接入 `/agent-approvals` API、桌面侧边栏、移动协作导航；`frontend/e2e/agent-approval-workspace.spec.ts` 覆盖桌面审计/导出/批准动作和移动端视口不横向溢出。
 - `scripts/commercial-readiness-gate.sh --with-local-tests` 已加入 `agent approval service tests`、`agent approval API tests` 与 `frontend agent approval workspace e2e`。
-- 仍缺完整工作室的旁听/暂停/接管/终止交互、artifact 导出、审批审计导出和真实执行链路接入。
+- 仍缺完整工作室的旁听/暂停/接管/终止交互、长任务 artifact 导出和真实执行链路接入。
 
 ### Step 5 · 前端能力中心
 
@@ -208,7 +208,7 @@ docs/audit/12-enterprise-agent-governance/
 
 - [ ] `capability_policy_engine` 覆盖订阅、角色、权限、风险级别、隐私模式、设备信任、通信策略和审批状态。
 - [x] AgentManager / AgentTeam / AgentWorker / HumanParticipant / ChannelPolicy / CapabilityRoute / TokenLease / Approval / AuditEvent 模型与 migration 有 upgrade/downgrade。
-- [x] AgentApproval service/API 和最小前端工作台具备创建、列表/count、审批/驳回/撤销、过期、action/route 匹配、执行前 validate、组织/本人 scope、审批审计时间线、移动视口回归和审计回归；完整工作室和真实执行链路接入仍未完成。
+- [x] AgentApproval service/API 和最小前端工作台具备创建、列表/count、审批/驳回/撤销、过期、action/route 匹配、执行前 validate、组织/本人 scope、审批审计时间线、审批审计 JSON 导出、移动视口回归和审计回归；完整工作室和真实执行链路接入仍未完成。
 - [ ] Worker/Agent 不持有真实密钥；MCP tool execution、CLI `/execute` 和桌面端 CLI route-token 获取/传递已有 DB-backed route-token fail-closed 代码级回归，LLM/browser/desktop-control 和真实 approved connector 演练仍待闭环。
 - [ ] 五类权限回归通过：员工浏览器填表被拒、部门管理员创建部门报告 agent、老板批准桌面远控、超级管理员撤销 MCP route、外部服务方只能看授权材料包。
 - [ ] 能力中心只对老板/超级管理员展示全量能力；普通员工只见基础能力和可申请项。

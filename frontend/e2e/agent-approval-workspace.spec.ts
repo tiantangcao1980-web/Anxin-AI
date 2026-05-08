@@ -58,6 +58,36 @@ test.describe('Agent 审批工作台', () => {
           ],
           total: 1,
         },
+        auditExport: {
+          schema_version: 'agent_approval_audit_export.v1',
+          generated_at: '2026-05-08T10:05:00Z',
+          approval: agentApprovalFixture.items[0],
+          audit_events: [
+            {
+              id: 'audit-e2e-request',
+              org_id: 'org-e2e',
+              route_id: 'route-browser-control',
+              actor_user_id: 'employee-risk-owner',
+              actor_type: 'user',
+              action: 'agent_approval.request',
+              status: 'success',
+              reason_code: 'requested',
+              resource_type: 'agent_approval',
+              resource_id: 'approval-e2e-1',
+              resource_snapshot: {
+                approval_id: 'approval-e2e-1',
+                action_type: 'browser.remote_control',
+                risk_level: 'high',
+                status: 'pending',
+                route_id: 'route-browser-control',
+              },
+              metadata: { action_type: 'browser.remote_control' },
+              created_at: '2026-05-08T10:01:00Z',
+            },
+          ],
+          total: 1,
+          limit: 500,
+        },
         pendingCount: { pending: 1 },
       },
     })
@@ -74,6 +104,13 @@ test.describe('Agent 审批工作台', () => {
     await row.getByRole('button', { name: '审计' }).click()
     await expect(page.getByTestId('agent-approval-audit-trail')).toContainText('agent approval / request')
     await expect(page.getByTestId('agent-approval-audit-trail')).toContainText('success · requested')
+
+    const exportRequest = page.waitForRequest((request) =>
+      request.method() === 'GET' && request.url().includes('/agent-approvals/approval-e2e-1/audit-export'),
+    )
+    await row.getByRole('button', { name: '导出' }).click()
+    await exportRequest
+    await expect(page.getByText('审计导出已生成', { exact: true })).toBeVisible()
 
     const approvalRequest = page.waitForRequest((request) =>
       request.method() === 'POST' && request.url().includes('/agent-approvals/approval-e2e-1/approve'),

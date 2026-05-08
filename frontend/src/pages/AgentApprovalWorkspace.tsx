@@ -6,6 +6,7 @@ import { LoadingState } from '@/components/common/LoadingState'
 import { PageContainer } from '@/components/ui/PageContainer'
 import {
   agentApprovalsApi,
+  type AgentApprovalAuditExport,
   type AgentApprovalAuditEvent,
   type AgentApprovalItem,
   type AgentApprovalStatus,
@@ -63,6 +64,22 @@ function payloadPreview(payload?: Record<string, unknown> | null): Array<[string
     .map(([key, value]) => [key, typeof value === 'string' ? value : JSON.stringify(value)])
 }
 
+function safeFileSegment(value: string): string {
+  return value.replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'approval'
+}
+
+function downloadAuditArtifact(approvalId: string, artifact: AgentApprovalAuditExport): void {
+  const blob = new Blob([JSON.stringify(artifact, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `agent-approval-${safeFileSegment(approvalId)}-audit.json`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 0)
+}
+
 export default function AgentApprovalWorkspace() {
   const [items, setItems] = useState<AgentApprovalItem[]>([])
   const [status, setStatus] = useState<FilterStatus>('pending')
@@ -73,6 +90,7 @@ export default function AgentApprovalWorkspace() {
   const [auditEventsById, setAuditEventsById] = useState<Record<string, AgentApprovalAuditEvent[]>>({})
   const [auditLoadingId, setAuditLoadingId] = useState<string | null>(null)
   const [expandedAuditId, setExpandedAuditId] = useState<string | null>(null)
+  const [exportingAuditId, setExportingAuditId] = useState<string | null>(null)
 
   const loadApprovals = useCallback(async () => {
     setLoading(true)
@@ -162,6 +180,19 @@ export default function AgentApprovalWorkspace() {
     }
   }
 
+  const exportAudit = async (item: AgentApprovalItem) => {
+    setExportingAuditId(item.id)
+    try {
+      const artifact = await agentApprovalsApi.auditExport(item.id)
+      downloadAuditArtifact(item.id, artifact)
+      toast.success('审计导出已生成')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '审计导出失败')
+    } finally {
+      setExportingAuditId(null)
+    }
+  }
+
   return (
     <PageContainer
       title="Agent 审批工作台"
@@ -224,6 +255,8 @@ export default function AgentApprovalWorkspace() {
               auditOpen={expandedAuditId === item.id}
               auditItems={auditEventsById[item.id] ?? []}
               auditLoading={auditLoadingId === item.id}
+              auditExporting={exportingAuditId === item.id}
+              onExportAudit={() => void exportAudit(item)}
             />
           ))}
         </div>
@@ -269,20 +302,24 @@ function ApprovalRow({
   auditOpen,
   auditItems,
   auditLoading,
+  auditExporting,
   onApprove,
   onReject,
   onRevoke,
   onToggleAudit,
+  onExportAudit,
 }: {
   item: AgentApprovalItem
   busy: boolean
   auditOpen: boolean
   auditItems: AgentApprovalAuditEvent[]
   auditLoading: boolean
+  auditExporting: boolean
   onApprove: () => void
   onReject: () => void
   onRevoke: () => void
   onToggleAudit: () => void
+  onExportAudit: () => void
 }) {
   const meta = STATUS_META[item.status] ?? STATUS_META.pending
   const StatusIcon = meta.icon
@@ -335,6 +372,15 @@ function ApprovalRow({
           >
             <icons.List className="h-4 w-4" />
             {auditOpen ? '收起审计' : '审计'}
+          </button>
+          <button
+            type="button"
+            disabled={auditExporting}
+            onClick={onExportAudit}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <icons.Download className="h-4 w-4" />
+            导出
           </button>
           {item.status === 'pending' && (
             <>
