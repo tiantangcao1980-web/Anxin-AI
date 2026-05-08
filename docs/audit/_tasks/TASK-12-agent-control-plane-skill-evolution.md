@@ -93,7 +93,8 @@
 - `backend/src/models/agent_governance.py` 已建立 AgentManager、AgentTeam、AgentWorker、HumanParticipant、AgentChannelPolicy、CapabilityRoute、CapabilityRouteTokenLease、AgentApproval 和 AgentAuditEvent。
 - `backend/alembic/versions/040_add_agent_governance_control_plane.py` 已提供上述 9 张表的 upgrade/downgrade，并在 PostgreSQL 上为 `agent_audit_events` 创建 update/delete 拒绝 trigger。
 - `backend/tests/test_agent_governance_models.py` 已锁住模型注册、CapabilityRoute 不保存真实密钥/原始 token、TokenLease 只保存 hash、组织级 route 唯一约束、复合租户外键、跨组织写入失败、审计不可变监听和迁移无敏感列。
-- 后续仍需把这些模型接入完整 service/API/UI、真实 approved MCP connector 演练、LLM/browser/desktop-control 能力链路、Human-in-the-loop 工作室和跨进程撤销失权证据。
+- `backend/src/services/agent_approval_service.py` 已补 DB-backed 高风险 AgentApproval service，覆盖创建审批、授权角色审批/驳回、过期 fail-closed、撤销 fail-closed、action/route 匹配和审计写入；`backend/tests/test_agent_approval_service.py` `5 passed`。
+- 后续仍需把这些模型接入完整 API/UI、真实 approved MCP connector 演练、LLM/browser/desktop-control 能力链路、Human-in-the-loop 工作室前端和跨进程撤销失权证据。
 
 ### Step 2 · Policy Engine
 
@@ -137,6 +138,12 @@ can_execute_capability(actor, org, capability, risk_level, data_scope, privacy_m
 - 老板/超级管理员可旁听、暂停、接管、终止。
 - 普通员工只能看自己发起或被授权的工作室。
 - 外部服务方只能看授权材料包和沟通区。
+
+当前本地进展：
+
+- `AgentApprovalService` 已补后端 service 级审批底座：普通员工可发起待审批请求；只有 owner/boss/super_admin/org_admin/admin 可决定或撤销；审批过期、撤销、未批准、action mismatch、route mismatch 和 route disabled/revoked 都会 fail-closed 并写 `AgentAuditEvent`。
+- `scripts/commercial-readiness-gate.sh --with-local-tests` 已加入 `agent approval service tests`。
+- 仍缺正式 `agent_approvals` API、前端 Human-in-the-loop 工作室、旁听/暂停/接管/终止交互、artifact 导出和真实执行链路接入。
 
 ### Step 5 · 前端能力中心
 
@@ -198,6 +205,7 @@ docs/audit/12-enterprise-agent-governance/
 
 - [ ] `capability_policy_engine` 覆盖订阅、角色、权限、风险级别、隐私模式、设备信任、通信策略和审批状态。
 - [x] AgentManager / AgentTeam / AgentWorker / HumanParticipant / ChannelPolicy / CapabilityRoute / TokenLease / Approval / AuditEvent 模型与 migration 有 upgrade/downgrade。
+- [x] AgentApproval service 具备创建、审批/驳回、过期、撤销、action/route 匹配和审计回归；API/UI 和真实执行链路接入仍未完成。
 - [ ] Worker/Agent 不持有真实密钥；MCP tool execution、CLI `/execute` 和桌面端 CLI route-token 获取/传递已有 DB-backed route-token fail-closed 代码级回归，LLM/browser/desktop-control 和真实 approved connector 演练仍待闭环。
 - [ ] 五类权限回归通过：员工浏览器填表被拒、部门管理员创建部门报告 agent、老板批准桌面远控、超级管理员撤销 MCP route、外部服务方只能看授权材料包。
 - [ ] 能力中心只对老板/超级管理员展示全量能力；普通员工只见基础能力和可申请项。
