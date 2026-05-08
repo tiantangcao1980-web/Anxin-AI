@@ -10,6 +10,8 @@ const notConfiguredStatus: RemoteControlStatusResponse = {
   available: false,
   status: 'not_configured',
   desktop_device_id: 'desktop-a',
+  pairing_id: null,
+  queued_command_count: 0,
   required_controls: [
     'device_pairing',
     'desktop_confirmation',
@@ -42,6 +44,7 @@ describe('buildDesktopControlGate', () => {
 
     expect(gate.state).toBe('not_configured')
     expect(gate.canRequestPairing).toBe(false)
+    expect(gate.canSendSafeProbe).toBe(false)
     expect(gate.requiredControls).toEqual([
       '设备配对',
       '桌面端确认',
@@ -57,12 +60,35 @@ describe('buildDesktopControlGate', () => {
         ...notConfiguredStatus,
         available: true,
         status: 'ready',
+        pairing_id: 'pairing-a',
         message: '桌面端已开放远控配对申请。',
       },
     })
 
     expect(gate.state).toBe('ready')
     expect(gate.canRequestPairing).toBe(true)
+    expect(gate.canSendSafeProbe).toBe(true)
+    expect(gate.desktopDeviceId).toBe('desktop-a')
+    expect(gate.pairingId).toBe('pairing-a')
+  })
+
+  it('does not enable safe probe when the ready status is missing target identifiers', () => {
+    const gate = buildDesktopControlGate({
+      privacyMode: 'cloud',
+      status: {
+        ...notConfiguredStatus,
+        available: true,
+        status: 'ready',
+        desktop_device_id: null,
+        pairing_id: null,
+        message: '桌面端已开放远控配对申请。',
+      },
+    })
+
+    expect(gate.state).toBe('ready')
+    expect(gate.canRequestPairing).toBe(true)
+    expect(gate.canSendSafeProbe).toBe(false)
+    expect(gate.title).toBe('等待配对信息同步')
   })
 
   it('uses explicit error copy when status loading fails', () => {
@@ -73,6 +99,7 @@ describe('buildDesktopControlGate', () => {
 
     expect(gate.state).toBe('error')
     expect(gate.canRequestPairing).toBe(false)
+    expect(gate.canSendSafeProbe).toBe(false)
   })
 })
 

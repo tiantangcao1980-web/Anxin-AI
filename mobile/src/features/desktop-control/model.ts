@@ -4,8 +4,80 @@ export interface RemoteControlStatusResponse {
   available: boolean
   status: string
   desktop_device_id?: string | null
+  pairing_id?: string | null
+  queued_command_count?: number
   required_controls: string[]
   message: string
+}
+
+export interface RemoteControlPairingRequest {
+  mobile_device_id: string
+  desktop_device_id: string
+  requested_scopes?: string[]
+  privacy_mode?: string
+  expires_in_seconds?: number
+}
+
+export interface RemoteControlPairingResponse {
+  pairing_id: string
+  mobile_device_id: string
+  desktop_device_id: string
+  requested_scopes: string[]
+  privacy_mode: string
+  status: string
+  expires_at?: string | null
+  confirmed_at?: string | null
+}
+
+export interface RemoteControlRouteTokenRequest {
+  pairing_id: string
+  ttl_seconds?: number
+}
+
+export interface RemoteControlRouteTokenResponse {
+  allowed: boolean
+  reason_code: string
+  human_message: string
+  route_token?: string | null
+  route_id?: string | null
+  pairing_id?: string | null
+  required_scope: string
+  route_key: string
+  expires_at?: string | null
+}
+
+export interface RemoteControlCommandRequest {
+  desktop_device_id: string
+  command_type: string
+  payload?: Record<string, unknown>
+  pairing_id?: string | null
+  route_token?: string | null
+  privacy_mode?: string
+  risk_level?: string
+  second_confirmed?: boolean
+  expires_in_seconds?: number
+}
+
+export interface RemoteControlCommandResponse {
+  command_id: string
+  pairing_id: string
+  desktop_device_id: string
+  command_type: string
+  risk_level: string
+  status: string
+  route_id?: string | null
+  route_consumer_id?: string | null
+  route_scopes: string[]
+  second_confirmed: boolean
+  expires_at?: string | null
+  claimed_at?: string | null
+  claimed_by_host?: string | null
+  started_at?: string | null
+  completed_at?: string | null
+  failed_at?: string | null
+  failure_reason?: string | null
+  result_summary?: Record<string, unknown> | null
+  cancelled_at?: string | null
 }
 
 export type DesktopControlGateState = 'ready' | 'blocked' | 'not_configured' | 'error'
@@ -16,6 +88,10 @@ export interface DesktopControlGate {
   title: string
   description: string
   canRequestPairing: boolean
+  canSendSafeProbe: boolean
+  desktopDeviceId?: string | null
+  pairingId?: string | null
+  queuedCommandCount: number
   requiredControls: string[]
 }
 
@@ -59,6 +135,8 @@ export function buildDesktopControlGate({
       title: '本地模式已阻断远控',
       description: '当前模式不会连接云端或向桌面端外发远控请求。',
       canRequestPairing: false,
+      canSendSafeProbe: false,
+      queuedCommandCount: 0,
       requiredControls: [],
     }
   }
@@ -70,6 +148,8 @@ export function buildDesktopControlGate({
       title: '无法确认桌面控制状态',
       description: errorMessage,
       canRequestPairing: false,
+      canSendSafeProbe: false,
+      queuedCommandCount: 0,
       requiredControls: [],
     }
   }
@@ -81,16 +161,26 @@ export function buildDesktopControlGate({
       title: '等待桌面端支持',
       description: status?.message || '桌面控制尚未完成配对、命令队列和审计闭环。',
       canRequestPairing: false,
+      canSendSafeProbe: false,
+      desktopDeviceId: status?.desktop_device_id,
+      pairingId: status?.pairing_id,
+      queuedCommandCount: status?.queued_command_count ?? 0,
       requiredControls: status?.required_controls.map(formatRemoteControlRequiredControl) ?? [],
     }
   }
 
+  const hasSafeProbeTarget = Boolean(status.desktop_device_id && status.pairing_id)
+
   return {
     state: 'ready',
     icon: 'desktop-outline',
-    title: '可申请桌面配对',
-    description: status.message || '桌面端已开放远控配对申请。',
+    title: hasSafeProbeTarget ? '可发送安全探针' : '等待配对信息同步',
+    description: status.message || '桌面端已开放受治理的远控控制面。',
     canRequestPairing: true,
+    canSendSafeProbe: hasSafeProbeTarget,
+    desktopDeviceId: status.desktop_device_id,
+    pairingId: status.pairing_id,
+    queuedCommandCount: status.queued_command_count ?? 0,
     requiredControls: status.required_controls.map(formatRemoteControlRequiredControl),
   }
 }

@@ -15,6 +15,7 @@ import { Layout } from '@/constants/layout'
 import {
   buildDesktopControlGate,
   getDesktopControlLoadErrorMessage,
+  type RemoteControlCommandResponse,
   type RemoteControlStatusResponse,
 } from '@/features/desktop-control/model'
 import { usePrivacy } from '@/lib/privacy-context'
@@ -26,6 +27,9 @@ export default function DesktopControlScreen() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [probeSubmitting, setProbeSubmitting] = useState(false)
+  const [probeResult, setProbeResult] = useState<RemoteControlCommandResponse | null>(null)
+  const [probeError, setProbeError] = useState<string | null>(null)
 
   const loadStatus = useCallback(async () => {
     if (privacyMode === 'local') {
@@ -63,6 +67,41 @@ export default function DesktopControlScreen() {
     setRefreshing(true)
     loadStatus()
   }, [loadStatus])
+
+  const onSendSafeProbe = useCallback(async () => {
+    if (!gate.canSendSafeProbe || !gate.desktopDeviceId || !gate.pairingId) {
+      setProbeError('需要先完成桌面端确认配对，才能发送安全探针。')
+      return
+    }
+
+    try {
+      setProbeSubmitting(true)
+      setProbeError(null)
+      setProbeResult(null)
+      const route = await desktopControlApi.issueRouteToken({
+        pairing_id: gate.pairingId,
+        ttl_seconds: 300,
+      })
+      if (!route.allowed || !route.route_token) {
+        throw new Error(route.human_message || '短期能力路由 token 签发失败')
+      }
+
+      const command = await desktopControlApi.enqueueSafeProbeCommand({
+        desktop_device_id: gate.desktopDeviceId,
+        pairing_id: gate.pairingId,
+        route_token: route.route_token,
+        privacy_mode: privacyMode,
+      })
+      setProbeResult(command)
+      setStatus((current) => current
+        ? { ...current, queued_command_count: (current.queued_command_count ?? 0) + 1 }
+        : current)
+    } catch (err) {
+      setProbeError(getDesktopControlLoadErrorMessage(err))
+    } finally {
+      setProbeSubmitting(false)
+    }
+  }, [gate.canSendSafeProbe, gate.desktopDeviceId, gate.pairingId, privacyMode])
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
@@ -116,13 +155,28 @@ export default function DesktopControlScreen() {
               ))}
             </View>
           )}
+
+          {!loading && gate.state === 'ready' && (
+            <View style={styles.statusMeta}>
+              <View style={styles.metaItem}>
+                <Text style={styles.metaLabel}>待执行命令</Text>
+                <Text style={styles.metaValue}>{gate.queuedCommandCount}</Text>
+              </View>
+              <View style={styles.metaItem}>
+                <Text style={styles.metaLabel}>桌面设备</Text>
+                <Text style={styles.metaValue} numberOfLines={1}>
+                  {gate.desktopDeviceId || '等待同步'}
+                </Text>
+              </View>
+            </View>
+          )}
         </View>
 
         <View style={styles.guardPanel}>
           <Text style={styles.sectionTitle}>安全边界</Text>
-          <GuardRow icon="phone-portrait-outline" text="移动端只展示远控状态，不会绕过桌面端确认。" />
-          <GuardRow icon="key-outline" text="命令必须具备短期能力路由 token。" />
-          <GuardRow icon="time-outline" text="后续命令需要可过期、可撤销并写入审计。" />
+          <GuardRow icon="phone-portrait-outline" text="移动端不会绕过桌面端确认。" />
+          <GuardRow icon="key-outline" text="安全探针必须先申请短期能力路由 token。" />
+          <GuardRow icon="time-outline" text="命令只表示入队，执行状态由桌面 host 回传。" />
         </View>
 
         <View style={styles.actions}>
@@ -136,16 +190,57 @@ export default function DesktopControlScreen() {
               <Text style={styles.secondaryButtonText}>查看运行模式</Text>
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              activeOpacity={0.75}
-              onPress={onRefresh}
-            >
-              <Ionicons name="refresh-outline" size={18} color={Colors.primary} />
-              <Text style={styles.secondaryButtonText}>重新检查</Text>
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity
+                style={[
+                  styles.primaryButton,
+                  (!gate.canSendSafeProbe || probeSubmitting) && styles.primaryButtonDisabled,
+                ]}
+                activeOpacity={0.8}
+                disabled={!gate.canSendSafeProbe || probeSubmitting}
+                onPress={onSendSafeProbe}
+              >
+                <Ionicons
+                  name={probeSubmitting ? 'hourglass-outline' : 'send-outline'}
+                  size={18}
+                  color={Colors.white}
+                />
+                <Text style={styles.primaryButtonText}>
+                  {probeSubmitting ? '正在入队安全探针' : '发送安全探针'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.secondaryButton}
+                activeOpacity={0.75}
+                onPress={onRefresh}
+              >
+                <Ionicons name="refresh-outline" size={18} color={Colors.primary} />
+                <Text style={styles.secondaryButtonText}>重新检查</Text>
+              </TouchableOpacity>
+            </>
           )}
         </View>
+
+        {(probeResult || probeError) && (
+          <View style={[
+            styles.probePanel,
+            probeError ? styles.probePanel_error : styles.probePanel_success,
+          ]}>
+            <Ionicons
+              name={probeError ? 'warning-outline' : 'checkmark-circle-outline'}
+              size={20}
+              color={probeError ? Colors.error : Colors.success}
+            />
+            <View style={styles.probeText}>
+              <Text style={styles.probeTitle}>
+                {probeError ? '安全探针未入队' : '安全探针已入队'}
+              </Text>
+              <Text style={styles.probeDescription}>
+                {probeError || `命令状态：${probeResult?.status ?? 'queued'}，等待桌面端 host 回传。`}
+              </Text>
+            </View>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   )
@@ -254,6 +349,31 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontSize: Layout.fontSize.sm,
   },
+  statusMeta: {
+    flexDirection: 'row',
+    gap: Layout.spacing.sm,
+    marginTop: Layout.spacing.md,
+  },
+  metaItem: {
+    flex: 1,
+    minHeight: 58,
+    borderRadius: Layout.borderRadius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    paddingHorizontal: Layout.spacing.md,
+    paddingVertical: Layout.spacing.sm,
+    justifyContent: 'center',
+  },
+  metaLabel: {
+    color: Colors.textSecondary,
+    fontSize: Layout.fontSize.xs,
+    marginBottom: Layout.spacing.xs,
+  },
+  metaValue: {
+    color: Colors.text,
+    fontSize: Layout.fontSize.md,
+    fontWeight: '700',
+  },
   guardPanel: {
     marginTop: Layout.spacing.md,
     backgroundColor: Colors.background,
@@ -280,6 +400,25 @@ const styles = StyleSheet.create({
   },
   actions: {
     marginTop: Layout.spacing.lg,
+    gap: Layout.spacing.sm,
+  },
+  primaryButton: {
+    minHeight: Layout.touchTarget.min,
+    borderRadius: Layout.borderRadius.full,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: Layout.spacing.sm,
+    paddingHorizontal: Layout.spacing.lg,
+  },
+  primaryButtonDisabled: {
+    backgroundColor: Colors.textMuted,
+  },
+  primaryButtonText: {
+    color: Colors.white,
+    fontSize: Layout.fontSize.md,
+    fontWeight: '700',
   },
   secondaryButton: {
     minHeight: Layout.touchTarget.min,
@@ -296,5 +435,33 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontSize: Layout.fontSize.md,
     fontWeight: '700',
+  },
+  probePanel: {
+    marginTop: Layout.spacing.md,
+    borderRadius: Layout.borderRadius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: Layout.spacing.md,
+    flexDirection: 'row',
+    gap: Layout.spacing.sm,
+  },
+  probePanel_success: {
+    borderColor: Colors.success,
+    backgroundColor: Colors.success + '10',
+  },
+  probePanel_error: {
+    borderColor: Colors.error,
+    backgroundColor: Colors.error + '10',
+  },
+  probeText: { flex: 1 },
+  probeTitle: {
+    color: Colors.text,
+    fontSize: Layout.fontSize.md,
+    fontWeight: '700',
+  },
+  probeDescription: {
+    color: Colors.textSecondary,
+    fontSize: Layout.fontSize.sm,
+    lineHeight: 20,
+    marginTop: Layout.spacing.xs,
   },
 })

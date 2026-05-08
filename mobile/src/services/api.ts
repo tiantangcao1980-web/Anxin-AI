@@ -1,5 +1,13 @@
 import { Platform } from 'react-native'
-import type { RemoteControlStatusResponse } from '../features/desktop-control/model'
+import type {
+  RemoteControlCommandRequest,
+  RemoteControlCommandResponse,
+  RemoteControlPairingRequest,
+  RemoteControlPairingResponse,
+  RemoteControlRouteTokenRequest,
+  RemoteControlRouteTokenResponse,
+  RemoteControlStatusResponse,
+} from '../features/desktop-control/model'
 import { getAuthStorage } from '../lib/auth-storage'
 import { getStoredPrivacyMode, type PrivacyMode } from '../lib/privacy-mode'
 import type { ApiResponse, User } from '../types/api'
@@ -213,5 +221,45 @@ export const desktopControlApi = {
       ? `?desktop_device_id=${encodeURIComponent(desktopDeviceId)}`
       : ''
     return api.get<RemoteControlStatusResponse>(`/sync/remote-control/status${query}`)
+  },
+  requestPairing: (data: RemoteControlPairingRequest) => {
+    return api.post<RemoteControlPairingResponse>('/sync/remote-control/pairings', data)
+  },
+  issueRouteToken: (data: RemoteControlRouteTokenRequest) => {
+    return api.post<RemoteControlRouteTokenResponse>('/sync/remote-control/route-token', data)
+  },
+  enqueueCommand: (data: RemoteControlCommandRequest) => {
+    return api.post<RemoteControlCommandResponse>('/sync/remote-control/commands', data)
+  },
+  getCommand: (commandId: string) => {
+    return api.get<RemoteControlCommandResponse>(
+      `/sync/remote-control/commands/${encodeURIComponent(commandId)}`,
+    )
+  },
+  enqueueSafeProbeCommand: ({
+    desktop_device_id,
+    pairing_id,
+    route_token,
+    privacy_mode,
+  }: {
+    desktop_device_id: string
+    pairing_id: string
+    route_token: string
+    privacy_mode: PrivacyMode
+  }) => {
+    return api.post<RemoteControlCommandResponse>('/sync/remote-control/commands', {
+      desktop_device_id,
+      pairing_id,
+      route_token,
+      privacy_mode,
+      command_type: 'desktop.status_probe',
+      risk_level: 'l2',
+      second_confirmed: false,
+      expires_in_seconds: 120,
+      payload: {
+        probe: 'status',
+        requested_from: 'mobile',
+      },
+    })
   },
 }
