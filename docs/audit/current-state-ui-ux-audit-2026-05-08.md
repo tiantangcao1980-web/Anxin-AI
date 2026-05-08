@@ -38,7 +38,7 @@
 | 小程序验收 | 微信端应有真实登录和设备证据 | WeChat DevTools CLI project smoke 通过，但 evidence 仍 pending；host probe 仅证明工具存在 | 还没有真实小程序交互闭环 | 用官方 appid/测试账号补交互式 DevTools 或真机 transcript |
 | 跨端设计系统 | Web/desktop/mobile/mini token 应统一 | `docs/design/cross-platform-token-drift.md` 已记录 Web `hsl(25 95% 53%)` 与 mobile/mini `#D4A574` 漂移 | 品牌和状态语义跨端不一致 | 冻结 token contract，再分端迁移硬编码颜色 |
 | 移动端视觉质量 | 状态色、错误态、空态应可维护 | `rg` 显示 mobile 多处 hardcoded hex，如 `mobile/app/find-lawyer.tsx:165`、`contracts.tsx:178`、`cases.tsx:165` | 暗色、无障碍和品牌统一风险 | 把 status/domain colors 纳入 `Colors`，补截图验收 |
-| 桌面 UX | 同步冲突应给非技术用户可理解的决策界面 | `SyncStatus` 冲突弹窗已从双栏 JSON 改为字段差异摘要 + 原始数据折叠详情；toolbar 按钮尺寸和 tray emoji 菜单仍待收口 | 政务用户难理解，桌面专业感不足 | 继续补按钮尺寸和菜单文案按桌面规范修正 |
+| 桌面 UX | 同步冲突应给非技术用户可理解的决策界面 | `SyncStatus` 冲突弹窗已从双栏 JSON 改为字段差异摘要 + 原始数据折叠详情；托盘菜单/tooltip 已移除 emoji 依赖；toolbar 按钮尺寸仍待收口 | 政务用户难理解，桌面专业感不足 | 继续补按钮尺寸和打包 runtime 截图验收 |
 | 前端发布质量 | 构建应可解释、性能可控 | frontend build 通过但有 `lottie-web` eval、dynamic/static import mixing、chunks >500KB | 不阻断代码级，但影响政府内网/低配机器体验 | 列为 P1 性能和打包治理 |
 | 全设备智能助手定位 | 桌面是主工作站，移动是随身助手和桌面远控端；用户可配置任意模型、Skills、MCP 和独立知识库 | LLM/MCP/Skills/knowledge/local LLM 已有后端和桌面基础，但桌面配置面、移动远控协议、真机/packaged runtime 证据未闭合 | 产品定位已清晰，代码和证据还没到完成态 | 新增 OpenSpec，调整 TASK-11a/11b/11c，把配置、远控、本地安全列为验收 |
 | Codex/Claude 式交互体验 | 长任务过程透明、证据可点、artifact 可编辑、用户可暂停/恢复/接管、能力可发现 | 目前各端没有统一任务时间线、artifact-first 工作台、能力命令面板和跨设备恢复验收 | 体验会显得“能聊但不够可靠”，不利于老板/高管/政府试点用户信任 | 在 TASK-03、TASK-11a/11c、TASK-12 中加入可信会话体验验收 |
@@ -72,7 +72,7 @@
 | P0 | 桌面云同步数据面仍未商业闭环 | `desktop/src/services/sync_engine.rs:191` 已 fail-closed；`docs/release/evidence/desktop-runtime-smoke.md` 仍 pending | 继续实现/验证真实 push/pull、跨设备延续和 signed packaged runtime，不允许把 unsupported 当完成 |
 | P1 | 冲突弹窗直接展示 JSON | `frontend/src/components/mode-switcher/SyncStatus.tsx` 已改为字段差异摘要，原始 JSON 放入高级详情折叠 | 已代码级收口；后续需桌面截图/打包 runtime 复核 |
 | P1 | toolbar 同步按钮偏小，冲突按钮文案拥挤 | `frontend/src/components/mode-switcher/SyncStatus.tsx:134` | 桌面端最小点击尺寸和状态文案重新设计 |
-| P1 | 托盘菜单用 emoji 表意 | `desktop/src/services/tray.rs:13` | 政府/专业交付建议用纯文本或系统图标，不依赖 emoji 字形 |
+| P1 | 托盘菜单用 emoji 表意 | `desktop/src/services/tray.rs` 已改为纯文本模式标签和 tooltip，并补 `cargo test tray` 回归 | 已代码级收口；后续需 signed/packaged runtime 菜单截图复核 |
 | P0 | signed/notarized package 缺失 | `docs/release/evidence/desktop-runtime-smoke.md:3` | 取得签名/公证输入后跑 signed packaged runtime/profile/performance |
 
 ## 5. 面向高可信客户与政府试点的额外门槛

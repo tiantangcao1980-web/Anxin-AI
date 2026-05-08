@@ -7,16 +7,49 @@ use tauri::{
     AppHandle, Emitter, Manager,
 };
 
+const TRAY_APP_NAME: &str = "安心法务";
+
+fn tray_mode_label(mode: AppMode) -> &'static str {
+    match mode {
+        AppMode::TopSecret => "绝密模式",
+        AppMode::Hybrid => "混合模式",
+        AppMode::Cloud => "云端模式",
+    }
+}
+
+fn tray_mode_tooltip(mode: AppMode) -> String {
+    format!("{} - {}", TRAY_APP_NAME, tray_mode_label(mode))
+}
+
 /// 创建系统托盘
 pub fn create_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let show = MenuItem::with_id(app, "show", "显示主窗口", true, None::<&str>)?;
-    let mode_secret = MenuItem::with_id(app, "mode_secret", "🔒 绝密模式", true, None::<&str>)?;
-    let mode_hybrid = MenuItem::with_id(app, "mode_hybrid", "🔄 混合模式", true, None::<&str>)?;
-    let mode_cloud = MenuItem::with_id(app, "mode_cloud", "☁️ 云端模式", true, None::<&str>)?;
+    let mode_secret = MenuItem::with_id(
+        app,
+        "mode_secret",
+        tray_mode_label(AppMode::TopSecret),
+        true,
+        None::<&str>,
+    )?;
+    let mode_hybrid = MenuItem::with_id(
+        app,
+        "mode_hybrid",
+        tray_mode_label(AppMode::Hybrid),
+        true,
+        None::<&str>,
+    )?;
+    let mode_cloud = MenuItem::with_id(
+        app,
+        "mode_cloud",
+        tray_mode_label(AppMode::Cloud),
+        true,
+        None::<&str>,
+    )?;
     let sep = PredefinedMenuItem::separator(app)?;
     let sync = MenuItem::with_id(app, "sync", "立即同步", true, None::<&str>)?;
     let sep2 = PredefinedMenuItem::separator(app)?;
     let quit = MenuItem::with_id(app, "quit", "退出安心法务", true, None::<&str>)?;
+    let tooltip = tray_mode_tooltip(AppMode::Cloud);
 
     let menu = Menu::with_items(
         app,
@@ -34,7 +67,7 @@ pub fn create_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     )?;
 
     let _tray = TrayIconBuilder::with_id("main-tray")
-        .tooltip("安心法务 - 云端模式")
+        .tooltip(tooltip)
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(move |app, event| {
@@ -103,14 +136,10 @@ async fn switch_tray_mode(app: &AppHandle, mode: AppMode) {
     }
 
     // 更新托盘 tooltip
-    let tooltip = match mode {
-        AppMode::TopSecret => "安心法务 - 🔒 绝密模式",
-        AppMode::Hybrid => "安心法务 - 🔄 混合模式",
-        AppMode::Cloud => "安心法务 - ☁️ 云端模式",
-    };
+    let tooltip = tray_mode_tooltip(mode);
 
     if let Some(tray) = app.tray_by_id("main-tray") {
-        let _ = tray.set_tooltip(Some(tooltip));
+        let _ = tray.set_tooltip(Some(&tooltip));
     }
 
     // 通知前端模式已切换
@@ -128,5 +157,49 @@ pub fn update_tray_badge(app: &AppHandle, count: u32) {
             "安心法务".to_string()
         };
         let _ = tray.set_tooltip(Some(&tooltip));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_no_emoji(text: &str) {
+        for emoji in ["🔒", "🔄", "☁", "☁️"] {
+            assert!(
+                !text.contains(emoji),
+                "tray text should not depend on emoji glyphs: {text}"
+            );
+        }
+    }
+
+    #[test]
+    fn tray_mode_labels_are_plain_text() {
+        let labels = [
+            (AppMode::TopSecret, "绝密模式"),
+            (AppMode::Hybrid, "混合模式"),
+            (AppMode::Cloud, "云端模式"),
+        ];
+
+        for (mode, expected) in labels {
+            let label = tray_mode_label(mode);
+            assert_eq!(label, expected);
+            assert_no_emoji(label);
+        }
+    }
+
+    #[test]
+    fn tray_mode_tooltips_are_plain_text() {
+        let tooltips = [
+            (AppMode::TopSecret, "安心法务 - 绝密模式"),
+            (AppMode::Hybrid, "安心法务 - 混合模式"),
+            (AppMode::Cloud, "安心法务 - 云端模式"),
+        ];
+
+        for (mode, expected) in tooltips {
+            let tooltip = tray_mode_tooltip(mode);
+            assert_eq!(tooltip, expected);
+            assert_no_emoji(&tooltip);
+        }
     }
 }
