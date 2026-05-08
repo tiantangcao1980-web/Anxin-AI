@@ -7,8 +7,10 @@ import glob
 import os
 from typing import Any
 
-import yaml  # type: ignore[import-untyped]
+import yaml  # type: ignore[import-untyped,unused-ignore]
 from loguru import logger
+
+from src.services.skill_evolution_service import SkillEvolutionService
 
 
 class Skill:
@@ -31,10 +33,18 @@ class Skill:
         }
 
 class SkillService:
-    def __init__(self, skill_root_dir: str = "skills") -> None:
+    def __init__(
+        self,
+        skill_root_dir: str = "skills",
+        *,
+        evolution_service: SkillEvolutionService | None = None,
+        only_enabled_skills: bool = False,
+    ) -> None:
         # 向上寻找 skills 目录
         base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
         self.skill_dir = os.path.join(base_path, skill_root_dir)
+        self.evolution_service = evolution_service
+        self.only_enabled_skills = only_enabled_skills
         self.skills: list[Skill] = []
         self._loaded = False
 
@@ -80,11 +90,12 @@ class SkillService:
             except Exception as e:
                 logger.warning(f"技能文件格式错误 {file_path}: {e}")
 
-    def get_skill_by_name(self, name: str) -> Skill | None:
+    def get_skill_by_name(self, name: str, version: str | None = None) -> Skill | None:
         """根据名称获取技能"""
         self.load_skills()
         for skill in self.skills:
-            if skill.name == name:
+            version_matches = version is None or skill.version == version
+            if skill.name == name and version_matches and self._skill_can_execute(skill):
                 return skill
         return None
 
@@ -95,6 +106,8 @@ class SkillService:
         matched: list[Skill] = []
 
         for skill in self.skills:
+            if not self._skill_can_execute(skill):
+                continue
             # 1. 检查 triggers
             for trigger in skill.triggers:
                 if trigger.lower() in query:
@@ -110,7 +123,14 @@ class SkillService:
     def get_all_skills_info(self) -> list[dict[str, Any]]:
         """获取所有技能的摘要信息"""
         self.load_skills()
-        return [s.to_dict() for s in self.skills]
+        return [s.to_dict() for s in self.skills if self._skill_can_execute(s)]
+
+    def _skill_can_execute(self, skill: Skill) -> bool:
+        if not self.only_enabled_skills:
+            return True
+        if self.evolution_service is None:
+            return False
+        return self.evolution_service.is_skill_enabled(skill.name, skill.version)
 
 # 全局实例
 skill_service = SkillService()

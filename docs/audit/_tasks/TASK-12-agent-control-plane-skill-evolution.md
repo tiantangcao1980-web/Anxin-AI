@@ -125,6 +125,13 @@ can_execute_capability(actor, org, capability, risk_level, data_scope, privacy_m
 
 ### Step 6 · Skill Evolution Gate
 
+当前本地进展：
+
+- `backend/src/services/skill_evolution_service.py` 已补最小本地门禁：draft proposal、required eval checks、授权角色审批、灰度、回滚和审计。
+- `backend/src/services/skill_service.py` 已支持在治理模式下只返回当前 enabled version。
+- `backend/tests/test_skill_evolution_service.py` 与 `backend/tests/test_skill_service.py` 已覆盖 agent 不能自启生产版本、评测失败/缺失拒绝审批、越权审批拒绝、灰度百分比边界、回滚后下一次技能匹配回到上一版本。
+- 仍需后续把本地门禁生产化为数据库持久化 SkillGovernance/Approval/AuditEvent、组织级能力中心 UI、真实 CapabilityRoute 撤销联动和记忆治理。
+
 - 定义 `SkillEvolutionProposal`：来源失败案例、用户反馈、评测失败、人工建议或 agent 观察。
 - Proposal 只能生成草案、测试和风险说明；不得自动修改 enabled Skill。
 - 升级前必须通过 eval suite、权限回归、隐私模式回归、注入防护和审计日志检查。

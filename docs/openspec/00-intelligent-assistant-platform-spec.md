@@ -160,7 +160,7 @@ Skills 和智能体进化必须受治理：
 已存在的基础：
 
 - LLM/本地模型：`backend/src/services/llm_service.py`、`backend/src/services/private_llm_service.py`、`backend/src/api/routes/llm.py`、`desktop/src/commands/local_llm.rs`。
-- MCP/Skills：`backend/src/mcp_server.py`、`backend/src/api/routes/mcp_routes.py`、`backend/src/services/mcp_client_service.py`、`backend/src/models/mcp_config.py`、`backend/src/services/skill_service.py`。
+- MCP/Skills：`backend/src/mcp_server.py`、`backend/src/api/routes/mcp_routes.py`、`backend/src/services/mcp_client_service.py`、`backend/src/models/mcp_config.py`、`backend/src/services/skill_service.py`、`backend/src/services/skill_evolution_service.py`。
 - 知识库：`backend/src/services/knowledge_management.py`、`backend/src/services/knowledge_service.py`、`backend/src/api/routes/knowledge.py`。
 - 桌面同步/本地安全：SQLCipher/keyring、offline queue、sync_log、desktop security gate 已有代码级证据。
 - 桌面绝密模式：CLI、同步冲突、Harness artifact、本地同步桥、统一 API fetch、WebView 全局 fetch 与 WebSocket 已补 TopSecret/local data-network guard；Tauri 原生 HTTP 插件与前端 `@tauri-apps/plugin-http` 已移除，默认 capability 不再启用 `http:*`，CSP 已去掉 `script-src 'unsafe-eval'` 和 `img-src https://*`，并由 `scripts/desktop-network-surface-gate.sh` 纳入发布门禁；signed/notarized packaged runtime 出站拦截和外部脚本运行时复验证据仍需补。
@@ -174,8 +174,8 @@ Skills 和智能体进化必须受治理：
 - 任意模型/Skills/MCP 的组织策略、权限拒绝、调用日志和隐私模式回归仍需补完整商业证据；当前 MCP 外部连接只完成了商业环境 fail-closed allowlist 基线。
 - 通用工作助手、软件/原型工作台、浏览器执行器、CLI harness 和定时自动化尚缺统一产品入口、沙盒执行和企业审批。
 - Codex/Claude 风格的可信会话体验尚缺完整产品化：长任务计划/进度/证据/可恢复状态、artifact 编辑、能力命令面板和跨设备接续仍需统一设计与验收。
-- Skills 进化和智能体自我改进尚缺生命周期模型、评测门禁、审批、回滚和记忆治理。
-- 企业智能体治理已补第一层 agent capability policy 决策引擎，覆盖未注册工具 fail-closed、订阅 feature、角色 permission、隐私模式、设备信任、通道策略和审批上下文；MCP 外部连接已补 stdio command/command-line/env allowlist、SSE scheme/host allowlist 和子进程最小环境；仍缺 CapabilityRoute/短期 route token、Human-in-the-loop 工作室、真实 approved MCP connector 演练和撤销后立即失权证据。
+- Skills 进化和智能体自我改进已补本地 `SkillEvolutionService` 与测试，覆盖 agent 只能提案、必需评测、授权角色审批、灰度、回滚和审计；仍缺数据库持久化模型、组织级 UI、真实执行链路失权、记忆治理和商业发布证据。
+- 企业智能体治理已补第一层 agent capability policy 决策引擎，覆盖未注册工具 fail-closed、订阅 feature、角色 permission、隐私模式、设备信任、通道策略和审批上下文；MCP 外部连接已补 stdio command/command-line/env allowlist、SSE scheme/host allowlist 和子进程最小环境；短期 route token broker 已补 hash-only storage、scope、过期、撤销后下一次验证失败和审计；仍缺持久化 Agent/Team/Worker/Human/CapabilityRoute 模型、Human-in-the-loop 工作室、真实 approved MCP connector 演练和跨进程撤销后立即失权证据。
 - 协作式多智能体控制面尚缺 AgentManager、AgentTeam、AgentWorker、HumanParticipant、ChannelPolicy、CapabilityRoute 和 SharedArtifactStore 的正式数据模型与审计闭环。
 - 税务师、税务事务所、财务顾问、会计/审计人员等专业服务方仍处于规范预留和后续扩展阶段。
 - 舆情监测到专业处置和服务方获客的商业闭环仍需产品与代码验收。

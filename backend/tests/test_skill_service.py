@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from src.services.skill_evolution_service import REQUIRED_SKILL_EVAL_CHECKS, SkillEvolutionService
 from src.services.skill_service import Skill, SkillService
 
 
@@ -51,3 +52,77 @@ def test_skill_normalizes_non_list_triggers():
 
     assert skill.triggers == []
     assert skill.to_dict()["name"] == "contract"
+
+
+def test_skill_service_can_filter_to_governed_enabled_version(tmp_path):
+    write_skill(
+        tmp_path,
+        "contract-v1",
+        """---
+name: contract
+description: 合同审查
+version: 1.0.0
+triggers:
+  - 合同
+---
+# v1
+""",
+    )
+    write_skill(
+        tmp_path,
+        "contract-v2",
+        """---
+name: contract
+description: 合同审查
+version: 1.1.0
+triggers:
+  - 合同
+---
+# v2
+""",
+    )
+    evolution = SkillEvolutionService()
+    service = SkillService(
+        skill_root_dir=str(tmp_path),
+        evolution_service=evolution,
+        only_enabled_skills=True,
+    )
+
+    proposal = evolution.create_proposal(
+        skill_name="contract",
+        current_version="1.0.0",
+        proposed_version="1.1.0",
+        source="eval:nightly-44",
+        created_by="agent-7",
+        created_by_role="agent",
+    )
+
+    assert service.get_skill_by_name("contract").version == "1.0.0"
+    assert [skill.version for skill in service.match_skills("合同审查")] == ["1.0.0"]
+
+    evolution.record_eval(
+        proposal.proposal_id,
+        dict.fromkeys(REQUIRED_SKILL_EVAL_CHECKS, True),
+        actor="eval-harness",
+    )
+    evolution.approve(
+        proposal.proposal_id,
+        approver="owner-1",
+        approver_role="owner",
+    )
+    evolution.gray_release(
+        proposal.proposal_id,
+        percentage=100,
+        actor="release-manager",
+    )
+
+    assert service.get_skill_by_name("contract").version == "1.1.0"
+    assert [skill.version for skill in service.match_skills("合同审查")] == ["1.1.0"]
+
+    evolution.rollback(
+        proposal.proposal_id,
+        reason="privacy regression",
+        actor="owner-1",
+    )
+
+    assert service.get_skill_by_name("contract").version == "1.0.0"
