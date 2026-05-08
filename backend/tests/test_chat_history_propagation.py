@@ -73,6 +73,30 @@ async def test_workforce_chat_forwards_history_to_agent():
 
 
 @pytest.mark.asyncio
+async def test_workforce_chat_forwards_mcp_route_context_when_present():
+    workforce = object.__new__(LegalWorkforce)
+    target_agent = MagicMock()
+    target_agent.chat = AsyncMock(return_value="ok")
+    workforce.agents = {"legal_advisor": target_agent}
+
+    route_context = {"db": object(), "agent_id": "agent-a", "consumer_id": "consumer-a"}
+
+    result = await LegalWorkforce.chat(
+        workforce,
+        "需要工具",
+        context={"llm_config": "cfg", "mcp_route_context": route_context},
+    )
+
+    assert result == "ok"
+    target_agent.chat.assert_awaited_once_with(
+        "需要工具",
+        llm_config="cfg",
+        history=None,
+        mcp_route_context=route_context,
+    )
+
+
+@pytest.mark.asyncio
 async def test_task_history_var_propagates_to_agent_chat():
     """验证 _task_history_var contextvars 在 DAG 执行路径中自动透传对话历史到 agent.chat()"""
     from src.agents.base import BaseLegalAgent, _task_history_var

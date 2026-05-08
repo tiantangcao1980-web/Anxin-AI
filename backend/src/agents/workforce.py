@@ -1074,20 +1074,22 @@ class LegalWorkforce:
         llm_config = context.get("llm_config") if context else None
         history = context.get("history") if context else None
         mcp_route_context = context.get("mcp_route_context") if context else None
+        chat_kwargs: dict[str, Any] = {
+            "llm_config": llm_config,
+            "history": history,
+        }
+        if mcp_route_context is not None:
+            chat_kwargs["mcp_route_context"] = mcp_route_context
 
         if agent_name and agent_name in self.agents:
             return cast(str, await self.agents[agent_name].chat(
                 message,
-                llm_config=llm_config,
-                history=history,
-                mcp_route_context=mcp_route_context,
+                **chat_kwargs,
             ))
         else:
             return cast(str, await self.agents["legal_advisor"].chat(
                 message,
-                llm_config=llm_config,
-                history=history,
-                mcp_route_context=mcp_route_context,
+                **chat_kwargs,
             ))
 
     def get_agents_info(self) -> list[dict[str, Any]]:

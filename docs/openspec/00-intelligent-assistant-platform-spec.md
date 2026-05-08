@@ -170,7 +170,7 @@ Skills 和智能体进化必须受治理：
 仍不能宣称完成的缺口：
 
 - 桌面主工作站尚缺完整的模型/知识库/Skills/MCP 配置 UI 与 packaged runtime 验收。
-- 移动远程控制桌面尚缺设备配对、远程命令、状态回传、撤销和审计闭环。
+- 移动远程控制桌面已补后端 fail-closed API 契约，用于显式拒绝未配置、绝密/本地模式、缺二次确认、缺配对、缺 route token 和缺队列/审计的请求；仍缺真实设备配对、桌面 host、远程命令队列、状态回传、撤销和审计闭环。
 - 任意模型/Skills/MCP 的组织策略、权限拒绝、调用日志和隐私模式回归仍需补完整商业证据；当前 MCP 外部连接已完成商业环境 fail-closed allowlist 基线，MCP tool execution 和 CLI `/execute` 已接入 DB-backed route-token fail-closed，桌面端 CLI execute 会在调用前申请并传递短期 route token，但真实 approved connector 演练仍缺。
 - 通用工作助手、软件/原型工作台、浏览器执行器、CLI harness 和定时自动化尚缺统一产品入口、沙盒执行和企业审批。
 - Codex/Claude 风格的可信会话体验尚缺完整产品化：长任务计划/进度/证据/可恢复状态、artifact 编辑、能力命令面板和跨设备接续仍需统一设计与验收。

@@ -75,6 +75,64 @@ class SyncStatusResponse(BaseModel):
     storage_limit_bytes: int = 0
 
 
+REMOTE_CONTROL_REQUIRED_CONTROLS = [
+    "device_pairing",
+    "desktop_confirmation",
+    "capability_route_token",
+    "second_confirmation_for_high_risk_commands",
+    "command_expiry_and_revocation",
+    "audit_log",
+]
+
+REMOTE_CONTROL_BLOCKED_PRIVACY_MODES = {"local", "top-secret", "top_secret", "local-only", "local_only"}
+REMOTE_CONTROL_HIGH_RISK_LEVELS = {"l4", "high", "critical"}
+
+
+class RemoteControlStatusResponse(BaseModel):
+    """移动远控桌面状态"""
+    available: bool = False
+    status: str = "not_configured"
+    desktop_device_id: str | None = None
+    required_controls: list[str] = Field(default_factory=list)
+    message: str
+
+
+class RemoteControlPairingRequest(BaseModel):
+    """移动端发起桌面配对请求"""
+    mobile_device_id: str = Field(..., min_length=1, max_length=128)
+    desktop_device_id: str = Field(..., min_length=1, max_length=128)
+    requested_scopes: list[str] = Field(default_factory=list, max_length=20)
+    privacy_mode: str = Field(default="hybrid", max_length=40)
+    expires_in_seconds: int = Field(default=600, ge=60, le=3600)
+
+
+class RemoteControlCommandRequest(BaseModel):
+    """移动端远控命令请求"""
+    desktop_device_id: str = Field(..., min_length=1, max_length=128)
+    command_type: str = Field(..., min_length=1, max_length=80)
+    payload: dict[str, Any] = Field(default_factory=dict)
+    pairing_id: str | None = Field(default=None, max_length=128)
+    route_token: str | None = Field(default=None, max_length=512)
+    privacy_mode: str = Field(default="hybrid", max_length=40)
+    risk_level: str = Field(default="l3", max_length=40)
+    second_confirmed: bool = False
+
+
+def _normalize_remote_control_mode(mode: str | None) -> str:
+    return (mode or "hybrid").strip().lower()
+
+
+def _remote_control_denied(status_code: int, code: str, message: str) -> None:
+    raise HTTPException(
+        status_code=status_code,
+        detail={
+            "code": code,
+            "message": message,
+            "required_controls": REMOTE_CONTROL_REQUIRED_CONTROLS,
+        },
+    )
+
+
 # ===== API 端点 =====
 
 @router.post("/push", response_model=SyncPushResponse, summary="推送本地变更到云端")
@@ -135,6 +193,93 @@ async def sync_status(
     """获取当前用户的同步状态信息"""
     result = await SyncService(db).status(str(user.id), device_id=device_id)
     return SyncStatusResponse(**result)
+
+
+@router.get(
+    "/remote-control/status",
+    response_model=RemoteControlStatusResponse,
+    summary="获取移动远控桌面能力状态",
+)
+async def remote_control_status(
+    desktop_device_id: str | None = Query(None, max_length=128),
+    user: User = Depends(get_current_user_required),
+) -> RemoteControlStatusResponse:
+    """返回远控能力的真实就绪状态；未完成协议闭环前只允许显式不可用。"""
+    _ = user
+    return RemoteControlStatusResponse(
+        available=False,
+        status="not_configured",
+        desktop_device_id=desktop_device_id,
+        required_controls=REMOTE_CONTROL_REQUIRED_CONTROLS,
+        message="移动远控桌面尚未配置持久化设备配对、命令队列、撤销和审计闭环，默认不可用。",
+    )
+
+
+@router.post("/remote-control/pairings", summary="申请移动端与桌面端配对")
+async def request_remote_control_pairing(
+    request: RemoteControlPairingRequest,
+    user: User = Depends(get_current_user_required),
+) -> dict[str, Any]:
+    """远控配对必须 fail-closed，直到桌面确认、持久化存储和审计闭环全部接入。"""
+    _ = user
+    privacy_mode = _normalize_remote_control_mode(request.privacy_mode)
+    if privacy_mode in REMOTE_CONTROL_BLOCKED_PRIVACY_MODES:
+        _remote_control_denied(
+            403,
+            "remote_control_privacy_mode_blocked",
+            "本地/绝密模式下禁止移动端发起桌面远控配对；必须先在桌面端显式授权。",
+        )
+
+    _remote_control_denied(
+        409,
+        "remote_control_pairing_store_missing",
+        "远控配对持久化、桌面端确认和审计链路尚未完成，不能创建临时或假成功配对。",
+    )
+    return {}
+
+
+@router.post("/remote-control/commands", summary="下发移动远控桌面命令")
+async def enqueue_remote_control_command(
+    request: RemoteControlCommandRequest,
+    user: User = Depends(get_current_user_required),
+) -> dict[str, Any]:
+    """远控命令在未配对、未授权或未审计时一律拒绝，不进入队列。"""
+    _ = user
+    privacy_mode = _normalize_remote_control_mode(request.privacy_mode)
+    if privacy_mode in REMOTE_CONTROL_BLOCKED_PRIVACY_MODES:
+        _remote_control_denied(
+            403,
+            "remote_control_privacy_mode_blocked",
+            "本地/绝密模式下禁止移动端下发桌面远控命令。",
+        )
+
+    if request.risk_level.strip().lower() in REMOTE_CONTROL_HIGH_RISK_LEVELS and not request.second_confirmed:
+        _remote_control_denied(
+            403,
+            "remote_control_second_confirmation_required",
+            "高风险桌面远控命令必须完成二次确认后才能进入命令队列。",
+        )
+
+    if not request.pairing_id:
+        _remote_control_denied(
+            403,
+            "remote_control_pairing_required",
+            "缺少已确认的设备配对，远控命令不会入队。",
+        )
+
+    if not request.route_token:
+        _remote_control_denied(
+            403,
+            "remote_control_route_token_required",
+            "缺少短期 CapabilityRoute token，远控命令不会入队。",
+        )
+
+    _remote_control_denied(
+        409,
+        "remote_control_command_queue_missing",
+        "远控命令队列、执行状态回传、撤销和审计链路尚未完成，不能接受命令。",
+    )
+    return {}
 
 
 @router.post("/resolve", summary="解决同步冲突")

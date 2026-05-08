@@ -70,7 +70,7 @@ bash scripts/static-quality-baseline.sh --out /tmp/anxin-static-quality-baseline
 
 ```bash
 cd backend && ./.venv/bin/pytest -q
-# 467 passed, 1 skipped, 17 warnings in 36.11s
+# 736 passed, 1 skipped, 12 warnings in 44.61s
 
 cd backend && ./.venv/bin/pytest -q tests/test_subscription_state_machine.py tests/test_refund_idempotency.py tests/test_payment_provider_clients.py tests/test_official_webhook_security.py tests/test_webhook_business_events.py tests/test_external_surface_guards.py tests/test_mode_subscription_guards.py tests/test_im_offline_messages.py tests/test_im_websocket_auth.py -k 'subscription or refund or payment or webhook or metrics or provider or event or esignbao or mode or im or websocket'
 # 58 passed, 6 deselected in 11.79s

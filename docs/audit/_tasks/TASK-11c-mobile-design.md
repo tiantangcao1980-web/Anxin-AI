@@ -55,7 +55,7 @@
 | P0-4 | `mini-program/src/pages/index/index.tsx` | ✅ 2026-05-06 已修：加载失败/空列表不再渲染假新闻 fallback | 已改为明确空状态（"暂无资讯，下拉刷新重试"）+ `console.warn` telemetry；不再混淆假数据与真数据 |
 | P0-5 | 新建 `docs/design/cross-platform-token-drift.md` | 缺漂移清单 | 用 `/designdna` 校验：列出 desktop / mobile / mini-program 的 token 与 `frontend/src/lib/design-tokens.ts` 的差异；标 P0/P1/P2；**不重新设计**，仅产出清单 |
 | P0-6 | `mobile/app/sessions/`（含跨设备会话延续入口） | 桌面开始 → 手机继续未实现 | 复用任务 11b 的 sync 协议；移动端拉 pull 后渲染当前活跃 session（含未读消息 + 未提交输入框草稿）；纯前端工作，不改后端协议 |
-| P0-7 | `mobile/app/desktop-control/` + 11b remote command API | 移动端远程控制桌面未实现 | 设备配对、桌面在线状态、远程命令下发、执行状态、取消/撤销、敏感动作二次确认和审计记录可见；绝密模式/未授权设备必须 fail-closed |
+| P0-7 | `mobile/app/desktop-control/` + 11b remote command API | 后端已补远控 status/pairing/command fail-closed 契约，能拒绝未配置、绝密/本地模式、缺二次确认、缺配对、缺 route token 和缺队列/审计场景；移动端 UI、真实配对、命令队列和真机证据仍未实现 | 设备配对、桌面在线状态、远程命令下发、执行状态、取消/撤销、敏感动作二次确认和审计记录可见；绝密模式/未授权设备必须 fail-closed |
 
 ---
 

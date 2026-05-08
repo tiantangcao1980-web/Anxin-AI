@@ -47,7 +47,7 @@
 
 已确认可用：
 
-- 后端默认全量 pytest 当前达到 `467 passed, 1 skipped, 17 warnings in 36.11s`；`test_comprehensive_flow` 作为显式 opt-in smoke，需 `RUN_COMPREHENSIVE_FLOW=1` 才运行。
+- 后端默认全量 pytest 当前达到 `736 passed, 1 skipped, 12 warnings in 44.61s`；`test_comprehensive_flow` 作为显式 opt-in smoke，需 `RUN_COMPREHENSIVE_FLOW=1` 才运行。
 - 前端 `lint`、`npm test` 与 `build` 可通过，最新完整本地门禁中 Vitest 为 `12 files / 45 tests passed`，`npm run build` 当前通过。
 - 角色访问 E2E 当前达到 `10 passed, 10 skipped`。
 - 移动/小程序本地门禁：`bash scripts/mobile-device-smoke.sh` 通过，移动 Vitest `7 files / 19 tests passed`，移动 tsc、Expo doctor `17/17`、mobile production npm audit、小程序 tsc/build、WeChat DevTools CLI project smoke、mobile result surface guard、refresh auth guard、mobile/mini privacy network guard、fake fallback guard、mini-program navigation boundary guard 和 mini-program design token guard 均为 exit `0`。
@@ -56,7 +56,7 @@
 - 本地/混合/云端与可配置模型已有架构基础：`docs/ARCHITECTURE_V2.md` 已定义本地模式数据不离开设备、Ollama/LM Studio 等自配置本地模型，以及 Enterprise 自定义 LLM endpoint；后端存在 `src/services/llm_service.py`、`src/services/private_llm_service.py`、`src/api/routes/llm.py`，桌面存在 `desktop/src/commands/local_llm.rs`。
 - MCP/Skills 已有代码基础：后端存在 `backend/src/mcp_server.py`、`backend/src/api/routes/mcp_routes.py`、`backend/src/services/mcp_client_service.py`、`backend/src/models/mcp_config.py`、`backend/src/services/skill_service.py`；这些证明扩展底座存在，但尚不能证明“任意 Skills/MCP 商业可配置”已经闭环。
 - 独立知识库已有代码基础：后端存在 `backend/src/services/knowledge_management.py`、`backend/src/services/knowledge_service.py`、`backend/src/api/routes/knowledge.py`；仍需把本地知识库、组织知识库、来源引用、离线索引和移动/桌面可视化配置纳入发布验收。
-- 桌面/移动本地安全已有局部基础：桌面 SQLCipher/keyring、offline queue 和 local LLM 命令已有代码级证据；移动 `privacy-context` 已覆盖 LAN Ollama 等本地模型语义。仍缺完整的桌面主工作站配置面、移动远程控制桌面协议和真机/packaged runtime 证据。
+- 桌面/移动本地安全已有局部基础：桌面 SQLCipher/keyring、offline queue 和 local LLM 命令已有代码级证据；移动 `privacy-context` 已覆盖 LAN Ollama 等本地模型语义；后端同步路由已补移动远控 fail-closed API 契约。仍缺完整的桌面主工作站配置面、真实移动远控配对/命令队列/状态回传/审计和真机/packaged runtime 证据。
 - 商业发布门禁脚本 `scripts/commercial-readiness-gate.sh` 已建立；当前预期为 FAIL，用于防止在外部证据未齐时误判 Go。
 - 支付/电签沙箱证据采集入口 `scripts/sandbox-evidence-runner.py` 已建立；默认只做脱敏配置预检，live 调用必须显式传 `--live --confirm-live-side-effects`。
 - 第一波 V2 守卫已完成：`/pro` provider 守卫、ModeGate/PrivacyContext fail-closed、LLM 组织隔离、尽调模式/订阅守卫、匿名聊天 token 拆分、A2UI/WS 鉴权。

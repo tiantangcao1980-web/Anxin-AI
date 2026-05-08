@@ -66,7 +66,7 @@
 | P0-5 | `backend/src/services/sync_service.py` + `backend/src/api/routes/sync.py` | sync 接口未实现 device_id 隔离 + version 增量 | push: 校验 user 拥有 entity；按 entity_type 路由到对应 service upsert；写 sync_log（含 device_id 来源）。pull: 基于 sync_log `WHERE user_id=? AND version > ?` 增量返回；同 user 不同 device 互通，跨 user 完全隔离 |
 | P0-6 | `frontend/src/lib/api-adapter.ts` retry scheduler | ✅ 代码级已补；runtime 未验 | 失败 push 行写入 `retry_count` / `next_retry_at` / `needs_human`，按有界指数退避排队；仍需 packaged Tauri runtime smoke 证明 |
 | P0-7 | `desktop/src/services/sync_engine.rs` SQLite 加密 | 本地 SQLite 明文 | 接 `sqlcipher`（或 `tauri-plugin-sql` + sqlcipher feature）；密钥从系统 keyring 读（macOS Keychain / Windows DPAPI）；首次启动生成；绝密模式数据强制加密 |
-| P0-8 | 远程命令队列 + 设备配对 + 审计 | 移动端远程控制桌面未定义 | 支持 mobile -> desktop 的 command queue：pairing、permission scope、pending/accepted/running/succeeded/failed/cancelled 状态、敏感动作确认、撤销、过期、审计日志；绝密模式默认拒绝外部命令，除非用户在桌面端显式授权 |
+| P0-8 | 远程命令队列 + 设备配对 + 审计 | 后端同步路由已补 `/sync/remote-control/status`、`pairings`、`commands` fail-closed 契约：未配置、绝密/本地模式、缺二次确认、缺配对、缺 route token、缺队列/审计均拒绝且不入队；真实设备配对、桌面 host、队列、状态回传和审计仍未实现 | 支持 mobile -> desktop 的 command queue：pairing、permission scope、pending/accepted/running/succeeded/failed/cancelled 状态、敏感动作确认、撤销、过期、审计日志；绝密模式默认拒绝外部命令，除非用户在桌面端显式授权 |
 
 ---
 
@@ -188,7 +188,7 @@ docs/audit/11b-sync-engine/
 - [ ] 自动重试 runtime：代码级退避与 `needs_human` 已补；仍需在真实 Tauri runtime 中验证失败、延迟重试、达到上限转人工处理
 - [ ] sqlcipher 接通：本地 SQLite 文件用 hex 工具打开看不到明文；密钥在 macOS Keychain / Windows Credential Manager 可查
 - [ ] 后端 sync 接口：跨 user 完全隔离（A 用户 pull 永远拿不到 B 用户的 sync_log）；按 device_id + user_id 限流生效
-- [ ] 移动远控命令队列：设备配对、命令入队、桌面确认、状态回传、取消/撤销、过期、审计和绝密模式拒绝均有测试或 runtime smoke
+- [ ] 移动远控命令队列：后端 fail-closed API 契约已有 `backend/tests/test_remote_control_fail_closed.py` 覆盖；仍需设备配对、命令入队、桌面确认、状态回传、取消/撤销、过期、审计和绝密模式拒绝的真实 runtime smoke
 - [ ] 桌面 `cargo test` 新增至少 15 个用例全绿；后端 `pytest` 新增至少 10 个用例全绿；全栈 273 baseline 不退化
 - [ ] 性能基线达标：push 100 条 P95 < 2s；pull 500 条 P95 < 3s
 - [ ] `docs/audit/11b-sync-engine/01..05.md` + `docs/desktop/sync-engine-{design,protocol,runbook}.md` 全部产出
