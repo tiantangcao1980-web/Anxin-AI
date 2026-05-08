@@ -438,7 +438,7 @@ class DueDiligenceService:
         从中国执行信息公开网查询被执行人信息。
 
         数据源: https://zxgk.court.gov.cn/
-        注意: 该网站有瑞数反爬保护，使用 Playwright 模拟浏览器查询。
+        注意: 该网站有瑞数反爬保护；商业环境只走合规抓取入口，不直接启动浏览器。
         返回: {"execution_cases": int, "total_amount": str, "records": [...]}
         """
         result = {"execution_cases": 0, "total_amount": "", "records": [], "dishonest_records": 0}
@@ -465,97 +465,9 @@ class DueDiligenceService:
         logger.debug("执行信息合规抓取未返回可用内容，跳过直接浏览器 fallback")
         return result
 
-        # Fallback: Playwright
-        try:
-            from playwright.async_api import async_playwright
-        except ImportError:
-            logger.debug("Playwright 未安装，跳过执行信息查询")
-            return result
-
-        try:
-            async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
-                context = await browser.new_context(
-                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                    viewport={"width": 1280, "height": 720},
-                )
-                page = await context.new_page()
-
-                # === 1. 查询被执行人信息 ===
-                try:
-                    await page.goto("https://zxgk.court.gov.cn/zhixing/", timeout=15000)
-                    await page.wait_for_load_state("networkidle", timeout=10000)
-
-                    # 填写企业名称
-                    name_input = page.locator('input[name="pName"], input#pName, input.input-txt').first
-                    await name_input.fill(company_name)
-
-                    # 点击搜索
-                    search_btn = page.locator('button:has-text("搜索"), a:has-text("搜索"), .search-btn').first
-                    await search_btn.click()
-                    await page.wait_for_timeout(3000)
-
-                    # 提取结果
-                    content = await page.content()
-                    from bs4 import BeautifulSoup
-                    soup = BeautifulSoup(content, "html.parser")
-
-                    # 查找结果表格或列表
-                    rows = soup.find_all("tr") or soup.find_all("div", class_=re.compile(r"result|item|record"))
-                    records = []
-                    for row in rows[1:11]:  # 最多取10条
-                        cells = row.find_all("td") or row.find_all("span")
-                        if len(cells) >= 3:
-                            record = {
-                                "case_no": cells[0].get_text(strip=True) if cells else "",
-                                "court": cells[1].get_text(strip=True) if len(cells) > 1 else "",
-                                "amount": cells[2].get_text(strip=True) if len(cells) > 2 else "",
-                                "status": cells[-1].get_text(strip=True) if cells else "",
-                            }
-                            records.append(record)
-
-                    result["execution_cases"] = len(records)
-                    result["records"] = records
-                    if records:
-                        logger.info(f"执行信息查询成功: {company_name}, {len(records)} 条记录")
-
-                except Exception as e:
-                    logger.debug(f"被执行人查询失败: {e}")
-
-                # === 2. 查询失信被执行人 ===
-                try:
-                    await page.goto("https://zxgk.court.gov.cn/shixin/", timeout=15000)
-                    await page.wait_for_load_state("networkidle", timeout=10000)
-
-                    name_input = page.locator('input[name="pName"], input#pName, input.input-txt').first
-                    await name_input.fill(company_name)
-
-                    search_btn = page.locator('button:has-text("搜索"), a:has-text("搜索"), .search-btn').first
-                    await search_btn.click()
-                    await page.wait_for_timeout(3000)
-
-                    content = await page.content()
-                    soup = BeautifulSoup(content, "html.parser")
-                    rows = soup.find_all("tr") or soup.find_all("div", class_=re.compile(r"result|item"))
-                    dishonest_count = max(0, len(rows) - 1)  # 减去表头
-                    result["dishonest_records"] = dishonest_count
-
-                    if dishonest_count > 0:
-                        logger.info(f"失信查询成功: {company_name}, {dishonest_count} 条失信记录")
-
-                except Exception as e:
-                    logger.debug(f"失信被执行人查询失败: {e}")
-
-                await browser.close()
-
-        except Exception as e:
-            logger.warning(f"执行信息查询整体失败: {e}")
-
-        return result
-
     async def _fetch_credit_china_info(self, company_name: str) -> dict[str, Any]:
         """
-        从信用中国查询企业信用信息（Playwright 方式，绕过瑞数反爬）。
+        从信用中国查询企业信用信息（合规抓取方式）。
 
         数据源: https://www.creditchina.gov.cn/
         返回: {"penalties": int, "red_list": bool, "black_list": bool, "records": [...]}
@@ -588,143 +500,40 @@ class DueDiligenceService:
         logger.debug("信用中国合规抓取未返回可用内容，跳过直接浏览器 fallback")
         return result
 
-        # Fallback: Playwright
-        try:
-            from playwright.async_api import async_playwright
-        except ImportError:
-            logger.debug("Playwright 未安装，跳过信用中国查询")
-            return result
-
-        try:
-            async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
-                context = await browser.new_context(
-                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                )
-                page = await context.new_page()
-
-                await page.goto(
-                    f"https://www.creditchina.gov.cn/xinyongxinxixiangqing/xyDetail.html?searchState=1&entityType=1&keyword={company_name}",
-                    timeout=20000,
-                )
-                await page.wait_for_timeout(3000)
-
-                content = await page.content()
-                from bs4 import BeautifulSoup
-                soup = BeautifulSoup(content, "html.parser")
-
-                # 提取行政处罚记录
-                penalty_sections = soup.find_all(
-                    string=re.compile(r"行政处罚|行政许可|经营异常")
-                )
-                for section in penalty_sections:
-                    parent = section.find_parent("div")
-                    if parent:
-                        rows = parent.find_all("tr")
-                        for row in rows[1:6]:  # 最多5条
-                            cells = row.find_all("td")
-                            if cells:
-                                result["records"].append({
-                                    "title": cells[0].get_text(strip=True) if cells else "",
-                                    "type": "行政处罚",
-                                    "date": cells[-1].get_text(strip=True) if cells else "",
-                                })
-                                result["penalties"] += 1
-
-                # 检查黑名单
-                page_text = soup.get_text()
-                if "严重失信" in page_text or "黑名单" in page_text:
-                    result["black_list"] = True
-                if "守信红名单" in page_text:
-                    result["red_list"] = True
-
-                if result["penalties"] > 0 or result["black_list"]:
-                    logger.info(
-                        f"信用中国查询成功: {company_name}, "
-                        f"{result['penalties']}条处罚, 黑名单={result['black_list']}"
-                    )
-
-                await browser.close()
-
-        except Exception as e:
-            logger.warning(f"信用中国查询失败: {e}")
-
-        return result
-
     async def _fetch_wenshu_info(self, company_name: str) -> dict[str, Any]:
         """
-        从中国裁判文书网查询相关裁判文书（Playwright 方式）。
+        从中国裁判文书网查询相关裁判文书（合规抓取方式）。
 
         数据源: https://wenshu.court.gov.cn/
-        注意: 反爬极严格，仅做轻量查询（获取案件数量和摘要），
-              不做批量爬取。若触发验证码则立即放弃。
+        注意: 反爬极严格，仅做轻量页面核验，不直接启动浏览器自动化。
         返回: {"case_count": int, "cases": [...], "source": str}
         """
         result: JSONDict = {"case_count": 0, "cases": [], "source": "中国裁判文书网"}
 
         try:
-            from playwright.async_api import async_playwright
-        except ImportError:
-            logger.debug("Playwright 未安装，跳过裁判文书网查询")
-            return result
+            from src.services.crawl4ai_service import crawl4ai_service
 
-        try:
-            async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
-                context = await browser.new_context(
-                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                )
-                page = await context.new_page()
-
-                # 访问搜索页
-                await page.goto("https://wenshu.court.gov.cn/", timeout=15000)
-                await page.wait_for_timeout(2000)
-
-                # 检查是否有验证码
-                content = await page.content()
+            c4_result = await crawl4ai_service.crawl_url("https://wenshu.court.gov.cn/", timeout=20)
+            if c4_result.get("success") and c4_result.get("content"):
+                content = c4_result["content"]
                 if "验证" in content and ("滑" in content or "captcha" in content.lower()):
                     logger.info("裁判文书网触发验证码，放弃查询")
-                    await browser.close()
                     return result
 
-                # 尝试搜索
-                try:
-                    search_input = page.locator('input[type="text"], input.search-input, #keyword').first
-                    await search_input.fill(company_name)
-                    await page.keyboard.press("Enter")
-                    await page.wait_for_timeout(5000)
+                count_match = re.search(r"共?\s*(\d+)\s*条", content)
+                if count_match:
+                    result["case_count"] = int(count_match.group(1))
+                elif company_name in content:
+                    result["case_count"] = 1
 
-                    content = await page.content()
-                    from bs4 import BeautifulSoup
-                    soup = BeautifulSoup(content, "html.parser")
-
-                    # 尝试提取案件数量
-                    count_el = soup.find(string=re.compile(r"共?\s*\d+\s*条"))
-                    if count_el:
-                        count_match = re.search(r"(\d+)", count_el)
-                        if count_match:
-                            result["case_count"] = int(count_match.group(1))
-
-                    # 提取案件列表（最多5条摘要）
-                    items = soup.find_all("div", class_=re.compile(r"result|item|case", re.I))
-                    for item in items[:5]:
-                        title = item.find("a")
-                        if title:
-                            result["cases"].append({
-                                "title": title.get_text(strip=True)[:100],
-                                "url": title.get("href", ""),
-                            })
-
-                    if result["case_count"] > 0:
-                        logger.info(f"裁判文书网查询成功: {company_name}, {result['case_count']} 条文书")
-
-                except Exception as e:
-                    logger.debug(f"裁判文书网搜索失败: {e}")
-
-                await browser.close()
-
+                if result["case_count"] > 0:
+                    result["cases"].append({
+                        "title": f"{company_name} 相关裁判文书公开页线索",
+                        "url": "https://wenshu.court.gov.cn/",
+                    })
+                    logger.info(f"裁判文书网合规抓取命中线索: {company_name}")
         except Exception as e:
-            logger.warning(f"裁判文书网查询失败: {e}")
+            logger.debug(f"裁判文书网合规抓取失败: {e}")
 
         return result
 

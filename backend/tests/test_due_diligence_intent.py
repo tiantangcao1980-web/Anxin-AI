@@ -1,7 +1,10 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from src.services.due_diligence_service import (
+    DueDiligenceService,
     classify_investigation_request,
     detect_company_due_diligence_request,
     extract_company_name_from_text,
@@ -119,3 +122,26 @@ def test_investigation_routing_eval_dataset_meets_accuracy_floor():
     assert intent_hits / len(rows) >= 0.85
     assert company_rows >= 100
     assert company_hits / company_rows >= 0.85
+
+
+@pytest.mark.asyncio
+async def test_wenshu_lookup_uses_compliant_crawler(monkeypatch):
+    from src.services.crawl4ai_service import crawl4ai_service
+
+    calls: list[str] = []
+
+    async def fake_crawl_url(url: str, timeout: int | None = None):
+        calls.append(url)
+        return {
+            "success": True,
+            "content": "腾讯公司 相关结果 共 12 条",
+            "error": None,
+        }
+
+    monkeypatch.setattr(crawl4ai_service, "crawl_url", fake_crawl_url)
+
+    result = await DueDiligenceService()._fetch_wenshu_info("腾讯公司")
+
+    assert calls == ["https://wenshu.court.gov.cn/"]
+    assert result["case_count"] == 12
+    assert result["cases"][0]["title"].startswith("腾讯公司")

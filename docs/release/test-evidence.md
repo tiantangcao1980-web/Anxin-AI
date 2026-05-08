@@ -338,7 +338,7 @@ cd mobile && npm run typecheck
 | 知识管理接口 | `knowledge_management` 读写权限分层、无组织用户 fail-closed、出口脱敏和组织分桶隔离测试 `5 passed` | 代码级安全收口；进程内存存储仍非商业持久化形态 |
 | 尽调缓存组织隔离 | `SearchCache.org_id` scope + 编排器/deep research 传递 org；`test_investigation_cache_org_scope.py` `3 passed` | 代码级充分；真实预发数据路径仍需复跑 |
 | 风险评分解释性 | `risk_scoring_engine` 顶层 `score/factors/explain` + 确定性/兼容性测试 `2 passed`，`RiskAlertPanel` 支持因子贡献条 | 代码级充分；前端真实合同因子数据仍需联调 |
-| 爬虫合规入口 | `crawler_service.fetch()` 统一白名单/robots/UA/host 频控；`crawl4ai_service` 与尽调抓取不再绕过；商业环境下浏览器/爬虫 fetch 已在 robots/http 前要求 DB-backed `browser:fetch` route token，撤销 route 后下一次 fetch fail-closed；`test_crawler_compliance.py` `7 passed` | 代码级充分；真实外网 dry-run 被本机 DNS 私网解析防护阻断，发布前需在预发网络复跑 |
+| 爬虫合规入口 | `crawler_service.fetch()` 统一白名单/robots/UA/host 频控；`crawl4ai_service` 与尽调抓取不再绕过，尽调执行信息/信用中国/裁判文书查询已移除直接 Playwright fallback，只走合规 crawl service 或返回无外部证据；商业环境下浏览器/爬虫 fetch 已在 robots/http 前要求 DB-backed `browser:fetch` route token，撤销 route 后下一次 fetch fail-closed；`test_crawler_compliance.py` `7 passed`，`test_due_diligence_intent.py` + `test_chat_due_diligence_routing.py` 当前 `21 passed` | 代码级充分；真实外网 dry-run 被本机 DNS 私网解析防护阻断，发布前需在预发网络复跑 |
 | 调查意图路由 | 200 条 JSONL 离线评测集；`test_due_diligence_intent.py` + `test_chat_due_diligence_routing.py` 组合 `13 passed`；意图准确率 `1.000`、企业名抽取准确率 `1.000`（150 条含企业名）；ChatService 已分流尽调/舆情/法规监测 | 代码级充分；真实用户 query 分布上线后需持续采样复核 |
 | 案件/任务 | 案件状态机/终态只读/时间线 event_at 语义、任务 owner/assignee/admin 过滤；`test_case_service.py` + `test_lawyer_matching_and_tasks_api.py` 组合 `46 passed` | 代码级核心充分；全矩阵和 Playwright 全流程仍需发布前扩展 |
 | 专业服务市场 P0（律师/律所） | local 模式固定拒绝、投标前利益冲突命中 409、同分律师曝光轮询；`test_lawyer_matching_and_tasks_api.py` `17 passed` | 律师/律所代码级核心充分；律所 RBAC 全矩阵、8 API 打勾、1000 次公平报告仍需补；税务师/税务事务所/财务顾问/会计审计仍为后续扩展验收 |

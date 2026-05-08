@@ -2,13 +2,13 @@
 Crawl4AI 适配层 — LLM 友好的网页爬取服务
 
 替代 Playwright + BeautifulSoup 手写爬虫：
-- 自动 JS 渲染 + 反检测
+- 统一走中心化合规抓取入口
 - 输出清洁 Markdown（直接可用于 LLM 上下文）
 - 结构化数据提取（替代 CSS selector）
 - 内置缓存 + 并发控制
-- 失败时降级到 Playwright
+- 失败时降级到受控 HTTP 抓取
 
-Crawl4AI 不可用时（未安装/导入失败），自动降级到 httpx + 简单 HTML 解析
+Crawl4AI 不可用时（未安装/导入失败），自动降级到中心化 crawler_service.fetch
 """
 
 import asyncio
