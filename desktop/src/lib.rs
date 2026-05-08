@@ -245,6 +245,10 @@ pub fn run_with_options(options: DesktopRunOptions) {
             commands::sync::get_sync_status,
             commands::sync::get_pending_sync_count,
             commands::sync::resolve_conflict,
+            // 移动远控桌面 host
+            commands::remote_control::remote_control_confirm_pairing,
+            commands::remote_control::remote_control_claim_commands,
+            commands::remote_control::remote_control_report_command_status,
             // 本地 LLM
             commands::local_llm::local_llm_chat,
             commands::local_llm::list_local_models,

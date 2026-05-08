@@ -191,14 +191,20 @@ impl SyncEngine {
     async fn push_pending_records(&self) -> Result<u32, String> {
         log::info!("推送待同步记录到: {}/api/v1/sync/push", self.backend_url);
         self.set_sync_status(SyncStatus::Error).await;
-        Err("Rust 同步引擎数据面未启用；请使用前端 Tauri bridge 的 SQLCipher 本地同步路径".to_string())
+        Err(
+            "Rust 同步引擎数据面未启用；请使用前端 Tauri bridge 的 SQLCipher 本地同步路径"
+                .to_string(),
+        )
     }
 
     /// 拉取云端增量更新
     async fn pull_incremental_updates(&self) -> Result<u32, String> {
         log::info!("拉取增量更新从: {}/api/v1/sync/pull", self.backend_url);
         self.set_sync_status(SyncStatus::Error).await;
-        Err("Rust 同步引擎数据面未启用；请使用前端 Tauri bridge 的 SQLCipher 本地同步路径".to_string())
+        Err(
+            "Rust 同步引擎数据面未启用；请使用前端 Tauri bridge 的 SQLCipher 本地同步路径"
+                .to_string(),
+        )
     }
 
     /// 控制面心跳（所有模式都执行）
@@ -334,9 +340,7 @@ mod tests {
         let result = engine.sync().await;
 
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .contains("Rust 同步引擎数据面未启用"));
+        assert!(result.unwrap_err().contains("Rust 同步引擎数据面未启用"));
         let s = state.read().await;
         assert_eq!(s.sync_status, SyncStatus::Error);
         assert!(s.last_sync_time.is_none());
