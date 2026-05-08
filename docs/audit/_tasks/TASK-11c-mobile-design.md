@@ -55,7 +55,7 @@
 | P0-4 | `mini-program/src/pages/index/index.tsx` | ✅ 2026-05-06 已修：加载失败/空列表不再渲染假新闻 fallback | 已改为明确空状态（"暂无资讯，下拉刷新重试"）+ `console.warn` telemetry；不再混淆假数据与真数据 |
 | P0-5 | 新建 `docs/design/cross-platform-token-drift.md` | 缺漂移清单 | 用 `/designdna` 校验：列出 desktop / mobile / mini-program 的 token 与 `frontend/src/lib/design-tokens.ts` 的差异；标 P0/P1/P2；**不重新设计**，仅产出清单 |
 | P0-6 | `mobile/app/sessions/`（含跨设备会话延续入口） | 桌面开始 → 手机继续未实现 | 复用任务 11b 的 sync 协议；移动端拉 pull 后渲染当前活跃 session（含未读消息 + 未提交输入框草稿）；纯前端工作，不改后端协议 |
-| P0-7 | `mobile/app/desktop-control.tsx` + 11b remote command API | 后端已补远控 status/pairing/command fail-closed 契约，能拒绝未配置、绝密/本地模式、缺二次确认、缺配对、缺 route token 和缺队列/审计场景；移动端已补 `/desktop-control` 状态入口和个人中心入口，local 模式不发网络请求，hybrid/cloud 读取后端安全闸，confirmed pairing 下可申请短期 route token 并只入队 `desktop.status_probe`；真实桌面 host 回传、取消/撤销可见面、高风险执行器、跨设备联调和真机证据仍未实现 | 设备配对、桌面在线状态、远程命令下发、执行状态、取消/撤销、敏感动作二次确认和审计记录可见；绝密模式/未授权设备必须 fail-closed |
+| P0-7 | `mobile/app/desktop-control.tsx` + 11b remote command API | 后端已补远控 status/pairing/command fail-closed 契约，能拒绝未配置、绝密/本地模式、缺二次确认、缺配对、缺 route token 和缺队列/审计场景；移动端已补 `/desktop-control` 状态入口和个人中心入口，local 模式不发网络请求，hybrid/cloud 读取后端安全闸，confirmed pairing 下可申请短期 route token、只入队 `desktop.status_probe`、刷新状态并取消 queued/claimed 探针；真实桌面 host 回传、高风险执行器、跨设备联调和真机证据仍未实现 | 设备配对、桌面在线状态、远程命令下发、执行状态、取消/撤销、敏感动作二次确认和审计记录可见；绝密模式/未授权设备必须 fail-closed |
 
 ---
 
@@ -134,7 +134,7 @@ docs/audit/11c-mobile-design/
 - **fallback 移除**：移除移动端静默 fallback 后，用户在弱网 / 后端故障时会看到更多空状态 / 错误页，**必须在 release notes 显式说明**，让用户知道"看到错误页 = 后端真的有问题，不是 app bug"
 - **mock_token**：小程序 mock_token 移除前必须确认后端登录链路（任务 1 已交付）真实工作；否则会导致小程序登录全断；建议先在测试环境验证 7 天再发版
 - **跨设备会话延续**：依赖任务 11b 的同步协议字段；任务 11b 未交付前本任务 P0-6 只能 mock 或延后（标 P1）
-- **移动远控桌面**：依赖任务 11a/11b 的 host 与 command queue；safe-probe 已可受 route-token 管控入队，但未有桌面 host 回传和真机证据前不能用假成功 UI，必须显示“等待桌面 host 回传”或禁用高风险入口
+- **移动远控桌面**：依赖任务 11a/11b 的 host 与 command queue；safe-probe 已可受 route-token 管控入队、刷新和取消，但未有桌面 host 回传和真机证据前不能用假成功 UI，必须显示“等待桌面 host 回传”或禁用高风险入口
 - **真机灰度**：iOS / Android 各灰度 50 用户跑 14 天，再扩量；微信小程序开"开发版 → 体验版 → 正式发布"三阶
 - **不改后端**：本任务理论上不动 backend/；如发现移动端 fallback 是因后端缺接口，记到 followups.md 不在本任务修
 - **不动**：desktop / payment / prompts / store.ts / 任务 11b 的同步协议
@@ -152,7 +152,7 @@ docs/audit/11c-mobile-design/
 - [x] `docs/design/cross-platform-token-drift.md` 产出三端 vs `design-tokens.ts` 漂移清单（P0/P1/P2 分级）；小程序语义 token 层和触控 token 底座已补，品牌主色最终统一方向仍待定
 - [ ] 移动端跨设备会话延续：桌面开始一段对话 → 移动端 pull 后能看到 last_message + draft（依赖任务 11b 已交付）
 - [ ] 移动端远程控制桌面：设备配对、桌面在线状态、命令下发、状态回传、取消/撤销、敏感动作二次确认和审计记录通过真机/模拟器 transcript；未授权或绝密模式下 fail-closed
-- [x] 移动端测试 baseline 10 → 至少 +3（覆盖错误分支）；当前 safe-probe hardening 后 `npm test` 为 `8 files / 32 tests passed`，`npm run typecheck` 通过；新增字符串 transport error、status 优先级错误分支、触控 token、弱网 refresh-token、`X-Privacy-Mode` 透传、local 模式零网络调用、desktop-control status endpoint routing、route-token 签发、safe-probe command enqueue、pairing request routing、local-mode desktop-control no-network state 和 fail-closed desktop-control gate copy 用例
+- [x] 移动端测试 baseline 10 → 至少 +3（覆盖错误分支）；当前 safe-probe status/cancel hardening 后 `npm test` 为 `8 files / 34 tests passed`，`npm run typecheck` 通过；新增字符串 transport error、status 优先级错误分支、触控 token、弱网 refresh-token、`X-Privacy-Mode` 透传、local 模式零网络调用、desktop-control status endpoint routing、route-token 签发、safe-probe command enqueue/status/cancel、pairing request routing、local-mode desktop-control no-network state 和 fail-closed desktop-control gate copy 用例
 - [ ] 小程序 tsc + lint 全绿；微信开发者工具登录链路真机验证通过
 - [ ] iPhone 14 + Android 13 真机手测通过：登录 / 审批 / 会话延续 三个用户故事
 - [x] `docs/audit/11c-mobile-design/01..05.md` + `docs/design/cross-platform-token-drift.md` + `docs/mobile/error-handling-guidelines.md` 全部产出；另补 `00-prd-reality-gap.md`

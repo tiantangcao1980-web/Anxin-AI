@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildDesktopControlGate,
+  canCancelRemoteControlCommand,
   formatRemoteControlRequiredControl,
   getDesktopControlLoadErrorMessage,
+  type RemoteControlCommandResponse,
   type RemoteControlStatusResponse,
 } from './model'
 
@@ -118,5 +120,27 @@ describe('getDesktopControlLoadErrorMessage', () => {
     expect(getDesktopControlLoadErrorMessage(new Error('Network request failed'))).toBe(
       '网络连接失败，请稍后重试',
     )
+  })
+})
+
+describe('canCancelRemoteControlCommand', () => {
+  const command: RemoteControlCommandResponse = {
+    command_id: 'command-a',
+    pairing_id: 'pairing-a',
+    desktop_device_id: 'desktop-a',
+    command_type: 'desktop.status_probe',
+    risk_level: 'l2',
+    status: 'queued',
+    route_scopes: ['desktop:control'],
+    second_confirmed: false,
+  }
+
+  it('allows cancellation only before terminal execution states', () => {
+    expect(canCancelRemoteControlCommand(command)).toBe(true)
+    expect(canCancelRemoteControlCommand({ ...command, status: 'claimed' })).toBe(true)
+    expect(canCancelRemoteControlCommand({ ...command, status: 'running' })).toBe(false)
+    expect(canCancelRemoteControlCommand({ ...command, status: 'completed' })).toBe(false)
+    expect(canCancelRemoteControlCommand({ ...command, status: 'failed' })).toBe(false)
+    expect(canCancelRemoteControlCommand({ ...command, status: 'cancelled' })).toBe(false)
   })
 })

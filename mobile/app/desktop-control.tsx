@@ -14,6 +14,7 @@ import { Colors } from '@/constants/colors'
 import { Layout } from '@/constants/layout'
 import {
   buildDesktopControlGate,
+  canCancelRemoteControlCommand,
   getDesktopControlLoadErrorMessage,
   type RemoteControlCommandResponse,
   type RemoteControlStatusResponse,
@@ -30,6 +31,8 @@ export default function DesktopControlScreen() {
   const [probeSubmitting, setProbeSubmitting] = useState(false)
   const [probeResult, setProbeResult] = useState<RemoteControlCommandResponse | null>(null)
   const [probeError, setProbeError] = useState<string | null>(null)
+  const [probeStatusRefreshing, setProbeStatusRefreshing] = useState(false)
+  const [probeCancelSubmitting, setProbeCancelSubmitting] = useState(false)
 
   const loadStatus = useCallback(async () => {
     if (privacyMode === 'local') {
@@ -102,6 +105,43 @@ export default function DesktopControlScreen() {
       setProbeSubmitting(false)
     }
   }, [gate.canSendSafeProbe, gate.desktopDeviceId, gate.pairingId, privacyMode])
+
+  const canCancelProbe = useMemo(() => canCancelRemoteControlCommand(probeResult), [probeResult])
+
+  const onRefreshProbeStatus = useCallback(async () => {
+    if (!probeResult?.command_id) return
+
+    try {
+      setProbeStatusRefreshing(true)
+      setProbeError(null)
+      const command = await desktopControlApi.getCommand(probeResult.command_id)
+      setProbeResult(command)
+    } catch (err) {
+      setProbeError(getDesktopControlLoadErrorMessage(err))
+    } finally {
+      setProbeStatusRefreshing(false)
+    }
+  }, [probeResult?.command_id])
+
+  const onCancelProbe = useCallback(async () => {
+    if (!probeResult?.command_id || !canCancelRemoteControlCommand(probeResult)) return
+
+    try {
+      setProbeCancelSubmitting(true)
+      setProbeError(null)
+      const command = await desktopControlApi.cancelCommand(probeResult.command_id, {
+        reason: 'mobile_user_cancelled_safe_probe',
+      })
+      setProbeResult(command)
+      setStatus((current) => current
+        ? { ...current, queued_command_count: Math.max((current.queued_command_count ?? 1) - 1, 0) }
+        : current)
+    } catch (err) {
+      setProbeError(getDesktopControlLoadErrorMessage(err))
+    } finally {
+      setProbeCancelSubmitting(false)
+    }
+  }, [probeResult])
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
@@ -238,6 +278,37 @@ export default function DesktopControlScreen() {
               <Text style={styles.probeDescription}>
                 {probeError || `命令状态：${probeResult?.status ?? 'queued'}，等待桌面端 host 回传。`}
               </Text>
+              {probeResult && (
+                <View style={styles.probeActions}>
+                  <TouchableOpacity
+                    style={styles.inlineButton}
+                    activeOpacity={0.75}
+                    disabled={probeStatusRefreshing}
+                    onPress={onRefreshProbeStatus}
+                  >
+                    <Ionicons name="sync-outline" size={16} color={Colors.primary} />
+                    <Text style={styles.inlineButtonText}>
+                      {probeStatusRefreshing ? '刷新中' : '刷新状态'}
+                    </Text>
+                  </TouchableOpacity>
+                  {canCancelProbe && (
+                    <TouchableOpacity
+                      style={[
+                        styles.inlineDangerButton,
+                        probeCancelSubmitting && styles.inlineButtonDisabled,
+                      ]}
+                      activeOpacity={0.75}
+                      disabled={probeCancelSubmitting}
+                      onPress={onCancelProbe}
+                    >
+                      <Ionicons name="close-circle-outline" size={16} color={Colors.error} />
+                      <Text style={styles.inlineDangerButtonText}>
+                        {probeCancelSubmitting ? '取消中' : '取消命令'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
             </View>
           </View>
         )}
@@ -463,5 +534,44 @@ const styles = StyleSheet.create({
     fontSize: Layout.fontSize.sm,
     lineHeight: 20,
     marginTop: Layout.spacing.xs,
+  },
+  probeActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Layout.spacing.sm,
+    marginTop: Layout.spacing.md,
+  },
+  inlineButton: {
+    minHeight: Layout.touchTarget.min,
+    borderRadius: Layout.borderRadius.full,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    paddingHorizontal: Layout.spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Layout.spacing.xs,
+  },
+  inlineDangerButton: {
+    minHeight: Layout.touchTarget.min,
+    borderRadius: Layout.borderRadius.full,
+    borderWidth: 1,
+    borderColor: Colors.error,
+    paddingHorizontal: Layout.spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Layout.spacing.xs,
+  },
+  inlineButtonDisabled: {
+    opacity: 0.6,
+  },
+  inlineButtonText: {
+    color: Colors.primary,
+    fontSize: Layout.fontSize.sm,
+    fontWeight: '700',
+  },
+  inlineDangerButtonText: {
+    color: Colors.error,
+    fontSize: Layout.fontSize.sm,
+    fontWeight: '700',
   },
 })

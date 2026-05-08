@@ -20,7 +20,7 @@ Date range: 2026-05-06 to 2026-05-08 local collection
 | Design system | Cross-platform token drift audit across Web/desktop, mobile, and mini-program | code-level complete; fixes pending | `docs/design/cross-platform-token-drift.md` |
 | Release communication | Error-state release notes explain removal of silent fallback | draft complete; final notes pending | `docs/release/mobile-error-state-release-notes.md` |
 | Mobile security | `npm audit --omit=dev` has no production vulnerabilities after targeted Expo SDK 52 toolchain overrides | code-level complete; device verification pending | `docs/release/evidence/artifacts/mobile-mini-code-smoke-20260508.json` -> `mobile_npm_audit.status=passed,total=0` |
-| Mobile remote control | Confirmed-pairing state can request a short-lived `desktop:control` route token and enqueue only `desktop.status_probe`; local mode blocks before network I/O; command status remains pending desktop host callback | code-level complete; cross-device/device verification pending | `mobile/app/desktop-control.tsx`, `mobile/src/services/api.test.ts`, `mobile/src/features/desktop-control/model.test.ts` |
+| Mobile remote control | Confirmed-pairing state can request a short-lived `desktop:control` route token and enqueue only `desktop.status_probe`; local mode blocks before network I/O; queued/claimed safe probes can be refreshed and cancelled from mobile; desktop execution still requires host callback evidence | code-level complete; cross-device/device verification pending | `mobile/app/desktop-control.tsx`, `mobile/src/services/api.test.ts`, `mobile/src/features/desktop-control/model.test.ts` |
 | Cross-device | Web/desktop/mobile conversation continuation verified | pending | TBD |
 | Error semantics | Backend/network failures show explicit empty/error state, not mock success | pending | TBD |
 
@@ -56,7 +56,7 @@ Result refreshed on 2026-05-08 local time:
 
 | Check | Result |
 |---|---|
-| mobile Vitest suite | `8 files / 27 tests passed` in the smoke artifact; latest standalone mobile run after remote-control safe-probe hardening is `8 files / 32 tests passed` |
+| mobile Vitest suite | `8 files / 27 tests passed` in the smoke artifact; latest standalone mobile run after remote-control safe-probe status/cancel hardening is `8 files / 34 tests passed` |
 | mobile TypeScript check | exit `0` |
 | mobile result surface guard | exit `0`; static guard verifies investigation and knowledge submissions render in-page result cards instead of relying on Alert-only feedback |
 | mobile lawyer conversion guard | exit `0`; static guard verifies find-lawyer creates real consultation records, renders AI anonymous summaries, selects lawyers in-page, exposes anonymous chat/delegation API paths, and does not route to a missing lawyer detail page |
@@ -69,7 +69,7 @@ Result refreshed on 2026-05-08 local time:
 | mini-program WeChat build | exit `0`; Taro compiled successfully |
 | mini-program WeChat DevTools CLI smoke | exit `0`; `/Applications/wechatwebdevtools.app/Contents/MacOS/cli auto --project <repo>/mini-program --trust-project` accepted `touristappid` |
 | mobile and mini fake fallback guard | exit `0`; guards against `fallbackMessages`, `fallbackTask`, `mock_token`, leaked `session_key`, fake success markers; confirms `wx.login/code2session` path and no fake news fallback |
-| mobile and mini refresh auth guard | exit `0`; mobile Vitest covers network refresh failure preserving auth, desktop-control status endpoint routing, local-mode desktop-control no-network state, route-token issuance, safe-probe command enqueue, and privacy guard `X-Privacy-Mode` propagation; script guard verifies mobile/mini separate auth expiry from transient refresh failure and mini-program privacy fail-closed markers |
+| mobile and mini refresh auth guard | exit `0`; mobile Vitest covers network refresh failure preserving auth, desktop-control status endpoint routing, local-mode desktop-control no-network state, route-token issuance, safe-probe command enqueue/status/cancel, and privacy guard `X-Privacy-Mode` propagation; script guard verifies mobile/mini separate auth expiry from transient refresh failure and mini-program privacy fail-closed markers |
 | cross-platform token drift audit | `docs/design/cross-platform-token-drift.md` created; mini-program semantic token layer and touch-target baseline are code-level complete; remaining P0 items are brand primary direction and real-device touch-target verification |
 | code-level JSON artifact | `docs/release/evidence/artifacts/mobile-mini-code-smoke-20260508.json`; `status=passed`, `release_evidence_complete=false`, includes Expo guard and `mobile_npm_audit.status=passed,total=0` |
 | manual device template | `docs/release/evidence/artifacts/mobile-device-manual-template-20260508.json`; `status=template`, `release_evidence_complete=false` |
@@ -81,7 +81,7 @@ Code-level hardening added in this collection:
 - `mobile/app/messages/[id].tsx` no longer renders fallback conversation content when message loading fails; it now shows loading, empty, or explicit error states.
 - `mobile/app/tasks/[id].tsx` no longer creates a synthetic fallback task; it uses server data or route-provided real summary and surfaces load errors explicitly.
 - `mobile/app/desktop-control.tsx` and `mobile/src/features/desktop-control/model.ts` add a fail-closed desktop-control status and safe-probe surface; local privacy mode never calls the network, hybrid/cloud mode reads `/sync/remote-control/status`, and only a confirmed pairing with both `desktop_device_id` and `pairing_id` enables the safe-probe action.
-- `mobile/src/services/api.ts` now exposes governed remote-control pairing, route-token, command enqueue, command status, and `desktop.status_probe` helpers; `mobile/src/services/api.test.ts` verifies route-token issuance, safe-probe payload shape, pairing request routing, and local-mode zero network calls before command enqueue.
+- `mobile/src/services/api.ts` now exposes governed remote-control pairing, route-token, command enqueue, command status, command cancel, and `desktop.status_probe` helpers; `mobile/src/services/api.test.ts` verifies route-token issuance, safe-probe payload shape, pairing request routing, status/cancel endpoint routing, and local-mode zero network calls before command enqueue.
 - `mobile/src/features/workflow/detail-model.ts` now maps string transport errors such as timeout or failed fetch to the explicit network failure copy, and tests status precedence over misleading backend text.
 - `mobile/src/constants/layout.ts` now exposes `touchTarget.min=44`; the bottom Tab and EmptyState action use the token, and `mobile/src/constants/layout.test.ts` guards it.
 - `mobile/src/services/api.ts` now keeps the stored session when refresh-token retry fails due to weak network/timeout; it clears auth only when the refresh endpoint confirms 401/403, with `mobile/src/services/api.test.ts` covering both paths.

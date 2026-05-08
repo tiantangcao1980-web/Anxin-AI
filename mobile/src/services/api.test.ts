@@ -209,6 +209,71 @@ describe('mobile API refresh behavior', () => {
     )
   })
 
+  it('reads and cancels queued remote-control commands through governed endpoints', async () => {
+    const { desktopControlApi } = await import('./api')
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(
+        jsonResponse(200, {
+          code: 200,
+          data: {
+            command_id: 'command-a',
+            pairing_id: 'pairing-a',
+            desktop_device_id: 'desktop-a',
+            command_type: 'desktop.status_probe',
+            risk_level: 'l2',
+            status: 'queued',
+            route_scopes: ['desktop:control'],
+            second_confirmed: false,
+            result_summary: {},
+          },
+          message: 'ok',
+        }) as unknown as Response,
+      )
+      .mockResolvedValueOnce(
+        jsonResponse(200, {
+          code: 200,
+          data: {
+            command_id: 'command-a',
+            pairing_id: 'pairing-a',
+            desktop_device_id: 'desktop-a',
+            command_type: 'desktop.status_probe',
+            risk_level: 'l2',
+            status: 'cancelled',
+            route_scopes: ['desktop:control'],
+            second_confirmed: false,
+            cancelled_at: '2026-05-08T10:01:00Z',
+            result_summary: {},
+          },
+          message: 'ok',
+        }) as unknown as Response,
+      )
+
+    await expect(desktopControlApi.getCommand('command-a')).resolves.toMatchObject({
+      command_id: 'command-a',
+      status: 'queued',
+    })
+    await expect(desktopControlApi.cancelCommand('command-a', {
+      reason: 'mobile_user_cancelled_safe_probe',
+    })).resolves.toMatchObject({
+      command_id: 'command-a',
+      status: 'cancelled',
+    })
+
+    expect(fetch).toHaveBeenNthCalledWith(
+      1,
+      'http://localhost:8001/api/v1/sync/remote-control/commands/command-a',
+      expect.objectContaining({ method: 'GET' }),
+    )
+    expect(fetch).toHaveBeenNthCalledWith(
+      2,
+      'http://localhost:8001/api/v1/sync/remote-control/commands/command-a/cancel',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ reason: 'mobile_user_cancelled_safe_probe' }),
+      }),
+    )
+  })
+
   it('fails closed before desktop-control status network I/O in local privacy mode', async () => {
     const { desktopControlApi } = await import('./api')
     mocks.asyncStorage.getItem.mockResolvedValue('local')

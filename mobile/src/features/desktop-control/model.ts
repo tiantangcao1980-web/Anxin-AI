@@ -80,6 +80,10 @@ export interface RemoteControlCommandResponse {
   cancelled_at?: string | null
 }
 
+export interface RemoteControlCancelCommandRequest {
+  reason: string
+}
+
 export type DesktopControlGateState = 'ready' | 'blocked' | 'not_configured' | 'error'
 
 export interface DesktopControlGate {
@@ -117,6 +121,10 @@ export function getDesktopControlLoadErrorMessage(error: unknown): string {
     return '网络连接失败，请稍后重试'
   }
   return maybe?.message || '无法读取桌面控制状态'
+}
+
+export function canCancelRemoteControlCommand(command?: RemoteControlCommandResponse | null): boolean {
+  return command?.status === 'queued' || command?.status === 'claimed'
 }
 
 export function buildDesktopControlGate({

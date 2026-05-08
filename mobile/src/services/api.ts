@@ -1,5 +1,6 @@
 import { Platform } from 'react-native'
 import type {
+  RemoteControlCancelCommandRequest,
   RemoteControlCommandRequest,
   RemoteControlCommandResponse,
   RemoteControlPairingRequest,
@@ -234,6 +235,12 @@ export const desktopControlApi = {
   getCommand: (commandId: string) => {
     return api.get<RemoteControlCommandResponse>(
       `/sync/remote-control/commands/${encodeURIComponent(commandId)}`,
+    )
+  },
+  cancelCommand: (commandId: string, data: RemoteControlCancelCommandRequest) => {
+    return api.post<RemoteControlCommandResponse>(
+      `/sync/remote-control/commands/${encodeURIComponent(commandId)}/cancel`,
+      data,
     )
   },
   enqueueSafeProbeCommand: ({
