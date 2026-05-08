@@ -280,9 +280,13 @@
         "backend/src/api/routes/cli.py",
         "backend/src/harness/policy_engine.py",
         "backend/src/api/routes/harness.py",
+        "backend/src/api/routes/sync.py",
         "backend/src/models/agent_governance.py",
+        "backend/src/models/sync.py",
         "backend/alembic/versions/041_add_skill_governance_persistence.py",
+        "backend/alembic/versions/042_add_remote_control_queue.py",
         "backend/src/services/capability_route_service.py",
+        "backend/src/services/remote_control_service.py",
         "backend/src/services/agent_approval_service.py",
         "backend/src/services/skill_evolution_service.py",
         "backend/src/services/skill_governance_service.py",
@@ -298,6 +302,7 @@
         "backend/tests/test_skill_governance_models.py",
     "backend/tests/test_skill_governance_service.py",
     "backend/tests/test_skill_service.py",
+    "backend/tests/test_remote_control_fail_closed.py",
     "frontend/src/lib/api.ts",
     "frontend/src/pages/AgentApprovalWorkspace.tsx",
     "frontend/e2e/helpers/session.ts",
@@ -322,6 +327,11 @@
         "backend/tests/test_skill_service.py",
     "backend/src/services/skill_governance_service.py",
     "backend/alembic/versions/041_add_skill_governance_persistence.py",
+    "backend/src/services/remote_control_service.py",
+    "backend/alembic/versions/042_add_remote_control_queue.py",
+    "backend/src/api/routes/sync.py",
+    "backend/src/models/sync.py",
+    "backend/tests/test_remote_control_fail_closed.py",
     "frontend/src/lib/api.ts",
     "frontend/src/pages/AgentApprovalWorkspace.tsx",
     "frontend/e2e/helpers/session.ts",
@@ -344,12 +354,13 @@
         "cd frontend && npx playwright test e2e/agent-approval-workspace.spec.ts --project=chromium --project=mobile",
         "backend/.venv/bin/pytest -q backend/tests/test_cli_route.py",
         "backend/.venv/bin/pytest -q backend/tests/test_skill_evolution_service.py backend/tests/test_skill_service.py backend/tests/test_skill_governance_models.py backend/tests/test_skill_governance_service.py backend/tests/test_skill_governance_api.py",
+        "backend/.venv/bin/pytest -q backend/tests/test_remote_control_fail_closed.py",
         "future: cd backend && ./.venv/bin/pytest -q tests/test_agent_approval_flow.py",
         "future: cd frontend && npm test -- AgentGovernance"
       ],
       "external_inputs": [],
       "current_blockers": [
-        "Governance specs and implementation task are ready, including trusted conversation UX and Skill Evolution Gate. Policy engine and Harness capability listing now have code-level context filtering; approval routes now guard single/batch actions, list scope, admin org scope, template writes, template use, and expiry; DB-backed AgentApprovalService now proves high-risk approval creation, sanitized payload storage, authorized role decisions, pending/approved validation, action/route mismatch denial, expiration fail-closed, revocation fail-closed, workspace-control runtime_not_integrated fail-closed, and audit events; formal /agent-approvals API now proves unauthenticated rejection, scoped create/list/count, ordinary employee self-approval denial, admin approve/revoke, validate allow/deny, audit-events, audit-export, workspace-control runtime_not_integrated fail-closed, and API payload redaction; the minimal frontend Agent governance workspace now proves desktop entry, approve action, state filters, payload preview, approval audit timeline/export, capability policy available/blocked tool visibility, Skill proposal creation, eval, approval, gray release, Skill audit timeline/export, approved-row pause/takeover/terminate control rejection, and mobile viewport overflow prevention. The minimal route-token broker proves hash-only storage, scope checks, revocation next-call failure, expiration, and audit events; DB-backed AgentGovernanceService plus MCP route governance now prove hash-only persistent leases, cross-service validation, organization isolation, consumer mismatch denial, revoked route next-call failure, commercial MCP missing-token denial, DB route-token allow, and revoked-token MCP denial. CLI /execute now has commercial DB route-token fail-closed coverage keyed by API Key consumer and cli:read/chat/export scope, plus /cli/route-token issuance and desktop execute-time route-token propagation. Remote-control sync APIs now fail closed for not-configured status, local/top-secret mode, missing second confirmation, missing pairing, missing route token, and missing queue/audit. The local, DB-backed, API-backed, and frontend-backed Skill Governance gates now prove draft-only agent proposals, required eval checks, restricted approval roles, bounded gray release, rollback, governed Skill version filtering, org-scoped enabled versions, cross-service persistence, API scope, API audit export, append-only audit events, no raw secret/token storage, and minimal admin-facing flow control. Full approval workspace observe plus real pause/takeover/terminate execution effects and artifact flow, full capability center UI beyond the minimal visibility panel, long-task artifact workflow, memory governance, real connector rehearsal, full mobile remote-control runtime, LLM/browser/desktop-control route-token integration, and commercial release evidence are still missing."
+        "Governance specs and implementation task are ready, including trusted conversation UX and Skill Evolution Gate. Policy engine and Harness capability listing now have code-level context filtering; approval routes now guard single/batch actions, list scope, admin org scope, template writes, template use, and expiry; DB-backed AgentApprovalService now proves high-risk approval creation, sanitized payload storage, authorized role decisions, pending/approved validation, action/route mismatch denial, expiration fail-closed, revocation fail-closed, workspace-control runtime_not_integrated fail-closed, and audit events; formal /agent-approvals API now proves unauthenticated rejection, scoped create/list/count, ordinary employee self-approval denial, admin approve/revoke, validate allow/deny, audit-events, audit-export, workspace-control runtime_not_integrated fail-closed, and API payload redaction; the minimal frontend Agent governance workspace now proves desktop entry, approve action, state filters, payload preview, approval audit timeline/export, capability policy available/blocked tool visibility, Skill proposal creation, eval, approval, gray release, Skill audit timeline/export, approved-row pause/takeover/terminate control rejection, and mobile viewport overflow prevention. The minimal route-token broker proves hash-only storage, scope checks, revocation next-call failure, expiration, and audit events; DB-backed AgentGovernanceService plus MCP route governance now prove hash-only persistent leases, cross-service validation, organization isolation, consumer mismatch denial, revoked route next-call failure, commercial MCP missing-token denial, DB route-token allow, and revoked-token MCP denial. CLI /execute now has commercial DB route-token fail-closed coverage keyed by API Key consumer and cli:read/chat/export scope, plus /cli/route-token issuance and desktop execute-time route-token propagation. Remote-control sync APIs now have a DB-backed control plane for persisted pairing requests, desktop confirmation, pairing-scoped desktop:control route-token issuance, command queueing, cancellation, redacted audit events, and local/top-secret/missing-token/high-risk fail-closed states. The local, DB-backed, API-backed, and frontend-backed Skill Governance gates now prove draft-only agent proposals, required eval checks, restricted approval roles, bounded gray release, rollback, governed Skill version filtering, org-scoped enabled versions, cross-service persistence, API scope, API audit export, append-only audit events, no raw secret/token storage, and minimal admin-facing flow control. Full approval workspace observe plus real pause/takeover/terminate execution effects and artifact flow, full capability center UI beyond the minimal visibility panel, long-task artifact workflow, memory governance, real connector rehearsal, desktop host pickup/execution/status callback, LLM/browser/desktop-control route-token runtime integration, and commercial release evidence are still missing."
       ],
       "completion_gate": [
         "capability_policy_engine covers subscription, role, permission, risk, privacy mode, device trust, channel policy, and approval status",

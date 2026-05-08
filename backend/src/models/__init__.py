@@ -85,7 +85,7 @@ from src.models.sentiment import (
     SentimentType,
     SourceType,
 )
-from src.models.sync import SyncLog
+from src.models.sync import RemoteControlAuditEvent, RemoteControlCommand, RemoteControlPairing, SyncLog
 from src.models.task import Task
 from src.models.user import Organization, PasswordResetToken, User
 from src.models.webhook import WebhookReceived
@@ -106,6 +106,9 @@ __all__ = [
     "PasswordResetToken",
     "WebhookReceived",
     "SyncLog",
+    "RemoteControlPairing",
+    "RemoteControlCommand",
+    "RemoteControlAuditEvent",
     "AgentManager",
     "AgentTeam",
     "AgentWorker",

@@ -10,7 +10,7 @@
 """
 
 
-from typing import Any
+from typing import Any, NoReturn
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -19,6 +19,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.database import get_db
 from src.core.deps import get_current_user_required
 from src.models.user import User
+from src.services.remote_control_service import (
+    REMOTE_CONTROL_REQUIRED_SCOPE,
+    REMOTE_CONTROL_ROUTE_KEY,
+    RemoteControlError,
+    RemoteControlService,
+)
 from src.services.sync_service import SyncService
 
 router = APIRouter()
@@ -93,6 +99,8 @@ class RemoteControlStatusResponse(BaseModel):
     available: bool = False
     status: str = "not_configured"
     desktop_device_id: str | None = None
+    pairing_id: str | None = None
+    queued_command_count: int = 0
     required_controls: list[str] = Field(default_factory=list)
     message: str
 
@@ -116,13 +124,30 @@ class RemoteControlCommandRequest(BaseModel):
     privacy_mode: str = Field(default="hybrid", max_length=40)
     risk_level: str = Field(default="l3", max_length=40)
     second_confirmed: bool = False
+    expires_in_seconds: int = Field(default=300, ge=30, le=3600)
+
+
+class RemoteControlPairingConfirmRequest(BaseModel):
+    """桌面端确认移动远控配对"""
+    desktop_device_id: str = Field(..., min_length=1, max_length=128)
+
+
+class RemoteControlRouteTokenRequest(BaseModel):
+    """为已确认的远控配对签发短期 route token"""
+    pairing_id: str = Field(..., min_length=1, max_length=128)
+    ttl_seconds: int = Field(default=300, ge=30, le=1800)
+
+
+class RemoteControlCancelCommandRequest(BaseModel):
+    """取消尚未执行的远控命令"""
+    reason: str = Field(..., min_length=1, max_length=500)
 
 
 def _normalize_remote_control_mode(mode: str | None) -> str:
     return (mode or "hybrid").strip().lower()
 
 
-def _remote_control_denied(status_code: int, code: str, message: str) -> None:
+def _remote_control_denied(status_code: int, code: str, message: str) -> NoReturn:
     raise HTTPException(
         status_code=status_code,
         detail={
@@ -131,6 +156,68 @@ def _remote_control_denied(status_code: int, code: str, message: str) -> None:
             "required_controls": REMOTE_CONTROL_REQUIRED_CONTROLS,
         },
     )
+
+
+def _org_id_for(user: User) -> str:
+    if not user.org_id:
+        _remote_control_denied(
+            403,
+            "remote_control_org_required",
+            "移动远控必须绑定组织后才能使用。",
+        )
+    return str(user.org_id)
+
+
+def _remote_control_error(error: RemoteControlError) -> NoReturn:
+    _remote_control_denied(error.status_code, error.reason_code, error.human_message)
+
+
+def _pairing_payload(pairing: Any) -> dict[str, Any]:
+    return {
+        "pairing_id": pairing.id,
+        "mobile_device_id": pairing.mobile_device_id,
+        "desktop_device_id": pairing.desktop_device_id,
+        "requested_scopes": pairing.requested_scopes,
+        "privacy_mode": pairing.privacy_mode,
+        "status": pairing.status,
+        "expires_at": _iso(pairing.expires_at),
+        "confirmed_at": _iso(pairing.confirmed_at),
+    }
+
+
+def _command_payload(command: Any) -> dict[str, Any]:
+    return {
+        "command_id": command.id,
+        "pairing_id": command.pairing_id,
+        "desktop_device_id": command.desktop_device_id,
+        "command_type": command.command_type,
+        "risk_level": command.risk_level,
+        "status": command.status,
+        "route_id": command.route_id,
+        "route_consumer_id": command.route_consumer_id,
+        "route_scopes": command.route_scopes,
+        "second_confirmed": command.second_confirmed,
+        "expires_at": _iso(command.expires_at),
+        "cancelled_at": _iso(command.cancelled_at),
+    }
+
+
+def _audit_payload(event: Any) -> dict[str, Any]:
+    return {
+        "id": event.id,
+        "pairing_id": event.pairing_id,
+        "command_id": event.command_id,
+        "action": event.action,
+        "status": event.status,
+        "reason_code": event.reason_code,
+        "resource_snapshot": event.resource_snapshot,
+        "metadata": event.metadata_json,
+        "created_at": _iso(event.created_at),
+    }
+
+
+def _iso(value: Any) -> str | None:
+    return value.isoformat() if value else None
 
 
 # ===== API 端点 =====
@@ -203,25 +290,26 @@ async def sync_status(
 async def remote_control_status(
     desktop_device_id: str | None = Query(None, max_length=128),
     user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db),
 ) -> RemoteControlStatusResponse:
-    """返回远控能力的真实就绪状态；未完成协议闭环前只允许显式不可用。"""
-    _ = user
-    return RemoteControlStatusResponse(
-        available=False,
-        status="not_configured",
+    """返回远控控制面的真实就绪状态；桌面执行证据未完成前不声称已执行。"""
+    org_id = _org_id_for(user)
+    result = await RemoteControlService(db).status(
+        org_id=org_id,
+        user_id=str(user.id),
         desktop_device_id=desktop_device_id,
-        required_controls=REMOTE_CONTROL_REQUIRED_CONTROLS,
-        message="移动远控桌面尚未配置持久化设备配对、命令队列、撤销和审计闭环，默认不可用。",
     )
+    return RemoteControlStatusResponse(**result)
 
 
 @router.post("/remote-control/pairings", summary="申请移动端与桌面端配对")
 async def request_remote_control_pairing(
     request: RemoteControlPairingRequest,
     user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """远控配对必须 fail-closed，直到桌面确认、持久化存储和审计闭环全部接入。"""
-    _ = user
+    """创建持久化配对请求；确认前仍不能下发命令。"""
+    org_id = _org_id_for(user)
     privacy_mode = _normalize_remote_control_mode(request.privacy_mode)
     if privacy_mode in REMOTE_CONTROL_BLOCKED_PRIVACY_MODES:
         _remote_control_denied(
@@ -230,21 +318,82 @@ async def request_remote_control_pairing(
             "本地/绝密模式下禁止移动端发起桌面远控配对；必须先在桌面端显式授权。",
         )
 
-    _remote_control_denied(
-        409,
-        "remote_control_pairing_store_missing",
-        "远控配对持久化、桌面端确认和审计链路尚未完成，不能创建临时或假成功配对。",
+    try:
+        pairing = await RemoteControlService(db).create_pairing(
+            org_id=org_id,
+            user_id=str(user.id),
+            mobile_device_id=request.mobile_device_id,
+            desktop_device_id=request.desktop_device_id,
+            requested_scopes=request.requested_scopes,
+            privacy_mode=privacy_mode,
+            expires_in_seconds=request.expires_in_seconds,
+        )
+    except RemoteControlError as exc:
+        _remote_control_error(exc)
+    payload = _pairing_payload(pairing)
+    await db.commit()
+    return payload
+
+
+@router.post("/remote-control/pairings/{pairing_id}/confirm", summary="桌面端确认移动远控配对")
+async def confirm_remote_control_pairing(
+    pairing_id: str,
+    request: RemoteControlPairingConfirmRequest,
+    user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """桌面端确认配对后，移动端才可以申请短期 route token。"""
+    org_id = _org_id_for(user)
+    try:
+        pairing = await RemoteControlService(db).confirm_pairing(
+            org_id=org_id,
+            user_id=str(user.id),
+            pairing_id=pairing_id,
+            desktop_device_id=request.desktop_device_id,
+        )
+    except RemoteControlError as exc:
+        _remote_control_error(exc)
+    payload = _pairing_payload(pairing)
+    await db.commit()
+    return payload
+
+
+@router.post("/remote-control/route-token", summary="签发移动远控短期 route token")
+async def issue_remote_control_route_token(
+    request: RemoteControlRouteTokenRequest,
+    user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """为已确认配对签发短期 token；失败时不返回任何 raw token。"""
+    org_id = _org_id_for(user)
+    result = await RemoteControlService(db).issue_route_token(
+        org_id=org_id,
+        user_id=str(user.id),
+        pairing_id=request.pairing_id,
+        ttl_seconds=request.ttl_seconds,
     )
-    return {}
+    await db.commit()
+    return {
+        "allowed": result.allowed,
+        "reason_code": result.reason_code,
+        "human_message": result.human_message,
+        "route_token": result.token,
+        "route_id": result.route_id,
+        "pairing_id": result.pairing_id,
+        "required_scope": REMOTE_CONTROL_REQUIRED_SCOPE,
+        "route_key": REMOTE_CONTROL_ROUTE_KEY,
+        "expires_at": _iso(result.expires_at),
+    }
 
 
 @router.post("/remote-control/commands", summary="下发移动远控桌面命令")
 async def enqueue_remote_control_command(
     request: RemoteControlCommandRequest,
     user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """远控命令在未配对、未授权或未审计时一律拒绝，不进入队列。"""
-    _ = user
+    """远控命令在未配对、未授权或未审计时一律拒绝；成功只代表入队。"""
+    org_id = _org_id_for(user)
     privacy_mode = _normalize_remote_control_mode(request.privacy_mode)
     if privacy_mode in REMOTE_CONTROL_BLOCKED_PRIVACY_MODES:
         _remote_control_denied(
@@ -274,12 +423,80 @@ async def enqueue_remote_control_command(
             "缺少短期 CapabilityRoute token，远控命令不会入队。",
         )
 
-    _remote_control_denied(
-        409,
-        "remote_control_command_queue_missing",
-        "远控命令队列、执行状态回传、撤销和审计链路尚未完成，不能接受命令。",
+    try:
+        command = await RemoteControlService(db).enqueue_command(
+            org_id=org_id,
+            user_id=str(user.id),
+            desktop_device_id=request.desktop_device_id,
+            command_type=request.command_type,
+            payload=request.payload,
+            pairing_id=request.pairing_id,
+            route_token=request.route_token,
+            risk_level=request.risk_level,
+            second_confirmed=request.second_confirmed,
+            expires_in_seconds=request.expires_in_seconds,
+        )
+    except RemoteControlError as exc:
+        _remote_control_error(exc)
+    payload = _command_payload(command)
+    await db.commit()
+    return payload
+
+
+@router.post("/remote-control/commands/{command_id}/cancel", summary="取消未执行的远控命令")
+async def cancel_remote_control_command(
+    command_id: str,
+    request: RemoteControlCancelCommandRequest,
+    user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """用户撤销 queued 命令，桌面端后续拉取时不得执行。"""
+    org_id = _org_id_for(user)
+    try:
+        command = await RemoteControlService(db).cancel_command(
+            org_id=org_id,
+            user_id=str(user.id),
+            command_id=command_id,
+            reason=request.reason,
+        )
+    except RemoteControlError as exc:
+        _remote_control_error(exc)
+    payload = _command_payload(command)
+    await db.commit()
+    return payload
+
+
+@router.get("/remote-control/audit-events", summary="获取移动远控审计事件")
+async def list_remote_control_audit_events(
+    limit: int = Query(default=50, ge=1, le=100),
+    user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """返回当前用户/组织可见的远控控制面审计事件。"""
+    org_id = _org_id_for(user)
+    events = await RemoteControlService(db).audit_events(org_id=org_id, user_id=str(user.id), limit=limit)
+    return {
+        "items": [_audit_payload(event) for event in events],
+        "total": len(events),
+    }
+
+
+@router.get("/remote-control/commands/{command_id}", summary="获取远控命令状态")
+async def get_remote_control_command(
+    command_id: str,
+    user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """查询 queued/cancelled 等命令状态，供移动端轮询。"""
+    org_id = _org_id_for(user)
+    command = await RemoteControlService(db).get_command(
+        org_id=org_id,
+        user_id=str(user.id),
+        command_id=command_id,
     )
-    return {}
+    if command is None:
+        _remote_control_denied(404, "remote_control_command_not_found", "远控命令不存在或不属于当前组织。")
+    return _command_payload(command)
 
 
 @router.post("/resolve", summary="解决同步冲突")
