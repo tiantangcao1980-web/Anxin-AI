@@ -48,7 +48,7 @@ export function DesktopWorkstationPanel() {
   )
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="desktop-workstation-panel">
       <Card className="border-border rounded-xl">
         <CardHeader className="pb-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -58,7 +58,7 @@ export function DesktopWorkstationPanel() {
                 {desktopClient ? '当前客户端能力状态' : '桌面能力预览，完整本地能力须在桌面客户端启用'}
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Badge className={mode === 'top-secret' ? statusBadge.success : statusBadge.info}>
                 {MODE_LABEL[mode]}模式
               </Badge>
@@ -69,35 +69,37 @@ export function DesktopWorkstationPanel() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             {resources.map((resource) => {
               const ResourceIcon = RESOURCE_ICON[resource.id]
               return (
                 <div
                   key={resource.id}
-                  className="flex min-h-[142px] flex-col justify-between rounded-lg border border-border bg-surface-1 p-4"
+                  data-testid={`desktop-workstation-resource-${resource.id}`}
+                  className="flex min-h-[142px] min-w-0 flex-col justify-between rounded-lg border border-border bg-surface-1 p-4"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
-                      <div className="rounded-lg bg-muted p-2 text-muted-foreground">
+                  <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <div className="shrink-0 rounded-lg bg-muted p-2 text-muted-foreground">
                         <ResourceIcon className={iconSize.md} />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <h3 className={heading.card}>{resource.title}</h3>
                         <p className="mt-1 text-sm text-muted-foreground">{resource.summary}</p>
                       </div>
                     </div>
-                    <span className={`shrink-0 rounded px-2 py-1 text-xs font-medium ${STATUS_CLASS[resource.status]}`}>
+                    <span className={`w-fit shrink-0 rounded px-2 py-1 text-xs font-medium ${STATUS_CLASS[resource.status]}`}>
                       {resource.statusLabel}
                     </span>
                   </div>
-                  <div className="mt-4 flex items-center justify-between gap-3">
+                  <div className="mt-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <span className="text-xs text-muted-foreground">
                       {resource.action.disabledReason ?? '策略已就绪'}
                     </span>
                     <Button
                       size="sm"
                       variant={resource.action.enabled ? 'outline' : 'ghost'}
+                      className="w-full sm:w-auto"
                       disabled={!resource.action.enabled}
                       onClick={() => navigate(resource.action.path)}
                     >

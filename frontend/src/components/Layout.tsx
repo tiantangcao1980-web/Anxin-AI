@@ -413,12 +413,12 @@ export default function Layout() {
       </header>
 
       {/* ===== 页面内容区（顶部留出导航栏高度，移动端底部留出 Tab 栏高度） ===== */}
-      <div className={`flex-1 overflow-hidden flex pb-14 lg:pb-0 ${currentModule ? 'pt-[100px] lg:pt-[60px]' : 'pt-[60px]'}`}>
+      <div className={`min-w-0 flex-1 overflow-hidden flex pb-14 lg:pb-0 ${currentModule ? 'pt-[100px] lg:pt-[60px]' : 'pt-[60px]'}`}>
         {/* 模块侧边栏（Chat 页面有自己的内部侧边栏，不显示；移动端已通过 ModuleSidebar 内部 hidden lg:flex 隐藏） */}
         {!currentPath.startsWith('/chat') && !currentPath.startsWith('/messages') && !currentPath.startsWith('/tasks') && !currentPath.startsWith('/settings') && (
           <ModuleSidebar currentPath={currentPath} onNavigate={handleNavClick} />
         )}
-        <main className="flex-1 overflow-hidden bg-surface-2">
+        <main className="min-w-0 flex-1 overflow-hidden bg-surface-2">
           <Outlet />
         </main>
       </div>

@@ -42,9 +42,10 @@ export default function Settings() {
  <PageContainer
  title="系统设置"
  description="管理个人信息、模型配置、第三方服务集成和监控看板"
+ className="box-border w-[100dvw] min-w-0 max-w-[100dvw] overflow-hidden lg:w-full lg:max-w-full"
  >
- <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
- <TabsList className="w-full sm:w-auto overflow-x-auto scrollbar-hide">
+ <Tabs value={activeTab} onValueChange={handleTabChange} className="min-w-0 space-y-4 overflow-hidden">
+ <TabsList className="min-w-0 max-w-full w-full justify-start overflow-x-auto scrollbar-hide sm:w-auto">
  <TabsTrigger value="profile" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
  <icons.User className={`${iconSize.sm} shrink-0`} />
  <span className="whitespace-nowrap">个人中心</span>
@@ -67,23 +68,23 @@ export default function Settings() {
  </TabsTrigger>
  </TabsList>
 
- <TabsContent value="profile" className="space-y-4">
+ <TabsContent value="profile" className="min-w-0 space-y-4">
  <ProfilePanel />
  </TabsContent>
 
- <TabsContent value="workstation" className="space-y-4">
+ <TabsContent value="workstation" className="min-w-0 space-y-4">
  <DesktopWorkstationPanel />
  </TabsContent>
 
- <TabsContent value="llm" className="space-y-4">
+ <TabsContent value="llm" className="min-w-0 space-y-4">
  <LlmSettingsPanel />
  </TabsContent>
 
- <TabsContent value="mcp" className="space-y-4">
+ <TabsContent value="mcp" className="min-w-0 space-y-4">
  <McpSettingsPanel />
  </TabsContent>
 
- <TabsContent value="notifications" className="space-y-4">
+ <TabsContent value="notifications" className="min-w-0 space-y-4">
  <NotificationPreferencesPanel />
  </TabsContent>
  </Tabs>
@@ -877,7 +878,7 @@ function McpSettingsPanel() {
  setError(null)
  try {
  const data = await mcpApi.listServers()
- setServers(data || [])
+ setServers(Array.isArray(data) ? data : [])
  } catch (e: any) {
  setServers([])
  setError(e.message ||'无法加载服务集成配置')
