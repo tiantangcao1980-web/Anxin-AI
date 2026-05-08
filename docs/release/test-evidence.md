@@ -140,7 +140,7 @@ cd backend && ./.venv/bin/pytest -q tests/test_payment_provider_clients.py tests
 
 覆盖增量：
 
-- 支付、电签、OA 在 staging/production 不再静默回落 mock/fake；配置缺失或未知 provider 进入明确 503/配置错误路径。
+- 支付、电签、OA 在 staging/production 不再静默回落 mock/fake；配置缺失或未知 provider 进入明确 503/配置错误路径。本轮复核：`cd backend && ./.venv/bin/pytest -q tests/test_payment_provider_clients.py tests/test_esign_provider_clients.py tests/test_oa_integration.py` -> `19 passed`；`ruff check` 对应 service/test 文件通过。
 - 电签 flow 查询、签署链接、撤销和创建已按当前用户组织过滤合同，不再仅凭外部 flow id 操作。
 - CLI Key 创建/列表/撤销已绑定真实登录用户，`export` scope 需要对应角色权限，禁止匿名或跨用户管理。
 - CLI Key 创建/撤销和 CLI execute 已写入 `AuditLog`；命令失败、scope 缺失、高危命令拒绝和 route-token 拒绝也会留审计轨迹。

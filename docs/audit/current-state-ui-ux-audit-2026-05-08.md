@@ -31,8 +31,8 @@
 | 目标/规范 | 文档目标 | 代码/证据现实 | 差异 | 落地动作 |
 |---|---|---|---|---|
 | 商业交付 ready | release evidence 全部 `Status: complete`，商业门禁通过 | 支付、电签、桌面 runtime、移动/小程序仍 pending | 证据不齐，门禁正确失败 | 保持 No-Go，补真实沙箱、signed/notarized desktop、真机证据后再改状态 |
-| 政府场景可信交付 | 生产路径不能静默 mock，失败必须可审计 | 支付默认 `mock`，未知 provider 回退 Mock：`backend/src/services/payment_service.py:672`；电签默认 Mock：`backend/src/services/esign_service.py:941` | 生产误配可能被 mock success 掩盖 | 增加 production fail-closed provider guard，local/test 才允许 mock |
-| OA 通知可靠性 | 审批/通知不能伪成功 | 飞书、钉钉、企微配置缺失时返回 `mock_token` 并 `return True`：`backend/src/services/oa_integration_service.py:86`、`:199`、`:275` | 政务协同通知可能实际未送达但系统显示成功 | 按环境拆分 mock/dev 与 production hard fail，补审计日志 |
+| 政府场景可信交付 | 生产路径不能静默 mock，失败必须可审计 | 支付和电签 provider factory 已在 staging/production 禁止 `mock` 和未知 provider 静默回落；`test_payment_provider_clients.py`、`test_esign_provider_clients.py` 已覆盖商业环境 fail-closed | 代码级误配伪成功风险已收口；真实支付/电签沙箱、证书轮换、回调重试证据仍缺 | 保持 guard，补真实沙箱和脱敏 evidence 后才允许 release complete |
+| OA 通知可靠性 | 审批/通知不能伪成功 | 飞书、钉钉、企微在 staging/production 缺凭据时抛 `OAProviderConfigError`；尚未真实接入的状态查询/组织同步能力在商业环境 fail-closed；`test_oa_integration.py` 已覆盖 | 代码级 mock 通知/审批伪成功已收口；真实 OA 状态查询、组织同步、审计和渠道演练仍不足 | 保持商业环境 hard fail，补真实 API 能力或继续显式不可用 |
 | 桌面同步可信 | 本地 SQLCipher/keyring 和云同步必须真实 push/pull | 前端 secure SQL 路径已有进展；Rust IPC 直连同步已改为 fail-closed，不再返回 `Ok(0)` 假成功；真实云端 push/pull、跨设备延续和 packaged runtime 证据仍未闭合 | 假成功风险已清除，但商业级跨端同步仍未完成 | 保持 unsupported/fail-closed 文案，继续实现真实云同步数据面、移动远控和 signed packaged runtime 验收 |
 | 移动端关键流程 | 智能调查和法律智库应可完成搜索/详情 | `mobile/app/(tabs)/investigation.tsx` 已用 `useEffect` 加载最近调查/热点，并调用 `/due-diligence/company` 渲染页面内结果卡；`mobile/app/(tabs)/knowledge.tsx` 已调用 `/knowledge/search` 并渲染检索摘要卡；`scripts/mobile-device-smoke.sh` 已有 mobile result surface guard 防回归 | 代码级入口已收口，但真实/官方 iOS、Android 和交互式微信验收仍缺 | 保持代码级 guard，后续补真机 transcript 和跨设备连续会话证据 |
 | 小程序验收 | 微信端应有真实登录和设备证据 | WeChat DevTools CLI project smoke 通过，但 evidence 仍 pending；host probe 仅证明工具存在 | 还没有真实小程序交互闭环 | 用官方 appid/测试账号补交互式 DevTools 或真机 transcript |
@@ -79,7 +79,7 @@
 
 | 门槛 | 为什么重要 | 当前差距 |
 |---|---|---|
-| fail-closed | 政务通知、支付、电签、同步不能因配置缺失而伪成功 | 支付/电签/OA 仍有 mock/default fallback |
+| fail-closed | 政务通知、支付、电签、同步不能因配置缺失而伪成功 | 支付/电签/OA commercial mock fallback 已禁止；桌面同步旧假成功路径已 fail-closed；真实渠道和 signed runtime 证据仍缺 |
 | 可审计证据链 | 需要追踪谁、何时、用什么环境完成验收 | release evidence 结构已有，但 payment/e-sign/desktop/mobile 仍 pending |
 | 数据安全 | 本地密文、密钥托管、日志脱敏、权限隔离 | SQLCipher/keyring 代码级强；signed desktop 和跨设备证据不足 |
 | 无障碍与可用性 | 政府窗口、基层人员、移动端现场使用需要高可读性 | token 漂移、硬编码颜色、触控真机证据不足 |
@@ -90,7 +90,7 @@
 | 阶段 | 目标 | 主要任务 | 验收 |
 |---|---|---|---|
 | Phase 0 清场与基线 | 不让旧文档、缓存、历史索引备份干扰开发 | 更新过时 dirty/GitNexus 陈述；保留 host probe；清理 ignored runtime/cache/旧 `.gitnexus.*` 备份 | 文档 validator、secret scan、`git diff --check` 通过 |
-| Phase 1 P0 真实闭环 | 阻断政府交付的假成功和关键入口问题 | provider/OA production fail-closed；desktop old sync fallback 禁用；mobile investigation/knowledge 入口已代码级闭环；真机/DevTools evidence | 相关单测、mobile/mini smoke、desktop cargo/frontend tests、commercial gate 失败原因减少 |
+| Phase 1 P0 真实闭环 | 阻断政府交付的假成功和关键入口问题 | provider/OA production fail-closed 已代码级闭环；desktop old sync fallback 禁用；mobile investigation/knowledge 入口已代码级闭环；真机/DevTools evidence | 相关单测、mobile/mini smoke、desktop cargo/frontend tests、commercial gate 失败原因减少 |
 | Phase 2 跨端 UI/UX | 让移动/小程序/桌面形成同一套专业体验 | token contract；移动硬编码颜色迁移；小程序暗色策略；桌面冲突管理和托盘菜单改造 | iOS/Android/WeChat/desktop 截图或 transcript，Design Craft gate 复验 |
 | Phase 2.5 可信交互 | 把 Codex/Claude 风格工作台体验落进关键路径 | 长任务时间线、工具状态、引用证据、artifact 编辑、暂停/恢复/接管、能力中心和命令面板 | chat/agent e2e、桌面/移动 transcript、artifact 编辑和恢复测试 |
 | Phase 3 商业证据 | 从代码级变成可交付证据 | payment/e-sign live sandbox；signed/notarized desktop；cross-device continuation；release runbook 演练 | 所有 evidence `Status: complete`，commercial gate quick 通过 |
@@ -101,7 +101,7 @@
 
 | Lane | 角色 | 写入范围 | 首要产物 |
 |---|---|---|---|
-| Backend/Security | 后端与安全 | `backend/src/services/*`、相关 tests、release evidence | fail-closed guard、OA audit trail、payment/e-sign production config gate |
+| Backend/Security | 后端与安全 | `backend/src/services/*`、相关 tests、release evidence | 真实 payment/e-sign sandbox、OA 真实 API/审计演练、商业 evidence 状态收口 |
 | Desktop | 桌面与同步 | `desktop/src/**`、`frontend/src/components/mode-switcher/**`、desktop scripts | 禁用旧 fallback、冲突 UX、signed package evidence |
 | Mobile | React Native | `mobile/app/**`、`mobile/src/**` | investigation/knowledge 闭环、token 迁移、iOS transcript |
 | Mini Program | Taro/微信 | `mini-program/src/**`、mobile evidence | appid 环境、交互验收、token/dark 策略 |
