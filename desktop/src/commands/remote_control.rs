@@ -96,6 +96,32 @@ pub async fn remote_control_report_command_status(
     .await
 }
 
+#[command]
+pub async fn remote_control_run_host_cycle(
+    state: State<'_, SharedAppState>,
+    desktop_device_id: String,
+    pairing_id: String,
+    route_token: String,
+    host_instance_id: String,
+    limit: Option<u8>,
+) -> Result<remote_control_host::RemoteControlHostCycleSummary, String> {
+    ensure_data_network_allowed(state.inner(), "运行移动远控 host 单次循环").await?;
+    let (backend_url, user_token) = remote_control_context(state.inner()).await?;
+    let client = remote_control_host::build_http_client()?;
+
+    remote_control_host::run_remote_control_host_cycle(
+        &client,
+        &backend_url,
+        &user_token,
+        &desktop_device_id,
+        &pairing_id,
+        &route_token,
+        &host_instance_id,
+        limit,
+    )
+    .await
+}
+
 async fn remote_control_context(state: &SharedAppState) -> Result<(String, String), String> {
     let s = state.read().await;
     let user_token = s

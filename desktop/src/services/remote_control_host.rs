@@ -1,6 +1,36 @@
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 
 const EXECUTION_UPDATE_STATUSES: [&str; 3] = ["running", "completed", "failed"];
+const SAFE_PROBE_COMMAND_TYPES: [&str; 4] = [
+    "ping",
+    "status_probe",
+    "desktop.ping",
+    "desktop.status_probe",
+];
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RemoteControlHostCommand {
+    pub command_id: String,
+    pub command_type: String,
+    pub payload_keys: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RemoteControlHostCommandDecision {
+    pub status: &'static str,
+    pub result_summary: Value,
+    pub failure_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RemoteControlHostCycleSummary {
+    pub claimed: usize,
+    pub completed: usize,
+    pub failed: usize,
+    pub unsupported: usize,
+    pub command_ids: Vec<String>,
+}
 
 pub fn build_http_client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
@@ -92,6 +122,164 @@ pub async fn post_remote_control_json(
         .map_err(|err| format!("解析远控 host API 响应失败: {err}"))
 }
 
+pub async fn run_remote_control_host_cycle(
+    client: &reqwest::Client,
+    backend_url: &str,
+    bearer_token: &str,
+    desktop_device_id: &str,
+    pairing_id: &str,
+    route_token: &str,
+    host_instance_id: &str,
+    limit: Option<u8>,
+) -> Result<RemoteControlHostCycleSummary, String> {
+    let claim_payload = build_claim_commands_payload(
+        desktop_device_id,
+        pairing_id,
+        route_token,
+        host_instance_id,
+        limit,
+    )?;
+    let claim_response = post_remote_control_json(
+        client,
+        backend_url,
+        bearer_token,
+        "commands/claim",
+        &claim_payload,
+    )
+    .await?;
+    let commands = claimed_commands_from_response(&claim_response)?;
+    let mut summary = RemoteControlHostCycleSummary {
+        claimed: commands.len(),
+        ..RemoteControlHostCycleSummary::default()
+    };
+
+    for command in commands {
+        summary.command_ids.push(command.command_id.clone());
+        let running_payload = build_command_status_payload(
+            desktop_device_id,
+            pairing_id,
+            route_token,
+            host_instance_id,
+            "running",
+            Some(json!({
+                "handled_by": "desktop_remote_control_host",
+                "phase": "started",
+                "command_type": command.command_type,
+            })),
+            None,
+        )?;
+        post_remote_control_json(
+            client,
+            backend_url,
+            bearer_token,
+            &format!("commands/{}/status", command.command_id),
+            &running_payload,
+        )
+        .await?;
+
+        let decision = decide_host_command(&command);
+        let final_payload = build_command_status_payload(
+            desktop_device_id,
+            pairing_id,
+            route_token,
+            host_instance_id,
+            decision.status,
+            Some(decision.result_summary),
+            decision.failure_reason.clone(),
+        )?;
+        post_remote_control_json(
+            client,
+            backend_url,
+            bearer_token,
+            &format!("commands/{}/status", command.command_id),
+            &final_payload,
+        )
+        .await?;
+
+        match decision.status {
+            "completed" => summary.completed += 1,
+            "failed" => {
+                summary.failed += 1;
+                if decision.failure_reason.as_deref() == Some("unsupported_command_type") {
+                    summary.unsupported += 1;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    Ok(summary)
+}
+
+pub fn claimed_commands_from_response(
+    response: &Value,
+) -> Result<Vec<RemoteControlHostCommand>, String> {
+    let items = response
+        .get("items")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "远控 host claim 响应缺少 items 数组".to_string())?;
+
+    items
+        .iter()
+        .map(|item| {
+            let command_id = item
+                .get("command_id")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .ok_or_else(|| "远控 host claim 响应缺少 command_id".to_string())?;
+            let command_type = item
+                .get("command_type")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .ok_or_else(|| "远控 host claim 响应缺少 command_type".to_string())?;
+            let payload_keys = item
+                .get("payload")
+                .and_then(Value::as_object)
+                .map(|payload| {
+                    let mut keys = payload.keys().cloned().collect::<Vec<_>>();
+                    keys.sort();
+                    keys
+                })
+                .unwrap_or_default();
+
+            Ok(RemoteControlHostCommand {
+                command_id: command_id.to_string(),
+                command_type: command_type.to_string(),
+                payload_keys,
+            })
+        })
+        .collect()
+}
+
+pub fn decide_host_command(command: &RemoteControlHostCommand) -> RemoteControlHostCommandDecision {
+    let command_type = command.command_type.trim().to_ascii_lowercase();
+    if SAFE_PROBE_COMMAND_TYPES.contains(&command_type.as_str()) {
+        return RemoteControlHostCommandDecision {
+            status: "completed",
+            result_summary: json!({
+                "handled_by": "desktop_remote_control_host",
+                "command_type": command.command_type,
+                "safe_probe": true,
+                "payload_keys": &command.payload_keys,
+            }),
+            failure_reason: None,
+        };
+    }
+
+    RemoteControlHostCommandDecision {
+        status: "failed",
+        result_summary: json!({
+            "handled_by": "desktop_remote_control_host",
+            "received_command_type": command.command_type,
+            "payload_keys": &command.payload_keys,
+            "supported_command_types": SAFE_PROBE_COMMAND_TYPES,
+        }),
+        failure_reason: Some("unsupported_command_type".to_string()),
+    }
+}
+
 fn required_string(value: &str, field_name: &str) -> Result<String, String> {
     let normalized = value.trim();
     if normalized.is_empty() {
@@ -128,7 +316,8 @@ fn normalize_result_summary(value: Option<Value>) -> Result<Map<String, Value>, 
 mod tests {
     use super::{
         build_claim_commands_payload, build_command_status_payload, build_confirm_pairing_payload,
-        remote_control_url,
+        claimed_commands_from_response, decide_host_command, remote_control_url,
+        RemoteControlHostCommand,
     };
     use serde_json::json;
 
@@ -208,5 +397,59 @@ mod tests {
             None,
         )
         .is_err());
+    }
+
+    #[test]
+    fn claimed_commands_from_response_requires_items_and_command_fields() {
+        let response = json!({
+            "items": [
+                {
+                    "command_id": "cmd-1",
+                    "command_type": "desktop.status_probe",
+                    "payload": {"b": true, "a": 1}
+                }
+            ]
+        });
+
+        let commands = claimed_commands_from_response(&response).expect("claimed commands");
+
+        assert_eq!(commands.len(), 1);
+        assert_eq!(commands[0].command_id, "cmd-1");
+        assert_eq!(commands[0].command_type, "desktop.status_probe");
+        assert_eq!(commands[0].payload_keys, vec!["a", "b"]);
+        assert!(
+            claimed_commands_from_response(&json!({"items": [{"command_id": "cmd-1"}]})).is_err()
+        );
+        assert!(claimed_commands_from_response(&json!({})).is_err());
+    }
+
+    #[test]
+    fn decide_host_command_only_completes_safe_probe_commands() {
+        let safe = RemoteControlHostCommand {
+            command_id: "cmd-1".to_string(),
+            command_type: "desktop.status_probe".to_string(),
+            payload_keys: vec!["mode".to_string()],
+        };
+        let risky = RemoteControlHostCommand {
+            command_id: "cmd-2".to_string(),
+            command_type: "open_file".to_string(),
+            payload_keys: vec!["path".to_string()],
+        };
+
+        let safe_decision = decide_host_command(&safe);
+        let risky_decision = decide_host_command(&risky);
+
+        assert_eq!(safe_decision.status, "completed");
+        assert!(safe_decision.failure_reason.is_none());
+        assert_eq!(safe_decision.result_summary["safe_probe"], true);
+        assert_eq!(risky_decision.status, "failed");
+        assert_eq!(
+            risky_decision.failure_reason.as_deref(),
+            Some("unsupported_command_type")
+        );
+        assert_eq!(
+            risky_decision.result_summary["received_command_type"],
+            "open_file"
+        );
     }
 }
