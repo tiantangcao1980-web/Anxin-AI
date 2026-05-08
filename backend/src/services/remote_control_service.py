@@ -24,6 +24,12 @@ REMOTE_CONTROL_PENDING_PAIRING_STATUSES = {"pending_desktop_confirmation"}
 REMOTE_CONTROL_ACTIVE_COMMAND_STATUSES = {"queued", "claimed", "running"}
 REMOTE_CONTROL_EXECUTION_UPDATE_STATUSES = {"running", "completed", "failed"}
 REMOTE_CONTROL_TERMINAL_COMMAND_STATUSES = {"cancelled", "completed", "expired", "failed"}
+REMOTE_CONTROL_SAFE_PROBE_COMMAND_TYPES = {
+    "ping",
+    "status_probe",
+    "desktop.ping",
+    "desktop.status_probe",
+}
 
 
 class RemoteControlError(ValueError):
@@ -242,13 +248,36 @@ class RemoteControlService:
             resource_snapshot={"desktop_device_id": desktop_device_id, "command_type": command_type},
             now=queued_at,
         )
+        normalized_command_type = _normalize_command_type(command_type)
+        if normalized_command_type not in REMOTE_CONTROL_SAFE_PROBE_COMMAND_TYPES:
+            self._audit(
+                org_id=org_id,
+                user_id=user_id,
+                pairing_id=pairing.id,
+                action="remote_control.command.enqueue",
+                status="denied",
+                reason_code="unsupported_command_type",
+                resource_snapshot={
+                    "desktop_device_id": desktop_device_id,
+                    "command_type": normalized_command_type,
+                    "supported_command_types": sorted(REMOTE_CONTROL_SAFE_PROBE_COMMAND_TYPES),
+                },
+                metadata={"route_audit_event_id": decision.audit_event_id},
+                now=queued_at,
+            )
+            await self.db.flush()
+            raise RemoteControlError(
+                "remote_control_command_type_not_supported",
+                "当前桌面远控运行时只允许 safe-probe 命令入队；高风险真实执行器尚未接入。",
+                403,
+            )
 
         command = RemoteControlCommand(
             org_id=org_id,
             user_id=user_id,
             pairing_id=pairing.id,
             desktop_device_id=desktop_device_id,
-            command_type=_required(command_type, "command_type"),
+            command_type=normalized_command_type,
             payload=_scrub_payload(payload),
             risk_level=(risk_level or "l3").strip().lower(),
             status="queued",
@@ -667,6 +696,10 @@ def _required(value: str | None, field_name: str) -> str:
     if not normalized:
         raise RemoteControlError("remote_control_required_field_missing", f"{field_name} is required", 400)
     return normalized
+
+
+def _normalize_command_type(value: str | None) -> str:
+    return _required(value, "command_type").strip().lower()
 
 
 def _normalize_values(values: list[str] | set[str] | tuple[str, ...] | None) -> tuple[str, ...]:

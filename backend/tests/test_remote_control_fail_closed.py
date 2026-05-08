@@ -192,11 +192,27 @@ async def test_remote_control_pairing_confirm_route_token_queue_cancel_and_audit
     assert route_token
     assert token_response.json()["required_scope"] == "desktop:control"
 
-    command_response = await auth_client.post(
+    unsupported_response = await auth_client.post(
         "/api/v1/sync/remote-control/commands",
         json={
             "desktop_device_id": "desktop-a",
             "command_type": "open_case_review",
+            "payload": {"case_id": "case-a"},
+            "pairing_id": pairing_id,
+            "route_token": route_token,
+            "privacy_mode": "hybrid",
+            "risk_level": "l3",
+            "second_confirmed": True,
+        },
+    )
+    assert unsupported_response.status_code == 403
+    assert _detail(unsupported_response)["code"] == "remote_control_command_type_not_supported"
+
+    command_response = await auth_client.post(
+        "/api/v1/sync/remote-control/commands",
+        json={
+            "desktop_device_id": "desktop-a",
+            "command_type": "desktop.status_probe",
             "payload": {"case_id": "case-a", "route_token": "must-redact"},
             "pairing_id": pairing_id,
             "route_token": route_token,
@@ -230,6 +246,7 @@ async def test_remote_control_pairing_confirm_route_token_queue_cancel_and_audit
 
     audit = await auth_client.get("/api/v1/sync/remote-control/audit-events")
     reason_codes = [item["reason_code"] for item in audit.json()["items"]]
+    assert "unsupported_command_type" in reason_codes
     assert "queued" in reason_codes
     assert "cancelled" in reason_codes
     assert "must-redact" not in str(audit.json())
@@ -276,7 +293,7 @@ async def test_remote_control_desktop_host_claims_and_reports_execution_status(
         "/api/v1/sync/remote-control/commands",
         json={
             "desktop_device_id": "desktop-b",
-            "command_type": "open_case_review",
+            "command_type": "desktop.status_probe",
             "payload": {"case_id": "case-b", "secret": "client-secret"},
             "pairing_id": pairing_id,
             "route_token": route_token,
