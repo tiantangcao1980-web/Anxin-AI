@@ -325,6 +325,7 @@ def _mobile_mini_code_checks() -> dict:
         "mobile_result_surface_guard": "passed",
         "mobile_lawyer_conversion_guard": "passed",
         "mobile_expo_config_guard": "passed",
+        "mobile_expo_metro_config": "passed",
         "mobile_expo_doctor": "passed",
         "mini_program_typescript": "passed",
         "mini_program_wechat_build": "passed",
@@ -429,6 +430,79 @@ def test_release_artifact_validation_rejects_incomplete_mobile_mini_code_smoke(t
     assert "zero critical vulnerabilities" in result.stdout
     assert "must not leave xmldom/plist residuals" in result.stdout
     assert "must record xmldom override remediation" in result.stdout
+
+
+def test_release_artifact_validation_accepts_mobile_ios_simulator_smoke(tmp_path):
+    repo_root = Path(__file__).resolve().parents[2]
+    artifact = tmp_path / "mobile-ios-simulator-smoke.json"
+    artifact.write_text(
+        json.dumps(
+            {
+                "generated_at": "2026-05-08T00:00:00Z",
+                "mode": "mobile_ios_simulator_expo_go_smoke",
+                "status": "passed",
+                "release_evidence_complete": False,
+                "device": {
+                    "platform": "ios_simulator",
+                    "name": "iPhone 17",
+                    "udid": "simulator-udid",
+                },
+                "checks": {
+                    "simulator_boot": "passed",
+                    "expo_asset_resolvable": "passed",
+                    "expo_metro_config": "passed",
+                    "expo_go_container": "present",
+                    "ios_bundle": "passed",
+                },
+                "artifacts": {"log": "docs/release/evidence/artifacts/mobile-ios-simulator.log"},
+                "transcript_excerpt": ["iOS Bundled 581ms node_modules/expo-router/entry.js"],
+                "notes": [
+                    "Supporting iOS Simulator evidence only; real-device release evidence remains pending.",
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = _validate(repo_root, artifact)
+
+    assert result.returncode == 0, result.stdout
+
+
+def test_release_artifact_validation_rejects_incomplete_mobile_ios_simulator_smoke(tmp_path):
+    repo_root = Path(__file__).resolve().parents[2]
+    artifact = tmp_path / "mobile-ios-simulator-bad.json"
+    artifact.write_text(
+        json.dumps(
+            {
+                "generated_at": "2026-05-08T00:00:00Z",
+                "mode": "mobile_ios_simulator_expo_go_smoke",
+                "status": "failed",
+                "release_evidence_complete": True,
+                "device": {"platform": "ios"},
+                "checks": {
+                    "simulator_boot": "passed",
+                    "expo_asset_resolvable": "missing",
+                    "expo_metro_config": "passed",
+                    "expo_go_container": "missing",
+                    "ios_bundle": "failed",
+                },
+                "artifacts": {},
+                "transcript_excerpt": ["Waiting on http://localhost:19001"],
+                "notes": ["complete"],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = _validate(repo_root, artifact)
+
+    assert result.returncode == 1
+    assert "release_evidence_complete=false" in result.stdout
+    assert "status=passed" in result.stdout
+    assert "device.platform must be ios_simulator" in result.stdout
+    assert "expo_asset_resolvable must be passed" in result.stdout
+    assert "transcript must include iOS Bundled" in result.stdout
 
 
 def test_release_artifact_validation_accepts_desktop_installed_profile_smoke(tmp_path):

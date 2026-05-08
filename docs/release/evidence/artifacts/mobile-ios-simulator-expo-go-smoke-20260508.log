@@ -1,0 +1,7 @@
+Starting project at <repo>/mobile
+Starting Metro Bundler
+TypeScript: The tsconfig.json#include property has been updated
+ Opening exp://127.0.0.1:19001 on iPhone 17
+Waiting on http://localhost:19001
+Logs for your project will appear below.
+iOS Bundled 434ms node_modules/expo-router/entry.js (1008 modules)

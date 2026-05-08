@@ -1,0 +1,36 @@
+{
+  "generated_at": "2026-05-08T09:31:55.234181+00:00",
+  "mode": "mobile_ios_simulator_expo_go_smoke",
+  "status": "passed",
+  "release_evidence_complete": false,
+  "device": {
+    "platform": "ios_simulator",
+    "name": "iPhone 17",
+    "udid": "B0BF735F-4378-4857-A1D4-E4F0A0A96A29"
+  },
+  "checks": {
+    "simulator_boot": "passed",
+    "expo_asset_resolvable": "passed",
+    "expo_metro_config": "passed",
+    "expo_go_container": "present",
+    "ios_bundle": "passed"
+  },
+  "command": "cd mobile && npx expo start --localhost --port 19001 --go --ios",
+  "artifacts": {
+    "log": "docs/release/evidence/artifacts/mobile-ios-simulator-expo-go-smoke-20260508.log"
+  },
+  "transcript_excerpt": [
+    "Starting project at <repo>/mobile",
+    "Starting Metro Bundler",
+    "TypeScript: The tsconfig.json#include property has been updated",
+    " Opening exp://127.0.0.1:19001 on iPhone 17",
+    "Waiting on http://localhost:19001",
+    "Logs for your project will appear below.",
+    "iOS Bundled 434ms node_modules/expo-router/entry.js (1008 modules)"
+  ],
+  "failure_reason": "",
+  "notes": [
+    "Supporting iOS Simulator + Expo Go evidence only; this is not signed App Store/TestFlight or physical-device evidence.",
+    "Keep mobile-device smoke evidence Status: pending until iOS, Android, interactive WeChat DevTools or real-device runs and cross-device continuation are recorded."
+  ]
+}

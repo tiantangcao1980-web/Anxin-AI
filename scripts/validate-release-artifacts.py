@@ -318,6 +318,7 @@ def _validate_mobile_mini_code_smoke(path: Path, payload: dict[str, Any], failur
             [
                 "mobile_result_surface_guard",
                 "mobile_lawyer_conversion_guard",
+                "mobile_expo_metro_config",
             ]
         )
     for check_name in required_checks:
@@ -363,6 +364,53 @@ def _validate_mobile_mini_code_smoke(path: Path, payload: dict[str, Any], failur
             failures.append(
                 f"{path}: mobile npm audit passed artifact must record Expo toolchain overrides"
             )
+
+
+def _validate_mobile_ios_simulator_smoke(path: Path, payload: dict[str, Any], failures: list[str]) -> None:
+    if payload.get("mode") != "mobile_ios_simulator_expo_go_smoke":
+        return
+    if payload.get("release_evidence_complete") is not False:
+        failures.append(f"{path}: iOS simulator smoke must set release_evidence_complete=false")
+    if payload.get("status") != "passed":
+        failures.append(f"{path}: iOS simulator smoke must have status=passed")
+
+    device = payload.get("device")
+    if not isinstance(device, dict):
+        failures.append(f"{path}: iOS simulator smoke must include device object")
+    else:
+        if device.get("platform") != "ios_simulator":
+            failures.append(f"{path}: iOS simulator smoke device.platform must be ios_simulator")
+        for key in ("name", "udid"):
+            if not isinstance(device.get(key), str) or not device.get(key).strip():
+                failures.append(f"{path}: iOS simulator smoke device.{key} must be non-empty")
+
+    checks = payload.get("checks")
+    if not isinstance(checks, dict):
+        failures.append(f"{path}: iOS simulator smoke must include checks object")
+    else:
+        for check_name in (
+            "simulator_boot",
+            "expo_asset_resolvable",
+            "expo_metro_config",
+            "ios_bundle",
+        ):
+            if checks.get(check_name) != "passed":
+                failures.append(f"{path}: iOS simulator smoke {check_name} must be passed")
+        if checks.get("expo_go_container") not in {"present", "installed"}:
+            failures.append(f"{path}: iOS simulator smoke expo_go_container must be present")
+
+    artifacts = payload.get("artifacts")
+    if not isinstance(artifacts, dict) or not isinstance(artifacts.get("log"), str) or not artifacts.get("log", "").strip():
+        failures.append(f"{path}: iOS simulator smoke must include artifacts.log")
+    transcript_excerpt = payload.get("transcript_excerpt")
+    if not isinstance(transcript_excerpt, list) or not any("iOS Bundled" in str(line) for line in transcript_excerpt):
+        failures.append(f"{path}: iOS simulator smoke transcript must include iOS Bundled")
+
+    note_text = _combined_note_text(payload)
+    if "supporting" not in note_text or "pending" not in note_text or "real-device" not in note_text:
+        failures.append(
+            f"{path}: iOS simulator smoke must clearly say real-device release evidence remains pending"
+        )
 
 
 def _validate_desktop_installed_profile_smoke(path: Path, payload: dict[str, Any], failures: list[str]) -> None:
@@ -1031,6 +1079,7 @@ def validate_json_artifact(path: Path) -> ValidationResult:
     _validate_rag_failure_diagnostics(path, payload, failures)
     _validate_mobile_device_manual_template(path, payload, failures)
     _validate_mobile_mini_code_smoke(path, payload, failures)
+    _validate_mobile_ios_simulator_smoke(path, payload, failures)
     _validate_desktop_installed_profile_smoke(path, payload, failures)
     _validate_desktop_runtime_code_smoke(path, payload, failures)
     _validate_desktop_release_runtime_unsigned_smoke(path, payload, failures)

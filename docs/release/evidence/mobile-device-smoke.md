@@ -2,7 +2,7 @@
 
 Status: pending
 Owner: TBD
-Environment: code-level mobile/mini smoke complete; Expo config, SDK dependency guard, Expo doctor, mobile result surface guard, mini-program privacy and navigation boundary guards, and WeChat DevTools CLI project smoke complete; cross-platform token drift audit complete; iOS, Android, interactive WeChat DevTools / real device pending
+Environment: code-level mobile/mini smoke complete; Expo config, SDK dependency guard, Expo Metro config, Expo doctor, mobile result surface guard, mini-program privacy and navigation boundary guards, WeChat DevTools CLI project smoke, and iOS Simulator Expo Go supporting app-run complete; cross-platform token drift audit complete; Android, interactive WeChat DevTools / real device, and cross-device continuation pending
 Date range: 2026-05-06 to 2026-05-08 local collection
 
 > Simulator/unit tests are useful but insufficient. This evidence requires real or official-device-tool runs for the critical user stories.
@@ -12,6 +12,7 @@ Date range: 2026-05-06 to 2026-05-08 local collection
 | Platform | Required evidence | Status | Artifact reference |
 |---|---|---|---|
 | iOS | Login, approval detail, chat continuation, settings error state | pending | TBD |
+| iOS Simulator | Expo Go opens local app and completes iOS JS bundle | supporting complete; official/real-device verification pending | `docs/release/evidence/artifacts/mobile-ios-simulator-expo-go-smoke-20260508.json`; `docs/release/evidence/artifacts/mobile-ios-simulator-expo-go-smoke-20260508.log` |
 | Android | Login, approval detail, chat continuation, settings error state | pending | TBD |
 | WeChat Mini Program | `wx.login -> code2session -> JWT` without leaking `session_key` | pending | TBD |
 | WeChat Mini Program | News/empty-state path shows no fake fallback content | pending | TBD |
@@ -28,6 +29,9 @@ Date range: 2026-05-06 to 2026-05-08 local collection
 bash scripts/mobile-device-smoke.sh \
   --out docs/release/evidence/artifacts/mobile-mini-code-smoke-YYYYMMDD.json \
   --manual-template-out docs/release/evidence/artifacts/mobile-device-manual-template-YYYYMMDD.json
+bash scripts/mobile-ios-simulator-smoke.sh \
+  --out docs/release/evidence/artifacts/mobile-ios-simulator-expo-go-smoke-YYYYMMDD.json \
+  --log-out docs/release/evidence/artifacts/mobile-ios-simulator-expo-go-smoke-YYYYMMDD.log
 cd mobile && npm test
 cd mobile && npx tsc --noEmit --module esnext
 cd mobile && npx expo-doctor
@@ -55,7 +59,7 @@ Result refreshed on 2026-05-08 local time:
 | mobile TypeScript check | exit `0` |
 | mobile result surface guard | exit `0`; static guard verifies investigation and knowledge submissions render in-page result cards instead of relying on Alert-only feedback |
 | mobile lawyer conversion guard | exit `0`; static guard verifies find-lawyer creates real consultation records, renders AI anonymous summaries, selects lawyers in-page, exposes anonymous chat/delegation API paths, and does not route to a missing lawyer detail page |
-| mobile Expo config/dependency guard | exit `0`; `expo-notifications`, `expo-device`, and `expo-font` are installed and aligned with `mobile/app.json`; `npx expo config --json --full` and `npx expo install --check` pass |
+| mobile Expo config/dependency guard | exit `0`; `expo-asset`, `expo-notifications`, `expo-device`, and `expo-font` are installed and aligned with `mobile/app.json`; `expo/metro-config` can instantiate Metro config; `npx expo config --json --full` and `npx expo install --check` pass |
 | mobile Expo doctor | exit `0`; `17/17 checks passed` |
 | mobile npm audit security summary | exit `0`; `critical=0`, `high=0`, `total=0`; `@xmldom/xmldom`, `@expo/plist`, Expo CLI `tar`, and Metro `postcss` findings are remediated by targeted overrides; `tar@7.5.14` crosses Expo CLI's declared semver range, so Expo doctor and real-device smoke remain required release verification |
 | mini-program TypeScript check | exit `0` |
@@ -69,6 +73,7 @@ Result refreshed on 2026-05-08 local time:
 | code-level JSON artifact | `docs/release/evidence/artifacts/mobile-mini-code-smoke-20260508.json`; `status=passed`, `release_evidence_complete=false`, includes Expo guard and `mobile_npm_audit.status=passed,total=0` |
 | manual device template | `docs/release/evidence/artifacts/mobile-device-manual-template-20260508.json`; `status=template`, `release_evidence_complete=false` |
 | host device probe | `docs/release/evidence/artifacts/mobile-device-host-probe-20260508.json`; iOS Simulator is available with iOS 26.4 devices, ADB has no connected devices, Android emulator CLI is missing, WeChat DevTools and WeChat apps are present |
+| iOS Simulator Expo Go smoke | `bash scripts/mobile-ios-simulator-smoke.sh --out docs/release/evidence/artifacts/mobile-ios-simulator-expo-go-smoke-20260508.json --log-out docs/release/evidence/artifacts/mobile-ios-simulator-expo-go-smoke-20260508.log --timeout 90` -> exit `0`; boots iPhone 17 simulator, verifies `expo-asset` and Expo Metro config, opens Expo Go on the local Expo URL, and records `iOS Bundled`; artifact has `release_evidence_complete=false` |
 
 Code-level hardening added in this collection:
 
@@ -81,6 +86,7 @@ Code-level hardening added in this collection:
 - `mobile/src/services/api.ts` now reads the stored privacy mode before outbound requests, sends `X-Privacy-Mode` in hybrid/cloud modes, and fails closed before `fetch` in local mode; `mobile/src/services/api.test.ts` covers header propagation and zero network calls in local mode.
 - `mini-program/src/services/api.ts` now reads the stored privacy mode before outbound requests, sends `X-Privacy-Mode`, and fails closed before `Taro.request` in `local` / `top-secret` modes; `mini-program/src/pages/profile/index.tsx` blocks login before `Taro.login`, and `mini-program/scripts/check-privacy-boundary.js` guards the boundary.
 - `mobile/package.json` now declares Expo SDK 52-compatible `expo-notifications`, `expo-device`, `expo-font`, `@expo/vector-icons`, `@react-native-async-storage/async-storage`, `react-native`, and `react-native-safe-area-context` versions so `mobile/app.json` config plugins and native peer dependencies resolve before device smoke.
+- `mobile/package.json` now declares `expo-asset` directly because Expo Metro config requires project-level resolution before iOS Simulator app-run can bundle.
 - `mini-program/src/services/api.ts` now mirrors that refresh-token distinction so transient refresh failure does not silently erase `token`/`refresh_token`.
 - `mini-program/project.config.json` now uses `touristappid` for local WeChat DevTools CLI smoke; real upload still requires the official appid in the release environment.
 - `mini-program/src/app.scss` now exposes `$touch-target-min: 88rpx` and applies it to homepage actions, profile menu items, and chat send actions.
@@ -88,7 +94,7 @@ Code-level hardening added in this collection:
 - `docs/design/cross-platform-token-drift.md` records Web/desktop, mobile, and mini-program token drift without changing design tokens; fixes remain separate release work.
 - `docs/release/mobile-error-state-release-notes.md` drafts the user/support explanation for explicit error states after silent fallback removal.
 
-This file remains `Status: pending` because the release requirement still needs iOS, Android, interactive WeChat DevTools or real-device evidence, and cross-device continuation. Mobile production npm audit is now fixed in the code-level artifact, but runtime device evidence is still required before release Go.
+This file remains `Status: pending` because the iOS Simulator Expo Go smoke is supporting evidence only and does not cover the required signed/official app, real device user stories, Android, interactive WeChat DevTools or real-device evidence, and cross-device continuation. Mobile production npm audit and local iOS bundling are now fixed in code-level/supporting artifacts, but runtime device evidence is still required before release Go.
 
 ## Completion Notes
 

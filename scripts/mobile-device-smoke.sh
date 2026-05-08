@@ -21,7 +21,8 @@ Options:
 Checks:
   - mobile Vitest suite
   - mobile TypeScript check
-  - Expo config/dependency guard
+- Expo config/dependency guard
+- Expo Metro config instantiation guard
   - Expo doctor compatibility check
   - mini-program TypeScript check
   - mini-program WeChat build unless skipped
@@ -161,16 +162,22 @@ const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
 const deps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
 const plugins = app.expo?.plugins || [];
 const hasPlugin = (name) => plugins.some((plugin) => Array.isArray(plugin) ? plugin[0] === name : plugin === name);
-for (const dependency of ["expo-notifications", "expo-device", "expo-font"]) {
+for (const dependency of ["expo-asset", "expo-notifications", "expo-device", "expo-font"]) {
   if (!deps[dependency]) {
     throw new Error(`Missing ${dependency}; mobile push/config plugin dependency drift`);
   }
 }
+require.resolve("expo-asset/package.json");
 if (!hasPlugin("expo-notifications")) {
   throw new Error("Missing expo-notifications plugin in mobile/app.json");
 }
 if (!hasPlugin("expo-font")) {
   throw new Error("Missing expo-font plugin in mobile/app.json");
+}
+const { getDefaultConfig } = require("expo/metro-config");
+const metroConfig = getDefaultConfig(process.cwd());
+if (!metroConfig || !metroConfig.resolver) {
+  throw new Error("Expo Metro config did not instantiate");
 }
 NODE
     npx expo config --json --full >/tmp/anxin-mobile-expo-config.json
@@ -374,6 +381,7 @@ report = {
         "mobile_result_surface_guard": "passed",
         "mobile_lawyer_conversion_guard": "passed",
         "mobile_expo_config_guard": "passed",
+        "mobile_expo_metro_config": "passed",
         "mobile_expo_doctor": "passed",
         "mini_program_typescript": "passed",
         "mini_program_privacy_boundary_guard": "passed",
