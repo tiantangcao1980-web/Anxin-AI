@@ -290,3 +290,95 @@ def _reject_agent_audit_event_mutation(*_args: object) -> None:
 
 event.listen(AgentAuditEvent, "before_update", _reject_agent_audit_event_mutation)
 event.listen(AgentAuditEvent, "before_delete", _reject_agent_audit_event_mutation)
+
+
+class SkillGovernanceProposal(Base, TimestampMixin):
+    """Durable proposal record for governed Skill evolution."""
+
+    __tablename__ = "skill_governance_proposals"
+
+    org_id: Mapped[str] = mapped_column(GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    skill_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    current_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    proposed_version: Mapped[str] = mapped_column(String(80), nullable=False)
+    source: Mapped[str] = mapped_column(String(200), nullable=False)
+    created_by: Mapped[str] = mapped_column(String(160), nullable=False)
+    created_by_role: Mapped[str] = mapped_column(String(60), nullable=False, default="agent")
+    risk_level: Mapped[str] = mapped_column(String(20), nullable=False, default="medium")
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="draft")
+    eval_results: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    approved_by: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    approver_role: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    gray_percentage: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    rolled_back_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    rollback_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("org_id", "id", name="uq_skill_governance_proposals_org_id"),
+        UniqueConstraint("org_id", "skill_name", "proposed_version", name="uq_skill_governance_proposals_org_version"),
+        Index("ix_skill_governance_proposals_org_status", "org_id", "status"),
+        Index("ix_skill_governance_proposals_skill", "org_id", "skill_name"),
+    )
+
+
+class SkillEnabledVersion(Base, TimestampMixin):
+    """Org-scoped enabled Skill version selected by governance."""
+
+    __tablename__ = "skill_enabled_versions"
+
+    org_id: Mapped[str] = mapped_column(GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    skill_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    version: Mapped[str] = mapped_column(String(80), nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="enabled")
+    proposal_id: Mapped[str | None] = mapped_column(GUID(), nullable=True)
+    enabled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["org_id", "proposal_id"],
+            ["skill_governance_proposals.org_id", "skill_governance_proposals.id"],
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("org_id", "skill_name", name="uq_skill_enabled_versions_org_skill"),
+        Index("ix_skill_enabled_versions_org_status", "org_id", "status"),
+    )
+
+
+class SkillGovernanceAuditEvent(Base):
+    """Append-only audit event for governed Skill lifecycle decisions."""
+
+    __tablename__ = "skill_governance_audit_events"
+
+    org_id: Mapped[str] = mapped_column(GUID(), ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False)
+    proposal_id: Mapped[str | None] = mapped_column(GUID(), nullable=True)
+    actor: Mapped[str] = mapped_column(String(160), nullable=False)
+    action: Mapped[str] = mapped_column(String(120), nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="success")
+    reason_code: Mapped[str] = mapped_column(String(100), nullable=False)
+    resource_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["org_id", "proposal_id"],
+            ["skill_governance_proposals.org_id", "skill_governance_proposals.id"],
+            ondelete="RESTRICT",
+        ),
+        Index("ix_skill_governance_audit_events_org_created", "org_id", "created_at"),
+        Index("ix_skill_governance_audit_events_action_status", "action", "status"),
+    )
+
+
+def _reject_skill_governance_audit_event_mutation(*_args: object) -> None:
+    raise ValueError("skill_governance_audit_events is append-only")
+
+
+event.listen(SkillGovernanceAuditEvent, "before_update", _reject_skill_governance_audit_event_mutation)
+event.listen(SkillGovernanceAuditEvent, "before_delete", _reject_skill_governance_audit_event_mutation)

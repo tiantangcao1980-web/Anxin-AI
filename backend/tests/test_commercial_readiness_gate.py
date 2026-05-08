@@ -99,12 +99,13 @@ def test_commercial_gate_runs_cli_route_governance_tests():
     assert "tests/test_cli_route.py" in script
 
 
-def test_commercial_gate_runs_skill_evolution_gate_tests():
+def test_commercial_gate_runs_skill_governance_gate_tests():
     repo_root = Path(__file__).resolve().parents[2]
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
 
-    assert 'require_command "skill evolution gate tests"' in script
+    assert 'require_command "skill governance gate tests"' in script
     assert "tests/test_skill_evolution_service.py tests/test_skill_service.py" in script
+    assert "tests/test_skill_governance_models.py tests/test_skill_governance_service.py" in script
 
 
 def test_commercial_gate_runs_approval_authorization_guard_tests():

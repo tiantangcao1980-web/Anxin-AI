@@ -15,11 +15,13 @@
 - 后端模型与迁移：
   - **新建** `backend/src/models/agent_governance.py`
   - **新建** alembic migration：agent managers / teams / workers / humans / channel policies / capability routes / approvals / audit events
+  - **新增** SkillGovernance proposal / enabled version / audit persistence migration
 - 后端服务：
   - **新建** `backend/src/services/agent_governance_service.py`
   - **新建** `backend/src/services/capability_policy_engine.py`
   - **新建** `backend/src/services/agent_approval_service.py`
   - **新建** `backend/src/services/agent_audit_service.py`
+  - **新建** `backend/src/services/skill_governance_service.py`
   - 改造 `backend/src/services/mcp_client_service.py`、`skill_service.py`、`llm_service.py`、`private_llm_service.py`
 - 后端路由：
   - **新建** `backend/src/api/routes/agent_governance.py`
@@ -93,6 +95,7 @@
 - `backend/src/models/agent_governance.py` 已建立 AgentManager、AgentTeam、AgentWorker、HumanParticipant、AgentChannelPolicy、CapabilityRoute、CapabilityRouteTokenLease、AgentApproval 和 AgentAuditEvent。
 - `backend/alembic/versions/040_add_agent_governance_control_plane.py` 已提供上述 9 张表的 upgrade/downgrade，并在 PostgreSQL 上为 `agent_audit_events` 创建 update/delete 拒绝 trigger。
 - `backend/tests/test_agent_governance_models.py` 已锁住模型注册、CapabilityRoute 不保存真实密钥/原始 token、TokenLease 只保存 hash、组织级 route 唯一约束、复合租户外键、跨组织写入失败、审计不可变监听和迁移无敏感列。
+- `backend/alembic/versions/041_add_skill_governance_persistence.py` 已新增 SkillGovernanceProposal、SkillEnabledVersion 和 SkillGovernanceAuditEvent 持久化表；审计表同样在模型监听器和 PostgreSQL trigger 层拒绝 update/delete。
 - `backend/src/services/agent_approval_service.py` 已补 DB-backed 高风险 AgentApproval service，覆盖创建审批、授权角色审批/驳回、过期 fail-closed、撤销 fail-closed、action/route 匹配、workspace-control 未批准先拒绝、运行时未接入 fail-closed 和审计写入；`backend/tests/test_agent_approval_service.py` `7 passed`。
 - `backend/src/api/routes/agent_approvals.py` 已补正式高风险智能体审批 API，覆盖创建、列表/详情、pending count、audit-events、audit-export、workspace-control、approve/reject/revoke 和 validate；`backend/tests/test_agent_approval_api.py` `5 passed`。
 - 后续仍需把这些模型接入完整 Human-in-the-loop 工作室、真实 approved MCP connector 演练、LLM/browser/desktop-control 能力链路和跨进程撤销失权证据；当前前端已先补最小高风险审批工作台入口。
@@ -161,7 +164,8 @@ can_execute_capability(actor, org, capability, risk_level, data_scope, privacy_m
 - `backend/src/services/skill_evolution_service.py` 已补最小本地门禁：draft proposal、required eval checks、授权角色审批、灰度、回滚和审计。
 - `backend/src/services/skill_service.py` 已支持在治理模式下只返回当前 enabled version。
 - `backend/tests/test_skill_evolution_service.py` 与 `backend/tests/test_skill_service.py` 已覆盖 agent 不能自启生产版本、评测失败/缺失拒绝审批、越权审批拒绝、灰度百分比边界、回滚后下一次技能匹配回到上一版本。
-- 仍需后续把本地门禁生产化为数据库持久化 SkillGovernance，并把 AgentApproval/AgentAuditEvent 接入真实执行链路、组织级能力中心 UI、真实 CapabilityRoute 撤销联动和记忆治理。
+- `backend/src/services/skill_governance_service.py` 已把 Skill 进化门禁生产化为 DB-backed SkillGovernance：proposal、required eval、授权审批、灰度启用、回滚、enabled version 查询、组织隔离和审计事件都可跨 service 实例持久化；`backend/tests/test_skill_governance_models.py` 与 `backend/tests/test_skill_governance_service.py` 共 `12 passed`。
+- 仍需后续把 AgentApproval/AgentAuditEvent/SkillGovernance 接入真实 LLM/browser/desktop-control 执行链路、组织级能力中心 UI、真实 CapabilityRoute 撤销联动、记忆治理和商业发布证据。
 
 - 定义 `SkillEvolutionProposal`：来源失败案例、用户反馈、评测失败、人工建议或 agent 观察。
 - Proposal 只能生成草案、测试和风险说明；不得自动修改 enabled Skill。
@@ -212,6 +216,6 @@ docs/audit/12-enterprise-agent-governance/
 - [ ] Worker/Agent 不持有真实密钥；MCP tool execution、CLI `/execute` 和桌面端 CLI route-token 获取/传递已有 DB-backed route-token fail-closed 代码级回归，LLM/browser/desktop-control 和真实 approved connector 演练仍待闭环。
 - [ ] 五类权限回归通过：员工浏览器填表被拒、部门管理员创建部门报告 agent、老板批准桌面远控、超级管理员撤销 MCP route、外部服务方只能看授权材料包。
 - [ ] 能力中心只对老板/超级管理员展示全量能力；普通员工只见基础能力和可申请项。
-- [ ] Skill 进化提案、评测门禁、管理员审批、灰度启用和回滚禁用有正反向测试。
+- [x] Skill 进化提案、评测门禁、管理员审批、灰度启用和回滚禁用已有本地与 DB-backed 正反向测试；组织级 UI、真实执行链路失权和商业发布证据仍未闭环。
 - [ ] 高风险工作室支持旁听、真实暂停/接管/终止执行效果和 artifact 导出。
 - [ ] 后端 pytest、前端 lint/build/test、release evidence secret scan 通过。

@@ -17,6 +17,9 @@ from src.models.agent_governance import (
     CapabilityRoute,
     CapabilityRouteTokenLease,
     HumanParticipant,
+    SkillEnabledVersion,
+    SkillGovernanceAuditEvent,
+    SkillGovernanceProposal,
 )
 from src.models.approval import Approval, ApprovalStatus, ApprovalTemplate, ApprovalType, ChainMode
 from src.models.asset import Asset
@@ -112,6 +115,9 @@ __all__ = [
     "CapabilityRouteTokenLease",
     "AgentApproval",
     "AgentAuditEvent",
+    "SkillGovernanceProposal",
+    "SkillEnabledVersion",
+    "SkillGovernanceAuditEvent",
 
     # ??
 
