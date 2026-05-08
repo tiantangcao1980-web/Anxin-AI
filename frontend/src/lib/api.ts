@@ -3152,6 +3152,57 @@ export const skillGovernanceApi = {
     }),
 }
 
+export interface HarnessToolItem {
+  name: string
+  display_name?: string
+  description?: string
+  risk_level?: string
+  requires_approval?: boolean
+  allowed_agents?: string[] | null
+  tags?: string[]
+}
+
+export interface HarnessAgentTools {
+  agent: string
+  available_tools: string[]
+}
+
+export const harnessGovernanceApi = {
+  listTools: async (params?: { risk_level?: string; tag?: string; agent?: string }) => {
+    const query = new URLSearchParams()
+    if (params?.risk_level) query.set('risk_level', params.risk_level)
+    if (params?.tag) query.set('tag', params.tag)
+    if (params?.agent) query.set('agent', params.agent)
+    const suffix = query.toString()
+    const response = await request<{ status: string; data: HarnessToolItem[] }>(
+      suffix ? `/harness/tools?${suffix}` : '/harness/tools',
+    )
+    return response.data
+  },
+
+  agentTools: async (agentName: string, params?: {
+    privacy_mode?: string
+    device_trusted?: boolean
+    channel_allowed?: boolean
+    approval_state?: string
+    subscription_feature?: string[]
+  }) => {
+    const query = new URLSearchParams()
+    if (params?.privacy_mode) query.set('privacy_mode', params.privacy_mode)
+    if (params?.device_trusted !== undefined) query.set('device_trusted', String(params.device_trusted))
+    if (params?.channel_allowed !== undefined) query.set('channel_allowed', String(params.channel_allowed))
+    if (params?.approval_state) query.set('approval_state', params.approval_state)
+    for (const feature of params?.subscription_feature ?? []) {
+      query.append('subscription_feature', feature)
+    }
+    const suffix = query.toString()
+    const response = await request<{ status: string; data: HarnessAgentTools }>(
+      `/harness/policy/agent/${encodeURIComponent(agentName)}/tools${suffix ? `?${suffix}` : ''}`,
+    )
+    return response.data
+  },
+}
+
 // ============ 审批流 API ============
 
 export interface ApprovalItem {

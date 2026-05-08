@@ -225,6 +225,10 @@ test.describe('Agent 审批工作台', () => {
     await expect(page.getByTestId('skill-governance-row-skill-e2e-1')).toContainText('contract-review 1.0.0 → 1.1.0')
     await expect(page.getByTestId('skill-governance-row-skill-e2e-2')).toContainText('已评测')
     await expect(page.getByTestId('skill-governance-row-skill-e2e-3')).toContainText('已批准')
+    await expect(page.getByTestId('capability-policy-panel')).toContainText('能力策略')
+    await expect(page.getByTestId('capability-policy-panel')).toContainText('legal_researcher · 可用 2 · 阻断 1')
+    await expect(page.getByTestId('capability-policy-tool-list')).toContainText('知识库检索')
+    await expect(page.getByTestId('capability-policy-tool-list')).toContainText('阻断')
 
     const form = page.getByTestId('skill-governance-proposal-form')
     await form.getByLabel('目标版本').fill('1.2.0')
@@ -305,6 +309,7 @@ test.describe('Agent 审批工作台', () => {
     await expect(page.getByRole('heading', { name: 'Agent 审批工作台' })).toBeVisible()
     await expect(page.getByRole('button', { name: '协作' })).toHaveClass(/text-primary/)
     await expect(page.getByTestId('skill-governance-panel')).toBeVisible()
+    await expect(page.getByTestId('capability-policy-panel')).toBeVisible()
     await expect(page.getByTestId('agent-approval-row-approval-e2e-1')).toBeVisible()
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)

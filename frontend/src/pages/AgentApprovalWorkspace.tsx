@@ -7,12 +7,15 @@ import { PageContainer } from '@/components/ui/PageContainer'
 import {
   agentApprovalsApi,
   SKILL_GOVERNANCE_REQUIRED_CHECKS,
+  harnessGovernanceApi,
   skillGovernanceApi,
   type AgentApprovalAuditExport,
   type AgentApprovalAuditEvent,
   type AgentApprovalItem,
   type AgentApprovalStatus,
   type AgentWorkspaceControlAction,
+  type HarnessAgentTools,
+  type HarnessToolItem,
   type SkillGovernanceAuditEvent,
   type SkillGovernanceAuditExport,
   type SkillGovernanceEnabledVersion,
@@ -56,6 +59,12 @@ const SKILL_STATUS_META: Record<SkillGovernanceStatus, { label: string; classNam
 }
 
 const SKILL_RISK_OPTIONS = ['low', 'medium', 'high'] as const
+
+const CAPABILITY_AGENT_OPTIONS = [
+  { value: 'legal_researcher', label: 'Legal Researcher' },
+  { value: 'legal_advisor', label: 'Legal Advisor' },
+  { value: 'contract_analyzer', label: 'Contract Analyzer' },
+]
 
 function formatDateTime(value?: string | null): string {
   if (!value) return '未设置'
@@ -146,6 +155,11 @@ export default function AgentApprovalWorkspace() {
     source: 'workspace:manual-proposal',
     risk_level: 'medium',
   })
+  const [capabilityAgent, setCapabilityAgent] = useState('legal_researcher')
+  const [capabilityTools, setCapabilityTools] = useState<HarnessToolItem[]>([])
+  const [capabilityAvailability, setCapabilityAvailability] = useState<HarnessAgentTools | null>(null)
+  const [capabilityLoading, setCapabilityLoading] = useState(true)
+  const [capabilityError, setCapabilityError] = useState<string | null>(null)
 
   const loadApprovals = useCallback(async () => {
     setLoading(true)
@@ -192,6 +206,33 @@ export default function AgentApprovalWorkspace() {
   useEffect(() => {
     void loadSkillGovernance()
   }, [loadSkillGovernance])
+
+  const loadCapabilityPolicy = useCallback(async () => {
+    setCapabilityLoading(true)
+    setCapabilityError(null)
+    try {
+      const [tools, availability] = await Promise.all([
+        harnessGovernanceApi.listTools(),
+        harnessGovernanceApi.agentTools(capabilityAgent, {
+          privacy_mode: 'hybrid',
+          device_trusted: true,
+          channel_allowed: true,
+          approval_state: 'approved',
+          subscription_feature: ['legal_knowledge_base', 'lawyer_matching'],
+        }),
+      ])
+      setCapabilityTools(tools)
+      setCapabilityAvailability(availability)
+    } catch (err) {
+      setCapabilityError(err instanceof Error ? err.message : '加载能力策略失败')
+    } finally {
+      setCapabilityLoading(false)
+    }
+  }, [capabilityAgent])
+
+  useEffect(() => {
+    void loadCapabilityPolicy()
+  }, [loadCapabilityPolicy])
 
   const stats = useMemo(() => {
     const base: Record<AgentApprovalStatus, number> = {
@@ -430,6 +471,16 @@ export default function AgentApprovalWorkspace() {
         onRunAction={(proposal, action) => void runSkillAction(proposal, action)}
         onToggleAudit={(proposal) => void toggleSkillAudit(proposal)}
         onExportAudit={(proposal) => void exportSkillAudit(proposal)}
+      />
+
+      <CapabilityPolicyPanel
+        agent={capabilityAgent}
+        tools={capabilityTools}
+        availability={capabilityAvailability}
+        loading={capabilityLoading}
+        error={capabilityError}
+        onAgentChange={setCapabilityAgent}
+        onRefresh={() => void loadCapabilityPolicy()}
       />
 
       <div className="flex flex-wrap items-center gap-2" data-testid="agent-approval-status-filter">
@@ -845,6 +896,142 @@ function SkillAuditTrail({
           </li>
         ))}
       </ol>
+    </div>
+  )
+}
+
+function CapabilityPolicyPanel({
+  agent,
+  tools,
+  availability,
+  loading,
+  error,
+  onAgentChange,
+  onRefresh,
+}: {
+  agent: string
+  tools: HarnessToolItem[]
+  availability: HarnessAgentTools | null
+  loading: boolean
+  error: string | null
+  onAgentChange: (agent: string) => void
+  onRefresh: () => void
+}) {
+  const availableSet = new Set(availability?.available_tools ?? [])
+  const availableCount = tools.filter((tool) => availableSet.has(tool.name)).length
+  const blockedCount = Math.max(tools.length - availableCount, 0)
+  const approvalCount = tools.filter((tool) => tool.requires_approval).length
+
+  return (
+    <section className="rounded-lg border border-border bg-background p-4 shadow-sm" data-testid="capability-policy-panel">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-sky-700">
+            <icons.Network className="h-4 w-4" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="truncate text-base font-semibold text-foreground">能力策略</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {availability?.agent ?? agent} · 可用 {availableCount} · 阻断 {blockedCount}
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={agent}
+            onChange={(event) => onAgentChange(event.target.value)}
+            className="h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-primary"
+            aria-label="Agent"
+          >
+            {CAPABILITY_AGENT_OPTIONS.map((item) => (
+              <option key={item.value} value={item.value}>{item.label}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted"
+          >
+            <icons.RefreshCw className="h-4 w-4" />
+            刷新
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <MiniMetric label="注册工具" value={tools.length} icon={icons.Wrench} />
+        <MiniMetric label="当前可用" value={availableCount} icon={icons.CheckCircle2} />
+        <MiniMetric label="需审批" value={approvalCount} icon={icons.ShieldAlert} />
+      </div>
+
+      <div className="mt-4">
+        {loading ? (
+          <LoadingState variant="skeleton" rows={3} />
+        ) : error ? (
+          <ErrorState variant="card" message={error} onRetry={onRefresh} />
+        ) : tools.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+            暂无注册工具
+          </div>
+        ) : (
+          <div className="grid gap-2 lg:grid-cols-2" data-testid="capability-policy-tool-list">
+            {tools.slice(0, 8).map((tool) => {
+              const isAvailable = availableSet.has(tool.name)
+              return (
+                <div key={tool.name} className="flex min-h-[76px] min-w-0 items-start justify-between gap-3 rounded-lg border border-border bg-muted/20 p-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-foreground">
+                      {tool.display_name || tool.name}
+                    </p>
+                    <p className="mt-1 break-words text-xs text-muted-foreground">
+                      {tool.description || tool.name}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <span className="rounded-md border border-border bg-background px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                        {tool.risk_level || 'unknown'}
+                      </span>
+                      {tool.requires_approval ? (
+                        <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                          approval
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                  <span className={`shrink-0 rounded-md border px-2 py-1 text-xs font-semibold ${
+                    isAvailable
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                      : 'border-muted bg-background text-muted-foreground'
+                  }`}>
+                    {isAvailable ? '可用' : '阻断'}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function MiniMetric({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string
+  value: number
+  icon: IconComponent
+}) {
+  return (
+    <div className="flex min-h-[70px] items-center gap-3 rounded-lg border border-border bg-muted/20 p-3">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-primary">
+        <Icon className="h-4 w-4" />
+      </div>
+      <div>
+        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        <p className="mt-1 text-xl font-semibold text-foreground">{value}</p>
+      </div>
     </div>
   )
 }

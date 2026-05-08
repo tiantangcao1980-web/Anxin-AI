@@ -77,6 +77,10 @@ export type MockOptions = {
     grayRelease?: unknown
     rollback?: unknown
   }
+  harness?: {
+    tools?: unknown
+    agentTools?: unknown
+  }
 }
 
 function createMockToken(role: string, userId = 'e2e-user', expired = false) {
@@ -614,13 +618,44 @@ export async function installApiMocks(page: Page, options: MockOptions = {}) {
       })
     }
 
+    if (/\/harness\/policy\/agent\/[^/]+\/tools$/.test(pathname)) {
+      return fulfillJson(route, {
+        status: 'ok',
+        data: options.harness?.agentTools ?? {
+          agent: 'legal_researcher',
+          available_tools: ['search_knowledge', 'risk_assessment'],
+        },
+      })
+    }
+
     if (pathname.includes('/harness/tools')) {
       return fulfillJson(route, {
         status: 'ok',
-        data: [
-          { name: 'search_knowledge' },
-          { name: 'draft_contract' },
-          { name: 'risk_assessment' },
+        data: options.harness?.tools ?? [
+          {
+            name: 'search_knowledge',
+            display_name: '知识库检索',
+            description: '检索组织知识库与法规材料',
+            risk_level: 'low',
+            requires_approval: false,
+            tags: ['knowledge'],
+          },
+          {
+            name: 'draft_contract',
+            display_name: '合同起草',
+            description: '生成或修改合同草稿',
+            risk_level: 'medium',
+            requires_approval: true,
+            tags: ['contract'],
+          },
+          {
+            name: 'risk_assessment',
+            display_name: '风险评估',
+            description: '评估企业经营风险',
+            risk_level: 'high',
+            requires_approval: true,
+            tags: ['risk'],
+          },
         ],
       })
     }
