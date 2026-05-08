@@ -15,6 +15,17 @@ import {
  formatConflictEntityType,
  summarizeConflictData,
 } from'@/lib/sync-conflict-utils'
+import {
+ SYNC_CONFLICT_BUTTON_CLASS,
+ SYNC_CONFLICT_COUNT_CLASS,
+ SYNC_CONFLICT_ICON_CLASS,
+ SYNC_CONFLICT_LABEL_CLASS,
+ SYNC_STATUS_BUTTON_CLASS,
+ SYNC_STATUS_ICON_CLASS,
+ SYNC_STATUS_LABEL_CLASS,
+ SYNC_STATUS_TIME_CLASS,
+ syncToolbarStatusLabel,
+} from'@/components/mode-switcher/sync-status-ui'
 import { Button } from'@/components/ui/button'
 import {
  Dialog,
@@ -47,7 +58,7 @@ const STATUS_CONFIG = {
  },
  syncing: {
  icon: ArrowPathIcon,
- label:'同步中...',
+ label:'同步中',
  color:'text-info',
  animate: true,
  },
@@ -135,31 +146,41 @@ export function SyncStatus() {
  return d.toLocaleDateString('zh-CN')
  }
 
+ const lastSyncLabel = formatTime(lastSyncTime)
+ const toolbarLabel = syncToolbarStatusLabel(isSyncing, config.label)
+
  return (
  <>
  <button
  onClick={handleSync}
  disabled={isSyncing || syncStatus ==='offline'}
- className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs hover:bg-accent transition-colors disabled:opacity-50"
- title={`${config.label} | 上次同步：${formatTime(lastSyncTime)}`}
+ className={SYNC_STATUS_BUTTON_CLASS}
+ title={`${toolbarLabel} | 上次同步：${lastSyncLabel}`}
+ aria-label={`${toolbarLabel}，上次同步：${lastSyncLabel}`}
  >
  <Icon
- className={`h-3.5 w-3.5 ${config.color} ${
+ className={`${SYNC_STATUS_ICON_CLASS} ${config.color} ${
  config.animate || isSyncing ?'animate-spin' :''
  }`}
  />
- <span className="text-muted-foreground hidden lg:inline">
- {isSyncing ?'同步中...' : formatTime(lastSyncTime)}
+ <span className={SYNC_STATUS_LABEL_CLASS}>
+ {toolbarLabel}
+ </span>
+ <span className={SYNC_STATUS_TIME_CLASS}>
+ · {lastSyncLabel}
  </span>
  </button>
  {conflicts.length > 0 && (
  <button
  type="button"
  onClick={() => navigate('/sync-conflicts')}
- className="ml-1 rounded-md bg-destructive/10 px-2 py-1 text-xs text-destructive hover:bg-destructive/15"
- title="查看同步冲突"
+ className={SYNC_CONFLICT_BUTTON_CLASS}
+ title={`${conflicts.length} 个同步冲突待处理`}
+ aria-label={`${conflicts.length} 个同步冲突待处理，打开冲突管理`}
  >
- {conflicts.length} 个冲突
+ <ExclamationCircleIcon className={SYNC_CONFLICT_ICON_CLASS} aria-hidden="true" />
+ <span className={SYNC_CONFLICT_LABEL_CLASS}>冲突</span>
+ <span className={SYNC_CONFLICT_COUNT_CLASS}>{conflicts.length}</span>
  </button>
  )}
  <Dialog open={conflictOpen} onOpenChange={setConflictOpen}>
