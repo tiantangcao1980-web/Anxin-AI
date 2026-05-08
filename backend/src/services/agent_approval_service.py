@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -905,13 +905,17 @@ def _route_snapshot(route: CapabilityRoute) -> dict[str, str]:
 def _artifact_from_event(event: AgentAuditEvent) -> AgentWorkspaceArtifact:
     snapshot = event.resource_snapshot or {}
     metadata = event.metadata_json or {}
+    content_value = snapshot.get("content")
+    metadata_value = snapshot.get("metadata")
+    content = cast(dict[str, Any], content_value) if isinstance(content_value, dict) else {}
+    artifact_metadata = cast(dict[str, Any], metadata_value) if isinstance(metadata_value, dict) else {}
     return AgentWorkspaceArtifact(
         id=event.id,
         approval_id=str(snapshot.get("approval_id") or event.resource_id or ""),
         artifact_type=str(snapshot.get("artifact_type") or metadata.get("artifact_type") or ""),
         title=str(snapshot.get("title") or metadata.get("title") or ""),
-        content=snapshot.get("content") if isinstance(snapshot.get("content"), dict) else {},
-        metadata=snapshot.get("metadata") if isinstance(snapshot.get("metadata"), dict) else {},
+        content=content,
+        metadata=artifact_metadata,
         created_at=event.created_at,
         created_by=event.actor_user_id,
     )

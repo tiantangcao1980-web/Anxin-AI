@@ -99,6 +99,14 @@ def test_commercial_gate_runs_cli_route_governance_tests():
     assert "tests/test_cli_route.py" in script
 
 
+def test_commercial_gate_runs_crawler_browser_route_governance_tests():
+    repo_root = Path(__file__).resolve().parents[2]
+    script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
+
+    assert 'require_command "crawler browser route governance tests"' in script
+    assert "tests/test_crawler_compliance.py" in script
+
+
 def test_commercial_gate_runs_skill_governance_gate_tests():
     repo_root = Path(__file__).resolve().parents[2]
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")

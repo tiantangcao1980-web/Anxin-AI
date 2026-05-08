@@ -57,7 +57,7 @@
 |---|---|---|---|
 | P0-1 | 统一权限决策 | 目前 RBAC、订阅、隐私模式、工具调用分散 | `capability_policy_engine` 统一判定 `subscription + role + permission + risk_level + privacy_mode + device_trust + channel_policy + approval_state` |
 | P0-2 | Agent 控制面模型 | AgentManager/Team/Worker/Human/ChannelPolicy/CapabilityRoute/TokenLease/Approval/AuditEvent 模型与迁移已补；route-token 服务已接入 DB；UI/真实运行时接入未闭环 | 建立可审计数据模型，支持组织/部门/项目/客户维度 |
-| P0-3 | 真实密钥隔离 | 持久化 route-token lease 已只存 hash，跨服务实例可验证；MCP tool execution 与 CLI `/execute` 已在商业环境接入 DB-backed route token；LLM/browser/desktop-control 真实调用链尚未全部改造 | Agent/Worker 只拿短期 consumer token 或等价 route token；真实 API key/PAT/财税凭据只在密钥服务/网关侧 |
+| P0-3 | 真实密钥隔离 | 持久化 route-token lease 已只存 hash，跨服务实例可验证；MCP tool execution、CLI `/execute` 与浏览器/爬虫 fetch 入口已在商业环境接入 DB-backed route token；LLM、完整浏览器自动化和 desktop-control 高风险真实调用链尚未全部改造 | Agent/Worker 只拿短期 consumer token 或等价 route token；真实 API key/PAT/财税凭据只在密钥服务/网关侧 |
 | P0-4 | 高风险审批 | 高风险动作已有最小 service/API/UI 审批模型；真实能力链路接入未闭环 | L3/L4 能力必须创建 approval request；老板/超级管理员或授权管理员批准后才能执行；过期/撤销 fail-closed |
 | P0-5 | 通信/房间策略 | 当前没有声明式 agent channel policy | 定义谁能看、谁能说、谁能 @、谁能分派、谁能接管；外部专业服务方只能看授权材料包 |
 | P0-6 | 可见审计与接管 | agent 执行过程散落在日志或消息中 | 高风险任务进入可审计工作室；支持旁听、暂停、接管、终止、导出 artifact |
@@ -137,12 +137,14 @@ can_execute_capability(actor, org, capability, risk_level, data_scope, privacy_m
 - `backend/src/services/mcp_client_service.py` 已在 `call_tool` 前接入 DB-backed route token；staging/production 默认 fail-closed，开发/测试可用 `MCP_TOOL_ROUTE_TOKEN_REQUIRED=true` 提前演练。
 - `backend/src/api/routes/cli.py` 已在 CLI `/execute` 前接入 DB-backed route token，并新增 `/cli/route-token` 供桌面端按 API Key `key_id` consumer 获取短期 token；staging/production 默认 fail-closed，开发/测试可用 `CLI_ROUTE_TOKEN_REQUIRED=true` 提前演练；consumer 绑定到 API Key `key_id`，并按命令 scope 校验 `cli:read/chat/export`。
 - `desktop/src/commands/cli.rs` 已在 CLI execute 前尝试获取短期 route token，并在调用 `/cli/execute` 时传递 `X-Capability-Route-Token`；开发环境 route 缺失时保持兼容，商业环境由后端 fail-closed。
+- `backend/src/services/crawler_service.py` 已在 `crawler_service.fetch()` 的 robots/http 访问前接入 DB-backed browser route token；staging/production 默认 fail-closed，开发/测试可用 `BROWSER_FETCH_ROUTE_TOKEN_REQUIRED=true` 提前演练；scope 固定为 `browser:fetch`，route 撤销后下一次 fetch 在触网前拒绝。
 - `backend/src/agents/base.py` / `workforce.py` / `task_context.py` 已支持通过 `mcp_route_context`/contextvars 将 route token 传递到真实 MCP tool execution。
 - `backend/tests/test_agent_governance_service.py` 已覆盖 hash-only lease、原始 token 不入审计、组织隔离、consumer/scope 拒绝、过期 fail-closed、consumer mismatch、route 撤销后下一次调用失败，以及组织策略更新脱敏/禁用撤销 lease。
 - `backend/tests/test_mcp_route_governance.py` 已覆盖 MCP 开发态兼容、商业环境缺 token fail-closed、DB route token 放行、route revoke 后拒绝和 consumer mismatch 拒绝。
 - `backend/tests/test_cli_route.py` 已覆盖 CLI 开发态兼容、商业环境缺 token fail-closed、DB route token 放行、`/cli/route-token` 签发和 consumer mismatch 拒绝。
-- `scripts/commercial-readiness-gate.sh --with-local-tests` 已加入 `agent governance service tests`、`MCP route governance tests` 与 `CLI route governance tests`。
-- 后续仍需把 LLM/browser/desktop-control 真实调用链全部切到该服务，并补真实 approved MCP connector 演练、跨进程/多实例撤销传播证据。
+- `backend/tests/test_crawler_compliance.py` 已覆盖浏览器/爬虫商业环境缺 token fail-closed、DB route token 放行、route revoke 后在 robots/http 前拒绝。
+- `scripts/commercial-readiness-gate.sh --with-local-tests` 已加入 `agent governance service tests`、`MCP route governance tests`、`CLI route governance tests` 与 `crawler browser route governance tests`。
+- 后续仍需把 LLM、完整 browser automation、desktop-control 高风险真实调用链全部切到该服务，并补真实 approved MCP connector 演练、跨进程/多实例撤销传播证据。
 
 ### Step 4 · Human-in-the-loop 工作室
 
@@ -222,10 +224,10 @@ docs/audit/12-enterprise-agent-governance/
 
 ## 6. 完成标准
 
-- [x] `capability_policy_engine` 服务层覆盖订阅、角色、权限、风险级别、隐私模式、设备信任、通信策略和审批状态；真实 LLM/browser/desktop-control 运行时链路接入仍需后续闭环。
+- [x] `capability_policy_engine` 服务层覆盖订阅、角色、权限、风险级别、隐私模式、设备信任、通信策略和审批状态；真实 LLM、完整浏览器自动化和 desktop-control 运行时链路接入仍需后续闭环。
 - [x] AgentManager / AgentTeam / AgentWorker / HumanParticipant / ChannelPolicy / CapabilityRoute / TokenLease / Approval / AuditEvent 模型与 migration 有 upgrade/downgrade。
 - [x] AgentApproval service/API 和最小前端工作台具备创建、列表/count、审批/驳回/撤销、过期、action/route 匹配、执行前 validate、组织/本人 scope、审批审计时间线、审批审计 JSON 导出、已批准工作室 artifact list/create/export、运行时未接入时 workspace-control fail-closed、移动视口回归和审计回归；完整工作室和真实执行链路接入仍未完成。
-- [ ] Worker/Agent 不持有真实密钥；MCP tool execution、CLI `/execute` 和桌面端 CLI route-token 获取/传递已有 DB-backed route-token fail-closed 代码级回归，LLM/browser/desktop-control 和真实 approved connector 演练仍待闭环。
+- [ ] Worker/Agent 不持有真实密钥；MCP tool execution、CLI `/execute`、桌面端 CLI route-token 获取/传递和浏览器/爬虫 fetch 入口已有 DB-backed route-token fail-closed 代码级回归，LLM、完整 browser automation、desktop-control 和真实 approved connector 演练仍待闭环。
 - [x] 五类权限回归通过：员工浏览器填表被拒、部门管理员创建部门报告 agent、老板批准桌面远控、超级管理员撤销 MCP route、外部服务方只能看授权材料包；真实运行时 connector/工作室证据仍需后续闭环。
 - [x] 能力中心最小可见性已按角色收口：老板/Owner/超级管理员/admin 看全量，普通员工只见基础能力和可申请项；组织级 CapabilityRoute 策略已具备最小 list/update API、policy 脱敏、禁用即撤销 lease 和前端启用/禁用面板；订阅购买联动、部门申请流、完整策略编辑器和真实 connector 演练仍待闭环。
 - [x] Skill 进化提案、评测门禁、管理员审批、灰度启用和回滚禁用已有本地与 DB-backed 正反向测试；组织级 UI、真实执行链路失权和商业发布证据仍未闭环。

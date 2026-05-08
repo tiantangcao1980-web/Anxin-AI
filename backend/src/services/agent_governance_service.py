@@ -324,6 +324,7 @@ class AgentGovernanceService:
         if risk_level is not _UNSET:
             route.risk_level = _required(str(risk_level), "risk_level").lower()
         if token_ttl_seconds is not _UNSET:
+            assert isinstance(token_ttl_seconds, int)
             route.token_ttl_seconds = _clamp_ttl(int(token_ttl_seconds))
         if policy is not _UNSET:
             route.policy = _sanitize_policy(policy if isinstance(policy, dict) else {})

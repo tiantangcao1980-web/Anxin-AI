@@ -45,9 +45,11 @@ from src.services.knowledge_service import KnowledgeService
 if TYPE_CHECKING:
     import httpx
     from playwright.async_api import Browser, Playwright
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 
 ProgressCallback = Callable[[str, str, int, str], object | Awaitable[object]]
+BROWSER_FETCH_ROUTE_SCOPE = "browser:fetch"
 
 
 class CrawlComplianceInfo(TypedDict):
@@ -101,6 +103,18 @@ def _is_allowed_runtime_url(url: str) -> bool:
 
 class CrawlerComplianceError(ValueError):
     """Raised when a URL cannot pass crawler compliance gates."""
+
+
+class CrawlerRouteAuthorizationError(PermissionError):
+    """Raised when browser/crawler execution lacks a valid governed route token."""
+
+
+def _commercial_environment() -> bool:
+    return settings.ENVIRONMENT.lower() in {"staging", "production"}
+
+
+def browser_fetch_route_governance_required() -> bool:
+    return bool(settings.BROWSER_FETCH_ROUTE_TOKEN_REQUIRED or _commercial_environment())
 
 
 class CrawlerTask:
@@ -230,12 +244,25 @@ class CrawlerService:
         url: str,
         timeout: float = 30.0,
         dry_run: bool = False,
+        *,
+        org_id: str | None = None,
+        route_token: str | None = None,
+        consumer_id: str | None = None,
+        actor_user_id: str | None = None,
+        db: "AsyncSession | None" = None,
     ) -> FetchResult:
         """统一合规抓取入口：白名单、robots、合法 UA、host 频控。"""
         safe_url = self._normalize_url(url)
         parsed = urlparse(safe_url)
         host = (parsed.hostname or "").lower()
 
+        await self._authorize_browser_route(
+            org_id=org_id,
+            route_token=route_token,
+            consumer_id=consumer_id,
+            actor_user_id=actor_user_id,
+            db=db,
+        )
         await self._assert_robots_allowed(safe_url)
         wait_seconds = await self._wait_for_host_rate_limit(host)
         headers = {
@@ -266,6 +293,51 @@ class CrawlerService:
             "url": final_url,
             "compliance": compliance,
         }
+
+    async def _authorize_browser_route(
+        self,
+        *,
+        org_id: str | None,
+        route_token: str | None,
+        consumer_id: str | None,
+        actor_user_id: str | None,
+        db: "AsyncSession | None",
+    ) -> None:
+        if not browser_fetch_route_governance_required():
+            return
+
+        missing = [
+            name
+            for name, value in {
+                "org_id": org_id,
+                "consumer_id": consumer_id,
+                "route_token": route_token,
+                "db": db,
+            }.items()
+            if value is None or (isinstance(value, str) and not value.strip())
+        ]
+        if missing:
+            raise CrawlerRouteAuthorizationError(
+                "Browser route token required before crawler fetch; missing "
+                + ", ".join(sorted(missing))
+            )
+
+        from src.services.agent_governance_service import AgentGovernanceService
+
+        assert db is not None
+        assert org_id is not None
+        decision = await AgentGovernanceService(db).validate_route_token(
+            org_id=org_id,
+            raw_token=route_token,
+            required_scope=BROWSER_FETCH_ROUTE_SCOPE,
+            consumer_id=consumer_id,
+            actor_user_id=actor_user_id,
+            actor_type="agent_worker",
+        )
+        if not decision.allowed:
+            raise CrawlerRouteAuthorizationError(
+                f"Browser route token denied before crawler fetch: {decision.reason_code}"
+            )
 
     async def crawl_latest_laws(self) -> dict[str, str | int]:
         """爬取最新法律法规与指导案例 (自进化功能)"""
