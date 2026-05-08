@@ -85,17 +85,16 @@ bash scripts/release-evidence-secret-scan.sh
 # Release evidence secret scan: PASS
 
 bash scripts/commercial-readiness-gate.sh --with-local-tests
-# local code-level commands passed: git diff --check, frontend lint, frontend Vitest 12 files / 45 tests,
-# frontend build, frontend workstation settings Playwright e2e 9 passed / 1 skipped, frontend agent approval workspace Playwright e2e 3 passed / 3 skipped, desktop cargo check, latest desktop cargo test 29 passed, desktop installed-profile SQLCipher/keyring smoke, backend mypy zero baseline now 0/0, agent governance policy tests 4 passed, unified capability policy engine tests 6 passed, capability route token tests 4 passed, agent governance model tests 8 passed, agent governance service tests 6 passed, agent approval service tests 7 passed, agent approval API tests 5 passed, MCP route governance tests 5 passed, CLI route governance tests 10 passed, approval authorization guard tests 7 passed, skill governance gate tests 21 passed, RAG full50 runner tests 8 passed,
+# local code-level commands passed: git diff --check, frontend lint, frontend Vitest 13 files / 51 tests,
+# frontend build, frontend workstation settings Playwright e2e 9 passed / 1 skipped, frontend agent approval workspace Playwright e2e 4 passed / 4 skipped, desktop cargo check, desktop cargo test 31 passed, desktop network surface gate, desktop installed-profile SQLCipher/keyring smoke, backend mypy zero baseline now 0/0, agent capability policy tests 13 passed, agent governance policy tests 4 passed, unified capability policy engine tests 6 passed, capability route token tests 4 passed, agent governance model tests 8 passed, agent governance service tests 6 passed, agent approval service tests 7 passed, agent approval API tests 5 passed, MCP route governance tests 5 passed, CLI route governance tests 10 passed, approval authorization guard tests 7 passed, MCP connection config policy tests 7 passed, skill governance gate tests 25 passed, RAG full50 runner tests 8 passed,
 # RAG quality metrics tests 4 passed, sandbox evidence runner tests 7 passed, payment/e-sign provider/webhook/refund/action-audit tests 62 passed,
 # release evidence secret scan tests 2 passed, release worktree inventory tests 2 passed, release evidence artifact validation tests 30 passed,
-# commercial readiness gate tests 14 passed, including artifact warning propagation, desktop network gate, workstation e2e gate coverage, Agent approval workspace e2e gate coverage, agent governance gate coverage, unified capability policy engine gate coverage, capability route token gate coverage, agent governance model/service/approval API/MCP/CLI route gate coverage, approval authorization gate coverage, and skill evolution gate coverage,
+# commercial readiness gate tests 15 passed, including artifact warning propagation, desktop network gate, workstation e2e gate coverage, Agent approval workspace e2e gate coverage, agent governance gate coverage, unified capability policy engine gate coverage, capability route token gate coverage, agent governance model/service/approval API/MCP/CLI route gate coverage, approval authorization gate coverage, and skill evolution gate coverage,
 # release evidence validation tests 9 passed, commercial checklist tests 5 passed, commercial delivery lanes tests 3 passed,
 # commercial checklist/lane validators + Ruff/JSON smoke, sandbox evidence preflight,
-# mobile-device-smoke 8 files / 27 tests + mobile/mini tsc + mobile result-surface/lawyer-conversion guards + Expo config/SDK/Metro config guard + iOS Simulator Expo Go supporting smoke + mini privacy/navigation boundary + weapp build + WeChat DevTools CLI + refresh-auth/mobile+mini privacy/fake-fallback/design-token guards.
+# mobile-device-smoke 8 files / 37 tests + mobile/mini tsc + mobile result-surface/lawyer-conversion guards + Expo config/SDK/Metro config guard + Expo doctor 17/17 + mobile npm audit 0 + mini privacy/navigation boundary + weapp build + WeChat DevTools CLI + refresh-auth/mobile+mini privacy/fake-fallback/design-token guards.
 # on a clean baseline, final gate still fails because release docs declare Not ready
-# and payment/e-sign/desktop/mobile/agent-governance release evidence remains pending; any new evidence
-# docs must be committed before final clean-worktree/GitNexus rerun.
+# and payment/e-sign/desktop/mobile/agent-governance release evidence remains pending; only remaining warning is missing GITNEXUS_BIN cypher integrity verification.
 ```
 
 补充扩展切片：
