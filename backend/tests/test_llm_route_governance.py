@@ -6,7 +6,13 @@ from unittest.mock import AsyncMock
 import pytest
 from sqlalchemy import select
 
-from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
+from src.agents.base import (
+    AgentConfig,
+    AgentResponse,
+    BaseLegalAgent,
+    _task_llm_route_context_var,
+)
+from src.api.routes.chat import _extract_llm_route_credentials
 from src.models import AgentAuditEvent
 from src.services.agent_governance_service import AgentGovernanceService
 from src.services.llm_route_governance import (
@@ -168,6 +174,96 @@ async def test_llm_stream_chat_requires_route_token_before_network(monkeypatch):
     assert "LLM route token required" in str(first)
     assert end is None
     http_client.post.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_llm_stream_chat_uses_task_route_context_var(
+    monkeypatch,
+    db_session,
+    test_organization,
+):
+    from src.services import llm_route_governance
+
+    monkeypatch.setattr(llm_route_governance.settings, "ENVIRONMENT", "production")
+    agent = _configured_agent(monkeypatch)
+
+    class _FakeStreamResponse:
+        status_code = 200
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def aiter_lines(self):
+            yield 'data: {"choices":[{"delta":{"content":"ok"}}]}'
+            yield "data: [DONE]"
+
+    class _FakeHttpClient:
+        def __init__(self) -> None:
+            self.stream_calls = 0
+
+        def stream(self, *args, **kwargs):
+            self.stream_calls += 1
+            return _FakeStreamResponse()
+
+    governance = AgentGovernanceService(db_session)
+    await governance.create_capability_route(
+        org_id=test_organization.id,
+        route_key="ws-llm",
+        route_type="llm",
+        allowed_consumers=["ws-chat"],
+        allowed_scopes=[LLM_ROUTE_SCOPE],
+    )
+    issued = await governance.issue_route_token(
+        org_id=test_organization.id,
+        route_key="ws-llm",
+        consumer_id="ws-chat",
+        requested_scopes=[LLM_ROUTE_SCOPE],
+    )
+    http_client = _FakeHttpClient()
+    monkeypatch.setattr(agent, "get_http_client", AsyncMock(return_value=http_client))
+
+    token = _task_llm_route_context_var.set(
+        {
+            "db": db_session,
+            "org_id": test_organization.id,
+            "route_token": issued.token,
+            "consumer_id": "ws-chat",
+        }
+    )
+    try:
+        queue = await agent.stream_chat("请流式回答")
+        first = await queue.get()
+        end = await queue.get()
+    finally:
+        _task_llm_route_context_var.reset(token)
+
+    assert first == "ok"
+    assert end is None
+    assert http_client.stream_calls == 1
+
+
+def test_websocket_llm_route_credentials_support_auth_headers_and_messages():
+    auth_token, auth_consumer = _extract_llm_route_credentials(
+        {"token": "access-token", "route_token": "route-auth"},
+        {
+            "capability_route_token": "route-a",
+            "capability_consumer_id": "user:a",
+        },
+    )
+    message_token, message_consumer = _extract_llm_route_credentials(
+        {
+            "X-Capability-Route-Token": "route-b",
+            "X-Capability-Consumer-Id": "user:b",
+        }
+    )
+
+    assert auth_token == "route-auth"
+    assert auth_consumer == "user:a"
+    assert message_token == "route-b"
+    assert message_consumer == "user:b"
 
 
 @pytest.mark.asyncio

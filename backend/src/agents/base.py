@@ -378,13 +378,18 @@ class BaseLegalAgent(ABC):
         from src.services.llm_route_governance import authorize_llm_route
 
         context = route_context or {}
-        await authorize_llm_route(
-            org_id=context.get("org_id"),
-            route_token=context.get("route_token"),
-            consumer_id=context.get("consumer_id"),
-            actor_user_id=context.get("actor_user_id"),
-            db=context.get("db"),
-        )
+        db = context.get("db")
+        try:
+            await authorize_llm_route(
+                org_id=context.get("org_id"),
+                route_token=context.get("route_token"),
+                consumer_id=context.get("consumer_id"),
+                actor_user_id=context.get("actor_user_id"),
+                db=db,
+            )
+        finally:
+            if context.get("commit_after_authorize") and db is not None:
+                await db.commit()
 
     @staticmethod
     def _extract_tool_name(tool: JSONDict) -> str | None:

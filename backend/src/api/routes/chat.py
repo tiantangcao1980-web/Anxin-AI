@@ -75,6 +75,34 @@ def _is_valid_uuid(value: str) -> bool:
         return False
 
 
+def _extract_llm_route_credentials(*candidates: Any) -> tuple[str | None, str | None]:
+    """Extract LLM route-token credentials from WebSocket auth/message payloads."""
+    route_token: str | None = None
+    consumer_id: str | None = None
+    for candidate in candidates:
+        if not isinstance(candidate, dict):
+            continue
+        if route_token is None:
+            route_token = (
+                _as_str(candidate.get("capability_route_token"))
+                or _as_str(candidate.get("route_token"))
+                or _as_str(candidate.get("x_capability_route_token"))
+                or _as_str(candidate.get("X-Capability-Route-Token"))
+                or None
+            )
+        if consumer_id is None:
+            consumer_id = (
+                _as_str(candidate.get("capability_consumer_id"))
+                or _as_str(candidate.get("consumer_id"))
+                or _as_str(candidate.get("x_capability_consumer_id"))
+                or _as_str(candidate.get("X-Capability-Consumer-Id"))
+                or None
+            )
+        if route_token is not None and consumer_id is not None:
+            break
+    return route_token, consumer_id
+
+
 async def _consume_streaming_tokens(
     *,
     token_queue: asyncio.Queue[str | None],
@@ -695,7 +723,7 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
     """
     from sqlalchemy import select as sa_select
 
-    from src.agents.base import _task_llm_config_var
+    from src.agents.base import _task_llm_config_var, _task_llm_route_context_var
     from src.core.database import async_session_maker
     from src.core.security import verify_token, verify_token_with_blacklist
     from src.models.user import User as UserModel
@@ -737,11 +765,22 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
         await websocket.close(code=4400)
         return
 
-    auth_token = (init_msg.get("data") or {}).get("token") or init_msg.get("token") or ""
+    auth_payload = init_msg.get("data") if isinstance(init_msg.get("data"), dict) else {}
+    auth_token = (auth_payload or {}).get("token") or init_msg.get("token") or ""
     if not auth_token:
         await websocket.send_json({"type": "error", "data": {"message": "缺少 token"}})
         await websocket.close(code=4401)
         return
+    header_route_token = websocket.headers.get("x-capability-route-token")
+    header_consumer_id = websocket.headers.get("x-capability-consumer-id")
+    connection_llm_route_token, connection_llm_consumer_id = _extract_llm_route_credentials(
+        auth_payload,
+        init_msg,
+        {
+            "capability_route_token": header_route_token,
+            "capability_consumer_id": header_consumer_id,
+        },
+    )
 
     try:
         verified_uid = await verify_token_with_blacklist(auth_token)
@@ -805,6 +844,7 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
 
     await event_bus.subscribe("agent_events", event_handler)
 
+    llm_route_db = async_session_maker()
     try:
         while True:
             data: dict[str, Any] = await websocket.receive_json()
@@ -814,6 +854,18 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
             template_id = _as_str(data.get("template_id")) or None
             agent_name = _as_str(data.get("agent_name")) or None
             privacy_mode = _as_str(data.get("privacy_mode"), "HYBRID")
+            message_payload = data.get("data") if isinstance(data.get("data"), dict) else {}
+            message_llm_route_token, message_llm_consumer_id = _extract_llm_route_credentials(
+                data,
+                message_payload,
+            )
+            llm_route_context = _chat_llm_route_context(
+                db=llm_route_db,
+                user=auth_user,
+                route_token=message_llm_route_token or connection_llm_route_token,
+                consumer_id=message_llm_consumer_id or connection_llm_consumer_id,
+            )
+            llm_route_context["commit_after_authorize"] = True
 
             # === A2UI 事件处理 ===
             if msg_type == "a2ui_event":
@@ -1088,6 +1140,7 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
 
                 try:
                     token = _task_llm_config_var.set(llm_config)
+                    token_llm = _task_llm_route_context_var.set(llm_route_context)
                     try:
                         # V2 修复：用原始文本做需求分析（避免 [AMOUNT_1] 等占位符干扰 pattern 匹配）
                         _analysis_text = locals().get('original_content') or content
@@ -1097,6 +1150,7 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
                             llm_config=llm_config,
                         )
                     finally:
+                        _task_llm_route_context_var.reset(token_llm)
                         _task_llm_config_var.reset(token)
 
                     # 推送需求分析结果到右侧工作台
@@ -1217,6 +1271,7 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
                                     llm_config=llm_config,
                                     history=recent_history,
                                     max_tokens=_dynamic_max_tokens,
+                                    llm_route_context=llm_route_context,
                                 )
 
                                 response_text = await _consume_streaming_tokens(
@@ -1268,6 +1323,7 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
                             "mode": data.get("mode", "chat"),
                             "pre_intent": req_analysis.get("intent"),
                             "pre_confidence": req_analysis.get("confidence", 0),
+                            "llm_route_context": llm_route_context,
                         }
 
                         task_result = await workforce.process_task(
@@ -1313,7 +1369,11 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
                         if not response_text:
                             response_text = await workforce.chat(
                                 content,
-                                context={"llm_config": llm_config, "history": recent_history},
+                                context={
+                                    "llm_config": llm_config,
+                                    "history": recent_history,
+                                    "llm_route_context": llm_route_context,
+                                },
                             )
                         used_agent = "智能体团队"
 
@@ -1372,6 +1432,7 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
                                 llm_config=llm_config,
                                 history=recent_history,
                                 max_tokens=_simple_max_tokens,
+                                llm_route_context=llm_route_context,
                             )
 
                             accumulated = ""
@@ -1397,7 +1458,11 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
                         response_text = await workforce.chat(
                             _agent_input,
                             agent_name,
-                            context={"llm_config": llm_config, "history": recent_history},
+                            context={
+                                "llm_config": llm_config,
+                                "history": recent_history,
+                                "llm_route_context": llm_route_context,
+                            },
                         )
                         used_agent = agent_name or "法律顾问Agent"
                         # 将同步结果流式推送
@@ -1503,6 +1568,8 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
     except Exception as e:
         ctx._ws_closed = True
         logger.error(f"WebSocket未知异常: {session_id} - {e}")
+    finally:
+        await llm_route_db.close()
 
 
 @router.post("/feedback/memory", response_model=UnifiedResponse)
