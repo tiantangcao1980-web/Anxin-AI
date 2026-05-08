@@ -106,6 +106,7 @@ def test_commercial_gate_runs_skill_governance_gate_tests():
     assert 'require_command "skill governance gate tests"' in script
     assert "tests/test_skill_evolution_service.py tests/test_skill_service.py" in script
     assert "tests/test_skill_governance_models.py tests/test_skill_governance_service.py" in script
+    assert "tests/test_skill_governance_api.py" in script
 
 
 def test_commercial_gate_requires_agent_governance_release_evidence():

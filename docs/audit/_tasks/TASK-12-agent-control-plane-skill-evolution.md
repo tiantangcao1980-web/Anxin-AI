@@ -27,6 +27,7 @@
   - **新建** `backend/src/api/routes/agent_governance.py`
   - **新建** `backend/src/api/routes/capability_routes.py`
   - **新建** `backend/src/api/routes/agent_approvals.py`
+  - **新建** `backend/src/api/routes/skill_governance.py`
 - 前端：
   - **新建** `frontend/src/pages/AgentGovernance.tsx`
   - **新建** `frontend/src/pages/CapabilityCenter.tsx`
@@ -164,7 +165,7 @@ can_execute_capability(actor, org, capability, risk_level, data_scope, privacy_m
 - `backend/src/services/skill_evolution_service.py` 已补最小本地门禁：draft proposal、required eval checks、授权角色审批、灰度、回滚和审计。
 - `backend/src/services/skill_service.py` 已支持在治理模式下只返回当前 enabled version。
 - `backend/tests/test_skill_evolution_service.py` 与 `backend/tests/test_skill_service.py` 已覆盖 agent 不能自启生产版本、评测失败/缺失拒绝审批、越权审批拒绝、灰度百分比边界、回滚后下一次技能匹配回到上一版本。
-- `backend/src/services/skill_governance_service.py` 已把 Skill 进化门禁生产化为 DB-backed SkillGovernance：proposal、required eval、授权审批、灰度启用、回滚、enabled version 查询、组织隔离和审计事件都可跨 service 实例持久化；`backend/tests/test_skill_governance_models.py` 与 `backend/tests/test_skill_governance_service.py` 共 `12 passed`。
+- `backend/src/services/skill_governance_service.py` 已把 Skill 进化门禁生产化为 DB-backed SkillGovernance：proposal、required eval、授权审批、灰度启用、回滚、enabled version 查询、组织隔离和审计事件都可跨 service 实例持久化；`backend/src/api/routes/skill_governance.py` 已补正式 API，覆盖提案、列表/详情、enabled version、评测、审批、灰度、回滚、audit-events 和 audit-export；`backend/tests/test_skill_governance_models.py`、`backend/tests/test_skill_governance_service.py` 与 `backend/tests/test_skill_governance_api.py` 共 `16 passed`。
 - 仍需后续把 AgentApproval/AgentAuditEvent/SkillGovernance 接入真实 LLM/browser/desktop-control 执行链路、组织级能力中心 UI、真实 CapabilityRoute 撤销联动、记忆治理和商业发布证据。
 
 - 定义 `SkillEvolutionProposal`：来源失败案例、用户反馈、评测失败、人工建议或 agent 观察。
