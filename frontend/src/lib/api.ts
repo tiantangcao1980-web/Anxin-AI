@@ -2941,6 +2941,22 @@ export interface AgentApprovalDecision {
   audit_event_id?: string | null
 }
 
+export interface AgentApprovalAuditEvent {
+  id: string
+  org_id: string
+  route_id?: string | null
+  actor_user_id?: string | null
+  actor_type: string
+  action: string
+  status: string
+  reason_code?: string | null
+  resource_type?: string | null
+  resource_id?: string | null
+  resource_snapshot?: Record<string, unknown> | null
+  metadata?: Record<string, unknown> | null
+  created_at?: string | null
+}
+
 export const agentApprovalsApi = {
   list: (params?: { status?: string; page?: number; page_size?: number }) => {
     const query = new URLSearchParams()
@@ -2954,6 +2970,11 @@ export const agentApprovalsApi = {
   },
 
   get: (id: string) => request<AgentApprovalItem>(`/agent-approvals/${id}`),
+
+  auditEvents: (id: string, limit = 50) =>
+    request<{ items: AgentApprovalAuditEvent[]; total: number }>(
+      `/agent-approvals/${id}/audit-events?limit=${limit}`,
+    ),
 
   pendingCount: () => request<{ pending: number }>('/agent-approvals/pending/count'),
 

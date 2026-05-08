@@ -4,7 +4,12 @@ import { toast } from 'sonner'
 import { ErrorState } from '@/components/common/ErrorState'
 import { LoadingState } from '@/components/common/LoadingState'
 import { PageContainer } from '@/components/ui/PageContainer'
-import { agentApprovalsApi, type AgentApprovalItem, type AgentApprovalStatus } from '@/lib/api'
+import {
+  agentApprovalsApi,
+  type AgentApprovalAuditEvent,
+  type AgentApprovalItem,
+  type AgentApprovalStatus,
+} from '@/lib/api'
 import { icons, type IconComponent } from '@/lib/icons'
 
 type FilterStatus = 'all' | AgentApprovalStatus
@@ -65,6 +70,9 @@ export default function AgentApprovalWorkspace() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [auditEventsById, setAuditEventsById] = useState<Record<string, AgentApprovalAuditEvent[]>>({})
+  const [auditLoadingId, setAuditLoadingId] = useState<string | null>(null)
+  const [expandedAuditId, setExpandedAuditId] = useState<string | null>(null)
 
   const loadApprovals = useCallback(async () => {
     setLoading(true)
@@ -118,11 +126,39 @@ export default function AgentApprovalWorkspace() {
         await agentApprovalsApi.revoke(item.id, 'revoked in workspace')
         toast.success('审批已撤销')
       }
+      setExpandedAuditId(null)
+      setAuditEventsById((prev) => {
+        const next = { ...prev }
+        delete next[item.id]
+        return next
+      })
       await loadApprovals()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '审批操作失败')
     } finally {
       setBusyId(null)
+    }
+  }
+
+  const toggleAudit = async (item: AgentApprovalItem) => {
+    if (expandedAuditId === item.id) {
+      setExpandedAuditId(null)
+      return
+    }
+
+    setExpandedAuditId(item.id)
+    if (auditEventsById[item.id]) {
+      return
+    }
+
+    setAuditLoadingId(item.id)
+    try {
+      const response = await agentApprovalsApi.auditEvents(item.id)
+      setAuditEventsById((prev) => ({ ...prev, [item.id]: response.items }))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '审计记录加载失败')
+    } finally {
+      setAuditLoadingId(null)
     }
   }
 
@@ -184,6 +220,10 @@ export default function AgentApprovalWorkspace() {
               onApprove={() => void decide(item, 'approve')}
               onReject={() => void decide(item, 'reject')}
               onRevoke={() => void decide(item, 'revoke')}
+              onToggleAudit={() => void toggleAudit(item)}
+              auditOpen={expandedAuditId === item.id}
+              auditItems={auditEventsById[item.id] ?? []}
+              auditLoading={auditLoadingId === item.id}
             />
           ))}
         </div>
@@ -226,15 +266,23 @@ function Metric({
 function ApprovalRow({
   item,
   busy,
+  auditOpen,
+  auditItems,
+  auditLoading,
   onApprove,
   onReject,
   onRevoke,
+  onToggleAudit,
 }: {
   item: AgentApprovalItem
   busy: boolean
+  auditOpen: boolean
+  auditItems: AgentApprovalAuditEvent[]
+  auditLoading: boolean
   onApprove: () => void
   onReject: () => void
   onRevoke: () => void
+  onToggleAudit: () => void
 }) {
   const meta = STATUS_META[item.status] ?? STATUS_META.pending
   const StatusIcon = meta.icon
@@ -279,6 +327,15 @@ function ApprovalRow({
         </div>
 
         <div className="flex shrink-0 flex-wrap gap-2 lg:justify-end">
+          <button
+            type="button"
+            disabled={auditLoading}
+            onClick={onToggleAudit}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <icons.List className="h-4 w-4" />
+            {auditOpen ? '收起审计' : '审计'}
+          </button>
           {item.status === 'pending' && (
             <>
               <button
@@ -314,7 +371,65 @@ function ApprovalRow({
           )}
         </div>
       </div>
+      {auditOpen && (
+        <AuditTrail
+          loading={auditLoading}
+          items={auditItems}
+        />
+      )}
     </article>
+  )
+}
+
+function AuditTrail({
+  loading,
+  items,
+}: {
+  loading: boolean
+  items: AgentApprovalAuditEvent[]
+}) {
+  if (loading) {
+    return (
+      <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+        正在加载审计记录...
+      </div>
+    )
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+        暂无可见审计记录
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-4 rounded-lg border border-border bg-muted/30 p-3" data-testid="agent-approval-audit-trail">
+      <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
+        <icons.ClipboardCheck className="h-4 w-4 text-primary" />
+        审计时间线
+      </div>
+      <ol className="space-y-2">
+        {items.map((event) => (
+          <li key={event.id} className="grid gap-2 rounded-md bg-background px-3 py-2 text-xs text-muted-foreground sm:grid-cols-[minmax(0,1fr)_auto]">
+            <div className="min-w-0">
+              <p className="truncate font-medium text-foreground">
+                {formatActionType(event.action)}
+              </p>
+              <p className="mt-0.5">
+                {event.status}
+                {event.reason_code ? ` · ${event.reason_code}` : ''}
+              </p>
+            </div>
+            <div className="sm:text-right">
+              <p>{formatDateTime(event.created_at)}</p>
+              <p className="mt-0.5">actor {shortId(event.actor_user_id || event.actor_type)}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
   )
 }
 

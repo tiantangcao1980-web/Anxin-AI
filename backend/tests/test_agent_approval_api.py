@@ -100,6 +100,15 @@ async def test_agent_approval_api_create_approve_validate_round_trip(
     assert [event.reason_code for event in audits] == ["requested", "approved", "allowed"]
     assert "should-never-leak" not in str(audits)
 
+    audit_response = await auth_client.get(f"/api/v1/agent-approvals/{approval_id}/audit-events")
+    assert audit_response.status_code == 200
+    audit_body = audit_response.json()
+    assert audit_body["code"] == 200
+    assert audit_body["data"]["total"] == 3
+    assert [item["reason_code"] for item in audit_body["data"]["items"]] == ["allowed", "approved", "requested"]
+    assert {item["resource_id"] for item in audit_body["data"]["items"]} == {approval_id}
+    assert "should-never-leak" not in str(audit_body)
+
 
 @pytest.mark.asyncio
 async def test_agent_approval_api_employee_cannot_decide_and_status_remains_pending(

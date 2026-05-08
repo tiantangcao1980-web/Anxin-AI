@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.database import get_db
 from src.core.deps import get_current_user_required
 from src.core.responses import UnifiedResponse
-from src.models.agent_governance import AgentApproval
+from src.models.agent_governance import AgentApproval, AgentAuditEvent
 from src.models.user import User
 from src.services.agent_approval_service import (
     AUTHORIZED_APPROVER_ROLES,
@@ -99,6 +99,24 @@ def _approval_to_payload(approval: AgentApproval) -> dict[str, Any]:
         "resolved_at": approval.resolved_at.isoformat() if approval.resolved_at else None,
         "created_at": approval.created_at.isoformat() if approval.created_at else None,
         "updated_at": approval.updated_at.isoformat() if approval.updated_at else None,
+    }
+
+
+def _audit_event_to_payload(event: AgentAuditEvent) -> dict[str, Any]:
+    return {
+        "id": event.id,
+        "org_id": event.org_id,
+        "route_id": event.route_id,
+        "actor_user_id": event.actor_user_id,
+        "actor_type": event.actor_type,
+        "action": event.action,
+        "status": event.status,
+        "reason_code": event.reason_code,
+        "resource_type": event.resource_type,
+        "resource_id": event.resource_id,
+        "resource_snapshot": event.resource_snapshot,
+        "metadata": event.metadata_json,
+        "created_at": event.created_at.isoformat() if event.created_at else None,
     }
 
 
@@ -214,6 +232,38 @@ async def get_agent_approval(
     if approval is None:
         return UnifiedResponse.error(code=404, message="Agent approval does not exist or is not visible.")
     return UnifiedResponse.success(data=_approval_to_payload(approval))
+
+
+@router.get("/{approval_id}/audit-events", response_model=UnifiedResponse, summary="List agent approval audit events")
+async def list_agent_approval_audit_events(
+    approval_id: str,
+    limit: int = Query(default=50, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+) -> RouteResponse:
+    approval = await _get_scoped_approval(db, approval_id=approval_id, user=user)
+    if approval is None:
+        return UnifiedResponse.error(code=404, message="Agent approval does not exist or is not visible.")
+
+    rows = (
+        await db.execute(
+            select(AgentAuditEvent)
+            .where(
+                AgentAuditEvent.org_id == approval.org_id,
+                AgentAuditEvent.resource_type == "agent_approval",
+                AgentAuditEvent.resource_id == approval.id,
+            )
+            .order_by(AgentAuditEvent.created_at.desc())
+            .limit(limit)
+        )
+    ).scalars().all()
+
+    return UnifiedResponse.success(
+        data={
+            "items": [_audit_event_to_payload(event) for event in rows],
+            "total": len(rows),
+        }
+    )
 
 
 @router.post("/{approval_id}/approve", response_model=UnifiedResponse, summary="Approve agent approval")

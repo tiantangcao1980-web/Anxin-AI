@@ -208,7 +208,7 @@ docs/audit/12-enterprise-agent-governance/
 
 - [ ] `capability_policy_engine` 覆盖订阅、角色、权限、风险级别、隐私模式、设备信任、通信策略和审批状态。
 - [x] AgentManager / AgentTeam / AgentWorker / HumanParticipant / ChannelPolicy / CapabilityRoute / TokenLease / Approval / AuditEvent 模型与 migration 有 upgrade/downgrade。
-- [x] AgentApproval service/API 和最小前端工作台具备创建、列表/count、审批/驳回/撤销、过期、action/route 匹配、执行前 validate、组织/本人 scope、移动视口回归和审计回归；完整工作室和真实执行链路接入仍未完成。
+- [x] AgentApproval service/API 和最小前端工作台具备创建、列表/count、审批/驳回/撤销、过期、action/route 匹配、执行前 validate、组织/本人 scope、审批审计时间线、移动视口回归和审计回归；完整工作室和真实执行链路接入仍未完成。
 - [ ] Worker/Agent 不持有真实密钥；MCP tool execution、CLI `/execute` 和桌面端 CLI route-token 获取/传递已有 DB-backed route-token fail-closed 代码级回归，LLM/browser/desktop-control 和真实 approved connector 演练仍待闭环。
 - [ ] 五类权限回归通过：员工浏览器填表被拒、部门管理员创建部门报告 agent、老板批准桌面远控、超级管理员撤销 MCP route、外部服务方只能看授权材料包。
 - [ ] 能力中心只对老板/超级管理员展示全量能力；普通员工只见基础能力和可申请项。
