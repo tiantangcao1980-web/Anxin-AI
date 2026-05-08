@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   buildDesktopControlGate,
   canCancelRemoteControlCommand,
+  formatRemoteControlAuditAction,
+  formatRemoteControlAuditStatus,
   formatRemoteControlRequiredControl,
   getDesktopControlLoadErrorMessage,
   type RemoteControlCommandResponse,
@@ -109,6 +111,20 @@ describe('formatRemoteControlRequiredControl', () => {
   it('maps known controls and keeps unknown controls inspectable', () => {
     expect(formatRemoteControlRequiredControl('command_expiry_and_revocation')).toBe('命令过期与撤销')
     expect(formatRemoteControlRequiredControl('future_control')).toBe('future_control')
+  })
+})
+
+describe('formatRemoteControlAuditAction', () => {
+  it('maps known audit actions and keeps unknown actions inspectable', () => {
+    expect(formatRemoteControlAuditAction('remote_control.command.enqueue')).toBe('命令入队')
+    expect(formatRemoteControlAuditAction('future.audit')).toBe('future.audit')
+  })
+})
+
+describe('formatRemoteControlAuditStatus', () => {
+  it('maps known audit status values and keeps unknown values inspectable', () => {
+    expect(formatRemoteControlAuditStatus('success')).toBe('成功')
+    expect(formatRemoteControlAuditStatus('future_status')).toBe('future_status')
   })
 })
 

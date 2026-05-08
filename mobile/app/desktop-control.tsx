@@ -15,7 +15,10 @@ import { Layout } from '@/constants/layout'
 import {
   buildDesktopControlGate,
   canCancelRemoteControlCommand,
+  formatRemoteControlAuditAction,
+  formatRemoteControlAuditStatus,
   getDesktopControlLoadErrorMessage,
+  type RemoteControlAuditEvent,
   type RemoteControlCommandResponse,
   type RemoteControlStatusResponse,
 } from '@/features/desktop-control/model'
@@ -33,13 +36,15 @@ export default function DesktopControlScreen() {
   const [probeError, setProbeError] = useState<string | null>(null)
   const [probeStatusRefreshing, setProbeStatusRefreshing] = useState(false)
   const [probeCancelSubmitting, setProbeCancelSubmitting] = useState(false)
+  const [auditEvents, setAuditEvents] = useState<RemoteControlAuditEvent[]>([])
+  const [auditError, setAuditError] = useState<string | null>(null)
+  const [auditLoading, setAuditLoading] = useState(true)
 
   const loadStatus = useCallback(async () => {
     if (privacyMode === 'local') {
       setStatus(null)
       setError(null)
       setLoading(false)
-      setRefreshing(false)
       return
     }
 
@@ -52,24 +57,49 @@ export default function DesktopControlScreen() {
       setError(getDesktopControlLoadErrorMessage(err))
     } finally {
       setLoading(false)
-      setRefreshing(false)
+    }
+  }, [privacyMode])
+
+  const loadAuditEvents = useCallback(async () => {
+    if (privacyMode === 'local') {
+      setAuditEvents([])
+      setAuditError(null)
+      setAuditLoading(false)
+      return
+    }
+
+    try {
+      setAuditLoading(true)
+      setAuditError(null)
+      const response = await desktopControlApi.listAuditEvents(8)
+      setAuditEvents(response.items)
+    } catch (err) {
+      setAuditEvents([])
+      setAuditError(getDesktopControlLoadErrorMessage(err))
+    } finally {
+      setAuditLoading(false)
     }
   }, [privacyMode])
 
   useEffect(() => {
     setLoading(true)
-    loadStatus()
-  }, [loadStatus])
+    setAuditLoading(true)
+    void Promise.all([loadStatus(), loadAuditEvents()])
+  }, [loadStatus, loadAuditEvents])
 
   const gate = useMemo(
     () => buildDesktopControlGate({ privacyMode, status, errorMessage: error }),
     [privacyMode, status, error],
   )
 
-  const onRefresh = useCallback(() => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true)
-    loadStatus()
-  }, [loadStatus])
+    try {
+      await Promise.all([loadStatus(), loadAuditEvents()])
+    } finally {
+      setRefreshing(false)
+    }
+  }, [loadStatus, loadAuditEvents])
 
   const onSendSafeProbe = useCallback(async () => {
     if (!gate.canSendSafeProbe || !gate.desktopDeviceId || !gate.pairingId) {
@@ -99,12 +129,13 @@ export default function DesktopControlScreen() {
       setStatus((current) => current
         ? { ...current, queued_command_count: (current.queued_command_count ?? 0) + 1 }
         : current)
+      await loadAuditEvents()
     } catch (err) {
       setProbeError(getDesktopControlLoadErrorMessage(err))
     } finally {
       setProbeSubmitting(false)
     }
-  }, [gate.canSendSafeProbe, gate.desktopDeviceId, gate.pairingId, privacyMode])
+  }, [gate.canSendSafeProbe, gate.desktopDeviceId, gate.pairingId, loadAuditEvents, privacyMode])
 
   const canCancelProbe = useMemo(() => canCancelRemoteControlCommand(probeResult), [probeResult])
 
@@ -116,12 +147,13 @@ export default function DesktopControlScreen() {
       setProbeError(null)
       const command = await desktopControlApi.getCommand(probeResult.command_id)
       setProbeResult(command)
+      await loadAuditEvents()
     } catch (err) {
       setProbeError(getDesktopControlLoadErrorMessage(err))
     } finally {
       setProbeStatusRefreshing(false)
     }
-  }, [probeResult?.command_id])
+  }, [loadAuditEvents, probeResult?.command_id])
 
   const onCancelProbe = useCallback(async () => {
     if (!probeResult?.command_id || !canCancelRemoteControlCommand(probeResult)) return
@@ -136,12 +168,13 @@ export default function DesktopControlScreen() {
       setStatus((current) => current
         ? { ...current, queued_command_count: Math.max((current.queued_command_count ?? 1) - 1, 0) }
         : current)
+      await loadAuditEvents()
     } catch (err) {
       setProbeError(getDesktopControlLoadErrorMessage(err))
     } finally {
       setProbeCancelSubmitting(false)
     }
-  }, [probeResult])
+  }, [loadAuditEvents, probeResult])
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
@@ -218,6 +251,48 @@ export default function DesktopControlScreen() {
           <GuardRow icon="key-outline" text="安全探针必须先申请短期能力路由 token。" />
           <GuardRow icon="time-outline" text="命令只表示入队，执行状态由桌面 host 回传。" />
         </View>
+
+        {privacyMode !== 'local' && (
+          <View style={styles.auditPanel}>
+            <View style={styles.auditHeader}>
+              <Text style={styles.sectionTitle}>审计时间线</Text>
+              <TouchableOpacity
+                style={styles.iconButton}
+                activeOpacity={0.75}
+                disabled={auditLoading}
+                onPress={loadAuditEvents}
+                accessibilityLabel="刷新远控审计时间线"
+              >
+                <Ionicons name="refresh-outline" size={18} color={Colors.primary} />
+              </TouchableOpacity>
+            </View>
+
+            {auditLoading ? (
+              <Text style={styles.emptyText}>正在读取远控审计。</Text>
+            ) : auditError ? (
+              <Text style={styles.errorText}>{auditError}</Text>
+            ) : auditEvents.length === 0 ? (
+              <Text style={styles.emptyText}>暂无远控审计事件。</Text>
+            ) : (
+              <View style={styles.auditList}>
+                {auditEvents.map((event) => (
+                  <View key={event.id} style={styles.auditItem}>
+                    <View style={styles.auditIcon}>
+                      <Ionicons name="shield-checkmark-outline" size={18} color={Colors.primary} />
+                    </View>
+                    <View style={styles.auditContent}>
+                      <Text style={styles.auditTitle}>{formatRemoteControlAuditAction(event.action)}</Text>
+                      <Text style={styles.auditMeta} numberOfLines={2}>
+                        {formatRemoteControlAuditStatus(event.status)} · {event.reason_code || '无原因码'}
+                      </Text>
+                      <Text style={styles.auditTime}>{formatAuditTime(event.created_at)}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
 
         <View style={styles.actions}>
           {privacyMode === 'local' ? (
@@ -331,6 +406,11 @@ function getStatusColor(state: string) {
   if (state === 'blocked') return Colors.error
   if (state === 'error') return Colors.error
   return Colors.warning
+}
+
+function formatAuditTime(value?: string | null) {
+  if (!value) return '时间待同步'
+  return value.replace('T', ' ').replace('Z', '').slice(0, 16)
 }
 
 const styles = StyleSheet.create({
@@ -468,6 +548,78 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: Layout.fontSize.sm,
     lineHeight: 20,
+  },
+  auditPanel: {
+    marginTop: Layout.spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Layout.borderRadius.lg,
+    padding: Layout.spacing.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  auditHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Layout.spacing.sm,
+  },
+  iconButton: {
+    minWidth: Layout.touchTarget.min,
+    minHeight: Layout.touchTarget.min,
+    borderRadius: Layout.borderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary + '12',
+  },
+  auditList: {
+    gap: Layout.spacing.sm,
+  },
+  auditItem: {
+    flexDirection: 'row',
+    gap: Layout.spacing.sm,
+    paddingVertical: Layout.spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.border,
+  },
+  auditIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: Layout.borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary + '12',
+  },
+  auditContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  auditTitle: {
+    color: Colors.text,
+    fontSize: Layout.fontSize.md,
+    fontWeight: '700',
+  },
+  auditMeta: {
+    color: Colors.textSecondary,
+    fontSize: Layout.fontSize.sm,
+    lineHeight: 20,
+    marginTop: 2,
+  },
+  auditTime: {
+    color: Colors.textMuted,
+    fontSize: Layout.fontSize.xs,
+    marginTop: 2,
+  },
+  emptyText: {
+    color: Colors.textSecondary,
+    fontSize: Layout.fontSize.sm,
+    lineHeight: 20,
+    paddingVertical: Layout.spacing.sm,
+  },
+  errorText: {
+    color: Colors.error,
+    fontSize: Layout.fontSize.sm,
+    lineHeight: 20,
+    paddingVertical: Layout.spacing.sm,
   },
   actions: {
     marginTop: Layout.spacing.lg,

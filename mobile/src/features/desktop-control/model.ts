@@ -84,6 +84,23 @@ export interface RemoteControlCancelCommandRequest {
   reason: string
 }
 
+export interface RemoteControlAuditEvent {
+  id: string
+  pairing_id?: string | null
+  command_id?: string | null
+  action: string
+  status: string
+  reason_code?: string | null
+  resource_snapshot?: Record<string, unknown> | null
+  metadata?: Record<string, unknown> | null
+  created_at?: string | null
+}
+
+export interface RemoteControlAuditEventsResponse {
+  items: RemoteControlAuditEvent[]
+  total: number
+}
+
 export type DesktopControlGateState = 'ready' | 'blocked' | 'not_configured' | 'error'
 
 export interface DesktopControlGate {
@@ -108,8 +125,33 @@ const REQUIRED_CONTROL_LABELS: Record<string, string> = {
   audit_log: '审计日志',
 }
 
+const AUDIT_ACTION_LABELS: Record<string, string> = {
+  'remote_control.pairing.request': '配对申请',
+  'remote_control.pairing.confirm': '桌面确认配对',
+  'remote_control.pairing.deny': '配对拒绝',
+  'remote_control.command.enqueue': '命令入队',
+  'remote_control.command.claim': '桌面领取命令',
+  'remote_control.command.status': '桌面状态回传',
+  'remote_control.command.cancel': '命令取消',
+  'remote_control.command.expire': '命令过期',
+}
+
+const AUDIT_STATUS_LABELS: Record<string, string> = {
+  success: '成功',
+  denied: '拒绝',
+  failed: '失败',
+}
+
 export function formatRemoteControlRequiredControl(control: string): string {
   return REQUIRED_CONTROL_LABELS[control] ?? control
+}
+
+export function formatRemoteControlAuditAction(action: string): string {
+  return AUDIT_ACTION_LABELS[action] ?? action
+}
+
+export function formatRemoteControlAuditStatus(status: string): string {
+  return AUDIT_STATUS_LABELS[status] ?? status
 }
 
 export function getDesktopControlLoadErrorMessage(error: unknown): string {

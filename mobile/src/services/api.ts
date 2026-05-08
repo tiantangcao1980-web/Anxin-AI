@@ -1,5 +1,6 @@
 import { Platform } from 'react-native'
 import type {
+  RemoteControlAuditEventsResponse,
   RemoteControlCancelCommandRequest,
   RemoteControlCommandRequest,
   RemoteControlCommandResponse,
@@ -235,6 +236,11 @@ export const desktopControlApi = {
   getCommand: (commandId: string) => {
     return api.get<RemoteControlCommandResponse>(
       `/sync/remote-control/commands/${encodeURIComponent(commandId)}`,
+    )
+  },
+  listAuditEvents: (limit = 20) => {
+    return api.get<RemoteControlAuditEventsResponse>(
+      `/sync/remote-control/audit-events?limit=${encodeURIComponent(String(limit))}`,
     )
   },
   cancelCommand: (commandId: string, data: RemoteControlCancelCommandRequest) => {

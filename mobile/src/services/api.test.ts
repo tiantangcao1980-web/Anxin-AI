@@ -274,6 +274,43 @@ describe('mobile API refresh behavior', () => {
     )
   })
 
+  it('lists remote-control audit events without command payloads in the mobile client contract', async () => {
+    const { desktopControlApi } = await import('./api')
+    vi.mocked(fetch).mockResolvedValueOnce(
+      jsonResponse(200, {
+        code: 200,
+        data: {
+          items: [{
+            id: 'audit-a',
+            pairing_id: 'pairing-a',
+            command_id: 'command-a',
+            action: 'remote_control.command.enqueue',
+            status: 'success',
+            reason_code: 'queued',
+            resource_snapshot: { command_type: 'desktop.status_probe' },
+            metadata: { route_audit_event_id: 'audit-route-a' },
+            created_at: '2026-05-08T10:00:00Z',
+          }],
+          total: 1,
+        },
+        message: 'ok',
+      }) as unknown as Response,
+    )
+
+    await expect(desktopControlApi.listAuditEvents(5)).resolves.toMatchObject({
+      total: 1,
+      items: [{
+        action: 'remote_control.command.enqueue',
+        reason_code: 'queued',
+      }],
+    })
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:8001/api/v1/sync/remote-control/audit-events?limit=5',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
   it('fails closed before desktop-control status network I/O in local privacy mode', async () => {
     const { desktopControlApi } = await import('./api')
     mocks.asyncStorage.getItem.mockResolvedValue('local')

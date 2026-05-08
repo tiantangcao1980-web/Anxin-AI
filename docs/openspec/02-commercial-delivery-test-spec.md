@@ -37,7 +37,7 @@ cd backend && ./.venv/bin/mypy src
 cd frontend && npm run lint
 cd frontend && npm run build
 bash scripts/mobile-device-smoke.sh
-# mobile: 8 files / 27 tests passed; mobile tsc exit 0; Expo doctor 17/17; mobile npm audit exit 0; mini-program tsc/build exit 0; WeChat DevTools CLI project smoke exit 0; refresh-auth/mobile+mini privacy/fake-fallback/design-token guards exit 0
+# mobile smoke artifact: 8 files / 27 tests passed; latest standalone mobile Vitest after remote-control audit timeline hardening: 8 files / 37 tests passed; mobile tsc exit 0; Expo doctor 17/17; mobile npm audit exit 0; mini-program tsc/build exit 0; WeChat DevTools CLI project smoke exit 0; refresh-auth/mobile+mini privacy/fake-fallback/design-token guards exit 0
 
 python3 scripts/sandbox-evidence-runner.py --scope payment --out /tmp/anxin-payment-sandbox-preflight.json
 python3 scripts/sandbox-evidence-runner.py --scope esign --out /tmp/anxin-esign-sandbox-preflight.json
@@ -223,7 +223,7 @@ cd mini-program && npm run build:weapp
 # exit 0
 
 bash scripts/mobile-device-smoke.sh
-# mobile Vitest 8 files / 27 tests passed; mobile tsc exit 0; Expo doctor 17/17; mobile npm audit exit 0; mini-program tsc/build exit 0; WeChat DevTools CLI project smoke exit 0; refresh-auth/mobile+mini privacy/fake-fallback/design-token guards exit 0
+# mobile smoke artifact 8 files / 27 tests passed; latest standalone mobile Vitest after remote-control audit timeline hardening 8 files / 37 tests passed; mobile tsc exit 0; Expo doctor 17/17; mobile npm audit exit 0; mini-program tsc/build exit 0; WeChat DevTools CLI project smoke exit 0; refresh-auth/mobile+mini privacy/fake-fallback/design-token guards exit 0
 
 cd frontend && npx playwright test e2e/role-access.spec.ts
 # 10 passed, 10 skipped

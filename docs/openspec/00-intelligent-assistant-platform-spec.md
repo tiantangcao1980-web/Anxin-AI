@@ -170,7 +170,7 @@ Skills 和智能体进化必须受治理：
 仍不能宣称完成的缺口：
 
 - 桌面主工作站尚缺完整的模型/知识库/Skills/MCP 配置 UI 与 packaged runtime 验收。
-- 移动远程控制桌面已补后端 DB-backed 控制面，用于持久化配对请求、桌面确认、pairing-scoped `desktop:control` route token、远程命令队列、桌面 host 领取、running/completed/failed 状态回传、取消和递归脱敏审计，同时显式拒绝本地/绝密模式、缺二次确认、缺配对或缺 route token 的请求；桌面 Tauri IPC host 客户端已补确认配对、领取命令、回传状态和单次 safe-probe host cycle 的代码级入口，并受登录态、route token 和 TopSecret guard 约束；移动端 `/desktop-control` 已补 confirmed pairing 下的 route-token 申请、`desktop.status_probe` 入队、状态刷新和 queued/claimed 探针取消面，local 模式仍零网络且 UI 不声称桌面已执行；仍缺常驻后台自动轮询、高风险真实桌面执行、真实跨设备联调和真机/packaged runtime 证据。
+- 移动远程控制桌面已补后端 DB-backed 控制面，用于持久化配对请求、桌面确认、pairing-scoped `desktop:control` route token、远程命令队列、桌面 host 领取、running/completed/failed 状态回传、取消和递归脱敏审计，同时显式拒绝本地/绝密模式、缺二次确认、缺配对或缺 route token 的请求；桌面 Tauri IPC host 客户端已补确认配对、领取命令、回传状态和单次 safe-probe host cycle 的代码级入口，并受登录态、route token 和 TopSecret guard 约束；移动端 `/desktop-control` 已补 confirmed pairing 下的 route-token 申请、`desktop.status_probe` 入队、状态刷新、queued/claimed 探针取消和脱敏审计时间线，local 模式仍零网络且 UI 不声称桌面已执行、不展示命令 payload/metadata 原文；仍缺常驻后台自动轮询、高风险真实桌面执行、真实跨设备联调和真机/packaged runtime 证据。
 - 任意模型/Skills/MCP 的组织策略、权限拒绝、调用日志和隐私模式回归仍需补完整商业证据；当前 MCP 外部连接已完成商业环境 fail-closed allowlist 基线，MCP tool execution 和 CLI `/execute` 已接入 DB-backed route-token fail-closed，桌面端 CLI execute 会在调用前申请并传递短期 route token，但真实 approved connector 演练仍缺。
 - 通用工作助手、软件/原型工作台、浏览器执行器、CLI harness 和定时自动化尚缺统一产品入口、沙盒执行和企业审批。
 - Codex/Claude 风格的可信会话体验尚缺完整产品化：长任务计划/进度/证据/可恢复状态、artifact 编辑、能力命令面板和跨设备接续仍需统一设计与验收。
