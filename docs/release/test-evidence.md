@@ -67,7 +67,7 @@ backend/.venv/bin/pytest -q backend/tests/test_release_artifact_validation.py
 # 28 passed
 
 backend/.venv/bin/pytest -q backend/tests/test_commercial_readiness_gate.py
-# 1 passed
+# 7 passed
 
 backend/.venv/bin/pytest -q backend/tests/test_release_evidence_validation.py
 # 9 passed
@@ -79,18 +79,18 @@ python3 scripts/validate-release-evidence.py --json docs/release/evidence/static
 # {"ok": true, "failures": [], "warnings": []}
 
 node scripts/validate-commercial-delivery-lanes.cjs
-# Commercial delivery lanes: OK (7 lanes, status=not_ready, non_complete=6)
+# Commercial delivery lanes: OK (8 lanes, status=not_ready, non_complete=7)
 
 bash scripts/release-evidence-secret-scan.sh
 # Release evidence secret scan: PASS
 
 GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus \
   bash scripts/commercial-readiness-gate.sh --with-local-tests
-# local code-level commands passed: git diff --check, frontend lint, frontend Vitest 10 files / 34 tests,
-# frontend build, frontend workstation settings Playwright e2e, desktop cargo check, desktop cargo test 16 passed, desktop installed-profile SQLCipher/keyring smoke, backend mypy zero baseline now 0/0, agent governance policy tests 4 passed, capability route token tests 4 passed, RAG full50 runner tests 8 passed,
-# RAG quality metrics tests 4 passed, sandbox evidence runner tests 7 passed, payment/e-sign provider/webhook/refund/action-audit tests 61 passed,
+# local code-level commands passed: git diff --check, frontend lint, frontend Vitest 12 files / 45 tests,
+# frontend build, frontend workstation settings Playwright e2e 7 passed / 1 skipped, desktop cargo check, desktop cargo test 19 passed, desktop installed-profile SQLCipher/keyring smoke, backend mypy zero baseline now 0/0, agent governance policy tests 4 passed, capability route token tests 4 passed, approval authorization guard tests 7 passed, skill evolution gate tests 9 passed, RAG full50 runner tests 8 passed,
+# RAG quality metrics tests 4 passed, sandbox evidence runner tests 7 passed, payment/e-sign provider/webhook/refund/action-audit tests 62 passed,
 # release evidence secret scan tests 2 passed, release worktree inventory tests 2 passed, release evidence artifact validation tests 28 passed,
-# commercial readiness gate tests 5 passed, including artifact warning propagation, desktop network gate, workstation e2e gate coverage, agent governance gate coverage, and capability route token gate coverage,
+# commercial readiness gate tests 7 passed, including artifact warning propagation, desktop network gate, workstation e2e gate coverage, agent governance gate coverage, capability route token gate coverage, approval authorization gate coverage, and skill evolution gate coverage,
 # release evidence validation tests 9 passed, commercial checklist tests 5 passed, commercial delivery lanes tests 3 passed,
 # commercial checklist/lane validators + Ruff/JSON smoke, sandbox evidence preflight,
 # mobile-device-smoke 7 files / 17 tests + mobile/mini tsc + Expo config/SDK guard + weapp build + WeChat DevTools CLI + refresh-auth/fake-fallback/design-token guards.
@@ -155,7 +155,7 @@ cd backend && ./.venv/bin/pytest -q tests/test_payment_provider_clients.py tests
 
 当前 OpenSpec 记录：
 
-- `cd frontend && npm test` -> `10 files / 34 tests passed`
+- `cd frontend && npm test` -> latest full local gate `12 files / 45 tests passed`
 - `cd frontend && npm run lint` -> exit 0
 - `cd frontend && npm run build` -> exit 0，保留既有 Vite warning
 - `cd frontend && npm audit --omit=dev --json > docs/release/evidence/artifacts/frontend-npm-audit-prod-20260507.json` -> production dependency audit `0` vulnerabilities after removing unused aggregate `react-force-graph`/stale Tauri SQL frontend package entry, bumping `uuid`/`postcss`, and adding targeted overrides for `lodash`, `lodash-es`, `markdown-it`, and `picomatch` v2/v4 chains
@@ -169,7 +169,7 @@ cd backend && ./.venv/bin/pytest -q tests/test_payment_provider_clients.py tests
 - `cd mobile && npm test` -> `7 files / 17 tests passed`
 - `cd mobile && npx tsc --noEmit --module esnext` -> exit 0
 - `cd desktop && cargo check` -> exit 0
-- `cd desktop && cargo test` -> `16 passed`
+- `cd desktop && cargo test` -> latest full local gate `19 passed`
 - `cd desktop && cargo run -- --self-test` -> built binary self-test JSON, 8 required local/sync tables present, `sqlite_security.encrypted=true`, `sqlite_security.keyring_backed=true`, `sqlite_security.release_blocking=false`
 - `bash scripts/desktop-runtime-smoke.sh --with-app-bundle --out docs/release/evidence/artifacts/desktop-runtime-code-smoke-20260507.json --ui-log-out docs/release/evidence/artifacts/desktop-runtime-ui-smoke-20260507.log` -> frontend desktop sync slice `2 files / 12 tests passed`; desktop cargo test `16 passed`; cargo check `0`; SQLite migration SQL smoke passes against fresh and legacy `sync_log` temp DB paths; SQLite 100/500 sync performance smoke P95 `12.4ms` / `14.2ms`; unsigned debug macOS `.app` build outputs `desktop/target/debug/bundle/macos/安心法务.app`; debug bundle self-test validates migration/table/security contract; runtime startup smoke exits cleanly; WebView page-load smoke returns `pageLoadFinished=true`, `webviewLabel=main`, `url=tauri://localhost`; structured artifacts written to `docs/release/evidence/artifacts/desktop-runtime-code-smoke-20260507.json` and `docs/release/evidence/artifacts/desktop-runtime-ui-smoke-20260507.log`
 - `bash scripts/desktop-installed-profile-smoke.sh --out docs/release/evidence/artifacts/desktop-installed-profile-smoke-20260507.json` -> exit `0`; first launch migrates seeded plaintext SQLite to SQLCipher and writes an isolated real keyring key; second launch reopens without explicit DB key; ordinary `sqlite3` read is rejected; report has `mode=desktop_installed_profile_smoke`, `status=passed`, `release_evidence_complete=false`, `keyringRoundTrip=true`, `encryptedReopen=true`, `plaintextBackupPresent=true`, `plaintextOpenBlocked=true`
@@ -191,7 +191,7 @@ cd frontend && npx eslint src/components/chat/DocumentDiff.tsx src/components/ch
 # exit 0
 
 cd frontend && npm test
-# 10 files / 34 tests passed
+# latest full local gate: 12 files / 45 tests passed
 
 cd frontend && npm run build
 # exit 0; 保留既有 Vite dynamic import / lottie eval / large chunk warnings
@@ -280,7 +280,7 @@ cd frontend && npx playwright test e2e/settings-workstation.spec.ts --project=ch
 |---|---|---|
 | 商业发布 gate | `scripts/commercial-readiness-gate.sh` 已建立，默认 quick 模式检查 release artifacts、`commercial-delivery-checklist.json`、`commercial-delivery-lanes.json`、支付/电签 live runner 必需 env 模板字段、GitNexus embeddings、dirty worktree release-blocking gate、`docs/release/evidence/*` 的 `Status: complete`、complete evidence 的 Owner/Environment/Date range 元数据、Required Scope 未闭合行、空 artifact reference 和正文 pending/not-ready 冲突、发布证据 secret/PII 扫描、RAG full50 provenance、桌面加密 gate、桌面网络面 gate 和全仓静态质量基线声明；`--with-local-tests` 已覆盖 diff check、frontend lint/test/build、workstation settings Playwright e2e、desktop check/test、desktop network surface gate、desktop installed-profile SQLCipher/keyring smoke、RAG full50 runner tests、RAG quality tests、sandbox evidence runner tests、payment/e-sign provider/webhook/action-audit tests、release evidence secret scan tests、release artifact/evidence validation tests、commercial readiness gate 回归测试、Ruff、sandbox evidence preflight 和 mobile/mini local smoke | gate 本身充分；当前预期 FAIL，说明商业证据未齐且交付文件尚未提交复验 |
 | 静态质量基线采集 | `scripts/static-quality-baseline.sh` 可生成 diff/ruff/mypy/frontend/desktop/release-evidence secret+PII/full-repo secret/mock scan 摘要；当前采集 ruff `0`、mypy `0`、mypy zero-baseline gate `0`、release evidence secret/PII scan `0`、secret scan `0`、mock/fallback scan `0`；全仓 Ruff 与 backend mypy 已清零；`docs/release/evidence/static-quality-baseline.md` 已记录 zero-baseline 规则 | 当前发布静态质量证据充分；后续需保持零回退 |
-| GitNexus 索引 | `bash scripts/gitnexus-index.sh` 可重建结构图并显式报告 dirty worktree drift；`GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/gitnexus-index.sh --embeddings --skip-context-checks` 已在本轮本地交付提交后生成主仓 embedding；当前 `.gitnexus/meta.json` 为约 `1.3k files / 32.5k nodes / 58.8k edges / 300 flows / 30.4k embeddings`，`capabilities.vectorSearch.status=vector-index`，精确统计以最新 meta 为准；`cypher` 真实计数为非零，`status` 显示 indexed/current commit 一致，`detect-changes` 返回 `No changes detected`；`scripts/gitnexus-index.sh` 已纳入 repo-scoped query smoke | 结构、embedding 数据和 direct rc 读取充分；semantic query 不能单独放行；后续新增提交仍需重建/复验并用 `rg` 和测试补盲 |
+| GitNexus 索引 | `bash scripts/gitnexus-index.sh` 可重建结构图并显式报告 dirty worktree drift；`GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/gitnexus-index.sh --embeddings --clean-first --skip-context-checks` 已在本轮本地交付提交后生成主仓 embedding；当前精确统计以 `.gitnexus/meta.json` 为准，要求 `capabilities.vectorSearch.status=vector-index`，`cypher` 真实计数与 meta embeddings 非零且一致，`status` 显示 indexed/current commit 一致，`detect-changes` 返回 `No changes detected`；`scripts/gitnexus-index.sh` 已纳入 repo-scoped query smoke | 结构、embedding 数据和 direct binary 读取充分；semantic query 不能单独放行；后续新增提交仍需重建/复验并用 `rg` 和测试补盲 |
 | 合同状态机 | 单元/API 测试 + webhook 回写测试 | 充分 |
 | 电签 provider 代码级协议 | fake `httpx.AsyncClient` 校验官方 header/body/path | 代码级充分，商业级不足 |
 | 电签真实沙箱 | `scripts/sandbox-evidence-runner.py` 已提供配置预检和可选 live 采集入口，预检 artifact 会列出 env 之外的 `runtime_prerequisites` 和 `external_evidence_requirements`，避免签署文件/完成 flow、官方回调、重复幂等、失败重试缺失导致 live 步骤被误当完整；live step validator 会把无 signer URL 标为 `pending`、空签署文件下载标为 `fail`；`backend/tests/test_sandbox_evidence_runner.py` 覆盖 live 确认门、脱敏写出、env 模板同步、runtime prerequisite、外部证据槽输出、honest-gating validators 和外部交接文档 live 参数防漂移；当前本地预检缺少真实账号配置，未运行 live | 不充分 |
@@ -289,7 +289,7 @@ cd frontend && npx playwright test e2e/settings-workstation.spec.ts --project=ch
 | 支付真实沙箱 | `scripts/sandbox-evidence-runner.py` 已提供配置预检和可选 live 采集入口，预检 artifact 会列出 env 之外的 `runtime_prerequisites` 和 `external_evidence_requirements`，避免退款/查单/关单订单 ID、官方回调、重复幂等、失败重试、平台 key/cert 轮换缺失导致 live 步骤被误当完整；live step validator 会把退款 `pending` 和关单/取消 `False` 标为 `pending`，不会误报 `pass`；`backend/tests/test_sandbox_evidence_runner.py` 覆盖 live 确认门、脱敏写出、env 模板同步、runtime prerequisite、外部证据槽输出、honest-gating validators 和外部交接文档 live 参数防漂移；当前本地预检缺少真实渠道配置，未运行 live | 不充分 |
 | 文档对象存储 | local backend 单测、迁移测试、上传校验测试 | 本地充分，生产 MinIO/S3 不足 |
 | IM 首包鉴权/离线 ACK | 后端和前端测试 | 当前切片充分 |
-| 桌面同步 | 后端 sync API/service 切片 `24 passed, 6 warnings`；既有 `desktop-runtime-code-smoke-20260507.json` / `desktop-runtime-ui-smoke-20260507.log` 记录过一次 unsigned debug `.app` self-test/runtime/WebView page-load 代码级通过；后续 fresh local 复跑的 debug `.app` runtime startup 在 AppKit registration 前 `Abort trap: 6`，因此不能把 debug bundle runtime 作为当前稳定 passing evidence；Rust IPC 离线任务/同步状态已改为真实读写本地队列与 `sync_log`，不再伪造空 payload 成功；`bash scripts/desktop-installed-profile-smoke.sh --out docs/release/evidence/artifacts/desktop-installed-profile-smoke-20260507.json` 通过本地 installed-profile keyring/reopen/明文迁移/普通 sqlite3 拒读，并写出 release artifact；`scripts/desktop-sqlite-security-gate.sh` 和 `scripts/desktop-network-surface-gate.sh` 当前通过；`scripts/desktop-release-package.sh --dry-run ...`、`scripts/desktop-release-preflight.sh` 和 unsigned release `.app`/DMG preflight 已生成脱敏 artifact，production APNs entitlement、`hdiutil` / DiskManagement probe、release `.app` exists、release DMG exists 均通过；unsigned `app,dmg` 已在 unsandboxed macOS 环境产出；unsigned release packaged runtime self-test/startup/WebView page-load smoke 已通过；unsigned release packaged-profile plaintext-to-SQLCipher/keyring reopen 和 SQLCipher performance smoke 已通过；全量 Vitest `10 files / 34 tests passed` | 代码级底座、SQLCipher/keyring 安全门禁、桌面网络面门禁、local installed-profile keyring/reopen、migration SQL、SQLite 性能基线、release unsigned app+DMG build、unsigned release packaged runtime smoke、unsigned release packaged-profile/performance smoke、release package dry-run 和 release preflight 充分；signed/notarized installer、signed packaged-profile 迁移、signed packaged runtime 性能和跨设备连续会话不足 |
+| 桌面同步 | 后端 sync API/service 切片 `24 passed, 6 warnings`；既有 `desktop-runtime-code-smoke-20260507.json` / `desktop-runtime-ui-smoke-20260507.log` 记录过一次 unsigned debug `.app` self-test/runtime/WebView page-load 代码级通过；后续 fresh local 复跑的 debug `.app` runtime startup 在 AppKit registration 前 `Abort trap: 6`，因此不能把 debug bundle runtime 作为当前稳定 passing evidence；Rust IPC 离线任务/同步状态已改为真实读写本地队列与 `sync_log`，不再伪造空 payload 成功；`bash scripts/desktop-installed-profile-smoke.sh --out docs/release/evidence/artifacts/desktop-installed-profile-smoke-20260507.json` 通过本地 installed-profile keyring/reopen/明文迁移/普通 sqlite3 拒读，并写出 release artifact；`scripts/desktop-sqlite-security-gate.sh` 和 `scripts/desktop-network-surface-gate.sh` 当前通过；`scripts/desktop-release-package.sh --dry-run ...`、`scripts/desktop-release-preflight.sh` 和 unsigned release `.app`/DMG preflight 已生成脱敏 artifact，production APNs entitlement、`hdiutil` / DiskManagement probe、release `.app` exists、release DMG exists 均通过；unsigned `app,dmg` 已在 unsandboxed macOS 环境产出；unsigned release packaged runtime self-test/startup/WebView page-load smoke 已通过；unsigned release packaged-profile plaintext-to-SQLCipher/keyring reopen 和 SQLCipher performance smoke 已通过；最新完整本地门禁中全量 Vitest `12 files / 45 tests passed` | 代码级底座、SQLCipher/keyring 安全门禁、桌面网络面门禁、local installed-profile keyring/reopen、migration SQL、SQLite 性能基线、release unsigned app+DMG build、unsigned release packaged runtime smoke、unsigned release packaged-profile/performance smoke、release package dry-run 和 release preflight 充分；signed/notarized installer、signed packaged-profile 迁移、signed packaged runtime 性能和跨设备连续会话不足 |
 | RAG 引用与召回质量 | 后端 RBAC/PII、offline smoke 质量基线、live Qdrant smoke、source + 导出文档/chunk/anchor 巡检、前端引用预览/高亮纯函数测试、Playwright 引用点击/预览/高亮已落地；`eval/export_builtin_legal_full50.py` 已从内建法律语料导出 `42` 个法条 chunk 与 `50` 条非 smoke golden；`eval/rag_live_qdrant_full50.py` 已跑通 built-in full50 preflight 和 live Qdrant collection `rag_eval_full50_builtin_20260507`，写出 `rag-full50-built-in-predictions-20260507.json`；`eval/rag_quality.py` 写出 `rag-full50-built-in-metrics-20260507.json`，recall@10 `1.000`、MRR `1.000`、NDCG@10 `0.997`；`backend/tests/eval/test_rag_full50_runner.py` `8 passed`，`backend/tests/eval/test_rag_quality_smoke.py` `4 passed` | 内建 RAG full50 release evidence complete；外部客户知识库评测可作为上线后扩展 |
 | 知识图谱大图性能 | 渲染层 >200 节点自动降采样；1k 节点/2k+ 边 Vitest；桌面+移动 Playwright FPS/canvas/screenshot smoke | 代码级充分；真实业务图谱数据预发复跑不足 |
 | 知识管理接口 | `knowledge_management` 读写权限分层、无组织用户 fail-closed、出口脱敏和组织分桶隔离测试 `5 passed` | 代码级安全收口；进程内存存储仍非商业持久化形态 |

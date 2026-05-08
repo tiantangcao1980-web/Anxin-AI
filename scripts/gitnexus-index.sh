@@ -197,10 +197,9 @@ process.stdin.on('end', () => {
 "
 }
 
-verify_embedding_store() {
+verify_embedding_store_count() {
+  local expected_count="${1:-0}"
   local output count
-
-  [ "$RUN_EMBEDDINGS" -eq 1 ] || return 0
 
   info "Verifying GitNexus embedding store"
   if ! output="$(gitnexus_cli cypher -r "$REPO_NAME" "MATCH (e:CodeEmbedding) RETURN count(e) AS cnt" 2>&1)"; then
@@ -211,7 +210,15 @@ verify_embedding_store() {
   count="$(printf '%s\n' "$output" | extract_cypher_count)"
   count="$(coerce_nonnegative_int "$count")"
   [ "$count" -gt 0 ] || die "GitNexus embedding store verification returned zero embeddings"
+  if [ "$expected_count" -gt 0 ] && [ "$count" -ne "$expected_count" ]; then
+    die "GitNexus embedding store count (${count}) does not match meta embeddings (${expected_count})"
+  fi
   info "GitNexus embedding store count=${count}"
+}
+
+verify_embedding_store() {
+  [ "$RUN_EMBEDDINGS" -eq 1 ] || return 0
+  verify_embedding_store_count "$(coerce_nonnegative_int "${EMBEDDINGS:-0}")"
 }
 
 report_worktree_drift() {
@@ -362,6 +369,14 @@ info "GitNexus stats: files=${FILES}, nodes=${NODES}, edges=${EDGES}, flows=${FL
 
 if [ "$RUN_EMBEDDINGS" -eq 1 ] && [ "${EMBEDDINGS:-0}" -le 0 ]; then
   die "--embeddings completed but meta.json still reports zero embeddings"
+fi
+
+if [ "$RUN_EMBEDDINGS" -eq 0 ] && [ "$EXISTING_EMBEDDINGS" -gt 0 ] && [ "${EMBEDDINGS:-0}" -le 0 ]; then
+  die "structure-only indexing dropped existing embeddings (${EXISTING_EMBEDDINGS} -> 0); rerun with --embeddings --clean-first"
+fi
+
+if [ "$RUN_EMBEDDINGS" -eq 0 ] && [ "$EXISTING_EMBEDDINGS" -gt 0 ]; then
+  verify_embedding_store_count "$(coerce_nonnegative_int "${EMBEDDINGS:-0}")"
 fi
 
 verify_embedding_store

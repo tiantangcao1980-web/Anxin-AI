@@ -205,7 +205,7 @@ cd frontend && npm test -- --run src/pages/Pricing.test.ts src/pages/MySubscript
 # 5 passed
 
 cd frontend && npm test
-# 10 files / 34 tests passed
+# latest full local gate: 12 files / 45 tests passed
 
 cd frontend && npm run build
 # exit 0, tsc && vite build
