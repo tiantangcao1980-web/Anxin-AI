@@ -259,9 +259,17 @@ export async function pullHarnessArtifacts(
 export async function cliExecute(
   command: string,
   args: Record<string, any> = {},
-  apiKey?: string
+  apiKey?: string,
+  routeToken?: string,
+  routeKey?: string
 ) {
-  return invokeCommand('cli_execute', { command, args, apiKey: apiKey ?? null })
+  return invokeCommand('cli_execute', {
+    command,
+    args,
+    apiKey: apiKey ?? null,
+    routeToken: routeToken ?? null,
+    routeKey: routeKey ?? null,
+  })
 }
 
 /** 创建 CLI API Key */

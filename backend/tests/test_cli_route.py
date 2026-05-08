@@ -200,6 +200,85 @@ async def test_cli_execute_accepts_db_backed_route_token(
 
 
 @pytest.mark.asyncio
+async def test_cli_route_token_endpoint_issues_key_bound_token(
+    monkeypatch,
+    auth_client,
+    db_session,
+    test_organization,
+):
+    from src.api.routes import cli
+
+    monkeypatch.setattr(cli.settings, "ENVIRONMENT", "production")
+    create = await auth_client.post(
+        "/api/v1/cli/keys",
+        json={"name": "desktop-cli", "scopes": ["read"], "expires_days": 7},
+    )
+    payload = create.json()
+    route_key = f"cli:{payload['key_id']}"
+    governance = AgentGovernanceService(db_session)
+    await governance.create_capability_route(
+        org_id=test_organization.id,
+        route_key=route_key,
+        route_type="cli",
+        allowed_consumers=[payload["key_id"]],
+        allowed_scopes=["cli:read"],
+    )
+
+    token_response = await auth_client.post(
+        "/api/v1/cli/route-token",
+        headers={"X-API-Key": payload["api_key"]},
+        json={"scope": "read"},
+    )
+    token_body = token_response.json()
+    execute_response = await auth_client.post(
+        "/api/v1/cli/execute",
+        headers={
+            "X-API-Key": payload["api_key"],
+            "X-Capability-Route-Token": token_body["route_token"],
+        },
+        json={"command": "status", "args": {}},
+    )
+    audits = (await db_session.execute(select(AgentAuditEvent))).scalars().all()
+
+    assert token_response.status_code == 200
+    assert token_body["success"] is True
+    assert token_body["required"] is True
+    assert token_body["route_key"] == route_key
+    assert token_body["scope"] == "read"
+    assert token_body["route_token"].startswith("anxin_route_")
+    assert execute_response.json()["success"] is True
+    assert [event.reason_code for event in audits] == ["issued", "allowed"]
+
+
+@pytest.mark.asyncio
+async def test_cli_route_token_endpoint_is_optional_when_governance_not_required(
+    monkeypatch,
+    auth_client,
+):
+    from src.api.routes import cli
+
+    monkeypatch.setattr(cli.settings, "ENVIRONMENT", "development")
+    monkeypatch.setattr(cli.settings, "CLI_ROUTE_TOKEN_REQUIRED", False)
+    create = await auth_client.post(
+        "/api/v1/cli/keys",
+        json={"name": "dev-cli", "scopes": ["read"], "expires_days": 7},
+    )
+    payload = create.json()
+
+    response = await auth_client.post(
+        "/api/v1/cli/route-token",
+        headers={"X-API-Key": payload["api_key"]},
+        json={"scope": "read"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is False
+    assert body["required"] is False
+    assert "unknown_capability_route" in body["error"]
+
+
+@pytest.mark.asyncio
 async def test_cli_execute_enforces_route_token_consumer(
     monkeypatch,
     auth_client,

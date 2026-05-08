@@ -81,6 +81,23 @@ class CLICommandRequest(BaseModel):
     args: dict[str, Any] = Field(default_factory=dict, description="命令参数")
 
 
+class CLIRouteTokenRequest(BaseModel):
+    """CLI route-token 签发请求"""
+    scope: str = Field(default="read", description="CLI 权限范围: read/chat/export")
+    route_key: str | None = Field(default=None, description="可选 route key；默认 cli:{key_id}")
+
+
+class CLIRouteTokenResponse(BaseModel):
+    """CLI route-token 签发响应"""
+    success: bool
+    required: bool
+    route_key: str | None = None
+    scope: str | None = None
+    route_token: str | None = None
+    expires_at: str | None = None
+    error: str | None = None
+
+
 class CLICommandResponse(BaseModel):
     """CLI 命令响应"""
     success: bool
@@ -273,6 +290,74 @@ def cli_route_governance_required() -> bool:
 
 def _cli_route_scope(required_scope: str) -> str:
     return f"{CLI_ROUTE_SCOPE_PREFIX}{required_scope.strip().lower()}"
+
+
+def _default_cli_route_key(key_data: APIKeyRecord) -> str:
+    return f"cli:{key_data['key_id']}"
+
+
+@router.post("/route-token", response_model=CLIRouteTokenResponse, summary="签发 CLI route token")
+async def issue_cli_route_token(
+    request: CLIRouteTokenRequest,
+    key_data: APIKeyRecord = Depends(verify_api_key),
+    db: AsyncSession = Depends(get_db),
+) -> CLIRouteTokenResponse:
+    """签发短期 CLI route token，供桌面端在 `/cli/execute` 前获取并传递。"""
+    required = cli_route_governance_required()
+    requested_scope = request.scope.strip().lower()
+    if requested_scope not in ALLOWED_SCOPES:
+        return CLIRouteTokenResponse(
+            success=False,
+            required=required,
+            scope=requested_scope or None,
+            error=f"无效 CLI 权限范围: {requested_scope or '<empty>'}",
+        )
+    if requested_scope not in key_data["scopes"]:
+        return CLIRouteTokenResponse(
+            success=False,
+            required=required,
+            scope=requested_scope,
+            error=f"API Key 缺少 '{requested_scope}' 权限",
+        )
+
+    route_key = (request.route_key or _default_cli_route_key(key_data)).strip()
+    org_id = key_data.get("org_id")
+    if not org_id:
+        return CLIRouteTokenResponse(
+            success=False,
+            required=required,
+            route_key=route_key,
+            scope=requested_scope,
+            error="CLI route token requires an organization-bound API Key",
+        )
+
+    from src.services.agent_governance_service import AgentGovernanceService
+
+    issued = await AgentGovernanceService(db).issue_route_token(
+        org_id=org_id,
+        route_key=route_key,
+        consumer_id=key_data["key_id"],
+        requested_scopes=[_cli_route_scope(requested_scope)],
+        actor_user_id=key_data["user_id"],
+        actor_type="cli_api_key",
+    )
+    if not issued.allowed:
+        return CLIRouteTokenResponse(
+            success=False,
+            required=required,
+            route_key=route_key,
+            scope=requested_scope,
+            error=f"CLI route token denied: {issued.reason_code}",
+        )
+
+    return CLIRouteTokenResponse(
+        success=True,
+        required=required,
+        route_key=route_key,
+        scope=requested_scope,
+        route_token=issued.token,
+        expires_at=issued.expires_at.isoformat() if issued.expires_at else None,
+    )
 
 
 @router.post("/execute", response_model=CLICommandResponse, summary="执行 CLI 命令")
