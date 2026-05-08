@@ -405,7 +405,7 @@ Additional local check:
 | `bash scripts/mypy-baseline-check.sh` after metrics route cleanup | `backend mypy errors: 908 (baseline max: 908)` | Baseline ceiling was lowered after the cleanup |
 | `cd backend && ./.venv/bin/mypy src --show-error-codes --no-error-summary --no-pretty 2>&1 \| rg '^(src/core/deps\.py|src/api/routes/cli\.py):' \|\| true` | no output | Dependency factory return types and CLI API key route boundaries are typed |
 | `cd backend && ./.venv/bin/ruff check src/core/deps.py src/api/routes/cli.py tests/test_cli_route.py` | `All checks passed!` | Dependency factory and CLI route/test static hygiene remains clean |
-| `cd backend && ./.venv/bin/pytest -q tests/test_cli_route.py` | `2 passed` | CLI API key create/list flow and missing-scope guard are covered |
+| `cd backend && ./.venv/bin/pytest -q tests/test_cli_route.py` | `8 passed` | CLI API key create/list flow, missing-scope guard, commercial route-token fail-closed, DB route-token allow, and consumer mismatch are covered |
 | `bash scripts/mypy-baseline-check.sh` after dependency factory and CLI route cleanup | `backend mypy errors: 896 (baseline max: 896)` | Baseline ceiling was lowered after the cleanup |
 | `cd backend && ./.venv/bin/mypy src --show-error-codes --no-error-summary --no-pretty 2>&1 \| rg '^src/services/lawyer_onboarding_service\.py:' \|\| true` | no output | Lawyer onboarding service payload, progress-step, certification, and dashboard response boundaries are typed |
 | `cd backend && ./.venv/bin/ruff check src/services/lawyer_onboarding_service.py src/api/routes/lawyer_onboarding.py` | `All checks passed!` | Lawyer onboarding service and route static hygiene remain clean |

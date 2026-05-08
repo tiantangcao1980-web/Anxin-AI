@@ -2,7 +2,9 @@ import pytest
 from sqlalchemy import select
 
 from src.api.routes.cli import _api_keys, _rate_limits
+from src.models import AgentAuditEvent
 from src.models.audit import AuditLog
+from src.services.agent_governance_service import AgentGovernanceService
 
 
 @pytest.fixture(autouse=True)
@@ -114,3 +116,130 @@ async def test_cli_key_revoke_scoped_to_owner(auth_client, admin_auth_client):
 
     assert forbidden.status_code == 404
     assert allowed.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_cli_execute_requires_route_token_in_commercial_environment(
+    monkeypatch,
+    auth_client,
+    db_session,
+):
+    from src.api.routes import cli
+
+    monkeypatch.setattr(cli.settings, "ENVIRONMENT", "staging")
+    monkeypatch.setattr(cli.settings, "CLI_ROUTE_TOKEN_REQUIRED", False)
+    create = await auth_client.post(
+        "/api/v1/cli/keys",
+        json={"name": "commercial-cli", "scopes": ["read"], "expires_days": 7},
+    )
+    api_key = create.json()["api_key"]
+
+    response = await auth_client.post(
+        "/api/v1/cli/execute",
+        headers={"X-API-Key": api_key},
+        json={"command": "status", "args": {}},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is False
+    assert "CLI route token required" in payload["error"]
+    audit_result = await db_session.execute(
+        select(AuditLog).where(AuditLog.action == "cli.execute", AuditLog.status == "failed")
+    )
+    audit_log = audit_result.scalar_one()
+    assert audit_log.extra_data["route_reason"] == "missing_route_token"
+    assert audit_log.extra_data["route_scope"] == "cli:read"
+
+
+@pytest.mark.asyncio
+async def test_cli_execute_accepts_db_backed_route_token(
+    monkeypatch,
+    auth_client,
+    db_session,
+    test_organization,
+):
+    from src.api.routes import cli
+
+    monkeypatch.setattr(cli.settings, "ENVIRONMENT", "production")
+    create = await auth_client.post(
+        "/api/v1/cli/keys",
+        json={"name": "governed-cli", "scopes": ["read"], "expires_days": 7},
+    )
+    payload = create.json()
+    governance = AgentGovernanceService(db_session)
+    await governance.create_capability_route(
+        org_id=test_organization.id,
+        route_key="cli-status-route",
+        route_type="cli",
+        allowed_consumers=[payload["key_id"]],
+        allowed_scopes=["cli:read"],
+    )
+    issued = await governance.issue_route_token(
+        org_id=test_organization.id,
+        route_key="cli-status-route",
+        consumer_id=payload["key_id"],
+        requested_scopes=["cli:read"],
+    )
+
+    response = await auth_client.post(
+        "/api/v1/cli/execute",
+        headers={
+            "X-API-Key": payload["api_key"],
+            "X-Capability-Route-Token": issued.token,
+        },
+        json={"command": "status", "args": {}},
+    )
+    audits = (await db_session.execute(select(AgentAuditEvent))).scalars().all()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["result"]["system"] == "ok"
+    assert [event.reason_code for event in audits] == ["issued", "allowed"]
+
+
+@pytest.mark.asyncio
+async def test_cli_execute_enforces_route_token_consumer(
+    monkeypatch,
+    auth_client,
+    db_session,
+    test_organization,
+):
+    from src.api.routes import cli
+
+    monkeypatch.setattr(cli.settings, "ENVIRONMENT", "development")
+    monkeypatch.setattr(cli.settings, "CLI_ROUTE_TOKEN_REQUIRED", True)
+    create = await auth_client.post(
+        "/api/v1/cli/keys",
+        json={"name": "consumer-bound-cli", "scopes": ["read"], "expires_days": 7},
+    )
+    payload = create.json()
+    governance = AgentGovernanceService(db_session)
+    await governance.create_capability_route(
+        org_id=test_organization.id,
+        route_key="cli-consumer-bound-route",
+        route_type="cli",
+        allowed_consumers=["another-cli-key"],
+        allowed_scopes=["cli:read"],
+    )
+    issued = await governance.issue_route_token(
+        org_id=test_organization.id,
+        route_key="cli-consumer-bound-route",
+        consumer_id="another-cli-key",
+        requested_scopes=["cli:read"],
+    )
+
+    response = await auth_client.post(
+        "/api/v1/cli/execute",
+        headers={
+            "X-API-Key": payload["api_key"],
+            "X-Capability-Route-Token": issued.token,
+        },
+        json={"command": "status", "args": {}},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is False
+    assert "route_token_consumer_mismatch" in body["error"]

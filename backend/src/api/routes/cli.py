@@ -23,12 +23,16 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
 from src.core.database import get_db
 from src.core.deps import Permission, get_current_user_required, has_permission
 from src.models.user import User
 from src.services.audit_service import AuditService
 
 router = APIRouter(prefix="/cli", tags=["CLI"])
+
+COMMERCIAL_ENVIRONMENTS = {"staging", "production"}
+CLI_ROUTE_SCOPE_PREFIX = "cli:"
 
 
 class APIKeyRecord(TypedDict):
@@ -263,10 +267,19 @@ COMMAND_SCOPES = {
 BLOCKED_COMMANDS = {"delete", "payment", "sign", "admin"}
 
 
+def cli_route_governance_required() -> bool:
+    return bool(settings.CLI_ROUTE_TOKEN_REQUIRED or settings.ENVIRONMENT.lower() in COMMERCIAL_ENVIRONMENTS)
+
+
+def _cli_route_scope(required_scope: str) -> str:
+    return f"{CLI_ROUTE_SCOPE_PREFIX}{required_scope.strip().lower()}"
+
+
 @router.post("/execute", response_model=CLICommandResponse, summary="执行 CLI 命令")
 async def execute_command(
     request: CLICommandRequest,
     http_request: Request,
+    x_capability_route_token: str | None = Header(None, alias="X-Capability-Route-Token"),
     key_data: APIKeyRecord = Depends(verify_api_key),
     db: AsyncSession = Depends(get_db),
 ) -> CLICommandResponse:
@@ -310,6 +323,17 @@ async def execute_command(
             error=error,
         )
 
+    route_denial = await _authorize_cli_route(
+        db=db,
+        http_request=http_request,
+        key_data=key_data,
+        command=command,
+        route_token=x_capability_route_token,
+        required_scope=required_scope,
+    )
+    if route_denial is not None:
+        return route_denial
+
     # 审计记录
     logger.info(f"[CLI] 执行命令: {command} | key={key_data['key_id']} | args={args}")
 
@@ -348,6 +372,71 @@ async def execute_command(
             error=str(e),
             execution_time_ms=elapsed,
         )
+
+
+async def _authorize_cli_route(
+    *,
+    db: AsyncSession,
+    http_request: Request,
+    key_data: APIKeyRecord,
+    command: str,
+    route_token: str | None,
+    required_scope: str,
+) -> CLICommandResponse | None:
+    if not cli_route_governance_required():
+        return None
+
+    route_scope = _cli_route_scope(required_scope)
+    org_id = key_data.get("org_id")
+    consumer_id = key_data["key_id"]
+    if not org_id or not route_token:
+        error = "CLI route token required before command execution"
+        await _audit_cli_execute(
+            db,
+            http_request,
+            key_data,
+            command,
+            status="failed",
+            error_message=error,
+            extra_data={
+                "route_governance": "denied",
+                "route_reason": "missing_route_token",
+                "route_scope": route_scope,
+                "route_consumer_id": consumer_id,
+            },
+        )
+        return CLICommandResponse(success=False, command=command, error=error)
+
+    from src.services.agent_governance_service import AgentGovernanceService
+
+    decision = await AgentGovernanceService(db).validate_route_token(
+        org_id=org_id,
+        raw_token=route_token,
+        required_scope=route_scope,
+        consumer_id=consumer_id,
+        actor_user_id=key_data["user_id"],
+        actor_type="cli_api_key",
+    )
+    if decision.allowed:
+        return None
+
+    error = f"CLI route token denied: {decision.reason_code}"
+    await _audit_cli_execute(
+        db,
+        http_request,
+        key_data,
+        command,
+        status="failed",
+        error_message=error,
+        extra_data={
+            "route_governance": "denied",
+            "route_reason": decision.reason_code,
+            "route_scope": route_scope,
+            "route_consumer_id": consumer_id,
+            "route_audit_event_id": decision.audit_event_id,
+        },
+    )
+    return CLICommandResponse(success=False, command=command, error=error)
 
 
 async def _audit_cli_execute(

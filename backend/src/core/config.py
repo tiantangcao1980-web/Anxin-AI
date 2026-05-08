@@ -84,6 +84,7 @@ class Settings(BaseSettings):
         "X-Request-Timestamp", "X-Request-Nonce", "X-Request-Signature",
         "X-Client-ID", "X-Bot-Signals",
         "X-Challenge-ID", "X-Challenge-Solution",
+        "X-Capability-Route-Token",
     ]
 
     # 输入验证配置
@@ -111,6 +112,9 @@ class Settings(BaseSettings):
     # MCP tool execution route governance. staging/production fail closed even
     # when this explicit switch is false; the switch lets tests/dev rehearse it.
     MCP_TOOL_ROUTE_TOKEN_REQUIRED: bool = False
+    # CLI command execution route governance. staging/production fail closed even
+    # when this explicit switch is false; the switch lets tests/dev rehearse it.
+    CLI_ROUTE_TOKEN_REQUIRED: bool = False
 
     # ========== 反Bot防御配置 ==========
     ANTIBOT_ENABLED: bool = False               # 总开关

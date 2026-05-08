@@ -187,7 +187,7 @@ sandbox_required_env=(
   "FADADA_API_URL"
 )
 
-mcp_governance_env=(
+capability_governance_env=(
   "MCP_STANDALONE_ENABLED"
   "MCP_STDIO_ENABLED"
   "MCP_STDIO_ALLOWED_COMMANDS"
@@ -196,6 +196,7 @@ mcp_governance_env=(
   "MCP_SSE_ALLOWED_HOSTS"
   "MCP_SSE_ALLOWED_SCHEMES"
   "MCP_TOOL_ROUTE_TOKEN_REQUIRED"
+  "CLI_ROUTE_TOKEN_REQUIRED"
 )
 
 for template in ".env.example" "backend/.env.example"; do
@@ -204,9 +205,9 @@ for template in ".env.example" "backend/.env.example"; do
       add_failure "sandbox evidence config template is missing ${env_name}: ${template}"
     fi
   done
-  for env_name in "${mcp_governance_env[@]}"; do
+  for env_name in "${capability_governance_env[@]}"; do
     if ! rg -q "^${env_name}=" "$template"; then
-      add_failure "MCP governance config template is missing ${env_name}: ${template}"
+      add_failure "capability governance config template is missing ${env_name}: ${template}"
     fi
   done
 done
@@ -378,6 +379,8 @@ if [ "$RUN_LOCAL_TESTS" -eq 1 ]; then
     bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_agent_governance_service.py"
   require_command "MCP route governance tests" \
     bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_mcp_route_governance.py"
+  require_command "CLI route governance tests" \
+    bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_cli_route.py"
   require_command "skill evolution gate tests" \
     bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_skill_evolution_service.py tests/test_skill_service.py"
   require_command "approval authorization guard tests" \
