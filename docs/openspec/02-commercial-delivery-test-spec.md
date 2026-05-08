@@ -21,7 +21,7 @@
 | 可信会话体验 | 长任务像 Codex/Claude 式可信工作台一样过程可见、证据可点、artifact 可编辑、可打断可恢复 | 任务时间线、工具状态、引用链接、artifact 编辑、暂停/恢复/取消/接管、跨设备继续 E2E |
 | Skills 进化与智能体自我改进 | Skill 可以从失败中改进，但不能无评测、无审批自改生产能力 | SkillEvolutionProposal、eval gate、审批、灰度、回滚、审计日志和越权拒绝测试 |
 | 企业智能体治理 | 组织默认只开放基础能力，完整能力受订阅、老板/Owner、超级管理员、角色、风险级别和设备信任约束 | 权限矩阵、审批流、审计日志、拒绝原因、撤销/回滚测试 |
-| 协作式多智能体控制面 | Agent/Worker 不持有真实密钥，任务在可见工作室中可旁听、暂停、接管、终止 | AgentManager/Team/Worker/Human/ChannelPolicy/CapabilityRoute 模型测试；Gateway consumer token 与 allowed route 回归 |
+| 协作式多智能体控制面 | Agent/Worker 不持有真实密钥，任务在可见工作室中可旁听、暂停、接管、终止 | AgentManager/Team/Worker/Human/ChannelPolicy/CapabilityRoute/TokenLease/Approval/AuditEvent 模型与迁移测试；Gateway consumer token 与 allowed route 回归 |
 
 本节任一 P0 证据缺失时，不得把项目描述为“全面智能助手商业交付完成态”；只能描述为“已有基础，待发布验收”。
 

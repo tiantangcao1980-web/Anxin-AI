@@ -53,7 +53,7 @@
 | # | 能力 | 现状 | 期望 |
 |---|---|---|---|
 | P0-1 | 统一权限决策 | 目前 RBAC、订阅、隐私模式、工具调用分散 | `capability_policy_engine` 统一判定 `subscription + role + permission + risk_level + privacy_mode + device_trust + channel_policy + approval_state` |
-| P0-2 | Agent 控制面模型 | 缺 AgentManager/Team/Worker/Human/ChannelPolicy/CapabilityRoute | 建立可审计数据模型，支持组织/部门/项目/客户维度 |
+| P0-2 | Agent 控制面模型 | AgentManager/Team/Worker/Human/ChannelPolicy/CapabilityRoute/TokenLease/Approval/AuditEvent 模型与迁移已补；服务/UI/真实运行时接入未闭环 | 建立可审计数据模型，支持组织/部门/项目/客户维度 |
 | P0-3 | 真实密钥隔离 | MCP/LLM/第三方工具存在各自配置路径 | Agent/Worker 只拿短期 consumer token 或等价 route token；真实 API key/PAT/财税凭据只在密钥服务/网关侧 |
 | P0-4 | 高风险审批 | 高风险动作缺统一审批模型 | L3/L4 能力必须创建 approval request；老板/超级管理员或授权管理员批准后才能执行；过期/撤销 fail-closed |
 | P0-5 | 通信/房间策略 | 当前没有声明式 agent channel policy | 定义谁能看、谁能说、谁能 @、谁能分派、谁能接管；外部专业服务方只能看授权材料包 |
@@ -84,8 +84,16 @@
 - `human_participants`：用户、外部服务方和可见范围。
 - `agent_channel_policies`：group/DM/workspace allow/deny。
 - `capability_routes`：LLM/MCP/Skill/CLI/browser/desktop-control route 与 allowed consumers。
+- `capability_route_token_leases`：短期 route token 的 hash、consumer、scope、过期和撤销状态；不保存原始 token。
 - `agent_approvals`：审批状态、过期、撤销、二次确认。
 - `agent_audit_events`：请求、拒绝、批准、执行、失败、撤销、接管。
+
+当前本地进展：
+
+- `backend/src/models/agent_governance.py` 已建立 AgentManager、AgentTeam、AgentWorker、HumanParticipant、AgentChannelPolicy、CapabilityRoute、CapabilityRouteTokenLease、AgentApproval 和 AgentAuditEvent。
+- `backend/alembic/versions/040_add_agent_governance_control_plane.py` 已提供上述 9 张表的 upgrade/downgrade，并在 PostgreSQL 上为 `agent_audit_events` 创建 update/delete 拒绝 trigger。
+- `backend/tests/test_agent_governance_models.py` 已锁住模型注册、CapabilityRoute 不保存真实密钥/原始 token、TokenLease 只保存 hash、组织级 route 唯一约束、复合租户外键、跨组织写入失败、审计不可变监听和迁移无敏感列。
+- 后续仍需把这些模型接入 service/API/UI、真实 MCP/LLM/CLI/browser/desktop-control 能力链路、Human-in-the-loop 工作室和跨进程撤销失权证据。
 
 ### Step 2 · Policy Engine
 
@@ -130,7 +138,7 @@ can_execute_capability(actor, org, capability, risk_level, data_scope, privacy_m
 - `backend/src/services/skill_evolution_service.py` 已补最小本地门禁：draft proposal、required eval checks、授权角色审批、灰度、回滚和审计。
 - `backend/src/services/skill_service.py` 已支持在治理模式下只返回当前 enabled version。
 - `backend/tests/test_skill_evolution_service.py` 与 `backend/tests/test_skill_service.py` 已覆盖 agent 不能自启生产版本、评测失败/缺失拒绝审批、越权审批拒绝、灰度百分比边界、回滚后下一次技能匹配回到上一版本。
-- 仍需后续把本地门禁生产化为数据库持久化 SkillGovernance/Approval/AuditEvent、组织级能力中心 UI、真实 CapabilityRoute 撤销联动和记忆治理。
+- 仍需后续把本地门禁生产化为数据库持久化 SkillGovernance，并把 AgentApproval/AgentAuditEvent 接入真实执行链路、组织级能力中心 UI、真实 CapabilityRoute 撤销联动和记忆治理。
 
 - 定义 `SkillEvolutionProposal`：来源失败案例、用户反馈、评测失败、人工建议或 agent 观察。
 - Proposal 只能生成草案、测试和风险说明；不得自动修改 enabled Skill。
@@ -176,7 +184,7 @@ docs/audit/12-enterprise-agent-governance/
 ## 6. 完成标准
 
 - [ ] `capability_policy_engine` 覆盖订阅、角色、权限、风险级别、隐私模式、设备信任、通信策略和审批状态。
-- [ ] AgentManager / AgentTeam / AgentWorker / HumanParticipant / ChannelPolicy / CapabilityRoute / Approval / AuditEvent 模型与 migration 有 upgrade/downgrade。
+- [x] AgentManager / AgentTeam / AgentWorker / HumanParticipant / ChannelPolicy / CapabilityRoute / TokenLease / Approval / AuditEvent 模型与 migration 有 upgrade/downgrade。
 - [ ] Worker/Agent 不持有真实密钥；撤销 CapabilityRoute 后下一次调用失败并写审计。
 - [ ] 五类权限回归通过：员工浏览器填表被拒、部门管理员创建部门报告 agent、老板批准桌面远控、超级管理员撤销 MCP route、外部服务方只能看授权材料包。
 - [ ] 能力中心只对老板/超级管理员展示全量能力；普通员工只见基础能力和可申请项。

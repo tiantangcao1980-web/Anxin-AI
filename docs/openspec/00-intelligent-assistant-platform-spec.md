@@ -175,8 +175,8 @@ Skills 和智能体进化必须受治理：
 - 通用工作助手、软件/原型工作台、浏览器执行器、CLI harness 和定时自动化尚缺统一产品入口、沙盒执行和企业审批。
 - Codex/Claude 风格的可信会话体验尚缺完整产品化：长任务计划/进度/证据/可恢复状态、artifact 编辑、能力命令面板和跨设备接续仍需统一设计与验收。
 - Skills 进化和智能体自我改进已补本地 `SkillEvolutionService` 与测试，覆盖 agent 只能提案、必需评测、授权角色审批、灰度、回滚和审计；仍缺数据库持久化模型、组织级 UI、真实执行链路失权、记忆治理和商业发布证据。
-- 企业智能体治理已补第一层 agent capability policy 决策引擎，覆盖未注册工具 fail-closed、订阅 feature、角色 permission、隐私模式、设备信任、通道策略和审批上下文；MCP 外部连接已补 stdio command/command-line/env allowlist、SSE scheme/host allowlist 和子进程最小环境；短期 route token broker 已补 hash-only storage、scope、过期、撤销后下一次验证失败和审计；仍缺持久化 Agent/Team/Worker/Human/CapabilityRoute 模型、Human-in-the-loop 工作室、真实 approved MCP connector 演练和跨进程撤销后立即失权证据。
-- 协作式多智能体控制面尚缺 AgentManager、AgentTeam、AgentWorker、HumanParticipant、ChannelPolicy、CapabilityRoute 和 SharedArtifactStore 的正式数据模型与审计闭环。
+- 企业智能体治理已补第一层 agent capability policy 决策引擎，覆盖未注册工具 fail-closed、订阅 feature、角色 permission、隐私模式、设备信任、通道策略和审批上下文；MCP 外部连接已补 stdio command/command-line/env allowlist、SSE scheme/host allowlist 和子进程最小环境；短期 route token broker 已补 hash-only storage、scope、过期、撤销后下一次验证失败和审计；持久化 AgentManager/Team/Worker/Human/ChannelPolicy/CapabilityRoute/TokenLease/Approval/AuditEvent 模型与迁移已补，并锁住复合租户外键、raw token 不入库和审计 update/delete 防线；仍缺 service/API/UI 接入、Human-in-the-loop 工作室、真实 approved MCP connector 演练和跨进程撤销后立即失权证据。
+- 协作式多智能体控制面已补正式管控模型与迁移，尚缺 SharedArtifactStore、真实运行时写入 CapabilityRouteTokenLease/AgentApproval/AgentAuditEvent、Human-in-the-loop 工作室和审计导出闭环。
 - 税务师、税务事务所、财务顾问、会计/审计人员等专业服务方仍处于规范预留和后续扩展阶段。
 - 舆情监测到专业处置和服务方获客的商业闭环仍需产品与代码验收。
 

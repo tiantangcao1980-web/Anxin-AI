@@ -7,6 +7,17 @@
 
 
 from src.models.ai_assistant import AIAssistantConfig, AIAssistantFeedback, ConversationSummary
+from src.models.agent_governance import (
+    AgentApproval,
+    AgentAuditEvent,
+    AgentChannelPolicy,
+    AgentManager,
+    AgentTeam,
+    AgentWorker,
+    CapabilityRoute,
+    CapabilityRouteTokenLease,
+    HumanParticipant,
+)
 from src.models.approval import Approval, ApprovalStatus, ApprovalTemplate, ApprovalType, ChainMode
 from src.models.asset import Asset
 from src.models.audit import AuditAction, AuditLog, ResourceType
@@ -92,6 +103,15 @@ __all__ = [
     "PasswordResetToken",
     "WebhookReceived",
     "SyncLog",
+    "AgentManager",
+    "AgentTeam",
+    "AgentWorker",
+    "HumanParticipant",
+    "AgentChannelPolicy",
+    "CapabilityRoute",
+    "CapabilityRouteTokenLease",
+    "AgentApproval",
+    "AgentAuditEvent",
 
     # ??
 

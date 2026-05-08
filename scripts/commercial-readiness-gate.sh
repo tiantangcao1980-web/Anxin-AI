@@ -371,6 +371,8 @@ if [ "$RUN_LOCAL_TESTS" -eq 1 ]; then
     bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_agent_governance_policy.py"
   require_command "capability route token tests" \
     bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_capability_routes.py"
+  require_command "agent governance model tests" \
+    bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_agent_governance_models.py"
   require_command "skill evolution gate tests" \
     bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_skill_evolution_service.py tests/test_skill_service.py"
   require_command "approval authorization guard tests" \

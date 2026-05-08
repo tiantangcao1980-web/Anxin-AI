@@ -43,6 +43,14 @@ def test_commercial_gate_runs_capability_route_token_tests():
     assert "tests/test_capability_routes.py" in script
 
 
+def test_commercial_gate_runs_agent_governance_model_tests():
+    repo_root = Path(__file__).resolve().parents[2]
+    script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
+
+    assert 'require_command "agent governance model tests"' in script
+    assert "tests/test_agent_governance_models.py" in script
+
+
 def test_commercial_gate_runs_skill_evolution_gate_tests():
     repo_root = Path(__file__).resolve().parents[2]
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
