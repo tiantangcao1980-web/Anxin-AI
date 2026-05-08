@@ -13,9 +13,27 @@ import './index.scss'
 
 const menuItems = [
   { icon: '💬', title: '我的咨询', desc: '查看咨询记录', path: '/pages/chat/index' },
-  { icon: '📄', title: '我的合同', desc: '合同管理', path: '' },
-  { icon: '📁', title: '我的案件', desc: '案件进度跟踪', path: '' },
-  { icon: '👨‍⚖️', title: '联系律师', desc: '专业律师对接', path: '' },
+  {
+    icon: '📄',
+    title: '合同审查',
+    desc: '上传前先梳理风险',
+    path: '/pages/chat/index',
+    pendingQuestion: '我想处理一份合同，请帮我整理审查材料清单、重点条款和需要专业律师介入的风险点。',
+  },
+  {
+    icon: '📁',
+    title: '案件协助',
+    desc: '梳理进展与材料',
+    path: '/pages/chat/index',
+    pendingQuestion: '我需要梳理一个企业法务事项或案件，请帮我列出事实时间线、证据材料和下一步行动。',
+  },
+  {
+    icon: '👨‍⚖️',
+    title: '联系律师',
+    desc: '专业律师对接',
+    path: '/pages/chat/index',
+    pendingQuestion: '我需要联系专业律师，请帮我判断事项紧急程度、适合的律师类型以及沟通前需要准备的材料。',
+  },
 ]
 
 const privacyModeLabels: Record<MiniProgramPrivacyMode, string> = {
@@ -128,14 +146,13 @@ export default function Profile() {
       Taro.showToast({ title: '请先登录', icon: 'none' })
       return
     }
-    if (item.path) {
-      if (tabBarPaths.includes(item.path)) {
-        Taro.switchTab({ url: item.path })
-      } else {
-        Taro.navigateTo({ url: item.path })
-      }
+    if (item.pendingQuestion) {
+      Taro.setStorageSync('pending_question', item.pendingQuestion)
+    }
+    if (tabBarPaths.includes(item.path)) {
+      Taro.switchTab({ url: item.path })
     } else {
-      Taro.showToast({ title: `${item.title} - 功能开发中`, icon: 'none' })
+      Taro.navigateTo({ url: item.path })
     }
   }
 

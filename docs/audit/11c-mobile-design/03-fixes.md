@@ -5,7 +5,8 @@
 - 移动审批/案件/消息/任务详情不再用 synthetic fallback 伪装成功。
 - 小程序 profile 登录链路已移除生产 mock token，改为 `wx.login -> code2session -> JWT`。
 - 小程序首页资讯加载失败/空数据改为明确空态。
-- `scripts/mobile-device-smoke.sh` 固化 mobile/mini 本地 smoke、mini-program privacy boundary guard、fake fallback guard 与 mini-program design token guard。
+- 小程序首页和个人中心主入口已移除空路径和“功能开发中”死胡同，统一跳转 AI 助手并预填业务问题。
+- `scripts/mobile-device-smoke.sh` 固化 mobile/mini 本地 smoke、mini-program privacy boundary guard、mini-program navigation boundary guard、fake fallback guard 与 mini-program design token guard。
 - 移动端 `Layout.touchTarget.min=44`，Tab bar 与 EmptyState action 接入最小触控目标。
 - 小程序 `$touch-target-min=88rpx`，首页动作、个人中心菜单和聊天发送按钮获得全局最小触控目标。
 - 新增 `mini-program/src/styles/design-tokens.scss` 和 `design-tokens.ts`；首页、聊天、个人中心页面 SCSS 与 `app.config.ts` 已从 hardcoded 色值迁移到语义 token。

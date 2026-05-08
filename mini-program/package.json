@@ -18,6 +18,7 @@
     "build:h5": "taro build --type h5",
     "postbuild:h5": "node scripts/check-bundle-size.js",
     "check-size": "node scripts/check-bundle-size.js",
+    "check-navigation-boundary": "node scripts/check-navigation-boundary.js",
     "check-privacy-boundary": "node scripts/check-privacy-boundary.js",
     "typecheck": "tsc --noEmit --skipLibCheck --noUnusedLocals false",
     "predev:h5": "npm run generate-icons",

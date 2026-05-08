@@ -2,7 +2,7 @@
 
 Status: pending
 Owner: TBD
-Environment: code-level mobile/mini smoke complete; Expo config, SDK dependency guard, Expo doctor, mini-program privacy boundary guard, and WeChat DevTools CLI project smoke complete; cross-platform token drift audit complete; iOS, Android, interactive WeChat DevTools / real device pending
+Environment: code-level mobile/mini smoke complete; Expo config, SDK dependency guard, Expo doctor, mini-program privacy and navigation boundary guards, and WeChat DevTools CLI project smoke complete; cross-platform token drift audit complete; iOS, Android, interactive WeChat DevTools / real device pending
 Date range: 2026-05-06 to 2026-05-08 local collection
 
 > Simulator/unit tests are useful but insufficient. This evidence requires real or official-device-tool runs for the critical user stories.
@@ -33,6 +33,7 @@ cd mobile && npx tsc --noEmit --module esnext
 cd mobile && npx expo-doctor
 cd mini-program && npx tsc --noEmit --skipLibCheck --noUnusedLocals false
 cd mini-program && npm run check-privacy-boundary
+cd mini-program && npm run check-navigation-boundary
 cd mini-program && npm run build:weapp
 ```
 
@@ -57,6 +58,7 @@ Result refreshed on 2026-05-08 local time:
 | mobile npm audit security summary | exit `0`; `critical=0`, `high=0`, `total=0`; `@xmldom/xmldom`, `@expo/plist`, Expo CLI `tar`, and Metro `postcss` findings are remediated by targeted overrides; `tar@7.5.14` crosses Expo CLI's declared semver range, so Expo doctor and real-device smoke remain required release verification |
 | mini-program TypeScript check | exit `0` |
 | mini-program privacy boundary guard | exit `0`; static guard verifies `local` / `top-secret` block before `Taro.request`, login blocks before `Taro.login`, and index/chat render privacy-specific error states |
+| mini-program navigation boundary guard | exit `0`; static guard verifies home/profile primary entries do not use empty paths or generic development placeholders |
 | mini-program WeChat build | exit `0`; Taro compiled successfully |
 | mini-program WeChat DevTools CLI smoke | exit `0`; `/Applications/wechatwebdevtools.app/Contents/MacOS/cli auto --project <repo>/mini-program --trust-project` accepted `touristappid` |
 | mobile and mini fake fallback guard | exit `0`; guards against `fallbackMessages`, `fallbackTask`, `mock_token`, leaked `session_key`, fake success markers; confirms `wx.login/code2session` path and no fake news fallback |

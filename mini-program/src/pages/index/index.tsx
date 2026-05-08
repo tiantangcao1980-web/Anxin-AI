@@ -6,9 +6,27 @@ import './index.scss'
 
 const quickActions = [
   { icon: '🤖', title: 'AI法律咨询', desc: '智能问答', path: '/pages/chat/index' },
-  { icon: '📄', title: '合同审查', desc: '风险识别', path: '' },
-  { icon: '👨‍⚖️', title: '找律师', desc: '专业匹配', path: '' },
-  { icon: '✅', title: '合规自检', desc: '快速筛查', path: '' },
+  {
+    icon: '📄',
+    title: '合同审查',
+    desc: '风险识别',
+    path: '/pages/chat/index',
+    pendingQuestion: '我需要审查一份合同，请先告诉我需要提供哪些内容，并按风险等级输出审查清单。',
+  },
+  {
+    icon: '👨‍⚖️',
+    title: '找律师',
+    desc: '专业匹配',
+    path: '/pages/chat/index',
+    pendingQuestion: '我需要匹配一位可信赖的专业律师，请先帮我梳理事项类型、地区、紧急程度和预算范围。',
+  },
+  {
+    icon: '✅',
+    title: '合规自检',
+    desc: '快速筛查',
+    path: '/pages/chat/index',
+    pendingQuestion: '请帮我做一次中小企业日常经营合规自检，优先覆盖劳动用工、合同、税务和财务风险。',
+  },
 ]
 
 interface NewsItem {
@@ -62,14 +80,13 @@ export default function Index() {
   const tabBarPaths = ['/pages/index/index', '/pages/chat/index', '/pages/profile/index']
 
   const handleQuickAction = (action: typeof quickActions[0]) => {
-    if (action.path) {
-      if (tabBarPaths.includes(action.path)) {
-        Taro.switchTab({ url: action.path })
-      } else {
-        Taro.navigateTo({ url: action.path })
-      }
+    if (action.pendingQuestion) {
+      Taro.setStorageSync('pending_question', action.pendingQuestion)
+    }
+    if (tabBarPaths.includes(action.path)) {
+      Taro.switchTab({ url: action.path })
     } else {
-      Taro.showToast({ title: '功能开发中', icon: 'none' })
+      Taro.navigateTo({ url: action.path })
     }
   }
 

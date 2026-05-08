@@ -27,6 +27,7 @@ Checks:
   - mini-program WeChat build unless skipped
   - WeChat DevTools CLI can open/trust the built mini-program project unless skipped
   - static guards against known fake mobile/mini fallback regressions
+  - static guard against mini-program primary navigation dead ends
   - static guard against refresh-token network failures clearing auth state
   - static guard that mobile and mini-program privacy modes fail closed before data network I/O
   - static guard that mini-program page/config colors come from design tokens
@@ -154,6 +155,9 @@ run_step "mini-program TypeScript check" \
 
 run_step "mini-program privacy boundary guard" \
   bash -lc "cd mini-program && npm run check-privacy-boundary"
+
+run_step "mini-program navigation boundary guard" \
+  bash -lc "cd mini-program && npm run check-navigation-boundary"
 
 if [ "$SKIP_MINI_BUILD" -eq 0 ]; then
   run_step "mini-program WeChat build" \
@@ -315,6 +319,7 @@ report = {
         "mobile_expo_doctor": "passed",
         "mini_program_typescript": "passed",
         "mini_program_privacy_boundary_guard": "passed",
+        "mini_program_navigation_boundary_guard": "passed",
         "mini_program_wechat_build": "skipped" if skip_mini_build else "passed",
         "mini_program_wechat_devtools_cli": wechat_devtools_status,
         "mobile_refresh_auth_guard": "passed",

@@ -18,6 +18,7 @@ bash scripts/mobile-device-smoke.sh
 - refresh auth guard：exit `0`
 - fake fallback guard：exit `0`
 - mini-program privacy boundary guard：`cd mini-program && npm run check-privacy-boundary` 会确认 local/top-secret 在 `Taro.request` 前阻断、登录在 `Taro.login` 前阻断，且首页/聊天有隐私阻断错误态。
+- mini-program navigation boundary guard：`cd mini-program && npm run check-navigation-boundary` 会确认首页/个人中心主入口不再使用空路径，也不会回退到“功能开发中”占位。
 - mini-program design token guard：`bash scripts/mobile-device-smoke.sh` 会扫描小程序 `*.scss` / `*.ts`，只允许 `mini-program/src/styles/design-tokens.(scss|ts)` 保留原始色值；页面样式和 `app.config.ts` 必须走 token
 
 ## 相关单测
