@@ -2968,6 +2968,26 @@ export interface AgentApprovalAuditExport {
 
 export type AgentWorkspaceControlAction = 'pause' | 'takeover' | 'terminate'
 
+export interface AgentWorkspaceArtifact {
+  id: string
+  approval_id: string
+  artifact_type: string
+  title: string
+  content: Record<string, unknown>
+  metadata: Record<string, unknown>
+  created_by?: string | null
+  created_at?: string | null
+}
+
+export interface AgentWorkspaceArtifactExport {
+  schema_version: string
+  generated_at: string
+  approval: AgentApprovalItem
+  artifacts: AgentWorkspaceArtifact[]
+  total: number
+  limit: number
+}
+
 export interface AgentCapabilityRoutePolicy {
   id: string
   org_id: string
@@ -3075,6 +3095,40 @@ export const agentApprovalsApi = {
       method: 'POST',
       body: JSON.stringify({ action, reason }),
     }),
+
+  workspaceArtifacts: {
+    list: (id: string, limit = 50) =>
+      request<{ items: AgentWorkspaceArtifact[]; total: number }>(
+        `/agent-approvals/${id}/artifacts?limit=${limit}`,
+      ),
+
+    create: (
+      id: string,
+      data: {
+        artifact_type: string
+        title: string
+        content: Record<string, unknown>
+        metadata?: Record<string, unknown>
+      },
+    ) =>
+      request<{
+        allowed: boolean
+        reason_code: string
+        human_message: string
+        approval_id?: string | null
+        status?: AgentApprovalStatus | null
+        audit_event_id?: string | null
+        artifact?: AgentWorkspaceArtifact | null
+      }>(`/agent-approvals/${id}/artifacts`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    export: (id: string, limit = 100) =>
+      request<AgentWorkspaceArtifactExport>(
+        `/agent-approvals/${id}/artifacts/export?limit=${limit}`,
+      ),
+  },
 
   validate: (data: { approval_id?: string | null; action_type: string; route_key?: string; route_id?: string }) =>
     request<AgentApprovalDecision>('/agent-approvals/validate', {

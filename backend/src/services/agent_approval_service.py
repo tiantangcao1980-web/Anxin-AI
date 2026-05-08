@@ -33,6 +33,29 @@ class AgentApprovalDecision:
     audit_event_id: str | None = None
 
 
+@dataclass(frozen=True)
+class AgentWorkspaceArtifact:
+    id: str
+    approval_id: str
+    artifact_type: str
+    title: str
+    content: dict[str, Any]
+    metadata: dict[str, Any]
+    created_at: datetime
+    created_by: str | None = None
+
+
+@dataclass(frozen=True)
+class AgentWorkspaceArtifactChange:
+    allowed: bool
+    reason_code: str
+    human_message: str
+    artifact: AgentWorkspaceArtifact | None = None
+    approval_id: str | None = None
+    status: str | None = None
+    audit_event_id: str | None = None
+
+
 class AgentApprovalService:
     """Creates, decides, revokes, and validates high-risk agent approvals."""
 
@@ -418,6 +441,143 @@ class AgentApprovalService:
             audit_event_id=event.id,
         )
 
+    async def list_workspace_artifacts(
+        self,
+        *,
+        org_id: str,
+        approval_id: str,
+        limit: int = 50,
+    ) -> list[AgentWorkspaceArtifact]:
+        approval = await self._get_approval(org_id=org_id, approval_id=approval_id)
+        if approval is None:
+            return []
+        rows = (
+            await self.db.execute(
+                select(AgentAuditEvent)
+                .where(
+                    AgentAuditEvent.org_id == org_id,
+                    AgentAuditEvent.resource_type == "agent_workspace_artifact",
+                    AgentAuditEvent.resource_id == approval.id,
+                    AgentAuditEvent.action == "agent_workspace.artifact.add",
+                    AgentAuditEvent.status == "success",
+                )
+                .order_by(AgentAuditEvent.created_at.desc())
+                .limit(limit)
+            )
+        ).scalars().all()
+        return [_artifact_from_event(event) for event in rows]
+
+    async def add_workspace_artifact(
+        self,
+        *,
+        org_id: str,
+        approval_id: str,
+        artifact_type: str,
+        title: str,
+        content: dict[str, Any],
+        actor_user_id: str,
+        actor_role: str,
+        metadata: dict[str, Any] | None = None,
+        now: datetime | None = None,
+    ) -> AgentWorkspaceArtifactChange:
+        created_at = now or _now()
+        approval = await self._get_approval(org_id=org_id, approval_id=approval_id)
+        if approval is None:
+            event = self._audit_unknown_approval(
+                org_id=org_id,
+                approval_id=approval_id,
+                action="agent_workspace.artifact.add",
+                actor_user_id=actor_user_id,
+                actor_role=actor_role,
+                now=created_at,
+            )
+            await self.db.flush()
+            return AgentWorkspaceArtifactChange(
+                allowed=False,
+                reason_code="unknown_agent_approval",
+                human_message="Approval does not exist.",
+                audit_event_id=event.id,
+            )
+
+        normalized_role = actor_role.strip().lower()
+        if normalized_role not in AUTHORIZED_APPROVER_ROLES:
+            event = self._audit_approval(
+                approval=approval,
+                action="agent_workspace.artifact.add",
+                status="denied",
+                reason_code="approver_role_not_allowed",
+                actor_user_id=actor_user_id,
+                actor_role=normalized_role,
+                metadata={"artifact_type": artifact_type},
+                now=created_at,
+            )
+            await self.db.flush()
+            return AgentWorkspaceArtifactChange(
+                allowed=False,
+                reason_code="approver_role_not_allowed",
+                human_message="Current user role cannot add high-risk agent workspace artifacts.",
+                approval_id=approval.id,
+                status=approval.status,
+                audit_event_id=event.id,
+            )
+
+        denial = self._approval_workspace_control_denial(approval=approval, now=created_at)
+        if denial:
+            event = self._audit_approval(
+                approval=approval,
+                action="agent_workspace.artifact.add",
+                status="denied",
+                reason_code=denial,
+                actor_user_id=actor_user_id,
+                actor_role=normalized_role,
+                metadata={"artifact_type": artifact_type},
+                now=created_at,
+            )
+            await self.db.flush()
+            return AgentWorkspaceArtifactChange(
+                allowed=False,
+                reason_code=denial,
+                human_message=_reason_message(denial),
+                approval_id=approval.id,
+                status=approval.status,
+                audit_event_id=event.id,
+            )
+
+        snapshot = {
+            "approval_id": approval.id,
+            "artifact_type": _required(artifact_type, "artifact_type").lower(),
+            "title": _required(title, "title"),
+            "content": _sanitize_payload(content) or {},
+            "metadata": _sanitize_payload(metadata) or {},
+        }
+        event = self._audit_approval(
+            approval=approval,
+            action="agent_workspace.artifact.add",
+            status="success",
+            reason_code="artifact_recorded",
+            actor_user_id=actor_user_id,
+            actor_role=normalized_role,
+            metadata={
+                "artifact_type": snapshot["artifact_type"],
+                "title": snapshot["title"],
+            },
+            now=created_at,
+        )
+        event.resource_type = "agent_workspace_artifact"
+        event.resource_id = approval.id
+        event.resource_snapshot = snapshot
+        await self.db.flush()
+        artifact = _artifact_from_event(event)
+        return AgentWorkspaceArtifactChange(
+            allowed=True,
+            reason_code="artifact_recorded",
+            human_message="Agent workspace artifact recorded.",
+            artifact=artifact,
+            approval_id=approval.id,
+            status=approval.status,
+            audit_event_id=event.id,
+        )
+
     async def validate_approval(
         self,
         *,
@@ -740,6 +900,21 @@ def _route_snapshot(route: CapabilityRoute) -> dict[str, str]:
         "risk_level": route.risk_level,
         "status": route.status,
     }
+
+
+def _artifact_from_event(event: AgentAuditEvent) -> AgentWorkspaceArtifact:
+    snapshot = event.resource_snapshot or {}
+    metadata = event.metadata_json or {}
+    return AgentWorkspaceArtifact(
+        id=event.id,
+        approval_id=str(snapshot.get("approval_id") or event.resource_id or ""),
+        artifact_type=str(snapshot.get("artifact_type") or metadata.get("artifact_type") or ""),
+        title=str(snapshot.get("title") or metadata.get("title") or ""),
+        content=snapshot.get("content") if isinstance(snapshot.get("content"), dict) else {},
+        metadata=snapshot.get("metadata") if isinstance(snapshot.get("metadata"), dict) else {},
+        created_at=event.created_at,
+        created_by=event.actor_user_id,
+    )
 
 
 def _sanitize_payload(payload: dict[str, Any] | None) -> dict[str, Any] | None:

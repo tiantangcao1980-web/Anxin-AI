@@ -14,6 +14,8 @@ import {
   type AgentCapabilityRoutePolicy,
   type AgentApprovalItem,
   type AgentApprovalStatus,
+  type AgentWorkspaceArtifact,
+  type AgentWorkspaceArtifactExport,
   type AgentWorkspaceControlAction,
   type HarnessAgentTools,
   type HarnessToolItem,
@@ -123,6 +125,18 @@ function downloadAuditArtifact(approvalId: string, artifact: AgentApprovalAuditE
   window.setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
+function downloadWorkspaceArtifacts(approvalId: string, artifact: AgentWorkspaceArtifactExport): void {
+  const blob = new Blob([JSON.stringify(artifact, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `agent-approval-${safeFileSegment(approvalId)}-workspace-artifacts.json`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 0)
+}
+
 function downloadSkillAuditArtifact(proposalId: string, artifact: SkillGovernanceAuditExport): void {
   const blob = new Blob([JSON.stringify(artifact, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -210,6 +224,11 @@ export default function AgentApprovalWorkspace() {
   const [expandedAuditId, setExpandedAuditId] = useState<string | null>(null)
   const [exportingAuditId, setExportingAuditId] = useState<string | null>(null)
   const [controlBusyKey, setControlBusyKey] = useState<string | null>(null)
+  const [workspaceArtifactsById, setWorkspaceArtifactsById] = useState<Record<string, AgentWorkspaceArtifact[]>>({})
+  const [workspaceArtifactLoadingId, setWorkspaceArtifactLoadingId] = useState<string | null>(null)
+  const [expandedWorkspaceArtifactId, setExpandedWorkspaceArtifactId] = useState<string | null>(null)
+  const [workspaceArtifactBusyId, setWorkspaceArtifactBusyId] = useState<string | null>(null)
+  const [workspaceArtifactExportingId, setWorkspaceArtifactExportingId] = useState<string | null>(null)
   const [skillProposals, setSkillProposals] = useState<SkillGovernanceProposal[]>([])
   const [skillEnabled, setSkillEnabled] = useState<SkillGovernanceEnabledVersion | null>(null)
   const [skillLoading, setSkillLoading] = useState(true)
@@ -422,6 +441,69 @@ export default function AgentApprovalWorkspace() {
       toast.error(err instanceof Error ? err.message : '工作室控制被拒绝')
     } finally {
       setControlBusyKey(null)
+    }
+  }
+
+  const toggleWorkspaceArtifacts = async (item: AgentApprovalItem) => {
+    if (expandedWorkspaceArtifactId === item.id) {
+      setExpandedWorkspaceArtifactId(null)
+      return
+    }
+
+    setExpandedWorkspaceArtifactId(item.id)
+    if (workspaceArtifactsById[item.id]) return
+
+    setWorkspaceArtifactLoadingId(item.id)
+    try {
+      const response = await agentApprovalsApi.workspaceArtifacts.list(item.id)
+      setWorkspaceArtifactsById((prev) => ({ ...prev, [item.id]: response.items }))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '工作室成果加载失败')
+    } finally {
+      setWorkspaceArtifactLoadingId(null)
+    }
+  }
+
+  const recordWorkspaceArtifact = async (item: AgentApprovalItem) => {
+    setWorkspaceArtifactBusyId(item.id)
+    try {
+      const response = await agentApprovalsApi.workspaceArtifacts.create(item.id, {
+        artifact_type: 'summary',
+        title: '高风险工作摘要',
+        content: {
+          action_type: item.action_type,
+          status: item.status,
+          checkpoint: 'operator-reviewed-workspace',
+        },
+        metadata: {
+          source: 'agent-approval-workspace',
+        },
+      })
+      if (response.artifact) {
+        setWorkspaceArtifactsById((prev) => ({
+          ...prev,
+          [item.id]: [response.artifact as AgentWorkspaceArtifact, ...(prev[item.id] ?? [])],
+        }))
+      }
+      setExpandedWorkspaceArtifactId(item.id)
+      toast.success('工作室成果已记录')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '工作室成果记录失败')
+    } finally {
+      setWorkspaceArtifactBusyId(null)
+    }
+  }
+
+  const exportWorkspaceArtifacts = async (item: AgentApprovalItem) => {
+    setWorkspaceArtifactExportingId(item.id)
+    try {
+      const artifact = await agentApprovalsApi.workspaceArtifacts.export(item.id)
+      downloadWorkspaceArtifacts(item.id, artifact)
+      toast.success('工作室成果导出已生成')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '工作室成果导出失败')
+    } finally {
+      setWorkspaceArtifactExportingId(null)
     }
   }
 
@@ -653,8 +735,16 @@ export default function AgentApprovalWorkspace() {
               auditLoading={auditLoadingId === item.id}
               auditExporting={exportingAuditId === item.id}
               controlBusyKey={controlBusyKey}
+              artifactOpen={expandedWorkspaceArtifactId === item.id}
+              artifactItems={workspaceArtifactsById[item.id] ?? []}
+              artifactLoading={workspaceArtifactLoadingId === item.id}
+              artifactBusy={workspaceArtifactBusyId === item.id}
+              artifactExporting={workspaceArtifactExportingId === item.id}
               onExportAudit={() => void exportAudit(item)}
               onControlWorkspace={(action) => void controlWorkspace(item, action)}
+              onToggleArtifacts={() => void toggleWorkspaceArtifacts(item)}
+              onRecordArtifact={() => void recordWorkspaceArtifact(item)}
+              onExportArtifacts={() => void exportWorkspaceArtifacts(item)}
             />
           ))}
         </div>
@@ -1330,12 +1420,20 @@ function ApprovalRow({
   auditLoading,
   auditExporting,
   controlBusyKey,
+  artifactOpen,
+  artifactItems,
+  artifactLoading,
+  artifactBusy,
+  artifactExporting,
   onApprove,
   onReject,
   onRevoke,
   onToggleAudit,
   onExportAudit,
   onControlWorkspace,
+  onToggleArtifacts,
+  onRecordArtifact,
+  onExportArtifacts,
 }: {
   item: AgentApprovalItem
   busy: boolean
@@ -1344,12 +1442,20 @@ function ApprovalRow({
   auditLoading: boolean
   auditExporting: boolean
   controlBusyKey: string | null
+  artifactOpen: boolean
+  artifactItems: AgentWorkspaceArtifact[]
+  artifactLoading: boolean
+  artifactBusy: boolean
+  artifactExporting: boolean
   onApprove: () => void
   onReject: () => void
   onRevoke: () => void
   onToggleAudit: () => void
   onExportAudit: () => void
   onControlWorkspace: (action: AgentWorkspaceControlAction) => void
+  onToggleArtifacts: () => void
+  onRecordArtifact: () => void
+  onExportArtifacts: () => void
 }) {
   const meta = STATUS_META[item.status] ?? STATUS_META.pending
   const StatusIcon = meta.icon
@@ -1412,6 +1518,37 @@ function ApprovalRow({
             <icons.Download className="h-4 w-4" />
             导出
           </button>
+          <button
+            type="button"
+            disabled={artifactLoading}
+            onClick={onToggleArtifacts}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <icons.FileText className="h-4 w-4" />
+            {artifactOpen ? '收起成果' : '成果'}
+          </button>
+          {item.status === 'approved' && (
+            <>
+              <button
+                type="button"
+                disabled={artifactBusy}
+                onClick={onRecordArtifact}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <icons.Plus className="h-4 w-4" />
+                添加成果
+              </button>
+              <button
+                type="button"
+                disabled={artifactExporting}
+                onClick={onExportArtifacts}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <icons.Download className="h-4 w-4" />
+                导出成果
+              </button>
+            </>
+          )}
           {item.status === 'approved' && WORKSPACE_CONTROLS.map(({ action, label, icon: ControlIcon }) => {
             const controlKey = `${item.id}:${action}`
             return (
@@ -1468,7 +1605,69 @@ function ApprovalRow({
           items={auditItems}
         />
       )}
+      {artifactOpen && (
+        <WorkspaceArtifactTrail
+          loading={artifactLoading}
+          items={artifactItems}
+        />
+      )}
     </article>
+  )
+}
+
+function WorkspaceArtifactTrail({
+  loading,
+  items,
+}: {
+  loading: boolean
+  items: AgentWorkspaceArtifact[]
+}) {
+  if (loading) {
+    return (
+      <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+        正在加载工作室成果...
+      </div>
+    )
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+        暂无工作室成果
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-4 rounded-lg border border-border bg-muted/30 p-3" data-testid="agent-workspace-artifacts">
+      <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
+        <icons.FileText className="h-4 w-4 text-primary" />
+        工作室成果
+      </div>
+      <div className="space-y-2">
+        {items.map((artifact) => (
+          <article key={artifact.id} className="rounded-md bg-background px-3 py-2 text-xs text-muted-foreground">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="truncate font-medium text-foreground">{artifact.title}</p>
+                <p className="mt-0.5">
+                  {artifact.artifact_type} · {formatDateTime(artifact.created_at)}
+                </p>
+              </div>
+              <p className="shrink-0">actor {shortId(artifact.created_by)}</p>
+            </div>
+            <dl className="mt-2 grid gap-2 sm:grid-cols-2">
+              {payloadPreview(artifact.content).map(([key, value]) => (
+                <div key={key} className="min-w-0 rounded-md bg-muted/50 px-2 py-1.5">
+                  <dt className="text-[11px] font-medium text-muted-foreground">{key}</dt>
+                  <dd className="mt-0.5 truncate text-foreground">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </article>
+        ))}
+      </div>
+    </div>
   )
 }
 

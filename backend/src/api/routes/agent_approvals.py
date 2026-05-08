@@ -20,6 +20,7 @@ from src.services.agent_approval_service import (
     PENDING_STATUS,
     AgentApprovalDecision,
     AgentApprovalService,
+    AgentWorkspaceArtifact,
 )
 from src.services.agent_governance_service import AgentGovernanceService
 
@@ -65,6 +66,15 @@ class AgentApprovalWorkspaceControlBody(BaseModel):
 
     action: Literal["pause", "takeover", "terminate"]
     reason: str | None = Field(default=None, max_length=2000)
+
+
+class AgentWorkspaceArtifactBody(BaseModel):
+    """Artifact captured from a governed high-risk agent workspace."""
+
+    artifact_type: str = Field(..., min_length=1, max_length=60)
+    title: str = Field(..., min_length=1, max_length=160)
+    content: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] | None = None
 
 
 class CapabilityRoutePolicyUpdateBody(BaseModel):
@@ -140,6 +150,19 @@ def _audit_event_to_payload(event: AgentAuditEvent) -> dict[str, Any]:
         "resource_snapshot": event.resource_snapshot,
         "metadata": event.metadata_json,
         "created_at": event.created_at.isoformat() if event.created_at else None,
+    }
+
+
+def _workspace_artifact_to_payload(artifact: AgentWorkspaceArtifact) -> dict[str, Any]:
+    return {
+        "id": artifact.id,
+        "approval_id": artifact.approval_id,
+        "artifact_type": artifact.artifact_type,
+        "title": artifact.title,
+        "content": artifact.content,
+        "metadata": artifact.metadata,
+        "created_by": artifact.created_by,
+        "created_at": artifact.created_at.isoformat(),
     }
 
 
@@ -423,6 +446,98 @@ async def export_agent_approval_audit_artifact(
             "approval": _approval_to_payload(approval),
             "audit_events": [_audit_event_to_payload(event) for event in rows],
             "total": len(rows),
+            "limit": limit,
+        }
+    )
+
+
+@router.get("/{approval_id}/artifacts", response_model=UnifiedResponse, summary="List agent workspace artifacts")
+async def list_agent_workspace_artifacts(
+    approval_id: str,
+    limit: int = Query(default=50, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+) -> RouteResponse:
+    approval = await _get_scoped_approval(db, approval_id=approval_id, user=user)
+    if approval is None:
+        return UnifiedResponse.error(code=404, message="Agent approval does not exist or is not visible.")
+
+    artifacts = await AgentApprovalService(db).list_workspace_artifacts(
+        org_id=approval.org_id,
+        approval_id=approval.id,
+        limit=limit,
+    )
+    return UnifiedResponse.success(
+        data={
+            "items": [_workspace_artifact_to_payload(artifact) for artifact in artifacts],
+            "total": len(artifacts),
+        }
+    )
+
+
+@router.post("/{approval_id}/artifacts", response_model=UnifiedResponse, summary="Record agent workspace artifact")
+async def record_agent_workspace_artifact(
+    approval_id: str,
+    body: AgentWorkspaceArtifactBody,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+) -> RouteResponse:
+    org_id = _org_id_for(user)
+    if not org_id:
+        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+
+    result = await AgentApprovalService(db).add_workspace_artifact(
+        org_id=org_id,
+        approval_id=approval_id,
+        artifact_type=body.artifact_type,
+        title=body.title,
+        content=body.content,
+        metadata=body.metadata,
+        actor_user_id=str(user.id),
+        actor_role=_role_for(user),
+    )
+    payload = {
+        "allowed": result.allowed,
+        "reason_code": result.reason_code,
+        "human_message": result.human_message,
+        "approval_id": result.approval_id,
+        "status": result.status,
+        "audit_event_id": result.audit_event_id,
+        "artifact": _workspace_artifact_to_payload(result.artifact) if result.artifact is not None else None,
+    }
+    await db.commit()
+    if result.allowed:
+        return UnifiedResponse.success(data=payload, message="Agent workspace artifact recorded.")
+    return UnifiedResponse.error(code=_error_code_for_reason(result.reason_code), message=result.human_message, data=payload)
+
+
+@router.get(
+    "/{approval_id}/artifacts/export",
+    response_model=UnifiedResponse,
+    summary="Export agent workspace artifacts",
+)
+async def export_agent_workspace_artifacts(
+    approval_id: str,
+    limit: int = Query(default=100, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+) -> RouteResponse:
+    approval = await _get_scoped_approval(db, approval_id=approval_id, user=user)
+    if approval is None:
+        return UnifiedResponse.error(code=404, message="Agent approval does not exist or is not visible.")
+
+    artifacts = await AgentApprovalService(db).list_workspace_artifacts(
+        org_id=approval.org_id,
+        approval_id=approval.id,
+        limit=limit,
+    )
+    return UnifiedResponse.success(
+        data={
+            "schema_version": "agent_workspace_artifacts_export.v1",
+            "generated_at": datetime.now(UTC).isoformat(),
+            "approval": _approval_to_payload(approval),
+            "artifacts": [_workspace_artifact_to_payload(artifact) for artifact in artifacts],
+            "total": len(artifacts),
             "limit": limit,
         }
     )

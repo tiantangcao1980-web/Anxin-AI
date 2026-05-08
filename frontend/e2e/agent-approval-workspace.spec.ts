@@ -297,6 +297,26 @@ test.describe('Agent 审批工作台', () => {
 
     const row = page.getByTestId('agent-approval-row-approval-e2e-1')
     await expect(row).toContainText('已批准')
+
+    await row.getByRole('button', { name: '成果', exact: true }).click()
+    await expect(page.getByText('暂无工作室成果', { exact: true })).toBeVisible()
+
+    const artifactRequest = page.waitForRequest((request) =>
+      request.method() === 'POST' && request.url().includes('/agent-approvals/approval-e2e-1/artifacts'),
+    )
+    await row.getByRole('button', { name: '添加成果' }).click()
+    await artifactRequest
+    await expect(page.getByText('工作室成果已记录', { exact: true })).toBeVisible()
+    await expect(page.getByTestId('agent-workspace-artifacts')).toContainText('高风险工作摘要')
+    await expect(page.getByTestId('agent-workspace-artifacts')).toContainText('operator-reviewed-workspace')
+
+    const artifactExportRequest = page.waitForRequest((request) =>
+      request.method() === 'GET' && request.url().includes('/agent-approvals/approval-e2e-1/artifacts/export'),
+    )
+    await row.getByRole('button', { name: '导出成果' }).click()
+    await artifactExportRequest
+    await expect(page.getByText('工作室成果导出已生成', { exact: true })).toBeVisible()
+
     const controlRequest = page.waitForRequest((request) =>
       request.method() === 'POST' && request.url().includes('/agent-approvals/approval-e2e-1/workspace-control'),
     )

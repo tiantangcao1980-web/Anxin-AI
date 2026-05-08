@@ -61,6 +61,11 @@ export type MockOptions = {
     list?: unknown
     auditEvents?: unknown
     auditExport?: unknown
+    workspaceArtifacts?: {
+      list?: unknown
+      create?: unknown
+      export?: unknown
+    }
     pendingCount?: unknown
     capabilityRoutes?: {
       list?: unknown
@@ -602,6 +607,86 @@ export async function installApiMocks(page: Page, options: MockOptions = {}) {
             ],
             total: 1,
             limit: 500,
+          },
+        ),
+      )
+    }
+
+    if (/\/agent-approvals\/[^/]+\/artifacts\/export$/.test(pathname) && request.method() === 'GET') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.agentApprovals?.workspaceArtifacts?.export ?? {
+            schema_version: 'agent_workspace_artifacts_export.v1',
+            generated_at: '2026-05-08T10:09:00Z',
+            approval: {
+              id: 'approval-e2e-1',
+              org_id: 'org-e2e',
+              route_id: 'route-browser-control',
+              requested_by: 'employee-risk-owner',
+              action_type: 'browser.remote_control',
+              risk_level: 'high',
+              status: 'approved',
+              payload: {
+                target: 'desktop-runtime',
+                reason: '远程执行高风险桌面动作',
+              },
+              expires_at: '2026-05-08T10:30:00Z',
+              created_at: '2026-05-08T10:00:00Z',
+              updated_at: '2026-05-08T10:05:00Z',
+            },
+            artifacts: [
+              {
+                id: 'artifact-e2e-1',
+                approval_id: 'approval-e2e-1',
+                artifact_type: 'summary',
+                title: '高风险工作摘要',
+                content: { checkpoint: 'operator-reviewed-workspace' },
+                metadata: { source: 'agent-approval-workspace' },
+                created_by: 'e2e-admin',
+                created_at: '2026-05-08T10:08:00Z',
+              },
+            ],
+            total: 1,
+            limit: 100,
+          },
+        ),
+      )
+    }
+
+    if (/\/agent-approvals\/[^/]+\/artifacts$/.test(pathname) && request.method() === 'GET') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.agentApprovals?.workspaceArtifacts?.list ?? {
+            items: [],
+            total: 0,
+          },
+        ),
+      )
+    }
+
+    if (/\/agent-approvals\/[^/]+\/artifacts$/.test(pathname) && request.method() === 'POST') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.agentApprovals?.workspaceArtifacts?.create ?? {
+            allowed: true,
+            reason_code: 'artifact_recorded',
+            human_message: 'Agent workspace artifact recorded.',
+            approval_id: 'approval-e2e-1',
+            status: 'approved',
+            audit_event_id: 'audit-artifact-e2e-1',
+            artifact: {
+              id: 'artifact-e2e-1',
+              approval_id: 'approval-e2e-1',
+              artifact_type: 'summary',
+              title: '高风险工作摘要',
+              content: { checkpoint: 'operator-reviewed-workspace', status: 'approved' },
+              metadata: { source: 'agent-approval-workspace' },
+              created_by: 'e2e-admin',
+              created_at: '2026-05-08T10:08:00Z',
+            },
           },
         ),
       )

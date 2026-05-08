@@ -226,6 +226,85 @@ async def test_agent_approval_workspace_control_fails_closed_and_writes_audit(
 
 
 @pytest.mark.asyncio
+async def test_agent_workspace_artifact_api_redacts_and_exports(
+    auth_client,
+    admin_auth_client,
+    db_session,
+    test_organization,
+):
+    create = await auth_client.post(
+        "/api/v1/agent-approvals",
+        json={"action_type": "browser.remote_control", "risk_level": "l4"},
+    )
+    approval_id = create.json()["data"]["approval_id"]
+
+    pending_artifact = await admin_auth_client.post(
+        f"/api/v1/agent-approvals/{approval_id}/artifacts",
+        json={
+            "artifact_type": "summary",
+            "title": "未批准摘要",
+            "content": {"finding": "pending"},
+        },
+    )
+    await admin_auth_client.post(f"/api/v1/agent-approvals/{approval_id}/approve", json={"note": "ok"})
+    employee_artifact = await auth_client.post(
+        f"/api/v1/agent-approvals/{approval_id}/artifacts",
+        json={
+            "artifact_type": "summary",
+            "title": "员工摘要",
+            "content": {"finding": "not allowed"},
+        },
+    )
+    created = await admin_auth_client.post(
+        f"/api/v1/agent-approvals/{approval_id}/artifacts",
+        json={
+            "artifact_type": "summary",
+            "title": "桌面远控摘要",
+            "content": {
+                "finding": "safe probe only",
+                "api_key": "should-never-leak",
+                "nested": {"client_secret": "also-secret", "safe": "ok"},
+            },
+            "metadata": {"source": "workspace", "raw_token": "never-store"},
+        },
+    )
+    listed = await admin_auth_client.get(f"/api/v1/agent-approvals/{approval_id}/artifacts")
+    exported = await admin_auth_client.get(f"/api/v1/agent-approvals/{approval_id}/artifacts/export")
+    audits = (
+        await db_session.execute(
+            select(AgentAuditEvent)
+            .where(AgentAuditEvent.org_id == test_organization.id)
+            .order_by(AgentAuditEvent.created_at)
+        )
+    ).scalars().all()
+
+    assert pending_artifact.status_code == 200
+    assert pending_artifact.json()["code"] == 400
+    assert pending_artifact.json()["data"]["reason_code"] == "approval_not_approved"
+    assert employee_artifact.status_code == 200
+    assert employee_artifact.json()["code"] == 403
+    assert employee_artifact.json()["data"]["reason_code"] == "approver_role_not_allowed"
+    assert created.status_code == 200
+    assert created.json()["code"] == 200
+    assert created.json()["data"]["reason_code"] == "artifact_recorded"
+    assert created.json()["data"]["artifact"]["content"]["api_key"] == "[redacted]"
+    assert created.json()["data"]["artifact"]["content"]["nested"]["client_secret"] == "[redacted]"
+    assert created.json()["data"]["artifact"]["metadata"]["raw_token"] == "[redacted]"
+    assert listed.status_code == 200
+    assert listed.json()["data"]["total"] == 1
+    assert listed.json()["data"]["items"][0]["title"] == "桌面远控摘要"
+    assert exported.status_code == 200
+    assert exported.json()["data"]["schema_version"] == "agent_workspace_artifacts_export.v1"
+    assert exported.json()["data"]["total"] == 1
+    assert exported.json()["data"]["artifacts"][0]["content"]["finding"] == "safe probe only"
+    assert audits[-1].action == "agent_workspace.artifact.add"
+    assert audits[-1].reason_code == "artifact_recorded"
+    assert "should-never-leak" not in str(created.json())
+    assert "also-secret" not in str(exported.json())
+    assert "never-store" not in str(audits)
+
+
+@pytest.mark.asyncio
 async def test_capability_route_policy_api_is_admin_only_and_revokes_tokens(
     auth_client,
     admin_auth_client,

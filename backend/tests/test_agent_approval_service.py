@@ -347,3 +347,91 @@ async def test_workspace_control_fails_closed_until_runtime_is_integrated(
         "workspace_control": "pause",
         "reason_present": "true",
     }
+
+
+@pytest.mark.asyncio
+async def test_workspace_artifacts_require_approved_workspace_and_redact_payload(
+    db_session,
+    test_organization,
+    test_user,
+    test_admin,
+):
+    service = AgentApprovalService(db_session)
+    requested = await service.request_approval(
+        org_id=test_organization.id,
+        action_type="browser.remote_control",
+        risk_level="l4",
+        requested_by=test_user.id,
+    )
+
+    before_approval = await service.add_workspace_artifact(
+        org_id=test_organization.id,
+        approval_id=requested.approval_id,
+        artifact_type="summary",
+        title="执行摘要",
+        content={"finding": "pending"},
+        actor_user_id=test_admin.id,
+        actor_role="admin",
+    )
+    await service.decide_approval(
+        org_id=test_organization.id,
+        approval_id=requested.approval_id,
+        decision="approve",
+        decided_by=test_admin.id,
+        decider_role="admin",
+    )
+    employee_denied = await service.add_workspace_artifact(
+        org_id=test_organization.id,
+        approval_id=requested.approval_id,
+        artifact_type="summary",
+        title="员工摘要",
+        content={"finding": "not allowed"},
+        actor_user_id=test_user.id,
+        actor_role="employee",
+    )
+    recorded = await service.add_workspace_artifact(
+        org_id=test_organization.id,
+        approval_id=requested.approval_id,
+        artifact_type="summary",
+        title="高风险操作摘要",
+        content={
+            "finding": "仅生成可审计摘要",
+            "api_key": "should-never-persist",
+            "nested": {"client_secret": "also-secret", "safe": "ok"},
+        },
+        metadata={"source": "workspace", "raw_token": "do-not-store"},
+        actor_user_id=test_admin.id,
+        actor_role="admin",
+    )
+    artifacts = await service.list_workspace_artifacts(
+        org_id=test_organization.id,
+        approval_id=requested.approval_id,
+    )
+    audits = (
+        await db_session.execute(
+            select(AgentAuditEvent)
+            .where(AgentAuditEvent.org_id == test_organization.id)
+            .order_by(AgentAuditEvent.created_at)
+        )
+    ).scalars().all()
+
+    assert before_approval.allowed is False
+    assert before_approval.reason_code == "approval_not_approved"
+    assert employee_denied.allowed is False
+    assert employee_denied.reason_code == "approver_role_not_allowed"
+    assert recorded.allowed is True
+    assert recorded.reason_code == "artifact_recorded"
+    assert recorded.artifact is not None
+    assert recorded.artifact.content == {
+        "finding": "仅生成可审计摘要",
+        "api_key": "[redacted]",
+        "nested": {"client_secret": "[redacted]", "safe": "ok"},
+    }
+    assert recorded.artifact.metadata == {"source": "workspace", "raw_token": "[redacted]"}
+    assert len(artifacts) == 1
+    assert artifacts[0].title == "高风险操作摘要"
+    assert audits[-1].action == "agent_workspace.artifact.add"
+    assert audits[-1].status == "success"
+    assert audits[-1].reason_code == "artifact_recorded"
+    assert "should-never-persist" not in str(audits)
+    assert "do-not-store" not in str(audits)
