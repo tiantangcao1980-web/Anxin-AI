@@ -52,7 +52,7 @@
 - 角色访问 E2E 当前达到 `10 passed, 10 skipped`。
 - 移动/小程序本地门禁：`bash scripts/mobile-device-smoke.sh` 通过，移动 Vitest `7 files / 17 tests passed`，移动 tsc、Expo doctor `17/17`、mobile production npm audit、小程序 tsc/build、WeChat DevTools CLI project smoke、refresh auth guard、fake fallback guard 和 mini-program design token guard 均为 exit `0`。
 - 桌面端 `cargo check` 可通过。
-- GitNexus 索引可用：当前精确统计以 `.gitnexus/meta.json` 为准；`capabilities.vectorSearch.status=vector-index`，embedding meta count 与 `gitnexus cypher` count 必须非零且一致，direct binary 的 `status/cypher/detect-changes` 已通过 smoke，semantic query 仍不作为唯一放行依据。
+- GitNexus 索引复验：当前精确统计以 `.gitnexus/meta.json` 为准；最终商业 release 前必须重新证明 `capabilities.vectorSearch.status=vector-index`、embedding meta count 与 `gitnexus cypher` count 非零且一致，并让 direct binary 的 `status/cypher/detect-changes` 与当前 commit 一致；当前 direct CLI repo 解析未通过，semantic query 不作为唯一放行依据。
 - 本地/混合/云端与可配置模型已有架构基础：`docs/ARCHITECTURE_V2.md` 已定义本地模式数据不离开设备、Ollama/LM Studio 等自配置本地模型，以及 Enterprise 自定义 LLM endpoint；后端存在 `src/services/llm_service.py`、`src/services/private_llm_service.py`、`src/api/routes/llm.py`，桌面存在 `desktop/src/commands/local_llm.rs`。
 - MCP/Skills 已有代码基础：后端存在 `backend/src/mcp_server.py`、`backend/src/api/routes/mcp_routes.py`、`backend/src/services/mcp_client_service.py`、`backend/src/models/mcp_config.py`、`backend/src/services/skill_service.py`；这些证明扩展底座存在，但尚不能证明“任意 Skills/MCP 商业可配置”已经闭环。
 - 独立知识库已有代码基础：后端存在 `backend/src/services/knowledge_management.py`、`backend/src/services/knowledge_service.py`、`backend/src/api/routes/knowledge.py`；仍需把本地知识库、组织知识库、来源引用、离线索引和移动/桌面可视化配置纳入发布验收。
@@ -180,7 +180,7 @@
 
 当前进展：
 - 已补第一层 agent capability policy：未注册工具 fail-closed、显式 allowlist、订阅 feature、角色 permission、绝密模式、设备信任、通道策略、高风险审批上下文，以及 MCP tool list 过滤 + runtime 二次判权。
-- MCP 外部连接已补商业环境 fail-closed allowlist 基线：stdio 默认关闭、command/command-line/env allowlist、SSE scheme/host allowlist 和子进程最小环境；短期 route-token broker 已补 hash-only storage、scope check、过期、撤销后下一次验证失败和审计；持久化 Agent/Team/Worker/Human/ChannelPolicy/CapabilityRoute/TokenLease/Approval/AuditEvent 模型与迁移已补，且有复合租户外键、raw token 不入库和审计 update/delete 防线；本地 Skill Evolution Gate 已补 proposal、eval、owner/super_admin/org_admin/admin 审批、灰度、回滚和审计测试；仍缺 SkillGovernance 持久化、Agent 控制面 service/API/UI 接入、Human-in-the-loop 工作室、真实 approved MCP connector 演练、跨进程撤销后立即失权和商业发布证据。
+- MCP 外部连接已补商业环境 fail-closed allowlist 基线：stdio 默认关闭、command/command-line/env allowlist、SSE scheme/host allowlist 和子进程最小环境；短期 route-token broker 已补 hash-only storage、scope check、过期、撤销后下一次验证失败和审计；持久化 Agent/Team/Worker/Human/ChannelPolicy/CapabilityRoute/TokenLease/Approval/AuditEvent 模型与迁移已补，且有复合租户外键、raw token 不入库和审计 update/delete 防线；DB-backed AgentGovernanceService 已补 hash-only token lease、跨 service 实例验证、组织隔离和 route 撤销后下一次调用失败；本地 Skill Evolution Gate 已补 proposal、eval、owner/super_admin/org_admin/admin 审批、灰度、回滚和审计测试；仍缺 SkillGovernance 持久化、Agent 控制面 API/UI 接入、Human-in-the-loop 工作室、真实 approved MCP connector 演练、跨进程撤销后立即失权和商业发布证据。
 
 ## 4. 统一开发规则
 

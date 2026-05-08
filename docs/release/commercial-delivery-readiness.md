@@ -10,7 +10,7 @@
 |---|---|---|
 | 后端默认回归 | `467 passed, 1 skipped, 17 warnings in 36.11s` | 通过代码级门槛 |
 | 前端 lint/build/test/security | lint/tsc 通过、最新完整本地门禁中 Vitest `12 files / 45 tests passed`，生产依赖 `npm audit --omit=dev` 已写入 `docs/release/evidence/artifacts/frontend-npm-audit-prod-20260507.json` 且 `0` vulnerabilities；保留既有 Vite chunk/eval warning 作为性能/打包优化项 | 通过当前门槛 |
-| GitNexus 知识图 | 当前提交级索引已在本轮本地交付提交后重建；精确统计以最新 `.gitnexus/meta.json` 为准，`capabilities.vectorSearch.status=vector-index`；direct binary 的 `status` 必须显示 indexed/current commit 一致，`cypher` 真实计数必须与 meta embeddings 非零一致，`detect-changes` 返回 `No changes detected` | embeddings gate 已过；semantic/context 可做导航，但不能替代源码和测试证据 |
+| GitNexus 知识图 | 当前 `.gitnexus/meta.json` 有非零 embeddings，但 direct GitNexus CLI repo 解析/cypher 复验失败且索引落后于最新本地提交；它只能作历史上下文，不能作为最新提交放行证据；最终 release 前必须重跑 commit-scoped GitNexus，并要求 `.gitnexus/meta.json`、direct binary `status/cypher/detect-changes` 与当前 commit 一致 | 最新提交的 GitNexus 复验仍阻断；semantic/context 不能替代源码和测试证据 |
 | 支付真实渠道 | 微信/支付宝代码级协议已落，`scripts/sandbox-evidence-runner.py` 已提供脱敏预检/live 采集入口，runner 安全测试已覆盖 live 确认门和脱敏写出；staging/production 已禁止 mock/未知 provider 静默回落，缺沙箱/证书轮换/重试证据 | 阻断 |
 | 电签真实渠道 | e签宝/法大大代码级协议已落，`scripts/sandbox-evidence-runner.py` 已提供脱敏预检/live 采集入口，runner 安全测试已覆盖 live 确认门和脱敏写出；staging/production 已禁止 mock/未知 provider 静默回落，flow 操作已按当前用户组织过滤合同，缺商户沙箱/事件目录/灰度证据 | 阻断 |
 | 桌面同步 | 后端 `SyncLog` 持久化增量日志 + Rust SQLCipher/keyring 本地库 + 注入式同步闭环测试 + SQLite migration SQL fresh/legacy temp DB smoke + local installed-profile keyring/reopen smoke + SQLite 100/500 本地性能基线 + debug binary self-test + 冲突管理页 + 代码级重试退避 + `scripts/desktop-sqlite-security-gate.sh` 安全门禁通过；既有 artifact 记录过 unsigned debug macOS `.app` bundle self-test/runtime/WebView page-load，但 fresh local 复跑当前 AppKit abort，不能作为稳定 passing evidence；`desktop/Entitlements.plist` 已切到 production APNs entitlement；`scripts/desktop-release-package.sh --dry-run` 和 `scripts/desktop-release-preflight.sh` 已写出脱敏预检并新增 `hdiutil` / DiskManagement probe；unsigned release `.app` + DMG 已在 unsandboxed macOS 环境构建通过；unsigned release packaged runtime self-test/startup/WebView page-load smoke 已通过；unsigned release packaged-profile plaintext-to-SQLCipher/keyring reopen 和 SQLCipher 100/500 performance smoke 已通过；签名/公证、signed installer/signed packaged-profile migration/signed packaged runtime 性能/跨端连续会话未闭环 | 阻断 |
@@ -32,7 +32,7 @@
 ### 产品闭环
 
 - 桌面端本地数据 push/pull 已有 Rust SQLCipher/keyring 代码路径、注入式 push/pull/retry 测试、SQLite migration SQL fresh/legacy temp DB smoke、SQLCipher plaintext migration 单测、local installed-profile keyring/reopen smoke、SQLite 100/500 本地性能基线、debug binary migration/table/security self-test、冲突管理页、代码级 retry/backoff、桌面 SQLite 安全门禁、production APNs entitlement、release package dry-run、signed/notarized release preflight、unsigned release `.app`/DMG build、unsigned release packaged runtime smoke、unsigned release packaged-profile migration smoke 和 unsigned release packaged SQLCipher performance smoke；还需配置签名/公证身份，产出 signed/notarized release `.app`/DMG、补 signed packaged-profile plaintext migration 实装证据、signed packaged runtime 性能和跨端连续会话证据。
-- 桌面主工作站统一入口已补最小可见状态：用户可在设置页看到隐私模式、本地模型、独立知识库、Skills/MCP、跨端同步和移动远控状态，且绝密模式不会展示会导致数据出站的可执行同步/远控动作；非桌面预览下，本地模型、同步和移动远控保持 disabled，避免把浏览器/手机误呈现为桌面控制台；浏览器级 e2e 已覆盖 workstation/legacy privacy route、URL 写回和 iPhone 14 视口资源卡不越界；当前 CLI/MCP、外部 MCP allowlist、桌面 IPC TopSecret guard、WebView/API data-network guard、Tauri/前端 HTTP 插件移除、CSP 收紧、agent capability policy、短期 route-token broker 和 Agent 控制面模型/迁移已先做最小权限/fail-closed 加固，模型层已包含复合租户外键、TokenLease hash-only 和审计不可变防线，但还缺完整配置 CRUD、真实本地模型/知识库状态探针、CapabilityRoute/TokenLease/AgentApproval/AgentAuditEvent 真实运行时集成、真实 approved MCP connector 演练、signed packaged runtime 出站复验、工具调用细粒度审计和真实能力链路撤销后立即失权；移动远控桌面还需补设备配对、命令队列、状态回传、取消/撤销、敏感动作二次确认和审计证据。
+- 桌面主工作站统一入口已补最小可见状态：用户可在设置页看到隐私模式、本地模型、独立知识库、Skills/MCP、跨端同步和移动远控状态，且绝密模式不会展示会导致数据出站的可执行同步/远控动作；非桌面预览下，本地模型、同步和移动远控保持 disabled，避免把浏览器/手机误呈现为桌面控制台；浏览器级 e2e 已覆盖 workstation/legacy privacy route、URL 写回和 iPhone 14 视口资源卡不越界；当前 CLI/MCP、外部 MCP allowlist、桌面 IPC TopSecret guard、WebView/API data-network guard、Tauri/前端 HTTP 插件移除、CSP 收紧、agent capability policy、短期 route-token broker、Agent 控制面模型/迁移和 DB-backed AgentGovernanceService 已先做最小权限/fail-closed 加固，模型层已包含复合租户外键、TokenLease hash-only 和审计不可变防线，服务层已覆盖跨实例验证、组织隔离、consumer/scope 拒绝、过期和 route 撤销后下一次调用失败；但还缺完整配置 CRUD、真实本地模型/知识库状态探针、CapabilityRoute/TokenLease/AgentApproval/AgentAuditEvent 真实 MCP/LLM/CLI/browser/desktop-control 运行时集成、真实 approved MCP connector 演练、signed packaged runtime 出站复验、工具调用细粒度审计和真实能力链路撤销后立即失权；移动远控桌面还需补设备配对、命令队列、状态回传、取消/撤销、敏感动作二次确认和审计证据。
 - 可信 AI 交互还需补长任务过程可见、工具状态、证据引用、artifact 编辑、暂停/恢复/接管、命令面板和跨设备继续证据；Skills 进化已有本地 proposal/eval/approval/gray release/rollback/audit gate 和版本过滤测试，但还需补持久化 lifecycle、组织级 UI、记忆治理、真实执行链路失权和商业发布证据。
 - RAG 权限过滤、PII 脱敏、source 字段、前端引用预览/高亮、Playwright 点击证据、导出文档/chunk/anchor 巡检、live Qdrant smoke 和内建法律知识库 full50 live baseline 已有证据。
 - 案件状态机、任务 owner、律师市场 local guard/利益冲突/公平轮询已有核心正反向测试；仍需律所 RBAC 全矩阵、案源市场 8 API 打勾、Playwright 三角联通，以及税务师/税务事务所/财务顾问/会计审计等专业服务方模型预留证据。
@@ -46,7 +46,7 @@ cd backend && ./.venv/bin/pytest -q
 cd backend && ./.venv/bin/ruff check src tests
 cd backend && ./.venv/bin/mypy src
 cd backend && ./.venv/bin/pytest -q tests/test_config_commercial_guards.py tests/test_harness.py -k 'mcp or PolicyEngine or AgentMcpToolPolicy'
-cd backend && ./.venv/bin/pytest -q tests/test_agent_governance_policy.py tests/test_capability_routes.py tests/test_agent_governance_models.py
+cd backend && ./.venv/bin/pytest -q tests/test_agent_governance_policy.py tests/test_capability_routes.py tests/test_agent_governance_models.py tests/test_agent_governance_service.py
 cd backend && ./.venv/bin/pytest -q tests/test_business_authorization_guards.py -k 'approval or template'
 cd backend && ./.venv/bin/pytest -q tests/test_skill_evolution_service.py tests/test_skill_service.py
 cd frontend && npm run lint
@@ -82,8 +82,8 @@ bash scripts/desktop-release-preflight.sh --out docs/release/evidence/artifacts/
 bash scripts/commercial-readiness-gate.sh --quick
 ```
 
-当前该命令应当失败；GitNexus embeddings 零值阻断已解除，RAG 内建 full50、桌面 SQLCipher/keyring 代码级门禁、unsigned release `.app`/DMG build、unsigned release packaged runtime smoke、unsigned release packaged-profile/performance smoke 和 signed/notarized release preflight 已通过，但只有当外部证据、桌面 signed/packaged-profile/performance/cross-device 证据、移动真机和全仓质量基线全部补齐后才允许转 Go。
-GitNexus metadata 是 commit-scoped，`scripts/commercial-readiness-gate.sh` 会将 dirty worktree 作为 release-blocking failure。当前本地交付提交已重新运行 GitNexus 并确认 up-to-date；后续只要新增真实证据或代码提交，仍必须重新运行 GitNexus 复验。
+当前该命令应当失败；RAG 内建 full50、桌面 SQLCipher/keyring 代码级门禁、unsigned release `.app`/DMG build、unsigned release packaged runtime smoke、unsigned release packaged-profile/performance smoke 和 signed/notarized release preflight 已通过，但只有当外部证据、桌面 signed/packaged-profile/performance/cross-device 证据、移动真机、全仓质量基线和最新提交 GitNexus 复验全部补齐后才允许转 Go。
+GitNexus metadata 是 commit-scoped，`scripts/commercial-readiness-gate.sh` 会将 dirty worktree、direct CLI cypher integrity failure 和 indexed/current commit 不一致作为 release-blocking failure。当前 `.gitnexus/meta.json` 有非零 embeddings，但 direct CLI 复验失败且落后于最新本地提交；后续只要新增真实证据或代码提交，仍必须重新运行 GitNexus 复验。
 
 外部证据模板位于 `docs/release/evidence/`，每份模板只有在对应真实证据齐全后才能把 `Status: pending` 改为 `Status: complete`。
 并行采集执行清单见 `docs/release/evidence-collection-runbook.md`；支付、电签、桌面、RAG 和移动/小程序可以并行采集，但最终必须统一回到本文件和 `scripts/commercial-readiness-gate.sh`。

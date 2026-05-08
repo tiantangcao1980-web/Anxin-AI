@@ -56,7 +56,7 @@ bash scripts/desktop-network-surface-gate.sh
 - 每个任务至少收口其 touched files 的类型/静态检查问题。
 - 全仓 ruff/mypy 必须保持零回退；任何非零结果都应阻断 release readiness。
 
-`scripts/commercial-readiness-gate.sh` 是商业发布硬门禁，不是普通开发门禁。当前它应当失败；GitNexus embeddings 零值阻断已解除，内建 RAG full50 release evidence 已完成，移动/小程序本地 smoke 已建立，但支付/电签真实沙箱、桌面 signed/notarized runtime 和移动真机仍未闭合。外部证据模板在 `docs/release/evidence/`，gate 只接受 `Status: complete`。
+`scripts/commercial-readiness-gate.sh` 是商业发布硬门禁，不是普通开发门禁。当前它应当失败；内建 RAG full50 release evidence 已完成，移动/小程序本地 smoke 已建立，但支付/电签真实沙箱、桌面 signed/notarized runtime、移动真机和最新提交的 GitNexus commit-scoped 复验仍未闭合。外部证据模板在 `docs/release/evidence/`，gate 只接受 `Status: complete`。
 
 静态质量基线可用以下命令采集；当前 evidence 要求 backend mypy `0` 错误，并由 `scripts/mypy-baseline-check.sh` 的 zero-baseline gate 保护：
 
@@ -296,7 +296,7 @@ bash scripts/gitnexus-index.sh --skip-context-checks
 - 如果目标是 React JSX 组件使用关系，必须额外 `rg "<ComponentName>" frontend/src frontend/e2e`。
 - 本机有多个 GitNexus 仓库索引；所有 `query` 必须显式指定 `--repo Anxin-Smart-Legal-Services`，否则会因 multi-repo disambiguation 失败。
 - 如果 GitNexus `query --repo Anxin-Smart-Legal-Services` 返回空，不代表代码不存在；必须使用 `rg`、源码阅读和测试复查。
-- 当前 GitNexus embeddings 已生成，direct rc binary 的 `context/query/cypher` 已通过 smoke；semantic query 仍不作为发布放行证据，必须与源码和测试互证。
+- GitNexus embeddings 曾生成；当前 `.gitnexus/meta.json` 仍有非零 embeddings，但 direct rc binary 的 repo 解析/cypher 复验未通过且索引落后于最新本地提交。semantic query 不作为发布放行证据，必须与源码和测试互证。
 
 ## 4. 发布前验收
 
