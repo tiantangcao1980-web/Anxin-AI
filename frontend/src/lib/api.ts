@@ -2966,6 +2966,8 @@ export interface AgentApprovalAuditExport {
   limit: number
 }
 
+export type AgentWorkspaceControlAction = 'pause' | 'takeover' | 'terminate'
+
 export const agentApprovalsApi = {
   list: (params?: { status?: string; page?: number; page_size?: number }) => {
     const query = new URLSearchParams()
@@ -3008,6 +3010,12 @@ export const agentApprovalsApi = {
     request<AgentApprovalDecision>(`/agent-approvals/${id}/revoke`, {
       method: 'POST',
       body: JSON.stringify({ reason }),
+    }),
+
+  workspaceControl: (id: string, action: AgentWorkspaceControlAction, reason?: string) =>
+    request<AgentApprovalDecision>(`/agent-approvals/${id}/workspace-control`, {
+      method: 'POST',
+      body: JSON.stringify({ action, reason }),
     }),
 
   validate: (data: { approval_id?: string | null; action_type: string; route_key?: string; route_id?: string }) =>

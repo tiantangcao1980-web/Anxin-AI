@@ -10,6 +10,7 @@ import {
   type AgentApprovalAuditEvent,
   type AgentApprovalItem,
   type AgentApprovalStatus,
+  type AgentWorkspaceControlAction,
 } from '@/lib/api'
 import { icons, type IconComponent } from '@/lib/icons'
 
@@ -31,6 +32,12 @@ const STATUS_META: Record<AgentApprovalStatus, { label: string; className: strin
   revoked: { label: '已撤销', className: 'border-muted bg-muted text-muted-foreground', icon: icons.Ban },
   expired: { label: '已过期', className: 'border-muted bg-muted text-muted-foreground', icon: icons.AlertCircle },
 }
+
+const WORKSPACE_CONTROLS: Array<{ action: AgentWorkspaceControlAction; label: string; icon: IconComponent }> = [
+  { action: 'pause', label: '暂停', icon: icons.Square },
+  { action: 'takeover', label: '接管', icon: icons.ShieldCheck },
+  { action: 'terminate', label: '终止', icon: icons.Ban },
+]
 
 function formatDateTime(value?: string | null): string {
   if (!value) return '未设置'
@@ -91,6 +98,7 @@ export default function AgentApprovalWorkspace() {
   const [auditLoadingId, setAuditLoadingId] = useState<string | null>(null)
   const [expandedAuditId, setExpandedAuditId] = useState<string | null>(null)
   const [exportingAuditId, setExportingAuditId] = useState<string | null>(null)
+  const [controlBusyKey, setControlBusyKey] = useState<string | null>(null)
 
   const loadApprovals = useCallback(async () => {
     setLoading(true)
@@ -193,6 +201,20 @@ export default function AgentApprovalWorkspace() {
     }
   }
 
+  const controlWorkspace = async (item: AgentApprovalItem, action: AgentWorkspaceControlAction) => {
+    const key = `${item.id}:${action}`
+    setControlBusyKey(key)
+    try {
+      await agentApprovalsApi.workspaceControl(item.id, action, `${action} requested in workspace`)
+      toast.success('工作室控制已执行')
+      await loadApprovals()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '工作室控制被拒绝')
+    } finally {
+      setControlBusyKey(null)
+    }
+  }
+
   return (
     <PageContainer
       title="Agent 审批工作台"
@@ -256,7 +278,9 @@ export default function AgentApprovalWorkspace() {
               auditItems={auditEventsById[item.id] ?? []}
               auditLoading={auditLoadingId === item.id}
               auditExporting={exportingAuditId === item.id}
+              controlBusyKey={controlBusyKey}
               onExportAudit={() => void exportAudit(item)}
+              onControlWorkspace={(action) => void controlWorkspace(item, action)}
             />
           ))}
         </div>
@@ -303,11 +327,13 @@ function ApprovalRow({
   auditItems,
   auditLoading,
   auditExporting,
+  controlBusyKey,
   onApprove,
   onReject,
   onRevoke,
   onToggleAudit,
   onExportAudit,
+  onControlWorkspace,
 }: {
   item: AgentApprovalItem
   busy: boolean
@@ -315,11 +341,13 @@ function ApprovalRow({
   auditItems: AgentApprovalAuditEvent[]
   auditLoading: boolean
   auditExporting: boolean
+  controlBusyKey: string | null
   onApprove: () => void
   onReject: () => void
   onRevoke: () => void
   onToggleAudit: () => void
   onExportAudit: () => void
+  onControlWorkspace: (action: AgentWorkspaceControlAction) => void
 }) {
   const meta = STATUS_META[item.status] ?? STATUS_META.pending
   const StatusIcon = meta.icon
@@ -382,6 +410,21 @@ function ApprovalRow({
             <icons.Download className="h-4 w-4" />
             导出
           </button>
+          {item.status === 'approved' && WORKSPACE_CONTROLS.map(({ action, label, icon: ControlIcon }) => {
+            const controlKey = `${item.id}:${action}`
+            return (
+              <button
+                key={action}
+                type="button"
+                disabled={controlBusyKey === controlKey}
+                onClick={() => onControlWorkspace(action)}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <ControlIcon className="h-4 w-4" />
+                {label}
+              </button>
+            )
+          })}
           {item.status === 'pending' && (
             <>
               <button

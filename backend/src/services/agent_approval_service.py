@@ -319,6 +319,105 @@ class AgentApprovalService:
             audit_event_id=event.id,
         )
 
+    async def control_workspace(
+        self,
+        *,
+        org_id: str,
+        approval_id: str,
+        action: Literal["pause", "takeover", "terminate"],
+        actor_user_id: str,
+        actor_role: str,
+        reason: str | None = None,
+        now: datetime | None = None,
+    ) -> AgentApprovalDecision:
+        controlled_at = now or _now()
+        approval = await self._get_approval(org_id=org_id, approval_id=approval_id)
+        control_action = f"agent_workspace.{action}"
+        if approval is None:
+            event = self._audit_unknown_approval(
+                org_id=org_id,
+                approval_id=approval_id,
+                action=control_action,
+                actor_user_id=actor_user_id,
+                actor_role=actor_role,
+                now=controlled_at,
+            )
+            await self.db.flush()
+            return AgentApprovalDecision(False, "unknown_agent_approval", "Approval does not exist.", audit_event_id=event.id)
+
+        normalized_role = actor_role.strip().lower()
+        if normalized_role not in AUTHORIZED_APPROVER_ROLES:
+            event = self._audit_approval(
+                approval=approval,
+                action=control_action,
+                status="denied",
+                reason_code="approver_role_not_allowed",
+                actor_user_id=actor_user_id,
+                actor_role=normalized_role,
+                metadata={"reason_present": str(bool(reason)).lower()},
+                now=controlled_at,
+            )
+            await self.db.flush()
+            return AgentApprovalDecision(
+                False,
+                "approver_role_not_allowed",
+                "Current user role cannot control high-risk agent workspaces.",
+                approval_id=approval.id,
+                route_id=approval.route_id,
+                status=approval.status,
+                audit_event_id=event.id,
+            )
+
+        denial = self._approval_workspace_control_denial(approval=approval, now=controlled_at)
+        if denial:
+            event = self._audit_approval(
+                approval=approval,
+                action=control_action,
+                status="denied",
+                reason_code=denial,
+                actor_user_id=actor_user_id,
+                actor_role=normalized_role,
+                metadata={
+                    "workspace_control": action,
+                    "reason_present": str(bool(reason)).lower(),
+                },
+                now=controlled_at,
+            )
+            await self.db.flush()
+            return AgentApprovalDecision(
+                False,
+                denial,
+                _reason_message(denial),
+                approval_id=approval.id,
+                route_id=approval.route_id,
+                status=approval.status,
+                audit_event_id=event.id,
+            )
+
+        event = self._audit_approval(
+            approval=approval,
+            action=control_action,
+            status="denied",
+            reason_code="runtime_not_integrated",
+            actor_user_id=actor_user_id,
+            actor_role=normalized_role,
+            metadata={
+                "workspace_control": action,
+                "reason_present": str(bool(reason)).lower(),
+            },
+            now=controlled_at,
+        )
+        await self.db.flush()
+        return AgentApprovalDecision(
+            False,
+            "runtime_not_integrated",
+            "Agent runtime control is not integrated yet; the control action was rejected fail-closed.",
+            approval_id=approval.id,
+            route_id=approval.route_id,
+            status=approval.status,
+            audit_event_id=event.id,
+        )
+
     async def validate_approval(
         self,
         *,
@@ -466,6 +565,19 @@ class AgentApprovalService:
                 return route_denial
             if approval.route_id != route.id:
                 return "approval_route_mismatch"
+        return None
+
+    def _approval_workspace_control_denial(self, *, approval: AgentApproval, now: datetime) -> str | None:
+        if _approval_expired(approval, now):
+            approval.status = EXPIRED_STATUS
+            approval.resolved_at = now
+            return "approval_expired"
+        if approval.status == REVOKED_STATUS:
+            return "approval_revoked"
+        if approval.status == REJECTED_STATUS:
+            return "approval_rejected"
+        if approval.status != APPROVED_STATUS:
+            return "approval_not_approved"
         return None
 
     def _audit_unknown_approval(

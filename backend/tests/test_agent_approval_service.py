@@ -250,3 +250,100 @@ async def test_revoked_approval_fails_closed_after_previous_approval(
     assert revoked.status == "revoked"
     assert after.allowed is False
     assert after.reason_code == "approval_revoked"
+
+
+@pytest.mark.asyncio
+async def test_workspace_control_requires_approved_approval(
+    db_session,
+    test_organization,
+    test_user,
+    test_admin,
+):
+    service = AgentApprovalService(db_session)
+    requested = await service.request_approval(
+        org_id=test_organization.id,
+        action_type="browser.remote_control",
+        risk_level="l4",
+        requested_by=test_user.id,
+    )
+
+    controlled = await service.control_workspace(
+        org_id=test_organization.id,
+        approval_id=requested.approval_id,
+        action="takeover",
+        actor_user_id=test_admin.id,
+        actor_role="admin",
+        reason="operator tried to take over before approval",
+    )
+
+    audits = (
+        await db_session.execute(
+            select(AgentAuditEvent)
+            .where(AgentAuditEvent.org_id == test_organization.id)
+            .order_by(AgentAuditEvent.created_at)
+        )
+    ).scalars().all()
+
+    assert controlled.allowed is False
+    assert controlled.reason_code == "approval_not_approved"
+    assert controlled.status == "pending"
+    assert audits[-1].action == "agent_workspace.takeover"
+    assert audits[-1].status == "denied"
+    assert audits[-1].reason_code == "approval_not_approved"
+    assert audits[-1].metadata_json["workspace_control"] == "takeover"
+
+
+@pytest.mark.asyncio
+async def test_workspace_control_fails_closed_until_runtime_is_integrated(
+    db_session,
+    test_organization,
+    test_user,
+    test_admin,
+):
+    service = AgentApprovalService(db_session)
+    requested = await service.request_approval(
+        org_id=test_organization.id,
+        action_type="browser.remote_control",
+        risk_level="l4",
+        requested_by=test_user.id,
+    )
+    await service.decide_approval(
+        org_id=test_organization.id,
+        approval_id=requested.approval_id,
+        decision="approve",
+        decided_by=test_admin.id,
+        decider_role="admin",
+    )
+
+    controlled = await service.control_workspace(
+        org_id=test_organization.id,
+        approval_id=requested.approval_id,
+        action="pause",
+        actor_user_id=test_admin.id,
+        actor_role="admin",
+        reason="owner paused live desktop work",
+    )
+
+    approval = (
+        await db_session.execute(select(AgentApproval).where(AgentApproval.id == requested.approval_id))
+    ).scalar_one()
+    audits = (
+        await db_session.execute(
+            select(AgentAuditEvent)
+            .where(AgentAuditEvent.org_id == test_organization.id)
+            .order_by(AgentAuditEvent.created_at)
+        )
+    ).scalars().all()
+
+    assert controlled.allowed is False
+    assert controlled.reason_code == "runtime_not_integrated"
+    assert controlled.status == "approved"
+    assert approval.status == "approved"
+    assert audits[-1].action == "agent_workspace.pause"
+    assert audits[-1].status == "denied"
+    assert audits[-1].reason_code == "runtime_not_integrated"
+    assert audits[-1].metadata_json == {
+        "actor_role": "admin",
+        "workspace_control": "pause",
+        "reason_present": "true",
+    }

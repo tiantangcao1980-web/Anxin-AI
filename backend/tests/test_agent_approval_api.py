@@ -182,3 +182,44 @@ async def test_agent_approval_api_revocation_blocks_later_validation(
     assert after.status_code == 200
     assert after.json()["code"] == 400
     assert after.json()["data"]["reason_code"] == "approval_revoked"
+
+
+@pytest.mark.asyncio
+async def test_agent_approval_workspace_control_fails_closed_and_writes_audit(
+    auth_client,
+    admin_auth_client,
+    db_session,
+    test_organization,
+):
+    create = await auth_client.post(
+        "/api/v1/agent-approvals",
+        json={"action_type": "browser.remote_control", "risk_level": "l4"},
+    )
+    approval_id = create.json()["data"]["approval_id"]
+    await admin_auth_client.post(f"/api/v1/agent-approvals/{approval_id}/approve", json={"note": "ok"})
+
+    controlled = await admin_auth_client.post(
+        f"/api/v1/agent-approvals/{approval_id}/workspace-control",
+        json={"action": "pause", "reason": "operator paused a high-risk workspace"},
+    )
+
+    approval = (
+        await db_session.execute(select(AgentApproval).where(AgentApproval.id == approval_id))
+    ).scalar_one()
+    audits = (
+        await db_session.execute(
+            select(AgentAuditEvent)
+            .where(AgentAuditEvent.org_id == test_organization.id)
+            .order_by(AgentAuditEvent.created_at)
+        )
+    ).scalars().all()
+
+    assert controlled.status_code == 200
+    assert controlled.json()["code"] == 409
+    assert controlled.json()["data"]["allowed"] is False
+    assert controlled.json()["data"]["reason_code"] == "runtime_not_integrated"
+    assert controlled.json()["data"]["status"] == "approved"
+    assert approval.status == "approved"
+    assert audits[-1].action == "agent_workspace.pause"
+    assert audits[-1].status == "denied"
+    assert audits[-1].reason_code == "runtime_not_integrated"

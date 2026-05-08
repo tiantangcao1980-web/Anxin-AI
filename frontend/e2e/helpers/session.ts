@@ -64,6 +64,7 @@ export type MockOptions = {
     approve?: unknown
     reject?: unknown
     revoke?: unknown
+    workspaceControl?: unknown
   }
 }
 
@@ -301,6 +302,24 @@ export async function installApiMocks(page: Page, options: MockOptions = {}) {
             status: 'revoked',
           },
         ),
+      )
+    }
+
+    if (/\/agent-approvals\/[^/]+\/workspace-control$/.test(pathname) && request.method() === 'POST') {
+      return fulfillJson(
+        route,
+        options.agentApprovals?.workspaceControl ?? {
+          code: 409,
+          data: {
+            allowed: false,
+            reason_code: 'runtime_not_integrated',
+            human_message: 'Agent runtime control is not integrated yet; the control action was rejected fail-closed.',
+            approval_id: 'approval-e2e-1',
+            status: 'approved',
+          },
+          message: 'Agent runtime control is not integrated yet; the control action was rejected fail-closed.',
+          request_id: 'e2e-request',
+        },
       )
     }
 

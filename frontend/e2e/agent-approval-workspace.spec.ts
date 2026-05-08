@@ -26,6 +26,19 @@ const agentApprovalFixture = {
   page_size: 50,
 }
 
+const approvedAgentApprovalFixture = {
+  ...agentApprovalFixture,
+  items: [
+    {
+      ...agentApprovalFixture.items[0],
+      status: 'approved',
+      decided_by: 'e2e-admin',
+      resolved_at: '2026-05-08T10:05:00Z',
+      updated_at: '2026-05-08T10:05:00Z',
+    },
+  ],
+}
+
 test.describe('Agent 审批工作台', () => {
   test('桌面端可以进入高风险 Agent 审批并执行批准动作', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name === 'mobile', 'desktop decision workflow coverage only')
@@ -119,6 +132,28 @@ test.describe('Agent 审批工作台', () => {
     await approvalRequest
 
     await expect(page.getByText('审批已批准', { exact: true })).toBeVisible()
+  })
+
+  test('桌面端工作室控制在运行时未接入前 fail-closed', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'desktop workspace control coverage only')
+    await loginAsAdmin(page, {
+      agentApprovals: {
+        list: approvedAgentApprovalFixture,
+        pendingCount: { pending: 0 },
+      },
+    })
+
+    await page.goto('/agent-approvals')
+    await page.getByRole('button', { name: '已批准' }).click()
+
+    const row = page.getByTestId('agent-approval-row-approval-e2e-1')
+    await expect(row).toContainText('已批准')
+    const controlRequest = page.waitForRequest((request) =>
+      request.method() === 'POST' && request.url().includes('/agent-approvals/approval-e2e-1/workspace-control'),
+    )
+    await row.getByRole('button', { name: '暂停' }).click()
+    await controlRequest
+    await expect(page.getByText(/runtime control is not integrated/)).toBeVisible()
   })
 
   test('移动端工作台内容保持在视口内并高亮协作入口', async ({ page }, testInfo) => {

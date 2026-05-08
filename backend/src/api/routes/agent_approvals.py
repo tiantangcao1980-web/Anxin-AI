@@ -59,6 +59,13 @@ class AgentApprovalValidateBody(BaseModel):
     route_id: str | None = None
 
 
+class AgentApprovalWorkspaceControlBody(BaseModel):
+    """Request a governed workspace control action."""
+
+    action: Literal["pause", "takeover", "terminate"]
+    reason: str | None = Field(default=None, max_length=2000)
+
+
 def _org_id_for(user: User) -> str | None:
     return str(user.org_id) if user.org_id else None
 
@@ -175,6 +182,8 @@ def _error_code_for_reason(reason_code: str) -> int:
         return 404
     if reason_code in {"approver_role_not_allowed", "approval_route_mismatch"}:
         return 403
+    if reason_code == "runtime_not_integrated":
+        return 409
     return 400
 
 
@@ -377,6 +386,29 @@ async def revoke_agent_approval(
     )
     await db.commit()
     return _response_for_decision(result, success_message="Agent approval revoked.")
+
+
+@router.post("/{approval_id}/workspace-control", response_model=UnifiedResponse, summary="Control high-risk agent workspace")
+async def control_agent_approval_workspace(
+    approval_id: str,
+    body: AgentApprovalWorkspaceControlBody,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+) -> RouteResponse:
+    org_id = _org_id_for(user)
+    if not org_id:
+        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+    service = AgentApprovalService(db)
+    result = await service.control_workspace(
+        org_id=org_id,
+        approval_id=approval_id,
+        action=body.action,
+        actor_user_id=str(user.id),
+        actor_role=_role_for(user),
+        reason=body.reason,
+    )
+    await db.commit()
+    return _response_for_decision(result, success_message="Agent workspace control accepted.")
 
 
 @router.post("/validate", response_model=UnifiedResponse, summary="Validate high-risk agent approval")
