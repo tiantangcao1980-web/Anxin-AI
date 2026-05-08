@@ -193,6 +193,11 @@ class RAGService:
         except Exception as e:
             logger.error(f"RAG LLM 客户端初始化失败: {e}")
 
+    async def _authorize_llm_route(self, route_context: dict[str, Any] | None) -> None:
+        from src.services.llm_route_governance import authorize_llm_route_context
+
+        await authorize_llm_route_context(route_context)
+
     def _call_local_llm(
         self, messages: list[LLMMessage], temperature: float = 0.7, max_tokens: int = 4096
     ) -> str:
@@ -502,6 +507,7 @@ class RAGService:
         query: str,
         context: RAGContext,
         system_prompt: str | None = None,
+        llm_route_context: dict[str, Any] | None = None,
     ) -> tuple[str, int]:
         """
         生成回答
@@ -536,6 +542,7 @@ class RAGService:
                 {"role": "system", "content": system},
                 {"role": "user", "content": user_message},
             ]
+            await self._authorize_llm_route(llm_route_context)
             if self._is_local_model_api():
                 answer = self._call_local_llm(
                     messages, self.config.temperature, self.config.max_tokens
@@ -556,7 +563,11 @@ class RAGService:
             logger.error(f"RAG 生成失败: {e}")
             return f"生成回答时遇到错误: {str(e)}", 0
 
-    async def expand_query(self, query: str) -> list[str]:
+    async def expand_query(
+        self,
+        query: str,
+        llm_route_context: dict[str, Any] | None = None,
+    ) -> list[str]:
         """
         查询扩展
 
@@ -584,6 +595,7 @@ class RAGService:
 查询："""
 
             messages: list[LLMMessage] = [{"role": "user", "content": prompt}]
+            await self._authorize_llm_route(llm_route_context)
             if self._is_local_model_api():
                 content = self._call_local_llm(messages, 0.7, 200)
             else:
@@ -608,7 +620,11 @@ class RAGService:
             logger.error(f"查询扩展失败: {e}")
             return [query]
 
-    async def _extract_entities(self, query: str) -> list[str]:
+    async def _extract_entities(
+        self,
+        query: str,
+        llm_route_context: dict[str, Any] | None = None,
+    ) -> list[str]:
         """从查询中提取实体，用于图谱检索"""
         if not self.llm_client:
             return []
@@ -621,6 +637,7 @@ class RAGService:
 
 实体："""
             messages: list[LLMMessage] = [{"role": "user", "content": prompt}]
+            await self._authorize_llm_route(llm_route_context)
             if self._is_local_model_api():
                 content = self._call_local_llm(messages, 0, 100).strip()
             else:
@@ -644,6 +661,7 @@ class RAGService:
         collection_names: list[str],
         system_prompt: str | None = None,
         filters: dict[str, Any] | None = None,
+        llm_route_context: dict[str, Any] | None = None,
     ) -> RAGResponse:
         """
         执行完整的 RAG 流程
@@ -667,7 +685,10 @@ class RAGService:
         # 2. 如果是 GRAPH 模式，额外检索图谱数据
         graph_context = ""
         if self.config.mode == RAGMode.GRAPH:
-            entities = await self._extract_entities(query)
+            entities = await self._extract_entities(
+                query,
+                llm_route_context=llm_route_context,
+            )
             if entities:
                 graph_context = graph_service.get_context_from_graph(entities)
                 logger.debug(f"从图谱中提取到上下文，长度: {len(graph_context)}")
@@ -718,6 +739,7 @@ class RAGService:
             query=query,
             context=context,
             system_prompt=system_prompt,
+            llm_route_context=llm_route_context,
         )
 
         # 计算置信度
@@ -743,6 +765,7 @@ class RAGService:
         collection_names: list[str],
         system_prompt: str | None = None,
         filters: dict[str, Any] | None = None,
+        llm_route_context: dict[str, Any] | None = None,
     ) -> AsyncGenerator[dict[str, Any], None]:
         """
         流式 RAG 查询
@@ -756,7 +779,7 @@ class RAGService:
         if self.config.mode == RAGMode.GRAPH:
             retrieved_docs, entities = await asyncio.gather(
                 retrieve_task,
-                self._extract_entities(query),
+                self._extract_entities(query, llm_route_context=llm_route_context),
             )
         else:
             retrieved_docs = await retrieve_task
@@ -814,6 +837,7 @@ class RAGService:
                 {"role": "system", "content": system},
                 {"role": "user", "content": user_message},
             ]
+            await self._authorize_llm_route(llm_route_context)
             if self._is_local_model_api():
                 # 本地模型不支持流式，一次性返回
                 answer = self._call_local_llm(
@@ -843,6 +867,7 @@ class RAGService:
         query: str,
         collection_names: list[str],
         system_prompt: str | None = None,
+        llm_route_context: dict[str, Any] | None = None,
     ) -> RAGResponse:
         """
         多查询 RAG
@@ -850,7 +875,7 @@ class RAGService:
         使用查询扩展提高检索覆盖率
         """
         # 1. 查询扩展
-        queries = await self.expand_query(query)
+        queries = await self.expand_query(query, llm_route_context=llm_route_context)
         logger.debug(f"扩展查询: {queries}")
 
         # 2. 并行检索
@@ -872,7 +897,12 @@ class RAGService:
 
         # 5. 构建上下文和生成
         context = self.build_context(query, reranked_chunks)
-        answer, tokens_used = await self.generate(query, context, system_prompt)
+        answer, tokens_used = await self.generate(
+            query,
+            context,
+            system_prompt,
+            llm_route_context=llm_route_context,
+        )
 
         # 计算置信度
         if reranked_chunks:
@@ -905,6 +935,7 @@ async def rag_query(
     query: str,
     collection_names: list[str],
     system_prompt: str | None = None,
+    llm_route_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     执行 RAG 查询
@@ -917,13 +948,19 @@ async def rag_query(
     Returns:
         RAG 响应字典
     """
-    response = await rag_service.query(query, collection_names, system_prompt)
+    response = await rag_service.query(
+        query,
+        collection_names,
+        system_prompt,
+        llm_route_context=llm_route_context,
+    )
     return response.to_dict()
 
 
 async def legal_rag_query(
     query: str,
     kb_ids: list[str] | None = None,
+    llm_route_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     法律领域 RAG 查询
@@ -945,5 +982,6 @@ async def legal_rag_query(
         query=query,
         collection_names=collection_names,
         system_prompt=LEGAL_RAG_SYSTEM_PROMPT,
+        llm_route_context=llm_route_context,
     )
     return response.to_dict()

@@ -487,10 +487,12 @@ class KnowledgeService:
                 answer = "当前没有可访问且已索引的知识库，请先选择或创建公开/组织知识库。"
             return {"answer": answer, "sources": [], "confidence": 0}
 
+        llm_route_context = kwargs.get("llm_route_context")
         response = await rag_service.query(
             query=query,
             collection_names=collection_names,
             system_prompt=system_prompt,
+            llm_route_context=llm_route_context,
         )
         return self._scrub_pii(response.to_dict())
 

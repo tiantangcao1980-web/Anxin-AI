@@ -971,7 +971,16 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
 
             # === 知识库研究模式 ===
             _ws_user_id = data.get("user_id")
-            if await handle_rag_query(ctx, content, data, agent_name, recovery_map, user_id=_ws_user_id):
+            if await handle_rag_query(
+                ctx,
+                content,
+                data,
+                agent_name,
+                recovery_map,
+                user_id=_ws_user_id,
+                current_user=auth_user,
+                llm_route_context=llm_route_context,
+            ):
                 continue
 
             # === A2UI 意图检测 — 仅作为辅助提示传递给 Coordinator，不拦截 ===

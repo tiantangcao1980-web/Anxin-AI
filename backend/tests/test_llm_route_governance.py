@@ -21,6 +21,7 @@ from src.services.llm_route_governance import (
     LLMRouteAuthorizationError,
     llm_route_consumer_for_user,
 )
+from src.services.rag_service import RAGContext, RAGService
 
 
 class _RouteGuardAgent(BaseLegalAgent):
@@ -312,3 +313,161 @@ async def test_authorize_llm_route_raises_typed_error(monkeypatch):
             consumer_id=None,
             db=object(),  # type: ignore[arg-type]
         )
+
+
+@pytest.mark.asyncio
+async def test_rag_generate_requires_route_token_before_direct_llm(monkeypatch):
+    from src.services import llm_route_governance
+
+    monkeypatch.setattr(llm_route_governance.settings, "ENVIRONMENT", "production")
+    service = RAGService()
+    create_call_count = 0
+
+    def fake_create(**kwargs):
+        nonlocal create_call_count
+        create_call_count += 1
+        raise AssertionError("RAG direct LLM must not be called without route token")
+
+    service.llm_client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+    )
+    monkeypatch.setattr(service, "_is_local_model_api", lambda: False)
+    context = RAGContext(
+        query="合同风险",
+        retrieved_chunks=[],
+        reranked_chunks=[],
+        context_text="合同资料",
+        sources=[],
+    )
+
+    answer, tokens_used = await service.generate("合同风险", context)
+
+    assert "LLM route token required" in answer
+    assert tokens_used == 0
+    assert create_call_count == 0
+
+
+@pytest.mark.asyncio
+async def test_rag_generate_uses_db_backed_route_token(
+    monkeypatch,
+    db_session,
+    test_organization,
+):
+    from src.services import llm_route_governance
+
+    monkeypatch.setattr(llm_route_governance.settings, "ENVIRONMENT", "production")
+    service = RAGService()
+    create_call_count = 0
+
+    def fake_create(**kwargs):
+        nonlocal create_call_count
+        create_call_count += 1
+        return SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content="rag-ok"))],
+            usage=SimpleNamespace(total_tokens=7),
+        )
+
+    service.llm_client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+    )
+    monkeypatch.setattr(service, "_is_local_model_api", lambda: False)
+    governance = AgentGovernanceService(db_session)
+    await governance.create_capability_route(
+        org_id=test_organization.id,
+        route_key="rag-llm",
+        route_type="llm",
+        allowed_consumers=["rag-worker"],
+        allowed_scopes=[LLM_ROUTE_SCOPE],
+    )
+    issued = await governance.issue_route_token(
+        org_id=test_organization.id,
+        route_key="rag-llm",
+        consumer_id="rag-worker",
+        requested_scopes=[LLM_ROUTE_SCOPE],
+    )
+    context = RAGContext(
+        query="合同风险",
+        retrieved_chunks=[],
+        reranked_chunks=[],
+        context_text="合同资料",
+        sources=[],
+    )
+
+    answer, tokens_used = await service.generate(
+        "合同风险",
+        context,
+        llm_route_context={
+            "db": db_session,
+            "org_id": test_organization.id,
+            "route_token": issued.token,
+            "consumer_id": "rag-worker",
+        },
+    )
+
+    assert answer == "rag-ok"
+    assert tokens_used == 7
+    assert create_call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_rag_generate_fails_after_route_revocation(
+    monkeypatch,
+    db_session,
+    test_organization,
+):
+    from src.services import llm_route_governance
+
+    monkeypatch.setattr(llm_route_governance.settings, "ENVIRONMENT", "production")
+    service = RAGService()
+    create_call_count = 0
+
+    def fake_create(**kwargs):
+        nonlocal create_call_count
+        create_call_count += 1
+        raise AssertionError("revoked RAG route must fail before direct LLM call")
+
+    service.llm_client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+    )
+    monkeypatch.setattr(service, "_is_local_model_api", lambda: False)
+    governance = AgentGovernanceService(db_session)
+    await governance.create_capability_route(
+        org_id=test_organization.id,
+        route_key="revoked-rag-llm",
+        route_type="llm",
+        allowed_consumers=["rag-worker"],
+        allowed_scopes=[LLM_ROUTE_SCOPE],
+    )
+    issued = await governance.issue_route_token(
+        org_id=test_organization.id,
+        route_key="revoked-rag-llm",
+        consumer_id="rag-worker",
+        requested_scopes=[LLM_ROUTE_SCOPE],
+    )
+    await governance.revoke_capability_route(
+        org_id=test_organization.id,
+        route_key="revoked-rag-llm",
+        reason="owner_revoked",
+    )
+    context = RAGContext(
+        query="合同风险",
+        retrieved_chunks=[],
+        reranked_chunks=[],
+        context_text="合同资料",
+        sources=[],
+    )
+
+    answer, tokens_used = await service.generate(
+        "合同风险",
+        context,
+        llm_route_context={
+            "db": db_session,
+            "org_id": test_organization.id,
+            "route_token": issued.token,
+            "consumer_id": "rag-worker",
+        },
+    )
+
+    assert "capability_route_revoked" in answer
+    assert tokens_used == 0
+    assert create_call_count == 0

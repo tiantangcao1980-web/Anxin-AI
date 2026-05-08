@@ -789,6 +789,7 @@ class ChatService:
         content: str,
         normalized_kb_ids: list[str],
         user_id: str | None = None,
+        llm_route_context: dict[str, Any] | None = None,
     ) -> tuple[str, list[CitationSource]]:
         """执行 RAG 知识库路由，返回 (response_text, sources)"""
         from src.services.knowledge_service import KnowledgeService
@@ -798,6 +799,7 @@ class ChatService:
             query=content,
             kb_ids=normalized_kb_ids or None,
             user_id=user_id,
+            llm_route_context=llm_route_context,
         )
         response_text = (
             (rag_result or {}).get("answer", "").strip()
@@ -915,7 +917,12 @@ class ChatService:
                 used_agent = ctx.resolved_agent or "尽职调查Agent"
 
             elif ctx.route == "rag":
-                response_text, sources = await self._execute_rag(content, ctx.normalized_kb_ids, user_id=user_id)
+                response_text, sources = await self._execute_rag(
+                    content,
+                    ctx.normalized_kb_ids,
+                    user_id=user_id,
+                    llm_route_context=llm_route_context,
+                )
                 used_agent = ctx.resolved_agent or "知识库检索Agent"
 
             elif ctx.route in ("contract_review", "document_drafting"):

@@ -57,7 +57,7 @@
 |---|---|---|---|
 | P0-1 | 统一权限决策 | 目前 RBAC、订阅、隐私模式、工具调用分散 | `capability_policy_engine` 统一判定 `subscription + role + permission + risk_level + privacy_mode + device_trust + channel_policy + approval_state` |
 | P0-2 | Agent 控制面模型 | AgentManager/Team/Worker/Human/ChannelPolicy/CapabilityRoute/TokenLease/Approval/AuditEvent 模型与迁移已补；route-token 服务已接入 DB；UI/真实运行时接入未闭环 | 建立可审计数据模型，支持组织/部门/项目/客户维度 |
-| P0-3 | 真实密钥隔离 | 持久化 route-token lease 已只存 hash，跨服务实例可验证；MCP tool execution、CLI `/execute`、REST/SSE/WebSocket Chat Agent LLM runtime 与浏览器/爬虫 fetch 入口已在商业环境接入 DB-backed route token；RAG direct LLM、完整浏览器自动化和 desktop-control 高风险真实调用链尚未全部改造 | Agent/Worker 只拿短期 consumer token 或等价 route token；真实 API key/PAT/财税凭据只在密钥服务/网关侧 |
+| P0-3 | 真实密钥隔离 | 持久化 route-token lease 已只存 hash，跨服务实例可验证；MCP tool execution、CLI `/execute`、REST/SSE/WebSocket Chat Agent LLM runtime、RAG direct LLM 与浏览器/爬虫 fetch 入口已在商业环境接入 DB-backed route token；完整浏览器自动化和 desktop-control 高风险真实调用链尚未全部改造 | Agent/Worker 只拿短期 consumer token 或等价 route token；真实 API key/PAT/财税凭据只在密钥服务/网关侧 |
 | P0-4 | 高风险审批 | 高风险动作已有最小 service/API/UI 审批模型；真实能力链路接入未闭环 | L3/L4 能力必须创建 approval request；老板/超级管理员或授权管理员批准后才能执行；过期/撤销 fail-closed |
 | P0-5 | 通信/房间策略 | 当前没有声明式 agent channel policy | 定义谁能看、谁能说、谁能 @、谁能分派、谁能接管；外部专业服务方只能看授权材料包 |
 | P0-6 | 可见审计与接管 | agent 执行过程散落在日志或消息中 | 高风险任务进入可审计工作室；支持旁听、暂停、接管、终止、导出 artifact |
@@ -121,7 +121,7 @@ can_execute_capability(actor, org, capability, risk_level, data_scope, privacy_m
 
 - `backend/src/services/capability_policy_engine.py` 已补统一能力决策入口 `CapabilityPolicyEngine.can_execute_capability()`，把订阅 feature、角色、权限、风险级别、隐私模式、数据范围、设备信任、通道策略、CapabilityRoute 状态和 AgentApproval 审批状态串为单次可审计决策，并写入 `AgentAuditEvent`。
 - `backend/tests/test_capability_policy_engine.py` 已覆盖通过路径、订阅缺失、权限缺失、绝密/本地模式拒绝 networked/external 能力、未受信设备拒绝桌面控制、通道策略拒绝、L3/L4 高风险能力审批前拒绝/审批后放行，以及员工浏览器填表被拒、部门管理员报表 Agent 放行、老板桌面远控审批、超级管理员撤销 MCP route 后 route/token 失权、外部服务方材料包边界五类权限回归；当前 `11 passed`。
-- `scripts/commercial-readiness-gate.sh --with-local-tests` 已加入 unified capability policy engine tests。该切片只关闭服务层统一判定，不替代 RAG direct LLM、完整 browser automation 和 desktop-control 执行链路接入和真实 runtime evidence。
+- `scripts/commercial-readiness-gate.sh --with-local-tests` 已加入 unified capability policy engine tests。该切片只关闭服务层统一判定，不替代完整 browser automation、desktop-control 执行链路接入和真实 runtime evidence。
 
 ### Step 3 · Gateway/Consumer Token 模型
 
@@ -146,7 +146,8 @@ can_execute_capability(actor, org, capability, risk_level, data_scope, privacy_m
 - `backend/tests/test_llm_route_governance.py` 已覆盖 LLM runtime 商业环境缺 token fail-closed、DB route token 放行、route revoke 后在模型 HTTP 前拒绝、流式模型调用触网前拒绝、WebSocket route-token credential 提取、WebSocket-like contextvar 流式传递和 `/chat/route-token` 用户绑定签发。
 - `backend/tests/test_crawler_compliance.py` 已覆盖浏览器/爬虫商业环境缺 token fail-closed、DB route token 放行、route revoke 后在 robots/http 前拒绝。
 - `scripts/commercial-readiness-gate.sh --with-local-tests` 已加入 `agent governance service tests`、`MCP route governance tests`、`CLI route governance tests`、`LLM route governance tests` 与 `crawler browser route governance tests`。
-- 后续仍需把 RAG direct LLM、完整 browser automation、desktop-control 高风险真实调用链全部切到该服务，并补真实 approved MCP connector 演练、跨进程/多实例撤销传播证据。
+- RAG direct LLM 已补：`RAGService.generate/expand_query/_extract_entities/stream_query` 在直接调用 OpenAI 或本地模型前会校验 DB-backed `llm:chat` route token，REST Knowledge RAG、同步 Chat RAG 和 WebSocket RAG 均会传递 route context；`backend/tests/test_llm_route_governance.py` 已覆盖缺 token 触网前拒绝、DB route token 放行与 route 撤销后拒绝。
+- 后续仍需把完整 browser automation、desktop-control 高风险真实调用链全部切到该服务，并补真实 approved MCP connector 演练、跨进程/多实例撤销传播证据。
 
 ### Step 4 · Human-in-the-loop 工作室
 
@@ -181,7 +182,7 @@ can_execute_capability(actor, org, capability, risk_level, data_scope, privacy_m
 - `backend/src/services/skill_service.py` 已支持在治理模式下只返回当前 enabled version。
 - `backend/tests/test_skill_evolution_service.py` 与 `backend/tests/test_skill_service.py` 已覆盖 agent 不能自启生产版本、评测失败/缺失拒绝审批、越权审批拒绝、灰度百分比边界、回滚后下一次技能匹配回到上一版本。
 - `backend/src/services/skill_governance_service.py` 已把 Skill 进化门禁生产化为 DB-backed SkillGovernance：proposal、required eval、授权审批、灰度启用、回滚、enabled version 查询、组织隔离和审计事件都可跨 service 实例持久化；`backend/src/api/routes/skill_governance.py` 已补正式 API，覆盖提案、列表/详情、enabled version、评测、审批、灰度、回滚、audit-events 和 audit-export；`backend/tests/test_skill_governance_models.py`、`backend/tests/test_skill_governance_service.py` 与 `backend/tests/test_skill_governance_api.py` 共 `16 passed`。
-- 仍需后续把 AgentApproval/AgentAuditEvent/SkillGovernance 接入 RAG direct LLM、完整 browser automation 和 desktop-control 执行链路、组织级能力中心 UI、真实 CapabilityRoute 撤销联动、记忆治理和商业发布证据。
+- 仍需后续把 AgentApproval/AgentAuditEvent/SkillGovernance 接入完整 browser automation 和 desktop-control 执行链路、组织级能力中心 UI、真实 CapabilityRoute 撤销联动、记忆治理和商业发布证据；RAG direct LLM 的 route-token 代码级边界已收口，但还需纳入完整商业运行时演练。
 
 - 定义 `SkillEvolutionProposal`：来源失败案例、用户反馈、评测失败、人工建议或 agent 观察。
 - Proposal 只能生成草案、测试和风险说明；不得自动修改 enabled Skill。
@@ -229,7 +230,7 @@ docs/audit/12-enterprise-agent-governance/
 - [x] `capability_policy_engine` 服务层覆盖订阅、角色、权限、风险级别、隐私模式、设备信任、通信策略和审批状态；真实 LLM、完整浏览器自动化和 desktop-control 运行时链路接入仍需后续闭环。
 - [x] AgentManager / AgentTeam / AgentWorker / HumanParticipant / ChannelPolicy / CapabilityRoute / TokenLease / Approval / AuditEvent 模型与 migration 有 upgrade/downgrade。
 - [x] AgentApproval service/API 和最小前端工作台具备创建、列表/count、审批/驳回/撤销、过期、action/route 匹配、执行前 validate、组织/本人 scope、审批审计时间线、审批审计 JSON 导出、已批准工作室 artifact list/create/export、运行时未接入时 workspace-control fail-closed、移动视口回归和审计回归；完整工作室和真实执行链路接入仍未完成。
-- [ ] Worker/Agent 不持有真实密钥；MCP tool execution、CLI `/execute`、REST/SSE/WebSocket Chat Agent LLM runtime、桌面端 CLI route-token 获取/传递和浏览器/爬虫 fetch 入口已有 DB-backed route-token fail-closed 代码级回归，RAG direct LLM、完整 browser automation、desktop-control 和真实 approved connector 演练仍待闭环。
+- [ ] Worker/Agent 不持有真实密钥；MCP tool execution、CLI `/execute`、REST/SSE/WebSocket Chat Agent LLM runtime、RAG direct LLM、桌面端 CLI route-token 获取/传递和浏览器/爬虫 fetch 入口已有 DB-backed route-token fail-closed 代码级回归，完整 browser automation、desktop-control 和真实 approved connector 演练仍待闭环。
 - [x] 五类权限回归通过：员工浏览器填表被拒、部门管理员创建部门报告 agent、老板批准桌面远控、超级管理员撤销 MCP route、外部服务方只能看授权材料包；真实运行时 connector/工作室证据仍需后续闭环。
 - [x] 能力中心最小可见性已按角色收口：老板/Owner/超级管理员/admin 看全量，普通员工只见基础能力和可申请项；组织级 CapabilityRoute 策略已具备最小 list/update API、policy 脱敏、禁用即撤销 lease 和前端启用/禁用面板；订阅购买联动、部门申请流、完整策略编辑器和真实 connector 演练仍待闭环。
 - [x] Skill 进化提案、评测门禁、管理员审批、灰度启用和回滚禁用已有本地与 DB-backed 正反向测试；组织级 UI、真实执行链路失权和商业发布证据仍未闭环。

@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Header, Query, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +13,10 @@ from src.core.deps import get_current_user_required
 from src.core.responses import UnifiedResponse
 from src.models.user import User
 from src.services.knowledge_service import KnowledgeService
+from src.services.llm_route_governance import (
+    build_llm_route_context,
+    llm_route_consumer_for_user,
+)
 
 router = APIRouter()
 
@@ -408,6 +412,14 @@ async def rag_query(
     request: RAGQueryRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
+    x_capability_route_token: str | None = Header(
+        default=None,
+        alias="X-Capability-Route-Token",
+    ),
+    x_capability_consumer_id: str | None = Header(
+        default=None,
+        alias="X-Capability-Consumer-Id",
+    ),
 ) -> dict[str, Any]:
     """
     RAG 智能问答
@@ -422,6 +434,13 @@ async def rag_query(
         system_prompt=request.system_prompt,
         user_id=user.id,
         org_id=user.org_id,
+        llm_route_context=build_llm_route_context(
+            db=db,
+            org_id=user.org_id,
+            route_token=x_capability_route_token,
+            consumer_id=x_capability_consumer_id or llm_route_consumer_for_user(str(user.id)),
+            actor_user_id=str(user.id),
+        ),
     )
 
     data = RAGQueryResponse(

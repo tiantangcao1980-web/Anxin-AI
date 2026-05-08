@@ -302,7 +302,7 @@ async def test_rag_query_filters_collections_and_redacts_nested_response(
                 "confidence": 0.82,
             }
 
-    async def fake_rag_query(query, collection_names, system_prompt=None):
+    async def fake_rag_query(query, collection_names, system_prompt=None, **kwargs):
         calls.append(collection_names)
         return FakeRAGResponse()
 

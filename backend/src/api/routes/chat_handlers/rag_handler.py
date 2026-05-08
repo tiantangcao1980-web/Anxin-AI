@@ -14,6 +14,7 @@ async def handle_rag_query(
     recovery_map: dict[str, str] | None,
     user_id: str | None = None,
     current_user: Any = None,
+    llm_route_context: dict[str, Any] | None = None,
 ) -> bool:
     """
     知识库研究模式：在聊天内直接执行 RAG 查询。
@@ -73,6 +74,7 @@ async def handle_rag_query(
                 kb_ids=_selected_kb_ids or None,
                 user_id=user_id,
                 org_id=getattr(current_user, 'org_id', None) if current_user else None,
+                llm_route_context=llm_route_context,
             )
 
         response_text = (rag_result or {}).get("answer", "").strip()

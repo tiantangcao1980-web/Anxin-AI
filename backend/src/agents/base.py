@@ -375,21 +375,9 @@ class BaseLegalAgent(ABC):
         raise RuntimeError("API调用失败：重试器未返回结果")
 
     async def _authorize_llm_route(self, route_context: dict[str, Any] | None) -> None:
-        from src.services.llm_route_governance import authorize_llm_route
+        from src.services.llm_route_governance import authorize_llm_route_context
 
-        context = route_context or {}
-        db = context.get("db")
-        try:
-            await authorize_llm_route(
-                org_id=context.get("org_id"),
-                route_token=context.get("route_token"),
-                consumer_id=context.get("consumer_id"),
-                actor_user_id=context.get("actor_user_id"),
-                db=db,
-            )
-        finally:
-            if context.get("commit_after_authorize") and db is not None:
-                await db.commit()
+        await authorize_llm_route_context(route_context)
 
     @staticmethod
     def _extract_tool_name(tool: JSONDict) -> str | None:
