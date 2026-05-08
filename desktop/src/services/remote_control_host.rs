@@ -8,6 +8,11 @@ const SAFE_PROBE_COMMAND_TYPES: [&str; 4] = [
     "desktop.ping",
     "desktop.status_probe",
 ];
+const DEFAULT_POLL_INTERVAL_SECONDS: u64 = 10;
+const MIN_POLL_INTERVAL_SECONDS: u64 = 5;
+const MAX_POLL_INTERVAL_SECONDS: u64 = 300;
+const DEFAULT_POLL_CYCLES: u16 = 12;
+const MAX_POLL_CYCLES: u16 = 120;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RemoteControlHostCommand {
@@ -30,6 +35,24 @@ pub struct RemoteControlHostCycleSummary {
     pub failed: usize,
     pub unsupported: usize,
     pub command_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RemoteControlHostPollConfig {
+    pub interval_seconds: u64,
+    pub max_cycles: u16,
+    pub limit: u8,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RemoteControlHostPollSummary {
+    pub cycles: u16,
+    pub claimed: usize,
+    pub completed: usize,
+    pub failed: usize,
+    pub unsupported: usize,
+    pub command_ids: Vec<String>,
+    pub stopped_reason: String,
 }
 
 pub fn build_http_client() -> Result<reqwest::Client, String> {
@@ -211,6 +234,81 @@ pub async fn run_remote_control_host_cycle(
     Ok(summary)
 }
 
+pub fn build_host_poll_config(
+    interval_seconds: Option<u64>,
+    max_cycles: Option<u16>,
+    limit: Option<u8>,
+) -> Result<RemoteControlHostPollConfig, String> {
+    let interval_seconds = interval_seconds.unwrap_or(DEFAULT_POLL_INTERVAL_SECONDS);
+    if !(MIN_POLL_INTERVAL_SECONDS..=MAX_POLL_INTERVAL_SECONDS).contains(&interval_seconds) {
+        return Err(format!(
+            "远控 host 轮询间隔必须在 {MIN_POLL_INTERVAL_SECONDS} 到 {MAX_POLL_INTERVAL_SECONDS} 秒之间"
+        ));
+    }
+
+    let max_cycles = max_cycles.unwrap_or(DEFAULT_POLL_CYCLES);
+    if max_cycles == 0 || max_cycles > MAX_POLL_CYCLES {
+        return Err(format!(
+            "远控 host 轮询次数必须在 1 到 {MAX_POLL_CYCLES} 之间"
+        ));
+    }
+
+    Ok(RemoteControlHostPollConfig {
+        interval_seconds,
+        max_cycles,
+        limit: normalize_claim_limit(limit)?,
+    })
+}
+
+pub async fn run_remote_control_host_poll(
+    client: &reqwest::Client,
+    backend_url: &str,
+    bearer_token: &str,
+    desktop_device_id: &str,
+    pairing_id: &str,
+    route_token: &str,
+    host_instance_id: &str,
+    config: RemoteControlHostPollConfig,
+) -> Result<RemoteControlHostPollSummary, String> {
+    let mut summary = RemoteControlHostPollSummary {
+        stopped_reason: "max_cycles_reached".to_string(),
+        ..RemoteControlHostPollSummary::default()
+    };
+
+    for cycle_index in 0..config.max_cycles {
+        let cycle = run_remote_control_host_cycle(
+            client,
+            backend_url,
+            bearer_token,
+            desktop_device_id,
+            pairing_id,
+            route_token,
+            host_instance_id,
+            Some(config.limit),
+        )
+        .await?;
+        record_poll_cycle(&mut summary, cycle);
+
+        if cycle_index + 1 < config.max_cycles {
+            tokio::time::sleep(std::time::Duration::from_secs(config.interval_seconds)).await;
+        }
+    }
+
+    Ok(summary)
+}
+
+pub fn record_poll_cycle(
+    summary: &mut RemoteControlHostPollSummary,
+    cycle: RemoteControlHostCycleSummary,
+) {
+    summary.cycles += 1;
+    summary.claimed += cycle.claimed;
+    summary.completed += cycle.completed;
+    summary.failed += cycle.failed;
+    summary.unsupported += cycle.unsupported;
+    summary.command_ids.extend(cycle.command_ids);
+}
+
 pub fn claimed_commands_from_response(
     response: &Value,
 ) -> Result<Vec<RemoteControlHostCommand>, String> {
@@ -316,8 +414,9 @@ fn normalize_result_summary(value: Option<Value>) -> Result<Map<String, Value>, 
 mod tests {
     use super::{
         build_claim_commands_payload, build_command_status_payload, build_confirm_pairing_payload,
-        claimed_commands_from_response, decide_host_command, remote_control_url,
-        RemoteControlHostCommand,
+        build_host_poll_config, claimed_commands_from_response, decide_host_command,
+        record_poll_cycle, remote_control_url, RemoteControlHostCommand,
+        RemoteControlHostCycleSummary, RemoteControlHostPollSummary,
     };
     use serde_json::json;
 
@@ -451,5 +550,61 @@ mod tests {
             risky_decision.result_summary["received_command_type"],
             "open_file"
         );
+    }
+
+    #[test]
+    fn host_poll_config_is_bounded_and_reuses_claim_limit_rules() {
+        let default_config = build_host_poll_config(None, None, None).expect("default poll config");
+
+        assert_eq!(default_config.interval_seconds, 10);
+        assert_eq!(default_config.max_cycles, 12);
+        assert_eq!(default_config.limit, 10);
+
+        let custom_config =
+            build_host_poll_config(Some(30), Some(3), Some(2)).expect("custom poll config");
+        assert_eq!(custom_config.interval_seconds, 30);
+        assert_eq!(custom_config.max_cycles, 3);
+        assert_eq!(custom_config.limit, 2);
+
+        assert!(build_host_poll_config(Some(1), Some(3), Some(2)).is_err());
+        assert!(build_host_poll_config(Some(30), Some(0), Some(2)).is_err());
+        assert!(build_host_poll_config(Some(30), Some(3), Some(0)).is_err());
+    }
+
+    #[test]
+    fn record_poll_cycle_accumulates_counts_without_payloads() {
+        let mut summary = RemoteControlHostPollSummary {
+            stopped_reason: "max_cycles_reached".to_string(),
+            ..RemoteControlHostPollSummary::default()
+        };
+
+        record_poll_cycle(
+            &mut summary,
+            RemoteControlHostCycleSummary {
+                claimed: 2,
+                completed: 1,
+                failed: 1,
+                unsupported: 1,
+                command_ids: vec!["cmd-a".to_string(), "cmd-b".to_string()],
+            },
+        );
+        record_poll_cycle(
+            &mut summary,
+            RemoteControlHostCycleSummary {
+                claimed: 1,
+                completed: 1,
+                failed: 0,
+                unsupported: 0,
+                command_ids: vec!["cmd-c".to_string()],
+            },
+        );
+
+        assert_eq!(summary.cycles, 2);
+        assert_eq!(summary.claimed, 3);
+        assert_eq!(summary.completed, 2);
+        assert_eq!(summary.failed, 1);
+        assert_eq!(summary.unsupported, 1);
+        assert_eq!(summary.command_ids, vec!["cmd-a", "cmd-b", "cmd-c"]);
+        assert_eq!(summary.stopped_reason, "max_cycles_reached");
     }
 }

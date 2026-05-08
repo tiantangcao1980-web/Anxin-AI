@@ -122,6 +122,35 @@ pub async fn remote_control_run_host_cycle(
     .await
 }
 
+#[command]
+pub async fn remote_control_run_host_poll(
+    state: State<'_, SharedAppState>,
+    desktop_device_id: String,
+    pairing_id: String,
+    route_token: String,
+    host_instance_id: String,
+    interval_seconds: Option<u64>,
+    max_cycles: Option<u16>,
+    limit: Option<u8>,
+) -> Result<remote_control_host::RemoteControlHostPollSummary, String> {
+    ensure_data_network_allowed(state.inner(), "运行移动远控 host 受限轮询").await?;
+    let config = remote_control_host::build_host_poll_config(interval_seconds, max_cycles, limit)?;
+    let (backend_url, user_token) = remote_control_context(state.inner()).await?;
+    let client = remote_control_host::build_http_client()?;
+
+    remote_control_host::run_remote_control_host_poll(
+        &client,
+        &backend_url,
+        &user_token,
+        &desktop_device_id,
+        &pairing_id,
+        &route_token,
+        &host_instance_id,
+        config,
+    )
+    .await
+}
+
 async fn remote_control_context(state: &SharedAppState) -> Result<(String, String), String> {
     let s = state.read().await;
     let user_token = s

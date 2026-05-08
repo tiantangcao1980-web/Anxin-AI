@@ -250,6 +250,7 @@ pub fn run_with_options(options: DesktopRunOptions) {
             commands::remote_control::remote_control_claim_commands,
             commands::remote_control::remote_control_report_command_status,
             commands::remote_control::remote_control_run_host_cycle,
+            commands::remote_control::remote_control_run_host_poll,
             // 本地 LLM
             commands::local_llm::local_llm_chat,
             commands::local_llm::list_local_models,
