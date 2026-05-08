@@ -115,6 +115,9 @@ class Settings(BaseSettings):
     # CLI command execution route governance. staging/production fail closed even
     # when this explicit switch is false; the switch lets tests/dev rehearse it.
     CLI_ROUTE_TOKEN_REQUIRED: bool = False
+    # LLM runtime route governance. staging/production fail closed even when
+    # this explicit switch is false; the switch lets tests/dev rehearse it.
+    LLM_ROUTE_TOKEN_REQUIRED: bool = False
     # Browser/crawler execution route governance. staging/production fail
     # closed even when this explicit switch is false; the switch lets tests/dev
     # rehearse it before deployment.

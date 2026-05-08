@@ -267,6 +267,7 @@ class AgentLifecycleManager:
             AgentResponse,
             _task_history_var,
             _task_llm_config_var,
+            _task_llm_route_context_var,
             _task_mcp_route_context_var,
         )
 
@@ -283,6 +284,7 @@ class AgentLifecycleManager:
                 history = context.get("history")
                 token = _task_llm_config_var.set(llm_config)
                 token_hist = _task_history_var.set(history)
+                token_llm = _task_llm_route_context_var.set(context.get("llm_route_context"))
                 token_mcp = _task_mcp_route_context_var.set(context.get("mcp_route_context"))
 
                 try:
@@ -302,6 +304,7 @@ class AgentLifecycleManager:
                 finally:
                     _task_llm_config_var.reset(token)
                     _task_history_var.reset(token_hist)
+                    _task_llm_route_context_var.reset(token_llm)
                     _task_mcp_route_context_var.reset(token_mcp)
 
                 # 检查结果

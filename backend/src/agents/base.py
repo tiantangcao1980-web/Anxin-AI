@@ -48,6 +48,13 @@ _task_mcp_route_context_var: contextvars.ContextVar[dict[str, Any] | None] = con
     default=None,
 )
 
+# 任务级 LLM route-token 上下文。用于把 DB-backed AgentGovernanceService
+# 授权结果传递到真实 LLM runtime call，而不要求每个业务 Agent 改签名。
+_task_llm_route_context_var: contextvars.ContextVar[dict[str, Any] | None] = contextvars.ContextVar(
+    "task_llm_route_context",
+    default=None,
+)
+
 
 class AgentConfig(BaseModel):
     """智能体配置"""
@@ -367,6 +374,18 @@ class BaseLegalAgent(ABC):
 
         raise RuntimeError("API调用失败：重试器未返回结果")
 
+    async def _authorize_llm_route(self, route_context: dict[str, Any] | None) -> None:
+        from src.services.llm_route_governance import authorize_llm_route
+
+        context = route_context or {}
+        await authorize_llm_route(
+            org_id=context.get("org_id"),
+            route_token=context.get("route_token"),
+            consumer_id=context.get("consumer_id"),
+            actor_user_id=context.get("actor_user_id"),
+            db=context.get("db"),
+        )
+
     @staticmethod
     def _extract_tool_name(tool: JSONDict) -> str | None:
         function_def = tool.get("function")
@@ -415,6 +434,7 @@ class BaseLegalAgent(ABC):
         max_tokens: int | None = None,
         history: list[ChatMessage] | None = None,
         mcp_route_context: dict[str, Any] | None = None,
+        llm_route_context: dict[str, Any] | None = None,
     ) -> str:
         """
         对话接口 (v2 优化版)
@@ -506,6 +526,9 @@ class BaseLegalAgent(ABC):
             provider = getattr(active_config, 'provider', 'N/A')
             base_url_str = getattr(active_config, 'api_base_url', 'N/A')
             logger.info(f"Agent {self.name} using config: Provider={provider}, API Base={base_url_str}, Key={'configured' if _final_key else 'missing'}")
+
+            effective_llm_route_context = llm_route_context or _task_llm_route_context_var.get(None) or {}
+            await self._authorize_llm_route(effective_llm_route_context)
 
             # 准备请求参数
             url, headers, model_name = self._prepare_llm_request(active_config)
@@ -739,6 +762,7 @@ class BaseLegalAgent(ABC):
         system_prompt_override: str | None = None,
         history: list[ChatMessage] | None = None,
         max_tokens: int | None = None,
+        llm_route_context: dict[str, Any] | None = None,
     ) -> asyncio.Queue[str | None]:
         """
         流式对话接口 — 真正的 token-by-token 流式输出
@@ -766,6 +790,9 @@ class BaseLegalAgent(ABC):
                     )
                     await queue.put(None)
                     return
+
+                effective_llm_route_context = llm_route_context or _task_llm_route_context_var.get(None) or {}
+                await self._authorize_llm_route(effective_llm_route_context)
 
                 url, headers, model_name = self._prepare_llm_request(active_config)
 

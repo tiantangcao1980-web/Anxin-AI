@@ -6,7 +6,7 @@ from collections.abc import AsyncGenerator, Awaitable, Callable
 from typing import Any, cast
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Header, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 from loguru import logger
 from pydantic import BaseModel, Field, field_validator
@@ -38,6 +38,14 @@ from src.services.chat_service import ChatService, extract_citations
 from src.services.compute_router_service import compute_router
 from src.services.episodic_memory_service import episodic_memory
 from src.services.event_bus import event_bus
+from src.services.llm_route_governance import (
+    DEFAULT_LLM_ROUTE_KEY,
+    LLM_ROUTE_SCOPE,
+    LLMRouteAuthorizationError,
+    build_llm_route_context,
+    llm_route_consumer_for_user,
+    llm_route_governance_required,
+)
 from src.services.pii_service import pii_service
 from src.services.template_context import inject_template_context
 
@@ -122,6 +130,24 @@ class ChatResponse(BaseModel):
     memory_id: str | None = None
 
 
+class ChatRouteTokenRequest(BaseModel):
+    """签发聊天/LLM runtime route token"""
+    route_key: str = DEFAULT_LLM_ROUTE_KEY
+    scope: str = LLM_ROUTE_SCOPE
+    consumer_id: str | None = None
+
+
+class ChatRouteTokenResponse(BaseModel):
+    success: bool
+    required: bool
+    route_key: str
+    consumer_id: str
+    scope: str
+    route_token: str | None = None
+    expires_at: str | None = None
+    error: str | None = None
+
+
 class MessageItem(BaseModel):
     """消息项"""
     id: str
@@ -135,12 +161,89 @@ class MessageItem(BaseModel):
     reasoning: str | None = None
 
 
+def _chat_llm_route_context(
+    *,
+    db: AsyncSession,
+    user: User,
+    route_token: str | None,
+    consumer_id: str | None,
+) -> dict[str, Any]:
+    user_id = str(user.id)
+    return build_llm_route_context(
+        db=db,
+        org_id=getattr(user, "org_id", None),
+        route_token=route_token,
+        consumer_id=consumer_id or llm_route_consumer_for_user(user_id),
+        actor_user_id=user_id,
+    )
+
+
+@router.post("/route-token", response_model=ChatRouteTokenResponse)
+async def issue_chat_route_token(
+    payload: ChatRouteTokenRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+) -> ChatRouteTokenResponse:
+    """签发短期 LLM route token，供聊天/智能体模型调用前传递。"""
+    from src.services.agent_governance_service import AgentGovernanceService
+
+    user_id = str(user.id)
+    org_id = getattr(user, "org_id", None)
+    consumer_id = payload.consumer_id or llm_route_consumer_for_user(user_id)
+    if payload.scope != LLM_ROUTE_SCOPE:
+        return ChatRouteTokenResponse(
+            success=False,
+            required=llm_route_governance_required(),
+            route_key=payload.route_key,
+            consumer_id=consumer_id,
+            scope=payload.scope,
+            error="unsupported_llm_route_scope",
+        )
+    if not org_id:
+        return ChatRouteTokenResponse(
+            success=False,
+            required=llm_route_governance_required(),
+            route_key=payload.route_key,
+            consumer_id=consumer_id,
+            scope=payload.scope,
+            error="missing_user_org",
+        )
+
+    issued = await AgentGovernanceService(db).issue_route_token(
+        org_id=org_id,
+        route_key=payload.route_key,
+        consumer_id=consumer_id,
+        requested_scopes=[payload.scope],
+        actor_user_id=user_id,
+    )
+    if not issued.allowed:
+        return ChatRouteTokenResponse(
+            success=False,
+            required=llm_route_governance_required(),
+            route_key=payload.route_key,
+            consumer_id=consumer_id,
+            scope=payload.scope,
+            error=issued.reason_code,
+        )
+    return ChatRouteTokenResponse(
+        success=True,
+        required=llm_route_governance_required(),
+        route_key=payload.route_key,
+        consumer_id=consumer_id,
+        scope=payload.scope,
+        route_token=issued.token,
+        expires_at=issued.expires_at.isoformat() if issued.expires_at else None,
+    )
+
+
 @router.post("/", response_model=UnifiedResponse)
 async def send_message(
     request: Request,
     message: ChatMessage,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
+    x_capability_route_token: str | None = Header(None, alias="X-Capability-Route-Token"),
+    x_capability_consumer_id: str | None = Header(None, alias="X-Capability-Consumer-Id"),
     _: None = Depends(rate_limit_chat),
 ) -> dict[str, Any]:
     """发送消息并获取AI回复"""
@@ -156,10 +259,19 @@ async def send_message(
             knowledge_base_ids=message.knowledge_base_ids,
             template_id=message.template_id,
             model_id=message.model_id,
+            llm_route_context=_chat_llm_route_context(
+                db=db,
+                user=user,
+                route_token=x_capability_route_token,
+                consumer_id=x_capability_consumer_id,
+            ),
         )
     except ValueError as exc:
         logger.warning(f"聊天请求校验失败: {exc}")
         return UnifiedResponse.error(code=404, message=str(exc))
+    except LLMRouteAuthorizationError as exc:
+        logger.warning(f"聊天 LLM route-token 校验失败: {exc}")
+        return UnifiedResponse.error(code=403, message=str(exc))
 
     # 记录审计日志
     if user:
@@ -434,6 +546,8 @@ async def stream_chat_endpoint(
     message: ChatMessage,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
+    x_capability_route_token: str | None = Header(None, alias="X-Capability-Route-Token"),
+    x_capability_consumer_id: str | None = Header(None, alias="X-Capability-Consumer-Id"),
     _: None = Depends(rate_limit(limit=20, window=60, endpoint="chat_stream")),
 ) -> StreamingResponse:
     """
@@ -460,6 +574,12 @@ async def stream_chat_endpoint(
                 user_id=user.id,
                 case_id=message.case_id,
                 agent_name=message.agent_name,
+                llm_route_context=_chat_llm_route_context(
+                    db=db,
+                    user=user,
+                    route_token=x_capability_route_token,
+                    consumer_id=x_capability_consumer_id,
+                ),
             ):
                 # 将事件转换为SSE格式
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
@@ -505,6 +625,8 @@ async def stream_chat_v2(
     message: ChatMessage,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_permission(Permission.USE_CHAT)),
+    x_capability_route_token: str | None = Header(None, alias="X-Capability-Route-Token"),
+    x_capability_consumer_id: str | None = Header(None, alias="X-Capability-Consumer-Id"),
     _: None = Depends(rate_limit(limit=20, window=60, endpoint="chat_stream")),
 ) -> StreamingResponse:
     """
@@ -522,6 +644,12 @@ async def stream_chat_v2(
                 user_id=user.id,
                 case_id=message.case_id,
                 agent_name=message.agent_name,
+                llm_route_context=_chat_llm_route_context(
+                    db=db,
+                    user=user,
+                    route_token=x_capability_route_token,
+                    consumer_id=x_capability_consumer_id,
+                ),
             ):
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 

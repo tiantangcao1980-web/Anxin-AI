@@ -880,6 +880,7 @@ class ChatService:
         template_id: str | None = None,
         model_id: str | None = None,
         document_id: str | None = None,
+        llm_route_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """处理对话（同步模式）"""
 
@@ -921,14 +922,22 @@ class ChatService:
                 used_agent = ctx.resolved_agent or "legal_advisor"
                 response_text = await self.workforce.chat(
                     content, used_agent,
-                    context={"llm_config": ctx.llm_config, "history": ctx.context_messages},
+                    context={
+                        "llm_config": ctx.llm_config,
+                        "history": ctx.context_messages,
+                        "llm_route_context": llm_route_context,
+                    },
                 )
 
             elif ctx.route == "specific_agent":
                 used_agent = ctx.resolved_agent or "legal_advisor"
                 response_text = await self.workforce.chat(
                     content, used_agent,
-                    context={"llm_config": ctx.llm_config, "history": ctx.context_messages},
+                    context={
+                        "llm_config": ctx.llm_config,
+                        "history": ctx.context_messages,
+                        "llm_route_context": llm_route_context,
+                    },
                 )
 
             else:  # general
@@ -939,6 +948,7 @@ class ChatService:
                         "history": ctx.context_messages,
                         "case_id": case_id,
                         "llm_config": ctx.llm_config,
+                        "llm_route_context": llm_route_context,
                     }
                 )
                 response_text = result.get("final_result", {}).get("summary", "")
@@ -947,7 +957,11 @@ class ChatService:
                 if not response_text:
                     response_text = await self.workforce.chat(
                         content,
-                        context={"llm_config": ctx.llm_config, "history": ctx.context_messages},
+                        context={
+                            "llm_config": ctx.llm_config,
+                            "history": ctx.context_messages,
+                            "llm_route_context": llm_route_context,
+                        },
                     )
                     used_agent = "法律顾问Agent"
 
@@ -1021,6 +1035,7 @@ class ChatService:
         agent_name: str | None = None,
         privacy_mode: str = "HYBRID",
         document_id: str | None = None,
+        llm_route_context: dict[str, Any] | None = None,
     ) -> AsyncGenerator[dict[str, Any], None]:
         """
         流式对话 (v2 -- 支持真正的 token 流式输出)
@@ -1118,12 +1133,20 @@ class ChatService:
             try:
                 response_text = await self.workforce.chat(
                     content, used_agent,
-                    context={"llm_config": ctx.llm_config, "history": ctx.context_messages},
+                    context={
+                        "llm_config": ctx.llm_config,
+                        "history": ctx.context_messages,
+                        "llm_route_context": llm_route_context,
+                    },
                 )
             except Exception:
                 response_text = await self.workforce.chat(
                     content, "legal_advisor",
-                    context={"llm_config": ctx.llm_config, "history": ctx.context_messages},
+                    context={
+                        "llm_config": ctx.llm_config,
+                        "history": ctx.context_messages,
+                        "llm_route_context": llm_route_context,
+                    },
                 )
                 used_agent = "legal_advisor"
 
@@ -1181,6 +1204,7 @@ class ChatService:
                         "case_id": case_id,
                         "llm_config": ctx.llm_config,
                         "history": ctx.context_messages,
+                        "llm_route_context": llm_route_context,
                     },
                 ):
                     evt_type = event.get("type")
@@ -1263,7 +1287,11 @@ class ChatService:
                 if not response_text:
                     response_text = await self.workforce.chat(
                         content,
-                        context={"llm_config": ctx.llm_config, "history": ctx.context_messages},
+                        context={
+                            "llm_config": ctx.llm_config,
+                            "history": ctx.context_messages,
+                            "llm_route_context": llm_route_context,
+                        },
                     )
 
                 # 隐私还原
@@ -1294,11 +1322,13 @@ class ChatService:
 
                 # 尝试使用真流式
                 try:
-                    token_queue = await target_agent.stream_chat(
-                        content,
-                        llm_config=ctx.llm_config,
-                        history=ctx.context_messages,
-                    )
+                    stream_kwargs: dict[str, Any] = {
+                        "llm_config": ctx.llm_config,
+                        "history": ctx.context_messages,
+                    }
+                    if llm_route_context is not None:
+                        stream_kwargs["llm_route_context"] = llm_route_context
+                    token_queue = await target_agent.stream_chat(content, **stream_kwargs)
 
                     accumulated_text = ""
                     while True:
@@ -1327,7 +1357,11 @@ class ChatService:
                     response_text = await self.workforce.chat(
                         content,
                         agent_name if agent_name else None,
-                        context={"llm_config": ctx.llm_config, "history": ctx.context_messages}
+                        context={
+                            "llm_config": ctx.llm_config,
+                            "history": ctx.context_messages,
+                            "llm_route_context": llm_route_context,
+                        }
                     )
 
                     # 隐私还原

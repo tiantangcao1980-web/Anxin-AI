@@ -671,10 +671,12 @@ class LegalWorkforce:
             from src.agents.base import (
                 _task_history_var,
                 _task_llm_config_var,
+                _task_llm_route_context_var,
                 _task_mcp_route_context_var,
             )
             token_cfg = _task_llm_config_var.set(llm_config)
             token_hist = _task_history_var.set(history)
+            token_llm = _task_llm_route_context_var.set(context.get("llm_route_context"))
             token_mcp = _task_mcp_route_context_var.set(context.get("mcp_route_context"))
 
             try:
@@ -695,6 +697,7 @@ class LegalWorkforce:
                 # 恢复 contextvars
                 _task_llm_config_var.reset(token_cfg)
                 _task_history_var.reset(token_hist)
+                _task_llm_route_context_var.reset(token_llm)
                 _task_mcp_route_context_var.reset(token_mcp)
 
         except TimeoutError:
@@ -768,7 +771,11 @@ class LegalWorkforce:
             agent_failed   — Agent 失败/降级
             final_result   — 全部完成，汇总结果
         """
-        from src.agents.base import _task_history_var, _task_llm_config_var
+        from src.agents.base import (
+            _task_history_var,
+            _task_llm_config_var,
+            _task_llm_route_context_var,
+        )
         from src.services.episodic_memory_service import episodic_memory
 
         if context is None:
@@ -906,6 +913,7 @@ class LegalWorkforce:
                         history = context.get("history")
                         token_cfg = _task_llm_config_var.set(llm_config)
                         token_hist = _task_history_var.set(history)
+                        token_llm = _task_llm_route_context_var.set(context.get("llm_route_context"))
                         try:
                             queue = await primary_agent.stream_chat(
                                 primary_instruction,
@@ -924,6 +932,7 @@ class LegalWorkforce:
                         finally:
                             _task_llm_config_var.reset(token_cfg)
                             _task_history_var.reset(token_hist)
+                            _task_llm_route_context_var.reset(token_llm)
                     except Exception as se:
                         logger.warning(f"[streaming] 主 Agent {primary_name} 流式失败，降级到同步: {se}")
 
@@ -1074,12 +1083,15 @@ class LegalWorkforce:
         llm_config = context.get("llm_config") if context else None
         history = context.get("history") if context else None
         mcp_route_context = context.get("mcp_route_context") if context else None
+        llm_route_context = context.get("llm_route_context") if context else None
         chat_kwargs: dict[str, Any] = {
             "llm_config": llm_config,
             "history": history,
         }
         if mcp_route_context is not None:
             chat_kwargs["mcp_route_context"] = mcp_route_context
+        if llm_route_context is not None:
+            chat_kwargs["llm_route_context"] = llm_route_context
 
         if agent_name and agent_name in self.agents:
             return cast(str, await self.agents[agent_name].chat(

@@ -197,6 +197,8 @@ capability_governance_env=(
   "MCP_SSE_ALLOWED_SCHEMES"
   "MCP_TOOL_ROUTE_TOKEN_REQUIRED"
   "CLI_ROUTE_TOKEN_REQUIRED"
+  "LLM_ROUTE_TOKEN_REQUIRED"
+  "BROWSER_FETCH_ROUTE_TOKEN_REQUIRED"
 )
 
 for template in ".env.example" "backend/.env.example"; do
@@ -390,6 +392,8 @@ if [ "$RUN_LOCAL_TESTS" -eq 1 ]; then
     bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_mcp_route_governance.py"
   require_command "CLI route governance tests" \
     bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_cli_route.py"
+  require_command "LLM route governance tests" \
+    bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_llm_route_governance.py"
   require_command "crawler browser route governance tests" \
     bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_crawler_compliance.py"
   require_command "skill governance gate tests" \
