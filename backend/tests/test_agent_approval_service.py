@@ -553,6 +553,29 @@ async def test_workspace_artifacts_require_approved_workspace_and_redact_payload
         actor_user_id=test_admin.id,
         actor_role="admin",
     )
+    assert recorded.artifact is not None
+    updated = await service.update_workspace_artifact(
+        org_id=test_organization.id,
+        approval_id=requested.approval_id,
+        artifact_id=recorded.artifact.id,
+        title="高风险操作摘要（已复核）",
+        content={
+            "finding": "人工复核后保留",
+            "api_key": "updated-secret",
+            "nested": {"client_secret": "updated-client-secret", "safe": "still-ok"},
+        },
+        metadata={"source": "workspace-review", "private_key": "never-store"},
+        actor_user_id=test_admin.id,
+        actor_role="admin",
+    )
+    missing_update = await service.update_workspace_artifact(
+        org_id=test_organization.id,
+        approval_id=requested.approval_id,
+        artifact_id="missing-artifact",
+        title="不存在",
+        actor_user_id=test_admin.id,
+        actor_role="admin",
+    )
     artifacts = await service.list_workspace_artifacts(
         org_id=test_organization.id,
         approval_id=requested.approval_id,
@@ -571,17 +594,41 @@ async def test_workspace_artifacts_require_approved_workspace_and_redact_payload
     assert employee_denied.reason_code == "approver_role_not_allowed"
     assert recorded.allowed is True
     assert recorded.reason_code == "artifact_recorded"
-    assert recorded.artifact is not None
     assert recorded.artifact.content == {
         "finding": "仅生成可审计摘要",
         "api_key": "[redacted]",
         "nested": {"client_secret": "[redacted]", "safe": "ok"},
     }
     assert recorded.artifact.metadata == {"source": "workspace", "raw_token": "[redacted]"}
+    assert updated.allowed is True
+    assert updated.reason_code == "artifact_updated"
+    assert updated.artifact is not None
+    assert updated.artifact.id == recorded.artifact.id
+    assert updated.artifact.title == "高风险操作摘要（已复核）"
+    assert updated.artifact.content == {
+        "finding": "人工复核后保留",
+        "api_key": "[redacted]",
+        "nested": {"client_secret": "[redacted]", "safe": "still-ok"},
+    }
+    assert updated.artifact.metadata == {"source": "workspace-review", "private_key": "[redacted]"}
+    assert updated.artifact.revision == 1
+    assert missing_update.allowed is False
+    assert missing_update.reason_code == "unknown_workspace_artifact"
     assert len(artifacts) == 1
-    assert artifacts[0].title == "高风险操作摘要"
-    assert audits[-1].action == "agent_workspace.artifact.add"
-    assert audits[-1].status == "success"
-    assert audits[-1].reason_code == "artifact_recorded"
+    assert artifacts[0].title == "高风险操作摘要（已复核）"
+    assert artifacts[0].content["api_key"] == "[redacted]"
+    assert artifacts[0].revision == 1
+    add_audit = next(
+        event
+        for event in audits
+        if event.action == "agent_workspace.artifact.add" and event.status == "success"
+    )
+    update_audit = next(event for event in audits if event.action == "agent_workspace.artifact.update" and event.status == "success")
+    assert add_audit.reason_code == "artifact_recorded"
+    assert add_audit.resource_snapshot["title"] == "高风险操作摘要"
+    assert update_audit.reason_code == "artifact_updated"
+    assert update_audit.resource_snapshot["artifact_id"] == recorded.artifact.id
     assert "should-never-persist" not in str(audits)
     assert "do-not-store" not in str(audits)
+    assert "updated-secret" not in str(audits)
+    assert "never-store" not in str(audits)

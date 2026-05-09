@@ -2979,6 +2979,9 @@ export interface AgentWorkspaceArtifact {
   metadata: Record<string, unknown>
   created_by?: string | null
   created_at?: string | null
+  updated_by?: string | null
+  updated_at?: string | null
+  revision?: number
 }
 
 export interface AgentWorkspaceObserveSnapshot {
@@ -3143,6 +3146,29 @@ export const agentApprovalsApi = {
         artifact?: AgentWorkspaceArtifact | null
       }>(`/agent-approvals/${id}/artifacts`, {
         method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    update: (
+      id: string,
+      artifactId: string,
+      data: {
+        artifact_type?: string
+        title?: string
+        content?: Record<string, unknown>
+        metadata?: Record<string, unknown>
+      },
+    ) =>
+      request<{
+        allowed: boolean
+        reason_code: string
+        human_message: string
+        approval_id?: string | null
+        status?: AgentApprovalStatus | null
+        audit_event_id?: string | null
+        artifact?: AgentWorkspaceArtifact | null
+      }>(`/agent-approvals/${id}/artifacts/${encodeURIComponent(artifactId)}`, {
+        method: 'PATCH',
         body: JSON.stringify(data),
       }),
 

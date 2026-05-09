@@ -373,6 +373,23 @@ async def test_agent_workspace_artifact_api_redacts_and_exports(
             "metadata": {"source": "workspace", "raw_token": "never-store"},
         },
     )
+    artifact_id = created.json()["data"]["artifact"]["id"]
+    updated = await admin_auth_client.patch(
+        f"/api/v1/agent-approvals/{approval_id}/artifacts/{artifact_id}",
+        json={
+            "title": "桌面远控摘要（已复核）",
+            "content": {
+                "finding": "reviewed safe probe only",
+                "api_key": "updated-secret",
+                "nested": {"client_secret": "updated-client-secret", "safe": "ok"},
+            },
+            "metadata": {"source": "workspace-review", "private_key": "never-store-key"},
+        },
+    )
+    missing_update = await admin_auth_client.patch(
+        f"/api/v1/agent-approvals/{approval_id}/artifacts/missing-artifact",
+        json={"title": "missing"},
+    )
     listed = await admin_auth_client.get(f"/api/v1/agent-approvals/{approval_id}/artifacts")
     exported = await admin_auth_client.get(f"/api/v1/agent-approvals/{approval_id}/artifacts/export")
     audits = (
@@ -395,18 +412,31 @@ async def test_agent_workspace_artifact_api_redacts_and_exports(
     assert created.json()["data"]["artifact"]["content"]["api_key"] == "[redacted]"
     assert created.json()["data"]["artifact"]["content"]["nested"]["client_secret"] == "[redacted]"
     assert created.json()["data"]["artifact"]["metadata"]["raw_token"] == "[redacted]"
+    assert updated.status_code == 200
+    assert updated.json()["code"] == 200
+    assert updated.json()["data"]["reason_code"] == "artifact_updated"
+    assert updated.json()["data"]["artifact"]["title"] == "桌面远控摘要（已复核）"
+    assert updated.json()["data"]["artifact"]["content"]["api_key"] == "[redacted]"
+    assert updated.json()["data"]["artifact"]["metadata"]["private_key"] == "[redacted]"
+    assert updated.json()["data"]["artifact"]["revision"] == 1
+    assert missing_update.status_code == 200
+    assert missing_update.json()["code"] == 404
+    assert missing_update.json()["data"]["reason_code"] == "unknown_workspace_artifact"
     assert listed.status_code == 200
     assert listed.json()["data"]["total"] == 1
-    assert listed.json()["data"]["items"][0]["title"] == "桌面远控摘要"
+    assert listed.json()["data"]["items"][0]["title"] == "桌面远控摘要（已复核）"
+    assert listed.json()["data"]["items"][0]["revision"] == 1
     assert exported.status_code == 200
     assert exported.json()["data"]["schema_version"] == "agent_workspace_artifacts_export.v1"
     assert exported.json()["data"]["total"] == 1
-    assert exported.json()["data"]["artifacts"][0]["content"]["finding"] == "safe probe only"
-    assert audits[-1].action == "agent_workspace.artifact.add"
-    assert audits[-1].reason_code == "artifact_recorded"
+    assert exported.json()["data"]["artifacts"][0]["content"]["finding"] == "reviewed safe probe only"
+    assert any(event.action == "agent_workspace.artifact.add" and event.reason_code == "artifact_recorded" for event in audits)
+    assert any(event.action == "agent_workspace.artifact.update" and event.reason_code == "artifact_updated" for event in audits)
     assert "should-never-leak" not in str(created.json())
     assert "also-secret" not in str(exported.json())
     assert "never-store" not in str(audits)
+    assert "updated-secret" not in str(updated.json())
+    assert "never-store-key" not in str(audits)
 
 
 @pytest.mark.asyncio

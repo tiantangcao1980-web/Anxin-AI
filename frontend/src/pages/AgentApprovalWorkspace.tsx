@@ -239,6 +239,7 @@ export default function AgentApprovalWorkspace() {
   const [workspaceArtifactLoadingId, setWorkspaceArtifactLoadingId] = useState<string | null>(null)
   const [expandedWorkspaceArtifactId, setExpandedWorkspaceArtifactId] = useState<string | null>(null)
   const [workspaceArtifactBusyId, setWorkspaceArtifactBusyId] = useState<string | null>(null)
+  const [workspaceArtifactRevisionBusyId, setWorkspaceArtifactRevisionBusyId] = useState<string | null>(null)
   const [workspaceArtifactExportingId, setWorkspaceArtifactExportingId] = useState<string | null>(null)
   const [skillProposals, setSkillProposals] = useState<SkillGovernanceProposal[]>([])
   const [skillEnabled, setSkillEnabled] = useState<SkillGovernanceEnabledVersion | null>(null)
@@ -560,6 +561,40 @@ export default function AgentApprovalWorkspace() {
       toast.error(err instanceof Error ? err.message : '工作室成果导出失败')
     } finally {
       setWorkspaceArtifactExportingId(null)
+    }
+  }
+
+  const reviewWorkspaceArtifact = async (item: AgentApprovalItem, artifact: AgentWorkspaceArtifact) => {
+    const busyKey = artifact.id
+    setWorkspaceArtifactRevisionBusyId(busyKey)
+    try {
+      const nextContent = {
+        ...artifact.content,
+        review_status: 'human-reviewed',
+        reviewed_from: 'agent-approval-workspace',
+      }
+      const nextMetadata = {
+        ...artifact.metadata,
+        reviewed_from: 'agent-approval-workspace',
+      }
+      const response = await agentApprovalsApi.workspaceArtifacts.update(item.id, artifact.id, {
+        title: artifact.title.includes('已复核') ? artifact.title : `${artifact.title}（已复核）`,
+        content: nextContent,
+        metadata: nextMetadata,
+      })
+      if (response.artifact) {
+        setWorkspaceArtifactsById((prev) => ({
+          ...prev,
+          [item.id]: (prev[item.id] ?? []).map((current) =>
+            current.id === response.artifact?.id ? response.artifact as AgentWorkspaceArtifact : current,
+          ),
+        }))
+      }
+      toast.success('工作室成果已复核')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '工作室成果复核失败')
+    } finally {
+      setWorkspaceArtifactRevisionBusyId(null)
     }
   }
 
@@ -885,11 +920,13 @@ export default function AgentApprovalWorkspace() {
               artifactItems={workspaceArtifactsById[item.id] ?? []}
               artifactLoading={workspaceArtifactLoadingId === item.id}
               artifactBusy={workspaceArtifactBusyId === item.id}
+              artifactRevisionBusyId={workspaceArtifactRevisionBusyId}
               artifactExporting={workspaceArtifactExportingId === item.id}
               onExportAudit={() => void exportAudit(item)}
               onControlWorkspace={(action) => void controlWorkspace(item, action)}
               onToggleArtifacts={() => void toggleWorkspaceArtifacts(item)}
               onRecordArtifact={() => void recordWorkspaceArtifact(item)}
+              onReviewArtifact={(artifact) => void reviewWorkspaceArtifact(item, artifact)}
               onExportArtifacts={() => void exportWorkspaceArtifacts(item)}
             />
           ))}
@@ -1853,6 +1890,7 @@ function ApprovalRow({
   artifactItems,
   artifactLoading,
   artifactBusy,
+  artifactRevisionBusyId,
   artifactExporting,
   onApprove,
   onReject,
@@ -1862,6 +1900,7 @@ function ApprovalRow({
   onControlWorkspace,
   onToggleArtifacts,
   onRecordArtifact,
+  onReviewArtifact,
   onExportArtifacts,
 }: {
   item: AgentApprovalItem
@@ -1875,6 +1914,7 @@ function ApprovalRow({
   artifactItems: AgentWorkspaceArtifact[]
   artifactLoading: boolean
   artifactBusy: boolean
+  artifactRevisionBusyId: string | null
   artifactExporting: boolean
   onApprove: () => void
   onReject: () => void
@@ -1884,6 +1924,7 @@ function ApprovalRow({
   onControlWorkspace: (action: AgentWorkspaceControlAction) => void
   onToggleArtifacts: () => void
   onRecordArtifact: () => void
+  onReviewArtifact: (artifact: AgentWorkspaceArtifact) => void
   onExportArtifacts: () => void
 }) {
   const meta = STATUS_META[item.status] ?? STATUS_META.pending
@@ -2038,6 +2079,8 @@ function ApprovalRow({
         <WorkspaceArtifactTrail
           loading={artifactLoading}
           items={artifactItems}
+          revisionBusyId={artifactRevisionBusyId}
+          onReviewArtifact={onReviewArtifact}
         />
       )}
     </article>
@@ -2047,9 +2090,13 @@ function ApprovalRow({
 function WorkspaceArtifactTrail({
   loading,
   items,
+  revisionBusyId,
+  onReviewArtifact,
 }: {
   loading: boolean
   items: AgentWorkspaceArtifact[]
+  revisionBusyId: string | null
+  onReviewArtifact: (artifact: AgentWorkspaceArtifact) => void
 }) {
   if (loading) {
     return (
@@ -2080,10 +2127,22 @@ function WorkspaceArtifactTrail({
               <div className="min-w-0">
                 <p className="truncate font-medium text-foreground">{artifact.title}</p>
                 <p className="mt-0.5">
-                  {artifact.artifact_type} · {formatDateTime(artifact.created_at)}
+                  {artifact.artifact_type} · {formatDateTime(artifact.updated_at || artifact.created_at)}
+                  {artifact.revision ? ` · r${artifact.revision}` : ''}
                 </p>
               </div>
-              <p className="shrink-0">actor {shortId(artifact.created_by)}</p>
+              <div className="flex shrink-0 items-center gap-2">
+                <p>actor {shortId(artifact.updated_by || artifact.created_by)}</p>
+                <button
+                  type="button"
+                  disabled={revisionBusyId === artifact.id}
+                  onClick={() => onReviewArtifact(artifact)}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-2 text-xs font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <icons.Check className="h-3.5 w-3.5" />
+                  复核
+                </button>
+              </div>
             </div>
             <dl className="mt-2 grid gap-2 sm:grid-cols-2">
               {payloadPreview(artifact.content).map(([key, value]) => (

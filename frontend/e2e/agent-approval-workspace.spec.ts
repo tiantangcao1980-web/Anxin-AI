@@ -392,6 +392,22 @@ test.describe('Agent 审批工作台', () => {
     await expect(page.getByTestId('agent-workspace-artifacts')).toContainText('高风险工作摘要')
     await expect(page.getByTestId('agent-workspace-artifacts')).toContainText('operator-reviewed-workspace')
 
+    const artifactReviewRequest = page.waitForRequest((request) =>
+      request.method() === 'PATCH' && request.url().includes('/agent-approvals/approval-e2e-1/artifacts/artifact-e2e-1'),
+    )
+    await page.getByTestId('agent-workspace-artifacts').getByRole('button', { name: '复核' }).click()
+    const artifactReview = await artifactReviewRequest
+    expect(artifactReview.postDataJSON()).toMatchObject({
+      title: '高风险工作摘要（已复核）',
+      content: {
+        checkpoint: 'operator-reviewed-workspace',
+        review_status: 'human-reviewed',
+      },
+    })
+    await expect(page.getByText('工作室成果已复核', { exact: true })).toBeVisible()
+    await expect(page.getByTestId('agent-workspace-artifacts')).toContainText('高风险工作摘要（已复核）')
+    await expect(page.getByTestId('agent-workspace-artifacts')).toContainText('human-reviewed')
+
     const artifactExportRequest = page.waitForRequest((request) =>
       request.method() === 'GET' && request.url().includes('/agent-approvals/approval-e2e-1/artifacts/export'),
     )

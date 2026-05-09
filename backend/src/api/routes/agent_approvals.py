@@ -77,6 +77,15 @@ class AgentWorkspaceArtifactBody(BaseModel):
     metadata: dict[str, Any] | None = None
 
 
+class AgentWorkspaceArtifactUpdateBody(BaseModel):
+    """Append-only revision for a governed high-risk agent workspace artifact."""
+
+    artifact_type: str | None = Field(default=None, min_length=1, max_length=60)
+    title: str | None = Field(default=None, min_length=1, max_length=160)
+    content: dict[str, Any] | None = None
+    metadata: dict[str, Any] | None = None
+
+
 class CapabilityRoutePolicyUpdateBody(BaseModel):
     """Update org-scoped capability route policy from the capability center."""
 
@@ -164,6 +173,9 @@ def _workspace_artifact_to_payload(artifact: AgentWorkspaceArtifact) -> dict[str
         "metadata": artifact.metadata,
         "created_by": artifact.created_by,
         "created_at": artifact.created_at.isoformat(),
+        "updated_by": artifact.updated_by,
+        "updated_at": artifact.updated_at.isoformat() if artifact.updated_at else None,
+        "revision": artifact.revision,
     }
 
 
@@ -238,7 +250,7 @@ def _response_for_decision(decision: AgentApprovalDecision, *, success_message: 
 
 
 def _error_code_for_reason(reason_code: str) -> int:
-    if reason_code in {"unknown_agent_approval", "unknown_capability_route"}:
+    if reason_code in {"unknown_agent_approval", "unknown_capability_route", "unknown_workspace_artifact"}:
         return 404
     if reason_code in {"approver_role_not_allowed", "approval_route_mismatch"}:
         return 403
@@ -509,6 +521,55 @@ async def record_agent_workspace_artifact(
     await db.commit()
     if result.allowed:
         return UnifiedResponse.success(data=payload, message="Agent workspace artifact recorded.")
+    return UnifiedResponse.error(code=_error_code_for_reason(result.reason_code), message=result.human_message, data=payload)
+
+
+@router.patch(
+    "/{approval_id}/artifacts/{artifact_id}",
+    response_model=UnifiedResponse,
+    summary="Revise agent workspace artifact",
+)
+async def revise_agent_workspace_artifact(
+    approval_id: str,
+    artifact_id: str,
+    body: AgentWorkspaceArtifactUpdateBody,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+) -> RouteResponse:
+    org_id = _org_id_for(user)
+    if not org_id:
+        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+
+    if body.artifact_type is None and body.title is None and body.content is None and body.metadata is None:
+        return UnifiedResponse.error(
+            code=400,
+            message="At least one artifact field must be provided.",
+            data={"reason_code": "empty_artifact_revision"},
+        )
+
+    result = await AgentApprovalService(db).update_workspace_artifact(
+        org_id=org_id,
+        approval_id=approval_id,
+        artifact_id=artifact_id,
+        artifact_type=body.artifact_type,
+        title=body.title,
+        content=body.content,
+        metadata=body.metadata,
+        actor_user_id=str(user.id),
+        actor_role=_role_for(user),
+    )
+    payload = {
+        "allowed": result.allowed,
+        "reason_code": result.reason_code,
+        "human_message": result.human_message,
+        "approval_id": result.approval_id,
+        "status": result.status,
+        "audit_event_id": result.audit_event_id,
+        "artifact": _workspace_artifact_to_payload(result.artifact) if result.artifact is not None else None,
+    }
+    await db.commit()
+    if result.allowed:
+        return UnifiedResponse.success(data=payload, message="Agent workspace artifact updated.")
     return UnifiedResponse.error(code=_error_code_for_reason(result.reason_code), message=result.human_message, data=payload)
 
 

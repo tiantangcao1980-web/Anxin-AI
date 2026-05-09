@@ -72,6 +72,7 @@ export type MockOptions = {
     workspaceArtifacts?: {
       list?: unknown
       create?: unknown
+      update?: unknown
       export?: unknown
     }
     pendingCount?: unknown
@@ -821,6 +822,43 @@ export async function installApiMocks(page: Page, options: MockOptions = {}) {
               metadata: { source: 'agent-approval-workspace' },
               created_by: 'e2e-admin',
               created_at: '2026-05-08T10:08:00Z',
+            },
+          },
+        ),
+      )
+    }
+
+    if (/\/agent-approvals\/[^/]+\/artifacts\/[^/]+$/.test(pathname) && request.method() === 'PATCH') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.agentApprovals?.workspaceArtifacts?.update ?? {
+            allowed: true,
+            reason_code: 'artifact_updated',
+            human_message: 'Agent workspace artifact updated.',
+            approval_id: 'approval-e2e-1',
+            status: 'approved',
+            audit_event_id: 'audit-artifact-update-e2e-1',
+            artifact: {
+              id: 'artifact-e2e-1',
+              approval_id: 'approval-e2e-1',
+              artifact_type: 'summary',
+              title: '高风险工作摘要（已复核）',
+              content: {
+                checkpoint: 'operator-reviewed-workspace',
+                status: 'approved',
+                review_status: 'human-reviewed',
+                reviewed_from: 'agent-approval-workspace',
+              },
+              metadata: {
+                source: 'agent-approval-workspace',
+                reviewed_from: 'agent-approval-workspace',
+              },
+              created_by: 'e2e-admin',
+              created_at: '2026-05-08T10:08:00Z',
+              updated_by: 'e2e-admin',
+              updated_at: '2026-05-08T10:09:00Z',
+              revision: 1,
             },
           },
         ),

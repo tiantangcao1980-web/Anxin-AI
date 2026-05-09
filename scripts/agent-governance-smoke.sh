@@ -102,6 +102,7 @@ checks = {
     "agent_capability_policy": "passed",
     "backend_governance_regressions": "passed",
     "local_runtime_control_rehearsal": "passed",
+    "workspace_artifact_revision": "passed",
     "approval_authorization_guard": "passed",
     "mcp_connection_config_policy": "passed",
     "approved_connector_local_rehearsal": "passed",
@@ -125,7 +126,7 @@ report = {
     "pending_runtime_evidence": [
         "real_approved_connector_runtime",
         "real_cross_process_revocation",
-        "long_task_artifact_workflow",
+        "runtime_generated_long_task_artifacts",
         "real_pause_takeover_terminate_runtime",
         "signed_packaged_runtime_outbound_evidence",
         "cross_device_recovery",
@@ -133,8 +134,9 @@ report = {
     "completion_note": (
         "Code-level enterprise agent governance evidence only. Keep "
         "agent-governance-smoke.md Status: pending until real approved connector "
-        "runtime, cross-process revocation, real runtime controls, signed packaged "
-        "runtime, and cross-device recovery evidence are attached."
+        "runtime, cross-process revocation, runtime-generated long-task artifacts, "
+        "real runtime controls, signed packaged runtime, and cross-device recovery "
+        "evidence are attached."
     ),
 }
 out_path.parent.mkdir(parents=True, exist_ok=True)
