@@ -13,13 +13,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.database import get_db
 from src.core.deps import get_current_user_required
 from src.core.responses import UnifiedResponse
-from src.models.agent_governance import SkillGovernanceAuditEvent, SkillGovernanceProposal
+from src.models.agent_governance import (
+    SkillConnectorConfig,
+    SkillGovernanceAuditEvent,
+    SkillGovernanceProposal,
+)
 from src.models.user import User
 from src.services.skill_evolution_service import (
     AUTHORIZED_SKILL_APPROVER_ROLES,
     SkillEvolutionError,
 )
-from src.services.skill_governance_service import SkillGovernanceService
+from src.services.skill_governance_service import SkillGovernanceService, connector_credential_keys
 
 router = APIRouter()
 
@@ -52,6 +56,30 @@ class SkillGovernanceRollbackBody(BaseModel):
     """Rollback a released or approved Skill proposal."""
 
     reason: str = Field(..., min_length=1, max_length=2000)
+
+
+class SkillConnectorConfigBody(BaseModel):
+    """Create a governed Skill connector credential config."""
+
+    skill_name: str = Field(..., min_length=1, max_length=160)
+    connector_name: str = Field(..., min_length=1, max_length=120)
+    connector_type: str = Field(default="http_api", min_length=1, max_length=60)
+    endpoint_url: str | None = Field(default=None, max_length=500)
+    auth_type: str = Field(default="api_key", min_length=1, max_length=40)
+    credentials: dict[str, str] | None = Field(default=None)
+    is_enabled: bool = Field(default=True)
+
+
+class SkillConnectorConfigUpdateBody(BaseModel):
+    """Update a governed Skill connector credential config."""
+
+    skill_name: str | None = Field(default=None, min_length=1, max_length=160)
+    connector_name: str | None = Field(default=None, min_length=1, max_length=120)
+    connector_type: str | None = Field(default=None, min_length=1, max_length=60)
+    endpoint_url: str | None = Field(default=None, max_length=500)
+    auth_type: str | None = Field(default=None, min_length=1, max_length=40)
+    credentials: dict[str, str] | None = Field(default=None)
+    is_enabled: bool | None = Field(default=None)
 
 
 def _org_id_for(user: User) -> str | None:
@@ -142,6 +170,24 @@ def _audit_event_to_payload(event: SkillGovernanceAuditEvent) -> dict[str, Any]:
     }
 
 
+def _connector_to_payload(config: SkillConnectorConfig) -> dict[str, Any]:
+    return {
+        "id": config.id,
+        "org_id": config.org_id,
+        "skill_name": config.skill_name,
+        "connector_name": config.connector_name,
+        "connector_type": config.connector_type,
+        "endpoint_url": config.endpoint_url,
+        "auth_type": config.auth_type,
+        "credential_keys": connector_credential_keys(config),
+        "is_enabled": config.is_enabled,
+        "created_by": config.created_by,
+        "updated_by": config.updated_by,
+        "created_at": _loaded_isoformat(config, "created_at"),
+        "updated_at": _loaded_isoformat(config, "updated_at"),
+    }
+
+
 def _loaded_isoformat(model: Any, field_name: str) -> str | None:
     value = getattr(model, "__dict__", {}).get(field_name)
     return value.isoformat() if value else None
@@ -228,6 +274,113 @@ async def get_enabled_skill_version(
             "enabled": enabled_version is not None and (version is None or enabled_version == version),
         }
     )
+
+
+@router.get("/connectors", response_model=UnifiedResponse, summary="List governed Skill connector configs")
+async def list_skill_connector_configs(
+    skill_name: str | None = Query(default=None, max_length=160),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+) -> RouteResponse:
+    if error := _require_admin(user):
+        return error
+    org_id = _require_org(user)
+    if not org_id:
+        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+    rows = await SkillGovernanceService(db).list_connector_configs(org_id=org_id, skill_name=skill_name)
+    return UnifiedResponse.success(
+        data={
+            "items": [_connector_to_payload(config) for config in rows],
+            "total": len(rows),
+        }
+    )
+
+
+@router.post("/connectors", response_model=UnifiedResponse, summary="Create governed Skill connector config")
+async def create_skill_connector_config(
+    body: SkillConnectorConfigBody,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+) -> RouteResponse:
+    if error := _require_admin(user):
+        return error
+    org_id = _require_org(user)
+    if not org_id:
+        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+    try:
+        config = await SkillGovernanceService(db).create_connector_config(
+            org_id=org_id,
+            skill_name=body.skill_name,
+            connector_name=body.connector_name,
+            connector_type=body.connector_type,
+            endpoint_url=body.endpoint_url,
+            auth_type=body.auth_type,
+            credentials=body.credentials,
+            is_enabled=body.is_enabled,
+            actor=str(user.id),
+        )
+    except SkillEvolutionError as exc:
+        return _error_response(exc)
+    payload = _connector_to_payload(config)
+    await db.commit()
+    return UnifiedResponse.success(data=payload, message="Skill connector config created.")
+
+
+@router.put("/connectors/{connector_id}", response_model=UnifiedResponse, summary="Update governed Skill connector config")
+async def update_skill_connector_config(
+    connector_id: str,
+    body: SkillConnectorConfigUpdateBody,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+) -> RouteResponse:
+    if error := _require_admin(user):
+        return error
+    org_id = _require_org(user)
+    if not org_id:
+        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+    try:
+        config = await SkillGovernanceService(db).update_connector_config(
+            org_id=org_id,
+            connector_id=connector_id,
+            actor=str(user.id),
+            skill_name=body.skill_name,
+            connector_name=body.connector_name,
+            connector_type=body.connector_type,
+            endpoint_url=body.endpoint_url,
+            replace_endpoint_url="endpoint_url" in body.model_fields_set,
+            auth_type=body.auth_type,
+            credentials=body.credentials,
+            replace_credentials="credentials" in body.model_fields_set,
+            is_enabled=body.is_enabled,
+        )
+    except SkillEvolutionError as exc:
+        return _error_response(exc)
+    payload = _connector_to_payload(config)
+    await db.commit()
+    return UnifiedResponse.success(data=payload, message="Skill connector config updated.")
+
+
+@router.delete("/connectors/{connector_id}", response_model=UnifiedResponse, summary="Delete governed Skill connector config")
+async def delete_skill_connector_config(
+    connector_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_required),
+) -> RouteResponse:
+    if error := _require_admin(user):
+        return error
+    org_id = _require_org(user)
+    if not org_id:
+        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+    try:
+        await SkillGovernanceService(db).delete_connector_config(
+            org_id=org_id,
+            connector_id=connector_id,
+            actor=str(user.id),
+        )
+    except SkillEvolutionError as exc:
+        return _error_response(exc)
+    await db.commit()
+    return UnifiedResponse.success(data={"deleted": True}, message="Skill connector config deleted.")
 
 
 @router.get("/proposals/{proposal_id}", response_model=UnifiedResponse, summary="Get Skill governance proposal")

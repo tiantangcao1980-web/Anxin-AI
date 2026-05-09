@@ -6,7 +6,6 @@
 
 
 
-from src.models.ai_assistant import AIAssistantConfig, AIAssistantFeedback, ConversationSummary
 from src.models.agent_governance import (
     AgentApproval,
     AgentAuditEvent,
@@ -17,10 +16,12 @@ from src.models.agent_governance import (
     CapabilityRoute,
     CapabilityRouteTokenLease,
     HumanParticipant,
+    SkillConnectorConfig,
     SkillEnabledVersion,
     SkillGovernanceAuditEvent,
     SkillGovernanceProposal,
 )
+from src.models.ai_assistant import AIAssistantConfig, AIAssistantFeedback, ConversationSummary
 from src.models.approval import Approval, ApprovalStatus, ApprovalTemplate, ApprovalType, ChainMode
 from src.models.asset import Asset
 from src.models.audit import AuditAction, AuditLog, ResourceType
@@ -85,7 +86,12 @@ from src.models.sentiment import (
     SentimentType,
     SourceType,
 )
-from src.models.sync import RemoteControlAuditEvent, RemoteControlCommand, RemoteControlPairing, SyncLog
+from src.models.sync import (
+    RemoteControlAuditEvent,
+    RemoteControlCommand,
+    RemoteControlPairing,
+    SyncLog,
+)
 from src.models.task import Task
 from src.models.user import Organization, PasswordResetToken, User
 from src.models.webhook import WebhookReceived
@@ -119,6 +125,7 @@ __all__ = [
     "AgentApproval",
     "AgentAuditEvent",
     "SkillGovernanceProposal",
+    "SkillConnectorConfig",
     "SkillEnabledVersion",
     "SkillGovernanceAuditEvent",
 

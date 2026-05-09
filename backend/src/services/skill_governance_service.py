@@ -8,10 +8,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.agent_governance import (
+    SkillConnectorConfig,
     SkillEnabledVersion,
     SkillGovernanceAuditEvent,
     SkillGovernanceProposal,
 )
+from src.services.llm_service import LLMService
 from src.services.skill_evolution_service import (
     AUTHORIZED_SKILL_APPROVER_ROLES,
     REQUIRED_SKILL_EVAL_CHECKS,
@@ -362,6 +364,153 @@ class SkillGovernanceService:
         )
         return list(reversed(result.scalars().all()))
 
+    async def list_connector_configs(
+        self,
+        *,
+        org_id: str,
+        skill_name: str | None = None,
+    ) -> list[SkillConnectorConfig]:
+        query = select(SkillConnectorConfig).where(SkillConnectorConfig.org_id == org_id)
+        normalized_skill = _normalize(skill_name)
+        if normalized_skill:
+            query = query.where(SkillConnectorConfig.skill_name == normalized_skill)
+        result = await self.db.execute(
+            query.order_by(SkillConnectorConfig.skill_name.asc(), SkillConnectorConfig.connector_name.asc())
+        )
+        return list(result.scalars().all())
+
+    async def create_connector_config(
+        self,
+        *,
+        org_id: str,
+        skill_name: str,
+        connector_name: str,
+        connector_type: str,
+        endpoint_url: str | None,
+        auth_type: str,
+        credentials: dict[str, str] | None,
+        is_enabled: bool,
+        actor: str,
+        now: datetime | None = None,
+    ) -> SkillConnectorConfig:
+        created_at = now or _now()
+        normalized_skill = _required(_normalize(skill_name), "skill_name")
+        normalized_connector = _required(_normalize(connector_name), "connector_name")
+        if await self._get_connector_by_name(
+            org_id=org_id,
+            skill_name=normalized_skill,
+            connector_name=normalized_connector,
+        ):
+            raise SkillEvolutionError("skill connector config already exists")
+
+        config = SkillConnectorConfig(
+            org_id=org_id,
+            skill_name=normalized_skill,
+            connector_name=normalized_connector,
+            connector_type=_required(_normalize(connector_type), "connector_type"),
+            endpoint_url=_normalize_endpoint(endpoint_url),
+            auth_type=_required(_normalize(auth_type), "auth_type"),
+            encrypted_fields=_encrypt_credential_fields(credentials or {}),
+            is_enabled=bool(is_enabled),
+            created_by=(actor or "").strip() or None,
+            updated_by=(actor or "").strip() or None,
+        )
+        self.db.add(config)
+        await self.db.flush()
+        self._audit_connector(
+            org_id=org_id,
+            config=config,
+            action="skill_governance.connector.create",
+            status="success",
+            actor=actor,
+            reason_code="connector_created",
+            now=created_at,
+        )
+        await self.db.flush()
+        return config
+
+    async def update_connector_config(
+        self,
+        *,
+        org_id: str,
+        connector_id: str,
+        actor: str,
+        skill_name: str | None = None,
+        connector_name: str | None = None,
+        connector_type: str | None = None,
+        endpoint_url: str | None = None,
+        replace_endpoint_url: bool = False,
+        auth_type: str | None = None,
+        credentials: dict[str, str] | None = None,
+        replace_credentials: bool = False,
+        is_enabled: bool | None = None,
+        now: datetime | None = None,
+    ) -> SkillConnectorConfig:
+        config = await self._get_connector(org_id=org_id, connector_id=connector_id)
+        updated_at = now or _now()
+        next_skill_name = config.skill_name
+        next_connector_name = config.connector_name
+        if skill_name is not None:
+            next_skill_name = _required(_normalize(skill_name), "skill_name")
+        if connector_name is not None:
+            next_connector_name = _required(_normalize(connector_name), "connector_name")
+        if (next_skill_name, next_connector_name) != (config.skill_name, config.connector_name):
+            existing = await self._get_connector_by_name(
+                org_id=org_id,
+                skill_name=next_skill_name,
+                connector_name=next_connector_name,
+            )
+            if existing and existing.id != config.id:
+                raise SkillEvolutionError("skill connector config already exists")
+        config.skill_name = next_skill_name
+        config.connector_name = next_connector_name
+        if connector_type is not None:
+            config.connector_type = _required(_normalize(connector_type), "connector_type")
+        if endpoint_url is not None or replace_endpoint_url:
+            config.endpoint_url = _normalize_endpoint(endpoint_url)
+        if auth_type is not None:
+            config.auth_type = _required(_normalize(auth_type), "auth_type")
+        if is_enabled is not None:
+            config.is_enabled = bool(is_enabled)
+        if replace_credentials:
+            config.encrypted_fields = _encrypt_credential_fields(credentials or {})
+        config.updated_by = (actor or "").strip() or None
+        await self.db.flush()
+        self._audit_connector(
+            org_id=org_id,
+            config=config,
+            action="skill_governance.connector.update",
+            status="success",
+            actor=actor,
+            reason_code="connector_updated",
+            metadata={"credentials_replaced": str(bool(replace_credentials)).lower()},
+            now=updated_at,
+        )
+        await self.db.flush()
+        return config
+
+    async def delete_connector_config(
+        self,
+        *,
+        org_id: str,
+        connector_id: str,
+        actor: str,
+        now: datetime | None = None,
+    ) -> None:
+        config = await self._get_connector(org_id=org_id, connector_id=connector_id)
+        deleted_at = now or _now()
+        self._audit_connector(
+            org_id=org_id,
+            config=config,
+            action="skill_governance.connector.delete",
+            status="success",
+            actor=actor,
+            reason_code="connector_deleted",
+            now=deleted_at,
+        )
+        await self.db.delete(config)
+        await self.db.flush()
+
     async def _get_proposal(self, *, org_id: str, proposal_id: str) -> SkillGovernanceProposal:
         result = await self.db.execute(
             select(SkillGovernanceProposal).where(
@@ -373,6 +522,34 @@ class SkillGovernanceService:
         if proposal is None:
             raise SkillEvolutionError("skill evolution proposal not found")
         return proposal
+
+    async def _get_connector(self, *, org_id: str, connector_id: str) -> SkillConnectorConfig:
+        result = await self.db.execute(
+            select(SkillConnectorConfig).where(
+                SkillConnectorConfig.org_id == org_id,
+                SkillConnectorConfig.id == connector_id,
+            )
+        )
+        config = result.scalar_one_or_none()
+        if config is None:
+            raise SkillEvolutionError("skill connector config not found")
+        return config
+
+    async def _get_connector_by_name(
+        self,
+        *,
+        org_id: str,
+        skill_name: str,
+        connector_name: str,
+    ) -> SkillConnectorConfig | None:
+        result = await self.db.execute(
+            select(SkillConnectorConfig).where(
+                SkillConnectorConfig.org_id == org_id,
+                SkillConnectorConfig.skill_name == _normalize(skill_name),
+                SkillConnectorConfig.connector_name == _normalize(connector_name),
+            )
+        )
+        return result.scalar_one_or_none()
 
     async def _get_enabled_record(self, *, org_id: str, skill_name: str) -> SkillEnabledVersion | None:
         result = await self.db.execute(
@@ -437,6 +614,32 @@ class SkillGovernanceService:
         self.db.add(event)
         return event
 
+    def _audit_connector(
+        self,
+        *,
+        org_id: str,
+        config: SkillConnectorConfig,
+        action: str,
+        status: str,
+        actor: str,
+        reason_code: str,
+        now: datetime,
+        metadata: dict[str, str] | None = None,
+    ) -> SkillGovernanceAuditEvent:
+        event = SkillGovernanceAuditEvent(
+            org_id=org_id,
+            proposal_id=None,
+            actor=(actor or "system").strip() or "system",
+            action=action,
+            status=status,
+            reason_code=reason_code,
+            resource_snapshot=_connector_snapshot(config),
+            metadata_json=metadata or {},
+            created_at=now,
+        )
+        self.db.add(event)
+        return event
+
 
 def _eval_complete(proposal: SkillGovernanceProposal) -> bool:
     return REQUIRED_SKILL_EVAL_CHECKS.issubset(proposal.eval_results or {}) and all(
@@ -453,6 +656,37 @@ def _proposal_snapshot(proposal: SkillGovernanceProposal) -> dict[str, str]:
         "status": proposal.status,
         "risk_level": proposal.risk_level,
     }
+
+
+def connector_credential_keys(config: SkillConnectorConfig) -> list[str]:
+    return sorted((config.encrypted_fields or {}).keys())
+
+
+def _connector_snapshot(config: SkillConnectorConfig) -> dict[str, str | list[str] | bool]:
+    return {
+        "connector_id": config.id,
+        "skill_name": config.skill_name,
+        "connector_name": config.connector_name,
+        "connector_type": config.connector_type,
+        "auth_type": config.auth_type,
+        "is_enabled": config.is_enabled,
+        "credential_keys": connector_credential_keys(config),
+    }
+
+
+def _encrypt_credential_fields(credentials: dict[str, str]) -> dict[str, str]:
+    encrypted: dict[str, str] = {}
+    for key, value in credentials.items():
+        normalized_key = (key or "").strip()
+        normalized_value = (value or "").strip()
+        if normalized_key and normalized_value:
+            encrypted[normalized_key] = LLMService.encrypt_api_key(normalized_value)
+    return encrypted
+
+
+def _normalize_endpoint(endpoint_url: str | None) -> str | None:
+    normalized = (endpoint_url or "").strip()
+    return normalized or None
 
 
 def _required(value: str | None, field: str) -> str:

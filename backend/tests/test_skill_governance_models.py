@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from src.models import (
     Base,
     Organization,
+    SkillConnectorConfig,
     SkillEnabledVersion,
     SkillGovernanceAuditEvent,
     SkillGovernanceProposal,
@@ -20,6 +21,7 @@ from src.models.agent_governance import _reject_skill_governance_audit_event_mut
 
 EXPECTED_SKILL_GOVERNANCE_TABLES = {
     "skill_governance_proposals",
+    "skill_connector_configs",
     "skill_enabled_versions",
     "skill_governance_audit_events",
 }
@@ -45,15 +47,29 @@ def _repo_root() -> Path:
 def test_skill_governance_tables_are_registered_in_metadata():
     assert EXPECTED_SKILL_GOVERNANCE_TABLES <= set(Base.metadata.tables)
     assert SkillGovernanceProposal.__tablename__ == "skill_governance_proposals"
+    assert SkillConnectorConfig.__tablename__ == "skill_connector_configs"
     assert SkillEnabledVersion.__tablename__ == "skill_enabled_versions"
     assert SkillGovernanceAuditEvent.__tablename__ == "skill_governance_audit_events"
 
 
 def test_skill_governance_tables_are_org_scoped_and_secret_free():
     proposal_columns = set(SkillGovernanceProposal.__table__.columns.keys())
+    connector_columns = set(SkillConnectorConfig.__table__.columns.keys())
     enabled_columns = set(SkillEnabledVersion.__table__.columns.keys())
     audit_columns = set(SkillGovernanceAuditEvent.__table__.columns.keys())
 
+    assert {
+        "org_id",
+        "skill_name",
+        "connector_name",
+        "connector_type",
+        "endpoint_url",
+        "auth_type",
+        "encrypted_fields",
+        "is_enabled",
+        "created_by",
+        "updated_by",
+    } <= connector_columns
     assert {
         "org_id",
         "skill_name",
@@ -78,8 +94,20 @@ def test_skill_governance_tables_are_org_scoped_and_secret_free():
         "created_at",
     } <= audit_columns
     assert proposal_columns.isdisjoint(RAW_SECRET_COLUMN_NAMES)
+    assert connector_columns.isdisjoint(RAW_SECRET_COLUMN_NAMES)
     assert enabled_columns.isdisjoint(RAW_SECRET_COLUMN_NAMES)
     assert audit_columns.isdisjoint(RAW_SECRET_COLUMN_NAMES)
+
+    connector_unique_constraints = [
+        constraint
+        for constraint in SkillConnectorConfig.__table__.constraints
+        if isinstance(constraint, UniqueConstraint)
+    ]
+    assert any(
+        constraint.name == "uq_skill_connector_configs_org_skill_connector"
+        and {column.name for column in constraint.columns} == {"org_id", "skill_name", "connector_name"}
+        for constraint in connector_unique_constraints
+    )
 
     unique_constraints = [
         constraint
@@ -139,6 +167,7 @@ def test_cross_org_skill_governance_links_fail_database_integrity():
         tables=[
             Organization.__table__,
             SkillGovernanceProposal.__table__,
+            SkillConnectorConfig.__table__,
             SkillEnabledVersion.__table__,
             SkillGovernanceAuditEvent.__table__,
         ],
@@ -208,6 +237,9 @@ def test_skill_governance_migration_has_upgrade_downgrade_and_no_secret_columns(
     migration = (
         _repo_root() / "backend" / "alembic" / "versions" / "041_add_skill_governance_persistence.py"
     ).read_text(encoding="utf-8")
+    connector_migration = (
+        _repo_root() / "backend" / "alembic" / "versions" / "044_add_skill_connector_configs.py"
+    ).read_text(encoding="utf-8")
 
     assert 'revision: str = "041_skill_governance_persistence"' in migration
     assert 'down_revision: str | None = "040_agent_governance_control_plane"' in migration
@@ -217,8 +249,10 @@ def test_skill_governance_migration_has_upgrade_downgrade_and_no_secret_columns(
     assert "prevent_skill_governance_audit_events_mutation" in migration
 
     for table in EXPECTED_SKILL_GOVERNANCE_TABLES:
-        assert f'"{table}"' in migration
-        assert f'op.drop_table("{table}")' in migration
+        source = connector_migration if table == "skill_connector_configs" else migration
+        assert f'"{table}"' in source
+        assert f'op.drop_table("{table}")' in source
 
     column_names = set(re.findall(r'sa\.Column\("([^"]+)"', migration))
+    column_names |= set(re.findall(r'sa\.Column\("([^"]+)"', connector_migration))
     assert column_names.isdisjoint(RAW_SECRET_COLUMN_NAMES)

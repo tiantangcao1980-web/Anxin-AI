@@ -5,7 +5,12 @@ from uuid import uuid4
 import pytest
 from sqlalchemy import select
 
-from src.models import Organization, SkillEnabledVersion, SkillGovernanceAuditEvent
+from src.models import (
+    Organization,
+    SkillConnectorConfig,
+    SkillEnabledVersion,
+    SkillGovernanceAuditEvent,
+)
 from src.services.skill_evolution_service import (
     REQUIRED_SKILL_EVAL_CHECKS,
     SkillEvolutionError,
@@ -268,3 +273,155 @@ async def test_skill_governance_is_org_scoped(db_session, test_organization):
         )
 
     assert not await service.is_skill_enabled(org_id=other_org.id, skill_name="contract-review", version="1.1.0")
+
+
+@pytest.mark.asyncio
+async def test_skill_connector_config_encrypts_credentials_and_sanitizes_audit(db_session, test_organization):
+    service = SkillGovernanceService(db_session)
+
+    config = await service.create_connector_config(
+        org_id=test_organization.id,
+        skill_name="Contract Review",
+        connector_name="Court Data",
+        connector_type="http_api",
+        endpoint_url="https://court.example.test/api",
+        auth_type="api_key",
+        credentials={"API_KEY": "sk-secret-value", "CLIENT_SECRET": "client-secret-value"},
+        is_enabled=True,
+        actor="admin-1",
+    )
+    await db_session.commit()
+    restarted = SkillGovernanceService(db_session)
+    listed = await restarted.list_connector_configs(org_id=test_organization.id, skill_name="contract review")
+    audits = await restarted.get_audit_events(org_id=test_organization.id)
+
+    assert listed[0].id == config.id
+    assert sorted(listed[0].encrypted_fields) == ["API_KEY", "CLIENT_SECRET"]
+    assert "sk-secret-value" not in str(listed[0].encrypted_fields)
+    assert "client-secret-value" not in str(listed[0].encrypted_fields)
+    assert audits[-1].reason_code == "connector_created"
+    assert audits[-1].resource_snapshot["credential_keys"] == ["API_KEY", "CLIENT_SECRET"]
+    assert "sk-secret-value" not in str(audits[-1].resource_snapshot)
+    assert "client-secret-value" not in str(audits[-1].metadata_json)
+
+
+@pytest.mark.asyncio
+async def test_skill_connector_update_preserves_or_replaces_credentials(db_session, test_organization):
+    service = SkillGovernanceService(db_session)
+    config = await service.create_connector_config(
+        org_id=test_organization.id,
+        skill_name="tax-risk",
+        connector_name="tax-bureau",
+        connector_type="http_api",
+        endpoint_url="https://tax.example.test",
+        auth_type="api_key",
+        credentials={"API_KEY": "sk-original-secret"},
+        is_enabled=True,
+        actor="admin-1",
+    )
+    original_fields = dict(config.encrypted_fields)
+
+    metadata_only = await service.update_connector_config(
+        org_id=test_organization.id,
+        connector_id=config.id,
+        actor="admin-2",
+        endpoint_url="https://tax.example.test/v2",
+        is_enabled=False,
+    )
+    metadata_only_fields = dict(metadata_only.encrypted_fields)
+    assert metadata_only_fields == original_fields
+    assert metadata_only.endpoint_url == "https://tax.example.test/v2"
+    assert metadata_only.is_enabled is False
+
+    cleared_endpoint = await service.update_connector_config(
+        org_id=test_organization.id,
+        connector_id=config.id,
+        actor="admin-2",
+        endpoint_url=None,
+        replace_endpoint_url=True,
+    )
+    assert cleared_endpoint.endpoint_url is None
+    assert dict(cleared_endpoint.encrypted_fields) == original_fields
+
+    replaced = await service.update_connector_config(
+        org_id=test_organization.id,
+        connector_id=config.id,
+        actor="admin-2",
+        credentials={"TOKEN": "replacement-token"},
+        replace_credentials=True,
+    )
+
+    assert sorted(replaced.encrypted_fields) == ["TOKEN"]
+    assert "replacement-token" not in str(replaced.encrypted_fields)
+
+
+@pytest.mark.asyncio
+async def test_skill_connector_update_rejects_duplicate_skill_connector_pair(db_session, test_organization):
+    service = SkillGovernanceService(db_session)
+    first = await service.create_connector_config(
+        org_id=test_organization.id,
+        skill_name="tax-risk",
+        connector_name="tax-bureau",
+        connector_type="http_api",
+        endpoint_url="https://tax.example.test",
+        auth_type="api_key",
+        credentials={"API_KEY": "sk-first-secret"},
+        is_enabled=True,
+        actor="admin-1",
+    )
+    second = await service.create_connector_config(
+        org_id=test_organization.id,
+        skill_name="tax-risk",
+        connector_name="invoice-api",
+        connector_type="http_api",
+        endpoint_url="https://invoice.example.test",
+        auth_type="api_key",
+        credentials={"API_KEY": "sk-second-secret"},
+        is_enabled=True,
+        actor="admin-1",
+    )
+
+    with pytest.raises(SkillEvolutionError, match="already exists"):
+        await service.update_connector_config(
+            org_id=test_organization.id,
+            connector_id=second.id,
+            actor="admin-2",
+            connector_name=first.connector_name,
+        )
+
+    assert second.connector_name == "invoice-api"
+
+
+@pytest.mark.asyncio
+async def test_skill_connector_config_is_org_scoped(db_session, test_organization):
+    other_org = Organization(id=str(uuid4()), name="Other Org")
+    db_session.add(other_org)
+    await db_session.flush()
+    service = SkillGovernanceService(db_session)
+    config = await service.create_connector_config(
+        org_id=test_organization.id,
+        skill_name="labor-dispute",
+        connector_name="labor-api",
+        connector_type="http_api",
+        endpoint_url="https://labor.example.test",
+        auth_type="api_key",
+        credentials={"API_KEY": "sk-labor-secret"},
+        is_enabled=True,
+        actor="admin-1",
+    )
+
+    assert await service.list_connector_configs(org_id=other_org.id) == []
+    with pytest.raises(SkillEvolutionError, match="not found"):
+        await service.update_connector_config(
+            org_id=other_org.id,
+            connector_id=config.id,
+            actor="admin-2",
+            is_enabled=False,
+        )
+
+    stored = (
+        await db_session.execute(
+            select(SkillConnectorConfig).where(SkillConnectorConfig.org_id == test_organization.id)
+        )
+    ).scalar_one()
+    assert stored.id == config.id

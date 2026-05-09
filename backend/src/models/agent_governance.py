@@ -7,6 +7,7 @@ from typing import Any
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     DateTime,
     ForeignKey,
     ForeignKeyConstraint,
@@ -343,6 +344,35 @@ class SkillEnabledVersion(Base, TimestampMixin):
         ),
         UniqueConstraint("org_id", "skill_name", name="uq_skill_enabled_versions_org_skill"),
         Index("ix_skill_enabled_versions_org_status", "org_id", "status"),
+    )
+
+
+class SkillConnectorConfig(Base, TimestampMixin):
+    """Org-scoped Skill connector configuration with encrypted credential values."""
+
+    __tablename__ = "skill_connector_configs"
+
+    org_id: Mapped[str] = mapped_column(GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    skill_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    connector_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    connector_type: Mapped[str] = mapped_column(String(60), nullable=False, default="http_api")
+    endpoint_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    auth_type: Mapped[str] = mapped_column(String(40), nullable=False, default="api_key")
+    encrypted_fields: Mapped[dict[str, str]] = mapped_column(JSON, nullable=False, default=dict)
+    is_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_by: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    updated_by: Mapped[str | None] = mapped_column(String(160), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("org_id", "id", name="uq_skill_connector_configs_org_id"),
+        UniqueConstraint(
+            "org_id",
+            "skill_name",
+            "connector_name",
+            name="uq_skill_connector_configs_org_skill_connector",
+        ),
+        Index("ix_skill_connector_configs_org_skill", "org_id", "skill_name"),
+        Index("ix_skill_connector_configs_org_enabled", "org_id", "is_enabled"),
     )
 
 

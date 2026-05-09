@@ -163,3 +163,97 @@ async def test_skill_governance_api_regular_user_only_lists_own_proposals(auth_c
     assert own.json()["data"]["id"] in own_ids
     assert admin_created.json()["data"]["id"] not in own_ids
     assert {own.json()["data"]["id"], admin_created.json()["data"]["id"]} <= admin_ids
+
+
+@pytest.mark.asyncio
+async def test_skill_connector_config_api_masks_credentials_and_preserves_saved_keys(admin_auth_client):
+    created = await admin_auth_client.post(
+        "/api/v1/skill-governance/connectors",
+        json={
+            "skill_name": "contract-review",
+            "connector_name": "court-data",
+            "connector_type": "http_api",
+            "endpoint_url": "https://court.example.test/api",
+            "auth_type": "api_key",
+            "credentials": {
+                "API_KEY": "sk-skill-connector-secret",
+                "CLIENT_SECRET": "client-secret-value",
+            },
+            "is_enabled": True,
+        },
+    )
+
+    assert created.status_code == 200
+    body = created.json()
+    assert body["code"] == 200
+    connector_id = body["data"]["id"]
+    assert body["data"]["credential_keys"] == ["API_KEY", "CLIENT_SECRET"]
+    assert "credentials" not in body["data"]
+    assert "encrypted_fields" not in body["data"]
+    assert "sk-skill-connector-secret" not in str(body)
+    assert "client-secret-value" not in str(body)
+
+    metadata_update = await admin_auth_client.put(
+        f"/api/v1/skill-governance/connectors/{connector_id}",
+        json={"endpoint_url": "https://court.example.test/v2", "is_enabled": False},
+    )
+    listed = await admin_auth_client.get(
+        "/api/v1/skill-governance/connectors",
+        params={"skill_name": "contract-review"},
+    )
+
+    assert metadata_update.status_code == 200
+    assert metadata_update.json()["data"]["credential_keys"] == ["API_KEY", "CLIENT_SECRET"]
+    assert metadata_update.json()["data"]["endpoint_url"] == "https://court.example.test/v2"
+    assert metadata_update.json()["data"]["is_enabled"] is False
+
+    cleared_endpoint = await admin_auth_client.put(
+        f"/api/v1/skill-governance/connectors/{connector_id}",
+        json={"endpoint_url": None},
+    )
+    assert cleared_endpoint.status_code == 200
+    assert cleared_endpoint.json()["data"]["endpoint_url"] is None
+    assert cleared_endpoint.json()["data"]["credential_keys"] == ["API_KEY", "CLIENT_SECRET"]
+
+    assert listed.status_code == 200
+    assert listed.json()["data"]["total"] == 1
+    assert listed.json()["data"]["items"][0]["credential_keys"] == ["API_KEY", "CLIENT_SECRET"]
+    assert "sk-skill-connector-secret" not in str(listed.json())
+
+
+@pytest.mark.asyncio
+async def test_skill_connector_config_api_requires_admin_and_supports_replace_delete(auth_client, admin_auth_client):
+    forbidden = await auth_client.post(
+        "/api/v1/skill-governance/connectors",
+        json={
+            "skill_name": "tax-risk",
+            "connector_name": "tax-bureau",
+            "credentials": {"API_KEY": "sk-should-not-save"},
+        },
+    )
+
+    assert forbidden.status_code == 200
+    assert forbidden.json()["code"] == 403
+
+    created = await admin_auth_client.post(
+        "/api/v1/skill-governance/connectors",
+        json={
+            "skill_name": "tax-risk",
+            "connector_name": "tax-bureau",
+            "credentials": {"API_KEY": "sk-original-secret"},
+        },
+    )
+    connector_id = created.json()["data"]["id"]
+    replaced = await admin_auth_client.put(
+        f"/api/v1/skill-governance/connectors/{connector_id}",
+        json={"credentials": {"TOKEN": "replacement-token"}},
+    )
+    deleted = await admin_auth_client.delete(f"/api/v1/skill-governance/connectors/{connector_id}")
+    listed = await admin_auth_client.get("/api/v1/skill-governance/connectors", params={"skill_name": "tax-risk"})
+
+    assert replaced.status_code == 200
+    assert replaced.json()["data"]["credential_keys"] == ["TOKEN"]
+    assert "replacement-token" not in str(replaced.json())
+    assert deleted.status_code == 200
+    assert deleted.json()["data"]["deleted"] is True
+    assert listed.json()["data"]["total"] == 0
