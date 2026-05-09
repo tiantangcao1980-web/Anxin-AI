@@ -119,11 +119,13 @@ required_artifacts=(
   "scripts/mypy-baseline-check.sh"
   "scripts/sandbox-evidence-runner.py"
   "scripts/agent-governance-smoke.sh"
+  "scripts/agent-connector-rehearsal.sh"
   "scripts/uni-mobile-smoke.sh"
   "scripts/mobile-device-smoke.sh"
   "scripts/desktop-installed-profile-smoke.sh"
   "scripts/desktop-release-package.sh"
   "scripts/desktop-release-preflight.sh"
+  "scripts/desktop-window-chrome-gate.sh"
   "scripts/desktop-network-surface-gate.sh"
   "scripts/desktop-sqlite-security-gate.sh"
   "scripts/release-evidence-secret-scan.sh"
@@ -146,6 +148,7 @@ required_artifacts=(
   "docs/release/test-evidence.md"
   "docs/release/rollback-runbook.md"
   "docs/release/security-and-privacy-checklist.md"
+  "docs/desktop/window-styling.md"
 )
 
 for artifact in "${required_artifacts[@]}"; do
@@ -353,6 +356,13 @@ if ! desktop_network_output="$(bash scripts/desktop-network-surface-gate.sh 2>&1
   done <<< "$desktop_network_output"
 fi
 
+if ! desktop_window_chrome_output="$(bash scripts/desktop-window-chrome-gate.sh 2>&1)"; then
+  add_failure "desktop window chrome gate is still release-blocking"
+  while IFS= read -r line; do
+    [ -n "$line" ] && add_warning "$line"
+  done <<< "$desktop_window_chrome_output"
+fi
+
 if rg -q '当前 `ruff` / `mypy` 全仓历史问题未清零|ruff/mypy 全仓清零仍未完成|全仓 `ruff` / `mypy` 尚未清零' \
   docs/release docs/openspec docs/audit; then
   add_failure "ruff/mypy full-repo quality baseline is not closed"
@@ -371,6 +381,7 @@ if [ "$RUN_LOCAL_TESTS" -eq 1 ]; then
   require_command "desktop cargo check" bash -lc "cd desktop && cargo check"
   require_command "desktop cargo test" bash -lc "cd desktop && cargo test"
   require_command "desktop network surface gate" bash scripts/desktop-network-surface-gate.sh
+  require_command "desktop window chrome gate" bash scripts/desktop-window-chrome-gate.sh
   require_command "desktop installed-profile SQLCipher/keyring smoke" \
     bash scripts/desktop-installed-profile-smoke.sh --out /tmp/anxin-desktop-installed-profile-gate.json
   require_command "backend mypy zero-baseline gate" bash scripts/mypy-baseline-check.sh
@@ -394,6 +405,8 @@ if [ "$RUN_LOCAL_TESTS" -eq 1 ]; then
     bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_memory_governance.py"
   require_command "MCP route governance tests" \
     bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_mcp_route_governance.py"
+  require_command "approved connector local rehearsal" \
+    bash scripts/agent-connector-rehearsal.sh --out /tmp/anxin-agent-connector-rehearsal-gate.json
   require_command "CLI route governance tests" \
     bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_cli_route.py"
   require_command "LLM route governance tests" \

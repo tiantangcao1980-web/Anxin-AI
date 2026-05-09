@@ -19,6 +19,15 @@ def test_commercial_gate_requires_desktop_network_surface_gate():
     assert 'require_command "desktop network surface gate"' in script
 
 
+def test_commercial_gate_requires_desktop_window_chrome_gate():
+    repo_root = Path(__file__).resolve().parents[2]
+    script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
+
+    assert '"scripts/desktop-window-chrome-gate.sh"' in script
+    assert 'desktop_window_chrome_output="$(bash scripts/desktop-window-chrome-gate.sh 2>&1)"' in script
+    assert 'require_command "desktop window chrome gate"' in script
+
+
 def test_commercial_gate_runs_workstation_settings_e2e():
     repo_root = Path(__file__).resolve().parents[2]
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
@@ -89,6 +98,15 @@ def test_commercial_gate_runs_mcp_route_governance_tests():
 
     assert 'require_command "MCP route governance tests"' in script
     assert "tests/test_mcp_route_governance.py" in script
+
+
+def test_commercial_gate_runs_approved_connector_local_rehearsal():
+    repo_root = Path(__file__).resolve().parents[2]
+    script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
+
+    assert '"scripts/agent-connector-rehearsal.sh"' in script
+    assert 'require_command "approved connector local rehearsal"' in script
+    assert "scripts/agent-connector-rehearsal.sh --out /tmp/anxin-agent-connector-rehearsal-gate.json" in script
 
 
 def test_commercial_gate_runs_cli_route_governance_tests():
