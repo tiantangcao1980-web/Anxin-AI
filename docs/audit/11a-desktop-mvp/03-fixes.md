@@ -29,6 +29,8 @@
 - Added secret-free mode/backend URL writing and environment profile CRUD.
 - Added secret-free default local model persistence and workstation UI controls so Quick Query and local-mode calls no longer depend on a hard-coded model name.
 - Added a native notification bridge for case progress, risk alerts, system, and sync messages; the bridge sanitizes notification copy, exposes permission status/request IPC, sends through the local Tauri notification plugin, and keeps TopSecret notifications local-only.
+- Added a local offline queue manager with redacted recent task summaries and failed-task requeue; requeue only updates the local SQLCipher queue and does not imply cloud sync.
+- Tightened user-facing IA labels so the settings entry reads as "本机运行" while organization-wide users, roles, secrets, audit, integrations, and platform policy remain under "治理后台".
 - Kept non-desktop previews read-only for desktop-only actions.
 - Preserved TopSecret/local fail-closed behavior for sync and remote-control actions.
 - Added Playwright workstation coverage for direct/legacy routes, runtime mocks, profile CRUD, mode/backend editing, safe disabled states, and mobile width.

@@ -200,11 +200,42 @@ impl OfflineQueue {
         "#
     }
 
+    /// 获取最近离线任务，供工作站只读展示。
+    pub fn recent_tasks_sql() -> &'static str {
+        r#"
+        SELECT
+            id,
+            task_type,
+            description,
+            status,
+            priority,
+            created_at,
+            updated_at,
+            retry_count,
+            error_message,
+            CASE WHEN local_result IS NULL OR local_result = '' THEN 0 ELSE 1 END as has_local_result
+        FROM offline_tasks
+        ORDER BY datetime(updated_at) DESC, datetime(created_at) DESC
+        LIMIT ?1
+        "#
+    }
+
     /// 插入新的离线任务
     pub fn insert_sql() -> &'static str {
         r#"
         INSERT INTO offline_tasks (id, task_type, description, conversation_id, priority, status)
         VALUES (?1, ?2, ?3, ?4, ?5, 'queued')
+        "#
+    }
+
+    /// 将失败任务重新放回待处理队列。该操作只改本地 SQLCipher 状态，不触网。
+    pub fn retry_failed_sql() -> &'static str {
+        r#"
+        UPDATE offline_tasks
+        SET status = 'queued',
+            error_message = NULL,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE status = 'failed'
         "#
     }
 
@@ -322,5 +353,44 @@ mod tests {
         assert_eq!(stats.failed, 1);
         assert_eq!(stats.total, 4);
         assert_eq!(stats.flushable(), 2);
+    }
+
+    #[test]
+    fn retry_failed_sql_requeues_failed_tasks_only() {
+        let conn = Connection::open_in_memory().expect("open sqlite");
+        conn.execute_batch(include_str!("../../migrations/001_offline_queue.sql"))
+            .expect("init schema");
+        conn.execute(
+            OfflineQueue::insert_sql(),
+            ("task-1", "chat", "draft", Option::<String>::None, 2),
+        )
+        .expect("insert queued task");
+        conn.execute_batch(
+            "INSERT INTO offline_tasks (id, task_type, description, priority, status, error_message)
+             VALUES ('task-2', 'chat', 'failed draft', 2, 'failed', 'network down');",
+        )
+        .expect("seed failed task");
+
+        let affected = conn
+            .execute(OfflineQueue::retry_failed_sql(), [])
+            .expect("retry failed tasks");
+
+        assert_eq!(affected, 1);
+        let failed_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM offline_tasks WHERE status = 'failed'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("count failed");
+        let queued_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM offline_tasks WHERE status = 'queued'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("count queued");
+        assert_eq!(failed_count, 0);
+        assert_eq!(queued_count, 2);
     }
 }

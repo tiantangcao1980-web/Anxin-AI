@@ -643,6 +643,39 @@ export async function getQueueStats() {
   return invokeCommand('get_queue_stats')
 }
 
+export interface OfflineTaskSummary {
+  id: string
+  taskType: string
+  title: string
+  detail: string
+  status: string
+  priority: number
+  createdAt: string
+  updatedAt: string
+  retryCount: number
+  hasLocalResult: boolean
+  errorMessage?: string
+}
+
+export interface OfflineQueueRetryReport {
+  retried: number
+  localOnly: boolean
+  safeInTopSecret: boolean
+  message: string
+}
+
+/** 列出最近离线任务。完整本地路径留在 SQLCipher 队列内，前端只拿摘要。 */
+export async function listOfflineTasks(limit = 8): Promise<OfflineTaskSummary[]> {
+  if (!isTauri()) return []
+  return await invokeRequiredCommand<OfflineTaskSummary[]>('list_offline_tasks', { limit })
+}
+
+/** 将失败离线任务重新放回本地队列；只改本机 SQLCipher 状态，不触网。 */
+export async function retryFailedOfflineTasks(): Promise<OfflineQueueRetryReport | null> {
+  if (!isTauri()) return null
+  return invokeRequiredCommand<OfflineQueueRetryReport>('retry_failed_offline_tasks')
+}
+
 /** 触发离线任务批量同步 */
 export async function flushOfflineQueue(): Promise<string | null> {
   return invokeCommand('flush_offline_queue')

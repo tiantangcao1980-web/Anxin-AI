@@ -43,7 +43,7 @@ export default function Settings() {
  return (
  <PageContainer
  title="我的设置"
- description="管理个人账号、桌面工作站和当前账号可用连接；组织与平台治理统一进入治理后台"
+ description="管理个人账号、本机运行和当前账号可用连接；组织与平台治理统一进入治理后台"
  className="box-border w-[100dvw] min-w-0 max-w-[100dvw] overflow-hidden lg:w-full lg:max-w-full"
  >
  <Tabs value={activeTab} onValueChange={handleTabChange} className="min-w-0 space-y-4 overflow-hidden">
@@ -54,7 +54,7 @@ export default function Settings() {
  </TabsTrigger>
  <TabsTrigger value="workstation" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
  <icons.LayoutDashboard className={`${iconSize.sm} shrink-0`} />
- <span className="whitespace-nowrap">桌面工作站</span>
+ <span className="whitespace-nowrap">本机运行</span>
  </TabsTrigger>
  <TabsTrigger value="llm" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
  <icons.Cpu className={`${iconSize.sm} shrink-0`} />
@@ -487,7 +487,7 @@ export function LlmSettingsPanel() {
  <div>
  <h2 className={heading.section}>AI 连接</h2>
  <p className={heading.muted}>
- 管理当前账号可使用的模型连接；组织默认、密钥审计和启停治理在后台模型治理中统一处理
+ 管理当前账号可使用的模型连接；组织默认、密钥审计和启停治理在治理后台的模型治理中统一处理
  </p>
  </div>
  <button
@@ -944,7 +944,7 @@ function McpSettingsPanel() {
  <div>
  <h2 className={heading.section}>工具连接 (MCP)</h2>
  <p className={`${heading.muted} mt-0.5`}>
- 管理当前工作流可调用的 MCP 工具连接；跨组织启用、凭据审计和系统级接入在治理后台处理
+ 管理当前工作流可调用的 MCP 工具连接；跨组织启用、凭据审计和系统级接入统一在治理后台处理
  </p>
  </div>
  <button

@@ -54,6 +54,17 @@ checks = {
         "local_only",
         "safe_in_top_secret",
     ],
+    "desktop/src/commands/offline_tasks.rs": [
+        "list_offline_tasks",
+        "retry_failed_offline_tasks",
+        "OfflineQueueRetryReport",
+        "本地路径仅保存在加密队列",
+    ],
+    "desktop/src/services/offline_queue.rs": [
+        "recent_tasks_sql",
+        "retry_failed_sql",
+        "flushable",
+    ],
     "desktop/src/services/runtime_config.rs": [
         "local_model",
         "normalize_local_model_name",
@@ -69,6 +80,8 @@ checks = {
         "send_desktop_notification",
         "get_desktop_notification_permission",
         "request_desktop_notification_permission",
+        "list_offline_tasks",
+        "retry_failed_offline_tasks",
         "queue_file_drop_paths",
     ],
     "frontend/src/pages/QuickQuery.tsx": [
@@ -109,6 +122,8 @@ checks = {
         "queueFileDropPaths",
         "listenFileDropQueued",
         "listenDesktopFileDrops",
+        "listOfflineTasks",
+        "retryFailedOfflineTasks",
         "desktop://file-queued",
     ],
     "frontend/src/lib/desktopFileDropEvents.ts": [
@@ -133,7 +148,9 @@ checks = {
         "本机通知",
         "native-notification-permission-action",
         "native-notification-test",
-        "工作站配置",
+        "desktop-offline-queue-manager",
+        "offline-queue-retry-failed",
+        "本机运行配置",
         "后端环境",
     ],
     "frontend/src/components/desktop/desktopWorkstationModel.ts": [
@@ -158,7 +175,9 @@ checks = {
         "settings?tab=workstation",
         "settings?tab=privacy",
         "request_desktop_notification_permission",
+        "retry_failed_offline_tasks",
         "send_desktop_notification",
+        "offline-queue-retry-failed",
         "native-notification-permission-action",
         "native-notification-test",
         "local-model-save",

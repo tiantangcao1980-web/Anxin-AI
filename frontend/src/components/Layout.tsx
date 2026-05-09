@@ -52,7 +52,7 @@ const navGroups: { id: string; label: string; path: string }[] = [
 
 // 系统功能（右侧图标按钮）— 任务中心已整合进案件中心
 const systemItems: NavChild[] = [
-  { id: 'workstation', path: '/settings?tab=workstation', label: '桌面工作站', icon: icons.LayoutDashboard },
+  { id: 'workstation', path: '/settings?tab=workstation', label: '本机运行', icon: icons.LayoutDashboard },
 ]
 
 // ===== 模块侧边栏配置 =====

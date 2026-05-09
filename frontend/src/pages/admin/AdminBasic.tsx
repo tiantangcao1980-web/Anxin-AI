@@ -42,11 +42,11 @@ export default function AdminBasic() {
   }
 
   if (loading) {
-    return <PageContainer title="基础设置"><Skeleton className="h-64 rounded-xl" /></PageContainer>
+    return <PageContainer title="平台基础"><Skeleton className="h-64 rounded-xl" /></PageContainer>
   }
 
   return (
-    <PageContainer title="基础设置" description="平台名称和基本信息">
+    <PageContainer title="平台基础" description="组织与平台展示信息">
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">

@@ -94,18 +94,18 @@
 - ✅ 生物识别认证（`tauri-plugin-biometric`）
 - ✅/⏳ **全局快捷键 Cmd+Shift+Space + Quick Query 独立窗口**（代码/浏览器证据已有；packaged 200ms 和真实本地模型 smoke 待补）
 
-**信息架构边界**（避免工作站与后台冗余）：
-- 桌面工作站只处理“我这台设备如何运行”：本机模式、后端地址、本地模型默认项、本机通知、离线队列和只读状态探针。
+**信息架构边界**（避免本机运行与治理后台冗余）：
+- 本机运行只处理“我这台设备如何运行”：本机模式、后端地址、本地模型默认项、本机通知、离线队列和只读状态探针。
 - 治理后台只处理“组织/平台如何治理”：用户角色、组织、安全审计、系统集成、模型治理、计费和发布运维。
-- 若底层复用同一 API/组件，界面文案必须标明作用域；工作站不承载组织级凭据治理，后台不承载本机运行模式切换。
+- 若底层复用同一 API/组件，界面文案必须标明作用域；本机运行不承载组织级凭据治理，治理后台不承载本机运行模式切换。
 
 **MVP 发布剩余任务**（优先级递减）：
 - [~] **P0-1**：Tauri 窗口外观优化 — 代码级 chrome/titlebar gate 已有；macOS/Windows 截图、vibrancy/acrylic 视觉验收和 signed runtime 待补
 - [~] **P0-2**：全局快捷键呼出后的"快速问答"模式 — 独立 Quick Query 窗口已实现；packaged 快捷键实测、P95 < 200ms 和真实 local model smoke 待补
 - [~] **P0-3**：文件拖拽分析 — WebView drop + SQLCipher offline queue + redacted toast 已实现；真实托盘图标 drop、P95 < 500ms 和 signed runtime 待补
-- [~] **P1-1**：本地 LLM 模型管理界面 — 桌面工作站已补默认本地模型选择、Ollama/兼容端点模型清单、secret-free 持久化和 Quick Query 默认模型读取；一键下载、真实模型 smoke 和 packaged runtime 证据待补
-- [~] **P1-2**：原生通知 — 桌面端已补本机 OS 通知 IPC、权限状态/授权请求 IPC、工作站测试通知、TopSecret local-only 边界和门禁覆盖；真实 signed runtime 系统偏好权限、托盘/后台触发、跨设备/服务端推送证据待补
-- [ ] **P1-3**：离线模式优化 — 核心功能完全脱网可用
+- [~] **P1-1**：本地 LLM 模型管理界面 — 本机运行已补默认本地模型选择、Ollama/兼容端点模型清单、secret-free 持久化和 Quick Query 默认模型读取；一键下载、真实模型 smoke 和 packaged runtime 证据待补
+- [~] **P1-2**：原生通知 — 桌面端已补本机 OS 通知 IPC、权限状态/授权请求 IPC、本机运行测试通知、TopSecret local-only 边界和门禁覆盖；真实 signed runtime 系统偏好权限、托盘/后台触发、跨设备/服务端推送证据待补
+- [~] **P1-3**：离线模式优化 — 已补本机离线队列列表、失败任务重新入队、文件路径脱敏摘要和本地门禁；完全脱网业务闭环、shared-staging 同步和 signed runtime 证据待补
 - [ ] **P2-1**：dmg / msi 签名分发（Apple Developer ID / notarization / Windows certificate 外部输入）
 - [ ] **P2-2**：自动更新通道（stable/beta，需签名产物与灰度记录）
 

@@ -460,6 +460,38 @@ cd frontend && npx playwright test e2e/settings-workstation.spec.ts --project=ch
 - Playwright 已覆盖模拟桌面 runtime 下触发 `send_desktop_notification`，并继续覆盖非桌面禁用态和移动宽度不横向溢出。
 - 该证据只关闭桌面本机通知的代码级链路；Tauri 桌面插件当前把 permission API 视为 granted，signed packaged runtime 的系统偏好权限弹窗/设置页截图、托盘/后台触发、真实案件事件驱动和跨设备/服务端推送证据仍待闭环。
 
+2026-05-09 桌面离线队列管理补充：
+
+```bash
+cd desktop && cargo test offline_
+# 6 passed; 66 filtered out
+
+cd frontend && npm exec tsc -- --noEmit
+# exit 0
+
+cd frontend && npm run lint
+# exit 0
+
+cd frontend && npx playwright test e2e/settings-workstation.spec.ts --project=chromium --project=mobile
+# 15 passed, 1 skipped
+
+cd desktop && cargo clippy --all-targets -- -D warnings
+# exit 0
+
+bash scripts/desktop-mvp-local-gate.sh
+# Desktop MVP local gate: PASS
+
+node scripts/validate-product-status-consistency.cjs
+# Product status consistency: OK
+```
+
+覆盖增量：
+
+- `desktop/src/commands/offline_tasks.rs` 新增 `list_offline_tasks` / `retry_failed_offline_tasks`，最近任务摘要会把桌面文件拖入任务的完整本地路径留在加密 SQLCipher 队列内，只暴露文件名和动作摘要。
+- `desktop/src/services/offline_queue.rs` 新增最近任务查询和 failed -> queued 重新入队 SQL；重新入队只更新本机队列，不触发网络同步，绝密模式下仍属于 local-only 操作。
+- `frontend/src/lib/tauri-bridge.ts` 新增 typed offline queue IPC wrapper；`DesktopWorkstationPanel` 新增“离线队列”面板，可查看待处理/本机完成/失败/总量、最近任务和失败重入队动作。
+- 该证据关闭的是本机离线队列可观测与修复入口；shared-staging 同步、跨设备连续会话、signed packaged runtime 和完整脱网业务闭环仍待补证。
+
 2026-05-09 桌面 PrivacyContext 门控对齐补充：
 
 ```bash

@@ -25,7 +25,7 @@ const navGroups: NavGroup[] = [
   {
     label: '',
     items: [
-      { path: '/admin', label: '管理概览', icon: icons.Dashboard },
+      { path: '/admin', label: '治理总览', icon: icons.Dashboard },
     ],
   },
   {
@@ -42,7 +42,7 @@ const navGroups: NavGroup[] = [
   {
     label: '平台配置',
     items: [
-      { path: '/admin/basic', label: '基础设置', icon: icons.Settings },
+      { path: '/admin/basic', label: '平台基础', icon: icons.Settings },
       { path: '/admin/ai-config', label: '模型治理', icon: icons.Cpu },
       { path: '/admin/integrations', label: '系统集成', icon: icons.Globe },
       { path: '/admin/health', label: '系统监控', icon: icons.Server },
@@ -208,7 +208,7 @@ export default function AdminLayout() {
             </Badge>
             <Separator orientation="vertical" className="h-5 hidden sm:block" />
             <nav className="hidden sm:flex items-center gap-1 text-sm text-muted-foreground">
-              <span>后台</span>
+              <span>治理</span>
               <icons.ChevronRight className="w-4 h-4" />
               <span className="text-foreground font-medium">{currentNav.label}</span>
             </nav>

@@ -144,7 +144,7 @@ export default function AdminDashboard() {
 
  if (loading) {
  return (
- <PageContainer title="管理概览" description="系统运行状态与关键指标">
+ <PageContainer title="治理总览" description="组织、平台与系统运行关键指标">
  <StatCardSkeleton count={6} />
  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
  <Skeleton className="h-80 rounded-dd_xl" />
@@ -155,7 +155,7 @@ export default function AdminDashboard() {
  }
 
  return (
- <PageContainer title="管理概览" description="系统运行状态与关键指标">
+ <PageContainer title="治理总览" description="组织、平台与系统运行关键指标">
  <section data-admin-shell className="space-y-6">
  <StatGrid cols={5}>
  {statCards.map((card, index) => {

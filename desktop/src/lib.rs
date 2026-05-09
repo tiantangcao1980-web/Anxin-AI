@@ -363,6 +363,8 @@ pub fn run_with_options(options: DesktopRunOptions) {
             // 离线任务
             commands::offline_tasks::submit_offline_task,
             commands::offline_tasks::get_queue_stats,
+            commands::offline_tasks::list_offline_tasks,
+            commands::offline_tasks::retry_failed_offline_tasks,
             commands::offline_tasks::flush_offline_queue,
             commands::offline_tasks::push_harness_artifacts,
             commands::offline_tasks::pull_harness_artifacts,

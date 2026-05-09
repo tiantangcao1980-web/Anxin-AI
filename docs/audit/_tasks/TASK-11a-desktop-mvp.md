@@ -7,6 +7,7 @@
 
 > 2026-05-08 定位补充：桌面端是项目未来的主要工作站，不只是 WebView 外壳。MVP 除窗口、快捷问答、拖拽分析外，还必须预留本地模型、独立知识库、Skills/MCP 配置入口，以及移动端远程控制桌面的 host 能力。
 > 2026-05-09 goal 修订：所有后续开发优先聚焦桌面端本地可执行功能和治理门禁；移动端/小程序排在桌面主工作站收口之后，按 uni-app 迁移路线推进。
+> 2026-05-09 信息架构修订：面向用户的设置入口收束为“本机运行”，只处理当前设备模式、后端环境、本地模型、本机通知、离线队列和只读探针；组织级用户/权限/密钥/审计/系统集成统一进入治理后台。
 
 ---
 
@@ -58,6 +59,7 @@
 | P0-6 | `frontend/src/components/desktop/` + `desktop/src/commands/local_llm.rs` + LLM/knowledge/MCP/skill routes | 已有零散本地模型、知识库、MCP/Skill 底座，但桌面没有主工作站统一入口 | 桌面壳展示当前隐私模式、本地模型状态、知识库状态、Skills/MCP 状态和配置入口；不允许在绝密模式下诱导云端调用 |
 | P0-7 | 新建 `desktop/src/commands/remote_control.rs` + 11b command queue | 移动端远控桌面未定义 | 桌面作为 remote-control host：展示配对请求、权限范围、远程命令确认、执行状态、取消/撤销入口和审计日志；高风险动作必须二次确认 |
 | P0-8 | `frontend/src/components/desktop/DesktopWorkstationPanel.tsx` + `frontend/src/lib/tauri-bridge.ts` | 工作站只有只读状态入口，缺最小配置写入面 | 桌面客户端可本地切换绝密/混合/云端模式、配置后端环境地址，非桌面预览只读；URL 校验拒绝非 http/https；绝密模式仍不开放数据网络 |
+| P1-3 | `desktop/src/commands/offline_tasks.rs` + `desktop/src/services/offline_queue.rs` + `DesktopWorkstationPanel.tsx` | 离线任务只能看统计，失败任务缺本机修复入口 | 本机运行页列出脱敏最近任务、展示队列状态、允许 failed 任务重新入队；该操作只改本机 SQLCipher 队列，不触发网络同步 |
 
 ---
 

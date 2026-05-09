@@ -20,13 +20,16 @@ import {
   getLocalLLMConfig,
   getQueueStats,
   isTauri,
+  listOfflineTasks,
   listLocalModels,
   listWorkstationProfiles,
   remoteControlConfirmPairing,
   remoteControlRunHostCycle,
   requestDesktopNotificationPermission,
+  retryFailedOfflineTasks,
   sendDesktopNotification,
   type DesktopNotificationPermissionResponse,
+  type OfflineTaskSummary,
   type RemoteControlHostCycleSummary,
   setBackendUrl,
   setDefaultLocalModel,
@@ -81,6 +84,15 @@ const RESOURCE_ICON: Record<WorkstationResource['id'], typeof icons.LayoutDashbo
   'remote-control': icons.Phone,
 }
 
+const OFFLINE_TASK_STATUS_LABEL: Record<string, string> = {
+  queued: '待处理',
+  local_processing: '本机处理中',
+  local_completed: '本机已完成',
+  pushing: '同步中',
+  synced: '已同步',
+  failed: '失败',
+}
+
 type ProbeStatus = 'preview' | 'loading' | 'ready'
 type ServiceProbeStatus = ProbeStatus | 'skipped' | 'error'
 
@@ -96,6 +108,9 @@ interface WorkstationProbeState {
   mcpServerCount: number
   mcpEnabledCount: number
   mcpToolCount: number
+  queueQueued: number
+  queueLocalCompleted: number
+  queueSynced: number
   queueTotal: number
   queueFailed: number
 }
@@ -120,6 +135,9 @@ const PREVIEW_PROBES: WorkstationProbeState = {
   mcpServerCount: 0,
   mcpEnabledCount: 0,
   mcpToolCount: 0,
+  queueQueued: 0,
+  queueLocalCompleted: 0,
+  queueSynced: 0,
   queueTotal: 0,
   queueFailed: 0,
 }
@@ -161,6 +179,8 @@ export function DesktopWorkstationPanel() {
   const [notificationBusy, setNotificationBusy] = useState(false)
   const [notificationPermissionBusy, setNotificationPermissionBusy] = useState(false)
   const [notificationPermission, setNotificationPermission] = useState<DesktopNotificationPermissionResponse | null>(null)
+  const [offlineTasks, setOfflineTasks] = useState<OfflineTaskSummary[]>([])
+  const [offlineQueueBusy, setOfflineQueueBusy] = useState<'refresh' | 'retry' | null>(null)
   const [probes, setProbes] = useState<WorkstationProbeState>(PREVIEW_PROBES)
   const [remoteControlHost, setRemoteControlHost] = useState<RemoteControlHostRuntimeState>(
     DEFAULT_REMOTE_CONTROL_HOST_STATE
@@ -226,6 +246,17 @@ export function DesktopWorkstationPanel() {
       localModelAvailable: available,
       localModelUrl: endpoint,
       localModelCount: options.length,
+    }))
+  }, [])
+
+  const applyQueueSnapshot = useCallback((queue: Record<string, unknown> | null) => {
+    setProbes((current) => ({
+      ...current,
+      queueQueued: Number(queue?.queued ?? 0),
+      queueLocalCompleted: Number(queue?.local_completed ?? queue?.localCompleted ?? 0),
+      queueSynced: Number(queue?.synced ?? 0),
+      queueTotal: Number(queue?.total ?? 0),
+      queueFailed: Number(queue?.failed ?? 0),
     }))
   }, [])
 
@@ -298,6 +329,7 @@ export function DesktopWorkstationPanel() {
       setLocalModelEndpoint('')
       setLocalModelInput('')
       setNotificationPermission(null)
+      setOfflineTasks([])
       setProbes(PREVIEW_PROBES)
       setRemoteControlHost(DEFAULT_REMOTE_CONTROL_HOST_STATE)
       return () => {
@@ -321,10 +353,11 @@ export function DesktopWorkstationPanel() {
       listLocalModels(),
       getLocalLLMConfig(),
       getQueueStats(),
+      listOfflineTasks(8),
       getDesktopNotificationPermission(),
       mode === 'top-secret' ? Promise.resolve(null) : knowledgeApi.listBases({ page_size: 100 }),
       mode === 'top-secret' ? Promise.resolve(null) : mcpApi.listServers(),
-    ]).then(([appStateResult, llmResult, modelsResult, llmConfigResult, queueResult, notificationPermissionResult, knowledgeResult, mcpResult]) => {
+    ]).then(([appStateResult, llmResult, modelsResult, llmConfigResult, queueResult, offlineTasksResult, notificationPermissionResult, knowledgeResult, mcpResult]) => {
       if (cancelled) return
 
       const snapshot = appStateResult.status === 'fulfilled' ? appStateResult.value : null
@@ -333,6 +366,9 @@ export function DesktopWorkstationPanel() {
       const models = modelsResult.status === 'fulfilled' ? modelsResult.value as LocalModelListResponse | null : null
       const llmConfig = llmConfigResult.status === 'fulfilled' ? llmConfigResult.value : null
       const queue = queueResult.status === 'fulfilled' ? queueResult.value as Record<string, unknown> | null : null
+      const tasks = offlineTasksResult.status === 'fulfilled' && Array.isArray(offlineTasksResult.value)
+        ? offlineTasksResult.value as OfflineTaskSummary[]
+        : []
       const nativePermission = notificationPermissionResult.status === 'fulfilled'
         ? notificationPermissionResult.value as DesktopNotificationPermissionResponse | null
         : null
@@ -345,6 +381,7 @@ export function DesktopWorkstationPanel() {
 
       applyLocalModelSnapshot(llm, models, llmConfig)
       setNotificationPermission(nativePermission)
+      setOfflineTasks(tasks)
 
       setProbes({
         status: 'ready',
@@ -360,6 +397,9 @@ export function DesktopWorkstationPanel() {
         mcpToolCount: mcpServers.reduce((total, server) => {
           return total + (Array.isArray(server?.cached_tools) ? server.cached_tools.length : 0)
         }, 0),
+        queueQueued: Number(queue?.queued ?? 0),
+        queueLocalCompleted: Number(queue?.local_completed ?? queue?.localCompleted ?? 0),
+        queueSynced: Number(queue?.synced ?? 0),
         queueTotal: Number(queue?.total ?? 0),
         queueFailed: Number(queue?.failed ?? 0),
       })
@@ -472,6 +512,60 @@ export function DesktopWorkstationPanel() {
       toast.error(error instanceof Error ? error.message : '本机通知权限处理失败')
     } finally {
       setNotificationPermissionBusy(false)
+    }
+  }
+
+  const handleOfflineQueueRefresh = async (options: { silent?: boolean } = {}) => {
+    if (!desktopClient) {
+      setOfflineTasks([])
+      setProbes((current) => ({
+        ...current,
+        queueQueued: 0,
+        queueLocalCompleted: 0,
+        queueSynced: 0,
+        queueTotal: 0,
+        queueFailed: 0,
+      }))
+      return
+    }
+    if (offlineQueueBusy && !options.silent) return
+
+    if (!options.silent) setOfflineQueueBusy('refresh')
+    try {
+      const [queueResult, tasksResult] = await Promise.allSettled([
+        getQueueStats(),
+        listOfflineTasks(8),
+      ])
+      const queue = queueResult.status === 'fulfilled' ? queueResult.value as Record<string, unknown> | null : null
+      const tasks = tasksResult.status === 'fulfilled' && Array.isArray(tasksResult.value)
+        ? tasksResult.value
+        : []
+      applyQueueSnapshot(queue)
+      setOfflineTasks(tasks)
+      if (!options.silent) toast.success('离线队列已刷新')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '离线队列刷新失败')
+    } finally {
+      if (!options.silent) setOfflineQueueBusy(null)
+    }
+  }
+
+  const handleOfflineQueueRetry = async () => {
+    if (!desktopClient || offlineQueueBusy || probes.queueFailed === 0) return
+
+    setOfflineQueueBusy('retry')
+    try {
+      const result = await retryFailedOfflineTasks()
+      if (!result) {
+        toast.error('失败任务重新入队失败')
+        return
+      }
+      toast.success(result.message)
+      await handleOfflineQueueRefresh({ silent: true })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '失败任务重新入队失败')
+    } finally {
+      setOfflineQueueBusy(null)
     }
   }
 
@@ -724,7 +818,7 @@ export function DesktopWorkstationPanel() {
         <CardHeader className="pb-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <CardTitle className={heading.section}>我的桌面工作站</CardTitle>
+              <CardTitle className={heading.section}>本机运行控制台</CardTitle>
               <CardDescription className={heading.muted}>
                 {desktopClient ? '当前客户端能力状态' : '桌面能力预览，完整本地能力须在桌面客户端启用'}
               </CardDescription>
@@ -1300,6 +1394,108 @@ export function DesktopWorkstationPanel() {
         </CardContent>
       </Card>
 
+      <Card className="border-border rounded-xl" data-testid="desktop-offline-queue-manager">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle className={heading.card}>离线队列</CardTitle>
+              <CardDescription className={heading.muted}>
+                只管理本机 SQLCipher 队列；重新入队不触发网络同步
+              </CardDescription>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                data-testid="offline-queue-refresh"
+                disabled={!desktopClient || offlineQueueBusy === 'refresh'}
+                onClick={() => handleOfflineQueueRefresh()}
+              >
+                <icons.RefreshCw className={iconSize.sm} />
+                {offlineQueueBusy === 'refresh' ? '刷新中' : '刷新'}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                data-testid="offline-queue-retry-failed"
+                disabled={!desktopClient || offlineQueueBusy === 'retry' || probes.queueFailed === 0}
+                onClick={handleOfflineQueueRetry}
+              >
+                <icons.RotateCcw className={iconSize.sm} />
+                {offlineQueueBusy === 'retry' ? '处理中' : '失败重入队'}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <ProbeCell
+              testId="offline-queue-queued"
+              label="待处理"
+              value={`${probes.queueQueued} 条`}
+              detail="本机等待处理"
+            />
+            <ProbeCell
+              testId="offline-queue-local-completed"
+              label="本机完成"
+              value={`${probes.queueLocalCompleted} 条`}
+              detail="可在联网后同步"
+            />
+            <ProbeCell
+              testId="offline-queue-failed"
+              label="失败"
+              value={`${probes.queueFailed} 条`}
+              detail={probes.queueFailed > 0 ? '可重新入队' : '无需处理'}
+            />
+            <ProbeCell
+              testId="offline-queue-total"
+              label="总量"
+              value={`${probes.queueTotal} 条`}
+              detail={`${probes.queueSynced} 条已同步`}
+            />
+          </div>
+
+          <div className="min-w-0 rounded-lg border border-border bg-surface-1 p-3">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-sm font-medium text-foreground">最近任务</p>
+              <Badge variant="outline" className="text-xs">
+                {desktopClient ? '本机摘要' : '需桌面端'}
+              </Badge>
+            </div>
+            {offlineTasks.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+                {desktopClient ? '暂无离线任务' : '仅桌面客户端可读取本机离线队列'}
+              </div>
+            ) : (
+              <div className="space-y-2" data-testid="offline-queue-task-list">
+                {offlineTasks.map((task) => (
+                  <div key={task.id} className="rounded-lg border border-border bg-background p-3">
+                    <div className="flex min-w-0 items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-foreground">{task.title}</p>
+                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{task.detail}</p>
+                      </div>
+                      <Badge variant="outline" className="shrink-0 text-xs">
+                        {OFFLINE_TASK_STATUS_LABEL[task.status] ?? task.status}
+                      </Badge>
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                      <span>{task.taskType}</span>
+                      <span>优先级 {task.priority}</span>
+                      {task.retryCount > 0 && <span>重试 {task.retryCount}</span>}
+                      {task.hasLocalResult && <span>有本机结果</span>}
+                      {task.errorMessage && <span className="text-destructive">{task.errorMessage}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       <RemoteControlHostPanel
         state={remoteControlHostState}
         cycleSummary={remoteControlHost.cycleSummary}
@@ -1314,7 +1510,7 @@ export function DesktopWorkstationPanel() {
         <CardHeader className="pb-3">
           <CardTitle className={heading.card}>发布缺口</CardTitle>
           <CardDescription className={heading.muted}>
-            桌面工作站只展示本机运行能力和只读治理状态；组织级配置统一进入治理后台
+            本机运行只展示当前设备能力和只读治理状态；组织级配置统一进入治理后台
           </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-3 md:grid-cols-3">
