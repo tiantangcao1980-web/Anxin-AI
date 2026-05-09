@@ -423,6 +423,7 @@ def _validate_agent_governance_code_smoke(path: Path, payload: dict[str, Any], f
         "approval_authorization_guard",
         "mcp_connection_config_policy",
         "desktop_remote_control_host",
+        "frontend_skill_connector_credentials_model",
         "frontend_agent_workspace_e2e",
     ):
         if checks.get(check_name) != "passed":

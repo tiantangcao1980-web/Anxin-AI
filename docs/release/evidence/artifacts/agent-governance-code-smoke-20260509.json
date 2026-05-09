@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-09T05:35:33.878340+00:00",
+  "generated_at": "2026-05-09T07:22:26.205386+00:00",
   "mode": "agent_governance_code_smoke",
   "status": "passed",
   "release_evidence_complete": false,
@@ -11,13 +11,14 @@
     "approval_authorization_guard": "passed",
     "mcp_connection_config_policy": "passed",
     "desktop_remote_control_host": "passed",
+    "frontend_skill_connector_credentials_model": "passed",
     "frontend_agent_workspace_e2e": "passed"
   },
   "scope": {
     "enterprise_agent_governance": "code_level",
     "backend": "policy/routes/approvals/skills/memory/remote-control",
     "desktop": "remote-control safe-probe host tests",
-    "frontend": "agent governance workspace e2e"
+    "frontend": "connector credential model tests and agent governance workspace e2e"
   },
   "pending_runtime_evidence": [
     "approved_connector_rehearsal",

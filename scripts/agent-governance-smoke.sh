@@ -68,6 +68,7 @@ run_step "backend governance regression tests" bash -lc "cd '$PROJECT_ROOT/backe
   tests/test_mcp_route_governance.py \
   tests/test_cli_route.py \
   tests/test_llm_route_governance.py \
+  tests/test_llm_org_isolation.py \
   tests/test_crawler_compliance.py \
   tests/test_remote_control_fail_closed.py \
   tests/test_skill_evolution_service.py \
@@ -81,6 +82,8 @@ run_step "approval authorization guard tests" bash -lc "cd '$PROJECT_ROOT/backen
 run_step "MCP connection config policy tests" bash -lc "cd '$PROJECT_ROOT/backend' && ./.venv/bin/pytest -q tests/test_config_commercial_guards.py -k mcp"
 
 run_step "desktop remote-control host tests" bash -lc "cd '$PROJECT_ROOT/desktop' && cargo test remote_control"
+
+run_step "frontend Skill connector credential model tests" bash -lc "cd '$PROJECT_ROOT/frontend' && npm test -- skillConnectorSettingsModel.test.ts"
 
 run_step "frontend agent governance workspace e2e" bash -lc "cd '$PROJECT_ROOT/frontend' && npx playwright test e2e/agent-approval-workspace.spec.ts --project=chromium --project=mobile"
 
@@ -99,6 +102,7 @@ checks = {
     "approval_authorization_guard": "passed",
     "mcp_connection_config_policy": "passed",
     "desktop_remote_control_host": "passed",
+    "frontend_skill_connector_credentials_model": "passed",
     "frontend_agent_workspace_e2e": "passed",
 }
 report = {
@@ -112,7 +116,7 @@ report = {
         "enterprise_agent_governance": "code_level",
         "backend": "policy/routes/approvals/skills/memory/remote-control",
         "desktop": "remote-control safe-probe host tests",
-        "frontend": "agent governance workspace e2e",
+        "frontend": "connector credential model tests and agent governance workspace e2e",
     },
     "pending_runtime_evidence": [
         "approved_connector_rehearsal",

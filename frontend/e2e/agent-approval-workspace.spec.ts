@@ -319,7 +319,7 @@ test.describe('Agent 审批工作台', () => {
     await form.getByRole('button', { name: '更新' }).click()
     const metadataUpdate = await metadataUpdateRequest
     expect(metadataUpdate.postDataJSON()).not.toHaveProperty('credentials')
-    await expect(page.getByText('连接器配置已更新', { exact: true })).toBeVisible()
+    await expect(page.getByText('连接器配置已更新', { exact: true }).first()).toBeVisible()
 
     await form.getByLabel('连接器名称').fill('credit-data')
     await form.getByLabel('Endpoint').fill('https://credit.example.test/api')
@@ -352,7 +352,7 @@ test.describe('Agent 审批工作台', () => {
     expect(replaced.postDataJSON()).toMatchObject({
       credentials: { TOKEN: 'sk-connector-replacement-secret' },
     })
-    await expect(page.getByText('连接器配置已更新', { exact: true })).toBeVisible()
+    await expect(page.getByText('连接器配置已更新', { exact: true }).first()).toBeVisible()
     await expect(createdRow).toContainText('TOKEN')
     await expect(page.getByTestId('skill-connector-panel')).not.toContainText('sk-connector-replacement-secret')
 
