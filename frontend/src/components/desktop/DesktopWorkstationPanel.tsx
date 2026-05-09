@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { desktopControlApi, knowledgeApi, mcpApi, type RemoteControlAuditEvent, type RemoteControlStatusResponse } from '@/lib/api'
 import { useAppModeStore } from '@/lib/store'
 import {
@@ -15,6 +16,7 @@ import {
   createWorkstationProfile,
   deleteWorkstationProfile,
   getAppState,
+  getLocalLLMConfig,
   getQueueStats,
   isTauri,
   listLocalModels,
@@ -23,10 +25,13 @@ import {
   remoteControlRunHostCycle,
   type RemoteControlHostCycleSummary,
   setBackendUrl,
+  setDefaultLocalModel,
   switchMode,
   updateWorkstationProfile,
   type AppMode,
   type AppState,
+  type LocalLLMConfig,
+  type LocalModelListResponse,
   type WorkstationProfile,
 } from '@/lib/tauri-bridge'
 import { heading, iconSize, statusBadge } from '@/lib/design-tokens'
@@ -35,8 +40,11 @@ import { cn } from '@/lib/utils'
 import {
   buildRemoteControlHostState,
   buildDesktopWorkstationResources,
+  extractLocalModelOptions,
+  normalizeLocalModelInput,
   normalizeWorkstationBackendUrl,
   WORKSTATION_MODE_OPTIONS,
+  type LocalModelOption,
   type RemoteControlHostLoadState,
   type RemoteControlHostState,
   type WorkstationMode,
@@ -139,6 +147,11 @@ export function DesktopWorkstationPanel() {
   const [profiles, setProfiles] = useState<WorkstationProfile[]>([])
   const [editingProfileId, setEditingProfileId] = useState<string | null>(null)
   const [profileForm, setProfileForm] = useState(DEFAULT_PROFILE_FORM)
+  const [localModelOptions, setLocalModelOptions] = useState<LocalModelOption[]>([])
+  const [localModelDefault, setLocalModelDefault] = useState('')
+  const [localModelEndpoint, setLocalModelEndpoint] = useState('')
+  const [localModelInput, setLocalModelInput] = useState('')
+  const [localModelBusy, setLocalModelBusy] = useState<'refresh' | 'save' | null>(null)
   const [probes, setProbes] = useState<WorkstationProbeState>(PREVIEW_PROBES)
   const [remoteControlHost, setRemoteControlHost] = useState<RemoteControlHostRuntimeState>(
     DEFAULT_REMOTE_CONTROL_HOST_STATE
@@ -168,6 +181,28 @@ export function DesktopWorkstationPanel() {
     setLastSyncTime(snapshot.last_sync_time)
     setOnline(snapshot.is_online)
   }, [setLastSyncTime, setMode, setOnline, setSyncStatus])
+
+  const applyLocalModelSnapshot = useCallback((
+    llm: Record<string, unknown> | null,
+    models: LocalModelListResponse | null,
+    config: LocalLLMConfig | null,
+  ) => {
+    const options = extractLocalModelOptions(models)
+    const defaultModel = config?.default_model || options[0]?.name || 'qwen2.5:7b'
+    const endpoint = config?.endpoint_url || (typeof llm?.url === 'string' ? llm.url : '')
+    const available = Boolean(llm?.available || models?.available || options.length > 0)
+
+    setLocalModelOptions(options)
+    setLocalModelDefault(defaultModel)
+    setLocalModelEndpoint(endpoint)
+    setLocalModelInput(defaultModel)
+    setProbes((current) => ({
+      ...current,
+      localModelAvailable: available,
+      localModelUrl: endpoint,
+      localModelCount: options.length,
+    }))
+  }, [])
 
   const refreshProfiles = useCallback(async () => {
     if (!desktopClient) {
@@ -233,6 +268,10 @@ export function DesktopWorkstationPanel() {
       setProfiles([])
       setEditingProfileId(null)
       setProfileForm(DEFAULT_PROFILE_FORM)
+      setLocalModelOptions([])
+      setLocalModelDefault('')
+      setLocalModelEndpoint('')
+      setLocalModelInput('')
       setProbes(PREVIEW_PROBES)
       setRemoteControlHost(DEFAULT_REMOTE_CONTROL_HOST_STATE)
       return () => {
@@ -254,30 +293,34 @@ export function DesktopWorkstationPanel() {
       getAppState(),
       checkLocalLLMStatus(),
       listLocalModels(),
+      getLocalLLMConfig(),
       getQueueStats(),
       mode === 'top-secret' ? Promise.resolve(null) : knowledgeApi.listBases({ page_size: 100 }),
       mode === 'top-secret' ? Promise.resolve(null) : mcpApi.listServers(),
-    ]).then(([appStateResult, llmResult, modelsResult, queueResult, knowledgeResult, mcpResult]) => {
+    ]).then(([appStateResult, llmResult, modelsResult, llmConfigResult, queueResult, knowledgeResult, mcpResult]) => {
       if (cancelled) return
 
       const snapshot = appStateResult.status === 'fulfilled' ? appStateResult.value : null
       applyAppState(snapshot)
       const llm = llmResult.status === 'fulfilled' ? llmResult.value as Record<string, unknown> | null : null
-      const models = modelsResult.status === 'fulfilled' ? modelsResult.value as Record<string, unknown> | null : null
+      const models = modelsResult.status === 'fulfilled' ? modelsResult.value as LocalModelListResponse | null : null
+      const llmConfig = llmConfigResult.status === 'fulfilled' ? llmConfigResult.value : null
       const queue = queueResult.status === 'fulfilled' ? queueResult.value as Record<string, unknown> | null : null
       const knowledge = knowledgeResult.status === 'fulfilled'
         ? knowledgeResult.value as { items?: Array<{ doc_count?: number }>; total?: number } | null
         : null
       const mcpServers = mcpResult.status === 'fulfilled' && Array.isArray(mcpResult.value) ? mcpResult.value : []
-      const modelItems = Array.isArray(models?.models) ? models.models : []
+      const modelItems = extractLocalModelOptions(models)
       const knowledgeItems = Array.isArray(knowledge?.items) ? knowledge.items : []
+
+      applyLocalModelSnapshot(llm, models, llmConfig)
 
       setProbes({
         status: 'ready',
         knowledgeStatus: mode === 'top-secret' ? 'skipped' : knowledgeResult.status === 'fulfilled' ? 'ready' : 'error',
         mcpStatus: mode === 'top-secret' ? 'skipped' : mcpResult.status === 'fulfilled' ? 'ready' : 'error',
-        localModelAvailable: Boolean(llm?.available || models?.available),
-        localModelUrl: typeof llm?.url === 'string' ? llm.url : '',
+        localModelAvailable: Boolean(llm?.available || models?.available || modelItems.length > 0),
+        localModelUrl: llmConfig?.endpoint_url || (typeof llm?.url === 'string' ? llm.url : ''),
         localModelCount: modelItems.length,
         knowledgeBaseTotal: Number(knowledge?.total ?? knowledgeItems.length),
         knowledgeDocumentCount: knowledgeItems.reduce((total, item) => total + Number(item.doc_count ?? 0), 0),
@@ -294,7 +337,53 @@ export function DesktopWorkstationPanel() {
     return () => {
       cancelled = true
     }
-  }, [applyAppState, desktopClient, mode, refreshProfiles, refreshRemoteControlHost])
+  }, [applyAppState, applyLocalModelSnapshot, desktopClient, mode, refreshProfiles, refreshRemoteControlHost])
+
+  const handleLocalModelRefresh = async () => {
+    if (!desktopClient || localModelBusy) return
+    setLocalModelBusy('refresh')
+    try {
+      const [llmResult, modelsResult, configResult] = await Promise.allSettled([
+        checkLocalLLMStatus(),
+        listLocalModels(),
+        getLocalLLMConfig(),
+      ])
+      const llm = llmResult.status === 'fulfilled' ? llmResult.value as Record<string, unknown> | null : null
+      const models = modelsResult.status === 'fulfilled' ? modelsResult.value : null
+      const config = configResult.status === 'fulfilled' ? configResult.value : null
+      applyLocalModelSnapshot(llm, models, config)
+      toast.success('本地模型状态已刷新')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '本地模型刷新失败')
+    } finally {
+      setLocalModelBusy(null)
+    }
+  }
+
+  const handleLocalModelSave = async () => {
+    if (!desktopClient || localModelBusy) return
+    const normalized = normalizeLocalModelInput(localModelInput)
+    if (!normalized.ok) {
+      toast.error(normalized.error)
+      return
+    }
+
+    setLocalModelBusy('save')
+    try {
+      const result = await setDefaultLocalModel(normalized.value)
+      if (!result?.success) {
+        toast.error(result?.message || '本地默认模型保存失败')
+        return
+      }
+      setLocalModelDefault(result.default_model)
+      setLocalModelInput(result.default_model)
+      toast.success(result.message || '本地默认模型已更新')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '本地默认模型保存失败')
+    } finally {
+      setLocalModelBusy(null)
+    }
+  }
 
   const handleModeChange = async (nextMode: AppMode) => {
     if (!desktopClient) {
@@ -836,6 +925,129 @@ export function DesktopWorkstationPanel() {
                 </div>
               </div>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border rounded-xl" data-testid="desktop-local-model-manager">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle className={heading.card}>本地模型管理</CardTitle>
+              <CardDescription className={heading.muted}>
+                {desktopClient ? '配置 Quick Query 与本地模式默认模型' : '仅桌面客户端可写入本地模型偏好'}
+              </CardDescription>
+            </div>
+            <Badge variant="outline" data-testid="local-model-default">
+              默认：{localModelDefault || '未读取'}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <ProbeCell
+                testId="local-model-endpoint"
+                label="本地端点"
+                value={desktopClient ? localModelEndpoint || '未读取' : '需桌面端'}
+                detail="Ollama / 兼容端点"
+              />
+              <ProbeCell
+                testId="local-model-count"
+                label="已检测模型"
+                value={desktopClient ? `${localModelOptions.length} 个` : '需桌面端'}
+                detail={probes.localModelAvailable ? '本地服务可用' : '本地服务未连接'}
+              />
+            </div>
+            {localModelOptions.length > 0 ? (
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-muted-foreground">可用模型</Label>
+                <div className="grid grid-cols-1 gap-2">
+                  {localModelOptions.slice(0, 6).map((option) => (
+                    <button
+                      key={option.name}
+                      type="button"
+                      data-testid={`local-model-option-${option.name}`}
+                      disabled={!desktopClient || Boolean(localModelBusy)}
+                      onClick={() => setLocalModelInput(option.name)}
+                      className={cn(
+                        'flex min-w-0 items-center justify-between gap-3 rounded-lg border p-3 text-left text-sm transition-colors',
+                        localModelInput === option.name
+                          ? 'border-primary bg-primary/10 text-foreground'
+                          : 'border-border bg-surface-1 hover:border-primary/50 hover:bg-muted/50',
+                        (!desktopClient || Boolean(localModelBusy)) && 'cursor-not-allowed opacity-80'
+                      )}
+                    >
+                      <span className="min-w-0 truncate font-medium">{option.name}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {[option.sizeLabel, option.modifiedLabel].filter(Boolean).join(' · ') || '本地'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+                {desktopClient ? '未检测到本地模型，可手动填写已安装模型名称' : '仅桌面客户端可检测本地模型'}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3 rounded-lg border border-border bg-surface-1 p-3">
+            <div className="space-y-2">
+              <Label htmlFor="local-model-input" className="text-sm font-medium text-foreground">
+                默认模型
+              </Label>
+              {localModelOptions.length > 0 && (
+                <Select
+                  value={localModelInput}
+                  onValueChange={setLocalModelInput}
+                  disabled={!desktopClient || Boolean(localModelBusy)}
+                >
+                  <SelectTrigger data-testid="local-model-select" className="w-full">
+                    <SelectValue placeholder="选择已检测模型" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {localModelOptions.map((option) => (
+                      <SelectItem key={option.name} value={option.name}>
+                        {option.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <Input
+                id="local-model-input"
+                data-testid="local-model-input"
+                value={localModelInput}
+                onChange={(event) => setLocalModelInput(event.target.value)}
+                placeholder="qwen2.5:7b"
+                disabled={!desktopClient || localModelBusy === 'save'}
+              />
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                data-testid="local-model-refresh"
+                disabled={!desktopClient || Boolean(localModelBusy)}
+                onClick={handleLocalModelRefresh}
+              >
+                <icons.RefreshCw className={iconSize.sm} />
+                刷新
+              </Button>
+              <Button
+                type="button"
+                data-testid="local-model-save"
+                disabled={!desktopClient || localModelBusy === 'save'}
+                onClick={handleLocalModelSave}
+              >
+                保存默认模型
+              </Button>
+            </div>
+            <p className="text-xs leading-5 text-muted-foreground">
+              该配置只写入模型名称；API 密钥、Token、证书和远端凭据仍不进入桌面运行配置。
+            </p>
           </div>
         </CardContent>
       </Card>

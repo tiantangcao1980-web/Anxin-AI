@@ -15,6 +15,7 @@ bash scripts/desktop-mvp-local-gate.sh
 - Quick Query window, local/cloud behavior model, browser route, and documentation.
 - File-drop classification, encrypted queue command, WebView drop listener, toast summary, and release evidence.
 - Desktop workstation panel, mode/backend/profile model, Playwright workstation coverage, and safe desktop/preview boundaries.
+- Local model manager coverage for model-name normalization, secret-free default-model persistence, and workstation UI save flow.
 - `docs/audit/11a-desktop-mvp/00-prd-reality-gap.md` through `05-followups.md`.
 
 ## Existing Targeted Tests
@@ -74,5 +75,6 @@ cd frontend && npx playwright test e2e/settings-workstation.spec.ts --project=mo
 - Real tray-icon drop gesture and 500 ms toast latency.
 - Real packaged shortcut-to-visible latency under 200 ms.
 - Real local model endpoint smoke.
+- One-click model download/install flow.
 - Real approved Skills/MCP connector runtime.
 - Signed remote-control daemon, true cross-device host callback, and high-risk executor flow.

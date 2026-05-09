@@ -347,6 +347,8 @@ pub fn run_with_options(options: DesktopRunOptions) {
             commands::file_drop::queue_file_drop_paths,
             // 本地 LLM
             commands::local_llm::local_llm_chat,
+            commands::local_llm::get_local_llm_config,
+            commands::local_llm::set_default_local_model,
             commands::local_llm::list_local_models,
             commands::local_llm::check_local_llm_status,
             // CLI

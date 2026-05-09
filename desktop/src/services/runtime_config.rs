@@ -10,6 +10,8 @@ const CONFIG_SCHEMA_VERSION: u8 = 1;
 const MAX_PROFILE_COUNT: usize = 20;
 const MAX_PROFILE_NAME_LEN: usize = 60;
 const MAX_PROFILE_ID_LEN: usize = 80;
+const MAX_LOCAL_MODEL_NAME_LEN: usize = 120;
+pub const DEFAULT_LOCAL_MODEL: &str = "qwen2.5:7b";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -37,6 +39,8 @@ pub struct DesktopRuntimeConfig {
     pub schema_version: u8,
     pub mode: AppMode,
     pub backend_url: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub local_model: Option<String>,
     #[serde(default)]
     pub profiles: Vec<DesktopRuntimeProfile>,
 }
@@ -47,6 +51,7 @@ impl DesktopRuntimeConfig {
             schema_version: CONFIG_SCHEMA_VERSION,
             mode,
             backend_url: normalize_backend_url(backend_url)?,
+            local_model: None,
             profiles: Vec::new(),
         })
     }
@@ -59,6 +64,14 @@ impl DesktopRuntimeConfig {
 
     pub fn with_profiles(mut self, profiles: Vec<DesktopRuntimeProfile>) -> Result<Self, String> {
         self.profiles = normalize_profiles(profiles)?;
+        Ok(self)
+    }
+
+    pub fn with_local_model(mut self, model: Option<String>) -> Result<Self, String> {
+        self.local_model = match model {
+            Some(value) => Some(normalize_local_model_name(&value)?),
+            None => None,
+        };
         Ok(self)
     }
 }
@@ -107,6 +120,32 @@ pub fn normalize_profile_id(input: &str) -> Result<String, String> {
         return Err("配置档 ID 只能包含字母、数字、短横线或下划线".to_string());
     }
     Ok(trimmed.to_string())
+}
+
+pub fn normalize_local_model_name(input: &str) -> Result<String, String> {
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return Err("本地模型名称不能为空".to_string());
+    }
+    if trimmed.len() > MAX_LOCAL_MODEL_NAME_LEN {
+        return Err(format!(
+            "本地模型名称不能超过 {MAX_LOCAL_MODEL_NAME_LEN} 个字符"
+        ));
+    }
+    if !trimmed
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '.' | '_' | '-' | ':' | '/'))
+    {
+        return Err("本地模型名称只能包含字母、数字、点、下划线、短横线、冒号或斜杠".to_string());
+    }
+    Ok(trimmed.to_string())
+}
+
+pub fn default_local_model_name() -> String {
+    std::env::var("ANXIN_LOCAL_LLM_MODEL")
+        .ok()
+        .and_then(|value| normalize_local_model_name(&value).ok())
+        .unwrap_or_else(|| DEFAULT_LOCAL_MODEL.to_string())
 }
 
 pub fn generate_profile_id(name: &str) -> String {
@@ -230,6 +269,10 @@ pub fn load_runtime_config_from_path(path: &Path) -> Result<Option<DesktopRuntim
     }
 
     config.backend_url = normalize_backend_url(&config.backend_url)?;
+    config.local_model = match config.local_model {
+        Some(model) => Some(normalize_local_model_name(&model)?),
+        None => None,
+    };
     config.profiles = normalize_profiles(config.profiles)?;
     Ok(Some(config))
 }
@@ -239,6 +282,7 @@ pub fn save_runtime_config_to_path(
     config: &DesktopRuntimeConfig,
 ) -> Result<(), String> {
     let persisted = DesktopRuntimeConfig::new(config.mode, &config.backend_url)?
+        .with_local_model(config.local_model.clone())?
         .with_profiles(config.profiles.clone())?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
@@ -271,8 +315,8 @@ fn sync_status_for_mode(mode: AppMode) -> SyncStatus {
 mod tests {
     use super::{
         generate_unique_profile_id, load_runtime_config_from_path, normalize_backend_url,
-        normalize_profiles, save_runtime_config_to_path, DesktopRuntimeConfig,
-        DesktopRuntimeProfile,
+        normalize_local_model_name, normalize_profiles, save_runtime_config_to_path,
+        DesktopRuntimeConfig, DesktopRuntimeProfile,
     };
     use crate::models::{AppMode, AppStateData, SyncStatus};
     use std::path::PathBuf;
@@ -326,6 +370,7 @@ mod tests {
 
         assert_eq!(loaded.mode, AppMode::Hybrid);
         assert_eq!(loaded.backend_url, "https://api.anxin.example/v1");
+        assert_eq!(loaded.local_model, None);
         assert_eq!(loaded.profiles.len(), 1);
         assert_eq!(
             loaded.profiles[0].backend_url,
@@ -350,6 +395,7 @@ mod tests {
 
         assert_eq!(loaded.mode, AppMode::Hybrid);
         assert_eq!(loaded.backend_url, "http://localhost:8001");
+        assert_eq!(loaded.local_model, None);
         assert!(loaded.profiles.is_empty());
 
         let _ = std::fs::remove_file(path);
@@ -407,6 +453,42 @@ mod tests {
         .unwrap();
 
         assert!(load_runtime_config_from_path(&path).is_err());
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn normalizes_local_model_names_without_secret_like_values() {
+        assert_eq!(
+            normalize_local_model_name(" qwen2.5:7b ").unwrap(),
+            "qwen2.5:7b"
+        );
+        assert_eq!(
+            normalize_local_model_name("library/llama3.1:8b").unwrap(),
+            "library/llama3.1:8b"
+        );
+        assert!(normalize_local_model_name("").is_err());
+        assert!(normalize_local_model_name("qwen 7b").is_err());
+        assert!(normalize_local_model_name("qwen;export TOKEN=secret").is_err());
+    }
+
+    #[test]
+    fn persists_default_local_model_name_without_auth_material() {
+        let path = test_path("local-model");
+        let config = DesktopRuntimeConfig::new(AppMode::Hybrid, "http://localhost:8001")
+            .unwrap()
+            .with_local_model(Some("qwen2.5:14b".to_string()))
+            .unwrap();
+
+        save_runtime_config_to_path(&path, &config).unwrap();
+        let loaded = load_runtime_config_from_path(&path).unwrap().unwrap();
+        let raw = std::fs::read_to_string(&path).unwrap();
+
+        assert_eq!(loaded.local_model.as_deref(), Some("qwen2.5:14b"));
+        assert!(raw.contains("localModel"));
+        assert!(!raw.contains("api_key"));
+        assert!(!raw.contains("token"));
+        assert!(!raw.contains("secret"));
 
         let _ = std::fs::remove_file(path);
     }

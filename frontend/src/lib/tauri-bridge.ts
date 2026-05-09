@@ -302,6 +302,19 @@ export interface LocalLLMResponse {
   total_duration?: number
 }
 
+export interface LocalLLMConfig {
+  default_model: string
+  endpoint_url: string
+  stores_secrets: boolean
+  message?: string
+}
+
+export interface LocalModelListResponse {
+  available?: boolean
+  models?: unknown[]
+  message?: string
+}
+
 /** 调用本地 LLM */
 export async function localLLMChat(
   message: string,
@@ -315,8 +328,18 @@ export async function localLLMChat(
   })
 }
 
+/** 读取本地 LLM 非敏感配置 */
+export async function getLocalLLMConfig(): Promise<LocalLLMConfig | null> {
+  return invokeCommand('get_local_llm_config')
+}
+
+/** 设置本地默认模型名称 */
+export async function setDefaultLocalModel(model: string): Promise<{ success: boolean; default_model: string; message: string } | null> {
+  return invokeCommand('set_default_local_model', { model })
+}
+
 /** 列出本地可用模型 */
-export async function listLocalModels() {
+export async function listLocalModels(): Promise<LocalModelListResponse | null> {
   return invokeCommand('list_local_models')
 }
 

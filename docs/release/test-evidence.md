@@ -426,6 +426,32 @@ cd frontend && npx playwright test e2e/settings-workstation.spec.ts --project=ch
 - Playwright 在模拟桌面 runtime 下覆盖配置档保存、编辑为云端、应用到当前状态、删除回空列表，并继续覆盖移动宽度不横向溢出。
 - 这关闭的是桌面主工作站“环境 profile”本地 CRUD；真实 LLM/MCP/Skills connector 密钥联调、真实 approved connector runtime、signed runtime 和跨设备真机证据仍保持阻断。
 
+2026-05-09 桌面本地模型管理补充：
+
+```bash
+cd desktop && cargo test runtime_config
+# 10 passed; 51 filtered out
+
+cd desktop && cargo test local_llm
+# 1 passed; 60 filtered out
+
+cd frontend && npm test -- desktopWorkstationModel.test.ts
+# 1 file / 11 tests passed
+
+cd frontend && npx playwright test e2e/settings-workstation.spec.ts --project=chromium --project=mobile
+# 15 passed, 1 skipped
+
+bash scripts/desktop-mvp-local-gate.sh
+# Desktop MVP local gate: PASS
+```
+
+覆盖增量：
+
+- `desktop/src/services/runtime_config.rs` 新增 secret-free `localModel` 字段，旧 `runtime-config.json` 无该字段时继续兼容；保存时只持久化模型名称，不保存 API key、token、证书或 connector secret。
+- `desktop/src/commands/local_llm.rs` 新增 `get_local_llm_config` / `set_default_local_model`，并让 `local_llm_chat` 在未显式传入模型时读取桌面默认模型；模型名称只允许安全字符集，拒绝空值、空格和 shell-like 内容。
+- `frontend/src/components/desktop/DesktopWorkstationPanel.tsx` 新增“本地模型管理”面板，桌面 runtime 可查看 Ollama/兼容端点、已检测模型数量、选择或手填默认模型并保存；非桌面预览保持不可写。
+- Playwright 已覆盖模拟桌面 runtime 下保存 `llama3.1:8b` 为默认模型；Quick Query 真实模型 smoke、模型下载/安装、packaged runtime 和 signed runtime 证据仍保持阻断。
+
 2026-05-09 桌面 PrivacyContext 门控对齐补充：
 
 ```bash

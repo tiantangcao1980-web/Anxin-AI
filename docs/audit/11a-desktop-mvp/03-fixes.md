@@ -27,6 +27,7 @@
 
 - Added a visible desktop workstation panel with local model, knowledge base, Skills/MCP, sync, remote-control, and runtime configuration status.
 - Added secret-free mode/backend URL writing and environment profile CRUD.
+- Added secret-free default local model persistence and workstation UI controls so Quick Query and local-mode calls no longer depend on a hard-coded model name.
 - Kept non-desktop previews read-only for desktop-only actions.
 - Preserved TopSecret/local fail-closed behavior for sync and remote-control actions.
 - Added Playwright workstation coverage for direct/legacy routes, runtime mocks, profile CRUD, mode/backend editing, safe disabled states, and mobile width.

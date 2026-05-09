@@ -38,11 +38,24 @@ checks = {
         "always_on_top: true",
         "skip_taskbar: true",
     ],
+    "desktop/src/commands/local_llm.rs": [
+        "get_local_llm_config",
+        "set_default_local_model",
+        "normalize_local_model_name",
+        "configured_default_model",
+    ],
+    "desktop/src/services/runtime_config.rs": [
+        "local_model",
+        "normalize_local_model_name",
+        "DEFAULT_LOCAL_MODEL",
+        "skip_serializing_if",
+    ],
     "desktop/src/lib.rs": [
         "Cmd+Shift+Space",
         "Cmd/Ctrl+Shift+Space",
         "toggle_quick_query_window",
         "hide_quick_query_window",
+        "set_default_local_model",
         "queue_file_drop_paths",
     ],
     "frontend/src/pages/QuickQuery.tsx": [
@@ -73,6 +86,8 @@ checks = {
         "local_path",
     ],
     "frontend/src/lib/tauri-bridge.ts": [
+        "getLocalLLMConfig",
+        "setDefaultLocalModel",
         "queueFileDropPaths",
         "listenFileDropQueued",
         "listenDesktopFileDrops",
@@ -95,22 +110,29 @@ checks = {
     ],
     "frontend/src/components/desktop/DesktopWorkstationPanel.tsx": [
         "DesktopWorkstationPanel",
+        "本地模型管理",
+        "local-model-save",
         "工作站配置",
         "后端环境",
     ],
     "frontend/src/components/desktop/desktopWorkstationModel.ts": [
+        "extractLocalModelOptions",
+        "normalizeLocalModelInput",
         "normalizeWorkstationBackendUrl",
         "top-secret",
         "hybrid",
         "cloud",
     ],
     "frontend/src/components/desktop/desktopWorkstationModel.test.ts": [
+        "extractLocalModelOptions",
+        "normalizeLocalModelInput",
         "normalizeWorkstationBackendUrl",
         "top-secret",
     ],
     "frontend/e2e/settings-workstation.spec.ts": [
         "settings?tab=workstation",
         "settings?tab=privacy",
+        "local-model-save",
         "desktop runtime",
     ],
     "docs/desktop/quick-query-flow.md": [
@@ -121,11 +143,13 @@ checks = {
     ],
     "docs/release/test-evidence.md": [
         "桌面快问 P0-2",
+        "桌面本地模型管理",
         "桌面文件拖入分析 P0-3",
         "桌面主窗口 WebView 文件 drop",
     ],
     "docs/release/commercial-delivery-readiness.md": [
         "桌面端补充：`Cmd/Ctrl+Shift+Space`",
+        "桌面本地模型默认配置",
         "桌面端补充：文件拖入分析",
     ],
     "docs/audit/11a-desktop-mvp/00-prd-reality-gap.md": [
@@ -147,6 +171,7 @@ checks = {
     "docs/audit/11a-desktop-mvp/03-fixes.md": [
         "Quick Query",
         "File Drop Analysis Queue",
+        "default local model persistence",
         "Remote-Control Host",
     ],
     "docs/audit/11a-desktop-mvp/04-test-additions.md": [

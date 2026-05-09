@@ -3,9 +3,11 @@ import { describe, expect, it } from 'vitest'
 import {
   buildRemoteControlHostState,
   buildDesktopWorkstationResources,
+  extractLocalModelOptions,
   formatRemoteControlAuditAction,
   formatRemoteControlRequiredControl,
   getUnsafeEnabledTopSecretActions,
+  normalizeLocalModelInput,
   normalizeWorkstationBackendUrl,
   type RemoteControlAuditEventSnapshot,
   type RemoteControlStatusSnapshot,
@@ -73,6 +75,29 @@ describe('desktop workstation model', () => {
     expect(normalizeWorkstationBackendUrl('')).toMatchObject({
       ok: false,
     })
+  })
+
+  it('extracts safe local model options from Ollama-style payloads', () => {
+    const options = extractLocalModelOptions({
+      models: [
+        { name: 'qwen2.5:7b', size: 4_500_000_000, modified_at: '2026-05-09T10:00:00Z' },
+        { model: 'library/llama3.1:8b', size: 8_100_000_000 },
+        { name: 'qwen2.5:7b' },
+        { name: 'bad model name' },
+        { name: 'bad;export TOKEN=secret' },
+      ],
+    })
+
+    expect(options).toEqual([
+      { name: 'qwen2.5:7b', sizeLabel: '4.2 GB', modifiedLabel: '2026-05-09' },
+      { name: 'library/llama3.1:8b', sizeLabel: '7.5 GB', modifiedLabel: undefined },
+    ])
+  })
+
+  it('normalizes default local model input without shell-like content', () => {
+    expect(normalizeLocalModelInput(' qwen2.5:14b ')).toEqual({ ok: true, value: 'qwen2.5:14b' })
+    expect(normalizeLocalModelInput('qwen 7b')).toMatchObject({ ok: false })
+    expect(normalizeLocalModelInput('qwen;export TOKEN=secret')).toMatchObject({ ok: false })
   })
 })
 

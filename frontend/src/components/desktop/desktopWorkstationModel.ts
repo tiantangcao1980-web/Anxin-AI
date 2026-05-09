@@ -83,6 +83,12 @@ export interface RemoteControlHostState {
   cancellableCommandId?: string | null
 }
 
+export interface LocalModelOption {
+  name: string
+  sizeLabel?: string
+  modifiedLabel?: string
+}
+
 const TOP_SECRET_RESTRICTION = '绝密模式下默认不出站'
 const DESKTOP_CLIENT_REQUIRED = '请在桌面客户端启用'
 const REMOTE_CONTROL_READY_MESSAGE = '已具备配对与安全探针 host 回路'
@@ -117,6 +123,63 @@ const REMOTE_CONTROL_AUDIT_STATUS_LABELS: Record<string, string> = {
 
 const CANCELLABLE_REMOTE_COMMAND_REASONS = new Set(['queued', 'claimed'])
 const TERMINAL_REMOTE_COMMAND_REASONS = new Set(['cancelled', 'completed', 'expired', 'failed'])
+
+function formatModelBytes(value: unknown): string | undefined {
+  const bytes = Number(value)
+  if (!Number.isFinite(bytes) || bytes <= 0) return undefined
+  const gib = bytes / 1024 / 1024 / 1024
+  if (gib >= 1) return `${gib.toFixed(gib >= 10 ? 0 : 1)} GB`
+  const mib = bytes / 1024 / 1024
+  if (mib >= 1) return `${mib.toFixed(mib >= 10 ? 0 : 1)} MB`
+  return `${Math.round(bytes)} B`
+}
+
+function normalizeModelName(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  if (!/^[A-Za-z0-9._:/-]+$/.test(trimmed)) return null
+  return trimmed
+}
+
+export function extractLocalModelOptions(payload: unknown): LocalModelOption[] {
+  const models = typeof payload === 'object' && payload !== null && Array.isArray((payload as { models?: unknown }).models)
+    ? (payload as { models: unknown[] }).models
+    : Array.isArray(payload)
+      ? payload
+      : []
+  const seen = new Set<string>()
+  const options: LocalModelOption[] = []
+
+  for (const item of models) {
+    const record = typeof item === 'object' && item !== null ? item as Record<string, unknown> : null
+    const name = normalizeModelName(
+      typeof item === 'string'
+        ? item
+        : record?.name ?? record?.model ?? record?.id
+    )
+    if (!name || seen.has(name)) continue
+    seen.add(name)
+    options.push({
+      name,
+      sizeLabel: formatModelBytes(record?.size),
+      modifiedLabel: typeof record?.modified_at === 'string' ? record.modified_at.slice(0, 10) : undefined,
+    })
+  }
+
+  return options
+}
+
+export function normalizeLocalModelInput(input: string): { ok: true; value: string } | { ok: false; error: string } {
+  const value = normalizeModelName(input)
+  if (!value) {
+    return { ok: false, error: '请输入有效的本地模型名称' }
+  }
+  if (value.length > 120) {
+    return { ok: false, error: '本地模型名称不能超过 120 个字符' }
+  }
+  return { ok: true, value }
+}
 
 export const WORKSTATION_MODE_OPTIONS: WorkstationModeOption[] = [
   {

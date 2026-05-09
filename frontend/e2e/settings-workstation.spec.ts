@@ -298,6 +298,7 @@ test.describe('桌面主工作站设置入口', () => {
         user_token: 'token-redacted',
         unread_count: 0,
       }
+      let localModelDefault = 'qwen2.5:7b'
       const profiles: Array<{ id: string; name: string; mode: string; backend_url: string }> = []
       ;(window as any).__TAURI_INTERNALS__ = {
         invoke: async (cmd: string, args?: Record<string, unknown>) => {
@@ -348,7 +349,24 @@ test.describe('桌面主工作站设置入口', () => {
             return null
           }
           if (cmd === 'check_local_llm_status') return { available: true, url: 'http://localhost:11434', status: 200 }
-          if (cmd === 'list_local_models') return { available: true, models: [{ name: 'qwen2.5:7b' }] }
+          if (cmd === 'get_local_llm_config') {
+            return {
+              default_model: localModelDefault,
+              endpoint_url: 'http://localhost:11434',
+              stores_secrets: false,
+            }
+          }
+          if (cmd === 'set_default_local_model') {
+            localModelDefault = args?.model as string
+            return { success: true, default_model: localModelDefault, message: '本地默认模型已更新' }
+          }
+          if (cmd === 'list_local_models') return {
+            available: true,
+            models: [
+              { name: 'qwen2.5:7b', size: 4_500_000_000, modified_at: '2026-05-09T10:00:00Z' },
+              { name: 'llama3.1:8b', size: 8_100_000_000 },
+            ],
+          }
           if (cmd === 'get_queue_stats') return { queued: 0, local_processing: 0, local_completed: 0, synced: 0, failed: 0, total: 0 }
           return null
         },
@@ -359,6 +377,14 @@ test.describe('桌面主工作站设置入口', () => {
 
     await expect(page.getByTestId('desktop-workstation-config')).toBeVisible()
     await expect(page.getByTestId('workstation-backend-current')).toContainText('http://localhost:8001')
+    await expect(page.getByTestId('desktop-local-model-manager')).toBeVisible()
+    await expect(page.getByTestId('local-model-default')).toContainText('qwen2.5:7b')
+    await expect(page.getByTestId('local-model-count')).toContainText('2 个')
+
+    await page.getByTestId('local-model-input').fill('llama3.1:8b')
+    await page.getByTestId('local-model-save').click()
+
+    await expect(page.getByTestId('local-model-default')).toContainText('llama3.1:8b')
 
     await page.getByTestId('workstation-mode-top-secret').click()
 
