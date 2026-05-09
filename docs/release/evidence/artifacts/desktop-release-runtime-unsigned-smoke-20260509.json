@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-09T09:52:44.427680+00:00",
+  "generated_at": "2026-05-09T11:09:51.322878+00:00",
   "mode": "desktop_release_runtime_unsigned_smoke",
   "status": "passed",
   "release_evidence_complete": false,
@@ -9,6 +9,7 @@
     "release_dmg_exists": "passed",
     "release_binary_self_test": "passed",
     "release_sync_code_smoke": "passed",
+    "release_sync_loopback_smoke": "passed",
     "release_runtime_startup": "passed",
     "release_webview_ui_load": "passed",
     "sync_code_smoke": {
@@ -26,6 +27,20 @@
       "retry_needs_human": true,
       "pull_records_decoded": 1
     },
+    "sync_loopback_smoke": {
+      "loopback_backend": "passed",
+      "auth_header_received": true,
+      "pending_rows_decoded": 2,
+      "push_payload_records": 2,
+      "backend_received_records": 2,
+      "accepted_after_conflict": 1,
+      "conflict_rows": 1,
+      "rows_synced": 1,
+      "rows_conflicted": 1,
+      "pull_records_written": 1,
+      "cursor_advanced_to": 13,
+      "retry_needs_human": true
+    },
     "sqlite_security": {
       "status": "passed",
       "encrypted": true,
@@ -39,5 +54,5 @@
     "release_dmg": "/Users/pengchengkeji/Documents/GitHub/Anxin-Smart-Legal-Services/desktop/target/release/bundle/dmg/安心法务_1.0.0_aarch64.dmg",
     "ui_log": "/Users/pengchengkeji/Documents/GitHub/Anxin-Smart-Legal-Services/docs/release/evidence/artifacts/desktop-release-runtime-ui-smoke-unsigned-20260509.log"
   },
-  "completion_note": "Unsigned release packaged-runtime supporting evidence only. Keep desktop runtime evidence Status: pending until the package is signed/notarized and signed packaged-profile migration, signed packaged runtime performance, and cross-device continuation evidence are attached."
+  "completion_note": "Unsigned release packaged-runtime supporting evidence only. Keep desktop runtime evidence Status: pending until the package is signed/notarized and signed packaged-profile migration, signed packaged runtime performance, shared-staging sync, and cross-device continuation evidence are attached."
 }

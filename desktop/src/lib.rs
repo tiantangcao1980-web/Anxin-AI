@@ -111,6 +111,12 @@ pub fn desktop_sync_code_smoke_json() -> Result<String, String> {
         .map_err(|err| format!("无法序列化 desktop sync code smoke 报告: {err}"))
 }
 
+pub fn desktop_sync_loopback_smoke_json() -> Result<String, String> {
+    let report = services::sync_engine::desktop_sync_loopback_smoke_report()?;
+    serde_json::to_string_pretty(&report)
+        .map_err(|err| format!("无法序列化 desktop sync loopback smoke 报告: {err}"))
+}
+
 pub fn desktop_secure_db_installed_profile_smoke_json() -> Result<String, String> {
     let path = std::env::var("ANXIN_DESKTOP_DB_PATH")
         .map_err(|_| "ANXIN_DESKTOP_DB_PATH must be set for installed-profile smoke".to_string())?;
@@ -459,7 +465,9 @@ pub fn run_with_options(options: DesktopRunOptions) {
 
 #[cfg(test)]
 mod tests {
-    use super::{desktop_runtime_self_test, desktop_sync_code_smoke_json};
+    use super::{
+        desktop_runtime_self_test, desktop_sync_code_smoke_json, desktop_sync_loopback_smoke_json,
+    };
 
     #[test]
     fn runtime_self_test_reports_local_db_contract() {
@@ -493,6 +501,25 @@ mod tests {
         assert_eq!(payload["release_evidence_complete"], false);
         assert_eq!(payload["checks"]["pending_rows_decoded"], 2);
         assert_eq!(payload["checks"]["retry_needs_human"], true);
+    }
+
+    #[test]
+    fn sync_loopback_smoke_report_exercises_http_backend() {
+        let report = desktop_sync_loopback_smoke_json().expect("sync loopback smoke report");
+        let payload: serde_json::Value =
+            serde_json::from_str(&report).expect("sync loopback smoke JSON");
+
+        assert_eq!(payload["mode"], "desktop_sync_loopback_smoke");
+        assert_eq!(payload["status"], "passed");
+        assert_eq!(payload["release_evidence_complete"], false);
+        assert_eq!(payload["checks"]["loopback_backend"], "passed");
+        assert_eq!(payload["checks"]["auth_header_received"], true);
+        assert_eq!(payload["checks"]["backend_received_records"], 2);
+        assert_eq!(payload["checks"]["accepted_after_conflict"], 1);
+        assert_eq!(payload["checks"]["rows_synced"], 1);
+        assert_eq!(payload["checks"]["rows_conflicted"], 1);
+        assert_eq!(payload["checks"]["pull_records_written"], 1);
+        assert_eq!(payload["checks"]["cursor_advanced_to"], 13);
     }
 
     #[test]

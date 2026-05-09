@@ -109,9 +109,12 @@
         "scripts/desktop-installed-profile-smoke.sh",
         "scripts/desktop-release-package.sh",
         "scripts/desktop-release-preflight.sh",
+        "scripts/desktop-release-runtime-smoke.sh",
         "docs/release/evidence/desktop-runtime-smoke.md",
         "docs/release/evidence/artifacts/desktop-release-package-dry-run-20260507.json",
         "docs/release/evidence/artifacts/desktop-release-preflight-20260507.json",
+        "docs/release/evidence/artifacts/desktop-release-runtime-unsigned-smoke-20260509.json",
+        "docs/release/evidence/artifacts/desktop-release-runtime-ui-smoke-unsigned-20260509.log",
         "docs/release/evidence/artifacts/desktop-installed-profile-smoke-20260507.json",
         "docs/release/evidence/artifacts/desktop-runtime-code-smoke-20260507.json",
         "docs/release/evidence/artifacts/desktop-runtime-ui-smoke-20260507.log",
@@ -133,9 +136,10 @@
         "bash scripts/desktop-installed-profile-smoke.sh --out docs/release/evidence/artifacts/desktop-installed-profile-smoke-YYYYMMDD.json",
         "bash scripts/desktop-runtime-smoke.sh --with-app-bundle --out docs/release/evidence/artifacts/desktop-runtime-code-smoke-YYYYMMDD.json --ui-log-out docs/release/evidence/artifacts/desktop-runtime-ui-smoke-YYYYMMDD.log",
         "bash scripts/desktop-release-package.sh --dry-run --out docs/release/evidence/artifacts/desktop-release-package-dry-run-YYYYMMDD.json --preflight-out docs/release/evidence/artifacts/desktop-release-preflight-YYYYMMDD.json",
-        "bash scripts/desktop-release-preflight.sh --out docs/release/evidence/artifacts/desktop-release-preflight-YYYYMMDD.json"
+        "bash scripts/desktop-release-preflight.sh --out docs/release/evidence/artifacts/desktop-release-preflight-YYYYMMDD.json",
+        "bash scripts/desktop-release-runtime-smoke.sh --out docs/release/evidence/artifacts/desktop-release-runtime-unsigned-smoke-YYYYMMDD.json --ui-log-out docs/release/evidence/artifacts/desktop-release-runtime-ui-smoke-unsigned-YYYYMMDD.log"
       ],
-      "current_result": "Code-level SQLCipher/keyring, guarded erase-local-data path, desktop network surface gate, desktop MVP local gate, unsigned debug .app runtime startup/UI smoke, structured desktop runtime artifacts, production APNs entitlement, release package dry-run, release preflight, desktop workstation local config surface, quick-query code/browser evidence, file-drop queue/toast/WebView-drop code evidence, secret-free mode/backend runtime config persistence, desktop top-secret to frontend PrivacyContext gate alignment, and MCP connector masked-env preservation pass; Status: pending because signing identity, notarization credentials, signed/notarized .app/DMG, signed packaged UI interaction, signed packaged runtime, migration transcript, performance, real approved connector runtime evidence, and cross-device evidence are missing."
+      "current_result": "Code-level SQLCipher/keyring, guarded erase-local-data path, desktop network surface gate, desktop MVP local gate, unsigned debug .app runtime startup/UI smoke, unsigned release packaged runtime self-test/startup/WebView/sync-loopback smoke, structured desktop runtime artifacts, production APNs entitlement, release package dry-run, release preflight, desktop workstation local config surface, quick-query code/browser evidence, file-drop queue/toast/WebView-drop code evidence, secret-free mode/backend runtime config persistence, desktop top-secret to frontend PrivacyContext gate alignment, and MCP connector masked-env preservation pass; packaged sync loopback proves bearer-auth push of 2 records, 1 accepted row, 1 conflict row, 1 pull writeback, and cursor 13 from the unsigned release app binary; Status: pending because signing identity, notarization credentials, signed/notarized .app/DMG, signed packaged UI interaction, signed packaged runtime performance, signed packaged-profile migration transcript, shared-staging sync evidence, real approved connector runtime evidence, and cross-device evidence are missing."
     },
     {
       "id": "rag-full50-live-baseline",

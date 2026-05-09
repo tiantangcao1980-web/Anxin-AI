@@ -720,6 +720,7 @@ def _validate_desktop_release_runtime_unsigned_smoke(
         "release_dmg_exists",
         "release_binary_self_test",
         "release_sync_code_smoke",
+        "release_sync_loopback_smoke",
         "release_runtime_startup",
         "release_webview_ui_load",
     ):
@@ -749,6 +750,39 @@ def _validate_desktop_release_runtime_unsigned_smoke(
         if sync_code_smoke.get("retry_needs_human") is not True:
             failures.append(
                 f"{path}: desktop unsigned release runtime smoke sync_code_smoke.retry_needs_human must be true"
+            )
+
+    sync_loopback_smoke = checks.get("sync_loopback_smoke")
+    if not isinstance(sync_loopback_smoke, dict):
+        failures.append(f"{path}: desktop unsigned release runtime smoke missing sync_loopback_smoke")
+    else:
+        expected_counts = {
+            "pending_rows_decoded": 2,
+            "push_payload_records": 2,
+            "backend_received_records": 2,
+            "accepted_after_conflict": 1,
+            "conflict_rows": 1,
+            "rows_synced": 1,
+            "rows_conflicted": 1,
+            "pull_records_written": 1,
+            "cursor_advanced_to": 13,
+        }
+        for key, expected in expected_counts.items():
+            if sync_loopback_smoke.get(key) != expected:
+                failures.append(
+                    f"{path}: desktop unsigned release runtime smoke sync_loopback_smoke.{key} must be {expected}"
+                )
+        if sync_loopback_smoke.get("loopback_backend") != "passed":
+            failures.append(
+                f"{path}: desktop unsigned release runtime smoke sync_loopback_smoke.loopback_backend must be passed"
+            )
+        if sync_loopback_smoke.get("auth_header_received") is not True:
+            failures.append(
+                f"{path}: desktop unsigned release runtime smoke sync_loopback_smoke.auth_header_received must be true"
+            )
+        if sync_loopback_smoke.get("retry_needs_human") is not True:
+            failures.append(
+                f"{path}: desktop unsigned release runtime smoke sync_loopback_smoke.retry_needs_human must be true"
             )
 
     sqlite_security = checks.get("sqlite_security")

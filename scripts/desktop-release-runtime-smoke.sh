@@ -90,6 +90,7 @@ TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/anxin-release-runtime-smoke.XXXXXX")"
 trap 'rm -rf "$TMP_DIR"' EXIT
 SELF_TEST_JSON="$TMP_DIR/self-test.json"
 SYNC_CODE_SMOKE_JSON="$TMP_DIR/sync-code-smoke.json"
+SYNC_LOOPBACK_SMOKE_JSON="$TMP_DIR/sync-loopback-smoke.json"
 RUNTIME_LOG="$TMP_DIR/runtime.log"
 UI_LOG="$TMP_DIR/ui.log"
 
@@ -212,6 +213,46 @@ run_step "release app runtime startup smoke" bash -lc '
   cat "$runtime_log"
 ' bash "$BINARY_PATH" "$RUNTIME_LOG"
 
+run_step "release app sync loopback smoke" bash -lc '
+  binary_path="$1"
+  sync_loopback_smoke_json="$2"
+  "$binary_path" --sync-loopback-smoke >"$sync_loopback_smoke_json"
+  python3 - "$sync_loopback_smoke_json" <<'"'"'PY'"'"'
+import json
+import sys
+
+report = json.loads(open(sys.argv[1], encoding="utf-8").read())
+if report.get("mode") != "desktop_sync_loopback_smoke":
+    raise SystemExit("unexpected sync loopback smoke mode")
+if report.get("status") != "passed":
+    raise SystemExit("sync loopback smoke did not pass")
+if report.get("release_evidence_complete") is not False:
+    raise SystemExit("sync loopback smoke must remain supporting evidence")
+checks = report.get("checks") or {}
+expected = {
+    "pending_rows_decoded": 2,
+    "push_payload_records": 2,
+    "backend_received_records": 2,
+    "accepted_after_conflict": 1,
+    "conflict_rows": 1,
+    "rows_synced": 1,
+    "rows_conflicted": 1,
+    "pull_records_written": 1,
+    "cursor_advanced_to": 13,
+}
+for key, value in expected.items():
+    if checks.get(key) != value:
+        raise SystemExit(f"sync loopback smoke {key} expected {value}, got {checks.get(key)}")
+if checks.get("loopback_backend") != "passed":
+    raise SystemExit("sync loopback backend did not pass")
+if checks.get("auth_header_received") is not True:
+    raise SystemExit("sync loopback auth header was not observed")
+if checks.get("retry_needs_human") is not True:
+    raise SystemExit("sync loopback retry gate did not reach needs_human")
+print("release sync loopback smoke ok: " + json.dumps(checks, ensure_ascii=False, sort_keys=True))
+PY
+' bash "$BINARY_PATH" "$SYNC_LOOPBACK_SMOKE_JSON"
+
 run_step "release app WebView UI load smoke" bash -lc '
   binary_path="$1"
   ui_log="$2"
@@ -255,7 +296,7 @@ if [ -n "$UI_LOG_OUT_PATH" ]; then
 fi
 
 if [ -n "$OUT_PATH" ]; then
-  python3 - "$OUT_PATH" "$APP_PATH" "$BINARY_PATH" "$SELF_TEST_JSON" "$SYNC_CODE_SMOKE_JSON" "$UI_LOG_OUT_PATH" "$DMG_DIR" <<'PY'
+  python3 - "$OUT_PATH" "$APP_PATH" "$BINARY_PATH" "$SELF_TEST_JSON" "$SYNC_CODE_SMOKE_JSON" "$SYNC_LOOPBACK_SMOKE_JSON" "$UI_LOG_OUT_PATH" "$DMG_DIR" <<'PY'
 import json
 import sys
 from datetime import UTC, datetime
@@ -266,10 +307,12 @@ app_path = sys.argv[2]
 binary_path = sys.argv[3]
 self_test_path = Path(sys.argv[4])
 sync_code_smoke_path = Path(sys.argv[5])
-ui_log_path = sys.argv[6]
-dmg_dir = Path(sys.argv[7])
+sync_loopback_smoke_path = Path(sys.argv[6])
+ui_log_path = sys.argv[7]
+dmg_dir = Path(sys.argv[8])
 self_test = json.loads(self_test_path.read_text(encoding="utf-8"))
 sync_code_smoke = json.loads(sync_code_smoke_path.read_text(encoding="utf-8"))
+sync_loopback_smoke = json.loads(sync_loopback_smoke_path.read_text(encoding="utf-8"))
 dmg_files = sorted(str(path) for path in dmg_dir.glob("*.dmg")) if dmg_dir.exists() else []
 report = {
     "generated_at": datetime.now(UTC).isoformat(),
@@ -282,9 +325,11 @@ report = {
         "release_dmg_exists": "passed" if dmg_files else "not_found",
         "release_binary_self_test": "passed",
         "release_sync_code_smoke": "passed",
+        "release_sync_loopback_smoke": "passed",
         "release_runtime_startup": "passed",
         "release_webview_ui_load": "passed",
         "sync_code_smoke": sync_code_smoke["checks"],
+        "sync_loopback_smoke": sync_loopback_smoke["checks"],
         "sqlite_security": {
             "status": "passed",
             "encrypted": self_test["sqlite_security"]["encrypted"],
@@ -301,7 +346,8 @@ report = {
     "completion_note": (
         "Unsigned release packaged-runtime supporting evidence only. Keep desktop runtime evidence "
         "Status: pending until the package is signed/notarized and signed packaged-profile migration, "
-        "signed packaged runtime performance, and cross-device continuation evidence are attached."
+        "signed packaged runtime performance, shared-staging sync, and cross-device continuation "
+        "evidence are attached."
     ),
 }
 out_path.parent.mkdir(parents=True, exist_ok=True)

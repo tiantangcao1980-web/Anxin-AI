@@ -993,6 +993,7 @@ def _desktop_release_runtime_unsigned_payload() -> dict:
             "release_dmg_exists": "passed",
             "release_binary_self_test": "passed",
             "release_sync_code_smoke": "passed",
+            "release_sync_loopback_smoke": "passed",
             "release_runtime_startup": "passed",
             "release_webview_ui_load": "passed",
             "sync_code_smoke": {
@@ -1003,6 +1004,20 @@ def _desktop_release_runtime_unsigned_payload() -> dict:
                 "conflict_rows": 1,
                 "retry_needs_human": True,
                 "pull_records_decoded": 1,
+            },
+            "sync_loopback_smoke": {
+                "loopback_backend": "passed",
+                "auth_header_received": True,
+                "pending_rows_decoded": 2,
+                "push_payload_records": 2,
+                "backend_received_records": 2,
+                "accepted_after_conflict": 1,
+                "conflict_rows": 1,
+                "rows_synced": 1,
+                "rows_conflicted": 1,
+                "pull_records_written": 1,
+                "cursor_advanced_to": 13,
+                "retry_needs_human": True,
             },
             "sqlite_security": {
                 "status": "passed",
@@ -1042,7 +1057,10 @@ def test_release_artifact_validation_rejects_incomplete_desktop_release_runtime_
     payload["signed_or_notarized"] = True
     payload["checks"]["release_webview_ui_load"] = "failed"
     payload["checks"]["release_sync_code_smoke"] = "failed"
+    payload["checks"]["release_sync_loopback_smoke"] = "failed"
     payload["checks"]["sync_code_smoke"]["push_payload_records"] = 0
+    payload["checks"]["sync_loopback_smoke"]["auth_header_received"] = False
+    payload["checks"]["sync_loopback_smoke"]["backend_received_records"] = 0
     payload["checks"]["sqlite_security"]["encrypted"] = False
     payload["artifacts"]["release_dmg"] = ""
     payload["completion_note"] = "Complete."
@@ -1054,6 +1072,8 @@ def test_release_artifact_validation_rejects_incomplete_desktop_release_runtime_
     assert "release_evidence_complete=false" in result.stdout
     assert "signed_or_notarized=false" in result.stdout
     assert "release_webview_ui_load must be passed" in result.stdout
+    assert "release_sync_loopback_smoke must be passed" in result.stdout
+    assert "sync_loopback_smoke.auth_header_received must be true" in result.stdout
     assert "sqlite_security.encrypted must be true" in result.stdout
     assert "artifacts.release_dmg must be non-empty" in result.stdout
     assert "signed/notarized evidence remains pending" in result.stdout

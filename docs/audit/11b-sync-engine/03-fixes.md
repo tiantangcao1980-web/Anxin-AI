@@ -70,4 +70,4 @@ Implemented:
 
 ## Remaining Work
 
-Real interactive Tauri UI smoke for Rust IPC fallback push/pull/conflict/retry, signed/notarized packaged-profile migration proof, shared-staging cross-device continuation, and signed packaged-runtime performance baselines remain open.
+Unsigned packaged-binary sync loopback now covers a local HTTP backend push/pull/conflict/retry transcript. Real interactive Tauri UI conflict/human-intervention smoke, signed/notarized packaged-profile migration proof, shared-staging backend/cross-device continuation, and signed packaged-runtime performance baselines remain open.

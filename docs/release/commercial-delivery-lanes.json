@@ -200,7 +200,7 @@
       "current_blockers": [
         "2026-05-09 desktop workstation local config surface is code-level covered: mode switch, backend endpoint save, and secret-free environment profile CRUD are locked by frontend unit/e2e tests; Rust IPC rejects non-http(s) backend URLs, preserves saved profiles while switching current mode/backend, and persists mode/backend/profiles across restarts without token/secret fields. Desktop MVP local gate now guards quick-query, file-drop queue/toast/WebView-drop, workstation, and evidence-doc structure in quick release checks. Desktop top-secret mode maps into frontend PrivacyContext local gates, MCP connector metadata edits preserve masked env credentials by default, and Skills connector frontend credential UX is covered in the Agent governance lane, but this does not replace signed runtime or real approved connector runtime evidence.",
         "desktop-release-package dry-run and desktop-release-preflight now report hdiutil/DiskManagement, unsigned release app, and unsigned release DMG as passing, but still report missing signing identity, codesign identity, notary credential, code-sign verification, and signature authority.",
-        "Unsigned release packaged runtime and packaged-profile/performance smoke now pass, but signed/notarized packaged-profile migration, signed packaged runtime performance, and cross-device evidence are missing."
+        "Unsigned release packaged runtime, packaged sync loopback, and packaged-profile/performance smoke now pass, but signed/notarized packaged-profile migration, signed packaged runtime performance, shared-staging sync evidence, and cross-device evidence are missing."
       ],
       "completion_gate": [
         "desktop-release-preflight reports release_ready=true",

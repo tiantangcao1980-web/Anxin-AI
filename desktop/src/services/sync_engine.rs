@@ -6,6 +6,11 @@ use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use serde_json::Value;
+use std::collections::HashMap;
+use std::io::{Read, Write};
+use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 pub const MAX_SYNC_RETRIES: i64 = 3;
 pub const SYNC_BATCH_LIMIT: i64 = 100;
@@ -108,6 +113,47 @@ pub struct DesktopSyncCodeSmokeChecks {
     pub conflict_rows: usize,
     pub retry_needs_human: bool,
     pub pull_records_decoded: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DesktopSyncLoopbackSmokeReport {
+    pub mode: &'static str,
+    pub status: &'static str,
+    pub release_evidence_complete: bool,
+    pub checks: DesktopSyncLoopbackSmokeChecks,
+    pub completion_note: &'static str,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DesktopSyncLoopbackSmokeChecks {
+    pub loopback_backend: &'static str,
+    pub auth_header_received: bool,
+    pub pending_rows_decoded: usize,
+    pub push_payload_records: usize,
+    pub backend_received_records: usize,
+    pub accepted_after_conflict: usize,
+    pub conflict_rows: usize,
+    pub rows_synced: u32,
+    pub rows_conflicted: u32,
+    pub pull_records_written: usize,
+    pub cursor_advanced_to: i64,
+    pub retry_needs_human: bool,
+}
+
+#[derive(Debug, Default)]
+struct LoopbackBackendState {
+    auth_header_received: bool,
+    push_seen: bool,
+    pull_seen: bool,
+    received_records: usize,
+}
+
+#[derive(Debug)]
+struct LoopbackHttpRequest {
+    method: String,
+    path: String,
+    headers: HashMap<String, String>,
+    body: Vec<u8>,
 }
 
 fn json_u32_field(row: &Value, key: &str) -> Result<u32, String> {
@@ -508,6 +554,482 @@ pub fn desktop_sync_code_smoke_report() -> Result<DesktopSyncCodeSmokeReport, St
         },
         completion_note: "Packaged-binary sync code smoke only; signed runtime/backend/device evidence remains pending.",
     })
+}
+
+pub fn desktop_sync_loopback_smoke_report() -> Result<DesktopSyncLoopbackSmokeReport, String> {
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .map_err(|err| format!("无法启动同步 loopback 后端: {err}"))?;
+    listener
+        .set_nonblocking(true)
+        .map_err(|err| format!("无法设置同步 loopback 非阻塞模式: {err}"))?;
+    let addr = listener
+        .local_addr()
+        .map_err(|err| format!("无法读取同步 loopback 地址: {err}"))?;
+    let backend_state = Arc::new(Mutex::new(LoopbackBackendState::default()));
+    let server_state = Arc::clone(&backend_state);
+    let server = std::thread::spawn(move || run_sync_loopback_backend(listener, server_state));
+
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|err| format!("无法创建同步 loopback runtime: {err}"))?;
+    let client_checks = runtime.block_on(run_sync_loopback_client(addr))?;
+    let server_result = server
+        .join()
+        .map_err(|_| "同步 loopback 后端线程异常退出".to_string())?;
+    server_result?;
+
+    let observed = backend_state
+        .lock()
+        .map_err(|_| "同步 loopback 后端状态锁已损坏".to_string())?;
+    if !observed.push_seen || !observed.pull_seen {
+        return Err("同步 loopback 后端没有收到 push/pull 全流程请求".to_string());
+    }
+    if observed.received_records != client_checks.push_payload_records {
+        return Err(format!(
+            "同步 loopback 后端收到记录数不符合预期: expected {}, got {}",
+            client_checks.push_payload_records, observed.received_records
+        ));
+    }
+
+    Ok(DesktopSyncLoopbackSmokeReport {
+        mode: "desktop_sync_loopback_smoke",
+        status: "passed",
+        release_evidence_complete: false,
+        checks: DesktopSyncLoopbackSmokeChecks {
+            loopback_backend: "passed",
+            auth_header_received: observed.auth_header_received,
+            backend_received_records: observed.received_records,
+            ..client_checks
+        },
+        completion_note: "Packaged-binary sync loopback smoke only; signed runtime, shared staging backend, and device evidence remain pending.",
+    })
+}
+
+async fn run_sync_loopback_client(
+    addr: SocketAddr,
+) -> Result<DesktopSyncLoopbackSmokeChecks, String> {
+    let conn = Connection::open_in_memory()
+        .map_err(|err| format!("无法创建同步 loopback 本地库: {err}"))?;
+    conn.execute_batch(include_str!("../../migrations/001_offline_queue.sql"))
+        .map_err(|err| format!("无法应用同步 loopback 迁移: {err}"))?;
+    conn.execute_batch(
+        r#"
+        INSERT INTO sync_log (entity_type, entity_id, action, data_json, timestamp, status, retry_count, next_retry_at, needs_human)
+        VALUES
+            ('message', 'msg-loopback-conflict', 'update', '{"content":"local conflict","sync_version":7}', '2026-05-09T00:00:00Z', 'pending', 0, NULL, 0),
+            ('document', 'doc-loopback-accepted', 'update', '{"title":"local accepted","syncVersion":"8"}', '2026-05-09T00:01:00Z', 'failed', 1, '2026-05-09T00:02:00Z', 0),
+            ('case', 'case-loopback-deferred', 'update', '{"title":"deferred"}', '2026-05-09T00:03:00Z', 'failed', 1, '2026-05-10T00:00:00Z', 0);
+        "#,
+    )
+    .map_err(|err| format!("无法写入同步 loopback 本地数据: {err}"))?;
+
+    let now = "2026-05-09T12:00:00Z";
+    let pending_rows = pending_sync_rows_from_connection(&conn, now)?;
+    let push_records = pending_rows
+        .iter()
+        .map(pending_row_to_push_record)
+        .collect::<Vec<_>>();
+    let payload = build_sync_push_payload(push_records, "device-loopback".to_string(), 11);
+    let api_base = format!("http://{addr}/api/v1");
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(10))
+        .build()
+        .map_err(|err| format!("无法创建同步 loopback HTTP 客户端: {err}"))?;
+
+    let push_response = client
+        .post(format!("{api_base}/sync/push"))
+        .bearer_auth("loopback-token")
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|err| format!("同步 loopback push 请求失败: {err}"))?;
+    if !push_response.status().is_success() {
+        return Err(format!(
+            "同步 loopback push 响应异常: {}",
+            push_response.status().as_u16()
+        ));
+    }
+    let push_body = push_response
+        .json::<SyncPushResponseBody>()
+        .await
+        .map_err(|err| format!("同步 loopback push 响应解码失败: {err}"))?;
+    let conflicts = push_body.conflicts.unwrap_or_default();
+    let accepted_ids = accepted_row_ids(&pending_rows, &conflicts);
+    for id in &accepted_ids {
+        conn.execute(
+            "UPDATE sync_log SET status='synced', error_message=NULL WHERE id=?1",
+            [id],
+        )
+        .map_err(|err| format!("无法标记同步 loopback accepted 行: {err}"))?;
+    }
+    for conflict in &conflicts {
+        let entity_type = conflict
+            .get("entity_type")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let entity_id = conflict
+            .get("entity_id")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        conn.execute(
+            "UPDATE sync_log SET status='conflict', needs_human=1, error_message='loopback conflict' WHERE entity_type=?1 AND entity_id=?2",
+            (entity_type, entity_id),
+        )
+        .map_err(|err| format!("无法标记同步 loopback conflict 行: {err}"))?;
+    }
+    let push_server_version = push_body.server_version.unwrap_or(11).max(11);
+    write_sync_loopback_setting(
+        &conn,
+        LAST_SYNC_VERSION_KEY,
+        &push_server_version.to_string(),
+    )?;
+
+    let pull_response = client
+        .get(format!(
+            "{api_base}/sync/pull?since_version={push_server_version}&limit={SYNC_BATCH_LIMIT}"
+        ))
+        .bearer_auth("loopback-token")
+        .send()
+        .await
+        .map_err(|err| format!("同步 loopback pull 请求失败: {err}"))?;
+    if !pull_response.status().is_success() {
+        return Err(format!(
+            "同步 loopback pull 响应异常: {}",
+            pull_response.status().as_u16()
+        ));
+    }
+    let pull_body = pull_response
+        .json::<SyncPullResponseBody>()
+        .await
+        .map_err(|err| format!("同步 loopback pull 响应解码失败: {err}"))?;
+    let mut cursor = push_server_version;
+    let mut pull_records_written = 0_usize;
+    for record in pull_body.records.unwrap_or_default() {
+        apply_sync_loopback_remote_record(&conn, &record)?;
+        cursor = cursor.max(record.server_version.or(record.version).unwrap_or(cursor));
+        pull_records_written += 1;
+    }
+    cursor = cursor.max(pull_body.server_version.unwrap_or(cursor));
+    write_sync_loopback_setting(&conn, LAST_SYNC_VERSION_KEY, &cursor.to_string())?;
+
+    let rows_synced = count_sync_loopback_rows(&conn, "synced")?;
+    let rows_conflicted = count_sync_loopback_rows(&conn, "conflict")?;
+    let stored_cursor = read_sync_loopback_setting(&conn, LAST_SYNC_VERSION_KEY)?;
+    if stored_cursor != cursor.to_string() {
+        return Err(format!(
+            "同步 loopback cursor 未写回: expected {cursor}, got {stored_cursor}"
+        ));
+    }
+    let remote_doc_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM local_documents WHERE id='doc-loopback-remote' AND synced=1 AND sync_version=?1",
+            [cursor],
+            |row| row.get(0),
+        )
+        .map_err(|err| format!("无法验证同步 loopback pull 写回: {err}"))?;
+    if remote_doc_count != 1 {
+        return Err("同步 loopback pull 没有写入远端文档".to_string());
+    }
+
+    let retry_state = sync_retry_state(
+        2,
+        chrono::Utc
+            .with_ymd_and_hms(2026, 5, 9, 12, 0, 0)
+            .single()
+            .ok_or_else(|| "无法构造同步 loopback retry 时间".to_string())?,
+    );
+
+    Ok(DesktopSyncLoopbackSmokeChecks {
+        loopback_backend: "passed",
+        auth_header_received: false,
+        pending_rows_decoded: pending_rows.len(),
+        push_payload_records: payload.records.len(),
+        backend_received_records: 0,
+        accepted_after_conflict: accepted_ids.len(),
+        conflict_rows: conflicts.len(),
+        rows_synced,
+        rows_conflicted,
+        pull_records_written,
+        cursor_advanced_to: cursor,
+        retry_needs_human: retry_state.needs_human,
+    })
+}
+
+fn run_sync_loopback_backend(
+    listener: TcpListener,
+    backend_state: Arc<Mutex<LoopbackBackendState>>,
+) -> Result<(), String> {
+    let deadline = Instant::now() + Duration::from_secs(15);
+    let mut handled = 0_usize;
+    while handled < 2 && Instant::now() < deadline {
+        match listener.accept() {
+            Ok((mut stream, _)) => {
+                handle_sync_loopback_request(&mut stream, &backend_state)?;
+                handled += 1;
+            }
+            Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            Err(err) => return Err(format!("同步 loopback 后端接收请求失败: {err}")),
+        }
+    }
+    if handled != 2 {
+        return Err(format!("同步 loopback 后端请求数量不足: {handled}/2"));
+    }
+    Ok(())
+}
+
+fn handle_sync_loopback_request(
+    stream: &mut TcpStream,
+    backend_state: &Arc<Mutex<LoopbackBackendState>>,
+) -> Result<(), String> {
+    let request = read_loopback_http_request(stream)?;
+    if request.method == "POST" && request.path == "/api/v1/sync/push" {
+        let payload = serde_json::from_slice::<Value>(&request.body)
+            .map_err(|err| format!("同步 loopback 后端无法解码 push body: {err}"))?;
+        let records = payload
+            .get("records")
+            .and_then(Value::as_array)
+            .ok_or_else(|| "同步 loopback push body 缺少 records".to_string())?;
+        {
+            let mut observed = backend_state
+                .lock()
+                .map_err(|_| "同步 loopback 后端状态锁已损坏".to_string())?;
+            observed.push_seen = true;
+            observed.received_records = records.len();
+            observed.auth_header_received = request
+                .headers
+                .get("authorization")
+                .is_some_and(|header| header == "Bearer loopback-token");
+        }
+        return write_loopback_json_response(
+            stream,
+            200,
+            serde_json::json!({
+                "accepted": 1,
+                "rejected": 1,
+                "conflicts": [
+                    {
+                        "entity_type": "message",
+                        "entity_id": "msg-loopback-conflict",
+                        "reason": "remote_newer"
+                    }
+                ],
+                "server_version": 12
+            }),
+        );
+    }
+
+    if request.method == "GET" && request.path == "/api/v1/sync/pull" {
+        {
+            let mut observed = backend_state
+                .lock()
+                .map_err(|_| "同步 loopback 后端状态锁已损坏".to_string())?;
+            observed.pull_seen = true;
+            observed.auth_header_received = observed.auth_header_received
+                && request
+                    .headers
+                    .get("authorization")
+                    .is_some_and(|header| header == "Bearer loopback-token");
+        }
+        return write_loopback_json_response(
+            stream,
+            200,
+            serde_json::json!({
+                "server_version": 13,
+                "has_more": false,
+                "records": [
+                    {
+                        "entity_type": "document",
+                        "entity_id": "doc-loopback-remote",
+                        "action": "upsert",
+                        "data": {
+                            "title": "Loopback remote document",
+                            "content": "remote pull payload"
+                        },
+                        "version": 13,
+                        "server_version": 13
+                    }
+                ]
+            }),
+        );
+    }
+
+    write_loopback_json_response(
+        stream,
+        404,
+        serde_json::json!({"error": "unexpected loopback request"}),
+    )
+}
+
+fn read_loopback_http_request(stream: &mut TcpStream) -> Result<LoopbackHttpRequest, String> {
+    stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .map_err(|err| format!("无法设置同步 loopback 读取超时: {err}"))?;
+    let mut buffer = Vec::new();
+    let mut chunk = [0_u8; 4096];
+    let mut header_end = None;
+    let mut content_length = 0_usize;
+    loop {
+        let read = stream
+            .read(&mut chunk)
+            .map_err(|err| format!("同步 loopback 读取请求失败: {err}"))?;
+        if read == 0 {
+            break;
+        }
+        buffer.extend_from_slice(&chunk[..read]);
+        if header_end.is_none() {
+            header_end = find_header_end(&buffer);
+            if let Some(end) = header_end {
+                let headers = String::from_utf8_lossy(&buffer[..end]);
+                content_length = parse_content_length(&headers)?;
+            }
+        }
+        if let Some(end) = header_end {
+            if buffer.len() >= end + 4 + content_length {
+                break;
+            }
+        }
+    }
+
+    let end = header_end.ok_or_else(|| "同步 loopback 请求缺少 HTTP 头".to_string())?;
+    let header_text = String::from_utf8_lossy(&buffer[..end]);
+    let mut lines = header_text.lines();
+    let request_line = lines
+        .next()
+        .ok_or_else(|| "同步 loopback 请求行缺失".to_string())?;
+    let mut request_parts = request_line.split_whitespace();
+    let method = request_parts
+        .next()
+        .ok_or_else(|| "同步 loopback 请求方法缺失".to_string())?
+        .to_string();
+    let raw_path = request_parts
+        .next()
+        .ok_or_else(|| "同步 loopback 请求路径缺失".to_string())?;
+    let path = raw_path.split('?').next().unwrap_or(raw_path).to_string();
+    let mut headers = HashMap::new();
+    for line in lines {
+        let Some((key, value)) = line.split_once(':') else {
+            continue;
+        };
+        headers.insert(key.trim().to_ascii_lowercase(), value.trim().to_string());
+    }
+    let body_start = end + 4;
+    let body_end = body_start + content_length;
+    let body = if body_end <= buffer.len() {
+        buffer[body_start..body_end].to_vec()
+    } else {
+        Vec::new()
+    };
+    Ok(LoopbackHttpRequest {
+        method,
+        path,
+        headers,
+        body,
+    })
+}
+
+fn find_header_end(buffer: &[u8]) -> Option<usize> {
+    buffer.windows(4).position(|window| window == b"\r\n\r\n")
+}
+
+fn parse_content_length(headers: &str) -> Result<usize, String> {
+    for line in headers.lines() {
+        let Some((key, value)) = line.split_once(':') else {
+            continue;
+        };
+        if key.trim().eq_ignore_ascii_case("content-length") {
+            return value
+                .trim()
+                .parse::<usize>()
+                .map_err(|err| format!("同步 loopback Content-Length 无效: {err}"));
+        }
+    }
+    Ok(0)
+}
+
+fn write_loopback_json_response(
+    stream: &mut TcpStream,
+    status: u16,
+    body: Value,
+) -> Result<(), String> {
+    let reason = if status == 200 { "OK" } else { "Not Found" };
+    let body =
+        serde_json::to_vec(&body).map_err(|err| format!("同步 loopback 响应编码失败: {err}"))?;
+    let header = format!(
+        "HTTP/1.1 {status} {reason}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n",
+        body.len()
+    );
+    stream
+        .write_all(header.as_bytes())
+        .and_then(|_| stream.write_all(&body))
+        .map_err(|err| format!("同步 loopback 写入响应失败: {err}"))
+}
+
+fn write_sync_loopback_setting(conn: &Connection, key: &str, value: &str) -> Result<(), String> {
+    conn.execute(
+        "INSERT INTO app_settings (key, value, updated_at) VALUES (?1, ?2, CURRENT_TIMESTAMP)
+         ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP",
+        (key, value),
+    )
+    .map_err(|err| format!("无法写入同步 loopback 设置: {err}"))?;
+    Ok(())
+}
+
+fn read_sync_loopback_setting(conn: &Connection, key: &str) -> Result<String, String> {
+    conn.query_row(
+        "SELECT value FROM app_settings WHERE key=?1",
+        [key],
+        |row| row.get(0),
+    )
+    .map_err(|err| format!("无法读取同步 loopback 设置: {err}"))
+}
+
+fn count_sync_loopback_rows(conn: &Connection, status: &str) -> Result<u32, String> {
+    let count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM sync_log WHERE status=?1",
+            [status],
+            |row| row.get(0),
+        )
+        .map_err(|err| format!("无法统计同步 loopback 行: {err}"))?;
+    u32::try_from(count).map_err(|_| "同步 loopback 行数超出范围".to_string())
+}
+
+fn apply_sync_loopback_remote_record(
+    conn: &Connection,
+    record: &RemoteSyncRecord,
+) -> Result<(), String> {
+    match record.entity_type.as_str() {
+        "document" => {
+            let title = record
+                .data
+                .get("title")
+                .and_then(Value::as_str)
+                .unwrap_or("Untitled remote document");
+            let content = record
+                .data
+                .get("content")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            let version = record.server_version.or(record.version).unwrap_or(0);
+            conn.execute(
+                "INSERT INTO local_documents (id, title, content, synced, sync_version, updated_at)
+                 VALUES (?1, ?2, ?3, 1, ?4, CURRENT_TIMESTAMP)
+                 ON CONFLICT(id) DO UPDATE SET
+                    title=excluded.title,
+                    content=excluded.content,
+                    synced=1,
+                    sync_version=excluded.sync_version,
+                    updated_at=CURRENT_TIMESTAMP",
+                (&record.entity_id, title, content, version),
+            )
+            .map_err(|err| format!("无法写入同步 loopback 远端文档: {err}"))?;
+            Ok(())
+        }
+        other => Err(format!("同步 loopback 不支持的远端记录类型: {other}")),
+    }
 }
 
 /// 同步引擎：处理本地与云端之间的数据同步
