@@ -1,7 +1,7 @@
 # Desktop Sync Engine Runbook
 
 > 日期：2026-05-06
-> 状态：backend log available; Rust SQLCipher local profile smoke available; packaged UI runtime still pending.
+> 状态：backend log available; Rust SQLCipher local profile smoke and Rust IPC fallback sync code path available; packaged UI runtime still pending.
 
 ## Inspect Backend Sync Logs
 
@@ -42,7 +42,19 @@ GROUP BY device_id;
 
 ### Reset Local Sync Cursor
 
-Desktop should set `sync_state.last_sync_version=0` and pull again. Do not delete backend `sync_log` unless this is a test environment.
+Desktop should set `app_settings['sync.last_server_version']=0` and pull again. Do not delete backend `sync_log` unless this is a test environment.
+
+## Rust IPC Fallback Sync
+
+The frontend bridge remains the primary desktop sync path. If it is unavailable, `trigger_sync` in `desktop/src/commands/sync.rs` now runs the same SQLCipher-backed data plane:
+
+1. Read retryable `sync_log` rows from local SQLCipher.
+2. Hydrate payloads from local entity tables when `data_json` is empty.
+3. Push to `/api/v1/sync/push` with `sync.device_id` and `sync.last_server_version`.
+4. Mark accepted rows synced, conflict rows `needs_human=1`, and transport failures into bounded retry state.
+5. Pull `/api/v1/sync/pull`, apply supported entity types locally, and advance `sync.last_server_version`.
+
+Current evidence is code-level (`cd desktop && cargo test sync`). Signed packaged runtime push/pull/conflict/retry evidence is still required before release.
 
 ## Local SQLCipher/Keyring Smoke
 

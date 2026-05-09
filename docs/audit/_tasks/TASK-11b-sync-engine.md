@@ -14,7 +14,8 @@
 ### 基础事实（不可绕过）
 
 - 2026-05-08 后旧 Rust IPC 假成功已清除：未启用时返回 unsupported/fail-closed，并报告本地待同步、离线任务和冲突统计
-- `desktop/src/services/sync_engine.rs` 的 `push_pending_records` / `pull_incremental_updates` 未启用时返回 Error，不再 `Ok(0)`
+- 2026-05-09 增量：`desktop/src/commands/sync.rs` 的 Rust IPC fallback 已接入真实 SQLCipher `sync_log` 数据面，可读 pending/failed 行、POST `/api/v1/sync/push`、按 accepted/conflict/failed 写回、GET `/api/v1/sync/pull` 并按 entity_type 写入本地业务表；当前证据为代码级 `cargo test sync`，仍缺真实 backend + packaged runtime push/pull/conflict/retry 交互证据
+- `desktop/src/services/sync_engine.rs` 的后台 `SyncEngine::push_pending_records` / `pull_incremental_updates` 仍保持未启用时返回 Error，不再 `Ok(0)`；后台常驻同步循环需后续把 AppHandle/SQLCipher 数据面纳入服务层
 - 前端 `frontend/src/lib/api-adapter.ts` 已承担 SQLCipher 本地同步路径；仍缺 signed packaged runtime 证据证明真实环境可 push/pull/retry/conflict
 - **本任务现在不是修补假成功，而是补真实云端数据面、跨设备会话延续、移动远控命令队列和商业证据**。工时仍按 7-10 天计
 
@@ -59,9 +60,9 @@
 |---|---|---|---|
 | P0-1 | 新建 `desktop/migrations/001_offline_queue.sql` | 缺 | `offline_tasks`（id PK / entity_type / entity_id / operation / payload BLOB / created_at / status pending\|syncing\|synced\|failed / retry_count / last_error）+ `sync_state`（key PK / value）+ 索引 status / (entity_type, entity_id) |
 | P0-2 | `desktop/src/services/sync_engine.rs:191` 数据面 push | 已 fail-closed，不再 `Ok(0)`；真实云端 push 未启用 | 读真实本地待同步记录 → POST `/api/v1/sync/push` → 按 `{accepted, rejected}` 标 synced / failed + last_error，或继续保持明确 unsupported |
-| P0-2 | `desktop/src/commands/sync.rs` 直连同步 IPC | 已返回 unsupported/fail-closed，并展示本地统计 | 若启用 Rust IPC 数据面，必须从 SQLite 读 pending 任务序列化为 push body；未启用时继续禁止假成功 |
+| P0-2 | `desktop/src/commands/sync.rs` 直连同步 IPC | ✅ 代码级已启用 fallback 数据面：读取 SQLite pending/failed 行、补 `sync.device_id`、构造真实 push body，不包含本地 `sync_log.id` | 还需 packaged Tauri runtime + 真实/预发 backend 证明 100 条 pending push 后云端 `sync_log` 和本地状态一致 |
 | P0-3 | `desktop/src/services/sync_engine.rs:199` 数据面 pull | 已 fail-closed，不再 `Ok(0)`；真实云端 pull 未启用 | GET `/api/v1/sync/pull?since_version=X` → 按 entity_type 写入本地 SQLite 各业务表 → 更新 `sync_state['last_sync_version']`，或继续保持明确 unsupported |
-| P0-3 | `desktop/src/commands/sync.rs` pull 写回 | 直连 IPC 不再丢弃响应，而是整体未启用 | 若启用 Rust IPC 数据面，必须真正解析响应 + 写回；未启用时继续禁止假成功 |
+| P0-3 | `desktop/src/commands/sync.rs` pull 写回 | ✅ 代码级已启用 fallback pull 写回：解析 `/sync/pull` records，支持 message/document/conversation/case/contract/setting/harness artifact/delete，并更新 `sync.last_server_version` / `sync.last_sync_time` | 还需 packaged runtime 证明 pull 写回、冲突页、退避重试和人工处理状态在真实 UI 中可见 |
 | P0-4 | `frontend/src/pages/SyncConflicts.tsx` + `frontend/src/lib/api-adapter.ts` | ✅ 代码级已补；runtime 未验 | conflict 行持久化到 `sync_log.status='conflict'`；前端 `/sync-conflicts` 展示本地/云端 JSON、提供 keep-local/keep-remote/merge；仍需 packaged Tauri runtime smoke |
 | P0-5 | `backend/src/services/sync_service.py` + `backend/src/api/routes/sync.py` | sync 接口未实现 device_id 隔离 + version 增量 | push: 校验 user 拥有 entity；按 entity_type 路由到对应 service upsert；写 sync_log（含 device_id 来源）。pull: 基于 sync_log `WHERE user_id=? AND version > ?` 增量返回；同 user 不同 device 互通，跨 user 完全隔离 |
 | P0-6 | `frontend/src/lib/api-adapter.ts` retry scheduler | ✅ 代码级已补；runtime 未验 | 失败 push 行写入 `retry_count` / `next_retry_at` / `needs_human`，按有界指数退避排队；仍需 packaged Tauri runtime smoke 证明 |

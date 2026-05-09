@@ -83,7 +83,7 @@ PRODUCT_ROADMAP.md 第 86-95 行列出"已完成能力"，第 97-106 行列出"�
 
 | ROADMAP 写的 | 代码现实 | 严重度 |
 |---|---|---|
-| ✅「离线任务队列 + 同步引擎」 | 旧 Rust IPC 假成功已清除：`sync.rs` 现在返回 unsupported/fail-closed 并报告本地待同步/冲突统计；`sync_engine.rs` 未启用 push/pull 时返回 Error，不再 `Ok(0)`。但真实云端 push/pull、跨设备延续、移动远控和 signed packaged runtime 证据仍未完成 | 🟠 **假成功已修，商业同步闭环仍未完成** |
+| ✅「离线任务队列 + 同步引擎」 | 旧 Rust IPC 假成功已清除：`sync.rs` 在 TopSecret/未登录时继续 fail-closed 并报告本地待同步/冲突统计；2026-05-09 已补 Rust IPC fallback 代码级 SQLCipher push/pull 写回；`sync_engine.rs` 后台 service 未启用 push/pull 时仍返回 Error，不再 `Ok(0)`。但 packaged runtime push/pull/conflict/retry、跨设备延续、移动远控和 signed packaged runtime 证据仍未完成 | 🟠 **假成功已修，商业同步闭环仍未完成** |
 | ✅「全局快捷键 Cmd+Shift+Space」 | 注册存在。但快捷键呼出后**没有"快速问答"模式**（即 P0-2 任务）—— 当前呼出后跳到主界面 | 🟠 P0-2 待开发 |
 | [ ] P0-1：Tauri 窗口外观优化 | 未实现 | 🟠 P0 待开发 |
 | [ ] P0-2：全局快捷键呼出后的"快速问答"模式 | 未实现 | 🟠 P0 待开发 |

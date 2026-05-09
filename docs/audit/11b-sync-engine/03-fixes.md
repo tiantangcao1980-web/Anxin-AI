@@ -32,6 +32,8 @@ Implemented:
 - Exposed bridge-level `getSyncConflicts()` and `resolveSyncConflict()` for a later conflict-management UI.
 - Added a minimal `SyncStatus` conflict dialog that lists conflicts and lets the user keep the cloud or local version.
 - Updated `desktop/src/commands/sync.rs` so the fallback no longer sends empty records or reports a false successful sync.
+- 2026-05-09: promoted that Rust IPC fallback into a real code-level SQLCipher data path: it reads retryable `sync_log` rows, hydrates entity payloads, creates/persists `sync.device_id`, POSTs `/api/v1/sync/push`, marks accepted rows synced, persists conflicts/needs-human rows, applies `/api/v1/sync/pull` records back to local message/document/conversation/case/contract/setting/harness artifact tables, and updates `sync.last_server_version` / `sync.last_sync_time`.
+- Added Rust unit coverage for pending row decoding, push payload construction without leaking local `sync_log.id`, accepted-vs-conflict row selection, and bounded retry-to-human-gate behavior.
 - Updated `frontend/src/components/mode-switcher/SyncStatus.tsx` to reflect manual sync success/failure and last sync time in the UI state.
 - Added `scripts/desktop-sqlite-security-gate.sh` to keep the SQLCipher/keyring dependency, frontend package removal, stale capability removal, and Rust self-test contract aligned.
 - Added `scripts/desktop-installed-profile-smoke.sh` to prove a local plaintext DB can migrate to SQLCipher, round-trip through an isolated real keyring service/user, reopen on a second launch without `ANXIN_DESKTOP_SQLCIPHER_KEY_HEX`, and reject ordinary sqlite3 plaintext reads.
@@ -61,10 +63,11 @@ Implemented:
 - `desktop/src/commands/sync.rs`
 - `desktop/src/lib.rs`
 - `desktop/src/services/local_db.rs`
+- `desktop/src/services/sync_engine.rs`
 - `desktop/tauri.conf.json`
 - `scripts/desktop-sqlite-security-gate.sh`
 - `scripts/desktop-installed-profile-smoke.sh`
 
 ## Remaining Work
 
-Real interactive Tauri UI smoke, signed/notarized packaged-profile migration proof, mobile continuation, and packaged-runtime performance baselines remain open.
+Real interactive Tauri UI smoke for Rust IPC fallback push/pull/conflict/retry, signed/notarized packaged-profile migration proof, shared-staging cross-device continuation, and signed packaged-runtime performance baselines remain open.

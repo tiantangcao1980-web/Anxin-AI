@@ -122,11 +122,11 @@ async def handle_verified_webhook(scope: str, payload: dict, idempotency_key: st
 ### 缺口 C — 桌面同步数据面仍未商业闭环（假成功已清除）
 
 **位置**：
-- [sync.rs](../../desktop/src/commands/sync.rs) Rust IPC 直连同步当前返回 unsupported/fail-closed，并报告本地待同步、离线任务和冲突统计
+- [sync.rs](../../desktop/src/commands/sync.rs) Rust IPC 直连同步 fallback 已代码级接入 SQLCipher `sync_log` push/pull 写回，并继续在 TopSecret/未登录时 fail-closed，报告本地待同步、离线任务和冲突统计
 - [sync_engine.rs:191](../../desktop/src/services/sync_engine.rs) `push_pending_records` 未启用时返回 Error
 - [sync_engine.rs:199](../../desktop/src/services/sync_engine.rs) `pull_incremental_updates` 未启用时返回 Error
 
-**现状**：2026-05-08 后旧的 `Ok(0)` 假成功已清除，未启用的 Rust 数据面会显式失败，不再告诉用户“同步完成”。商业缺口仍在：真实云端 push/pull、跨设备会话延续、移动远控命令队列和 signed packaged runtime 证据还没有闭合。
+**现状**：2026-05-08 后旧的 `Ok(0)` 假成功已清除，未启用的后台 `SyncEngine` 数据面会显式失败，不再告诉用户“同步完成”。2026-05-09 `trigger_sync` Rust IPC fallback 已补代码级 SQLCipher push/pull 写回；商业缺口仍在：packaged runtime push/pull/conflict/retry、跨设备会话延续、移动远控命令队列和 signed packaged runtime 证据还没有闭合。
 
 **对其他模块的隐藏影响**：
 - ROADMAP M3「跨设备会话延续（桌面开始 → 手机继续）」依赖真实同步与远控协议，当前仍不能标记完成

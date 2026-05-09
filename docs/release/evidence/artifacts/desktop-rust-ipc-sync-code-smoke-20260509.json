@@ -1,0 +1,36 @@
+{
+  "mode": "desktop_rust_ipc_sync_code_smoke",
+  "status": "passed",
+  "generated_at": "2026-05-09T00:00:00+08:00",
+  "collected_at": "2026-05-09",
+  "release_evidence_complete": false,
+  "runtime_evidence_complete": false,
+  "commands": [
+    {
+      "cmd": "cd desktop && cargo test sync_engine",
+      "exit_code": 0,
+      "summary": "6 sync_engine tests passed"
+    },
+    {
+      "cmd": "cd desktop && cargo test sync",
+      "exit_code": 0,
+      "summary": "7 sync-related desktop tests passed"
+    }
+  ],
+  "coverage": {
+    "rust_ipc_trigger_sync_fallback": "code-level implemented",
+    "pending_row_decode": "passed",
+    "push_payload_without_local_log_id": "passed",
+    "accepted_vs_conflict_row_selection": "passed",
+    "bounded_retry_to_needs_human": "passed",
+    "top_secret_and_missing_login_fail_closed": "preserved"
+  },
+  "remaining_external_evidence": [
+    "signed or notarized packaged desktop runtime",
+    "real or shared-staging backend push/pull transcript",
+    "packaged runtime conflict UI and merge transcript",
+    "packaged runtime retry/backoff and needs-human transcript",
+    "shared-account cross-device continuation transcript"
+  ],
+  "note": "This is code smoke supporting evidence, not final release evidence; signed packaged runtime and shared-staging evidence remain pending."
+}
