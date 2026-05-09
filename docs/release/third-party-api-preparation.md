@@ -109,6 +109,11 @@ python3 scripts/sandbox-evidence-runner.py --scope esign \
 bash scripts/mobile-device-smoke.sh \
   --out docs/release/evidence/artifacts/mobile-mini-code-smoke-YYYYMMDD.json \
   --manual-template-out docs/release/evidence/artifacts/mobile-device-manual-template-YYYYMMDD.json
+
+bash scripts/uni-mobile-migration-guard.sh
+
+bash scripts/uni-mobile-smoke.sh \
+  --out docs/release/evidence/artifacts/uni-mobile-base-smoke-YYYYMMDD.json
 ```
 
 完成 live 或真机证据后，再运行：

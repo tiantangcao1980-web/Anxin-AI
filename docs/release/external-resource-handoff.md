@@ -1,6 +1,6 @@
 # External Resource Handoff
 
-> Date: 2026-05-07
+> Date: 2026-05-09
 > Status: ready for external input collection. Do not paste secrets, account passwords, phone numbers, ID numbers, private keys, or contract originals into this file.
 
 This is the operator handoff for the remaining commercial-release blockers. Store secrets in the approved secret manager or a local untracked `.env`; store screenshots, videos, and provider logs as redacted release artifacts.
@@ -169,12 +169,18 @@ Code-level preflight:
 bash scripts/mobile-device-smoke.sh \
   --out docs/release/evidence/artifacts/mobile-mini-code-smoke-YYYYMMDD.json \
   --manual-template-out docs/release/evidence/artifacts/mobile-device-manual-template-YYYYMMDD.json
+
+bash scripts/uni-mobile-migration-guard.sh
+
+bash scripts/uni-mobile-smoke.sh \
+  --out docs/release/evidence/artifacts/uni-mobile-base-smoke-YYYYMMDD.json
 ```
 
 Completion evidence:
 
 - iOS login, approval detail, chat continuation, settings error state
 - Android login, approval detail, chat continuation, settings error state
+- DCloud/uni-app App cloud build or official package transcript
 - WeChat `wx.login -> code2session -> JWT` with no `session_key` leak
 - WeChat news/empty-state path with no fake fallback content
 - explicit backend/network error states
