@@ -156,7 +156,7 @@ fn key_pragma_sql(key_hex: &str) -> String {
 
 fn open_encrypted_path(path: &Path, key_hex: &str) -> Result<Connection, String> {
     let conn = Connection::open(path).map_err(|err| format!("无法打开本地 SQLCipher DB: {err}"))?;
-    conn.execute_batch(&key_pragma_sql(&key_hex))
+    conn.execute_batch(&key_pragma_sql(key_hex))
         .map_err(|err| format!("无法应用 SQLCipher key: {err}"))?;
     conn.execute_batch(
         "PRAGMA foreign_keys = ON;
@@ -221,22 +221,22 @@ fn open_connection_for_path(path: &Path) -> Result<Connection, String> {
     let key_hex = load_or_create_key_hex()?;
 
     if !path.exists() {
-        return open_encrypted_path(&path, &key_hex);
+        return open_encrypted_path(path, &key_hex);
     }
 
-    match open_encrypted_path(&path, &key_hex).and_then(|conn| {
+    match open_encrypted_path(path, &key_hex).and_then(|conn| {
         verify_integrity(&conn)?;
         Ok(conn)
     }) {
         Ok(conn) => Ok(conn),
         Err(encrypted_error) => {
-            migrate_plaintext_to_encrypted(&path, &key_hex)
+            migrate_plaintext_to_encrypted(path, &key_hex)
                 .map_err(|migration_error| {
                     format!(
                         "无法打开加密 SQLite，也无法完成明文迁移；encrypted_error={encrypted_error}; migration_error={migration_error}"
                     )
                 })?;
-            open_encrypted_path(&path, &key_hex)
+            open_encrypted_path(path, &key_hex)
         }
     }
 }

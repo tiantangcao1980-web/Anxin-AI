@@ -145,6 +145,7 @@ pub async fn post_remote_control_json(
         .map_err(|err| format!("解析远控 host API 响应失败: {err}"))
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run_remote_control_host_cycle(
     client: &reqwest::Client,
     backend_url: &str,
@@ -260,6 +261,7 @@ pub fn build_host_poll_config(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run_remote_control_host_poll(
     client: &reqwest::Client,
     backend_url: &str,

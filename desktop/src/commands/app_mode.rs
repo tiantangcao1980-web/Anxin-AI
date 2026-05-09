@@ -56,7 +56,7 @@ pub async fn switch_mode(
 #[tauri::command]
 pub async fn get_current_mode(state: State<'_, SharedAppState>) -> Result<String, String> {
     let s = state.read().await;
-    Ok(serde_json::to_string(&s.mode).map_err(|e| e.to_string())?)
+    serde_json::to_string(&s.mode).map_err(|e| e.to_string())
 }
 
 /// 获取后端 URL（根据模式返回不同的 URL）

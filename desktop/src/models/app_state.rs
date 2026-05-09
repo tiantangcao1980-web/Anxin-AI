@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 /// 三种运行模式
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum AppMode {
     /// 绝密模式：完全本地处理，仅 OTA 更新通道
@@ -11,13 +11,8 @@ pub enum AppMode {
     /// 混合模式：本地 + 选择性云同步
     Hybrid,
     /// 云端模式：完全依托云端
+    #[default]
     Cloud,
-}
-
-impl Default for AppMode {
-    fn default() -> Self {
-        Self::Cloud
-    }
 }
 
 impl std::fmt::Display for AppMode {
@@ -31,19 +26,14 @@ impl std::fmt::Display for AppMode {
 }
 
 /// 同步状态
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum SyncStatus {
+    #[default]
     Idle,
     Syncing,
     Error,
     Offline,
-}
-
-impl Default for SyncStatus {
-    fn default() -> Self {
-        Self::Idle
-    }
 }
 
 /// 全局应用状态（线程安全共享）

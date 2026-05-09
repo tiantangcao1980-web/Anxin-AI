@@ -1,0 +1,26 @@
+{
+  "mode": "desktop_clippy_gate",
+  "status": "passed",
+  "generated_at": "2026-05-09T00:00:00+08:00",
+  "collected_at": "2026-05-09",
+  "release_evidence_complete": false,
+  "runtime_evidence_complete": false,
+  "commands": [
+    {
+      "cmd": "cd desktop && cargo clippy --all-targets -- -D warnings",
+      "exit_code": 0,
+      "summary": "desktop Rust strict Clippy passed"
+    }
+  ],
+  "coverage": {
+    "desktop_rust_static_analysis": "passed",
+    "warnings_as_errors": "passed",
+    "all_targets": "passed"
+  },
+  "remaining_external_evidence": [
+    "signed or notarized packaged desktop runtime",
+    "packaged runtime push/pull/conflict/retry transcript",
+    "signed packaged-profile migration and performance transcript"
+  ],
+  "note": "This is a local static-analysis gate artifact, not final release evidence; signed packaged runtime evidence remains pending."
+}

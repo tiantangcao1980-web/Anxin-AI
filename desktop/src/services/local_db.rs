@@ -1,9 +1,9 @@
 #![allow(dead_code)]
 
-/// 本地 SQLite 数据库管理
-///
-/// 通过 Rust-owned SQLCipher 连接提供本地 SQLite 能力，
-/// 此模块提供初始化和迁移 SQL。
+//! 本地 SQLite 数据库管理
+//!
+//! 通过 Rust-owned SQLCipher 连接提供本地 SQLite 能力，
+//! 此模块提供初始化和迁移 SQL。
 
 pub const LOCAL_DB_URL: &str = "sqlcipher:anxin_local.db";
 

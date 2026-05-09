@@ -66,8 +66,9 @@ Result collected on 2026-05-09:
 | Check | Result |
 |---|---|
 | frontend desktop sync Vitest slice | `2 files / 15 tests passed` |
-| desktop cargo test | `47 passed` |
+| desktop cargo test | `50 passed` on direct 2026-05-09 rerun; prior bundled runtime script slice recorded `47 passed` |
 | desktop cargo check | exit `0` |
+| desktop strict Clippy | `cargo clippy --all-targets -- -D warnings` exit `0`; artifact `docs/release/evidence/artifacts/desktop-clippy-gate-20260509.json` |
 | desktop SQLite migration SQL smoke | exit `0`; migration applies to a fresh temp SQLite DB, 8 required local/sync tables exist, `sync_log` retry row round-trips, legacy six-column `sync_log` startup path is preserved, frontend repair SQL fills `next_retry_at`/`needs_human`, `PRAGMA integrity_check` returns `ok` |
 | desktop SQLite 100/500 sync performance smoke | exit `0`; 5-sample P95: 100 pending push rows `14.0ms`, 500 local pull writebacks `17.8ms` |
 | desktop runtime code smoke JSON artifact | `docs/release/evidence/artifacts/desktop-runtime-code-smoke-20260509-debug-local.json`; records debug bundle runtime startup and UI load as passed while keeping `release_evidence_complete=false` |

@@ -59,6 +59,7 @@ pub async fn remote_control_claim_commands(
 }
 
 #[command]
+#[allow(clippy::too_many_arguments)]
 pub async fn remote_control_report_command_status(
     state: State<'_, SharedAppState>,
     command_id: String,
@@ -123,6 +124,7 @@ pub async fn remote_control_run_host_cycle(
 }
 
 #[command]
+#[allow(clippy::too_many_arguments)]
 pub async fn remote_control_run_host_poll(
     state: State<'_, SharedAppState>,
     desktop_device_id: String,

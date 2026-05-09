@@ -153,74 +153,6 @@ pub struct OfflineQueue {
     state: SharedAppState,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{
-        decode_queue_stats, read_queue_stats_from_connection, OfflineQueue,
-        OfflineQueueStatsSnapshot,
-    };
-    use rusqlite::Connection;
-    use serde_json::json;
-
-    #[test]
-    fn decode_queue_stats_accumulates_known_statuses_and_total() {
-        let rows = vec![
-            json!({ "status": "queued", "count": 2 }),
-            json!({ "status": "local_completed", "count": 1 }),
-            json!({ "status": "failed", "count": 3 }),
-            json!({ "status": "pushing", "count": 4 }),
-        ];
-
-        let stats = decode_queue_stats(&rows).expect("decode queue stats");
-
-        assert_eq!(
-            stats,
-            OfflineQueueStatsSnapshot {
-                queued: 2,
-                local_processing: 0,
-                local_completed: 1,
-                synced: 0,
-                failed: 3,
-                total: 10,
-            }
-        );
-        assert_eq!(stats.flushable(), 3);
-    }
-
-    #[test]
-    fn queue_stats_query_reads_real_sqlite_rows() {
-        let conn = Connection::open_in_memory().expect("open sqlite");
-        conn.execute_batch(include_str!("../../migrations/001_offline_queue.sql"))
-            .expect("init schema");
-        conn.execute(
-            OfflineQueue::insert_sql(),
-            ("task-1", "chat", "draft", Option::<String>::None, 2),
-        )
-        .expect("insert queued task");
-        conn.execute(
-            OfflineQueue::insert_sql(),
-            ("task-2", "chat", "summary", Some("conv-1".to_string()), 1),
-        )
-        .expect("insert second queued task");
-        conn.execute_batch(
-            "UPDATE offline_tasks SET status = 'local_completed' WHERE id = 'task-2';
-             INSERT INTO offline_tasks (id, task_type, description, priority, status)
-             VALUES ('task-3', 'chat', 'push', 0, 'pushing');
-             INSERT INTO offline_tasks (id, task_type, description, priority, status)
-             VALUES ('task-4', 'chat', 'fail', 3, 'failed');",
-        )
-        .expect("seed other statuses");
-
-        let stats = read_queue_stats_from_connection(&conn).expect("read queue stats");
-
-        assert_eq!(stats.queued, 1);
-        assert_eq!(stats.local_completed, 1);
-        assert_eq!(stats.failed, 1);
-        assert_eq!(stats.total, 4);
-        assert_eq!(stats.flushable(), 2);
-    }
-}
-
 impl OfflineQueue {
     pub fn new(state: SharedAppState) -> Self {
         Self { state }
@@ -322,5 +254,73 @@ impl OfflineQueue {
         WHERE status = 'synced'
         AND updated_at < datetime('now', '-7 days')
         "#
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        decode_queue_stats, read_queue_stats_from_connection, OfflineQueue,
+        OfflineQueueStatsSnapshot,
+    };
+    use rusqlite::Connection;
+    use serde_json::json;
+
+    #[test]
+    fn decode_queue_stats_accumulates_known_statuses_and_total() {
+        let rows = vec![
+            json!({ "status": "queued", "count": 2 }),
+            json!({ "status": "local_completed", "count": 1 }),
+            json!({ "status": "failed", "count": 3 }),
+            json!({ "status": "pushing", "count": 4 }),
+        ];
+
+        let stats = decode_queue_stats(&rows).expect("decode queue stats");
+
+        assert_eq!(
+            stats,
+            OfflineQueueStatsSnapshot {
+                queued: 2,
+                local_processing: 0,
+                local_completed: 1,
+                synced: 0,
+                failed: 3,
+                total: 10,
+            }
+        );
+        assert_eq!(stats.flushable(), 3);
+    }
+
+    #[test]
+    fn queue_stats_query_reads_real_sqlite_rows() {
+        let conn = Connection::open_in_memory().expect("open sqlite");
+        conn.execute_batch(include_str!("../../migrations/001_offline_queue.sql"))
+            .expect("init schema");
+        conn.execute(
+            OfflineQueue::insert_sql(),
+            ("task-1", "chat", "draft", Option::<String>::None, 2),
+        )
+        .expect("insert queued task");
+        conn.execute(
+            OfflineQueue::insert_sql(),
+            ("task-2", "chat", "summary", Some("conv-1".to_string()), 1),
+        )
+        .expect("insert second queued task");
+        conn.execute_batch(
+            "UPDATE offline_tasks SET status = 'local_completed' WHERE id = 'task-2';
+             INSERT INTO offline_tasks (id, task_type, description, priority, status)
+             VALUES ('task-3', 'chat', 'push', 0, 'pushing');
+             INSERT INTO offline_tasks (id, task_type, description, priority, status)
+             VALUES ('task-4', 'chat', 'fail', 3, 'failed');",
+        )
+        .expect("seed other statuses");
+
+        let stats = read_queue_stats_from_connection(&conn).expect("read queue stats");
+
+        assert_eq!(stats.queued, 1);
+        assert_eq!(stats.local_completed, 1);
+        assert_eq!(stats.failed, 1);
+        assert_eq!(stats.total, 4);
+        assert_eq!(stats.flushable(), 2);
     }
 }
