@@ -100,7 +100,7 @@
 - `backend/src/services/agent_approval_service.py` 已补 DB-backed 高风险 AgentApproval service，覆盖创建审批、授权角色审批/驳回、过期 fail-closed、撤销 fail-closed、action/route 匹配、workspace-control 未批准先拒绝、observe 只读旁听快照、暂停/接管/终止默认运行时未接入 fail-closed、显式 local runtime rehearsal、已批准工作室 artifact list/create/revise/export、artifact 递归脱敏和 append-only revision audit；`backend/tests/test_agent_approval_service.py` `10 passed`。
 - `backend/src/api/routes/agent_approvals.py` 已补正式高风险智能体审批 API，覆盖创建、列表/详情、pending count、audit-events、audit-export、workspace-control observe、默认 fail-closed 和 local runtime rehearsal、approve/reject/revoke、validate、workspace artifacts list/create/revise/export 和组织 CapabilityRoute list/update；`backend/tests/test_agent_approval_api.py` `9 passed`。
 - `backend/src/agents/workforce.py` 与 `backend/src/services/chat_service.py` 已补长任务 runtime summary artifact event，最终汇总时发出脱敏的 `workspace_artifact_created`，包含计划、agent 结果摘要、时间线和 ready-for-review 状态；`backend/tests/test_workforce.py -k runtime_workspace_artifact` `1 passed`。
-- 后续仍需把这些模型接入完整 Human-in-the-loop 工作室、真实 approved MCP connector runtime 证据、LLM/browser/desktop-control 能力链路和跨进程撤销失权证据；当前前端已先补最小高风险审批工作台入口。
+- 后续仍需把这些模型接入完整 Human-in-the-loop 工作室、真实 approved MCP connector runtime 证据、LLM/browser/desktop-control 能力链路和商业运行时跨进程撤销失权证据；当前前端已先补最小高风险审批工作台入口。
 
 ### Step 2 · Policy Engine
 
@@ -146,12 +146,13 @@ can_execute_capability(actor, org, capability, risk_level, data_scope, privacy_m
 - `backend/tests/test_agent_governance_service.py` 已覆盖 hash-only lease、原始 token 不入审计、组织隔离、consumer/scope 拒绝、过期 fail-closed、consumer mismatch、route 撤销后下一次调用失败，以及组织策略更新脱敏/禁用撤销 lease。
 - `backend/tests/test_mcp_route_governance.py` 已覆盖 MCP 开发态兼容、商业环境缺 token fail-closed、DB route token 放行、connector route-key mismatch 拒绝、route revoke 后拒绝和 consumer mismatch 拒绝。
 - `backend/tests/test_agent_connector_runtime_rehearsal.py` 与 `scripts/agent-connector-rehearsal.sh` 已补本地 approved connector 演练：使用 local mock MCP session 验证 route-token issue、connector-bound tool call、route revoke、撤销 token 下一次调用 fail-closed、审计事件和脱敏 artifact shape；该演练不替代真实 provider/dashboard/signed runtime 证据。
+- `backend/tests/test_agent_governance_service.py` 与 `scripts/agent-cross-process-revocation-rehearsal.sh` 已补本地跨服务实例撤销演练：使用独立 issuer/worker/admin DB session 验证 route-token 首次放行、管理员撤销、同一长生命周期 worker session 下一次 fail-closed、lease hash-only 和审计不含 raw token；该演练不替代 signed packaged runtime、真实 provider 执行链、生产观测日志或商业多进程运行时证据。
 - `backend/tests/test_cli_route.py` 已覆盖 CLI 开发态兼容、商业环境缺 token fail-closed、DB route token 放行、`/cli/route-token` 签发和 consumer mismatch 拒绝。
 - `backend/tests/test_llm_route_governance.py` 已覆盖 LLM runtime 商业环境缺 token fail-closed、DB route token 放行、route revoke 后在模型 HTTP 前拒绝、流式模型调用触网前拒绝、WebSocket route-token credential 提取、WebSocket-like contextvar 流式传递和 `/chat/route-token` 用户绑定签发。
 - `backend/tests/test_crawler_compliance.py` 已覆盖浏览器/爬虫商业环境缺 token fail-closed、DB route token 放行、route revoke 后在 robots/http 前拒绝。
 - `scripts/commercial-readiness-gate.sh --with-local-tests` 已加入 `agent governance service tests`、`MCP route governance tests`、`CLI route governance tests`、`LLM route governance tests` 与 `crawler browser route governance tests`。
 - RAG direct LLM 已补：`RAGService.generate/expand_query/_extract_entities/stream_query` 在直接调用 OpenAI 或本地模型前会校验 DB-backed `llm:chat` route token，REST Knowledge RAG、同步 Chat RAG 和 WebSocket RAG 均会传递 route context；`backend/tests/test_llm_route_governance.py` 已覆盖缺 token 触网前拒绝、DB route token 放行与 route 撤销后拒绝。
-- 后续仍需把完整 browser automation、desktop-control 高风险真实执行器全部切到该服务，并补真实 approved MCP connector runtime 证据、跨进程/多实例撤销传播证据；在真实执行器、审批和设备证据闭环前，desktop-control 只能保持 safe-probe-only。
+- 后续仍需把完整 browser automation、desktop-control 高风险真实执行器全部切到该服务，并补真实 approved MCP connector runtime 证据、商业运行时跨进程/多实例撤销传播证据；在真实执行器、审批和设备证据闭环前，desktop-control 只能保持 safe-probe-only。
 
 ### Step 4 · Human-in-the-loop 工作室
 

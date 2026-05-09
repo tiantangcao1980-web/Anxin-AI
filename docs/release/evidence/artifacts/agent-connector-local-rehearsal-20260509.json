@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-09T08:16:54.369312+00:00",
+  "generated_at": "2026-05-09T12:20:32.478032+00:00",
   "mode": "agent_connector_local_rehearsal",
   "status": "passed",
   "release_evidence_complete": false,
@@ -23,7 +23,7 @@
     "real_provider_credentials",
     "provider_dashboard_logs",
     "signed_packaged_runtime_outbound_evidence",
-    "cross_process_revocation"
+    "commercial_cross_process_revocation_runtime_evidence"
   ],
-  "completion_note": "Supporting local mock runtime rehearsal only; release evidence remains pending until a real approved connector runs with provider credentials, redacted dashboard/log artifacts, signed packaged runtime evidence, and cross-process revocation proof."
+  "completion_note": "Supporting local mock runtime rehearsal only; release evidence remains pending until a real approved connector runs with provider credentials, redacted dashboard/log artifacts, signed packaged runtime evidence, and commercial multi-process revocation proof."
 }

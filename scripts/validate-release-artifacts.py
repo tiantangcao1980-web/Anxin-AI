@@ -492,6 +492,7 @@ def _validate_agent_governance_code_smoke(path: Path, payload: dict[str, Any], f
         "approval_authorization_guard",
         "mcp_connection_config_policy",
         "approved_connector_local_rehearsal",
+        "cross_process_revocation_local_rehearsal",
         "desktop_remote_control_host",
         "frontend_skill_connector_credentials_model",
         "frontend_agent_workspace_e2e",
@@ -514,7 +515,7 @@ def _validate_agent_governance_code_smoke(path: Path, payload: dict[str, Any], f
         pending = {str(item) for item in pending_runtime_evidence}
         required_pending = {
             "real_approved_connector_runtime",
-            "real_cross_process_revocation",
+            "commercial_cross_process_revocation_runtime_evidence",
             "real_pause_takeover_terminate_runtime",
             "signed_packaged_runtime_outbound_evidence",
         }
@@ -574,7 +575,7 @@ def _validate_agent_connector_local_rehearsal(path: Path, payload: dict[str, Any
             "real_provider_credentials",
             "provider_dashboard_logs",
             "signed_packaged_runtime_outbound_evidence",
-            "cross_process_revocation",
+            "commercial_cross_process_revocation_runtime_evidence",
         }
         if required_pending.difference(pending):
             failures.append(f"{path}: agent connector local rehearsal missing pending external evidence markers")
@@ -583,6 +584,73 @@ def _validate_agent_connector_local_rehearsal(path: Path, payload: dict[str, Any
     if "supporting" not in note_text or "pending" not in note_text or "real approved connector" not in note_text:
         failures.append(
             f"{path}: agent connector local rehearsal must clearly say real approved connector evidence remains pending"
+        )
+
+
+def _validate_agent_cross_process_revocation_rehearsal(
+    path: Path,
+    payload: dict[str, Any],
+    failures: list[str],
+) -> None:
+    if payload.get("mode") != "agent_cross_process_revocation_rehearsal":
+        return
+    if payload.get("release_evidence_complete") is not False:
+        failures.append(f"{path}: agent cross-process revocation rehearsal must set release_evidence_complete=false")
+    if payload.get("runtime_evidence_complete") is not False:
+        failures.append(f"{path}: agent cross-process revocation rehearsal must set runtime_evidence_complete=false")
+    if payload.get("status") != "passed":
+        failures.append(f"{path}: agent cross-process revocation rehearsal must have status=passed")
+    if payload.get("database_mode") != "sqlite_file_local_rehearsal":
+        failures.append(
+            f"{path}: agent cross-process revocation rehearsal database_mode must be sqlite_file_local_rehearsal"
+        )
+
+    checks = payload.get("checks")
+    if not isinstance(checks, dict):
+        failures.append(f"{path}: agent cross-process revocation rehearsal must include checks object")
+        return
+    for check_name in (
+        "independent_issuer_worker_admin_sessions",
+        "worker_session_cache_refresh",
+        "admin_revokes_active_route_and_lease",
+        "next_worker_call_fail_closed",
+        "audit_trail",
+        "raw_token_hash_only",
+    ):
+        if checks.get(check_name) != "passed":
+            failures.append(f"{path}: agent cross-process revocation rehearsal {check_name} must be passed")
+
+    scope = payload.get("scope")
+    if not isinstance(scope, dict):
+        failures.append(f"{path}: agent cross-process revocation rehearsal must include scope")
+    else:
+        if scope.get("route_scope") != "mcp:call":
+            failures.append(f"{path}: agent cross-process revocation rehearsal scope.route_scope must be mcp:call")
+        if scope.get("evidence_level") != "local_cross_process_rehearsal":
+            failures.append(
+                f"{path}: agent cross-process revocation rehearsal scope.evidence_level must be local_cross_process_rehearsal"
+            )
+
+    pending_external_evidence = payload.get("pending_external_evidence")
+    if not isinstance(pending_external_evidence, list) or not pending_external_evidence:
+        failures.append(f"{path}: agent cross-process revocation rehearsal must list pending_external_evidence")
+    else:
+        pending = {str(item) for item in pending_external_evidence}
+        required_pending = {
+            "signed_packaged_runtime_outbound_evidence",
+            "commercial_cross_process_revocation_runtime_evidence",
+            "real_approved_connector_provider_runtime",
+            "production_database_observability_logs",
+        }
+        if required_pending.difference(pending):
+            failures.append(
+                f"{path}: agent cross-process revocation rehearsal missing pending external evidence markers"
+            )
+
+    note_text = _combined_note_text(payload)
+    if "supporting" not in note_text or "pending" not in note_text or "commercial multi-process" not in note_text:
+        failures.append(
+            f"{path}: agent cross-process revocation rehearsal must clearly say commercial runtime evidence remains pending"
         )
 
 
@@ -1363,6 +1431,7 @@ def validate_json_artifact(path: Path) -> ValidationResult:
     _validate_cross_device_continuation_code_smoke(path, payload, failures)
     _validate_agent_governance_code_smoke(path, payload, failures)
     _validate_agent_connector_local_rehearsal(path, payload, failures)
+    _validate_agent_cross_process_revocation_rehearsal(path, payload, failures)
     _validate_mobile_ios_simulator_smoke(path, payload, failures)
     _validate_desktop_installed_profile_smoke(path, payload, failures)
     _validate_desktop_runtime_code_smoke(path, payload, failures)

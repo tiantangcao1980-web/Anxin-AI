@@ -5,8 +5,10 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from src.models import AgentAuditEvent, CapabilityRoute, CapabilityRouteTokenLease, Organization
+from src.models.base import Base
 from src.services.agent_governance_service import AgentGovernanceService
 
 
@@ -53,6 +55,111 @@ async def test_route_token_lease_persists_hash_only_and_validates_after_service_
     assert issued.token not in repr(leases[0])
     assert all(issued.token not in str(event.metadata_json) for event in audits)
     assert [event.reason_code for event in audits] == ["issued", "allowed"]
+
+
+@pytest.mark.asyncio
+async def test_route_revocation_refreshes_stale_worker_session_across_processes(tmp_path):
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'agent-governance.db'}", echo=False)
+    session_factory = async_sessionmaker(engine, expire_on_commit=False, autoflush=False)
+    org_id = str(uuid4())
+    route_key = "approved-materials"
+    consumer_id = "legal-advisor-worker"
+
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+        async with session_factory() as issuer_session:
+            issuer_session.add(Organization(id=org_id, name="Cross Process Rehearsal Org"))
+            await issuer_session.flush()
+            issuer = AgentGovernanceService(issuer_session)
+            await issuer.create_capability_route(
+                org_id=org_id,
+                route_key=route_key,
+                route_type="mcp",
+                provider="local-mock-mcp",
+                risk_level="l3",
+                allowed_consumers=[consumer_id],
+                allowed_scopes=["mcp:call"],
+                policy={"api_key": "should-never-persist"},
+            )
+            issued = await issuer.issue_route_token(
+                org_id=org_id,
+                route_key=route_key,
+                consumer_id=consumer_id,
+                requested_scopes=["mcp:call"],
+                actor_type="issuer_process",
+            )
+            await issuer_session.commit()
+
+        async with session_factory() as worker_session, session_factory() as admin_session:
+            worker = AgentGovernanceService(worker_session)
+            first = await worker.validate_route_token(
+                org_id=org_id,
+                raw_token=issued.token,
+                required_scope="mcp:call",
+                required_route_key=route_key,
+                consumer_id=consumer_id,
+                actor_type="worker_process",
+            )
+            await worker_session.commit()
+
+            admin = AgentGovernanceService(admin_session)
+            revoked = await admin.revoke_capability_route(
+                org_id=org_id,
+                route_key=route_key,
+                reason="admin_cross_process_rehearsal",
+                actor_type="admin_control_plane",
+            )
+            await admin_session.commit()
+
+            second = await worker.validate_route_token(
+                org_id=org_id,
+                raw_token=issued.token,
+                required_scope="mcp:call",
+                required_route_key=route_key,
+                consumer_id=consumer_id,
+                actor_type="worker_process",
+            )
+            await worker_session.commit()
+
+        async with session_factory() as verifier_session:
+            lease = (
+                await verifier_session.execute(
+                    select(CapabilityRouteTokenLease).where(CapabilityRouteTokenLease.org_id == org_id)
+                )
+            ).scalar_one()
+            route = (
+                await verifier_session.execute(select(CapabilityRoute).where(CapabilityRoute.org_id == org_id))
+            ).scalar_one()
+            audits = (
+                await verifier_session.execute(
+                    select(AgentAuditEvent)
+                    .where(AgentAuditEvent.org_id == org_id)
+                    .order_by(AgentAuditEvent.created_at.asc(), AgentAuditEvent.id.asc())
+                )
+            ).scalars().all()
+
+        assert issued.allowed is True
+        assert issued.token is not None
+        assert first.allowed is True
+        assert revoked.revoked is True
+        assert revoked.revoked_lease_count == 1
+        assert second.allowed is False
+        assert second.reason_code == "capability_route_revoked"
+        assert route.revoked_reason == "admin_cross_process_rehearsal"
+        assert lease.revoked_reason == "admin_cross_process_rehearsal"
+        assert lease.token_hash != issued.token
+        assert issued.token not in repr(lease)
+        assert issued.token not in repr([event.metadata_json for event in audits])
+        assert [event.reason_code for event in audits] == [
+            "issued",
+            "allowed",
+            "revoked",
+            "capability_route_revoked",
+        ]
+    finally:
+        await engine.dispose()
 
 
 @pytest.mark.asyncio

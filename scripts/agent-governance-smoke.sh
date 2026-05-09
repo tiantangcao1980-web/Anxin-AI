@@ -85,6 +85,8 @@ run_step "MCP connection config policy tests" bash -lc "cd '$PROJECT_ROOT/backen
 
 run_step "approved connector local rehearsal" bash -lc "cd '$PROJECT_ROOT' && bash scripts/agent-connector-rehearsal.sh"
 
+run_step "cross-process revocation local rehearsal" bash -lc "cd '$PROJECT_ROOT' && bash scripts/agent-cross-process-revocation-rehearsal.sh"
+
 run_step "desktop remote-control host tests" bash -lc "cd '$PROJECT_ROOT/desktop' && cargo test remote_control"
 
 run_step "frontend Skill connector credential model tests" bash -lc "cd '$PROJECT_ROOT/frontend' && npm test -- skillConnectorSettingsModel.test.ts"
@@ -111,6 +113,7 @@ checks = {
     "approval_authorization_guard": "passed",
     "mcp_connection_config_policy": "passed",
     "approved_connector_local_rehearsal": "passed",
+    "cross_process_revocation_local_rehearsal": "passed",
     "frontend_workspace_runtime_artifact_e2e": "passed",
     "desktop_remote_control_host": "passed",
     "frontend_skill_connector_credentials_model": "passed",
@@ -131,7 +134,7 @@ report = {
     },
     "pending_runtime_evidence": [
         "real_approved_connector_runtime",
-        "real_cross_process_revocation",
+        "commercial_cross_process_revocation_runtime_evidence",
         "commercial_runtime_generated_long_task_artifact_evidence",
         "real_pause_takeover_terminate_runtime",
         "signed_packaged_runtime_outbound_evidence",
@@ -140,9 +143,9 @@ report = {
     "completion_note": (
         "Code-level enterprise agent governance evidence only. Keep "
         "agent-governance-smoke.md Status: pending until real approved connector "
-        "runtime, cross-process revocation, commercial long-task artifact replay, "
-        "real runtime controls, signed packaged runtime, and cross-device recovery "
-        "evidence are attached."
+        "runtime, commercial multi-process revocation, commercial long-task "
+        "artifact replay, real runtime controls, signed packaged runtime, and "
+        "cross-device recovery evidence are attached."
     ),
 }
 out_path.parent.mkdir(parents=True, exist_ok=True)

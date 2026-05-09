@@ -155,6 +155,18 @@ def test_commercial_gate_runs_approved_connector_local_rehearsal():
     assert "scripts/agent-connector-rehearsal.sh --out /tmp/anxin-agent-connector-rehearsal-gate.json" in script
 
 
+def test_commercial_gate_runs_cross_process_revocation_local_rehearsal():
+    repo_root = Path(__file__).resolve().parents[2]
+    script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
+
+    assert '"scripts/agent-cross-process-revocation-rehearsal.sh"' in script
+    assert 'require_command "cross-process revocation local rehearsal"' in script
+    assert (
+        "scripts/agent-cross-process-revocation-rehearsal.sh "
+        "--out /tmp/anxin-agent-cross-process-revocation-gate.json"
+    ) in script
+
+
 def test_commercial_gate_runs_cross_device_continuation_smoke():
     repo_root = Path(__file__).resolve().parents[2]
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")

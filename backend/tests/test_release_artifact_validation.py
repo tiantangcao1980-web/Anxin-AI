@@ -596,6 +596,7 @@ def test_release_artifact_validation_accepts_agent_governance_code_smoke(tmp_pat
                     "approval_authorization_guard": "passed",
                     "mcp_connection_config_policy": "passed",
                     "approved_connector_local_rehearsal": "passed",
+                    "cross_process_revocation_local_rehearsal": "passed",
                     "desktop_remote_control_host": "passed",
                     "frontend_skill_connector_credentials_model": "passed",
                     "frontend_agent_workspace_e2e": "passed",
@@ -603,7 +604,7 @@ def test_release_artifact_validation_accepts_agent_governance_code_smoke(tmp_pat
                 "scope": {"enterprise_agent_governance": "code_level"},
                 "pending_runtime_evidence": [
                     "real_approved_connector_runtime",
-                    "real_cross_process_revocation",
+                    "commercial_cross_process_revocation_runtime_evidence",
                     "real_pause_takeover_terminate_runtime",
                     "signed_packaged_runtime_outbound_evidence",
                 ],
@@ -636,6 +637,7 @@ def test_release_artifact_validation_rejects_incomplete_agent_governance_code_sm
                     "approval_authorization_guard": "passed",
                     "mcp_connection_config_policy": "passed",
                     "approved_connector_local_rehearsal": "passed",
+                    "cross_process_revocation_local_rehearsal": "failed",
                     "desktop_remote_control_host": "passed",
                     "frontend_skill_connector_credentials_model": "passed",
                     "frontend_agent_workspace_e2e": "passed",
@@ -653,6 +655,7 @@ def test_release_artifact_validation_rejects_incomplete_agent_governance_code_sm
     assert "release_evidence_complete=false" in result.stdout
     assert "runtime_evidence_complete=false" in result.stdout
     assert "agent_capability_policy must be passed" in result.stdout
+    assert "cross_process_revocation_local_rehearsal must be passed" in result.stdout
     assert "scope.enterprise_agent_governance must be code_level" in result.stdout
     assert "missing pending runtime evidence markers" in result.stdout
 
@@ -686,7 +689,7 @@ def test_release_artifact_validation_accepts_agent_connector_local_rehearsal(tmp
                     "real_provider_credentials",
                     "provider_dashboard_logs",
                     "signed_packaged_runtime_outbound_evidence",
-                    "cross_process_revocation",
+                    "commercial_cross_process_revocation_runtime_evidence",
                 ],
                 "completion_note": (
                     "Supporting local rehearsal only; real approved connector evidence remains pending."
@@ -742,6 +745,97 @@ def test_release_artifact_validation_rejects_incomplete_agent_connector_local_re
     assert "connector_bound_tool_call must be passed" in result.stdout
     assert "scope.connector must be non-empty" in result.stdout
     assert "scope.route_scope must be mcp:call" in result.stdout
+    assert "missing pending external evidence markers" in result.stdout
+
+
+def test_release_artifact_validation_accepts_agent_cross_process_revocation_rehearsal(tmp_path):
+    repo_root = Path(__file__).resolve().parents[2]
+    artifact = tmp_path / "agent-cross-process-revocation-rehearsal.json"
+    artifact.write_text(
+        json.dumps(
+            {
+                "generated_at": "2026-05-09T00:00:00Z",
+                "mode": "agent_cross_process_revocation_rehearsal",
+                "status": "passed",
+                "release_evidence_complete": False,
+                "runtime_evidence_complete": False,
+                "database_mode": "sqlite_file_local_rehearsal",
+                "checks": {
+                    "independent_issuer_worker_admin_sessions": "passed",
+                    "worker_session_cache_refresh": "passed",
+                    "admin_revokes_active_route_and_lease": "passed",
+                    "next_worker_call_fail_closed": "passed",
+                    "audit_trail": "passed",
+                    "raw_token_hash_only": "passed",
+                },
+                "scope": {
+                    "route_key": "approved-materials",
+                    "route_scope": "mcp:call",
+                    "consumer": "legal-advisor-worker",
+                    "evidence_level": "local_cross_process_rehearsal",
+                },
+                "pending_external_evidence": [
+                    "signed_packaged_runtime_outbound_evidence",
+                    "commercial_cross_process_revocation_runtime_evidence",
+                    "real_approved_connector_provider_runtime",
+                    "production_database_observability_logs",
+                ],
+                "completion_note": (
+                    "Supporting local cross-process route-token revocation rehearsal only; "
+                    "commercial multi-process evidence remains pending."
+                ),
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = _validate(repo_root, artifact)
+
+    assert result.returncode == 0, result.stdout
+
+
+def test_release_artifact_validation_rejects_incomplete_agent_cross_process_revocation_rehearsal(
+    tmp_path,
+):
+    repo_root = Path(__file__).resolve().parents[2]
+    artifact = tmp_path / "agent-cross-process-revocation-rehearsal-bad.json"
+    artifact.write_text(
+        json.dumps(
+            {
+                "generated_at": "2026-05-09T00:00:00Z",
+                "mode": "agent_cross_process_revocation_rehearsal",
+                "status": "passed",
+                "release_evidence_complete": True,
+                "runtime_evidence_complete": True,
+                "database_mode": "production",
+                "checks": {
+                    "independent_issuer_worker_admin_sessions": "passed",
+                    "worker_session_cache_refresh": "failed",
+                    "admin_revokes_active_route_and_lease": "passed",
+                    "next_worker_call_fail_closed": "passed",
+                    "audit_trail": "passed",
+                    "raw_token_hash_only": "passed",
+                },
+                "scope": {
+                    "route_scope": "browser:fetch",
+                    "evidence_level": "runtime_complete",
+                },
+                "pending_external_evidence": ["signed_packaged_runtime_outbound_evidence"],
+                "completion_note": "done",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = _validate(repo_root, artifact)
+
+    assert result.returncode == 1
+    assert "release_evidence_complete=false" in result.stdout
+    assert "runtime_evidence_complete=false" in result.stdout
+    assert "database_mode must be sqlite_file_local_rehearsal" in result.stdout
+    assert "worker_session_cache_refresh must be passed" in result.stdout
+    assert "scope.route_scope must be mcp:call" in result.stdout
+    assert "scope.evidence_level must be local_cross_process_rehearsal" in result.stdout
     assert "missing pending external evidence markers" in result.stdout
 
 

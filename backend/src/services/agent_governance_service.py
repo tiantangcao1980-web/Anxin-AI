@@ -567,6 +567,7 @@ class AgentGovernanceService:
                 CapabilityRouteTokenLease.org_id == org_id,
                 CapabilityRouteTokenLease.token_hash == _hash_token(raw_token),
             )
+            .execution_options(populate_existing=True)
         )
         row = result.one_or_none()
         if row is None:

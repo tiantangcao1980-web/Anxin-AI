@@ -80,13 +80,13 @@ report = {
         "real_provider_credentials",
         "provider_dashboard_logs",
         "signed_packaged_runtime_outbound_evidence",
-        "cross_process_revocation",
+        "commercial_cross_process_revocation_runtime_evidence",
     ],
     "completion_note": (
         "Supporting local mock runtime rehearsal only; release evidence remains "
         "pending until a real approved connector runs with provider credentials, "
         "redacted dashboard/log artifacts, signed packaged runtime evidence, and "
-        "cross-process revocation proof."
+        "commercial multi-process revocation proof."
     ),
 }
 out_path.parent.mkdir(parents=True, exist_ok=True)

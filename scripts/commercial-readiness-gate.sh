@@ -120,6 +120,7 @@ required_artifacts=(
   "scripts/sandbox-evidence-runner.py"
   "scripts/agent-governance-smoke.sh"
   "scripts/agent-connector-rehearsal.sh"
+  "scripts/agent-cross-process-revocation-rehearsal.sh"
   "scripts/cross-device-continuation-smoke.sh"
   "scripts/uni-mobile-smoke.sh"
   "scripts/mobile-device-smoke.sh"
@@ -426,6 +427,8 @@ if [ "$RUN_LOCAL_TESTS" -eq 1 ]; then
     bash -lc "cd backend && ./.venv/bin/pytest -q tests/test_mcp_route_governance.py"
   require_command "approved connector local rehearsal" \
     bash scripts/agent-connector-rehearsal.sh --out /tmp/anxin-agent-connector-rehearsal-gate.json
+  require_command "cross-process revocation local rehearsal" \
+    bash scripts/agent-cross-process-revocation-rehearsal.sh --out /tmp/anxin-agent-cross-process-revocation-gate.json
   require_command "cross-device continuation code smoke" \
     bash scripts/cross-device-continuation-smoke.sh --out /tmp/anxin-cross-device-continuation-gate.json
   require_command "CLI route governance tests" \
