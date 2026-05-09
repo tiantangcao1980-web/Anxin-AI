@@ -42,6 +42,11 @@ Existing:
 - `security_contract_is_release_ready_when_secure_db_is_owner` proves the Rust secure DB contract is encrypted, keyring-backed, and not release-blocking.
 - `migrates_plaintext_sqlite_to_sqlcipher` proves a plaintext SQLite profile can be exported into SQLCipher and reopened with the configured key.
 
+`desktop/src/services/sync_engine.rs` / `desktop/src/lib.rs`
+
+- `sync_loopback_smoke_report_exercises_http_backend` proves the packaged-binary sync loopback report exercises a local HTTP backend from the Rust desktop binary path: bearer-auth push, accepted/conflict split, pull writeback, cursor advancement, and retry-to-human handling.
+- `--sync-loopback-smoke` gives release runtime scripts a binary entrypoint so the unsigned `.app` can prove push/pull/conflict/retry behavior without real third-party credentials.
+
 `scripts/desktop-installed-profile-smoke.sh`
 
 - Builds the debug binary, seeds a plaintext local profile DB, runs a first launch to migrate to SQLCipher and create an isolated real keyring entry, runs a second launch without `ANXIN_DESKTOP_SQLCIPHER_KEY_HEX`, and confirms ordinary `sqlite3` cannot read the encrypted DB.
@@ -75,6 +80,18 @@ cd desktop && cargo check
 
 cd desktop && cargo test
 # 8 passed
+
+cd desktop && cargo test sync_
+# 9 passed
+
+cd desktop && cargo run --quiet -- --sync-loopback-smoke
+# passed; loopback backend observed bearer-auth push of 2 records, accepted 1, conflicted 1, wrote 1 pull record, advanced cursor to 13, retry_needs_human=true
+
+cd desktop && cargo tauri build --ci --bundles app --no-sign
+# built unsigned release app bundle
+
+bash scripts/desktop-release-runtime-smoke.sh --out docs/release/evidence/artifacts/desktop-release-runtime-unsigned-smoke-20260509.json --ui-log-out docs/release/evidence/artifacts/desktop-release-runtime-ui-smoke-unsigned-20260509.log
+# passed; release binary self-test, packaged sync code smoke, packaged sync loopback smoke, runtime startup, and WebView page-load handshake passed
 
 cd desktop && cargo tauri build --debug --no-bundle --ci
 # built desktop/target/debug/anxin-legal-desktop

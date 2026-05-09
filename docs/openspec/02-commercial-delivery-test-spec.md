@@ -299,7 +299,7 @@ bash scripts/gitnexus-index.sh --skip-context-checks
 - 如果目标是 React JSX 组件使用关系，必须额外 `rg "<ComponentName>" frontend/src frontend/e2e`。
 - 本机有多个 GitNexus 仓库索引；所有 `query` 必须显式指定 `--repo Anxin-Smart-Legal-Services`，否则会因 multi-repo disambiguation 失败。
 - 如果 GitNexus `query --repo Anxin-Smart-Legal-Services` 返回空，不代表代码不存在；必须使用 `rg`、源码阅读和测试复查。
-- GitNexus embeddings 曾生成；当前 `.gitnexus/meta.json` 仍有非零 embeddings，但 direct rc binary 的 repo 解析/cypher 复验未通过且索引落后于最新本地提交。semantic query 不作为发布放行证据，必须与源码和测试互证。
+- GitNexus embeddings 已在上一轮 clean baseline 刷新到 commit `ccb316d8`，`.gitnexus/meta.json` 记录 files `1431`、nodes `36114`、edges `65135`、processes `300`、embeddings `34002`。semantic query 仍只作为辅助导航；每次最终提交后必须刷新到最新 `HEAD`，并与源码和测试互证。
 
 ## 4. 发布前验收
 

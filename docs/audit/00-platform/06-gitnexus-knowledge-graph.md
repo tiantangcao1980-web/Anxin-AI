@@ -1,6 +1,6 @@
 # GitNexus 知识图验证记录
 
-> 日期：2026-05-08
+> 日期：2026-05-09
 > 目标：在进入下一步商业交付开发前，确认 GitNexus 索引可作为代码级导航依据。
 
 ## 1. 当前索引状态
@@ -9,16 +9,16 @@
 |---|---|
 | repo | `Anxin-Smart-Legal-Services` |
 | path | `/Users/pengchengkeji/Documents/GitHub/Anxin-Smart-Legal-Services` |
-| commit | 当前 `.gitnexus` 已落后于最新本地提交，精确值以 `.gitnexus/meta.json` 和 `gitnexus status` 为准 |
-| files | 以 `.gitnexus/meta.json` 为准 |
-| symbols/nodes | 以 `.gitnexus/meta.json` 为准 |
-| edges | 以 `.gitnexus/meta.json` 为准 |
-| clusters | 以 `.gitnexus/meta.json` 为准 |
-| flows/processes | 以 `.gitnexus/meta.json` 为准 |
-| embeddings rows | `.gitnexus/meta.json` 当前非零；direct `gitnexus cypher` 当前 repo 解析失败，不能作为本轮放行证据 |
+| commit | 上一轮 clean baseline 已索引到 `ccb316d8bf536fd7110fd0269a6021286331fa09`；本轮若新增提交必须再次刷新 |
+| files | `1431` |
+| symbols/nodes | `36114` |
+| edges | `65135` |
+| clusters | `1259` communities |
+| flows/processes | `300` |
+| embeddings rows | `.gitnexus/meta.json` 当前 `34002`，`capabilities.vectorSearch.status=vector-index` |
 | distinct embedded nodes | not separately verified |
 
-当前 `.gitnexus/meta.json` 可读且已有非零 embeddings，但 direct GitNexus CLI 当前无法解析 `Anxin-Smart-Legal-Services` repo，且索引落后于最新本地提交；只能作为历史上下文，不能作为本轮提交的发布放行证据。最终商业 release 前需要重新运行 `GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/gitnexus-index.sh --embeddings --clean-first --skip-context-checks`，并要求 `.gitnexus/meta.json` 显示 `capabilities.vectorSearch.status=vector-index`，`cypher MATCH (e:CodeEmbedding) RETURN count(e) AS cnt` 返回非零计数并与 meta embeddings 一致，`gitnexus status` 显示 indexed/current commit 一致且 `Status: up-to-date`，`detect-changes --repo Anxin-Smart-Legal-Services` 返回 `No changes detected`。注意：`npx gitnexus@rc` 在本机仍可能触发 npm/arborist rebuild bug；推荐使用 `GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus`。
+当前 `.gitnexus/meta.json` 可读且已有非零 embeddings，上一轮 clean baseline 已经刷新到当时最新提交 `ccb316d8`。它可以作为该提交的辅助导航和证据，但不能覆盖本轮之后的新提交；最终商业 release 前以及每次形成最终提交后，都需要重新运行 `GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/gitnexus-index.sh --embeddings --clean-first --skip-context-checks`，并要求 `.gitnexus/meta.json` 显示 `capabilities.vectorSearch.status=vector-index`，`cypher MATCH (e:CodeEmbedding) RETURN count(e) AS cnt` 返回非零计数并与 meta embeddings 一致，`gitnexus status` 显示 indexed/current commit 一致且 `Status: up-to-date`，`detect-changes --repo Anxin-Smart-Legal-Services` 返回 `No changes detected`。注意：`npx gitnexus@rc` 在本机仍可能触发 npm/arborist rebuild bug；推荐使用 `GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus`。
 
 ## 2. 配置修正
 
