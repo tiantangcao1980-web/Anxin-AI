@@ -333,6 +333,28 @@ cd desktop && cargo check
 - 单测锁住 http/https 规范化、拒绝 `local://api`/`file://`、配置 round-trip 不含 token/secret 字段，以及 TopSecret 加载后同步状态为 `Offline`。
 - 这只关闭桌面工作站模式/后端环境的跨重启持久化；第三方 connector 凭据 CRUD、真实密钥联调、signed packaged runtime 和跨设备证据仍保持阻断。
 
+2026-05-09 桌面 PrivacyContext 门控对齐补充：
+
+```bash
+cd frontend && npm test -- PrivacyContext.test.ts
+# 1 file / 3 tests passed
+
+cd frontend && npm exec tsc -- --noEmit
+# exit 0
+
+cd frontend && npm run lint
+# exit 0
+
+cd frontend && npm run build
+# exit 0; 保留既有 lottie eval / dynamic import / large chunk warnings
+```
+
+覆盖增量：
+
+- `frontend/src/context/PrivacyContext.tsx` 在桌面 Tauri 环境中监听 `useAppModeStore`，把 `top-secret` 映射为旧业务门控识别的 `PrivacyMode.LOCAL`，避免 Rust 已恢复绝密模式但 `ModeGate` 仍按 HYBRID 放开云端/混合入口。
+- `frontend/src/context/PrivacyContext.test.ts` 锁住 `top-secret -> LOCAL`、`hybrid -> HYBRID`、`cloud -> CLOUD` 和未知值回退 HYBRID。
+- 这只关闭桌面运行模式到前端业务门控的一致性缺口；仍不代表真实出站联调、订阅购买链路或第三方 connector 凭据完成。
+
 2026-05-08 本轮移动远控控制面与 host 生命周期切片：
 
 ```bash

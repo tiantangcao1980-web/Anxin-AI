@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { buildApiHeaders, setApiPrivacyMode } from '@/lib/api';
 import { getTokenStorage } from '@/lib/platform/storage';
+import { useAppModeStore } from '@/lib/store';
+import { isTauri, type AppMode } from '@/lib/tauri-bridge';
 
 export enum PrivacyMode {
   LOCAL = 'LOCAL', // L1
@@ -12,6 +14,18 @@ export enum HardwareStatus {
   CONNECTED = 'CONNECTED',
   DISCONNECTED = 'DISCONNECTED',
   BUSY = 'BUSY',
+}
+
+export function desktopAppModeToPrivacyMode(mode: AppMode | string | null | undefined): PrivacyMode {
+  switch (mode) {
+    case 'top-secret':
+      return PrivacyMode.LOCAL;
+    case 'cloud':
+      return PrivacyMode.CLOUD;
+    case 'hybrid':
+    default:
+      return PrivacyMode.HYBRID;
+  }
 }
 
 interface PrivacyState {
@@ -44,6 +58,7 @@ export const usePrivacy = () => {
 };
 
 export const PrivacyProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const desktopMode = useAppModeStore((state) => state.mode);
   const [mode, setModeState] = useState<PrivacyMode>(PrivacyMode.HYBRID);
   const [hardwareStatus, setHardwareStatus] = useState<HardwareStatus>(HardwareStatus.DISCONNECTED);
   const [hardwareName, setHardwareName] = useState<string>('AI私有助手');
@@ -55,6 +70,11 @@ export const PrivacyProvider: React.FC<{ children: ReactNode }> = ({ children })
     setApiPrivacyMode(nextMode);
     setModeState(nextMode);
   }, []);
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    setMode(desktopAppModeToPrivacyMode(desktopMode));
+  }, [desktopMode, setMode]);
 
   // V2: 带订阅检查的模式切换 — fail-closed
   // 任何无法证明用户有权访问目标模式的情况，都拒绝切换并提示订阅。
