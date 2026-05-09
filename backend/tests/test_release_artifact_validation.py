@@ -989,8 +989,18 @@ def _desktop_release_runtime_unsigned_payload() -> dict:
             "release_app_exists": "passed",
             "release_dmg_exists": "passed",
             "release_binary_self_test": "passed",
+            "release_sync_code_smoke": "passed",
             "release_runtime_startup": "passed",
             "release_webview_ui_load": "passed",
+            "sync_code_smoke": {
+                "sync_log_migration": "passed",
+                "pending_rows_decoded": 2,
+                "push_payload_records": 2,
+                "accepted_after_conflict": 1,
+                "conflict_rows": 1,
+                "retry_needs_human": True,
+                "pull_records_decoded": 1,
+            },
             "sqlite_security": {
                 "status": "passed",
                 "encrypted": True,
@@ -1002,7 +1012,7 @@ def _desktop_release_runtime_unsigned_payload() -> dict:
             "release_app": "desktop/target/release/bundle/macos/安心法务.app",
             "release_binary": "desktop/target/release/bundle/macos/安心法务.app/Contents/MacOS/anxin-legal-desktop",
             "release_dmg": "desktop/target/release/bundle/dmg/安心法务_1.0.0_aarch64.dmg",
-            "ui_log": "docs/release/evidence/artifacts/desktop-release-runtime-ui-smoke-unsigned-20260507.log",
+            "ui_log": "docs/release/evidence/artifacts/desktop-release-runtime-ui-smoke-unsigned-20260509.log",
         },
         "completion_note": (
             "Unsigned release packaged-runtime supporting evidence only. "
@@ -1028,6 +1038,8 @@ def test_release_artifact_validation_rejects_incomplete_desktop_release_runtime_
     payload["release_evidence_complete"] = True
     payload["signed_or_notarized"] = True
     payload["checks"]["release_webview_ui_load"] = "failed"
+    payload["checks"]["release_sync_code_smoke"] = "failed"
+    payload["checks"]["sync_code_smoke"]["push_payload_records"] = 0
     payload["checks"]["sqlite_security"]["encrypted"] = False
     payload["artifacts"]["release_dmg"] = ""
     payload["completion_note"] = "Complete."

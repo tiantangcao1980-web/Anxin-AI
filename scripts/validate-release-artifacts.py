@@ -717,11 +717,37 @@ def _validate_desktop_release_runtime_unsigned_smoke(
         "release_app_exists",
         "release_dmg_exists",
         "release_binary_self_test",
+        "release_sync_code_smoke",
         "release_runtime_startup",
         "release_webview_ui_load",
     ):
         if checks.get(check_name) != "passed":
             failures.append(f"{path}: desktop unsigned release runtime smoke {check_name} must be passed")
+
+    sync_code_smoke = checks.get("sync_code_smoke")
+    if not isinstance(sync_code_smoke, dict):
+        failures.append(f"{path}: desktop unsigned release runtime smoke missing sync_code_smoke")
+    else:
+        expected_counts = {
+            "pending_rows_decoded": 2,
+            "push_payload_records": 2,
+            "accepted_after_conflict": 1,
+            "conflict_rows": 1,
+            "pull_records_decoded": 1,
+        }
+        for key, expected in expected_counts.items():
+            if sync_code_smoke.get(key) != expected:
+                failures.append(
+                    f"{path}: desktop unsigned release runtime smoke sync_code_smoke.{key} must be {expected}"
+                )
+        if sync_code_smoke.get("sync_log_migration") != "passed":
+            failures.append(
+                f"{path}: desktop unsigned release runtime smoke sync_code_smoke.sync_log_migration must be passed"
+            )
+        if sync_code_smoke.get("retry_needs_human") is not True:
+            failures.append(
+                f"{path}: desktop unsigned release runtime smoke sync_code_smoke.retry_needs_human must be true"
+            )
 
     sqlite_security = checks.get("sqlite_security")
     if not isinstance(sqlite_security, dict):
