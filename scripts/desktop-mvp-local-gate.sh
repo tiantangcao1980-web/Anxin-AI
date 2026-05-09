@@ -44,6 +44,13 @@ checks = {
         "normalize_local_model_name",
         "configured_default_model",
     ],
+    "desktop/src/commands/native_notification.rs": [
+        "DesktopNotificationKind",
+        "build_desktop_notification_preview",
+        "send_desktop_notification",
+        "local_only",
+        "safe_in_top_secret",
+    ],
     "desktop/src/services/runtime_config.rs": [
         "local_model",
         "normalize_local_model_name",
@@ -56,6 +63,7 @@ checks = {
         "toggle_quick_query_window",
         "hide_quick_query_window",
         "set_default_local_model",
+        "send_desktop_notification",
         "queue_file_drop_paths",
     ],
     "frontend/src/pages/QuickQuery.tsx": [
@@ -88,6 +96,9 @@ checks = {
     "frontend/src/lib/tauri-bridge.ts": [
         "getLocalLLMConfig",
         "setDefaultLocalModel",
+        "DesktopNotificationKind",
+        "previewDesktopNotification",
+        "sendDesktopNotification",
         "queueFileDropPaths",
         "listenFileDropQueued",
         "listenDesktopFileDrops",
@@ -112,10 +123,14 @@ checks = {
         "DesktopWorkstationPanel",
         "本地模型管理",
         "local-model-save",
+        "本机通知",
+        "native-notification-test",
         "工作站配置",
         "后端环境",
     ],
     "frontend/src/components/desktop/desktopWorkstationModel.ts": [
+        "buildDesktopNotificationReadiness",
+        "native-notification",
         "extractLocalModelOptions",
         "normalizeLocalModelInput",
         "normalizeWorkstationBackendUrl",
@@ -124,6 +139,8 @@ checks = {
         "cloud",
     ],
     "frontend/src/components/desktop/desktopWorkstationModel.test.ts": [
+        "buildDesktopNotificationReadiness",
+        "native notification local-only",
         "extractLocalModelOptions",
         "normalizeLocalModelInput",
         "normalizeWorkstationBackendUrl",
@@ -132,6 +149,8 @@ checks = {
     "frontend/e2e/settings-workstation.spec.ts": [
         "settings?tab=workstation",
         "settings?tab=privacy",
+        "send_desktop_notification",
+        "native-notification-test",
         "local-model-save",
         "desktop runtime",
     ],
@@ -144,12 +163,14 @@ checks = {
     "docs/release/test-evidence.md": [
         "桌面快问 P0-2",
         "桌面本地模型管理",
+        "桌面本机通知",
         "桌面文件拖入分析 P0-3",
         "桌面主窗口 WebView 文件 drop",
     ],
     "docs/release/commercial-delivery-readiness.md": [
         "桌面端补充：`Cmd/Ctrl+Shift+Space`",
         "桌面本地模型默认配置",
+        "桌面本机通知",
         "桌面端补充：文件拖入分析",
     ],
     "docs/audit/11a-desktop-mvp/00-prd-reality-gap.md": [
@@ -172,11 +193,13 @@ checks = {
         "Quick Query",
         "File Drop Analysis Queue",
         "default local model persistence",
+        "native notification bridge",
         "Remote-Control Host",
     ],
     "docs/audit/11a-desktop-mvp/04-test-additions.md": [
         "desktop-mvp-local-gate.sh",
         "quickQueryModel.test.ts",
+        "native notification local-only",
         "Not Covered Locally",
     ],
     "docs/audit/11a-desktop-mvp/05-followups.md": [

@@ -27,12 +27,22 @@ export interface WorkstationAction {
 }
 
 export interface WorkstationResource {
-  id: 'privacy' | 'local-model' | 'knowledge' | 'skills-mcp' | 'sync' | 'remote-control'
+  id: 'privacy' | 'local-model' | 'native-notification' | 'knowledge' | 'skills-mcp' | 'sync' | 'remote-control'
   title: string
   status: WorkstationResourceStatus
   statusLabel: string
   summary: string
   action: WorkstationAction
+}
+
+export interface DesktopNotificationReadiness {
+  status: WorkstationResourceStatus
+  statusLabel: string
+  detail: string
+  canSendTest: boolean
+  localOnly: boolean
+  safeInTopSecret: boolean
+  disabledReason?: string
 }
 
 export interface RemoteControlStatusSnapshot {
@@ -199,12 +209,42 @@ export const WORKSTATION_MODE_OPTIONS: WorkstationModeOption[] = [
   },
 ]
 
+export function buildDesktopNotificationReadiness(
+  mode: WorkstationMode,
+  runtime: WorkstationRuntime = 'desktop'
+): DesktopNotificationReadiness {
+  const isDesktopRuntime = runtime === 'desktop'
+  if (!isDesktopRuntime) {
+    return {
+      status: 'pending',
+      statusLabel: '需桌面端',
+      detail: '桌面客户端内发送本机 OS 通知',
+      canSendTest: false,
+      localOnly: true,
+      safeInTopSecret: true,
+      disabledReason: DESKTOP_CLIENT_REQUIRED,
+    }
+  }
+
+  return {
+    status: mode === 'top-secret' ? 'ready' : 'available',
+    statusLabel: mode === 'top-secret' ? '本地可用' : '可测试',
+    detail: mode === 'top-secret'
+      ? '仅触发本机 OS 通知，不连接外部推送'
+      : '案件进展与风险预警先走本机通知桥',
+    canSendTest: true,
+    localOnly: true,
+    safeInTopSecret: true,
+  }
+}
+
 export function buildDesktopWorkstationResources(
   mode: WorkstationMode,
   runtime: WorkstationRuntime = 'desktop'
 ): WorkstationResource[] {
   const isTopSecret = mode === 'top-secret'
   const isDesktopRuntime = runtime === 'desktop'
+  const notificationReadiness = buildDesktopNotificationReadiness(mode, runtime)
 
   return [
     {
@@ -232,6 +272,20 @@ export function buildDesktopWorkstationResources(
         enabled: isDesktopRuntime,
         safeInTopSecret: true,
         disabledReason: isDesktopRuntime ? undefined : DESKTOP_CLIENT_REQUIRED,
+      },
+    },
+    {
+      id: 'native-notification',
+      title: '本机通知',
+      status: notificationReadiness.status,
+      statusLabel: notificationReadiness.statusLabel,
+      summary: notificationReadiness.detail,
+      action: {
+        label: '查看通知',
+        path: '/settings?tab=workstation',
+        enabled: notificationReadiness.canSendTest,
+        safeInTopSecret: true,
+        disabledReason: notificationReadiness.disabledReason,
       },
     },
     {

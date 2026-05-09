@@ -348,6 +348,80 @@ export async function checkLocalLLMStatus() {
   return invokeCommand('check_local_llm_status')
 }
 
+// ===== 桌面本机通知 =====
+
+export type DesktopNotificationKind = 'case_progress' | 'risk_alert' | 'system' | 'sync'
+
+export interface DesktopNotificationPayload {
+  kind: DesktopNotificationKind
+  title: string
+  body: string
+  relatedId?: string
+}
+
+export interface DesktopNotificationResponse {
+  success: boolean
+  kind: DesktopNotificationKind
+  title: string
+  body: string
+  relatedId?: string
+  localOnly: boolean
+  safeInTopSecret: boolean
+  privacyMode: AppMode
+  message: string
+}
+
+function shouldFallbackToNotificationPlugin(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error)
+  return /not found|unknown command|not registered|not allowed/i.test(message)
+}
+
+async function sendPluginNotification(title: string, body: string): Promise<void> {
+  const { sendNotification: notify } = await import(/* @vite-ignore */ '@tauri-apps/plugin-notification')
+  await notify({ title, body })
+}
+
+/** 生成桌面本机通知预览，不触发 OS 通知。 */
+export async function previewDesktopNotification(
+  payload: DesktopNotificationPayload
+): Promise<DesktopNotificationResponse | null> {
+  return invokeCommand<DesktopNotificationResponse>('preview_desktop_notification', { payload })
+}
+
+/** 发送桌面本机通知；不经过 APNs/FCM/服务端推送。 */
+export async function sendDesktopNotification(
+  payload: DesktopNotificationPayload
+): Promise<DesktopNotificationResponse | null> {
+  if (!isTauri()) return null
+  try {
+    return await invokeRequiredCommand<DesktopNotificationResponse>('send_desktop_notification', { payload })
+  } catch (error) {
+    if (!shouldFallbackToNotificationPlugin(error)) {
+      console.error('[Tauri] 本机通知发送失败:', error)
+      return null
+    }
+
+    try {
+      await sendPluginNotification(payload.title, payload.body)
+      const privacyMode = await getCurrentMode().catch(() => 'cloud' as AppMode)
+      return {
+        success: true,
+        kind: payload.kind,
+        title: payload.title,
+        body: payload.body,
+        relatedId: payload.relatedId,
+        localOnly: true,
+        safeInTopSecret: true,
+        privacyMode,
+        message: '本机通知已通过插件发送',
+      }
+    } catch (pluginError) {
+      console.error('[Tauri] 通知插件降级发送失败:', pluginError)
+      return null
+    }
+  }
+}
+
 // ===== 桌面快问窗口 =====
 
 export async function hideQuickQueryWindow(): Promise<boolean> {
@@ -555,8 +629,10 @@ export async function getAppInfo() {
 export async function sendNotification(title: string, body: string) {
   if (!isTauri()) return
   try {
-    const { sendNotification: notify } = await import(/* @vite-ignore */ '@tauri-apps/plugin-notification')
-    await notify({ title, body })
+    const result = await sendDesktopNotification({ kind: 'system', title, body })
+    if (!result?.success) {
+      await sendPluginNotification(title, body)
+    }
   } catch (error) {
     console.error('[Tauri] 通知发送失败:', error)
   }

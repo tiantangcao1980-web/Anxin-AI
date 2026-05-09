@@ -121,7 +121,8 @@ test.describe('桌面主工作站设置入口', () => {
     await expect(page.getByRole('button', { name: '配置模型' })).toBeDisabled()
     await expect(page.getByRole('button', { name: '同步状态' })).toBeDisabled()
     await expect(page.getByRole('button', { name: '查看任务' })).toBeDisabled()
-    await expect(page.locator('[data-testid^="desktop-workstation-resource-"]').getByText('请在桌面客户端启用')).toHaveCount(3)
+    await expect(page.locator('[data-testid^="desktop-workstation-resource-"]').getByText('请在桌面客户端启用')).toHaveCount(4)
+    await expect(page.getByTestId('native-notification-test')).toBeDisabled()
     await expect(page.getByTestId('remote-control-host-refresh')).toBeDisabled()
     await expect(page.getByTestId('remote-control-host-confirm')).toBeDisabled()
     await expect(page.getByTestId('remote-control-host-cycle')).toBeDisabled()
@@ -172,6 +173,8 @@ test.describe('桌面主工作站设置入口', () => {
     await expect(page.getByTestId('workstation-probe-mcp')).toContainText('3 个工具缓存')
     await expect(page.getByTestId('workstation-probe-offline-queue')).toContainText('3 条')
     await expect(page.getByTestId('workstation-probe-offline-queue')).toContainText('1 条失败需处理')
+    await expect(page.getByTestId('workstation-probe-native-notification')).toContainText('可测试')
+    await expect(page.getByTestId('native-notification-test')).toBeEnabled()
     await expect(page.getByTestId('workstation-probe-remote-control')).toContainText('待验收')
   })
 
@@ -300,6 +303,8 @@ test.describe('桌面主工作站设置入口', () => {
       }
       let localModelDefault = 'qwen2.5:7b'
       const profiles: Array<{ id: string; name: string; mode: string; backend_url: string }> = []
+      const notifications: Array<Record<string, unknown> | undefined> = []
+      ;(window as any).__nativeNotificationInvokes = notifications
       ;(window as any).__TAURI_INTERNALS__ = {
         invoke: async (cmd: string, args?: Record<string, unknown>) => {
           if (cmd === 'get_app_state') return { ...appState }
@@ -360,6 +365,20 @@ test.describe('桌面主工作站设置入口', () => {
             localModelDefault = args?.model as string
             return { success: true, default_model: localModelDefault, message: '本地默认模型已更新' }
           }
+          if (cmd === 'send_desktop_notification') {
+            notifications.push(args?.payload as Record<string, unknown>)
+            return {
+              success: true,
+              kind: (args?.payload as Record<string, unknown>)?.kind,
+              title: (args?.payload as Record<string, unknown>)?.title,
+              body: (args?.payload as Record<string, unknown>)?.body,
+              relatedId: (args?.payload as Record<string, unknown>)?.relatedId,
+              localOnly: true,
+              safeInTopSecret: true,
+              privacyMode: appState.mode,
+              message: '案件进展本机通知已发送',
+            }
+          }
           if (cmd === 'list_local_models') return {
             available: true,
             models: [
@@ -385,11 +404,20 @@ test.describe('桌面主工作站设置入口', () => {
     await page.getByTestId('local-model-save').click()
 
     await expect(page.getByTestId('local-model-default')).toContainText('llama3.1:8b')
+    await expect(page.getByTestId('desktop-native-notification-manager')).toContainText('可测试')
+
+    await page.getByTestId('native-notification-test').click()
+
+    await expect.poll(async () => page.evaluate(() => {
+      const calls = (window as any).__nativeNotificationInvokes as Array<Record<string, unknown> | undefined>
+      return calls.some((payload) => payload?.kind === 'case_progress' && payload?.relatedId === 'desktop-workstation-smoke')
+    })).toBe(true)
 
     await page.getByTestId('workstation-mode-top-secret').click()
 
     await expect(page.getByTestId('workstation-mode-top-secret')).toBeDisabled()
     await expect(page.getByTestId('workstation-probe-remote-control')).toContainText('已阻断')
+    await expect(page.getByTestId('workstation-probe-native-notification')).toContainText('本地可用')
 
     await page.getByTestId('workstation-backend-url').fill('https://staging.anxin.example/')
     await page.getByTestId('workstation-backend-save').click()
@@ -449,7 +477,7 @@ test.describe('桌面主工作站移动宽度', () => {
         }),
       )
 
-    expect(cardBoxes).toHaveLength(6)
+    expect(cardBoxes).toHaveLength(7)
     for (const box of cardBoxes) {
       expect(box.left).toBeGreaterThanOrEqual(0)
       expect(box.right).toBeLessThanOrEqual(box.viewport + 1)

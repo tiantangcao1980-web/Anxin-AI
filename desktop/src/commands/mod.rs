@@ -3,6 +3,7 @@ pub mod auth;
 pub mod cli;
 pub mod file_drop;
 pub mod local_llm;
+pub mod native_notification;
 pub mod offline_tasks;
 pub mod privacy_guard;
 pub mod quick_query;

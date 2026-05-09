@@ -351,6 +351,9 @@ pub fn run_with_options(options: DesktopRunOptions) {
             commands::local_llm::set_default_local_model,
             commands::local_llm::list_local_models,
             commands::local_llm::check_local_llm_status,
+            // 本机通知
+            commands::native_notification::preview_desktop_notification,
+            commands::native_notification::send_desktop_notification,
             // CLI
             commands::cli::cli_execute,
             commands::cli::cli_create_key,

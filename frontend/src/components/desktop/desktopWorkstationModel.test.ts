@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   buildRemoteControlHostState,
+  buildDesktopNotificationReadiness,
   buildDesktopWorkstationResources,
   extractLocalModelOptions,
   formatRemoteControlAuditAction,
@@ -30,6 +31,10 @@ describe('desktop workstation model', () => {
       status: 'restricted',
       action: { enabled: true, safeInTopSecret: true },
     })
+    expect(resources.find((item) => item.id === 'native-notification')).toMatchObject({
+      status: 'ready',
+      action: { enabled: true, safeInTopSecret: true },
+    })
   })
 
   it('opens governed connection actions outside top-secret mode', () => {
@@ -47,6 +52,10 @@ describe('desktop workstation model', () => {
     expect(resources.find((item) => item.id === 'local-model')).toMatchObject({
       status: 'pending',
       action: { enabled: false },
+    })
+    expect(resources.find((item) => item.id === 'native-notification')).toMatchObject({
+      status: 'pending',
+      action: { enabled: false, safeInTopSecret: true },
     })
     expect(resources.find((item) => item.id === 'sync')).toMatchObject({
       status: 'pending',
@@ -98,6 +107,24 @@ describe('desktop workstation model', () => {
     expect(normalizeLocalModelInput(' qwen2.5:14b ')).toEqual({ ok: true, value: 'qwen2.5:14b' })
     expect(normalizeLocalModelInput('qwen 7b')).toMatchObject({ ok: false })
     expect(normalizeLocalModelInput('qwen;export TOKEN=secret')).toMatchObject({ ok: false })
+  })
+
+  it('keeps native notification local-only and top-secret safe', () => {
+    expect(buildDesktopNotificationReadiness('top-secret', 'desktop')).toMatchObject({
+      status: 'ready',
+      canSendTest: true,
+      localOnly: true,
+      safeInTopSecret: true,
+    })
+    expect(buildDesktopNotificationReadiness('hybrid', 'desktop')).toMatchObject({
+      status: 'available',
+      canSendTest: true,
+    })
+    expect(buildDesktopNotificationReadiness('cloud', 'preview')).toMatchObject({
+      status: 'pending',
+      canSendTest: false,
+      disabledReason: '请在桌面客户端启用',
+    })
   })
 })
 

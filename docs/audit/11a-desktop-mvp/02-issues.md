@@ -11,6 +11,7 @@
 | DSK-007 | P0 | Mobile remote-control host was undefined and could become unsafe if high-risk execution appeared before governance | Safe-probe-only backend/desktop/mobile foundation closed; signed daemon, real cross-device callback, and high-risk executor open |
 | DSK-008 | P0 | Workstation configuration was read-only and lacked local profile CRUD | Code/browser-level closed for secret-free mode/backend/profile data; provider credential CRUD and real connector evidence open |
 | DSK-009 | P1 | TASK-11a required audit docs did not exist under `docs/audit/11a-desktop-mvp/` | Closed by this audit package and local gate check |
+| DSK-010 | P1 | Native notifications were present only as a low-level plugin wrapper, with no product IPC, TopSecret boundary, or workstation proof | Code/browser-level local-only bridge closed; signed runtime delivery and push orchestration open |
 
 ## Release Interpretation
 

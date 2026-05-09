@@ -21,12 +21,13 @@
 - File drop has a local data path: `desktop/src/commands/file_drop.rs` classifies `.pdf/.doc/.docx` as `contract_review`, `.txt/.md` as `document_summary`, writes supported files into Rust SQLCipher/keyring-owned `offline_tasks`, and emits `desktop://file-queued` without exposing full local paths.
 - WebView drop and toast feedback exist through `frontend/src/lib/tauri-bridge.ts`, `frontend/src/lib/desktopFileDropEvents.ts`, and `frontend/src/App.tsx`; platform tray-icon drop is still not proven.
 - Desktop workstation entry and configuration have code-level coverage: `DesktopWorkstationPanel.tsx`, `desktopWorkstationModel.ts`, Tauri bridge wrappers, Settings routing, and Playwright workstation tests cover status probes, mode/backend URL writing, secret-free profile CRUD, and safe disabled states.
+- Desktop native notification has code-level coverage: `desktop/src/commands/native_notification.rs` sanitizes local payloads, `frontend/src/lib/tauri-bridge.ts` exposes typed IPC wrappers, and the workstation panel can send a local-only test notification without external push infrastructure.
 - Runtime mode persistence and frontend gate alignment exist through `desktop/src/services/runtime_config.rs`, `desktop/src/commands/app_mode.rs`, `frontend/src/context/PrivacyContext.tsx`, and related tests.
 - Remote-control host is visible and bounded: backend host lifecycle APIs, desktop IPC clients, env-gated safe-probe daemon foundation, workstation UI, mobile status/safe-probe surfaces, and route-token policy are implemented for safe-probe only.
 
 ## Remaining Reality Gap
 
-The desktop MVP is no longer an empty shell, but it is still not a commercial release proof. The local code and browser-level gates cover the main workstation, window chrome, quick query, file-drop queueing, and remote-control safe-probe UI. The blockers are release-evidence blockers:
+The desktop MVP is no longer an empty shell, but it is still not a commercial release proof. The local code and browser-level gates cover the main workstation, window chrome, quick query, file-drop queueing, native notification bridge, and remote-control safe-probe UI. The blockers are release-evidence blockers:
 
 - macOS and Windows signed packaged runtime screenshots/videos for titlebar, window controls, and drag regions.
 - A measured packaged shortcut-to-visible baseline under 200 ms on macOS and Windows.

@@ -23,6 +23,7 @@ import {
   listWorkstationProfiles,
   remoteControlConfirmPairing,
   remoteControlRunHostCycle,
+  sendDesktopNotification,
   type RemoteControlHostCycleSummary,
   setBackendUrl,
   setDefaultLocalModel,
@@ -39,6 +40,7 @@ import { icons } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import {
   buildRemoteControlHostState,
+  buildDesktopNotificationReadiness,
   buildDesktopWorkstationResources,
   extractLocalModelOptions,
   normalizeLocalModelInput,
@@ -69,6 +71,7 @@ const STATUS_CLASS: Record<WorkstationResourceStatus, string> = {
 const RESOURCE_ICON: Record<WorkstationResource['id'], typeof icons.LayoutDashboard> = {
   privacy: icons.ShieldCheck,
   'local-model': icons.Cpu,
+  'native-notification': icons.Bell,
   knowledge: icons.Database,
   'skills-mcp': icons.Server,
   sync: icons.RefreshCw,
@@ -152,11 +155,16 @@ export function DesktopWorkstationPanel() {
   const [localModelEndpoint, setLocalModelEndpoint] = useState('')
   const [localModelInput, setLocalModelInput] = useState('')
   const [localModelBusy, setLocalModelBusy] = useState<'refresh' | 'save' | null>(null)
+  const [notificationBusy, setNotificationBusy] = useState(false)
   const [probes, setProbes] = useState<WorkstationProbeState>(PREVIEW_PROBES)
   const [remoteControlHost, setRemoteControlHost] = useState<RemoteControlHostRuntimeState>(
     DEFAULT_REMOTE_CONTROL_HOST_STATE
   )
   const [remoteControlBusy, setRemoteControlBusy] = useState<'refresh' | 'confirm' | 'cycle' | 'cancel' | null>(null)
+  const notificationReadiness = useMemo(
+    () => buildDesktopNotificationReadiness(mode, desktopClient ? 'desktop' : 'preview'),
+    [desktopClient, mode]
+  )
   const resources = useMemo(
     () => buildDesktopWorkstationResources(mode, desktopClient ? 'desktop' : 'preview'),
     [desktopClient, mode]
@@ -382,6 +390,32 @@ export function DesktopWorkstationPanel() {
       toast.error(error instanceof Error ? error.message : '本地默认模型保存失败')
     } finally {
       setLocalModelBusy(null)
+    }
+  }
+
+  const handleNativeNotificationTest = async () => {
+    if (!desktopClient || notificationBusy || !notificationReadiness.canSendTest) return
+
+    setNotificationBusy(true)
+    try {
+      const result = await sendDesktopNotification({
+        kind: mode === 'top-secret' ? 'risk_alert' : 'case_progress',
+        title: mode === 'top-secret' ? '安心法务风险预警' : '安心法务案件进展',
+        body: mode === 'top-secret'
+          ? '绝密模式本机通知链路已就绪，未连接外部推送。'
+          : '案件进展与风险预警的本机通知链路已就绪。',
+        relatedId: 'desktop-workstation-smoke',
+      })
+
+      if (!result?.success) {
+        toast.error('本机通知发送失败')
+        return
+      }
+      toast.success(result.message || '本机通知已发送')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '本机通知发送失败')
+    } finally {
+      setNotificationBusy(false)
     }
   }
 
@@ -1052,6 +1086,60 @@ export function DesktopWorkstationPanel() {
         </CardContent>
       </Card>
 
+      <Card className="border-border rounded-xl" data-testid="desktop-native-notification-manager">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle className={heading.card}>本机通知</CardTitle>
+              <CardDescription className={heading.muted}>
+                {desktopClient ? '案件进展与风险预警先接入本机 OS 通知' : '仅桌面客户端可发送本机通知'}
+              </CardDescription>
+            </div>
+            <Badge className={STATUS_CLASS[notificationReadiness.status]} data-testid="native-notification-status">
+              {notificationReadiness.statusLabel}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(280px,0.6fr)]">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <ProbeCell
+              testId="native-notification-boundary"
+              label="推送边界"
+              value={notificationReadiness.localOnly ? '仅本机' : '需外部推送'}
+              detail="不经过 APNs / FCM / 服务端推送"
+            />
+            <ProbeCell
+              testId="native-notification-top-secret"
+              label="绝密模式"
+              value={notificationReadiness.safeInTopSecret ? '可用' : '禁用'}
+              detail={notificationReadiness.safeInTopSecret ? '只触发本机系统通知' : '需要外部通道'}
+            />
+            <ProbeCell
+              testId="native-notification-kinds"
+              label="通知类型"
+              value="案件 / 风险"
+              detail="案件进展、风险预警、同步状态"
+            />
+          </div>
+
+          <div className="flex min-w-0 flex-col justify-between gap-3 rounded-lg border border-border bg-surface-1 p-3">
+            <p className="text-sm leading-6 text-muted-foreground">
+              {notificationReadiness.detail}
+            </p>
+            <Button
+              type="button"
+              data-testid="native-notification-test"
+              disabled={!notificationReadiness.canSendTest || notificationBusy}
+              onClick={handleNativeNotificationTest}
+              className="w-full"
+            >
+              <icons.Bell className={iconSize.sm} />
+              {notificationBusy ? '发送中' : '发送测试通知'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card className="border-border rounded-xl" data-testid="desktop-workstation-probes">
         <CardHeader className="pb-3">
           <CardTitle className={heading.card}>工作站状态探针</CardTitle>
@@ -1059,7 +1147,7 @@ export function DesktopWorkstationPanel() {
             {desktopClient ? '只读读取桌面运行时与治理状态，不上传业务数据' : '非桌面环境仅展示待接入状态'}
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <CardContent className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
           <ProbeCell
             testId="workstation-probe-local-model"
             label="本地模型"
@@ -1111,6 +1199,18 @@ export function DesktopWorkstationPanel() {
                   : `${probes.queueTotal} 条`
             }
             detail={probes.queueFailed > 0 ? `${probes.queueFailed} 条失败需处理` : '本地队列统计只读'}
+          />
+          <ProbeCell
+            testId="workstation-probe-native-notification"
+            label="本机通知"
+            value={
+              !desktopClient
+                ? '需桌面端'
+                : notificationReadiness.canSendTest
+                  ? notificationReadiness.statusLabel
+                  : '不可用'
+            }
+            detail={notificationReadiness.detail}
           />
           <ProbeCell
             testId="workstation-probe-remote-control"

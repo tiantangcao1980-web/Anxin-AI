@@ -40,6 +40,9 @@ def test_commercial_gate_requires_desktop_mvp_local_gate():
     assert "desktop/src/commands/local_llm.rs" in gate_script
     assert "set_default_local_model" in gate_script
     assert "local-model-save" in gate_script
+    assert "desktop/src/commands/native_notification.rs" in gate_script
+    assert "send_desktop_notification" in gate_script
+    assert "native-notification-test" in gate_script
     assert "desktop/src/commands/file_drop.rs" in gate_script
     assert "frontend/src/components/desktop/DesktopWorkstationPanel.tsx" in gate_script
     assert "docs/audit/11a-desktop-mvp/00-prd-reality-gap.md" in gate_script

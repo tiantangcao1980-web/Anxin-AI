@@ -452,6 +452,26 @@ bash scripts/desktop-mvp-local-gate.sh
 - `frontend/src/components/desktop/DesktopWorkstationPanel.tsx` 新增“本地模型管理”面板，桌面 runtime 可查看 Ollama/兼容端点、已检测模型数量、选择或手填默认模型并保存；非桌面预览保持不可写。
 - Playwright 已覆盖模拟桌面 runtime 下保存 `llama3.1:8b` 为默认模型；Quick Query 真实模型 smoke、模型下载/安装、packaged runtime 和 signed runtime 证据仍保持阻断。
 
+2026-05-09 桌面本机通知补充：
+
+```bash
+cd desktop && cargo test native_notification
+# 5 passed; 61 filtered out
+
+cd frontend && npm test -- desktopWorkstationModel.test.ts
+# 1 file / 12 tests passed
+
+cd frontend && npx playwright test e2e/settings-workstation.spec.ts --project=chromium --project=mobile
+# 15 passed, 1 skipped
+```
+
+覆盖增量：
+
+- `desktop/src/commands/native_notification.rs` 新增 `preview_desktop_notification` / `send_desktop_notification`，把案件进展、风险预警、系统和同步状态通知收口到 Tauri 本机通知插件；发送前会压缩换行/空白、限制 OS 通知长度，并拒绝空标题/内容和带控制字符的关联 ID。
+- `frontend/src/lib/tauri-bridge.ts` 新增 typed notification IPC wrapper；`DesktopWorkstationPanel` 新增“本机通知”面板和 `native-notification-test` 测试按钮，TopSecret 模式仍标记为 local-only / safe-in-top-secret，不接入 APNs、FCM 或服务端推送。
+- Playwright 已覆盖模拟桌面 runtime 下触发 `send_desktop_notification`，并继续覆盖非桌面禁用态和移动宽度不横向溢出。
+- 该证据只关闭桌面本机通知的代码级链路；signed packaged runtime 通知权限弹窗、托盘/后台触发、真实案件事件驱动和跨设备/服务端推送证据仍待闭环。
+
 2026-05-09 桌面 PrivacyContext 门控对齐补充：
 
 ```bash
