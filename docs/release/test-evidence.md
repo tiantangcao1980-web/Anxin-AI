@@ -360,6 +360,12 @@ cd frontend && npm run lint
 
 cd frontend && npm run build
 # exit 0; 保留既有 lottie eval / dynamic import / large chunk warnings
+
+backend/.venv/bin/pytest -q backend/tests/test_external_surface_guards.py -k "mcp_server_update_preserves_masked_env_when_omitted or mcp_server_create_writes_masked_audit_log"
+# 2 passed, 32 deselected
+
+backend/.venv/bin/ruff check backend/tests/test_external_surface_guards.py
+# All checks passed
 ```
 
 覆盖增量：
@@ -389,6 +395,7 @@ cd frontend && npm run build
 - `frontend/src/pages/mcpSettingsModel.ts` 新增保存 payload 规则：创建 connector 或显式替换环境变量时才提交 `env`；编辑既有 connector 的名称、描述、命令、启用状态等元数据时默认不发送 `env`，避免把后端已保存的密钥清空。
 - `frontend/src/pages/Settings.tsx` 的 MCP 编辑弹窗只展示后端返回的 `env_keys`，不显示 env 值；新增“替换环境变量”显式入口，新输入的 secret 使用 password input 且列表中只显示“已填写/待填写”。
 - `frontend/src/lib/api.ts` 补齐 `McpServerConfig.env_keys` 类型，与后端 masked response 对齐。
+- `backend/tests/test_external_surface_guards.py` 新增后端回归：创建带 secret env 的 MCP connector 后，只更新元数据时响应仍只返回 `env_keys`、数据库 env 保留、审计日志不含 secret。
 - 这降低本地 connector 配置 CRUD 的凭据丢失/泄露风险；真实 approved MCP connector 连接演练、外部 provider 凭据、route-token runtime 证据仍保持阻断。
 
 2026-05-08 本轮移动远控控制面与 host 生命周期切片：

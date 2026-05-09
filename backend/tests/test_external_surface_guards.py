@@ -960,6 +960,57 @@ async def test_mcp_server_create_writes_masked_audit_log(admin_auth_client, db_s
 
 
 @pytest.mark.asyncio
+async def test_mcp_server_update_preserves_masked_env_when_omitted(admin_auth_client, db_session):
+    create_response = await admin_auth_client.post(
+        "/api/v1/mcp/servers",
+        json={
+            "name": f"ci-mcp-preserve-{uuid4().hex[:8]}",
+            "description": "initial",
+            "type": "stdio",
+            "command": "npx",
+            "args": ["tool"],
+            "env": {"API_TOKEN": "secret-value"},
+            "is_enabled": False,
+        },
+    )
+    assert create_response.status_code == 200
+    server_id = create_response.json()["id"]
+
+    update_response = await admin_auth_client.put(
+        f"/api/v1/mcp/servers/{server_id}",
+        json={
+            "description": "metadata-only update",
+            "is_enabled": True,
+        },
+    )
+
+    assert update_response.status_code == 200
+    payload = update_response.json()
+    assert payload["description"] == "metadata-only update"
+    assert payload["env_keys"] == ["API_TOKEN"]
+    assert "env" not in payload
+
+    stored = await db_session.get(McpServerConfig, server_id)
+    assert stored is not None
+    assert stored.env == {"API_TOKEN": "secret-value"}
+
+    audit_result = await db_session.execute(
+        select(AuditLog).where(
+            AuditLog.action == "mcp.server.update",
+            AuditLog.resource_id == server_id,
+        )
+    )
+    audit_log = audit_result.scalar_one()
+    serialized = json.dumps(
+        {"old": audit_log.old_value, "new": audit_log.new_value},
+        ensure_ascii=False,
+    )
+    assert audit_log.old_value["env_keys"] == ["API_TOKEN"]
+    assert audit_log.new_value["env_keys"] == ["API_TOKEN"]
+    assert "secret-value" not in serialized
+
+
+@pytest.mark.asyncio
 async def test_mcp_server_create_rejects_unapproved_sse_in_staging(admin_auth_client, db_session, monkeypatch):
     from src.services import mcp_client_service
 

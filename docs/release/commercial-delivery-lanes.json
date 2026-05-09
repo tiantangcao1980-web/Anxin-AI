@@ -163,6 +163,7 @@
         "frontend/src/pages/Settings.tsx",
         "frontend/src/pages/mcpSettingsModel.ts",
         "frontend/src/pages/mcpSettingsModel.test.ts",
+        "backend/tests/test_external_surface_guards.py",
         "frontend/e2e/settings-workstation.spec.ts",
         "docs/release/external-resource-handoff.md",
         "scripts/desktop-release-package.sh",
@@ -181,6 +182,7 @@
         "bash scripts/desktop-installed-profile-smoke.sh --out docs/release/evidence/artifacts/desktop-installed-profile-smoke-YYYYMMDD.json",
         "cd frontend && npm test -- PrivacyContext.test.ts",
         "cd frontend && npm test -- mcpSettingsModel.test.ts",
+        "backend/.venv/bin/pytest -q backend/tests/test_external_surface_guards.py -k \"mcp_server_update_preserves_masked_env_when_omitted or mcp_server_create_writes_masked_audit_log\"",
         "cd frontend && npx playwright test e2e/settings-workstation.spec.ts --project=chromium --project=mobile",
         "cd desktop && cargo test runtime_config",
         "cd desktop && cargo test app_mode"
