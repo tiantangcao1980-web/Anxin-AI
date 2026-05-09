@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { summarizeFileDropQueueReport } from './desktopFileDropEvents'
+import { extractDesktopFileDropPaths, summarizeFileDropQueueReport } from './desktopFileDropEvents'
 import type { FileDropQueueReport } from './tauri-bridge'
 
 const queuedContract = {
@@ -55,5 +55,17 @@ describe('desktopFileDropEvents', () => {
 
   it('skips empty reports', () => {
     expect(summarizeFileDropQueueReport({ queued: [], unsupported: [] })).toBeNull()
+  })
+
+  it('extracts only dropped file paths from Tauri drag drop payloads', () => {
+    expect(
+      extractDesktopFileDropPaths({
+        type: 'drop',
+        paths: [' /Users/me/合同.pdf ', '/Users/me/meeting.md', 42, ''],
+      }),
+    ).toEqual(['/Users/me/合同.pdf', '/Users/me/meeting.md'])
+
+    expect(extractDesktopFileDropPaths({ type: 'enter', paths: ['/tmp/a.pdf'] })).toEqual([])
+    expect(extractDesktopFileDropPaths({ type: 'drop', paths: 'not-array' })).toEqual([])
   })
 })

@@ -33,7 +33,14 @@ import { ModeGate } from '@/components/mode/ModeGate'
 import { SubscriptionGate } from '@/components/mode/SubscriptionGate'
 import { useAppModeStore, useAuthStore } from '@/lib/store'
 import { summarizeFileDropQueueReport } from '@/lib/desktopFileDropEvents'
-import { getAppState, isTauri, listenFileDropQueued, saveAuthToken } from '@/lib/tauri-bridge'
+import {
+  getAppState,
+  isTauri,
+  listenDesktopFileDrops,
+  listenFileDropQueued,
+  queueFileDropPaths,
+  saveAuthToken,
+} from '@/lib/tauri-bridge'
 
 // ===== 路由懒加载 =====
 // 每个页面只在用户访问时才加载对应的 JS 代码
@@ -246,6 +253,40 @@ function App() {
       })
       .catch((error) => {
         console.debug('[Desktop] 文件拖入队列提示监听失败:', error)
+      })
+
+    return () => {
+      disposed = true
+      unlisten?.()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isTauri()) {
+      return
+    }
+
+    let disposed = false
+    let unlisten: (() => void) | null = null
+
+    listenDesktopFileDrops((paths) => {
+      if (paths.length === 0) return
+
+      queueFileDropPaths(paths).catch((error) => {
+        toast.error('文件入队失败', {
+          description: error instanceof Error ? error.message : '请稍后重试',
+        })
+      })
+    })
+      .then((cleanup) => {
+        if (disposed) {
+          cleanup()
+          return
+        }
+        unlisten = cleanup
+      })
+      .catch((error) => {
+        console.debug('[Desktop] 文件拖放监听启动失败:', error)
       })
 
     return () => {

@@ -23,7 +23,7 @@
 
 2026-05-09 桌面端补充：`Cmd/Ctrl+Shift+Space` 快问主链路已从“隐藏/呼出主窗口”改为独立 `quick-query` 窗口，`/desktop/quick-query` 在 top-secret/hybrid 桌面模式下走本地 `local_llm_chat`，cloud/web 走既有 chat stream/send API，并通过 `hide_quick_query_window` 支持关闭、ESC、失焦和回答后自动隐藏。当前证据为 `cargo test quick_query`、`quickQueryModel.test.ts` 和 `e2e/quick-query.spec.ts` 代码/浏览器级通过；packaged runtime 快捷键实测、200ms 性能、真实本地模型和 signed runtime 证据仍未关闭。
 
-2026-05-09 桌面端补充：文件拖入分析已补代码级入队底座，`.pdf/.doc/.docx` 会分类到 `contract_review`，`.txt/.md` 会分类到 `document_summary`，并通过 `queue_file_drop_paths` 写入 Rust SQLCipher/keyring 管理的 `offline_tasks` 队列；返回值和 `desktop://file-queued` 事件只暴露文件名与 task id，不暴露完整本地路径。前端已监听 `desktop://file-queued` 并展示入队/部分入队/不支持文件 toast，且 toast 摘要模型单测覆盖不泄露完整本地路径。当前仍缺真实平台级托盘 drop 手势、500ms 提示性能、packaged runtime 和 signed runtime 证据。
+2026-05-09 桌面端补充：文件拖入分析已补代码级入队底座，`.pdf/.doc/.docx` 会分类到 `contract_review`，`.txt/.md` 会分类到 `document_summary`，并通过 `queue_file_drop_paths` 写入 Rust SQLCipher/keyring 管理的 `offline_tasks` 队列；返回值和 `desktop://file-queued` 事件只暴露文件名与 task id，不暴露完整本地路径。前端已监听 `desktop://file-queued` 并展示入队/部分入队/不支持文件 toast，且 toast 摘要模型单测覆盖不泄露完整本地路径；桌面主窗口 WebView 文件 drop 已接入 `queueFileDropPaths`，成功提示统一由 `desktop://file-queued` 负责。当前仍缺真实平台级托盘 drop 手势、500ms 提示性能、packaged runtime 和 signed runtime 证据。
 
 ## 2. 必须补齐的商业证据
 

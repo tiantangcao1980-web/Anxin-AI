@@ -2,6 +2,11 @@ import type { FileDropQueueReport, FileDropQueuedTask, UnsupportedFileDrop } fro
 
 export type FileDropQueueToastVariant = 'success' | 'warning' | 'info'
 
+export interface DesktopDragDropPayload {
+  type: string
+  paths?: unknown
+}
+
 export interface FileDropQueueToastSummary {
   title: string
   description: string
@@ -45,4 +50,15 @@ export function summarizeFileDropQueueReport(report: FileDropQueueReport): FileD
     description: unsupportedCount === 1 ? formatUnsupportedFile(report.unsupported[0]) : `${unsupportedCount} 个文件暂不支持`,
     variant: 'warning',
   }
+}
+
+export function extractDesktopFileDropPaths(payload: DesktopDragDropPayload | null | undefined): string[] {
+  if (!payload || payload.type !== 'drop' || !Array.isArray(payload.paths)) {
+    return []
+  }
+
+  return payload.paths
+    .filter((path): path is string => typeof path === 'string')
+    .map((path) => path.trim())
+    .filter(Boolean)
 }

@@ -5,6 +5,8 @@
  * 在 Web 环境下所有函数安全降级为空操作或默认值。
  */
 
+import { extractDesktopFileDropPaths, type DesktopDragDropPayload } from './desktopFileDropEvents'
+
 // ===== 平台检测 =====
 
 /** 是否运行在 Tauri 环境中 */
@@ -319,6 +321,23 @@ export async function listenFileDropQueued(
   onQueued: (report: FileDropQueueReport) => void,
 ): Promise<() => void> {
   return listenEvent<FileDropQueueReport>(FILE_DROP_QUEUED_EVENT, onQueued)
+}
+
+export async function listenDesktopFileDrops(onDrop: (paths: string[]) => void): Promise<() => void> {
+  if (!isTauri()) return () => {}
+
+  try {
+    const { getCurrentWebview } = await import(/* @vite-ignore */ '@tauri-apps/api/webview')
+    return await getCurrentWebview().onDragDropEvent((event: { payload: DesktopDragDropPayload }) => {
+      const paths = extractDesktopFileDropPaths(event.payload)
+      if (paths.length > 0) {
+        onDrop(paths)
+      }
+    })
+  } catch (error) {
+    console.debug('[Tauri] 监听桌面文件拖放失败:', error)
+    return () => {}
+  }
 }
 
 // ===== 离线任务队列（Harness Engineering）=====
