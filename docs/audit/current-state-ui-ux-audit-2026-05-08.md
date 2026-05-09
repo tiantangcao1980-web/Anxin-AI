@@ -22,7 +22,6 @@
 | 代码质量 | Backend Ruff/mypy、frontend lint/test/build、mobile test/typecheck、mini tsc、desktop cargo check 均已通过本轮复验 | 代码级可继续推进 |
 | 商业发布 | `commercial-readiness-gate.sh --quick` 在 clean baseline 仍因 Not ready 和 payment/e-sign/desktop/mobile evidence pending 失败 | 不能 Go |
 | 政府交付 | 仍有 mock 默认、真实沙箱缺口、签名/公证缺口、真机缺口、UI/UX 一致性缺口 | 不能对政府用户宣称可上线 |
-| 文档状态 | 发布文档大体完整，但部分 dirty worktree/GitNexus 陈述曾停留在历史快照 | 本轮已开始更正 |
 | UI/UX | 移动端、微信小程序、桌面端均存在跨端 token 漂移、关键流程未闭环或用户可见粗糙面 | 必须列入 P0/P1 |
 | 产品定位 | 已从单一 AI 法务工具升级为中小企业经营风险平台 + 全设备智能助手 | 需求和 OpenSpec 需同步更新 |
 
@@ -89,7 +88,6 @@
 
 | 阶段 | 目标 | 主要任务 | 验收 |
 |---|---|---|---|
-| Phase 0 清场与基线 | 不让旧文档、缓存、历史索引备份干扰开发 | 更新过时 dirty/GitNexus 陈述；保留 host probe；清理 ignored runtime/cache/旧 `.gitnexus.*` 备份 | 文档 validator、secret scan、`git diff --check` 通过 |
 | Phase 1 P0 真实闭环 | 阻断政府交付的假成功和关键入口问题 | provider/OA production fail-closed 已代码级闭环；desktop old sync fallback 禁用；mobile investigation/knowledge 入口已代码级闭环；真机/DevTools evidence | 相关单测、mobile/mini smoke、desktop cargo/frontend tests、commercial gate 失败原因减少 |
 | Phase 2 跨端 UI/UX | 让移动/小程序/桌面形成同一套专业体验 | token contract；移动硬编码颜色迁移；小程序暗色策略；桌面冲突管理和托盘菜单改造 | iOS/Android/WeChat/desktop 截图或 transcript，Design Craft gate 复验 |
 | Phase 2.5 可信交互 | 把 Codex/Claude 风格工作台体验落进关键路径 | 长任务时间线、工具状态、引用证据、artifact 编辑、暂停/恢复/接管、能力中心和命令面板 | chat/agent e2e、桌面/移动 transcript、artifact 编辑和恢复测试 |

@@ -20,15 +20,9 @@
 
 ## 当前规模
 
-基于本地检查和 GitNexus 索引：
 
 | 指标 | 数量 |
 |---|---:|
-| GitNexus 索引文件 | 1181 |
-| GitNexus 节点 | 30003 |
-| GitNexus 关系 | 54587 |
-| GitNexus 流程 | 300 |
-| GitNexus embeddings | 28219 |
 | Web 页面文件 | 约 55 |
 | Web 组件文件 | 约 286 |
 | 后端 route 文件 | 约 58 |

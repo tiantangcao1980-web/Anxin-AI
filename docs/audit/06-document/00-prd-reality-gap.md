@@ -23,7 +23,6 @@
 | Other attachment domains still need migration | IM attachments, due diligence reports, case evidence, templates, A2UI exports, and desktop sync are downstream users of the same storage contract | Each downstream task must call `object_storage_service` rather than reintroducing local file paths |
 | Playwright user stories missing | Backend tests prove services, not full browser upload/download/collaboration behavior | Add upload, download, and two-user collaboration stories |
 | Production data migration not rehearsed | SQLite migration proof exists, but production will likely use Postgres | Run upgrade/downgrade on a staging snapshot before release |
-| GitNexus full rebuild still blocked | Knowledge graph uses last successful index plus diff scanning, not a complete fresh graph over new files | Keep pairing GitNexus MCP with `git status`, `rg`, direct source review, and tests |
 
 ## 3. Decision
 

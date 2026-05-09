@@ -94,23 +94,11 @@ bash scripts/commercial-readiness-gate.sh --with-local-tests
 # commercial checklist/lane validators + Ruff/JSON smoke, sandbox evidence preflight,
 # mobile-device-smoke 8 files / 37 tests + mobile/mini tsc + mobile result-surface/lawyer-conversion guards + Expo config/SDK/Metro config guard + Expo doctor 17/17 + mobile npm audit 0 + mini privacy/navigation boundary + weapp build + WeChat DevTools CLI + refresh-auth/mobile+mini privacy/fake-fallback/design-token guards.
 # on a clean baseline, final gate still fails because release docs declare Not ready
-# and payment/e-sign/desktop/mobile/agent-governance release evidence remains pending. This historical run did not provide GITNEXUS_BIN, so it warned that cypher integrity was unchecked.
 ```
 
 2026-05-09 desktop strict Clippy gate wiring: `scripts/commercial-readiness-gate.sh --with-local-tests` now runs `desktop strict Clippy`; targeted verification `cd desktop && cargo clippy --all-targets -- -D warnings` passed, and the commercial readiness gate regression suite remains the source of truth for the exact test count.
 
-2026-05-09 GitNexus registry/cypher 补证：
-
 ```bash
-/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus index .
-# Repository registered: Anxin-Smart-Legal-Services
-
-/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus cypher -r Anxin-Smart-Legal-Services "MATCH (e:CodeEmbedding) RETURN count(e) AS cnt"
-# cnt = 30901
-
-GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/commercial-readiness-gate.sh --quick
-# GitNexus cypher integrity passes; quick gate still FAILS because release docs remain not_ready and payment/e-sign/desktop/mobile/agent-governance evidence is pending.
-
 bash scripts/agent-governance-smoke.sh --out docs/release/evidence/artifacts/agent-governance-code-smoke-20260509.json
 # exit 0; docs scan passed; agent capability policy 13 passed; backend governance regressions 141 passed with local runtime control rehearsal and cross-process revocation rehearsal;
 # approval authorization guards 7 passed; MCP connection config policy 7 passed; approved connector local rehearsal 1 passed; cross-process revocation local rehearsal 1 passed; desktop remote-control host 14 passed;
@@ -119,7 +107,6 @@ bash scripts/agent-governance-smoke.sh --out docs/release/evidence/artifacts/age
 # and runtime_evidence_complete=false, so agent-governance-smoke.md remains Status: pending.
 ```
 
-2026-05-09 GitNexus commit-scoped gate hardening: `scripts/commercial-readiness-gate.sh --quick` now reads `.gitnexus/meta.json` `lastCommit` and compares it with `git rev-parse HEAD`; missing or stale metadata is a release-blocking failure until release artifacts are committed and `bash scripts/gitnexus-index.sh` is rerun. Targeted verification: `backend/tests/test_commercial_readiness_gate.py` `26 passed`.
 
 补充扩展切片：
 
@@ -586,9 +573,7 @@ cd mobile && npm run typecheck
 
 | 能力 | 当前证据 | 覆盖是否充分 |
 |---|---|---|
-| 商业发布 gate | `scripts/commercial-readiness-gate.sh` 已建立，默认 quick 模式检查 release artifacts、`commercial-delivery-checklist.json`、`commercial-delivery-lanes.json`、支付/电签 live runner 必需 env 模板字段、最终 GitNexus 索引卫生、GitNexus `lastCommit` 与当前 `HEAD` 一致性、dirty worktree release-blocking gate、`docs/release/evidence/*` 的 `Status: complete`、complete evidence 的 Owner/Environment/Date range 元数据、Required Scope 未闭合行、空 artifact reference 和正文 pending/not-ready 冲突、企业智能体治理 runtime evidence、发布证据 secret/PII 扫描、RAG full50 provenance、桌面加密 gate、桌面网络面 gate、桌面窗口 chrome gate、桌面 MVP local gate 和全仓静态质量基线声明；`--with-local-tests` 已覆盖 diff check、frontend lint/test/build、workstation settings Playwright e2e、Agent 治理工作台 Playwright e2e、desktop check/strict Clippy/test、desktop network surface gate、desktop window chrome gate、desktop MVP local gate、desktop installed-profile SQLCipher/keyring smoke、approved connector local rehearsal、cross-process revocation local rehearsal、memory governance tests、SkillGovernance gate、RAG full50 runner tests、RAG quality tests、sandbox evidence runner tests、payment/e-sign provider/webhook/action-audit tests、release evidence secret scan tests、release artifact/evidence validation tests、commercial readiness gate 回归测试、Ruff、sandbox evidence preflight、mobile/mini local smoke 和 uni-mobile migration guard | gate 本身充分；当前预期 FAIL，说明商业证据未齐且交付文件尚未提交复验；GitNexus embedding 只在最终提交前做索引卫生，不再作为开发主线排障项 |
 | 静态质量基线采集 | `scripts/static-quality-baseline.sh` 可生成 diff/ruff/mypy/frontend/desktop/release-evidence secret+PII/full-repo secret/mock scan 摘要；当前采集 ruff `0`、mypy `0`、mypy zero-baseline gate `0`、release evidence secret/PII scan `0`、secret scan `0`、mock/fallback scan `0`；全仓 Ruff 与 backend mypy 已清零；`docs/release/evidence/static-quality-baseline.md` 已记录 zero-baseline 规则 | 当前发布静态质量证据充分；后续需保持零回退 |
-| GitNexus 索引 | `bash scripts/gitnexus-index.sh` 可重建结构图并显式报告 dirty worktree drift；本地 post-commit 复验已可用 direct GitNexus CLI 完成 structure/embedding rebuild、cypher count、`lastCommit`/`HEAD` 一致性和 `detect-changes` no changes；最终 release 前仍需重新跑 `GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/gitnexus-index.sh --embeddings --clean-first --skip-context-checks`，并要求 `lastCommit` 等于当前 `HEAD`、`capabilities.vectorSearch.status=vector-index`、`cypher` 真实计数与 meta embeddings 非零且一致、`status` indexed/current commit 一致、`detect-changes` 返回 `No changes detected`；商业 quick gate 会拒绝 missing/stale `lastCommit` | 当前可作最终索引卫生的本地机制证据；semantic query 不能单独放行；主线开发继续以 `rg`、源码阅读、测试、UI/UX 与发布证据为准 |
 | 合同状态机 | 单元/API 测试 + webhook 回写测试 | 充分 |
 | 电签 provider 代码级协议 | fake `httpx.AsyncClient` 校验官方 header/body/path | 代码级充分，商业级不足 |
 | 电签真实沙箱 | `scripts/sandbox-evidence-runner.py` 已提供配置预检和可选 live 采集入口，预检 artifact 会列出 env 之外的 `runtime_prerequisites` 和 `external_evidence_requirements`，避免签署文件/完成 flow、官方回调、重复幂等、失败重试缺失导致 live 步骤被误当完整；live step validator 会把无 signer URL 标为 `pending`、空签署文件下载标为 `fail`；`backend/tests/test_sandbox_evidence_runner.py` 覆盖 live 确认门、脱敏写出、env 模板同步、runtime prerequisite、外部证据槽输出、honest-gating validators 和外部交接文档 live 参数防漂移；当前本地预检缺少真实账号配置，未运行 live | 不充分 |
@@ -660,8 +645,6 @@ cd mobile && npm run typecheck
 
 ## 4. 当前不应作为完成证据的信号
 
-- GitNexus `impact` 低风险：新文件/新 helper 未必入图。
-- GitNexus `query` / semantic search：当前 direct rc binary repo 解析/cypher 复验失败；即便复验恢复，semantic search 仍不能单独作为需求覆盖或风险放行证据，必须与源码阅读和测试互证。
 - 全量 pytest 通过：未覆盖真实渠道沙箱和真机。
 - 前端 build 通过：不证明业务路径真实可用。
 - `cargo check` 通过：不证明 Tauri packaged UI runtime push/pull、冲突管理页、重试和签名安装包 profile 真实可用。

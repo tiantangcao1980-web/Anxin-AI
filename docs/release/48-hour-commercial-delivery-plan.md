@@ -1,16 +1,13 @@
 # 48 小时商业交付倒排计划
 
 > 日期：2026-05-09
-> 基线：当前仓库的代码级门禁大多已过，RAG 内建 full50 已闭合，前端和移动 production dependency audit 已清零，上一轮 clean baseline 的 GitNexus 已索引到 `1c8cccde`；真正阻断点集中在支付/电签真实资源、桌面 signed/notarized package 与 packaged runtime、移动真机/交互式验证、桌面主工作站/移动远控/任意 LLM-Skills-MCP 配置证据，以及发布前 clean worktree / 每次最终提交后的 GitNexus 复验。
 > 规则：没有真实资源就只做预检、代码级收口和证据模板，不用 mock/fake 伪造 live 结果。2026-05-09 起，开发执行优先级调整为桌面端功能和本地门禁优先；移动 App/小程序随后按 uni-app 统一端迁移推进。
 
 ## 当前执行快照
 
 | 维度 | 当前事实 | 48 小时内处理口径 |
 |---|---|---|
-| GitNexus | `.gitnexus/meta.json` 在上一轮 clean baseline 已重建到 commit `ccb316d8`，统计为 files `1431`、nodes `36114`、edges `65135`、processes `300`、embeddings `34002`；当前若继续提交文档或代码，提交后必须再次刷新 GitNexus，确保 `lastCommit == HEAD` | 本轮开发继续以 `rg`、源码阅读和测试为主；每次形成最终提交后刷新 GitNexus，quick gate 会阻断 stale index |
 | release artifacts | 最新 clean baseline `python3 scripts/validate-release-artifacts.py` -> `PASS (35 JSON artifacts)`；`bash scripts/release-evidence-secret-scan.sh` -> `PASS`；`git diff --check` -> `PASS` | 新增真实证据后立即复跑 artifact validator 和 secret scan |
-| 工作树 | 上一轮本地交付已提交并复验 GitNexus；当前增量必须保持可追踪，外部证据仍只接受可追踪 release artifact | 42-48h 必须复跑 `release-worktree-inventory`，确认 `local_secret=0`、`unknown=0`，并在新增交付文件后重新提交和复验 GitNexus |
 | 桌面 | unsigned release `.app` + DMG 已在 unsandboxed macOS 环境构建通过；unsigned release packaged runtime self-test/startup/WebView page-load/sync-loopback smoke 已通过；unsigned release packaged-profile plaintext-to-SQLCipher/keyring reopen 和 SQLCipher 100/500 performance smoke 已通过；release preflight 新增 `hdiutil` / DiskManagement probe 且当前通过；preflight 仍缺 signing identity / codesign identity / notarization / code-sign verification / signature authority | 补签名/公证输入和 signed packaged-profile/performance/shared-staging sync/cross-device evidence |
 | 移动/小程序 | 2026-05-09 复跑 `scripts/mobile-device-smoke.sh` 通过：mobile `8 files / 37 tests`、tsc、mobile result surface guard、mobile lawyer conversion guard、Expo doctor `17/17`、mobile npm audit `0`、mini tsc/build、mini privacy boundary guard、WeChat DevTools CLI project smoke、refresh/mobile+mini privacy/fallback/design-token guards，并写出 `mobile-mini-code-smoke-20260509.json`；移动请求层已透传 `X-Privacy-Mode` 且 local 模式 fetch 前 fail-closed；移动端新增 `/desktop-control` 状态页与个人中心入口，local 模式零网络，hybrid/cloud 只读取 `/sync/remote-control/status` 安全闸并展示不可用原因；移动尽调/知识库搜索已有页面内结果摘要；移动找律师已从纯列表升级为匿名咨询/律师选择/匿名聊天室/委托 API 转化链路；小程序请求层已透传 `X-Privacy-Mode`，local/top-secret 在数据请求和登录前 fail-closed；host probe 更新为 `mobile-device-host-probe-20260508.json`，确认 iOS Simulator 可用、Android device/emulator 仍缺；2026-05-09 用户决定新移动 App/小程序统一转向 uni-app，旧 Expo/Taro 仅作 legacy 参考；`apps/uni-mobile` 首版基座已通过 `scripts/uni-mobile-smoke.sh`：typecheck、12 个契约测试、production audit `0`、H5 build 和 WeChat Mini Program build | 代码级已稳且 uni-app 基座已可跑；旧端不再扩展；商业证据还缺真实/官方 iOS、Android、交互式 WeChat DevTools 或真机、DCloud App 云打包/签名、跨设备连续会话和真实移动远控桌面 |
 | 全设备智能助手 | LLM/MCP/Skills/knowledge/local LLM 底座已在后端、桌面和移动隐私上下文中存在；后端 LLM 配置 API 已补创建绑定组织、读取/更新/删除/默认/启停/测试已保存配置的组织级边界、默认配置同组织隔离和 API key 遮罩响应；前端 Settings 与后台模型配置页已复用组织级 `/llm/configs` 面板，遮罩展示已保存密钥，编辑元数据时不回传 `api_key`，新增或显式替换时才发送密钥；后端 `/skill-governance/connectors` 已补 Skills connector 组织级凭据配置 CRUD，保存 `encrypted_fields`，响应和审计只暴露 `credential_keys`，元数据编辑默认保留已保存密钥；Agent 治理工作台已补 Skills connector 前端凭据体验，支持管理员创建、编辑、保留/替换/清空凭据、启停和删除，列表只展示 `credential_keys`；桌面工作站已补本地 LLM/模型数量/离线队列、知识库数量/文档数、MCP 服务/启用/工具缓存只读探针、secret-free 环境配置档 CRUD，并新增移动远控 host 可见控制面，支持 pending pairing 桌面确认、confirmed pairing safe-probe host cycle、queued/claimed 取消和脱敏审计时间线；后端 `/sync/remote-control/*` 已补 DB-backed 配对、桌面确认、pairing-scoped route token、命令队列、host 领取、running/completed/failed 状态回传、取消和递归脱敏审计控制面，本地/绝密/缺二次确认/缺配对/缺 route token 仍拒绝且不入队；桌面 Tauri IPC host 客户端已补确认配对、领取命令、回传状态、显式 safe-probe 单次循环、bounded safe-probe poll 和 env-gated 后台 safe-probe daemon 基础，并已用本地 mock 后端证明 claim -> running -> completed safe-probe 回路；移动端 `/desktop-control` 已接入该安全闸，只做状态展示，不提供假执行成功；2026-05-08 OpenSpec 已把桌面主工作站、移动远控、任意模型/Skills/MCP、独立知识库和本地模型安全列为验收 | 48 小时内继续补真实 provider 密钥联调、approved MCP connector runtime 证据、商业多进程撤销运行时证据、signed runtime daemon 运行证据、高风险真实执行器、真实跨设备远控联调和 signed 绝密模式出站拦截证据 |
@@ -91,11 +88,9 @@
 | 项目 | 内容 |
 |---|---|
 | 负责人 | 发布主控 + 最终审批人（用户） |
-| 本地可完成 | 最终整理工作树、补提交说明、跑商业门禁和 GitNexus 复验，确认没有新的 secret / unknown / not-ready 漏洞 |
 | 需用户申请后给密钥/证书 | 不新增资源；这段只做收口与签字 |
 | 需真机/交互式验证 | 只做最后一次人工确认：关键截图、签名包、callback 日志、设备记录、release evidence 状态 |
 | 产物 | 最终 gate transcript、clean worktree 证据、所有 evidence 文件 `Status: complete` 或明确保留的阻断说明、发布决策记录 |
-| 验证命令 | `python3 scripts/release-worktree-inventory.py --json`<br>`git diff --check`<br>`bash scripts/release-evidence-secret-scan.sh`<br>`node scripts/validate-external-resource-requirements.cjs`<br>`node scripts/validate-commercial-delivery-lanes.cjs`<br>`GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/commercial-readiness-gate.sh --quick`<br>`GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/commercial-readiness-gate.sh --with-local-tests` |
 | 退出标准 | 商业门禁通过，或门禁仍失败但失败原因只剩下明确列出的外部资源缺口；工作树可追踪、证据可追踪、没有假完成 |
 
 ## 48 小时结束时的判断

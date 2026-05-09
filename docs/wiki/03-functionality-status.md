@@ -20,7 +20,6 @@
 
 ### 合同审查
 
-GitNexus 能识别的合同审查服务流：
 
 1. `contracts.upload_and_review_contract`
 2. `ContractService.create_contract`
@@ -66,13 +65,11 @@ Web 路由已使用：
 
 ### 电子签
 
-GitNexus 旧索引显示：
 
 - `ESignBaoProvider` 是占位实现
 - `FaDaDaProvider` 是占位实现
 - 核心方法抛 `NotImplementedError`
 
-当前工作区可能有后续改动，但在 GitNexus 成功重建前，电子签必须以源码审计和专项测试为准，不能只看索引。
 
 ### 多模态
 

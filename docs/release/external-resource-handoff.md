@@ -196,9 +196,7 @@ After all lane evidence is complete:
 ```bash
 python3 scripts/validate-release-artifacts.py
 bash scripts/release-evidence-secret-scan.sh
-GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus \
   bash scripts/commercial-readiness-gate.sh --quick
-GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus \
   bash scripts/commercial-readiness-gate.sh --with-local-tests
 ```
 

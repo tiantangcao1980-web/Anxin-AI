@@ -56,7 +56,6 @@ bash scripts/desktop-network-surface-gate.sh
 - 每个任务至少收口其 touched files 的类型/静态检查问题。
 - 全仓 ruff/mypy 必须保持零回退；任何非零结果都应阻断 release readiness。
 
-`scripts/commercial-readiness-gate.sh` 是商业发布硬门禁，不是普通开发门禁。当前它应当失败；内建 RAG full50 release evidence 已完成，移动/小程序本地 smoke 已建立，但支付/电签真实沙箱、桌面 signed/notarized runtime、移动真机和最新提交的 GitNexus commit-scoped 复验仍未闭合。外部证据模板在 `docs/release/evidence/`，gate 只接受 `Status: complete`。
 
 静态质量基线可用以下命令采集；当前 evidence 要求 backend mypy `0` 错误，并由 `scripts/mypy-baseline-check.sh` 的 zero-baseline gate 保护：
 
@@ -275,31 +274,22 @@ python3 eval/rag_quality.py --golden eval/legal_full50_golden.jsonl --prediction
 | 4 | extensibility | LLM provider/endpoint/model/key、Skills、MCP Server、知识库配置 CRUD；组织隔离、权限拒绝、隐私模式出站拦截、调用日志；Skill 版本、评测、审批、回滚 |
 | 5 | enterprise-agent-governance | 订阅、角色、能力、风险级别、隐私模式、设备信任、通信策略、审批状态的统一决策；Agent/Worker consumer token；真实密钥不进 agent；人类可介入工作室；Skill Evolution Gate |
 
-## 3. GitNexus 使用门槛
+## 3. 代码查证要求
 
-每个任务开工前：
+每个任务开工前必须用源码检索和直接阅读确认影响面；共享符号、跨端桥接、权限守卫和数据模型变更必须额外补测试或说明不补的原因。
 
-```bash
-GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus \
-bash scripts/gitnexus-index.sh --skip-context-checks
-/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus \
-  context -r Anxin-Smart-Legal-Services <target-symbol>
-```
-
-对共享符号：
+推荐命令：
 
 ```bash
-/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus \
-  impact -r Anxin-Smart-Legal-Services <symbol> --direction upstream
+rg -n "<target-symbol>" backend frontend desktop apps mobile mini-program scripts docs
+git status --short
+git diff --check
 ```
 
 补充规则：
 
 - 如果目标在 13 个 Python warning 文件内，必须额外 `rg`。
 - 如果目标是 React JSX 组件使用关系，必须额外 `rg "<ComponentName>" frontend/src frontend/e2e`。
-- 本机有多个 GitNexus 仓库索引；所有 `query` 必须显式指定 `--repo Anxin-Smart-Legal-Services`，否则会因 multi-repo disambiguation 失败。
-- 如果 GitNexus `query --repo Anxin-Smart-Legal-Services` 返回空，不代表代码不存在；必须使用 `rg`、源码阅读和测试复查。
-- GitNexus embeddings 已在上一轮 clean baseline 刷新到 commit `ccb316d8`，`.gitnexus/meta.json` 记录 files `1431`、nodes `36114`、edges `65135`、processes `300`、embeddings `34002`。semantic query 仍只作为辅助导航；每次最终提交后必须刷新到最新 `HEAD`，并与源码和测试互证。
 
 ## 4. 发布前验收
 

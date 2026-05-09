@@ -2,7 +2,6 @@
 
 > 日期：2026-05-08
 > 范围：将安心 AI 法务从当前 V2 架构骨架推进到可商业交付候选版。
-> 前置：`docs/audit/00-platform/06-gitnexus-knowledge-graph.md` 已确认索引可用边界。
 
 ## 0. 产品定位与全设备智能助手规范
 
@@ -52,7 +51,6 @@
 - 角色访问 E2E 当前达到 `10 passed, 10 skipped`。
 - 移动/小程序本地门禁：`bash scripts/mobile-device-smoke.sh` 通过，移动 Vitest `8 files / 27 tests passed`，移动 tsc、Expo doctor `17/17`、mobile production npm audit、小程序 tsc/build、WeChat DevTools CLI project smoke、mobile result surface guard、refresh auth guard、mobile/mini privacy network guard、fake fallback guard、mini-program navigation boundary guard 和 mini-program design token guard 均为 exit `0`。
 - 桌面端 `cargo check` 可通过。
-- GitNexus 索引复验：当前精确统计以 `.gitnexus/meta.json` 为准；最终商业 release 前必须重新证明 `capabilities.vectorSearch.status=vector-index`、embedding meta count 与 `gitnexus cypher` count 非零且一致，并让 direct binary 的 `status/cypher/detect-changes` 与当前 commit 一致；当前 direct CLI repo 解析未通过，semantic query 不作为唯一放行依据。
 - 本地/混合/云端与可配置模型已有架构基础：`docs/ARCHITECTURE_V2.md` 已定义本地模式数据不离开设备、Ollama/LM Studio 等自配置本地模型，以及 Enterprise 自定义 LLM endpoint；后端存在 `src/services/llm_service.py`、`src/services/private_llm_service.py`、`src/api/routes/llm.py`，桌面存在 `desktop/src/commands/local_llm.rs`。
 - MCP/Skills 已有代码基础：后端存在 `backend/src/mcp_server.py`、`backend/src/api/routes/mcp_routes.py`、`backend/src/services/mcp_client_service.py`、`backend/src/models/mcp_config.py`、`backend/src/services/skill_service.py`；这些证明扩展底座存在，但尚不能证明“任意 Skills/MCP 商业可配置”已经闭环。
 - 独立知识库已有代码基础：后端存在 `backend/src/services/knowledge_management.py`、`backend/src/services/knowledge_service.py`、`backend/src/api/routes/knowledge.py`；仍需把本地知识库、组织知识库、来源引用、离线索引和移动/桌面可视化配置纳入发布验收。
@@ -91,21 +89,18 @@
 - TASK-05 P0-2/P0-3 电签官方协议代码级已收口：e签宝 provider 已实现官方签名头、创建/启动流程、签署链接、状态查询、下载、撤销；法大大 provider 已实现 FASC V5.1 access token、签署任务、actor 链接、状态详情、下载 URL、取消；e签宝 `X-Tsign-Open-*` 回调与法大大 `X-FASC-*`/`bizContent` webhook 均进入统一幂等回写并写审计。仍阻断：真实商户沙箱 7 天、账号事件订阅清单、签署文件下载/撤销真实证据、灰度放量记录。
 - 支付 webhook 与电签 webhook 的通用 HMAC 路径已可分别回写订单/订阅、合同签署状态；`webhook_received` 持久化幂等表、重复通知跳过、Admin `/admin/webhooks` 查询/筛选/手动重试入口、Prometheus webhook 指标、电签 `flow_id → Contract` 持久映射、失败 webhook backoff 调度与可配置后台 worker、统一 `webhook_handler.py` 和稳定 `PaymentWebhookEvent` / `ESignWebhookEvent` 已落地，微信/支付宝/电签官方通知 id 已可作为幂等键。微信支付 v3 Native 下单/查单/关单/退款请求与同步响应 RSA-SHA256 验签、微信支付 v3 回调 RSA-SHA256 验签/资源解密、支付宝 `alipay.trade.page.pay/query/refund/close` 签名请求与同步响应/异步通知 RSA2 验签、e签宝与法大大官方电签协议代码级适配、退款 `idempotency_key` 唯一约束/同 key 100 并发回归、订阅 `pending/trial/active/past_due/cancelled/expired` 状态机与 `subscription_events` 审计、双客户端订阅隔离、IM 离线增量与 ACK 前后端协议已具备可测试实现。仍阻断：真实渠道沙箱闭环、微信平台证书/公钥轮换验证、电签账号事件映射和灰度证据。
 - 同步后端日志已从进程内存升级为 `SyncLog` 持久化 append-only 增量日志，并覆盖用户隔离、冲突报告和 artifact session 隔离；桌面端已改为 Rust SQLCipher/keyring 本地库路径，前端通过 Tauri secure SQL commands 读取本地 `sync_log`、push/pull 并写回 SQLCipher，迁移 SQL 可在 fresh/legacy 临时 SQLite DB 中执行通过，SQLCipher plaintext migration 单测通过，local installed-profile keyring/reopen smoke 通过，SQLite 100/500 本地同步性能基线已通过，`SyncStatus` 已有 keep-local/keep-remote 冲突对话框，当前展示字段差异摘要并把原始 JSON 放入高级详情折叠，桌面工具栏同步/冲突入口已使用稳定按钮尺寸、不换行状态文案和冲突数字胶囊，桌面托盘模式菜单与 tooltip 已改为纯文本专业文案，`/sync-conflicts` 已有 merge 编辑页，失败记录已有代码级指数退避和 `needs_human` 标记，Rust init schema 与前端同步 schema 已对齐，Tauri debug no-bundle、binary self-test、unsigned release `.app`/DMG、unsigned release packaged runtime self-test/startup/WebView page-load smoke、packaged-binary sync loopback smoke 和 unsigned release packaged-profile SQLCipher/keyring migration/performance smoke 可通过，`scripts/desktop-sqlite-security-gate.sh` 已通过桌面加密/keyring 代码级门禁。仍阻断：signed/notarized installer、signed packaged-profile migration 实装证据、signed packaged runtime 性能、共享预发后端 sync transcript 和跨端连续会话。
-- API shape 不能依赖 GitNexus `shape_check` 自动证明，必须用测试覆盖。
 
 ## 3. 分阶段目标
 
-### Phase 0 — 可信索引与规范冻结
+### Phase 0 — 规范与事实基线冻结
 
 目标：
-- GitNexus 索引可查询且边界清晰。
 - 本 OpenSpec 与测试规范冻结。
 - 任何后续开发必须引用对应任务与验收项。
 
 完成条件：
-- `docs/audit/00-platform/06-gitnexus-knowledge-graph.md` 存在。
 - `docs/openspec/01-commercial-delivery-spec.md` 与 `docs/openspec/02-commercial-delivery-test-spec.md` 存在。
-- 当前工作区改动通过 `git status` 归类：索引配置、规范文档、业务代码改动分别说明。
+- 当前工作区改动通过 `git status` 归类：规范文档、业务代码、发布证据和本地生成物分别说明。
 
 ### Phase 1 — P0 安全与商业模式守卫
 
@@ -193,7 +188,6 @@
 - 改 Agent control plane、CapabilityRoute、route token、审批流或工作室可见性前必须单独做安全审查、权限矩阵回归和审计日志回归。
 - 改 Skill 生命周期、进化策略、记忆治理、自动改写 prompt 或自我改进流程前必须单独做评测门禁、权限回归和人工审批。
 - 不新增依赖，除非任务文档明确要求且先记录理由。
-- GitNexus 用作导航，不作为唯一事实；前端 JSX 与 Python warning 文件必须用 `rg` 补查。
 
 ## 5. 交付物清单
 
@@ -213,6 +207,5 @@
 - `docs/release/rollback-runbook.md`
 - `docs/release/security-and-privacy-checklist.md`
 - `docs/release/test-evidence.md`
-- `scripts/gitnexus-index.sh`
 - `scripts/commercial-readiness-gate.sh`
 - `scripts/static-quality-baseline.sh`

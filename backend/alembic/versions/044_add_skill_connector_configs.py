@@ -1,7 +1,7 @@
 """add skill connector credential configuration table
 
 Revision ID: 044_skill_connector_configs
-Revises: 043_add_remote_control_execution_state
+Revises: 043_remote_control_execution_state
 Create Date: 2026-05-09
 """
 
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "044_skill_connector_configs"
-down_revision: str | None = "043_add_remote_control_execution_state"
+down_revision: str | None = "043_remote_control_execution_state"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

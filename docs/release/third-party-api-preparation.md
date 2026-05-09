@@ -72,7 +72,6 @@
 |---|---|---|
 | LLM | 默认模型 provider、API key、base URL、模型名、数据处理协议、调用额度 | `LLM_PROVIDER`、`LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL` |
 | Embedding | embedding key、base URL、模型名、维度、额度 | `EMBEDDING_API_KEY`、`EMBEDDING_BASE_URL`、`EMBEDDING_MODEL`、`EMBEDDING_DIMENSIONS` |
-| GitNexus embedding | OpenAI-compatible embeddings endpoint | `GITNEXUS_EMBEDDING_URL`、`GITNEXUS_EMBEDDING_MODEL`、`GITNEXUS_EMBEDDING_DIMS` |
 | 搜索/尽调 | Perplexity/search key、企查查/天眼查/爱企查/信用中国账号、IP 白名单、QPS、合规授权 | `SEARCH_API_KEY`、`QICHACHA_API_KEY`、`TIANYANCHA_API_KEY`、`AIQICHA_API_KEY`、`CREDIT_CHINA_API_KEY` |
 | 对象存储 | OSS/S3/MinIO endpoint、bucket、region、access key、CORS、加密/保留策略 | `STORAGE_BACKEND`、`MINIO_*` 或云厂商等价配置 |
 | 邮件 | 阿里云 DM 账号、发信域名、发信地址、模板 | `ALIYUN_EMAIL_*` |

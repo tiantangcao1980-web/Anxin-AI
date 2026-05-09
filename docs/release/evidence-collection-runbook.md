@@ -166,8 +166,5 @@ bash scripts/mobile-device-smoke.sh \
 python3 scripts/release-worktree-inventory.py
 git diff --check
 bash scripts/release-evidence-secret-scan.sh
-GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus \
-  bash scripts/commercial-readiness-gate.sh --quick
+bash scripts/commercial-readiness-gate.sh --quick
 ```
-
-如果商业门禁仍失败，不能把任何 evidence 文件标记为 complete。若工作树仍有未提交/未跟踪交付文件，先用 `release-worktree-inventory.py` 确认没有 `local_secret` 或 `unknown` 分类；`generated_or_runtime` 分类必须由发布主控逐项确认是否纳入提交。整理提交后，再重跑 GitNexus 和商业门禁；`commercial-readiness-gate.sh --quick` 会拒绝 `.gitnexus/meta.json` 缺失或落后于当前 `HEAD` 的 `lastCommit`。

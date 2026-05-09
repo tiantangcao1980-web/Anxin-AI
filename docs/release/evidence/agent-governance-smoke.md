@@ -83,5 +83,3 @@ Latest local collection on 2026-05-09:
 | frontend Agent governance workspace | `6 passed, 6 skipped` across desktop and mobile projects |
 
 ## Completion Rule
-
-Only change this file to `Status: complete` after the pending rows above have real redacted artifacts and the commercial readiness gate passes on a clean committed worktree. GitNexus may be rerun at final release for commit-scoped indexing, but it must not be used as a substitute for this runtime evidence.

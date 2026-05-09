@@ -75,5 +75,4 @@ Migration 029 adds transition metadata:
 | Default MinIO credentials accidentally used outside development | `.env`/deployment review must require rotated secrets |
 | New file domains bypass the storage contract | Treat direct local file writes as review blockers for IM, cases, due diligence, templates, A2UI, and desktop sync |
 | Large object reads exhaust memory | Add stream-oriented reads before exposing direct large-object download paths |
-| Full GitNexus rebuild does not yet include new files | Pair knowledge graph scans with `git status --short`, `rg`, direct source review, and pytest evidence |
 

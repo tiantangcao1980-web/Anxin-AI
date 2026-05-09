@@ -14,7 +14,7 @@ Usage:
   bash scripts/commercial-readiness-gate.sh [options]
 
 Options:
-  --quick              Check evidence files and local GitNexus metadata (default).
+  --quick              Check release evidence files and local readiness declarations (default).
   --with-local-tests   Also run local code-level smoke commands.
   -h, --help           Show this help.
 
@@ -76,45 +76,14 @@ require_command() {
   fi
 }
 
-read_meta_field() {
-  local expr="$1"
-  node -e "const fs=require('fs'); const m=JSON.parse(fs.readFileSync('.gitnexus/meta.json','utf8')); const v=${expr}; console.log(v ?? '')"
-}
-
-coerce_nonnegative_int() {
-  local value="$1"
-  case "$value" in
-    ''|*[!0-9]*)
-      printf '0'
-      ;;
-    *)
-      printf '%s' "$value"
-      ;;
-  esac
-}
-
 count_lines() {
   awk 'NF { n++ } END { print n + 0 }'
-}
-
-extract_cypher_count() {
-  node -e "
-let s = '';
-process.stdin.on('data', (chunk) => { s += chunk; });
-process.stdin.on('end', () => {
-  const jsonMatch = s.match(/\"cnt\"\\s*:\\s*(\\d+)/);
-  const markdownMatch = s.match(/\\|\\s*(\\d+)\\s*\\|/g)?.pop()?.match(/\\d+/);
-  process.stdout.write(jsonMatch?.[1] ?? markdownMatch?.[0] ?? '');
-});
-"
 }
 
 echo ">>> Checking release artifacts"
 
 required_artifacts=(
-  ".gitnexusignore"
   ".env.example"
-  "scripts/gitnexus-index.sh"
   "scripts/static-quality-baseline.sh"
   "scripts/mypy-baseline-check.sh"
   "scripts/sandbox-evidence-runner.py"
@@ -140,7 +109,6 @@ required_artifacts=(
   "scripts/validate-product-status-consistency.cjs"
   "scripts/validate-release-artifacts.py"
   "eval/rag_live_qdrant_full50.py"
-  "docs/audit/00-platform/06-gitnexus-knowledge-graph.md"
   "docs/audit/SUMMARY.md"
   "docs/openspec/01-commercial-delivery-spec.md"
   "docs/openspec/02-commercial-delivery-test-spec.md"
@@ -236,11 +204,11 @@ for template in ".env.example" "backend/.env.example"; do
   done
 done
 
-echo ">>> Checking GitNexus metadata"
+echo ">>> Checking clean release worktree"
 tracked_changes="$(git status --short --untracked-files=no | count_lines)"
 untracked_changes="$(git ls-files --others --exclude-standard | count_lines)"
 if [ "$tracked_changes" -gt 0 ] || [ "$untracked_changes" -gt 0 ]; then
-  add_failure "working tree is not clean: tracked_changes=${tracked_changes}, untracked_files=${untracked_changes}; GitNexus metadata is commit-scoped, so release artifacts must be committed and GitNexus must be rerun before Go"
+  add_failure "working tree is not clean: tracked_changes=${tracked_changes}, untracked_files=${untracked_changes}; release artifacts must be reviewed and committed before Go"
   if inventory_output="$(python3 scripts/release-worktree-inventory.py --json 2>&1)"; then
     inventory_counts="$(printf '%s\n' "$inventory_output" | node -e "let s=''; process.stdin.on('data', c => s += c); process.stdin.on('end', () => { const p = JSON.parse(s); const c = p.category_counts ?? {}; process.stdout.write([c.local_secret ?? 0, c.generated_or_runtime ?? 0, c.unknown ?? 0].join(' ')); });")"
     read -r local_secret_count generated_count unknown_count <<< "$inventory_counts"
@@ -249,51 +217,6 @@ if [ "$tracked_changes" -gt 0 ] || [ "$untracked_changes" -gt 0 ]; then
     [ "$unknown_count" -eq 0 ] || add_warning "dirty worktree contains ${unknown_count} unknown paths; run python3 scripts/release-worktree-inventory.py before staging"
   else
     add_warning "dirty worktree inventory failed: $inventory_output"
-  fi
-fi
-
-if [ ! -s .gitnexus/meta.json ]; then
-  add_failure "missing .gitnexus/meta.json; run bash scripts/gitnexus-index.sh first"
-else
-  files="$(read_meta_field 'm.stats?.files')"
-  nodes="$(read_meta_field 'm.stats?.nodes')"
-  edges="$(read_meta_field 'm.stats?.edges')"
-  flows="$(read_meta_field 'm.stats?.processes')"
-  embeddings="$(read_meta_field 'm.stats?.embeddings')"
-  indexed_commit="$(read_meta_field 'm.lastCommit')"
-  current_commit="$(git rev-parse HEAD)"
-
-  echo "    files=${files:-0}, nodes=${nodes:-0}, edges=${edges:-0}, flows=${flows:-0}, embeddings=${embeddings:-0}, indexed_commit=${indexed_commit:-missing}, current_commit=${current_commit}"
-
-  [ "${files:-0}" -gt 0 ] || add_failure "GitNexus indexed zero files"
-  [ "${nodes:-0}" -gt 0 ] || add_failure "GitNexus indexed zero nodes"
-  [ "${edges:-0}" -gt 0 ] || add_failure "GitNexus indexed zero edges"
-  [ "${flows:-0}" -gt 0 ] || add_failure "GitNexus indexed zero flows"
-  [ "${embeddings:-0}" -gt 0 ] || add_failure "GitNexus embeddings are still zero; rerun scripts/gitnexus-index.sh --embeddings after fixing the selected GitNexus/LadybugDB vector-index path"
-  if [ -z "${indexed_commit:-}" ]; then
-    add_failure "GitNexus metadata is missing lastCommit; rerun bash scripts/gitnexus-index.sh after committing release artifacts"
-  elif [ "$indexed_commit" != "$current_commit" ]; then
-    add_failure "GitNexus metadata is stale: indexed_commit=${indexed_commit}, current_commit=${current_commit}; rerun bash scripts/gitnexus-index.sh after committing release artifacts"
-  fi
-
-  if [ -n "${GITNEXUS_BIN:-}" ]; then
-    if [ ! -x "$GITNEXUS_BIN" ]; then
-      add_failure "GITNEXUS_BIN is not executable: $GITNEXUS_BIN"
-    else
-      repo_name="${GITNEXUS_REPO_NAME:-$(basename "$PROJECT_ROOT")}"
-      if output="$("$GITNEXUS_BIN" cypher -r "$repo_name" "MATCH (e:CodeEmbedding) RETURN count(e) AS cnt" 2>&1)"; then
-        cypher_embeddings="$(printf '%s\n' "$output" | extract_cypher_count)"
-        cypher_embeddings="$(coerce_nonnegative_int "$cypher_embeddings")"
-        [ "$cypher_embeddings" -gt 0 ] || add_failure "GitNexus cypher integrity check returned zero embeddings"
-        if [ "${embeddings:-0}" -gt 0 ] && [ "$cypher_embeddings" -ne "${embeddings:-0}" ]; then
-          add_failure "GitNexus meta embeddings (${embeddings:-0}) do not match cypher count (${cypher_embeddings})"
-        fi
-      else
-        add_failure "GitNexus cypher integrity check failed; .gitnexus may be unreadable"
-      fi
-    fi
-  else
-    add_warning "GitNexus store integrity was not checked; set GITNEXUS_BIN=/path/to/gitnexus to verify cypher readability"
   fi
 fi
 

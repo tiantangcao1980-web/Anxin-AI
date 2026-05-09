@@ -31,7 +31,6 @@
 |---|---|---|---|
 | 1. 目标与定位 | 冻结用户、场景、商业目标和高可信试点边界 | `strategy/product-architecture-and-requirements-2026-05-08.md`、`openspec/00-intelligent-assistant-platform-spec.md` | 目标变更必须同步 OpenSpec |
 | 2. 需求规范 | 把需求拆成可验收条款 | `openspec/01-commercial-delivery-spec.md`、`openspec/02-commercial-delivery-test-spec.md` | 每项需求有测试或证据入口 |
-| 3. 现实审计 | 对照代码、文档、证据找差异 | `audit/SUMMARY.md`、`audit/00-platform/*`、GitNexus + `rg` | `00-prd-reality-gap.md` |
 | 4. UI/UX 设计 | 统一移动端、小程序、桌面和 Web 工作台体验 | `audit/current-state-ui-ux-audit-2026-05-08.md`、`design/cross-platform-token-drift.md`、`frontend-design-governance.md` | 分端优化方案、截图/真机 transcript |
 | 5. 架构与安全 | 确认权限、密钥、本地模式、同步、知识库和治理边界 | `release/security-and-privacy-checklist.md`、`ARCHITECTURE_V2.md`、`architecture/*` | 安全审查、迁移方案、回滚方案 |
 | 6. 任务拆分 | 把实施拆成可并行 lane | `audit/_tasks/README.md`、`release/commercial-delivery-lanes.json` | 每个 lane 有 write_scope、测试和 completion_gate |
@@ -73,5 +72,3 @@ bash scripts/release-evidence-secret-scan.sh
 ```bash
 bash scripts/commercial-readiness-gate.sh --quick
 ```
-
-当前 quick gate 预期失败，直到支付、电签、桌面 signed/notarized package、移动/小程序真机、企业智能体治理和最终 clean-worktree/GitNexus 证据全部闭合。

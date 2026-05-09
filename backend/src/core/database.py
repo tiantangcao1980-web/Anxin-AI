@@ -70,6 +70,15 @@ async def _ensure_additive_schema_columns() -> None:
         "ALTER TABLE approvals ADD COLUMN IF NOT EXISTS current_step INTEGER DEFAULT 0 NOT NULL",
         "ALTER TABLE approvals ADD COLUMN IF NOT EXISTS template_id UUID",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT false",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS department VARCHAR(100)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS user_type VARCHAR(30) DEFAULT 'internal' NOT NULL",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS wechat_openid VARCHAR(100)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS wechat_unionid VARCHAR(100)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS alipay_user_id VARCHAR(100)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS login_type VARCHAR(20) DEFAULT 'email' NOT NULL",
+        "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_wechat_openid ON users (wechat_openid)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_wechat_unionid ON users (wechat_unionid)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_alipay_user_id ON users (alipay_user_id)",
         "ALTER TABLE contracts ADD COLUMN IF NOT EXISTS original_text TEXT",
         "ALTER TABLE contracts ADD COLUMN IF NOT EXISTS modified_text TEXT",
         "ALTER TABLE contracts ADD COLUMN IF NOT EXISTS version INTEGER DEFAULT 1 NOT NULL",
@@ -99,6 +108,7 @@ async def _ensure_additive_schema_columns() -> None:
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_profile JSONB DEFAULT '{}'",
         # V2 架构：用户主客户端偏好（needer/provider）
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS primary_client VARCHAR(20) DEFAULT 'needer' NOT NULL",
+        "UPDATE users SET user_type = 'internal' WHERE user_type IS NULL",
         # V2 架构：订阅表扩展字段
         "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS client_type VARCHAR(20) DEFAULT 'needer' NOT NULL",
         "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS allowed_modes JSON",
@@ -122,9 +132,46 @@ async def _ensure_additive_schema_columns() -> None:
     logger.info("数据库增量字段兼容检查完成")
 
 
+async def _ensure_pre_create_schema_constraints() -> None:
+    """补齐 create_all 前必须存在的旧库约束。
+
+    旧开发库可能已存在父表，但缺少新模型声明的复合唯一约束。
+    SQLAlchemy 在创建新的子表外键时会先检查父表约束，因此这类修复必须早于
+    ``Base.metadata.create_all`` 执行。
+    """
+    if not settings.DATABASE_URL.startswith("postgresql"):
+        return
+
+    ddl_statements = [
+        """
+        DO $$
+        BEGIN
+          IF to_regclass('public.capability_routes') IS NOT NULL
+             AND NOT EXISTS (
+               SELECT 1
+               FROM pg_constraint
+               WHERE conname = 'uq_capability_routes_org_id'
+                 AND conrelid = 'public.capability_routes'::regclass
+             )
+          THEN
+            ALTER TABLE capability_routes
+            ADD CONSTRAINT uq_capability_routes_org_id UNIQUE (org_id, id);
+          END IF;
+        END $$;
+        """,
+    ]
+
+    async with engine.begin() as conn:
+        for ddl in ddl_statements:
+            await conn.execute(text(ddl))
+
+    logger.info("数据库建表前兼容约束检查完成")
+
+
 async def init_db() -> None:
     """初始化数据库表"""
     try:
+        await _ensure_pre_create_schema_constraints()
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         logger.info("数据库表结构同步完成")

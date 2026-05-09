@@ -27,98 +27,151 @@
           "id": "payment_notify_base_url",
           "label": "Public HTTPS callback base URL",
           "type": "env",
-          "env_names": ["PAYMENT_NOTIFY_BASE_URL"],
+          "env_names": [
+            "PAYMENT_NOTIFY_BASE_URL"
+          ],
           "secret": false,
           "template_required": true,
-          "required_for": ["official callback delivery", "webhook idempotency evidence"]
+          "required_for": [
+            "official callback delivery",
+            "webhook idempotency evidence"
+          ]
         },
         {
           "id": "wechat_pay_app_id",
           "label": "WeChat Pay app ID",
           "type": "env",
-          "env_names": ["WECHAT_PAY_APP_ID"],
+          "env_names": [
+            "WECHAT_PAY_APP_ID"
+          ],
           "secret": false,
           "template_required": true,
-          "required_for": ["create order", "query order"]
+          "required_for": [
+            "create order",
+            "query order"
+          ]
         },
         {
           "id": "wechat_pay_mch_id",
           "label": "WeChat Pay merchant ID",
           "type": "env",
-          "env_names": ["WECHAT_PAY_MCH_ID"],
+          "env_names": [
+            "WECHAT_PAY_MCH_ID"
+          ],
           "secret": false,
           "template_required": true,
-          "required_for": ["create order", "query order", "refund"]
+          "required_for": [
+            "create order",
+            "query order",
+            "refund"
+          ]
         },
         {
           "id": "wechat_pay_merchant_serial",
           "label": "Merchant certificate serial number",
           "type": "env",
-          "env_names": ["WECHAT_PAY_MERCHANT_SERIAL_NO"],
+          "env_names": [
+            "WECHAT_PAY_MERCHANT_SERIAL_NO"
+          ],
           "secret": false,
           "template_required": true,
-          "required_for": ["request signing"]
+          "required_for": [
+            "request signing"
+          ]
         },
         {
           "id": "wechat_pay_merchant_private_key",
           "label": "Merchant private key or private-key file path",
           "type": "env_any_of",
-          "env_names": ["WECHAT_PAY_MERCHANT_PRIVATE_KEY_PATH", "WECHAT_PAY_MERCHANT_PRIVATE_KEY"],
+          "env_names": [
+            "WECHAT_PAY_MERCHANT_PRIVATE_KEY_PATH",
+            "WECHAT_PAY_MERCHANT_PRIVATE_KEY"
+          ],
           "secret": true,
           "template_required": true,
-          "required_for": ["request signing"]
+          "required_for": [
+            "request signing"
+          ]
         },
         {
           "id": "wechat_pay_platform_serial",
           "label": "Platform certificate or public-key serial number",
           "type": "env",
-          "env_names": ["WECHAT_PAY_PLATFORM_SERIAL"],
+          "env_names": [
+            "WECHAT_PAY_PLATFORM_SERIAL"
+          ],
           "secret": false,
           "template_required": true,
-          "required_for": ["official callback verification", "synchronous response verification"]
+          "required_for": [
+            "official callback verification",
+            "synchronous response verification"
+          ]
         },
         {
           "id": "wechat_pay_platform_public_key",
           "label": "Platform public key or public-key file path",
           "type": "env_any_of",
-          "env_names": ["WECHAT_PAY_PLATFORM_PUBLIC_KEY_PATH", "WECHAT_PAY_PLATFORM_PUBLIC_KEY"],
+          "env_names": [
+            "WECHAT_PAY_PLATFORM_PUBLIC_KEY_PATH",
+            "WECHAT_PAY_PLATFORM_PUBLIC_KEY"
+          ],
           "secret": false,
           "template_required": true,
-          "required_for": ["official callback verification", "synchronous response verification"]
+          "required_for": [
+            "official callback verification",
+            "synchronous response verification"
+          ]
         },
         {
           "id": "wechat_pay_api_v3_key",
           "label": "API v3 key for callback resource decrypt",
           "type": "env",
-          "env_names": ["WECHAT_PAY_API_V3_KEY"],
+          "env_names": [
+            "WECHAT_PAY_API_V3_KEY"
+          ],
           "secret": true,
           "template_required": true,
-          "required_for": ["official callback decrypt"]
+          "required_for": [
+            "official callback decrypt"
+          ]
         },
         {
           "id": "wechat_pay_official_webhook_enabled",
           "label": "Official webhook verification enabled",
           "type": "env_boolean_true",
-          "env_names": ["WECHAT_PAY_OFFICIAL_WEBHOOK_ENABLED"],
+          "env_names": [
+            "WECHAT_PAY_OFFICIAL_WEBHOOK_ENABLED"
+          ],
           "secret": false,
           "template_required": true,
-          "required_for": ["official webhook path"]
+          "required_for": [
+            "official webhook path"
+          ]
         },
         {
           "id": "wechat_pay_refund_order_id",
           "label": "Paid sandbox order ID and original amount for refund evidence",
           "type": "runner_arg",
-          "runner_args": ["--wechat-refund-order-id", "--refund-total-amount"],
+          "runner_args": [
+            "--wechat-refund-order-id",
+            "--refund-total-amount"
+          ],
           "secret": false,
-          "required_for": ["refund live evidence"]
+          "required_for": [
+            "refund live evidence"
+          ]
         },
         {
           "id": "wechat_pay_provider_logs",
           "label": "Redacted provider dashboard, callback, retry, and key-rotation artifacts",
           "type": "artifact",
-          "artifact_fields": ["external_evidence_requirements[].artifact_ref"],
+          "artifact_fields": [
+            "external_evidence_requirements[].artifact_ref"
+          ],
           "secret": false,
-          "required_for": ["release evidence completion"]
+          "required_for": [
+            "release evidence completion"
+          ]
         }
       ],
       "commands_after_receipt": [
@@ -146,71 +199,114 @@
           "id": "payment_notify_base_url",
           "label": "Public HTTPS callback base URL",
           "type": "env",
-          "env_names": ["PAYMENT_NOTIFY_BASE_URL"],
+          "env_names": [
+            "PAYMENT_NOTIFY_BASE_URL"
+          ],
           "secret": false,
           "template_required": true,
-          "required_for": ["official callback delivery", "webhook idempotency evidence"]
+          "required_for": [
+            "official callback delivery",
+            "webhook idempotency evidence"
+          ]
         },
         {
           "id": "alipay_app_id",
           "label": "Alipay app ID",
           "type": "env",
-          "env_names": ["ALIPAY_APP_ID"],
+          "env_names": [
+            "ALIPAY_APP_ID"
+          ],
           "secret": false,
           "template_required": true,
-          "required_for": ["page.pay", "query", "refund", "close"]
+          "required_for": [
+            "page.pay",
+            "query",
+            "refund",
+            "close"
+          ]
         },
         {
           "id": "alipay_private_key",
           "label": "Application private key or private-key file path",
           "type": "env_any_of",
-          "env_names": ["ALIPAY_PRIVATE_KEY_PATH", "ALIPAY_PRIVATE_KEY"],
+          "env_names": [
+            "ALIPAY_PRIVATE_KEY_PATH",
+            "ALIPAY_PRIVATE_KEY"
+          ],
           "secret": true,
           "template_required": true,
-          "required_for": ["request signing"]
+          "required_for": [
+            "request signing"
+          ]
         },
         {
           "id": "alipay_public_key",
           "label": "Alipay public key or public-key file path",
           "type": "env_any_of",
-          "env_names": ["ALIPAY_PUBLIC_KEY_PATH", "ALIPAY_PUBLIC_KEY"],
+          "env_names": [
+            "ALIPAY_PUBLIC_KEY_PATH",
+            "ALIPAY_PUBLIC_KEY"
+          ],
           "secret": false,
           "template_required": true,
-          "required_for": ["synchronous response verification", "official notification verification"]
+          "required_for": [
+            "synchronous response verification",
+            "official notification verification"
+          ]
         },
         {
           "id": "alipay_gateway_url",
           "label": "Sandbox or pre-production gateway URL",
           "type": "env",
-          "env_names": ["ALIPAY_GATEWAY_URL"],
+          "env_names": [
+            "ALIPAY_GATEWAY_URL"
+          ],
           "secret": false,
           "template_required": true,
-          "required_for": ["provider environment selection"]
+          "required_for": [
+            "provider environment selection"
+          ]
         },
         {
           "id": "alipay_official_webhook_enabled",
           "label": "Official RSA2 webhook verification enabled",
           "type": "env_boolean_true",
-          "env_names": ["ALIPAY_OFFICIAL_WEBHOOK_ENABLED"],
+          "env_names": [
+            "ALIPAY_OFFICIAL_WEBHOOK_ENABLED"
+          ],
           "secret": false,
           "template_required": true,
-          "required_for": ["official webhook path"]
+          "required_for": [
+            "official webhook path"
+          ]
         },
         {
           "id": "alipay_runtime_order_ids",
           "label": "Existing paid/open sandbox order IDs",
           "type": "runner_arg",
-          "runner_args": ["--alipay-query-order-id", "--alipay-refund-order-id", "--alipay-close-order-id"],
+          "runner_args": [
+            "--alipay-query-order-id",
+            "--alipay-refund-order-id",
+            "--alipay-close-order-id"
+          ],
           "secret": false,
-          "required_for": ["query live evidence", "refund live evidence", "close live evidence"]
+          "required_for": [
+            "query live evidence",
+            "refund live evidence",
+            "close live evidence"
+          ]
         },
         {
           "id": "alipay_provider_logs",
           "label": "Redacted provider dashboard, callback, retry, and public-key rotation artifacts",
           "type": "artifact",
-          "artifact_fields": ["external_evidence_requirements[].artifact_ref"],
+          "artifact_fields": [
+            "external_evidence_requirements[].artifact_ref"
+          ],
           "secret": false,
-          "required_for": ["release evidence completion"]
+          "required_for": [
+            "release evidence completion"
+          ]
         }
       ],
       "commands_after_receipt": [
@@ -239,53 +335,81 @@
           "id": "esign_bao_app_id",
           "label": "eSignBao app ID",
           "type": "env",
-          "env_names": ["ESIGN_BAO_APP_ID"],
+          "env_names": [
+            "ESIGN_BAO_APP_ID"
+          ],
           "secret": false,
           "template_required": true,
-          "required_for": ["create signing flow", "query signing flow"]
+          "required_for": [
+            "create signing flow",
+            "query signing flow"
+          ]
         },
         {
           "id": "esign_bao_app_secret",
           "label": "eSignBao app secret",
           "type": "env",
-          "env_names": ["ESIGN_BAO_APP_SECRET"],
+          "env_names": [
+            "ESIGN_BAO_APP_SECRET"
+          ],
           "secret": true,
           "template_required": true,
-          "required_for": ["request signing", "official callback verification"]
+          "required_for": [
+            "request signing",
+            "official callback verification"
+          ]
         },
         {
           "id": "esign_bao_api_url",
           "label": "eSignBao sandbox or pre-production API URL",
           "type": "env",
-          "env_names": ["ESIGN_BAO_API_URL"],
+          "env_names": [
+            "ESIGN_BAO_API_URL"
+          ],
           "secret": false,
           "template_required": true,
-          "required_for": ["provider environment selection"]
+          "required_for": [
+            "provider environment selection"
+          ]
         },
         {
           "id": "esign_official_webhook_enabled",
           "label": "Official e-sign webhook verification enabled",
           "type": "env_boolean_true",
-          "env_names": ["ESIGN_OFFICIAL_WEBHOOK_ENABLED"],
+          "env_names": [
+            "ESIGN_OFFICIAL_WEBHOOK_ENABLED"
+          ],
           "secret": false,
           "template_required": true,
-          "required_for": ["official webhook path"]
+          "required_for": [
+            "official webhook path"
+          ]
         },
         {
           "id": "esignbao_document_and_flow",
           "label": "Sandbox test document URL or file ID plus completed flow ID",
           "type": "runner_arg",
-          "runner_args": ["--esign-document-url", "--esignbao-completed-flow-id"],
+          "runner_args": [
+            "--esign-document-url",
+            "--esignbao-completed-flow-id"
+          ],
           "secret": false,
-          "required_for": ["create flow evidence", "completed document download evidence"]
+          "required_for": [
+            "create flow evidence",
+            "completed document download evidence"
+          ]
         },
         {
           "id": "esignbao_provider_logs",
           "label": "Redacted provider dashboard, callback, duplicate, and retry artifacts",
           "type": "artifact",
-          "artifact_fields": ["external_evidence_requirements[].artifact_ref"],
+          "artifact_fields": [
+            "external_evidence_requirements[].artifact_ref"
+          ],
           "secret": false,
-          "required_for": ["release evidence completion"]
+          "required_for": [
+            "release evidence completion"
+          ]
         }
       ],
       "commands_after_receipt": [
@@ -314,53 +438,81 @@
           "id": "fadada_app_id",
           "label": "FaDaDa app ID",
           "type": "env",
-          "env_names": ["FADADA_APP_ID"],
+          "env_names": [
+            "FADADA_APP_ID"
+          ],
           "secret": false,
           "template_required": true,
-          "required_for": ["access token", "signing task"]
+          "required_for": [
+            "access token",
+            "signing task"
+          ]
         },
         {
           "id": "fadada_app_secret",
           "label": "FaDaDa app secret",
           "type": "env",
-          "env_names": ["FADADA_APP_SECRET"],
+          "env_names": [
+            "FADADA_APP_SECRET"
+          ],
           "secret": true,
           "template_required": true,
-          "required_for": ["access token", "FASC callback verification"]
+          "required_for": [
+            "access token",
+            "FASC callback verification"
+          ]
         },
         {
           "id": "fadada_api_url",
           "label": "FaDaDa sandbox or pre-production API URL",
           "type": "env",
-          "env_names": ["FADADA_API_URL"],
+          "env_names": [
+            "FADADA_API_URL"
+          ],
           "secret": false,
           "template_required": true,
-          "required_for": ["provider environment selection"]
+          "required_for": [
+            "provider environment selection"
+          ]
         },
         {
           "id": "esign_official_webhook_enabled",
           "label": "Official e-sign webhook verification enabled",
           "type": "env_boolean_true",
-          "env_names": ["ESIGN_OFFICIAL_WEBHOOK_ENABLED"],
+          "env_names": [
+            "ESIGN_OFFICIAL_WEBHOOK_ENABLED"
+          ],
           "secret": false,
           "template_required": true,
-          "required_for": ["official webhook path"]
+          "required_for": [
+            "official webhook path"
+          ]
         },
         {
           "id": "fadada_document_and_flow",
           "label": "Sandbox test document URL or file ID plus completed flow ID",
           "type": "runner_arg",
-          "runner_args": ["--esign-document-url", "--fadada-completed-flow-id"],
+          "runner_args": [
+            "--esign-document-url",
+            "--fadada-completed-flow-id"
+          ],
           "secret": false,
-          "required_for": ["create task evidence", "completed document download evidence"]
+          "required_for": [
+            "create task evidence",
+            "completed document download evidence"
+          ]
         },
         {
           "id": "fadada_provider_logs",
           "label": "Redacted provider dashboard, callback, duplicate, and retry artifacts",
           "type": "artifact",
-          "artifact_fields": ["external_evidence_requirements[].artifact_ref"],
+          "artifact_fields": [
+            "external_evidence_requirements[].artifact_ref"
+          ],
           "secret": false,
-          "required_for": ["release evidence completion"]
+          "required_for": [
+            "release evidence completion"
+          ]
         }
       ],
       "commands_after_receipt": [
@@ -389,17 +541,25 @@
           "id": "tauri_signing_identity",
           "label": "Tauri macOS signing identity",
           "type": "config",
-          "config_refs": ["desktop/tauri.conf.json:bundle.macOS.signingIdentity"],
+          "config_refs": [
+            "desktop/tauri.conf.json:bundle.macOS.signingIdentity"
+          ],
           "secret": false,
-          "required_for": ["signed app build"]
+          "required_for": [
+            "signed app build"
+          ]
         },
         {
           "id": "apple_codesign_identity",
           "label": "Apple Developer ID Application identity in local Keychain",
           "type": "local_keychain",
-          "command_refs": ["security find-identity -v -p codesigning"],
+          "command_refs": [
+            "security find-identity -v -p codesigning"
+          ],
           "secret": false,
-          "required_for": ["codesign verification"]
+          "required_for": [
+            "codesign verification"
+          ]
         },
         {
           "id": "notary_credentials",
@@ -412,24 +572,38 @@
             "APP_STORE_CONNECT_API_KEY_PATH"
           ],
           "secret": true,
-          "required_for": ["notarization", "stapling"]
+          "required_for": [
+            "notarization",
+            "stapling"
+          ]
         },
         {
           "id": "signed_release_app",
           "label": "Signed release .app path",
           "type": "artifact",
-          "env_names": ["ANXIN_DESKTOP_RELEASE_APP"],
-          "artifact_fields": ["release.app.path"],
+          "env_names": [
+            "ANXIN_DESKTOP_RELEASE_APP"
+          ],
+          "artifact_fields": [
+            "release.app.path"
+          ],
           "secret": false,
-          "required_for": ["packaged runtime smoke", "packaged profile smoke"]
+          "required_for": [
+            "packaged runtime smoke",
+            "packaged profile smoke"
+          ]
         },
         {
           "id": "release_dmg",
           "label": "Signed or notarized release DMG path",
           "type": "artifact",
-          "artifact_fields": ["release.dmg.path"],
+          "artifact_fields": [
+            "release.dmg.path"
+          ],
           "secret": false,
-          "required_for": ["user-install evidence"]
+          "required_for": [
+            "user-install evidence"
+          ]
         }
       ],
       "commands_after_receipt": [
@@ -459,42 +633,81 @@
           "id": "dcloud_account_appid",
           "label": "DCloud account, uni-app AppID, and cloud build access",
           "type": "account",
-          "account_refs": ["DCloud account label", "uni-app app id label"],
+          "account_refs": [
+            "DCloud account label",
+            "uni-app app id label"
+          ],
           "secret": true,
-          "required_for": ["DCloud App cloud build", "uniPush or native plugin setup"]
+          "required_for": [
+            "DCloud App cloud build",
+            "uniPush or native plugin setup"
+          ]
         },
         {
           "id": "ios_signing",
           "label": "Apple Developer Team, Bundle ID, signing certificates, provisioning profiles, and TestFlight access",
           "type": "account",
-          "account_refs": ["Apple Developer Team label", "Bundle ID", "TestFlight role"],
+          "account_refs": [
+            "Apple Developer Team label",
+            "Bundle ID",
+            "TestFlight role"
+          ],
           "secret": true,
-          "required_for": ["iOS device smoke", "TestFlight evidence"]
+          "required_for": [
+            "iOS device smoke",
+            "TestFlight evidence"
+          ]
         },
         {
           "id": "android_signing",
           "label": "Android package name, keystore, signing strategy, and target store account",
           "type": "account",
-          "account_refs": ["Android package name", "keystore label", "target store label"],
+          "account_refs": [
+            "Android package name",
+            "keystore label",
+            "target store label"
+          ],
           "secret": true,
-          "required_for": ["Android device smoke", "release build evidence"]
+          "required_for": [
+            "Android device smoke",
+            "release build evidence"
+          ]
         },
         {
           "id": "wechat_mini_program",
           "label": "WeChat Mini Program AppID/AppSecret, developer permission, and legal domain admin access",
           "type": "account",
-          "account_refs": ["Mini Program AppID label", "developer role label"],
+          "account_refs": [
+            "Mini Program AppID label",
+            "developer role label"
+          ],
           "secret": true,
-          "required_for": ["wx.login code2session", "request/upload/download/web-view domain evidence"]
+          "required_for": [
+            "wx.login code2session",
+            "request/upload/download/web-view domain evidence"
+          ]
         },
         {
           "id": "device_and_test_accounts",
           "label": "iOS/Android devices, WeChat DevTools interactive run, staging backend URL, and redacted test account roles",
           "type": "device_artifact",
-          "device_refs": ["iOS device transcript", "Android device transcript", "WeChat DevTools or real-device transcript"],
-          "artifact_fields": ["platforms[].build_hash", "platforms[].device", "backend_environment", "tester_role", "screenshot_refs", "log_refs"],
+          "device_refs": [
+            "iOS device transcript",
+            "Android device transcript",
+            "WeChat DevTools or real-device transcript"
+          ],
+          "artifact_fields": [
+            "platforms[].build_hash",
+            "platforms[].device",
+            "backend_environment",
+            "tester_role",
+            "screenshot_refs",
+            "log_refs"
+          ],
           "secret": false,
-          "required_for": ["mobile-device-smoke Status: complete"]
+          "required_for": [
+            "mobile-device-smoke Status: complete"
+          ]
         }
       ],
       "commands_after_receipt": [
@@ -522,33 +735,47 @@
           "id": "llm_provider",
           "label": "Default LLM provider key, base URL, model name, data-processing agreement, and quota",
           "type": "env",
-          "env_names": ["LLM_PROVIDER", "LLM_API_KEY", "LLM_BASE_URL", "LLM_MODEL"],
+          "env_names": [
+            "LLM_PROVIDER",
+            "LLM_API_KEY",
+            "LLM_BASE_URL",
+            "LLM_MODEL"
+          ],
           "secret": true,
-          "required_for": ["default cloud model integration"]
+          "required_for": [
+            "default cloud model integration"
+          ]
         },
         {
           "id": "embedding_provider",
           "label": "Embedding provider key, base URL, model name, dimensions, and quota",
           "type": "env",
-          "env_names": ["EMBEDDING_API_KEY", "EMBEDDING_BASE_URL", "EMBEDDING_MODEL", "EMBEDDING_DIMENSIONS"],
+          "env_names": [
+            "EMBEDDING_API_KEY",
+            "EMBEDDING_BASE_URL",
+            "EMBEDDING_MODEL",
+            "EMBEDDING_DIMENSIONS"
+          ],
           "secret": true,
-          "required_for": ["RAG and GitNexus embedding production path"]
-        },
-        {
-          "id": "gitnexus_embedding_endpoint",
-          "label": "OpenAI-compatible embedding endpoint for final GitNexus indexing",
-          "type": "env",
-          "env_names": ["GITNEXUS_EMBEDDING_URL", "GITNEXUS_EMBEDDING_MODEL", "GITNEXUS_EMBEDDING_DIMS"],
-          "secret": false,
-          "required_for": ["final commit-scoped knowledge graph"]
+          "required_for": [
+            "RAG embedding production path"
+          ]
         },
         {
           "id": "search_and_due_diligence",
           "label": "Search and business due-diligence provider accounts, IP allowlist, QPS, and authorization",
           "type": "env",
-          "env_names": ["SEARCH_API_KEY", "QICHACHA_API_KEY", "TIANYANCHA_API_KEY", "AIQICHA_API_KEY", "CREDIT_CHINA_API_KEY"],
+          "env_names": [
+            "SEARCH_API_KEY",
+            "QICHACHA_API_KEY",
+            "TIANYANCHA_API_KEY",
+            "AIQICHA_API_KEY",
+            "CREDIT_CHINA_API_KEY"
+          ],
           "secret": true,
-          "required_for": ["external due diligence"]
+          "required_for": [
+            "external due diligence"
+          ]
         },
         {
           "id": "storage_email_sms_captcha_mcp_rtc",
@@ -567,7 +794,11 @@
             "LIVEKIT_API_KEY"
           ],
           "secret": true,
-          "required_for": ["production operations", "governed external connectors", "optional voice or meeting capability"]
+          "required_for": [
+            "production operations",
+            "governed external connectors",
+            "optional voice or meeting capability"
+          ]
         }
       ],
       "commands_after_receipt": [

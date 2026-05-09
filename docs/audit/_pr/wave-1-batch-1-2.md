@@ -145,10 +145,8 @@ $ npx playwright test e2e/role-access.spec.ts
 | V2: /pro 根路径重定向到 /pro/dashboard | index BUG 修复 |
 | V2: 老用户字段为空时按 role 推断 | 兼容性 |
 
-### GitNexus 影响扫描
 
 ```text
-mcp__gitnexus__.detect_changes(scope=unstaged)
 changed_files: 62
 changed_symbols: 493
 affected_processes: 50

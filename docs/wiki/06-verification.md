@@ -70,16 +70,3 @@ bash scripts/mobile-device-smoke.sh
 ```
 
 该脚本覆盖移动 Vitest、移动 tsc、mobile result surface guard、Expo config/SDK guard、Expo doctor、mobile production npm audit、小程序 tsc/build、mini-program privacy boundary guard、mini-program navigation boundary guard、WeChat DevTools CLI project smoke、refresh auth guard、mobile/mini privacy network guard、fake fallback guard 与小程序设计 token guard。它不能替代 iOS、Android、交互式微信开发者工具或真机 transcript。
-
-## GitNexus 风险信号
-
-GitNexus `detect_changes(scope=all)` 曾在大规模未提交交付面上报告：
-
-| 指标 | 值 |
-|---|---:|
-| changed files | 105 |
-| changed symbols | 1126 |
-| affected processes | 68 |
-| risk level | critical |
-
-这说明历史交付面改动很广，发布前不应只跑单点测试。当前已提交后应以 `.gitnexus/meta.json`、`gitnexus status` 和 `detect-changes` 的最新结果为准。

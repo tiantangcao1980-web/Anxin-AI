@@ -49,15 +49,14 @@ def test_commercial_gate_requires_desktop_mvp_local_gate():
     assert "docs/audit/11a-desktop-mvp/05-followups.md" in gate_script
 
 
-def test_commercial_gate_requires_current_gitnexus_commit():
+def test_commercial_gate_does_not_depend_on_removed_code_index_tool():
     repo_root = Path(__file__).resolve().parents[2]
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
+    removed_tool_terms = ("Git" + "Nexus", "git" + "nexus", ".git" + "nexus")
 
-    assert "git rev-parse HEAD" in script
-    assert "m.lastCommit" in script
-    assert "GitNexus metadata is missing lastCommit" in script
-    assert "GitNexus metadata is stale" in script
-    assert "rerun bash scripts/gitnexus-index.sh after committing release artifacts" in script
+    for term in removed_tool_terms:
+        assert term not in script
+    assert "release artifacts must be reviewed and committed before Go" in script
 
 
 def test_commercial_gate_runs_desktop_strict_clippy():

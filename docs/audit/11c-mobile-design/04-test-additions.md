@@ -36,7 +36,6 @@ bash scripts/mobile-device-smoke.sh
 ```bash
 git diff --check
 bash scripts/release-evidence-secret-scan.sh
-GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus \
   bash scripts/commercial-readiness-gate.sh --quick
 ```
 

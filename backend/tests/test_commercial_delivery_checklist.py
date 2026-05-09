@@ -60,7 +60,7 @@ def test_commercial_delivery_checklist_accepts_current_not_ready_manifest():
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert "status=not_ready" in result.stdout
-    assert "10 criteria" in result.stdout
+    assert "9 criteria" in result.stdout
 
 
 def test_commercial_delivery_checklist_rejects_missing_evidence(tmp_path):

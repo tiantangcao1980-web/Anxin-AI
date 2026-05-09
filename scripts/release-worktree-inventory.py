@@ -10,11 +10,9 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-
 DELIVERY_PREFIXES = (
     ".env.example",
     ".gitignore",
-    ".gitnexusignore",
     "PROJECT_STATUS.md",
     "README.md",
     "backend/.env.example",
@@ -57,8 +55,6 @@ DELIVERY_PREFIXES = (
     "scripts/",
 )
 GENERATED_PREFIXES = (
-    ".gitnexus/",
-    ".gitnexus.",
     ".mypy_cache/",
     ".omx/",
     ".pytest_cache/",

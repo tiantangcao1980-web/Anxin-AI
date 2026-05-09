@@ -12,7 +12,6 @@
 |---|---|---|
 | 后端默认回归 | `736 passed, 1 skipped, 12 warnings in 44.61s` | 通过代码级门槛 |
 | 前端 lint/build/test/security | lint/tsc 通过、最新完整本地门禁中 Vitest `13 files / 51 tests passed`，生产依赖 `npm audit --omit=dev` 已写入 `docs/release/evidence/artifacts/frontend-npm-audit-prod-20260507.json` 且 `0` vulnerabilities；保留既有 Vite chunk/eval warning 作为性能/打包优化项 | 通过当前门槛 |
-| GitNexus 知识图 | 当前 `.gitnexus/meta.json` 可通过 direct GitNexus CLI structure/embedding rebuild、cypher count 和 `lastCommit`/`HEAD` 一致性检查；它只作为最终发布索引卫生与历史上下文，不能推动或替代主线代码、测试、UI/UX、渠道和真机证据 | 每个后续 release artifact 提交后仍需重跑 commit-scoped 复验；主线推进不围绕 embedding 排障 |
 | 外部资源交接 | `external-resource-requirements.json` 已把 P0/P1 外部 API、签名、公证、真机、DCloud/uni-app、LLM/Embedding/connector 资源结构化；validator 锁住 P0 env 模板字段、资源/runner/artifact 引用和“只存引用不存真实值”边界；checklist 与 lanes 已引用该 manifest | 交接清单已机器化；资源本身仍未到位，不能放行 |
 | 支付真实渠道 | 微信/支付宝代码级协议已落，`scripts/sandbox-evidence-runner.py` 已提供脱敏预检/live 采集入口，runner 安全测试已覆盖 live 确认门和脱敏写出；staging/production 已禁止 mock/未知 provider 静默回落，缺沙箱/证书轮换/重试证据 | 阻断 |
 | 电签真实渠道 | e签宝/法大大代码级协议已落，`scripts/sandbox-evidence-runner.py` 已提供脱敏预检/live 采集入口，runner 安全测试已覆盖 live 确认门和脱敏写出；staging/production 已禁止 mock/未知 provider 静默回落，flow 操作已按当前用户组织过滤合同，缺商户沙箱/事件目录/灰度证据 | 阻断 |
@@ -113,8 +112,6 @@ bash scripts/desktop-release-preflight.sh --out docs/release/evidence/artifacts/
 bash scripts/commercial-readiness-gate.sh --quick
 ```
 
-当前该命令应当失败；RAG 内建 full50、桌面 SQLCipher/keyring 代码级门禁、unsigned release `.app`/DMG build、unsigned release packaged runtime smoke（含 sync loopback）、unsigned release packaged-profile/performance smoke、cross-device code rehearsal 和 signed/notarized release preflight 已通过，但只有当外部证据、桌面 signed/packaged-profile/performance/shared-staging sync/cross-device 证据、移动真机、企业智能体治理 runtime evidence、全仓质量基线和最终提交 GitNexus 复验全部补齐后才允许转 Go。
-GitNexus metadata 是 commit-scoped，只用于最终发布索引卫生检查。`scripts/commercial-readiness-gate.sh` 会将 dirty worktree、direct CLI cypher integrity failure、missing/stale `lastCommit` 和 indexed/current commit 不一致作为 release-blocking failure；但在当前开发主线上，GitNexus embedding 不再作为优先排障项，不能替代源码审查、测试、UI/UX、渠道或真机证据。
 
 外部证据模板位于 `docs/release/evidence/`，每份模板只有在对应真实证据齐全后才能把 `Status: pending` 改为 `Status: complete`。
 并行采集执行清单见 `docs/release/evidence-collection-runbook.md`；支付、电签、桌面、RAG 和移动/小程序可以并行采集，但最终必须统一回到本文件和 `scripts/commercial-readiness-gate.sh`。
@@ -135,7 +132,5 @@ Go 条件：
 No-Go 条件：
 
 - 任一真实渠道仅有 mock/fake client 证据。
-- GitNexus 图谱显示低风险但 `rg`/源码显示新增未入图符号。
-- GitNexus metadata up-to-date 但工作树仍有未提交或未跟踪交付文件。
 - 任一移动/小程序/桌面关键路径仍通过静默 fallback 掩盖后端错误。
 - 数据迁移无 downgrade 或恢复演练。

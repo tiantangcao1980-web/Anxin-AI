@@ -1,24 +1,9 @@
 {
   "generated_at": "2026-05-08",
-  "objective": "将 Anxin-Smart-Legal-Services 从当前代码现状推进到可商业交付：以源码、测试、UI/UX、渠道、真机和发布证据为主线，GitNexus 仅作为最终发布索引卫生复验。",
+  "objective": "将 Anxin-Smart-Legal-Services 从当前代码现状推进到可商业交付：以源码、测试、UI/UX、渠道、真机和发布证据为主线。",
   "status": "not_ready",
-  "status_reason": "Code-level gates, built-in RAG full50 evidence, DB-backed SkillGovernance, minimal frontend Agent governance and capability policy UI, and updated intelligent-assistant specs are available, but commercial release evidence still has pending external sandbox, packaged desktop, device-smoke, enterprise agent governance runtime, and final clean-worktree/GitNexus index-hygiene requirements.",
+  "status_reason": "Code-level gates, built-in RAG full50 evidence, DB-backed SkillGovernance, minimal frontend Agent governance and capability policy UI, and updated intelligent-assistant specs are available, but commercial release evidence still has pending external sandbox, packaged desktop, device-smoke, enterprise agent governance runtime, and final clean-worktree requirements.",
   "success_criteria": [
-    {
-      "id": "gitnexus-knowledge-graph",
-      "prompt_requirement": "使用 CLI 或 MCP 对本项目代码仓库进行代码级扫描，验证和优化 GitNexus 索引知识图，确保信息准确后再后续开发。",
-      "status": "complete_until_next_commit",
-      "evidence": [
-        ".gitnexus/meta.json",
-        "docs/audit/00-platform/06-gitnexus-knowledge-graph.md",
-        "scripts/gitnexus-index.sh"
-      ],
-      "verification": [
-        "node -e \"const fs=require('fs'); const m=JSON.parse(fs.readFileSync('.gitnexus/meta.json','utf8')); console.log(m.stats)\"",
-        "GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/commercial-readiness-gate.sh --quick"
-      ],
-      "current_result": "GitNexus has historical non-zero embeddings and vectorSearch.status=vector-index, but the current local work has moved beyond the indexed commit and direct CLI cypher/repo validation is not reliable enough to drive implementation. Treat it only as final release index hygiene; source inspection, tests, UI/UX evidence, channel sandboxes, device evidence, and release gates remain authoritative."
-    },
     {
       "id": "openspec-commercial-spec",
       "prompt_requirement": "使用 goal-prompt-builder 或 OpenSpec 完成项目规范之后再开始下一步开发。",
@@ -289,11 +274,9 @@
       "verification": [
         "git diff --check",
         "bash scripts/release-evidence-secret-scan.sh",
-        "node scripts/validate-commercial-delivery-lanes.cjs",
-        "GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/commercial-readiness-gate.sh --quick",
-        "GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/commercial-readiness-gate.sh --with-local-tests"
+        "node scripts/validate-commercial-delivery-lanes.cjs"
       ],
-      "current_result": "After the local delivery commit and GitNexus rebuild, the gate still fails on Not ready declarations and pending payment/e-sign/desktop/mobile/agent-governance evidence. Any new release docs or evidence artifacts must be committed before another clean-worktree and GitNexus rerun."
+      "current_result": "After the local delivery commit and 源码审查与测试证据, the gate still fails on Not ready declarations and pending payment/e-sign/desktop/mobile/agent-governance evidence. Any new release docs or evidence artifacts must be committed before another clean-worktree and 源码审查与测试证据"
     }
   ]
 }

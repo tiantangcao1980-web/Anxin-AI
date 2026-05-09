@@ -2,15 +2,11 @@
 
 > 日期：2026-05-09
 > 范围：从当前代码现状推进到商业交付候选版的证据总览。
-> 结论：当前不是商业交付完成态；已完成 GitNexus 可复跑脚本、OpenSpec/验收规范、多项 P0 代码级收口、内建 RAG full50、桌面 release package dry-run/preflight、unsigned release packaged sync loopback smoke 和完成度审计。上一轮 clean baseline 的 `.gitnexus/meta.json` 已索引到 commit `ccb316d8`，包含 `34002` embeddings；本轮后续提交仍必须刷新到最新 `HEAD` 后才能作为发布放行证据。剩余阻断集中在真实渠道沙箱、桌面签名/公证发布包、移动/小程序真机、案件/市场等未闭环模块和发布前全量门禁。
 
 ## 1. 目标到证据清单
 
 | 用户目标/显式要求 | 当前证据 | 状态 |
 |---|---|---|
-| 使用 CLI/MCP 对代码仓库做代码级扫描 | `.gitnexus/meta.json` 上一轮 clean baseline 已重建到 commit `ccb316d8`，统计为 files `1431`、nodes `36114`、edges `65135`、processes `300`、embeddings `34002`；本轮若形成新提交，仍需再次刷新，事实以 `rg` + 源码阅读 + 测试互证为准 | GitNexus 可复跑入口已建立；每次最终提交后必须复验 GitNexus |
-| 创建并优化 GitNexus 索引知识图、配置 embeddings | `.gitnexusignore` 已生效；`scripts/gitnexus-index.sh` 支持 `GITNEXUS_BIN`、`GITNEXUS_NPX_SPEC=gitnexus@rc` 和 embedding/vector-index preflight；最终 release 前仍要求 `.gitnexus/meta.json` 与 `gitnexus cypher/status/detect-changes` 对当前 commit 非零一致 | 上一轮 clean baseline 可用；本轮提交后需刷新 |
-| 在后续开发前验证 GitNexus 信息准确性 | 当前策略保持 `rg` + 源码阅读 + pytest/Vitest 为事实源；GitNexus direct CLI 在提交后刷新通过时作为辅助导航与 release evidence | 已建立边界；最新提交前不跳过刷新 |
 | 使用 OpenSpec/规范完成项目规范 | `docs/openspec/01-commercial-delivery-spec.md`、`docs/openspec/02-commercial-delivery-test-spec.md` 和 `docs/openspec/00-intelligent-assistant-platform-spec.md` 已存在并持续更新；2026-05-08 已把中小企业双边平台、桌面主工作站、移动远控、本地模型/知识库、任意 LLM/Skills/MCP 配置写入规范 | 已完成当前定位版 |
 | 建立商业发布门禁 | `scripts/commercial-readiness-gate.sh` 已建立，`docs/release/evidence/` 外部证据模板已建立；`scripts/sandbox-evidence-runner.py` 已补支付/电签脱敏预检和可选 live 采集入口；`scripts/desktop-release-package.sh` 和 `scripts/desktop-release-preflight.sh` 已补桌面 signed/notarized release 前置条件预检；`backend/tests/test_sandbox_evidence_runner.py` 覆盖 live 确认门、脱敏写出和外部证据槽；当前预期失败以阻止缺少 `Status: complete` 证据时误发布 | 已完成 gate 和采集入口，商业证据未齐 |
 | 按规范推进开发与测试 | 已收口 TASK-01/02/05/06/07/09/10/11c 的若干 P0/P1 切片；TASK-11a 桌面 MVP 已补 `docs/audit/11a-desktop-mvp/00..05.md` 审计包并纳入 `desktop-mvp-local-gate.sh`；TASK-11b 桌面同步新增注入式 SQLite push/pull/retry 代码级闭环；后端全量 `467 passed, 1 skipped, 17 warnings in 36.11s`，前端 lint/tsc 当前通过，最新完整本地门禁中 Vitest `12 files / 45 tests passed` | 进行中 |
@@ -38,7 +34,6 @@
 | RAG/引用质量 | TASK-07 已补后端 RBAC/PII、`knowledge_management` 读写权限/组织 fail-closed/出口脱敏、offline smoke 召回基线、live Qdrant smoke、RAG source 字段、司法智库入口、前端引用预览/高亮、图谱 1k 节点降采样/FPS/canvas E2E、Playwright 点击证据和导出文档/chunk/anchor 巡检；2026-05-07 内建法律知识库 full50 已跑通 `42` chunks / `50` questions，recall@10 `1.000`、MRR `1.000`、NDCG@10 `0.997`，且商业 preflight 会拒绝旧 smoke corpus 和 smoke-marked golden | 内建 RAG release baseline 已闭合；外部客户知识库 full50 可作为上线后质量扩展 |
 | 案件/律师市场/风险调查 | TASK-08a/08b/09 核心代码级风险已收口：案件状态机、任务 owner、律师 local guard、利益冲突阻断、撮合公平、风险调查缓存/爬虫/意图均有测试；真实 crawler dry-run、律所 RBAC 全矩阵、案源 8 API、Playwright 全流程仍需补发布证据 | 继续补真实环境与全矩阵验收 |
 | 移动端完整验收 | 本地 mobile/mini smoke 与 fake fallback guard 已通过；移动端/小程序最小触控 token 底座已补；小程序语义 token 层已补并迁移首页/聊天/个人中心；`docs/design/cross-platform-token-drift.md` 已产出三端 token 漂移清单并定位品牌主色和真机触控复核 P0；仍缺品牌主色最终统一、跨设备会话延续、真机验证 | 执行 TASK-11c 剩余 P0/P1 |
-| 发布门禁 | `scripts/static-quality-baseline.sh` 已采集当前静态质量基线：ruff `0`、mypy `0`、mypy zero-baseline gate `0`、release evidence secret/PII scan `0`、secret scan `0`、mock/fallback scan `0`；全仓 Ruff 与 backend mypy 已清零；上一轮 GitNexus 已刷新到 `ccb316d8`，但真机/沙箱/e2e 覆盖不足，且每次新提交后 GitNexus 必须重建到最新 `HEAD` | 静态质量门槛已闭合，发布前仍不应宣称 full commercial ready |
 
 ## 4. 推荐下一步顺序
 
@@ -46,4 +41,3 @@
 2. TASK-07 RAG 质量与引用链路：直接影响法务产品可用性，需要真实业务知识库 full50 和引用回链。
 3. TASK-08a/08b 案件/律师市场：补全矩阵、案源 8 API 打勾和 Playwright 三角联通。
 4. 获取支付/电签沙箱凭据后，启动真实渠道 7 天回归与灰度记录。
-5. 每次最终提交后重跑 `GITNEXUS_BIN` direct rc CLI 并确认 `lastCommit == HEAD`；日常开发继续以 `rg`、源码阅读和测试为主。
