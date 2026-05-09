@@ -355,6 +355,29 @@ cd frontend && npm run build
 - `frontend/src/context/PrivacyContext.test.ts` 锁住 `top-secret -> LOCAL`、`hybrid -> HYBRID`、`cloud -> CLOUD` 和未知值回退 HYBRID。
 - 这只关闭桌面运行模式到前端业务门控的一致性缺口；仍不代表真实出站联调、订阅购买链路或第三方 connector 凭据完成。
 
+2026-05-09 MCP connector 凭据保留与遮罩补充：
+
+```bash
+cd frontend && npm test -- mcpSettingsModel.test.ts
+# 1 file / 3 tests passed
+
+cd frontend && npm exec tsc -- --noEmit
+# exit 0
+
+cd frontend && npm run lint
+# exit 0
+
+cd frontend && npm run build
+# exit 0; 保留既有 lottie eval / dynamic import / large chunk warnings
+```
+
+覆盖增量：
+
+- `frontend/src/pages/mcpSettingsModel.ts` 新增保存 payload 规则：创建 connector 或显式替换环境变量时才提交 `env`；编辑既有 connector 的名称、描述、命令、启用状态等元数据时默认不发送 `env`，避免把后端已保存的密钥清空。
+- `frontend/src/pages/Settings.tsx` 的 MCP 编辑弹窗只展示后端返回的 `env_keys`，不显示 env 值；新增“替换环境变量”显式入口，新输入的 secret 使用 password input 且列表中只显示“已填写/待填写”。
+- `frontend/src/lib/api.ts` 补齐 `McpServerConfig.env_keys` 类型，与后端 masked response 对齐。
+- 这降低本地 connector 配置 CRUD 的凭据丢失/泄露风险；真实 approved MCP connector 连接演练、外部 provider 凭据、route-token runtime 证据仍保持阻断。
+
 2026-05-08 本轮移动远控控制面与 host 生命周期切片：
 
 ```bash

@@ -2669,6 +2669,7 @@ export interface McpServerConfig {
   command?: string
   args?: string[]
   env?: Record<string, string>
+  env_keys?: string[]
   url?: string
   is_enabled: boolean
   cached_tools?: any[]

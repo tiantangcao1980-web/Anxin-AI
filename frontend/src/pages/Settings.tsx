@@ -22,6 +22,7 @@ import { useAuthStore, useUIStore } from'@/lib/store'
 import { ErrorState, LoadingState } from'@/components/common'
 import { usePermission } from'@/hooks/usePermission'
 import { DesktopWorkstationPanel } from'@/components/desktop/DesktopWorkstationPanel'
+import { buildMcpSavePayload, getPersistedEnvKeys, maskMcpEnvValue } from './mcpSettingsModel'
 import { normalizeSettingsTab } from'./settingsTabs'
 
 export default function Settings() {
@@ -1047,13 +1048,14 @@ function McpSettingsPanel() {
 }
 
 function McpConfigDialog({ editingServer, onClose, onSave }: { editingServer: McpServerConfig | null, onClose: () => void, onSave: () => void }) {
+ const persistedEnvKeys = getPersistedEnvKeys(editingServer)
  const [form, setForm] = useState<McpServerCreate>({
  name: editingServer?.name ||'',
  description: editingServer?.description ||'',
  type: editingServer?.type ||'stdio',
  command: editingServer?.command ||'',
  args: editingServer?.args || [],
- env: editingServer?.env || {},
+ env: editingServer ? {} : {},
  url: editingServer?.url ||'',
  is_enabled: editingServer?.is_enabled ?? true
  })
@@ -1061,6 +1063,7 @@ function McpConfigDialog({ editingServer, onClose, onSave }: { editingServer: Mc
  const [argInput, setArgInput] = useState('')
  const [envKey, setEnvKey] = useState('')
  const [envVal, setEnvVal] = useState('')
+ const [replaceEnv, setReplaceEnv] = useState(false)
  const [saving, setSaving] = useState(false)
 
  const applyTemplate = (templateName: string) => {
@@ -1076,6 +1079,7 @@ function McpConfigDialog({ editingServer, onClose, onSave }: { editingServer: Mc
  env: { ...(template.env || {}) } as Record<string, string>,
  url:''
  })
+ setReplaceEnv(false)
  }
  }
 
@@ -1086,10 +1090,11 @@ function McpConfigDialog({ editingServer, onClose, onSave }: { editingServer: Mc
 
  setSaving(true)
  try {
+ const payload = buildMcpSavePayload(form, { editing: Boolean(editingServer), replaceEnv })
  if (editingServer) {
- await mcpApi.update(editingServer.id, form)
+ await mcpApi.update(editingServer.id, payload)
  } else {
- await mcpApi.create(form)
+ await mcpApi.create(payload as McpServerCreate)
  }
  toast.success('保存成功')
  onSave()
@@ -1212,7 +1217,40 @@ function McpConfigDialog({ editingServer, onClose, onSave }: { editingServer: Mc
  </div>
 
  <div>
- <label className={`block ${heading.card} mb-1`}>环境变量 (Environment Variables)</label>
+ <div className="mb-2 flex items-center justify-between gap-3">
+ <label className={`block ${heading.card}`}>环境变量 (Environment Variables)</label>
+ {editingServer && (
+ <button
+ type="button"
+ className={buttonStyle.secondary}
+ onClick={() => {
+ setReplaceEnv(true)
+ setForm({...form, env: {}})
+ }}
+ >
+ 替换环境变量
+ </button>
+ )}
+ </div>
+ {editingServer && persistedEnvKeys.length > 0 && !replaceEnv && (
+ <div className="mb-3 rounded-lg border border-border bg-muted/50 p-3">
+ <p className="mb-2 text-xs text-muted-foreground">已保存的凭据只显示键名，编辑其他字段不会清空密钥。</p>
+ <div className="flex flex-wrap gap-2">
+ {persistedEnvKeys.map((key) => (
+ <span key={key} className="rounded bg-background px-2 py-1 text-xs font-medium text-foreground">
+ {key}=已保存
+ </span>
+ ))}
+ </div>
+ </div>
+ )}
+ {(!editingServer || replaceEnv) && (
+ <>
+ {editingServer && (
+ <p className="mb-2 text-xs leading-5 text-warning">
+ 保存后将用下方列表替换当前环境变量；留空会清空该服务的 env 配置。
+ </p>
+ )}
  <div className="flex gap-2 mb-2">
  <input
  className={`flex-1 ${inputStyle.search} font-mono`}
@@ -1221,6 +1259,8 @@ function McpConfigDialog({ editingServer, onClose, onSave }: { editingServer: Mc
  onChange={e => setEnvKey(e.target.value)}
  />
  <input
+ type="password"
+ autoComplete="off"
  className={`flex-1 ${inputStyle.search} font-mono`}
  placeholder="VALUE"
  value={envVal}
@@ -1242,7 +1282,7 @@ function McpConfigDialog({ editingServer, onClose, onSave }: { editingServer: Mc
  <div className="space-y-1">
  {Object.entries(form.env || {}).map(([k, v]) => (
  <div key={k} className="flex justify-between px-3 py-1 bg-muted rounded text-sm font-mono">
- <span>{k}={typeof v ==='string' && v.length > 4 ? v.slice(0, 4) +'***' : v}</span>
+ <span>{k}={maskMcpEnvValue(v)}</span>
  <button onClick={() => {
  const newEnv = {...form.env}
  delete newEnv[k]
@@ -1251,6 +1291,8 @@ function McpConfigDialog({ editingServer, onClose, onSave }: { editingServer: Mc
  </div>
  ))}
  </div>
+ </>
+ )}
  </div>
  </>
  ) : (

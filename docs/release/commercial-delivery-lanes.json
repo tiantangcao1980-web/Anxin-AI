@@ -160,6 +160,9 @@
         "frontend/src/context/PrivacyContext.test.ts",
         "frontend/src/components/desktop/DesktopWorkstationPanel.tsx",
         "frontend/src/components/desktop/desktopWorkstationModel.ts",
+        "frontend/src/pages/Settings.tsx",
+        "frontend/src/pages/mcpSettingsModel.ts",
+        "frontend/src/pages/mcpSettingsModel.test.ts",
         "frontend/e2e/settings-workstation.spec.ts",
         "docs/release/external-resource-handoff.md",
         "scripts/desktop-release-package.sh",
@@ -177,6 +180,7 @@
         "bash scripts/desktop-runtime-smoke.sh --with-app-bundle --out docs/release/evidence/artifacts/desktop-runtime-code-smoke-YYYYMMDD.json --ui-log-out docs/release/evidence/artifacts/desktop-runtime-ui-smoke-YYYYMMDD.log",
         "bash scripts/desktop-installed-profile-smoke.sh --out docs/release/evidence/artifacts/desktop-installed-profile-smoke-YYYYMMDD.json",
         "cd frontend && npm test -- PrivacyContext.test.ts",
+        "cd frontend && npm test -- mcpSettingsModel.test.ts",
         "cd frontend && npx playwright test e2e/settings-workstation.spec.ts --project=chromium --project=mobile",
         "cd desktop && cargo test runtime_config",
         "cd desktop && cargo test app_mode"
@@ -189,7 +193,7 @@
         "packaged cross-device test environment"
       ],
       "current_blockers": [
-        "2026-05-09 desktop workstation local config surface is code-level covered: mode switch and backend endpoint save are locked by frontend unit/e2e tests, Rust IPC rejects non-http(s) backend URLs, secret-free mode/backend runtime config now persists across restarts, and desktop top-secret mode now maps into frontend PrivacyContext local gates, but this does not replace signed runtime or complete connector credential CRUD evidence.",
+        "2026-05-09 desktop workstation local config surface is code-level covered: mode switch and backend endpoint save are locked by frontend unit/e2e tests, Rust IPC rejects non-http(s) backend URLs, secret-free mode/backend runtime config now persists across restarts, desktop top-secret mode now maps into frontend PrivacyContext local gates, and MCP connector metadata edits preserve masked env credentials by default, but this does not replace signed runtime or approved connector rehearsal evidence.",
         "desktop-release-package dry-run and desktop-release-preflight now report hdiutil/DiskManagement, unsigned release app, and unsigned release DMG as passing, but still report missing signing identity, codesign identity, notary credential, code-sign verification, and signature authority.",
         "Unsigned release packaged runtime and packaged-profile/performance smoke now pass, but signed/notarized packaged-profile migration, signed packaged runtime performance, and cross-device evidence are missing."
       ],
