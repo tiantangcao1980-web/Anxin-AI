@@ -44,7 +44,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await init_db()
         logger.info("✅ 数据库初始化完成")
     except Exception as e:
-        logger.warning(f"⚠️ 数据库初始化跳过: {e}")
+        logger.error(f"❌ 数据库初始化失败，应用停止启动: {e}")
+        raise
 
     logger.info(f"📍 API文档: http://localhost:{settings.BACKEND_PORT}/docs")
 

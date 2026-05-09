@@ -14,6 +14,7 @@
 - **桌面同步 11b**：Rust-owned SQLCipher/keyring、本地/unsigned release packaged-profile smoke、packaged-binary sync code smoke、unsigned release loopback push/pull/conflict/retry 和跨设备续接代码级 rehearsal 已有；仍缺 signed/notarized packaged-profile、signed runtime 性能、共享预发后端 transcript、交互式 conflict/human-intervention UI transcript 和真机跨设备连续会话。
 - **移动/小程序路线**：旧 `mobile/` Expo 与 `mini-program/` Taro 目录作为 legacy/回归参考保留；新移动端和小程序能力优先进入 `apps/uni-mobile/`，当前 uni-app base smoke 已通过 H5/微信小程序构建，但 DCloud App 云打包/签名、真实 iOS/Android、交互式微信开发者工具和共享预发账号证据仍缺。
 - **外部 API 策略**：支付、电签、LLM/embedding、MCP/Skills connector 等先保留 sandbox/live runner、contract test、env manifest 和脱敏 artifact 槽位；真实密钥、商户后台、签名身份和真机由外部输入后再联调。
+- **后端启动/登录可靠性**：PostgreSQL 旧库缺 `users.department` 等登录查询列时，启动兼容层已覆盖用户登录相关增量列；`init_db()` 失败现在会阻止 API 启动，不再带着坏 schema 继续运行到登录阶段才报错。
 
 ---
 
