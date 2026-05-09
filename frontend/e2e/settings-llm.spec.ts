@@ -8,7 +8,7 @@ test.describe('LLM 配置凭据体验', () => {
 
     await page.goto('/settings?tab=llm')
 
-    await expect(page.getByRole('tab', { name: '模型配置' })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByRole('tab', { name: 'AI 连接' })).toHaveAttribute('aria-selected', 'true')
     await expect(page.getByTestId('llm-config-llm-e2e-1')).toContainText('组织默认模型')
     await expect(page.getByTestId('llm-config-key-llm-e2e-1')).toContainText('已保存 sk-a...7890')
     await expect(page.getByText('sk-live-secret-value')).toHaveCount(0)
@@ -73,6 +73,7 @@ test.describe('LLM 配置凭据体验', () => {
 
     await expect(page.getByText('组织默认模型')).toBeVisible()
     await expect(page.getByText('组织级 · 已遮罩')).toBeVisible()
+    await expect(page.getByRole('heading', { name: '模型治理' })).toBeVisible()
     await expect(page.getByText('服务重启后将重置')).toHaveCount(0)
   })
 })

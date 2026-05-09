@@ -42,8 +42,8 @@ export default function Settings() {
 
  return (
  <PageContainer
- title="系统设置"
- description="管理个人信息、模型配置、第三方服务集成和监控看板"
+ title="我的设置"
+ description="管理个人账号、桌面工作站和当前账号可用连接；组织与平台治理统一进入治理后台"
  className="box-border w-[100dvw] min-w-0 max-w-[100dvw] overflow-hidden lg:w-full lg:max-w-full"
  >
  <Tabs value={activeTab} onValueChange={handleTabChange} className="min-w-0 space-y-4 overflow-hidden">
@@ -54,15 +54,15 @@ export default function Settings() {
  </TabsTrigger>
  <TabsTrigger value="workstation" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
  <icons.LayoutDashboard className={`${iconSize.sm} shrink-0`} />
- <span className="whitespace-nowrap">工作站</span>
+ <span className="whitespace-nowrap">桌面工作站</span>
  </TabsTrigger>
  <TabsTrigger value="llm" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
  <icons.Cpu className={`${iconSize.sm} shrink-0`} />
- <span className="whitespace-nowrap">模型配置</span>
+ <span className="whitespace-nowrap">AI 连接</span>
  </TabsTrigger>
  <TabsTrigger value="mcp" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
  <icons.Server className={`${iconSize.sm} shrink-0`} />
- <span className="whitespace-nowrap">服务集成</span>
+ <span className="whitespace-nowrap">工具连接</span>
  </TabsTrigger>
  <TabsTrigger value="notifications" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
  <icons.Notification className={`${iconSize.sm} shrink-0`} />
@@ -257,15 +257,15 @@ function ProfilePanel() {
  {isAdmin && (
  <Card className="border-border rounded-xl">
  <CardHeader>
- <CardTitle className={heading.section}>管理入口</CardTitle>
- <CardDescription className={heading.muted}>管理员可从这里进入后台管理面板</CardDescription>
+ <CardTitle className={heading.section}>治理入口</CardTitle>
+ <CardDescription className={heading.muted}>组织级用户、权限、审计、安全和系统配置统一在治理后台处理</CardDescription>
  </CardHeader>
  <CardContent className="flex items-center justify-between gap-3">
  <div>
- <p className="text-sm font-medium text-foreground">后台管理</p>
- <p className="text-xs text-muted-foreground">用户、角色、审计、安全与系统配置</p>
+ <p className="text-sm font-medium text-foreground">治理后台</p>
+ <p className="text-xs text-muted-foreground">跨用户、跨组织和平台级配置不放在个人设置里</p>
  </div>
- <Button onClick={() => navigate('/admin')}>后台管理</Button>
+ <Button onClick={() => navigate('/admin')}>进入治理后台</Button>
  </CardContent>
  </Card>
  )}
@@ -485,9 +485,9 @@ export function LlmSettingsPanel() {
  <div className="space-y-6">
  <div className="flex items-center justify-between">
  <div>
- <h2 className={heading.section}>大语言模型配置</h2>
+ <h2 className={heading.section}>AI 连接</h2>
  <p className={heading.muted}>
- 配置和管理用于AI助手的各类大模型，支持国际/国内主流模型及本地模型
+ 管理当前账号可使用的模型连接；组织默认、密钥审计和启停治理在后台模型治理中统一处理
  </p>
  </div>
  <button
@@ -942,9 +942,9 @@ function McpSettingsPanel() {
  <div className={cardStyle.base}>
  <div className="flex items-center justify-between">
  <div>
- <h2 className={heading.section}>第三方服务集成 (MCP)</h2>
+ <h2 className={heading.section}>工具连接 (MCP)</h2>
  <p className={`${heading.muted} mt-0.5`}>
- 配置外部 Model Context Protocol 服务，扩展 Agent 的能力（如搜索、地图、数据库等）
+ 管理当前工作流可调用的 MCP 工具连接；跨组织启用、凭据审计和系统级接入在治理后台处理
  </p>
  </div>
  <button

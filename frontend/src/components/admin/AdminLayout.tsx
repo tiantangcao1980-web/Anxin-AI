@@ -15,7 +15,7 @@ interface NavItem {
   icon: HeroIcon
 }
 
-// 后台管理导航 — 按功能分组
+// 治理后台导航 — 按功能分组
 interface NavGroup {
   label: string
   items: NavItem[]
@@ -40,11 +40,11 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: '系统运维',
+    label: '平台配置',
     items: [
       { path: '/admin/basic', label: '基础设置', icon: icons.Settings },
-      { path: '/admin/ai-config', label: '模型配置', icon: icons.Cpu },
-      { path: '/admin/integrations', label: '服务集成', icon: icons.Globe },
+      { path: '/admin/ai-config', label: '模型治理', icon: icons.Cpu },
+      { path: '/admin/integrations', label: '系统集成', icon: icons.Globe },
       { path: '/admin/health', label: '系统监控', icon: icons.Server },
       { path: '/admin/harness', label: 'Harness', icon: icons.Shield },
     ],
@@ -109,8 +109,8 @@ export default function AdminLayout() {
                 exit={{ opacity: 0, width: 0 }}
                 className="overflow-hidden whitespace-nowrap"
               >
-                <h1 className="text-base font-medium text-foreground">后台管理</h1>
-                <p className="text-xs text-muted-foreground">Admin Panel</p>
+                <h1 className="text-base font-medium text-foreground">治理后台</h1>
+                <p className="text-xs text-muted-foreground">组织与平台治理</p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -204,11 +204,11 @@ export default function AdminLayout() {
               <icons.Menu className="w-5 h-5 text-muted-foreground" />
             </button>
             <Badge className="bg-primary text-primary-foreground hover:bg-primary/90 text-xs">
-              管理后台
+              治理后台
             </Badge>
             <Separator orientation="vertical" className="h-5 hidden sm:block" />
             <nav className="hidden sm:flex items-center gap-1 text-sm text-muted-foreground">
-              <span>管理中心</span>
+              <span>后台</span>
               <icons.ChevronRight className="w-4 h-4" />
               <span className="text-foreground font-medium">{currentNav.label}</span>
             </nav>

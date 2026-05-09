@@ -319,7 +319,7 @@ export function UserProfile({ onClose, headerActionLabels = true, onToggleHeader
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4">
-          {/* 功能列表：个人信息、帮助中心、后台管理、深色模式、推送通知 */}
+          {/* 功能列表：个人信息、帮助中心、治理后台、深色模式、推送通知 */}
           <div className="space-y-1 mb-4">
             {menuItems.map((item) => {
               const Icon = item.icon
@@ -342,7 +342,7 @@ export function UserProfile({ onClose, headerActionLabels = true, onToggleHeader
                 className={`w-full flex items-center gap-3 p-3 ${buttonStyle.ghost} text-left`}
               >
                 <icons.Shield className={`${iconSize.md} text-primary`} />
-                <span className={`${heading.card} text-primary`}>后台管理</span>
+                <span className={`${heading.card} text-primary`}>治理后台</span>
                 <icons.ChevronRight className={`${iconSize.sm} text-primary/60 ml-auto`} />
               </button>
             )}

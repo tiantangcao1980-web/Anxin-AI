@@ -724,7 +724,7 @@ export function DesktopWorkstationPanel() {
         <CardHeader className="pb-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <CardTitle className={heading.section}>桌面主工作站</CardTitle>
+              <CardTitle className={heading.section}>我的桌面工作站</CardTitle>
               <CardDescription className={heading.muted}>
                 {desktopClient ? '当前客户端能力状态' : '桌面能力预览，完整本地能力须在桌面客户端启用'}
               </CardDescription>
@@ -786,7 +786,7 @@ export function DesktopWorkstationPanel() {
 
       <Card className="border-border rounded-xl" data-testid="desktop-workstation-config">
         <CardHeader className="pb-3">
-          <CardTitle className={heading.card}>工作站配置</CardTitle>
+          <CardTitle className={heading.card}>本机运行配置</CardTitle>
           <CardDescription className={heading.muted}>
             {desktopClient ? '配置本机运行模式与后端环境，保存后立即作用于桌面运行时' : '仅桌面客户端可写入本机运行时配置'}
           </CardDescription>
@@ -863,7 +863,7 @@ export function DesktopWorkstationPanel() {
           <div className="space-y-3 xl:col-span-2" data-testid="workstation-profile-manager">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <Label className="text-sm font-medium text-foreground">环境配置档</Label>
+                <Label className="text-sm font-medium text-foreground">本机环境配置档</Label>
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">
                   保存常用后端与运行模式组合，配置档不包含密钥、Token 或证书。
                 </p>
@@ -1219,7 +1219,7 @@ export function DesktopWorkstationPanel() {
 
       <Card className="border-border rounded-xl" data-testid="desktop-workstation-probes">
         <CardHeader className="pb-3">
-          <CardTitle className={heading.card}>工作站状态探针</CardTitle>
+          <CardTitle className={heading.card}>本机状态探针</CardTitle>
           <CardDescription className={heading.muted}>
             {desktopClient ? '只读读取桌面运行时与治理状态，不上传业务数据' : '非桌面环境仅展示待接入状态'}
           </CardDescription>
@@ -1314,7 +1314,7 @@ export function DesktopWorkstationPanel() {
         <CardHeader className="pb-3">
           <CardTitle className={heading.card}>发布缺口</CardTitle>
           <CardDescription className={heading.muted}>
-            工作站入口只展示已落地或可治理的能力，未完成项继续保留阻断状态
+            桌面工作站只展示本机运行能力和只读治理状态；组织级配置统一进入治理后台
           </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-3 md:grid-cols-3">

@@ -245,7 +245,7 @@ export default function ProLayout() {
           <button
             onClick={() => navigate('/admin')}
             className="p-2 rounded-lg hover:bg-muted transition-colors"
-            title="后台管理"
+            title="治理后台"
           >
             <icons.Settings className="w-4.5 h-4.5 text-muted-foreground" />
           </button>

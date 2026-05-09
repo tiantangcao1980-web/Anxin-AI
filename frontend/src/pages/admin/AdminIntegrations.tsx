@@ -44,11 +44,11 @@ export default function AdminIntegrations() {
   }
 
   if (loading) {
-    return <PageContainer title="服务集成"><Skeleton className="h-96 rounded-xl" /></PageContainer>
+    return <PageContainer title="系统集成"><Skeleton className="h-96 rounded-xl" /></PageContainer>
   }
 
   return (
-    <PageContainer title="服务集成" description="OAuth 登录、对象存储、短信和邮件服务">
+    <PageContainer title="系统集成" description="组织级 OAuth 登录、对象存储、短信和邮件服务治理">
       <Tabs defaultValue="oauth" className="space-y-4">
         <TabsList>
           <TabsTrigger value="oauth" className="gap-1.5"><icons.Globe className="w-3.5 h-3.5" />OAuth 登录</TabsTrigger>

@@ -94,6 +94,11 @@
 - ✅ 生物识别认证（`tauri-plugin-biometric`）
 - ✅/⏳ **全局快捷键 Cmd+Shift+Space + Quick Query 独立窗口**（代码/浏览器证据已有；packaged 200ms 和真实本地模型 smoke 待补）
 
+**信息架构边界**（避免工作站与后台冗余）：
+- 桌面工作站只处理“我这台设备如何运行”：本机模式、后端地址、本地模型默认项、本机通知、离线队列和只读状态探针。
+- 治理后台只处理“组织/平台如何治理”：用户角色、组织、安全审计、系统集成、模型治理、计费和发布运维。
+- 若底层复用同一 API/组件，界面文案必须标明作用域；工作站不承载组织级凭据治理，后台不承载本机运行模式切换。
+
 **MVP 发布剩余任务**（优先级递减）：
 - [~] **P0-1**：Tauri 窗口外观优化 — 代码级 chrome/titlebar gate 已有；macOS/Windows 截图、vibrancy/acrylic 视觉验收和 signed runtime 待补
 - [~] **P0-2**：全局快捷键呼出后的"快速问答"模式 — 独立 Quick Query 窗口已实现；packaged 快捷键实测、P95 < 200ms 和真实 local model smoke 待补

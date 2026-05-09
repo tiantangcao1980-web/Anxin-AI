@@ -91,7 +91,7 @@ const Login = lazy(() => import('@/pages/Login'))
 // V2 架构：服务方端独立布局
 import ProLayout from '@/components/pro/ProLayout'
 
-// 后台管理（AdminLayout 静态引入，避免 Vite 动态 import 偶发 Failed to fetch module）
+// 治理后台（AdminLayout 静态引入，避免 Vite 动态 import 偶发 Failed to fetch module）
 const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'))
 const AdminUsers = lazy(() => import('@/pages/admin/AdminUsers'))
 const AdminRoles = lazy(() => import('@/pages/admin/AdminRoles'))
@@ -315,7 +315,7 @@ function App() {
               <Route path="/pro/login" element={<Login />} />
               <Route path="/desktop/quick-query" element={<QuickQuery />} />
 
-              {/* ===== 后台管理（独立布局 + Admin 权限守卫） ===== */}
+              {/* ===== 治理后台（独立布局 + Admin 权限守卫） ===== */}
               <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
                 <Route index element={<AdminDashboard />} />
                 <Route path="users" element={<AdminUsers />} />
@@ -440,7 +440,7 @@ function App() {
                 <Route path="pricing" element={<ProtectedRoute feature="pricing"><Pricing /></ProtectedRoute>} />
                 <Route path="my-subscription" element={<ProtectedRoute feature="my_subscription"><MySubscription /></ProtectedRoute>} />
 
-                {/* ===== AI 配置已迁移到后台管理 ===== */}
+                {/* ===== AI 配置已迁移到治理后台 ===== */}
                 <Route path="ai-assistant-settings" element={<Navigate to="/private-llm" replace />} />
                 <Route path="private-llm" element={<ProtectedRoute feature="private_llm"><PrivateLLMSetup /></ProtectedRoute>} />
                 <Route path="sync-conflicts" element={<SyncConflicts />} />

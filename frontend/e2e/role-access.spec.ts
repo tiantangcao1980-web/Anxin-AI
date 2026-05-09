@@ -128,7 +128,7 @@ test.describe('多角色访问控制（移动端）', () => {
     await expect(page.getByRole('button', { name: '案源管理' })).toHaveCount(0)
   })
 
-  test('非管理员在"我的"菜单中看不到后台管理入口', async ({ page }) => {
+  test('非管理员在"我的"菜单中看不到治理后台入口', async ({ page }) => {
     await seedAuthState(page, {
       role: 'enterprise_user',
       name: '企业法务',
@@ -139,10 +139,10 @@ test.describe('多角色访问控制（移动端）', () => {
     // 移动端底部导航将设置入口命名为"我的"
     await page.getByRole('navigation').getByRole('button', { name: '我的' }).click()
 
-    await expect(page.getByRole('button', { name: '后台管理' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: '治理后台' })).toHaveCount(0)
   })
 
-  test('管理员在"我的"菜单中可见后台管理入口', async ({ page }) => {
+  test('管理员在"我的"菜单中可见治理后台入口', async ({ page }) => {
     await seedAuthState(page, {
       role: 'admin',
       name: 'Admin User',
@@ -152,6 +152,6 @@ test.describe('多角色访问控制（移动端）', () => {
     await page.goto('/chat')
     await page.getByRole('navigation').getByRole('button', { name: '我的' }).click()
 
-    await expect(page.getByRole('button', { name: '后台管理' })).toBeVisible()
+    await expect(page.getByRole('button', { name: '治理后台' })).toBeVisible()
   })
 })
