@@ -4,6 +4,8 @@ import { loginAsAdmin } from './helpers/auth'
 
 test.describe('桌面主工作站设置入口', () => {
   test.beforeEach(async ({ page }, testInfo) => {
+    const pendingRemoteControl = testInfo.title.includes('remote-control host pending')
+    const readyRemoteControl = testInfo.title.includes('remote-control host safe-probe')
     const workstationProbeFixtures = testInfo.title.includes('desktop runtime')
       ? {
           knowledge: {
@@ -23,6 +25,67 @@ test.describe('桌面主工作站设置入口', () => {
               { id: 'mcp-2', name: 'browser', type: 'sse', is_enabled: false, cached_tools: [{ name: 'open' }], created_at: '2026-05-08T00:00:00Z' },
             ],
           },
+          remoteControl: pendingRemoteControl
+            ? {
+                status: {
+                  available: false,
+                  status: 'pending_desktop_confirmation',
+                  desktop_device_id: 'desktop-e2e-01',
+                  pairing_id: 'pairing-e2e-pending',
+                  queued_command_count: 0,
+                  required_controls: ['device_pairing', 'desktop_confirmation', 'audit_log'],
+                  message: '已有配对请求等待桌面端确认；确认前不会接受远控命令。',
+                },
+                auditEvents: {
+                  items: [
+                    {
+                      id: 'audit-pairing-request',
+                      pairing_id: 'pairing-e2e-pending',
+                      action: 'remote_control.pairing.request',
+                      status: 'success',
+                      reason_code: 'pending_desktop_confirmation',
+                      created_at: '2026-05-09T10:00:00Z',
+                    },
+                  ],
+                  total: 1,
+                },
+              }
+            : readyRemoteControl
+              ? {
+                  status: {
+                    available: true,
+                    status: 'queue_ready_execution_pending',
+                    desktop_device_id: 'desktop-e2e-01',
+                    pairing_id: 'pairing-e2e-ready',
+                    queued_command_count: 1,
+                    required_controls: ['capability_route_token', 'command_expiry_and_revocation', 'audit_log'],
+                    message: '远控控制面已具备已确认配对和命令队列；仍需桌面 host 拉取。',
+                  },
+                  auditEvents: {
+                    items: [
+                      {
+                        id: 'audit-command-claim',
+                        pairing_id: 'pairing-e2e-ready',
+                        command_id: 'command-e2e',
+                        action: 'remote_control.command.claim',
+                        status: 'success',
+                        reason_code: 'claimed',
+                        created_at: '2026-05-09T10:03:00Z',
+                      },
+                      {
+                        id: 'audit-command-enqueue',
+                        pairing_id: 'pairing-e2e-ready',
+                        command_id: 'command-e2e',
+                        action: 'remote_control.command.enqueue',
+                        status: 'success',
+                        reason_code: 'queued',
+                        created_at: '2026-05-09T10:02:00Z',
+                      },
+                    ],
+                    total: 2,
+                  },
+                }
+              : undefined,
         }
       : undefined
 
@@ -58,7 +121,11 @@ test.describe('桌面主工作站设置入口', () => {
     await expect(page.getByRole('button', { name: '配置模型' })).toBeDisabled()
     await expect(page.getByRole('button', { name: '同步状态' })).toBeDisabled()
     await expect(page.getByRole('button', { name: '查看任务' })).toBeDisabled()
-    await expect(page.getByText('请在桌面客户端启用')).toHaveCount(3)
+    await expect(page.locator('[data-testid^="desktop-workstation-resource-"]').getByText('请在桌面客户端启用')).toHaveCount(3)
+    await expect(page.getByTestId('remote-control-host-refresh')).toBeDisabled()
+    await expect(page.getByTestId('remote-control-host-confirm')).toBeDisabled()
+    await expect(page.getByTestId('remote-control-host-cycle')).toBeDisabled()
+    await expect(page.getByTestId('remote-control-host-cancel-command')).toBeDisabled()
   })
 
   test('desktop runtime shows local model and queue probes', async ({ page }) => {
@@ -106,6 +173,118 @@ test.describe('桌面主工作站设置入口', () => {
     await expect(page.getByTestId('workstation-probe-offline-queue')).toContainText('3 条')
     await expect(page.getByTestId('workstation-probe-offline-queue')).toContainText('1 条失败需处理')
     await expect(page.getByTestId('workstation-probe-remote-control')).toContainText('待验收')
+  })
+
+  test('desktop runtime remote-control host pending pairing can be confirmed', async ({ page }) => {
+    await page.addInitScript(() => {
+      const calls: Array<{ cmd: string; args?: Record<string, unknown> }> = []
+      ;(window as any).__remoteControlInvokes = calls
+      ;(window as any).__TAURI_INTERNALS__ = {
+        invoke: async (cmd: string, args?: Record<string, unknown>) => {
+          calls.push({ cmd, args })
+          if (cmd === 'get_app_state') {
+            return {
+              mode: 'hybrid',
+              sync_status: 'idle',
+              last_sync_time: null,
+              backend_url: 'http://localhost:8001',
+              is_online: true,
+              user_token: 'token-redacted',
+              unread_count: 0,
+            }
+          }
+          if (cmd === 'remote_control_confirm_pairing') {
+            return {
+              pairing_id: args?.pairingId,
+              desktop_device_id: args?.desktopDeviceId,
+              status: 'confirmed',
+              confirmed_at: '2026-05-09T10:04:00Z',
+            }
+          }
+          if (cmd === 'check_local_llm_status') return { available: true, url: 'http://localhost:11434', status: 200 }
+          if (cmd === 'list_local_models') return { available: true, models: [{ name: 'qwen2.5:7b' }] }
+          if (cmd === 'get_queue_stats') return { queued: 0, local_processing: 0, local_completed: 0, synced: 0, failed: 0, total: 0 }
+          if (cmd === 'list_workstation_profiles') return []
+          if (cmd === 'get_current_mode') return '"hybrid"'
+          return null
+        },
+      }
+    })
+
+    await page.goto('/settings?tab=workstation')
+
+    await expect(page.getByTestId('desktop-remote-control-host')).toContainText('待桌面确认')
+    await expect(page.getByTestId('remote-control-host-pairing')).toContainText('pairin')
+    await expect(page.getByTestId('remote-control-host-scope')).toContainText('设备配对')
+    await expect(page.getByTestId('remote-control-host-confirm')).toBeEnabled()
+    await expect(page.getByTestId('remote-control-host-cycle')).toBeDisabled()
+    await expect(page.getByTestId('remote-control-host-audit-timeline')).toContainText('配对申请')
+
+    await page.getByTestId('remote-control-host-confirm').click()
+
+    await expect.poll(async () => page.evaluate(() => {
+      const calls = (window as any).__remoteControlInvokes as Array<{ cmd: string; args?: Record<string, unknown> }>
+      return calls.some((item) => item.cmd === 'remote_control_confirm_pairing' && item.args?.pairingId === 'pairing-e2e-pending')
+    })).toBe(true)
+  })
+
+  test('desktop runtime remote-control host safe-probe and cancel controls stay governed', async ({ page }) => {
+    await page.addInitScript(() => {
+      const calls: Array<{ cmd: string; args?: Record<string, unknown> }> = []
+      ;(window as any).__remoteControlInvokes = calls
+      ;(window as any).__TAURI_INTERNALS__ = {
+        invoke: async (cmd: string, args?: Record<string, unknown>) => {
+          calls.push({ cmd, args })
+          if (cmd === 'get_app_state') {
+            return {
+              mode: 'hybrid',
+              sync_status: 'idle',
+              last_sync_time: null,
+              backend_url: 'http://localhost:8001',
+              is_online: true,
+              user_token: 'token-redacted',
+              unread_count: 0,
+            }
+          }
+          if (cmd === 'remote_control_run_host_cycle') {
+            return {
+              claimed: 1,
+              completed: 1,
+              failed: 0,
+              unsupported: 0,
+              command_ids: ['command-e2e'],
+            }
+          }
+          if (cmd === 'check_local_llm_status') return { available: true, url: 'http://localhost:11434', status: 200 }
+          if (cmd === 'list_local_models') return { available: true, models: [{ name: 'qwen2.5:7b' }] }
+          if (cmd === 'get_queue_stats') return { queued: 0, local_processing: 0, local_completed: 0, synced: 0, failed: 0, total: 0 }
+          if (cmd === 'list_workstation_profiles') return []
+          if (cmd === 'get_current_mode') return '"hybrid"'
+          return null
+        },
+      }
+    })
+
+    await page.goto('/settings?tab=workstation')
+
+    await expect(page.getByTestId('desktop-remote-control-host')).toContainText('可安全探针')
+    await expect(page.getByTestId('remote-control-host-execution')).toContainText('1 条命令')
+    await expect(page.getByTestId('remote-control-host-audit-timeline')).toContainText('桌面领取命令')
+    await expect(page.getByTestId('remote-control-host-cycle')).toBeEnabled()
+    await expect(page.getByTestId('remote-control-host-cancel-command')).toBeEnabled()
+    await expect(page.getByTestId('desktop-remote-control-host')).not.toContainText('e2e-route-token')
+
+    await page.getByTestId('remote-control-host-cycle').click()
+
+    await expect(page.getByTestId('remote-control-host-execution')).toContainText('领取 1')
+    await expect.poll(async () => page.evaluate(() => {
+      const calls = (window as any).__remoteControlInvokes as Array<{ cmd: string; args?: Record<string, unknown> }>
+      return calls.some((item) => item.cmd === 'remote_control_run_host_cycle' && item.args?.routeToken === 'e2e-route-token')
+    })).toBe(true)
+
+    await page.getByTestId('remote-control-host-cancel-command').click()
+
+    await expect(page.getByTestId('remote-control-host-cancel-command')).toBeEnabled()
   })
 
   test('desktop runtime can update local mode and backend endpoint', async ({ page }) => {

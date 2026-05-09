@@ -108,6 +108,12 @@ export type MockOptions = {
     tools?: unknown
     agentTools?: unknown
   }
+  remoteControl?: {
+    status?: unknown
+    auditEvents?: unknown
+    routeToken?: unknown
+    cancelCommand?: unknown
+  }
 }
 
 function createMockToken(role: string, userId = 'e2e-user', expired = false) {
@@ -1157,6 +1163,79 @@ export async function installApiMocks(page: Page, options: MockOptions = {}) {
         status: 'ok',
         data: { decision: 'deny' },
       })
+    }
+
+    if (pathname.endsWith('/sync/remote-control/status') && request.method() === 'GET') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.remoteControl?.status ?? {
+            available: false,
+            status: 'not_configured',
+            desktop_device_id: null,
+            pairing_id: null,
+            queued_command_count: 0,
+            required_controls: [
+              'device_pairing',
+              'desktop_confirmation',
+              'capability_route_token',
+              'command_expiry_and_revocation',
+              'audit_log',
+            ],
+            message: '移动远控桌面尚未创建持久化配对、命令队列和审计闭环；默认不可用。',
+          },
+        ),
+      )
+    }
+
+    if (pathname.endsWith('/sync/remote-control/audit-events') && request.method() === 'GET') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.remoteControl?.auditEvents ?? {
+            items: [],
+            total: 0,
+          },
+        ),
+      )
+    }
+
+    if (pathname.endsWith('/sync/remote-control/route-token') && request.method() === 'POST') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.remoteControl?.routeToken ?? {
+            allowed: true,
+            reason_code: 'route_token_issued',
+            human_message: 'ok',
+            route_token: 'e2e-route-token',
+            route_id: 'route-e2e',
+            pairing_id: 'pairing-e2e',
+            required_scope: 'desktop:control',
+            route_key: 'desktop-control',
+            expires_at: '2026-05-09T10:05:00Z',
+          },
+        ),
+      )
+    }
+
+    if (/\/sync\/remote-control\/commands\/[^/]+\/cancel$/.test(pathname) && request.method() === 'POST') {
+      return fulfillJson(
+        route,
+        buildUnified(
+          options.remoteControl?.cancelCommand ?? {
+            command_id: 'command-e2e',
+            pairing_id: 'pairing-e2e',
+            desktop_device_id: 'desktop-e2e',
+            command_type: 'desktop.status_probe',
+            risk_level: 'l2',
+            status: 'cancelled',
+            route_scopes: ['desktop:control'],
+            second_confirmed: false,
+            cancelled_at: '2026-05-09T10:04:00Z',
+          },
+        ),
+      )
     }
 
     if (pathname.endsWith('/mcp/servers') && request.method() === 'GET') {

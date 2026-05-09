@@ -343,6 +343,33 @@ cd desktop && cargo test app_mode
 - Playwright 覆盖桌面 runtime mock 下的模式切换、后端地址保存、绝密模式远控阻断和移动宽度回归。
 - 这只关闭最小桌面配置写入面；真实 approved MCP connector runtime 证据、signed packaged runtime 和跨设备真机证据仍保持阻断。
 
+2026-05-09 桌面远控 host 可见控制面补充：
+
+```bash
+cd frontend && npm test -- desktopWorkstationModel.test.ts
+# 1 file / 9 tests passed
+
+cd frontend && npm exec tsc -- --noEmit
+# exit 0
+
+cd frontend && npm run lint
+# exit 0
+
+cd frontend && npx playwright test e2e/settings-workstation.spec.ts --project=chromium
+# 7 passed, 1 skipped
+
+cd frontend && npx playwright test e2e/settings-workstation.spec.ts --project=mobile
+# 8 passed
+```
+
+覆盖增量：
+
+- `/settings?tab=workstation` 新增桌面“移动远控 host”可见控制面，展示配对、权限范围、执行状态、取消入口和脱敏审计时间线。
+- 待确认 pairing 只能启用“确认配对”，通过 Tauri IPC `remote_control_confirm_pairing` 走桌面 host 客户端；已确认 pairing 只能先申请短期 `desktop:control` route token，再通过 `remote_control_run_host_cycle` 执行 safe-probe host cycle。
+- queued/claimed 命令取消入口只从审计事件中定位未终态 command id，不展示 route token、不渲染命令 payload/metadata 原文；终态命令不会启用取消。
+- TopSecret 和非桌面预览保持所有 host 操作 disabled，避免浏览器预览或绝密模式误触远控出站动作。
+- 该证据是 mock runtime / 浏览器级控制面证据，不替代 signed runtime daemon 常驻运行、真实跨设备 host callback、高风险真实执行器或真机证据。
+
 2026-05-09 桌面运行配置持久化补充：
 
 ```bash

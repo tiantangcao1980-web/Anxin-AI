@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { knowledgeApi, mcpApi } from '@/lib/api'
+import { desktopControlApi, knowledgeApi, mcpApi, type RemoteControlAuditEvent, type RemoteControlStatusResponse } from '@/lib/api'
 import { useAppModeStore } from '@/lib/store'
 import {
   checkLocalLLMStatus,
@@ -19,6 +19,9 @@ import {
   isTauri,
   listLocalModels,
   listWorkstationProfiles,
+  remoteControlConfirmPairing,
+  remoteControlRunHostCycle,
+  type RemoteControlHostCycleSummary,
   setBackendUrl,
   switchMode,
   updateWorkstationProfile,
@@ -30,9 +33,12 @@ import { heading, iconSize, statusBadge } from '@/lib/design-tokens'
 import { icons } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import {
+  buildRemoteControlHostState,
   buildDesktopWorkstationResources,
   normalizeWorkstationBackendUrl,
   WORKSTATION_MODE_OPTIONS,
+  type RemoteControlHostLoadState,
+  type RemoteControlHostState,
   type WorkstationMode,
   type WorkstationResource,
   type WorkstationResourceStatus,
@@ -80,6 +86,14 @@ interface WorkstationProbeState {
   queueFailed: number
 }
 
+interface RemoteControlHostRuntimeState {
+  loadState: RemoteControlHostLoadState
+  status: RemoteControlStatusResponse | null
+  auditEvents: RemoteControlAuditEvent[]
+  errorMessage: string | null
+  cycleSummary: RemoteControlHostCycleSummary | null
+}
+
 const PREVIEW_PROBES: WorkstationProbeState = {
   status: 'preview',
   knowledgeStatus: 'preview',
@@ -102,6 +116,14 @@ const DEFAULT_PROFILE_FORM = {
   backendUrl: '',
 }
 
+const DEFAULT_REMOTE_CONTROL_HOST_STATE: RemoteControlHostRuntimeState = {
+  loadState: 'preview',
+  status: null,
+  auditEvents: [],
+  errorMessage: null,
+  cycleSummary: null,
+}
+
 export function DesktopWorkstationPanel() {
   const navigate = useNavigate()
   const mode = useAppModeStore((state) => state.mode)
@@ -118,9 +140,24 @@ export function DesktopWorkstationPanel() {
   const [editingProfileId, setEditingProfileId] = useState<string | null>(null)
   const [profileForm, setProfileForm] = useState(DEFAULT_PROFILE_FORM)
   const [probes, setProbes] = useState<WorkstationProbeState>(PREVIEW_PROBES)
+  const [remoteControlHost, setRemoteControlHost] = useState<RemoteControlHostRuntimeState>(
+    DEFAULT_REMOTE_CONTROL_HOST_STATE
+  )
+  const [remoteControlBusy, setRemoteControlBusy] = useState<'refresh' | 'confirm' | 'cycle' | 'cancel' | null>(null)
   const resources = useMemo(
     () => buildDesktopWorkstationResources(mode, desktopClient ? 'desktop' : 'preview'),
     [desktopClient, mode]
+  )
+  const remoteControlHostState = useMemo(
+    () => buildRemoteControlHostState({
+      mode,
+      runtime: desktopClient ? 'desktop' : 'preview',
+      loadState: remoteControlHost.loadState,
+      status: remoteControlHost.status,
+      auditEvents: remoteControlHost.auditEvents,
+      errorMessage: remoteControlHost.errorMessage,
+    }),
+    [desktopClient, mode, remoteControlHost.auditEvents, remoteControlHost.errorMessage, remoteControlHost.loadState, remoteControlHost.status]
   )
   const applyAppState = useCallback((snapshot: AppState | null) => {
     if (!snapshot) return
@@ -140,6 +177,53 @@ export function DesktopWorkstationPanel() {
     setProfiles(await listWorkstationProfiles())
   }, [desktopClient])
 
+  const refreshRemoteControlHost = useCallback(async (options: { silent?: boolean } = {}) => {
+    if (!desktopClient) {
+      setRemoteControlHost(DEFAULT_REMOTE_CONTROL_HOST_STATE)
+      return
+    }
+
+    if (mode === 'top-secret') {
+      setRemoteControlHost({
+        loadState: 'ready',
+        status: null,
+        auditEvents: [],
+        errorMessage: null,
+        cycleSummary: null,
+      })
+      return
+    }
+
+    if (!options.silent) {
+      setRemoteControlHost((current) => ({
+        ...current,
+        loadState: 'loading',
+        errorMessage: null,
+      }))
+    }
+
+    const [statusResult, auditResult] = await Promise.allSettled([
+      desktopControlApi.getStatus(),
+      desktopControlApi.listAuditEvents(8),
+    ])
+
+    const status = statusResult.status === 'fulfilled' ? statusResult.value : null
+    const auditEvents = auditResult.status === 'fulfilled' ? auditResult.value.items : []
+    const errorMessage = statusResult.status === 'rejected'
+      ? statusResult.reason instanceof Error ? statusResult.reason.message : '远控状态读取失败'
+      : auditResult.status === 'rejected'
+        ? auditResult.reason instanceof Error ? auditResult.reason.message : '远控审计读取失败'
+        : null
+
+    setRemoteControlHost((current) => ({
+      ...current,
+      loadState: errorMessage ? 'error' : 'ready',
+      status,
+      auditEvents,
+      errorMessage,
+    }))
+  }, [desktopClient, mode])
+
   useEffect(() => {
     let cancelled = false
 
@@ -150,6 +234,7 @@ export function DesktopWorkstationPanel() {
       setEditingProfileId(null)
       setProfileForm(DEFAULT_PROFILE_FORM)
       setProbes(PREVIEW_PROBES)
+      setRemoteControlHost(DEFAULT_REMOTE_CONTROL_HOST_STATE)
       return () => {
         cancelled = true
       }
@@ -163,6 +248,7 @@ export function DesktopWorkstationPanel() {
     }))
 
     refreshProfiles()
+    void refreshRemoteControlHost()
 
     Promise.allSettled([
       getAppState(),
@@ -208,7 +294,7 @@ export function DesktopWorkstationPanel() {
     return () => {
       cancelled = true
     }
-  }, [applyAppState, desktopClient, mode, refreshProfiles])
+  }, [applyAppState, desktopClient, mode, refreshProfiles, refreshRemoteControlHost])
 
   const handleModeChange = async (nextMode: AppMode) => {
     if (!desktopClient) {
@@ -360,6 +446,96 @@ export function DesktopWorkstationPanel() {
       toast.error(error instanceof Error ? error.message : '工作站配置档删除失败')
     } finally {
       setProfileBusy(null)
+    }
+  }
+
+  const handleRemoteControlRefresh = async () => {
+    if (!desktopClient || remoteControlBusy) return
+    setRemoteControlBusy('refresh')
+    try {
+      await refreshRemoteControlHost({ silent: true })
+      toast.success('远控 host 状态已刷新')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '远控 host 状态刷新失败')
+    } finally {
+      setRemoteControlBusy(null)
+    }
+  }
+
+  const handleRemoteControlConfirmPairing = async () => {
+    if (!desktopClient || remoteControlBusy) return
+    const pairingId = remoteControlHostState.pairingId
+    const desktopDeviceId = remoteControlHostState.desktopDeviceId
+    if (!pairingId || !desktopDeviceId) {
+      toast.error('缺少可确认的配对信息')
+      return
+    }
+
+    setRemoteControlBusy('confirm')
+    try {
+      await remoteControlConfirmPairing({ pairingId, desktopDeviceId })
+      toast.success('远控配对已确认')
+      await refreshRemoteControlHost({ silent: true })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '远控配对确认失败')
+    } finally {
+      setRemoteControlBusy(null)
+    }
+  }
+
+  const handleRemoteControlRunHostCycle = async () => {
+    if (!desktopClient || remoteControlBusy) return
+    const pairingId = remoteControlHostState.pairingId
+    const desktopDeviceId = remoteControlHostState.desktopDeviceId
+    if (!pairingId || !desktopDeviceId) {
+      toast.error('缺少已确认的远控配对')
+      return
+    }
+
+    setRemoteControlBusy('cycle')
+    try {
+      const route = await desktopControlApi.issueRouteToken({
+        pairing_id: pairingId,
+        ttl_seconds: 300,
+      })
+      if (!route.allowed || !route.route_token) {
+        throw new Error(route.human_message || '短期能力路由签发失败')
+      }
+
+      const summary = await remoteControlRunHostCycle({
+        desktopDeviceId,
+        pairingId,
+        routeToken: route.route_token,
+        hostInstanceId: buildRemoteControlHostInstanceId(desktopDeviceId),
+        limit: 5,
+      })
+      setRemoteControlHost((current) => ({
+        ...current,
+        cycleSummary: summary,
+      }))
+      toast.success(summary?.claimed ? '安全探针 host cycle 已完成' : '没有待领取的远控命令')
+      await refreshRemoteControlHost({ silent: true })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '安全探针 host cycle 失败')
+    } finally {
+      setRemoteControlBusy(null)
+    }
+  }
+
+  const handleRemoteControlCancelCommand = async () => {
+    if (!desktopClient || remoteControlBusy || !remoteControlHostState.cancellableCommandId) return
+
+    setRemoteControlBusy('cancel')
+    try {
+      await desktopControlApi.cancelCommand(remoteControlHostState.cancellableCommandId, {
+        reason: 'desktop_host_operator_cancelled_remote_control_command',
+      })
+      toast.success('远控命令已取消')
+      await refreshRemoteControlHost({ silent: true })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '远控命令取消失败')
+    } finally {
+      setRemoteControlBusy(null)
     }
   }
 
@@ -733,6 +909,16 @@ export function DesktopWorkstationPanel() {
         </CardContent>
       </Card>
 
+      <RemoteControlHostPanel
+        state={remoteControlHostState}
+        cycleSummary={remoteControlHost.cycleSummary}
+        busy={remoteControlBusy}
+        onRefresh={handleRemoteControlRefresh}
+        onConfirmPairing={handleRemoteControlConfirmPairing}
+        onRunHostCycle={handleRemoteControlRunHostCycle}
+        onCancelCommand={handleRemoteControlCancelCommand}
+      />
+
       <Card className="border-border rounded-xl">
         <CardHeader className="pb-3">
           <CardTitle className={heading.card}>发布缺口</CardTitle>
@@ -757,6 +943,161 @@ export function DesktopWorkstationPanel() {
   )
 }
 
+function RemoteControlHostPanel({
+  state,
+  cycleSummary,
+  busy,
+  onRefresh,
+  onConfirmPairing,
+  onRunHostCycle,
+  onCancelCommand,
+}: {
+  state: RemoteControlHostState
+  cycleSummary: RemoteControlHostCycleSummary | null
+  busy: 'refresh' | 'confirm' | 'cycle' | 'cancel' | null
+  onRefresh: () => void
+  onConfirmPairing: () => void
+  onRunHostCycle: () => void
+  onCancelCommand: () => void
+}) {
+  const stateClass = state.state === 'blocked'
+    ? statusBadge.error
+    : state.state === 'pending-confirmation'
+      ? statusBadge.warning
+      : state.state === 'ready'
+        ? statusBadge.success
+        : state.state === 'error'
+          ? statusBadge.error
+          : statusBadge.neutral
+
+  return (
+    <Card className="border-border rounded-xl" data-testid="desktop-remote-control-host">
+      <CardHeader className="pb-3">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <CardTitle className={heading.card}>移动远控 host</CardTitle>
+              <span className={`w-fit rounded px-2 py-1 text-xs font-medium ${stateClass}`}>
+                {state.statusLabel}
+              </span>
+            </div>
+            <CardDescription className={heading.muted}>
+              {state.title}
+            </CardDescription>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              data-testid="remote-control-host-refresh"
+              loading={busy === 'refresh'}
+              disabled={Boolean(busy) || state.state === 'preview' || state.state === 'blocked'}
+              iconLeft={<icons.RefreshCw className={iconSize.sm} />}
+              onClick={onRefresh}
+            >
+              刷新
+            </Button>
+            <Button
+              type="button"
+              variant={state.canConfirmPairing ? 'default' : 'outline'}
+              size="sm"
+              data-testid="remote-control-host-confirm"
+              loading={busy === 'confirm'}
+              disabled={!state.canConfirmPairing || Boolean(busy)}
+              iconLeft={<icons.CheckCircle2 className={iconSize.sm} />}
+              onClick={onConfirmPairing}
+            >
+              确认配对
+            </Button>
+            <Button
+              type="button"
+              variant={state.canRunHostCycle ? 'default' : 'outline'}
+              size="sm"
+              data-testid="remote-control-host-cycle"
+              loading={busy === 'cycle'}
+              disabled={!state.canRunHostCycle || Boolean(busy)}
+              iconLeft={<icons.Play className={iconSize.sm} />}
+              onClick={onRunHostCycle}
+            >
+              安全探针
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              data-testid="remote-control-host-cancel-command"
+              loading={busy === 'cancel'}
+              disabled={!state.canCancelCommand || Boolean(busy)}
+              iconLeft={<icons.XCircle className={iconSize.sm} />}
+              onClick={onCancelCommand}
+            >
+              取消命令
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <ProbeCell
+            testId="remote-control-host-pairing"
+            label="配对"
+            value={state.pairingLabel}
+            detail={state.desktopDeviceId ? `桌面设备 ${state.desktopDeviceId}` : state.detail}
+          />
+          <ProbeCell
+            testId="remote-control-host-scope"
+            label="权限范围"
+            value={state.scopeLabel}
+            detail={state.requiredControls.length ? '后端控制项已读取' : state.detail}
+          />
+          <ProbeCell
+            testId="remote-control-host-execution"
+            label="执行状态"
+            value={state.executionLabel}
+            detail={cycleSummary
+              ? `领取 ${cycleSummary.claimed} · 完成 ${cycleSummary.completed} · 失败 ${cycleSummary.failed}`
+              : state.detail}
+          />
+          <ProbeCell
+            testId="remote-control-host-audit"
+            label="审计"
+            value={state.auditLabel}
+            detail={state.canCancelCommand ? '有 queued/claimed 命令可取消' : state.detail}
+          />
+        </div>
+
+        <div className="rounded-lg border border-border bg-surface-1 p-3" data-testid="remote-control-host-audit-timeline">
+          <div className="flex items-center gap-2">
+            <icons.ClipboardCheck className={cn(iconSize.sm, 'text-muted-foreground')} />
+            <p className="text-sm font-medium text-foreground">审计时间线</p>
+          </div>
+          {state.auditRows.length === 0 ? (
+            <p className="mt-3 text-sm text-muted-foreground">暂无远控审计事件</p>
+          ) : (
+            <div className="mt-3 grid grid-cols-1 gap-2 lg:grid-cols-2">
+              {state.auditRows.map((row) => (
+                <div key={row.id} className="min-w-0 rounded-md border border-border bg-background p-3">
+                  <div className="flex min-w-0 items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-foreground">{row.title}</p>
+                      <p className="mt-1 truncate text-xs text-muted-foreground">{row.detail}</p>
+                    </div>
+                    <span className="shrink-0 text-xs text-muted-foreground">{row.timestamp}</span>
+                  </div>
+                  {row.commandLabel && (
+                    <p className="mt-2 truncate text-xs text-muted-foreground">{row.commandLabel}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 function getServiceProbeValue(desktopClient: boolean, status: ServiceProbeStatus, readyValue: string) {
   if (!desktopClient) return '需桌面端'
   if (status === 'preview') return '待接入'
@@ -776,6 +1117,11 @@ function getServiceProbeDetail(
   if (status === 'error') return `${defaultDetail}读取失败`
   if (status === 'ready') return readyDetail
   return `${defaultDetail}只读读取`
+}
+
+function buildRemoteControlHostInstanceId(desktopDeviceId: string): string {
+  const normalizedDevice = desktopDeviceId.trim().replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 48)
+  return `desktop-ui-${normalizedDevice || 'host'}-${Date.now().toString(36)}`
 }
 
 function ProbeCell({

@@ -3417,6 +3417,93 @@ export const harnessGovernanceApi = {
   },
 }
 
+// ============ 移动远控桌面 API ============
+
+export interface RemoteControlStatusResponse {
+  available: boolean
+  status: string
+  desktop_device_id?: string | null
+  pairing_id?: string | null
+  queued_command_count?: number
+  required_controls: string[]
+  message: string
+}
+
+export interface RemoteControlRouteTokenResponse {
+  allowed: boolean
+  reason_code: string
+  human_message: string
+  route_token?: string | null
+  route_id?: string | null
+  pairing_id?: string | null
+  required_scope: string
+  route_key: string
+  expires_at?: string | null
+}
+
+export interface RemoteControlCommandResponse {
+  command_id: string
+  pairing_id: string
+  desktop_device_id: string
+  command_type: string
+  risk_level: string
+  status: string
+  route_id?: string | null
+  route_consumer_id?: string | null
+  route_scopes: string[]
+  second_confirmed: boolean
+  expires_at?: string | null
+  claimed_at?: string | null
+  claimed_by_host?: string | null
+  started_at?: string | null
+  completed_at?: string | null
+  failed_at?: string | null
+  failure_reason?: string | null
+  result_summary?: Record<string, unknown> | null
+  cancelled_at?: string | null
+}
+
+export interface RemoteControlAuditEvent {
+  id: string
+  pairing_id?: string | null
+  command_id?: string | null
+  action: string
+  status: string
+  reason_code?: string | null
+  resource_snapshot?: Record<string, unknown> | null
+  metadata?: Record<string, unknown> | null
+  created_at?: string | null
+}
+
+export interface RemoteControlAuditEventsResponse {
+  items: RemoteControlAuditEvent[]
+  total: number
+}
+
+export const desktopControlApi = {
+  getStatus: (desktopDeviceId?: string) => {
+    const query = desktopDeviceId ? `?desktop_device_id=${encodeURIComponent(desktopDeviceId)}` : ''
+    return request<RemoteControlStatusResponse>(`/sync/remote-control/status${query}`)
+  },
+  issueRouteToken: (data: { pairing_id: string; ttl_seconds?: number }) =>
+    request<RemoteControlRouteTokenResponse>('/sync/remote-control/route-token', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  listAuditEvents: (limit = 20) =>
+    request<RemoteControlAuditEventsResponse>(
+      `/sync/remote-control/audit-events?limit=${encodeURIComponent(String(limit))}`,
+    ),
+  cancelCommand: (commandId: string, data: { reason: string }) =>
+    request<RemoteControlCommandResponse>(
+      `/sync/remote-control/commands/${encodeURIComponent(commandId)}/cancel`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      },
+    ),
+}
+
 // ============ 审批流 API ============
 
 export interface ApprovalItem {

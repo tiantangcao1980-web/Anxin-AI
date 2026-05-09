@@ -169,6 +169,53 @@ export async function applyWorkstationProfile(id: string): Promise<{ success: bo
   return invokeRequiredCommand('apply_workstation_profile', { id })
 }
 
+// ===== 移动远控桌面 host =====
+
+export interface RemoteControlPairingPayload {
+  pairing_id: string
+  mobile_device_id?: string
+  desktop_device_id: string
+  requested_scopes?: string[]
+  privacy_mode?: string
+  status: string
+  expires_at?: string | null
+  confirmed_at?: string | null
+}
+
+export interface RemoteControlHostCycleSummary {
+  claimed: number
+  completed: number
+  failed: number
+  unsupported: number
+  command_ids: string[]
+}
+
+export async function remoteControlConfirmPairing(input: {
+  pairingId: string
+  desktopDeviceId: string
+}): Promise<RemoteControlPairingPayload | null> {
+  return invokeRequiredCommand<RemoteControlPairingPayload>('remote_control_confirm_pairing', {
+    pairingId: input.pairingId,
+    desktopDeviceId: input.desktopDeviceId,
+  })
+}
+
+export async function remoteControlRunHostCycle(input: {
+  desktopDeviceId: string
+  pairingId: string
+  routeToken: string
+  hostInstanceId: string
+  limit?: number
+}): Promise<RemoteControlHostCycleSummary | null> {
+  return invokeRequiredCommand<RemoteControlHostCycleSummary>('remote_control_run_host_cycle', {
+    desktopDeviceId: input.desktopDeviceId,
+    pairingId: input.pairingId,
+    routeToken: input.routeToken,
+    hostInstanceId: input.hostInstanceId,
+    limit: input.limit ?? 5,
+  })
+}
+
 // ===== 同步 =====
 
 /** 触发手动同步 */

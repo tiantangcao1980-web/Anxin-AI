@@ -29,6 +29,8 @@
 
 2026-05-09 桌面端补充：窗口 chrome 已新增本地治理门禁。`docs/desktop/window-styling.md` 记录平台分支、实现文件和待补实机证据；`scripts/desktop-window-chrome-gate.sh` 校验 Tauri 主窗口配置、非 macOS decoration 关闭、前端窗口控制、双击模型、capability 与文档一致。当前仍缺实机/签名包证据，但后续窗口外观代码漂移会被本地门禁提前拦住。
 
+2026-05-09 桌面端补充：移动远控 host 已补可见控制面。`/settings?tab=workstation` 在桌面运行时展示配对、权限范围、执行状态、取消入口和脱敏审计时间线；pending pairing 只能通过 Tauri IPC 确认配对，confirmed pairing 会先申请短期 `desktop:control` route token 再运行 safe-probe host cycle，queued/claimed 命令可从审计事件定位后取消；TopSecret 和非桌面预览下 host 操作保持 disabled。当前证据为 `desktopWorkstationModel.test.ts`、前端 tsc/lint 和 workstation Playwright chromium/mobile 回归；仍缺 signed runtime daemon 常驻运行、真实跨设备 host callback、高风险执行器和真机证据。
+
 2026-05-09 Agent 治理补充：approved MCP connector 已新增本地 mock runtime rehearsal。MCP tool route token 现在绑定到当前 MCP server route key，`scripts/agent-connector-rehearsal.sh` 可复跑 route-token issue、connector-bound tool call、route revoke、撤销后 fail-closed、审计事件和脱敏 artifact 校验；该证据仍不等于真实 provider/dashboard/signed runtime 和商业多进程撤销运行时证据，因此 `agent-governance-smoke.md` 保持 `Status: pending`。
 
 2026-05-09 Agent 治理补充：跨服务实例 route-token 撤销已新增本地 rehearsal。`AgentGovernanceService.validate_route_token()` 会刷新 DB-backed lease/route 行，`scripts/agent-cross-process-revocation-rehearsal.sh` 使用独立 issuer、worker、admin session 证明管理员撤销后，同一长生命周期 worker session 的下一次调用 fail-closed，并写出脱敏 `agent-cross-process-revocation-rehearsal-20260509.json`。该证据关闭本地跨进程撤销刷新缺口，但仍不替代 signed packaged runtime、真实 approved connector provider 执行链、生产观测日志和商业多进程运行时证据。

@@ -4,7 +4,7 @@
 # This proves the local governance baseline is runnable: capability policy,
 # route-token gates, approvals, SkillGovernance, memory governance, remote-control
 # safety, desktop host safe-probe handling plus its env-gated background daemon
-# guard and local mock-backend loop, and the minimal frontend governance
+# guard, local mock-backend loop, desktop workstation host controls, and the minimal frontend governance
 # workspace. It is not final commercial runtime evidence.
 
 set -euo pipefail
@@ -94,6 +94,8 @@ run_step "frontend Skill connector credential model tests" bash -lc "cd '$PROJEC
 
 run_step "frontend workspace runtime artifact e2e" bash -lc "cd '$PROJECT_ROOT/frontend' && npx playwright test e2e/right-panel.spec.ts --project=chromium -g 'workspace_artifact_created'"
 
+run_step "frontend workstation remote-control host e2e" bash -lc "cd '$PROJECT_ROOT/frontend' && npx playwright test e2e/settings-workstation.spec.ts --project=chromium --project=mobile"
+
 run_step "frontend agent governance workspace e2e" bash -lc "cd '$PROJECT_ROOT/frontend' && npx playwright test e2e/agent-approval-workspace.spec.ts --project=chromium --project=mobile"
 
 if [ -n "$OUT_PATH" ]; then
@@ -116,6 +118,7 @@ checks = {
     "approved_connector_local_rehearsal": "passed",
     "cross_process_revocation_local_rehearsal": "passed",
     "frontend_workspace_runtime_artifact_e2e": "passed",
+    "frontend_workstation_remote_control_host_e2e": "passed",
     "desktop_remote_control_host": "passed",
     "frontend_skill_connector_credentials_model": "passed",
     "frontend_agent_workspace_e2e": "passed",
@@ -131,7 +134,7 @@ report = {
         "enterprise_agent_governance": "code_level",
         "backend": "policy/routes/approvals/skills/memory/remote-control",
         "desktop": "remote-control safe-probe host, bounded poll, env-gated background daemon, and local mock-backend loop tests",
-        "frontend": "connector credential model tests and agent governance workspace e2e",
+        "frontend": "workstation remote-control host controls, connector credential model tests, and agent governance workspace e2e",
     },
     "pending_runtime_evidence": [
         "real_approved_connector_runtime",
