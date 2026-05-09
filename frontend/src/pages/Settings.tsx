@@ -22,6 +22,7 @@ import { useAuthStore, useUIStore } from'@/lib/store'
 import { ErrorState, LoadingState } from'@/components/common'
 import { usePermission } from'@/hooks/usePermission'
 import { DesktopWorkstationPanel } from'@/components/desktop/DesktopWorkstationPanel'
+import { buildLlmConfigSavePayload, getLlmCredentialSummary } from './llmSettingsModel'
 import { buildMcpSavePayload, getPersistedEnvKeys, maskMcpEnvValue } from './mcpSettingsModel'
 import { normalizeSettingsTab } from'./settingsTabs'
 
@@ -404,7 +405,7 @@ function ProfilePanel() {
 
 // ============ LLM设置面板组件 ============
 
-function LlmSettingsPanel() {
+export function LlmSettingsPanel() {
  const [configs, setConfigs] = useState<LLMConfig[]>([])
  const [providers, setProviders] = useState<Record<string, LLMProvider>>({})
  const [loading, setLoading] = useState(true)
@@ -490,6 +491,7 @@ function LlmSettingsPanel() {
  </p>
  </div>
  <button
+ data-testid="llm-config-add"
  onClick={() => {
  setEditingConfig(null)
  setShowDialog(true)
@@ -503,7 +505,7 @@ function LlmSettingsPanel() {
 
  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
  {configs.map(config => (
- <div key={config.id} className={`${cardStyle.interactive} ${config.is_active ?'' :'opacity-60'}`}>
+ <div key={config.id} data-testid={`llm-config-${config.id}`} className={`${cardStyle.interactive} ${config.is_active ?'' :'opacity-60'}`}>
  <div className="flex items-start justify-between mb-2">
  <div className="flex items-center gap-2 flex-wrap">
  <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-medium rounded-md ${config.is_active ? statusBadge.info : statusBadge.neutral}`}>
@@ -517,7 +519,7 @@ function LlmSettingsPanel() {
  <button className={buttonStyle.icon} onClick={() => handleToggleActive(config.id)} title={config.is_active ?"禁用" :"启用"}>
  {config.is_active ? <icons.Activity className={`${iconSize.sm} text-success`} /> : <icons.Activity className={`${iconSize.sm} text-muted-foreground`} />}
  </button>
- <button className={buttonStyle.icon} onClick={() => {
+ <button data-testid={`llm-config-edit-${config.id}`} className={buttonStyle.icon} onClick={() => {
  setEditingConfig(config)
  setShowDialog(true)
  }}>
@@ -538,6 +540,12 @@ function LlmSettingsPanel() {
  <div className="flex justify-between">
  <span className={heading.micro}>API Base:</span>
  <span className="text-xs text-foreground truncate max-w-[180px]" title={config.api_base_url}>{config.api_base_url ||'默认'}</span>
+ </div>
+ <div className="flex justify-between gap-3">
+ <span className={heading.micro}>API Key:</span>
+ <span className="text-xs text-foreground truncate max-w-[180px]" data-testid={`llm-config-key-${config.id}`}>
+ {getLlmCredentialSummary(config)}
+ </span>
  </div>
  {config.total_calls !== undefined && (
  <div className="flex justify-between">
@@ -650,10 +658,7 @@ function LlmConfigDialog({
 
  setSaving(true)
  try {
- const data: any = { ...form }
- if (editingConfig && !data.api_key) {
- delete data.api_key
- }
+ const data = buildLlmConfigSavePayload(form, { editing: Boolean(editingConfig) })
 
  if (editingConfig) {
  await llmApi.updateConfig(editingConfig.id, data)
@@ -673,7 +678,7 @@ function LlmConfigDialog({
 
  return (
  <Dialog open={true} onOpenChange={onClose}>
- <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+ <DialogContent data-testid="llm-config-dialog" className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
  <DialogHeader>
  <DialogTitle>{editingConfig ?'编辑模型配置' :'添加模型配置'}</DialogTitle>
  <DialogDescription>
@@ -758,7 +763,13 @@ function LlmConfigDialog({
 
  <div className="space-y-2">
  <Label>API Key {editingConfig &&'(留空保持不变)'}</Label>
+ {editingConfig && (
+ <p className="text-xs text-muted-foreground" data-testid="llm-config-saved-key">
+ {getLlmCredentialSummary(editingConfig)}
+ </p>
+ )}
  <Input
+ data-testid="llm-config-api-key"
  type="password"
  value={form.api_key}
  onChange={e => setForm({...form, api_key: e.target.value})}

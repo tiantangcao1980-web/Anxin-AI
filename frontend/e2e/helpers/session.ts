@@ -50,6 +50,14 @@ export type MockOptions = {
   mcp?: {
     servers?: unknown
   }
+  llm?: {
+    providers?: Record<string, unknown>
+    configs?: { items?: Array<Record<string, unknown>>; total?: number; page?: number; page_size?: number }
+    testConnection?: unknown
+    testSavedConfig?: unknown
+    onCreate?: (body: Record<string, unknown>) => void
+    onUpdate?: (body: Record<string, unknown>) => void
+  }
   collaboration?: {
     sessions?: unknown
     session?: unknown
@@ -129,6 +137,36 @@ async function fulfillJson(route: Route, data: unknown) {
 }
 
 export async function installApiMocks(page: Page, options: MockOptions = {}) {
+  let llmConfigState = options.llm?.configs ?? {
+    items: [
+      {
+        id: 'llm-e2e-1',
+        name: '组织默认模型',
+        provider: 'openai',
+        config_type: 'llm',
+        model_name: 'gpt-4o-mini',
+        api_base_url: 'https://api.example.test/v1',
+        api_key_masked: 'sk-a...7890',
+        max_tokens: 4096,
+        temperature: 0.7,
+        top_p: 1,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        is_active: true,
+        is_default: true,
+        context_length: 4096,
+        extra_params: {},
+        total_calls: 12,
+        total_tokens: 2048,
+        avg_latency: 230,
+        created_at: '2026-05-09T10:00:00Z',
+        updated_at: '2026-05-09T10:00:00Z',
+      },
+    ],
+    total: 1,
+    page: 1,
+    page_size: 20,
+  }
   let capabilityRoutePolicyState = options.agentApprovals?.capabilityRoutes?.list ?? {
     items: [
       {
@@ -819,6 +857,102 @@ export async function installApiMocks(page: Page, options: MockOptions = {}) {
 
     if (pathname.includes('/notifications')) {
       return fulfillJson(route, buildUnified({ data: [], total: 0 }))
+    }
+
+    if (pathname.endsWith('/llm/providers') && request.method() === 'GET') {
+      return fulfillJson(
+        route,
+        options.llm?.providers ?? {
+          openai: {
+            name: 'OpenAI Compatible',
+            base_url: 'https://api.example.test/v1',
+            models: { llm: ['gpt-4o-mini', 'gpt-4o'], embedding: ['text-embedding-3-small'] },
+            supports_streaming: true,
+            api_key_required: true,
+            is_local: false,
+            openai_compatible: true,
+          },
+          ollama: {
+            name: 'Ollama',
+            base_url: 'http://localhost:11434/v1',
+            models: { llm: ['qwen2.5:7b'] },
+            supports_streaming: true,
+            api_key_required: false,
+            is_local: true,
+            openai_compatible: true,
+          },
+        },
+      )
+    }
+
+    if (pathname.endsWith('/llm/configs') && request.method() === 'GET') {
+      return fulfillJson(route, llmConfigState)
+    }
+
+    if (pathname.endsWith('/llm/configs') && request.method() === 'POST') {
+      const body = (request.postDataJSON() ?? {}) as Record<string, unknown>
+      options.llm?.onCreate?.(body)
+      const created = {
+        id: 'llm-e2e-created',
+        api_key_masked: body.api_key ? 'sk-n...cret' : null,
+        is_active: true,
+        created_at: '2026-05-09T10:10:00Z',
+        updated_at: '2026-05-09T10:10:00Z',
+        top_p: 1,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        context_length: 4096,
+        extra_params: {},
+        total_calls: 0,
+        total_tokens: 0,
+        avg_latency: null,
+        ...body,
+      }
+      llmConfigState = {
+        ...llmConfigState,
+        items: [created, ...(llmConfigState.items ?? [])],
+        total: (llmConfigState.total ?? 0) + 1,
+      }
+      return fulfillJson(route, created)
+    }
+
+    if (/\/llm\/configs\/[^/]+$/.test(pathname) && request.method() === 'PUT') {
+      const id = pathname.split('/').pop() ?? ''
+      const body = (request.postDataJSON() ?? {}) as Record<string, unknown>
+      options.llm?.onUpdate?.(body)
+      const current = (llmConfigState.items ?? []).find((item) => item.id === id) ?? {}
+      const updated = {
+        ...current,
+        ...body,
+        id,
+        api_key_masked: body.api_key ? 'sk-r...ment' : current.api_key_masked,
+        updated_at: '2026-05-09T10:11:00Z',
+      }
+      llmConfigState = {
+        ...llmConfigState,
+        items: (llmConfigState.items ?? []).map((item) => (item.id === id ? updated : item)),
+      }
+      return fulfillJson(route, updated)
+    }
+
+    if (/\/llm\/configs\/[^/]+\/test$/.test(pathname) && request.method() === 'POST') {
+      return fulfillJson(route, options.llm?.testSavedConfig ?? { success: true, message: 'ok', response_time_ms: 42 })
+    }
+
+    if (pathname.endsWith('/llm/test-connection') && request.method() === 'POST') {
+      return fulfillJson(route, options.llm?.testConnection ?? { success: true, message: 'ok', response_time_ms: 45 })
+    }
+
+    if (/\/llm\/configs\/[^/]+\/set-default$/.test(pathname) && request.method() === 'POST') {
+      return fulfillJson(route, (llmConfigState.items ?? [])[0] ?? {})
+    }
+
+    if (/\/llm\/configs\/[^/]+\/toggle-active$/.test(pathname) && request.method() === 'POST') {
+      return fulfillJson(route, (llmConfigState.items ?? [])[0] ?? {})
+    }
+
+    if (/\/llm\/configs\/[^/]+$/.test(pathname) && request.method() === 'DELETE') {
+      return fulfillJson(route, { success: true, message: '配置已删除' })
     }
 
     if (pathname.endsWith('/chat/history') && request.method() === 'GET') {
