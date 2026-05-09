@@ -27,6 +27,8 @@
 
 2026-05-09 桌面端补充：标题栏基础已补代码级闭环。macOS 保持 Tauri Overlay + 原生交通灯让位，Windows/Linux 启动时对主窗口关闭系统装饰，并在前端顶部拖拽栏右侧提供最小化、最大化/还原和关闭按钮；窗口控制 IPC 已封装在 `frontend/src/lib/tauri-bridge.ts`，capabilities 增补 `core:window:allow-toggle-maximize`。标题栏双击最大化/还原已接入顶部拖拽栏，并由模型单测保证 button/link/input/select/textarea 等交互目标不会误触。当前仍缺 macOS/Windows 实机截图、真实 Windows 点击、vibrancy/acrylic 视觉验收和 signed packaged runtime 证据。
 
+2026-05-09 桌面端补充：窗口 chrome 已新增本地治理门禁。`docs/desktop/window-styling.md` 记录平台分支、实现文件和待补实机证据；`scripts/desktop-window-chrome-gate.sh` 校验 Tauri 主窗口配置、非 macOS decoration 关闭、前端窗口控制、双击模型、capability 与文档一致。当前仍缺实机/签名包证据，但后续窗口外观代码漂移会被本地门禁提前拦住。
+
 ## 2. 必须补齐的商业证据
 
 ### 渠道沙箱
