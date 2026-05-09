@@ -1519,6 +1519,11 @@ export function DesktopWorkstationPanel() {
                       {task.hasLocalResult && <span>有本机结果</span>}
                       {task.errorMessage && <span className="text-destructive">{task.errorMessage}</span>}
                     </div>
+                    {task.localResultPreview && (
+                      <p className="mt-2 rounded-md bg-muted/40 px-2.5 py-2 text-xs leading-5 text-muted-foreground">
+                        本机结果：{task.localResultPreview}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>

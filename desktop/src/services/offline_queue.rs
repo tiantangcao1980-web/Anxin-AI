@@ -232,6 +232,7 @@ impl OfflineQueue {
             updated_at,
             retry_count,
             error_message,
+            local_result,
             CASE WHEN local_result IS NULL OR local_result = '' THEN 0 ELSE 1 END as has_local_result
         FROM offline_tasks
         ORDER BY datetime(updated_at) DESC, datetime(created_at) DESC

@@ -654,6 +654,7 @@ export interface OfflineTaskSummary {
   updatedAt: string
   retryCount: number
   hasLocalResult: boolean
+  localResultPreview?: string
   errorMessage?: string
 }
 

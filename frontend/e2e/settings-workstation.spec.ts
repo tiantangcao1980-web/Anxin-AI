@@ -467,6 +467,7 @@ test.describe('本机运行设置入口', () => {
                 updatedAt: '2026-05-09T10:05:00Z',
                 retryCount: offlineTaskStatus === 'failed' ? 2 : 0,
                 hasLocalResult: offlineTaskStatus === 'local_completed',
+                localResultPreview: offlineTaskStatus === 'local_completed' ? '第一条 风险说明 第二条 处理计划' : undefined,
                 errorMessage: offlineTaskStatus === 'failed' ? 'network down' : undefined,
               },
             ]
@@ -517,6 +518,7 @@ test.describe('本机运行设置入口', () => {
     await expect(page.getByTestId('offline-queue-queued')).toContainText('0 条')
     await expect(page.getByTestId('offline-queue-local-completed')).toContainText('1 条')
     await expect(page.getByTestId('desktop-offline-queue-manager')).toContainText('本机已完成')
+    await expect(page.getByTestId('desktop-offline-queue-manager')).toContainText('本机结果：第一条 风险说明 第二条 处理计划')
 
     await page.getByTestId('local-model-input').fill('llama3.1:8b')
     await page.getByTestId('local-model-save').click()

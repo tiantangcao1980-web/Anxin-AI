@@ -61,6 +61,7 @@ checks = {
         "OfflineQueueRetryReport",
         "OfflineQueueProcessReport",
         "desktop_builtin_text_summary_v1",
+        "local_result_preview",
         "本地路径仅保存在加密队列",
     ],
     "desktop/src/services/offline_queue.rs": [
@@ -130,6 +131,7 @@ checks = {
         "listOfflineTasks",
         "retryFailedOfflineTasks",
         "processLocalOfflineTasks",
+        "localResultPreview",
         "desktop://file-queued",
     ],
     "frontend/src/lib/desktopFileDropEvents.ts": [
@@ -157,6 +159,7 @@ checks = {
         "desktop-offline-queue-manager",
         "offline-queue-retry-failed",
         "offline-queue-process-local",
+        "本机结果",
         "本机运行配置",
         "后端环境",
     ],

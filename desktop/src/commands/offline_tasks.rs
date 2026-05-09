@@ -34,6 +34,8 @@ pub struct OfflineTaskSummary {
     pub retry_count: i32,
     pub has_local_result: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub local_result_preview: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error_message: Option<String>,
 }
 
@@ -255,6 +257,41 @@ fn text_summary_payload(
     .to_string())
 }
 
+fn safe_local_result_preview(local_result: Option<&str>) -> Option<String> {
+    let payload = serde_json::from_str::<serde_json::Value>(local_result?).ok()?;
+    if payload.get("processor").and_then(serde_json::Value::as_str)
+        != Some("desktop_builtin_text_summary_v1")
+    {
+        return None;
+    }
+    if payload
+        .get("localOnly")
+        .and_then(serde_json::Value::as_bool)
+        != Some(true)
+    {
+        return None;
+    }
+    if payload
+        .get("safeInTopSecret")
+        .and_then(serde_json::Value::as_bool)
+        != Some(true)
+    {
+        return None;
+    }
+
+    let summary = payload.get("summary")?;
+    let excerpt = summary
+        .get("excerpt")
+        .and_then(serde_json::Value::as_str)
+        .or_else(|| summary.get("title").and_then(serde_json::Value::as_str))?;
+    let preview = normalize_inline_text(excerpt);
+    if preview.is_empty() {
+        None
+    } else {
+        Some(truncate_chars(&preview, 180))
+    }
+}
+
 fn task_summary_from_row(row: &serde_json::Value) -> Result<OfflineTaskSummary, String> {
     let task_type = value_string(row, "task_type")?;
     let description = value_string(row, "description")?;
@@ -276,6 +313,9 @@ fn task_summary_from_row(row: &serde_json::Value) -> Result<OfflineTaskSummary, 
         updated_at: value_string(row, "updated_at")?,
         retry_count: value_i32(row, "retry_count")?,
         has_local_result: value_bool(row, "has_local_result"),
+        local_result_preview: safe_local_result_preview(
+            row.get("local_result").and_then(serde_json::Value::as_str),
+        ),
         error_message,
     })
 }
@@ -540,7 +580,8 @@ pub async fn pull_harness_artifacts(
 #[cfg(test)]
 mod tests {
     use super::{
-        clamp_process_limit, clamp_task_limit, summarize_task_description, text_summary_payload,
+        clamp_process_limit, clamp_task_limit, safe_local_result_preview,
+        summarize_task_description, text_summary_payload,
     };
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -635,5 +676,34 @@ mod tests {
             text_summary_payload("task-1", "document_summary", &description).expect_err("reject");
 
         assert!(error.contains(".txt / .md"));
+    }
+
+    #[test]
+    fn offline_summary_preview_only_exposes_safe_builtin_results() {
+        let safe = serde_json::json!({
+            "processor": "desktop_builtin_text_summary_v1",
+            "localOnly": true,
+            "safeInTopSecret": true,
+            "summary": {
+                "excerpt": "第一条 风险说明\n第二条 处理计划"
+            }
+        })
+        .to_string();
+        let unsafe_result = serde_json::json!({
+            "processor": "unknown",
+            "localOnly": true,
+            "safeInTopSecret": true,
+            "summary": {
+                "excerpt": "不要展示"
+            }
+        })
+        .to_string();
+
+        assert_eq!(
+            safe_local_result_preview(Some(&safe)).as_deref(),
+            Some("第一条 风险说明 第二条 处理计划")
+        );
+        assert_eq!(safe_local_result_preview(Some(&unsafe_result)), None);
+        assert_eq!(safe_local_result_preview(Some("not-json")), None);
     }
 }

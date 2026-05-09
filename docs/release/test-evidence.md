@@ -464,7 +464,7 @@ cd frontend && npx playwright test e2e/settings-workstation.spec.ts --project=ch
 
 ```bash
 cd desktop && cargo test offline_
-# 10 passed; 66 filtered out
+# 11 passed; 66 filtered out
 
 cd frontend && npm exec tsc -- --noEmit
 # exit 0
@@ -490,7 +490,8 @@ node scripts/validate-product-status-consistency.cjs
 - `desktop/src/commands/offline_tasks.rs` 新增 `list_offline_tasks` / `retry_failed_offline_tasks`，最近任务摘要会把桌面文件拖入任务的完整本地路径留在加密 SQLCipher 队列内，只暴露文件名和动作摘要。
 - `desktop/src/services/offline_queue.rs` 新增最近任务查询和 failed -> queued 重新入队 SQL；重新入队只更新本机队列，不触发网络同步，绝密模式下仍属于 local-only 操作。
 - `desktop/src/commands/offline_tasks.rs` 继续新增 `process_local_offline_tasks`，当前只处理桌面文件拖入的 `.txt/.md` `document_summary`：读取本机 UTF-8 文本、生成 `desktop_builtin_text_summary_v1` 规则摘要并写入 `local_result`，将任务推进到 `local_completed`；该过程不调用外部模型、云端 API 或同步。
-- `frontend/src/lib/tauri-bridge.ts` 新增 typed offline queue IPC wrapper；`DesktopWorkstationPanel` 新增“离线队列”面板，可查看待处理/本机完成/失败/总量、最近任务、失败重入队和本机处理动作。
+- 最近任务摘要只会对 `desktop_builtin_text_summary_v1` 且 `localOnly/safeInTopSecret=true` 的结果暴露 `local_result_preview`，不会把任意历史 `local_result` 或本地文件路径渲染到前端。
+- `frontend/src/lib/tauri-bridge.ts` 新增 typed offline queue IPC wrapper；`DesktopWorkstationPanel` 新增“离线队列”面板，可查看待处理/本机完成/失败/总量、最近任务、失败重入队、本机处理动作和安全结果预览。
 - 该证据关闭的是本机离线队列可观测、修复入口和文本摘要本机处理闭环；PDF/DOCX 本机解析、shared-staging 同步、跨设备连续会话、signed packaged runtime 和完整脱网业务闭环仍待补证。
 
 2026-05-09 桌面 PrivacyContext 门控对齐补充：
