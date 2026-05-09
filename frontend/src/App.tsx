@@ -74,6 +74,7 @@ const MySubscription = lazy(() => import('@/pages/MySubscription'))
 const PrivateLLMSetup = lazy(() => import('@/pages/PrivateLLMSetup'))
 const SyncConflicts = lazy(() => import('@/pages/SyncConflicts'))
 const CaseMarket = lazy(() => import('@/pages/CaseMarket'))
+const QuickQuery = lazy(() => import('@/pages/QuickQuery'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
 
 // 登录页
@@ -234,6 +235,7 @@ function App() {
               <Route path="/login" element={<Login />} />
               {/* V2 架构：服务方端（律师/律所）专属登录入口 */}
               <Route path="/pro/login" element={<Login />} />
+              <Route path="/desktop/quick-query" element={<QuickQuery />} />
 
               {/* ===== 后台管理（独立布局 + Admin 权限守卫） ===== */}
               <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>

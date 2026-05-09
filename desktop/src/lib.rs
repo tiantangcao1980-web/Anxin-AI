@@ -276,6 +276,7 @@ pub fn run_with_options(options: DesktopRunOptions) {
             commands::remote_control::remote_control_report_command_status,
             commands::remote_control::remote_control_run_host_cycle,
             commands::remote_control::remote_control_run_host_poll,
+            commands::quick_query::hide_quick_query_window,
             // 本地 LLM
             commands::local_llm::local_llm_chat,
             commands::local_llm::list_local_models,
@@ -314,7 +315,7 @@ pub fn run_with_options(options: DesktopRunOptions) {
                 }
 
                 // 全局快捷键：Cmd+Shift+Space (macOS) / Ctrl+Shift+Space (Win/Linux)
-                // 呼出/隐藏主窗口 —— 类似 Spotlight / Alfred / ClawX
+                // 呼出/隐藏独立的快问窗口，主窗口保持当前工作上下文不被打断。
                 use tauri_plugin_global_shortcut::{
                     Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState,
                 };
@@ -329,17 +330,14 @@ pub fn run_with_options(options: DesktopRunOptions) {
                     summon_shortcut,
                     move |app, _shortcut, event| {
                         if event.state() == ShortcutState::Pressed {
-                            if let Some(window) = app.get_webview_window("main") {
-                                let is_visible = window.is_visible().unwrap_or(false);
-                                let is_focused = window.is_focused().unwrap_or(false);
-                                if is_visible && is_focused {
-                                    let _ = window.hide();
-                                } else {
-                                    let _ = window.show();
-                                    let _ = window.set_focus();
-                                    let _ = window.center();
+                            let app = app.clone();
+                            std::thread::spawn(move || {
+                                if let Err(error) =
+                                    commands::quick_query::toggle_quick_query_window(&app)
+                                {
+                                    log::error!("快问窗口切换失败: {error}");
                                 }
-                            }
+                            });
                         }
                     },
                 ) {

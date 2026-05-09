@@ -276,6 +276,19 @@ export async function checkLocalLLMStatus() {
   return invokeCommand('check_local_llm_status')
 }
 
+// ===== 桌面快问窗口 =====
+
+export async function hideQuickQueryWindow(): Promise<boolean> {
+  if (!isTauri()) return false
+  try {
+    await invokeRequiredCommand<void>('hide_quick_query_window')
+    return true
+  } catch (error) {
+    console.debug('[Tauri] 隐藏快问窗口失败:', error)
+    return false
+  }
+}
+
 // ===== 离线任务队列（Harness Engineering）=====
 
 /** 提交离线任务 */
