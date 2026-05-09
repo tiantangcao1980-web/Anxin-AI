@@ -127,6 +127,40 @@ LLMConfigListResponse = dict[str, Any]
 
 # ============ API端点 ============
 
+def _is_superuser(user: User) -> bool:
+    return bool(getattr(user, 'is_superuser', False))
+
+
+def _admin_org_id_or_403(user: User) -> str:
+    org_id = getattr(user, 'org_id', None)
+    if not org_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="管理员缺少组织范围，不能管理 LLM 配置",
+        )
+    return str(org_id)
+
+
+def _can_access_config(config: LLMConfig, user: User) -> bool:
+    if _is_superuser(user):
+        return True
+    user_org = getattr(user, 'org_id', None)
+    return bool(user_org) and str(config.org_id) == str(user_org)
+
+
+async def _get_scoped_config_or_404(
+    db: AsyncSession,
+    config_id: str,
+    user: User,
+) -> LLMConfig:
+    config = await LLMService.get_config(db, config_id)
+    if not config or not _can_access_config(config, user):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="配置不存在"
+        )
+    return config
+
 @router.get("/providers", response_model=dict[str, ProviderInfo])
 async def get_providers(user: User = Depends(get_current_user_required)) -> dict[str, ProviderInfo]:
     """获取所有支持的LLM提供商"""
@@ -176,9 +210,13 @@ async def create_config(
     admin: User = Depends(get_admin_user),
 ) -> LLMConfigResponse:
     """创建LLM配置"""
+    payload = data.model_dump()
+    if not _is_superuser(admin):
+        payload["org_id"] = _admin_org_id_or_403(admin)
+
     config = await LLMService.create_config(
         db=db,
-        **data.model_dump()
+        **payload
     )
 
     return _config_to_response(config)
@@ -232,7 +270,12 @@ async def get_default_config(
     user: User = Depends(get_current_user_required),
 ) -> LLMConfigResponse:
     """获取默认配置"""
-    config = await LLMService.get_default_config(db, config_type)
+    config = await LLMService.get_default_config(
+        db,
+        config_type,
+        org_id=None if _is_superuser(user) else getattr(user, 'org_id', None),
+        require_org_filter=not _is_superuser(user),
+    )
     if not config:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -249,19 +292,7 @@ async def get_config(
     user: User = Depends(get_current_user_required),
 ) -> LLMConfigResponse:
     """获取单个配置（含组织隔离检查）"""
-    config = await LLMService.get_config(db, config_id)
-    if not config:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="配置不存在"
-        )
-    # S-104: 非超级管理员只能访问自己组织的配置
-    if not getattr(user, 'is_superuser', False):
-        user_org = getattr(user, 'org_id', None)
-        config_org = getattr(config, 'org_id', None)
-        if config_org and user_org and config_org != user_org:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="配置不存在")
-
+    config = await _get_scoped_config_or_404(db, config_id, user)
     return _config_to_response(config)
 
 
@@ -273,6 +304,7 @@ async def update_config(
     admin: User = Depends(get_admin_user),
 ) -> LLMConfigResponse:
     """更新LLM配置"""
+    await _get_scoped_config_or_404(db, config_id, admin)
     updates = {k: v for k, v in data.model_dump().items() if v is not None}
 
     config = await LLMService.update_config(db, config_id, **updates)
@@ -292,6 +324,7 @@ async def delete_config(
     admin: User = Depends(get_admin_user),
 ) -> DeleteConfigResponse:
     """删除LLM配置"""
+    await _get_scoped_config_or_404(db, config_id, admin)
     success = await LLMService.delete_config(db, config_id)
     if not success:
         raise HTTPException(
@@ -309,7 +342,13 @@ async def set_default_config(
     admin: User = Depends(get_admin_user),
 ) -> LLMConfigResponse:
     """设置默认配置"""
-    config = await LLMService.set_default(db, config_id)
+    await _get_scoped_config_or_404(db, config_id, admin)
+    config = await LLMService.set_default(
+        db,
+        config_id,
+        org_id=None if _is_superuser(admin) else getattr(admin, 'org_id', None),
+        require_org_filter=not _is_superuser(admin),
+    )
     if not config:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -326,6 +365,7 @@ async def toggle_active(
     admin: User = Depends(get_admin_user),
 ) -> LLMConfigResponse:
     """切换启用状态"""
+    await _get_scoped_config_or_404(db, config_id, admin)
     config = await LLMService.toggle_active(db, config_id)
     if not config:
         raise HTTPException(
@@ -360,12 +400,7 @@ async def test_config_connection(
     admin: User = Depends(get_admin_user),
 ) -> TestConnectionResponse:
     """测试已保存的配置连接"""
-    config = await LLMService.get_config(db, config_id)
-    if not config:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="配置不存在"
-        )
+    config = await _get_scoped_config_or_404(db, config_id, admin)
 
     # 解密API密钥
     api_key = LLMService.decrypt_api_key(config.api_key) if config.api_key else ""

@@ -218,12 +218,14 @@ class LLMService:
 
         # 如果设为默认，先取消其他默认配置
         if is_default:
-            await db.execute(
+            clear_default = (
                 update(LLMConfig)
                 .where(LLMConfig.config_type == config_type)
                 .where(LLMConfig.is_default == True)
-                .values(is_default=False)
             )
+            if org_id is not None:
+                clear_default = clear_default.where(LLMConfig.org_id == org_id)
+            await db.execute(clear_default.values(is_default=False))
 
         # 加密API密钥
         encrypted_key = LLMService.encrypt_api_key(api_key) if api_key else None
@@ -275,15 +277,24 @@ class LLMService:
     @staticmethod
     async def get_default_config(
         db: AsyncSession,
-        config_type: str = "llm"
+        config_type: str = "llm",
+        org_id: str | None = None,
+        require_org_filter: bool = False,
     ) -> LLMConfig | None:
         """获取默认配置"""
-        result = await db.execute(
+        if require_org_filter and org_id is None:
+            return None
+
+        query = (
             select(LLMConfig)
             .where(LLMConfig.config_type == config_type)
             .where(LLMConfig.is_default == True)
             .where(LLMConfig.is_active == True)
         )
+        if require_org_filter:
+            query = query.where(LLMConfig.org_id == org_id)
+
+        result = await db.execute(query)
         return result.scalar_one_or_none()
 
     @staticmethod
@@ -360,13 +371,15 @@ class LLMService:
             config_type = updates.get("config_type")
             if not isinstance(config_type, str):
                 config_type = config.config_type
-            await db.execute(
+            clear_default = (
                 update(LLMConfig)
                 .where(LLMConfig.config_type == config_type)
                 .where(LLMConfig.is_default == True)
                 .where(LLMConfig.id != config_id)
-                .values(is_default=False)
             )
+            if config.org_id is not None:
+                clear_default = clear_default.where(LLMConfig.org_id == config.org_id)
+            await db.execute(clear_default.values(is_default=False))
 
         # 如果更新了API密钥，需要加密
         api_key_update = updates.get("api_key")
@@ -508,19 +521,31 @@ class LLMService:
         return LLM_PROVIDER_CONFIGS
 
     @staticmethod
-    async def set_default(db: AsyncSession, config_id: str) -> LLMConfig | None:
+    async def set_default(
+        db: AsyncSession,
+        config_id: str,
+        org_id: str | None = None,
+        require_org_filter: bool = False,
+    ) -> LLMConfig | None:
         """设置默认配置"""
+        if require_org_filter and org_id is None:
+            return None
+
         config = await LLMService.get_config(db, config_id)
         if not config:
             return None
+        if require_org_filter and config.org_id != org_id:
+            return None
 
         # 取消其他同类型的默认配置
-        await db.execute(
+        clear_default = (
             update(LLMConfig)
             .where(LLMConfig.config_type == config.config_type)
             .where(LLMConfig.is_default == True)
-            .values(is_default=False)
         )
+        if require_org_filter:
+            clear_default = clear_default.where(LLMConfig.org_id == org_id)
+        await db.execute(clear_default.values(is_default=False))
 
         # 设置当前配置为默认
         config.is_default = True

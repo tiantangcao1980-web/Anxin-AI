@@ -141,3 +141,203 @@ async def test_default_require_org_filter_is_true(db_session, two_orgs_with_llm_
         # 不传 require_org_filter，验证默认值
     )
     assert result["total"] == 0
+
+
+@pytest.mark.asyncio
+async def test_llm_config_create_binds_to_admin_org(admin_auth_client, db_session, test_admin):
+    """组织管理员创建 LLM 配置时必须写入自己的 org_id，响应不能泄露明文 key。"""
+    other_default = LLMConfig(
+        name="other-default-before-create",
+        provider=LLMProvider.OPENAI.value,
+        config_type=LLMConfigType.LLM.value,
+        model_name="gpt-4o",
+        org_id=str(uuid4()),
+        is_default=True,
+        is_active=True,
+    )
+    db_session.add(other_default)
+    await db_session.flush()
+
+    response = await admin_auth_client.post(
+        "/api/v1/llm/configs",
+        json={
+            "name": "org-local-qwen",
+            "provider": LLMProvider.OPENAI.value,
+            "model_name": "gpt-4o",
+            "api_key": "sk-test-secret-123456",
+            "api_base_url": "https://api.example.test/v1",
+            "is_default": True,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    config = await db_session.get(LLMConfig, payload["id"])
+
+    assert config is not None
+    assert str(config.org_id) == str(test_admin.org_id)
+    assert payload["api_key_masked"] != "sk-test-secret-123456"
+    assert "api_key" not in payload
+    await db_session.refresh(other_default)
+    assert other_default.is_default is True
+
+
+@pytest.mark.asyncio
+async def test_org_admin_cannot_manage_other_org_llm_config(admin_auth_client, db_session):
+    """组织管理员不能读写、删除、启停、测试其他组织的 LLM 配置。"""
+    other_org_id = str(uuid4())
+    other_config = LLMConfig(
+        name="other-org-llm",
+        provider=LLMProvider.OPENAI.value,
+        config_type=LLMConfigType.LLM.value,
+        model_name="gpt-4o",
+        org_id=other_org_id,
+    )
+    db_session.add(other_config)
+    await db_session.flush()
+
+    endpoints = [
+        ("get", f"/api/v1/llm/configs/{other_config.id}", None),
+        ("put", f"/api/v1/llm/configs/{other_config.id}", {"name": "stolen"}),
+        ("delete", f"/api/v1/llm/configs/{other_config.id}", None),
+        ("post", f"/api/v1/llm/configs/{other_config.id}/set-default", None),
+        ("post", f"/api/v1/llm/configs/{other_config.id}/toggle-active", None),
+        ("post", f"/api/v1/llm/configs/{other_config.id}/test", None),
+    ]
+
+    for method, url, body in endpoints:
+        request = getattr(admin_auth_client, method)
+        if body is None:
+            response = await request(url)
+        else:
+            response = await request(url, json=body)
+        assert response.status_code == 404, (method, url, response.text)
+
+
+@pytest.mark.asyncio
+async def test_default_llm_config_is_org_scoped(admin_auth_client, db_session, test_admin):
+    """默认 LLM 配置查询只返回当前组织的默认项。"""
+    own_config = LLMConfig(
+        name="own-default",
+        provider=LLMProvider.OPENAI.value,
+        config_type=LLMConfigType.LLM.value,
+        model_name="gpt-4o",
+        org_id=test_admin.org_id,
+        is_default=True,
+        is_active=True,
+    )
+    other_config = LLMConfig(
+        name="other-default",
+        provider=LLMProvider.OPENAI.value,
+        config_type=LLMConfigType.LLM.value,
+        model_name="gpt-4o",
+        org_id=str(uuid4()),
+        is_default=True,
+        is_active=True,
+    )
+    db_session.add_all([own_config, other_config])
+    await db_session.flush()
+
+    response = await admin_auth_client.get("/api/v1/llm/configs/default?config_type=llm")
+
+    assert response.status_code == 200
+    assert response.json()["id"] == own_config.id
+
+
+@pytest.mark.asyncio
+async def test_set_default_llm_config_only_clears_same_org(
+    admin_auth_client,
+    db_session,
+    test_admin,
+):
+    """设置默认配置时不能清掉其他组织的默认 LLM。"""
+    own_old = LLMConfig(
+        name="own-old",
+        provider=LLMProvider.OPENAI.value,
+        config_type=LLMConfigType.LLM.value,
+        model_name="gpt-4o",
+        org_id=test_admin.org_id,
+        is_default=True,
+        is_active=True,
+    )
+    own_new = LLMConfig(
+        name="own-new",
+        provider=LLMProvider.OPENAI.value,
+        config_type=LLMConfigType.LLM.value,
+        model_name="gpt-4o-mini",
+        org_id=test_admin.org_id,
+        is_default=False,
+        is_active=True,
+    )
+    other_default = LLMConfig(
+        name="other-default",
+        provider=LLMProvider.OPENAI.value,
+        config_type=LLMConfigType.LLM.value,
+        model_name="gpt-4o",
+        org_id=str(uuid4()),
+        is_default=True,
+        is_active=True,
+    )
+    db_session.add_all([own_old, own_new, other_default])
+    await db_session.flush()
+
+    response = await admin_auth_client.post(f"/api/v1/llm/configs/{own_new.id}/set-default")
+    await db_session.refresh(own_old)
+    await db_session.refresh(own_new)
+    await db_session.refresh(other_default)
+
+    assert response.status_code == 200
+    assert own_old.is_default is False
+    assert own_new.is_default is True
+    assert other_default.is_default is True
+
+
+@pytest.mark.asyncio
+async def test_update_default_llm_config_only_clears_same_org(
+    admin_auth_client,
+    db_session,
+    test_admin,
+):
+    """通过更新接口设为默认时，也不能清掉其他组织默认配置。"""
+    own_old = LLMConfig(
+        name="own-update-old",
+        provider=LLMProvider.OPENAI.value,
+        config_type=LLMConfigType.LLM.value,
+        model_name="gpt-4o",
+        org_id=test_admin.org_id,
+        is_default=True,
+        is_active=True,
+    )
+    own_new = LLMConfig(
+        name="own-update-new",
+        provider=LLMProvider.OPENAI.value,
+        config_type=LLMConfigType.LLM.value,
+        model_name="gpt-4o-mini",
+        org_id=test_admin.org_id,
+        is_default=False,
+        is_active=True,
+    )
+    other_default = LLMConfig(
+        name="other-update-default",
+        provider=LLMProvider.OPENAI.value,
+        config_type=LLMConfigType.LLM.value,
+        model_name="gpt-4o",
+        org_id=str(uuid4()),
+        is_default=True,
+        is_active=True,
+    )
+    db_session.add_all([own_old, own_new, other_default])
+    await db_session.flush()
+
+    response = await admin_auth_client.put(
+        f"/api/v1/llm/configs/{own_new.id}",
+        json={"is_default": True},
+    )
+    await db_session.refresh(own_old)
+    await db_session.refresh(own_new)
+    await db_session.refresh(other_default)
+
+    assert response.status_code == 200
+    assert own_old.is_default is False
+    assert own_new.is_default is True
+    assert other_default.is_default is True
