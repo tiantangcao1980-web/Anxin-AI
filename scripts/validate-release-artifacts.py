@@ -384,6 +384,7 @@ def _validate_uni_mobile_base_smoke(path: Path, payload: dict[str, Any], failure
         failures.append(f"{path}: uni-mobile base smoke must include checks object")
         return
     for check_name in (
+        "migration_guard",
         "typecheck",
         "contract_tests",
         "production_npm_audit",

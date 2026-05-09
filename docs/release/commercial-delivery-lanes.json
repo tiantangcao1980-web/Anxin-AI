@@ -269,6 +269,7 @@
         "mini-program/README.md",
         "scripts/mobile-device-smoke.sh",
         "scripts/uni-mobile-smoke.sh",
+        "scripts/uni-mobile-migration-guard.sh",
         "scripts/mobile-ios-simulator-smoke.sh"
       ],
       "local_commands": [
@@ -289,7 +290,7 @@
         "redacted test account role"
       ],
       "current_blockers": [
-        "Local code-level smoke was refreshed on 2026-05-09 with mobile Vitest 8 files / 37 tests, mobile TypeScript, mobile result-surface/lawyer-conversion guards, Expo config/SDK/Metro guard, Expo doctor 17/17, production npm audit 0, mini-program TypeScript/privacy/navigation/Taro build/DevTools guards, and artifact mobile-mini-code-smoke-20260509.json. The uni-app base now exists in apps/uni-mobile with unified API/privacy/auth/wechat/desktop-control/tokens scaffolding, typecheck, 10 contract tests, production npm audit 0, H5 build, WeChat Mini Program build, and artifact uni-mobile-base-smoke-20260509.json. The current Expo/Taro clients remain legacy references; real/official iOS device stories, Android, interactive WeChat DevTools/device, DCloud cloud build/signing evidence, mobile remote-control cross-device host callback, and cross-device continuation evidence are not attached."
+        "Local code-level smoke was refreshed on 2026-05-09 with mobile Vitest 8 files / 37 tests, mobile TypeScript, mobile result-surface/lawyer-conversion guards, Expo config/SDK/Metro guard, Expo doctor 17/17, production npm audit 0, mini-program TypeScript/privacy/navigation/Taro build/DevTools guards, and artifact mobile-mini-code-smoke-20260509.json. The uni-app base now exists in apps/uni-mobile with unified API/privacy/auth/wechat/desktop-control/tokens scaffolding, migration guard, typecheck, 12 contract tests, production npm audit 0, H5 build, WeChat Mini Program build, and artifact uni-mobile-base-smoke-20260509.json. The current Expo/Taro clients remain legacy references; real/official iOS device stories, Android, interactive WeChat DevTools/device, DCloud cloud build/signing evidence, mobile remote-control cross-device host callback, and cross-device continuation evidence are not attached."
       ],
       "completion_gate": [
         "docs/release/evidence/mobile-device-smoke.md has Status: complete",

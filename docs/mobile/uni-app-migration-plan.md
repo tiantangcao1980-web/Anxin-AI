@@ -153,6 +153,7 @@ P1 再迁移：
 
 - [x] 新建 `apps/uni-mobile/` 基座。证据：`docs/release/evidence/artifacts/uni-mobile-base-smoke-20260509.json`。
 - [x] 标记 `mobile/` 和 `mini-program/` 为 legacy。
+- [x] 新增 `scripts/uni-mobile-migration-guard.sh`，并接入 `scripts/uni-mobile-smoke.sh` / `scripts/commercial-readiness-gate.sh --with-local-tests`，防止旧端冻结声明、uni-app 基座文件和 smoke scripts 漂移。
 - [x] 迁移统一 API client、auth store、privacy mode、error model 的代码级契约；完整页面同等能力仍按模块推进。
 - [ ] 迁移审批列表/详情/审计时间线。
 - [ ] 迁移微信小程序登录与首页空态。

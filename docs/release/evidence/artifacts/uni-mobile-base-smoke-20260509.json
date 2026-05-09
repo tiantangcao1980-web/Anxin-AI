@@ -1,9 +1,10 @@
 {
-  "generated_at": "2026-05-09T05:27:40.092804+00:00",
+  "generated_at": "2026-05-09T10:04:25.177243+00:00",
   "mode": "uni_mobile_base_smoke",
   "status": "passed",
   "release_evidence_complete": false,
   "checks": {
+    "migration_guard": "passed",
     "typecheck": "passed",
     "contract_tests": "passed",
     "production_npm_audit": "passed",

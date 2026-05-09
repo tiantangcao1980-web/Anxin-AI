@@ -16,7 +16,7 @@
 | 小程序主入口无死胡同 | 首页合同审查/找律师/合规自检与个人中心合同审查/案件协助/联系律师均跳转 AI 助手并预填业务问题；`mini-program/scripts/check-navigation-boundary.js` 阻断空路径和“功能开发中”回归 | 代码级完成；真机点击证据仍需补 |
 | 跨平台 token 漂移清单 | `docs/design/cross-platform-token-drift.md` 已产出 P0/P1/P2 | 审计完成，修复未做 |
 | 小程序语义 token 层 | `mini-program/src/styles/design-tokens.scss` 和 `design-tokens.ts` 已新增；首页、聊天、个人中心 SCSS 与 `app.config.ts` 已迁移到 token；`bash scripts/mobile-device-smoke.sh` 的 design token guard 已通过 | 代码级完成 |
-| uni-app 统一端路线 | 2026-05-09 已产出 `docs/mobile/uni-app-migration-plan.md`；`mobile/README.md`、`mini-program/README.md` 已标记 legacy；`apps/uni-mobile/` 首版基座已通过 typecheck、`4 files / 10 tests`、production npm audit `0`、H5 build 和 WeChat Mini Program build | 代码级基座完成；旧端模块删除待同等能力和真机/DevTools 证据 |
+| uni-app 统一端路线 | 2026-05-09 已产出 `docs/mobile/uni-app-migration-plan.md`；`mobile/README.md`、`mini-program/README.md` 已标记 legacy；`apps/uni-mobile/` 首版基座已通过 typecheck、`5 files / 12 tests`、production npm audit `0`、H5 build 和 WeChat Mini Program build | 代码级基座完成；旧端模块删除待同等能力和真机/DevTools 证据 |
 
 ## 2. 当前缺口
 

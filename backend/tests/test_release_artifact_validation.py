@@ -436,6 +436,7 @@ def test_release_artifact_validation_accepts_uni_mobile_base_smoke(tmp_path):
                 "status": "passed",
                 "release_evidence_complete": False,
                 "checks": {
+                    "migration_guard": "passed",
                     "typecheck": "passed",
                     "contract_tests": "passed",
                     "production_npm_audit": "passed",
@@ -465,6 +466,7 @@ def test_release_artifact_validation_rejects_incomplete_uni_mobile_base_smoke(tm
                 "status": "passed",
                 "release_evidence_complete": True,
                 "checks": {
+                    "migration_guard": "failed",
                     "typecheck": "passed",
                     "contract_tests": "passed",
                     "production_npm_audit": "passed",

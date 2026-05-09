@@ -44,6 +44,20 @@ def test_commercial_gate_runs_workstation_settings_e2e():
     assert "e2e/settings-workstation.spec.ts --project=chromium --project=mobile" in script
 
 
+def test_commercial_gate_runs_uni_mobile_migration_guard():
+    repo_root = Path(__file__).resolve().parents[2]
+    script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
+    smoke_script = (repo_root / "scripts" / "uni-mobile-smoke.sh").read_text(encoding="utf-8")
+    guard_script = (repo_root / "scripts" / "uni-mobile-migration-guard.sh").read_text(encoding="utf-8")
+
+    assert "scripts/uni-mobile-migration-guard.sh" in script
+    assert 'require_command "uni-mobile migration guard"' in script
+    assert 'run_step "uni-mobile migration guard"' in smoke_script
+    assert "mobile/README.md" in guard_script
+    assert "mini-program/README.md" in guard_script
+    assert "apps/uni-mobile/src/services/api.ts" in guard_script
+
+
 def test_commercial_gate_runs_agent_approval_workspace_e2e():
     repo_root = Path(__file__).resolve().parents[2]
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")

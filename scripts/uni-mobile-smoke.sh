@@ -55,6 +55,7 @@ if [ ! -d "$APP_DIR/node_modules" ]; then
   run_step "uni-mobile dependency install" bash -lc "cd '$APP_DIR' && npm install"
 fi
 
+run_step "uni-mobile migration guard" bash scripts/uni-mobile-migration-guard.sh
 run_step "uni-mobile typecheck" bash -lc "cd '$APP_DIR' && npm run typecheck"
 run_step "uni-mobile contract tests" bash -lc "cd '$APP_DIR' && npm test"
 run_step "uni-mobile production npm audit" bash -lc "cd '$APP_DIR' && npm run audit:prod"
@@ -75,6 +76,7 @@ report = {
     "status": "passed",
     "release_evidence_complete": False,
     "checks": {
+        "migration_guard": "passed",
         "typecheck": "passed",
         "contract_tests": "passed",
         "production_npm_audit": "passed",
