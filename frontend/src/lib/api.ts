@@ -2939,6 +2939,7 @@ export interface AgentApprovalDecision {
   status?: AgentApprovalStatus | null
   expires_at?: string | null
   audit_event_id?: string | null
+  workspace_snapshot?: AgentWorkspaceObserveSnapshot | null
 }
 
 export interface AgentApprovalAuditEvent {
@@ -2966,7 +2967,7 @@ export interface AgentApprovalAuditExport {
   limit: number
 }
 
-export type AgentWorkspaceControlAction = 'pause' | 'takeover' | 'terminate'
+export type AgentWorkspaceControlAction = 'observe' | 'pause' | 'takeover' | 'terminate'
 
 export interface AgentWorkspaceArtifact {
   id: string
@@ -2977,6 +2978,15 @@ export interface AgentWorkspaceArtifact {
   metadata: Record<string, unknown>
   created_by?: string | null
   created_at?: string | null
+}
+
+export interface AgentWorkspaceObserveSnapshot {
+  observed_at: string
+  observe_audit_event_id?: string | null
+  approval: Record<string, string>
+  artifacts: AgentWorkspaceArtifact[]
+  audit_events: AgentApprovalAuditEvent[]
+  runtime_controls: Record<AgentWorkspaceControlAction, string>
 }
 
 export interface AgentWorkspaceArtifactExport {

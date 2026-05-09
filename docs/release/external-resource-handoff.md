@@ -151,13 +151,17 @@ Required inputs:
 
 | Input | Artifact field |
 |---|---|
+| DCloud/uni-app account, application AppID, cloud build access | uni-app migration/build transcript |
 | iOS build or TestFlight run | `platforms[].platform=ios`, `build_hash`, device transcript |
 | Android build and device run | `platforms[].platform=android`, `build_hash`, device transcript |
 | WeChat DevTools interactive run or real-device run | `platforms[].platform=wechat_mini_program`, DevTools/device transcript |
+| WeChat Mini Program AppID/AppSecret and legal domain admin access | code2session and request/upload/download/web-view domain evidence |
 | Staging backend environment | `backend_environment` |
 | Redacted test account role | `tester_role` |
 | Screenshot/video/log index | `screenshot_refs`, `log_refs` |
 | Mobile npm audit fix/exception | official SDK/CLI fix evidence or security owner exception artifact |
+
+2026-05-09 routing decision: future mobile App and Mini Program feature work moves to a uni-app client. Keep `mobile/` and `mini-program/` as legacy reference surfaces until the uni-app replacement has equivalent auth, privacy, approval, desktop-control, and device evidence. See `docs/mobile/uni-app-migration-plan.md`.
 
 Code-level preflight:
 

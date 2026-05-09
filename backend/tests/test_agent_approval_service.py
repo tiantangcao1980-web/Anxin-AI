@@ -350,6 +350,83 @@ async def test_workspace_control_fails_closed_until_runtime_is_integrated(
 
 
 @pytest.mark.asyncio
+async def test_workspace_observe_returns_read_only_snapshot_and_writes_audit(
+    db_session,
+    test_organization,
+    test_user,
+    test_admin,
+):
+    service = AgentApprovalService(db_session)
+    requested = await service.request_approval(
+        org_id=test_organization.id,
+        action_type="browser.remote_control",
+        risk_level="l4",
+        requested_by=test_user.id,
+    )
+    await service.decide_approval(
+        org_id=test_organization.id,
+        approval_id=requested.approval_id,
+        decision="approve",
+        decided_by=test_admin.id,
+        decider_role="admin",
+    )
+    await service.add_workspace_artifact(
+        org_id=test_organization.id,
+        approval_id=requested.approval_id,
+        artifact_type="summary",
+        title="旁听摘要",
+        content={
+            "finding": "safe probe only",
+            "api_key": "should-never-leak",
+            "nested": {"client_secret": "also-secret", "safe": "ok"},
+        },
+        metadata={"source": "workspace", "raw_token": "never-store"},
+        actor_user_id=test_admin.id,
+        actor_role="admin",
+    )
+
+    observed = await service.control_workspace(
+        org_id=test_organization.id,
+        approval_id=requested.approval_id,
+        action="observe",
+        actor_user_id=test_admin.id,
+        actor_role="admin",
+        reason="owner observes high-risk work",
+    )
+
+    audits = (
+        await db_session.execute(
+            select(AgentAuditEvent)
+            .where(AgentAuditEvent.org_id == test_organization.id)
+            .order_by(AgentAuditEvent.created_at)
+        )
+    ).scalars().all()
+
+    assert observed.allowed is True
+    assert observed.reason_code == "observe_snapshot_ready"
+    assert observed.status == "approved"
+    assert observed.workspace_snapshot is not None
+    assert observed.workspace_snapshot["runtime_controls"] == {
+        "observe": "available",
+        "pause": "runtime_not_integrated",
+        "takeover": "runtime_not_integrated",
+        "terminate": "runtime_not_integrated",
+    }
+    assert observed.workspace_snapshot["artifacts"][0]["title"] == "旁听摘要"
+    assert observed.workspace_snapshot["artifacts"][0]["content"]["api_key"] == "[redacted]"
+    assert observed.workspace_snapshot["artifacts"][0]["content"]["nested"]["client_secret"] == "[redacted]"
+    assert observed.workspace_snapshot["audit_events"][0]["action"] == "agent_workspace.observe"
+    assert observed.workspace_snapshot["observe_audit_event_id"] == observed.audit_event_id
+    assert audits[-1].action == "agent_workspace.observe"
+    assert audits[-1].status == "success"
+    assert audits[-1].reason_code == "observe_snapshot_ready"
+    assert audits[-1].metadata_json["workspace_control"] == "observe"
+    assert audits[-1].metadata_json["runtime_control_state"] == "read_only_snapshot"
+    assert "should-never-leak" not in str(observed.workspace_snapshot)
+    assert "never-store" not in str(audits)
+
+
+@pytest.mark.asyncio
 async def test_workspace_artifacts_require_approved_workspace_and_redact_payload(
     db_session,
     test_organization,

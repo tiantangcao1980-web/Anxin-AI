@@ -48,6 +48,7 @@ const STATUS_META: Record<AgentApprovalStatus, { label: string; className: strin
 }
 
 const WORKSPACE_CONTROLS: Array<{ action: AgentWorkspaceControlAction; label: string; icon: IconComponent }> = [
+  { action: 'observe', label: '旁听', icon: icons.Eye },
   { action: 'pause', label: '暂停', icon: icons.Square },
   { action: 'takeover', label: '接管', icon: icons.ShieldCheck },
   { action: 'terminate', label: '终止', icon: icons.Ban },
@@ -434,8 +435,22 @@ export default function AgentApprovalWorkspace() {
     const key = `${item.id}:${action}`
     setControlBusyKey(key)
     try {
-      await agentApprovalsApi.workspaceControl(item.id, action, `${action} requested in workspace`)
-      toast.success('工作室控制已执行')
+      const decision = await agentApprovalsApi.workspaceControl(item.id, action, `${action} requested in workspace`)
+      if (action === 'observe' && decision.workspace_snapshot) {
+        setWorkspaceArtifactsById((prev) => ({
+          ...prev,
+          [item.id]: decision.workspace_snapshot?.artifacts ?? [],
+        }))
+        setAuditEventsById((prev) => ({
+          ...prev,
+          [item.id]: decision.workspace_snapshot?.audit_events ?? [],
+        }))
+        setExpandedWorkspaceArtifactId(item.id)
+        setExpandedAuditId(item.id)
+        toast.success('旁听快照已生成')
+        return
+      }
+      toast.success(action === 'observe' ? '旁听快照已生成' : '工作室控制已执行')
       await loadApprovals()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '工作室控制被拒绝')

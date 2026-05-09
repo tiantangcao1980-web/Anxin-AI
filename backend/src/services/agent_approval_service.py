@@ -31,6 +31,7 @@ class AgentApprovalDecision:
     status: str | None = None
     expires_at: datetime | None = None
     audit_event_id: str | None = None
+    workspace_snapshot: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -347,7 +348,7 @@ class AgentApprovalService:
         *,
         org_id: str,
         approval_id: str,
-        action: Literal["pause", "takeover", "terminate"],
+        action: Literal["observe", "pause", "takeover", "terminate"],
         actor_user_id: str,
         actor_role: str,
         reason: str | None = None,
@@ -415,6 +416,42 @@ class AgentApprovalService:
                 route_id=approval.route_id,
                 status=approval.status,
                 audit_event_id=event.id,
+            )
+
+        if action == "observe":
+            snapshot = await self._workspace_observe_snapshot(approval=approval, observed_at=controlled_at)
+            event = self._audit_approval(
+                approval=approval,
+                action=control_action,
+                status="success",
+                reason_code="observe_snapshot_ready",
+                actor_user_id=actor_user_id,
+                actor_role=normalized_role,
+                metadata={
+                    "workspace_control": action,
+                    "reason_present": str(bool(reason)).lower(),
+                    "artifact_count": len(snapshot["artifacts"]),
+                    "audit_event_count": len(snapshot["audit_events"]) + 1,
+                    "runtime_control_state": "read_only_snapshot",
+                },
+                now=controlled_at,
+            )
+            await self.db.flush()
+            snapshot = {
+                **snapshot,
+                "observe_audit_event_id": event.id,
+                "audit_events": [_audit_event_snapshot(event), *snapshot["audit_events"]],
+            }
+            return AgentApprovalDecision(
+                True,
+                "observe_snapshot_ready",
+                "Agent workspace observe snapshot prepared.",
+                approval_id=approval.id,
+                route_id=approval.route_id,
+                status=approval.status,
+                expires_at=approval.expires_at,
+                audit_event_id=event.id,
+                workspace_snapshot=snapshot,
             )
 
         event = self._audit_approval(
@@ -687,6 +724,42 @@ class AgentApprovalService:
             )
         ).scalar_one_or_none()
 
+    async def _workspace_observe_snapshot(
+        self,
+        *,
+        approval: AgentApproval,
+        observed_at: datetime,
+    ) -> dict[str, Any]:
+        artifacts = await self.list_workspace_artifacts(
+            org_id=approval.org_id,
+            approval_id=approval.id,
+            limit=20,
+        )
+        audit_events = (
+            await self.db.execute(
+                select(AgentAuditEvent)
+                .where(
+                    AgentAuditEvent.org_id == approval.org_id,
+                    AgentAuditEvent.resource_id == approval.id,
+                    AgentAuditEvent.resource_type.in_(["agent_approval", "agent_workspace_artifact"]),
+                )
+                .order_by(AgentAuditEvent.created_at.desc())
+                .limit(50)
+            )
+        ).scalars().all()
+        return {
+            "observed_at": observed_at.isoformat(),
+            "approval": _approval_snapshot(approval),
+            "artifacts": [_workspace_artifact_snapshot(artifact) for artifact in artifacts],
+            "audit_events": [_audit_event_snapshot(event) for event in audit_events],
+            "runtime_controls": {
+                "observe": "available",
+                "pause": "runtime_not_integrated",
+                "takeover": "runtime_not_integrated",
+                "terminate": "runtime_not_integrated",
+            },
+        }
+
     def _approval_decision_denial(self, *, approval: AgentApproval, now: datetime) -> str | None:
         if approval.status != PENDING_STATUS:
             return "approval_not_pending"
@@ -921,6 +994,37 @@ def _artifact_from_event(event: AgentAuditEvent) -> AgentWorkspaceArtifact:
     )
 
 
+def _workspace_artifact_snapshot(artifact: AgentWorkspaceArtifact) -> dict[str, Any]:
+    return {
+        "id": artifact.id,
+        "approval_id": artifact.approval_id,
+        "artifact_type": artifact.artifact_type,
+        "title": artifact.title,
+        "content": artifact.content,
+        "metadata": artifact.metadata,
+        "created_by": artifact.created_by,
+        "created_at": artifact.created_at.isoformat(),
+    }
+
+
+def _audit_event_snapshot(event: AgentAuditEvent) -> dict[str, Any]:
+    return {
+        "id": event.id,
+        "org_id": event.org_id,
+        "route_id": event.route_id,
+        "actor_user_id": event.actor_user_id,
+        "actor_type": event.actor_type,
+        "action": event.action,
+        "status": event.status,
+        "reason_code": event.reason_code,
+        "resource_type": event.resource_type,
+        "resource_id": event.resource_id,
+        "resource_snapshot": event.resource_snapshot,
+        "metadata": event.metadata_json,
+        "created_at": event.created_at.isoformat() if event.created_at else None,
+    }
+
+
 def _sanitize_payload(payload: dict[str, Any] | None) -> dict[str, Any] | None:
     if not payload:
         return None
@@ -972,4 +1076,5 @@ def _reason_message(reason_code: str) -> str:
         "unknown_capability_route": "Capability route does not exist for this organization.",
         "capability_route_disabled": "Capability route is disabled.",
         "capability_route_revoked": "Capability route has been revoked.",
+        "observe_snapshot_ready": "Agent workspace observe snapshot prepared.",
     }.get(reason_code, "Agent approval request was denied.")

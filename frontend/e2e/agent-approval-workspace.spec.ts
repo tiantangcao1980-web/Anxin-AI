@@ -317,8 +317,22 @@ test.describe('Agent 审批工作台', () => {
     await artifactExportRequest
     await expect(page.getByText('工作室成果导出已生成', { exact: true })).toBeVisible()
 
+    const observeRequest = page.waitForRequest((request) => {
+      if (request.method() !== 'POST' || !request.url().includes('/agent-approvals/approval-e2e-1/workspace-control')) {
+        return false
+      }
+      return (request.postDataJSON() as { action?: string }).action === 'observe'
+    })
+    await row.getByRole('button', { name: '旁听' }).click()
+    await observeRequest
+    await expect(page.getByText('旁听快照已生成', { exact: true })).toBeVisible()
+    await expect(page.getByTestId('agent-approval-audit-trail')).toContainText('observe')
+    await expect(page.getByTestId('agent-workspace-artifacts')).toContainText('operator-reviewed-workspace')
+
     const controlRequest = page.waitForRequest((request) =>
-      request.method() === 'POST' && request.url().includes('/agent-approvals/approval-e2e-1/workspace-control'),
+      request.method() === 'POST'
+      && request.url().includes('/agent-approvals/approval-e2e-1/workspace-control')
+      && (request.postDataJSON() as { action?: string }).action === 'pause',
     )
     await row.getByRole('button', { name: '暂停' }).click()
     await controlRequest

@@ -64,7 +64,7 @@ class AgentApprovalValidateBody(BaseModel):
 class AgentApprovalWorkspaceControlBody(BaseModel):
     """Request a governed workspace control action."""
 
-    action: Literal["pause", "takeover", "terminate"]
+    action: Literal["observe", "pause", "takeover", "terminate"]
     reason: str | None = Field(default=None, max_length=2000)
 
 
@@ -114,6 +114,7 @@ def _decision_to_payload(decision: AgentApprovalDecision) -> dict[str, Any]:
         "status": decision.status,
         "expires_at": decision.expires_at.isoformat() if decision.expires_at else None,
         "audit_event_id": decision.audit_event_id,
+        "workspace_snapshot": decision.workspace_snapshot,
     }
 
 

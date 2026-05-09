@@ -154,7 +154,7 @@ docs/audit/<NN-module>/
 |---|---|---|
 | 11a | 桌面端 P0-1/P0-2/P0-3 三件套 | 自定义标题栏 / 全局快捷键快速问答 / 拖拽分析 |
 | 11b | 同步引擎（后端底座 + 前端 Tauri SQL 最小 push/pull + 冲突合并页 + 代码级指数重试已补） | Tauri runtime smoke、加密、性能基线 |
-| 11c | 移动端 + 设计系统跨平台校验 | 底部 Tab / 44px / safe-area / DesignDNA 一致性 |
+| 11c | 移动端 + 小程序 uni-app 统一端迁移 + 设计系统跨平台校验 | uni-app 基座、旧 Expo/Taro legacy 清理、底部 Tab / 44px / safe-area / DesignDNA 一致性 |
 
 ### 波次 5：企业智能体治理
 
@@ -210,7 +210,7 @@ Day 30-36   缓冲 + P2 质量基线（ruff/mypy 分层基线 + 性能调优）
 | 10 | `_tasks/TASK-10-billing-im.md` | 已生成 |
 | 11a | `_tasks/TASK-11a-desktop-mvp.md` | 已生成 |
 | 11b | `_tasks/TASK-11b-sync-engine.md` | 已生成 |
-| 11c | `_tasks/TASK-11c-mobile-design.md` | 已生成 |
+| 11c | `_tasks/TASK-11c-mobile-design.md` | 已生成；2026-05-09 已同步 uni-app 统一端路线，旧 `mobile/` 和 `mini-program/` 标记 legacy，实际 `apps/uni-mobile/` 基座和旧端模块删除待执行 |
 | 12 | `_tasks/TASK-12-agent-control-plane-skill-evolution.md` | 已生成，等待执行 |
 
 ---
@@ -228,6 +228,7 @@ Day 30-36   缓冲 + P2 质量基线（ruff/mypy 分层基线 + 性能调优）
 ### 7.2 计划本身的不确定性
 
 - 任务 11b（同步引擎从零）工时估计偏乐观，可能要 7-10 天而不是 5 天
+- 任务 11c 已在 2026-05-09 改为 uni-app 统一端迁移；新基座 + 双跑 + 旧 Expo/Taro 清理通常需要额外 7-14 天，取决于 DCloud/Apple/Android/微信小程序资源是否到位
 - 任务 9 涉及爬虫合规，外部第三方约束（robots/数据源协议）可能要法务复核，超出本计划范围
 - 后端 7873 个 ruff 错误的"分层基线"建立，本计划放在 P2，可能要再延一周
 

@@ -738,6 +738,68 @@ export async function installApiMocks(page: Page, options: MockOptions = {}) {
     }
 
     if (/\/agent-approvals\/[^/]+\/workspace-control$/.test(pathname) && request.method() === 'POST') {
+      const body = request.postDataJSON() as { action?: string } | null
+      if (body?.action === 'observe') {
+        return fulfillJson(
+          route,
+          options.agentApprovals?.workspaceControl ?? buildUnified({
+            allowed: true,
+            reason_code: 'observe_snapshot_ready',
+            human_message: 'Agent workspace observe snapshot prepared.',
+            approval_id: 'approval-e2e-1',
+            status: 'approved',
+            audit_event_id: 'agent-audit-observe-e2e',
+            workspace_snapshot: {
+              observed_at: '2026-05-09T09:00:00Z',
+              observe_audit_event_id: 'agent-audit-observe-e2e',
+              approval: {
+                approval_id: 'approval-e2e-1',
+                action_type: 'browser.remote_control',
+                risk_level: 'l4',
+                status: 'approved',
+                route_id: '',
+              },
+              artifacts: [
+                {
+                  id: 'workspace-artifact-e2e-1',
+                  approval_id: 'approval-e2e-1',
+                  artifact_type: 'summary',
+                  title: '高风险工作摘要',
+                  content: {
+                    action_type: 'browser.remote_control',
+                    checkpoint: 'operator-reviewed-workspace',
+                  },
+                  metadata: { source: 'agent-approval-workspace' },
+                  created_by: 'admin-e2e',
+                  created_at: '2026-05-09T09:00:00Z',
+                },
+              ],
+              audit_events: [
+                {
+                  id: 'agent-audit-observe-e2e',
+                  org_id: 'org-e2e',
+                  actor_user_id: 'admin-e2e',
+                  actor_type: 'user',
+                  action: 'agent_workspace.observe',
+                  status: 'success',
+                  reason_code: 'observe_snapshot_ready',
+                  resource_type: 'agent_approval',
+                  resource_id: 'approval-e2e-1',
+                  resource_snapshot: null,
+                  metadata: { workspace_control: 'observe' },
+                  created_at: '2026-05-09T09:00:00Z',
+                },
+              ],
+              runtime_controls: {
+                observe: 'available',
+                pause: 'runtime_not_integrated',
+                takeover: 'runtime_not_integrated',
+                terminate: 'runtime_not_integrated',
+              },
+            },
+          }),
+        )
+      }
       return fulfillJson(
         route,
         options.agentApprovals?.workspaceControl ?? {

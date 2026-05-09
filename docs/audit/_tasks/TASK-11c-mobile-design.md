@@ -5,6 +5,7 @@
 > 必读：`../PLAN.md`、`../00-platform/01-prd-reality-gap.md`、`../00-platform/03-cross-cutting-gaps.md`、`PRODUCT_ROADMAP.md` M3（移动端 Beta）+ M4（多端闭环）、`DESIGN.md` 跨平台一致性章节、`frontend/src/lib/design-tokens.ts`
 
 > 2026-05-08 定位补充：移动端是随身智能助手，也是桌面主工作站的远程控制端。移动端必须能继续桌面会话、审批高风险动作、查看桌面任务状态，并在安全配对后远程控制桌面执行工作。
+> 2026-05-09 路线修订：移动 App 与小程序新开发统一转向 uni-app；旧 `mobile/` Expo 与 `mini-program/` Taro 进入 legacy，只允许安全修复、回归保护和迁移提取。迁移方案见 `../../mobile/uni-app-migration-plan.md`。
 
 ---
 
@@ -13,6 +14,11 @@
 ### 要碰的文件
 
 - 移动端：
+  - **新建** `apps/uni-mobile/`（uni-app Vue3 基座：App/H5/微信小程序共用）
+  - `apps/uni-mobile/src/services/`（统一 API client、auth、隐私模式、route-token）
+  - `apps/uni-mobile/src/platform/`（微信登录、App 权限/推送/文件、平台差异封装）
+  - `apps/uni-mobile/src/styles/`（跨端 token、44pt/88rpx 触控、安全区）
+  - `mobile/README.md`（legacy 标记；禁止新增功能）
   - `mobile/app/approvals/[id].tsx`（去掉静默 catch 的 fallback 数据）
   - `mobile/app/cases.tsx`（同类 fallback 模式排查）
   - `mobile/app/(tabs)/index.tsx`、`mobile/app/(tabs)/chat.tsx`、`mobile/app/settings.tsx`（去掉首页假数据兜底与误导性 mock 标记）
@@ -21,6 +27,7 @@
   - `mobile/components/`（按钮 / 卡片 / 列表项最小点击区 44px）
   - `mobile/lib/design-tokens.ts`（如不存在则新建，引用规则与 frontend 对齐）
 - 小程序：
+  - `mini-program/README.md`（legacy 标记；禁止新增功能）
   - `mini-program/src/pages/profile/index.tsx`（去掉生产 mock_token）
   - `mini-program/src/pages/index/index.tsx`（去掉假新闻 fallback，改空状态）
   - `mini-program/src/services/`（登录链路对齐）
@@ -56,6 +63,7 @@
 | P0-5 | 新建 `docs/design/cross-platform-token-drift.md` | 缺漂移清单 | 用 `/designdna` 校验：列出 desktop / mobile / mini-program 的 token 与 `frontend/src/lib/design-tokens.ts` 的差异；标 P0/P1/P2；**不重新设计**，仅产出清单 |
 | P0-6 | `mobile/app/sessions/`（含跨设备会话延续入口） | 桌面开始 → 手机继续未实现 | 复用任务 11b 的 sync 协议；移动端拉 pull 后渲染当前活跃 session（含未读消息 + 未提交输入框草稿）；纯前端工作，不改后端协议 |
 | P0-7 | `mobile/app/desktop-control.tsx` + 11b remote command API | 后端已补远控 status/pairing/command/audit fail-closed 契约，能拒绝未配置、绝密/本地模式、缺二次确认、缺配对、缺 route token 和缺队列/审计场景；移动端已补 `/desktop-control` 状态入口和个人中心入口，local 模式不发网络请求，hybrid/cloud 读取后端安全闸，confirmed pairing 下可申请短期 route token、只入队 `desktop.status_probe`、刷新状态、取消 queued/claimed 探针并展示脱敏审计时间线；真实桌面 host 回传、高风险执行器、跨设备联调和真机证据仍未实现 | 设备配对、桌面在线状态、远程命令下发、执行状态、取消/撤销、敏感动作二次确认和审计记录可见；绝密模式/未授权设备必须 fail-closed |
+| P0-8 | `apps/uni-mobile/` + `mobile/README.md` + `mini-program/README.md` | 2026-05-09 决定移动 App/小程序改用 uni-app；旧 Expo/Taro 仍承载可复用逻辑和 guard，但不应继续扩展功能 | 新建 uni-app 迁移计划；旧端标记 legacy；后续新功能只进入 uni-app，旧端按模块双跑达标后删除或归档 |
 
 ---
 
@@ -76,8 +84,9 @@
 - `/hierarchical-memory find-feature "跨设备会话延续 sync"`
 - `/iterative-retrieval` 按 移动端路由 → 页面 → 组件 → service → tokens / 小程序同上 分层读
 
-### Step 2 · 移动端 P0-1 / P0-2 / P0-6 / P0-7
+### Step 2 · 移动端 P0-1 / P0-2 / P0-6 / P0-7 / P0-8
 
+0. P0-8：先冻结旧端为 legacy，抽取 `mobile/src/services/api.ts`、`mobile/src/features/desktop-control/model.ts`、`mini-program/src/services/api.ts`、小程序登录链路和 token/隐私 guard，作为 `apps/uni-mobile/` 的迁移输入。
 1. P0-1：审查 `mobile/app/_layout.tsx` 底部 Tab；对所有 Pressable / TouchableOpacity 最小命中区做 44pt 校验，必要时加 hitSlop；`SafeAreaProvider` 全局包裹
 2. P0-2：grep `catch.*=>.*fallback|return.*\[\]|return mock` 找出所有静默 catch；逐一改为按 HTTP 状态分支 + empty state 组件
 3. P0-6：移动端"会话列表"页加 sync pull 触发；活跃 session 渲染 pull 回的 last_message + draft（草稿来自任务 11b 同步队列）；不改后端协议
@@ -88,6 +97,7 @@
 1. P0-3：grep `mock_token|fakeToken|TODO.*token` 全删；登录链路对齐：`wx.login` → `code2session` → 真实 jwt；失败明确弹错误（不要静默切 mock）
 2. P0-4：grep `fallback.*news|mock.*news|假新闻`；改为 EmptyState 组件 + 错误 telemetry
 3. 上线前确认后端 `/api/v1/auth/wechat/code2session` 接口真实工作（与任务 1 对齐）
+4. uni-app 迁移后，微信登录以 `uni.login` + 平台分支调用后端 `code2session`；旧 Taro 实现只作回归对照，不能继续新增业务入口。
 
 ### Step 4 · P0-5 设计系统跨平台校验
 
@@ -125,6 +135,7 @@ docs/audit/11c-mobile-design/
 附加：
 - `docs/design/cross-platform-token-drift.md`（本任务的关键产出，**不含修复 patch**）
 - `docs/mobile/error-handling-guidelines.md`（统一错误分支与 empty state 模式）
+- `docs/mobile/uni-app-migration-plan.md`（uni-app 可行性、迁移、旧端清理和验收门禁）
 
 ---
 
@@ -139,6 +150,7 @@ docs/audit/11c-mobile-design/
 - **不改后端**：本任务理论上不动 backend/；如发现移动端 fallback 是因后端缺接口，记到 followups.md 不在本任务修
 - **不动**：desktop / payment / prompts / store.ts / 任务 11b 的同步协议
 - **设计漂移修复**：发现的漂移项**不在本任务修复**，要走单独 PR 给用户先看 diff
+- **旧端清理**：删除 `mobile/` 或 `mini-program/` 模块前必须有 uni-app 同等能力、测试和真机/DevTools 证据；清理按模块双跑，不做一次性大删。
 
 ---
 
@@ -156,5 +168,6 @@ docs/audit/11c-mobile-design/
 - [ ] 小程序 tsc + lint 全绿；微信开发者工具登录链路真机验证通过
 - [ ] iPhone 14 + Android 13 真机手测通过：登录 / 审批 / 会话延续 三个用户故事
 - [x] `docs/audit/11c-mobile-design/01..05.md` + `docs/design/cross-platform-token-drift.md` + `docs/mobile/error-handling-guidelines.md` 全部产出；另补 `00-prd-reality-gap.md`
+- [x] `docs/mobile/uni-app-migration-plan.md` 已产出；`mobile/README.md` 与 `mini-program/README.md` 已标记 legacy；实际 `apps/uni-mobile/` 基座和旧端模块删除仍待后续执行
 - [x] release notes 已写"移除静默 fallback，看到错误页是真错"提示；草案为 `docs/release/mobile-error-state-release-notes.md`，正式发布前需合并到版本说明
 - [ ] 经验沉淀到 hierarchical-memory（add-bugfix ≥ 2 + add-feature ≥ 1）

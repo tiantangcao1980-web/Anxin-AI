@@ -226,6 +226,62 @@ async def test_agent_approval_workspace_control_fails_closed_and_writes_audit(
 
 
 @pytest.mark.asyncio
+async def test_agent_approval_workspace_observe_returns_snapshot_and_writes_audit(
+    auth_client,
+    admin_auth_client,
+    db_session,
+    test_organization,
+):
+    create = await auth_client.post(
+        "/api/v1/agent-approvals",
+        json={"action_type": "browser.remote_control", "risk_level": "l4"},
+    )
+    approval_id = create.json()["data"]["approval_id"]
+    await admin_auth_client.post(f"/api/v1/agent-approvals/{approval_id}/approve", json={"note": "ok"})
+    await admin_auth_client.post(
+        f"/api/v1/agent-approvals/{approval_id}/artifacts",
+        json={
+            "artifact_type": "summary",
+            "title": "旁听摘要",
+            "content": {
+                "finding": "read-only snapshot",
+                "api_key": "should-never-leak",
+            },
+            "metadata": {"source": "workspace", "raw_token": "never-store"},
+        },
+    )
+
+    observed = await admin_auth_client.post(
+        f"/api/v1/agent-approvals/{approval_id}/workspace-control",
+        json={"action": "observe", "reason": "operator observes a high-risk workspace"},
+    )
+
+    audits = (
+        await db_session.execute(
+            select(AgentAuditEvent)
+            .where(AgentAuditEvent.org_id == test_organization.id)
+            .order_by(AgentAuditEvent.created_at)
+        )
+    ).scalars().all()
+    payload = observed.json()["data"]
+
+    assert observed.status_code == 200
+    assert observed.json()["code"] == 200
+    assert payload["allowed"] is True
+    assert payload["reason_code"] == "observe_snapshot_ready"
+    assert payload["workspace_snapshot"]["runtime_controls"]["observe"] == "available"
+    assert payload["workspace_snapshot"]["runtime_controls"]["pause"] == "runtime_not_integrated"
+    assert payload["workspace_snapshot"]["artifacts"][0]["title"] == "旁听摘要"
+    assert payload["workspace_snapshot"]["artifacts"][0]["content"]["api_key"] == "[redacted]"
+    assert payload["workspace_snapshot"]["audit_events"][0]["action"] == "agent_workspace.observe"
+    assert audits[-1].action == "agent_workspace.observe"
+    assert audits[-1].status == "success"
+    assert audits[-1].reason_code == "observe_snapshot_ready"
+    assert "should-never-leak" not in str(payload)
+    assert "never-store" not in str(audits)
+
+
+@pytest.mark.asyncio
 async def test_agent_workspace_artifact_api_redacts_and_exports(
     auth_client,
     admin_auth_client,

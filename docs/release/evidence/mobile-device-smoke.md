@@ -2,8 +2,8 @@
 
 Status: pending
 Owner: TBD
-Environment: code-level mobile/mini smoke complete; Expo config, SDK dependency guard, Expo Metro config, Expo doctor, mobile result surface guard, mobile remote-control safe-probe enqueue/status/cancel/audit timeline visibility, mini-program privacy and navigation boundary guards, WeChat DevTools CLI project smoke, and iOS Simulator Expo Go supporting app-run complete; cross-platform token drift audit complete; Android, interactive WeChat DevTools / real device, and cross-device continuation pending
-Date range: 2026-05-06 to 2026-05-08 local collection
+Environment: code-level mobile/mini smoke complete for the current Expo/Taro legacy clients; Expo config, SDK dependency guard, Expo Metro config, Expo doctor, mobile result surface guard, mobile remote-control safe-probe enqueue/status/cancel/audit timeline visibility, mini-program privacy and navigation boundary guards, WeChat DevTools CLI project smoke, and iOS Simulator Expo Go supporting app-run complete; cross-platform token drift audit complete; 2026-05-09 route changed future mobile App/Mini Program development to uni-app; Android, interactive WeChat DevTools / real device, uni-app base evidence, and cross-device continuation pending
+Date range: 2026-05-06 to 2026-05-09 local collection
 
 > Simulator/unit tests are useful but insufficient. This evidence requires real or official-device-tool runs for the critical user stories.
 
@@ -18,6 +18,7 @@ Date range: 2026-05-06 to 2026-05-08 local collection
 | WeChat Mini Program | News/empty-state path shows no fake fallback content | pending | TBD |
 | Mobile UI | Bottom tabs, safe area, and 44px touch target token baseline | code-level complete; device verification pending | `mobile/src/constants/layout.ts`, `mini-program/src/app.scss` |
 | Design system | Cross-platform token drift audit across Web/desktop, mobile, and mini-program | code-level complete; fixes pending | `docs/design/cross-platform-token-drift.md` |
+| uni-app migration | Future mobile App and Mini Program development uses one uni-app base; old Expo/Taro clients are legacy references until equivalent evidence exists | plan complete; implementation pending | `docs/mobile/uni-app-migration-plan.md`; `mobile/README.md`; `mini-program/README.md` |
 | Release communication | Error-state release notes explain removal of silent fallback | draft complete; final notes pending | `docs/release/mobile-error-state-release-notes.md` |
 | Mobile security | `npm audit --omit=dev` has no production vulnerabilities after targeted Expo SDK 52 toolchain overrides | code-level complete; device verification pending | `docs/release/evidence/artifacts/mobile-mini-code-smoke-20260508.json` -> `mobile_npm_audit.status=passed,total=0` |
 | Mobile remote control | Confirmed-pairing state can request a short-lived `desktop:control` route token and enqueue only `desktop.status_probe`; local mode blocks before network I/O; queued/claimed safe probes can be refreshed and cancelled from mobile; the page now shows a redacted remote-control audit timeline without rendering raw payload/metadata; desktop execution still requires host callback evidence | code-level complete; cross-device/device verification pending | `mobile/app/desktop-control.tsx`, `mobile/src/services/api.test.ts`, `mobile/src/features/desktop-control/model.test.ts` |
@@ -40,6 +41,10 @@ cd mini-program && npx tsc --noEmit --skipLibCheck --noUnusedLocals false
 cd mini-program && npm run check-privacy-boundary
 cd mini-program && npm run check-navigation-boundary
 cd mini-program && npm run build:weapp
+# After apps/uni-mobile exists:
+# cd apps/uni-mobile && npm run typecheck
+# cd apps/uni-mobile && npm run build:mp-weixin
+# cd apps/uni-mobile && npm run build:h5
 ```
 
 ## Latest Local Collection
@@ -75,6 +80,7 @@ Result refreshed on 2026-05-08 local time:
 | manual device template | `docs/release/evidence/artifacts/mobile-device-manual-template-20260508.json`; `status=template`, `release_evidence_complete=false` |
 | host device probe | `docs/release/evidence/artifacts/mobile-device-host-probe-20260508.json`; iOS Simulator is available with iOS 26.4 devices, ADB has no connected devices, Android emulator CLI is missing, WeChat DevTools and WeChat apps are present |
 | iOS Simulator Expo Go smoke | `bash scripts/mobile-ios-simulator-smoke.sh --out docs/release/evidence/artifacts/mobile-ios-simulator-expo-go-smoke-20260508.json --log-out docs/release/evidence/artifacts/mobile-ios-simulator-expo-go-smoke-20260508.log --timeout 90` -> exit `0`; boots iPhone 17 simulator, verifies `expo-asset` and Expo Metro config, opens Expo Go on the local Expo URL, and records `iOS Bundled`; artifact has `release_evidence_complete=false` |
+| uni-app migration decision | `docs/mobile/uni-app-migration-plan.md` records feasibility, target directory, old-client cleanup plan, P0 feature scope, and evidence gates; `mobile/README.md` and `mini-program/README.md` mark current Expo/Taro clients as legacy |
 
 Code-level hardening added in this collection:
 
@@ -97,6 +103,8 @@ Code-level hardening added in this collection:
 - `docs/release/mobile-error-state-release-notes.md` drafts the user/support explanation for explicit error states after silent fallback removal.
 
 This file remains `Status: pending` because the iOS Simulator Expo Go smoke is supporting evidence only and does not cover the required signed/official app, real device user stories, Android, interactive WeChat DevTools or real-device evidence, and cross-device continuation. Mobile production npm audit and local iOS bundling are now fixed in code-level/supporting artifacts, but runtime device evidence is still required before release Go.
+
+The 2026-05-09 uni-app decision does not make the old device evidence complete. It changes the forward development target: new mobile App and Mini Program features should land in `apps/uni-mobile/`, while `mobile/` and `mini-program/` remain legacy references until module-by-module migration, dual-run tests, and device/DevTools evidence allow cleanup.
 
 ## Completion Notes
 

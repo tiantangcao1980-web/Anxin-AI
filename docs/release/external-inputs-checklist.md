@@ -8,6 +8,7 @@
 - 外部输入只进入 secret manager、本地 `.env`、测试设备或合规 artifact store，不直接写入仓库。
 - 拿到输入后，先按 `docs/release/evidence-collection-runbook.md` 跑对应 preflight/live 命令。
 - 操作性交接单见 `docs/release/external-resource-handoff.md`；它列出每条线拿到输入后的命令和完成证据。
+- 面向用户准备资料的完整第三方 API 清单见 `docs/release/third-party-api-preparation.md`。
 - evidence 文件转 `Status: complete` 前，必须通过 `scripts/validate-release-evidence.py` 和 `scripts/release-evidence-secret-scan.sh`。
 
 ## 支付线
@@ -80,6 +81,8 @@
 | iOS 测试构建 | 真机、TestFlight 或 iOS Simulator app-run smoke | build hash + device transcript | 缺；本机 host probe 已确认 iOS Simulator 可用，但尚未生成 app-run transcript |
 | Android 测试构建 | 真机 smoke | build hash + device transcript | 缺；ADB 可启动但当前无连接设备，`emulator` CLI 不在 PATH |
 | 微信开发者工具或真机环境 | 小程序 smoke | DevTools/project transcript | 本机 WeChat DevTools CLI project smoke 已通过；交互式/真机证据仍缺 |
+| DCloud/uni-app 账号与应用 AppID | 新移动/小程序统一基座、云打包、插件和 uniPush 准备 | DCloud app id / cloud build transcript | 缺；2026-05-09 已决定迁移到 uni-app，旧 Expo/Taro 仅作 legacy 参考 |
+| iOS/Android 包名与证书策略 | uni-app App 打包和上架 | Bundle ID / package name / signing profile label | 缺 |
 | 测试账号 | 登录、审批、消息、任务、聊天延续 | redacted tester/account role | 缺 |
 | 后端 staging 环境 | 真机 API 指向 | environment URL label only | 缺 |
 | 截图/视频/日志索引 | 证明登录、审批、消息/任务详情、错误态、跨设备连续会话 | `docs/release/evidence/artifacts/*mobile*` 或合规 artifact store | 缺 |
