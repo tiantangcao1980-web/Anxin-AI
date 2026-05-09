@@ -31,8 +31,13 @@ export default function Settings() {
  const [activeTab, setActiveTab] = useState(() => normalizeSettingsTab(searchParams.get('tab')))
 
  useEffect(() => {
- setActiveTab(normalizeSettingsTab(searchParams.get('tab')))
- }, [searchParams])
+ const rawTab = searchParams.get('tab')
+ const normalizedTab = normalizeSettingsTab(rawTab)
+ setActiveTab(normalizedTab)
+ if (rawTab && rawTab !== normalizedTab) {
+ setSearchParams(normalizedTab ==='profile' ? {} : { tab: normalizedTab }, { replace: true })
+ }
+ }, [searchParams, setSearchParams])
 
  const handleTabChange = (value: string) => {
  const nextTab = normalizeSettingsTab(value)
@@ -43,7 +48,7 @@ export default function Settings() {
  return (
  <PageContainer
  title="我的设置"
- description="管理个人账号、本机运行和当前账号可用连接；组织与平台治理统一进入治理后台"
+ description="管理个人账号、本机运行和通知偏好；组织级模型、工具和系统集成统一进入治理后台"
  className="box-border w-[100dvw] min-w-0 max-w-[100dvw] overflow-hidden lg:w-full lg:max-w-full"
  >
  <Tabs value={activeTab} onValueChange={handleTabChange} className="min-w-0 space-y-4 overflow-hidden">
@@ -55,14 +60,6 @@ export default function Settings() {
  <TabsTrigger value="workstation" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
  <icons.LayoutDashboard className={`${iconSize.sm} shrink-0`} />
  <span className="whitespace-nowrap">本机运行</span>
- </TabsTrigger>
- <TabsTrigger value="llm" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
- <icons.Cpu className={`${iconSize.sm} shrink-0`} />
- <span className="whitespace-nowrap">AI 连接</span>
- </TabsTrigger>
- <TabsTrigger value="mcp" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
- <icons.Server className={`${iconSize.sm} shrink-0`} />
- <span className="whitespace-nowrap">工具连接</span>
  </TabsTrigger>
  <TabsTrigger value="notifications" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
  <icons.Notification className={`${iconSize.sm} shrink-0`} />
@@ -76,14 +73,6 @@ export default function Settings() {
 
  <TabsContent value="workstation" className="min-w-0 space-y-4">
  <DesktopWorkstationPanel />
- </TabsContent>
-
- <TabsContent value="llm" className="min-w-0 space-y-4">
- <LlmSettingsPanel />
- </TabsContent>
-
- <TabsContent value="mcp" className="min-w-0 space-y-4">
- <McpSettingsPanel />
  </TabsContent>
 
  <TabsContent value="notifications" className="min-w-0 space-y-4">
@@ -258,12 +247,12 @@ function ProfilePanel() {
  <Card className="border-border rounded-xl">
  <CardHeader>
  <CardTitle className={heading.section}>治理入口</CardTitle>
- <CardDescription className={heading.muted}>组织级用户、权限、审计、安全和系统配置统一在治理后台处理</CardDescription>
+ <CardDescription className={heading.muted}>组织级用户、权限、模型、工具、审计、安全和系统配置统一在治理后台处理</CardDescription>
  </CardHeader>
  <CardContent className="flex items-center justify-between gap-3">
  <div>
  <p className="text-sm font-medium text-foreground">治理后台</p>
- <p className="text-xs text-muted-foreground">跨用户、跨组织和平台级配置不放在个人设置里</p>
+ <p className="text-xs text-muted-foreground">跨用户、跨组织和平台级配置不再放在个人设置里</p>
  </div>
  <Button onClick={() => navigate('/admin')}>进入治理后台</Button>
  </CardContent>
@@ -405,13 +394,16 @@ function ProfilePanel() {
 
 // ============ LLM设置面板组件 ============
 
-export function LlmSettingsPanel() {
+type ConnectionPanelScope = 'account' | 'governance'
+
+export function LlmSettingsPanel({ scope = 'governance' }: { scope?: ConnectionPanelScope } = {}) {
  const [configs, setConfigs] = useState<LLMConfig[]>([])
  const [providers, setProviders] = useState<Record<string, LLMProvider>>({})
  const [loading, setLoading] = useState(true)
  const [error, setError] = useState<string | null>(null)
  const [showDialog, setShowDialog] = useState(false)
  const [editingConfig, setEditingConfig] = useState<LLMConfig | null>(null)
+ const isGovernance = scope === 'governance'
 
  useEffect(() => {
  loadData()
@@ -485,9 +477,11 @@ export function LlmSettingsPanel() {
  <div className="space-y-6">
  <div className="flex items-center justify-between">
  <div>
- <h2 className={heading.section}>AI 连接</h2>
+ <h2 className={heading.section}>{isGovernance ? '模型连接' : 'AI 连接'}</h2>
  <p className={heading.muted}>
- 管理当前账号可使用的模型连接；组织默认、密钥审计和启停治理在治理后台的模型治理中统一处理
+ {isGovernance
+ ? '管理组织级模型供应商、默认配置、密钥遮罩和联调状态'
+ : '管理当前账号可使用的模型连接；组织默认、密钥审计和启停治理在治理后台的模型治理中统一处理'}
  </p>
  </div>
  <button
@@ -873,13 +867,14 @@ const MCP_TEMPLATES = [
  }
 ]
 
-function McpSettingsPanel() {
+export function McpSettingsPanel({ scope = 'governance' }: { scope?: ConnectionPanelScope } = {}) {
  const [servers, setServers] = useState<McpServerConfig[]>([])
  const [loading, setLoading] = useState(true)
  const [error, setError] = useState<string | null>(null)
  const [showAddDialog, setShowAddDialog] = useState(false)
  const [editingServer, setEditingServer] = useState<McpServerConfig | null>(null)
  const [connecting, setConnecting] = useState<string | null>(null)
+ const isGovernance = scope === 'governance'
 
  useEffect(() => {
  loadData()
@@ -942,9 +937,11 @@ function McpSettingsPanel() {
  <div className={cardStyle.base}>
  <div className="flex items-center justify-between">
  <div>
- <h2 className={heading.section}>工具连接 (MCP)</h2>
+ <h2 className={heading.section}>{isGovernance ? 'MCP / 工具连接' : '工具连接 (MCP)'}</h2>
  <p className={`${heading.muted} mt-0.5`}>
- 管理当前工作流可调用的 MCP 工具连接；跨组织启用、凭据审计和系统级接入统一在治理后台处理
+ {isGovernance
+ ? '管理组织级 MCP 工具服务、allowlist、连接刷新和凭据遮罩'
+ : '管理当前工作流可调用的 MCP 工具连接；跨组织启用、凭据审计和系统级接入统一在治理后台处理'}
  </p>
  </div>
  <button

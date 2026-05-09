@@ -2,13 +2,14 @@ import { expect, test } from '@playwright/test'
 
 import { loginAsAdmin } from './helpers/auth'
 
-test.describe('LLM 配置凭据体验', () => {
-  test('settings tab shows masked provider credentials only', async ({ page }) => {
+test.describe('模型治理凭据体验', () => {
+  test('admin model governance shows masked provider credentials only', async ({ page }) => {
     await loginAsAdmin(page)
 
-    await page.goto('/settings?tab=llm')
+    await page.goto('/admin/ai-config')
 
-    await expect(page.getByRole('tab', { name: 'AI 连接' })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByRole('heading', { name: '模型治理' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '模型连接' })).toBeVisible()
     await expect(page.getByTestId('llm-config-llm-e2e-1')).toContainText('组织默认模型')
     await expect(page.getByTestId('llm-config-key-llm-e2e-1')).toContainText('已保存 sk-a...7890')
     await expect(page.getByText('sk-live-secret-value')).toHaveCount(0)
@@ -31,7 +32,7 @@ test.describe('LLM 配置凭据体验', () => {
       },
     })
 
-    await page.goto('/settings?tab=llm')
+    await page.goto('/admin/ai-config')
     await page.getByTestId('llm-config-edit-llm-e2e-1').click()
     await page.getByPlaceholder('给这个配置起个名字').fill('组织默认模型改名')
     await page.getByRole('button', { name: '保存配置' }).click()
@@ -51,7 +52,7 @@ test.describe('LLM 配置凭据体验', () => {
       },
     })
 
-    await page.goto('/settings?tab=llm')
+    await page.goto('/admin/ai-config')
     await page.getByTestId('llm-config-add').click()
     await page.getByPlaceholder('给这个配置起个名字').fill('预发 DeepSeek')
     await page.getByPlaceholder('输入或选择模型').fill('deepseek-chat')

@@ -308,8 +308,8 @@ export function buildDesktopWorkstationResources(
       statusLabel: isTopSecret ? '审批后启用' : '可治理',
       summary: isTopSecret ? '外部连接保持关闭' : '按 allowlist 与审批策略连接',
       action: {
-        label: isTopSecret ? '查看治理' : '配置服务',
-        path: '/settings?tab=mcp',
+        label: '查看治理',
+        path: '/agent-approvals',
         enabled: true,
         safeInTopSecret: true,
       },

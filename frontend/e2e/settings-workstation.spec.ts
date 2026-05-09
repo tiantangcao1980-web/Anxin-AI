@@ -109,10 +109,19 @@ test.describe('本机运行设置入口', () => {
   test('tab changes write back to the URL', async ({ page }) => {
     await page.goto('/settings?tab=workstation')
 
-    await page.getByRole('tab', { name: '工具连接' }).click()
+    await page.getByRole('tab', { name: '通知偏好' }).click()
 
-    await expect(page).toHaveURL(/\/settings\?tab=mcp$/)
-    await expect(page.getByRole('tab', { name: '工具连接' })).toHaveAttribute('aria-selected', 'true')
+    await expect(page).toHaveURL(/\/settings\?tab=notifications$/)
+    await expect(page.getByRole('tab', { name: '通知偏好' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  test('legacy connection tabs no longer open duplicate personal settings', async ({ page }) => {
+    await page.goto('/settings?tab=mcp')
+
+    await expect(page).toHaveURL(/\/settings$/)
+    await expect(page.getByRole('tab', { name: '个人中心' })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByRole('tab', { name: 'AI 连接' })).toHaveCount(0)
+    await expect(page.getByRole('tab', { name: '工具连接' })).toHaveCount(0)
   })
 
   test('non-desktop preview keeps desktop-only actions disabled', async ({ page }) => {

@@ -5,12 +5,16 @@ import { normalizeSettingsTab } from './settingsTabs'
 describe('settings tab normalization', () => {
   it('keeps supported settings tabs addressable', () => {
     expect(normalizeSettingsTab('workstation')).toBe('workstation')
-    expect(normalizeSettingsTab('mcp')).toBe('mcp')
     expect(normalizeSettingsTab('notifications')).toBe('notifications')
   })
 
   it('maps legacy privacy links to the workstation tab', () => {
     expect(normalizeSettingsTab('privacy')).toBe('workstation')
+  })
+
+  it('removes legacy organization connection tabs from personal settings', () => {
+    expect(normalizeSettingsTab('llm')).toBe('profile')
+    expect(normalizeSettingsTab('mcp')).toBe('profile')
   })
 
   it('falls back unknown or empty tabs to profile', () => {

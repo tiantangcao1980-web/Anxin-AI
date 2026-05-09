@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
-import { Badge } from '@/components/ui/badge'
+import { McpSettingsPanel } from '@/pages/Settings'
 
 export default function AdminIntegrations() {
   const [loading, setLoading] = useState(true)
@@ -48,13 +48,14 @@ export default function AdminIntegrations() {
   }
 
   return (
-    <PageContainer title="系统集成" description="组织级 OAuth 登录、对象存储、短信和邮件服务治理">
+    <PageContainer title="系统集成" description="组织级 OAuth 登录、对象存储、短信、邮件和 MCP/工具服务治理">
       <Tabs defaultValue="oauth" className="space-y-4">
         <TabsList>
           <TabsTrigger value="oauth" className="gap-1.5"><icons.Globe className="w-3.5 h-3.5" />OAuth 登录</TabsTrigger>
           <TabsTrigger value="storage" className="gap-1.5"><icons.Database className="w-3.5 h-3.5" />对象存储</TabsTrigger>
           <TabsTrigger value="sms" className="gap-1.5"><icons.Phone className="w-3.5 h-3.5" />短信服务</TabsTrigger>
           <TabsTrigger value="email" className="gap-1.5"><icons.Mail className="w-3.5 h-3.5" />邮件服务</TabsTrigger>
+          <TabsTrigger value="mcp" className="gap-1.5"><icons.Server className="w-3.5 h-3.5" />MCP / 工具</TabsTrigger>
         </TabsList>
 
         <TabsContent value="oauth">
@@ -142,6 +143,10 @@ export default function AdminIntegrations() {
               <div className="flex justify-end"><Button onClick={() => handleSave('email', email)} disabled={saving}>{saving ? '保存中...' : '保存'}</Button></div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="mcp">
+          <McpSettingsPanel scope="governance" />
         </TabsContent>
       </Tabs>
     </PageContainer>

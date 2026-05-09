@@ -29,7 +29,7 @@ describe('desktop workstation model', () => {
     })
     expect(resources.find((item) => item.id === 'skills-mcp')).toMatchObject({
       status: 'restricted',
-      action: { enabled: true, safeInTopSecret: true },
+      action: { enabled: true, safeInTopSecret: true, path: '/agent-approvals' },
     })
     expect(resources.find((item) => item.id === 'native-notification')).toMatchObject({
       status: 'ready',
@@ -67,6 +67,7 @@ describe('desktop workstation model', () => {
     })
     expect(resources.find((item) => item.id === 'knowledge')?.action.enabled).toBe(true)
     expect(resources.find((item) => item.id === 'skills-mcp')?.action.enabled).toBe(true)
+    expect(resources.find((item) => item.id === 'skills-mcp')?.action.path).toBe('/agent-approvals')
   })
 
   it('normalizes workstation backend URLs without accepting unsafe schemes', () => {

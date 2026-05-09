@@ -8,7 +8,7 @@ export default function AdminAIConfig() {
       <div className="mb-4 flex items-center justify-end">
         <Badge variant="outline" className="text-xs">组织级 · 已遮罩</Badge>
       </div>
-      <LlmSettingsPanel />
+      <LlmSettingsPanel scope="governance" />
     </PageContainer>
   )
 }

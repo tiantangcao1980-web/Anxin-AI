@@ -1,4 +1,4 @@
-export const SETTINGS_TABS = ['profile', 'workstation', 'llm', 'mcp', 'notifications'] as const
+export const SETTINGS_TABS = ['profile', 'workstation', 'notifications'] as const
 
 const SETTINGS_TAB_SET = new Set<string>(SETTINGS_TABS)
 
