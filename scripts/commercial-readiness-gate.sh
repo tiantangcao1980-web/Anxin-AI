@@ -118,6 +118,7 @@ required_artifacts=(
   "scripts/static-quality-baseline.sh"
   "scripts/mypy-baseline-check.sh"
   "scripts/sandbox-evidence-runner.py"
+  "scripts/agent-governance-smoke.sh"
   "scripts/uni-mobile-smoke.sh"
   "scripts/mobile-device-smoke.sh"
   "scripts/desktop-installed-profile-smoke.sh"

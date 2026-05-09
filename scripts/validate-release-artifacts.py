@@ -402,6 +402,58 @@ def _validate_uni_mobile_base_smoke(path: Path, payload: dict[str, Any], failure
             failures.append(f"{path}: uni-mobile base smoke scope.base must be apps/uni-mobile")
 
 
+def _validate_agent_governance_code_smoke(path: Path, payload: dict[str, Any], failures: list[str]) -> None:
+    if payload.get("mode") != "agent_governance_code_smoke":
+        return
+    if payload.get("release_evidence_complete") is not False:
+        failures.append(f"{path}: agent governance code smoke must set release_evidence_complete=false")
+    if payload.get("runtime_evidence_complete") is not False:
+        failures.append(f"{path}: agent governance code smoke must set runtime_evidence_complete=false")
+    if payload.get("status") != "passed":
+        failures.append(f"{path}: agent governance code smoke must have status=passed")
+
+    checks = payload.get("checks")
+    if not isinstance(checks, dict):
+        failures.append(f"{path}: agent governance code smoke must include checks object")
+        return
+    for check_name in (
+        "governance_docs_scan",
+        "agent_capability_policy",
+        "backend_governance_regressions",
+        "approval_authorization_guard",
+        "mcp_connection_config_policy",
+        "desktop_remote_control_host",
+        "frontend_agent_workspace_e2e",
+    ):
+        if checks.get(check_name) != "passed":
+            failures.append(f"{path}: agent governance code smoke {check_name} must be passed")
+
+    scope = payload.get("scope")
+    if not isinstance(scope, dict):
+        failures.append(f"{path}: agent governance code smoke must include scope")
+    elif scope.get("enterprise_agent_governance") != "code_level":
+        failures.append(
+            f"{path}: agent governance code smoke scope.enterprise_agent_governance must be code_level"
+        )
+
+    pending_runtime_evidence = payload.get("pending_runtime_evidence")
+    if not isinstance(pending_runtime_evidence, list) or not pending_runtime_evidence:
+        failures.append(f"{path}: agent governance code smoke must list pending_runtime_evidence")
+    else:
+        pending = {str(item) for item in pending_runtime_evidence}
+        required_pending = {
+            "approved_connector_rehearsal",
+            "real_cross_process_revocation",
+            "pause_takeover_terminate_runtime",
+            "signed_packaged_runtime_outbound_evidence",
+        }
+        missing = required_pending.difference(pending)
+        if missing:
+            failures.append(
+                f"{path}: agent governance code smoke missing pending runtime evidence markers"
+            )
+
+
 def _validate_mobile_ios_simulator_smoke(path: Path, payload: dict[str, Any], failures: list[str]) -> None:
     if payload.get("mode") != "mobile_ios_simulator_expo_go_smoke":
         return
@@ -1116,6 +1168,7 @@ def validate_json_artifact(path: Path) -> ValidationResult:
     _validate_mobile_device_manual_template(path, payload, failures)
     _validate_mobile_mini_code_smoke(path, payload, failures)
     _validate_uni_mobile_base_smoke(path, payload, failures)
+    _validate_agent_governance_code_smoke(path, payload, failures)
     _validate_mobile_ios_simulator_smoke(path, payload, failures)
     _validate_desktop_installed_profile_smoke(path, payload, failures)
     _validate_desktop_runtime_code_smoke(path, payload, failures)

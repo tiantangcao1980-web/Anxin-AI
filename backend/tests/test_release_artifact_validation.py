@@ -485,6 +485,81 @@ def test_release_artifact_validation_rejects_incomplete_uni_mobile_base_smoke(tm
     assert "scope.base must be apps/uni-mobile" in result.stdout
 
 
+def test_release_artifact_validation_accepts_agent_governance_code_smoke(tmp_path):
+    repo_root = Path(__file__).resolve().parents[2]
+    artifact = tmp_path / "agent-governance-code-smoke.json"
+    artifact.write_text(
+        json.dumps(
+            {
+                "generated_at": "2026-05-09T00:00:00Z",
+                "mode": "agent_governance_code_smoke",
+                "status": "passed",
+                "release_evidence_complete": False,
+                "runtime_evidence_complete": False,
+                "checks": {
+                    "governance_docs_scan": "passed",
+                    "agent_capability_policy": "passed",
+                    "backend_governance_regressions": "passed",
+                    "approval_authorization_guard": "passed",
+                    "mcp_connection_config_policy": "passed",
+                    "desktop_remote_control_host": "passed",
+                    "frontend_agent_workspace_e2e": "passed",
+                },
+                "scope": {"enterprise_agent_governance": "code_level"},
+                "pending_runtime_evidence": [
+                    "approved_connector_rehearsal",
+                    "real_cross_process_revocation",
+                    "pause_takeover_terminate_runtime",
+                    "signed_packaged_runtime_outbound_evidence",
+                ],
+                "completion_note": "Code-level supporting evidence only; runtime evidence remains pending.",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = _validate(repo_root, artifact)
+
+    assert result.returncode == 0, result.stdout
+
+
+def test_release_artifact_validation_rejects_incomplete_agent_governance_code_smoke(tmp_path):
+    repo_root = Path(__file__).resolve().parents[2]
+    artifact = tmp_path / "agent-governance-code-smoke-bad.json"
+    artifact.write_text(
+        json.dumps(
+            {
+                "generated_at": "2026-05-09T00:00:00Z",
+                "mode": "agent_governance_code_smoke",
+                "status": "passed",
+                "release_evidence_complete": True,
+                "runtime_evidence_complete": True,
+                "checks": {
+                    "governance_docs_scan": "passed",
+                    "agent_capability_policy": "failed",
+                    "backend_governance_regressions": "passed",
+                    "approval_authorization_guard": "passed",
+                    "mcp_connection_config_policy": "passed",
+                    "desktop_remote_control_host": "passed",
+                    "frontend_agent_workspace_e2e": "passed",
+                },
+                "scope": {"enterprise_agent_governance": "runtime_complete"},
+                "pending_runtime_evidence": ["approved_connector_rehearsal"],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = _validate(repo_root, artifact)
+
+    assert result.returncode == 1
+    assert "release_evidence_complete=false" in result.stdout
+    assert "runtime_evidence_complete=false" in result.stdout
+    assert "agent_capability_policy must be passed" in result.stdout
+    assert "scope.enterprise_agent_governance must be code_level" in result.stdout
+    assert "missing pending runtime evidence markers" in result.stdout
+
+
 def test_release_artifact_validation_rejects_incomplete_mobile_mini_code_smoke(tmp_path):
     repo_root = Path(__file__).resolve().parents[2]
     artifact = tmp_path / "mobile-mini-code-smoke-bad.json"

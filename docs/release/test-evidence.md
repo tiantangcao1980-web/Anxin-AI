@@ -108,6 +108,12 @@ bash scripts/commercial-readiness-gate.sh --with-local-tests
 
 GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/commercial-readiness-gate.sh --quick
 # GitNexus cypher integrity passes; quick gate still FAILS because release docs remain not_ready and payment/e-sign/desktop/mobile/agent-governance evidence is pending.
+
+bash scripts/agent-governance-smoke.sh --out docs/release/evidence/artifacts/agent-governance-code-smoke-20260509.json
+# exit 0; docs scan passed; agent capability policy 13 passed; backend governance regressions 121 passed;
+# approval authorization guards 7 passed; MCP connection config policy 7 passed; desktop remote-control host 8 passed;
+# frontend Agent governance workspace Playwright 5 passed / 5 skipped; artifact records release_evidence_complete=false
+# and runtime_evidence_complete=false, so agent-governance-smoke.md remains Status: pending.
 ```
 
 补充扩展切片：

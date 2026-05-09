@@ -132,6 +132,13 @@ def test_commercial_gate_requires_agent_governance_release_evidence():
     assert "docs/release/evidence/agent-governance-smoke.md|enterprise agent governance smoke" in script
 
 
+def test_commercial_gate_requires_agent_governance_smoke_script():
+    repo_root = Path(__file__).resolve().parents[2]
+    script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
+
+    assert '"scripts/agent-governance-smoke.sh"' in script
+
+
 def test_commercial_gate_runs_approval_authorization_guard_tests():
     repo_root = Path(__file__).resolve().parents[2]
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")

@@ -2,8 +2,8 @@
 
 Status: pending
 Owner: TBD
-Environment: local code-level governance smoke complete; full commercial runtime evidence pending
-Date range: 2026-05-08
+Environment: local code-level governance smoke complete with structured artifact; full commercial runtime evidence pending
+Date range: 2026-05-08 to 2026-05-09 local collection
 
 This evidence file tracks the enterprise-agent governance lane. It is intentionally `Status: pending` because code-level policy, approval, route-token, and SkillGovernance regressions are not the same as a full commercial runtime rehearsal.
 
@@ -11,6 +11,7 @@ This evidence file tracks the enterprise-agent governance lane. It is intentiona
 
 | Scope | Current result | Artifact reference |
 |---|---|---|
+| Code-level governance smoke artifact | local smoke complete for docs scan, agent capability policy, backend governance regressions, approval authorization guard, MCP connection config policy, desktop remote-control host safe-probe tests, and frontend Agent governance workspace e2e; artifact explicitly records `release_evidence_complete=false` and `runtime_evidence_complete=false` | `docs/release/evidence/artifacts/agent-governance-code-smoke-20260509.json`; `scripts/agent-governance-smoke.sh` |
 | Capability policy | code-level complete for harness tool filtering plus service-level unified capability decisions covering subscription, role, permission, risk level, privacy mode, device trust, channel policy, high-risk approval context, audit events, unknown-tool/unknown-route fail-closed, MCP runtime re-checks, a minimal frontend capability policy panel for role-filtered available/requestable/hidden tool visibility, a minimal org CapabilityRoute policy API/panel for admin list/update and enable/disable, policy redaction, disable-time lease revocation, and five business permission regressions: employee browser-fill rejection, department-admin report Agent allow, boss desktop-control approval, super-admin MCP route revocation, and external-provider material-package boundary | `backend/src/services/capability_policy_engine.py`, `backend/src/services/agent_governance_service.py`, `backend/src/api/routes/agent_approvals.py`, `backend/tests/test_capability_policy_engine.py`, `backend/tests/test_agent_governance_policy.py`, `backend/tests/test_capability_routes.py`, `backend/tests/test_agent_governance_service.py`, `backend/tests/test_agent_approval_api.py`, `frontend/src/hooks/usePermission.ts`, `frontend/src/lib/api.ts`, `frontend/src/pages/AgentApprovalWorkspace.tsx`, `frontend/e2e/helpers/auth.ts`, `frontend/e2e/helpers/session.ts`, `frontend/e2e/agent-approval-workspace.spec.ts` |
 | Route-token broker | code-level complete for hash-only lease storage, scope checks, expiration, consumer mismatch, revocation next-call failure, and audit events across MCP, CLI, Chat Agent LLM, RAG direct LLM, and browser/crawler fetch entry points | `backend/tests/test_agent_governance_service.py`, `backend/tests/test_mcp_route_governance.py`, `backend/tests/test_cli_route.py`, `backend/tests/test_llm_route_governance.py`, `backend/tests/test_crawler_compliance.py` |
 | High-risk approvals | code-level complete for service/API creation, scope, authorized decisions, revocation, expiration, validate, audit timeline, audit export, payload redaction, workspace observe read-only snapshot, workspace-control fail-closed for pause/takeover/terminate, and approved-workspace artifact list/create/export with recursive redaction | `backend/src/services/agent_approval_service.py`, `backend/src/api/routes/agent_approvals.py`, `backend/tests/test_agent_approval_service.py`, `backend/tests/test_agent_approval_api.py`, `frontend/src/lib/api.ts`, `frontend/src/pages/AgentApprovalWorkspace.tsx`, `frontend/e2e/helpers/session.ts`, `frontend/e2e/agent-approval-workspace.spec.ts` |
@@ -26,6 +27,8 @@ This evidence file tracks the enterprise-agent governance lane. It is intentiona
 ## Local Verification
 
 ```bash
+bash scripts/agent-governance-smoke.sh \
+  --out docs/release/evidence/artifacts/agent-governance-code-smoke-YYYYMMDD.json
 cd backend && ./.venv/bin/pytest -q tests/test_agent_governance_policy.py
 cd backend && ./.venv/bin/pytest -q tests/test_capability_policy_engine.py
 # 11 passed on 2026-05-08
@@ -49,6 +52,18 @@ cd backend && ./.venv/bin/pytest -q tests/test_remote_control_fail_closed.py
 # 9 passed on 2026-05-08, including backend safe-probe-only enqueue rejection for unsupported command types.
 cd frontend && npx playwright test e2e/agent-approval-workspace.spec.ts --project=chromium --project=mobile
 ```
+
+Latest local collection on 2026-05-09:
+
+| Check | Result |
+|---|---|
+| agent governance code smoke | `bash scripts/agent-governance-smoke.sh --out docs/release/evidence/artifacts/agent-governance-code-smoke-20260509.json` -> exit `0` |
+| backend governance regressions | `121 passed` across policy, route-token, approvals, memory, MCP/CLI/LLM/browser route governance, remote-control, and SkillGovernance tests |
+| agent capability policy | `13 passed, 21 deselected` |
+| approval authorization guards | `7 passed, 2 deselected` |
+| MCP connection config policy | `7 passed, 2 deselected` |
+| desktop remote-control host | `8 passed` for URL/payload/status validation, safe-probe completion, unsupported-command failure, and bounded poll config |
+| frontend Agent governance workspace | `5 passed, 5 skipped` across desktop and mobile projects |
 
 ## Completion Rule
 
