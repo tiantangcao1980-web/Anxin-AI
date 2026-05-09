@@ -1,5 +1,6 @@
 use crate::models::{AppMode, SharedAppState, SyncStatus};
-use tauri::State;
+use crate::services::runtime_config::{self, DesktopRuntimeConfig};
+use tauri::{AppHandle, State};
 
 /// 获取当前运行模式和应用状态
 #[tauri::command]
@@ -12,8 +13,16 @@ pub async fn get_app_state(state: State<'_, SharedAppState>) -> Result<serde_jso
 #[tauri::command]
 pub async fn switch_mode(
     mode: AppMode,
+    app: AppHandle,
     state: State<'_, SharedAppState>,
 ) -> Result<serde_json::Value, String> {
+    let current_backend_url = {
+        let s = state.read().await;
+        s.backend_url.clone()
+    };
+    let config = DesktopRuntimeConfig::new(mode, &current_backend_url)?;
+    runtime_config::save_for_app(&app, &config)?;
+
     let mut s = state.write().await;
     let old_mode = s.mode;
     s.mode = mode;
@@ -72,10 +81,20 @@ pub async fn set_user_token(
 
 /// 设置后端 URL
 #[tauri::command]
-pub async fn set_backend_url(url: String, state: State<'_, SharedAppState>) -> Result<(), String> {
-    let normalized_url = normalize_backend_url(&url)?;
+pub async fn set_backend_url(
+    url: String,
+    app: AppHandle,
+    state: State<'_, SharedAppState>,
+) -> Result<(), String> {
+    let mode = {
+        let s = state.read().await;
+        s.mode
+    };
+    let config = DesktopRuntimeConfig::new(mode, &url)?;
+    runtime_config::save_for_app(&app, &config)?;
+
     let mut s = state.write().await;
-    s.backend_url = normalized_url;
+    s.backend_url = config.backend_url;
     Ok(())
 }
 
@@ -90,28 +109,9 @@ pub async fn update_unread_count(
     Ok(())
 }
 
-fn normalize_backend_url(input: &str) -> Result<String, String> {
-    let trimmed = input.trim();
-    if trimmed.is_empty() {
-        return Err("后端地址不能为空".to_string());
-    }
-
-    let parsed =
-        reqwest::Url::parse(trimmed).map_err(|_| "请输入完整的 http:// 或 https:// 地址".to_string())?;
-    if !matches!(parsed.scheme(), "http" | "https") {
-        return Err("后端地址只允许 http 或 https 协议".to_string());
-    }
-    if parsed.host_str().is_none() {
-        return Err("后端地址缺少主机名".to_string());
-    }
-
-    let normalized = parsed.to_string().trim_end_matches('/').to_string();
-    Ok(normalized)
-}
-
 #[cfg(test)]
 mod tests {
-    use super::normalize_backend_url;
+    use crate::services::runtime_config::normalize_backend_url;
 
     #[test]
     fn normalizes_http_backend_url() {

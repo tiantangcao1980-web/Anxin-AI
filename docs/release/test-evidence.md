@@ -313,6 +313,26 @@ cd desktop && cargo test app_mode
 - Playwright 覆盖桌面 runtime mock 下的模式切换、后端地址保存、绝密模式远控阻断和移动宽度回归。
 - 这只关闭最小桌面配置写入面；完整 LLM/MCP/Skills connector 凭据 CRUD、真实 approved MCP connector 演练、signed packaged runtime 和跨设备真机证据仍保持阻断。
 
+2026-05-09 桌面运行配置持久化补充：
+
+```bash
+cd desktop && cargo test runtime_config
+# 5 passed; 33 filtered out
+
+cd desktop && cargo test app_mode
+# 2 passed; 36 filtered out
+
+cd desktop && cargo check
+# exit 0
+```
+
+覆盖增量：
+
+- 新增 `desktop/src/services/runtime_config.rs`，把桌面运行模式与后端环境地址保存到 Tauri app data 下的 secret-free `runtime-config.json`，并支持 `ANXIN_DESKTOP_RUNTIME_CONFIG_PATH` 便于本地/CI 隔离验证。
+- `desktop/src/lib.rs` 启动时加载该配置并同步到 Rust 共享状态；`desktop/src/commands/app_mode.rs` 的模式切换和后端地址保存会先校验、落盘，再更新内存状态。
+- 单测锁住 http/https 规范化、拒绝 `local://api`/`file://`、配置 round-trip 不含 token/secret 字段，以及 TopSecret 加载后同步状态为 `Offline`。
+- 这只关闭桌面工作站模式/后端环境的跨重启持久化；第三方 connector 凭据 CRUD、真实密钥联调、signed packaged runtime 和跨设备证据仍保持阻断。
+
 2026-05-08 本轮移动远控控制面与 host 生命周期切片：
 
 ```bash

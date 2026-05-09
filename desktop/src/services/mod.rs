@@ -2,6 +2,7 @@ pub mod local_db;
 pub mod mode_manager;
 pub mod offline_queue;
 pub mod remote_control_host;
+pub mod runtime_config;
 pub mod secure_db;
 pub mod sync_engine;
 pub mod tray;

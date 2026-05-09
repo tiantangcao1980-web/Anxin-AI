@@ -2,7 +2,7 @@ mod commands;
 mod models;
 mod services;
 
-use models::create_shared_state;
+use models::{create_shared_state, SharedAppState};
 use serde::Serialize;
 use serde_json::Value;
 use std::io::Write;
@@ -123,6 +123,26 @@ pub fn desktop_secure_db_performance_smoke_json() -> Result<String, String> {
 
 pub fn delete_desktop_secure_db_smoke_key() -> Result<(), String> {
     services::secure_db::delete_keyring_entry()
+}
+
+fn load_desktop_runtime_config(handle: &AppHandle, shared_state: &SharedAppState) {
+    match services::runtime_config::load_for_app(handle) {
+        Ok(Some(config)) => {
+            let mode = config.mode;
+            let backend_url = config.backend_url.clone();
+            tauri::async_runtime::block_on(async {
+                let mut state = shared_state.write().await;
+                config.apply_to_state(&mut state);
+            });
+            log::info!("桌面运行配置已加载: mode={mode}, backend_url={backend_url}");
+        }
+        Ok(None) => {
+            log::info!("未找到桌面运行配置，使用默认运行配置");
+        }
+        Err(error) => {
+            log::warn!("桌面运行配置加载失败，使用默认运行配置: {error}");
+        }
+    }
 }
 
 fn exit_runtime_smoke(handle: &AppHandle, code: i32) -> ! {
@@ -279,6 +299,7 @@ pub fn run_with_options(options: DesktopRunOptions) {
         // ===== 应用初始化 =====
         .setup(move |app| {
             let handle = app.handle().clone();
+            load_desktop_runtime_config(&handle, &shared_state);
 
             // 桌面端：创建系统托盘 + 注册全局快捷键
             #[cfg(desktop)]

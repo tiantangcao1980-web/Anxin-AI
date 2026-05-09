@@ -92,6 +92,7 @@
         "desktop/src/commands/secure_db.rs",
         "docs/release/goal-contract-commercial-readiness.md",
         "desktop/src/commands/app_mode.rs",
+        "desktop/src/services/runtime_config.rs",
         "frontend/src/components/desktop/DesktopWorkstationPanel.tsx",
         "frontend/src/components/desktop/desktopWorkstationModel.ts",
         "frontend/e2e/settings-workstation.spec.ts",
@@ -110,6 +111,7 @@
       ],
       "verification": [
         "cd desktop && cargo test",
+        "cd desktop && cargo test runtime_config",
         "cd desktop && cargo test app_mode",
         "cd desktop && cargo check",
         "cd frontend && npm test -- desktopWorkstationModel.test.ts",
@@ -121,7 +123,7 @@
         "bash scripts/desktop-release-package.sh --dry-run --out docs/release/evidence/artifacts/desktop-release-package-dry-run-YYYYMMDD.json --preflight-out docs/release/evidence/artifacts/desktop-release-preflight-YYYYMMDD.json",
         "bash scripts/desktop-release-preflight.sh --out docs/release/evidence/artifacts/desktop-release-preflight-YYYYMMDD.json"
       ],
-      "current_result": "Code-level SQLCipher/keyring, guarded erase-local-data path, desktop network surface gate, unsigned debug .app runtime startup/UI smoke, structured desktop runtime artifacts, production APNs entitlement, release package dry-run, release preflight, and desktop workstation local config surface pass; Status: pending because signing identity, notarization credentials, signed/notarized .app/DMG, signed packaged UI interaction, signed packaged runtime, migration transcript, performance, complete connector credential CRUD, and cross-device evidence are missing."
+      "current_result": "Code-level SQLCipher/keyring, guarded erase-local-data path, desktop network surface gate, unsigned debug .app runtime startup/UI smoke, structured desktop runtime artifacts, production APNs entitlement, release package dry-run, release preflight, desktop workstation local config surface, and secret-free mode/backend runtime config persistence pass; Status: pending because signing identity, notarization credentials, signed/notarized .app/DMG, signed packaged UI interaction, signed packaged runtime, migration transcript, performance, complete connector credential CRUD, and cross-device evidence are missing."
     },
     {
       "id": "rag-full50-live-baseline",
