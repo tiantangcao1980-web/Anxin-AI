@@ -370,7 +370,7 @@ if [ "$SKIP_TAURI_BUILD" -eq 0 ]; then
         cd desktop
         bundle_bin="target/debug/bundle/macos/安心法务.app/Contents/MacOS/anxin-legal-desktop"
         [ -x "$bundle_bin" ]
-        runtime_log="$(mktemp "${TMPDIR:-/tmp}/anxin-desktop-runtime-smoke.XXXXXX.log")"
+        runtime_log="$(mktemp "${TMPDIR:-/tmp}/anxin-desktop-runtime-smoke.XXXXXX")"
         "$bundle_bin" --runtime-smoke >"$runtime_log" 2>&1 &
         app_pid=$!
         (
@@ -408,7 +408,7 @@ if [ "$SKIP_TAURI_BUILD" -eq 0 ]; then
         cd desktop
         bundle_bin="target/debug/bundle/macos/安心法务.app/Contents/MacOS/anxin-legal-desktop"
         [ -x "$bundle_bin" ]
-        ui_log="$(mktemp "${TMPDIR:-/tmp}/anxin-desktop-ui-smoke.XXXXXX.log")"
+        ui_log="$(mktemp "${TMPDIR:-/tmp}/anxin-desktop-ui-smoke.XXXXXX")"
         "$bundle_bin" --runtime-ui-smoke >"$ui_log" 2>&1 &
         app_pid=$!
         (

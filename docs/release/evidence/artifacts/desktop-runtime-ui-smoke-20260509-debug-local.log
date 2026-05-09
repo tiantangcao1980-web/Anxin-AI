@@ -1,0 +1,5 @@
+desktop runtime UI smoke starting: timeout_after_ms=10000
+desktop runtime UI smoke webview probe emitted: elapsed_ms=0
+desktop runtime UI smoke observed: {"bodyTextLength":0,"hasRoot":true,"hasTauriInvoke":true,"platform":null,"rootChildCount":0,"title":"AI法务智能体系统"}
+desktop runtime UI smoke response: {"pageLoadFinished":true,"url":"tauri://localhost","webviewLabel":"main","windowLabel":"main"}
+desktop runtime UI smoke exiting: frontend response received
