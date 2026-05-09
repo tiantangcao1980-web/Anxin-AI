@@ -28,6 +28,14 @@ def test_commercial_gate_requires_desktop_window_chrome_gate():
     assert 'require_command "desktop window chrome gate"' in script
 
 
+def test_commercial_gate_runs_desktop_strict_clippy():
+    repo_root = Path(__file__).resolve().parents[2]
+    script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
+
+    assert 'require_command "desktop strict Clippy"' in script
+    assert "cargo clippy --all-targets -- -D warnings" in script
+
+
 def test_commercial_gate_runs_workstation_settings_e2e():
     repo_root = Path(__file__).resolve().parents[2]
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
