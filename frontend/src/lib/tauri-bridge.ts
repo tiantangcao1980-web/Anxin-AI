@@ -93,6 +93,20 @@ export async function getBackendUrl(): Promise<string> {
   return result || ''
 }
 
+/** 设置后端 URL */
+export async function setBackendUrl(url: string): Promise<{ success: boolean; message: string }> {
+  if (!isTauri()) {
+    return { success: false, message: '仅桌面客户端支持后端地址配置' }
+  }
+  try {
+    const internals = (window as any).__TAURI_INTERNALS__
+    await internals.invoke('set_backend_url', { url })
+    return { success: true, message: '后端地址已更新' }
+  } catch (error) {
+    return { success: false, message: error instanceof Error ? error.message : '后端地址保存失败' }
+  }
+}
+
 // ===== 同步 =====
 
 /** 触发手动同步 */

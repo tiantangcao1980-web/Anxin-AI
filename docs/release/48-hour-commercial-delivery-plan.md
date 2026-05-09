@@ -1,8 +1,8 @@
 # 48 小时商业交付倒排计划
 
-> 日期：2026-05-08
+> 日期：2026-05-09
 > 基线：当前仓库的代码级门禁大多已过，RAG 内建 full50 已闭合，前端和移动 production dependency audit 已清零；真正阻断点集中在支付/电签真实资源、桌面 signed/notarized package 与 packaged runtime、移动真机/交互式验证、桌面主工作站/移动远控/任意 LLM-Skills-MCP 配置证据，以及发布前 clean worktree / GitNexus 复验。
-> 规则：没有真实资源就只做预检、代码级收口和证据模板，不用 mock/fake 伪造 live 结果。
+> 规则：没有真实资源就只做预检、代码级收口和证据模板，不用 mock/fake 伪造 live 结果。2026-05-09 起，开发执行优先级调整为桌面端功能和本地门禁优先；移动 App/小程序随后按 uni-app 统一端迁移推进。
 
 ## 当前执行快照
 
@@ -16,6 +16,8 @@
 | 全设备智能助手 | LLM/MCP/Skills/knowledge/local LLM 底座已在后端、桌面和移动隐私上下文中存在；桌面工作站已补本地 LLM/模型数量/离线队列、知识库数量/文档数、MCP 服务/启用/工具缓存只读探针，并把移动远控保持为安全闸/待验收；后端 `/sync/remote-control/*` 已补 DB-backed 配对、桌面确认、pairing-scoped route token、命令队列、host 领取、running/completed/failed 状态回传、取消和递归脱敏审计控制面，本地/绝密/缺二次确认/缺配对/缺 route token 仍拒绝且不入队；桌面 Tauri IPC host 客户端已补确认配对、领取命令、回传状态、显式 safe-probe 单次循环和 bounded safe-probe poll 入口；移动端 `/desktop-control` 已接入该安全闸，只做状态展示，不提供假执行成功；2026-05-08 OpenSpec 已把桌面主工作站、移动远控、任意模型/Skills/MCP、独立知识库和本地模型安全列为验收 | 48 小时内先冻结规范和证据模板；真实交付需补配置 UI、组织权限回归、approved MCP connector 演练、真正常驻后台 daemon、高风险真实执行器、真实跨设备远控联调和 signed 绝密模式出站拦截证据 |
 | 可信会话与进化治理 | 2026-05-08 OpenSpec 已补 Codex/Claude 式过程可见、artifact-first、可打断/恢复、能力可发现体验，并把 Skills 进化和 agent 自我改进纳入评测/审批/回滚治理；本地 Skill Evolution Gate 已补 proposal、required eval、授权审批、灰度、回滚、审计和 governed Skill 版本过滤测试 | 48 小时内继续补 release 证据口径；真实交付还需长任务事件流、artifact 编辑、跨设备恢复、持久化 SkillGovernance/记忆治理和真实执行链路失权证据 |
 | 商业门禁 | clean baseline 上 `commercial-readiness-gate.sh --quick` 仍 FAIL：Not ready 声明、payment/e-sign/desktop/mobile evidence pending；本轮文档/证据增量提交前也会触发 dirty-worktree 防线 | 失败是正确防线；不能改状态绕过，必须补真实证据或保留 blocker |
+
+本轮 goal-driven 执行口径：先补桌面主工作站配置、状态、治理和本地可执行门禁；支付、电签、LLM/embedding 等外部 API 在真实密钥到位前只推进到可替换测试数据、contract test、preflight runner 和脱敏 artifact，不以 mock/fake live 结果冲掉阻断项。
 
 ## 约定
 

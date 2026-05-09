@@ -280,6 +280,39 @@ cd frontend && npx playwright test e2e/settings-workstation.spec.ts --project=ch
 - e2e 暴露并已修复两个 UI/UX 缺口：MCP tab 在 mock 空对象下不再因 `servers.map` 崩溃；Settings 页面在 iPhone 14 视口不再因 tab/page-shell min-content 造成工作站卡片横向溢出。
 - 仍不能把桌面主工作站称为完成态：缺完整配置 CRUD、approved MCP connector 演练、移动远控设备配对、signed packaged runtime UI/出站复验证据。
 
+2026-05-09 goal-driven 桌面优先补充：
+
+```bash
+cd frontend && npm test -- desktopWorkstationModel.test.ts
+# 1 file / 4 tests passed
+
+cd frontend && npm run lint
+# exit 0
+
+cd frontend && npm exec tsc -- --noEmit
+# exit 0
+
+cd frontend && npx playwright test e2e/settings-workstation.spec.ts --project=chromium --project=mobile
+# 11 passed, 1 skipped
+
+cd frontend && npm run build
+# exit 0; 保留既有 lottie eval / dynamic import / large chunk warnings
+
+cd desktop && cargo check
+# exit 0
+
+cd desktop && cargo test app_mode
+# 2 passed; 31 filtered out
+```
+
+覆盖增量：
+
+- 新增 `docs/release/goal-contract-commercial-readiness.md`，把桌面优先、功能优先、外部 API 可替换测试数据、Done/Stop 条款写成持久目标契约。
+- `DesktopWorkstationPanel` 新增“工作站配置”写入面：桌面 runtime 可切换绝密/混合/云端模式，保存后端环境地址；非桌面预览保持只读。
+- `desktopWorkstationModel` 与 `desktop/src/commands/app_mode.rs` 均新增后端 URL 校验，只接受完整 http/https 地址，拒绝 `local://api` 等运行时占位地址；IPC 直接调用也不能绕过前端。
+- Playwright 覆盖桌面 runtime mock 下的模式切换、后端地址保存、绝密模式远控阻断和移动宽度回归。
+- 这只关闭最小桌面配置写入面；完整 LLM/MCP/Skills connector 凭据 CRUD、真实 approved MCP connector 演练、signed packaged runtime 和跨设备真机证据仍保持阻断。
+
 2026-05-08 本轮移动远控控制面与 host 生命周期切片：
 
 ```bash

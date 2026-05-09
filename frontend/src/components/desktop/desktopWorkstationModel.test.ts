@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildDesktopWorkstationResources,
   getUnsafeEnabledTopSecretActions,
+  normalizeWorkstationBackendUrl,
 } from './desktopWorkstationModel'
 
 describe('desktop workstation model', () => {
@@ -50,5 +51,22 @@ describe('desktop workstation model', () => {
     })
     expect(resources.find((item) => item.id === 'knowledge')?.action.enabled).toBe(true)
     expect(resources.find((item) => item.id === 'skills-mcp')?.action.enabled).toBe(true)
+  })
+
+  it('normalizes workstation backend URLs without accepting unsafe schemes', () => {
+    expect(normalizeWorkstationBackendUrl(' http://localhost:8001/ ')).toEqual({
+      ok: true,
+      value: 'http://localhost:8001',
+    })
+    expect(normalizeWorkstationBackendUrl('https://api.anxin.example/v1/')).toEqual({
+      ok: true,
+      value: 'https://api.anxin.example/v1',
+    })
+    expect(normalizeWorkstationBackendUrl('local://api')).toMatchObject({
+      ok: false,
+    })
+    expect(normalizeWorkstationBackendUrl('')).toMatchObject({
+      ok: false,
+    })
   })
 })

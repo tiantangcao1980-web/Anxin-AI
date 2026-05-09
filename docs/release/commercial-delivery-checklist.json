@@ -90,6 +90,11 @@
       "evidence": [
         "desktop/src/services/secure_db.rs",
         "desktop/src/commands/secure_db.rs",
+        "docs/release/goal-contract-commercial-readiness.md",
+        "desktop/src/commands/app_mode.rs",
+        "frontend/src/components/desktop/DesktopWorkstationPanel.tsx",
+        "frontend/src/components/desktop/desktopWorkstationModel.ts",
+        "frontend/e2e/settings-workstation.spec.ts",
         "scripts/desktop-sqlite-security-gate.sh",
         "scripts/desktop-network-surface-gate.sh",
         "scripts/desktop-installed-profile-smoke.sh",
@@ -105,7 +110,10 @@
       ],
       "verification": [
         "cd desktop && cargo test",
+        "cd desktop && cargo test app_mode",
         "cd desktop && cargo check",
+        "cd frontend && npm test -- desktopWorkstationModel.test.ts",
+        "cd frontend && npx playwright test e2e/settings-workstation.spec.ts --project=chromium --project=mobile",
         "bash scripts/desktop-sqlite-security-gate.sh",
         "bash scripts/desktop-network-surface-gate.sh",
         "bash scripts/desktop-installed-profile-smoke.sh --out docs/release/evidence/artifacts/desktop-installed-profile-smoke-YYYYMMDD.json",
@@ -113,7 +121,7 @@
         "bash scripts/desktop-release-package.sh --dry-run --out docs/release/evidence/artifacts/desktop-release-package-dry-run-YYYYMMDD.json --preflight-out docs/release/evidence/artifacts/desktop-release-preflight-YYYYMMDD.json",
         "bash scripts/desktop-release-preflight.sh --out docs/release/evidence/artifacts/desktop-release-preflight-YYYYMMDD.json"
       ],
-      "current_result": "Code-level SQLCipher/keyring, guarded erase-local-data path, desktop network surface gate, unsigned debug .app runtime startup/UI smoke, structured desktop runtime artifacts, production APNs entitlement, release package dry-run, and release preflight pass; Status: pending because signing identity, notarization credentials, signed/notarized .app/DMG, signed packaged UI interaction, signed packaged runtime, migration transcript, performance, and cross-device evidence are missing."
+      "current_result": "Code-level SQLCipher/keyring, guarded erase-local-data path, desktop network surface gate, unsigned debug .app runtime startup/UI smoke, structured desktop runtime artifacts, production APNs entitlement, release package dry-run, release preflight, and desktop workstation local config surface pass; Status: pending because signing identity, notarization credentials, signed/notarized .app/DMG, signed packaged UI interaction, signed packaged runtime, migration transcript, performance, complete connector credential CRUD, and cross-device evidence are missing."
     },
     {
       "id": "rag-full50-live-baseline",

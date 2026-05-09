@@ -153,6 +153,11 @@
         "docs/release/evidence/artifacts/desktop-installed-profile-smoke-20260507.json",
         "docs/release/evidence/artifacts/desktop-runtime-code-smoke-20260507.json",
         "docs/release/evidence/artifacts/desktop-runtime-ui-smoke-20260507.log",
+        "docs/release/goal-contract-commercial-readiness.md",
+        "desktop/src/commands/app_mode.rs",
+        "frontend/src/components/desktop/DesktopWorkstationPanel.tsx",
+        "frontend/src/components/desktop/desktopWorkstationModel.ts",
+        "frontend/e2e/settings-workstation.spec.ts",
         "docs/release/external-resource-handoff.md",
         "scripts/desktop-release-package.sh",
         "scripts/desktop-release-preflight.sh",
@@ -167,7 +172,9 @@
         "bash scripts/desktop-release-runtime-smoke.sh --out docs/release/evidence/artifacts/desktop-release-runtime-unsigned-smoke-YYYYMMDD.json --ui-log-out docs/release/evidence/artifacts/desktop-release-runtime-ui-smoke-unsigned-YYYYMMDD.log",
         "bash scripts/desktop-release-profile-smoke.sh --out docs/release/evidence/artifacts/desktop-release-profile-unsigned-smoke-YYYYMMDD.json",
         "bash scripts/desktop-runtime-smoke.sh --with-app-bundle --out docs/release/evidence/artifacts/desktop-runtime-code-smoke-YYYYMMDD.json --ui-log-out docs/release/evidence/artifacts/desktop-runtime-ui-smoke-YYYYMMDD.log",
-        "bash scripts/desktop-installed-profile-smoke.sh --out docs/release/evidence/artifacts/desktop-installed-profile-smoke-YYYYMMDD.json"
+        "bash scripts/desktop-installed-profile-smoke.sh --out docs/release/evidence/artifacts/desktop-installed-profile-smoke-YYYYMMDD.json",
+        "cd frontend && npx playwright test e2e/settings-workstation.spec.ts --project=chromium --project=mobile",
+        "cd desktop && cargo test app_mode"
       ],
       "external_inputs": [
         "Tauri macOS signing identity",
@@ -177,6 +184,7 @@
         "packaged cross-device test environment"
       ],
       "current_blockers": [
+        "2026-05-09 desktop workstation local config surface is code-level covered: mode switch and backend endpoint save are locked by frontend unit/e2e tests, and Rust IPC rejects non-http(s) backend URLs, but this does not replace signed runtime or complete connector credential CRUD evidence.",
         "desktop-release-package dry-run and desktop-release-preflight now report hdiutil/DiskManagement, unsigned release app, and unsigned release DMG as passing, but still report missing signing identity, codesign identity, notary credential, code-sign verification, and signature authority.",
         "Unsigned release packaged runtime and packaged-profile/performance smoke now pass, but signed/notarized packaged-profile migration, signed packaged runtime performance, and cross-device evidence are missing."
       ],

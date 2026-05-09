@@ -3,6 +3,12 @@ export type WorkstationRuntime = 'desktop' | 'preview'
 
 export type WorkstationResourceStatus = 'ready' | 'available' | 'restricted' | 'blocked' | 'pending'
 
+export interface WorkstationModeOption {
+  mode: WorkstationMode
+  label: string
+  description: string
+}
+
 export interface WorkstationAction {
   label: string
   path: string
@@ -22,6 +28,24 @@ export interface WorkstationResource {
 
 const TOP_SECRET_RESTRICTION = '绝密模式下默认不出站'
 const DESKTOP_CLIENT_REQUIRED = '请在桌面客户端启用'
+
+export const WORKSTATION_MODE_OPTIONS: WorkstationModeOption[] = [
+  {
+    mode: 'top-secret',
+    label: '绝密',
+    description: '本地闭环，默认阻断外部数据通道',
+  },
+  {
+    mode: 'hybrid',
+    label: '混合',
+    description: '本地优先，按策略连接组织服务',
+  },
+  {
+    mode: 'cloud',
+    label: '云端',
+    description: '完整云端协同与外部能力接入',
+  },
+]
 
 export function buildDesktopWorkstationResources(
   mode: WorkstationMode,
@@ -127,4 +151,28 @@ export function getUnsafeEnabledTopSecretActions(resources: WorkstationResource[
   return resources
     .map((resource) => resource.action)
     .filter((action) => action.enabled && !action.safeInTopSecret)
+}
+
+export function normalizeWorkstationBackendUrl(input: string): { ok: true; value: string } | { ok: false; error: string } {
+  const trimmed = input.trim()
+  if (!trimmed) {
+    return { ok: false, error: '后端地址不能为空' }
+  }
+
+  let parsed: URL
+  try {
+    parsed = new URL(trimmed)
+  } catch {
+    return { ok: false, error: '请输入完整的 http:// 或 https:// 地址' }
+  }
+
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    return { ok: false, error: '后端地址只允许 http 或 https 协议' }
+  }
+
+  if (!parsed.hostname) {
+    return { ok: false, error: '后端地址缺少主机名' }
+  }
+
+  return { ok: true, value: parsed.toString().replace(/\/$/, '') }
 }

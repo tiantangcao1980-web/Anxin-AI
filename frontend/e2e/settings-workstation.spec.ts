@@ -65,6 +65,17 @@ test.describe('桌面主工作站设置入口', () => {
     await page.addInitScript(() => {
       (window as any).__TAURI_INTERNALS__ = {
         invoke: async (cmd: string) => {
+          if (cmd === 'get_app_state') {
+            return {
+              mode: 'hybrid',
+              sync_status: 'idle',
+              last_sync_time: null,
+              backend_url: 'http://localhost:8001',
+              is_online: true,
+              user_token: 'token-redacted',
+              unread_count: 0,
+            }
+          }
           if (cmd === 'check_local_llm_status') {
             return { available: true, url: 'http://localhost:11434', status: 200 }
           }
@@ -95,6 +106,54 @@ test.describe('桌面主工作站设置入口', () => {
     await expect(page.getByTestId('workstation-probe-offline-queue')).toContainText('3 条')
     await expect(page.getByTestId('workstation-probe-offline-queue')).toContainText('1 条失败需处理')
     await expect(page.getByTestId('workstation-probe-remote-control')).toContainText('待验收')
+  })
+
+  test('desktop runtime can update local mode and backend endpoint', async ({ page }) => {
+    await page.addInitScript(() => {
+      const appState = {
+        mode: 'hybrid',
+        sync_status: 'idle',
+        last_sync_time: null,
+        backend_url: 'http://localhost:8001',
+        is_online: true,
+        user_token: 'token-redacted',
+        unread_count: 0,
+      }
+      ;(window as any).__TAURI_INTERNALS__ = {
+        invoke: async (cmd: string, args?: Record<string, unknown>) => {
+          if (cmd === 'get_app_state') return { ...appState }
+          if (cmd === 'get_current_mode') return `"${appState.mode}"`
+          if (cmd === 'switch_mode') {
+            appState.mode = args?.mode as string
+            appState.sync_status = appState.mode === 'top-secret' ? 'offline' : 'idle'
+            return { success: true, message: `已切换至${appState.mode}` }
+          }
+          if (cmd === 'set_backend_url') {
+            appState.backend_url = args?.url as string
+            return null
+          }
+          if (cmd === 'check_local_llm_status') return { available: true, url: 'http://localhost:11434', status: 200 }
+          if (cmd === 'list_local_models') return { available: true, models: [{ name: 'qwen2.5:7b' }] }
+          if (cmd === 'get_queue_stats') return { queued: 0, local_processing: 0, local_completed: 0, synced: 0, failed: 0, total: 0 }
+          return null
+        },
+      }
+    })
+
+    await page.goto('/settings?tab=workstation')
+
+    await expect(page.getByTestId('desktop-workstation-config')).toBeVisible()
+    await expect(page.getByTestId('workstation-backend-current')).toContainText('http://localhost:8001')
+
+    await page.getByTestId('workstation-mode-top-secret').click()
+
+    await expect(page.getByTestId('workstation-mode-top-secret')).toBeDisabled()
+    await expect(page.getByTestId('workstation-probe-remote-control')).toContainText('已阻断')
+
+    await page.getByTestId('workstation-backend-url').fill('https://staging.anxin.example/')
+    await page.getByTestId('workstation-backend-save').click()
+
+    await expect(page.getByTestId('workstation-backend-current')).toContainText('https://staging.anxin.example')
   })
 })
 

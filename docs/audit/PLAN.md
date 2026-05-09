@@ -13,6 +13,13 @@
 
 **当前不应对外宣称 "V2 生产就绪"**。这是本计划书的执行起点，不是结论。
 
+### 0.1 2026-05-09 持久目标修订
+
+- 新的 goal contract 见 `docs/release/goal-contract-commercial-readiness.md`。
+- 执行顺序调整为：**桌面端本地可执行功能和治理门禁优先**，移动 App/小程序随后按 uni-app 统一端迁移推进。
+- 外部 API、签名和真机资源不阻塞本地功能开发：先用 provider contract、fixture、sandbox runner 和脱敏 artifact 验证函数级/流程级能力；真实密钥、证书和设备由用户后续提供后再完成联调与 release evidence。
+- UI/UX 顺序为功能先闭环、再商业级打磨；任何假成功、静默 fallback 或把未完成外部证据渲染为完成态都阻断上线。
+
 ---
 
 ## 1. 项目实情（决定优先级的真相）

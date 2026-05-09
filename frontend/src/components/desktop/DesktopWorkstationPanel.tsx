@@ -1,16 +1,32 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { knowledgeApi, mcpApi } from '@/lib/api'
 import { useAppModeStore } from '@/lib/store'
-import { checkLocalLLMStatus, getQueueStats, isTauri, listLocalModels } from '@/lib/tauri-bridge'
+import {
+  checkLocalLLMStatus,
+  getAppState,
+  getQueueStats,
+  isTauri,
+  listLocalModels,
+  setBackendUrl,
+  switchMode,
+  type AppMode,
+  type AppState,
+} from '@/lib/tauri-bridge'
 import { heading, iconSize, statusBadge } from '@/lib/design-tokens'
 import { icons } from '@/lib/icons'
+import { cn } from '@/lib/utils'
 import {
   buildDesktopWorkstationResources,
+  normalizeWorkstationBackendUrl,
+  WORKSTATION_MODE_OPTIONS,
   type WorkstationMode,
   type WorkstationResource,
   type WorkstationResourceStatus,
@@ -77,17 +93,35 @@ const PREVIEW_PROBES: WorkstationProbeState = {
 export function DesktopWorkstationPanel() {
   const navigate = useNavigate()
   const mode = useAppModeStore((state) => state.mode)
+  const setMode = useAppModeStore((state) => state.setMode)
+  const setSyncStatus = useAppModeStore((state) => state.setSyncStatus)
+  const setLastSyncTime = useAppModeStore((state) => state.setLastSyncTime)
+  const setOnline = useAppModeStore((state) => state.setOnline)
   const desktopClient = isTauri()
+  const [appState, setAppState] = useState<AppState | null>(null)
+  const [backendUrlInput, setBackendUrlInput] = useState('')
+  const [configBusy, setConfigBusy] = useState<'mode' | 'backend' | null>(null)
   const [probes, setProbes] = useState<WorkstationProbeState>(PREVIEW_PROBES)
   const resources = useMemo(
     () => buildDesktopWorkstationResources(mode, desktopClient ? 'desktop' : 'preview'),
     [desktopClient, mode]
   )
+  const applyAppState = useCallback((snapshot: AppState | null) => {
+    if (!snapshot) return
+    setAppState(snapshot)
+    setBackendUrlInput(snapshot.backend_url ?? '')
+    setMode(snapshot.mode)
+    setSyncStatus(snapshot.sync_status)
+    setLastSyncTime(snapshot.last_sync_time)
+    setOnline(snapshot.is_online)
+  }, [setLastSyncTime, setMode, setOnline, setSyncStatus])
 
   useEffect(() => {
     let cancelled = false
 
     if (!desktopClient) {
+      setAppState(null)
+      setBackendUrlInput('')
       setProbes(PREVIEW_PROBES)
       return () => {
         cancelled = true
@@ -102,14 +136,17 @@ export function DesktopWorkstationPanel() {
     }))
 
     Promise.allSettled([
+      getAppState(),
       checkLocalLLMStatus(),
       listLocalModels(),
       getQueueStats(),
       mode === 'top-secret' ? Promise.resolve(null) : knowledgeApi.listBases({ page_size: 100 }),
       mode === 'top-secret' ? Promise.resolve(null) : mcpApi.listServers(),
-    ]).then(([llmResult, modelsResult, queueResult, knowledgeResult, mcpResult]) => {
+    ]).then(([appStateResult, llmResult, modelsResult, queueResult, knowledgeResult, mcpResult]) => {
       if (cancelled) return
 
+      const snapshot = appStateResult.status === 'fulfilled' ? appStateResult.value : null
+      applyAppState(snapshot)
       const llm = llmResult.status === 'fulfilled' ? llmResult.value as Record<string, unknown> | null : null
       const models = modelsResult.status === 'fulfilled' ? modelsResult.value as Record<string, unknown> | null : null
       const queue = queueResult.status === 'fulfilled' ? queueResult.value as Record<string, unknown> | null : null
@@ -142,7 +179,60 @@ export function DesktopWorkstationPanel() {
     return () => {
       cancelled = true
     }
-  }, [desktopClient, mode])
+  }, [applyAppState, desktopClient, mode])
+
+  const handleModeChange = async (nextMode: AppMode) => {
+    if (!desktopClient) {
+      toast.error('请在桌面客户端内切换工作站模式')
+      return
+    }
+    if (nextMode === mode || configBusy) return
+
+    setConfigBusy('mode')
+    try {
+      const result = await switchMode(nextMode)
+      if (!result?.success) {
+        toast.error(result?.message || '工作站模式切换失败')
+        return
+      }
+      setMode(nextMode)
+      toast.success(result.message || '工作站模式已更新')
+      applyAppState(await getAppState())
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '工作站模式切换失败')
+    } finally {
+      setConfigBusy(null)
+    }
+  }
+
+  const handleBackendSave = async () => {
+    if (!desktopClient) {
+      toast.error('请在桌面客户端内配置后端地址')
+      return
+    }
+    if (configBusy) return
+
+    const normalized = normalizeWorkstationBackendUrl(backendUrlInput)
+    if (!normalized.ok) {
+      toast.error(normalized.error)
+      return
+    }
+
+    setConfigBusy('backend')
+    try {
+      const result = await setBackendUrl(normalized.value)
+      if (!result.success) {
+        toast.error(result.message)
+        return
+      }
+      toast.success(result.message)
+      applyAppState(await getAppState())
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '后端地址保存失败')
+    } finally {
+      setConfigBusy(null)
+    }
+  }
 
   return (
     <div className="space-y-4" data-testid="desktop-workstation-panel">
@@ -206,6 +296,84 @@ export function DesktopWorkstationPanel() {
                 </div>
               )
             })}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border rounded-xl" data-testid="desktop-workstation-config">
+        <CardHeader className="pb-3">
+          <CardTitle className={heading.card}>工作站配置</CardTitle>
+          <CardDescription className={heading.muted}>
+            {desktopClient ? '配置本机运行模式与后端环境，保存后立即作用于桌面运行时' : '仅桌面客户端可写入本机运行时配置'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)]">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <Label className="text-sm font-medium text-foreground">运行模式</Label>
+              <span className="text-xs text-muted-foreground">
+                当前：{MODE_LABEL[mode]}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-3" role="group" aria-label="工作站运行模式">
+              {WORKSTATION_MODE_OPTIONS.map((option) => {
+                const selected = option.mode === mode
+                return (
+                  <button
+                    key={option.mode}
+                    type="button"
+                    data-testid={`workstation-mode-${option.mode}`}
+                    disabled={!desktopClient || Boolean(configBusy) || selected}
+                    onClick={() => handleModeChange(option.mode)}
+                    className={cn(
+                      'min-h-[88px] rounded-lg border p-3 text-left transition-colors',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      selected
+                        ? 'border-primary bg-primary/10 text-foreground'
+                        : 'border-border bg-surface-1 hover:border-primary/50 hover:bg-muted/50',
+                      (!desktopClient || Boolean(configBusy) || selected) && 'cursor-not-allowed opacity-80'
+                    )}
+                  >
+                    <span className="block text-sm font-semibold">{option.label}</span>
+                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">{option.description}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <Label htmlFor="workstation-backend-url" className="text-sm font-medium text-foreground">
+                后端环境
+              </Label>
+              <span className="text-xs text-muted-foreground" data-testid="workstation-backend-current">
+                {desktopClient ? appState?.backend_url || '读取中' : '需桌面端'}
+              </span>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                id="workstation-backend-url"
+                data-testid="workstation-backend-url"
+                value={backendUrlInput}
+                onChange={(event) => setBackendUrlInput(event.target.value)}
+                placeholder="https://api.example.com"
+                disabled={!desktopClient || configBusy === 'backend'}
+                className="min-w-0"
+              />
+              <Button
+                type="button"
+                data-testid="workstation-backend-save"
+                onClick={handleBackendSave}
+                disabled={!desktopClient || configBusy === 'backend'}
+                className="shrink-0"
+              >
+                保存
+              </Button>
+            </div>
+            <p className="text-xs leading-5 text-muted-foreground">
+              仅保存环境地址，不保存 API 密钥；绝密模式下业务数据通道仍由运行时 guard 阻断。
+            </p>
           </div>
         </CardContent>
       </Card>

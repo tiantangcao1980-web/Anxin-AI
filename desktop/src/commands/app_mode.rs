@@ -73,8 +73,9 @@ pub async fn set_user_token(
 /// 设置后端 URL
 #[tauri::command]
 pub async fn set_backend_url(url: String, state: State<'_, SharedAppState>) -> Result<(), String> {
+    let normalized_url = normalize_backend_url(&url)?;
     let mut s = state.write().await;
-    s.backend_url = url;
+    s.backend_url = normalized_url;
     Ok(())
 }
 
@@ -87,4 +88,47 @@ pub async fn update_unread_count(
     let mut s = state.write().await;
     s.unread_count = count;
     Ok(())
+}
+
+fn normalize_backend_url(input: &str) -> Result<String, String> {
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return Err("后端地址不能为空".to_string());
+    }
+
+    let parsed =
+        reqwest::Url::parse(trimmed).map_err(|_| "请输入完整的 http:// 或 https:// 地址".to_string())?;
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return Err("后端地址只允许 http 或 https 协议".to_string());
+    }
+    if parsed.host_str().is_none() {
+        return Err("后端地址缺少主机名".to_string());
+    }
+
+    let normalized = parsed.to_string().trim_end_matches('/').to_string();
+    Ok(normalized)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalize_backend_url;
+
+    #[test]
+    fn normalizes_http_backend_url() {
+        assert_eq!(
+            normalize_backend_url(" http://localhost:8001/ ").unwrap(),
+            "http://localhost:8001"
+        );
+        assert_eq!(
+            normalize_backend_url("https://api.anxin.example/v1/").unwrap(),
+            "https://api.anxin.example/v1"
+        );
+    }
+
+    #[test]
+    fn rejects_non_backend_url_schemes() {
+        assert!(normalize_backend_url("").is_err());
+        assert!(normalize_backend_url("local://api").is_err());
+        assert!(normalize_backend_url("file:///tmp/anxin").is_err());
+    }
 }

@@ -6,6 +6,7 @@
 > 必读：`../PLAN.md`、`../00-platform/01-prd-reality-gap.md`、`../00-platform/03-cross-cutting-gaps.md` §1 缺口 C、`PRODUCT_ROADMAP.md` 桌面端 P0-1 / P0-2 / P0-3、`DESIGN.md` 跨平台一致性章节
 
 > 2026-05-08 定位补充：桌面端是项目未来的主要工作站，不只是 WebView 外壳。MVP 除窗口、快捷问答、拖拽分析外，还必须预留本地模型、独立知识库、Skills/MCP 配置入口，以及移动端远程控制桌面的 host 能力。
+> 2026-05-09 goal 修订：所有后续开发优先聚焦桌面端本地可执行功能和治理门禁；移动端/小程序排在桌面主工作站收口之后，按 uni-app 迁移路线推进。
 
 ---
 
@@ -56,6 +57,7 @@
 | P0-5 | `desktop/src/main.rs` 启动 | 当前模式选择/绝密本地状态在前端 localStorage | 桌面启动时从 SQLite `sync_state` 读取 `mode`（绝密 / 混合 / 云端），与前端 PrivacyContext 对齐（不重做模式切换逻辑，仅打通启动加载） |
 | P0-6 | `frontend/src/components/desktop/` + `desktop/src/commands/local_llm.rs` + LLM/knowledge/MCP/skill routes | 已有零散本地模型、知识库、MCP/Skill 底座，但桌面没有主工作站统一入口 | 桌面壳展示当前隐私模式、本地模型状态、知识库状态、Skills/MCP 状态和配置入口；不允许在绝密模式下诱导云端调用 |
 | P0-7 | 新建 `desktop/src/commands/remote_control.rs` + 11b command queue | 移动端远控桌面未定义 | 桌面作为 remote-control host：展示配对请求、权限范围、远程命令确认、执行状态、取消/撤销入口和审计日志；高风险动作必须二次确认 |
+| P0-8 | `frontend/src/components/desktop/DesktopWorkstationPanel.tsx` + `frontend/src/lib/tauri-bridge.ts` | 工作站只有只读状态入口，缺最小配置写入面 | 桌面客户端可本地切换绝密/混合/云端模式、配置后端环境地址，非桌面预览只读；URL 校验拒绝非 http/https；绝密模式仍不开放数据网络 |
 
 ---
 
@@ -152,6 +154,7 @@ docs/audit/11a-desktop-mvp/
 - [ ] `frontend/src/components/desktop/` 新增组件全部不引入硬编码颜色 / padding（`/designdna` 校验通过）
 - [ ] 桌面 `cargo clippy` 无新增 warning；前端 build 无新增警告
 - [ ] 桌面主工作站入口可见本地模型、知识库、Skills/MCP 和隐私模式状态；绝密模式不展示会导致数据出站的默认动作
+- [ ] 桌面主工作站配置面可切换运行模式、保存后端环境地址，并由单测/e2e 锁住非桌面只读、URL 校验和绝密模式远控阻断
 - [ ] 移动远控 host 最小闭环：配对请求、权限说明、远程命令确认、执行状态、取消/撤销和审计日志至少有开发环境 smoke
 - [ ] 跨平台手测脚本：macOS + Windows 各跑一遍三件套，截图归档到 `docs/desktop/`
 - [ ] `docs/audit/11a-desktop-mvp/01..05.md` 全产出
@@ -162,3 +165,5 @@ docs/audit/11a-desktop-mvp/
 2026-05-08 浏览器级补证：`frontend/e2e/settings-workstation.spec.ts` 已覆盖 direct `/settings?tab=workstation`、legacy `/settings?tab=privacy`、tab URL 写回、非桌面预览禁用本地模型/同步/远控动作、模拟桌面运行时本地模型/知识库/MCP/队列探针，以及 iPhone 14 视口下工作站资源卡不越界；同轮修复 `McpSettingsPanel` 对非数组响应的防御性处理和 Settings 移动端 min-content 横向溢出。
 
 2026-05-08 远控 host 补证：`desktop/src/services/remote_control_host.rs` 与 `desktop/src/commands/remote_control.rs` 已在单次 safe-probe host cycle 基础上新增 bounded safe-probe host poll：轮询间隔、最大轮询次数和每次 claim limit 都有上限，且仍只完成 `ping/status_probe`，未知/高风险命令继续 failed/unsupported。`cd desktop && cargo test remote_control` 当前 `8 passed`，`cd desktop && cargo check` 通过。此记录只降低 host 侧轮询缺口，不关闭完整 DoD；仍需真正常驻后台 daemon、桌面确认 UI、真实跨设备 host callback、signed runtime 和真机/设备证据。
+
+2026-05-09 goal-driven 收口记录：`frontend/src/components/desktop/DesktopWorkstationPanel.tsx` 已补“工作站配置”写入面，桌面运行时可切换绝密/混合/云端模式并保存后端环境地址；`frontend/src/components/desktop/desktopWorkstationModel.ts` 与 `desktop/src/commands/app_mode.rs` 均新增 http/https URL 校验，拒绝 `local://` 等非后端环境地址，避免绕过 UI 直接写入无效 IPC 配置；`frontend/src/lib/tauri-bridge.ts` 新增 `setBackendUrl` IPC wrapper。`frontend/e2e/settings-workstation.spec.ts` 已覆盖桌面 runtime mock 下的模式切换、后端地址保存、绝密模式远控阻断和移动宽度回归；`cd desktop && cargo test app_mode` 为 `2 passed`。这关闭的是最小配置写入面，不等于完整 LLM/MCP/Skills connector 凭据 CRUD 或 signed runtime 证据完成。
