@@ -349,6 +349,8 @@ def _mobile_npm_audit(status: str = "residual_known") -> dict:
             "residual_vulnerabilities": [],
             "remediated_by_override": [
                 "@xmldom/xmldom@0.8.13",
+                "@babel/plugin-transform-modules-systemjs@7.29.4",
+                "fast-uri@3.1.2",
                 "@expo/cli -> tar@7.5.14",
                 "@expo/metro-config -> postcss@8.5.14",
                 "cacache -> tar@7.5.14",
@@ -398,11 +400,37 @@ def test_release_artifact_validation_accepts_mobile_mini_code_smoke(tmp_path):
     assert result.returncode == 0, result.stdout
 
 
+def test_release_artifact_validation_accepts_external_unavailable_wechat_devtools(tmp_path):
+    repo_root = Path(__file__).resolve().parents[2]
+    artifact = tmp_path / "mobile-mini-code-smoke-wechat-external.json"
+    checks = _mobile_mini_code_checks()
+    checks["mini_program_wechat_devtools_cli"] = "external_unavailable"
+    artifact.write_text(
+        json.dumps(
+            {
+                "generated_at": "2026-05-09T00:00:00Z",
+                "mode": "mobile_mini_code_smoke",
+                "status": "passed",
+                "release_evidence_complete": False,
+                "checks": checks,
+                "mobile_npm_audit": _mobile_npm_audit("passed"),
+                "completion_note": "Code-level supporting evidence only; interactive WeChat evidence remains pending.",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = _validate(repo_root, artifact)
+
+    assert result.returncode == 0, result.stdout
+
+
 def test_release_artifact_validation_rejects_incomplete_mobile_mini_code_smoke(tmp_path):
     repo_root = Path(__file__).resolve().parents[2]
     artifact = tmp_path / "mobile-mini-code-smoke-bad.json"
     checks = _mobile_mini_code_checks()
     checks["mini_program_wechat_build"] = "skipped"
+    checks["mini_program_wechat_devtools_cli"] = "skipped"
     artifact.write_text(
         json.dumps(
             {
@@ -427,6 +455,7 @@ def test_release_artifact_validation_rejects_incomplete_mobile_mini_code_smoke(t
     assert result.returncode == 1
     assert "release_evidence_complete=false" in result.stdout
     assert "mini_program_wechat_build must be passed" in result.stdout
+    assert "mini_program_wechat_devtools_cli must be passed or external_unavailable" in result.stdout
     assert "zero critical vulnerabilities" in result.stdout
     assert "must not leave xmldom/plist residuals" in result.stdout
     assert "must record xmldom override remediation" in result.stdout

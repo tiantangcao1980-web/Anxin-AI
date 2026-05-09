@@ -20,7 +20,7 @@ Date range: 2026-05-06 to 2026-05-09 local collection
 | Design system | Cross-platform token drift audit across Web/desktop, mobile, and mini-program | code-level complete; fixes pending | `docs/design/cross-platform-token-drift.md` |
 | uni-app migration | Future mobile App and Mini Program development uses one uni-app base; old Expo/Taro clients are legacy references until equivalent evidence exists | plan complete; implementation pending | `docs/mobile/uni-app-migration-plan.md`; `mobile/README.md`; `mini-program/README.md` |
 | Release communication | Error-state release notes explain removal of silent fallback | draft complete; final notes pending | `docs/release/mobile-error-state-release-notes.md` |
-| Mobile security | `npm audit --omit=dev` has no production vulnerabilities after targeted Expo SDK 52 toolchain overrides | code-level complete; device verification pending | `docs/release/evidence/artifacts/mobile-mini-code-smoke-20260508.json` -> `mobile_npm_audit.status=passed,total=0` |
+| Mobile security | `npm audit --omit=dev` has no production vulnerabilities after targeted Expo SDK 52 toolchain overrides plus `@babel/plugin-transform-modules-systemjs` / `fast-uri` overrides | code-level complete; device verification pending | `docs/release/evidence/artifacts/mobile-mini-code-smoke-20260509.json` -> `mobile_npm_audit.status=passed,total=0` |
 | Mobile remote control | Confirmed-pairing state can request a short-lived `desktop:control` route token and enqueue only `desktop.status_probe`; local mode blocks before network I/O; queued/claimed safe probes can be refreshed and cancelled from mobile; the page now shows a redacted remote-control audit timeline without rendering raw payload/metadata; desktop execution still requires host callback evidence | code-level complete; cross-device/device verification pending | `mobile/app/desktop-control.tsx`, `mobile/src/services/api.test.ts`, `mobile/src/features/desktop-control/model.test.ts` |
 | Cross-device | Web/desktop/mobile conversation continuation verified | pending | TBD |
 | Error semantics | Backend/network failures show explicit empty/error state, not mock success | pending | TBD |
@@ -53,7 +53,7 @@ Command:
 
 ```bash
 bash scripts/mobile-device-smoke.sh \
-  --out docs/release/evidence/artifacts/mobile-mini-code-smoke-20260508.json \
+  --out docs/release/evidence/artifacts/mobile-mini-code-smoke-20260509.json \
   --manual-template-out docs/release/evidence/artifacts/mobile-device-manual-template-20260508.json
 ```
 
@@ -76,7 +76,7 @@ Result refreshed on 2026-05-08 local time:
 | mobile and mini fake fallback guard | exit `0`; guards against `fallbackMessages`, `fallbackTask`, `mock_token`, leaked `session_key`, fake success markers; confirms `wx.login/code2session` path and no fake news fallback |
 | mobile and mini refresh auth guard | exit `0`; mobile Vitest covers network refresh failure preserving auth, desktop-control status endpoint routing, audit-events endpoint routing, local-mode desktop-control no-network state, route-token issuance, safe-probe command enqueue/status/cancel, audit label formatting, and privacy guard `X-Privacy-Mode` propagation; script guard verifies mobile/mini separate auth expiry from transient refresh failure and mini-program privacy fail-closed markers |
 | cross-platform token drift audit | `docs/design/cross-platform-token-drift.md` created; mini-program semantic token layer and touch-target baseline are code-level complete; remaining P0 items are brand primary direction and real-device touch-target verification |
-| code-level JSON artifact | `docs/release/evidence/artifacts/mobile-mini-code-smoke-20260508.json`; `status=passed`, `release_evidence_complete=false`, includes Expo guard and `mobile_npm_audit.status=passed,total=0` |
+| code-level JSON artifact | `docs/release/evidence/artifacts/mobile-mini-code-smoke-20260509.json`; `status=passed`, `release_evidence_complete=false`, includes Expo guard and `mobile_npm_audit.status=passed,total=0` |
 | manual device template | `docs/release/evidence/artifacts/mobile-device-manual-template-20260508.json`; `status=template`, `release_evidence_complete=false` |
 | host device probe | `docs/release/evidence/artifacts/mobile-device-host-probe-20260508.json`; iOS Simulator is available with iOS 26.4 devices, ADB has no connected devices, Android emulator CLI is missing, WeChat DevTools and WeChat apps are present |
 | iOS Simulator Expo Go smoke | `bash scripts/mobile-ios-simulator-smoke.sh --out docs/release/evidence/artifacts/mobile-ios-simulator-expo-go-smoke-20260508.json --log-out docs/release/evidence/artifacts/mobile-ios-simulator-expo-go-smoke-20260508.log --timeout 90` -> exit `0`; boots iPhone 17 simulator, verifies `expo-asset` and Expo Metro config, opens Expo Go on the local Expo URL, and records `iOS Bundled`; artifact has `release_evidence_complete=false` |

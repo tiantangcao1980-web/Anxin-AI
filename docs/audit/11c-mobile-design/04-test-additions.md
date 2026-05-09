@@ -11,7 +11,7 @@ bash scripts/mobile-device-smoke.sh
 - mobile Vitest：`7 files / 19 tests passed`
 - mobile TypeScript：exit `0`
 - Expo doctor：`17/17 checks passed`
-- mobile production npm audit：exit `0`
+- mobile production npm audit：exit `0`；2026-05-09 通过 `@babel/plugin-transform-modules-systemjs@7.29.4` 与 `fast-uri@3.1.2` 定向 overrides 继续保持 `0`
 - mobile result surface guard：`scripts/mobile-device-smoke.sh` 会确认移动端尽调和知识库搜索保留页面内结果卡，且不回退到 Alert-only 反馈。
 - mobile lawyer conversion guard：`scripts/mobile-device-smoke.sh` 会确认移动端找律师保留真实咨询创建、AI 匿名摘要、律师选择、匿名聊天室/委托 API 路径，且不回退到不存在的律师详情页跳转。
 - mini-program TypeScript：exit `0`

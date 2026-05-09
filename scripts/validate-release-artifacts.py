@@ -322,6 +322,12 @@ def _validate_mobile_mini_code_smoke(path: Path, payload: dict[str, Any], failur
             ]
         )
     for check_name in required_checks:
+        if check_name == "mini_program_wechat_devtools_cli":
+            if checks.get(check_name) not in {"passed", "external_unavailable"}:
+                failures.append(
+                    f"{path}: mobile/mini code smoke {check_name} must be passed or external_unavailable"
+                )
+            continue
         if checks.get(check_name) != "passed":
             failures.append(f"{path}: mobile/mini code smoke {check_name} must be passed")
 

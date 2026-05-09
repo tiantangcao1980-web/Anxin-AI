@@ -58,7 +58,7 @@
 
 - `docs/audit/00-platform/04-ci-security-scan.md` 中 CI/security scan 待确认项需要落地或形成豁免。
 - 前端生产依赖 `cd frontend && npm audit --omit=dev --json` 已清零并保存到 `docs/release/evidence/artifacts/frontend-npm-audit-prod-20260507.json`；当前采用补丁级升级和定向 overrides，避免将 `picomatch` v2 链全局强升到 v4。
-- 移动端 `cd mobile && npm audit --omit=dev` 已清零；当前通过 `@xmldom/xmldom@0.8.13`、`@expo/cli -> tar@7.5.14`、`@expo/metro-config -> postcss@8.5.14`、`cacache -> tar@7.5.14` 定向 overrides 修复。`tar@7.5.14` 跨过 Expo CLI 声明的 semver 范围，后续 Expo SDK/package 改动必须保留 `npx expo-doctor`、`npx expo install --check` 和真机 smoke。
+- 移动端 `cd mobile && npm audit --omit=dev` 已清零；当前通过 `@xmldom/xmldom@0.8.13`、`@babel/plugin-transform-modules-systemjs@7.29.4`、`fast-uri@3.1.2`、`@expo/cli -> tar@7.5.14`、`@expo/metro-config -> postcss@8.5.14`、`cacache -> tar@7.5.14` 定向 overrides 修复。`tar@7.5.14` 跨过 Expo CLI 声明的 semver 范围，后续 Expo SDK/package 改动必须保留 `npx expo-doctor`、`npx expo install --check` 和真机 smoke。
 - 全仓 secret scan/gitleaks 至少跑一次，并保存结果。
 - 发布证据目录脱敏扫描 `bash scripts/release-evidence-secret-scan.sh` 必须通过，并纳入 `scripts/commercial-readiness-gate.sh`。
 - 全仓 `rg` 检查 mock/fallback/token 泄露关键字。
