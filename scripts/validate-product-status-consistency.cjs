@@ -46,6 +46,59 @@ const checks = [
     ],
   },
   {
+    path: 'docs/plans/2026-05-09-workstation-admin-ia-boundary.md',
+    required: [
+      '状态：已采纳，后续开发按此边界执行',
+      '工作站负责业务执行和本机运行，治理后台负责组织治理和平台配置',
+      '影响当前桌面运行、当前用户效率或本机安全的功能，放在工作站或我的设置',
+      '影响多用户、多组织、密钥、审计、计费、权限或系统接入的功能，放在治理后台',
+      '我的设置不再承载组织级 LLM/MCP 凭据 CRUD',
+    ],
+    forbidden: [
+      '状态：执行中',
+      '前端 Settings 与后台模型配置页已复用组织级',
+      '前端 Settings 与治理后台模型配置页已复用组织级',
+    ],
+  },
+  {
+    path: 'docs/release/commercial-delivery-readiness.md',
+    required: [
+      '前端组织级模型配置入口已收束到治理后台“模型治理”',
+      '我的设置不再承载组织级 LLM/MCP 凭据 CRUD',
+      'MCP/工具连接已迁入治理后台“系统集成”',
+    ],
+    forbidden: [
+      '前端 Settings 与后台模型配置页已复用组织级',
+      '前端 Settings 与治理后台模型配置页已复用组织级',
+      'settings?tab=llm',
+      'settings?tab=mcp',
+    ],
+  },
+  {
+    path: 'docs/release/48-hour-commercial-delivery-plan.md',
+    required: [
+      '前端组织级模型配置入口已收束到治理后台“模型治理”',
+      '`我的设置`不再承载组织级 LLM/MCP 凭据 CRUD',
+      'MCP/工具连接已迁入治理后台“系统集成”',
+    ],
+    forbidden: [
+      '前端 Settings 与后台模型配置页已复用组织级',
+      '前端 Settings 与治理后台模型配置页已复用组织级',
+    ],
+  },
+  {
+    path: 'docs/release/security-and-privacy-checklist.md',
+    required: [
+      '前端组织级模型配置入口已收束到治理后台“模型治理”',
+      '我的设置不再承载组织级 LLM/MCP 凭据 CRUD',
+      'MCP/工具连接已迁入治理后台“系统集成”',
+    ],
+    forbidden: [
+      '前端 Settings 与后台模型配置页已复用组织级',
+      '前端 Settings 与治理后台模型配置页已复用组织级',
+    ],
+  },
+  {
     path: 'docs/audit/00-platform/01-prd-reality-gap.md',
     required: [
       '代码级/unsigned 证据已补，商业同步闭环仍未完成',
