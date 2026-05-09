@@ -94,7 +94,20 @@ bash scripts/commercial-readiness-gate.sh --with-local-tests
 # commercial checklist/lane validators + Ruff/JSON smoke, sandbox evidence preflight,
 # mobile-device-smoke 8 files / 37 tests + mobile/mini tsc + mobile result-surface/lawyer-conversion guards + Expo config/SDK/Metro config guard + Expo doctor 17/17 + mobile npm audit 0 + mini privacy/navigation boundary + weapp build + WeChat DevTools CLI + refresh-auth/mobile+mini privacy/fake-fallback/design-token guards.
 # on a clean baseline, final gate still fails because release docs declare Not ready
-# and payment/e-sign/desktop/mobile/agent-governance release evidence remains pending; only remaining warning is missing GITNEXUS_BIN cypher integrity verification.
+# and payment/e-sign/desktop/mobile/agent-governance release evidence remains pending. This historical run did not provide GITNEXUS_BIN, so it warned that cypher integrity was unchecked.
+```
+
+2026-05-09 GitNexus registry/cypher 补证：
+
+```bash
+/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus index .
+# Repository registered: Anxin-Smart-Legal-Services
+
+/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus cypher -r Anxin-Smart-Legal-Services "MATCH (e:CodeEmbedding) RETURN count(e) AS cnt"
+# cnt = 30901
+
+GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/commercial-readiness-gate.sh --quick
+# GitNexus cypher integrity passes; quick gate still FAILS because release docs remain not_ready and payment/e-sign/desktop/mobile/agent-governance evidence is pending.
 ```
 
 补充扩展切片：
