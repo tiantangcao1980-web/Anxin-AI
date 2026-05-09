@@ -291,6 +291,8 @@ export async function hideQuickQueryWindow(): Promise<boolean> {
 
 // ===== 桌面文件拖入分析 =====
 
+export const FILE_DROP_QUEUED_EVENT = 'desktop://file-queued'
+
 export interface FileDropQueuedTask {
   task_id: string
   file_name: string
@@ -311,6 +313,12 @@ export interface FileDropQueueReport {
 export async function queueFileDropPaths(paths: string[]): Promise<FileDropQueueReport | null> {
   if (!isTauri()) return null
   return invokeRequiredCommand<FileDropQueueReport>('queue_file_drop_paths', { paths })
+}
+
+export async function listenFileDropQueued(
+  onQueued: (report: FileDropQueueReport) => void,
+): Promise<() => void> {
+  return listenEvent<FileDropQueueReport>(FILE_DROP_QUEUED_EVENT, onQueued)
 }
 
 // ===== 离线任务队列（Harness Engineering）=====

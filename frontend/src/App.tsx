@@ -16,7 +16,7 @@
 
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
-import { Toaster } from 'sonner'
+import { Toaster, toast } from 'sonner'
 import Layout from '@/components/Layout'
 // ModuleLayout is used inside Layout.tsx based on current route
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -32,7 +32,8 @@ import { getTokenStorage } from '@/lib/platform/storage'
 import { ModeGate } from '@/components/mode/ModeGate'
 import { SubscriptionGate } from '@/components/mode/SubscriptionGate'
 import { useAppModeStore, useAuthStore } from '@/lib/store'
-import { getAppState, isTauri, saveAuthToken } from '@/lib/tauri-bridge'
+import { summarizeFileDropQueueReport } from '@/lib/desktopFileDropEvents'
+import { getAppState, isTauri, listenFileDropQueued, saveAuthToken } from '@/lib/tauri-bridge'
 
 // ===== 路由懒加载 =====
 // 每个页面只在用户访问时才加载对应的 JS 代码
@@ -216,6 +217,42 @@ function App() {
       active = false
     }
   }, [setLastSyncTime, setMode, setOnline, setSyncStatus])
+
+  useEffect(() => {
+    if (!isTauri()) {
+      return
+    }
+
+    let disposed = false
+    let unlisten: (() => void) | null = null
+
+    listenFileDropQueued((report) => {
+      const summary = summarizeFileDropQueueReport(report)
+      if (!summary) return
+
+      if (summary.variant === 'success') {
+        toast.success(summary.title, { description: summary.description })
+        return
+      }
+
+      toast.warning(summary.title, { description: summary.description })
+    })
+      .then((cleanup) => {
+        if (disposed) {
+          cleanup?.()
+          return
+        }
+        unlisten = cleanup
+      })
+      .catch((error) => {
+        console.debug('[Desktop] 文件拖入队列提示监听失败:', error)
+      })
+
+    return () => {
+      disposed = true
+      unlisten?.()
+    }
+  }, [])
 
   if (!authBootstrapped) {
     return <PageSkeleton />
