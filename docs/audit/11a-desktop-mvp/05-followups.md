@@ -16,6 +16,10 @@
 - User/external: Apple signing identity, notary credentials, Windows signing certificate, real macOS/Windows devices, real mobile device, payment/e-sign/LLM/MCP provider credentials.
 - Local development: keep code-level gates green, keep fake/mock evidence out of `Status: complete`, keep TopSecret/local network boundaries fail-closed, and keep docs synchronized with code.
 
+## Memory Notes Persisted
+
+- Feature `feature-1778335460725`: `tauri-desktop-mvp-trio`, covering platform-specific Tauri chrome, dedicated Quick Query window routing, SQLCipher-backed desktop file-drop queueing, redacted toast events, workstation configuration controls, safe-probe remote-control host controls, and the `desktop-window-chrome` / `desktop-mvp` local gates.
+
 ## Release Risk
 
 The desktop MVP is strong enough for continued internal development and controlled local demos. It is not yet strong enough for commercial launch because the remaining blockers are tied to signed packages, real devices, external providers, and measured runtime behavior. These must stay visible in release docs and cannot be replaced by unit tests or mocked artifacts.
