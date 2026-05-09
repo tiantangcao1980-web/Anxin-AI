@@ -618,9 +618,118 @@ mod tests {
         RemoteControlHostPollSummary,
     };
     use crate::models::{AppMode, AppStateData};
-    use serde_json::json;
+    use serde_json::{json, Value};
+    use std::io::{Read, Write};
+    use std::net::{TcpListener, TcpStream};
     use std::sync::Arc;
     use tokio::sync::RwLock;
+
+    #[derive(Debug)]
+    struct MockRemoteControlRequest {
+        path: String,
+        authorization: Option<String>,
+        body: Value,
+    }
+
+    fn spawn_remote_control_mock_server() -> (
+        String,
+        std::thread::JoinHandle<Vec<MockRemoteControlRequest>>,
+    ) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind mock remote-control server");
+        let base_url = format!(
+            "http://{}",
+            listener.local_addr().expect("mock server addr")
+        );
+        let handle = std::thread::spawn(move || {
+            let mut requests = Vec::new();
+            for request_index in 0..3 {
+                let (mut stream, _) = listener.accept().expect("accept mock request");
+                let request = read_mock_request(&mut stream);
+                let response_body = if request_index == 0 {
+                    json!({
+                        "items": [{
+                            "command_id": "cmd-safe",
+                            "command_type": "desktop.status_probe",
+                            "payload": {"probe": "daemon"}
+                        }]
+                    })
+                } else {
+                    json!({"ok": true})
+                }
+                .to_string();
+                write!(
+                    stream,
+                    "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                    response_body.len(),
+                    response_body
+                )
+                .expect("write mock response");
+                requests.push(request);
+            }
+            requests
+        });
+
+        (base_url, handle)
+    }
+
+    fn read_mock_request(stream: &mut TcpStream) -> MockRemoteControlRequest {
+        let mut buffer = Vec::new();
+        let mut chunk = [0_u8; 1024];
+        let header_end = loop {
+            let read = stream.read(&mut chunk).expect("read mock request");
+            assert!(read > 0, "mock request ended before headers");
+            buffer.extend_from_slice(&chunk[..read]);
+            if let Some(position) = find_bytes(&buffer, b"\r\n\r\n") {
+                break position;
+            }
+        };
+        let headers = String::from_utf8_lossy(&buffer[..header_end]).to_string();
+        let content_length = headers
+            .lines()
+            .find_map(|line| {
+                let (name, value) = line.split_once(':')?;
+                if name.eq_ignore_ascii_case("content-length") {
+                    value.trim().parse::<usize>().ok()
+                } else {
+                    None
+                }
+            })
+            .unwrap_or(0);
+        let body_start = header_end + 4;
+        while buffer.len() < body_start + content_length {
+            let read = stream.read(&mut chunk).expect("read mock body");
+            assert!(read > 0, "mock request ended before body");
+            buffer.extend_from_slice(&chunk[..read]);
+        }
+        let request_line = headers.lines().next().expect("request line");
+        let path = request_line
+            .split_whitespace()
+            .nth(1)
+            .expect("request path")
+            .to_string();
+        let authorization = headers.lines().find_map(|line| {
+            let (name, value) = line.split_once(':')?;
+            if name.eq_ignore_ascii_case("authorization") {
+                Some(value.trim().to_string())
+            } else {
+                None
+            }
+        });
+        let raw_body = &buffer[body_start..body_start + content_length];
+        let body = serde_json::from_slice::<Value>(raw_body).expect("mock JSON body");
+
+        MockRemoteControlRequest {
+            path,
+            authorization,
+            body,
+        }
+    }
+
+    fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+        haystack
+            .windows(needle.len())
+            .position(|window| window == needle)
+    }
 
     #[test]
     fn remote_control_url_trims_backend_and_path_slashes() {
@@ -916,6 +1025,84 @@ mod tests {
 
         assert!(err.contains("登录态 token"));
         assert!(!err.contains("route-secret"));
+    }
+
+    #[tokio::test]
+    async fn host_daemon_completes_safe_probe_against_local_backend() {
+        let (backend_url, server) = spawn_remote_control_mock_server();
+        let state = Arc::new(RwLock::new(AppStateData {
+            mode: AppMode::Cloud,
+            backend_url,
+            user_token: Some("state-token".to_string()),
+            ..AppStateData::default()
+        }));
+        let config = build_host_daemon_config(
+            true,
+            Some("desktop-a"),
+            Some("pairing-1"),
+            Some("route-secret"),
+            Some("host-a"),
+            Some("bearer-secret"),
+            Some(5),
+            Some(1),
+            Some(1),
+        )
+        .expect("daemon config")
+        .expect("enabled daemon config");
+        let client = super::build_http_client().expect("http client");
+
+        let summary = run_remote_control_host_daemon(&client, &state, &config)
+            .await
+            .expect("safe-probe daemon should complete against mock backend");
+        let requests = server.join().expect("mock server requests");
+
+        assert_eq!(summary.cycles, 1);
+        assert_eq!(summary.claimed, 1);
+        assert_eq!(summary.completed, 1);
+        assert_eq!(summary.failed, 0);
+        assert_eq!(summary.unsupported, 0);
+        assert_eq!(summary.command_ids, vec!["cmd-safe"]);
+        assert_eq!(requests.len(), 3);
+        assert!(requests
+            .iter()
+            .all(|request| request.authorization.as_deref() == Some("Bearer bearer-secret")));
+        assert_eq!(
+            requests[0].path,
+            "/api/v1/sync/remote-control/commands/claim"
+        );
+        assert_eq!(requests[0].body["desktop_device_id"], "desktop-a");
+        assert_eq!(requests[0].body["pairing_id"], "pairing-1");
+        assert_eq!(requests[0].body["route_token"], "route-secret");
+        assert_eq!(requests[0].body["host_instance_id"], "host-a");
+        assert_eq!(requests[0].body["limit"], 1);
+
+        assert_eq!(
+            requests[1].path,
+            "/api/v1/sync/remote-control/commands/cmd-safe/status"
+        );
+        assert_eq!(requests[1].body["status"], "running");
+        assert_eq!(
+            requests[1].body["result_summary"]["handled_by"],
+            "desktop_remote_control_host"
+        );
+        assert_eq!(
+            requests[1].body["result_summary"]["command_type"],
+            "desktop.status_probe"
+        );
+
+        assert_eq!(
+            requests[2].path,
+            "/api/v1/sync/remote-control/commands/cmd-safe/status"
+        );
+        assert_eq!(requests[2].body["status"], "completed");
+        assert_eq!(requests[2].body["result_summary"]["safe_probe"], true);
+        assert_eq!(
+            requests[2].body["result_summary"]["payload_keys"],
+            json!(["probe"])
+        );
+        let final_summary = requests[2].body["result_summary"].to_string();
+        assert!(!final_summary.contains("route-secret"));
+        assert!(!final_summary.contains("bearer-secret"));
     }
 
     #[test]

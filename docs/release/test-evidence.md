@@ -113,7 +113,7 @@ GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/g
 
 bash scripts/agent-governance-smoke.sh --out docs/release/evidence/artifacts/agent-governance-code-smoke-20260509.json
 # exit 0; docs scan passed; agent capability policy 13 passed; backend governance regressions 141 passed with local runtime control rehearsal and cross-process revocation rehearsal;
-# approval authorization guards 7 passed; MCP connection config policy 7 passed; approved connector local rehearsal 1 passed; cross-process revocation local rehearsal 1 passed; desktop remote-control host 13 passed;
+# approval authorization guards 7 passed; MCP connection config policy 7 passed; approved connector local rehearsal 1 passed; cross-process revocation local rehearsal 1 passed; desktop remote-control host 14 passed;
 # frontend Skill connector credential model 4 passed; frontend Agent governance workspace Playwright 6 passed / 6 skipped;
 # artifact records release_evidence_complete=false
 # and runtime_evidence_complete=false, so agent-governance-smoke.md remains Status: pending.
@@ -505,9 +505,9 @@ cd mobile && npm run typecheck
 - `/sync/remote-control/route-token` 通过 CapabilityRoute 为已确认 pairing 签发短期 `desktop:control` route token，命令入队前再次校验 token、consumer、scope、过期和撤销状态。
 - `/sync/remote-control/commands` 只在已配对、已授权、已二次确认的前提下写入队列；后端入队阶段会规范化 `command_type` 并只允许 `ping/status_probe/desktop.ping/desktop.status_probe` safe-probe 命令，非 safe-probe 会在写队列前 403 拒绝并写入 `unsupported_command_type` 审计；`/commands/{command_id}/cancel` 可撤销 queued 命令；审计事件会脱敏 token/secret 类字段。
 - `/sync/remote-control/commands/claim` 允许桌面 host 在配对和 route token 有效时领取 queued 命令；`/commands/{command_id}/status` 支持 running/completed/failed 状态回传，结果摘要和嵌套 token/secret 字段会递归脱敏。
-- `desktop/src/services/remote_control_host.rs` 和 `desktop/src/commands/remote_control.rs` 新增桌面 Tauri IPC host 客户端：确认配对、领取命令、回传 running/completed/failed 状态均使用登录态 bearer token、后端 URL、pairing-scoped route token 和 TopSecret data-network guard；本地测试锁住 URL/payload/状态值、claim 响应解析、safe probe completed、未知命令 failed/unsupported、有间隔/次数/limit 上限的 bounded safe-probe host poll 配置与汇总，以及 env-gated 后台 safe-probe daemon 配置、TopSecret daemon 阻断和未登录/无测试 bearer 时网络前阻断。
+- `desktop/src/services/remote_control_host.rs` 和 `desktop/src/commands/remote_control.rs` 新增桌面 Tauri IPC host 客户端：确认配对、领取命令、回传 running/completed/failed 状态均使用登录态 bearer token、后端 URL、pairing-scoped route token 和 TopSecret data-network guard；本地测试锁住 URL/payload/状态值、claim 响应解析、safe probe completed、未知命令 failed/unsupported、有间隔/次数/limit 上限的 bounded safe-probe host poll 配置与汇总，以及 env-gated 后台 safe-probe daemon 配置、TopSecret daemon 阻断、未登录/无测试 bearer 时网络前阻断，以及本地 mock 后端 claim -> running -> completed 成功回路与 `result_summary` 不泄露 route/bearer token。
 - `mobile/app/desktop-control.tsx`、`mobile/src/services/api.ts` 和 `mobile/src/features/desktop-control/model.ts` 新增移动端 safe-probe 入队/状态/取消/审计时间线面：只有 confirmed pairing 同时返回 `desktop_device_id` 与 `pairing_id` 时才启用；点击后先申请短期 route token，再只下发 `desktop.status_probe` / `l2` / 120 秒过期命令；local 模式仍在 fetch 前 fail-closed；UI 显示“入队等待桌面 host 回传”，可刷新命令状态、取消 queued/claimed 探针，并展示脱敏审计时间线，不声明已执行且不渲染命令 payload/metadata 原文。
-- 这仍不是远控完成态：当前只证明后端 host lifecycle API、safe-probe-only 队列、桌面 IPC host 客户端、受限 safe-probe poll 配置、env-gated 后台 safe-probe daemon 基础、移动端安全探针入队和审计边界，不证明 signed runtime 下的常驻 daemon、高风险真实桌面执行、跨设备连续会话、真实移动设备或 signed desktop runtime。
+- 这仍不是远控完成态：当前只证明后端 host lifecycle API、safe-probe-only 队列、桌面 IPC host 客户端、受限 safe-probe poll 配置、env-gated 后台 safe-probe daemon 基础、本地 mock 后端安全探针回路、移动端安全探针入队和审计边界，不证明 signed runtime 下的常驻 daemon、高风险真实桌面执行、跨设备连续会话、真实移动设备或 signed desktop runtime。
 
 ## 2. 证据覆盖矩阵
 
