@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use crate::models::{AppMode, SharedAppState, SyncStatus};
+use chrono::TimeZone;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
@@ -14,7 +15,7 @@ pub const DEVICE_ID_KEY: &str = "sync.device_id";
 
 const SYNC_RETRY_DELAYS_SECONDS: [i64; 3] = [30, 120, 300];
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 pub struct LocalSyncSnapshot {
     pub pending: u32,
     pub deferred: u32,
@@ -86,6 +87,27 @@ pub struct SyncRetryState {
     pub retry_count: i64,
     pub next_retry_at: Option<String>,
     pub needs_human: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DesktopSyncCodeSmokeReport {
+    pub mode: &'static str,
+    pub status: &'static str,
+    pub release_evidence_complete: bool,
+    pub checks: DesktopSyncCodeSmokeChecks,
+    pub completion_note: &'static str,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DesktopSyncCodeSmokeChecks {
+    pub sync_log_migration: &'static str,
+    pub snapshot: LocalSyncSnapshot,
+    pub pending_rows_decoded: usize,
+    pub push_payload_records: usize,
+    pub accepted_after_conflict: usize,
+    pub conflict_rows: usize,
+    pub retry_needs_human: bool,
+    pub pull_records_decoded: usize,
 }
 
 fn json_u32_field(row: &Value, key: &str) -> Result<u32, String> {
@@ -350,6 +372,142 @@ pub fn read_local_sync_snapshot_from_connection(
         })
     })
     .map_err(|err| format!("无法读取同步快照: {err}"))
+}
+
+fn pending_sync_rows_from_connection(
+    conn: &Connection,
+    now: &str,
+) -> Result<Vec<PendingSyncRow>, String> {
+    let mut stmt = conn
+        .prepare(pending_sync_rows_sql())
+        .map_err(|err| format!("无法准备待同步行查询: {err}"))?;
+    let rows = stmt
+        .query_map((MAX_SYNC_RETRIES, now, SYNC_BATCH_LIMIT), |row| {
+            Ok(serde_json::json!({
+                "id": row.get::<_, i64>(0)?,
+                "entity_type": row.get::<_, String>(1)?,
+                "entity_id": row.get::<_, String>(2)?,
+                "action": row.get::<_, String>(3)?,
+                "data_json": row.get::<_, Option<String>>(4)?,
+                "timestamp": row.get::<_, Option<String>>(5)?,
+                "retry_count": row.get::<_, Option<i64>>(6)?.unwrap_or(0),
+            }))
+        })
+        .map_err(|err| format!("无法读取待同步行: {err}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|err| format!("无法转换待同步行: {err}"))?;
+
+    decode_pending_sync_rows(&rows)
+}
+
+pub fn desktop_sync_code_smoke_report() -> Result<DesktopSyncCodeSmokeReport, String> {
+    let conn = Connection::open_in_memory().map_err(|err| format!("无法创建内存同步库: {err}"))?;
+    conn.execute_batch(include_str!("../../migrations/001_offline_queue.sql"))
+        .map_err(|err| format!("无法应用同步迁移: {err}"))?;
+    conn.execute_batch(
+        r#"
+        INSERT INTO sync_log (entity_type, entity_id, action, data_json, timestamp, status, retry_count, next_retry_at, needs_human)
+        VALUES
+            ('message', 'msg-pending', 'update', '{"content":"pending","sync_version":7}', '2026-05-09T00:00:00Z', 'pending', 0, NULL, 0),
+            ('document', 'doc-retry', 'update', '{"title":"retry","syncVersion":"8"}', '2026-05-09T00:01:00Z', 'failed', 1, '2026-05-09T00:02:00Z', 0),
+            ('case', 'case-deferred', 'update', '{"title":"deferred"}', '2026-05-09T00:03:00Z', 'failed', 1, '2026-05-10T00:00:00Z', 0),
+            ('contract', 'contract-conflict', 'update', '{"title":"conflict"}', '2026-05-09T00:04:00Z', 'conflict', 0, NULL, 1);
+        "#,
+    )
+    .map_err(|err| format!("无法写入同步 smoke 数据: {err}"))?;
+
+    let now = "2026-05-09T12:00:00Z";
+    let snapshot = read_local_sync_snapshot_from_connection(&conn, now)?;
+    let expected_snapshot = LocalSyncSnapshot {
+        pending: 2,
+        deferred: 1,
+        conflicts: 1,
+        needs_human: 1,
+    };
+    if snapshot != expected_snapshot {
+        return Err(format!("同步快照 smoke 结果不符合预期: {snapshot:?}"));
+    }
+
+    let pending_rows = pending_sync_rows_from_connection(&conn, now)?;
+    if pending_rows.len() != 2 {
+        return Err(format!(
+            "待同步行 smoke 数量不符合预期: {}",
+            pending_rows.len()
+        ));
+    }
+
+    let push_records = pending_rows
+        .iter()
+        .map(pending_row_to_push_record)
+        .collect::<Vec<_>>();
+    let payload = build_sync_push_payload(push_records, "device-smoke".to_string(), 11);
+    if payload.records.len() != 2 || payload.last_sync_version != 11 {
+        return Err("同步 push payload smoke 不符合预期".to_string());
+    }
+
+    let mut conflict = Map::new();
+    conflict.insert(
+        "entity_type".to_string(),
+        Value::String(pending_rows[0].entity_type.clone()),
+    );
+    conflict.insert(
+        "entity_id".to_string(),
+        Value::String(pending_rows[0].entity_id.clone()),
+    );
+    let conflicts = vec![conflict];
+    let accepted_ids = accepted_row_ids(&pending_rows, &conflicts);
+    if accepted_ids != vec![pending_rows[1].id] {
+        return Err(format!(
+            "同步冲突 accepted row smoke 不符合预期: {accepted_ids:?}"
+        ));
+    }
+
+    let retry_state = sync_retry_state(
+        2,
+        chrono::Utc
+            .with_ymd_and_hms(2026, 5, 9, 12, 0, 0)
+            .single()
+            .ok_or_else(|| "无法构造同步 retry smoke 时间".to_string())?,
+    );
+    if !retry_state.needs_human || retry_state.next_retry_at.is_some() {
+        return Err("同步 retry needs_human smoke 不符合预期".to_string());
+    }
+
+    let pull_body = serde_json::from_value::<SyncPullResponseBody>(serde_json::json!({
+        "server_version": 12,
+        "has_more": false,
+        "records": [
+            {
+                "entity_type": "message",
+                "entity_id": "msg-remote",
+                "action": "upsert",
+                "data": {"content": "remote"},
+                "version": 12
+            }
+        ]
+    }))
+    .map_err(|err| format!("同步 pull response smoke 解码失败: {err}"))?;
+    let pull_records_decoded = pull_body.records.unwrap_or_default().len();
+    if pull_records_decoded != 1 || pull_body.server_version != Some(12) {
+        return Err("同步 pull response smoke 不符合预期".to_string());
+    }
+
+    Ok(DesktopSyncCodeSmokeReport {
+        mode: "desktop_sync_code_smoke",
+        status: "passed",
+        release_evidence_complete: false,
+        checks: DesktopSyncCodeSmokeChecks {
+            sync_log_migration: "passed",
+            snapshot,
+            pending_rows_decoded: pending_rows.len(),
+            push_payload_records: payload.records.len(),
+            accepted_after_conflict: accepted_ids.len(),
+            conflict_rows: conflicts.len(),
+            retry_needs_human: retry_state.needs_human,
+            pull_records_decoded,
+        },
+        completion_note: "Packaged-binary sync code smoke only; signed runtime/backend/device evidence remains pending.",
+    })
 }
 
 /// 同步引擎：处理本地与云端之间的数据同步

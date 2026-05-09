@@ -33,7 +33,7 @@
 | 阻断项 | 为什么阻断 | 下一步 |
 |---|---|---|
 | 真实支付/电签商户沙箱 | 当前代码级协议通过 fake client/单元测试，且已补 `scripts/sandbox-evidence-runner.py` 作为脱敏预检/live 采集入口；runner 已有 `4 passed` 覆盖 live 确认门、脱敏写出、env 模板同步和外部证据槽；2026-05-07 已写出 `payment-sandbox-preflight-20260507.json` 与 `esign-sandbox-preflight-20260507.json`，确认缺真实渠道配置、官方 webhook enable 和外部回调/重试/轮换证据；仍缺真实渠道响应、重试、证书/事件轮换证据 | 获取沙箱凭据和公网 callback 后跑 live runner，再按 `docs/release/commercial-delivery-readiness.md` 的渠道清单跑 7 天 |
-| 桌面同步引擎 | 后端持久日志、Rust SQLCipher/keyring 最小 push/pull、secure SQL command path、Rust IPC `trigger_sync` fallback 代码级 SQLCipher push/pull、desktop strict Clippy、fresh/legacy SQLite migration smoke、SQLCipher plaintext migration 单测、local installed-profile keyring/reopen smoke、SQLite 100/500 本地性能基线、unsigned debug macOS `.app` bundle self-test/runtime startup/WebView page-load smoke、release preflight、冲突管理页、代码级重试退避、Rust init schema 对齐、Tauri debug build 和 `scripts/desktop-sqlite-security-gate.sh` 安全门禁已落；preflight 明确缺签名、公证和 signed runtime 证据；signed/notarized installer、packaged Rust IPC push/pull/conflict/retry、packaged runtime 性能与跨端连续会话未闭环 | 继续执行 TASK-11b 的发布级验收 |
+| 桌面同步引擎 | 后端持久日志、Rust SQLCipher/keyring 最小 push/pull、secure SQL command path、Rust IPC `trigger_sync` fallback 代码级 SQLCipher push/pull、packaged-binary sync code smoke、desktop strict Clippy、fresh/legacy SQLite migration smoke、SQLCipher plaintext migration 单测、local installed-profile keyring/reopen smoke、SQLite 100/500 本地性能基线、unsigned debug macOS `.app` bundle self-test/runtime startup/WebView page-load smoke、release preflight、冲突管理页、代码级重试退避、Rust init schema 对齐、Tauri debug build 和 `scripts/desktop-sqlite-security-gate.sh` 安全门禁已落；preflight 明确缺签名、公证和 signed runtime 证据；signed/notarized installer、packaged Rust IPC 真实 backend push/pull/conflict/retry、packaged runtime 性能与跨端连续会话未闭环 | 继续执行 TASK-11b 的发布级验收 |
 | RAG/引用质量 | TASK-07 已补后端 RBAC/PII、`knowledge_management` 读写权限/组织 fail-closed/出口脱敏、offline smoke 召回基线、live Qdrant smoke、RAG source 字段、司法智库入口、前端引用预览/高亮、图谱 1k 节点降采样/FPS/canvas E2E、Playwright 点击证据和导出文档/chunk/anchor 巡检；2026-05-07 内建法律知识库 full50 已跑通 `42` chunks / `50` questions，recall@10 `1.000`、MRR `1.000`、NDCG@10 `0.997`，且商业 preflight 会拒绝旧 smoke corpus 和 smoke-marked golden | 内建 RAG release baseline 已闭合；外部客户知识库 full50 可作为上线后质量扩展 |
 | 案件/律师市场/风险调查 | TASK-08a/08b/09 核心代码级风险已收口：案件状态机、任务 owner、律师 local guard、利益冲突阻断、撮合公平、风险调查缓存/爬虫/意图均有测试；真实 crawler dry-run、律所 RBAC 全矩阵、案源 8 API、Playwright 全流程仍需补发布证据 | 继续补真实环境与全矩阵验收 |
 | 移动端完整验收 | 本地 mobile/mini smoke 与 fake fallback guard 已通过；移动端/小程序最小触控 token 底座已补；小程序语义 token 层已补并迁移首页/聊天/个人中心；`docs/design/cross-platform-token-drift.md` 已产出三端 token 漂移清单并定位品牌主色和真机触控复核 P0；仍缺品牌主色最终统一、跨设备会话延续、真机验证 | 执行 TASK-11c 剩余 P0/P1 |
@@ -41,7 +41,7 @@
 
 ## 4. 推荐下一步顺序
 
-1. TASK-11b 桌面同步引擎：补 signed/notarized installer、packaged-profile migration 实装证据、packaged Rust IPC push/pull/conflict/retry、packaged runtime 性能和移动端连续会话。
+1. TASK-11b 桌面同步引擎：补 signed/notarized installer、packaged-profile migration 实装证据、packaged Rust IPC 真实 backend push/pull/conflict/retry、packaged runtime 性能和移动端连续会话。
 2. TASK-07 RAG 质量与引用链路：直接影响法务产品可用性，需要真实业务知识库 full50 和引用回链。
 3. TASK-08a/08b 案件/律师市场：补全矩阵、案源 8 API 打勾和 Playwright 三角联通。
 4. 获取支付/电签沙箱凭据后，启动真实渠道 7 天回归与灰度记录。

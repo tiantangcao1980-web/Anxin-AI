@@ -105,6 +105,12 @@ pub fn desktop_runtime_self_test_json() -> Result<String, serde_json::Error> {
     serde_json::to_string_pretty(&desktop_runtime_self_test())
 }
 
+pub fn desktop_sync_code_smoke_json() -> Result<String, String> {
+    let report = services::sync_engine::desktop_sync_code_smoke_report()?;
+    serde_json::to_string_pretty(&report)
+        .map_err(|err| format!("无法序列化 desktop sync code smoke 报告: {err}"))
+}
+
 pub fn desktop_secure_db_installed_profile_smoke_json() -> Result<String, String> {
     let path = std::env::var("ANXIN_DESKTOP_DB_PATH")
         .map_err(|_| "ANXIN_DESKTOP_DB_PATH must be set for installed-profile smoke".to_string())?;
@@ -453,7 +459,7 @@ pub fn run_with_options(options: DesktopRunOptions) {
 
 #[cfg(test)]
 mod tests {
-    use super::desktop_runtime_self_test;
+    use super::{desktop_runtime_self_test, desktop_sync_code_smoke_json};
 
     #[test]
     fn runtime_self_test_reports_local_db_contract() {
@@ -474,6 +480,19 @@ mod tests {
         assert!(report.sqlite_security.encrypted);
         assert!(report.sqlite_security.keyring_backed);
         assert!(!report.sqlite_security.release_blocking);
+    }
+
+    #[test]
+    fn sync_code_smoke_report_is_packaged_binary_safe() {
+        let report = desktop_sync_code_smoke_json().expect("sync code smoke report");
+        let payload: serde_json::Value =
+            serde_json::from_str(&report).expect("sync code smoke JSON");
+
+        assert_eq!(payload["mode"], "desktop_sync_code_smoke");
+        assert_eq!(payload["status"], "passed");
+        assert_eq!(payload["release_evidence_complete"], false);
+        assert_eq!(payload["checks"]["pending_rows_decoded"], 2);
+        assert_eq!(payload["checks"]["retry_needs_human"], true);
     }
 
     #[test]

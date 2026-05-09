@@ -1,7 +1,7 @@
 # Desktop Sync Engine Design
 
 > 日期：2026-05-06
-> 状态：backend durable log implemented; Rust-owned SQLCipher local DB path, frontend bridge sync, and Rust IPC fallback sync are code-level implemented; packaged UI/runtime evidence pending.
+> 状态：backend durable log implemented; Rust-owned SQLCipher local DB path, frontend bridge sync, Rust IPC fallback sync, and packaged-binary sync code smoke are code-level implemented; packaged real-backend UI/runtime evidence pending.
 
 ## Components
 
@@ -46,4 +46,4 @@ Indexes:
 
 - Long-term desktop SQLite owner: Rust secure DB service (`desktop/src/services/secure_db.rs`) owns SQLCipher open, keyring lookup, schema migration, and plaintext-to-encrypted migration.
 - SQLCipher/keyring code-level gate and local installed-profile keyring/reopen smoke are implemented; release evidence still needs packaged UI interaction, packaged-profile migration transcript, signed/notarized packaging, packaged-runtime performance, and cross-device continuation.
-- Real packaged Tauri smoke for migration application, Rust IPC fallback push/pull/conflict/retry, frontend bridge sync, and merge editing.
+- Real packaged Tauri smoke for migration application, Rust IPC fallback real-backend push/pull/conflict/retry, frontend bridge sync, and merge editing.

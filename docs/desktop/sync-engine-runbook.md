@@ -1,7 +1,7 @@
 # Desktop Sync Engine Runbook
 
 > 日期：2026-05-06
-> 状态：backend log available; Rust SQLCipher local profile smoke and Rust IPC fallback sync code path available; packaged UI runtime still pending.
+> 状态：backend log available; Rust SQLCipher local profile smoke, Rust IPC fallback sync code path, and packaged-binary sync code smoke available; packaged real-backend UI runtime still pending.
 
 ## Inspect Backend Sync Logs
 

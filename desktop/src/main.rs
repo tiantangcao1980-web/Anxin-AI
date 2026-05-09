@@ -17,6 +17,19 @@ fn main() {
         }
     }
 
+    if args.iter().any(|arg| arg == "--sync-code-smoke") {
+        match anxin_legal_desktop_lib::desktop_sync_code_smoke_json() {
+            Ok(report) => {
+                println!("{report}");
+                return;
+            }
+            Err(error) => {
+                eprintln!("desktop sync code smoke failed: {error}");
+                std::process::exit(1);
+            }
+        }
+    }
+
     if args.iter().any(|arg| arg == "--runtime-smoke") {
         println!("desktop runtime smoke starting: exit_after_ms=1500");
         anxin_legal_desktop_lib::run_with_options(

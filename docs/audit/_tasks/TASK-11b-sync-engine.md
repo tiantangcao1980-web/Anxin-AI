@@ -15,6 +15,7 @@
 
 - 2026-05-08 后旧 Rust IPC 假成功已清除：未启用时返回 unsupported/fail-closed，并报告本地待同步、离线任务和冲突统计
 - 2026-05-09 增量：`desktop/src/commands/sync.rs` 的 Rust IPC fallback 已接入真实 SQLCipher `sync_log` 数据面，可读 pending/failed 行、POST `/api/v1/sync/push`、按 accepted/conflict/failed 写回、GET `/api/v1/sync/pull` 并按 entity_type 写入本地业务表；当前证据为代码级 `cargo test sync`，仍缺真实 backend + packaged runtime push/pull/conflict/retry 交互证据
+- 2026-05-09 增量：桌面二进制新增 `--sync-code-smoke`，并接入 `scripts/desktop-release-runtime-smoke.sh`；真实 `.app` 二进制可验证同步迁移、pending/deferred/conflict/needs_human 计数、push payload、冲突 accepted 行选择、retry needs_human 和 pull response 解码。该证据仍是 packaged-binary supporting smoke，不替代真实 backend + packaged runtime push/pull/conflict/retry 交互证据
 - `desktop/src/services/sync_engine.rs` 的后台 `SyncEngine::push_pending_records` / `pull_incremental_updates` 仍保持未启用时返回 Error，不再 `Ok(0)`；后台常驻同步循环需后续把 AppHandle/SQLCipher 数据面纳入服务层
 - 前端 `frontend/src/lib/api-adapter.ts` 已承担 SQLCipher 本地同步路径；仍缺 signed packaged runtime 证据证明真实环境可 push/pull/retry/conflict
 - **本任务现在不是修补假成功，而是补真实云端数据面、跨设备会话延续、移动远控命令队列和商业证据**。工时仍按 7-10 天计
