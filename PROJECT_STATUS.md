@@ -4,6 +4,19 @@
 
 ---
 
+## 2026-05-09 商业交付状态纠偏
+
+当前目标不是“已有代码即可上线”，而是尽可能接近商业交付。最新事实源如下：
+
+- **总体状态**：尚未达到商业交付完成态。`scripts/commercial-readiness-gate.sh --quick` 仍按预期失败，剩余阻断为 release docs not ready、支付沙箱、电签沙箱、桌面 runtime smoke、移动/小程序真机 smoke、企业 Agent 治理 runtime evidence pending。
+- **桌面优先**：后续功能开发先聚焦桌面端本地可执行能力与治理门禁；移动端/小程序随后按 uni-app 统一端路线推进。
+- **桌面 MVP 11a**：窗口 chrome、Quick Query、文件拖入 SQLCipher 离线队列、WebView drop、工作站配置/配置档 CRUD、PrivacyContext 对齐、远控 host safe-probe 控制面已有代码/浏览器/本地门禁证据；仍缺 signed packaged runtime、macOS/Windows 截图/视频、快捷键 P95 < 200ms、托盘 drop P95 < 500ms、真实 local model、真实 approved connector 和真机远控证据。
+- **桌面同步 11b**：Rust-owned SQLCipher/keyring、本地/unsigned release packaged-profile smoke、packaged-binary sync code smoke、unsigned release loopback push/pull/conflict/retry 和跨设备续接代码级 rehearsal 已有；仍缺 signed/notarized packaged-profile、signed runtime 性能、共享预发后端 transcript、交互式 conflict/human-intervention UI transcript 和真机跨设备连续会话。
+- **移动/小程序路线**：旧 `mobile/` Expo 与 `mini-program/` Taro 目录作为 legacy/回归参考保留；新移动端和小程序能力优先进入 `apps/uni-mobile/`，当前 uni-app base smoke 已通过 H5/微信小程序构建，但 DCloud App 云打包/签名、真实 iOS/Android、交互式微信开发者工具和共享预发账号证据仍缺。
+- **外部 API 策略**：支付、电签、LLM/embedding、MCP/Skills connector 等先保留 sandbox/live runner、contract test、env manifest 和脱敏 artifact 槽位；真实密钥、商户后台、签名身份和真机由外部输入后再联调。
+
+---
+
 ## 2026-04-16 V2 架构升级启动
 
 ### 总体方向
@@ -49,8 +62,8 @@
 
 ### 完成度统计
 - **Phase 1-5 共计 45+ 子任务全部完成**
-- V2 架构核心基础设施已就绪，可部署到生产环境
-- 后续为持续迭代：支付渠道真实对接、跨模式数据同步、企业私有化定制
+- V2 架构核心基础设施已就绪；**不等于商业可上线完成态**
+- 后续为商业交付收口：支付/电签真实沙箱、桌面 signed runtime、跨模式/跨设备数据同步、企业 Agent 治理 runtime、移动/小程序真机与 uni-app 发布链路
 
 ### 关键决策
 - **账号体系不分离**：同一 users 表，通过 `primary_client` 字段区分默认客户端

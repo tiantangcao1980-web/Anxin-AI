@@ -211,9 +211,9 @@ CREATE TABLE sync_state (
 ```
 
 **结论**：
-- 缺口 A 必须**先于** 任务 5/6/8b/9/10/11b 任何一个
-- 缺口 B 必须**先于** 任务 5/10 中的"上线官方协议"动作
-- 缺口 C 的修复就是任务 11b 本身
+- 缺口 A 的底座已落地，后续阻断集中在 MinIO/S3 外部配置、backfill 与下游入口真实运行证据。
+- 缺口 B 的代码级官方协议与幂等/重试底座已落地，上线仍必须等真实支付/电签沙箱与灰度证据。
+- 缺口 C 已由任务 11b 推进到 SQLCipher/keyring、Rust IPC fallback、unsigned release packaged-binary loopback 和跨设备代码级 rehearsal；商业闭环仍必须等 signed packaged runtime、shared-staging sync transcript、交互式冲突/人工处理 UI transcript 和真机跨设备续接证据。
 
 ---
 
@@ -223,15 +223,15 @@ CREATE TABLE sync_state (
 |---|---|---|
 | A 对象存储 | 任务 0 完成后，与任务 1/2 并行启动（独立工程师） | ✅ 底座已落地；剩余 MinIO 凭据、backfill、业务附件入口迁移 |
 | B Webhook 骨架 | 任务 0 完成后，由任务 5 工程师起步（合并到任务 5）| ✅ `webhook_received` + `webhook_idempotency_service` + `webhook_handler.py` + `webhook_events.py` + Admin 查询/手动重试 + Prometheus 指标 + 自动重试/backoff + 官方通知 id 幂等 + e签宝 provider/官方回调 HMAC + 法大大 FASC provider/webhook 已落；真实沙箱、账号事件映射与灰度证据待补 |
-| C 桌面同步 | 任务 11b 启动时（约 Day 14） | SQLite schema + push/pull/conflict 三件 |
+| C 桌面同步 | 已完成代码级/unsigned release 本地证据；商业证据继续推进 | signed packaged runtime + shared-staging sync transcript + 交互式冲突/人工处理 UI transcript + 真机跨设备续接 |
 
 ---
 
 ## 4. 与其他文档的对账
 
 完成本节后，需要回写：
-- `PROJECT_STATUS.md` → 把"离线任务队列 + 同步引擎"从 ✅ 改为"⏳ 缺口 C 待修，预计 Day 21 完成"
-- `PRODUCT_ROADMAP.md` → 把"已完成能力"中的"离线任务队列 + 同步引擎"标"骨架已搭，实质未连"
+- `PROJECT_STATUS.md` → 2026-05-09 已补商业交付状态纠偏，明确桌面 11a/11b 的代码级证据与 signed/runtime/真机阻断
+- `PRODUCT_ROADMAP.md` → 2026-05-09 已把"离线任务队列 + 同步引擎"从完成态改为代码级/unsigned 证据已具备、商业证据待补，并把移动端路线改为 uni-app
 - 在 `docs/ARCHITECTURE_V2.md` 中加一节"对象存储抽象层"（缺口 A 的设计）
 
 ---

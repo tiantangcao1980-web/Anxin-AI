@@ -1,8 +1,8 @@
 # 安心 AI 法务 — 多端产品路线图
 
-> 最后更新：2026-04-15
+> 最后更新：2026-05-09
 > 负责人：产品 + 工程
-> 状态：P0 桌面端 MVP 推进中
+> 状态：桌面端代码级 MVP 与本地门禁推进中；商业发布仍缺签名/真机/外部 API 证据
 
 ---
 
@@ -43,7 +43,7 @@
 │     - 本地 LLM 集成（私有化场景）                                    │
 │     - 目标用户：日常重度使用的律师、企业法务                           │
 │                                                                  │
-│  📱 移动端 (Mobile Edition, Tauri iOS/Android)                     │
+│  📱 移动端/小程序 (Mobile + Mini Program, uni-app)                  │
 │     - 外出办公场景（出庭/会见/差旅）                                  │
 │     - 快速 AI 咨询 + 案件状态查看 + 消息审批                          │
 │     - 语音输入 + 拍照识别                                           │
@@ -76,55 +76,57 @@
 
 **技术栈**：Tauri v2 + Rust + 共享 Web 前端代码
 
-**三种工作模式**（已实现于 `desktop/src/models/`）：
+**三种工作模式**（桌面端已有 secret-free runtime config + 前端 PrivacyContext 对齐；signed runtime 证据待补）：
 | 模式 | 数据存储 | AI 推理 | 适用场景 |
 |------|----------|---------|----------|
 | 🔒 绝密模式 | 本地 SQLite | 本地 LLM | 敏感案件、国企法务 |
 | 🔄 混合模式 | 本地 + 云端（脱敏）| 云端 LLM | 日常办公（推荐） |
 | ☁️ 云端模式 | 云端 | 云端 LLM | 团队协作优先 |
 
-**已完成能力**（截至 2026-04-15）：
+**当前代码级能力**（截至 2026-05-09；不等于商业发布完成）：
 - ✅ Tauri v2 架构搭建（`desktop/`）
 - ✅ 系统托盘（模式切换、立即同步、退出）
 - ✅ 深度链接（`anxin://` 协议）
-- ✅ 自动更新（`tauri-plugin-updater`）
-- ✅ 本地 SQLite 数据库（`tauri-plugin-sql`）
-- ✅ 离线任务队列 + 同步引擎（`desktop/src/services/`）
+- ⏳ 自动更新（`tauri-plugin-updater`；商业自动更新通道需签名/发布证据）
+- ✅/⏳ 本地 SQLCipher 数据库（Rust-owned SQLCipher/keyring、本地/unsigned release smoke 已有；signed packaged-profile 证据待补）
+- ✅/⏳ 离线任务队列 + 同步引擎（代码级、unsigned packaged loopback、跨设备续接 rehearsal 已有；shared-staging/signed runtime 证据待补）
 - ✅ 本地 LLM 集成（`commands/local_llm.rs`）
 - ✅ 生物识别认证（`tauri-plugin-biometric`）
-- ✅ **全局快捷键 Cmd+Shift+Space**（本次新增）
+- ✅/⏳ **全局快捷键 Cmd+Shift+Space + Quick Query 独立窗口**（代码/浏览器证据已有；packaged 200ms 和真实本地模型 smoke 待补）
 
-**待实现 MVP 任务**（优先级递减）：
-- [ ] **P0-1**：Tauri 窗口外观优化 — 自定义 macOS 标题栏、去除 Windows 边框、透明毛玻璃效果
-- [ ] **P0-2**：全局快捷键呼出后的"快速问答"模式 — 精简输入框，对话完即隐藏
-- [ ] **P0-3**：文件拖拽到系统托盘 → 自动分析（合同审查 / 文档摘要）
+**MVP 发布剩余任务**（优先级递减）：
+- [~] **P0-1**：Tauri 窗口外观优化 — 代码级 chrome/titlebar gate 已有；macOS/Windows 截图、vibrancy/acrylic 视觉验收和 signed runtime 待补
+- [~] **P0-2**：全局快捷键呼出后的"快速问答"模式 — 独立 Quick Query 窗口已实现；packaged 快捷键实测、P95 < 200ms 和真实 local model smoke 待补
+- [~] **P0-3**：文件拖拽分析 — WebView drop + SQLCipher offline queue + redacted toast 已实现；真实托盘图标 drop、P95 < 500ms 和 signed runtime 待补
 - [ ] **P1-1**：本地 LLM 模型管理界面（Ollama 集成，一键下载 Qwen/Llama）
 - [ ] **P1-2**：原生通知 — 案件进展、风险预警推送
 - [ ] **P1-3**：离线模式优化 — 核心功能完全脱网可用
-- [ ] **P2-1**：dmg / msi 签名分发
-- [ ] **P2-2**：自动更新通道（stable/beta）
+- [ ] **P2-1**：dmg / msi 签名分发（Apple Developer ID / notarization / Windows certificate 外部输入）
+- [ ] **P2-2**：自动更新通道（stable/beta，需签名产物与灰度记录）
 
 ---
 
-### 2.3 移动端（P1 推进）
+### 2.3 移动端/小程序（桌面收口后按 uni-app 推进）
 
 **核心场景**：
 - 律师出庭、会见客户、差旅期间的 AI 查询
 - 管理者随时查看案件进展、审批状态
 - 语音输入 + 拍照识别证据材料
 
-**技术栈**：Tauri iOS/Android + 共享 Web 前端代码 + 移动端专用 UI 壳
+**技术栈**：uni-app + TypeScript。旧 `mobile/` Expo 与 `mini-program/` Taro 目录保留为 legacy/回归参考，后续新移动能力优先进入 `apps/uni-mobile/`。
 
-**已有配置**：
-- ✅ `package.json` 中的 `tauri:android:*` / `tauri:ios:*` 脚本
-- ✅ `tauri.conf.json` 支持移动端深度链接
+**已有代码级基座**：
+- ✅ `apps/uni-mobile/` 首版基座：typecheck、契约测试、H5 build、WeChat Mini Program build 已通过
+- ✅ legacy mobile/mini 本地 smoke、fake fallback guard、隐私模式 no-network guard 已有
+- ✅ cross-device continuation code rehearsal 已证明后端/桌面 adapter/uni-app sync client 的代码级续接
+- ⏳ DCloud App 云打包/签名、真实 iOS/Android、交互式微信开发者工具和共享预发账号跨设备连续会话仍待补
 
 **待实现**：
-- [ ] 移动端专用布局（底部 Tab 导航、44px 触摸目标、safe-area）
+- [ ] uni-app 移动端专用布局（底部 Tab 导航、44px 触摸目标、safe-area）
 - [ ] 语音输入集成（浏览器 Web Speech API + 原生 fallback）
 - [ ] 拍照识别（原生相机插件）
 - [ ] 推送通知（APNs / FCM）
-- [ ] App Store / Google Play 上架流程
+- [ ] DCloud App 云打包 / iOS TestFlight / Android 渠道 / 微信小程序体验版验收
 
 ---
 
@@ -132,9 +134,9 @@
 
 ### M1（当前 → 4 周后）：桌面端 MVP 发布
 - ✅ 设计系统统一（已完成 Batch 1-4）
-- ✅ Tauri 全局快捷键（已完成）
-- [ ] P0-1 ~ P0-3 完成
-- [ ] 内测版 DMG 签名、Windows MSI 打包
+- ✅ Tauri 全局快捷键 + Quick Query 代码级链路（已完成，packaged 性能待补）
+- ✅/⏳ P0-1 ~ P0-3 代码级和本地门禁已推进；signed runtime、平台手测、性能证据待补
+- [ ] 内测版 DMG 签名、公证、Windows MSI 打包/签名
 - [ ] 50 个种子用户灰度测试
 
 ### M2（M1 + 4 周）：桌面端正式发布
@@ -143,14 +145,14 @@
 - [ ] 自动更新上线
 - [ ] 用户反馈闭环（内嵌反馈面板 → 后端 AIAssistantFeedback）
 
-### M3（M2 + 8 周）：移动端 Beta
-- [ ] iOS / Android 移动端 UI 适配
-- [ ] TestFlight / 应用宝 Beta
-- [ ] 核心场景（AI 查询、案件查看、消息）
+### M3（M2 + 8 周）：uni-app 移动端/小程序 Beta
+- [ ] uni-app iOS / Android / H5 / 微信小程序 UI 适配
+- [ ] DCloud 云打包、TestFlight、Android 渠道和微信体验版
+- [ ] 核心场景（AI 查询、案件查看、消息、桌面续接）
 
 ### M4（M3 + 4 周）：多端闭环
 - [ ] 三端数据实时同步
-- [ ] 跨设备会话继续（桌面开始 → 手机继续）
+- [ ] 跨设备会话继续（桌面开始 → 手机继续；当前只有代码级 rehearsal，缺 signed/shared-staging/真机证据）
 - [ ] 企业版功能（团队订阅、席位管理、审计日志）
 
 ---

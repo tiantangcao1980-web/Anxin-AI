@@ -83,13 +83,13 @@ PRODUCT_ROADMAP.md 第 86-95 行列出"已完成能力"，第 97-106 行列出"�
 
 | ROADMAP 写的 | 代码现实 | 严重度 |
 |---|---|---|
-| ✅「离线任务队列 + 同步引擎」 | 旧 Rust IPC 假成功已清除：`sync.rs` 在 TopSecret/未登录时继续 fail-closed 并报告本地待同步/冲突统计；2026-05-09 已补 Rust IPC fallback 代码级 SQLCipher push/pull 写回；`sync_engine.rs` 后台 service 未启用 push/pull 时仍返回 Error，不再 `Ok(0)`。但 packaged runtime push/pull/conflict/retry、跨设备延续、移动远控和 signed packaged runtime 证据仍未完成 | 🟠 **假成功已修，商业同步闭环仍未完成** |
-| ✅「全局快捷键 Cmd+Shift+Space」 | 注册存在。但快捷键呼出后**没有"快速问答"模式**（即 P0-2 任务）—— 当前呼出后跳到主界面 | 🟠 P0-2 待开发 |
-| [ ] P0-1：Tauri 窗口外观优化 | 未实现 | 🟠 P0 待开发 |
-| [ ] P0-2：全局快捷键呼出后的"快速问答"模式 | 未实现 | 🟠 P0 待开发 |
-| [ ] P0-3：文件拖拽到系统托盘 → 自动分析 | 未实现 | 🟠 P0 待开发 |
+| ✅/⏳「离线任务队列 + 同步引擎」 | 旧 Rust IPC 假成功已清除：`sync.rs` 在 TopSecret/未登录时继续 fail-closed 并报告本地待同步/冲突统计；2026-05-09 已补 Rust IPC fallback 代码级 SQLCipher push/pull 写回；unsigned release packaged-binary loopback 已证明本地 HTTP 后端 push/pull/conflict/retry；`sync_engine.rs` 后台 service 未启用 push/pull 时仍返回 Error，不再 `Ok(0)`。但 shared-staging backend、交互式 conflict/human-intervention UI、跨设备延续真机和 signed packaged runtime 证据仍未完成 | 🟠 **代码级/unsigned 证据已补，商业同步闭环仍未完成** |
+| ✅/⏳「全局快捷键 Cmd+Shift+Space」 | 已从“注册快捷键”推进到独立 `/desktop/quick-query` 快问窗口；top-secret/hybrid 桌面模式走本地 LLM，cloud/web 走既有 chat fallback；关闭、ESC、失焦和回答后自动隐藏已有代码/浏览器证据。packaged runtime 快捷键实测、P95 < 200ms 和真实 local model smoke 待补 | 🟠 P0-2 代码级完成，商业证据待补 |
+| [~] P0-1：Tauri 窗口外观优化 | macOS Overlay、Windows/Linux decoration 关闭、自绘标题栏按钮、双击最大化模型和 `desktop-window-chrome-gate.sh` 已补；macOS/Windows 实机截图、vibrancy/acrylic 和 signed runtime 待补 | 🟠 代码级完成，视觉/签名证据待补 |
+| [~] P0-2：全局快捷键呼出后的"快速问答"模式 | Quick Query 独立窗口、前端模型和 e2e 已补；packaged runtime 快捷键/性能/真实模型证据待补 | 🟠 代码级完成，runtime 证据待补 |
+| [~] P0-3：文件拖拽到系统托盘 → 自动分析 | `.pdf/.doc/.docx` 与 `.txt/.md` 分类、SQLCipher `offline_tasks` 入队、`desktop://file-queued` toast、WebView drop 监听已补；真实托盘图标 drop、P95 < 500ms 和 signed runtime 待补 | 🟠 WebView/队列代码级完成，托盘/性能证据待补 |
 
-**实质：ROADMAP 把"已注册全局快捷键"当作 P0-2 完成，但完整 P0-2 需要"呼出 → 简化输入框 → 流式回答 → 完成即隐藏"的端到端体验。同步引擎更是把"框架已搭"当作"已完成"。**
+**实质：ROADMAP 已从“骨架/注册快捷键”推进到桌面代码级闭环，但商业交付仍必须等 signed runtime、平台手测、性能、真实 connector/模型和真机证据。**
 
 **修在哪**：任务 11a（窗口/快捷键/拖拽）+ 任务 11b（同步引擎，从零写）
 
