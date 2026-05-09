@@ -59,7 +59,7 @@
 | P0-6 | `frontend/src/components/desktop/` + `desktop/src/commands/local_llm.rs` + LLM/knowledge/MCP/skill routes | 已有零散本地模型、知识库、MCP/Skill 底座，但桌面没有主工作站统一入口 | 桌面壳展示当前隐私模式、本地模型状态、知识库状态、Skills/MCP 状态和配置入口；不允许在绝密模式下诱导云端调用 |
 | P0-7 | 新建 `desktop/src/commands/remote_control.rs` + 11b command queue | 移动端远控桌面未定义 | 桌面作为 remote-control host：展示配对请求、权限范围、远程命令确认、执行状态、取消/撤销入口和审计日志；高风险动作必须二次确认 |
 | P0-8 | `frontend/src/components/desktop/DesktopWorkstationPanel.tsx` + `frontend/src/lib/tauri-bridge.ts` | 工作站只有只读状态入口，缺最小配置写入面 | 桌面客户端可本地切换绝密/混合/云端模式、配置后端环境地址，非桌面预览只读；URL 校验拒绝非 http/https；绝密模式仍不开放数据网络 |
-| P1-3 | `desktop/src/commands/offline_tasks.rs` + `desktop/src/services/offline_queue.rs` + `DesktopWorkstationPanel.tsx` | 离线任务只能看统计，失败任务缺本机修复入口 | 本机运行页列出脱敏最近任务、展示队列状态、允许 failed 任务重新入队；该操作只改本机 SQLCipher 队列，不触发网络同步 |
+| P1-3 | `desktop/src/commands/offline_tasks.rs` + `desktop/src/services/offline_queue.rs` + `DesktopWorkstationPanel.tsx` | 离线任务只能看统计，失败任务缺本机修复入口，queued 任务缺本机处理动作 | 本机运行页列出脱敏最近任务、展示队列状态、允许 failed 任务重新入队；`.txt/.md` 文档摘要可由内置本机处理器写入 `local_result` 并推进到 `local_completed`；这些动作只改本机 SQLCipher 队列，不触发网络同步 |
 
 ---
 

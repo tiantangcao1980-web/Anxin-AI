@@ -23,6 +23,7 @@ import {
   listOfflineTasks,
   listLocalModels,
   listWorkstationProfiles,
+  processLocalOfflineTasks,
   remoteControlConfirmPairing,
   remoteControlRunHostCycle,
   requestDesktopNotificationPermission,
@@ -180,7 +181,7 @@ export function DesktopWorkstationPanel() {
   const [notificationPermissionBusy, setNotificationPermissionBusy] = useState(false)
   const [notificationPermission, setNotificationPermission] = useState<DesktopNotificationPermissionResponse | null>(null)
   const [offlineTasks, setOfflineTasks] = useState<OfflineTaskSummary[]>([])
-  const [offlineQueueBusy, setOfflineQueueBusy] = useState<'refresh' | 'retry' | null>(null)
+  const [offlineQueueBusy, setOfflineQueueBusy] = useState<'refresh' | 'retry' | 'process' | null>(null)
   const [probes, setProbes] = useState<WorkstationProbeState>(PREVIEW_PROBES)
   const [remoteControlHost, setRemoteControlHost] = useState<RemoteControlHostRuntimeState>(
     DEFAULT_REMOTE_CONTROL_HOST_STATE
@@ -564,6 +565,25 @@ export function DesktopWorkstationPanel() {
       await handleOfflineQueueRefresh({ silent: true })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '失败任务重新入队失败')
+    } finally {
+      setOfflineQueueBusy(null)
+    }
+  }
+
+  const handleOfflineQueueProcessLocal = async () => {
+    if (!desktopClient || offlineQueueBusy || probes.queueQueued === 0) return
+
+    setOfflineQueueBusy('process')
+    try {
+      const result = await processLocalOfflineTasks(3)
+      if (!result) {
+        toast.error('本机离线任务处理失败')
+        return
+      }
+      toast.success(result.message)
+      await handleOfflineQueueRefresh({ silent: true })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '本机离线任务处理失败')
     } finally {
       setOfflineQueueBusy(null)
     }
@@ -1425,6 +1445,17 @@ export function DesktopWorkstationPanel() {
               >
                 <icons.RotateCcw className={iconSize.sm} />
                 {offlineQueueBusy === 'retry' ? '处理中' : '失败重入队'}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                data-testid="offline-queue-process-local"
+                disabled={!desktopClient || offlineQueueBusy === 'process' || probes.queueQueued === 0}
+                onClick={handleOfflineQueueProcessLocal}
+              >
+                <icons.Play className={iconSize.sm} />
+                {offlineQueueBusy === 'process' ? '处理中' : '本机处理'}
               </Button>
             </div>
           </div>

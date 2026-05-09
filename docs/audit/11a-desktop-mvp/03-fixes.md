@@ -30,6 +30,7 @@
 - Added secret-free default local model persistence and workstation UI controls so Quick Query and local-mode calls no longer depend on a hard-coded model name.
 - Added a native notification bridge for case progress, risk alerts, system, and sync messages; the bridge sanitizes notification copy, exposes permission status/request IPC, sends through the local Tauri notification plugin, and keeps TopSecret notifications local-only.
 - Added a local offline queue manager with redacted recent task summaries and failed-task requeue; requeue only updates the local SQLCipher queue and does not imply cloud sync.
+- Added a built-in local offline processor for `.txt/.md` document summaries; it reads UTF-8 text locally, writes a rules-based `desktop_builtin_text_summary_v1` result to SQLCipher `local_result`, and moves the task to `local_completed` without network or model calls.
 - Tightened user-facing IA labels so the settings entry reads as "本机运行" while organization-wide users, roles, secrets, audit, integrations, and platform policy remain under "治理后台".
 - Kept non-desktop previews read-only for desktop-only actions.
 - Preserved TopSecret/local fail-closed behavior for sync and remote-control actions.

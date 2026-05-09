@@ -200,6 +200,25 @@ impl OfflineQueue {
         "#
     }
 
+    /// 获取内置本机处理器可执行的 queued 任务。
+    ///
+    /// 当前只选择 document_summary，避免在没有本地模型 smoke 的情况下把 chat/contract_review 误报为已处理。
+    pub fn queued_local_tasks_sql() -> &'static str {
+        r#"
+        SELECT
+            id,
+            task_type,
+            description,
+            priority,
+            retry_count
+        FROM offline_tasks
+        WHERE status = 'queued'
+          AND task_type = 'document_summary'
+        ORDER BY priority ASC, datetime(created_at) ASC
+        LIMIT ?1
+        "#
+    }
+
     /// 获取最近离线任务，供工作站只读展示。
     pub fn recent_tasks_sql() -> &'static str {
         r#"
@@ -392,5 +411,44 @@ mod tests {
             .expect("count queued");
         assert_eq!(failed_count, 0);
         assert_eq!(queued_count, 2);
+    }
+
+    #[test]
+    fn queued_local_tasks_sql_only_picks_builtin_supported_tasks() {
+        let conn = Connection::open_in_memory().expect("open sqlite");
+        conn.execute_batch(include_str!("../../migrations/001_offline_queue.sql"))
+            .expect("init schema");
+        conn.execute(
+            OfflineQueue::insert_sql(),
+            (
+                "task-summary",
+                "document_summary",
+                "summary",
+                Option::<String>::None,
+                2,
+            ),
+        )
+        .expect("insert summary task");
+        conn.execute(
+            OfflineQueue::insert_sql(),
+            (
+                "task-contract",
+                "contract_review",
+                "contract",
+                Option::<String>::None,
+                1,
+            ),
+        )
+        .expect("insert contract task");
+
+        let ids = conn
+            .prepare(OfflineQueue::queued_local_tasks_sql())
+            .expect("prepare queued local tasks")
+            .query_map([10_i64], |row| row.get::<_, String>(0))
+            .expect("query queued local tasks")
+            .collect::<Result<Vec<_>, _>>()
+            .expect("decode ids");
+
+        assert_eq!(ids, vec!["task-summary"]);
     }
 }

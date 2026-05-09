@@ -126,6 +126,7 @@ test.describe('本机运行设置入口', () => {
     await expect(page.getByTestId('native-notification-test')).toBeDisabled()
     await expect(page.getByTestId('offline-queue-refresh')).toBeDisabled()
     await expect(page.getByTestId('offline-queue-retry-failed')).toBeDisabled()
+    await expect(page.getByTestId('offline-queue-process-local')).toBeDisabled()
     await expect(page.getByTestId('remote-control-host-refresh')).toBeDisabled()
     await expect(page.getByTestId('remote-control-host-confirm')).toBeDisabled()
     await expect(page.getByTestId('remote-control-host-cycle')).toBeDisabled()
@@ -208,6 +209,7 @@ test.describe('本机运行设置入口', () => {
     await expect(page.getByTestId('desktop-offline-queue-manager')).toContainText('合同审查: 并购协议.pdf')
     await expect(page.getByTestId('desktop-offline-queue-manager')).not.toContainText('/Users')
     await expect(page.getByTestId('offline-queue-retry-failed')).toBeEnabled()
+    await expect(page.getByTestId('offline-queue-process-local')).toBeEnabled()
     await expect(page.getByTestId('workstation-probe-native-notification')).toContainText('可测试')
     await expect(page.getByTestId('native-notification-permission')).toContainText('已授权')
     await expect(page.getByTestId('native-notification-permission-action')).toBeEnabled()
@@ -340,7 +342,7 @@ test.describe('本机运行设置入口', () => {
       }
       let localModelDefault = 'qwen2.5:7b'
       let nativePermission = 'prompt'
-      let failedOfflineTasks = 1
+      let offlineTaskStatus: 'failed' | 'queued' | 'local_completed' = 'failed'
       const profiles: Array<{ id: string; name: string; mode: string; backend_url: string }> = []
       const notifications: Array<Record<string, unknown> | undefined> = []
       const buildNativePermission = (requested = false) => ({
@@ -444,11 +446,11 @@ test.describe('本机运行设置入口', () => {
           }
           if (cmd === 'get_queue_stats') {
             return {
-              queued: failedOfflineTasks > 0 ? 0 : 1,
+              queued: offlineTaskStatus === 'queued' ? 1 : 0,
               local_processing: 0,
-              local_completed: 0,
+              local_completed: offlineTaskStatus === 'local_completed' ? 1 : 0,
               synced: 0,
-              failed: failedOfflineTasks,
+              failed: offlineTaskStatus === 'failed' ? 1 : 0,
               total: 1,
             }
           }
@@ -459,24 +461,35 @@ test.describe('本机运行设置入口', () => {
                 taskType: 'document_summary',
                 title: '文档摘要: 会议纪要.md',
                 detail: '桌面文件拖入任务，本地路径仅保存在加密队列',
-                status: failedOfflineTasks > 0 ? 'failed' : 'queued',
+                status: offlineTaskStatus,
                 priority: 2,
                 createdAt: '2026-05-09T10:00:00Z',
                 updatedAt: '2026-05-09T10:05:00Z',
-                retryCount: failedOfflineTasks > 0 ? 2 : 0,
-                hasLocalResult: false,
-                errorMessage: failedOfflineTasks > 0 ? 'network down' : undefined,
+                retryCount: offlineTaskStatus === 'failed' ? 2 : 0,
+                hasLocalResult: offlineTaskStatus === 'local_completed',
+                errorMessage: offlineTaskStatus === 'failed' ? 'network down' : undefined,
               },
             ]
           }
           if (cmd === 'retry_failed_offline_tasks') {
-            const retried = failedOfflineTasks
-            failedOfflineTasks = 0
+            const retried = offlineTaskStatus === 'failed' ? 1 : 0
+            if (retried > 0) offlineTaskStatus = 'queued'
             return {
               retried,
               localOnly: true,
               safeInTopSecret: true,
               message: `${retried} 条失败任务已重新入队`,
+            }
+          }
+          if (cmd === 'process_local_offline_tasks') {
+            const processed = offlineTaskStatus === 'queued' ? 1 : 0
+            if (processed > 0) offlineTaskStatus = 'local_completed'
+            return {
+              processed,
+              failed: 0,
+              localOnly: true,
+              safeInTopSecret: true,
+              message: `${processed} 条离线任务已在本机处理完成`,
             }
           }
           return null
@@ -498,6 +511,12 @@ test.describe('本机运行设置入口', () => {
 
     await expect(page.getByTestId('offline-queue-failed')).toContainText('0 条')
     await expect(page.getByTestId('offline-queue-queued')).toContainText('1 条')
+
+    await page.getByTestId('offline-queue-process-local').click()
+
+    await expect(page.getByTestId('offline-queue-queued')).toContainText('0 条')
+    await expect(page.getByTestId('offline-queue-local-completed')).toContainText('1 条')
+    await expect(page.getByTestId('desktop-offline-queue-manager')).toContainText('本机已完成')
 
     await page.getByTestId('local-model-input').fill('llama3.1:8b')
     await page.getByTestId('local-model-save').click()

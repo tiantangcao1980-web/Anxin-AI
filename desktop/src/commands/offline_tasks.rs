@@ -11,7 +11,12 @@ use crate::commands::privacy_guard::ensure_data_network_allowed;
 use crate::models::{AppMode, SharedAppState};
 use crate::services::{offline_queue, secure_db};
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 use tauri::{command, AppHandle, State};
+
+const MAX_LOCAL_PROCESS_LIMIT: u32 = 10;
+const MAX_TEXT_DOCUMENT_BYTES: u64 = 512 * 1024;
+const TEXT_SUMMARY_EXCERPT_CHARS: usize = 480;
 
 /// 离线任务摘要
 #[allow(dead_code)]
@@ -52,8 +57,22 @@ pub struct OfflineQueueRetryReport {
     pub message: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OfflineQueueProcessReport {
+    pub processed: u32,
+    pub failed: u32,
+    pub local_only: bool,
+    pub safe_in_top_secret: bool,
+    pub message: String,
+}
+
 fn clamp_task_limit(limit: Option<u32>) -> u32 {
     limit.unwrap_or(8).clamp(1, 50)
+}
+
+fn clamp_process_limit(limit: Option<u32>) -> u32 {
+    limit.unwrap_or(3).clamp(1, MAX_LOCAL_PROCESS_LIMIT)
 }
 
 fn value_string(row: &serde_json::Value, key: &str) -> Result<String, String> {
@@ -135,6 +154,105 @@ fn summarize_task_description(task_type: &str, description: &str) -> (String, St
             120,
         ),
     )
+}
+
+fn normalize_inline_text(value: &str) -> String {
+    value.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn extension_lower(path: &Path) -> String {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase()
+}
+
+fn text_summary_payload(
+    task_id: &str,
+    task_type: &str,
+    description: &str,
+) -> Result<String, String> {
+    let payload = serde_json::from_str::<serde_json::Value>(description)
+        .map_err(|_| "内置本机处理器仅支持桌面文件拖入任务".to_string())?;
+    if payload.get("source").and_then(serde_json::Value::as_str) != Some("desktop_file_drop") {
+        return Err("内置本机处理器仅支持桌面文件拖入任务".to_string());
+    }
+    if task_type != "document_summary" {
+        return Err("当前内置本机处理器仅支持文本类文档摘要".to_string());
+    }
+
+    let file_name = payload
+        .get("file_name")
+        .and_then(serde_json::Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or("文档");
+    let local_path = payload
+        .get("local_path")
+        .and_then(serde_json::Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| "离线任务缺少本机文件路径".to_string())?;
+    let path = Path::new(local_path);
+    let extension = extension_lower(path);
+    if !matches!(extension.as_str(), "txt" | "md") {
+        return Err("当前内置本机处理器仅支持 .txt / .md 文档摘要".to_string());
+    }
+
+    let metadata =
+        std::fs::symlink_metadata(path).map_err(|err| format!("无法读取本机文件元数据: {err}"))?;
+    if metadata.file_type().is_symlink() {
+        return Err("本机离线处理拒绝符号链接文件".to_string());
+    }
+    if !metadata.is_file() {
+        return Err("本机离线处理只接受普通文件".to_string());
+    }
+    if metadata.len() > MAX_TEXT_DOCUMENT_BYTES {
+        return Err(format!(
+            "文本文件超过本机摘要上限 {}KB",
+            MAX_TEXT_DOCUMENT_BYTES / 1024
+        ));
+    }
+
+    let content =
+        std::fs::read_to_string(path).map_err(|err| format!("无法读取 UTF-8 文本文件: {err}"))?;
+    let normalized = normalize_inline_text(&content);
+    if normalized.is_empty() {
+        return Err("文本文件内容为空".to_string());
+    }
+
+    let line_count = content.lines().count();
+    let char_count = content.chars().count();
+    let heading = content
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .map(|line| truncate_chars(line, 80))
+        .unwrap_or_else(|| file_name.to_string());
+    let key_points = content
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .take(3)
+        .map(|line| truncate_chars(line, 120))
+        .collect::<Vec<_>>();
+    let excerpt = truncate_chars(&normalized, TEXT_SUMMARY_EXCERPT_CHARS);
+
+    Ok(serde_json::json!({
+        "processor": "desktop_builtin_text_summary_v1",
+        "taskId": task_id,
+        "taskType": task_type,
+        "fileName": file_name,
+        "localOnly": true,
+        "safeInTopSecret": true,
+        "summary": {
+            "title": heading,
+            "method": "本机规则摘要，未调用外部模型或云端 API",
+            "lineCount": line_count,
+            "charCount": char_count,
+            "keyPoints": key_points,
+            "excerpt": excerpt
+        }
+    })
+    .to_string())
 }
 
 fn task_summary_from_row(row: &serde_json::Value) -> Result<OfflineTaskSummary, String> {
@@ -260,6 +378,80 @@ pub async fn retry_failed_offline_tasks(app: AppHandle) -> Result<OfflineQueueRe
     })
 }
 
+/// 使用内置本机处理器处理 queued 离线任务。
+///
+/// 当前只处理桌面文件拖入的 .txt/.md `document_summary`，不触发网络、云模型或同步。
+#[command]
+pub async fn process_local_offline_tasks(
+    app: AppHandle,
+    limit: Option<u32>,
+) -> Result<OfflineQueueProcessReport, String> {
+    let rows = secure_db::select(
+        &app,
+        offline_queue::OfflineQueue::queued_local_tasks_sql(),
+        vec![serde_json::Value::from(clamp_process_limit(limit))],
+    )?;
+
+    let mut processed = 0_u32;
+    let mut failed = 0_u32;
+
+    for row in rows {
+        let task_id = value_string(&row, "id")?;
+        let task_type = value_string(&row, "task_type")?;
+        let description = value_string(&row, "description")?;
+
+        secure_db::execute(
+            &app,
+            offline_queue::OfflineQueue::update_status_sql(),
+            vec![
+                serde_json::Value::String(task_id.clone()),
+                serde_json::Value::String("local_processing".to_string()),
+                serde_json::Value::Null,
+            ],
+        )?;
+
+        match text_summary_payload(&task_id, &task_type, &description) {
+            Ok(local_result) => {
+                secure_db::execute(
+                    &app,
+                    offline_queue::OfflineQueue::save_local_result_sql(),
+                    vec![
+                        serde_json::Value::String(task_id),
+                        serde_json::Value::String(local_result),
+                    ],
+                )?;
+                processed = processed.saturating_add(1);
+            }
+            Err(error) => {
+                secure_db::execute(
+                    &app,
+                    offline_queue::OfflineQueue::update_status_sql(),
+                    vec![
+                        serde_json::Value::String(task_id),
+                        serde_json::Value::String("failed".to_string()),
+                        serde_json::Value::String(error),
+                    ],
+                )?;
+                failed = failed.saturating_add(1);
+            }
+        }
+    }
+
+    Ok(OfflineQueueProcessReport {
+        processed,
+        failed,
+        local_only: true,
+        safe_in_top_secret: true,
+        message: if processed == 0 && failed == 0 {
+            "没有可由内置本机处理器执行的离线任务".to_string()
+        } else if failed == 0 {
+            format!("{processed} 条离线任务已在本机处理完成")
+        } else {
+            format!("{processed} 条离线任务已完成，{failed} 条处理失败")
+        },
+    })
+}
+
 /// 触发离线任务批量同步
 ///
 /// 前端调用：`invoke('flush_offline_queue')`
@@ -347,7 +539,10 @@ pub async fn pull_harness_artifacts(
 
 #[cfg(test)]
 mod tests {
-    use super::{clamp_task_limit, summarize_task_description};
+    use super::{
+        clamp_process_limit, clamp_task_limit, summarize_task_description, text_summary_payload,
+    };
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
     fn file_drop_summary_never_exposes_local_path() {
@@ -380,5 +575,65 @@ mod tests {
         assert_eq!(clamp_task_limit(None), 8);
         assert_eq!(clamp_task_limit(Some(0)), 1);
         assert_eq!(clamp_task_limit(Some(100)), 50);
+    }
+
+    #[test]
+    fn offline_process_limit_is_bounded() {
+        assert_eq!(clamp_process_limit(None), 3);
+        assert_eq!(clamp_process_limit(Some(0)), 1);
+        assert_eq!(clamp_process_limit(Some(99)), 10);
+    }
+
+    #[test]
+    fn offline_text_summary_result_never_exposes_local_path() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "anxin-offline-summary-{}-{nonce}.md",
+            std::process::id()
+        ));
+        std::fs::write(&path, "# 会议纪要\n\n第一条 风险说明\n第二条 处理计划")
+            .expect("write temp markdown");
+        let description = serde_json::json!({
+            "source": "desktop_file_drop",
+            "action": "文档摘要",
+            "file_name": "会议纪要.md",
+            "local_path": path.to_string_lossy()
+        })
+        .to_string();
+
+        let result =
+            text_summary_payload("task-1", "document_summary", &description).expect("summary");
+        let value: serde_json::Value = serde_json::from_str(&result).expect("json result");
+
+        assert_eq!(value["processor"], "desktop_builtin_text_summary_v1");
+        assert_eq!(value["fileName"], "会议纪要.md");
+        assert!(value["localOnly"].as_bool().unwrap_or(false));
+        assert!(value["safeInTopSecret"].as_bool().unwrap_or(false));
+        assert!(value["summary"]["excerpt"]
+            .as_str()
+            .unwrap_or("")
+            .contains("风险说明"));
+        assert!(!result.contains(&path.to_string_lossy().to_string()));
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn offline_text_summary_rejects_non_text_extensions() {
+        let description = serde_json::json!({
+            "source": "desktop_file_drop",
+            "action": "合同审查",
+            "file_name": "合同.pdf",
+            "local_path": "/tmp/合同.pdf"
+        })
+        .to_string();
+
+        let error =
+            text_summary_payload("task-1", "document_summary", &description).expect_err("reject");
+
+        assert!(error.contains(".txt / .md"));
     }
 }

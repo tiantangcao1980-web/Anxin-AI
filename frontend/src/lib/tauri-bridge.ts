@@ -664,6 +664,14 @@ export interface OfflineQueueRetryReport {
   message: string
 }
 
+export interface OfflineQueueProcessReport {
+  processed: number
+  failed: number
+  localOnly: boolean
+  safeInTopSecret: boolean
+  message: string
+}
+
 /** 列出最近离线任务。完整本地路径留在 SQLCipher 队列内，前端只拿摘要。 */
 export async function listOfflineTasks(limit = 8): Promise<OfflineTaskSummary[]> {
   if (!isTauri()) return []
@@ -674,6 +682,12 @@ export async function listOfflineTasks(limit = 8): Promise<OfflineTaskSummary[]>
 export async function retryFailedOfflineTasks(): Promise<OfflineQueueRetryReport | null> {
   if (!isTauri()) return null
   return invokeRequiredCommand<OfflineQueueRetryReport>('retry_failed_offline_tasks')
+}
+
+/** 使用内置本机处理器处理可离线完成的任务；当前只处理 .txt/.md 文档摘要。 */
+export async function processLocalOfflineTasks(limit = 3): Promise<OfflineQueueProcessReport | null> {
+  if (!isTauri()) return null
+  return invokeRequiredCommand<OfflineQueueProcessReport>('process_local_offline_tasks', { limit })
 }
 
 /** 触发离线任务批量同步 */
