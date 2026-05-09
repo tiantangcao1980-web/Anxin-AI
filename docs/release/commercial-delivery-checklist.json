@@ -58,6 +58,7 @@
         "docs/release/evidence/artifacts/payment-sandbox-preflight-20260507.json",
         "docs/release/external-inputs-checklist.md",
         "docs/release/external-resource-handoff.md",
+        "docs/release/external-resource-requirements.json",
         "scripts/sandbox-evidence-runner.py"
       ],
       "verification": [
@@ -75,6 +76,7 @@
         "docs/release/evidence/artifacts/esign-sandbox-preflight-20260507.json",
         "docs/release/external-inputs-checklist.md",
         "docs/release/external-resource-handoff.md",
+        "docs/release/external-resource-requirements.json",
         "scripts/sandbox-evidence-runner.py"
       ],
       "verification": [
@@ -121,7 +123,8 @@
         "docs/release/evidence/artifacts/desktop-installed-profile-smoke-20260507.json",
         "docs/release/evidence/artifacts/desktop-runtime-code-smoke-20260507.json",
         "docs/release/evidence/artifacts/desktop-runtime-ui-smoke-20260507.log",
-        "docs/release/external-resource-handoff.md"
+        "docs/release/external-resource-handoff.md",
+        "docs/release/external-resource-requirements.json"
       ],
       "verification": [
         "cd desktop && cargo test",
@@ -182,6 +185,7 @@
         "docs/release/evidence/artifacts/uni-mobile-base-smoke-20260509.json",
         "docs/release/external-inputs-checklist.md",
         "docs/release/external-resource-handoff.md",
+        "docs/release/external-resource-requirements.json",
         "docs/release/third-party-api-preparation.md",
         "docs/mobile/uni-app-migration-plan.md",
         "scripts/uni-mobile-migration-guard.sh",
@@ -233,6 +237,7 @@
         "docs/release/evidence/artifacts/agent-governance-code-smoke-20260509.json",
         "docs/release/evidence/agent-governance-smoke.md",
         "docs/release/external-resource-handoff.md",
+        "docs/release/external-resource-requirements.json",
         "backend/src/services/llm_route_governance.py",
         "backend/src/agents/base.py",
         "backend/src/api/routes/chat.py",
@@ -277,6 +282,7 @@
         "docs/release/completion-audit.md",
         "docs/release/evidence-collection-runbook.md",
         "docs/release/external-resource-handoff.md",
+        "docs/release/external-resource-requirements.json",
         "docs/release/commercial-delivery-lanes.json",
         "docs/release/commercial-delivery-checklist.json"
       ],

@@ -23,6 +23,7 @@
 - Skills 进化已补本地与 DB-backed SkillGovernance gate：agent 只能创建 draft proposal；required eval checks 未齐或失败时拒绝审批；审批角色限制为 owner/boss/super_admin/org_admin/admin；灰度绑定具体版本；回滚后 `SkillService` governed 版本过滤立即回到上一版本；`/skill-governance` proposal/eval/approval/gray/rollback/enabled-version/audit 与 connector credential backend/front-end CRUD 已有组织隔离、凭据保留/替换/清空和脱敏回归；商业发布前仍需补组织级能力中心完整 UI、记忆治理、真实执行链路 route/token 撤销联动、真实 connector runtime 证据和运行时审计导出。
 - 企业组织默认只开放 L0/L1 基础能力；完整能力必须同时满足订阅/购买状态、老板或 Owner/超级管理员授权、角色权限、风险级别、隐私模式、设备信任、通信策略和审批状态。
 - Agent/Worker 不得持有真实 API key、PAT、财税接口密钥、浏览器账号密码或桌面本地密钥；必须通过 Gateway/密钥服务发放短期 consumer token 或 route token，撤销后下一次调用必须 401/403 并写审计；当前 `capability_route_service` 已提供本地最小 broker，CapabilityRoute/TokenLease/AgentApproval/AgentAuditEvent 持久化模型与迁移、DB-backed route-token 服务、MCP tool execution route-token 边界、CLI route-token 签发/execute 传递边界、REST/SSE/WebSocket Chat Agent LLM route-token 边界、RAG direct LLM route-token 边界以及浏览器/爬虫 fetch route-token 边界已补，商业发布前还需完整 browser automation/desktop-control 真实能力调用链集成和商业运行时商业运行时跨进程撤销失权证据。
+- 外部资源清单不得保存真实凭据或证书内容；`docs/release/external-resource-requirements.json` 只允许记录 env 名、runner 参数、artifact 字段、账号/设备标签和命令引用，`scripts/validate-external-resource-requirements.cjs` 会拒绝 `value/api_key/private_key/token/session_key/password` 等真实值字段，并检查 P0 env 与 `.env.example` / `backend/.env.example` 同步。
 - 高风险智能体动作必须进入可审计工作室，支持旁听、暂停、接管、终止、导出 artifact；外部专业服务方只能访问授权材料包和沟通区。
 - 文档、合同、附件、知识库、订阅、IM conversation 必须按 org/user/client_type 隔离。
 - 专业服务市场、案件、任务、风险调查、舆情和获客仍需逐模块 P0 权限矩阵；P0 先覆盖律师/律所，后续扩展税务/财务服务方。

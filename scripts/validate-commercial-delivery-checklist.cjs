@@ -20,6 +20,7 @@ const STATUSES_REQUIRING_EXTERNAL_HANDOFF = new Set([
   "pending_final_release",
 ]);
 const EXTERNAL_HANDOFF_PATH = "docs/release/external-resource-handoff.md";
+const EXTERNAL_REQUIREMENTS_PATH = "docs/release/external-resource-requirements.json";
 
 function usage() {
   console.error(
@@ -86,6 +87,12 @@ function validateChecklist(path) {
       !item.evidence.includes(EXTERNAL_HANDOFF_PATH)
     ) {
       fail(`${item.id} must reference ${EXTERNAL_HANDOFF_PATH} while status is ${item.status}`);
+    }
+    if (
+      STATUSES_REQUIRING_EXTERNAL_HANDOFF.has(item.status) &&
+      !item.evidence.includes(EXTERNAL_REQUIREMENTS_PATH)
+    ) {
+      fail(`${item.id} must reference ${EXTERNAL_REQUIREMENTS_PATH} while status is ${item.status}`);
     }
 
     for (const evidencePath of item.evidence) {

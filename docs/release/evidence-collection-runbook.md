@@ -9,6 +9,7 @@
 - `docs/release/evidence/*.md` 只有在该文件 Required Scope 的每一行都有真实 artifact reference 后，才允许从 `Status: pending` 改为 `Status: complete`。
 - 外部账号、证书、设备、语料和 release 包输入清单集中维护在 `docs/release/external-inputs-checklist.md`。
 - 外部资源到位后的执行交接单维护在 `docs/release/external-resource-handoff.md`。
+- 外部资源的机器可校验 manifest 维护在 `docs/release/external-resource-requirements.json`，并由 `node scripts/validate-external-resource-requirements.cjs` 和 commercial readiness gate 检查。
 - 多智能体或多人并行时，每条线只更新自己的 evidence 文件和 artifact，最后由发布主控统一跑 `scripts/commercial-readiness-gate.sh`。
 - 并行 lane 的机器清单维护在 `docs/release/commercial-delivery-lanes.json`；任何 lane 拆分或写入范围变化后，先跑 `node scripts/validate-commercial-delivery-lanes.cjs`。
 - 新增真实日志后必须跑 `bash scripts/release-evidence-secret-scan.sh`，避免把商户私钥、access token、手机号、身份证号或合同内容写入仓库。

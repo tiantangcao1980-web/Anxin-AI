@@ -4,6 +4,7 @@
 > 状态：资料准备中
 > 规则：本文只列资料项和验收口径，不保存密钥、证书、私钥、手机号、身份证号、合同原文或后台截图原图。真实 secret 放入 secret manager 或本地未追踪 `.env`。
 > 当前顺序：开发先聚焦桌面端本地可执行功能；第三方 API 资料可并行准备。未拿到真实密钥前，代码以本地 mock、沙箱样例、脱敏测试数据和 provider preflight 完成功能级验证，真实密钥只用于最后联调和 release evidence。
+> 机器清单：`docs/release/external-resource-requirements.json` 是自动校验来源；本文是给资料准备方阅读的版本。
 
 ## 交付方式
 

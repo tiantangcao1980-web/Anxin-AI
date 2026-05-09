@@ -10,6 +10,7 @@
 - 拿到输入后，先按 `docs/release/evidence-collection-runbook.md` 跑对应 preflight/live 命令。
 - 操作性交接单见 `docs/release/external-resource-handoff.md`；它列出每条线拿到输入后的命令和完成证据。
 - 面向用户准备资料的完整第三方 API 清单见 `docs/release/third-party-api-preparation.md`。
+- 机器可校验清单见 `docs/release/external-resource-requirements.json`；新增或删改外部资源时先更新该 JSON，再同步本文和 handoff。
 - evidence 文件转 `Status: complete` 前，必须通过 `scripts/validate-release-evidence.py` 和 `scripts/release-evidence-secret-scan.sh`。
 
 ## 支付线

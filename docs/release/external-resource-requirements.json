@@ -1,0 +1,585 @@
+{
+  "$schema": "https://anxin.local/schemas/external-resource-requirements.v1.json",
+  "schema_version": 1,
+  "last_updated": "2026-05-09",
+  "status": "external_input_required",
+  "storage_policy": {
+    "secrets": "Store real secrets only in the approved secret manager or local untracked env files.",
+    "certificates": "Store certificates and private-key files outside Git; commit only redacted artifact references.",
+    "device_evidence": "Store screenshots, videos, provider logs, and device transcripts as redacted release artifacts.",
+    "repository_rule": "Do not commit real API keys, private keys, account passwords, phone numbers, ID numbers, contract originals, access tokens, or session keys."
+  },
+  "required_documents": [
+    "docs/release/external-inputs-checklist.md",
+    "docs/release/external-resource-handoff.md",
+    "docs/release/third-party-api-preparation.md",
+    "docs/release/evidence-collection-runbook.md"
+  ],
+  "resources": [
+    {
+      "id": "payment.wechat_pay",
+      "priority": "P0",
+      "lane": "payment-sandbox",
+      "title": "WeChat Pay sandbox and official webhook evidence",
+      "status": "external_input_required",
+      "items": [
+        {
+          "id": "payment_notify_base_url",
+          "label": "Public HTTPS callback base URL",
+          "type": "env",
+          "env_names": ["PAYMENT_NOTIFY_BASE_URL"],
+          "secret": false,
+          "template_required": true,
+          "required_for": ["official callback delivery", "webhook idempotency evidence"]
+        },
+        {
+          "id": "wechat_pay_app_id",
+          "label": "WeChat Pay app ID",
+          "type": "env",
+          "env_names": ["WECHAT_PAY_APP_ID"],
+          "secret": false,
+          "template_required": true,
+          "required_for": ["create order", "query order"]
+        },
+        {
+          "id": "wechat_pay_mch_id",
+          "label": "WeChat Pay merchant ID",
+          "type": "env",
+          "env_names": ["WECHAT_PAY_MCH_ID"],
+          "secret": false,
+          "template_required": true,
+          "required_for": ["create order", "query order", "refund"]
+        },
+        {
+          "id": "wechat_pay_merchant_serial",
+          "label": "Merchant certificate serial number",
+          "type": "env",
+          "env_names": ["WECHAT_PAY_MERCHANT_SERIAL_NO"],
+          "secret": false,
+          "template_required": true,
+          "required_for": ["request signing"]
+        },
+        {
+          "id": "wechat_pay_merchant_private_key",
+          "label": "Merchant private key or private-key file path",
+          "type": "env_any_of",
+          "env_names": ["WECHAT_PAY_MERCHANT_PRIVATE_KEY_PATH", "WECHAT_PAY_MERCHANT_PRIVATE_KEY"],
+          "secret": true,
+          "template_required": true,
+          "required_for": ["request signing"]
+        },
+        {
+          "id": "wechat_pay_platform_serial",
+          "label": "Platform certificate or public-key serial number",
+          "type": "env",
+          "env_names": ["WECHAT_PAY_PLATFORM_SERIAL"],
+          "secret": false,
+          "template_required": true,
+          "required_for": ["official callback verification", "synchronous response verification"]
+        },
+        {
+          "id": "wechat_pay_platform_public_key",
+          "label": "Platform public key or public-key file path",
+          "type": "env_any_of",
+          "env_names": ["WECHAT_PAY_PLATFORM_PUBLIC_KEY_PATH", "WECHAT_PAY_PLATFORM_PUBLIC_KEY"],
+          "secret": false,
+          "template_required": true,
+          "required_for": ["official callback verification", "synchronous response verification"]
+        },
+        {
+          "id": "wechat_pay_api_v3_key",
+          "label": "API v3 key for callback resource decrypt",
+          "type": "env",
+          "env_names": ["WECHAT_PAY_API_V3_KEY"],
+          "secret": true,
+          "template_required": true,
+          "required_for": ["official callback decrypt"]
+        },
+        {
+          "id": "wechat_pay_official_webhook_enabled",
+          "label": "Official webhook verification enabled",
+          "type": "env_boolean_true",
+          "env_names": ["WECHAT_PAY_OFFICIAL_WEBHOOK_ENABLED"],
+          "secret": false,
+          "template_required": true,
+          "required_for": ["official webhook path"]
+        },
+        {
+          "id": "wechat_pay_refund_order_id",
+          "label": "Paid sandbox order ID and original amount for refund evidence",
+          "type": "runner_arg",
+          "runner_args": ["--wechat-refund-order-id", "--refund-total-amount"],
+          "secret": false,
+          "required_for": ["refund live evidence"]
+        },
+        {
+          "id": "wechat_pay_provider_logs",
+          "label": "Redacted provider dashboard, callback, retry, and key-rotation artifacts",
+          "type": "artifact",
+          "artifact_fields": ["external_evidence_requirements[].artifact_ref"],
+          "secret": false,
+          "required_for": ["release evidence completion"]
+        }
+      ],
+      "commands_after_receipt": [
+        "python3 scripts/sandbox-evidence-runner.py --scope payment --out docs/release/evidence/artifacts/payment-sandbox-preflight-YYYYMMDD.json",
+        "python3 scripts/sandbox-evidence-runner.py --scope wechat_pay --live --confirm-live-side-effects --wechat-refund-order-id <paid-sandbox-order-id> --refund-amount 0.01 --refund-total-amount <original-order-amount> --out docs/release/evidence/artifacts/wechat-pay-live-YYYYMMDD.json"
+      ],
+      "completion_evidence": [
+        "successful payment",
+        "failed payment",
+        "refund",
+        "official async notification",
+        "duplicate notification idempotency",
+        "failed notification retry",
+        "platform key or certificate rotation proof"
+      ]
+    },
+    {
+      "id": "payment.alipay",
+      "priority": "P0",
+      "lane": "payment-sandbox",
+      "title": "Alipay sandbox and official webhook evidence",
+      "status": "external_input_required",
+      "items": [
+        {
+          "id": "payment_notify_base_url",
+          "label": "Public HTTPS callback base URL",
+          "type": "env",
+          "env_names": ["PAYMENT_NOTIFY_BASE_URL"],
+          "secret": false,
+          "template_required": true,
+          "required_for": ["official callback delivery", "webhook idempotency evidence"]
+        },
+        {
+          "id": "alipay_app_id",
+          "label": "Alipay app ID",
+          "type": "env",
+          "env_names": ["ALIPAY_APP_ID"],
+          "secret": false,
+          "template_required": true,
+          "required_for": ["page.pay", "query", "refund", "close"]
+        },
+        {
+          "id": "alipay_private_key",
+          "label": "Application private key or private-key file path",
+          "type": "env_any_of",
+          "env_names": ["ALIPAY_PRIVATE_KEY_PATH", "ALIPAY_PRIVATE_KEY"],
+          "secret": true,
+          "template_required": true,
+          "required_for": ["request signing"]
+        },
+        {
+          "id": "alipay_public_key",
+          "label": "Alipay public key or public-key file path",
+          "type": "env_any_of",
+          "env_names": ["ALIPAY_PUBLIC_KEY_PATH", "ALIPAY_PUBLIC_KEY"],
+          "secret": false,
+          "template_required": true,
+          "required_for": ["synchronous response verification", "official notification verification"]
+        },
+        {
+          "id": "alipay_gateway_url",
+          "label": "Sandbox or pre-production gateway URL",
+          "type": "env",
+          "env_names": ["ALIPAY_GATEWAY_URL"],
+          "secret": false,
+          "template_required": true,
+          "required_for": ["provider environment selection"]
+        },
+        {
+          "id": "alipay_official_webhook_enabled",
+          "label": "Official RSA2 webhook verification enabled",
+          "type": "env_boolean_true",
+          "env_names": ["ALIPAY_OFFICIAL_WEBHOOK_ENABLED"],
+          "secret": false,
+          "template_required": true,
+          "required_for": ["official webhook path"]
+        },
+        {
+          "id": "alipay_runtime_order_ids",
+          "label": "Existing paid/open sandbox order IDs",
+          "type": "runner_arg",
+          "runner_args": ["--alipay-query-order-id", "--alipay-refund-order-id", "--alipay-close-order-id"],
+          "secret": false,
+          "required_for": ["query live evidence", "refund live evidence", "close live evidence"]
+        },
+        {
+          "id": "alipay_provider_logs",
+          "label": "Redacted provider dashboard, callback, retry, and public-key rotation artifacts",
+          "type": "artifact",
+          "artifact_fields": ["external_evidence_requirements[].artifact_ref"],
+          "secret": false,
+          "required_for": ["release evidence completion"]
+        }
+      ],
+      "commands_after_receipt": [
+        "python3 scripts/sandbox-evidence-runner.py --scope payment --out docs/release/evidence/artifacts/payment-sandbox-preflight-YYYYMMDD.json",
+        "python3 scripts/sandbox-evidence-runner.py --scope alipay --live --confirm-live-side-effects --alipay-query-order-id <existing-sandbox-order-id> --alipay-refund-order-id <paid-sandbox-order-id> --alipay-close-order-id <open-sandbox-order-id> --refund-amount 0.01 --out docs/release/evidence/artifacts/alipay-live-YYYYMMDD.json"
+      ],
+      "completion_evidence": [
+        "successful payment",
+        "failed payment",
+        "refund",
+        "close order",
+        "official async notification",
+        "duplicate notification idempotency",
+        "failed notification retry",
+        "public-key rotation proof"
+      ]
+    },
+    {
+      "id": "esign.esignbao",
+      "priority": "P0",
+      "lane": "esign-sandbox",
+      "title": "eSignBao sandbox signing and official callback evidence",
+      "status": "external_input_required",
+      "items": [
+        {
+          "id": "esign_bao_app_id",
+          "label": "eSignBao app ID",
+          "type": "env",
+          "env_names": ["ESIGN_BAO_APP_ID"],
+          "secret": false,
+          "template_required": true,
+          "required_for": ["create signing flow", "query signing flow"]
+        },
+        {
+          "id": "esign_bao_app_secret",
+          "label": "eSignBao app secret",
+          "type": "env",
+          "env_names": ["ESIGN_BAO_APP_SECRET"],
+          "secret": true,
+          "template_required": true,
+          "required_for": ["request signing", "official callback verification"]
+        },
+        {
+          "id": "esign_bao_api_url",
+          "label": "eSignBao sandbox or pre-production API URL",
+          "type": "env",
+          "env_names": ["ESIGN_BAO_API_URL"],
+          "secret": false,
+          "template_required": true,
+          "required_for": ["provider environment selection"]
+        },
+        {
+          "id": "esign_official_webhook_enabled",
+          "label": "Official e-sign webhook verification enabled",
+          "type": "env_boolean_true",
+          "env_names": ["ESIGN_OFFICIAL_WEBHOOK_ENABLED"],
+          "secret": false,
+          "template_required": true,
+          "required_for": ["official webhook path"]
+        },
+        {
+          "id": "esignbao_document_and_flow",
+          "label": "Sandbox test document URL or file ID plus completed flow ID",
+          "type": "runner_arg",
+          "runner_args": ["--esign-document-url", "--esignbao-completed-flow-id"],
+          "secret": false,
+          "required_for": ["create flow evidence", "completed document download evidence"]
+        },
+        {
+          "id": "esignbao_provider_logs",
+          "label": "Redacted provider dashboard, callback, duplicate, and retry artifacts",
+          "type": "artifact",
+          "artifact_fields": ["external_evidence_requirements[].artifact_ref"],
+          "secret": false,
+          "required_for": ["release evidence completion"]
+        }
+      ],
+      "commands_after_receipt": [
+        "python3 scripts/sandbox-evidence-runner.py --scope esign --out docs/release/evidence/artifacts/esign-sandbox-preflight-YYYYMMDD.json",
+        "python3 scripts/sandbox-evidence-runner.py --scope esignbao --live --confirm-live-side-effects --esign-document-url <sandbox-file-id-or-doc-url> --esignbao-completed-flow-id <completed-sandbox-flow-id> --out docs/release/evidence/artifacts/esignbao-live-YYYYMMDD.json"
+      ],
+      "completion_evidence": [
+        "create or start signing flow",
+        "signer link or task",
+        "status query",
+        "cancel or revoke",
+        "completed document download",
+        "official callback",
+        "duplicate callback idempotency",
+        "failed callback retry"
+      ]
+    },
+    {
+      "id": "esign.fadada",
+      "priority": "P0",
+      "lane": "esign-sandbox",
+      "title": "FaDaDa sandbox signing and official callback evidence",
+      "status": "external_input_required",
+      "items": [
+        {
+          "id": "fadada_app_id",
+          "label": "FaDaDa app ID",
+          "type": "env",
+          "env_names": ["FADADA_APP_ID"],
+          "secret": false,
+          "template_required": true,
+          "required_for": ["access token", "signing task"]
+        },
+        {
+          "id": "fadada_app_secret",
+          "label": "FaDaDa app secret",
+          "type": "env",
+          "env_names": ["FADADA_APP_SECRET"],
+          "secret": true,
+          "template_required": true,
+          "required_for": ["access token", "FASC callback verification"]
+        },
+        {
+          "id": "fadada_api_url",
+          "label": "FaDaDa sandbox or pre-production API URL",
+          "type": "env",
+          "env_names": ["FADADA_API_URL"],
+          "secret": false,
+          "template_required": true,
+          "required_for": ["provider environment selection"]
+        },
+        {
+          "id": "esign_official_webhook_enabled",
+          "label": "Official e-sign webhook verification enabled",
+          "type": "env_boolean_true",
+          "env_names": ["ESIGN_OFFICIAL_WEBHOOK_ENABLED"],
+          "secret": false,
+          "template_required": true,
+          "required_for": ["official webhook path"]
+        },
+        {
+          "id": "fadada_document_and_flow",
+          "label": "Sandbox test document URL or file ID plus completed flow ID",
+          "type": "runner_arg",
+          "runner_args": ["--esign-document-url", "--fadada-completed-flow-id"],
+          "secret": false,
+          "required_for": ["create task evidence", "completed document download evidence"]
+        },
+        {
+          "id": "fadada_provider_logs",
+          "label": "Redacted provider dashboard, callback, duplicate, and retry artifacts",
+          "type": "artifact",
+          "artifact_fields": ["external_evidence_requirements[].artifact_ref"],
+          "secret": false,
+          "required_for": ["release evidence completion"]
+        }
+      ],
+      "commands_after_receipt": [
+        "python3 scripts/sandbox-evidence-runner.py --scope esign --out docs/release/evidence/artifacts/esign-sandbox-preflight-YYYYMMDD.json",
+        "python3 scripts/sandbox-evidence-runner.py --scope fadada --live --confirm-live-side-effects --esign-document-url <sandbox-doc-id-or-url> --fadada-completed-flow-id <completed-sandbox-flow-id> --out docs/release/evidence/artifacts/fadada-live-YYYYMMDD.json"
+      ],
+      "completion_evidence": [
+        "create or start signing task",
+        "signer link or task",
+        "status query",
+        "cancel or revoke",
+        "completed document download",
+        "official callback",
+        "duplicate callback idempotency",
+        "failed callback retry"
+      ]
+    },
+    {
+      "id": "desktop.mac_release_signing",
+      "priority": "P0",
+      "lane": "desktop-release",
+      "title": "Signed and notarized macOS desktop release evidence",
+      "status": "external_input_required",
+      "items": [
+        {
+          "id": "tauri_signing_identity",
+          "label": "Tauri macOS signing identity",
+          "type": "config",
+          "config_refs": ["desktop/tauri.conf.json:bundle.macOS.signingIdentity"],
+          "secret": false,
+          "required_for": ["signed app build"]
+        },
+        {
+          "id": "apple_codesign_identity",
+          "label": "Apple Developer ID Application identity in local Keychain",
+          "type": "local_keychain",
+          "command_refs": ["security find-identity -v -p codesigning"],
+          "secret": false,
+          "required_for": ["codesign verification"]
+        },
+        {
+          "id": "notary_credentials",
+          "label": "Notarization credential",
+          "type": "env_any_of",
+          "env_names": [
+            "NOTARYTOOL_KEYCHAIN_PROFILE",
+            "APP_STORE_CONNECT_API_KEY_ID",
+            "APP_STORE_CONNECT_API_ISSUER_ID",
+            "APP_STORE_CONNECT_API_KEY_PATH"
+          ],
+          "secret": true,
+          "required_for": ["notarization", "stapling"]
+        },
+        {
+          "id": "signed_release_app",
+          "label": "Signed release .app path",
+          "type": "artifact",
+          "env_names": ["ANXIN_DESKTOP_RELEASE_APP"],
+          "artifact_fields": ["release.app.path"],
+          "secret": false,
+          "required_for": ["packaged runtime smoke", "packaged profile smoke"]
+        },
+        {
+          "id": "release_dmg",
+          "label": "Signed or notarized release DMG path",
+          "type": "artifact",
+          "artifact_fields": ["release.dmg.path"],
+          "secret": false,
+          "required_for": ["user-install evidence"]
+        }
+      ],
+      "commands_after_receipt": [
+        "bash scripts/desktop-release-package.sh --dry-run --out docs/release/evidence/artifacts/desktop-release-package-dry-run-YYYYMMDD.json --preflight-out docs/release/evidence/artifacts/desktop-release-preflight-YYYYMMDD.json",
+        "bash scripts/desktop-release-preflight.sh --out docs/release/evidence/artifacts/desktop-release-preflight-YYYYMMDD.json",
+        "bash scripts/desktop-release-profile-smoke.sh --out docs/release/evidence/artifacts/desktop-release-profile-signed-smoke-YYYYMMDD.json",
+        "bash scripts/desktop-release-runtime-smoke.sh --out docs/release/evidence/artifacts/desktop-release-runtime-signed-smoke-YYYYMMDD.json --ui-log-out docs/release/evidence/artifacts/desktop-release-runtime-ui-smoke-signed-YYYYMMDD.log"
+      ],
+      "completion_evidence": [
+        "release_ready=true preflight",
+        "signed and notarized package verification",
+        "packaged UI interaction transcript",
+        "signed packaged-profile plaintext-to-SQLCipher migration",
+        "signed packaged runtime 100 push / 500 pull performance",
+        "push/pull/conflict/retry runtime transcript",
+        "desktop/web/mobile cross-device continuation transcript"
+      ]
+    },
+    {
+      "id": "mobile.uni_app_release",
+      "priority": "P0",
+      "lane": "mobile-mini-device",
+      "title": "uni-app mobile and mini-program release resources",
+      "status": "external_input_required",
+      "items": [
+        {
+          "id": "dcloud_account_appid",
+          "label": "DCloud account, uni-app AppID, and cloud build access",
+          "type": "account",
+          "account_refs": ["DCloud account label", "uni-app app id label"],
+          "secret": true,
+          "required_for": ["DCloud App cloud build", "uniPush or native plugin setup"]
+        },
+        {
+          "id": "ios_signing",
+          "label": "Apple Developer Team, Bundle ID, signing certificates, provisioning profiles, and TestFlight access",
+          "type": "account",
+          "account_refs": ["Apple Developer Team label", "Bundle ID", "TestFlight role"],
+          "secret": true,
+          "required_for": ["iOS device smoke", "TestFlight evidence"]
+        },
+        {
+          "id": "android_signing",
+          "label": "Android package name, keystore, signing strategy, and target store account",
+          "type": "account",
+          "account_refs": ["Android package name", "keystore label", "target store label"],
+          "secret": true,
+          "required_for": ["Android device smoke", "release build evidence"]
+        },
+        {
+          "id": "wechat_mini_program",
+          "label": "WeChat Mini Program AppID/AppSecret, developer permission, and legal domain admin access",
+          "type": "account",
+          "account_refs": ["Mini Program AppID label", "developer role label"],
+          "secret": true,
+          "required_for": ["wx.login code2session", "request/upload/download/web-view domain evidence"]
+        },
+        {
+          "id": "device_and_test_accounts",
+          "label": "iOS/Android devices, WeChat DevTools interactive run, staging backend URL, and redacted test account roles",
+          "type": "device_artifact",
+          "device_refs": ["iOS device transcript", "Android device transcript", "WeChat DevTools or real-device transcript"],
+          "artifact_fields": ["platforms[].build_hash", "platforms[].device", "backend_environment", "tester_role", "screenshot_refs", "log_refs"],
+          "secret": false,
+          "required_for": ["mobile-device-smoke Status: complete"]
+        }
+      ],
+      "commands_after_receipt": [
+        "bash scripts/mobile-device-smoke.sh --out docs/release/evidence/artifacts/mobile-mini-code-smoke-YYYYMMDD.json --manual-template-out docs/release/evidence/artifacts/mobile-device-manual-template-YYYYMMDD.json",
+        "bash scripts/uni-mobile-migration-guard.sh",
+        "bash scripts/uni-mobile-smoke.sh --out docs/release/evidence/artifacts/uni-mobile-base-smoke-YYYYMMDD.json"
+      ],
+      "completion_evidence": [
+        "iOS device or TestFlight smoke",
+        "Android device smoke",
+        "WeChat DevTools interactive or real-device smoke",
+        "DCloud App cloud build or official package transcript",
+        "wx.login to code2session with no session_key leak",
+        "desktop/web/mobile cross-device continuation"
+      ]
+    },
+    {
+      "id": "ai.llm_embedding_connectors",
+      "priority": "P1",
+      "lane": "enterprise-agent-governance",
+      "title": "LLM, embedding, search, storage, notification, CAPTCHA, MCP, and RTC provider resources",
+      "status": "external_input_required",
+      "items": [
+        {
+          "id": "llm_provider",
+          "label": "Default LLM provider key, base URL, model name, data-processing agreement, and quota",
+          "type": "env",
+          "env_names": ["LLM_PROVIDER", "LLM_API_KEY", "LLM_BASE_URL", "LLM_MODEL"],
+          "secret": true,
+          "required_for": ["default cloud model integration"]
+        },
+        {
+          "id": "embedding_provider",
+          "label": "Embedding provider key, base URL, model name, dimensions, and quota",
+          "type": "env",
+          "env_names": ["EMBEDDING_API_KEY", "EMBEDDING_BASE_URL", "EMBEDDING_MODEL", "EMBEDDING_DIMENSIONS"],
+          "secret": true,
+          "required_for": ["RAG and GitNexus embedding production path"]
+        },
+        {
+          "id": "gitnexus_embedding_endpoint",
+          "label": "OpenAI-compatible embedding endpoint for final GitNexus indexing",
+          "type": "env",
+          "env_names": ["GITNEXUS_EMBEDDING_URL", "GITNEXUS_EMBEDDING_MODEL", "GITNEXUS_EMBEDDING_DIMS"],
+          "secret": false,
+          "required_for": ["final commit-scoped knowledge graph"]
+        },
+        {
+          "id": "search_and_due_diligence",
+          "label": "Search and business due-diligence provider accounts, IP allowlist, QPS, and authorization",
+          "type": "env",
+          "env_names": ["SEARCH_API_KEY", "QICHACHA_API_KEY", "TIANYANCHA_API_KEY", "AIQICHA_API_KEY", "CREDIT_CHINA_API_KEY"],
+          "secret": true,
+          "required_for": ["external due diligence"]
+        },
+        {
+          "id": "storage_email_sms_captcha_mcp_rtc",
+          "label": "Object storage, email, SMS, CAPTCHA, MCP connector, and RTC/speech resources",
+          "type": "mixed",
+          "env_names": [
+            "STORAGE_BACKEND",
+            "MINIO_ENDPOINT",
+            "ALIYUN_EMAIL_ACCESS_KEY_ID",
+            "ALIYUN_SMS_ACCESS_KEY_ID",
+            "CAPTCHA_PROVIDER",
+            "TURNSTILE_SITE_KEY",
+            "TURNSTILE_SECRET_KEY",
+            "MCP_SSE_ALLOWED_HOSTS",
+            "MCP_STDIO_ALLOWED_COMMANDS",
+            "LIVEKIT_API_KEY"
+          ],
+          "secret": true,
+          "required_for": ["production operations", "governed external connectors", "optional voice or meeting capability"]
+        }
+      ],
+      "commands_after_receipt": [
+        "bash scripts/agent-governance-smoke.sh --out docs/release/evidence/artifacts/agent-governance-code-smoke-YYYYMMDD.json",
+        "bash scripts/release-evidence-secret-scan.sh"
+      ],
+      "completion_evidence": [
+        "provider-level connectivity transcript with route-token governance",
+        "redacted connector configuration evidence",
+        "capability policy and audit evidence",
+        "security owner approval for any provider exception"
+      ]
+    }
+  ]
+}

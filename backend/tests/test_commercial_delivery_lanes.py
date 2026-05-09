@@ -46,3 +46,4 @@ def test_external_or_device_lanes_declare_inputs_and_blockers():
         assert lane["external_inputs"], lane["id"]
         assert lane["current_blockers"], lane["id"]
         assert "docs/release/external-resource-handoff.md" in lane["evidence"], lane["id"]
+        assert "docs/release/external-resource-requirements.json" in lane["evidence"], lane["id"]

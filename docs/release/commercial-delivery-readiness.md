@@ -4,6 +4,7 @@
 > 判定：Not ready for commercial launch.
 > 口径：代码级绿灯不等于商业交付绿灯。发布需要真实渠道、真机、回滚、运营证据，以及中小企业双边平台与全设备智能助手定位的端到端证据。
 > 持久目标：`docs/release/goal-contract-commercial-readiness.md`。当前执行顺序为桌面端功能与本地门禁优先，移动 App/小程序随后按 uni-app 统一端迁移；外部 API 先以可替换测试数据和 sandbox contract 完成功能测试，真实密钥到位后再联调。
+> 外部资源口径：`docs/release/external-resource-requirements.json` 是支付、电签、桌面签名/公证、uni-app 真机/小程序、LLM/Embedding/connector 等外部输入的机器清单；`scripts/validate-external-resource-requirements.cjs` 和 commercial gate 会检查它与 env 模板、handoff 文档保持同步。
 
 ## 1. 发布判定
 
@@ -12,6 +13,7 @@
 | 后端默认回归 | `736 passed, 1 skipped, 12 warnings in 44.61s` | 通过代码级门槛 |
 | 前端 lint/build/test/security | lint/tsc 通过、最新完整本地门禁中 Vitest `13 files / 51 tests passed`，生产依赖 `npm audit --omit=dev` 已写入 `docs/release/evidence/artifacts/frontend-npm-audit-prod-20260507.json` 且 `0` vulnerabilities；保留既有 Vite chunk/eval warning 作为性能/打包优化项 | 通过当前门槛 |
 | GitNexus 知识图 | 当前 `.gitnexus/meta.json` 可通过 direct GitNexus CLI structure/embedding rebuild、cypher count 和 `lastCommit`/`HEAD` 一致性检查；它只作为最终发布索引卫生与历史上下文，不能推动或替代主线代码、测试、UI/UX、渠道和真机证据 | 每个后续 release artifact 提交后仍需重跑 commit-scoped 复验；主线推进不围绕 embedding 排障 |
+| 外部资源交接 | `external-resource-requirements.json` 已把 P0/P1 外部 API、签名、公证、真机、DCloud/uni-app、LLM/Embedding/connector 资源结构化；validator 锁住 P0 env 模板字段、资源/runner/artifact 引用和“只存引用不存真实值”边界；checklist 与 lanes 已引用该 manifest | 交接清单已机器化；资源本身仍未到位，不能放行 |
 | 支付真实渠道 | 微信/支付宝代码级协议已落，`scripts/sandbox-evidence-runner.py` 已提供脱敏预检/live 采集入口，runner 安全测试已覆盖 live 确认门和脱敏写出；staging/production 已禁止 mock/未知 provider 静默回落，缺沙箱/证书轮换/重试证据 | 阻断 |
 | 电签真实渠道 | e签宝/法大大代码级协议已落，`scripts/sandbox-evidence-runner.py` 已提供脱敏预检/live 采集入口，runner 安全测试已覆盖 live 确认门和脱敏写出；staging/production 已禁止 mock/未知 provider 静默回落，flow 操作已按当前用户组织过滤合同，缺商户沙箱/事件目录/灰度证据 | 阻断 |
 | 桌面同步 | 后端 `SyncLog` 持久化增量日志 + Rust SQLCipher/keyring 本地库 + 注入式同步闭环测试 + Rust IPC `trigger_sync` fallback 代码级 SQLCipher push/pull + packaged-binary sync code smoke + packaged-binary sync loopback smoke + SQLite migration SQL fresh/legacy temp DB smoke + local installed-profile keyring/reopen smoke + SQLite 100/500 本地性能基线 + debug binary self-test + 冲突管理页 + 代码级重试退避 + `scripts/desktop-sqlite-security-gate.sh` 安全门禁通过；`desktop-rust-ipc-sync-code-smoke-20260509.json` 记录 pending/failed 行解码、push payload 不泄露本地 log id、accepted/conflict 行选择和 retry/needs_human gate；`--sync-code-smoke` 记录真实 `.app` 二进制内置同步 smoke 可验证 migration、pending/deferred/conflict/needs_human、push payload、冲突 accepted 过滤、retry needs_human 和 pull response 解码；`--sync-loopback-smoke` 记录 unsigned release `.app` 二进制可启动本地 loopback HTTP 后端并验证 bearer-auth push `2` 条记录、accepted `1`、conflict `1`、pull 写回 `1` 条远端文档和 cursor `13`；`desktop-clippy-gate-20260509.json` 记录 `cargo clippy --all-targets -- -D warnings` 已通过；`SyncStatus` 冲突弹窗已改为字段差异摘要 + 原始数据折叠详情，桌面工具栏同步/冲突入口已改为稳定尺寸、不换行状态文案和冲突数字胶囊，托盘模式菜单/tooltip 已移除 emoji 依赖并有回归测试；2026-05-09 fresh unsigned debug macOS `.app` bundle self-test/runtime startup/WebView page-load 已重新通过，且 `scripts/desktop-runtime-smoke.sh` 已修复 macOS `mktemp` 日志模板兼容性问题；`desktop/Entitlements.plist` 已切到 production APNs entitlement；`scripts/desktop-release-package.sh --dry-run` 和 `scripts/desktop-release-preflight.sh` 已写出脱敏预检并新增 `hdiutil` / DiskManagement probe；unsigned release `.app` + DMG 已在 unsandboxed macOS 环境构建通过；unsigned release packaged runtime self-test/startup/WebView page-load/sync-loopback smoke 已通过；unsigned release packaged-profile plaintext-to-SQLCipher/keyring reopen 和 SQLCipher 100/500 performance smoke 已通过；签名/公证、signed installer/signed packaged-profile migration/signed packaged runtime 性能、共享预发后端 sync transcript、跨端连续会话未闭环 | 阻断 |
@@ -83,6 +85,7 @@ bash scripts/mobile-ios-simulator-smoke.sh \
   --log-out docs/release/evidence/artifacts/mobile-ios-simulator-expo-go-smoke-YYYYMMDD.log
 python3 scripts/sandbox-evidence-runner.py --scope payment --out docs/release/evidence/artifacts/payment-sandbox-preflight-YYYYMMDD.json
 python3 scripts/sandbox-evidence-runner.py --scope esign --out docs/release/evidence/artifacts/esign-sandbox-preflight-YYYYMMDD.json
+node scripts/validate-external-resource-requirements.cjs
 bash scripts/release-evidence-secret-scan.sh
 cd desktop && cargo check
 cd desktop && cargo test

@@ -56,6 +56,7 @@
         "docs/release/evidence/payment-sandbox.md",
         "docs/release/evidence/artifacts/payment-sandbox-preflight-20260507.json",
         "docs/release/external-resource-handoff.md",
+        "docs/release/external-resource-requirements.json",
         "scripts/sandbox-evidence-runner.py"
       ],
       "local_commands": [
@@ -105,6 +106,7 @@
         "docs/release/evidence/esign-sandbox.md",
         "docs/release/evidence/artifacts/esign-sandbox-preflight-20260507.json",
         "docs/release/external-resource-handoff.md",
+        "docs/release/external-resource-requirements.json",
         "scripts/sandbox-evidence-runner.py"
       ],
       "local_commands": [
@@ -171,6 +173,7 @@
         "scripts/desktop-mvp-local-gate.sh",
         "docs/desktop/quick-query-flow.md",
         "docs/release/external-resource-handoff.md",
+        "docs/release/external-resource-requirements.json",
         "scripts/desktop-release-package.sh",
         "scripts/desktop-release-preflight.sh",
         "scripts/desktop-release-runtime-smoke.sh",
@@ -269,6 +272,7 @@
         "docs/release/evidence/artifacts/mobile-mini-code-smoke-20260509.json",
         "docs/release/evidence/artifacts/uni-mobile-base-smoke-20260509.json",
         "docs/release/external-resource-handoff.md",
+        "docs/release/external-resource-requirements.json",
         "docs/release/third-party-api-preparation.md",
         "docs/mobile/uni-app-migration-plan.md",
         "mobile/README.md",
@@ -507,7 +511,8 @@
         "scripts/gitnexus-index.sh",
         "docs/release/commercial-delivery-readiness.md",
         "docs/release/completion-audit.md",
-        "docs/release/external-resource-handoff.md"
+        "docs/release/external-resource-handoff.md",
+        "docs/release/external-resource-requirements.json"
       ],
       "local_commands": [
         "git diff --check",

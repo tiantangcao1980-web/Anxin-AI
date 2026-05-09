@@ -95,7 +95,7 @@
 | 需用户申请后给密钥/证书 | 不新增资源；这段只做收口与签字 |
 | 需真机/交互式验证 | 只做最后一次人工确认：关键截图、签名包、callback 日志、设备记录、release evidence 状态 |
 | 产物 | 最终 gate transcript、clean worktree 证据、所有 evidence 文件 `Status: complete` 或明确保留的阻断说明、发布决策记录 |
-| 验证命令 | `python3 scripts/release-worktree-inventory.py --json`<br>`git diff --check`<br>`bash scripts/release-evidence-secret-scan.sh`<br>`node scripts/validate-commercial-delivery-lanes.cjs`<br>`GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/commercial-readiness-gate.sh --quick`<br>`GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/commercial-readiness-gate.sh --with-local-tests` |
+| 验证命令 | `python3 scripts/release-worktree-inventory.py --json`<br>`git diff --check`<br>`bash scripts/release-evidence-secret-scan.sh`<br>`node scripts/validate-external-resource-requirements.cjs`<br>`node scripts/validate-commercial-delivery-lanes.cjs`<br>`GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/commercial-readiness-gate.sh --quick`<br>`GITNEXUS_BIN=/Users/pengchengkeji/.npm/_npx/ce85571ede75641e/node_modules/.bin/gitnexus bash scripts/commercial-readiness-gate.sh --with-local-tests` |
 | 退出标准 | 商业门禁通过，或门禁仍失败但失败原因只剩下明确列出的外部资源缺口；工作树可追踪、证据可追踪、没有假完成 |
 
 ## 48 小时结束时的判断

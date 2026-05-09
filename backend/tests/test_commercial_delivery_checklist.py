@@ -46,7 +46,11 @@ def _criterion(
 
 
 def _pending_evidence(*items: str) -> list[str]:
-    return [*items, "docs/release/external-resource-handoff.md"]
+    return [
+        *items,
+        "docs/release/external-resource-handoff.md",
+        "docs/release/external-resource-requirements.json",
+    ]
 
 
 def test_commercial_delivery_checklist_accepts_current_not_ready_manifest():
@@ -148,3 +152,30 @@ def test_commercial_delivery_checklist_requires_external_handoff_for_pending_ite
 
     assert result.returncode == 1
     assert "external-resource-handoff.md" in result.stderr
+
+
+def test_commercial_delivery_checklist_requires_external_requirements_for_pending_items(tmp_path):
+    repo_root = Path(__file__).resolve().parents[2]
+    checklist = tmp_path / "checklist.json"
+    checklist.write_text(
+        json.dumps(
+            _manifest(
+                "not_ready",
+                [
+                    _criterion(
+                        status="pending_external_input",
+                        evidence=[
+                            "docs/release/evidence/payment-sandbox.md",
+                            "docs/release/external-resource-handoff.md",
+                        ],
+                    )
+                ],
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    result = _validate(repo_root, checklist)
+
+    assert result.returncode == 1
+    assert "external-resource-requirements.json" in result.stderr

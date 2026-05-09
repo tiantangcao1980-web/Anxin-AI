@@ -21,6 +21,7 @@ const statusesRequiringExternalInput = new Set([
   "pending_final_release",
 ]);
 const externalHandoffPath = "docs/release/external-resource-handoff.md";
+const externalRequirementsPath = "docs/release/external-resource-requirements.json";
 
 function fail(message, failures) {
   failures.push(message);
@@ -142,6 +143,9 @@ function validateManifest(manifest) {
       }
       if (!evidence.includes(externalHandoffPath)) {
         fail(`lane ${lane.id} has status ${lane.status} but does not reference ${externalHandoffPath}`, failures);
+      }
+      if (!evidence.includes(externalRequirementsPath)) {
+        fail(`lane ${lane.id} has status ${lane.status} but does not reference ${externalRequirementsPath}`, failures);
       }
     }
     if (lane.status !== "complete" && blockers.length === 0) {

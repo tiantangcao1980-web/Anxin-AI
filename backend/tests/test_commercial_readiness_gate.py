@@ -224,6 +224,15 @@ def test_commercial_gate_requires_agent_governance_smoke_script():
     assert '"scripts/agent-governance-smoke.sh"' in script
 
 
+def test_commercial_gate_validates_external_resource_requirements():
+    repo_root = Path(__file__).resolve().parents[2]
+    script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
+
+    assert '"docs/release/external-resource-requirements.json"' in script
+    assert '"scripts/validate-external-resource-requirements.cjs"' in script
+    assert "node scripts/validate-external-resource-requirements.cjs" in script
+
+
 def test_commercial_gate_runs_approval_authorization_guard_tests():
     repo_root = Path(__file__).resolve().parents[2]
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")

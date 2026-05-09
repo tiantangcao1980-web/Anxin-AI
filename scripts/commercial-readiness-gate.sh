@@ -136,6 +136,7 @@ required_artifacts=(
   "scripts/validate-release-evidence.py"
   "scripts/validate-commercial-delivery-checklist.cjs"
   "scripts/validate-commercial-delivery-lanes.cjs"
+  "scripts/validate-external-resource-requirements.cjs"
   "scripts/validate-release-artifacts.py"
   "eval/rag_live_qdrant_full50.py"
   "docs/audit/00-platform/06-gitnexus-knowledge-graph.md"
@@ -148,6 +149,9 @@ required_artifacts=(
   "docs/release/commercial-delivery-readiness.md"
   "docs/release/evidence-collection-runbook.md"
   "docs/release/external-inputs-checklist.md"
+  "docs/release/external-resource-handoff.md"
+  "docs/release/external-resource-requirements.json"
+  "docs/release/third-party-api-preparation.md"
   "docs/release/test-evidence.md"
   "docs/release/rollback-runbook.md"
   "docs/release/security-and-privacy-checklist.md"
@@ -165,6 +169,10 @@ fi
 
 if ! node scripts/validate-commercial-delivery-lanes.cjs; then
   add_failure "commercial delivery lanes JSON is invalid or references missing evidence files"
+fi
+
+if ! node scripts/validate-external-resource-requirements.cjs; then
+  add_failure "external resource requirements manifest is invalid or out of sync with env templates"
 fi
 
 echo ">>> Checking evidence configuration templates"

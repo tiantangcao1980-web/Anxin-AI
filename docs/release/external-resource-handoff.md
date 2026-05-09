@@ -5,6 +5,8 @@
 
 This is the operator handoff for the remaining commercial-release blockers. Store secrets in the approved secret manager or a local untracked `.env`; store screenshots, videos, and provider logs as redacted release artifacts.
 
+Machine-readable source: `docs/release/external-resource-requirements.json`. When an external input, runner argument, artifact requirement, or provider lane changes, update that JSON first and run `node scripts/validate-external-resource-requirements.cjs`.
+
 ## Payment
 
 Required inputs:
