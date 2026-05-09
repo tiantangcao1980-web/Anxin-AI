@@ -165,6 +165,8 @@
         "frontend/src/pages/mcpSettingsModel.test.ts",
         "backend/tests/test_external_surface_guards.py",
         "frontend/e2e/settings-workstation.spec.ts",
+        "scripts/desktop-mvp-local-gate.sh",
+        "docs/desktop/quick-query-flow.md",
         "docs/release/external-resource-handoff.md",
         "scripts/desktop-release-package.sh",
         "scripts/desktop-release-preflight.sh",
@@ -184,6 +186,7 @@
         "cd frontend && npm test -- mcpSettingsModel.test.ts",
         "backend/.venv/bin/pytest -q backend/tests/test_external_surface_guards.py -k \"mcp_server_update_preserves_masked_env_when_omitted or mcp_server_create_writes_masked_audit_log\"",
         "cd frontend && npx playwright test e2e/settings-workstation.spec.ts --project=chromium --project=mobile",
+        "bash scripts/desktop-mvp-local-gate.sh",
         "cd desktop && cargo test runtime_config",
         "cd desktop && cargo test app_mode"
       ],
@@ -195,7 +198,7 @@
         "packaged cross-device test environment"
       ],
       "current_blockers": [
-        "2026-05-09 desktop workstation local config surface is code-level covered: mode switch, backend endpoint save, and secret-free environment profile CRUD are locked by frontend unit/e2e tests; Rust IPC rejects non-http(s) backend URLs, preserves saved profiles while switching current mode/backend, and persists mode/backend/profiles across restarts without token/secret fields. Desktop top-secret mode now maps into frontend PrivacyContext local gates, MCP connector metadata edits preserve masked env credentials by default, and Skills connector frontend credential UX is now covered in the Agent governance lane, but this does not replace signed runtime or real approved connector runtime evidence.",
+        "2026-05-09 desktop workstation local config surface is code-level covered: mode switch, backend endpoint save, and secret-free environment profile CRUD are locked by frontend unit/e2e tests; Rust IPC rejects non-http(s) backend URLs, preserves saved profiles while switching current mode/backend, and persists mode/backend/profiles across restarts without token/secret fields. Desktop MVP local gate now guards quick-query, file-drop queue/toast/WebView-drop, workstation, and evidence-doc structure in quick release checks. Desktop top-secret mode maps into frontend PrivacyContext local gates, MCP connector metadata edits preserve masked env credentials by default, and Skills connector frontend credential UX is covered in the Agent governance lane, but this does not replace signed runtime or real approved connector runtime evidence.",
         "desktop-release-package dry-run and desktop-release-preflight now report hdiutil/DiskManagement, unsigned release app, and unsigned release DMG as passing, but still report missing signing identity, codesign identity, notary credential, code-sign verification, and signature authority.",
         "Unsigned release packaged runtime and packaged-profile/performance smoke now pass, but signed/notarized packaged-profile migration, signed packaged runtime performance, and cross-device evidence are missing."
       ],

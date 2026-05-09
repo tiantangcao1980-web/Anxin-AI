@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+# Guard code-level desktop MVP surfaces that are still waiting on signed/runtime evidence.
+#
+# This is intentionally structural: full compile/test/browser coverage remains in
+# commercial-readiness-gate.sh --with-local-tests, while this gate makes quick
+# release checks fail if the local desktop workstation, quick-query, or file-drop
+# chains drift out of the expected code and documentation shape.
+
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
+python3 - <<'PY'
+from pathlib import Path
+
+root = Path(".")
+failures: list[str] = []
+
+
+def require_fragments(relative: str, fragments: list[str]) -> None:
+    path = root / relative
+    if not path.exists():
+        failures.append(f"{relative}: missing")
+        return
+    text = path.read_text(encoding="utf-8")
+    for fragment in fragments:
+        if fragment not in text:
+            failures.append(f"{relative}: missing fragment {fragment!r}")
+
+
+checks = {
+    "desktop/src/commands/quick_query.rs": [
+        "QUICK_QUERY_WINDOW_LABEL",
+        "QUICK_QUERY_WINDOW_PATH",
+        "/desktop/quick-query",
+        "hide_quick_query_window",
+        "always_on_top: true",
+        "skip_taskbar: true",
+    ],
+    "desktop/src/lib.rs": [
+        "Cmd+Shift+Space",
+        "Cmd/Ctrl+Shift+Space",
+        "toggle_quick_query_window",
+        "hide_quick_query_window",
+        "queue_file_drop_paths",
+    ],
+    "frontend/src/pages/QuickQuery.tsx": [
+        "hideQuickQueryWindow",
+        "localLLMChat",
+        "mode: 'quick_query'",
+        "Escape",
+        "blur",
+    ],
+    "frontend/src/pages/quickQueryModel.ts": [
+        "QUICK_QUERY_AUTO_HIDE_MS",
+        "shouldUseLocalQuickQuery",
+        "resolveLocalQuickQueryAnswer",
+    ],
+    "frontend/src/pages/quickQueryModel.test.ts": [
+        "shouldUseLocalQuickQuery",
+        "resolveLocalQuickQueryAnswer",
+    ],
+    "frontend/e2e/quick-query.spec.ts": [
+        "/desktop/quick-query",
+        "hide_quick_query_window",
+    ],
+    "desktop/src/commands/file_drop.rs": [
+        "queue_file_drop_paths",
+        "desktop://file-queued",
+        "contract_review",
+        "document_summary",
+        "local_path",
+    ],
+    "frontend/src/lib/tauri-bridge.ts": [
+        "queueFileDropPaths",
+        "listenFileDropQueued",
+        "listenDesktopFileDrops",
+        "desktop://file-queued",
+    ],
+    "frontend/src/lib/desktopFileDropEvents.ts": [
+        "summarizeFileDropQueueReport",
+        "extractDesktopFileDropPaths",
+        "部分文件已加入队列",
+    ],
+    "frontend/src/lib/desktopFileDropEvents.test.ts": [
+        "summarizeFileDropQueueReport",
+        "extractDesktopFileDropPaths",
+    ],
+    "frontend/src/App.tsx": [
+        "listenFileDropQueued",
+        "listenDesktopFileDrops",
+        "queueFileDropPaths",
+        "/desktop/quick-query",
+    ],
+    "frontend/src/components/desktop/DesktopWorkstationPanel.tsx": [
+        "DesktopWorkstationPanel",
+        "工作站配置",
+        "后端环境",
+    ],
+    "frontend/src/components/desktop/desktopWorkstationModel.ts": [
+        "normalizeWorkstationBackendUrl",
+        "top-secret",
+        "hybrid",
+        "cloud",
+    ],
+    "frontend/src/components/desktop/desktopWorkstationModel.test.ts": [
+        "normalizeWorkstationBackendUrl",
+        "top-secret",
+    ],
+    "frontend/e2e/settings-workstation.spec.ts": [
+        "settings?tab=workstation",
+        "settings?tab=privacy",
+        "desktop runtime",
+    ],
+    "docs/desktop/quick-query-flow.md": [
+        "Cmd/Ctrl+Shift+Space",
+        "/desktop/quick-query",
+        "hide_quick_query_window",
+        "Still Pending",
+    ],
+    "docs/release/test-evidence.md": [
+        "桌面快问 P0-2",
+        "桌面文件拖入分析 P0-3",
+        "桌面主窗口 WebView 文件 drop",
+    ],
+    "docs/release/commercial-delivery-readiness.md": [
+        "桌面端补充：`Cmd/Ctrl+Shift+Space`",
+        "桌面端补充：文件拖入分析",
+    ],
+}
+
+for relative, fragments in checks.items():
+    require_fragments(relative, fragments)
+
+if failures:
+    for failure in failures:
+        print(f"Desktop MVP local gate: FAIL: {failure}")
+    raise SystemExit(1)
+
+print("Desktop MVP local gate: PASS")
+PY

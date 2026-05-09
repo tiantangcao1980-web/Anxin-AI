@@ -126,6 +126,7 @@ required_artifacts=(
   "scripts/desktop-installed-profile-smoke.sh"
   "scripts/desktop-release-package.sh"
   "scripts/desktop-release-preflight.sh"
+  "scripts/desktop-mvp-local-gate.sh"
   "scripts/desktop-window-chrome-gate.sh"
   "scripts/desktop-network-surface-gate.sh"
   "scripts/desktop-sqlite-security-gate.sh"
@@ -149,6 +150,7 @@ required_artifacts=(
   "docs/release/test-evidence.md"
   "docs/release/rollback-runbook.md"
   "docs/release/security-and-privacy-checklist.md"
+  "docs/desktop/quick-query-flow.md"
   "docs/desktop/window-styling.md"
 )
 
@@ -364,6 +366,13 @@ if ! desktop_window_chrome_output="$(bash scripts/desktop-window-chrome-gate.sh 
   done <<< "$desktop_window_chrome_output"
 fi
 
+if ! desktop_mvp_output="$(bash scripts/desktop-mvp-local-gate.sh 2>&1)"; then
+  add_failure "desktop MVP local gate is still release-blocking"
+  while IFS= read -r line; do
+    [ -n "$line" ] && add_warning "$line"
+  done <<< "$desktop_mvp_output"
+fi
+
 if rg -q '当前 `ruff` / `mypy` 全仓历史问题未清零|ruff/mypy 全仓清零仍未完成|全仓 `ruff` / `mypy` 尚未清零' \
   docs/release docs/openspec docs/audit; then
   add_failure "ruff/mypy full-repo quality baseline is not closed"
@@ -384,6 +393,7 @@ if [ "$RUN_LOCAL_TESTS" -eq 1 ]; then
   require_command "desktop cargo test" bash -lc "cd desktop && cargo test"
   require_command "desktop network surface gate" bash scripts/desktop-network-surface-gate.sh
   require_command "desktop window chrome gate" bash scripts/desktop-window-chrome-gate.sh
+  require_command "desktop MVP local gate" bash scripts/desktop-mvp-local-gate.sh
   require_command "desktop installed-profile SQLCipher/keyring smoke" \
     bash scripts/desktop-installed-profile-smoke.sh --out /tmp/anxin-desktop-installed-profile-gate.json
   require_command "backend mypy zero-baseline gate" bash scripts/mypy-baseline-check.sh

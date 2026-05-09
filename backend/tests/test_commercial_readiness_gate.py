@@ -28,6 +28,19 @@ def test_commercial_gate_requires_desktop_window_chrome_gate():
     assert 'require_command "desktop window chrome gate"' in script
 
 
+def test_commercial_gate_requires_desktop_mvp_local_gate():
+    repo_root = Path(__file__).resolve().parents[2]
+    script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
+    gate_script = (repo_root / "scripts" / "desktop-mvp-local-gate.sh").read_text(encoding="utf-8")
+
+    assert '"scripts/desktop-mvp-local-gate.sh"' in script
+    assert 'desktop_mvp_output="$(bash scripts/desktop-mvp-local-gate.sh 2>&1)"' in script
+    assert 'require_command "desktop MVP local gate"' in script
+    assert "frontend/src/pages/QuickQuery.tsx" in gate_script
+    assert "desktop/src/commands/file_drop.rs" in gate_script
+    assert "frontend/src/components/desktop/DesktopWorkstationPanel.tsx" in gate_script
+
+
 def test_commercial_gate_runs_desktop_strict_clippy():
     repo_root = Path(__file__).resolve().parents[2]
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")

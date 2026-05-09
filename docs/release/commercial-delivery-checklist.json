@@ -102,6 +102,8 @@
         "frontend/src/pages/mcpSettingsModel.test.ts",
         "backend/tests/test_external_surface_guards.py",
         "frontend/e2e/settings-workstation.spec.ts",
+        "scripts/desktop-mvp-local-gate.sh",
+        "docs/desktop/quick-query-flow.md",
         "scripts/desktop-sqlite-security-gate.sh",
         "scripts/desktop-network-surface-gate.sh",
         "scripts/desktop-installed-profile-smoke.sh",
@@ -125,6 +127,7 @@
         "backend/.venv/bin/pytest -q backend/tests/test_external_surface_guards.py -k \"mcp_server_update_preserves_masked_env_when_omitted or mcp_server_create_writes_masked_audit_log\"",
         "cd frontend && npm test -- desktopWorkstationModel.test.ts",
         "cd frontend && npx playwright test e2e/settings-workstation.spec.ts --project=chromium --project=mobile",
+        "bash scripts/desktop-mvp-local-gate.sh",
         "bash scripts/desktop-sqlite-security-gate.sh",
         "bash scripts/desktop-network-surface-gate.sh",
         "bash scripts/desktop-installed-profile-smoke.sh --out docs/release/evidence/artifacts/desktop-installed-profile-smoke-YYYYMMDD.json",
@@ -132,7 +135,7 @@
         "bash scripts/desktop-release-package.sh --dry-run --out docs/release/evidence/artifacts/desktop-release-package-dry-run-YYYYMMDD.json --preflight-out docs/release/evidence/artifacts/desktop-release-preflight-YYYYMMDD.json",
         "bash scripts/desktop-release-preflight.sh --out docs/release/evidence/artifacts/desktop-release-preflight-YYYYMMDD.json"
       ],
-      "current_result": "Code-level SQLCipher/keyring, guarded erase-local-data path, desktop network surface gate, unsigned debug .app runtime startup/UI smoke, structured desktop runtime artifacts, production APNs entitlement, release package dry-run, release preflight, desktop workstation local config surface, secret-free mode/backend runtime config persistence, desktop top-secret to frontend PrivacyContext gate alignment, and MCP connector masked-env preservation pass; Status: pending because signing identity, notarization credentials, signed/notarized .app/DMG, signed packaged UI interaction, signed packaged runtime, migration transcript, performance, real approved connector runtime evidence, and cross-device evidence are missing."
+      "current_result": "Code-level SQLCipher/keyring, guarded erase-local-data path, desktop network surface gate, desktop MVP local gate, unsigned debug .app runtime startup/UI smoke, structured desktop runtime artifacts, production APNs entitlement, release package dry-run, release preflight, desktop workstation local config surface, quick-query code/browser evidence, file-drop queue/toast/WebView-drop code evidence, secret-free mode/backend runtime config persistence, desktop top-secret to frontend PrivacyContext gate alignment, and MCP connector masked-env preservation pass; Status: pending because signing identity, notarization credentials, signed/notarized .app/DMG, signed packaged UI interaction, signed packaged runtime, migration transcript, performance, real approved connector runtime evidence, and cross-device evidence are missing."
     },
     {
       "id": "rag-full50-live-baseline",
