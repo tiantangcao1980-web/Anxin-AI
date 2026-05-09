@@ -19,6 +19,8 @@ REJECTED_STATUS = "rejected"
 REVOKED_STATUS = "revoked"
 EXPIRED_STATUS = "expired"
 SENSITIVE_PAYLOAD_FRAGMENTS = ("token", "secret", "password", "credential", "api_key", "private_key")
+LOCAL_RUNTIME_REHEARSAL_MODE = "local_rehearsal"
+WORKSPACE_RUNTIME_ACTIONS = ("pause", "takeover", "terminate")
 
 
 @dataclass(frozen=True)
@@ -454,6 +456,49 @@ class AgentApprovalService:
                 workspace_snapshot=snapshot,
             )
 
+        if _local_runtime_rehearsal_enabled(approval):
+            snapshot = _workspace_runtime_control_snapshot(
+                approval=approval,
+                action=action,
+                controlled_at=controlled_at,
+                reason=reason,
+            )
+            event = self._audit_approval(
+                approval=approval,
+                action=control_action,
+                status="success",
+                reason_code=f"{action}_accepted",
+                actor_user_id=actor_user_id,
+                actor_role=normalized_role,
+                metadata={
+                    "workspace_control": action,
+                    "reason_present": str(bool(reason)).lower(),
+                    "runtime_control_state": LOCAL_RUNTIME_REHEARSAL_MODE,
+                    "runtime_control_id": snapshot["runtime_control"]["id"],
+                },
+                now=controlled_at,
+            )
+            await self.db.flush()
+            snapshot = {
+                **snapshot,
+                "runtime_control": {
+                    **snapshot["runtime_control"],
+                    "audit_event_id": event.id,
+                },
+                "audit_events": [_audit_event_snapshot(event)],
+            }
+            return AgentApprovalDecision(
+                True,
+                f"{action}_accepted",
+                f"Agent workspace {action} accepted by local runtime rehearsal.",
+                approval_id=approval.id,
+                route_id=approval.route_id,
+                status=approval.status,
+                expires_at=approval.expires_at,
+                audit_event_id=event.id,
+                workspace_snapshot=snapshot,
+            )
+
         event = self._audit_approval(
             approval=approval,
             action=control_action,
@@ -752,12 +797,7 @@ class AgentApprovalService:
             "approval": _approval_snapshot(approval),
             "artifacts": [_workspace_artifact_snapshot(artifact) for artifact in artifacts],
             "audit_events": [_audit_event_snapshot(event) for event in audit_events],
-            "runtime_controls": {
-                "observe": "available",
-                "pause": "runtime_not_integrated",
-                "takeover": "runtime_not_integrated",
-                "terminate": "runtime_not_integrated",
-            },
+            "runtime_controls": _workspace_runtime_controls(approval),
         }
 
     def _approval_decision_denial(self, *, approval: AgentApproval, now: datetime) -> str | None:
@@ -975,6 +1015,56 @@ def _route_snapshot(route: CapabilityRoute) -> dict[str, str]:
     }
 
 
+def _local_runtime_rehearsal_enabled(approval: AgentApproval) -> bool:
+    runtime_config = _workspace_runtime_config(approval)
+    mode = str(runtime_config.get("mode") or runtime_config.get("control_mode") or "").strip().lower()
+    return mode == LOCAL_RUNTIME_REHEARSAL_MODE
+
+
+def _workspace_runtime_config(approval: AgentApproval) -> dict[str, Any]:
+    payload = approval.payload if isinstance(approval.payload, dict) else {}
+    for key in ("workspace_runtime", "agent_runtime", "runtime"):
+        value = payload.get(key)
+        if isinstance(value, dict):
+            return value
+    for key in ("workspace_runtime_mode", "runtime_mode"):
+        value = payload.get(key)
+        if isinstance(value, str):
+            return {"mode": value}
+    return {}
+
+
+def _workspace_runtime_controls(approval: AgentApproval) -> dict[str, str]:
+    runtime_state = "available_local_rehearsal" if _local_runtime_rehearsal_enabled(approval) else "runtime_not_integrated"
+    return {"observe": "available", **dict.fromkeys(WORKSPACE_RUNTIME_ACTIONS, runtime_state)}
+
+
+def _workspace_runtime_control_snapshot(
+    *,
+    approval: AgentApproval,
+    action: str,
+    controlled_at: datetime,
+    reason: str | None,
+) -> dict[str, Any]:
+    return {
+        "observed_at": controlled_at.isoformat(),
+        "approval": _approval_snapshot(approval),
+        "runtime_controls": _workspace_runtime_controls(approval),
+        "runtime_control": {
+            "id": f"{approval.id}:{action}:{controlled_at.isoformat()}",
+            "action": action,
+            "mode": LOCAL_RUNTIME_REHEARSAL_MODE,
+            "status": "accepted",
+            "reason_present": bool(reason),
+            "accepted_at": controlled_at.isoformat(),
+            "external_side_effects": False,
+            "note": "Local runtime rehearsal accepted the control action without external side effects.",
+        },
+        "audit_events": [],
+        "artifacts": [],
+    }
+
+
 def _artifact_from_event(event: AgentAuditEvent) -> AgentWorkspaceArtifact:
     snapshot = event.resource_snapshot or {}
     metadata = event.metadata_json or {}
@@ -1077,4 +1167,7 @@ def _reason_message(reason_code: str) -> str:
         "capability_route_disabled": "Capability route is disabled.",
         "capability_route_revoked": "Capability route has been revoked.",
         "observe_snapshot_ready": "Agent workspace observe snapshot prepared.",
+        "pause_accepted": "Agent workspace pause accepted by local runtime rehearsal.",
+        "takeover_accepted": "Agent workspace takeover accepted by local runtime rehearsal.",
+        "terminate_accepted": "Agent workspace terminate accepted by local runtime rehearsal.",
     }.get(reason_code, "Agent approval request was denied.")

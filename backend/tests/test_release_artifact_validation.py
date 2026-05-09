@@ -592,6 +592,7 @@ def test_release_artifact_validation_accepts_agent_governance_code_smoke(tmp_pat
                     "governance_docs_scan": "passed",
                     "agent_capability_policy": "passed",
                     "backend_governance_regressions": "passed",
+                    "local_runtime_control_rehearsal": "passed",
                     "approval_authorization_guard": "passed",
                     "mcp_connection_config_policy": "passed",
                     "approved_connector_local_rehearsal": "passed",
@@ -603,7 +604,7 @@ def test_release_artifact_validation_accepts_agent_governance_code_smoke(tmp_pat
                 "pending_runtime_evidence": [
                     "real_approved_connector_runtime",
                     "real_cross_process_revocation",
-                    "pause_takeover_terminate_runtime",
+                    "real_pause_takeover_terminate_runtime",
                     "signed_packaged_runtime_outbound_evidence",
                 ],
                 "completion_note": "Code-level supporting evidence only; runtime evidence remains pending.",

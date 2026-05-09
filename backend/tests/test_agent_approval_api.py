@@ -226,6 +226,55 @@ async def test_agent_approval_workspace_control_fails_closed_and_writes_audit(
 
 
 @pytest.mark.asyncio
+async def test_agent_approval_workspace_control_accepts_local_runtime_rehearsal(
+    auth_client,
+    admin_auth_client,
+    db_session,
+    test_organization,
+):
+    create = await auth_client.post(
+        "/api/v1/agent-approvals",
+        json={
+            "action_type": "browser.remote_control",
+            "risk_level": "l4",
+            "payload": {
+                "workspace_runtime": {"mode": "local_rehearsal"},
+                "api_key": "should-never-leak",
+            },
+        },
+    )
+    approval_id = create.json()["data"]["approval_id"]
+    await admin_auth_client.post(f"/api/v1/agent-approvals/{approval_id}/approve", json={"note": "ok"})
+
+    controlled = await admin_auth_client.post(
+        f"/api/v1/agent-approvals/{approval_id}/workspace-control",
+        json={"action": "takeover", "reason": "operator rehearses takeover"},
+    )
+
+    audits = (
+        await db_session.execute(
+            select(AgentAuditEvent)
+            .where(AgentAuditEvent.org_id == test_organization.id)
+            .order_by(AgentAuditEvent.created_at)
+        )
+    ).scalars().all()
+    payload = controlled.json()["data"]
+
+    assert controlled.status_code == 200
+    assert controlled.json()["code"] == 200
+    assert payload["allowed"] is True
+    assert payload["reason_code"] == "takeover_accepted"
+    assert payload["workspace_snapshot"]["runtime_control"]["mode"] == "local_rehearsal"
+    assert payload["workspace_snapshot"]["runtime_control"]["external_side_effects"] is False
+    assert payload["workspace_snapshot"]["runtime_controls"]["takeover"] == "available_local_rehearsal"
+    assert audits[-1].action == "agent_workspace.takeover"
+    assert audits[-1].status == "success"
+    assert audits[-1].reason_code == "takeover_accepted"
+    assert "should-never-leak" not in str(payload)
+    assert "should-never-leak" not in str(audits)
+
+
+@pytest.mark.asyncio
 async def test_agent_approval_workspace_observe_returns_snapshot_and_writes_audit(
     auth_client,
     admin_auth_client,

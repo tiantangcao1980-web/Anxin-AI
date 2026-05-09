@@ -2988,6 +2988,17 @@ export interface AgentWorkspaceObserveSnapshot {
   artifacts: AgentWorkspaceArtifact[]
   audit_events: AgentApprovalAuditEvent[]
   runtime_controls: Record<AgentWorkspaceControlAction, string>
+  runtime_control?: {
+    id: string
+    action: AgentWorkspaceControlAction
+    mode: string
+    status: string
+    reason_present: boolean
+    accepted_at: string
+    external_side_effects: boolean
+    note?: string
+    audit_event_id?: string | null
+  }
 }
 
 export interface AgentWorkspaceArtifactExport {

@@ -488,6 +488,7 @@ def _validate_agent_governance_code_smoke(path: Path, payload: dict[str, Any], f
         "governance_docs_scan",
         "agent_capability_policy",
         "backend_governance_regressions",
+        "local_runtime_control_rehearsal",
         "approval_authorization_guard",
         "mcp_connection_config_policy",
         "approved_connector_local_rehearsal",
@@ -514,7 +515,7 @@ def _validate_agent_governance_code_smoke(path: Path, payload: dict[str, Any], f
         required_pending = {
             "real_approved_connector_runtime",
             "real_cross_process_revocation",
-            "pause_takeover_terminate_runtime",
+            "real_pause_takeover_terminate_runtime",
             "signed_packaged_runtime_outbound_evidence",
         }
         missing = required_pending.difference(pending)

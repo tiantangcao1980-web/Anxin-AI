@@ -350,6 +350,79 @@ async def test_workspace_control_fails_closed_until_runtime_is_integrated(
 
 
 @pytest.mark.asyncio
+async def test_workspace_control_accepts_local_runtime_rehearsal(
+    db_session,
+    test_organization,
+    test_user,
+    test_admin,
+):
+    service = AgentApprovalService(db_session)
+    requested = await service.request_approval(
+        org_id=test_organization.id,
+        action_type="browser.remote_control",
+        risk_level="l4",
+        requested_by=test_user.id,
+        payload={
+            "workspace_runtime": {"mode": "local_rehearsal"},
+            "api_key": "should-never-leak",
+        },
+    )
+    await service.decide_approval(
+        org_id=test_organization.id,
+        approval_id=requested.approval_id,
+        decision="approve",
+        decided_by=test_admin.id,
+        decider_role="admin",
+    )
+
+    controlled = await service.control_workspace(
+        org_id=test_organization.id,
+        approval_id=requested.approval_id,
+        action="pause",
+        actor_user_id=test_admin.id,
+        actor_role="admin",
+        reason="owner paused local runtime rehearsal",
+    )
+    observed = await service.control_workspace(
+        org_id=test_organization.id,
+        approval_id=requested.approval_id,
+        action="observe",
+        actor_user_id=test_admin.id,
+        actor_role="admin",
+        reason="owner observes local runtime rehearsal",
+    )
+
+    audits = (
+        await db_session.execute(
+            select(AgentAuditEvent)
+            .where(AgentAuditEvent.org_id == test_organization.id)
+            .order_by(AgentAuditEvent.created_at)
+        )
+    ).scalars().all()
+
+    assert controlled.allowed is True
+    assert controlled.reason_code == "pause_accepted"
+    assert controlled.status == "approved"
+    assert controlled.workspace_snapshot is not None
+    assert controlled.workspace_snapshot["runtime_control"]["mode"] == "local_rehearsal"
+    assert controlled.workspace_snapshot["runtime_control"]["external_side_effects"] is False
+    assert controlled.workspace_snapshot["runtime_controls"]["pause"] == "available_local_rehearsal"
+    assert observed.workspace_snapshot is not None
+    assert observed.workspace_snapshot["runtime_controls"] == {
+        "observe": "available",
+        "pause": "available_local_rehearsal",
+        "takeover": "available_local_rehearsal",
+        "terminate": "available_local_rehearsal",
+    }
+    assert audits[-2].action == "agent_workspace.pause"
+    assert audits[-2].status == "success"
+    assert audits[-2].reason_code == "pause_accepted"
+    assert audits[-2].metadata_json["runtime_control_state"] == "local_rehearsal"
+    assert "should-never-leak" not in str(controlled.workspace_snapshot)
+    assert "should-never-leak" not in str(audits)
+
+
+@pytest.mark.asyncio
 async def test_workspace_observe_returns_read_only_snapshot_and_writes_audit(
     db_session,
     test_organization,

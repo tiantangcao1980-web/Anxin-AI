@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-09T08:45:47.291191+00:00",
+  "generated_at": "2026-05-09T10:54:28.129834+00:00",
   "mode": "agent_governance_code_smoke",
   "status": "passed",
   "release_evidence_complete": false,
@@ -8,6 +8,7 @@
     "governance_docs_scan": "passed",
     "agent_capability_policy": "passed",
     "backend_governance_regressions": "passed",
+    "local_runtime_control_rehearsal": "passed",
     "approval_authorization_guard": "passed",
     "mcp_connection_config_policy": "passed",
     "approved_connector_local_rehearsal": "passed",
@@ -25,7 +26,7 @@
     "real_approved_connector_runtime",
     "real_cross_process_revocation",
     "long_task_artifact_workflow",
-    "pause_takeover_terminate_runtime",
+    "real_pause_takeover_terminate_runtime",
     "signed_packaged_runtime_outbound_evidence",
     "cross_device_recovery"
   ],
