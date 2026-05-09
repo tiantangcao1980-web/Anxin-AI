@@ -188,6 +188,7 @@ docs/audit/11b-sync-engine/
 - [ ] 自动重试 runtime：代码级退避与 `needs_human` 已补；仍需在真实 Tauri runtime 中验证失败、延迟重试、达到上限转人工处理
 - [ ] sqlcipher 接通：本地 SQLite 文件用 hex 工具打开看不到明文；密钥在 macOS Keychain / Windows Credential Manager 可查
 - [ ] 后端 sync 接口：跨 user 完全隔离（A 用户 pull 永远拿不到 B 用户的 sync_log）；按 device_id + user_id 限流生效
+- [ ] 跨设备会话续接：`scripts/cross-device-continuation-smoke.sh` 已补代码级 rehearsal，覆盖桌面 push、web/mobile pull、uni-mobile reply、桌面增量 pull 无丢失/重复；仍需 signed desktop package、共享预发账号和真实/官方移动设备 runtime 证据
 - [ ] 移动远控命令队列：后端 fail-closed API 契约已有 `backend/tests/test_remote_control_fail_closed.py` 覆盖；仍需设备配对、命令入队、桌面确认、状态回传、取消/撤销、过期、审计和绝密模式拒绝的真实 runtime smoke
 - [ ] 桌面 `cargo test` 新增至少 15 个用例全绿；后端 `pytest` 新增至少 10 个用例全绿；全栈 273 baseline 不退化
 - [ ] 性能基线达标：push 100 条 P95 < 2s；pull 500 条 P95 < 3s

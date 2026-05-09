@@ -10,7 +10,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-
 DEFAULT_ARTIFACT_DIR = Path("docs/release/evidence/artifacts")
 SENSITIVE_VALUE_KEYS = {
     "access_token",
@@ -343,7 +342,7 @@ def _validate_mobile_mini_code_smoke(path: Path, payload: dict[str, Any], failur
     if not isinstance(mobile_npm_audit.get("residual_vulnerabilities"), list):
         failures.append(f"{path}: mobile npm audit must list residual_vulnerabilities")
     else:
-        residual = set(str(item) for item in mobile_npm_audit["residual_vulnerabilities"])
+        residual = {str(item) for item in mobile_npm_audit["residual_vulnerabilities"]}
         if "@xmldom/xmldom" in residual or "@expo/plist" in residual:
             failures.append(f"{path}: mobile npm audit must not leave xmldom/plist residuals")
     try:
@@ -365,7 +364,7 @@ def _validate_mobile_mini_code_smoke(path: Path, payload: dict[str, Any], failur
             "@expo/metro-config -> postcss@8.5.14",
             "cacache -> tar@7.5.14",
         }
-        missing = required_remediations.difference(set(str(item) for item in remediated))
+        missing = required_remediations.difference({str(item) for item in remediated})
         if missing:
             failures.append(
                 f"{path}: mobile npm audit passed artifact must record Expo toolchain overrides"
@@ -400,6 +399,74 @@ def _validate_uni_mobile_base_smoke(path: Path, payload: dict[str, Any], failure
     else:
         if scope.get("base") != "apps/uni-mobile":
             failures.append(f"{path}: uni-mobile base smoke scope.base must be apps/uni-mobile")
+
+
+def _validate_cross_device_continuation_code_smoke(
+    path: Path,
+    payload: dict[str, Any],
+    failures: list[str],
+) -> None:
+    if payload.get("mode") != "cross_device_continuation_code_smoke":
+        return
+    if payload.get("release_evidence_complete") is not False:
+        failures.append(f"{path}: cross-device continuation code smoke must set release_evidence_complete=false")
+    if payload.get("runtime_evidence_complete") is not False:
+        failures.append(f"{path}: cross-device continuation code smoke must set runtime_evidence_complete=false")
+    if payload.get("status") != "passed":
+        failures.append(f"{path}: cross-device continuation code smoke must have status=passed")
+
+    checks = payload.get("checks")
+    if not isinstance(checks, dict):
+        failures.append(f"{path}: cross-device continuation code smoke must include checks object")
+        return
+    for check_name in (
+        "backend_sync_service_continuation",
+        "frontend_desktop_sync_adapter",
+        "uni_mobile_sync_client_contract",
+    ):
+        if checks.get(check_name) != "passed":
+            failures.append(f"{path}: cross-device continuation code smoke {check_name} must be passed")
+
+    covered_flow = payload.get("covered_flow")
+    if not isinstance(covered_flow, list) or len(covered_flow) < 4:
+        failures.append(f"{path}: cross-device continuation code smoke must include covered_flow steps")
+
+    scope = payload.get("scope")
+    if not isinstance(scope, dict):
+        failures.append(f"{path}: cross-device continuation code smoke must include scope")
+    else:
+        if scope.get("future_mobile") != "apps/uni-mobile/src/services/sync.ts":
+            failures.append(
+                f"{path}: cross-device continuation code smoke scope.future_mobile must be apps/uni-mobile/src/services/sync.ts"
+            )
+        if scope.get("evidence_level") != "code_level_rehearsal":
+            failures.append(
+                f"{path}: cross-device continuation code smoke scope.evidence_level must be code_level_rehearsal"
+            )
+
+    pending_external_evidence = payload.get("pending_external_evidence")
+    if not isinstance(pending_external_evidence, list) or not pending_external_evidence:
+        failures.append(f"{path}: cross-device continuation code smoke must list pending_external_evidence")
+    else:
+        pending = {str(item) for item in pending_external_evidence}
+        required_pending = {
+            "signed_notarized_desktop_package",
+            "real_ios_device_or_official_app_build",
+            "real_android_device_or_official_app_build",
+            "interactive_wechat_devtools_or_real_mini_program_device",
+            "dcloud_app_cloud_build_and_signing",
+            "shared_staging_account_cross_device_session",
+        }
+        if required_pending.difference(pending):
+            failures.append(
+                f"{path}: cross-device continuation code smoke missing pending external evidence markers"
+            )
+
+    note_text = _combined_note_text(payload)
+    if "supporting" not in note_text or "pending" not in note_text or "shared staging account" not in note_text:
+        failures.append(
+            f"{path}: cross-device continuation code smoke must clearly say real cross-device evidence remains pending"
+        )
 
 
 def _validate_agent_governance_code_smoke(path: Path, payload: dict[str, Any], failures: list[str]) -> None:
@@ -1230,6 +1297,7 @@ def validate_json_artifact(path: Path) -> ValidationResult:
     _validate_mobile_device_manual_template(path, payload, failures)
     _validate_mobile_mini_code_smoke(path, payload, failures)
     _validate_uni_mobile_base_smoke(path, payload, failures)
+    _validate_cross_device_continuation_code_smoke(path, payload, failures)
     _validate_agent_governance_code_smoke(path, payload, failures)
     _validate_agent_connector_local_rehearsal(path, payload, failures)
     _validate_mobile_ios_simulator_smoke(path, payload, failures)

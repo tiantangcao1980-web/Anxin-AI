@@ -19,6 +19,25 @@ def _record(entity_id: str, title: str, version: int = 1) -> dict:
     }
 
 
+def _sync_record(
+    entity_type: str,
+    entity_id: str,
+    data: dict,
+    *,
+    action: str = "upsert",
+    version: int = 1,
+    timestamp: str = "2026-05-06T10:00:00Z",
+) -> dict:
+    return {
+        "entity_type": entity_type,
+        "entity_id": entity_id,
+        "action": action,
+        "data": data,
+        "timestamp": timestamp,
+        "version": version,
+    }
+
+
 @pytest.mark.asyncio
 async def test_sync_push_persists_log_and_pull_returns_incremental(db_session, test_user):
     service = SyncService(db_session)
@@ -51,6 +70,96 @@ async def test_sync_push_persists_log_and_pull_returns_incremental(db_session, t
 
     pull_incremental = await service.pull(test_user.id, since_version=1)
     assert [record["entity_id"] for record in pull_incremental["records"]] == ["doc-2"]
+
+
+@pytest.mark.asyncio
+async def test_cross_device_conversation_continuation_has_no_lost_or_duplicate_rows(
+    db_session,
+    test_user,
+):
+    service = SyncService(db_session)
+
+    desktop_push = await service.push(
+        user_id=test_user.id,
+        device_id="desktop-a",
+        last_sync_version=0,
+        records=[
+            _sync_record(
+                "conversation",
+                "conv-cross-1",
+                {"id": "conv-cross-1", "title": "跨端会话", "mode": "hybrid"},
+                action="create",
+            ),
+            _sync_record(
+                "message",
+                "msg-desktop-1",
+                {
+                    "id": "msg-desktop-1",
+                    "conversation_id": "conv-cross-1",
+                    "role": "user",
+                    "content": "桌面端先发起",
+                },
+                action="create",
+                version=2,
+            ),
+        ],
+    )
+
+    assert desktop_push["accepted"] == 2
+    assert desktop_push["server_version"] == 2
+
+    web_resume = await service.pull(
+        test_user.id,
+        since_version=0,
+        entity_types=["conversation", "message"],
+    )
+    mobile_resume = await service.pull(
+        test_user.id,
+        since_version=0,
+        entity_types=["conversation", "message"],
+    )
+
+    for resume_payload in (web_resume, mobile_resume):
+        records = resume_payload["records"]
+        assert [record["entity_id"] for record in records] == [
+            "conv-cross-1",
+            "msg-desktop-1",
+        ]
+        assert len({record["entity_id"] for record in records}) == len(records)
+        assert {record["device_id"] for record in records} == {"desktop-a"}
+
+    mobile_push = await service.push(
+        user_id=test_user.id,
+        device_id="uni-mobile-a",
+        last_sync_version=desktop_push["server_version"],
+        records=[
+            _sync_record(
+                "message",
+                "msg-mobile-1",
+                {
+                    "id": "msg-mobile-1",
+                    "conversation_id": "conv-cross-1",
+                    "role": "user",
+                    "content": "移动端继续回复",
+                },
+                action="create",
+                version=1,
+                timestamp="2026-05-06T10:01:00Z",
+            )
+        ],
+    )
+
+    assert mobile_push["accepted"] == 1
+    assert mobile_push["server_version"] == 3
+
+    desktop_resume = await service.pull(
+        test_user.id,
+        since_version=desktop_push["server_version"],
+        entity_types=["message"],
+    )
+    assert [record["entity_id"] for record in desktop_resume["records"]] == ["msg-mobile-1"]
+    assert desktop_resume["records"][0]["device_id"] == "uni-mobile-a"
+    assert desktop_resume["records"][0]["data"]["conversation_id"] == "conv-cross-1"
 
 
 @pytest.mark.asyncio

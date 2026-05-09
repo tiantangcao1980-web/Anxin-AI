@@ -2,7 +2,7 @@
 
 Status: pending
 Owner: TBD
-Environment: code-level mobile/mini smoke complete for the current Expo/Taro legacy clients; Expo config, SDK dependency guard, Expo Metro config, Expo doctor, mobile result surface guard, mobile remote-control safe-probe enqueue/status/cancel/audit timeline visibility, mini-program privacy and navigation boundary guards, WeChat DevTools CLI project smoke, and iOS Simulator Expo Go supporting app-run complete; cross-platform token drift audit complete; 2026-05-09 route changed future mobile App/Mini Program development to uni-app and the first `apps/uni-mobile` base has code-level smoke evidence; Android, interactive WeChat DevTools / real device, DCloud App cloud build/signing, and cross-device continuation pending
+Environment: code-level mobile/mini smoke complete for the current Expo/Taro legacy clients; Expo config, SDK dependency guard, Expo Metro config, Expo doctor, mobile result surface guard, mobile remote-control safe-probe enqueue/status/cancel/audit timeline visibility, mini-program privacy and navigation boundary guards, WeChat DevTools CLI project smoke, and iOS Simulator Expo Go supporting app-run complete; cross-platform token drift audit complete; 2026-05-09 route changed future mobile App/Mini Program development to uni-app and the first `apps/uni-mobile` base plus sync client contract have code-level smoke evidence; cross-device continuation code-level rehearsal complete; Android, interactive WeChat DevTools / real device, DCloud App cloud build/signing, and real cross-device continuation pending
 Date range: 2026-05-06 to 2026-05-09 local collection
 
 > Simulator/unit tests are useful but insufficient. This evidence requires real or official-device-tool runs for the critical user stories.
@@ -22,7 +22,7 @@ Date range: 2026-05-06 to 2026-05-09 local collection
 | Release communication | Error-state release notes explain removal of silent fallback | draft complete; final notes pending | `docs/release/mobile-error-state-release-notes.md` |
 | Mobile security | `npm audit --omit=dev` has no production vulnerabilities after targeted Expo SDK 52 toolchain overrides plus `@babel/plugin-transform-modules-systemjs` / `fast-uri` overrides | code-level complete; device verification pending | `docs/release/evidence/artifacts/mobile-mini-code-smoke-20260509.json` -> `mobile_npm_audit.status=passed,total=0` |
 | Mobile remote control | Confirmed-pairing state can request a short-lived `desktop:control` route token and enqueue only `desktop.status_probe`; local mode blocks before network I/O; queued/claimed safe probes can be refreshed and cancelled from mobile; the page now shows a redacted remote-control audit timeline without rendering raw payload/metadata; desktop execution still requires host callback evidence | code-level complete; cross-device/device verification pending | `mobile/app/desktop-control.tsx`, `mobile/src/services/api.test.ts`, `mobile/src/features/desktop-control/model.test.ts` |
-| Cross-device | Web/desktop/mobile conversation continuation verified | pending | TBD |
+| Cross-device | Web/desktop/mobile conversation continuation verified | code-level complete; device/shared staging verification pending | `docs/release/evidence/artifacts/cross-device-continuation-code-smoke-20260509.json`; proves backend SyncService desktop/web/mobile flow, desktop sync adapter, and uni-app sync client contract with `release_evidence_complete=false` |
 | Error semantics | Backend/network failures show explicit empty/error state, not mock success | pending | TBD |
 
 ## Verification Commands
@@ -36,6 +36,8 @@ bash scripts/mobile-ios-simulator-smoke.sh \
   --log-out docs/release/evidence/artifacts/mobile-ios-simulator-expo-go-smoke-YYYYMMDD.log
 bash scripts/uni-mobile-smoke.sh \
   --out docs/release/evidence/artifacts/uni-mobile-base-smoke-YYYYMMDD.json
+bash scripts/cross-device-continuation-smoke.sh \
+  --out docs/release/evidence/artifacts/cross-device-continuation-code-smoke-YYYYMMDD.json
 cd mobile && npm test
 cd mobile && npx tsc --noEmit --module esnext
 cd mobile && npx expo-doctor
@@ -87,6 +89,7 @@ Result refreshed on 2026-05-09 local time:
 | iOS Simulator Expo Go smoke | `bash scripts/mobile-ios-simulator-smoke.sh --out docs/release/evidence/artifacts/mobile-ios-simulator-expo-go-smoke-20260508.json --log-out docs/release/evidence/artifacts/mobile-ios-simulator-expo-go-smoke-20260508.log --timeout 90` -> exit `0`; boots iPhone 17 simulator, verifies `expo-asset` and Expo Metro config, opens Expo Go on the local Expo URL, and records `iOS Bundled`; artifact has `release_evidence_complete=false` |
 | uni-app migration decision | `docs/mobile/uni-app-migration-plan.md` records feasibility, target directory, old-client cleanup plan, P0 feature scope, and evidence gates; `mobile/README.md` and `mini-program/README.md` mark current Expo/Taro clients as legacy |
 | uni-app base smoke | `bash scripts/uni-mobile-smoke.sh --out docs/release/evidence/artifacts/uni-mobile-base-smoke-20260509.json` -> exit `0`; `apps/uni-mobile` typecheck, `4 files / 10 tests passed`, production npm audit `0`, H5 build, and WeChat Mini Program build pass; artifact has `release_evidence_complete=false` |
+| cross-device continuation code smoke | `bash scripts/cross-device-continuation-smoke.sh --out docs/release/evidence/artifacts/cross-device-continuation-code-smoke-20260509.json` -> exit `0`; backend sync continuation `5 passed`, desktop adapter `10 passed`, uni-app sync client `5 passed`; artifact has `release_evidence_complete=false` |
 
 Code-level hardening added in this collection:
 
@@ -99,6 +102,7 @@ Code-level hardening added in this collection:
 - `mobile/src/services/api.ts` now keeps the stored session when refresh-token retry fails due to weak network/timeout; it clears auth only when the refresh endpoint confirms 401/403, with `mobile/src/services/api.test.ts` covering both paths.
 - `mobile/src/services/api.ts` now reads the stored privacy mode before outbound requests, sends `X-Privacy-Mode` in hybrid/cloud modes, and fails closed before `fetch` in local mode; `mobile/src/services/api.test.ts` covers header propagation and zero network calls in local mode.
 - `mini-program/src/services/api.ts` now reads the stored privacy mode before outbound requests, sends `X-Privacy-Mode`, and fails closed before `Taro.request` in `local` / `top-secret` modes; `mini-program/src/pages/profile/index.tsx` blocks login before `Taro.login`, and `mini-program/scripts/check-privacy-boundary.js` guards the boundary.
+- `apps/uni-mobile/src/services/sync.ts` adds the forward mobile sync client contract for `/sync/push` and `/sync/pull`, with `sync.test.ts` covering conversation continuation record shape and shared backend endpoint routing.
 - `mobile/package.json` now declares Expo SDK 52-compatible `expo-notifications`, `expo-device`, `expo-font`, `@expo/vector-icons`, `@react-native-async-storage/async-storage`, `react-native`, and `react-native-safe-area-context` versions so `mobile/app.json` config plugins and native peer dependencies resolve before device smoke.
 - `mobile/package.json` now declares `expo-asset` directly because Expo Metro config requires project-level resolution before iOS Simulator app-run can bundle.
 - `mini-program/src/services/api.ts` now mirrors that refresh-token distinction so transient refresh failure does not silently erase `token`/`refresh_token`.
@@ -108,7 +112,7 @@ Code-level hardening added in this collection:
 - `docs/design/cross-platform-token-drift.md` records Web/desktop, mobile, and mini-program token drift without changing design tokens; fixes remain separate release work.
 - `docs/release/mobile-error-state-release-notes.md` drafts the user/support explanation for explicit error states after silent fallback removal.
 
-This file remains `Status: pending` because the iOS Simulator Expo Go smoke and uni-app base smoke are supporting/code-level evidence only. They do not cover the required signed/official App build, real device user stories, Android, interactive WeChat DevTools or real-device evidence, DCloud cloud build/signing, and cross-device continuation. Mobile production npm audit, local iOS bundling, and the new uni-app base are now fixed in code-level/supporting artifacts, but runtime device evidence is still required before release Go.
+This file remains `Status: pending` because the iOS Simulator Expo Go smoke, uni-app base smoke, and cross-device continuation rehearsal are supporting/code-level evidence only. They do not cover the required signed/official App build, real device user stories, Android, interactive WeChat DevTools or real-device evidence, DCloud cloud build/signing, and shared staging account cross-device continuation. Mobile production npm audit, local iOS bundling, the new uni-app base, and the sync-client contract are now fixed in code-level/supporting artifacts, but runtime device evidence is still required before release Go.
 
 The 2026-05-09 uni-app decision does not make the old device evidence complete. It changes the forward development target and now has a runnable base: new mobile App and Mini Program features should land in `apps/uni-mobile/`, while `mobile/` and `mini-program/` remain legacy references until module-by-module migration, dual-run tests, and device/DevTools evidence allow cleanup.
 

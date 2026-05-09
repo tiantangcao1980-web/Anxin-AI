@@ -109,6 +109,15 @@ def test_commercial_gate_runs_approved_connector_local_rehearsal():
     assert "scripts/agent-connector-rehearsal.sh --out /tmp/anxin-agent-connector-rehearsal-gate.json" in script
 
 
+def test_commercial_gate_runs_cross_device_continuation_smoke():
+    repo_root = Path(__file__).resolve().parents[2]
+    script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
+
+    assert '"scripts/cross-device-continuation-smoke.sh"' in script
+    assert 'require_command "cross-device continuation code smoke"' in script
+    assert "scripts/cross-device-continuation-smoke.sh --out /tmp/anxin-cross-device-continuation-gate.json" in script
+
+
 def test_commercial_gate_runs_cli_route_governance_tests():
     repo_root = Path(__file__).resolve().parents[2]
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
