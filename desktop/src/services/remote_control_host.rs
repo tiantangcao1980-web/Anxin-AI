@@ -1,3 +1,4 @@
+use crate::models::{AppMode, SharedAppState};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 
@@ -13,6 +14,15 @@ const MIN_POLL_INTERVAL_SECONDS: u64 = 5;
 const MAX_POLL_INTERVAL_SECONDS: u64 = 300;
 const DEFAULT_POLL_CYCLES: u16 = 12;
 const MAX_POLL_CYCLES: u16 = 120;
+const HOST_DAEMON_ENABLED_ENV: &str = "ANXIN_DESKTOP_REMOTE_CONTROL_HOST_DAEMON";
+const HOST_DAEMON_DESKTOP_DEVICE_ID_ENV: &str = "ANXIN_REMOTE_CONTROL_DESKTOP_DEVICE_ID";
+const HOST_DAEMON_PAIRING_ID_ENV: &str = "ANXIN_REMOTE_CONTROL_PAIRING_ID";
+const HOST_DAEMON_ROUTE_TOKEN_ENV: &str = "ANXIN_REMOTE_CONTROL_ROUTE_TOKEN";
+const HOST_DAEMON_INSTANCE_ID_ENV: &str = "ANXIN_REMOTE_CONTROL_HOST_INSTANCE_ID";
+const HOST_DAEMON_BEARER_TOKEN_ENV: &str = "ANXIN_REMOTE_CONTROL_BEARER_TOKEN";
+const HOST_DAEMON_INTERVAL_SECONDS_ENV: &str = "ANXIN_REMOTE_CONTROL_HOST_POLL_INTERVAL_SECONDS";
+const HOST_DAEMON_MAX_CYCLES_ENV: &str = "ANXIN_REMOTE_CONTROL_HOST_POLL_MAX_CYCLES";
+const HOST_DAEMON_LIMIT_ENV: &str = "ANXIN_REMOTE_CONTROL_HOST_POLL_LIMIT";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RemoteControlHostCommand {
@@ -53,6 +63,16 @@ pub struct RemoteControlHostPollSummary {
     pub unsupported: usize,
     pub command_ids: Vec<String>,
     pub stopped_reason: String,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub struct RemoteControlHostDaemonConfig {
+    pub desktop_device_id: String,
+    pub pairing_id: String,
+    pub route_token: String,
+    pub host_instance_id: String,
+    pub bearer_token_override: Option<String>,
+    pub poll_config: RemoteControlHostPollConfig,
 }
 
 pub fn build_http_client() -> Result<reqwest::Client, String> {
@@ -262,6 +282,70 @@ pub fn build_host_poll_config(
 }
 
 #[allow(clippy::too_many_arguments)]
+pub fn build_host_daemon_config(
+    enabled: bool,
+    desktop_device_id: Option<&str>,
+    pairing_id: Option<&str>,
+    route_token: Option<&str>,
+    host_instance_id: Option<&str>,
+    bearer_token_override: Option<&str>,
+    interval_seconds: Option<u64>,
+    max_cycles: Option<u16>,
+    limit: Option<u8>,
+) -> Result<Option<RemoteControlHostDaemonConfig>, String> {
+    if !enabled {
+        return Ok(None);
+    }
+
+    let mut missing = Vec::new();
+    let desktop_device_id =
+        required_optional_string(desktop_device_id, "desktop_device_id", &mut missing);
+    let pairing_id = required_optional_string(pairing_id, "pairing_id", &mut missing);
+    let route_token = required_optional_string(route_token, "route_token", &mut missing);
+    let host_instance_id =
+        required_optional_string(host_instance_id, "host_instance_id", &mut missing);
+
+    if !missing.is_empty() {
+        return Err(format!(
+            "远控 host 后台 safe-probe daemon 缺少配置: {}",
+            missing.join(", ")
+        ));
+    }
+
+    Ok(Some(RemoteControlHostDaemonConfig {
+        desktop_device_id: desktop_device_id.expect("missing checked"),
+        pairing_id: pairing_id.expect("missing checked"),
+        route_token: route_token.expect("missing checked"),
+        host_instance_id: host_instance_id.expect("missing checked"),
+        bearer_token_override: normalize_optional_string(bearer_token_override),
+        poll_config: build_host_poll_config(interval_seconds, max_cycles, limit)?,
+    }))
+}
+
+pub fn build_host_daemon_config_from_env() -> Result<Option<RemoteControlHostDaemonConfig>, String>
+{
+    let enabled_raw = optional_env(HOST_DAEMON_ENABLED_ENV);
+    let enabled = parse_daemon_enabled(enabled_raw.as_deref())?;
+    let desktop_device_id = optional_env(HOST_DAEMON_DESKTOP_DEVICE_ID_ENV);
+    let pairing_id = optional_env(HOST_DAEMON_PAIRING_ID_ENV);
+    let route_token = optional_env(HOST_DAEMON_ROUTE_TOKEN_ENV);
+    let host_instance_id = optional_env(HOST_DAEMON_INSTANCE_ID_ENV);
+    let bearer_token = optional_env(HOST_DAEMON_BEARER_TOKEN_ENV);
+
+    build_host_daemon_config(
+        enabled,
+        desktop_device_id.as_deref(),
+        pairing_id.as_deref(),
+        route_token.as_deref(),
+        host_instance_id.as_deref(),
+        bearer_token.as_deref(),
+        parse_optional_u64_env(HOST_DAEMON_INTERVAL_SECONDS_ENV)?,
+        parse_optional_u16_env(HOST_DAEMON_MAX_CYCLES_ENV)?,
+        parse_optional_u8_env(HOST_DAEMON_LIMIT_ENV)?,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
 pub async fn run_remote_control_host_poll(
     client: &reqwest::Client,
     backend_url: &str,
@@ -297,6 +381,48 @@ pub async fn run_remote_control_host_poll(
     }
 
     Ok(summary)
+}
+
+pub async fn run_remote_control_host_daemon(
+    client: &reqwest::Client,
+    state: &SharedAppState,
+    config: &RemoteControlHostDaemonConfig,
+) -> Result<RemoteControlHostPollSummary, String> {
+    let (mode, backend_url, state_user_token) = {
+        let state = state.read().await;
+        (
+            state.mode,
+            state.backend_url.clone(),
+            state.user_token.clone(),
+        )
+    };
+
+    if mode == AppMode::TopSecret {
+        return Err("绝密模式下禁止启动移动远控 host 后台 safe-probe daemon".to_string());
+    }
+
+    let bearer_token = config
+        .bearer_token_override
+        .as_deref()
+        .or(state_user_token.as_deref())
+        .map(str::trim)
+        .filter(|token| !token.is_empty())
+        .ok_or_else(|| {
+            "移动远控 host 后台 safe-probe daemon 需要登录态 token 或本地测试 bearer token"
+                .to_string()
+        })?;
+
+    run_remote_control_host_poll(
+        client,
+        &backend_url,
+        bearer_token,
+        &config.desktop_device_id,
+        &config.pairing_id,
+        &config.route_token,
+        &config.host_instance_id,
+        config.poll_config,
+    )
+    .await
 }
 
 pub fn record_poll_cycle(
@@ -388,6 +514,76 @@ fn required_string(value: &str, field_name: &str) -> Result<String, String> {
     Ok(normalized.to_string())
 }
 
+fn required_optional_string(
+    value: Option<&str>,
+    field_name: &'static str,
+    missing: &mut Vec<&'static str>,
+) -> Option<String> {
+    match value.and_then(|value| normalize_optional_string(Some(value))) {
+        Some(value) => Some(value),
+        None => {
+            missing.push(field_name);
+            None
+        }
+    }
+}
+
+fn normalize_optional_string(value: Option<&str>) -> Option<String> {
+    value
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+}
+
+fn optional_env(name: &str) -> Option<String> {
+    std::env::var(name)
+        .ok()
+        .and_then(|value| normalize_optional_string(Some(&value)))
+}
+
+fn parse_daemon_enabled(value: Option<&str>) -> Result<bool, String> {
+    let Some(value) = value else {
+        return Ok(false);
+    };
+    match value.trim().to_ascii_lowercase().as_str() {
+        "" | "0" | "false" | "no" | "off" => Ok(false),
+        "1" | "true" | "yes" | "on" => Ok(true),
+        _ => Err(format!(
+            "{HOST_DAEMON_ENABLED_ENV} 只能是 true/false、1/0、yes/no 或 on/off"
+        )),
+    }
+}
+
+fn parse_optional_u64_env(name: &str) -> Result<Option<u64>, String> {
+    optional_env(name)
+        .map(|value| {
+            value
+                .parse::<u64>()
+                .map_err(|_| format!("{name} 必须是正整数秒数"))
+        })
+        .transpose()
+}
+
+fn parse_optional_u16_env(name: &str) -> Result<Option<u16>, String> {
+    optional_env(name)
+        .map(|value| {
+            value
+                .parse::<u16>()
+                .map_err(|_| format!("{name} 必须是 1 到 {MAX_POLL_CYCLES} 之间的整数"))
+        })
+        .transpose()
+}
+
+fn parse_optional_u8_env(name: &str) -> Result<Option<u8>, String> {
+    optional_env(name)
+        .map(|value| {
+            value
+                .parse::<u8>()
+                .map_err(|_| format!("{name} 必须是 1 到 50 之间的整数"))
+        })
+        .transpose()
+}
+
 fn normalize_claim_limit(limit: Option<u8>) -> Result<u8, String> {
     let limit = limit.unwrap_or(10);
     if (1..=50).contains(&limit) {
@@ -416,11 +612,15 @@ fn normalize_result_summary(value: Option<Value>) -> Result<Map<String, Value>, 
 mod tests {
     use super::{
         build_claim_commands_payload, build_command_status_payload, build_confirm_pairing_payload,
-        build_host_poll_config, claimed_commands_from_response, decide_host_command,
-        record_poll_cycle, remote_control_url, RemoteControlHostCommand,
-        RemoteControlHostCycleSummary, RemoteControlHostPollSummary,
+        build_host_daemon_config, build_host_poll_config, claimed_commands_from_response,
+        decide_host_command, parse_daemon_enabled, record_poll_cycle, remote_control_url,
+        run_remote_control_host_daemon, RemoteControlHostCommand, RemoteControlHostCycleSummary,
+        RemoteControlHostPollSummary,
     };
+    use crate::models::{AppMode, AppStateData};
     use serde_json::json;
+    use std::sync::Arc;
+    use tokio::sync::RwLock;
 
     #[test]
     fn remote_control_url_trims_backend_and_path_slashes() {
@@ -571,6 +771,151 @@ mod tests {
         assert!(build_host_poll_config(Some(1), Some(3), Some(2)).is_err());
         assert!(build_host_poll_config(Some(30), Some(0), Some(2)).is_err());
         assert!(build_host_poll_config(Some(30), Some(3), Some(0)).is_err());
+    }
+
+    #[test]
+    fn host_daemon_enabled_flag_is_explicit() {
+        assert!(!parse_daemon_enabled(None).expect("unset flag"));
+        assert!(parse_daemon_enabled(Some("on")).expect("on flag"));
+        assert!(parse_daemon_enabled(Some(" 1 ")).expect("numeric flag"));
+        assert!(!parse_daemon_enabled(Some("false")).expect("false flag"));
+        assert!(parse_daemon_enabled(Some("maybe")).is_err());
+    }
+
+    #[test]
+    fn host_daemon_config_is_disabled_by_default_and_requires_pairing_scope() {
+        let disabled = build_host_daemon_config(
+            false,
+            None,
+            None,
+            None,
+            None,
+            Some("bearer-token"),
+            Some(5),
+            Some(1),
+            Some(1),
+        )
+        .expect("disabled config");
+        assert!(disabled.is_none());
+
+        let err = match build_host_daemon_config(
+            true,
+            Some("desktop-a"),
+            None,
+            Some("route-secret"),
+            Some("host-a"),
+            None,
+            Some(5),
+            Some(1),
+            Some(1),
+        ) {
+            Ok(_) => panic!("missing pairing id must fail"),
+            Err(err) => err,
+        };
+
+        assert!(err.contains("pairing_id"));
+        assert!(!err.contains("route-secret"));
+    }
+
+    #[test]
+    fn host_daemon_config_trims_secrets_and_keeps_poll_bounds() {
+        let config = build_host_daemon_config(
+            true,
+            Some(" desktop-a "),
+            Some(" pairing-1 "),
+            Some(" route-secret "),
+            Some(" host-a "),
+            Some(" bearer-secret "),
+            Some(30),
+            Some(2),
+            Some(3),
+        )
+        .expect("daemon config")
+        .expect("enabled daemon config");
+
+        assert_eq!(config.desktop_device_id, "desktop-a");
+        assert_eq!(config.pairing_id, "pairing-1");
+        assert_eq!(config.route_token, "route-secret");
+        assert_eq!(config.host_instance_id, "host-a");
+        assert_eq!(
+            config.bearer_token_override.as_deref(),
+            Some("bearer-secret")
+        );
+        assert_eq!(config.poll_config.interval_seconds, 30);
+        assert_eq!(config.poll_config.max_cycles, 2);
+        assert_eq!(config.poll_config.limit, 3);
+        assert!(build_host_daemon_config(
+            true,
+            Some("desktop-a"),
+            Some("pairing-1"),
+            Some("route-secret"),
+            Some("host-a"),
+            None,
+            Some(1),
+            Some(1),
+            Some(1),
+        )
+        .is_err());
+    }
+
+    #[tokio::test]
+    async fn host_daemon_rejects_top_secret_mode_before_network() {
+        let state = Arc::new(RwLock::new(AppStateData {
+            mode: AppMode::TopSecret,
+            user_token: Some("state-token".to_string()),
+            ..AppStateData::default()
+        }));
+        let config = build_host_daemon_config(
+            true,
+            Some("desktop-a"),
+            Some("pairing-1"),
+            Some("route-secret"),
+            Some("host-a"),
+            None,
+            Some(5),
+            Some(1),
+            Some(1),
+        )
+        .expect("daemon config")
+        .expect("enabled daemon config");
+        let client = super::build_http_client().expect("http client");
+
+        let err = run_remote_control_host_daemon(&client, &state, &config)
+            .await
+            .expect_err("top secret mode must block daemon before HTTP");
+
+        assert!(err.contains("绝密模式"));
+        assert!(!err.contains("route-secret"));
+    }
+
+    #[tokio::test]
+    async fn host_daemon_requires_login_or_test_bearer_before_network() {
+        let state = Arc::new(RwLock::new(AppStateData {
+            mode: AppMode::Cloud,
+            user_token: None,
+            ..AppStateData::default()
+        }));
+        let config = build_host_daemon_config(
+            true,
+            Some("desktop-a"),
+            Some("pairing-1"),
+            Some("route-secret"),
+            Some("host-a"),
+            None,
+            Some(5),
+            Some(1),
+            Some(1),
+        )
+        .expect("daemon config")
+        .expect("enabled daemon config");
+        let client = super::build_http_client().expect("http client");
+
+        let err = run_remote_control_host_daemon(&client, &state, &config)
+            .await
+            .expect_err("missing bearer must block daemon before HTTP");
+
+        assert!(err.contains("登录态 token"));
+        assert!(!err.contains("route-secret"));
     }
 
     #[test]

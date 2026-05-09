@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-09T12:25:21.676949+00:00",
+  "generated_at": "2026-05-09T12:47:44.776766+00:00",
   "mode": "agent_governance_code_smoke",
   "status": "passed",
   "release_evidence_complete": false,
@@ -23,7 +23,7 @@
   "scope": {
     "enterprise_agent_governance": "code_level",
     "backend": "policy/routes/approvals/skills/memory/remote-control",
-    "desktop": "remote-control safe-probe host tests",
+    "desktop": "remote-control safe-probe host, bounded poll, and env-gated background daemon tests",
     "frontend": "connector credential model tests and agent governance workspace e2e"
   },
   "pending_runtime_evidence": [

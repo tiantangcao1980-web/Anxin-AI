@@ -3,8 +3,9 @@
 #
 # This proves the local governance baseline is runnable: capability policy,
 # route-token gates, approvals, SkillGovernance, memory governance, remote-control
-# safety, desktop host safe-probe handling, and the minimal frontend governance
-# workspace. It is not final commercial runtime evidence.
+# safety, desktop host safe-probe handling plus its env-gated background daemon
+# guard, and the minimal frontend governance workspace. It is not final
+# commercial runtime evidence.
 
 set -euo pipefail
 
@@ -129,7 +130,7 @@ report = {
     "scope": {
         "enterprise_agent_governance": "code_level",
         "backend": "policy/routes/approvals/skills/memory/remote-control",
-        "desktop": "remote-control safe-probe host tests",
+        "desktop": "remote-control safe-probe host, bounded poll, and env-gated background daemon tests",
         "frontend": "connector credential model tests and agent governance workspace e2e",
     },
     "pending_runtime_evidence": [

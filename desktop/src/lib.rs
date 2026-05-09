@@ -157,6 +157,49 @@ fn load_desktop_runtime_config(handle: &AppHandle, shared_state: &SharedAppState
     }
 }
 
+fn start_remote_control_safe_probe_daemon(shared_state: &SharedAppState) {
+    let config = match services::remote_control_host::build_host_daemon_config_from_env() {
+        Ok(Some(config)) => config,
+        Ok(None) => return,
+        Err(error) => {
+            log::warn!("移动远控 host 后台 safe-probe daemon 未启动: {error}");
+            return;
+        }
+    };
+    let state = shared_state.clone();
+
+    tauri::async_runtime::spawn(async move {
+        let client = match services::remote_control_host::build_http_client() {
+            Ok(client) => client,
+            Err(error) => {
+                log::warn!("移动远控 host 后台 safe-probe daemon 未启动: {error}");
+                return;
+            }
+        };
+
+        match services::remote_control_host::run_remote_control_host_daemon(
+            &client, &state, &config,
+        )
+        .await
+        {
+            Ok(summary) => {
+                log::info!(
+                    "移动远控 host 后台 safe-probe daemon 已完成: cycles={}, claimed={}, completed={}, failed={}, unsupported={}, stopped_reason={}",
+                    summary.cycles,
+                    summary.claimed,
+                    summary.completed,
+                    summary.failed,
+                    summary.unsupported,
+                    summary.stopped_reason
+                );
+            }
+            Err(error) => {
+                log::warn!("移动远控 host 后台 safe-probe daemon 已停止: {error}");
+            }
+        }
+    });
+}
+
 fn exit_runtime_smoke(handle: &AppHandle, code: i32) -> ! {
     let _ = std::io::stdout().flush();
     let _ = std::io::stderr().flush();
@@ -331,6 +374,7 @@ pub fn run_with_options(options: DesktopRunOptions) {
         .setup(move |app| {
             let handle = app.handle().clone();
             load_desktop_runtime_config(&handle, &shared_state);
+            start_remote_control_safe_probe_daemon(&shared_state);
             apply_platform_window_chrome(app);
 
             // 桌面端：创建系统托盘 + 注册全局快捷键
