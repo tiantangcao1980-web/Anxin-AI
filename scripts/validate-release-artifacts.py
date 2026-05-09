@@ -455,6 +455,67 @@ def _validate_agent_governance_code_smoke(path: Path, payload: dict[str, Any], f
             )
 
 
+def _validate_agent_connector_local_rehearsal(path: Path, payload: dict[str, Any], failures: list[str]) -> None:
+    if payload.get("mode") != "agent_connector_local_rehearsal":
+        return
+    if payload.get("release_evidence_complete") is not False:
+        failures.append(f"{path}: agent connector local rehearsal must set release_evidence_complete=false")
+    if payload.get("runtime_evidence_complete") is not False:
+        failures.append(f"{path}: agent connector local rehearsal must set runtime_evidence_complete=false")
+    if payload.get("status") != "passed":
+        failures.append(f"{path}: agent connector local rehearsal must have status=passed")
+    if payload.get("provider_mode") != "local_mock_mcp":
+        failures.append(f"{path}: agent connector local rehearsal provider_mode must be local_mock_mcp")
+
+    checks = payload.get("checks")
+    if not isinstance(checks, dict):
+        failures.append(f"{path}: agent connector local rehearsal must include checks object")
+        return
+    for check_name in (
+        "route_token_issued",
+        "connector_bound_tool_call",
+        "route_revocation",
+        "revoked_token_fail_closed",
+        "audit_trail",
+        "raw_secret_redaction",
+    ):
+        if checks.get(check_name) != "passed":
+            failures.append(f"{path}: agent connector local rehearsal {check_name} must be passed")
+
+    scope = payload.get("scope")
+    if not isinstance(scope, dict):
+        failures.append(f"{path}: agent connector local rehearsal must include scope")
+    else:
+        if not isinstance(scope.get("connector"), str) or not scope.get("connector", "").strip():
+            failures.append(f"{path}: agent connector local rehearsal scope.connector must be non-empty")
+        if scope.get("route_scope") != "mcp:call":
+            failures.append(f"{path}: agent connector local rehearsal scope.route_scope must be mcp:call")
+        if scope.get("evidence_level") != "local_mock_runtime_rehearsal":
+            failures.append(
+                f"{path}: agent connector local rehearsal scope.evidence_level must be local_mock_runtime_rehearsal"
+            )
+
+    pending_external_evidence = payload.get("pending_external_evidence")
+    if not isinstance(pending_external_evidence, list) or not pending_external_evidence:
+        failures.append(f"{path}: agent connector local rehearsal must list pending_external_evidence")
+    else:
+        pending = {str(item) for item in pending_external_evidence}
+        required_pending = {
+            "real_provider_credentials",
+            "provider_dashboard_logs",
+            "signed_packaged_runtime_outbound_evidence",
+            "cross_process_revocation",
+        }
+        if required_pending.difference(pending):
+            failures.append(f"{path}: agent connector local rehearsal missing pending external evidence markers")
+
+    note_text = _combined_note_text(payload)
+    if "supporting" not in note_text or "pending" not in note_text or "real approved connector" not in note_text:
+        failures.append(
+            f"{path}: agent connector local rehearsal must clearly say real approved connector evidence remains pending"
+        )
+
+
 def _validate_mobile_ios_simulator_smoke(path: Path, payload: dict[str, Any], failures: list[str]) -> None:
     if payload.get("mode") != "mobile_ios_simulator_expo_go_smoke":
         return
@@ -1170,6 +1231,7 @@ def validate_json_artifact(path: Path) -> ValidationResult:
     _validate_mobile_mini_code_smoke(path, payload, failures)
     _validate_uni_mobile_base_smoke(path, payload, failures)
     _validate_agent_governance_code_smoke(path, payload, failures)
+    _validate_agent_connector_local_rehearsal(path, payload, failures)
     _validate_mobile_ios_simulator_smoke(path, payload, failures)
     _validate_desktop_installed_profile_smoke(path, payload, failures)
     _validate_desktop_runtime_code_smoke(path, payload, failures)

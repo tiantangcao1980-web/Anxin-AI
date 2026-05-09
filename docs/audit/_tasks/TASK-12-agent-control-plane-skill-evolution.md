@@ -134,7 +134,7 @@ can_execute_capability(actor, org, capability, risk_level, data_scope, privacy_m
 
 - `backend/src/services/agent_governance_service.py` 已提供 DB-backed route token service：创建 CapabilityRoute、签发短期 token、持久化 `CapabilityRouteTokenLease.token_hash`、跨 service 实例验证、consumer 绑定验证、撤销 route 后下一次验证失败并写 `AgentAuditEvent`。
 - `backend/src/services/agent_governance_service.py` 已补组织级 CapabilityRoute 策略 CRUD 底座：管理员可列出/更新 route status、consumer、scope、risk、TTL 和 policy；policy 会递归脱敏 token/secret/password/credential/api_key 字段；禁用 route 会撤销现有 lease，并让下一次 token validate fail-closed。
-- `backend/src/services/mcp_client_service.py` 已在 `call_tool` 前接入 DB-backed route token；staging/production 默认 fail-closed，开发/测试可用 `MCP_TOOL_ROUTE_TOKEN_REQUIRED=true` 提前演练。
+- `backend/src/services/mcp_client_service.py` 已在 `call_tool` 前接入 DB-backed route token，并把 route token 绑定到当前 MCP server route key，避免一个已批准 connector token 横向调用另一个 MCP server；staging/production 默认 fail-closed，开发/测试可用 `MCP_TOOL_ROUTE_TOKEN_REQUIRED=true` 提前演练。
 - `backend/src/api/routes/cli.py` 已在 CLI `/execute` 前接入 DB-backed route token，并新增 `/cli/route-token` 供桌面端按 API Key `key_id` consumer 获取短期 token；staging/production 默认 fail-closed，开发/测试可用 `CLI_ROUTE_TOKEN_REQUIRED=true` 提前演练；consumer 绑定到 API Key `key_id`，并按命令 scope 校验 `cli:read/chat/export`。
 - `desktop/src/commands/cli.rs` 已在 CLI execute 前尝试获取短期 route token，并在调用 `/cli/execute` 时传递 `X-Capability-Route-Token`；开发环境 route 缺失时保持兼容，商业环境由后端 fail-closed。
 - `backend/src/services/llm_route_governance.py`、`backend/src/agents/base.py` 和 `backend/src/api/routes/chat.py` 已把 REST/SSE/WebSocket Chat Agent LLM runtime 接入 DB-backed route token：staging/production 默认 fail-closed，开发/测试可用 `LLM_ROUTE_TOKEN_REQUIRED=true` 提前演练；scope 固定为 `llm:chat`，`/chat/route-token` 可按当前用户 consumer 签发短期 token，WebSocket 首包、连接 header 或单条消息 payload 可传递 route token，Agent 同步/流式模型调用在真实 HTTP 前校验 token。
@@ -143,7 +143,8 @@ can_execute_capability(actor, org, capability, risk_level, data_scope, privacy_m
 - `backend/src/services/memory_layer.py` 已补 governed session artifact 写入门禁：local/top-secret 模式拒绝跨会话持久化，org/user scope 和 consent 必填，artifact payload 递归脱敏 token/secret/api_key/private_key 字段；`backend/tests/test_memory_governance.py` 当前 `3 passed`。
 - `backend/src/agents/base.py` / `workforce.py` / `task_context.py` 已支持通过 `mcp_route_context`/contextvars 将 route token 传递到真实 MCP tool execution。
 - `backend/tests/test_agent_governance_service.py` 已覆盖 hash-only lease、原始 token 不入审计、组织隔离、consumer/scope 拒绝、过期 fail-closed、consumer mismatch、route 撤销后下一次调用失败，以及组织策略更新脱敏/禁用撤销 lease。
-- `backend/tests/test_mcp_route_governance.py` 已覆盖 MCP 开发态兼容、商业环境缺 token fail-closed、DB route token 放行、route revoke 后拒绝和 consumer mismatch 拒绝。
+- `backend/tests/test_mcp_route_governance.py` 已覆盖 MCP 开发态兼容、商业环境缺 token fail-closed、DB route token 放行、connector route-key mismatch 拒绝、route revoke 后拒绝和 consumer mismatch 拒绝。
+- `backend/tests/test_agent_connector_runtime_rehearsal.py` 与 `scripts/agent-connector-rehearsal.sh` 已补本地 approved connector 演练：使用 local mock MCP session 验证 route-token issue、connector-bound tool call、route revoke、撤销 token 下一次调用 fail-closed、审计事件和脱敏 artifact shape；该演练不替代真实 provider/dashboard/signed runtime 证据。
 - `backend/tests/test_cli_route.py` 已覆盖 CLI 开发态兼容、商业环境缺 token fail-closed、DB route token 放行、`/cli/route-token` 签发和 consumer mismatch 拒绝。
 - `backend/tests/test_llm_route_governance.py` 已覆盖 LLM runtime 商业环境缺 token fail-closed、DB route token 放行、route revoke 后在模型 HTTP 前拒绝、流式模型调用触网前拒绝、WebSocket route-token credential 提取、WebSocket-like contextvar 流式传递和 `/chat/route-token` 用户绑定签发。
 - `backend/tests/test_crawler_compliance.py` 已覆盖浏览器/爬虫商业环境缺 token fail-closed、DB route token 放行、route revoke 后在 robots/http 前拒绝。

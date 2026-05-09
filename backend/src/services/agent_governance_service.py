@@ -360,6 +360,7 @@ class AgentGovernanceService:
         org_id: str,
         raw_token: str | None,
         required_scope: str | None = None,
+        required_route_key: str | None = None,
         consumer_id: str | None = None,
         actor_user_id: str | None = None,
         actor_type: str = "agent_worker",
@@ -398,6 +399,7 @@ class AgentGovernanceService:
             lease=lease,
             route=route,
             required_scope=required_scope,
+            required_route_key=required_route_key,
             consumer_id=consumer_id,
             now=checked_at,
         )
@@ -412,6 +414,7 @@ class AgentGovernanceService:
                 metadata={
                     "consumer_id": lease.consumer_id,
                     "requested_consumer_id": (consumer_id or "").strip(),
+                    "required_route_key": (required_route_key or "").strip(),
                 },
                 now=checked_at,
             )
@@ -434,7 +437,11 @@ class AgentGovernanceService:
             reason_code="allowed",
             actor_user_id=actor_user_id,
             actor_type=actor_type,
-            metadata={"consumer_id": lease.consumer_id, "required_scope": (required_scope or "").strip().lower()},
+            metadata={
+                "consumer_id": lease.consumer_id,
+                "required_scope": (required_scope or "").strip().lower(),
+                "required_route_key": (required_route_key or "").strip(),
+            },
             now=checked_at,
         )
         await self.db.flush()
@@ -579,6 +586,7 @@ class AgentGovernanceService:
         lease: CapabilityRouteTokenLease,
         route: CapabilityRoute,
         required_scope: str | None,
+        required_route_key: str | None,
         consumer_id: str | None,
         now: datetime,
     ) -> str | None:
@@ -592,6 +600,9 @@ class AgentGovernanceService:
         normalized_scope = (required_scope or "").strip().lower()
         if normalized_scope and normalized_scope not in (lease.scopes or []):
             return "missing_route_scope"
+        normalized_route_key = (required_route_key or "").strip().lower()
+        if normalized_route_key and route.route_key.strip().lower() != normalized_route_key:
+            return "capability_route_mismatch"
         normalized_consumer = (consumer_id or "").strip().lower()
         if normalized_consumer and lease.consumer_id.strip().lower() != normalized_consumer:
             return "route_token_consumer_mismatch"
@@ -734,6 +745,7 @@ def _reason_message(reason_code: str) -> str:
         "capability_route_revoked": "能力路由已撤销",
         "route_token_revoked": "能力路由 token 已撤销",
         "route_token_expired": "能力路由 token 已过期",
+        "capability_route_mismatch": "能力路由 token 不属于当前能力连接",
         "route_token_consumer_mismatch": "能力路由 token 不属于当前 Agent/Worker",
         "missing_route_scope": "能力路由缺少所需 scope",
     }.get(reason_code, "能力路由请求被拒绝")

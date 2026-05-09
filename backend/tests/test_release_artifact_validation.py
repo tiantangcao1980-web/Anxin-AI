@@ -562,6 +562,94 @@ def test_release_artifact_validation_rejects_incomplete_agent_governance_code_sm
     assert "missing pending runtime evidence markers" in result.stdout
 
 
+def test_release_artifact_validation_accepts_agent_connector_local_rehearsal(tmp_path):
+    repo_root = Path(__file__).resolve().parents[2]
+    artifact = tmp_path / "agent-connector-local-rehearsal.json"
+    artifact.write_text(
+        json.dumps(
+            {
+                "generated_at": "2026-05-09T00:00:00Z",
+                "mode": "agent_connector_local_rehearsal",
+                "status": "passed",
+                "release_evidence_complete": False,
+                "runtime_evidence_complete": False,
+                "provider_mode": "local_mock_mcp",
+                "checks": {
+                    "route_token_issued": "passed",
+                    "connector_bound_tool_call": "passed",
+                    "route_revocation": "passed",
+                    "revoked_token_fail_closed": "passed",
+                    "audit_trail": "passed",
+                    "raw_secret_redaction": "passed",
+                },
+                "scope": {
+                    "connector": "approved-materials",
+                    "route_scope": "mcp:call",
+                    "evidence_level": "local_mock_runtime_rehearsal",
+                },
+                "pending_external_evidence": [
+                    "real_provider_credentials",
+                    "provider_dashboard_logs",
+                    "signed_packaged_runtime_outbound_evidence",
+                    "cross_process_revocation",
+                ],
+                "completion_note": (
+                    "Supporting local rehearsal only; real approved connector evidence remains pending."
+                ),
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = _validate(repo_root, artifact)
+
+    assert result.returncode == 0, result.stdout
+
+
+def test_release_artifact_validation_rejects_incomplete_agent_connector_local_rehearsal(tmp_path):
+    repo_root = Path(__file__).resolve().parents[2]
+    artifact = tmp_path / "agent-connector-local-rehearsal-bad.json"
+    artifact.write_text(
+        json.dumps(
+            {
+                "generated_at": "2026-05-09T00:00:00Z",
+                "mode": "agent_connector_local_rehearsal",
+                "status": "passed",
+                "release_evidence_complete": True,
+                "runtime_evidence_complete": True,
+                "provider_mode": "live",
+                "checks": {
+                    "route_token_issued": "passed",
+                    "connector_bound_tool_call": "failed",
+                    "route_revocation": "passed",
+                    "revoked_token_fail_closed": "passed",
+                    "audit_trail": "passed",
+                    "raw_secret_redaction": "passed",
+                },
+                "scope": {
+                    "connector": "",
+                    "route_scope": "browser:fetch",
+                    "evidence_level": "live",
+                },
+                "pending_external_evidence": ["real_provider_credentials"],
+                "completion_note": "done",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = _validate(repo_root, artifact)
+
+    assert result.returncode == 1
+    assert "release_evidence_complete=false" in result.stdout
+    assert "runtime_evidence_complete=false" in result.stdout
+    assert "provider_mode must be local_mock_mcp" in result.stdout
+    assert "connector_bound_tool_call must be passed" in result.stdout
+    assert "scope.connector must be non-empty" in result.stdout
+    assert "scope.route_scope must be mcp:call" in result.stdout
+    assert "missing pending external evidence markers" in result.stdout
+
+
 def test_release_artifact_validation_rejects_incomplete_mobile_mini_code_smoke(tmp_path):
     repo_root = Path(__file__).resolve().parents[2]
     artifact = tmp_path / "mobile-mini-code-smoke-bad.json"

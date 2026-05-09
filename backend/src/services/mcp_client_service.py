@@ -295,6 +295,7 @@ class McpClientService:
             org_id=org_id,
             raw_token=route_token,
             required_scope=MCP_TOOL_ROUTE_SCOPE,
+            required_route_key=unique_tool_name.split("__", 1)[0],
             consumer_id=consumer_id,
             actor_user_id=actor_user_id,
             actor_type="agent_worker",

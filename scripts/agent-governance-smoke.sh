@@ -81,6 +81,8 @@ run_step "approval authorization guard tests" bash -lc "cd '$PROJECT_ROOT/backen
 
 run_step "MCP connection config policy tests" bash -lc "cd '$PROJECT_ROOT/backend' && ./.venv/bin/pytest -q tests/test_config_commercial_guards.py -k mcp"
 
+run_step "approved connector local rehearsal" bash -lc "cd '$PROJECT_ROOT' && bash scripts/agent-connector-rehearsal.sh"
+
 run_step "desktop remote-control host tests" bash -lc "cd '$PROJECT_ROOT/desktop' && cargo test remote_control"
 
 run_step "frontend Skill connector credential model tests" bash -lc "cd '$PROJECT_ROOT/frontend' && npm test -- skillConnectorSettingsModel.test.ts"
@@ -101,6 +103,7 @@ checks = {
     "backend_governance_regressions": "passed",
     "approval_authorization_guard": "passed",
     "mcp_connection_config_policy": "passed",
+    "approved_connector_local_rehearsal": "passed",
     "desktop_remote_control_host": "passed",
     "frontend_skill_connector_credentials_model": "passed",
     "frontend_agent_workspace_e2e": "passed",

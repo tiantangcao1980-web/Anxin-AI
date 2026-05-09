@@ -29,6 +29,8 @@
 
 2026-05-09 桌面端补充：窗口 chrome 已新增本地治理门禁。`docs/desktop/window-styling.md` 记录平台分支、实现文件和待补实机证据；`scripts/desktop-window-chrome-gate.sh` 校验 Tauri 主窗口配置、非 macOS decoration 关闭、前端窗口控制、双击模型、capability 与文档一致。当前仍缺实机/签名包证据，但后续窗口外观代码漂移会被本地门禁提前拦住。
 
+2026-05-09 Agent 治理补充：approved MCP connector 已新增本地 mock runtime rehearsal。MCP tool route token 现在绑定到当前 MCP server route key，`scripts/agent-connector-rehearsal.sh` 可复跑 route-token issue、connector-bound tool call、route revoke、撤销后 fail-closed、审计事件和脱敏 artifact 校验；该证据仍不等于真实 provider/dashboard/signed runtime 证据，因此 `agent-governance-smoke.md` 保持 `Status: pending`。
+
 ## 2. 必须补齐的商业证据
 
 ### 渠道沙箱

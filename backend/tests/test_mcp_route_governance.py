@@ -67,14 +67,14 @@ async def test_mcp_tool_call_uses_db_backed_route_token(monkeypatch, db_session,
     governance = AgentGovernanceService(db_session)
     await governance.create_capability_route(
         org_id=test_organization.id,
-        route_key="trusted-mcp",
+        route_key="trusted",
         route_type="mcp",
         allowed_consumers=["legal_advisor"],
         allowed_scopes=[MCP_TOOL_ROUTE_SCOPE],
     )
     issued = await governance.issue_route_token(
         org_id=test_organization.id,
-        route_key="trusted-mcp",
+        route_key="trusted",
         consumer_id="legal_advisor",
         requested_scopes=[MCP_TOOL_ROUTE_SCOPE],
     )
@@ -98,6 +98,44 @@ async def test_mcp_tool_call_uses_db_backed_route_token(monkeypatch, db_session,
 
 
 @pytest.mark.asyncio
+async def test_mcp_tool_call_rejects_route_token_for_different_connector(
+    monkeypatch,
+    db_session,
+    test_organization,
+):
+    from src.services import mcp_client_service
+
+    monkeypatch.setattr(mcp_client_service.settings, "ENVIRONMENT", "staging")
+    service, session = _service_with_session()
+    governance = AgentGovernanceService(db_session)
+    await governance.create_capability_route(
+        org_id=test_organization.id,
+        route_key="other-connector",
+        route_type="mcp",
+        allowed_consumers=["legal_advisor"],
+        allowed_scopes=[MCP_TOOL_ROUTE_SCOPE],
+    )
+    issued = await governance.issue_route_token(
+        org_id=test_organization.id,
+        route_key="other-connector",
+        consumer_id="legal_advisor",
+        requested_scopes=[MCP_TOOL_ROUTE_SCOPE],
+    )
+
+    with pytest.raises(McpRouteAuthorizationError, match="capability_route_mismatch"):
+        await service.call_tool(
+            "trusted__search",
+            {"q": "合同风险"},
+            org_id=test_organization.id,
+            route_token=issued.token,
+            consumer_id="legal_advisor",
+            db=db_session,
+        )
+
+    assert session.calls == []
+
+
+@pytest.mark.asyncio
 async def test_mcp_tool_call_fails_closed_after_route_revocation(monkeypatch, db_session, test_organization):
     from src.services import mcp_client_service
 
@@ -106,20 +144,20 @@ async def test_mcp_tool_call_fails_closed_after_route_revocation(monkeypatch, db
     governance = AgentGovernanceService(db_session)
     await governance.create_capability_route(
         org_id=test_organization.id,
-        route_key="revoked-mcp",
+        route_key="trusted",
         route_type="mcp",
         allowed_consumers=["legal_advisor"],
         allowed_scopes=[MCP_TOOL_ROUTE_SCOPE],
     )
     issued = await governance.issue_route_token(
         org_id=test_organization.id,
-        route_key="revoked-mcp",
+        route_key="trusted",
         consumer_id="legal_advisor",
         requested_scopes=[MCP_TOOL_ROUTE_SCOPE],
     )
     await governance.revoke_capability_route(
         org_id=test_organization.id,
-        route_key="revoked-mcp",
+        route_key="trusted",
         reason="owner_revoked",
     )
 
@@ -146,14 +184,14 @@ async def test_mcp_tool_call_enforces_route_token_consumer(monkeypatch, db_sessi
     governance = AgentGovernanceService(db_session)
     await governance.create_capability_route(
         org_id=test_organization.id,
-        route_key="consumer-bound-mcp",
+        route_key="trusted",
         route_type="mcp",
         allowed_consumers=["legal_advisor"],
         allowed_scopes=[MCP_TOOL_ROUTE_SCOPE],
     )
     issued = await governance.issue_route_token(
         org_id=test_organization.id,
-        route_key="consumer-bound-mcp",
+        route_key="trusted",
         consumer_id="legal_advisor",
         requested_scopes=[MCP_TOOL_ROUTE_SCOPE],
     )
