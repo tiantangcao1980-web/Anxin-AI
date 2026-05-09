@@ -289,6 +289,30 @@ export async function hideQuickQueryWindow(): Promise<boolean> {
   }
 }
 
+// ===== 桌面文件拖入分析 =====
+
+export interface FileDropQueuedTask {
+  task_id: string
+  file_name: string
+  task_type: string
+  action_label: string
+}
+
+export interface UnsupportedFileDrop {
+  file_name: string
+  reason: string
+}
+
+export interface FileDropQueueReport {
+  queued: FileDropQueuedTask[]
+  unsupported: UnsupportedFileDrop[]
+}
+
+export async function queueFileDropPaths(paths: string[]): Promise<FileDropQueueReport | null> {
+  if (!isTauri()) return null
+  return invokeRequiredCommand<FileDropQueueReport>('queue_file_drop_paths', { paths })
+}
+
 // ===== 离线任务队列（Harness Engineering）=====
 
 /** 提交离线任务 */

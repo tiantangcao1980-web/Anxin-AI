@@ -277,6 +277,7 @@ pub fn run_with_options(options: DesktopRunOptions) {
             commands::remote_control::remote_control_run_host_cycle,
             commands::remote_control::remote_control_run_host_poll,
             commands::quick_query::hide_quick_query_window,
+            commands::file_drop::queue_file_drop_paths,
             // 本地 LLM
             commands::local_llm::local_llm_chat,
             commands::local_llm::list_local_models,
