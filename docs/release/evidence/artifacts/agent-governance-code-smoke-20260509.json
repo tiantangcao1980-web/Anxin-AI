@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-09T07:22:26.205386+00:00",
+  "generated_at": "2026-05-09T08:45:47.291191+00:00",
   "mode": "agent_governance_code_smoke",
   "status": "passed",
   "release_evidence_complete": false,
@@ -10,6 +10,7 @@
     "backend_governance_regressions": "passed",
     "approval_authorization_guard": "passed",
     "mcp_connection_config_policy": "passed",
+    "approved_connector_local_rehearsal": "passed",
     "desktop_remote_control_host": "passed",
     "frontend_skill_connector_credentials_model": "passed",
     "frontend_agent_workspace_e2e": "passed"
@@ -21,12 +22,12 @@
     "frontend": "connector credential model tests and agent governance workspace e2e"
   },
   "pending_runtime_evidence": [
-    "approved_connector_rehearsal",
+    "real_approved_connector_runtime",
     "real_cross_process_revocation",
     "long_task_artifact_workflow",
     "pause_takeover_terminate_runtime",
     "signed_packaged_runtime_outbound_evidence",
     "cross_device_recovery"
   ],
-  "completion_note": "Code-level enterprise agent governance evidence only. Keep agent-governance-smoke.md Status: pending until approved connector, cross-process revocation, real runtime controls, signed packaged runtime, and cross-device recovery evidence are attached."
+  "completion_note": "Code-level enterprise agent governance evidence only. Keep agent-governance-smoke.md Status: pending until real approved connector runtime, cross-process revocation, real runtime controls, signed packaged runtime, and cross-device recovery evidence are attached."
 }

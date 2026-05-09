@@ -122,7 +122,7 @@ report = {
         "frontend": "connector credential model tests and agent governance workspace e2e",
     },
     "pending_runtime_evidence": [
-        "approved_connector_rehearsal",
+        "real_approved_connector_runtime",
         "real_cross_process_revocation",
         "long_task_artifact_workflow",
         "pause_takeover_terminate_runtime",
@@ -131,9 +131,9 @@ report = {
     ],
     "completion_note": (
         "Code-level enterprise agent governance evidence only. Keep "
-        "agent-governance-smoke.md Status: pending until approved connector, "
-        "cross-process revocation, real runtime controls, signed packaged runtime, "
-        "and cross-device recovery evidence are attached."
+        "agent-governance-smoke.md Status: pending until real approved connector "
+        "runtime, cross-process revocation, real runtime controls, signed packaged "
+        "runtime, and cross-device recovery evidence are attached."
     ),
 }
 out_path.parent.mkdir(parents=True, exist_ok=True)

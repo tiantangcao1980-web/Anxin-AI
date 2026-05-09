@@ -99,7 +99,7 @@
 - `backend/alembic/versions/041_add_skill_governance_persistence.py` 已新增 SkillGovernanceProposal、SkillEnabledVersion 和 SkillGovernanceAuditEvent 持久化表；审计表同样在模型监听器和 PostgreSQL trigger 层拒绝 update/delete。
 - `backend/src/services/agent_approval_service.py` 已补 DB-backed 高风险 AgentApproval service，覆盖创建审批、授权角色审批/驳回、过期 fail-closed、撤销 fail-closed、action/route 匹配、workspace-control 未批准先拒绝、observe 只读旁听快照、暂停/接管/终止运行时未接入 fail-closed、已批准工作室 artifact list/create/export、artifact 递归脱敏和审计写入；`backend/tests/test_agent_approval_service.py` `9 passed`。
 - `backend/src/api/routes/agent_approvals.py` 已补正式高风险智能体审批 API，覆盖创建、列表/详情、pending count、audit-events、audit-export、workspace-control observe、approve/reject/revoke、validate、workspace artifacts list/create/export 和组织 CapabilityRoute list/update；`backend/tests/test_agent_approval_api.py` `8 passed`。
-- 后续仍需把这些模型接入完整 Human-in-the-loop 工作室、真实 approved MCP connector 演练、LLM/browser/desktop-control 能力链路和跨进程撤销失权证据；当前前端已先补最小高风险审批工作台入口。
+- 后续仍需把这些模型接入完整 Human-in-the-loop 工作室、真实 approved MCP connector runtime 证据、LLM/browser/desktop-control 能力链路和跨进程撤销失权证据；当前前端已先补最小高风险审批工作台入口。
 
 ### Step 2 · Policy Engine
 
@@ -150,7 +150,7 @@ can_execute_capability(actor, org, capability, risk_level, data_scope, privacy_m
 - `backend/tests/test_crawler_compliance.py` 已覆盖浏览器/爬虫商业环境缺 token fail-closed、DB route token 放行、route revoke 后在 robots/http 前拒绝。
 - `scripts/commercial-readiness-gate.sh --with-local-tests` 已加入 `agent governance service tests`、`MCP route governance tests`、`CLI route governance tests`、`LLM route governance tests` 与 `crawler browser route governance tests`。
 - RAG direct LLM 已补：`RAGService.generate/expand_query/_extract_entities/stream_query` 在直接调用 OpenAI 或本地模型前会校验 DB-backed `llm:chat` route token，REST Knowledge RAG、同步 Chat RAG 和 WebSocket RAG 均会传递 route context；`backend/tests/test_llm_route_governance.py` 已覆盖缺 token 触网前拒绝、DB route token 放行与 route 撤销后拒绝。
-- 后续仍需把完整 browser automation、desktop-control 高风险真实执行器全部切到该服务，并补真实 approved MCP connector 演练、跨进程/多实例撤销传播证据；在真实执行器、审批和设备证据闭环前，desktop-control 只能保持 safe-probe-only。
+- 后续仍需把完整 browser automation、desktop-control 高风险真实执行器全部切到该服务，并补真实 approved MCP connector runtime 证据、跨进程/多实例撤销传播证据；在真实执行器、审批和设备证据闭环前，desktop-control 只能保持 safe-probe-only。
 
 ### Step 4 · Human-in-the-loop 工作室
 
@@ -175,7 +175,7 @@ can_execute_capability(actor, org, capability, risk_level, data_scope, privacy_m
 
 当前本地进展：
 
-- 最小 Agent 治理工作台中的能力策略面板已完成角色可见性收口：全量角色可见全部注册工具；普通员工只见低风险基础能力和需要审批的可申请能力；MCP 管理、远控桌面等高风险/full-only 能力在员工视角隐藏；`loginAsRole` Playwright harness 已能模拟 employee/admin 角色并锁住该边界。组织能力策略面板已接入 `/agent-approvals/capability-routes`，全量角色可查看并启用/禁用 CapabilityRoute，禁用会走后端策略更新和 lease 撤销；套餐购买联动、部门级申请流、完整策略编辑器和真实 connector 演练仍待后续闭环。
+- 最小 Agent 治理工作台中的能力策略面板已完成角色可见性收口：全量角色可见全部注册工具；普通员工只见低风险基础能力和需要审批的可申请能力；MCP 管理、远控桌面等高风险/full-only 能力在员工视角隐藏；`loginAsRole` Playwright harness 已能模拟 employee/admin 角色并锁住该边界。组织能力策略面板已接入 `/agent-approvals/capability-routes`，全量角色可查看并启用/禁用 CapabilityRoute，禁用会走后端策略更新和 lease 撤销；套餐购买联动、部门级申请流、完整策略编辑器和真实 connector runtime 证据仍待后续闭环。
 
 ### Step 6 · Skill Evolution Gate
 
@@ -233,9 +233,9 @@ docs/audit/12-enterprise-agent-governance/
 - [x] `capability_policy_engine` 服务层覆盖订阅、角色、权限、风险级别、隐私模式、设备信任、通信策略和审批状态；真实 LLM、完整浏览器自动化和 desktop-control 运行时链路接入仍需后续闭环。
 - [x] AgentManager / AgentTeam / AgentWorker / HumanParticipant / ChannelPolicy / CapabilityRoute / TokenLease / Approval / AuditEvent 模型与 migration 有 upgrade/downgrade。
 - [x] AgentApproval service/API 和最小前端工作台具备创建、列表/count、审批/驳回/撤销、过期、action/route 匹配、执行前 validate、组织/本人 scope、审批审计时间线、审批审计 JSON 导出、已批准工作室 artifact list/create/export、observe 只读旁听快照、运行时未接入时 pause/takeover/terminate workspace-control fail-closed、移动视口回归和审计回归；完整工作室和真实执行链路接入仍未完成。
-- [ ] Worker/Agent 不持有真实密钥；MCP tool execution、CLI `/execute`、REST/SSE/WebSocket Chat Agent LLM runtime、RAG direct LLM、桌面端 CLI route-token 获取/传递、浏览器/爬虫 fetch 入口和 desktop-control safe-probe-only 队列已有 DB-backed route-token / fail-closed 代码级回归，完整 browser automation、desktop-control 高风险执行器和真实 approved connector 演练仍待闭环。
+- [ ] Worker/Agent 不持有真实密钥；MCP tool execution、CLI `/execute`、REST/SSE/WebSocket Chat Agent LLM runtime、RAG direct LLM、桌面端 CLI route-token 获取/传递、浏览器/爬虫 fetch 入口和 desktop-control safe-probe-only 队列已有 DB-backed route-token / fail-closed 代码级回归，完整 browser automation、desktop-control 高风险执行器和真实 approved connector runtime 证据仍待闭环。
 - [x] 五类权限回归通过：员工浏览器填表被拒、部门管理员创建部门报告 agent、老板批准桌面远控、超级管理员撤销 MCP route、外部服务方只能看授权材料包；真实运行时 connector/工作室证据仍需后续闭环。
-- [x] 能力中心最小可见性已按角色收口：老板/Owner/超级管理员/admin 看全量，普通员工只见基础能力和可申请项；组织级 CapabilityRoute 策略已具备最小 list/update API、policy 脱敏、禁用即撤销 lease 和前端启用/禁用面板；订阅购买联动、部门申请流、完整策略编辑器和真实 connector 演练仍待闭环。
+- [x] 能力中心最小可见性已按角色收口：老板/Owner/超级管理员/admin 看全量，普通员工只见基础能力和可申请项；组织级 CapabilityRoute 策略已具备最小 list/update API、policy 脱敏、禁用即撤销 lease 和前端启用/禁用面板；订阅购买联动、部门申请流、完整策略编辑器和真实 connector runtime 证据仍待闭环。
 - [x] Skill 进化提案、评测门禁、管理员审批、灰度启用和回滚禁用已有本地与 DB-backed 正反向测试；组织级 UI、真实执行链路失权和商业发布证据仍未闭环。
 - [x] 高风险工作室已具备最小 artifact-first 成果记录、查看和导出代码级闭环。
 - [ ] 高风险工作室支持完整运行时旁听、真实暂停/接管/终止执行效果、artifact 编辑/跨端恢复和真实运行时证据。

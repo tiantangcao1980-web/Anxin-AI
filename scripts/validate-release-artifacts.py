@@ -489,6 +489,7 @@ def _validate_agent_governance_code_smoke(path: Path, payload: dict[str, Any], f
         "backend_governance_regressions",
         "approval_authorization_guard",
         "mcp_connection_config_policy",
+        "approved_connector_local_rehearsal",
         "desktop_remote_control_host",
         "frontend_skill_connector_credentials_model",
         "frontend_agent_workspace_e2e",
@@ -510,7 +511,7 @@ def _validate_agent_governance_code_smoke(path: Path, payload: dict[str, Any], f
     else:
         pending = {str(item) for item in pending_runtime_evidence}
         required_pending = {
-            "approved_connector_rehearsal",
+            "real_approved_connector_runtime",
             "real_cross_process_revocation",
             "pause_takeover_terminate_runtime",
             "signed_packaged_runtime_outbound_evidence",
