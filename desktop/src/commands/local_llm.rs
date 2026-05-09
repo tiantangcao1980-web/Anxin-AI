@@ -1,12 +1,76 @@
 use crate::models::{AppMode, SharedAppState};
 use crate::services::runtime_config;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use tauri::{AppHandle, State};
+
+const DEFAULT_LOCAL_LLM_ENDPOINT: &str = "http://localhost:11434";
 
 fn configured_default_model(app: &AppHandle, state: &crate::models::AppStateData) -> String {
     runtime_config::load_or_default_for_app(app, state)
         .ok()
         .and_then(|config| config.local_model)
         .unwrap_or_else(runtime_config::default_local_model_name)
+}
+
+fn is_private_ipv4(address: Ipv4Addr) -> bool {
+    address.is_loopback()
+        || address.is_private()
+        || address.is_link_local()
+        || address.octets()[0] == 100 && (64..=127).contains(&address.octets()[1])
+}
+
+fn is_private_ipv6(address: Ipv6Addr) -> bool {
+    address.is_loopback()
+        || address.is_unicast_link_local()
+        || (address.segments()[0] & 0xfe00) == 0xfc00
+}
+
+fn is_allowed_local_llm_host(host: &str) -> bool {
+    let normalized = host.trim_end_matches('.').to_ascii_lowercase();
+    if normalized == "localhost" || normalized.ends_with(".localhost") {
+        return true;
+    }
+    if normalized.ends_with(".local") {
+        return true;
+    }
+    match normalized.parse::<IpAddr>() {
+        Ok(IpAddr::V4(address)) => is_private_ipv4(address),
+        Ok(IpAddr::V6(address)) => is_private_ipv6(address),
+        Err(_) => false,
+    }
+}
+
+fn normalize_local_llm_endpoint(input: &str) -> Result<String, String> {
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return Err("本地模型端点不能为空".to_string());
+    }
+
+    let parsed = reqwest::Url::parse(trimmed)
+        .map_err(|_| "本地模型端点必须是完整的 http:// 或 https:// 地址".to_string())?;
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return Err("本地模型端点只允许 http 或 https 协议".to_string());
+    }
+    if !parsed.username().is_empty() || parsed.password().is_some() {
+        return Err("本地模型端点不能包含用户名或密码".to_string());
+    }
+    if parsed.path() != "/" || parsed.query().is_some() || parsed.fragment().is_some() {
+        return Err("本地模型端点不能包含路径、查询参数或片段".to_string());
+    }
+    let host = parsed
+        .host_str()
+        .ok_or_else(|| "本地模型端点缺少主机名".to_string())?;
+    if !is_allowed_local_llm_host(host) {
+        return Err("本地模型端点必须指向 localhost、私网地址或 .local 主机".to_string());
+    }
+
+    Ok(parsed.to_string().trim_end_matches('/').to_string())
+}
+
+fn local_llm_endpoint_from_env() -> Result<String, String> {
+    let raw =
+        std::env::var("OLLAMA_URL").unwrap_or_else(|_| DEFAULT_LOCAL_LLM_ENDPOINT.to_string());
+    normalize_local_llm_endpoint(&raw)
 }
 
 /// 本地 LLM 聊天（绝密模式和混合模式下使用）
@@ -39,8 +103,7 @@ pub async fn local_llm_chat(
         Some(value) => runtime_config::normalize_local_model_name(&value)?,
         None => configured_default_model(&app, &snapshot),
     };
-    let ollama_url =
-        std::env::var("OLLAMA_URL").unwrap_or_else(|_| "http://localhost:11434".to_string());
+    let ollama_url = local_llm_endpoint_from_env()?;
 
     let client = reqwest::Client::new();
 
@@ -103,8 +166,7 @@ pub async fn get_local_llm_config(
     let default_model = config
         .local_model
         .unwrap_or_else(runtime_config::default_local_model_name);
-    let endpoint_url =
-        std::env::var("OLLAMA_URL").unwrap_or_else(|_| "http://localhost:11434".to_string());
+    let endpoint_url = local_llm_endpoint_from_env()?;
 
     Ok(serde_json::json!({
         "default_model": default_model,
@@ -140,8 +202,7 @@ pub async fn set_default_local_model(
 /// 列出本地可用的 LLM 模型
 #[tauri::command]
 pub async fn list_local_models() -> Result<serde_json::Value, String> {
-    let ollama_url =
-        std::env::var("OLLAMA_URL").unwrap_or_else(|_| "http://localhost:11434".to_string());
+    let ollama_url = local_llm_endpoint_from_env()?;
 
     let client = reqwest::Client::new();
 
@@ -169,6 +230,7 @@ pub async fn list_local_models() -> Result<serde_json::Value, String> {
 
 #[cfg(test)]
 mod tests {
+    use super::normalize_local_llm_endpoint;
     use crate::services::runtime_config::normalize_local_model_name;
 
     #[test]
@@ -185,13 +247,41 @@ mod tests {
         assert!(normalize_local_model_name("qwen 7b").is_err());
         assert!(normalize_local_model_name("qwen;export TOKEN=secret").is_err());
     }
+
+    #[test]
+    fn validates_local_llm_endpoint_is_local_or_private() {
+        assert_eq!(
+            normalize_local_llm_endpoint(" http://localhost:11434/ ").unwrap(),
+            "http://localhost:11434"
+        );
+        assert_eq!(
+            normalize_local_llm_endpoint("http://127.0.0.1:11434").unwrap(),
+            "http://127.0.0.1:11434"
+        );
+        assert_eq!(
+            normalize_local_llm_endpoint("http://192.168.1.20:11434").unwrap(),
+            "http://192.168.1.20:11434"
+        );
+        assert_eq!(
+            normalize_local_llm_endpoint("http://ollama.local:11434").unwrap(),
+            "http://ollama.local:11434"
+        );
+    }
+
+    #[test]
+    fn rejects_remote_or_credentialed_local_llm_endpoints() {
+        assert!(normalize_local_llm_endpoint("https://api.example.com").is_err());
+        assert!(normalize_local_llm_endpoint("http://8.8.8.8:11434").is_err());
+        assert!(normalize_local_llm_endpoint("http://token@localhost:11434").is_err());
+        assert!(normalize_local_llm_endpoint("http://localhost:11434/api/tags").is_err());
+        assert!(normalize_local_llm_endpoint("file:///tmp/model.sock").is_err());
+    }
 }
 
 /// 检查本地 LLM 服务是否可用
 #[tauri::command]
 pub async fn check_local_llm_status() -> Result<serde_json::Value, String> {
-    let ollama_url =
-        std::env::var("OLLAMA_URL").unwrap_or_else(|_| "http://localhost:11434".to_string());
+    let ollama_url = local_llm_endpoint_from_env()?;
 
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(3))

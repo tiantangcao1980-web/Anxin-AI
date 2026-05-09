@@ -103,7 +103,7 @@
 - [~] **P0-1**：Tauri 窗口外观优化 — 代码级 chrome/titlebar gate 已有；macOS/Windows 截图、vibrancy/acrylic 视觉验收和 signed runtime 待补
 - [~] **P0-2**：全局快捷键呼出后的"快速问答"模式 — 独立 Quick Query 窗口已实现；packaged 快捷键实测、P95 < 200ms 和真实 local model smoke 待补
 - [~] **P0-3**：文件拖拽分析 — WebView drop + SQLCipher offline queue + redacted toast 已实现；真实托盘图标 drop、P95 < 500ms 和 signed runtime 待补
-- [~] **P1-1**：本地 LLM 模型管理界面 — 本机运行已补默认本地模型选择、Ollama/兼容端点模型清单、secret-free 持久化和 Quick Query 默认模型读取；一键下载、真实模型 smoke 和 packaged runtime 证据待补
+- [~] **P1-1**：本地 LLM 模型管理界面 — 本机运行已补默认本地模型选择、Ollama/兼容端点模型清单、secret-free 持久化、Quick Query 默认模型读取和本地模型端点本机/私网 guard；一键下载、真实模型 smoke 和 packaged runtime 证据待补
 - [~] **P1-2**：原生通知 — 桌面端已补本机 OS 通知 IPC、权限状态/授权请求 IPC、本机运行测试通知、TopSecret local-only 边界和门禁覆盖；真实 signed runtime 系统偏好权限、托盘/后台触发、跨设备/服务端推送证据待补
 - [~] **P1-3**：离线模式优化 — 已补本机离线队列列表、失败任务重新入队、`.txt/.md` 文档摘要内置本机处理、文件路径脱敏摘要和本地门禁；PDF/DOCX 本机解析、完整脱网业务闭环、shared-staging 同步和 signed runtime 证据待补
 - [ ] **P2-1**：dmg / msi 签名分发（Apple Developer ID / notarization / Windows certificate 外部输入）

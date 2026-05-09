@@ -420,7 +420,7 @@ cd desktop && cargo test runtime_config
 # 10 passed; 51 filtered out
 
 cd desktop && cargo test local_llm
-# 1 passed; 60 filtered out
+# 3 passed; 76 filtered out
 
 cd frontend && npm test -- desktopWorkstationModel.test.ts
 # 1 file / 11 tests passed
@@ -436,6 +436,7 @@ bash scripts/desktop-mvp-local-gate.sh
 
 - `desktop/src/services/runtime_config.rs` 新增 secret-free `localModel` 字段，旧 `runtime-config.json` 无该字段时继续兼容；保存时只持久化模型名称，不保存 API key、token、证书或 connector secret。
 - `desktop/src/commands/local_llm.rs` 新增 `get_local_llm_config` / `set_default_local_model`，并让 `local_llm_chat` 在未显式传入模型时读取桌面默认模型；模型名称只允许安全字符集，拒绝空值、空格和 shell-like 内容。
+- `desktop/src/commands/local_llm.rs` 新增本地模型端点 guard：`OLLAMA_URL` 只允许 `localhost`、loopback、私网 IP 或 `.local` 主机，拒绝公网地址、凭据、路径、查询参数和非 http/https scheme，避免“本地 LLM”在绝密/本地语义下被环境变量指向外部服务。
 - `frontend/src/components/desktop/DesktopWorkstationPanel.tsx` 新增“本地模型管理”面板，桌面 runtime 可查看 Ollama/兼容端点、已检测模型数量、选择或手填默认模型并保存；非桌面预览保持不可写。
 - Playwright 已覆盖模拟桌面 runtime 下保存 `llama3.1:8b` 为默认模型；Quick Query 真实模型 smoke、模型下载/安装、packaged runtime 和 signed runtime 证据仍保持阻断。
 

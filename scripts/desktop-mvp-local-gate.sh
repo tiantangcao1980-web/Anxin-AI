@@ -42,6 +42,9 @@ checks = {
         "get_local_llm_config",
         "set_default_local_model",
         "normalize_local_model_name",
+        "normalize_local_llm_endpoint",
+        "local_llm_endpoint_from_env",
+        "本地模型端点必须指向 localhost、私网地址或 .local 主机",
         "configured_default_model",
     ],
     "desktop/src/commands/native_notification.rs": [
