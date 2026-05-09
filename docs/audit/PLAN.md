@@ -217,7 +217,7 @@ Day 30-36   缓冲 + P2 质量基线（ruff/mypy 分层基线 + 性能调优）
 | 10 | `_tasks/TASK-10-billing-im.md` | 已生成 |
 | 11a | `_tasks/TASK-11a-desktop-mvp.md` | 已生成 |
 | 11b | `_tasks/TASK-11b-sync-engine.md` | 已生成 |
-| 11c | `_tasks/TASK-11c-mobile-design.md` | 已生成；2026-05-09 已同步 uni-app 统一端路线，旧 `mobile/` 和 `mini-program/` 标记 legacy，实际 `apps/uni-mobile/` 基座和旧端模块删除待执行 |
+| 11c | `_tasks/TASK-11c-mobile-design.md` | 已生成；2026-05-09 已同步 uni-app 统一端路线，旧 `mobile/` 和 `mini-program/` 标记 legacy；`apps/uni-mobile/` 首版基座已通过 typecheck、10 个契约测试、production audit、H5 和微信小程序构建；旧端模块删除待同等能力和真机/DevTools 证据 |
 | 12 | `_tasks/TASK-12-agent-control-plane-skill-evolution.md` | 已生成，等待执行 |
 
 ---

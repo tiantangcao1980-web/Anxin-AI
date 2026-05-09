@@ -1,0 +1,39 @@
+$touch-min-target-rpx: 88rpx;
+$page-padding-rpx: 32rpx;
+$card-radius-rpx: 16rpx;
+$color-background: #F7F8FA;
+$color-surface: #FFFFFF;
+$color-text-primary: #111827;
+$color-text-secondary: #5F6673;
+$color-border: #D8DEE8;
+$color-primary: #2563EB;
+
+page {
+  min-height: 100%;
+  background: $color-background;
+  color: $color-text-primary;
+}
+
+.anxin-page {
+  min-height: 100vh;
+  padding: $page-padding-rpx;
+  padding-bottom: calc(#{$page-padding-rpx} + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.anxin-card {
+  border: 1rpx solid $color-border;
+  border-radius: $card-radius-rpx;
+  background: $color-surface;
+  padding: 28rpx;
+}
+
+.anxin-action {
+  min-height: $touch-min-target-rpx;
+  border-radius: 12rpx;
+}
+
+.anxin-muted {
+  color: $color-text-secondary;
+  line-height: 1.6;
+}

@@ -28,7 +28,7 @@
 
 ## 2. 迁移后目录目标
 
-建议新增：
+已新增首版基座：
 
 ```text
 apps/
@@ -45,6 +45,8 @@ apps/
     ├── package.json
     └── README.md
 ```
+
+2026-05-09 首版 `apps/uni-mobile/` 已落地为 Vue3 + Vite + uni-app 基座，包含统一 API client、auth/storage、privacy fail-closed、微信 `uni.login` 适配、桌面远控 safe-probe gate model、跨端 token 层，以及 H5/微信小程序本地构建脚本。
 
 旧目录处理：
 
@@ -130,6 +132,7 @@ P1 再迁移：
 | uni-app 单测 | `cd apps/uni-mobile && npm test` |
 | 微信小程序构建 | `cd apps/uni-mobile && npm run build:mp-weixin` |
 | H5 构建 | `cd apps/uni-mobile && npm run build:h5` |
+| uni-app 聚合 smoke | `bash scripts/uni-mobile-smoke.sh --out docs/release/evidence/artifacts/uni-mobile-base-smoke-YYYYMMDD.json` |
 | App 构建 | HBuilderX / DCloud 云打包 transcript |
 | 隐私边界 | local/top-secret 下登录和数据请求 fail-closed |
 | 真机证据 | iOS、Android、WeChat DevTools/真机截图或日志 |
@@ -147,11 +150,11 @@ P1 再迁移：
 
 ## 7. 第一轮执行清单
 
-- [ ] 新建 `apps/uni-mobile/` 基座。
-- [ ] 标记 `mobile/` 和 `mini-program/` 为 legacy。
-- [ ] 迁移统一 API client、auth store、privacy mode、error model。
+- [x] 新建 `apps/uni-mobile/` 基座。证据：`docs/release/evidence/artifacts/uni-mobile-base-smoke-20260509.json`。
+- [x] 标记 `mobile/` 和 `mini-program/` 为 legacy。
+- [x] 迁移统一 API client、auth store、privacy mode、error model 的代码级契约；完整页面同等能力仍按模块推进。
 - [ ] 迁移审批列表/详情/审计时间线。
 - [ ] 迁移微信小程序登录与首页空态。
-- [ ] 跑 H5 + 微信小程序构建。
+- [x] 跑 H5 + 微信小程序构建。证据：`bash scripts/uni-mobile-smoke.sh --out docs/release/evidence/artifacts/uni-mobile-base-smoke-20260509.json`。
 - [ ] 采集 iOS/Android/WeChat 至少一轮真机或开发者工具证据。
 - [ ] 对照门禁删除旧端已迁移模块。

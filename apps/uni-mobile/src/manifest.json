@@ -1,0 +1,33 @@
+{
+  "name": "安心法务",
+  "appid": "__UNI__ANXIN_PLACEHOLDER",
+  "description": "安心法务移动端与小程序统一基座",
+  "versionName": "0.1.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "app-plus": {
+    "usingComponents": true,
+    "privacy": {
+      "prompt": "template"
+    },
+    "distribute": {
+      "ios": {},
+      "android": {}
+    }
+  },
+  "mp-weixin": {
+    "appid": "touristappid",
+    "setting": {
+      "urlCheck": false,
+      "es6": true,
+      "postcss": true,
+      "minified": true
+    },
+    "usingComponents": true
+  },
+  "h5": {
+    "router": {
+      "base": "/"
+    }
+  }
+}

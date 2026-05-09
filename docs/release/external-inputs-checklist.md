@@ -78,10 +78,10 @@
 
 | 输入 | 用途 | 对应字段或 artifact | 当前状态 |
 |---|---|---|---|
-| iOS 测试构建 | 真机、TestFlight 或 iOS Simulator app-run smoke | build hash + device transcript | 缺；本机 host probe 已确认 iOS Simulator 可用，但尚未生成 app-run transcript |
+| iOS 测试构建 | 真机、TestFlight 或 iOS Simulator app-run smoke | build hash + device transcript | 缺正式/真机证据；legacy Expo Go iOS Simulator 支持性 app-run 已有，uni-app signed/TestFlight 仍缺 |
 | Android 测试构建 | 真机 smoke | build hash + device transcript | 缺；ADB 可启动但当前无连接设备，`emulator` CLI 不在 PATH |
 | 微信开发者工具或真机环境 | 小程序 smoke | DevTools/project transcript | 本机 WeChat DevTools CLI project smoke 已通过；交互式/真机证据仍缺 |
-| DCloud/uni-app 账号与应用 AppID | 新移动/小程序统一基座、云打包、插件和 uniPush 准备 | DCloud app id / cloud build transcript | 缺；2026-05-09 已决定迁移到 uni-app，旧 Expo/Taro 仅作 legacy 参考 |
+| DCloud/uni-app 账号与应用 AppID | 新移动/小程序统一基座、云打包、插件和 uniPush 准备 | DCloud app id / cloud build transcript | 缺外部账号与云打包证据；`apps/uni-mobile` 本地基座已可 typecheck/test/build H5/微信小程序，旧 Expo/Taro 仅作 legacy 参考 |
 | iOS/Android 包名与证书策略 | uni-app App 打包和上架 | Bundle ID / package name / signing profile label | 缺 |
 | 测试账号 | 登录、审批、消息、任务、聊天延续 | redacted tester/account role | 缺 |
 | 后端 staging 环境 | 真机 API 指向 | environment URL label only | 缺 |

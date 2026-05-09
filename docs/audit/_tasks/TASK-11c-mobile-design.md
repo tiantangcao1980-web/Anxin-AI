@@ -168,6 +168,6 @@ docs/audit/11c-mobile-design/
 - [ ] 小程序 tsc + lint 全绿；微信开发者工具登录链路真机验证通过
 - [ ] iPhone 14 + Android 13 真机手测通过：登录 / 审批 / 会话延续 三个用户故事
 - [x] `docs/audit/11c-mobile-design/01..05.md` + `docs/design/cross-platform-token-drift.md` + `docs/mobile/error-handling-guidelines.md` 全部产出；另补 `00-prd-reality-gap.md`
-- [x] `docs/mobile/uni-app-migration-plan.md` 已产出；`mobile/README.md` 与 `mini-program/README.md` 已标记 legacy；实际 `apps/uni-mobile/` 基座和旧端模块删除仍待后续执行
+- [x] `docs/mobile/uni-app-migration-plan.md` 已产出；`mobile/README.md` 与 `mini-program/README.md` 已标记 legacy；`apps/uni-mobile/` 首版基座已落地并通过 typecheck、`4 files / 10 tests`、production npm audit `0`、H5 build 和 WeChat Mini Program build；旧端模块删除仍待 uni-app 同等能力与真机/DevTools 证据后逐模块执行
 - [x] release notes 已写"移除静默 fallback，看到错误页是真错"提示；草案为 `docs/release/mobile-error-state-release-notes.md`，正式发布前需合并到版本说明
 - [ ] 经验沉淀到 hierarchical-memory（add-bugfix ≥ 2 + add-feature ≥ 1）

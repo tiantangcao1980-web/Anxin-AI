@@ -425,6 +425,66 @@ def test_release_artifact_validation_accepts_external_unavailable_wechat_devtool
     assert result.returncode == 0, result.stdout
 
 
+def test_release_artifact_validation_accepts_uni_mobile_base_smoke(tmp_path):
+    repo_root = Path(__file__).resolve().parents[2]
+    artifact = tmp_path / "uni-mobile-base-smoke.json"
+    artifact.write_text(
+        json.dumps(
+            {
+                "generated_at": "2026-05-09T00:00:00Z",
+                "mode": "uni_mobile_base_smoke",
+                "status": "passed",
+                "release_evidence_complete": False,
+                "checks": {
+                    "typecheck": "passed",
+                    "contract_tests": "passed",
+                    "production_npm_audit": "passed",
+                    "build_h5": "passed",
+                    "build_mp_weixin": "passed",
+                },
+                "scope": {"base": "apps/uni-mobile"},
+                "completion_note": "Code-level supporting evidence only; device evidence remains pending.",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = _validate(repo_root, artifact)
+
+    assert result.returncode == 0, result.stdout
+
+
+def test_release_artifact_validation_rejects_incomplete_uni_mobile_base_smoke(tmp_path):
+    repo_root = Path(__file__).resolve().parents[2]
+    artifact = tmp_path / "uni-mobile-base-smoke-bad.json"
+    artifact.write_text(
+        json.dumps(
+            {
+                "generated_at": "2026-05-09T00:00:00Z",
+                "mode": "uni_mobile_base_smoke",
+                "status": "passed",
+                "release_evidence_complete": True,
+                "checks": {
+                    "typecheck": "passed",
+                    "contract_tests": "passed",
+                    "production_npm_audit": "passed",
+                    "build_h5": "failed",
+                    "build_mp_weixin": "passed",
+                },
+                "scope": {"base": "mobile"},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = _validate(repo_root, artifact)
+
+    assert result.returncode == 1
+    assert "release_evidence_complete=false" in result.stdout
+    assert "build_h5 must be passed" in result.stdout
+    assert "scope.base must be apps/uni-mobile" in result.stdout
+
+
 def test_release_artifact_validation_rejects_incomplete_mobile_mini_code_smoke(tmp_path):
     repo_root = Path(__file__).resolve().parents[2]
     artifact = tmp_path / "mobile-mini-code-smoke-bad.json"

@@ -372,6 +372,36 @@ def _validate_mobile_mini_code_smoke(path: Path, payload: dict[str, Any], failur
             )
 
 
+def _validate_uni_mobile_base_smoke(path: Path, payload: dict[str, Any], failures: list[str]) -> None:
+    if payload.get("mode") != "uni_mobile_base_smoke":
+        return
+    if payload.get("release_evidence_complete") is not False:
+        failures.append(f"{path}: uni-mobile base smoke must set release_evidence_complete=false")
+    if payload.get("status") != "passed":
+        failures.append(f"{path}: uni-mobile base smoke must have status=passed")
+
+    checks = payload.get("checks")
+    if not isinstance(checks, dict):
+        failures.append(f"{path}: uni-mobile base smoke must include checks object")
+        return
+    for check_name in (
+        "typecheck",
+        "contract_tests",
+        "production_npm_audit",
+        "build_h5",
+        "build_mp_weixin",
+    ):
+        if checks.get(check_name) != "passed":
+            failures.append(f"{path}: uni-mobile base smoke {check_name} must be passed")
+
+    scope = payload.get("scope")
+    if not isinstance(scope, dict):
+        failures.append(f"{path}: uni-mobile base smoke must include scope")
+    else:
+        if scope.get("base") != "apps/uni-mobile":
+            failures.append(f"{path}: uni-mobile base smoke scope.base must be apps/uni-mobile")
+
+
 def _validate_mobile_ios_simulator_smoke(path: Path, payload: dict[str, Any], failures: list[str]) -> None:
     if payload.get("mode") != "mobile_ios_simulator_expo_go_smoke":
         return
@@ -1085,6 +1115,7 @@ def validate_json_artifact(path: Path) -> ValidationResult:
     _validate_rag_failure_diagnostics(path, payload, failures)
     _validate_mobile_device_manual_template(path, payload, failures)
     _validate_mobile_mini_code_smoke(path, payload, failures)
+    _validate_uni_mobile_base_smoke(path, payload, failures)
     _validate_mobile_ios_simulator_smoke(path, payload, failures)
     _validate_desktop_installed_profile_smoke(path, payload, failures)
     _validate_desktop_runtime_code_smoke(path, payload, failures)
