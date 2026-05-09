@@ -94,6 +94,14 @@ export type MockOptions = {
     approve?: unknown
     grayRelease?: unknown
     rollback?: unknown
+    connectors?: {
+      list?: { items?: Array<Record<string, unknown>>; total?: number }
+      create?: unknown
+      update?: unknown
+      delete?: unknown
+      onCreate?: (body: Record<string, unknown>) => void
+      onUpdate?: (body: Record<string, unknown>) => void
+    }
   }
   harness?: {
     tools?: unknown
@@ -187,6 +195,26 @@ export async function installApiMocks(page: Page, options: MockOptions = {}) {
     ],
     total: 1,
   }
+  let skillConnectorState = options.skillGovernance?.connectors?.list ?? {
+    items: [
+      {
+        id: 'skill-connector-e2e-1',
+        org_id: 'org-e2e',
+        skill_name: 'contract-review',
+        connector_name: 'court-data',
+        connector_type: 'http_api',
+        endpoint_url: 'https://court.example.test/api',
+        auth_type: 'api_key',
+        credential_keys: ['API_KEY', 'CLIENT_SECRET'],
+        is_enabled: true,
+        created_by: 'e2e-admin',
+        updated_by: 'e2e-admin',
+        created_at: '2026-05-09T10:00:00Z',
+        updated_at: '2026-05-09T10:00:00Z',
+      },
+    ],
+    total: 1,
+  }
 
   await page.route('**/api/**', async (route) => {
     const request = route.request()
@@ -239,6 +267,75 @@ export async function installApiMocks(page: Page, options: MockOptions = {}) {
           },
         ),
       )
+    }
+
+    if (pathname.endsWith('/skill-governance/connectors') && request.method() === 'GET') {
+      return fulfillJson(route, buildUnified(skillConnectorState))
+    }
+
+    if (pathname.endsWith('/skill-governance/connectors') && request.method() === 'POST') {
+      const body = JSON.parse(request.postData() || '{}') as Record<string, unknown>
+      options.skillGovernance?.connectors?.onCreate?.(body)
+      const credentialKeys = Object.keys((body.credentials as Record<string, string> | undefined) ?? {})
+      const created = {
+        id: 'skill-connector-e2e-created',
+        org_id: 'org-e2e',
+        skill_name: body.skill_name ?? 'contract-review',
+        connector_name: body.connector_name ?? 'new-connector',
+        connector_type: body.connector_type ?? 'http_api',
+        endpoint_url: body.endpoint_url ?? null,
+        auth_type: body.auth_type ?? 'api_key',
+        credential_keys: credentialKeys,
+        is_enabled: body.is_enabled ?? true,
+        created_by: 'e2e-admin',
+        updated_by: 'e2e-admin',
+        created_at: '2026-05-09T10:10:00Z',
+        updated_at: '2026-05-09T10:10:00Z',
+      }
+      skillConnectorState = {
+        items: [created, ...(skillConnectorState.items ?? [])],
+        total: (skillConnectorState.total ?? 0) + 1,
+      }
+      return fulfillJson(route, buildUnified(options.skillGovernance?.connectors?.create ?? created))
+    }
+
+    if (/\/skill-governance\/connectors\/[^/]+$/.test(pathname) && request.method() === 'PUT') {
+      const id = decodeURIComponent(pathname.split('/').pop() ?? '')
+      const body = JSON.parse(request.postData() || '{}') as Record<string, unknown>
+      options.skillGovernance?.connectors?.onUpdate?.(body)
+      const current = (skillConnectorState.items ?? []).find((item) => item.id === id) ?? {
+        id,
+        org_id: 'org-e2e',
+        skill_name: body.skill_name ?? 'contract-review',
+        connector_name: body.connector_name ?? 'connector',
+        connector_type: 'http_api',
+        endpoint_url: null,
+        auth_type: 'api_key',
+        credential_keys: [],
+        is_enabled: true,
+      }
+      const updated = {
+        ...current,
+        ...body,
+        credential_keys: 'credentials' in body
+          ? Object.keys((body.credentials as Record<string, string> | undefined) ?? {})
+          : current.credential_keys,
+        updated_at: '2026-05-09T10:12:00Z',
+      }
+      skillConnectorState = {
+        items: (skillConnectorState.items ?? []).map((item) => (item.id === id ? updated : item)),
+        total: skillConnectorState.total ?? 1,
+      }
+      return fulfillJson(route, buildUnified(options.skillGovernance?.connectors?.update ?? updated))
+    }
+
+    if (/\/skill-governance\/connectors\/[^/]+$/.test(pathname) && request.method() === 'DELETE') {
+      const id = decodeURIComponent(pathname.split('/').pop() ?? '')
+      skillConnectorState = {
+        items: (skillConnectorState.items ?? []).filter((item) => item.id !== id),
+        total: Math.max((skillConnectorState.total ?? 1) - 1, 0),
+      }
+      return fulfillJson(route, buildUnified(options.skillGovernance?.connectors?.delete ?? { deleted: true }))
     }
 
     if (pathname.endsWith('/skill-governance/proposals') && request.method() === 'GET') {

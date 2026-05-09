@@ -24,9 +24,18 @@ import {
   type SkillGovernanceEnabledVersion,
   type SkillGovernanceProposal,
   type SkillGovernanceStatus,
+  type SkillConnectorConfig,
 } from '@/lib/api'
 import { icons, type IconComponent } from '@/lib/icons'
 import { useAuthStore } from '@/lib/store'
+import {
+  buildSkillConnectorPayload,
+  connectorToForm,
+  defaultSkillConnectorForm,
+  parseConnectorCredentials,
+  summarizeConnectorCredentials,
+  type SkillConnectorFormState,
+} from './skillConnectorSettingsModel'
 
 type FilterStatus = 'all' | AgentApprovalStatus
 
@@ -214,6 +223,7 @@ function capabilityToolState(tool: HarnessToolItem, isAvailable: boolean): 'avai
 export default function AgentApprovalWorkspace() {
   const currentUserRole = useAuthStore((state) => state.user?.role ?? 'employee')
   const canManageCapabilityPolicies = hasFullCapabilityVisibility(currentUserRole)
+  const canManageSkillConnectors = hasFullCapabilityVisibility(currentUserRole)
   const [items, setItems] = useState<AgentApprovalItem[]>([])
   const [status, setStatus] = useState<FilterStatus>('pending')
   const [pendingCount, setPendingCount] = useState(0)
@@ -239,6 +249,12 @@ export default function AgentApprovalWorkspace() {
   const [skillAuditLoadingId, setSkillAuditLoadingId] = useState<string | null>(null)
   const [expandedSkillAuditId, setExpandedSkillAuditId] = useState<string | null>(null)
   const [exportingSkillAuditId, setExportingSkillAuditId] = useState<string | null>(null)
+  const [skillConnectors, setSkillConnectors] = useState<SkillConnectorConfig[]>([])
+  const [skillConnectorsLoading, setSkillConnectorsLoading] = useState(true)
+  const [skillConnectorsError, setSkillConnectorsError] = useState<string | null>(null)
+  const [skillConnectorBusyKey, setSkillConnectorBusyKey] = useState<string | null>(null)
+  const [editingSkillConnectorId, setEditingSkillConnectorId] = useState<string | null>(null)
+  const [skillConnectorForm, setSkillConnectorForm] = useState<SkillConnectorFormState>(defaultSkillConnectorForm)
   const [watchedSkillName, setWatchedSkillName] = useState('contract-review')
   const [skillForm, setSkillForm] = useState({
     skill_name: 'contract-review',
@@ -302,6 +318,31 @@ export default function AgentApprovalWorkspace() {
   useEffect(() => {
     void loadSkillGovernance()
   }, [loadSkillGovernance])
+
+  const loadSkillConnectors = useCallback(async () => {
+    if (!canManageSkillConnectors) {
+      setSkillConnectors([])
+      setSkillConnectorsError(null)
+      setSkillConnectorsLoading(false)
+      return
+    }
+
+    const skillName = watchedSkillName.trim() || undefined
+    setSkillConnectorsLoading(true)
+    setSkillConnectorsError(null)
+    try {
+      const response = await skillGovernanceApi.connectors.list({ skill_name: skillName })
+      setSkillConnectors(response.items)
+    } catch (err) {
+      setSkillConnectorsError(err instanceof Error ? err.message : '加载 Skill 连接器失败')
+    } finally {
+      setSkillConnectorsLoading(false)
+    }
+  }, [canManageSkillConnectors, watchedSkillName])
+
+  useEffect(() => {
+    void loadSkillConnectors()
+  }, [loadSkillConnectors])
 
   const loadCapabilityPolicy = useCallback(async () => {
     setCapabilityLoading(true)
@@ -627,6 +668,74 @@ export default function AgentApprovalWorkspace() {
     }
   }
 
+  const resetSkillConnectorForm = (skillName = watchedSkillName.trim() || 'contract-review') => {
+    setEditingSkillConnectorId(null)
+    setSkillConnectorForm({
+      ...defaultSkillConnectorForm,
+      skill_name: skillName,
+    })
+  }
+
+  const submitSkillConnector = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const skillName = skillConnectorForm.skill_name.trim()
+    const connectorName = skillConnectorForm.connector_name.trim()
+    if (!skillName || !connectorName) {
+      toast.error('请补齐 Skill 和连接器名称')
+      return
+    }
+
+    const editing = Boolean(editingSkillConnectorId)
+    const payload = buildSkillConnectorPayload(skillConnectorForm, { editing })
+    if (editing && skillConnectorForm.credential_mode === 'replace' && !payload.credentials) {
+      toast.error('替换凭据时至少填写一个 KEY=value')
+      return
+    }
+
+    const busyKey = editingSkillConnectorId ?? 'connector:create'
+    setSkillConnectorBusyKey(busyKey)
+    try {
+      const saved = editingSkillConnectorId
+        ? await skillGovernanceApi.connectors.update(editingSkillConnectorId, payload)
+        : await skillGovernanceApi.connectors.create(payload)
+      setWatchedSkillName(saved.skill_name)
+      setSkillConnectorForm({
+        ...defaultSkillConnectorForm,
+        skill_name: saved.skill_name,
+      })
+      setEditingSkillConnectorId(null)
+      toast.success(editing ? '连接器配置已更新' : '连接器配置已创建')
+      const refreshed = await skillGovernanceApi.connectors.list({ skill_name: saved.skill_name })
+      setSkillConnectors(refreshed.items)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '连接器配置保存失败')
+    } finally {
+      setSkillConnectorBusyKey(null)
+    }
+  }
+
+  const editSkillConnector = (config: SkillConnectorConfig) => {
+    setEditingSkillConnectorId(config.id)
+    setSkillConnectorForm(connectorToForm(config))
+  }
+
+  const deleteSkillConnector = async (config: SkillConnectorConfig) => {
+    if (!window.confirm(`确认删除 ${config.connector_name} 连接器配置？`)) return
+    setSkillConnectorBusyKey(config.id)
+    try {
+      await skillGovernanceApi.connectors.delete(config.id)
+      setSkillConnectors((prev) => prev.filter((item) => item.id !== config.id))
+      if (editingSkillConnectorId === config.id) {
+        resetSkillConnectorForm(config.skill_name)
+      }
+      toast.success('连接器配置已删除')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '连接器配置删除失败')
+    } finally {
+      setSkillConnectorBusyKey(null)
+    }
+  }
+
   const toggleCapabilityRoute = async (route: AgentCapabilityRoutePolicy) => {
     const isActive = route.status === 'active' || route.status === 'enabled'
     setCapabilityRouteBusyKey(route.route_key)
@@ -680,10 +789,32 @@ export default function AgentApprovalWorkspace() {
         onRefresh={() => void loadSkillGovernance()}
         onSubmit={submitSkillProposal}
         onFormChange={(patch) => setSkillForm((prev) => ({ ...prev, ...patch }))}
-        onWatchSkill={(value) => setWatchedSkillName(value.trim() || 'contract-review')}
+        onWatchSkill={(value) => {
+          const nextSkillName = value.trim() || 'contract-review'
+          setWatchedSkillName(nextSkillName)
+          if (!editingSkillConnectorId) {
+            setSkillConnectorForm((prev) => ({ ...prev, skill_name: nextSkillName }))
+          }
+        }}
         onRunAction={(proposal, action) => void runSkillAction(proposal, action)}
         onToggleAudit={(proposal) => void toggleSkillAudit(proposal)}
         onExportAudit={(proposal) => void exportSkillAudit(proposal)}
+      />
+
+      <SkillConnectorPanel
+        canManage={canManageSkillConnectors}
+        connectors={skillConnectors}
+        loading={skillConnectorsLoading}
+        error={skillConnectorsError}
+        busyKey={skillConnectorBusyKey}
+        editingId={editingSkillConnectorId}
+        form={skillConnectorForm}
+        onRefresh={() => void loadSkillConnectors()}
+        onSubmit={submitSkillConnector}
+        onFormChange={(patch) => setSkillConnectorForm((prev) => ({ ...prev, ...patch }))}
+        onEdit={editSkillConnector}
+        onDelete={(config) => void deleteSkillConnector(config)}
+        onCancel={() => resetSkillConnectorForm()}
       />
 
       <CapabilityPolicyPanel
@@ -777,6 +908,289 @@ type SkillFormState = {
 }
 
 type SkillGovernanceAction = 'eval' | 'approve' | 'grayRelease' | 'rollback'
+
+function SkillConnectorPanel({
+  canManage,
+  connectors,
+  loading,
+  error,
+  busyKey,
+  editingId,
+  form,
+  onRefresh,
+  onSubmit,
+  onFormChange,
+  onEdit,
+  onDelete,
+  onCancel,
+}: {
+  canManage: boolean
+  connectors: SkillConnectorConfig[]
+  loading: boolean
+  error: string | null
+  busyKey: string | null
+  editingId: string | null
+  form: SkillConnectorFormState
+  onRefresh: () => void
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void
+  onFormChange: (patch: Partial<SkillConnectorFormState>) => void
+  onEdit: (config: SkillConnectorConfig) => void
+  onDelete: (config: SkillConnectorConfig) => void
+  onCancel: () => void
+}) {
+  const credentialKeyCount = connectors.reduce((total, connector) => total + connector.credential_keys.length, 0)
+  const parsedCredentialCount = Object.keys(parseConnectorCredentials(form.credentials_text)).length
+  const editing = Boolean(editingId)
+  const credentialInputDisabled = editing && form.credential_mode !== 'replace'
+
+  return (
+    <section className="rounded-lg border border-border bg-background p-4 shadow-sm" data-testid="skill-connector-panel">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-violet-200 bg-violet-50 text-violet-700">
+            <icons.Key className="h-4 w-4" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="truncate text-base font-semibold text-foreground">Skill 连接器凭据</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {form.skill_name || '未选择 Skill'} · {connectors.length} 个连接器 · {credentialKeyCount} 个凭据键
+            </p>
+          </div>
+        </div>
+        {canManage ? (
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted"
+          >
+            <icons.RefreshCw className="h-4 w-4" />
+            刷新
+          </button>
+        ) : null}
+      </div>
+
+      {!canManage ? (
+        <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+          当前角色不能维护连接器凭据；请由老板、Owner、组织管理员或超级管理员处理。
+        </div>
+      ) : (
+        <>
+          <form className="mt-4 grid gap-3 xl:grid-cols-[0.9fr_0.9fr_0.7fr_1.2fr_0.7fr_0.8fr_auto]" data-testid="skill-connector-form" onSubmit={onSubmit}>
+            <label className="min-w-0">
+              <span className="text-xs font-medium text-muted-foreground">Skill</span>
+              <input
+                value={form.skill_name}
+                onChange={(event) => onFormChange({ skill_name: event.target.value })}
+                className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-primary"
+              />
+            </label>
+            <label className="min-w-0">
+              <span className="text-xs font-medium text-muted-foreground">连接器名称</span>
+              <input
+                value={form.connector_name}
+                onChange={(event) => onFormChange({ connector_name: event.target.value })}
+                className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-primary"
+              />
+            </label>
+            <label className="min-w-0">
+              <span className="text-xs font-medium text-muted-foreground">类型</span>
+              <select
+                value={form.connector_type}
+                onChange={(event) => onFormChange({ connector_type: event.target.value })}
+                className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-primary"
+              >
+                <option value="http_api">http_api</option>
+                <option value="mcp">mcp</option>
+                <option value="database">database</option>
+                <option value="webhook">webhook</option>
+              </select>
+            </label>
+            <label className="min-w-0">
+              <span className="text-xs font-medium text-muted-foreground">Endpoint</span>
+              <input
+                value={form.endpoint_url}
+                onChange={(event) => onFormChange({ endpoint_url: event.target.value })}
+                placeholder="https://provider.example/api"
+                className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-primary"
+              />
+            </label>
+            <label className="min-w-0">
+              <span className="text-xs font-medium text-muted-foreground">认证</span>
+              <select
+                value={form.auth_type}
+                onChange={(event) => onFormChange({ auth_type: event.target.value })}
+                className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-primary"
+              >
+                <option value="api_key">api_key</option>
+                <option value="bearer">bearer</option>
+                <option value="basic">basic</option>
+                <option value="none">none</option>
+              </select>
+            </label>
+            <label className="min-w-0">
+              <span className="text-xs font-medium text-muted-foreground">凭据动作</span>
+              <select
+                value={form.credential_mode}
+                onChange={(event) => onFormChange({ credential_mode: event.target.value as SkillConnectorFormState['credential_mode'] })}
+                className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-primary"
+              >
+                <option value="preserve">保留</option>
+                <option value="replace">替换</option>
+                <option value="clear">清空</option>
+              </select>
+            </label>
+            <div className="flex items-end gap-2">
+              <button
+                type="submit"
+                disabled={busyKey === (editingId ?? 'connector:create')}
+                className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {busyKey === (editingId ?? 'connector:create') ? (
+                  <icons.Loader2 className="h-4 w-4 animate-spin" />
+                ) : editing ? (
+                  <icons.Check className="h-4 w-4" />
+                ) : (
+                  <icons.Plus className="h-4 w-4" />
+                )}
+                {editing ? '更新' : '创建'}
+              </button>
+              {editing ? (
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="inline-flex h-10 items-center justify-center rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted"
+                >
+                  取消
+                </button>
+              ) : null}
+            </div>
+            <label className="min-w-0 xl:col-span-7">
+              <span className="text-xs font-medium text-muted-foreground">凭据文本</span>
+              <textarea
+                value={form.credentials_text}
+                disabled={credentialInputDisabled}
+                onChange={(event) => onFormChange({ credentials_text: event.target.value })}
+                placeholder="API_KEY=sk-...\nCLIENT_SECRET=..."
+                className="mt-1 min-h-[82px] w-full resize-y rounded-lg border border-border bg-background px-3 py-2 font-mono text-sm text-foreground outline-none focus:border-primary disabled:bg-muted/40 disabled:text-muted-foreground"
+              />
+              <span className="mt-1 block text-xs text-muted-foreground">
+                {editing && form.credential_mode === 'preserve'
+                  ? '编辑元数据时不会发送 credentials，已保存密钥保持不变。'
+                  : form.credential_mode === 'clear'
+                    ? '保存后会发送空 credentials，用于清空已保存凭据。'
+                    : `将提交 ${parsedCredentialCount} 个凭据键；保存后界面只显示键名。`}
+              </span>
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm text-foreground xl:col-span-7">
+              <input
+                type="checkbox"
+                checked={form.is_enabled}
+                onChange={(event) => onFormChange({ is_enabled: event.target.checked })}
+                className="h-4 w-4 rounded border-border"
+              />
+              启用该连接器
+            </label>
+          </form>
+
+          <div className="mt-4">
+            {loading ? (
+              <LoadingState variant="skeleton" rows={3} />
+            ) : error ? (
+              <ErrorState variant="card" message={error} onRetry={onRefresh} />
+            ) : connectors.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+                暂无 Skill 连接器配置
+              </div>
+            ) : (
+              <div className="grid gap-2 lg:grid-cols-2" data-testid="skill-connector-list">
+                {connectors.map((connector) => (
+                  <SkillConnectorRow
+                    key={connector.id}
+                    connector={connector}
+                    busy={busyKey === connector.id}
+                    editing={editingId === connector.id}
+                    onEdit={() => onEdit(connector)}
+                    onDelete={() => onDelete(connector)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </section>
+  )
+}
+
+function SkillConnectorRow({
+  connector,
+  busy,
+  editing,
+  onEdit,
+  onDelete,
+}: {
+  connector: SkillConnectorConfig
+  busy: boolean
+  editing: boolean
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  return (
+    <article className={`min-w-0 rounded-lg border p-3 ${editing ? 'border-primary bg-primary/5' : 'border-border bg-muted/20'}`} data-testid={`skill-connector-row-${connector.id}`}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="truncate text-sm font-semibold text-foreground">{connector.connector_name}</h3>
+            <span className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold ${
+              connector.is_enabled
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                : 'border-muted bg-background text-muted-foreground'
+            }`}>
+              {connector.is_enabled ? '启用' : '停用'}
+            </span>
+          </div>
+          <div className="mt-2 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+            <Field label="Skill" value={connector.skill_name} />
+            <Field label="类型" value={`${connector.connector_type}/${connector.auth_type}`} />
+            <Field label="Endpoint" value={connector.endpoint_url || '未设置'} />
+            <Field label="更新" value={formatDateTime(connector.updated_at)} />
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {connector.credential_keys.length === 0 ? (
+              <span className="rounded-md border border-dashed border-border bg-background px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                未保存凭据
+              </span>
+            ) : connector.credential_keys.map((key) => (
+              <span key={key} className="rounded-md border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-700">
+                {key}
+              </span>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">{summarizeConnectorCredentials(connector)}</p>
+        </div>
+        <div className="flex shrink-0 gap-2">
+          <button
+            type="button"
+            onClick={onEdit}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted"
+          >
+            <icons.Edit3 className="h-4 w-4" />
+            编辑
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onDelete}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-destructive/20 bg-destructive/5 px-3 text-sm font-medium text-destructive hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {busy ? <icons.Loader2 className="h-4 w-4 animate-spin" /> : <icons.Trash2 className="h-4 w-4" />}
+            删除
+          </button>
+        </div>
+      </div>
+    </article>
+  )
+}
 
 function CapabilityRoutePolicyPanel({
   role,

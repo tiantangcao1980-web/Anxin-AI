@@ -3209,6 +3209,32 @@ export interface SkillGovernanceEnabledVersion {
   enabled: boolean
 }
 
+export interface SkillConnectorConfig {
+  id: string
+  org_id: string
+  skill_name: string
+  connector_name: string
+  connector_type: string
+  endpoint_url?: string | null
+  auth_type: string
+  credential_keys: string[]
+  is_enabled: boolean
+  created_by?: string | null
+  updated_by?: string | null
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export interface SkillConnectorConfigPayload {
+  skill_name: string
+  connector_name: string
+  connector_type?: string
+  endpoint_url?: string | null
+  auth_type?: string
+  credentials?: Record<string, string>
+  is_enabled?: boolean
+}
+
 export const skillGovernanceApi = {
   list: (params?: { status?: string; page?: number; page_size?: number }) => {
     const query = new URLSearchParams()
@@ -3273,6 +3299,34 @@ export const skillGovernanceApi = {
       method: 'POST',
       body: JSON.stringify({ reason }),
     }),
+
+  connectors: {
+    list: (params?: { skill_name?: string }) => {
+      const query = new URLSearchParams()
+      if (params?.skill_name) query.set('skill_name', params.skill_name)
+      const suffix = query.toString()
+      return request<{ items: SkillConnectorConfig[]; total: number }>(
+        suffix ? `/skill-governance/connectors?${suffix}` : '/skill-governance/connectors',
+      )
+    },
+
+    create: (data: SkillConnectorConfigPayload) =>
+      request<SkillConnectorConfig>('/skill-governance/connectors', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    update: (id: string, data: Partial<SkillConnectorConfigPayload>) =>
+      request<SkillConnectorConfig>(`/skill-governance/connectors/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
+    delete: (id: string) =>
+      request<{ deleted: boolean }>(`/skill-governance/connectors/${id}`, {
+        method: 'DELETE',
+      }),
+  },
 }
 
 export interface HarnessToolItem {

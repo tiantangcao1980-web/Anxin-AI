@@ -283,6 +283,88 @@ test.describe('Agent 审批工作台', () => {
     await expect(page.getByText('Skill 已灰度启用', { exact: true })).toBeVisible()
   })
 
+  test('桌面端可以管理 Skill 连接器凭据且默认保留已保存密钥', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'desktop connector credential coverage only')
+    await loginAsAdmin(page, {
+      agentApprovals: {
+        list: agentApprovalFixture,
+        pendingCount: { pending: 1 },
+      },
+      skillGovernance: {
+        list: skillGovernanceFixture,
+        enabled: {
+          skill_name: 'contract-review',
+          enabled_version: '1.0.0',
+          enabled: true,
+        },
+      },
+    })
+
+    await page.goto('/agent-approvals')
+
+    await expect(page.getByTestId('skill-connector-panel')).toContainText('Skill 连接器凭据')
+    await expect(page.getByTestId('skill-connector-row-skill-connector-e2e-1')).toContainText('court-data')
+    await expect(page.getByTestId('skill-connector-row-skill-connector-e2e-1')).toContainText('API_KEY')
+    await expect(page.getByTestId('skill-connector-panel')).not.toContainText('sk-skill-connector-secret')
+
+    const existingRow = page.getByTestId('skill-connector-row-skill-connector-e2e-1')
+    await existingRow.getByRole('button', { name: '编辑' }).click()
+    const form = page.getByTestId('skill-connector-form')
+    await expect(form.getByLabel('凭据文本')).toHaveValue('')
+    await form.getByLabel('Endpoint').fill('https://court.example.test/v2')
+
+    const metadataUpdateRequest = page.waitForRequest((request) =>
+      request.method() === 'PUT' && request.url().includes('/skill-governance/connectors/skill-connector-e2e-1'),
+    )
+    await form.getByRole('button', { name: '更新' }).click()
+    const metadataUpdate = await metadataUpdateRequest
+    expect(metadataUpdate.postDataJSON()).not.toHaveProperty('credentials')
+    await expect(page.getByText('连接器配置已更新', { exact: true })).toBeVisible()
+
+    await form.getByLabel('连接器名称').fill('credit-data')
+    await form.getByLabel('Endpoint').fill('https://credit.example.test/api')
+    await form.getByLabel('凭据文本').fill('API_KEY=sk-connector-create-secret')
+
+    const createRequest = page.waitForRequest((request) =>
+      request.method() === 'POST' && request.url().includes('/skill-governance/connectors'),
+    )
+    await form.getByRole('button', { name: '创建' }).click()
+    const created = await createRequest
+    expect(created.postDataJSON()).toMatchObject({
+      connector_name: 'credit-data',
+      credentials: { API_KEY: 'sk-connector-create-secret' },
+    })
+    await expect(page.getByText('连接器配置已创建', { exact: true })).toBeVisible()
+    const createdRow = page.getByTestId('skill-connector-row-skill-connector-e2e-created')
+    await expect(createdRow).toContainText('credit-data')
+    await expect(createdRow).toContainText('API_KEY')
+    await expect(page.getByTestId('skill-connector-panel')).not.toContainText('sk-connector-create-secret')
+
+    await createdRow.getByRole('button', { name: '编辑' }).click()
+    await form.getByLabel('凭据动作').selectOption('replace')
+    await form.getByLabel('凭据文本').fill('TOKEN=sk-connector-replacement-secret')
+
+    const replaceRequest = page.waitForRequest((request) =>
+      request.method() === 'PUT' && request.url().includes('/skill-governance/connectors/skill-connector-e2e-created'),
+    )
+    await form.getByRole('button', { name: '更新' }).click()
+    const replaced = await replaceRequest
+    expect(replaced.postDataJSON()).toMatchObject({
+      credentials: { TOKEN: 'sk-connector-replacement-secret' },
+    })
+    await expect(page.getByText('连接器配置已更新', { exact: true })).toBeVisible()
+    await expect(createdRow).toContainText('TOKEN')
+    await expect(page.getByTestId('skill-connector-panel')).not.toContainText('sk-connector-replacement-secret')
+
+    page.once('dialog', (dialog) => dialog.accept())
+    const deleteRequest = page.waitForRequest((request) =>
+      request.method() === 'DELETE' && request.url().includes('/skill-governance/connectors/skill-connector-e2e-created'),
+    )
+    await createdRow.getByRole('button', { name: '删除' }).click()
+    await deleteRequest
+    await expect(page.getByText('连接器配置已删除', { exact: true })).toBeVisible()
+  })
+
   test('桌面端工作室控制在运行时未接入前 fail-closed', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name === 'mobile', 'desktop workspace control coverage only')
     await loginAsAdmin(page, {
