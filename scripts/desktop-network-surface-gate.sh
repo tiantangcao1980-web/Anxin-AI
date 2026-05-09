@@ -23,6 +23,7 @@ require_file() {
 required_files=(
   "desktop/Cargo.toml"
   "desktop/src/lib.rs"
+  "desktop/src/commands/local_llm.rs"
   "desktop/capabilities/default.json"
   "desktop/gen/schemas/capabilities.json"
   "desktop/tauri.conf.json"
@@ -52,6 +53,17 @@ if [ "${#failures[@]}" -eq 0 ]; then
       add_failure "frontend HTTP plugin package remains installable: $line"
     done </tmp/anxin-desktop-network-rg.out
   fi
+
+  for fragment in \
+    "normalize_local_llm_endpoint" \
+    "local_llm_endpoint_from_env" \
+    "parsed.username()" \
+    "parsed.path() != \"/\"" \
+    "本地模型端点必须指向 localhost、私网地址或 .local 主机"; do
+    if ! rg -n -F "$fragment" desktop/src/commands/local_llm.rs >/dev/null; then
+      add_failure "desktop local LLM endpoint guard missing fragment: $fragment"
+    fi
+  done
 
   if ! node <<'NODE'
 const fs = require("fs");
