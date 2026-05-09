@@ -119,6 +119,7 @@ test.describe('桌面主工作站设置入口', () => {
         user_token: 'token-redacted',
         unread_count: 0,
       }
+      const profiles: Array<{ id: string; name: string; mode: string; backend_url: string }> = []
       ;(window as any).__TAURI_INTERNALS__ = {
         invoke: async (cmd: string, args?: Record<string, unknown>) => {
           if (cmd === 'get_app_state') return { ...appState }
@@ -130,6 +131,41 @@ test.describe('桌面主工作站设置入口', () => {
           }
           if (cmd === 'set_backend_url') {
             appState.backend_url = args?.url as string
+            return null
+          }
+          if (cmd === 'list_workstation_profiles') return [...profiles]
+          if (cmd === 'create_workstation_profile') {
+            const profile = {
+              id: 'profile-1',
+              name: args?.name as string,
+              mode: args?.mode as string,
+              backend_url: args?.backendUrl as string,
+            }
+            profiles.push(profile)
+            return profile
+          }
+          if (cmd === 'update_workstation_profile') {
+            const index = profiles.findIndex((profile) => profile.id === args?.id)
+            const profile = {
+              id: args?.id as string,
+              name: args?.name as string,
+              mode: args?.mode as string,
+              backend_url: args?.backendUrl as string,
+            }
+            profiles[index] = profile
+            return profile
+          }
+          if (cmd === 'apply_workstation_profile') {
+            const profile = profiles.find((item) => item.id === args?.id)
+            if (!profile) return { success: false, message: 'missing profile' }
+            appState.mode = profile.mode
+            appState.backend_url = profile.backend_url
+            appState.sync_status = profile.mode === 'top-secret' ? 'offline' : 'idle'
+            return { success: true, message: '工作站配置档已应用', profile }
+          }
+          if (cmd === 'delete_workstation_profile') {
+            const index = profiles.findIndex((profile) => profile.id === args?.id)
+            profiles.splice(index, 1)
             return null
           }
           if (cmd === 'check_local_llm_status') return { available: true, url: 'http://localhost:11434', status: 200 }
@@ -154,6 +190,31 @@ test.describe('桌面主工作站设置入口', () => {
     await page.getByTestId('workstation-backend-save').click()
 
     await expect(page.getByTestId('workstation-backend-current')).toContainText('https://staging.anxin.example')
+
+    await page.getByTestId('workstation-profile-name').fill('预发环境')
+    await page.getByTestId('workstation-profile-backend-url').fill('https://staging.anxin.example')
+    await page.getByTestId('workstation-profile-save').click()
+
+    await expect(page.getByTestId('workstation-profile-profile-1')).toContainText('预发环境')
+    await expect(page.getByTestId('workstation-profile-profile-1')).toContainText('混合')
+    await expect(page.getByTestId('workstation-profile-profile-1')).toContainText('https://staging.anxin.example')
+
+    await page.getByTestId('workstation-profile-edit-profile-1').click()
+    await page.getByTestId('workstation-profile-mode-cloud').click()
+    await page.getByTestId('workstation-profile-backend-url').fill('https://api.anxin.example')
+    await page.getByTestId('workstation-profile-save').click()
+
+    await expect(page.getByTestId('workstation-profile-profile-1')).toContainText('云端')
+    await expect(page.getByTestId('workstation-profile-profile-1')).toContainText('https://api.anxin.example')
+
+    await page.getByTestId('workstation-profile-apply-profile-1').click()
+
+    await expect(page.getByTestId('workstation-mode-cloud')).toBeDisabled()
+    await expect(page.getByTestId('workstation-backend-current')).toContainText('https://api.anxin.example')
+
+    await page.getByTestId('workstation-profile-delete-profile-1').click()
+
+    await expect(page.getByText('尚未保存配置档')).toBeVisible()
   })
 })
 

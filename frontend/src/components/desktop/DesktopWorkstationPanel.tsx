@@ -11,14 +11,20 @@ import { knowledgeApi, mcpApi } from '@/lib/api'
 import { useAppModeStore } from '@/lib/store'
 import {
   checkLocalLLMStatus,
+  applyWorkstationProfile,
+  createWorkstationProfile,
+  deleteWorkstationProfile,
   getAppState,
   getQueueStats,
   isTauri,
   listLocalModels,
+  listWorkstationProfiles,
   setBackendUrl,
   switchMode,
+  updateWorkstationProfile,
   type AppMode,
   type AppState,
+  type WorkstationProfile,
 } from '@/lib/tauri-bridge'
 import { heading, iconSize, statusBadge } from '@/lib/design-tokens'
 import { icons } from '@/lib/icons'
@@ -90,6 +96,12 @@ const PREVIEW_PROBES: WorkstationProbeState = {
   queueFailed: 0,
 }
 
+const DEFAULT_PROFILE_FORM = {
+  name: '',
+  mode: 'hybrid' as AppMode,
+  backendUrl: '',
+}
+
 export function DesktopWorkstationPanel() {
   const navigate = useNavigate()
   const mode = useAppModeStore((state) => state.mode)
@@ -101,6 +113,10 @@ export function DesktopWorkstationPanel() {
   const [appState, setAppState] = useState<AppState | null>(null)
   const [backendUrlInput, setBackendUrlInput] = useState('')
   const [configBusy, setConfigBusy] = useState<'mode' | 'backend' | null>(null)
+  const [profileBusy, setProfileBusy] = useState<'save' | 'apply' | 'delete' | null>(null)
+  const [profiles, setProfiles] = useState<WorkstationProfile[]>([])
+  const [editingProfileId, setEditingProfileId] = useState<string | null>(null)
+  const [profileForm, setProfileForm] = useState(DEFAULT_PROFILE_FORM)
   const [probes, setProbes] = useState<WorkstationProbeState>(PREVIEW_PROBES)
   const resources = useMemo(
     () => buildDesktopWorkstationResources(mode, desktopClient ? 'desktop' : 'preview'),
@@ -116,12 +132,23 @@ export function DesktopWorkstationPanel() {
     setOnline(snapshot.is_online)
   }, [setLastSyncTime, setMode, setOnline, setSyncStatus])
 
+  const refreshProfiles = useCallback(async () => {
+    if (!desktopClient) {
+      setProfiles([])
+      return
+    }
+    setProfiles(await listWorkstationProfiles())
+  }, [desktopClient])
+
   useEffect(() => {
     let cancelled = false
 
     if (!desktopClient) {
       setAppState(null)
       setBackendUrlInput('')
+      setProfiles([])
+      setEditingProfileId(null)
+      setProfileForm(DEFAULT_PROFILE_FORM)
       setProbes(PREVIEW_PROBES)
       return () => {
         cancelled = true
@@ -134,6 +161,8 @@ export function DesktopWorkstationPanel() {
       knowledgeStatus: mode === 'top-secret' ? 'skipped' : 'loading',
       mcpStatus: mode === 'top-secret' ? 'skipped' : 'loading',
     }))
+
+    refreshProfiles()
 
     Promise.allSettled([
       getAppState(),
@@ -179,7 +208,7 @@ export function DesktopWorkstationPanel() {
     return () => {
       cancelled = true
     }
-  }, [applyAppState, desktopClient, mode])
+  }, [applyAppState, desktopClient, mode, refreshProfiles])
 
   const handleModeChange = async (nextMode: AppMode) => {
     if (!desktopClient) {
@@ -231,6 +260,106 @@ export function DesktopWorkstationPanel() {
       toast.error(error instanceof Error ? error.message : '后端地址保存失败')
     } finally {
       setConfigBusy(null)
+    }
+  }
+
+  const handleProfileEdit = (profile: WorkstationProfile) => {
+    setEditingProfileId(profile.id)
+    setProfileForm({
+      name: profile.name,
+      mode: profile.mode,
+      backendUrl: profile.backend_url,
+    })
+  }
+
+  const resetProfileForm = () => {
+    setEditingProfileId(null)
+    setProfileForm({
+      ...DEFAULT_PROFILE_FORM,
+      backendUrl: appState?.backend_url ?? '',
+      mode,
+    })
+  }
+
+  const handleProfileSave = async () => {
+    if (!desktopClient) {
+      toast.error('请在桌面客户端内保存工作站配置档')
+      return
+    }
+    if (profileBusy) return
+    const name = profileForm.name.trim()
+    if (!name) {
+      toast.error('配置档名称不能为空')
+      return
+    }
+    const normalized = normalizeWorkstationBackendUrl(profileForm.backendUrl)
+    if (!normalized.ok) {
+      toast.error(normalized.error)
+      return
+    }
+
+    setProfileBusy('save')
+    try {
+      const saved = editingProfileId
+        ? await updateWorkstationProfile({
+            id: editingProfileId,
+            name,
+            mode: profileForm.mode,
+            backendUrl: normalized.value,
+          })
+        : await createWorkstationProfile({
+            name,
+            mode: profileForm.mode,
+            backendUrl: normalized.value,
+          })
+      if (!saved) {
+        toast.error('工作站配置档保存失败')
+        return
+      }
+      toast.success(editingProfileId ? '工作站配置档已更新' : '工作站配置档已保存')
+      await refreshProfiles()
+      setEditingProfileId(null)
+      setProfileForm(DEFAULT_PROFILE_FORM)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '工作站配置档保存失败')
+    } finally {
+      setProfileBusy(null)
+    }
+  }
+
+  const handleProfileApply = async (profileId: string) => {
+    if (!desktopClient || profileBusy) return
+    setProfileBusy('apply')
+    try {
+      const result = await applyWorkstationProfile(profileId)
+      if (!result?.success) {
+        toast.error(result?.message || '工作站配置档应用失败')
+        return
+      }
+      toast.success(result.message || '工作站配置档已应用')
+      applyAppState(await getAppState())
+      await refreshProfiles()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '工作站配置档应用失败')
+    } finally {
+      setProfileBusy(null)
+    }
+  }
+
+  const handleProfileDelete = async (profileId: string) => {
+    if (!desktopClient || profileBusy) return
+    setProfileBusy('delete')
+    try {
+      await deleteWorkstationProfile(profileId)
+      toast.success('工作站配置档已删除')
+      if (editingProfileId === profileId) {
+        resetProfileForm()
+      }
+      await refreshProfiles()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '工作站配置档删除失败')
+    } finally {
+      setProfileBusy(null)
     }
   }
 
@@ -374,6 +503,163 @@ export function DesktopWorkstationPanel() {
             <p className="text-xs leading-5 text-muted-foreground">
               仅保存环境地址，不保存 API 密钥；绝密模式下业务数据通道仍由运行时 guard 阻断。
             </p>
+          </div>
+
+          <div className="space-y-3 xl:col-span-2" data-testid="workstation-profile-manager">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <Label className="text-sm font-medium text-foreground">环境配置档</Label>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  保存常用后端与运行模式组合，配置档不包含密钥、Token 或证书。
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                data-testid="workstation-profile-new"
+                disabled={!desktopClient || Boolean(profileBusy)}
+                onClick={resetProfileForm}
+              >
+                新建
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+              <div className="space-y-2">
+                {profiles.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+                    {desktopClient ? '尚未保存配置档' : '仅桌面客户端可读取本机配置档'}
+                  </div>
+                ) : (
+                  profiles.map((profile) => (
+                    <div
+                      key={profile.id}
+                      data-testid={`workstation-profile-${profile.id}`}
+                      className="rounded-lg border border-border bg-surface-1 p-3"
+                    >
+                      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-foreground">{profile.name}</p>
+                          <p className="mt-1 break-all text-xs text-muted-foreground">
+                            {MODE_LABEL[profile.mode]} · {profile.backend_url}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            data-testid={`workstation-profile-apply-${profile.id}`}
+                            disabled={!desktopClient || Boolean(profileBusy)}
+                            onClick={() => handleProfileApply(profile.id)}
+                          >
+                            应用
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            data-testid={`workstation-profile-edit-${profile.id}`}
+                            disabled={!desktopClient || Boolean(profileBusy)}
+                            onClick={() => handleProfileEdit(profile)}
+                          >
+                            编辑
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            data-testid={`workstation-profile-delete-${profile.id}`}
+                            disabled={!desktopClient || Boolean(profileBusy)}
+                            onClick={() => handleProfileDelete(profile.id)}
+                          >
+                            删除
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="space-y-3 rounded-lg border border-border bg-surface-1 p-3">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+                  <div className="space-y-2">
+                    <Label htmlFor="workstation-profile-name" className="text-xs font-medium text-muted-foreground">
+                      名称
+                    </Label>
+                    <Input
+                      id="workstation-profile-name"
+                      data-testid="workstation-profile-name"
+                      value={profileForm.name}
+                      onChange={(event) => setProfileForm((current) => ({ ...current, name: event.target.value }))}
+                      placeholder="预发环境"
+                      disabled={!desktopClient || profileBusy === 'save'}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="workstation-profile-backend-url" className="text-xs font-medium text-muted-foreground">
+                      后端地址
+                    </Label>
+                    <Input
+                      id="workstation-profile-backend-url"
+                      data-testid="workstation-profile-backend-url"
+                      value={profileForm.backendUrl}
+                      onChange={(event) => setProfileForm((current) => ({ ...current, backendUrl: event.target.value }))}
+                      placeholder="https://staging.anxin.example"
+                      disabled={!desktopClient || profileBusy === 'save'}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" role="group" aria-label="配置档运行模式">
+                  {WORKSTATION_MODE_OPTIONS.map((option) => {
+                    const selected = option.mode === profileForm.mode
+                    return (
+                      <button
+                        key={option.mode}
+                        type="button"
+                        data-testid={`workstation-profile-mode-${option.mode}`}
+                        disabled={!desktopClient || Boolean(profileBusy)}
+                        onClick={() => setProfileForm((current) => ({ ...current, mode: option.mode }))}
+                        className={cn(
+                          'min-h-[64px] rounded-lg border p-3 text-left transition-colors',
+                          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                          selected
+                            ? 'border-primary bg-primary/10 text-foreground'
+                            : 'border-border bg-background hover:border-primary/50 hover:bg-muted/50',
+                          (!desktopClient || Boolean(profileBusy)) && 'cursor-not-allowed opacity-80'
+                        )}
+                      >
+                        <span className="block text-sm font-semibold">{option.label}</span>
+                        <span className="mt-1 block text-xs leading-5 text-muted-foreground">{option.description}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    data-testid="workstation-profile-cancel"
+                    disabled={!desktopClient || Boolean(profileBusy)}
+                    onClick={resetProfileForm}
+                  >
+                    取消
+                  </Button>
+                  <Button
+                    type="button"
+                    data-testid="workstation-profile-save"
+                    disabled={!desktopClient || profileBusy === 'save'}
+                    onClick={handleProfileSave}
+                  >
+                    {editingProfileId ? '更新配置档' : '保存配置档'}
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -259,6 +259,11 @@ pub fn run_with_options(options: DesktopRunOptions) {
             commands::app_mode::get_backend_url,
             commands::app_mode::set_user_token,
             commands::app_mode::set_backend_url,
+            commands::app_mode::list_workstation_profiles,
+            commands::app_mode::create_workstation_profile,
+            commands::app_mode::update_workstation_profile,
+            commands::app_mode::delete_workstation_profile,
+            commands::app_mode::apply_workstation_profile,
             commands::app_mode::update_unread_count,
             // 同步
             commands::sync::trigger_sync,

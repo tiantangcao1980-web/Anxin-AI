@@ -55,6 +55,17 @@ async function invokeCommand<T>(cmd: string, args?: Record<string, unknown>): Pr
   }
 }
 
+async function invokeRequiredCommand<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  if (!isTauri()) {
+    throw new Error('仅桌面客户端支持此操作')
+  }
+  const internals = (window as any).__TAURI_INTERNALS__
+  if (!internals?.invoke) {
+    throw new Error('桌面运行时不可用')
+  }
+  return await internals.invoke(cmd, args)
+}
+
 // ===== 运行模式 =====
 
 export type AppMode = 'top-secret' | 'hybrid' | 'cloud'
@@ -67,6 +78,13 @@ export interface AppState {
   is_online: boolean
   user_token: string | null
   unread_count: number
+}
+
+export interface WorkstationProfile {
+  id: string
+  name: string
+  mode: AppMode
+  backend_url: string
 }
 
 /** 获取应用状态 */
@@ -105,6 +123,48 @@ export async function setBackendUrl(url: string): Promise<{ success: boolean; me
   } catch (error) {
     return { success: false, message: error instanceof Error ? error.message : '后端地址保存失败' }
   }
+}
+
+export async function listWorkstationProfiles(): Promise<WorkstationProfile[]> {
+  if (!isTauri()) return []
+  const profiles = await invokeRequiredCommand<WorkstationProfile[] | null>('list_workstation_profiles')
+  return Array.isArray(profiles) ? profiles : []
+}
+
+export async function createWorkstationProfile(input: {
+  name: string
+  mode: AppMode
+  backendUrl: string
+}): Promise<WorkstationProfile | null> {
+  return invokeRequiredCommand<WorkstationProfile>('create_workstation_profile', {
+    name: input.name,
+    mode: input.mode,
+    backendUrl: input.backendUrl,
+  })
+}
+
+export async function updateWorkstationProfile(input: {
+  id: string
+  name: string
+  mode: AppMode
+  backendUrl: string
+}): Promise<WorkstationProfile | null> {
+  return invokeRequiredCommand<WorkstationProfile>('update_workstation_profile', {
+    id: input.id,
+    name: input.name,
+    mode: input.mode,
+    backendUrl: input.backendUrl,
+  })
+}
+
+export async function deleteWorkstationProfile(id: string): Promise<boolean> {
+  if (!isTauri()) return false
+  await invokeRequiredCommand<void>('delete_workstation_profile', { id })
+  return true
+}
+
+export async function applyWorkstationProfile(id: string): Promise<{ success: boolean; message: string } | null> {
+  return invokeRequiredCommand('apply_workstation_profile', { id })
 }
 
 // ===== 同步 =====

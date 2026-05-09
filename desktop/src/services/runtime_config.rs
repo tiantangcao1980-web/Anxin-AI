@@ -2,10 +2,34 @@ use crate::models::{AppMode, AppStateData, SyncStatus};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager};
 
 const CONFIG_FILE_NAME: &str = "runtime-config.json";
 const CONFIG_SCHEMA_VERSION: u8 = 1;
+const MAX_PROFILE_COUNT: usize = 20;
+const MAX_PROFILE_NAME_LEN: usize = 60;
+const MAX_PROFILE_ID_LEN: usize = 80;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DesktopRuntimeProfile {
+    pub id: String,
+    pub name: String,
+    pub mode: AppMode,
+    pub backend_url: String,
+}
+
+impl DesktopRuntimeProfile {
+    pub fn new(id: &str, name: &str, mode: AppMode, backend_url: &str) -> Result<Self, String> {
+        Ok(Self {
+            id: normalize_profile_id(id)?,
+            name: normalize_profile_name(name)?,
+            mode,
+            backend_url: normalize_backend_url(backend_url)?,
+        })
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -13,6 +37,8 @@ pub struct DesktopRuntimeConfig {
     pub schema_version: u8,
     pub mode: AppMode,
     pub backend_url: String,
+    #[serde(default)]
+    pub profiles: Vec<DesktopRuntimeProfile>,
 }
 
 impl DesktopRuntimeConfig {
@@ -21,6 +47,7 @@ impl DesktopRuntimeConfig {
             schema_version: CONFIG_SCHEMA_VERSION,
             mode,
             backend_url: normalize_backend_url(backend_url)?,
+            profiles: Vec::new(),
         })
     }
 
@@ -28,6 +55,11 @@ impl DesktopRuntimeConfig {
         state.mode = self.mode;
         state.backend_url = self.backend_url.clone();
         state.sync_status = sync_status_for_mode(self.mode);
+    }
+
+    pub fn with_profiles(mut self, profiles: Vec<DesktopRuntimeProfile>) -> Result<Self, String> {
+        self.profiles = normalize_profiles(profiles)?;
+        Ok(self)
     }
 }
 
@@ -47,6 +79,115 @@ pub fn normalize_backend_url(input: &str) -> Result<String, String> {
     }
 
     Ok(parsed.to_string().trim_end_matches('/').to_string())
+}
+
+pub fn normalize_profile_name(input: &str) -> Result<String, String> {
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return Err("配置档名称不能为空".to_string());
+    }
+    if trimmed.chars().count() > MAX_PROFILE_NAME_LEN {
+        return Err(format!("配置档名称不能超过 {MAX_PROFILE_NAME_LEN} 个字符"));
+    }
+    Ok(trimmed.to_string())
+}
+
+pub fn normalize_profile_id(input: &str) -> Result<String, String> {
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return Err("配置档 ID 不能为空".to_string());
+    }
+    if trimmed.len() > MAX_PROFILE_ID_LEN {
+        return Err(format!("配置档 ID 不能超过 {MAX_PROFILE_ID_LEN} 个字符"));
+    }
+    if !trimmed
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_'))
+    {
+        return Err("配置档 ID 只能包含字母、数字、短横线或下划线".to_string());
+    }
+    Ok(trimmed.to_string())
+}
+
+pub fn generate_profile_id(name: &str) -> String {
+    let slug = name
+        .trim()
+        .to_lowercase()
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() {
+                ch
+            } else if ch.is_whitespace() || matches!(ch, '-' | '_') {
+                '-'
+            } else {
+                'p'
+            }
+        })
+        .collect::<String>()
+        .split('-')
+        .filter(|part| !part.is_empty())
+        .take(6)
+        .collect::<Vec<_>>()
+        .join("-");
+    let prefix = if slug.is_empty() {
+        "profile"
+    } else {
+        slug.as_str()
+    };
+    let millis = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or_default();
+    format!("{prefix}-{millis}")
+}
+
+pub fn generate_unique_profile_id(name: &str, profiles: &[DesktopRuntimeProfile]) -> String {
+    let base_id = generate_profile_id(name);
+    if profiles.iter().all(|profile| profile.id != base_id) {
+        return base_id;
+    }
+
+    for suffix in 2..=MAX_PROFILE_COUNT + 1 {
+        let candidate = format!("{base_id}-{suffix}");
+        if profiles.iter().all(|profile| profile.id != candidate) {
+            return candidate;
+        }
+    }
+    base_id
+}
+
+pub fn normalize_profiles(
+    profiles: Vec<DesktopRuntimeProfile>,
+) -> Result<Vec<DesktopRuntimeProfile>, String> {
+    if profiles.len() > MAX_PROFILE_COUNT {
+        return Err(format!("工作站配置档最多保留 {MAX_PROFILE_COUNT} 个"));
+    }
+
+    let mut normalized = Vec::with_capacity(profiles.len());
+    let mut seen_ids = std::collections::HashSet::new();
+    for profile in profiles {
+        let sanitized = DesktopRuntimeProfile::new(
+            &profile.id,
+            &profile.name,
+            profile.mode,
+            &profile.backend_url,
+        )?;
+        if !seen_ids.insert(sanitized.id.clone()) {
+            return Err(format!("配置档 ID 重复: {}", sanitized.id));
+        }
+        normalized.push(sanitized);
+    }
+    Ok(normalized)
+}
+
+pub fn load_or_default_for_app(
+    app: &AppHandle,
+    state: &AppStateData,
+) -> Result<DesktopRuntimeConfig, String> {
+    match load_for_app(app)? {
+        Some(config) => Ok(config),
+        None => DesktopRuntimeConfig::new(state.mode, &state.backend_url),
+    }
 }
 
 pub fn runtime_config_path(app: &AppHandle) -> Result<PathBuf, String> {
@@ -89,6 +230,7 @@ pub fn load_runtime_config_from_path(path: &Path) -> Result<Option<DesktopRuntim
     }
 
     config.backend_url = normalize_backend_url(&config.backend_url)?;
+    config.profiles = normalize_profiles(config.profiles)?;
     Ok(Some(config))
 }
 
@@ -96,7 +238,8 @@ pub fn save_runtime_config_to_path(
     path: &Path,
     config: &DesktopRuntimeConfig,
 ) -> Result<(), String> {
-    let persisted = DesktopRuntimeConfig::new(config.mode, &config.backend_url)?;
+    let persisted = DesktopRuntimeConfig::new(config.mode, &config.backend_url)?
+        .with_profiles(config.profiles.clone())?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
             .map_err(|err| format!("无法创建桌面运行配置目录 {}: {err}", parent.display()))?;
@@ -127,8 +270,9 @@ fn sync_status_for_mode(mode: AppMode) -> SyncStatus {
 #[cfg(test)]
 mod tests {
     use super::{
-        load_runtime_config_from_path, normalize_backend_url, save_runtime_config_to_path,
-        DesktopRuntimeConfig,
+        generate_unique_profile_id, load_runtime_config_from_path, normalize_backend_url,
+        normalize_profiles, save_runtime_config_to_path, DesktopRuntimeConfig,
+        DesktopRuntimeProfile,
     };
     use crate::models::{AppMode, AppStateData, SyncStatus};
     use std::path::PathBuf;
@@ -164,8 +308,17 @@ mod tests {
     #[test]
     fn saves_and_loads_runtime_config_without_secrets() {
         let path = test_path("round-trip");
-        let config =
-            DesktopRuntimeConfig::new(AppMode::Hybrid, "https://api.anxin.example/v1/").unwrap();
+        let profile = DesktopRuntimeProfile::new(
+            "staging",
+            "Staging",
+            AppMode::Hybrid,
+            "https://staging.anxin.example/",
+        )
+        .unwrap();
+        let config = DesktopRuntimeConfig::new(AppMode::Hybrid, "https://api.anxin.example/v1/")
+            .unwrap()
+            .with_profiles(vec![profile])
+            .unwrap();
 
         save_runtime_config_to_path(&path, &config).unwrap();
         let loaded = load_runtime_config_from_path(&path).unwrap().unwrap();
@@ -173,10 +326,75 @@ mod tests {
 
         assert_eq!(loaded.mode, AppMode::Hybrid);
         assert_eq!(loaded.backend_url, "https://api.anxin.example/v1");
+        assert_eq!(loaded.profiles.len(), 1);
+        assert_eq!(
+            loaded.profiles[0].backend_url,
+            "https://staging.anxin.example"
+        );
         assert!(!raw.contains("token"));
         assert!(!raw.contains("secret"));
 
         let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn accepts_legacy_runtime_config_without_profiles() {
+        let path = test_path("legacy");
+        std::fs::write(
+            &path,
+            r#"{"schemaVersion":1,"mode":"hybrid","backendUrl":"http://localhost:8001/"}"#,
+        )
+        .unwrap();
+
+        let loaded = load_runtime_config_from_path(&path).unwrap().unwrap();
+
+        assert_eq!(loaded.mode, AppMode::Hybrid);
+        assert_eq!(loaded.backend_url, "http://localhost:8001");
+        assert!(loaded.profiles.is_empty());
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn rejects_duplicate_profile_ids_and_unsafe_profile_backend() {
+        let duplicate = DesktopRuntimeProfile::new(
+            "staging",
+            "Staging",
+            AppMode::Hybrid,
+            "https://staging.anxin.example",
+        )
+        .unwrap();
+        let duplicate_again = DesktopRuntimeProfile::new(
+            "staging",
+            "Staging Copy",
+            AppMode::Cloud,
+            "https://api.anxin.example",
+        )
+        .unwrap();
+        assert!(normalize_profiles(vec![duplicate, duplicate_again]).is_err());
+        assert!(DesktopRuntimeProfile::new("prod", "Prod", AppMode::Cloud, "file:///tmp").is_err());
+        assert!(DesktopRuntimeProfile::new(
+            "bad id",
+            "Prod",
+            AppMode::Cloud,
+            "https://api.example"
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn generated_profile_id_avoids_existing_profiles() {
+        let existing = DesktopRuntimeProfile::new(
+            "staging-123",
+            "Staging",
+            AppMode::Hybrid,
+            "https://staging.anxin.example",
+        )
+        .unwrap();
+        let generated = generate_unique_profile_id("Staging", &[existing]);
+
+        assert_ne!(generated, "staging-123");
+        assert!(generated.starts_with("staging-"));
     }
 
     #[test]
