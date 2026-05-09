@@ -1,21 +1,51 @@
 import { closeCurrentWindow, isTauri, minimizeCurrentWindow, toggleMaximizeCurrentWindow } from '@/lib/tauri-bridge'
 import { icons } from '@/lib/icons'
+import {
+  shouldRenderDesktopTitleBarControls,
+  shouldToggleMaximizeFromTitleBarDoubleClick,
+} from './titleBarModel'
 
 function getDesktopPlatform(): string {
   if (typeof document === 'undefined') return 'web'
   return document.documentElement.getAttribute('data-platform') ?? 'web'
 }
 
+function getTitleBarTargetContext(target: EventTarget | null) {
+  if (typeof Element === 'undefined' || !(target instanceof Element)) {
+    return {}
+  }
+
+  return {
+    targetTagName: target.tagName,
+    hasInteractiveAncestor: Boolean(target.closest('a,button,input,select,textarea,[role="button"],[data-titlebar-control]')),
+  }
+}
+
+export function shouldHandleDesktopTitleBarDoubleClick(target: EventTarget | null): boolean {
+  return shouldToggleMaximizeFromTitleBarDoubleClick({
+    isTauriRuntime: isTauri(),
+    platform: getDesktopPlatform(),
+    ...getTitleBarTargetContext(target),
+  })
+}
+
+export function handleDesktopTitleBarDoubleClick(target: EventTarget | null): void {
+  if (shouldHandleDesktopTitleBarDoubleClick(target)) {
+    void toggleMaximizeCurrentWindow()
+  }
+}
+
 export function DesktopTitleBarControls() {
   const platform = getDesktopPlatform()
 
-  if (!isTauri() || platform === 'tauri-macos') {
+  if (!shouldRenderDesktopTitleBarControls(isTauri(), platform)) {
     return null
   }
 
   return (
     <div
       aria-label="窗口控制"
+      data-titlebar-control
       className="hidden shrink-0 items-center gap-0.5 border-l border-border/60 pl-2 md:flex"
     >
       <button

@@ -27,7 +27,7 @@ import { iconSize, buttonStyle, heading, sidebarNav } from '@/lib/design-tokens'
 import { ModeSwitcher } from '@/components/mode-switcher/ModeSwitcher'
 import { SyncStatus } from '@/components/mode-switcher/SyncStatus'
 import { MobileNavBar } from '@/components/mobile/MobileNavBar'
-import { DesktopTitleBarControls } from '@/components/desktop/TitleBar'
+import { DesktopTitleBarControls, handleDesktopTitleBarDoubleClick } from '@/components/desktop/TitleBar'
 
 // Heroicons 组件类型
 type HeroIcon = React.ComponentType<React.SVGProps<SVGSVGElement>>
@@ -277,6 +277,7 @@ export default function Layout() {
       {/* ===== 固定顶部导航栏 (Tauri 桌面端：data-tauri-drag-region 允许拖拽窗口) ===== */}
       <header
         data-tauri-drag-region
+        onDoubleClick={(event) => handleDesktopTitleBarDoubleClick(event.target)}
         className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-surface-1/90 backdrop-blur-xl"
       >
         {/* 在 Tauri 桌面端 macOS，html[data-platform="tauri-macos"] 会激活 .tauri-safe-pl-22 增加左 padding 让开交通灯 */}
