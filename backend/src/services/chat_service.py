@@ -1254,6 +1254,12 @@ class ChatService:
                             "error": True,
                         }
 
+                    elif evt_type == "workspace_artifact_created":
+                        yield {
+                            "type": "workspace_artifact_created",
+                            "artifact": event.get("artifact"),
+                        }
+
                     elif evt_type == "final_result":
                         final_event = event
 

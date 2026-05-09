@@ -22,7 +22,7 @@ import { WorkspaceActionBar } from './WorkspaceActionBar';
 import { A2UIRenderer } from './LegacyA2UIRenderer';
 import { ContractReviewCard } from './ContractReviewCard';
 import { useChatStore } from '@/lib/store';
-import type { AgentResult, ThinkingStep, RequirementAnalysis } from '@/lib/store';
+import type { AgentResult, ThinkingStep, RequirementAnalysis, WorkspaceArtifact } from '@/lib/store';
 
 interface AgentWorkspaceProps {
   agentResults: AgentResult[];
@@ -50,14 +50,15 @@ export const AgentWorkspace = memo(function AgentWorkspace({
   hasDocument,
 }: AgentWorkspaceProps) {
   const store = useChatStore();
-  const { workspaceConfirmations, workspaceActions, agentTasks } = store;
+  const { workspaceConfirmations, workspaceActions, agentTasks, workspaceArtifacts } = store;
 
   // 判断是否有内容
   const hasConfirmations = workspaceConfirmations.length > 0;
   const hasActions = workspaceActions.length > 0;
   const hasTasks = agentTasks.length > 0;
+  const hasArtifacts = workspaceArtifacts.length > 0;
   const isEmpty = !requirementAnalysis && agentResults.length === 0 && !a2uiData
-    && !hasConfirmations && !hasActions && !hasTasks && !hasDocument;
+    && !hasConfirmations && !hasActions && !hasTasks && !hasArtifacts && !hasDocument;
 
   // 按状态分组 agent 结果
   const completedResults = useMemo(() => agentResults, [agentResults]);
@@ -124,6 +125,18 @@ export const AgentWorkspace = memo(function AgentWorkspace({
               exit={{ opacity: 0 }}
             >
               <AgentTaskBoard tasks={agentTasks} isProcessing={isProcessing} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {hasArtifacts && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+            >
+              <WorkspaceArtifactList artifacts={workspaceArtifacts} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -273,3 +286,49 @@ export const AgentWorkspace = memo(function AgentWorkspace({
     </div>
   );
 });
+
+function WorkspaceArtifactList({ artifacts }: { artifacts: WorkspaceArtifact[] }) {
+  return (
+    <section className="rounded-xl border border-border bg-muted/30 p-3">
+      <div className="mb-3 flex items-center gap-2 px-1">
+        <icons.FileText className="h-3.5 w-3.5 text-primary" />
+        <span className={`${heading.micro} font-medium`}>运行产物</span>
+        <span className={`text-[10px] px-2 py-0.5 ${statusColor.success} ${radius.avatar} font-medium`}>
+          {artifacts.length}
+        </span>
+      </div>
+      <div className="space-y-2">
+        {artifacts.map((artifact) => (
+          <article key={artifact.id} className="rounded-lg bg-background px-3 py-2 text-xs text-muted-foreground">
+            <div className="flex min-w-0 items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate font-medium text-foreground">{artifact.title}</p>
+                <p className="mt-0.5">
+                  {artifact.artifactType} · {new Date(artifact.createdAt).toLocaleString('zh-CN', { hour12: false })}
+                </p>
+              </div>
+              <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                {artifact.metadata.status || 'ready'}
+              </span>
+            </div>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {artifactPreview(artifact.content).map(([key, value]) => (
+                <div key={key} className="min-w-0 rounded-md bg-muted/50 px-2 py-1.5">
+                  <p className="text-[11px] font-medium text-muted-foreground">{key}</p>
+                  <p className="mt-0.5 truncate text-foreground">{value}</p>
+                </div>
+              ))}
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function artifactPreview(content: Record<string, any>): [string, string][] {
+  return Object.entries(content)
+    .filter(([, value]) => value !== null && value !== undefined && typeof value !== 'object')
+    .slice(0, 4)
+    .map(([key, value]) => [key, String(value)]);
+}

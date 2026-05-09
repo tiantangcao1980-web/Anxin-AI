@@ -146,6 +146,33 @@ test.describe('右侧面板双模式', () => {
     await expect(page.getByRole('button', { name: /文书起草Agent/ })).toBeVisible()
   })
 
+  test('workspace_artifact_created 会进入工作台运行产物', async ({ page }) => {
+    await emitSocketEvent(page, {
+      type: 'workspace_artifact_created',
+      artifact: {
+        id: 'runtime-task-e2e',
+        artifact_type: 'agent_runtime_summary',
+        title: '长任务运行摘要',
+        created_at: '2026-05-09T12:00:00.000Z',
+        content: {
+          summary: '合同风险摘要已生成',
+          elapsed_seconds: 3.2,
+        },
+        metadata: {
+          source: 'legal_workforce.process_task_streaming',
+          runtime_generated: true,
+          status: 'ready_for_review',
+        },
+      },
+    })
+
+    await expect(page.locator('[data-workbench-shell="chat"]')).toBeVisible()
+    await expect(page.getByText('运行产物')).toBeVisible()
+    await expect(page.getByText('长任务运行摘要')).toBeVisible()
+    await expect(page.getByText('合同风险摘要已生成')).toBeVisible()
+    await expect(page.getByText('ready_for_review')).toBeVisible()
+  })
+
   test('canvas_open 自动切到文档模式', async ({ page }) => {
     await emitSocketEvent(page, {
       type: 'canvas_open',

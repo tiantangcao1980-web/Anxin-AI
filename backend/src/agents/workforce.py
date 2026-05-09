@@ -14,9 +14,11 @@
 """
 
 import asyncio
+import re
 import time
 import uuid
 from collections.abc import AsyncIterator, Callable, Coroutine
+from datetime import UTC, datetime
 from typing import Any, cast
 
 from loguru import logger
@@ -89,9 +91,113 @@ AGENT_REGISTRY: dict[str, type] = {
 EventPayload = dict[str, Any]
 TaskInfo = dict[str, Any]
 WsCallback = Callable[[str, EventPayload], Coroutine[Any, Any, None]]
+RUNTIME_ARTIFACT_SENSITIVE_FRAGMENTS = ("token", "secret", "password", "credential", "api_key", "private_key")
+RUNTIME_ARTIFACT_SECRET_PATTERNS = (
+    re.compile(r"(?i)(api[_-]?key|token|secret|password|private[_-]?key)\s*[:=]\s*[^,\s;]+"),
+    re.compile(r"sk-[A-Za-z0-9._-]+"),
+)
 
 MAX_PARALLEL_AGENTS = settings.AGENT_MAX_PARALLEL       # 同一 DAG 层级最多并行执行的 Agent 数（默认 30）
 TASK_TIMEOUT_SECONDS = settings.AGENT_TASK_TIMEOUT      # 单个 Agent 任务超时时间（秒）
+
+
+def _text_preview(value: Any, limit: int = 500) -> str:
+    text = str(value or "").strip()
+    if len(text) <= limit:
+        return text
+    return f"{text[:limit].rstrip()}..."
+
+
+def _redact_runtime_artifact_text(value: str) -> str:
+    redacted = value
+    for pattern in RUNTIME_ARTIFACT_SECRET_PATTERNS:
+        redacted = pattern.sub("[redacted]", redacted)
+    return redacted
+
+
+def _sanitize_runtime_artifact_payload(value: Any, key: str = "") -> Any:
+    if key and any(fragment in key.lower() for fragment in RUNTIME_ARTIFACT_SENSITIVE_FRAGMENTS):
+        return "[redacted]"
+    if isinstance(value, dict):
+        return {
+            str(child_key): _sanitize_runtime_artifact_payload(child_value, str(child_key))
+            for child_key, child_value in value.items()
+        }
+    if isinstance(value, list):
+        return [_sanitize_runtime_artifact_payload(item, key) for item in value]
+    if isinstance(value, tuple):
+        return [_sanitize_runtime_artifact_payload(item, key) for item in value]
+    if isinstance(value, str):
+        return _redact_runtime_artifact_text(value)
+    return value
+
+
+def build_runtime_workspace_artifact(
+    *,
+    task_id: str,
+    session_id: str | None,
+    task_description: str,
+    plan: list[TaskInfo],
+    agent_results: list[AgentResponse],
+    final_result: dict[str, Any],
+    elapsed_seconds: float,
+    has_consensus: bool,
+) -> dict[str, Any]:
+    """Build a redacted artifact event for long-running agent workspace evidence."""
+    summary = _text_preview(final_result.get("summary") or final_result, 2000)
+    agent_summaries: list[dict[str, Any]] = []
+    for result in agent_results:
+        metadata = result.metadata if isinstance(result.metadata, dict) else {}
+        status = "failed" if metadata.get("error") else "degraded" if metadata.get("degraded") else "completed"
+        agent_summaries.append(
+            {
+                "agent": result.agent_name,
+                "status": status,
+                "summary": _text_preview(result.content, 700),
+            }
+        )
+
+    plan_steps = [
+        {
+            "task_id": str(step.get("id") or ""),
+            "agent": str(step.get("agent") or ""),
+            "dependencies": [str(dep) for dep in step.get("depends_on", [])],
+            "instruction": _text_preview(step.get("instruction"), 240),
+        }
+        for step in plan
+    ]
+
+    content = _sanitize_runtime_artifact_payload(
+        {
+            "task_id": task_id,
+            "session_id": session_id or "",
+            "task_description": _text_preview(task_description, 700),
+            "summary": summary,
+            "plan": plan_steps,
+            "agent_results": agent_summaries,
+            "timeline": [
+                {"event": "plan_started", "count": len(plan_steps)},
+                {"event": "agent_results_collected", "count": len(agent_summaries)},
+                {"event": "artifact_created", "status": "ready_for_review"},
+            ],
+            "elapsed_seconds": round(elapsed_seconds, 2),
+        }
+    )
+    metadata = {
+        "source": "legal_workforce.process_task_streaming",
+        "runtime_generated": True,
+        "agent_count": len(agent_summaries),
+        "has_consensus": has_consensus,
+        "status": "ready_for_review",
+    }
+    return {
+        "id": f"runtime-{task_id}",
+        "artifact_type": "agent_runtime_summary",
+        "title": "长任务运行摘要",
+        "content": content,
+        "metadata": metadata,
+        "created_at": datetime.now(UTC).isoformat(),
+    }
 
 
 class LegalWorkforce:
@@ -1051,6 +1157,21 @@ class LegalWorkforce:
 
         elapsed = time.time() - task_start_time
         logger.info(f"[streaming] 任务完成，耗时 {elapsed:.2f}s，涉及 {len(all_results)} 个Agent")
+        workspace_artifact = build_runtime_workspace_artifact(
+            task_id=task_id,
+            session_id=session_id,
+            task_description=task_description,
+            plan=plan,
+            agent_results=all_results,
+            final_result=final_result,
+            elapsed_seconds=elapsed,
+            has_consensus=consensus_res is not None,
+        )
+
+        yield {
+            "type": "workspace_artifact_created",
+            "artifact": workspace_artifact,
+        }
 
         yield {
             "type": "final_result",
@@ -1061,6 +1182,7 @@ class LegalWorkforce:
             ],
             "consensus": consensus_res.model_dump() if consensus_res else None,
             "elapsed_seconds": round(elapsed, 2),
+            "workspace_artifacts": [workspace_artifact],
         }
 
     async def chat(

@@ -79,6 +79,8 @@ run_step "backend governance regression tests" bash -lc "cd '$PROJECT_ROOT/backe
 
 run_step "approval authorization guard tests" bash -lc "cd '$PROJECT_ROOT/backend' && ./.venv/bin/pytest -q tests/test_business_authorization_guards.py -k 'approval or template'"
 
+run_step "runtime workspace artifact event tests" bash -lc "cd '$PROJECT_ROOT/backend' && ./.venv/bin/pytest -q tests/test_workforce.py -k runtime_workspace_artifact"
+
 run_step "MCP connection config policy tests" bash -lc "cd '$PROJECT_ROOT/backend' && ./.venv/bin/pytest -q tests/test_config_commercial_guards.py -k mcp"
 
 run_step "approved connector local rehearsal" bash -lc "cd '$PROJECT_ROOT' && bash scripts/agent-connector-rehearsal.sh"
@@ -86,6 +88,8 @@ run_step "approved connector local rehearsal" bash -lc "cd '$PROJECT_ROOT' && ba
 run_step "desktop remote-control host tests" bash -lc "cd '$PROJECT_ROOT/desktop' && cargo test remote_control"
 
 run_step "frontend Skill connector credential model tests" bash -lc "cd '$PROJECT_ROOT/frontend' && npm test -- skillConnectorSettingsModel.test.ts"
+
+run_step "frontend workspace runtime artifact e2e" bash -lc "cd '$PROJECT_ROOT/frontend' && npx playwright test e2e/right-panel.spec.ts --project=chromium -g 'workspace_artifact_created'"
 
 run_step "frontend agent governance workspace e2e" bash -lc "cd '$PROJECT_ROOT/frontend' && npx playwright test e2e/agent-approval-workspace.spec.ts --project=chromium --project=mobile"
 
@@ -103,9 +107,11 @@ checks = {
     "backend_governance_regressions": "passed",
     "local_runtime_control_rehearsal": "passed",
     "workspace_artifact_revision": "passed",
+    "runtime_workspace_artifact_event": "passed",
     "approval_authorization_guard": "passed",
     "mcp_connection_config_policy": "passed",
     "approved_connector_local_rehearsal": "passed",
+    "frontend_workspace_runtime_artifact_e2e": "passed",
     "desktop_remote_control_host": "passed",
     "frontend_skill_connector_credentials_model": "passed",
     "frontend_agent_workspace_e2e": "passed",
@@ -126,7 +132,7 @@ report = {
     "pending_runtime_evidence": [
         "real_approved_connector_runtime",
         "real_cross_process_revocation",
-        "runtime_generated_long_task_artifacts",
+        "commercial_runtime_generated_long_task_artifact_evidence",
         "real_pause_takeover_terminate_runtime",
         "signed_packaged_runtime_outbound_evidence",
         "cross_device_recovery",
@@ -134,7 +140,7 @@ report = {
     "completion_note": (
         "Code-level enterprise agent governance evidence only. Keep "
         "agent-governance-smoke.md Status: pending until real approved connector "
-        "runtime, cross-process revocation, runtime-generated long-task artifacts, "
+        "runtime, cross-process revocation, commercial long-task artifact replay, "
         "real runtime controls, signed packaged runtime, and cross-device recovery "
         "evidence are attached."
     ),

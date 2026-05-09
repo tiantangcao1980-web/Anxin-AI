@@ -2,6 +2,7 @@
 智能体团队测试
 """
 
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -17,10 +18,47 @@ from src.agents.sentiment_agent import SentimentAnalysisAgent
 from src.agents.workforce import (
     AGENT_REGISTRY,  # noqa: E402
     LegalWorkforce,
+    build_runtime_workspace_artifact,
     get_workforce,
 )
 
 EXPECTED_AGENT_COUNT = len(AGENT_REGISTRY)
+
+
+def test_runtime_workspace_artifact_is_redacted_and_reviewable():
+    artifact = build_runtime_workspace_artifact(
+        task_id="task-123",
+        session_id="session-1",
+        task_description="生成一份合同风险摘要",
+        plan=[
+            {
+                "id": "review",
+                "agent": "contract_reviewer",
+                "instruction": "审查合同，api_key=sk-raw-should-not-leak",
+                "depends_on": [],
+            }
+        ],
+        agent_results=[
+            AgentResponse(
+                agent_name="contract_reviewer",
+                content="发现付款条款风险，建议补充违约责任。",
+                metadata={"api_key": "sk-raw-should-not-leak", "error": False},
+            )
+        ],
+        final_result={"summary": "合同风险摘要已生成", "private_key": "raw-private-key"},
+        elapsed_seconds=3.456,
+        has_consensus=False,
+    )
+
+    serialized = json.dumps(artifact, ensure_ascii=False)
+    assert artifact["artifact_type"] == "agent_runtime_summary"
+    assert artifact["metadata"]["runtime_generated"] is True
+    assert artifact["content"]["timeline"][-1]["event"] == "artifact_created"
+    assert artifact["content"]["timeline"][-1]["status"] == "ready_for_review"
+    assert artifact["content"]["agent_results"][0]["status"] == "completed"
+    assert "sk-raw-should-not-leak" not in serialized
+    assert "raw-private-key" not in serialized
+    assert "[redacted]" in serialized
 
 
 def _mock_agent_registry():

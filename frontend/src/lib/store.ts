@@ -231,6 +231,16 @@ export interface AgentTask {
   dependencies?: string[]  // 依赖的其他 agent 任务 ID
 }
 
+export interface WorkspaceArtifact {
+  id: string
+  artifactType: string
+  title: string
+  content: Record<string, any>
+  metadata: Record<string, any>
+  createdAt: number
+  source?: string
+}
+
 // 右侧面板 Tab 类型 — 工作台 + 文档面板
 export type RightPanelTab = 'smart' | 'document'
 
@@ -248,6 +258,7 @@ export interface WorkspaceSnapshot {
   workspaceConfirmations: WorkspaceConfirmation[]
   workspaceActions: WorkspaceAction[]
   agentTasks: AgentTask[]
+  workspaceArtifacts: WorkspaceArtifact[]
   rightPanelTab: RightPanelTab
   contractReviewVisible: boolean
 }
@@ -405,6 +416,9 @@ interface ChatState {
   addAgentTask: (task: AgentTask) => void
   updateAgentTask: (id: string, updates: Partial<AgentTask>) => void
   clearAgentTasks: () => void
+  workspaceArtifacts: WorkspaceArtifact[]
+  addWorkspaceArtifact: (artifact: WorkspaceArtifact) => void
+  clearWorkspaceArtifacts: () => void
 
   // 合同审查卡片（仅上传合同时弹出）
   contractReviewVisible: boolean
@@ -619,6 +633,14 @@ export const useChatStore = create<ChatState>()(
           ),
         })),
       clearAgentTasks: () => set({ agentTasks: [] }),
+      workspaceArtifacts: [],
+      addWorkspaceArtifact: (artifact) =>
+        set((s) => ({
+          workspaceArtifacts: s.workspaceArtifacts.some((item) => item.id === artifact.id)
+            ? s.workspaceArtifacts.map((item) => (item.id === artifact.id ? { ...item, ...artifact } : item))
+            : [artifact, ...s.workspaceArtifacts],
+        })),
+      clearWorkspaceArtifacts: () => set({ workspaceArtifacts: [] }),
 
       // 签约/盖章工作流
       signingWorkflows: [],
@@ -659,6 +681,7 @@ export const useChatStore = create<ChatState>()(
           || s.workspaceConfirmations.length > 0
           || s.workspaceActions.length > 0
           || s.agentTasks.length > 0
+          || s.workspaceArtifacts.length > 0
           || s.analysisData.riskRadar !== null
           || s.analysisData.documentDiff !== null
           || s.analysisData.knowledgeGraph !== null
@@ -674,6 +697,7 @@ export const useChatStore = create<ChatState>()(
           workspaceConfirmations: s.workspaceConfirmations,
           workspaceActions: s.workspaceActions,
           agentTasks: s.agentTasks,
+          workspaceArtifacts: s.workspaceArtifacts,
           rightPanelTab: s.rightPanelTab,
           contractReviewVisible: s.contractReviewVisible,
         }
@@ -701,6 +725,7 @@ export const useChatStore = create<ChatState>()(
           workspaceConfirmations: snapshot.workspaceConfirmations,
           workspaceActions: snapshot.workspaceActions,
           agentTasks: snapshot.agentTasks,
+          workspaceArtifacts: snapshot.workspaceArtifacts ?? [],
           rightPanelTab: snapshot.rightPanelTab,
           contractReviewVisible: snapshot.contractReviewVisible,
           // 流式状态不恢复
@@ -742,6 +767,7 @@ export const useChatStore = create<ChatState>()(
           workspaceConfirmations: [],
           workspaceActions: [],
           agentTasks: [],
+          workspaceArtifacts: [],
           contractReviewVisible: false,
           contractReviewFile: null,
         }),

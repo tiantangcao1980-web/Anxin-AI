@@ -19,6 +19,7 @@ import ReactMarkdown from'react-markdown';
 import { chatApi } from'@/lib/api';
 import { useChatStore, ConversationItem } from'@/lib/store';
 import type { AgentResult, ThinkingStep, CanvasContent } from'@/lib/store';
+import { normalizeWorkspaceArtifactEvent } from'@/lib/workspaceArtifacts';
 import { usePrivacy, PrivacyMode } from'@/context/PrivacyContext';
 import { cn } from'@/lib/utils';
 import { useBreakpoint } from'@/hooks/useBreakpoint';
@@ -748,6 +749,15 @@ export default function Chat() {
  timestamp: Date.now(),
  });
  break;
+
+ case'workspace_artifact_created': {
+ const artifact = normalizeWorkspaceArtifactEvent(data.artifact, `runtime-artifact-${uuidv4()}`);
+ if (artifact) {
+ store.addWorkspaceArtifact(artifact);
+ openRightPanel('smart');
+ }
+ break;
+ }
 
  // --- Agent 任务看板（多 Agent 并列协作） ---
  case'agent_task_start':
