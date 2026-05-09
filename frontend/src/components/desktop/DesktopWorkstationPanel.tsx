@@ -16,6 +16,7 @@ import {
   createWorkstationProfile,
   deleteWorkstationProfile,
   getAppState,
+  getDesktopNotificationPermission,
   getLocalLLMConfig,
   getQueueStats,
   isTauri,
@@ -23,7 +24,9 @@ import {
   listWorkstationProfiles,
   remoteControlConfirmPairing,
   remoteControlRunHostCycle,
+  requestDesktopNotificationPermission,
   sendDesktopNotification,
+  type DesktopNotificationPermissionResponse,
   type RemoteControlHostCycleSummary,
   setBackendUrl,
   setDefaultLocalModel,
@@ -156,6 +159,8 @@ export function DesktopWorkstationPanel() {
   const [localModelInput, setLocalModelInput] = useState('')
   const [localModelBusy, setLocalModelBusy] = useState<'refresh' | 'save' | null>(null)
   const [notificationBusy, setNotificationBusy] = useState(false)
+  const [notificationPermissionBusy, setNotificationPermissionBusy] = useState(false)
+  const [notificationPermission, setNotificationPermission] = useState<DesktopNotificationPermissionResponse | null>(null)
   const [probes, setProbes] = useState<WorkstationProbeState>(PREVIEW_PROBES)
   const [remoteControlHost, setRemoteControlHost] = useState<RemoteControlHostRuntimeState>(
     DEFAULT_REMOTE_CONTROL_HOST_STATE
@@ -165,6 +170,18 @@ export function DesktopWorkstationPanel() {
     () => buildDesktopNotificationReadiness(mode, desktopClient ? 'desktop' : 'preview'),
     [desktopClient, mode]
   )
+  const notificationCanSendTest = notificationReadiness.canSendTest && (notificationPermission?.granted ?? true)
+  const notificationPermissionLabel = !desktopClient
+    ? '需桌面端'
+    : notificationPermission?.granted
+      ? '已授权'
+      : notificationPermission?.state === 'denied'
+        ? '被拒绝'
+        : notificationPermission
+          ? '待授权'
+          : '读取中'
+  const notificationPermissionDetail = notificationPermission?.message
+    ?? (desktopClient ? '读取本机通知权限状态' : '仅桌面客户端可读取权限')
   const resources = useMemo(
     () => buildDesktopWorkstationResources(mode, desktopClient ? 'desktop' : 'preview'),
     [desktopClient, mode]
@@ -280,6 +297,7 @@ export function DesktopWorkstationPanel() {
       setLocalModelDefault('')
       setLocalModelEndpoint('')
       setLocalModelInput('')
+      setNotificationPermission(null)
       setProbes(PREVIEW_PROBES)
       setRemoteControlHost(DEFAULT_REMOTE_CONTROL_HOST_STATE)
       return () => {
@@ -303,9 +321,10 @@ export function DesktopWorkstationPanel() {
       listLocalModels(),
       getLocalLLMConfig(),
       getQueueStats(),
+      getDesktopNotificationPermission(),
       mode === 'top-secret' ? Promise.resolve(null) : knowledgeApi.listBases({ page_size: 100 }),
       mode === 'top-secret' ? Promise.resolve(null) : mcpApi.listServers(),
-    ]).then(([appStateResult, llmResult, modelsResult, llmConfigResult, queueResult, knowledgeResult, mcpResult]) => {
+    ]).then(([appStateResult, llmResult, modelsResult, llmConfigResult, queueResult, notificationPermissionResult, knowledgeResult, mcpResult]) => {
       if (cancelled) return
 
       const snapshot = appStateResult.status === 'fulfilled' ? appStateResult.value : null
@@ -314,6 +333,9 @@ export function DesktopWorkstationPanel() {
       const models = modelsResult.status === 'fulfilled' ? modelsResult.value as LocalModelListResponse | null : null
       const llmConfig = llmConfigResult.status === 'fulfilled' ? llmConfigResult.value : null
       const queue = queueResult.status === 'fulfilled' ? queueResult.value as Record<string, unknown> | null : null
+      const nativePermission = notificationPermissionResult.status === 'fulfilled'
+        ? notificationPermissionResult.value as DesktopNotificationPermissionResponse | null
+        : null
       const knowledge = knowledgeResult.status === 'fulfilled'
         ? knowledgeResult.value as { items?: Array<{ doc_count?: number }>; total?: number } | null
         : null
@@ -322,6 +344,7 @@ export function DesktopWorkstationPanel() {
       const knowledgeItems = Array.isArray(knowledge?.items) ? knowledge.items : []
 
       applyLocalModelSnapshot(llm, models, llmConfig)
+      setNotificationPermission(nativePermission)
 
       setProbes({
         status: 'ready',
@@ -394,7 +417,11 @@ export function DesktopWorkstationPanel() {
   }
 
   const handleNativeNotificationTest = async () => {
-    if (!desktopClient || notificationBusy || !notificationReadiness.canSendTest) return
+    if (!desktopClient || notificationBusy || !notificationCanSendTest) return
+    if (notificationPermission && !notificationPermission.granted) {
+      toast.error('请先授权本机通知')
+      return
+    }
 
     setNotificationBusy(true)
     try {
@@ -416,6 +443,35 @@ export function DesktopWorkstationPanel() {
       toast.error(error instanceof Error ? error.message : '本机通知发送失败')
     } finally {
       setNotificationBusy(false)
+    }
+  }
+
+  const handleNativeNotificationPermission = async () => {
+    if (!desktopClient || notificationPermissionBusy) return
+
+    const shouldRequest = !notificationPermission?.granted && notificationPermission?.state !== 'denied'
+    setNotificationPermissionBusy(true)
+    try {
+      const result = shouldRequest
+        ? await requestDesktopNotificationPermission()
+        : await getDesktopNotificationPermission()
+
+      if (!result) {
+        toast.error('本机通知权限读取失败')
+        return
+      }
+      setNotificationPermission(result)
+      if (result.granted) {
+        toast.success(result.message || '本机通知权限已授权')
+      } else if (result.state === 'denied') {
+        toast.error('本机通知权限已被系统拒绝，请在系统设置中开启')
+      } else {
+        toast.info(result.message || '本机通知仍待授权')
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '本机通知权限处理失败')
+    } finally {
+      setNotificationPermissionBusy(false)
     }
   }
 
@@ -1101,7 +1157,7 @@ export function DesktopWorkstationPanel() {
           </div>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(280px,0.6fr)]">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
             <ProbeCell
               testId="native-notification-boundary"
               label="推送边界"
@@ -1120,6 +1176,12 @@ export function DesktopWorkstationPanel() {
               value="案件 / 风险"
               detail="案件进展、风险预警、同步状态"
             />
+            <ProbeCell
+              testId="native-notification-permission"
+              label="系统权限"
+              value={notificationPermissionLabel}
+              detail={notificationPermissionDetail}
+            />
           </div>
 
           <div className="flex min-w-0 flex-col justify-between gap-3 rounded-lg border border-border bg-surface-1 p-3">
@@ -1128,8 +1190,23 @@ export function DesktopWorkstationPanel() {
             </p>
             <Button
               type="button"
+              variant="outline"
+              data-testid="native-notification-permission-action"
+              disabled={!desktopClient || notificationPermissionBusy}
+              onClick={handleNativeNotificationPermission}
+              className="w-full"
+            >
+              <icons.ShieldCheck className={iconSize.sm} />
+              {notificationPermissionBusy
+                ? '处理中'
+                : notificationPermission?.granted || notificationPermission?.state === 'denied'
+                  ? '重新检查权限'
+                  : '请求通知权限'}
+            </Button>
+            <Button
+              type="button"
               data-testid="native-notification-test"
-              disabled={!notificationReadiness.canSendTest || notificationBusy}
+              disabled={!notificationCanSendTest || notificationBusy}
               onClick={handleNativeNotificationTest}
               className="w-full"
             >
@@ -1206,11 +1283,13 @@ export function DesktopWorkstationPanel() {
             value={
               !desktopClient
                 ? '需桌面端'
-                : notificationReadiness.canSendTest
+                : notificationCanSendTest
                   ? notificationReadiness.statusLabel
+                  : notificationPermission && !notificationPermission.granted
+                    ? notificationPermissionLabel
                   : '不可用'
             }
-            detail={notificationReadiness.detail}
+            detail={notificationPermission?.message ?? notificationReadiness.detail}
           />
           <ProbeCell
             testId="workstation-probe-remote-control"

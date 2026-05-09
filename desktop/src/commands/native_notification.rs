@@ -1,7 +1,7 @@
 use crate::models::{AppMode, SharedAppState};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
-use tauri_plugin_notification::NotificationExt;
+use tauri_plugin_notification::{NotificationExt, PermissionState};
 
 const MAX_NOTIFICATION_TITLE_CHARS: usize = 80;
 const MAX_NOTIFICATION_BODY_CHARS: usize = 180;
@@ -70,6 +70,56 @@ pub struct DesktopNotificationResponse {
     pub related_id: Option<String>,
     pub local_only: bool,
     pub safe_in_top_secret: bool,
+    pub privacy_mode: AppMode,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DesktopNotificationPermissionState {
+    Granted,
+    Denied,
+    Prompt,
+    PromptWithRationale,
+}
+
+impl DesktopNotificationPermissionState {
+    fn from_plugin(value: PermissionState) -> Self {
+        match value {
+            PermissionState::Granted => Self::Granted,
+            PermissionState::Denied => Self::Denied,
+            PermissionState::Prompt => Self::Prompt,
+            PermissionState::PromptWithRationale => Self::PromptWithRationale,
+        }
+    }
+
+    fn granted(self) -> bool {
+        matches!(self, Self::Granted)
+    }
+
+    fn can_request(self) -> bool {
+        matches!(self, Self::Prompt | Self::PromptWithRationale)
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::Granted => "已授权",
+            Self::Denied => "已拒绝",
+            Self::Prompt => "待授权",
+            Self::PromptWithRationale => "需说明后授权",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DesktopNotificationPermissionResponse {
+    pub state: DesktopNotificationPermissionState,
+    pub granted: bool,
+    pub can_request: bool,
+    pub local_only: bool,
+    pub safe_in_top_secret: bool,
+    pub requires_external_push: bool,
     pub privacy_mode: AppMode,
     pub message: String,
 }
@@ -150,15 +200,40 @@ fn response_from_preview(
     }
 }
 
+fn notification_permission_response(
+    permission_state: PermissionState,
+    privacy_mode: AppMode,
+    requested: bool,
+) -> DesktopNotificationPermissionResponse {
+    let state = DesktopNotificationPermissionState::from_plugin(permission_state);
+    let action = if requested {
+        "授权请求"
+    } else {
+        "权限状态"
+    };
+    DesktopNotificationPermissionResponse {
+        state,
+        granted: state.granted(),
+        can_request: state.can_request(),
+        local_only: true,
+        safe_in_top_secret: true,
+        requires_external_push: false,
+        privacy_mode,
+        message: format!("{action}: {}", state.label()),
+    }
+}
+
+async fn current_privacy_mode(state: State<'_, SharedAppState>) -> AppMode {
+    let snapshot = state.read().await;
+    snapshot.mode
+}
+
 #[tauri::command]
 pub async fn preview_desktop_notification(
     payload: DesktopNotificationPayload,
     state: State<'_, SharedAppState>,
 ) -> Result<DesktopNotificationResponse, String> {
-    let privacy_mode = {
-        let snapshot = state.read().await;
-        snapshot.mode
-    };
+    let privacy_mode = current_privacy_mode(state).await;
     let preview = build_desktop_notification_preview(payload)?;
     Ok(response_from_preview(
         preview,
@@ -173,10 +248,7 @@ pub async fn send_desktop_notification(
     app: AppHandle,
     state: State<'_, SharedAppState>,
 ) -> Result<DesktopNotificationResponse, String> {
-    let privacy_mode = {
-        let snapshot = state.read().await;
-        snapshot.mode
-    };
+    let privacy_mode = current_privacy_mode(state).await;
     let preview = build_desktop_notification_preview(payload)?;
 
     app.notification()
@@ -189,6 +261,42 @@ pub async fn send_desktop_notification(
 
     let message = preview.kind.sent_message().to_string();
     Ok(response_from_preview(preview, privacy_mode, message))
+}
+
+#[tauri::command]
+pub async fn get_desktop_notification_permission(
+    app: AppHandle,
+    state: State<'_, SharedAppState>,
+) -> Result<DesktopNotificationPermissionResponse, String> {
+    let privacy_mode = current_privacy_mode(state).await;
+    let permission_state = app
+        .notification()
+        .permission_state()
+        .map_err(|err| format!("本机通知权限读取失败: {err}"))?;
+
+    Ok(notification_permission_response(
+        permission_state,
+        privacy_mode,
+        false,
+    ))
+}
+
+#[tauri::command]
+pub async fn request_desktop_notification_permission(
+    app: AppHandle,
+    state: State<'_, SharedAppState>,
+) -> Result<DesktopNotificationPermissionResponse, String> {
+    let privacy_mode = current_privacy_mode(state).await;
+    let permission_state = app
+        .notification()
+        .request_permission()
+        .map_err(|err| format!("本机通知授权失败: {err}"))?;
+
+    Ok(notification_permission_response(
+        permission_state,
+        privacy_mode,
+        true,
+    ))
 }
 
 #[cfg(test)]
@@ -258,5 +366,31 @@ mod tests {
         assert_eq!(response.privacy_mode, AppMode::TopSecret);
         assert!(response.local_only);
         assert!(response.safe_in_top_secret);
+    }
+
+    #[test]
+    fn permission_response_keeps_local_boundary() {
+        let response =
+            notification_permission_response(PermissionState::Granted, AppMode::TopSecret, false);
+
+        assert_eq!(response.state, DesktopNotificationPermissionState::Granted);
+        assert!(response.granted);
+        assert!(!response.can_request);
+        assert!(response.local_only);
+        assert!(response.safe_in_top_secret);
+        assert!(!response.requires_external_push);
+        assert_eq!(response.privacy_mode, AppMode::TopSecret);
+    }
+
+    #[test]
+    fn permission_prompt_can_request_without_external_push() {
+        let response =
+            notification_permission_response(PermissionState::Prompt, AppMode::Hybrid, true);
+
+        assert_eq!(response.state, DesktopNotificationPermissionState::Prompt);
+        assert!(!response.granted);
+        assert!(response.can_request);
+        assert!(response.message.contains("授权请求"));
+        assert!(!response.requires_external_push);
     }
 }

@@ -122,6 +122,7 @@ test.describe('桌面主工作站设置入口', () => {
     await expect(page.getByRole('button', { name: '同步状态' })).toBeDisabled()
     await expect(page.getByRole('button', { name: '查看任务' })).toBeDisabled()
     await expect(page.locator('[data-testid^="desktop-workstation-resource-"]').getByText('请在桌面客户端启用')).toHaveCount(4)
+    await expect(page.getByTestId('native-notification-permission-action')).toBeDisabled()
     await expect(page.getByTestId('native-notification-test')).toBeDisabled()
     await expect(page.getByTestId('remote-control-host-refresh')).toBeDisabled()
     await expect(page.getByTestId('remote-control-host-confirm')).toBeDisabled()
@@ -156,6 +157,18 @@ test.describe('桌面主工作站设置入口', () => {
           if (cmd === 'get_current_mode') {
             return '"hybrid"'
           }
+          if (cmd === 'get_desktop_notification_permission') {
+            return {
+              state: 'granted',
+              granted: true,
+              canRequest: false,
+              localOnly: true,
+              safeInTopSecret: true,
+              requiresExternalPush: false,
+              privacyMode: 'hybrid',
+              message: '权限状态: 已授权',
+            }
+          }
           return null
         },
       }
@@ -174,6 +187,8 @@ test.describe('桌面主工作站设置入口', () => {
     await expect(page.getByTestId('workstation-probe-offline-queue')).toContainText('3 条')
     await expect(page.getByTestId('workstation-probe-offline-queue')).toContainText('1 条失败需处理')
     await expect(page.getByTestId('workstation-probe-native-notification')).toContainText('可测试')
+    await expect(page.getByTestId('native-notification-permission')).toContainText('已授权')
+    await expect(page.getByTestId('native-notification-permission-action')).toBeEnabled()
     await expect(page.getByTestId('native-notification-test')).toBeEnabled()
     await expect(page.getByTestId('workstation-probe-remote-control')).toContainText('待验收')
   })
@@ -302,8 +317,19 @@ test.describe('桌面主工作站设置入口', () => {
         unread_count: 0,
       }
       let localModelDefault = 'qwen2.5:7b'
+      let nativePermission = 'prompt'
       const profiles: Array<{ id: string; name: string; mode: string; backend_url: string }> = []
       const notifications: Array<Record<string, unknown> | undefined> = []
+      const buildNativePermission = (requested = false) => ({
+        state: nativePermission,
+        granted: nativePermission === 'granted',
+        canRequest: nativePermission === 'prompt',
+        localOnly: true,
+        safeInTopSecret: true,
+        requiresExternalPush: false,
+        privacyMode: appState.mode,
+        message: `${requested ? '授权请求' : '权限状态'}: ${nativePermission === 'granted' ? '已授权' : '待授权'}`,
+      })
       ;(window as any).__nativeNotificationInvokes = notifications
       ;(window as any).__TAURI_INTERNALS__ = {
         invoke: async (cmd: string, args?: Record<string, unknown>) => {
@@ -365,6 +391,13 @@ test.describe('桌面主工作站设置入口', () => {
             localModelDefault = args?.model as string
             return { success: true, default_model: localModelDefault, message: '本地默认模型已更新' }
           }
+          if (cmd === 'get_desktop_notification_permission') {
+            return buildNativePermission(false)
+          }
+          if (cmd === 'request_desktop_notification_permission') {
+            nativePermission = 'granted'
+            return buildNativePermission(true)
+          }
           if (cmd === 'send_desktop_notification') {
             notifications.push(args?.payload as Record<string, unknown>)
             return {
@@ -405,6 +438,13 @@ test.describe('桌面主工作站设置入口', () => {
 
     await expect(page.getByTestId('local-model-default')).toContainText('llama3.1:8b')
     await expect(page.getByTestId('desktop-native-notification-manager')).toContainText('可测试')
+    await expect(page.getByTestId('native-notification-permission')).toContainText('待授权')
+    await expect(page.getByTestId('native-notification-test')).toBeDisabled()
+
+    await page.getByTestId('native-notification-permission-action').click()
+
+    await expect(page.getByTestId('native-notification-permission')).toContainText('已授权')
+    await expect(page.getByTestId('native-notification-test')).toBeEnabled()
 
     await page.getByTestId('native-notification-test').click()
 

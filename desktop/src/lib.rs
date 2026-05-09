@@ -354,6 +354,8 @@ pub fn run_with_options(options: DesktopRunOptions) {
             // 本机通知
             commands::native_notification::preview_desktop_notification,
             commands::native_notification::send_desktop_notification,
+            commands::native_notification::get_desktop_notification_permission,
+            commands::native_notification::request_desktop_notification_permission,
             // CLI
             commands::cli::cli_execute,
             commands::cli::cli_create_key,

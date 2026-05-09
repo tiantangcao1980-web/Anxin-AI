@@ -9,7 +9,7 @@
 - Verify file-drop toast latency under 500 ms in a packaged build.
 - Run a real local model smoke through the configurable quick-query local LLM path.
 - Add a governed one-click model download/install flow after product signs off on supported Ollama model families and disk-space checks.
-- Verify native notification permission prompts and delivery in signed macOS/Windows packaged builds, including tray/background-triggered case progress and risk alert notifications.
+- Verify native notification permission prompts/system settings and delivery in signed macOS/Windows packaged builds, including tray/background-triggered case progress and risk alert notifications.
 - Run a real approved MCP/Skills connector rehearsal from the desktop workstation using external credentials provided outside the repo.
 - Run real mobile-to-desktop remote-control safe-probe with a signed desktop host and a real mobile device; do not enable high-risk desktop execution until separate approval, UI confirmation, and audit evidence exist.
 

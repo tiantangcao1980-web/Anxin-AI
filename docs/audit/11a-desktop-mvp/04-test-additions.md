@@ -16,7 +16,7 @@ bash scripts/desktop-mvp-local-gate.sh
 - File-drop classification, encrypted queue command, WebView drop listener, toast summary, and release evidence.
 - Desktop workstation panel, mode/backend/profile model, Playwright workstation coverage, and safe desktop/preview boundaries.
 - Local model manager coverage for model-name normalization, secret-free default-model persistence, and workstation UI save flow.
-- Native notification local-only bridge coverage for sanitized IPC payloads, TopSecret-safe readiness, and workstation test notification flow.
+- Native notification local-only bridge coverage for sanitized IPC payloads, permission status/request, TopSecret-safe readiness, and workstation test notification flow.
 - `docs/audit/11a-desktop-mvp/00-prd-reality-gap.md` through `05-followups.md`.
 
 ## Existing Targeted Tests
@@ -38,7 +38,7 @@ cd desktop && cargo test remote_control
 # 14 passed in the last recorded host-cycle run
 
 cd desktop && cargo test native_notification
-# 5 passed; covers native notification local-only preview and payload sanitization
+# 7 passed; covers native notification local-only preview, permission contract, and payload sanitization
 ```
 
 ```bash

@@ -371,9 +371,54 @@ export interface DesktopNotificationResponse {
   message: string
 }
 
+export type DesktopNotificationPermissionState = 'granted' | 'denied' | 'prompt' | 'prompt_with_rationale'
+
+export interface DesktopNotificationPermissionResponse {
+  state: DesktopNotificationPermissionState
+  granted: boolean
+  canRequest: boolean
+  localOnly: boolean
+  safeInTopSecret: boolean
+  requiresExternalPush: boolean
+  privacyMode: AppMode
+  message: string
+}
+
 function shouldFallbackToNotificationPlugin(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error)
   return /not found|unknown command|not registered|not allowed/i.test(message)
+}
+
+function normalizeWebNotificationPermission(value: NotificationPermission): DesktopNotificationPermissionState {
+  if (value === 'granted') return 'granted'
+  if (value === 'denied') return 'denied'
+  return 'prompt'
+}
+
+function buildDesktopNotificationPermissionFallback(
+  state: DesktopNotificationPermissionState,
+  privacyMode: AppMode,
+  requested: boolean
+): DesktopNotificationPermissionResponse {
+  const action = requested ? '授权请求' : '权限状态'
+  const label = state === 'granted'
+    ? '已授权'
+    : state === 'denied'
+      ? '已拒绝'
+      : state === 'prompt_with_rationale'
+        ? '需说明后授权'
+        : '待授权'
+
+  return {
+    state,
+    granted: state === 'granted',
+    canRequest: state === 'prompt' || state === 'prompt_with_rationale',
+    localOnly: true,
+    safeInTopSecret: true,
+    requiresExternalPush: false,
+    privacyMode,
+    message: `${action}: ${label}`,
+  }
 }
 
 async function sendPluginNotification(title: string, body: string): Promise<void> {
@@ -386,6 +431,59 @@ export async function previewDesktopNotification(
   payload: DesktopNotificationPayload
 ): Promise<DesktopNotificationResponse | null> {
   return invokeCommand<DesktopNotificationResponse>('preview_desktop_notification', { payload })
+}
+
+/** 读取桌面本机通知权限状态；仅检查本机 OS/WebView 通知，不接入外部推送。 */
+export async function getDesktopNotificationPermission(): Promise<DesktopNotificationPermissionResponse | null> {
+  if (!isTauri()) return null
+  try {
+    return await invokeRequiredCommand<DesktopNotificationPermissionResponse>('get_desktop_notification_permission')
+  } catch (error) {
+    if (!shouldFallbackToNotificationPlugin(error)) {
+      console.debug('[Tauri] 本机通知权限读取失败:', error)
+      return null
+    }
+  }
+
+  try {
+    const { isPermissionGranted } = await import(/* @vite-ignore */ '@tauri-apps/plugin-notification')
+    const granted = await isPermissionGranted()
+    const webState = typeof window !== 'undefined' && 'Notification' in window
+      ? normalizeWebNotificationPermission(window.Notification.permission)
+      : 'prompt'
+    const privacyMode = await getCurrentMode().catch(() => 'cloud' as AppMode)
+    return buildDesktopNotificationPermissionFallback(granted ? 'granted' : webState, privacyMode, false)
+  } catch (pluginError) {
+    console.debug('[Tauri] 通知插件权限读取失败:', pluginError)
+    return null
+  }
+}
+
+/** 请求桌面本机通知权限；结果仍标记为 local-only，不保存外部凭据。 */
+export async function requestDesktopNotificationPermission(): Promise<DesktopNotificationPermissionResponse | null> {
+  if (!isTauri()) return null
+  try {
+    return await invokeRequiredCommand<DesktopNotificationPermissionResponse>('request_desktop_notification_permission')
+  } catch (error) {
+    if (!shouldFallbackToNotificationPlugin(error)) {
+      console.debug('[Tauri] 本机通知权限请求失败:', error)
+      return null
+    }
+  }
+
+  try {
+    const { requestPermission } = await import(/* @vite-ignore */ '@tauri-apps/plugin-notification')
+    const permission = await requestPermission()
+    const privacyMode = await getCurrentMode().catch(() => 'cloud' as AppMode)
+    return buildDesktopNotificationPermissionFallback(
+      normalizeWebNotificationPermission(permission),
+      privacyMode,
+      true
+    )
+  } catch (pluginError) {
+    console.debug('[Tauri] 通知插件权限请求失败:', pluginError)
+    return null
+  }
 }
 
 /** 发送桌面本机通知；不经过 APNs/FCM/服务端推送。 */
@@ -641,13 +739,8 @@ export async function sendNotification(title: string, body: string) {
 /** 请求通知权限 */
 export async function requestNotificationPermission(): Promise<boolean> {
   if (!isTauri()) return false
-  try {
-    const { requestPermission } = await import(/* @vite-ignore */ '@tauri-apps/plugin-notification')
-    const perm = await requestPermission()
-    return perm === 'granted'
-  } catch {
-    return false
-  }
+  const permission = await requestDesktopNotificationPermission()
+  return Boolean(permission?.granted)
 }
 
 // ===== 文件操作 =====
