@@ -25,6 +25,8 @@
 
 2026-05-09 桌面端补充：文件拖入分析已补代码级入队底座，`.pdf/.doc/.docx` 会分类到 `contract_review`，`.txt/.md` 会分类到 `document_summary`，并通过 `queue_file_drop_paths` 写入 Rust SQLCipher/keyring 管理的 `offline_tasks` 队列；返回值和 `desktop://file-queued` 事件只暴露文件名与 task id，不暴露完整本地路径。前端已监听 `desktop://file-queued` 并展示入队/部分入队/不支持文件 toast，且 toast 摘要模型单测覆盖不泄露完整本地路径；桌面主窗口 WebView 文件 drop 已接入 `queueFileDropPaths`，成功提示统一由 `desktop://file-queued` 负责。当前仍缺真实平台级托盘 drop 手势、500ms 提示性能、packaged runtime 和 signed runtime 证据。
 
+2026-05-09 桌面端补充：标题栏基础已补代码级闭环。macOS 保持 Tauri Overlay + 原生交通灯让位，Windows/Linux 启动时对主窗口关闭系统装饰，并在前端顶部拖拽栏右侧提供最小化、最大化/还原和关闭按钮；窗口控制 IPC 已封装在 `frontend/src/lib/tauri-bridge.ts`，capabilities 增补 `core:window:allow-toggle-maximize`。当前仍缺 macOS/Windows 实机截图、双击标题栏最大化、vibrancy/acrylic 视觉验收和 signed packaged runtime 证据。
+
 ## 2. 必须补齐的商业证据
 
 ### 渠道沙箱

@@ -27,6 +27,7 @@ import { iconSize, buttonStyle, heading, sidebarNav } from '@/lib/design-tokens'
 import { ModeSwitcher } from '@/components/mode-switcher/ModeSwitcher'
 import { SyncStatus } from '@/components/mode-switcher/SyncStatus'
 import { MobileNavBar } from '@/components/mobile/MobileNavBar'
+import { DesktopTitleBarControls } from '@/components/desktop/TitleBar'
 
 // Heroicons 组件类型
 type HeroIcon = React.ComponentType<React.SVGProps<SVGSVGElement>>
@@ -383,6 +384,7 @@ export default function Layout() {
               </div>
             </button>
 
+            <DesktopTitleBarControls />
           </div>
         </div>
 

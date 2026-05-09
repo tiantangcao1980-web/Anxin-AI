@@ -340,6 +340,45 @@ export async function listenDesktopFileDrops(onDrop: (paths: string[]) => void):
   }
 }
 
+export async function minimizeCurrentWindow(): Promise<boolean> {
+  if (!isTauri()) return false
+
+  try {
+    const { getCurrentWindow } = await import(/* @vite-ignore */ '@tauri-apps/api/window')
+    await getCurrentWindow().minimize()
+    return true
+  } catch (error) {
+    console.debug('[Tauri] 最小化窗口失败:', error)
+    return false
+  }
+}
+
+export async function toggleMaximizeCurrentWindow(): Promise<boolean> {
+  if (!isTauri()) return false
+
+  try {
+    const { getCurrentWindow } = await import(/* @vite-ignore */ '@tauri-apps/api/window')
+    await getCurrentWindow().toggleMaximize()
+    return true
+  } catch (error) {
+    console.debug('[Tauri] 切换窗口最大化失败:', error)
+    return false
+  }
+}
+
+export async function closeCurrentWindow(): Promise<boolean> {
+  if (!isTauri()) return false
+
+  try {
+    const { getCurrentWindow } = await import(/* @vite-ignore */ '@tauri-apps/api/window')
+    await getCurrentWindow().close()
+    return true
+  } catch (error) {
+    console.debug('[Tauri] 关闭窗口失败:', error)
+    return false
+  }
+}
+
 // ===== 离线任务队列（Harness Engineering）=====
 
 /** 提交离线任务 */

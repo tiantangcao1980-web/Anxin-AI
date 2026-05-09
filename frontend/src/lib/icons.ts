@@ -445,6 +445,7 @@ export const icons = {
   Layers: Layers,
   RotateCcw: RotateCcw,
   Focus: Focus,
+  Maximize: Maximize,
   Server: Server,
   Video: Video,
   PhoneOff: PhoneOff,

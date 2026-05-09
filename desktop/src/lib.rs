@@ -173,6 +173,18 @@ fn desktop_runtime_ui_smoke_payload_ready(payload: &Value) -> bool {
     has_root && root_child_count > 0 && platform_ready && has_title
 }
 
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+fn apply_platform_window_chrome(app: &tauri::App) {
+    if let Some(window) = app.get_webview_window("main") {
+        if let Err(error) = window.set_decorations(false) {
+            log::warn!("桌面自绘标题栏启用失败: {error}");
+        }
+    }
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "linux")))]
+fn apply_platform_window_chrome(_app: &tauri::App) {}
+
 fn complete_desktop_runtime_ui_smoke(handle: &AppHandle, payload: &Value) -> ! {
     println!("desktop runtime UI smoke response: {payload}");
     println!("desktop runtime UI smoke exiting: frontend response received");
@@ -307,6 +319,7 @@ pub fn run_with_options(options: DesktopRunOptions) {
         .setup(move |app| {
             let handle = app.handle().clone();
             load_desktop_runtime_config(&handle, &shared_state);
+            apply_platform_window_chrome(app);
 
             // 桌面端：创建系统托盘 + 注册全局快捷键
             #[cfg(desktop)]
