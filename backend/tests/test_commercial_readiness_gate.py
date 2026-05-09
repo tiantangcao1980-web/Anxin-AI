@@ -41,6 +41,17 @@ def test_commercial_gate_requires_desktop_mvp_local_gate():
     assert "frontend/src/components/desktop/DesktopWorkstationPanel.tsx" in gate_script
 
 
+def test_commercial_gate_requires_current_gitnexus_commit():
+    repo_root = Path(__file__).resolve().parents[2]
+    script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
+
+    assert "git rev-parse HEAD" in script
+    assert "m.lastCommit" in script
+    assert "GitNexus metadata is missing lastCommit" in script
+    assert "GitNexus metadata is stale" in script
+    assert "rerun bash scripts/gitnexus-index.sh after committing release artifacts" in script
+
+
 def test_commercial_gate_runs_desktop_strict_clippy():
     repo_root = Path(__file__).resolve().parents[2]
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")

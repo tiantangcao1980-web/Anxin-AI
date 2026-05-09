@@ -94,6 +94,6 @@
 | 输入 | 用途 | 当前状态 |
 |---|---|---|
 | 已整理提交的 release 分支 | GitNexus commit-scoped 复验 | 缺 |
-| 重跑后的 GitNexus metadata | 知识图覆盖最终提交 | 当前 `.gitnexus/meta.json` 有非零 embeddings，但 direct CLI repo 解析/cypher 复验失败且落后于最新本地提交；最终 release 前必须复跑 |
+| 重跑后的 GitNexus metadata | 知识图覆盖最终提交 | 当前 `.gitnexus/meta.json` 有非零 embeddings，但 direct CLI repo 解析/cypher 复验失败且落后于最新本地提交；最终 release 前必须复跑，并确保 `lastCommit` 等于当前 `HEAD`，否则 commercial quick gate 会阻断 |
 | `scripts/commercial-readiness-gate.sh --quick` PASS transcript | 商业 Go 证据 | 缺 |
 | `scripts/commercial-readiness-gate.sh --with-local-tests` PASS transcript | 代码级 + 商业证据双闭环 | 缺 |

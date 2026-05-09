@@ -246,14 +246,21 @@ else
   edges="$(read_meta_field 'm.stats?.edges')"
   flows="$(read_meta_field 'm.stats?.processes')"
   embeddings="$(read_meta_field 'm.stats?.embeddings')"
+  indexed_commit="$(read_meta_field 'm.lastCommit')"
+  current_commit="$(git rev-parse HEAD)"
 
-  echo "    files=${files:-0}, nodes=${nodes:-0}, edges=${edges:-0}, flows=${flows:-0}, embeddings=${embeddings:-0}"
+  echo "    files=${files:-0}, nodes=${nodes:-0}, edges=${edges:-0}, flows=${flows:-0}, embeddings=${embeddings:-0}, indexed_commit=${indexed_commit:-missing}, current_commit=${current_commit}"
 
   [ "${files:-0}" -gt 0 ] || add_failure "GitNexus indexed zero files"
   [ "${nodes:-0}" -gt 0 ] || add_failure "GitNexus indexed zero nodes"
   [ "${edges:-0}" -gt 0 ] || add_failure "GitNexus indexed zero edges"
   [ "${flows:-0}" -gt 0 ] || add_failure "GitNexus indexed zero flows"
   [ "${embeddings:-0}" -gt 0 ] || add_failure "GitNexus embeddings are still zero; rerun scripts/gitnexus-index.sh --embeddings after fixing the selected GitNexus/LadybugDB vector-index path"
+  if [ -z "${indexed_commit:-}" ]; then
+    add_failure "GitNexus metadata is missing lastCommit; rerun bash scripts/gitnexus-index.sh after committing release artifacts"
+  elif [ "$indexed_commit" != "$current_commit" ]; then
+    add_failure "GitNexus metadata is stale: indexed_commit=${indexed_commit}, current_commit=${current_commit}; rerun bash scripts/gitnexus-index.sh after committing release artifacts"
+  fi
 
   if [ -n "${GITNEXUS_BIN:-}" ]; then
     if [ ! -x "$GITNEXUS_BIN" ]; then
