@@ -10,6 +10,11 @@
 - Add shared-staging desktop runtime tests for push/pull/conflict/retry; Rust `cargo check`, frontend helper tests, injected SQLite orchestrator tests, and unsigned packaged-binary loopback smoke are strong local evidence but not a production-like backend transcript.
 - Add signed packaged-runtime performance baselines: 100 push records P95 < 2s; 500 pull records P95 < 3s.
 
+## Memory Notes Persisted
+
+- Feature `feature-1778335818500`: `desktop-sync-engine-sqlcipher-loopback`, covering Rust-owned SQLCipher/keyring storage, offline queue and sync log schema, push/pull/conflict/retry orchestration, backend SyncLog, packaged-binary sync smoke entrypoints, unsigned release loopback backend proof, and cross-device continuation code rehearsal.
+- Bugfix `bugfix-1778335818498`: desktop sync had a false-success risk where an IPC surface could be mistaken for a real data plane without durable local reads, backend push payloads, conflict persistence, retry scheduling, or pull writeback; the fix pattern is fail-closed unsupported paths plus real SQLCipher data-plane smokes while keeping signed/shared-staging evidence pending.
+
 ## Release Risk
 
 Backend sync is now durable, and the desktop path can read/write local SQLCipher through Rust secure commands with injected code-level push/pull/retry tests plus unsigned packaged-binary loopback evidence; however, there is not yet a real interactive packaged Tauri UI conflict/human-intervention transcript, signed/notarized packaged-profile migration proof, signed packaged-runtime performance baseline, shared-staging backend transcript, or mobile continuation verification. Do not claim commercial cross-device continuation until those are verified end to end.

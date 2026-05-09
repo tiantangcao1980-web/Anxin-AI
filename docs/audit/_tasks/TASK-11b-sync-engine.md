@@ -195,5 +195,7 @@ docs/audit/11b-sync-engine/
 - [ ] 桌面 `cargo test` 新增至少 15 个用例全绿；后端 `pytest` 新增至少 10 个用例全绿；全栈 273 baseline 不退化
 - [ ] 性能基线达标：push 100 条 P95 < 2s；pull 500 条 P95 < 3s
 - [ ] `docs/audit/11b-sync-engine/01..05.md` + `docs/desktop/sync-engine-{design,protocol,runbook}.md` 全部产出
-- [ ] 经验沉淀到 hierarchical-memory（add-feature ≥ 1 + add-bugfix ≥ 1）
+- [x] 经验沉淀到 hierarchical-memory（add-feature ≥ 1 + add-bugfix ≥ 1）
 - [ ] `PROJECT_STATUS.md` 横切缺口 C 标记移除；`PRODUCT_ROADMAP.md` M3 状态更新
+
+2026-05-09 hierarchical-memory 沉淀记录：已写入 `feature-1778335818500`（`desktop-sync-engine-sqlcipher-loopback`），记录 Rust-owned SQLCipher/keyring 本地库、`offline_tasks`/`sync_log` schema、push/pull/conflict/retry 编排、后端 SyncLog、packaged-binary sync smoke、unsigned release loopback 和跨设备续接代码级 rehearsal；已写入 `bugfix-1778335818498`，记录旧桌面同步 IPC 容易把空 payload/假成功误当真实数据面的根因和 fail-closed + SQLCipher 数据面 + packaged smoke 的修复模式。`find-feature "desktop sync engine SQLCipher loopback offline queue push pull conflict retry"` 与 `find-bugfix "desktop sync false success empty payload sqlcipher fail closed"` 均可检索。
