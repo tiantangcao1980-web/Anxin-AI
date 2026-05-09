@@ -128,6 +128,37 @@ checks = {
         "桌面端补充：`Cmd/Ctrl+Shift+Space`",
         "桌面端补充：文件拖入分析",
     ],
+    "docs/audit/11a-desktop-mvp/00-prd-reality-gap.md": [
+        "Desktop MVP",
+        "P0-1",
+        "P0-8",
+        "signed packaged runtime",
+    ],
+    "docs/audit/11a-desktop-mvp/01-prd-coverage.md": [
+        "PRD Coverage",
+        "P0-1 desktop window chrome",
+        "P0-8 workstation configuration write surface",
+    ],
+    "docs/audit/11a-desktop-mvp/02-issues.md": [
+        "DSK-001",
+        "DSK-009",
+        "Release Interpretation",
+    ],
+    "docs/audit/11a-desktop-mvp/03-fixes.md": [
+        "Quick Query",
+        "File Drop Analysis Queue",
+        "Remote-Control Host",
+    ],
+    "docs/audit/11a-desktop-mvp/04-test-additions.md": [
+        "desktop-mvp-local-gate.sh",
+        "quickQueryModel.test.ts",
+        "Not Covered Locally",
+    ],
+    "docs/audit/11a-desktop-mvp/05-followups.md": [
+        "Remaining P0",
+        "Evidence Owners",
+        "Release Risk",
+    ],
 }
 
 for relative, fragments in checks.items():

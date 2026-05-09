@@ -157,7 +157,7 @@ docs/audit/11a-desktop-mvp/
 - [ ] 桌面主工作站配置面可切换运行模式、保存后端环境地址，并由单测/e2e 锁住非桌面只读、URL 校验和绝密模式远控阻断
 - [ ] 移动远控 host 最小闭环：配对请求、权限说明、远程命令确认、执行状态、取消/撤销和审计日志至少有开发环境 smoke
 - [ ] 跨平台手测脚本：macOS + Windows 各跑一遍三件套，截图归档到 `docs/desktop/`
-- [ ] `docs/audit/11a-desktop-mvp/01..05.md` 全产出
+- [x] `docs/audit/11a-desktop-mvp/01..05.md` 全产出
 - [ ] 经验沉淀到 hierarchical-memory（add-feature 至少 1 条，记录三件套的 Tauri 平台分支模式）
 
 2026-05-08 本地收口记录：`frontend/src/components/desktop/DesktopWorkstationPanel.tsx`、`desktopWorkstationModel.ts`、`desktopWorkstationModel.test.ts`、`frontend/src/pages/settingsTabs.ts` 和 `settingsTabs.test.ts` 已补桌面主工作站最小可见入口；`/settings?tab=workstation` 展示隐私模式、本地模型、知识库、Skills/MCP、同步和移动远控状态；绝密模式下同步/远控 action disabled，非桌面预览下本地模型/同步/远控 action disabled，测试锁住无 unsafe outbound enabled action 和历史 `privacy` tab 映射。同日继续接入现有 Tauri IPC 和受治理前端 API，只读展示本地 LLM 可用性、模型数量、离线任务队列、知识库数量/文档数、MCP 服务/启用/工具缓存统计，并在绝密模式下跳过知识库/MCP 数据网络探针、把移动远控标为阻断或待验收而非可用。此记录只覆盖 P0-6 的最小入口和局部状态探针，不关闭完整 DoD；仍需完整配置面、移动远控 host、跨平台截图和 signed runtime 证据。
@@ -197,3 +197,5 @@ docs/audit/11a-desktop-mvp/
 2026-05-09 窗口外观门禁记录：`docs/desktop/window-styling.md` 新增 macOS Overlay、Windows/Linux 自绘标题栏、顶部拖拽栏、窗口控制、capability 和待补实机证据说明；`scripts/desktop-window-chrome-gate.sh` 新增本地门禁，校验 `tauri.conf.json`、`desktop/src/lib.rs`、`frontend/src/components/Layout.tsx`、`TitleBar.tsx`、`titleBarModel.ts`、`titleBarModel.test.ts`、`desktop/capabilities/default.json` 与窗口外观文档保持一致。验证：`bash scripts/desktop-window-chrome-gate.sh` 为 `PASS`。此项把 P0-1/P0-4 从代码实现提升到可复跑的本地治理门禁；实机截图、vibrancy/acrylic 和 signed packaged runtime 仍需外部证据。
 
 2026-05-09 桌面 MVP 聚合门禁记录：`scripts/desktop-mvp-local-gate.sh` 新增轻量结构门禁，并接入 `scripts/commercial-readiness-gate.sh` 的 quick 与 `--with-local-tests` 路径；它校验桌面快问、文件拖入入队、WebView drop、桌面主工作站和对应 release evidence 文档仍保持代码级闭环。验证：`bash scripts/desktop-mvp-local-gate.sh` 为 `PASS`，`cd backend && ./.venv/bin/pytest -q tests/test_commercial_readiness_gate.py` 覆盖商业门禁接入。该门禁不替代 200ms 快捷键性能、托盘 drop 手势、跨平台截图、packaged runtime 或 signed runtime 证据。
+
+2026-05-09 审计文档包补齐记录：`docs/audit/11a-desktop-mvp/00-prd-reality-gap.md` 到 `05-followups.md` 已补齐 TASK-11a 要求的 prompt-to-artifact 审计包，并明确区分 code-level/browser-level/local gate 已完成项与 signed runtime、真实设备、真实 connector、性能基线等发布阻断项。`scripts/desktop-mvp-local-gate.sh` 同步纳入该文档包结构校验，避免后续桌面 MVP 本地门禁只看代码、不看审计证据。
