@@ -137,6 +137,7 @@ required_artifacts=(
   "scripts/validate-commercial-delivery-checklist.cjs"
   "scripts/validate-commercial-delivery-lanes.cjs"
   "scripts/validate-external-resource-requirements.cjs"
+  "scripts/validate-product-status-consistency.cjs"
   "scripts/validate-release-artifacts.py"
   "eval/rag_live_qdrant_full50.py"
   "docs/audit/00-platform/06-gitnexus-knowledge-graph.md"
@@ -173,6 +174,10 @@ fi
 
 if ! node scripts/validate-external-resource-requirements.cjs; then
   add_failure "external resource requirements manifest is invalid or out of sync with env templates"
+fi
+
+if ! node scripts/validate-product-status-consistency.cjs; then
+  add_failure "product roadmap/status documents are stale or no longer reflect desktop-first commercial readiness reality"
 fi
 
 echo ">>> Checking evidence configuration templates"

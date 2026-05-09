@@ -84,6 +84,19 @@ def test_commercial_gate_runs_uni_mobile_migration_guard():
     assert "apps/uni-mobile/src/services/api.ts" in guard_script
 
 
+def test_commercial_gate_requires_product_status_consistency_guard():
+    repo_root = Path(__file__).resolve().parents[2]
+    script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
+    guard_script = (repo_root / "scripts" / "validate-product-status-consistency.cjs").read_text(encoding="utf-8")
+
+    assert '"scripts/validate-product-status-consistency.cjs"' in script
+    assert "node scripts/validate-product-status-consistency.cjs" in script
+    assert "PRODUCT_ROADMAP.md" in guard_script
+    assert "PROJECT_STATUS.md" in guard_script
+    assert "Mobile Edition, Tauri iOS/Android" in guard_script
+    assert "Mobile + Mini Program, uni-app" in guard_script
+
+
 def test_commercial_gate_runs_agent_approval_workspace_e2e():
     repo_root = Path(__file__).resolve().parents[2]
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
