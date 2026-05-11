@@ -1,5 +1,6 @@
+// -*- coding: utf-8 -*-
 export default definePageConfig({
-  navigationBarTitleText: '安心法务',
+  navigationBarTitleText: '安心智能助手',
   enablePullDownRefresh: true,
-  backgroundTextStyle: 'dark',
+  backgroundColor: '#FAFAFA',
 })

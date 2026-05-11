@@ -89,6 +89,15 @@ from src.models import (  # noqa: F401 — side-effect import
 from src.models.base import Base
 from src.models.case import CasePriority, CaseStatus, CaseType
 
+# P2: 注册 task_orchestrator 的 agent_tasks 表到 Base.metadata
+# （独立子目录 ORM，不在 src.models.__init__ 集中导出，需在此处显式 import）
+from src.services.task_orchestrator.models import Task as AgentTask  # noqa: F401
+
+
+# ============ 测试数据库配置 ============
+
+import os
+
 # 优先从环境变量获取测试数据库 URL
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
@@ -542,6 +551,26 @@ def create_auth_headers(user: User) -> dict:
     from src.core.security import create_access_token
     token = create_access_token(user_id=user.id)
     return {"Authorization": f"Bearer {token}"}
+
+
+# ============ Persona Registry Fixture（P11-C：避免单例污染） ============
+#
+# 测试套件里若多个测试共享同一 PersonaRegistry 单例，会出现：
+#   1) test_persona_registry.py 的 _reset_registry fixture 销毁单例
+#   2) 后续 personas API 测试通过 routes 层 _AUTOLOADED guard 跳过 autoload
+#   3) registry 仍空 → 503/404
+# 这里提供一个显式 fixture，让需要隔离的测试主动声明，每次给一份干净的
+# registry（reset → 自动 bootstrap）。reset_instance 内部已会复位 routes
+# 层 _AUTOLOADED guard，因此对 API 测试同样安全。
+
+@pytest.fixture
+def fresh_persona_registry():
+    """每个测试前后重置 registry，避免单例污染。"""
+    from src.agents.personas.registry import PersonaRegistry
+
+    PersonaRegistry.reset_instance()
+    yield PersonaRegistry.instance()
+    PersonaRegistry.reset_instance()
 
 
 async def create_test_data(db: AsyncSession, count: int = 10) -> dict:

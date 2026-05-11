@@ -247,6 +247,10 @@ class Settings(BaseSettings):
     # 影响：是否强制本地 LLM、是否跳过云端依赖、数据分桶策略
     RUNTIME_MODE: str = "cloud"
 
+    # ========== 沙箱执行器（P3-E）==========
+    # 默认 Provider：local / docker / e2b / codex_cloud
+    SANDBOX_PROVIDER: str = "local"
+
     # ========== Embedding配置 ==========
     EMBEDDING_API_KEY: str | None = None
     EMBEDDING_BASE_URL: str = "https://api.openai.com/v1"
@@ -342,10 +346,24 @@ class Settings(BaseSettings):
     AIQICHA_API_KEY: str | None = None  # 爱企查 API
     CREDIT_CHINA_API_KEY: str | None = None  # 信用中国 API
 
+    # ========== 法律数据源（P6-C） ==========
+    PKULAW_API_KEY: str = ""  # 北大法宝商业 API（缺省走 mock）
+    PKULAW_BASE_URL: str = "https://api.pkulaw.com/v1"
+    WKINFO_API_KEY: str = ""  # 威科先行商业 API（缺省走 mock）
+    WKINFO_BASE_URL: str = "https://api.wkinfo.com.cn/v1"
+
     # ========== 日志配置 ==========
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "json"
     LOG_FILE: str | None = None
+
+    # ========== P19-A 可观测层 ==========
+    SENTRY_DSN: str = ""
+    SENTRY_ENVIRONMENT: str = "development"
+    SENTRY_TRACES_SAMPLE_RATE: float = 0.1
+    METRICS_ENABLED: bool = True
+    METRICS_AUTH_TOKEN: str = ""
+    SLO_DASHBOARD_REFRESH_SECONDS: int = 60
 
     # ========== OpenAI兼容 ==========
     OPENAI_API_KEY: str | None = None
@@ -373,6 +391,13 @@ class Settings(BaseSettings):
     OPEN_WEBSEARCH_ENGINES: str = "bing,duckduckgo,baidu"
     OPEN_WEBSEARCH_TIMEOUT: int = 15
 
+    # ===== HeadlessX 反检测抓取层（P6-B） =====
+    # self-hosted Camoufox-based scraping platform: https://github.com/saifyxpro/HeadlessX
+    HEADLESSX_BASE_URL: str = ""                # http://headlessx:3000 (Docker 内部) 或 https://headlessx.example.com
+    HEADLESSX_API_KEY: str = ""                 # x-api-key 鉴权
+    HEADLESSX_TIMEOUT: int = 60                 # 单次渲染超时 (秒)
+    HEADLESSX_FALLBACK_TIER: str = "l2_crawl4ai"  # L3 失败时回退到哪一层
+
     # ===== OAuth 第三方登录 =====
     WECHAT_APP_ID: str = ""
     WECHAT_APP_SECRET: str = ""
@@ -382,10 +407,64 @@ class Settings(BaseSettings):
 
     ALIPAY_REDIRECT_URI: str = ""
 
+    # ===== Notion OAuth (P4-D) =====
+    # 控制台：https://www.notion.so/my-integrations
+    NOTION_CLIENT_ID: str = ""
+    NOTION_CLIENT_SECRET: str = ""
+
     # 前端登录页 URL（OAuth 回调后重定向）
     FRONTEND_LOGIN_URL: str = "http://localhost:3001/login"
 
+<<<<<<< HEAD
     def __init__(self, **kwargs: Any) -> None:
+=======
+    # ===== 飞书（Lark）IM 适配器（P3） =====
+    # 控制台：https://open.feishu.cn → 应用凭证
+    FEISHU_APP_ID: str = ""
+    FEISHU_APP_SECRET: str = ""
+    FEISHU_VERIFY_TOKEN: str = ""    # 事件订阅 Verification Token
+    FEISHU_ENCRYPT_KEY: str = ""     # 事件订阅 Encrypt Key（开启加密推送时使用）
+    # P16-C: fail-closed —— 默认要求飞书签名校验。仅当显式置为 False 时才允许
+    # 在 encrypt_key 缺失的情况下放行（仅推荐本地调试 / 联调环境）。
+    FEISHU_VERIFY_SIGNATURE: bool = True
+    # X-Lark-Request-Timestamp 与服务器时间允许的最大偏差（秒），防 replay。
+    FEISHU_TIMESTAMP_MAX_AGE_SECONDS: int = 300
+
+    # ===== 通用应用授权（P4-A） =====
+    # Fernet base64-urlsafe key（生成: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"）
+    # 支持逗号分隔多 key 用于 key rotation（首位为新 key，其余为待淘汰旧 key）
+    OAUTH_TOKEN_ENCRYPTION_KEY: str = ""
+    # 第三方授权回调基础 URL（不含 /api/v1/...），如 https://api.anxin-fawu.com
+    APP_AUTH_REDIRECT_BASE_URL: str = "http://localhost:8001"
+
+    # ===== 钉钉 OAuth Provider（P4-C） =====
+    DINGTALK_APP_KEY: str = ""
+    DINGTALK_APP_SECRET: str = ""
+
+    # ===== Shopify OAuth Provider（P4-E） =====
+    # 控制台：https://partners.shopify.com → Apps → API credentials
+    SHOPIFY_API_KEY: str = ""
+    SHOPIFY_API_SECRET: str = ""
+    SHOPIFY_API_VERSION: str = "2024-10"
+
+    # ===== 跨境电商数据源凭据（P6-D） =====
+    # Amazon SP-API（mock 阶段不强制；真实接入需 LWA + AWS SigV4）
+    AMAZON_SP_LWA_CLIENT_ID: str = ""
+    AMAZON_SP_LWA_CLIENT_SECRET: str = ""
+    AMAZON_SP_REFRESH_TOKEN: str = ""
+    AMAZON_SP_REGION: str = "us-east-1"
+    # 阿里 1688 开放平台（ISV 凭据；mock 阶段为空即可）
+    ALIBABA_1688_APP_KEY: str = ""
+    ALIBABA_1688_APP_SECRET: str = ""
+    # Shopee Open Platform（Partner 凭据；mock 阶段为空即可）
+    SHOPEE_PARTNER_ID: str = ""
+    SHOPEE_PARTNER_KEY: str = ""
+    # TikTok Shop（Partner Center 凭据；mock 阶段为空即可）
+    TIKTOK_SHOP_APP_KEY: str = ""
+    TIKTOK_SHOP_APP_SECRET: str = ""
+
+    def __init__(self, **kwargs: Any) -> None:
+>>>>>>> v3/main
         super().__init__(**kwargs)
         # 自动生成安全的 JWT 密钥（如果未设置）
         if self.JWT_SECRET_KEY == "your-super-secret-jwt-key-change-in-production":

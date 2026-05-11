@@ -1,170 +1,164 @@
-import { useState, useEffect } from 'react'
-import { View, Text, Input } from '@tarojs/components'
+// -*- coding: utf-8 -*-
+/**
+ * Home tabBar —— 智能体首页
+ *
+ * 区块：
+ *   1. Hero — 你好 {nickname} + 子标题
+ *   2. 4 大业务域分组入口（点击跳 personas 分包列表 + 默认筛选）
+ *   3. 10 个 personas 卡片（横向 ScrollView）
+ *   4. 推荐场景 chips —— 直接发起对话
+ */
+
+import { useEffect, useState } from 'react'
+import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { usePullDownRefresh } from '@tarojs/taro'
-import { api, isMiniProgramPrivacyNetworkBlockedError } from '../../services/api'
+
+import { Screen } from '../../components/Layout'
+import PersonaCard from '../../components/PersonaCard'
+import { listPersonas } from '../../utils/api/personas'
+import { tokenStorage } from '../../utils/auth/token'
+import {
+  PERSONA_SEEDS,
+  DOMAIN_LIST,
+  RECOMMENDED_PROMPTS,
+  type SeededPersona,
+} from '../../utils/personaSeeds'
+import type { Persona, PersonaDomain } from '../../types/persona'
 import './index.scss'
 
-const quickActions = [
-  { icon: '🤖', title: 'AI法律咨询', desc: '智能问答', path: '/pages/chat/index' },
-  {
-    icon: '📄',
-    title: '合同审查',
-    desc: '风险识别',
-    path: '/pages/chat/index',
-    pendingQuestion: '我需要审查一份合同，请先告诉我需要提供哪些内容，并按风险等级输出审查清单。',
-  },
-  {
-    icon: '👨‍⚖️',
-    title: '找律师',
-    desc: '专业匹配',
-    path: '/pages/chat/index',
-    pendingQuestion: '我需要匹配一位可信赖的专业律师，请先帮我梳理事项类型、地区、紧急程度和预算范围。',
-  },
-  {
-    icon: '✅',
-    title: '合规自检',
-    desc: '快速筛查',
-    path: '/pages/chat/index',
-    pendingQuestion: '请帮我做一次中小企业日常经营合规自检，优先覆盖劳动用工、合同、税务和财务风险。',
-  },
-]
-
-interface NewsItem {
-  id: string
-  title: string
-  date: string
-  tag: string
-}
-
-export default function Index() {
-  const [newsItems, setNewsItems] = useState<NewsItem[]>([])
-  const [newsLoading, setNewsLoading] = useState(true)
-  const [newsError, setNewsError] = useState('')
+export default function HomePage() {
+  const [personas, setPersonas] = useState<Persona[]>(PERSONA_SEEDS)
+  const [nickname, setNickname] = useState('朋友')
 
   useEffect(() => {
-    loadNews()
+    const u = tokenStorage.getUser()
+    if (u?.name) setNickname(u.name)
+    void loadPersonas()
   }, [])
 
-  // 下拉刷新
   usePullDownRefresh(() => {
-    loadNews().finally(() => {
-      Taro.stopPullDownRefresh()
-    })
+    loadPersonas().finally(() => Taro.stopPullDownRefresh())
   })
 
-  const loadNews = async () => {
-    setNewsLoading(true)
+  async function loadPersonas() {
+    if (!tokenStorage.isAuthenticated()) return
     try {
-      const data = await api.get<NewsItem[]>('/news/latest')
-      const items = Array.isArray(data) ? data : []
-      setNewsItems(items)
-      setNewsError(items.length > 0 ? '' : '暂无资讯，下拉刷新重试')
-    } catch (error) {
-      console.warn('资讯加载失败', error)
-      setNewsItems([])
-      setNewsError(
-        isMiniProgramPrivacyNetworkBlockedError(error)
-          ? '当前隐私模式已阻止小程序联网资讯'
-          : '资讯加载失败，下拉刷新重试',
-      )
-    } finally {
-      setNewsLoading(false)
+      const list = await listPersonas()
+      if (Array.isArray(list) && list.length > 0) {
+        // merge：以后端为主，缺 domain 时 fallback 到 seeds
+        const seedMap = new Map<string, SeededPersona>(
+          PERSONA_SEEDS.map((s) => [s.persona_id, s]),
+        )
+        const merged = list.map((p) => {
+          const seed = seedMap.get(p.persona_id)
+          return {
+            ...seed,
+            ...p,
+            domain: p.domain || seed?.domain,
+            is_implemented: p.is_implemented ?? seed?.is_implemented,
+          } as Persona
+        })
+        setPersonas(merged)
+      }
+    } catch {
+      // 静默失败 —— 保持 seeds 即可
     }
   }
 
-  const handleSearch = () => {
-    Taro.switchTab({ url: '/pages/chat/index' })
+  function handleDomainTap(domain: PersonaDomain) {
+    Taro.navigateTo({
+      url: `/subpackages/personas/index/index?domain=${encodeURIComponent(domain)}`,
+    }).catch(() => {
+      Taro.showToast({ title: 'P21-C 即将就位', icon: 'none' })
+    })
   }
 
-  // tabBar 页面路径列表，用于判断跳转方式
-  const tabBarPaths = ['/pages/index/index', '/pages/chat/index', '/pages/profile/index']
-
-  const handleQuickAction = (action: typeof quickActions[0]) => {
-    if (action.pendingQuestion) {
-      Taro.setStorageSync('pending_question', action.pendingQuestion)
-    }
-    if (tabBarPaths.includes(action.path)) {
-      Taro.switchTab({ url: action.path })
-    } else {
-      Taro.navigateTo({ url: action.path })
-    }
+  function handlePersonaTap(persona: Persona) {
+    Taro.navigateTo({
+      url: `/subpackages/personas/detail/index?id=${encodeURIComponent(persona.persona_id)}`,
+    }).catch(() => {
+      Taro.showToast({ title: 'P21-C 即将就位', icon: 'none' })
+    })
   }
 
-  const handleNewsClick = (item: NewsItem) => {
-    // tabBar 页不支持 navigateTo 传参，通过 storage 中转
-    Taro.setStorageSync('pending_question', item.title)
-    Taro.switchTab({ url: '/pages/chat/index' })
+  function handlePromptTap(prompt: { text: string; persona_id: string }) {
+    const target =
+      `/subpackages/personas/chat/index?id=${encodeURIComponent(prompt.persona_id)}` +
+      `&prompt=${encodeURIComponent(prompt.text)}`
+    Taro.navigateTo({ url: target }).catch(() => {
+      Taro.showToast({ title: prompt.text, icon: 'none' })
+    })
   }
 
   return (
-    <View className='index-page'>
-      {/* 搜索栏 */}
-      <View className='search-bar' onClick={handleSearch}>
-        <View className='search-input-wrapper'>
-          <Text className='search-icon'>🔍</Text>
-          <Input
-            className='search-input'
-            placeholder='搜索法律问题、法规、案例...'
-            disabled
-          />
-        </View>
+    <Screen padded={false}>
+      {/* Hero */}
+      <View className='home-hero'>
+        <Text className='home-hero__greeting'>你好，{nickname}</Text>
+        <Text className='home-hero__sub'>选一个智能体，让它替你跑腿</Text>
       </View>
 
-      {/* 快捷功能入口 */}
-      <View className='quick-actions'>
-        {quickActions.map((action, idx) => (
+      {/* 4 大分类 */}
+      <View className='home-domains'>
+        {DOMAIN_LIST.map((d) => (
           <View
-            key={idx}
-            className='action-item'
-            onClick={() => handleQuickAction(action)}
+            key={d.domain}
+            className='home-domains__item'
+            onClick={() => handleDomainTap(d.domain)}
           >
-            <View className='action-icon'>{action.icon}</View>
-            <Text className='action-title'>{action.title}</Text>
-            <Text className='action-desc'>{action.desc}</Text>
+            <Text className='home-domains__emoji'>{d.emoji}</Text>
+            <Text className='home-domains__name'>{d.domain}</Text>
+            <Text className='home-domains__desc'>{d.description}</Text>
           </View>
         ))}
       </View>
 
-      {/* 热门法律资讯 */}
-      <View className='news-section'>
-        <View className='section-header'>
-          <Text className='section-title'>热门法律资讯</Text>
-          <Text className='section-more'>查看更多 &gt;</Text>
+      {/* 10 personas 横向滚动 */}
+      <View className='home-section'>
+        <View className='home-section__head'>
+          <Text className='home-section__title'>10 位智能助手</Text>
+          <Text className='home-section__sub'>挑一个交付工作</Text>
         </View>
-        <View className='news-list'>
-          {newsLoading ? (
-            // 加载占位
-            [1, 2, 3].map((i) => (
-              <View key={i} className='news-item news-skeleton'>
-                <View className='news-content'>
-                  <View className='skeleton-tag' />
-                  <View className='skeleton-title' />
-                  <View className='skeleton-date' />
-                </View>
-              </View>
-            ))
-          ) : newsItems.length === 0 ? (
-            <View className='news-empty'>
-              <Text className='news-empty-title'>暂无资讯</Text>
-              <Text className='news-empty-desc'>{newsError || '下拉刷新重试'}</Text>
+        <ScrollView
+          className='home-personas'
+          scrollX
+          enableFlex
+          showScrollbar={false}
+        >
+          {personas.map((p) => (
+            <PersonaCard
+              key={p.persona_id}
+              persona={p}
+              compact
+              onClick={handlePersonaTap}
+            />
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* 推荐场景 chips */}
+      <View className='home-section'>
+        <View className='home-section__head'>
+          <Text className='home-section__title'>试试这些场景</Text>
+        </View>
+        <View className='home-prompts'>
+          {RECOMMENDED_PROMPTS.map((p, i) => (
+            <View
+              key={i}
+              className='home-prompts__chip'
+              onClick={() => handlePromptTap(p)}
+            >
+              <Text className='home-prompts__text'>{p.text}</Text>
             </View>
-          ) : (
-            newsItems.map((item) => (
-              <View
-                key={item.id}
-                className='news-item'
-                onClick={() => handleNewsClick(item)}
-              >
-                <View className='news-content'>
-                  <Text className='news-tag'>{item.tag}</Text>
-                  <Text className='news-title'>{item.title}</Text>
-                  <Text className='news-date'>{item.date}</Text>
-                </View>
-              </View>
-            ))
-          )}
+          ))}
         </View>
       </View>
-    </View>
+
+      <View className='home-footer'>
+        <Text className='home-footer__text'>
+          安心智能助手 V3 · 制造业全链路 AI 助手
+        </Text>
+      </View>
+    </Screen>
   )
 }

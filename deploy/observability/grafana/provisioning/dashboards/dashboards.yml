@@ -1,0 +1,16 @@
+# -*- coding: utf-8 -*-
+# Grafana Dashboard 自动加载配置
+apiVersion: 1
+
+providers:
+  - name: anxin-v3-dashboards
+    orgId: 1
+    folder: "安心 V3"
+    folderUid: anxin-v3
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

@@ -1,38 +1,74 @@
-// 全局样式
-@import './styles/design-tokens';
+// -*- coding: utf-8 -*-
+// V3 设计 token（与 utils/theme/colors.ts 同步）
+$primary: #D4A574;
+$primary-dark: #B8864E;
+$primary-light: #E8C9A8;
+$primary-soft: #FBF3E8;
+
+$ink-900: #1D2129;
+$ink-700: #4E5969;
+$ink-500: #86909C;
+$ink-300: #C9CDD4;
+$ink-100: #E5E6EB;
+
+$bg: #FAFAFA;
+$surface: #FFFFFF;
+$surface-muted: #F5F5F5;
+$border: #EEEEEE;
+$divider: #F0F0F0;
+
+$success: #22C55E;
+$warning: #F59E0B;
+$danger: #EF4444;
+
+$radius-sm: 8rpx;
+$radius-md: 16rpx;
+$radius-lg: 24rpx;
+$radius-xl: 32rpx;
+$radius-pill: 999rpx;
+
+$shadow-card: 0 4rpx 16rpx rgba(29, 33, 41, 0.06);
+$shadow-elevated: 0 8rpx 32rpx rgba(29, 33, 41, 0.10);
 
 page {
-  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue',
-    'PingFang SC', 'Microsoft YaHei', 'Source Han Sans SC', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC',
+    'Helvetica Neue', 'Microsoft YaHei', 'Source Han Sans SC', sans-serif;
   font-size: 28rpx;
-  color: $color-text-primary;
-  background-color: $color-background;
+  color: $ink-900;
+  background-color: $bg;
   box-sizing: border-box;
-  // 安全区域适配
-  padding-bottom: constant(safe-area-inset-bottom); // iOS < 11.2
-  padding-bottom: env(safe-area-inset-bottom); // iOS >= 11.2
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 view, text, image {
   box-sizing: border-box;
 }
 
-// 安全区域底部占位
+// ===== 通用工具 class =====
+.flex-row { display: flex; flex-direction: row; }
+.flex-col { display: flex; flex-direction: column; }
+.flex-1 { flex: 1; }
+.flex-center { display: flex; align-items: center; justify-content: center; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; }
+
+.text-primary { color: $primary; }
+.text-ink-900 { color: $ink-900; }
+.text-ink-700 { color: $ink-700; }
+.text-ink-500 { color: $ink-500; }
+
 .safe-area-bottom {
   padding-bottom: constant(safe-area-inset-bottom);
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-// 最小触控目标：用于小程序核心点击区，避免低于 44px 命中面积。
-.touch-target,
-.action-item,
-.menu-item,
-.send-btn {
-  min-height: $touch-target-min;
-}
-
-// 通用 loading 动画
+// ===== 全局动画 =====
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8rpx); }
+  to { opacity: 1; transform: translateY(0); }
 }

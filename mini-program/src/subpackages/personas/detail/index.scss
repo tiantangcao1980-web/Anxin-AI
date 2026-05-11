@@ -1,0 +1,294 @@
+.detail-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #f7f5f2;
+}
+
+.detail-scroll {
+  flex: 1;
+}
+
+.loading-block {
+  padding: 200rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.loading-text {
+  color: #999;
+  font-size: 28rpx;
+  margin-bottom: 24rpx;
+}
+
+.back-btn {
+  background: #d4a574;
+  color: #fff;
+  padding: 16rpx 48rpx;
+  border-radius: 32rpx;
+  font-size: 26rpx;
+}
+
+/* hero */
+.hero {
+  background: linear-gradient(160deg, #fffaf3 0%, #fdf3e0 100%);
+  padding: 40rpx 32rpx 36rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-bottom: 1rpx solid #efe3cf;
+}
+
+.hero-emoji-wrap {
+  width: 144rpx;
+  height: 144rpx;
+  border-radius: 36rpx;
+  background: #fff;
+  box-shadow: 0 6rpx 20rpx rgba(212, 165, 116, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24rpx;
+}
+
+.hero-emoji {
+  font-size: 88rpx;
+  line-height: 1;
+}
+
+.hero-name {
+  font-size: 40rpx;
+  font-weight: 600;
+  color: #2a2a2a;
+  margin-bottom: 12rpx;
+}
+
+.hero-tag {
+  font-size: 22rpx;
+  padding: 4rpx 18rpx;
+  border-radius: 16rpx;
+  margin-bottom: 16rpx;
+}
+
+.tag-on {
+  background: #ecf7e9;
+  color: #4f8c3a;
+}
+
+.tag-plan {
+  background: #fdebcf;
+  color: #b07a26;
+}
+
+.hero-desc {
+  font-size: 26rpx;
+  color: #6a6a6a;
+  text-align: center;
+  line-height: 1.6;
+  padding: 0 24rpx;
+}
+
+/* tab bar */
+.tab-bar {
+  display: flex;
+  background: #fff;
+  border-bottom: 1rpx solid #efe9e1;
+  padding: 0 24rpx;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 22rpx 0 16rpx;
+  position: relative;
+}
+
+.tab-label {
+  font-size: 26rpx;
+  color: #888;
+}
+
+.tab-underline {
+  width: 0;
+  height: 4rpx;
+  background: #d4a574;
+  border-radius: 2rpx;
+  margin-top: 8rpx;
+  transition: width 200ms;
+}
+
+.tab-item.active .tab-label {
+  color: #d4a574;
+  font-weight: 600;
+}
+
+.tab-item.active .tab-underline {
+  width: 56rpx;
+}
+
+/* tab content */
+.tab-content {
+  padding: 24rpx 24rpx 12rpx;
+}
+
+.cap-list {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 8rpx 24rpx;
+}
+
+.cap-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #f4eee5;
+}
+
+.cap-item:last-child {
+  border-bottom: none;
+}
+
+.cap-num {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #d4a574;
+  margin-right: 20rpx;
+  margin-top: 2rpx;
+  width: 48rpx;
+}
+
+.cap-text {
+  flex: 1;
+  font-size: 26rpx;
+  color: #333;
+  line-height: 1.6;
+}
+
+/* chips */
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+}
+
+.chip {
+  font-size: 22rpx;
+  padding: 10rpx 20rpx;
+  border-radius: 24rpx;
+  line-height: 1.4;
+}
+
+.skill-chip {
+  background: #f3eee6;
+  color: #6b5236;
+}
+
+.agent-chip {
+  background: #ecf2fb;
+  color: #3a5a8c;
+}
+
+.app-chip {
+  background: #fdf3e0;
+  color: #b07a26;
+}
+
+.sub-title {
+  width: 100%;
+  margin: 16rpx 0 4rpx;
+  font-size: 24rpx;
+  color: #888;
+}
+
+.helper-text {
+  width: 100%;
+  font-size: 22rpx;
+  color: #a89580;
+  margin-top: 16rpx;
+  line-height: 1.5;
+}
+
+/* samples */
+.samples-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.sample-block {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 20rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.bubble {
+  border-radius: 16rpx;
+  padding: 18rpx 22rpx;
+  font-size: 26rpx;
+  line-height: 1.6;
+}
+
+.user-bubble {
+  background: #f7eedd;
+  color: #3a2e1f;
+  align-self: flex-end;
+  max-width: 88%;
+}
+
+.ai-bubble {
+  background: #f5f2ed;
+  color: #2a2a2a;
+  align-self: flex-start;
+  max-width: 92%;
+  display: flex;
+  align-items: flex-start;
+}
+
+.bubble-emoji {
+  margin-right: 12rpx;
+  font-size: 30rpx;
+  line-height: 1.4;
+}
+
+.bubble-text {
+  flex: 1;
+}
+
+/* cta bar */
+.cta-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border-top: 1rpx solid #efe9e1;
+  padding: 16rpx 32rpx calc(16rpx + env(safe-area-inset-bottom));
+}
+
+.cta-btn {
+  background: linear-gradient(135deg, #d4a574 0%, #e0b88a 100%);
+  border-radius: 36rpx;
+  padding: 22rpx 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6rpx 16rpx rgba(212, 165, 116, 0.25);
+}
+
+.cta-text {
+  color: #fff;
+  font-size: 30rpx;
+  font-weight: 600;
+}

@@ -1,0 +1,110 @@
+.sk-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #f5f5f5;
+}
+
+.sk-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx;
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+}
+.sk-summary {
+  font-size: 26rpx;
+  color: #666;
+}
+.sk-summary-num {
+  color: #D4A574;
+  font-weight: 700;
+  font-size: 32rpx;
+}
+.sk-upload-btn {
+  background: #D4A574;
+  color: #fff;
+  font-size: 24rpx;
+  padding: 8rpx 24rpx;
+  border-radius: 32rpx;
+  line-height: 1.6;
+  min-height: 0;
+}
+
+.sk-scroll {
+  flex: 1;
+  padding: 16rpx 0 32rpx;
+  box-sizing: border-box;
+}
+
+.sk-empty {
+  padding: 80rpx 0;
+  text-align: center;
+  color: #999;
+  font-size: 26rpx;
+}
+
+.sk-group {
+  margin: 16rpx 24rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+.sk-group-header {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 20rpx;
+  background: #fafafa;
+}
+.sk-group-title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #333;
+  flex: 1;
+}
+.sk-group-count {
+  font-size: 22rpx;
+  color: #999;
+  margin-right: 12rpx;
+}
+.sk-group-arrow {
+  font-size: 26rpx;
+  color: #ccc;
+}
+
+.sk-group-body {
+  background: #fff;
+}
+.sk-item {
+  display: flex;
+  align-items: center;
+  padding: 20rpx;
+  border-top: 1px solid #f5f5f5;
+}
+.sk-item-body {
+  flex: 1;
+  min-width: 0;
+}
+.sk-item-title {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #333;
+  display: block;
+  margin-bottom: 4rpx;
+}
+.sk-item-desc {
+  font-size: 22rpx;
+  color: #999;
+  line-height: 1.4;
+}
+.sk-item-deps {
+  font-size: 20rpx;
+  color: #B8864E;
+  margin-top: 4rpx;
+}
+.sk-switch {
+  margin-left: 16rpx;
+  transform: scale(0.7);
+}

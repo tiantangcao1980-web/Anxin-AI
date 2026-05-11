@@ -1,0 +1,69 @@
+name: Mini Program CI (P19-D)
+
+on:
+  pull_request:
+    paths:
+      - 'mini-program/**'
+      - '.github/workflows/mini-program.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'mini-program/**'
+      - '.github/workflows/mini-program.yml'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '22'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-weapp:
+    name: Build (Taro weapp) + Size Guard
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mini-program
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: mini-program/package-lock.json
+      - name: npm ci
+        run: npm ci --legacy-peer-deps
+      - name: build:weapp
+        run: npm run build:weapp
+        env:
+          NODE_ENV: production
+      - name: 主包/分包 size 校验 (主 < 1.5MB / 总 < 8MB)
+        run: |
+          chmod +x ../scripts/ci/check-bundle-sizes.sh
+          ../scripts/ci/check-bundle-sizes.sh mini-program
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mini-program-dist
+          path: mini-program/dist
+          retention-days: 7
+
+  build-h5:
+    name: Build (Taro H5) + Built-in Size Check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mini-program
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: mini-program/package-lock.json
+      - run: npm ci --legacy-peer-deps
+      - name: build:h5 (含 postbuild check-bundle-size)
+        run: npm run build:h5
+        env:
+          NODE_ENV: production

@@ -91,6 +91,32 @@ const Login = lazy(() => import('@/pages/Login'))
 // V2 架构：服务方端独立布局
 import ProLayout from '@/components/pro/ProLayout'
 
+// ===== V3 IA 占位页（与旧路由并存，可独立访问） =====
+const AgentsPage = lazy(() => import('@/pages/v3/agents/AgentsPage'))
+const ScheduledTasksPage = lazy(() => import('@/pages/v3/capabilities/ScheduledTasksPage'))
+const AppAuthorizationsPage = lazy(() => import('@/pages/v3/capabilities/AppAuthorizationsPage'))
+const SkillsPage = lazy(() => import('@/pages/v3/capabilities/SkillsPage'))
+const PluginsPage = lazy(() => import('@/pages/v3/capabilities/PluginsPage'))
+const MessageChannelsPage = lazy(() => import('@/pages/v3/capabilities/MessageChannelsPage'))
+const PairingAuthorizationsPage = lazy(() => import('@/pages/v3/capabilities/PairingAuthorizationsPage'))
+// V3 任务中心（P2 真业务化）
+const V3TasksPage = lazy(() => import('@/pages/v3/tasks/TasksPage'))
+// V3 智能体工作台（P8-C 真业务化 — 10 个 user-facing persona）
+const PersonaWorkspacePage = lazy(() => import('@/pages/v3/personas/PersonaWorkspacePage'))
+// V3 RAG 数据看板（P13-D — 多模态文档解析 / 文档库 / KG / VLM 查询）
+const RagDashboardPage = lazy(() => import('@/pages/v3/rag/RagDashboardPage'))
+const RagIngestPage = lazy(() => import('@/pages/v3/rag/IngestPage'))
+const RagDocumentLibraryPage = lazy(() => import('@/pages/v3/rag/DocumentLibraryPage'))
+const RagKnowledgeGraphPage = lazy(() => import('@/pages/v3/rag/KnowledgeGraphPage'))
+const RagMultimodalQueryPage = lazy(() => import('@/pages/v3/rag/MultimodalQueryPage'))
+
+// V3 Layout（侧边栏 IA）— 通过 VITE_V3_NAV=true 启用，默认仍用旧 Layout
+import LayoutV3 from '@/components/layout/LayoutV3'
+
+// 严格读取 boolean flag（避免 'false' 字符串被当成真值）
+const V3_NAV_ENABLED = import.meta.env.VITE_V3_NAV === 'true'
+const RootLayout = V3_NAV_ENABLED ? LayoutV3 : Layout
+
 // 治理后台（AdminLayout 静态引入，避免 Vite 动态 import 偶发 Failed to fetch module）
 const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'))
 const AdminUsers = lazy(() => import('@/pages/admin/AdminUsers'))
@@ -354,9 +380,18 @@ function App() {
                 <Route path="market" element={<CaseMarket />} />
               </Route>
 
-              {/* 受保护的业务路由 */}
-              <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+              {/* 受保护的业务路由 — Layout 由 VITE_V3_NAV 切换（默认旧 Layout） */}
+              <Route path="/" element={<ProtectedRoute><RootLayout /></ProtectedRoute>}>
                 <Route index element={<Navigate to="/chat" replace />} />
+
+                {/* ===== V3 IA 新增路由（占位） ===== */}
+                <Route path="agents" element={<AgentsPage />} />
+                <Route path="capabilities/scheduled-tasks" element={<ScheduledTasksPage />} />
+                <Route path="capabilities/app-authorizations" element={<AppAuthorizationsPage />} />
+                <Route path="capabilities/skills" element={<SkillsPage />} />
+                <Route path="capabilities/plugins" element={<PluginsPage />} />
+                <Route path="capabilities/message-channels" element={<MessageChannelsPage />} />
+                <Route path="capabilities/pairing-authorizations" element={<PairingAuthorizationsPage />} />
 
                 {/* ===== AI法务（仅智能对话） ===== */}
                 <Route path="chat" element={<ProtectedRoute feature="ai_chat"><Chat /></ProtectedRoute>} />
@@ -446,6 +481,16 @@ function App() {
                 <Route path="sync-conflicts" element={<SyncConflicts />} />
                 <Route path="conversation-insights" element={<Navigate to="/admin" replace />} />
                 <Route path="agent-workflow" element={<Navigate to="/admin" replace />} />
+
+                {/* ===== V3 任务中心(P2 真业务化) ===== */}
+                <Route path="v3/tasks" element={<ProtectedRoute><V3TasksPage /></ProtectedRoute>} />
+                <Route path="v3/personas/:personaId" element={<ProtectedRoute><PersonaWorkspacePage /></ProtectedRoute>} />
+                {/* ===== V3 RAG 数据看板(P13-D) ===== */}
+                <Route path="v3/rag" element={<ProtectedRoute><RagDashboardPage /></ProtectedRoute>} />
+                <Route path="v3/rag/ingest" element={<ProtectedRoute><RagIngestPage /></ProtectedRoute>} />
+                <Route path="v3/rag/library" element={<ProtectedRoute><RagDocumentLibraryPage /></ProtectedRoute>} />
+                <Route path="v3/rag/kg" element={<ProtectedRoute><RagKnowledgeGraphPage /></ProtectedRoute>} />
+                <Route path="v3/rag/query" element={<ProtectedRoute><RagMultimodalQueryPage /></ProtectedRoute>} />
 
                 {/* ===== 系统 ===== */}
                 <Route path="settings" element={<ProtectedRoute feature="settings"><Settings /></ProtectedRoute>} />

@@ -3,7 +3,13 @@ import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
 import { setupDynamicImportRecovery } from './lib/dynamicImportRecovery'
+import { initSentry } from './lib/monitoring/sentry'
+import { initWebVitals } from './lib/monitoring/webVitals'
 import './index.css'
+
+// P19-B 可观测层：在挂载前初始化（Sentry 同步、WebVitals 异步动态加载）
+initSentry()
+void initWebVitals()
 
 const queryClient = new QueryClient({
   defaultOptions: {

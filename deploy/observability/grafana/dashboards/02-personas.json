@@ -1,0 +1,139 @@
+{
+  "description": "10 个 Persona 详情：调用量 / 平均时长 / 错误率 / Top Persona",
+  "editable": true,
+  "graphTooltip": 1,
+  "id": null,
+  "panels": [
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"unit": "reqps"}},
+      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"legend": {"displayMode": "table", "placement": "right"}},
+      "targets": [
+        {
+          "expr": "sum by (persona) (rate(anxin_persona_invocations_total[1m]))",
+          "refId": "A",
+          "legendFormat": "{{persona}}"
+        }
+      ],
+      "title": "10 Persona 调用 RPS",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"unit": "s"}},
+      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 0},
+      "id": 2,
+      "options": {"legend": {"displayMode": "table", "placement": "right"}},
+      "targets": [
+        {
+          "expr": "sum by (persona) (rate(anxin_persona_duration_seconds_sum[5m])) / sum by (persona) (rate(anxin_persona_duration_seconds_count[5m]))",
+          "refId": "A",
+          "legendFormat": "{{persona}}"
+        }
+      ],
+      "title": "Persona 平均处理时长",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 0.01},
+              {"color": "red", "value": 0.05}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 9},
+      "id": 3,
+      "options": {"legend": {"displayMode": "table", "placement": "right"}},
+      "targets": [
+        {
+          "expr": "sum by (persona) (rate(anxin_persona_errors_total[5m])) / sum by (persona) (rate(anxin_persona_invocations_total[5m]))",
+          "refId": "A",
+          "legendFormat": "{{persona}}"
+        }
+      ],
+      "title": "Persona 错误率 (5m)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"unit": "short"}},
+      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 9},
+      "id": 4,
+      "options": {"displayLabels": ["name", "percent"], "legend": {"displayMode": "table"}},
+      "targets": [
+        {
+          "expr": "topk(10, sum by (persona) (increase(anxin_persona_invocations_total[24h])))",
+          "refId": "A",
+          "legendFormat": "{{persona}}"
+        }
+      ],
+      "title": "Top 10 Persona 24h 调用量",
+      "type": "piechart"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"unit": "s"}},
+      "gridPos": {"h": 9, "w": 24, "x": 0, "y": 18},
+      "id": 5,
+      "options": {"legend": {"displayMode": "table", "placement": "right"}},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum by (le, persona) (rate(anxin_persona_duration_seconds_bucket[5m])))",
+          "refId": "A",
+          "legendFormat": "{{persona}} P99"
+        }
+      ],
+      "title": "各 Persona P99 延迟",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"unit": "short"}},
+      "gridPos": {"h": 7, "w": 12, "x": 0, "y": 27},
+      "id": 6,
+      "targets": [
+        {
+          "expr": "sum by (persona) (increase(anxin_ai_calls_total[1h]))",
+          "refId": "A",
+          "legendFormat": "{{persona}}"
+        }
+      ],
+      "title": "Persona AI 调用次数 (1h)",
+      "type": "barchart"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"unit": "short"}},
+      "gridPos": {"h": 7, "w": 12, "x": 12, "y": 27},
+      "id": 7,
+      "targets": [
+        {
+          "expr": "sum by (persona) (rate(anxin_knowledge_searches_total[5m]))",
+          "refId": "A",
+          "legendFormat": "{{persona}}"
+        }
+      ],
+      "title": "Persona 知识库检索 RPS",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["anxin", "v3", "personas"],
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
+  "timezone": "Asia/Shanghai",
+  "title": "02 - 安心 V3 - Personas 详情",
+  "uid": "anxin-personas",
+  "version": 1
+}

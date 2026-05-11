@@ -1,0 +1,108 @@
+// -*- coding: utf-8 -*-
+.timeline {
+  position: relative;
+  padding: 8rpx 0 16rpx;
+
+  &--empty {
+    text-align: center;
+    padding: 60rpx 0;
+  }
+  &__empty-text {
+    color: #86909C;
+    font-size: 26rpx;
+  }
+}
+
+.tl-item {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  padding: 14rpx 0;
+
+  &__bullet {
+    width: 16rpx;
+    height: 16rpx;
+    border-radius: 50%;
+    margin-top: 14rpx;
+    margin-right: 18rpx;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 4rpx #FFFFFF;
+  }
+
+  &__body {
+    flex: 1;
+    background: #F5F5F5;
+    border-radius: 14rpx;
+    padding: 16rpx 20rpx;
+  }
+
+  &__head {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6rpx;
+    gap: 16rpx;
+  }
+  &__type {
+    font-size: 26rpx;
+    color: #1D2129;
+    font-weight: 600;
+  }
+  &__time {
+    font-size: 22rpx;
+    color: #86909C;
+    flex-shrink: 0;
+  }
+
+  &__body-text {
+    font-size: 26rpx;
+    color: #4E5969;
+    line-height: 1.55;
+  }
+
+  &__code-wrap {
+    margin-top: 10rpx;
+  }
+  &__code-toggle {
+    font-size: 22rpx;
+    color: #1D4ED8;
+  }
+  &__code {
+    display: block;
+    margin-top: 10rpx;
+    background: #1D2129;
+    color: #E5E6EB;
+    border-radius: 8rpx;
+    padding: 14rpx 16rpx;
+    font-size: 22rpx;
+    font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  // 6 类配色
+  &--status &__bullet { background: #C9CDD4; }
+  &--status &__body   { background: #F5F5F5; }
+
+  &--progress &__bullet { background: #C9CDD4; }
+  &--progress &__body   { background: #F5F5F5; }
+
+  &--tool-call &__bullet { background: #1D4ED8; }
+  &--tool-call &__body   { background: #E0EAFE; }
+  &--tool-call &__type   { color: #1D4ED8; }
+
+  &--tool-result &__bullet { background: #15803D; }
+  &--tool-result &__body   { background: #DCFCE7; }
+  &--tool-result &__type   { color: #15803D; }
+
+  &--error &__bullet { background: #B91C1C; }
+  &--error &__body   { background: #FEE2E2; }
+  &--error &__type   { color: #B91C1C; }
+
+  &--done &__bullet { background: #15803D; }
+  &--done &__body   { background: #DCFCE7; }
+  &--done &__type   { color: #15803D; }
+}

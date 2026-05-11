@@ -1,0 +1,157 @@
+{
+  "description": "任务系统：队列长度 / 状态分布 / persona 维度耗时",
+  "editable": true,
+  "graphTooltip": 1,
+  "id": null,
+  "panels": [
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 500},
+              {"color": "red", "value": 1000}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 6, "w": 8, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"colorMode": "background", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [
+        {
+          "expr": "sum(anxin_task_queue_length)",
+          "refId": "A",
+          "legendFormat": "Total Queue"
+        }
+      ],
+      "title": "任务队列总长度",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"unit": "short"}},
+      "gridPos": {"h": 6, "w": 8, "x": 8, "y": 0},
+      "id": 2,
+      "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [
+        {
+          "expr": "anxin_active_investigations",
+          "refId": "A",
+          "legendFormat": "Investigations"
+        }
+      ],
+      "title": "进行中的调研任务",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"unit": "short"}},
+      "gridPos": {"h": 6, "w": 8, "x": 16, "y": 0},
+      "id": 3,
+      "options": {"colorMode": "value", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [
+        {
+          "expr": "sum(rate(anxin_task_completed_total[5m]))",
+          "refId": "A",
+          "legendFormat": "Completed/s"
+        }
+      ],
+      "title": "任务完成 RPS (5m)",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"unit": "short"}},
+      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 6},
+      "id": 4,
+      "options": {"legend": {"displayMode": "table", "placement": "right"}},
+      "targets": [
+        {
+          "expr": "sum by (status) (anxin_task_count)",
+          "refId": "A",
+          "legendFormat": "{{status}}"
+        }
+      ],
+      "title": "任务状态分布 (pending/running/done/failed)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"unit": "short"}},
+      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 6},
+      "id": 5,
+      "options": {"legend": {"displayMode": "table"}},
+      "targets": [
+        {
+          "expr": "sum by (persona) (anxin_task_queue_length)",
+          "refId": "A",
+          "legendFormat": "{{persona}}"
+        }
+      ],
+      "title": "Persona 维度任务积压",
+      "type": "barchart"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"unit": "s"}},
+      "gridPos": {"h": 9, "w": 24, "x": 0, "y": 15},
+      "id": 6,
+      "options": {"legend": {"displayMode": "table", "placement": "right"}},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, persona) (rate(anxin_task_duration_seconds_bucket[10m])))",
+          "refId": "A",
+          "legendFormat": "{{persona}} P95"
+        }
+      ],
+      "title": "各 Persona 任务执行 P95 时长",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"unit": "percentunit"}},
+      "gridPos": {"h": 7, "w": 12, "x": 0, "y": 24},
+      "id": 7,
+      "options": {"legend": {"displayMode": "table"}},
+      "targets": [
+        {
+          "expr": "sum(rate(anxin_task_failed_total[10m])) / sum(rate(anxin_task_completed_total[10m]))",
+          "refId": "A",
+          "legendFormat": "Failure rate"
+        }
+      ],
+      "title": "任务失败率",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"unit": "short"}},
+      "gridPos": {"h": 7, "w": 12, "x": 12, "y": 24},
+      "id": 8,
+      "options": {"legend": {"displayMode": "table"}},
+      "targets": [
+        {
+          "expr": "sum(anxin_dream_consolidations_total) by (persona)",
+          "refId": "A",
+          "legendFormat": "{{persona}}"
+        }
+      ],
+      "title": "做梦/经验沉淀次数",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["anxin", "v3", "tasks"],
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
+  "timezone": "Asia/Shanghai",
+  "title": "03 - 安心 V3 - 任务系统",
+  "uid": "anxin-tasks",
+  "version": 1
+}

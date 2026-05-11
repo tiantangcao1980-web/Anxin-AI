@@ -366,6 +366,7 @@ async def wechat_webhook(
     显式启用官方模式时按微信支付 v3 RSA-SHA256 验签，未启用时走通用 HMAC 回归路径。
     """
     body = await request.body()
+<<<<<<< HEAD
     logger.info(
         "[Webhook] 微信支付回调: {}",
         body[:200].decode("utf-8", errors="replace"),
@@ -387,7 +388,7 @@ async def wechat_webhook(
     else:
         signature = request.headers.get("X-Wechat-Signature")
         timestamp = request.headers.get("X-Webhook-Timestamp")
-        if not WebhookSecurity.verify(
+        if not await WebhookSecurity.verify(
             scope="wechat_pay",
             body=body,
             signature=signature,
@@ -433,6 +434,7 @@ async def alipay_webhook(
     body = await request.body()
     form = await request.form()
     logger.info(f"[Webhook] 支付宝回调: trade_no={form.get('trade_no')}")
+<<<<<<< HEAD
     scope = PaymentProviderType.ALIPAY.value
     payload = dict(form)
     if settings.ALIPAY_OFFICIAL_WEBHOOK_ENABLED:
@@ -447,7 +449,7 @@ async def alipay_webhook(
     else:
         signature = request.headers.get("X-Alipay-Signature")
         timestamp = request.headers.get("X-Webhook-Timestamp")
-        if not WebhookSecurity.verify(
+        if not await WebhookSecurity.verify(
             scope="alipay",
             body=body,
             signature=signature,

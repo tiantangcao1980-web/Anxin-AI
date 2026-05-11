@@ -1,0 +1,102 @@
+# -*- coding: utf-8 -*-
+# Alertmanager 路由配置
+# critical -> PagerDuty + 电话；warning -> 飞书；info -> 仅日志
+
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: "smtp.example.com:587"
+  smtp_from: "alert@anxinagent.com"
+
+# 告警路由树
+route:
+  receiver: default-feishu
+  group_by: [alertname, severity, team]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    # critical -> PagerDuty + 飞书 (双通道)
+    - matchers:
+        - severity = "critical"
+      receiver: pagerduty-critical
+      group_wait: 10s
+      repeat_interval: 30m
+      continue: true
+    - matchers:
+        - severity = "critical"
+      receiver: feishu-critical
+      group_wait: 10s
+      repeat_interval: 30m
+
+    # warning -> 飞书
+    - matchers:
+        - severity = "warning"
+      receiver: feishu-warning
+      repeat_interval: 2h
+
+    # info -> 仅日志（webhook 留空 sink）
+    - matchers:
+        - severity = "info"
+      receiver: log-only
+
+# 静默规则：critical 触发时压住相关 warning，避免噪音
+inhibit_rules:
+  - source_matchers:
+      - severity = "critical"
+    target_matchers:
+      - severity = "warning"
+    equal: [team, alertname]
+
+  # BackendDown 时压住所有业务 SLO 告警
+  - source_matchers:
+      - alertname = "BackendDown"
+    target_matchers:
+      - slo =~ ".+"
+    equal: [cluster]
+
+  # DatabaseDown 时压住相关慢查询告警
+  - source_matchers:
+      - alertname = "DatabaseDown"
+    target_matchers:
+      - alertname =~ "Slow.*"
+    equal: [cluster]
+
+# 接收器
+receivers:
+  - name: default-feishu
+    webhook_configs:
+      - url: https://open.feishu.cn/open-apis/bot/v2/hook/REPLACE_DEFAULT_TOKEN
+        send_resolved: true
+
+  - name: pagerduty-critical
+    pagerduty_configs:
+      - service_key: REPLACE_PAGERDUTY_INTEGRATION_KEY
+        severity: critical
+        description: "[安心V3-CRITICAL] {{ .CommonAnnotations.summary }}"
+        details:
+          runbook: "{{ .CommonAnnotations.runbook }}"
+          firing: "{{ .Alerts.Firing | len }}"
+
+  - name: feishu-critical
+    webhook_configs:
+      - url: https://open.feishu.cn/open-apis/bot/v2/hook/REPLACE_FEISHU_CRITICAL_TOKEN
+        send_resolved: true
+        max_alerts: 10
+
+  - name: feishu-warning
+    webhook_configs:
+      - url: https://open.feishu.cn/open-apis/bot/v2/hook/REPLACE_FEISHU_WARNING_TOKEN
+        send_resolved: true
+        max_alerts: 10
+
+  # Slack 备用通道（占位）
+  - name: slack-backup
+    slack_configs:
+      - api_url: https://hooks.slack.com/services/REPLACE_SLACK_WEBHOOK
+        channel: "#anxin-alerts"
+        send_resolved: true
+
+  - name: log-only
+    webhook_configs:
+      - url: http://localhost:9999/null-sink
+        send_resolved: false

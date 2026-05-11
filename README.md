@@ -1,6 +1,19 @@
-# 安心法务 — AI 智能法务平台
+# 安心智能助手 — 制造业全链路智能经营助理
 
-> 通过 AI 能力 + 一键触达律师，为律师、中小企业和个人提供专业、便捷的法律服务。
+> 一个 App 搞定 法务 / 税务 / 财务 / 公司过程管理 / 调研获客 / 内容产出 / 出海跨境，专为中国成长型制造企业打造。
+>
+> _项目脱胎于「安心法务」（v1/v2，已上线 anxinfawu.com），v3 升级为面向制造业的全链路智能助理。法务能力作为最成熟的垂直域保留并继续演进。_
+
+## CI 状态 (P19-D)
+
+[![Backend CI](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/backend.yml/badge.svg)](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/backend.yml)
+[![Frontend CI](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/frontend.yml/badge.svg)](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/frontend.yml)
+[![Mobile CI](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/mobile.yml/badge.svg)](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/mobile.yml)
+[![Mini Program CI](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/mini-program.yml/badge.svg)](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/mini-program.yml)
+[![Tauri Desktop CI](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/tauri-desktop.yml/badge.svg)](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/tauri-desktop.yml)
+[![codecov](https://codecov.io/gh/tiantangcao1980-web/Anxin-Smart-Assistant/branch/main/graph/badge.svg)](https://codecov.io/gh/tiantangcao1980-web/Anxin-Smart-Assistant)
+
+本地一键 smoke：`bash scripts/ci/run-smoke.sh`（详见 [docs/v3/CI_PIPELINE.md](docs/v3/CI_PIPELINE.md)）
 
 ## 产品定位
 
@@ -9,6 +22,44 @@
 - **守护** — 为企业经营保驾护航，降低法律风险
 - **放心** — 数据私有化部署，信息安全可控
 - **专业** — 21 个专业 AI 智能体 + 一键匹配真人律师
+
+## 🚀 V3 架构（进行中 — P0-P7 已落地）
+
+V3 是从「安心法务」升级到「**安心智能助手**」的全链路重构：法务能力作为最成熟的垂直域沿用，新增 9 个增长 + 协调 + 出海 persona，目标做成中国制造业的全链路智能经营助理。
+
+> **当前进度（2026-04-27）**：P0–P7 全部 ✅ — 31 commits / **61 个 v3 API endpoint** / 543+ pytest。详见 [docs/v3/V3_DELIVERY_SUMMARY.md](docs/v3/V3_DELIVERY_SUMMARY.md)。
+
+### V3 已交付能力
+
+| 阶段 | 交付 | 状态 |
+|---|---|---|
+| P0 品牌切换 | 安心法务 → 安心智能助手 | ✅ |
+| P1 IA 重构 | 10 personas 侧边栏 + 7 v3 占位页 + 后端 3 模块骨架 + 6 大文档 | ✅ |
+| P2 异步任务 MVP | TaskOrchestrator + Celery + 8 endpoint | ✅ |
+| P3 IM 通道 + 沙箱 | 飞书 adapter 真 + 4 占位 + 配对授权 24h + Sandbox LocalProvider | ✅ |
+| P4 OAuth 框架 + 5 provider | 飞书 / 钉钉 / Notion / Shopify(HMAC) + Amazon SP-API mock | ✅ |
+| P5 Skills 运行时 + 4 office skill | skill_registry + skill_executor + docx/xlsx/pptx/pdf | ✅ |
+| P6 信息获取栈 4 层 | HTTP / crawl4ai / HeadlessX / 官方 API + 5 法律源 + 5 电商源 | ✅ |
+| P7 5 user-facing personas | 流程管家 / 市场研究员 / 获客猎手 / 内容总监 / 跨境电商助手 | ✅ |
+
+### V3 文档导航
+
+| 文档 | 说明 |
+|---|---|
+| [V3_DELIVERY_SUMMARY](docs/v3/V3_DELIVERY_SUMMARY.md) ⭐ | 一页纸总览：commits 时间线 / 61 endpoint / 上手指南 |
+| [ARCHITECTURE](docs/v3/ARCHITECTURE.md) | 6 层分层架构 + 模块清单 + 已实现 vs 规划 |
+| [AGENT_PERSONAS](docs/v3/AGENT_PERSONAS.md) | 10 persona 详情 + 实装 API endpoints |
+| [CAPABILITY_MATRIX](docs/v3/CAPABILITY_MATRIX.md) | 4 横 × 4 纵能力矩阵 + 实装状态 |
+| [ROADMAP](docs/v3/ROADMAP.md) | P0-P13+ 完整路线 + 风险登记册 |
+| [INTEGRATIONS](docs/v3/INTEGRATIONS.md) | 34+ OAuth provider 清单 + 实装状态 |
+| [SKILLS_INVENTORY](docs/v3/SKILLS_INVENTORY.md) | 13 域 76+ skill + 4 office 实装路径 |
+
+### V3 后续阶段
+
+- 🚧 P8（进行中）：baseline bug 修 + 健康度 + 前端 personas 落地页 + 文档同步
+- 🔜 P9+：5 法务 persona 上层包装（21 agent 已就绪）/ 真 OAuth / 知识库新版 RAG-Anything / 团队协作 / E2E playwright 全量 / 生产部署到 `anxinassistant.com`
+
+---
 
 ## 🏗️ V2 架构（进行中）
 

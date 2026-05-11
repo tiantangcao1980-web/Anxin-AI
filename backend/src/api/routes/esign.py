@@ -517,6 +517,7 @@ async def esign_webhook(
     """
     signature = request.headers.get("X-ESign-Signature", "")
     timestamp = request.headers.get("X-Webhook-Timestamp")
+<<<<<<< HEAD
     body = await request.body()
     try:
         webhook_payload = await _parse_webhook_payload(request, body)
@@ -548,7 +549,7 @@ async def esign_webhook(
                 )
         except OfficialWebhookVerificationError as exc:
             raise HTTPException(status_code=403, detail=f"电签官方验签失败: {exc}") from exc
-    elif not WebhookSecurity.verify(
+    elif not await WebhookSecurity.verify(
         scope="esign",
         body=body,
         signature=signature,

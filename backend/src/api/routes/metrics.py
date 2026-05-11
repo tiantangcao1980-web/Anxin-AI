@@ -10,13 +10,15 @@ Prometheus Metrics 端点
 
 from typing import Any, cast
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
 from loguru import logger
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
 from src.models.webhook import WebhookReceived
+
+from src.core.config import settings
 
 router = APIRouter()
 
@@ -77,6 +79,7 @@ async def prometheus_metrics(db: AsyncSession = Depends(get_db)) -> Response:
     except Exception:
         pass
 
+<<<<<<< HEAD
     try:
         result = await db.execute(
             select(WebhookReceived.status, func.count(WebhookReceived.id)).group_by(WebhookReceived.status)
@@ -95,7 +98,30 @@ async def prometheus_metrics(db: AsyncSession = Depends(get_db)) -> Response:
     except Exception as exc:
         logger.warning(f"导出 webhook 指标失败: {exc}")
 
+    # P19-A: 追加业务级 prometheus_client 暴露（19 个 metric）
+    if getattr(settings, "METRICS_ENABLED", True):
+        try:
+            from src.services.monitoring.prometheus_metrics import CONTENT_TYPE_LATEST, render_exposition
+            return Response(
+                content="\n".join(lines) + "\n" + render_exposition().decode("utf-8"),
+                media_type=CONTENT_TYPE_LATEST,
+            )
+        except Exception as e:
+            logger.warning(f"prometheus exposition 失败: {e}")
+
     return Response(
         content="\n".join(lines) + "\n",
         media_type="text/plain; charset=utf-8",
     )
+
+
+@router.get("/metrics/business", tags=["监控指标"])
+async def business_metrics_only(
+    x_metrics_token: str = Header(default="", alias="X-Metrics-Token"),
+) -> Response:
+    """业务级 prometheus 暴露（admin 鉴权）— 仅返回 P19-A 业务 metric。"""
+    expected = (getattr(settings, "METRICS_AUTH_TOKEN", "") or "").strip()
+    if expected and x_metrics_token != expected:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="invalid metrics token")
+    from src.services.monitoring.prometheus_metrics import CONTENT_TYPE_LATEST, render_exposition
+    return Response(content=render_exposition(), media_type=CONTENT_TYPE_LATEST)

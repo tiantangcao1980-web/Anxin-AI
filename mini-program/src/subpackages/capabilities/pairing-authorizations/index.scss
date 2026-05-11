@@ -1,0 +1,126 @@
+.pa-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #f5f5f5;
+}
+
+.pa-seg {
+  display: flex;
+  background: #fff;
+  margin: 16rpx 24rpx;
+  border-radius: 32rpx;
+  padding: 6rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+}
+.pa-seg-item {
+  flex: 1;
+  text-align: center;
+  padding: 14rpx 0;
+  font-size: 26rpx;
+  color: #666;
+  border-radius: 28rpx;
+}
+.pa-seg-item--active {
+  background: #D4A574;
+  color: #fff;
+  font-weight: 600;
+}
+.pa-seg-item--active text { color: #fff; }
+
+.pa-scroll {
+  flex: 1;
+  padding: 0 24rpx 32rpx;
+  box-sizing: border-box;
+}
+
+.pa-empty {
+  padding: 80rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.pa-empty-icon {
+  font-size: 80rpx;
+  margin-bottom: 16rpx;
+}
+.pa-empty-text {
+  font-size: 26rpx;
+  color: #999;
+}
+
+.pa-card {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 20rpx;
+  margin-bottom: 16rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+.pa-card-icon {
+  font-size: 48rpx;
+  width: 64rpx;
+  margin-right: 16rpx;
+  text-align: center;
+}
+.pa-card-body {
+  flex: 1;
+  min-width: 0;
+}
+.pa-card-titlerow {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: 4rpx;
+}
+.pa-card-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #333;
+}
+.pa-card-channel {
+  font-size: 22rpx;
+  color: #999;
+  margin-left: 8rpx;
+}
+.pa-card-group {
+  font-size: 22rpx;
+  color: #B8864E;
+  margin-bottom: 4rpx;
+}
+.pa-card-time {
+  font-size: 20rpx;
+  color: #999;
+}
+.pa-card-cd {
+  font-size: 20rpx;
+  color: #4b5563;
+  margin-top: 4rpx;
+}
+.pa-card-cd--warn {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.pa-actions {
+  display: flex;
+  flex-direction: column;
+  margin-left: 16rpx;
+}
+.pa-btn {
+  padding: 12rpx 24rpx;
+  border-radius: 32rpx;
+  margin-bottom: 8rpx;
+  text-align: center;
+}
+.pa-btn-text { font-size: 24rpx; font-weight: 600; }
+.pa-btn--ok { background: #D4A574; }
+.pa-btn--ok .pa-btn-text { color: #fff; }
+.pa-btn--no { background: #f3f4f6; }
+.pa-btn--no .pa-btn-text { color: #666; }
+.pa-btn--more {
+  background: #f3f4f6;
+  margin-left: 16rpx;
+  padding: 16rpx 24rpx;
+}
+.pa-btn--more .pa-btn-text { color: #666; }

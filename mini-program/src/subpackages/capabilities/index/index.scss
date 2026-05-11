@@ -1,0 +1,135 @@
+// 能力中心入口页（P21-D）
+// 暖色 #D4A574 主色，对齐 mini-program 既有 profile 风格
+.caps-index {
+  min-height: 100vh;
+  background: #f5f5f5;
+  box-sizing: border-box;
+  padding-bottom: 32rpx;
+}
+
+.caps-header {
+  padding: 32rpx 32rpx 16rpx;
+  background: linear-gradient(135deg, #D4A574 0%, #B8864E 100%);
+  color: #fff;
+}
+.caps-heading {
+  font-size: 40rpx;
+  font-weight: 700;
+  display: block;
+  margin-bottom: 8rpx;
+}
+.caps-sub {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.caps-search {
+  display: flex;
+  align-items: center;
+  margin: 24rpx;
+  padding: 16rpx 24rpx;
+  background: #fff;
+  border-radius: 48rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+.caps-search-icon {
+  font-size: 28rpx;
+  margin-right: 12rpx;
+  color: #999;
+}
+.caps-search-input {
+  flex: 1;
+  font-size: 28rpx;
+  color: #333;
+  height: 48rpx;
+}
+
+.caps-grid {
+  margin: 0 24rpx;
+}
+
+.caps-card {
+  display: flex;
+  align-items: center;
+  padding: 28rpx 24rpx;
+  margin-bottom: 16rpx;
+  background: #fff;
+  border-radius: 20rpx;
+  box-shadow: 0 2rpx 14rpx rgba(0, 0, 0, 0.06);
+  position: relative;
+}
+.caps-card--hover {
+  background: #fafafa;
+  transform: scale(0.99);
+}
+
+.caps-card-emoji {
+  font-size: 56rpx;
+  margin-right: 24rpx;
+  width: 80rpx;
+  text-align: center;
+}
+
+.caps-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.caps-card-titlerow {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6rpx;
+}
+.caps-card-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+  margin-right: 12rpx;
+}
+.caps-card-sub {
+  font-size: 24rpx;
+  color: #999;
+  line-height: 1.5;
+}
+
+.caps-card-arrow {
+  color: #ccc;
+  font-size: 40rpx;
+  margin-left: 12rpx;
+}
+
+.caps-badge {
+  min-width: 32rpx;
+  padding: 0 10rpx;
+  height: 32rpx;
+  border-radius: 16rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.caps-badge--warning { background: #fef3c7; }
+.caps-badge--success { background: #d1fae5; }
+.caps-badge--primary { background: #fde6c8; }
+.caps-badge-text {
+  font-size: 20rpx;
+  font-weight: 600;
+  color: #B8864E;
+  line-height: 1;
+}
+.caps-badge--warning .caps-badge-text { color: #b45309; }
+.caps-badge--success .caps-badge-text { color: #065f46; }
+
+.caps-empty {
+  padding: 80rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.caps-empty-icon {
+  font-size: 80rpx;
+  margin-bottom: 16rpx;
+}
+.caps-empty-text {
+  font-size: 26rpx;
+  color: #999;
+}

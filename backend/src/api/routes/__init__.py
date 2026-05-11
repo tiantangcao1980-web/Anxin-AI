@@ -8,8 +8,10 @@ from src.api.routes import (
     acquisition_analytics,
     admin,
     agent_approvals,
+    agent_tasks,
     ai_assistant,
     anonymous_chat,
+    app_authorizations,
     approvals,
     assets,
     auth,
@@ -18,6 +20,7 @@ from src.api.routes import (
     cases,
     chat,
     cli,
+    client_errors,
     collaboration,
     collaboration_ws,
     compliance,
@@ -30,9 +33,11 @@ from src.api.routes import (
     esign,
     experts,
     feature_flags,
+    fetch,
     firm_management,
     harness,
     im,
+    im_pairing,
     integrations,
     knowledge,
     knowledge_management,
@@ -47,11 +52,25 @@ from src.api.routes import (
     notifications,
     offline_packs,
     payments,
+    persona_anxin,
+    persona_content,
+    persona_contract,
+    persona_dd,
+    persona_ecommerce,
+    persona_finance,
+    persona_legal,
+    persona_market,
+    persona_sales,
+    personas,
     privacy,
+    rag_ingest,
+    rag_kg,
+    rag_query,
     rtc,
     security_challenge,
     sentiment,
     skill_governance,
+    skills,
     sync,
     tasks,
     updates,
@@ -110,3 +129,22 @@ api_router.include_router(knowledge_management.router, tags=["知识管理"])
 api_router.include_router(harness.router, tags=["Harness监控"])
 api_router.include_router(cli.router, tags=["CLI命令"])
 api_router.include_router(case_market.router, tags=["案源市场"])
+api_router.include_router(agent_tasks.router, prefix="/agent-tasks", tags=["异步任务"])
+api_router.include_router(im_pairing.router, prefix="/im/pairing", tags=["IM配对授权"])
+api_router.include_router(app_authorizations.router, prefix="/app-authorizations", tags=["应用授权"])
+api_router.include_router(skills.router, prefix="/skills", tags=["技能注册表"])
+api_router.include_router(fetch.router, prefix="/fetch", tags=["信息获取栈"])
+api_router.include_router(personas.router, prefix="/personas", tags=["V3 Personas"])
+api_router.include_router(persona_market.router, prefix="/personas/market", tags=["市场研究员"])
+api_router.include_router(persona_sales.router, prefix="/personas/sales", tags=["获客猎手"])
+api_router.include_router(persona_content.router, prefix="/personas/content", tags=["内容总监 persona"])
+api_router.include_router(persona_ecommerce.router, prefix="/personas/ecommerce", tags=["跨境电商助手"])
+api_router.include_router(persona_anxin.router, prefix="/personas/anxin", tags=["安心助理 persona"])
+api_router.include_router(persona_legal.router, prefix="/personas/legal", tags=["法律顾问 persona"])
+api_router.include_router(persona_contract.router, prefix="/personas/contract", tags=["合同管家"])
+api_router.include_router(persona_dd.router, prefix="/personas/dd", tags=["尽调专家"])
+api_router.include_router(persona_finance.router, prefix="/personas/finance", tags=["财税顾问"])
+api_router.include_router(rag_ingest.router, prefix="/rag/ingest", tags=["RAG 多模态接入"])
+api_router.include_router(rag_kg.router, prefix="/rag/kg", tags=["RAG 知识图谱（P13-B）"])
+api_router.include_router(rag_query.router, prefix="/rag/query", tags=["RAG VLM 增强 Query"])
+api_router.include_router(client_errors.router, tags=["客户端错误聚合（P19-B）"])

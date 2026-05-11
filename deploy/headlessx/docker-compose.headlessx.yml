@@ -1,0 +1,99 @@
+# HeadlessX 反检测抓取服务 — 独立 docker-compose 栈
+#
+# 启动：
+#   cd deploy/headlessx
+#   cp .env.example .env  &&  edit .env
+#   docker compose -f docker-compose.headlessx.yml --env-file .env up -d
+#
+# 暴露：仅在 internal 网络。主 Nginx 反代到 HEADLESSX_PORT（见 nginx-snippet.conf）。
+# 不要直接对公网暴露 :3000。
+
+services:
+  headlessx:
+    image: ghcr.io/saifyxpro/headlessx:latest
+    container_name: anxin-headlessx
+    restart: unless-stopped
+    environment:
+      # —— 鉴权 ——
+      API_KEY: ${HEADLESSX_API_KEY}
+      # —— 资源 / 并发 ——
+      MAX_CONCURRENT: ${HEADLESSX_MAX_CONCURRENT:-3}
+      DEFAULT_TIMEOUT_MS: ${HEADLESSX_DEFAULT_TIMEOUT_MS:-30000}
+      # —— Camoufox 配置 ——
+      CAMOUFOX_HEADLESS: "true"
+      CAMOUFOX_LOCALE: ${CAMOUFOX_LOCALE:-zh-CN}
+      CAMOUFOX_GEOIP: ${CAMOUFOX_GEOIP:-true}
+      # —— 数据层 ——
+      DATABASE_URL: postgresql://headlessx:${HEADLESSX_DB_PASSWORD}@headlessx-db:5432/headlessx
+      REDIS_URL: redis://headlessx-redis:6379/0
+      # —— Bot 检测分数（写回 botScore 字段）——
+      BOT_SCORE_ENABLED: "true"
+    ports:
+      - "${HEADLESSX_PORT:-3000}:3000"
+    depends_on:
+      headlessx-db:
+        condition: service_healthy
+      headlessx-redis:
+        condition: service_healthy
+    networks:
+      - headlessx-net
+      - default
+    deploy:
+      resources:
+        limits:
+          # Camoufox 单页面 ~500MB-1GB；3 并发预留 4G
+          memory: 4G
+          cpus: "2.0"
+        reservations:
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  headlessx-db:
+    image: postgres:16-alpine
+    container_name: anxin-headlessx-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: headlessx
+      POSTGRES_PASSWORD: ${HEADLESSX_DB_PASSWORD}
+      POSTGRES_DB: headlessx
+    volumes:
+      - headlessx-pgdata:/var/lib/postgresql/data
+    networks:
+      - headlessx-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U headlessx"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  headlessx-redis:
+    image: redis:7-alpine
+    container_name: anxin-headlessx-redis
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - headlessx-redisdata:/data
+    networks:
+      - headlessx-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  headlessx-pgdata:
+  headlessx-redisdata:
+
+networks:
+  headlessx-net:
+    driver: bridge
+  default:
+    # 接入主项目网络以便 backend 容器通过 http://headlessx:3000 访问
+    external: true
+    name: ${MAIN_NETWORK_NAME:-anxin-net}
