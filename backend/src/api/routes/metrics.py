@@ -79,7 +79,6 @@ async def prometheus_metrics(db: AsyncSession = Depends(get_db)) -> Response:
     except Exception:
         pass
 
-<<<<<<< HEAD
     try:
         result = await db.execute(
             select(WebhookReceived.status, func.count(WebhookReceived.id)).group_by(WebhookReceived.status)

@@ -517,7 +517,6 @@ async def esign_webhook(
     """
     signature = request.headers.get("X-ESign-Signature", "")
     timestamp = request.headers.get("X-Webhook-Timestamp")
-<<<<<<< HEAD
     body = await request.body()
     try:
         webhook_payload = await _parse_webhook_payload(request, body)

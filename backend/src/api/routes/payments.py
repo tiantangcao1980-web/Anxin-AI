@@ -366,7 +366,6 @@ async def wechat_webhook(
     显式启用官方模式时按微信支付 v3 RSA-SHA256 验签，未启用时走通用 HMAC 回归路径。
     """
     body = await request.body()
-<<<<<<< HEAD
     logger.info(
         "[Webhook] 微信支付回调: {}",
         body[:200].decode("utf-8", errors="replace"),
@@ -434,7 +433,6 @@ async def alipay_webhook(
     body = await request.body()
     form = await request.form()
     logger.info(f"[Webhook] 支付宝回调: trade_no={form.get('trade_no')}")
-<<<<<<< HEAD
     scope = PaymentProviderType.ALIPAY.value
     payload = dict(form)
     if settings.ALIPAY_OFFICIAL_WEBHOOK_ENABLED:

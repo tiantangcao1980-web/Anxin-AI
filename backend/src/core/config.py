@@ -415,9 +415,6 @@ class Settings(BaseSettings):
     # 前端登录页 URL（OAuth 回调后重定向）
     FRONTEND_LOGIN_URL: str = "http://localhost:3001/login"
 
-<<<<<<< HEAD
-    def __init__(self, **kwargs: Any) -> None:
-=======
     # ===== 飞书（Lark）IM 适配器（P3） =====
     # 控制台：https://open.feishu.cn → 应用凭证
     FEISHU_APP_ID: str = ""
@@ -464,7 +461,6 @@ class Settings(BaseSettings):
     TIKTOK_SHOP_APP_SECRET: str = ""
 
     def __init__(self, **kwargs: Any) -> None:
->>>>>>> v3/main
         super().__init__(**kwargs)
         # 自动生成安全的 JWT 密钥（如果未设置）
         if self.JWT_SECRET_KEY == "your-super-secret-jwt-key-change-in-production":
