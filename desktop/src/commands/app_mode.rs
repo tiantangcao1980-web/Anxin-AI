@@ -22,7 +22,7 @@ pub async fn switch_mode(
     };
     let mut config = runtime_config::load_or_default_for_app(&app, &current)?;
     config.mode = mode;
-    runtime_config::save_for_app(&app, &config)?;
+    runtime_config::save_current_runtime_for_app(&app, &config)?;
 
     let mut s = state.write().await;
     let old_mode = s.mode;
@@ -93,7 +93,7 @@ pub async fn set_backend_url(
     };
     let mut config = runtime_config::load_or_default_for_app(&app, &current)?;
     config.backend_url = runtime_config::normalize_backend_url(&url)?;
-    runtime_config::save_for_app(&app, &config)?;
+    runtime_config::save_current_runtime_for_app(&app, &config)?;
 
     let mut s = state.write().await;
     s.backend_url = config.backend_url;
@@ -219,7 +219,7 @@ pub async fn apply_workstation_profile(
         .ok_or_else(|| "未找到工作站配置档".to_string())?;
     config.mode = profile.mode;
     config.backend_url = profile.backend_url.clone();
-    runtime_config::save_for_app(&app, &config)?;
+    runtime_config::save_current_runtime_for_app(&app, &config)?;
 
     let mut s = state.write().await;
     config.apply_to_state(&mut s);

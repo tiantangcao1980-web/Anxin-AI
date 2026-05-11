@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
 
 use getrandom::getrandom;
@@ -18,6 +19,8 @@ const TEST_KEY_ENV: &str = "ANXIN_DESKTOP_SQLCIPHER_KEY_HEX";
 const KEYRING_SERVICE_ENV: &str = "ANXIN_DESKTOP_KEYRING_SERVICE";
 const KEYRING_USER_ENV: &str = "ANXIN_DESKTOP_KEYRING_USER";
 pub const RESET_CONFIRMATION: &str = "ERASE LOCAL DATA";
+
+static SQLCIPHER_KEY_CACHE: OnceLock<Mutex<Option<String>>> = OnceLock::new();
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -93,6 +96,33 @@ fn keyring_entry() -> Result<Entry, String> {
     Entry::new(&service, &user).map_err(|err| format!("无法打开系统 keyring 条目: {err}"))
 }
 
+fn key_cache() -> &'static Mutex<Option<String>> {
+    SQLCIPHER_KEY_CACHE.get_or_init(|| Mutex::new(None))
+}
+
+fn cached_key_hex() -> Result<Option<String>, String> {
+    key_cache()
+        .lock()
+        .map(|guard| guard.clone())
+        .map_err(|_| "进程内 SQLCipher key cache 已损坏".to_string())
+}
+
+fn cache_key_hex(value: &str) -> Result<(), String> {
+    let mut guard = key_cache()
+        .lock()
+        .map_err(|_| "进程内 SQLCipher key cache 已损坏".to_string())?;
+    *guard = Some(value.to_string());
+    Ok(())
+}
+
+fn clear_cached_key_hex() -> Result<(), String> {
+    let mut guard = key_cache()
+        .lock()
+        .map_err(|_| "进程内 SQLCipher key cache 已损坏".to_string())?;
+    *guard = None;
+    Ok(())
+}
+
 pub fn database_path(app: &AppHandle) -> Result<PathBuf, String> {
     if let Ok(path) = std::env::var("ANXIN_DESKTOP_DB_PATH") {
         return Ok(PathBuf::from(path));
@@ -104,6 +134,10 @@ pub fn database_path(app: &AppHandle) -> Result<PathBuf, String> {
         .map_err(|err| format!("无法解析桌面应用数据目录: {err}"))?;
     std::fs::create_dir_all(&dir).map_err(|err| format!("无法创建桌面应用数据目录: {err}"))?;
     Ok(dir.join(DB_FILENAME))
+}
+
+pub fn database_file_exists(app: &AppHandle) -> Result<bool, String> {
+    Ok(database_path(app)?.exists())
 }
 
 fn hex_encode(bytes: &[u8]) -> String {
@@ -127,8 +161,13 @@ fn generate_key_hex() -> Result<String, String> {
 }
 
 fn load_or_create_key_hex() -> Result<String, String> {
+    if let Some(value) = cached_key_hex()? {
+        return Ok(value);
+    }
+
     if let Ok(value) = std::env::var(TEST_KEY_ENV) {
         if is_valid_key_hex(&value) {
+            cache_key_hex(&value)?;
             return Ok(value);
         }
         return Err(format!("{TEST_KEY_ENV} 必须是 64 位十六进制字符串"));
@@ -137,13 +176,17 @@ fn load_or_create_key_hex() -> Result<String, String> {
     let entry = keyring_entry()?;
 
     match entry.get_password() {
-        Ok(value) if is_valid_key_hex(&value) => Ok(value),
+        Ok(value) if is_valid_key_hex(&value) => {
+            cache_key_hex(&value)?;
+            Ok(value)
+        }
         Ok(_) => Err("系统 keyring 中的 SQLCipher key 格式无效".to_string()),
         Err(KeyringError::NoEntry) => {
             let value = generate_key_hex()?;
             entry
                 .set_password(&value)
                 .map_err(|err| format!("无法写入系统 keyring: {err}"))?;
+            cache_key_hex(&value)?;
             Ok(value)
         }
         Err(err) => Err(format!("无法读取系统 keyring: {err}")),
@@ -242,10 +285,14 @@ fn open_connection_for_path(path: &Path) -> Result<Connection, String> {
 }
 
 pub fn delete_keyring_entry() -> Result<(), String> {
-    match keyring_entry()?.delete_credential() {
+    let result = match keyring_entry()?.delete_credential() {
         Ok(()) | Err(KeyringError::NoEntry) => Ok(()),
         Err(err) => Err(format!("无法删除系统 keyring 条目: {err}")),
+    };
+    if result.is_ok() {
+        clear_cached_key_hex()?;
     }
+    result
 }
 
 fn path_with_file_name_suffix(path: &Path, suffix: &str) -> PathBuf {
@@ -635,6 +682,32 @@ pub fn select(app: &AppHandle, sql: &str, bind_values: Vec<Value>) -> Result<Vec
     Ok(out)
 }
 
+pub fn read_app_setting(app: &AppHandle, key: &str) -> Result<Option<String>, String> {
+    let rows = select(
+        app,
+        "SELECT value FROM app_settings WHERE key = ?1",
+        vec![Value::String(key.to_string())],
+    )?;
+    Ok(rows
+        .first()
+        .and_then(|row| row.get("value"))
+        .and_then(Value::as_str)
+        .map(str::to_string))
+}
+
+pub fn write_app_setting(app: &AppHandle, key: &str, value: &str) -> Result<(), String> {
+    execute(
+        app,
+        "INSERT OR REPLACE INTO app_settings (key, value, updated_at)
+         VALUES (?1, ?2, CURRENT_TIMESTAMP)",
+        vec![
+            Value::String(key.to_string()),
+            Value::String(value.to_string()),
+        ],
+    )?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -642,8 +715,9 @@ mod tests {
     use rusqlite::Connection;
 
     use super::{
-        hex_encode, is_valid_key_hex, migrate_plaintext_to_encrypted, open_encrypted_path,
-        remove_local_database_files, reset_local_data_for_path, security_contract,
+        cache_key_hex, clear_cached_key_hex, hex_encode, is_valid_key_hex, load_or_create_key_hex,
+        migrate_plaintext_to_encrypted, open_encrypted_path, remove_local_database_files,
+        reset_local_data_for_path, security_contract,
     };
 
     #[test]
@@ -651,6 +725,17 @@ mod tests {
         let key = hex_encode(&[0xab; 32]);
         assert!(is_valid_key_hex(&key));
         assert!(!is_valid_key_hex("short"));
+    }
+
+    #[test]
+    fn cached_sqlcipher_key_is_reused_without_second_keyring_read() {
+        clear_cached_key_hex().expect("clear cache before test");
+        let key = "ab".repeat(32);
+        cache_key_hex(&key).expect("seed process key cache");
+
+        assert_eq!(load_or_create_key_hex().unwrap(), key);
+
+        clear_cached_key_hex().expect("clear cache after test");
     }
 
     #[test]

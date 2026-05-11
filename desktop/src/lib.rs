@@ -138,8 +138,9 @@ pub fn delete_desktop_secure_db_smoke_key() -> Result<(), String> {
 }
 
 fn load_desktop_runtime_config(handle: &AppHandle, shared_state: &SharedAppState) {
-    match services::runtime_config::load_for_app(handle) {
-        Ok(Some(config)) => {
+    let current = tauri::async_runtime::block_on(async { shared_state.read().await.clone() });
+    match services::runtime_config::load_effective_for_app(handle, &current) {
+        Ok(config) => {
             let mode = config.mode;
             let backend_url = config.backend_url.clone();
             tauri::async_runtime::block_on(async {
@@ -147,9 +148,6 @@ fn load_desktop_runtime_config(handle: &AppHandle, shared_state: &SharedAppState
                 config.apply_to_state(&mut state);
             });
             log::info!("桌面运行配置已加载: mode={mode}, backend_url={backend_url}");
-        }
-        Ok(None) => {
-            log::info!("未找到桌面运行配置，使用默认运行配置");
         }
         Err(error) => {
             log::warn!("桌面运行配置加载失败，使用默认运行配置: {error}");

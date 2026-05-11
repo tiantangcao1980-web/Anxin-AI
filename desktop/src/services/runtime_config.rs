@@ -1,4 +1,5 @@
 use crate::models::{AppMode, AppStateData, SyncStatus};
+use crate::services::secure_db;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -12,6 +13,8 @@ const MAX_PROFILE_NAME_LEN: usize = 60;
 const MAX_PROFILE_ID_LEN: usize = 80;
 const MAX_LOCAL_MODEL_NAME_LEN: usize = 120;
 pub const DEFAULT_LOCAL_MODEL: &str = "qwen2.5:7b";
+pub const RUNTIME_MODE_SETTING_KEY: &str = "runtime.mode";
+pub const RUNTIME_BACKEND_URL_SETTING_KEY: &str = "runtime.backend_url";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -148,6 +151,40 @@ pub fn default_local_model_name() -> String {
         .unwrap_or_else(|| DEFAULT_LOCAL_MODEL.to_string())
 }
 
+pub fn mode_storage_value(mode: AppMode) -> &'static str {
+    match mode {
+        AppMode::TopSecret => "top-secret",
+        AppMode::Hybrid => "hybrid",
+        AppMode::Cloud => "cloud",
+    }
+}
+
+pub fn parse_mode_storage_value(value: &str) -> Result<AppMode, String> {
+    match value.trim() {
+        "top-secret" => Ok(AppMode::TopSecret),
+        "hybrid" => Ok(AppMode::Hybrid),
+        "cloud" => Ok(AppMode::Cloud),
+        other => Err(format!("本机运行模式值无效: {other}")),
+    }
+}
+
+pub fn apply_runtime_state_mirror(
+    config: &mut DesktopRuntimeConfig,
+    mode_value: Option<&str>,
+    backend_url_value: Option<&str>,
+) -> Result<bool, String> {
+    let mut applied = false;
+    if let Some(mode_value) = mode_value {
+        config.mode = parse_mode_storage_value(mode_value)?;
+        applied = true;
+    }
+    if let Some(backend_url_value) = backend_url_value {
+        config.backend_url = normalize_backend_url(backend_url_value)?;
+        applied = true;
+    }
+    Ok(applied)
+}
+
 pub fn generate_profile_id(name: &str) -> String {
     let slug = name
         .trim()
@@ -229,6 +266,21 @@ pub fn load_or_default_for_app(
     }
 }
 
+pub fn load_effective_for_app(
+    app: &AppHandle,
+    state: &AppStateData,
+) -> Result<DesktopRuntimeConfig, String> {
+    let mut config = load_or_default_for_app(app, state)?;
+    if !secure_db::database_file_exists(app)? {
+        return Ok(config);
+    }
+
+    let mode = secure_db::read_app_setting(app, RUNTIME_MODE_SETTING_KEY)?;
+    let backend_url = secure_db::read_app_setting(app, RUNTIME_BACKEND_URL_SETTING_KEY)?;
+    apply_runtime_state_mirror(&mut config, mode.as_deref(), backend_url.as_deref())?;
+    Ok(config)
+}
+
 pub fn runtime_config_path(app: &AppHandle) -> Result<PathBuf, String> {
     if let Ok(path) = std::env::var("ANXIN_DESKTOP_RUNTIME_CONFIG_PATH") {
         return Ok(PathBuf::from(path));
@@ -249,6 +301,19 @@ pub fn load_for_app(app: &AppHandle) -> Result<Option<DesktopRuntimeConfig>, Str
 pub fn save_for_app(app: &AppHandle, config: &DesktopRuntimeConfig) -> Result<(), String> {
     let path = runtime_config_path(app)?;
     save_runtime_config_to_path(&path, config)
+}
+
+pub fn save_current_runtime_for_app(
+    app: &AppHandle,
+    config: &DesktopRuntimeConfig,
+) -> Result<(), String> {
+    secure_db::write_app_setting(
+        app,
+        RUNTIME_MODE_SETTING_KEY,
+        mode_storage_value(config.mode),
+    )?;
+    secure_db::write_app_setting(app, RUNTIME_BACKEND_URL_SETTING_KEY, &config.backend_url)?;
+    save_for_app(app, config)
 }
 
 pub fn load_runtime_config_from_path(path: &Path) -> Result<Option<DesktopRuntimeConfig>, String> {
@@ -314,9 +379,10 @@ fn sync_status_for_mode(mode: AppMode) -> SyncStatus {
 #[cfg(test)]
 mod tests {
     use super::{
-        generate_unique_profile_id, load_runtime_config_from_path, normalize_backend_url,
-        normalize_local_model_name, normalize_profiles, save_runtime_config_to_path,
-        DesktopRuntimeConfig, DesktopRuntimeProfile,
+        apply_runtime_state_mirror, generate_unique_profile_id, load_runtime_config_from_path,
+        mode_storage_value, normalize_backend_url, normalize_local_model_name, normalize_profiles,
+        parse_mode_storage_value, save_runtime_config_to_path, DesktopRuntimeConfig,
+        DesktopRuntimeProfile,
     };
     use crate::models::{AppMode, AppStateData, SyncStatus};
     use std::path::PathBuf;
@@ -470,6 +536,38 @@ mod tests {
         assert!(normalize_local_model_name("").is_err());
         assert!(normalize_local_model_name("qwen 7b").is_err());
         assert!(normalize_local_model_name("qwen;export TOKEN=secret").is_err());
+    }
+
+    #[test]
+    fn mode_storage_values_round_trip_as_privacy_safe_strings() {
+        for mode in [AppMode::TopSecret, AppMode::Hybrid, AppMode::Cloud] {
+            let value = mode_storage_value(mode);
+            assert_eq!(parse_mode_storage_value(value).unwrap(), mode);
+            assert!(!value.contains("token"));
+            assert!(!value.contains("api_key"));
+            assert!(!value.contains("password"));
+        }
+        assert!(parse_mode_storage_value("local").is_err());
+        assert!(parse_mode_storage_value("绝密模式").is_err());
+    }
+
+    #[test]
+    fn applies_secure_runtime_state_mirror_over_json_config() {
+        let mut config =
+            DesktopRuntimeConfig::new(AppMode::Cloud, "https://api.anxin.example").unwrap();
+
+        let applied = apply_runtime_state_mirror(
+            &mut config,
+            Some("top-secret"),
+            Some("http://localhost:8001/"),
+        )
+        .unwrap();
+
+        assert!(applied);
+        assert_eq!(config.mode, AppMode::TopSecret);
+        assert_eq!(config.backend_url, "http://localhost:8001");
+        assert!(apply_runtime_state_mirror(&mut config, Some("bad-mode"), None).is_err());
+        assert!(apply_runtime_state_mirror(&mut config, None, Some("local://api")).is_err());
     }
 
     #[test]

@@ -36,6 +36,8 @@
 
 2026-05-09 Agent 治理补充：跨服务实例 route-token 撤销已新增本地 rehearsal。`AgentGovernanceService.validate_route_token()` 会刷新 DB-backed lease/route 行，`scripts/agent-cross-process-revocation-rehearsal.sh` 使用独立 issuer、worker、admin session 证明管理员撤销后，同一长生命周期 worker session 的下一次调用 fail-closed，并写出脱敏 `agent-cross-process-revocation-rehearsal-20260509.json`。该证据关闭本地跨进程撤销刷新缺口，但仍不替代 signed packaged runtime、真实 approved connector provider 执行链、生产观测日志和商业多进程运行时证据。
 
+2026-05-10 桌面端补充：macOS Keychain 弹窗已收敛为“单一 SQLCipher 主密钥”访问问题，不再按业务实体或每次 SQLCipher 连接反复触发。`secure_db` 在首次成功读取/生成平台 keyring 密钥后写入进程内缓存，`runtime_config` 在本地 DB 文件不存在时不为可选 `app_settings` 镜像探测创建 Keychain 访问；运行模式和后端地址仍写入 SQLCipher `app_settings` 镜像，`runtime-config.json` 继续保持 secret-free。调试/未签名二进制因代码身份不稳定仍可能在首次访问时触发 macOS 授权；商业放行仍要求 Developer ID 签名、公证和 signed packaged-profile/runtime 证据。
+
 ## 2. 必须补齐的商业证据
 
 ### 渠道沙箱
