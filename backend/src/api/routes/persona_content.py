@@ -74,11 +74,12 @@ def get_content_director() -> ContentDirectorAgent:
 # 保留它的好处：单测、Demo、API 联调可以直接跑通。
 # ---------------------------------------------------------------------------
 
-_brand_store: dict[int, dict[str, BrandProfileOut]] = {}
+_brand_store: dict[str, dict[str, BrandProfileOut]] = {}
 
 
-def _user_key(user: User) -> int:
-    return int(getattr(user, "id", 0) or 0)
+def _user_key(user: User) -> str:
+    """V3 merge: user.id 可能是 UUID str，改为直接返回 str key。"""
+    return str(getattr(user, "id", "") or "")
 
 
 def _to_profile_dataclass(model: BrandProfileIn) -> BrandProfile:

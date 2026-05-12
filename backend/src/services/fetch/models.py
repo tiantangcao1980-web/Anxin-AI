@@ -70,6 +70,16 @@ class FetchRequest:
     extract: ExtractConfig | None = None
     user_id: str | None = None
     bypass_cache: bool = False
+    # L3 HeadlessX 专用参数（V3 merge）
+    wait_for_selector: str | None = None
+    wait_ms: int | None = None
+    screenshot: bool = False
+    full_page: bool = False
+    viewport: tuple[int, int] | None = None
+    user_agent: str | None = None
+    proxy: str | None = None
+    cookies: list[dict[str, Any]] | None = None
+    execute_js: str | None = None
     # 透传给 Tier 适配器的额外参数（例如 L3 的 device profile）
     extra: dict[str, Any] = field(default_factory=dict)
 
@@ -81,10 +91,13 @@ class FetchResponse:
     - ``tier_used`` 让上层知道实际走了哪一层（可能 L2 失败降级到 L1）
     - ``blocked_reason`` 非空表示被合规层拦截（status_code=403）
     - ``extracted`` 是按 ``ExtractConfig`` 抽取出来的结构化数据
+
+    V3 merge: L3 HeadlessX tier 使用另一套字段名（url/final_url/html/tier/success/bot_score），
+    原定义向后兼容，新字段全部可选。
     """
 
-    request: FetchRequest
-    status_code: int
+    request: FetchRequest | None = None
+    status_code: int = 0
     headers: dict[str, str] = field(default_factory=dict)
     body: bytes = b""
     text: str | None = None
@@ -94,6 +107,16 @@ class FetchResponse:
     cached: bool = False
     error: str | None = None
     blocked_reason: str | None = None
+    # V3 merge: L3 HeadlessX 字段
+    url: str | None = None
+    final_url: str | None = None
+    html: str = ""
+    tier: Any = None  # TierName（避免循环 import，用 Any）
+    success: bool = True
+    bot_score: float | None = None
+    screenshot_png: bytes | None = None
+    pdf_bytes: bytes | None = None
+    cookies: list[dict[str, Any]] | None = None
 
     @property
     def ok(self) -> bool:

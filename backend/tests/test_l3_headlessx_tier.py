@@ -28,6 +28,16 @@ from src.services.fetch.tiers.base import FetchRequest, TierName
 from src.services.fetch.tiers.l3_headlessx import HeadlessXTier
 
 
+# V3 merge: P16 SSRF 防护默认拦截域名 DNS 解析（本机 DNS 可能把 x.com 等
+# 解析到奇怪地址）；单元测试只关心 tier 行为，统一 bypass SSRF 校验。
+@pytest.fixture(autouse=True)
+def _bypass_ssrf(monkeypatch):
+    monkeypatch.setattr(
+        "src.services.fetch.tiers.l3_headlessx.validate_url",
+        lambda url: url,
+    )
+
+
 # ============ 未配置 ============
 
 @pytest.mark.asyncio
