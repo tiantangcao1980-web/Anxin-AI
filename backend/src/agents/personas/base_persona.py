@@ -193,6 +193,21 @@ class BasePersonaAgent(BaseLegalAgent):
             enabled=cls.enabled,
         )
 
+    @classmethod
+    def manifest(cls) -> Dict[str, Any]:
+        """V3 merge: 持久化用的 persona manifest（dict 形式，兼容 V3 测试契约）。"""
+        return {
+            "persona_id": cls.persona_id,
+            "display_name": cls.display_name,
+            "emoji": cls.emoji,
+            "description": cls.description,
+            "capabilities": list(cls.capabilities),
+            "backed_by_skills": list(cls.backed_by_skills),
+            "supported_apps": list(cls.supported_apps),
+            "backed_by_agents": list(cls.backed_by_agents),
+            "enabled": cls.enabled,
+        }
+
     # ------------------------------------------------------------------
     # 兼容 specialized agent 的 process() 接口（由 coordinator 调用）
     # ------------------------------------------------------------------
