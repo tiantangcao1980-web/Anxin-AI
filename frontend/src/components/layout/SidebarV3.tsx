@@ -115,9 +115,18 @@ export interface SidebarV3Props {
   conversations?: Array<{ id: string; title: string }>
   /** 顶部 Logo 文案 */
   brand?: string
+  /** 移动端抽屉是否打开（桌面端忽略此属性） */
+  mobileOpen?: boolean
+  /** 移动端抽屉关闭回调 */
+  onMobileClose?: () => void
 }
 
-export function SidebarV3({ conversations = [], brand = '安心智能助手' }: SidebarV3Props) {
+export function SidebarV3({
+  conversations = [],
+  brand = '安心智能助手',
+  mobileOpen = false,
+  onMobileClose,
+}: SidebarV3Props) {
   const navigate = useNavigate()
   const location = useLocation()
   const currentPath = location.pathname
@@ -127,19 +136,49 @@ export function SidebarV3({ conversations = [], brand = '安心智能助手' }: 
   const [capExpanded, setCapExpanded] = useState<boolean>(true)
   const showCapabilities = capExpanded || inCapabilities
 
-  const handleNav = (path: string) => navigate(path)
+  // 移动端点击导航后自动关闭抽屉
+  const handleNav = (path: string) => {
+    navigate(path)
+    onMobileClose?.()
+  }
 
   const sessionList = useMemo(() => conversations.slice(0, 30), [conversations])
 
   return (
-    <aside className="hidden h-full w-[260px] shrink-0 flex-col border-r border-border/60 bg-surface-1 lg:flex">
-      {/* Brand */}
-      <div className="flex h-14 items-center gap-2.5 border-b border-border/40 px-4">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-          <Scale className="h-4 w-4" />
+    <>
+      {/* 移动端背景遮罩（点击关闭抽屉） */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          onClick={onMobileClose}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={`
+          flex h-full w-[260px] shrink-0 flex-col border-r border-border/60 bg-surface-1
+          lg:static lg:translate-x-0
+          fixed inset-y-0 left-0 z-50 transition-transform duration-200 ease-out
+          ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        `}
+      >
+        {/* Brand */}
+        <div className="flex h-14 items-center gap-2.5 border-b border-border/40 px-4">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+            <Scale className="h-4 w-4" />
+          </div>
+          <span className="text-sm font-semibold tracking-tight text-foreground flex-1">{brand}</span>
+          {/* 移动端关闭按钮 */}
+          <button
+            type="button"
+            onClick={onMobileClose}
+            className="lg:hidden h-7 w-7 flex items-center justify-center rounded-md hover:bg-muted"
+            aria-label="关闭菜单"
+          >
+            <ChevronRight className="h-4 w-4 rotate-180" />
+          </button>
         </div>
-        <span className="text-sm font-semibold tracking-tight text-foreground">{brand}</span>
-      </div>
 
       {/* 主导航 */}
       <nav className="flex-1 overflow-y-auto px-2 py-3">
@@ -257,6 +296,7 @@ export function SidebarV3({ conversations = [], brand = '安心智能助手' }: 
         </div>
       </div>
     </aside>
+    </>
   )
 }
 
