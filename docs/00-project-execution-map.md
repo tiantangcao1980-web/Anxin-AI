@@ -1,8 +1,9 @@
 # 项目推进总索引
 
-> 日期：2026-05-08
-> 状态：当前权威导航
+> 日期：2026-05-12
+> 状态：当前权威导航（V3 合并后）
 > 用途：作为后续设计、开发、测试、发布、试点和复盘的入口文件。
+> 2026-05-12 更新：V3「安心智能助手」scope 已合并进商业交付主线，`docs/v3/` 权威文档已纳入导航。
 
 ## 1. 当前权威文件
 
@@ -10,6 +11,16 @@
 
 | 用途 | 权威文件 | 作用 |
 |---|---|---|
+| V3 交付总览 | `docs/v3/V3_DELIVERY_SUMMARY.md` | 一页纸总览：commits 时间线 / 61 个 v3 API endpoint / 10 persona |
+| V3 架构 | `docs/v3/ARCHITECTURE.md` | 6 层分层架构 + 模块清单 + 已实现 vs 规划 |
+| V3 persona | `docs/v3/AGENT_PERSONAS.md` | 10 persona 定位、API endpoint 与实装状态 |
+| V3 能力矩阵 | `docs/v3/CAPABILITY_MATRIX.md` | 4 横 × 4 纵能力矩阵 + 实装状态 |
+| V3 路线图 | `docs/v3/ROADMAP.md` | P0-P21 完整路线 + 风险登记册 |
+| V3 集成生态 | `docs/v3/INTEGRATIONS.md` | 34+ OAuth provider / IM 适配器 / 数据源清单 |
+| V3 Skills 清单 | `docs/v3/SKILLS_INVENTORY.md` | 13 域 76+ skill + 4 office 实装路径 |
+| V3 安全审计 | `docs/v3/SECURITY_AUDIT.md` | P15 OWASP Top 10 / 依赖 / 密钥 / 高风险点 |
+| V3 可观测性 | `docs/v3/OBSERVABILITY_BACKEND.md`、`OBSERVABILITY_FRONTEND.md`、`OBSERVABILITY_DEPLOY.md` | Sentry + Prometheus + Grafana 三端 |
+| V3 CI 流水线 | `docs/v3/CI_PIPELINE.md` | 5 端 GHA workflow + nightly smoke + bundle size guard |
 | 产品定位 | `docs/strategy/product-architecture-and-requirements-2026-05-08.md` | 中小企业经营风险平台、全设备智能助手、企业智能体治理的统一定位 |
 | 上层产品合同 | `docs/openspec/00-intelligent-assistant-platform-spec.md` | 桌面主工作站、移动远控、本地模型、独立知识库、Skills/MCP、可信会话和智能体进化 |
 | 商业交付规范 | `docs/openspec/01-commercial-delivery-spec.md` | 商业候选版定义、阶段目标、统一开发规则和交付物 |

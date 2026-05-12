@@ -1,6 +1,66 @@
-# 安心AI法务 — 项目开发进度
+# 安心智能助手 — 项目开发进度
 
 > 本文件用于跨设备/跨智能体协作时快速了解项目状态，每次开发后更新。
+> 2026-05-12 品牌升级：安心法务 → 安心智能助手（V3 scope 合并进商业交付主线）。
+
+---
+
+## 2026-05-12 V3 合并进商业交付主线
+
+### 背景
+独立演进的 `v3/main` 分支（远程 `v3` / 161 commits）已完整合并进 `codex/commercial-readiness-hardening-20260508` 集成分支 `integration/v3-merge-20260512`。商业交付 scope 从 V2「安心法务」正式扩展为 V3「安心智能助手」。
+
+### 合并规模
+- 891 文件 / +132,433 行 / −15,139 行
+- 735 个 staged 文件进 merge commit `a446429e`
+- 合并策略：`git merge --no-commit --no-ff v3/main`，逐区解决 26 个冲突
+- 备份 tag：`backup/pre-v3-merge-20260512`（指向 pre-merge HEAD `7aa87e59`）
+
+### V3 新增能力进商业 scope
+- 10 个 user-facing persona（流程/市场/获客/内容/跨境电商/安心助理/法律/合同/尽调/财税）
+- 61 个 v3 API（agent_tasks / im_pairing / app_authorizations / skills / fetch / personas / 9 persona 子路由 / rag_ingest / rag_kg / rag_query / client_errors）
+- 异步任务编排（TaskOrchestrator + Celery + `agent_tasks` 表）
+- IM 通道（飞书真 + 5 渠道占位 + 24h 配对授权 + LocalProvider 沙箱）
+- OAuth 框架（5 provider + Fernet 加密 token_store）
+- Skills 运行时（watchdog 热加载 + docx/xlsx/pptx/pdf 4 office skill）
+- FetchService 4 层抓取门面 + 法律 5 源 + 电商源
+- 多模态 RAG（MinerU + 跨模态 KG + VLM + Dashboard）
+- 可观测性（Sentry + Prometheus + Grafana + 5 端 GHA workflow）
+- 安全加固（P16 SSRF / 飞书签名 / webhook replay Redis SETNX fail-closed / CVE 升级）
+
+### 合并后验证
+- `backend/src/api/routes/__init__.py` 626 路由全量 import OK
+- `frontend tsc --noEmit` 0 error
+- 核心回归 12 tests passed（`test_auth_roles_permissions` + `test_contract_review_workflow`）
+- 全量 backend pytest：`1766 passed / 25 failed / 1 skipped`（vs v3/main 原始 59 failed / 37 errors，实际改善）
+- 25 failed 归因：~15 V3 pre-existing 实现与测试脱节（`FetchRequest.wait_for_selector`、`ContentDirectorAgent.manifest()` 等），~8 需要真 Postgres:5433 / Redis:6379 服务，~2 合并融合需要小修
+
+### 合并融合关键决策
+- 后端路由 `__init__.py`：合并 54 个路由（V2 53 + V3 新增）
+- esign/payments webhook：保留 HEAD 的官方验签（微信 v3 RSA + 支付宝 RSA2 + e签宝/法大大 HMAC），采用 v3 的 `WebhookSecurity.verify` async 签名
+- metrics：保留 HEAD webhook metrics + 追加 V3 P19-A `prometheus_client` 业务暴露 + `/metrics/business` 端点
+- health：采用 v3 P19-A `HealthChecker` 聚合器（liveness/readiness/detailed 三层）
+- webhook_security：采用 v3 Redis SETNX + fail-closed replay cache（P16-C）
+- config：合并 HEAD 严格 JWT 生产校验 + V3 新增 feishu/oauth/dingtalk/shopify/amazon/shopee/tiktok 凭据字段
+- frontend App.tsx：保留 HEAD AdminLayout 静态 import + 挂 V3 IA 占位页 + V3 layout feature flag（`VITE_V3_NAV=true` 启用）
+- mobile/mini-program：采用 v3 版（P17/P21 已重写基础层）
+
+### 合并后立即待办
+1. V3 pre-existing 测试失败修复（`FetchRequest` 字段补全、`manifest()` classmethod 补全等）
+2. `backend/pyproject.toml` 锁定 `prometheus_client` / `sentry-sdk` / `watchdog` 版本
+3. `scripts/commercial-readiness-gate.sh` 扩展 V3 新 scope 门禁
+4. `README.md` + `docs/00-project-execution-map.md` 同步 V3 品牌和 10 persona 能力版图
+5. 回填 `docs/v3/` 权威文档链接（ARCHITECTURE / AGENT_PERSONAS / CAPABILITY_MATRIX / ROADMAP / INTEGRATIONS / SKILLS_INVENTORY / V3_DELIVERY_SUMMARY / SECURITY_AUDIT / CI_PIPELINE 等 16 个）
+6. 真实 sandbox 凭据到位后，按 `sandbox-evidence-runner.py` 补 61 个 v3 API 的 live contract smoke
+
+### 不变的商业交付阻断项
+- 支付/电签真实商户沙箱 7 天回归
+- 桌面 signed/notarized installer + signed runtime 性能
+- 移动真实 iOS/Android + DCloud 云打包
+- 跨端连续会话真机
+- 企业 Agent 治理 runtime evidence
+- 仓库历史 `.env` 真实密钥轮换 + Git 历史清理
+- 前端 access_token/refresh_token 从 localStorage 迁出
 
 ---
 

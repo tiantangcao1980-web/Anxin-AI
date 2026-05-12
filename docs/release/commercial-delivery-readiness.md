@@ -1,10 +1,64 @@
 # 商业交付就绪评估
 
-> 日期：2026-05-09
+> 日期：2026-05-12
 > 判定：Not ready for commercial launch.
 > 口径：代码级绿灯不等于商业交付绿灯。发布需要真实渠道、真机、回滚、运营证据，以及中小企业双边平台与全设备智能助手定位的端到端证据。
 > 持久目标：`docs/release/goal-contract-commercial-readiness.md`。当前执行顺序为桌面端功能与本地门禁优先，移动 App/小程序随后按 uni-app 统一端迁移；外部 API 先以可替换测试数据和 sandbox contract 完成功能测试，真实密钥到位后再联调。
 > 外部资源口径：`docs/release/external-resource-requirements.json` 是支付、电签、桌面签名/公证、uni-app 真机/小程序、LLM/Embedding/connector 等外部输入的机器清单；`scripts/validate-external-resource-requirements.cjs` 和 commercial gate 会检查它与 env 模板、handoff 文档保持同步。
+
+## 0. 2026-05-12 V3 合并纠偏
+
+本次将独立演进的 `v3/main` 分支完整合并进商业交付主线（`integration/v3-merge-20260512`），商业交付 scope 从 V2「安心法务」升级为 V3「安心智能助手」。合并规模：891 文件 / +132,433 / −15,139。
+
+**新增商业发布 scope（必须进 Go/No-Go）：**
+
+- V3 品牌升级：安心法务 → 安心智能助手（P0 已落）。
+- 10 个 user-facing persona：流程管家 / 市场研究员 / 获客猎手 / 内容总监 / 跨境电商助手 / 安心助理 / 法律顾问 / 合同管家 / 尽调专家 / 财税顾问（5 个真实装，5 个在 P11 修 init 后落地）。
+- 61 个 v3 API endpoint：agent_tasks / im_pairing / app_authorizations / skills / fetch / personas / 9 persona 子路由 / rag_ingest / rag_kg / rag_query / client_errors。
+- 异步任务编排（TaskOrchestrator + Celery + `agent_tasks` 表）。
+- IM 通道（飞书真 + 钉钉/企微/Slack/Telegram 占位 + 24h 配对授权 + LocalProvider 沙箱）。
+- OAuth 框架（飞书/钉钉/Notion/Shopify/Amazon 5 provider + Fernet 加密 token_store）。
+- Skills 运行时（pyyaml + watchdog 热加载 + docx/xlsx/pptx/pdf 4 office skill）。
+- FetchService 4 层抓取门面（L1 http / L2 crawl4ai / L3 headlessx + 法律 5 源 + 电商源）。
+- 多模态 RAG（MinerU 解析 + 跨模态知识图谱 + VLM 查询 + RAG Dashboard）。
+- 可观测性（后端 Sentry + Prometheus 19 业务 metric + 健康检查三端分层 + 前端 Sentry + Web Vitals + 三端客户端错误聚合）。
+- CI 流水线（5 端 GHA workflow + nightly smoke + bundle size guard）。
+- 安全加固（P16 SSRF 三层、飞书签名、webhook replay Redis SETNX fail-closed、关键依赖 CVE 升级）。
+- 移动 / 小程序（P17/P21）：Expo 基础层 + 微信小程序基础层 + 各自 10 智能体工作台 / 任务中心 / 能力中心 / IM 配对占位。
+
+**新增商业发布阻断项：**
+
+- `docs/v3/SECURITY_AUDIT.md` P15 审计中超过中危的 findings 必须关闭或有补偿控制说明。
+- 61 个 v3 API 必须补 live sandbox contract smoke（沙箱凭据到位后，按 `sandbox-evidence-runner.py` 补 artifact）。
+- 10 个 persona 必须补真 LLM/DeepResearch provider 凭据联调证据（当前多数为 mock fallback）。
+- 可观测性要补生产 Sentry DSN / Prometheus scrape / Grafana dashboard 真实接入证据（代码底座已落）。
+- 飞书 OAuth + IM adapter 生产应用凭据联调证据（代码已落，沙箱已通）。
+- 5 个 OAuth provider 真实 app 凭据（飞书 / 钉钉 / Notion / Shopify / Amazon SP-API）。
+- `scripts/commercial-readiness-gate.sh` 必须扩展覆盖 v3 新增 scope（当前门禁脚本仍基于 V2）。
+
+**测试基线变更：**
+
+- 合并前 V2 基线：`736 passed, 1 skipped`（本地 SQLite）。
+- 合并后当前：`1766 passed, 25 failed, 1 skipped`（本地 SQLite）。25 failed 归因：
+  - ~15 个为 V3 原生 pre-existing（v3/main `HEALTH.md` 记录 59 failed / 37 errors，合并降到 25 实际改善）：`FetchRequest` 缺 `wait_for_selector/wait_ms/screenshot` 字段、`ContentDirectorAgent.manifest()` 缺 classmethod 等实现不同步。
+  - ~8 个为需要 PostgreSQL:5433 / Redis:6379 真服务（webhook replay cache Redis SETNX fail-closed 正常拦截本地无 Redis 环境）。
+  - ~2 个为合并融合细节（待 sandbox/redis 环境恢复后复核）。
+- V3 pre-existing 失败必须在 RC 前全部关闭；合并融合失败必须在本 PR 合入前 0 容忍。
+- 新增依赖：`prometheus_client`、`sentry-sdk`、`watchdog` 已 pip install；`backend/pyproject.toml` 需补进 dependencies 锁定。
+
+**前端验证：**
+
+- `frontend tsc --noEmit`：通过（0 error）。
+- 新增 V3 IA 占位页（7 个 capabilities + agents + v3 tasks + 10 personas workspace + 5 个 RAG dashboard）由 `VITE_V3_NAV=true` feature flag 控制，默认旧 Layout 不受影响。
+- `uuid` 已从 `^13.0.2` 升到 `^14.0.0`。
+
+**遗留待办（本次合并之后立即做）：**
+
+1. V3 pre-existing 测试失败修复（`FetchRequest` 字段补全、`manifest()` 方法补全等）。
+2. `backend/pyproject.toml` 锁定 `prometheus_client` / `sentry-sdk` / `watchdog` 版本。
+3. `commercial-readiness-gate.sh` 扩展 V3 scope 门禁。
+4. `PROJECT_STATUS.md` / `README.md` 同步新品牌和 10 persona 能力版图。
+5. 回填 `docs/v3/` 权威文档链接进 `docs/00-project-execution-map.md`。
 
 ## 1. 发布判定
 
