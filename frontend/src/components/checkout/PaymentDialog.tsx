@@ -69,7 +69,7 @@ export function PaymentDialog({ open, onOpenChange, order }: PaymentDialogProps)
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {order.paymentMethod === 'wechat' ? (
-              <icons.Smartphone className="h-5 w-5 text-green-600" />
+              <icons.Phone className="h-5 w-5 text-green-600" />
             ) : (
               <icons.CreditCard className="h-5 w-5 text-blue-600" />
             )}

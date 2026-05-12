@@ -141,12 +141,28 @@ class SystemConfigResponse(BaseModel):
     rate_limit_per_minute: int
     cors_origins: list[str]
     password_min_length: int
+    # E签宝 配置（非敏感项 + 脱敏的敏感项）
+    esign: dict[str, Any] | None = None
+    # 法大大 配置（非敏感项 + 脱敏的敏感项）
+    fadada: dict[str, Any] | None = None
+    # 微信支付 配置（非敏感项 + 脱敏的敏感项）
+    wechat_pay: dict[str, Any] | None = None
+    # 支付宝 配置（非敏感项 + 脱敏的敏感项）
+    alipay: dict[str, Any] | None = None
 
 
 class UpdateSystemConfigRequest(BaseModel):
     """更新系统配置请求"""
     rate_limit_per_minute: int | None = None
     password_min_length: int | None = None
+    # E签宝 配置
+    esign: dict[str, Any] | None = None
+    # 法大大 配置
+    fadada: dict[str, Any] | None = None
+    # 微信支付 配置
+    wechat_pay: dict[str, Any] | None = None
+    # 支付宝 配置
+    alipay: dict[str, Any] | None = None
 
 
 class SystemHealthResponse(BaseModel):
@@ -873,8 +889,14 @@ async def get_compliance_report(
 async def get_system_config(
     admin: User = Depends(get_admin_user),
 ) -> SystemConfigResponse:
-    """获取系统配置（仅非敏感项）"""
+    """获取系统配置（敏感项脱敏返回）"""
     from src.core.config import settings
+
+    def _mask(value: str | None) -> str:
+        """脱敏敏感字段，只返回是否已配置。"""
+        if not value:
+            return ""
+        return "*" * 8 + value[-4:] if len(value) > 4 else "*" * len(value)
 
     return SystemConfigResponse(
         app_name=settings.APP_NAME,
@@ -885,6 +907,36 @@ async def get_system_config(
         rate_limit_per_minute=settings.RATE_LIMIT_PER_MINUTE,
         cors_origins=settings.CORS_ORIGINS,
         password_min_length=settings.PASSWORD_MIN_LENGTH,
+        esign={
+            "app_id": settings.ESIGN_BAO_APP_ID or "",
+            "app_secret_masked": _mask(settings.ESIGN_BAO_APP_SECRET),
+            "has_app_secret": bool(settings.ESIGN_BAO_APP_SECRET),
+            "api_url": settings.ESIGN_BAO_API_URL,
+            "webhook_secret_masked": _mask(settings.ESIGN_WEBHOOK_SECRET),
+            "has_webhook_secret": bool(settings.ESIGN_WEBHOOK_SECRET),
+            "official_webhook_enabled": settings.ESIGN_OFFICIAL_WEBHOOK_ENABLED,
+        },
+        fadada={
+            "app_id": settings.FADADA_APP_ID or "",
+            "app_secret_masked": _mask(settings.FADADA_APP_SECRET),
+            "has_app_secret": bool(settings.FADADA_APP_SECRET),
+            "api_url": settings.FADADA_API_URL,
+        },
+        wechat_pay={
+            "app_id": settings.WECHAT_PAY_APP_ID or "",
+            "mch_id": settings.WECHAT_PAY_MCH_ID or "",
+            "api_base_url": settings.WECHAT_PAY_API_BASE_URL,
+            "has_private_key": bool(settings.WECHAT_PAY_MERCHANT_PRIVATE_KEY),
+            "has_api_v3_key": bool(settings.WECHAT_PAY_API_V3_KEY),
+            "official_webhook_enabled": settings.WECHAT_PAY_OFFICIAL_WEBHOOK_ENABLED,
+        },
+        alipay={
+            "app_id": settings.ALIPAY_APP_ID or "",
+            "gateway_url": settings.ALIPAY_GATEWAY_URL,
+            "has_private_key": bool(settings.ALIPAY_PRIVATE_KEY),
+            "has_public_key": bool(settings.ALIPAY_PUBLIC_KEY),
+            "official_webhook_enabled": settings.ALIPAY_OFFICIAL_WEBHOOK_ENABLED,
+        },
     )
 
 
@@ -895,12 +947,18 @@ async def update_system_config(
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ) -> SystemConfigResponse:
-    """更新系统配置（运行时修改，重启后恢复默认）"""
+    """更新系统配置（运行时修改，重启后恢复默认；敏感字段空字符串=保留原值）"""
     from src.core.config import settings
 
     old_config = {
         "rate_limit_per_minute": settings.RATE_LIMIT_PER_MINUTE,
         "password_min_length": settings.PASSWORD_MIN_LENGTH,
+        "esign_app_id": settings.ESIGN_BAO_APP_ID,
+        "esign_official_webhook_enabled": settings.ESIGN_OFFICIAL_WEBHOOK_ENABLED,
+        "fadada_app_id": settings.FADADA_APP_ID,
+        "wechat_pay_app_id": settings.WECHAT_PAY_APP_ID,
+        "wechat_pay_mch_id": settings.WECHAT_PAY_MCH_ID,
+        "alipay_app_id": settings.ALIPAY_APP_ID,
     }
 
     if body.rate_limit_per_minute is not None:
@@ -911,9 +969,69 @@ async def update_system_config(
             raise HTTPException(status_code=400, detail="密码最小长度不能低于4位")
         settings.PASSWORD_MIN_LENGTH = body.password_min_length
 
+    # E签宝 配置（敏感字段：空字符串 = 保留原值；非空 = 覆盖）
+    if body.esign is not None:
+        e = body.esign
+        if "app_id" in e:
+            settings.ESIGN_BAO_APP_ID = (e["app_id"] or None)
+        if e.get("app_secret"):
+            settings.ESIGN_BAO_APP_SECRET = e["app_secret"]
+        if "api_url" in e and e["api_url"]:
+            settings.ESIGN_BAO_API_URL = e["api_url"]
+        if e.get("webhook_secret"):
+            settings.ESIGN_WEBHOOK_SECRET = e["webhook_secret"]
+        if "official_webhook_enabled" in e:
+            settings.ESIGN_OFFICIAL_WEBHOOK_ENABLED = bool(e["official_webhook_enabled"])
+
+    # 法大大 配置
+    if body.fadada is not None:
+        f = body.fadada
+        if "app_id" in f:
+            settings.FADADA_APP_ID = (f["app_id"] or None)
+        if f.get("app_secret"):
+            settings.FADADA_APP_SECRET = f["app_secret"]
+        if "api_url" in f and f["api_url"]:
+            settings.FADADA_API_URL = f["api_url"]
+
+    # 微信支付 配置
+    if body.wechat_pay is not None:
+        w = body.wechat_pay
+        if "app_id" in w:
+            settings.WECHAT_PAY_APP_ID = (w["app_id"] or None)
+        if "mch_id" in w:
+            settings.WECHAT_PAY_MCH_ID = (w["mch_id"] or None)
+        if w.get("merchant_private_key"):
+            settings.WECHAT_PAY_MERCHANT_PRIVATE_KEY = w["merchant_private_key"]
+        if w.get("api_v3_key"):
+            settings.WECHAT_PAY_API_V3_KEY = w["api_v3_key"]
+        if w.get("webhook_secret"):
+            settings.WECHAT_PAY_WEBHOOK_SECRET = w["webhook_secret"]
+        if "official_webhook_enabled" in w:
+            settings.WECHAT_PAY_OFFICIAL_WEBHOOK_ENABLED = bool(w["official_webhook_enabled"])
+
+    # 支付宝 配置
+    if body.alipay is not None:
+        a = body.alipay
+        if "app_id" in a:
+            settings.ALIPAY_APP_ID = a["app_id"] or ""
+        if a.get("private_key"):
+            settings.ALIPAY_PRIVATE_KEY = a["private_key"]
+        if a.get("public_key"):
+            settings.ALIPAY_PUBLIC_KEY = a["public_key"]
+        if a.get("webhook_secret"):
+            settings.ALIPAY_WEBHOOK_SECRET = a["webhook_secret"]
+        if "official_webhook_enabled" in a:
+            settings.ALIPAY_OFFICIAL_WEBHOOK_ENABLED = bool(a["official_webhook_enabled"])
+
     new_config = {
         "rate_limit_per_minute": settings.RATE_LIMIT_PER_MINUTE,
         "password_min_length": settings.PASSWORD_MIN_LENGTH,
+        "esign_app_id": settings.ESIGN_BAO_APP_ID,
+        "esign_official_webhook_enabled": settings.ESIGN_OFFICIAL_WEBHOOK_ENABLED,
+        "fadada_app_id": settings.FADADA_APP_ID,
+        "wechat_pay_app_id": settings.WECHAT_PAY_APP_ID,
+        "wechat_pay_mch_id": settings.WECHAT_PAY_MCH_ID,
+        "alipay_app_id": settings.ALIPAY_APP_ID,
     }
 
     # 审计日志
