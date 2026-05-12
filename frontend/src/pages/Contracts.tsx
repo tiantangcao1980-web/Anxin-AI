@@ -6,6 +6,7 @@ import { toast } from'sonner'
 import { contractsApi, Contract, ContractCreate } from'@/lib/api'
 import { PageContainer } from'@/components/ui/PageContainer'
 import { cardStyle, heading, buttonStyle, iconSize, statusBadge, radius, inputStyle } from'@/lib/design-tokens'
+import { ESignDialog } from'@/components/esign/ESignDialog'
 import ContractReview from'./ContractReview'
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
@@ -44,6 +45,8 @@ export default function Contracts() {
  const [page, setPage] = useState(1)
  const [showReviewModal, setShowReviewModal] = useState(false)
  const [showCreateModal, setShowCreateModal] = useState(false)
+ // 电签对话框
+ const [esignDialog, setEsignDialog] = useState<{ open: boolean; contract: Contract | null }>({ open: false, contract: null })
 
  useEffect(() => {
  loadContracts()
@@ -209,6 +212,18 @@ export default function Contracts() {
  {status.label}
  </span>
 
+ {/* 已批准合同显示"发起签署"按钮 */}
+ {(contract.status === 'approved' || contract.status === 'active') && (
+ <button
+ onClick={(e) => { e.stopPropagation(); setEsignDialog({ open: true, contract }); }}
+ className={`${buttonStyle.secondary} flex items-center gap-1 text-xs whitespace-nowrap`}
+ title="发起电子签署"
+ >
+ <icons.FileText className={iconSize.sm} />
+ 发起签署
+ </button>
+ )}
+
  <button
  onClick={(e) => { e.stopPropagation(); handleReview(); }}
  className={buttonStyle.icon}
@@ -267,6 +282,18 @@ export default function Contracts() {
  onComplete={loadContracts}
  />
  )}
+
+ {/* 电子签署对话框 */}
+ <ESignDialog
+ open={esignDialog.open}
+ onOpenChange={(open) => setEsignDialog({ ...esignDialog, open })}
+ contract={esignDialog.contract ? {
+ id: esignDialog.contract.id,
+ title: esignDialog.contract.title,
+ contractType: esignDialog.contract.contract_type,
+ } : null}
+ onCompleted={loadContracts}
+ />
  </PageContainer>
  )
 }
