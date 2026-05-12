@@ -16,6 +16,7 @@ import { Badge } from'@/components/ui/badge'
 import { Switch } from'@/components/ui/switch'
 import { Skeleton } from'@/components/ui/skeleton'
 import { billingApi } from'@/lib/api'
+import { PaymentDialog } from'@/components/checkout/PaymentDialog'
 import {
  Table,
  TableBody,
@@ -105,6 +106,11 @@ export default function Pricing() {
  const [plans, setPlans] = useState<PricingPlan[]>([])
  // V2 架构：双端 Tab
  const [clientTab, setClientTab] = useState<ClientTab>('needer')
+ // Demo 版：支付对话框
+ const [paymentDialog, setPaymentDialog] = useState<{
+   open: boolean
+   order: { orderId: string; planName: string; amount: number; paymentMethod: 'wechat' | 'alipay' } | null
+ }>({ open: false, order: null })
 
  useEffect(() => {
  let cancelled = false
@@ -142,20 +148,24 @@ export default function Pricing() {
 
  async function handleSubscribe(planId: string) {
  try {
+   const plan = plans.find(p => p.id === planId)
    const result = await billingApi.createV2Subscription({
      plan_id: planId,
      client_type: clientTab,
      payment_method:'wechat',
      billing_cycle: annual ?'yearly' :'monthly',
    })
-   toast.success(`订阅创建成功，应付 ¥${result?.amount ?? 0}，正在跳转支付...`)
-   // TODO: 跳转到支付页面 / 调用支付 SDK
-   const paymentUrl = result?.payment_order?.payment_url
-   if (paymentUrl) {
-     setTimeout(() => { window.location.href = paymentUrl }, 800)
-   } else {
-     setTimeout(() => { window.location.href ='/my-subscription' }, 1200)
-   }
+
+   // Demo 版：打开支付对话框
+   setPaymentDialog({
+     open: true,
+     order: {
+       orderId: result?.payment_order?.order_id || `DEMO-${Date.now()}`,
+       planName: plan?.name || '未知套餐',
+       amount: result?.amount ?? getPrice(plan?.monthlyPrice ?? 0),
+       paymentMethod: 'wechat',
+     }
+   })
  } catch (err: any) {
    const msg = err?.message ||''
    if (msg.includes('您在该客户端已有活跃订阅')) {
@@ -338,6 +348,13 @@ export default function Pricing() {
  </Table>
  </div>
  </div>
+
+ {/* Demo 版：支付对话框 */}
+ <PaymentDialog
+   open={paymentDialog.open}
+   onOpenChange={(open) => setPaymentDialog({ ...paymentDialog, open })}
+   order={paymentDialog.order}
+ />
  </PageContainer>
  )
 }
