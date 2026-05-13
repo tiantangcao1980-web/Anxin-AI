@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useState } from 'react'
-import { CheckCircle2, ExternalLink, Loader2, ShieldAlert } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -128,7 +128,7 @@ export function ConnectDialog({ open, onOpenChange, provider }: ConnectDialogPro
 
           {/* 风险提示 */}
           <div className="flex gap-2 rounded-md border border-amber-200/70 bg-amber-50/60 p-2.5 text-[11px] text-amber-800 dark:border-amber-900/50 dark:bg-amber-500/10 dark:text-amber-300">
-            <ShieldAlert className="mt-0.5 size-3.5 shrink-0" />
+            <icons.ShieldAlert className="mt-0.5 size-3.5 shrink-0" />
             <p>
               授权后，安心智能助手将以你的身份代访问 {provider.display_name} 数据。可随时在本页面断开授权撤销访问。
             </p>
@@ -137,7 +137,7 @@ export function ConnectDialog({ open, onOpenChange, provider }: ConnectDialogPro
           {/* 阶段反馈 */}
           {phase === 'redirecting' && USE_MOCK && (
             <div className="flex items-center gap-2 rounded-md border border-blue-200/70 bg-blue-50/60 p-2.5 text-[11px] text-blue-800 dark:border-blue-900/50 dark:bg-blue-500/10 dark:text-blue-300">
-              <Loader2 className="size-3.5 animate-spin" />
+              <icons.Loader2 className="size-3.5 animate-spin" />
               <span>
                 模拟 OAuth 跳转中... {countdown > 0 ? `${countdown}s 后回写授权` : '处理中'}
               </span>
@@ -145,13 +145,13 @@ export function ConnectDialog({ open, onOpenChange, provider }: ConnectDialogPro
           )}
           {phase === 'redirecting' && !USE_MOCK && (
             <div className="flex items-center gap-2 rounded-md border border-blue-200/70 bg-blue-50/60 p-2.5 text-[11px] text-blue-800 dark:border-blue-900/50 dark:bg-blue-500/10 dark:text-blue-300">
-              <ExternalLink className="size-3.5" />
+              <icons.ExternalLink className="size-3.5" />
               <span>正在跳转到授权页面...</span>
             </div>
           )}
           {phase === 'success' && (
             <div className="flex items-center gap-2 rounded-md border border-emerald-200/70 bg-emerald-50/60 p-2.5 text-[11px] text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-500/10 dark:text-emerald-300">
-              <CheckCircle2 className="size-3.5" />
+              <icons.CheckCircle2 className="size-3.5" />
               <span>已成功连接 {provider.display_name}</span>
             </div>
           )}
@@ -178,7 +178,7 @@ export function ConnectDialog({ open, onOpenChange, provider }: ConnectDialogPro
                 onClick={handleAuthorize}
                 disabled={phase === 'starting' || phase === 'redirecting'}
               >
-                {phase === 'starting' && <Loader2 className="size-3.5 animate-spin" />}
+                {phase === 'starting' && <icons.Loader2 className="size-3.5 animate-spin" />}
                 {phase === 'idle' && '去授权'}
                 {phase === 'starting' && '准备中...'}
                 {phase === 'redirecting' && '处理中...'}

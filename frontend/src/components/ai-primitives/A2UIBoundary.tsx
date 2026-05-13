@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Sparkles } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 
 type BoundaryTone = 'ai' | 'neutral' | 'suggestion'
@@ -73,7 +73,7 @@ export function A2UIBoundary({
             'backdrop-blur-sm',
           )}
         >
-          <Sparkles
+          <icons.Sparkles
             className={cn(
               'size-3.5',
               toneCls.accent,

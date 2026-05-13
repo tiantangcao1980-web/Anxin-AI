@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, RefreshCcw, XCircle } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -157,7 +157,7 @@ export default function TasksPage() {
             onClick={() => loadTasks()}
             disabled={loading}
           >
-            <RefreshCcw className={loading ? 'animate-spin' : ''} />
+            <icons.RefreshCcw className={loading ? 'animate-spin' : ''} />
             刷新
           </Button>
           <CreateTaskDialog open={createOpen} onOpenChange={setCreateOpen} />
@@ -234,7 +234,7 @@ export default function TasksPage() {
               {isCancellable && (
                 <div className="flex justify-end gap-2 border-t p-3">
                   <Button variant="outline" size="sm" onClick={handleCancel}>
-                    <XCircle />
+                    <icons.XCircle />
                     取消任务
                   </Button>
                 </div>
@@ -343,7 +343,7 @@ function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) {
     >
       <DialogTrigger asChild>
         <Button size="sm">
-          <Plus />
+          <icons.Plus />
           新建任务
         </Button>
       </DialogTrigger>

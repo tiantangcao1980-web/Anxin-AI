@@ -2,13 +2,13 @@
  * ScheduledTasksPage.tsx — V3 定时任务（占位）
  */
 
-import { Clock } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { PlaceholderPage } from '@/components/v3/PlaceholderPage'
 
 export default function ScheduledTasksPage() {
   return (
     <PlaceholderPage
-      icon={Clock}
+      icon={icons.Clock}
       title="定时任务"
       description="按周期或时间点自动触发智能体任务，把重复工作交给安心"
       plannedFeatures={[

@@ -11,8 +11,7 @@
 
 import { useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, FileUp } from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import { Button } from '@/components/ui/button'
 
 import { IngestUploader } from '@/components/v3/rag/IngestUploader'
@@ -42,14 +41,14 @@ export default function IngestPage() {
             variant="ghost"
             size="sm"
             onClick={() => navigate('/v3/rag')}
-            iconLeft={<ArrowLeft className="h-4 w-4" />}
+            iconLeft={<icons.ArrowLeft className="h-4 w-4" />}
             className="h-8"
           >
             返回看板
           </Button>
           <div className="flex items-start gap-3">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-              <FileUp className="size-5" />
+              <icons.FileUp className="size-5" />
             </div>
             <div>
               <h1 className="text-lg font-semibold tracking-tight text-foreground">多模态上传</h1>

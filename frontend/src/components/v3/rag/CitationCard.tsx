@@ -9,8 +9,7 @@
  * 点击 → onClick(segmentId) 跳到 segment 原位（library 选中态 + 高亮）。
  */
 
-import { ArrowUpRight } from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import { Badge } from '@/components/ui/badge'
 
 import type { Citation } from '@/lib/api/rag'
@@ -47,7 +46,7 @@ export function CitationCard({ citation, index, onClick }: CitationCardProps) {
           <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-primary">
             {citation.score.toFixed(2)}
           </span>
-          <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+          <icons.ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
         </div>
       </div>
       <p className={`line-clamp-3 text-xs leading-relaxed ${v.text}`}>{citation.snippet}</p>

@@ -25,26 +25,8 @@
 
 import { useState, useMemo, type ComponentType } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import {
-  Plus,
-  Bot,
-  Wrench,
-  Clock,
-  KeyRound,
-  Sparkles,
-  Puzzle,
-  MessageCircle,
-  Users,
-  Rocket,
-  BookOpen,
-  Database,
-  ChevronDown,
-  ChevronRight,
-  Scale,
-  UserPlus,
-  ArrowUpRight,
-  type LucideIcon,
-} from 'lucide-react'
+import { icons } from '@/lib/icons'
+import type { LucideIcon } from '@/lib/icons'
 import { sidebarNav } from '@/lib/design-tokens'
 
 interface NavItem {
@@ -55,23 +37,23 @@ interface NavItem {
 }
 
 const TOP_ITEMS: NavItem[] = [
-  { label: '新对话', path: '/chat', icon: Plus },
-  { label: '智能体', path: '/agents', icon: Bot },
+  { label: '新对话', path: '/chat', icon: icons.Plus },
+  { label: '智能体', path: '/agents', icon: icons.Bot },
 ]
 
 const CAPABILITY_ITEMS: NavItem[] = [
-  { label: '定时任务', path: '/capabilities/scheduled-tasks', icon: Clock },
-  { label: '应用授权', path: '/capabilities/app-authorizations', icon: KeyRound },
-  { label: '技能', path: '/capabilities/skills', icon: Sparkles },
-  { label: '插件', path: '/capabilities/plugins', icon: Puzzle },
-  { label: '消息渠道', path: '/capabilities/message-channels', icon: MessageCircle },
-  { label: '配对授权', path: '/capabilities/pairing-authorizations', icon: Users },
+  { label: '定时任务', path: '/capabilities/scheduled-tasks', icon: icons.Clock },
+  { label: '应用授权', path: '/capabilities/app-authorizations', icon: icons.KeyRound },
+  { label: '技能', path: '/capabilities/skills', icon: icons.Sparkles },
+  { label: '插件', path: '/capabilities/plugins', icon: icons.Puzzle },
+  { label: '消息渠道', path: '/capabilities/message-channels', icon: icons.MessageCircle },
+  { label: '配对授权', path: '/capabilities/pairing-authorizations', icon: icons.Users },
 ]
 
 const BOTTOM_ITEMS: NavItem[] = [
-  { label: '任务中心', path: '/v3/tasks', icon: Rocket, beta: true },
-  { label: 'RAG 数据看板', path: '/v3/rag', icon: Database, beta: true },
-  { label: '知识库', path: '/knowledge-base', icon: BookOpen },
+  { label: '任务中心', path: '/v3/tasks', icon: icons.Rocket, beta: true },
+  { label: 'RAG 数据看板', path: '/v3/rag', icon: icons.Database, beta: true },
+  { label: '知识库', path: '/knowledge-base', icon: icons.BookOpen },
 ]
 
 function isActive(currentPath: string, target: string): boolean {
@@ -166,7 +148,7 @@ export function SidebarV3({
         {/* Brand */}
         <div className="flex h-14 items-center gap-2.5 border-b border-border/40 px-4">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-            <Scale className="h-4 w-4" />
+            <icons.Scale className="h-4 w-4" />
           </div>
           <span className="text-sm font-semibold tracking-tight text-foreground flex-1">{brand}</span>
           {/* 移动端关闭按钮 */}
@@ -176,7 +158,7 @@ export function SidebarV3({
             className="lg:hidden h-7 w-7 flex items-center justify-center rounded-md hover:bg-muted"
             aria-label="关闭菜单"
           >
-            <ChevronRight className="h-4 w-4 rotate-180" />
+            <icons.ChevronRight className="h-4 w-4 rotate-180" />
           </button>
         </div>
 
@@ -197,12 +179,12 @@ export function SidebarV3({
             className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 ${sidebarNav.itemText} ${sidebarNav.itemDefault}`}
             aria-expanded={showCapabilities}
           >
-            <Wrench className="h-4 w-4 shrink-0" />
+            <icons.Wrench className="h-4 w-4 shrink-0" />
             <span className="flex-1 text-left">能力</span>
             {showCapabilities ? (
-              <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+              <icons.ChevronDown className="h-3.5 w-3.5 opacity-70" />
             ) : (
-              <ChevronRight className="h-3.5 w-3.5 opacity-70" />
+              <icons.ChevronRight className="h-3.5 w-3.5 opacity-70" />
             )}
           </button>
           {showCapabilities && (
@@ -259,7 +241,7 @@ export function SidebarV3({
           onClick={() => navigate('/agents')}
           className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 ${sidebarNav.itemText} ${sidebarNav.itemDefault}`}
         >
-          <UserPlus className="h-4 w-4 shrink-0" />
+          <icons.UserPlus className="h-4 w-4 shrink-0" />
           <span className="flex-1 text-left">团队</span>
           <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">
             Beta
@@ -277,7 +259,7 @@ export function SidebarV3({
             aria-label="账户设置"
           >
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/90 text-primary-foreground">
-              <Users className="h-4 w-4" />
+              <icons.Users className="h-4 w-4" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-medium text-foreground">我的账户</div>
@@ -291,7 +273,7 @@ export function SidebarV3({
             aria-label="升级订阅"
           >
             升级
-            <ArrowUpRight className="h-3 w-3" />
+            <icons.ArrowUpRight className="h-3 w-3" />
           </button>
         </div>
       </div>

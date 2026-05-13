@@ -1,9 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
-import {
-  FolderOpen, FileText, ChevronRight, ChevronDown, Plus, Search,
-  Trash2, MoreHorizontal, FileType, FileSpreadsheet, Presentation,
-  File, Clock, Star, Users, Briefcase, Sparkles,
-} from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { useDocumentWorkbenchStore, type WorkbenchDocumentItem } from './hooks/useDocumentWorkbenchStore'
 import { documentsApi, type Document } from '@/lib/api'
 import { toast } from 'sonner'
@@ -16,18 +12,18 @@ interface WorkbenchSidebarProps {
 interface FolderNode {
   id: string
   label: string
-  icon: typeof FolderOpen
+  icon: typeof icons.FolderOpen
   documents: Document[]
   expanded: boolean
 }
 
 // 文档类型图标映射
 function getDocIcon(docType: string) {
-  if (docType === 'pdf') return File
-  if (docType === 'xlsx' || docType === 'xls' || docType === 'csv') return FileSpreadsheet
-  if (docType === 'ppt' || docType === 'pptx' || docType === 'presentation') return Presentation
-  if (docType === 'markdown' || docType === 'md') return FileType
-  return FileText
+  if (docType === 'pdf') return icons.File
+  if (docType === 'xlsx' || docType === 'xls' || docType === 'csv') return icons.FileSpreadsheet
+  if (docType === 'ppt' || docType === 'pptx' || docType === 'presentation') return icons.Presentation
+  if (docType === 'markdown' || docType === 'md') return icons.FileType
+  return icons.FileText
 }
 
 /**
@@ -83,11 +79,11 @@ const mapDocumentKind = (document: Pick<Document, 'doc_type' | 'mime_type'>): Wo
 // 「最近打开」：按打开时间排序的快速回溯视图；
 // 其他视图按收藏 / 共享 / 项目维度分组。
 const SIDEBAR_SPACES = [
-  { id: 'all' as const, label: '我的文档', icon: FolderOpen },
-  { id: 'recent' as const, label: '最近打开', icon: Clock },
-  { id: 'starred' as const, label: '收藏文档', icon: Star },
-  { id: 'shared' as const, label: '共享给我', icon: Users },
-  { id: 'project' as const, label: '项目文档', icon: Briefcase },
+  { id: 'all' as const, label: '我的文档', icon: icons.FolderOpen },
+  { id: 'recent' as const, label: '最近打开', icon: icons.Clock },
+  { id: 'starred' as const, label: '收藏文档', icon: icons.Star },
+  { id: 'shared' as const, label: '共享给我', icon: icons.Users },
+  { id: 'project' as const, label: '项目文档', icon: icons.Briefcase },
 ]
 
 type SidebarSpace = typeof SIDEBAR_SPACES[number]['id']
@@ -157,9 +153,9 @@ export function WorkbenchSidebar({ entryMode }: WorkbenchSidebarProps) {
     }
 
     return [
-      { id: 'contracts', label: '合同文档', icon: FileText, documents: groups.contracts, expanded: expandedFolders.has('contracts') },
-      { id: 'legal', label: '法律文书', icon: FileType, documents: groups.legal, expanded: expandedFolders.has('legal') },
-      { id: 'other', label: '其他文档', icon: FolderOpen, documents: groups.other, expanded: expandedFolders.has('other') },
+      { id: 'contracts', label: '合同文档', icon: icons.FileText, documents: groups.contracts, expanded: expandedFolders.has('contracts') },
+      { id: 'legal', label: '法律文书', icon: icons.FileType, documents: groups.legal, expanded: expandedFolders.has('legal') },
+      { id: 'other', label: '其他文档', icon: icons.FolderOpen, documents: groups.other, expanded: expandedFolders.has('other') },
     ]
   }, [documents, searchTerm, expandedFolders])
 
@@ -289,7 +285,7 @@ export function WorkbenchSidebar({ entryMode }: WorkbenchSidebarProps) {
                 onClick={() => openDocument(doc)}
                 className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted"
               >
-                <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <icons.FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <span className="truncate">{doc.title}</span>
                 <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">{doc.kind}</span>
               </button>
@@ -324,8 +320,8 @@ export function WorkbenchSidebar({ entryMode }: WorkbenchSidebarProps) {
                 className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted"
               >
                 {folder.expanded
-                  ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                  : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                  ? <icons.ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                  : <icons.ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
                 }
                 <folder.icon className="h-4 w-4 text-primary/70" />
                 <span>{folder.label}</span>
@@ -367,7 +363,7 @@ export function WorkbenchSidebar({ entryMode }: WorkbenchSidebarProps) {
                               disabled={analyzingDocumentId === doc.id}
                               className="rounded p-0.5 text-muted-foreground hover:bg-muted-foreground/10 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                              <Sparkles className="h-3.5 w-3.5" />
+                              <icons.Sparkles className="h-3.5 w-3.5" />
                             </button>
                             <button
                               type="button"
@@ -377,7 +373,7 @@ export function WorkbenchSidebar({ entryMode }: WorkbenchSidebarProps) {
                               }}
                               className="rounded p-0.5 text-muted-foreground hover:bg-muted-foreground/10"
                             >
-                              <MoreHorizontal className="h-3.5 w-3.5" />
+                              <icons.MoreHorizontal className="h-3.5 w-3.5" />
                             </button>
                           </div>
                         )}
@@ -425,7 +421,7 @@ export function WorkbenchSidebar({ entryMode }: WorkbenchSidebarProps) {
             onClick={() => setShowNewDocMenu(v => !v)}
             className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
-            <Plus className="h-4 w-4" />
+            <icons.Plus className="h-4 w-4" />
           </button>
           {showNewDocMenu && (
             <>
@@ -436,7 +432,7 @@ export function WorkbenchSidebar({ entryMode }: WorkbenchSidebarProps) {
                   onClick={() => handleCreateDocument('markdown')}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted"
                 >
-                  <FileType className="h-4 w-4 text-muted-foreground" />
+                  <icons.FileType className="h-4 w-4 text-muted-foreground" />
                   Markdown 文档
                 </button>
                 <button
@@ -444,7 +440,7 @@ export function WorkbenchSidebar({ entryMode }: WorkbenchSidebarProps) {
                   onClick={() => handleCreateDocument('txt')}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted"
                 >
-                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <icons.FileText className="h-4 w-4 text-muted-foreground" />
                   纯文本文档
                 </button>
                 <button
@@ -452,7 +448,7 @@ export function WorkbenchSidebar({ entryMode }: WorkbenchSidebarProps) {
                   onClick={() => handleCreateDocument('doc')}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted"
                 >
-                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <icons.FileText className="h-4 w-4 text-muted-foreground" />
                   法律文书模板
                 </button>
               </div>
@@ -464,7 +460,7 @@ export function WorkbenchSidebar({ entryMode }: WorkbenchSidebarProps) {
       {/* 搜索 */}
       <div className="px-3 pt-3 pb-2">
         <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <icons.Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <input
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
@@ -520,7 +516,7 @@ export function WorkbenchSidebar({ entryMode }: WorkbenchSidebarProps) {
               onClick={() => openDocument(example.item)}
               className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
-              <FileType className="h-3.5 w-3.5" />
+              <icons.FileType className="h-3.5 w-3.5" />
               {example.buttonLabel}
             </button>
           ))}
@@ -540,7 +536,7 @@ export function WorkbenchSidebar({ entryMode }: WorkbenchSidebarProps) {
               onClick={() => handleDeleteDocument(contextMenu.docId)}
               className="flex w-full items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10"
             >
-              <Trash2 className="h-3.5 w-3.5" />
+              <icons.Trash2 className="h-3.5 w-3.5" />
               删除文档
             </button>
           </div>

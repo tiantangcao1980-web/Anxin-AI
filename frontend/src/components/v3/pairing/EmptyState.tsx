@@ -4,7 +4,7 @@
  * 用于"待审核为空" / "无已授权用户"等场景。
  */
 
-import type { LucideIcon } from 'lucide-react'
+import type { LucideIcon } from '@/lib/icons'
 
 import { cn } from '@/components/ui/utils'
 

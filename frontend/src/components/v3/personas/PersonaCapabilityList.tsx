@@ -5,8 +5,7 @@
  * 也可设置 onPick 让父组件知道用户选择了哪条能力（→ 触发 CapabilityRunner）。
  */
 
-import { CheckCircle2, Clock3, Sparkles } from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/components/ui/utils'
 
@@ -48,7 +47,7 @@ export function PersonaCapabilityList({
                 !onPick && 'cursor-default',
               )}
             >
-              <Sparkles
+              <icons.Sparkles
                 className={cn(
                   'mt-0.5 size-3.5 shrink-0 text-muted-foreground',
                   active && 'text-primary',
@@ -60,7 +59,7 @@ export function PersonaCapabilityList({
                   variant="outline"
                   className="shrink-0 border-emerald-300/60 bg-emerald-500/10 text-[10px] text-emerald-700 dark:border-emerald-700/50 dark:text-emerald-300"
                 >
-                  <CheckCircle2 className="mr-1 size-3" />
+                  <icons.CheckCircle2 className="mr-1 size-3" />
                   已实装
                 </Badge>
               ) : (
@@ -68,7 +67,7 @@ export function PersonaCapabilityList({
                   variant="outline"
                   className="shrink-0 border-amber-300/60 bg-amber-500/10 text-[10px] text-amber-700 dark:border-amber-700/50 dark:text-amber-300"
                 >
-                  <Clock3 className="mr-1 size-3" />
+                  <icons.Clock3 className="mr-1 size-3" />
                   规划中
                 </Badge>
               )}

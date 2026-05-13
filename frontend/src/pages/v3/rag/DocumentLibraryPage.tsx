@@ -11,8 +11,7 @@
 
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Library, Network } from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
@@ -61,14 +60,14 @@ export default function DocumentLibraryPage() {
             variant="ghost"
             size="sm"
             onClick={() => navigate('/v3/rag')}
-            iconLeft={<ArrowLeft className="h-4 w-4" />}
+            iconLeft={<icons.ArrowLeft className="h-4 w-4" />}
             className="h-8"
           >
             返回看板
           </Button>
           <div className="flex items-start gap-3">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-              <Library className="size-5" />
+              <icons.Library className="size-5" />
             </div>
             <div>
               <h1 className="text-lg font-semibold tracking-tight text-foreground">文档库</h1>
@@ -83,7 +82,7 @@ export default function DocumentLibraryPage() {
             size="sm"
             variant="outline"
             onClick={() => navigate(`/v3/rag/kg?doc_id=${currentDocument.doc_id}`)}
-            iconLeft={<Network className="h-4 w-4" />}
+            iconLeft={<icons.Network className="h-4 w-4" />}
           >
             打开知识图谱
           </Button>

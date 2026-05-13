@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import * as Tooltip from '@radix-ui/react-tooltip'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, X } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 
 interface AttentionPulseProps {
@@ -106,7 +106,7 @@ interface InteractiveHintProps {
  *
  * 业务场景：
  * - 新功能上线，第一次出现时自动展开引导
- * - 用户点 X 后，localStorage 记忆，再不出现
+ * - 用户点 icons.X 后，localStorage 记忆，再不出现
  *
  * 与 Tooltip 区别：InteractiveHint 是"教学性质"（默认显示 + 可关闭），
  * Tooltip 是"辅助性质"（hover 才出现）。
@@ -161,7 +161,7 @@ export function InteractiveHint({
                   transition={{ duration: 0.2, ease: [0.2, 0, 0, 1] }}
                 >
                   <div className="flex items-start gap-2">
-                    <Sparkles className="mt-0.5 size-4 shrink-0 text-primary animate-ai-pulse" />
+                    <icons.Sparkles className="mt-0.5 size-4 shrink-0 text-primary animate-ai-pulse" />
                     <div className="min-w-0 flex-1">
                       {title && (
                         <div className="text-body font-medium text-foreground">{title}</div>
@@ -179,7 +179,7 @@ export function InteractiveHint({
                       )}
                       aria-label="关闭引导"
                     >
-                      <X className="size-3" />
+                      <icons.X className="size-3" />
                     </button>
                   </div>
                   <Tooltip.Arrow className="fill-card" />

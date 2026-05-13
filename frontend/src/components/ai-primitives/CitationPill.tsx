@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import * as HoverCard from '@radix-ui/react-hover-card'
-import { FileText, ExternalLink } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 
 export interface CitationSource {
@@ -57,7 +57,7 @@ export function CitationPill({
           )}
         >
           <div className="flex items-start gap-2">
-            <FileText className="mt-0.5 size-3.5 shrink-0 text-ai-citation" />
+            <icons.FileText className="mt-0.5 size-3.5 shrink-0 text-ai-citation" />
             <div className="min-w-0 flex-1">
               <div className="text-body-sm font-medium text-foreground truncate">
                 {source.title}
@@ -83,7 +83,7 @@ export function CitationPill({
                   )}
                 >
                   查看原文
-                  <ExternalLink className="size-3" />
+                  <icons.ExternalLink className="size-3" />
                 </a>
               )}
             </div>

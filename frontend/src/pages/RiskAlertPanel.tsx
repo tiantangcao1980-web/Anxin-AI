@@ -4,10 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import {
-  AlertTriangle, Shield, TrendingUp, Clock, CheckCircle2,
-  FileText, Radio, ChevronDown, ChevronRight, Eye,
-} from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { contractsApi, sentimentApi, type Contract, type RiskFactor, type SentimentAlert } from '@/lib/api'
 import { spacing } from '@/lib/design-tokens'
 import { StatCard as UnifiedStatCard, StatGrid } from '@/components/ui-unified'
@@ -35,8 +32,8 @@ const RISK_LEVEL_CONFIG = {
 
 // 来源配置
 const SOURCE_CONFIG = {
-  contract: { label: '合同风险', icon: FileText, color: 'text-info bg-info/10' },
-  sentiment: { label: '舆情预警', icon: Radio, color: 'text-warning bg-warning/10' },
+  contract: { label: '合同风险', icon: icons.FileText, color: 'text-info bg-info/10' },
+  sentiment: { label: '舆情预警', icon: icons.Radio, color: 'text-warning bg-warning/10' },
 }
 
 function normalizeRiskLevel(level?: string): 'high' | 'medium' | 'low' {
@@ -165,10 +162,10 @@ export function RiskAlertPanel() {
     <div className={`h-full overflow-auto ${spacing.page} ${spacing.section}`}>
       {/* 统计卡片 —— 接入 StatGrid，视觉与全站一致 */}
       <StatGrid cols={4}>
-        <UnifiedStatCard index={0} icon={AlertTriangle} tone="default"     label="总预警"   value={stats.total}    hint="全部预警" loading={loading} />
-        <UnifiedStatCard index={1} icon={Shield}        tone="destructive" label="高风险"   value={stats.high}     hint="需立即处理" loading={loading} />
-        <UnifiedStatCard index={2} icon={TrendingUp}    tone="primary"     label="本周新增" value={stats.thisWeek} hint="近 7 天"   loading={loading} />
-        <UnifiedStatCard index={3} icon={Clock}         tone="warning"     label="待处理"   value={stats.pending}  hint="未受理"    loading={loading} />
+        <UnifiedStatCard index={0} icon={icons.AlertTriangle} tone="default"     label="总预警"   value={stats.total}    hint="全部预警" loading={loading} />
+        <UnifiedStatCard index={1} icon={icons.Shield}        tone="destructive" label="高风险"   value={stats.high}     hint="需立即处理" loading={loading} />
+        <UnifiedStatCard index={2} icon={icons.TrendingUp}    tone="primary"     label="本周新增" value={stats.thisWeek} hint="近 7 天"   loading={loading} />
+        <UnifiedStatCard index={3} icon={icons.Clock}         tone="warning"     label="待处理"   value={stats.pending}  hint="未受理"    loading={loading} />
       </StatGrid>
 
       {/* 筛选 */}
@@ -198,7 +195,7 @@ export function RiskAlertPanel() {
         </div>
       ) : filteredRisks.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-          <CheckCircle2 className="h-12 w-12 mb-3 text-success" />
+          <icons.CheckCircle2 className="h-12 w-12 mb-3 text-success" />
           <p className="text-sm font-medium">暂无风险预警</p>
           <p className="text-xs mt-1">系统将自动监测合同风险和舆情变化</p>
         </div>
@@ -240,7 +237,7 @@ export function RiskAlertPanel() {
                   <span className="text-xs text-muted-foreground shrink-0">{formatTime(item.time)}</span>
 
                   {/* 展开箭头 */}
-                  {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                  {isExpanded ? <icons.ChevronDown className="h-4 w-4 text-muted-foreground" /> : <icons.ChevronRight className="h-4 w-4 text-muted-foreground" />}
                 </button>
 
                 {/* 展开详情 */}
@@ -277,12 +274,12 @@ export function RiskAlertPanel() {
                         </button>
                       )}
                       <button className="px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground bg-muted hover:text-foreground transition-colors flex items-center gap-1">
-                        <Eye className="h-3 w-3" />
+                        <icons.Eye className="h-3 w-3" />
                         查看详情
                       </button>
                       {item.handled && (
                         <span className="text-xs text-success flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3" />
+                          <icons.CheckCircle2 className="h-3 w-3" />
                           已处理
                         </span>
                       )}
