@@ -1,6 +1,8 @@
 """
-图数据库服务
-使用 CAMEL-AI 的 Neo4jGraph 进行图谱管理
+图数据库服务（基于官方 neo4j driver 的轻量封装）
+
+历史：曾依赖 CAMEL-AI 的 Neo4jGraph；现已剥离三方依赖，直接使用 neo4j>=5 官方 driver
++ 一层最小语义层（add_triplet / query）保持原有调用方契约不变。
 """
 
 import atexit
@@ -12,14 +14,52 @@ from loguru import logger
 
 from src.core.config import settings
 
-_Neo4jGraph: Any
 try:
-    from camel.storages import Neo4jGraph as _ImportedNeo4jGraph
-
-    _Neo4jGraph = _ImportedNeo4jGraph
+    from neo4j import GraphDatabase
+    _NEO4J_AVAILABLE = True
 except ImportError:
-    _Neo4jGraph = None
-    logger.warning("camel-ai 未安装，图数据库功能不可用")
+    GraphDatabase = None  # type: ignore[assignment,misc]
+    _NEO4J_AVAILABLE = False
+    logger.warning("neo4j driver 未安装，图数据库功能不可用")
+
+
+class _Neo4jGraphAdapter:
+    """官方 neo4j driver 之上的最小语义封装。
+
+    仅暴露代码中实际使用的两个动词：
+      - ``add_triplet(s, p, o)``: 以 ``MERGE`` 写入 (s)-[p]->(o)，幂等。
+      - ``query(cypher, params=None)``: 运行 Cypher 并返回 list[dict]。
+    其它能力（事务、批量、APOC 等）由调用方直接使用 ``self.driver``。
+    """
+
+    def __init__(self, url: str, username: str, password: str) -> None:
+        if not _NEO4J_AVAILABLE:
+            raise RuntimeError("neo4j driver 未安装")
+        self.driver = GraphDatabase.driver(url, auth=(username, password))
+
+    def add_triplet(self, subject: str, predicate: str, obj: str) -> None:
+        # predicate 作为 relation type 不能参数化，做一次白名单化处理
+        safe_predicate = "".join(c if (c.isalnum() or c == "_") else "_" for c in predicate) or "RELATED_TO"
+        cypher = (
+            "MERGE (a:Entity {name: $subject}) "
+            "MERGE (b:Entity {name: $object}) "
+            f"MERGE (a)-[r:{safe_predicate}]->(b)"
+        )
+        with self.driver.session() as session:
+            session.run(cypher, subject=subject, object=obj)
+
+    def query(self, cypher: str, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        with self.driver.session() as session:
+            result = session.run(cypher, **(params or {}))
+            return [dict(record) for record in result]
+
+    def close(self) -> None:
+        if self.driver is not None:
+            self.driver.close()
+            self.driver = None  # type: ignore[assignment]
+
+
+_Neo4jGraph: Any = _Neo4jGraphAdapter if _NEO4J_AVAILABLE else None
 
 
 class GraphService:
@@ -67,7 +107,7 @@ class GraphService:
                 return
 
             if _Neo4jGraph is None:
-                logger.warning("camel-ai 未安装，图数据库功能不可用")
+                logger.warning("neo4j driver 未安装，图数据库功能不可用")
                 return
 
             self.graph = _Neo4jGraph(

@@ -1039,7 +1039,7 @@ DASHSCOPE_API_KEY=<阿里云百炼 API Key>
 |------|------|
 | 前端 | React 18 + TypeScript + Vite + Tailwind CSS + Radix UI |
 | 后端 | FastAPI + SQLAlchemy 2.0 + Alembic |
-| AI | CAMEL-AI (16+ Agent) + OpenAI + Anthropic |
+| AI | 自研 Harness 层 (16+ Agent) + OpenAI + Anthropic |
 | 数据库 | PostgreSQL + Redis + Qdrant + Neo4j |
 | 部署 | Docker + GitHub Actions |
 

@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.database import get_db
 from src.core.deps import Permission, require_permission
 from src.core.responses import UnifiedResponse
-from src.core.schemas import CamelModel
+from src.core.schemas import APIModel
 from src.models.user import User
 from src.services.asset_service import AssetService
 
@@ -28,21 +28,21 @@ def _as_date(value: Any) -> date | None:
     return cast(date | None, value)
 
 
-class AssetCreate(CamelModel):
+class AssetCreate(APIModel):
     name: str
     type: str
     original_value: float
     current_value: float
     acquisition_date: date | None = None
 
-class AssetUpdate(CamelModel):
+class AssetUpdate(APIModel):
     name: str | None = None
     type: str | None = None
     original_value: float | None = None
     current_value: float | None = None
     acquisition_date: date | None = None
 
-class AssetResponse(CamelModel):
+class AssetResponse(APIModel):
     id: str
     name: str
     type: str

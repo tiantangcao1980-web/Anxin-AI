@@ -232,7 +232,7 @@
 | 后端 | Python 3.12 · FastAPI · SQLAlchemy 2 · Alembic · Celery |
 | 数据 | PostgreSQL 16 · Redis 7 · Qdrant (向量) · MinIO (对象) |
 | RAG | RAG-Anything (HKUDS) · MinerU · LangChain |
-| Agent | 自研 Orchestrator · Hermes-Agent 范式 · CAMEL-AI workforce |
+| Agent | 自研 Orchestrator · Hermes-Agent 范式 · 自研 Harness Workforce |
 | 学习 | Evolver (EvoMap) · 经验沉淀回流 |
 | 信息获取 | crawl4ai · HeadlessX (self-host) · BeautifulSoup4 · lxml · 官方 API |
 | 设计 | canvas-design · web-artifacts-builder · Remotion (视频) |

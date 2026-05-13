@@ -119,7 +119,7 @@
 | 层 | 选型 |
 |---|---|
 | **后端** | Python 3.11+ · FastAPI · SQLAlchemy 2.0 async · Pydantic 2 · Alembic |
-| **AI** | OpenAI / Anthropic / 通义 / 混元 / DeepSeek / Ollama · CAMEL-AI · MCP |
+| **AI** | OpenAI / Anthropic / 通义 / 混元 / DeepSeek / Ollama · 自研 Harness 层（六层 Agent 架构）· MCP |
 | **向量 / 图** | Qdrant 1.12 · Neo4j 5.15 |
 | **任务 / 缓存** | Celery · Redis 7 |
 | **对象存储** | MinIO（S3 兼容） |

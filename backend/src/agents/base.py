@@ -17,11 +17,27 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 import httpx
-from camel.agents import ChatAgent  # noqa: F401 - legacy patch target for tests
-from camel.models import ModelFactory  # noqa: F401 - legacy patch target for tests
-from camel.types import ModelPlatformType, ModelType
 from loguru import logger
 from pydantic import BaseModel, Field
+
+
+# === 历史兼容占位符 ===
+# 项目早期依赖 CAMEL-AI（``camel.agents.ChatAgent`` / ``camel.models.ModelFactory``），
+# 已在 2026-05 全量剥离。少量遗留单测仍使用 ``@patch('src.agents.base.ChatAgent')``
+# 和 ``@patch('src.agents.base.ModelFactory.create')`` 作为打桩点；这些桩在测试中
+# 被 ``MagicMock`` 替换，运行期不会被生产代码触达。
+# 当 tests/test_workforce.py、tests/test_document_drafter_quality.py 迁移到真实
+# 调用点之后，可安全删除以下两个占位符。
+class ChatAgent:  # pragma: no cover - legacy patch target only
+    """Deprecated CAMEL-AI 兼容占位符；生产路径不再使用。"""
+
+
+class ModelFactory:  # pragma: no cover - legacy patch target only
+    """Deprecated CAMEL-AI 兼容占位符；生产路径不再使用。"""
+
+    @classmethod
+    def create(cls, *args: Any, **kwargs: Any) -> None:
+        return None
 
 from src.core.config import settings
 from src.core.llm_helper import get_llm_config_sync
@@ -144,7 +160,6 @@ class BaseLegalAgent(ABC):
         self.role = config.role
         self.system_prompt = config.system_prompt
         self.client: Any | None = None
-        self.agent: Any | None = None  # Deprecated camel agent
         self.llm_config: Any | None = None
         self.model_name: str | None = None
         self._init_agent()
@@ -167,18 +182,6 @@ class BaseLegalAgent(ABC):
             logger.error(traceback.format_exc())
             self.llm_config = None
             self.model_name = None
-
-    def _get_platform_type(self, provider: str) -> ModelPlatformType:
-        """根据提供商获取CAMEL平台类型 (Unused, 保留兼容)"""
-        platform_map = {
-            "openai": ModelPlatformType.OPENAI,
-            "anthropic": ModelPlatformType.ANTHROPIC,
-        }
-        return platform_map.get(provider, ModelPlatformType.OPENAI)
-
-    def _get_model_type(self, provider: str, model_name: str) -> ModelType:
-        """根据提供商和模型名称获取CAMEL模型类型 (Unused, 保留兼容)"""
-        return ModelType.GPT_4O
 
     @abstractmethod
     async def process(self, task: dict[str, Any]) -> AgentResponse:
