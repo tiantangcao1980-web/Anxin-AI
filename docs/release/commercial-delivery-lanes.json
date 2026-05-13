@@ -359,7 +359,7 @@
         "frontend/e2e/agent-approval-workspace.spec.ts",
         "scripts/agent-governance-smoke.sh",
         "docs/release/evidence/artifacts/agent-governance-code-smoke-20260509.json",
-        "docs/audit/_tasks/TASK-12-agent-control-plane-skill-evolution.md",
+        "docs/audit/_tasks/task-12-agent-control-plane-skill-evolution.md",
         "docs/audit/12-enterprise-agent-governance/",
         "docs/security/agent-governance-policy.md",
         "docs/architecture/agent-control-plane.md",
@@ -389,7 +389,7 @@
         "docs/release/evidence/artifacts/agent-cross-process-revocation-rehearsal-20260509.json"
       ],
       "evidence": [
-        "docs/audit/_tasks/TASK-12-agent-control-plane-skill-evolution.md",
+        "docs/audit/_tasks/task-12-agent-control-plane-skill-evolution.md",
         "backend/tests/test_agent_governance_policy.py",
         "backend/tests/test_business_authorization_guards.py",
         "backend/tests/test_capability_routes.py",
@@ -444,7 +444,7 @@
         "docs/release/evidence/artifacts/agent-cross-process-revocation-rehearsal-20260509.json"
       ],
       "local_commands": [
-        "test -s docs/audit/_tasks/TASK-12-agent-control-plane-skill-evolution.md",
+        "test -s docs/audit/_tasks/task-12-agent-control-plane-skill-evolution.md",
         "rg -n \"AgentManager|CapabilityRoute|consumer token|Human-in-the-loop|SkillEvolutionProposal|可信会话|企业智能体治理\" docs/openspec docs/audit/_tasks docs/references",
         "bash scripts/agent-governance-smoke.sh --out docs/release/evidence/artifacts/agent-governance-code-smoke-YYYYMMDD.json",
         "backend/.venv/bin/pytest -q backend/tests/test_agent_governance_policy.py",

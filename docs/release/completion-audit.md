@@ -22,7 +22,7 @@
 | 新增符号入图验证 | direct rc binary 可用 `context runLocalSyncWithDependencies`、`context getDesktopSQLiteSecurityStatus`、`context sqlite_migrations` 定位；repo-scoped `query` 可返回支付 webhook/退款幂等、桌面 SQLite 安全、移动 refresh-token/auth 相关定义；`detect-changes --scope all` 已确认当前未提交交付面为 critical 级影响 | 索引 metadata、embeddings 与读取型 CLI 已验证 | 新增符号覆盖必须继续用 `rg`、源码阅读和测试补盲；提交后必须重跑索引 |
 | OpenSpec 规范 | `docs/openspec/01-commercial-delivery-spec.md`、`docs/openspec/00-intelligent-assistant-platform-spec.md` | 已完成当前定位版 | 规范需随后续外部证据更新；桌面配置面、移动远控和扩展能力仍需实现证据 |
 | 测试规范 | `docs/openspec/02-commercial-delivery-test-spec.md` | 已完成当前定位版 | Ruff 已清零；backend mypy zero-baseline gate 已机器化；新增全设备智能助手验收仍待代码/真机证据 |
-| 审计任务文档 | `docs/audit/PLAN.md`、`docs/audit/SUMMARY.md`、各模块 `docs/audit/<NN-module>/` | 已建立并持续更新 | 后续阻断项需继续补 `00..05.md` 证据 |
+| 审计任务文档 | `docs/audit/plan.md`、`docs/audit/summary.md`、各模块 `docs/audit/<NN-module>/` | 已建立并持续更新 | 后续阻断项需继续补 `00..05.md` 证据 |
 | 发布就绪判定 | `docs/release/commercial-delivery-readiness.md` 明确 Not ready | 已完成真实判定 | 商业发布仍阻断 |
 | 测试证据清单 | `docs/release/test-evidence.md` | 已完成当前证据汇总 | 真实沙箱/真机/预发证据不足 |
 | 回滚手册 | `docs/release/rollback-runbook.md` | 已建立 | 仍需真实演练日志 |

@@ -10,7 +10,7 @@ Tauri Updater 协议：
 - 兜底：内存常量 `CURRENT_RELEASES`
 - 未来可扩展为 `software_releases` 数据库表
 
-manifest 示例见 docs/DEPLOYMENT_DESKTOP.md 2.3。
+manifest 示例见 docs/deployment-desktop.md 2.3。
 """
 
 from __future__ import annotations

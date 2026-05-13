@@ -109,5 +109,5 @@ docker compose -f docker-compose.nas.yml up -d
 ## 下一步
 
 - 连接本地 Ollama：在 `.env` 填 `OLLAMA_BASE_URL=http://host.docker.internal:11434`
-- 开启硬件 NPU 加速（RK3588 / Apple Silicon）：参考 `docs/HARDWARE_APPLIANCE_PROTOCOL.md`
+- 开启硬件 NPU 加速（RK3588 / Apple Silicon）：参考 `docs/hardware-appliance-protocol.md`
 - 离线法规包：`docker compose exec backend python -m src.cli.download_pack regulation-core-v1`

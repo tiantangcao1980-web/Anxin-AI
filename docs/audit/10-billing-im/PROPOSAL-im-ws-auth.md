@@ -1,6 +1,6 @@
 # 提案：IM WebSocket URL token → 首包鉴权改造
 
-> 关联：TASK-10-billing-im.md P0-4；PROJECT_STATUS S8；01-auth/PROPOSAL-token-storage.md Step 5
+> 关联：task-10-billing-im.md P0-4；PROJECT_STATUS S8；01-auth/PROPOSAL-token-storage.md Step 5
 > 性质：实施方案（不含代码改动）
 > 作者：Claude Code（审计）
 > 日期：2026-05-04
@@ -221,4 +221,4 @@ PROPOSAL-token-storage Step 5 与本提案是**同一改动**的一体两面，�
 
 ---
 
-> 完成此提案后，对应 TASK-10-billing-im.md P0-4 验收点（"WS URL 不再含 token + 首帧鉴权 + 3 个 pytest + 1 个 e2e 全绿"）。
+> 完成此提案后，对应 task-10-billing-im.md P0-4 验收点（"WS URL 不再含 token + 首帧鉴权 + 3 个 pytest + 1 个 e2e 全绿"）。

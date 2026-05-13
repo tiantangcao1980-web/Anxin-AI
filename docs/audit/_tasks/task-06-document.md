@@ -97,7 +97,7 @@
 ### Step 6 · 沉淀
 - `add-feature --name "object_storage_service" --pattern "MinIO+S3 双后端 env 切换" --files ...`
 - `add-bugfix --symptom "document_service 三处 TODO 文件不落盘" --fix "接 storage_service" --files ...`
-- 更新 `docs/ARCHITECTURE_V2.md` 加"对象存储抽象层"一节
+- 更新 `docs/architecture-v2.md` 加"对象存储抽象层"一节
 
 ---
 

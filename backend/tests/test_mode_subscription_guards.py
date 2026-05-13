@@ -1,7 +1,7 @@
 """
 require_mode + require_subscription_feature 守卫的回归测试
 
-来自任务：TASK-09 P0-1（docs/audit/_tasks/TASK-09-risk-investigation.md）
+来自任务：TASK-09 P0-1（docs/audit/_tasks/task-09-risk-investigation.md）
 方案文档：docs/audit/09-risk/PROPOSAL-mode-guard.md
 
 测试覆盖：

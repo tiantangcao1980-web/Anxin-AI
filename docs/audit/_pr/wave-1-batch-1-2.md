@@ -1,6 +1,6 @@
 # PR：V2 守卫层加固 + LLM 组织隔离 + 认证入口加固（波次 1 第一+第二批）
 
-> 来自审计计划：[docs/audit/PLAN.md](../PLAN.md) 波次 1
+> 来自审计计划：[docs/audit/plan.md](../PLAN.md) 波次 1
 > 任务：TASK-01（认证入口部分收口）+ TASK-02（V2 路由真分离 + 三态运行）+ TASK-04（A2UI/WS 鉴权）+ TASK-09 P0-1/P0-2（尽调守卫 + 匿名聊天 token 拆分）+ S6（LLM 隔离）
 > 类型：安全加固 + Bug 修复，**不引入新功能、不改商业化代码、不动 prompts/webhook/密钥**
 
@@ -67,7 +67,7 @@ frontend/e2e/helpers/session.ts                 seedAuthState 加 primary_client
 ### 文档
 
 ```
-docs/audit/PLAN.md 等 22 份审计文档（计划+SOP+任务提示词+提案+PR 模板）
+docs/audit/plan.md 等 22 份审计文档（计划+SOP+任务提示词+提案+PR 模板）
 ```
 
 ---

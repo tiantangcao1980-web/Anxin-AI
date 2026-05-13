@@ -12,7 +12,7 @@
 | 按规范推进开发与测试 | 已收口 TASK-01/02/05/06/07/09/10/11c 的若干 P0/P1 切片；TASK-11a 桌面 MVP 已补 `docs/audit/11a-desktop-mvp/00..05.md` 审计包并纳入 `desktop-mvp-local-gate.sh`；TASK-11b 桌面同步新增注入式 SQLite push/pull/retry 代码级闭环；后端全量 `467 passed, 1 skipped, 17 warnings in 36.11s`，前端 lint/tsc 当前通过，最新完整本地门禁中 Vitest `12 files / 45 tests passed` | 进行中 |
 | 形成商业交付准备包 | 本摘要、completion audit、release readiness、rollback runbook、security/privacy checklist、test evidence 已补齐 | 已完成当前版本 |
 | 补充 UI/UX 与真实状态审计 | `docs/audit/current-state-ui-ux-audit-2026-05-08.md` 已按移动端、小程序、桌面端拆出 P0/P1 问题，并补充中小企业需求方、专业服务方、全设备智能助手和高可信试点门槛 | 已完成审计基线 |
-| 参考项目与智能体治理升级 | `docs/references/agentic-platform-benchmark-2026-05-08.md`、`docs/openspec/00-intelligent-assistant-platform-spec.md` 和 `TASK-12-agent-control-plane-skill-evolution.md` 已吸收 Hermes/OpenClaw/HiClaw/DeepTutor/CLI-Anything/RAG-Anything/browser-use/Scrapling，并补充 Codex/Claude 式可信会话体验、Skills 进化与智能体自我改进治理 | 已完成规范基线，代码实现待执行 |
+| 参考项目与智能体治理升级 | `docs/references/agentic-platform-benchmark-2026-05-08.md`、`docs/openspec/00-intelligent-assistant-platform-spec.md` 和 `task-12-agent-control-plane-skill-evolution.md` 已吸收 Hermes/OpenClaw/HiClaw/DeepTutor/CLI-Anything/RAG-Anything/browser-use/Scrapling，并补充 Codex/Claude 式可信会话体验、Skills 进化与智能体自我改进治理 | 已完成规范基线，代码实现待执行 |
 
 ## 2. 当前已收口的高风险面
 

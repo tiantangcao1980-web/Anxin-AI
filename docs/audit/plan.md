@@ -183,7 +183,7 @@ Day 4-9     波次 2 并行：任务 3 / 4 / 5 / 6 / 7（5 个 worktree）
 Day 10-13   波次 3 并行：任务 8a / 8b / 9 / 10
 Day 14-20   波次 4：任务 11a + 11b + 11c
 Day 21-28   波次 5：任务 12 企业智能体治理与能力中心
-Day 29      汇总：合并 docs/audit/* → docs/audit/SUMMARY.md
+Day 29      汇总：合并 docs/audit/* → docs/audit/summary.md
                   对外发布"V2 内测可用"声明
 Day 30-36   缓冲 + P2 质量基线（ruff/mypy 分层基线 + 性能调优）
 ```
@@ -203,22 +203,22 @@ Day 30-36   缓冲 + P2 质量基线（ruff/mypy 分层基线 + 性能调优）
 
 | # | 文件 | 状态 |
 |---|---|---|
-| 0 | `_tasks/TASK-00-platform.md` | 待生成 |
-| 1 | `_tasks/TASK-01-auth.md` | 已生成，部分执行 |
-| 2 | `_tasks/TASK-02-mode-llm.md` | 已生成，核心守卫已执行 |
-| 3 | `_tasks/TASK-03-agents.md` | 已生成 |
-| 4 | `_tasks/TASK-04-a2ui.md` | 已生成，协议/WS 鉴权部分已执行 |
-| 5 | `_tasks/TASK-05-contract.md` | 已生成 |
-| 6 | `_tasks/TASK-06-document.md` | 已生成 |
-| 7 | `_tasks/TASK-07-rag.md` | 已生成 |
-| 8a | `_tasks/TASK-08a-case-task.md` | 已生成，案件状态机/终态只读/任务 owner 核心收口已执行；全矩阵与 Playwright 全流程仍待发布前扩展 |
-| 8b | `_tasks/TASK-08b-lawyer-market.md` | 已生成，local 模式拒绝/利益冲突阻断/同分曝光轮询已执行；律所 RBAC 全矩阵与案源 8 API 打勾仍待扩展 |
-| 9 | `_tasks/TASK-09-risk-investigation.md` | 已生成，匿名聊天/尽调守卫/尽调缓存 org 隔离/风险评分解释性/爬虫合规入口/意图路由评测已执行；预发网络真实 dry-run 仍是发布证据 |
-| 10 | `_tasks/TASK-10-billing-im.md` | 已生成 |
-| 11a | `_tasks/TASK-11a-desktop-mvp.md` | 已生成 |
-| 11b | `_tasks/TASK-11b-sync-engine.md` | 已生成 |
-| 11c | `_tasks/TASK-11c-mobile-design.md` | 已生成；2026-05-09 已同步 uni-app 统一端路线，旧 `mobile/` 和 `mini-program/` 标记 legacy；`apps/uni-mobile/` 首版基座已通过 typecheck、12 个契约测试、production audit、H5 和微信小程序构建；旧端模块删除待同等能力和真机/DevTools 证据 |
-| 12 | `_tasks/TASK-12-agent-control-plane-skill-evolution.md` | 已生成，等待执行 |
+| 0 | `_tasks/task-00-platform.md` | 待生成 |
+| 1 | `_tasks/task-01-auth.md` | 已生成，部分执行 |
+| 2 | `_tasks/task-02-mode-llm.md` | 已生成，核心守卫已执行 |
+| 3 | `_tasks/task-03-agents.md` | 已生成 |
+| 4 | `_tasks/task-04-a2ui.md` | 已生成，协议/WS 鉴权部分已执行 |
+| 5 | `_tasks/task-05-contract.md` | 已生成 |
+| 6 | `_tasks/task-06-document.md` | 已生成 |
+| 7 | `_tasks/task-07-rag.md` | 已生成 |
+| 8a | `_tasks/task-08a-case-task.md` | 已生成，案件状态机/终态只读/任务 owner 核心收口已执行；全矩阵与 Playwright 全流程仍待发布前扩展 |
+| 8b | `_tasks/task-08b-lawyer-market.md` | 已生成，local 模式拒绝/利益冲突阻断/同分曝光轮询已执行；律所 RBAC 全矩阵与案源 8 API 打勾仍待扩展 |
+| 9 | `_tasks/task-09-risk-investigation.md` | 已生成，匿名聊天/尽调守卫/尽调缓存 org 隔离/风险评分解释性/爬虫合规入口/意图路由评测已执行；预发网络真实 dry-run 仍是发布证据 |
+| 10 | `_tasks/task-10-billing-im.md` | 已生成 |
+| 11a | `_tasks/task-11a-desktop-mvp.md` | 已生成 |
+| 11b | `_tasks/task-11b-sync-engine.md` | 已生成 |
+| 11c | `_tasks/task-11c-mobile-design.md` | 已生成；2026-05-09 已同步 uni-app 统一端路线，旧 `mobile/` 和 `mini-program/` 标记 legacy；`apps/uni-mobile/` 首版基座已通过 typecheck、12 个契约测试、production audit、H5 和微信小程序构建；旧端模块删除待同等能力和真机/DevTools 证据 |
+| 12 | `_tasks/task-12-agent-control-plane-skill-evolution.md` | 已生成，等待执行 |
 
 ---
 
@@ -317,7 +317,7 @@ Day 30-36   缓冲 + P2 质量基线（ruff/mypy 分层基线 + 性能调优）
 
 ## 附录 B：本计划与现有文档的关系
 
-- **本计划不替代**：`PROJECT_STATUS.md`（项目实时状态）、`PRODUCT_ROADMAP.md`（产品规划）、`DESIGN.md`（设计系统）、`docs/ARCHITECTURE_V2.md`（架构）
+- **本计划不替代**：`PROJECT_STATUS.md`（项目实时状态）、`PRODUCT_ROADMAP.md`（产品规划）、`DESIGN.md`（设计系统）、`docs/architecture-v2.md`（架构）
 - **本计划补充**：在 PROJECT_STATUS "Phase 1-5 已完成" 之后，加入"V2 实质就绪度差分"
 - **本计划完成后**：将"M-D 里程碑达成"写回 PROJECT_STATUS，移除 P0 钉子项
 

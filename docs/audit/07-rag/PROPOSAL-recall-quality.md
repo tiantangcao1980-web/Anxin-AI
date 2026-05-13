@@ -1,8 +1,8 @@
 # PROPOSAL · RAG 召回质量基准 + 引用回链 100% 可点
 
-> 任务来源：`docs/audit/_tasks/TASK-07-rag.md` 中 P0-1 / P0-2 / P0-4
+> 任务来源：`docs/audit/_tasks/task-07-rag.md` 中 P0-1 / P0-2 / P0-4
 > 范围：仅写文档，不改代码；落地动作在后续 PR 中执行
-> 关联：`docs/audit/PLAN.md` §1（"必修 P0"通用规约）
+> 关联：`docs/audit/plan.md` §1（"必修 P0"通用规约）
 
 ---
 

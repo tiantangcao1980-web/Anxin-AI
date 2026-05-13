@@ -1,6 +1,6 @@
 # 提案：前端 token 存储升级 + store 双重持久化清理
 
-> 关联：TASK-01-auth.md P0-2 / P0-5；00-platform/01-prd-reality-gap.md S2/S3/S4/S10/S8
+> 关联：task-01-auth.md P0-2 / P0-5；00-platform/01-prd-reality-gap.md S2/S3/S4/S10/S8
 > 性质：实施方案（不含代码改动）
 > 作者：Claude Code（审计）
 > 日期：2026-05-04
@@ -219,4 +219,4 @@ CORS（`backend/src/core/security_config.py:60-67`）：`allow_credentials=True`
 
 ---
 
-> 完成此提案后，对应 TASK-01-auth.md P0-2 / P0-5 的"老用户迁移路径无中断"验收点。
+> 完成此提案后，对应 task-01-auth.md P0-2 / P0-5 的"老用户迁移路径无中断"验收点。

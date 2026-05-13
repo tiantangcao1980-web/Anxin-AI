@@ -232,7 +232,7 @@ CREATE TABLE sync_state (
 完成本节后，需要回写：
 - `PROJECT_STATUS.md` → 2026-05-09 已补商业交付状态纠偏，明确桌面 11a/11b 的代码级证据与 signed/runtime/真机阻断
 - `PRODUCT_ROADMAP.md` → 2026-05-09 已把"离线任务队列 + 同步引擎"从完成态改为代码级/unsigned 证据已具备、商业证据待补，并把移动端路线改为 uni-app
-- 在 `docs/ARCHITECTURE_V2.md` 中加一节"对象存储抽象层"（缺口 A 的设计）
+- 在 `docs/architecture-v2.md` 中加一节"对象存储抽象层"（缺口 A 的设计）
 
 ---
 

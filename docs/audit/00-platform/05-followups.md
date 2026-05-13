@@ -228,7 +228,7 @@ python3 ~/.claude/skills/hierarchical-memory/scripts/memory-cli.py add-project \
 ```bash
 python3 ~/.claude/skills/hierarchical-memory/scripts/memory-cli.py add-project \
   --name "Anxin 18 处审计核查点位" \
-  --content "见 docs/audit/PLAN.md 附录 A。每个点位带文件路径 + 行号 + 现状描述 + 修复任务归属" \
+  --content "见 docs/audit/plan.md 附录 A。每个点位带文件路径 + 行号 + 现状描述 + 修复任务归属" \
   --tags "audit,checklist,2026-05"
 ```
 

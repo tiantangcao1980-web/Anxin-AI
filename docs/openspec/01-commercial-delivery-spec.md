@@ -51,7 +51,7 @@
 - 角色访问 E2E 当前达到 `10 passed, 10 skipped`。
 - 移动/小程序本地门禁：`bash scripts/mobile-device-smoke.sh` 通过，移动 Vitest `8 files / 27 tests passed`，移动 tsc、Expo doctor `17/17`、mobile production npm audit、小程序 tsc/build、WeChat DevTools CLI project smoke、mobile result surface guard、refresh auth guard、mobile/mini privacy network guard、fake fallback guard、mini-program navigation boundary guard 和 mini-program design token guard 均为 exit `0`。
 - 桌面端 `cargo check` 可通过。
-- 本地/混合/云端与可配置模型已有架构基础：`docs/ARCHITECTURE_V2.md` 已定义本地模式数据不离开设备、Ollama/LM Studio 等自配置本地模型，以及 Enterprise 自定义 LLM endpoint；后端存在 `src/services/llm_service.py`、`src/services/private_llm_service.py`、`src/api/routes/llm.py`，桌面存在 `desktop/src/commands/local_llm.rs`。
+- 本地/混合/云端与可配置模型已有架构基础：`docs/architecture-v2.md` 已定义本地模式数据不离开设备、Ollama/LM Studio 等自配置本地模型，以及 Enterprise 自定义 LLM endpoint；后端存在 `src/services/llm_service.py`、`src/services/private_llm_service.py`、`src/api/routes/llm.py`，桌面存在 `desktop/src/commands/local_llm.rs`。
 - MCP/Skills 已有代码基础：后端存在 `backend/src/mcp_server.py`、`backend/src/api/routes/mcp_routes.py`、`backend/src/services/mcp_client_service.py`、`backend/src/models/mcp_config.py`、`backend/src/services/skill_service.py`；这些证明扩展底座存在，但尚不能证明“任意 Skills/MCP 商业可配置”已经闭环。
 - 独立知识库已有代码基础：后端存在 `backend/src/services/knowledge_management.py`、`backend/src/services/knowledge_service.py`、`backend/src/api/routes/knowledge.py`；仍需把本地知识库、组织知识库、来源引用、离线索引和移动/桌面可视化配置纳入发布验收。
 - 桌面/移动本地安全已有局部基础：桌面 SQLCipher/keyring、offline queue 和 local LLM 命令已有代码级证据；移动 `privacy-context` 已覆盖 LAN Ollama 等本地模型语义；后端同步路由已补移动远控 DB-backed 配对、授权、命令队列、host 领取、状态回传、取消和递归脱敏审计控制面；桌面 Tauri IPC 已补确认配对、领取命令、回传状态、单次 safe-probe host cycle、bounded safe-probe host poll 和 env-gated 后台 safe-probe daemon 基础，并已用本地 mock 后端证明 claim -> running -> completed safe-probe 回路；桌面工作站已补 host 可见控制面，能展示 pending/confirmed pairing、权限控制项、执行状态、取消入口和脱敏审计时间线，并用 mock runtime e2e 锁住 TopSecret/非桌面禁用、配对确认、safe-probe cycle 和 queued/claimed 取消；移动端已补 confirmed pairing 下的 route-token 申请、`desktop.status_probe` 安全探针入队、状态刷新、queued/claimed 取消和脱敏审计时间线。仍缺 signed runtime daemon 运行证据、高风险真实执行器、真实跨设备联调和真机/packaged runtime 证据。
@@ -105,8 +105,8 @@
 ### Phase 1 — P0 安全与商业模式守卫
 
 范围：
-- `docs/audit/_tasks/TASK-01-auth.md`
-- `docs/audit/_tasks/TASK-02-mode-llm.md`
+- `docs/audit/_tasks/task-01-auth.md`
+- `docs/audit/_tasks/task-02-mode-llm.md`
 
 必须完成：
 - 高熵单次密码重置 token。
@@ -121,11 +121,11 @@
 ### Phase 2 — 核心业务闭环
 
 范围：
-- `TASK-03-agents`
-- `TASK-04-a2ui`
-- `TASK-05-contract`
-- `TASK-06-document`
-- `TASK-07-rag`
+- `task-03-agents`
+- `task-04-a2ui`
+- `task-05-contract`
+- `task-06-document`
+- `task-07-rag`
 
 必须完成：
 - 对话/A2UI/action 不越权。
@@ -136,10 +136,10 @@
 ### Phase 3 — 商业化与多角色协同
 
 范围：
-- `TASK-08a-case-task`
-- `TASK-08b-lawyer-market`
-- `TASK-09-risk-investigation`
-- `TASK-10-billing-im`
+- `task-08a-case-task`
+- `task-08b-lawyer-market`
+- `task-09-risk-investigation`
+- `task-10-billing-im`
 
 必须完成：
 - 案件/任务状态机清晰。
@@ -151,9 +151,9 @@
 ### Phase 4 — 多端交付
 
 范围：
-- `TASK-11a-desktop-mvp`
-- `TASK-11b-sync-engine`
-- `TASK-11c-mobile-design`
+- `task-11a-desktop-mvp`
+- `task-11b-sync-engine`
+- `task-11c-mobile-design`
 
 必须完成：
 - 桌面端是可安装主工作站：快速问答、拖拽分析、本地加密库、本地模型、独立知识库、Skills/MCP 配置入口和本地/混合/云端模式状态一致。
@@ -164,7 +164,7 @@
 ### Phase 5 — 企业智能体治理
 
 范围：
-- `TASK-12-agent-control-plane-skill-evolution.md`
+- `task-12-agent-control-plane-skill-evolution.md`
 
 必须完成：
 - 统一 `capability_policy_engine`，覆盖 `subscription + role + permission + risk_level + privacy_mode + device_trust + channel_policy + approval_state`。
@@ -201,7 +201,7 @@
 
 最终商业交付候选版必须额外交付：
 
-- `docs/audit/SUMMARY.md`
+- `docs/audit/summary.md`
 - `docs/release/completion-audit.md`
 - `docs/release/commercial-delivery-readiness.md`
 - `docs/release/rollback-runbook.md`

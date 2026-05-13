@@ -25,7 +25,7 @@
 | 上层产品合同 | `docs/openspec/00-intelligent-assistant-platform-spec.md` | 桌面主工作站、移动远控、本地模型、独立知识库、Skills/MCP、可信会话和智能体进化 |
 | 商业交付规范 | `docs/openspec/01-commercial-delivery-spec.md` | 商业候选版定义、阶段目标、统一开发规则和交付物 |
 | 测试规范 | `docs/openspec/02-commercial-delivery-test-spec.md` | 每个任务、端侧和发布前的必跑测试矩阵 |
-| 真实状态审计 | `docs/audit/SUMMARY.md` | 当前完成、阻断、风险和下一步顺序 |
+| 真实状态审计 | `docs/audit/summary.md` | 当前完成、阻断、风险和下一步顺序 |
 | UI/UX 审计 | `docs/audit/current-state-ui-ux-audit-2026-05-08.md` | 移动端、小程序、桌面端问题清单和优化方案 |
 | 外部项目借鉴 | `docs/references/agentic-platform-benchmark-2026-05-08.md` | Hermes/OpenClaw/HiClaw/DeepTutor/CLI-Anything/RAG-Anything/browser-use/Scrapling、Codex/Claude 体验原则 |
 | 任务拆分 | `docs/audit/_tasks/README.md` | TASK-01..12 并行开发任务索引 |
@@ -43,14 +43,14 @@
 | 1. 目标与定位 | 冻结用户、场景、商业目标和高可信试点边界 | `strategy/product-architecture-and-requirements-2026-05-08.md`、`openspec/00-intelligent-assistant-platform-spec.md` | 目标变更必须同步 OpenSpec |
 | 2. 需求规范 | 把需求拆成可验收条款 | `openspec/01-commercial-delivery-spec.md`、`openspec/02-commercial-delivery-test-spec.md` | 每项需求有测试或证据入口 |
 | 4. UI/UX 设计 | 统一移动端、小程序、桌面和 Web 工作台体验 | `audit/current-state-ui-ux-audit-2026-05-08.md`、`design/cross-platform-token-drift.md`、`frontend-design-governance.md` | 分端优化方案、截图/真机 transcript |
-| 5. 架构与安全 | 确认权限、密钥、本地模式、同步、知识库和治理边界 | `release/security-and-privacy-checklist.md`、`ARCHITECTURE_V2.md`、`architecture/*` | 安全审查、迁移方案、回滚方案 |
+| 5. 架构与安全 | 确认权限、密钥、本地模式、同步、知识库和治理边界 | `release/security-and-privacy-checklist.md`、`architecture-v2.md`、`architecture/*` | 安全审查、迁移方案、回滚方案 |
 | 6. 任务拆分 | 把实施拆成可并行 lane | `audit/_tasks/README.md`、`release/commercial-delivery-lanes.json` | 每个 lane 有 write_scope、测试和 completion_gate |
 | 7. 开发实施 | 按任务文档小步开发 | `audit/_tasks/TASK-*.md` | 代码、迁移、前端页面、桌面/移动实现 |
 | 8. 单元与集成测试 | 先用代码级测试锁行为 | `openspec/02-commercial-delivery-test-spec.md`、`release/test-evidence.md` | pytest、Vitest、Playwright、cargo、mobile/mini smoke |
 | 9. UI/UX 验收 | 证明体验不是粗糙入口或假成功 | `audit/current-state-ui-ux-audit-2026-05-08.md` | iOS/Android/WeChat/desktop 截图或 transcript |
 | 10. 发布证据 | 采集真实沙箱、签名包、真机、RAG、静态质量证据 | `release/evidence-collection-runbook.md`、`release/external-inputs-checklist.md` | evidence `Status: complete` 或明确 blocker |
 | 11. 商业门禁 | 统一判断能不能 Go | `release/commercial-delivery-readiness.md`、`scripts/commercial-readiness-gate.sh` | quick/with-local-tests gate 通过或保留 No-Go |
-| 12. 试点与进化 | 政府/中小企业试点、Skills 进化、智能体治理复盘 | `references/agentic-platform-benchmark-2026-05-08.md`、`TASK-12-agent-control-plane-skill-evolution.md` | Skill eval gate、审批、回滚、试点问题清单 |
+| 12. 试点与进化 | 政府/中小企业试点、Skills 进化、智能体治理复盘 | `references/agentic-platform-benchmark-2026-05-08.md`、`task-12-agent-control-plane-skill-evolution.md` | Skill eval gate、审批、回滚、试点问题清单 |
 
 ## 3. UI/UX 审计结论
 

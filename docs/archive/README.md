@@ -1,35 +1,62 @@
-# 文档归档索引
+# 文档归档（已清空）
 
-> 日期：2026-05-08
-> 说明：本目录保存已过时或已被新规范取代的历史文档。归档不是删除，目的是保留追溯能力，同时避免后续开发误用旧口径。
+> 日期：2026-05-13
+> 状态：已彻底清空。所有历史档案已从工作树移除。
+
+## 历史档案的去向
+
+为遵循"彻底清理过时文件，避免被错误引用"原则，**2026-05-13** 清理了以下历史档案：
+
+| 原目录 | 内容 | 处理 |
+|---|---|---|
+| `legacy-root-docs/` | 27 篇 2026-03 / 2026-04 旧规划/审计/方案 | **已 git rm** |
+| `superpowers-implemented/` | 11 篇已实施的内部规划 | **已 git rm** |
+| `wiki-snapshot-2026-05-06/` | 9 个 Codex 旧 wiki 文件 | **已 git rm** |
+| `docs/references/legacy/` | 7 篇早期 README / DEPLOY / ROADMAP | **已 git rm** |
+
+**总计 54 个文件**已从工作树移除。
+
+## 如何追溯历史
+
+所有历史文档**永久保留在 git history 中**，需要追溯时：
+
+```bash
+# 查看历史快照（清理前的最后一个 commit）
+git show 07632ab9:docs/archive/legacy-root-docs/2026-04-18-ui-audit-and-optimization-plan.md
+
+# 列出当时存在的所有历史档案
+git ls-tree -r 07632ab9 -- docs/archive
+
+# 恢复单个文件到当前（不推荐，除非有明确理由）
+git checkout 07632ab9 -- docs/archive/legacy-root-docs/<filename>
+```
 
 ## 当前权威入口
 
-请优先阅读：
+不再使用任何 archive 内容作为开发依据。当前权威：
 
-- `docs/00-project-execution-map.md`
-- `docs/strategy/product-architecture-and-requirements-2026-05-08.md`
-- `docs/openspec/00-intelligent-assistant-platform-spec.md`
-- `docs/openspec/01-commercial-delivery-spec.md`
-- `docs/openspec/02-commercial-delivery-test-spec.md`
-- `docs/audit/SUMMARY.md`
-- `docs/audit/current-state-ui-ux-audit-2026-05-08.md`
+- **[../00-project-execution-map.md](../00-project-execution-map.md)** — 当前权威导航总入口
+- **[../strategy/](../strategy/)** — 产品策略
+- **[../openspec/](../openspec/)** — 平台合同 + 商业交付 + 测试规范
+- **[../v3/](../v3/)** — V3 智能助手实施
+- **[../audit/](../audit/)** — 当前执行计划
+- **[../adr/](../adr/)** — 架构决策记录
+- **[../standards/](../standards/)** — 开发规范
 
-## 已归档根目录文档
+## 规则
 
-| 原类型 | 归档文件 | 替代依据 |
-|---|---|---|
-| 早期升级方案 | `legacy-root-docs/2026-03-10-ai-legal-agent-final-upgrade-plan.md` | `docs/strategy/product-architecture-and-requirements-2026-05-08.md` |
-| 早期检查/维护计划 | `legacy-root-docs/2026-03-15-ai-legal-agent-inspection-report.md`、`legacy-root-docs/2026-03-15-ai-legal-agent-maintenance-upgrade-plan.md` | `docs/audit/SUMMARY.md`、`docs/audit/_tasks/README.md` |
-| 早期前端优化 | `legacy-root-docs/2026-03-25-frontend-unified-optimization-plan.md` | `docs/audit/current-state-ui-ux-audit-2026-05-08.md`、`docs/frontend-design-governance.md` |
-| 早期产品/路线/权限/设计/部署 | `legacy-root-docs/2026-03-26-*.md` | `docs/openspec/*`、`docs/release/*`、`docs/ARCHITECTURE_V2.md` |
-| 早期性能分析 | `legacy-root-docs/2026-03-31-*.md` | 当前 release/test evidence 和任务文档 |
-| 早期安全审计 | `legacy-root-docs/2026-04-03-*.md` | `docs/release/security-and-privacy-checklist.md`、`docs/audit/00-platform/*` |
-| 早期 UI/功能/发版审计 | `legacy-root-docs/2026-04-18-*.md` | `docs/audit/current-state-ui-ux-audit-2026-05-08.md`、`docs/release/commercial-delivery-readiness.md` |
-| 早期全端就绪报告 | `legacy-root-docs/2026-04-21-cross-platform-delivery-readiness.md` | `docs/release/commercial-delivery-readiness.md`、`docs/release/test-evidence.md` |
+- ❌ **禁止** 将本目录或 git history 中的归档内容作为新开发的依据
+- ❌ **禁止** 引用已删除文件的旧路径作为参考
+- ✅ 历史决策的"当时背景"可通过 git show 追溯
+- ✅ 已实施方案的"成果"看代码 + 当前文档，不看旧规划
 
-## 使用规则
+## 维护
 
-- 可以引用归档文档解释历史决策。
-- 不要用归档文档作为当前开发范围、测试门禁或发布 Go/No-Go 的依据。
-- 如果归档文档中的能力重新进入当前路线，必须先同步到 OpenSpec、任务文档和 release evidence。
+如未来需要归档新文档：
+
+1. 文档头部加 `> ⚠️ 已弃用：<日期>，被 [新文档](路径) 取代`
+2. `git mv` 到本目录（按时间命名子目录）
+3. 全仓 grep 引用并更新指针
+4. 更新 [../../CHANGELOG.md](../../CHANGELOG.md)
+
+参考：[ADR-002](../adr/002-documentation-and-naming-standards.md)

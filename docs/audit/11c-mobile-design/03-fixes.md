@@ -17,7 +17,7 @@
 
 - 新增 `docs/design/cross-platform-token-drift.md`，列出 Web/桌面、移动、小程序 token P0/P1/P2 漂移。
 - 新增 `docs/mobile/error-handling-guidelines.md`，固定移动/小程序错误态、空态和 forbidden fallback 模式。
-- 同步 `docs/release/evidence/mobile-device-smoke.md`、`docs/release/test-evidence.md`、`docs/audit/SUMMARY.md` 的移动证据口径。
+- 同步 `docs/release/evidence/mobile-device-smoke.md`、`docs/release/test-evidence.md`、`docs/audit/summary.md` 的移动证据口径。
 
 ## 3. 未在本轮修复的内容
 

@@ -11,7 +11,7 @@ V2 三态运行模式 + 订阅功能守卫依赖
 - client_type 自动推断：按 user.primary_client 决定查 needer 还是 provider 套餐
 
 参考：
-- 任务 TASK-09 P0-1（docs/audit/_tasks/TASK-09-risk-investigation.md）
+- 任务 TASK-09 P0-1（docs/audit/_tasks/task-09-risk-investigation.md）
 - 调研提案（docs/audit/09-risk/PROPOSAL-mode-guard.md）
 """
 

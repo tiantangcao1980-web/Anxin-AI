@@ -194,7 +194,7 @@
         "docs/openspec/01-commercial-delivery-spec.md",
         "docs/openspec/02-commercial-delivery-test-spec.md",
         "docs/references/agentic-platform-benchmark-2026-05-08.md",
-        "docs/audit/_tasks/TASK-12-agent-control-plane-skill-evolution.md",
+        "docs/audit/_tasks/task-12-agent-control-plane-skill-evolution.md",
         "backend/src/api/routes/agent_approvals.py",
         "backend/src/api/routes/approvals.py",
         "backend/src/api/routes/cli.py",
@@ -231,7 +231,7 @@
         "docs/release/evidence/artifacts/agent-cross-process-revocation-rehearsal-20260509.json"
       ],
       "verification": [
-        "test -s docs/audit/_tasks/TASK-12-agent-control-plane-skill-evolution.md",
+        "test -s docs/audit/_tasks/task-12-agent-control-plane-skill-evolution.md",
         "rg -n \"AgentManager|CapabilityRoute|consumer token|Human-in-the-loop|SkillEvolutionProposal|可信会话|企业智能体治理\" docs/openspec docs/audit/_tasks docs/references",
         "bash scripts/agent-governance-smoke.sh --out docs/release/evidence/artifacts/agent-governance-code-smoke-YYYYMMDD.json",
         "backend/.venv/bin/pytest -q backend/tests/test_agent_governance_policy.py",
