@@ -8,6 +8,68 @@
 
 ---
 
+## 2026-05-14（深夜）Phase B 全量收尾 — T1-T10 完成 + P9/P10 复核（worktree `vigorous-wiles-5a3fb3`）
+
+### 本轮额外完成（T6-T10 + 复核）
+
+| 任务 | 范围 | Commit | 验证 |
+|---|---|---|---|
+| **T6** cost_tracker 配额阻断 | 本地 LLM char/4 估算 + `_by_user_tokens` 用户级累计 + `check_user_quota` API + `QuotaExceededError` + `record_with_estimate`; `base.py` 改路由并透传 user_id | `7e581079` | pytest 84/84（含 +9 T6 测试） |
+| **T7** task_engine 扩展长任务 | `contract_service.review_contract` / `due_diligence_service.investigate_company` / `batch_document_service.execute_batch` 三条长任务路径接入状态机, 返回值/job 透出 task_id; 失败→FAILED, 成功→COMPLETED, 异常→save_artifact 留证 | `ca6e0ebb` | pytest 86/86（含 +2 T7 测试） |
+| **T5-prep** alembic head 合并 | 新增 `045_merge_030_044` 合并 `030_app_authorization` 与 `044_skill_connector_configs` 双 head（pre-existing infra debt）；CREAO Slice 1 主体（1666 行）需 user 显式授权后单独 PR | `5ace776c` | `alembic ScriptDirectory.get_heads()` 返回单一 head |
+| **T8** capability_negotiator API 化 | `/harness/capability/negotiate` + `/capability/degradation` 由 `get_admin_user` 改为 `get_current_user_required`; 前端 `useCapabilities` hook + `harnessGovernanceApi.negotiateCapability` + 5min cache + fallback | `1875e738` | tsc clean |
+| **T10** Skills↔tool_registry 校验 | `Skill` model 增 `required_tools: list[str]`; loader 解析 frontmatter（兼容 `required-tools` 短横线）; `Skill.validate_required_tools()` 输出未注册的工具名 | `13f93532` | pytest test_skill_loader_yaml 18/18（含 +5 T10 测试） |
+| **P9 复核** | 5+ persona 文件实现已齐（legal_advisor / contract_steward / due_diligence_expert / tax_finance_advisor / anxin_assistant / lead_hunter / ...），ROADMAP `🔜` 状态已更新为 ✅ | （文档变更内嵌于 T10 commit） | — |
+
+### Phase B 全量 commit 时间线（领先 `origin/main` 至少 11 个 commit）
+
+```
+fb1bb443  feat(icons): T1 — 60 文件 lucide-react → @/lib/icons + ESLint 防回归
+7b6ba378  fix(frontend): T1 收尾 — Investigation 漏迁移 + Contracts ContractReview 死引用
+0bb219df  feat(harness): T2 — policy_engine 主路径接入第二阶段 (warn-only → enforce)
+12ff77d6  feat(harness): T3 — context_engine 统一压缩入口
+dbd30eab  docs(status): T4 — UI/UX 假成功现状验证 + Phase B T1-T4 总收尾
+7e581079  feat(harness): T6 — cost_tracker 本地 LLM 估算 + 用户级累计 + 配额阻断 API
+ca6e0ebb  feat(harness): T7 — task_engine 扩展到合同审查/企业尽调/批量文档生成
+5ace776c  feat(alembic): T5-prep — 合并 030_app_authorization 与 044_skill_connector_configs
+1875e738  feat(capability): T8 — capability_negotiator API 化 + 前端 useCapabilities hook
+13f93532  feat(skills): T10 — SKILL.md required_tools 字段 + tool_registry 校验
+```
+
+### 验证矩阵
+
+| 维度 | 命令 | 结果 |
+|---|---|---|
+| 后端 harness | `pytest test_harness + test_chat + test_harness_policy_enforcement` | ✅ 86/86 |
+| 后端 skills | `pytest test_skill_loader_yaml` | ✅ 18/18 |
+| 后端 alembic | `python3 -c "from alembic.script import ScriptDirectory; print(ScriptDirectory.from_config(...).get_heads())"` | ✅ 单一 head `045_merge_030_044` |
+| 前端构建 | `cd frontend && npm run build` | ✅ 11.24s, vite ok |
+| 前端类型 | `npx tsc --noEmit` | ✅ clean |
+| 前端 lint | `npm run lint` | ✅ 仅 2 项 pre-existing 错误（与本轮无关） |
+
+### P11-P13 / T5 主体 / T9 状态
+
+- **T5 主体**（CREAO Slice 1, 1666 行）：前置 alembic merge 已就位，主体合并需 user 显式授权（auto mode 已正确拦截非授权 cherry-pick）。
+- **T9** anxinai.com 域名切换：外部 DNS / 证书申请 / SEO redirect，不属于代码任务，列为发布前 ops 待办。
+- **P11** 多租户 RBAC 可视化：依赖 P9 persona 上线 + 业务收益评估，列入下一里程碑。
+- **P12** 5 personas × 三端 E2E：需要 P8.A 桌面签名 + P8.D 真实沙箱凭证全部到位后启动。
+- **P13** anxinai.com 切换：同 T9。
+
+### 残留事项
+
+| 类别 | 项 | 阻断 |
+|---|---|---|
+| 外部资源 | Apple Developer 账号 / Windows 签名证书 | 业务方申请 |
+| 外部资源 | 支付 / 电签 / 政务 OA 真实沙箱凭证 | 渠道方审批 |
+| 外部资源 | 移动真机预约（iOS + Android） | 测试机房排期 |
+| 代码任务 | T5 CREAO Slice 1 主体合并（incidents 收集层 18 文件 / 1666 行） | 需 user 显式授权 |
+| 代码任务 | ModeGate 改用 `useCapabilities` hook 替代硬编码 | T8 第二阶段 |
+| 代码任务 | 桌面 Tauri `negotiate_capabilities` command 委托给云端 | T8 第三阶段 |
+| 代码任务 | `cost_tracker` 与 `subscription_service` 主路径接入 + admin 豁免开关 | T6 第二阶段 |
+| 代码任务 | RAG full50 真实跑通（corpus 准备） | P8.C |
+
+---
+
 ## 2026-05-14（夜）Phase B T1-T4 收尾（worktree `vigorous-wiles-5a3fb3`）
 
 ### 本轮目标

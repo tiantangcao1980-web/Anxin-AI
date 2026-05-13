@@ -101,17 +101,18 @@
 | preflight 命令集 | ✅ | [release/evidence-collection-runbook](release/evidence-collection-runbook.md) |
 | live 证据采集 | 🚫 | 等凭证 |
 
-### 2.2 P9 — 5 法务 persona 上层包装
-
-依赖：P8 体验门槛通过。
+### 2.2 P9 — 5 法务 persona 上层包装 ✅ 实现已完成 (2026-05-14 复核)
 
 | 子任务 | 文件 | 状态 |
 |---|---|---|
-| 法律顾问 persona 上层接口 | `backend/src/agents/personas/legal_advisor.py` | 🔜 |
-| 合同管家 persona 上层接口 | `backend/src/agents/personas/contract_steward.py` | 🔜 |
-| 尽调专家 persona | `backend/src/agents/personas/due_diligence_expert.py` | 🔜 |
-| 财税顾问 persona | `backend/src/agents/personas/tax_finance_advisor.py` | 🔜 |
-| 5 法务 persona eval baseline | `backend/evals/legal/` | 🔜 |
+| 法律顾问 persona 上层接口 | `backend/src/agents/personas/legal_advisor.py` | ✅ |
+| 合同管家 persona 上层接口 | `backend/src/agents/personas/contract_steward.py` | ✅ |
+| 尽调专家 persona | `backend/src/agents/personas/due_diligence_expert.py` | ✅ |
+| 财税顾问 persona | `backend/src/agents/personas/tax_finance_advisor.py` | ✅ |
+| 安心助理（万能入口）| `backend/src/agents/personas/anxin_assistant.py` | ✅ |
+| 5 法务 persona eval baseline | `backend/evals/legal/` | 🚧（持续完善） |
+
+复核结论（2026-05-14）：P9 代码已完整实现，DEVELOPMENT_PLAN 原标记 `🔜` 为陈旧状态。剩余只在 eval baseline corpus 的持续完善与真实业务回放上。
 
 ### 2.3 P10 — RAG-Anything 知识库新版
 
