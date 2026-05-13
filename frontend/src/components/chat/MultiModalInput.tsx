@@ -107,7 +107,7 @@ export function MultiModalInput({ onSend, disabled }: MultiModalInputProps) {
 
       <div className="mt-3 flex items-center justify-center gap-2 text-[10px] text-muted-foreground font-medium uppercase tracking-caption">
         <div className="w-1.5 h-1.5 bg-success rounded-full animate-pulse"></div>
-        <span>安心AI法务：支持文本 / 语音 / 图片 / 文件多模态输入</span>
+        <span>安心智能助手：支持文本 / 语音 / 图片 / 文件多模态输入</span>
       </div>
     </div>
   );

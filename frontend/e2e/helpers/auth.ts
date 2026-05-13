@@ -8,7 +8,7 @@ export async function loginAsAdmin(page: Page, options?: MockOptions) {
       role: 'admin',
       userId: 'e2e-admin',
       name: 'E2E Admin',
-      email: 'admin@anxinfawu.com',
+      email: 'admin@anxinassistant.com',
       ...options?.auth,
     },
   })
@@ -19,7 +19,7 @@ export async function loginAsRole(page: Page, role: string, options?: MockOption
     role,
     userId: options?.auth?.userId ?? `e2e-${role}`,
     name: options?.auth?.name ?? `E2E ${role}`,
-    email: options?.auth?.email ?? `${role}@anxinfawu.com`,
+    email: options?.auth?.email ?? `${role}@anxinassistant.com`,
     primary_client: options?.auth?.primary_client,
   }
   await installApiMocks(page, { ...options, auth })

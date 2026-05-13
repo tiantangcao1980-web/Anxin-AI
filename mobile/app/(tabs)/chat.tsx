@@ -26,7 +26,7 @@ interface ChatMessage {
 }
 
 const welcomeText =
-  '你好！我是安心法务 AI 助手。我可以帮你解答法律问题、审查合同、分析案件等。请描述你的法律问题，我会尽力为你提供专业建议。\n\n你可以试试问我：\n- 劳动合同纠纷怎么处理？\n- 公司章程需要注意什么？\n- 知识产权侵权如何维权？'
+  '你好！我是安心智能助手 AI 助手。我可以帮你解答法律问题、审查合同、分析案件等。请描述你的法律问题，我会尽力为你提供专业建议。\n\n你可以试试问我：\n- 劳动合同纠纷怎么处理？\n- 公司章程需要注意什么？\n- 知识产权侵权如何维权？'
 
 export default function ChatScreen() {
   const [messages, setMessages] = useState<ChatMessage[]>([])

@@ -2,7 +2,7 @@
  * ProLayout — 服务方端（律师/律所）专属布局
  *
  * V2 架构：与需求方端 Layout.tsx 完全分离的导航和视觉风格
- * - 顶栏品牌区别（"安心法务 Pro"）
+ * - 顶栏品牌区别（"安心智能助手 Pro"）
  * - 侧边栏导航（案源/客户/案件/账单/设置）
  * - 专业深色调，信息密度更高
  */
@@ -117,7 +117,7 @@ export default function ProLayout() {
                 exit={{ opacity: 0, width: 0 }}
                 className="overflow-hidden whitespace-nowrap"
               >
-                <h1 className="text-base font-semibold text-foreground">安心法务 Pro</h1>
+                <h1 className="text-base font-semibold text-foreground">安心智能助手 Pro</h1>
                 <p className="text-[10px] text-muted-foreground">律师工作台</p>
               </motion.div>
             )}

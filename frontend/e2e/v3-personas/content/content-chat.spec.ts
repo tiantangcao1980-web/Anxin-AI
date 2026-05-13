@@ -98,7 +98,7 @@ test.describe('V3 / persona 对话 / ✍️ 内容总监', () => {
     await expect(page.getByRole('heading', { name: '内容总监' })).toBeVisible({ timeout: 10000 })
 
     const input = page.getByPlaceholder(/和 内容总监 说点什么/)
-    await input.fill('帮我写一篇公众号文章，主题：AI 法务')
+    await input.fill('帮我写一篇公众号文章，主题：AI 智能助手')
     await page.getByRole('button', { name: /发送/ }).click()
 
     // 用户气泡

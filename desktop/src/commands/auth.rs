@@ -4,7 +4,7 @@ use tauri::State;
 /// 生物识别认证
 #[tauri::command]
 pub async fn biometric_authenticate(reason: Option<String>) -> Result<serde_json::Value, String> {
-    let auth_reason = reason.unwrap_or_else(|| "安心法务需要验证您的身份".to_string());
+    let auth_reason = reason.unwrap_or_else(|| "安心智能助手需要验证您的身份".to_string());
 
     // 实际调用由前端 tauri-plugin-biometric JS API 处理
     // 这里提供 Rust 侧的辅助功能
@@ -55,7 +55,7 @@ pub async fn is_authenticated(state: State<'_, SharedAppState>) -> Result<bool, 
 #[tauri::command]
 pub fn get_app_info() -> serde_json::Value {
     serde_json::json!({
-        "name": "安心法务",
+        "name": "安心智能助手",
         "version": env!("CARGO_PKG_VERSION"),
         "platform": std::env::consts::OS,
         "arch": std::env::consts::ARCH,

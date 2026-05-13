@@ -126,7 +126,7 @@ export const HardwareStatus = () => {
                   <div>
                     <h4 className="text-base font-semibold text-foreground mb-1">云端私有助手</h4>
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                      云端私有助手仍处于规划与预研阶段。后续开放后，将为您提供专属的云端 AI 法务服务实例、
+                      云端私有助手仍处于规划与预研阶段。后续开放后，将为您提供专属的云端 AI 智能助手服务实例、
                       数据隔离存储与独享算力资源。
                     </p>
                   </div>
@@ -146,7 +146,7 @@ export const HardwareStatus = () => {
                       { step: 1, title: '环境检测', desc: '检查系统是否满足最低硬件要求（8GB RAM、20GB 磁盘空间）' },
                       { step: 2, title: '下载 OpenClaw', desc: '从官方仓库拉取 OpenClaw 运行时和法律领域模型包' },
                       { step: 3, title: '配置服务', desc: '设置本地推理引擎、隐私策略和数据存储路径' },
-                      { step: 4, title: '验证连接', desc: '启动本地服务并验证与安心法务平台的通信' },
+                      { step: 4, title: '验证连接', desc: '启动本地服务并验证与安心智能助手平台的通信' },
                     ].map((item) => (
                       <div key={item.step} className="flex gap-3">
                         <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">

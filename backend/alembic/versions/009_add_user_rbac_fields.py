@@ -4,7 +4,7 @@ Revision ID: 009
 Revises: 008
 Create Date: 2026-03-26
 
-安心法务权限体系升级：
+安心智能助手权限体系升级：
 - 添加 department 字段（部门，用于数据范围控制）
 - 添加 user_type 字段（用户类型标识）
 """

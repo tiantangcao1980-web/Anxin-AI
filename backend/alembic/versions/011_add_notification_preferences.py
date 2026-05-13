@@ -4,7 +4,7 @@ Revision ID: 011_notification_preferences
 Revises: 011_approval_chain_templates
 Create Date: 2026-03-27
 
-安心法务通知系统增强：
+安心智能助手通知系统增强：
 - notification_preferences: 用户通知偏好设置（渠道 x 事件类型）
 - notifications 表增加 event_type 字段
 """

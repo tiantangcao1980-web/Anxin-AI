@@ -1,5 +1,5 @@
 /**
- * AI Primitives — 安心法务 AI/Agent 场景原子组件
+ * AI Primitives — 安心智能助手 AI/Agent 场景原子组件
  *
  * 使用约束（DesignDNA §14 合规协议）：
  * - 所有样式 token 来自 DESIGN.md / index.css CSS 变量

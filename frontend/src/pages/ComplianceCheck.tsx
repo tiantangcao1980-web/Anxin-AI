@@ -741,7 +741,7 @@ export default function ComplianceCheck() {
  className={`${buttonStyle.primary} w-full sm:flex-1 flex items-center justify-center gap-2`}
  >
  <icons.Chat className={iconSize.sm} />
- 咨询 AI 法务助手
+ 咨询 安心智能助手
  </button>
  </div>
  </motion.div>

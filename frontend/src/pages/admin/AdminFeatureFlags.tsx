@@ -52,7 +52,7 @@ interface ModuleGroup {
 
 const MODULE_GROUPS: ModuleGroup[] = [
   {
-    label: 'AI 法务',
+    label: 'AI 智能助手',
     icon: 'Sparkles',
     modules: [
       { key: 'ai_chat', name: '智能对话', description: 'AI 法律助手对话系统，支持合同审查、文书起草、法律咨询等' },

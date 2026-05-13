@@ -1,6 +1,6 @@
-# AI Legal Agent — 系统架构与功能全景
+# Anxin Smart Assistant — 系统架构与功能全景
 
-> 企业级 AI 法务智能平台 | Multi-Agent + RAG + A2UI
+> 企业级 AI 智能助手智能平台 | Multi-Agent + RAG + A2UI
 
 ---
 
@@ -517,4 +517,4 @@ ContractService.apply_suggestions()
 ---
 
 *文档生成日期: 2026-03-23*
-*系统版本: AI Legal Agent v1.0*
+*系统版本: Anxin Smart Assistant v1.0*

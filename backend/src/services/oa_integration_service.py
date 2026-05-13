@@ -326,7 +326,7 @@ class WeComProvider(BaseOAProvider):
             "touser": user_id,
             "msgtype": "textcard",
             "agentid": int(self.agent_id or 0),
-            "textcard": {"title": title, "description": content[:512], "url": url or "https://anxinfawu.com"},
+            "textcard": {"title": title, "description": content[:512], "url": url or "https://anxinassistant.com"},
         }
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(f"{self.base_url}/message/send?access_token={token}", json=msg)

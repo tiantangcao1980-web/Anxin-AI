@@ -306,7 +306,7 @@ test.describe('导航结构', () => {
 
   test('顶部导航栏显示四大业务域', async ({ page }) => {
     const header = page.getByRole('banner')
-    await expect(header.getByRole('button', { name: 'AI法务' })).toBeVisible()
+    await expect(header.getByRole('button', { name: 'AI 智能助手' })).toBeVisible()
     await expect(header.getByRole('button', { name: '智能协作' })).toBeVisible()
     await expect(header.getByRole('button', { name: '智能调查' })).toBeVisible()
     await expect(header.getByRole('button', { name: '法律智库' })).toBeVisible()

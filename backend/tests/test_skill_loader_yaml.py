@@ -47,7 +47,7 @@ class TestLoaderFullYAML:
             dependencies:
               - knowledge-base
             enabled: true
-            author: 安心法务团队
+            author: 安心智能助手团队
             ---
 
             # 合同审查 SKILL
@@ -64,7 +64,7 @@ class TestLoaderFullYAML:
         assert skill.requires_apps == ["dingtalk", "feishu"]
         assert skill.dependencies == ["knowledge-base"]
         assert skill.enabled is True
-        assert skill.author == "安心法务团队"
+        assert skill.author == "安心智能助手团队"
         assert "正文内容" in skill.body
 
     def test_string_value_coerced_to_list(self, tmp_path: Path) -> None:

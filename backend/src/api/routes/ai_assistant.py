@@ -30,7 +30,7 @@ def _require_org_id(user: User) -> str:
 # ===== Pydantic Schemas =====
 
 class AssistantConfigRequest(BaseModel):
-    name: str = Field(default="安心法务助手", min_length=1, max_length=100)
+    name: str = Field(default="安心智能助手助手", min_length=1, max_length=100)
     description: str | None = Field(None, max_length=1000)
     avatar_url: str | None = Field(None, max_length=500)
     welcome_message: str | None = Field(None, max_length=2000)

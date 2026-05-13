@@ -21,7 +21,7 @@ interface MobileLayoutProps {
 
 // 页面标题映射
 const PAGE_TITLES: Record<string, string> = {
-  '/chat': 'AI法务',
+  '/chat': 'AI 智能助手',
   '/cases': '案件管理',
   '/contracts': '合同管理',
   '/messages': '消息',
@@ -43,7 +43,7 @@ function getPageTitle(pathname: string): string {
     if (pathname.startsWith(path)) return title
   }
 
-  return '安心法务'
+  return '安心智能助手'
 }
 
 export function MobileLayout({ children }: MobileLayoutProps) {

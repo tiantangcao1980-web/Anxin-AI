@@ -49,9 +49,9 @@
     }
   },
   "artifacts": {
-    "release_app": "/Users/pengchengkeji/Documents/GitHub/Anxin-Smart-Legal-Services/desktop/target/release/bundle/macos/安心法务.app",
-    "release_binary": "/Users/pengchengkeji/Documents/GitHub/Anxin-Smart-Legal-Services/desktop/target/release/bundle/macos/安心法务.app/Contents/MacOS/anxin-legal-desktop",
-    "release_dmg": "/Users/pengchengkeji/Documents/GitHub/Anxin-Smart-Legal-Services/desktop/target/release/bundle/dmg/安心法务_1.0.0_aarch64.dmg",
+    "release_app": "/Users/pengchengkeji/Documents/GitHub/Anxin-Smart-Legal-Services/desktop/target/release/bundle/macos/安心智能助手.app",
+    "release_binary": "/Users/pengchengkeji/Documents/GitHub/Anxin-Smart-Legal-Services/desktop/target/release/bundle/macos/安心智能助手.app/Contents/MacOS/anxin-legal-desktop",
+    "release_dmg": "/Users/pengchengkeji/Documents/GitHub/Anxin-Smart-Legal-Services/desktop/target/release/bundle/dmg/安心智能助手_1.0.0_aarch64.dmg",
     "ui_log": "/Users/pengchengkeji/Documents/GitHub/Anxin-Smart-Legal-Services/docs/release/evidence/artifacts/desktop-release-runtime-ui-smoke-unsigned-20260509.log"
   },
   "completion_note": "Unsigned release packaged-runtime supporting evidence only. Keep desktop runtime evidence Status: pending until the package is signed/notarized and signed packaged-profile migration, signed packaged runtime performance, shared-staging sync, and cross-device continuation evidence are attached."

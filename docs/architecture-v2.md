@@ -1,4 +1,4 @@
-# 安心法务 V2 架构升级规划
+# 安心智能助手 V2 架构升级规划
 
 **版本**：v2.0
 **制定日期**：2026-04-16
@@ -44,7 +44,7 @@
                     │                           │
        ┌────────────┴──────────┐     ┌─────────┴──────────┐
        │  需求方客户端          │     │  服务方客户端       │
-       │  app.anxinfawu.com    │     │  pro.anxinfawu.com │
+       │  app.anxinassistant.com    │     │  pro.anxinassistant.com │
        │  /login                │     │  /pro/login        │
        │  /register?type=xxx    │     │  /pro/register     │
        │                        │     │                     │

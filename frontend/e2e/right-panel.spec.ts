@@ -128,7 +128,7 @@ test.describe('右侧面板双模式', () => {
     })
     await installMockWebSocket(page)
     await page.goto('/chat')
-    await expect(page.getByText('AI 法务助手', { exact: true }).first()).toBeVisible()
+    await expect(page.getByText('安心智能助手', { exact: true }).first()).toBeVisible()
     await waitForSocket(page)
   })
 

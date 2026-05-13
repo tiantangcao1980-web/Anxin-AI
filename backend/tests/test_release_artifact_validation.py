@@ -1121,9 +1121,9 @@ def _desktop_release_runtime_unsigned_payload() -> dict:
             },
         },
         "artifacts": {
-            "release_app": "desktop/target/release/bundle/macos/安心法务.app",
-            "release_binary": "desktop/target/release/bundle/macos/安心法务.app/Contents/MacOS/anxin-legal-desktop",
-            "release_dmg": "desktop/target/release/bundle/dmg/安心法务_1.0.0_aarch64.dmg",
+            "release_app": "desktop/target/release/bundle/macos/安心智能助手.app",
+            "release_binary": "desktop/target/release/bundle/macos/安心智能助手.app/Contents/MacOS/anxin-legal-desktop",
+            "release_dmg": "desktop/target/release/bundle/dmg/安心智能助手_1.0.0_aarch64.dmg",
             "ui_log": "docs/release/evidence/artifacts/desktop-release-runtime-ui-smoke-unsigned-20260509.log",
         },
         "completion_note": (
@@ -1196,8 +1196,8 @@ def _desktop_release_packaged_profile_payload() -> dict:
             "ordinary_sqlite_plaintext_read_blocked": "passed",
         },
         "artifacts": {
-            "release_app": "desktop/target/release/bundle/macos/安心法务.app",
-            "release_binary": "desktop/target/release/bundle/macos/安心法务.app/Contents/MacOS/anxin-legal-desktop",
+            "release_app": "desktop/target/release/bundle/macos/安心智能助手.app",
+            "release_binary": "desktop/target/release/bundle/macos/安心智能助手.app/Contents/MacOS/anxin-legal-desktop",
         },
         "firstLaunch": launch,
         "secondLaunch": launch,
@@ -1309,8 +1309,8 @@ def test_release_artifact_validation_accepts_desktop_release_preflight(tmp_path)
                     "release.dmg.exists",
                 ],
                 "inputs": {
-                    "release_app": "desktop/target/release/bundle/macos/安心法务.app",
-                    "debug_app": "desktop/target/debug/bundle/macos/安心法务.app",
+                    "release_app": "desktop/target/release/bundle/macos/安心智能助手.app",
+                    "debug_app": "desktop/target/debug/bundle/macos/安心智能助手.app",
                     "installed_profile_report": "docs/release/evidence/artifacts/desktop-installed-profile-smoke-20260507.json",
                     "runtime_transcript": "docs/release/evidence/artifacts/desktop-runtime-ui-smoke-20260507.log",
                     "runtime_structured_artifact": "docs/release/evidence/artifacts/desktop-runtime-code-smoke-20260507.json",
@@ -1341,8 +1341,8 @@ def test_release_artifact_validation_rejects_incomplete_desktop_release_prefligh
                 "release_ready": True,
                 "release_blockers": [],
                 "inputs": {
-                    "release_app": "desktop/target/release/bundle/macos/安心法务.app",
-                    "debug_app": "desktop/target/debug/bundle/macos/安心法务.app",
+                    "release_app": "desktop/target/release/bundle/macos/安心智能助手.app",
+                    "debug_app": "desktop/target/debug/bundle/macos/安心智能助手.app",
                     "installed_profile_report": "docs/release/evidence/artifacts/missing-installed-profile.json",
                     "runtime_transcript": "docs/release/evidence/artifacts/desktop-runtime-ui-smoke-20260507.log",
                     "runtime_structured_artifact": "docs/release/evidence/artifacts/desktop-runtime-code-smoke-20260507.json",

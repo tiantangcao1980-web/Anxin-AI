@@ -15,7 +15,7 @@ export default function AdminBasic() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [basic, setBasic] = useState({
-    site_name: 'AI法务智能平台',
+    site_name: 'AI 智能助手智能平台',
     site_description: '企业级AI法律服务平台',
   })
 

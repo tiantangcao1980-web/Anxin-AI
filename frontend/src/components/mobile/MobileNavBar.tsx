@@ -1,7 +1,7 @@
 /**
  * MobileNavBar - 移动端底部导航栏
  *
- * 固定 5 个核心入口：AI法务、案件、消息、智库、设置
+ * 固定 5 个核心入口：AI 智能助手、案件、消息、智库、设置
  * 适配 iOS 安全区域
  */
 
@@ -32,7 +32,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   {
     path: '/chat',
-    label: 'AI法务',
+    label: 'AI 智能助手',
     icon: ChatBubbleLeftRightIcon,
     activeIcon: ChatSolid,
   },

@@ -134,7 +134,7 @@ class FeatureFlagService:
         from loguru import logger
 
         preset_flags = [
-            # AI 法务
+            # AI 智能助手
             ("ai_chat", "智能对话", "AI 法律助手对话系统"),
             ("ai_assistant", "AI 助手增强", "智能推荐、自动摘要等增强功能"),
             # 智能协作

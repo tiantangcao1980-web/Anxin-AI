@@ -29,7 +29,7 @@ export default function AdminConfig() {
 
   // Config state per tab
   const [basic, setBasic] = useState<ConfigSection>({
-    site_name: 'AI法务智能平台',
+    site_name: 'AI 智能助手智能平台',
     site_description: '企业级AI法律服务平台',
   })
   const [llm, setLlm] = useState<ConfigSection>({
@@ -65,7 +65,7 @@ export default function AdminConfig() {
   })
   const [email, setEmailConfig] = useState<ConfigSection>({
     aliyun_email_account: '',
-    aliyun_email_alias: '安心法务',
+    aliyun_email_alias: '安心智能助手',
   })
 
   useEffect(() => {
@@ -353,7 +353,7 @@ export default function AdminConfig() {
               </div>
               <div className="space-y-2">
                 <Label>短信签名</Label>
-                <Input value={sms.aliyun_sms_sign_name} onChange={(e) => setSms({ ...sms, aliyun_sms_sign_name: e.target.value })} placeholder="安心法务" />
+                <Input value={sms.aliyun_sms_sign_name} onChange={(e) => setSms({ ...sms, aliyun_sms_sign_name: e.target.value })} placeholder="安心智能助手" />
                 <p className="text-xs text-muted-foreground">需在阿里云控制台申请并审核通过</p>
               </div>
               <Separator />
@@ -397,12 +397,12 @@ export default function AdminConfig() {
               <p className="text-xs text-muted-foreground">AccessKey 与短信服务共用。</p>
               <div className="space-y-2">
                 <Label>发信地址 (AccountName)</Label>
-                <Input value={email.aliyun_email_account} onChange={(e) => setEmailConfig({ ...email, aliyun_email_account: e.target.value })} placeholder="noreply@mail.anxinfawu.com" />
+                <Input value={email.aliyun_email_account} onChange={(e) => setEmailConfig({ ...email, aliyun_email_account: e.target.value })} placeholder="noreply@mail.anxinassistant.com" />
                 <p className="text-xs text-muted-foreground">需在阿里云 DirectMail 控制台创建并验证域名</p>
               </div>
               <div className="space-y-2">
                 <Label>发件人昵称</Label>
-                <Input value={email.aliyun_email_alias} onChange={(e) => setEmailConfig({ ...email, aliyun_email_alias: e.target.value })} placeholder="安心法务" />
+                <Input value={email.aliyun_email_alias} onChange={(e) => setEmailConfig({ ...email, aliyun_email_alias: e.target.value })} placeholder="安心智能助手" />
               </div>
               <div className="pt-2">
                 <Button onClick={() => handleSave('email', email)} disabled={saving}>

@@ -67,7 +67,7 @@ INTENT_LABELS: dict[str, str] = {
 
 _FALLBACK_INTENT_PROMPT = "你是一个专业的法务意图识别专家。"
 
-_FALLBACK_COORDINATOR_PROMPT = "你是AI法务系统的核心协调调度专家。"
+_FALLBACK_COORDINATOR_PROMPT = "你是AI 智能助手系统的核心协调调度专家。"
 
 # ========== 意图到 Agent 的模板化快速路径映射 ==========
 # 这些意图可以不经过 LLM DAG 规划，直接生成固定计划
@@ -345,7 +345,7 @@ class CoordinatorAgent(BaseLegalAgent):
             name="协调调度Agent",
             role="协调者",
             description="意图识别、任务编排、结果汇总",
-            system_prompt="你是AI法务系统的核心大脑。",
+            system_prompt="你是AI 智能助手系统的核心大脑。",
             temperature=0.1,
         )
         super().__init__(config)
@@ -1153,7 +1153,7 @@ class CoordinatorAgent(BaseLegalAgent):
 
         merged_system = load_prompt(
             "coordinator/merged_intent_system.txt",
-            fallback="你是AI法务系统的意图识别与需求分析专家。请精准分析并输出JSON。",
+            fallback="你是AI 智能助手系统的意图识别与需求分析专家。请精准分析并输出JSON。",
         )
 
         try:

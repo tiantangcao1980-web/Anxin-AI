@@ -2,20 +2,21 @@
 
 > 本目录定义安心智能助手项目的**全套开发规范**。所有代码提交、文档新建、PR 审查必须以此为准。
 
-## 规范全集（11 份）
+## 规范全集（13 份）
 
-### 通用层
+### 通用层（7 份）
 
 | 文档 | 适用对象 | 强制性 |
 |---|---|---|
 | [naming-convention.md](./naming-convention.md) | 文件名 / 目录名 / 代码符号 / 分支 / 环境变量 | **强制** |
 | [documentation-standard.md](./documentation-standard.md) | 所有 markdown 文档 | **强制** |
+| [comment-convention.md](./comment-convention.md) | **代码注释规范（中文为主）** | **强制** |
 | [git-workflow.md](./git-workflow.md) | 分支 / PR / worktree / 合并 | **强制** |
 | [commit-convention.md](./commit-convention.md) | 提交消息格式（Conventional Commits） | **强制** |
 | [code-style.md](./code-style.md) | Python / TypeScript / Rust / Shell 通用风格 | **强制** |
 | [review-checklist.md](./review-checklist.md) | PR 评审清单（10 大门） | 推荐 |
 
-### 代码层（按职责细分）
+### 代码层（6 份，按职责细分）
 
 | 文档 | 适用对象 | 强制性 |
 |---|---|---|

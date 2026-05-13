@@ -1,4 +1,4 @@
-# 安心法务桌面端发版指南（macOS · Windows · Linux）
+# 安心智能助手桌面端发版指南（macOS · Windows · Linux）
 
 本文是桌面端代码签名、公证、自动更新、CI 发版的完整 runbook，
 对齐 Tauri v2 官方推荐流程与中国大陆出海合规要求。
@@ -72,7 +72,7 @@ pnpm tauri signer generate -w ~/.tauri/anxin-updater.key
     "updater": {
       "pubkey": "粘贴公钥 base64 字符串",
       "endpoints": [
-        "https://api.anxinlegal.com/api/v1/updates/{{target}}/{{arch}}/{{current_version}}"
+        "https://api.anxinassistant.com/api/v1/updates/{{target}}/{{arch}}/{{current_version}}"
       ]
     }
   }
@@ -199,7 +199,7 @@ CI 最后一步用 Tauri CLI 生成：
 
 ### 3.1 下载安装验证
 
-- [ ] macOS：DMG 无 Gatekeeper 警告，`spctl -a -vv /Applications/安心法务.app` 返回 `accepted`
+- [ ] macOS：DMG 无 Gatekeeper 警告，`spctl -a -vv /Applications/安心智能助手.app` 返回 `accepted`
 - [ ] Windows：MSI 无 SmartScreen 警告，证书链完整
 - [ ] Linux：AppImage 可执行，deb 可通过 `apt install ./anxin-legal_1.2.3_amd64.deb` 安装
 

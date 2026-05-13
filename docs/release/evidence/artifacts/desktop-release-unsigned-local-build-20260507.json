@@ -26,14 +26,14 @@
       "summary": "Unsigned release .app bundle was built successfully."
     },
     {
-      "command": "ANXIN_DESKTOP_RELEASE_APP=desktop/target/release/bundle/macos/安心法务.app bash scripts/desktop-release-preflight.sh --out docs/release/evidence/artifacts/desktop-release-preflight-unsigned-20260507.json",
+      "command": "ANXIN_DESKTOP_RELEASE_APP=desktop/target/release/bundle/macos/安心智能助手.app bash scripts/desktop-release-preflight.sh --out docs/release/evidence/artifacts/desktop-release-preflight-unsigned-20260507.json",
       "exit_code": 0,
       "summary": "Release .app and DMG exist, and hdiutil/DiskManagement probe passes; signing, notarization, code-sign verification, and signature authority remain blocked."
     }
   ],
   "artifacts": {
-    "release_app": "desktop/target/release/bundle/macos/安心法务.app",
-    "release_dmg": "desktop/target/release/bundle/dmg/安心法务_1.0.0_aarch64.dmg",
+    "release_app": "desktop/target/release/bundle/macos/安心智能助手.app",
+    "release_dmg": "desktop/target/release/bundle/dmg/安心智能助手_1.0.0_aarch64.dmg",
     "unsigned_preflight": "docs/release/evidence/artifacts/desktop-release-preflight-unsigned-20260507.json",
     "dmg_script": "desktop/target/release/bundle/dmg/bundle_dmg.sh",
     "dmg_directory": "desktop/target/release/bundle/dmg"

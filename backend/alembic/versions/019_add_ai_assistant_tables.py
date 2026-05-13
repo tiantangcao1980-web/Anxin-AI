@@ -26,7 +26,7 @@ def upgrade() -> None:
         'ai_assistant_configs',
         sa.Column('id', postgresql.UUID(as_uuid=False), primary_key=True),
         sa.Column('org_id', postgresql.UUID(as_uuid=False), sa.ForeignKey('organizations.id', ondelete='CASCADE'), nullable=True),
-        sa.Column('name', sa.String(100), nullable=False, server_default='安心法务助手', comment='助手名称'),
+        sa.Column('name', sa.String(100), nullable=False, server_default='安心智能助手助手', comment='助手名称'),
         sa.Column('description', sa.Text, nullable=True, comment='助手描述'),
         sa.Column('avatar_url', sa.String(500), nullable=True, comment='助手头像'),
         sa.Column('welcome_message', sa.Text, nullable=True,

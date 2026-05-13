@@ -76,7 +76,7 @@ export default function LoginScreen() {
 
           {/* Logo 区域 */}
           <View style={styles.logoSection}>
-            <Text style={styles.logoText}>安心法务</Text>
+            <Text style={styles.logoText}>安心智能助手</Text>
             <Text style={styles.slogan}>专业 AI 法律服务，让法律触手可及</Text>
           </View>
 

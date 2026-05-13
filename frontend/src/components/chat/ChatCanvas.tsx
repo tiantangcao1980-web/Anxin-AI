@@ -32,7 +32,7 @@ export function ChatCanvas() {
     {
       id: '1',
       type: 'ai',
-      content: '您好！我是您的 AI 法务助手。我可以帮您进行合同审查、尽职调查、法律咨询等工作。请告诉我您需要什么帮助？',
+      content: '您好！我是您的 安心智能助手。我可以帮您进行合同审查、尽职调查、法律咨询等工作。请告诉我您需要什么帮助？',
       timestamp: new Date(),
     },
   ]);

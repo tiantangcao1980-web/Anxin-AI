@@ -440,8 +440,8 @@ export default function Login() {
  <icons.Legal className={`${iconSize.lg} text-primary-foreground`} />
  </div>
  <div>
- <h1 className={`${heading.page} text-foreground text-2xl`}>安心AI法务</h1>
- <p className="text-sm text-muted-foreground">超级AI法务智能体系统</p>
+ <h1 className={`${heading.page} text-foreground text-2xl`}>安心智能助手</h1>
+ <p className="text-sm text-muted-foreground">超级安心智能助手系统</p>
  </div>
  </div>
 
@@ -494,7 +494,7 @@ export default function Login() {
  </div>
 
  <p className="relative z-10 text-muted-foreground/50 text-xs">
- &copy; 2026 安心AI法务 &middot; 赋能法律行业智能化
+ &copy; 2026 安心智能助手 &middot; 赋能法律行业智能化
  </p>
  </div>
 
@@ -510,7 +510,7 @@ export default function Login() {
  <div className={`w-10 h-10 bg-primary ${radius.card} flex items-center justify-center`}>
  <icons.Legal className={`${iconSize.md} text-primary-foreground`} />
  </div>
- <h1 className={heading.page}>安心AI法务</h1>
+ <h1 className={heading.page}>安心智能助手</h1>
  </div>
 
  {/* Tab 切换（忘记密码模式时隐藏） */}

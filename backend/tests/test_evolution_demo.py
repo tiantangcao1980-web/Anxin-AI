@@ -16,7 +16,7 @@ from src.services.episodic_memory_service import episodic_memory
 
 async def demo_evolution():
     print("\n" + "="*50)
-    print("🚀 开始 AI 法务系统「自我进化」演示")
+    print("🚀 开始 AI 智能助手系统「自我进化」演示")
     print("="*50 + "\n")
 
     workforce = get_workforce()

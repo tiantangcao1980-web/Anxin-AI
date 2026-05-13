@@ -98,7 +98,7 @@ test.describe('V3 / persona 能力触发 / ✍️ 内容总监', () => {
         '✍️ **公众号文章** — 已为你生成 3 个候选标题：',
         '',
         '1. 【标题候选 A】AI 让法务变得简单',
-        '2. 【标题候选 B】每个老板都该有一个 AI 法务',
+        '2. 【标题候选 B】每个老板都该有一个 AI 智能助手',
         '3. 【标题候选 C】合同审查只要 30 秒',
         '',
         '**正文预览：** 在 AI 时代，企业法务正在被重新定义……',
@@ -112,7 +112,7 @@ test.describe('V3 / persona 能力触发 / ✍️ 内容总监', () => {
     await expect(page.getByText(/将触发：/)).toBeVisible()
 
     // 填补充输入并触发
-    await page.getByPlaceholder(/可选：贴入你的输入/).fill('主题：AI 法务，目标读者：中小企业老板')
+    await page.getByPlaceholder(/可选：贴入你的输入/).fill('主题：AI 智能助手，目标读者：中小企业老板')
     await page.getByRole('button', { name: /触发并发送到对话/ }).click()
 
     // 验证 mock 返回的 3 标题候选都出现
@@ -129,7 +129,7 @@ test.describe('V3 / persona 能力触发 / ✍️ 内容总监', () => {
         '',
         '**分镜 1（0-5s）：** Hook — 老板皱眉看合同',
         '**分镜 2（5-15s）：** 痛点 — "审一份合同要 2 小时"',
-        '**分镜 3（15-25s）：** 转折 — AI 法务 30 秒出审查报告',
+        '**分镜 3（15-25s）：** 转折 — AI 智能助手 30 秒出审查报告',
         '**分镜 4（25-30s）：** CTA — 扫码体验',
       ].join('\n'),
     })
@@ -137,7 +137,7 @@ test.describe('V3 / persona 能力触发 / ✍️ 内容总监', () => {
     await expect(page.getByRole('heading', { name: '内容总监' })).toBeVisible({ timeout: 10000 })
 
     await page.getByRole('button', { name: /短视频脚本/ }).click()
-    await page.getByPlaceholder(/可选：贴入你的输入/).fill('平台：TikTok，时长：30s，主题：AI 法务')
+    await page.getByPlaceholder(/可选：贴入你的输入/).fill('平台：TikTok，时长：30s，主题：AI 智能助手')
     await page.getByRole('button', { name: /触发并发送到对话/ }).click()
 
     await expect(page.getByText(/分镜 1/)).toBeVisible({ timeout: 6000 })
@@ -165,7 +165,7 @@ test.describe('V3 / persona 能力触发 / ✍️ 内容总监', () => {
     await expect(page.getByRole('heading', { name: '内容总监' })).toBeVisible({ timeout: 10000 })
 
     await page.getByRole('button', { name: /品牌一致性检查/ }).click()
-    await page.getByPlaceholder(/可选：贴入你的输入/).fill('我们的 AI 法务产品包治百病，效率提升 1000%。')
+    await page.getByPlaceholder(/可选：贴入你的输入/).fill('我们的 AI 智能助手产品包治百病，效率提升 1000%。')
     await page.getByRole('button', { name: /触发并发送到对话/ }).click()
 
     await expect(page.getByText(/合规分.*72/)).toBeVisible({ timeout: 6000 })

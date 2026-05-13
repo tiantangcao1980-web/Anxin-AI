@@ -74,7 +74,7 @@ test.describe('P14-D · 📊 市场研究员 · 发现链路', () => {
       role: 'admin',
       userId: 'e2e-market',
       name: 'E2E Market',
-      email: 'market@anxinfawu.com',
+      email: 'market@anxinassistant.com',
     })
   })
 

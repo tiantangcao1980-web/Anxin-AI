@@ -64,9 +64,9 @@ const { spawnSync } = require("child_process");
 const projectRoot = process.cwd();
 const outPath = process.argv[2] || "";
 const releaseApp = process.env.ANXIN_DESKTOP_RELEASE_APP ||
-  "desktop/target/release/bundle/macos/安心法务.app";
+  "desktop/target/release/bundle/macos/安心智能助手.app";
 const debugApp = process.env.ANXIN_DESKTOP_DEBUG_APP ||
-  "desktop/target/debug/bundle/macos/安心法务.app";
+  "desktop/target/debug/bundle/macos/安心智能助手.app";
 const installedProfileReport = process.env.ANXIN_DESKTOP_INSTALLED_PROFILE_REPORT ||
   latestArtifact(/^desktop-installed-profile(?:-smoke)?-\d{8}\.json$/) ||
   "/tmp/anxin-desktop-installed-profile-smoke.json";

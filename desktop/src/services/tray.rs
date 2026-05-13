@@ -7,7 +7,7 @@ use tauri::{
     AppHandle, Emitter, Manager,
 };
 
-const TRAY_APP_NAME: &str = "安心法务";
+const TRAY_APP_NAME: &str = "安心智能助手";
 
 fn tray_mode_label(mode: AppMode) -> &'static str {
     match mode {
@@ -48,7 +48,7 @@ pub fn create_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let sep = PredefinedMenuItem::separator(app)?;
     let sync = MenuItem::with_id(app, "sync", "立即同步", true, None::<&str>)?;
     let sep2 = PredefinedMenuItem::separator(app)?;
-    let quit = MenuItem::with_id(app, "quit", "退出安心法务", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", "退出安心智能助手", true, None::<&str>)?;
     let tooltip = tray_mode_tooltip(AppMode::Cloud);
 
     let menu = Menu::with_items(
@@ -152,9 +152,9 @@ async fn switch_tray_mode(app: &AppHandle, mode: AppMode) {
 pub fn update_tray_badge(app: &AppHandle, count: u32) {
     if let Some(tray) = app.tray_by_id("main-tray") {
         let tooltip = if count > 0 {
-            format!("安心法务 - {} 条未读消息", count)
+            format!("安心智能助手 - {} 条未读消息", count)
         } else {
-            "安心法务".to_string()
+            "安心智能助手".to_string()
         };
         let _ = tray.set_tooltip(Some(&tooltip));
     }
@@ -191,9 +191,9 @@ mod tests {
     #[test]
     fn tray_mode_tooltips_are_plain_text() {
         let tooltips = [
-            (AppMode::TopSecret, "安心法务 - 绝密模式"),
-            (AppMode::Hybrid, "安心法务 - 混合模式"),
-            (AppMode::Cloud, "安心法务 - 云端模式"),
+            (AppMode::TopSecret, "安心智能助手 - 绝密模式"),
+            (AppMode::Hybrid, "安心智能助手 - 混合模式"),
+            (AppMode::Cloud, "安心智能助手 - 云端模式"),
         ];
 
         for (mode, expected) in tooltips {

@@ -1,5 +1,5 @@
 """
-AI法务智能体系统 - 主入口
+安心智能助手系统 - 主入口
 """
 
 import asyncio
@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     webhook_retry_task: asyncio.Task[None] | None = None
 
     # 启动时
-    logger.info("🚀 AI法务智能体系统启动中...")
+    logger.info("🚀 安心智能助手系统启动中...")
 
     # P19-A: Sentry 初始化（DSN 缺失则 noop）
     try:
@@ -100,12 +100,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.warning(f"关闭图数据库连接失败: {e}")
 
     await close_db()
-    logger.info("AI法务智能体系统关闭")
+    logger.info("安心智能助手系统关闭")
 
 
 app = FastAPI(
-    title="AI Legal Agent API",
-    description="AI法务智能体系统 - 基于多智能体协作的超级AI法务系统",
+    title="Anxin Smart Assistant API",
+    description="安心智能助手系统 - 基于多智能体协作的超级AI 智能助手系统",
     version="0.1.1",
     lifespan=lifespan,
     docs_url="/docs",
@@ -221,7 +221,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 async def root() -> dict[str, str]:
     """根路径"""
     return {
-        "name": "AI Legal Agent",
+        "name": "Anxin Smart Assistant",
         "version": "0.1.0",
         "status": "running",
         "docs": "/docs"

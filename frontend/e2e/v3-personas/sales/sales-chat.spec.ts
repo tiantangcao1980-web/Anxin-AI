@@ -75,7 +75,7 @@ test.describe('P14-D · 🎯 获客猎手 · Chat', () => {
       role: 'admin',
       userId: 'e2e-sales',
       name: 'E2E Sales',
-      email: 'sales@anxinfawu.com',
+      email: 'sales@anxinassistant.com',
     })
     await page.goto('/v3/personas/lead_hunter')
     await expect(page.getByRole('heading', { name: '获客猎手', level: 1 })).toBeVisible({ timeout: 15000 })

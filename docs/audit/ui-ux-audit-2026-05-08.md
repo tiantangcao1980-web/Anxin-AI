@@ -23,7 +23,7 @@
 | 商业发布 | `commercial-readiness-gate.sh --quick` 在 clean baseline 仍因 Not ready 和 payment/e-sign/desktop/mobile evidence pending 失败 | 不能 Go |
 | 政府交付 | 仍有 mock 默认、真实沙箱缺口、签名/公证缺口、真机缺口、UI/UX 一致性缺口 | 不能对政府用户宣称可上线 |
 | UI/UX | 移动端、微信小程序、桌面端均存在跨端 token 漂移、关键流程未闭环或用户可见粗糙面 | 必须列入 P0/P1 |
-| 产品定位 | 已从单一 AI 法务工具升级为中小企业经营风险平台 + 全设备智能助手 | 需求和 OpenSpec 需同步更新 |
+| 产品定位 | 已从单一 AI 智能助手工具升级为中小企业经营风险平台 + 全设备智能助手 | 需求和 OpenSpec 需同步更新 |
 
 ## 3. 需求与现实差异表
 

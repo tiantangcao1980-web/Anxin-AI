@@ -192,14 +192,14 @@ async def init_db() -> None:
             if not org:
                 org = Organization(
                     id=org_id,
-                    name="安心法务",
+                    name="安心智能助手",
                     description="系统默认组织"
                 )
                 session.add(org)
                 logger.info(f"创建默认组织: {org.name}")
 
             # 2. 创建默认管理员用户
-            user_email = "admin@anxinfawu.com"
+            user_email = "admin@anxinassistant.com"
             admin_result = await session.execute(select(User).where(User.email == user_email))
             admin = admin_result.scalar_one_or_none()
 

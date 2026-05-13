@@ -151,7 +151,7 @@ class AIAssistantService:
         config = AIAssistantConfig(
             id=str(uuid4()),
             org_id=org_id,
-            name="安心法务助手",
+            name="安心智能助手助手",
             welcome_message="您好！我是您的专属法务助手，有什么法律问题可以帮您？",
             personality={
                 "style": "professional",

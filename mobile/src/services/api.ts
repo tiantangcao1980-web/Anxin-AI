@@ -16,7 +16,7 @@ import type { ApiResponse, User } from '../types/api'
 
 const DEFAULT_BASE_URL = __DEV__
   ? Platform.OS === 'android' ? 'http://10.0.2.2:8001/api/v1' : 'http://localhost:8001/api/v1'
-  : 'https://api.anxinlegal.com/api/v1'
+  : 'https://api.anxinassistant.com/api/v1'
 
 const REQUEST_TIMEOUT = 30000
 

@@ -23,7 +23,7 @@ export function WelcomeScreen() {
       </div>
       <h1 className={`${heading.page} mt-4`}>你好，有什么可以帮您？</h1>
       <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
-        我是安心 AI 法务助手，您可以直接在下方输入问题，
+        我是安心 安心智能助手，您可以直接在下方输入问题，
         <br className="hidden sm:block" />
         或使用底部工具栏选择具体服务。我可以帮您：
       </p>

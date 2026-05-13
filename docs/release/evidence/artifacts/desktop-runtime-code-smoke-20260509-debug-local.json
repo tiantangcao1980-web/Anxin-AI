@@ -21,7 +21,7 @@
     "debug_app_bundle_ui_load": "passed"
   },
   "artifacts": {
-    "debug_app_bundle": "desktop/target/debug/bundle/macos/安心法务.app",
+    "debug_app_bundle": "desktop/target/debug/bundle/macos/安心智能助手.app",
     "ui_log": "docs/release/evidence/artifacts/desktop-runtime-ui-smoke-20260509-debug-local.log"
   },
   "command": "bash scripts/desktop-runtime-smoke.sh --with-app-bundle --ui-log-out docs/release/evidence/artifacts/desktop-runtime-ui-smoke-20260509-debug-local.log",

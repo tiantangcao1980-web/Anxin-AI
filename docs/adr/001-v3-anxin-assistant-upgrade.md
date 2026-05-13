@@ -6,7 +6,7 @@
 
 ## 背景
 
-项目 V1 / V2 定位为"安心法务"（已上线 anxinfawu.com），但实际客户需求涵盖：
+项目 V1 / V2 定位为"安心智能助手"（已上线 anxinassistant.com），但实际客户需求涵盖：
 
 - 法务（合同 / 合规 / 诉讼）
 - 财务（账务 / 税务）
@@ -60,14 +60,14 @@
 - V3 31 commits / 61 API / 543+ pytest 已完成
 
 ### 负面
-- 已上线 anxinfawu.com 用户需迁移引导
+- 已上线 anxinassistant.com 用户需迁移引导
 - 技术栈复杂度上升（新增 Celery / IM Gateway / OAuth 框架）
 - 文档/规范需重建（本轮治理已完成）
 
 ### 后续行动
 - ✅ V2 + V3 合并到 `integration/v3-merge-20260512`
 - ⏳ V3 → main → anxinassistant.com 域名切换（P13）
-- ⏳ 旧 anxinfawu.com 30 天 redirect 平滑过渡
+- ⏳ 旧 anxinassistant.com 30 天 redirect 平滑过渡
 
 ## 参考
 

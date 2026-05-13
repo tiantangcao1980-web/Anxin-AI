@@ -1,7 +1,7 @@
 # 存算一体硬件接入协议（草案 v0.1）
 
-本文档定义「安心法务 × 独立存算一体硬件」的接入协议。
-目标：硬件出厂预装安心法务服务（backend + Ollama + 本地知识库），
+本文档定义「安心智能助手 × 独立存算一体硬件」的接入协议。
+目标：硬件出厂预装安心智能助手服务（backend + Ollama + 本地知识库），
 用户只需上电 → 连接同局域网 → 在客户端一键绑定即可使用全部本地功能。
 
 ---
@@ -20,7 +20,7 @@
 ┌────────────────────────────────────┐
 │ 系统托盘 UI / OTA 控制面           │  ← 硬件自带 Web UI（80/8080）
 ├────────────────────────────────────┤
-│ 安心法务 backend (FastAPI)          │  ← 容器化（containerd）
+│ 安心智能助手 backend (FastAPI)          │  ← 容器化（containerd）
 │ Ollama + Embedding server           │
 │ Chroma + SQLite（法规/判例）         │
 │ MinIO 单机模式（私有桶）             │
@@ -35,7 +35,7 @@
 
 - 出厂时由工厂私钥在 TEE 中注入 **设备私钥 + X.509 证书**
 - 证书 CN = `appliance-<SN>`, 带 SAN 包含 MAC / SN
-- 根 CA 由安心法务官方发布（内嵌客户端 trust bundle）
+- 根 CA 由安心智能助手官方发布（内嵌客户端 trust bundle）
 
 ### 3.2 客户端发现
 
@@ -75,7 +75,7 @@ Client 校验 signed_challenge 由设备证书私钥签名
 
 ## 5. OTA 固件升级
 
-- 设备定期 `GET https://api.anxinlegal.com/api/v1/firmware/{sn}/latest`
+- 设备定期 `GET https://api.anxinassistant.com/api/v1/firmware/{sn}/latest`
 - 返回 `{ version, url, signature }`，签名用安心根私钥
 - 升级包在 TEE 内校验签名后写入 dual-partition，重启 fallback 友好
 

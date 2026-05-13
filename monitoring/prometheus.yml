@@ -1,4 +1,4 @@
-# Prometheus 配置 — 安心AI法务监控
+# Prometheus 配置 — 安心智能助手监控
 global:
   scrape_interval: 15s
   evaluation_interval: 15s

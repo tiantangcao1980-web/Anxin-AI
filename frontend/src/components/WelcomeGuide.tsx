@@ -88,7 +88,7 @@ export function WelcomeGuide({ onClose, onSelectView }: WelcomeGuideProps) {
  <icons.Sparkles className="w-7 h-7 text-primary-foreground" />
  </motion.div>
  <div className="flex-1 text-left">
- <h1 className={heading.page}>欢迎使用 AI 法务协同系统</h1>
+ <h1 className={heading.page}>欢迎使用 AI 智能助手协同系统</h1>
  <p className="text-muted-foreground text-sm mt-0.5">Agent-Native 智能法律服务平台</p>
  </div>
  </div>
@@ -148,7 +148,7 @@ export function WelcomeGuide({ onClose, onSelectView }: WelcomeGuideProps) {
  <div>
  <h3 className="font-medium text-foreground mb-1 lg:mb-1.5 text-sm lg:text-base">快速开始</h3>
  <p className="text-xs lg:text-sm text-muted-foreground">
- 选择任意功能模块开始体验 AI 法务协同系统
+ 选择任意功能模块开始体验 AI 智能助手协同系统
  </p>
  </div>
  <button

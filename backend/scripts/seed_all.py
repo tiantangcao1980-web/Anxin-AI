@@ -178,12 +178,12 @@ async def seed_users(session: Any) -> None:
     hashed = get_password_hash("Anxin2026!Law")
 
     users = [
-        {"id": ADMIN_ID, "email": "admin@test.anxinfawu.com", "name": "系统管理员", "role": "admin", "user_type": "internal"},
-        {"id": USER_IDS["lawyer1"], "email": "lawyer.zhang@test.anxinfawu.com", "name": "张伟律师", "role": "lawyer", "user_type": "platform_lawyer"},
-        {"id": USER_IDS["lawyer2"], "email": "lawyer.li@test.anxinfawu.com", "name": "李娜律师", "role": "lawyer", "user_type": "platform_lawyer"},
-        {"id": USER_IDS["lawyer3"], "email": "lawyer.wang@test.anxinfawu.com", "name": "王强律师", "role": "lawyer", "user_type": "platform_lawyer"},
-        {"id": USER_IDS["paralegal1"], "email": "assistant@mingde.anxinfawu.com", "name": "律师助理-刘芳", "role": "member", "user_type": "internal"},
-        {"id": USER_IDS["paralegal2"], "email": "intern@mingde.anxinfawu.com", "name": "实习生-赵磊", "role": "viewer", "user_type": "internal"},
+        {"id": ADMIN_ID, "email": "admin@test.anxinassistant.com", "name": "系统管理员", "role": "admin", "user_type": "internal"},
+        {"id": USER_IDS["lawyer1"], "email": "lawyer.zhang@test.anxinassistant.com", "name": "张伟律师", "role": "lawyer", "user_type": "platform_lawyer"},
+        {"id": USER_IDS["lawyer2"], "email": "lawyer.li@test.anxinassistant.com", "name": "李娜律师", "role": "lawyer", "user_type": "platform_lawyer"},
+        {"id": USER_IDS["lawyer3"], "email": "lawyer.wang@test.anxinassistant.com", "name": "王强律师", "role": "lawyer", "user_type": "platform_lawyer"},
+        {"id": USER_IDS["paralegal1"], "email": "assistant@mingde.anxinassistant.com", "name": "律师助理-刘芳", "role": "member", "user_type": "internal"},
+        {"id": USER_IDS["paralegal2"], "email": "intern@mingde.anxinassistant.com", "name": "实习生-赵磊", "role": "viewer", "user_type": "internal"},
     ]
 
     for u in users:
@@ -556,7 +556,7 @@ async def seed_contracts(session: Any) -> None:
         {
             "id": CONTRACT_IDS[1], "title": "房屋租赁合同", "contract_number": "HT-2026-002",
             "contract_type": "租赁合同", "status": ContractStatus.SIGNED,
-            "party_a": {"name": "安心法务", "representative": "管理员"},
+            "party_a": {"name": "安心智能助手", "representative": "管理员"},
             "party_b": {"name": "某物业管理有限公司", "representative": "王经理"},
             "amount": 360000.0, "risk_level": RiskLevel.LOW, "risk_score": 0.15,
             "sign_date": date.today() - timedelta(days=30),
@@ -599,7 +599,7 @@ async def seed_contracts(session: Any) -> None:
             "id": CONTRACT_IDS[5], "title": "法律顾问服务协议", "contract_number": "HT-2026-006",
             "contract_type": "服务合同", "status": ContractStatus.ACTIVE,
             "party_a": {"name": "DD地产开发有限公司", "representative": "总裁"},
-            "party_b": {"name": "安心法务", "representative": "管理员"},
+            "party_b": {"name": "安心智能助手", "representative": "管理员"},
             "amount": 500000.0, "risk_level": RiskLevel.LOW, "risk_score": 0.12,
             "sign_date": date.today() - timedelta(days=90),
             "effective_date": date.today() - timedelta(days=85),

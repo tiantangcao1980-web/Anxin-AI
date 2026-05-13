@@ -5,8 +5,8 @@
 在 .env 中配置以下变量后即可调用：
   ALIYUN_ACCESS_KEY_ID=<你的AccessKeyId>        (与短信共用)
   ALIYUN_ACCESS_KEY_SECRET=<你的AccessKeySecret>  (与短信共用)
-  ALIYUN_EMAIL_ACCOUNT=noreply@mail.anxinfawu.com
-  ALIYUN_EMAIL_ALIAS=安心法务
+  ALIYUN_EMAIL_ACCOUNT=noreply@mail.anxinassistant.com
+  ALIYUN_EMAIL_ALIAS=安心智能助手
 
 阿里云控制台：https://dm.console.aliyun.com
 SDK 文档：https://help.aliyun.com/document_detail/29444.html
@@ -25,7 +25,7 @@ VERIFY_EMAIL_TEMPLATE = """
 <head><meta charset="UTF-8"></head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
   <div style="text-align: center; margin-bottom: 30px;">
-    <h2 style="color: #1a1a2e; margin: 0;">安心法务</h2>
+    <h2 style="color: #1a1a2e; margin: 0;">安心智能助手</h2>
     <p style="color: #666; font-size: 14px;">智能法律服务平台</p>
   </div>
   <div style="background: #f8f9fa; border-radius: 12px; padding: 30px; text-align: center;">
@@ -38,7 +38,7 @@ VERIFY_EMAIL_TEMPLATE = """
   </div>
   <p style="color: #aaa; font-size: 12px; text-align: center; margin-top: 30px;">
     如果这不是您的操作，请忽略此邮件。<br/>
-    &copy; 安心法务 anxinfawu.com
+    &copy; 安心智能助手 anxinassistant.com
   </p>
 </body>
 </html>
@@ -90,7 +90,7 @@ class EmailService:
         """发送邮箱验证码"""
         return await cls._send_email(
             to_address=to_address,
-            subject="安心法务 - 邮箱验证码",
+            subject="安心智能助手 - 邮箱验证码",
             html_body=VERIFY_EMAIL_TEMPLATE.format(
                 title="邮箱验证",
                 code=code,
@@ -102,7 +102,7 @@ class EmailService:
         """发送密码重置验证码"""
         return await cls._send_email(
             to_address=to_address,
-            subject="安心法务 - 密码重置验证码",
+            subject="安心智能助手 - 密码重置验证码",
             html_body=VERIFY_EMAIL_TEMPLATE.format(
                 title="密码重置",
                 code=code,

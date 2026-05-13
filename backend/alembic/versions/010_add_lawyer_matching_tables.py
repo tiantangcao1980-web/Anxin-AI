@@ -4,7 +4,7 @@ Revision ID: 010
 Revises: 009
 Create Date: 2026-03-26
 
-安心法务找律师模块：
+安心智能助手找律师模块：
 - lawyer_profiles: 入驻律师档案
 - consultations: 咨询请求
 - delegations: 委托记录

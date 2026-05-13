@@ -37,7 +37,7 @@ class AILabelingService:
     """
 
     # 平台标识信息
-    PLATFORM_NAME = "安心AI法务"
+    PLATFORM_NAME = "安心智能助手"
     PLATFORM_VERSION = "1.0"
     PROVIDER_NAME = "安心智能科技"
 
@@ -170,7 +170,7 @@ class AILabelingService:
             "creator": cls.PLATFORM_NAME,
             "producer": f"{cls.PLATFORM_NAME} v{cls.PLATFORM_VERSION}",
             "subject": f"AI辅助生成 - {content_type.value}",
-            "keywords": "AI生成,法律文书,安心AI法务",
+            "keywords": "AI生成,法律文书,安心智能助手",
             "comments": cls.LABEL_TEMPLATES.get(content_type, ""),
             "category": "AI辅助生成内容",
             "ai_model": model_name or "",

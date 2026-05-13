@@ -19,7 +19,7 @@ export default function AdminIntegrations() {
   const [oauth, setOauth] = useState({ wechat_app_id: '', wechat_app_secret: '', alipay_app_id: '', alipay_app_secret: '' })
   const [storage, setStorage] = useState({ minio_endpoint: 'localhost:9000', minio_bucket: 'ailegal', minio_access_key: '', minio_secret_key: '' })
   const [sms, setSms] = useState({ aliyun_access_key_id: '', aliyun_access_key_secret: '', aliyun_sms_sign_name: '', aliyun_sms_template_verify: '', aliyun_sms_template_login: '', aliyun_sms_template_reset: '' })
-  const [email, setEmail] = useState({ aliyun_email_account: '', aliyun_email_alias: '安心法务' })
+  const [email, setEmail] = useState({ aliyun_email_account: '', aliyun_email_alias: '安心智能助手' })
   // E签宝 配置
   const [esign, setEsign] = useState({
     app_id: '', app_secret: '', app_secret_masked: '', has_app_secret: false,
@@ -419,7 +419,7 @@ export default function AdminIntegrations() {
                 <div className="space-y-2"><Label>AccessKey ID</Label><Input value={sms.aliyun_access_key_id} onChange={e => setSms({ ...sms, aliyun_access_key_id: e.target.value })} /></div>
                 <div className="space-y-2"><Label>AccessKey Secret</Label><Input type="password" value={sms.aliyun_access_key_secret} onChange={e => setSms({ ...sms, aliyun_access_key_secret: e.target.value })} /></div>
               </div>
-              <div className="space-y-2"><Label>短信签名</Label><Input value={sms.aliyun_sms_sign_name} onChange={e => setSms({ ...sms, aliyun_sms_sign_name: e.target.value })} placeholder="安心法务" /></div>
+              <div className="space-y-2"><Label>短信签名</Label><Input value={sms.aliyun_sms_sign_name} onChange={e => setSms({ ...sms, aliyun_sms_sign_name: e.target.value })} placeholder="安心智能助手" /></div>
               <Separator />
               <p className="text-sm font-medium">模板 Code</p>
               <div className="space-y-3">
@@ -439,7 +439,7 @@ export default function AdminIntegrations() {
               <CardDescription>邮箱验证码和通知邮件</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2"><Label>发信地址</Label><Input value={email.aliyun_email_account} onChange={e => setEmail({ ...email, aliyun_email_account: e.target.value })} placeholder="noreply@mail.anxinfawu.com" /></div>
+              <div className="space-y-2"><Label>发信地址</Label><Input value={email.aliyun_email_account} onChange={e => setEmail({ ...email, aliyun_email_account: e.target.value })} placeholder="noreply@mail.anxinassistant.com" /></div>
               <div className="space-y-2"><Label>发件人昵称</Label><Input value={email.aliyun_email_alias} onChange={e => setEmail({ ...email, aliyun_email_alias: e.target.value })} /></div>
               <div className="flex justify-end"><Button onClick={() => handleSave('email', email)} disabled={saving}>{saving ? '保存中...' : '保存'}</Button></div>
             </CardContent>

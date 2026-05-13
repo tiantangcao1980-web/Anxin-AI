@@ -825,7 +825,7 @@ function Step4Submit({
  <>
  <icons.CheckCircle className={`${iconSize['2xl']} text-success`} />
  <Badge className={statusBadge.success}>审核通过</Badge>
- <p className={heading.muted}>恭喜！您已成功入驻安心法务平台</p>
+ <p className={heading.muted}>恭喜！您已成功入驻安心智能助手平台</p>
  </>
  )}
  {reviewResult.status ==='rejected' && (

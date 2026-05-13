@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-LEGAL_CRAWLER_USER_AGENT = "Anxin-Legal-Crawler/1.0 (+contact: compliance@anxinfawu.com)"
+LEGAL_CRAWLER_USER_AGENT = "Anxin-Legal-Crawler/1.0 (+contact: compliance@anxinassistant.com)"
 DEFAULT_HOST_INTERVAL_SECONDS = 1.0
 MIN_HOST_INTERVAL_SECONDS = 0.5
 

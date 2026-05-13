@@ -334,7 +334,7 @@ if [ "$SKIP_TAURI_BUILD" -eq 0 ]; then
     run_step "desktop app bundle binary self-test" \
       bash -lc '
         cd desktop
-        bundle_bin="target/debug/bundle/macos/安心法务.app/Contents/MacOS/anxin-legal-desktop"
+        bundle_bin="target/debug/bundle/macos/安心智能助手.app/Contents/MacOS/anxin-legal-desktop"
         [ -x "$bundle_bin" ]
         "$bundle_bin" --self-test | node -e '\''
           let input = "";
@@ -368,7 +368,7 @@ if [ "$SKIP_TAURI_BUILD" -eq 0 ]; then
     run_step "desktop app bundle runtime startup smoke" \
       bash -lc '
         cd desktop
-        bundle_bin="target/debug/bundle/macos/安心法务.app/Contents/MacOS/anxin-legal-desktop"
+        bundle_bin="target/debug/bundle/macos/安心智能助手.app/Contents/MacOS/anxin-legal-desktop"
         [ -x "$bundle_bin" ]
         runtime_log="$(mktemp "${TMPDIR:-/tmp}/anxin-desktop-runtime-smoke.XXXXXX")"
         "$bundle_bin" --runtime-smoke >"$runtime_log" 2>&1 &
@@ -406,7 +406,7 @@ if [ "$SKIP_TAURI_BUILD" -eq 0 ]; then
     run_step "desktop app bundle UI load smoke" \
       bash -lc '
         cd desktop
-        bundle_bin="target/debug/bundle/macos/安心法务.app/Contents/MacOS/anxin-legal-desktop"
+        bundle_bin="target/debug/bundle/macos/安心智能助手.app/Contents/MacOS/anxin-legal-desktop"
         [ -x "$bundle_bin" ]
         ui_log="$(mktemp "${TMPDIR:-/tmp}/anxin-desktop-ui-smoke.XXXXXX")"
         "$bundle_bin" --runtime-ui-smoke >"$ui_log" 2>&1 &
@@ -537,7 +537,7 @@ perf_report = {}
 if perf_report_path.exists():
     perf_report = json.loads(perf_report_path.read_text(encoding="utf-8"))
 
-bundle_path = "desktop/target/debug/bundle/macos/安心法务.app"
+bundle_path = "desktop/target/debug/bundle/macos/安心智能助手.app"
 report = {
     "generated_at": datetime.now(UTC).isoformat(),
     "mode": "desktop_runtime_code_smoke",

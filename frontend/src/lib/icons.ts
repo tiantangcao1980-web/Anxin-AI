@@ -195,7 +195,7 @@ import {
 // 每个图标只对应一个业务含义，不会混用
 
 export const icons = {
-  // ===== 导航 - AI法务 =====
+  // ===== 导航 - AI 智能助手 =====
   /** 智能对话 */
   Chat: MessagesSquare,
   /** 合同审查 */
@@ -234,7 +234,7 @@ export const icons = {
   Academy: GraduationCap,
 
   // ===== 导航 - 业务域组图标 =====
-  /** AI法务域 */
+  /** AI 智能助手域 */
   AILegal: Sparkles,
   /** 温和/喜爱 */
   Heart: Heart,

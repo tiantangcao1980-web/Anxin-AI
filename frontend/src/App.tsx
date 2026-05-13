@@ -7,7 +7,7 @@
  *
  * ===== [Phase 2] 路由懒加载 + 四大业务域路由结构 =====
  * 使用 React.lazy() + Suspense 实现按需加载，减少首屏 bundle 体积
- * 路由按 PRD 四大业务域分组：AI法务、智能协作、智能调查、法律智库
+ * 路由按 PRD 四大业务域分组：AI 智能助手、智能协作、智能调查、法律智库
  *
  * ===== [Phase 3] ErrorBoundary + 404 页面 =====
  * 添加全局错误边界，防止子组件崩溃导致白屏
@@ -46,7 +46,7 @@ import {
 // 每个页面只在用户访问时才加载对应的 JS 代码
 // 特别是 Knowledge（含 three.js 3D 图形库）和 Collaboration（含 tiptap/yjs）等重型页面
 
-// AI法务
+// AI 智能助手
 const Chat = lazy(() => import('@/pages/Chat'))
 
 // 智能协作（v3.0 模块合并）
@@ -393,7 +393,7 @@ function App() {
                 <Route path="capabilities/message-channels" element={<MessageChannelsPage />} />
                 <Route path="capabilities/pairing-authorizations" element={<PairingAuthorizationsPage />} />
 
-                {/* ===== AI法务（仅智能对话） ===== */}
+                {/* ===== AI 智能助手（仅智能对话） ===== */}
                 <Route path="chat" element={<ProtectedRoute feature="ai_chat"><Chat /></ProtectedRoute>} />
 
                 {/* ===== 智能协作（v3.0 模块合并） ===== */}

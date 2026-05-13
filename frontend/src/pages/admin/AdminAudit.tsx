@@ -145,7 +145,7 @@ ${report.failed_operations?.length ? `
 ${report.failed_operations.map((op: any) => `<tr><td>${op.action}</td><td>${op.user}</td><td>${op.time ? new Date(op.time).toLocaleString('zh-CN') : '-'}</td><td>${op.error || '-'}</td></tr>`).join('')}
 </tbody></table>` : ''}
 <div class="footer">
-  ⚖️ 本报告由「安心法务 Pro」自动生成，可作为律所合规管理证据留存。<br>
+  ⚖️ 本报告由「安心智能助手 Pro」自动生成，可作为律所合规管理证据留存。<br>
   如需纸质归档，请使用浏览器打印功能保存为 PDF。
 </div>
 </body></html>`

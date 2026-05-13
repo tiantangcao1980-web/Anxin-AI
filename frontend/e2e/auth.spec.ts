@@ -5,7 +5,7 @@ import { installApiMocks } from './helpers/session'
 test.describe('认证流程', () => {
   test('登录页面正确渲染', async ({ page }) => {
     await page.goto('/login')
-    await expect(page.getByRole('heading', { name: '安心AI法务' }).first()).toBeVisible()
+    await expect(page.getByRole('heading', { name: '安心智能助手' }).first()).toBeVisible()
     await expect(page.getByPlaceholder('请输入邮箱地址')).toBeVisible()
     await expect(page.getByPlaceholder('请输入密码')).toBeVisible()
   })
@@ -24,7 +24,7 @@ test.describe('认证流程', () => {
   test('测试账号可以登录并进入对话页', async ({ page }) => {
     await installApiMocks(page)
     await page.goto('/login')
-    await page.getByPlaceholder('请输入邮箱地址').fill('admin@anxinfawu.com')
+    await page.getByPlaceholder('请输入邮箱地址').fill('admin@anxinassistant.com')
     await page.getByPlaceholder('请输入密码').fill('admin888')
     await page.locator('form').getByRole('button', { name: '登录' }).click()
     await expect(page).toHaveURL(/chat/)

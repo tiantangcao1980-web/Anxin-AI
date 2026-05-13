@@ -508,11 +508,11 @@ pub fn run_with_options(options: DesktopRunOptions) {
                 });
             }
 
-            log::info!("安心法务客户端启动完成");
+            log::info!("安心智能助手客户端启动完成");
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("安心法务客户端启动失败");
+        .expect("安心智能助手客户端启动失败");
 }
 
 #[cfg(test)]
@@ -596,13 +596,13 @@ mod tests {
             "hasRoot": true,
             "platform": "tauri-macos",
             "rootChildCount": 1,
-            "title": "安心法务"
+            "title": "安心智能助手"
         });
         let missing_platform = serde_json::json!({
             "hasRoot": true,
             "platform": "web",
             "rootChildCount": 1,
-            "title": "安心法务"
+            "title": "安心智能助手"
         });
 
         assert!(super::desktop_runtime_ui_smoke_payload_ready(

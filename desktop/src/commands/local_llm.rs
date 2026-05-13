@@ -111,7 +111,7 @@ pub async fn local_llm_chat(
 
     // 添加法务系统提示词
     let sys_prompt = system_prompt.unwrap_or_else(|| {
-        "你是安心法务AI助手，专注于中国法律咨询服务。请用中文回答。".to_string()
+        "你是安心智能助手AI助手，专注于中国法律咨询服务。请用中文回答。".to_string()
     });
     messages.push(serde_json::json!({
         "role": "system",

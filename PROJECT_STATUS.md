@@ -84,14 +84,14 @@
 ## 2026-04-16 V2 架构升级启动
 
 ### 总体方向
-本次升级是产品架构层面的三大根本性变革，详见 [docs/ARCHITECTURE_V2.md](docs/ARCHITECTURE_V2.md)：
+本次升级是产品架构层面的三大根本性变革，详见 [docs/architecture-v2.md](docs/architecture-v2.md)：
 
 1. **双客户端分离** — 需求方（C端）与服务方（B端律师律所）独立客户端
 2. **三态运行模式** — 本地/混合/云端，各自独立的数据边界与功能边界
 3. **订阅商业化** — 非本地模式需订阅，建立可持续商业模型
 
 ### Phase 1 — 已完成 ✅
-- [x] 架构升级规划文档 `docs/ARCHITECTURE_V2.md`
+- [x] 架构升级规划文档 `docs/architecture-v2.md`
 - [x] README / PROJECT_STATUS / MEMORY 同步更新
 - [x] User 表新增 `primary_client` 字段 + 自动迁移 + 老用户推断
 - [x] 后端 API 返回 `primary_client`（register/me）
@@ -281,7 +281,7 @@
 - [x] 云端迁移核验：`docker compose exec -T backend alembic current` → `027_experience_patterns (head)`
 - [x] 云端表结构核验：`experience_patterns` 已在 `legal_agent_db` 创建成功
 - [x] 云端公网暴露核验：`80/443` 之外的 `8001/5433/6379/6333/6334/7474/7687/9000/9001` 已收口
-- [x] 云端域名与 HTTPS 核验：`https://anxinfawu.com`、`https://www.anxinfawu.com` 返回 `200`
+- [x] 云端域名与 HTTPS 核验：`https://anxinassistant.com`、`https://www.anxinassistant.com` 返回 `200`
 
 ### 本轮已完成的高优先级真实化修复
 - [x] 前端默认 API 地址改为相对 `/api/v1`，避免绕过代理导致本地登录/联调失败
@@ -310,7 +310,7 @@
 - [x] 后端容器绑定为 `127.0.0.1:8001 -> 8001`
 - [x] PostgreSQL / Redis / Qdrant / Neo4j / MinIO 改为仅容器网络访问，不再暴露公网端口
 - [x] 主机 Nginx 上游切换为前端 `127.0.0.1:3001`、后端 `127.0.0.1:8001`
-- [x] Certbot 已签发并接入 `anxinfawu.com` 与 `www.anxinfawu.com` 的 HTTPS
+- [x] Certbot 已签发并接入 `anxinassistant.com` 与 `www.anxinassistant.com` 的 HTTPS
 - [x] 生产环境变量已修正：`DEV_MODE=false`，JWT / PostgreSQL / Redis 密钥已轮换
 
 ### 当前剩余问题（已收敛为长尾）
@@ -943,7 +943,7 @@ DASHSCOPE_API_KEY=<阿里云百炼 API Key>
 - [x] 四大模块下拉菜单改为直达链接，各模块有独立左侧导航栏
 - [x] 创建通用 `ModuleLayout` 组件（展开200px/收起56px）
 - [x] 移除全屏下拉面板（Portal）和所有 hover/click 展开逻辑
-- [x] AI法务直达 `/chat`，智能协作→`/cases`，智能调查→`/due-diligence`，法律智库→`/knowledge-graph`
+- [x] AI 智能助手直达 `/chat`，智能协作→`/cases`，智能调查→`/due-diligence`，法律智库→`/knowledge-graph`
 
 ### Chat 页面优化
 - [x] 三栏标题栏高度统一为 h-12（48px）
@@ -960,7 +960,7 @@ DASHSCOPE_API_KEY=<阿里云百炼 API Key>
 - [x] 后台管理入口迁移到用户面板（按权限显示）
 - [x] 找律师+律师精英合并
 - [x] 合同审查→合同管理，文档+工作台→在线协作
-- [x] AI法务中的后台功能（AI助手配置/私有LLM等）迁移到后台管理
+- [x] AI 智能助手中的后台功能（AI助手配置/私有LLM等）迁移到后台管理
 
 ### 登录页面优化
 - [x] 去掉左侧纯色渐变背景，改为 bg-muted/50 适配深浅色
@@ -968,7 +968,7 @@ DASHSCOPE_API_KEY=<阿里云百炼 API Key>
 
 ### 测试账号体系
 - [x] 17个测试账号覆盖6大角色（平台管理/律所/律师/员工/企业/个人）
-- [x] 统一使用 `@anxinfawu.com` 域名，简单密码格式
+- [x] 统一使用 `@anxinassistant.com` 域名，简单密码格式
 
 ## 功能完成度
 
@@ -1130,7 +1130,7 @@ DASHSCOPE_API_KEY=<阿里云百炼 API Key>
 
 ## 设计参考文件
 
-位置：`/Users/pengchengkeji/Desktop/安心法务-设计参考/`（37个截图）
+位置：`/Users/pengchengkeji/Desktop/安心智能助手-设计参考/`（37个截图）
 - 豆包桌面端：左侧导航 + 文档处理 + 快捷技能栏
 - 千问桌面端：深色/浅色模式 + 深度思考 + 文件上传标签
 

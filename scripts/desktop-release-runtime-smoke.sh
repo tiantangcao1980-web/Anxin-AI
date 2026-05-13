@@ -13,14 +13,14 @@ Usage:
   bash scripts/desktop-release-runtime-smoke.sh [options]
 
 Options:
-  --app path        Release .app path. Defaults to desktop/target/release/bundle/macos/安心法务.app
+  --app path        Release .app path. Defaults to desktop/target/release/bundle/macos/安心智能助手.app
   --out path        Write a structured JSON artifact.
   --ui-log-out path Copy the runtime UI smoke log to this path.
   -h, --help        Show this help.
 EOF
 }
 
-APP_PATH="desktop/target/release/bundle/macos/安心法务.app"
+APP_PATH="desktop/target/release/bundle/macos/安心智能助手.app"
 OUT_PATH=""
 UI_LOG_OUT_PATH=""
 

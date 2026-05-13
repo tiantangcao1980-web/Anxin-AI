@@ -1,14 +1,14 @@
 [project]
-name = "ai-legal-agent-backend"
+name = "anxin-smart-assistant-backend"
 version = "0.1.0"
-description = "AI法务智能体系统后端服务"
+description = "安心智能助手系统后端服务"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 license = { text = "Apache-2.0" }
 authors = [
-    { name = "AI Legal Agent Team" }
+    { name = "Anxin Smart Assistant Team" }
 ]
-keywords = ["ai", "legal", "multi-agent", "camel-ai", "fastapi"]
+keywords = ["ai", "legal", "finance", "tax", "compliance", "multi-agent", "smart-assistant", "fastapi"]
 
 dependencies = [
     # Web框架

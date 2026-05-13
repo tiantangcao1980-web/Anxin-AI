@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     )
 
     # ========== 基础配置 ==========
-    APP_NAME: str = "AI Legal Agent"
+    APP_NAME: str = "Anxin Smart Assistant"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
     DEV_MODE: bool = False  # 开发模式：启用后允许无Token访问API
@@ -204,7 +204,7 @@ class Settings(BaseSettings):
     # 阿里云短信 (Dysmsapi)
     # 控制台：https://dysms.console.aliyun.com
     ALIYUN_SMS_REGION: str = "cn-hangzhou"
-    ALIYUN_SMS_SIGN_NAME: str = ""  # 短信签名，如「安心法务」
+    ALIYUN_SMS_SIGN_NAME: str = ""  # 短信签名，如「安心智能助手」
     ALIYUN_SMS_TEMPLATE_VERIFY: str = ""  # 注册验证码模板 Code
     ALIYUN_SMS_TEMPLATE_LOGIN: str = ""  # 登录验证码模板 Code
     ALIYUN_SMS_TEMPLATE_RESET: str = ""  # 密码重置模板 Code
@@ -212,11 +212,11 @@ class Settings(BaseSettings):
     # 阿里云邮件推送 (DirectMail)
     # 控制台：https://dm.console.aliyun.com
     ALIYUN_EMAIL_REGION: str = "cn-hangzhou"
-    ALIYUN_EMAIL_ACCOUNT: str = ""  # 发信地址，如 noreply@mail.anxinfawu.com
-    ALIYUN_EMAIL_ALIAS: str = "安心法务"  # 发件人昵称
+    ALIYUN_EMAIL_ACCOUNT: str = ""  # 发信地址，如 noreply@mail.anxinassistant.com
+    ALIYUN_EMAIL_ALIAS: str = "安心智能助手"  # 发件人昵称
 
     # ========== 品牌定制 ==========
-    BRAND_NAME: str = "安心法务"
+    BRAND_NAME: str = "安心智能助手"
     BRAND_LOGO_URL: str = ""
     BRAND_PRIMARY_COLOR: str = "#D4A574"
     BRAND_FAVICON_URL: str = ""

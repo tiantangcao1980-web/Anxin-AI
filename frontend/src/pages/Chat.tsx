@@ -2304,7 +2304,7 @@ export default function Chat() {
  </button>
  )}
  <div className="flex items-center gap-2">
- <span className="font-medium text-sm text-foreground">AI 法务助手</span>
+ <span className="font-medium text-sm text-foreground">安心智能助手</span>
  <span className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-medium border ${
  wsConnected
  ?'text-success bg-success/10 border-success/20'

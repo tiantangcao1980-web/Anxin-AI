@@ -1,4 +1,4 @@
-# 安心 AI 法务 Design Resources
+# 安心智能助手 Design Resources
 
 > 本文件是 `DESIGN.md` 的资源配套目录，定义全项目在图标、字体、动效、图表和视觉素材上的唯一选择，避免后续 UI/UX 改造继续漂移。
 

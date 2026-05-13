@@ -9,7 +9,7 @@ async def _empty_response(_request: object) -> Response:
 
 async def test_root_returns_service_metadata() -> None:
     assert await root() == {
-        "name": "AI Legal Agent",
+        "name": "Anxin Smart Assistant",
         "version": "0.1.0",
         "status": "running",
         "docs": "/docs",

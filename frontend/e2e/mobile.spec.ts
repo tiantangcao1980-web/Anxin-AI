@@ -7,10 +7,10 @@ test.use({ viewport: { width: 375, height: 812 } })
 test.describe('移动端适配', () => {
   test('底部 Tab 栏显示', async ({ page }) => {
     await loginAsAdmin(page)
-    // 底部导航固定 5 项：AI法务 / 协作 / 消息 / 智库 / 我的
+    // 底部导航固定 5 项：AI 智能助手 / 协作 / 消息 / 智库 / 我的
     // （与 src/components/mobile/MobileNavBar.tsx 的 NAV_ITEMS 保持同步）
     const bottomNav = page.getByRole('navigation')
-    await expect(bottomNav.getByRole('button', { name: 'AI法务' })).toBeVisible()
+    await expect(bottomNav.getByRole('button', { name: 'AI 智能助手' })).toBeVisible()
     await expect(bottomNav.getByRole('button', { name: '协作' })).toBeVisible()
     await expect(bottomNav.getByRole('button', { name: '消息' })).toBeVisible()
     await expect(bottomNav.getByRole('button', { name: '智库' })).toBeVisible()

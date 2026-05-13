@@ -10,8 +10,8 @@
     "release.app.signature_authority"
   ],
   "inputs": {
-    "release_app": "desktop/target/release/bundle/macos/安心法务.app",
-    "debug_app": "desktop/target/debug/bundle/macos/安心法务.app",
+    "release_app": "desktop/target/release/bundle/macos/安心智能助手.app",
+    "debug_app": "desktop/target/debug/bundle/macos/安心智能助手.app",
     "installed_profile_report": "docs/release/evidence/artifacts/desktop-installed-profile-smoke-20260507.json",
     "runtime_transcript": "docs/release/evidence/artifacts/desktop-runtime-ui-smoke-20260507.log",
     "runtime_structured_artifact": "docs/release/evidence/artifacts/desktop-runtime-code-smoke-20260507.json"
@@ -153,7 +153,7 @@
       "status": "pass",
       "release_blocking": true,
       "detail": {
-        "path": "desktop/target/release/bundle/macos/安心法务.app"
+        "path": "desktop/target/release/bundle/macos/安心智能助手.app"
       }
     },
     {
@@ -198,7 +198,7 @@
       "status": "pass",
       "release_blocking": false,
       "detail": {
-        "path": "desktop/target/debug/bundle/macos/安心法务.app"
+        "path": "desktop/target/debug/bundle/macos/安心智能助手.app"
       }
     },
     {

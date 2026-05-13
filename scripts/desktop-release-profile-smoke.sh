@@ -14,7 +14,7 @@ Usage:
   bash scripts/desktop-release-profile-smoke.sh [options]
 
 Options:
-  --app path   Release .app path. Defaults to desktop/target/release/bundle/macos/安心法务.app
+  --app path   Release .app path. Defaults to desktop/target/release/bundle/macos/安心智能助手.app
   --out path   Write a structured JSON artifact.
   -h, --help   Show this help.
 
@@ -28,7 +28,7 @@ Checks:
 EOF
 }
 
-APP_PATH="desktop/target/release/bundle/macos/安心法务.app"
+APP_PATH="desktop/target/release/bundle/macos/安心智能助手.app"
 OUT_PATH=""
 
 while [ "$#" -gt 0 ]; do

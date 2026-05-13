@@ -468,7 +468,7 @@ export function DesktopWorkstationPanel() {
     try {
       const result = await sendDesktopNotification({
         kind: mode === 'top-secret' ? 'risk_alert' : 'case_progress',
-        title: mode === 'top-secret' ? '安心法务风险预警' : '安心法务案件进展',
+        title: mode === 'top-secret' ? '安心智能助手风险预警' : '安心智能助手案件进展',
         body: mode === 'top-secret'
           ? '绝密模式本机通知链路已就绪，未连接外部推送。'
           : '案件进展与风险预警的本机通知链路已就绪。',

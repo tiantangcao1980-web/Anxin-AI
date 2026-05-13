@@ -239,7 +239,7 @@ export async function installApiMocks(page: Page, options: MockOptions = {}) {
           token_type: 'bearer',
           user: {
             id: userId,
-            email: options.auth?.email ?? `${role}@anxinfawu.com`,
+            email: options.auth?.email ?? `${role}@anxinassistant.com`,
             name: options.auth?.name ?? 'E2E User',
             role,
             primary_client: options.auth?.primary_client,
@@ -255,7 +255,7 @@ export async function installApiMocks(page: Page, options: MockOptions = {}) {
         route,
         buildUnified({
           id: userId,
-          email: options.auth?.email ?? `${role}@anxinfawu.com`,
+          email: options.auth?.email ?? `${role}@anxinassistant.com`,
           name: options.auth?.name ?? 'E2E User',
           role,
           primary_client: options.auth?.primary_client,
@@ -1688,7 +1688,7 @@ export async function seedAuthState(page: Page, seed: AuthSeed) {
             emitChatPayload(this, {
               type: 'done',
               content: '您好！很高兴为您服务，请告诉我您需要处理的法律问题。',
-              agent: 'AI 法务助手',
+              agent: '安心智能助手',
             })
             return
           }
@@ -1696,7 +1696,7 @@ export async function seedAuthState(page: Page, seed: AuthSeed) {
           emitChatPayload(this, {
             type: 'done',
             content: '已收到您的问题，正在为您整理专业意见。',
-            agent: 'AI 法务助手',
+            agent: '安心智能助手',
           })
         } catch {
           // Ignore malformed mock payloads to keep tests deterministic.

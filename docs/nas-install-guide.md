@@ -1,4 +1,4 @@
-# 安心法务 · NAS 一键安装指南
+# 安心智能助手 · NAS 一键安装指南
 
 面向群晖 (Synology)、威联通 (QNAP) 以及通用 Docker NAS（OMV、TrueNAS Scale、UGREEN）。
 
@@ -62,7 +62,7 @@ docker compose -f docker-compose.nas.yml logs -f backend
 | 检查项 | 期望结果 |
 |---|---|
 | 容器 `anxin_backend` 健康 | `docker ps` 列显示 `healthy` |
-| `http://<ip>:3001` 首页能打开 | 看到"安心法务"登录页 |
+| `http://<ip>:3001` 首页能打开 | 看到"安心智能助手"登录页 |
 | `http://<ip>:8001/api/v1/health` | 返回 `{"status":"ok"}` |
 | Chroma `/api/v1/heartbeat` | 返回 JSON 对象 |
 

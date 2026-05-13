@@ -8,7 +8,7 @@
  * - 内容区域全宽，无侧边栏占用水平空间
  *
  * 导航分组（对应 PRD 四大业务域）：
- * - AI法务：直达智能对话（无下拉菜单，左侧为对话列表）
+ * - AI 智能助手：直达智能对话（无下拉菜单，左侧为对话列表）
  * - 智能协作：案件管理、合同管理（含审查）、在线协作（含文档+工作台）、找律师（含律师精英）、合规自检、案源管理
  * - 智能调查：尽职调查（司法资讯 v2.0 启用）
  * - 法律智库：智慧搜索、知识图谱、司法智库、司法学院
@@ -44,7 +44,7 @@ interface NavChild {
 // 顶部四大业务域（与 PRD / 全端导航保持同步）。
 // 「智能调查」对应 /investigation 工作台，舆情监测是其中一个子入口。
 const navGroups: { id: string; label: string; path: string }[] = [
-  { id: 'ai-legal', label: 'AI法务', path: '/chat' },
+  { id: 'ai-legal', label: 'AI 智能助手', path: '/chat' },
   { id: 'collaboration', label: '智能协作', path: '/case-center' },
   { id: 'investigation', label: '智能调查', path: '/investigation' },
   { id: 'knowledge', label: '法律智库', path: '/knowledge-base' },
@@ -292,7 +292,7 @@ export default function Layout() {
               <icons.Legal className="w-[18px] h-[18px] text-primary-foreground" />
             </div>
             <span className={`${heading.section} hidden sm:block`}>
-              安心法务
+              安心智能助手
             </span>
           </button>
 

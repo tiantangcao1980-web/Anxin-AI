@@ -53,7 +53,7 @@ async function login(page: Page) {
     role: 'admin',
     userId: 'e2e-admin',
     name: 'E2E Admin',
-    email: 'admin@anxinfawu.com',
+    email: 'admin@anxinassistant.com',
   })
 }
 

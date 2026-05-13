@@ -5,7 +5,7 @@
 在 .env 中配置以下变量后即可调用：
   ALIYUN_ACCESS_KEY_ID=<你的AccessKeyId>
   ALIYUN_ACCESS_KEY_SECRET=<你的AccessKeySecret>
-  ALIYUN_SMS_SIGN_NAME=安心法务
+  ALIYUN_SMS_SIGN_NAME=安心智能助手
   ALIYUN_SMS_TEMPLATE_VERIFY=SMS_xxxxxx     # 验证码模板
   ALIYUN_SMS_TEMPLATE_LOGIN=SMS_xxxxxx      # 登录验证码模板
   ALIYUN_SMS_TEMPLATE_RESET=SMS_xxxxxx      # 密码重置模板

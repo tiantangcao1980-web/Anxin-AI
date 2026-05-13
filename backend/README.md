@@ -1,4 +1,4 @@
-# AI Legal Agent Backend
+# Anxin Smart Assistant Backend
 
 FastAPI backend service for Anxin Smart Legal Services.
 

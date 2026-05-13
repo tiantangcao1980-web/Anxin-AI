@@ -172,7 +172,7 @@
 - 4 电商源（Shopee / TikTok Shop / Amazon SP-API / 1688）仍是 mock，待真 API
 - CRM / 信息源 / 财税 / 设计 共 24+ provider 待 OAuth 接入
 - 知识库新版（RAG-Anything 多模态）待 P10
-- 生产部署仍在 anxinfawu.com（旧），未切到 anxinassistant.com
+- 生产部署仍在 anxinassistant.com（旧），未切到 anxinassistant.com
 
 ---
 
@@ -232,7 +232,7 @@ npm run test:e2e -- role-access.spec.ts business-actions.spec.ts
 
 ### 6.3 部署
 
-> 当前仍在 V2 域名 `anxinfawu.com`（生产）。V3 完整生产部署到 `anxinassistant.com` 计划在 P13。
+> 当前仍在 V2 域名 `anxinassistant.com`（生产）。V3 完整生产部署到 `anxinassistant.com` 计划在 P13。
 
 P8 / P9 期间建议在 staging：
 ```bash

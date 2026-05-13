@@ -21,7 +21,7 @@
     "debug_app_bundle_ui_load": "passed"
   },
   "artifacts": {
-    "debug_app_bundle": "desktop/target/debug/bundle/macos/安心法务.app",
+    "debug_app_bundle": "desktop/target/debug/bundle/macos/安心智能助手.app",
     "ui_log": "/Users/pengchengkeji/Documents/GitHub/Anxin-Smart-Legal-Services/docs/release/evidence/artifacts/desktop-runtime-ui-smoke-20260507.log"
   },
   "completion_note": "Code-level supporting evidence only. Keep desktop runtime evidence Status: pending until a signed/notarized package has packaged UI interaction, packaged-profile migration, packaged runtime performance, and cross-device continuation evidence."

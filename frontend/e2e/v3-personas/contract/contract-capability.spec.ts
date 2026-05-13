@@ -39,7 +39,7 @@ const DRAFT_REPLY = [
   '📜 **合同管家**：已为您生成《服务合同》初稿。',
   '',
   '**合同正文**：',
-  '第一条 合同主体：甲方 上海安心法务，乙方 张三。',
+  '第一条 合同主体：甲方 上海安心智能助手，乙方 张三。',
   '第二条 服务范围：法律咨询、合同审查与归档。',
   '',
   '📎 [下载 docx](https://example.com/contract-e2e.docx)',
@@ -106,7 +106,7 @@ async function login(page: Page) {
     role: 'admin',
     userId: 'e2e-admin',
     name: 'E2E Admin',
-    email: 'admin@anxinfawu.com',
+    email: 'admin@anxinassistant.com',
   })
 }
 

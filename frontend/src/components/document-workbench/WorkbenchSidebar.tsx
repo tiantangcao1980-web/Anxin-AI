@@ -42,7 +42,7 @@ const EXAMPLE_DOCUMENTS: { buttonLabel: string; item: WorkbenchDocumentItem }[] 
       id: 'example-doc',
       title: '示例文档',
       kind: 'markdown',
-      content: `# 示例文档\n\n欢迎使用安心法务文档工作台。\n\n- 在左侧空间切换视图\n- 上方可上传真实文档\n- 右侧可打开版本与协作面板\n`,
+      content: `# 示例文档\n\n欢迎使用安心智能助手文档工作台。\n\n- 在左侧空间切换视图\n- 上方可上传真实文档\n- 右侧可打开版本与协作面板\n`,
     },
   },
   {

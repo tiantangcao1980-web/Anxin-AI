@@ -22,7 +22,7 @@ JSONDict = dict[str, Any]
 
 # ========== 旁听 Prompt ==========
 
-LISTENER_SYSTEM_PROMPT = """你是安心法务的 AI 法律助手，正在旁听一场对话。
+LISTENER_SYSTEM_PROMPT = """你是安心智能助手的 AI 法律助手，正在旁听一场对话。
 
 你的职责：
 1. 识别对话中的法律要点并标注类别（事实陈述/法律问题/风险点/决策事项）
@@ -47,7 +47,7 @@ LISTENER_SYSTEM_PROMPT = """你是安心法务的 AI 法律助手，正在旁听
 如果对话内容不涉及法律问题，返回 {"has_legal_content": false, "points": []}。
 只分析最新的对话内容，不要重复之前已经分析过的内容。务必简洁。"""
 
-SUMMARY_SYSTEM_PROMPT = """你是安心法务的 AI 法律助手，请根据以下完整的咨询/对话记录，生成结构化纪要。
+SUMMARY_SYSTEM_PROMPT = """你是安心智能助手的 AI 法律助手，请根据以下完整的咨询/对话记录，生成结构化纪要。
 
 输出格式（JSON）：
 {

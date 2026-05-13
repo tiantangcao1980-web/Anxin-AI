@@ -74,7 +74,7 @@ export default function SettingsScreen() {
         ])
         break
       case 'about':
-        Alert.alert('关于安心法务', '安心智慧法务平台\n版本 v1.0.0\n\n让法律服务更简单')
+        Alert.alert('关于安心智能助手', '安心智慧法务平台\n版本 v1.0.0\n\n让法律服务更简单')
         break
       default:
         break

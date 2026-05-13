@@ -1,4 +1,4 @@
-# 安心AI法务 - 安全部署指南
+# 安心智能助手 - 安全部署指南
 
 ## 部署架构
 
@@ -40,7 +40,7 @@ cat > .env << 'ENVEOF'
 ENVIRONMENT=production
 DEBUG=false
 DEV_MODE=false
-CORS_ORIGINS=https://anxinfawu.com,https://www.anxinfawu.com
+CORS_ORIGINS=https://anxinassistant.com,https://www.anxinassistant.com
 
 # ===== LLM 配置 =====
 LLM_PROVIDER=qwen
@@ -150,7 +150,7 @@ apt install -y nginx certbot python3-certbot-nginx
 cp /opt/anxin-smart-legal-services/nginx.conf /etc/nginx/conf.d/anxin.conf
 
 # 申请并部署证书
-certbot --nginx -d anxinfawu.com -d www.anxinfawu.com
+certbot --nginx -d anxinassistant.com -d www.anxinassistant.com
 
 nginx -t
 systemctl reload nginx
@@ -158,8 +158,8 @@ systemctl reload nginx
 
 完成后应满足：
 
-- `http://anxinfawu.com` 与 `http://www.anxinfawu.com` 自动 301 到 HTTPS
-- `https://anxinfawu.com` 与 `https://www.anxinfawu.com` 返回 `200`
+- `http://anxinassistant.com` 与 `http://www.anxinassistant.com` 自动 301 到 HTTPS
+- `https://anxinassistant.com` 与 `https://www.anxinassistant.com` 返回 `200`
 - Docker 内部服务不需要额外公网端口放行
 
 ## 第八步：阿里云安全组最小开放面

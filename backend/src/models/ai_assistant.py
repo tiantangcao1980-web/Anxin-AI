@@ -18,7 +18,7 @@ class AIAssistantConfig(Base, TimestampMixin):
         GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True
     )
     name: Mapped[str] = mapped_column(
-        String(100), nullable=False, default="安心法务助手"
+        String(100), nullable=False, default="安心智能助手助手"
     )
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
