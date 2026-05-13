@@ -8,6 +8,34 @@
 
 ---
 
+## 2026-05-14（夜）Phase B T1-T4 收尾（worktree `vigorous-wiles-5a3fb3`）
+
+### 本轮目标
+按 Phase A 留下的 4 项 P0 任务清单顺序执行 T1-T4，每项任务前后做 git push，并在 audit 文档中同步状态。
+
+### T1-T4 完成清单
+
+| 任务 | 范围 | Commits | 验证 |
+|---|---|---|---|
+| **T1** 图标体系收口 | 60 文件 `lucide-react` → `@/lib/icons` + ESLint `no-restricted-imports` 防回归 + EmptyState type 导入修复 | [fb1bb443](https://github.com/tiantangcao1980-web/Anxin-AI/commit/fb1bb443) [7b6ba378](https://github.com/tiantangcao1980-web/Anxin-AI/commit/7b6ba378) | `npm run build` ✅ 11.24s；`npm run lint` 仅余 2 pre-existing 错误（与 T1 无关） |
+| **T2** Harness P0 — policy_engine | `_check_mcp_tool_policy` 改路由 `harness.policy_enforcement.check_tool_call(enforce=True)`；享受异常隔离 + env-var kill switch；warn-only → enforce 切换 | [0bb219df](https://github.com/tiantangcao1980-web/Anxin-AI/commit/0bb219df) | `pytest test_harness + test_chat + test_harness_policy_enforcement` 75/75 通过 |
+| **T3** Harness P0 — context_engine | `context_engine` 新增 `should_compress / compress / get_stats` 委托方法；`chat_service.py` + `due_diligence.py` 共 3 处直 import 切到 `context_engine`；旧版 `context_compressor` 改为内部实现 | [12ff77d6](https://github.com/tiantangcao1980-web/Anxin-AI/commit/12ff77d6) | 同上 75/75；grep 全仓直 import 仅剩 harness 内部 4 处委托 |
+| **T4** UI/UX P0 — 假成功 | 复核 audit 列出的 5 项 P0；4 项「已代码级收口」属实（mobile investigation/knowledge useEffect + api.post；desktop sync_engine push/pull 返回 explicit Err 而非 fake Ok）；1 项需外部证据（签名/真机/staging）不属代码任务 | （文档更新 — 见本节末尾） | 代码层零回归；外部证据 P0 列入 [`docs/release/evidence/`](docs/release/evidence/) 待办 |
+
+### T4 五项 P0 假成功项现状（详见 [`docs/audit/ui-ux-audit-2026-05-08.md`](docs/audit/ui-ux-audit-2026-05-08.md)）
+
+| # | P0 项 | 代码层 | 待补 |
+|---|---|---|---|
+| 1 | 智能调查初始加载副作用 | ✅ `mobile/app/(tabs)/investigation.tsx` 已用 useEffect + loadData | 真机弱网/重复提交体验 |
+| 2 | 智能调查/法律智库提交只 console.log | ✅ 两处均用 `api.post` 真实调后端 | 真实后端数据 + 真机 transcript |
+| 3 | 小程序真实 appid/交互验收 | （非代码任务） | 用正式测试 appid + 测试账号 + 后端 staging |
+| 4 | 桌面云同步未商业闭环 | ✅ `desktop/src/services/sync_engine.rs:1112,1122` push/pull 返回 explicit Err（fail-closed） | 跨设备延续 + signed packaged runtime |
+| 5 | signed/notarized package 缺失 | （非代码任务） | 取得签名/公证输入后跑 signed runtime profile |
+
+**结论**：T4 在本 worktree 内代码层 P0 已全部确认收口；剩余 3 项需要签名密钥、测试 appid、真机环境等外部输入，列为下一阶段交付前的 ops 待办。
+
+---
+
 ## 2026-05-14（下午）文档单一信源化（5 Spine + 9 Wiki + 101 归档）
 
 ### 本轮目标
