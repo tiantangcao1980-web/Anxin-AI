@@ -8,6 +8,60 @@
 
 ---
 
+## 2026-05-14 worktree `vigorous-wiles-5a3fb3` 清理与基线收尾（交接快照）
+
+### 本轮目标
+在动手开发前先做一次清理整理，**避免再次被错误引用过时/冗余/错误的信息和代码**，并把六层框架基线、品牌收口、设计规范单一真相源、三大核心文档索引一并落到位。
+
+### 6 阶段 / 9 commits 时间线（领先 `origin/main` 9 个 commit）
+
+| Phase | 内容 | Commits |
+|---|---|---|
+| **1. 并行审计** | 全仓代码/分支/文档/规范/可继承收益四线并行扫描 | （审计产出，无单独 commit） |
+| **2.1 CAMEL 剥离** | 移除 CAMEL-AI 残留 import / 死引用 | `248735c0` |
+| **2.2 死文件清理** | 6 个无引用前端页面 / 本地 SQLite / .gitignore 补强 | `9d85e0af` |
+| **2.3 jovial-greider 合并** | 六层框架基线 + AGENTS.md/AI-Review/Self-Heal/Evals + chat 主路径接 enforcement | `56137019` + `9b902494` |
+| **2.4 peaceful-goodall 评估** | CREAO Slice 1 评估后**延后**合并（alembic 3-way head 冲突） | `bbcb04b6`（记录原因） |
+| **3. 设计规范单一真相源** | 三大单一真相源澄清（AGENTS.md / DESIGN.md / standards/）+ 图标体系缺口 | `d8c07cf1` |
+| **4. 三大核心文档索引** | `docs/01-core-docs.md`（需求/架构/开发计划，**索引非重复**） | `fdd060da` |
+| **5. 品牌字符串收尾** | mock fixtures + collect_all + eval 残留品牌一次性收口 | `8597b1e2` |
+| **6. 一致性验证** | 全部 Gate 复跑 / 89 测试通过 / 本交接报告 | （文档更新） |
+
+### 一致性 Gate 通过情况（Phase 6）
+
+| Gate | 命令 | 结果 |
+|---|---|---|
+| 品牌泄漏 | `rg "安心智能法律服务平台\|Anxin Smart Legal Services\|安心法律"` | ✅ No files found（仅保留 README 历史叙事 + nginx.conf 部署项 + 历史文档） |
+| CAMEL 残留 | `rg "from camel\|import camel\|CamelModel\b"` | ✅ 仅 4 处 intentional 历史注释（schemas.py 兼容别名 / p16 / ci-pipeline / pyproject 注释） |
+| 后端 H1 路径 | `pytest tests/test_chat.py tests/test_harness*.py` | ✅ 89 用例全过（chat 33 + harness 56） |
+| 模块 import | `python -c "from src.api.routes import chat; from src.services import chat_service"` | ✅ 导入成功 |
+| 发布清单 | `node scripts/validate-commercial-delivery-checklist.cjs` | ✅ 9 criteria OK |
+| 发布 lane | `node scripts/validate-commercial-delivery-lanes.cjs` | ✅ 8 lanes OK |
+| Worktree 卫生 | `python3 scripts/release-worktree-inventory.py --json --fail-on-unknown` | ✅ tracked_changes=0, unknown=0 |
+| 密钥扫描 | `bash scripts/release-evidence-secret-scan.sh` | ✅ PASS |
+
+### 本轮**未做**（明确延后给后续 PR）
+
+| 项目 | 优先级 | 原因 | 计划 |
+|---|---|---|---|
+| peaceful-goodall（CREAO 自愈 Slice 1）合并 | P1 | alembic 3-head（028/030/044）+ 8 个非平凡修改依赖 | P0 policy_engine 统一收敛后单独 PR |
+| `lucide-react` → `@/lib/icons` 80 文件迁移 | P1 | 47% 已迁移；剩余 80 文件需分批 | 每批 ≤ 20 文件 + `no-direct-lucide-import` lint |
+| nginx.conf `anxinfawu.com` → `anxinai.com` | P1 | 涉及 DNS/证书切换，属 V3 P13 | 与 P13 域名切换一起做 |
+| H1 followups: policy_engine / context_engine 主路径接入 | P0 | 已在 `docs/audit/harness/03-h1-followups.md` 登记 | 下一开发周期 |
+| 全量 pytest（543+ 用例）+ 全栈 e2e | - | 本轮仅 H1 相关 89 用例 + gate 脚本通过；全量验证属常规 CI 范畴 | 推到 CI 流水线 |
+
+### 后续"正式开发"路径
+
+按 [docs/00-project-execution-map.md](docs/00-project-execution-map.md) §2 的 12 环节，**当前状态**：
+- 环节 1-3（目标/需求/设计） **已冻结**（V3 scope 已合并）
+- 环节 4（UI/UX）**进行中**，参见 [docs/plans/2026-05-13-ui-ux-optimization-roadmap.md](docs/plans/2026-05-13-ui-ux-optimization-roadmap.md)
+- 环节 5-7（架构/任务拆分/开发）**有基线**：六层框架 H0-O2 全部 ✅，可在 Harness 之上接续 P0/P1 followups
+- 环节 8-12（测试/UI 验收/证据/门禁/试点）按 `docs/release/` 推进
+
+**建议下一动作**：从 `docs/audit/harness/03-h1-followups.md` 选一个 P0（推荐 `policy_engine` 主路径接入，因 main 已有 `_check_mcp_tool_policy` 可融合）切单独 PR；CREAO Slice 1 在其后做。
+
+---
+
 ## 2026-05-14 六层框架基线引入（Model/Harness/Context/Traces/Eval/Ops）
 
 ### 总体方向
