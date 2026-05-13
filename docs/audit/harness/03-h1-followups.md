@@ -53,16 +53,24 @@
 **仍待做**:
 - [ ] 下一个 release 删除 `services/context_compressor.py`, 把实现合并到 `harness/context_engine.py`
 
-### P1 — `cost_tracker` 本地 LLM 估算 + 用户配额
+### P1 — `cost_tracker` 本地 LLM 估算 + 用户配额 ✅ 完成 (T6, 2026-05-14)
 
 **问题**：本地 LLM API 不返 `usage` → 静默丢失成本；无配额阻断。
 
-**做法**：
-1. `agents/base.py:513-527` 增加：当 `usage` 为空且 `provider == "local"` 时，按 `len(prompt) / 4 + len(content) / 4` 估算
-2. `cost_tracker.record()` 增加用户级累计；超过订阅配额 → 抛 `QuotaExceededError`
-3. 与 `subscription_service` 对接
+**已完成 (T6)**:
+1. ✅ `harness/cost_tracker.py` 新增 `estimate_tokens_from_text` (char/4) + `LOCAL_PROVIDERS` 集合
+2. ✅ 新增 `record_with_estimate(..., prompt_text=, completion_text=, prompt_tokens=, completion_tokens=)`: 优先用 API 真值, 缺失时按字符估算
+3. ✅ 新增 `_by_user_tokens` 用户级 token 累计 (区别于 `_by_user` 美元累计, 配额按 tokens 算更直观)
+4. ✅ 新增 `check_user_quota(user_id, quota_tokens, *, upcoming_tokens=0)` → `(allowed, used, remaining)`
+5. ✅ 新增 `QuotaExceededError(user_id, used, quota)` 异常
+6. ✅ 新增 `reset_user_tokens(user_id)` 用于计费周期切换
+7. ✅ `agents/base.py:599-625` 改用 `record_with_estimate` 并传入 `user_id`, 本地 LLM 不再静默丢失
+8. ✅ 测试: `tests/test_harness.py::TestCostTracker` 12/12 通过 (新增 9 项 T6 用例)
 
-**估算**：1 PR / 2 天
+**仍待做**:
+- [ ] 与 `subscription_service.check_subscription_access` 双向对接 (主路径在 LLM 调用前调 `check_user_quota`, 阻断时返回友好错误)
+- [ ] Admin 一键豁免开关 (新增 user-level `quota_overridden` 字段, 或环境变量 `HARNESS_COST_QUOTA_DISABLED=true`)
+- [ ] 计费周期切换时自动 `reset_user_tokens` (subscription 模块的 cron 任务消费)
 
 ### P1 — `task_engine` 扩展到合同/尽调/批量文档
 

@@ -13,7 +13,7 @@
 |------|:---:|---------|-----------|------|:---:|
 | `trace_context` | 🟢 真接入 | `chat_service.py:865/970` | 每次 chat 调用都 start/end trace | trace 只在内存，无落盘、无聚类、无跨设备 | P1（T1） |
 | `task_engine` | 🟢 真接入 | `chat_service.py:876/884/937/962` | chat 主路径有完整状态机 | 仅 chat 用，agent / contract / DD 等长任务未接入 | P1（H1） |
-| `cost_tracker` | 🟢 真接入 | `agents/base.py:517` | 每次 LLM 调用后异步记 | 无配额阻断；本地 LLM/流式无 usage 时静默丢失；无单用户成本告警 | P2（H1） |
+| `cost_tracker` | 🟢 真接入 + 配额阻断就绪 | `agents/base.py:599-625` 每次 LLM 调用走 `record_with_estimate`; 新增 `check_user_quota / QuotaExceededError` | 本地 LLM 无 usage 时按 char/4 估算; 用户级 token 累计; 配额阻断 API 就绪 (调用端按需消费) | T6 (2026-05-14) 完成估算 + 用户级聚合 + 配额阻断 API; 与 subscription_service 主路径接入留作后续 PR | ✅ 已完成 (T6) |
 | `output_validator` | 🟡 软接入 | `chat_service.py:943` | 调用了但**失败不阻断** | `try/except` 吞异常；未通过校验时仅 `log.warning`；回答照样发出 | **P0**（H1） |
 | `context_engine` | 🟢 真接入 | `chat_service.py:696` / `due_diligence.py:987,1007` | 三处压缩调用统一改走 `harness.context_engine` | T3 (2026-05-14) 完成单一入口收口, 内部仍委托 `services.context_compressor`; 一个 release 后可删旧版 | ✅ 已完成 (T3) |
 | `policy_engine` | 🟢 真接入 | `agents/base.py:_check_mcp_tool_policy / _filter_mcp_tools_for_policy / _execute_tool` 走 `harness.policy_enforcement.check_tool_call(enforce=True)` | 每次 MCP tool_call 前后均判权 | T2 (2026-05-14) 完成第二阶段切 enforce, 默认硬阻断; env `HARNESS_POLICY_ENFORCE=false` 留紧急降级 | ✅ 已完成 (T2) |

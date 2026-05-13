@@ -179,6 +179,106 @@ class TestCostTracker:
         assert 'agent_a' in stats['by_agent']
         assert 'agent_b' in stats['by_agent']
 
+    # ===== T6: 本地 LLM 字符估算 + 用户配额 =====
+
+    def test_estimate_tokens_from_text(self):
+        """简易 token 估算: 4 字符 = 1 token, 空文本 = 0。"""
+        from src.harness.cost_tracker import estimate_tokens_from_text
+        assert estimate_tokens_from_text("") == 0
+        assert estimate_tokens_from_text("hello world") == 11 // 4
+        assert estimate_tokens_from_text("a") == 1  # 最少 1 token
+
+    def test_record_with_estimate_local_llm(self):
+        """本地 LLM API 无 usage 字段时, record_with_estimate 按字符估算。"""
+        from src.harness.cost_tracker import CostTracker
+        tracker = CostTracker()
+        rec = tracker.record_with_estimate(
+            model="qwen2.5:7b",
+            provider="ollama",
+            prompt_text="x" * 400,  # 100 tokens
+            completion_text="y" * 200,  # 50 tokens
+            prompt_tokens=None,
+            completion_tokens=None,
+            agent_name="local_test",
+        )
+        assert rec.prompt_tokens == 100
+        assert rec.completion_tokens == 50
+        assert rec.cost_usd == 0.0  # 本地模型零成本
+
+    def test_record_with_estimate_uses_api_truth_when_available(self):
+        """API 返回 usage 时, record_with_estimate 优先用真值不估算。"""
+        from src.harness.cost_tracker import CostTracker
+        tracker = CostTracker()
+        rec = tracker.record_with_estimate(
+            model="gpt-4o",
+            provider="openai",
+            prompt_text="x" * 1000,  # 估算 250, 但不应使用
+            completion_text="y" * 1000,
+            prompt_tokens=42,
+            completion_tokens=17,
+            agent_name="cloud_test",
+        )
+        assert rec.prompt_tokens == 42
+        assert rec.completion_tokens == 17
+
+    def test_user_token_aggregation(self):
+        """T6: 多次调用累计到 _by_user_tokens, 用于配额扣减。"""
+        from src.harness.cost_tracker import CostTracker
+        tracker = CostTracker()
+        tracker.record(model="gpt-4o", provider="openai", prompt_tokens=100, completion_tokens=50, user_id="u1")
+        tracker.record(model="gpt-4o", provider="openai", prompt_tokens=200, completion_tokens=100, user_id="u1")
+        tracker.record(model="gpt-4o", provider="openai", prompt_tokens=50, completion_tokens=25, user_id="u2")
+        assert tracker.get_user_tokens("u1") == 450
+        assert tracker.get_user_tokens("u2") == 75
+        assert tracker.get_user_tokens("ghost") == 0
+
+    def test_check_user_quota_under_limit(self):
+        """T6: 用量 + 即将消耗 < 配额 → allowed=True。"""
+        from src.harness.cost_tracker import CostTracker
+        tracker = CostTracker()
+        tracker.record(model="gpt-4o", provider="openai", prompt_tokens=100, completion_tokens=50, user_id="u1")
+        allowed, used, remaining = tracker.check_user_quota("u1", quota_tokens=10_000, upcoming_tokens=500)
+        assert allowed is True
+        assert used == 150
+        assert remaining == 10_000 - 150 - 500
+
+    def test_check_user_quota_exceeds(self):
+        """T6: 用量 + 即将消耗 > 配额 → allowed=False。"""
+        from src.harness.cost_tracker import CostTracker
+        tracker = CostTracker()
+        tracker.record(model="gpt-4o", provider="openai", prompt_tokens=9000, completion_tokens=900, user_id="u1")
+        allowed, used, remaining = tracker.check_user_quota("u1", quota_tokens=10_000, upcoming_tokens=500)
+        assert allowed is False
+        assert used == 9900
+        assert remaining == 0
+
+    def test_check_user_quota_unlimited(self):
+        """T6: quota_tokens=0 表示不限, 永远 allowed。"""
+        from src.harness.cost_tracker import CostTracker
+        tracker = CostTracker()
+        tracker.record(model="gpt-4o", provider="openai", prompt_tokens=99_999, completion_tokens=99_999, user_id="u1")
+        allowed, used, _ = tracker.check_user_quota("u1", quota_tokens=0, upcoming_tokens=999_999)
+        assert allowed is True
+
+    def test_quota_exceeded_error_message(self):
+        """T6: QuotaExceededError 含 user_id / used / quota 三字段。"""
+        from src.harness.cost_tracker import QuotaExceededError
+        err = QuotaExceededError("u1", used=10_500, quota=10_000)
+        assert err.user_id == "u1"
+        assert err.used == 10_500
+        assert err.quota == 10_000
+        assert "10500" in str(err) or "10,500" in str(err) or "10_500" in str(err)
+
+    def test_reset_user_tokens(self):
+        """T6: 新计费周期清零用户用量。"""
+        from src.harness.cost_tracker import CostTracker
+        tracker = CostTracker()
+        tracker.record(model="gpt-4o", provider="openai", prompt_tokens=100, completion_tokens=50, user_id="u1")
+        assert tracker.get_user_tokens("u1") == 150
+        tracker.reset_user_tokens("u1")
+        assert tracker.get_user_tokens("u1") == 0
+        assert tracker.get_user_cost("u1") == 0.0
+
 
 # ===== 5. 权限检查 =====
 

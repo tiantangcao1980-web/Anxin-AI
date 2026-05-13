@@ -3,12 +3,44 @@ Token 用量与费用统计
 
 按 provider 定价计算每次 LLM 调用的费用，
 聚合到任务/会话/用户/Agent 维度。
+
+T6 (2026-05-14):
+  - 本地 LLM API 不返 usage 时按 char/4 估算, 避免静默丢失
+  - 用户级 token 累计 (_by_user_tokens), 为配额阻断打底
+  - check_user_quota() / QuotaExceededError, 调用端可在 LLM 调用前做门禁
 """
 
 import time
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
+
+
+class QuotaExceededError(RuntimeError):
+    """用户超出订阅 token 配额, 主路径应短路并返回友好提示。"""
+
+    def __init__(self, user_id: str, used: int, quota: int):
+        self.user_id = user_id
+        self.used = used
+        self.quota = quota
+        super().__init__(
+            f"用户 {user_id} 已用 {used} tokens, 超出订阅配额 {quota}; 请升级套餐或等待下个计费周期"
+        )
+
+
+# 本地 / 自托管 provider 列表 (无 usage 字段时按字符估算)
+LOCAL_PROVIDERS = frozenset({"local", "ollama", "lm_studio", "lmstudio", "vllm"})
+
+
+def estimate_tokens_from_text(text: str) -> int:
+    """简易 token 估算: 4 字符 = 1 token (英文均值, 中文偏保守)。
+
+    仅在 LLM API 不返 usage 字段时使用 (典型: 自托管 Ollama / LM Studio)。
+    避免静默丢失成本与配额计数。
+    """
+    if not text:
+        return 0
+    return max(1, len(text) // 4)
 
 # ===== 主流模型定价（$/M tokens, 2026-04 更新）=====
 # 来源: OpenAI / Anthropic / DeepSeek 官方定价
@@ -73,6 +105,7 @@ class CostTracker:
         self._max_records = max_records
         # 聚合缓存
         self._by_user: dict[str, float] = defaultdict(float)
+        self._by_user_tokens: dict[str, int] = defaultdict(int)  # T6: 配额按 tokens 计
         self._by_agent: dict[str, float] = defaultdict(float)
         self._by_model: dict[str, float] = defaultdict(float)
         self._by_conversation: dict[str, float] = defaultdict(float)
@@ -138,6 +171,7 @@ class CostTracker:
         self._total_cost += cost
         if user_id:
             self._by_user[user_id] += cost
+            self._by_user_tokens[user_id] += total
         if agent_name:
             self._by_agent[agent_name] += cost
         self._by_model[model] += cost
@@ -184,6 +218,84 @@ class CostTracker:
     def get_user_cost(self, user_id: str) -> float:
         """获取用户累计费用"""
         return round(self._by_user.get(user_id, 0.0), 6)
+
+    def get_user_tokens(self, user_id: str) -> int:
+        """T6: 获取用户累计 token 用量, 用于配额扣减。"""
+        return self._by_user_tokens.get(user_id, 0)
+
+    def reset_user_tokens(self, user_id: str) -> None:
+        """新计费周期开始时清零用户用量 (subscription_service 周期切换时调用)。"""
+        self._by_user_tokens.pop(user_id, None)
+        self._by_user.pop(user_id, None)
+
+    def check_user_quota(
+        self,
+        user_id: str,
+        quota_tokens: int,
+        *,
+        upcoming_tokens: int = 0,
+    ) -> tuple[bool, int, int]:
+        """检查用户是否还在配额内。
+
+        Args:
+            user_id: 用户 ID
+            quota_tokens: 订阅 token 配额 (0 = 不限)
+            upcoming_tokens: 即将消耗的 token 估值 (含本次请求 prompt + 预留 completion)
+
+        Returns:
+            (allowed, used, remaining)。allowed=False 时调用端应短路。
+
+        典型用法:
+            allowed, used, remaining = cost_tracker.check_user_quota(uid, plan.ai_quota,
+                upcoming_tokens=estimate_tokens_from_text(prompt) + 1024)
+            if not allowed:
+                raise QuotaExceededError(uid, used, plan.ai_quota)
+        """
+        if quota_tokens <= 0:
+            return True, self.get_user_tokens(user_id), 0
+        used = self.get_user_tokens(user_id)
+        projected = used + max(0, upcoming_tokens)
+        remaining = max(0, quota_tokens - projected)
+        allowed = projected <= quota_tokens
+        return allowed, used, remaining
+
+    def record_with_estimate(
+        self,
+        *,
+        model: str,
+        provider: str,
+        prompt_text: str = "",
+        completion_text: str = "",
+        prompt_tokens: int | None = None,
+        completion_tokens: int | None = None,
+        agent_name: str | None = None,
+        operation: str | None = None,
+        trace_id: str | None = None,
+        conversation_id: str | None = None,
+        user_id: str | None = None,
+    ) -> CostRecord:
+        """T6: 当 LLM API 不返 usage 时, 按字符估算并记录。
+
+        优先用 prompt_tokens / completion_tokens (LLM API 返回的真值);
+        缺失时用 prompt_text / completion_text 估算; 都缺失则按 0 记。
+        """
+        pt = prompt_tokens if prompt_tokens is not None else estimate_tokens_from_text(prompt_text)
+        ct = (
+            completion_tokens
+            if completion_tokens is not None
+            else estimate_tokens_from_text(completion_text)
+        )
+        return self.record(
+            model=model,
+            provider=provider,
+            prompt_tokens=pt,
+            completion_tokens=ct,
+            agent_name=agent_name,
+            operation=operation,
+            trace_id=trace_id,
+            conversation_id=conversation_id,
+            user_id=user_id,
+        )
 
 
 # 全局单例

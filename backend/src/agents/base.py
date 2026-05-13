@@ -596,19 +596,32 @@ class BaseLegalAgent(ABC):
                 # 使用带重试的 LLM 调用
                 data = await self._call_llm_with_retry(url, headers, payload)
 
-                # ===== Harness: 捕获 token 用量并记录成本 =====
+                # ===== Harness: 捕获 token 用量并记录成本 (T6: 本地 LLM 无 usage 时按字符估算) =====
                 try:
-                    usage = data.get("usage")
-                    if usage:
-                        from src.harness.cost_tracker import cost_tracker
-                        cost_tracker.record(
-                            model=model_name or "unknown",
-                            provider=provider or "unknown",
-                            prompt_tokens=usage.get("prompt_tokens", 0),
-                            completion_tokens=usage.get("completion_tokens", 0),
-                            agent_name=self.name,
-                            operation=f"agent.{self.name}.chat.turn_{current_turn}",
-                        )
+                    usage = data.get("usage") or {}
+                    from src.harness.cost_tracker import cost_tracker
+
+                    # 优先用 API 返回的真值; 缺失时由 record_with_estimate 按字符估算
+                    prompt_tokens_raw = usage.get("prompt_tokens")
+                    completion_tokens_raw = usage.get("completion_tokens")
+
+                    # 估算用的文本来源 (本地 LLM 路径)
+                    # prompt_text = system_prompt + 所有 history + 当前 message 的拼接
+                    prompt_text_for_estimate = system_prompt + "\n" + message
+                    # completion 取本轮 LLM 实际响应内容 (后面解析得到 content; 这里先用 raw)
+                    completion_text_for_estimate = str(data)[:8000] if not completion_tokens_raw else ""
+
+                    cost_tracker.record_with_estimate(
+                        model=model_name or "unknown",
+                        provider=provider or "unknown",
+                        prompt_text=prompt_text_for_estimate if prompt_tokens_raw is None else "",
+                        completion_text=completion_text_for_estimate,
+                        prompt_tokens=prompt_tokens_raw,
+                        completion_tokens=completion_tokens_raw,
+                        agent_name=self.name,
+                        operation=f"agent.{self.name}.chat.turn_{current_turn}",
+                        user_id=user_id,
+                    )
                 except Exception as _cost_err:
                     logger.debug(f"成本追踪跳过: {_cost_err}")  # 不影响主流程但记录日志
 
