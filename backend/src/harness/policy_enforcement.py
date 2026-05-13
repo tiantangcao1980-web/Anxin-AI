@@ -39,12 +39,25 @@ DENY_TOOL_OUTPUT = (
 )
 
 
-def check_tool_call(agent_name: str, tool_name: str) -> Tuple[bool, dict]:
+def check_tool_call(
+    agent_name: str,
+    tool_name: str,
+    *,
+    enforce: bool | None = None,
+) -> Tuple[bool, dict]:
     """检查 agent 是否可调用 tool。
+
+    Args:
+        agent_name: agent 名
+        tool_name: 工具名
+        enforce: 显式覆盖模式 (True=硬阻断, False=warn-only)。None 时读
+            HARNESS_POLICY_ENFORCE 环境变量(默认 warn-only)。
+            base.py 主路径默认 enforce=True (1 周观察期已过)。
 
     返回 (allowed, decision_dict)。warn-only 模式下 allowed 始终为 True。
     """
-    enforce = _is_enforce_mode()
+    if enforce is None:
+        enforce = _is_enforce_mode()
     decision_dict = {
         "agent": agent_name,
         "tool": tool_name,

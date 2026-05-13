@@ -23,21 +23,20 @@
 
 ## ⏳ 后续 PR（按优先级）
 
-### P0 — `policy_engine` 接入 tool 调用 ✅ 第一阶段完成（warn-only）
+### P0 — `policy_engine` 接入 tool 调用 ✅ 第二阶段完成（enforce）
 
 **问题**：H0 矩阵显示 policy_engine 18 个策略已注册，但**主路径 0 调用** —— 任何 agent 调任何工具都不过权限检查。
 
-**已完成（2026-05-06）**：
-1. ✅ 新增 [`backend/src/harness/policy_enforcement.py`](../../../backend/src/harness/policy_enforcement.py) — 集中策略层
-2. ✅ 接入 [`backend/src/agents/base.py`](../../../backend/src/agents/base.py) 的 `_execute_tool` —— 每次 tool_call 前必走 `check_tool_call`
-3. ✅ **默认 warn-only**：DENY 仅 log warning + 记 audit；env `HARNESS_POLICY_ENFORCE=true` 切真阻断
+**已完成（2026-05-06 warn-only → 2026-05-14 enforce）**：
+1. ✅ 新增 [`backend/src/harness/policy_enforcement.py`](../../../backend/src/harness/policy_enforcement.py) — 集中策略层 (异常隔离 + env-var kill switch)
+2. ✅ 接入 [`backend/src/agents/base.py`](../../../backend/src/agents/base.py) 的 `_execute_tool` 与 `_filter_mcp_tools_for_policy` —— 每次 tool_call 前必走 `check_tool_call(enforce=True)`
+3. ✅ **默认 enforce**（1 周 warn-only 观察期已过, T2 切硬阻断）；env `HARNESS_POLICY_ENFORCE=false` 仍可单点降级
 4. ✅ REQUIRE_APPROVAL → 当前 warn-only 视同放行 + warn（待后续接 approvals）
 5. ✅ policy 自身异常 → ERROR 日志（不再吞 debug）+ 主路径继续（保守默认）
-6. ✅ 测试：[`tests/test_harness_policy_enforcement.py`](../../../backend/tests/test_harness_policy_enforcement.py) 8/8 通过
+6. ✅ 测试：`tests/test_harness_policy_enforcement.py` 8/8 + `tests/test_harness.py::TestAgentMcpToolPolicy` 2/2 通过
 
 **仍待做**：
 - [ ] 与 `backend/src/services/approvals` 接通：REQUIRE_APPROVAL → 创建审批工单
-- [ ] 1 周 warn-only 观察期后，给 5 个核心 agent 切 enforce
 - [ ] 在 trace_context 的 metadata 中写入 `_policy_info`（便于审计）
 
 ### P0 — `context_engine` vs `context_compressor` 二选一

@@ -388,14 +388,14 @@ class TestAgentMcpToolPolicy:
         assert [tool['function']['name'] for tool in filtered] == ['search_knowledge']
 
     def test_model_returned_forbidden_tool_is_denied_at_runtime(self):
-        """即使模型返回被禁工具名，执行前仍应二次判权。"""
-        from src.harness.policy_engine import PolicyDecision
-
+        """即使模型返回被禁工具名，执行前仍应二次判权 (走 policy_enforcement, enforce=True)。"""
         agent = self._agent('legal_researcher')
-        decision = agent._check_mcp_tool_policy('untrusted_server__shell')
-        denial = agent._tool_policy_denial('untrusted_server__shell', decision.reason)
+        allowed, info = agent._check_mcp_tool_policy('untrusted_server__shell')
+        denial = agent._tool_policy_denial('untrusted_server__shell', info.get('reason', ''))
 
-        assert decision.decision == PolicyDecision.DENY
+        assert allowed is False
+        assert info['decision'] == 'deny'
+        assert info['enforced'] is True
         assert '工具调用被拒绝' in denial
 
 

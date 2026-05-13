@@ -390,26 +390,32 @@ class BaseLegalAgent(ABC):
             return str(name) if name else None
         return None
 
-    def _check_mcp_tool_policy(self, tool_name: str) -> Any:
-        from src.harness.policy_engine import policy_engine
+    def _check_mcp_tool_policy(self, tool_name: str) -> tuple[bool, dict]:
+        """权限检查 (走 harness.policy_enforcement, 享受异常隔离 + env-var kill switch)。
 
-        return policy_engine.check_tool_access(self.name, tool_name)
+        默认 enforce=True (1 周 warn-only 观察期已过); 紧急回滚走环境变量
+        HARNESS_POLICY_ENFORCE=false 仍可单点降级 (需手动改 check_tool_call 调用)。
+
+        返回 (allowed, info_dict)。allowed=False 时 info["reason"] 含拒绝原因。
+        """
+        from src.harness.policy_enforcement import check_tool_call
+
+        return check_tool_call(self.name, tool_name, enforce=True)
 
     def _filter_mcp_tools_for_policy(self, tools: list[JSONDict]) -> list[JSONDict]:
-        from src.harness.policy_engine import PolicyDecision
-
+        """LLM 上下文前置过滤: 只把 ALLOW 工具展示给 LLM, 减少诱导越权。"""
         allowed_tools: list[JSONDict] = []
         for tool in tools:
             tool_name = self._extract_tool_name(tool)
             if not tool_name:
                 logger.warning(f"Agent {self.name}: 跳过无名称 MCP 工具")
                 continue
-            decision = self._check_mcp_tool_policy(tool_name)
-            if decision.decision == PolicyDecision.ALLOW:
+            allowed, info = self._check_mcp_tool_policy(tool_name)
+            if allowed:
                 allowed_tools.append(tool)
             else:
                 logger.warning(
-                    f"Agent {self.name}: MCP 工具 {tool_name} 被策略拒绝: {decision.reason}"
+                    f"Agent {self.name}: MCP 工具 {tool_name} 被策略拒绝: {info.get('reason', 'unknown')}"
                 )
         return allowed_tools
 
@@ -654,13 +660,12 @@ class BaseLegalAgent(ABC):
                         fn_name = fn["name"]
                         fn_args_str = fn["arguments"]
                         try:
-                            from src.harness.policy_engine import PolicyDecision
-
-                            decision = self._check_mcp_tool_policy(fn_name)
-                            if decision.decision != PolicyDecision.ALLOW:
-                                tool_output = self._tool_policy_denial(fn_name, decision.reason)
+                            allowed, policy_info = self._check_mcp_tool_policy(fn_name)
+                            if not allowed:
+                                reason = policy_info.get("reason", "权限策略拒绝")
+                                tool_output = self._tool_policy_denial(fn_name, reason)
                                 logger.warning(
-                                    f"Tool execution denied for {fn_name}: {decision.reason}"
+                                    f"Tool execution denied for {fn_name}: {reason}"
                                 )
                                 return {
                                     "role": "tool",
