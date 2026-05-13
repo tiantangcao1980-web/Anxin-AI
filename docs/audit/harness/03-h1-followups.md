@@ -67,10 +67,14 @@
 7. ✅ `agents/base.py:599-625` 改用 `record_with_estimate` 并传入 `user_id`, 本地 LLM 不再静默丢失
 8. ✅ 测试: `tests/test_harness.py::TestCostTracker` 12/12 通过 (新增 9 项 T6 用例)
 
+**T6 二阶段 (2026-05-14 深夜)** ✅:
+- [x] `SubscriptionService.check_user_token_quota(user_id, *, upcoming_tokens, client_type)` 串联 cost_tracker, 返回 `{allowed, used, quota, remaining, exempted, reason}`
+- [x] **Admin 一键豁免** 双层: 全局 env `HARNESS_COST_QUOTA_DISABLED=true` (灾难回滚) + 单用户 `features_override.quota_overridden=true` (客服补救)
+- [x] `chat_service.process_chat_request` 主路径前置门禁: LLM 调用前调 `check_user_token_quota(upcoming = estimate(content) + 1024)`, 超限直接返回友好提示 + task_engine.transition(FAILED)
+- [x] 测试: `test_mode_subscription_guards::T6` 5 项 (under_limit / exceeds / admin_exempted / global_killswitch / free_user)
+
 **仍待做**:
-- [ ] 与 `subscription_service.check_subscription_access` 双向对接 (主路径在 LLM 调用前调 `check_user_quota`, 阻断时返回友好错误)
-- [ ] Admin 一键豁免开关 (新增 user-level `quota_overridden` 字段, 或环境变量 `HARNESS_COST_QUOTA_DISABLED=true`)
-- [ ] 计费周期切换时自动 `reset_user_tokens` (subscription 模块的 cron 任务消费)
+- [ ] 计费周期切换时自动 `reset_user_tokens` (subscription 模块的 cron 任务消费, 已暴露 API 待 ops 接)
 
 ### P1 — `task_engine` 扩展到合同/尽调/批量文档 ✅ 完成 (T7, 2026-05-14)
 

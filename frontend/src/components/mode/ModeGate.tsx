@@ -1,11 +1,17 @@
 /**
- * ModeGate — 运行模式功能门控组件（V2 架构）
+ * ModeGate — 运行模式功能门控组件（V2 架构 + T8 后端能力协商）
  *
  * 用于包裹需要特定运行模式（本地/混合/云端）才能使用的功能。
  * 当前模式不满足时，显示友好引导提示，而不是直接阻断。
  *
- * 使用示例：
+ * 使用示例（保留向下兼容）：
  *   <ModeGate required="hybrid_or_cloud" feature="舆情监测">
+ *     <SentimentMonitorPage />
+ *   </ModeGate>
+ *
+ * T8 二阶段：当传入 ``featureKey`` 时会同步走后端 ``capability_negotiator``，
+ * 后端判断优先级高于本地 ``checkModeAccess``（本地仅作 fallback / 0-RTT 预检）。
+ *   <ModeGate required="hybrid_or_cloud" feature="舆情监测" featureKey="sentiment_monitor">
  *     <SentimentMonitorPage />
  *   </ModeGate>
  *
@@ -21,6 +27,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { usePrivacy, PrivacyMode } from '@/context/PrivacyContext'
 import { icons } from '@/lib/icons'
+import { useCapabilities, isFeatureAllowed, type AppMode } from '@/hooks/useCapabilities'
 
 export type ModeRequirement =
   | 'any'
@@ -36,6 +43,27 @@ interface ModeGateProps {
   hasLocalData?: boolean
   // 可选：自定义不可用时的提示
   fallback?: ReactNode
+  /**
+   * T8: 后端 capability_negotiator 的 feature key（如 "sentiment_monitor"）。
+   * 传入后会调 /harness/capability/negotiate 取得后端判断,优先级高于本地 checkModeAccess。
+   * 后端故障 / 加载中 / 未声明该 key 时, 回退到本地 checkModeAccess。
+   */
+  featureKey?: string
+}
+
+/**
+ * T8: 把 PrivacyContext 的 PrivacyMode 映射到 capability_negotiator 的 AppMode。
+ */
+function privacyModeToAppMode(mode: PrivacyMode): AppMode {
+  switch (mode) {
+    case PrivacyMode.CLOUD:
+      return 'cloud'
+    case PrivacyMode.HYBRID:
+      return 'hybrid'
+    case PrivacyMode.LOCAL:
+    default:
+      return 'top_secret'
+  }
 }
 
 /**
@@ -138,12 +166,39 @@ export function ModeGate({
   feature,
   hasLocalData = false,
   fallback,
+  featureKey,
 }: ModeGateProps) {
   const { mode } = usePrivacy()
   const navigate = useNavigate()
-  const check = checkModeAccess(mode, required, hasLocalData)
+  const localCheck = checkModeAccess(mode, required, hasLocalData)
 
-  if (check.allowed) {
+  // T8: 后端 capability_negotiator 判断 (仅在 featureKey 提供时启用)
+  // 注意: Hook 必须无条件调用; featureKey 为空时仍调, 但忽略结果
+  const { data: capabilities } = useCapabilities('web', privacyModeToAppMode(mode))
+
+  let allowed = localCheck.allowed
+  let reason = localCheck.reason
+
+  if (featureKey && capabilities) {
+    // 后端声明了该 feature → 用后端判断覆盖
+    const backendKnowsFeature = featureKey in capabilities.available_features
+    if (backendKnowsFeature) {
+      allowed = isFeatureAllowed(capabilities, featureKey, true)
+      if (!allowed) {
+        // 后端在 warnings / unavailable_features 里通常有原因, 取第一条
+        const unavailableMatch = capabilities.unavailable_features.find(s =>
+          s.toLowerCase().includes(featureKey.toLowerCase()),
+        )
+        reason =
+          unavailableMatch ||
+          capabilities.warnings[0] ||
+          localCheck.reason ||
+          '当前运行模式下不可用 (后端能力协商)'
+      }
+    }
+  }
+
+  if (allowed) {
     return <>{children}</>
   }
 
@@ -154,7 +209,7 @@ export function ModeGate({
   return (
     <DefaultFallback
       feature={feature}
-      reason={check.reason || '当前运行模式下不可用'}
+      reason={reason || '当前运行模式下不可用'}
       onGoToSettings={() => {
         // V2 修复：不再直接 setMode（绕过订阅校验），跳到设置页让用户走 requestModeSwitch
         navigate('/settings?tab=privacy')

@@ -908,6 +908,38 @@ class ChatService:
         )
         task_engine.transition(task_record.task_id, TaskState.RUNNING)
 
+        # T6 二阶段: cost_tracker + subscription_service 用户级 token 配额前置门禁
+        # 注入端: chat 主路径每次调用 LLM 之前先问配额; 超出立即返回友好提示
+        # 估算: 当前 message 的 char/4 + 预留 1024 completion tokens
+        if user_id:
+            try:
+                from src.harness.cost_tracker import estimate_tokens_from_text
+                from src.services.subscription_service import SubscriptionService
+
+                upcoming = estimate_tokens_from_text(content) + 1024
+                quota_check = await SubscriptionService(self.db).check_user_token_quota(
+                    user_id, upcoming_tokens=upcoming,
+                )
+                if not quota_check["allowed"]:
+                    task_engine.transition(
+                        task_record.task_id, TaskState.FAILED,
+                        error_msg=quota_check.get("reason", "quota exceeded"),
+                    )
+                    trace.end_span(span_id="", status="error") if False else None  # placeholder
+                    return {
+                        "_harness": {"quota": quota_check, "trace_id": trace.trace_id},
+                        "response": (
+                            "您本计费周期的 AI 用量已达上限，请升级订阅或等待周期重置。"
+                            f"已用 {quota_check['used']} tokens / 配额 {quota_check['quota']}."
+                        ),
+                        "conversation_id": str(ctx.conversation.id),
+                        "agent_used": ctx.resolved_agent,
+                        "sources": [],
+                    }
+            except Exception as quota_err:
+                # 配额检查异常不应阻断主流程
+                logger.warning(f"[T6] 配额前置检查异常 (放行): {quota_err}")
+
         sources: list[CitationSource] = []
         try:
             span_id = trace.start_span(f"route.{ctx.route}", agent_name=ctx.resolved_agent)

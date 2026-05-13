@@ -5,7 +5,7 @@
  * 验证：列表渲染 / 搜索过滤 / 域过滤 / 卡片进入 / URL 路由。
  *
  * 数据策略：
- *   - 在 installApiMocks（catch-all `**​/api/**`）之前先注册 personas 专用 mock，
+ *   - 在 installApiMocks（catch-all `**/api/**`）之前先注册 personas 专用 mock，
  *     利用 Playwright LIFO 路由匹配机制覆盖通用路由。
  */
 
