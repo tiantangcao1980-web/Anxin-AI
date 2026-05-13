@@ -3,6 +3,9 @@
 > 最后更新：2026-05-09
 > 负责人：产品 + 工程
 > 状态：桌面端代码级 MVP 与本地门禁推进中；商业发布仍缺签名/真机/外部 API 证据
+>
+> 🧭 **当前权威导航** → [docs/00-project-execution-map.md](docs/00-project-execution-map.md)
+> V3 智能助手（10 personas / 桌面+移动+本地+OTA / 法/财/税/合规全流程）的完整定位见 [docs/openspec/00-intelligent-assistant-platform-spec.md](docs/openspec/00-intelligent-assistant-platform-spec.md)。
 
 ---
 

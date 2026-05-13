@@ -2,6 +2,12 @@
 
 > 基于行业深度分析、竞品研究和项目现状评估制定
 > 制定日期：2026-04-02 | 预计周期：3个月（6个Sprint）
+>
+> ⚠️ **本文档为 v1.0 法务版历史路线图**（2026-04-02 制定，Sprint 1-5 大部分已实施）。
+> 2026-05-12 起项目已升级为"安心智能助手 V3"，**当前权威执行计划**：
+> - 总导航：[docs/00-project-execution-map.md](docs/00-project-execution-map.md)
+> - V3 路线图：[docs/v3/ROADMAP.md](docs/v3/ROADMAP.md)（P0-P21 完整阶段）
+> - 商业交付：[docs/audit/PLAN.md](docs/audit/PLAN.md)
 
 ---
 

@@ -4,6 +4,9 @@
 >
 > _项目脱胎于「安心法务」（v1/v2，已上线 anxinfawu.com），v3 升级为面向制造业的全链路智能助理。法务能力作为最成熟的垂直域保留并继续演进。_
 
+> 🧭 **当前权威导航总入口** → [docs/00-project-execution-map.md](docs/00-project-execution-map.md)（2026-05-12 更新）
+> 所有开发、测试、发布、试点工作以该文件列出的"权威文件清单"为准，**根目录旧版日期文档已统一归档至 [docs/archive/](docs/archive/) 不再作为事实来源**。
+
 ## CI 状态 (P19-D)
 
 [![Backend CI](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/backend.yml/badge.svg)](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/backend.yml)

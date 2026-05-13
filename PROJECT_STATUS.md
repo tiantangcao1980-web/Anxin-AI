@@ -2,6 +2,9 @@
 
 > 本文件用于跨设备/跨智能体协作时快速了解项目状态，每次开发后更新。
 > 2026-05-12 品牌升级：安心法务 → 安心智能助手（V3 scope 合并进商业交付主线）。
+>
+> 🧭 **当前权威执行计划** → [docs/00-project-execution-map.md](docs/00-project-execution-map.md) · [docs/audit/PLAN.md](docs/audit/PLAN.md) · [docs/release/48-hour-commercial-delivery-plan.md](docs/release/48-hour-commercial-delivery-plan.md)
+> 本文件**仅作历史快照与进度回顾**，与权威执行计划冲突时以后者为准。
 
 ---
 
