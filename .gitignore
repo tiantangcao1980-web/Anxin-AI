@@ -147,13 +147,6 @@ docs/architecture/hybrid_hardware_privacy_design.md
 docs/architecture/memory_evolution_system.md
 docs/architecture/ui_ux_optimization.md
 docs/IMPLEMENTATION_ROADMAP.md
-deploy-infrastructure.bat
-build_release.bat
-env.example.txt
-setup.bat
-start-all.bat
-start_dev.bat
-start_mcp.bat
 DEV_GUIDE.md
 .env
 backend/.env
