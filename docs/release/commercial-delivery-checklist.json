@@ -9,13 +9,13 @@
       "prompt_requirement": "使用 goal-prompt-builder 或 OpenSpec 完成项目规范之后再开始下一步开发。",
       "status": "complete",
       "evidence": [
-        "docs/openspec/01-commercial-delivery-spec.md",
-        "docs/openspec/02-commercial-delivery-test-spec.md",
-        "docs/release/commercial-delivery-readiness.md"
+        "docs/REQUIREMENTS.md",
+        "docs/RELEASE_GATE.md",
+        "docs/RELEASE_GATE.md"
       ],
       "verification": [
-        "test -s docs/openspec/01-commercial-delivery-spec.md",
-        "test -s docs/openspec/02-commercial-delivery-test-spec.md"
+        "test -s docs/REQUIREMENTS.md",
+        "test -s docs/RELEASE_GATE.md"
       ],
       "current_result": "Commercial delivery spec, test spec, readiness model, release audit, rollback, security, and evidence templates exist."
     },
@@ -77,7 +77,7 @@
       "evidence": [
         "desktop/src/services/secure_db.rs",
         "desktop/src/commands/secure_db.rs",
-        "docs/release/goal-contract-commercial-readiness.md",
+        "docs/RELEASE_GATE.md",
         "desktop/src/commands/app_mode.rs",
         "desktop/src/services/runtime_config.rs",
         "frontend/src/context/PrivacyContext.tsx",
@@ -190,11 +190,11 @@
       "prompt_requirement": "结合 HiClaw 等项目完善企业组织权限管控，让企业 AI 智能体既能用、能解决问题，又能被管住、控稳且不暴露重大风险。",
       "status": "pending_final_release",
       "evidence": [
-        "docs/openspec/00-intelligent-assistant-platform-spec.md",
-        "docs/openspec/01-commercial-delivery-spec.md",
-        "docs/openspec/02-commercial-delivery-test-spec.md",
+        "docs/REQUIREMENTS.md",
+        "docs/REQUIREMENTS.md",
+        "docs/RELEASE_GATE.md",
         "docs/references/agentic-platform-benchmark-2026-05-08.md",
-        "docs/audit/_tasks/task-12-agent-control-plane-skill-evolution.md",
+        "docs/archive/legacy-spine-sources/audit/_tasks/task-12-agent-control-plane-skill-evolution.md",
         "backend/src/api/routes/agent_approvals.py",
         "backend/src/api/routes/approvals.py",
         "backend/src/api/routes/cli.py",
@@ -231,7 +231,7 @@
         "docs/release/evidence/artifacts/agent-cross-process-revocation-rehearsal-20260509.json"
       ],
       "verification": [
-        "test -s docs/audit/_tasks/task-12-agent-control-plane-skill-evolution.md",
+        "test -s docs/archive/legacy-spine-sources/audit/_tasks/task-12-agent-control-plane-skill-evolution.md",
         "rg -n \"AgentManager|CapabilityRoute|consumer token|Human-in-the-loop|SkillEvolutionProposal|可信会话|企业智能体治理\" docs/openspec docs/audit/_tasks docs/references",
         "bash scripts/agent-governance-smoke.sh --out docs/release/evidence/artifacts/agent-governance-code-smoke-YYYYMMDD.json",
         "backend/.venv/bin/pytest -q backend/tests/test_agent_governance_policy.py",
@@ -264,7 +264,7 @@
         "scripts/validate-commercial-delivery-checklist.cjs",
         "scripts/validate-commercial-delivery-lanes.cjs",
         "scripts/validate-release-artifacts.py",
-        "docs/release/completion-audit.md",
+        "docs/RELEASE_GATE.md",
         "docs/release/evidence-collection-runbook.md",
         "docs/release/external-resource-handoff.md",
         "docs/release/external-resource-requirements.json",

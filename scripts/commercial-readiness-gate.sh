@@ -20,7 +20,7 @@ Options:
 
 Expected result:
   Exit 0 only when the repo has all release evidence required by
-  docs/release/completion-audit.md and docs/release/commercial-delivery-readiness.md.
+  docs/RELEASE_GATE.md (the 5-spine canonical release gate).
 EOF
 }
 
@@ -109,13 +109,13 @@ required_artifacts=(
   "scripts/validate-product-status-consistency.cjs"
   "scripts/validate-release-artifacts.py"
   "eval/rag_live_qdrant_full50.py"
-  "docs/audit/SUMMARY.md"
-  "docs/openspec/01-commercial-delivery-spec.md"
-  "docs/openspec/02-commercial-delivery-test-spec.md"
-  "docs/release/completion-audit.md"
+  "docs/REQUIREMENTS.md"
+  "docs/ARCHITECTURE.md"
+  "docs/ROADMAP.md"
+  "docs/DEVELOPMENT_PLAN.md"
+  "docs/RELEASE_GATE.md"
   "docs/release/commercial-delivery-checklist.json"
   "docs/release/commercial-delivery-lanes.json"
-  "docs/release/commercial-delivery-readiness.md"
   "docs/release/evidence-collection-runbook.md"
   "docs/release/external-inputs-checklist.md"
   "docs/release/external-resource-handoff.md"
@@ -221,7 +221,7 @@ if [ "$tracked_changes" -gt 0 ] || [ "$untracked_changes" -gt 0 ]; then
 fi
 
 echo ">>> Checking release readiness declarations"
-if rg -q "Not ready for commercial launch|当前结论：目标尚未完成|当前目标不能标记完成|商业发布仍阻断" docs/release docs/audit/SUMMARY.md; then
+if rg -q "Not ready for commercial launch|当前结论：目标尚未完成|当前目标不能标记完成|商业发布仍阻断" docs/release docs/RELEASE_GATE.md docs/archive/legacy-spine-sources/audit/summary.md; then
   add_failure "release documents still declare the project not commercially ready"
 fi
 
@@ -318,7 +318,7 @@ if ! desktop_mvp_output="$(bash scripts/desktop-mvp-local-gate.sh 2>&1)"; then
 fi
 
 if rg -q '当前 `ruff` / `mypy` 全仓历史问题未清零|ruff/mypy 全仓清零仍未完成|全仓 `ruff` / `mypy` 尚未清零' \
-  docs/release docs/openspec docs/audit; then
+  docs/release docs/REQUIREMENTS.md docs/RELEASE_GATE.md docs/audit/harness docs/audit/ui-ux-audit-2026-05-08.md; then
   add_failure "ruff/mypy full-repo quality baseline is not closed"
 fi
 

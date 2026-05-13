@@ -8,6 +8,90 @@
 
 ---
 
+## 2026-05-14（下午）文档单一信源化（5 Spine + 9 Wiki + 101 归档）
+
+### 本轮目标
+
+执行用户指令"项目只保留一套完整的文档，其余的全部清理掉" — 完成 **A1–A6 六阶段**，把项目从 170+ 个分散源文档收敛为 **5 份 Spine（人类协作主干）+ 9 份 LLM Wiki（AI 智能体接手副本）+ 三大单一真相源**，并把 101 份被取代的源文档归档至 `docs/archive/legacy-spine-sources/`。
+
+### 6 阶段时间线（在原 H1 基线之上又领先 `origin/main` 至少 4 个 commit）
+
+| Phase | 内容 | Commits |
+|---|---|---|
+| **A1 审计** | Explore agent 全文档梳理（Sources / Outline / Conflicts / Stale） | （研究产出，无单独 commit） |
+| **A2 LLM Wiki** | 9 文件高密度 Wiki — AI 智能体 30 秒接手 + 5 步 onboarding | `e2303507` |
+| **A3 5 Spine** | REQUIREMENTS / ARCHITECTURE / ROADMAP / DEVELOPMENT_PLAN / RELEASE_GATE + .gitignore 旧规则清理 | `04a53809` |
+| **A4 归档** | 101 份源文档 `git mv` 至 `docs/archive/legacy-spine-sources/` + 归档 README | `5ddf1a3e` |
+| **A5 导航重写** | README / 00-execution-map / 01-core-docs / standards 等 9 个活跃文档全部指向新 Spine | `8425d2cc` |
+| **A6 一致性验证** | JSON/script 路径修正、Gate 全部通过、89 测试通过 | （本 commit） |
+
+### 文档新结构
+
+```
+docs/
+├── REQUIREMENTS.md            ← Spine 1
+├── ARCHITECTURE.md            ← Spine 2
+├── ROADMAP.md                 ← Spine 3
+├── DEVELOPMENT_PLAN.md        ← Spine 4
+├── RELEASE_GATE.md            ← Spine 5
+├── 00-project-execution-map.md   ← 总入口
+├── 01-core-docs.md               ← 三大核心层索引
+├── wiki/                          ← LLM Wiki（9 文件 1342 行）
+│   ├── README.md
+│   ├── 01-project-snapshot.md
+│   ├── 02-quick-context.md
+│   ├── 03-current-state.md
+│   ├── 04-architecture-map.md
+│   ├── 05-domain-glossary.md
+│   ├── 06-decision-log.md
+│   ├── 07-common-pitfalls.md
+│   └── 08-ai-onboarding-flow.md
+├── adr/ audit/harness/ design/ desktop/ mobile/ v3/ release/ standards/ references/   ← 活跃领域
+└── archive/                       ← 历史源文档（仅供溯源）
+    ├── legacy-spine-sources/      ← 101 份被 Spine 取代的源文档
+    │   ├── openspec/ strategy/ v3/(3 文件) architecture/(v2)
+    │   ├── audit/(summary/plan/README/_tasks/_pr/13 模块子目录)
+    │   ├── plans/(3 文件)
+    │   └── release/(48-hour/readiness/goal-contract/completion-audit)
+    ├── legacy-root-roadmaps/      ← 根目录 ROADMAP / PRODUCT_ROADMAP
+    └── legacy-root-docs/          ← 早期"AI法务智能体系统"年代文档
+```
+
+### A6 一致性 Gate 通过情况
+
+| Gate | 命令 | 结果 |
+|---|---|---|
+| 文档失效链接（主干） | `grep -rE "docs/openspec\|docs/strategy\|docs/audit/_tasks\|..." docs/standards docs/release/README.md PROJECT_STATUS.md` | ✅ 所有活跃主干文档已修正 |
+| Worktree inventory | `python3 scripts/release-worktree-inventory.py --json --fail-on-unknown` | ✅ unknown=0 |
+| Evidence 脱敏扫描 | `bash scripts/release-evidence-secret-scan.sh` | ✅ PASS |
+| 发布清单 | `node scripts/validate-commercial-delivery-checklist.cjs` | ✅ 9 criteria OK |
+| 发布 lane | `node scripts/validate-commercial-delivery-lanes.cjs` | ✅ 8 lanes OK |
+| 外部资源需求 | `node scripts/validate-external-resource-requirements.cjs` | ✅ 7 resources OK |
+| Product status 一致性 | `node scripts/validate-product-status-consistency.cjs` | ✅ OK（PRODUCT_ROADMAP 路径已更新至归档） |
+| 商业 quick gate | `bash scripts/commercial-readiness-gate.sh --quick` | ✅ 文档段 OK（业务态仍为 not_ready — 等真机/沙箱证据） |
+| 后端 H1 路径 | `pytest tests/test_chat.py tests/test_harness*.py` | ✅ 89 用例全过 |
+
+### A6 还修复的脚本路径
+
+| 脚本 | 旧路径 | 新路径 |
+|---|---|---|
+| `release/commercial-delivery-checklist.json` | openspec/* + release 4 个 + audit/_tasks/* | Spine + 归档 |
+| `release/commercial-delivery-lanes.json` | 同上 | 同上 |
+| `scripts/commercial-readiness-gate.sh` | audit/SUMMARY + openspec + release 4 个 | Spine + 归档 |
+| `scripts/desktop-mvp-local-gate.sh` | audit/11a-desktop-mvp/* + release/readiness | archive/* |
+| `scripts/release-worktree-inventory.py` | openspec/ strategy/ | + 5 Spine 文件 + standards/ |
+| `scripts/validate-product-status-consistency.cjs` | plans/ release/4 个 audit/00-platform/ PRODUCT_ROADMAP | archive/* |
+
+### 下一步（Phase B 开发）
+
+按 [`docs/DEVELOPMENT_PLAN.md §4.1`](docs/DEVELOPMENT_PLAN.md) 顺序：
+1. **T1** 图标体系收口（80 文件 `lucide-react` → `@/lib/icons`，4 批次 ≤20 文件）
+2. **T2** Harness P0 — `policy_engine` 主路径接入（`_check_mcp_tool_policy` → `backend/src/harness/policy_engine.py`）
+3. **T3** Harness P0 — `context_engine` vs `context_compressor` 二选一
+4. **T4** UI/UX P0 — 假成功修复（按 `audit/ui-ux-audit-2026-05-08.md`）
+
+---
+
 ## 2026-05-14 worktree `vigorous-wiles-5a3fb3` 清理与基线收尾（交接快照）
 
 ### 本轮目标

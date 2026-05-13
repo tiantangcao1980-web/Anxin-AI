@@ -15,13 +15,13 @@
       "status": "in_progress",
       "can_parallelize": true,
       "write_scope": [
-        "docs/release/completion-audit.md",
+        "docs/RELEASE_GATE.md",
         "docs/release/test-evidence.md",
         "docs/release/evidence-collection-runbook.md",
         "docs/release/commercial-delivery-lanes.json"
       ],
       "evidence": [
-        "docs/release/completion-audit.md",
+        "docs/RELEASE_GATE.md",
         "docs/release/test-evidence.md",
         "docs/release/evidence-collection-runbook.md",
         "scripts/release-worktree-inventory.py"
@@ -155,7 +155,7 @@
         "docs/release/evidence/artifacts/desktop-installed-profile-smoke-20260507.json",
         "docs/release/evidence/artifacts/desktop-runtime-code-smoke-20260507.json",
         "docs/release/evidence/artifacts/desktop-runtime-ui-smoke-20260507.log",
-        "docs/release/goal-contract-commercial-readiness.md",
+        "docs/RELEASE_GATE.md",
         "desktop/src/commands/app_mode.rs",
         "desktop/src/services/runtime_config.rs",
         "frontend/src/context/PrivacyContext.tsx",
@@ -359,7 +359,7 @@
         "frontend/e2e/agent-approval-workspace.spec.ts",
         "scripts/agent-governance-smoke.sh",
         "docs/release/evidence/artifacts/agent-governance-code-smoke-20260509.json",
-        "docs/audit/_tasks/task-12-agent-control-plane-skill-evolution.md",
+        "docs/archive/legacy-spine-sources/audit/_tasks/task-12-agent-control-plane-skill-evolution.md",
         "docs/audit/12-enterprise-agent-governance/",
         "docs/security/agent-governance-policy.md",
         "docs/architecture/agent-control-plane.md",
@@ -389,7 +389,7 @@
         "docs/release/evidence/artifacts/agent-cross-process-revocation-rehearsal-20260509.json"
       ],
       "evidence": [
-        "docs/audit/_tasks/task-12-agent-control-plane-skill-evolution.md",
+        "docs/archive/legacy-spine-sources/audit/_tasks/task-12-agent-control-plane-skill-evolution.md",
         "backend/tests/test_agent_governance_policy.py",
         "backend/tests/test_business_authorization_guards.py",
         "backend/tests/test_capability_routes.py",
@@ -419,9 +419,9 @@
         "scripts/agent-governance-smoke.sh",
         "docs/release/evidence/artifacts/agent-governance-code-smoke-20260509.json",
         "docs/release/evidence/agent-governance-smoke.md",
-        "docs/openspec/00-intelligent-assistant-platform-spec.md",
-        "docs/openspec/01-commercial-delivery-spec.md",
-        "docs/openspec/02-commercial-delivery-test-spec.md",
+        "docs/REQUIREMENTS.md",
+        "docs/REQUIREMENTS.md",
+        "docs/RELEASE_GATE.md",
         "docs/references/agentic-platform-benchmark-2026-05-08.md",
         "backend/src/services/agent_governance_service.py",
         "backend/tests/test_agent_governance_service.py",
@@ -444,7 +444,7 @@
         "docs/release/evidence/artifacts/agent-cross-process-revocation-rehearsal-20260509.json"
       ],
       "local_commands": [
-        "test -s docs/audit/_tasks/task-12-agent-control-plane-skill-evolution.md",
+        "test -s docs/archive/legacy-spine-sources/audit/_tasks/task-12-agent-control-plane-skill-evolution.md",
         "rg -n \"AgentManager|CapabilityRoute|consumer token|Human-in-the-loop|SkillEvolutionProposal|可信会话|企业智能体治理\" docs/openspec docs/audit/_tasks docs/references",
         "bash scripts/agent-governance-smoke.sh --out docs/release/evidence/artifacts/agent-governance-code-smoke-YYYYMMDD.json",
         "backend/.venv/bin/pytest -q backend/tests/test_agent_governance_policy.py",
@@ -502,14 +502,14 @@
       "status": "pending_final_release",
       "can_parallelize": false,
       "write_scope": [
-        "docs/release/commercial-delivery-readiness.md",
-        "docs/release/completion-audit.md",
+        "docs/RELEASE_GATE.md",
+        "docs/RELEASE_GATE.md",
         "docs/release/test-evidence.md"
       ],
       "evidence": [
         "scripts/commercial-readiness-gate.sh",
-        "docs/release/commercial-delivery-readiness.md",
-        "docs/release/completion-audit.md",
+        "docs/RELEASE_GATE.md",
+        "docs/RELEASE_GATE.md",
         "docs/release/external-resource-handoff.md",
         "docs/release/external-resource-requirements.json"
       ],
