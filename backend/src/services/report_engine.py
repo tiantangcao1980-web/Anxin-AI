@@ -733,7 +733,7 @@ class ReportEngine:
             '<div class="report-header">',
             f'<h1>{company_name}</h1>',
             '<div class="subtitle">企业尽职调查报告</div>',
-            f'<div class="meta">安心智能法律服务平台 · AI 辅助生成 · {now}</div>',
+            f'<div class="meta">安心智能助手 · AI 辅助生成 · {now}</div>',
             "</div>",
         ]
 
@@ -763,7 +763,7 @@ class ReportEngine:
 
         html_parts.extend([
             '<div class="footer">',
-            "<p>本报告由安心智能法律服务平台 AI 辅助生成，仅供参考</p>",
+            "<p>本报告由安心智能助手 AI 辅助生成，仅供参考</p>",
             "<p>报告中的数据和分析基于公开信息，建议在正式决策前进行核实</p>",
             f"<p>生成时间：{now}</p>",
             "</div>",

@@ -1,0 +1,142 @@
+# -*- coding: utf-8 -*-
+"""
+Harness Policy Enforcement 测试（H1 P0 followup）
+
+验证：
+1. ALLOW → allowed=True
+2. DENY + warn-only(默认) → allowed=True + decision=deny + enforced=false
+3. DENY + enforce(HARNESS_POLICY_ENFORCE=true) → allowed=False + enforced=true
+4. REQUIRE_APPROVAL → 当前 warn-only 视同放行 + warn 日志
+5. policy 异常 → allowed=True（不拖垮主路径）+ decision=policy_error
+6. 异常路径必须 ERROR 级别日志（不能吞 debug）
+"""
+
+import logging
+import os
+
+import pytest
+
+from src.harness import policy_enforcement
+from src.harness.policy_engine import (
+    PolicyCheckResult,
+    PolicyDecision,
+    policy_engine,
+)
+
+
+@pytest.fixture
+def warn_only_env(monkeypatch):
+    monkeypatch.delenv("HARNESS_POLICY_ENFORCE", raising=False)
+
+
+@pytest.fixture
+def enforce_env(monkeypatch):
+    monkeypatch.setenv("HARNESS_POLICY_ENFORCE", "true")
+
+
+@pytest.fixture
+def policy_stub(monkeypatch):
+    """提供一个可控的 policy_engine.check_tool_access。"""
+    calls = {}
+
+    def fake(agent_name, tool_name):
+        return calls["return_value"]
+
+    monkeypatch.setattr(policy_engine, "check_tool_access", fake)
+    return calls
+
+
+def _result(decision: PolicyDecision, reason: str = "test") -> PolicyCheckResult:
+    return PolicyCheckResult(decision=decision, reason=reason)
+
+
+# ===== ALLOW =====
+
+class TestAllow:
+    def test_allow_returns_true(self, warn_only_env, policy_stub):
+        policy_stub["return_value"] = _result(PolicyDecision.ALLOW)
+        allowed, info = policy_enforcement.check_tool_call("legal_advisor", "search")
+        assert allowed is True
+        assert info["decision"] == "allow"
+        assert info["enforce_mode"] is False
+
+
+# ===== DENY 在 warn-only 默认下不阻断 =====
+
+class TestDenyWarnOnly:
+    def test_deny_warn_only_does_not_block(self, warn_only_env, policy_stub, caplog):
+        policy_stub["return_value"] = _result(PolicyDecision.DENY, "out of whitelist")
+        with caplog.at_level(logging.WARNING):
+            allowed, info = policy_enforcement.check_tool_call("legal_advisor", "send_email")
+        assert allowed is True, "warn-only 模式 DENY 不能真阻断"
+        assert info["decision"] == "deny"
+        assert info["enforced"] is False
+
+    def test_deny_warn_only_logs_warning(self, warn_only_env, policy_stub, monkeypatch):
+        policy_stub["return_value"] = _result(PolicyDecision.DENY)
+        captured = []
+        monkeypatch.setattr(
+            "src.harness.policy_enforcement.logger.warning",
+            lambda msg, *a, **kw: captured.append(msg),
+        )
+        policy_enforcement.check_tool_call("legal_advisor", "wire_money")
+        assert any("DENY" in m and "warn-only" in m for m in captured)
+
+
+# ===== DENY 在 enforce 模式下真阻断 =====
+
+class TestDenyEnforce:
+    def test_deny_enforce_blocks(self, enforce_env, policy_stub):
+        policy_stub["return_value"] = _result(PolicyDecision.DENY, "blocked")
+        allowed, info = policy_enforcement.check_tool_call("legal_advisor", "wire_money")
+        assert allowed is False, "enforce 模式 DENY 必须阻断"
+        assert info["enforced"] is True
+        assert info["enforce_mode"] is True
+
+
+# ===== REQUIRE_APPROVAL =====
+
+class TestRequireApproval:
+    def test_approval_warn_only_passes(self, warn_only_env, policy_stub):
+        policy_stub["return_value"] = _result(PolicyDecision.REQUIRE_APPROVAL, "needs review")
+        allowed, info = policy_enforcement.check_tool_call("contract_reviewer", "esign")
+        assert allowed is True
+        assert info["decision"] == "require_approval"
+        assert info["enforced"] is False
+
+    def test_approval_enforce_passes_too_for_now(self, enforce_env, policy_stub):
+        """approvals 工作流接入是后续 PR；当前 enforce 模式也放行 require_approval"""
+        policy_stub["return_value"] = _result(PolicyDecision.REQUIRE_APPROVAL)
+        allowed, _ = policy_enforcement.check_tool_call("contract_reviewer", "esign")
+        assert allowed is True
+
+
+# ===== policy 异常 =====
+
+class TestPolicyException:
+    def test_exception_does_not_block_main_path(self, warn_only_env, monkeypatch):
+        def boom(agent_name, tool_name):
+            raise RuntimeError("policy down")
+        monkeypatch.setattr(policy_engine, "check_tool_access", boom)
+        allowed, info = policy_enforcement.check_tool_call("legal_advisor", "search")
+        assert allowed is True, "policy 异常不能让主路径挂"
+        assert info["decision"] == "policy_error"
+
+    def test_exception_logs_error_not_debug(self, warn_only_env, monkeypatch):
+        def boom(agent_name, tool_name):
+            raise RuntimeError("policy down")
+        monkeypatch.setattr(policy_engine, "check_tool_access", boom)
+        captured_error = []
+        captured_debug = []
+        monkeypatch.setattr(
+            "src.harness.policy_enforcement.logger.error",
+            lambda msg, *a, **kw: captured_error.append(msg),
+        )
+        monkeypatch.setattr(
+            "src.harness.policy_enforcement.logger.debug",
+            lambda msg, *a, **kw: captured_debug.append(msg),
+        )
+        policy_enforcement.check_tool_call("legal_advisor", "search")
+        # 关键契约：异常必须 ERROR，不能吞成 debug
+        assert any("policy_engine" in m for m in captured_error)
+        assert all("policy_engine" not in m for m in captured_debug)
