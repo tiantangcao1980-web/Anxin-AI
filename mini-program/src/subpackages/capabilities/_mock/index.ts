@@ -213,7 +213,7 @@ const APP_PROVIDERS: AppProvider[] = [
 // 已连接：飞书 / Notion / Salesforce(过期) / Figma / 金蝶云
 const APP_AUTHORIZATIONS: AppAuthorization[] = [
   { id: 'auth-feishu-1', provider_id: 'feishu', status: 'connected', scopes: ['contact:user.id:read'], connected_at: '2026-04-10T03:22:00Z', account_label: 'wenyu@anxinagent.com' },
-  { id: 'auth-notion-1', provider_id: 'notion', status: 'connected', scopes: ['read_content'], connected_at: '2026-04-12T09:00:00Z', account_label: 'workspace: 安心法律' },
+  { id: 'auth-notion-1', provider_id: 'notion', status: 'connected', scopes: ['read_content'], connected_at: '2026-04-12T09:00:00Z', account_label: 'workspace: 安心智能助手' },
   { id: 'auth-salesforce-1', provider_id: 'salesforce', status: 'expired', scopes: ['api'], connected_at: '2026-03-01T00:00:00Z', account_label: 'sales@anxin-agent.com' },
   { id: 'auth-figma-1', provider_id: 'figma', status: 'connected', scopes: ['files:read'], connected_at: '2026-04-20T05:00:00Z', account_label: 'designer@anxin-agent.com' },
   { id: 'auth-kingdee-1', provider_id: 'kingdee', status: 'connected', scopes: [], connected_at: '2026-04-22T08:00:00Z', account_label: '财务部账套-001' },
