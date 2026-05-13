@@ -1,6 +1,10 @@
 # 前端开发规范
 
-> 强制规范。覆盖 React Web（`frontend/`）+ 移动 RN（`mobile/`）+ UniApp（`apps/uni-mobile/`）+ 小程序（`mini-program/`）。
+> **强制规范**。覆盖 React Web（`frontend/`）+ 移动 RN（`mobile/`）+ UniApp（`apps/uni-mobile/`）+ 小程序（`mini-program/`）。
+>
+> **设计令牌与视觉规范**见 [`DESIGN.md`](../../DESIGN.md)（单一设计真相源）。
+> 本文件只管 **工程实现规则**（命名 / Hook / 路由 / API / 测试 / 跨端 / 性能）；
+> 颜色、字号、间距、阴影、Icon 体系等视觉决定**必须**按 DESIGN.md 的 token 与组件清单落地，不在此文件复述。
 
 ## 1. 工具链
 
@@ -162,6 +166,18 @@ if (code !== 0) {
 - 用 Tailwind `dark:` 前缀
 - 必须用语义 token（已含明暗双套）
 - 禁止 `if (dark) { color = '#fff' }` 这种 JS 判断
+
+### 6.5 图标体系
+
+> 完整规则见 [`DESIGN.md` §4 Icon System](../../DESIGN.md#icon-system)。本节仅列工程红线。
+
+- **唯一图标库**：`lucide-react`，统一从 `@/lib/icons` 导入
+- **禁止**：业务组件直接 `import { X } from 'lucide-react'` — 必须先在 `@/lib/icons` 收口
+- **禁止**：在运行态 UI 使用 emoji / Unicode 符号 / 文本字符代替图标
+- **禁止**：引入第二套图标库（heroicons、tabler、ant-icons、react-icons 等）
+- **尺寸**：`xs(12) / sm(16) / md(20) / lg(24) / xl(32)`，不允许自由尺寸
+- **状态色**：默认 `muted-foreground`，hover `foreground`，active `primary`，禁用 `text-disabled` + `opacity-50`
+- **混风格**：单页面禁止线性图标 + 填充图标混用
 
 ## 7. 路由
 

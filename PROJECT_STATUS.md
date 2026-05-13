@@ -51,6 +51,13 @@
 - [ ] **P1** tool_registry 改造（与 C2 协同）
 - [ ] **P2** capability_negotiator 统一桌面/前端/服务
 
+### 已知设计规范执行缺口（P1 followup）
+
+- **图标体系收口未完成**：DESIGN.md §4 Icon System 要求"全站唯一图标库 `lucide-react`，统一从 `@/lib/icons` 导入"，但当前仍有 80 个文件直接 `import { X } from 'lucide-react'`（vs 72 个文件已迁移至 `@/lib/icons`，约 47% 完成）。
+  - **影响**：DESIGN.md §4 中定义的 5 档尺寸 / 5 种状态色 / 图标按钮 44px 触达区等规则无法稳定生效。
+  - **计划**：作为 P1 followup 单独起 PR，分批迁移；每批 ≤ 20 文件 + lint 强制 `no-direct-lucide-import`。
+- **DESIGN.md ↔ frontend-standard.md 关系澄清**：本轮已在两文件顶部交叉引用，并在 `docs/standards/README.md` 增加"三大单一真相源分工"说明（AGENTS.md / DESIGN.md / standards/）。
+
 ### 已审查但本轮不合并的分支
 - `old-legal-services/claude/peaceful-goodall-d26ff1` — **CREAO 自愈闭环 Slice 1**（incidents 收集层）：18 文件 1666 行，含 alembic migration `028_incidents`、`incident_collector.py`、`/admin/incidents` UI 与 ErrorBoundary 上报。**延后原因**：当前 alembic 已有双 head（`030_app_authorization` / `044_skill_connector_configs`），引入 `028_incidents` 需先 merge head，且依赖于 jovial-greider 中 `output_validator.py` 的 43 行追加（已在本轮合并）。**计划**：在 P0 followup（policy_engine 统一收敛）落地后，单独起 PR 合并 CREAO Slice 1，再继续 Slice 2 triage 与 Slice 3 GitHub Issue 化。
 
