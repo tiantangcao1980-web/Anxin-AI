@@ -691,13 +691,13 @@ class ChatService:
             content, agent_name, mode, normalized_kb_ids,
         )
 
-        # ===== Harness: 上下文压缩（激活已有 context_compressor）=====
+        # ===== Harness: 上下文压缩 (T3 收口: 通过 context_engine 集中调用) =====
         try:
-            from src.services.context_compressor import context_compressor
-            tier = context_compressor.should_compress(context_messages)
+            from src.harness.context_engine import context_engine
+            tier = context_engine.should_compress(context_messages)
             if tier is not None:
                 logger.info(f"[Harness] 触发上下文压缩 Tier {tier}（消息数: {len(context_messages)}）")
-                context_messages, compress_stats = await context_compressor.compress(
+                context_messages, compress_stats = await context_engine.compress(
                     context_messages, tier=tier,
                 )
                 logger.info(

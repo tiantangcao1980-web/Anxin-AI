@@ -39,17 +39,19 @@
 - [ ] 与 `backend/src/services/approvals` 接通：REQUIRE_APPROVAL → 创建审批工单
 - [ ] 在 trace_context 的 metadata 中写入 `_policy_info`（便于审计）
 
-### P0 — `context_engine` vs `context_compressor` 二选一
+### P0 — `context_engine` vs `context_compressor` 二选一 ✅ 完成 (2026-05-14)
 
 **问题**：`harness/context_engine.py` 包了一层但没人用，`services/context_compressor.py` 旧版才是真在用的。两套并行容易出 bug。
 
-**做法**（推荐保留 context_engine）：
-1. `chat_service.py:672` 把直接 import `context_compressor` 改为 `from src.harness.context_engine import context_engine`
-2. `context_engine.compress()` 内部仍委托 `context_compressor`（无破坏）
-3. 删除 `due_diligence.py` 里直接 import 旧版的两处
-4. 一个 release 后删 `services/context_compressor.py`
+**已完成 (T3, 2026-05-14)**:
+1. ✅ `context_engine` 新增 `should_compress / compress / get_stats` 委托方法 (内部继续调 `context_compressor`, 无破坏)
+2. ✅ `chat_service.py:696` 改 `from src.harness.context_engine import context_engine`
+3. ✅ `due_diligence.py:987,1007` 两处压缩 API 同步迁移
+4. ✅ 验证: pytest test_harness + test_chat + test_harness_policy_enforcement 75/75 通过
+5. ✅ 全仓 grep `from src.services.context_compressor` → 仅剩 `harness/context_engine.py` 内部 4 处委托
 
-**估算**：1 PR / 0.5 天 / 修改 ~10 行 + 测试 5 行
+**仍待做**:
+- [ ] 下一个 release 删除 `services/context_compressor.py`, 把实现合并到 `harness/context_engine.py`
 
 ### P1 — `cost_tracker` 本地 LLM 估算 + 用户配额
 

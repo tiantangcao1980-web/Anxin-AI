@@ -15,7 +15,7 @@
 | `task_engine` | 🟢 真接入 | `chat_service.py:876/884/937/962` | chat 主路径有完整状态机 | 仅 chat 用，agent / contract / DD 等长任务未接入 | P1（H1） |
 | `cost_tracker` | 🟢 真接入 | `agents/base.py:517` | 每次 LLM 调用后异步记 | 无配额阻断；本地 LLM/流式无 usage 时静默丢失；无单用户成本告警 | P2（H1） |
 | `output_validator` | 🟡 软接入 | `chat_service.py:943` | 调用了但**失败不阻断** | `try/except` 吞异常；未通过校验时仅 `log.warning`；回答照样发出 | **P0**（H1） |
-| `context_engine` | 🔴 未接入 | 仅 `__init__.py` 导出 | 无业务 import | 被旧版 `services/context_compressor` 直接调用绕过；存在两套并行实现 | P1（H1） |
+| `context_engine` | 🟢 真接入 | `chat_service.py:696` / `due_diligence.py:987,1007` | 三处压缩调用统一改走 `harness.context_engine` | T3 (2026-05-14) 完成单一入口收口, 内部仍委托 `services.context_compressor`; 一个 release 后可删旧版 | ✅ 已完成 (T3) |
 | `policy_engine` | 🟢 真接入 | `agents/base.py:_check_mcp_tool_policy / _filter_mcp_tools_for_policy / _execute_tool` 走 `harness.policy_enforcement.check_tool_call(enforce=True)` | 每次 MCP tool_call 前后均判权 | T2 (2026-05-14) 完成第二阶段切 enforce, 默认硬阻断; env `HARNESS_POLICY_ENFORCE=false` 留紧急降级 | ✅ 已完成 (T2) |
 | `tool_registry` | 🔴 未接入业务 | 仅 `api/routes/harness.py` | admin 端只读 | 工具定义仍散落在各 agent prompt；无调用统计、无风险分级强制 | P1（H1） |
 | `capability_negotiator` | 🔴 未接入业务 | 仅 `api/routes/harness.py` | admin 端只读 | 桌面端模式切换未走能力协商；ModeGate 与 negotiator 是两套逻辑 | P2（H1） |

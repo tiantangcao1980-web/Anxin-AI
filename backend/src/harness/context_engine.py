@@ -159,6 +159,41 @@ class ContextEngine:
 
         return messages
 
+    def should_compress(
+        self,
+        messages: list[dict[str, Any]],
+        max_context_tokens: int | None = None,
+    ) -> int | None:
+        """委托 context_compressor: 判定是否需要压缩, 返回 tier 或 None。
+
+        T3 收口入口: chat_service / due_diligence 之前直接 import
+        context_compressor, 改为通过 context_engine 集中调用。
+        """
+        from src.services.context_compressor import context_compressor
+
+        budget = max_context_tokens if max_context_tokens is not None else self.max_context_tokens
+        return context_compressor.should_compress(messages, max_context_tokens=budget)
+
+    async def compress(
+        self,
+        messages: list[dict[str, Any]],
+        tier: int,
+        max_context_tokens: int | None = None,
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        """委托 context_compressor.compress, 返回 (压缩后消息, 统计)。"""
+        from src.services.context_compressor import context_compressor
+
+        budget = max_context_tokens if max_context_tokens is not None else self.max_context_tokens
+        return await context_compressor.compress(
+            messages, tier=tier, max_context_tokens=budget,
+        )
+
+    def get_stats(self) -> dict[str, Any]:
+        """委托 context_compressor.get_stats。"""
+        from src.services.context_compressor import context_compressor
+
+        return context_compressor.get_stats()
+
     async def handoff_artifacts(
         self,
         source_session_id: str,
