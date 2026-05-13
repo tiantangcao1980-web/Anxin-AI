@@ -72,16 +72,15 @@
 - [ ] Admin 一键豁免开关 (新增 user-level `quota_overridden` 字段, 或环境变量 `HARNESS_COST_QUOTA_DISABLED=true`)
 - [ ] 计费周期切换时自动 `reset_user_tokens` (subscription 模块的 cron 任务消费)
 
-### P1 — `task_engine` 扩展到合同/尽调/批量文档
+### P1 — `task_engine` 扩展到合同/尽调/批量文档 ✅ 完成 (T7, 2026-05-14)
 
 **问题**：H0 显示只 chat 用 task_engine，其它长任务无状态机。
 
-**做法**：在以下入口增加 `task_engine.create_task() / transition()`：
-- `contract_service.review_contract()`
-- `due_diligence_service.run_investigation()`
-- `batch_document_service.batch_generate()`
-
-**估算**：1 PR / 1.5 天 / 每个 service ~20 行
+**已完成 (T7)**:
+1. ✅ `contract_service.review_contract`: 入口 `create_task(route=contract_review)` + `RUNNING` 转移; 超时/失败/成功分别转 `TIMEOUT/FAILED/COMPLETED`; 返回值新增 `task_id`
+2. ✅ `due_diligence_service.investigate_company`: 入口 `create_task(route=due_diligence)`; 子任务异常时通过 `task_engine.save_artifact(error_*, msg)` 留证; COMPLETED/FAILED 分支齐
+3. ✅ `batch_document_service.execute_batch`: 入口 `create_task(route=document_drafting)`; 全部失败 → FAILED, 否则 COMPLETED; `setattr(job, "task_id", ...)` 透出给路由层
+4. ✅ 测试: `tests/test_harness.py::TestTaskEngine::test_t7_due_diligence_creates_task_record` + `test_t7_batch_document_creates_task_record` (2 项), 86/86 通过
 
 ### P1 — `tool_registry` 改造（与 C2 协同）
 

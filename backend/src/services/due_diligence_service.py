@@ -966,54 +966,80 @@ class DueDiligenceService:
     ) -> dict[str, Any]:
         """
         企业综合调查
-        
+
         Args:
             company_name: 企业名称
             investigation_type: 调查类型 (comprehensive/litigation/credit/basic)
         """
         logger.info(f"开始企业调查: {company_name}, 类型: {investigation_type}")
 
-        # 根据调查类型确定需要执行的任务
-        tasks: list[tuple[str, Any]] = []
+        # T7: 创建 task_engine 状态机记录
+        from src.harness.task_engine import TaskState, task_engine, TaskContract
+        task_record = task_engine.create_task(
+            description=f"企业尽调: {company_name[:60]} ({investigation_type})",
+            route="due_diligence",
+            agent_name="due_diligence",
+            contract=TaskContract(
+                goal=f"完成 {company_name} 的 {investigation_type} 类型尽调",
+                success_criteria=["返回 results 子字典", "生成 report"],
+                output_format="json",
+                timeout_seconds=300,
+            ),
+        )
+        task_engine.transition(task_record.task_id, TaskState.RUNNING)
 
-        if investigation_type in ["comprehensive", "basic"]:
-            tasks.append(("basic_info", self._get_basic_info(company_name)))
+        try:
+            # 根据调查类型确定需要执行的任务
+            tasks: list[tuple[str, Any]] = []
 
-        if investigation_type in ["comprehensive", "litigation"]:
-            tasks.append(("litigation", self._get_litigation_info(company_name)))
+            if investigation_type in ["comprehensive", "basic"]:
+                tasks.append(("basic_info", self._get_basic_info(company_name)))
 
-        if investigation_type in ["comprehensive", "credit"]:
-            tasks.append(("credit", self._get_credit_info(company_name)))
+            if investigation_type in ["comprehensive", "litigation"]:
+                tasks.append(("litigation", self._get_litigation_info(company_name)))
 
-        if investigation_type == "comprehensive":
-            tasks.append(("risk", self._assess_risks(company_name)))
-            tasks.append(("relations", self._get_company_relations(company_name)))
+            if investigation_type in ["comprehensive", "credit"]:
+                tasks.append(("credit", self._get_credit_info(company_name)))
 
-        # 并行执行所有任务
-        results: JSONDict = {}
-        if tasks:
-            task_results = await asyncio.gather(
-                *[task[1] for task in tasks],
-                return_exceptions=True
+            if investigation_type == "comprehensive":
+                tasks.append(("risk", self._assess_risks(company_name)))
+                tasks.append(("relations", self._get_company_relations(company_name)))
+
+            # 并行执行所有任务
+            results: JSONDict = {}
+            if tasks:
+                task_results = await asyncio.gather(
+                    *[task[1] for task in tasks],
+                    return_exceptions=True
+                )
+
+                for (name, _), result in zip(tasks, task_results, strict=False):
+                    if isinstance(result, Exception):
+                        logger.error(f"任务 {name} 失败: {result}")
+                        results[name] = {"error": str(result)}
+                        # 记录到 task artifacts 便于追溯
+                        task_engine.save_artifact(task_record.task_id, f"error_{name}", str(result))
+                    else:
+                        results[name] = result
+
+            # 生成综合报告
+            report = await self._generate_report(company_name, results, investigation_type)
+
+            task_engine.transition(
+                task_record.task_id, TaskState.COMPLETED, result={"investigation_type": investigation_type}
             )
 
-            for (name, _), result in zip(tasks, task_results, strict=False):
-                if isinstance(result, Exception):
-                    logger.error(f"任务 {name} 失败: {result}")
-                    results[name] = {"error": str(result)}
-                else:
-                    results[name] = result
-
-        # 生成综合报告
-        report = await self._generate_report(company_name, results, investigation_type)
-
-        return {
-            "company_name": company_name,
-            "investigation_type": investigation_type,
-            "timestamp": datetime.now().isoformat(),
-            "results": results,
-            "report": report,
-        }
+            return {
+                "company_name": company_name,
+                "investigation_type": investigation_type,
+                "task_id": task_record.task_id,
+                "timestamp": datetime.now().isoformat(),
+                "results": results,
+                "report": report,
+            }
+        except Exception as exc:
+            task_engine.transition(task_record.task_id, TaskState.FAILED, error_msg=str(exc))
+            raise
 
     async def _get_basic_info(self, company_name: str) -> dict[str, Any]:
         """获取企业基本信息"""

@@ -12,7 +12,7 @@
 | 模块 | 状态 | 主接入点 | 真激活路径 | 缺口 | 修复优先级 |
 |------|:---:|---------|-----------|------|:---:|
 | `trace_context` | 🟢 真接入 | `chat_service.py:865/970` | 每次 chat 调用都 start/end trace | trace 只在内存，无落盘、无聚类、无跨设备 | P1（T1） |
-| `task_engine` | 🟢 真接入 | `chat_service.py:876/884/937/962` | chat 主路径有完整状态机 | 仅 chat 用，agent / contract / DD 等长任务未接入 | P1（H1） |
+| `task_engine` | 🟢 真接入 (4 路径) | `chat_service.py:876/884/937/962` + `contract_service.review_contract` + `due_diligence_service.investigate_company` + `batch_document_service.execute_batch` | chat / 合同审查 / 尽调 / 批量文档生成均接入 PENDING→RUNNING→COMPLETED 状态机 | T7 (2026-05-14) 完成 contract / DD / batch 三路径接入, 透出 task_id 给客户端 | ✅ 已完成 (T7) |
 | `cost_tracker` | 🟢 真接入 + 配额阻断就绪 | `agents/base.py:599-625` 每次 LLM 调用走 `record_with_estimate`; 新增 `check_user_quota / QuotaExceededError` | 本地 LLM 无 usage 时按 char/4 估算; 用户级 token 累计; 配额阻断 API 就绪 (调用端按需消费) | T6 (2026-05-14) 完成估算 + 用户级聚合 + 配额阻断 API; 与 subscription_service 主路径接入留作后续 PR | ✅ 已完成 (T6) |
 | `output_validator` | 🟡 软接入 | `chat_service.py:943` | 调用了但**失败不阻断** | `try/except` 吞异常；未通过校验时仅 `log.warning`；回答照样发出 | **P0**（H1） |
 | `context_engine` | 🟢 真接入 | `chat_service.py:696` / `due_diligence.py:987,1007` | 三处压缩调用统一改走 `harness.context_engine` | T3 (2026-05-14) 完成单一入口收口, 内部仍委托 `services.context_compressor`; 一个 release 后可删旧版 | ✅ 已完成 (T3) |

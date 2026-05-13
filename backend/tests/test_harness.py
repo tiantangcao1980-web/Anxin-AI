@@ -528,6 +528,69 @@ class TestTaskEngine:
         assert t1.priority == TaskPriority.HIGH
         assert t2.priority == TaskPriority.LOW
 
+    # ===== T7: 长任务接入 task_engine =====
+
+    def test_t7_due_diligence_creates_task_record(self):
+        """T7: investigate_company 应创建 task_engine 记录 + 透出 task_id。"""
+        import asyncio
+
+        from src.harness.task_engine import TaskState, task_engine
+
+        # mock 出 due_diligence_service 的 _get_basic_info / report
+        # 这里只验证 task_engine.create_task 被以 due_diligence route 创建
+        # 用对 task_engine 的间接观察: 调 list_by_route 看到新记录
+        before = len(task_engine._tasks)
+
+        from unittest.mock import patch, AsyncMock
+        from src.services import due_diligence_service as dd_module
+
+        async def _run():
+            svc = dd_module.DueDiligenceService.__new__(dd_module.DueDiligenceService)
+            with (
+                patch.object(svc, "_get_basic_info", AsyncMock(return_value={"name": "A 公司"})),
+                patch.object(svc, "_get_litigation_info", AsyncMock(return_value={})),
+                patch.object(svc, "_get_credit_info", AsyncMock(return_value={})),
+                patch.object(svc, "_assess_risks", AsyncMock(return_value={"level": "low"})),
+                patch.object(svc, "_get_company_relations", AsyncMock(return_value={})),
+                patch.object(svc, "_generate_report", AsyncMock(return_value="OK")),
+            ):
+                return await svc.investigate_company("A 公司", "comprehensive")
+
+        result = asyncio.get_event_loop().run_until_complete(_run())
+        assert "task_id" in result
+        assert len(task_engine._tasks) > before
+        rec = task_engine.get_task(result["task_id"])
+        assert rec is not None
+        assert rec.route == "due_diligence"
+        assert rec.state == TaskState.COMPLETED
+
+    def test_t7_batch_document_creates_task_record(self):
+        """T7: BatchDocumentService.execute_batch 应创建 task_engine 记录 + 设 task_id。"""
+        import asyncio
+
+        from src.harness.task_engine import TaskState, task_engine
+        from src.services.batch_document_service import batch_document_service, DOCUMENT_TEMPLATES
+
+        # 选 property_demand_letter 模板, 至少有 1 个必填字段
+        template_key = "property_demand_letter"
+        required = DOCUMENT_TEMPLATES[template_key]["required_fields"]
+        recipient = {fld: "占位" for fld in required}
+
+        async def _run():
+            job = batch_document_service.create_batch_job(
+                template_type=template_key,
+                recipients=[recipient],
+                common_context={},
+            )
+            return await batch_document_service.execute_batch(job.job_id)
+
+        job = asyncio.get_event_loop().run_until_complete(_run())
+        assert getattr(job, "task_id", None) is not None
+        rec = task_engine.get_task(job.task_id)
+        assert rec is not None
+        assert rec.route == "document_drafting"
+        assert rec.state == TaskState.COMPLETED
+
 
 # ===== 7. 能力协商 =====
 

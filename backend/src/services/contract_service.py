@@ -158,12 +158,12 @@ class ContractService:
     ) -> JSONDict:
         """
         AI审查合同
-        
+
         Args:
             contract_id: 合同ID
             contract_text: 合同文本内容
             reviewed_by: 审核人ID
-            
+
         Returns:
             审查结果
         """
@@ -175,6 +175,22 @@ class ContractService:
         timeout_seconds = max(float(settings.CONTRACT_REVIEW_TIMEOUT_SECONDS), 0.01)
         lock_ttl = max(int(settings.CONTRACT_REVIEW_LOCK_TTL_SECONDS), int(timeout_seconds) + 30)
         lock_token = await self.review_lock.acquire(lock_key, ttl_seconds=lock_ttl)
+
+        # T7: 创建 task_engine 状态机记录
+        from src.harness.task_engine import TaskState, task_engine, TaskContract
+        task_record = task_engine.create_task(
+            description=f"合同审查: {contract.title[:80]}",
+            route="contract_review",
+            agent_name="contract_reviewer",
+            user_id=reviewed_by,
+            contract=TaskContract(
+                goal="审查合同, 识别风险点, 提供修改建议",
+                success_criteria=["返回 risks 列表", "返回 risk_score", "返回 summary"],
+                output_format="json",
+                timeout_seconds=int(timeout_seconds),
+            ),
+        )
+        task_engine.transition(task_record.task_id, TaskState.RUNNING)
 
         try:
             # 保存原始合同文本
@@ -217,6 +233,7 @@ class ContractService:
                     timeout=timeout_seconds,
                 )
             except TimeoutError as exc:
+                task_engine.transition(task_record.task_id, TaskState.TIMEOUT, error_msg=str(exc))
                 await self._mark_review_failed(
                     contract,
                     actor_id=reviewed_by,
@@ -225,6 +242,7 @@ class ContractService:
                 )
                 raise ContractReviewTimeoutError("合同审查超时，请稍后重试") from exc
             except Exception as exc:
+                task_engine.transition(task_record.task_id, TaskState.FAILED, error_msg=str(exc))
                 await self._mark_review_failed(
                     contract,
                     actor_id=reviewed_by,
@@ -260,8 +278,13 @@ class ContractService:
 
             logger.info(f"合同审查完成: {contract.contract_number}, 风险等级: {risk_level}")
 
+            task_engine.transition(
+                task_record.task_id, TaskState.COMPLETED, result={"risk_level": str(risk_level), "risk_score": risk_score}
+            )
+
             return {
                 "contract_id": contract_id,
+                "task_id": task_record.task_id,
                 "risk_score": risk_score,
                 "risk_level": risk_level.value if risk_level else None,
                 "summary": review_result.get("summary", ""),
