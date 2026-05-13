@@ -26,7 +26,7 @@ JWT_SECRET=replace-with-strong-random-32-bytes
 
 ### 1.3 密钥轮换 SOP
 
-详见 [docs/audit/00-platform/02-secret-rotation-sop.md](../audit/00-platform/02-secret-rotation-sop.md)。
+详见 [docs/archive/legacy-spine-sources/audit/00-platform/02-secret-rotation-sop.md](../archive/legacy-spine-sources/audit/00-platform/02-secret-rotation-sop.md)（历史 SOP，仍生效；待整合入新的 Spine/security-standard）。
 
 ### 1.4 KMS 加密存储
 

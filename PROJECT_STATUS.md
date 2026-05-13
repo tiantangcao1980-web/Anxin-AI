@@ -3,8 +3,8 @@
 > 本文件用于跨设备/跨智能体协作时快速了解项目状态，每次开发后更新。
 > 2026-05-12 品牌升级：安心法务 → 安心智能助手（V3 scope 合并进商业交付主线）。
 >
-> 🧭 **当前权威执行计划** → [docs/00-project-execution-map.md](docs/00-project-execution-map.md) · [docs/audit/PLAN.md](docs/audit/PLAN.md) · [docs/release/48-hour-commercial-delivery-plan.md](docs/release/48-hour-commercial-delivery-plan.md)
-> 本文件**仅作历史快照与进度回顾**，与权威执行计划冲突时以后者为准。
+> 🧭 **当前权威执行计划** → [docs/00-project-execution-map.md](docs/00-project-execution-map.md) · [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) · [docs/RELEASE_GATE.md](docs/RELEASE_GATE.md)
+> 本文件**仅作历史快照与进度回顾**，与权威 Spine（REQUIREMENTS / ARCHITECTURE / ROADMAP / DEVELOPMENT_PLAN / RELEASE_GATE）冲突时以 Spine 为准。
 
 ---
 
@@ -54,7 +54,7 @@
 
 按 [docs/00-project-execution-map.md](docs/00-project-execution-map.md) §2 的 12 环节，**当前状态**：
 - 环节 1-3（目标/需求/设计） **已冻结**（V3 scope 已合并）
-- 环节 4（UI/UX）**进行中**，参见 [docs/plans/2026-05-13-ui-ux-optimization-roadmap.md](docs/plans/2026-05-13-ui-ux-optimization-roadmap.md)
+- 环节 4（UI/UX）**进行中**，参见 [docs/audit/ui-ux-audit-2026-05-08.md](docs/audit/ui-ux-audit-2026-05-08.md)（原 plans/2026-05-13-ui-ux-optimization-roadmap.md 已合并入 `docs/DEVELOPMENT_PLAN.md`）
 - 环节 5-7（架构/任务拆分/开发）**有基线**：六层框架 H0-O2 全部 ✅，可在 Harness 之上接续 P0/P1 followups
 - 环节 8-12（测试/UI 验收/证据/门禁/试点）按 `docs/release/` 推进
 
@@ -193,14 +193,14 @@
 ## 2026-04-16 V2 架构升级启动
 
 ### 总体方向
-本次升级是产品架构层面的三大根本性变革，详见 [docs/architecture-v2.md](docs/architecture-v2.md)：
+本次升级是产品架构层面的三大根本性变革，详见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)（原 architecture-v2.md 内容已合并入新 Spine）：
 
 1. **双客户端分离** — 需求方（C端）与服务方（B端律师律所）独立客户端
 2. **三态运行模式** — 本地/混合/云端，各自独立的数据边界与功能边界
 3. **订阅商业化** — 非本地模式需订阅，建立可持续商业模型
 
 ### Phase 1 — 已完成 ✅
-- [x] 架构升级规划文档 `docs/architecture-v2.md`
+- [x] 架构升级规划文档（原 `docs/architecture-v2.md`，2026-05-14 已合并入 `docs/ARCHITECTURE.md`，源文档归档至 `docs/archive/legacy-spine-sources/architecture/`）
 - [x] README / PROJECT_STATUS / MEMORY 同步更新
 - [x] User 表新增 `primary_client` 字段 + 自动迁移 + 老用户推断
 - [x] 后端 API 返回 `primary_client`（register/me）
