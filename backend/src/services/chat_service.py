@@ -25,7 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.core.privacy import InferenceRequest, SensitivityLevel
-from src.harness.output_validator import output_validator
+from src.harness.enforcement import run_validation as harness_validate
 from src.harness.task_engine import TaskState, task_engine
 
 # ========== Harness Engineering 集成 ==========
@@ -981,27 +981,31 @@ class ChatService:
             response_text = "抱歉，处理您的请求时遇到问题。请稍后重试。"
             used_agent = "系统"
 
-        # ===== Harness: 输出质量校验 =====
-        try:
-            validation = await output_validator.validate(
-                response_text=response_text,
-                user_query=content,
-                agent_name=used_agent,
-                route=ctx.route,
-            )
-            if not validation.passed:
-                logger.warning(
-                    f"[Harness] 输出校验未通过 | score={validation.score:.2f} | "
-                    f"issues={[i.message for i in validation.issues]}"
-                )
-                # 对于 CRITICAL 级别，追加免责声明
-                if validation.has_critical:
-                    response_text += "\n\n⚠️ 本回答内容仅供参考，不构成法律意见。如需专业法律服务，请咨询执业律师。"
-        except Exception as val_err:
-            logger.debug(f"[Harness] 输出校验跳过: {val_err}")
+        # ===== Harness: 输出质量强制校验（H1：从软接入升级为强接入） =====
+        # H0 体检发现旧实现把异常吞成 debug、CRITICAL 仍发原文，违反 AGENTS.md §3.4
+        # enforcement 统一策略：
+        #   pass / warned        → 继续返回最终文本
+        #   retry                → 标 RETRY，调用方可重试
+        #   rejected / *_error   → 统一拒绝消息 + 标 FAILED
+        if task_record.state == TaskState.RUNNING:
+            task_engine.transition(task_record.task_id, TaskState.VALIDATING)
 
-        # Harness: 校验通过后标记任务完成
-        if task_record.state != TaskState.FAILED:
+        response_text, validation_action = await harness_validate(
+            response_text=response_text,
+            user_query=content,
+            agent_name=used_agent,
+            route=ctx.route,
+        )
+
+        if validation_action in ("rejected", "validator_error"):
+            task_engine.transition(
+                task_record.task_id,
+                TaskState.FAILED,
+                error_msg=f"output_validation:{validation_action}",
+            )
+        elif validation_action == "retry":
+            task_engine.transition(task_record.task_id, TaskState.RETRY)
+        elif task_record.state not in (TaskState.FAILED, TaskState.COMPLETED):
             task_engine.transition(task_record.task_id, TaskState.COMPLETED, result=used_agent)
 
         final_sources, ai_message = await self._finalize_response(
@@ -1022,14 +1026,20 @@ class ChatService:
             "sources": [s.model_dump() for s in final_sources],
         }
 
-        # 附加 harness 元数据（可选，前端可用于展示 token 消耗等）
+        # 附加 harness 元数据（H1：ChatResponse.harness 已开放此字段）
+        harness_meta = {
+            "validation_action": validation_action,
+            "validation_failed": validation_action in ("retry", "rejected", "validator_error"),
+        }
         if trace_summary:
-            result_dict["_harness"] = {
+            harness_meta.update({
                 "trace_id": trace_summary.get("trace_id"),
                 "total_tokens": trace_summary.get("total_tokens", 0),
                 "total_cost_usd": trace_summary.get("total_cost_usd", 0),
                 "elapsed_ms": trace_summary.get("elapsed_ms", 0),
-            }
+            })
+        result_dict["harness"] = harness_meta
+        result_dict["_harness"] = harness_meta  # 兼容旧前端
 
         return result_dict
 

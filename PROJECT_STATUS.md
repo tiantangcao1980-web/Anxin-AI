@@ -8,6 +8,51 @@
 
 ---
 
+## 2026-05-14 六层框架基线引入（Model/Harness/Context/Traces/Eval/Ops）
+
+### 总体方向
+从 `claude/jovial-greider-7843d2` 分支抽取并适配为单 commit `56137019`，把 Agent 能力拆成 Model / Harness / Context / Traces / Eval / Ops 六个可演化对象。本轮**不**重做模块审计，而是**纵向建能力**，让审计成为持续机制。详见 [docs/audit/harness/README.md](docs/audit/harness/README.md)。
+
+### 落地清单
+
+| # | 层 | 任务 | 关键产出 |
+|---|----|------|---------|
+| **H0** | Harness | 接入体检 | [docs/audit/harness/00-integration-matrix.md](docs/audit/harness/00-integration-matrix.md) |
+| **H1** | Harness | 强制接入主路径 | [enforcement.py](backend/src/harness/enforcement.py) — `output_validator` 软→强；CRITICAL→拒发；FAIL→retry；异常→ERROR |
+| **C1** | Context | 三层标准化 | [AGENTS.md](AGENTS.md) + [skills/_template/](skills/_template/) + [docs/context-architecture.md](docs/context-architecture.md) |
+| **C2** | Context | 5 Agent → skill | [skills/agents/legal-advisor/](skills/agents/legal-advisor/) 完整示范 + 4 骨架 |
+| **T1** | Traces | 落盘 + 聚类 | [trace_sink.py](backend/src/services/trace_sink.py) + [models/trace.py](backend/src/models/trace.py) — PII 8 类 scrub + cluster_id 稳定签名 |
+| **T2** | Traces | trace→test | [trace_to_test/converter.py](backend/scripts/trace_to_test/converter.py) |
+| **E1** | Eval | 金标准评测集 | [backend/evals/](backend/evals/) — 25 case + 4 维度打分 + baseline + PR Gate compare |
+| **O1** | Ops | 4 reviewer gate | [.github/workflows/ai-review.yml](.github/workflows/ai-review.yml) + [CODEOWNERS](CODEOWNERS) |
+| **O2** | Ops | 自愈闭环 | [self_heal/](backend/scripts/self_heal/) — severity + dispatcher + path safety + cron 骨架 |
+
+### 关键质量提升
+
+| 维度 | Before | After |
+|------|--------|-------|
+| Output Validator | CRITICAL 仍发原文，异常吞 debug | CRITICAL→拒发；异常→ERROR；FAIL→retry |
+| Trace | 仅内存 | 持久化设计 + PII 8 类 scrub + cluster_id |
+| Agent 评测 | 0 agent 级 eval | 25 case + baseline + PR Gate compare |
+| PR Review | 仅 trufflehog | 4 reviewer 并行（code/security/dep/regression）+ CODEOWNERS |
+
+### 测试覆盖
+- 新增 `tests/test_harness_enforcement.py` 14 用例
+- 新增 `tests/test_harness_policy_enforcement.py` 8 用例
+- 新增 `tests/test_self_heal.py` 22 用例
+- 新增 `tests/test_trace_to_test_converter.py` 5 用例
+- 上述 49 + test_chat 6 全部通过
+
+### 已知后续 P0/P1（详见 [03-h1-followups.md](docs/audit/harness/03-h1-followups.md)）
+- [ ] **P0** policy_engine 真接入主路径 tool 调用（当前 main 已有 `_check_mcp_tool_policy`，需统一）
+- [ ] **P0** context_engine vs context_compressor 二选一
+- [ ] **P1** cost_tracker 本地 LLM 估算 + 用户配额阻断
+- [ ] **P1** task_engine 扩展到合同/尽调/批量文档
+- [ ] **P1** tool_registry 改造（与 C2 协同）
+- [ ] **P2** capability_negotiator 统一桌面/前端/服务
+
+---
+
 ## 2026-05-12 V3 合并进商业交付主线
 
 ### 背景

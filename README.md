@@ -13,6 +13,9 @@
 | 入口 | 用途 |
 |---|---|
 | [docs/00-project-execution-map.md](docs/00-project-execution-map.md) | **当前权威导航总入口**（任务起点） |
+| [AGENTS.md](AGENTS.md) | **Agent 工作宪章**：22 个智能体的红线 / 路由 / 反 slop / 协作约定（**运行时 Agent 行为单一真相源**） |
+| [docs/audit/harness/README.md](docs/audit/harness/README.md) | 六层框架（Model/Harness/Context/Traces/Eval/Ops）落地的全部审计/设计/进度索引 |
+| [docs/context-architecture.md](docs/context-architecture.md) | Context 三层架构（AGENTS.md / skills/ / memory）加载顺序与字段约定 |
 | [docs/standards/](docs/standards/) | 13 份开发规范（命名 / 文档 / Git / 代码 / API / DB / 前端 / 后端 / 测试 / 安全） |
 | [docs/v3/](docs/v3/) | V3 智能助手实施细节（架构 / 路线图 / 10 personas） |
 | [docs/openspec/](docs/openspec/) | 平台合同 + 商业交付 + 测试规范 |
