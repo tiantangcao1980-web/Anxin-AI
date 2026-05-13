@@ -156,8 +156,10 @@ class AgentForum:
 
     MAX_DEBATE_ROUNDS = 2  # 最大辩论轮次
 
-    def __init__(self) -> None:
+    def __init__(self, incident_collector: Any | None = None) -> None:
         self._llm_agent: ForumChatAgent | None = None
+        # T5 (CREAO Slice 1): 可选注入 IncidentCollector; 不注入则跳过 incident 上报
+        self.incident_collector = incident_collector
 
     @property
     def llm_agent(self) -> ForumChatAgent | None:
@@ -242,6 +244,25 @@ class AgentForum:
                     "type": "conflict_found",
                     "conflict": conflict.to_dict(),
                 }
+
+                # ===== CREAO 自愈闭环 Slice 1: 上报 incident（可选注入） =====
+                if self.incident_collector is not None:
+                    try:
+                        from src.schemas.incident import IncidentSource, IncidentSeverity
+
+                        await self.incident_collector.collect(
+                            source=IncidentSource.AGENT_FORUM,
+                            title=f"agent disagreement: {conflict.topic}",
+                            payload={
+                                "agents": list(conflict.agents_involved),
+                                "positions": dict(conflict.positions),
+                                "topic": conflict.topic,
+                            },
+                            severity=IncidentSeverity.P1,
+                            fingerprint_keys=["topic"],
+                        )
+                    except Exception as hook_err:
+                        logger.error(f"[AgentForum] incident hook failed: {hook_err}")
 
         # ===== 阶段 3：辩论轮次（如果有冲突） =====
         if conflicts and follow_up_questions:

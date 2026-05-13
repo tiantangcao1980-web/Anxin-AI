@@ -47,6 +47,7 @@ const navGroups: NavGroup[] = [
       { path: '/admin/integrations', label: '系统集成', icon: icons.Globe },
       { path: '/admin/health', label: '系统监控', icon: icons.Server },
       { path: '/admin/harness', label: 'Harness', icon: icons.Shield },
+      { path: '/admin/incidents', label: '事件中心', icon: icons.AlertTriangle },
     ],
   },
   {

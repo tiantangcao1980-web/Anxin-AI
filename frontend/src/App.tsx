@@ -135,6 +135,7 @@ const AdminFirm = lazy(() => import('@/pages/admin/AdminFirm'))
 const AdminEnterprise = lazy(() => import('@/pages/admin/AdminEnterprise'))
 const AdminAcquisition = lazy(() => import('@/pages/admin/AdminAcquisition'))
 const AdminHarness = lazy(() => import('@/pages/admin/AdminHarness'))
+const AdminIncidents = lazy(() => import('@/pages/admin/AdminIncidents'))
 
 function CollaborationRedirect() {
   const { sessionId } = useParams()
@@ -361,6 +362,7 @@ function App() {
                 <Route path="firm" element={<AdminFirm />} />
                 <Route path="enterprise" element={<AdminEnterprise />} />
                 <Route path="acquisition" element={<AdminAcquisition />} />
+                <Route path="incidents" element={<AdminIncidents />} />
               </Route>
 
               {/* ===== V2 架构：服务方端（律师/律所独立布局） ===== */}

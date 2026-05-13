@@ -83,6 +83,11 @@ class OutputValidator:
 
     # validate() 方法定义在文件末尾（增强版，含场景化检查）
 
+    def __init__(self, incident_collector: Any | None = None) -> None:
+        # T5 (CREAO Slice 1): 可选注入 IncidentCollector
+        # 不注入则跳过 incident 上报, 向后兼容 (单元测试和旧路径都 OK)
+        self.incident_collector = incident_collector
+
     def _check_structure(self, text: str) -> list[ValidationIssue]:
         """结构校验"""
         issues: list[ValidationIssue] = []
@@ -375,6 +380,45 @@ class OutputValidator:
                 f"score={score:.2f} | issues={len(issues)} | "
                 f"fails={[i.message for i in issues if i.level in (ValidationLevel.FAIL, ValidationLevel.CRITICAL)]}"
             )
+
+            # ===== CREAO 自愈闭环 Slice 1: 上报 incident（可选注入） =====
+            if self.incident_collector is not None:
+                try:
+                    # 延迟导入，避免循环依赖；Agent A 提供这些 schema
+                    from src.schemas.incident import IncidentSource, IncidentSeverity
+
+                    # 兼容 dataclass / pydantic：优先 to_dict，回退到 __dict__
+                    issues_payload = []
+                    for issue in issues:
+                        if hasattr(issue, "dict"):
+                            issues_payload.append(issue.dict())
+                        elif hasattr(issue, "__dict__"):
+                            issues_payload.append({
+                                "check_name": getattr(issue, "check_name", ""),
+                                "level": getattr(issue.level, "value", str(issue.level))
+                                    if hasattr(issue, "level") else "",
+                                "message": getattr(issue, "message", ""),
+                                "detail": getattr(issue, "detail", None),
+                            })
+                        else:
+                            issues_payload.append(str(issue))
+
+                    await self.incident_collector.collect(
+                        source=IncidentSource.OUTPUT_VALIDATOR,
+                        title=f"validator rejected {agent_name}",
+                        payload={
+                            "agent_name": agent_name,
+                            "route": route,
+                            "issues": issues_payload,
+                            "user_query": (user_query or "")[:500],
+                        },
+                        severity=IncidentSeverity.P1,
+                        agent_name=agent_name,
+                        route=route,
+                        fingerprint_keys=["agent_name", "route", "issues"],
+                    )
+                except Exception as hook_err:
+                    logger.error(f"[OutputValidator] incident hook failed: {hook_err}")
 
         return result
 

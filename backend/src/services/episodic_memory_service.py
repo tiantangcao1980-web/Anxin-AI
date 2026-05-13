@@ -16,9 +16,11 @@ from src.services.vector_store import vector_store
 class EpisodicMemoryService:
     COLLECTION_NAME = "episodic_memory"
 
-    def __init__(self) -> None:
+    def __init__(self, incident_collector: Any | None = None) -> None:
         self.vector_store = vector_store
         self._initialized = False
+        # T5 (CREAO Slice 1): 可选注入 IncidentCollector; 不注入则跳过 incident 上报
+        self.incident_collector = incident_collector
 
     async def ensure_initialized(self) -> None:
         """确保向量集合存在"""
@@ -141,7 +143,13 @@ class EpisodicMemoryService:
 
         return memories[:top_k]
 
-    async def update_feedback(self, memory_id: str, rating: int, comment: str = "") -> bool:
+    async def update_feedback(
+        self,
+        memory_id: str,
+        rating: int,
+        comment: str = "",
+        user_id: str | None = None,
+    ) -> bool:
         """更新记忆的反馈评分"""
         if not self.vector_store.client:
             return False
@@ -165,6 +173,27 @@ class EpisodicMemoryService:
                 points=[point_id]
             )
             logger.info(f"已更新记忆反馈: {memory_id}, 评分: {rating}")
+
+            # ===== CREAO 自愈闭环 Slice 1: 低评分上报 incident（可选注入） =====
+            if rating <= 2 and self.incident_collector is not None:
+                try:
+                    from src.schemas.incident import IncidentSource, IncidentSeverity
+
+                    await self.incident_collector.collect(
+                        source=IncidentSource.LOW_RATING,
+                        title=f"user low rating: {rating}",
+                        payload={
+                            "memory_id": str(memory_id),
+                            "rating": rating,
+                            "comment": (comment[:500] if comment else None),
+                        },
+                        severity=IncidentSeverity.P2,
+                        user_id=user_id,
+                        fingerprint_keys=["memory_id"],
+                    )
+                except Exception as hook_err:
+                    logger.error(f"[EpisodicMemory] incident hook failed: {hook_err}")
+
             return True
         except Exception as e:
             logger.error(f"更新记忆反馈失败: {e}")
