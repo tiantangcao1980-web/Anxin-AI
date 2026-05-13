@@ -51,6 +51,9 @@
 - [ ] **P1** tool_registry 改造（与 C2 协同）
 - [ ] **P2** capability_negotiator 统一桌面/前端/服务
 
+### 已审查但本轮不合并的分支
+- `old-legal-services/claude/peaceful-goodall-d26ff1` — **CREAO 自愈闭环 Slice 1**（incidents 收集层）：18 文件 1666 行，含 alembic migration `028_incidents`、`incident_collector.py`、`/admin/incidents` UI 与 ErrorBoundary 上报。**延后原因**：当前 alembic 已有双 head（`030_app_authorization` / `044_skill_connector_configs`），引入 `028_incidents` 需先 merge head，且依赖于 jovial-greider 中 `output_validator.py` 的 43 行追加（已在本轮合并）。**计划**：在 P0 followup（policy_engine 统一收敛）落地后，单独起 PR 合并 CREAO Slice 1，再继续 Slice 2 triage 与 Slice 3 GitHub Issue 化。
+
 ---
 
 ## 2026-05-12 V3 合并进商业交付主线
