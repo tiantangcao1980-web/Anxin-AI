@@ -164,6 +164,11 @@ class SkillLoader:
             dependencies=_coerce_str_list(deps),
             requires_apps=_coerce_str_list(apps),
             personas=_coerce_str_list(personas),
+            # T10: SKILL.md 的 required_tools 字段; 兼容 required-tools 短横线写法
+            required_tools=_coerce_str_list(
+                meta.get("required_tools") if meta.get("required_tools") is not None
+                else meta.get("required-tools")
+            ),
             enabled=_coerce_bool(meta.get("enabled"), default=True),
             author=author,
         )

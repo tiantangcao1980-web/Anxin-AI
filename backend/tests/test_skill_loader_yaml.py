@@ -216,3 +216,83 @@ class TestLoadFromDirectory:
         f.write_text("hi", encoding="utf-8")
         with pytest.raises(NotADirectoryError):
             SkillLoader().load_from_directory(f)
+
+
+# ===== T10: SKILL.md required_tools + tool_registry 协同 =====
+
+class TestRequiredToolsField:
+    def test_required_tools_parsed_from_frontmatter(self, tmp_path: Path) -> None:
+        """T10: required_tools 列表正确解析。"""
+        f = _write(tmp_path / "SKILL.md", """
+            ---
+            name: tool-using
+            description: 需要 search_knowledge 与 legal_citation_validator
+            required_tools:
+              - search_knowledge
+              - legal_citation_validator
+            ---
+            body
+            """)
+        skill = SkillLoader().load_from_file(f)
+        assert skill.required_tools == ["search_knowledge", "legal_citation_validator"]
+
+    def test_required_tools_dashed_alias(self, tmp_path: Path) -> None:
+        """T10: required-tools (短横线) 别名兼容。"""
+        f = _write(tmp_path / "SKILL.md", """
+            ---
+            name: dashed
+            description: dashed key alias
+            required-tools:
+              - search_knowledge
+            ---
+            body
+            """)
+        skill = SkillLoader().load_from_file(f)
+        assert skill.required_tools == ["search_knowledge"]
+
+    def test_required_tools_default_empty(self, tmp_path: Path) -> None:
+        """T10: 没声明 required_tools 时默认空列表。"""
+        f = _write(tmp_path / "SKILL.md", """
+            ---
+            name: no-tools
+            description: stateless
+            ---
+            body
+            """)
+        skill = SkillLoader().load_from_file(f)
+        assert skill.required_tools == []
+
+    def test_validate_required_tools_all_registered(self, tmp_path: Path) -> None:
+        """T10: validate_required_tools 对所有已注册工具返回空列表。"""
+        from src.harness.tool_registry import tool_registry
+        # search_knowledge 是 builtin
+        f = _write(tmp_path / "SKILL.md", """
+            ---
+            name: builtin
+            description: only builtin
+            required_tools:
+              - search_knowledge
+            ---
+            body
+            """)
+        skill = SkillLoader().load_from_file(f)
+        missing = skill.validate_required_tools(tool_registry)
+        assert missing == []
+
+    def test_validate_required_tools_returns_missing(self, tmp_path: Path) -> None:
+        """T10: validate_required_tools 把未注册的 tool 名列出来。"""
+        from src.harness.tool_registry import tool_registry
+        f = _write(tmp_path / "SKILL.md", """
+            ---
+            name: typo
+            description: has typo
+            required_tools:
+              - search_knowlege
+              - ghost_tool_xxx
+              - search_knowledge
+            ---
+            body
+            """)
+        skill = SkillLoader().load_from_file(f)
+        missing = skill.validate_required_tools(tool_registry)
+        assert sorted(missing) == sorted(["search_knowlege", "ghost_tool_xxx"])

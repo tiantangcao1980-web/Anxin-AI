@@ -50,6 +50,9 @@ class Skill:
     personas: list[str] = field(default_factory=list)
     enabled: bool = True
     author: str | None = None
+    # T10: SKILL.md 声明的工具白名单 — 配合 harness.tool_registry 校验, 防止 skill
+    # 引用未注册或拼错的工具名. 解析自 frontmatter `required_tools` 字段。
+    required_tools: list[str] = field(default_factory=list)
 
     # ------------------------------------------------------------------
     # 工具方法
@@ -93,8 +96,26 @@ class Skill:
             "dependencies": list(self.dependencies),
             "requires_apps": list(self.requires_apps),
             "personas": list(self.personas),
+            "required_tools": list(self.required_tools),
             "enabled": self.enabled,
             "author": self.author,
             "file_path": str(self.file_path) if self.file_path else None,
             "body_length": len(self.body),
         }
+
+    def validate_required_tools(self, tool_registry: object | None = None) -> list[str]:
+        """T10: 检查 SKILL.md 声明的 required_tools 是否全部已在 harness.tool_registry 注册。
+
+        Args:
+            tool_registry: ToolRegistry 实例。None 时尝试 import 全局单例。
+
+        Returns:
+            缺失工具名列表 (空列表 = 全部已注册)。
+        """
+        if not self.required_tools:
+            return []
+        if tool_registry is None:
+            from src.harness.tool_registry import tool_registry as default_registry
+            tool_registry = default_registry
+        registered = getattr(tool_registry, "_tools", {})
+        return [name for name in self.required_tools if name not in registered]

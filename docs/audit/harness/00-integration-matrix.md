@@ -17,7 +17,7 @@
 | `output_validator` | 🟡 软接入 | `chat_service.py:943` | 调用了但**失败不阻断** | `try/except` 吞异常；未通过校验时仅 `log.warning`；回答照样发出 | **P0**（H1） |
 | `context_engine` | 🟢 真接入 | `chat_service.py:696` / `due_diligence.py:987,1007` | 三处压缩调用统一改走 `harness.context_engine` | T3 (2026-05-14) 完成单一入口收口, 内部仍委托 `services.context_compressor`; 一个 release 后可删旧版 | ✅ 已完成 (T3) |
 | `policy_engine` | 🟢 真接入 | `agents/base.py:_check_mcp_tool_policy / _filter_mcp_tools_for_policy / _execute_tool` 走 `harness.policy_enforcement.check_tool_call(enforce=True)` | 每次 MCP tool_call 前后均判权 | T2 (2026-05-14) 完成第二阶段切 enforce, 默认硬阻断; env `HARNESS_POLICY_ENFORCE=false` 留紧急降级 | ✅ 已完成 (T2) |
-| `tool_registry` | 🔴 未接入业务 | 仅 `api/routes/harness.py` | admin 端只读 | 工具定义仍散落在各 agent prompt；无调用统计、无风险分级强制 | P1（H1） |
+| `tool_registry` | 🟡 半接入 (Skills 校验通道) | `api/routes/harness.py` + `skill_registry.models.Skill.validate_required_tools(tool_registry)` | SKILL.md frontmatter `required_tools` 字段会被 loader 解析, Skill 实例支持 validate 出未注册的工具 | T10 (2026-05-14) 把 Skills ↔ tool_registry 校验通道打通; 业务路径运行时强制 (调用前 reject 未注册) 是下一步 | 🟡 P1 进行中 |
 | `capability_negotiator` | 🟡 半接入 (API 已开放) | `api/routes/harness.py:/capability/negotiate /capability/degradation` + `frontend/src/hooks/useCapabilities.ts` | 普通用户可读, 前端 hook 已实现 (含 5min 缓存 + fallback) | T8 (2026-05-14) 把 admin 限制改为 get_current_user_required, 加 `useCapabilities` hook + `harnessGovernanceApi.negotiateCapability`. ModeGate 替换硬编码仍待做 (下一 PR), 桌面端 Tauri command 委托也待做 | 🟡 P2 进行中 |
 
 ---
