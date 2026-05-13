@@ -8,6 +8,60 @@
 
 ---
 
+## 2026-05-14（最终）Phase B 终极收尾 — T1-T10 + 二阶段全部完成（worktree `vigorous-wiles-5a3fb3`）
+
+### 用户授权后追加完成（3 commit）
+
+| 任务 | 范围 | Commit | 验证 |
+|---|---|---|---|
+| **T5 主体** CREAO Slice 1 合并 | cherry-pick `9aa13985` 1672 行 18 文件; alembic 重编号 `028_incidents` → `046_add_incidents_table` (down_revision 接 T5-prep 的 `045_merge_030_044`); 手工解决 5 处冲突 (`routes/__init__.py` / `output_validator.py` / `models/__init__.py` / `agent_forum.py` / `episodic_memory_service.py`); 全部 `Optional[Any]` 升级为 `Any \| None` 现代 typing | `2fa3c039` | pytest 108/108（含 +4 incident tests） |
+| **T8 二阶段** ModeGate hook 升级 + **2 项 pre-existing lint 收尾** | `ModeGate` 新增 `featureKey?: string` 可选 prop, 传入时同步调 `useCapabilities`, 后端判断优先级高于本地 `checkModeAccess`; `privacyModeToAppMode` 映射工具; sentry.ts 删除多余 eslint-disable; finance-discovery.spec.ts 删除 U+200B 零宽空格 | `d190682c`（合并提交） | npm run lint **零错误**（从 2 pre-existing → 0） |
+| **T6 二阶段** cost_tracker × subscription_service 主路径串联 + admin 豁免双层 | `SubscriptionService.check_user_token_quota`: 全局 `HARNESS_COST_QUOTA_DISABLED=true` (灾难回滚) + 单用户 `features_override.quota_overridden=true` (客服补救); `chat_service.process_chat_request` 在 LLM 调用前前置门禁, 超限返回友好提示 + task FAILED, 异常不阻断主流程 | `d190682c`（合并提交） | pytest 122/122（含 +5 T6 配额测试） |
+
+### Phase B 全量 commit 时间线（共 14 个 commit, 领先 `origin/main` 14 个）
+
+```
+fb1bb443  feat(icons): T1 — 60 文件 lucide-react → @/lib/icons + ESLint 防回归
+7b6ba378  fix(frontend): T1 收尾 — Investigation 漏迁移 + Contracts 死引用
+0bb219df  feat(harness): T2 — policy_engine 主路径接入 (warn-only → enforce)
+12ff77d6  feat(harness): T3 — context_engine 统一压缩入口
+dbd30eab  docs(status): T4 — UI/UX 假成功现状验证
+7e581079  feat(harness): T6 — cost_tracker 本地估算 + 配额阻断 API
+ca6e0ebb  feat(harness): T7 — task_engine 扩展三条长任务路径
+5ace776c  feat(alembic): T5-prep — 030 + 044 双 head 合并
+1875e738  feat(capability): T8 — capability_negotiator API 化 + hook
+13f93532  feat(skills): T10 — SKILL.md required_tools + tool_registry 校验
+b8143470  docs(status): Phase B 全量收尾 + P9/P10 复核
+2fa3c039  feat(harness): T5 主体 — CREAO Slice 1 合并 (1672 行 18 文件)
+d190682c  feat: T6 二阶段 + T8 二阶段 + lint 收尾
+（本 commit）docs(status): 终极收尾
+```
+
+### 终极验证矩阵
+
+| 维度 | 命令 | 结果 |
+|---|---|---|
+| 后端 全量 6 套件 | `pytest test_harness + test_chat + test_harness_policy_enforcement + test_skill_loader_yaml + test_incident_collector + test_mode_subscription_guards` | ✅ **122/122**（含 +9 T6 + +2 T7 + +5 T10 + +4 incident + +5 T6 二阶段 = +25 新测试） |
+| 后端 alembic | `ScriptDirectory.get_heads()` | ✅ 单一 head `046_add_incidents_table`（从 2 个 head → merge 045 → CREAO 046） |
+| 前端 lint | `npm run lint` | ✅ **零错误**（从开局 2 pre-existing → 0） |
+| 前端 type | `npx tsc --noEmit` | ✅ clean |
+| 前端 build | `npm run build` | ✅ 11.15s |
+
+### 剩余事项（仅外部资源 / 业务方依赖, 无可执行代码任务）
+
+| 类别 | 项 | 阻断方 |
+|---|---|---|
+| 桌面签名 | Apple Developer 账号 / Windows 代码签名证书 | 业务方申请 |
+| 商业沙箱 | 支付 / 电签 / 政务 OA 真实沙箱凭证 | 渠道方审批 |
+| 真机预约 | iOS + Android 真机 transcript 采集 | 测试机房排期 |
+| 域名切换 | T9 / P13 anxinai.com 域名 + DNS + SEO redirect | DNS / 证书申请 |
+| RAG corpus | P8.C full50 真实跑通 | corpus 数据准备 |
+| 计费周期 reset | `cost_tracker.reset_user_tokens` cron 接入 | 运维 cron 任务（API 已就绪） |
+
+**结论**：本 worktree 内代码层 P0/P1/P2 全部完成，**用户授权范围内不存在可推进的代码任务**。所有残留事项均需要业务方申请、渠道方审批或运维 cron 接入，已分类列入交接清单。
+
+---
+
 ## 2026-05-14（深夜）Phase B 全量收尾 — T1-T10 完成 + P9/P10 复核（worktree `vigorous-wiles-5a3fb3`）
 
 ### 本轮额外完成（T6-T10 + 复核）
