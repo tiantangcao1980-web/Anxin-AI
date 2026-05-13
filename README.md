@@ -13,6 +13,7 @@
 | 入口 | 用途 |
 |---|---|
 | [docs/00-project-execution-map.md](docs/00-project-execution-map.md) | **当前权威导航总入口**（任务起点） |
+| [docs/01-core-docs.md](docs/01-core-docs.md) | **三大核心文档索引**：需求 / 架构 / 开发计划 一页找全 |
 | [AGENTS.md](AGENTS.md) | **Agent 工作宪章**：22 个智能体的红线 / 路由 / 反 slop / 协作约定（**运行时 Agent 行为单一真相源**） |
 | [docs/audit/harness/README.md](docs/audit/harness/README.md) | 六层框架（Model/Harness/Context/Traces/Eval/Ops）落地的全部审计/设计/进度索引 |
 | [docs/context-architecture.md](docs/context-architecture.md) | Context 三层架构（AGENTS.md / skills/ / memory）加载顺序与字段约定 |
