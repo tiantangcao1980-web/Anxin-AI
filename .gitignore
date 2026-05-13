@@ -151,14 +151,8 @@ docs/references/千问UI移动端风格参考/微信图片_20260317093409_156_1.
 docs/references/千问UI移动端风格参考/微信图片_20260317093410_157_1.jpg
 docs/references/千问UI移动端风格参考/微信图片_20260317093411_158_1.jpg
 docs/references/千问UI移动端风格参考/微信图片_20260317093412_159_1.jpg
-docs/2026-03-10_AI法务智能体系统_最终升级方案定稿.md
-docs/20260315-AILegalAgent-检查报告.md
-docs/20260315-AILegalAgent-维护升级开发计划.md
-docs/ARCHITECTURE.md
-docs/architecture/hybrid_hardware_privacy_design.md
-docs/architecture/memory_evolution_system.md
-docs/architecture/ui_ux_optimization.md
-docs/IMPLEMENTATION_ROADMAP.md
+# 注：原有"AI法务智能体系统"早期文档已归档到 docs/archive/legacy-root-docs/，无需 ignore
+# docs/ARCHITECTURE.md 现已是新 Spine 文档（V3 架构权威），必须追踪
 DEV_GUIDE.md
 .env
 backend/.env
