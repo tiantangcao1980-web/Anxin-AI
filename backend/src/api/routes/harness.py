@@ -10,7 +10,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 
-from src.core.deps import get_admin_user, get_user_permissions
+from src.core.deps import get_admin_user, get_current_user_required, get_user_permissions
 
 router = APIRouter(prefix="/harness", tags=["harness"])
 ResponsePayload = dict[str, Any]
@@ -238,9 +238,9 @@ async def get_task_detail(
 async def negotiate_capability(
     platform: str = Query("web", description="平台类型: web/desktop/mobile/mini_program"),
     mode: str = Query("cloud", description="运行模式: cloud/hybrid/top_secret"),
-    user: Any = Depends(get_admin_user),
+    user: Any = Depends(get_current_user_required),
 ) -> ResponsePayload:
-    """协商当前环境的可用能力"""
+    """协商当前环境的可用能力 (T8: 普通用户可读, 配合前端 ModeGate / 桌面端 Tauri command 消费)。"""
     from src.harness.capability_negotiator import (
         AppMode,
         PlatformType,
@@ -271,9 +271,9 @@ async def negotiate_capability(
 async def get_degradation_notice(
     from_mode: str = Query(..., description="当前模式"),
     to_mode: str = Query(..., description="目标模式"),
-    user: Any = Depends(get_admin_user),
+    user: Any = Depends(get_current_user_required),
 ) -> ResponsePayload:
-    """获取模式切换降级通知"""
+    """获取模式切换降级通知 (T8: 普通用户可读)。"""
     from src.harness.capability_negotiator import AppMode, capability_negotiator
     try:
         notice = capability_negotiator.get_degradation_notice(

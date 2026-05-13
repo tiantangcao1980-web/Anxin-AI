@@ -3415,6 +3415,35 @@ export const harnessGovernanceApi = {
     )
     return response.data
   },
+
+  // T8: 多端能力协商 (普通用户可读)
+  negotiateCapability: async (params: {
+    platform: 'web' | 'desktop' | 'mobile' | 'mini_program'
+    mode: 'cloud' | 'hybrid' | 'top_secret'
+  }) => {
+    const query = new URLSearchParams({ platform: params.platform, mode: params.mode })
+    const response = await request<{
+      status: string
+      data: {
+        platform: string
+        mode: string
+        available_features: Record<string, boolean>
+        unavailable_features: string[]
+        available_tasks: string[]
+        warnings: string[]
+        recommendations: string[]
+      }
+    }>(`/harness/capability/negotiate?${query.toString()}`)
+    return response.data
+  },
+
+  getDegradationNotice: async (params: { from_mode: string; to_mode: string }) => {
+    const query = new URLSearchParams({ from_mode: params.from_mode, to_mode: params.to_mode })
+    const response = await request<{ status: string; data: Record<string, unknown> }>(
+      `/harness/capability/degradation?${query.toString()}`,
+    )
+    return response.data
+  },
 }
 
 // ============ 移动远控桌面 API ============
