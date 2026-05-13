@@ -1,4 +1,4 @@
-# Anxin Smart Assistant — 系统架构与功能全景
+# Anxin AI — 系统架构与功能全景
 
 > 企业级 AI 智能助手智能平台 | Multi-Agent + RAG + A2UI
 
@@ -517,4 +517,4 @@ ContractService.apply_suggestions()
 ---
 
 *文档生成日期: 2026-03-23*
-*系统版本: Anxin Smart Assistant v1.0*
+*系统版本: Anxin AI v1.0*

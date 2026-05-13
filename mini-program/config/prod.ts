@@ -53,6 +53,6 @@ export default {
     },
   },
   defineConstants: {
-    TARO_APP_API_BASE: JSON.stringify('https://api.anxinassistant.com/api/v1'),
+    TARO_APP_API_BASE: JSON.stringify('https://api.anxinai.com/api/v1'),
   },
 } satisfies UserConfigExport

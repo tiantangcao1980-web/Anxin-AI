@@ -178,12 +178,12 @@ async def seed_users(session: Any) -> None:
     hashed = get_password_hash("Anxin2026!Law")
 
     users = [
-        {"id": ADMIN_ID, "email": "admin@test.anxinassistant.com", "name": "系统管理员", "role": "admin", "user_type": "internal"},
-        {"id": USER_IDS["lawyer1"], "email": "lawyer.zhang@test.anxinassistant.com", "name": "张伟律师", "role": "lawyer", "user_type": "platform_lawyer"},
-        {"id": USER_IDS["lawyer2"], "email": "lawyer.li@test.anxinassistant.com", "name": "李娜律师", "role": "lawyer", "user_type": "platform_lawyer"},
-        {"id": USER_IDS["lawyer3"], "email": "lawyer.wang@test.anxinassistant.com", "name": "王强律师", "role": "lawyer", "user_type": "platform_lawyer"},
-        {"id": USER_IDS["paralegal1"], "email": "assistant@mingde.anxinassistant.com", "name": "律师助理-刘芳", "role": "member", "user_type": "internal"},
-        {"id": USER_IDS["paralegal2"], "email": "intern@mingde.anxinassistant.com", "name": "实习生-赵磊", "role": "viewer", "user_type": "internal"},
+        {"id": ADMIN_ID, "email": "admin@test.anxinai.com", "name": "系统管理员", "role": "admin", "user_type": "internal"},
+        {"id": USER_IDS["lawyer1"], "email": "lawyer.zhang@test.anxinai.com", "name": "张伟律师", "role": "lawyer", "user_type": "platform_lawyer"},
+        {"id": USER_IDS["lawyer2"], "email": "lawyer.li@test.anxinai.com", "name": "李娜律师", "role": "lawyer", "user_type": "platform_lawyer"},
+        {"id": USER_IDS["lawyer3"], "email": "lawyer.wang@test.anxinai.com", "name": "王强律师", "role": "lawyer", "user_type": "platform_lawyer"},
+        {"id": USER_IDS["paralegal1"], "email": "assistant@mingde.anxinai.com", "name": "律师助理-刘芳", "role": "member", "user_type": "internal"},
+        {"id": USER_IDS["paralegal2"], "email": "intern@mingde.anxinai.com", "name": "实习生-赵磊", "role": "viewer", "user_type": "internal"},
     ]
 
     for u in users:

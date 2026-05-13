@@ -1,6 +1,6 @@
 {
   "generated_at": "2026-05-08",
-  "objective": "将 Anxin-Smart-Legal-Services 从当前代码现状推进到可商业交付：以源码、测试、UI/UX、渠道、真机和发布证据为主线。",
+  "objective": "将 Anxin-AI 从当前代码现状推进到可商业交付：以源码、测试、UI/UX、渠道、真机和发布证据为主线。",
   "status": "not_ready",
   "status_reason": "Code-level gates, built-in RAG full50 evidence, DB-backed SkillGovernance, minimal frontend Agent governance and capability policy UI, and updated intelligent-assistant specs are available, but commercial release evidence still has pending external sandbox, packaged desktop, device-smoke, enterprise agent governance runtime, and final clean-worktree requirements.",
   "success_criteria": [

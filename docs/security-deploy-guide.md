@@ -10,7 +10,7 @@
 
 **核心原则：所有密钥只存在于服务器本地 `.env`，绝不通过 Git 传输。**
 
-当前生产目录：`/opt/anxin-smart-legal-services`
+当前生产目录：`/opt/anxin-ai`
 
 ---
 
@@ -32,7 +32,7 @@
 ```bash
 # SSH 到服务器
 ssh root@<服务器IP>
-cd /opt/anxin-smart-legal-services
+cd /opt/anxin-ai
 
 # 创建 .env 文件（此文件不通过 Git 管理）
 cat > .env << 'ENVEOF'
@@ -40,7 +40,7 @@ cat > .env << 'ENVEOF'
 ENVIRONMENT=production
 DEBUG=false
 DEV_MODE=false
-CORS_ORIGINS=https://anxinassistant.com,https://www.anxinassistant.com
+CORS_ORIGINS=https://anxinai.com,https://www.anxinai.com
 
 # ===== LLM 配置 =====
 LLM_PROVIDER=qwen
@@ -147,10 +147,10 @@ apt update
 apt install -y nginx certbot python3-certbot-nginx
 
 # 使用仓库内 nginx.conf 作为基础模板，然后按实际回环端口校正 upstream
-cp /opt/anxin-smart-legal-services/nginx.conf /etc/nginx/conf.d/anxin.conf
+cp /opt/anxin-ai/nginx.conf /etc/nginx/conf.d/anxin.conf
 
 # 申请并部署证书
-certbot --nginx -d anxinassistant.com -d www.anxinassistant.com
+certbot --nginx -d anxinai.com -d www.anxinai.com
 
 nginx -t
 systemctl reload nginx
@@ -158,8 +158,8 @@ systemctl reload nginx
 
 完成后应满足：
 
-- `http://anxinassistant.com` 与 `http://www.anxinassistant.com` 自动 301 到 HTTPS
-- `https://anxinassistant.com` 与 `https://www.anxinassistant.com` 返回 `200`
+- `http://anxinai.com` 与 `http://www.anxinai.com` 自动 301 到 HTTPS
+- `https://anxinai.com` 与 `https://www.anxinai.com` 返回 `200`
 - Docker 内部服务不需要额外公网端口放行
 
 ## 第八步：阿里云安全组最小开放面

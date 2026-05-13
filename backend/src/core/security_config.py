@@ -55,8 +55,8 @@ FIELD_CLASSIFICATION: dict[str, DataClassification] = {
 
 CORS_CONFIG = {
     "allow_origins": [
-        "https://anxinassistant.com",
-        "https://www.anxinassistant.com",
+        "https://anxinai.com",
+        "https://www.anxinai.com",
         "http://localhost:3001",  # 开发环境
     ],
     "allow_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],

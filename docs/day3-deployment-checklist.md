@@ -14,7 +14,7 @@
 - [x] 演示数据生成脚本（backend/scripts/seed_demo_data.py）
 - [x] 环境配置模板（.env.prod.example）
 - [x] 阿里云服务器环境检查（14GB 内存，99GB 硬盘）
-- [x] 代码克隆到服务器（/root/anxin-smart-legal-services）
+- [x] 代码克隆到服务器（/root/anxin-ai）
 - [x] .env 配置文件创建（DeepSeek API + 强密码）
 - [x] 前端构建完成（56.6s，dist 目录生成）
 
@@ -100,7 +100,7 @@
 1. 导入演示数据：
    ```bash
    ssh root@8.134.83.168
-   cd /root/anxin-smart-legal-services
+   cd /root/anxin-ai
    docker compose -f docker-compose.prod.yml exec backend python scripts/seed_demo_data.py
    ```
 

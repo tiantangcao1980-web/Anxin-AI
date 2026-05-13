@@ -1,12 +1,12 @@
 [project]
-name = "anxin-smart-assistant-backend"
+name = "anxin-ai-backend"
 version = "0.1.0"
 description = "安心智能助手系统后端服务"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 license = { text = "Apache-2.0" }
 authors = [
-    { name = "Anxin Smart Assistant Team" }
+    { name = "Anxin AI Team" }
 ]
 keywords = ["ai", "legal", "finance", "tax", "compliance", "multi-agent", "smart-assistant", "fastapi"]
 

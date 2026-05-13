@@ -44,7 +44,7 @@
                     │                           │
        ┌────────────┴──────────┐     ┌─────────┴──────────┐
        │  需求方客户端          │     │  服务方客户端       │
-       │  app.anxinassistant.com    │     │  pro.anxinassistant.com │
+       │  app.anxinai.com    │     │  pro.anxinai.com │
        │  /login                │     │  /pro/login        │
        │  /register?type=xxx    │     │  /pro/register     │
        │                        │     │                     │

@@ -6,7 +6,7 @@ import json
 
 # 配置
 API_BASE_URL = "http://localhost:8001/api/v1"
-ADMIN_EMAIL = "admin@anxinassistant.com"
+ADMIN_EMAIL = "admin@anxinai.com"
 ADMIN_PASSWORD = "admin888"
 
 async def run_test():

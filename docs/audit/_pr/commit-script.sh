@@ -11,7 +11,7 @@
 
 set -euo pipefail
 
-cd /Users/pengchengkeji/Documents/GitHub/Anxin-Smart-Legal-Services
+cd /Users/pengchengkeji/Documents/GitHub/Anxin-AI
 
 echo "=== 当前 git status ==="
 git status -sb

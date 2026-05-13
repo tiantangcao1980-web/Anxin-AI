@@ -124,8 +124,8 @@ done
 
 | Remote | URL | 用途 |
 |---|---|---|
-| `origin` | `github.com/tiantangcao1980-web/Anxin-Smart-Legal-Services.git` | 主仓 |
-| `v3` | `github.com/tiantangcao1980-web/Anxin-Smart-Assistant.git` | V3 独立仓（已合并完毕） |
+| `origin` | `github.com/tiantangcao1980-web/Anxin-AI.git` | 主仓 |
+| `v3` | `github.com/tiantangcao1980-web/Anxin-AI.git` | V3 独立仓（已合并完毕） |
 
 ## 8. Commit 频率
 

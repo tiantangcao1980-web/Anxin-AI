@@ -313,7 +313,7 @@
 - **P10**：知识库新版 — RAG-Anything (HKUDS) + MinerU 多模态接入；引文锚点
 - **P11**：团队协作 — tenant_id 全链路 + RBAC + 审计可视化
 - **P12**：E2E playwright 全量（5 personas × 主流程 × 三端）
-- **P13**：生产部署到 anxinassistant.com（双域名平滑过渡）
+- **P13**：生产部署到 anxinai.com（双域名平滑过渡）
 - **Beyond**：Agent 三层重构 / Evolver 学习闭环 / 国际化 / LLM 路由 + 缓存 + 成本优化
 
 ---

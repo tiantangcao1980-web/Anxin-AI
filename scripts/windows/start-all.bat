@@ -9,12 +9,12 @@ docker-compose up -d postgres redis qdrant neo4j minio
 echo.
 
 echo [2/3] 启动后端服务...
-start "Anxin Smart Assistant - Backend" cmd /k "cd /d %~dp0backend && uv run uvicorn src.api.main:app --reload --port 8001 --host 0.0.0.0"
+start "Anxin AI - Backend" cmd /k "cd /d %~dp0backend && uv run uvicorn src.api.main:app --reload --port 8001 --host 0.0.0.0"
 echo 后端服务启动中，请查看新打开的终端窗口
 echo.
 
 echo [3/3] 启动前端服务...
-start "Anxin Smart Assistant - Frontend" cmd /k "cd /d %~dp0frontend && npm run dev"
+start "Anxin AI - Frontend" cmd /k "cd /d %~dp0frontend && npm run dev"
 echo 前端服务启动中，请查看新打开的终端窗口
 echo.
 

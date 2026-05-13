@@ -168,11 +168,11 @@ P9+                            🔜 5 法务 persona / 知识库 / E2E / 生产�
 | **目标** | 5 personas × 主流程 × 桌面/移动/Web 三端 E2E 全覆盖 |
 | **预计周期** | 2 周 |
 
-### P13 — 生产部署到 anxinassistant.com
+### P13 — 生产部署到 anxinai.com
 
 | 项 | 内容 |
 |---|---|
-| **目标** | 域名切换 anxinassistant.com → anxinassistant.com；CDN / TLS / Nginx 同步 |
+| **目标** | 域名切换 anxinai.com → anxinai.com；CDN / TLS / Nginx 同步 |
 | **关键** | 双域名平滑过渡（30 天 redirect 兼容） |
 | **预计周期** | 1 周 |
 

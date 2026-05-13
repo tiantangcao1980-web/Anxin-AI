@@ -72,7 +72,7 @@ pnpm tauri signer generate -w ~/.tauri/anxin-updater.key
     "updater": {
       "pubkey": "粘贴公钥 base64 字符串",
       "endpoints": [
-        "https://api.anxinassistant.com/api/v1/updates/{{target}}/{{arch}}/{{current_version}}"
+        "https://api.anxinai.com/api/v1/updates/{{target}}/{{arch}}/{{current_version}}"
       ]
     }
   }

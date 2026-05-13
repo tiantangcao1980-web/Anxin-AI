@@ -239,7 +239,7 @@ export async function installApiMocks(page: Page, options: MockOptions = {}) {
           token_type: 'bearer',
           user: {
             id: userId,
-            email: options.auth?.email ?? `${role}@anxinassistant.com`,
+            email: options.auth?.email ?? `${role}@anxinai.com`,
             name: options.auth?.name ?? 'E2E User',
             role,
             primary_client: options.auth?.primary_client,
@@ -255,7 +255,7 @@ export async function installApiMocks(page: Page, options: MockOptions = {}) {
         route,
         buildUnified({
           id: userId,
-          email: options.auth?.email ?? `${role}@anxinassistant.com`,
+          email: options.auth?.email ?? `${role}@anxinai.com`,
           name: options.auth?.name ?? 'E2E User',
           role,
           primary_client: options.auth?.primary_client,

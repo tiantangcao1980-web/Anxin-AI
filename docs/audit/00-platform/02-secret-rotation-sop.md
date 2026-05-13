@@ -24,8 +24,8 @@
 
 | 远端 | URL | 状态 |
 |---|---|---|
-| `origin` | https://github.com/tiantangcao1980-web/Anxin-Smart-Legal-Services.git | 主仓库，包含泄露 commit |
-| `v3` | https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant.git | 副仓库，需独立核查 |
+| `origin` | https://github.com/tiantangcao1980-web/Anxin-AI.git | 主仓库，包含泄露 commit |
+| `v3` | https://github.com/tiantangcao1980-web/Anxin-AI.git | 副仓库，需独立核查 |
 
 **用户必须先确认（Day 0 上午）**：
 - [ ] 这两个 GitHub 仓库当前是 **public 还是 private**？
@@ -177,12 +177,12 @@ frontend/.env.tauri
 
 # 2. 备份当前主仓库
 cd ~/Documents/GitHub
-git clone --mirror https://github.com/tiantangcao1980-web/Anxin-Smart-Legal-Services.git \
-    Anxin-Smart-Legal-Services.bak.$(date +%Y%m%d).git
+git clone --mirror https://github.com/tiantangcao1980-web/Anxin-AI.git \
+    Anxin-AI.bak.$(date +%Y%m%d).git
 
 # 3. 备份副仓库
-git clone --mirror https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant.git \
-    Anxin-Smart-Assistant.bak.$(date +%Y%m%d).git
+git clone --mirror https://github.com/tiantangcao1980-web/Anxin-AI.git \
+    Anxin-AI.bak.$(date +%Y%m%d).git
 ```
 
 **清理（推荐 git-filter-repo）**：
@@ -191,7 +191,7 @@ git clone --mirror https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant.
 brew install git-filter-repo
 
 # 1. 进入仓库
-cd ~/Documents/GitHub/Anxin-Smart-Legal-Services
+cd ~/Documents/GitHub/Anxin-AI
 
 # 2. 列出要清除的路径（与 1.2 节一致）
 cat > /tmp/anxin-paths-to-remove.txt <<'EOF'
@@ -210,8 +210,8 @@ git filter-repo --invert-paths --paths-from-file /tmp/anxin-paths-to-remove.txt 
 git filter-repo --invert-paths --paths-from-file /tmp/anxin-paths-to-remove.txt
 
 # 5. filter-repo 会自动移除 origin remote。重新加回去：
-git remote add origin https://github.com/tiantangcao1980-web/Anxin-Smart-Legal-Services.git
-git remote add v3 https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant.git
+git remote add origin https://github.com/tiantangcao1980-web/Anxin-AI.git
+git remote add v3 https://github.com/tiantangcao1980-web/Anxin-AI.git
 
 # 6. 强制推送（破坏性，必须明确确认）
 git push origin --force --all
@@ -220,11 +220,11 @@ git push v3 --force --all
 git push v3 --force --tags
 ```
 
-**对副仓库 Anxin-Smart-Assistant 同样操作**：
+**对副仓库 Anxin-AI 同样操作**：
 ```bash
-cd ~/Documents/GitHub/Anxin-Smart-Assistant
+cd ~/Documents/GitHub/Anxin-AI
 git filter-repo --invert-paths --paths-from-file /tmp/anxin-paths-to-remove.txt
-git remote add origin https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant.git
+git remote add origin https://github.com/tiantangcao1980-web/Anxin-AI.git
 git push origin --force --all
 git push origin --force --tags
 ```
@@ -246,8 +246,8 @@ C. 联系 GitHub Support 删除特定 commit 的 cache（https://docs.github.com
 ```bash
 # 所有协作者必须重新 clone（旧 clone 的本地仓不能再 push）
 # 协作者操作：
-mv ~/Documents/GitHub/Anxin-Smart-Legal-Services ~/Documents/GitHub/Anxin-Smart-Legal-Services.OLD
-git clone https://github.com/tiantangcao1980-web/Anxin-Smart-Legal-Services.git
+mv ~/Documents/GitHub/Anxin-AI ~/Documents/GitHub/Anxin-AI.OLD
+git clone https://github.com/tiantangcao1980-web/Anxin-AI.git
 # 把本地 worktree 的未提交工作 cherry-pick 过来
 ```
 
@@ -274,7 +274,7 @@ curl https://api.openai.com/v1/models \
 
 ```bash
 # 1. 安装 pre-commit + gitleaks（项目根）
-cd ~/Documents/GitHub/Anxin-Smart-Legal-Services
+cd ~/Documents/GitHub/Anxin-AI
 brew install pre-commit gitleaks
 
 # 2. 写 .pre-commit-config.yaml（详见 04-ci-security-scan.md）
@@ -319,8 +319,8 @@ GitHub 仓库 → Settings → Code security and analysis →
 
 ```bash
 # 在备份镜像中找回
-cd ~/Documents/GitHub/Anxin-Smart-Legal-Services.bak.YYYYMMDD.git
-git push --force https://github.com/tiantangcao1980-web/Anxin-Smart-Legal-Services.git --all
+cd ~/Documents/GitHub/Anxin-AI.bak.YYYYMMDD.git
+git push --force https://github.com/tiantangcao1980-web/Anxin-AI.git --all
 
 # 然后重新做 filter-repo
 ```
@@ -365,8 +365,8 @@ Day 1 下午
 
 ## 5. 用户必须答复 Claude 的事项（开工前）
 
-- [ ] 仓库 `Anxin-Smart-Legal-Services` 当前是 public 还是 private？
-- [ ] 仓库 `Anxin-Smart-Assistant` 同问？
+- [ ] 仓库 `Anxin-AI` 当前是 public 还是 private？
+- [ ] 仓库 `Anxin-AI` 同问？
 - [ ] 自 2026-03-28 commit `ed8ea03` 以来，是否已有外部 fork、star、或 GitGuardian 类工具告警？
 - [ ] 当前是否有真实付费用户、订阅账号、生产数据？
 - [ ] 是否有现成的 secret 管理方案（HashiCorp Vault / AWS Secrets Manager / 阿里云 KMS / 腾讯云 SSM）可以承接新凭据？

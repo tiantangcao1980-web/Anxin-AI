@@ -7,7 +7,7 @@ import {
   type UniStorageAdapter,
 } from './storage'
 
-const DEFAULT_BASE_URL = 'https://api.anxinassistant.com/api/v1'
+const DEFAULT_BASE_URL = 'https://api.anxinai.com/api/v1'
 const REQUEST_TIMEOUT = 30000
 
 export interface ApiResponse<T> {

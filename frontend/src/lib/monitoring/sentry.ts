@@ -59,7 +59,7 @@ export function initSentry(opts: SentryInitOptions = {}): boolean {
     tracesSampleRate,
     replaysSessionSampleRate: replaysSampleRate,
     replaysOnErrorSampleRate: 1.0,
-    tracePropagationTargets: [/^\//, apiBase, /anxinassistant\.com/, /anxinassistant\.com/],
+    tracePropagationTargets: [/^\//, apiBase, /anxinai\.com/, /anxinai\.com/],
     // 与 P19-A 后端 error_classifier 的指纹规则保持一致：
     //   module + error_type + first_frame
     beforeSend(event) {

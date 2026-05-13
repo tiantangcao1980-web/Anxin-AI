@@ -5,7 +5,7 @@
 在 .env 中配置以下变量后即可调用：
   ALIYUN_ACCESS_KEY_ID=<你的AccessKeyId>        (与短信共用)
   ALIYUN_ACCESS_KEY_SECRET=<你的AccessKeySecret>  (与短信共用)
-  ALIYUN_EMAIL_ACCOUNT=noreply@mail.anxinassistant.com
+  ALIYUN_EMAIL_ACCOUNT=noreply@mail.anxinai.com
   ALIYUN_EMAIL_ALIAS=安心智能助手
 
 阿里云控制台：https://dm.console.aliyun.com
@@ -38,7 +38,7 @@ VERIFY_EMAIL_TEMPLATE = """
   </div>
   <p style="color: #aaa; font-size: 12px; text-align: center; margin-top: 30px;">
     如果这不是您的操作，请忽略此邮件。<br/>
-    &copy; 安心智能助手 anxinassistant.com
+    &copy; 安心智能助手 anxinai.com
   </p>
 </body>
 </html>

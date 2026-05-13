@@ -75,7 +75,7 @@ Client 校验 signed_challenge 由设备证书私钥签名
 
 ## 5. OTA 固件升级
 
-- 设备定期 `GET https://api.anxinassistant.com/api/v1/firmware/{sn}/latest`
+- 设备定期 `GET https://api.anxinai.com/api/v1/firmware/{sn}/latest`
 - 返回 `{ version, url, signature }`，签名用安心根私钥
 - 升级包在 TEE 内校验签名后写入 dual-partition，重启 fallback 友好
 

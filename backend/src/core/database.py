@@ -199,7 +199,7 @@ async def init_db() -> None:
                 logger.info(f"创建默认组织: {org.name}")
 
             # 2. 创建默认管理员用户
-            user_email = "admin@anxinassistant.com"
+            user_email = "admin@anxinai.com"
             admin_result = await session.execute(select(User).where(User.email == user_email))
             admin = admin_result.scalar_one_or_none()
 

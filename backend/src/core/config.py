@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     )
 
     # ========== 基础配置 ==========
-    APP_NAME: str = "Anxin Smart Assistant"
+    APP_NAME: str = "Anxin AI"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
     DEV_MODE: bool = False  # 开发模式：启用后允许无Token访问API
@@ -212,7 +212,7 @@ class Settings(BaseSettings):
     # 阿里云邮件推送 (DirectMail)
     # 控制台：https://dm.console.aliyun.com
     ALIYUN_EMAIL_REGION: str = "cn-hangzhou"
-    ALIYUN_EMAIL_ACCOUNT: str = ""  # 发信地址，如 noreply@mail.anxinassistant.com
+    ALIYUN_EMAIL_ACCOUNT: str = ""  # 发信地址，如 noreply@mail.anxinai.com
     ALIYUN_EMAIL_ALIAS: str = "安心智能助手"  # 发件人昵称
 
     # ========== 品牌定制 ==========

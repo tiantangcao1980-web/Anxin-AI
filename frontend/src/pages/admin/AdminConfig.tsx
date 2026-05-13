@@ -397,7 +397,7 @@ export default function AdminConfig() {
               <p className="text-xs text-muted-foreground">AccessKey 与短信服务共用。</p>
               <div className="space-y-2">
                 <Label>发信地址 (AccountName)</Label>
-                <Input value={email.aliyun_email_account} onChange={(e) => setEmailConfig({ ...email, aliyun_email_account: e.target.value })} placeholder="noreply@mail.anxinassistant.com" />
+                <Input value={email.aliyun_email_account} onChange={(e) => setEmailConfig({ ...email, aliyun_email_account: e.target.value })} placeholder="noreply@mail.anxinai.com" />
                 <p className="text-xs text-muted-foreground">需在阿里云 DirectMail 控制台创建并验证域名</p>
               </div>
               <div className="space-y-2">

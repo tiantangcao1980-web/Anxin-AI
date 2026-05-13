@@ -160,12 +160,12 @@ actionlint .github/workflows/*.yml
 ## CI 状态徽章（贴到 README）
 
 ```markdown
-[![Backend CI](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/backend.yml/badge.svg)](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/backend.yml)
-[![Frontend CI](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/frontend.yml/badge.svg)](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/frontend.yml)
-[![Mobile CI](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/mobile.yml/badge.svg)](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/mobile.yml)
-[![Mini Program CI](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/mini-program.yml/badge.svg)](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/mini-program.yml)
-[![Tauri Desktop CI](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/tauri-desktop.yml/badge.svg)](https://github.com/tiantangcao1980-web/Anxin-Smart-Assistant/actions/workflows/tauri-desktop.yml)
-[![codecov](https://codecov.io/gh/tiantangcao1980-web/Anxin-Smart-Assistant/branch/main/graph/badge.svg)](https://codecov.io/gh/tiantangcao1980-web/Anxin-Smart-Assistant)
+[![Backend CI](https://github.com/tiantangcao1980-web/Anxin-AI/actions/workflows/backend.yml/badge.svg)](https://github.com/tiantangcao1980-web/Anxin-AI/actions/workflows/backend.yml)
+[![Frontend CI](https://github.com/tiantangcao1980-web/Anxin-AI/actions/workflows/frontend.yml/badge.svg)](https://github.com/tiantangcao1980-web/Anxin-AI/actions/workflows/frontend.yml)
+[![Mobile CI](https://github.com/tiantangcao1980-web/Anxin-AI/actions/workflows/mobile.yml/badge.svg)](https://github.com/tiantangcao1980-web/Anxin-AI/actions/workflows/mobile.yml)
+[![Mini Program CI](https://github.com/tiantangcao1980-web/Anxin-AI/actions/workflows/mini-program.yml/badge.svg)](https://github.com/tiantangcao1980-web/Anxin-AI/actions/workflows/mini-program.yml)
+[![Tauri Desktop CI](https://github.com/tiantangcao1980-web/Anxin-AI/actions/workflows/tauri-desktop.yml/badge.svg)](https://github.com/tiantangcao1980-web/Anxin-AI/actions/workflows/tauri-desktop.yml)
+[![codecov](https://codecov.io/gh/tiantangcao1980-web/Anxin-AI/branch/main/graph/badge.svg)](https://codecov.io/gh/tiantangcao1980-web/Anxin-AI)
 ```
 
 ## Bundle Size 限额一览

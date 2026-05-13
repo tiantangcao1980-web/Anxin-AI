@@ -439,7 +439,7 @@ export default function AdminIntegrations() {
               <CardDescription>邮箱验证码和通知邮件</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2"><Label>发信地址</Label><Input value={email.aliyun_email_account} onChange={e => setEmail({ ...email, aliyun_email_account: e.target.value })} placeholder="noreply@mail.anxinassistant.com" /></div>
+              <div className="space-y-2"><Label>发信地址</Label><Input value={email.aliyun_email_account} onChange={e => setEmail({ ...email, aliyun_email_account: e.target.value })} placeholder="noreply@mail.anxinai.com" /></div>
               <div className="space-y-2"><Label>发件人昵称</Label><Input value={email.aliyun_email_alias} onChange={e => setEmail({ ...email, aliyun_email_alias: e.target.value })} /></div>
               <div className="flex justify-end"><Button onClick={() => handleSave('email', email)} disabled={saving}>{saving ? '保存中...' : '保存'}</Button></div>
             </CardContent>

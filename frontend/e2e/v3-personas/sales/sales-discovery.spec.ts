@@ -71,7 +71,7 @@ test.describe('P14-D · 🎯 获客猎手 · 发现链路', () => {
       role: 'admin',
       userId: 'e2e-sales',
       name: 'E2E Sales',
-      email: 'sales@anxinassistant.com',
+      email: 'sales@anxinai.com',
     })
   })
 

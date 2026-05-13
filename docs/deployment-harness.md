@@ -4,7 +4,7 @@
 
 ```bash
 ssh your-server
-cd /path/to/Anxin-Smart-Legal-Services
+cd /path/to/Anxin-AI
 git pull origin main
 ```
 

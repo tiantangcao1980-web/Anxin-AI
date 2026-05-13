@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "anxinassistant",
+    "scheme": "anxinai",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -17,7 +17,7 @@
       "**/*"
     ],
     "extra": {
-      "apiBaseUrl": "https://api.anxinassistant.com/api/v1",
+      "apiBaseUrl": "https://api.anxinai.com/api/v1",
       "apiBaseUrlDev": "http://127.0.0.1:8001/api/v1"
     },
     "updates": {
@@ -38,7 +38,7 @@
         "NSFaceIDUsageDescription": "安心智能助手使用 Face ID 保护您的账户安全"
       },
       "associatedDomains": [
-        "applinks:anxinassistant.com"
+        "applinks:anxinai.com"
       ]
     },
     "android": {
@@ -66,7 +66,7 @@
           "data": [
             {
               "scheme": "https",
-              "host": "anxinassistant.com"
+              "host": "anxinai.com"
             }
           ],
           "category": [

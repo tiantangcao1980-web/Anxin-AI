@@ -104,7 +104,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(
-    title="Anxin Smart Assistant API",
+    title="Anxin AI API",
     description="安心智能助手系统 - 基于多智能体协作的超级AI 智能助手系统",
     version="0.1.1",
     lifespan=lifespan,
@@ -221,7 +221,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 async def root() -> dict[str, str]:
     """根路径"""
     return {
-        "name": "Anxin Smart Assistant",
+        "name": "Anxin AI",
         "version": "0.1.0",
         "status": "running",
         "docs": "/docs"

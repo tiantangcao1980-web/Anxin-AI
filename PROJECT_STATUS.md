@@ -281,7 +281,7 @@
 - [x] 云端迁移核验：`docker compose exec -T backend alembic current` → `027_experience_patterns (head)`
 - [x] 云端表结构核验：`experience_patterns` 已在 `legal_agent_db` 创建成功
 - [x] 云端公网暴露核验：`80/443` 之外的 `8001/5433/6379/6333/6334/7474/7687/9000/9001` 已收口
-- [x] 云端域名与 HTTPS 核验：`https://anxinassistant.com`、`https://www.anxinassistant.com` 返回 `200`
+- [x] 云端域名与 HTTPS 核验：`https://anxinai.com`、`https://www.anxinai.com` 返回 `200`
 
 ### 本轮已完成的高优先级真实化修复
 - [x] 前端默认 API 地址改为相对 `/api/v1`，避免绕过代理导致本地登录/联调失败
@@ -304,13 +304,13 @@
 - [x] Neo4j 图数据库在测试环境下显式降级，清除第三方 driver 析构 warning
 
 ### 本轮生产部署收口
-- [x] 阿里云 ECS 项目目录确认：`/opt/anxin-smart-legal-services`
+- [x] 阿里云 ECS 项目目录确认：`/opt/anxin-ai`
 - [x] Compose 生产拓扑收敛为“主机 Nginx + 容器回环绑定”
 - [x] 前端容器绑定为 `127.0.0.1:3001 -> 80`
 - [x] 后端容器绑定为 `127.0.0.1:8001 -> 8001`
 - [x] PostgreSQL / Redis / Qdrant / Neo4j / MinIO 改为仅容器网络访问，不再暴露公网端口
 - [x] 主机 Nginx 上游切换为前端 `127.0.0.1:3001`、后端 `127.0.0.1:8001`
-- [x] Certbot 已签发并接入 `anxinassistant.com` 与 `www.anxinassistant.com` 的 HTTPS
+- [x] Certbot 已签发并接入 `anxinai.com` 与 `www.anxinai.com` 的 HTTPS
 - [x] 生产环境变量已修正：`DEV_MODE=false`，JWT / PostgreSQL / Redis 密钥已轮换
 
 ### 当前剩余问题（已收敛为长尾）
@@ -968,7 +968,7 @@ DASHSCOPE_API_KEY=<阿里云百炼 API Key>
 
 ### 测试账号体系
 - [x] 17个测试账号覆盖6大角色（平台管理/律所/律师/员工/企业/个人）
-- [x] 统一使用 `@anxinassistant.com` 域名，简单密码格式
+- [x] 统一使用 `@anxinai.com` 域名，简单密码格式
 
 ## 功能完成度
 

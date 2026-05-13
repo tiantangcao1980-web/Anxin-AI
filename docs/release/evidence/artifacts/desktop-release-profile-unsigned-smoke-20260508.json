@@ -14,8 +14,8 @@
     "ordinary_sqlite_plaintext_read_blocked": "passed"
   },
   "artifacts": {
-    "release_app": "/Users/pengchengkeji/Documents/GitHub/Anxin-Smart-Legal-Services/desktop/target/release/bundle/macos/安心智能助手.app",
-    "release_binary": "/Users/pengchengkeji/Documents/GitHub/Anxin-Smart-Legal-Services/desktop/target/release/bundle/macos/安心智能助手.app/Contents/MacOS/anxin-legal-desktop"
+    "release_app": "/Users/pengchengkeji/Documents/GitHub/Anxin-AI/desktop/target/release/bundle/macos/安心智能助手.app",
+    "release_binary": "/Users/pengchengkeji/Documents/GitHub/Anxin-AI/desktop/target/release/bundle/macos/安心智能助手.app/Contents/MacOS/anxin-legal-desktop"
   },
   "firstLaunch": {
     "dbPath": "/var/folders/nj/gp3tmfq54vl6vkldj7f8f7xc0000gn/T//anxin-release-profile-smoke.yDkxSy/anxin_local.db",

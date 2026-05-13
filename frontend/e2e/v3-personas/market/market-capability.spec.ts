@@ -94,7 +94,7 @@ test.describe('P14-D · 📊 市场研究员 · Capability', () => {
       role: 'admin',
       userId: 'e2e-market',
       name: 'E2E Market',
-      email: 'market@anxinassistant.com',
+      email: 'market@anxinai.com',
     })
     await page.goto('/v3/personas/market_researcher')
     await expect(page.getByRole('heading', { name: '市场研究员', level: 1 })).toBeVisible({ timeout: 15000 })

@@ -1,7 +1,7 @@
 """
-Anxin Smart Assistant MCP Server
+Anxin AI MCP Server
 -------------------------
-This server exposes Anxin Smart Assistant capabilities via the Model Context Protocol (MCP).
+This server exposes Anxin AI capabilities via the Model Context Protocol (MCP).
 It allows other AI agents (like Claude Desktop) to interact with the legal system.
 """
 
@@ -21,7 +21,7 @@ ServiceT = TypeVar("ServiceT")
 ResultT = TypeVar("ResultT")
 
 # Create an MCP server
-mcp = FastMCP("Anxin Smart Assistant")
+mcp = FastMCP("Anxin AI")
 
 
 def _ensure_standalone_mcp_enabled() -> None:

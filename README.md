@@ -1,4 +1,4 @@
-# 安心智能助手 (Anxin Smart Assistant)
+# 安心智能助手 (Anxin AI)
 
 > **面向中国成长型制造企业的全链路 AI 智能经营助理。** 一个 App 搞定 法务 / 财务 / 税务 / 合规 / 经营管理 / 调研获客 / 内容产出 / 出海跨境。
 
@@ -62,7 +62,7 @@
 - 🔜 **P10** 知识库新版（RAG-Anything + MinerU 多模态）
 - 🔜 **P11** 团队协作 / 多租户 / RBAC 可视化
 - 🔜 **P12** 5 personas × 三端 E2E 全覆盖
-- 🔜 **P13** 切换到 `anxinassistant.com` 域名
+- 🔜 **P13** 切换到 `anxinai.com` 域名
 
 ---
 
@@ -138,7 +138,7 @@
 ```bash
 # 1. 克隆
 git clone <repo-url>
-cd anxin-smart-assistant
+cd anxin-ai
 
 # 2. 初始化（依赖 + 数据库 + 配置）
 make init
@@ -211,7 +211,7 @@ PR 提交前自查 [docs/standards/review-checklist.md](docs/standards/review-ch
 ## 📜 项目历史
 
 - **v1 / v2**："安心法务"，法律垂直 SaaS，曾上线 anxinfawu.com
-- **v3**（当前）："安心智能助手"，全链路升级，目标域名 anxinassistant.com
+- **v3**（当前）："安心智能助手"，全链路升级，目标域名 anxinai.com
 - 详见 [docs/adr/001-v3-anxin-assistant-upgrade.md](docs/adr/001-v3-anxin-assistant-upgrade.md)
 
 ---
