@@ -7,7 +7,6 @@ import { contractsApi, Contract, ContractCreate } from'@/lib/api'
 import { PageContainer } from'@/components/ui/PageContainer'
 import { cardStyle, heading, buttonStyle, iconSize, statusBadge, radius, inputStyle } from'@/lib/design-tokens'
 import { ESignDialog } from'@/components/esign/ESignDialog'
-import ContractReview from'./ContractReview'
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
  draft: { label:'草稿', color: statusBadge.neutral },
@@ -309,8 +308,12 @@ function ReviewModal({ onClose }: { onClose: () => void }) {
  <icons.X className={iconSize.md} />
  </button>
  </div>
- <div className="flex-1 min-h-0">
- <ContractReview embedded />
+ <div className="flex-1 min-h-0 flex items-center justify-center p-8">
+ <EmptyState
+ icon="FileSearch"
+ title="合同审查暂未启用"
+ description="此功能将在后续版本上线"
+ />
  </div>
  </div>
  </div>
