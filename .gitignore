@@ -59,6 +59,18 @@ logs/
 .DS_Store
 Thumbs.db
 
+# ==================== 本地数据库 / 临时数据 ====================
+# 本地开发用 SQLite（如 backend/local_test.db）严禁入库，
+# 一旦提交易夹带敏感测试数据并增大仓库体积。
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+!docs/**/*.db.md  # 仅放行文档中名字带 .db 的 markdown 例外
+
 # ==================== Claude Code ====================
 /.claude/
 
