@@ -1,0 +1,157 @@
+# 安心智能助手 · Helm Chart 配置
+# 完整说明见 deploy/enterprise-onprem/helm/anxin-enterprise/README.md
+
+global:
+  # 集群上的镜像仓库（私有化通常是客户内网 Harbor）
+  imageRegistry: ghcr.io/anxin
+  imagePullSecrets: []
+  # 全局环境标识：production / staging
+  environment: production
+  # 离线 / 完全断网模式 —— 关闭 Sentry / OTA / 远端遥测
+  airgap: false
+
+backend:
+  enabled: true
+  image:
+    repository: legal-backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicas: 2
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+  service:
+    type: ClusterIP
+    port: 8001
+  # T1 Skill 签名公钥（base64 ed25519，多发布方逗号分隔）
+  skillSandboxPublisherKeys: ""
+  # Auth 严格 fail-closed：Redis 不可用时 503 而非降级
+  authRedisFailClosed: "true"
+  # 容器内安全上下文 —— 与 Skill 沙箱 T3 默认值一致
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 65534
+    fsGroup: 65534
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+    readOnlyRootFilesystem: false  # backend 需要写日志；用 emptyDir 即可
+
+worker:
+  enabled: true
+  # 复用 backend 镜像跑 celery worker
+  replicas: 2
+  command:
+    - celery
+    - -A
+    - src.services.task_orchestrator.celery_app
+    - worker
+    - -l
+    - info
+    - -Q
+    - agent_tasks
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+
+ldapSync:
+  # 默认关闭；开启时确保 secrets 中有 LDAP_BIND_PASSWORD
+  enabled: false
+  schedule: "*/5 * * * *"  # CronJob 表达式（K8s 原生 cron）
+  image:
+    repository: legal-backend
+    tag: latest
+  orgId: ""  # 同步到哪个租户 —— 必填
+  conflictStrategy: ldap-wins
+  config:
+    url: ""
+    bindDn: ""
+    userBaseDn: ""
+    deptBaseDn: ""
+
+postgres:
+  # 生产建议用客户自有 PG / 云 RDS；这里提供 in-cluster fallback
+  inCluster:
+    enabled: true
+    image: postgres:16-alpine
+    storage:
+      size: 50Gi
+      storageClass: ""  # 留空用默认 StorageClass
+    persistence:
+      enabled: true
+  external:
+    # 当 inCluster.enabled=false 时使用
+    host: ""
+    port: 5432
+    database: anxin_enterprise
+    # 密码走 secret，不在 values 里
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+redis:
+  inCluster:
+    enabled: true
+    image: redis:7-alpine
+    storage:
+      size: 5Gi
+  external:
+    host: ""
+    port: 6379
+
+minio:
+  enabled: true
+  image: minio/minio:latest
+  storage:
+    size: 200Gi
+
+# 入口
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: anxin.internal.example
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: anxin-tls
+      hosts:
+        - anxin.internal.example
+  # 私有化常见诉求：仅内网 IP / 客户 VPN
+  annotations: {}
+
+# 可观测性（深入配置见 docs/v3/observability-deploy.md）
+observability:
+  prometheus:
+    enabled: false  # 若客户已有 Prometheus，关闭并通过 ServiceMonitor 暴露
+  grafana:
+    enabled: false
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+
+# 网络策略（NetworkPolicy）—— 强烈推荐在严格内网启用
+networkPolicy:
+  enabled: false
+  # 允许的出站目的地（CIDR）
+  egressAllowedCidrs: []
+
+# 强制 Pod Security Standards
+podSecurity:
+  level: restricted   # privileged | baseline | restricted
+
+# 节点亲和（私有化下常用 node selector 隔离 AI 工作负载）
+nodeSelector: {}
+tolerations: []
+affinity: {}
