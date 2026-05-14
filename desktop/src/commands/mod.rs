@@ -1,5 +1,6 @@
 pub mod app_mode;
 pub mod auth;
+pub mod capability; // A5 (2026-05-14)
 pub mod cli;
 pub mod file_drop;
 pub mod local_llm;

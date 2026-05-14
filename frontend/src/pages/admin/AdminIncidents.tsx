@@ -159,6 +159,31 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
+interface TriageOverview {
+  by_status?: Record<string, number>
+  by_severity?: Record<string, number>
+  by_source?: Record<string, number>
+}
+
+interface TriageCluster {
+  source: string
+  agent_name: string | null
+  route: string | null
+  severity_max: string
+  incident_count: number
+  total_occurrences: number
+  trend_24h: number
+  trend_1h: number
+  trend_label: string
+}
+
+interface TriageRunResult {
+  scanned: number
+  clusters: TriageCluster[]
+  transitioned: number
+  generated_at: string
+}
+
 export default function AdminIncidents() {
   const [loading, setLoading] = useState(true)
   const [items, setItems] = useState<Incident[]>([])
@@ -168,6 +193,11 @@ export default function AdminIncidents() {
   const [severityFilter, setSeverityFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [selected, setSelected] = useState<Incident | null>(null)
+
+  // A5: triage overview + last run result
+  const [overview, setOverview] = useState<TriageOverview | null>(null)
+  const [triageRunning, setTriageRunning] = useState(false)
+  const [lastTriage, setLastTriage] = useState<TriageRunResult | null>(null)
 
   const loadList = useCallback(async () => {
     setLoading(true)
@@ -216,9 +246,60 @@ export default function AdminIncidents() {
     }
   }, [page, sourceFilter, severityFilter, statusFilter])
 
+  // A5: 拉取 triage 全局视图
+  const loadOverview = useCallback(async () => {
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      try {
+        const token = localStorage.getItem('access_token')
+        if (token) headers['Authorization'] = `Bearer ${token}`
+      } catch { /* ignore */ }
+      const resp = await fetch(`${API_BASE_URL}/admin/incidents/triage/overview`, { headers })
+      if (!resp.ok) return
+      const json = await resp.json()
+      const body = (json?.data ?? json) as TriageOverview
+      setOverview(body)
+    } catch { /* silent — overview 失败不影响列表 */ }
+  }, [])
+
+  // A5: 触发 Slice 2 Triage 处理
+  const runTriage = useCallback(async (dryRun = false) => {
+    setTriageRunning(true)
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      try {
+        const token = localStorage.getItem('access_token')
+        if (token) headers['Authorization'] = `Bearer ${token}`
+      } catch { /* ignore */ }
+      const qs = new URLSearchParams({ dry_run: String(dryRun) })
+      const resp = await fetch(`${API_BASE_URL}/admin/incidents/triage/run?${qs}`, {
+        method: 'POST',
+        headers,
+      })
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+      const json = await resp.json()
+      const body = (json?.data ?? json) as TriageRunResult
+      setLastTriage(body)
+      toast.success(
+        `Triage 完成：扫描 ${body.scanned} 条 / 聚类 ${body.clusters.length} 个 / ${dryRun ? '试运行' : `转移 ${body.transitioned}`}`,
+      )
+      // 刷新列表 + overview
+      await Promise.all([loadList(), loadOverview()])
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'triage 失败'
+      toast.error(`Triage 失败：${msg}`)
+    } finally {
+      setTriageRunning(false)
+    }
+  }, [loadList, loadOverview])
+
   useEffect(() => {
     loadList()
   }, [loadList])
+
+  useEffect(() => {
+    loadOverview()
+  }, [loadOverview])
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
@@ -235,12 +316,118 @@ export default function AdminIncidents() {
       title="事件中心"
       description="汇集前端异常 / API 5xx / 校验失败 / 低评分等失败信号，自愈闭环 Slice 1"
       actions={
-        <Button variant="outline" size="sm" onClick={loadList} className="gap-2">
-          <icons.Refresh className="w-4 h-4" />
-          刷新
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => runTriage(true)}
+            disabled={triageRunning}
+            className="gap-2"
+          >
+            <icons.Eye className="w-4 h-4" />
+            试运行 Triage
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => runTriage(false)}
+            disabled={triageRunning}
+            className="gap-2"
+          >
+            <icons.Sparkles className="w-4 h-4" />
+            运行 Triage
+          </Button>
+          <Button variant="outline" size="sm" onClick={loadList} className="gap-2">
+            <icons.Refresh className="w-4 h-4" />
+            刷新
+          </Button>
+        </div>
       }
     >
+      {/* A5: Triage Overview 顶部统计卡 */}
+      {overview && (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="text-xs text-muted-foreground mb-1">按状态</div>
+              <div className="text-2xl font-semibold">
+                {Object.values(overview.by_status ?? {}).reduce((a, b) => a + b, 0)}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1 space-x-2">
+                {Object.entries(overview.by_status ?? {}).map(([k, v]) => (
+                  <span key={k}>{STATUS_LABEL[k] || k}: <b>{v}</b></span>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="text-xs text-muted-foreground mb-1">按级别</div>
+              <div className="flex gap-2 mt-1 flex-wrap">
+                {(['P0', 'P1', 'P2', 'P3'] as const).map(s => (
+                  <div key={s} className="flex items-center gap-1">
+                    <SeverityBadge severity={s} />
+                    <b>{overview.by_severity?.[s] ?? 0}</b>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="text-xs text-muted-foreground mb-1">按来源</div>
+              <div className="text-xs space-y-0.5 mt-1">
+                {Object.entries(overview.by_source ?? {}).map(([k, v]) => (
+                  <div key={k} className="flex justify-between">
+                    <span>{SOURCE_LABEL[k] || k}</span>
+                    <b>{v}</b>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* A5: 上次 Triage 聚类结果展示 (按 severity / total_occurrences 排序) */}
+      {lastTriage && lastTriage.clusters.length > 0 && (
+        <Card>
+          <CardContent className="pt-4 pb-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-medium">最近 Triage 聚类</div>
+              <div className="text-xs text-muted-foreground">
+                {new Date(lastTriage.generated_at).toLocaleString()} · 扫描 {lastTriage.scanned} 条 · 聚 {lastTriage.clusters.length} 类
+              </div>
+            </div>
+            <div className="space-y-1.5 max-h-64 overflow-auto">
+              {lastTriage.clusters.slice(0, 10).map((c, idx) => (
+                <div key={idx} className="flex items-center gap-2 text-xs px-2 py-1.5 rounded bg-muted/30 border border-border/40">
+                  <SeverityBadge severity={c.severity_max} />
+                  <SourceBadge source={c.source} />
+                  {c.agent_name && <span className="text-muted-foreground">agent={c.agent_name}</span>}
+                  {c.route && <span className="text-muted-foreground">route={c.route}</span>}
+                  <span className="ml-auto flex items-center gap-2">
+                    <span>{c.incident_count} 条 / {c.total_occurrences} 次</span>
+                    <Badge
+                      variant="outline"
+                      className={
+                        c.trend_label === 'surging'
+                          ? 'border-red-300 text-red-700 dark:text-red-400'
+                          : c.trend_label === 'quiet'
+                          ? 'border-muted text-muted-foreground'
+                          : 'border-border text-foreground'
+                      }
+                    >
+                      {c.trend_label}
+                    </Badge>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* 筛选栏 */}
       <Card>
         <CardContent className="pt-4 pb-4">
