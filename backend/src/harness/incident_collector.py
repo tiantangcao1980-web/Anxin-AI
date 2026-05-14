@@ -100,6 +100,17 @@ class IncidentCollector:
         Returns:
             Incident 实例（新建或被复用的旧记录，已 commit）
         """
+        # G1 (2026-05-14): caller 未传 trace_id 时自动从 current_trace() 注入,
+        # 让 Slice 3 builder 能把 incident 关联回 trace 链.
+        if trace_id is None:
+            try:
+                from src.harness.trace_context import current_trace
+                t = current_trace()
+                if t is not None:
+                    trace_id = t.trace_id
+            except Exception:
+                pass  # trace context 不可用时静默跳过
+
         # 1) PII 脱敏
         scrubbed_payload: dict[str, Any] = self._scrub_value(payload) or {}
         # 同时把 title 也脱敏一下，避免在 title 里泄露

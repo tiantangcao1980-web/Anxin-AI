@@ -54,6 +54,17 @@ async def collect_incident_safely(
         from src.harness.incident_collector import IncidentCollector
         from src.services.pii_service import pii_service
 
+        # G1 (2026-05-14): 自动从 current_trace() 注入 trace_id, 让 Slice 3 builder
+        # 能把 incident 关联回完整 trace 链。caller 显式传入时优先 caller 值。
+        if trace_id is None:
+            try:
+                from src.harness.trace_context import current_trace
+                t = current_trace()
+                if t is not None:
+                    trace_id = t.trace_id
+            except Exception:
+                pass  # trace context 不可用时静默跳过
+
         async with get_db_context() as db:
             collector = IncidentCollector(db, pii_service)
             await collector.collect(

@@ -373,13 +373,33 @@ function App() {
                 <Route path="contracts" element={<ManagementCenter />} />
                 <Route path="documents" element={<DocumentWorkbench />} />
                 <Route path="chat" element={<Chat />} />
-                <Route path="messages" element={<Messages />} />
-                <Route path="knowledge" element={<KnowledgeBase />} />
-                <Route path="investigation" element={<Investigation />} />
+                {/* G3 (2026-05-14): /pro/messages 走 hybrid_or_cloud + IM 网关能力协商 */}
+                <Route path="messages" element={
+                  <ModeGate required="hybrid_or_cloud" feature="即时通讯" featureKey="im_messaging">
+                    <Messages />
+                  </ModeGate>
+                } />
+                {/* G3: /pro/knowledge 走 local_ok_with_download + 法律智库能力协商 */}
+                <Route path="knowledge" element={
+                  <ModeGate required="local_ok_with_download" feature="法律智库" featureKey="legal_knowledge_base">
+                    <KnowledgeBase />
+                  </ModeGate>
+                } />
+                {/* G3: /pro/investigation 走 hybrid_or_cloud + 尽调能力协商 */}
+                <Route path="investigation" element={
+                  <ModeGate required="hybrid_or_cloud" feature="尽职调查" featureKey="due_diligence">
+                    <Investigation />
+                  </ModeGate>
+                } />
                 <Route path="onboarding" element={<LawyerOnboarding />} />
                 <Route path="subscription" element={<MySubscription />} />
                 <Route path="settings" element={<Settings />} />
-                <Route path="market" element={<CaseMarket />} />
+                {/* G3: /pro/market 走 hybrid_or_cloud + 案源市场能力协商 */}
+                <Route path="market" element={
+                  <ModeGate required="hybrid_or_cloud" feature="案源市场" featureKey="case_market">
+                    <CaseMarket />
+                  </ModeGate>
+                } />
               </Route>
 
               {/* 受保护的业务路由 — Layout 由 VITE_V3_NAV 切换（默认旧 Layout） */}

@@ -163,39 +163,45 @@ async def test_orchestrate_persona_missing_partial(
     """目标 persona 未注册 → subtask failed，整体 status=failed（仅 1 个 subtask 全部失败）。
 
     清空 registry 然后只放 anxin_assistant，确保 market_researcher 不在。
+    G4 (2026-05-14): 测试结束时恢复 market_researcher 注册, 避免污染后续测试。
     """
     # 强制让 market_researcher 不在 registry 中
     registry = PersonaRegistry.instance()
+    snapshot_class = registry.get_class("market_researcher")  # G4: 备份 class
     registry.unregister("market_researcher")
-
-    r = await auth_client.post(
-        "/api/v1/personas/anxin/orchestrate",
-        json={
-            "plan": {
-                "plan_id": "p2",
-                "user_query": "调研",
-                "subtasks": [
-                    {
-                        "task_id": "s1",
-                        "description": "调研",
-                        "assigned_persona": "market_researcher",
-                        "depends_on": [],
-                        "inputs": {"task": "调研"},
-                        "expected_output": "report",
-                    }
-                ],
-                "execution_mode": "sequential",
-            }
-        },
-    )
-    assert r.status_code == 200, r.text
-    body = r.json()
-    # market_researcher 不可达 → 该 subtask failed
-    assert "s1" in body["failed_subtasks"]
-    assert body["subtask_results"]["s1"]["status"] == "failed"
-    assert body["status"] in ("failed", "partial")
-    # final_summary 应给出转人工建议或失败描述
-    assert body["final_summary"]
+    try:
+        r = await auth_client.post(
+            "/api/v1/personas/anxin/orchestrate",
+            json={
+                "plan": {
+                    "plan_id": "p2",
+                    "user_query": "调研",
+                    "subtasks": [
+                        {
+                            "task_id": "s1",
+                            "description": "调研",
+                            "assigned_persona": "market_researcher",
+                            "depends_on": [],
+                            "inputs": {"task": "调研"},
+                            "expected_output": "report",
+                        }
+                    ],
+                    "execution_mode": "sequential",
+                }
+            },
+        )
+        assert r.status_code == 200, r.text
+        body = r.json()
+        # market_researcher 不可达 → 该 subtask failed
+        assert "s1" in body["failed_subtasks"]
+        assert body["subtask_results"]["s1"]["status"] == "failed"
+        assert body["status"] in ("failed", "partial")
+        # final_summary 应给出转人工建议或失败描述
+        assert body["final_summary"]
+    finally:
+        # G4: 恢复 market_researcher, 避免污染 test_dd_expert_persona / test_tax_finance_persona
+        if snapshot_class is not None:
+            registry.register(snapshot_class)
 
 
 # ---------------------------------------------------------------------------

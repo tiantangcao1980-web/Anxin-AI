@@ -186,3 +186,68 @@ async def test_fingerprint_stable(
     )
     assert fp3 == fp4, "选定 fingerprint_keys 时只看选定字段"
     assert fp3 != fp1, "fingerprint 算法应区分输入"
+
+
+# ====================================================================
+# G1 (2026-05-14): trace_id 自动从 current_trace() 注入
+# ====================================================================
+
+@pytest.mark.asyncio
+async def test_collect_auto_injects_trace_id(
+    collector: IncidentCollector,
+    db_session: AsyncSession,
+):
+    """G1: caller 未传 trace_id 时, collect() 自动从 current_trace() 注入。"""
+    from src.harness.trace_context import end_trace, start_trace
+
+    trace = start_trace(user_id="u_g1")
+    try:
+        incident = await collector.collect(
+            source=IncidentSource.OUTPUT_VALIDATOR,
+            title="G1 test",
+            payload={"k": "v"},
+            severity=IncidentSeverity.P2,
+        )
+        # 应自动拿到 current trace 的 trace_id
+        assert incident.trace_id == trace.trace_id
+    finally:
+        end_trace()
+
+
+@pytest.mark.asyncio
+async def test_collect_caller_trace_id_overrides_current_trace(
+    collector: IncidentCollector,
+    db_session: AsyncSession,
+):
+    """G1: caller 显式传 trace_id 时优先, 不被 current_trace 覆盖。"""
+    from src.harness.trace_context import end_trace, start_trace
+
+    start_trace(user_id="u_g1b")
+    try:
+        incident = await collector.collect(
+            source=IncidentSource.OUTPUT_VALIDATOR,
+            title="G1 explicit",
+            payload={"k": "v"},
+            trace_id="explicit_trace_xyz",
+        )
+        assert incident.trace_id == "explicit_trace_xyz"
+    finally:
+        end_trace()
+
+
+@pytest.mark.asyncio
+async def test_collect_no_active_trace_keeps_null(
+    collector: IncidentCollector,
+    db_session: AsyncSession,
+):
+    """G1: 没有活跃 trace 时, trace_id 保持 None, 不报错。"""
+    # 确保没有活跃 trace
+    from src.harness.trace_context import current_trace
+    assert current_trace() is None
+
+    incident = await collector.collect(
+        source=IncidentSource.API_5XX,
+        title="G1 no trace",
+        payload={"k": "v"},
+    )
+    assert incident.trace_id is None

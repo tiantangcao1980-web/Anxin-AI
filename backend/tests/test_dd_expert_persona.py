@@ -121,10 +121,11 @@ def test_persona_metadata_and_registry():
     assert "evidence_analyst" in persona.backed_by_agents
     assert "sentiment_agent" in persona.backed_by_agents
 
-    # 自动注册
+    # 自动注册 — G4 (2026-05-14): 显式 autoload, 不依赖测试顺序
     from src.agents.personas.registry import PersonaRegistry
 
     reg = PersonaRegistry.instance()
+    reg.autoload()
     assert reg.has("due_diligence_expert")
 
 
