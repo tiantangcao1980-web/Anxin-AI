@@ -53,9 +53,10 @@ def _result(decision: PolicyDecision, reason: str = "test") -> PolicyCheckResult
 # ===== ALLOW =====
 
 class TestAllow:
-    def test_allow_returns_true(self, warn_only_env, policy_stub):
+    @pytest.mark.asyncio
+    async def test_allow_returns_true(self, warn_only_env, policy_stub):
         policy_stub["return_value"] = _result(PolicyDecision.ALLOW)
-        allowed, info = policy_enforcement.check_tool_call("legal_advisor", "search")
+        allowed, info = await policy_enforcement.check_tool_call("legal_advisor", "search")
         assert allowed is True
         assert info["decision"] == "allow"
         assert info["enforce_mode"] is False
@@ -64,31 +65,34 @@ class TestAllow:
 # ===== DENY 在 warn-only 默认下不阻断 =====
 
 class TestDenyWarnOnly:
-    def test_deny_warn_only_does_not_block(self, warn_only_env, policy_stub, caplog):
+    @pytest.mark.asyncio
+    async def test_deny_warn_only_does_not_block(self, warn_only_env, policy_stub, caplog):
         policy_stub["return_value"] = _result(PolicyDecision.DENY, "out of whitelist")
         with caplog.at_level(logging.WARNING):
-            allowed, info = policy_enforcement.check_tool_call("legal_advisor", "send_email")
+            allowed, info = await policy_enforcement.check_tool_call("legal_advisor", "send_email")
         assert allowed is True, "warn-only 模式 DENY 不能真阻断"
         assert info["decision"] == "deny"
         assert info["enforced"] is False
 
-    def test_deny_warn_only_logs_warning(self, warn_only_env, policy_stub, monkeypatch):
+    @pytest.mark.asyncio
+    async def test_deny_warn_only_logs_warning(self, warn_only_env, policy_stub, monkeypatch):
         policy_stub["return_value"] = _result(PolicyDecision.DENY)
         captured = []
         monkeypatch.setattr(
             "src.harness.policy_enforcement.logger.warning",
             lambda msg, *a, **kw: captured.append(msg),
         )
-        policy_enforcement.check_tool_call("legal_advisor", "wire_money")
+        await policy_enforcement.check_tool_call("legal_advisor", "wire_money")
         assert any("DENY" in m and "warn-only" in m for m in captured)
 
 
 # ===== DENY 在 enforce 模式下真阻断 =====
 
 class TestDenyEnforce:
-    def test_deny_enforce_blocks(self, enforce_env, policy_stub):
+    @pytest.mark.asyncio
+    async def test_deny_enforce_blocks(self, enforce_env, policy_stub):
         policy_stub["return_value"] = _result(PolicyDecision.DENY, "blocked")
-        allowed, info = policy_enforcement.check_tool_call("legal_advisor", "wire_money")
+        allowed, info = await policy_enforcement.check_tool_call("legal_advisor", "wire_money")
         assert allowed is False, "enforce 模式 DENY 必须阻断"
         assert info["enforced"] is True
         assert info["enforce_mode"] is True
@@ -97,32 +101,40 @@ class TestDenyEnforce:
 # ===== REQUIRE_APPROVAL =====
 
 class TestRequireApproval:
-    def test_approval_warn_only_passes(self, warn_only_env, policy_stub):
+    @pytest.mark.asyncio
+    async def test_approval_warn_only_passes(self, warn_only_env, policy_stub):
+        """A6: warn-only 模式 + 未注入 db → 不创建工单, 仍放行 + warn"""
         policy_stub["return_value"] = _result(PolicyDecision.REQUIRE_APPROVAL, "needs review")
-        allowed, info = policy_enforcement.check_tool_call("contract_reviewer", "esign")
+        allowed, info = await policy_enforcement.check_tool_call("contract_reviewer", "esign")
         assert allowed is True
         assert info["decision"] == "require_approval"
         assert info["enforced"] is False
+        # 没传 db, 不应有 approval_id
+        assert "approval_id" not in info
 
-    def test_approval_enforce_passes_too_for_now(self, enforce_env, policy_stub):
-        """approvals 工作流接入是后续 PR；当前 enforce 模式也放行 require_approval"""
+    @pytest.mark.asyncio
+    async def test_approval_enforce_without_db_still_passes(self, enforce_env, policy_stub):
+        """A6: enforce 模式但未注入 db → 工单无法创建, 退化为 warn-only 放行 (保持向下兼容)"""
         policy_stub["return_value"] = _result(PolicyDecision.REQUIRE_APPROVAL)
-        allowed, _ = policy_enforcement.check_tool_call("contract_reviewer", "esign")
+        allowed, info = await policy_enforcement.check_tool_call("contract_reviewer", "esign")
         assert allowed is True
+        assert "approval_id" not in info
 
 
 # ===== policy 异常 =====
 
 class TestPolicyException:
-    def test_exception_does_not_block_main_path(self, warn_only_env, monkeypatch):
+    @pytest.mark.asyncio
+    async def test_exception_does_not_block_main_path(self, warn_only_env, monkeypatch):
         def boom(agent_name, tool_name):
             raise RuntimeError("policy down")
         monkeypatch.setattr(policy_engine, "check_tool_access", boom)
-        allowed, info = policy_enforcement.check_tool_call("legal_advisor", "search")
+        allowed, info = await policy_enforcement.check_tool_call("legal_advisor", "search")
         assert allowed is True, "policy 异常不能让主路径挂"
         assert info["decision"] == "policy_error"
 
-    def test_exception_logs_error_not_debug(self, warn_only_env, monkeypatch):
+    @pytest.mark.asyncio
+    async def test_exception_logs_error_not_debug(self, warn_only_env, monkeypatch):
         def boom(agent_name, tool_name):
             raise RuntimeError("policy down")
         monkeypatch.setattr(policy_engine, "check_tool_access", boom)
@@ -136,7 +148,7 @@ class TestPolicyException:
             "src.harness.policy_enforcement.logger.debug",
             lambda msg, *a, **kw: captured_debug.append(msg),
         )
-        policy_enforcement.check_tool_call("legal_advisor", "search")
+        await policy_enforcement.check_tool_call("legal_advisor", "search")
         # 关键契约：异常必须 ERROR，不能吞成 debug
         assert any("policy_engine" in m for m in captured_error)
         assert all("policy_engine" not in m for m in captured_debug)

@@ -390,27 +390,47 @@ class BaseLegalAgent(ABC):
             return str(name) if name else None
         return None
 
-    def _check_mcp_tool_policy(self, tool_name: str) -> tuple[bool, dict]:
-        """权限检查 (走 harness.policy_enforcement, 享受异常隔离 + env-var kill switch)。
+    async def _check_mcp_tool_policy(
+        self,
+        tool_name: str,
+        *,
+        db=None,
+        org_id: str | None = None,
+        requested_by: str | None = None,
+    ) -> tuple[bool, dict]:
+        """权限检查 (走 harness.policy_enforcement, 享受异常隔离 + env-var kill switch + A6 自动审批工单)。
 
         默认 enforce=True (1 周 warn-only 观察期已过); 紧急回滚走环境变量
         HARNESS_POLICY_ENFORCE=false 仍可单点降级 (需手动改 check_tool_call 调用)。
+
+        A6 (2026-05-14): 传入 db + org_id 后, REQUIRE_APPROVAL 决策会自动调
+        agent_approval_service.request_approval 创建审批工单, pending 状态
+        在 enforce 模式下阻断主路径, 等待人工 approve.
 
         返回 (allowed, info_dict)。allowed=False 时 info["reason"] 含拒绝原因。
         """
         from src.harness.policy_enforcement import check_tool_call
 
-        return check_tool_call(self.name, tool_name, enforce=True)
+        return await check_tool_call(
+            self.name, tool_name,
+            enforce=True,
+            db=db, org_id=org_id, requested_by=requested_by,
+        )
 
-    def _filter_mcp_tools_for_policy(self, tools: list[JSONDict]) -> list[JSONDict]:
-        """LLM 上下文前置过滤: 只把 ALLOW 工具展示给 LLM, 减少诱导越权。"""
+    async def _filter_mcp_tools_for_policy(self, tools: list[JSONDict]) -> list[JSONDict]:
+        """LLM 上下文前置过滤: 只把 ALLOW 工具展示给 LLM, 减少诱导越权。
+
+        注: 前置过滤不需要审批工单 (这一轮只是给 LLM 看, 没真正执行), 因此
+        不传 db/org_id, REQUIRE_APPROVAL 走 warn-only 路径放行展示, 实际执行
+        时 _execute_tool 内的二次判权再走完整审批流。
+        """
         allowed_tools: list[JSONDict] = []
         for tool in tools:
             tool_name = self._extract_tool_name(tool)
             if not tool_name:
                 logger.warning(f"Agent {self.name}: 跳过无名称 MCP 工具")
                 continue
-            allowed, info = self._check_mcp_tool_policy(tool_name)
+            allowed, info = await self._check_mcp_tool_policy(tool_name)
             if allowed:
                 allowed_tools.append(tool)
             else:
@@ -542,7 +562,7 @@ class BaseLegalAgent(ABC):
             except Exception as e:
                 logger.warning(f"获取 MCP 工具失败: {e}")
                 available_tools = []
-            available_tools = self._filter_mcp_tools_for_policy(available_tools)
+            available_tools = await self._filter_mcp_tools_for_policy(available_tools)
 
             max_turns = 5  # Prevent infinite loops
             current_turn = 0
@@ -673,12 +693,23 @@ class BaseLegalAgent(ABC):
                         fn_name = fn["name"]
                         fn_args_str = fn["arguments"]
                         try:
-                            allowed, policy_info = self._check_mcp_tool_policy(fn_name)
+                            # A6: 把 db + org_id 透传给 policy_enforcement, REQUIRE_APPROVAL 自动建工单
+                            _route_ctx = effective_mcp_route_context or {}
+                            allowed, policy_info = await self._check_mcp_tool_policy(
+                                fn_name,
+                                db=_route_ctx.get("db"),
+                                org_id=_route_ctx.get("org_id"),
+                                requested_by=_route_ctx.get("user_id") or _route_ctx.get("requested_by"),
+                            )
                             if not allowed:
                                 reason = policy_info.get("reason", "权限策略拒绝")
                                 tool_output = self._tool_policy_denial(fn_name, reason)
+                                # A6: 若已自动创建审批工单, 在 tool_output 里告知 user
+                                _ap_id = policy_info.get("approval_id")
+                                if _ap_id:
+                                    tool_output += f"\n\n该操作需要人工审批, 已自动创建工单 {_ap_id}, 审批通过后请重试。"
                                 logger.warning(
-                                    f"Tool execution denied for {fn_name}: {reason}"
+                                    f"Tool execution denied for {fn_name}: {reason} approval={_ap_id}"
                                 )
                                 return {
                                     "role": "tool",

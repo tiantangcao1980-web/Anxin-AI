@@ -39,11 +39,15 @@ DENY_TOOL_OUTPUT = (
 )
 
 
-def check_tool_call(
+async def check_tool_call(
     agent_name: str,
     tool_name: str,
     *,
     enforce: bool | None = None,
+    db=None,
+    org_id: str | None = None,
+    requested_by: str | None = None,
+    action_payload: dict | None = None,
 ) -> Tuple[bool, dict]:
     """检查 agent 是否可调用 tool。
 
@@ -53,6 +57,13 @@ def check_tool_call(
         enforce: 显式覆盖模式 (True=硬阻断, False=warn-only)。None 时读
             HARNESS_POLICY_ENFORCE 环境变量(默认 warn-only)。
             base.py 主路径默认 enforce=True (1 周观察期已过)。
+        db: 可选 AsyncSession (A6 2026-05-14). 当 decision=REQUIRE_APPROVAL
+            且 db + org_id 都提供时, 自动调 agent_approval_service.request_approval
+            创建审批工单, decision_dict 含 approval_id; enforce 模式下仍 deny,
+            warn-only 模式下放行但保留审计记录.
+        org_id: 见 db.
+        requested_by: 审批工单的 requested_by 字段 (通常是 user_id).
+        action_payload: 审批工单 payload (默认含 agent_name + tool_name).
 
     返回 (allowed, decision_dict)。warn-only 模式下 allowed 始终为 True。
     """
@@ -81,11 +92,58 @@ def check_tool_call(
         return True, decision_dict
 
     if result.decision == PolicyDecision.REQUIRE_APPROVAL:
-        # 后续 PR 接 approvals 工作流；当前 warn-only 模式视同放行 + warn
-        logger.warning(
-            f"[Harness][policy] REQUIRE_APPROVAL agent={agent_name} tool={tool_name} "
-            f"reason={result.reason} (warn-only, 后续接 approvals)"
-        )
+        # A6 (2026-05-14): 自动创建审批工单 (db + org_id 都到位时)
+        approval_id: str | None = None
+        approval_status: str | None = None
+        if db is not None and org_id:
+            try:
+                from src.services.agent_approval_service import AgentApprovalService
+
+                svc = AgentApprovalService(db)
+                payload = dict(action_payload or {})
+                payload.setdefault("agent_name", agent_name)
+                payload.setdefault("tool_name", tool_name)
+                payload.setdefault("policy_reason", result.reason)
+                decision = await svc.request_approval(
+                    org_id=org_id,
+                    action_type=f"mcp_tool:{tool_name}",
+                    risk_level="high",  # REQUIRE_APPROVAL 默认归类高风险
+                    requested_by=requested_by,
+                    route_key=None,
+                    payload=payload,
+                )
+                if decision.allowed:
+                    approval_id = decision.approval_id
+                    approval_status = decision.status
+                    decision_dict["approval_id"] = approval_id
+                    decision_dict["approval_status"] = approval_status
+                    logger.warning(
+                        f"[Harness][policy] REQUIRE_APPROVAL agent={agent_name} tool={tool_name} "
+                        f"→ 已创建审批工单 {approval_id} (status={approval_status})"
+                    )
+                else:
+                    logger.error(
+                        f"[Harness][policy] REQUIRE_APPROVAL agent={agent_name} tool={tool_name} "
+                        f"创建审批工单失败: {decision.reason_code} {decision.reason_message}"
+                    )
+                    decision_dict["approval_create_failed"] = decision.reason_code
+            except Exception as exc:
+                logger.error(
+                    f"[Harness][policy] REQUIRE_APPROVAL agent={agent_name} tool={tool_name} "
+                    f"审批服务异常 (不阻断, 主路径继续): {exc}"
+                )
+                decision_dict["approval_error"] = str(exc)
+        else:
+            logger.warning(
+                f"[Harness][policy] REQUIRE_APPROVAL agent={agent_name} tool={tool_name} "
+                f"reason={result.reason} (db/org_id 未注入, 跳过工单创建)"
+            )
+
+        # enforce 模式 + 已创建 pending 审批 → 阻断 (等人工 approve)
+        if enforce and approval_status == "pending":
+            decision_dict["enforced"] = True
+            return False, decision_dict
+        # warn-only 模式或工单创建失败 → 放行 + 审计
         decision_dict["enforced"] = False
         return True, decision_dict
 
