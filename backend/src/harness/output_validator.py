@@ -381,44 +381,49 @@ class OutputValidator:
                 f"fails={[i.message for i in issues if i.level in (ValidationLevel.FAIL, ValidationLevel.CRITICAL)]}"
             )
 
-            # ===== CREAO 自愈闭环 Slice 1: 上报 incident（可选注入） =====
-            if self.incident_collector is not None:
-                try:
-                    # 延迟导入，避免循环依赖；Agent A 提供这些 schema
-                    from src.schemas.incident import IncidentSource, IncidentSeverity
+            # ===== CREAO 自愈闭环 Slice 1: 上报 incident =====
+            # E1 (2026-05-14): incident_collector 显式注入优先 (测试场景),
+            # 否则 fallback 到 collect_incident_safely (生产路径, 自带 db context)
+            try:
+                from src.schemas.incident import IncidentSource, IncidentSeverity
 
-                    # 兼容 dataclass / pydantic：优先 to_dict，回退到 __dict__
-                    issues_payload = []
-                    for issue in issues:
-                        if hasattr(issue, "dict"):
-                            issues_payload.append(issue.dict())
-                        elif hasattr(issue, "__dict__"):
-                            issues_payload.append({
-                                "check_name": getattr(issue, "check_name", ""),
-                                "level": getattr(issue.level, "value", str(issue.level))
-                                    if hasattr(issue, "level") else "",
-                                "message": getattr(issue, "message", ""),
-                                "detail": getattr(issue, "detail", None),
-                            })
-                        else:
-                            issues_payload.append(str(issue))
+                # 兼容 dataclass / pydantic: 优先 to_dict, 回退到 __dict__
+                issues_payload = []
+                for issue in issues:
+                    if hasattr(issue, "dict"):
+                        issues_payload.append(issue.dict())
+                    elif hasattr(issue, "__dict__"):
+                        issues_payload.append({
+                            "check_name": getattr(issue, "check_name", ""),
+                            "level": getattr(issue.level, "value", str(issue.level))
+                                if hasattr(issue, "level") else "",
+                            "message": getattr(issue, "message", ""),
+                            "detail": getattr(issue, "detail", None),
+                        })
+                    else:
+                        issues_payload.append(str(issue))
 
-                    await self.incident_collector.collect(
-                        source=IncidentSource.OUTPUT_VALIDATOR,
-                        title=f"validator rejected {agent_name}",
-                        payload={
-                            "agent_name": agent_name,
-                            "route": route,
-                            "issues": issues_payload,
-                            "user_query": (user_query or "")[:500],
-                        },
-                        severity=IncidentSeverity.P1,
-                        agent_name=agent_name,
-                        route=route,
-                        fingerprint_keys=["agent_name", "route", "issues"],
-                    )
-                except Exception as hook_err:
-                    logger.error(f"[OutputValidator] incident hook failed: {hook_err}")
+                _incident_kwargs = dict(
+                    source=IncidentSource.OUTPUT_VALIDATOR,
+                    title=f"validator rejected {agent_name}",
+                    payload={
+                        "agent_name": agent_name,
+                        "route": route,
+                        "issues": issues_payload,
+                        "user_query": (user_query or "")[:500],
+                    },
+                    severity=IncidentSeverity.P1,
+                    agent_name=agent_name,
+                    route=route,
+                    fingerprint_keys=["agent_name", "route", "issues"],
+                )
+                if self.incident_collector is not None:
+                    await self.incident_collector.collect(**_incident_kwargs)
+                else:
+                    from src.harness.incident_hook import collect_incident_safely
+                    await collect_incident_safely(**_incident_kwargs)
+            except Exception as hook_err:
+                logger.error(f"[OutputValidator] incident hook failed: {hook_err}")
 
         return result
 

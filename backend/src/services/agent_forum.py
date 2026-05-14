@@ -245,24 +245,29 @@ class AgentForum:
                     "conflict": conflict.to_dict(),
                 }
 
-                # ===== CREAO 自愈闭环 Slice 1: 上报 incident（可选注入） =====
-                if self.incident_collector is not None:
-                    try:
-                        from src.schemas.incident import IncidentSource, IncidentSeverity
+                # ===== CREAO 自愈闭环 Slice 1: 上报 incident =====
+                # E1 (2026-05-14): 优先用注入的 collector (测试), 否则用 safely fallback (生产)
+                try:
+                    from src.schemas.incident import IncidentSource, IncidentSeverity
 
-                        await self.incident_collector.collect(
-                            source=IncidentSource.AGENT_FORUM,
-                            title=f"agent disagreement: {conflict.topic}",
-                            payload={
-                                "agents": list(conflict.agents_involved),
-                                "positions": dict(conflict.positions),
-                                "topic": conflict.topic,
-                            },
-                            severity=IncidentSeverity.P1,
-                            fingerprint_keys=["topic"],
-                        )
-                    except Exception as hook_err:
-                        logger.error(f"[AgentForum] incident hook failed: {hook_err}")
+                    _kwargs = dict(
+                        source=IncidentSource.AGENT_FORUM,
+                        title=f"agent disagreement: {conflict.topic}",
+                        payload={
+                            "agents": list(conflict.agents_involved),
+                            "positions": dict(conflict.positions),
+                            "topic": conflict.topic,
+                        },
+                        severity=IncidentSeverity.P1,
+                        fingerprint_keys=["topic"],
+                    )
+                    if self.incident_collector is not None:
+                        await self.incident_collector.collect(**_kwargs)
+                    else:
+                        from src.harness.incident_hook import collect_incident_safely
+                        await collect_incident_safely(**_kwargs)
+                except Exception as hook_err:
+                    logger.error(f"[AgentForum] incident hook failed: {hook_err}")
 
         # ===== 阶段 3：辩论轮次（如果有冲突） =====
         if conflicts and follow_up_questions:

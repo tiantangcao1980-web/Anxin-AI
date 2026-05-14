@@ -174,12 +174,13 @@ class EpisodicMemoryService:
             )
             logger.info(f"已更新记忆反馈: {memory_id}, 评分: {rating}")
 
-            # ===== CREAO 自愈闭环 Slice 1: 低评分上报 incident（可选注入） =====
-            if rating <= 2 and self.incident_collector is not None:
+            # ===== CREAO 自愈闭环 Slice 1: 低评分上报 incident =====
+            # E1 (2026-05-14): 优先用注入的 collector, 否则用 safely fallback
+            if rating <= 2:
                 try:
                     from src.schemas.incident import IncidentSource, IncidentSeverity
 
-                    await self.incident_collector.collect(
+                    _kwargs = dict(
                         source=IncidentSource.LOW_RATING,
                         title=f"user low rating: {rating}",
                         payload={
@@ -191,6 +192,11 @@ class EpisodicMemoryService:
                         user_id=user_id,
                         fingerprint_keys=["memory_id"],
                     )
+                    if self.incident_collector is not None:
+                        await self.incident_collector.collect(**_kwargs)
+                    else:
+                        from src.harness.incident_hook import collect_incident_safely
+                        await collect_incident_safely(**_kwargs)
                 except Exception as hook_err:
                     logger.error(f"[EpisodicMemory] incident hook failed: {hook_err}")
 
