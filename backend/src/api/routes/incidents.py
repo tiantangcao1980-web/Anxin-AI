@@ -39,6 +39,26 @@ from src.services.pii_service import pii_service
 router = APIRouter(tags=["Incidents"])
 
 
+# A10 (2026-05-14): 二级限频 (指纹 + 用户) 防 burst
+# 第一级是 rate_limit decorator 的 5 req/min/IP (已有, 防匿名爬虫)
+# 第二级:
+#   - 指纹: 同 (url + message hash) 60s 内 ≥ 20 次 → 429 (单错误反复抖动)
+#   - 用户: 同 user_id 60s 内 ≥ 30 次 → 429 (单认证用户失控刷)
+# 实现移到 src.utils.rate_limit_burst, 单测可不经 FastAPI 链路独立运行.
+
+from src.utils.rate_limit_burst import (
+    check_burst as _check_burst,
+    fingerprint_buckets as _fingerprint_buckets,
+    fingerprint_preview as _fingerprint_preview,
+    rate_lock as _rate_lock,
+    user_buckets as _user_buckets,
+    _FINGERPRINT_BURST_LIMIT,
+    _FINGERPRINT_WINDOW_SECONDS,
+    _USER_BURST_LIMIT,
+    _USER_WINDOW_SECONDS,
+)
+
+
 # ============================================================
 # POST /api/v1/incidents/report  — 前端错误上报
 # ============================================================
@@ -64,6 +84,23 @@ async def report_incident(
     - source 强制为 FRONTEND_ERROR，severity 强制为 P3（防伪造，与 schema 注释一致）
     """
     collector = IncidentCollector(db, pii_service)
+
+    # A10: 二级限频 — 指纹 + 用户级 burst 防护
+    fp_key = _fingerprint_preview(payload.url, payload.message)
+    user_key = str(user.id) if user else None
+    with _rate_lock:
+        if _check_burst(_fingerprint_buckets[fp_key], _FINGERPRINT_WINDOW_SECONDS, _FINGERPRINT_BURST_LIMIT):
+            logger.warning(f"[incidents.report] 指纹 burst 限流 fp={fp_key}")
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="该错误近期重复出现过多, 服务端已暂时屏蔽上报",
+            )
+        if user_key and _check_burst(_user_buckets[user_key], _USER_WINDOW_SECONDS, _USER_BURST_LIMIT):
+            logger.warning(f"[incidents.report] 用户 burst 限流 user_id={user_key}")
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="单用户上报频率过高, 请稍后再试",
+            )
 
     # 把客户端只允许的几个白名单字段塞进 incident.payload
     inner_payload: dict = {
