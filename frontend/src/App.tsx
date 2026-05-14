@@ -26,6 +26,8 @@ import { ThemeProvider } from '@/components/ThemeProvider'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { AdminRoute } from '@/components/auth/AdminRoute'
 import AdminLayout from '@/components/admin/AdminLayout'
+import { MarketingLayout } from '@/components/marketing/MarketingLayout'
+import { RootGate } from '@/components/marketing/RootGate'
 import { initLocalDatabase } from '@/lib/api-adapter'
 import { fetchCurrentUserWithToken, installDesktopDataNetworkGuard, refreshAuthSession, setDesktopRuntimePrivacyMode } from '@/lib/api'
 import { getTokenStorage } from '@/lib/platform/storage'
@@ -87,6 +89,20 @@ const NotFound = lazy(() => import('@/pages/NotFound'))
 
 // 登录页
 const Login = lazy(() => import('@/pages/Login'))
+const OidcCallback = lazy(() => import('@/pages/OidcCallback'))
+
+// ===== 公开官网（marketing site，无需登录） =====
+const MarketingHome = lazy(() => import('@/pages/marketing/Home'))
+const MarketingFeatures = lazy(() => import('@/pages/marketing/Features'))
+const MarketingPersonas = lazy(() => import('@/pages/marketing/Personas'))
+const MarketingPricing = lazy(() => import('@/pages/marketing/PricingPublic'))
+const MarketingSecurity = lazy(() => import('@/pages/marketing/Security'))
+const MarketingAbout = lazy(() => import('@/pages/marketing/About'))
+const MarketingContact = lazy(() => import('@/pages/marketing/Contact'))
+const MarketingPrivacy = lazy(() => import('@/pages/marketing/Privacy'))
+const MarketingTerms = lazy(() => import('@/pages/marketing/Terms'))
+const MarketingCases = lazy(() => import('@/pages/marketing/Cases'))
+const MarketingBlog = lazy(() => import('@/pages/marketing/Blog'))
 
 // V2 架构：服务方端独立布局
 import ProLayout from '@/components/pro/ProLayout'
@@ -335,8 +351,27 @@ function App() {
             <SubscriptionGate />
             <Suspense fallback={<PageSkeleton />}>
               <Routes>
+              {/* ===== 公开根路由分发：已登录 → /chat，未登录 → /site ===== */}
+              <Route path="/" element={<RootGate />} />
+
+              {/* ===== 公开官网（marketing，匿名可访问） ===== */}
+              <Route path="/site" element={<MarketingLayout />}>
+                <Route index element={<MarketingHome />} />
+                <Route path="features" element={<MarketingFeatures />} />
+                <Route path="personas" element={<MarketingPersonas />} />
+                <Route path="pricing" element={<MarketingPricing />} />
+                <Route path="security" element={<MarketingSecurity />} />
+                <Route path="about" element={<MarketingAbout />} />
+                <Route path="contact" element={<MarketingContact />} />
+                <Route path="cases" element={<MarketingCases />} />
+                <Route path="blog" element={<MarketingBlog />} />
+                <Route path="privacy" element={<MarketingPrivacy />} />
+                <Route path="terms" element={<MarketingTerms />} />
+              </Route>
+
               {/* 登录页（不需要 Layout 和路由守卫） */}
               <Route path="/login" element={<Login />} />
+              <Route path="/login/oidc/callback" element={<OidcCallback />} />
               {/* V2 架构：服务方端（律师/律所）专属登录入口 */}
               <Route path="/pro/login" element={<Login />} />
               <Route path="/desktop/quick-query" element={<QuickQuery />} />
@@ -380,10 +415,10 @@ function App() {
                 <Route path="market" element={<CaseMarket />} />
               </Route>
 
-              {/* 受保护的业务路由 — Layout 由 VITE_V3_NAV 切换（默认旧 Layout） */}
-              <Route path="/" element={<ProtectedRoute><RootLayout /></ProtectedRoute>}>
-                <Route index element={<Navigate to="/chat" replace />} />
-
+              {/* 受保护的业务路由 — Layout 由 VITE_V3_NAV 切换（默认旧 Layout）
+                  注：根路径 "/" 由顶部 RootGate 接管（已登录 → /chat，未登录 → /site）。
+                  这里使用 pathless 父路由，避免与 RootGate 在 "/" 处冲突。*/}
+              <Route element={<ProtectedRoute><RootLayout /></ProtectedRoute>}>
                 {/* ===== V3 IA 新增路由（占位） ===== */}
                 <Route path="agents" element={<AgentsPage />} />
                 <Route path="capabilities/scheduled-tasks" element={<ScheduledTasksPage />} />

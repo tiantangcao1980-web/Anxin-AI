@@ -1,0 +1,63 @@
+{{- if .Values.worker.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "anxin.fullname" . }}-worker
+  labels:
+    {{- include "anxin.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  replicas: {{ .Values.worker.replicas }}
+  selector:
+    matchLabels:
+      {{- include "anxin.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        {{- include "anxin.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: worker
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.backend.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: worker
+          image: {{ include "anxin.backend.image" . }}
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          command:
+            {{- toYaml .Values.worker.command | nindent 12 }}
+          env:
+            - name: ENVIRONMENT
+              value: {{ .Values.global.environment | quote }}
+            - name: DEV_MODE
+              value: "false"
+            - name: AIRGAP
+              value: {{ .Values.global.airgap | quote }}
+            - name: DATABASE_URL
+              value: postgresql://anxin:$(POSTGRES_PASSWORD)@{{ include "anxin.fullname" . }}-postgres:5432/anxin_enterprise
+            - name: REDIS_URL
+              value: redis://:$(REDIS_PASSWORD)@{{ include "anxin.fullname" . }}-redis:6379/0
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "anxin.fullname" . }}-secrets
+                  key: POSTGRES_PASSWORD
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "anxin.fullname" . }}-secrets
+                  key: REDIS_PASSWORD
+            - name: SKILL_SANDBOX_PUBLISHER_KEYS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "anxin.fullname" . }}-secrets
+                  key: SKILL_SANDBOX_PUBLISHER_KEYS
+          resources:
+            {{- toYaml .Values.worker.resources | nindent 12 }}
+{{- end }}

@@ -21,6 +21,7 @@ import { SkillSearchBar } from '@/components/v3/skills/SkillSearchBar'
 import { SkillDetailDrawer } from '@/components/v3/skills/SkillDetailDrawer'
 import { SkillUploadDialog } from '@/components/v3/skills/SkillUploadDialog'
 import { SkillExecuteDialog } from '@/components/v3/skills/SkillExecuteDialog'
+import { SecureSkillInstallButton } from '@/components/v3/skills/SecureSkillInstallButton'
 
 import type { Skill, SkillCategory } from '@/lib/api/skills'
 import { useSkillsStore } from '@/lib/store/skillsStore'
@@ -106,9 +107,10 @@ export default function SkillsPage() {
             <RefreshCcw className={loading ? 'animate-spin' : ''} />
             刷新
           </Button>
-          <Button size="sm" onClick={() => setUploadOpen(true)}>
+          <SecureSkillInstallButton size="sm" onInstalled={reload} />
+          <Button size="sm" variant="ghost" onClick={() => setUploadOpen(true)}>
             <Upload className="size-4" />
-            上传 SKILL.md
+            旧版上传
           </Button>
         </div>
       </header>

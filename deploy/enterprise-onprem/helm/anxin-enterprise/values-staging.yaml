@@ -1,0 +1,66 @@
+# =====================================================================
+# Helm values · staging（POC / 客户预演环境）
+#
+# 区别于 production：
+#   - 较小副本与资源
+#   - environment=staging（部分功能更宽松）
+#   - 默认放开 dev-only feature（如 Sentry / debug log）
+# =====================================================================
+
+global:
+  imageRegistry: ghcr.io/anxin
+  environment: staging
+  airgap: false
+
+backend:
+  enabled: true
+  replicas: 1
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits:   { cpu: 2000m, memory: 4Gi }
+  authRedisFailClosed: "true"
+
+worker:
+  enabled: true
+  replicas: 1
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits:   { cpu: 2000m, memory: 4Gi }
+
+postgres:
+  inCluster:
+    enabled: true
+    storage:
+      size: 50Gi
+
+redis:
+  inCluster:
+    enabled: true
+    storage:
+      size: 5Gi
+
+minio:
+  enabled: true
+  storage:
+    size: 100Gi
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: anxin-staging.your-company.example
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []  # staging 可暂时跳过 TLS（强烈不建议 prod 跳过）
+
+networkPolicy:
+  enabled: false  # staging 默认放宽，便于排错
+
+podSecurity:
+  level: baseline
+
+ldapSync:
+  enabled: false
+imSync:
+  enabled: false

@@ -360,6 +360,8 @@ export interface User {
   user_type?: string
   avatar_url?: string
   email_verified?: boolean
+  /** 组织 ID —— Admin / Enterprise 管理面板需要 */
+  org_id?: string | null
 }
 
 export async function refreshAuthSession(): Promise<string | null> {

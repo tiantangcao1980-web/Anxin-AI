@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 
 @dataclass(slots=True)
@@ -50,6 +51,10 @@ class Skill:
     personas: list[str] = field(default_factory=list)
     enabled: bool = True
     author: str | None = None
+
+    # P5-沙箱：来自 frontmatter 的 ``sandbox`` 块原始字典；
+    # 缺省 None 表示 T0 prompt-only。由 ``skill_sandbox.SandboxManifest`` 解析。
+    sandbox_raw: dict[str, Any] | None = None
 
     # ------------------------------------------------------------------
     # 工具方法
@@ -97,4 +102,5 @@ class Skill:
             "author": self.author,
             "file_path": str(self.file_path) if self.file_path else None,
             "body_length": len(self.body),
+            "sandbox_tier": (self.sandbox_raw or {}).get("tier") if self.sandbox_raw else None,
         }

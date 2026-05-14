@@ -8,6 +8,10 @@
 import { useState, useEffect } from'react'
 import { PageContainer } from'@/components/ui/PageContainer'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from'@/components/ui/tabs'
+import { DepartmentTreePanel } from '@/components/admin/enterprise/DepartmentTreePanel'
+import { RoleBindingPanel } from '@/components/admin/enterprise/RoleBindingPanel'
+import { SkillQuotaPanel } from '@/components/admin/enterprise/SkillQuotaPanel'
+import { useAuthStore } from '@/lib/store'
 import { Button } from'@/components/ui/button'
 import { icons } from'@/lib/icons'
 import { cardStyle, complianceScoreColors, heading, statusBadge, inputStyle, iconSize, riskLevelColors } from'@/lib/design-tokens'
@@ -164,8 +168,11 @@ export default function AdminEnterprise() {
  )
  }
 
+ // 当前账号所属组织 —— 给部门 / 角色绑定面板用
+ const orgId = useAuthStore((s) => s.user?.org_id || null)
+
  return (
- <PageContainer title="企业管理" description="企业信息、合规监控与风险概览">
+ <PageContainer title="企业管理" description="企业信息、合规监控、风险概览、组织目录与权限">
  <Tabs defaultValue="info">
  <TabsList>
  <TabsTrigger value="info">
@@ -180,6 +187,18 @@ export default function AdminEnterprise() {
  <icons.AlertTriangle className="w-4 h-4 mr-1.5" />
  风险概览
  </TabsTrigger>
+ <TabsTrigger value="directory">
+ <icons.Network className="w-4 h-4 mr-1.5" />
+ 组织目录
+ </TabsTrigger>
+ <TabsTrigger value="bindings">
+ <icons.Lock className="w-4 h-4 mr-1.5" />
+ 权限绑定
+ </TabsTrigger>
+ <TabsTrigger value="quota">
+ <icons.Cpu className="w-4 h-4 mr-1.5" />
+ Skill 配额
+ </TabsTrigger>
  </TabsList>
 
  <TabsContent value="info">
@@ -192,6 +211,18 @@ export default function AdminEnterprise() {
 
  <TabsContent value="risk">
  <RiskOverviewTab riskItems={riskItems} riskTrend={riskTrend} />
+ </TabsContent>
+
+ <TabsContent value="directory">
+ <DepartmentTreePanel orgId={orgId} />
+ </TabsContent>
+
+ <TabsContent value="bindings">
+ <RoleBindingPanel orgId={orgId} />
+ </TabsContent>
+
+ <TabsContent value="quota">
+ <SkillQuotaPanel orgId={orgId} />
  </TabsContent>
  </Tabs>
  </PageContainer>
