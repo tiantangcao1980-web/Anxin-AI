@@ -152,3 +152,44 @@ class TestPolicyException:
         # 关键契约：异常必须 ERROR，不能吞成 debug
         assert any("policy_engine" in m for m in captured_error)
         assert all("policy_engine" not in m for m in captured_debug)
+
+
+# ===== A7: trace_context 写入 _policy_info =====
+
+class TestTracePolicyInfo:
+    @pytest.mark.asyncio
+    async def test_deny_writes_to_trace_policy_info(self, enforce_env, policy_stub):
+        """A7: DENY 决策写入 current_trace._policy_info, ALLOW 不写。"""
+        from src.harness.trace_context import end_trace, start_trace
+
+        trace = start_trace(user_id="u_a7")
+        try:
+            policy_stub["return_value"] = _result(PolicyDecision.DENY, "blocked_a7")
+            await policy_enforcement.check_tool_call("agent_a7", "send_email")
+
+            summary = trace.to_summary()
+            policy_info = summary.get("_policy_info", [])
+            assert len(policy_info) == 1
+            assert policy_info[0]["decision"] == "deny"
+            assert policy_info[0]["tool"] == "send_email"
+            assert policy_info[0]["enforced"] is True
+            assert policy_info[0]["reason"] == "blocked_a7"
+            assert "ts" in policy_info[0]
+        finally:
+            end_trace()
+
+    @pytest.mark.asyncio
+    async def test_allow_does_not_pollute_trace_policy_info(self, warn_only_env, policy_stub):
+        """A7: ALLOW 不写, 避免高频 ALLOW 撑爆 trace metadata。"""
+        from src.harness.trace_context import end_trace, start_trace
+
+        trace = start_trace(user_id="u_a7b")
+        try:
+            policy_stub["return_value"] = _result(PolicyDecision.ALLOW)
+            for _ in range(5):
+                await policy_enforcement.check_tool_call("agent_a7b", "search")
+
+            summary = trace.to_summary()
+            assert summary.get("_policy_info", []) == []
+        finally:
+            end_trace()

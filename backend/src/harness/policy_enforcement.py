@@ -81,6 +81,7 @@ async def check_tool_call(
         # 关键：policy 故障不能让主路径全挂
         logger.error(f"[Harness] policy_engine 调用异常 agent={agent_name} tool={tool_name}: {e}")
         decision_dict.update({"decision": "policy_error", "reason": str(e)})
+        _record_to_trace(decision_dict)
         return True, decision_dict
 
     decision_dict.update({
@@ -89,6 +90,7 @@ async def check_tool_call(
     })
 
     if result.decision == PolicyDecision.ALLOW:
+        # ALLOW 不写 trace _policy_info (避免噪声)
         return True, decision_dict
 
     if result.decision == PolicyDecision.REQUIRE_APPROVAL:
@@ -142,9 +144,11 @@ async def check_tool_call(
         # enforce 模式 + 已创建 pending 审批 → 阻断 (等人工 approve)
         if enforce and approval_status == "pending":
             decision_dict["enforced"] = True
+            _record_to_trace(decision_dict)
             return False, decision_dict
         # warn-only 模式或工单创建失败 → 放行 + 审计
         decision_dict["enforced"] = False
+        _record_to_trace(decision_dict)
         return True, decision_dict
 
     # DENY 分支
@@ -154,6 +158,7 @@ async def check_tool_call(
             f"reason={result.reason} ENFORCED"
         )
         decision_dict["enforced"] = True
+        _record_to_trace(decision_dict)
         return False, decision_dict
 
     # warn-only
@@ -162,4 +167,18 @@ async def check_tool_call(
         f"reason={result.reason} (warn-only, 实际放行；切换 enforce 设 HARNESS_POLICY_ENFORCE=true)"
     )
     decision_dict["enforced"] = False
+    _record_to_trace(decision_dict)
     return True, decision_dict
+
+
+def _record_to_trace(decision_dict: dict) -> None:
+    """A7: 把非 ALLOW 决策写入当前 trace 的 _policy_info, 供 admin 审计。"""
+    try:
+        from src.harness.trace_context import current_trace
+
+        trace = current_trace()
+        if trace is not None:
+            trace.record_policy_decision(decision_dict)
+    except Exception as exc:
+        # trace 写入失败不影响主路径
+        logger.debug(f"[Harness][policy] trace 写入跳过: {exc}")
