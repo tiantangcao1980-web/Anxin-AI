@@ -5,9 +5,8 @@
 
 import { CenterLayout, type CenterTab } from '@/components/ui/CenterLayout'
 import { useTabUrlSync } from '@/hooks/useTabUrlSync'
-import Contracts from '@/pages/Contracts'
-import ComplianceCheck from '@/pages/ComplianceCheck'
-import { RiskAlertPanel } from '@/pages/RiskAlertPanel'
+// I2 (2026-05-14, ADR 003): tab 内容子组件迁出 pages/, 集中到 components/center-tabs/
+import { Contracts, ComplianceCheck, RiskAlertPanel } from '@/components/center-tabs'
 
 const tabs: CenterTab[] = [
   { id: 'contracts', label: '合同管理', icon: 'FileText' },

@@ -174,3 +174,36 @@ async def test_restore_loads_active_rows(db_session: AsyncSession):
     n = await t2.restore_from_db(db_session)
     assert n == 1
     assert t2.get_user_tokens("u1") == 500
+
+
+# ========== I4 (2026-05-14): Redis 后端 fallback ==========
+
+
+def test_redis_disabled_by_default(monkeypatch):
+    """I4: 未设 COST_TRACKER_REDIS_URL 时, 不调 Redis, 不报错。"""
+    monkeypatch.delenv("COST_TRACKER_REDIS_URL", raising=False)
+    tracker = CostTracker()
+    # record 应不抛
+    tracker.record(
+        model="gpt-4o", provider="openai",
+        prompt_tokens=100, completion_tokens=50, user_id="u_i4",
+    )
+    # _get_redis_client 应返回 None
+    assert tracker._get_redis_client() is None
+    # 主路径内存累计仍正常
+    assert tracker.get_user_tokens("u_i4") == 150
+
+
+def test_redis_bad_url_falls_back_to_memory(monkeypatch):
+    """I4: 设了非法 Redis URL → 初始化失败, 静默 fallback。"""
+    monkeypatch.setenv("COST_TRACKER_REDIS_URL", "redis://invalid-host-doesnt-exist:9999/0")
+    tracker = CostTracker()
+    # 不应抛
+    tracker.record(
+        model="gpt-4o", provider="openai",
+        prompt_tokens=100, completion_tokens=50, user_id="u_i4b",
+    )
+    # client 应为 None (ping 失败)
+    assert tracker._get_redis_client() is None
+    # 内存累计仍正常
+    assert tracker.get_user_tokens("u_i4b") == 150

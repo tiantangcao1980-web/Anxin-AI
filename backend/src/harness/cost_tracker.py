@@ -111,6 +111,52 @@ class CostTracker:
         self._by_conversation: dict[str, float] = defaultdict(float)
         self._total_tokens: int = 0
         self._total_cost: float = 0.0
+        # I4 (2026-05-14): 可选 Redis 后端
+        # 设 COST_TRACKER_REDIS_URL=redis://... 启用; 每次 record() 同步增量到 Redis,
+        # 把数据丢失窗口从 5 分钟 (E2 snapshot 周期) 进一步降到秒级.
+        # 多节点部署时, 各节点 record 自动汇总到同一 Redis key.
+        # 失败 → 静默降级到纯内存模式, 不阻断主路径.
+        self._redis_init_attempted = False
+        self._redis_client: Any = None
+
+    def _get_redis_client(self) -> Any | None:
+        """惰性初始化 Redis 客户端 (类似 utils/rate_limit_burst._get_redis_client)。"""
+        if self._redis_init_attempted:
+            return self._redis_client
+        self._redis_init_attempted = True
+
+        import os
+        url = os.environ.get("COST_TRACKER_REDIS_URL", "").strip()
+        if not url:
+            return None
+        try:
+            import redis
+            client = redis.from_url(url, decode_responses=True)
+            client.ping()
+            self._redis_client = client
+            return client
+        except Exception as exc:  # noqa: BLE001
+            import logging
+            logging.getLogger(__name__).warning(
+                "cost_tracker: Redis 后端初始化失败, 退回内存模式: %s", exc
+            )
+            self._redis_client = None
+            return None
+
+    def _redis_incr_user(self, user_id: str, tokens: int, cost: float) -> None:
+        """I4: 把单次 record 的 (tokens, cost) 同步 ZINCRBY 到 Redis。"""
+        client = self._get_redis_client()
+        if client is None:
+            return
+        try:
+            # ZINCRBY 同时维护按 user 排序的 leaderboard, 也可用于全局 ranking
+            client.zincrby("cost:by_user_tokens", tokens, user_id)
+            client.zincrby("cost:by_user_cost", round(cost, 6), user_id)
+        except Exception as exc:  # noqa: BLE001
+            import logging
+            logging.getLogger(__name__).debug(
+                "cost_tracker: Redis incr 失败 (不阻断): %s", exc
+            )
 
     def get_pricing(self, model: str) -> dict[str, float]:
         """查找模型定价，支持模糊匹配"""
@@ -177,6 +223,10 @@ class CostTracker:
         self._by_model[model] += cost
         if conversation_id:
             self._by_conversation[str(conversation_id)] += cost
+
+        # I4 (2026-05-14): Redis 增量 (启用时), 把丢失窗口从 5min → 秒级
+        if user_id:
+            self._redis_incr_user(user_id, total, cost)
 
         # 同步更新 trace_context
         from src.harness.trace_context import current_trace
