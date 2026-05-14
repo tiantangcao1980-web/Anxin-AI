@@ -151,6 +151,68 @@ async def get_skill_detail(
 # ---------------------------------------------------------------------------
 
 
+@router.post("/preview")
+async def preview_skill(
+    file: UploadFile = File(..., description="SKILL.md 文件"),
+    _user: User = Depends(get_current_user_required),
+) -> dict:
+    """**预览**上传的 SKILL.md（不注册到 registry）。
+
+    用于安装授权弹窗：用户先看完 manifest 的资源 / 网络 / 文件系统 / 权限
+    再决定要不要点 ``/upload``。返回前端 SkillInstallSummary 形状。
+
+    与 ``/upload`` 的区别：
+        - 不调 ``registry.register``，不把临时文件保留为已安装 skill
+        - 加上 ``SandboxManifest.from_frontmatter`` 解析结果（fingerprint / tier）
+    """
+    if not file.filename or not file.filename.lower().endswith(".md"):
+        raise HTTPException(status_code=400, detail="只接受 .md 文件")
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="文件为空")
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise HTTPException(status_code=400, detail=f"必须是 UTF-8 编码: {exc}") from exc
+
+    tmp_dir = Path(tempfile.mkdtemp(prefix="skill_preview_"))
+    saved = tmp_dir / "SKILL.md"
+    saved.write_text(text, encoding="utf-8")
+    loader = SkillLoader()
+    try:
+        skill = loader.load_from_file(saved)
+    except SkillParseError as exc:
+        raise HTTPException(status_code=400, detail=f"SKILL.md 解析失败: {exc}") from exc
+    errors = validate_skill(skill)
+    if errors:
+        raise HTTPException(status_code=400, detail={"errors": errors})
+
+    # manifest 解析（缺省 = T0 prompt-only）
+    from src.services.skill_sandbox import (
+        ManifestValidationError,
+        SandboxManifest,
+    )
+    try:
+        manifest = SandboxManifest.from_frontmatter(
+            {"sandbox": skill.sandbox_raw} if skill.sandbox_raw else None
+        )
+    except ManifestValidationError as exc:
+        raise HTTPException(
+            status_code=400, detail=f"sandbox manifest 非法: {exc}"
+        ) from exc
+
+    manifest_payload = manifest.model_dump(mode="json")
+    manifest_payload["fingerprint"] = manifest.fingerprint()
+
+    return {
+        "name": skill.name,
+        "description": skill.description,
+        "version": skill.version,
+        "author": skill.author,
+        "manifest": manifest_payload,
+    }
+
+
 @router.post("/upload", response_model=UploadSkillOut, status_code=status.HTTP_201_CREATED)
 async def upload_skill(
     file: UploadFile = File(..., description="SKILL.md 文件"),
