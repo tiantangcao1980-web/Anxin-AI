@@ -129,11 +129,13 @@ function DefaultFallback({
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex items-center justify-center min-h-[60vh] p-6"
+      className="flex items-center justify-center min-h-[50vh] sm:min-h-[60vh] p-6"
+      role="alert"
+      aria-live="polite"
     >
       <div className="max-w-md w-full bg-card border border-border rounded-xl shadow-sm p-6 text-center">
         <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-warning/10 border border-warning/20 flex items-center justify-center">
-          <icons.Lock className="w-6 h-6 text-warning" />
+          <icons.Lock className="w-6 h-6 text-warning" aria-hidden="true" />
         </div>
         <h3 className="text-lg font-semibold text-foreground mb-2">
           {feature}暂不可用

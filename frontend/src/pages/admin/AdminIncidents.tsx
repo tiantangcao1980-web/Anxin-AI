@@ -439,7 +439,7 @@ export default function AdminIncidents() {
                 setPage(1)
               }}
             >
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="w-full sm:w-[160px]">
                 <SelectValue placeholder="来源" />
               </SelectTrigger>
               <SelectContent>
@@ -458,7 +458,7 @@ export default function AdminIncidents() {
                 setPage(1)
               }}
             >
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-full sm:w-[140px]">
                 <SelectValue placeholder="级别" />
               </SelectTrigger>
               <SelectContent>
@@ -477,7 +477,7 @@ export default function AdminIncidents() {
                 setPage(1)
               }}
             >
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-full sm:w-[140px]">
                 <SelectValue placeholder="状态" />
               </SelectTrigger>
               <SelectContent>
@@ -502,6 +502,7 @@ export default function AdminIncidents() {
               ))}
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -520,8 +521,17 @@ export default function AdminIncidents() {
                   items.map((it) => (
                     <TableRow
                       key={it.id}
-                      className="cursor-pointer"
+                      className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setSelected(it)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          setSelected(it)
+                        }
+                      }}
+                      aria-label={`查看事件 ${it.title}`}
                     >
                       <TableCell className="text-muted-foreground text-xs font-mono">
                         {it.last_seen_at
@@ -573,6 +583,7 @@ export default function AdminIncidents() {
                 )}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>
