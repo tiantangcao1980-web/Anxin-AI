@@ -15,8 +15,9 @@
 > - ✅ 4 个 office skill（cowork-anthropic 兼容）：[`skills/office/docx`](../../skills/office/docx) · [`skills/office/xlsx`](../../skills/office/xlsx) · [`skills/office/pptx`](../../skills/office/pptx) · [`skills/office/pdf`](../../skills/office/pdf)
 > - ✅ FetchService 4 层（`intelligence/fetch` 真实装）：[`backend/src/services/fetch/`](../../backend/src/services/fetch/) — L1 HTTP / L2 crawl4ai / L3 HeadlessX / L4 官方 API
 > - 🚧 其余 skill 仍是 yaml 描述 + 服务调用框架，逐步替换为真函数
+> - 🆕 **沙箱方案见 [skills-sandbox-design.md](./skills-sandbox-design.md)**（T0-T4 信任分级 / SandboxManifest / `SkillSandboxRunner`）
 
-相关文档：[ARCHITECTURE](./ARCHITECTURE.md) · [AGENT_PERSONAS](./AGENT_PERSONAS.md) · [CAPABILITY_MATRIX](./CAPABILITY_MATRIX.md) · [V3_DELIVERY_SUMMARY](./V3_DELIVERY_SUMMARY.md)
+相关文档：[ARCHITECTURE](./ARCHITECTURE.md) · [AGENT_PERSONAS](./AGENT_PERSONAS.md) · [CAPABILITY_MATRIX](./CAPABILITY_MATRIX.md) · [V3_DELIVERY_SUMMARY](./V3_DELIVERY_SUMMARY.md) · [skills-sandbox-design](./skills-sandbox-design.md)
 
 ---
 

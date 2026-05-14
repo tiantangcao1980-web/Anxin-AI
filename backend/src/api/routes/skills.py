@@ -250,3 +250,91 @@ async def execute_skill(
         duration_ms=result.duration_ms,
         metadata=dict(result.metadata),
     )
+
+
+# ---------------------------------------------------------------------------
+# POST /skills/{name}/sandbox-execute —— Skills 沙箱执行（设计见 docs/v3/skills-sandbox-design.md）
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{name}/sandbox-execute", response_model=ExecuteSkillOut)
+async def sandbox_execute_skill(
+    name: str,
+    body: ExecuteSkillBody,
+    user: User = Depends(get_current_user_required),
+) -> ExecuteSkillOut:
+    """通过 ``SkillSandboxRunner`` 执行 skill。
+
+    路由策略：
+        - manifest.tier == T0  → 回退到 SkillExecutor（prompt-only）
+        - manifest.tier >= T1 → 走沙箱路径
+
+    所有 tier 都会经过权限闸门（policy_gate）。
+    """
+    from src.services.skill_sandbox import (
+        ManifestValidationError,
+        SandboxManifest,
+        SkillSandboxRunner,
+    )
+
+    skill = _registry().get(name)
+    if skill is None:
+        raise HTTPException(status_code=404, detail=f"skill 不存在: {name}")
+
+    try:
+        manifest = SandboxManifest.from_frontmatter(
+            {"sandbox": skill.sandbox_raw} if skill.sandbox_raw else None
+        )
+    except ManifestValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"skill sandbox manifest 非法: {exc}",
+        ) from exc
+
+    runner = SkillSandboxRunner()
+    sb_result = await runner.execute(
+        skill=skill,
+        manifest=manifest,
+        payload=body.payload,
+        user_id=str(user.id),
+        user_role=user.role,
+        tenant_id=str(getattr(user, "org_id", "") or "") or None,
+    )
+
+    # T0：runner 不接管 —— 回退到 prompt 路径
+    if not sb_result.handled:
+        persona = body.persona or "default"
+        ctx = ExecutionContext(
+            user_id=str(user.id),
+            persona=persona,
+            app_authorizations=list(body.app_authorizations),
+            org_id=str(getattr(user, "org_id", "") or "") or None,
+            extra=dict(body.extra),
+        )
+        executor = SkillExecutor(registry=_registry())
+        prompt_result = await executor.execute(name, body.payload, ctx)
+        return ExecuteSkillOut(
+            skill_name=prompt_result.skill_name,
+            status=prompt_result.status.value,
+            output=prompt_result.output,
+            error=prompt_result.error,
+            duration_ms=prompt_result.duration_ms,
+            metadata={
+                **dict(prompt_result.metadata),
+                "tier": manifest.tier.value,
+                "sandbox_fallback": "prompt-only",
+            },
+        )
+
+    return ExecuteSkillOut(
+        skill_name=sb_result.skill_name,
+        status=sb_result.status.value,
+        output=sb_result.output,
+        error=sb_result.error,
+        duration_ms=sb_result.duration_ms,
+        metadata={
+            **dict(sb_result.metadata),
+            "tier": sb_result.tier.value,
+            "manifest_fingerprint": sb_result.manifest_fingerprint,
+        },
+    )

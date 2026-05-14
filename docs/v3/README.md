@@ -18,6 +18,8 @@ V3 = 项目从"安心智能助手"升级为"**安心智能助手**"，覆盖法�
 | [roadmap.md](./roadmap.md) | P0-P21 完整路线 + 风险登记册 |
 | [integrations.md](./integrations.md) | 34+ OAuth provider / 6 IM 适配器 / 数据源 |
 | [skills-inventory.md](./skills-inventory.md) | 13 域 76+ skills + 4 office 实装路径 |
+| [skills-sandbox-design.md](./skills-sandbox-design.md) | Skills 沙箱方案（信任分级 T0-T4 / SandboxManifest / 审计） |
+| [enterprise-cluster-design.md](./enterprise-cluster-design.md) | 企业内网集群（部门 / 成员 / 角色绑定 / 权限继承 / 私有化部署） |
 | [security-audit.md](./security-audit.md) | P15 OWASP / 依赖 / 密钥 / 高风险点 |
 | [ci-pipeline.md](./ci-pipeline.md) | 5 端 GHA workflow + nightly smoke |
 | [observability-backend.md](./observability-backend.md) / [-frontend.md](./observability-frontend.md) / [-deploy.md](./observability-deploy.md) | 三端可观测性 |
