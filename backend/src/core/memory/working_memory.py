@@ -46,7 +46,9 @@ class WorkingMemoryService(BaseMemoryService):
                         decode_responses=True
                     )
                 )
-                await self.redis.ping()
+                ping_result = self.redis.ping()
+                if hasattr(ping_result, "__await__"):
+                    await ping_result  # async client
                 self._initialized = True
                 self._log_info("工作记忆服务初始化完成")
             else:

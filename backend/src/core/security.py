@@ -210,7 +210,7 @@ class TokenBlacklist:
         """获取Redis客户端"""
         if self._redis is None:
             import redis.asyncio as redis
-            self._redis = redis.from_url(  # type: ignore[no-untyped-call]
+            self._redis = redis.from_url(
                 settings.REDIS_URL,
                 encoding="utf-8",
                 decode_responses=True,
@@ -456,7 +456,7 @@ class RateLimiter:
         """获取Redis客户端"""
         if self._redis is None:
             import redis.asyncio as redis
-            self._redis = redis.from_url(  # type: ignore[no-untyped-call]
+            self._redis = redis.from_url(
                 settings.REDIS_URL,
                 encoding="utf-8",
                 decode_responses=True,

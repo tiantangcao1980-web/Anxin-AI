@@ -550,7 +550,7 @@ class AgentApprovalService:
                 .limit(1000)
             )
         ).scalars().all()
-        artifacts = _fold_workspace_artifact_events(rows)
+        artifacts = _fold_workspace_artifact_events(list(rows))
         artifacts.sort(key=lambda artifact: artifact.updated_at or artifact.created_at, reverse=True)
         return artifacts[:limit]
 

@@ -121,10 +121,10 @@ class TraceContext:
         if not isinstance(decision_info, dict):
             return
         if not hasattr(self, "_policy_info"):
-            self._policy_info = []  # type: ignore[attr-defined]
+            self._policy_info = []
         # 仅记录非 ALLOW 的事件 (allow 太多, 写满 trace 没有审计价值)
         if decision_info.get("decision") and decision_info.get("decision") != "allow":
-            self._policy_info.append({  # type: ignore[attr-defined]
+            self._policy_info.append({
                 "ts": time.time(),
                 **decision_info,
             })

@@ -57,7 +57,7 @@ class Incident(Base):
         String(256), nullable=False,
         comment="人读摘要",
     )
-    payload: Mapped[dict] = mapped_column(
+    payload: Mapped[dict[str, "object"]] = mapped_column(
         JSONB, nullable=False, default=dict,
         comment="已经过 PII 脱敏的明细 payload",
     )
