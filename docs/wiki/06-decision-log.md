@@ -66,7 +66,7 @@ maintainer: 任何架构决策落地时追加
 - ✅ PR Review 从 1 → 4 reviewer 并行
 - ❌ 引入 9 个新模块，初期可能有遗漏（接受，列入 P0/P1 followups）
 
-**Status**: ✅ H0-O2 + H1 全部基线（commits `56137019` + `9b902494`）。P0 followups（policy_engine / context_engine 主路径接入）待做。
+**Status**: ✅ H0-O2 + H1 全部基线（commits `56137019` + `9b902494`）。Phase B-G (2026-05-14) 把 P0/P1 followups 全部清零: policy_engine 主路径接入 (T2) + context_engine 收口 (T3) + cost_tracker 配额 (T6) + task_engine 三路径 (T7) + capability_negotiator API 化 (T8) + tool_registry × Skills (T10) + CREAO Slice 1-3 (T5/A3/A9) + Slice 2.5 LLM (G7) + 政务签章 placeholder (F)。
 
 ---
 
@@ -144,10 +144,12 @@ maintainer: 任何架构决策落地时追加
 
 | 项 | 决策窗口 | 影响 | 负责 |
 |---|---|---|---|
-| Alembic 三 head 合并策略（028/030/044） | peaceful-goodall 合并前 | 数据库迁移路径 | 待定 |
-| 图标库是否扩展到 lucide 之外 | P0 收口完成后 | 设计一致性 | DESIGN.md owner |
-| context_engine vs context_compressor | P0 followup | Harness 主路径 | 详见 [03-h1-followups](../audit/harness/03-h1-followups.md) |
+| ~~Alembic 三 head 合并策略~~ | ✅ 已决 (T5-prep `045_merge_030_044` + T5 主体 `046_add_incidents_table` + A4 `047_user_token_usage`) | 数据库迁移路径 | — |
+| 图标库是否扩展到 lucide 之外 | 已收口 (T1 80 文件 @/lib/icons 统一) | 设计一致性 | DESIGN.md owner |
+| ~~context_engine vs context_compressor~~ | ✅ 已决 (T3 收口 + A8 入 harness 命名空间) | Harness 主路径 | — |
 | anxinai.com 域名切换时机 | P13 | DNS / 证书 / OAuth callback | 待 P12 后启动 |
+| **GDCA 政务签 vs e签宝/法大大** | ✅ 已决 (Phase F 2026-05-14): 政务签优先 (P2), 商业化电签降 P3 等 PMF 后启动 | 签约能力路径 | 业务方推动 GDCA / 粤商通 |
+| **UI 三层目录整理 (ui/ + common/ + ui-unified/)** | 下一里程碑 | 组件命名规范 | 待定 |
 
 ---
 

@@ -36,12 +36,12 @@ anxin-ai/                          # 根
 │   │   ├── api/routes/            # 75 个 HTTP 路由
 │   │   ├── agents/                # 22 persona + 21 specialized
 │   │   ├── services/              # 业务服务层
-│   │   ├── harness/               # 六层框架核心 8 模块
+│   │   ├── harness/               # 六层框架 14 模块 (含 Phase B/C 新增的 incident/triage/builder/context_compressor/incident_hook/policy_enforcement)
 │   │   ├── core/                  # 配置 / 数据库 / Schemas
 │   │   └── models/                # SQLAlchemy 2.0 async ORM
-│   ├── tests/                     # pytest 543+
+│   ├── tests/                     # pytest 1866/1866 ✅ (Phase E 后)
 │   ├── evals/                     # 25 case + 4 维度打分（Eval 层）
-│   └── alembic/                   # 数据库迁移（当前双 head：030/044）
+│   └── alembic/                   # 数据库迁移 (单一 head: 047_user_token_usage, Phase A T5-prep 已合并双 head)
 │
 ├── frontend/                      # React 18 · Vite 7 · TS 5
 │   ├── src/

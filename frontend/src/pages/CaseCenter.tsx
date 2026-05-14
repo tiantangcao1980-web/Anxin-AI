@@ -5,7 +5,8 @@
 
 import { CenterLayout, type CenterTab } from '@/components/ui/CenterLayout'
 import { useTabUrlSync } from '@/hooks/useTabUrlSync'
-import Cases from '@/pages/Cases'
+// H4 (2026-05-14): Cases shim 已删除 (5 行 re-export 改为直接 import 真实组件), Leads/Tasks 仍为 tab 内容子组件
+import { CaseManagement as Cases } from '@/components/case-management/CaseManagement'
 import Leads from '@/pages/Leads'
 import Tasks from '@/pages/Tasks'
 

@@ -45,7 +45,7 @@ last_updated: 2026-05-14
 | 加 / 改 Agent | [AGENTS.md](../../AGENTS.md) + [skills/_template/](../../skills/_template/) + [04-architecture-map §Harness](04-architecture-map.md) |
 | 改前端 UI | [DESIGN.md](../../DESIGN.md) + [docs/standards/frontend-standard.md](../standards/frontend-standard.md) + 注意：图标只从 `@/lib/icons` 导入 |
 | 改桌面（Tauri） | [docs/desktop/](../desktop/) + Tauri 2 文档 |
-| 改数据库 | [docs/standards/database-standard.md](../standards/database-standard.md) + ⚠️ Alembic 双 head |
+| 改数据库 | [docs/standards/database-standard.md](../standards/database-standard.md) (alembic 单一 head `047_user_token_usage`, 双 head 已合并) |
 | 写测试 | [docs/standards/testing-standard.md](../standards/testing-standard.md) |
 | 安全相关 | [docs/standards/security-standard.md](../standards/security-standard.md) + [SECURITY.md](../../SECURITY.md) |
 | 改 Harness | [docs/audit/harness/README.md](../audit/harness/README.md) + [03-h1-followups](../audit/harness/03-h1-followups.md) |
@@ -63,7 +63,7 @@ last_updated: 2026-05-14
 - **品牌**：新代码不要写"安心法务"
 - **CAMEL-AI**：不要 import camel
 - **图标**：前端只从 `@/lib/icons`
-- **Alembic**：双 head 状态，加 migration 前先 merge head
+- **Alembic**：单一 head `047_user_token_usage`, 新 migration `down_revision='047_user_token_usage'` 即可
 - **Git**：commit type 英文 + 描述中文
 - **测试**：变更需配套测试
 

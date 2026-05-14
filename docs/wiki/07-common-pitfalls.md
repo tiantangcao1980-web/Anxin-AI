@@ -27,7 +27,7 @@ last_updated: 2026-05-14
 |---|---|
 | `import camel` / `from camel_ai import X` | CAMEL-AI 已剥离；用 `backend/src/harness/` 自研模块 |
 | `from camel import CamelModel` | 用 `from src.core.schemas import APIModel`（`CamelModel` 是向后兼容别名） |
-| 前端 `import { X } from 'lucide-react'` | 统一 `import { X } from '@/lib/icons'`（80 文件待迁移） |
+| 前端 `import { X } from 'lucide-react'` | 统一 `import { icons } from '@/lib/icons'` + `<icons.X />` (T1 已 100% 收口, ESLint `no-restricted-imports` 防回归; 仅 `src/components/ui/**` shadcn 原文件可直接 import) |
 | `from src.harness.output_validator import output_validator` | 用 `from src.harness.enforcement import run_validation`（H1 入口） |
 
 ---
@@ -36,7 +36,7 @@ last_updated: 2026-05-14
 
 | 陷阱 | 正确做法 |
 |---|---|
-| 直接加 alembic migration 028 | **当前已有双 head**（030 / 044），必须先 merge head |
+| 加新 alembic migration 不接当前 head | ✅ 当前是单一 head `047_user_token_usage` (Phase A T5-prep + T5 主体已合并 028/030/044 多 head). 新 migration `down_revision='047_user_token_usage'` 即可 |
 | 用 SQLAlchemy 1.x 同步 API（`session.query`） | 用 2.0 async：`async with` + `select() + await session.execute()` |
 | 跨租户查询不带 `tenant_id` 过滤 | 必查多租户隔离，见 `docs/standards/database-standard.md` §多租户 |
 | 直接写 raw SQL 字符串 | 用参数化查询；SQLi 风险见 `docs/standards/security-standard.md` |
