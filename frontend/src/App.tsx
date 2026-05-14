@@ -89,6 +89,7 @@ const NotFound = lazy(() => import('@/pages/NotFound'))
 
 // 登录页
 const Login = lazy(() => import('@/pages/Login'))
+const OidcCallback = lazy(() => import('@/pages/OidcCallback'))
 
 // ===== 公开官网（marketing site，无需登录） =====
 const MarketingHome = lazy(() => import('@/pages/marketing/Home'))
@@ -370,6 +371,7 @@ function App() {
 
               {/* 登录页（不需要 Layout 和路由守卫） */}
               <Route path="/login" element={<Login />} />
+              <Route path="/login/oidc/callback" element={<OidcCallback />} />
               {/* V2 架构：服务方端（律师/律所）专属登录入口 */}
               <Route path="/pro/login" element={<Login />} />
               <Route path="/desktop/quick-query" element={<QuickQuery />} />
