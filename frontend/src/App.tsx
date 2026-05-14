@@ -407,7 +407,7 @@ function App() {
                 {/* V2: 找律师需要云端数据库支持 */}
                 <Route path="find-lawyer" element={
                   <ProtectedRoute feature="lawyer_matching">
-                    <ModeGate required="hybrid_or_cloud" feature="找律师">
+                    <ModeGate required="hybrid_or_cloud" feature="找律师" featureKey="lawyer_matching">
                       <FindLawyer />
                     </ModeGate>
                   </ProtectedRoute>
@@ -416,21 +416,21 @@ function App() {
                 {/* ===== 舆情监测 — V2: 必须云端/混合模式（爬虫+NLP） ===== */}
                 <Route path="monitoring" element={
                   <ProtectedRoute feature="due_diligence">
-                    <ModeGate required="hybrid_or_cloud" feature="舆情监测">
+                    <ModeGate required="hybrid_or_cloud" feature="舆情监测" featureKey="sentiment_monitor">
                       <MonitoringCenter />
                     </ModeGate>
                   </ProtectedRoute>
                 } />
                 <Route path="investigation" element={
                   <ProtectedRoute feature="due_diligence">
-                    <ModeGate required="hybrid_or_cloud" feature="尽职调查">
+                    <ModeGate required="hybrid_or_cloud" feature="尽职调查" featureKey="due_diligence">
                       <Investigation />
                     </ModeGate>
                   </ProtectedRoute>
                 } />
                 <Route path="investigation/:companyId" element={
                   <ProtectedRoute feature="due_diligence">
-                    <ModeGate required="hybrid_or_cloud" feature="尽职调查">
+                    <ModeGate required="hybrid_or_cloud" feature="尽职调查" featureKey="due_diligence">
                       <Investigation />
                     </ModeGate>
                   </ProtectedRoute>
@@ -439,14 +439,14 @@ function App() {
                 {/* ===== 法律智库 — V2: 本地可用但需先下载数据包 ===== */}
                 <Route path="knowledge-graph" element={
                   <ProtectedRoute feature="knowledge_graph">
-                    <ModeGate required="local_ok_with_download" feature="知识图谱">
+                    <ModeGate required="local_ok_with_download" feature="知识图谱" featureKey="knowledge_graph">
                       <KnowledgeGraph />
                     </ModeGate>
                   </ProtectedRoute>
                 } />
                 <Route path="knowledge-base" element={
                   <ProtectedRoute feature="knowledge_base">
-                    <ModeGate required="local_ok_with_download" feature="法律智库">
+                    <ModeGate required="local_ok_with_download" feature="法律智库" featureKey="legal_knowledge_base">
                       <KnowledgeBase />
                     </ModeGate>
                   </ProtectedRoute>
@@ -455,7 +455,7 @@ function App() {
                 {/* ===== IM 即时通讯 — V2: 必须云端/混合（需 WebSocket 转发） ===== */}
                 <Route path="messages" element={
                   <ProtectedRoute feature="im_messaging">
-                    <ModeGate required="hybrid_or_cloud" feature="即时通讯">
+                    <ModeGate required="hybrid_or_cloud" feature="即时通讯" featureKey="im_messaging">
                       <Messages />
                     </ModeGate>
                   </ProtectedRoute>
@@ -499,7 +499,7 @@ function App() {
                 {/* V2：案源市场（需求方发布，本页根据 primary_client 自动切换视图） */}
                 <Route path="market" element={
                   <ProtectedRoute feature="lawyer_matching">
-                    <ModeGate required="hybrid_or_cloud" feature="案源市场">
+                    <ModeGate required="hybrid_or_cloud" feature="案源市场" featureKey="case_market">
                       <CaseMarket />
                     </ModeGate>
                   </ProtectedRoute>

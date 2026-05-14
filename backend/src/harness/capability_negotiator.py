@@ -53,8 +53,12 @@ class LocalLLMCapability:
 
 
 # ===== 模式对应能力矩阵 =====
+# A1 (2026-05-14): 在原本的 infrastructure capability 基础上, 追加 user-facing
+# feature key (lawyer_matching / sentiment_monitor / ...), 让前端 ModeGate
+# 直接传入这些 key 做 capability 协商, 不再硬编码.
 MODE_CAPABILITIES = {
     AppMode.CLOUD: {
+        # ---- infrastructure capabilities ----
         "full_agent_orchestration": True,
         "knowledge_graph": True,
         "vector_search": True,
@@ -65,6 +69,13 @@ MODE_CAPABILITIES = {
         "deep_research": True,
         "document_export": True,
         "push_notification": True,
+        # ---- A1: user-facing features (ModeGate 调用方一致命名) ----
+        "lawyer_matching": True,        # 找律师 (需要后端律师库 + 实时网络)
+        "sentiment_monitor": True,      # 舆情监测 (需要爬虫 + ES 检索)
+        "due_diligence": True,          # 企业尽调 (需要工商接口)
+        "im_messaging": True,           # 即时通讯 (需要 IM 网关)
+        "case_market": True,            # 案源市场 (需要中心化撮合)
+        "legal_knowledge_base": True,   # 法律智库 (本地或云端均可, 此处默认全开)
     },
     AppMode.HYBRID: {
         "full_agent_orchestration": True,   # 云端回退
@@ -77,6 +88,12 @@ MODE_CAPABILITIES = {
         "deep_research": True,               # 云端
         "document_export": True,             # 本地
         "push_notification": True,
+        "lawyer_matching": True,
+        "sentiment_monitor": True,
+        "due_diligence": True,
+        "im_messaging": True,
+        "case_market": True,
+        "legal_knowledge_base": True,
     },
     AppMode.TOP_SECRET: {
         "full_agent_orchestration": False,  # 仅本地单 Agent
@@ -89,6 +106,13 @@ MODE_CAPABILITIES = {
         "deep_research": False,              # 需要外部数据
         "document_export": True,             # 本地可用
         "push_notification": False,
+        # ---- user-facing features 在 TOP_SECRET (本地) 下默认关闭 ----
+        "lawyer_matching": False,       # 需要云端律师库
+        "sentiment_monitor": False,     # 需要外网爬虫
+        "due_diligence": False,         # 需要工商外网接口
+        "im_messaging": False,          # 需要 IM 网关
+        "case_market": False,           # 需要中心化撮合
+        "legal_knowledge_base": True,   # 法律智库本地包可用
     },
 }
 
