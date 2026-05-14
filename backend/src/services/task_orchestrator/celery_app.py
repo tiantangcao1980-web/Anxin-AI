@@ -56,6 +56,12 @@ celery_app.conf.update(
             "task": "src.services.quota_reset_worker.run_daily_quota_reset",
             "schedule": crontab(minute="5", hour="0"),  # 每天 00:05 UTC
         },
+        # E2 (2026-05-14): cost_tracker 内存累计每 5 分钟 flush 到 user_token_usage,
+        # 防进程崩溃丢配额数据 (最大丢失窗口 = 5 分钟)
+        "cost-snapshot-every-5min": {
+            "task": "src.services.quota_reset_worker.run_cost_snapshot",
+            "schedule": 300.0,  # 每 300 秒
+        },
     },
 )
 

@@ -107,4 +107,47 @@ def run_daily_quota_reset() -> dict[str, Any]:
     return asyncio.run(_run_daily_quota_reset_async())
 
 
-__all__ = ["run_daily_quota_reset", "_run_daily_quota_reset_async"]
+# ============================================================
+# E2 (2026-05-14): 定期 snapshot 内存累计 → DB
+# ============================================================
+# A4 加了 cost_tracker.snapshot_to_db() 方法但没有 schedule.
+# 进程崩溃仍会丢日内累计. E2 加每 5min flush, 让重启最多丢 5min 数据.
+
+
+async def _run_cost_snapshot_async() -> dict[str, Any]:
+    """每 5 分钟把内存 cost_tracker 累计 upsert 到 user_token_usage 表。"""
+    from datetime import date, timedelta
+
+    from src.harness.cost_tracker import cost_tracker
+
+    today = date.today()
+    # 默认周期 (无具体订阅信息): 当月剩余 30 天 (subscription_service 续费时会覆盖)
+    period_start = today
+    period_end = today + timedelta(days=30)
+    stats = {"users_snapshotted": 0, "errors": 0}
+    try:
+        async with get_db_context() as db:
+            n = await cost_tracker.snapshot_to_db(
+                db, period_start=period_start, period_end=period_end,
+            )
+            await db.commit()
+            stats["users_snapshotted"] = n
+        logger.info(f"[CostSnapshot] flushed {n} users to user_token_usage table")
+    except Exception as exc:
+        stats["errors"] = 1
+        logger.error(f"[CostSnapshot] flush failed: {exc}")
+    return stats
+
+
+@celery_app.task(name="src.services.quota_reset_worker.run_cost_snapshot")
+def run_cost_snapshot() -> dict[str, Any]:
+    """Celery 同步入口。"""
+    return asyncio.run(_run_cost_snapshot_async())
+
+
+__all__ = [
+    "run_daily_quota_reset",
+    "_run_daily_quota_reset_async",
+    "run_cost_snapshot",
+    "_run_cost_snapshot_async",
+]
