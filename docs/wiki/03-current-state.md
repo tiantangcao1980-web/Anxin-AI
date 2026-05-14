@@ -2,7 +2,7 @@
 name: 当前状态与下一步
 description: 最高频更新的"现在在哪 / 接下来做什么"
 audience: AI agents · 每次接手必读
-last_updated: 2026-05-14
+last_updated: 2026-05-14 (Phase F + Gate 调整)
 maintained_by: 每完成一个阶段任务即更新本文
 ---
 
@@ -12,97 +12,116 @@ maintained_by: 每完成一个阶段任务即更新本文
 
 ---
 
-## 🎯 当前在哪（2026-05-14）
+## 🎯 当前在哪（2026-05-14, Phase A-F + Gate 调整全部落地）
 
-### 已完成（V3 P0-P7 + Harness H0-O2）
+### Phase B-F 累计交付（48 commit, 领先 main 48）
+
+| Phase | 内容 | 状态 |
+|---|---|---|
+| **Phase A** | 文档单一信源化 (170+→5 Spine + 9 Wiki + 101 归档) | ✅ |
+| **Phase B** | T1-T10 P0-P2 (图标 / policy_engine / context_engine / cost_tracker / task_engine / capability / Skills) | ✅ |
+| **Phase C** | A1-A10 优化批 (ModeGate 实战 / build chunk / CREAO Slice 1-3 / Tauri command 等) | ✅ |
+| **Phase D** | E1-E8 卫生批 (incident 注入 / fail-closed / cron / Skill runtime gate / mypy 严检) | ✅ |
+| **Phase E** | G1-G7 技术债清零 (trace_id / watchdog / /pro routes / 测试隔离 / mypy 历史债 / 移动卡片 / Slice 2.5 LLM) | ✅ |
+| **Phase F** | 产品方向调整 — 签约/支付降 P3, 政务签章 (GDCA/粤企签) placeholder + gate deferred status | ✅ |
+
+### 完整模块清单
 
 | 域 | 完成度 | 关键文件 |
 |---|---|---|
 | 后端 API | 61 v3 endpoint ✅ | [backend/src/api/routes/](../../backend/src/api/routes/) |
 | 智能体层 | 10 persona + 21 specialized ✅ | [backend/src/agents/](../../backend/src/agents/) |
-| 六层 Harness | H0-O2 全部基线 ✅ | [docs/audit/harness/](../audit/harness/) |
-| Skills 运行时 | 4 office + watchdog 热加载 ✅ | [skills/](../../skills/) |
+| **六层 Harness + Phase B/C 新增 6 模块** | 14 个 ✅ (含 incident_collector / incident_hook / triage_service / builder_service / context_compressor 入 harness / 政务 esign provider placeholder) | [docs/audit/harness/](../audit/harness/) |
+| **CREAO 自愈闭环** | Slice 1 + 2 + 2.5 + 3 全栈 ✅ | [backend/src/harness/triage_service.py](../../backend/src/harness/triage_service.py), [builder_service.py](../../backend/src/harness/builder_service.py) |
+| Skills 运行时 | 4 office + watchdog 热加载 + **required_tools runtime gate (E5)** ✅ | [skills/](../../skills/) |
 | OAuth / IM | 5 provider + 飞书真接入 ✅ | [backend/src/services/im_*.py](../../backend/src/services/) |
 | FetchService | 4 层 + 5 法律源 + 5 电商源 ✅ | [backend/src/services/fetch/](../../backend/src/services/) |
 | 多模态 RAG | MinerU + KG + VLM ✅ | [backend/src/services/rag/](../../backend/src/services/) |
-| 测试 | 543+ pytest / harness 89 ✅ | [backend/tests/](../../backend/tests/) |
+| **测试** | **pytest 1866/1866** ✅ (从 1847 + 4 failed → 1866 + 0 failed) | [backend/tests/](../../backend/tests/) |
+| **mypy** | harness/services 主要模块 **0 errors** ✅ (从 31 → 0) | — |
 | AI Review Gate | 4 reviewer + CODEOWNERS ✅ | [.github/workflows/ai-review.yml](../../.github/workflows/ai-review.yml) |
 | 文档规范 | 13 份 standards ✅ | [docs/standards/](../standards/) |
+| **政务签章** | GDCA + 粤企签 Provider placeholder ✅ (待商务接入) | [backend/src/services/esign_service.py](../../backend/src/services/esign_service.py), [docs/integrations/guangdong-gov-signature.md](../integrations/guangdong-gov-signature.md) |
 
-### 进行中 / 待启动
+### 进行中 / 仍需推进
 
 | P 级 | 内容 | 状态 | 阻断 |
 |---|---|---|---|
-| **P8.A** | 桌面同步引擎 + 签名/公证证据 | 🚧 | 需 Apple Developer / 公证账号 |
-| **P8.B** | UI/UX 优化（3 周计划） | 🚧 | [详见 plans/2026-05-13](../plans/2026-05-13-ui-ux-optimization-roadmap.md) |
-| **P8.C** | RAG 质量与引用链路 | 🚧 | full50 baseline 缺真实跑通 |
-| **P8.D** | 支付 / 电签真实沙箱 | 🚧 | 等沙箱凭证发放 |
-| **P9** | 5 法务 persona 上层包装 | 🔜 | 等 P8 体验门槛 |
-| **P10** | RAG-Anything 知识库新版 | 🔜 | - |
+| **P8.A** | 桌面签名/公证证据 | 🚫 外部 | Apple Developer 账号 / Windows 签名证书 |
+| **P8.B** | UI/UX 优化 (4 项 P0 已完成本会话) | 🚧 持续 | 移动响应式/a11y/token 已加固; UI 三层目录整理仍待 |
+| **P8.C** | RAG full50 baseline | 🚫 外部 | corpus 50 份样本文档准备 |
+| **P8.D** | 政务签章接入 (代码 ✅, 商务待启) | 🟡 商务推动 | GDCA NDA + 粤商通入驻 |
+| **P8.D'** | 商业化支付/电签 | ⏬ **降 P3** (2026-05-14) | PMF 验证后启动 |
+| **P9** | 5 法务 persona | ✅ | — (复核完成) |
+| **P10** | RAG-Anything 知识库新版 | 🚧 持续 | — |
+| **P11/P12/P13** | RBAC / 三端 E2E / anxinai 域名 | 🔜 远期 | 客户进场 / B 档资源 / DNS |
 
 ---
 
-## 🚦 下一步顺序（按优先级）
+## 🚦 下一步顺序（按优先级，已重排）
 
-### P0 — 立即可做（无外部依赖）
+### 业务方推动（不阻断当前 PMF 验证）
 
-1. **图标体系收口** — 80 个文件 `lucide-react` → `@/lib/icons` 迁移
-   - 文件清单：grep `from 'lucide-react'` 找
-   - 每批 ≤ 20 文件 + 添加 lint `no-direct-lucide-import`
-   - 价值：DESIGN.md §4 规则才能生效
+1. **GDCA 政务签 商务对接** — NDA + 商务合同 + 测试凭据 (2-4 周)
+2. **粤商通企业实名入驻** — 法人代表认证 + 开发者权限申请 (2-4 周)
+3. **Apple Developer 账号 / Windows 代码签名证书** — 桌面发布前必须
+4. **真机预约 (iOS + Android)** — P12 三端 E2E 前置
 
-2. **Harness P0 followup** — `policy_engine` 主路径接入
-   - 当前 `_check_mcp_tool_policy` 已在 `backend/src/agents/base.py`
-   - 需要：抽到 `harness/policy_engine.py` 统一收敛
-   - 详见 [docs/audit/harness/03-h1-followups.md](../audit/harness/03-h1-followups.md)
+### 工程层仍可推进 (剩余技术债)
 
-3. **Harness P0 followup** — `context_engine` vs `context_compressor` 二选一
-   - 当前两套并存
-   - 决策依据：哪个被主路径用得更多 + 测试覆盖更全
+1. **UI 三层目录整理** — `components/ui/` + `common/` + `ui-unified/` 三套并存, 立 ADR 收敛
+2. **page=tab 子组件迁移** — `Cases.tsx` 等 tab 内容子组件命名误导, 迁到 `components/case-management/`
+3. **cost_tracker 真 write-through** — 当前 5min flush + restore 可用, 极端高并发场景可升 Redis ZADD
+4. **审批 UX 链路** — REQUIRE_APPROVAL → 工单 → chat unblock 完整 UX
+5. **i18n** — 全站国际化 (战略级别, 短期不必)
 
-4. **UI/UX P0** — 假成功修复
-   - 详见 [docs/audit/ui-ux-audit-2026-05-08.md](../audit/ui-ux-audit-2026-05-08.md)
+### 真 PMF 验证维度 (产品验收)
 
-### P1 — 等条件就绪可做
-
-1. **peaceful-goodall (CREAO Slice 1) 合并** — 等 P0 policy_engine 落定
-2. **cost_tracker 本地 LLM 估算 + 用户配额阻断**
-3. **task_engine 扩展到合同/尽调/批量文档**
-
-### P2 — 远期
-
-1. **capability_negotiator 统一桌面/前端/服务**
-2. **anxinai.com 域名切换**（P13）
+- Agent 主路径用户体验 (chat 流程 / persona 切换 / 推理引用)
+- RAG 引用链路 UI (citation chip / 跳转)
+- 协作编辑空状态 / 错误态
+- 多端体验一致性 (Web / Desktop / Mobile)
+- CREAO 自愈数据流真实触发 (incidents → triage → builder 整个链路在生产环境跑出第一条 GitHub Issue 草稿)
 
 ---
 
-## ⚠️ 当前已知阻断
+## ⚠️ 当前已知阻断（已大幅缩减）
 
 | 阻断 | 影响 | 解除条件 |
 |---|---|---|
-| Apple Developer 账号未发放 | 桌面签名 / 公证证据缺 | 行政申请通过 |
-| 支付/电签沙箱凭证未发放 | live 证据缺 | 渠道方审批 |
-| 真机预约未排期 | iOS/Android 真机证据缺 | 行政预约设备 |
-| Alembic 双 head | 028/030/044 三 head 风险 | 在 peaceful-goodall 合并时处理 |
+| Apple Developer 账号未发放 | 桌面签名 / 公证证据缺 | 行政申请通过 (P0) |
+| Windows 代码签名证书未发放 | Windows 发布阻断 | 证书申请 (P0) |
+| GDCA 政务签 商务未启动 | 政务签章接入空白 | 业务方 NDA + 商务对接 (P2) |
+| 粤商通企业入驻未启动 | 中小企政务签约空白 | 法人认证 + 开发者权限 (P2) |
+| 真机预约未排期 | iOS/Android 真机 transcript 缺 | 行政预约设备 (P1) |
+| RAG full50 corpus | full50 baseline 跑不通 | corpus 准备 (P2) |
+| ~~Alembic 双 head~~ | ~~阻断新 migration~~ | ✅ Phase A T5-prep 合并 + Phase F 同步 |
+| ~~支付/电签沙箱凭证~~ | ~~live 证据~~ | ⏬ **Phase F 已降为 P3** (PMF 后启动) |
 
 ---
 
-## 📊 完成度快照（数字）
+## 📊 完成度快照（数字, 2026-05-14 终极）
 
 ```
 后端 API endpoint:        61/61   ✅ 100%
-后端 pytest:              89/89 (harness+chat) + 543 (full)  ✅
+后端 pytest:              1866/1866 ✅ 100% (从 89/89+543 起累计扩展)
+后端 mypy 主要模块:        0 errors ✅ (harness/services 严检)
 前端测试文件:              100+    ✅
-Persona 实装（user-facing）: 10/10  ✅
-Specialized agent:        21/21   ✅
-六层框架（H0-O2 + H1）:    9/9     ✅
+前端 lint:                零错误  ✅
+前端 tsc / build:          clean / 10.59s ✅
+桌面 Rust cargo check:    通过 ✅
+alembic head:             单一 head (047_user_token_usage) ✅
+Persona 实装:             10/10   ✅
+六层框架:                 14 个模块 ✅ (六层 + 8 个 Phase B/C 新增)
+CREAO 自愈闭环:           Slice 1+2+2.5+3 全栈 ✅
 Skills 域:                4 office + 5 法律 + 5 电商
 文档规范:                 13/13   ✅
-品牌一致性:               100%    ✅（本轮收尾）
-CAMEL-AI 剥离:            100%    ✅
-图标体系一致性:           47%     🚧 (80 文件待迁)
-桌面签名:                 0%      🚫 (阻断)
-真机证据:                 0%      🚫 (阻断)
+品牌一致性:               100%    ✅
+图标体系一致性:           100%    ✅ (Phase B T1 收口 + ESLint 防回归)
+政务签章 placeholder:     2 渠道就位 (GDCA + 粤企签) ✅
+桌面签名:                 0%      🚫 (Apple Developer 阻断)
+真机证据:                 0%      🚫 (设备阻断)
+商业化支付/电签:           Phase F 降为 P3 ⏬ (PMF 后)
 支付/电签 live:           0%      🚫 (阻断)
 ```
 
