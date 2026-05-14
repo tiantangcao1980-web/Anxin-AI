@@ -8,6 +8,85 @@
 
 ---
 
+## 2026-05-14（A 档完成）Phase C — 用户授权后追加 10 项 P0-P2 任务全部落地（worktree `vigorous-wiles-5a3fb3`）
+
+### Phase C: A1-A10 全部完成（10 commit, 全部已推送）
+
+| 任务 | 范围 | Commit | 验证 |
+|---|---|---|---|
+| **A1** ModeGate 实战接入 | 后端 `capability_negotiator.MODE_CAPABILITIES` 追加 6 个 user-facing key (lawyer_matching / sentiment_monitor / due_diligence / im_messaging / case_market / legal_knowledge_base)；App.tsx 8 处 ModeGate 调用点传入 `featureKey` 让后端协商生效 | `3eed0283` | pytest 3/3 capability + tsc clean |
+| **A2** build chunk 优化 | vite manualChunks: vendor-three 1323KB → core 1102 + graph 222；livekit 552 → client 424 + components 128；editor 473 → tiptap 373 + yjs 100；recharts 切出 d3 | `8fd8e6e2` | 14 vendor chunks 全部 <500KB (除 three-core 已 lazy)，vite build 13.79s |
+| **A3** CREAO Slice 2 Triage | `harness/triage_service.py`：(source, agent, route) 三键聚类 + severity_max + trend (surging/stable/decaying/quiet) + open→triaged 状态机；2 个 admin 路由 (triage/run + triage/overview) | `084825a9` | pytest test_triage_service 8/8 |
+| **A4** cost_tracker 持久化 + cron | alembic `047_user_token_usage` 新表；cost_tracker 新增 `snapshot_to_db / restore_from_db / archive_and_reset_user`；Celery beat 任务 `quota-reset-daily` (crontab 00:05 UTC) | `e299d3ce` | pytest test_cost_tracker_persistence 5/5；alembic 单一 head `047_user_token_usage` |
+| **A5** Tauri command + AdminIncidents 深化 | `desktop/src/commands/capability.rs` Rust 命令 `negotiate_capabilities` (云端调用 + 本地兜底)；AdminIncidents 增加 Triage Overview 顶部统计卡 + 试运行/运行 Triage 按钮 + 聚类结果展示 | `d79a477e` | cargo check ✅；tsc clean；lint 零错误 |
+| **A6** policy approvals 接入 | `policy_enforcement.check_tool_call` 改 async + 新增 db/org_id/requested_by 参数；REQUIRE_APPROVAL 自动调 `agent_approval_service.request_approval` 创建工单；enforce 模式 + pending → 阻断；base.py 两处调用点改 async | `ff5ce9ea` | pytest test_harness_policy_enforcement 8/8 + test_harness 2/2 |
+| **A7** trace `_policy_info` 审计 | `TraceContext.record_policy_decision` (仅记非 ALLOW 决策, 避免噪声)；to_summary 输出 `_policy_info` 列表；policy_enforcement 5 个 return 点全部 `_record_to_trace`，admin 通过 trace 摘要可查所有 deny/approval/error 事件 | `a0f14c41` | pytest test_harness_policy_enforcement 10/10（含 2 项 A7） |
+| **A8** context_compressor 合并入 harness | `git mv backend/src/services/context_compressor.py → backend/src/harness/context_compressor.py`；context_engine 4 处 import 路径更新；services/ 不再有 cross-cutting infra 文件 | `4761bc63` | pytest test_chat + test_harness 78/78 |
+| **A9** CREAO Slice 3 Builder | `harness/builder_service.py`：build_regression_test_draft (pytest 文件骨架 + @pytest.mark.regression + TODO 提示)；build_github_issue_draft (title + body + repo)；link_github_issue (回填 URL + status→linked)；2 个 admin 路由 | `85802cc4` | pytest test_builder_service 8/8 |
+| **A10** incidents 路由二级 burst 限频 | `utils/rate_limit_burst.py`：sha256(url+message)[:16] 指纹 60s ≥ 20 次 → 429；用户级 60s ≥ 30 次 → 429；内存滑动窗口 deque + 自动 popleft 过期清理 | `9f3d2825` | pytest test_incidents_rate_limit 4/4 + 全套 149/149 |
+
+### Phase C 完整 commit 时间线（累计领先 origin/main 24 个 commit）
+
+```
+... (Phase A + B 已记录在下方 14 commit)
+3eed0283  A1 — ModeGate 实战接入
+8fd8e6e2  A2 — vite manualChunks 拆分超大 vendor
+084825a9  A3 — CREAO Slice 2 Triage Service
+e299d3ce  A4 — cost_tracker DB 持久化 + Celery beat cron
+d79a477e  A5 — Tauri negotiate_capabilities + AdminIncidents Triage 视图
+ff5ce9ea  A6 — policy REQUIRE_APPROVAL 自动建审批工单
+a0f14c41  A7 — trace _policy_info 审计
+4761bc63  A8 — context_compressor 入 harness 命名空间
+85802cc4  A9 — CREAO Slice 3 Builder Service
+9f3d2825  A10 — incidents 二级 burst 限频
+（本 commit）docs(status): A 档全部完成总结
+```
+
+### Phase C 终极验证
+
+| 维度 | 命令 | 结果 |
+|---|---|---|
+| 后端 10 套件 | pytest test_harness + test_chat + test_harness_policy_enforcement + test_skill_loader_yaml + test_incident_collector + test_mode_subscription_guards + test_triage_service + test_cost_tracker_persistence + test_builder_service + test_incidents_rate_limit | ✅ **149/149**（含 Phase B 累计 + Phase C 新增 41 项） |
+| alembic | `ScriptDirectory.get_heads()` | ✅ 单一 head `047_user_token_usage` |
+| 前端 lint | `npm run lint` | ✅ **零错误** |
+| 前端 type | `npx tsc --noEmit` | ✅ clean |
+| 前端 build | `npm run build` | ✅ 13.79s, 所有 vendor chunk <500KB (除 lazy 的 three-core) |
+| 桌面 Rust | `cargo check` | ✅ 通过 |
+
+### B 档 / C 档 / D 档 剩余 — 全部依赖外部资源
+
+| 档 | 项 | 阻断方 |
+|---|---|---|
+| **B** | macOS 签名 / 公证 | Apple Developer 账号 |
+| **B** | Windows 代码签名 | 代码签名证书 |
+| **B** | 支付 / 电签 / OA 真实沙箱凭证 | 渠道方审批 |
+| **B** | iOS / Android 真机 transcript | 测试机房 + 设备排期 |
+| **B** | 微信小程序正式 appid | 微信开放平台审批 |
+| **C** | RAG full50 baseline | corpus 50 份样本文档准备 |
+| **C** | 引用链路完整性测试 | full50 跑通后 |
+| **C** | 5 法务 persona eval baseline | 真实业务回放 prompt + 标注 |
+| **D** | P11 多租户 RBAC 可视化 | P9 persona 上线 + 多租户客户进场 |
+| **D** | P12 5 personas × 三端 E2E | B 档 Apple/Windows 签名 + 沙箱凭证齐备 |
+| **D** | T9 / P13 anxinai.com 域名切换 | DNS + 证书 + SEO redirect 计划就绪 |
+
+**B/C/D 档全部需要业务方申请、渠道方审批、运维资源准备或外部里程碑触发，无可推进的纯代码任务。**
+
+### 总结
+
+Phase A (T1-T10 + T5-prep + 二阶段) + Phase B (P9/P10 复核 + 终极收尾) + **Phase C (A1-A10 共 10 项)** 累计 **24 个 commit** 推送到 `origin/claude/vigorous-wiles-5a3fb3`，覆盖范围：
+
+- 图标体系 / build chunk / lint 收尾（前端规范）
+- harness 六层框架全部接入业务主路径：policy_engine + context_engine + cost_tracker + task_engine + capability_negotiator + tool_registry × Skills 协同
+- CREAO 自愈闭环 Slice 1 + Slice 2 + Slice 3 三段流水线全部代码就位
+- 多端能力协商 Web + Desktop + Backend 三源对齐
+- 配额阻断 + admin 双层豁免 + 周期 cron + DB 持久化全链路
+- 审批工作流 + trace 审计 + 二级 burst 限频 安全闭环
+- 18 文件 CREAO Slice 1 合并 + alembic 双 head 统一
+
+**worktree 内代码层 P0-P2 全部完成，本会话授权范围内已不存在可推进的代码任务。** B/C/D 档全部为外部资源依赖，须移交业务方/运维。
+
+---
+
 ## 2026-05-14（最终）Phase B 终极收尾 — T1-T10 + 二阶段全部完成（worktree `vigorous-wiles-5a3fb3`）
 
 ### 用户授权后追加完成（3 commit）
