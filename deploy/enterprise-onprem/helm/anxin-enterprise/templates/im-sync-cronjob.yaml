@@ -1,0 +1,98 @@
+{{/*
+飞书 / 钉钉 / 企业微信 通讯录同步 —— K8s CronJob
+
+通过 values.yaml ``imSync.providers`` 列表渲染 0..N 个 CronJob，每个对应一个 IM 平台。
+关闭某 provider：把对应条目从 providers 移除即可。
+
+values.yaml 示例：
+    imSync:
+      enabled: true
+      schedule: "*/5 * * * *"
+      providers:
+        - name: feishu
+          orgId: "<org_id>"
+        - name: dingtalk
+          orgId: "<org_id>"
+
+secrets:
+    secret.yaml 通过 IM_SECRET_FEISHU_APP_SECRET / DINGTALK_APP_SECRET / WECOM_CONTACTS_SECRET 写入。
+    Helm 把这些挂为环境变量。
+*/}}
+{{- if .Values.imSync.enabled }}
+{{- range .Values.imSync.providers }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "anxin.fullname" $ }}-im-sync-{{ .name }}
+  labels:
+    {{- include "anxin.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: im-sync
+    anxin.ai/provider: {{ .name }}
+spec:
+  schedule: {{ default $.Values.imSync.schedule .schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            {{- include "anxin.selectorLabels" $ | nindent 12 }}
+            app.kubernetes.io/component: im-sync
+            anxin.ai/provider: {{ .name }}
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: im-sync
+              image: {{ include "anxin.backend.image" $ }}
+              command:
+                - python
+                - scripts/im_directory_sync_loop.py
+                - --provider
+                - {{ .name | quote }}
+                - --once
+                - --org-id
+                - {{ required (printf "imSync.providers[%s].orgId is required" .name) .orgId | quote }}
+                - --strategy
+                - {{ default "ldap-wins" .strategy | quote }}
+              env:
+                - name: IM_SYNC_ORG_ID
+                  value: {{ .orgId | quote }}
+                - name: DATABASE_URL
+                  value: postgresql://anxin:$(POSTGRES_PASSWORD)@{{ include "anxin.fullname" $ }}-postgres:5432/anxin_enterprise
+                - name: POSTGRES_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "anxin.fullname" $ }}-secrets
+                      key: POSTGRES_PASSWORD
+                {{- if eq .name "feishu" }}
+                - name: FEISHU_APP_ID
+                  value: {{ default "" $.Values.imSync.feishu.appId | quote }}
+                - name: FEISHU_APP_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "anxin.fullname" $ }}-secrets
+                      key: FEISHU_APP_SECRET
+                {{- end }}
+                {{- if eq .name "dingtalk" }}
+                - name: DINGTALK_APP_KEY
+                  value: {{ default "" $.Values.imSync.dingtalk.appKey | quote }}
+                - name: DINGTALK_APP_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "anxin.fullname" $ }}-secrets
+                      key: DINGTALK_APP_SECRET
+                {{- end }}
+                {{- if eq .name "wecom" }}
+                - name: WECOM_CORP_ID
+                  value: {{ default "" $.Values.imSync.wecom.corpId | quote }}
+                - name: WECOM_CONTACTS_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "anxin.fullname" $ }}-secrets
+                      key: WECOM_CONTACTS_SECRET
+                {{- end }}
+{{- end }}
+{{- end }}

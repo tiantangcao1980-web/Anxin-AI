@@ -78,6 +78,26 @@ ldapSync:
     userBaseDn: ""
     deptBaseDn: ""
 
+imSync:
+  # 飞书 / 钉钉 / 企业微信 通讯录同步（公网客户用）
+  enabled: false
+  schedule: "*/5 * * * *"
+  # 启用的 provider 列表（数组，可保留多个）
+  providers: []
+    # - name: feishu
+    #   orgId: "<org_id>"
+    #   strategy: ldap-wins
+    # - name: dingtalk
+    #   orgId: "<org_id>"
+    # - name: wecom
+    #   orgId: "<org_id>"
+  feishu:
+    appId: ""
+  dingtalk:
+    appKey: ""
+  wecom:
+    corpId: ""
+
 postgres:
   # 生产建议用客户自有 PG / 云 RDS；这里提供 in-cluster fallback
   inCluster:
