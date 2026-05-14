@@ -58,19 +58,45 @@
 
 详细落地见 [docs/audit/harness/README.md](audit/harness/README.md)。
 
-### 1.1 Harness 8 模块职责
+### 1.1 Harness 14 模块职责（Phase B + Phase C 大幅扩展）
+
+#### 核心 8 模块（原始六层框架）
 
 | 模块 | 职责 | 主路径接入 |
 |---|---|---|
-| `enforcement.py` | Harness 主入口 (`run_validation`) | ✅ chat 主路径已接 |
-| `trace_context.py` | 请求级 trace 上下文管理 | ✅ |
-| `task_engine.py` | 任务状态机（PENDING/RUNNING/VALIDATING/COMPLETED/FAILED/RETRY） | ✅ chat 主路径已接 |
-| `cost_tracker.py` | LLM token / 美元消耗追踪 | 🚧 P1 用户配额 |
-| `output_validator.py` | Agent 输出质量校验（4 维度） | ✅ via enforcement |
-| `policy_engine.py` | 工具调用 / 跨 persona 策略 | 🚧 P0 待统一（当前 `_check_mcp_tool_policy` 在 base.py） |
-| `context_engine.py` | 上下文压缩 / 选择 | 🚧 P0 与 compressor 二选一 |
-| `tool_registry.py` | 工具注册表 | 🚧 P1 与 Skills 协同 |
-| `capability_negotiator.py` | 能力协商（多端） | 🚧 P2 |
+| `enforcement.py` | Harness 主入口 (`run_validation`)，fail-closed CRITICAL/FAIL/WARNING | ✅ chat 主路径已接 |
+| `trace_context.py` | 请求级 trace 上下文管理 + `_policy_info` 审计 (A7) | ✅ |
+| `task_engine.py` | 任务状态机；T7 扩展到合同审查 / 企业尽调 / 批量文档生成 | ✅ 4 路径已接 |
+| `cost_tracker.py` | LLM token / 美元追踪；本地 LLM `char/4` 估算 (T6)；DB 持久化 (A4)；admin 双层豁免 (T6 二阶段) | ✅ 主路径前置门禁 |
+| `output_validator.py` | Agent 输出质量校验（4 维度）；E1 IncidentCollector 主路径注入；E3 fail-closed 复核 | ✅ via enforcement |
+| `policy_engine.py` | 工具调用 / 跨 persona 策略；T2 切 enforce + 异常隔离 + env-var kill switch | ✅ via `policy_enforcement` |
+| `context_engine.py` | 上下文压缩 / 选择；T3 统一压缩入口；A8 `context_compressor` 入 harness 命名空间 | ✅ chat + due_diligence 都用 |
+| `capability_negotiator.py` | 能力协商（多端）；T8 API 化 + A1 user-facing key + A5 Tauri command | ✅ Web hook + 桌面命令 |
+
+#### Phase B + Phase C 新增 6 模块
+
+| 模块 | 职责 | 引入版本 |
+|---|---|---|
+| `policy_enforcement.py` | T2/A6: `check_tool_call` async；自动建审批工单 (REQUIRE_APPROVAL→`agent_approval_service`)；trace 审计写入 | T2 (warn-only) → T2 二阶段 (enforce) → A6 (approval) → A7 (trace) |
+| `context_compressor.py` | A8 从 `services/` 移入 harness 命名空间；Tier 1-4 渐进式压缩 + LLM 摘要 | A8 |
+| `tool_registry.py` ↔ `Skill.required_tools` | T10 SKILL.md 工具白名单校验；E5 运行时 gate auto-disable 缺失依赖的 skill | T10 + E5 |
+| `incident_collector.py` | CREAO Slice 1 失败信号统一收集（PII 脱敏 + 5min dedupe） | T5 (peaceful-goodall) |
+| `incident_hook.py` | E1 fire-and-forget helper，让 output_validator / agent_forum / episodic_memory 三个 hook 无 db 句柄也能写 incident | E1 |
+| `triage_service.py` | CREAO Slice 2: (source, agent, route) 三键聚类 + trend (surging/quiet) + 状态机推进 open→triaged | A3 |
+| `builder_service.py` | CREAO Slice 3: 回归测试草稿 + GitHub Issue 草稿 + 人工 gate link_github_issue | A9 |
+
+#### Phase A4 持久化与运维
+
+| 文件 | 职责 |
+|---|---|
+| `models/user_token_usage.py` + `alembic/versions/047_*` | cost_tracker 持久化层 |
+| `services/quota_reset_worker.py` | Celery beat: `quota-reset-daily` (00:05 UTC) + `cost-snapshot-every-5min` (E2) |
+
+#### A10 安全
+
+| 文件 | 职责 |
+|---|---|
+| `utils/rate_limit_burst.py` | 通用滑窗 burst 限流；incidents/report 用作指纹 + 用户级二级防护 |
 
 ---
 

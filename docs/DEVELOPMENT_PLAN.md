@@ -204,29 +204,74 @@
   - [ ] 异步任务页面必显示进度（非 spin loader 假装）
   - [ ] 详见 [docs/audit/ui-ux-audit-2026-05-08.md](audit/ui-ux-audit-2026-05-08.md) P0 清单
 
-### 4.2 排队中（P1 · 等条件）
+### 4.2 ✅ 已完成（Phase B + Phase C, 2026-05-14）
 
-#### 任务 T5：peaceful-goodall CREAO Slice 1 合并
+#### T5：peaceful-goodall CREAO Slice 1 合并 ✅
 
-- **DEPENDS_ON**：T2 完成（policy_engine 收敛后）
-- **EFFORT**：4-6 小时（含 alembic head 合并）
-- **写入范围**：18 文件 / 1666 行
+- alembic prep + 主体 cherry-pick (1672 行 18 文件)
+- commit: `5ace776c` (prep) + `2fa3c039` (主体)
 
-#### 任务 T6：cost_tracker 用户配额阻断
+#### T6：cost_tracker 用户配额阻断 ✅
 
-- **DEPENDS_ON**：无（独立模块）
-- **EFFORT**：6-8 小时
+- 本地 LLM `char/4` 估算 + 用户级累计 + `check_user_quota` API + `QuotaExceededError`
+- T6 二阶段: chat_service 主路径前置门禁 + admin 双层豁免 (env + features_override)
+- commit: `7e581079` + `d190682c`
 
-#### 任务 T7：task_engine 扩展（合同 / 尽调 / 批量文档）
+#### T7：task_engine 扩展（合同 / 尽调 / 批量文档）✅
 
-- **DEPENDS_ON**：T2 完成
-- **EFFORT**：1-2 天
+- contract_service.review_contract / due_diligence_service.investigate_company / batch_document_service.execute_batch 三路径接入状态机
+- commit: `ca6e0ebb`
 
-### 4.3 候补（P2 · 长期）
+#### T8：capability_negotiator 统一桌面 / 前端 / 服务 ✅
 
-- 任务 T8：capability_negotiator 统一桌面 / 前端 / 服务
-- 任务 T9：anxinai.com 域名切换（P13）
-- 任务 T10：tool_registry 与 Skills 协同改造
+- T8 二阶段: ModeGate 改 useCapabilities hook + featureKey
+- A1: 8 调用点实战接入 + 后端补 6 个 user-facing key
+- A5: Tauri `negotiate_capabilities` command (云端委托 + 本地兜底)
+- commit: `1875e738` + `3eed0283` + `d79a477e`
+
+#### T10：tool_registry 与 Skills 协同 ✅
+
+- T10: SKILL.md `required_tools` 字段 + `validate_required_tools()`
+- E5: SkillRegistry.register 运行时 gate auto-disable 缺失依赖
+- commit: `13f93532` + `1da62db5`
+
+### 4.3 ✅ Phase C 额外完成的 P1/P2 优化（A1-A10）
+
+| 任务 | commit |
+|---|---|
+| A1 ModeGate 实战接入 | `3eed0283` |
+| A2 vite manualChunks 拆分超大 vendor | `8fd8e6e2` |
+| A3 CREAO Slice 2 Triage Service | `084825a9` |
+| A4 cost_tracker DB 持久化 + Celery cron | `e299d3ce` |
+| A5 Tauri command + AdminIncidents 深化 | `d79a477e` |
+| A6 policy REQUIRE_APPROVAL 自动建工单 | `ff5ce9ea` |
+| A7 trace `_policy_info` 审计 | `a0f14c41` |
+| A8 context_compressor 入 harness 命名空间 | `4761bc63` |
+| A9 CREAO Slice 3 Builder | `85802cc4` |
+| A10 incidents 二级 burst 限频 | `9f3d2825` |
+
+### 4.4 ✅ Phase D 额外完成的卫生 + 收尾任务（E1-E5 + E2）
+
+| 任务 | commit |
+|---|---|
+| E1 IncidentCollector 注入 3 个失败信号 hook 主路径 | `3b09ba9c` |
+| E2 cost_tracker 每 5min snapshot Celery beat | `5a20f29a` |
+| E3 output_validator fail-closed 复核 | `8784c3bc` |
+| E4 全量 pytest 卫生 + 3 项 Phase A 归档遗漏修复 | `1a3d71fa` |
+| E5 Skill required_tools runtime gate | `1da62db5` |
+
+### 4.5 候补 / 外部资源依赖
+
+| 项 | 阻断 |
+|---|---|
+| T9 / P13 anxinai.com 域名 | DNS / 证书 |
+| 桌面 macOS 签名 | Apple Developer 账号 |
+| 桌面 Windows 签名 | 代码签名证书 |
+| 支付 / 电签 / OA 真实沙箱 | 渠道方审批 |
+| 移动真机 transcript | 测试机房排期 |
+| RAG full50 baseline | corpus 准备 |
+| P11 多租户 RBAC | 客户进场触发 |
+| P12 5 personas × 三端 E2E | B 档全部到位 |
 
 ---
 
