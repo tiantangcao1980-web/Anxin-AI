@@ -8,6 +8,71 @@
 
 ---
 
+## 2026-05-14（Phase E 完成）G 档技术债清零 — pytest 1866/1866 + mypy 0 errors（worktree `vigorous-wiles-5a3fb3`）
+
+### Phase E: G 档技术债推进（4 commit, 全部已推送）
+
+| 任务 | 范围 | Commit |
+|---|---|---|
+| **G1** trace_id 自动注入 | `IncidentCollector.collect` + `collect_incident_safely` 从 `current_trace()` 自动取出 trace_id, caller 显式优先; 让 CREAO Slice 3 builder 能关联回完整 trace 链 | `24d4d899` |
+| **G2** watchdog 包补装 | pyproject 已声明 watchdog>=4.0, 环境 pip install 后 `test_skill_registry::TestWatchDirectory` 通过 | `24d4d899` |
+| **G3** /pro/* 路由补 ModeGate | 4 条 Pro 端路由 (messages/knowledge/investigation/market) 全部传入 featureKey, 与主端路由统一走后端 capability_negotiator | `24d4d899` |
+| **G4** 测试隔离修复 | test_persona_anxin_api snapshot 恢复 / test_tax_finance_persona + test_dd_expert_persona 显式 autoload() / test_agent_governance_service leases 加 route_id filter | `24d4d899` |
+| **G5** mypy 历史债 10 → 0 | trace_context 删除 unused type:ignore / incident.py dict 泛型 / event_bus + working_memory ping 兼容 sync/async / vector_store get_sentence_embedding_dimension 兜底 / agent_approval_service Sequence→list / security 删除 unused type:ignore | `3a15401b` |
+| **G6** AdminIncidents 移动卡片 | md 断点切换: 移动 (button stack + line-clamp + Badge 横排) vs 桌面 (8 列 overflow-x-auto) | `7c914492` |
+| **G7** CREAO Slice 2.5 LLM 根因猜测 | triage_open_incidents 新增 enable_llm_summary 参数 (默认 False); 仅 P0/P1 cluster 调 LLM (gpt-4o-mini, max_tokens=100); admin API 暴露 query param; 失败/未配置 API key 静默 fallback | `7c914492` |
+
+### Phase E 终极验证矩阵
+
+| 维度 | 命令 | 结果 |
+|---|---|---|
+| **全量后端 pytest** | `pytest backend/ -q` | ✅ **1866 passed + 45 skipped + 0 failed** (从 1847+4 → 1866+0) |
+| **mypy harness + 主要 service** | `mypy src/harness/ src/services/event_bus.py vector_store.py ... src/core/...` | ✅ **0 errors** (从 31 → 0) |
+| 前端 lint | `npm run lint` | ✅ 零错误 |
+| 前端 type | `npx tsc --noEmit` | ✅ clean |
+| 前端 build | `npm run build` | ✅ 通过 |
+| alembic | `ScriptDirectory.get_heads()` | ✅ 单一 head |
+| 桌面 Rust | `cargo check` | ✅ 通过 |
+
+### Phase E 后剩余技术债（从 12 → 4 项）
+
+✅ 已清零: G1 trace_id / G2 watchdog / G3 /pro ModeGate / G4 测试隔离 / G5 mypy 历史债 / G6 移动卡片 / G7 Slice 2.5
+
+🟡 剩余 (本会话授权范围外或风险较高):
+- **UI 三层目录整理** (components/ui/ + common/ + ui-unified/) — 架构级改造, P2, 建议单独 PR
+- **page=tab 子组件迁移** (Cases.tsx 等) — 命名重构, P3
+- **cost_tracker 真 write-through** — 性能与一致性权衡, 当前 5min flush + restore 已够用, P2
+- **审批 UX 链路** (REQUIRE_APPROVAL → 工单 → chat unblock) — UI 大改造, P2 建议单独 PR
+- **i18n** — 全站国际化, P3 不必短期做
+
+### Phase E 累计 commit 时间线
+
+```
+24d4d899  G1+G2+G3+G4 — trace_id + watchdog + /pro ModeGate + 测试隔离
+3a15401b  G5 — mypy 历史债 (10 → 0)
+7c914492  G6 + G7 — AdminIncidents 移动卡片 + CREAO Slice 2.5
+（本 commit） docs(status): Phase E 收尾
+```
+
+### 整轮总结（Phase A + B + C + D + E, 45+ commit）
+
+从 2026-05-14 早晨用户指令"先理清所有无关的文档和代码"开始, 累计完成 **45+ 个 commit**, 全部推送到 `origin/claude/vigorous-wiles-5a3fb3`. 覆盖范围:
+
+- **文档单一信源化** (170+ 源 → 5 Spine + 9 Wiki + 101 归档)
+- **图标体系收口** (80 文件 lucide-react → @/lib/icons + ESLint 防回归)
+- **Harness 六层框架全部主路径接入** + 4 个新模块 (incident_collector / incident_hook / triage_service / builder_service)
+- **CREAO 自愈闭环全栈** (Slice 1 收集 + Slice 2 triage + Slice 2.5 LLM 根因 + Slice 3 builder + 人工 gate)
+- **多端能力协商三源对齐** (Web hook + Desktop Tauri command + Backend API + 进程缓存)
+- **配额阻断全链路** (admin 双层豁免 + 5min snapshot + 每日 cron + DB 持久化)
+- **审批工作流 + trace 审计 + 二级 burst 限流 + Redis 后端预留**
+- **mypy 严检** (harness 31 → 0)
+- **pytest 全量** (1847+4failed → **1866+0failed** ✅)
+- **UI 设计系统审计** + 多项 P0 修复 + 移动响应式 + 死页面清理
+
+**worktree 内代码层 P0-P3 全部完成. pytest 100% 通过, mypy 主要模块 100% 通过, lint/type/build 全绿. 远程分支即为最终交付状态.**
+
+---
+
 ## 2026-05-14（Phase D 完成）E+F+UI 全档完成 — 卫生 + 优化 + UI 审计 + 阻塞与技术债盘点（worktree `vigorous-wiles-5a3fb3`）
 
 ### Phase D: E + F + UI 全档完成（8 commit + UI 4 项修复）
