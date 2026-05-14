@@ -201,6 +201,7 @@ async def admin_run_triage(
     *,
     limit: int = Query(200, ge=1, le=1000, description="单次处理上限"),
     dry_run: bool = Query(False, description="True=仅返回聚类不写库, False=同时 transition open→triaged"),
+    enable_llm_summary: bool = Query(False, description="G7: P0/P1 cluster 调 LLM 给根因猜测 (花 token)"),
     user: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -209,13 +210,20 @@ async def admin_run_triage(
     返回:
         {
             "scanned": int,
-            "clusters": [...],   # 按 severity / 总频次排序
+            "clusters": [...],   # 按 severity / 总频次排序; 含 llm_root_cause_hint 字段 (若启用)
             "transitioned": int,
             "generated_at": iso,
+            "llm_calls": int,
         }
     """
-    logger.info(f"[Admin] triage triggered by {user.email} (limit={limit}, dry_run={dry_run})")
-    return await triage_open_incidents(db, limit=limit, transition_state=not dry_run)
+    logger.info(
+        f"[Admin] triage triggered by {user.email} "
+        f"(limit={limit}, dry_run={dry_run}, llm={enable_llm_summary})"
+    )
+    return await triage_open_incidents(
+        db, limit=limit, transition_state=not dry_run,
+        enable_llm_summary=enable_llm_summary,
+    )
 
 
 @router.get("/admin/incidents/triage/overview")

@@ -110,11 +110,68 @@ def _format_triage_summary(cluster: IncidentCluster) -> str:
     return " | ".join(parts)
 
 
+async def _generate_llm_summary(cluster: IncidentCluster, sample_payloads: list[dict[str, Any]]) -> str | None:
+    """G7 (2026-05-14): Slice 2.5 可选 LLM 总结。
+
+    输入: cluster + 该 cluster 下前 3 个 incident 的脱敏 payload
+    输出: 一句话自然语言根因猜测 (中文); 失败/未配置 LLM 时返回 None
+    用 cost_tracker 估算成本; 单次调用预算控制 ~500 tokens 以内
+
+    设计:
+      - 仅在 cluster.severity_max in [P0, P1] 时调 LLM (P2/P3 用确定性模板足够)
+      - LLM 调用失败 / 未配置 → 静默返回 None, 不影响 Slice 2 主流程
+    """
+    if cluster.severity_max not in ("P0", "P1"):
+        return None
+
+    try:
+        from src.core.config import settings
+        api_key = getattr(settings, "OPENAI_API_KEY", None) or getattr(settings, "DEEPSEEK_API_KEY", None)
+        if not api_key:
+            return None
+
+        # 构建简短 prompt
+        sample_text = "\n".join(
+            f"- {str(p)[:300]}" for p in sample_payloads[:3]
+        )
+        prompt = (
+            f"你是 SRE 助手. 以下是一组同类错误信号 (严重度 {cluster.severity_max}, "
+            f"agent={cluster.agent_name or '-'}, route={cluster.route or '-'}):\n"
+            f"{sample_text}\n\n"
+            f"用一句话 (≤60 字) 概括最可能的根因。直接给结论, 不要 preamble。"
+        )
+
+        # 简单的 OpenAI 兼容调用 (跳过 agent 完整 path, 避免重型依赖)
+        import httpx
+        base_url = getattr(settings, "OPENAI_API_BASE", "https://api.openai.com/v1")
+        model = "gpt-4o-mini"  # 便宜模型够用
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                f"{base_url}/chat/completions",
+                json={
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 100,
+                    "temperature": 0.3,
+                },
+                headers={"Authorization": f"Bearer {api_key}"},
+            )
+            if resp.status_code != 200:
+                return None
+            data = resp.json()
+            content = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+            return content[:120] if content else None
+    except Exception:
+        # LLM 故障绝不影响主流程, 静默
+        return None
+
+
 async def triage_open_incidents(
     db: AsyncSession,
     *,
     limit: int = 200,
     transition_state: bool = True,
+    enable_llm_summary: bool = False,
 ) -> dict[str, Any]:
     """处理 open 状态的 incidents, 生成 cluster 与 triage_summary。
 
@@ -123,6 +180,9 @@ async def triage_open_incidents(
         limit: 单次处理上限 (按 last_seen_at desc 取最近的)
         transition_state: True 时将处理过的 incident status 改为 "triaged" 并填 triage_summary;
             False 时仅返回 cluster 视图, 不写库 (供 admin dry-run 调用)
+        enable_llm_summary: G7 (Slice 2.5) — True 时对 P0/P1 cluster 额外调一次 LLM 给
+            自然语言根因猜测, 写入 cluster.llm_root_cause_hint (并入 triage_summary).
+            默认 False (deterministic only), 避免意外消耗 token.
 
     Returns:
         {
@@ -130,6 +190,7 @@ async def triage_open_incidents(
             "clusters": [IncidentCluster.to_dict()],
             "transitioned": int,      # 实际 transition 数量
             "generated_at": iso datetime,
+            "llm_calls": int,         # G7 实际 LLM 调用次数
         }
     """
     now = datetime.now(timezone.utc)
@@ -189,13 +250,34 @@ async def triage_open_incidents(
             if last_seen >= cutoff_1h:
                 c.trend_1h += inc.occurrence_count or 1
 
+    # G7 (Slice 2.5): 可选 LLM 根因猜测
+    llm_hints: dict[tuple[str, str | None, str | None], str] = {}
+    llm_calls = 0
+    if enable_llm_summary:
+        # 收集每个 cluster 前 3 个 incident 的 payload (脱敏后存的)
+        per_cluster_payloads: dict[tuple, list[dict[str, Any]]] = {}
+        for inc in open_incidents:
+            key = (inc.source, inc.agent_name, inc.route)
+            bucket = per_cluster_payloads.setdefault(key, [])
+            if len(bucket) < 3 and isinstance(inc.payload, dict):
+                bucket.append(inc.payload)
+        for key, cluster in cluster_map.items():
+            hint = await _generate_llm_summary(cluster, per_cluster_payloads.get(key, []))
+            if hint:
+                llm_hints[key] = hint
+                llm_calls += 1
+
     # 状态机推进 + 写 triage_summary
     transitioned = 0
     if transition_state:
         for inc in open_incidents:
             key = (inc.source, inc.agent_name, inc.route)
             cluster = cluster_map[key]
-            inc.triage_summary = _format_triage_summary(cluster)
+            summary = _format_triage_summary(cluster)
+            hint = llm_hints.get(key)
+            if hint:
+                summary = f"{summary} | 根因猜测: {hint}"
+            inc.triage_summary = summary
             inc.status = "triaged"
             transitioned += 1
         await db.flush()
@@ -206,15 +288,25 @@ async def triage_open_incidents(
         key=lambda c: (SEVERITY_RANK.get(c.severity_max, 9), -c.total_occurrences),
     )
 
+    # G7: 把 LLM hint 注入到 cluster.to_dict() 输出
+    clusters_dict_list = []
+    for c in clusters_sorted:
+        d = c.to_dict()
+        key = (c.source, c.agent_name, c.route)
+        if key in llm_hints:
+            d["llm_root_cause_hint"] = llm_hints[key]
+        clusters_dict_list.append(d)
+
     logger.info(
         f"[Triage] scanned={len(open_incidents)} clusters={len(clusters_sorted)} "
-        f"transitioned={transitioned}"
+        f"transitioned={transitioned} llm_calls={llm_calls}"
     )
     return {
         "scanned": len(open_incidents),
-        "clusters": [c.to_dict() for c in clusters_sorted],
+        "clusters": clusters_dict_list,
         "transitioned": transitioned,
         "generated_at": now.isoformat(),
+        "llm_calls": llm_calls,
     }
 
 

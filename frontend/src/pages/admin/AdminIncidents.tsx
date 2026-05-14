@@ -502,7 +502,56 @@ export default function AdminIncidents() {
               ))}
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            {/* G6 (2026-05-14): 移动端卡片视图 (sm 以下) */}
+            <div className="block md:hidden divide-y divide-border">
+              {items.length > 0 ? items.map((it) => (
+                <button
+                  key={it.id}
+                  type="button"
+                  onClick={() => setSelected(it)}
+                  className="w-full text-left p-4 hover:bg-muted/30 focus-visible:outline-none focus-visible:bg-muted/50 transition-colors"
+                  aria-label={`查看事件 ${it.title}`}
+                >
+                  <div className="flex items-start gap-2 mb-1.5">
+                    <SeverityBadge severity={it.severity} />
+                    <SourceBadge source={it.source} />
+                    <StatusBadge status={it.status} />
+                    <span className="ml-auto text-xs font-mono text-muted-foreground">
+                      ×{it.occurrence_count ?? 1}
+                    </span>
+                  </div>
+                  <div className="text-sm font-medium mb-1 line-clamp-2" title={it.title}>
+                    {it.title || '--'}
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>
+                      {it.last_seen_at
+                        ? new Date(it.last_seen_at).toLocaleString('zh-CN')
+                        : '--'}
+                    </span>
+                    {it.agent_name && <span className="font-mono">{it.agent_name}</span>}
+                  </div>
+                  {it.github_issue_url && (
+                    <a
+                      href={it.github_issue_url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-2 text-xs text-primary hover:underline inline-flex items-center gap-1"
+                    >
+                      <icons.ExternalLink className="w-3 h-3" />
+                      Issue
+                    </a>
+                  )}
+                </button>
+              )) : (
+                <div className="text-center text-muted-foreground py-12">暂无事件</div>
+              )}
+            </div>
+
+            {/* 桌面端表格视图 (md+) */}
+            <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -584,6 +633,7 @@ export default function AdminIncidents() {
               </TableBody>
             </Table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>

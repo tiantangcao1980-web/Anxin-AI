@@ -210,6 +210,63 @@ async def test_trend_label_quiet(db_session: AsyncSession):
 # 8. overview 三维度计数
 # ====================================================================
 
+# ====================================================================
+# 9. G7: Slice 2.5 LLM 根因猜测 (mock)
+# ====================================================================
+
+@pytest.mark.asyncio
+async def test_llm_summary_skipped_for_p2(db_session: AsyncSession):
+    """G7: enable_llm_summary=True 但 cluster 是 P2 → 不调 LLM。"""
+    db_session.add(_make_incident(severity="P2", agent_name="x", fingerprint="p2_g7"))
+    await db_session.commit()
+    result = await triage_open_incidents(
+        db_session, transition_state=False, enable_llm_summary=True,
+    )
+    assert result["llm_calls"] == 0
+
+
+@pytest.mark.asyncio
+async def test_llm_summary_enabled_calls_for_p1(db_session: AsyncSession, monkeypatch):
+    """G7: P1 cluster + enable_llm_summary=True → 调用 LLM (mocked)。"""
+    db_session.add(_make_incident(severity="P1", agent_name="critical", fingerprint="p1_g7"))
+    await db_session.commit()
+
+    # mock _generate_llm_summary 返回固定字符串
+    from src.harness import triage_service
+    async def fake_summary(cluster, samples):
+        return "数据库连接池耗尽"
+    monkeypatch.setattr(triage_service, "_generate_llm_summary", fake_summary)
+
+    result = await triage_open_incidents(
+        db_session, transition_state=True, enable_llm_summary=True,
+    )
+    assert result["llm_calls"] == 1
+    cluster = result["clusters"][0]
+    assert cluster["llm_root_cause_hint"] == "数据库连接池耗尽"
+    # incident.triage_summary 也应含根因
+    from sqlalchemy import select as sa_select
+    inc = (await db_session.execute(sa_select(Incident))).scalar_one()
+    assert "根因猜测: 数据库连接池耗尽" in (inc.triage_summary or "")
+
+
+@pytest.mark.asyncio
+async def test_llm_summary_disabled_by_default(db_session: AsyncSession, monkeypatch):
+    """G7: 默认 enable_llm_summary=False → 不调 LLM (零 token 消耗)。"""
+    db_session.add(_make_incident(severity="P0", agent_name="urgent", fingerprint="p0_g7"))
+    await db_session.commit()
+
+    from src.harness import triage_service
+    calls = []
+    async def fake_summary(cluster, samples):
+        calls.append(1)
+        return "should not be called"
+    monkeypatch.setattr(triage_service, "_generate_llm_summary", fake_summary)
+
+    result = await triage_open_incidents(db_session, transition_state=False)
+    assert len(calls) == 0
+    assert result["llm_calls"] == 0
+
+
 @pytest.mark.asyncio
 async def test_overview_aggregates(db_session: AsyncSession):
     db_session.add_all([
