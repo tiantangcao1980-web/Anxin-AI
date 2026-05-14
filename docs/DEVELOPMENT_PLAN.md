@@ -28,7 +28,7 @@
 | **前端** | 🚧 95%（图标体系待收口 47%） | 80 文件待迁 |
 | **桌面** | 🚧 80%（unsigned 已 OK，签名缺） | Apple Developer 账号 |
 | **移动 / 小程序** | 🚧 70%（code smoke OK，真机缺） | 真机预约 |
-| **发布证据** | 🚧 50%（5 类已采，3 类缺） | 支付/电签/真机 live |
+| **发布证据** | 🚧 50%（5 类已采，3 类缺） | 真机 live (支付/电签已降为 P3 商业化阶段) |
 
 ### 1.2 完成 ✅ / 进行中 🚧 / 待启动 🔜
 
@@ -44,7 +44,7 @@
 🚧 P8 baseline 打磨（UI/UX 3 周计划进行中）
 🚧 图标体系 80 文件迁移
 🚧 桌面签名 / 公证（阻断）
-🚧 支付 / 电签 live 沙箱（阻断）
+⏬ 支付 / 电签商业化沙箱（已降为 P3, PMF 后启动；政务签章 placeholder 已就位）
 🚧 真机证据采集（阻断）
 
 🔜 P9 5 法务 persona 上层包装
@@ -92,14 +92,27 @@
 | 引用链路完整性测试 | 🔜 | full50 后 |
 | 多模态（MinerU）准确率 | 🚧 | - |
 
-#### P8.D 支付 / 电签真实沙箱
+#### P8.D 支付 / 电签 ⬇️ 产品方向调整 (2026-05-14) — 降为 P3 商业化阶段
 
-| 子任务 | 状态 | 阻断 |
-|---|---|---|
-| 支付沙箱凭证 | 🚫 | 渠道方审批 |
-| 电签沙箱凭证 | 🚫 | 渠道方审批 |
-| preflight 命令集 | ✅ | [release/evidence-collection-runbook](release/evidence-collection-runbook.md) |
-| live 证据采集 | 🚫 | 等凭证 |
+**用户决策** (2026-05-14):
+> 签约和支付等设置付费的功能其实可以先不作为项目核心任务，因为目前我们的核心任务是先把项目的核心功能先验证了，再能谈后续的商业化。签约可以引入政府的平台。
+
+**当前定位**:
+- ✅ **核心任务优先**: 核心功能 (Agent / RAG / 协作 / 知识库) PMF 验证先做
+- 🟡 **签约入口**: 接入广东省政务签章 (GDCA + 粤企签) 而非商业化 e签宝/法大大
+  - 见 [docs/integrations/guangdong-gov-signature.md](integrations/guangdong-gov-signature.md)
+  - 代码层 Provider placeholder 已就位 (`ESIGN_PROVIDER=gdca/yueqishang`), 实际对接待业务方推动
+- 🔴 **商业化支付**: 微信/支付宝沙箱凭证暂搁置, PMF 验证后再启动
+
+| 子任务 | 优先级 | 状态 | 阻断 |
+|---|---|---|---|
+| GDCA 政务签 Provider placeholder | P2 | ✅ 已就位 | 业务方 NDA + 商务 |
+| 粤企签 / 粤商通 Provider placeholder | P2 | ✅ 已就位 | 数字广东开发者权限 |
+| GDCA 真实接入 | P2 | 🚫 | GDCA 测试凭据 |
+| 粤企签真实接入 | P2 | 🚫 | 粤商通入驻 + 开发者权限 |
+| e签宝 / 法大大 商业化电子签 | P3 | 🟡 placeholder 已写好, 暂不启用 | PMF 验证后启动 |
+| 微信/支付宝沙箱 | P3 | 🟡 placeholder 已写好, 暂不启用 | PMF 验证后启动 |
+| preflight 命令集 | P3 | ✅ | [release/evidence-collection-runbook](release/evidence-collection-runbook.md) |
 
 ### 2.2 P9 — 5 法务 persona 上层包装 ✅ 实现已完成 (2026-05-14 复核)
 
@@ -134,7 +147,7 @@
 
 | Lane | 域 | 写入范围 | Completion Gate |
 |---|---|---|---|
-| **Lane 1** | 支付 / 电签 | `backend/src/services/payment/`, `backend/src/services/esign/` | 真实沙箱 live 证据 ✅ |
+| **Lane 1** | 政务签章 / 商业化支付 | `backend/src/services/esign_service.py` (GDCA/粤企签 placeholder), `backend/src/services/payment_service.py` | 政务接入 ≥1 个 ✅, 商业化沙箱降为 P3 |
 | **Lane 2** | 桌面 | `desktop/`, `docs/desktop/` | signed + notarized package ✅ |
 | **Lane 3** | RAG / 案件 / 律师市场 | `backend/src/services/rag/`, `backend/src/agents/personas/legal_*`, `frontend/src/pages/legal/` | full50 baseline ✅ + 5 persona eval ✅ |
 | **Lane 4** | 移动 / 小程序 | `mobile/`, `mini-program/`, `apps/uni-mobile/` | 真机 transcript ✅ + 小程序 smoke ✅ |

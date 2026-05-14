@@ -8,6 +8,74 @@
 
 ---
 
+## 2026-05-14（Phase F 产品方向调整）签约/支付降级 + 广东政务签章接入
+
+### 产品决策
+
+**用户指令**:
+> 签约和支付等设置付费的功能其实可以先不作为项目核心任务，因为目前我们的核心任务是先把项目的核心功能先验证了，再能谈后续的商业化。签约可以引入政府的平台，去看看广东省政府有没有数字签约的功能，添加上去即可。
+
+**决策影响**:
+1. **优先级调整**: 商业化支付 / 商业化电签 (e签宝/法大大) 从 P0/P1 → **P3** (PMF 验证后启动)
+2. **政务签章接入**: 新增 **GDCA (广东省数字证书认证中心) + 粤企签 (数字广东 / 粤商通体系)** 作为政务场景默认签章方
+3. **代码层就位**: Provider placeholder 已写好, ESIGN_PROVIDER 环境变量切换即可启用 (待真凭据)
+
+### 落地工作
+
+| 变更 | 文件 |
+|---|---|
+| GdcaProvider + YueQiQianProvider placeholder | `backend/src/services/esign_service.py` (+120 行) |
+| get_esign_provider 工厂支持 5 种渠道 (mock / gdca / yueqishang / esignbao / fadada) | 同上 |
+| 政务签章接入计划 (调研结论 + 三阶段对接 + 降级回退) | `docs/integrations/guangdong-gov-signature.md` (新, 220 行) |
+| P8.D 优先级调整 + 政务接入说明 | `docs/DEVELOPMENT_PLAN.md §2.1 P8.D` |
+| ROADMAP 风险登记 R-02 调整 | `docs/ROADMAP.md §3.1 + 风险表` |
+| RELEASE_GATE Lane 1 重写 + 外部资源表分离政务/商业化 | `docs/RELEASE_GATE.md §1, §2.1, §5` |
+| REQUIREMENTS 阻塞表加优先级列 | `docs/REQUIREMENTS.md` |
+
+### 调研结论 (政务签章)
+
+| 维度 | GDCA (广东 CA) | 粤企签 (粤商通) | 商业化 (e签宝/法大大) |
+|---|---|---|---|
+| 性质 | 法定 CA | 政务平台 | 第三方 SaaS |
+| 法律效力 | 同等 | 同等 | 同等 |
+| 数据驻留 | 不出粤 | 不出粤 | 跨省 |
+| 用户认证 | USB Key / 手机证书 | 微信刷脸 + 法人验证 | 邮箱/手机 |
+| 适用 | 正式合同签发 | 中小企轻量签约 | 商业化客户 |
+| 接入复杂度 | 中 (国密) | 低 (OAuth-like) | 中 (商业 SaaS) |
+
+### Provider Placeholder 状态
+
+```python
+class GdcaProvider(ESignProvider):
+    """广东省 GDCA 政务电子签章 — Placeholder (待接入)"""
+    # ESIGN_PROVIDER=gdca 启用; 调用任何方法 → ESignProviderConfigError
+
+class YueQiQianProvider(ESignProvider):
+    """粤企签 (粤商通体系) — Placeholder (待接入)"""
+    # ESIGN_PROVIDER=yueqishang / yueqiqian / yuesangtong 启用
+```
+
+环境变量预留 (待商务对接拿到真凭据后填):
+```bash
+GDCA_APP_ID / GDCA_APP_SECRET / GDCA_API_ENDPOINT / GDCA_CA_CERT_PATH
+YUEQIQIAN_APP_ID / YUEQIQIAN_APP_SECRET / YUEQIQIAN_API_ENDPOINT
+```
+
+### 接入清单 (业务方推进)
+
+详见 [docs/integrations/guangdong-gov-signature.md](docs/integrations/guangdong-gov-signature.md):
+- **Phase 1 商务对接** (2-4 周): GDCA NDA + 商务合同 / 粤商通企业入驻
+- **Phase 2 技术对接** (1-2 周): API 国密签名 + OAuth 流程 + 沙箱跑通
+- **Phase 3 验收上线** (1 周): 等保 / 真实合同 5 笔 / 切流量
+
+### 验证
+
+- pytest test_esign* **5/5** ✅
+- 全量 pytest 仍 **1866 passed + 45 skipped** ✅ (无回归)
+- 后端导入 GdcaProvider / YueQiQianProvider 成功
+
+---
+
 ## 2026-05-14（Phase E 完成）G 档技术债清零 — pytest 1866/1866 + mypy 0 errors（worktree `vigorous-wiles-5a3fb3`）
 
 ### Phase E: G 档技术债推进（4 commit, 全部已推送）

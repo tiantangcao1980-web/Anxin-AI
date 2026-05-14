@@ -74,30 +74,39 @@
 | AI Review 4 reviewer | ✅ |
 | Eval baseline 25 case | ✅ |
 | **RAG full50 baseline** | 🚧 |
-| **支付沙箱 preflight + live** | 🚫 |
-| **电签沙箱 preflight + live** | 🚫 |
+| **支付沙箱 preflight + live** | ⏬ 降 P3 (商业化阶段, 2026-05-14) |
+| **电签沙箱 preflight + live** | ⏬ 降 P3 (商业化阶段) |
+| **政务签章 GDCA / 粤企签 placeholder** | ✅ (代码就位, 商务待启动) |
 | Agent governance smoke | ✅ |
 
 ---
 
 ## 2. 各 Lane 必跑测试与证据
 
-### 2.1 Lane 1 — 支付 / 电签
+### 2.1 Lane 1 — 政务签章 / 商业化支付电签 (2026-05-14 调整)
+
+**产品策略**: 核心功能 PMF 验证优先, 签约场景接入政务平台 (GDCA / 粤企签), 商业化支付电签降为 PMF 后阶段。
 
 ```bash
-# 后端回归
+# 后端回归 — 签章 / 支付 services 单元测试 (Mock provider 默认)
 cd backend && uv run --no-sync pytest tests/test_payment* tests/test_esign*
 
-# Preflight（不需要真凭证）
+# Preflight (不需要真凭证, 验证 mock + 配置合法性)
 python3 scripts/payment/preflight.py
 python3 scripts/esign/preflight.py
 
-# Live 采集（需要真凭证，当前阻断）
+# 政务签章接入 (待业务方启动 — 见 docs/integrations/guangdong-gov-signature.md)
+ESIGN_PROVIDER=gdca       # 广东 GDCA 政务签
+# 或
+ESIGN_PROVIDER=yueqishang  # 粤企签 / 粤商通
+
+# 商业化 Live 采集 (PMF 后启动, 当前不阻断)
 python3 scripts/payment/live_smoke.py --provider {wechat|alipay|stripe}
 python3 scripts/esign/live_smoke.py --provider {esign|fadada}
 ```
 
-证据落点：`docs/release/evidence/artifacts/payment-sandbox-preflight-*.json` 等。
+证据落点: `docs/release/evidence/artifacts/payment-sandbox-preflight-*.json` 等。
+政务签章接入计划: [docs/integrations/guangdong-gov-signature.md](integrations/guangdong-gov-signature.md)
 
 ### 2.2 Lane 2 — 桌面
 
@@ -301,8 +310,10 @@ bash scripts/commercial-readiness-gate.sh --quick
 |---|---|---|---|
 | Apple Developer 账号 | Lane 2 | 行政申请通过 | 🚧 跟踪中 |
 | Windows 代码签名证书 | Lane 2 | 证书购置 | 🚧 跟踪中 |
-| 支付沙箱凭证（微信 / 支付宝 / Stripe） | Lane 1 | 渠道方审批 | 🚧 跟踪中 |
-| 电签沙箱凭证（e签宝 / 法大大） | Lane 1 | 渠道方审批 | 🚧 跟踪中 |
+| GDCA 政务签 测试凭据 | Lane 1 (政务版) | GDCA 商务对接 (NDA + 商务合同) | 🟡 待业务方启动 |
+| 粤企签 / 粤商通 开发者权限 | Lane 1 (政务版) | 数字广东审批 (企业实名 + 法人认证) | 🟡 待业务方启动 |
+| 支付沙箱凭证（微信 / 支付宝 / Stripe） | Lane 1 (商业化) | 渠道方审批 — ⏬ 2026-05-14 降级, PMF 后启动 | ⏸ 暂停跟踪 |
+| 电签沙箱凭证（e签宝 / 法大大） | Lane 1 (商业化) | 渠道方审批 — ⏬ 2026-05-14 降级, PMF 后启动 | ⏸ 暂停跟踪 |
 | 真机预约（iOS / Android） | Lane 4 | 行政预约 | 🚧 跟踪中 |
 | RAG corpus 准备 | Lane 3 | 内部数据准备 | 🚧 内部 |
 | Alembic 三 head 合并 | 全 Lane（数据库） | T2 完成后 | 🚧 计划中 |

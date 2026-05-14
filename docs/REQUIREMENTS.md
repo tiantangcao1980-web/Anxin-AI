@@ -176,12 +176,15 @@
 
 ### 4.3 当前阻断
 
-| 阻断 | 影响 |
-|---|---|
-| Apple Developer / Windows 代码签名 | 桌面签名证据 |
-| 支付 / 电签真实沙箱凭证 | live 证据 |
-| 真机预约 | iOS / Android 真机 transcript |
-| Alembic 三 head | 028 incidents migration 待合并 |
+| 阻断 | 影响 | 当前优先级 |
+|---|---|---|
+| Apple Developer / Windows 代码签名 | 桌面签名证据 | P0 (核心交付仍需) |
+| GDCA 政务签 商务对接 | 政务客户合同签发 | P2 (代码 placeholder ✅, 待业务推动) |
+| 粤企签 / 粤商通 开发者权限 | 中小企业轻量签约 | P2 (代码 placeholder ✅, 待业务推动) |
+| 商业化支付凭证 (微信 / 支付宝 / Stripe) | 订阅收费 | ⏬ P3 (2026-05-14 降级, PMF 后启动) |
+| 商业化电签凭证 (e签宝 / 法大大) | 第三方电签 | ⏬ P3 (2026-05-14 降级, PMF 后启动) |
+| 真机预约 | iOS / Android 真机 transcript | P1 |
+| Alembic 三 head | ✅ 已合并 (T5-prep + T5 主体) | — |
 
 ---
 
