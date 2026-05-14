@@ -1,0 +1,21 @@
+{
+  "_comment_": "Phase K i18n skeleton placeholder. English translations to be added when i18n is officially launched. Until then, all t() calls fall back to the Chinese key.",
+  "管理中心": "Management Center",
+  "案件中心": "Case Center",
+  "新对话": "New Chat",
+  "智能体": "Agents",
+  "知识库": "Knowledge Base",
+  "设置": "Settings",
+  "登录": "Sign In",
+  "退出登录": "Sign Out",
+  "保存": "Save",
+  "取消": "Cancel",
+  "确认": "Confirm",
+  "删除": "Delete",
+  "编辑": "Edit",
+  "搜索": "Search",
+  "加载中": "Loading",
+  "暂无数据": "No data",
+  "操作失败": "Operation failed",
+  "操作成功": "Success"
+}

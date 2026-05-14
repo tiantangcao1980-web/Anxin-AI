@@ -1,8 +1,12 @@
-# ADR 003 — 前端组件目录三层架构
+# ADR 003 — 前端组件目录三层 → 两层架构
 
-> **状态**: Accepted (2026-05-14)
+> **状态**: ✅ **Fully Implemented** (Phase K, 2026-05-14)
 > **决策者**: UI 审计 (Phase D agent) + 用户授权 (Phase I)
 > **影响范围**: `frontend/src/components/`
+> **实施时间线**:
+> - Phase I (2026-05-14): ADR 制定 + 两个 index.ts 加 deprecation 注释
+> - Phase J (2026-05-14): 4 个组件 git mv 到 ui-unified/, 全仓 15 个 import 站点同步
+> - Phase K (2026-05-14): common/ 目录完全删除, **三层架构正式收敛为两层** (ui/ 原子 + ui-unified/ 复合)
 
 ---
 

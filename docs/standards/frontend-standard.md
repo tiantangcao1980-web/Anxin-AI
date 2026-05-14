@@ -232,14 +232,20 @@ if (!data || data.length === 0) return <EmptyState />;
 return <List items={data} />;
 ```
 
-统一组件：`components/common/{LoadingState,EmptyState,ErrorState}.tsx`
+统一组件：`components/ui-unified/{LoadingState,EmptyState,ErrorState,PagePlaceholder}` (Phase K 2026-05-14: 原 common/ 已合并入 ui-unified/, 见 ADR 003)
 
 ## 10. 国际化
 
-- 当前阶段**仅简体中文**，无 i18n 框架
-- 文案直接写中文
-- 未来 i18n 时统一抽到 `frontend/src/locales/`
-- 写代码时**禁止**在多处复制文案（用常量）
+- **当前阶段仅简体中文**, 但 i18n 骨架已就位 (Phase K 2026-05-14, 见 ADR 004)
+- **新代码规范**: 用户可见文案优先用 `t()` 包裹:
+  ```tsx
+  import { useTranslation } from '@/i18n'
+  const { t } = useTranslation()
+  return <h1>{t('管理中心')}</h1>  // 当前直接返回中文, 未来切 react-i18next 不动调用点
+  ```
+- **不强制**改老代码 — 老代码硬编码中文保留, 按页面优先级渐进迁移
+- 复制文案仍用常量 (`t()` 的 key 即文案常量)
+- 详见 [docs/adr/004-i18n-strategy.md](../adr/004-i18n-strategy.md)
 
 ## 11. 可访问性 (a11y)
 

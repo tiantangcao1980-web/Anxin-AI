@@ -8,10 +8,10 @@
  * - 引导微动效（AttentionPulse / NewBadge / InteractiveHint）
  * - 通用空态 / 加载 / 错误 / 占位 (Phase J 从 common/ 迁入)
  *
- * 📋 三层组件约定 (ADR 003, 2026-05-14):
+ * 📋 两层组件约定 (ADR 003 终态, Phase K 2026-05-14):
  *   层 1: components/ui/         shadcn 原子 (button / input / dialog / ...)
- *   层 2: components/ui-unified/ 业务复合 (本目录, 新组件首选放这里)
- *   层 3: components/common/     ⚠️ deprecated alias — 仅 re-export, 1 release 后删除
+ *   层 2: components/ui-unified/ 业务复合 (本目录, 新组件全部放这里)
+ *   ~~层 3: components/common/~~  Phase K 已删除, 4 个组件并入本目录
  *
  * 设计约束（DesignDNA §14 合规协议）：
  * - 所有色值走语义 CSS 变量，保留琥珀暖橙主题
