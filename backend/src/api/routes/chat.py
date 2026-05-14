@@ -156,6 +156,7 @@ class ChatResponse(BaseModel):
     actions: list[dict[str, Any]] = []
     sources: list[dict[str, Any]] = []  # RAG 引用来源列表
     memory_id: str | None = None
+    harness: dict[str, Any] | None = None  # H1: trace_id / tokens / validation_action
 
 
 class ChatRouteTokenRequest(BaseModel):

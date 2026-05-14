@@ -17,11 +17,27 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 import httpx
-from camel.agents import ChatAgent  # noqa: F401 - legacy patch target for tests
-from camel.models import ModelFactory  # noqa: F401 - legacy patch target for tests
-from camel.types import ModelPlatformType, ModelType
 from loguru import logger
 from pydantic import BaseModel, Field
+
+
+# === 历史兼容占位符 ===
+# 项目早期依赖 CAMEL-AI（``camel.agents.ChatAgent`` / ``camel.models.ModelFactory``），
+# 已在 2026-05 全量剥离。少量遗留单测仍使用 ``@patch('src.agents.base.ChatAgent')``
+# 和 ``@patch('src.agents.base.ModelFactory.create')`` 作为打桩点；这些桩在测试中
+# 被 ``MagicMock`` 替换，运行期不会被生产代码触达。
+# 当 tests/test_workforce.py、tests/test_document_drafter_quality.py 迁移到真实
+# 调用点之后，可安全删除以下两个占位符。
+class ChatAgent:  # pragma: no cover - legacy patch target only
+    """Deprecated CAMEL-AI 兼容占位符；生产路径不再使用。"""
+
+
+class ModelFactory:  # pragma: no cover - legacy patch target only
+    """Deprecated CAMEL-AI 兼容占位符；生产路径不再使用。"""
+
+    @classmethod
+    def create(cls, *args: Any, **kwargs: Any) -> None:
+        return None
 
 from src.core.config import settings
 from src.core.llm_helper import get_llm_config_sync
@@ -144,7 +160,6 @@ class BaseLegalAgent(ABC):
         self.role = config.role
         self.system_prompt = config.system_prompt
         self.client: Any | None = None
-        self.agent: Any | None = None  # Deprecated camel agent
         self.llm_config: Any | None = None
         self.model_name: str | None = None
         self._init_agent()
@@ -167,18 +182,6 @@ class BaseLegalAgent(ABC):
             logger.error(traceback.format_exc())
             self.llm_config = None
             self.model_name = None
-
-    def _get_platform_type(self, provider: str) -> ModelPlatformType:
-        """根据提供商获取CAMEL平台类型 (Unused, 保留兼容)"""
-        platform_map = {
-            "openai": ModelPlatformType.OPENAI,
-            "anthropic": ModelPlatformType.ANTHROPIC,
-        }
-        return platform_map.get(provider, ModelPlatformType.OPENAI)
-
-    def _get_model_type(self, provider: str, model_name: str) -> ModelType:
-        """根据提供商和模型名称获取CAMEL模型类型 (Unused, 保留兼容)"""
-        return ModelType.GPT_4O
 
     @abstractmethod
     async def process(self, task: dict[str, Any]) -> AgentResponse:
@@ -387,26 +390,52 @@ class BaseLegalAgent(ABC):
             return str(name) if name else None
         return None
 
-    def _check_mcp_tool_policy(self, tool_name: str) -> Any:
-        from src.harness.policy_engine import policy_engine
+    async def _check_mcp_tool_policy(
+        self,
+        tool_name: str,
+        *,
+        db: Any | None = None,
+        org_id: str | None = None,
+        requested_by: str | None = None,
+    ) -> tuple[bool, dict[str, Any]]:
+        """权限检查 (走 harness.policy_enforcement, 享受异常隔离 + env-var kill switch + A6 自动审批工单)。
 
-        return policy_engine.check_tool_access(self.name, tool_name)
+        默认 enforce=True (1 周 warn-only 观察期已过); 紧急回滚走环境变量
+        HARNESS_POLICY_ENFORCE=false 仍可单点降级 (需手动改 check_tool_call 调用)。
 
-    def _filter_mcp_tools_for_policy(self, tools: list[JSONDict]) -> list[JSONDict]:
-        from src.harness.policy_engine import PolicyDecision
+        A6 (2026-05-14): 传入 db + org_id 后, REQUIRE_APPROVAL 决策会自动调
+        agent_approval_service.request_approval 创建审批工单, pending 状态
+        在 enforce 模式下阻断主路径, 等待人工 approve.
 
+        返回 (allowed, info_dict)。allowed=False 时 info["reason"] 含拒绝原因。
+        """
+        from src.harness.policy_enforcement import check_tool_call
+
+        return await check_tool_call(
+            self.name, tool_name,
+            enforce=True,
+            db=db, org_id=org_id, requested_by=requested_by,
+        )
+
+    async def _filter_mcp_tools_for_policy(self, tools: list[JSONDict]) -> list[JSONDict]:
+        """LLM 上下文前置过滤: 只把 ALLOW 工具展示给 LLM, 减少诱导越权。
+
+        注: 前置过滤不需要审批工单 (这一轮只是给 LLM 看, 没真正执行), 因此
+        不传 db/org_id, REQUIRE_APPROVAL 走 warn-only 路径放行展示, 实际执行
+        时 _execute_tool 内的二次判权再走完整审批流。
+        """
         allowed_tools: list[JSONDict] = []
         for tool in tools:
             tool_name = self._extract_tool_name(tool)
             if not tool_name:
                 logger.warning(f"Agent {self.name}: 跳过无名称 MCP 工具")
                 continue
-            decision = self._check_mcp_tool_policy(tool_name)
-            if decision.decision == PolicyDecision.ALLOW:
+            allowed, info = await self._check_mcp_tool_policy(tool_name)
+            if allowed:
                 allowed_tools.append(tool)
             else:
                 logger.warning(
-                    f"Agent {self.name}: MCP 工具 {tool_name} 被策略拒绝: {decision.reason}"
+                    f"Agent {self.name}: MCP 工具 {tool_name} 被策略拒绝: {info.get('reason', 'unknown')}"
                 )
         return allowed_tools
 
@@ -533,7 +562,7 @@ class BaseLegalAgent(ABC):
             except Exception as e:
                 logger.warning(f"获取 MCP 工具失败: {e}")
                 available_tools = []
-            available_tools = self._filter_mcp_tools_for_policy(available_tools)
+            available_tools = await self._filter_mcp_tools_for_policy(available_tools)
 
             max_turns = 5  # Prevent infinite loops
             current_turn = 0
@@ -587,19 +616,32 @@ class BaseLegalAgent(ABC):
                 # 使用带重试的 LLM 调用
                 data = await self._call_llm_with_retry(url, headers, payload)
 
-                # ===== Harness: 捕获 token 用量并记录成本 =====
+                # ===== Harness: 捕获 token 用量并记录成本 (T6: 本地 LLM 无 usage 时按字符估算) =====
                 try:
-                    usage = data.get("usage")
-                    if usage:
-                        from src.harness.cost_tracker import cost_tracker
-                        cost_tracker.record(
-                            model=model_name or "unknown",
-                            provider=provider or "unknown",
-                            prompt_tokens=usage.get("prompt_tokens", 0),
-                            completion_tokens=usage.get("completion_tokens", 0),
-                            agent_name=self.name,
-                            operation=f"agent.{self.name}.chat.turn_{current_turn}",
-                        )
+                    usage = data.get("usage") or {}
+                    from src.harness.cost_tracker import cost_tracker
+
+                    # 优先用 API 返回的真值; 缺失时由 record_with_estimate 按字符估算
+                    prompt_tokens_raw = usage.get("prompt_tokens")
+                    completion_tokens_raw = usage.get("completion_tokens")
+
+                    # 估算用的文本来源 (本地 LLM 路径)
+                    # prompt_text = system_prompt + 所有 history + 当前 message 的拼接
+                    prompt_text_for_estimate = system_prompt + "\n" + message
+                    # completion 取本轮 LLM 实际响应内容 (后面解析得到 content; 这里先用 raw)
+                    completion_text_for_estimate = str(data)[:8000] if not completion_tokens_raw else ""
+
+                    cost_tracker.record_with_estimate(
+                        model=model_name or "unknown",
+                        provider=provider or "unknown",
+                        prompt_text=prompt_text_for_estimate if prompt_tokens_raw is None else "",
+                        completion_text=completion_text_for_estimate,
+                        prompt_tokens=prompt_tokens_raw,
+                        completion_tokens=completion_tokens_raw,
+                        agent_name=self.name,
+                        operation=f"agent.{self.name}.chat.turn_{current_turn}",
+                        user_id=user_id,
+                    )
                 except Exception as _cost_err:
                     logger.debug(f"成本追踪跳过: {_cost_err}")  # 不影响主流程但记录日志
 
@@ -651,13 +693,23 @@ class BaseLegalAgent(ABC):
                         fn_name = fn["name"]
                         fn_args_str = fn["arguments"]
                         try:
-                            from src.harness.policy_engine import PolicyDecision
-
-                            decision = self._check_mcp_tool_policy(fn_name)
-                            if decision.decision != PolicyDecision.ALLOW:
-                                tool_output = self._tool_policy_denial(fn_name, decision.reason)
+                            # A6: 把 db + org_id 透传给 policy_enforcement, REQUIRE_APPROVAL 自动建工单
+                            _route_ctx = effective_mcp_route_context or {}
+                            allowed, policy_info = await self._check_mcp_tool_policy(
+                                fn_name,
+                                db=_route_ctx.get("db"),
+                                org_id=_route_ctx.get("org_id"),
+                                requested_by=_route_ctx.get("user_id") or _route_ctx.get("requested_by"),
+                            )
+                            if not allowed:
+                                reason = policy_info.get("reason", "权限策略拒绝")
+                                tool_output = self._tool_policy_denial(fn_name, reason)
+                                # A6: 若已自动创建审批工单, 在 tool_output 里告知 user
+                                _ap_id = policy_info.get("approval_id")
+                                if _ap_id:
+                                    tool_output += f"\n\n该操作需要人工审批, 已自动创建工单 {_ap_id}, 审批通过后请重试。"
                                 logger.warning(
-                                    f"Tool execution denied for {fn_name}: {decision.reason}"
+                                    f"Tool execution denied for {fn_name}: {reason} approval={_ap_id}"
                                 )
                                 return {
                                     "role": "tool",

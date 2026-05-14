@@ -179,6 +179,106 @@ class TestCostTracker:
         assert 'agent_a' in stats['by_agent']
         assert 'agent_b' in stats['by_agent']
 
+    # ===== T6: 本地 LLM 字符估算 + 用户配额 =====
+
+    def test_estimate_tokens_from_text(self):
+        """简易 token 估算: 4 字符 = 1 token, 空文本 = 0。"""
+        from src.harness.cost_tracker import estimate_tokens_from_text
+        assert estimate_tokens_from_text("") == 0
+        assert estimate_tokens_from_text("hello world") == 11 // 4
+        assert estimate_tokens_from_text("a") == 1  # 最少 1 token
+
+    def test_record_with_estimate_local_llm(self):
+        """本地 LLM API 无 usage 字段时, record_with_estimate 按字符估算。"""
+        from src.harness.cost_tracker import CostTracker
+        tracker = CostTracker()
+        rec = tracker.record_with_estimate(
+            model="qwen2.5:7b",
+            provider="ollama",
+            prompt_text="x" * 400,  # 100 tokens
+            completion_text="y" * 200,  # 50 tokens
+            prompt_tokens=None,
+            completion_tokens=None,
+            agent_name="local_test",
+        )
+        assert rec.prompt_tokens == 100
+        assert rec.completion_tokens == 50
+        assert rec.cost_usd == 0.0  # 本地模型零成本
+
+    def test_record_with_estimate_uses_api_truth_when_available(self):
+        """API 返回 usage 时, record_with_estimate 优先用真值不估算。"""
+        from src.harness.cost_tracker import CostTracker
+        tracker = CostTracker()
+        rec = tracker.record_with_estimate(
+            model="gpt-4o",
+            provider="openai",
+            prompt_text="x" * 1000,  # 估算 250, 但不应使用
+            completion_text="y" * 1000,
+            prompt_tokens=42,
+            completion_tokens=17,
+            agent_name="cloud_test",
+        )
+        assert rec.prompt_tokens == 42
+        assert rec.completion_tokens == 17
+
+    def test_user_token_aggregation(self):
+        """T6: 多次调用累计到 _by_user_tokens, 用于配额扣减。"""
+        from src.harness.cost_tracker import CostTracker
+        tracker = CostTracker()
+        tracker.record(model="gpt-4o", provider="openai", prompt_tokens=100, completion_tokens=50, user_id="u1")
+        tracker.record(model="gpt-4o", provider="openai", prompt_tokens=200, completion_tokens=100, user_id="u1")
+        tracker.record(model="gpt-4o", provider="openai", prompt_tokens=50, completion_tokens=25, user_id="u2")
+        assert tracker.get_user_tokens("u1") == 450
+        assert tracker.get_user_tokens("u2") == 75
+        assert tracker.get_user_tokens("ghost") == 0
+
+    def test_check_user_quota_under_limit(self):
+        """T6: 用量 + 即将消耗 < 配额 → allowed=True。"""
+        from src.harness.cost_tracker import CostTracker
+        tracker = CostTracker()
+        tracker.record(model="gpt-4o", provider="openai", prompt_tokens=100, completion_tokens=50, user_id="u1")
+        allowed, used, remaining = tracker.check_user_quota("u1", quota_tokens=10_000, upcoming_tokens=500)
+        assert allowed is True
+        assert used == 150
+        assert remaining == 10_000 - 150 - 500
+
+    def test_check_user_quota_exceeds(self):
+        """T6: 用量 + 即将消耗 > 配额 → allowed=False。"""
+        from src.harness.cost_tracker import CostTracker
+        tracker = CostTracker()
+        tracker.record(model="gpt-4o", provider="openai", prompt_tokens=9000, completion_tokens=900, user_id="u1")
+        allowed, used, remaining = tracker.check_user_quota("u1", quota_tokens=10_000, upcoming_tokens=500)
+        assert allowed is False
+        assert used == 9900
+        assert remaining == 0
+
+    def test_check_user_quota_unlimited(self):
+        """T6: quota_tokens=0 表示不限, 永远 allowed。"""
+        from src.harness.cost_tracker import CostTracker
+        tracker = CostTracker()
+        tracker.record(model="gpt-4o", provider="openai", prompt_tokens=99_999, completion_tokens=99_999, user_id="u1")
+        allowed, used, _ = tracker.check_user_quota("u1", quota_tokens=0, upcoming_tokens=999_999)
+        assert allowed is True
+
+    def test_quota_exceeded_error_message(self):
+        """T6: QuotaExceededError 含 user_id / used / quota 三字段。"""
+        from src.harness.cost_tracker import QuotaExceededError
+        err = QuotaExceededError("u1", used=10_500, quota=10_000)
+        assert err.user_id == "u1"
+        assert err.used == 10_500
+        assert err.quota == 10_000
+        assert "10500" in str(err) or "10,500" in str(err) or "10_500" in str(err)
+
+    def test_reset_user_tokens(self):
+        """T6: 新计费周期清零用户用量。"""
+        from src.harness.cost_tracker import CostTracker
+        tracker = CostTracker()
+        tracker.record(model="gpt-4o", provider="openai", prompt_tokens=100, completion_tokens=50, user_id="u1")
+        assert tracker.get_user_tokens("u1") == 150
+        tracker.reset_user_tokens("u1")
+        assert tracker.get_user_tokens("u1") == 0
+        assert tracker.get_user_cost("u1") == 0.0
+
 
 # ===== 5. 权限检查 =====
 
@@ -375,27 +475,29 @@ class TestAgentMcpToolPolicy:
             system_prompt='policy probe',
         ))
 
-    def test_agent_only_exposes_policy_allowed_tools(self):
-        """给模型的 MCP tool list 必须先经过 policy_engine。"""
+    @pytest.mark.asyncio
+    async def test_agent_only_exposes_policy_allowed_tools(self):
+        """给模型的 MCP tool list 必须先经过 policy_engine (A6: 现在是 async)。"""
         agent = self._agent('legal_researcher')
         tools = [
             {'type': 'function', 'function': {'name': 'search_knowledge'}},
             {'type': 'function', 'function': {'name': 'untrusted_server__shell'}},
         ]
 
-        filtered = agent._filter_mcp_tools_for_policy(tools)
+        filtered = await agent._filter_mcp_tools_for_policy(tools)
 
         assert [tool['function']['name'] for tool in filtered] == ['search_knowledge']
 
-    def test_model_returned_forbidden_tool_is_denied_at_runtime(self):
-        """即使模型返回被禁工具名，执行前仍应二次判权。"""
-        from src.harness.policy_engine import PolicyDecision
-
+    @pytest.mark.asyncio
+    async def test_model_returned_forbidden_tool_is_denied_at_runtime(self):
+        """即使模型返回被禁工具名，执行前仍应二次判权 (走 policy_enforcement, enforce=True)。"""
         agent = self._agent('legal_researcher')
-        decision = agent._check_mcp_tool_policy('untrusted_server__shell')
-        denial = agent._tool_policy_denial('untrusted_server__shell', decision.reason)
+        allowed, info = await agent._check_mcp_tool_policy('untrusted_server__shell')
+        denial = agent._tool_policy_denial('untrusted_server__shell', info.get('reason', ''))
 
-        assert decision.decision == PolicyDecision.DENY
+        assert allowed is False
+        assert info['decision'] == 'deny'
+        assert info['enforced'] is True
         assert '工具调用被拒绝' in denial
 
 
@@ -427,6 +529,69 @@ class TestTaskEngine:
         t2 = task_engine.create_task('法律咨询', route='rag')
         assert t1.priority == TaskPriority.HIGH
         assert t2.priority == TaskPriority.LOW
+
+    # ===== T7: 长任务接入 task_engine =====
+
+    def test_t7_due_diligence_creates_task_record(self):
+        """T7: investigate_company 应创建 task_engine 记录 + 透出 task_id。"""
+        import asyncio
+
+        from src.harness.task_engine import TaskState, task_engine
+
+        # mock 出 due_diligence_service 的 _get_basic_info / report
+        # 这里只验证 task_engine.create_task 被以 due_diligence route 创建
+        # 用对 task_engine 的间接观察: 调 list_by_route 看到新记录
+        before = len(task_engine._tasks)
+
+        from unittest.mock import patch, AsyncMock
+        from src.services import due_diligence_service as dd_module
+
+        async def _run():
+            svc = dd_module.DueDiligenceService.__new__(dd_module.DueDiligenceService)
+            with (
+                patch.object(svc, "_get_basic_info", AsyncMock(return_value={"name": "A 公司"})),
+                patch.object(svc, "_get_litigation_info", AsyncMock(return_value={})),
+                patch.object(svc, "_get_credit_info", AsyncMock(return_value={})),
+                patch.object(svc, "_assess_risks", AsyncMock(return_value={"level": "low"})),
+                patch.object(svc, "_get_company_relations", AsyncMock(return_value={})),
+                patch.object(svc, "_generate_report", AsyncMock(return_value="OK")),
+            ):
+                return await svc.investigate_company("A 公司", "comprehensive")
+
+        result = asyncio.get_event_loop().run_until_complete(_run())
+        assert "task_id" in result
+        assert len(task_engine._tasks) > before
+        rec = task_engine.get_task(result["task_id"])
+        assert rec is not None
+        assert rec.route == "due_diligence"
+        assert rec.state == TaskState.COMPLETED
+
+    def test_t7_batch_document_creates_task_record(self):
+        """T7: BatchDocumentService.execute_batch 应创建 task_engine 记录 + 设 task_id。"""
+        import asyncio
+
+        from src.harness.task_engine import TaskState, task_engine
+        from src.services.batch_document_service import batch_document_service, DOCUMENT_TEMPLATES
+
+        # 选 property_demand_letter 模板, 至少有 1 个必填字段
+        template_key = "property_demand_letter"
+        required = DOCUMENT_TEMPLATES[template_key]["required_fields"]
+        recipient = {fld: "占位" for fld in required}
+
+        async def _run():
+            job = batch_document_service.create_batch_job(
+                template_type=template_key,
+                recipients=[recipient],
+                common_context={},
+            )
+            return await batch_document_service.execute_batch(job.job_id)
+
+        job = asyncio.get_event_loop().run_until_complete(_run())
+        assert getattr(job, "task_id", None) is not None
+        rec = task_engine.get_task(job.task_id)
+        assert rec is not None
+        assert rec.route == "document_drafting"
+        assert rec.state == TaskState.COMPLETED
 
 
 # ===== 7. 能力协商 =====

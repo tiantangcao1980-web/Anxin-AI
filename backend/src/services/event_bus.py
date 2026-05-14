@@ -33,11 +33,14 @@ class EventBus:
             return
 
         try:
-            self.redis = redis.from_url(  # type: ignore[no-untyped-call]
+            self.redis = redis.from_url(
                 self.redis_url,
                 decode_responses=True,
             )
-            await self.redis.ping()
+            ping_result = self.redis.ping()
+            # redis-py async client 返回 Awaitable[bool], sync client 返回 bool
+            if hasattr(ping_result, "__await__"):
+                await ping_result
             self.is_connected = True
             self._pubsub = self.redis.pubsub()
             logger.info(f"EventBus 已连接到 Redis: {self.redis_url}")

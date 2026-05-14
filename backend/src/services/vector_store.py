@@ -91,8 +91,8 @@ class VectorStoreService:
             self.local_model = SentenceTransformer(model_name)
             self.embedding_model = model_name
 
-            # 获取模型的向量维度
-            self.embedding_dim = self.local_model.get_sentence_embedding_dimension()
+            # 获取模型的向量维度 (SentenceTransformer 返回 int | None, 默认 0 兜底)
+            self.embedding_dim = self.local_model.get_sentence_embedding_dimension() or 0
 
             logger.info(f"本地 Embedding 模型初始化成功: {model_name} (维度: {self.embedding_dim})")
 

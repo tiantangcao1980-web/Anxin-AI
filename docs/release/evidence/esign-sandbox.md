@@ -1,9 +1,13 @@
 # E-Sign Sandbox Evidence
 
-Status: pending
+Status: deferred
+Deferred-Reason: 产品方向调整 (2026-05-14) — 商业化电签 (e签宝/法大大) 不作为核心功能 PMF 验证阻断项; 签约场景优先接入广东省政务签章 (GDCA / 粤企签), 见 docs/integrations/guangdong-gov-signature.md
+Deferred-Until: 政务签章接入完成或 PMF 后启动商业化电签 (预计 2026 Q3)
 Owner: TBD
 Environment: staging/sandbox
 Date range: TBD
+
+> **降级说明**: 见 [docs/DEVELOPMENT_PLAN.md §2.1 P8.D](../../DEVELOPMENT_PLAN.md) + [docs/integrations/guangdong-gov-signature.md](../../integrations/guangdong-gov-signature.md). 当前 ESIGN_PROVIDER 支持 5 渠道 (mock / gdca / yueqishang / esignbao / fadada); 商业化 e签宝/法大大降为 P3, 政务签章 GDCA/粤企签 placeholder 已就位待商务推动。
 
 > Do not paste app secrets, access tokens, signing credentials, contract contents, signer phone numbers, or identity numbers into this file. Use redacted artifact references.
 

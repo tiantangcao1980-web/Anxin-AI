@@ -2,16 +2,18 @@
 
 > 权威级别：⭐⭐⭐ 执行权威
 > 角色：商业发布前的证据采集、外部资源对接、回滚预案
+>
+> 2026-05-14 更新：发布判断 / 5 维评测 / Go-NoGo 已抽象到 [`docs/RELEASE_GATE.md`](../RELEASE_GATE.md) Spine。
+> 原 `48-hour-commercial-delivery-plan.md` / `commercial-delivery-readiness.md` / `goal-contract-commercial-readiness.md` / `completion-audit.md` 已归档到
+> [`docs/archive/legacy-spine-sources/release/`](../archive/legacy-spine-sources/release/) — 仅供溯源。
 
-## 顶层入口
+## 顶层入口（活跃）
 
 | 文件 | 角色 |
 |---|---|
-| [48-hour-commercial-delivery-plan.md](./48-hour-commercial-delivery-plan.md) | 短期战术：48 小时冲刺计划、lane 分配、completion gate |
-| [commercial-delivery-readiness.md](./commercial-delivery-readiness.md) | **Go/No-Go 判定**：缺口清单、证据要求 |
-| [commercial-delivery-checklist.json](./commercial-delivery-checklist.json) | prompt-to-artifact 成功标准 |
-| [commercial-delivery-lanes.json](./commercial-delivery-lanes.json) | 多智能体/多人并行执行的写入范围 + completion gate |
-| [completion-audit.md](./completion-audit.md) | 核心能力完成度审计与验收标准 |
+| [`../RELEASE_GATE.md`](../RELEASE_GATE.md) | **Spine 权威**：5 维评测 / lane 测试 / 门禁命令 / 证据清单 / Go-NoGo |
+| [commercial-delivery-checklist.json](./commercial-delivery-checklist.json) | prompt-to-artifact 成功标准（结构化数据） |
+| [commercial-delivery-lanes.json](./commercial-delivery-lanes.json) | 多智能体/多人并行执行的写入范围 + completion gate（结构化数据） |
 | [test-evidence.md](./test-evidence.md) | 已有测试、未补证据、新增测试要求 |
 | [security-and-privacy-checklist.md](./security-and-privacy-checklist.md) | 发布前安全/隐私/密钥/权限/治理清单 |
 
@@ -23,7 +25,6 @@
 | [external-inputs-checklist.md](./external-inputs-checklist.md) | 第三方配置、env、webhook、证书同步检查表 |
 | [external-resource-requirements.json](./external-resource-requirements.json) | 资源需求结构化清单 |
 | [third-party-api-preparation.md](./third-party-api-preparation.md) | 支付、电签、爬虫、地图 API 沙箱准备 |
-| [goal-contract-commercial-readiness.md](./goal-contract-commercial-readiness.md) | 桌面 MVP / RAG / 案件市场真实证据要求（2026-05-09） |
 
 ## 运行手册
 
@@ -45,7 +46,7 @@
 
 ## 阅读路径
 
-1. **想知道能否发布** → [commercial-delivery-readiness.md](./commercial-delivery-readiness.md)
+1. **想知道能否发布** → [`../RELEASE_GATE.md`](../RELEASE_GATE.md)（5 维评测 + Go-NoGo）
 2. **准备采集证据** → [evidence-collection-runbook.md](./evidence-collection-runbook.md)
 3. **外部资源未到位** → [external-resource-handoff.md](./external-resource-handoff.md)
 4. **应急回滚** → [rollback-runbook.md](./rollback-runbook.md)

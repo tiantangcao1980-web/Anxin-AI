@@ -25,7 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.core.privacy import InferenceRequest, SensitivityLevel
-from src.harness.output_validator import output_validator
+from src.harness.enforcement import run_validation as harness_validate
 from src.harness.task_engine import TaskState, task_engine
 
 # ========== Harness Engineering 集成 ==========
@@ -691,13 +691,13 @@ class ChatService:
             content, agent_name, mode, normalized_kb_ids,
         )
 
-        # ===== Harness: 上下文压缩（激活已有 context_compressor）=====
+        # ===== Harness: 上下文压缩 (T3 收口: 通过 context_engine 集中调用) =====
         try:
-            from src.services.context_compressor import context_compressor
-            tier = context_compressor.should_compress(context_messages)
+            from src.harness.context_engine import context_engine
+            tier = context_engine.should_compress(context_messages)
             if tier is not None:
                 logger.info(f"[Harness] 触发上下文压缩 Tier {tier}（消息数: {len(context_messages)}）")
-                context_messages, compress_stats = await context_compressor.compress(
+                context_messages, compress_stats = await context_engine.compress(
                     context_messages, tier=tier,
                 )
                 logger.info(
@@ -908,6 +908,38 @@ class ChatService:
         )
         task_engine.transition(task_record.task_id, TaskState.RUNNING)
 
+        # T6 二阶段: cost_tracker + subscription_service 用户级 token 配额前置门禁
+        # 注入端: chat 主路径每次调用 LLM 之前先问配额; 超出立即返回友好提示
+        # 估算: 当前 message 的 char/4 + 预留 1024 completion tokens
+        if user_id:
+            try:
+                from src.harness.cost_tracker import estimate_tokens_from_text
+                from src.services.subscription_service import SubscriptionService
+
+                upcoming = estimate_tokens_from_text(content) + 1024
+                quota_check = await SubscriptionService(self.db).check_user_token_quota(
+                    user_id, upcoming_tokens=upcoming,
+                )
+                if not quota_check["allowed"]:
+                    task_engine.transition(
+                        task_record.task_id, TaskState.FAILED,
+                        error_msg=quota_check.get("reason", "quota exceeded"),
+                    )
+                    trace.end_span(span_id="", status="error") if False else None  # placeholder
+                    return {
+                        "_harness": {"quota": quota_check, "trace_id": trace.trace_id},
+                        "response": (
+                            "您本计费周期的 AI 用量已达上限，请升级订阅或等待周期重置。"
+                            f"已用 {quota_check['used']} tokens / 配额 {quota_check['quota']}."
+                        ),
+                        "conversation_id": str(ctx.conversation.id),
+                        "agent_used": ctx.resolved_agent,
+                        "sources": [],
+                    }
+            except Exception as quota_err:
+                # 配额检查异常不应阻断主流程
+                logger.warning(f"[T6] 配额前置检查异常 (放行): {quota_err}")
+
         sources: list[CitationSource] = []
         try:
             span_id = trace.start_span(f"route.{ctx.route}", agent_name=ctx.resolved_agent)
@@ -981,27 +1013,31 @@ class ChatService:
             response_text = "抱歉，处理您的请求时遇到问题。请稍后重试。"
             used_agent = "系统"
 
-        # ===== Harness: 输出质量校验 =====
-        try:
-            validation = await output_validator.validate(
-                response_text=response_text,
-                user_query=content,
-                agent_name=used_agent,
-                route=ctx.route,
-            )
-            if not validation.passed:
-                logger.warning(
-                    f"[Harness] 输出校验未通过 | score={validation.score:.2f} | "
-                    f"issues={[i.message for i in validation.issues]}"
-                )
-                # 对于 CRITICAL 级别，追加免责声明
-                if validation.has_critical:
-                    response_text += "\n\n⚠️ 本回答内容仅供参考，不构成法律意见。如需专业法律服务，请咨询执业律师。"
-        except Exception as val_err:
-            logger.debug(f"[Harness] 输出校验跳过: {val_err}")
+        # ===== Harness: 输出质量强制校验（H1：从软接入升级为强接入） =====
+        # H0 体检发现旧实现把异常吞成 debug、CRITICAL 仍发原文，违反 AGENTS.md §3.4
+        # enforcement 统一策略：
+        #   pass / warned        → 继续返回最终文本
+        #   retry                → 标 RETRY，调用方可重试
+        #   rejected / *_error   → 统一拒绝消息 + 标 FAILED
+        if task_record.state == TaskState.RUNNING:
+            task_engine.transition(task_record.task_id, TaskState.VALIDATING)
 
-        # Harness: 校验通过后标记任务完成
-        if task_record.state != TaskState.FAILED:
+        response_text, validation_action = await harness_validate(
+            response_text=response_text,
+            user_query=content,
+            agent_name=used_agent,
+            route=ctx.route,
+        )
+
+        if validation_action in ("rejected", "validator_error"):
+            task_engine.transition(
+                task_record.task_id,
+                TaskState.FAILED,
+                error_msg=f"output_validation:{validation_action}",
+            )
+        elif validation_action == "retry":
+            task_engine.transition(task_record.task_id, TaskState.RETRY)
+        elif task_record.state not in (TaskState.FAILED, TaskState.COMPLETED):
             task_engine.transition(task_record.task_id, TaskState.COMPLETED, result=used_agent)
 
         final_sources, ai_message = await self._finalize_response(
@@ -1022,14 +1058,20 @@ class ChatService:
             "sources": [s.model_dump() for s in final_sources],
         }
 
-        # 附加 harness 元数据（可选，前端可用于展示 token 消耗等）
+        # 附加 harness 元数据（H1：ChatResponse.harness 已开放此字段）
+        harness_meta = {
+            "validation_action": validation_action,
+            "validation_failed": validation_action in ("retry", "rejected", "validator_error"),
+        }
         if trace_summary:
-            result_dict["_harness"] = {
+            harness_meta.update({
                 "trace_id": trace_summary.get("trace_id"),
                 "total_tokens": trace_summary.get("total_tokens", 0),
                 "total_cost_usd": trace_summary.get("total_cost_usd", 0),
                 "elapsed_ms": trace_summary.get("elapsed_ms", 0),
-            }
+            })
+        result_dict["harness"] = harness_meta
+        result_dict["_harness"] = harness_meta  # 兼容旧前端
 
         return result_dict
 

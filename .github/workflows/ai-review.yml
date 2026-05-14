@@ -1,0 +1,140 @@
+name: AI Review Gates
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  pull-requests: write   # 仅评论
+  contents: read         # 仅读 diff
+  # 故意不给 actions / packages / id-token 等任何写权限
+
+env:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+jobs:
+  prepare:
+    name: Prepare diff
+    if: github.event.pull_request.draft == false && !contains(github.event.pull_request.title, '[skip-ai-review]')
+    runs-on: ubuntu-latest
+    outputs:
+      diff_path: ${{ steps.diff.outputs.path }}
+      changed_files: ${{ steps.diff.outputs.files }}
+      run_dep: ${{ steps.changed.outputs.run_dep }}
+      run_regression: ${{ steps.changed.outputs.run_regression }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Compute diff
+        id: diff
+        run: |
+          mkdir -p .ai-review
+          git fetch origin ${{ github.event.pull_request.base.ref }}
+          git diff origin/${{ github.event.pull_request.base.ref }}...HEAD > .ai-review/pr.diff
+          gh pr view ${{ github.event.pull_request.number }} --json files --jq '.files[].path' > .ai-review/files.txt
+          echo "path=.ai-review/pr.diff" >> $GITHUB_OUTPUT
+          echo "files=.ai-review/files.txt" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Decide which reviewers to run
+        id: changed
+        run: |
+          DEP=$(grep -E '(package\.json|package-lock\.json|requirements.*\.txt|pyproject\.toml|Cargo\.toml)$' .ai-review/files.txt && echo true || echo false)
+          REG=$(grep -E '(tests/|e2e/|conftest\.py|playwright\.config)' .ai-review/files.txt && echo true || echo false)
+          echo "run_dep=$DEP" >> $GITHUB_OUTPUT
+          echo "run_regression=$REG" >> $GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pr-diff
+          path: .ai-review/
+
+  code-review:
+    needs: prepare
+    runs-on: ubuntu-latest
+    name: Code Reviewer
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with: { name: pr-diff, path: .ai-review/ }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install anthropic
+      - name: Run code reviewer
+        run: python .github/ai-review/review.py code .ai-review/pr.diff
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+
+  security-review:
+    needs: prepare
+    runs-on: ubuntu-latest
+    name: Security Reviewer
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with: { name: pr-diff, path: .ai-review/ }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install anthropic
+      - name: Run security reviewer
+        run: python .github/ai-review/review.py security .ai-review/pr.diff
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+
+  dependency-review:
+    needs: prepare
+    if: needs.prepare.outputs.run_dep == 'true'
+    runs-on: ubuntu-latest
+    name: Dependency Reviewer
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with: { name: pr-diff, path: .ai-review/ }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install anthropic
+      - name: Run dependency reviewer
+        run: python .github/ai-review/review.py dependency .ai-review/pr.diff
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+
+  regression-review:
+    needs: prepare
+    if: needs.prepare.outputs.run_regression == 'true'
+    runs-on: ubuntu-latest
+    name: Regression Reviewer
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with: { name: pr-diff, path: .ai-review/ }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install anthropic
+      - name: Run regression reviewer
+        run: python .github/ai-review/review.py regression .ai-review/pr.diff
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+
+  # 保护本 workflow 自身：改 ai-review.yml 必须 2 个 human reviewer
+  guard-self:
+    runs-on: ubuntu-latest
+    name: Self-protect (workflow change requires 2 humans)
+    steps:
+      - uses: actions/checkout@v5
+        with: { fetch-depth: 0 }
+      - name: Check if this PR modifies ai-review workflow
+        run: |
+          if git diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD | grep -E '\.github/(workflows/ai-review\.yml|ai-review/)' ; then
+            echo "::warning::This PR modifies ai-review. CODEOWNERS will require 2 human reviewers."
+          fi

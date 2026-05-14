@@ -1,6 +1,7 @@
 import type { ComponentType, ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { type LucideIcon } from 'lucide-react'
+import { icons } from '@/lib/icons'
+import type { LucideIcon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 
 export type PageState = 'loading' | 'empty' | 'error' | 'content'

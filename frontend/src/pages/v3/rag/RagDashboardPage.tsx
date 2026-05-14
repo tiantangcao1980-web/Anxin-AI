@@ -10,8 +10,7 @@
 
 import { useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, Database, FilePlus2, Library, Network, Search } from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -23,7 +22,7 @@ import { MODALITIES, modalityVisual } from '@/components/v3/rag/modalityStyle'
 interface ModuleCard {
   title: string
   description: string
-  icon: typeof FilePlus2
+  icon: typeof icons.FilePlus2
   to: string
   cta: string
 }
@@ -32,28 +31,28 @@ const MODULE_CARDS: ModuleCard[] = [
   {
     title: '多模态上传',
     description: '拖拽 PDF / 扫描件 / Word，自动识别文本、图像、表格、公式、印章 5 种模态',
-    icon: FilePlus2,
+    icon: icons.FilePlus2,
     to: '/v3/rag/ingest',
     cta: '上传文档',
   },
   {
     title: '文档库',
     description: '浏览已 ingest 的文档，查看章/条/款/项 layout 树和 segments 预览',
-    icon: Library,
+    icon: icons.Library,
     to: '/v3/rag/library',
     cta: '查看文档',
   },
   {
     title: '跨模态知识图谱',
     description: '可视化 entities 与 relations，跨模态边用虚线 + 渐变特殊样式标识',
-    icon: Network,
+    icon: icons.Network,
     to: '/v3/rag/kg',
     cta: '打开图谱',
   },
   {
     title: '多模态 VLM 查询',
     description: '调节 5 模态权重 → 检索 → 答案 + visual grounding 高亮 + 引文跳转',
-    icon: Search,
+    icon: icons.Search,
     to: '/v3/rag/query',
     cta: '开始查询',
   },
@@ -101,7 +100,7 @@ export default function RagDashboardPage() {
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <Database className="size-6" />
+            <icons.Database className="size-6" />
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -195,7 +194,7 @@ export default function RagDashboardPage() {
                   variant="ghost"
                   size="sm"
                   className="ml-auto flex"
-                  iconRight={<ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />}
+                  iconRight={<icons.ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />}
                   onClick={(e) => {
                     e.stopPropagation()
                     navigate(mod.to)

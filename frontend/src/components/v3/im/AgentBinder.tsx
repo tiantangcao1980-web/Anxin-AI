@@ -6,7 +6,7 @@
  */
 
 import { useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { toast } from 'sonner'
 
 import {
@@ -70,7 +70,7 @@ export function AgentBinder({ value, onChange, disabled }: AgentBinderProps) {
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
         <label className="text-xs font-medium text-foreground">智能体</label>
-        {pending && <Loader2 className="size-3 animate-spin text-muted-foreground" />}
+        {pending && <icons.Loader2 className="size-3 animate-spin text-muted-foreground" />}
       </div>
       <Select value={value ?? undefined} onValueChange={handleChange} disabled={disabled || pending}>
         <SelectTrigger className="h-9 w-full">

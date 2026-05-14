@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Loader2, Send, X } from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { chatApi } from '@/lib/api'
@@ -172,7 +171,7 @@ export default function QuickQuery() {
           <p className="truncate text-xs text-muted-foreground">桌面即时法律助手</p>
         </div>
         <Button variant="ghost" size="icon" onClick={requestHide} aria-label="关闭快问">
-          <X className="h-4 w-4" />
+          <icons.X className="h-4 w-4" />
         </Button>
       </header>
 
@@ -237,9 +236,9 @@ export default function QuickQuery() {
             aria-label="发送快问"
           >
             {status === 'thinking' ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <icons.Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Send className="h-4 w-4" />
+              <icons.Send className="h-4 w-4" />
             )}
           </Button>
         </div>

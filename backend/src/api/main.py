@@ -201,6 +201,39 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     """全局未捕获异常处理"""
     logger.error(f"未捕获异常: {request.method} {request.url.path} - {type(exc).__name__}: {exc}")
 
+    # ===== CREAO 自愈闭环 Slice 1: 5xx 错误上报 incident =====
+    # 包在 try/except 里，绝不能让 hook 自身错误影响主响应
+    try:
+        import traceback as _tb
+        from src.core.database import get_db_context
+        from src.harness.incident_collector import IncidentCollector
+        from src.schemas.incident import IncidentSource, IncidentSeverity
+        from src.services.pii_service import pii_service
+
+        path = str(request.url.path)
+        severity = (
+            IncidentSeverity.P0
+            if path.startswith("/api/v1/payments")
+            else IncidentSeverity.P2
+        )
+
+        async with get_db_context() as db:
+            await IncidentCollector(db, pii_service).collect(
+                source=IncidentSource.API_5XX,
+                title=f"5xx on {path}",
+                payload={
+                    "path": path,
+                    "method": request.method,
+                    "error": str(exc)[:1000],
+                    "trace": _tb.format_exc()[:2000],
+                },
+                severity=severity,
+                route=path,
+                fingerprint_keys=["path", "error"],
+            )
+    except Exception as hook_err:
+        logger.error(f"incident hook failed: {hook_err}")
+
     if settings.ENVIRONMENT == "production":
         return JSONResponse(
             status_code=500,

@@ -16,7 +16,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { icons } from '@/lib/icons'
-import { EmptyState, LoadingState } from '@/components/common'
+import { EmptyState, LoadingState } from '@/components/ui-unified'
 import { PageContainer } from '@/components/ui/PageContainer'
 import {
   cardStyle,

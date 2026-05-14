@@ -8,8 +8,7 @@
  */
 
 import { lazy, Suspense, useState } from 'react'
-import { Loader2, PlayCircle } from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -85,7 +84,7 @@ export function SkillDetailDrawer({
       >
         {loading || !skill ? (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            <Loader2 className="mr-2 size-4 animate-spin" />
+            <icons.Loader2 className="mr-2 size-4 animate-spin" />
             加载中...
           </div>
         ) : (
@@ -225,7 +224,7 @@ export function SkillDetailDrawer({
                 {skill.enabled ? '已启用 · 可在对话中触发' : '未启用 · 触发将被忽略'}
               </div>
               <Button onClick={onExecute} size="sm" variant="default">
-                <PlayCircle className="size-4" />
+                <icons.PlayCircle className="size-4" />
                 试运行
               </Button>
             </div>

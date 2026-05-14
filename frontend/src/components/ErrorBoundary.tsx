@@ -3,8 +3,11 @@
  *
  * 作用：捕获子组件的 JS 运行时异常，防止单个组件报错导致整个应用白屏
  * 使用方式：在 App.tsx 中包裹整个应用
+ *
+ * [CREAO 自愈闭环 Slice 1] 增强：上报 JS 错误到 incidents 后端，含 5 分钟去重
  */
 import { Component, ErrorInfo, ReactNode } from 'react'
+import { reportFrontendError } from '@/lib/incident-report'
 
 interface Props {
   children: ReactNode
@@ -24,8 +27,16 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    // 可在此处上报错误到监控平台
     console.error('[ErrorBoundary]', error, info)
+    // 上报到后端 incidents 表（自愈闭环 Slice 1）
+    // 用 try/catch 包裹：上报失败绝不影响错误页面显示
+    try {
+      reportFrontendError(error, info).catch(() => {
+        /* 上报失败静默 */
+      })
+    } catch {
+      /* 上报模块异常静默 */
+    }
   }
 
   render() {

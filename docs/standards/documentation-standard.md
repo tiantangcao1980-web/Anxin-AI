@@ -4,18 +4,19 @@
 
 ## 1. 文档分层
 
+> 2026-05-14 重构：原 `openspec/` `strategy/` `plans/` 等 L2 多套规范统一合并入 **5 份 Spine + 9 份 Wiki**，详见 [`docs/00-project-execution-map.md`](../00-project-execution-map.md)。
+
 | 层级 | 位置 | 角色 | 写谁看 |
 |---|---|---|---|
-| L1 入口 | `README.md`（仓库根） | 30 秒了解项目 | 任何人 |
-| L1 导航 | `docs/00-project-execution-map.md` | 当前权威导航总入口 | 所有 contributor |
-| L2 规范 | `docs/standards/*` | 如何工作（HOW） | 所有 contributor |
-| L2 规范 | `docs/openspec/*` | 交付什么（DELIVERABLE） | 产品 + 工程 + 验收 |
-| L2 战略 | `docs/strategy/*` | 长期定位与需求 | 产品 + 高层 |
-| L3 实施 | `docs/v3/*` | V3 智能助手实施细节 | 工程 |
-| L3 实施 | `docs/architecture/*` `docs/desktop/*` `docs/mobile/*` `docs/design/*` | 工程领域专题 | 对应领域工程师 |
-| L3 执行 | `docs/audit/*` `docs/release/*` `docs/plans/*` | 当前任务、审计、发布证据 | 执行团队 |
-| L4 历史 | `docs/archive/*` | 历史决策与已实施方案，不作当前事实来源 | 追溯 |
-| L4 参考 | `docs/references/*` | 外部资料与设计参考 | 设计 + 工程 |
+| L0 入口 | `README.md`（仓库根） | 30 秒了解项目 | 任何人 |
+| L0 导航 | `docs/00-project-execution-map.md` + `docs/01-core-docs.md` | 当前权威导航总入口 | 所有 contributor |
+| **L1 Spine** | `docs/REQUIREMENTS.md` `ARCHITECTURE.md` `ROADMAP.md` `DEVELOPMENT_PLAN.md` `RELEASE_GATE.md` | **5 份权威主干**：需求 / 架构 / 路线图 / 开发计划 / 发布门 | 所有 contributor |
+| **L1 真相源** | `AGENTS.md`（根）+ `DESIGN.md`（根）+ `docs/standards/*` | Agent 行为 / 视觉 / 工程规范 | 所有 contributor |
+| **L1 Wiki** | `docs/wiki/*` | AI 智能体 30 秒接手副本 | AI agent + 新人 |
+| L2 领域 | `docs/v3/*` `docs/desktop/*` `docs/mobile/*` `docs/design/*` `docs/audit/harness/*` | 工程领域专题 | 对应领域工程师 |
+| L2 执行 | `docs/release/*`（活跃 runbook / evidence / checklist）`docs/audit/ui-ux-audit-2026-05-08.md` `docs/adr/*` | 当前发布证据、UI/UX 审计差异、架构决策 | 执行团队 |
+| L3 历史 | `docs/archive/*` | 已被 Spine 取代的源文档，仅供溯源 | 仅追溯 |
+| L3 参考 | `docs/references/*` | 外部资料与设计参考 | 设计 + 工程 |
 
 ## 2. 文档头部模板
 

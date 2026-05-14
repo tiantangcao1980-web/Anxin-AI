@@ -8,8 +8,7 @@
  *   - 底部：设置按钮（"绑定微信账号" / "设置机器人"）
  */
 
-import { ExternalLink, Settings2, Wand2 } from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { cn } from '@/components/ui/utils'
@@ -118,7 +117,7 @@ export function ChannelCard({ channel, onSetup, onBindAgent }: ChannelCardProps)
                 className="inline-flex items-center gap-0.5 text-primary hover:underline"
               >
                 (如何接入?)
-                <ExternalLink className="size-3" />
+                <icons.ExternalLink className="size-3" />
               </a>
             )}
           </div>
@@ -144,7 +143,7 @@ export function ChannelCard({ channel, onSetup, onBindAgent }: ChannelCardProps)
           />
         ) : (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Wand2 className="size-3.5 shrink-0" />
+            <icons.Wand2 className="size-3.5 shrink-0" />
             <span>请配置智能体 — 选择一个智能体来处理此渠道的消息</span>
           </div>
         )}
@@ -157,7 +156,7 @@ export function ChannelCard({ channel, onSetup, onBindAgent }: ChannelCardProps)
           size="sm"
           onClick={() => onSetup(channel)}
         >
-          <Settings2 />
+          <icons.Settings2 />
           {isConfigured ? '修改配置' : meta.primaryAction}
         </Button>
       </div>

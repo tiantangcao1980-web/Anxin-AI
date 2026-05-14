@@ -6,8 +6,7 @@
  * 底部：author + 绿色开关 + 详情按钮
  */
 
-import { Info } from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -103,7 +102,7 @@ export function SkillCard({ skill, onToggle, onOpenDetail }: SkillCardProps) {
           className="h-7 px-2 text-xs"
           onClick={onOpenDetail}
         >
-          <Info className="size-3" />
+          <icons.Info className="size-3" />
           详情
         </Button>
       </div>

@@ -3,6 +3,9 @@
 > 关联：`docs/v3/SECURITY_AUDIT.md` A06（Vulnerable & Outdated Components）  
 > 执行日期：2026-04-29  
 > 范围：仅 `backend/pyproject.toml` + `backend/uv.lock` + `frontend/package.json` + `frontend/package-lock.json`，未触碰业务代码
+>
+> ⚠️ **2026-05 更新**：CAMEL-AI 已全量剥离（迁至自研 Harness 层），本报告中"受 camel-ai 约束"
+> 一类豁免条件已不复存在，`litellm` 升级路径不再被锁定，相关跟踪项可关闭。
 
 ---
 

@@ -934,6 +934,124 @@ class FaDaDaProvider(ESignProvider):
 # ========== 工厂函数 ==========
 
 
+# ========== 政务电子签章 Provider Placeholder (2026-05-14) ==========
+#
+# 产品方向调整: 当前阶段把"商业化电子签 (e签宝/法大大)"降为后续阶段, 优先
+# 接入广东省政务签章平台:
+#   - GDCA (广东省数字证书认证中心 / 数安时代): https://gdca.com.cn
+#     · 政务标配, 政府采购智慧云 / 公共资源交易 / 施工图审查均已接入
+#     · 法定 CA 资质 (国密 / RSA 双算法), 出具的电子签具有同等法律效力
+#   - 粤商通 / 粤企签 (数字广东运营): https://www.digitalgd.com.cn/construction/business/yst/
+#     · 1094+ 涉企政务服务事项 + 158 类电子证照, 高新企业认定等流程已数字化
+#     · 移动数字证书 + 授权刷脸双重锁定, 证书云端存储
+#
+# 这两个 Provider 暂以 placeholder 形式预留, 真实接入需要:
+#   1. 业务方申请政务平台合作 (GDCA 商务对接 / 粤商通需企业实名认证)
+#   2. 拿到测试环境 endpoint + appId/appSecret/CA 证书
+#   3. 阅读各自的 API 文档完善 _call_api 实现 (签名算法 / 数据封装均不同)
+#   4. 提供生产证书 + 公网回调 URL
+#
+# Placeholder 行为: 调用任何方法立即 raise ESignProviderConfigError 提示"待接入",
+# 不发任何 HTTP 请求, 也不返回 mock 数据 — 避免在政务场景被误用为可用.
+
+
+class GdcaProvider(ESignProvider):
+    """广东省 GDCA 政务电子签章 Provider — Placeholder (待接入)。
+
+    商务对接渠道:
+      - GDCA 客服: https://www.gdca.com.cn/customer_service/
+      - 商务热线: 95105813
+      - API 文档需 NDA 后由 GDCA 提供, 暂无公开开发者门户
+
+    法律效力: 《电子签名法》+《广东省电子签名管理办法》
+    数据驻留: 全部签章数据在 GDCA 政务云内, 不出粤
+    """
+
+    PROVIDER_NAME = "gdca"
+
+    def __init__(self) -> None:
+        self.app_id = os.getenv("GDCA_APP_ID", "")
+        self.app_secret = os.getenv("GDCA_APP_SECRET", "")
+        self.endpoint = os.getenv("GDCA_API_ENDPOINT", "")
+        self.ca_cert_path = os.getenv("GDCA_CA_CERT_PATH", "")
+        if not all([self.app_id, self.app_secret, self.endpoint]):
+            logger.warning(
+                "[GDCA] Provider 初始化但凭据未配置 — placeholder 状态, "
+                "调用任何方法将报错. 请联系 GDCA 商务获取测试凭据."
+            )
+
+    def _raise_not_configured(self) -> None:
+        raise ESignProviderConfigError(
+            "GDCA 政务签章 Provider 尚未接入 — 见 "
+            "docs/integrations/guangdong-gov-signature.md 中的接入清单"
+        )
+
+    async def create_sign_flow(
+        self, contract_id, title, signers, document_url=None, expire_hours=72,
+    ):  # type: ignore[override]
+        self._raise_not_configured()
+
+    async def get_sign_url(self, flow_id, signer_id):  # type: ignore[override]
+        self._raise_not_configured()
+
+    async def get_flow_status(self, flow_id):  # type: ignore[override]
+        self._raise_not_configured()
+
+    async def download_signed_doc(self, flow_id):  # type: ignore[override]
+        self._raise_not_configured()
+
+    async def cancel_flow(self, flow_id, reason=""):  # type: ignore[override]
+        self._raise_not_configured()
+
+
+class YueQiQianProvider(ESignProvider):
+    """粤企签 (粤商通体系内) 移动政务电子签 Provider — Placeholder (待接入)。
+
+    商务对接渠道:
+      - 粤商通: https://www.digitalgd.com.cn/construction/business/yst/
+      - 数字广东客服: 12345 (转粤商通专线)
+      - 企业实名认证后才能申请开发者权限
+
+    适用场景: 高新企业认定 / 涉企政务办理 / 跨部门审批文件签发
+    用户认证: 微信小程序刷脸 + 法人手机号验证, UX 比传统 CA 更轻
+    """
+
+    PROVIDER_NAME = "yueqishang"
+
+    def __init__(self) -> None:
+        self.app_id = os.getenv("YUEQIQIAN_APP_ID", "")
+        self.app_secret = os.getenv("YUEQIQIAN_APP_SECRET", "")
+        self.endpoint = os.getenv("YUEQIQIAN_API_ENDPOINT", "")
+        if not all([self.app_id, self.app_secret, self.endpoint]):
+            logger.warning(
+                "[YueQiQian] Provider 初始化但凭据未配置 — placeholder 状态, "
+                "调用任何方法将报错. 请联系数字广东获取测试凭据."
+            )
+
+    def _raise_not_configured(self) -> None:
+        raise ESignProviderConfigError(
+            "粤企签政务签章 Provider 尚未接入 — 见 "
+            "docs/integrations/guangdong-gov-signature.md 中的接入清单"
+        )
+
+    async def create_sign_flow(
+        self, contract_id, title, signers, document_url=None, expire_hours=72,
+    ):  # type: ignore[override]
+        self._raise_not_configured()
+
+    async def get_sign_url(self, flow_id, signer_id):  # type: ignore[override]
+        self._raise_not_configured()
+
+    async def get_flow_status(self, flow_id):  # type: ignore[override]
+        self._raise_not_configured()
+
+    async def download_signed_doc(self, flow_id):  # type: ignore[override]
+        self._raise_not_configured()
+
+    async def cancel_flow(self, flow_id, reason=""):  # type: ignore[override]
+        self._raise_not_configured()
+
+
 # 单例缓存
 _provider_instance: ESignProvider | None = None
 
@@ -944,8 +1062,14 @@ def get_esign_provider() -> ESignProvider:
 
     根据环境变量 ESIGN_PROVIDER 决定使用哪个提供商：
     - "mock" (默认): 开发/测试用 Mock 实现
-    - "esignbao": e签宝
-    - "fadada": 法大大
+    - "gdca": 广东省 GDCA 政务电子签 (placeholder, 待接入)
+    - "yueqishang" / "yueqiqian": 粤企签 / 粤商通体系 (placeholder, 待接入)
+    - "esignbao": e签宝 (商业化阶段)
+    - "fadada": 法大大 (商业化阶段)
+
+    产品策略 (2026-05-14 调整):
+      - 当前阶段以核心功能验证为主, 签约场景优先接入政务平台 (GDCA / 粤企签)
+      - e签宝 / 法大大 等商业化渠道降为后续阶段, 待商业化 PMF 后再启用
 
     Returns:
         ESignProvider 实例
@@ -959,17 +1083,25 @@ def get_esign_provider() -> ESignProvider:
     if settings.ENVIRONMENT.lower() in {"production", "staging"} and provider_name == "mock":
         raise ESignProviderConfigError("staging/production 环境必须配置真实 ESIGN_PROVIDER，禁止使用 Mock 电子签章渠道。")
 
-    if provider_name == "esignbao":
+    if provider_name == "gdca":
+        _provider_instance = GdcaProvider()
+        logger.info("电子签章提供商: GDCA 广东政务签 (placeholder, 待接入)")
+    elif provider_name in ("yueqishang", "yueqiqian", "yuesangtong"):
+        _provider_instance = YueQiQianProvider()
+        logger.info("电子签章提供商: 粤企签 / 粤商通 (placeholder, 待接入)")
+    elif provider_name == "esignbao":
         _provider_instance = ESignBaoProvider()
-        logger.info("电子签章提供商: e签宝")
+        logger.info("电子签章提供商: e签宝 (商业化阶段)")
     elif provider_name == "fadada":
         _provider_instance = FaDaDaProvider()
-        logger.info("电子签章提供商: 法大大")
+        logger.info("电子签章提供商: 法大大 (商业化阶段)")
     elif provider_name == "mock":
         _provider_instance = MockESignProvider()
         logger.info("电子签章提供商: Mock（开发模式）")
     else:
-        raise ESignProviderConfigError(f"未知电子签章渠道 '{provider_name}'，请配置 esignbao 或 fadada。")
+        raise ESignProviderConfigError(
+            f"未知电子签章渠道 '{provider_name}', 支持: gdca / yueqishang / esignbao / fadada / mock"
+        )
 
     return _provider_instance
 

@@ -276,7 +276,18 @@ async def test_issue_route_token_enforces_consumer_and_scope(db_session, test_or
         requested_scopes=["browser:write"],
     )
 
-    leases = (await db_session.execute(select(CapabilityRouteTokenLease))).scalars().all()
+    # G4 (2026-05-14): 只看本测试 route_key=limited-route 的 lease, 避免被
+    # 之前测试遗留的同 db_session 的其它 lease 污染断言.
+    from src.models import CapabilityRoute
+    route_id = (await db_session.execute(
+        select(CapabilityRoute.id).where(
+            CapabilityRoute.org_id == test_organization.id,
+            CapabilityRoute.route_key == "limited-route",
+        )
+    )).scalar_one()
+    leases = (await db_session.execute(
+        select(CapabilityRouteTokenLease).where(CapabilityRouteTokenLease.route_id == route_id)
+    )).scalars().all()
 
     assert bad_consumer.allowed is False
     assert bad_consumer.reason_code == "consumer_not_allowed"

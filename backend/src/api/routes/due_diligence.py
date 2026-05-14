@@ -982,14 +982,14 @@ async def compress_context(
     req: CompressRequest,
     user: User = Depends(get_current_user_required),
 ) -> dict[str, Any]:
-    """对话上下文渐进式压缩"""
+    """对话上下文渐进式压缩 (T3 收口: 通过 context_engine 集中调用)"""
     try:
-        from src.services.context_compressor import context_compressor
-        tier = context_compressor.should_compress(req.messages, req.max_context_tokens)
+        from src.harness.context_engine import context_engine
+        tier = context_engine.should_compress(req.messages, req.max_context_tokens)
         if tier is None:
             return UnifiedResponse.success(data={"action": "no_compression_needed"})
 
-        compressed, stats = await context_compressor.compress(req.messages, tier, req.max_context_tokens)
+        compressed, stats = await context_engine.compress(req.messages, tier, req.max_context_tokens)
         return UnifiedResponse.success(data={
             "compressed_messages": compressed,
             "stats": stats,
@@ -1002,10 +1002,10 @@ async def compress_context(
 async def get_compression_stats(
     user: User = Depends(get_current_user_required),
 ) -> dict[str, Any]:
-    """获取上下文压缩统计"""
+    """获取上下文压缩统计 (T3 收口: 通过 context_engine 集中调用)"""
     try:
-        from src.services.context_compressor import context_compressor
-        return UnifiedResponse.success(data=context_compressor.get_stats())
+        from src.harness.context_engine import context_engine
+        return UnifiedResponse.success(data=context_engine.get_stats())
     except Exception:
         return UnifiedResponse.success(data={})
 

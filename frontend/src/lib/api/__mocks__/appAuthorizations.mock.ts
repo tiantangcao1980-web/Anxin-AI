@@ -405,7 +405,7 @@ const seedAuthorizations: AppAuthorization[] = [
     connected_at: daysAgo(20),
     last_refresh_at: daysAgo(2),
     error_message: null,
-    account_label: '安心法律 · 北京总部',
+    account_label: '安心智能助手 · 北京总部',
   },
   {
     id: 'auth-notion-1',

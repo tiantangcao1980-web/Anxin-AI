@@ -15,7 +15,7 @@ import { Badge } from'@/components/ui/badge'
 import { Switch } from'@/components/ui/switch'
 import { Progress } from'@/components/ui/progress'
 import { billingApi } from'@/lib/api'
-import { ErrorState, LoadingState } from'@/components/common'
+import { ErrorState, LoadingState } from'@/components/ui-unified'
 import {
  Table,
  TableBody,

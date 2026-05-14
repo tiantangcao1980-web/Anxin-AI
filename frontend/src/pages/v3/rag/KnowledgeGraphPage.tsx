@@ -11,8 +11,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Network } from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
@@ -79,14 +78,14 @@ export default function KnowledgeGraphPage() {
             variant="ghost"
             size="sm"
             onClick={() => navigate('/v3/rag')}
-            iconLeft={<ArrowLeft className="h-4 w-4" />}
+            iconLeft={<icons.ArrowLeft className="h-4 w-4" />}
             className="h-8"
           >
             返回看板
           </Button>
           <div className="flex items-start gap-3">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-              <Network className="size-5" />
+              <icons.Network className="size-5" />
             </div>
             <div>
               <h1 className="text-lg font-semibold tracking-tight text-foreground">

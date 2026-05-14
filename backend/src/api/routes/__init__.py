@@ -76,6 +76,18 @@ from src.api.routes import (
     updates,
 )
 
+# CREAO 自愈闭环 Slice 1: incidents 上报与管理 (T5, 2026-05-14)
+# 用 try 包裹防止 incident_collector / models / schema 任一文件未就绪时
+# 阻断其余路由注册（与 peaceful-goodall 原 PR 同样的保守策略）。
+try:
+    from src.api.routes import incidents as _incidents_module
+except Exception as _e:  # pragma: no cover
+    _incidents_module = None
+    import logging as _logging
+    _logging.getLogger(__name__).warning(
+        "incidents router skipped (依赖文件未就绪): %s", _e
+    )
+
 api_router = APIRouter()
 
 # 注册各模块路由
@@ -148,3 +160,8 @@ api_router.include_router(rag_ingest.router, prefix="/rag/ingest", tags=["RAG �
 api_router.include_router(rag_kg.router, prefix="/rag/kg", tags=["RAG 知识图谱（P13-B）"])
 api_router.include_router(rag_query.router, prefix="/rag/query", tags=["RAG VLM 增强 Query"])
 api_router.include_router(client_errors.router, tags=["客户端错误聚合（P19-B）"])
+
+# CREAO 自愈闭环 Slice 1 (T5, 2026-05-14): incidents 路由
+# 内部路径已写死 /incidents/report 与 /admin/incidents, 不加 prefix
+if _incidents_module is not None:
+    api_router.include_router(_incidents_module.router, tags=["Incidents (CREAO Slice 1)"])

@@ -146,6 +146,28 @@ def validate_item(item: EvidenceItem) -> ValidationResult:
 
     text = item.path.read_text(encoding="utf-8")
     status_value = read_status(text)
+    # Phase F (2026-05-14): "deferred" status 表示**有意识降级到商业化阶段**,
+    # 不阻断当前 PMF 验证. 必须在 evidence 文件中显式声明 Deferred-Reason +
+    # Deferred-Until 才视为有效降级 (防止滥用).
+    if status_value == "deferred":
+        deferred_reason = re.search(r"^Deferred-Reason:\s*(.+)$", text, re.MULTILINE | re.IGNORECASE)
+        deferred_until = re.search(r"^Deferred-Until:\s*(.+)$", text, re.MULTILINE | re.IGNORECASE)
+        if not deferred_reason or not deferred_until:
+            return ValidationResult(
+                failures=(
+                    f"release evidence is marked deferred but missing "
+                    f"Deferred-Reason / Deferred-Until ({item.label}): {item.path}",
+                ),
+                warnings=(),
+            )
+        # Deferred 视为合法 — 当前 gate 跳过, 仅 warning 提示
+        return ValidationResult(
+            failures=(),
+            warnings=(
+                f"release evidence deferred ({item.label}): "
+                f"{deferred_reason.group(1).strip()[:80]} (until: {deferred_until.group(1).strip()[:30]})",
+            ),
+        )
     if status_value != "complete":
         return ValidationResult(
             failures=(

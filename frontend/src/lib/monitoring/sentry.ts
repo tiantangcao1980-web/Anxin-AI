@@ -88,7 +88,6 @@ export function initSentry(opts: SentryInitOptions = {}): boolean {
 export function captureException(err: unknown, ctx?: Record<string, unknown>): void {
   if (!_initialized) {
     // 未启用 Sentry 时降级到 console，避免静默吞错
-    // eslint-disable-next-line no-console
     console.error('[monitoring] captureException', err, ctx)
     return
   }

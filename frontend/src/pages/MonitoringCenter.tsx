@@ -4,11 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import {
-  Activity, Building2, Bell, TrendingUp, Plus, Search,
-  ChevronRight, AlertCircle, Clock, Eye, X, Power,
-  Trash2, ChevronLeft, Radio,
-} from 'lucide-react'
+import { icons } from '@/lib/icons'
 import {
   sentimentApi,
   type SentimentMonitor,
@@ -74,7 +70,7 @@ function AddMonitorDialog({ onClose, onCreated }: { onClose: () => void; onCreat
       <div className="w-full max-w-md bg-background rounded-2xl border shadow-xl p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">添加监测对象</h2>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-muted"><X className="h-4 w-4" /></button>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-muted"><icons.X className="h-4 w-4" /></button>
         </div>
         <div className="space-y-3">
           <div>
@@ -163,7 +159,7 @@ function MonitorDetailPanel({ monitor, onClose }: { monitor: SentimentMonitor; o
     <div className="fixed inset-y-0 right-0 z-40 w-full max-w-lg bg-background border-l shadow-xl flex flex-col">
       <div className="flex items-center gap-3 px-6 py-4 border-b">
         <button onClick={onClose} className="p-1 rounded-lg hover:bg-muted">
-          <ChevronLeft className="h-5 w-5" />
+          <icons.ChevronLeft className="h-5 w-5" />
         </button>
         <div>
           <h2 className="text-lg font-semibold">{monitor.name}</h2>
@@ -314,35 +310,35 @@ export default function MonitoringCenter() {
   const stats: {
     label: string
     value: number | string
-    icon: typeof Building2
+    icon: typeof icons.Building2
     tone: 'primary' | 'success' | 'destructive' | 'warning'
     hint: string
   }[] = [
     {
       label: '监测对象',
       value: monitors.length,
-      icon: Building2,
+      icon: icons.Building2,
       tone: 'primary',
       hint: '已订阅',
     },
     {
       label: '今日舆情',
       value: statistics?.total_records ?? monitors.reduce((s, m) => s + m.total_records, 0),
-      icon: Activity,
+      icon: icons.Activity,
       tone: 'success',
       hint: '24 小时内',
     },
     {
       label: '风险预警',
       value: statistics?.alerts?.total ?? monitors.reduce((s, m) => s + m.alert_count, 0),
-      icon: Bell,
+      icon: icons.Bell,
       tone: 'destructive',
       hint: '待处理告警',
     },
     {
       label: '负面舆情',
       value: statistics?.sentiment_distribution?.negative ?? monitors.reduce((s, m) => s + m.negative_count, 0),
-      icon: TrendingUp,
+      icon: icons.TrendingUp,
       tone: 'warning',
       hint: '需关注',
     },
@@ -362,13 +358,13 @@ export default function MonitoringCenter() {
           onClick={() => setShowAddDialog(true)}
           className={`${buttonStyle.primary} inline-flex items-center gap-2`}
         >
-          <Plus className={iconSize.sm} />
+          <icons.Plus className={iconSize.sm} />
           添加监测对象
         </button>
       }
       toolbar={
         <div className="relative flex-1">
-          <Search className={`${iconSize.sm} absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground`} />
+          <icons.Search className={`${iconSize.sm} absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground`} />
           <input
             type="text"
             placeholder="搜索监测对象或关键词..."
@@ -409,7 +405,7 @@ export default function MonitoringCenter() {
           </div>
         ) : filteredMonitors.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground">
-            <Radio className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
+            <icons.Radio className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
             <p className="text-sm font-medium">{searchQuery ? '未找到匹配的监测对象' : '暂无监测对象'}</p>
             <p className="text-xs mt-1">点击"添加监测对象"开始监测企业舆情</p>
           </div>
@@ -430,7 +426,7 @@ export default function MonitoringCenter() {
                     className="flex items-center gap-4 text-left flex-1 min-w-0"
                   >
                     <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <Building2 className="h-5 w-5 text-primary" />
+                      <icons.Building2 className="h-5 w-5 text-primary" />
                     </div>
                     <div className="min-w-0">
                       <h3 className="font-medium group-hover:text-primary transition-colors truncate">{monitor.name}</h3>
@@ -446,17 +442,17 @@ export default function MonitoringCenter() {
                     </span>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
-                        <Eye className="h-3.5 w-3.5" />
+                        <icons.Eye className="h-3.5 w-3.5" />
                         {monitor.total_records}
                       </span>
                       {monitor.alert_count > 0 && (
                         <span className="flex items-center gap-1 text-destructive">
-                          <AlertCircle className="h-3.5 w-3.5" />
+                          <icons.AlertCircle className="h-3.5 w-3.5" />
                           {monitor.alert_count}
                         </span>
                       )}
                       <span className="flex items-center gap-1">
-                        <Clock className="h-3.5 w-3.5" />
+                        <icons.Clock className="h-3.5 w-3.5" />
                         {formatTime(monitor.last_scan_at)}
                       </span>
                     </div>
@@ -467,21 +463,21 @@ export default function MonitoringCenter() {
                         className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                         title={monitor.is_active ? '暂停监测' : '恢复监测'}
                       >
-                        <Power className="h-3.5 w-3.5" />
+                        <icons.Power className="h-3.5 w-3.5" />
                       </button>
                       <button
                         onClick={e => { e.stopPropagation(); handleDelete(monitor.id) }}
                         className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                         title="删除"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <icons.Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
                     <button
                       onClick={() => setSelectedMonitor(monitor)}
                       className="p-1"
                     >
-                      <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <icons.ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                     </button>
                   </div>
                 </div>

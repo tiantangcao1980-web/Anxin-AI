@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react'
-import { AlertTriangle } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -55,7 +55,7 @@ export function DisconnectDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <AlertTriangle className="size-4 text-amber-500" />
+            <icons.AlertTriangle className="size-4 text-amber-500" />
             断开 {provider.display_name} 授权
           </DialogTitle>
           <DialogDescription>

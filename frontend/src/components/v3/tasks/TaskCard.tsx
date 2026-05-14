@@ -3,8 +3,7 @@
  */
 
 import { useMemo } from 'react'
-import { Loader2 } from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/components/ui/utils'
@@ -112,7 +111,7 @@ export function TaskCard({ task, events, selected, onClick }: TaskCardProps) {
             <div className="mt-3">
               {percent === null ? (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Loader2 className="size-3 animate-spin" />
+                  <icons.Loader2 className="size-3 animate-spin" />
                   <span>正在执行...</span>
                 </div>
               ) : (

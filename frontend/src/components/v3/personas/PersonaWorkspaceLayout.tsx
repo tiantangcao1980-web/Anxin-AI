@@ -9,7 +9,7 @@
  * 移动端折叠为单列堆叠。
  */
 
-import { ArrowLeft, CheckCircle2, ChevronDown, Clock3 } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { useNavigate } from 'react-router-dom'
 
 import { Badge } from '@/components/ui/badge'
@@ -64,7 +64,7 @@ export function PersonaWorkspaceLayout({
             className="-ml-2 h-8 gap-1 text-muted-foreground"
             onClick={() => navigate('/agents')}
           >
-            <ArrowLeft className="size-4" />
+            <icons.ArrowLeft className="size-4" />
             智能体
           </Button>
           <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-muted/60 text-2xl ring-1 ring-border/50">
@@ -80,7 +80,7 @@ export function PersonaWorkspaceLayout({
                   variant="outline"
                   className="border-emerald-300/60 bg-emerald-500/10 text-[10px] text-emerald-700 dark:border-emerald-700/50 dark:text-emerald-300"
                 >
-                  <CheckCircle2 className="mr-1 size-3" />
+                  <icons.CheckCircle2 className="mr-1 size-3" />
                   已实装
                 </Badge>
               ) : (
@@ -88,7 +88,7 @@ export function PersonaWorkspaceLayout({
                   variant="outline"
                   className="border-amber-300/60 bg-amber-500/10 text-[10px] text-amber-700 dark:border-amber-700/50 dark:text-amber-300"
                 >
-                  <Clock3 className="mr-1 size-3" />
+                  <icons.Clock3 className="mr-1 size-3" />
                   规划中
                 </Badge>
               )}
@@ -105,7 +105,7 @@ export function PersonaWorkspaceLayout({
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-1">
                 切换
-                <ChevronDown className="size-3.5" />
+                <icons.ChevronDown className="size-3.5" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">

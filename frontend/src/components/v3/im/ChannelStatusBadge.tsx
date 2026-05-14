@@ -4,8 +4,7 @@
  * 4 种状态：unconfigured / connecting / connected / error
  */
 
-import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/components/ui/utils'
 
@@ -50,9 +49,9 @@ export function ChannelStatusBadge({ status, className }: ChannelStatusBadgeProp
   const cfg = STATUS_MAP[status]
   return (
     <Badge variant="outline" className={cn(cfg.className, className)}>
-      {cfg.icon === 'check' && <CheckCircle2 className="size-3" />}
-      {cfg.icon === 'spin' && <Loader2 className="size-3 animate-spin" />}
-      {cfg.icon === 'alert' && <AlertCircle className="size-3" />}
+      {cfg.icon === 'check' && <icons.CheckCircle2 className="size-3" />}
+      {cfg.icon === 'spin' && <icons.Loader2 className="size-3 animate-spin" />}
+      {cfg.icon === 'alert' && <icons.AlertCircle className="size-3" />}
       <span>{cfg.label}</span>
     </Badge>
   )

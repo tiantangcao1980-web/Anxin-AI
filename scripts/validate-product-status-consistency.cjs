@@ -4,7 +4,7 @@ const fs = require('fs');
 
 const checks = [
   {
-    path: 'PRODUCT_ROADMAP.md',
+    path: 'docs/archive/legacy-root-roadmaps/PRODUCT_ROADMAP.md',
     required: [
       '最后更新：2026-05-09',
       '桌面端代码级 MVP 与本地门禁推进中；商业发布仍缺签名/真机/外部 API 证据',
@@ -46,7 +46,7 @@ const checks = [
     ],
   },
   {
-    path: 'docs/plans/2026-05-09-workstation-admin-ia-boundary.md',
+    path: 'docs/archive/legacy-spine-sources/plans/2026-05-09-workstation-admin-ia-boundary.md',
     required: [
       '状态：已采纳，后续开发按此边界执行',
       '工作站负责业务执行和本机运行，治理后台负责组织治理和平台配置',
@@ -61,7 +61,7 @@ const checks = [
     ],
   },
   {
-    path: 'docs/release/commercial-delivery-readiness.md',
+    path: 'docs/archive/legacy-spine-sources/release/commercial-delivery-readiness.md',
     required: [
       '前端组织级模型配置入口已收束到治理后台“模型治理”',
       '我的设置不再承载组织级 LLM/MCP 凭据 CRUD',
@@ -75,7 +75,7 @@ const checks = [
     ],
   },
   {
-    path: 'docs/release/48-hour-commercial-delivery-plan.md',
+    path: 'docs/archive/legacy-spine-sources/release/48-hour-commercial-delivery-plan.md',
     required: [
       '前端组织级模型配置入口已收束到治理后台“模型治理”',
       '`我的设置`不再承载组织级 LLM/MCP 凭据 CRUD',
@@ -99,7 +99,7 @@ const checks = [
     ],
   },
   {
-    path: 'docs/audit/00-platform/01-prd-reality-gap.md',
+    path: 'docs/archive/legacy-spine-sources/audit/00-platform/01-prd-reality-gap.md',
     required: [
       '代码级/unsigned 证据已补，商业同步闭环仍未完成',
       '独立 `/desktop/quick-query` 快问窗口',
@@ -117,7 +117,7 @@ const checks = [
     ],
   },
   {
-    path: 'docs/audit/00-platform/03-cross-cutting-gaps.md',
+    path: 'docs/archive/legacy-spine-sources/audit/00-platform/03-cross-cutting-gaps.md',
     required: [
       '缺口 A 的底座已落地',
       '缺口 B 的代码级官方协议与幂等/重试底座已落地',

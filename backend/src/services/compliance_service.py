@@ -198,7 +198,7 @@ th {{ background: #F2F2F7; padding: 10px 8px; text-align: left; font-weight: 600
 <ol style="padding-left:20px;">{rec_items if rec_items else '<li>暂无整改建议，企业合规状况良好</li>'}</ol>
 
 <div class="footer">
-  <p>本报告由安心智能法律服务平台 AI 辅助生成，仅供参考</p>
+  <p>本报告由安心智能助手 AI 辅助生成，仅供参考</p>
   <p>报告生成时间：{generated_at}</p>
 </div>
 </body></html>"""

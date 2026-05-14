@@ -11,8 +11,7 @@
 
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, History, Search, Sparkles, Eye } from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -79,14 +78,14 @@ export default function MultimodalQueryPage() {
             variant="ghost"
             size="sm"
             onClick={() => navigate('/v3/rag')}
-            iconLeft={<ArrowLeft className="h-4 w-4" />}
+            iconLeft={<icons.ArrowLeft className="h-4 w-4" />}
             className="h-8"
           >
             返回看板
           </Button>
           <div className="flex items-start gap-3">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-              <Sparkles className="size-5" />
+              <icons.Sparkles className="size-5" />
             </div>
             <div>
               <h1 className="text-lg font-semibold tracking-tight text-foreground">
@@ -123,7 +122,7 @@ export default function MultimodalQueryPage() {
               onClick={() => void submit()}
               loading={queryPending}
               disabled={!query.trim()}
-              iconLeft={<Search className="h-4 w-4" />}
+              iconLeft={<icons.Search className="h-4 w-4" />}
             >
               检索
             </Button>
@@ -150,7 +149,7 @@ export default function MultimodalQueryPage() {
           {/* visual grounding */}
           <div className="flex items-center justify-between rounded-xl border border-border/40 bg-background p-2.5">
             <div className="flex items-center gap-2">
-              <Eye className="h-4 w-4 text-muted-foreground" />
+              <icons.Eye className="h-4 w-4 text-muted-foreground" />
               <div>
                 <p className="text-xs font-medium text-foreground">Visual Grounding</p>
                 <p className="text-[10px] text-muted-foreground">在 segment 上画 bbox 高亮</p>
@@ -191,7 +190,7 @@ export default function MultimodalQueryPage() {
           {/* 历史 */}
           <div className="space-y-1.5">
             <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-              <History className="h-3.5 w-3.5" /> 历史
+              <icons.History className="h-3.5 w-3.5" /> 历史
             </div>
             {history.length === 0 ? (
               <p className="text-[11px] text-muted-foreground">尚无历史查询</p>

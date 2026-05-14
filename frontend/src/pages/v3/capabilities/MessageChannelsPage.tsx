@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useState } from 'react'
-import { MessageCircle, RefreshCcw } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -61,7 +61,7 @@ export default function MessageChannelsPage() {
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <MessageCircle className="size-6" />
+            <icons.MessageCircle className="size-6" />
           </div>
           <div>
             <h1 className="text-xl font-semibold tracking-tight text-foreground">
@@ -78,7 +78,7 @@ export default function MessageChannelsPage() {
           onClick={() => loadChannels()}
           disabled={loading}
         >
-          <RefreshCcw className={loading ? 'animate-spin' : ''} />
+          <icons.RefreshCcw className={loading ? 'animate-spin' : ''} />
           刷新
         </Button>
       </header>

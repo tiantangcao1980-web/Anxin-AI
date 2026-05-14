@@ -330,6 +330,8 @@ pub fn run_with_options(options: DesktopRunOptions) {
             commands::app_mode::delete_workstation_profile,
             commands::app_mode::apply_workstation_profile,
             commands::app_mode::update_unread_count,
+            // A5: 多端能力协商 (委托云端 / TopSecret 走本地兜底)
+            commands::capability::negotiate_capabilities,
             // 同步
             commands::sync::trigger_sync,
             commands::sync::get_sync_status,

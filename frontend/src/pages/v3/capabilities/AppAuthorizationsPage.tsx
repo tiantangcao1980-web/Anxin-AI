@@ -11,7 +11,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
-import { KeyRound, RefreshCcw } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -103,7 +103,7 @@ export default function AppAuthorizationsPage() {
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <KeyRound className="size-6" />
+            <icons.KeyRound className="size-6" />
           </div>
           <div>
             <h1 className="text-xl font-semibold tracking-tight text-foreground">
@@ -120,7 +120,7 @@ export default function AppAuthorizationsPage() {
           onClick={reload}
           disabled={loading}
         >
-          <RefreshCcw className={loading ? 'animate-spin' : ''} />
+          <icons.RefreshCcw className={loading ? 'animate-spin' : ''} />
           刷新
         </Button>
       </header>

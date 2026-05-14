@@ -71,10 +71,17 @@ def test_persona_metadata():
 
 
 def test_persona_auto_registered():
-    """P8-A: persona class 必须自动注册到 PersonaRegistry。"""
+    """P8-A: persona class 必须自动注册到 PersonaRegistry。
+
+    G4 (2026-05-14): 之前 isolated 跑通但 full-suite 失败 — 因为同 session
+    内若有 test_anxin_decompose.py 的 _reset_registry autouse 跑过, 单例被
+    清空且不主动 autoload (按 registry.py 设计: "需要真实 persona 的调用方
+    显式 autoload"). 这里显式调一次 autoload 让测试自包含。
+    """
     from src.agents.personas.registry import PersonaRegistry
 
     reg = PersonaRegistry.instance()
+    reg.autoload()  # G4: 自包含, 不依赖外部 bootstrap 顺序
     assert reg.has("tax_finance_advisor")
 
 

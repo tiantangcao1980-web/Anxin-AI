@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react'
-import { AlertTriangle } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -66,7 +66,7 @@ export function TaskApprovalCard({ task }: TaskApprovalCardProps) {
   return (
     <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 dark:border-amber-900/60 dark:bg-amber-500/10">
       <div className="flex items-start gap-3">
-        <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-600 dark:text-amber-400" />
+        <icons.AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-600 dark:text-amber-400" />
         <div className="flex-1 space-y-3">
           <div>
             <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-100">

@@ -7,7 +7,7 @@
  */
 
 import { useState } from 'react'
-import { CheckCircle2, FileText, Loader2, Upload, XCircle } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -137,7 +137,7 @@ export function SkillUploadDialog({ open, onOpenChange }: SkillUploadDialogProps
               file ? 'border-primary/40 bg-primary/5' : 'border-border hover:bg-muted/40',
             )}
           >
-            <Upload className="size-6 text-muted-foreground" />
+            <icons.Upload className="size-6 text-muted-foreground" />
             <span className="text-foreground">
               {file ? file.name : '点击选择 .md 文件'}
             </span>
@@ -154,7 +154,7 @@ export function SkillUploadDialog({ open, onOpenChange }: SkillUploadDialogProps
 
           {parseError && (
             <div className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 p-2.5 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-500/10 dark:text-red-300">
-              <XCircle className="size-4" />
+              <icons.XCircle className="size-4" />
               {parseError}
             </div>
           )}
@@ -162,7 +162,7 @@ export function SkillUploadDialog({ open, onOpenChange }: SkillUploadDialogProps
           {preview && !parseError && (
             <div className="space-y-2 rounded-md border border-border/60 bg-muted/30 p-3 text-xs">
               <div className="flex items-center gap-2 font-medium text-foreground">
-                <FileText className="size-3.5" />
+                <icons.FileText className="size-3.5" />
                 解析预览
               </div>
               <dl className="grid grid-cols-3 gap-x-3 gap-y-1">
@@ -197,12 +197,12 @@ export function SkillUploadDialog({ open, onOpenChange }: SkillUploadDialogProps
           <Button onClick={handleSubmit} disabled={!file || !!parseError || submitting}>
             {submitting ? (
               <>
-                <Loader2 className="size-4 animate-spin" />
+                <icons.Loader2 className="size-4 animate-spin" />
                 上传中
               </>
             ) : (
               <>
-                <CheckCircle2 className="size-4" />
+                <icons.CheckCircle2 className="size-4" />
                 确认上传
               </>
             )}

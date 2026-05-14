@@ -307,7 +307,7 @@ CREATE INDEX IF NOT EXISTS idx_knowledge_bases_org_id ON knowledge_bases(org_id)
 
 -- 创建默认组织
 INSERT INTO organizations (id, name, description)
-VALUES ('00000000-0000-0000-0000-000000000001', '安心法务', 'AI法务系统默认组织')
+VALUES ('00000000-0000-0000-0000-000000000001', '安心智能助手', 'AI 智能助手系统默认组织')
 ON CONFLICT (id) DO NOTHING;
 
 -- 创建默认知识库

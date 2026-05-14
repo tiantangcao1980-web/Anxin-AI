@@ -371,7 +371,7 @@ def _print_summary(results: Dict[str, CollectorResult], elapsed: float):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="安心法律智能服务 — 法律数据采集主控脚本",
+        description="安心智能助手 — 法律数据采集主控脚本",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:

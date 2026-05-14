@@ -1,6 +1,7 @@
 import type { ComponentType, ReactNode } from 'react'
 import { motion } from 'framer-motion'
-import { TrendingUp, TrendingDown, Minus, type LucideIcon } from 'lucide-react'
+import { icons } from '@/lib/icons'
+import type { LucideIcon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 
 type Tone = 'default' | 'primary' | 'success' | 'warning' | 'destructive' | 'ai'
@@ -38,7 +39,7 @@ export interface StatCardProps {
   className?: string
 }
 
-const TREND_ICON = { up: TrendingUp, down: TrendingDown, flat: Minus }
+const TREND_ICON = { up: icons.TrendingUp, down: icons.TrendingDown, flat: icons.Minus }
 const TREND_CLS = {
   up: 'text-success bg-success/10',
   down: 'text-destructive bg-destructive/10',

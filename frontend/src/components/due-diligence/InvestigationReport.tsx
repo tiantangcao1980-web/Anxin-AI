@@ -183,7 +183,7 @@ export function InvestigationReport({ companyName, investigationData, onBack }: 
  </div>
  `).join('')}
  <div class="footer">
- <p>本报告由安心智能法律服务平台 AI 辅助生成，仅供参考</p>
+ <p>本报告由安心智能助手 AI 辅助生成，仅供参考</p>
  </div>
  </body></html>
  `)
@@ -195,7 +195,7 @@ export function InvestigationReport({ companyName, investigationData, onBack }: 
 
  const handleCopyReport = async () => {
  const text = sections.map(s => `## ${s.title}\n\n${s.content}`).join('\n\n---\n\n')
- const fullText = `# ${companyName} — 尽职调查报告\n\n生成时间：${new Date().toLocaleString('zh-CN')}\n\n${text}\n\n---\n本报告由安心智能法律服务平台 AI 辅助生成，仅供参考`
+ const fullText = `# ${companyName} — 尽职调查报告\n\n生成时间：${new Date().toLocaleString('zh-CN')}\n\n${text}\n\n---\n本报告由安心智能助手 AI 辅助生成，仅供参考`
  try {
  await navigator.clipboard.writeText(fullText)
  toast.success('报告已复制到剪贴板')
@@ -312,7 +312,7 @@ export function InvestigationReport({ companyName, investigationData, onBack }: 
  ))}
 
  <div className="text-xs text-muted-foreground text-center py-4 border-t border-border">
- <p>本报告由安心智能法律服务平台 AI 辅助生成，仅供参考</p>
+ <p>本报告由安心智能助手 AI 辅助生成，仅供参考</p>
  <p className="mt-0.5">生成时间：{new Date().toLocaleString('zh-CN')}</p>
  </div>
  </div>

@@ -9,8 +9,7 @@
  *   - 顶部"重置"按钮，回到默认权重
  */
 
-import { RotateCcw } from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 
@@ -33,7 +32,7 @@ export function ModalityWeightSlider() {
           size="sm"
           variant="ghost"
           onClick={resetModalityWeights}
-          iconLeft={<RotateCcw className="h-3.5 w-3.5" />}
+          iconLeft={<icons.RotateCcw className="h-3.5 w-3.5" />}
           className="h-7 px-2 text-[11px]"
         >
           重置

@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
-import { RefreshCcw, Sparkles, Upload } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -89,7 +89,7 @@ export default function SkillsPage() {
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <Sparkles className="size-6" />
+            <icons.Sparkles className="size-6" />
           </div>
           <div>
             <h1 className="text-xl font-semibold tracking-tight text-foreground">
@@ -103,11 +103,11 @@ export default function SkillsPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={reload} disabled={loading}>
-            <RefreshCcw className={loading ? 'animate-spin' : ''} />
+            <icons.RefreshCcw className={loading ? 'animate-spin' : ''} />
             刷新
           </Button>
           <Button size="sm" onClick={() => setUploadOpen(true)}>
-            <Upload className="size-4" />
+            <icons.Upload className="size-4" />
             上传 SKILL.md
           </Button>
         </div>

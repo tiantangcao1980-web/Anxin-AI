@@ -8,8 +8,7 @@
  */
 
 import { useMemo, useState } from 'react'
-import { ChevronDown, ChevronRight } from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import type { Segment } from '@/lib/api/rag'
 import { modalityVisual } from './modalityStyle'
 
@@ -70,9 +69,9 @@ function NodeRow({ node, depth, expandedIds, onToggle, selectedId, onSelect }: N
       >
         {hasChildren ? (
           expanded ? (
-            <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
+            <icons.ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
           ) : (
-            <ChevronRight className="h-3 w-3 shrink-0 opacity-60" />
+            <icons.ChevronRight className="h-3 w-3 shrink-0 opacity-60" />
           )
         ) : (
           <span className="h-3 w-3 shrink-0" aria-hidden />

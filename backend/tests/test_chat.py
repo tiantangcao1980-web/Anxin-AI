@@ -38,7 +38,11 @@ class TestChatAPIResponses:
         resp = response.json()
         data = resp.get("data", resp)
         assert "content" in data
-        assert data["content"] == "这是AI的回复"
+        # H1: output_validator 强接入后可能在末尾追加免责声明（WARNING 级别），
+        # 仅断言原始内容前缀仍存在。
+        assert data["content"].startswith("这是AI的回复")
+        # H1: harness 元数据必须带 validation_action（不能为 None）
+        assert data.get("harness", {}).get("validation_action") in {"pass", "warned"}
 
     @pytest.mark.asyncio
     async def test_chat_endpoint_empty_message(self, auth_client: AsyncClient):

@@ -1,6 +1,10 @@
 # 前端开发规范
 
-> 强制规范。覆盖 React Web（`frontend/`）+ 移动 RN（`mobile/`）+ UniApp（`apps/uni-mobile/`）+ 小程序（`mini-program/`）。
+> **强制规范**。覆盖 React Web（`frontend/`）+ 移动 RN（`mobile/`）+ UniApp（`apps/uni-mobile/`）+ 小程序（`mini-program/`）。
+>
+> **设计令牌与视觉规范**见 [`DESIGN.md`](../../DESIGN.md)（单一设计真相源）。
+> 本文件只管 **工程实现规则**（命名 / Hook / 路由 / API / 测试 / 跨端 / 性能）；
+> 颜色、字号、间距、阴影、Icon 体系等视觉决定**必须**按 DESIGN.md 的 token 与组件清单落地，不在此文件复述。
 
 ## 1. 工具链
 
@@ -163,6 +167,18 @@ if (code !== 0) {
 - 必须用语义 token（已含明暗双套）
 - 禁止 `if (dark) { color = '#fff' }` 这种 JS 判断
 
+### 6.5 图标体系
+
+> 完整规则见 [`DESIGN.md` §4 Icon System](../../DESIGN.md#icon-system)。本节仅列工程红线。
+
+- **唯一图标库**：`lucide-react`，统一从 `@/lib/icons` 导入
+- **禁止**：业务组件直接 `import { X } from 'lucide-react'` — 必须先在 `@/lib/icons` 收口
+- **禁止**：在运行态 UI 使用 emoji / Unicode 符号 / 文本字符代替图标
+- **禁止**：引入第二套图标库（heroicons、tabler、ant-icons、react-icons 等）
+- **尺寸**：`xs(12) / sm(16) / md(20) / lg(24) / xl(32)`，不允许自由尺寸
+- **状态色**：默认 `muted-foreground`，hover `foreground`，active `primary`，禁用 `text-disabled` + `opacity-50`
+- **混风格**：单页面禁止线性图标 + 填充图标混用
+
 ## 7. 路由
 
 ### 7.1 React Router v6
@@ -216,14 +232,20 @@ if (!data || data.length === 0) return <EmptyState />;
 return <List items={data} />;
 ```
 
-统一组件：`components/common/{LoadingState,EmptyState,ErrorState}.tsx`
+统一组件：`components/ui-unified/{LoadingState,EmptyState,ErrorState,PagePlaceholder}` (Phase K 2026-05-14: 原 common/ 已合并入 ui-unified/, 见 ADR 003)
 
 ## 10. 国际化
 
-- 当前阶段**仅简体中文**，无 i18n 框架
-- 文案直接写中文
-- 未来 i18n 时统一抽到 `frontend/src/locales/`
-- 写代码时**禁止**在多处复制文案（用常量）
+- **当前阶段仅简体中文**, 但 i18n 骨架已就位 (Phase K 2026-05-14, 见 ADR 004)
+- **新代码规范**: 用户可见文案优先用 `t()` 包裹:
+  ```tsx
+  import { useTranslation } from '@/i18n'
+  const { t } = useTranslation()
+  return <h1>{t('管理中心')}</h1>  // 当前直接返回中文, 未来切 react-i18next 不动调用点
+  ```
+- **不强制**改老代码 — 老代码硬编码中文保留, 按页面优先级渐进迁移
+- 复制文案仍用常量 (`t()` 的 key 即文案常量)
+- 详见 [docs/adr/004-i18n-strategy.md](../adr/004-i18n-strategy.md)
 
 ## 11. 可访问性 (a11y)
 

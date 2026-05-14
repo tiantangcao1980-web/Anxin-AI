@@ -1,0 +1,44 @@
+# CODEOWNERS — 人类 reviewer 兜底
+# 与 .github/workflows/ai-review.yml 配套：AI Reviewer 不能 self-merge，最终签字仍是人。
+
+# 默认所有变更 → 项目维护者
+*                                @pengchengkeji
+
+# AGENTS.md / DESIGN.md / CLAUDE.md 是单一真相源，改动需要明确签字
+AGENTS.md                        @pengchengkeji
+DESIGN.md                        @pengchengkeji
+CLAUDE.md                        @pengchengkeji
+
+# Harness 层修改（Output validator / Policy / Cost / Trace）影响所有 agent，需 owner
+backend/src/harness/             @pengchengkeji
+backend/src/services/trace_sink.py @pengchengkeji
+backend/src/models/trace.py      @pengchengkeji
+
+# AI Review Gate 自身改动 → 必须 2 名 human reviewer（防 reviewer 被绕过）
+.github/workflows/ai-review.yml  @pengchengkeji
+.github/ai-review/               @pengchengkeji
+
+# 商业化代码（订阅/支付/退款/电签）→ owner 必审
+backend/src/services/subscription_service.py @pengchengkeji
+backend/src/services/billing_service.py      @pengchengkeji
+backend/src/services/payment_service.py      @pengchengkeji
+backend/src/services/refund_service.py       @pengchengkeji
+backend/src/services/esign_service.py        @pengchengkeji
+backend/src/api/routes/billing.py            @pengchengkeji
+backend/src/api/routes/payments.py           @pengchengkeji
+backend/src/api/routes/esign.py              @pengchengkeji
+
+# Auth / 三态 / Mode 切换 → owner 必审
+backend/src/api/routes/auth.py               @pengchengkeji
+backend/src/services/oauth_service.py        @pengchengkeji
+backend/src/services/private_llm_service.py  @pengchengkeji
+backend/src/services/compute_router_service.py @pengchengkeji
+
+# 数据库迁移 / 模型变更 → owner 必审
+backend/alembic/                 @pengchengkeji
+backend/src/models/              @pengchengkeji
+
+# CI / 部署
+.github/workflows/               @pengchengkeji
+docker-compose*.yml              @pengchengkeji
+nginx.conf                       @pengchengkeji
