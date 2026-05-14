@@ -147,3 +147,44 @@ async def list_incidents(
         "page": page,
         "page_size": page_size,
     }
+
+
+# ============================================================
+# Slice 2 Triage API (A3, 2026-05-14)
+# ============================================================
+
+from src.harness.triage_service import (
+    triage_open_incidents,
+    get_triage_overview,
+)
+
+
+@router.post("/admin/incidents/triage/run")
+async def admin_run_triage(
+    *,
+    limit: int = Query(200, ge=1, le=1000, description="单次处理上限"),
+    dry_run: bool = Query(False, description="True=仅返回聚类不写库, False=同时 transition open→triaged"),
+    user: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """A3: 手动触发 Slice 2 Triage 处理。
+
+    返回:
+        {
+            "scanned": int,
+            "clusters": [...],   # 按 severity / 总频次排序
+            "transitioned": int,
+            "generated_at": iso,
+        }
+    """
+    logger.info(f"[Admin] triage triggered by {user.email} (limit={limit}, dry_run={dry_run})")
+    return await triage_open_incidents(db, limit=limit, transition_state=not dry_run)
+
+
+@router.get("/admin/incidents/triage/overview")
+async def admin_triage_overview(
+    user: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """A3: incidents 全局统计 (按状态 / 严重度 / 来源)。"""
+    return await get_triage_overview(db)
