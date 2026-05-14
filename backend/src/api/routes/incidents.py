@@ -188,3 +188,42 @@ async def admin_triage_overview(
 ):
     """A3: incidents 全局统计 (按状态 / 严重度 / 来源)。"""
     return await get_triage_overview(db)
+
+
+# ============================================================
+# Slice 3 Builder API (A9, 2026-05-14)
+# ============================================================
+
+from pydantic import BaseModel
+from src.harness.builder_service import (
+    build_drafts_for_incident,
+    link_github_issue,
+)
+
+
+@router.get("/admin/incidents/{incident_id}/builder/drafts")
+async def admin_get_builder_drafts(
+    incident_id: str,
+    repo: str = Query("anxin-ai/anxin-assistant", description="GitHub repo full name"),
+    user: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """A9: 为指定 incident 生成回归测试草稿 + GitHub Issue 草稿 (仅返回字符串, 不落库)。"""
+    logger.info(f"[Admin] builder drafts requested by {user.email} for incident {incident_id}")
+    return await build_drafts_for_incident(db, incident_id, repo_full_name=repo)
+
+
+class LinkIssueIn(BaseModel):
+    issue_url: str
+
+
+@router.post("/admin/incidents/{incident_id}/builder/link-issue")
+async def admin_link_issue(
+    incident_id: str,
+    payload: LinkIssueIn,
+    user: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """A9: admin 把人工提交的 GitHub Issue URL 回填到 incident, 状态推进 → linked。"""
+    logger.info(f"[Admin] link issue {payload.issue_url} → incident {incident_id} by {user.email}")
+    return await link_github_issue(db, incident_id, payload.issue_url)
