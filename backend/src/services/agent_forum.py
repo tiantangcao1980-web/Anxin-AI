@@ -250,22 +250,28 @@ class AgentForum:
                 try:
                     from src.schemas.incident import IncidentSource, IncidentSeverity
 
-                    _kwargs = dict(
-                        source=IncidentSource.AGENT_FORUM,
-                        title=f"agent disagreement: {conflict.topic}",
-                        payload={
-                            "agents": list(conflict.agents_involved),
-                            "positions": dict(conflict.positions),
-                            "topic": conflict.topic,
-                        },
-                        severity=IncidentSeverity.P1,
-                        fingerprint_keys=["topic"],
-                    )
+                    _payload = {
+                        "agents": list(conflict.agents_involved),
+                        "positions": dict(conflict.positions),
+                        "topic": conflict.topic,
+                    }
                     if self.incident_collector is not None:
-                        await self.incident_collector.collect(**_kwargs)
+                        await self.incident_collector.collect(
+                            source=IncidentSource.AGENT_FORUM,
+                            title=f"agent disagreement: {conflict.topic}",
+                            payload=_payload,
+                            severity=IncidentSeverity.P1,
+                            fingerprint_keys=["topic"],
+                        )
                     else:
                         from src.harness.incident_hook import collect_incident_safely
-                        await collect_incident_safely(**_kwargs)
+                        await collect_incident_safely(
+                            source=IncidentSource.AGENT_FORUM,
+                            title=f"agent disagreement: {conflict.topic}",
+                            payload=_payload,
+                            severity=IncidentSeverity.P1,
+                            fingerprint_keys=["topic"],
+                        )
                 except Exception as hook_err:
                     logger.error(f"[AgentForum] incident hook failed: {hook_err}")
 

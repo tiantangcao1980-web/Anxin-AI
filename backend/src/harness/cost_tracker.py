@@ -269,10 +269,10 @@ class CostTracker:
 
     async def snapshot_to_db(
         self,
-        db,
+        db: Any,
         *,
-        period_start,
-        period_end,
+        period_start: Any,
+        period_end: Any,
     ) -> int:
         """把当前内存累计落库 (upsert 单一活跃行 archived=False)。返回处理的 user 数。"""
         from decimal import Decimal
@@ -315,7 +315,7 @@ class CostTracker:
         await db.flush()
         return processed
 
-    async def restore_from_db(self, db) -> int:
+    async def restore_from_db(self, db: Any) -> int:
         """应用启动时把 archived=False 的行读回内存。返回 restore 的 user 数。"""
         from sqlalchemy import select
 
@@ -332,12 +332,12 @@ class CostTracker:
 
     async def archive_and_reset_user(
         self,
-        db,
+        db: Any,
         user_id: str,
         *,
-        new_period_start=None,
-        new_period_end=None,
-    ) -> dict:
+        new_period_start: Any = None,
+        new_period_end: Any = None,
+    ) -> dict[str, Any]:
         """周期切换: 把当前活跃行 archived=True, 内存清零, 可选立即开新周期行。
 
         Returns: {"archived_tokens": int, "archived_cost": float, "new_period_started": bool}

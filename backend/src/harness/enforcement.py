@@ -94,8 +94,8 @@ async def run_validation(
         result: ValidationResult = await _validator_call(
             response_text=response_text,
             user_query=user_query,
-            agent_name=agent_name,
-            route=route,
+            agent_name=agent_name or "",
+            route=route or "general",
         )
     except Exception as e:  # noqa: BLE001
         # 关键：必须 ERROR 级别，不能 debug 吞掉

@@ -20,7 +20,7 @@ H0 体检发现 policy_engine 18 个策略已注册但**主路径 0 调用** —
 from __future__ import annotations
 
 import os
-from typing import Tuple
+from typing import Any, Tuple
 
 from loguru import logger
 
@@ -44,11 +44,11 @@ async def check_tool_call(
     tool_name: str,
     *,
     enforce: bool | None = None,
-    db=None,
+    db: Any | None = None,
     org_id: str | None = None,
     requested_by: str | None = None,
-    action_payload: dict | None = None,
-) -> Tuple[bool, dict]:
+    action_payload: dict[str, Any] | None = None,
+) -> Tuple[bool, dict[str, Any]]:
     """检查 agent 是否可调用 tool。
 
     Args:
@@ -126,7 +126,7 @@ async def check_tool_call(
                 else:
                     logger.error(
                         f"[Harness][policy] REQUIRE_APPROVAL agent={agent_name} tool={tool_name} "
-                        f"创建审批工单失败: {decision.reason_code} {decision.reason_message}"
+                        f"创建审批工单失败: {decision.reason_code} {decision.human_message}"
                     )
                     decision_dict["approval_create_failed"] = decision.reason_code
             except Exception as exc:
@@ -171,7 +171,7 @@ async def check_tool_call(
     return True, decision_dict
 
 
-def _record_to_trace(decision_dict: dict) -> None:
+def _record_to_trace(decision_dict: dict[str, Any]) -> None:
     """A7: 把非 ALLOW 决策写入当前 trace 的 _policy_info, 供 admin 审计。"""
     try:
         from src.harness.trace_context import current_trace

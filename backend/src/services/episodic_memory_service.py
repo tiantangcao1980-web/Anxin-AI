@@ -180,23 +180,30 @@ class EpisodicMemoryService:
                 try:
                     from src.schemas.incident import IncidentSource, IncidentSeverity
 
-                    _kwargs = dict(
-                        source=IncidentSource.LOW_RATING,
-                        title=f"user low rating: {rating}",
-                        payload={
-                            "memory_id": str(memory_id),
-                            "rating": rating,
-                            "comment": (comment[:500] if comment else None),
-                        },
-                        severity=IncidentSeverity.P2,
-                        user_id=user_id,
-                        fingerprint_keys=["memory_id"],
-                    )
+                    _payload = {
+                        "memory_id": str(memory_id),
+                        "rating": rating,
+                        "comment": (comment[:500] if comment else None),
+                    }
                     if self.incident_collector is not None:
-                        await self.incident_collector.collect(**_kwargs)
+                        await self.incident_collector.collect(
+                            source=IncidentSource.LOW_RATING,
+                            title=f"user low rating: {rating}",
+                            payload=_payload,
+                            severity=IncidentSeverity.P2,
+                            user_id=user_id,
+                            fingerprint_keys=["memory_id"],
+                        )
                     else:
                         from src.harness.incident_hook import collect_incident_safely
-                        await collect_incident_safely(**_kwargs)
+                        await collect_incident_safely(
+                            source=IncidentSource.LOW_RATING,
+                            title=f"user low rating: {rating}",
+                            payload=_payload,
+                            severity=IncidentSeverity.P2,
+                            user_id=user_id,
+                            fingerprint_keys=["memory_id"],
+                        )
                 except Exception as hook_err:
                     logger.error(f"[EpisodicMemory] incident hook failed: {hook_err}")
 

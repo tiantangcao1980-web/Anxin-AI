@@ -403,25 +403,34 @@ class OutputValidator:
                     else:
                         issues_payload.append(str(issue))
 
-                _incident_kwargs = dict(
-                    source=IncidentSource.OUTPUT_VALIDATOR,
-                    title=f"validator rejected {agent_name}",
-                    payload={
-                        "agent_name": agent_name,
-                        "route": route,
-                        "issues": issues_payload,
-                        "user_query": (user_query or "")[:500],
-                    },
-                    severity=IncidentSeverity.P1,
-                    agent_name=agent_name,
-                    route=route,
-                    fingerprint_keys=["agent_name", "route", "issues"],
-                )
+                _payload = {
+                    "agent_name": agent_name,
+                    "route": route,
+                    "issues": issues_payload,
+                    "user_query": (user_query or "")[:500],
+                }
+                _fingerprint_keys = ["agent_name", "route", "issues"]
                 if self.incident_collector is not None:
-                    await self.incident_collector.collect(**_incident_kwargs)
+                    await self.incident_collector.collect(
+                        source=IncidentSource.OUTPUT_VALIDATOR,
+                        title=f"validator rejected {agent_name}",
+                        payload=_payload,
+                        severity=IncidentSeverity.P1,
+                        agent_name=agent_name,
+                        route=route,
+                        fingerprint_keys=_fingerprint_keys,
+                    )
                 else:
                     from src.harness.incident_hook import collect_incident_safely
-                    await collect_incident_safely(**_incident_kwargs)
+                    await collect_incident_safely(
+                        source=IncidentSource.OUTPUT_VALIDATOR,
+                        title=f"validator rejected {agent_name}",
+                        payload=_payload,
+                        severity=IncidentSeverity.P1,
+                        agent_name=agent_name,
+                        route=route,
+                        fingerprint_keys=_fingerprint_keys,
+                    )
             except Exception as hook_err:
                 logger.error(f"[OutputValidator] incident hook failed: {hook_err}")
 

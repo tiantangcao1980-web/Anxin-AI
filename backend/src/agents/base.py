@@ -394,10 +394,10 @@ class BaseLegalAgent(ABC):
         self,
         tool_name: str,
         *,
-        db=None,
+        db: Any | None = None,
         org_id: str | None = None,
         requested_by: str | None = None,
-    ) -> tuple[bool, dict]:
+    ) -> tuple[bool, dict[str, Any]]:
         """权限检查 (走 harness.policy_enforcement, 享受异常隔离 + env-var kill switch + A6 自动审批工单)。
 
         默认 enforce=True (1 周 warn-only 观察期已过); 紧急回滚走环境变量
