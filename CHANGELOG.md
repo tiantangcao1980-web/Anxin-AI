@@ -4,7 +4,63 @@
 
 ## [Unreleased]
 
-### Added
+### Added — 企业级 AI 平台底座（PR #3）
+
+#### Skills 沙箱（T0-T4）
+- `backend/src/services/skill_sandbox/` —— manifest 解析 / 信任分级 / 权限闸门 / 配额跟踪 / ed25519 签名校验
+- 完整实装 `DockerProvider`：cap-drop=ALL / read-only / no-new-privileges / network=none / 资源限额
+- `E2BProvider` / `CodexCloudProvider` 可配置 HTTP 骨架（lazy SDK）
+- 新端点：`POST /api/v1/skills/{name}/sandbox-execute` · `POST /api/v1/skills/preview`
+- 新端点：`/api/v1/skill-sandbox/quota/tenants/{id}` GET/PUT 配额管理
+
+#### 企业内网集群（飞书 / 企业微信式）
+- 6 张新表（部门 / 成员 / 用户组 / 岗位 / 角色绑定）+ Alembic 045
+- materialized path 部门树 + 一人多部门 + 角色绑定向下继承
+- `PermissionResolver` 六层权限解析 + 跨租户隔离
+- 11 个 REST 端点：`/api/v1/enterprise/*`
+- 回填脚本：`scripts/migrate-user-department.py`（幂等）
+
+#### LDAP / IM 通讯录同步
+- `LdapSyncService` + `Ldap3Client` + `InMemoryLdapClient`
+- 飞书 / 钉钉 / 企业微信三家通讯录客户端（同一 LdapClient 协议）
+- 守护进程：`scripts/ldap_sync_loop.py` · `scripts/im_directory_sync_loop.py`
+- Helm CronJob：LDAP + IM（多 provider 数组）
+
+#### OIDC SSO
+- `core/oidc.py`：discovery + JWKS 缓存 + RS256 验签 + ±5min 时钟容忍
+- 端点：`POST /api/v1/auth/oidc/callback` · `GET /api/v1/auth/oidc/metadata`
+- 前端登录页"企业 SSO 登录"按钮 + `/login/oidc/callback` 回调页
+
+#### 公开官网（marketing site）
+- 11 个公开页面：Home / Features / Personas / Pricing / Security / About / Contact / Cases / Blog / Privacy / Terms
+- `RootGate`：未登录 → `/site`，已登录 → `/chat`
+- SEO：完整 meta + OG + Twitter Card + `useDocumentMeta` 按页切换
+- `public/robots.txt` + `public/sitemap.xml`（11 URLs）
+
+#### Admin Enterprise UI（4 个新 Tab）
+- `DepartmentTreePanel`：递归部门树（折叠 / 选中 / 新建子部门 / 软删 / LDAP dry-run）
+- `RoleBindingPanel`：授权 / 撤回 / 有效权限查询
+- `SkillInstallDialog` + `SecureSkillInstallButton`：Skill 安装授权弹窗
+- `SkillQuotaPanel`：T0-T4 当日使用量 + 进度条 + T2-T4 上限编辑
+
+#### 私有化部署
+- `deploy/enterprise-onprem/docker-compose.onprem.yml` + `.env.onprem.example`
+- Helm chart `anxin-enterprise`：完整 templates + secret + NetworkPolicy
+- 3 套 values 预设：`values-production.yaml` / `values-staging.yaml` / `values-airgap.yaml`
+- 5 份运维手册：README / LDAP_SYNC / AIRGAP / BACKUP / SSO_SAML
+
+#### 文档
+- `docs/v3/skills-sandbox-design.md` —— Skills 沙箱完整设计
+- `docs/v3/enterprise-cluster-design.md` —— 企业内网集群完整设计
+- `docs/v3/security-whitepaper.md` —— 客户向安全架构白皮书
+- `docs/v3/compliance-dengbao-mapping.md` —— 等保 2.0 + GB/T 35273 全条对照清单
+
+#### 测试
+- 后端：113 个新测试，全部通过；既有 74 个零回归
+- 前端 `tsc --noEmit` 全绿
+- preview 实测公开官网 + admin UI 视觉确认
+
+### Added — 早前
 - `docs/standards/` 规范体系（5 份核心：命名 / 文档 / Git / Commit / 代码风格 / 评审清单）
 - 顶层 `CONTRIBUTING.md` 贡献指南
 - 顶层 `SECURITY.md` 安全策略

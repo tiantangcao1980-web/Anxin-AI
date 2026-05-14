@@ -10,6 +10,7 @@ import { PageContainer } from'@/components/ui/PageContainer'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from'@/components/ui/tabs'
 import { DepartmentTreePanel } from '@/components/admin/enterprise/DepartmentTreePanel'
 import { RoleBindingPanel } from '@/components/admin/enterprise/RoleBindingPanel'
+import { SkillQuotaPanel } from '@/components/admin/enterprise/SkillQuotaPanel'
 import { useAuthStore } from '@/lib/store'
 import { Button } from'@/components/ui/button'
 import { icons } from'@/lib/icons'
@@ -194,6 +195,10 @@ export default function AdminEnterprise() {
  <icons.Lock className="w-4 h-4 mr-1.5" />
  权限绑定
  </TabsTrigger>
+ <TabsTrigger value="quota">
+ <icons.Cpu className="w-4 h-4 mr-1.5" />
+ Skill 配额
+ </TabsTrigger>
  </TabsList>
 
  <TabsContent value="info">
@@ -214,6 +219,10 @@ export default function AdminEnterprise() {
 
  <TabsContent value="bindings">
  <RoleBindingPanel orgId={orgId} />
+ </TabsContent>
+
+ <TabsContent value="quota">
+ <SkillQuotaPanel orgId={orgId} />
  </TabsContent>
  </Tabs>
  </PageContainer>

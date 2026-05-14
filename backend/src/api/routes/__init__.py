@@ -72,6 +72,7 @@ from src.api.routes import (
     security_challenge,
     sentiment,
     skill_governance,
+    skill_quota,
     skills,
     sync,
     tasks,
@@ -136,6 +137,7 @@ api_router.include_router(agent_tasks.router, prefix="/agent-tasks", tags=["异�
 api_router.include_router(im_pairing.router, prefix="/im/pairing", tags=["IM配对授权"])
 api_router.include_router(app_authorizations.router, prefix="/app-authorizations", tags=["应用授权"])
 api_router.include_router(skills.router, prefix="/skills", tags=["技能注册表"])
+api_router.include_router(skill_quota.router, prefix="/skill-sandbox/quota", tags=["Skill 沙箱配额"])
 api_router.include_router(enterprise.router, prefix="/enterprise", tags=["企业内网集群"])
 api_router.include_router(fetch.router, prefix="/fetch", tags=["信息获取栈"])
 api_router.include_router(personas.router, prefix="/personas", tags=["V3 Personas"])

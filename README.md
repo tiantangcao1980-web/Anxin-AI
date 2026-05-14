@@ -8,13 +8,26 @@
 
 ---
 
+## 🆕 最新里程碑
+
+**企业级 AI 平台底座**（PR #3）已交付：
+
+- 🛡️ **Skills 沙箱 T0-T4**：信任分级 + ed25519 签名 + 三维配额；DockerProvider 安全加固（cap-drop ALL / read-only / no-new-privileges / network=none）
+- 🏢 **企业内网集群**（飞书 / 企业微信式）：部门树 / 一人多部门 / 角色绑定继承 / 跨租户隔离
+- 🔄 **目录同步**：LDAP/AD + 飞书 / 钉钉 / 企业微信通讯录（同一协议）
+- 🔐 **OIDC SSO** + 公开**官网** [/site/*](frontend/src/pages/marketing/) 11 页（含 SEO meta / sitemap）
+- 🚀 **私有化部署**：docker-compose + Helm chart（production / staging / airgap 三套 values）
+- 📋 **合规文档**：[security-whitepaper](docs/v3/security-whitepaper.md) + [等保对照清单](docs/v3/compliance-dengbao-mapping.md)
+
+测试：后端新增 113 个测试全过，前端 tsc 全绿。
+
 ## 🧭 当前权威导航
 
 | 入口 | 用途 |
 |---|---|
 | [docs/00-project-execution-map.md](docs/00-project-execution-map.md) | **当前权威导航总入口**（任务起点） |
 | [docs/standards/](docs/standards/) | 13 份开发规范（命名 / 文档 / Git / 代码 / API / DB / 前端 / 后端 / 测试 / 安全） |
-| [docs/v3/](docs/v3/) | V3 智能助手实施细节（架构 / 路线图 / 10 personas） |
+| [docs/v3/](docs/v3/) | V3 智能助手实施细节（架构 / 路线图 / 10 personas / 沙箱 / 集群 / 白皮书） |
 | [docs/openspec/](docs/openspec/) | 平台合同 + 商业交付 + 测试规范 |
 | [docs/audit/](docs/audit/) | 当前执行计划 + 12 域审计 + 16 个 TASK |
 | [docs/release/](docs/release/) | 发布证据 + 回滚预案 |

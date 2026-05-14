@@ -26,13 +26,24 @@ helm template anxin deploy/enterprise-onprem/helm/anxin-enterprise \
   --set backend.jwtSecret=$(openssl rand -base64 32) \
   --set backend.secretKey=$(openssl rand -base64 32)
 
-# 安装
+# 安装（按场景选 values 文件）
 helm install anxin deploy/enterprise-onprem/helm/anxin-enterprise \
   --namespace anxin --create-namespace \
-  -f my-values.yaml
+  -f deploy/enterprise-onprem/helm/anxin-enterprise/values-production.yaml \
+  --set postgres.password=$(openssl rand -base64 24) \
+  --set redis.password=$(openssl rand -base64 24)
 ```
 
-建议把 secrets 放在 `my-values.yaml` 或外部 Secret Manager（Sealed Secrets / External Secrets Operator）注入。
+**values 预设清单**：
+
+| 文件 | 场景 | 特点 |
+|---|---|---|
+| `values.yaml` | 默认 / 模板 | 占位值，**不直接装** |
+| `values-production.yaml` | 私有化生产 | 3 副本 / NetworkPolicy / TLS 强制 / restricted PSP |
+| `values-staging.yaml` | POC / 预演 | 单副本 / 资源小 / NetworkPolicy 关 |
+| `values-airgap.yaml` | 完全断网 | `airgap=true` / 内网 Harbor / egressAllowedCidrs |
+
+建议把 secrets 用 sealed-secrets / external-secrets-operator 注入，避免落 git。
 
 ## 升级路径
 
