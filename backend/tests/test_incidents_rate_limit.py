@@ -68,3 +68,28 @@ def test_window_expiry_resets():
         bucket.append(now - _FINGERPRINT_WINDOW_SECONDS - 1)
     assert check_burst(bucket, _FINGERPRINT_WINDOW_SECONDS, _FINGERPRINT_BURST_LIMIT) is False
     assert len(bucket) == 1
+
+
+# ============================================================
+# F2: Redis 后端 fallback 测试
+# ============================================================
+
+def test_check_burst_redis_fallback_when_no_redis(monkeypatch):
+    """F2: RATE_LIMIT_REDIS_URL 未设置 → check_burst_redis 自动 fallback 到内存。"""
+    from src.utils.rate_limit_burst import (
+        _redis_fallback_buckets,
+        check_burst_redis,
+    )
+    import src.utils.rate_limit_burst as mod
+
+    # 强制 init 重置
+    monkeypatch.delenv("RATE_LIMIT_REDIS_URL", raising=False)
+    mod._redis_init_attempted = False
+    mod._redis_client = None
+    _redis_fallback_buckets.clear()
+
+    # 前 N 次放行, 第 N+1 次阻断 — 行为应与内存版一致
+    for _ in range(3):
+        assert check_burst_redis("fb_test", window_seconds=60, limit=3) is False
+    assert check_burst_redis("fb_test", window_seconds=60, limit=3) is True
+    assert "fb_test" in _redis_fallback_buckets

@@ -69,6 +69,45 @@ fn local_fallback(mode: &str) -> NegotiationResult {
     }
 }
 
+// F4 (2026-05-14): 进程内 LRU 缓存 (mode → NegotiationResult, 5 分钟 TTL)
+// 让重启后无网仍可用 last-known-good, 不必每次都打云端
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
+
+struct CachedEntry {
+    result: NegotiationResult,
+    cached_at: Instant,
+}
+
+static CAPABILITY_CACHE: Mutex<Option<std::collections::HashMap<String, CachedEntry>>> =
+    Mutex::new(None);
+
+const CAPABILITY_CACHE_TTL: Duration = Duration::from_secs(300);
+
+fn cache_get(mode: &str) -> Option<NegotiationResult> {
+    let guard = CAPABILITY_CACHE.lock().ok()?;
+    let map = guard.as_ref()?;
+    let entry = map.get(mode)?;
+    if entry.cached_at.elapsed() < CAPABILITY_CACHE_TTL {
+        Some(entry.result.clone())
+    } else {
+        None
+    }
+}
+
+fn cache_put(mode: &str, result: &NegotiationResult) {
+    if let Ok(mut guard) = CAPABILITY_CACHE.lock() {
+        let map = guard.get_or_insert_with(std::collections::HashMap::new);
+        map.insert(
+            mode.to_string(),
+            CachedEntry {
+                result: result.clone(),
+                cached_at: Instant::now(),
+            },
+        );
+    }
+}
+
 /// 委托云端 capability_negotiator 获取当前模式的能力协商结果。
 ///
 /// 调用方式 (前端 / Web)::
@@ -88,6 +127,12 @@ pub async fn negotiate_capabilities(
     if mode == "top_secret" {
         log::info!("[Capability] mode=top_secret, 使用本地兜底表");
         return Ok(local_fallback(&mode));
+    }
+
+    // F4: 5 分钟内的缓存优先 (last-known-good), 加速 + 离线兜底
+    if let Some(cached) = cache_get(&mode) {
+        log::debug!("[Capability] cache hit mode={}", mode);
+        return Ok(cached);
     }
 
     let url = format!(
@@ -121,6 +166,8 @@ pub async fn negotiate_capabilities(
                     }
                 };
                 result.source = "cloud".to_string();
+                // F4: 成功后写入缓存, 后续 5min 直接命中
+                cache_put(&mode, &result);
                 Ok(result)
             }
             Err(e) => {
