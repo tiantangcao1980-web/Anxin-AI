@@ -259,6 +259,138 @@ class CostTracker:
         allowed = projected <= quota_tokens
         return allowed, used, remaining
 
+    # ===== A4 (2026-05-14): DB 持久化层 =====
+    # cost_tracker 主路径仍是内存累计 (低延迟), DB 仅作 snapshot / restore /
+    # 周期归档. 三个钩子:
+    #   snapshot_to_db(db, *, period_start, period_end): 周期性把内存累计落库
+    #   restore_from_db(db): 应用启动时把活跃周期数据 (archived=False) 读回内存
+    #   archive_and_reset_user(db, user_id, *, new_period): 周期切换时把当前
+    #       行 archived=True, 然后清零内存与启用新周期
+
+    async def snapshot_to_db(
+        self,
+        db,
+        *,
+        period_start,
+        period_end,
+    ) -> int:
+        """把当前内存累计落库 (upsert 单一活跃行 archived=False)。返回处理的 user 数。"""
+        from decimal import Decimal
+
+        from sqlalchemy import select
+
+        from src.models.user_token_usage import UserTokenUsage
+
+        processed = 0
+        # 取所有有累计的 user_id (token 或 cost)
+        all_users = set(self._by_user_tokens.keys()) | set(self._by_user.keys())
+        for user_id in all_users:
+            tokens = self._by_user_tokens.get(user_id, 0)
+            cost = self._by_user.get(user_id, 0.0)
+            # 找 archived=False 的行 (当前周期)
+            result = await db.execute(
+                select(UserTokenUsage).where(
+                    UserTokenUsage.user_id == user_id,
+                    UserTokenUsage.archived.is_(False),
+                )
+            )
+            row = result.scalar_one_or_none()
+            if row is None:
+                row = UserTokenUsage(
+                    user_id=user_id,
+                    period_start=period_start,
+                    period_end=period_end,
+                    tokens_used=tokens,
+                    cost_usd=Decimal(str(round(cost, 6))),
+                    call_count=sum(1 for r in self._records if r.user_id == user_id),
+                    archived=False,
+                )
+                db.add(row)
+            else:
+                row.tokens_used = tokens
+                row.cost_usd = Decimal(str(round(cost, 6)))
+                row.call_count = sum(1 for r in self._records if r.user_id == user_id)
+                # 不动 period 区间 — snapshot 只更新累计值
+            processed += 1
+        await db.flush()
+        return processed
+
+    async def restore_from_db(self, db) -> int:
+        """应用启动时把 archived=False 的行读回内存。返回 restore 的 user 数。"""
+        from sqlalchemy import select
+
+        from src.models.user_token_usage import UserTokenUsage
+
+        result = await db.execute(
+            select(UserTokenUsage).where(UserTokenUsage.archived.is_(False))
+        )
+        rows = result.scalars().all()
+        for row in rows:
+            self._by_user_tokens[row.user_id] = int(row.tokens_used or 0)
+            self._by_user[row.user_id] = float(row.cost_usd or 0)
+        return len(rows)
+
+    async def archive_and_reset_user(
+        self,
+        db,
+        user_id: str,
+        *,
+        new_period_start=None,
+        new_period_end=None,
+    ) -> dict:
+        """周期切换: 把当前活跃行 archived=True, 内存清零, 可选立即开新周期行。
+
+        Returns: {"archived_tokens": int, "archived_cost": float, "new_period_started": bool}
+        """
+        from decimal import Decimal
+
+        from sqlalchemy import select
+
+        from src.models.user_token_usage import UserTokenUsage
+
+        # 找当前活跃行
+        result = await db.execute(
+            select(UserTokenUsage).where(
+                UserTokenUsage.user_id == user_id,
+                UserTokenUsage.archived.is_(False),
+            )
+        )
+        row = result.scalar_one_or_none()
+        archived_tokens = 0
+        archived_cost = 0.0
+        if row is not None:
+            # 同步内存最新值再 archive (避免 in-flight 调用丢失)
+            row.tokens_used = self._by_user_tokens.get(user_id, row.tokens_used)
+            row.cost_usd = Decimal(str(round(self._by_user.get(user_id, float(row.cost_usd or 0)), 6)))
+            row.archived = True
+            archived_tokens = row.tokens_used or 0
+            archived_cost = float(row.cost_usd or 0)
+
+        # 清零内存
+        self.reset_user_tokens(user_id)
+
+        # 可选: 立即创建新周期活跃行 (跳过则等下次 snapshot 自动 upsert)
+        new_started = False
+        if new_period_start and new_period_end:
+            new_row = UserTokenUsage(
+                user_id=user_id,
+                period_start=new_period_start,
+                period_end=new_period_end,
+                tokens_used=0,
+                cost_usd=Decimal("0"),
+                call_count=0,
+                archived=False,
+            )
+            db.add(new_row)
+            new_started = True
+
+        await db.flush()
+        return {
+            "archived_tokens": archived_tokens,
+            "archived_cost": archived_cost,
+            "new_period_started": new_started,
+        }
+
     def record_with_estimate(
         self,
         *,

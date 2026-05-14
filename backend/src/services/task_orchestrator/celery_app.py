@@ -15,6 +15,7 @@ broker / backend 都用 Redis（与项目现有 cache / SSE 共用 Redis 实例�
 from __future__ import annotations
 
 from celery import Celery
+from celery.schedules import crontab
 
 from src.core.config import settings
 
@@ -31,7 +32,10 @@ celery_app = Celery(
     "anxin_agent_tasks",
     broker=_broker_url(),
     backend=_backend_url(),
-    include=["src.services.task_orchestrator.worker"],
+    include=[
+        "src.services.task_orchestrator.worker",
+        "src.services.quota_reset_worker",  # A4
+    ],
 )
 
 celery_app.conf.update(
@@ -45,6 +49,14 @@ celery_app.conf.update(
     task_reject_on_worker_lost=True,
     worker_prefetch_multiplier=1,  # MVP：避免单 worker 抢过多任务
     broker_connection_retry_on_startup=True,
+    # A4 (2026-05-14): beat schedule
+    # 启动 beat: celery -A src.services.task_orchestrator.celery_app:celery_app beat -l info
+    beat_schedule={
+        "quota-reset-daily": {
+            "task": "src.services.quota_reset_worker.run_daily_quota_reset",
+            "schedule": crontab(minute="5", hour="0"),  # 每天 00:05 UTC
+        },
+    },
 )
 
 
