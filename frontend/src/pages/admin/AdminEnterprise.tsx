@@ -12,7 +12,7 @@ import { Button } from'@/components/ui/button'
 import { icons } from'@/lib/icons'
 import { cardStyle, complianceScoreColors, heading, statusBadge, inputStyle, iconSize, riskLevelColors } from'@/lib/design-tokens'
 import { adminApi, complianceApi } from'@/lib/api'
-import { ErrorState, LoadingState } from'@/components/common'
+import { ErrorState, LoadingState } from'@/components/ui-unified'
 import { StatCard, StatGrid } from'@/components/ui-unified'
 import {
  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,

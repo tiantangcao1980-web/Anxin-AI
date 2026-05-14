@@ -24,7 +24,7 @@ import {
  SelectTrigger,
  SelectValue,
 } from'@/components/ui/select'
-import { ErrorState } from'@/components/common'
+import { ErrorState } from'@/components/ui-unified'
 import { lawyerApi } from'@/lib/api'
 
 // ============ 类型定义 ============

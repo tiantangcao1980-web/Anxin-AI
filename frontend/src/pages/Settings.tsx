@@ -19,7 +19,7 @@ import { Separator } from'@/components/ui/separator'
 
 import { llmApi, mcpApi, authApi, notificationsApi, LLMConfig, LLMProvider, McpServerConfig, McpServerCreate, NotificationPreference } from'@/lib/api'
 import { useAuthStore, useUIStore } from'@/lib/store'
-import { ErrorState, LoadingState } from'@/components/common'
+import { ErrorState, LoadingState } from'@/components/ui-unified'
 import { usePermission } from'@/hooks/usePermission'
 import { DesktopWorkstationPanel } from'@/components/desktop/DesktopWorkstationPanel'
 import { buildLlmConfigSavePayload, getLlmCredentialSummary } from './llmSettingsModel'

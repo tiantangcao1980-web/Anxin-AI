@@ -19,7 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { billingApi } from '@/lib/api'
-import { ErrorState } from '@/components/common'
+import { ErrorState } from '@/components/ui-unified'
 import { StatCard as UnifiedStatCard, StatGrid } from '@/components/ui-unified'
 import {
   Table,

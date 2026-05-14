@@ -1,6 +1,6 @@
 import { useState, useEffect } from'react'
 import { icons } from'@/lib/icons'
-import { EmptyState, LoadingState } from'@/components/common'
+import { EmptyState, LoadingState } from'@/components/ui-unified'
 import { StatCard, StatGrid } from'@/components/ui-unified'
 import { toast } from'sonner'
 import { contractsApi, Contract, ContractCreate } from'@/lib/api'

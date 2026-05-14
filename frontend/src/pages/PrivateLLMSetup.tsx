@@ -9,7 +9,7 @@ import { Label } from'@/components/ui/label'
 import { Badge } from'@/components/ui/badge'
 import { Skeleton } from'@/components/ui/skeleton'
 import { Progress } from'@/components/ui/progress'
-import { ErrorState } from'@/components/common'
+import { ErrorState } from'@/components/ui-unified'
 import { aiAssistantApi } from'@/lib/api'
 
 // ====================================================================

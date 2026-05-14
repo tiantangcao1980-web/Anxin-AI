@@ -6,11 +6,12 @@
  * - 状态切换（StateView 及配套骨架）
  * - 入场动效（FadeInUp / StaggeredList / ScrollReveal / InteractivePress）
  * - 引导微动效（AttentionPulse / NewBadge / InteractiveHint）
+ * - 通用空态 / 加载 / 错误 / 占位 (Phase J 从 common/ 迁入)
  *
  * 📋 三层组件约定 (ADR 003, 2026-05-14):
  *   层 1: components/ui/         shadcn 原子 (button / input / dialog / ...)
  *   层 2: components/ui-unified/ 业务复合 (本目录, 新组件首选放这里)
- *   层 3: components/common/     ⚠️ deprecated, 4 个历史组件渐进迁出
+ *   层 3: components/common/     ⚠️ deprecated alias — 仅 re-export, 1 release 后删除
  *
  * 设计约束（DesignDNA §14 合规协议）：
  * - 所有色值走语义 CSS 变量，保留琥珀暖橙主题
@@ -22,7 +23,7 @@
  * 配套：
  * - @/components/ai-primitives     — AI/Agent 领域原子
  * - @/components/responsive         — 响应式原语（ScrollShell / SplitView）
- * - @/components/common             — ⚠️ deprecated, 见 ADR 003
+ * - @/components/center-tabs        — CaseCenter/ManagementCenter tab 内容子组件 (Phase I2)
  */
 
 export { StatCard, StatGrid } from './StatCard'
@@ -40,3 +41,9 @@ export type { PageState } from './StateView'
 export { FadeInUp, StaggeredList, ScrollReveal, InteractivePress } from './Motion'
 
 export { AttentionPulse, NewBadge, InteractiveHint } from './Guidance'
+
+// Phase J (2026-05-14, ADR 003 Phase 2): 4 个原 common/ 组件已物理迁入
+export { EmptyState } from './EmptyState'
+export { LoadingState } from './LoadingState'
+export { ErrorState } from './ErrorState'
+export { PagePlaceholder } from './PagePlaceholder'

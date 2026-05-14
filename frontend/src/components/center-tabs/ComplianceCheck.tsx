@@ -13,7 +13,7 @@
 import { useState, useMemo, useEffect } from'react'
 import { motion, AnimatePresence } from'framer-motion'
 import { icons } from'@/lib/icons'
-import { EmptyState, LoadingState } from'@/components/common'
+import { EmptyState, LoadingState } from'@/components/ui-unified'
 import {
  cardStyle,
  heading,
