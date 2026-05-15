@@ -11,7 +11,7 @@
 .aa-tabs {
   background: #fff;
   white-space: nowrap;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid $color-skeleton;
   padding: 12rpx 8rpx;
 }
 .aa-tab {
@@ -21,7 +21,7 @@
   border-radius: 32rpx;
   font-size: 26rpx;
   color: #666;
-  background: #f3f4f6;
+  background: $color-surface-3;
 }
 .aa-tab--active {
   background: $color-brand-primary;
@@ -89,12 +89,12 @@
   border-radius: 20rpx;
 }
 .aa-badge-text { font-size: 20rpx; font-weight: 500; }
-.aa-badge--ok { background: #d1fae5; }
-.aa-badge--ok .aa-badge-text { color: #065f46; }
-.aa-badge--warn { background: #fef3c7; }
+.aa-badge--ok { background: $color-success-tint; }
+.aa-badge--ok .aa-badge-text { color: $color-success-strong; }
+.aa-badge--warn { background: $color-warning-tint; }
 .aa-badge--warn .aa-badge-text { color: $color-warning; }
 .aa-badge--err { background: $color-danger-soft; }
-.aa-badge--err .aa-badge-text { color: #b91c1c; }
+.aa-badge--err .aa-badge-text { color: $color-danger-strong; }
 
 .aa-action {
   margin-left: 16rpx;
@@ -107,6 +107,6 @@
 }
 .aa-action--connect .aa-action-text { color: #fff; }
 .aa-action--manage {
-  background: #f3f4f6;
+  background: $color-surface-3;
 }
 .aa-action--manage .aa-action-text { color: #666; }

@@ -4,7 +4,7 @@
 // -*- coding: utf-8 -*-
 
 page {
-  background: #FAFAFA;
+  background: $color-surface-2;
   height: 100vh;
 }
 
@@ -79,11 +79,11 @@ page {
   &__text {
     flex: 1;
     font-size: 24rpx;
-    color: #B91C1C;
+    color: $color-danger-strong;
   }
   &__retry {
     font-size: 24rpx;
-    color: #B91C1C;
+    color: $color-danger-strong;
     font-weight: 700;
     padding-left: 24rpx;
   }

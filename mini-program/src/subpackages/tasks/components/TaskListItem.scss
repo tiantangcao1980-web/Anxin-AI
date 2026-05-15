@@ -78,7 +78,7 @@
     line-height: 1.4;
   }
   &__hint--fail &__hint-text {
-    color: #B91C1C;
+    color: $color-danger-strong;
   }
   &__hint--done &__hint-text {
     color: $color-success;

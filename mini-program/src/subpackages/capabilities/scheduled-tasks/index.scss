@@ -11,7 +11,7 @@
 .st-tabs {
   display: flex;
   background: #fff;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid $color-skeleton;
   padding: 0 16rpx;
 }
 .st-tab {
@@ -126,12 +126,12 @@
   border-radius: 20rpx;
 }
 .st-status-text { font-size: 20rpx; font-weight: 500; }
-.st-status--active { background: #d1fae5; }
-.st-status--active .st-status-text { color: #065f46; }
-.st-status--paused { background: #f3f4f6; }
-.st-status--paused .st-status-text { color: #4b5563; }
+.st-status--active { background: $color-success-tint; }
+.st-status--active .st-status-text { color: $color-success-strong; }
+.st-status--paused { background: $color-surface-3; }
+.st-status--paused .st-status-text { color: $color-text-secondary; }
 .st-status--failed { background: $color-danger-soft; }
-.st-status--failed .st-status-text { color: #b91c1c; }
+.st-status--failed .st-status-text { color: $color-danger-strong; }
 
 .st-footer {
   padding: 32rpx 0 24rpx;

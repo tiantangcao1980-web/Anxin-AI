@@ -32,12 +32,28 @@ $color-inverse-surface: rgba(255, 255, 255, 0.3);
 // ===== 状态色 (V3 新增) =====
 $color-success: #15803D;
 $color-success-soft: #E6F8EC;
+$color-success-strong: #065F46;     // 深绿，强调态（如 chip 重色、深 badge）
+$color-success-tint: #D1FAE5;       // 浅绿底，比 soft 还浅
 $color-warning: #B45309;
 $color-warning-soft: #FFF1DC;
+$color-warning-strong: #B07A26;     // 暖深棕，强调态
+$color-warning-tint: #FEF3C7;       // 浅黄底
+$color-warning-pale: #FDF3E0;       // 米黄底
 $color-danger: #DC2626;
 $color-danger-soft: #FFE5E3;
+$color-danger-strong: #B91C1C;      // 深红，重错误态
+$color-danger-tint: #FECACA;        // 浅红底
 $color-info: #1F6FD4;
 $color-info-soft: #E0EAF8;
+$color-info-strong: #1D4ED8;        // 深蓝，强调态
+
+// ===== 表面分层 (V3 扩展) =====
+$color-surface-2: #FAFAFA;          // 二级灰底，比 surface 略深
+$color-surface-3: #F3F4F6;          // 三级浅灰，分隔卡片
+$color-surface-warm: #F1EDE6;       // 暖米色，配品牌橙
+$color-surface-warm-2: #EFE9E1;     // 更深的暖米
+$color-surface-dark: #2A2A2A;       // 深灰，dark mode 文本/底
+$color-surface-darker: #1F1F1F;     // 更深，dark mode 底
 
 // ===== AI 语义色 (V3 新增) =====
 $color-ai: #7C5CFF;

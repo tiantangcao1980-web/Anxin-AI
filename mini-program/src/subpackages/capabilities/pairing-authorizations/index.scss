@@ -97,11 +97,11 @@
 }
 .pa-card-cd {
   font-size: 20rpx;
-  color: #4b5563;
+  color: $color-text-secondary;
   margin-top: 4rpx;
 }
 .pa-card-cd--warn {
-  color: #b91c1c;
+  color: $color-danger-strong;
   font-weight: 600;
 }
 
@@ -119,10 +119,10 @@
 .pa-btn-text { font-size: 24rpx; font-weight: 600; }
 .pa-btn--ok { background: $color-brand-primary; }
 .pa-btn--ok .pa-btn-text { color: #fff; }
-.pa-btn--no { background: #f3f4f6; }
+.pa-btn--no { background: $color-surface-3; }
 .pa-btn--no .pa-btn-text { color: #666; }
 .pa-btn--more {
-  background: #f3f4f6;
+  background: $color-surface-3;
   margin-left: 16rpx;
   padding: 16rpx 24rpx;
 }

@@ -68,11 +68,11 @@
   border-radius: 20rpx;
 }
 .pl-status-text { font-size: 20rpx; font-weight: 500; }
-.pl-status--ok { background: #d1fae5; }
-.pl-status--ok .pl-status-text { color: #065f46; }
-.pl-status--off { background: #f3f4f6; }
-.pl-status--off .pl-status-text { color: #4b5563; }
-.pl-status--warn { background: #fef3c7; }
+.pl-status--ok { background: $color-success-tint; }
+.pl-status--ok .pl-status-text { color: $color-success-strong; }
+.pl-status--off { background: $color-surface-3; }
+.pl-status--off .pl-status-text { color: $color-text-secondary; }
+.pl-status--warn { background: $color-warning-tint; }
 .pl-status--warn .pl-status-text { color: $color-warning; }
 
 .pl-cta {
@@ -83,5 +83,5 @@
 .pl-cta-text { font-size: 24rpx; font-weight: 600; }
 .pl-cta--on { background: $color-brand-primary; }
 .pl-cta--on .pl-cta-text { color: #fff; }
-.pl-cta--off { background: #f3f4f6; }
+.pl-cta--off { background: $color-surface-3; }
 .pl-cta--off .pl-cta-text { color: #666; }

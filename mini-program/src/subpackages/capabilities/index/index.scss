@@ -62,7 +62,7 @@
   position: relative;
 }
 .caps-card--hover {
-  background: #fafafa;
+  background: $color-surface-2;
   transform: scale(0.99);
 }
 
@@ -110,8 +110,8 @@
   align-items: center;
   justify-content: center;
 }
-.caps-badge--warning { background: #fef3c7; }
-.caps-badge--success { background: #d1fae5; }
+.caps-badge--warning { background: $color-warning-tint; }
+.caps-badge--success { background: $color-success-tint; }
 .caps-badge--primary { background: #fde6c8; }
 .caps-badge-text {
   font-size: 20rpx;
@@ -120,7 +120,7 @@
   line-height: 1;
 }
 .caps-badge--warning .caps-badge-text { color: $color-warning; }
-.caps-badge--success .caps-badge-text { color: #065f46; }
+.caps-badge--success .caps-badge-text { color: $color-success-strong; }
 
 .caps-empty {
   padding: 80rpx 0;

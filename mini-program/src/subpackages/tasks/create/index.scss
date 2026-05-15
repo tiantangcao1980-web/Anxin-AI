@@ -3,7 +3,7 @@
 
 // -*- coding: utf-8 -*-
 page {
-  background: #FAFAFA;
+  background: $color-surface-2;
   height: 100vh;
 }
 
@@ -45,7 +45,7 @@ page {
 }
 
 .ct-row {
-  background: #FAFAFA;
+  background: $color-surface-2;
   border: 1rpx solid $color-border-subtle;
   border-radius: 12rpx;
   padding: 22rpx 22rpx;
@@ -66,7 +66,7 @@ page {
 }
 
 .ct-input {
-  background: #FAFAFA;
+  background: $color-surface-2;
   border: 1rpx solid $color-border-subtle;
   border-radius: 12rpx;
   padding: 22rpx 22rpx;
@@ -77,7 +77,7 @@ page {
 .ct-textarea {
   width: 100%;
   min-height: 240rpx;
-  background: #FAFAFA;
+  background: $color-surface-2;
   border: 1rpx solid $color-border-subtle;
   border-radius: 12rpx;
   padding: 22rpx 22rpx;

@@ -70,7 +70,7 @@
   }
   &__code-toggle {
     font-size: 22rpx;
-    color: #1D4ED8;
+    color: $color-info-strong;
   }
   &__code {
     display: block;
@@ -93,17 +93,17 @@
   &--progress &__bullet { background: #C9CDD4; }
   &--progress &__body   { background: $color-background; }
 
-  &--tool-call &__bullet { background: #1D4ED8; }
+  &--tool-call &__bullet { background: $color-info-strong; }
   &--tool-call &__body   { background: #E0EAFE; }
-  &--tool-call &__type   { color: #1D4ED8; }
+  &--tool-call &__type   { color: $color-info-strong; }
 
   &--tool-result &__bullet { background: $color-success; }
   &--tool-result &__body   { background: #DCFCE7; }
   &--tool-result &__type   { color: $color-success; }
 
-  &--error &__bullet { background: #B91C1C; }
+  &--error &__bullet { background: $color-danger-strong; }
   &--error &__body   { background: $color-danger-soft; }
-  &--error &__type   { color: #B91C1C; }
+  &--error &__type   { color: $color-danger-strong; }
 
   &--done &__bullet { background: $color-success; }
   &--done &__body   { background: #DCFCE7; }
