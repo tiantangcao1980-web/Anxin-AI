@@ -76,6 +76,8 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - uses: astral-sh/setup-uv@v5
+      - name: Install ripgrep (shell-based 安全闸门测试依赖 rg)
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
       - name: Sync dev deps
         run: uv sync --extra dev
       - name: pytest with coverage

@@ -72,8 +72,14 @@ def test_persona_metadata():
 def test_persona_auto_registered():
     """P8-A: persona class 必须自动注册到 PersonaRegistry。"""
     from src.agents.personas.registry import PersonaRegistry
+    from src.agents.personas.tax_finance_advisor import (  # noqa: F401  触发 __init_subclass__
+        TaxFinanceAdvisorPersona,
+    )
 
     reg = PersonaRegistry.instance()
+    # 上游 fixture 可能 reset_instance() 清空注册表，但 class 已 import 过、
+    # __init_subclass__ 不会再次触发；通过 __subclasses__() 兜底重注册。
+    reg._bootstrap_from_subclasses()
     assert reg.has("tax_finance_advisor")
 
 

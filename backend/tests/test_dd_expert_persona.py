@@ -118,6 +118,9 @@ def test_persona_metadata_and_registry():
     from src.agents.personas.registry import PersonaRegistry
 
     reg = PersonaRegistry.instance()
+    # 上游 fixture 可能 reset_instance() 清空注册表，但 class 已 import 过、
+    # __init_subclass__ 不会再次触发；通过 __subclasses__() 兜底重注册。
+    reg._bootstrap_from_subclasses()
     assert reg.has("due_diligence_expert")
 
 

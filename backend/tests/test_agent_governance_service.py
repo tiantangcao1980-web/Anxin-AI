@@ -308,7 +308,20 @@ async def test_issue_route_token_enforces_consumer_and_scope(db_session, test_or
         requested_scopes=["browser:write"],
     )
 
-    leases = (await db_session.execute(select(CapabilityRouteTokenLease))).scalars().all()
+    # 按 org 过滤：共享 sqlite 内存库 + StaticPool 下，前序测试 flush 的 lease
+    # 偶尔会在事务边界外可见（autoflush=False + 同连接），此处只校验"本测试
+    # 创建的 org 下没有 lease"，符合断言意图。
+    leases = (
+        (
+            await db_session.execute(
+                select(CapabilityRouteTokenLease).where(
+                    CapabilityRouteTokenLease.org_id == test_organization.id
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     assert bad_consumer.allowed is False
     assert bad_consumer.reason_code == "consumer_not_allowed"
