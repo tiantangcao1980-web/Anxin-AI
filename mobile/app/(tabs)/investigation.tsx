@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { Colors } from '@/constants/colors'
 import { Layout } from '@/constants/layout'
 import { api } from '@/services/api'
+import { DomainStripe } from '@/components/DomainBadge'
 
 /**
  * 智能调查 Tab —— 企业 / 主体 / 关联方全维度尽职调查。
@@ -130,6 +131,8 @@ export default function InvestigationScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
+      {/* V3 调研获客域视觉锚点 — 4pt 高青色彩条 */}
+      <DomainStripe domain="growth" />
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.content}
