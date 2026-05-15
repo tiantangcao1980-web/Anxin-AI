@@ -75,4 +75,11 @@ assertOrder(
   'auth.ts wxLogin privacy guard',
 )
 
+// ---------------------------------------------------------------------------
+// 5. pages/me 必须提供隐私模式切换 UI，避免出现"机制可用但用户无入口"
+// ---------------------------------------------------------------------------
+const mePage = read('src/pages/me/index.tsx')
+assertIncludes(mePage, 'setStoredPrivacyMode', 'me page privacy switcher')
+assertIncludes(mePage, 'PRIVACY_OPTIONS', 'me page privacy switcher')
+
 console.log('mini-program privacy boundary guard: PASS')
