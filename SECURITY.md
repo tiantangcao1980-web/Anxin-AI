@@ -81,3 +81,62 @@ V3 引入企业智能体治理（L0-L5 风险分级 + 六层校验）：
 - 桌面：`cargo audit`
 
 CI 每日跑一次依赖扫描，CVE 严重等级及以上自动开 issue。
+
+## 残留 CVE 清单（2026-05-15 快照）
+
+下列告警**经评估为非阻塞**，已加固到不直接暴露生产代码路径。每次发布前需 review 一次。
+
+### 后端（Python）
+
+| 包 | CVE / GHSA | 上游约束 | 缓解措施 |
+|---|---|---|---|
+| `litellm` | GHSA-xqmj-j6mv-4862 | 受 `camel-ai` 上游联合锁，所有可用版本均 ≤1.83.6 | 已在 `pyproject.toml` 注释中标记；不暴露用户可控输入路径 |
+| `lxml` 5.x | CVE-2026-41066 | 受 `crawl4ai (<0.7)` 上限锁 lxml<6 | FetchService 仅消费内部受信源；用户输入走 selectolax 解析 |
+| `pillow` 10.x | CVE-2026-25990 / 40192 | 受 `crawl4ai` 上限锁 pillow<11 | 仅内部图像处理用，不接收用户上传到该路径 |
+
+详见 [docs/v3/P16_DEPENDENCY_UPGRADE.md](docs/v3/P16_DEPENDENCY_UPGRADE.md)。
+
+### 移动端（Expo SDK 52）
+
+剩余 10 项 moderate 全在 Expo CLI / Metro 工具链（`@expo/cli`、`@expo/metro-config`、`@expo/plist` 等），**仅构建期使用，不进入 RN 设备 bundle**。下一步：跟随 Expo SDK 53/54/55 滚动升级清零。
+
+关键 high 已通过 `package.json` overrides 修复：
+
+```json
+"overrides": {
+  "@babel/plugin-transform-modules-systemjs": "^7.29.4",
+  "@xmldom/xmldom": "^0.9.10",
+  "fast-uri": "^3.1.2",
+  "tar": "^7.5.15"
+}
+```
+
+### 小程序（Taro 4.2）
+
+**prod-only critical/high 已清零**。
+
+| 残留 | 严重 | 说明 |
+|---|---|---|
+| `esbuild` <0.25 dev server bind | moderate | 仅本地 dev 暴露；`taro build --type weapp` 不依赖 |
+| `webpack` AutoPublicPathRuntimeModule DOM clobbering | moderate | dev-only 体现；prod chunk 已经 hash 化 |
+| `webpack-dev-server` source code leak | moderate | dev-only |
+| 其余 13 项 moderate | moderate | 均为 `@tarojs/*` 间接 dev 依赖，待 Taro 4.x patch 滚动消化 |
+
+关键 critical 已通过 overrides 修复：
+
+```json
+"overrides": {
+  "webpack": "5.89.0",
+  "swiper": "^12.1.2",
+  "lodash-es": "^4.17.23"
+}
+```
+
+### 后端 hash 用法复核
+
+- 11 处 `hashlib.md5` 用作 cache key / point_id 等**非密码学场景**，可接受。
+- ⚠ [esign_service.py:439](backend/src/services/esign_service.py:439) `hashlib.md5(body).digest()` 用于电子签 body 摘要 — 请确认是否为第三方平台（如 e-签宝旧版 ESL）API 强制要求；如可替换建议改为 SHA-256。
+
+### Tauri CSP
+
+`desktop/tauri.conf.json` CSP 仍指向旧域名 `*.anxin-legal.com`，需要随 `anxinai.com` 域名切换同步更新（P13 计划项）。
