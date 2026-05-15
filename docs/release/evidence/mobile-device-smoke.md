@@ -1,8 +1,10 @@
 # Mobile And Mini-Program Device Smoke Evidence
 
+> **2026-05 路线调整脚注**：原 2026-05-09 决定"未来移动端/小程序开发统一进入 uni-app（`apps/uni-mobile/`）"已在 2026-05 终止。本文件中所有涉及 `apps/uni-mobile/`、`scripts/uni-mobile-*.sh`、`docs/mobile/uni-app-migration-plan.md`、DCloud 的段落均不再适用 — 现有移动能力回到 `mobile/`（Expo + RN），小程序回到 `mini-program/`（Taro），两端独立演进。下文 uni-app 行保留为历史记录。
+
 Status: pending
 Owner: TBD
-Environment: code-level mobile/mini smoke complete for the current Expo/Taro legacy clients; Expo config, SDK dependency guard, Expo Metro config, Expo doctor, mobile result surface guard, mobile remote-control safe-probe enqueue/status/cancel/audit timeline visibility, mini-program privacy and navigation boundary guards, WeChat DevTools CLI project smoke, and iOS Simulator Expo Go supporting app-run complete; cross-platform token drift audit complete; 2026-05-09 route changed future mobile App/Mini Program development to uni-app and the first `apps/uni-mobile` base plus sync client contract have code-level smoke evidence; cross-device continuation code-level rehearsal complete; Android, interactive WeChat DevTools / real device, DCloud App cloud build/signing, and real cross-device continuation pending
+Environment: code-level mobile/mini smoke complete for the current Expo/Taro clients; Expo config, SDK dependency guard, Expo Metro config, Expo doctor, mobile result surface guard, mobile remote-control safe-probe enqueue/status/cancel/audit timeline visibility, mini-program privacy and navigation boundary guards, WeChat DevTools CLI project smoke, and iOS Simulator Expo Go supporting app-run complete; cross-platform token drift audit complete; Android, interactive WeChat DevTools / real device, and real cross-device continuation pending
 Date range: 2026-05-06 to 2026-05-09 local collection
 
 > Simulator/unit tests are useful but insufficient. This evidence requires real or official-device-tool runs for the critical user stories.

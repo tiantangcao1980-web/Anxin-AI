@@ -91,7 +91,6 @@ required_artifacts=(
   "scripts/agent-connector-rehearsal.sh"
   "scripts/agent-cross-process-revocation-rehearsal.sh"
   "scripts/cross-device-continuation-smoke.sh"
-  "scripts/uni-mobile-smoke.sh"
   "scripts/mobile-device-smoke.sh"
   "scripts/desktop-installed-profile-smoke.sh"
   "scripts/desktop-release-package.sh"
@@ -409,10 +408,6 @@ if [ "$RUN_LOCAL_TESTS" -eq 1 ]; then
     bash scripts/mobile-device-smoke.sh \
       --out /tmp/anxin-mobile-mini-code-smoke-gate.json \
       --manual-template-out /tmp/anxin-mobile-device-manual-template-gate.json
-  require_command "uni-mobile migration guard" bash scripts/uni-mobile-migration-guard.sh
-  require_command "uni-mobile base smoke" \
-    bash scripts/uni-mobile-smoke.sh \
-      --out /tmp/anxin-uni-mobile-base-smoke-gate.json
 else
   add_warning "local tests were not run; use --with-local-tests for code-level smoke commands"
 fi
