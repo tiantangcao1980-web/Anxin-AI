@@ -158,6 +158,51 @@ export function pollTaskUntilDone(
   }
 }
 
+/**
+ * 事件订阅：基于 `pollTaskUntilDone` 合成 TaskEvent 流。
+ *
+ * 设计取舍：后端 `/agent-tasks/{id}/events` 是 SSE，RN 无原生 EventSource。
+ * P17-B 阶段会接入 RN-EventSource polyfill 直读 SSE；当前先通过轮询任务状态
+ * 合成 `status_changed` / `done` / `error` 三种事件，保证详情页订阅 API 可用、
+ * Store 的 `appendEvent` 去重逻辑（timestamp + event_type）正常工作。
+ */
+export function subscribeTaskEvents(
+  id: string,
+  onEvent: (ev: TaskEvent) => void,
+  options: { intervalMs?: number } = {},
+): () => void {
+  let prevStatus: AgentTaskStatus | null = null
+  return pollTaskUntilDone(
+    id,
+    (task) => {
+      if (task.status === prevStatus) return
+      prevStatus = task.status
+      onEvent({
+        task_id: task.id,
+        event_type: 'status_changed',
+        payload: { status: task.status },
+        timestamp: task.updated_at,
+      })
+      if (task.status === 'done') {
+        onEvent({
+          task_id: task.id,
+          event_type: 'done',
+          payload: task.result ?? {},
+          timestamp: task.finished_at ?? task.updated_at,
+        })
+      } else if (task.status === 'failed') {
+        onEvent({
+          task_id: task.id,
+          event_type: 'error',
+          payload: task.error ?? {},
+          timestamp: task.finished_at ?? task.updated_at,
+        })
+      }
+    },
+    options,
+  )
+}
+
 export const agentTasksApi = {
   listTasks,
   createTask,
@@ -167,4 +212,5 @@ export const agentTasksApi = {
   rejectTask,
   getTaskResult,
   pollTaskUntilDone,
+  subscribeTaskEvents,
 }
