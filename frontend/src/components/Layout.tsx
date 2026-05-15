@@ -43,11 +43,15 @@ interface NavChild {
 // 四大业务域 — 全部为直达链接，点击进入模块首页（各模块有自己的左侧导航栏）
 // 顶部四大业务域（与 PRD / 全端导航保持同步）。
 // 「智能调查」对应 /investigation 工作台，舆情监测是其中一个子入口。
-const navGroups: { id: string; label: string; path: string }[] = [
-  { id: 'ai-legal', label: 'AI 智能助手', path: '/chat' },
-  { id: 'collaboration', label: '智能协作', path: '/case-center' },
-  { id: 'investigation', label: '智能调查', path: '/investigation' },
-  { id: 'knowledge', label: '法律智库', path: '/knowledge-base' },
+//
+// V3 视觉映射 (2026-05)：每个 group 关联到 8 大业务域之一，
+// 在导航 hover/active 时显示对应域色，作为 V2 4 大业务域 → V3 8 大业务域过渡期的视觉锚点。
+// `accent` 字段值是 DomainId（见 `@/lib/domains`），用于读取 CSS 变量 `--domain-<id>`。
+const navGroups: { id: string; label: string; path: string; accent?: string }[] = [
+  { id: 'ai-legal',      label: 'AI 智能助手', path: '/chat',           accent: 'operations' }, // 跨域统筹
+  { id: 'collaboration', label: '智能协作',    path: '/case-center',    accent: 'legal'      }, // 法务为主
+  { id: 'investigation', label: '智能调查',    path: '/investigation',  accent: 'growth'     }, // 调研获客
+  { id: 'knowledge',     label: '法律智库',    path: '/knowledge-base', accent: 'legal'      }, // 法务知识
 ]
 
 // 系统功能（右侧图标按钮）— 任务中心已整合进案件中心
@@ -297,20 +301,32 @@ export default function Layout() {
           </button>
 
           {/* 中间：四大业务域直达链接（点击进入模块首页，模块内有左侧导航栏） */}
-          <nav className="hidden lg:flex items-center gap-1 flex-1">
-            {navGroups.map((group) => (
-              <button
-                key={group.id}
-                onClick={() => handleNavClick(group.path)}
-                className={`px-3.5 py-2 rounded-lg text-base font-medium transition-colors ${
-                  isModuleActive(group.id, currentPath)
-                    ? 'text-primary'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-                }`}
-              >
-                {group.label}
-              </button>
-            ))}
+          <nav className="hidden lg:flex items-center gap-1 flex-1" aria-label="主导航">
+            {navGroups.map((group) => {
+              const active = isModuleActive(group.id, currentPath)
+              return (
+                <button
+                  key={group.id}
+                  onClick={() => handleNavClick(group.path)}
+                  className={`relative px-3.5 py-2 rounded-lg text-base font-medium transition-colors ${
+                    active
+                      ? 'text-primary'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                  }`}
+                  aria-current={active ? 'page' : undefined}
+                >
+                  {group.label}
+                  {/* V3 业务域色 underline — 仅 active 态显示，避免视觉噪音 */}
+                  {active && group.accent ? (
+                    <span
+                      aria-hidden
+                      className="absolute left-3.5 right-3.5 bottom-1 h-0.5 rounded-full"
+                      style={{ backgroundColor: `hsl(var(--domain-${group.accent}))` }}
+                    />
+                  ) : null}
+                </button>
+              )
+            })}
           </nav>
 
           {/* 右侧：系统功能 + 用户区 */}

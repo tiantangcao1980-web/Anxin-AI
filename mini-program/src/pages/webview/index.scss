@@ -1,3 +1,8 @@
+// WebView 页样式
+// 2026-05 迁移：硬编码 hex → design-tokens 变量
+
+@import '../../styles/design-tokens.scss';
+
 .webview-empty {
   padding: 96rpx 48rpx;
   text-align: center;
@@ -6,6 +11,6 @@
   align-items: center;
 
   &__emoji { font-size: 96rpx; margin-bottom: 32rpx; }
-  &__title { font-size: 32rpx; color: #1D2129; font-weight: 600; margin-bottom: 16rpx; }
-  &__sub { font-size: 24rpx; color: #86909C; }
+  &__title { font-size: $font-h2; color: $color-text-primary; font-weight: 600; margin-bottom: 16rpx; }
+  &__sub { font-size: $font-caption; color: $color-text-tertiary; }
 }

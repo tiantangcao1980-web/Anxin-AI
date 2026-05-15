@@ -17,6 +17,7 @@ import { getTokenStorage } from'@/lib/platform/storage'
 import { useAuthStore } from'@/lib/store'
 import { saveAuthToken } from'@/lib/tauri-bridge'
 import { iconSize, radius, buttonStyle, heading, inputStyle, statusColor } from'@/lib/design-tokens'
+import { DOMAINS } from'@/lib/domains'
 
 declare global {
  interface Window {
@@ -441,16 +442,16 @@ export default function Login() {
  </div>
  <div>
  <h1 className={`${heading.page} text-foreground text-2xl`}>安心智能助手</h1>
- <p className="text-sm text-muted-foreground">超级安心智能助手系统</p>
+ <p className="text-sm text-muted-foreground">面向中国成长型企业的全链路 AI 经营助理</p>
  </div>
  </div>
 
- {/* 特性列表 */}
- <div className="space-y-6 mb-12">
+ {/* 特性列表 — V3 三大支柱 */}
+ <div className="space-y-6 mb-10">
  {[
- { Icon: icons.Brain, title:'多智能体协作', desc:'6大专业智能体团队协同处理法律事务' },
- { Icon: icons.Shield, title:'全流程风控', desc:'AI实时监控合同风险、诉讼风险' },
- { Icon: icons.Zap, title:'效率提升10倍', desc:'自动化合同审查、文书起草、尽调报告' },
+ { Icon: icons.Brain, title:'多智能体协作', desc:'22 个 personas × 21 个专业智能体，覆盖企业 8 大业务域' },
+ { Icon: icons.Shield, title:'全流程风控',   desc:'实时监控合同、合规、税务、出海等红线，三档风险分级提示' },
+ { Icon: icons.Zap,    title:'效率提升 10 倍', desc:'合同审查、报表起草、尽调报告、营销文案自动产出' },
  ].map((feature, i) => (
  <motion.div
  key={feature.title}
@@ -470,31 +471,41 @@ export default function Login() {
  ))}
  </div>
 
- {/* 形象角色占位区 — 待设计完成后替换 */}
- <div className="flex gap-4 items-end">
+ {/* 8 大业务域展示 — V3 产品定位的视觉锚点 */}
  <motion.div
- initial={{ opacity: 0, y: 20 }}
+ initial={{ opacity: 0, y: 16 }}
  animate={{ opacity: 1, y: 0 }}
  transition={{ delay: 0.6 }}
- className="w-28 h-36 bg-primary/5 dark:bg-primary/10 rounded-2xl border-2 border-dashed border-primary/20 dark:border-primary/15 flex flex-col items-center justify-center gap-2"
+ aria-label="安心 AI 覆盖的 8 大业务域"
  >
- <icons.User className="w-8 h-8 text-primary/30 dark:text-primary/20" />
- <span className="text-[10px] text-muted-foreground/60">形象角色 1</span>
- </motion.div>
+ <p className="text-xs font-medium text-muted-foreground mb-3 tracking-wide">
+ 一个 App，搞定企业 8 大业务
+ </p>
+ <div className="grid grid-cols-4 gap-2">
+ {DOMAINS.map((d, i) => {
+ const Icon = d.icon
+ return (
  <motion.div
- initial={{ opacity: 0, y: 20 }}
- animate={{ opacity: 1, y: 0 }}
- transition={{ delay: 0.75 }}
- className="w-24 h-32 bg-primary/5 dark:bg-primary/10 rounded-2xl border-2 border-dashed border-primary/20 dark:border-primary/15 flex flex-col items-center justify-center gap-2"
+ key={d.id}
+ initial={{ opacity: 0, scale: 0.92 }}
+ animate={{ opacity: 1, scale: 1 }}
+ transition={{ delay: 0.7 + i * 0.04 }}
+ className={`flex flex-col items-center gap-1.5 rounded-xl border border-border/40 px-2 py-3 ${d.surfaceClass}`}
+ title={d.tagline}
  >
- <icons.Bot className="w-7 h-7 text-primary/30 dark:text-primary/20" />
- <span className="text-[10px] text-muted-foreground/60">形象角色 2</span>
+ <Icon className={`h-4 w-4 ${d.colorClass}`} />
+ <span className="text-[11px] text-foreground/80 leading-tight text-center">
+ {d.label}
+ </span>
  </motion.div>
+ )
+ })}
  </div>
+ </motion.div>
  </div>
 
  <p className="relative z-10 text-muted-foreground/50 text-xs">
- &copy; 2026 安心智能助手 &middot; 赋能法律行业智能化
+ &copy; 2026 安心智能助手 &middot; 法务 · 财务 · 税务 · 合规 · 经营 · 获客 · 内容 · 出海
  </p>
  </div>
 

@@ -1,9 +1,14 @@
+// 「我」页样式
+// 2026-05 迁移：所有颜色硬编码 hex → design-tokens 变量
+
+@import '../../styles/design-tokens.scss';
+
 .me-card {
-  background: linear-gradient(135deg, #D4A574 0%, #B8864E 100%);
+  background: $color-brand-gradient;
   margin: 32rpx;
   border-radius: 32rpx;
   padding: 40rpx 32rpx;
-  color: #FFFFFF;
+  color: $color-text-inverse;
   box-shadow: 0 8rpx 24rpx rgba(212, 165, 116, 0.30);
 
   &__head {
@@ -15,14 +20,14 @@
     width: 120rpx;
     height: 120rpx;
     border-radius: 60rpx;
-    background-color: rgba(255, 255, 255, 0.20);
+    background-color: $color-inverse-surface;
     display: flex;
     align-items: center;
     justify-content: center;
     margin-right: 24rpx;
     overflow: hidden;
     &--placeholder {
-      background-color: rgba(255, 255, 255, 0.20);
+      background-color: $color-inverse-surface;
     }
   }
   &__avatar-emoji {
@@ -34,55 +39,55 @@
     flex-direction: column;
   }
   &__name {
-    font-size: 36rpx;
+    font-size: $font-h1;
     font-weight: 600;
     margin-bottom: 8rpx;
-    color: #FFFFFF;
+    color: $color-text-inverse;
   }
   &__vip {
     align-self: flex-start;
     background-color: rgba(255, 255, 255, 0.25);
-    border-radius: 999rpx;
+    border-radius: $radius-pill;
     padding: 4rpx 16rpx;
   }
   &__vip-text {
-    color: #FFFFFF;
-    font-size: 22rpx;
+    color: $color-text-inverse;
+    font-size: $font-micro;
   }
   &__email {
     display: block;
     margin-top: 24rpx;
-    font-size: 24rpx;
-    color: rgba(255, 255, 255, 0.80);
+    font-size: $font-caption;
+    color: $color-inverse-weak;
   }
   &__login-btn {
     margin-top: 24rpx;
-    background-color: #FFFFFF;
-    border-radius: 999rpx;
+    background-color: $color-text-inverse;
+    border-radius: $radius-pill;
     padding: 16rpx 40rpx;
     align-self: flex-start;
     text-align: center;
   }
   &__login-text {
-    color: #B8864E;
-    font-size: 26rpx;
+    color: $color-brand-primary-dark;
+    font-size: $font-body;
     font-weight: 500;
   }
 }
 
 .me-menu {
-  background-color: #FFFFFF;
+  background-color: $color-surface;
   margin: 0 32rpx 32rpx;
   border-radius: 24rpx;
   overflow: hidden;
-  box-shadow: 0 2rpx 8rpx rgba(29, 33, 41, 0.04);
+  box-shadow: $shadow-card;
 
   &__item {
     display: flex;
     flex-direction: row;
     align-items: center;
     padding: 32rpx 32rpx;
-    border-bottom: 2rpx solid #F0F0F0;
+    border-bottom: 2rpx solid $color-border-subtle;
 
     &--last { border-bottom: 0; }
   }
@@ -94,26 +99,26 @@
   }
   &__title {
     flex: 1;
-    font-size: 28rpx;
-    color: #1D2129;
+    font-size: $font-body;
+    color: $color-text-primary;
   }
   &__chevron {
     font-size: 32rpx;
-    color: #C9CDD4;
+    color: $color-text-disabled;
   }
 }
 
 .me-logout {
   margin: 32rpx;
-  background-color: #FFFFFF;
+  background-color: $color-surface;
   border-radius: 24rpx;
   padding: 32rpx;
   text-align: center;
-  box-shadow: 0 2rpx 8rpx rgba(29, 33, 41, 0.04);
+  box-shadow: $shadow-card;
 
   &__text {
-    color: #EF4444;
-    font-size: 28rpx;
+    color: $color-danger;
+    font-size: $font-body;
     font-weight: 500;
   }
 }
@@ -126,12 +131,12 @@
   align-items: center;
 
   &__text {
-    font-size: 22rpx;
-    color: #C9CDD4;
+    font-size: $font-micro;
+    color: $color-text-disabled;
   }
   &__build {
-    font-size: 20rpx;
-    color: #C9CDD4;
+    font-size: $font-micro;
+    color: $color-text-disabled;
     margin-top: 4rpx;
   }
 }

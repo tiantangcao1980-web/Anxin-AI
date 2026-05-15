@@ -19,6 +19,7 @@ import { Colors } from '@/constants/colors'
 import { Layout } from '@/constants/layout'
 import { api } from '@/services/api'
 import { useStackHeaderOptions, useTheme } from '@/lib/theme'
+import { DomainStripe } from '@/components/DomainBadge'
 
 /**
  * 找律师 —— 移动端匿名咨询转化链路。
@@ -514,6 +515,8 @@ export default function FindLawyerScreen() {
       edges={['bottom']}
     >
       <Stack.Screen options={headerOptions} />
+      {/* V3 法务域视觉锚点 — 4pt 高彩条 */}
+      <DomainStripe domain="legal" />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

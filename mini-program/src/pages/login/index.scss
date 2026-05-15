@@ -1,3 +1,8 @@
+// 登录页样式
+// 2026-05 迁移：所有颜色硬编码 hex → design-tokens 变量
+
+@import '../../styles/design-tokens.scss';
+
 .login-hero {
   padding: 120rpx 48rpx 80rpx;
   display: flex;
@@ -8,7 +13,7 @@
     width: 160rpx;
     height: 160rpx;
     border-radius: 32rpx;
-    background: linear-gradient(135deg, #D4A574 0%, #B8864E 100%);
+    background: $color-brand-gradient;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -19,14 +24,14 @@
     font-size: 80rpx;
   }
   &__title {
-    font-size: 48rpx;
+    font-size: $font-display;
     font-weight: 600;
-    color: #1D2129;
+    color: $color-text-primary;
     margin-bottom: 12rpx;
   }
   &__sub {
-    font-size: 24rpx;
-    color: #86909C;
+    font-size: $font-caption;
+    color: $color-text-tertiary;
     text-align: center;
   }
 }
@@ -44,24 +49,24 @@
   margin-bottom: 24rpx;
 
   &--primary {
-    background-color: #D4A574;
+    background-color: $color-brand-primary;
     box-shadow: 0 8rpx 24rpx rgba(212, 165, 116, 0.30);
   }
   &--ghost {
     background-color: transparent;
-    border: 2rpx solid #E5E6EB;
+    border: 2rpx solid $color-border;
   }
   &--loading {
     opacity: 0.7;
   }
 
   &__text {
-    color: #FFFFFF;
-    font-size: 30rpx;
+    color: $color-text-inverse;
+    font-size: $font-body;
     font-weight: 500;
 
     &--ghost {
-      color: #4E5969;
+      color: $color-text-secondary;
     }
   }
 }
@@ -71,10 +76,10 @@
   flex-direction: column;
 
   &__input {
-    background-color: #F5F5F5;
+    background-color: $color-surface-subtle;
     border-radius: 16rpx;
     padding: 24rpx 32rpx;
-    font-size: 28rpx;
+    font-size: $font-body;
     margin-bottom: 20rpx;
     height: 88rpx;
     box-sizing: border-box;
@@ -96,19 +101,19 @@
     width: 32rpx;
     height: 32rpx;
     border-radius: 16rpx;
-    border: 2rpx solid #C9CDD4;
+    border: 2rpx solid $color-text-disabled;
     margin-right: 12rpx;
 
     &--on {
-      background-color: #D4A574;
-      border-color: #D4A574;
+      background-color: $color-brand-primary;
+      border-color: $color-brand-primary;
     }
   }
   &__text {
-    font-size: 22rpx;
-    color: #86909C;
+    font-size: $font-micro;
+    color: $color-text-tertiary;
   }
   &__link {
-    color: #D4A574;
+    color: $color-brand-primary;
   }
 }

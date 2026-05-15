@@ -15,6 +15,8 @@ import Taro, { usePullDownRefresh } from '@tarojs/taro'
 
 import { Screen } from '../../components/Layout'
 import PersonaCard from '../../components/PersonaCard'
+import DomainBadge from '../../components/DomainBadge'
+import type { DomainId } from '../../styles/design-tokens'
 import { listPersonas } from '../../utils/api/personas'
 import { tokenStorage } from '../../utils/auth/token'
 import {
@@ -150,6 +152,19 @@ export default function HomePage() {
             >
               <Text className='home-prompts__text'>{p.text}</Text>
             </View>
+          ))}
+        </View>
+      </View>
+
+      {/* 8 大业务域展示 — 与 frontend Login 页跨端视觉对齐 */}
+      <View className='home-section'>
+        <View className='home-section__head'>
+          <Text className='home-section__title'>覆盖企业 8 大业务</Text>
+          <Text className='home-section__sub'>一个 App，全链路搞定</Text>
+        </View>
+        <View className='home-domain-badges'>
+          {(['legal','finance','tax','compliance','operations','growth','content','global'] as DomainId[]).map((d) => (
+            <DomainBadge key={d} domain={d} />
           ))}
         </View>
       </View>

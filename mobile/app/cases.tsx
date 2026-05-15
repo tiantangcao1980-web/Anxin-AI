@@ -13,6 +13,7 @@ import { router, Stack } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { api } from '@/services/api'
 import { useStackHeaderOptions, useTheme } from '@/lib/theme'
+import { DomainStripe } from '@/components/DomainBadge'
 
 /**
  * 我的案件 —— 接入真实 `/cases/` 后端 API。
@@ -189,6 +190,8 @@ export default function CasesScreen() {
       edges={['bottom']}
     >
       <Stack.Screen options={headerOptions} />
+      {/* V3 法务域视觉锚点 */}
+      <DomainStripe domain="legal" />
 
       <View style={styles.tabContainer}>
         {FILTER_TABS.map((t) => (

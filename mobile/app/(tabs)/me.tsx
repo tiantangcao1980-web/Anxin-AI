@@ -32,6 +32,19 @@ import { Screen } from '@/components/Layout'
 import { useV3Theme } from '@/theme'
 import { useAuthStore } from '@/lib/store'
 import { logout as v3Logout } from '@/lib/api/auth'
+import { DomainBadge } from '@/components/DomainBadge'
+import type { DomainId } from '@/theme/colors'
+
+const DOMAIN_IDS: DomainId[] = [
+  'legal',
+  'finance',
+  'tax',
+  'compliance',
+  'operations',
+  'growth',
+  'content',
+  'global',
+]
 
 interface MenuRow {
   key: string
@@ -135,6 +148,18 @@ export default function MeTabScreen() {
         </View>
       </View>
 
+      {/* V3 8 大业务域展示带 — 与 frontend Login 跨端视觉对齐 */}
+      <View style={styles.domainSection}>
+        <Text style={[styles.domainTitle, { color: t.colors.textSecondary }]}>
+          一个 App，搞定企业 8 大业务
+        </Text>
+        <View style={styles.domainGrid}>
+          {DOMAIN_IDS.map((id) => (
+            <DomainBadge key={id} domain={id} style={styles.domainBadgeItem} />
+          ))}
+        </View>
+      </View>
+
       {/* 菜单 */}
       <View
         style={[
@@ -235,6 +260,24 @@ const styles = StyleSheet.create({
   },
   userEmail: {
     fontSize: 13,
+  },
+  domainSection: {
+    marginBottom: 16,
+  },
+  domainTitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 12,
+    letterSpacing: 0.2,
+  },
+  domainGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  domainBadgeItem: {
+    marginRight: 6,
+    marginBottom: 6,
   },
   menuGroup: {
     borderRadius: 16,
