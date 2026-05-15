@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 sandbox_executor.config —— 沙箱模块的配置访问层
 
@@ -23,7 +22,7 @@ class SandboxSettings:
     SANDBOX_PROVIDER: str
 
     @classmethod
-    def from_core(cls) -> "SandboxSettings":
+    def from_core(cls) -> SandboxSettings:
         return cls(SANDBOX_PROVIDER=getattr(_core_settings, "SANDBOX_PROVIDER", "local"))
 
 

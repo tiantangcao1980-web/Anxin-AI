@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 错误聚类（P19-A）
 
@@ -23,7 +22,7 @@ import sys
 import threading
 import traceback
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 
 @dataclass
@@ -34,9 +33,9 @@ class ErrorFingerprint:
     endpoint: str
     count: int = 1
     last_message: str = ""
-    extra: Dict[str, Any] = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "fingerprint": self.fingerprint,
             "exception_type": self.exception_type,
@@ -59,7 +58,7 @@ class ErrorClassifier:
     """
 
     # 默认排除的库路径前缀（不视为 user frame）
-    DEFAULT_EXCLUDE_PREFIXES: Tuple[str, ...] = (
+    DEFAULT_EXCLUDE_PREFIXES: tuple[str, ...] = (
         "site-packages",
         "/usr/lib/python",
         "/Library/Frameworks/Python",
@@ -72,9 +71,9 @@ class ErrorClassifier:
         "asyncio/",
     )
 
-    def __init__(self, exclude_prefixes: Optional[Tuple[str, ...]] = None):
+    def __init__(self, exclude_prefixes: tuple[str, ...] | None = None):
         self.exclude_prefixes = exclude_prefixes or self.DEFAULT_EXCLUDE_PREFIXES
-        self._seen: Dict[str, ErrorFingerprint] = {}
+        self._seen: dict[str, ErrorFingerprint] = {}
         self._lock = threading.Lock()
 
     # ===== 公开 API =====
@@ -82,7 +81,7 @@ class ErrorClassifier:
         self,
         exc: BaseException,
         endpoint: str = "unknown",
-        message: Optional[str] = None,
+        message: str | None = None,
     ) -> ErrorFingerprint:
         exc_type = type(exc).__name__
         first_frame = self._extract_first_user_frame(exc)
@@ -108,7 +107,7 @@ class ErrorClassifier:
             self._seen[fingerprint] = fp
             return fp
 
-    def top_n(self, n: int = 10) -> List[ErrorFingerprint]:
+    def top_n(self, n: int = 10) -> list[ErrorFingerprint]:
         with self._lock:
             return sorted(self._seen.values(), key=lambda f: f.count, reverse=True)[:n]
 
@@ -151,7 +150,7 @@ class ErrorClassifier:
             return "<no-frame>"
 
         # 直接遍历 traceback chain
-        frames: List[Tuple[str, int, str]] = []
+        frames: list[tuple[str, int, str]] = []
         cur = tb
         while cur is not None:
             f = cur.tb_frame
@@ -177,7 +176,7 @@ class ErrorClassifier:
         return f"{norm}:{lineno}:{name}"
 
     def _compute_fingerprint(self, exc_type: str, frame: str, endpoint: str) -> str:
-        raw = f"{exc_type}|{frame}|{endpoint}".encode("utf-8")
+        raw = f"{exc_type}|{frame}|{endpoint}".encode()
         return hashlib.sha256(raw).hexdigest()[:16]
 
 
@@ -188,13 +187,13 @@ _default_classifier = ErrorClassifier()
 def classify_error(
     exc: BaseException,
     endpoint: str = "unknown",
-    message: Optional[str] = None,
+    message: str | None = None,
 ) -> ErrorFingerprint:
     """便捷函数：使用默认 classifier。"""
     return _default_classifier.classify(exc, endpoint, message)
 
 
-def top_errors(n: int = 10) -> List[Dict[str, Any]]:
+def top_errors(n: int = 10) -> list[dict[str, Any]]:
     return [f.to_dict() for f in _default_classifier.top_n(n)]
 
 

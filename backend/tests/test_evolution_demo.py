@@ -15,9 +15,9 @@ from src.services.episodic_memory_service import episodic_memory
 
 
 async def demo_evolution():
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("🚀 开始 AI 智能助手系统「自我进化」演示")
-    print("="*50 + "\n")
+    print("=" * 50 + "\n")
 
     workforce = get_workforce()
 
@@ -50,7 +50,9 @@ async def demo_evolution():
     # 场景 2: 人类反馈 (强化学习信号)
     # ------------------------------------------------------------
     print("\n👍 [Feedback] 用户对 Task 1 给出了 5 星好评！")
-    await episodic_memory.update_feedback(memory_id, rating=5, comment="规划得很清晰，特别是知识产权部分的审查")
+    await episodic_memory.update_feedback(
+        memory_id, rating=5, comment="规划得很清晰，特别是知识产权部分的审查"
+    )
     print("   - 系统已更新记忆权重，标记为「成功经验」")
 
     # 稍作等待，确保向量库刷新（如果是异步写入）
@@ -77,9 +79,10 @@ async def demo_evolution():
     else:
         print("\n❌ 未检索到相似记忆 (可能向量库未初始化或相似度阈值过高)")
 
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("演示结束")
-    print("="*50)
+    print("=" * 50)
+
 
 if __name__ == "__main__":
     # 确保日志不会刷屏

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 法律领域本体（轻量级）
 
@@ -9,10 +8,9 @@
 from __future__ import annotations
 
 import re
-from typing import Iterable
+from collections.abc import Iterable
 
 from src.services.rag.kg.base import EntityType
-
 
 # ---------------------------------------------------------------------------
 # 当事人 / 主体
@@ -85,9 +83,7 @@ LEGAL_REGULATION_PATTERNS: tuple[re.Pattern[str], ...] = (
 )
 
 # 第 N 章 / 第 N 条 / 第 N 款 / 第 N 项
-ARTICLE_REGEX = re.compile(
-    r"第[一二三四五六七八九十百零〇0-9]+(?:章|节|条|款|项|目)"
-)
+ARTICLE_REGEX = re.compile(r"第[一二三四五六七八九十百零〇0-9]+(?:章|节|条|款|项|目)")
 
 
 # ---------------------------------------------------------------------------

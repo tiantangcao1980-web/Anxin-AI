@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """fetch 路由 Pydantic schemas（请求 / 响应 DTO）。"""
 
 from __future__ import annotations
@@ -24,13 +23,16 @@ class FetchRequestIn(BaseModel):
     method: str = "GET"
     headers: dict[str, str] = Field(default_factory=dict)
     timeout: int = 30
-    tier_hint: Literal[
-        "L0_CACHE",
-        "L1_HTTP",
-        "L2_CRAWL4AI",
-        "L3_HEADLESSX",
-        "L4_OFFICIAL_API",
-    ] | None = None
+    tier_hint: (
+        Literal[
+            "L0_CACHE",
+            "L1_HTTP",
+            "L2_CRAWL4AI",
+            "L3_HEADLESSX",
+            "L4_OFFICIAL_API",
+        ]
+        | None
+    ) = None
     extract: ExtractConfigIn | None = None
     bypass_cache: bool = False
     extra: dict[str, Any] = Field(default_factory=dict)

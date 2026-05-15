@@ -31,10 +31,15 @@ from starlette.responses import JSONResponse, Response
 from src.core.config import settings
 
 # 白名单路径（不需要签名）
-_SKIP_PATHS = frozenset({
-    "/health", "/docs", "/redoc", "/openapi.json",
-    "/api/v1/auth/security-config",
-})
+_SKIP_PATHS = frozenset(
+    {
+        "/health",
+        "/docs",
+        "/redoc",
+        "/openapi.json",
+        "/api/v1/auth/security-config",
+    }
+)
 
 
 class HMACSignatureMiddleware(BaseHTTPMiddleware):
@@ -48,6 +53,7 @@ class HMACSignatureMiddleware(BaseHTTPMiddleware):
     async def _get_redis(self) -> Any:
         if self._redis is None:
             import redis.asyncio as aioredis
+
             self._redis = aioredis.from_url(  # type: ignore[no-untyped-call]
                 settings.REDIS_URL, encoding="utf-8", decode_responses=True
             )
@@ -74,6 +80,7 @@ class HMACSignatureMiddleware(BaseHTTPMiddleware):
         if auth_header.startswith("Bearer "):
             try:
                 from src.core.security import verify_token
+
                 user_id = verify_token(auth_header[7:], "access")
                 if user_id:
                     redis_client = await self._get_redis()
@@ -87,8 +94,14 @@ class HMACSignatureMiddleware(BaseHTTPMiddleware):
         return getattr(settings, "ANTIBOT_PUBLIC_SIGNING_KEY", "") or None
 
     def _verify_signature(
-        self, signing_key: str, timestamp: str, nonce: str,
-        method: str, path: str, body: bytes, provided_sig: str,
+        self,
+        signing_key: str,
+        timestamp: str,
+        nonce: str,
+        method: str,
+        path: str,
+        body: bytes,
+        provided_sig: str,
     ) -> bool:
         """验证 HMAC-SHA256 签名"""
         body_hash = hashlib.sha256(body).hexdigest()
@@ -167,8 +180,13 @@ class HMACSignatureMiddleware(BaseHTTPMiddleware):
 
             body = await request.body()
             valid = self._verify_signature(
-                signing_key, timestamp, nonce,
-                request.method, request.url.path, body, signature,
+                signing_key,
+                timestamp,
+                nonce,
+                request.method,
+                request.url.path,
+                body,
+                signature,
             )
 
             request.state.hmac_result = {
@@ -177,9 +195,7 @@ class HMACSignatureMiddleware(BaseHTTPMiddleware):
             }
 
             if not valid:
-                logger.warning(
-                    f"HMAC 签名无效: path={request.url.path} method={request.method}"
-                )
+                logger.warning(f"HMAC 签名无效: path={request.url.path} method={request.method}")
                 if getattr(settings, "ANTIBOT_HMAC_ENFORCE", False):
                     return JSONResponse(
                         status_code=401,

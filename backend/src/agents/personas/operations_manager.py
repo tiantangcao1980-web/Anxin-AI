@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 OperationsManagerAgent —— 流程管家 persona（P7-A）
 
@@ -26,13 +25,12 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
-from typing import Any, Dict, List, Optional
+from datetime import date, timedelta
+from typing import Any
 
 from loguru import logger
 
 from src.agents.personas.base_persona import BasePersonaAgent
-
 
 SYSTEM_PROMPT = """你是「流程管家」，制造业团队的 OKR / 审批流 / 会议纪要 / 周报 自动化助理。
 
@@ -87,7 +85,7 @@ class OkrItem:
     objective: str
     owner: str = ""
     progress: float = 0.0  # 0~1
-    key_results: List[Dict[str, Any]] = field(default_factory=list)
+    key_results: list[dict[str, Any]] = field(default_factory=list)
     status: str = "on_track"  # on_track / at_risk / off_track / done
 
 
@@ -99,7 +97,7 @@ class TodoItem:
     priority: str = "P2"  # P0 / P1 / P2 / P3
     source: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "task": self.task,
             "owner": self.owner,
@@ -140,13 +138,13 @@ class OperationsManagerAgent(BasePersonaAgent):
     async def handle_message(
         self,
         message: str,
-        user_id: Optional[str] = None,
-        llm_config: Optional[Any] = None,
-        history: Optional[List[Dict[str, Any]]] = None,
-        extra: Optional[Dict[str, Any]] = None,
+        user_id: str | None = None,
+        llm_config: Any | None = None,
+        history: list[dict[str, Any]] | None = None,
+        extra: dict[str, Any] | None = None,
     ) -> str:
         capability_hint = self._guess_capability(message)
-        prompt_override: Optional[str] = None
+        prompt_override: str | None = None
         if capability_hint:
             prompt_override = (
                 self.SYSTEM_PROMPT
@@ -161,7 +159,7 @@ class OperationsManagerAgent(BasePersonaAgent):
         )
 
     @staticmethod
-    def _guess_capability(message: str) -> Optional[str]:
+    def _guess_capability(message: str) -> str | None:
         """简单关键词路由（仅给 LLM 一个 hint，不强制）。"""
         if not message:
             return None
@@ -184,10 +182,10 @@ class OperationsManagerAgent(BasePersonaAgent):
     async def generate_okr_dashboard(
         self,
         period: str,
-        team: Optional[str] = None,
-        user_id: Optional[str] = None,
-        llm_config: Optional[Any] = None,
-    ) -> Dict[str, Any]:
+        team: str | None = None,
+        user_id: str | None = None,
+        llm_config: Any | None = None,
+    ) -> dict[str, Any]:
         """生成 OKR 看板 markdown + 结构化数据。
 
         返回::
@@ -200,9 +198,7 @@ class OperationsManagerAgent(BasePersonaAgent):
             }
         """
         prompt = (
-            f"请生成 {period} 期间"
-            + (f" {team} 团队" if team else "")
-            + " 的 OKR 看板。\n\n"
+            f"请生成 {period} 期间" + (f" {team} 团队" if team else "") + " 的 OKR 看板。\n\n"
             "格式要求：\n"
             "1. 先输出 markdown 表格（objective / owner / progress / status）。\n"
             "2. 然后输出一段 ```json``` 代码块，结构如下：\n"
@@ -229,10 +225,10 @@ class OperationsManagerAgent(BasePersonaAgent):
         }
 
     @staticmethod
-    def _parse_okr_payload(text: str) -> tuple[List[Dict[str, Any]], Dict[str, int]]:
+    def _parse_okr_payload(text: str) -> tuple[list[dict[str, Any]], dict[str, int]]:
         """从 LLM 返回中抽取 ```json``` 块。失败时返回空。"""
-        items: List[Dict[str, Any]] = []
-        summary: Dict[str, int] = {"total": 0, "on_track": 0, "at_risk": 0, "off_track": 0}
+        items: list[dict[str, Any]] = []
+        summary: dict[str, int] = {"total": 0, "on_track": 0, "at_risk": 0, "off_track": 0}
         if not text:
             return items, summary
         match = re.search(r"```json\s*(.+?)```", text, re.DOTALL)
@@ -261,11 +257,11 @@ class OperationsManagerAgent(BasePersonaAgent):
     async def generate_weekly_report(
         self,
         week_start: date,
-        sources: Optional[List[str]] = None,
-        team: Optional[str] = None,
-        user_id: Optional[str] = None,
-        llm_config: Optional[Any] = None,
-    ) -> Dict[str, Any]:
+        sources: list[str] | None = None,
+        team: str | None = None,
+        user_id: str | None = None,
+        llm_config: Any | None = None,
+    ) -> dict[str, Any]:
         """生成周报草稿。
 
         返回::
@@ -314,8 +310,8 @@ class OperationsManagerAgent(BasePersonaAgent):
         }
 
     @staticmethod
-    def _parse_weekly_sections(text: str) -> Dict[str, List[str]]:
-        result: Dict[str, List[str]] = {"highlights": [], "risks": [], "next_week": []}
+    def _parse_weekly_sections(text: str) -> dict[str, list[str]]:
+        result: dict[str, list[str]] = {"highlights": [], "risks": [], "next_week": []}
         if not text:
             return result
         match = re.search(r"```json\s*(.+?)```", text, re.DOTALL)
@@ -336,12 +332,12 @@ class OperationsManagerAgent(BasePersonaAgent):
     # ------------------------------------------------------------------
     async def transcribe_and_summarize(
         self,
-        audio_url: Optional[str] = None,
-        transcript: Optional[str] = None,
-        meeting_topic: Optional[str] = None,
-        user_id: Optional[str] = None,
-        llm_config: Optional[Any] = None,
-    ) -> Dict[str, Any]:
+        audio_url: str | None = None,
+        transcript: str | None = None,
+        meeting_topic: str | None = None,
+        user_id: str | None = None,
+        llm_config: Any | None = None,
+    ) -> dict[str, Any]:
         """会议录音转写 + 摘要。
 
         参数二选一：
@@ -405,9 +401,9 @@ class OperationsManagerAgent(BasePersonaAgent):
         }
 
     @staticmethod
-    def _parse_minutes_payload(text: str) -> tuple[List[str], List[TodoItem]]:
-        decisions: List[str] = []
-        todos: List[TodoItem] = []
+    def _parse_minutes_payload(text: str) -> tuple[list[str], list[TodoItem]]:
+        decisions: list[str] = []
+        todos: list[TodoItem] = []
         if not text:
             return decisions, todos
         match = re.search(r"```json\s*(.+?)```", text, re.DOTALL)
@@ -440,9 +436,9 @@ class OperationsManagerAgent(BasePersonaAgent):
         self,
         text: str,
         source: str = "free_text",
-        user_id: Optional[str] = None,
-        llm_config: Optional[Any] = None,
-    ) -> List[Dict[str, Any]]:
+        user_id: str | None = None,
+        llm_config: Any | None = None,
+    ) -> list[dict[str, Any]]:
         """从任意文本抽取结构化待办列表。"""
         if not text or not text.strip():
             return []
@@ -472,10 +468,10 @@ class OperationsManagerAgent(BasePersonaAgent):
         self,
         approval_type: str,
         applicant: str,
-        details: Dict[str, Any],
-        user_id: Optional[str] = None,
-        llm_config: Optional[Any] = None,
-    ) -> Dict[str, Any]:
+        details: dict[str, Any],
+        user_id: str | None = None,
+        llm_config: Any | None = None,
+    ) -> dict[str, Any]:
         """审批流编排（占位实现）。
 
         P7-A 阶段：返回 LLM 推荐的审批路径 + 风险提示，
@@ -498,7 +494,7 @@ class OperationsManagerAgent(BasePersonaAgent):
             user_id=user_id,
             llm_config=llm_config,
         )
-        chain: List[str] = []
+        chain: list[str] = []
         risk_level = "low"
         eta_hours = 0
         match = re.search(r"```json\s*(.+?)```", content, re.DOTALL)

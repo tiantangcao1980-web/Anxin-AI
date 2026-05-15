@@ -31,17 +31,16 @@ class MeetingRecord(Base, TimestampMixin):
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    ended_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     started_by: Mapped[str] = mapped_column(
-        GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=False, comment="发起旁听的用户"
+        GUID(),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=False,
+        comment="发起旁听的用户",
     )
 
     # AI 分析产出
-    transcript_text: Mapped[str | None] = mapped_column(
-        Text, nullable=True, comment="完整对话文本"
-    )
+    transcript_text: Mapped[str | None] = mapped_column(Text, nullable=True, comment="完整对话文本")
     summary: Mapped[dict[str, Any] | None] = mapped_column(
         JSON, nullable=True, comment="结构化纪要（摘要/法律分析/风险评估/建议）"
     )

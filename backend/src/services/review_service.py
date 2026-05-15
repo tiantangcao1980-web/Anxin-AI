@@ -104,9 +104,7 @@ class ReviewService:
         page_size: int = 10,
     ) -> dict[str, Any]:
         """分页查询某律师的评价列表（按时间降序）"""
-        base_query = select(LawyerReview).where(
-            LawyerReview.lawyer_profile_id == lawyer_profile_id
-        )
+        base_query = select(LawyerReview).where(LawyerReview.lawyer_profile_id == lawyer_profile_id)
 
         # 总数
         count_q = select(func.count()).select_from(base_query.subquery())
@@ -190,12 +188,14 @@ class ReviewService:
         average_rating = round(float(row.avg_rating or 0), 1)
 
         # 评分分布
-        dist_q = select(
-            LawyerReview.rating,
-            func.count(LawyerReview.id).label("cnt"),
-        ).where(
-            LawyerReview.lawyer_profile_id == lawyer_profile_id
-        ).group_by(LawyerReview.rating)
+        dist_q = (
+            select(
+                LawyerReview.rating,
+                func.count(LawyerReview.id).label("cnt"),
+            )
+            .where(LawyerReview.lawyer_profile_id == lawyer_profile_id)
+            .group_by(LawyerReview.rating)
+        )
         dist_result = await self.db.execute(dist_q)
         rating_distribution = dict.fromkeys(range(1, 6), 0)
         for r in dist_result:

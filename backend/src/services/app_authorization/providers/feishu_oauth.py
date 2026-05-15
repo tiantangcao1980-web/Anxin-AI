@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """飞书（Lark）OAuth 2.0 Provider — P4-B 真实现。
 
 实装了 ``BaseOAuthProvider`` 的 5 个方法，用于「安心智能助手」V3 中
@@ -85,9 +84,7 @@ class FeishuOAuthProvider(BaseOAuthProvider):
     provider_id = "feishu"
     display_name = "飞书"
     category = "office"
-    icon_url = (
-        "https://lf-package-cn.feishucdn.com/obj/feishu-static/locale/feishu-logo.svg"
-    )
+    icon_url = "https://lf-package-cn.feishucdn.com/obj/feishu-static/locale/feishu-logo.svg"
     default_scopes: list[str] = [
         "contact:user.id:readonly",
         "calendar:calendar",
@@ -157,9 +154,7 @@ class FeishuOAuthProvider(BaseOAuthProvider):
     def _ensure_credentials(self) -> None:
         """确保 app_id / app_secret 已配置；否则抛 :class:`OAuthError`。"""
         if not self._app_id or not self._app_secret:
-            raise OAuthError(
-                "飞书 OAuth 未配置：缺少 FEISHU_APP_ID 或 FEISHU_APP_SECRET"
-            )
+            raise OAuthError("飞书 OAuth 未配置：缺少 FEISHU_APP_ID 或 FEISHU_APP_SECRET")
 
     @staticmethod
     def _scopes_csv(scopes: list[str] | None, fallback: list[str]) -> str:
@@ -231,9 +226,7 @@ class FeishuOAuthProvider(BaseOAuthProvider):
                 last_err = e
                 # 5xx 也走重试，4xx（除 429 已上面处理）直接抛
                 if e.response is not None and e.response.status_code < 500:
-                    raise OAuthError(
-                        f"飞书 OAuth HTTP {e.response.status_code} 错误: {url}"
-                    ) from e
+                    raise OAuthError(f"飞书 OAuth HTTP {e.response.status_code} 错误: {url}") from e
                 if attempt >= MAX_RETRIES_ON_RATE_LIMIT:
                     break
                 await asyncio.sleep(0.5 * (2**attempt))
@@ -243,7 +236,9 @@ class FeishuOAuthProvider(BaseOAuthProvider):
                     break
                 await asyncio.sleep(0.5 * (2**attempt))
 
-        raise OAuthError(f"飞书 OAuth 调用失败（已重试 {MAX_RETRIES_ON_RATE_LIMIT} 次）: {url} → {last_err}")
+        raise OAuthError(
+            f"飞书 OAuth 调用失败（已重试 {MAX_RETRIES_ON_RATE_LIMIT} 次）: {url} → {last_err}"
+        )
 
     # ------------------------------------------------------------------
     # 1. authorize_url —— 生成跳转授权页
@@ -396,9 +391,7 @@ class FeishuOAuthProvider(BaseOAuthProvider):
         payload = data.get("data") if isinstance(data.get("data"), dict) else data
         access_token = payload.get("access_token") or ""
         if not access_token:
-            raise OAuthError(
-                f"飞书 token 响应缺少 access_token: {data!r}"
-            )
+            raise OAuthError(f"飞书 token 响应缺少 access_token: {data!r}")
         return OAuthTokenBundle(
             access_token=access_token,
             refresh_token=payload.get("refresh_token"),

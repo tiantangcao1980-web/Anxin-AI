@@ -71,19 +71,27 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
         "http://localhost:3001",
-        "tauri://localhost",          # Tauri 桌面端
-        "https://tauri.localhost",    # Tauri v2 移动端 (Android/iOS)
-        "http://tauri.localhost",     # Tauri v2 移动端 (备用)
+        "tauri://localhost",  # Tauri 桌面端
+        "https://tauri.localhost",  # Tauri v2 移动端 (Android/iOS)
+        "http://tauri.localhost",  # Tauri v2 移动端 (备用)
     ]
     CORS_ALLOW_CREDENTIALS: bool = True
     CORS_ALLOW_METHODS: list[str] = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
     CORS_ALLOW_HEADERS: list[str] = [
-        "Authorization", "Content-Type", "Accept", "X-Requested-With",
-        "X-Integration-Key", "X-Request-ID",
+        "Authorization",
+        "Content-Type",
+        "Accept",
+        "X-Requested-With",
+        "X-Integration-Key",
+        "X-Request-ID",
         # 反Bot防御头
-        "X-Request-Timestamp", "X-Request-Nonce", "X-Request-Signature",
-        "X-Client-ID", "X-Bot-Signals",
-        "X-Challenge-ID", "X-Challenge-Solution",
+        "X-Request-Timestamp",
+        "X-Request-Nonce",
+        "X-Request-Signature",
+        "X-Client-ID",
+        "X-Bot-Signals",
+        "X-Challenge-ID",
+        "X-Challenge-Solution",
         "X-Capability-Route-Token",
     ]
 
@@ -91,8 +99,15 @@ class Settings(BaseSettings):
     MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024  # 10MB
     MAX_QUERY_LENGTH: int = 1000  # 最大查询长度
     ALLOWED_FILE_EXTENSIONS: list[str] = [
-        ".pdf", ".doc", ".docx", ".txt", ".md",
-        ".xlsx", ".xls", ".csv", ".pptx",
+        ".pdf",
+        ".doc",
+        ".docx",
+        ".txt",
+        ".md",
+        ".xlsx",
+        ".xls",
+        ".csv",
+        ".pptx",
     ]
 
     # 敏感数据加密
@@ -124,22 +139,22 @@ class Settings(BaseSettings):
     BROWSER_FETCH_ROUTE_TOKEN_REQUIRED: bool = False
 
     # ========== 反Bot防御配置 ==========
-    ANTIBOT_ENABLED: bool = False               # 总开关
-    ANTIBOT_HMAC_ENABLED: bool = False          # HMAC 签名验证
-    ANTIBOT_HMAC_ENFORCE: bool = False          # False=仅记录, True=拦截
-    ANTIBOT_PUBLIC_SIGNING_KEY: str = ""        # 公共签名密钥
-    ANTIBOT_TIMESTAMP_DRIFT: int = 300          # 时间偏移容忍（秒）
-    ANTIBOT_NONCE_TTL: int = 600                # Nonce TTL（秒）
-    ANTIBOT_WAF_ENABLED: bool = False           # WAF 开关
-    ANTIBOT_WAF_LOG_ONLY: bool = True           # WAF 仅记录模式
-    ANTIBOT_FINGERPRINT_ENABLED: bool = False   # 浏览器指纹检测
-    ANTIBOT_MAX_IPS_PER_FP: int = 5             # 单指纹最大 IP 数
-    ANTIBOT_MAX_FPS_PER_IP: int = 10            # 单 IP 最大指纹数
+    ANTIBOT_ENABLED: bool = False  # 总开关
+    ANTIBOT_HMAC_ENABLED: bool = False  # HMAC 签名验证
+    ANTIBOT_HMAC_ENFORCE: bool = False  # False=仅记录, True=拦截
+    ANTIBOT_PUBLIC_SIGNING_KEY: str = ""  # 公共签名密钥
+    ANTIBOT_TIMESTAMP_DRIFT: int = 300  # 时间偏移容忍（秒）
+    ANTIBOT_NONCE_TTL: int = 600  # Nonce TTL（秒）
+    ANTIBOT_WAF_ENABLED: bool = False  # WAF 开关
+    ANTIBOT_WAF_LOG_ONLY: bool = True  # WAF 仅记录模式
+    ANTIBOT_FINGERPRINT_ENABLED: bool = False  # 浏览器指纹检测
+    ANTIBOT_MAX_IPS_PER_FP: int = 5  # 单指纹最大 IP 数
+    ANTIBOT_MAX_FPS_PER_IP: int = 10  # 单 IP 最大指纹数
     ANTIBOT_RISK_SCORING_ENABLED: bool = False  # 风控引擎
-    ANTIBOT_CHALLENGE_THRESHOLD: int = 30       # 挑战阈值
-    ANTIBOT_BLOCK_THRESHOLD: int = 70           # 阻断阈值
-    ANTIBOT_POW_ENABLED: bool = False           # PoW 挑战
-    ANTIBOT_POW_DIFFICULTY: int = 4             # PoW 难度（前缀零个数）
+    ANTIBOT_CHALLENGE_THRESHOLD: int = 30  # 挑战阈值
+    ANTIBOT_BLOCK_THRESHOLD: int = 70  # 阻断阈值
+    ANTIBOT_POW_ENABLED: bool = False  # PoW 挑战
+    ANTIBOT_POW_DIFFICULTY: int = 4  # PoW 难度（前缀零个数）
     WECHAT_PAY_WEBHOOK_SECRET: str | None = None
     PAYMENT_NOTIFY_BASE_URL: str | None = None
     WECHAT_PAY_APP_ID: str | None = None
@@ -369,14 +384,14 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str | None = None
 
     # ========== 搜索服务 API ==========
-    TAVILY_API_KEY: str = ""        # Tavily Search API (https://tavily.com)
-    BING_SEARCH_KEY: str = ""       # Bing Web Search API
+    TAVILY_API_KEY: str = ""  # Tavily Search API (https://tavily.com)
+    BING_SEARCH_KEY: str = ""  # Bing Web Search API
 
     # ===== Crawl4AI 配置 =====
     CRAWL4AI_ENABLED: bool = True
-    CRAWL4AI_TIMEOUT: int = 30          # 单页超时（秒）
-    CRAWL4AI_MAX_CONCURRENT: int = 3    # 最大并发爬取数
-    CRAWL4AI_CACHE_ENABLED: bool = True # 启用 Crawl4AI 内置缓存
+    CRAWL4AI_TIMEOUT: int = 30  # 单页超时（秒）
+    CRAWL4AI_MAX_CONCURRENT: int = 3  # 最大并发爬取数
+    CRAWL4AI_CACHE_ENABLED: bool = True  # 启用 Crawl4AI 内置缓存
     CRAWL4AI_VERBOSE: bool = False
 
     # ===== SearXNG 配置 =====
@@ -393,9 +408,11 @@ class Settings(BaseSettings):
 
     # ===== HeadlessX 反检测抓取层（P6-B） =====
     # self-hosted Camoufox-based scraping platform: https://github.com/saifyxpro/HeadlessX
-    HEADLESSX_BASE_URL: str = ""                # http://headlessx:3000 (Docker 内部) 或 https://headlessx.example.com
-    HEADLESSX_API_KEY: str = ""                 # x-api-key 鉴权
-    HEADLESSX_TIMEOUT: int = 60                 # 单次渲染超时 (秒)
+    HEADLESSX_BASE_URL: str = (
+        ""  # http://headlessx:3000 (Docker 内部) 或 https://headlessx.example.com
+    )
+    HEADLESSX_API_KEY: str = ""  # x-api-key 鉴权
+    HEADLESSX_TIMEOUT: int = 60  # 单次渲染超时 (秒)
     HEADLESSX_FALLBACK_TIER: str = "l2_crawl4ai"  # L3 失败时回退到哪一层
 
     # ===== OAuth 第三方登录 =====
@@ -419,8 +436,8 @@ class Settings(BaseSettings):
     # 控制台：https://open.feishu.cn → 应用凭证
     FEISHU_APP_ID: str = ""
     FEISHU_APP_SECRET: str = ""
-    FEISHU_VERIFY_TOKEN: str = ""    # 事件订阅 Verification Token
-    FEISHU_ENCRYPT_KEY: str = ""     # 事件订阅 Encrypt Key（开启加密推送时使用）
+    FEISHU_VERIFY_TOKEN: str = ""  # 事件订阅 Verification Token
+    FEISHU_ENCRYPT_KEY: str = ""  # 事件订阅 Encrypt Key（开启加密推送时使用）
     # P16-C: fail-closed —— 默认要求飞书签名校验。仅当显式置为 False 时才允许
     # 在 encrypt_key 缺失的情况下放行（仅推荐本地调试 / 联调环境）。
     FEISHU_VERIFY_SIGNATURE: bool = True
@@ -466,8 +483,7 @@ class Settings(BaseSettings):
         if self.JWT_SECRET_KEY == "your-super-secret-jwt-key-change-in-production":
             if self.ENVIRONMENT in {"production", "staging"}:
                 raise ValueError(
-                    "生产/预发环境必须设置安全的 JWT_SECRET_KEY！"
-                    "请在环境变量中设置强密钥。"
+                    "生产/预发环境必须设置安全的 JWT_SECRET_KEY！" "请在环境变量中设置强密钥。"
                 )
             elif self.ENVIRONMENT == "development":
                 # 开发环境自动生成密钥

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """L1HttpTier 单测 — mock httpx，验证 fetch + 抽取。"""
 
 from __future__ import annotations

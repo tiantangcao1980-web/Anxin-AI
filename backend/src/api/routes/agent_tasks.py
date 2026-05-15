@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 agent_tasks 路由 —— P2 异步任务 MVP
 
@@ -19,7 +18,7 @@ agent_tasks 路由 —— P2 异步任务 MVP
 from __future__ import annotations
 
 import json
-from typing import AsyncIterator, Optional
+from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
@@ -40,7 +39,6 @@ from src.services.task_orchestrator.events import consume_events, replay_events
 from src.services.task_orchestrator.models import Task, TaskStatus
 from src.services.task_orchestrator.service import TaskOrchestratorService
 from src.services.task_orchestrator.state_machine import InvalidTransitionError
-
 
 router = APIRouter()
 
@@ -90,7 +88,7 @@ async def create_agent_task(
 
 @router.get("", response_model=AgentTaskListOut)
 async def list_agent_tasks(
-    status_filter: Optional[TaskStatus] = Query(default=None, alias="status"),
+    status_filter: TaskStatus | None = Query(default=None, alias="status"),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     user: User = Depends(get_current_user_required),
@@ -215,7 +213,7 @@ def _format_sse(event_id: str, event_name: str, data: str) -> str:
 async def stream_agent_task_events(
     request: Request,
     task_id: str,
-    last_event_id: Optional[str] = Header(default=None, alias="Last-Event-ID"),
+    last_event_id: str | None = Header(default=None, alias="Last-Event-ID"),
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:

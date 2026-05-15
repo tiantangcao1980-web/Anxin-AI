@@ -15,6 +15,7 @@ from src.core.evolution.experience_extractor import ExperienceExtractor
 
 class DAGStructure(BaseModel):
     """DAG 结构定义"""
+
     agents: list[str]
     dependencies: dict[str, list[str]]  # agent_id -> 依赖列表
     parallel_groups: list[list[str]]  # 可并行的 Agent 组
@@ -39,9 +40,16 @@ class PolicyOptimizer:
         db: Any = None,
         vector_store: Any = None,
     ):
-        if experience_extractor is not None and not isinstance(experience_extractor, ExperienceExtractor):
+        if experience_extractor is not None and not isinstance(
+            experience_extractor, ExperienceExtractor
+        ):
             # 兼容旧签名：PolicyOptimizer(db, vector_store)
-            db, vector_store, episodic_memory, experience_extractor = episodic_memory, experience_extractor, None, None
+            db, vector_store, episodic_memory, experience_extractor = (
+                episodic_memory,
+                experience_extractor,
+                None,
+                None,
+            )
 
         self.episodic_memory = episodic_memory
         self.experience_extractor = experience_extractor or ExperienceExtractor(
@@ -54,10 +62,7 @@ class PolicyOptimizer:
         self._optimization_cache: dict[str, Any] = {}
 
     async def optimize_agent_selection(
-        self,
-        task_description: str,
-        task_type: str,
-        current_agents: list[str] | None = None
+        self, task_description: str, task_type: str, current_agents: list[str] | None = None
     ) -> list[str]:
         """
         优化 Agent 选择
@@ -83,11 +88,7 @@ class PolicyOptimizer:
             successful_episodes = await self.episodic_memory.search(
                 query=task_description,
                 top_k=10,
-                filters={
-                    "task_type": task_type,
-                    "is_successful": True,
-                    "min_rating": 4
-                }
+                filters={"task_type": task_type, "is_successful": True, "min_rating": 4},
             )
         elif self.vector_store is not None and hasattr(self.vector_store, "search"):
             successful_episodes = await self.vector_store.search(task_description)
@@ -128,7 +129,7 @@ class PolicyOptimizer:
             # 5. 缓存结果
             self._optimization_cache[cache_key] = {
                 "agents": best_agents,
-                "timestamp": datetime.now().timestamp()
+                "timestamp": datetime.now().timestamp(),
             }
 
             return best_agents
@@ -138,10 +139,7 @@ class PolicyOptimizer:
         return default_agents
 
     async def optimize_dag_structure(
-        self,
-        task_description: str,
-        task_type: str,
-        agents: list[str]
+        self, task_description: str, task_type: str, agents: list[str]
     ) -> DAGStructure:
         """
         优化 DAG 执行结构
@@ -156,10 +154,7 @@ class PolicyOptimizer:
         """
         # 1. 从经验提取器检索 DAG 优化模式
         patterns = await self.experience_extractor.get_patterns(
-            pattern_type="dag_optimization",
-            task_type=task_type,
-            min_confidence=0.6,
-            limit=5
+            pattern_type="dag_optimization", task_type=task_type, min_confidence=0.6, limit=5
         )
 
         if patterns:
@@ -174,7 +169,7 @@ class PolicyOptimizer:
                 dependencies={},  # TODO: 从模式中提取依赖
                 parallel_groups=dag_data.get("parallel_groups", []),
                 estimated_duration=dag_data.get("execution_time", 0),
-                confidence=best_pattern.confidence
+                confidence=best_pattern.confidence,
             )
 
         # 2. 从成功案例中学习
@@ -182,11 +177,7 @@ class PolicyOptimizer:
             successful_episodes = await self.episodic_memory.search(
                 query=task_description,
                 top_k=5,
-                filters={
-                    "task_type": task_type,
-                    "is_successful": True,
-                    "min_rating": 4
-                }
+                filters={"task_type": task_type, "is_successful": True, "min_rating": 4},
             )
         else:
             successful_episodes = []
@@ -194,8 +185,7 @@ class PolicyOptimizer:
         if successful_episodes:
             # 分析最成功的案例
             best_episode = max(
-                successful_episodes,
-                key=lambda e: e.get("success_metrics", {}).get("efficiency", 0)
+                successful_episodes, key=lambda e: e.get("success_metrics", {}).get("efficiency", 0)
             )
 
             logger.info(f"基于最佳案例构建 DAG: {best_episode['episode_id']}")
@@ -206,10 +196,7 @@ class PolicyOptimizer:
         return self._default_dag(agents)
 
     async def optimize_parameters(
-        self,
-        task_type: str,
-        agent_name: str,
-        current_params: dict[str, Any]
+        self, task_type: str, agent_name: str, current_params: dict[str, Any]
     ) -> dict[str, Any]:
         """
         优化 Agent 参数
@@ -275,13 +262,11 @@ class PolicyOptimizer:
             dependencies={agents[i]: agents[:i] for i in range(1, len(agents))},
             parallel_groups=[],
             estimated_duration=len(agents) * 30,  # 假设每个 Agent 30秒
-            confidence=0.5
+            confidence=0.5,
         )
 
     def _build_dag_from_episode(
-        self,
-        episode: dict[str, Any],
-        available_agents: list[str]
+        self, episode: dict[str, Any], available_agents: list[str]
     ) -> DAGStructure:
         """
         从历史案例构建 DAG
@@ -315,7 +300,7 @@ class PolicyOptimizer:
             dependencies=dependencies,
             parallel_groups=parallel_groups,
             estimated_duration=episode.get("success_metrics", {}).get("execution_time", 0),
-            confidence=0.7  # 基于历史数据
+            confidence=0.7,  # 基于历史数据
         )
 
     async def get_optimization_stats(self) -> dict[str, Any]:
@@ -330,7 +315,7 @@ class PolicyOptimizer:
         return {
             "cache_size": len(self._optimization_cache),
             "pattern_stats": pattern_stats,
-            "last_optimization": datetime.now().isoformat()
+            "last_optimization": datetime.now().isoformat(),
         }
 
     def _rank_combinations(self, combinations: list[dict[str, Any]]) -> list[dict[str, Any]]:

@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.audit import AuditAction, AuditLog
 from src.models.user import User
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class AuditService:
@@ -42,7 +42,7 @@ class AuditService:
     ) -> AuditLog:
         """
         记录审计日志
-        
+
         Args:
             action: 操作类型
             resource_type: 资源类型
@@ -56,7 +56,7 @@ class AuditService:
             status: 操作状态
             error_message: 错误信息
             extra_data: 额外数据
-            
+
         Returns:
             创建的审计日志记录
         """
@@ -102,7 +102,7 @@ class AuditService:
     ) -> AuditLog:
         """
         从请求对象记录审计日志
-        
+
         自动提取IP地址、User-Agent等信息
         """
         # 获取客户端IP（考虑代理）
@@ -147,7 +147,7 @@ class AuditService:
     ) -> list[AuditLog]:
         """
         查询审计日志
-        
+
         Args:
             user_id: 按用户ID筛选
             action: 按单个操作类型筛选
@@ -161,7 +161,7 @@ class AuditService:
             limit: 返回数量限制
             offset: 偏移量
             order_desc: 是否按时间倒序
-            
+
         Returns:
             审计日志列表
         """
@@ -382,9 +382,7 @@ class AuditService:
         )
 
         if org_id:
-            org_members = await self.db.execute(
-                select(User.id).where(User.org_id == org_id)
-            )
+            org_members = await self.db.execute(select(User.id).where(User.org_id == org_id))
             member_ids = {str(row[0]) for row in org_members.all()}
             logs = [log for log in logs if log.user_id in member_ids]
 
@@ -429,7 +427,7 @@ class AuditService:
         合伙人、律师、律所管理员的所有操作都强制记录。
         """
         provider_roles = {"partner", "lawyer", "paralegal", "platform_lawyer", "org_admin"}
-        return user.role in provider_roles or getattr(user, 'primary_client', '') == 'provider'
+        return user.role in provider_roles or getattr(user, "primary_client", "") == "provider"
 
     async def generate_compliance_report(
         self,
@@ -452,8 +450,7 @@ class AuditService:
             select(User.id, User.name, User.role).where(User.org_id == org_id)
         )
         user_map = {
-            str(user_id): {"name": name, "role": role}
-            for user_id, name, role in org_users.all()
+            str(user_id): {"name": name, "role": role} for user_id, name, role in org_users.all()
         }
 
         logs = await self.db.execute(
@@ -481,12 +478,14 @@ class AuditService:
             user_activity[uid] = user_activity.get(uid, 0) + 1
 
             if record.status == "failed":
-                failed_ops.append({
-                    "action": action,
-                    "user": user_map.get(uid, {}).get("name", uid),
-                    "time": record.created_at.isoformat() if record.created_at else None,
-                    "error": record.error_message,
-                })
+                failed_ops.append(
+                    {
+                        "action": action,
+                        "user": user_map.get(uid, {}).get("name", uid),
+                        "time": record.created_at.isoformat() if record.created_at else None,
+                        "error": record.error_message,
+                    }
+                )
 
         return {
             "org_id": org_id,
@@ -498,7 +497,9 @@ class AuditService:
             "action_breakdown": action_counts,
             "user_activity": {
                 user_map.get(uid, {}).get("name", uid): count
-                for uid, count in sorted(user_activity.items(), key=lambda item: item[1], reverse=True)
+                for uid, count in sorted(
+                    user_activity.items(), key=lambda item: item[1], reverse=True
+                )
             },
             "failed_operations": failed_ops[:20],
             "compliance_status": "pass" if not failed_ops else "review_needed",
@@ -535,6 +536,7 @@ def audit_log(
         async def create_case(db, user, data):
             ...
     """
+
     def decorator(func: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
         @functools.wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> T:
@@ -613,4 +615,5 @@ def audit_log(
                         logger.error(f"审计日志记录失败: {log_error}")
 
         return wrapper
+
     return decorator

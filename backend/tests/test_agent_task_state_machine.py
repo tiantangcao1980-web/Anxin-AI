@@ -1,11 +1,9 @@
-# -*- coding: utf-8 -*-
 """
 状态机单元测试 —— 不依赖数据库，纯内存对象。
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
@@ -87,9 +85,7 @@ def test_legal_transitions(from_state: TaskStatus, to_state: TaskStatus) -> None
         (TaskStatus.NEEDS_APPROVAL, TaskStatus.DONE),  # 必须先回 RUNNING
     ],
 )
-def test_illegal_transitions_blocked(
-    from_state: TaskStatus, to_state: TaskStatus
-) -> None:
+def test_illegal_transitions_blocked(from_state: TaskStatus, to_state: TaskStatus) -> None:
     """非法转移必须抛 InvalidTransitionError（继承 ValueError）。"""
     sm = TaskStateMachine()
     task = _make_task(from_state)

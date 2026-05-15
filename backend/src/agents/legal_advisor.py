@@ -56,7 +56,5 @@ class LegalAdvisorAgent(BaseLegalAgent):
             content=response,
             reasoning="基于法律专业知识和相关法规进行分析",
             citations=[],  # TODO: 添加法律引用
-            actions=[
-                {"type": "recommendation", "description": "建议进一步咨询专业律师"}
-            ]
+            actions=[{"type": "recommendation", "description": "建议进一步咨询专业律师"}],
         )

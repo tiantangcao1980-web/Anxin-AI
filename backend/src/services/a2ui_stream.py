@@ -109,6 +109,7 @@ class A2UIStream:
 
 # ========== 法务专用卡片工厂函数 ==========
 
+
 def make_lawyer_card(
     lawyer_id: str,
     name: str,
@@ -136,11 +137,14 @@ def make_lawyer_card(
             "consultFee": kwargs.get("consult_fee"),
             "introduction": kwargs.get("introduction"),
             "avatar": kwargs.get("avatar"),
-            "action": kwargs.get("action", {
-                "label": "立即咨询",
-                "actionId": "consult_lawyer",
-                "payload": {"lawyerId": lawyer_id},
-            }),
+            "action": kwargs.get(
+                "action",
+                {
+                    "label": "立即咨询",
+                    "actionId": "consult_lawyer",
+                    "payload": {"lawyerId": lawyer_id},
+                },
+            ),
         },
     }
 
@@ -163,10 +167,13 @@ def make_contract_compare_card(
             "rightLabel": right_label,
             "clauses": clauses,
             "summary": kwargs.get("summary"),
-            "actions": kwargs.get("actions", [
-                {"label": "接受修改", "actionId": "accept_changes", "variant": "primary"},
-                {"label": "导出报告", "actionId": "export_report", "variant": "outline"},
-            ]),
+            "actions": kwargs.get(
+                "actions",
+                [
+                    {"label": "接受修改", "actionId": "accept_changes", "variant": "primary"},
+                    {"label": "导出报告", "actionId": "export_report", "variant": "outline"},
+                ],
+            ),
         },
     }
 
@@ -190,8 +197,11 @@ def make_fee_estimate_card(
             "packages": kwargs.get("packages"),
             "paymentMethods": kwargs.get("payment_methods"),
             "notes": kwargs.get("notes"),
-            "actions": kwargs.get("actions", [
-                {"label": "确认费用", "actionId": "confirm_fee", "variant": "primary"},
-            ]),
+            "actions": kwargs.get(
+                "actions",
+                [
+                    {"label": "确认费用", "actionId": "confirm_fee", "variant": "primary"},
+                ],
+            ),
         },
     }

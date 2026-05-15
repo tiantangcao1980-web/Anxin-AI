@@ -92,8 +92,7 @@ async def handle_verified_webhook(
         raise UnsupportedWebhookScopeError(f"Unsupported webhook scope: {scope}")
 
     resolved_key = str(
-        idempotency_key
-        or build_webhook_idempotency_key(scope, payload=payload, body=body)
+        idempotency_key or build_webhook_idempotency_key(scope, payload=payload, body=body)
     )
     async with webhook_processing_lock(scope, resolved_key):
         record, already_handled = await begin_webhook(

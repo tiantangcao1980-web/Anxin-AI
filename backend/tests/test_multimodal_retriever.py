@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P13-C: MultimodalRetriever 单元测试。
 
 mock 三个 Protocol：
@@ -26,7 +25,6 @@ from src.services.rag.query.base import (
     RetrievedSegment,
 )
 from src.services.rag.query.multimodal_retriever import MultimodalRetriever
-
 
 # ============ 测试用 stub ============
 
@@ -139,9 +137,7 @@ async def test_modality_expander_dedupes() -> None:
     primary = [_seg("t1", Modality.TEXT, 0.9)]
     extras = [_seg("t1", Modality.TEXT, 0.1)]  # 同 id
     vs = StubVectorSearcher(primary)
-    retr = MultimodalRetriever(
-        vector_searcher=vs, modality_expander=StubModalityExpander(extras)
-    )
+    retr = MultimodalRetriever(vector_searcher=vs, modality_expander=StubModalityExpander(extras))
     out = await retr.retrieve(MultimodalQueryRequest(query="合同", top_k=5))
     assert len([s for s in out if s.segment_id == "t1"]) == 1
 

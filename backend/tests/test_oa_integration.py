@@ -20,6 +20,7 @@ async def test_oa_notification():
     res_ding = await oa_service.send_notification("u2", "Test Title", "Test Content", "dingtalk")
     assert res_ding is True
 
+
 @pytest.mark.asyncio
 async def test_oa_approval():
     # Test WeCom
@@ -27,6 +28,7 @@ async def test_oa_approval():
         "Contract Review", {"amount": 1000}, "u_init", "wecom"
     )
     assert "wecom_sp" in instance_id
+
 
 @pytest.mark.asyncio
 async def test_org_sync():

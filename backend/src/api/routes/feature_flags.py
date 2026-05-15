@@ -1,4 +1,3 @@
-
 from datetime import datetime
 from typing import Any
 
@@ -82,23 +81,26 @@ async def admin_list_flags(
     flags = await service.list_all()
     if user.role == UserRole.ORG_ADMIN.value:
         flags = [
-            f for f in flags
+            f
+            for f in flags
             if not f.target_org_ids or str(getattr(user, "org_id", "")) in f.target_org_ids
         ]
     # 搜索过滤
     if search:
         search_lower = search.lower()
         flags = [
-            f for f in flags
-            if search_lower in (f.key or "").lower()
-            or search_lower in (f.name or "").lower()
+            f
+            for f in flags
+            if search_lower in (f.key or "").lower() or search_lower in (f.name or "").lower()
         ]
     total = len(flags)
-    flags = flags[skip: skip + limit]
-    return UnifiedResponse.success(data={
-        "items": [_flag_to_dict(f) for f in flags],
-        "meta": {"total": total, "skip": skip, "limit": limit},
-    })
+    flags = flags[skip : skip + limit]
+    return UnifiedResponse.success(
+        data={
+            "items": [_flag_to_dict(f) for f in flags],
+            "meta": {"total": total, "skip": skip, "limit": limit},
+        }
+    )
 
 
 @router.post("/admin/feature-flags")
@@ -111,17 +113,19 @@ async def admin_create_flag(
     existing = await service.get_by_key(data.key)
     if existing:
         return UnifiedResponse.error(code=409, message=f"功能标识 '{data.key}' 已存在")
-    flag = await service.create({
-        "key": data.key,
-        "name": data.name,
-        "description": data.description,
-        "enabled": data.enabled,
-        "rollout_percentage": data.rollout_percentage,
-        "target_roles": data.target_roles,
-        "target_org_ids": data.target_org_ids,
-        "metadata_": data.metadata,
-        "expires_at": data.expires_at,
-    })
+    flag = await service.create(
+        {
+            "key": data.key,
+            "name": data.name,
+            "description": data.description,
+            "enabled": data.enabled,
+            "rollout_percentage": data.rollout_percentage,
+            "target_roles": data.target_roles,
+            "target_org_ids": data.target_org_ids,
+            "metadata_": data.metadata,
+            "expires_at": data.expires_at,
+        }
+    )
     return UnifiedResponse.success(data=_flag_to_dict(flag))
 
 

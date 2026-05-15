@@ -38,16 +38,41 @@ DEFAULT_AI_PROFILE: dict[str, Any] = {
 
 # 法律专业术语集（用于推断用户专业度）
 _EXPERT_TERMS = {
-    "不可抗力", "违约金", "约定管辖", "仲裁条款", "竞业限制",
-    "善意取得", "表见代理", "缔约过失", "情势变更", "代位权",
-    "撤销权", "格式条款", "诉讼时效", "连带责任", "担保物权",
-    "股东代表诉讼", "对赌协议", "优先清算权", "反稀释",
-    "个人信息保护法", "GDPR", "合规体检", "尽调",
+    "不可抗力",
+    "违约金",
+    "约定管辖",
+    "仲裁条款",
+    "竞业限制",
+    "善意取得",
+    "表见代理",
+    "缔约过失",
+    "情势变更",
+    "代位权",
+    "撤销权",
+    "格式条款",
+    "诉讼时效",
+    "连带责任",
+    "担保物权",
+    "股东代表诉讼",
+    "对赌协议",
+    "优先清算权",
+    "反稀释",
+    "个人信息保护法",
+    "GDPR",
+    "合规体检",
+    "尽调",
 }
 
 _NOVICE_INDICATORS = {
-    "请问", "不太懂", "什么意思", "怎么办", "能不能",
-    "帮我看看", "我不知道", "我想了解", "帮帮忙",
+    "请问",
+    "不太懂",
+    "什么意思",
+    "怎么办",
+    "能不能",
+    "帮我看看",
+    "我不知道",
+    "我想了解",
+    "帮帮忙",
 }
 
 
@@ -61,9 +86,7 @@ class UserProfileService:
         """
         加载用户 AI 画像，不存在则返回默认值。
         """
-        result = await self.db.execute(
-            select(User.ai_profile).where(User.id == user_id)
-        )
+        result = await self.db.execute(select(User.ai_profile).where(User.id == user_id))
         raw_profile = result.scalar_one_or_none()
         if raw_profile and isinstance(raw_profile, dict):
             row = cast(dict[str, Any], raw_profile)
@@ -79,9 +102,7 @@ class UserProfileService:
     async def save_profile(self, user_id: str, profile: dict[str, Any]) -> None:
         """持久化用户画像到数据库"""
         profile["updated_at"] = datetime.now().isoformat()
-        await self.db.execute(
-            update(User).where(User.id == user_id).values(ai_profile=profile)
-        )
+        await self.db.execute(update(User).where(User.id == user_id).values(ai_profile=profile))
         await self.db.flush()
 
     async def update_after_session(
@@ -118,17 +139,11 @@ class UserProfileService:
             stats.get("clarification_rounds_total", 0) + clarification_rounds
         )
         if clarification_abandoned:
-            stats["clarification_abandon_count"] = (
-                stats.get("clarification_abandon_count", 0) + 1
-            )
+            stats["clarification_abandon_count"] = stats.get("clarification_abandon_count", 0) + 1
 
         if feedback_rating is not None:
-            stats["feedback_ratings_sum"] = (
-                stats.get("feedback_ratings_sum", 0) + feedback_rating
-            )
-            stats["feedback_ratings_count"] = (
-                stats.get("feedback_ratings_count", 0) + 1
-            )
+            stats["feedback_ratings_sum"] = stats.get("feedback_ratings_sum", 0) + feedback_rating
+            stats["feedback_ratings_count"] = stats.get("feedback_ratings_count", 0) + 1
 
         # 3. 更新追问耐心度（滑动加权平均）
         total_sessions = stats["total_sessions"]
@@ -154,9 +169,7 @@ class UserProfileService:
             f"sophistication={profile['legal_sophistication']}"
         )
 
-    async def get_clarification_config(
-        self, user_id: str, intent: str
-    ) -> dict[str, Any]:
+    async def get_clarification_config(self, user_id: str, intent: str) -> dict[str, Any]:
         """
         根据用户画像返回追问配置（置信度门控 + 耐心度自适应）。
 
@@ -203,9 +216,7 @@ class UserProfileService:
             "legal_sophistication": profile.get("legal_sophistication", "intermediate"),
         }
 
-    async def update_default_context(
-        self, user_id: str, key: str, value: str
-    ) -> None:
+    async def update_default_context(self, user_id: str, key: str, value: str) -> None:
         """将用户经常提供的信息自动存入默认上下文"""
         profile = await self.get_profile(user_id)
         ctx = profile.get("default_context", {})

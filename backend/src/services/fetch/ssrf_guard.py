@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 SSRF 防护 — 协议白名单 + IP 黑名单 + 域名黑名单 + DNS rebinding 防护。
 
@@ -23,7 +22,7 @@ from __future__ import annotations
 
 import ipaddress
 import socket
-from typing import Iterable
+from collections.abc import Iterable
 from urllib.parse import urlparse
 
 # ---------------------------------------------------------------------------
@@ -36,34 +35,36 @@ ALLOWED_SCHEMES: frozenset[str] = frozenset({"http", "https"})
 # IP 黑名单（云元数据 + 内网保留 + IPv6 等价）
 BLOCKED_IP_RANGES: tuple[ipaddress._BaseNetwork, ...] = (
     # IPv4
-    ipaddress.ip_network("169.254.0.0/16"),    # link-local（AWS/阿里云/GCP metadata）
-    ipaddress.ip_network("127.0.0.0/8"),       # loopback
-    ipaddress.ip_network("10.0.0.0/8"),        # 私有网段 A
-    ipaddress.ip_network("172.16.0.0/12"),     # 私有网段 B
-    ipaddress.ip_network("192.168.0.0/16"),    # 私有网段 C
-    ipaddress.ip_network("0.0.0.0/8"),         # "this network"
-    ipaddress.ip_network("100.64.0.0/10"),     # CGNAT
-    ipaddress.ip_network("224.0.0.0/4"),       # multicast
-    ipaddress.ip_network("240.0.0.0/4"),       # reserved
+    ipaddress.ip_network("169.254.0.0/16"),  # link-local（AWS/阿里云/GCP metadata）
+    ipaddress.ip_network("127.0.0.0/8"),  # loopback
+    ipaddress.ip_network("10.0.0.0/8"),  # 私有网段 A
+    ipaddress.ip_network("172.16.0.0/12"),  # 私有网段 B
+    ipaddress.ip_network("192.168.0.0/16"),  # 私有网段 C
+    ipaddress.ip_network("0.0.0.0/8"),  # "this network"
+    ipaddress.ip_network("100.64.0.0/10"),  # CGNAT
+    ipaddress.ip_network("224.0.0.0/4"),  # multicast
+    ipaddress.ip_network("240.0.0.0/4"),  # reserved
     # IPv6
-    ipaddress.ip_network("::1/128"),           # loopback
-    ipaddress.ip_network("fe80::/10"),         # link-local
-    ipaddress.ip_network("fc00::/7"),          # unique local addresses
-    ipaddress.ip_network("fec0::/10"),         # site-local（已废弃但仍拦）
-    ipaddress.ip_network("ff00::/8"),          # multicast
+    ipaddress.ip_network("::1/128"),  # loopback
+    ipaddress.ip_network("fe80::/10"),  # link-local
+    ipaddress.ip_network("fc00::/7"),  # unique local addresses
+    ipaddress.ip_network("fec0::/10"),  # site-local（已废弃但仍拦）
+    ipaddress.ip_network("ff00::/8"),  # multicast
     # IPv4-mapped IPv6（防绕过）
     ipaddress.ip_network("::ffff:0.0.0.0/96"),
 )
 
 # 域名黑名单（即使解析出公网 IP 也拒绝；额外保险）
-BLOCKED_HOSTNAMES: frozenset[str] = frozenset({
-    "localhost",
-    "metadata.google.internal",
-    "metadata.aws.cn",
-    "metadata",
-    "instance-data",
-    "instance-data.ec2.internal",
-})
+BLOCKED_HOSTNAMES: frozenset[str] = frozenset(
+    {
+        "localhost",
+        "metadata.google.internal",
+        "metadata.aws.cn",
+        "metadata",
+        "instance-data",
+        "instance-data.ec2.internal",
+    }
+)
 
 # 重定向最大深度（与 L1 手动 chain 校验配合）
 MAX_REDIRECT_DEPTH: int = 5

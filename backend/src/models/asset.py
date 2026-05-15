@@ -15,10 +15,13 @@ if TYPE_CHECKING:
 
 class Asset(Base, TimestampMixin):
     """企业资产表"""
+
     __tablename__ = "assets"
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    asset_type: Mapped[str] = mapped_column(String(50), nullable=False)  # real_estate, equity, vehicle, ip, equipment
+    asset_type: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # real_estate, equity, vehicle, ip, equipment
     original_value: Mapped[float] = mapped_column(Float, default=0.0)
     current_value: Mapped[float] = mapped_column(Float, default=0.0)
     acquisition_date: Mapped[Date | None] = mapped_column(Date)
@@ -26,12 +29,10 @@ class Asset(Base, TimestampMixin):
 
     # 归属
     org_id: Mapped[str | None] = mapped_column(
-        GUID(),
-        ForeignKey("organizations.id", ondelete="CASCADE")
+        GUID(), ForeignKey("organizations.id", ondelete="CASCADE")
     )
     created_by: Mapped[str | None] = mapped_column(
-        GUID(),
-        ForeignKey("users.id", ondelete="SET NULL")
+        GUID(), ForeignKey("users.id", ondelete="SET NULL")
     )
 
     # 关系

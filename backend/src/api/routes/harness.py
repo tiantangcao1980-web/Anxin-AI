@@ -5,7 +5,6 @@ Harness Engineering 监控面板 API
 仅管理员可访问。
 """
 
-
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
@@ -23,24 +22,28 @@ async def get_harness_stats(user: Any = Depends(get_admin_user)) -> ResponsePayl
 
     try:
         from src.harness.cost_tracker import cost_tracker
+
         result["cost"] = cost_tracker.get_stats()
     except Exception as e:
         result["cost"] = {"error": str(e)}
 
     try:
         from src.harness.tool_registry import tool_registry
+
         result["tools"] = tool_registry.get_summary()
     except Exception as e:
         result["tools"] = {"error": str(e)}
 
     try:
         from src.harness.policy_engine import policy_engine
+
         result["policy"] = policy_engine.get_stats()
     except Exception as e:
         result["policy"] = {"error": str(e)}
 
     try:
         from src.harness.task_engine import task_engine
+
         result["tasks"] = task_engine.get_stats()
     except Exception as e:
         result["tasks"] = {"error": str(e)}
@@ -52,6 +55,7 @@ async def get_harness_stats(user: Any = Depends(get_admin_user)) -> ResponsePayl
 async def get_cost_stats(user: Any = Depends(get_admin_user)) -> ResponsePayload:
     """获取费用统计详情"""
     from src.harness.cost_tracker import cost_tracker
+
     return {"status": "ok", "data": cost_tracker.get_stats()}
 
 
@@ -62,6 +66,7 @@ async def get_conversation_cost(
 ) -> ResponsePayload:
     """获取单个会话的费用明细"""
     from src.harness.cost_tracker import cost_tracker
+
     return {"status": "ok", "data": cost_tracker.get_conversation_cost(conversation_id)}
 
 
@@ -101,6 +106,7 @@ async def get_tool_stats(
 ) -> ResponsePayload:
     """获取工具调用统计"""
     from src.harness.tool_registry import tool_registry
+
     return {"status": "ok", "data": tool_registry.get_tool_stats(tool_name)}
 
 
@@ -117,6 +123,7 @@ async def check_policy(
 ) -> ResponsePayload:
     """检查 Agent 是否有权限调用工具"""
     from src.harness.policy_engine import PolicyContext, policy_engine
+
     result = policy_engine.check_tool_access(
         agent,
         tool,
@@ -156,6 +163,7 @@ async def get_agent_tools(
 ) -> ResponsePayload:
     """获取 Agent 可用的所有工具"""
     from src.harness.policy_engine import PolicyContext, policy_engine
+
     tools = policy_engine.get_agent_available_tools(
         agent_name,
         context=PolicyContext(
@@ -179,6 +187,7 @@ async def get_policy_audit(
 ) -> ResponsePayload:
     """获取权限审计日志"""
     from src.harness.policy_engine import policy_engine
+
     logs = policy_engine._audit_log[-limit:]
     logs.reverse()
     return {"status": "ok", "data": logs}
@@ -186,10 +195,12 @@ async def get_policy_audit(
 
 # ===== 任务引擎 =====
 
+
 @router.get("/tasks")
 async def get_task_stats(user: Any = Depends(get_admin_user)) -> ResponsePayload:
     """获取任务引擎统计"""
     from src.harness.task_engine import task_engine
+
     return {"status": "ok", "data": task_engine.get_stats()}
 
 
@@ -201,6 +212,7 @@ async def get_user_tasks(
 ) -> ResponsePayload:
     """获取用户任务列表"""
     from src.harness.task_engine import task_engine
+
     return {"status": "ok", "data": task_engine.get_user_tasks(user_id, limit)}
 
 
@@ -211,6 +223,7 @@ async def get_task_detail(
 ) -> ResponsePayload:
     """获取任务详情"""
     from src.harness.task_engine import task_engine
+
     task = task_engine.get_task(task_id)
     if not task:
         return {"status": "error", "message": "任务不存在"}
@@ -234,6 +247,7 @@ async def get_task_detail(
 
 # ===== 多端能力协商 =====
 
+
 @router.get("/capability/negotiate")
 async def negotiate_capability(
     platform: str = Query("web", description="平台类型: web/desktop/mobile/mini_program"),
@@ -246,6 +260,7 @@ async def negotiate_capability(
         PlatformType,
         capability_negotiator,
     )
+
     try:
         result = capability_negotiator.negotiate(
             platform=PlatformType(platform),
@@ -275,6 +290,7 @@ async def get_degradation_notice(
 ) -> ResponsePayload:
     """获取模式切换降级通知"""
     from src.harness.capability_negotiator import AppMode, capability_negotiator
+
     try:
         notice = capability_negotiator.get_degradation_notice(
             from_mode=AppMode(from_mode),

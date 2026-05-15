@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """DueDiligenceExpertPersona —— 「尽调专家 🔍」persona（P9-D）。
 
 定位：公司 / 项目 / 人物全维度尽职调查 — 工商 + 信用 + 诉讼 + 舆情。
@@ -22,12 +21,10 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import re
 import uuid
 from collections import OrderedDict, deque
-from dataclasses import asdict
 from datetime import date, datetime, timedelta
 from typing import Any
 
@@ -141,7 +138,7 @@ class DueDiligenceExpertPersona(BasePersonaAgent):
         self._litigation_source = litigation_source
 
         # 报告 LRU 缓存
-        self._report_cache: "OrderedDict[str, DueDiligenceReport]" = OrderedDict()
+        self._report_cache: OrderedDict[str, DueDiligenceReport] = OrderedDict()
 
     # ------------------------------------------------------------------
     # specialized agent lazy 构造
@@ -149,18 +146,21 @@ class DueDiligenceExpertPersona(BasePersonaAgent):
     def _get_dd_agent(self) -> Any:
         if self._dd_agent is None:
             from src.agents.due_diligence import DueDiligenceAgent
+
             self._dd_agent = DueDiligenceAgent()
         return self._dd_agent
 
     def _get_evidence_agent(self) -> Any:
         if self._evidence_agent is None:
             from src.agents.evidence_analyst import EvidenceAnalystAgent
+
             self._evidence_agent = EvidenceAnalystAgent()
         return self._evidence_agent
 
     def _get_sentiment_agent(self) -> Any:
         if self._sentiment_agent is None:
             from src.agents.sentiment_agent import SentimentAnalysisAgent
+
             self._sentiment_agent = SentimentAnalysisAgent()
         return self._sentiment_agent
 
@@ -192,9 +192,7 @@ class DueDiligenceExpertPersona(BasePersonaAgent):
         # 3) 诉讼记录（接 P6-C HistoricalWenshuSource）
         litigation_records: list[LitigationRecord] = []
         if depth in {"standard", "deep"}:
-            litigation_records = await self._fetch_litigation_records(
-                company_name, citations
-            )
+            litigation_records = await self._fetch_litigation_records(company_name, citations)
 
         # 4) 舆情概览
         public_news_count = 0
@@ -215,9 +213,7 @@ class DueDiligenceExpertPersona(BasePersonaAgent):
             summary = self._template_summary(
                 company_name, basic_info, credit_flags, litigation_records
             )
-            recommendations = self._template_recommendations(
-                credit_flags, litigation_records
-            )
+            recommendations = self._template_recommendations(credit_flags, litigation_records)
 
         # 6) 风险等级（基于已有数据快速归一）
         overall_risk_level = self._infer_risk_level(
@@ -232,7 +228,7 @@ class DueDiligenceExpertPersona(BasePersonaAgent):
             target_type="company",
             investigation_depth=depth,
             basic_info=basic_info,
-            shareholders=[],          # 工商穿透留给后续
+            shareholders=[],  # 工商穿透留给后续
             key_personnel=[],
             litigation_records=litigation_records,
             credit_flags=credit_flags,
@@ -476,9 +472,7 @@ class DueDiligenceExpertPersona(BasePersonaAgent):
 
         root_id = self._entity_id(entity, "company")
         nodes_by_id: dict[str, RelationshipNode] = {
-            root_id: RelationshipNode(
-                id=root_id, name=entity, type="company", attributes={}
-            )
+            root_id: RelationshipNode(id=root_id, name=entity, type="company", attributes={})
         }
         edges: list[RelationshipEdge] = []
         visited: set[str] = {root_id}
@@ -532,9 +526,7 @@ class DueDiligenceExpertPersona(BasePersonaAgent):
     def _entity_id(name: str, type_: str) -> str:
         return f"{type_}:{re.sub(r'[^A-Za-z0-9一-龥]+', '_', name)[:48]}"
 
-    async def _fetch_neighbors(
-        self, node: RelationshipNode
-    ) -> list[tuple[RelationshipNode, str]]:
+    async def _fetch_neighbors(self, node: RelationshipNode) -> list[tuple[RelationshipNode, str]]:
         """获取一阶邻居（mock）。
 
         生产实现：先查 qichacha / 工商穿透 API → CreditChinaSource → litigation。
@@ -599,9 +591,7 @@ class DueDiligenceExpertPersona(BasePersonaAgent):
         legal = 100.0
         if dd_report.litigation_records:
             # 被告 vs 原告：被告更扣分
-            defendants = sum(
-                1 for r in dd_report.litigation_records if r.role == "defendant"
-            )
+            defendants = sum(1 for r in dd_report.litigation_records if r.role == "defendant")
             legal -= min(50, defendants * 8)
             legal -= min(20, len(dd_report.litigation_records) * 2)
 
@@ -786,12 +776,18 @@ class DueDiligenceExpertPersona(BasePersonaAgent):
                 records.append(
                     LitigationRecord(
                         case_number=r.law_id or "",
-                        case_type=(r.extra or {}).get("case_type", "") if isinstance(r.extra, dict) else "",
+                        case_type=(
+                            (r.extra or {}).get("case_type", "")
+                            if isinstance(r.extra, dict)
+                            else ""
+                        ),
                         court=r.issuing_authority or "",
                         role=role,
-                        amount_disputed=(r.extra or {}).get("amount_disputed")
-                        if isinstance(r.extra, dict)
-                        else None,
+                        amount_disputed=(
+                            (r.extra or {}).get("amount_disputed")
+                            if isinstance(r.extra, dict)
+                            else None
+                        ),
                         judgment_date=r.issued_date,
                         judgment_summary=(r.summary or "")[:240],
                         full_text_url=r.full_text_url or "",
@@ -847,18 +843,18 @@ class DueDiligenceExpertPersona(BasePersonaAgent):
             }
             resp = await agent.process(task)
             summary = (resp.content or "").strip()
-            recommendations = self._template_recommendations(
-                credit_flags, litigation_records
+            recommendations = self._template_recommendations(credit_flags, litigation_records)
+            return (
+                summary
+                or self._template_summary(
+                    company_name, basic_info, credit_flags, litigation_records
+                ),
+                recommendations,
             )
-            return summary or self._template_summary(
-                company_name, basic_info, credit_flags, litigation_records
-            ), recommendations
         except Exception as exc:  # pragma: no cover
             logger.debug("dd_agent.process failed: %s", exc)
             return (
-                self._template_summary(
-                    company_name, basic_info, credit_flags, litigation_records
-                ),
+                self._template_summary(company_name, basic_info, credit_flags, litigation_records),
                 self._template_recommendations(credit_flags, litigation_records),
             )
 

@@ -7,7 +7,9 @@ from typing import Any
 from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
 
-_FALLBACK_PROMPT = "你是一位敏锐的监管合规监测专家，专注于跟踪和解读最新的法律法规、监管政策及行业动态。"
+_FALLBACK_PROMPT = (
+    "你是一位敏锐的监管合规监测专家，专注于跟踪和解读最新的法律法规、监管政策及行业动态。"
+)
 
 
 class RegulatoryMonitorAgent(BaseLegalAgent):
@@ -50,7 +52,5 @@ class RegulatoryMonitorAgent(BaseLegalAgent):
             agent_name=self.name,
             content=response,
             reasoning="基于最新监管动态和合规分析框架",
-            actions=[
-                {"type": "compliance_alert", "description": "发布合规预警通知"}
-            ]
+            actions=[{"type": "compliance_alert", "description": "发布合规预警通知"}],
         )

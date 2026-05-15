@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 SkillExecutor 装饰器
 
@@ -46,7 +45,7 @@ def requires_skill(*skill_names: str) -> Callable[[F], F]:
         for n in skill_names:
             if n and n not in existing:
                 existing.append(n)
-        setattr(func, "__required_skills__", existing)
+        func.__required_skills__ = existing
         _REGISTERED[func] = existing
 
         @functools.wraps(func)
@@ -63,7 +62,7 @@ def requires_skill(*skill_names: str) -> Callable[[F], F]:
             return func(*args, **kwargs)
 
         # 保留属性
-        setattr(wrapper, "__required_skills__", existing)
+        wrapper.__required_skills__ = existing
         return wrapper  # type: ignore[return-value]
 
     return decorator

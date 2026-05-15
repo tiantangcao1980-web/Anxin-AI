@@ -8,7 +8,9 @@ from pathlib import Path
 from types import SimpleNamespace
 
 
-def _runner(repo_root: Path, *args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+def _runner(
+    repo_root: Path, *args: str, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
     merged_env = os.environ.copy()
     if env:
         merged_env.update(env)
@@ -76,15 +78,15 @@ def test_preflight_writes_only_redacted_payment_configuration(tmp_path):
     assert "token=hidden" not in stdout_and_report
     assert secret_api_key not in stdout_and_report
     assert merchant_private_key not in stdout_and_report
-    fields = {
-        field["name"]: field
-        for field in report["providers"]["wechat_pay"]["fields"]
-    }
+    fields = {field["name"]: field for field in report["providers"]["wechat_pay"]["fields"]}
     assert fields["WECHAT_PAY_API_V3_KEY"]["redacted"] == "set"
     assert fields["WECHAT_PAY_MERCHANT_PRIVATE_KEY_PATH"]["redacted"].startswith(
         "path:merchant-private.pem:exists=true"
     )
-    assert fields["PAYMENT_NOTIFY_BASE_URL"]["redacted"] == "https://sandbox-payments.anxin.test/callbacks"
+    assert (
+        fields["PAYMENT_NOTIFY_BASE_URL"]["redacted"]
+        == "https://sandbox-payments.anxin.test/callbacks"
+    )
 
 
 def test_sandbox_required_env_fields_are_documented_in_templates():
@@ -149,16 +151,14 @@ def test_preflight_reports_live_runtime_prerequisites(tmp_path):
         for item in report["providers"]["wechat_pay"]["external_evidence_requirements"]
     }
     alipay_external = {
-        item["id"]: item
-        for item in report["providers"]["alipay"]["external_evidence_requirements"]
+        item["id"]: item for item in report["providers"]["alipay"]["external_evidence_requirements"]
     }
     esignbao_external = {
         item["id"]: item
         for item in report["providers"]["esignbao"]["external_evidence_requirements"]
     }
     fadada_external = {
-        item["id"]: item
-        for item in report["providers"]["fadada"]["external_evidence_requirements"]
+        item["id"]: item for item in report["providers"]["fadada"]["external_evidence_requirements"]
     }
 
     assert wechat_external["official_success_callback"]["release_blocking"] is True
@@ -172,15 +172,11 @@ def test_live_probe_validators_preserve_pending_and_failure_states():
     repo_root = Path(__file__).resolve().parents[2]
     runner = _load_runner_module(repo_root)
 
-    refund_status, refund_reason = runner._validate_refund_result(
-        SimpleNamespace(status="pending")
-    )
+    refund_status, refund_reason = runner._validate_refund_result(SimpleNamespace(status="pending"))
     assert refund_status == "pending"
     assert "terminal success" in refund_reason
 
-    flow_status, flow_reason = runner._validate_sign_flow_creation(
-        SimpleNamespace(sign_urls={})
-    )
+    flow_status, flow_reason = runner._validate_sign_flow_creation(SimpleNamespace(sign_urls={}))
     assert flow_status == "pending"
     assert "no signer URL" in flow_reason
 
@@ -201,9 +197,9 @@ def test_release_evidence_templates_list_live_runtime_flags_and_retry_rows():
     payment_template = (
         repo_root / "docs" / "release" / "evidence" / "payment-sandbox.md"
     ).read_text(encoding="utf-8")
-    esign_template = (
-        repo_root / "docs" / "release" / "evidence" / "esign-sandbox.md"
-    ).read_text(encoding="utf-8")
+    esign_template = (repo_root / "docs" / "release" / "evidence" / "esign-sandbox.md").read_text(
+        encoding="utf-8"
+    )
 
     for flag in (
         "--wechat-refund-order-id",

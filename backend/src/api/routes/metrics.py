@@ -10,15 +10,14 @@ Prometheus Metrics 端点
 
 from typing import Any, cast
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 from loguru import logger
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
 from src.core.database import get_db
 from src.models.webhook import WebhookReceived
-
-from src.core.config import settings
 
 router = APIRouter()
 
@@ -58,6 +57,7 @@ async def prometheus_metrics(db: AsyncSession = Depends(get_db)) -> Response:
     # 追加运行时信息
     try:
         import psutil
+
         proc = psutil.Process()
         lines.append("# TYPE anxin_process_memory_bytes gauge")
         lines.append(f"anxin_process_memory_bytes {proc.memory_info().rss}")
@@ -69,6 +69,7 @@ async def prometheus_metrics(db: AsyncSession = Depends(get_db)) -> Response:
     # 追加数据库连接池信息
     try:
         from src.core.database import engine
+
         pool = cast(Any, engine.pool)
         lines.append("# TYPE anxin_db_pool_size gauge")
         lines.append(f"anxin_db_pool_size {pool.size()}")
@@ -81,12 +82,11 @@ async def prometheus_metrics(db: AsyncSession = Depends(get_db)) -> Response:
 
     try:
         result = await db.execute(
-            select(WebhookReceived.status, func.count(WebhookReceived.id)).group_by(WebhookReceived.status)
+            select(WebhookReceived.status, func.count(WebhookReceived.id)).group_by(
+                WebhookReceived.status
+            )
         )
-        webhook_stats: dict[str, int] = {
-            str(row[0]): int(row[1])
-            for row in result.all()
-        }
+        webhook_stats: dict[str, int] = {str(row[0]): int(row[1]) for row in result.all()}
         webhook_total = sum(webhook_stats.values())
         lines.append("# TYPE anxin_webhook_received_total counter")
         lines.append(f"anxin_webhook_received_total {webhook_total}")
@@ -100,7 +100,11 @@ async def prometheus_metrics(db: AsyncSession = Depends(get_db)) -> Response:
     # P19-A: 追加业务级 prometheus_client 暴露（19 个 metric）
     if getattr(settings, "METRICS_ENABLED", True):
         try:
-            from src.services.monitoring.prometheus_metrics import CONTENT_TYPE_LATEST, render_exposition
+            from src.services.monitoring.prometheus_metrics import (
+                CONTENT_TYPE_LATEST,
+                render_exposition,
+            )
+
             return Response(
                 content="\n".join(lines) + "\n" + render_exposition().decode("utf-8"),
                 media_type=CONTENT_TYPE_LATEST,
@@ -123,4 +127,5 @@ async def business_metrics_only(
     if expected and x_metrics_token != expected:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="invalid metrics token")
     from src.services.monitoring.prometheus_metrics import CONTENT_TYPE_LATEST, render_exposition
+
     return Response(content=render_exposition(), media_type=CONTENT_TYPE_LATEST)

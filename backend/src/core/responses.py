@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 class UnifiedResponse(BaseModel):
     """统一响应结构"""
+
     code: int = 200
     data: Any = None
     message: str = "success"
@@ -18,19 +19,9 @@ class UnifiedResponse(BaseModel):
     @classmethod
     def success(cls, data: Any = None, message: str = "success") -> dict[str, Any]:
         """成功响应"""
-        return {
-            "code": 200,
-            "data": data,
-            "message": message,
-            "request_id": str(uuid.uuid4())
-        }
+        return {"code": 200, "data": data, "message": message, "request_id": str(uuid.uuid4())}
 
     @classmethod
     def error(cls, code: int = 400, message: str = "error", data: Any = None) -> dict[str, Any]:
         """错误响应"""
-        return {
-            "code": code,
-            "data": data,
-            "message": message,
-            "request_id": str(uuid.uuid4())
-        }
+        return {"code": code, "data": data, "message": message, "request_id": str(uuid.uuid4())}

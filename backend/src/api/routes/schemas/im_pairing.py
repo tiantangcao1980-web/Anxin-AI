@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """im_pairing 路由 Pydantic schemas（请求 / 响应 DTO）。"""
 
 from __future__ import annotations
@@ -8,7 +7,6 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.services.im_gateway.models import PairingStatus
-
 
 # ---------------------------------------------------------------------------
 # 请求体

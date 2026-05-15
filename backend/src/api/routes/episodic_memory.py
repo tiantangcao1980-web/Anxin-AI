@@ -19,8 +19,10 @@ router = APIRouter()
 
 # ============ 请求/响应模型 ============
 
+
 class MemoryCreate(BaseModel):
     """创建经验记忆"""
+
     task_description: str = Field(..., description="任务描述")
     plan: list[dict[str, Any]] = Field(default_factory=list, description="执行计划")
     final_result: dict[str, Any] = Field(default_factory=dict, description="最终结果")
@@ -30,12 +32,14 @@ class MemoryCreate(BaseModel):
 
 class MemoryFeedback(BaseModel):
     """经验评分反馈"""
+
     rating: int = Field(..., ge=1, le=5, description="评分 1-5")
     comment: str = Field("", description="评价内容")
 
 
 class MemorySearchRequest(BaseModel):
     """经验检索请求"""
+
     query: str = Field(..., description="检索关键词/描述")
     top_k: int = Field(5, ge=1, le=20, description="返回结果数量")
     score_threshold: float = Field(0.5, ge=0, le=1.0, description="最低相似度阈值")
@@ -43,6 +47,7 @@ class MemorySearchRequest(BaseModel):
 
 class MemoryItem(BaseModel):
     """经验记忆条目"""
+
     memory_id: str | None = None
     task: str | None = None
     plan: list[dict[str, Any]] = Field(default_factory=list)
@@ -54,16 +59,18 @@ class MemoryItem(BaseModel):
 
 class EvolutionStatus(BaseModel):
     """自进化状态"""
+
     total_memories: int = 0
     avg_rating: float = 0.0
     high_rated_count: int = 0  # 4-5分
-    low_rated_count: int = 0   # 1-2分
-    unrated_count: int = 0     # 未评分
+    low_rated_count: int = 0  # 1-2分
+    unrated_count: int = 0  # 未评分
     last_evolution_time: str | None = None
     evolution_tasks_total: int = 0
 
 
 # ============ API 端点 ============
+
 
 @router.post("/memories")
 async def create_memory(
@@ -81,14 +88,11 @@ async def create_memory(
         metadata={
             **(request.metadata or {}),
             "created_by": user.id,
-        }
+        },
     )
 
     if memory_id:
-        return UnifiedResponse.success(
-            data={"memory_id": memory_id},
-            message="经验记忆创建成功"
-        )
+        return UnifiedResponse.success(data={"memory_id": memory_id}, message="经验记忆创建成功")
     return UnifiedResponse.error(message="创建失败，向量存储不可用")
 
 
@@ -107,11 +111,13 @@ async def search_memories(
     )
 
     items = [MemoryItem(**r) for r in results]
-    return UnifiedResponse.success(data={
-        "items": items,
-        "total": len(items),
-        "query": request.query,
-    })
+    return UnifiedResponse.success(
+        data={
+            "items": items,
+            "total": len(items),
+            "query": request.query,
+        }
+    )
 
 
 @router.get("/memories/recent")
@@ -130,10 +136,12 @@ async def list_recent_memories(
     )
 
     items = [MemoryItem(**r) for r in results]
-    return UnifiedResponse.success(data={
-        "items": items,
-        "total": len(items),
-    })
+    return UnifiedResponse.success(
+        data={
+            "items": items,
+            "total": len(items),
+        }
+    )
 
 
 @router.put("/memories/{memory_id}/feedback")
@@ -166,7 +174,7 @@ async def get_evolution_status(
     from src.services.crawler_service import crawler_service
 
     # 获取爬虫任务统计
-    tasks = getattr(crawler_service, 'tasks', {})
+    tasks = getattr(crawler_service, "tasks", {})
     total_tasks = len(tasks)
     last_time = None
     if tasks:
@@ -288,12 +296,14 @@ async def get_entity_relations(
             nodes[target] = {"id": target, "label": target, "type": node_type}
 
         if source and target and source in nodes and target in nodes:
-            edges.append({
-                "source": source,
-                "target": target,
-                "relation": relation,
-                "label": relation,
-            })
+            edges.append(
+                {
+                    "source": source,
+                    "target": target,
+                    "relation": relation,
+                    "label": relation,
+                }
+            )
 
     data = {
         "nodes": list(nodes.values()),
@@ -354,8 +364,7 @@ async def get_shortest_path(
     result = await graph_service.get_shortest_path(from_entity, to_entity, max_depth=max_depth)
     if not result.get("found", False):
         return UnifiedResponse.success(
-            data=result,
-            message=f"未找到 '{from_entity}' 到 '{to_entity}' 的路径"
+            data=result, message=f"未找到 '{from_entity}' 到 '{to_entity}' 的路径"
         )
     return UnifiedResponse.success(data=result)
 
@@ -412,8 +421,10 @@ async def get_entity_types(
 
 # ============ 图谱实体/关系 CRUD ============
 
+
 class EntityCreate(BaseModel):
     """创建实体"""
+
     name: str = Field(..., description="实体名称")
     entity_type: str = Field("Entity", description="实体类型（Neo4j标签）")
     properties: dict[str, Any] | None = Field(None, description="实体属性")
@@ -421,11 +432,13 @@ class EntityCreate(BaseModel):
 
 class EntityUpdate(BaseModel):
     """更新实体"""
+
     properties: dict[str, Any] = Field(..., description="要更新的属性")
 
 
 class RelationCreate(BaseModel):
     """创建关系"""
+
     subject: str = Field(..., description="主体实体名称")
     predicate: str = Field(..., description="关系类型")
     object: str = Field(..., description="客体实体名称")
@@ -433,6 +446,7 @@ class RelationCreate(BaseModel):
 
 class RelationDelete(BaseModel):
     """删除关系"""
+
     subject: str
     predicate: str
     object: str
@@ -440,6 +454,7 @@ class RelationDelete(BaseModel):
 
 class EntityExtractRequest(BaseModel):
     """LLM实体抽取请求"""
+
     text: str = Field(..., description="待抽取的文本内容")
     auto_import: bool = Field(False, description="是否自动导入到图谱")
 
@@ -451,6 +466,7 @@ async def create_entity(
 ) -> dict[str, Any]:
     """创建图谱实体"""
     from src.services.graph_service import graph_service
+
     result = await graph_service.create_entity(
         name=request.name, entity_type=request.entity_type, properties=request.properties
     )
@@ -467,6 +483,7 @@ async def update_entity(
 ) -> dict[str, Any]:
     """更新图谱实体属性"""
     from src.services.graph_service import graph_service
+
     result = await graph_service.update_entity(entity_name, request.properties)
     if not result.get("success"):
         return UnifiedResponse.error(message=result.get("error", "更新失败"))
@@ -480,6 +497,7 @@ async def delete_entity(
 ) -> dict[str, Any]:
     """删除图谱实体（DETACH DELETE）"""
     from src.services.graph_service import graph_service
+
     result = await graph_service.delete_entity(entity_name)
     if not result.get("success"):
         return UnifiedResponse.error(message=result.get("error", "删除失败"))
@@ -493,6 +511,7 @@ async def create_relation(
 ) -> dict[str, Any]:
     """创建图谱关系"""
     from src.services.graph_service import graph_service
+
     result = await graph_service.create_relation(
         subject=request.subject, predicate=request.predicate, obj=request.object
     )
@@ -508,6 +527,7 @@ async def delete_relation(
 ) -> dict[str, Any]:
     """删除图谱关系"""
     from src.services.graph_service import graph_service
+
     result = await graph_service.delete_relation(
         subject=request.subject, predicate=request.predicate, obj=request.object
     )
@@ -524,12 +544,11 @@ async def export_graph(
 ) -> dict[str, Any]:
     """导出图谱三元组（CSV格式数据）"""
     from src.services.graph_service import graph_service
+
     triples = await graph_service.export_triples(entity_type=entity_type, limit=limit)
-    return UnifiedResponse.success(data={
-        "triples": triples,
-        "total": len(triples),
-        "format": "subject,predicate,object"
-    })
+    return UnifiedResponse.success(
+        data={"triples": triples, "total": len(triples), "format": "subject,predicate,object"}
+    )
 
 
 @router.post("/graph/extract")
@@ -548,8 +567,9 @@ async def extract_entities(
         imported = 0
         for entity in result.get("entities", []):
             r = await graph_service.create_entity(
-                name=entity["name"], entity_type=entity.get("type", "Entity"),
-                properties=entity.get("properties")
+                name=entity["name"],
+                entity_type=entity.get("type", "Entity"),
+                properties=entity.get("properties"),
             )
             if r.get("success"):
                 imported += 1

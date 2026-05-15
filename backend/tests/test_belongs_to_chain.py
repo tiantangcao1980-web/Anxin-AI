@@ -1,10 +1,8 @@
-# -*- coding: utf-8 -*-
 """P13-B BelongsToChainBuilder 单元测试。"""
 
 from __future__ import annotations
 
 from src.services.rag.kg.base import (
-    EntityType,
     Modality,
     RelationType,
     Segment,
@@ -78,14 +76,16 @@ def test_outline_chain_links_match_parent_child_pairs():
 
     # 章 BELONGS_TO 文档
     chap_to_doc = [
-        r for r in relations
+        r
+        for r in relations
         if r.source_entity == chapter.entity_id and r.target_entity == doc.entity_id
     ]
     assert len(chap_to_doc) == 1
 
     # 条 BELONGS_TO 章
     art_to_chap = [
-        r for r in relations
+        r
+        for r in relations
         if r.source_entity == article.entity_id and r.target_entity == chapter.entity_id
     ]
     assert len(art_to_chap) == 1
@@ -104,9 +104,7 @@ def test_fallback_extracts_articles_from_segments():
         content="第一条 合作目的\n双方为...第二条 合作期限\n自...",
     )
     builder = BelongsToChainBuilder()
-    entities, relations = builder.build(
-        "doc_xyz", structure=None, segments=[seg_a, seg_b]
-    )
+    entities, relations = builder.build("doc_xyz", structure=None, segments=[seg_a, seg_b])
 
     titles = {e.name for e in entities}
     assert "第一章" in titles

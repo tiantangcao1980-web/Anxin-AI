@@ -33,13 +33,17 @@ async def handle_canvas_message(ctx: WebSocketContext, msg_type: str, data: dict
                 doc_svc = DocumentService(db_session)
 
                 result = await db_session.execute(
-                    sa_select(DocModel).where(
+                    sa_select(DocModel)
+                    .where(
                         and_(
                             DocModel.doc_metadata.isnot(None),
-                            cast(DocModel.doc_metadata["conversation_id"], String) == ctx.conversation_id,
+                            cast(DocModel.doc_metadata["conversation_id"], String)
+                            == ctx.conversation_id,
                             DocModel.description.like("Canvas:%"),
                         )
-                    ).order_by(DocModel.updated_at.desc()).limit(1)
+                    )
+                    .order_by(DocModel.updated_at.desc())
+                    .limit(1)
                 )
                 existing_doc = result.scalar_one_or_none()
 
@@ -53,7 +57,9 @@ async def handle_canvas_message(ctx: WebSocketContext, msg_type: str, data: dict
                     doc = await doc_svc.create_text_document(
                         name=canvas_title,
                         content=content,
-                        doc_type=canvas_type if canvas_type in ('contract', 'document') else 'other',
+                        doc_type=(
+                            canvas_type if canvas_type in ("contract", "document") else "other"
+                        ),
                         description=f"Canvas:{canvas_title}",
                     )
                     doc.doc_metadata = {"conversation_id": ctx.conversation_id, "source": "canvas"}
@@ -76,14 +82,21 @@ async def handle_canvas_message(ctx: WebSocketContext, msg_type: str, data: dict
 
         agent_key = "document_drafter"
         if agent_key not in ctx.workforce.agents:
-            agent_key = "legal_advisor" if "legal_advisor" in ctx.workforce.agents else list(ctx.workforce.agents.keys())[0]
+            agent_key = (
+                "legal_advisor"
+                if "legal_advisor" in ctx.workforce.agents
+                else list(ctx.workforce.agents.keys())[0]
+            )
             logger.warning(f"document_drafter 不可用，回退使用 {agent_key}")
 
         llm_config = await ctx.load_llm_config()
-        await ctx.send("agent_thinking", {"agent": "文书起草Agent", "message": "正在优化文档内容..."})
+        await ctx.send(
+            "agent_thinking", {"agent": "文书起草Agent", "message": "正在优化文档内容..."}
+        )
 
         try:
             from src.agents.base import _task_llm_config_var
+
             token = _task_llm_config_var.set(llm_config)
             try:
                 optimized = await ctx.workforce.agents[agent_key].chat(
@@ -93,11 +106,14 @@ async def handle_canvas_message(ctx: WebSocketContext, msg_type: str, data: dict
             finally:
                 _task_llm_config_var.reset(token)
 
-            await ctx.send("canvas_update", {
-                "content": optimized,
-                "type": canvas_type,
-                "title": "AI 优化版本",
-            })
+            await ctx.send(
+                "canvas_update",
+                {
+                    "content": optimized,
+                    "type": canvas_type,
+                    "title": "AI 优化版本",
+                },
+            )
         except Exception as e:
             logger.error(f"Canvas 优化失败: {e}")
             await ctx.send("error", {"content": f"Canvas 优化失败: {str(e)}"})

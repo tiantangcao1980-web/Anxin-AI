@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """钉钉 OAuth Provider 单元测试（P4-C）。
 
 覆盖 5 个用例：
@@ -12,7 +11,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 from urllib.parse import parse_qs, urlparse
@@ -78,9 +77,7 @@ async def test_authorize_url_format() -> None:
 
     qs = parse_qs(parsed.query)
     assert qs["client_id"] == ["dingtest_app_key"]
-    assert qs["redirect_uri"] == [
-        "https://anxin.example/oauth/callback/dingtalk"
-    ]
+    assert qs["redirect_uri"] == ["https://anxin.example/oauth/callback/dingtalk"]
     assert qs["response_type"] == ["code"]
     assert qs["state"] == ["state-xyz"]
     assert qs["prompt"] == ["consent"]
@@ -134,14 +131,12 @@ async def test_exchange_code_success() -> None:
     # expires_at 时区 + 时长校验
     assert bundle.expires_at is not None
     assert bundle.expires_at.tzinfo is not None
-    delta = (bundle.expires_at - datetime.now(timezone.utc)).total_seconds()
+    delta = (bundle.expires_at - datetime.now(UTC)).total_seconds()
     # 7200 - 60 = 7140，留 5s 容差应付测试运行抖动
     assert 7100 <= delta <= 7150, f"expires_at delta out of range: {delta}"
 
     # URL & body 校验
-    assert captured["url"] == (
-        "https://api.dingtalk.com/v1.0/oauth2/userAccessToken"
-    )
+    assert captured["url"] == ("https://api.dingtalk.com/v1.0/oauth2/userAccessToken")
     assert captured["body"] == {
         "clientId": "dingtest_app_key",
         "clientSecret": "dingtest_app_secret",
@@ -189,9 +184,7 @@ async def test_refresh_token_success() -> None:
         "refreshToken": "old-refresh-token",
         "grantType": "refresh_token",
     }
-    assert captured["url"] == (
-        "https://api.dingtalk.com/v1.0/oauth2/userAccessToken"
-    )
+    assert captured["url"] == ("https://api.dingtalk.com/v1.0/oauth2/userAccessToken")
 
 
 # ===========================================================================
@@ -230,13 +223,9 @@ async def test_user_info_uses_x_acs_header() -> None:
     assert user["nick"] == "张三"
     assert user["unionId"] == "union-abc"
 
-    assert captured["url"] == (
-        "https://api.dingtalk.com/v1.0/contact/users/me"
-    )
+    assert captured["url"] == ("https://api.dingtalk.com/v1.0/contact/users/me")
     # 关键断言 — 钉钉特殊鉴权头
-    assert captured["headers"].get("x-acs-dingtalk-access-token") == (
-        "ding-access-001"
-    )
+    assert captured["headers"].get("x-acs-dingtalk-access-token") == ("ding-access-001")
     # 反向断言 — 不应有 Authorization: Bearer
     assert "Authorization" not in captured["headers"]
 

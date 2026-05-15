@@ -11,6 +11,7 @@
 阿里云控制台：https://dm.console.aliyun.com
 SDK 文档：https://help.aliyun.com/document_detail/29444.html
 """
+
 from typing import Any
 
 from loguru import logger

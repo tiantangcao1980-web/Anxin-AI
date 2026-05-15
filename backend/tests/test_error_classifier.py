@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 P19-A 错误聚类测试
 
@@ -11,8 +10,6 @@ P19-A 错误聚类测试
 """
 
 from __future__ import annotations
-
-import pytest
 
 from src.services.monitoring.error_classifier import (
     ErrorClassifier,

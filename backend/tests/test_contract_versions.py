@@ -136,7 +136,10 @@ async def test_contract_version_api_lists_diffs_and_rolls_back(
     assert rollback_response.status_code == 200
     assert rollback_response.json()["data"]["status"] == ContractStatus.DRAFT.value
     assert rollback_response.json()["data"]["version"] == 3
-    assert rollback_response.json()["data"]["text"] == "第一条 付款期限为30天。\n\n第二条 违约金为合同金额5%。"
+    assert (
+        rollback_response.json()["data"]["text"]
+        == "第一条 付款期限为30天。\n\n第二条 违约金为合同金额5%。"
+    )
 
 
 @pytest.mark.asyncio

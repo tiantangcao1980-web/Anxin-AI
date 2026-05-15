@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """财税顾问 persona 路由 Pydantic schemas（P9-E）。
 
 与 ``src/agents/personas/finance_models.py`` 中的 dataclass 一一对应；
@@ -6,8 +5,6 @@
 """
 
 from __future__ import annotations
-
-from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -37,7 +34,9 @@ _VALID_TAX_TYPES = {
 
 
 class TaxCalculationIn(BaseModel):
-    tax_type: str = Field(..., description="vat / corporate_income / individual_income / stamp / consumption")
+    tax_type: str = Field(
+        ..., description="vat / corporate_income / individual_income / stamp / consumption"
+    )
     revenue: float | None = None
     expenses: float | None = None
     items: list[dict] = Field(default_factory=list)

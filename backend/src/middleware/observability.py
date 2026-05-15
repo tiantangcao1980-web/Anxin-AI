@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ObservabilityMiddleware（P19-A）
 
@@ -15,7 +14,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from typing import Awaitable, Callable, Optional
+from collections.abc import Awaitable, Callable
 
 from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -24,7 +23,7 @@ from starlette.responses import Response
 from starlette.types import ASGIApp
 
 REQUEST_ID_HEADER = "X-Request-ID"
-SLOW_THRESHOLD_SECONDS = 1.0   # 慢请求阈值
+SLOW_THRESHOLD_SECONDS = 1.0  # 慢请求阈值
 
 
 class ObservabilityMiddleware(BaseHTTPMiddleware):
@@ -34,7 +33,7 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
         self,
         app: ASGIApp,
         slow_threshold_seconds: float = SLOW_THRESHOLD_SECONDS,
-        skip_paths: Optional[tuple[str, ...]] = None,
+        skip_paths: tuple[str, ...] | None = None,
     ):
         super().__init__(app)
         self.slow_threshold_seconds = slow_threshold_seconds
@@ -57,8 +56,8 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
 
         t0 = time.perf_counter()
         status_code = 500  # 兜底（500 表示中间件链失败）
-        response: Optional[Response] = None
-        exc: Optional[BaseException] = None
+        response: Response | None = None
+        exc: BaseException | None = None
         try:
             response = await call_next(request)
             status_code = response.status_code
@@ -80,6 +79,7 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
             if not skip_metrics:
                 try:
                     from src.services.monitoring.prometheus_metrics import record_http_request
+
                     record_http_request(
                         method=request.method,
                         endpoint=path,
@@ -97,6 +97,7 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
                 )
                 try:  # sentry 加 tag
                     import sentry_sdk
+
                     sentry_sdk.set_tag("slow_request", "true")
                     sentry_sdk.set_tag("slow_request.duration_ms", int(duration * 1000))
                 except Exception:
@@ -105,10 +106,15 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
             # 5. sentry breadcrumb（请求维度）
             try:
                 import sentry_sdk
+
                 sentry_sdk.add_breadcrumb(
                     category="http",
                     type="http",
-                    level="error" if status_code >= 500 else ("warning" if status_code >= 400 else "info"),
+                    level=(
+                        "error"
+                        if status_code >= 500
+                        else ("warning" if status_code >= 400 else "info")
+                    ),
                     message=f"{request.method} {path} -> {status_code}",
                     data={
                         "request_id": rid,
@@ -125,6 +131,7 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
             if exc is not None:
                 try:
                     from src.services.monitoring.error_classifier import classify_error
+
                     classify_error(exc, endpoint=path, message=f"{request.method} {path}")
                 except Exception:
                     pass

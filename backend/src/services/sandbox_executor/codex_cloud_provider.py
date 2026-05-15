@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 sandbox_executor.codex_cloud_provider —— Codex Cloud Provider（占位）
 
@@ -16,7 +15,8 @@ sandbox_executor.codex_cloud_provider —— Codex Cloud Provider（占位）
 
 from __future__ import annotations
 
-from typing import AsyncIterator, ClassVar, Optional
+from collections.abc import AsyncIterator
+from typing import ClassVar
 
 from src.services.sandbox_executor.base import BaseSandboxProvider
 from src.services.sandbox_executor.models import ExecResult, Sandbox, SandboxSpec
@@ -34,8 +34,8 @@ class CodexCloudProvider(BaseSandboxProvider):
         self,
         sandbox: Sandbox,
         cmd: list[str],
-        stdin: Optional[bytes] = None,
-        timeout_sec: Optional[int] = None,
+        stdin: bytes | None = None,
+        timeout_sec: int | None = None,
     ) -> ExecResult:
         raise NotImplementedError("CodexCloudProvider.exec: 后续接入实装")
 

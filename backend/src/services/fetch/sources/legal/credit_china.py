@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """信用中国（creditchina.gov.cn）公开企业信用查询数据源。
 
 仅查询公开企业信用：
@@ -14,9 +13,10 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Any, Awaitable, Callable, ClassVar, Optional
+from typing import Any, ClassVar
 from urllib.parse import urljoin
 
 import httpx
@@ -46,9 +46,9 @@ def is_valid_uscc(code: str) -> bool:
 class CreditEntry:
     """信用条目（不直接对外，封装在 LawSearchResult.extra 内）。"""
 
-    category: str   # "失信" / "行政处罚" / "经营异常"
+    category: str  # "失信" / "行政处罚" / "经营异常"
     title: str
-    issued_at: Optional[date]
+    issued_at: date | None
     issuing_authority: str
     detail: dict[str, Any]
 
@@ -67,8 +67,8 @@ class CreditChinaSource(BaseLegalSource):
 
     def __init__(
         self,
-        client: Optional[httpx.AsyncClient] = None,
-        rate_limiter: Optional[Callable[[], Awaitable[None]]] = None,
+        client: httpx.AsyncClient | None = None,
+        rate_limiter: Callable[[], Awaitable[None]] | None = None,
         timeout: float = 15.0,
     ) -> None:
         self._client = client
@@ -149,19 +149,11 @@ class CreditChinaSource(BaseLegalSource):
     # ---- 解析 ----
 
     def _parse_search_response(self, data: dict, kw: str) -> list[LawSearchResult]:
-        items = (
-            data.get("data", {}).get("list")
-            or data.get("list")
-            or data.get("records")
-            or []
-        )
+        items = data.get("data", {}).get("list") or data.get("list") or data.get("records") or []
         out: list[LawSearchResult] = []
         for item in items:
             category = str(
-                item.get("type")
-                or item.get("category")
-                or item.get("信用类别")
-                or "信用记录"
+                item.get("type") or item.get("category") or item.get("信用类别") or "信用记录"
             )
             title = str(item.get("title") or item.get("subject") or category)
             out.append(
@@ -171,15 +163,10 @@ class CreditChinaSource(BaseLegalSource):
                     title=f"[{category}] {title}",
                     law_type=LawType.CASE.value,  # 信用记录归入 CASE 近似
                     issuing_authority=str(
-                        item.get("authority")
-                        or item.get("publisher")
-                        or item.get("处罚机关")
-                        or ""
+                        item.get("authority") or item.get("publisher") or item.get("处罚机关") or ""
                     ),
                     issued_date=_parse_date(
-                        item.get("issuedAt")
-                        or item.get("publishDate")
-                        or item.get("发布时间")
+                        item.get("issuedAt") or item.get("publishDate") or item.get("发布时间")
                     ),
                     effective_date=None,
                     status=LawStatus.ACTIVE.value,
@@ -198,7 +185,7 @@ class CreditChinaSource(BaseLegalSource):
         return out
 
 
-def _parse_date(value: Any) -> Optional[date]:
+def _parse_date(value: Any) -> date | None:
     if not value:
         return None
     if isinstance(value, date):

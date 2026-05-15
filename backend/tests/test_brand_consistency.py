@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """ContentDirector —— 品牌一致性算法的细颗粒度测试。
 
 重点验证：
@@ -142,7 +141,11 @@ async def test_llm_extra_issues_are_merged():
         "ai_taste_score": 0.4,
         "extra_issues": [
             {"field": "tone", "expected": "专业", "actual": "过于活泼", "severity": "warn"},
-            {"field": "ai_taste", "expected": "拟人", "actual": "套话浓"},  # 缺 severity → 默认 info
+            {
+                "field": "ai_taste",
+                "expected": "拟人",
+                "actual": "套话浓",
+            },  # 缺 severity → 默认 info
         ],
     }
     agent = ContentDirectorAgent(llm_client=_LLM(payload))

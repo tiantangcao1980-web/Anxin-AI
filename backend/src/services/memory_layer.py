@@ -30,29 +30,29 @@ from typing import Any
 
 DEFAULT_LEGAL_PROFILE: dict[str, Any] = {
     "basic_info": {
-        "company_type": None,       # 企业类型
-        "industry": None,           # 所属行业
-        "company_size": None,       # 企业规模
-        "region": None,             # 所在地区
+        "company_type": None,  # 企业类型
+        "industry": None,  # 所属行业
+        "company_size": None,  # 企业规模
+        "region": None,  # 所在地区
     },
     "legal_needs": {
-        "primary_domain": None,     # 主要法律需求领域
-        "secondary_domains": [],    # 次要需求领域
+        "primary_domain": None,  # 主要法律需求领域
+        "secondary_domains": [],  # 次要需求领域
         "urgency_pattern": "medium",  # 通常的紧急程度
     },
     "risk_profile": {
-        "focus_dimensions": {},     # 关注的风险维度权重
-        "risk_tolerance": "medium", # 风险容忍度
-        "known_risks": [],          # 已知风险点
+        "focus_dimensions": {},  # 关注的风险维度权重
+        "risk_tolerance": "medium",  # 风险容忍度
+        "known_risks": [],  # 已知风险点
     },
     "interaction_pattern": {
         "preferred_depth": "deep",  # 调查深度偏好
         "report_format": "comprehensive",  # 报告格式偏好
         "communication_style": "professional",  # 沟通风格
-        "frequent_queries": [],     # 高频查询模式
+        "frequent_queries": [],  # 高频查询模式
     },
-    "timeline_events": [],          # 法律时效事件列表
-    "confidence": 0.0,              # 画像置信度 (0-1)
+    "timeline_events": [],  # 法律时效事件列表
+    "confidence": 0.0,  # 画像置信度 (0-1)
     "last_updated": None,
 }
 
@@ -89,7 +89,7 @@ class MemoryEntry:
         self,
         content: str,
         memory_type: str,  # user / session / agent / graph
-        level: int = 1,    # 0=L0, 1=L1, 2=L2
+        level: int = 1,  # 0=L0, 1=L1, 2=L2
         metadata: dict[str, Any] | None = None,
         source: str = "system",
         user_id: str | None = None,
@@ -189,8 +189,9 @@ class ContextLoader:
     def _extract_contract_l0(content: str) -> str:
         """合同 L0：类型+双方+日期"""
         import re
-        parties = re.findall(r'[甲乙丙丁]方[：:]\s*(.{2,30})', content)
-        date = re.findall(r'(\d{4})[年/.-](\d{1,2})[月/.-](\d{1,2})', content)
+
+        parties = re.findall(r"[甲乙丙丁]方[：:]\s*(.{2,30})", content)
+        date = re.findall(r"(\d{4})[年/.-](\d{1,2})[月/.-](\d{1,2})", content)
         contract_type = "合同"
         for t in ["买卖", "租赁", "劳动", "借款", "服务", "合作", "技术"]:
             if t in content[:200]:
@@ -207,14 +208,16 @@ class ContextLoader:
     def _extract_case_l0(content: str) -> str:
         """案件 L0：案号+案由+当事人"""
         import re
-        case_no = re.findall(r'[（(]\d{4}[)）][^，,。]+号', content)
+
+        case_no = re.findall(r"[（(]\d{4}[)）][^，,。]+号", content)
         return (case_no[0] if case_no else content[:80].replace("\n", " ")) + "..."
 
     @staticmethod
     def _extract_regulation_l0(content: str) -> str:
         """法规 L0：法规名+生效日期"""
         import re
-        title_match = re.findall(r'《([^》]+)》', content)
+
+        title_match = re.findall(r"《([^》]+)》", content)
         title = title_match[0] if title_match else content[:30]
         return f"法规：{title}"
 
@@ -232,7 +235,13 @@ class ContextLoader:
         """调查 L1：五维评分+主要风险点"""
         if isinstance(content, dict):
             risk = content.get("risk", {})
-            dims = ["operation_risk", "litigation_risk", "credit_risk", "compliance_risk", "relation_risk"]
+            dims = [
+                "operation_risk",
+                "litigation_risk",
+                "credit_risk",
+                "compliance_risk",
+                "relation_risk",
+            ]
             scores = [f"{d.replace('_risk','')}: {risk.get(d, 0)}" for d in dims]
             points = risk.get("risk_points", [])[:3]
             parts = [f"风险评分: {', '.join(scores)}"]
@@ -245,13 +254,14 @@ class ContextLoader:
     def _extract_contract_l1(content: str) -> str:
         """合同 L1：关键条款摘要"""
         import re
+
         key_sections = []
         # 提取金额
-        amounts = re.findall(r'[\d,]+(?:\.\d+)?\s*(?:万|元|美元)', content)
+        amounts = re.findall(r"[\d,]+(?:\.\d+)?\s*(?:万|元|美元)", content)
         if amounts:
             key_sections.append(f"金额: {', '.join(amounts[:3])}")
         # 提取期限
-        terms = re.findall(r'(?:期限|有效期)[：:]\s*(.{5,30})', content)
+        terms = re.findall(r"(?:期限|有效期)[：:]\s*(.{5,30})", content)
         if terms:
             key_sections.append(f"期限: {terms[0]}")
         # 取前 800 字补充
@@ -277,7 +287,9 @@ class MemoryLayer:
     def __init__(self) -> None:
         self._user_profiles: dict[str, dict[str, Any]] = {}  # user_id -> profile
         self._session_memories: dict[str, list[MemoryEntry]] = {}  # session_id -> entries
-        self._session_artifacts: dict[str, dict[str, Any]] = {}  # session_id -> artifact_type -> data
+        self._session_artifacts: dict[str, dict[str, Any]] = (
+            {}
+        )  # session_id -> artifact_type -> data
         self._buffer: dict[str, list[dict[str, Any]]] = {}  # user_id -> pending messages
         self._buffer_threshold = 10  # 缓冲区满 10 条触发处理
         self.context_loader = ContextLoader()
@@ -292,14 +304,23 @@ class MemoryLayer:
         # 尝试从数据库加载
         try:
             from src.services.investigation_data_store import investigation_data_store
+
             if investigation_data_store:
                 prefs = await investigation_data_store.get_user_preference(user_id)
                 if prefs:
                     profile: dict[str, Any] = copy.deepcopy(DEFAULT_LEGAL_PROFILE)
-                    profile["interaction_pattern"]["preferred_depth"] = prefs.get("preferred_depth", "deep")
-                    profile["interaction_pattern"]["report_format"] = prefs.get("preferred_report_template", "comprehensive")
-                    profile["risk_profile"]["focus_dimensions"] = prefs.get("risk_focus_weights", {})
-                    profile["interaction_pattern"]["frequent_queries"] = prefs.get("search_keywords_history", [])
+                    profile["interaction_pattern"]["preferred_depth"] = prefs.get(
+                        "preferred_depth", "deep"
+                    )
+                    profile["interaction_pattern"]["report_format"] = prefs.get(
+                        "preferred_report_template", "comprehensive"
+                    )
+                    profile["risk_profile"]["focus_dimensions"] = prefs.get(
+                        "risk_focus_weights", {}
+                    )
+                    profile["interaction_pattern"]["frequent_queries"] = prefs.get(
+                        "search_keywords_history", []
+                    )
                     profile["confidence"] = min(1.0, (prefs.get("total_investigations", 0) / 20))
                     self._user_profiles[user_id] = profile
                     return profile
@@ -430,10 +451,12 @@ class MemoryLayer:
         if user_id not in self._buffer:
             self._buffer[user_id] = []
 
-        self._buffer[user_id].append({
-            **message,
-            "timestamp": datetime.now().isoformat(),
-        })
+        self._buffer[user_id].append(
+            {
+                **message,
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
 
         # 触发批量处理
         if len(self._buffer[user_id]) >= self._buffer_threshold:
@@ -461,9 +484,12 @@ class MemoryLayer:
             if role == "user":
                 # 检测行业关键词
                 from src.services.lawyer_matching_service import DOMAIN_KEYWORDS, DOMAIN_LABELS
+
                 for domain, keywords in DOMAIN_KEYWORDS.items():
                     if any(kw in content for kw in keywords):
-                        updates.setdefault("legal_needs", {})["primary_domain"] = DOMAIN_LABELS.get(domain, domain)
+                        updates.setdefault("legal_needs", {})["primary_domain"] = DOMAIN_LABELS.get(
+                            domain, domain
+                        )
                         break
 
         if updates:
@@ -472,6 +498,7 @@ class MemoryLayer:
         # 通知 AutoDream 有新活动
         try:
             from src.services.auto_dream import auto_dream_engine
+
             auto_dream_engine.record_activity(user_id, "conversation")
         except Exception:
             pass
@@ -526,14 +553,16 @@ class MemoryLayer:
         profile = await self.get_user_profile(user_id)
         events = profile.get("timeline_events", [])
 
-        events.append({
-            "event_type": event_type,
-            "title": title,
-            "date": date,
-            "description": description,
-            "metadata": metadata or {},
-            "created_at": datetime.now().isoformat(),
-        })
+        events.append(
+            {
+                "event_type": event_type,
+                "title": title,
+                "date": date,
+                "description": description,
+                "metadata": metadata or {},
+                "created_at": datetime.now().isoformat(),
+            }
+        )
 
         # 按日期排序
         events.sort(key=lambda e: e.get("date", ""))
@@ -654,7 +683,10 @@ def _sanitize_memory_payload(value: Any, key: str = "") -> Any:
     if _is_sensitive_memory_key(key):
         return "[redacted]"
     if isinstance(value, dict):
-        return {str(child_key): _sanitize_memory_payload(child_value, str(child_key)) for child_key, child_value in value.items()}
+        return {
+            str(child_key): _sanitize_memory_payload(child_value, str(child_key))
+            for child_key, child_value in value.items()
+        }
     if isinstance(value, list):
         return [_sanitize_memory_payload(item, key) for item in value]
     if isinstance(value, tuple):

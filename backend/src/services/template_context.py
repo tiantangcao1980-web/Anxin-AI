@@ -24,10 +24,7 @@ def build_template_context_message(template_id: str | None) -> str | None:
     if not template_name:
         return None
 
-    return (
-        f"当前输出模板：{template_name}\n"
-        "请优先遵循该模板的结构、章节顺序与文书语气输出。"
-    )
+    return f"当前输出模板：{template_name}\n" "请优先遵循该模板的结构、章节顺序与文书语气输出。"
 
 
 def inject_template_context(content: str, template_id: str | None) -> str:
@@ -35,7 +32,4 @@ def inject_template_context(content: str, template_id: str | None) -> str:
     if not template_message:
         return content
 
-    return (
-        f"【{template_message}】\n"
-        f"{content}"
-    )
+    return f"【{template_message}】\n" f"{content}"

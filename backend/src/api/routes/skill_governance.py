@@ -199,7 +199,9 @@ def _error_response(error: SkillEvolutionError) -> RouteResponse:
     return UnifiedResponse.error(code=code, message=message)
 
 
-@router.post("/proposals", response_model=UnifiedResponse, summary="Create Skill governance proposal")
+@router.post(
+    "/proposals", response_model=UnifiedResponse, summary="Create Skill governance proposal"
+)
 async def create_skill_governance_proposal(
     body: SkillGovernanceProposalBody,
     db: AsyncSession = Depends(get_db),
@@ -207,7 +209,9 @@ async def create_skill_governance_proposal(
 ) -> RouteResponse:
     org_id = _require_org(user)
     if not org_id:
-        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+        return UnifiedResponse.error(
+            code=403, message="Current user is not attached to an organization."
+        )
     try:
         proposal = await SkillGovernanceService(db).create_proposal(
             org_id=org_id,
@@ -239,12 +243,16 @@ async def list_skill_governance_proposals(
         scoped = scoped.where(SkillGovernanceProposal.status == status)
     total = (await db.execute(select(func.count()).select_from(scoped.subquery()))).scalar_one()
     rows = (
-        await db.execute(
-            scoped.order_by(SkillGovernanceProposal.created_at.desc())
-            .offset((page - 1) * page_size)
-            .limit(page_size)
+        (
+            await db.execute(
+                scoped.order_by(SkillGovernanceProposal.created_at.desc())
+                .offset((page - 1) * page_size)
+                .limit(page_size)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return UnifiedResponse.success(
         data={
             "items": [_proposal_to_payload(proposal) for proposal in rows],
@@ -264,19 +272,24 @@ async def get_enabled_skill_version(
 ) -> RouteResponse:
     org_id = _require_org(user)
     if not org_id:
-        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+        return UnifiedResponse.error(
+            code=403, message="Current user is not attached to an organization."
+        )
     service = SkillGovernanceService(db)
     enabled_version = await service.get_enabled_version(org_id=org_id, skill_name=skill_name)
     return UnifiedResponse.success(
         data={
             "skill_name": skill_name,
             "enabled_version": enabled_version,
-            "enabled": enabled_version is not None and (version is None or enabled_version == version),
+            "enabled": enabled_version is not None
+            and (version is None or enabled_version == version),
         }
     )
 
 
-@router.get("/connectors", response_model=UnifiedResponse, summary="List governed Skill connector configs")
+@router.get(
+    "/connectors", response_model=UnifiedResponse, summary="List governed Skill connector configs"
+)
 async def list_skill_connector_configs(
     skill_name: str | None = Query(default=None, max_length=160),
     db: AsyncSession = Depends(get_db),
@@ -286,8 +299,12 @@ async def list_skill_connector_configs(
         return error
     org_id = _require_org(user)
     if not org_id:
-        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
-    rows = await SkillGovernanceService(db).list_connector_configs(org_id=org_id, skill_name=skill_name)
+        return UnifiedResponse.error(
+            code=403, message="Current user is not attached to an organization."
+        )
+    rows = await SkillGovernanceService(db).list_connector_configs(
+        org_id=org_id, skill_name=skill_name
+    )
     return UnifiedResponse.success(
         data={
             "items": [_connector_to_payload(config) for config in rows],
@@ -296,7 +313,9 @@ async def list_skill_connector_configs(
     )
 
 
-@router.post("/connectors", response_model=UnifiedResponse, summary="Create governed Skill connector config")
+@router.post(
+    "/connectors", response_model=UnifiedResponse, summary="Create governed Skill connector config"
+)
 async def create_skill_connector_config(
     body: SkillConnectorConfigBody,
     db: AsyncSession = Depends(get_db),
@@ -306,7 +325,9 @@ async def create_skill_connector_config(
         return error
     org_id = _require_org(user)
     if not org_id:
-        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+        return UnifiedResponse.error(
+            code=403, message="Current user is not attached to an organization."
+        )
     try:
         config = await SkillGovernanceService(db).create_connector_config(
             org_id=org_id,
@@ -326,7 +347,11 @@ async def create_skill_connector_config(
     return UnifiedResponse.success(data=payload, message="Skill connector config created.")
 
 
-@router.put("/connectors/{connector_id}", response_model=UnifiedResponse, summary="Update governed Skill connector config")
+@router.put(
+    "/connectors/{connector_id}",
+    response_model=UnifiedResponse,
+    summary="Update governed Skill connector config",
+)
 async def update_skill_connector_config(
     connector_id: str,
     body: SkillConnectorConfigUpdateBody,
@@ -337,7 +362,9 @@ async def update_skill_connector_config(
         return error
     org_id = _require_org(user)
     if not org_id:
-        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+        return UnifiedResponse.error(
+            code=403, message="Current user is not attached to an organization."
+        )
     try:
         config = await SkillGovernanceService(db).update_connector_config(
             org_id=org_id,
@@ -360,7 +387,11 @@ async def update_skill_connector_config(
     return UnifiedResponse.success(data=payload, message="Skill connector config updated.")
 
 
-@router.delete("/connectors/{connector_id}", response_model=UnifiedResponse, summary="Delete governed Skill connector config")
+@router.delete(
+    "/connectors/{connector_id}",
+    response_model=UnifiedResponse,
+    summary="Delete governed Skill connector config",
+)
 async def delete_skill_connector_config(
     connector_id: str,
     db: AsyncSession = Depends(get_db),
@@ -370,7 +401,9 @@ async def delete_skill_connector_config(
         return error
     org_id = _require_org(user)
     if not org_id:
-        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+        return UnifiedResponse.error(
+            code=403, message="Current user is not attached to an organization."
+        )
     try:
         await SkillGovernanceService(db).delete_connector_config(
             org_id=org_id,
@@ -380,10 +413,16 @@ async def delete_skill_connector_config(
     except SkillEvolutionError as exc:
         return _error_response(exc)
     await db.commit()
-    return UnifiedResponse.success(data={"deleted": True}, message="Skill connector config deleted.")
+    return UnifiedResponse.success(
+        data={"deleted": True}, message="Skill connector config deleted."
+    )
 
 
-@router.get("/proposals/{proposal_id}", response_model=UnifiedResponse, summary="Get Skill governance proposal")
+@router.get(
+    "/proposals/{proposal_id}",
+    response_model=UnifiedResponse,
+    summary="Get Skill governance proposal",
+)
 async def get_skill_governance_proposal(
     proposal_id: str,
     db: AsyncSession = Depends(get_db),
@@ -391,7 +430,9 @@ async def get_skill_governance_proposal(
 ) -> RouteResponse:
     proposal = await _get_scoped_proposal(db, proposal_id=proposal_id, user=user)
     if proposal is None:
-        return UnifiedResponse.error(code=404, message="Skill proposal does not exist or is not visible.")
+        return UnifiedResponse.error(
+            code=404, message="Skill proposal does not exist or is not visible."
+        )
     return UnifiedResponse.success(data=_proposal_to_payload(proposal))
 
 
@@ -408,7 +449,9 @@ async def list_skill_governance_audit_events(
 ) -> RouteResponse:
     proposal = await _get_scoped_proposal(db, proposal_id=proposal_id, user=user)
     if proposal is None:
-        return UnifiedResponse.error(code=404, message="Skill proposal does not exist or is not visible.")
+        return UnifiedResponse.error(
+            code=404, message="Skill proposal does not exist or is not visible."
+        )
     rows = await SkillGovernanceService(db).get_audit_events(org_id=proposal.org_id, limit=limit)
     proposal_rows = [event for event in rows if event.proposal_id == proposal.id]
     return UnifiedResponse.success(
@@ -432,7 +475,9 @@ async def export_skill_governance_audit_artifact(
 ) -> RouteResponse:
     proposal = await _get_scoped_proposal(db, proposal_id=proposal_id, user=user)
     if proposal is None:
-        return UnifiedResponse.error(code=404, message="Skill proposal does not exist or is not visible.")
+        return UnifiedResponse.error(
+            code=404, message="Skill proposal does not exist or is not visible."
+        )
     rows = await SkillGovernanceService(db).get_audit_events(org_id=proposal.org_id, limit=limit)
     proposal_rows = [event for event in rows if event.proposal_id == proposal.id]
     return UnifiedResponse.success(
@@ -447,7 +492,11 @@ async def export_skill_governance_audit_artifact(
     )
 
 
-@router.post("/proposals/{proposal_id}/eval", response_model=UnifiedResponse, summary="Record Skill proposal eval")
+@router.post(
+    "/proposals/{proposal_id}/eval",
+    response_model=UnifiedResponse,
+    summary="Record Skill proposal eval",
+)
 async def record_skill_governance_eval(
     proposal_id: str,
     body: SkillGovernanceEvalBody,
@@ -458,7 +507,9 @@ async def record_skill_governance_eval(
         return error
     org_id = _require_org(user)
     if not org_id:
-        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+        return UnifiedResponse.error(
+            code=403, message="Current user is not attached to an organization."
+        )
     try:
         proposal = await SkillGovernanceService(db).record_eval(
             org_id=org_id,
@@ -473,7 +524,11 @@ async def record_skill_governance_eval(
     return UnifiedResponse.success(data=payload, message="Skill proposal eval recorded.")
 
 
-@router.post("/proposals/{proposal_id}/approve", response_model=UnifiedResponse, summary="Approve Skill proposal")
+@router.post(
+    "/proposals/{proposal_id}/approve",
+    response_model=UnifiedResponse,
+    summary="Approve Skill proposal",
+)
 async def approve_skill_governance_proposal(
     proposal_id: str,
     db: AsyncSession = Depends(get_db),
@@ -483,7 +538,9 @@ async def approve_skill_governance_proposal(
         return error
     org_id = _require_org(user)
     if not org_id:
-        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+        return UnifiedResponse.error(
+            code=403, message="Current user is not attached to an organization."
+        )
     try:
         proposal = await SkillGovernanceService(db).approve(
             org_id=org_id,
@@ -513,7 +570,9 @@ async def gray_release_skill_governance_proposal(
         return error
     org_id = _require_org(user)
     if not org_id:
-        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+        return UnifiedResponse.error(
+            code=403, message="Current user is not attached to an organization."
+        )
     try:
         proposal = await SkillGovernanceService(db).gray_release(
             org_id=org_id,
@@ -528,7 +587,11 @@ async def gray_release_skill_governance_proposal(
     return UnifiedResponse.success(data=payload, message="Skill proposal gray released.")
 
 
-@router.post("/proposals/{proposal_id}/rollback", response_model=UnifiedResponse, summary="Rollback Skill proposal")
+@router.post(
+    "/proposals/{proposal_id}/rollback",
+    response_model=UnifiedResponse,
+    summary="Rollback Skill proposal",
+)
 async def rollback_skill_governance_proposal(
     proposal_id: str,
     body: SkillGovernanceRollbackBody,
@@ -539,7 +602,9 @@ async def rollback_skill_governance_proposal(
         return error
     org_id = _require_org(user)
     if not org_id:
-        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+        return UnifiedResponse.error(
+            code=403, message="Current user is not attached to an organization."
+        )
     try:
         proposal = await SkillGovernanceService(db).rollback(
             org_id=org_id,

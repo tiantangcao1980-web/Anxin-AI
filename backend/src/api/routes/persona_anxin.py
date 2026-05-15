@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """安心助理（anxin_assistant）persona 路由 —— P9-A。
 
 挂载点（在 ``api/routes/__init__.py`` 用 ``prefix="/personas/anxin"`` 注册）::
@@ -117,8 +116,7 @@ def _intent_from_dict(data: dict) -> IntentClassification:
         confidence=float(data.get("confidence") or 0.0),
         reasoning=str(data.get("reasoning") or ""),
         entities={
-            str(k): [str(x) for x in (v or [])]
-            for k, v in (data.get("entities") or {}).items()
+            str(k): [str(x) for x in (v or [])] for k, v in (data.get("entities") or {}).items()
         },
         classifier=str(data.get("classifier") or "fast_path"),
     )

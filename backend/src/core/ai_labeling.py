@@ -20,10 +20,11 @@ from typing import Any
 
 class AIContentType(str, Enum):
     """AI内容类型"""
-    TEXT = "text"                # 文本（对话、咨询回复）
-    DOCUMENT = "document"       # 文档（合同、文书）
-    ANALYSIS = "analysis"       # 分析报告（审查、尽调）
-    SUGGESTION = "suggestion"   # 建议（修改建议、法律意见）
+
+    TEXT = "text"  # 文本（对话、咨询回复）
+    DOCUMENT = "document"  # 文档（合同、文书）
+    ANALYSIS = "analysis"  # 分析报告（审查、尽调）
+    SUGGESTION = "suggestion"  # 建议（修改建议、法律意见）
 
 
 class AILabelingService:
@@ -134,7 +135,7 @@ class AILabelingService:
                 "model": model_name,
                 "agent": agent_name,
                 "timestamp": datetime.now(UTC).isoformat(),
-            }
+            },
         }
 
     @classmethod

@@ -55,7 +55,9 @@ async def test_skill_governance_api_round_trip_and_audit_export(auth_client, adm
         f"/api/v1/skill-governance/proposals/{proposal_id}/eval",
         json={"checks": passing_checks()},
     )
-    approved = await admin_auth_client.post(f"/api/v1/skill-governance/proposals/{proposal_id}/approve")
+    approved = await admin_auth_client.post(
+        f"/api/v1/skill-governance/proposals/{proposal_id}/approve"
+    )
     released = await admin_auth_client.post(
         f"/api/v1/skill-governance/proposals/{proposal_id}/gray-release",
         json={"percentage": 100},
@@ -75,8 +77,12 @@ async def test_skill_governance_api_round_trip_and_audit_export(auth_client, adm
     assert enabled.json()["data"]["enabled_version"] == "1.1.0"
     assert enabled.json()["data"]["enabled"] is True
 
-    audit_response = await auth_client.get(f"/api/v1/skill-governance/proposals/{proposal_id}/audit-events")
-    export_response = await auth_client.get(f"/api/v1/skill-governance/proposals/{proposal_id}/audit-export")
+    audit_response = await auth_client.get(
+        f"/api/v1/skill-governance/proposals/{proposal_id}/audit-events"
+    )
+    export_response = await auth_client.get(
+        f"/api/v1/skill-governance/proposals/{proposal_id}/audit-export"
+    )
 
     assert audit_response.status_code == 200
     assert [item["reason_code"] for item in audit_response.json()["data"]["items"]] == [
@@ -134,7 +140,9 @@ async def test_skill_governance_api_employee_can_propose_but_not_administer(auth
 
 
 @pytest.mark.asyncio
-async def test_skill_governance_api_regular_user_only_lists_own_proposals(auth_client, admin_auth_client):
+async def test_skill_governance_api_regular_user_only_lists_own_proposals(
+    auth_client, admin_auth_client
+):
     own = await auth_client.post(
         "/api/v1/skill-governance/proposals",
         json={
@@ -166,7 +174,9 @@ async def test_skill_governance_api_regular_user_only_lists_own_proposals(auth_c
 
 
 @pytest.mark.asyncio
-async def test_skill_connector_config_api_masks_credentials_and_preserves_saved_keys(admin_auth_client):
+async def test_skill_connector_config_api_masks_credentials_and_preserves_saved_keys(
+    admin_auth_client,
+):
     created = await admin_auth_client.post(
         "/api/v1/skill-governance/connectors",
         json={
@@ -222,7 +232,9 @@ async def test_skill_connector_config_api_masks_credentials_and_preserves_saved_
 
 
 @pytest.mark.asyncio
-async def test_skill_connector_config_api_requires_admin_and_supports_replace_delete(auth_client, admin_auth_client):
+async def test_skill_connector_config_api_requires_admin_and_supports_replace_delete(
+    auth_client, admin_auth_client
+):
     forbidden = await auth_client.post(
         "/api/v1/skill-governance/connectors",
         json={
@@ -249,7 +261,9 @@ async def test_skill_connector_config_api_requires_admin_and_supports_replace_de
         json={"credentials": {"TOKEN": "replacement-token"}},
     )
     deleted = await admin_auth_client.delete(f"/api/v1/skill-governance/connectors/{connector_id}")
-    listed = await admin_auth_client.get("/api/v1/skill-governance/connectors", params={"skill_name": "tax-risk"})
+    listed = await admin_auth_client.get(
+        "/api/v1/skill-governance/connectors", params={"skill_name": "tax-risk"}
+    )
 
     assert replaced.status_code == 200
     assert replaced.json()["data"]["credential_keys"] == ["TOKEN"]

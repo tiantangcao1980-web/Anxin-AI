@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """跨境电商数据源抽象（P6-D）。
 
 本模块定义了一组 **平台无关** 的数据类与抽象基类，作为 5 个具体 source
@@ -21,7 +20,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar
 
 
 # ---------------------------------------------------------------------------
@@ -40,10 +39,10 @@ class ProductSearchQuery:
     """
 
     keyword: str
-    category: Optional[str] = None
-    price_min: Optional[float] = None
-    price_max: Optional[float] = None
-    country: Optional[str] = None
+    category: str | None = None
+    price_min: float | None = None
+    price_max: float | None = None
+    country: str | None = None
     sort_by: str = "best_match"  # best_match | price_asc | price_desc | newest
     limit: int = 20
 
@@ -59,15 +58,15 @@ class Product:
     source: str
     sku: str
     title: str
-    description: Optional[str]
+    description: str | None
     price: float
     currency: str
     images: list[str]
-    inventory_qty: Optional[int]
-    rating: Optional[float]
-    review_count: Optional[int]
-    seller_name: Optional[str]
-    seller_rating: Optional[float]
+    inventory_qty: int | None
+    rating: float | None
+    review_count: int | None
+    seller_name: str | None
+    seller_rating: float | None
     url: str
     raw: dict[str, Any] = field(default_factory=dict)
 
@@ -84,7 +83,7 @@ class Order:
 
     source: str
     order_id: str
-    customer_name: Optional[str]
+    customer_name: str | None
     total_amount: float
     currency: str
     status: str
@@ -131,7 +130,7 @@ class BaseEcommerceSource(ABC):
     async def search_products(
         self,
         query: ProductSearchQuery,
-        oauth_token: Optional[str] = None,
+        oauth_token: str | None = None,
     ) -> list[Product]:
         """按关键词/筛选条件搜索商品。
 
@@ -143,15 +142,15 @@ class BaseEcommerceSource(ABC):
     async def get_product(
         self,
         sku: str,
-        oauth_token: Optional[str] = None,
-    ) -> Optional[Product]:
+        oauth_token: str | None = None,
+    ) -> Product | None:
         """取单个 SKU 详情。命中返回 :class:`Product`，未命中返回 ``None``。"""
 
     @abstractmethod
     async def list_orders(
         self,
         oauth_token: str,
-        since: Optional[datetime] = None,
+        since: datetime | None = None,
         limit: int = 50,
     ) -> list[Order]:
         """拉取订单列表。
@@ -172,7 +171,7 @@ class BaseEcommerceSource(ABC):
     @abstractmethod
     async def health_check(
         self,
-        oauth_token: Optional[str] = None,
+        oauth_token: str | None = None,
     ) -> bool:
         """探活：返回 ``True`` 表示该 source（或其凭据）当前可用。
 
@@ -183,15 +182,13 @@ class BaseEcommerceSource(ABC):
     # ---------------------------------------------------------------
     # 通用辅助（子类可覆盖）
     # ---------------------------------------------------------------
-    def _ensure_token(self, oauth_token: Optional[str]) -> str:
+    def _ensure_token(self, oauth_token: str | None) -> str:
         """子类在需要 token 的方法入口调用 —— 缺失时抛 :class:`OAuthRequiredError`。
 
         返回非空 token，方便子类直接拿来用。
         """
         if self.requires_oauth and not oauth_token:
-            raise OAuthRequiredError(
-                f"source={self.source_id} 需要 OAuth token，请先完成应用授权"
-            )
+            raise OAuthRequiredError(f"source={self.source_id} 需要 OAuth token，请先完成应用授权")
         return oauth_token or ""
 
 

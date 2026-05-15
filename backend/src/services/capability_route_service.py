@@ -271,17 +271,19 @@ class CapabilityRouteService:
         metadata: dict[str, str] | None = None,
     ) -> str:
         event_id = uuid.uuid4().hex
-        self._audit_log.append(CapabilityRouteAuditEvent(
-            event_id=event_id,
-            action=action,
-            route_id=record.route_id if record else None,
-            consumer_id=record.consumer_id if record else None,
-            reason_code=reason_code,
-            created_at=now,
-            metadata=metadata or {},
-        ))
+        self._audit_log.append(
+            CapabilityRouteAuditEvent(
+                event_id=event_id,
+                action=action,
+                route_id=record.route_id if record else None,
+                consumer_id=record.consumer_id if record else None,
+                reason_code=reason_code,
+                created_at=now,
+                metadata=metadata or {},
+            )
+        )
         if len(self._audit_log) > self._max_audit:
-            self._audit_log = self._audit_log[-self._max_audit:]
+            self._audit_log = self._audit_log[-self._max_audit :]
         return event_id
 
 

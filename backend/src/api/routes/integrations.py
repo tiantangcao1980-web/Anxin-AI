@@ -13,6 +13,7 @@ router = APIRouter()
 
 # ===== 集成 API 密钥校验 =====
 
+
 async def verify_integration_key(
     x_integration_key: str = Header(..., alias="X-Integration-Key"),
 ) -> None:
@@ -29,7 +30,8 @@ class NotificationRequest(BaseModel):
     user_id: str | None = None
     title: str
     content: str
-    provider: str | None = None # feishu, dingtalk, wecom
+    provider: str | None = None  # feishu, dingtalk, wecom
+
 
 class ApprovalRequest(BaseModel):
     title: str
@@ -37,8 +39,10 @@ class ApprovalRequest(BaseModel):
     initiator_id: str | None = None
     provider: str | None = None
 
+
 class SyncRequest(BaseModel):
     provider: str | None = None
+
 
 @router.post("/notify", summary="发送OA通知")
 async def send_oa_notification(
@@ -62,6 +66,7 @@ async def send_oa_notification(
         raise HTTPException(status_code=500, detail="Failed to send notification")
     return {"status": "success", "message": "Notification sent"}
 
+
 @router.post("/approval/create", summary="发起OA审批")
 async def create_oa_approval(
     req: ApprovalRequest,
@@ -78,6 +83,7 @@ async def create_oa_approval(
         raise HTTPException(status_code=503, detail=str(e)) from e
     return {"status": "success", "instance_id": instance_id}
 
+
 @router.post("/sync/users", summary="同步OA用户")
 async def sync_oa_users(
     req: SyncRequest,
@@ -91,6 +97,7 @@ async def sync_oa_users(
     except OAProviderConfigError as e:
         raise HTTPException(status_code=503, detail=str(e)) from e
     return {"status": "success", "data": result}
+
 
 @router.post("/webhook/{provider}", summary="OA回调接收")
 async def oa_webhook(

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 飞书 IM 适配器单元测试（P3）
 
@@ -104,12 +103,16 @@ def test_signature_verification() -> None:
 
     # 错误签名拒绝
     assert (
-        verify_signature(timestamp, nonce, body, "deadbeef" * 8, encrypt_key, now=fixed_now) is False
+        verify_signature(timestamp, nonce, body, "deadbeef" * 8, encrypt_key, now=fixed_now)
+        is False
     )
 
     # body 篡改 → 拒绝
     tampered_body = body + b"x"
-    assert verify_signature(timestamp, nonce, tampered_body, expected, encrypt_key, now=fixed_now) is False
+    assert (
+        verify_signature(timestamp, nonce, tampered_body, expected, encrypt_key, now=fixed_now)
+        is False
+    )
 
 
 # ===========================================================================
@@ -143,9 +146,7 @@ async def test_send_text_message_calls_api() -> None:
     # post(token) → 返回 token；request(send) → 返回 message_id
     async def fake_post(url: str, json: dict[str, Any]) -> MagicMock:  # noqa: A002
         assert "tenant_access_token" in url
-        return _mock_http_response(
-            {"code": 0, "tenant_access_token": "t-abc", "expire": 7200}
-        )
+        return _mock_http_response({"code": 0, "tenant_access_token": "t-abc", "expire": 7200})
 
     async def fake_request(
         method: str,
@@ -163,9 +164,7 @@ async def test_send_text_message_calls_api() -> None:
         # content 必须是 JSON 字符串 {"text": "..."}
         parsed = __import__("json").loads(json["content"])
         assert parsed == {"text": "你好，安心助手"}
-        return _mock_http_response(
-            {"code": 0, "data": {"message_id": "om_msg_001"}}
-        )
+        return _mock_http_response({"code": 0, "data": {"message_id": "om_msg_001"}})
 
     http.post = AsyncMock(side_effect=fake_post)
     http.request = AsyncMock(side_effect=fake_request)
@@ -190,9 +189,7 @@ async def test_send_interactive_card() -> None:
     http = MagicMock()
 
     async def fake_post(url: str, json: dict[str, Any]) -> MagicMock:  # noqa: A002
-        return _mock_http_response(
-            {"code": 0, "tenant_access_token": "t-card", "expire": 7200}
-        )
+        return _mock_http_response({"code": 0, "tenant_access_token": "t-card", "expire": 7200})
 
     captured: dict[str, Any] = {}
 
@@ -212,17 +209,17 @@ async def test_send_interactive_card() -> None:
     adapter = _make_adapter(http_client=http)
     adapter._get_redis = AsyncMock(return_value=None)  # type: ignore[method-assign]
 
-    card = task_completed_card({
-        "id": "task-001",
-        "title": "合同审查",
-        "summary": "已完成 12 条风险点识别",
-        "finished_at": "2026-04-26 10:00",
-        "detail_url": "https://anxin.example/v3/tasks/task-001",
-    })
-
-    await adapter.send_message(
-        "oc_chat", content="", msg_type="interactive", card=card
+    card = task_completed_card(
+        {
+            "id": "task-001",
+            "title": "合同审查",
+            "summary": "已完成 12 条风险点识别",
+            "finished_at": "2026-04-26 10:00",
+            "detail_url": "https://anxin.example/v3/tasks/task-001",
+        }
     )
+
+    await adapter.send_message("oc_chat", content="", msg_type="interactive", card=card)
 
     payload = captured["payload"]
     assert payload["msg_type"] == "interactive"

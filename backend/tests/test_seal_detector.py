@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """SealDetector 单测（P13-A）。
 
 覆盖：

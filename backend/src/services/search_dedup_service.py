@@ -21,30 +21,25 @@ DOMAIN_TRUST_SCORES: dict[str, float] = {
     "gsxt.gov.cn": 1.0,
     "moj.gov.cn": 0.95,
     "npc.gov.cn": 0.95,
-
     # 法律专业平台
     "pkulaw.com": 0.9,
     "itslaw.com": 0.85,
     "lawxp.com": 0.85,
     "chinalawinfo.com": 0.85,
     "wenshu.court.gov.cn": 0.95,
-
     # 企业信息平台
     "tianyancha.com": 0.8,
     "qcc.com": 0.8,
     "aiqicha.baidu.com": 0.75,
     "qichacha.com": 0.75,
-
     # 主流媒体
     "xinhuanet.com": 0.7,
     "people.com.cn": 0.7,
     "caixin.com": 0.65,
     "thepaper.cn": 0.65,
-
     # 百科/知识
     "baike.baidu.com": 0.6,
     "zh.wikipedia.org": 0.6,
-
     # 社交媒体（最低）
     "weibo.com": 0.3,
     "zhihu.com": 0.4,
@@ -143,7 +138,9 @@ class SearchDedupService:
 
                 score_map[key] = score_map.get(key, 0) + rrf + quality
 
-                if key not in item_map or result.get("relevance", 0) > item_map[key].get("relevance", 0):
+                if key not in item_map or result.get("relevance", 0) > item_map[key].get(
+                    "relevance", 0
+                ):
                     item_map[key] = result
 
         # 排序
@@ -166,16 +163,16 @@ class SearchDedupService:
         if not url:
             return ""
         url = url.strip().rstrip("/")
-        url = re.sub(r'^https?://(www\.)?', '', url)
-        url = re.sub(r'[?&](utm_\w+|ref|source|from)=[^&]*', '', url)
+        url = re.sub(r"^https?://(www\.)?", "", url)
+        url = re.sub(r"[?&](utm_\w+|ref|source|from)=[^&]*", "", url)
         return url.lower()
 
     def _normalize_title(self, title: str) -> str:
         """标题标准化（去掉标点、空格、截断到前 30 字）"""
         if not title:
             return ""
-        t = re.sub(r'[\s\-_—|·•·]+', '', title)
-        t = re.sub(r'[^\u4e00-\u9fff\w]', '', t)
+        t = re.sub(r"[\s\-_—|·•·]+", "", title)
+        t = re.sub(r"[^\u4e00-\u9fff\w]", "", t)
         return t[:30].lower()
 
     def _extract_domain(self, url: str) -> str:

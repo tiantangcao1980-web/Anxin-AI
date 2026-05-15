@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 关系映射器
 
@@ -27,8 +26,7 @@
 from __future__ import annotations
 
 import hashlib
-import re
-from typing import Iterable
+from collections.abc import Iterable
 
 from src.services.rag.kg.base import (
     Entity,
@@ -39,7 +37,6 @@ from src.services.rag.kg.base import (
     Segment,
     SegmentLikeProtocol,
 )
-
 
 SEAL_MENTION_KEYWORDS = ("公章", "印章", "盖章", "签章")
 SIGNATURE_MENTION_KEYWORDS = ("签字", "签名", "落款")
@@ -158,10 +155,6 @@ class RelationMapper:
     ) -> list[Relation]:
         relations: list[Relation] = []
 
-        # 拿所有非文本 segment 与实体
-        non_text_segments = [
-            s for s in seg_list if s.modality and s.modality != Modality.TEXT.value
-        ]
         non_text_entities_by_modality: dict[str, list[Entity]] = {}
         for ent in entities:
             for m in ent.mentions:
@@ -204,7 +197,9 @@ class RelationMapper:
                     neighbors, non_text_entities_by_modality, modality=Modality.SEAL.value
                 )
                 for tgt in seal_targets:
-                    src_id = subject_candidates[0].entity_id if subject_candidates else tgt.entity_id
+                    src_id = (
+                        subject_candidates[0].entity_id if subject_candidates else tgt.entity_id
+                    )
                     if src_id == tgt.entity_id:
                         continue
                     relations.append(
@@ -224,7 +219,9 @@ class RelationMapper:
                     neighbors, non_text_entities_by_modality, modality=Modality.SIGNATURE.value
                 )
                 for tgt in sig_targets:
-                    src_id = subject_candidates[0].entity_id if subject_candidates else tgt.entity_id
+                    src_id = (
+                        subject_candidates[0].entity_id if subject_candidates else tgt.entity_id
+                    )
                     if src_id == tgt.entity_id:
                         continue
                     relations.append(
@@ -244,7 +241,9 @@ class RelationMapper:
                     neighbors, non_text_entities_by_modality, modality=Modality.IMAGE.value
                 )
                 for tgt in img_targets:
-                    src_id = subject_candidates[0].entity_id if subject_candidates else tgt.entity_id
+                    src_id = (
+                        subject_candidates[0].entity_id if subject_candidates else tgt.entity_id
+                    )
                     if src_id == tgt.entity_id:
                         continue
                     relations.append(
@@ -264,7 +263,9 @@ class RelationMapper:
                     neighbors, non_text_entities_by_modality, modality=Modality.FORMULA.value
                 )
                 for tgt in f_targets:
-                    src_id = subject_candidates[0].entity_id if subject_candidates else tgt.entity_id
+                    src_id = (
+                        subject_candidates[0].entity_id if subject_candidates else tgt.entity_id
+                    )
                     if src_id == tgt.entity_id:
                         continue
                     relations.append(
@@ -282,9 +283,7 @@ class RelationMapper:
             if has_amount:
                 table_neighbors = [n for n in neighbors if n.modality == Modality.TABLE.value]
                 if table_neighbors:
-                    amount_entities = [
-                        e for e in seg_entities if e.type == EntityType.AMOUNT
-                    ]
+                    amount_entities = [e for e in seg_entities if e.type == EntityType.AMOUNT]
                     for tn in table_neighbors:
                         # 在 tn 上挂的 TABLE_DATA 实体
                         tbl_entities = ent_by_segment.get(tn.segment_id, [])

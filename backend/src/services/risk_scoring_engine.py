@@ -23,8 +23,9 @@ from typing import Any
 
 class DataQuality:
     """数据质量标注"""
-    REAL = "real"              # 来自政府公开数据
-    PUBLIC = "public"          # 来自公开工商平台
+
+    REAL = "real"  # 来自政府公开数据
+    PUBLIC = "public"  # 来自公开工商平台
     LLM_ESTIMATED = "estimated"  # LLM 估算
     UNKNOWN = "unknown"
 
@@ -261,9 +262,7 @@ class RiskScoringEngine:
         dim.label = "high" if dim.score > 60 else "medium" if dim.score > 35 else "low"
         return dim
 
-    def _compute_credit_risk(
-        self, credit: dict[str, Any], llm: dict[str, Any]
-    ) -> RiskDimension:
+    def _compute_credit_risk(self, credit: dict[str, Any], llm: dict[str, Any]) -> RiskDimension:
         """信用风险：基于信用中国数据、行政处罚"""
         dim = RiskDimension("credit_risk")
         score = 15  # 基准分
@@ -420,8 +419,7 @@ class RiskScoringEngine:
             key=lambda f: (-float(f["contribution"]), str(f["key"])),
         )[:2]
         leading = "、".join(
-            f"{factor['name']}贡献{factor['contribution']:.1f}分"
-            for factor in leading_factors
+            f"{factor['name']}贡献{factor['contribution']:.1f}分" for factor in leading_factors
         )
         return f"综合风险为{rating_label}（{score:.1f}/100）；主要来源：{leading}。"
 

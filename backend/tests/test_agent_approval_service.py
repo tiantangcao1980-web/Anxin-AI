@@ -11,7 +11,9 @@ from src.services.agent_governance_service import AgentGovernanceService
 
 
 @pytest.mark.asyncio
-async def test_request_approval_persists_sanitized_payload_and_audit(db_session, test_organization, test_user):
+async def test_request_approval_persists_sanitized_payload_and_audit(
+    db_session, test_organization, test_user
+):
     governance = AgentGovernanceService(db_session)
     route = await governance.create_capability_route(
         org_id=test_organization.id,
@@ -37,11 +39,19 @@ async def test_request_approval_persists_sanitized_payload_and_audit(db_session,
     )
 
     approval = (
-        await db_session.execute(select(AgentApproval).where(AgentApproval.id == requested.approval_id))
+        await db_session.execute(
+            select(AgentApproval).where(AgentApproval.id == requested.approval_id)
+        )
     ).scalar_one()
     audits = (
-        await db_session.execute(select(AgentAuditEvent).where(AgentAuditEvent.org_id == test_organization.id))
-    ).scalars().all()
+        (
+            await db_session.execute(
+                select(AgentAuditEvent).where(AgentAuditEvent.org_id == test_organization.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     assert requested.allowed is True
     assert requested.reason_code == "requested"
@@ -91,15 +101,21 @@ async def test_decide_approval_requires_authorized_role_and_keeps_denied_pending
     )
 
     approval = (
-        await db_session.execute(select(AgentApproval).where(AgentApproval.id == requested.approval_id))
+        await db_session.execute(
+            select(AgentApproval).where(AgentApproval.id == requested.approval_id)
+        )
     ).scalar_one()
     audits = (
-        await db_session.execute(
-            select(AgentAuditEvent)
-            .where(AgentAuditEvent.org_id == test_organization.id)
-            .order_by(AgentAuditEvent.created_at)
+        (
+            await db_session.execute(
+                select(AgentAuditEvent)
+                .where(AgentAuditEvent.org_id == test_organization.id)
+                .order_by(AgentAuditEvent.created_at)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     assert denied.allowed is False
     assert denied.reason_code == "approver_role_not_allowed"
@@ -115,7 +131,9 @@ async def test_decide_approval_requires_authorized_role_and_keeps_denied_pending
 
 
 @pytest.mark.asyncio
-async def test_validate_approval_requires_approved_action_and_route(db_session, test_organization, test_user, test_admin):
+async def test_validate_approval_requires_approved_action_and_route(
+    db_session, test_organization, test_user, test_admin
+):
     governance = AgentGovernanceService(db_session)
     route = await governance.create_capability_route(
         org_id=test_organization.id,
@@ -169,7 +187,9 @@ async def test_validate_approval_requires_approved_action_and_route(db_session, 
 
 
 @pytest.mark.asyncio
-async def test_expired_approval_fails_closed_and_marks_status(db_session, test_organization, test_user, test_admin):
+async def test_expired_approval_fails_closed_and_marks_status(
+    db_session, test_organization, test_user, test_admin
+):
     issued_at = datetime(2026, 5, 8, tzinfo=UTC)
     service = AgentApprovalService(db_session)
     requested = await service.request_approval(
@@ -197,7 +217,9 @@ async def test_expired_approval_fails_closed_and_marks_status(db_session, test_o
     )
 
     approval = (
-        await db_session.execute(select(AgentApproval).where(AgentApproval.id == requested.approval_id))
+        await db_session.execute(
+            select(AgentApproval).where(AgentApproval.id == requested.approval_id)
+        )
     ).scalar_one()
 
     assert expired.allowed is False
@@ -277,12 +299,16 @@ async def test_workspace_control_requires_approved_approval(
     )
 
     audits = (
-        await db_session.execute(
-            select(AgentAuditEvent)
-            .where(AgentAuditEvent.org_id == test_organization.id)
-            .order_by(AgentAuditEvent.created_at)
+        (
+            await db_session.execute(
+                select(AgentAuditEvent)
+                .where(AgentAuditEvent.org_id == test_organization.id)
+                .order_by(AgentAuditEvent.created_at)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     assert controlled.allowed is False
     assert controlled.reason_code == "approval_not_approved"
@@ -325,15 +351,21 @@ async def test_workspace_control_fails_closed_until_runtime_is_integrated(
     )
 
     approval = (
-        await db_session.execute(select(AgentApproval).where(AgentApproval.id == requested.approval_id))
+        await db_session.execute(
+            select(AgentApproval).where(AgentApproval.id == requested.approval_id)
+        )
     ).scalar_one()
     audits = (
-        await db_session.execute(
-            select(AgentAuditEvent)
-            .where(AgentAuditEvent.org_id == test_organization.id)
-            .order_by(AgentAuditEvent.created_at)
+        (
+            await db_session.execute(
+                select(AgentAuditEvent)
+                .where(AgentAuditEvent.org_id == test_organization.id)
+                .order_by(AgentAuditEvent.created_at)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     assert controlled.allowed is False
     assert controlled.reason_code == "runtime_not_integrated"
@@ -393,12 +425,16 @@ async def test_workspace_control_accepts_local_runtime_rehearsal(
     )
 
     audits = (
-        await db_session.execute(
-            select(AgentAuditEvent)
-            .where(AgentAuditEvent.org_id == test_organization.id)
-            .order_by(AgentAuditEvent.created_at)
+        (
+            await db_session.execute(
+                select(AgentAuditEvent)
+                .where(AgentAuditEvent.org_id == test_organization.id)
+                .order_by(AgentAuditEvent.created_at)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     assert controlled.allowed is True
     assert controlled.reason_code == "pause_accepted"
@@ -468,12 +504,16 @@ async def test_workspace_observe_returns_read_only_snapshot_and_writes_audit(
     )
 
     audits = (
-        await db_session.execute(
-            select(AgentAuditEvent)
-            .where(AgentAuditEvent.org_id == test_organization.id)
-            .order_by(AgentAuditEvent.created_at)
+        (
+            await db_session.execute(
+                select(AgentAuditEvent)
+                .where(AgentAuditEvent.org_id == test_organization.id)
+                .order_by(AgentAuditEvent.created_at)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     assert observed.allowed is True
     assert observed.reason_code == "observe_snapshot_ready"
@@ -487,7 +527,10 @@ async def test_workspace_observe_returns_read_only_snapshot_and_writes_audit(
     }
     assert observed.workspace_snapshot["artifacts"][0]["title"] == "旁听摘要"
     assert observed.workspace_snapshot["artifacts"][0]["content"]["api_key"] == "[redacted]"
-    assert observed.workspace_snapshot["artifacts"][0]["content"]["nested"]["client_secret"] == "[redacted]"
+    assert (
+        observed.workspace_snapshot["artifacts"][0]["content"]["nested"]["client_secret"]
+        == "[redacted]"
+    )
     assert observed.workspace_snapshot["audit_events"][0]["action"] == "agent_workspace.observe"
     assert observed.workspace_snapshot["observe_audit_event_id"] == observed.audit_event_id
     assert audits[-1].action == "agent_workspace.observe"
@@ -581,12 +624,16 @@ async def test_workspace_artifacts_require_approved_workspace_and_redact_payload
         approval_id=requested.approval_id,
     )
     audits = (
-        await db_session.execute(
-            select(AgentAuditEvent)
-            .where(AgentAuditEvent.org_id == test_organization.id)
-            .order_by(AgentAuditEvent.created_at)
+        (
+            await db_session.execute(
+                select(AgentAuditEvent)
+                .where(AgentAuditEvent.org_id == test_organization.id)
+                .order_by(AgentAuditEvent.created_at)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     assert before_approval.allowed is False
     assert before_approval.reason_code == "approval_not_approved"
@@ -623,7 +670,11 @@ async def test_workspace_artifacts_require_approved_workspace_and_redact_payload
         for event in audits
         if event.action == "agent_workspace.artifact.add" and event.status == "success"
     )
-    update_audit = next(event for event in audits if event.action == "agent_workspace.artifact.update" and event.status == "success")
+    update_audit = next(
+        event
+        for event in audits
+        if event.action == "agent_workspace.artifact.update" and event.status == "success"
+    )
     assert add_audit.reason_code == "artifact_recorded"
     assert add_audit.resource_snapshot["title"] == "高风险操作摘要"
     assert update_audit.reason_code == "artifact_updated"

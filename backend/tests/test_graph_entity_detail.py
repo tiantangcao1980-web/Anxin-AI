@@ -16,33 +16,41 @@ async def test_get_entity_detail_falls_back_to_contains_match_when_exact_name_mi
             if name == "知识产权":
                 return []
             if name == "知识产权纠纷":
-                return [{
-                    "name": "知识产权纠纷",
-                    "labels": ["案例"],
-                    "props": {"来源": "最高法"},
-                }]
+                return [
+                    {
+                        "name": "知识产权纠纷",
+                        "labels": ["案例"],
+                        "props": {"来源": "最高法"},
+                    }
+                ]
             if keyword == "知识产权":
-                return [{
-                    "name": "知识产权纠纷",
-                    "labels": ["案例"],
-                    "props": {"来源": "最高法"},
-                }]
+                return [
+                    {
+                        "name": "知识产权纠纷",
+                        "labels": ["案例"],
+                        "props": {"来源": "最高法"},
+                    }
+                ]
 
         if "MATCH (n)-[r]->(m) WHERE n.name = $name" in query:
-            return [{
-                "relation": "REFERENCES",
-                "target": "专利法",
-                "target_labels": ["法规"],
-                "rel_props": {},
-            }]
+            return [
+                {
+                    "relation": "REFERENCES",
+                    "target": "专利法",
+                    "target_labels": ["法规"],
+                    "rel_props": {},
+                }
+            ]
 
         if "MATCH (m)-[r]->(n) WHERE n.name = $name" in query:
-            return [{
-                "relation": "CITED_BY",
-                "source": "知识产权保护专题",
-                "source_labels": ["文档"],
-                "rel_props": {},
-            }]
+            return [
+                {
+                    "relation": "CITED_BY",
+                    "source": "知识产权保护专题",
+                    "source_labels": ["文档"],
+                    "rel_props": {},
+                }
+            ]
 
         return []
 

@@ -13,7 +13,9 @@ async def test_stream_chat_passes_recent_history_to_single_agent(db_session):
     service = ChatService(db_session)
     service._load_llm_config = AsyncMock(return_value=None)
     service.create_conversation = AsyncMock(return_value=SimpleNamespace(id="conv-history"))
-    service.add_message = AsyncMock(return_value=SimpleNamespace(id="msg-history", citations=None, actions=None))
+    service.add_message = AsyncMock(
+        return_value=SimpleNamespace(id="msg-history", citations=None, actions=None)
+    )
     service.get_recent_history = AsyncMock(
         return_value=[
             {"role": "user", "content": "上一轮问题"},

@@ -14,21 +14,25 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 
-AUTHORIZED_SKILL_APPROVER_ROLES = frozenset({
-    "owner",
-    "boss",
-    "super_admin",
-    "org_admin",
-    "admin",
-})
+AUTHORIZED_SKILL_APPROVER_ROLES = frozenset(
+    {
+        "owner",
+        "boss",
+        "super_admin",
+        "org_admin",
+        "admin",
+    }
+)
 
-REQUIRED_SKILL_EVAL_CHECKS = frozenset({
-    "offline_eval",
-    "permission_regression",
-    "prompt_injection",
-    "privacy_mode",
-    "audit_log",
-})
+REQUIRED_SKILL_EVAL_CHECKS = frozenset(
+    {
+        "offline_eval",
+        "permission_regression",
+        "prompt_injection",
+        "privacy_mode",
+        "audit_log",
+    }
+)
 
 
 def _now() -> datetime:
@@ -163,13 +167,15 @@ class SkillEvolutionService:
         proposal = self._get(proposal_id)
         checked_at = now or _now()
         normalized_checks = {
-            _normalize(name): bool(passed)
-            for name, passed in checks.items()
-            if _normalize(name)
+            _normalize(name): bool(passed) for name, passed in checks.items() if _normalize(name)
         }
         if not normalized_checks:
             raise SkillEvolutionError("at least one eval check is required")
-        if proposal.status not in {SkillEvolutionStatus.DRAFT, SkillEvolutionStatus.EVALUATED, SkillEvolutionStatus.REJECTED}:
+        if proposal.status not in {
+            SkillEvolutionStatus.DRAFT,
+            SkillEvolutionStatus.EVALUATED,
+            SkillEvolutionStatus.REJECTED,
+        }:
             self._audit(
                 action="skill_evolution.eval.deny",
                 proposal=proposal,
@@ -178,7 +184,9 @@ class SkillEvolutionService:
                 metadata={"proposal_status": proposal.status.value},
                 now=checked_at,
             )
-            raise SkillEvolutionError(f"cannot record eval when proposal is {proposal.status.value}")
+            raise SkillEvolutionError(
+                f"cannot record eval when proposal is {proposal.status.value}"
+            )
 
         proposal.eval_results = normalized_checks
         missing = REQUIRED_SKILL_EVAL_CHECKS - set(normalized_checks)
@@ -239,7 +247,9 @@ class SkillEvolutionService:
                 metadata={"proposal_status": proposal.status.value},
                 now=approved_at,
             )
-            raise SkillEvolutionError("skill evolution proposal must pass required eval checks before approval")
+            raise SkillEvolutionError(
+                "skill evolution proposal must pass required eval checks before approval"
+            )
 
         proposal.status = SkillEvolutionStatus.APPROVED
         proposal.approved_by = approver
@@ -274,7 +284,9 @@ class SkillEvolutionService:
                 metadata={"proposal_status": proposal.status.value},
                 now=released_at,
             )
-            raise SkillEvolutionError("skill evolution proposal must be approved before gray release")
+            raise SkillEvolutionError(
+                "skill evolution proposal must be approved before gray release"
+            )
         if percentage < 1 or percentage > 100:
             self._audit(
                 action="skill_evolution.release.deny",
@@ -323,7 +335,9 @@ class SkillEvolutionService:
                 metadata={"proposal_status": proposal.status.value},
                 now=rolled_back_at,
             )
-            raise SkillEvolutionError("only approved or released skill evolution proposals can be rolled back")
+            raise SkillEvolutionError(
+                "only approved or released skill evolution proposals can be rolled back"
+            )
 
         proposal.status = SkillEvolutionStatus.ROLLED_BACK
         proposal.rolled_back_at = rolled_back_at
@@ -387,19 +401,21 @@ class SkillEvolutionService:
         metadata: dict[str, str] | None = None,
     ) -> str:
         event_id = uuid.uuid4().hex
-        self._audit_log.append(SkillEvolutionAuditEvent(
-            event_id=event_id,
-            action=action,
-            proposal_id=proposal.proposal_id,
-            skill_name=proposal.skill_name,
-            status=proposal.status,
-            actor=actor,
-            reason_code=reason_code,
-            created_at=now,
-            metadata=metadata or {},
-        ))
+        self._audit_log.append(
+            SkillEvolutionAuditEvent(
+                event_id=event_id,
+                action=action,
+                proposal_id=proposal.proposal_id,
+                skill_name=proposal.skill_name,
+                status=proposal.status,
+                actor=actor,
+                reason_code=reason_code,
+                created_at=now,
+                metadata=metadata or {},
+            )
+        )
         if len(self._audit_log) > self._max_audit:
-            self._audit_log = self._audit_log[-self._max_audit:]
+            self._audit_log = self._audit_log[-self._max_audit :]
         return event_id
 
 

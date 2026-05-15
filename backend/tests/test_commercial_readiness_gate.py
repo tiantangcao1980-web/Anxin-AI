@@ -5,9 +5,12 @@ def test_commercial_gate_surfaces_artifact_validator_warnings():
     repo_root = Path(__file__).resolve().parents[2]
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
 
-    assert 'artifact_validation_output="$(python3 scripts/validate-release-artifacts.py 2>&1)"' in script
+    assert (
+        'artifact_validation_output="$(python3 scripts/validate-release-artifacts.py 2>&1)"'
+        in script
+    )
     assert 'add_warning "${line#WARN: }"' in script
-    assert 'FAIL:\\ *)' in script
+    assert "FAIL:\\ *)" in script
 
 
 def test_commercial_gate_requires_desktop_network_surface_gate():
@@ -24,7 +27,10 @@ def test_commercial_gate_requires_desktop_window_chrome_gate():
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
 
     assert '"scripts/desktop-window-chrome-gate.sh"' in script
-    assert 'desktop_window_chrome_output="$(bash scripts/desktop-window-chrome-gate.sh 2>&1)"' in script
+    assert (
+        'desktop_window_chrome_output="$(bash scripts/desktop-window-chrome-gate.sh 2>&1)"'
+        in script
+    )
     assert 'require_command "desktop window chrome gate"' in script
 
 
@@ -79,7 +85,9 @@ def test_commercial_gate_runs_uni_mobile_migration_guard():
     repo_root = Path(__file__).resolve().parents[2]
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
     smoke_script = (repo_root / "scripts" / "uni-mobile-smoke.sh").read_text(encoding="utf-8")
-    guard_script = (repo_root / "scripts" / "uni-mobile-migration-guard.sh").read_text(encoding="utf-8")
+    guard_script = (repo_root / "scripts" / "uni-mobile-migration-guard.sh").read_text(
+        encoding="utf-8"
+    )
 
     assert "scripts/uni-mobile-migration-guard.sh" in script
     assert 'require_command "uni-mobile migration guard"' in script
@@ -92,7 +100,9 @@ def test_commercial_gate_runs_uni_mobile_migration_guard():
 def test_commercial_gate_requires_product_status_consistency_guard():
     repo_root = Path(__file__).resolve().parents[2]
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
-    guard_script = (repo_root / "scripts" / "validate-product-status-consistency.cjs").read_text(encoding="utf-8")
+    guard_script = (repo_root / "scripts" / "validate-product-status-consistency.cjs").read_text(
+        encoding="utf-8"
+    )
 
     assert '"scripts/validate-product-status-consistency.cjs"' in script
     assert "node scripts/validate-product-status-consistency.cjs" in script
@@ -172,7 +182,10 @@ def test_commercial_gate_runs_approved_connector_local_rehearsal():
 
     assert '"scripts/agent-connector-rehearsal.sh"' in script
     assert 'require_command "approved connector local rehearsal"' in script
-    assert "scripts/agent-connector-rehearsal.sh --out /tmp/anxin-agent-connector-rehearsal-gate.json" in script
+    assert (
+        "scripts/agent-connector-rehearsal.sh --out /tmp/anxin-agent-connector-rehearsal-gate.json"
+        in script
+    )
 
 
 def test_commercial_gate_runs_cross_process_revocation_local_rehearsal():
@@ -193,7 +206,10 @@ def test_commercial_gate_runs_cross_device_continuation_smoke():
 
     assert '"scripts/cross-device-continuation-smoke.sh"' in script
     assert 'require_command "cross-device continuation code smoke"' in script
-    assert "scripts/cross-device-continuation-smoke.sh --out /tmp/anxin-cross-device-continuation-gate.json" in script
+    assert (
+        "scripts/cross-device-continuation-smoke.sh --out /tmp/anxin-cross-device-continuation-gate.json"
+        in script
+    )
 
 
 def test_commercial_gate_runs_cli_route_governance_tests():
@@ -234,7 +250,10 @@ def test_commercial_gate_requires_agent_governance_release_evidence():
     repo_root = Path(__file__).resolve().parents[2]
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
 
-    assert "docs/release/evidence/agent-governance-smoke.md|enterprise agent governance smoke" in script
+    assert (
+        "docs/release/evidence/agent-governance-smoke.md|enterprise agent governance smoke"
+        in script
+    )
 
 
 def test_commercial_gate_requires_agent_governance_smoke_script():

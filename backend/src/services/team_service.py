@@ -46,9 +46,7 @@ class TeamService:
             d["leader_name"] = "待指定"
 
             if team.leader_id:
-                leader_result = await self.db.execute(
-                    select(User).where(User.id == team.leader_id)
-                )
+                leader_result = await self.db.execute(select(User).where(User.id == team.leader_id))
                 leader = leader_result.scalar_one_or_none()
                 if leader:
                     d["leader_name"] = leader.name

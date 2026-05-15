@@ -87,13 +87,13 @@ class CitationTracker:
 
     # 法律引用正则
     RE_LAW_REF = re.compile(
-        r'《([^》]{2,30})》'
-        r'(?:\s*第?\s*(\d+)\s*条)?'
-        r'(?:\s*第?\s*(\d+)\s*款)?'
-        r'(?:\s*第?\s*(\d+)\s*项)?'
+        r"《([^》]{2,30})》"
+        r"(?:\s*第?\s*(\d+)\s*条)?"
+        r"(?:\s*第?\s*(\d+)\s*款)?"
+        r"(?:\s*第?\s*(\d+)\s*项)?"
     )
     # 案号引用
-    RE_CASE_REF = re.compile(r'[（(](\d{4})[）)]([^，,。\s]{2,20}?)第?\s*(\d+)\s*号')
+    RE_CASE_REF = re.compile(r"[（(](\d{4})[）)]([^，,。\s]{2,20}?)第?\s*(\d+)\s*号")
     # 司法解释引用
     RE_INTERPRETATION = re.compile(
         r"(?:最高人民法院|最高人民检察院|两高)(?:关于[^的]{2,30}的)?"
@@ -112,14 +112,16 @@ class CitationTracker:
             item = match.group(4)
 
             source_type = self._classify_source(name)
-            citations.append(Citation(
-                text=match.group(0),
-                source_type=source_type,
-                source_name=name,
-                article=article,
-                paragraph=paragraph,
-                item=item,
-            ))
+            citations.append(
+                Citation(
+                    text=match.group(0),
+                    source_type=source_type,
+                    source_name=name,
+                    article=article,
+                    paragraph=paragraph,
+                    item=item,
+                )
+            )
 
         # 2. 案号引用
         for match in self.RE_CASE_REF.finditer(text):
@@ -127,19 +129,23 @@ class CitationTracker:
             court = match.group(2)
             number = match.group(3)
             case_no = f"({year}){court}{number}号"
-            citations.append(Citation(
-                text=match.group(0),
-                source_type="case",
-                source_name=case_no,
-            ))
+            citations.append(
+                Citation(
+                    text=match.group(0),
+                    source_type="case",
+                    source_name=case_no,
+                )
+            )
 
         # 3. 司法解释引用
         for match in self.RE_INTERPRETATION.finditer(text):
-            citations.append(Citation(
-                text=match.group(0),
-                source_type="interpretation",
-                source_name=match.group(0),
-            ))
+            citations.append(
+                Citation(
+                    text=match.group(0),
+                    source_type="interpretation",
+                    source_name=match.group(0),
+                )
+            )
 
         return citations
 
@@ -168,6 +174,7 @@ class CitationTracker:
                 try:
                     # 语义搜索验证
                     from src.services.vector_store import vector_store
+
                     if vector_store and vector_store.is_available:
                         results = await vector_store.search(
                             collection_name=settings.QDRANT_COLLECTION_NAME,
@@ -203,23 +210,27 @@ class CitationTracker:
             node_id = _safe_citation_text(citation.source_name)
             if node_id not in seen:
                 seen.add(node_id)
-                nodes.append({
-                    "id": node_id,
-                    "name": node_id,
-                    "type": citation.source_type,
-                    "verified": citation.verified,
-                })
+                nodes.append(
+                    {
+                        "id": node_id,
+                        "name": node_id,
+                        "type": citation.source_type,
+                        "verified": citation.verified,
+                    }
+                )
 
         # 相同类型的引文之间建立"共引"关系
         source_names = [_safe_citation_text(c.source_name) for c in citations]
         for i in range(len(source_names)):
             for j in range(i + 1, len(source_names)):
                 if source_names[i] != source_names[j]:
-                    edges.append({
-                        "source": source_names[i],
-                        "target": source_names[j],
-                        "relation": "共引",
-                    })
+                    edges.append(
+                        {
+                            "source": source_names[i],
+                            "target": source_names[j],
+                            "relation": "共引",
+                        }
+                    )
 
         return {"nodes": nodes, "edges": edges}
 

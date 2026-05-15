@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 app_authorizations 路由 API 测试（P4-A）
 
@@ -17,29 +16,30 @@ from __future__ import annotations
 from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler as _SQLiteTC
 
 if not hasattr(_SQLiteTC, "visit_JSONB"):
+
     def _visit_JSONB(self, type_, **kw):  # noqa: N802
         return self.visit_JSON(type_, **kw)
 
     _SQLiteTC.visit_JSONB = _visit_JSONB  # type: ignore[attr-defined]
 
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from cryptography.fernet import Fernet
 from httpx import AsyncClient
 
-# 触发 ORM 注册（conftest setup_test_db 会 create_all）
-from src.services.app_authorization.models import (  # noqa: F401
-    AppAuthorization,
-    AppToken,
-)
 from src.services.app_authorization import (
     BaseOAuthProvider,
     OAuthProviderRegistry,
     OAuthTokenBundle,
 )
 
+# 触发 ORM 注册（conftest setup_test_db 会 create_all）
+from src.services.app_authorization.models import (  # noqa: F401
+    AppAuthorization,
+    AppToken,
+)
 
 # ---------------------------------------------------------------------------
 # Stub provider + Fixtures
@@ -61,7 +61,7 @@ class _StubAPIProvider(BaseOAuthProvider):
             access_token=f"acc_{code}",
             refresh_token=f"ref_{code}",
             token_type="Bearer",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=2),
+            expires_at=datetime.now(UTC) + timedelta(hours=2),
             scopes=["read"],
         )
 
@@ -70,7 +70,7 @@ class _StubAPIProvider(BaseOAuthProvider):
             access_token=f"acc_new_{refresh_token}",
             refresh_token=f"ref_new_{refresh_token}",
             token_type="Bearer",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=2),
+            expires_at=datetime.now(UTC) + timedelta(hours=2),
             scopes=["read"],
         )
 
@@ -108,7 +108,6 @@ def _setup_oauth_env(monkeypatch):
     # 3. 关闭 state cache 的 Redis 兜底
     from src.services.app_authorization.oauth_flow import (
         _StateCache,
-        _get_state_cache,
     )
 
     async def _no_redis(self):
@@ -242,7 +241,5 @@ async def test_refresh_and_disconnect_flow(auth_client: AsyncClient):
     assert r4.json()["status"] == "revoked"
 
     # 404 边界
-    r5 = await auth_client.delete(
-        "/api/v1/app-authorizations/00000000-0000-0000-0000-000000000000"
-    )
+    r5 = await auth_client.delete("/api/v1/app-authorizations/00000000-0000-0000-0000-000000000000")
     assert r5.status_code == 404

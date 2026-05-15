@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 im_pairing 路由 —— P3-B IM 配对授权 24h 窗口
 
@@ -19,8 +18,6 @@ im_pairing 路由 —— P3-B IM 配对授权 24h 窗口
 """
 
 from __future__ import annotations
-
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,7 +40,6 @@ from src.services.im_gateway.pairing.service import (
     PairingNotPendingError,
     PairingService,
 )
-
 
 router = APIRouter()
 
@@ -84,7 +80,7 @@ async def create_pairing_request(
 
 @router.get("/pending", response_model=PairingRequestListOut)
 async def list_pending_pairing_requests(
-    channel_id: Optional[str] = Query(default=None, description="按通道过滤"),
+    channel_id: str | None = Query(default=None, description="按通道过滤"),
     limit: int = Query(default=50, ge=1, le=200),
     _admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
@@ -101,7 +97,7 @@ async def list_pending_pairing_requests(
 
 @router.get("/authorized", response_model=IMBindingListOut)
 async def list_authorized_bindings(
-    channel_id: Optional[str] = Query(default=None, description="按通道过滤"),
+    channel_id: str | None = Query(default=None, description="按通道过滤"),
     limit: int = Query(default=50, ge=1, le=200),
     _user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db),

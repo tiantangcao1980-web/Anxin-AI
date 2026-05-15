@@ -56,7 +56,9 @@ async def test_register_accepts_valid_captcha_token(client, monkeypatch):
     monkeypatch.setattr(settings, "TURNSTILE_SECRET_KEY", "secret-key")
     monkeypatch.setattr(settings, "EMAIL_VERIFY_ENABLED", False)
 
-    with patch("src.api.routes.auth.captcha_service.verify_token", new=AsyncMock(return_value=True)):
+    with patch(
+        "src.api.routes.auth.captcha_service.verify_token", new=AsyncMock(return_value=True)
+    ):
         response = await client.post(
             "/api/v1/auth/register",
             json={
@@ -140,10 +142,14 @@ async def test_password_reset_token_is_high_entropy_single_use_and_context_bound
     assert not token.isdigit()
 
     token_records = (
-        await db_session.execute(
-            select(PasswordResetToken).where(PasswordResetToken.user_id == user.id)
+        (
+            await db_session.execute(
+                select(PasswordResetToken).where(PasswordResetToken.user_id == user.id)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(token_records) == 1
     reset_record = token_records[0]
     assert reset_record.token_hash == hashlib.sha256(token.encode("utf-8")).hexdigest()
@@ -309,14 +315,27 @@ async def test_oauth_callback_accepts_issued_state(client, monkeypatch):
     assert issue_response.status_code == 200
     state = issue_response.json()["state"]
 
-    with patch("src.api.routes.auth.WeChatOAuth.get_access_token", new=AsyncMock(return_value={
-        "access_token": "token",
-        "openid": "openid-1",
-    })), patch("src.api.routes.auth.WeChatOAuth.get_user_info", new=AsyncMock(return_value={
-        "openid": "openid-1",
-        "nickname": "微信用户",
-        "headimgurl": "",
-    })):
+    with (
+        patch(
+            "src.api.routes.auth.WeChatOAuth.get_access_token",
+            new=AsyncMock(
+                return_value={
+                    "access_token": "token",
+                    "openid": "openid-1",
+                }
+            ),
+        ),
+        patch(
+            "src.api.routes.auth.WeChatOAuth.get_user_info",
+            new=AsyncMock(
+                return_value={
+                    "openid": "openid-1",
+                    "nickname": "微信用户",
+                    "headimgurl": "",
+                }
+            ),
+        ),
+    ):
         callback = await client.post(
             "/api/v1/auth/oauth/wechat/callback",
             json={"code": "abc123", "state": state},
@@ -352,11 +371,13 @@ async def test_wechat_mini_code2session_issues_jwt_without_session_key(
 
     with patch(
         "src.api.routes.auth.WeChatMiniProgramOAuth.code2session",
-        new=AsyncMock(return_value={
-            "openid": "mini-openid-1",
-            "unionid": "mini-union-1",
-            "session_key": "server-only-session-key",
-        }),
+        new=AsyncMock(
+            return_value={
+                "openid": "mini-openid-1",
+                "unionid": "mini-union-1",
+                "session_key": "server-only-session-key",
+            }
+        ),
     ):
         response = await client.post(
             "/api/v1/auth/wechat/code2session",
@@ -371,9 +392,7 @@ async def test_wechat_mini_code2session_issues_jwt_without_session_key(
     assert body["user"]["nickname"] == "微信用户"
     assert body["user"]["login_type"] == "wechat"
 
-    result = await db_session.execute(
-        select(User).where(User.wechat_openid == "mini-openid-1")
-    )
+    result = await db_session.execute(select(User).where(User.wechat_openid == "mini-openid-1"))
     user = result.scalar_one()
     assert user.wechat_unionid == "mini-union-1"
     assert user.email.startswith("wx_mini-openid-1")
@@ -381,10 +400,14 @@ async def test_wechat_mini_code2session_issues_jwt_without_session_key(
 
 @pytest.mark.asyncio
 async def test_sync_endpoints_require_auth_and_are_isolated(client, auth_client):
-    unauth = await client.post("/api/v1/sync/push", json={"records": [], "device_id": "d1", "last_sync_version": 0})
+    unauth = await client.post(
+        "/api/v1/sync/push", json={"records": [], "device_id": "d1", "last_sync_version": 0}
+    )
     assert unauth.status_code == 401
 
-    authed = await auth_client.post("/api/v1/sync/push", json={"records": [], "device_id": "d1", "last_sync_version": 0})
+    authed = await auth_client.post(
+        "/api/v1/sync/push", json={"records": [], "device_id": "d1", "last_sync_version": 0}
+    )
     assert authed.status_code == 200
     assert authed.json()["accepted"] == 0
 

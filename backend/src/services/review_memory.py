@@ -55,12 +55,14 @@ class ReviewMemoryService:
 
     def __init__(self) -> None:
         self._memories: list[ReviewMemoryEntry] = []
-        self._type_stats: dict[str, dict[str, int]] = defaultdict(lambda: {
-            "total_reviews": 0,
-            "total_risks": 0,
-            "accepted_risks": 0,
-            "rejected_risks": 0,
-        })
+        self._type_stats: dict[str, dict[str, int]] = defaultdict(
+            lambda: {
+                "total_reviews": 0,
+                "total_risks": 0,
+                "accepted_risks": 0,
+                "rejected_risks": 0,
+            }
+        )
 
     def save_review(
         self,
@@ -101,8 +103,10 @@ class ReviewMemoryService:
     ) -> list[dict[str, Any]]:
         """查找相似的历史审查"""
         relevant = [
-            m for m in self._memories
-            if m.contract_type == contract_type or self._type_overlap(m.contract_type, contract_type)
+            m
+            for m in self._memories
+            if m.contract_type == contract_type
+            or self._type_overlap(m.contract_type, contract_type)
         ]
         # 按时间倒序
         relevant.sort(key=lambda m: m.timestamp, reverse=True)
@@ -138,7 +142,8 @@ class ReviewMemoryService:
             "total_reviews": total_reviews,
             "rejection_patterns": dict(rejected_types),
             "improvement_areas": [
-                t for t, c in sorted(rejected_types.items(), key=lambda x: x[1], reverse=True)
+                t
+                for t, c in sorted(rejected_types.items(), key=lambda x: x[1], reverse=True)
                 if c > 1
             ],
         }
@@ -163,11 +168,15 @@ class ReviewMemoryService:
 
         parts: list[str] = []
         if common_risks:
-            parts.append(f"【历史审查经验】此类合同({contract_type})的常见风险点包括：{', '.join(common_risks[:5])}。请重点关注这些领域。")
+            parts.append(
+                f"【历史审查经验】此类合同({contract_type})的常见风险点包括：{', '.join(common_risks[:5])}。请重点关注这些领域。"
+            )
 
         improvement = rejection_info.get("improvement_areas", [])
         if improvement:
-            parts.append(f"【质量改进提示】过去审查中，以下类型的风险判断曾被用户拒绝较多：{', '.join(improvement[:3])}。请更审慎地评估这些类型的风险。")
+            parts.append(
+                f"【质量改进提示】过去审查中，以下类型的风险判断曾被用户拒绝较多：{', '.join(improvement[:3])}。请更审慎地评估这些类型的风险。"
+            )
 
         return "\n".join(parts)
 

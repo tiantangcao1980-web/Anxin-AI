@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 im_pairing 路由 API 测试（P3-B）
 
@@ -11,6 +10,7 @@ from __future__ import annotations
 from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler as _SQLiteTC
 
 if not hasattr(_SQLiteTC, "visit_JSONB"):
+
     def _visit_JSONB(self, type_, **kw):  # noqa: N802
         return self.visit_JSON(type_, **kw)
 
@@ -32,7 +32,6 @@ from src.services.im_gateway.models import (  # noqa: F401
     PairingRequest,
     PairingStatus,
 )
-
 
 # ---------------------------------------------------------------------------
 # fixtures

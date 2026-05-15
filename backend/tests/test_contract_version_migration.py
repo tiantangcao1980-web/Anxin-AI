@@ -31,24 +31,19 @@ def test_contract_version_migration_creates_snapshot_table_and_downgrades(monkey
 
         contract_columns = {column["name"] for column in sa.inspect(conn).get_columns("contracts")}
         version_columns = {
-            column["name"]
-            for column in sa.inspect(conn).get_columns("contract_versions")
+            column["name"] for column in sa.inspect(conn).get_columns("contract_versions")
         }
         assert "version" in contract_columns
         assert {"contract_id", "version", "text", "source", "created_by"} <= version_columns
 
         conn.execute(sa.text("INSERT INTO users (id) VALUES ('user-1')"))
         conn.execute(sa.text("INSERT INTO contracts (id, version) VALUES ('contract-1', 1)"))
-        conn.execute(
-            sa.text(
-                """
+        conn.execute(sa.text("""
                 INSERT INTO contract_versions
                     (id, contract_id, version, text, source, created_by)
                 VALUES
                     ('version-1', 'contract-1', 1, '合同正文', 'baseline', 'user-1')
-                """
-            )
-        )
+                """))
 
         row = conn.execute(sa.text("SELECT text FROM contract_versions")).scalar_one()
         assert row == "合同正文"

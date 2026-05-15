@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 飞书事件订阅签名校验 + 加密 payload 解密工具
 
@@ -114,9 +113,7 @@ def verify_signature(
 
     if not encrypt_key:
         if not verify_required:
-            logger.warning(
-                "[Feishu] signature verify SKIPPED — FEISHU_VERIFY_SIGNATURE=False"
-            )
+            logger.warning("[Feishu] signature verify SKIPPED — FEISHU_VERIFY_SIGNATURE=False")
             return True
         raise FeishuSignatureError(
             "FEISHU_ENCRYPT_KEY 未配置但签名校验为强制项。请配置 "
@@ -130,9 +127,7 @@ def verify_signature(
     try:
         ts_value = int(timestamp)
     except (TypeError, ValueError) as e:
-        raise FeishuTimestampError(
-            f"X-Lark-Request-Timestamp 非法: {timestamp!r}"
-        ) from e
+        raise FeishuTimestampError(f"X-Lark-Request-Timestamp 非法: {timestamp!r}") from e
     current = now if now is not None else time.time()
     if abs(current - ts_value) > max_age_seconds:
         raise FeishuTimestampError(

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P9-A: persona_anxin 路由 5 endpoint API 测试。
 
 不依赖真 LLM —— 用 ``set_agent_for_test()`` 注入测试 agent，
@@ -11,6 +10,7 @@ from __future__ import annotations
 from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler as _SQLiteTC
 
 if not hasattr(_SQLiteTC, "visit_JSONB"):
+
     def _visit_JSONB(self, type_, **kw):  # noqa: N802
         return self.visit_JSON(type_, **kw)
 
@@ -49,9 +49,7 @@ async def _inject_test_agent():
 
 
 @pytest.mark.asyncio
-async def test_classify_intent_fast_path(
-    auth_client: AsyncClient, _inject_test_agent
-) -> None:
+async def test_classify_intent_fast_path(auth_client: AsyncClient, _inject_test_agent) -> None:
     r = await auth_client.post(
         "/api/v1/personas/anxin/classify-intent",
         json={"message": "帮我起草一份采购合同"},
@@ -118,9 +116,7 @@ async def test_decompose(auth_client: AsyncClient, _inject_test_agent) -> None:
 
 
 @pytest.mark.asyncio
-async def test_decompose_validates(
-    auth_client: AsyncClient, _inject_test_agent
-) -> None:
+async def test_decompose_validates(auth_client: AsyncClient, _inject_test_agent) -> None:
     r = await auth_client.post(
         "/api/v1/personas/anxin/decompose",
         json={"task": ""},
@@ -134,9 +130,7 @@ async def test_decompose_validates(
 
 
 @pytest.mark.asyncio
-async def test_orchestrate_empty_plan(
-    auth_client: AsyncClient, _inject_test_agent
-) -> None:
+async def test_orchestrate_empty_plan(auth_client: AsyncClient, _inject_test_agent) -> None:
     """空 plan → status=ok，subtask_results 空。"""
     r = await auth_client.post(
         "/api/v1/personas/anxin/orchestrate",
@@ -218,9 +212,7 @@ async def test_guide(auth_client: AsyncClient, _inject_test_agent) -> None:
 
 
 @pytest.mark.asyncio
-async def test_guide_fast_path(
-    auth_client: AsyncClient, _inject_test_agent
-) -> None:
+async def test_guide_fast_path(auth_client: AsyncClient, _inject_test_agent) -> None:
     r = await auth_client.post(
         "/api/v1/personas/anxin/guide",
         json={"vague_query": "可以帮我看看合同吗"},

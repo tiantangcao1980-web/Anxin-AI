@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 HeadlessX Python 客户端。
 

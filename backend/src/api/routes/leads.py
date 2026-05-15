@@ -91,12 +91,14 @@ async def list_leads(
         page=page,
         page_size=page_size,
     )
-    return UnifiedResponse.success(data={
-        "items": [lead_to_response(lead) for lead in leads],
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-    })
+    return UnifiedResponse.success(
+        data={
+            "items": [lead_to_response(lead) for lead in leads],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        }
+    )
 
 
 @router.post("/")

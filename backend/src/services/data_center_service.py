@@ -15,17 +15,20 @@ from loguru import logger
 # 模拟数据库
 _DATA_STORE: dict[str, dict[str, Any]] = {}
 
+
 class DataCategory(Enum):
-    CORE_ASSET = "core_asset"       # 核心资产 (如：股权结构、财务底表) - 强加密
-    KNOWLEDGE = "knowledge"         # 知识数据 (如：行业研报、法律模板) - 向量化+RAG
-    MANAGEMENT = "management"       # 管理数据 (如：组织架构、审批日志) - 权限控制
-    ARCHIVE = "archive"             # 归档数据 (如：历史合同) - 冷存储
+    CORE_ASSET = "core_asset"  # 核心资产 (如：股权结构、财务底表) - 强加密
+    KNOWLEDGE = "knowledge"  # 知识数据 (如：行业研报、法律模板) - 向量化+RAG
+    MANAGEMENT = "management"  # 管理数据 (如：组织架构、审批日志) - 权限控制
+    ARCHIVE = "archive"  # 归档数据 (如：历史合同) - 冷存储
+
 
 class AccessLevel(Enum):
-    L1_PUBLIC = 1      # 全员公开
-    L2_INTERNAL = 2    # 内部保密 (部门级)
-    L3_CONFIDENTIAL = 3 # 机密 (高管级)
-    L4_TOP_SECRET = 4   # 绝密 (仅特定人)
+    L1_PUBLIC = 1  # 全员公开
+    L2_INTERNAL = 2  # 内部保密 (部门级)
+    L3_CONFIDENTIAL = 3  # 机密 (高管级)
+    L4_TOP_SECRET = 4  # 绝密 (仅特定人)
+
 
 class DataCenterService:
 
@@ -57,7 +60,7 @@ class DataCenterService:
             "executive": 3,
             "manager": 2,
             "employee": 1,
-            "guest": 0
+            "guest": 0,
         }
         user_level = role_levels.get(user_role, 0)
         return user_level >= required_level
@@ -69,7 +72,7 @@ class DataCenterService:
         data: Any,
         owner_id: str,
         access_level: AccessLevel = AccessLevel.L2_INTERNAL,
-        encrypt: bool = True
+        encrypt: bool = True,
     ) -> dict[str, Any]:
         """
         存储数据资产
@@ -95,13 +98,15 @@ class DataCenterService:
             "is_encrypted": is_encrypted,
             "created_at": datetime.now().isoformat(),
             "updated_at": datetime.now().isoformat(),
-            "version": 1
+            "version": 1,
         }
 
         # 存入模拟数据库 (实际应存入 PG 或 MinIO)
         _DATA_STORE[record_id] = record
 
-        logger.info(f"数据资产已存储: {record_id} (加密: {is_encrypted}, 等级: {access_level.name})")
+        logger.info(
+            f"数据资产已存储: {record_id} (加密: {is_encrypted}, 等级: {access_level.name})"
+        )
         return {"id": record_id, "status": "stored"}
 
     async def retrieve_data(self, record_id: str, user_id: str, user_role: str) -> dict[str, Any]:
@@ -134,7 +139,7 @@ class DataCenterService:
             "key": record["key"],
             "category": record["category"],
             "content": content,
-            "updated_at": record["updated_at"]
+            "updated_at": record["updated_at"],
         }
 
     async def list_data(
@@ -154,14 +159,17 @@ class DataCenterService:
             if self._check_permission(user_role, record["access_level"]):
                 if not is_admin_like and user_id and record["owner_id"] != user_id:
                     continue
-                results.append({
-                    "id": record["id"],
-                    "key": record["key"],
-                    "category": record["category"],
-                    "access_level": record["access_level"],
-                    "is_encrypted": record["is_encrypted"]
-                })
+                results.append(
+                    {
+                        "id": record["id"],
+                        "key": record["key"],
+                        "category": record["category"],
+                        "access_level": record["access_level"],
+                        "is_encrypted": record["is_encrypted"],
+                    }
+                )
         return results
+
 
 # 全局实例
 data_center_service = DataCenterService()

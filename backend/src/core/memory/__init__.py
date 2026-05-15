@@ -10,10 +10,10 @@ from .semantic_memory import SemanticMemoryService
 from .working_memory import WorkingMemoryService
 
 __all__ = [
-    'BaseMemoryService',
-    'SemanticMemoryService',
-    'EnhancedEpisodicMemoryService',
-    'WorkingMemoryService',
-    'MultiTierMemoryRetrieval',
-    'MemoryRetrievalResult'
+    "BaseMemoryService",
+    "SemanticMemoryService",
+    "EnhancedEpisodicMemoryService",
+    "WorkingMemoryService",
+    "MultiTierMemoryRetrieval",
+    "MemoryRetrievalResult",
 ]

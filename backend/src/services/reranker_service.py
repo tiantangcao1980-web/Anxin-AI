@@ -20,21 +20,23 @@ from src.core.config import settings
 
 class RerankerType(str, Enum):
     """重排序器类型"""
-    LOCAL = "local"           # 本地 CrossEncoder 模型
-    COHERE = "cohere"         # Cohere Rerank API
-    JINA = "jina"             # Jina Reranker API
-    LLM = "llm"               # 使用 LLM 重排序
-    NONE = "none"             # 不使用重排序
+
+    LOCAL = "local"  # 本地 CrossEncoder 模型
+    COHERE = "cohere"  # Cohere Rerank API
+    JINA = "jina"  # Jina Reranker API
+    LLM = "llm"  # 使用 LLM 重排序
+    NONE = "none"  # 不使用重排序
 
 
 @dataclass
 class RerankResult:
     """重排序结果"""
+
     id: str
     content: str
-    original_score: float     # 原始向量搜索分数
-    rerank_score: float       # 重排序分数
-    final_score: float        # 最终分数
+    original_score: float  # 原始向量搜索分数
+    rerank_score: float  # 重排序分数
+    final_score: float  # 最终分数
     metadata: dict[str, Any]
 
     def to_dict(self) -> dict[str, Any]:
@@ -51,14 +53,15 @@ class RerankResult:
 @dataclass
 class RerankerConfig:
     """重排序配置"""
+
     reranker_type: RerankerType = RerankerType.LOCAL
     model_name: str = "BAAI/bge-reranker-base"  # 本地模型名称
-    api_key: str | None = None               # API 密钥
-    api_base_url: str | None = None          # API 基础 URL
-    top_k: int = 5                              # 重排序后返回的结果数
-    score_threshold: float = 0.0                # 重排序分数阈值
-    weight_original: float = 0.3                # 原始分数权重
-    weight_rerank: float = 0.7                  # 重排序分数权重
+    api_key: str | None = None  # API 密钥
+    api_base_url: str | None = None  # API 基础 URL
+    top_k: int = 5  # 重排序后返回的结果数
+    score_threshold: float = 0.0  # 重排序分数阈值
+    weight_original: float = 0.3  # 原始分数权重
+    weight_rerank: float = 0.7  # 重排序分数权重
 
 
 class RerankerService:
@@ -98,7 +101,7 @@ class RerankerService:
         try:
             import cohere
 
-            api_key = self.config.api_key or getattr(settings, 'COHERE_API_KEY', None)
+            api_key = self.config.api_key or getattr(settings, "COHERE_API_KEY", None)
             if api_key:
                 self.cohere_client = cohere.Client(api_key)
                 logger.info("Cohere Reranker 客户端初始化成功")
@@ -113,7 +116,7 @@ class RerankerService:
     def _init_jina_client(self) -> None:
         """初始化 Jina 客户端"""
         # Jina Reranker 使用 HTTP API
-        self.jina_api_key = self.config.api_key or getattr(settings, 'JINA_API_KEY', None)
+        self.jina_api_key = self.config.api_key or getattr(settings, "JINA_API_KEY", None)
         if self.jina_api_key:
             logger.info("Jina Reranker 配置成功")
         else:
@@ -125,9 +128,9 @@ class RerankerService:
         if self.config.reranker_type == RerankerType.LOCAL:
             return self.cross_encoder is not None
         elif self.config.reranker_type == RerankerType.COHERE:
-            return hasattr(self, 'cohere_client') and self.cohere_client is not None
+            return hasattr(self, "cohere_client") and self.cohere_client is not None
         elif self.config.reranker_type == RerankerType.JINA:
-            return hasattr(self, 'jina_api_key') and self.jina_api_key is not None
+            return hasattr(self, "jina_api_key") and self.jina_api_key is not None
         elif self.config.reranker_type == RerankerType.LLM:
             return True  # LLM 重排序始终可用（依赖外部 LLM 服务）
         return False
@@ -140,12 +143,12 @@ class RerankerService:
     ) -> list[RerankResult]:
         """
         对文档进行重排序
-        
+
         Args:
             query: 查询文本
             documents: 文档列表，每个文档需包含 id, content, score
             top_k: 返回结果数（可选）
-            
+
         Returns:
             重排序后的结果列表
         """
@@ -205,18 +208,20 @@ class RerankerService:
             for doc, rerank_score in zip(documents, normalized_scores, strict=False):
                 original_score = doc.get("score", 0.5)
                 final_score = (
-                    original_score * self.config.weight_original +
-                    rerank_score * self.config.weight_rerank
+                    original_score * self.config.weight_original
+                    + rerank_score * self.config.weight_rerank
                 )
 
-                results.append(RerankResult(
-                    id=doc.get("id", ""),
-                    content=doc.get("content", ""),
-                    original_score=original_score,
-                    rerank_score=rerank_score,
-                    final_score=final_score,
-                    metadata=doc.get("metadata", {}),
-                ))
+                results.append(
+                    RerankResult(
+                        id=doc.get("id", ""),
+                        content=doc.get("content", ""),
+                        original_score=original_score,
+                        rerank_score=rerank_score,
+                        final_score=final_score,
+                        metadata=doc.get("metadata", {}),
+                    )
+                )
 
             return results
 
@@ -230,7 +235,7 @@ class RerankerService:
         documents: list[dict[str, Any]],
     ) -> list[RerankResult]:
         """使用 Cohere Rerank API"""
-        if not hasattr(self, 'cohere_client'):
+        if not hasattr(self, "cohere_client"):
             return self._convert_to_results(documents)
 
         try:
@@ -253,18 +258,20 @@ class RerankerService:
                 original_score = doc.get("score", 0.5)
                 rerank_score = rerank_scores.get(i, 0.5)
                 final_score = (
-                    original_score * self.config.weight_original +
-                    rerank_score * self.config.weight_rerank
+                    original_score * self.config.weight_original
+                    + rerank_score * self.config.weight_rerank
                 )
 
-                results.append(RerankResult(
-                    id=doc.get("id", ""),
-                    content=doc.get("content", ""),
-                    original_score=original_score,
-                    rerank_score=rerank_score,
-                    final_score=final_score,
-                    metadata=doc.get("metadata", {}),
-                ))
+                results.append(
+                    RerankResult(
+                        id=doc.get("id", ""),
+                        content=doc.get("content", ""),
+                        original_score=original_score,
+                        rerank_score=rerank_score,
+                        final_score=final_score,
+                        metadata=doc.get("metadata", {}),
+                    )
+                )
 
             return results
 
@@ -278,7 +285,7 @@ class RerankerService:
         documents: list[dict[str, Any]],
     ) -> list[RerankResult]:
         """使用 Jina Reranker API"""
-        if not hasattr(self, 'jina_api_key') or not self.jina_api_key:
+        if not hasattr(self, "jina_api_key") or not self.jina_api_key:
             return self._convert_to_results(documents)
 
         try:
@@ -313,18 +320,20 @@ class RerankerService:
                 original_score = doc.get("score", 0.5)
                 rerank_score = rerank_scores.get(i, 0.5)
                 final_score = (
-                    original_score * self.config.weight_original +
-                    rerank_score * self.config.weight_rerank
+                    original_score * self.config.weight_original
+                    + rerank_score * self.config.weight_rerank
                 )
 
-                results.append(RerankResult(
-                    id=doc.get("id", ""),
-                    content=doc.get("content", ""),
-                    original_score=original_score,
-                    rerank_score=rerank_score,
-                    final_score=final_score,
-                    metadata=doc.get("metadata", {}),
-                ))
+                results.append(
+                    RerankResult(
+                        id=doc.get("id", ""),
+                        content=doc.get("content", ""),
+                        original_score=original_score,
+                        rerank_score=rerank_score,
+                        final_score=final_score,
+                        metadata=doc.get("metadata", {}),
+                    )
+                )
 
             return results
 
@@ -340,10 +349,9 @@ class RerankerService:
         """使用 LLM 进行重排序"""
         try:
             # 构建重排序提示
-            doc_list = "\n".join([
-                f"[{i+1}] {doc.get('content', '')[:500]}"
-                for i, doc in enumerate(documents)
-            ])
+            doc_list = "\n".join(
+                [f"[{i+1}] {doc.get('content', '')[:500]}" for i, doc in enumerate(documents)]
+            )
 
             prompt = f"""请根据查询与文档的相关性，对以下文档进行排序。
 返回格式：按相关性从高到低排列的文档编号，用逗号分隔。
@@ -358,6 +366,7 @@ class RerankerService:
             if "/api/v1/chat" in (settings.LLM_BASE_URL or ""):
                 # 本地模型服务
                 import httpx
+
                 input_text = prompt
                 resp = httpx.post(
                     settings.LLM_BASE_URL.rstrip("/"),
@@ -411,32 +420,36 @@ class RerankerService:
                     # 根据排名计算分数
                     rerank_score = (total - rank) / total
                     final_score = (
-                        original_score * self.config.weight_original +
-                        rerank_score * self.config.weight_rerank
+                        original_score * self.config.weight_original
+                        + rerank_score * self.config.weight_rerank
                     )
 
-                    results.append(RerankResult(
-                        id=doc.get("id", ""),
-                        content=doc.get("content", ""),
-                        original_score=original_score,
-                        rerank_score=rerank_score,
-                        final_score=final_score,
-                        metadata=doc.get("metadata", {}),
-                    ))
+                    results.append(
+                        RerankResult(
+                            id=doc.get("id", ""),
+                            content=doc.get("content", ""),
+                            original_score=original_score,
+                            rerank_score=rerank_score,
+                            final_score=final_score,
+                            metadata=doc.get("metadata", {}),
+                        )
+                    )
 
             # 添加未被排序的文档
             ranked_indices = set(order)
             for i, doc in enumerate(documents):
                 if i not in ranked_indices:
                     original_score = doc.get("score", 0.5)
-                    results.append(RerankResult(
-                        id=doc.get("id", ""),
-                        content=doc.get("content", ""),
-                        original_score=original_score,
-                        rerank_score=0.0,
-                        final_score=original_score * self.config.weight_original,
-                        metadata=doc.get("metadata", {}),
-                    ))
+                    results.append(
+                        RerankResult(
+                            id=doc.get("id", ""),
+                            content=doc.get("content", ""),
+                            original_score=original_score,
+                            rerank_score=0.0,
+                            final_score=original_score * self.config.weight_original,
+                            metadata=doc.get("metadata", {}),
+                        )
+                    )
 
             return results
 
@@ -484,12 +497,12 @@ async def rerank_results(
 ) -> list[dict[str, Any]]:
     """
     重排序搜索结果
-    
+
     Args:
         query: 查询文本
         documents: 搜索结果列表
         top_k: 返回结果数
-        
+
     Returns:
         重排序后的结果
     """

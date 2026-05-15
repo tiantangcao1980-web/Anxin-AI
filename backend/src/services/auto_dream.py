@@ -22,11 +22,11 @@ from loguru import logger
 
 # ===== 触发门控配置 =====
 DREAM_CONFIG = {
-    "min_hours_since_last": 24,       # 距上次做梦至少 24 小时
-    "min_activities_since_last": 5,    # 至少 5 次活动（调查/咨询/搜索）
-    "max_consolidation_minutes": 10,   # 单次做梦最长 10 分钟
-    "memory_index_max_lines": 200,     # 记忆索引最大行数
-    "stale_memory_days": 30,           # 30 天未更新视为过期
+    "min_hours_since_last": 24,  # 距上次做梦至少 24 小时
+    "min_activities_since_last": 5,  # 至少 5 次活动（调查/咨询/搜索）
+    "max_consolidation_minutes": 10,  # 单次做梦最长 10 分钟
+    "memory_index_max_lines": 200,  # 记忆索引最大行数
+    "stale_memory_days": 30,  # 30 天未更新视为过期
 }
 
 
@@ -121,10 +121,12 @@ class DreamState:
         self.is_dreaming = False
         self.last_dream_time = datetime.now()
         self.activities_since_last = 0
-        self.dream_history.append({
-            "time": self.last_dream_time.isoformat(),
-            "summary": summary,
-        })
+        self.dream_history.append(
+            {
+                "time": self.last_dream_time.isoformat(),
+                "summary": summary,
+            }
+        )
         # 只保留最近 20 次
         if len(self.dream_history) > 20:
             self.dream_history = self.dream_history[-20:]
@@ -241,9 +243,7 @@ class AutoDreamEngine:
         recent = await get_recent_memories(limit)
         return _as_dict_list(recent)
 
-    async def _get_recent_investigations(
-        self, user_id: str, limit: int
-    ) -> list[dict[str, Any]]:
+    async def _get_recent_investigations(self, user_id: str, limit: int) -> list[dict[str, Any]]:
         """兼容性读取近期调查记录；当前服务未提供该接口时安全降级为空。"""
         from src.services.investigation_data_store import investigation_data_store
 
@@ -267,7 +267,9 @@ class AutoDreamEngine:
 
         clean_cache = getattr(investigation_data_store, "clean_expired_cache", None)
         if not callable(clean_cache):
-            logger.debug("AutoDream - investigation_data_store 未提供 clean_expired_cache，跳过缓存清理")
+            logger.debug(
+                "AutoDream - investigation_data_store 未提供 clean_expired_cache，跳过缓存清理"
+            )
             return 0
 
         clean_expired_cache = cast(Callable[[], Awaitable[object]], clean_cache)
@@ -293,6 +295,7 @@ class AutoDreamEngine:
         try:
             # 扫描用户调查偏好
             from src.services.investigation_data_store import investigation_data_store
+
             if investigation_data_store:
                 prefs = await investigation_data_store.get_user_preference(user_id)
                 if prefs:
@@ -325,6 +328,7 @@ class AutoDreamEngine:
         try:
             # 扫描知识图谱
             from src.services.graph_service import graph_service
+
             stats = graph_service.get_graph_stats()
             result["graph_entities"] = _as_int(stats.get("total_nodes", 0))
         except Exception as e:
@@ -334,9 +338,7 @@ class AutoDreamEngine:
 
     # ===== Phase 2: Gather =====
 
-    async def _phase_gather(
-        self, user_id: str, orient: OrientResult
-    ) -> list[InvestigationSignal]:
+    async def _phase_gather(self, user_id: str, orient: OrientResult) -> list[InvestigationSignal]:
         """从近期活动中收集信号（模式识别）"""
         signals: list[InvestigationSignal] = []
 
@@ -349,30 +351,35 @@ class AutoDreamEngine:
                     # 识别高风险模式
                     for dim, score in risk.items():
                         if isinstance(dim, str) and isinstance(score, (int, float)) and score > 60:
-                            signals.append({
-                                "type": "high_risk_pattern",
-                                "company": _as_str(inv.get("company_name", "")),
-                                "dimension": dim,
-                                "score": float(score),
-                                "time": _as_str(inv.get("created_at", "")),
-                            })
+                            signals.append(
+                                {
+                                    "type": "high_risk_pattern",
+                                    "company": _as_str(inv.get("company_name", "")),
+                                    "dimension": dim,
+                                    "score": float(score),
+                                    "time": _as_str(inv.get("created_at", "")),
+                                }
+                            )
         except Exception as e:
             logger.debug(f"Gather - 调查信号收集跳过: {e}")
 
         try:
             # 信号2: 重复搜索的企业/关键词
             from src.services.investigation_data_store import investigation_data_store
+
             if investigation_data_store:
                 prefs = await investigation_data_store.get_user_preference(user_id)
                 if prefs:
                     favorites = _as_dict_list(prefs.get("favorite_companies", []))
                     for fav in favorites:
                         if _as_int(fav.get("count", 0)) >= 3:
-                            signals.append({
-                                "type": "repeated_interest",
-                                "company": _as_str(fav.get("name", "")),
-                                "count": _as_int(fav.get("count", 0)),
-                            })
+                            signals.append(
+                                {
+                                    "type": "repeated_interest",
+                                    "company": _as_str(fav.get("name", "")),
+                                    "count": _as_int(fav.get("count", 0)),
+                                }
+                            )
         except Exception as e:
             logger.debug(f"Gather - 重复模式识别跳过: {e}")
 
@@ -390,11 +397,13 @@ class AutoDreamEngine:
 
                 for task, count in task_types.items():
                     if count >= 3:
-                        signals.append({
-                            "type": "frequent_task",
-                            "task": task,
-                            "count": count,
-                        })
+                        signals.append(
+                            {
+                                "type": "frequent_task",
+                                "task": task,
+                                "count": count,
+                            }
+                        )
         except Exception as e:
             logger.debug(f"Gather - 情景模式提取跳过: {e}")
 
@@ -446,6 +455,7 @@ class AutoDreamEngine:
         # 2. 将调查发现沉淀到知识图谱
         try:
             from src.services.graph_service import graph_service
+
             high_risk_companies: set[str] = set()
             for signal in signals:
                 company = _as_str(signal.get("company", ""))

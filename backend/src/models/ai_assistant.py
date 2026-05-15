@@ -17,9 +17,7 @@ class AIAssistantConfig(Base, TimestampMixin):
     org_id: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True
     )
-    name: Mapped[str] = mapped_column(
-        String(100), nullable=False, default="安心智能助手助手"
-    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False, default="安心智能助手助手")
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     welcome_message: Mapped[str | None] = mapped_column(
@@ -35,9 +33,7 @@ class AIAssistantConfig(Base, TimestampMixin):
     knowledge_base_ids: Mapped[list[Any] | None] = mapped_column(
         JSONB, default=list, comment="关联的知识库 ID 列表"
     )
-    max_context_turns: Mapped[int] = mapped_column(
-        Integer, default=10, comment="保留的上下文轮数"
-    )
+    max_context_turns: Mapped[int] = mapped_column(Integer, default=10, comment="保留的上下文轮数")
     temperature: Mapped[float] = mapped_column(Float, default=0.7)
     llm_config_id: Mapped[str | None] = mapped_column(
         String(36), nullable=True, comment="指定使用的 LLM 配置 ID"
@@ -68,12 +64,8 @@ class ConversationSummary(Base, TimestampMixin):
         GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     summary: Mapped[str] = mapped_column(Text, nullable=False, comment="AI 生成的摘要")
-    key_topics: Mapped[list[Any] | None] = mapped_column(
-        JSONB, default=list, comment="关键话题"
-    )
-    action_items: Mapped[list[Any] | None] = mapped_column(
-        JSONB, default=list, comment="待办事项"
-    )
+    key_topics: Mapped[list[Any] | None] = mapped_column(JSONB, default=list, comment="关键话题")
+    action_items: Mapped[list[Any] | None] = mapped_column(JSONB, default=list, comment="待办事项")
     sentiment: Mapped[str | None] = mapped_column(
         String(20), nullable=True, comment="positive/neutral/negative"
     )
@@ -113,9 +105,7 @@ class AIAssistantFeedback(Base, TimestampMixin):
     message_id: Mapped[str | None] = mapped_column(
         GUID(), nullable=True, comment="针对具体消息的反馈"
     )
-    rating: Mapped[int] = mapped_column(
-        Integer, nullable=False, comment="评分 1-5"
-    )
+    rating: Mapped[int] = mapped_column(Integer, nullable=False, comment="评分 1-5")
     feedback_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     feedback_type: Mapped[str] = mapped_column(
         String(30),

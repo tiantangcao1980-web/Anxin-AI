@@ -18,12 +18,13 @@ from loguru import logger
 from src.core.config import settings
 
 # 类型变量用于装饰器
-T = TypeVar('T')
-P = ParamSpec('P')
+T = TypeVar("T")
+P = ParamSpec("P")
 
 
 class CacheEntry:
     """L1 内存缓存条目"""
+
     def __init__(self, value: Any, ttl: int) -> None:
         self.value = value
         self.expires_at = datetime.now() + timedelta(seconds=ttl)
@@ -52,11 +53,7 @@ class CacheService:
     # 缓存Key前缀
     KEY_PREFIX = "legal_agent"
 
-    def __init__(
-        self,
-        enable_l1: bool = True,
-        enable_l2: bool = True
-    ) -> None:
+    def __init__(self, enable_l1: bool = True, enable_l2: bool = True) -> None:
         self._client: redis.Redis | None = None
 
         # L1: 内存缓存 (有序字典,自动淘汰旧数据)
@@ -77,10 +74,7 @@ class CacheService:
 
     def _cleanup_expired_l1(self) -> None:
         """清理过期的 L1 缓存"""
-        expired_keys = [
-            k for k, v in self._l1_cache.items()
-            if v.is_expired()
-        ]
+        expired_keys = [k for k, v in self._l1_cache.items() if v.is_expired()]
         for key in expired_keys:
             del self._l1_cache[key]
 
@@ -96,23 +90,26 @@ class CacheService:
         """获取Redis客户端（懒加载）"""
         if self._client is None:
             redis_from_url = cast(Any, redis.from_url)
-            self._client = cast(redis.Redis, redis_from_url(
-                settings.REDIS_URL,
-                encoding="utf-8",
-                decode_responses=True,
-            ))
+            self._client = cast(
+                redis.Redis,
+                redis_from_url(
+                    settings.REDIS_URL,
+                    encoding="utf-8",
+                    decode_responses=True,
+                ),
+            )
         return self._client
 
     def _make_key(self, module: str, resource: str, id: str = "") -> str:
         """
         生成缓存Key
         格式：{前缀}:{模块}:{资源}:{ID}
-        
+
         Args:
             module: 模块名称（如 user, case, search）
             resource: 资源类型（如 info, list, detail）
             id: 资源ID（可选）
-        
+
         Returns:
             格式化的缓存Key
         """
@@ -121,9 +118,7 @@ class CacheService:
         return f"{self.KEY_PREFIX}:{module}:{resource}"
 
     async def get(
-        self,
-        key: str,
-        l3_loader: Callable[[], Awaitable[Any]] | None = None
+        self, key: str, l3_loader: Callable[[], Awaitable[Any]] | None = None
     ) -> Any | None:
         """
         获取缓存值 (三层查找)
@@ -267,10 +262,10 @@ class CacheService:
     async def exists(self, key: str) -> bool:
         """
         检查缓存是否存在
-        
+
         Args:
             key: 缓存Key
-            
+
         Returns:
             是否存在
         """
@@ -284,10 +279,10 @@ class CacheService:
     async def delete_pattern(self, pattern: str) -> int:
         """
         删除匹配模式的所有Key
-        
+
         Args:
             pattern: Key模式（如 legal_agent:user:*）
-            
+
         Returns:
             删除的Key数量
         """
@@ -306,11 +301,11 @@ class CacheService:
     async def incr(self, key: str, amount: int = 1) -> int:
         """
         增加计数器
-        
+
         Args:
             key: 缓存Key
             amount: 增加量
-            
+
         Returns:
             增加后的值
         """
@@ -324,11 +319,11 @@ class CacheService:
     async def expire(self, key: str, ttl: int) -> bool:
         """
         设置Key过期时间
-        
+
         Args:
             key: 缓存Key
             ttl: 过期时间（秒）
-            
+
         Returns:
             是否设置成功
         """
@@ -342,10 +337,10 @@ class CacheService:
     async def ttl(self, key: str) -> int:
         """
         获取Key剩余过期时间
-        
+
         Args:
             key: 缓存Key
-            
+
         Returns:
             剩余秒数，-1表示永不过期，-2表示不存在
         """
@@ -430,14 +425,9 @@ class CacheService:
 
     def get_stats(self) -> dict[str, Any]:
         """获取缓存统计信息"""
-        total_hits = (
-            self._stats["l1_hits"] +
-            self._stats["l2_hits"]
-        )
+        total_hits = self._stats["l1_hits"] + self._stats["l2_hits"]
         total_misses = (
-            self._stats["l1_misses"] +
-            self._stats["l2_misses"] +
-            self._stats["l3_misses"]
+            self._stats["l1_misses"] + self._stats["l2_misses"] + self._stats["l3_misses"]
         )
         total_requests = total_hits + total_misses
 
@@ -467,12 +457,7 @@ class CacheService:
             except Exception as e:
                 logger.warning(f"清空 L2 缓存失败: {e}")
 
-    async def warm_up(
-        self,
-        data: list[dict[str, Any]],
-        prefix: str,
-        id_field: str = "id"
-    ) -> None:
+    async def warm_up(self, data: list[dict[str, Any]], prefix: str, id_field: str = "id") -> None:
         """
         缓存预热
         :param data: 预热数据列表
@@ -519,24 +504,25 @@ def cached(
 ) -> Callable[[Callable[P, Awaitable[T]]], Callable[P, Awaitable[T]]]:
     """
     缓存装饰器
-    
+
     用于装饰异步函数，自动处理缓存的读取和写入
-    
+
     Args:
         module: 模块名称
         resource: 资源类型
         ttl: 缓存过期时间（秒）
         key_builder: 自定义Key生成函数，接收函数参数，返回Key后缀
-        
+
     Example:
         @cached(module="user", resource="info", ttl=1800)
         async def get_user_info(user_id: str) -> dict:
             ...
-            
+
         @cached(module="case", resource="list", key_builder=lambda user_id, page: f"{user_id}:{page}")
         async def list_cases(user_id: str, page: int = 1) -> dict:
             ...
     """
+
     def decorator(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
         @functools.wraps(func)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
@@ -578,25 +564,29 @@ def cached(
             return result
 
         return wrapper
+
     return decorator
 
 
-def invalidate_cache(module: str, resource: str, key_suffix: str = "*") -> Callable[[Callable[P, Awaitable[T]]], Callable[P, Awaitable[T]]]:
+def invalidate_cache(
+    module: str, resource: str, key_suffix: str = "*"
+) -> Callable[[Callable[P, Awaitable[T]]], Callable[P, Awaitable[T]]]:
     """
     缓存失效装饰器
-    
+
     用于装饰会修改数据的函数，自动失效相关缓存
-    
+
     Args:
         module: 模块名称
         resource: 资源类型
         key_suffix: Key后缀，支持 * 通配符
-        
+
     Example:
         @invalidate_cache(module="user", resource="info")
         async def update_user(user_id: str, data: dict) -> dict:
             ...
     """
+
     def decorator(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
         @functools.wraps(func)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
@@ -623,4 +613,5 @@ def invalidate_cache(module: str, resource: str, key_suffix: str = "*") -> Calla
             return result
 
         return wrapper
+
     return decorator

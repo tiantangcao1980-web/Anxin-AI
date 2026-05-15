@@ -22,6 +22,7 @@ router = APIRouter(prefix="/knowledge-mgmt", tags=["知识管理"])
 
 # ===== 请求模型 =====
 
+
 class AddExperienceRequest(BaseModel):
     title: str = Field(..., min_length=2, max_length=200)
     category: str = Field(..., description="法律领域分类")
@@ -53,6 +54,7 @@ def _require_org_id(user: User) -> str:
 
 # ===== 案例经验 =====
 
+
 @router.post("/experiences")
 async def add_experience(
     req: AddExperienceRequest,
@@ -60,6 +62,7 @@ async def add_experience(
 ) -> dict[str, Any]:
     """添加案例经验"""
     from src.services.knowledge_management import knowledge_management_service
+
     exp = await knowledge_management_service.add_experience(
         org_id=_require_org_id(user),
         title=req.title,
@@ -85,6 +88,7 @@ async def search_experiences(
 ) -> dict[str, Any]:
     """搜索案例经验"""
     from src.services.knowledge_management import knowledge_management_service
+
     results = await knowledge_management_service.search_experiences(
         org_id=_require_org_id(user),
         query=query,
@@ -102,6 +106,7 @@ async def get_experience(
 ) -> dict[str, Any]:
     """获取经验详情"""
     from src.services.knowledge_management import knowledge_management_service
+
     result = await knowledge_management_service.get_experience(
         org_id=_require_org_id(user),
         experience_id=experience_id,
@@ -118,6 +123,7 @@ async def mark_useful(
 ) -> dict[str, Any]:
     """标记经验有用"""
     from src.services.knowledge_management import knowledge_management_service
+
     success = await knowledge_management_service.mark_useful(
         org_id=_require_org_id(user),
         experience_id=experience_id,
@@ -127,6 +133,7 @@ async def mark_useful(
 
 # ===== 智能推荐 =====
 
+
 @router.post("/recommend")
 async def recommend_for_task(
     req: RecommendRequest,
@@ -134,6 +141,7 @@ async def recommend_for_task(
 ) -> dict[str, Any]:
     """根据任务智能推荐经验+模板+法条"""
     from src.services.knowledge_management import knowledge_management_service
+
     result = await knowledge_management_service.recommend_for_task(
         org_id=_require_org_id(user),
         task_description=req.task_description,
@@ -144,6 +152,7 @@ async def recommend_for_task(
 
 # ===== 自定义模板 =====
 
+
 @router.post("/templates")
 async def add_template(
     req: AddTemplateRequest,
@@ -151,6 +160,7 @@ async def add_template(
 ) -> dict[str, Any]:
     """添加律所自定义模板"""
     from src.services.knowledge_management import knowledge_management_service
+
     tmpl = await knowledge_management_service.add_custom_template(
         org_id=_require_org_id(user),
         name=req.name,
@@ -169,6 +179,7 @@ async def list_templates(
 ) -> dict[str, Any]:
     """列出律所自定义模板"""
     from src.services.knowledge_management import knowledge_management_service
+
     results = await knowledge_management_service.list_custom_templates(
         org_id=_require_org_id(user),
         template_type=template_type,
@@ -178,12 +189,14 @@ async def list_templates(
 
 # ===== 统计 =====
 
+
 @router.get("/stats")
 async def get_stats(
     user: User = Depends(require_permission(Permission.READ_KNOWLEDGE)),
 ) -> dict[str, Any]:
     """获取知识库统计"""
     from src.services.knowledge_management import knowledge_management_service
+
     return UnifiedResponse.success(
         data=knowledge_management_service.get_stats(_require_org_id(user))
     )
@@ -191,13 +204,17 @@ async def get_stats(
 
 # ===== 知识分类 =====
 
+
 @router.get("/categories")
 async def list_categories(
     user: User = Depends(require_permission(Permission.READ_KNOWLEDGE)),
 ) -> dict[str, Any]:
     """列出所有经验分类"""
     from src.services.knowledge_management import EXPERIENCE_CATEGORIES, OUTCOME_TYPES
-    return UnifiedResponse.success(data={
-        "categories": EXPERIENCE_CATEGORIES,
-        "outcomes": OUTCOME_TYPES,
-    })
+
+    return UnifiedResponse.success(
+        data={
+            "categories": EXPERIENCE_CATEGORIES,
+            "outcomes": OUTCOME_TYPES,
+        }
+    )

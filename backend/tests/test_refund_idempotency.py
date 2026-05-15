@@ -71,10 +71,10 @@ async def test_payment_refund_idempotency_key_returns_existing_result(
     assert provider.calls == 1
 
     refunds = (
-        await db_session.execute(
-            select(Refund).where(Refund.idempotency_key == "refund-key-1")
-        )
-    ).scalars().all()
+        (await db_session.execute(select(Refund).where(Refund.idempotency_key == "refund-key-1")))
+        .scalars()
+        .all()
+    )
     assert len(refunds) == 1
     assert refunds[0].order_id == order.id
     assert refunds[0].amount == 99.0
@@ -126,10 +126,14 @@ async def test_payment_refund_rejects_reused_idempotency_key_for_other_order(
     assert provider.calls == 1
 
     refunds = (
-        await db_session.execute(
-            select(Refund).where(Refund.idempotency_key == "refund-conflict-key")
+        (
+            await db_session.execute(
+                select(Refund).where(Refund.idempotency_key == "refund-conflict-key")
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(refunds) == 1
 
 
@@ -169,10 +173,14 @@ async def test_billing_refund_request_idempotency_key_reuses_pending_refund(
     assert first_payload["data"]["id"] == second_payload["data"]["id"]
 
     refunds = (
-        await db_session.execute(
-            select(Refund).where(Refund.idempotency_key == "refund-request-key-1")
+        (
+            await db_session.execute(
+                select(Refund).where(Refund.idempotency_key == "refund-request-key-1")
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(refunds) == 1
     assert refunds[0].status == "pending"
 
@@ -223,9 +231,13 @@ async def test_refund_idempotency_key_concurrent_requests_create_one_refund(
     assert provider.calls == 1
     async with session_factory() as session:
         refunds = (
-            await session.execute(
-                select(Refund).where(Refund.idempotency_key == "refund-concurrent-key")
+            (
+                await session.execute(
+                    select(Refund).where(Refund.idempotency_key == "refund-concurrent-key")
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(refunds) == 1
         assert refunds[0].status == "processed"

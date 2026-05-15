@@ -19,29 +19,31 @@ from loguru import logger
 
 class RiskLevel(str, Enum):
     """工具风险等级"""
-    READ_ONLY = "read_only"           # 只读：知识检索、数据查询
-    WRITE = "write"                    # 可写：草稿生成、文件创建
-    EXECUTE = "execute"                # 可执行：脚本运行、命令执行
-    EXTERNAL_SEND = "external_send"    # 对外发送：邮件、消息、API调用
-    HIGH_RISK = "high_risk"            # 高风险：支付、删除、正式文件签发
+
+    READ_ONLY = "read_only"  # 只读：知识检索、数据查询
+    WRITE = "write"  # 可写：草稿生成、文件创建
+    EXECUTE = "execute"  # 可执行：脚本运行、命令执行
+    EXTERNAL_SEND = "external_send"  # 对外发送：邮件、消息、API调用
+    HIGH_RISK = "high_risk"  # 高风险：支付、删除、正式文件签发
 
 
 @dataclass
 class ToolDefinition:
     """工具定义"""
-    name: str                          # 唯一标识，如 "search_knowledge"
-    display_name: str                  # 显示名称，如 "知识库检索"
-    description: str                   # 功能描述
-    risk_level: RiskLevel              # 风险等级
-    service_module: str                # 所在服务模块，如 "src.services.knowledge_service"
-    method_name: str                   # 方法名，如 "search"
-    input_schema: dict[str, Any] | None = None    # 输入参数 schema
-    output_schema: dict[str, Any] | None = None   # 输出格式 schema
+
+    name: str  # 唯一标识，如 "search_knowledge"
+    display_name: str  # 显示名称，如 "知识库检索"
+    description: str  # 功能描述
+    risk_level: RiskLevel  # 风险等级
+    service_module: str  # 所在服务模块，如 "src.services.knowledge_service"
+    method_name: str  # 方法名，如 "search"
+    input_schema: dict[str, Any] | None = None  # 输入参数 schema
+    output_schema: dict[str, Any] | None = None  # 输出格式 schema
     allowed_agents: set[str] | None = None  # 允许调用的 Agent 列表（None=全部可用）
     required_permissions: set[str] = field(default_factory=set)  # 用户权限要求（可选）
-    requires_approval: bool = False     # 是否需要人工审批
-    timeout_seconds: int = 30          # 超时时间
-    retry_count: int = 1              # 重试次数
+    requires_approval: bool = False  # 是否需要人工审批
+    timeout_seconds: int = 30  # 超时时间
+    retry_count: int = 1  # 重试次数
     fallback_tool: str | None = None  # 失败时回退到的工具
     tags: list[str] = field(default_factory=list)  # 标签分类
 
@@ -49,6 +51,7 @@ class ToolDefinition:
 @dataclass
 class ToolCallRecord:
     """工具调用记录"""
+
     tool_name: str
     agent_name: str
     timestamp: float
@@ -121,7 +124,6 @@ class ToolRegistry:
                 required_permissions={"read:knowledge"},
                 tags=["knowledge", "search", "case"],
             ),
-
             # ===== 文档处理类（可写）=====
             ToolDefinition(
                 name="draft_contract",
@@ -130,7 +132,12 @@ class ToolRegistry:
                 risk_level=RiskLevel.WRITE,
                 service_module="src.services.template_engine",
                 method_name="generate_contract",
-                allowed_agents={"document_drafter", "contract_reviewer", "contract_steward", "legal_advisor"},
+                allowed_agents={
+                    "document_drafter",
+                    "contract_reviewer",
+                    "contract_steward",
+                    "legal_advisor",
+                },
                 required_permissions={"write:contracts"},
                 tags=["document", "contract", "generate"],
             ),
@@ -155,7 +162,6 @@ class ToolRegistry:
                 required_permissions={"read:documents"},
                 tags=["document", "validate"],
             ),
-
             # ===== 分析类（只读）=====
             ToolDefinition(
                 name="analyze_risk",
@@ -164,7 +170,12 @@ class ToolRegistry:
                 risk_level=RiskLevel.READ_ONLY,
                 service_module="src.services.compliance_service",
                 method_name="analyze_risk",
-                allowed_agents={"risk_assessor", "compliance_officer", "contract_reviewer", "legal_advisor"},
+                allowed_agents={
+                    "risk_assessor",
+                    "compliance_officer",
+                    "contract_reviewer",
+                    "legal_advisor",
+                },
                 required_permissions={"review:contracts"},
                 tags=["analysis", "risk"],
             ),
@@ -189,7 +200,6 @@ class ToolRegistry:
                 required_permissions={"read:knowledge"},
                 tags=["validate", "citation"],
             ),
-
             # ===== 数据采集类（外部访问）=====
             ToolDefinition(
                 name="crawl_company_info",
@@ -214,7 +224,6 @@ class ToolRegistry:
                 timeout_seconds=30,
                 tags=["external", "search", "web"],
             ),
-
             # ===== 高风险操作类 =====
             ToolDefinition(
                 name="send_email",
@@ -283,10 +292,7 @@ class ToolRegistry:
             tools = [t for t in tools if tag in t.tags]
 
         if agent_name:
-            tools = [
-                t for t in tools
-                if t.allowed_agents is None or agent_name in t.allowed_agents
-            ]
+            tools = [t for t in tools if t.allowed_agents is None or agent_name in t.allowed_agents]
 
         return tools
 
@@ -318,7 +324,7 @@ class ToolRegistry:
         )
         self._call_history.append(record)
         if len(self._call_history) > self._max_history:
-            self._call_history = self._call_history[-self._max_history:]
+            self._call_history = self._call_history[-self._max_history :]
 
         self._call_counts[tool_name] += 1
         if success:
@@ -330,9 +336,7 @@ class ToolRegistry:
         if tool_name:
             total = self._call_counts.get(tool_name, 0)
             success = self._success_counts.get(tool_name, 0)
-            avg_latency = (
-                self._total_latency.get(tool_name, 0) / total if total > 0 else 0
-            )
+            avg_latency = self._total_latency.get(tool_name, 0) / total if total > 0 else 0
             return {
                 "tool": tool_name,
                 "total_calls": total,
@@ -363,9 +367,7 @@ class ToolRegistry:
         return {
             "total_tools": len(self._tools),
             "by_risk_level": dict(by_risk),
-            "requires_approval": [
-                t.name for t in self._tools.values() if t.requires_approval
-            ],
+            "requires_approval": [t.name for t in self._tools.values() if t.requires_approval],
             "total_calls": sum(self._call_counts.values()),
         }
 

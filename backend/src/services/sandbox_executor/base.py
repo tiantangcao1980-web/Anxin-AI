@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 sandbox_executor.base —— 沙箱 Provider 抽象基类
 
@@ -21,7 +20,8 @@ sandbox_executor.base —— 沙箱 Provider 抽象基类
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import AsyncIterator, ClassVar, Optional
+from collections.abc import AsyncIterator
+from typing import ClassVar
 
 from src.services.sandbox_executor.models import (
     ExecResult,
@@ -70,8 +70,8 @@ class BaseSandboxProvider(ABC):
         self,
         sandbox: Sandbox,
         cmd: list[str],
-        stdin: Optional[bytes] = None,
-        timeout_sec: Optional[int] = None,
+        stdin: bytes | None = None,
+        timeout_sec: int | None = None,
     ) -> ExecResult:
         """在沙箱内执行命令。
 

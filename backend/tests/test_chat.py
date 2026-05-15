@@ -11,12 +11,15 @@ from src.models.user import User
 
 # ============ 接口响应测试 ============
 
+
 class TestChatAPIResponses:
     """测试聊天API响应"""
 
     @pytest.mark.asyncio
-    @patch('src.agents.workforce.get_workforce')
-    async def test_chat_endpoint_success(self, mock_get_workforce, auth_client: AsyncClient, test_user: User):
+    @patch("src.agents.workforce.get_workforce")
+    async def test_chat_endpoint_success(
+        self, mock_get_workforce, auth_client: AsyncClient, test_user: User
+    ):
         """测试聊天接口成功响应"""
         # Mock智能体团队
         mock_workforce = MagicMock()
@@ -27,11 +30,7 @@ class TestChatAPIResponses:
         mock_get_workforce.return_value = mock_workforce
 
         response = await auth_client.post(
-            "/api/v1/chat/",
-            json={
-                "content": "请问合同违约应该如何处理？",
-                "conversation_id": None
-            }
+            "/api/v1/chat/", json={"content": "请问合同违约应该如何处理？", "conversation_id": None}
         )
 
         assert response.status_code == 200
@@ -44,11 +43,7 @@ class TestChatAPIResponses:
     async def test_chat_endpoint_empty_message(self, auth_client: AsyncClient):
         """测试空消息请求"""
         response = await auth_client.post(
-            "/api/v1/chat/",
-            json={
-                "content": "",
-                "conversation_id": None
-            }
+            "/api/v1/chat/", json={"content": "", "conversation_id": None}
         )
 
         # 应该返回错误或验证失败
@@ -58,9 +53,7 @@ class TestChatAPIResponses:
     async def test_chat_endpoint_invalid_json(self, auth_client: AsyncClient):
         """测试无效JSON请求"""
         response = await auth_client.post(
-            "/api/v1/chat/",
-            content="invalid json",
-            headers={"Content-Type": "application/json"}
+            "/api/v1/chat/", content="invalid json", headers={"Content-Type": "application/json"}
         )
 
         assert response.status_code == 422
@@ -68,16 +61,14 @@ class TestChatAPIResponses:
 
 # ============ 认证测试 ============
 
+
 class TestChatAPIAuthentication:
     """测试聊天API认证"""
 
     @pytest.mark.asyncio
     async def test_chat_without_auth(self, client: AsyncClient):
         """测试无认证访问 — 聊天支持可选认证，应该能匿名发消息"""
-        response = await client.post(
-            "/api/v1/chat/",
-            json={"content": "测试消息"}
-        )
+        response = await client.post("/api/v1/chat/", json={"content": "测试消息"})
 
         # 聊天端点已强制认证（安全加固后），无 token 应返回 401
         assert response.status_code == 401
@@ -88,7 +79,7 @@ class TestChatAPIAuthentication:
         response = await client.post(
             "/api/v1/chat/",
             json={"content": "测试消息"},
-            headers={"Authorization": "Bearer invalid-token"}
+            headers={"Authorization": "Bearer invalid-token"},
         )
 
         # 可选认证端点：无效 token 可能被忽略（200/500）或拒绝（401/403）
@@ -96,6 +87,7 @@ class TestChatAPIAuthentication:
 
 
 # ============ 参数校验测试 ============
+
 
 class TestChatAPIValidation:
     """测试聊天API参数校验"""
@@ -105,10 +97,7 @@ class TestChatAPIValidation:
         """测试过长消息"""
         long_message = "测试" * 10000  # 非常长的消息
 
-        response = await auth_client.post(
-            "/api/v1/chat/",
-            json={"content": long_message}
-        )
+        response = await auth_client.post("/api/v1/chat/", json={"content": long_message})
 
         # 可能被拒绝或截断处理
         assert response.status_code in [200, 400, 413, 422]
@@ -117,8 +106,7 @@ class TestChatAPIValidation:
     async def test_chat_missing_message_field(self, auth_client: AsyncClient):
         """测试缺少message字段"""
         response = await auth_client.post(
-            "/api/v1/chat/",
-            json={"conversation_id": "test-123"}  # 缺少content字段
+            "/api/v1/chat/", json={"conversation_id": "test-123"}  # 缺少content字段
         )
 
         assert response.status_code == 422
@@ -128,10 +116,7 @@ class TestChatAPIValidation:
         """测试无效的conversation_id"""
         response = await auth_client.post(
             "/api/v1/chat/",
-            json={
-                "content": "测试消息",
-                "conversation_id": "non-existent-conversation"
-            }
+            json={"content": "测试消息", "conversation_id": "non-existent-conversation"},
         )
 
         # 可能创建新对话或返回错误（包括因外部服务不可用导致 500）
@@ -139,6 +124,7 @@ class TestChatAPIValidation:
 
 
 # ============ 对话管理测试 ============
+
 
 class TestConversationManagement:
     """测试对话管理功能"""
@@ -170,6 +156,7 @@ class TestConversationManagement:
 
 # ============ 智能体选择测试 ============
 
+
 class TestAgentSelection:
     """测试智能体选择功能"""
 
@@ -184,7 +171,7 @@ class TestAgentSelection:
         assert isinstance(data, list) or "agents" in data
 
     @pytest.mark.asyncio
-    @patch('src.agents.workforce.get_workforce')
+    @patch("src.agents.workforce.get_workforce")
     async def test_chat_with_specific_agent(self, mock_get_workforce, auth_client: AsyncClient):
         """测试指定智能体对话"""
         mock_workforce = MagicMock()
@@ -192,11 +179,7 @@ class TestAgentSelection:
         mock_get_workforce.return_value = mock_workforce
 
         response = await auth_client.post(
-            "/api/v1/chat/",
-            json={
-                "content": "请审查这份合同",
-                "agent_name": "contract_reviewer"
-            }
+            "/api/v1/chat/", json={"content": "请审查这份合同", "agent_name": "contract_reviewer"}
         )
 
         assert response.status_code in [200, 400]
@@ -204,11 +187,12 @@ class TestAgentSelection:
 
 # ============ 错误处理测试 ============
 
+
 class TestChatAPIErrorHandling:
     """测试聊天API错误处理"""
 
     @pytest.mark.asyncio
-    @patch('src.agents.workforce.get_workforce')
+    @patch("src.agents.workforce.get_workforce")
     async def test_chat_agent_error(self, mock_get_workforce, auth_client: AsyncClient):
         """测试智能体错误处理"""
         mock_workforce = MagicMock()
@@ -216,16 +200,13 @@ class TestChatAPIErrorHandling:
         mock_workforce.process_task = AsyncMock(side_effect=Exception("Agent处理失败"))
         mock_get_workforce.return_value = mock_workforce
 
-        response = await auth_client.post(
-            "/api/v1/chat/",
-            json={"content": "测试消息"}
-        )
+        response = await auth_client.post("/api/v1/chat/", json={"content": "测试消息"})
 
         # 应该优雅地处理错误
         assert response.status_code in [200, 500]
 
     @pytest.mark.asyncio
-    @patch('src.agents.workforce.get_workforce')
+    @patch("src.agents.workforce.get_workforce")
     async def test_chat_rate_limiting(self, mock_get_workforce, auth_client: AsyncClient):
         """测试速率限制"""
         mock_workforce = MagicMock()
@@ -238,10 +219,7 @@ class TestChatAPIErrorHandling:
         # 快速发送多个请求
         responses = []
         for i in range(10):
-            response = await auth_client.post(
-                "/api/v1/chat/",
-                json={"content": f"测试消息 {i}"}
-            )
+            response = await auth_client.post("/api/v1/chat/", json={"content": f"测试消息 {i}"})
             responses.append(response.status_code)
 
         # 检查是否有速率限制响应（429）或正常响应
@@ -250,22 +228,21 @@ class TestChatAPIErrorHandling:
 
 # ============ 流式响应测试 ============
 
+
 class TestStreamingResponse:
     """测试流式响应功能"""
 
     @pytest.mark.asyncio
     async def test_chat_streaming_endpoint(self, auth_client: AsyncClient):
         """测试流式聊天接口"""
-        response = await auth_client.post(
-            "/api/v1/chat/stream",
-            json={"content": "测试消息"}
-        )
+        response = await auth_client.post("/api/v1/chat/stream", json={"content": "测试消息"})
 
         # 流式接口可能不存在
         assert response.status_code in [200, 404]
 
 
 # ============ 案件路由API测试 ============
+
 
 class TestCasesAPI:
     """测试案件管理API"""
@@ -300,8 +277,8 @@ class TestCasesAPI:
                 "title": "API测试案件",
                 "case_type": "contract",
                 "description": "通过API创建的测试案件",
-                "priority": "medium"
-            }
+                "priority": "medium",
+            },
         )
 
         assert response.status_code == 200
@@ -314,10 +291,7 @@ class TestCasesAPI:
     async def test_create_case_validation(self, auth_client: AsyncClient):
         """测试创建案件参数校验"""
         response = await auth_client.post(
-            "/api/v1/cases/",
-            json={
-                "case_type": "contract"  # 缺少必填的title
-            }
+            "/api/v1/cases/", json={"case_type": "contract"}  # 缺少必填的title
         )
 
         assert response.status_code == 422
@@ -343,11 +317,7 @@ class TestCasesAPI:
     async def test_update_case(self, auth_client: AsyncClient, test_case):
         """测试更新案件"""
         response = await auth_client.put(
-            f"/api/v1/cases/{test_case.id}",
-            json={
-                "title": "更新后的标题",
-                "status": "in_progress"
-            }
+            f"/api/v1/cases/{test_case.id}", json={"title": "更新后的标题", "status": "in_progress"}
         )
 
         assert response.status_code == 200
@@ -380,6 +350,7 @@ class TestCasesAPI:
 
 # ============ 舆情API测试 ============
 
+
 class TestSentimentAPI:
     """测试舆情监控API"""
 
@@ -398,11 +369,7 @@ class TestSentimentAPI:
         """测试创建监控配置"""
         response = await auth_client.post(
             "/api/v1/sentiment/monitors",
-            json={
-                "name": "测试监控",
-                "keywords": ["法务", "合同"],
-                "alert_threshold": 0.7
-            }
+            json={"name": "测试监控", "keywords": ["法务", "合同"], "alert_threshold": 0.7},
         )
 
         assert response.status_code == 200
@@ -411,7 +378,7 @@ class TestSentimentAPI:
         assert data["name"] == "测试监控"
 
     @pytest.mark.asyncio
-    @patch('src.services.sentiment_service.SentimentAnalysisAgent')
+    @patch("src.services.sentiment_service.SentimentAnalysisAgent")
     async def test_analyze_sentiment(self, mock_agent, auth_client: AsyncClient):
         """测试舆情分析"""
         mock_agent_instance = MagicMock()
@@ -421,11 +388,7 @@ class TestSentimentAPI:
 
         response = await auth_client.post(
             "/api/v1/sentiment/analyze",
-            json={
-                "content": "公司涉嫌合同违约被起诉",
-                "keyword": "合同违约",
-                "save_record": False
-            }
+            json={"content": "公司涉嫌合同违约被起诉", "keyword": "合同违约", "save_record": False},
         )
 
         assert response.status_code == 200
@@ -447,6 +410,7 @@ class TestSentimentAPI:
 
 # ============ 协作编辑API测试 ============
 
+
 class TestCollaborationAPI:
     """测试协作编辑API"""
 
@@ -465,10 +429,7 @@ class TestCollaborationAPI:
         """测试创建协作会话"""
         response = await auth_client.post(
             "/api/v1/collaboration/sessions",
-            json={
-                "document_id": test_document.id,
-                "name": "测试协作会话"
-            }
+            json={"document_id": test_document.id, "name": "测试协作会话"},
         )
 
         assert response.status_code == 200

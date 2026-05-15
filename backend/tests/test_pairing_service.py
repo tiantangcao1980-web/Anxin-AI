@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 PairingService 单元测试（P3-B）
 
@@ -27,13 +26,14 @@ from __future__ import annotations
 from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler as _SQLiteTC
 
 if not hasattr(_SQLiteTC, "visit_JSONB"):
+
     def _visit_JSONB(self, type_, **kw):  # noqa: N802 — SQLAlchemy visitor naming
         return self.visit_JSON(type_, **kw)
 
     _SQLiteTC.visit_JSONB = _visit_JSONB  # type: ignore[attr-defined]
 
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -52,7 +52,6 @@ from src.services.im_gateway.pairing.service import (
     PairingNotPendingError,
     PairingService,
 )
-
 
 # ---------------------------------------------------------------------------
 # helpers
@@ -108,13 +107,13 @@ async def test_create_request_24h_window(db_session: AsyncSession) -> None:
     channel = await _make_channel(db_session)
     service = PairingService(db_session)
 
-    before = datetime.now(timezone.utc)
+    before = datetime.now(UTC)
     request = await service.create_pairing_request(
         channel_id=channel.id,
         external_user_id="ou_feishu_user_001",
         external_user_name="张三",
     )
-    after = datetime.now(timezone.utc)
+    after = datetime.now(UTC)
 
     assert request.id is not None
     assert request.status == PairingStatus.PENDING
@@ -124,7 +123,7 @@ async def test_create_request_24h_window(db_session: AsyncSession) -> None:
     # SQLite 可能返回 naive datetime，统一比较
     expires = request.expires_at
     if expires.tzinfo is None:
-        expires = expires.replace(tzinfo=timezone.utc)
+        expires = expires.replace(tzinfo=UTC)
 
     expected_min = before + PAIRING_WINDOW - timedelta(seconds=2)
     expected_max = after + PAIRING_WINDOW + timedelta(seconds=2)
@@ -202,14 +201,14 @@ async def test_cleanup_expired_marks_status(db_session: AsyncSession) -> None:
         channel_id=channel.id,
         external_user_id="ou_expired",
         status=PairingStatus.PENDING,
-        expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
+        expires_at=datetime.now(UTC) - timedelta(hours=1),
     )
     # 1 条未过期
     fresh_req = PairingRequest(
         channel_id=channel.id,
         external_user_id="ou_fresh",
         status=PairingStatus.PENDING,
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=2),
+        expires_at=datetime.now(UTC) + timedelta(hours=2),
     )
     db_session.add_all([expired_req, fresh_req])
     await db_session.flush()

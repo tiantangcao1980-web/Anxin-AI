@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """法律数据源抽象基类与合规护栏。
 
 所有 BaseLegalSource 的子类在 fetch / search / get_full_text 之前，
@@ -19,19 +18,20 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
-from typing import ClassVar, Optional
+from typing import ClassVar
 from urllib.parse import urlparse
-
 
 # ============== 合规白/黑名单 ==============
 
-BANNED_HOSTS: frozenset[str] = frozenset({
-    # 裁判文书网（受 反爬 + ToS 双重约束，走 historical_wenshu 已落库表）
-    "wenshu.court.gov.cn",
-    "www.wenshu.court.gov.cn",
-    # 微信公众号（mp.weixin.qq.com 禁止爬列表、禁止绕过 cookie）
-    "mp.weixin.qq.com",
-})
+BANNED_HOSTS: frozenset[str] = frozenset(
+    {
+        # 裁判文书网（受 反爬 + ToS 双重约束，走 historical_wenshu 已落库表）
+        "wenshu.court.gov.cn",
+        "www.wenshu.court.gov.cn",
+        # 微信公众号（mp.weixin.qq.com 禁止爬列表、禁止绕过 cookie）
+        "mp.weixin.qq.com",
+    }
+)
 
 
 class ComplianceError(RuntimeError):
@@ -50,9 +50,7 @@ def assert_url_compliant(url: str) -> None:
     parsed = urlparse(url)
     host = (parsed.hostname or "").lower()
     if not host:
-        raise ComplianceError(
-            f"非法 URL：{url!r} 缺少 host，无法进行合规校验。"
-        )
+        raise ComplianceError(f"非法 URL：{url!r} 缺少 host，无法进行合规校验。")
     if host in BANNED_HOSTS:
         raise ComplianceError(
             f"合规拒绝：禁止直接访问 {host}（命中 P6-C 法律数据源黑名单）。"
@@ -62,21 +60,22 @@ def assert_url_compliant(url: str) -> None:
 
 # ============== 数据模型 ==============
 
+
 class LawType(str, Enum):
     """法律法规分类。"""
 
-    LAW = "law"                                # 法律（全国人大）
-    REGULATION = "regulation"                  # 行政法规 / 部门规章
+    LAW = "law"  # 法律（全国人大）
+    REGULATION = "regulation"  # 行政法规 / 部门规章
     JUDICIAL_INTERPRETATION = "judicial_interpretation"  # 司法解释
-    CASE = "case"                              # 案例 / 裁判文书
+    CASE = "case"  # 案例 / 裁判文书
     OTHER = "other"
 
 
 class LawStatus(str, Enum):
     """法律法规状态。"""
 
-    ACTIVE = "active"     # 现行有效
-    AMENDED = "amended"   # 已修订
+    ACTIVE = "active"  # 现行有效
+    AMENDED = "amended"  # 已修订
     ABOLISHED = "abolished"  # 已废止
     UNKNOWN = "unknown"
 
@@ -86,10 +85,10 @@ class LawSearchQuery:
     """法律检索请求参数。"""
 
     keyword: str
-    law_type: Optional[str] = None        # LawType 字符串值；None 表示不限
-    jurisdiction: Optional[str] = None    # 国家级 / 省级 / 市级；自由文本
-    date_from: Optional[date] = None
-    date_to: Optional[date] = None
+    law_type: str | None = None  # LawType 字符串值；None 表示不限
+    jurisdiction: str | None = None  # 国家级 / 省级 / 市级；自由文本
+    date_from: date | None = None
+    date_to: date | None = None
     limit: int = 20
     offset: int = 0
 
@@ -112,20 +111,21 @@ class LawSearchQuery:
 class LawSearchResult:
     """法律检索结果项。"""
 
-    source: str                                # 数据源 ID
-    law_id: str                                # 数据源内部唯一 ID
+    source: str  # 数据源 ID
+    law_id: str  # 数据源内部唯一 ID
     title: str
-    law_type: str                              # LawType 字符串值
-    issuing_authority: str                     # 颁布机关
-    issued_date: Optional[date] = None
-    effective_date: Optional[date] = None
+    law_type: str  # LawType 字符串值
+    issuing_authority: str  # 颁布机关
+    issued_date: date | None = None
+    effective_date: date | None = None
     status: str = LawStatus.UNKNOWN.value
     full_text_url: str = ""
-    summary: Optional[str] = None
+    summary: str | None = None
     extra: dict = field(default_factory=dict)  # 数据源特有字段（如案号、地区）
 
 
 # ============== 抽象基类 ==============
+
 
 class BaseLegalSource(ABC):
     """所有法律数据源的统一抽象。"""

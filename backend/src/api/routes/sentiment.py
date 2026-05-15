@@ -18,8 +18,10 @@ router = APIRouter()
 
 # ============ 请求/响应模型 ============
 
+
 class MonitorCreate(BaseModel):
     """创建监控配置"""
+
     name: str
     keywords: list[str]
     sources: list[str] | None = None
@@ -33,6 +35,7 @@ class MonitorCreate(BaseModel):
 
 class MonitorUpdate(BaseModel):
     """更新监控配置"""
+
     name: str | None = None
     keywords: list[str] | None = None
     sources: list[str] | None = None
@@ -47,6 +50,7 @@ class MonitorUpdate(BaseModel):
 
 class MonitorResponse(BaseModel):
     """监控配置响应"""
+
     id: str
     name: str
     keywords: list[str]
@@ -63,6 +67,7 @@ class MonitorResponse(BaseModel):
 
 class MonitorListResponse(BaseModel):
     """监控配置列表响应"""
+
     items: list[MonitorResponse]
     total: int
     page: int
@@ -71,6 +76,7 @@ class MonitorListResponse(BaseModel):
 
 class SentimentAnalyzeRequest(BaseModel):
     """舆情分析请求"""
+
     content: str
     keyword: str
     source: str | None = None
@@ -81,6 +87,7 @@ class SentimentAnalyzeRequest(BaseModel):
 
 class SentimentAnalyzeResponse(BaseModel):
     """舆情分析响应"""
+
     sentiment_type: str
     sentiment_score: float
     risk_level: str
@@ -91,6 +98,7 @@ class SentimentAnalyzeResponse(BaseModel):
 
 class RecordResponse(BaseModel):
     """舆情记录响应"""
+
     id: str
     keyword: str
     title: str | None = None
@@ -107,6 +115,7 @@ class RecordResponse(BaseModel):
 
 class RecordListResponse(BaseModel):
     """舆情记录列表响应"""
+
     items: list[RecordResponse]
     total: int
     page: int
@@ -115,6 +124,7 @@ class RecordListResponse(BaseModel):
 
 class AlertResponse(BaseModel):
     """预警响应"""
+
     id: str
     alert_type: str
     alert_level: str
@@ -129,6 +139,7 @@ class AlertResponse(BaseModel):
 
 class AlertListResponse(BaseModel):
     """预警列表响应"""
+
     items: list[AlertResponse]
     total: int
     page: int
@@ -137,11 +148,13 @@ class AlertListResponse(BaseModel):
 
 class AlertHandleRequest(BaseModel):
     """处理预警请求"""
+
     handle_note: str | None = None
 
 
 class StatisticsResponse(BaseModel):
     """统计响应"""
+
     period: str
     total_records: int
     sentiment_distribution: dict[str, Any]
@@ -152,11 +165,13 @@ class StatisticsResponse(BaseModel):
 
 class ReportRequest(BaseModel):
     """报告请求"""
+
     period: str = "daily"  # daily, weekly, monthly
     focus_keywords: list[str] | None = None
 
 
 # ============ 监控配置路由 ============
+
 
 @router.get("/monitors", response_model=UnifiedResponse)
 async def list_monitors(
@@ -289,8 +304,7 @@ async def update_monitor(
         return UnifiedResponse.error(code=403, message="无权修改该监控配置")
 
     monitor = await service.update_monitor(
-        monitor_id=monitor_id,
-        **request.model_dump(exclude_unset=True)
+        monitor_id=monitor_id, **request.model_dump(exclude_unset=True)
     )
     if not monitor:
         return UnifiedResponse.error(code=404, message="监控配置不存在")
@@ -349,6 +363,7 @@ async def toggle_monitor(
 
 
 # ============ 舆情分析路由 ============
+
 
 @router.post("/analyze", response_model=UnifiedResponse)
 async def analyze_sentiment(
@@ -467,6 +482,7 @@ async def get_record(
 
 # ============ 预警管理路由 ============
 
+
 @router.get("/alerts")
 async def list_alerts(
     is_read: bool | None = None,
@@ -583,6 +599,7 @@ async def handle_alert(
 
 
 # ============ 统计报告路由 ============
+
 
 @router.get("/statistics")
 async def get_statistics(

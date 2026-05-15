@@ -66,7 +66,9 @@ async def test_llm_chat_requires_route_token_in_commercial_environment(monkeypat
     monkeypatch.setattr(llm_route_governance.settings, "ENVIRONMENT", "staging")
     monkeypatch.setattr(llm_route_governance.settings, "LLM_ROUTE_TOKEN_REQUIRED", False)
     agent = _configured_agent(monkeypatch)
-    network_call = AsyncMock(side_effect=AssertionError("LLM network must not be called without route token"))
+    network_call = AsyncMock(
+        side_effect=AssertionError("LLM network must not be called without route token")
+    )
     monkeypatch.setattr(agent, "_call_llm_with_retry", network_call)
 
     result = await agent.chat("合同风险怎么判断")
@@ -108,8 +110,14 @@ async def test_llm_chat_uses_db_backed_route_token(monkeypatch, db_session, test
         },
     )
     audits = (
-        await db_session.execute(select(AgentAuditEvent).where(AgentAuditEvent.org_id == test_organization.id))
-    ).scalars().all()
+        (
+            await db_session.execute(
+                select(AgentAuditEvent).where(AgentAuditEvent.org_id == test_organization.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     assert result == "ok"
     network_call.assert_awaited_once()
@@ -122,7 +130,9 @@ async def test_llm_chat_fails_after_route_revocation(monkeypatch, db_session, te
 
     monkeypatch.setattr(llm_route_governance.settings, "ENVIRONMENT", "production")
     agent = _configured_agent(monkeypatch)
-    network_call = AsyncMock(side_effect=AssertionError("revoked route must fail before LLM network"))
+    network_call = AsyncMock(
+        side_effect=AssertionError("revoked route must fail before LLM network")
+    )
     monkeypatch.setattr(agent, "_call_llm_with_retry", network_call)
     governance = AgentGovernanceService(db_session)
     await governance.create_capability_route(
@@ -165,7 +175,9 @@ async def test_llm_stream_chat_requires_route_token_before_network(monkeypatch):
     monkeypatch.setattr(llm_route_governance.settings, "ENVIRONMENT", "staging")
     agent = _configured_agent(monkeypatch)
     http_client = AsyncMock()
-    http_client.post.side_effect = AssertionError("streaming LLM network must not be called without route token")
+    http_client.post.side_effect = AssertionError(
+        "streaming LLM network must not be called without route token"
+    )
     monkeypatch.setattr(agent, "get_http_client", AsyncMock(return_value=http_client))
 
     queue = await agent.stream_chat("请流式回答")

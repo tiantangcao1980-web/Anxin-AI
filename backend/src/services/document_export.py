@@ -99,7 +99,7 @@ class ContractExportService:
                 continue
 
             # 分隔线
-            if re.match(r'^[-─═*]{3,}$', stripped):
+            if re.match(r"^[-─═*]{3,}$", stripped):
                 sections.append({"type": "hr", "text": ""})
                 continue
 
@@ -111,15 +111,18 @@ class ContractExportService:
             elif stripped.startswith("# "):
                 sections.append({"type": "h1", "text": stripped[2:].strip()})
             # 签署区域检测
-            elif any(kw in stripped for kw in ["甲方（盖章）", "乙方（盖章）", "签字：", "日期：", "法定代表人"]):
+            elif any(
+                kw in stripped
+                for kw in ["甲方（盖章）", "乙方（盖章）", "签字：", "日期：", "法定代表人"]
+            ):
                 sections.append({"type": "sign", "text": stripped})
             # 带编号的条款标题（如"第一条"、"第X条"）
-            elif re.match(r'^第[一二三四五六七八九十百零\d]+条', stripped):
+            elif re.match(r"^第[一二三四五六七八九十百零\d]+条", stripped):
                 sections.append({"type": "h2", "text": stripped})
             # 普通段落
             else:
                 # 清理 Markdown 加粗标记
-                clean = re.sub(r'\*\*(.*?)\*\*', r'\1', stripped)
+                clean = re.sub(r"\*\*(.*?)\*\*", r"\1", stripped)
                 sections.append({"type": "p", "text": clean})
 
         return sections
@@ -159,8 +162,8 @@ class ContractExportService:
 
         # ===== 页面设置 =====
         section = doc.sections[0]
-        section.page_width = Cm(21.0)    # A4 宽
-        section.page_height = Cm(29.7)   # A4 高
+        section.page_width = Cm(21.0)  # A4 宽
+        section.page_height = Cm(29.7)  # A4 高
         section.top_margin = Cm(2.54)
         section.bottom_margin = Cm(2.54)
         section.left_margin = Cm(3.17)
@@ -275,10 +278,14 @@ class ContractExportService:
                 run.font.size = Pt(10)
                 if risk_level:
                     risk_level_map = {
-                        "low": "低风险", "medium": "中风险",
-                        "high": "高风险", "critical": "严重风险",
+                        "low": "低风险",
+                        "medium": "中风险",
+                        "high": "高风险",
+                        "critical": "严重风险",
                     }
-                    run = info_p.add_run(f"风险等级：{risk_level_map.get(risk_level, risk_level)}\n")
+                    run = info_p.add_run(
+                        f"风险等级：{risk_level_map.get(risk_level, risk_level)}\n"
+                    )
                     run.font.size = Pt(10)
                 if risk_score is not None:
                     run = info_p.add_run(f"风险评分：{risk_score:.2f}\n")
@@ -299,10 +306,10 @@ class ContractExportService:
             sep_run.font.color.rgb = RGBColor(180, 180, 180)
 
             risk_level_colors = {
-                "low": RGBColor(46, 125, 50),       # 绿色
-                "medium": RGBColor(245, 124, 0),     # 橙色
-                "high": RGBColor(211, 47, 47),       # 红色
-                "critical": RGBColor(139, 0, 0),     # 深红色
+                "low": RGBColor(46, 125, 50),  # 绿色
+                "medium": RGBColor(245, 124, 0),  # 橙色
+                "high": RGBColor(211, 47, 47),  # 红色
+                "critical": RGBColor(139, 0, 0),  # 深红色
             }
 
             risk_level_cn = {"low": "低", "medium": "中", "high": "高", "critical": "严重"}
@@ -324,7 +331,14 @@ class ContractExportService:
                 detail_p = doc.add_paragraph()
                 detail_p.paragraph_format.left_indent = Pt(24)
 
-                for label, key in [("类型", "risk_type"), ("类型", "type"), ("等级", None), ("描述", "description"), ("法律依据", "legal_basis"), ("修改建议", "suggestion")]:
+                for label, key in [
+                    ("类型", "risk_type"),
+                    ("类型", "type"),
+                    ("等级", None),
+                    ("描述", "description"),
+                    ("法律依据", "legal_basis"),
+                    ("修改建议", "suggestion"),
+                ]:
                     val = None
                     if key:
                         val = risk.get(key)
@@ -511,11 +525,10 @@ class ContractExportService:
 
         for sec in sections:
             escaped = (
-                sec["text"]
-                .replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-            ) if sec["text"] else ""
+                (sec["text"].replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+                if sec["text"]
+                else ""
+            )
 
             if sec["type"] == "h1":
                 elements.append(Paragraph(escaped, title_style))
@@ -552,8 +565,10 @@ class ContractExportService:
             )
             if risk_level:
                 risk_level_map = {
-                    "low": "低风险", "medium": "中风险",
-                    "high": "高风险", "critical": "严重风险",
+                    "low": "低风险",
+                    "medium": "中风险",
+                    "high": "高风险",
+                    "critical": "严重风险",
                 }
                 elements.append(
                     Paragraph(f"风险等级：{risk_level_map.get(risk_level, risk_level)}", info_style)
@@ -564,16 +579,22 @@ class ContractExportService:
 
             if review_summary:
                 elements.append(Paragraph("审查摘要", h2_style))
-                elements.append(Paragraph(
-                    review_summary.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"),
-                    body_style
-                ))
+                elements.append(
+                    Paragraph(
+                        review_summary.replace("&", "&amp;")
+                        .replace("<", "&lt;")
+                        .replace(">", "&gt;"),
+                        body_style,
+                    )
+                )
                 elements.append(Spacer(1, 4 * mm))
 
             risk_level_cn = {"low": "低", "medium": "中", "high": "高", "critical": "严重"}
             risk_colors = {
-                "low": "#2E7D32", "medium": "#F57C00",
-                "high": "#D32F2F", "critical": "#8B0000",
+                "low": "#2E7D32",
+                "medium": "#F57C00",
+                "high": "#D32F2F",
+                "critical": "#8B0000",
             }
 
             for i, risk in enumerate(risks, 1):
@@ -602,14 +623,23 @@ class ContractExportService:
                     firstLineIndent=0,
                 )
 
-                for label, key in [("类型", "risk_type"), ("类型", "type"), ("等级", None), ("描述", "description"), ("法律依据", "legal_basis"), ("建议", "suggestion")]:
+                for label, key in [
+                    ("类型", "risk_type"),
+                    ("类型", "type"),
+                    ("等级", None),
+                    ("描述", "description"),
+                    ("法律依据", "legal_basis"),
+                    ("建议", "suggestion"),
+                ]:
                     val = None
                     if key:
                         val = risk.get(key)
                     elif label == "等级":
                         val = risk_level_cn.get(level, level)
                     if val:
-                        safe_val = str(val).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                        safe_val = (
+                            str(val).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                        )
                         elements.append(Paragraph(f"<b>{label}：</b>{safe_val}", detail_style))
 
                 status = "已解决" if risk.get("is_resolved") else "待处理"
@@ -686,19 +716,35 @@ class ContractExportService:
         if risks:
             pdf.add_page()
             pdf.set_font_size(16)
-            pdf.cell(0, 12, "合同审查报告 — 风险点详情", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
+            pdf.cell(
+                0, 12, "合同审查报告 — 风险点详情", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C"
+            )
             pdf.ln(6)
 
             pdf.set_font_size(10)
             if contract_number:
                 pdf.cell(0, 6, f"合同编号：{contract_number}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-            pdf.cell(0, 6, f"审查日期：{datetime.now().strftime('%Y年%m月%d日')}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+            pdf.cell(
+                0,
+                6,
+                f"审查日期：{datetime.now().strftime('%Y年%m月%d日')}",
+                new_x=XPos.LMARGIN,
+                new_y=YPos.NEXT,
+            )
             if risk_level:
                 risk_level_map = {
-                    "low": "低风险", "medium": "中风险",
-                    "high": "高风险", "critical": "严重风险",
+                    "low": "低风险",
+                    "medium": "中风险",
+                    "high": "高风险",
+                    "critical": "严重风险",
                 }
-                pdf.cell(0, 6, f"风险等级：{risk_level_map.get(risk_level, risk_level)}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+                pdf.cell(
+                    0,
+                    6,
+                    f"风险等级：{risk_level_map.get(risk_level, risk_level)}",
+                    new_x=XPos.LMARGIN,
+                    new_y=YPos.NEXT,
+                )
             if risk_score is not None:
                 pdf.cell(0, 6, f"风险评分：{risk_score:.2f}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
             pdf.ln(5)
@@ -708,11 +754,29 @@ class ContractExportService:
             for i, risk in enumerate(risks, 1):
                 level = ContractExportService._risk_level(risk)
                 pdf.set_font_size(12)
-                pdf.cell(0, 8, f"风险 {i}：{risk.get('title', '未知风险')}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+                pdf.cell(
+                    0,
+                    8,
+                    f"风险 {i}：{risk.get('title', '未知风险')}",
+                    new_x=XPos.LMARGIN,
+                    new_y=YPos.NEXT,
+                )
                 pdf.set_font_size(10)
                 if risk.get("type") or risk.get("risk_type"):
-                    pdf.cell(0, 6, f"  类型：{risk.get('risk_type') or risk.get('type', '未知')}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-                pdf.cell(0, 6, f"  等级：{risk_level_cn.get(level, level)}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+                    pdf.cell(
+                        0,
+                        6,
+                        f"  类型：{risk.get('risk_type') or risk.get('type', '未知')}",
+                        new_x=XPos.LMARGIN,
+                        new_y=YPos.NEXT,
+                    )
+                pdf.cell(
+                    0,
+                    6,
+                    f"  等级：{risk_level_cn.get(level, level)}",
+                    new_x=XPos.LMARGIN,
+                    new_y=YPos.NEXT,
+                )
                 if risk.get("description"):
                     pdf.multi_cell(0, 6, f"  描述：{risk.get('description', '')}")
                 if risk.get("legal_basis"):

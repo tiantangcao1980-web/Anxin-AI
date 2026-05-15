@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """市场研究员 persona 路由的 Pydantic 镜像（P7-B）。
 
 所有 In/Out 都对应 ``src.agents.personas.research_models`` 中的数据类。
@@ -9,7 +8,6 @@ from __future__ import annotations
 from typing import Any
 
 from pydantic import BaseModel, Field
-
 
 # ---------------------------------------------------------------------------
 # Output 子结构（对应 dataclass）

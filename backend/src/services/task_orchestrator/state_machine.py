@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 异步任务状态机
 
@@ -20,8 +19,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable, Union
+from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
+from typing import Any
 
 from src.services.task_orchestrator.events import TaskEvent, TaskEventType
 from src.services.task_orchestrator.models import Task, TaskStatus
@@ -34,9 +34,7 @@ class InvalidTransitionError(ValueError):
     """
 
     def __init__(self, from_state: TaskStatus, to_state: TaskStatus) -> None:
-        super().__init__(
-            f"非法状态转移: {from_state.value} -> {to_state.value}"
-        )
+        super().__init__(f"非法状态转移: {from_state.value} -> {to_state.value}")
         self.from_state = from_state
         self.to_state = to_state
 
@@ -57,9 +55,7 @@ TRANSITIONS: dict[TaskStatus, frozenset[TaskStatus]] = {
             TaskStatus.CANCELLED,
         }
     ),
-    TaskStatus.REPORTING: frozenset(
-        {TaskStatus.DONE, TaskStatus.FAILED, TaskStatus.CANCELLED}
-    ),
+    TaskStatus.REPORTING: frozenset({TaskStatus.DONE, TaskStatus.FAILED, TaskStatus.CANCELLED}),
     TaskStatus.NEEDS_APPROVAL: frozenset(
         {TaskStatus.RUNNING, TaskStatus.FAILED, TaskStatus.CANCELLED}
     ),
@@ -83,7 +79,7 @@ ENTER_EVENT: dict[TaskStatus, TaskEventType] = {
 
 
 # 事件回调签名：可同步、可异步
-EventEmitter = Callable[[TaskEvent], Union[None, Awaitable[None]]]
+EventEmitter = Callable[[TaskEvent], None | Awaitable[None]]
 
 
 class TaskStateMachine:
@@ -108,9 +104,7 @@ class TaskStateMachine:
         self._emitter = emitter
 
     @classmethod
-    def can_transition(
-        cls, from_state: TaskStatus, to_state: TaskStatus
-    ) -> bool:
+    def can_transition(cls, from_state: TaskStatus, to_state: TaskStatus) -> bool:
         """判断 ``from_state -> to_state`` 是否合法。"""
         return to_state in cls.TRANSITIONS.get(from_state, frozenset())
 
@@ -142,7 +136,7 @@ class TaskStateMachine:
         if not self.can_transition(from_state, to_state):
             raise InvalidTransitionError(from_state, to_state)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         task.status = to_state
 
         # 时间戳钩子

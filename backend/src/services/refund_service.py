@@ -109,8 +109,7 @@ class RefundService:
         await self.db.refresh(refund)
 
         logger.info(
-            f"创建退款申请: refund={refund.id}, order={order_id}, "
-            f"amount={refund_amount}"
+            f"创建退款申请: refund={refund.id}, order={order_id}, " f"amount={refund_amount}"
         )
         return refund.to_dict()
 
@@ -232,9 +231,7 @@ class RefundService:
         total = (await self.db.execute(count_q)).scalar() or 0
 
         # 分页
-        result = await self.db.execute(
-            query.offset((page - 1) * page_size).limit(page_size)
-        )
+        result = await self.db.execute(query.offset((page - 1) * page_size).limit(page_size))
         refunds = result.scalars().all()
 
         items: list[dict[str, Any]] = []
@@ -278,9 +275,7 @@ class RefundService:
         logger.info(f"退款审批通过: refund={refund_id}, approver={approver_id}")
         return refund.to_dict()
 
-    async def reject_refund(
-        self, refund_id: str, approver_id: str, reason: str
-    ) -> dict[str, Any]:
+    async def reject_refund(self, refund_id: str, approver_id: str, reason: str) -> dict[str, Any]:
         """驳回退款"""
 
         refund = await self.db.get(Refund, refund_id)
@@ -341,19 +336,14 @@ class RefundService:
         await self.db.commit()
         await self.db.refresh(refund)
 
-        logger.info(
-            f"退款执行完成: refund={refund_id}, "
-            f"txn={result.refund_id}"
-        )
+        logger.info(f"退款执行完成: refund={refund_id}, " f"txn={result.refund_id}")
         return refund.to_dict()
 
     # ------------------------------------------------------------------
     # 统计
     # ------------------------------------------------------------------
 
-    async def get_refund_stats(
-        self, org_id: str | None = None, days: int = 30
-    ) -> dict[str, Any]:
+    async def get_refund_stats(self, org_id: str | None = None, days: int = 30) -> dict[str, Any]:
         """退款统计"""
 
         since = datetime.now(UTC) - timedelta(days=days)
@@ -382,7 +372,8 @@ class RefundService:
                 func.extract(
                     "epoch",
                     Refund.processed_at - Refund.created_at,
-                ) / 86400
+                )
+                / 86400
             )
         ).where(
             and_(

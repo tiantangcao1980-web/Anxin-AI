@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 agent_tasks 路由 API 测试
 
@@ -8,15 +7,12 @@ Redis / Celery 都被 monkeypatch 掉以避免真实外部依赖。
 
 from __future__ import annotations
 
-from typing import Any
-
 import pytest
 from httpx import AsyncClient
 
 # 触发 ORM 表注册
 from src.services.task_orchestrator.models import Task, TaskStatus  # noqa: F401
 from src.services.task_orchestrator.service import TaskOrchestratorService
-
 
 # ---------------------------------------------------------------------------
 # 全局 mock
@@ -94,9 +90,7 @@ async def test_list_tasks_for_user(auth_client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_list_tasks_status_filter(auth_client: AsyncClient) -> None:
     await _create_task_via_api(auth_client)
-    resp = await auth_client.get(
-        f"/api/v1/agent-tasks?status={TaskStatus.QUEUED.value}"
-    )
+    resp = await auth_client.get(f"/api/v1/agent-tasks?status={TaskStatus.QUEUED.value}")
     assert resp.status_code == 200
     items = resp.json()["items"]
     assert all(item["status"] == TaskStatus.QUEUED.value for item in items)
@@ -124,9 +118,7 @@ async def test_cancel_already_terminal_returns_409(
 
 
 @pytest.mark.asyncio
-async def test_approval_flow(
-    auth_client: AsyncClient, db_session, test_user
-) -> None:
+async def test_approval_flow(auth_client: AsyncClient, db_session, test_user) -> None:
     """模拟 worker 把任务推到 NEEDS_APPROVAL，然后通过 API approve。"""
     # 1. API 创建任务
     created = await _create_task_via_api(auth_client)
@@ -145,9 +137,7 @@ async def test_approval_flow(
 
 
 @pytest.mark.asyncio
-async def test_approval_reject_flow(
-    auth_client: AsyncClient, db_session, test_user
-) -> None:
+async def test_approval_reject_flow(auth_client: AsyncClient, db_session, test_user) -> None:
     created = await _create_task_via_api(auth_client)
     task_id = created["id"]
 
@@ -165,9 +155,7 @@ async def test_approval_reject_flow(
 
 
 @pytest.mark.asyncio
-async def test_get_result_endpoint(
-    auth_client: AsyncClient, db_session, test_user
-) -> None:
+async def test_get_result_endpoint(auth_client: AsyncClient, db_session, test_user) -> None:
     created = await _create_task_via_api(auth_client)
     task_id = created["id"]
 

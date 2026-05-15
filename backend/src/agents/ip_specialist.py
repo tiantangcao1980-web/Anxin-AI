@@ -25,7 +25,9 @@ class IPSpecialistAgent(BaseLegalAgent):
 
     async def process(self, task: dict[str, Any]) -> AgentResponse:
         """处理知识产权任务"""
-        query_type = task.get("type", "consultation") # consultation, infringement_check, registration
+        query_type = task.get(
+            "type", "consultation"
+        )  # consultation, infringement_check, registration
         details = task.get("details", "")
         context = task.get("context", {})
 
@@ -70,7 +72,5 @@ class IPSpecialistAgent(BaseLegalAgent):
             agent_name=self.name,
             content=response,
             reasoning="基于知识产权法律法规及审查标准",
-            actions=[
-                {"type": "ip_analysis", "description": "提供IP专业分析意见"}
-            ]
+            actions=[{"type": "ip_analysis", "description": "提供IP专业分析意见"}],
         )

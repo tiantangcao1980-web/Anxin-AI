@@ -16,17 +16,16 @@ import asyncio
 import hashlib
 import hmac
 import time
-from typing import Any, Optional
+from typing import Any
 
 from loguru import logger
 
 from src.core.config import settings
 
-
 # Redis client 单例（lazy 初始化）。测试时可以通过 _set_redis_client_for_test
 # 注入 mock 或 fakeredis 实例。
 _redis_client: Any = None
-_redis_lock: Optional[asyncio.Lock] = None
+_redis_lock: asyncio.Lock | None = None
 
 
 async def _get_redis() -> Any:
@@ -73,9 +72,9 @@ class WebhookSecurity:
         *,
         scope: str,
         body: bytes,
-        signature: Optional[str],
-        secret: Optional[str],
-        timestamp: Optional[str],
+        signature: str | None,
+        secret: str | None,
+        timestamp: str | None,
     ) -> bool:
         """异步：HMAC + 新鲜度 + Redis SETNX replay。Redis 不可用 fail-closed。"""
         if not secret:
@@ -95,7 +94,7 @@ class WebhookSecurity:
             logger.info(f"{scope} webhook timestamp 过期: age={abs(now - ts_value)}")
             return False
 
-        payload = f"{ts_value}.".encode("utf-8") + body
+        payload = f"{ts_value}.".encode() + body
         expected = hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
         if not hmac.compare_digest(signature.strip(), expected):
             return False
@@ -109,8 +108,6 @@ class WebhookSecurity:
                 logger.warning(f"{scope} webhook 检测到重放 (Redis SETNX miss)")
                 return False
         except Exception as e:
-            logger.error(
-                f"[WebhookSecurity] Redis 不可用，fail-closed 拒绝 webhook: {e}"
-            )
+            logger.error(f"[WebhookSecurity] Redis 不可用，fail-closed 拒绝 webhook: {e}")
             return False
         return True

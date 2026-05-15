@@ -28,10 +28,7 @@ TEST_EPISODE = {
     "task_description": "审查服务合同",
     "task_type": "contract_review",
     "agents_involved": ["ContractAgent", "RiskAgent"],
-    "execution_trace": {
-        "agent_sequence": ["ContractAgent", "RiskAgent"],
-        "parallel_groups": []
-    },
+    "execution_trace": {"agent_sequence": ["ContractAgent", "RiskAgent"], "parallel_groups": []},
     "result_summary": "发现3处风险条款，建议修改",
     "user_rating": 5,
     "user_feedback": "非常准确和及时",
@@ -222,10 +219,13 @@ class TestMemoryIntegration:
 
         # 2. 添加消息和上下文
         await working.add_message("test-migration-001", "user", "审查租赁合同")
-        await working.set_context("test-migration-001", {
-            "document_type": "contract",
-            "parties": ["甲方", "乙方"],
-        })
+        await working.set_context(
+            "test-migration-001",
+            {
+                "document_type": "contract",
+                "parties": ["甲方", "乙方"],
+            },
+        )
 
         # 3. 验证会话状态
         ctx = await working.get_context("test-migration-001")

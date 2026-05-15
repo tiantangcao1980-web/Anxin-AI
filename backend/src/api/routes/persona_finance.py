@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """财税顾问 persona 路由（P9-E）。
 
 挂载点（在 ``api/routes/__init__.py`` 用 ``prefix="/personas/finance"`` 注册）::
@@ -104,9 +103,7 @@ async def calculate_tax(
     try:
         result = await persona.calculate_tax(request)
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     return TaxCalculationOut(
         tax_type=result.tax_type,
@@ -159,9 +156,7 @@ async def export_rebate(
     try:
         report = await persona.export_tax_rebate(transactions)
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     return RebateReportOut(
         transactions=[
@@ -206,9 +201,7 @@ async def cross_border_vat(
             currency=payload.currency,
         )
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     return VATAdviceOut(
         country=advice.country,
@@ -285,9 +278,7 @@ async def tax_plan(
     try:
         plan = await persona.tax_planning(profile, payload.target_year)
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     items_out = [
         TaxPlanItemOut(
@@ -356,9 +347,15 @@ async def tax_rates(
         else:
             rates = []
     elif country_norm in {"DE", "GERMANY", "德国"}:
-        rates = [{"category": "Standard VAT", "rate_pct": 19.0}, {"category": "Reduced", "rate_pct": 7.0}]
+        rates = [
+            {"category": "Standard VAT", "rate_pct": 19.0},
+            {"category": "Reduced", "rate_pct": 7.0},
+        ]
     elif country_norm in {"UK", "ENGLAND", "英国"}:
-        rates = [{"category": "Standard VAT", "rate_pct": 20.0}, {"category": "Reduced", "rate_pct": 5.0}]
+        rates = [
+            {"category": "Standard VAT", "rate_pct": 20.0},
+            {"category": "Reduced", "rate_pct": 5.0},
+        ]
     else:
         rates = []
 

@@ -18,11 +18,14 @@ from src.services.sentiment_service import SentimentService
 
 # ============ 监控配置测试 ============
 
+
 class TestSentimentMonitorCRUD:
     """测试监控配置CRUD操作"""
 
     @pytest.mark.asyncio
-    async def test_create_monitor(self, db_session: AsyncSession, test_user: User, test_organization: Organization):
+    async def test_create_monitor(
+        self, db_session: AsyncSession, test_user: User, test_organization: Organization
+    ):
         """测试创建监控配置"""
         service = SentimentService(db_session)
 
@@ -67,9 +70,7 @@ class TestSentimentMonitorCRUD:
         service = SentimentService(db_session)
 
         updated = await service.update_monitor(
-            monitor_id=test_monitor.id,
-            name="更新后的监控",
-            alert_threshold=0.8
+            monitor_id=test_monitor.id, name="更新后的监控", alert_threshold=0.8
         )
 
         assert updated is not None
@@ -104,11 +105,14 @@ class TestSentimentMonitorCRUD:
 
 # ============ 舆情分析测试 ============
 
+
 class TestSentimentAnalysis:
     """测试舆情分析功能"""
 
     @pytest.mark.asyncio
-    async def test_analyze_content_positive(self, db_session: AsyncSession, test_organization: Organization):
+    async def test_analyze_content_positive(
+        self, db_session: AsyncSession, test_organization: Organization
+    ):
         """测试分析正面舆情"""
         # Mock Agent
         mock_agent = MagicMock()
@@ -122,7 +126,7 @@ class TestSentimentAnalysis:
             content="公司法务团队获得年度优秀团队表彰，合规工作成效显著",
             keyword="法务",
             org_id=test_organization.id,
-            save_record=True
+            save_record=True,
         )
 
         assert result is not None
@@ -130,7 +134,9 @@ class TestSentimentAnalysis:
         assert "risk_level" in result
 
     @pytest.mark.asyncio
-    async def test_analyze_content_negative(self, db_session: AsyncSession, test_organization: Organization):
+    async def test_analyze_content_negative(
+        self, db_session: AsyncSession, test_organization: Organization
+    ):
         """测试分析负面舆情"""
         mock_agent = MagicMock()
         mock_agent.analyze_sentiment = AsyncMock(return_value={"analysis": "负面分析结果"})
@@ -143,7 +149,7 @@ class TestSentimentAnalysis:
             content="公司因合同违约被起诉，涉及金额巨大，面临诉讼风险",
             keyword="诉讼",
             org_id=test_organization.id,
-            save_record=True
+            save_record=True,
         )
 
         assert result is not None
@@ -152,6 +158,7 @@ class TestSentimentAnalysis:
 
 
 # ============ 舆情记录测试 ============
+
 
 class TestSentimentRecords:
     """测试舆情记录功能"""
@@ -191,6 +198,7 @@ class TestSentimentRecords:
 
 
 # ============ 预警管理测试 ============
+
 
 class TestSentimentAlerts:
     """测试预警管理功能"""
@@ -240,7 +248,9 @@ class TestSentimentAlerts:
         assert updated.is_read is True
 
     @pytest.mark.asyncio
-    async def test_handle_alert(self, db_session: AsyncSession, test_user: User, test_organization: Organization):
+    async def test_handle_alert(
+        self, db_session: AsyncSession, test_user: User, test_organization: Organization
+    ):
         """测试处理预警"""
         service = SentimentService(db_session)
 
@@ -257,9 +267,7 @@ class TestSentimentAlerts:
 
         # 处理预警
         updated = await service.handle_alert(
-            alert_id=alert.id,
-            handled_by=test_user.id,
-            handle_note="已处理，问题已解决"
+            alert_id=alert.id, handled_by=test_user.id, handle_note="已处理，问题已解决"
         )
 
         assert updated is not None
@@ -270,11 +278,14 @@ class TestSentimentAlerts:
 
 # ============ 统计报告测试 ============
 
+
 class TestSentimentStatistics:
     """测试统计报告功能"""
 
     @pytest.mark.asyncio
-    async def test_get_statistics(self, db_session: AsyncSession, test_sentiment_records, test_organization: Organization):
+    async def test_get_statistics(
+        self, db_session: AsyncSession, test_sentiment_records, test_organization: Organization
+    ):
         """测试获取统计信息"""
         service = SentimentService(db_session)
 
@@ -295,22 +306,23 @@ class TestSentimentStatistics:
         assert stats["total_records"] == 0
 
     @pytest.mark.asyncio
-    async def test_generate_report(self, db_session: AsyncSession, test_sentiment_records, test_organization: Organization):
+    async def test_generate_report(
+        self, db_session: AsyncSession, test_sentiment_records, test_organization: Organization
+    ):
         """测试生成报告"""
         mock_agent = MagicMock()
-        mock_agent.generate_report = AsyncMock(return_value={
-            "report_type": "daily",
-            "report_content": "模拟报告内容",
-            "statistics": {}
-        })
+        mock_agent.generate_report = AsyncMock(
+            return_value={
+                "report_type": "daily",
+                "report_content": "模拟报告内容",
+                "statistics": {},
+            }
+        )
 
         service = SentimentService(db_session)
         service._agent = mock_agent
 
-        report = await service.generate_report(
-            org_id=test_organization.id,
-            period="daily"
-        )
+        report = await service.generate_report(org_id=test_organization.id, period="daily")
 
         assert report is not None
         assert "report_type" in report

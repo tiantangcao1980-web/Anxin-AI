@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """persona_sales 路由 Pydantic schemas（请求 / 响应 DTO）。
 
 P7-C 获客猎手 persona 对外 API 的 IO 类型。所有字段 camelCase 与 snake_case
@@ -11,7 +10,6 @@ from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
-
 
 # ---------------------------------------------------------------------------
 # Lead Discovery

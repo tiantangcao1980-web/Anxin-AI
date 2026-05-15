@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """跨境电商助手 persona 路由 Pydantic schemas（P7-E）。
 
 与 ``src/agents/personas/ecommerce_models.py`` 中的 dataclass 一一对应，

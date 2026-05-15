@@ -12,26 +12,29 @@ from src.models.base import GUID, Base, TimestampMixin
 
 class ApprovalStatus(str, enum.Enum):
     """审批状态"""
-    pending = "pending"       # 待审批
-    approved = "approved"     # 已通过
-    rejected = "rejected"    # 已驳回
-    withdrawn = "withdrawn"   # 已撤回
+
+    pending = "pending"  # 待审批
+    approved = "approved"  # 已通过
+    rejected = "rejected"  # 已驳回
+    withdrawn = "withdrawn"  # 已撤回
 
 
 class ApprovalType(str, enum.Enum):
     """审批类型"""
-    contract = "contract"       # 合同审批
-    document = "document"       # 文档审批
-    case_assign = "case_assign" # 案件指派
-    expense = "expense"         # 费用报销
-    leave = "leave"             # 请假
-    custom = "custom"           # 自定义
+
+    contract = "contract"  # 合同审批
+    document = "document"  # 文档审批
+    case_assign = "case_assign"  # 案件指派
+    expense = "expense"  # 费用报销
+    leave = "leave"  # 请假
+    custom = "custom"  # 自定义
 
 
 class ChainMode(str, enum.Enum):
     """审批链模式"""
+
     sequential = "sequential"  # 顺序审批（逐级）
-    parallel = "parallel"      # 并行审批（会签）
+    parallel = "parallel"  # 并行审批（会签）
 
 
 class Approval(Base, TimestampMixin):
@@ -58,9 +61,7 @@ class Approval(Base, TimestampMixin):
     )
 
     # 组织
-    org_id: Mapped[str | None] = mapped_column(
-        GUID(), nullable=True
-    )
+    org_id: Mapped[str | None] = mapped_column(GUID(), nullable=True)
 
     # 关联资源
     resource_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
@@ -72,9 +73,7 @@ class Approval(Base, TimestampMixin):
     )
 
     # 审批时间
-    resolved_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # 审批意见
     resolution_note: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -83,14 +82,10 @@ class Approval(Base, TimestampMixin):
     payload: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     # 风险等级
-    risk_level: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="low"
-    )
+    risk_level: Mapped[str] = mapped_column(String(20), nullable=False, default="low")
 
     # 过期时间
-    expires_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # ========== 审批链支持 ==========
 
@@ -105,14 +100,10 @@ class Approval(Base, TimestampMixin):
     approval_chain: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     # 当前审批步骤（从 0 开始）
-    current_step: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0
-    )
+    current_step: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     # 关联的审批模板ID
-    template_id: Mapped[str | None] = mapped_column(
-        GUID(), nullable=True
-    )
+    template_id: Mapped[str | None] = mapped_column(GUID(), nullable=True)
 
 
 class ApprovalTemplate(Base, TimestampMixin):
@@ -138,6 +129,4 @@ class ApprovalTemplate(Base, TimestampMixin):
     )
 
     # 是否启用
-    enabled: Mapped[bool] = mapped_column(
-        default=True, nullable=False
-    )
+    enabled: Mapped[bool] = mapped_column(default=True, nullable=False)

@@ -79,10 +79,12 @@ async def get_lawyer_performance(
         data.sort(key=lambda x: x.get("total_delegations", 0), reverse=True)
     total = len(data) if isinstance(data, list) else 0
     start = (page - 1) * page_size
-    items = data[start: start + page_size] if isinstance(data, list) else data
-    return UnifiedResponse.success(data={
-        "items": items,
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-    })
+    items = data[start : start + page_size] if isinstance(data, list) else data
+    return UnifiedResponse.success(
+        data={
+            "items": items,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        }
+    )

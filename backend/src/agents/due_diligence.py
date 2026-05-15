@@ -57,9 +57,7 @@ class DueDiligenceAgent(BaseLegalAgent):
                 {"source": "企业信用信息公示系统", "type": "database"},
                 {"source": "裁判文书网", "type": "database"},
             ],
-            actions=[
-                {"type": "due_diligence_complete", "description": "尽职调查完成"}
-            ]
+            actions=[{"type": "due_diligence_complete", "description": "尽职调查完成"}],
         )
 
     async def investigate_company(self, company_name: str) -> dict[str, Any]:
@@ -77,11 +75,7 @@ class DueDiligenceAgent(BaseLegalAgent):
 """
         response = await self.chat(prompt)
 
-        return {
-            "company_name": company_name,
-            "report": response,
-            "agent": self.name
-        }
+        return {"company_name": company_name, "report": response, "agent": self.name}
 
     async def check_litigation(self, company_name: str) -> dict[str, Any]:
         """查询企业诉讼记录"""
@@ -96,8 +90,4 @@ class DueDiligenceAgent(BaseLegalAgent):
 """
         response = await self.chat(prompt)
 
-        return {
-            "company_name": company_name,
-            "litigation_report": response,
-            "agent": self.name
-        }
+        return {"company_name": company_name, "litigation_report": response, "agent": self.name}

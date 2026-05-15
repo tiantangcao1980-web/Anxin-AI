@@ -144,7 +144,13 @@ select = ["E", "F", "I", "N", "W", "B", "C4", "UP"]
 # SQLAlchemy boolean column filters intentionally use == True/False semantics.
 # Historical Chinese docstrings/templates contain whitespace-only blank lines;
 # git diff --check remains the release hygiene gate for newly touched lines.
-ignore = ["E501", "B008", "E712", "W293"]
+# UP042: existing `class Foo(str, Enum)` patterns intentionally preserved —
+#   StrEnum 改造会改变 `str(Foo.X)` 输出，会破坏序列化兼容（后续单独迁移）。
+# E402: pytest fixtures、sys.path 引导、`from __future__` 之后的条件导入
+#   合法地出现在非 import 语句之后。
+# N806: PascalCase 局部别名（FetchRequestCls 等）刻意保留以镜像上游命名。
+# E741: 历史短变量名 `l`（line / list 迭代器）在上下文清晰处保留。
+ignore = ["E501", "B008", "E712", "W293", "UP042", "E402", "N806", "E741"]
 
 [tool.mypy]
 python_version = "3.11"

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """安心助理 persona 路由的 Pydantic 镜像（P9-A）。
 
 In/Out 对应 ``src.agents.personas.orchestration_models`` 中的数据类。
@@ -10,7 +9,6 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-
 # ---------------------------------------------------------------------------
 # Input
 # ---------------------------------------------------------------------------
@@ -21,9 +19,7 @@ class ClassifyIntentIn(BaseModel):
 
 
 class RouteIn(BaseModel):
-    intent: dict[str, Any] = Field(
-        ..., description="IntentClassification.to_dict() 的内容"
-    )
+    intent: dict[str, Any] = Field(..., description="IntentClassification.to_dict() 的内容")
     context: dict[str, Any] | None = Field(default=None)
 
 

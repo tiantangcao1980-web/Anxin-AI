@@ -19,6 +19,7 @@ router = APIRouter()
 
 # ============ 安全配置端点 ============
 
+
 class SecurityConfigResponse(BaseModel):
     hmac_enabled: bool = False
     hmac_enforce: bool = False
@@ -43,6 +44,7 @@ async def get_security_config() -> SecurityConfigResponse:
 
 # ============ PoW 挑战端点（Phase 3） ============
 
+
 class ChallengeRequest(BaseModel):
     challenge_id: str
     nonce: int
@@ -58,10 +60,9 @@ async def verify_challenge(req: ChallengeRequest) -> ChallengeResponse:
     """验证 PoW 挑战解答"""
     try:
         import redis.asyncio as aioredis
+
         redis_from_url = cast(Any, aioredis.from_url)
-        redis_client = redis_from_url(
-            settings.REDIS_URL, encoding="utf-8", decode_responses=True
-        )
+        redis_client = redis_from_url(settings.REDIS_URL, encoding="utf-8", decode_responses=True)
         key = f"antibot:challenge:{req.challenge_id}"
         challenge_data = await redis_client.hgetall(key)
 

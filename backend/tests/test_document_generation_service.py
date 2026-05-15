@@ -117,11 +117,7 @@ def test_document_draft_agent_missing_field_items_keep_string_values() -> None:
 
     assert plan.normalized_doc_type == "contract"
     assert plan.missing_fields
-    assert all(
-        isinstance(value, str)
-        for item in plan.missing_fields
-        for value in item.values()
-    )
+    assert all(isinstance(value, str) for item in plan.missing_fields for value in item.values())
     assert {item["key"] for item in plan.missing_fields} >= {
         "合同金额与付款安排",
         "履行期限与交付节点",

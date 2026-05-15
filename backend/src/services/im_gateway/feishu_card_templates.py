@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 飞书交互卡片（Interactive Card）模板
 
@@ -230,9 +229,7 @@ def error_alert_card(error: dict[str, Any]) -> dict[str, Any]:
         elements.append(
             {
                 "tag": "note",
-                "elements": [
-                    {"tag": "plain_text", "content": f"trace_id: {error['trace_id']}"}
-                ],
+                "elements": [{"tag": "plain_text", "content": f"trace_id: {error['trace_id']}"}],
             }
         )
     return _make_card("🚨 异常告警", "red", elements)

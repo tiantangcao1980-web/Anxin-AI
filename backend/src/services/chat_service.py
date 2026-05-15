@@ -82,6 +82,7 @@ def detect_find_lawyer_intent(content: str) -> bool:
 
 class CitationSource(BaseModel):
     """RAG 引用来源"""
+
     id: str
     type: str  # "law_article" | "case" | "knowledge" | "regulation"
     title: str
@@ -122,21 +123,22 @@ def extract_citations(
             score = float(doc.get("score", 0.0) or doc.get("relevance_score", 0.0))
             url = doc.get("url")
 
-            citations.append(CitationSource(
-                id=str(doc_id),
-                type=doc_type,
-                title=title[:120],
-                content_snippet=content[:200],
-                source=source_label[:200],
-                relevance_score=min(max(score, 0.0), 1.0),
-                url=url,
-            ))
+            citations.append(
+                CitationSource(
+                    id=str(doc_id),
+                    type=doc_type,
+                    title=title[:120],
+                    content_snippet=content[:200],
+                    source=source_label[:200],
+                    relevance_score=min(max(score, 0.0), 1.0),
+                    url=url,
+                )
+            )
 
     # --- 2. 从 AI 响应文本中正则匹配法条引用 ---
     # 匹配 《XXX》第NNN条 格式
     law_pattern = re.compile(
-        r'[《《]([^》》]+)[》》]'
-        r'(?:第([零一二三四五六七八九十百千\d]+)条)?'
+        r"[《《]([^》》]+)[》》]" r"(?:第([零一二三四五六七八九十百千\d]+)条)?"
     )
     for match in law_pattern.finditer(ai_response):
         law_name = match.group(1)
@@ -147,19 +149,19 @@ def extract_citations(
             continue
         seen_ids.add(ref_id)
 
-        citations.append(CitationSource(
-            id=ref_id,
-            type="law_article",
-            title=law_name,
-            content_snippet=source_text,
-            source=source_text,
-            relevance_score=0.85,
-        ))
+        citations.append(
+            CitationSource(
+                id=ref_id,
+                type="law_article",
+                title=law_name,
+                content_snippet=source_text,
+                source=source_text,
+                relevance_score=0.85,
+            )
+        )
 
     # 匹配案例号格式: （YYYY）XXX民终/民初NNNN号
-    case_pattern = re.compile(
-        r'[（(](\d{4})[）)][一-鿿\w]+(?:民|刑|行|知|商|执)[一-鿿]*\d+号'
-    )
+    case_pattern = re.compile(r"[（(](\d{4})[）)][一-鿿\w]+(?:民|刑|行|知|商|执)[一-鿿]*\d+号")
     for match in case_pattern.finditer(ai_response):
         case_ref = match.group(0)
         ref_id = f"case-{case_ref}"
@@ -167,14 +169,16 @@ def extract_citations(
             continue
         seen_ids.add(ref_id)
 
-        citations.append(CitationSource(
-            id=ref_id,
-            type="case",
-            title=case_ref,
-            content_snippet=case_ref,
-            source=case_ref,
-            relevance_score=0.75,
-        ))
+        citations.append(
+            CitationSource(
+                id=ref_id,
+                type="case",
+                title=case_ref,
+                content_snippet=case_ref,
+                source=case_ref,
+                relevance_score=0.75,
+            )
+        )
 
     # --- 3. 按 relevance_score 降序排序 ---
     citations.sort(key=lambda c: c.relevance_score, reverse=True)
@@ -187,9 +191,15 @@ def extract_citations(
 
 class _ChatContext:
     """chat() 和 stream_chat() 共享的编排上下文"""
+
     __slots__ = (
-        "conversation", "context_messages", "llm_config",
-        "normalized_kb_ids", "route", "resolved_agent", "dd_company_name",
+        "conversation",
+        "context_messages",
+        "llm_config",
+        "normalized_kb_ids",
+        "route",
+        "resolved_agent",
+        "dd_company_name",
     )
 
     def __init__(
@@ -223,6 +233,7 @@ class ChatService:
         """延迟导入 workforce，避免循环依赖"""
         if self._workforce is None:
             from src.agents.workforce import get_workforce
+
             self._workforce = get_workforce()
         return self._workforce
 
@@ -244,6 +255,7 @@ class ChatService:
         # Fallback: 查找任意活跃配置
         logger.warning("ChatService: No default LLM config found, searching for active config...")
         from src.models.llm_config import LLMConfig
+
         result = await self.db.execute(
             select(LLMConfig)
             .where(LLMConfig.config_type == "llm")
@@ -265,6 +277,7 @@ class ChatService:
         """安全地发布事件到事件总线"""
         try:
             from src.services.event_bus import event_bus
+
             await event_bus.publish(channel, event_data)
         except Exception as e:
             logger.warning(f"事件发布失败 [{channel}]: {e}")
@@ -295,11 +308,14 @@ class ChatService:
         logger.info(f"创建对话会话: {conversation.id}")
 
         # 发布事件
-        await self._publish_event("chat_events", {
-            "type": "conversation_created",
-            "conversation_id": str(conversation.id),
-            "user_id": user_id,
-        })
+        await self._publish_event(
+            "chat_events",
+            {
+                "type": "conversation_created",
+                "conversation_id": str(conversation.id),
+                "user_id": user_id,
+            },
+        )
 
         return conversation
 
@@ -347,6 +363,7 @@ class ChatService:
     ) -> list[Conversation]:
         """获取对话列表（支持关键字搜索和收藏过滤）"""
         from sqlalchemy import or_
+
         query = select(Conversation)
 
         if user_id:
@@ -454,6 +471,7 @@ class ChatService:
     async def cleanup_empty_conversations(self, older_than_hours: int = 24) -> int:
         """清理空对话（message_count=0 且创建超过指定时长）"""
         from sqlalchemy import delete as sa_delete
+
         cutoff = datetime.now() - timedelta(hours=older_than_hours)
         result = await self.db.execute(
             sa_delete(Conversation)
@@ -482,6 +500,7 @@ class ChatService:
     ) -> list[dict[str, Any]]:
         """跨对话搜索消息内容，返回匹配的消息及所属对话信息"""
         from sqlalchemy import or_
+
         query = (
             select(Message)
             .join(Conversation, Message.conversation_id == Conversation.id)
@@ -538,27 +557,31 @@ class ChatService:
             kb_name = kb_name_map.get(kb_id)
             if not kb_name:
                 continue
-            sources.append(CitationSource(
-                id=f"knowledge-base-{kb_id}",
-                type="knowledge_base",
-                title=kb_name,
-                content_snippet="",
-                source=kb_name,
-                relevance_score=max_score,
-            ))
+            sources.append(
+                CitationSource(
+                    id=f"knowledge-base-{kb_id}",
+                    type="knowledge_base",
+                    title=kb_name,
+                    content_snippet="",
+                    source=kb_name,
+                    relevance_score=max_score,
+                )
+            )
 
         default_source_label = next(iter(kb_name_map.values()), "知识库检索")
         for index, source in enumerate(raw_sources, start=1):
             if not isinstance(source, dict):
                 continue
-            sources.append(CitationSource(
-                id=source.get("id") or f"knowledge-source-{index}",
-                type="knowledge",
-                title=source.get("title") or f"知识片段 {index}",
-                content_snippet=source.get("content_snippet") or "",
-                source=source.get("source") or default_source_label,
-                relevance_score=float(source.get("score", 0) or 0),
-            ))
+            sources.append(
+                CitationSource(
+                    id=source.get("id") or f"knowledge-source-{index}",
+                    type="knowledge",
+                    title=source.get("title") or f"知识片段 {index}",
+                    content_snippet=source.get("content_snippet") or "",
+                    source=source.get("source") or default_source_label,
+                    relevance_score=float(source.get("score", 0) or 0),
+                )
+            )
 
         return sources
 
@@ -577,7 +600,8 @@ class ChatService:
         """
         investigation_request = (
             classify_investigation_request(content)
-            if not agent_name else {"intent": "general_search", "company_name": None}
+            if not agent_name
+            else {"intent": "general_search", "company_name": None}
         )
         if investigation_request["intent"] == "due_diligence":
             return "due_diligence", "尽职调查Agent", investigation_request.get("company_name")
@@ -629,7 +653,9 @@ class ChatService:
 
         await self.add_message(conversation_id=conversation.id, role="user", content=content)
         context_messages = await self.get_recent_history(
-            conversation.id, limit=10, exclude_latest=True,
+            conversation.id,
+            limit=10,
+            exclude_latest=True,
         )
         template_context_message = build_template_context_message(template_id)
         if template_context_message:
@@ -642,6 +668,7 @@ class ChatService:
         llm_config = None
         if model_id:
             from src.models.llm_config import LLMConfig as LLMConfigModel
+
             result = await self.db.execute(
                 select(LLMConfigModel).where(
                     LLMConfigModel.id == model_id,
@@ -654,20 +681,21 @@ class ChatService:
         if not llm_config:
             llm_config = await self._load_llm_config()
         normalized_kb_ids = [
-            kb_id for kb_id in (knowledge_base_ids or [])
-            if isinstance(kb_id, str) and kb_id
+            kb_id for kb_id in (knowledge_base_ids or []) if isinstance(kb_id, str) and kb_id
         ]
 
         # 文件内容注入：如果携带 document_id，提取文本拼接到 content
         if document_id:
             try:
                 from src.services.document_service import DocumentService
+
                 _doc_svc = DocumentService(self.db)
                 _doc = await _doc_svc.get_document(document_id)
                 if _doc:
                     _extracted = _doc.extracted_text or ""
                     if not _extracted.strip() and _doc.file_path:
                         from src.services.document_parser import DocumentParser
+
                         parser_cls = cast(Any, DocumentParser)
                         _parser = parser_cls()
                         _parse_result = cast(
@@ -682,23 +710,32 @@ class ChatService:
                         _max_chars = 8000
                         _truncated = _extracted[:_max_chars]
                         if len(_extracted) > _max_chars:
-                            _truncated += f"\n\n...（文档共 {len(_extracted)} 字，已截取前 {_max_chars} 字）"
+                            _truncated += (
+                                f"\n\n...（文档共 {len(_extracted)} 字，已截取前 {_max_chars} 字）"
+                            )
                         content = f"{content}\n\n[附件内容 - {_doc.name}]\n{_truncated}"
             except Exception as _doc_err:
                 logger.warning(f"ChatService: 文件内容注入失败: {_doc_err}")
 
         route, resolved_agent, dd_company_name = self._decide_route(
-            content, agent_name, mode, normalized_kb_ids,
+            content,
+            agent_name,
+            mode,
+            normalized_kb_ids,
         )
 
         # ===== Harness: 上下文压缩（激活已有 context_compressor）=====
         try:
             from src.services.context_compressor import context_compressor
+
             tier = context_compressor.should_compress(context_messages)
             if tier is not None:
-                logger.info(f"[Harness] 触发上下文压缩 Tier {tier}（消息数: {len(context_messages)}）")
+                logger.info(
+                    f"[Harness] 触发上下文压缩 Tier {tier}（消息数: {len(context_messages)}）"
+                )
                 context_messages, compress_stats = await context_compressor.compress(
-                    context_messages, tier=tier,
+                    context_messages,
+                    tier=tier,
                 )
                 logger.info(
                     f"[Harness] 压缩完成 | "
@@ -717,6 +754,7 @@ class ChatService:
             async def _get_memory_context() -> str | None:
                 try:
                     from src.services.memory_layer import memory_layer
+
                     enriched = await memory_layer.build_enriched_context(
                         user_id=user_id,
                         session_id=str(conversation.id),
@@ -724,7 +762,9 @@ class ChatService:
                         max_tokens=600,
                     )
                     # 后台缓冲消息（不阻塞）
-                    _aio.create_task(memory_layer.buffer_message(user_id, {"role": "user", "content": content}))
+                    _aio.create_task(
+                        memory_layer.buffer_message(user_id, {"role": "user", "content": content})
+                    )
                     return enriched
                 except Exception as mem_err:
                     logger.debug(f"记忆上下文注入跳过: {mem_err}")
@@ -733,13 +773,17 @@ class ChatService:
             async def _get_experience_context() -> str | None:
                 try:
                     from src.services.experience_engine import experience_engine
-                    return experience_engine.build_experience_context(user_id, content, max_tokens=300)
+
+                    return experience_engine.build_experience_context(
+                        user_id, content, max_tokens=300
+                    )
                 except Exception as exp_err:
                     logger.debug(f"经验上下文注入跳过: {exp_err}")
                     return None
 
             enriched, exp_context = await _aio.gather(
-                _get_memory_context(), _get_experience_context(),
+                _get_memory_context(),
+                _get_experience_context(),
             )
 
             # 按优先级插入（经验在最前，记忆其次）
@@ -801,10 +845,9 @@ class ChatService:
             user_id=user_id,
             llm_route_context=llm_route_context,
         )
-        response_text = (
-            (rag_result or {}).get("answer", "").strip()
-            or "抱歉，当前知识库未返回有效内容。"
-        )
+        response_text = (rag_result or {}).get(
+            "answer", ""
+        ).strip() or "抱歉，当前知识库未返回有效内容。"
         sources = await self._build_knowledge_sources(
             normalized_kb_ids,
             (rag_result or {}).get("sources", []),
@@ -830,8 +873,10 @@ class ChatService:
         # ===== 引文追踪：从 AI 回复中提取法律引文并沉淀到图谱 =====
         try:
             from src.services.citation_tracker import citation_tracker
+
             citation_result = await citation_tracker.track_and_enrich(
-                response_text, auto_sink_to_graph=True,
+                response_text,
+                auto_sink_to_graph=True,
             )
             if citation_result.get("citation_count", 0) > 0:
                 logger.debug(
@@ -851,17 +896,21 @@ class ChatService:
         )
 
         if event_type:
-            await self._publish_event("chat_events", {
-                "type": event_type,
-                "conversation_id": str(conversation.id),
-                "agent": used_agent,
-                "user_id": user_id,
-            })
+            await self._publish_event(
+                "chat_events",
+                {
+                    "type": event_type,
+                    "conversation_id": str(conversation.id),
+                    "agent": used_agent,
+                    "user_id": user_id,
+                },
+            )
 
         # ===== 做梦机制：记录用户活动 =====
         if user_id:
             try:
                 from src.services.auto_dream import auto_dream_engine
+
                 auto_dream_engine.record_activity(user_id, f"chat_{used_agent}")
             except Exception:
                 pass
@@ -890,8 +939,15 @@ class ChatService:
         trace = start_trace(user_id=user_id, conversation_id=conversation_id)
 
         ctx = await self._prepare_chat_context(
-            content, conversation_id, user_id, case_id,
-            agent_name, mode, knowledge_base_ids, template_id, model_id=model_id,
+            content,
+            conversation_id,
+            user_id,
+            case_id,
+            agent_name,
+            mode,
+            knowledge_base_ids,
+            template_id,
+            model_id=model_id,
             document_id=document_id,
         )
         trace.route = ctx.route
@@ -928,7 +984,8 @@ class ChatService:
             elif ctx.route in ("contract_review", "document_drafting"):
                 used_agent = ctx.resolved_agent or "legal_advisor"
                 response_text = await self.workforce.chat(
-                    content, used_agent,
+                    content,
+                    used_agent,
                     context={
                         "llm_config": ctx.llm_config,
                         "history": ctx.context_messages,
@@ -939,7 +996,8 @@ class ChatService:
             elif ctx.route == "specific_agent":
                 used_agent = ctx.resolved_agent or "legal_advisor"
                 response_text = await self.workforce.chat(
-                    content, used_agent,
+                    content,
+                    used_agent,
                     context={
                         "llm_config": ctx.llm_config,
                         "history": ctx.context_messages,
@@ -956,7 +1014,7 @@ class ChatService:
                         "case_id": case_id,
                         "llm_config": ctx.llm_config,
                         "llm_route_context": llm_route_context,
-                    }
+                    },
                 )
                 response_text = result.get("final_result", {}).get("summary", "")
                 used_agent = "智能体团队"
@@ -1005,7 +1063,10 @@ class ChatService:
             task_engine.transition(task_record.task_id, TaskState.COMPLETED, result=used_agent)
 
         final_sources, ai_message = await self._finalize_response(
-            response_text, used_agent, ctx.conversation, user_id,
+            response_text,
+            used_agent,
+            ctx.conversation,
+            user_id,
             sources=sources or None,
         )
 
@@ -1063,7 +1124,7 @@ class ChatService:
                 yield {
                     "type": "thinking",
                     "agent": "本地安全芯片",
-                    "message": "正在本地硬件安全区进行推理..."
+                    "message": "正在本地硬件安全区进行推理...",
                 }
                 await asyncio.sleep(1.0)
 
@@ -1093,7 +1154,11 @@ class ChatService:
         # 2. 统一前置准备（复用共享编排层）
         try:
             ctx = await self._prepare_chat_context(
-                content, conversation_id, user_id, case_id, agent_name,
+                content,
+                conversation_id,
+                user_id,
+                case_id,
+                agent_name,
                 document_id=document_id,
             )
         except ValueError as e:
@@ -1115,16 +1180,24 @@ class ChatService:
                 response_text += "\n\n*(注：本回复基于脱敏数据生成，敏感信息已在本地自动还原)*"
 
             sources, ai_message = await self._finalize_response(
-                response_text, used_agent, ctx.conversation, user_id,
+                response_text,
+                used_agent,
+                ctx.conversation,
+                user_id,
                 event_type="stream_chat_completed",
             )
             yield {
-                "type": "content", "text": response_text,
-                "accumulated": response_text, "agent": used_agent, "progress": 1.0,
+                "type": "content",
+                "text": response_text,
+                "accumulated": response_text,
+                "agent": used_agent,
+                "progress": 1.0,
             }
             yield {
-                "type": "done", "conversation_id": ctx.conversation.id,
-                "message_id": ai_message.id, "agent": used_agent,
+                "type": "done",
+                "conversation_id": ctx.conversation.id,
+                "message_id": ai_message.id,
+                "agent": used_agent,
                 "full_content": response_text,
                 "sources": [s.model_dump() for s in sources],
             }
@@ -1134,12 +1207,14 @@ class ChatService:
         if ctx.route in ("contract_review", "document_drafting"):
             used_agent = ctx.resolved_agent or "legal_advisor"
             yield {
-                "type": "agent_start", "agent": used_agent,
+                "type": "agent_start",
+                "agent": used_agent,
                 "message": "正在处理您的请求...",
             }
             try:
                 response_text = await self.workforce.chat(
-                    content, used_agent,
+                    content,
+                    used_agent,
                     context={
                         "llm_config": ctx.llm_config,
                         "history": ctx.context_messages,
@@ -1148,7 +1223,8 @@ class ChatService:
                 )
             except Exception:
                 response_text = await self.workforce.chat(
-                    content, "legal_advisor",
+                    content,
+                    "legal_advisor",
                     context={
                         "llm_config": ctx.llm_config,
                         "history": ctx.context_messages,
@@ -1162,16 +1238,24 @@ class ChatService:
 
             # 原始行为：此路径不发布事件
             sources, ai_message = await self._finalize_response(
-                response_text, used_agent, ctx.conversation, user_id,
+                response_text,
+                used_agent,
+                ctx.conversation,
+                user_id,
                 event_type=None,
             )
             yield {
-                "type": "content", "text": response_text,
-                "accumulated": response_text, "agent": used_agent, "progress": 1.0,
+                "type": "content",
+                "text": response_text,
+                "accumulated": response_text,
+                "agent": used_agent,
+                "progress": 1.0,
             }
             yield {
-                "type": "done", "conversation_id": ctx.conversation.id,
-                "message_id": ai_message.id, "agent": used_agent,
+                "type": "done",
+                "conversation_id": ctx.conversation.id,
+                "message_id": ai_message.id,
+                "agent": used_agent,
                 "full_content": response_text,
                 "sources": [s.model_dump() for s in sources],
             }
@@ -1198,6 +1282,7 @@ class ChatService:
 
                 # 异步获取图谱 A2UI 数据
                 from src.services.rag_service import rag_service
+
                 graph_task = asyncio.create_task(rag_service.get_graph_a2ui_data(content))
 
                 accumulated_text = ""
@@ -1281,8 +1366,12 @@ class ChatService:
                     response_text = summary or accumulated_text
 
                     # 如果汇总结果与流式内容不同（有新增内容），追加推送
-                    if summary and summary != accumulated_text and len(summary) > len(accumulated_text):
-                        extra = summary[len(accumulated_text):]
+                    if (
+                        summary
+                        and summary != accumulated_text
+                        and len(summary) > len(accumulated_text)
+                    ):
+                        extra = summary[len(accumulated_text) :]
                         accumulated_text = summary
                         sentences = self._split_into_chunks(extra)
                         for sentence in sentences:
@@ -1316,7 +1405,8 @@ class ChatService:
                 if final_event:
                     await self._process_agent_notifications(
                         {"agent_results": final_event.get("agent_results", [])},
-                        user_id, ctx.conversation.id,
+                        user_id,
+                        ctx.conversation.id,
                     )
 
                 yield {"type": "agent_complete", "agent": used_agent}
@@ -1374,13 +1464,15 @@ class ChatService:
                             "llm_config": ctx.llm_config,
                             "history": ctx.context_messages,
                             "llm_route_context": llm_route_context,
-                        }
+                        },
                     )
 
                     # 隐私还原
                     if recovery_map:
                         response_text = pii_service.restore(response_text, recovery_map)
-                        response_text += "\n\n*(注：本回复基于脱敏数据生成，敏感信息已在本地自动还原)*"
+                        response_text += (
+                            "\n\n*(注：本回复基于脱敏数据生成，敏感信息已在本地自动还原)*"
+                        )
 
                     sentences = self._split_into_chunks(response_text)
                     accumulated_text = ""
@@ -1397,7 +1489,10 @@ class ChatService:
 
             # 统一后处理
             sources, ai_message = await self._finalize_response(
-                response_text, used_agent, ctx.conversation, user_id,
+                response_text,
+                used_agent,
+                ctx.conversation,
+                user_id,
                 event_type="stream_chat_completed",
             )
 
@@ -1439,7 +1534,9 @@ class ChatService:
                         continue
 
                     notif_type = action.get("level", "info")
-                    notif_title = action.get("title", f"来自 {agent_res.get('agent_name', 'AI助手')} 的提醒")
+                    notif_title = action.get(
+                        "title", f"来自 {agent_res.get('agent_name', 'AI助手')} 的提醒"
+                    )
                     notif_msg = action.get("message", agent_res.get("content", "")[:50] + "...")
 
                     # ContractStewardAgent 特殊处理
@@ -1457,7 +1554,7 @@ class ChatService:
                             type=notif_type,
                             title=notif_title,
                             message=notif_msg,
-                            related_link=f"/chat?id={conversation_id}"
+                            related_link=f"/chat?id={conversation_id}",
                         )
                         logger.info(f"已创建通知: {notif_title}")
 
@@ -1470,14 +1567,15 @@ class ChatService:
             return []
 
         import re
-        sentences = re.split(r'([。！？；\n])', text)
+
+        sentences = re.split(r"([。！？；\n])", text)
 
         result = []
         current = ""
 
         for part in sentences:
             current += part
-            if part in '。！？；\n' or len(current) >= chunk_size:
+            if part in "。！？；\n" or len(current) >= chunk_size:
                 if current.strip():
                     result.append(current)
                 current = ""
@@ -1486,7 +1584,7 @@ class ChatService:
             result.append(current)
 
         if len(result) <= 1 and len(text) > chunk_size:
-            result = [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
+            result = [text[i : i + chunk_size] for i in range(0, len(text), chunk_size)]
 
         return result if result else [text]
 
@@ -1497,9 +1595,7 @@ class ChatService:
         feedback: str | None = None,
     ) -> bool:
         """添加消息反馈"""
-        result = await self.db.execute(
-            select(Message).where(Message.id == message_id)
-        )
+        result = await self.db.execute(select(Message).where(Message.id == message_id))
         message = result.scalar_one_or_none()
 
         if not message:
@@ -1510,10 +1606,13 @@ class ChatService:
         await self.db.flush()
 
         # 发布反馈事件（用于情景记忆强化学习）
-        await self._publish_event("chat_events", {
-            "type": "feedback_received",
-            "message_id": message_id,
-            "rating": rating,
-        })
+        await self._publish_event(
+            "chat_events",
+            {
+                "type": "feedback_received",
+                "message_id": message_id,
+                "rating": rating,
+            },
+        )
 
         return True

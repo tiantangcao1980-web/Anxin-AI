@@ -1,10 +1,9 @@
 """
 
-èæçæ§æ°æ®æ¨¡å
+èæ
+çæ§æ°æ®æ¨¡å
 
 """
-
-
 
 import enum
 from datetime import datetime
@@ -21,102 +20,74 @@ if TYPE_CHECKING:
     from src.models.user import Organization, User
 
 
-
-
-
 class SentimentType(str, enum.Enum):
-
     """ææç±»å"""
 
-    POSITIVE = "positive"      # æ­£é¢
+    POSITIVE = "positive"  # æ­£é¢
 
-    NEGATIVE = "negative"      # è´é¢
+    NEGATIVE = "negative"  # è´é¢
 
-    NEUTRAL = "neutral"        # ä¸­æ?
-
-
-
+    NEUTRAL = "neutral"  # ä¸­æ?
 
 
 class RiskLevel(str, enum.Enum):
-
     """é£é©ç­çº§"""
 
-    LOW = "low"                # ä½é£é?
+    LOW = "low"  # ä½é£é?
 
-    MEDIUM = "medium"          # ä¸­é£é?
+    MEDIUM = "medium"  # ä¸­é£é?
 
-    HIGH = "high"              # é«é£é?
+    HIGH = "high"  # é«é£é?
 
-    CRITICAL = "critical"      # æé«é£é©
-
-
-
+    CRITICAL = "critical"  # æé«é£é©
 
 
 class AlertLevel(str, enum.Enum):
-
     """é¢è­¦ç­çº§"""
 
-    INFO = "info"              # æç¤º
+    INFO = "info"  # æç¤º
 
-    WARNING = "warning"        # è­¦å
+    WARNING = "warning"  # è­¦å
 
-    DANGER = "danger"          # å±é©
+    DANGER = "danger"  # å±é©
 
-    CRITICAL = "critical"      # ç´§æ?
-
-
-
+    CRITICAL = "critical"  # ç´§æ?
 
 
 class AlertType(str, enum.Enum):
-
     """é¢è­¦ç±»å"""
 
-    NEGATIVE_SURGE = "negative_surge"        # è´é¢èææ¿å¢?
+    NEGATIVE_SURGE = "negative_surge"  # è´é¢èææ¿å¢?
 
-    HIGH_RISK = "high_risk"                  # é«é£é©èæ?
+    HIGH_RISK = "high_risk"  # é«é£é©èæ?
 
-    KEYWORD_MATCH = "keyword_match"          # å³é®è¯å¹é?
+    KEYWORD_MATCH = "keyword_match"  # å³é®è¯å¹é?
 
-    TREND_ANOMALY = "trend_anomaly"          # è¶å¿å¼å¸¸
+    TREND_ANOMALY = "trend_anomaly"  # è¶å¿å¼å¸¸
 
-    REPUTATION_RISK = "reputation_risk"      # å£°èªé£é©
-
-
-
+    REPUTATION_RISK = "reputation_risk"  # å£°èªé£é©
 
 
 class SourceType(str, enum.Enum):
-
     """æ°æ®æ¥æºç±»å"""
 
-    NEWS = "news"              # æ°é»
+    NEWS = "news"  # æ°é»
 
     SOCIAL_MEDIA = "social_media"  # ç¤¾äº¤åªä½
 
-    FORUM = "forum"            # è®ºå
+    FORUM = "forum"  # è®ºå
 
-    BLOG = "blog"              # åå®¢
+    BLOG = "blog"  # åå®¢
 
-    OFFICIAL = "official"      # å®æ¹ç½ç«
+    OFFICIAL = "official"  # å®æ¹ç½ç«
 
-    OTHER = "other"            # å¶ä»
-
-
-
+    OTHER = "other"  # å¶ä»
 
 
 class SentimentRecord(Base, TimestampMixin):
-
     """èæè®°å½æ¨¡å"""
 
-
-
     __tablename__ = "sentiment_records"
-
-
 
     # åºæ¬ä¿¡æ¯
 
@@ -128,39 +99,23 @@ class SentimentRecord(Base, TimestampMixin):
 
     source: Mapped[str | None] = mapped_column(String(255))  # æ¥æºURLæåç§?
 
-    source_type: Mapped[SourceType] = mapped_column(
-
-        ValueEnum(SourceType), default=SourceType.OTHER
-
-    )
-
-
+    source_type: Mapped[SourceType] = mapped_column(ValueEnum(SourceType), default=SourceType.OTHER)
 
     # ææåæç»æ
 
     sentiment_type: Mapped[SentimentType] = mapped_column(
-
         ValueEnum(SentimentType), default=SentimentType.NEUTRAL
-
     )
 
     sentiment_score: Mapped[float] = mapped_column(Float, default=0.0)  # -1.0 å?1.0
 
-
-
     # é£é©è¯ä¼°
 
-    risk_level: Mapped[RiskLevel] = mapped_column(
-
-        ValueEnum(RiskLevel), default=RiskLevel.LOW
-
-    )
+    risk_level: Mapped[RiskLevel] = mapped_column(ValueEnum(RiskLevel), default=RiskLevel.LOW)
 
     risk_score: Mapped[float] = mapped_column(Float, default=0.0)  # 0 å?1.0
 
     risk_factors: Mapped[dict[str, Any] | None] = mapped_column(JSONB)  # é£é©å ç´ è¯¦æ
-
-
 
     # AIåæç»æ
 
@@ -168,81 +123,51 @@ class SentimentRecord(Base, TimestampMixin):
 
     summary: Mapped[str | None] = mapped_column(Text)  # AIçææè¦
 
-
-
     # åæ°æ?
 
     publish_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     author: Mapped[str | None] = mapped_column(String(100))
 
-    engagement: Mapped[dict[str, Any] | None] = mapped_column(JSONB)  # äºå¨æ°æ®ï¼ç¹èµãè¯è®ºãè½¬åç­
-
-
+    engagement: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB
+    )  # äºå¨æ°æ®ï¼ç¹èµãè¯è®ºãè½¬åç­
 
     # å¤é®
 
     org_id: Mapped[str | None] = mapped_column(
-
         GUID(), ForeignKey("organizations.id", ondelete="CASCADE")
-
     )
 
     monitor_id: Mapped[str | None] = mapped_column(
-
         GUID(), ForeignKey("sentiment_monitors.id", ondelete="SET NULL")
-
     )
-
-
 
     # å³ç³»
 
     organization: Mapped[Optional["Organization"]] = relationship(
-
         "Organization", back_populates="sentiment_records"
-
     )
 
     monitor: Mapped[Optional["SentimentMonitor"]] = relationship(
-
         "SentimentMonitor", back_populates="records"
-
     )
-
-
-
 
 
 class SentimentAlert(Base, TimestampMixin):
-
     """èæé¢è­¦æ¨¡å"""
-
-
 
     __tablename__ = "sentiment_alerts"
 
-
-
     # é¢è­¦ä¿¡æ¯
 
-    alert_type: Mapped[AlertType] = mapped_column(
+    alert_type: Mapped[AlertType] = mapped_column(ValueEnum(AlertType), nullable=False)
 
-        ValueEnum(AlertType), nullable=False
-
-    )
-
-    alert_level: Mapped[AlertLevel] = mapped_column(
-
-        ValueEnum(AlertLevel), default=AlertLevel.INFO
-
-    )
+    alert_level: Mapped[AlertLevel] = mapped_column(ValueEnum(AlertLevel), default=AlertLevel.INFO)
 
     title: Mapped[str] = mapped_column(String(255), nullable=False)
 
     message: Mapped[str] = mapped_column(Text, nullable=False)
-
-
 
     # ç¶æ?
 
@@ -253,14 +178,10 @@ class SentimentAlert(Base, TimestampMixin):
     handled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     handled_by: Mapped[str | None] = mapped_column(
-
         GUID(), ForeignKey("users.id", ondelete="SET NULL")
-
     )
 
     handle_note: Mapped[str | None] = mapped_column(Text)
-
-
 
     # å³èæ°æ®
 
@@ -268,61 +189,39 @@ class SentimentAlert(Base, TimestampMixin):
 
     statistics: Mapped[dict[str, Any] | None] = mapped_column(JSONB)  # ç»è®¡æ°æ®
 
-
-
     # å¤é®
 
     org_id: Mapped[str | None] = mapped_column(
-
         GUID(), ForeignKey("organizations.id", ondelete="CASCADE")
-
     )
 
     monitor_id: Mapped[str | None] = mapped_column(
-
         GUID(), ForeignKey("sentiment_monitors.id", ondelete="SET NULL")
-
     )
-
-
 
     # å³ç³»
 
     organization: Mapped[Optional["Organization"]] = relationship(
-
         "Organization", back_populates="sentiment_alerts"
-
     )
 
     monitor: Mapped[Optional["SentimentMonitor"]] = relationship(
-
         "SentimentMonitor", back_populates="alerts"
-
     )
 
     handler: Mapped[Optional["User"]] = relationship("User")
 
 
-
-
-
 class SentimentMonitor(Base, TimestampMixin):
-
     """çæ§éç½®æ¨¡å"""
 
-
-
     __tablename__ = "sentiment_monitors"
-
-
 
     # åºæ¬ä¿¡æ¯
 
     name: Mapped[str] = mapped_column(String(100), nullable=False)
 
     description: Mapped[str | None] = mapped_column(Text)
-
-
 
     # çæ§éç½®
 
@@ -332,8 +231,6 @@ class SentimentMonitor(Base, TimestampMixin):
 
     exclude_keywords: Mapped[list[Any] | None] = mapped_column(JSONB)  # æé¤å³é®è¯?
 
-
-
     # é¢è­¦éå?
 
     alert_threshold: Mapped[float] = mapped_column(Float, default=0.7)  # é¢è­¦éå?
@@ -341,8 +238,6 @@ class SentimentMonitor(Base, TimestampMixin):
     negative_threshold: Mapped[float] = mapped_column(Float, default=0.6)  # è´é¢éå?
 
     risk_threshold: Mapped[float] = mapped_column(Float, default=0.8)  # é£é©éå?
-
-
 
     # çæ§ç¶æ?
 
@@ -352,8 +247,6 @@ class SentimentMonitor(Base, TimestampMixin):
 
     scan_interval: Mapped[int] = mapped_column(Integer, default=3600)  # æ«æé´éï¼ç§ï¼?
 
-
-
     # ç»è®¡
 
     total_records: Mapped[int] = mapped_column(Integer, default=0)
@@ -362,42 +255,28 @@ class SentimentMonitor(Base, TimestampMixin):
 
     alert_count: Mapped[int] = mapped_column(Integer, default=0)
 
-
-
     # å¤é®
 
     org_id: Mapped[str | None] = mapped_column(
-
         GUID(), ForeignKey("organizations.id", ondelete="CASCADE")
-
     )
 
     created_by: Mapped[str | None] = mapped_column(
-
         GUID(), ForeignKey("users.id", ondelete="SET NULL")
-
     )
-
-
 
     # å³ç³»
 
     organization: Mapped[Optional["Organization"]] = relationship(
-
         "Organization", back_populates="sentiment_monitors"
-
     )
 
     creator: Mapped[Optional["User"]] = relationship("User")
 
     records: Mapped[list["SentimentRecord"]] = relationship(
-
         "SentimentRecord", back_populates="monitor"
-
     )
 
     alerts: Mapped[list["SentimentAlert"]] = relationship(
-
         "SentimentAlert", back_populates="monitor"
-
     )

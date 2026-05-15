@@ -78,7 +78,9 @@ class Crawl4AIService:
         try:
             from crawl4ai import AsyncWebCrawler
 
-            self._crawler = cast(Crawl4AICrawler, AsyncWebCrawler(verbose=settings.CRAWL4AI_VERBOSE))
+            self._crawler = cast(
+                Crawl4AICrawler, AsyncWebCrawler(verbose=settings.CRAWL4AI_VERBOSE)
+            )
             await self._crawler.awarmup()
             self._available = True
             logger.info("[Crawl4AI] 初始化成功，LLM 友好爬取已就绪")
@@ -165,7 +167,9 @@ class Crawl4AIService:
                 raise RuntimeError("Crawl4AI crawler is not initialized")
 
             config = CrawlerRunConfig(
-                cache_mode=CacheMode.ENABLED if settings.CRAWL4AI_CACHE_ENABLED else CacheMode.DISABLED,
+                cache_mode=(
+                    CacheMode.ENABLED if settings.CRAWL4AI_CACHE_ENABLED else CacheMode.DISABLED
+                ),
                 page_timeout=timeout * 1000,
                 wait_until="networkidle",
             )
@@ -219,8 +223,11 @@ class Crawl4AIService:
 
             if resp.status_code != 200:
                 return {
-                    "title": "", "content": "", "html": "",
-                    "metadata": {}, "links": [],
+                    "title": "",
+                    "content": "",
+                    "html": "",
+                    "metadata": {},
+                    "links": [],
                     "success": False,
                     "error": f"HTTP {resp.status_code}",
                     "source": "httpx_fallback",
@@ -243,8 +250,11 @@ class Crawl4AIService:
 
         except Exception as e:
             return {
-                "title": "", "content": "", "html": "",
-                "metadata": {}, "links": [],
+                "title": "",
+                "content": "",
+                "html": "",
+                "metadata": {},
+                "links": [],
                 "success": False,
                 "error": str(e),
                 "source": "httpx_fallback",
@@ -293,13 +303,18 @@ class Crawl4AIService:
                 structured_result = await crawler.arun(url=url, config=extraction_config)
                 if structured_result.success and structured_result.extracted_content:
                     import json
+
                     data = json.loads(structured_result.extracted_content)
                     return {"success": True, "data": data, "source": "crawl4ai_structured"}
             except Exception as e:
                 logger.debug(f"[Crawl4AI] 结构化提取失败: {e}")
 
         # 降级：从 Markdown 内容中正则提取
-        return {"success": True, "data": {"raw_content": result["content"][:3000]}, "source": "regex_fallback"}
+        return {
+            "success": True,
+            "data": {"raw_content": result["content"][:3000]},
+            "source": "regex_fallback",
+        }
 
     # ===== HTML 解析工具 =====
 
@@ -307,38 +322,45 @@ class Crawl4AIService:
         """简单 HTML → Markdown 转换（降级方案）"""
         text = html
         # 移除 script/style
-        text = re.sub(r'<script[^>]*>[\s\S]*?</script>', '', text, flags=re.IGNORECASE)
-        text = re.sub(r'<style[^>]*>[\s\S]*?</style>', '', text, flags=re.IGNORECASE)
+        text = re.sub(r"<script[^>]*>[\s\S]*?</script>", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"<style[^>]*>[\s\S]*?</style>", "", text, flags=re.IGNORECASE)
         # 标题
-        text = re.sub(r'<h1[^>]*>(.*?)</h1>', r'\n# \1\n', text, flags=re.IGNORECASE)
-        text = re.sub(r'<h2[^>]*>(.*?)</h2>', r'\n## \1\n', text, flags=re.IGNORECASE)
-        text = re.sub(r'<h3[^>]*>(.*?)</h3>', r'\n### \1\n', text, flags=re.IGNORECASE)
+        text = re.sub(r"<h1[^>]*>(.*?)</h1>", r"\n# \1\n", text, flags=re.IGNORECASE)
+        text = re.sub(r"<h2[^>]*>(.*?)</h2>", r"\n## \1\n", text, flags=re.IGNORECASE)
+        text = re.sub(r"<h3[^>]*>(.*?)</h3>", r"\n### \1\n", text, flags=re.IGNORECASE)
         # 段落和换行
-        text = re.sub(r'<br\s*/?>', '\n', text, flags=re.IGNORECASE)
-        text = re.sub(r'<p[^>]*>', '\n', text, flags=re.IGNORECASE)
-        text = re.sub(r'</p>', '\n', text, flags=re.IGNORECASE)
+        text = re.sub(r"<br\s*/?>", "\n", text, flags=re.IGNORECASE)
+        text = re.sub(r"<p[^>]*>", "\n", text, flags=re.IGNORECASE)
+        text = re.sub(r"</p>", "\n", text, flags=re.IGNORECASE)
         # 列表
-        text = re.sub(r'<li[^>]*>', '- ', text, flags=re.IGNORECASE)
+        text = re.sub(r"<li[^>]*>", "- ", text, flags=re.IGNORECASE)
         # 移除所有其他 HTML 标签
-        text = re.sub(r'<[^>]+>', '', text)
+        text = re.sub(r"<[^>]+>", "", text)
         # 清理多余空行
-        text = re.sub(r'\n{3,}', '\n\n', text)
+        text = re.sub(r"\n{3,}", "\n\n", text)
         # 移除 HTML 实体
-        text = text.replace('&nbsp;', ' ').replace('&lt;', '<').replace('&gt;', '>').replace('&amp;', '&')
+        text = (
+            text.replace("&nbsp;", " ")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&amp;", "&")
+        )
         return text.strip()
 
     def _extract_title(self, html: str) -> str:
         """提取页面标题"""
-        match = re.search(r'<title[^>]*>(.*?)</title>', html, re.IGNORECASE | re.DOTALL)
+        match = re.search(r"<title[^>]*>(.*?)</title>", html, re.IGNORECASE | re.DOTALL)
         return match.group(1).strip() if match else ""
 
     def _extract_links(self, html: str, base_url: str) -> list[CrawlLink]:
         """提取页面链接"""
         links: list[CrawlLink] = []
-        for match in re.finditer(r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>(.*?)</a>', html, re.IGNORECASE):
+        for match in re.finditer(
+            r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>(.*?)</a>', html, re.IGNORECASE
+        ):
             href = match.group(1)
-            text = re.sub(r'<[^>]+>', '', match.group(2)).strip()
-            if href.startswith('http') and text:
+            text = re.sub(r"<[^>]+>", "", match.group(2)).strip()
+            if href.startswith("http") and text:
                 links.append({"text": text[:100], "url": href})
         return links
 

@@ -136,7 +136,9 @@ async def webhook_processing_lock(scope: str, idempotency_key: str) -> AsyncIter
     lock_key = f"webhook-processing:{scope}:{idempotency_key}"
     backend = settings.WEBHOOK_PROCESSING_LOCK_BACKEND.lower()
 
-    if backend == "local" or (backend == "auto" and settings.ENVIRONMENT not in {"production", "staging"}):
+    if backend == "local" or (
+        backend == "auto" and settings.ENVIRONMENT not in {"production", "staging"}
+    ):
         async with _LOCAL_WEBHOOK_LOCK_GUARD:
             lock = _LOCAL_WEBHOOK_LOCKS.setdefault(lock_key, asyncio.Lock())
         async with lock:

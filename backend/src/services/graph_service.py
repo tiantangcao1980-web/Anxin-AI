@@ -170,7 +170,9 @@ class GraphService:
         except Exception as e:
             logger.error(f"存入图数据库失败: {e}")
 
-    def query_graph(self, cypher_query: str, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    def query_graph(
+        self, cypher_query: str, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
         """执行 Cypher 查询（支持参数化）"""
         if not self.graph:
             return []
@@ -372,12 +374,14 @@ class GraphService:
                         "type": self._label_to_type(target_label, target),
                     }
                 if source and target:
-                    edges.append({
-                        "source": source,
-                        "target": target,
-                        "relation": relation,
-                        "label": relation,
-                    })
+                    edges.append(
+                        {
+                            "source": source,
+                            "target": target,
+                            "relation": relation,
+                            "label": relation,
+                        }
+                    )
 
             result = {
                 "nodes": list(nodes.values()),
@@ -435,12 +439,14 @@ class GraphService:
             items = []
             for r in data_result:
                 item_labels = r.get("labels", [])
-                items.append({
-                    "name": r.get("name", ""),
-                    "type": item_labels[0] if item_labels else "Entity",
-                    "labels": item_labels,
-                    "properties": r.get("props", {}),
-                })
+                items.append(
+                    {
+                        "name": r.get("name", ""),
+                        "type": item_labels[0] if item_labels else "Entity",
+                        "labels": item_labels,
+                        "properties": r.get("props", {}),
+                    }
+                )
 
             result = {"items": items, "total": total, "skip": safe_skip, "limit": safe_limit}
             self._set_cache(cache_key, result)
@@ -479,12 +485,14 @@ class GraphService:
             outgoing = []
             for r in out_result:
                 t_labels = r.get("target_labels", [])
-                outgoing.append({
-                    "relation": r.get("relation", ""),
-                    "target": r.get("target", ""),
-                    "target_type": t_labels[0] if t_labels else "Entity",
-                    "properties": r.get("rel_props", {}),
-                })
+                outgoing.append(
+                    {
+                        "relation": r.get("relation", ""),
+                        "target": r.get("target", ""),
+                        "target_type": t_labels[0] if t_labels else "Entity",
+                        "properties": r.get("rel_props", {}),
+                    }
+                )
 
             # 查询入关系
             in_query = """
@@ -497,24 +505,24 @@ class GraphService:
             incoming = []
             for r in in_result:
                 s_labels = r.get("source_labels", [])
-                incoming.append({
-                    "relation": r.get("relation", ""),
-                    "source": r.get("source", ""),
-                    "source_type": s_labels[0] if s_labels else "Entity",
-                    "properties": r.get("rel_props", {}),
-                })
+                incoming.append(
+                    {
+                        "relation": r.get("relation", ""),
+                        "source": r.get("source", ""),
+                        "source_type": s_labels[0] if s_labels else "Entity",
+                        "properties": r.get("rel_props", {}),
+                    }
+                )
 
             return {
                 "name": entity["name"],
                 "type": entity["type"],
                 "properties": entity["properties"],
                 "outEdges": [
-                    {"target": item["target"], "label": item["relation"]}
-                    for item in outgoing
+                    {"target": item["target"], "label": item["relation"]} for item in outgoing
                 ],
                 "inEdges": [
-                    {"source": item["source"], "label": item["relation"]}
-                    for item in incoming
+                    {"source": item["source"], "label": item["relation"]} for item in incoming
                 ],
                 "entity": entity,
                 "incoming_relations": incoming,
@@ -522,9 +530,16 @@ class GraphService:
             }
         except Exception as e:
             logger.error(f"获取实体详情失败: {e}")
-            return {"entity": None, "incoming_relations": [], "outgoing_relations": [], "error": str(e)}
+            return {
+                "entity": None,
+                "incoming_relations": [],
+                "outgoing_relations": [],
+                "error": str(e),
+            }
 
-    async def get_shortest_path(self, entity_a: str, entity_b: str, max_depth: int = 10) -> dict[str, Any]:
+    async def get_shortest_path(
+        self, entity_a: str, entity_b: str, max_depth: int = 10
+    ) -> dict[str, Any]:
         """最短路径查询"""
         if not self.graph:
             return {"path_length": 0, "nodes": [], "relationships": []}
@@ -549,20 +564,24 @@ class GraphService:
             nodes = []
             for n in path_nodes_raw:
                 if isinstance(n, dict):
-                    nodes.append({
-                        "name": n.get("name", ""),
-                        "labels": n.get("labels", []),
-                    })
+                    nodes.append(
+                        {
+                            "name": n.get("name", ""),
+                            "labels": n.get("labels", []),
+                        }
+                    )
                 else:
                     nodes.append({"name": str(n)})
 
             relationships = []
             for r in path_rels_raw:
                 if isinstance(r, dict):
-                    relationships.append({
-                        "type": r.get("type", ""),
-                        "properties": {k: v for k, v in r.items() if k != "type"},
-                    })
+                    relationships.append(
+                        {
+                            "type": r.get("type", ""),
+                            "properties": {k: v for k, v in r.items() if k != "type"},
+                        }
+                    )
                 else:
                     relationships.append({"type": str(r)})
 
@@ -576,7 +595,9 @@ class GraphService:
             logger.error(f"最短路径查询失败: {e}")
             return {"path_length": 0, "nodes": [], "relationships": [], "error": str(e)}
 
-    async def get_subgraph(self, entity_name: str, depth: int = 2, max_nodes: int = 50) -> dict[str, Any]:
+    async def get_subgraph(
+        self, entity_name: str, depth: int = 2, max_nodes: int = 50
+    ) -> dict[str, Any]:
         """子图提取（限制节点数防爆炸）"""
         if not self.graph:
             return {"center": entity_name, "nodes": [], "edges": []}
@@ -638,7 +659,9 @@ class GraphService:
                     nodes_map[node_name] = {
                         "id": node_name,
                         "label": node_name,
-                        "type": self._label_to_type(node_labels[0] if node_labels else "", node_name),
+                        "type": self._label_to_type(
+                            node_labels[0] if node_labels else "", node_name
+                        ),
                     }
 
                 rel_src = r.get("rel_source", "")
@@ -648,12 +671,14 @@ class GraphService:
                     edge_key = f"{rel_src}-{rel_type}->{rel_tgt}"
                     if edge_key not in edges_set:
                         edges_set.add(edge_key)
-                        edges.append({
-                            "source": rel_src,
-                            "target": rel_tgt,
-                            "relation": rel_type,
-                            "label": rel_type,
-                        })
+                        edges.append(
+                            {
+                                "source": rel_src,
+                                "target": rel_tgt,
+                                "relation": rel_type,
+                                "label": rel_type,
+                            }
+                        )
 
             return {
                 "center": entity_name,
@@ -716,16 +741,26 @@ class GraphService:
 
             # 为每种类型分配颜色
             color_palette = [
-                "#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6",
-                "#06b6d4", "#ec4899", "#14b8a6", "#f97316", "#6366f1",
+                "#22c55e",
+                "#3b82f6",
+                "#f59e0b",
+                "#ef4444",
+                "#8b5cf6",
+                "#06b6d4",
+                "#ec4899",
+                "#14b8a6",
+                "#f97316",
+                "#6366f1",
             ]
             types_list = []
             for idx, r in enumerate(results):
-                types_list.append({
-                    "type": r.get("type", "Unknown"),
-                    "count": r.get("count", 0),
-                    "color": color_palette[idx % len(color_palette)],
-                })
+                types_list.append(
+                    {
+                        "type": r.get("type", "Unknown"),
+                        "count": r.get("count", 0),
+                        "color": color_palette[idx % len(color_palette)],
+                    }
+                )
 
             self._set_cache("entity_types", types_list)
             return types_list
@@ -752,7 +787,9 @@ class GraphService:
                 node_type = "document"
         return node_type
 
-    async def create_entity(self, name: str, entity_type: str = "Entity", properties: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def create_entity(
+        self, name: str, entity_type: str = "Entity", properties: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """创建实体节点"""
         if not self.graph:
             return {"success": False, "error": "图数据库未连接"}
@@ -783,7 +820,9 @@ class GraphService:
                 params[param_key] = v
             if not set_clauses:
                 return {"success": True, "message": "无需更新"}
-            query = f"MATCH (n) WHERE n.name = $name SET {', '.join(set_clauses)} RETURN n.name as name"
+            query = (
+                f"MATCH (n) WHERE n.name = $name SET {', '.join(set_clauses)} RETURN n.name as name"
+            )
             result = self.query_graph(query, params=params)
             self._invalidate_cache()
             return {"success": bool(result), "name": name}
@@ -810,7 +849,9 @@ class GraphService:
             logger.error(f"删除实体失败: {e}")
             return {"success": False, "error": str(e)}
 
-    async def create_relation(self, subject: str, predicate: str, obj: str, properties: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def create_relation(
+        self, subject: str, predicate: str, obj: str, properties: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """创建关系"""
         if not self.graph:
             return {"success": False, "error": "图数据库未连接"}
@@ -833,7 +874,9 @@ class GraphService:
             DELETE r
             RETURN count(*) as deleted
             """
-            result = self.query_graph(query, params={"subject": subject, "predicate": predicate, "object": obj})
+            result = self.query_graph(
+                query, params={"subject": subject, "predicate": predicate, "object": obj}
+            )
             deleted = result[0]["deleted"] if result else 0
             self._invalidate_cache()
             return {"success": deleted > 0, "deleted": deleted}
@@ -841,7 +884,9 @@ class GraphService:
             logger.error(f"删除关系失败: {e}")
             return {"success": False, "error": str(e)}
 
-    async def export_triples(self, entity_type: str | None = None, limit: int = 10000) -> list[dict[str, str]]:
+    async def export_triples(
+        self, entity_type: str | None = None, limit: int = 10000
+    ) -> list[dict[str, str]]:
         """导出所有三元组为列表"""
         if not self.graph:
             return []
@@ -860,10 +905,15 @@ class GraphService:
                 LIMIT {safe_limit}
                 """
             results = self.query_graph(query)
-            return [{"subject": r["subject"], "predicate": r["predicate"], "object": r["object"]} for r in results if r.get("subject") and r.get("object")]
+            return [
+                {"subject": r["subject"], "predicate": r["predicate"], "object": r["object"]}
+                for r in results
+                if r.get("subject") and r.get("object")
+            ]
         except Exception as e:
             logger.error(f"导出三元组失败: {e}")
             return []
+
 
 # 全局单例
 graph_service = GraphService()

@@ -42,6 +42,7 @@ router = APIRouter()
 
 class ContractCreate(BaseModel):
     """创建合同"""
+
     title: str
     contract_type: str
     party_a: dict[str, Any] | None = None
@@ -53,6 +54,7 @@ class ContractCreate(BaseModel):
 
 class ContractResponse(BaseModel):
     """合同响应"""
+
     id: str
     contract_number: str | None = None
     title: str
@@ -69,6 +71,7 @@ class ContractResponse(BaseModel):
 
 class ContractListResponse(BaseModel):
     """合同列表响应"""
+
     items: list[ContractResponse]
     total: int
     page: int
@@ -77,11 +80,13 @@ class ContractListResponse(BaseModel):
 
 class ContractReviewRequest(BaseModel):
     """合同审查请求"""
+
     contract_text: str
 
 
 class ContractReviewResponse(BaseModel):
     """合同审查响应"""
+
     contract_id: str
     risk_score: float | None = None
     risk_level: str | None = None
@@ -93,6 +98,7 @@ class ContractReviewResponse(BaseModel):
 
 class ContractRiskResponse(BaseModel):
     """合同风险响应"""
+
     id: str
     risk_type: str
     risk_level: str
@@ -105,17 +111,20 @@ class ContractRiskResponse(BaseModel):
 
 class ContractTransitionRequest(BaseModel):
     """合同状态转换请求"""
+
     status: str
     reason: str | None = Field(default=None, max_length=500)
 
 
 class ContractRollbackRequest(BaseModel):
     """合同版本回滚请求"""
+
     reason: str | None = Field(default=None, max_length=500)
 
 
 class TemplateRenderRequest(BaseModel):
     """合同模板渲染请求"""
+
     variables: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -123,7 +132,7 @@ def _normalize_review_payload(review_data: Any) -> dict[str, Any]:
     if isinstance(review_data, str):
         import re
 
-        json_match = re.search(r'\{[\s\S]*\}', review_data)
+        json_match = re.search(r"\{[\s\S]*\}", review_data)
         if json_match:
             try:
                 review_data = json.loads(json_match.group())
@@ -216,7 +225,7 @@ async def list_contracts(
         ],
         total=total,
         page=page,
-        page_size=page_size
+        page_size=page_size,
     )
     return UnifiedResponse.success(data=data)
 
@@ -258,6 +267,7 @@ async def create_contract(
 
 # ============ 固定路径路由（必须在 /{contract_id} 之前） ============
 
+
 @router.get("/templates", response_model=UnifiedResponse)
 async def get_contract_templates(
     user: User = Depends(get_current_user_required),
@@ -267,15 +277,17 @@ async def get_contract_templates(
 
     templates = []
     for t in get_template_library():
-        templates.append({
-            "id": t.id,
-            "name": t.name.replace("{{", "").replace("}}", "").replace("goods_name", ""),
-            "type": t.category,
-            "description": t.description,
-            "field_count": len(t.fields),
-            "clause_count": len(t.clauses),
-            "regions": t.applicable_regions,
-        })
+        templates.append(
+            {
+                "id": t.id,
+                "name": t.name.replace("{{", "").replace("}}", "").replace("goods_name", ""),
+                "type": t.category,
+                "description": t.description,
+                "field_count": len(t.fields),
+                "clause_count": len(t.clauses),
+                "regions": t.applicable_regions,
+            }
+        )
 
     return UnifiedResponse.success(data={"templates": templates})
 
@@ -294,15 +306,20 @@ async def get_template_detail(
     if not template:
         raise HTTPException(status_code=404, detail="模板不存在")
 
-    return UnifiedResponse.success(data={
-        "id": template.id,
-        "name": template.name,
-        "category": template.category,
-        "description": template.description,
-        "version": template.version,
-        "fields": [asdict(f) for f in template.fields],
-        "clauses": [{"id": c.id, "title": c.title, "required": c.required, "condition": c.condition} for c in template.clauses],
-    })
+    return UnifiedResponse.success(
+        data={
+            "id": template.id,
+            "name": template.name,
+            "category": template.category,
+            "description": template.description,
+            "version": template.version,
+            "fields": [asdict(f) for f in template.fields],
+            "clauses": [
+                {"id": c.id, "title": c.title, "required": c.required, "condition": c.condition}
+                for c in template.clauses
+            ],
+        }
+    )
 
 
 @router.post("/templates/{template_id}/render", response_model=UnifiedResponse)
@@ -328,11 +345,13 @@ async def render_template(
     except ValueError as exc:
         raise HTTPException(status_code=413, detail=str(exc)) from exc
 
-    return UnifiedResponse.success(data={
-        "template_id": template_id,
-        "rendered_text": rendered,
-        "word_count": len(rendered.replace(" ", "")),
-    })
+    return UnifiedResponse.success(
+        data={
+            "template_id": template_id,
+            "rendered_text": rendered,
+            "word_count": len(rendered.replace(" ", "")),
+        }
+    )
 
 
 # ============ 动态路径路由 ============
@@ -424,10 +443,12 @@ async def list_contract_attachments(
     except ValueError as exc:
         return UnifiedResponse.error(code=404, message=str(exc))
 
-    return UnifiedResponse.success(data={
-        "contract_id": contract_id,
-        "attachments": [_serialize_attachment(item) for item in attachments],
-    })
+    return UnifiedResponse.success(
+        data={
+            "contract_id": contract_id,
+            "attachments": [_serialize_attachment(item) for item in attachments],
+        }
+    )
 
 
 @router.get("/{contract_id}/attachments/{attachment_id}/download")
@@ -470,7 +491,9 @@ async def download_contract_attachment(
     )
 
 
-@router.get("/{contract_id}/attachments/{attachment_id}/download-url", response_model=UnifiedResponse)
+@router.get(
+    "/{contract_id}/attachments/{attachment_id}/download-url", response_model=UnifiedResponse
+)
 async def get_contract_attachment_download_url(
     contract_id: str,
     attachment_id: str,
@@ -499,13 +522,19 @@ async def get_contract_attachment_download_url(
         resource_type=ResourceType.CONTRACT.value,
         resource_id=contract_id,
         user=user,
-        extra_data={"attachment_id": attachment.id, "filename": attachment.original_filename, "presigned": True},
+        extra_data={
+            "attachment_id": attachment.id,
+            "filename": attachment.original_filename,
+            "presigned": True,
+        },
     )
-    return UnifiedResponse.success(data={
-        "attachment": _serialize_attachment(attachment),
-        "download_url": url,
-        "expires_seconds": expires_seconds,
-    })
+    return UnifiedResponse.success(
+        data={
+            "attachment": _serialize_attachment(attachment),
+            "download_url": url,
+            "expires_seconds": expires_seconds,
+        }
+    )
 
 
 @router.delete("/{contract_id}/attachments/{attachment_id}", response_model=UnifiedResponse)
@@ -538,7 +567,9 @@ async def delete_contract_attachment(
         user=user,
         old_value=serialized,
     )
-    return UnifiedResponse.success(data={"deleted": True, "attachment": serialized}, message="合同附件已删除")
+    return UnifiedResponse.success(
+        data={"deleted": True, "attachment": serialized}, message="合同附件已删除"
+    )
 
 
 @router.post("/{contract_id}/transition", response_model=UnifiedResponse)
@@ -568,10 +599,12 @@ async def transition_contract_status(
     except ValueError as exc:
         return UnifiedResponse.error(code=404, message=str(exc))
 
-    return UnifiedResponse.success(data={
-        "contract_id": contract.id,
-        "status": contract.status.value,
-    })
+    return UnifiedResponse.success(
+        data={
+            "contract_id": contract.id,
+            "status": contract.status.value,
+        }
+    )
 
 
 @router.get("/{contract_id}/versions", response_model=UnifiedResponse)
@@ -587,20 +620,22 @@ async def list_contract_versions(
     except ValueError as exc:
         return UnifiedResponse.error(code=404, message=str(exc))
 
-    return UnifiedResponse.success(data={
-        "contract_id": contract_id,
-        "versions": [
-            {
-                "id": version.id,
-                "version": version.version,
-                "source": version.source,
-                "description": version.description,
-                "created_at": version.created_at.isoformat() if version.created_at else None,
-                "created_by": version.created_by,
-            }
-            for version in versions
-        ],
-    })
+    return UnifiedResponse.success(
+        data={
+            "contract_id": contract_id,
+            "versions": [
+                {
+                    "id": version.id,
+                    "version": version.version,
+                    "source": version.source,
+                    "description": version.description,
+                    "created_at": version.created_at.isoformat() if version.created_at else None,
+                    "created_by": version.created_by,
+                }
+                for version in versions
+            ],
+        }
+    )
 
 
 @router.get("/{contract_id}/versions/diff", response_model=UnifiedResponse)
@@ -649,12 +684,14 @@ async def rollback_contract_version(
     except ValueError as exc:
         return UnifiedResponse.error(code=404, message=str(exc))
 
-    return UnifiedResponse.success(data={
-        "contract_id": contract.id,
-        "status": contract.status.value,
-        "version": contract.version,
-        "text": contract.modified_text or contract.original_text or "",
-    })
+    return UnifiedResponse.success(
+        data={
+            "contract_id": contract.id,
+            "status": contract.status.value,
+            "version": contract.version,
+            "text": contract.modified_text or contract.original_text or "",
+        }
+    )
 
 
 @router.get("/{contract_id}/download")
@@ -677,14 +714,16 @@ async def download_contract(
     # 获取风险列表
     risks_data = []
     for r in contract.risks:
-        risks_data.append({
-            "title": r.title,
-            "risk_type": r.risk_type,
-            "risk_level": r.risk_level.value if r.risk_level else "medium",
-            "description": r.description,
-            "suggestion": r.suggestion,
-            "is_resolved": r.is_resolved,
-        })
+        risks_data.append(
+            {
+                "title": r.title,
+                "risk_type": r.risk_type,
+                "risk_level": r.risk_level.value if r.risk_level else "medium",
+                "description": r.description,
+                "suggestion": r.suggestion,
+                "is_resolved": r.is_resolved,
+            }
+        )
 
     from src.services.document_export import ContractExportService, ExportSizeLimitError
 
@@ -717,6 +756,7 @@ async def download_contract(
         raise HTTPException(status_code=413, detail=str(exc)) from exc
 
     import urllib.parse
+
     encoded_filename = urllib.parse.quote(filename)
 
     return StreamingResponse(
@@ -847,8 +887,10 @@ async def resolve_risk(
 
 # ============ 文档解析和智能审查 ============
 
+
 class DocumentParseResponse(BaseModel):
     """文档解析响应"""
+
     success: bool
     text: str = ""
     char_count: int = 0
@@ -861,12 +903,14 @@ class DocumentParseResponse(BaseModel):
 
 class QuickReviewRequest(BaseModel):
     """快速审查请求"""
+
     text: str
     contract_type: str | None = None
 
 
 class QuickReviewResponse(BaseModel):
     """快速审查响应"""
+
     summary: str
     risk_level: str
     risk_score: float
@@ -882,7 +926,7 @@ async def parse_contract_file(
 ) -> DocumentParseResponse:
     """
     解析合同文档
-    
+
     支持格式: PDF, Word (.docx), TXT, Markdown
     """
     try:
@@ -925,7 +969,7 @@ async def quick_review_contract(
 ) -> QuickReviewResponse:
     """
     快速审查合同文本
-    
+
     无需创建合同记录，直接返回审查结果
     """
     try:
@@ -976,13 +1020,15 @@ async def quick_review_contract(
         # 合并高风险词检测结果
         high_risk_terms = key_info.get("high_risk_terms", [])
         if high_risk_terms:
-            review_data["key_risks"].append({
-                "type": "高风险条款",
-                "title": "检测到高风险关键词",
-                "level": "high",
-                "description": f"文本中包含以下高风险表述：{', '.join(high_risk_terms)}",
-                "suggestion": "请仔细审查这些条款的具体内容"
-            })
+            review_data["key_risks"].append(
+                {
+                    "type": "高风险条款",
+                    "title": "检测到高风险关键词",
+                    "level": "high",
+                    "description": f"文本中包含以下高风险表述：{', '.join(high_risk_terms)}",
+                    "suggestion": "请仔细审查这些条款的具体内容",
+                }
+            )
             review_data["risks"] = review_data["key_risks"]
 
         return QuickReviewResponse(
@@ -1007,7 +1053,7 @@ async def stream_review_contract(
 ) -> StreamingResponse:
     """
     流式合同审查（SSE）
-    
+
     支持上传文件或直接传入文本
     """
 
@@ -1064,7 +1110,7 @@ async def stream_review_contract(
                 task_type="contract_review",
                 context={
                     "contract_type": contract_type,
-                }
+                },
             )
 
             review_data = _normalize_review_payload(result.get("final_result", {}))
@@ -1088,7 +1134,9 @@ async def stream_review_contract(
 
         except Exception as e:
             logger.error(f"流式审查失败: {e}", exc_info=True)
-            error_msg = "审查过程中发生错误，请稍后重试" if settings.ENVIRONMENT == "production" else str(e)
+            error_msg = (
+                "审查过程中发生错误，请稍后重试" if settings.ENVIRONMENT == "production" else str(e)
+            )
             yield f"data: {json.dumps({'type': 'error', 'message': error_msg})}\n\n"
 
     return StreamingResponse(
@@ -1098,7 +1146,7 @@ async def stream_review_contract(
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
-        }
+        },
     )
 
 
@@ -1111,7 +1159,7 @@ async def upload_and_review_contract(
 ) -> dict[str, Any]:
     """
     上传合同文件并进行完整审查
-    
+
     1. 解析文档
     2. 创建合同记录
     3. AI审查

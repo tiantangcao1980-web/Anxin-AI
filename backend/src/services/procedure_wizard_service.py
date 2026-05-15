@@ -23,16 +23,17 @@ from typing import Any
 @dataclass
 class WizardStep:
     """流程向导单步"""
+
     step_id: int
     name: str
     description: str
-    actions: list[str]                    # 需要执行的操作
-    documents: list[str]                  # 本步需要生成/准备的文件
-    legal_basis: list[str]                # 法律依据
+    actions: list[str]  # 需要执行的操作
+    documents: list[str]  # 本步需要生成/准备的文件
+    legal_basis: list[str]  # 法律依据
     warnings: list[str] = field(default_factory=list)  # 风险提示
     prerequisites: list[str] = field(default_factory=list)  # 前置条件
-    estimated_days: int = 0               # 预估耗时（天）
-    status: str = "pending"               # pending / current / done / skipped
+    estimated_days: int = 0  # 预估耗时（天）
+    status: str = "pending"  # pending / current / done / skipped
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -52,6 +53,7 @@ class WizardStep:
 @dataclass
 class WizardInstance:
     """流程向导实例"""
+
     wizard_id: str
     wizard_type: str
     title: str
@@ -139,7 +141,7 @@ class WizardInstance:
         # 显示后续步骤概览
         if self.current_step < self.total_steps:
             lines.append("### 后续步骤")
-            for s in self.steps[self.current_step:]:
+            for s in self.steps[self.current_step :]:
                 lines.append(f"- 第{s.step_id}步：{s.name}")
 
         return "\n".join(lines)
@@ -148,7 +150,6 @@ class WizardInstance:
 # ========== 流程向导定义 ==========
 
 WIZARD_DEFINITIONS: dict[str, dict[str, Any]] = {
-
     # =============================================
     # 1. 辞退员工流程
     # =============================================
@@ -157,7 +158,8 @@ WIZARD_DEFINITIONS: dict[str, dict[str, Any]] = {
         "description": "确保辞退过程每一步都合法合规，避免劳动仲裁败诉",
         "steps": [
             WizardStep(
-                step_id=1, name="合法性评估",
+                step_id=1,
+                name="合法性评估",
                 description="确认辞退理由是否合法，选择正确的解除方式",
                 actions=[
                     "确认辞退原因属于《劳动合同法》规定的合法解除情形",
@@ -180,7 +182,8 @@ WIZARD_DEFINITIONS: dict[str, dict[str, Any]] = {
                 estimated_days=1,
             ),
             WizardStep(
-                step_id=2, name="计算补偿金",
+                step_id=2,
+                name="计算补偿金",
                 description="精确计算应付经济补偿金/赔偿金",
                 actions=[
                     "计算员工前12个月平均工资（含奖金、津贴、加班费）",
@@ -201,7 +204,8 @@ WIZARD_DEFINITIONS: dict[str, dict[str, Any]] = {
                 estimated_days=1,
             ),
             WizardStep(
-                step_id=3, name="准备文件",
+                step_id=3,
+                name="准备文件",
                 description="准备辞退所需的全部法律文件",
                 actions=[
                     "起草《解除劳动合同通知书》",
@@ -229,7 +233,8 @@ WIZARD_DEFINITIONS: dict[str, dict[str, Any]] = {
                 estimated_days=2,
             ),
             WizardStep(
-                step_id=4, name="送达通知",
+                step_id=4,
+                name="送达通知",
                 description="向员工送达解除通知并协商",
                 actions=[
                     "安排面谈（建议有HR和部门负责人在场，必要时录音）",
@@ -252,7 +257,8 @@ WIZARD_DEFINITIONS: dict[str, dict[str, Any]] = {
                 estimated_days=1,
             ),
             WizardStep(
-                step_id=5, name="结算与交接",
+                step_id=5,
+                name="结算与交接",
                 description="完成工资结算、社保转移和工作交接",
                 actions=[
                     "结清工资（含未结工资、年假补偿、报销等）",
@@ -277,7 +283,6 @@ WIZARD_DEFINITIONS: dict[str, dict[str, Any]] = {
             ),
         ],
     },
-
     # =============================================
     # 2. 工伤处理流程
     # =============================================
@@ -286,7 +291,8 @@ WIZARD_DEFINITIONS: dict[str, dict[str, Any]] = {
         "description": "从事故发生到赔偿到位的全流程指引",
         "steps": [
             WizardStep(
-                step_id=1, name="事故处理与报告",
+                step_id=1,
+                name="事故处理与报告",
                 description="事故发生后的紧急处理和报告",
                 actions=[
                     "立即将伤者送医救治",
@@ -300,7 +306,8 @@ WIZARD_DEFINITIONS: dict[str, dict[str, Any]] = {
                 estimated_days=1,
             ),
             WizardStep(
-                step_id=2, name="工伤认定申请",
+                step_id=2,
+                name="工伤认定申请",
                 description="向人社局提交工伤认定申请",
                 actions=[
                     "用人单位在事故发生后30日内提交申请",
@@ -325,7 +332,8 @@ WIZARD_DEFINITIONS: dict[str, dict[str, Any]] = {
                 estimated_days=60,
             ),
             WizardStep(
-                step_id=3, name="劳动能力鉴定",
+                step_id=3,
+                name="劳动能力鉴定",
                 description="伤情稳定后申请伤残等级鉴定",
                 actions=[
                     "确认伤情稳定（或治疗终结）",
@@ -341,7 +349,8 @@ WIZARD_DEFINITIONS: dict[str, dict[str, Any]] = {
                 estimated_days=90,
             ),
             WizardStep(
-                step_id=4, name="赔偿计算与支付",
+                step_id=4,
+                name="赔偿计算与支付",
                 description="根据伤残等级计算并支付各项赔偿",
                 actions=[
                     "根据伤残等级计算一次性伤残补助金",
@@ -363,7 +372,6 @@ WIZARD_DEFINITIONS: dict[str, dict[str, Any]] = {
             ),
         ],
     },
-
     # =============================================
     # 3. 合同违约处理流程
     # =============================================
@@ -372,7 +380,8 @@ WIZARD_DEFINITIONS: dict[str, dict[str, Any]] = {
         "description": "从发现乙方违约到最终解决的完整流程",
         "steps": [
             WizardStep(
-                step_id=1, name="违约认定与证据固定",
+                step_id=1,
+                name="违约认定与证据固定",
                 description="确认违约事实并固定关键证据",
                 actions=[
                     "对照合同条款逐项确认违约行为",
@@ -394,7 +403,8 @@ WIZARD_DEFINITIONS: dict[str, dict[str, Any]] = {
                 estimated_days=3,
             ),
             WizardStep(
-                step_id=2, name="发送催告/律师函",
+                step_id=2,
+                name="发送催告/律师函",
                 description="正式通知对方违约，要求限期整改或赔偿",
                 actions=[
                     "起草催告函/律师函",
@@ -415,7 +425,8 @@ WIZARD_DEFINITIONS: dict[str, dict[str, Any]] = {
                 estimated_days=5,
             ),
             WizardStep(
-                step_id=3, name="协商/调解",
+                step_id=3,
+                name="协商/调解",
                 description="尝试通过协商或第三方调解解决争议",
                 actions=[
                     "与对方进行正式协商谈判",
@@ -434,7 +445,8 @@ WIZARD_DEFINITIONS: dict[str, dict[str, Any]] = {
                 estimated_days=15,
             ),
             WizardStep(
-                step_id=4, name="提起诉讼/仲裁",
+                step_id=4,
+                name="提起诉讼/仲裁",
                 description="协商不成时，通过法律途径解决",
                 actions=[
                     "确认管辖法院或仲裁机构（看合同约定）",
@@ -462,7 +474,8 @@ WIZARD_DEFINITIONS: dict[str, dict[str, Any]] = {
                 estimated_days=180,
             ),
             WizardStep(
-                step_id=5, name="执行与回款",
+                step_id=5,
+                name="执行与回款",
                 description="判决生效后的执行和款项追回",
                 actions=[
                     "判决生效后对方未履行的，申请强制执行",
@@ -481,7 +494,6 @@ WIZARD_DEFINITIONS: dict[str, dict[str, Any]] = {
             ),
         ],
     },
-
     # =============================================
     # 4. 公司设立流程
     # =============================================
@@ -490,7 +502,8 @@ WIZARD_DEFINITIONS: dict[str, dict[str, Any]] = {
         "description": "从核名到拿照的完整创业设立流程",
         "steps": [
             WizardStep(
-                step_id=1, name="企业核名",
+                step_id=1,
+                name="企业核名",
                 description="在市场监管局网上平台进行名称预核准",
                 actions=[
                     "确定公司类型（有限责任公司 / 股份有限公司 / 个人独资 / 合伙）",
@@ -503,7 +516,8 @@ WIZARD_DEFINITIONS: dict[str, dict[str, Any]] = {
                 estimated_days=3,
             ),
             WizardStep(
-                step_id=2, name="制定章程与协议",
+                step_id=2,
+                name="制定章程与协议",
                 description="起草公司章程和股东协议",
                 actions=[
                     "确定注册资本、出资方式、出资比例",
@@ -522,7 +536,8 @@ WIZARD_DEFINITIONS: dict[str, dict[str, Any]] = {
                 estimated_days=3,
             ),
             WizardStep(
-                step_id=3, name="设立登记",
+                step_id=3,
+                name="设立登记",
                 description="向市场监管局提交设立登记申请",
                 actions=[
                     "准备全部登记材料",
@@ -541,7 +556,8 @@ WIZARD_DEFINITIONS: dict[str, dict[str, Any]] = {
                 estimated_days=5,
             ),
             WizardStep(
-                step_id=4, name="后续事项",
+                step_id=4,
+                name="后续事项",
                 description="领照后的必要手续",
                 actions=[
                     "刻制公章、财务章、法人章、发票章",
@@ -584,18 +600,27 @@ class ProcedureWizardService:
             for key, defn in WIZARD_DEFINITIONS.items()
         ]
 
-    def start_wizard(self, wizard_type: str, context: dict[str, Any] | None = None) -> WizardInstance:
+    def start_wizard(
+        self, wizard_type: str, context: dict[str, Any] | None = None
+    ) -> WizardInstance:
         """启动流程向导"""
         if wizard_type not in WIZARD_DEFINITIONS:
-            raise ValueError(f"不支持的流程类型: {wizard_type}，可用: {list(WIZARD_DEFINITIONS.keys())}")
+            raise ValueError(
+                f"不支持的流程类型: {wizard_type}，可用: {list(WIZARD_DEFINITIONS.keys())}"
+            )
 
         defn = WIZARD_DEFINITIONS[wizard_type]
         import copy
+
         steps = copy.deepcopy(defn["steps"])
         steps[0].status = "current"
 
         instance = WizardInstance(
-            wizard_id=str(uuid.uuid4())[:12] if 'uuid' in dir() else datetime.now().strftime("%y%m%d%H%M%S"),
+            wizard_id=(
+                str(uuid.uuid4())[:12]
+                if "uuid" in dir()
+                else datetime.now().strftime("%y%m%d%H%M%S")
+            ),
             wizard_type=wizard_type,
             title=defn["title"],
             steps=steps,

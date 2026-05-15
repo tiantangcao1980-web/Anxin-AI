@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """LayoutPreserver 单测（P13-A 法律层级正则）。
 
 覆盖：
@@ -35,15 +34,13 @@ def test_whitespace_only_returns_empty(preserver: LayoutPreserver) -> None:
 
 
 def test_chapter_article_clause(preserver: LayoutPreserver) -> None:
-    text = textwrap.dedent(
-        """
+    text = textwrap.dedent("""
         第一章 总则
         第一条 为规范双方权利义务订立本合同。
         （一）甲方信息
         （二）乙方信息
         第二条 合同期限自签订日起一年。
-        """
-    ).strip()
+        """).strip()
     tree = preserver.extract(text)
     chapters = tree["children"]
     assert len(chapters) == 1
@@ -61,14 +58,12 @@ def test_chapter_article_clause(preserver: LayoutPreserver) -> None:
 
 
 def test_pop_back_to_higher_level(preserver: LayoutPreserver) -> None:
-    text = textwrap.dedent(
-        """
+    text = textwrap.dedent("""
         第一章 总则
         第一条 X
         第二章 合作内容
         第二条 Y
-        """
-    ).strip()
+        """).strip()
     tree = preserver.extract(text)
     chapters = tree["children"]
     assert len(chapters) == 2
@@ -90,13 +85,11 @@ def test_arabic_numbers(preserver: LayoutPreserver) -> None:
 
 
 def test_section_between_chapter_and_article(preserver: LayoutPreserver) -> None:
-    text = textwrap.dedent(
-        """
+    text = textwrap.dedent("""
         第一章 通则
         第一节 立法目的
         第一条 为规范市场秩序。
-        """
-    ).strip()
+        """).strip()
     tree = preserver.extract(text)
     chap = tree["children"][0]
     section = chap["children"][0]
@@ -107,13 +100,11 @@ def test_section_between_chapter_and_article(preserver: LayoutPreserver) -> None
 
 
 def test_freeform_text_attaches_to_deepest(preserver: LayoutPreserver) -> None:
-    text = textwrap.dedent(
-        """
+    text = textwrap.dedent("""
         第一条 内容
         以下是普通正文说明。
         继续说明。
-        """
-    ).strip()
+        """).strip()
     tree = preserver.extract(text)
     article = tree["children"][0]
     assert article["type"] == "article"

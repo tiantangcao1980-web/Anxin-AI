@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """跨境电商 source — OAuth token 缺失场景测试（P6-D）。
 
 约定：
@@ -11,7 +10,6 @@
 
 from __future__ import annotations
 
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -57,9 +55,7 @@ def _safe_client():
 async def test_shopify_search_without_token_raises():
     src = ShopifyEcommerceSource(shop="acme.myshopify.com", http_client=_safe_client())
     with pytest.raises(OAuthRequiredError):
-        await src.search_products(
-            ProductSearchQuery(keyword="x"), oauth_token=None
-        )
+        await src.search_products(ProductSearchQuery(keyword="x"), oauth_token=None)
 
 
 @pytest.mark.asyncio
@@ -74,9 +70,7 @@ async def test_shopify_list_orders_without_token_raises():
 async def test_shopify_search_without_shop_raises():
     src = ShopifyEcommerceSource(http_client=_safe_client())
     with pytest.raises(OAuthRequiredError) as ei:
-        await src.search_products(
-            ProductSearchQuery(keyword="x"), oauth_token="shpat_xxx"
-        )
+        await src.search_products(ProductSearchQuery(keyword="x"), oauth_token="shpat_xxx")
     assert "shop" in str(ei.value).lower()
 
 
@@ -96,9 +90,7 @@ MOCK_SOURCE_CLASSES = [
 async def test_mock_source_search_works_without_token(source_cls):
     """mock 阶段允许联调 — 不传 token 也不应抛错。"""
     src = source_cls()
-    products = await src.search_products(
-        ProductSearchQuery(keyword="x", limit=5), oauth_token=None
-    )
+    products = await src.search_products(ProductSearchQuery(keyword="x", limit=5), oauth_token=None)
     assert isinstance(products, list)
     assert len(products) > 0
 

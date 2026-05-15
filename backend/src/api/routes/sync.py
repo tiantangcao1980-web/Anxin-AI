@@ -9,7 +9,6 @@
 - 数据面（按模式）：业务数据的增量同步
 """
 
-
 from typing import Any, NoReturn
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -32,8 +31,10 @@ router = APIRouter()
 
 # ===== 数据模型 =====
 
+
 class SyncRecord(BaseModel):
     """单条同步记录"""
+
     entity_type: str = Field(..., description="实体类型: message/document/case/contract/setting")
     entity_id: str = Field(..., description="实体 ID")
     action: str = Field(..., description="操作: create/update/delete")
@@ -44,6 +45,7 @@ class SyncRecord(BaseModel):
 
 class SyncPushRequest(BaseModel):
     """同步推送请求"""
+
     records: list[SyncRecord] = Field(..., description="待同步记录列表")
     device_id: str = Field(..., description="设备唯一标识")
     last_sync_version: int = Field(default=0, description="客户端已知的最新服务端版本")
@@ -51,6 +53,7 @@ class SyncPushRequest(BaseModel):
 
 class SyncPushResponse(BaseModel):
     """同步推送响应"""
+
     accepted: int = Field(description="成功接收的记录数")
     rejected: int = Field(default=0, description="被拒绝的记录数")
     conflicts: list[dict[str, Any]] = Field(default_factory=list, description="冲突记录列表")
@@ -59,6 +62,7 @@ class SyncPushResponse(BaseModel):
 
 class SyncPullResponse(BaseModel):
     """同步拉取响应"""
+
     records: list[dict[str, Any]] = Field(default_factory=list, description="增量更新记录")
     server_version: int = Field(description="当前服务端版本号")
     has_more: bool = Field(default=False, description="是否还有更多数据")
@@ -66,14 +70,18 @@ class SyncPullResponse(BaseModel):
 
 class SyncConflictResolution(BaseModel):
     """冲突解决请求"""
+
     entity_type: str
     entity_id: str
     resolution: str = Field(..., description="keep_local / keep_remote / merge")
-    merged_data: dict[str, Any] | None = Field(default=None, description="合并后的数据（resolution=merge 时必填）")
+    merged_data: dict[str, Any] | None = Field(
+        default=None, description="合并后的数据（resolution=merge 时必填）"
+    )
 
 
 class SyncStatusResponse(BaseModel):
     """同步状态"""
+
     server_version: int
     last_sync_time: str | None = None
     pending_conflicts: int = 0
@@ -90,12 +98,19 @@ REMOTE_CONTROL_REQUIRED_CONTROLS = [
     "audit_log",
 ]
 
-REMOTE_CONTROL_BLOCKED_PRIVACY_MODES = {"local", "top-secret", "top_secret", "local-only", "local_only"}
+REMOTE_CONTROL_BLOCKED_PRIVACY_MODES = {
+    "local",
+    "top-secret",
+    "top_secret",
+    "local-only",
+    "local_only",
+}
 REMOTE_CONTROL_HIGH_RISK_LEVELS = {"l4", "high", "critical"}
 
 
 class RemoteControlStatusResponse(BaseModel):
     """移动远控桌面状态"""
+
     available: bool = False
     status: str = "not_configured"
     desktop_device_id: str | None = None
@@ -107,6 +122,7 @@ class RemoteControlStatusResponse(BaseModel):
 
 class RemoteControlPairingRequest(BaseModel):
     """移动端发起桌面配对请求"""
+
     mobile_device_id: str = Field(..., min_length=1, max_length=128)
     desktop_device_id: str = Field(..., min_length=1, max_length=128)
     requested_scopes: list[str] = Field(default_factory=list, max_length=20)
@@ -116,6 +132,7 @@ class RemoteControlPairingRequest(BaseModel):
 
 class RemoteControlCommandRequest(BaseModel):
     """移动端远控命令请求"""
+
     desktop_device_id: str = Field(..., min_length=1, max_length=128)
     command_type: str = Field(..., min_length=1, max_length=80)
     payload: dict[str, Any] = Field(default_factory=dict)
@@ -129,22 +146,26 @@ class RemoteControlCommandRequest(BaseModel):
 
 class RemoteControlPairingConfirmRequest(BaseModel):
     """桌面端确认移动远控配对"""
+
     desktop_device_id: str = Field(..., min_length=1, max_length=128)
 
 
 class RemoteControlRouteTokenRequest(BaseModel):
     """为已确认的远控配对签发短期 route token"""
+
     pairing_id: str = Field(..., min_length=1, max_length=128)
     ttl_seconds: int = Field(default=300, ge=30, le=1800)
 
 
 class RemoteControlCancelCommandRequest(BaseModel):
     """取消尚未执行的远控命令"""
+
     reason: str = Field(..., min_length=1, max_length=500)
 
 
 class RemoteControlHostClaimRequest(BaseModel):
     """桌面 host 拉取待执行命令"""
+
     desktop_device_id: str = Field(..., min_length=1, max_length=128)
     pairing_id: str = Field(..., min_length=1, max_length=128)
     route_token: str = Field(..., min_length=1, max_length=512)
@@ -154,6 +175,7 @@ class RemoteControlHostClaimRequest(BaseModel):
 
 class RemoteControlCommandStatusUpdateRequest(BaseModel):
     """桌面 host 回传命令执行状态"""
+
     desktop_device_id: str = Field(..., min_length=1, max_length=128)
     pairing_id: str = Field(..., min_length=1, max_length=128)
     route_token: str = Field(..., min_length=1, max_length=512)
@@ -254,6 +276,7 @@ def _iso(value: Any) -> str | None:
 
 
 # ===== API 端点 =====
+
 
 @router.post("/push", response_model=SyncPushResponse, summary="推送本地变更到云端")
 async def sync_push(
@@ -435,7 +458,10 @@ async def enqueue_remote_control_command(
             "本地/绝密模式下禁止移动端下发桌面远控命令。",
         )
 
-    if request.risk_level.strip().lower() in REMOTE_CONTROL_HIGH_RISK_LEVELS and not request.second_confirmed:
+    if (
+        request.risk_level.strip().lower() in REMOTE_CONTROL_HIGH_RISK_LEVELS
+        and not request.second_confirmed
+    ):
         _remote_control_denied(
             403,
             "remote_control_second_confirmation_required",
@@ -565,7 +591,9 @@ async def list_remote_control_audit_events(
 ) -> dict[str, Any]:
     """返回当前用户/组织可见的远控控制面审计事件。"""
     org_id = _org_id_for(user)
-    events = await RemoteControlService(db).audit_events(org_id=org_id, user_id=str(user.id), limit=limit)
+    events = await RemoteControlService(db).audit_events(
+        org_id=org_id, user_id=str(user.id), limit=limit
+    )
     return {
         "items": [_audit_payload(event) for event in events],
         "total": len(events),
@@ -586,7 +614,9 @@ async def get_remote_control_command(
         command_id=command_id,
     )
     if command is None:
-        _remote_control_denied(404, "remote_control_command_not_found", "远控命令不存在或不属于当前组织。")
+        _remote_control_denied(
+            404, "remote_control_command_not_found", "远控命令不存在或不属于当前组织。"
+        )
     return _command_payload(command)
 
 
@@ -629,8 +659,10 @@ async def full_sync(
 
 # ===== Harness Artifact 同步 =====
 
+
 class ArtifactPushRequest(BaseModel):
     """推送 Harness Artifact"""
+
     device_id: str = Field(..., description="设备唯一标识")
     session_id: str = Field(..., description="会话/任务 ID")
     artifacts: dict[str, Any] = Field(..., description="Artifact 数据 {type: data}")
@@ -638,6 +670,7 @@ class ArtifactPushRequest(BaseModel):
 
 class ArtifactPullRequest(BaseModel):
     """拉取 Harness Artifact"""
+
     session_id: str = Field(..., description="会话/任务 ID")
     artifact_types: list[str] | None = Field(None, description="要拉取的类型列表")
 

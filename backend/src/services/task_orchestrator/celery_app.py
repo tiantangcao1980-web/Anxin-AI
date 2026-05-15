@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Celery 实例 —— task_orchestrator 异步执行总线
 

@@ -20,9 +20,7 @@ def test_anonymize_text_masks_common_identifiers() -> None:
 async def test_analyze_case_falls_back_to_rule_summary_when_llm_is_unavailable() -> None:
     service = LawyerMatchingService()
 
-    result = await service.analyze_case(
-        "我叫张三，手机13812345678。对方合同违约，拖欠10万元货款。"
-    )
+    result = await service.analyze_case("我叫张三，手机13812345678。对方合同违约，拖欠10万元货款。")
 
     assert result["legal_domain"] == "contract"
     assert result["domain_label"] == "合同纠纷"

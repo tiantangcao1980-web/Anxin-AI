@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TokenStore 加解密 + key rotation 单元测试（P4-A）
 
@@ -12,6 +11,7 @@ from __future__ import annotations
 from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler as _SQLiteTC
 
 if not hasattr(_SQLiteTC, "visit_JSONB"):
+
     def _visit_JSONB(self, type_, **kw):  # noqa: N802
         return self.visit_JSON(type_, **kw)
 
@@ -30,7 +30,6 @@ from src.services.app_authorization.token_store import (
     TokenStore,
     TokenStoreConfigError,
 )
-
 
 # ---------------------------------------------------------------------------
 # 1. 单 key 加解密往返

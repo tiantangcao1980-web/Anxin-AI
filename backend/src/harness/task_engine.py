@@ -21,6 +21,7 @@ from loguru import logger
 
 class TaskState(str, Enum):
     """任务状态"""
+
     PENDING = "pending"
     RUNNING = "running"
     VALIDATING = "validating"
@@ -34,11 +35,12 @@ class TaskState(str, Enum):
 
 class TaskPriority(int, Enum):
     """任务优先级（数值越小越优先）"""
-    CRITICAL = 0   # 紧急法律事务（诉讼截止日期等）
-    HIGH = 1       # 合同审阅、正式法律意见
-    NORMAL = 2     # 一般法律咨询
-    LOW = 3        # 知识检索、信息查询
-    BACKGROUND = 4 # 后台分析、统计报表
+
+    CRITICAL = 0  # 紧急法律事务（诉讼截止日期等）
+    HIGH = 1  # 合同审阅、正式法律意见
+    NORMAL = 2  # 一般法律咨询
+    LOW = 3  # 知识检索、信息查询
+    BACKGROUND = 4  # 后台分析、统计报表
 
 
 # 路由→优先级映射
@@ -54,7 +56,13 @@ ROUTE_PRIORITY_MAP = {
 # 合法的状态转换
 VALID_TRANSITIONS = {
     TaskState.PENDING: {TaskState.RUNNING, TaskState.CANCELLED},
-    TaskState.RUNNING: {TaskState.VALIDATING, TaskState.COMPLETED, TaskState.FAILED, TaskState.TIMEOUT, TaskState.CANCELLED},
+    TaskState.RUNNING: {
+        TaskState.VALIDATING,
+        TaskState.COMPLETED,
+        TaskState.FAILED,
+        TaskState.TIMEOUT,
+        TaskState.CANCELLED,
+    },
     TaskState.VALIDATING: {TaskState.COMPLETED, TaskState.FAILED, TaskState.RETRY},
     TaskState.RETRY: {TaskState.RUNNING, TaskState.FAILED, TaskState.CANCELLED},
     TaskState.FAILED: {TaskState.RETRY, TaskState.CANCELLED},
@@ -72,19 +80,21 @@ class TaskContract:
 
     定义任务的目标、边界、成功标准和约束。
     """
-    goal: str                           # 任务目标
+
+    goal: str  # 任务目标
     success_criteria: list[str] = field(default_factory=list)  # 成功标准
     forbidden_actions: list[str] = field(default_factory=list)  # 禁止事项
-    required_tools: list[str] = field(default_factory=list)     # 必须使用的工具
-    output_format: str | None = None   # 期望输出格式
-    max_retries: int = 1                  # 最大重试次数
-    timeout_seconds: int = 120            # 超时时间
-    requires_approval: bool = False       # 是否需要人工审批
+    required_tools: list[str] = field(default_factory=list)  # 必须使用的工具
+    output_format: str | None = None  # 期望输出格式
+    max_retries: int = 1  # 最大重试次数
+    timeout_seconds: int = 120  # 超时时间
+    requires_approval: bool = False  # 是否需要人工审批
 
 
 @dataclass
 class TaskRecord:
     """任务记录"""
+
     task_id: str
     description: str
     state: TaskState = TaskState.PENDING
@@ -211,12 +221,14 @@ class TaskEngine:
 
         # 执行转换
         task.state = new_state
-        task.state_history.append({
-            "from": old_state.value,
-            "to": new_state.value,
-            "at": time.time(),
-            "error": error_msg,
-        })
+        task.state_history.append(
+            {
+                "from": old_state.value,
+                "to": new_state.value,
+                "at": time.time(),
+                "error": error_msg,
+            }
+        )
 
         # 更新计数
         self._state_counts[old_state.value] = max(0, self._state_counts.get(old_state.value, 0) - 1)
@@ -267,10 +279,7 @@ class TaskEngine:
 
     def get_pending_by_priority(self) -> list[TaskRecord]:
         """按优先级获取待执行任务"""
-        pending = [
-            t for t in self._tasks.values()
-            if t.state == TaskState.PENDING
-        ]
+        pending = [t for t in self._tasks.values() if t.state == TaskState.PENDING]
         return sorted(pending, key=lambda t: (t.priority.value, t.created_at))
 
     def get_stats(self) -> dict[str, Any]:
@@ -286,25 +295,18 @@ class TaskEngine:
             ),
             "by_state": dict(self._state_counts),
             "by_priority": dict(
-                sorted(
-                    defaultdict(int, {
-                        t.priority.name: 1 for t in active
-                    }).items()
-                )
+                sorted(defaultdict(int, {t.priority.name: 1 for t in active}).items())
             ),
             "avg_elapsed_seconds": round(
-                sum(t.elapsed_seconds for t in self._tasks.values() if t.completed_at) /
-                max(1, sum(1 for t in self._tasks.values() if t.completed_at)),
+                sum(t.elapsed_seconds for t in self._tasks.values() if t.completed_at)
+                / max(1, sum(1 for t in self._tasks.values() if t.completed_at)),
                 2,
             ),
         }
 
     def get_user_tasks(self, user_id: str, limit: int = 20) -> list[dict[str, Any]]:
         """获取用户的任务列表"""
-        tasks = [
-            t for t in self._tasks.values()
-            if t.user_id == user_id
-        ]
+        tasks = [t for t in self._tasks.values() if t.user_id == user_id]
         tasks.sort(key=lambda t: t.created_at, reverse=True)
         return [
             {
@@ -322,10 +324,7 @@ class TaskEngine:
 
     def _cleanup_old_tasks(self) -> None:
         """清理终态的旧任务"""
-        terminal = [
-            (tid, t) for tid, t in self._tasks.items()
-            if t.is_terminal
-        ]
+        terminal = [(tid, t) for tid, t in self._tasks.items() if t.is_terminal]
         terminal.sort(key=lambda x: x[1].created_at)
         # 删除最旧的一半终态任务
         to_remove = len(terminal) // 2

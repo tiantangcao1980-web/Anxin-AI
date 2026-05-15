@@ -19,7 +19,10 @@ def test_contract_short_text_fails_quality_gate():
     assert result.passed is False
     assert result.score < 0.6
     assert any(issue.level == "critical" for issue in result.issues)
-    assert any("条款数量不足" in issue.message or "合同内容过短" in issue.message for issue in result.issues)
+    assert any(
+        "条款数量不足" in issue.message or "合同内容过短" in issue.message
+        for issue in result.issues
+    )
 
 
 def test_lawyer_letter_without_deadline_fails():

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P6-C 国家法律法规数据库 — search 解析与合规护栏测试。"""
 
 from __future__ import annotations
@@ -68,14 +67,10 @@ class TestFlkNpcSearch:
             "src.services.fetch.sources.legal.flk_npc_gov._check_robots",
             return_value=True,
         ):
-            transport = httpx.MockTransport(
-                lambda req: _mock_response(sample_payload)
-            )
+            transport = httpx.MockTransport(lambda req: _mock_response(sample_payload))
             async with httpx.AsyncClient(transport=transport) as client:
                 src = FlkNpcGovSource(client=client, rate_limiter=_no_rate)
-                results = await src.search(
-                    LawSearchQuery(keyword="民法典", limit=10)
-                )
+                results = await src.search(LawSearchQuery(keyword="民法典", limit=10))
 
         assert len(results) == 2
         first = results[0]

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 应用授权 ORM 模型（P4-A）
 
@@ -35,10 +34,10 @@ from src.models.base import GUID, Base, TimestampMixin, ValueEnum
 class AppAuthorizationStatus(str, enum.Enum):
     """授权状态枚举。"""
 
-    CONNECTED = "connected"      # 正常连接中
-    EXPIRED = "expired"          # token 过期且 refresh 失败
-    REVOKED = "revoked"          # 用户主动 disconnect
-    ERROR = "error"              # 平台报错（如 invalid_grant）
+    CONNECTED = "connected"  # 正常连接中
+    EXPIRED = "expired"  # token 过期且 refresh 失败
+    REVOKED = "revoked"  # 用户主动 disconnect
+    ERROR = "error"  # 平台报错（如 invalid_grant）
 
 
 # ----------------------------------------------------------------------
@@ -91,7 +90,7 @@ class AppAuthorization(Base, TimestampMixin):
     )
 
     # 关联 token（一对一；删 authorization 自动删 token）
-    token: Mapped["AppToken | None"] = relationship(
+    token: Mapped[AppToken | None] = relationship(
         "AppToken",
         back_populates="authorization",
         uselist=False,
@@ -115,7 +114,11 @@ class AppAuthorization(Base, TimestampMixin):
             "id": str(self.id),
             "user_id": str(self.user_id),
             "provider_id": self.provider_id,
-            "status": self.status.value if isinstance(self.status, AppAuthorizationStatus) else self.status,
+            "status": (
+                self.status.value
+                if isinstance(self.status, AppAuthorizationStatus)
+                else self.status
+            ),
             "scopes": self.scopes or [],
             "connected_at": self.connected_at,
             "last_refresh_at": self.last_refresh_at,
@@ -167,6 +170,4 @@ class AppToken(Base, TimestampMixin):
         back_populates="token",
     )
 
-    __table_args__ = (
-        Index("ix_app_tokens_expires_at", "expires_at"),
-    )
+    __table_args__ = (Index("ix_app_tokens_expires_at", "expires_at"),)

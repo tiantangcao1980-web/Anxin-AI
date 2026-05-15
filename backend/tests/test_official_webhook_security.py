@@ -22,10 +22,14 @@ from src.services.official_webhook_security import (
 
 def _rsa_key_pair() -> tuple[object, str]:
     private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    public_pem = private_key.public_key().public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    ).decode("utf-8")
+    public_pem = (
+        private_key.public_key()
+        .public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        .decode("utf-8")
+    )
     return private_key, public_pem
 
 
@@ -170,9 +174,7 @@ async def test_alipay_official_webhook_verifies_rsa2_signature(client, db_sessio
         "trade_status": "TRADE_SUCCESS",
     }
     sign_content = "&".join(
-        f"{key}={payload[key]}"
-        for key in sorted(payload)
-        if key not in {"sign", "sign_type"}
+        f"{key}={payload[key]}" for key in sorted(payload) if key not in {"sign", "sign_type"}
     ).encode("utf-8")
     payload["sign"] = _rsa_sha256_sign(private_key, sign_content)
 

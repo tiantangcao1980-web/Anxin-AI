@@ -130,10 +130,7 @@ class InputSanitizer:
             is_dangerous = True
 
         # 清理字符串
-        cleaned = cls.sanitize_string(
-            value,
-            max_length=settings.MAX_QUERY_LENGTH
-        )
+        cleaned = cls.sanitize_string(value, max_length=settings.MAX_QUERY_LENGTH)
 
         return cleaned, is_dangerous
 
@@ -149,9 +146,20 @@ class FileValidator:
 
     # 危险文件扩展名（黑名单）
     DANGEROUS_EXTENSIONS = {
-        ".exe", ".bat", ".cmd", ".sh", ".ps1",
-        ".scr", ".pif", ".com", ".js", ".vbs",
-        ".jar", ".app", ".deb", ".rpm",
+        ".exe",
+        ".bat",
+        ".cmd",
+        ".sh",
+        ".ps1",
+        ".scr",
+        ".pif",
+        ".com",
+        ".js",
+        ".vbs",
+        ".jar",
+        ".app",
+        ".deb",
+        ".rpm",
     }
 
     # 允许的 MIME 类型及其对应扩展名
@@ -232,11 +240,7 @@ class FileValidator:
 
     @classmethod
     async def validate_file(
-        cls,
-        filename: str,
-        file_size: int,
-        content_type: str,
-        content: bytes | None = None
+        cls, filename: str, file_size: int, content_type: str, content: bytes | None = None
     ) -> tuple[bool, str]:
         """
         综合验证文件
@@ -412,7 +416,7 @@ def validate_email(email: str) -> bool:
     Returns:
         是否合法
     """
-    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
     return re.match(pattern, email) is not None
 
 
@@ -429,5 +433,5 @@ def validate_phone(phone: str) -> bool:
     Returns:
         是否合法
     """
-    pattern = r'^1[3-9]\d{9}$'
+    pattern = r"^1[3-9]\d{9}$"
     return re.match(pattern, phone) is not None

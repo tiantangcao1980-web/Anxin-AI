@@ -19,13 +19,17 @@ from loguru import logger
 
 try:
     from playwright.async_api import async_playwright
+
     _HAS_PLAYWRIGHT = True
 except ImportError:
     _HAS_PLAYWRIGHT = False
-    logger.warning("playwright 未安装，网页抓取功能不可用。可通过 pip install playwright && playwright install 启用。")
+    logger.warning(
+        "playwright 未安装，网页抓取功能不可用。可通过 pip install playwright && playwright install 启用。"
+    )
 
 try:
     from bs4 import BeautifulSoup
+
     _HAS_BS4 = True
 except ImportError:
     _HAS_BS4 = False
@@ -78,7 +82,9 @@ def _is_allowed_runtime_url(url: str) -> bool:
     allowed_hosts = normalize_legal_whitelist(settings.LIC_ALLOWED_HOSTS)
     if hostname in {"localhost", "127.0.0.1", "::1"} or hostname.endswith(".local"):
         return False
-    if allowed_hosts and not any(hostname == allowed or hostname.endswith(f".{allowed}") for allowed in allowed_hosts):
+    if allowed_hosts and not any(
+        hostname == allowed or hostname.endswith(f".{allowed}") for allowed in allowed_hosts
+    ):
         return False
 
     try:
@@ -139,6 +145,7 @@ class CrawlerTask:
         self.created_at = datetime.now()
         self.updated_at = datetime.now()
 
+
 class CrawlerService:
     """法务情报抓取引擎 (LIC)"""
 
@@ -146,7 +153,7 @@ class CrawlerService:
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1"
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1",
     ]
 
     def __init__(self) -> None:
@@ -167,7 +174,9 @@ class CrawlerService:
 
     async def _get_browser(self) -> "Browser":
         if not _HAS_PLAYWRIGHT:
-            raise RuntimeError("playwright 未安装，无法使用网页抓取功能。请运行: pip install playwright && playwright install")
+            raise RuntimeError(
+                "playwright 未安装，无法使用网页抓取功能。请运行: pip install playwright && playwright install"
+            )
         if not self._playwright:
             self._playwright = await async_playwright().start()
         if not self._browser:
@@ -177,7 +186,9 @@ class CrawlerService:
     def _normalize_url(self, url: str) -> str:
         if not _is_allowed_runtime_url(url):
             allowed_hosts = ", ".join(normalize_legal_whitelist(settings.LIC_ALLOWED_HOSTS))
-            raise CrawlerComplianceError(f"抓取 URL 不在法定白名单或不安全: {url} (allowed={allowed_hosts})")
+            raise CrawlerComplianceError(
+                f"抓取 URL 不在法定白名单或不安全: {url} (allowed={allowed_hosts})"
+            )
         return url
 
     def _host_interval_seconds(self, host: str) -> float:
@@ -231,7 +242,9 @@ class CrawlerService:
         if not robot_parser.can_fetch(LEGAL_CRAWLER_USER_AGENT, url):
             raise CrawlerComplianceError(f"robots.txt 禁止抓取: {url}")
 
-    async def _http_get(self, url: str, timeout: float, headers: dict[str, str]) -> "httpx.Response":
+    async def _http_get(
+        self, url: str, timeout: float, headers: dict[str, str]
+    ) -> "httpx.Response":
         import httpx
 
         async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
@@ -344,7 +357,7 @@ class CrawlerService:
         # 目标来源：最高人民法院指导性案例、司法要闻等
         sources = [
             {"name": "最高法指导案例", "url": "https://www.court.gov.cn/fabu-gengduo-16.html"},
-            {"name": "法律法规更新", "url": "http://www.npc.gov.cn/npc/c30834/gongbao.shtml"}
+            {"name": "法律法规更新", "url": "http://www.npc.gov.cn/npc/c30834/gongbao.shtml"},
         ]
 
         logger.info("启动法律法规自进化爬取任务...")
@@ -352,15 +365,17 @@ class CrawlerService:
         for source in sources:
             task_id = str(uuid.uuid4())
             # 这里的关键词是预定义的，代表“最新法规”
-            asyncio.create_task(self.crawl_and_process(
-                url=source["url"],
-                keyword=f"自进化:{source['name']}",
-                task_id=task_id
-            ))
+            asyncio.create_task(
+                self.crawl_and_process(
+                    url=source["url"], keyword=f"自进化:{source['name']}", task_id=task_id
+                )
+            )
 
         return {"status": "started", "source_count": len(sources)}
 
-    async def _update_progress(self, task: CrawlerTask, status: str, progress: int, message: str) -> None:
+    async def _update_progress(
+        self, task: CrawlerTask, status: str, progress: int, message: str
+    ) -> None:
         task.status = status
         task.progress = progress
         task.message = message
@@ -399,7 +414,7 @@ class CrawlerService:
             await self._update_progress(task, "crawling", 40, "合规抓取成功")
 
             soup = BeautifulSoup(content, "html.parser")
-            title = (soup.title.string.strip() if soup.title and soup.title.string else "")
+            title = soup.title.string.strip() if soup.title and soup.title.string else ""
             for script in soup(["script", "style"]):
                 script.extract()
             text = soup.get_text(separator=" ", strip=True)
@@ -408,7 +423,9 @@ class CrawlerService:
             clean_data: dict[str, Any] = await data_cleaner.clean_html(content)
 
             # 3. 知识增强 - 向量化入库
-            await self._update_progress(task, "indexing", 70, "正在进行知识增强 (Qdrant & Neo4j)...")
+            await self._update_progress(
+                task, "indexing", 70, "正在进行知识增强 (Qdrant & Neo4j)..."
+            )
 
             doc_id = str(uuid.uuid4())
             async with async_session_maker() as db:
@@ -474,8 +491,9 @@ class CrawlerService:
             "result": task.result,
             "error": task.error,
             "created_at": task.created_at.isoformat(),
-            "updated_at": task.updated_at.isoformat()
+            "updated_at": task.updated_at.isoformat(),
         }
+
 
 # 全局单例
 crawler_service = CrawlerService()

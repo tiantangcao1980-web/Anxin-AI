@@ -90,12 +90,16 @@ async def test_approved_connector_rehearsal_allows_once_then_fails_closed_after_
         )
 
     audits = (
-        await db_session.execute(
-            select(AgentAuditEvent)
-            .where(AgentAuditEvent.org_id == test_organization.id)
-            .order_by(AgentAuditEvent.created_at.asc(), AgentAuditEvent.id.asc())
+        (
+            await db_session.execute(
+                select(AgentAuditEvent)
+                .where(AgentAuditEvent.org_id == test_organization.id)
+                .order_by(AgentAuditEvent.created_at.asc(), AgentAuditEvent.id.asc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     reason_codes = [event.reason_code for event in audits]
 
     assert issued.allowed is True

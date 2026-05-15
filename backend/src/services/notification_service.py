@@ -1,4 +1,3 @@
-
 import logging
 from typing import Any, cast
 
@@ -122,18 +121,15 @@ class NotificationService:
         user_id: str,
     ) -> int:
         """获取用户未读通知总数"""
-        query = (
-            select(func.count(Notification.id))
-            .where(Notification.user_id == user_id, Notification.is_read == False)
+        query = select(func.count(Notification.id)).where(
+            Notification.user_id == user_id, Notification.is_read == False
         )
         result = await session.execute(query)
         return result.scalar() or 0
 
     @staticmethod
     async def mark_as_read(
-        session: AsyncSession,
-        notification_id: str,
-        user_id: str
+        session: AsyncSession, notification_id: str, user_id: str
     ) -> Notification | None:
         query = (
             update(Notification)
@@ -146,10 +142,7 @@ class NotificationService:
         return result.scalar_one_or_none()
 
     @staticmethod
-    async def mark_all_as_read(
-        session: AsyncSession,
-        user_id: str
-    ) -> int:
+    async def mark_all_as_read(session: AsyncSession, user_id: str) -> int:
         query = (
             update(Notification)
             .where(Notification.user_id == user_id, Notification.is_read == False)
@@ -161,13 +154,10 @@ class NotificationService:
 
     @staticmethod
     async def delete_notification(
-        session: AsyncSession,
-        notification_id: str,
-        user_id: str
+        session: AsyncSession, notification_id: str, user_id: str
     ) -> bool:
         query = delete(Notification).where(
-            Notification.id == notification_id,
-            Notification.user_id == user_id
+            Notification.id == notification_id, Notification.user_id == user_id
         )
         result = await session.execute(query)
         await session.commit()
@@ -179,8 +169,7 @@ class NotificationService:
 
     @staticmethod
     async def get_user_preferences(
-        session: AsyncSession,
-        user_id: str
+        session: AsyncSession, user_id: str
     ) -> list[NotificationPreference]:
         """获取用户的通知偏好列表"""
         query = (
@@ -193,9 +182,7 @@ class NotificationService:
 
     @staticmethod
     async def upsert_preferences(
-        session: AsyncSession,
-        user_id: str,
-        preferences: list[dict[str, Any]]
+        session: AsyncSession, user_id: str, preferences: list[dict[str, Any]]
     ) -> list[NotificationPreference]:
         """批量更新/插入用户通知偏好
 
@@ -310,16 +297,24 @@ class NotificationService:
                 # 通过 WebSocket 实时推送给在线用户
                 try:
                     from src.services.im_hub import im_manager
-                    await im_manager.push_notification(user_id, {
-                        "id": str(site_notification.id),
-                        "type": site_notification.type,
-                        "title": site_notification.title,
-                        "message": site_notification.message,
-                        "is_read": False,
-                        "related_link": site_notification.related_link,
-                        "event_type": site_notification.event_type,
-                        "created_at": site_notification.created_at.isoformat() if site_notification.created_at else None,
-                    })
+
+                    await im_manager.push_notification(
+                        user_id,
+                        {
+                            "id": str(site_notification.id),
+                            "type": site_notification.type,
+                            "title": site_notification.title,
+                            "message": site_notification.message,
+                            "is_read": False,
+                            "related_link": site_notification.related_link,
+                            "event_type": site_notification.event_type,
+                            "created_at": (
+                                site_notification.created_at.isoformat()
+                                if site_notification.created_at
+                                else None
+                            ),
+                        },
+                    )
                 except Exception as e:
                     logger.warning("WebSocket 推送通知失败: %s", e)
 

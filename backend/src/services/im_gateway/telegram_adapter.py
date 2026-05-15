@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Telegram 适配器（占位，P3+ 实现）。
 

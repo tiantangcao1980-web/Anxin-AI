@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P7-B: DeepResearch 迭代循环单测 —— 收敛 / 去重 / 引文累积。
 
 覆盖闸门：
@@ -16,12 +15,11 @@ import json
 import pytest
 
 from src.agents.personas.market_researcher import (
-    MarketResearcherAgent,
     _MAX_CITATIONS_PER_REPORT,
+    MarketResearcherAgent,
 )
 from src.agents.personas.research_models import (
     Citation,
-    ResearchReport,
     compute_confidence,
 )
 
@@ -82,8 +80,7 @@ async def test_deep_research_caps_citations():
 
     async def big_kb(q: str, k: int):  # noqa: ARG001
         return [
-            {"title": f"t-{i}", "url": f"http://x/{q}/{i}", "excerpt": "..."}
-            for i in range(100)
+            {"title": f"t-{i}", "url": f"http://x/{q}/{i}", "excerpt": "..."} for i in range(100)
         ]
 
     agent.kb_search = big_kb
@@ -141,9 +138,7 @@ async def test_deep_research_accumulates_citations():
 
     agent.kb_search = kb
 
-    report = await agent.deep_research(
-        "Q", max_iterations=2, seed_queries=["seed1"]
-    )
+    report = await agent.deep_research("Q", max_iterations=2, seed_queries=["seed1"])
     # 至少跑了 2 步（Q + seed1），合计 4 条引文
     assert len(report.citations) >= 4
     assert 0 < report.confidence_score <= 1.0

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """ContentDirectorAgent —— V3 P7-D「内容总监」 persona。
 
 定位：制造业品牌内容自动化（公众号 / 短视频脚本 / 海报 / banner / 包装）。
@@ -32,7 +31,6 @@ from src.agents.personas.content_models import (
     VideoScene,
     VideoScript,
 )
-
 
 # ---------------------------------------------------------------------------
 # Prompt 常量（独立出来便于测试 patch）
@@ -146,7 +144,9 @@ class ContentDirectorAgent(BasePersonaAgent):
 
         platform_norm = (platform or "").strip().lower()
         if platform_norm not in self._PLATFORM_MAX_SEC:
-            raise ValueError(f"不支持的视频平台: {platform!r}（支持: {list(self._PLATFORM_MAX_SEC)})")
+            raise ValueError(
+                f"不支持的视频平台: {platform!r}（支持: {list(self._PLATFORM_MAX_SEC)})"
+            )
         max_sec = self._PLATFORM_MAX_SEC[platform_norm]
         duration_sec = max(5, min(int(duration_sec), max_sec))
 
@@ -213,9 +213,15 @@ class ContentDirectorAgent(BasePersonaAgent):
                 parsed = self._safe_json_loads(raw, fallback={})
                 copy = PosterCopy(
                     size=size,
-                    headline=self._scrub_forbidden(str(parsed.get("headline") or occasion), brand.forbidden_words),
-                    sub_headline=self._scrub_forbidden(str(parsed.get("sub_headline") or ""), brand.forbidden_words),
-                    body=self._scrub_forbidden(str(parsed.get("body") or ""), brand.forbidden_words),
+                    headline=self._scrub_forbidden(
+                        str(parsed.get("headline") or occasion), brand.forbidden_words
+                    ),
+                    sub_headline=self._scrub_forbidden(
+                        str(parsed.get("sub_headline") or ""), brand.forbidden_words
+                    ),
+                    body=self._scrub_forbidden(
+                        str(parsed.get("body") or ""), brand.forbidden_words
+                    ),
                     cta=str(parsed.get("cta") or "立即了解"),
                     visual_description=str(parsed.get("visual_description") or ""),
                     layout_hint=str(parsed.get("layout_hint") or ""),
@@ -287,7 +293,12 @@ class ContentDirectorAgent(BasePersonaAgent):
 
         if len(content) < 80:
             issues.append(
-                {"field": "length", "expected": "正文 ≥ 80 字", "actual": f"{len(content)} 字", "severity": "info"}
+                {
+                    "field": "length",
+                    "expected": "正文 ≥ 80 字",
+                    "actual": f"{len(content)} 字",
+                    "severity": "info",
+                }
             )
 
         # ---------- LLM 层（精简评分） ----------
@@ -302,7 +313,9 @@ class ContentDirectorAgent(BasePersonaAgent):
         try:
             llm_prompt = self._build_consistency_prompt(content, brand)
             raw = await self._llm(llm_prompt, system=self.SYSTEM_PROMPT)
-            llm_parsed = self._safe_json_loads(raw, fallback={"tone_score": 0.7, "ai_taste_score": 0.7})
+            llm_parsed = self._safe_json_loads(
+                raw, fallback={"tone_score": 0.7, "ai_taste_score": 0.7}
+            )
             tone_score = float(llm_parsed.get("tone_score") or 0.7)
             ai_taste_score = float(llm_parsed.get("ai_taste_score") or 0.7)
             for extra in llm_parsed.get("extra_issues") or []:
@@ -314,7 +327,9 @@ class ContentDirectorAgent(BasePersonaAgent):
             ai_taste_score = 0.7
 
         # 综合分：规则层是地板，LLM 层做加权
-        overall = round(min(rule_score, 0.4 * tone_score + 0.3 * ai_taste_score + 0.3 * rule_score), 3)
+        overall = round(
+            min(rule_score, 0.4 * tone_score + 0.3 * ai_taste_score + 0.3 * rule_score), 3
+        )
 
         return ConsistencyReport(
             overall_score=overall,
@@ -338,7 +353,9 @@ class ContentDirectorAgent(BasePersonaAgent):
         返回 {language_code: localized_text}。
         """
 
-        target_languages = [lang.strip() for lang in (target_languages or []) if lang and lang.strip()]
+        target_languages = [
+            lang.strip() for lang in (target_languages or []) if lang and lang.strip()
+        ]
         if not target_languages:
             raise ValueError("target_languages 至少要给一个，例如 'en' / 'ja'")
         ctx = market_context or {}

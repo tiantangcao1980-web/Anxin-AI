@@ -20,7 +20,17 @@ from loguru import logger
 class DocumentParser:
     """文档解析器"""
 
-    SUPPORTED_EXTENSIONS = {'.pdf', '.docx', '.doc', '.txt', '.md', '.xlsx', '.xls', '.csv', '.pptx'}
+    SUPPORTED_EXTENSIONS = {
+        ".pdf",
+        ".docx",
+        ".doc",
+        ".txt",
+        ".md",
+        ".xlsx",
+        ".xls",
+        ".csv",
+        ".pptx",
+    }
 
     def __init__(self) -> None:
         self._check_dependencies()
@@ -60,19 +70,19 @@ class DocumentParser:
     ) -> dict[str, Any]:
         """
         解析文档文件
-        
+
         Args:
             file_path: 文件路径
             file_content: 文件二进制内容
             file_name: 文件名（用于判断类型）
-            
+
         Returns:
             解析结果字典
         """
         if file_path:
             path = Path(file_path)
             file_name = path.name
-            with open(path, 'rb') as f:
+            with open(path, "rb") as f:
                 file_content = f.read()
 
         if not file_content or not file_name:
@@ -84,21 +94,21 @@ class DocumentParser:
             return {
                 "error": f"不支持的文件格式: {ext}",
                 "text": "",
-                "supported_formats": list(self.SUPPORTED_EXTENSIONS)
+                "supported_formats": list(self.SUPPORTED_EXTENSIONS),
             }
 
         try:
-            if ext == '.pdf':
+            if ext == ".pdf":
                 text = await self._parse_pdf(file_content)
-            elif ext in ['.docx', '.doc']:
+            elif ext in [".docx", ".doc"]:
                 text = await self._parse_docx(file_content)
-            elif ext in ['.xlsx', '.xls']:
+            elif ext in [".xlsx", ".xls"]:
                 text = await self._parse_excel(file_content)
-            elif ext == '.csv':
+            elif ext == ".csv":
                 text = self._parse_csv(file_content)
-            elif ext == '.pptx':
+            elif ext == ".pptx":
                 text = await self._parse_pptx(file_content)
-            elif ext in ['.txt', '.md']:
+            elif ext in [".txt", ".md"]:
                 text = self._parse_text(file_content)
             else:
                 text = ""
@@ -130,6 +140,7 @@ class DocumentParser:
             # 降级：尝试使用 pdfplumber
             try:
                 import pdfplumber
+
                 with pdfplumber.open(io.BytesIO(content)) as pdf:
                     text_parts: list[str] = []
                     for pdf_page in pdf.pages:
@@ -141,6 +152,7 @@ class DocumentParser:
                 raise ImportError("需要安装 pypdf 或 pdfplumber 来解析PDF文件") from None
 
         import pypdf
+
         reader = pypdf.PdfReader(io.BytesIO(content))
 
         pdf_text_parts: list[str] = []
@@ -157,6 +169,7 @@ class DocumentParser:
             raise ImportError("需要安装 python-docx 来解析Word文档")
 
         import docx
+
         doc = docx.Document(io.BytesIO(content))
 
         text_parts = []
@@ -179,6 +192,7 @@ class DocumentParser:
             raise ImportError("需要安装 openpyxl 来解析Excel文件")
 
         import openpyxl
+
         wb = openpyxl.load_workbook(io.BytesIO(content), read_only=True, data_only=True)
         text_parts = []
 
@@ -198,6 +212,7 @@ class DocumentParser:
     def _parse_csv(self, content: bytes) -> str:
         """解析 CSV 文件"""
         import csv
+
         text = self._parse_text(content)
         reader = csv.reader(io.StringIO(text))
         lines = []
@@ -238,12 +253,12 @@ class DocumentParser:
     def _parse_text(self, content: bytes) -> str:
         """解析纯文本文件"""
         # 尝试多种编码
-        for encoding in ['utf-8', 'gbk', 'gb2312', 'utf-16', 'latin-1']:
+        for encoding in ["utf-8", "gbk", "gb2312", "utf-16", "latin-1"]:
             try:
                 return content.decode(encoding)
             except UnicodeDecodeError:
                 continue
-        return content.decode('utf-8', errors='ignore')
+        return content.decode("utf-8", errors="ignore")
 
     def _extract_structure(self, text: str) -> dict[str, Any]:
         """提取文档结构信息"""
@@ -257,13 +272,13 @@ class DocumentParser:
 
         # 检测章节标题
         section_patterns = [
-            r'第[一二三四五六七八九十百]+[条章节]',  # 第一条, 第十二条
-            r'[一二三四五六七八九十]+、',           # 一、
-            r'\d+\.\s*\w+',                       # 1. 标题
-            r'[（\(][\d一二三四五六七八九十]+[）\)]', # (1) 或 (一)
-            r'第[0-9]+[条章节]',                   # 第1条
-            r'附则',                              # 附则
-            r'前言',                              # 前言
+            r"第[一二三四五六七八九十百]+[条章节]",  # 第一条, 第十二条
+            r"[一二三四五六七八九十]+、",  # 一、
+            r"\d+\.\s*\w+",  # 1. 标题
+            r"[（\(][\d一二三四五六七八九十]+[）\)]",  # (1) 或 (一)
+            r"第[0-9]+[条章节]",  # 第1条
+            r"附则",  # 附则
+            r"前言",  # 前言
         ]
 
         for pattern in section_patterns:
@@ -272,15 +287,25 @@ class DocumentParser:
                 sections.extend(matches[:20])  # 限制数量
 
         # 检测签名区域
-        signature_keywords = ['签字', '签章', '盖章', '签名', '法定代表人', '授权代表']
+        signature_keywords = ["签字", "签章", "盖章", "签名", "法定代表人", "授权代表"]
         structure["has_signature"] = any(kw in text for kw in signature_keywords)
 
         # 检测日期
-        date_pattern = r'\d{4}年\d{1,2}月\d{1,2}日|\d{4}-\d{2}-\d{2}|\d{4}/\d{2}/\d{2}'
+        date_pattern = r"\d{4}年\d{1,2}月\d{1,2}日|\d{4}-\d{2}-\d{2}|\d{4}/\d{2}/\d{2}"
         structure["has_date"] = bool(re.search(date_pattern, text))
 
         # 检测合同主体
-        party_keywords = ['甲方', '乙方', '丙方', '出租方', '承租方', '买方', '卖方', '委托方', '受托方']
+        party_keywords = [
+            "甲方",
+            "乙方",
+            "丙方",
+            "出租方",
+            "承租方",
+            "买方",
+            "卖方",
+            "委托方",
+            "受托方",
+        ]
         structure["has_parties"] = any(kw in text for kw in party_keywords)
 
         return structure
@@ -303,15 +328,31 @@ class ContractTextAnalyzer:
 
     # 高风险条款关键词
     HIGH_RISK_KEYWORDS = [
-        "无条件", "不可撤销", "放弃追索", "全部责任", "无限责任",
-        "自动续约", "单方解除", "排他性", "竞业禁止", "连带责任",
-        "不可抗力免责", "争议仲裁", "损害赔偿上限",
+        "无条件",
+        "不可撤销",
+        "放弃追索",
+        "全部责任",
+        "无限责任",
+        "自动续约",
+        "单方解除",
+        "排他性",
+        "竞业禁止",
+        "连带责任",
+        "不可抗力免责",
+        "争议仲裁",
+        "损害赔偿上限",
     ]
 
     # 需要特别关注的条款类型
     IMPORTANT_CLAUSE_TYPES = [
-        "付款条款", "违约责任", "保密条款", "知识产权",
-        "争议解决", "合同解除", "不可抗力", "损害赔偿",
+        "付款条款",
+        "违约责任",
+        "保密条款",
+        "知识产权",
+        "争议解决",
+        "合同解除",
+        "不可抗力",
+        "损害赔偿",
     ]
 
     def analyze_contract_type(self, text: str) -> str:
@@ -342,12 +383,12 @@ class ContractTextAnalyzer:
 
         # 匹配甲方/乙方模式
         patterns = [
-            r'甲方[：:]\s*([^，,。\n]+)',
-            r'乙方[：:]\s*([^，,。\n]+)',
-            r'出租方[：:]\s*([^，,。\n]+)',
-            r'承租方[：:]\s*([^，,。\n]+)',
-            r'买方[：:]\s*([^，,。\n]+)',
-            r'卖方[：:]\s*([^，,。\n]+)',
+            r"甲方[：:]\s*([^，,。\n]+)",
+            r"乙方[：:]\s*([^，,。\n]+)",
+            r"出租方[：:]\s*([^，,。\n]+)",
+            r"承租方[：:]\s*([^，,。\n]+)",
+            r"买方[：:]\s*([^，,。\n]+)",
+            r"卖方[：:]\s*([^，,。\n]+)",
         ]
 
         for pattern in patterns:
@@ -359,9 +400,9 @@ class ContractTextAnalyzer:
     def _extract_amount(self, text: str) -> str | None:
         """提取合同金额"""
         patterns = [
-            r'合同金额[：:为]?\s*[人民币RMB￥¥]?\s*([\d,，.]+)\s*[元万亿]',
-            r'总价[：:为]?\s*[人民币RMB￥¥]?\s*([\d,，.]+)\s*[元万亿]',
-            r'[人民币RMB￥¥]\s*([\d,，.]+)\s*[元万亿]',
+            r"合同金额[：:为]?\s*[人民币RMB￥¥]?\s*([\d,，.]+)\s*[元万亿]",
+            r"总价[：:为]?\s*[人民币RMB￥¥]?\s*([\d,，.]+)\s*[元万亿]",
+            r"[人民币RMB￥¥]\s*([\d,，.]+)\s*[元万亿]",
         ]
 
         for pattern in patterns:
@@ -372,7 +413,7 @@ class ContractTextAnalyzer:
 
     def _extract_dates(self, text: str) -> list[str]:
         """提取日期"""
-        pattern = r'\d{4}年\d{1,2}月\d{1,2}日|\d{4}-\d{2}-\d{2}|\d{4}/\d{2}/\d{2}'
+        pattern = r"\d{4}年\d{1,2}月\d{1,2}日|\d{4}-\d{2}-\d{2}|\d{4}/\d{2}/\d{2}"
         dates = re.findall(pattern, text)
         return list(set(dates))[:5]
 
@@ -397,7 +438,7 @@ async def parse_contract_document(
 ) -> dict[str, Any]:
     """
     解析合同文档的便捷函数
-    
+
     Returns:
         包含文本内容和分析结果的字典
     """

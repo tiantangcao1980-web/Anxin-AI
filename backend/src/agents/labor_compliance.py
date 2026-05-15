@@ -10,6 +10,7 @@ from src.services.signature_service import SignType
 
 _FALLBACK_PROMPT = "你是一位资深的劳动人事合规专家，专注于人力资源法律事务。"
 
+
 class LaborComplianceAgent(BaseLegalAgent):
     """劳动人事合规专家智能体"""
 
@@ -19,13 +20,13 @@ class LaborComplianceAgent(BaseLegalAgent):
             role="人事法务专家",
             description="处理劳动合同、员工关系、规章制度宣贯与留痕",
             system_prompt=load_prompt("agents/labor_compliance.txt", fallback=_FALLBACK_PROMPT),
-            tools=["labor_law_search", "signature_service"], # 集成签名服务
+            tools=["labor_law_search", "signature_service"],  # 集成签名服务
         )
         super().__init__(config)
 
     async def process(self, task: dict[str, Any]) -> AgentResponse:
         """处理劳动人事任务"""
-        action = task.get("action", "consult") # consult, publish_policy
+        action = task.get("action", "consult")  # consult, publish_policy
         description = task.get("description", "")
         context = task.get("context", {})
 
@@ -34,7 +35,9 @@ class LaborComplianceAgent(BaseLegalAgent):
         else:
             return await self._general_consult(description, context)
 
-    async def _publish_policy_and_track(self, description: str, context: dict[str, Any]) -> AgentResponse:
+    async def _publish_policy_and_track(
+        self, description: str, context: dict[str, Any]
+    ) -> AgentResponse:
         """发布制度并追踪全员签署"""
         policy_name = context.get("policy_name", "未命名制度")
         doc_id = context.get("document_id", "doc_temp_001")
@@ -53,7 +56,7 @@ class LaborComplianceAgent(BaseLegalAgent):
             signer_list=employee_list,
             initiator_id="hr_system",
             sign_type=sign_type,
-            title=f"【{policy_name}】宣贯签收"
+            title=f"【{policy_name}】宣贯签收",
         )
 
         action_desc = "电子签名确认" if is_strict else "阅知确认"
@@ -61,14 +64,12 @@ class LaborComplianceAgent(BaseLegalAgent):
         return AgentResponse(
             agent_name=self.name,
             content=f"已为您发起《{policy_name}》的全员宣贯任务。\n\n"
-                    f"- **任务类型**: {action_desc} (已适配法律效力要求)\n"
-                    f"- **发送人数**: {batch_res['total_count']} 人\n"
-                    f"- **批次ID**: {batch_res['batch_id']}\n\n"
-                    f"建议您在3天后检查签署进度，确保覆盖率达到100%，以规避用工风险。",
+            f"- **任务类型**: {action_desc} (已适配法律效力要求)\n"
+            f"- **发送人数**: {batch_res['total_count']} 人\n"
+            f"- **批次ID**: {batch_res['batch_id']}\n\n"
+            f"建议您在3天后检查签署进度，确保覆盖率达到100%，以规避用工风险。",
             reasoning="依据《劳动合同法》第四条，规章制度需公示并告知劳动者。",
-            actions=[
-                {"type": "start_batch_sign", "batch_id": batch_res['batch_id']}
-            ]
+            actions=[{"type": "start_batch_sign", "batch_id": batch_res["batch_id"]}],
         )
 
     async def _general_consult(self, description: str, context: dict[str, Any]) -> AgentResponse:

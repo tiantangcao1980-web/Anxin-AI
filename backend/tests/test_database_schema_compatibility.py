@@ -29,7 +29,9 @@ class _BeginContext:
 
 
 @pytest.mark.asyncio
-async def test_ensure_additive_schema_columns_adds_contract_text_fields(monkeypatch: pytest.MonkeyPatch):
+async def test_ensure_additive_schema_columns_adds_contract_text_fields(
+    monkeypatch: pytest.MonkeyPatch,
+):
     connection = _CaptureConnection()
 
     monkeypatch.setattr(database.settings, "DATABASE_URL", "postgresql://test", raising=False)
@@ -41,8 +43,14 @@ async def test_ensure_additive_schema_columns_adds_contract_text_fields(monkeypa
 
     await database._ensure_additive_schema_columns()
 
-    assert "ALTER TABLE contracts ADD COLUMN IF NOT EXISTS original_text TEXT" in connection.executed_statements
-    assert "ALTER TABLE contracts ADD COLUMN IF NOT EXISTS modified_text TEXT" in connection.executed_statements
+    assert (
+        "ALTER TABLE contracts ADD COLUMN IF NOT EXISTS original_text TEXT"
+        in connection.executed_statements
+    )
+    assert (
+        "ALTER TABLE contracts ADD COLUMN IF NOT EXISTS modified_text TEXT"
+        in connection.executed_statements
+    )
 
 
 @pytest.mark.asyncio
@@ -60,11 +68,26 @@ async def test_ensure_additive_schema_columns_adds_knowledge_document_fields(
 
     await database._ensure_additive_schema_columns()
 
-    assert "ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS external_id VARCHAR(255)" in connection.executed_statements
-    assert "ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64)" in connection.executed_statements
-    assert "ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS version INTEGER DEFAULT 1 NOT NULL" in connection.executed_statements
-    assert "ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active' NOT NULL" in connection.executed_statements
-    assert "CREATE INDEX IF NOT EXISTS ix_knowledge_documents_external_id ON knowledge_documents (external_id)" in connection.executed_statements
+    assert (
+        "ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS external_id VARCHAR(255)"
+        in connection.executed_statements
+    )
+    assert (
+        "ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64)"
+        in connection.executed_statements
+    )
+    assert (
+        "ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS version INTEGER DEFAULT 1 NOT NULL"
+        in connection.executed_statements
+    )
+    assert (
+        "ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active' NOT NULL"
+        in connection.executed_statements
+    )
+    assert (
+        "CREATE INDEX IF NOT EXISTS ix_knowledge_documents_external_id ON knowledge_documents (external_id)"
+        in connection.executed_statements
+    )
 
 
 @pytest.mark.asyncio

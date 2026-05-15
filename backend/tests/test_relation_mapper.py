@@ -1,9 +1,6 @@
-# -*- coding: utf-8 -*-
 """P13-B RelationMapper 单元测试。"""
 
 from __future__ import annotations
-
-import pytest
 
 from src.services.rag.kg.base import (
     Entity,

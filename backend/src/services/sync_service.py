@@ -64,7 +64,10 @@ class SyncService:
                     local_data=record.get("data") or {},
                     remote_data=latest_remote.payload or {},
                     local_timestamp=record.get("timestamp") or "",
-                    remote_timestamp=_iso(latest_remote.client_timestamp or latest_remote.created_at) or "",
+                    remote_timestamp=_iso(
+                        latest_remote.client_timestamp or latest_remote.created_at
+                    )
+                    or "",
                 )
                 conflicts.append(conflict.to_dict())
                 rejected += 1
@@ -128,11 +131,12 @@ class SyncService:
         latest = (await self.db.execute(query)).scalar_one_or_none()
 
         records = (
-            await self.db.execute(select(SyncLog).where(SyncLog.user_id == user_id))
-        ).scalars().all()
+            (await self.db.execute(select(SyncLog).where(SyncLog.user_id == user_id)))
+            .scalars()
+            .all()
+        )
         storage_used_bytes = sum(
-            len(json.dumps(_to_record(record), ensure_ascii=False))
-            for record in records
+            len(json.dumps(_to_record(record), ensure_ascii=False)) for record in records
         )
         return {
             "server_version": await self._current_version(user_id),

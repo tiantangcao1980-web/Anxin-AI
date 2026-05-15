@@ -22,7 +22,9 @@ class PaymentOrder(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="pending", index=True, comment="支付状态"
     )
-    description: Mapped[str] = mapped_column(String(256), nullable=False, default="", comment="订单描述")
+    description: Mapped[str] = mapped_column(
+        String(256), nullable=False, default="", comment="订单描述"
+    )
     related_id: Mapped[str | None] = mapped_column(
         String(36), nullable=True, comment="关联业务ID（咨询/委托/合同等）"
     )
@@ -32,12 +34,8 @@ class PaymentOrder(Base, TimestampMixin):
     payment_provider: Mapped[str] = mapped_column(
         String(30), nullable=False, default="mock", comment="支付渠道"
     )
-    payment_url: Mapped[str | None] = mapped_column(
-        Text, nullable=True, comment="支付链接"
-    )
-    qr_code: Mapped[str | None] = mapped_column(
-        Text, nullable=True, comment="二维码数据"
-    )
+    payment_url: Mapped[str | None] = mapped_column(Text, nullable=True, comment="支付链接")
+    qr_code: Mapped[str | None] = mapped_column(Text, nullable=True, comment="二维码数据")
     paid_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, comment="支付时间"
     )

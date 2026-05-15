@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 task_orchestrator —— Celery worker（P2 占位实现）
 
@@ -21,7 +20,6 @@ from loguru import logger
 from src.core.database import async_session_maker
 from src.services.task_orchestrator.celery_app import celery_app
 from src.services.task_orchestrator.service import TaskOrchestratorService
-
 
 PROGRESS_STEPS: list[tuple[float, str]] = [
     (0.2, "分析中..."),

@@ -34,6 +34,7 @@ router = APIRouter()
 
 # ============ 连接管理器 ============
 
+
 class ConnectionManager:
     """WebSocket连接管理器"""
 
@@ -78,7 +79,7 @@ class ConnectionManager:
         self.active_connections[session_id][user_id] = websocket
         self.collaborators[session_id][user_id] = {
             **user_info,
-            "joined_at": datetime.now().isoformat()
+            "joined_at": datetime.now().isoformat(),
         }
         self._last_active.setdefault(session_id, {})[user_id] = datetime.now()
 
@@ -106,10 +107,7 @@ class ConnectionManager:
         logger.info(f"用户 {user_id} 离开协作会话 {session_id}")
 
     async def broadcast(
-        self,
-        session_id: str,
-        message: dict[str, Any],
-        exclude_user: str | None = None
+        self, session_id: str, message: dict[str, Any], exclude_user: str | None = None
     ) -> None:
         """广播消息给会话中的所有用户"""
         if session_id not in self.active_connections:
@@ -129,9 +127,7 @@ class ConnectionManager:
         for user_id in disconnected:
             self.disconnect(session_id, user_id)
 
-    async def send_personal(
-        self, session_id: str, user_id: str, message: dict[str, Any]
-    ) -> None:
+    async def send_personal(self, session_id: str, user_id: str, message: dict[str, Any]) -> None:
         """发送消息给特定用户"""
         if session_id in self.active_connections:
             if user_id in self.active_connections[session_id]:
@@ -176,7 +172,7 @@ class ConnectionManager:
                     "user_id": uid,
                     "reason": "heartbeat_timeout",
                     "collaborators": self.get_collaborators(session_id),
-                }
+                },
             )
 
     def record_edit(self, session_id: str, edit_message: dict[str, Any]) -> None:
@@ -186,11 +182,11 @@ class ConnectionManager:
         self._edit_history[session_id].append(edit_message)
         # 保留最近 N 条
         if len(self._edit_history[session_id]) > self._max_edit_history:
-            self._edit_history[session_id] = self._edit_history[session_id][-self._max_edit_history:]
+            self._edit_history[session_id] = self._edit_history[session_id][
+                -self._max_edit_history :
+            ]
 
-    def get_missed_edits(
-        self, session_id: str, from_version: int
-    ) -> list[dict[str, Any]]:
+    def get_missed_edits(self, session_id: str, from_version: int) -> list[dict[str, Any]]:
         """获取断线重连后的遗漏编辑（从 from_version 开始）"""
         history = self._edit_history.get(session_id, [])
         return [e for e in history if e.get("version", 0) > from_version]
@@ -206,9 +202,7 @@ async def _get_session_access(
     user_id: str,
 ) -> tuple[DocumentSession | None, DocumentCollaborator | None]:
     """加载会话并校验当前用户是否为协作者或创建者。"""
-    result = await db.execute(
-        select(DocumentSession).where(DocumentSession.id == session_id)
-    )
+    result = await db.execute(select(DocumentSession).where(DocumentSession.id == session_id))
     session = result.scalar_one_or_none()
     if not session:
         return None, None
@@ -232,8 +226,10 @@ async def _get_session_access(
 
 # ============ 请求/响应模型 ============
 
+
 class SessionCreate(BaseModel):
     """创建协作会话"""
+
     document_id: str
     name: str | None = None
     max_collaborators: int = 10
@@ -242,6 +238,7 @@ class SessionCreate(BaseModel):
 
 class SessionResponse(BaseModel):
     """协作会话响应"""
+
     id: str
     document_id: str
     name: str | None = None
@@ -256,6 +253,7 @@ class SessionResponse(BaseModel):
 
 class SessionListResponse(BaseModel):
     """协作会话列表响应"""
+
     items: list[SessionResponse]
     total: int
     page: int
@@ -264,6 +262,7 @@ class SessionListResponse(BaseModel):
 
 class CollaboratorResponse(BaseModel):
     """协作者响应"""
+
     id: str
     user_id: str | None = None
     nickname: str | None = None
@@ -276,6 +275,7 @@ class CollaboratorResponse(BaseModel):
 
 class EditRecord(BaseModel):
     """编辑记录"""
+
     operation: str  # insert, delete, replace, format
     position: dict[str, Any]  # {start, end, line, column}
     content: str | None = None
@@ -283,6 +283,7 @@ class EditRecord(BaseModel):
 
 
 # ============ 协作会话路由 ============
+
 
 @router.post("/sessions", response_model=UnifiedResponse)
 async def create_session(
@@ -292,9 +293,7 @@ async def create_session(
 ) -> dict[str, Any]:
     """创建协作会话"""
     # 检查文档是否存在
-    doc_result = await db.execute(
-        select(Document).where(Document.id == request.document_id)
-    )
+    doc_result = await db.execute(select(Document).where(Document.id == request.document_id))
     document = doc_result.scalar_one_or_none()
     if not document:
         return UnifiedResponse.error(code=404, message="文档不存在")
@@ -308,8 +307,8 @@ async def create_session(
         max_collaborators=request.max_collaborators,
         allow_anonymous=request.allow_anonymous,
         created_by=user.id if user else None,
-        base_content=document.content if hasattr(document, 'content') else None,
-        current_content=document.content if hasattr(document, 'content') else None,
+        base_content=document.content if hasattr(document, "content") else None,
+        current_content=document.content if hasattr(document, "content") else None,
     )
 
     db.add(session)
@@ -321,7 +320,7 @@ async def create_session(
             session_id=session.id,
             user_id=user.id,
             role=CollaboratorRole.OWNER,
-            nickname=user.username if hasattr(user, 'username') else user.email,
+            nickname=user.username if hasattr(user, "username") else user.email,
             color=_generate_color(),
         )
         db.add(collaborator)
@@ -344,6 +343,7 @@ async def create_session(
 
 class CommitRequest(BaseModel):
     """提交版本请求"""
+
     session_id: str
     message: str
 
@@ -364,19 +364,16 @@ async def commit_session_version(
 
     service = CollaborationService(db)
     result = await service.create_version_snapshot(
-        session_id=session_id,
-        creator_id=user.id,
-        message=request.message
+        session_id=session_id, creator_id=user.id, message=request.message
     )
     if not result.get("success"):
         return UnifiedResponse.error(message=result.get("error", "提交失败"))
 
     # 广播版本更新
-    await manager.broadcast(session_id, {
-        "type": "version_committed",
-        "version": result["version"],
-        "message": request.message
-    })
+    await manager.broadcast(
+        session_id,
+        {"type": "version_committed", "version": result["version"], "message": request.message},
+    )
 
     return UnifiedResponse.success(data=result)
 
@@ -407,12 +404,9 @@ async def list_sessions(
     query = select(DocumentSession)
     count_query = select(func.count(DocumentSession.id))
 
-    membership_subquery = (
-        select(DocumentCollaborator.session_id)
-        .where(
-            DocumentCollaborator.user_id == user.id,
-            DocumentCollaborator.is_active == True,
-        )
+    membership_subquery = select(DocumentCollaborator.session_id).where(
+        DocumentCollaborator.user_id == user.id,
+        DocumentCollaborator.is_active == True,
     )
 
     conditions: list[ColumnElement[bool]] = [
@@ -497,9 +491,7 @@ async def close_session(
     user: User = Depends(get_current_user_required),
 ) -> dict[str, Any]:
     """关闭协作会话（仅 owner 可操作）"""
-    result = await db.execute(
-        select(DocumentSession).where(DocumentSession.id == session_id)
-    )
+    result = await db.execute(select(DocumentSession).where(DocumentSession.id == session_id))
     session = result.scalar_one_or_none()
 
     if not session:
@@ -510,7 +502,7 @@ async def close_session(
         select(DocumentCollaborator).where(
             DocumentCollaborator.session_id == session_id,
             DocumentCollaborator.user_id == user.id,
-            DocumentCollaborator.role == CollaboratorRole.OWNER
+            DocumentCollaborator.role == CollaboratorRole.OWNER,
         )
     )
     if not owner_result.scalar_one_or_none():
@@ -521,10 +513,7 @@ async def close_session(
     await db.flush()
 
     # 通知所有协作者会话已关闭
-    await manager.broadcast(session_id, {
-        "type": "session_closed",
-        "message": "协作会话已关闭"
-    })
+    await manager.broadcast(session_id, {"type": "session_closed", "message": "协作会话已关闭"})
 
     return UnifiedResponse.success(message="协作会话已关闭")
 
@@ -543,9 +532,7 @@ async def get_collaborators(
         return UnifiedResponse.error(code=403, message="您不是该协作会话的成员")
 
     result = await db.execute(
-        select(DocumentCollaborator).where(
-            DocumentCollaborator.session_id == session_id
-        )
+        select(DocumentCollaborator).where(DocumentCollaborator.session_id == session_id)
     )
     collaborators = list(result.scalars().all())
 
@@ -571,6 +558,7 @@ async def get_collaborators(
 
 class AddCollaboratorRequest(BaseModel):
     """添加协作者请求"""
+
     user_id: str
     role: str = "editor"  # owner | editor | viewer | commenter
     nickname: str | None = None
@@ -578,6 +566,7 @@ class AddCollaboratorRequest(BaseModel):
 
 class UpdateCollaboratorRoleRequest(BaseModel):
     """更新协作者角色请求"""
+
     role: str = Field(..., description="owner | editor | viewer | commenter")
 
 
@@ -594,7 +583,7 @@ async def add_collaborator(
         select(DocumentCollaborator).where(
             DocumentCollaborator.session_id == session_id,
             DocumentCollaborator.user_id == user.id,
-            DocumentCollaborator.role == CollaboratorRole.OWNER
+            DocumentCollaborator.role == CollaboratorRole.OWNER,
         )
     )
     if not owner_result.scalar_one_or_none():
@@ -604,7 +593,7 @@ async def add_collaborator(
     existing = await db.execute(
         select(DocumentCollaborator).where(
             DocumentCollaborator.session_id == session_id,
-            DocumentCollaborator.user_id == request.user_id
+            DocumentCollaborator.user_id == request.user_id,
         )
     )
     if existing.scalar_one_or_none():
@@ -625,14 +614,19 @@ async def add_collaborator(
     db.add(collaborator)
     await db.flush()
 
-    return UnifiedResponse.success(data={
-        "id": collaborator.id,
-        "user_id": collaborator.user_id,
-        "role": collaborator.role.value,
-    }, message="协作者添加成功")
+    return UnifiedResponse.success(
+        data={
+            "id": collaborator.id,
+            "user_id": collaborator.user_id,
+            "role": collaborator.role.value,
+        },
+        message="协作者添加成功",
+    )
 
 
-@router.delete("/sessions/{session_id}/collaborators/{collaborator_user_id}", response_model=UnifiedResponse)
+@router.delete(
+    "/sessions/{session_id}/collaborators/{collaborator_user_id}", response_model=UnifiedResponse
+)
 async def remove_collaborator(
     session_id: str,
     collaborator_user_id: str,
@@ -645,7 +639,7 @@ async def remove_collaborator(
         select(DocumentCollaborator).where(
             DocumentCollaborator.session_id == session_id,
             DocumentCollaborator.user_id == user.id,
-            DocumentCollaborator.role == CollaboratorRole.OWNER
+            DocumentCollaborator.role == CollaboratorRole.OWNER,
         )
     )
     if not owner_result.scalar_one_or_none():
@@ -658,7 +652,7 @@ async def remove_collaborator(
     collab_result = await db.execute(
         select(DocumentCollaborator).where(
             DocumentCollaborator.session_id == session_id,
-            DocumentCollaborator.user_id == collaborator_user_id
+            DocumentCollaborator.user_id == collaborator_user_id,
         )
     )
     collaborator = collab_result.scalar_one_or_none()
@@ -675,13 +669,16 @@ async def remove_collaborator(
             "type": "collaborator_removed",
             "user_id": collaborator_user_id,
             "collaborators": manager.get_collaborators(session_id),
-        }
+        },
     )
 
     return UnifiedResponse.success(message="协作者已移除")
 
 
-@router.put("/sessions/{session_id}/collaborators/{collaborator_user_id}/role", response_model=UnifiedResponse)
+@router.put(
+    "/sessions/{session_id}/collaborators/{collaborator_user_id}/role",
+    response_model=UnifiedResponse,
+)
 async def update_collaborator_role(
     session_id: str,
     collaborator_user_id: str,
@@ -694,7 +691,7 @@ async def update_collaborator_role(
         select(DocumentCollaborator).where(
             DocumentCollaborator.session_id == session_id,
             DocumentCollaborator.user_id == user.id,
-            DocumentCollaborator.role == CollaboratorRole.OWNER
+            DocumentCollaborator.role == CollaboratorRole.OWNER,
         )
     )
     if not owner_result.scalar_one_or_none():
@@ -703,7 +700,7 @@ async def update_collaborator_role(
     collab_result = await db.execute(
         select(DocumentCollaborator).where(
             DocumentCollaborator.session_id == session_id,
-            DocumentCollaborator.user_id == collaborator_user_id
+            DocumentCollaborator.user_id == collaborator_user_id,
         )
     )
     collaborator = collab_result.scalar_one_or_none()
@@ -728,20 +725,25 @@ async def update_collaborator_role(
             "user_id": collaborator_user_id,
             "role": collaborator.role.value,
             "collaborators": manager.get_collaborators(session_id),
-        }
+        },
     )
 
-    return UnifiedResponse.success(data={
-        "id": collaborator.id,
-        "user_id": collaborator.user_id,
-        "role": collaborator.role.value,
-    }, message="协作者角色已更新")
+    return UnifiedResponse.success(
+        data={
+            "id": collaborator.id,
+            "user_id": collaborator.user_id,
+            "role": collaborator.role.value,
+        },
+        message="协作者角色已更新",
+    )
 
 
 # ============ 版本快照路由 ============
 
+
 class SnapshotCreateRequest(BaseModel):
     """创建快照请求"""
+
     content: str
     description: str | None = None
 
@@ -794,10 +796,13 @@ async def list_snapshots(
 
 class SnapshotRestoreRequest(BaseModel):
     """回滚请求（可选备注）"""
+
     pass
 
 
-@router.post("/sessions/{session_id}/snapshots/{snapshot_id}/restore", response_model=UnifiedResponse)
+@router.post(
+    "/sessions/{session_id}/snapshots/{snapshot_id}/restore", response_model=UnifiedResponse
+)
 async def restore_snapshot(
     session_id: str,
     snapshot_id: str,
@@ -848,6 +853,7 @@ async def diff_snapshots(
 
 
 # ============ WebSocket路由 ============
+
 
 @router.websocket("/ws/{session_id}")
 async def websocket_collaboration(
@@ -940,7 +946,7 @@ async def websocket_collaboration(
             "nickname": nickname,
             "color": color,
             "collaborator_id": collaborator_id,
-        }
+        },
     )
 
     # 广播用户加入
@@ -953,14 +959,12 @@ async def websocket_collaboration(
             "color": color,
             "collaborators": manager.get_collaborators(session_id),
         },
-        exclude_user=user_id
+        exclude_user=user_id,
     )
 
     # 发送初始状态给新加入的用户
     async with async_session_maker() as db:
-        result = await db.execute(
-            select(DocumentSession).where(DocumentSession.id == session_id)
-        )
+        result = await db.execute(select(DocumentSession).where(DocumentSession.id == session_id))
         session = result.scalar_one_or_none()
 
         await manager.send_personal(
@@ -971,7 +975,7 @@ async def websocket_collaboration(
                 "content": session.current_content if session else "",
                 "version": session.current_version if session else 1,
                 "collaborators": manager.get_collaborators(session_id),
-            }
+            },
         )
 
     try:
@@ -996,7 +1000,7 @@ async def websocket_collaboration(
                 await manager.send_personal(
                     session_id=session_id,
                     user_id=user_id,
-                    message={"type": "pong", "timestamp": datetime.now().isoformat()}
+                    message={"type": "pong", "timestamp": datetime.now().isoformat()},
                 )
                 # 顺便检查其他用户心跳超时
                 await manager.check_heartbeat_timeout(session_id)
@@ -1012,7 +1016,7 @@ async def websocket_collaboration(
                         "type": "sync_response",
                         "edits": missed,
                         "count": len(missed),
-                    }
+                    },
                 )
 
     except WebSocketDisconnect:
@@ -1028,7 +1032,7 @@ async def websocket_collaboration(
             collab_result = await db.execute(
                 select(DocumentCollaborator).where(
                     DocumentCollaborator.session_id == session_id,
-                    DocumentCollaborator.user_id == user_id
+                    DocumentCollaborator.user_id == user_id,
                 )
             )
             disconnected_collaborator = collab_result.scalar_one_or_none()
@@ -1044,13 +1048,11 @@ async def websocket_collaboration(
                 "type": "leave",
                 "user_id": user_id,
                 "collaborators": manager.get_collaborators(session_id),
-            }
+            },
         )
 
 
-async def _handle_edit(
-    session_id: str, user_id: str, data: dict[str, Any]
-) -> None:
+async def _handle_edit(session_id: str, user_id: str, data: dict[str, Any]) -> None:
     """处理编辑操作 -- 使用乐观锁"""
     operation = data.get("operation", "insert")
     position = data.get("position", {})
@@ -1060,9 +1062,7 @@ async def _handle_edit(
 
     async with async_session_maker() as db:
         # 获取会话
-        result = await db.execute(
-            select(DocumentSession).where(DocumentSession.id == session_id)
-        )
+        result = await db.execute(select(DocumentSession).where(DocumentSession.id == session_id))
         session = result.scalar_one_or_none()
         if not session:
             return
@@ -1071,17 +1071,20 @@ async def _handle_edit(
         collab_result = await db.execute(
             select(DocumentCollaborator).where(
                 DocumentCollaborator.session_id == session_id,
-                DocumentCollaborator.user_id == user_id
+                DocumentCollaborator.user_id == user_id,
             )
         )
         collaborator = collab_result.scalar_one_or_none()
 
         # 权限检查：viewer 和 commenter 不可编辑
-        if collaborator and collaborator.role in (CollaboratorRole.VIEWER, CollaboratorRole.COMMENTER):
+        if collaborator and collaborator.role in (
+            CollaboratorRole.VIEWER,
+            CollaboratorRole.COMMENTER,
+        ):
             await manager.send_personal(
                 session_id=session_id,
                 user_id=user_id,
-                message={"type": "error", "message": "您没有编辑权限"}
+                message={"type": "error", "message": "您没有编辑权限"},
             )
             return
 
@@ -1094,7 +1097,7 @@ async def _handle_edit(
                     "type": "conflict",
                     "server_version": session.current_version,
                     "content": session.current_content or "",
-                }
+                },
             )
             return
 
@@ -1102,7 +1105,11 @@ async def _handle_edit(
         edit = DocumentEdit(
             session_id=session_id,
             collaborator_id=collaborator.id if collaborator else None,
-            operation=EditOperation(operation) if operation in [e.value for e in EditOperation] else EditOperation.INSERT,
+            operation=(
+                EditOperation(operation)
+                if operation in [e.value for e in EditOperation]
+                else EditOperation.INSERT
+            ),
             version=session.current_version + 1,
             position=position,
             content=content,
@@ -1126,7 +1133,9 @@ async def _handle_edit(
                 byte_size=len(snapshot_content.encode("utf-8")),
             )
             db.add(snapshot)
-            logger.info(f"自动快照: session={session_id}, version={session.current_version}, edits={session.total_edits}")
+            logger.info(
+                f"自动快照: session={session_id}, version={session.current_version}, edits={session.total_edits}"
+            )
 
         # 更新协作者编辑计数
         if collaborator:
@@ -1149,16 +1158,10 @@ async def _handle_edit(
     manager.record_edit(session_id, edit_message)
 
     # 广播编辑操作给其他协作者
-    await manager.broadcast(
-        session_id=session_id,
-        message=edit_message,
-        exclude_user=user_id
-    )
+    await manager.broadcast(session_id=session_id, message=edit_message, exclude_user=user_id)
 
 
-async def _handle_cursor(
-    session_id: str, user_id: str, data: dict[str, Any]
-) -> None:
+async def _handle_cursor(session_id: str, user_id: str, data: dict[str, Any]) -> None:
     """处理光标移动"""
     cursor_position = data.get("position", {})
 
@@ -1166,7 +1169,7 @@ async def _handle_cursor(
         result = await db.execute(
             select(DocumentCollaborator).where(
                 DocumentCollaborator.session_id == session_id,
-                DocumentCollaborator.user_id == user_id
+                DocumentCollaborator.user_id == user_id,
             )
         )
         collaborator = result.scalar_one_or_none()
@@ -1183,16 +1186,26 @@ async def _handle_cursor(
             "user_id": user_id,
             "position": cursor_position,
         },
-        exclude_user=user_id
+        exclude_user=user_id,
     )
 
 
 def _generate_color() -> str:
     """生成随机颜色"""
     import random
+
     colors = [
-        "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4",
-        "#FFEAA7", "#DFE6E9", "#74B9FF", "#A29BFE",
-        "#FD79A8", "#00B894", "#E17055", "#6C5CE7",
+        "#FF6B6B",
+        "#4ECDC4",
+        "#45B7D1",
+        "#96CEB4",
+        "#FFEAA7",
+        "#DFE6E9",
+        "#74B9FF",
+        "#A29BFE",
+        "#FD79A8",
+        "#00B894",
+        "#E17055",
+        "#6C5CE7",
     ]
     return random.choice(colors)

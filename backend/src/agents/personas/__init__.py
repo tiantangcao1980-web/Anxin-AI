@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 V3 user-facing personas（流程管家、市场研究员、出海贸易官 等）
 
@@ -17,24 +16,28 @@ P7 实施分阶段：
     P7-E → 文档秘书（doc_secretary）
 """
 
+# P9-A: 安心助理（通用入口 + 任务编排）
+from src.agents.personas.anxin_assistant import AnxinAssistantAgent
 from src.agents.personas.base_persona import BasePersonaAgent, PersonaInfo
-from src.agents.personas.registry import PersonaRegistry, get_persona_registry
+from src.agents.personas.content_director import ContentDirectorAgent
+
+# P9-C: 合同管家（包装 6 contract agent）
+from src.agents.personas.contract_steward import ContractStewardPersona
+
+# P9-D: 尽调专家（包装 3 specialized agent + 关系图谱）
+from src.agents.personas.due_diligence_expert import DueDiligenceExpertPersona
+from src.agents.personas.ecommerce_assistant import EcommerceAssistantAgent
+from src.agents.personas.lead_hunter import LeadHunterAgent
+
+# P9-B: 法律顾问（包装 5 specialized agent）
+from src.agents.personas.legal_advisor import LegalAdvisorPersona
+from src.agents.personas.market_researcher import MarketResearcherAgent
 
 # P8-A: 顶层 import 全部 5 个 persona class，确保 ``__init_subclass__``
 # 在包加载阶段就触发自动注册，调用方无需依赖 ``autoload()`` 才能拿全。
 from src.agents.personas.operations_manager import OperationsManagerAgent
-from src.agents.personas.market_researcher import MarketResearcherAgent
-from src.agents.personas.lead_hunter import LeadHunterAgent
-from src.agents.personas.content_director import ContentDirectorAgent
-from src.agents.personas.ecommerce_assistant import EcommerceAssistantAgent
-# P9-A: 安心助理（通用入口 + 任务编排）
-from src.agents.personas.anxin_assistant import AnxinAssistantAgent
-# P9-B: 法律顾问（包装 5 specialized agent）
-from src.agents.personas.legal_advisor import LegalAdvisorPersona
-# P9-C: 合同管家（包装 6 contract agent）
-from src.agents.personas.contract_steward import ContractStewardPersona
-# P9-D: 尽调专家（包装 3 specialized agent + 关系图谱）
-from src.agents.personas.due_diligence_expert import DueDiligenceExpertPersona
+from src.agents.personas.registry import PersonaRegistry, get_persona_registry
+
 # P9-E: 财税顾问（包装 2 specialized agent + 跨境 VAT）
 from src.agents.personas.tax_finance_advisor import TaxFinanceAdvisorPersona
 

@@ -2,7 +2,6 @@
 案源管理服务
 """
 
-
 from typing import Any
 
 from sqlalchemy import func, select
@@ -32,15 +31,15 @@ class LeadService:
         count_query = select(func.count()).select_from(query.subquery())
         total = (await self.db.execute(count_query)).scalar() or 0
 
-        query = query.order_by(Lead.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+        query = (
+            query.order_by(Lead.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+        )
         result = await self.db.execute(query)
         return list(result.scalars().all()), total
 
     async def get_lead(self, lead_id: str) -> Lead | None:
         result = await self.db.execute(
-            select(Lead)
-            .options(selectinload(Lead.assignee))
-            .where(Lead.id == lead_id)
+            select(Lead).options(selectinload(Lead.assignee)).where(Lead.id == lead_id)
         )
         return result.scalar_one_or_none()
 
@@ -69,7 +68,9 @@ class LeadService:
         await self.db.flush()
         return lead
 
-    async def update_stage(self, lead_id: str, stage: str, org_id: str | None = None) -> Lead | None:
+    async def update_stage(
+        self, lead_id: str, stage: str, org_id: str | None = None
+    ) -> Lead | None:
         return await self.update_lead(lead_id, org_id=org_id, stage=stage)
 
     async def add_follow_up(
@@ -87,6 +88,7 @@ class LeadService:
             return None
         current = lead.follow_ups or []
         import uuid
+
         follow_up["id"] = str(uuid.uuid4())[:8]
         lead.follow_ups = current + [follow_up]
         await self.db.flush()

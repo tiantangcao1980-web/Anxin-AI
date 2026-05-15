@@ -40,11 +40,7 @@ class WorkingMemoryService(BaseMemoryService):
             if self.redis_url:
                 redis_from_url = cast(Any, redis.from_url)
                 self.redis = cast(
-                    redis.Redis,
-                    redis_from_url(
-                        self.redis_url,
-                        decode_responses=True
-                    )
+                    redis.Redis, redis_from_url(self.redis_url, decode_responses=True)
                 )
                 await self.redis.ping()
                 self._initialized = True
@@ -53,10 +49,7 @@ class WorkingMemoryService(BaseMemoryService):
                 self._log_warning("未配置 Redis,工作记忆将使用内存存储")
 
     async def create_session(
-        self,
-        session_id: str,
-        user_id: str,
-        metadata: dict[str, Any] | None = None
+        self, session_id: str, user_id: str, metadata: dict[str, Any] | None = None
     ) -> bool:
         """
         创建新会话
@@ -82,17 +75,13 @@ class WorkingMemoryService(BaseMemoryService):
             "shared_variables": {},
             "retrieved_memories": {},
             "draft_content": "",
-            "metadata": metadata or {}
+            "metadata": metadata or {},
         }
 
         return await self._set(session_id, session_data)
 
     async def add_message(
-        self,
-        session_id: str,
-        role: str,
-        content: str,
-        metadata: dict[str, Any] | None = None
+        self, session_id: str, role: str, content: str, metadata: dict[str, Any] | None = None
     ) -> bool:
         """
         添加消息到会话
@@ -114,17 +103,13 @@ class WorkingMemoryService(BaseMemoryService):
             "role": role,
             "content": content,
             "timestamp": datetime.now().isoformat(),
-            "metadata": metadata or {}
+            "metadata": metadata or {},
         }
 
         session["messages"].append(message)
         return await self._set(session_id, session)
 
-    async def get_messages(
-        self,
-        session_id: str,
-        limit: int | None = None
-    ) -> list[dict[str, Any]]:
+    async def get_messages(self, session_id: str, limit: int | None = None) -> list[dict[str, Any]]:
         """
         获取会话消息
 
@@ -144,11 +129,7 @@ class WorkingMemoryService(BaseMemoryService):
             return messages[-limit:]
         return messages
 
-    async def set_context(
-        self,
-        session_id: str,
-        context: dict[str, Any]
-    ) -> bool:
+    async def set_context(self, session_id: str, context: dict[str, Any]) -> bool:
         """
         设置当前上下文
 
@@ -166,10 +147,7 @@ class WorkingMemoryService(BaseMemoryService):
         session["current_context"] = context
         return await self._set(session_id, session)
 
-    async def get_context(
-        self,
-        session_id: str
-    ) -> dict[str, Any] | None:
+    async def get_context(self, session_id: str) -> dict[str, Any] | None:
         """
         获取当前上下文
         """
@@ -177,10 +155,7 @@ class WorkingMemoryService(BaseMemoryService):
         return cast(dict[str, Any] | None, session.get("current_context")) if session else None
 
     async def set_agent_state(
-        self,
-        session_id: str,
-        agent_name: str,
-        state: dict[str, Any]
+        self, session_id: str, agent_name: str, state: dict[str, Any]
     ) -> bool:
         """
         设置 Agent 状态
@@ -200,11 +175,7 @@ class WorkingMemoryService(BaseMemoryService):
         session["agent_states"][agent_name] = state
         return await self._set(session_id, session)
 
-    async def get_agent_state(
-        self,
-        session_id: str,
-        agent_name: str
-    ) -> dict[str, Any] | None:
+    async def get_agent_state(self, session_id: str, agent_name: str) -> dict[str, Any] | None:
         """
         获取 Agent 状态
         """
@@ -215,12 +186,7 @@ class WorkingMemoryService(BaseMemoryService):
         agent_states = cast(dict[str, dict[str, Any]], session.get("agent_states", {}))
         return agent_states.get(agent_name)
 
-    async def set_shared_variable(
-        self,
-        session_id: str,
-        key: str,
-        value: Any
-    ) -> bool:
+    async def set_shared_variable(self, session_id: str, key: str, value: Any) -> bool:
         """
         设置共享变量 (Agent 间通信)
 
@@ -239,12 +205,7 @@ class WorkingMemoryService(BaseMemoryService):
         session["shared_variables"][key] = value
         return await self._set(session_id, session)
 
-    async def get_shared_variable(
-        self,
-        session_id: str,
-        key: str,
-        default: Any = None
-    ) -> Any:
+    async def get_shared_variable(self, session_id: str, key: str, default: Any = None) -> Any:
         """
         获取共享变量
         """
@@ -255,10 +216,7 @@ class WorkingMemoryService(BaseMemoryService):
         return session.get("shared_variables", {}).get(key, default)
 
     async def add_active_task(
-        self,
-        session_id: str,
-        task_id: str,
-        task_data: dict[str, Any]
+        self, session_id: str, task_id: str, task_data: dict[str, Any]
     ) -> bool:
         """
         添加活动任务
@@ -279,18 +237,13 @@ class WorkingMemoryService(BaseMemoryService):
             "task_id": task_id,
             "started_at": datetime.now().isoformat(),
             "status": "active",
-            **task_data
+            **task_data,
         }
 
         session["active_tasks"].append(task)
         return await self._set(session_id, session)
 
-    async def complete_task(
-        self,
-        session_id: str,
-        task_id: str,
-        result: dict[str, Any]
-    ) -> bool:
+    async def complete_task(self, session_id: str, task_id: str, result: dict[str, Any]) -> bool:
         """
         完成任务
 
@@ -335,10 +288,7 @@ class WorkingMemoryService(BaseMemoryService):
         return session_id if success else None
 
     async def search(
-        self,
-        query: str,
-        top_k: int = 5,
-        filters: dict[str, Any] | None = None
+        self, query: str, top_k: int = 5, filters: dict[str, Any] | None = None
     ) -> list[dict[str, Any]]:
         """搜索 (工作记忆不支持搜索)"""
         self._log_warning("工作记忆不支持搜索功能")
@@ -362,11 +312,7 @@ class WorkingMemoryService(BaseMemoryService):
             return True
         return False
 
-    async def extend_ttl(
-        self,
-        session_id: str,
-        additional_seconds: int | None = None
-    ) -> bool:
+    async def extend_ttl(self, session_id: str, additional_seconds: int | None = None) -> bool:
         """
         延长会话 TTL
 
@@ -404,11 +350,7 @@ class WorkingMemoryService(BaseMemoryService):
         """生成 Redis 键"""
         return f"{self.KEY_PREFIX}{session_id}"
 
-    async def _set(
-        self,
-        session_id: str,
-        data: dict[str, Any]
-    ) -> bool:
+    async def _set(self, session_id: str, data: dict[str, Any]) -> bool:
         """设置会话数据"""
         await self.ensure_initialized()
 

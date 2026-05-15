@@ -97,9 +97,19 @@ class SubscriptionService:
             raise ValueError("方案不存在")
 
         updatable = [
-            "name", "description", "billing_mode", "base_price",
-            "original_price", "features", "ai_quota", "storage_gb",
-            "max_team_members", "badge", "highlight", "is_active", "sort_order",
+            "name",
+            "description",
+            "billing_mode",
+            "base_price",
+            "original_price",
+            "features",
+            "ai_quota",
+            "storage_gb",
+            "max_team_members",
+            "badge",
+            "highlight",
+            "is_active",
+            "sort_order",
         ]
         for field in updatable:
             if field in data:
@@ -482,8 +492,9 @@ class SubscriptionService:
         mrr_q = (
             select(func.coalesce(func.sum(BillingPlan.base_price), 0))
             .select_from(
-                Subscription.__table__
-                .join(BillingPlan.__table__, Subscription.plan_id == BillingPlan.id)
+                Subscription.__table__.join(
+                    BillingPlan.__table__, Subscription.plan_id == BillingPlan.id
+                )
             )
             .where(Subscription.status == "active")
         )

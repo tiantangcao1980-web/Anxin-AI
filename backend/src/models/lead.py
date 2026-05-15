@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 class Lead(Base, TimestampMixin):
     """案源线索表"""
+
     __tablename__ = "leads"
 
     client_name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -22,7 +23,9 @@ class Lead(Base, TimestampMixin):
     source: Mapped[str | None] = mapped_column(String(100))  # 转介绍, 线上咨询, 主动拓展, 电话咨询
     case_type: Mapped[str | None] = mapped_column(String(100))
     estimated_amount: Mapped[float] = mapped_column(Float, default=0.0)
-    stage: Mapped[str] = mapped_column(String(20), default="new")  # new, contacted, qualified, proposal, won, lost
+    stage: Mapped[str] = mapped_column(
+        String(20), default="new"
+    )  # new, contacted, qualified, proposal, won, lost
     follow_ups: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, default=list)
 
     # 关联

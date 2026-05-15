@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """阿里 1688 mock source 测试（P6-D）。
 
 重点验证 B2B 批发平台的差异化字段：
@@ -35,9 +34,7 @@ from src.services.fetch.sources.ecommerce.base import (  # noqa: E402
 @pytest.mark.asyncio
 async def test_search_products_returns_5_supplier_offers():
     src = Alibaba1688EcommerceSource()
-    results = await src.search_products(
-        ProductSearchQuery(keyword="蓝牙耳机", limit=20)
-    )
+    results = await src.search_products(ProductSearchQuery(keyword="蓝牙耳机", limit=20))
     assert len(results) == 5
     for p in results:
         assert p.source == "alibaba_1688"
@@ -56,10 +53,7 @@ async def test_wholesale_price_and_moq_in_raw():
     assert "moq" in p.raw
     assert isinstance(p.raw["moq"], int) and p.raw["moq"] > 0
     # 展示价是批发价区间中位数
-    assert (
-        p.price
-        == (p.raw["wholesale_price_min"] + p.raw["wholesale_price_max"]) / 2
-    )
+    assert p.price == (p.raw["wholesale_price_min"] + p.raw["wholesale_price_max"]) / 2
 
 
 @pytest.mark.asyncio
@@ -96,9 +90,7 @@ async def test_list_orders_uses_moq_times_wholesale_min_for_total():
 async def test_health_check_requires_isv_credentials():
     assert await Alibaba1688EcommerceSource().health_check() is False
     assert (
-        await Alibaba1688EcommerceSource(
-            app_key="appkey", app_secret="secret"
-        ).health_check()
+        await Alibaba1688EcommerceSource(app_key="appkey", app_secret="secret").health_check()
         is True
     )
 

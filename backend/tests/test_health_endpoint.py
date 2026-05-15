@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 P19-A 健康检查端点测试
 
@@ -25,16 +24,13 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-
 # ===== 直接从文件路径加载 health 模块，绕过 src.api.routes 包初始化 =====
 _HEALTH_PATH = Path(__file__).resolve().parent.parent / "src" / "api" / "routes" / "health.py"
 
 
 def _load_health_module():
     """每个测试单独加载，避免缓存导致 mock 失效。"""
-    spec = importlib.util.spec_from_file_location(
-        "_test_p19a_health_module", str(_HEALTH_PATH)
-    )
+    spec = importlib.util.spec_from_file_location("_test_p19a_health_module", str(_HEALTH_PATH))
     assert spec and spec.loader, "无法加载 health 模块"
     mod = importlib.util.module_from_spec(spec)
     sys.modules["_test_p19a_health_module"] = mod
@@ -88,6 +84,7 @@ async def test_readiness_all_ok_returns_200(app, health_module):
         yield None
 
     from src.core.database import get_db
+
     app.dependency_overrides[get_db] = fake_get_db
 
     with patch.object(health_module, "HealthChecker") as MockChecker:
@@ -125,6 +122,7 @@ async def test_readiness_core_down_returns_503(app, health_module):
         yield None
 
     from src.core.database import get_db
+
     app.dependency_overrides[get_db] = fake_get_db
 
     with patch.object(health_module, "HealthChecker") as MockChecker:
@@ -152,6 +150,7 @@ async def test_detailed_token_mismatch_returns_403(app, health_module):
         yield None
 
     from src.core.database import get_db
+
     app.dependency_overrides[get_db] = fake_get_db
 
     with patch.object(health_module, "settings") as mock_settings:
@@ -184,11 +183,13 @@ async def test_detailed_no_token_dev_returns_200(app, health_module):
         yield None
 
     from src.core.database import get_db
+
     app.dependency_overrides[get_db] = fake_get_db
 
-    with patch.object(health_module, "HealthChecker") as MockChecker, patch.object(
-        health_module, "settings"
-    ) as mock_settings:
+    with (
+        patch.object(health_module, "HealthChecker") as MockChecker,
+        patch.object(health_module, "settings") as mock_settings,
+    ):
         mock_settings.METRICS_AUTH_TOKEN = ""
         mock_settings.is_production.return_value = False
         mock_settings.ENVIRONMENT = "development"

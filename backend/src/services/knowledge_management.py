@@ -74,22 +74,27 @@ class CaseExperience:
         self.useful_count = 0
 
     def to_dict(self) -> KnowledgeDict:
-        return cast(KnowledgeDict, pii_service.scrub_for_output({
-            "id": self.id,
-            "title": self.title,
-            "category": self.category,
-            "category_label": EXPERIENCE_CATEGORIES.get(self.category, self.category),
-            "summary": self.summary,
-            "key_points": self.key_points,
-            "outcome": self.outcome,
-            "outcome_label": OUTCOME_TYPES.get(self.outcome, self.outcome),
-            "applicable_laws": self.applicable_laws,
-            "lessons_learned": self.lessons_learned,
-            "tags": self.tags,
-            "created_at": self.created_at.isoformat(),
-            "view_count": self.view_count,
-            "useful_count": self.useful_count,
-        }))
+        return cast(
+            KnowledgeDict,
+            pii_service.scrub_for_output(
+                {
+                    "id": self.id,
+                    "title": self.title,
+                    "category": self.category,
+                    "category_label": EXPERIENCE_CATEGORIES.get(self.category, self.category),
+                    "summary": self.summary,
+                    "key_points": self.key_points,
+                    "outcome": self.outcome,
+                    "outcome_label": OUTCOME_TYPES.get(self.outcome, self.outcome),
+                    "applicable_laws": self.applicable_laws,
+                    "lessons_learned": self.lessons_learned,
+                    "tags": self.tags,
+                    "created_at": self.created_at.isoformat(),
+                    "view_count": self.view_count,
+                    "useful_count": self.useful_count,
+                }
+            ),
+        )
 
 
 class KnowledgeManagementService:
@@ -214,6 +219,7 @@ class KnowledgeManagementService:
         # 2. 推荐相关模板
         try:
             from src.services.template_engine import get_template_library
+
             templates = [asdict(template) for template in get_template_library()]
             # 简单关键词匹配
             for tmpl in templates:
@@ -226,6 +232,7 @@ class KnowledgeManagementService:
         # 3. 推荐相关法条
         try:
             from src.services.legal_rag import legal_rag_service
+
             ctx = await legal_rag_service.retrieve(task_description, max_results=3)
             recommendations["related_laws"] = ctx.sources
         except Exception:

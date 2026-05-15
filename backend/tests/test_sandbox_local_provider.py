@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 test_sandbox_local_provider —— LocalProvider 基础用例（P3-E）
 
@@ -24,7 +23,6 @@ from src.services.sandbox_executor import (
     SandboxSpec,
     SandboxStatus,
 )
-
 
 pytestmark = pytest.mark.asyncio
 

@@ -51,19 +51,19 @@ class SentimentAnalysisAgent(BaseLegalAgent):
             agent_name=self.name,
             content=response,
             reasoning="基于情感分析和法律风险评估模型",
-            actions=[
-                {"type": "sentiment_analysis", "description": "舆情分析完成"}
-            ]
+            actions=[{"type": "sentiment_analysis", "description": "舆情分析完成"}],
         )
 
-    async def analyze_sentiment(self, content: str, keywords: list[str] | None = None) -> dict[str, Any]:
+    async def analyze_sentiment(
+        self, content: str, keywords: list[str] | None = None
+    ) -> dict[str, Any]:
         """
         分析文本情感
-        
+
         Args:
             content: 待分析的文本内容
             keywords: 关注的关键词列表
-            
+
         Returns:
             情感分析结果
         """
@@ -96,17 +96,19 @@ class SentimentAnalysisAgent(BaseLegalAgent):
             "content": content[:200] + "..." if len(content) > 200 else content,
             "analysis": response,
             "analyzed_at": datetime.now().isoformat(),
-            "agent": self.name
+            "agent": self.name,
         }
 
-    async def assess_risk(self, content: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def assess_risk(
+        self, content: str, context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         评估舆情风险
-        
+
         Args:
             content: 舆情内容
             context: 上下文信息（如行业、公司名等）
-            
+
         Returns:
             风险评估结果
         """
@@ -149,23 +151,23 @@ class SentimentAnalysisAgent(BaseLegalAgent):
             "content_preview": content[:200] + "..." if len(content) > 200 else content,
             "risk_assessment": response,
             "assessed_at": datetime.now().isoformat(),
-            "agent": self.name
+            "agent": self.name,
         }
 
     async def generate_report(
         self,
         records: list[dict[str, Any]],
         period: str = "daily",
-        focus_keywords: list[str] | None = None
+        focus_keywords: list[str] | None = None,
     ) -> dict[str, Any]:
         """
         生成舆情分析报告
-        
+
         Args:
             records: 舆情记录列表
             period: 报告周期（daily/weekly/monthly）
             focus_keywords: 重点关注关键词
-            
+
         Returns:
             舆情分析报告
         """
@@ -183,10 +185,12 @@ class SentimentAnalysisAgent(BaseLegalAgent):
             risk_counts[risk_level] = risk_counts.get(risk_level, 0) + 1
 
         # 构建报告提示
-        records_summary = "\n".join([
-            f"- {r.get('keyword', '未知')}: {r.get('content', '')[:100]}..."
-            for r in records[:20]  # 限制数量
-        ])
+        records_summary = "\n".join(
+            [
+                f"- {r.get('keyword', '未知')}: {r.get('content', '')[:100]}..."
+                for r in records[:20]  # 限制数量
+            ]
+        )
 
         period_names = {"daily": "日报", "weekly": "周报", "monthly": "月报"}
 
@@ -227,25 +231,21 @@ class SentimentAnalysisAgent(BaseLegalAgent):
             "statistics": {
                 "total_count": total_count,
                 "sentiment_distribution": sentiment_counts,
-                "risk_distribution": risk_counts
+                "risk_distribution": risk_counts,
             },
             "report_content": response,
             "focus_keywords": focus_keywords or [],
-            "agent": self.name
+            "agent": self.name,
         }
 
-    async def detect_trend(
-        self,
-        records: list[dict[str, Any]],
-        keyword: str
-    ) -> dict[str, Any]:
+    async def detect_trend(self, records: list[dict[str, Any]], keyword: str) -> dict[str, Any]:
         """
         检测舆情趋势
-        
+
         Args:
             records: 历史舆情记录
             keyword: 关注的关键词
-            
+
         Returns:
             趋势分析结果
         """
@@ -256,10 +256,9 @@ class SentimentAnalysisAgent(BaseLegalAgent):
             if date:
                 daily_counts[date] = daily_counts.get(date, 0) + 1
 
-        trend_data = "\n".join([
-            f"- {date}: {count}条"
-            for date, count in sorted(daily_counts.items())[-7:]  # 最近7天
-        ])
+        trend_data = "\n".join(
+            [f"- {date}: {count}条" for date, count in sorted(daily_counts.items())[-7:]]  # 最近7天
+        )
 
         prompt = f"""
 请分析关键词"{keyword}"的舆情趋势：
@@ -281,5 +280,5 @@ class SentimentAnalysisAgent(BaseLegalAgent):
             "daily_statistics": daily_counts,
             "trend_analysis": response,
             "analyzed_at": datetime.now().isoformat(),
-            "agent": self.name
+            "agent": self.name,
         }

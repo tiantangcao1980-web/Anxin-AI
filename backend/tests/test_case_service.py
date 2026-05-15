@@ -15,11 +15,14 @@ from src.services.case_service import CaseService
 
 # ============ CRUD操作测试 ============
 
+
 class TestCaseServiceCRUD:
     """测试案件服务CRUD操作"""
 
     @pytest.mark.asyncio
-    async def test_create_case(self, db_session: AsyncSession, test_user: User, test_organization: Organization):
+    async def test_create_case(
+        self, db_session: AsyncSession, test_user: User, test_organization: Organization
+    ):
         """测试创建案件"""
         service = CaseService(db_session)
 
@@ -41,15 +44,13 @@ class TestCaseServiceCRUD:
         assert case.case_number.startswith("CASE-")
 
     @pytest.mark.asyncio
-    async def test_create_case_with_parties(self, db_session: AsyncSession, test_user: User, test_organization: Organization):
+    async def test_create_case_with_parties(
+        self, db_session: AsyncSession, test_user: User, test_organization: Organization
+    ):
         """测试创建带当事人信息的案件"""
         service = CaseService(db_session)
 
-        parties = {
-            "plaintiff": "甲公司",
-            "defendant": "乙公司",
-            "lawyers": ["张律师", "李律师"]
-        }
+        parties = {"plaintiff": "甲公司", "defendant": "乙公司", "lawyers": ["张律师", "李律师"]}
 
         case = await service.create_case(
             title="合同纠纷案",
@@ -64,7 +65,9 @@ class TestCaseServiceCRUD:
         assert len(case.parties["lawyers"]) == 2
 
     @pytest.mark.asyncio
-    async def test_create_case_with_deadline(self, db_session: AsyncSession, test_user: User, test_organization: Organization):
+    async def test_create_case_with_deadline(
+        self, db_session: AsyncSession, test_user: User, test_organization: Organization
+    ):
         """测试创建带截止日期的案件"""
         service = CaseService(db_session)
 
@@ -147,10 +150,7 @@ class TestCaseServiceCRUD:
         service = CaseService(db_session)
 
         updated_case = await service.update_case(
-            case_id=test_case.id,
-            title="更新后的案件标题",
-            status="in_progress",
-            priority="urgent"
+            case_id=test_case.id, title="更新后的案件标题", status="in_progress", priority="urgent"
         )
 
         assert updated_case is not None
@@ -163,10 +163,7 @@ class TestCaseServiceCRUD:
         """测试更新不存在的案件"""
         service = CaseService(db_session)
 
-        result = await service.update_case(
-            case_id=str(uuid.uuid4()),
-            title="新标题"
-        )
+        result = await service.update_case(case_id=str(uuid.uuid4()), title="新标题")
 
         assert result is None
 
@@ -193,6 +190,7 @@ class TestCaseServiceCRUD:
 
 # ============ 事件/时间线测试 ============
 
+
 class TestCaseServiceEvents:
     """测试案件事件功能"""
 
@@ -206,7 +204,7 @@ class TestCaseServiceEvents:
             event_type="status_change",
             title="状态变更",
             description="案件状态从待处理变更为处理中",
-            created_by=test_user.id
+            created_by=test_user.id,
         )
 
         assert event is not None
@@ -219,17 +217,13 @@ class TestCaseServiceEvents:
         """测试添加带数据的事件"""
         service = CaseService(db_session)
 
-        event_data = {
-            "old_status": "pending",
-            "new_status": "in_progress",
-            "changed_by": "admin"
-        }
+        event_data = {"old_status": "pending", "new_status": "in_progress", "changed_by": "admin"}
 
         event = await service.add_event(
             case_id=test_case.id,
             event_type="status_change",
             title="状态变更",
-            event_data=event_data
+            event_data=event_data,
         )
 
         assert event.event_data is not None
@@ -253,7 +247,9 @@ class TestCaseServiceEvents:
             assert timeline[i].event_time >= timeline[i + 1].event_time
 
     @pytest.mark.asyncio
-    async def test_get_timeline_uses_explicit_event_at_order(self, db_session: AsyncSession, test_case: Case):
+    async def test_get_timeline_uses_explicit_event_at_order(
+        self, db_session: AsyncSession, test_case: Case
+    ):
         """测试时间线按事件实际发生时间排序，而不是插入顺序。"""
         service = CaseService(db_session)
         early = datetime.now() - timedelta(days=2)
@@ -270,18 +266,19 @@ class TestCaseServiceEvents:
 
 # ============ 文档关联测试 ============
 
+
 class TestCaseServiceDocuments:
     """测试案件文档关联功能"""
 
     @pytest.mark.asyncio
-    async def test_link_document(self, db_session: AsyncSession, test_case: Case, test_document, test_user: User):
+    async def test_link_document(
+        self, db_session: AsyncSession, test_case: Case, test_document, test_user: User
+    ):
         """测试关联文档到案件"""
         service = CaseService(db_session)
 
         success = await service.link_document(
-            case_id=test_case.id,
-            document_id=test_document.id,
-            created_by=test_user.id
+            case_id=test_case.id, document_id=test_document.id, created_by=test_user.id
         )
 
         assert success is True
@@ -292,7 +289,9 @@ class TestCaseServiceDocuments:
         assert documents[0].id == test_document.id
 
     @pytest.mark.asyncio
-    async def test_unlink_document(self, db_session: AsyncSession, test_case: Case, test_document, test_user: User):
+    async def test_unlink_document(
+        self, db_session: AsyncSession, test_case: Case, test_document, test_user: User
+    ):
         """测试取消文档关联"""
         service = CaseService(db_session)
 
@@ -301,9 +300,7 @@ class TestCaseServiceDocuments:
 
         # 再取消关联
         success = await service.unlink_document(
-            case_id=test_case.id,
-            document_id=test_document.id,
-            created_by=test_user.id
+            case_id=test_case.id, document_id=test_document.id, created_by=test_user.id
         )
 
         assert success is True
@@ -324,11 +321,14 @@ class TestCaseServiceDocuments:
 
 # ============ 统计功能测试 ============
 
+
 class TestCaseServiceStatistics:
     """测试案件统计功能"""
 
     @pytest.mark.asyncio
-    async def test_get_case_statistics(self, db_session: AsyncSession, test_cases: list[Case], test_organization: Organization):
+    async def test_get_case_statistics(
+        self, db_session: AsyncSession, test_cases: list[Case], test_organization: Organization
+    ):
         """测试获取案件统计信息"""
         service = CaseService(db_session)
 
@@ -353,24 +353,29 @@ class TestCaseServiceStatistics:
 
 # ============ AI分析测试 ============
 
+
 class TestCaseServiceAIAnalysis:
     """测试案件AI分析功能"""
 
     @pytest.mark.asyncio
-    @patch('src.services.case_service.get_workforce')
-    async def test_analyze_case(self, mock_get_workforce, db_session: AsyncSession, test_case: Case, test_user: User):
+    @patch("src.services.case_service.get_workforce")
+    async def test_analyze_case(
+        self, mock_get_workforce, db_session: AsyncSession, test_case: Case, test_user: User
+    ):
         """测试AI分析案件"""
         # Mock智能体团队
         mock_workforce = MagicMock()
-        mock_workforce.process_task = AsyncMock(return_value={
-            "task": "案件分析",
-            "analysis": {"agents": ["legal_advisor", "risk_assessor"]},
-            "agent_results": [],
-            "final_result": {
-                "summary": "该案件风险等级为中等",
-                "recommendations": ["建议及时处理", "注意证据保全"]
+        mock_workforce.process_task = AsyncMock(
+            return_value={
+                "task": "案件分析",
+                "analysis": {"agents": ["legal_advisor", "risk_assessor"]},
+                "agent_results": [],
+                "final_result": {
+                    "summary": "该案件风险等级为中等",
+                    "recommendations": ["建议及时处理", "注意证据保全"],
+                },
             }
-        })
+        )
         mock_get_workforce.return_value = mock_workforce
 
         service = CaseService(db_session)
@@ -392,11 +397,14 @@ class TestCaseServiceAIAnalysis:
 
 # ============ 边界条件测试 ============
 
+
 class TestCaseServiceEdgeCases:
     """测试边界条件"""
 
     @pytest.mark.asyncio
-    async def test_create_case_with_invalid_type(self, db_session: AsyncSession, test_user: User, test_organization: Organization):
+    async def test_create_case_with_invalid_type(
+        self, db_session: AsyncSession, test_user: User, test_organization: Organization
+    ):
         """测试创建无效类型的案件"""
         service = CaseService(db_session)
 
@@ -411,7 +419,9 @@ class TestCaseServiceEdgeCases:
         assert case.case_type == CaseType.OTHER
 
     @pytest.mark.asyncio
-    async def test_create_case_with_invalid_priority(self, db_session: AsyncSession, test_user: User, test_organization: Organization):
+    async def test_create_case_with_invalid_priority(
+        self, db_session: AsyncSession, test_user: User, test_organization: Organization
+    ):
         """测试创建无效优先级的案件"""
         service = CaseService(db_session)
 
@@ -444,10 +454,7 @@ class TestCaseServiceEdgeCases:
         original_title = test_case.title
 
         # 只更新状态
-        updated_case = await service.update_case(
-            case_id=test_case.id,
-            status="in_progress"
-        )
+        updated_case = await service.update_case(case_id=test_case.id, status="in_progress")
 
         assert updated_case.title == original_title  # 标题不变
         assert updated_case.status == CaseStatus.IN_PROGRESS  # 状态已更新

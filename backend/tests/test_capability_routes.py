@@ -59,7 +59,9 @@ def test_missing_scope_and_expired_route_token_fail_closed():
         now=issued_at,
     )
 
-    missing_scope = service.validate_route_token(issued.token, required_scope="mcp:call", now=issued_at)
+    missing_scope = service.validate_route_token(
+        issued.token, required_scope="mcp:call", now=issued_at
+    )
     expired = service.validate_route_token(
         issued.token,
         required_scope="knowledge:read",

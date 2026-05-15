@@ -24,28 +24,25 @@ from loguru import logger
 
 COMPRESS_CONFIG: dict[str, Any] = {
     # 各层触发阈值（占最大上下文窗口的比例）
-    "micro_threshold": 0.80,     # 80% → MicroCompact
-    "auto_threshold": 0.85,      # 85% → AutoCompact
-    "session_threshold": 0.92,   # 92% → SessionCompact
+    "micro_threshold": 0.80,  # 80% → MicroCompact
+    "auto_threshold": 0.85,  # 85% → AutoCompact
+    "session_threshold": 0.92,  # 92% → SessionCompact
     "reactive_threshold": 0.98,  # 98% → ReactiveCompact
-
     # 压缩后目标
     "post_compress_budget": 50000,  # 压缩后保留 ~50K token 工作区
-
     # AutoCompact 参数
-    "summary_max_tokens": 20000,   # 摘要上限
-    "reserve_buffer": 13000,       # 保留缓冲区
-    "max_retries": 3,              # 最大重试次数
-
+    "summary_max_tokens": 20000,  # 摘要上限
+    "reserve_buffer": 13000,  # 保留缓冲区
+    "max_retries": 3,  # 最大重试次数
     # 保护规则
-    "preserve_recent_messages": 5,   # 保留最近 N 条消息不压缩
-    "preserve_citations": True,       # 法条引用永远保留
-    "preserve_corrections": True,     # 用户纠正永远保留
+    "preserve_recent_messages": 5,  # 保留最近 N 条消息不压缩
+    "preserve_citations": True,  # 法条引用永远保留
+    "preserve_corrections": True,  # 用户纠正永远保留
 }
 
 # 法律引用正则（这些内容绝不压缩）
-RE_LEGAL_CITATION = re.compile(r'《[^》]+》(?:\s*第\s*\d+\s*条)?')
-RE_CASE_NUMBER = re.compile(r'[（(]\d{4}[）)][^，,。]+号')
+RE_LEGAL_CITATION = re.compile(r"《[^》]+》(?:\s*第\s*\d+\s*条)?")
+RE_CASE_NUMBER = re.compile(r"[（(]\d{4}[）)][^，,。]+号")
 
 
 class CompressedSegment:
@@ -88,7 +85,7 @@ class ContextCompressor:
         """粗估 token 数（中文约 1.5 字/token，英文约 4 字符/token）"""
         if not text:
             return 0
-        cn_chars = len(re.findall(r'[\u4e00-\u9fff]', text))
+        cn_chars = len(re.findall(r"[\u4e00-\u9fff]", text))
         other_chars = len(text) - cn_chars
         return int(cn_chars / 1.5 + other_chars / 4)
 
@@ -172,7 +169,9 @@ class ContextCompressor:
                 preserved_cases = RE_CASE_NUMBER.findall(content)
 
                 # 替换为摘要
-                summary = self._generate_micro_summary(content, preserved_citations, preserved_cases)
+                summary = self._generate_micro_summary(
+                    content, preserved_citations, preserved_cases
+                )
                 saved = self.estimate_tokens(content) - self.estimate_tokens(summary)
                 total_saved += max(0, saved)
                 cleaned_count += 1
@@ -241,8 +240,7 @@ class ContextCompressor:
 
         # 提取旧消息中的关键信息
         old_text = "\n---\n".join(
-            f"[{m.get('role', 'unknown')}] {m.get('content', '')[:500]}"
-            for m in old_messages
+            f"[{m.get('role', 'unknown')}] {m.get('content', '')[:500]}" for m in old_messages
         )
 
         # 提取必须保留的元素
@@ -251,7 +249,8 @@ class ContextCompressor:
         user_corrections = [
             m.get("content", "")
             for m in old_messages
-            if m.get("role") == "user" and any(
+            if m.get("role") == "user"
+            and any(
                 kw in m.get("content", "")
                 for kw in ["不对", "错了", "不是", "应该是", "修改", "纠正", "重新"]
             )
@@ -410,10 +409,12 @@ class ContextCompressor:
     # ===== 统计 =====
 
     def _record_compression(self, stats: dict[str, Any]) -> None:
-        self._compress_history.append({
-            **stats,
-            "timestamp": datetime.now().isoformat(),
-        })
+        self._compress_history.append(
+            {
+                **stats,
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
         self._total_saved += stats.get("tokens_saved", 0)
         # 只保留最近 50 次
         if len(self._compress_history) > 50:

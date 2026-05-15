@@ -33,7 +33,7 @@ class SemanticMemoryService(BaseMemoryService):
         "template": "合同模板",
         "concept": "法律概念",
         "clause": "条款模板",
-        "faq": "常见问题"
+        "faq": "常见问题",
     }
 
     def __init__(self, vector_store: Any = None, db: Any = None) -> None:
@@ -60,11 +60,7 @@ class SemanticMemoryService(BaseMemoryService):
         )
 
     async def add_knowledge(
-        self,
-        knowledge_type: str,
-        content: str,
-        title: str,
-        metadata: dict[str, Any] | None = None
+        self, knowledge_type: str, content: str, title: str, metadata: dict[str, Any] | None = None
     ) -> str | None:
         """
         添加知识到语义记忆
@@ -97,21 +93,14 @@ class SemanticMemoryService(BaseMemoryService):
             "access_count": 0,
             "source": metadata.get("source", "") if metadata else "",
             "created_at": datetime.now().isoformat(),
-            "updated_at": datetime.now().isoformat()
+            "updated_at": datetime.now().isoformat(),
         }
 
         # 添加到向量存储
         content_to_vectorize = f"{title}\n{content}"
-        document = {
-            "id": knowledge_id,
-            "content": content_to_vectorize,
-            "metadata": payload
-        }
+        document = {"id": knowledge_id, "content": content_to_vectorize, "metadata": payload}
 
-        count = await self.vector_store.add_documents(
-            self.COLLECTION_NAME,
-            [document]
-        )
+        count = await self.vector_store.add_documents(self.COLLECTION_NAME, [document])
 
         if count > 0:
             self._log_info(f"已添加语义知识: {knowledge_id} ({knowledge_type})")
@@ -120,10 +109,7 @@ class SemanticMemoryService(BaseMemoryService):
         return None
 
     async def search(
-        self,
-        query: str,
-        top_k: int = 5,
-        filters: dict[str, Any] | None = None
+        self, query: str, top_k: int = 5, filters: dict[str, Any] | None = None
     ) -> list[dict[str, Any]]:
         """
         搜索语义记忆
@@ -143,7 +129,7 @@ class SemanticMemoryService(BaseMemoryService):
             collection_name=self.COLLECTION_NAME,
             query=query,
             top_k=top_k * 2,  # 多取一些用于重排序
-            score_threshold=0.6
+            score_threshold=0.6,
         )
 
         # 过滤和排序
@@ -157,25 +143,27 @@ class SemanticMemoryService(BaseMemoryService):
                 if knowledge_type and meta.get("knowledge_type") != knowledge_type:
                     continue
 
-            memories.append({
-                "knowledge_id": meta.get("knowledge_id"),
-                "knowledge_type": meta.get("knowledge_type"),
-                "title": meta.get("title"),
-                "content": meta.get("content"),
-                "related_concepts": meta.get("related_concepts", []),
-                "confidence_score": meta.get("confidence_score", 1.0),
-                "access_count": meta.get("access_count", 0),
-                "similarity_score": res.get("score")
-            })
+            memories.append(
+                {
+                    "knowledge_id": meta.get("knowledge_id"),
+                    "knowledge_type": meta.get("knowledge_type"),
+                    "title": meta.get("title"),
+                    "content": meta.get("content"),
+                    "related_concepts": meta.get("related_concepts", []),
+                    "confidence_score": meta.get("confidence_score", 1.0),
+                    "access_count": meta.get("access_count", 0),
+                    "similarity_score": res.get("score"),
+                }
+            )
 
         # 重排序: 综合考虑相似度、访问频率、置信度
         memories.sort(
             key=lambda m: (
-                m["similarity_score"] * 0.6 +
-                m["confidence_score"] * 0.3 +
-                min(m["access_count"] / 100, 0.1)
+                m["similarity_score"] * 0.6
+                + m["confidence_score"] * 0.3
+                + min(m["access_count"] / 100, 0.1)
             ),
-            reverse=True
+            reverse=True,
         )
 
         # 更新访问计数
@@ -192,7 +180,7 @@ class SemanticMemoryService(BaseMemoryService):
         results = await self.vector_store.search(
             collection_name=self.COLLECTION_NAME,
             query=knowledge_id,  # 简化实现,实际应该用 ID 查询
-            top_k=1
+            top_k=1,
         )
 
         if results:
@@ -230,6 +218,7 @@ class SemanticMemoryService(BaseMemoryService):
         await self.ensure_initialized()
         try:
             from src.services.vector_store import VectorStoreService
+
             vs = VectorStoreService()
             await vs.delete_documents(
                 collection_name=self.COLLECTION_NAME,
@@ -249,18 +238,12 @@ class SemanticMemoryService(BaseMemoryService):
         except Exception:
             pass
 
-    async def get_related_concepts(
-        self,
-        concept: str,
-        top_k: int = 10
-    ) -> list[dict[str, Any]]:
+    async def get_related_concepts(self, concept: str, top_k: int = 10) -> list[dict[str, Any]]:
         """
         获取相关概念 (用于知识图谱关联)
         """
         results = await self.search(
-            query=concept,
-            top_k=top_k,
-            filters={"knowledge_type": "concept"}
+            query=concept, top_k=top_k, filters={"knowledge_type": "concept"}
         )
         return results
 
@@ -272,5 +255,5 @@ class SemanticMemoryService(BaseMemoryService):
         return {
             "total_knowledge": 0,
             "by_type": dict.fromkeys(self.KNOWLEDGE_TYPES.keys(), 0),
-            "total_accesses": 0
+            "total_accesses": 0,
         }

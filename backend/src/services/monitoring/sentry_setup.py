@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Sentry SDK 初始化
 
@@ -18,7 +17,7 @@ from __future__ import annotations
 
 import os
 import re
-from typing import Any, Dict, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -63,7 +62,9 @@ def _redact_value(key: str, value: Any) -> Any:
     return value
 
 
-def sanitize_event(event: Dict[str, Any], hint: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+def sanitize_event(
+    event: dict[str, Any], hint: dict[str, Any] | None = None
+) -> dict[str, Any] | None:
     """Sentry before_send 钩子：过滤敏感字段。
 
     返回 None 表示丢弃事件；返回 event 表示放行（可被修改）。
@@ -137,16 +138,19 @@ def setup_sentry() -> bool:
     # 可选集成：Celery / Redis / httpx — import 失败不致命
     try:
         from sentry_sdk.integrations.celery import CeleryIntegration
+
         integrations.append(CeleryIntegration())
     except Exception:
         pass
     try:
         from sentry_sdk.integrations.redis import RedisIntegration
+
         integrations.append(RedisIntegration())
     except Exception:
         pass
     try:
         from sentry_sdk.integrations.httpx import HttpxIntegration
+
         integrations.append(HttpxIntegration())
     except Exception:
         pass
@@ -154,7 +158,9 @@ def setup_sentry() -> bool:
     sentry_sdk.init(
         dsn=dsn,
         environment=getattr(settings, "SENTRY_ENVIRONMENT", "development"),
-        release=os.environ.get("SENTRY_RELEASE", f"anxin@{getattr(settings, 'APP_VERSION', '0.0.0')}"),
+        release=os.environ.get(
+            "SENTRY_RELEASE", f"anxin@{getattr(settings, 'APP_VERSION', '0.0.0')}"
+        ),
         traces_sample_rate=float(getattr(settings, "SENTRY_TRACES_SAMPLE_RATE", 0.1)),
         send_default_pii=False,
         attach_stacktrace=True,

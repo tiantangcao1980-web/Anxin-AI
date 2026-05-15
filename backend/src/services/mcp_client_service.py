@@ -67,17 +67,28 @@ def validate_mcp_server_config(config: Any) -> None:
             raise McpConfigSecurityError("stdio MCP requires command")
         allowed_commands = _normalized_set(settings.MCP_STDIO_ALLOWED_COMMANDS)
         if _commercial_environment() and not settings.MCP_STDIO_ENABLED:
-            raise McpConfigSecurityError("stdio MCP is disabled in staging/production unless explicitly enabled")
+            raise McpConfigSecurityError(
+                "stdio MCP is disabled in staging/production unless explicitly enabled"
+            )
         if allowed_commands and command not in allowed_commands:
             raise McpConfigSecurityError("stdio MCP command is not in MCP_STDIO_ALLOWED_COMMANDS")
         if _commercial_environment() and not allowed_commands:
-            raise McpConfigSecurityError("staging/production stdio MCP requires MCP_STDIO_ALLOWED_COMMANDS")
+            raise McpConfigSecurityError(
+                "staging/production stdio MCP requires MCP_STDIO_ALLOWED_COMMANDS"
+            )
         args = _stdio_args(config)
         allowed_command_lines = _normalized_set(settings.MCP_STDIO_ALLOWED_COMMAND_LINES)
-        if allowed_command_lines and _stdio_command_line(command, args) not in allowed_command_lines:
-            raise McpConfigSecurityError("stdio MCP command line is not in MCP_STDIO_ALLOWED_COMMAND_LINES")
+        if (
+            allowed_command_lines
+            and _stdio_command_line(command, args) not in allowed_command_lines
+        ):
+            raise McpConfigSecurityError(
+                "stdio MCP command line is not in MCP_STDIO_ALLOWED_COMMAND_LINES"
+            )
         if _commercial_environment() and args and not allowed_command_lines:
-            raise McpConfigSecurityError("staging/production stdio MCP with args requires MCP_STDIO_ALLOWED_COMMAND_LINES")
+            raise McpConfigSecurityError(
+                "staging/production stdio MCP with args requires MCP_STDIO_ALLOWED_COMMAND_LINES"
+            )
 
         env_keys = set((getattr(config, "env", None) or {}).keys())
         allowed_env = _normalized_set(settings.MCP_STDIO_ALLOWED_ENV_KEYS)
@@ -135,7 +146,9 @@ class McpClientService:
 
         logger.info("Initializing MCP Client Service...")
         async with async_session_maker() as db:
-            result = await db.execute(select(McpServerConfig).where(McpServerConfig.is_enabled == True))
+            result = await db.execute(
+                select(McpServerConfig).where(McpServerConfig.is_enabled == True)
+            )
             configs = result.scalars().all()
 
             for config in configs:
@@ -213,14 +226,16 @@ class McpClientService:
                 # Create a unique name to avoid collisions: server__tool
                 unique_name = f"{server_name}__{tool['name']}"
 
-                openai_tools.append({
-                    "type": "function",
-                    "function": {
-                        "name": unique_name,
-                        "description": tool.get("description", ""),
-                        "parameters": tool.get("inputSchema", {})
+                openai_tools.append(
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": unique_name,
+                            "description": tool.get("description", ""),
+                            "parameters": tool.get("inputSchema", {}),
+                        },
                     }
-                })
+                )
 
         return openai_tools
 
@@ -310,6 +325,7 @@ class McpClientService:
         await self._exit_stack.aclose()
         self._sessions.clear()
         self._initialized = False
+
 
 # Global instance
 mcp_client_service = McpClientService()

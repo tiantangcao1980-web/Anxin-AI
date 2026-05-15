@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Notion OAuth 2.0 Provider — P4-D 真实现。
 
 实装 ``BaseOAuthProvider`` 的 5 个方法，对接 Notion 开放平台 OAuth：
@@ -151,9 +150,7 @@ class NotionOAuthProvider(BaseOAuthProvider):
     def _ensure_credentials(self) -> None:
         """确保 client_id / client_secret 已配置；否则抛 :class:`OAuthError`。"""
         if not self._client_id or not self._client_secret:
-            raise OAuthError(
-                "Notion OAuth 未配置：缺少 NOTION_CLIENT_ID 或 NOTION_CLIENT_SECRET"
-            )
+            raise OAuthError("Notion OAuth 未配置：缺少 NOTION_CLIENT_ID 或 NOTION_CLIENT_SECRET")
 
     def _basic_auth_header(self) -> str:
         """生成 ``Authorization: Basic base64(client_id:client_secret)`` 头值。
@@ -161,7 +158,7 @@ class NotionOAuthProvider(BaseOAuthProvider):
         Notion ``/v1/oauth/token`` 与 ``/v1/oauth/revoke`` 强制要求该方式，
         client_secret **不可**放在 JSON body 里。
         """
-        creds = f"{self._client_id}:{self._client_secret}".encode("utf-8")
+        creds = f"{self._client_id}:{self._client_secret}".encode()
         return "Basic " + base64.b64encode(creds).decode("ascii")
 
     @staticmethod
@@ -303,9 +300,7 @@ class NotionOAuthProvider(BaseOAuthProvider):
             "Content-Type": "application/json",
             **self._notion_version_header(),
         }
-        data = await self._request_with_retry(
-            "POST", TOKEN_URL, json_body=body, headers=headers
-        )
+        data = await self._request_with_retry("POST", TOKEN_URL, json_body=body, headers=headers)
 
         access_token = data.get("access_token") or ""
         if not access_token:
@@ -313,11 +308,11 @@ class NotionOAuthProvider(BaseOAuthProvider):
 
         return OAuthTokenBundle(
             access_token=access_token,
-            refresh_token=None,           # Notion 不支持刷新
-            expires_in=None,              # access_token 永久有效
-            scope=None,                   # Notion 不使用 scope
+            refresh_token=None,  # Notion 不支持刷新
+            expires_in=None,  # access_token 永久有效
+            scope=None,  # Notion 不使用 scope
             token_type=data.get("token_type", "Bearer"),
-            raw=data,                     # workspace_name / workspace_id / bot_id / owner ...
+            raw=data,  # workspace_name / workspace_id / bot_id / owner ...
         )
 
     # ------------------------------------------------------------------

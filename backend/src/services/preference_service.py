@@ -55,9 +55,12 @@ class PreferenceService:
             scenarios = profile.get("common_scenarios", {})
             if scenarios:
                 domain_map = {
-                    "CONTRACT_REVIEW": "contract", "LABOR_HR": "labor",
-                    "IP_PROTECTION": "ip", "LITIGATION_STRATEGY": "litigation",
-                    "TAX_FINANCE": "tax", "REGULATORY_MONITORING": "compliance",
+                    "CONTRACT_REVIEW": "contract",
+                    "LABOR_HR": "labor",
+                    "IP_PROTECTION": "ip",
+                    "LITIGATION_STRATEGY": "litigation",
+                    "TAX_FINANCE": "tax",
+                    "REGULATORY_MONITORING": "compliance",
                 }
                 top_scenarios = sorted(scenarios.items(), key=lambda x: x[1], reverse=True)[:3]
                 default_prefs["legal_domain_focus"] = [

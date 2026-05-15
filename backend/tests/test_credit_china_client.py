@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P6-C 信用中国 — 客户端测试。"""
 
 from __future__ import annotations
@@ -65,9 +64,7 @@ class TestCreditChinaSearch:
         transport = httpx.MockTransport(_handler)
         async with httpx.AsyncClient(transport=transport) as client:
             src = CreditChinaSource(client=client)
-            results = await src.search(
-                LawSearchQuery(keyword="某科技有限公司", limit=20)
-            )
+            results = await src.search(LawSearchQuery(keyword="某科技有限公司", limit=20))
 
         # 校验请求 payload 用的是 NAME 模式
         assert captured["payload"]["queryType"] == "NAME"
@@ -95,9 +92,7 @@ class TestCreditChinaSearch:
         transport = httpx.MockTransport(_handler)
         async with httpx.AsyncClient(transport=transport) as client:
             src = CreditChinaSource(client=client)
-            results = await src.search(
-                LawSearchQuery(keyword="91110000600001627B")
-            )
+            results = await src.search(LawSearchQuery(keyword="91110000600001627B"))
 
         assert captured["payload"]["queryType"] == "USCC"
         assert results == []
