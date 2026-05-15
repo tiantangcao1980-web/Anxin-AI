@@ -11,8 +11,11 @@
  * 单个分包：< 2 MB；分包总和 < 8 MB
  */
 export default defineAppConfig({
+  // 主包：tabBar 入口必须放主包（微信限制：tabBar.pagePath 必须出现在主包 pages）
   pages: [
     'pages/index/index',
+    'pages/tasks/index',
+    'pages/capabilities/index',
     'pages/me/index',
     'pages/login/index',
     'pages/webview/index',
@@ -21,7 +24,7 @@ export default defineAppConfig({
   subpackages: [
     {
       root: 'subpackages/tasks',
-      pages: ['index/index', 'detail/index', 'create/index'],
+      pages: ['detail/index', 'create/index'],
     },
     {
       root: 'subpackages/personas',
@@ -30,7 +33,6 @@ export default defineAppConfig({
     {
       root: 'subpackages/capabilities',
       pages: [
-        'index/index',
         'scheduled-tasks/index',
         'app-authorizations/index',
         'skills/index',
@@ -67,13 +69,13 @@ export default defineAppConfig({
         selectedIconPath: 'assets/tab/agents-active.png',
       },
       {
-        pagePath: 'subpackages/tasks/index/index',
+        pagePath: 'pages/tasks/index',
         text: '任务',
         iconPath: 'assets/tab/tasks.png',
         selectedIconPath: 'assets/tab/tasks-active.png',
       },
       {
-        pagePath: 'subpackages/capabilities/index/index',
+        pagePath: 'pages/capabilities/index',
         text: '能力',
         iconPath: 'assets/tab/capabilities.png',
         selectedIconPath: 'assets/tab/capabilities-active.png',

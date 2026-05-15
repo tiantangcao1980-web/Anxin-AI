@@ -3,7 +3,7 @@ import { View, Text, Input, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import {
   scheduledTasksApi, appAuthApi, skillsApi, pluginsApi, imChannelsApi, pairingApi,
-} from '../_mock'
+} from '../../subpackages/capabilities/_mock'
 import './index.scss'
 
 /**
