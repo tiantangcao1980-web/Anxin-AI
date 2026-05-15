@@ -1,0 +1,260 @@
+# Access Matrix — Subject × Action × Resource
+# Doctrine: docs/governance/AUTHZ-MODEL.md
+# PDP: backend/src/services/governance/authz.py
+#
+# 语义：每条规则 = (role, scope-pattern, decision[, conditions])
+# 决策优先级：DENY > REQUIRE_STEP_UP > REQUIRE_CONFIRM > ALLOW > 默认 DENY
+# 即：先 deny，最后才 allow；任何冲突取最严结果
+
+schema_version: 1
+default_decision: DENY   # 不匹配任何规则 → 拒绝
+
+# ────────────────────────────────────────────────────────────────────
+# 全局通配 — 仅 super_admin
+# ────────────────────────────────────────────────────────────────────
+roles:
+  super_admin:
+    grants:
+      - scope: "*"
+        decision: ALLOW
+    denies: []   # 没有任何拒绝（但仍受 confirm-policy 约束）
+
+  # ──────────────────────────────────────────────────────────────────
+  admin: &admin_base       # 等同 org_admin（兼容历史角色）
+    inherits: []
+    grants:
+      - scope: "skill.*"
+        decision: ALLOW
+      - scope: "data.*.read"
+        decision: ALLOW
+      - scope: "data.*.write"
+        decision: REQUIRE_CONFIRM
+      - scope: "connector.*.read"
+        decision: ALLOW
+      - scope: "connector.*.write"
+        decision: REQUIRE_CONFIRM
+      - scope: "connector.*.send"
+        decision: REQUIRE_CONFIRM
+      - scope: "cookbook.*.run"
+        decision: ALLOW
+      - scope: "audit.log.read"
+        decision: ALLOW
+      - scope: "lifecycle.skill.publish"
+        decision: REQUIRE_STEP_UP
+    denies:
+      - scope: "governance.policy.write"     # 改 policy 只能 super_admin
+      - scope: "lifecycle.skill.revoke"      # 撤回只能安全应急委员会
+      - scope: "data.privileged.*"           # privileged 数据要 L4 clearance
+
+  org_admin: *admin_base   # 别名
+
+  # ──────────────────────────────────────────────────────────────────
+  compliance_officer:
+    inherits: []
+    grants:
+      - scope: "audit.*"
+        decision: ALLOW
+      - scope: "governance.policy.read"
+        decision: ALLOW
+      - scope: "skill.*.dry_run"
+        decision: ALLOW
+      - scope: "data.*.read"
+        decision: ALLOW
+        conditions:
+          - "subject.clearance >= L3"
+      - scope: "data.privileged.read"
+        decision: REQUIRE_CONFIRM
+        conditions:
+          - "subject.clearance >= L4"
+    denies:
+      - scope: "*.write"
+      - scope: "*.send"
+      - scope: "*.publish"
+
+  # ──────────────────────────────────────────────────────────────────
+  legal_member:
+    inherits: []
+    grants:
+      - scope: "skill.legal-advisor.*"
+        decision: ALLOW
+      - scope: "skill.contract-steward.*"
+        decision: ALLOW
+      - scope: "skill.dd-expert.*"
+        decision: ALLOW
+      - scope: "data.contract.read"
+        decision: ALLOW
+      - scope: "data.contract.write"
+        decision: REQUIRE_CONFIRM
+      - scope: "data.legal-research.read"
+        decision: ALLOW
+      - scope: "connector.feishu.send"
+        decision: REQUIRE_CONFIRM
+      - scope: "connector.dingtalk.send"
+        decision: REQUIRE_CONFIRM
+      - scope: "connector.wechat.send"
+        decision: REQUIRE_CONFIRM
+      - scope: "cookbook.regulation-monitor.run"
+        decision: ALLOW
+      - scope: "cookbook.contract-renewal-watcher.run"
+        decision: ALLOW
+    denies:
+      - scope: "data.privileged.write"     # 律师特权写需 lead_counsel
+      - scope: "connector.amazon-sp.*"
+      - scope: "connector.shopify.*"
+
+  lead_counsel:
+    inherits: ["legal_member"]
+    grants:
+      - scope: "data.privileged.*"
+        decision: REQUIRE_CONFIRM
+      - scope: "lifecycle.skill.publish"
+        decision: REQUIRE_STEP_UP
+        conditions:
+          - "resource.domain == 'legal'"
+
+  # ──────────────────────────────────────────────────────────────────
+  finance_member:
+    inherits: []
+    grants:
+      - scope: "skill.finance-tax-advisor.*"
+        decision: ALLOW
+      - scope: "data.ar.read"
+        decision: ALLOW
+      - scope: "data.invoice.read"
+        decision: ALLOW
+      - scope: "data.gl.read"
+        decision: ALLOW
+      - scope: "data.ar.write"
+        decision: REQUIRE_CONFIRM
+      - scope: "connector.erp.read"
+        decision: ALLOW
+      - scope: "connector.erp.write"
+        decision: REQUIRE_STEP_UP
+      - scope: "cookbook.ar-aging-watcher.run"
+        decision: ALLOW
+    denies:
+      - scope: "data.contract.write"       # 财务不签合同
+      - scope: "data.privileged.*"
+
+  # ──────────────────────────────────────────────────────────────────
+  growth_member:
+    inherits: []
+    grants:
+      - scope: "skill.market-researcher.*"
+        decision: ALLOW
+      - scope: "skill.lead-hunter.*"
+        decision: ALLOW
+      - scope: "skill.content-director.*"
+        decision: ALLOW
+      - scope: "connector.wechat.*"
+        decision: ALLOW
+      - scope: "connector.linkedin.read"
+        decision: ALLOW
+      - scope: "connector.linkedin.send"
+        decision: REQUIRE_CONFIRM
+      - scope: "connector.seo.*"
+        decision: ALLOW
+    denies:
+      - scope: "data.contract.*"
+      - scope: "data.privileged.*"
+      - scope: "data.ar.*"
+
+  # ──────────────────────────────────────────────────────────────────
+  cross_border_member:
+    inherits: []
+    grants:
+      - scope: "skill.cross-border-ecom.*"
+        decision: ALLOW
+      - scope: "connector.amazon-sp.read"
+        decision: ALLOW
+      - scope: "connector.amazon-sp.write"
+        decision: REQUIRE_CONFIRM
+      - scope: "connector.shopify.*"
+        decision: ALLOW
+        conditions:
+          - "context.jurisdiction_chain in ['CN', 'CN->Global']"
+      - scope: "connector.stripe.read"
+        decision: ALLOW
+      - scope: "connector.stripe.write"
+        decision: REQUIRE_STEP_UP
+      - scope: "cookbook.cross-border-pricing-radar.run"
+        decision: ALLOW
+    denies:
+      - scope: "data.privileged.*"
+      - scope: "data.contract.write"
+
+  # ──────────────────────────────────────────────────────────────────
+  viewer:
+    inherits: []
+    grants:
+      - scope: "skill.*.dry_run"
+        decision: ALLOW
+      - scope: "data.*.read"
+        decision: ALLOW
+        conditions:
+          - "resource.classification <= L2"
+    denies:
+      - scope: "*.write"
+      - scope: "*.send"
+      - scope: "*.publish"
+      - scope: "*.run"
+
+  guest:
+    inherits: []
+    grants:
+      - scope: "skill.anxin-assistant.intent-route"
+        decision: ALLOW
+        conditions:
+          - "resource.classification <= L1"
+    denies:
+      - scope: "*"
+
+# ────────────────────────────────────────────────────────────────────
+# 全局守门 — 与角色无关
+# ────────────────────────────────────────────────────────────────────
+global_gates:
+  # 写动作永远 confirm
+  - match: "*.write"
+    enforce: REQUIRE_CONFIRM
+  - match: "*.send"
+    enforce: REQUIRE_CONFIRM
+  - match: "*.publish"
+    enforce: REQUIRE_CONFIRM
+  - match: "*.revoke"
+    enforce: REQUIRE_STEP_UP
+
+  # 大额金钱
+  - match: "*"
+    enforce: REQUIRE_CONFIRM
+    when: "context.amount_cny > 100000"
+  - match: "*"
+    enforce: REQUIRE_STEP_UP
+    when: "context.amount_cny > 1000000"
+
+  # 跨境
+  - match: "data.*"
+    enforce: REQUIRE_CONFIRM
+    when: "resource.jurisdiction != subject.primary_jurisdiction"
+
+  # 特权数据写入共享
+  - match: "data.privileged.write"
+    enforce: DENY
+    when: "resource.scope == 'shared'"
+
+  # MFA stale
+  - match: "*"
+    enforce: REQUIRE_STEP_UP
+    when: "context.mfa_recent == false and resource.classification >= L3"
+
+  # 营业时间外
+  - match: "*.write"
+    enforce: REQUIRE_STEP_UP
+    when: "context.business_hours == false and resource.classification >= L3"
+
+  # untrusted skill
+  - match: "skill.*"
+    enforce: REQUIRE_CONFIRM
+    when: "resource.trust_level == 'untrusted'"
+  - match: "skill.*.connector.*"
+    enforce: DENY
+    when: "resource.trust_level == 'untrusted'"

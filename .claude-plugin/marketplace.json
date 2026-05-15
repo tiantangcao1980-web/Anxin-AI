@@ -1,0 +1,135 @@
+{
+  "$schema": "https://anthropic.com/schemas/plugin-marketplace/v1.json",
+  "name": "anxin-ai",
+  "displayName": "安心智能助手 · Anxin AI Plugin Marketplace",
+  "description": "面向中国成长型制造企业的 AI 工作助理插件市场。10 个 user-facing persona + 后台 21 个 specialized agent + 4 个 Office skill + 4 个 Managed Agent cookbook。",
+  "version": "1.0.0",
+  "owner": "Anxin Tech",
+  "homepage": "https://anxinai.com",
+  "license": "Apache-2.0",
+  "language": "zh-CN",
+  "categories": [
+    "compliance",
+    "finance",
+    "legal",
+    "growth",
+    "cross-border",
+    "operations"
+  ],
+  "plugins": [
+    {
+      "name": "anxin-assistant",
+      "displayName": "🤖 安心助理",
+      "description": "通用入口与任务编排 — 自然语言意图识别，自动路由到 10 个 persona 中最合适的那一个，并按需启动多 persona 协作 DAG。",
+      "category": "operations",
+      "path": "plugins/anxin-assistant",
+      "tags": ["coordinator", "intent-routing", "task-orchestration"]
+    },
+    {
+      "name": "legal-advisor",
+      "displayName": "⚖️ 法律顾问",
+      "description": "法律咨询、法规检索、风险评估。底层调用 legal-research、labor-law、ip-infringement 等 specialized agent。",
+      "category": "legal",
+      "path": "plugins/legal-advisor",
+      "tags": ["legal-research", "risk-assessment", "compliance"]
+    },
+    {
+      "name": "contract-steward",
+      "displayName": "📜 合同管家",
+      "description": "合同全生命周期 — 起草 / 审查 / 谈判 / 续约 / 归档。复用 contract-review skill + Office docx 渲染。",
+      "category": "legal",
+      "path": "plugins/contract-steward",
+      "tags": ["contract-review", "drafting", "lifecycle"]
+    },
+    {
+      "name": "dd-expert",
+      "displayName": "🔍 尽调专家",
+      "description": "公司 / 项目 / 客户 360° 尽职调查。整合工商、司法、舆情、知识产权多源数据，输出尽调报告。",
+      "category": "legal",
+      "path": "plugins/dd-expert",
+      "tags": ["due-diligence", "kyc", "background-check"]
+    },
+    {
+      "name": "finance-tax-advisor",
+      "displayName": "💰 财税顾问",
+      "description": "税务合规 / 财务分析 / 法律计算 / 发票核对。集成增值税、企业所得税、个税策划与跨境税务。",
+      "category": "finance",
+      "path": "plugins/finance-tax-advisor",
+      "tags": ["tax-compliance", "financial-analysis", "invoice"]
+    },
+    {
+      "name": "process-steward",
+      "displayName": "📋 流程管家",
+      "description": "OKR / 周报 / 会议纪要 / 审批 / 待办全流程，深度集成飞书 / 钉钉 / Notion。",
+      "category": "operations",
+      "path": "plugins/process-steward",
+      "tags": ["okr", "approval", "meeting-notes"]
+    },
+    {
+      "name": "market-researcher",
+      "displayName": "📊 市场研究员",
+      "description": "行业研究 / 竞品分析 / 市场趋势 / DeepResearch。结合搜索引擎、SEMRush、企查查、Crunchbase 多源洞察。",
+      "category": "growth",
+      "path": "plugins/market-researcher",
+      "tags": ["market-research", "competitor", "deep-research"]
+    },
+    {
+      "name": "lead-hunter",
+      "displayName": "🎯 获客猎手",
+      "description": "线索发现 / 评分 / 触达 / Vibe Selling。LinkedIn / 邮件 / 短信 / 短视频四通道。",
+      "category": "growth",
+      "path": "plugins/lead-hunter",
+      "tags": ["lead-gen", "lead-scoring", "outreach"]
+    },
+    {
+      "name": "content-director",
+      "displayName": "✍️ 内容总监",
+      "description": "公众号 / 短视频 / 海报 / 落地页 / 邮件营销内容生产，含 SEO 与品牌一致性检查。",
+      "category": "growth",
+      "path": "plugins/content-director",
+      "tags": ["content-marketing", "copywriting", "seo"]
+    },
+    {
+      "name": "cross-border-ecom",
+      "displayName": "🌍 跨境电商助手",
+      "description": "选品 / 验厂 / 独立站 / Amazon SP 运营 / AI 议价 / VAT 合规一站式。",
+      "category": "cross-border",
+      "path": "plugins/cross-border-ecom",
+      "tags": ["e-commerce", "amazon", "vat", "sourcing"]
+    },
+    {
+      "name": "builder-hub",
+      "displayName": "🧩 Builder Hub",
+      "description": "社区 skill 发布 / 发现 / 安装的信任层。隐藏内容扫描 / prompt 注入检测 / 来源核验三道关卡。",
+      "category": "ecosystem",
+      "path": "plugins/builder-hub",
+      "tags": ["trust", "marketplace", "governance"]
+    }
+  ],
+  "managedAgentCookbooks": [
+    {
+      "name": "regulation-monitor",
+      "displayName": "中国法规监控",
+      "description": "每日扫描人大、国务院、市场监督管理总局公告，识别影响客户业务的新法规，自动生成合规变更摘要并推送到飞书。",
+      "path": "managed-agent-cookbooks/regulation-monitor"
+    },
+    {
+      "name": "contract-renewal-watcher",
+      "displayName": "合同续约监控",
+      "description": "扫描所有进入 60 天到期窗口的合同，自动评估涨幅、谈判筹码、续约风险，生成续约建议并提醒负责人。",
+      "path": "managed-agent-cookbooks/contract-renewal-watcher"
+    },
+    {
+      "name": "ar-aging-watcher",
+      "displayName": "应收账款账龄监控",
+      "description": "对接 ERP 抓取应收账款数据，按账龄分级识别催收优先级，自动起草催收函并标记法律风险账款。",
+      "path": "managed-agent-cookbooks/ar-aging-watcher"
+    },
+    {
+      "name": "cross-border-pricing-radar",
+      "displayName": "跨境定价雷达",
+      "description": "每 30 分钟抓取 Amazon / Shopify / eBay 竞品定价，与本店 SKU 对比，触发自动调价建议或 BuyBox 失守预警。",
+      "path": "managed-agent-cookbooks/cross-border-pricing-radar"
+    }
+  ]
+}

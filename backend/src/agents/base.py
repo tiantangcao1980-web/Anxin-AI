@@ -184,14 +184,138 @@ class BaseLegalAgent(ABC):
     async def process(self, task: dict[str, Any]) -> AgentResponse:
         """
         处理任务
-        
+
         Args:
             task: 任务信息，可包含 llm_config 用于动态配置
-            
+
         Returns:
             AgentResponse: 处理结果
         """
         pass
+
+    # ------------------------------------------------------------------
+    # Governed process —— 在 process 外面包一层 PDP + 审计（治理统一入口）
+    # ------------------------------------------------------------------
+    async def process_governed(
+        self,
+        task: dict[str, Any],
+        *,
+        subject: dict[str, Any] | None = None,
+        action: str | None = None,
+        resource: dict[str, Any] | None = None,
+        context: dict[str, Any] | None = None,
+    ) -> AgentResponse:
+        """治理包裹后的 process 入口。
+
+        调用约定：
+            response = await agent.process_governed(
+                task,
+                subject={"id": user.id, "role": user.role, "tenant_id": ..., "clearance": "L4",
+                         "primary_jurisdiction": "CN"},
+                action="agent.legal_researcher.deep_research",
+                resource={"type": "agent", "id": "legal_researcher",
+                          "classification": "L2", "jurisdiction": "CN"},
+            )
+
+        - ``subject=None``     → 跳过 PDP 与审计（向后兼容，行为同 process）
+        - PDP DENY / STEP_UP   → 抛 ``PermissionError``
+        - PDP REQUIRE_CONFIRM  → 在 metadata 标 ``authz=REQUIRE_CONFIRM``；
+                                   调用方应据此把结果当作 draft 处理
+        - 任何路径都会写入审计 ``agent.execute`` 事件
+        """
+        # 没传 subject —— 直接走原 process（向后兼容）
+        if subject is None:
+            return await self.process(task)
+
+        # 延迟 import 避免 governance 未启用时的循环依赖
+        try:
+            from src.services.governance import audit as _audit
+            from src.services.governance.authz import Decision, decide
+        except ImportError:
+            return await self.process(task)
+
+        action = action or f"agent.{type(self).__name__}.process"
+        resource = resource or {
+            "type": "agent",
+            "id": type(self).__name__,
+            "classification": "L2",
+            "jurisdiction": "CN",
+        }
+        ctx = {
+            "trace_id": (task or {}).get("trace_id"),
+            "mfa_recent": (context or {}).get("mfa_recent", False),
+            "business_hours": True,
+            **(context or {}),
+        }
+
+        # ── PDP ──────────────────────────────────────────────────────
+        pdp_res = decide(subject=subject, action=action, resource=resource, context=ctx)
+        _audit.write_event({
+            "event_type": "authz.decide",
+            "actor": subject,
+            "action": action,
+            "resource": resource,
+            "decision": pdp_res.decision.value,
+            "decision_reasons": pdp_res.reasons,
+            "policy_snapshot_id": pdp_res.policy_snapshot_id,
+            "phase": "agent_pre",
+            "trace_id": ctx.get("trace_id"),
+        })
+
+        if pdp_res.decision == Decision.DENY:
+            _audit.write_event({
+                "event_type": "agent.execute",
+                "actor": subject, "action": action, "resource": resource,
+                "decision": "DENY", "outcome": "denied",
+                "trace_id": ctx.get("trace_id"),
+            })
+            raise PermissionError(f"agent.process denied: {action}; reasons={pdp_res.reasons}")
+        if pdp_res.decision == Decision.REQUIRE_STEP_UP:
+            _audit.write_event({
+                "event_type": "agent.execute",
+                "actor": subject, "action": action, "resource": resource,
+                "decision": "REQUIRE_STEP_UP", "outcome": "step_up_required",
+                "trace_id": ctx.get("trace_id"),
+            })
+            raise PermissionError(f"agent.process requires step-up: {action}")
+
+        # ── 真跑 ─────────────────────────────────────────────────────
+        import time as _time
+        started = _time.perf_counter()
+        try:
+            response = await self.process(task)
+            duration_ms = int((_time.perf_counter() - started) * 1000)
+            # 在 metadata 标注治理决策（前端 / executor 可识别）
+            response.metadata = dict(response.metadata or {})
+            response.metadata.update({
+                "authz_decision": pdp_res.decision.value,
+                "policy_snapshot_id": pdp_res.policy_snapshot_id,
+            })
+            if pdp_res.decision == Decision.REQUIRE_CONFIRM:
+                response.metadata["draft_pending_confirm"] = True
+
+            _audit.write_event({
+                "event_type": "agent.execute",
+                "actor": subject, "action": action, "resource": resource,
+                "decision": pdp_res.decision.value,
+                "outcome": "draft-staged" if pdp_res.decision == Decision.REQUIRE_CONFIRM else "success",
+                "duration_ms": duration_ms,
+                "trace_id": ctx.get("trace_id"),
+                "policy_snapshot_id": pdp_res.policy_snapshot_id,
+            })
+            return response
+        except Exception as e:  # noqa: BLE001
+            duration_ms = int((_time.perf_counter() - started) * 1000)
+            _audit.write_event({
+                "event_type": "agent.execute",
+                "actor": subject, "action": action, "resource": resource,
+                "decision": pdp_res.decision.value,
+                "outcome": "failure",
+                "duration_ms": duration_ms,
+                "error": repr(e)[:500],
+                "trace_id": ctx.get("trace_id"),
+            })
+            raise
 
     def _is_local_model_api(self, api_base_url: str) -> bool:
         """判断是否为本地模型服务（非 OpenAI 兼容格式）"""

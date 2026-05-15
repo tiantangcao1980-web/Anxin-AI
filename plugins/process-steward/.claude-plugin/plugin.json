@@ -1,0 +1,39 @@
+{
+  "$schema": "https://anthropic.com/schemas/plugin/v1.json",
+  "name": "process-steward",
+  "displayName": "📋 流程管家",
+  "description": "OKR / 周报 / 会议 / 审批 — 综合协调 域 Persona 插件。",
+  "version": "1.0.0",
+  "author": "Anxin Tech",
+  "license": "Apache-2.0",
+  "language": "zh-CN",
+  "category": "operations",
+  "domain": "综合协调",
+  "requiresColdStart": true,
+  "practiceProfile": "CLAUDE.md",
+  "userInvocableSlash": "/process-steward:<skill>",
+  "skills": [
+    {
+        "name": "cold-start-interview",
+        "path": "skills/cold-start-interview/SKILL.md"
+    },
+    {
+        "name": "okr-track",
+        "path": "skills/okr-track/SKILL.md"
+    },
+    {
+        "name": "meeting-minutes",
+        "path": "skills/meeting-minutes/SKILL.md"
+    },
+    {
+        "name": "weekly-report",
+        "path": "skills/weekly-report/SKILL.md"
+    },
+    {
+        "name": "approval-route",
+        "path": "skills/approval-route/SKILL.md"
+    }
+],
+  "agents": [],
+  "connectors": ["feishu", "dingtalk", "wechat-work"]
+}

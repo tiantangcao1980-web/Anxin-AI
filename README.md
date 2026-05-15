@@ -13,6 +13,11 @@
 | 入口 | 用途 |
 |---|---|
 | [docs/00-project-execution-map.md](docs/00-project-execution-map.md) | **当前权威导航总入口**（任务起点） |
+| [AI-ASSISTANT-PLAYBOOK.md](AI-ASSISTANT-PLAYBOOK.md) | **AI 工作助理方法论** — 移植自 Anthropic claude-for-legal / financial-services |
+| [CONNECTORS.md](CONNECTORS.md) | 100+ MCP 与第三方数据源目录 |
+| [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json) | 10 个 persona 插件市场注册表 |
+| [plugins/](plugins/) | 10 个 persona 插件源码 |
+| [managed-agent-cookbooks/](managed-agent-cookbooks/) | 4 个无人值守 cookbook（法规 / 续约 / AR / 跨境定价） |
 | [docs/standards/](docs/standards/) | 13 份开发规范（命名 / 文档 / Git / 代码 / API / DB / 前端 / 后端 / 测试 / 安全） |
 | [docs/v3/](docs/v3/) | V3 智能助手实施细节（架构 / 路线图 / 10 personas） |
 | [docs/openspec/](docs/openspec/) | 平台合同 + 商业交付 + 测试规范 |
@@ -21,6 +26,26 @@
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 贡献指南 + 新人第一周清单 |
 | [SECURITY.md](SECURITY.md) | 安全策略 + 漏洞报告流程 |
 | [CHANGELOG.md](CHANGELOG.md) | 变更日志 |
+
+### 🚀 60 秒上手 Anxin AI Plugin
+
+```bash
+# 1. 在 Claude Code 注册本仓库为插件市场
+/plugin marketplace add /Volumes/安心科技02/Pproject/Anxin-AI
+
+# 2. 安装感兴趣的 persona
+/plugin install legal-advisor@anxin-ai
+/plugin install contract-steward@anxin-ai
+/plugin install market-researcher@anxin-ai
+
+# 3. 第一次使用前必跑冷启动访谈（生成 CLAUDE.md 执业画像）
+/legal-advisor:cold-start-interview
+
+# 4. 部署无人值守 cookbook（可选）
+bash scripts/deploy-managed-agent.sh regulation-monitor --local
+```
+
+完整方法论 → [AI-ASSISTANT-PLAYBOOK.md](AI-ASSISTANT-PLAYBOOK.md)。
 
 ---
 

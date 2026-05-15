@@ -1,0 +1,39 @@
+{
+  "$schema": "https://anthropic.com/schemas/plugin/v1.json",
+  "name": "dd-expert",
+  "displayName": "🔍 尽调专家",
+  "description": "公司/项目/客户 360° 尽调 — 合规经营 域 Persona 插件。",
+  "version": "1.0.0",
+  "author": "Anxin Tech",
+  "license": "Apache-2.0",
+  "language": "zh-CN",
+  "category": "legal",
+  "domain": "合规经营",
+  "requiresColdStart": true,
+  "practiceProfile": "CLAUDE.md",
+  "userInvocableSlash": "/dd-expert:<skill>",
+  "skills": [
+    {
+        "name": "cold-start-interview",
+        "path": "skills/cold-start-interview/SKILL.md"
+    },
+    {
+        "name": "company-dd",
+        "path": "skills/company-dd/SKILL.md"
+    },
+    {
+        "name": "judicial-search",
+        "path": "skills/judicial-search/SKILL.md"
+    },
+    {
+        "name": "ip-portfolio-check",
+        "path": "skills/ip-portfolio-check/SKILL.md"
+    },
+    {
+        "name": "credit-trace",
+        "path": "skills/credit-trace/SKILL.md"
+    }
+],
+  "agents": [],
+  "connectors": ["feishu", "dingtalk", "wechat-work"]
+}

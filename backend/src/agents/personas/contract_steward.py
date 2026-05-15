@@ -358,7 +358,11 @@ class ContractStewardPersona(BasePersonaAgent):
 
         if inv_obj is not None and hasattr(inv_obj, "process"):
             try:
-                resp = await inv_obj.process({"description": document_text, "context": {}})
+                resp = await self._call_specialized_governed(
+                    inv_obj, {"description": document_text, "context": {}},
+                    action=f"agent.{self.persona_id}.identify_risks",
+                    classification="L3",
+                )
                 investigation = getattr(resp, "metadata", None) or {}
             except Exception:
                 investigation = {}

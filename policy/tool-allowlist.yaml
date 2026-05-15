@@ -1,0 +1,155 @@
+# Tool Allowlist — 每个 skill / cookbook 允许调用的 tool 白名单
+# Doctrine: docs/governance/AUTHZ-MODEL.md § PEP 落地点
+# Enforce: backend/src/services/governance/tool_scope.py
+# Lint:    scripts/governance-lint.py § validate_tool_scope
+
+schema_version: 1
+
+# 全局工具分级
+tool_categories:
+  read_only:
+    description: 仅读，无任何写 / 网络 / shell 外发
+    tools: [Read, Grep, Glob, http_get_readonly, db_query_readonly]
+    risk: low
+  read_write_local:
+    description: 写本地文件 / 本地数据库
+    tools: [Write, Edit, NotebookEdit, db_write_local, sqlcipher_write]
+    risk: medium
+  network_egress:
+    description: 主动访问公网
+    tools: [WebFetch, http_post, http_get_public]
+    risk: medium
+  external_send:
+    description: 外发动作（消息 / 邮件 / 平台 API 写）
+    tools:
+      - feishu_send
+      - dingtalk_send
+      - wechat_send
+      - email_send
+      - sms_send
+      - amazon_sp_write
+      - shopify_write
+      - linkedin_send
+      - stripe_charge
+      - stripe_refund
+    risk: high
+  shell:
+    description: 任意 shell 命令
+    tools: [Bash]
+    risk: high
+  llm_call:
+    description: 调用 LLM
+    tools: [claude_call, local_llm_call]
+    risk: medium
+
+# ────────────────────────────────────────────────────────────────────
+# Persona × 允许工具类
+# ────────────────────────────────────────────────────────────────────
+persona_defaults:
+  anxin-assistant:
+    allow: [read_only, llm_call]
+  legal-advisor:
+    allow: [read_only, network_egress, llm_call]
+    deny: [external_send, shell]
+  contract-steward:
+    allow: [read_only, read_write_local, llm_call]
+    confirm: [external_send]
+    deny: [shell]
+  dd-expert:
+    allow: [read_only, network_egress, llm_call]
+    confirm: [read_write_local]
+    deny: [external_send, shell]
+  finance-tax-advisor:
+    allow: [read_only, read_write_local, llm_call]
+    confirm: [external_send]
+    deny: [shell]
+  process-steward:
+    allow: [read_only, read_write_local, llm_call]
+    confirm: [external_send]
+    deny: [shell]
+  market-researcher:
+    allow: [read_only, network_egress, llm_call]
+    confirm: [read_write_local]
+    deny: [external_send, shell]
+  lead-hunter:
+    allow: [read_only, network_egress, llm_call]
+    confirm: [external_send, read_write_local]
+    deny: [shell]
+  content-director:
+    allow: [read_only, read_write_local, llm_call, network_egress]
+    confirm: [external_send]
+    deny: [shell]
+  cross-border-ecom:
+    allow: [read_only, network_egress, llm_call]
+    confirm: [external_send, read_write_local]
+    deny: [shell]
+  builder-hub:
+    allow: [read_only, read_write_local, shell]      # 安装时需要 shell
+    confirm: [network_egress]
+    deny: [external_send]
+
+# ────────────────────────────────────────────────────────────────────
+# Per-skill 显式覆盖（覆盖 persona_defaults）
+# ────────────────────────────────────────────────────────────────────
+skill_overrides:
+  "/legal-advisor:cold-start-interview":
+    allow: [read_only, read_write_local, llm_call]   # 写 CLAUDE.md
+  "/contract-steward:cold-start-interview":
+    allow: [read_only, read_write_local, llm_call]
+  "/contract-steward:review":
+    allow: [read_only, llm_call]
+    deny: [read_write_local]                          # 审查只产草稿，不改原合同
+  "/contract-steward:draft":
+    allow: [read_only, read_write_local, llm_call]
+  "/dd-expert:company-dd":
+    allow: [read_only, network_egress, llm_call]
+    explicit_egress_allowlist:
+      - "*.qichacha.com"
+      - "*.tianyancha.com"
+      - "creditchina.gov.cn"
+      - "wenshu.court.gov.cn"
+  "/cross-border-ecom:amazon-listing":
+    allow: [read_only, llm_call]
+    confirm: [external_send]
+    explicit_egress_allowlist:
+      - "sellingpartnerapi-na.amazon.com"
+      - "sellingpartnerapi-eu.amazon.com"
+
+# ────────────────────────────────────────────────────────────────────
+# Cookbook（managed agent）工具白名单
+# ────────────────────────────────────────────────────────────────────
+cookbook_overrides:
+  regulation-monitor:
+    allow: [read_only, network_egress, llm_call]
+    explicit_egress_allowlist:
+      - "www.npc.gov.cn"
+      - "www.gov.cn"
+      - "www.samr.gov.cn"
+    deny: [external_send]      # 草稿不外发；推送动作通过 owner persona inbox 走 confirm
+  contract-renewal-watcher:
+    allow: [read_only, llm_call]
+    confirm: [external_send]   # 外发提醒走 owner persona confirm
+  ar-aging-watcher:
+    allow: [read_only, llm_call]
+    confirm: [external_send]
+  cross-border-pricing-radar:
+    allow: [read_only, network_egress, llm_call]
+    explicit_egress_allowlist:
+      - "sellingpartnerapi-*.amazon.com"
+      - "*.myshopify.com"
+      - "api.ebay.com"
+    confirm: [external_send]   # 自动调价提案 → confirm → 才生效
+
+# ────────────────────────────────────────────────────────────────────
+# 守门：违反时的行为
+# ────────────────────────────────────────────────────────────────────
+violations:
+  unlisted_tool_call:
+    action: DENY
+    audit_event: tool.violation.unlisted
+  unlisted_egress_host:
+    action: DENY
+    audit_event: tool.violation.egress_host
+  trust_untrusted_external_send:
+    action: DENY
+    audit_event: tool.violation.untrusted_send

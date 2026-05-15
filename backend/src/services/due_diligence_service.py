@@ -1018,7 +1018,7 @@ class DueDiligenceService:
     async def _get_basic_info(self, company_name: str) -> dict[str, Any]:
         """获取企业基本信息"""
         # 调用智能体获取信息
-        result = await self.workforce.process_task(
+        result = await self.workforce.process_task_governed(
             task_description=f"""请查询企业"{company_name}"的基本工商信息，包括：
 1. 企业全称和曾用名
 2. 统一社会信用代码
@@ -1048,7 +1048,7 @@ class DueDiligenceService:
 
     async def _get_litigation_info(self, company_name: str) -> dict[str, Any]:
         """获取诉讼信息"""
-        result = await self.workforce.process_task(
+        result = await self.workforce.process_task_governed(
             task_description=f"""请查询企业"{company_name}"的诉讼和法律纠纷信息，包括：
 1. 作为原告的案件数量和类型
 2. 作为被告的案件数量和类型
@@ -1072,7 +1072,7 @@ class DueDiligenceService:
 
     async def _get_credit_info(self, company_name: str) -> dict[str, Any]:
         """获取信用信息"""
-        result = await self.workforce.process_task(
+        result = await self.workforce.process_task_governed(
             task_description=f"""请评估企业"{company_name}"的信用状况，包括：
 1. 行政处罚记录
 2. 税务违规记录
@@ -1097,7 +1097,7 @@ class DueDiligenceService:
 
     async def _assess_risks(self, company_name: str) -> dict[str, Any]:
         """风险评估"""
-        result = await self.workforce.process_task(
+        result = await self.workforce.process_task_governed(
             task_description=f"""请对企业"{company_name}"进行综合法律风险评估：
 1. 经营风险 (0-100分)
 2. 诉讼风险 (0-100分)
@@ -1126,7 +1126,7 @@ class DueDiligenceService:
 
     async def _get_company_relations(self, company_name: str) -> dict[str, Any]:
         """获取企业关联关系"""
-        result = await self.workforce.process_task(
+        result = await self.workforce.process_task_governed(
             task_description=f"""请分析企业"{company_name}"的关联关系：
 1. 股东信息（名称、持股比例、类型）
 2. 对外投资（被投资企业、持股比例）
@@ -1171,7 +1171,7 @@ class DueDiligenceService:
 以JSON格式返回。
 """
 
-        result = await self.workforce.process_task(
+        result = await self.workforce.process_task_governed(
             task_description=summary_prompt,
             task_type="due_diligence",
         )

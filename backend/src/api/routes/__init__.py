@@ -35,6 +35,7 @@ from src.api.routes import (
     feature_flags,
     fetch,
     firm_management,
+    governance,
     harness,
     im,
     im_pairing,
@@ -106,6 +107,7 @@ api_router.include_router(admin.router, tags=["管理后台"])
 api_router.include_router(approvals.router, prefix="/approvals", tags=["审批流"])
 api_router.include_router(agent_approvals.router, prefix="/agent-approvals", tags=["Agent审批治理"])
 api_router.include_router(skill_governance.router, prefix="/skill-governance", tags=["Skill治理"])
+api_router.include_router(governance.router, tags=["治理 Dashboard"])
 api_router.include_router(lawyer_matching.router, tags=["找律师"])
 api_router.include_router(compliance.router, tags=["合规自检"])
 api_router.include_router(anonymous_chat.router, tags=["匿名聊天"])

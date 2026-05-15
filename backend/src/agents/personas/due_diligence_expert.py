@@ -282,7 +282,11 @@ class DueDiligenceExpertPersona(BasePersonaAgent):
                     ]
                 },
             }
-            resp = await agent.process(task)
+            resp = await self._call_specialized_governed(
+                agent, task,
+                action=f"agent.{self.persona_id}.evidence_analyst",
+                classification="L4",   # 尽调含 PII / 工商敏感
+            )
             agent_text = (resp.content or "")[:500]
             if agent_text:
                 inconsistencies.append(f"agent_note:{agent_text[:120]}")
@@ -845,7 +849,11 @@ class DueDiligenceExpertPersona(BasePersonaAgent):
                     "litigation_count": len(litigation_records),
                 },
             }
-            resp = await agent.process(task)
+            resp = await self._call_specialized_governed(
+                agent, task,
+                action=f"agent.{self.persona_id}.dd_summary",
+                classification="L4",
+            )
             summary = (resp.content or "").strip()
             recommendations = self._template_recommendations(
                 credit_flags, litigation_records

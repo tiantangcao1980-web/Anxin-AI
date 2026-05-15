@@ -1,0 +1,39 @@
+{
+  "$schema": "https://anthropic.com/schemas/plugin/v1.json",
+  "name": "market-researcher",
+  "displayName": "📊 市场研究员",
+  "description": "行业 / 竞品 / 趋势 / DeepResearch — 增长获客 域 Persona 插件。",
+  "version": "1.0.0",
+  "author": "Anxin Tech",
+  "license": "Apache-2.0",
+  "language": "zh-CN",
+  "category": "growth",
+  "domain": "增长获客",
+  "requiresColdStart": true,
+  "practiceProfile": "CLAUDE.md",
+  "userInvocableSlash": "/market-researcher:<skill>",
+  "skills": [
+    {
+        "name": "cold-start-interview",
+        "path": "skills/cold-start-interview/SKILL.md"
+    },
+    {
+        "name": "industry-overview",
+        "path": "skills/industry-overview/SKILL.md"
+    },
+    {
+        "name": "competitor-scan",
+        "path": "skills/competitor-scan/SKILL.md"
+    },
+    {
+        "name": "deep-research",
+        "path": "skills/deep-research/SKILL.md"
+    },
+    {
+        "name": "trend-radar",
+        "path": "skills/trend-radar/SKILL.md"
+    }
+],
+  "agents": [],
+  "connectors": ["feishu", "dingtalk", "wechat-work"]
+}

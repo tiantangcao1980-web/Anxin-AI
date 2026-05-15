@@ -276,7 +276,11 @@ class LegalAdvisorPersona(BasePersonaAgent):
         task = {"description": question, "context": ctx}
 
         try:
-            response = await self._get_advisor().process(task)
+            response = await self._call_specialized_governed(
+                self._get_advisor(), task,
+                action=f"agent.{self.persona_id}.consult",
+                classification="L3",
+            )
             answer_text = response.content or ""
         except Exception as exc:
             logger.warning(f"LegalAdvisorPersona.consult: specialized advisor 调用失败: {exc}")
@@ -441,7 +445,11 @@ class LegalAdvisorPersona(BasePersonaAgent):
         task = {"description": scenario, "context": ctx}
 
         try:
-            response = await self._get_risk().process(task)
+            response = await self._call_specialized_governed(
+                self._get_risk(), task,
+                action=f"agent.{self.persona_id}.assess_risk",
+                classification="L3",
+            )
             text = response.content or ""
         except Exception as exc:
             logger.warning(f"LegalAdvisorPersona.assess_risk: specialized risk 调用失败: {exc}")
@@ -544,7 +552,11 @@ class LegalAdvisorPersona(BasePersonaAgent):
         }
 
         try:
-            response = await self._get_compliance().process(task)
+            response = await self._call_specialized_governed(
+                self._get_compliance(), task,
+                action=f"agent.{self.persona_id}.review_compliance",
+                classification="L3",
+            )
             text = response.content or ""
         except Exception as exc:
             logger.warning(f"LegalAdvisorPersona.review_compliance: specialized compliance 调用失败: {exc}")
@@ -637,7 +649,11 @@ class LegalAdvisorPersona(BasePersonaAgent):
         }
 
         try:
-            response = await self._get_monitor().process(task)
+            response = await self._call_specialized_governed(
+                self._get_monitor(), task,
+                action=f"agent.{self.persona_id}.get_regulatory_updates",
+                classification="L1",   # 法规公开信息
+            )
             text = response.content or ""
         except Exception as exc:
             logger.warning(f"LegalAdvisorPersona.get_regulatory_updates: specialized monitor 调用失败: {exc}")

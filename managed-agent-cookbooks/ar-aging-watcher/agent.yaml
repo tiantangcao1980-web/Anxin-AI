@@ -1,0 +1,49 @@
+schema: https://anthropic.com/schemas/managed-agent/v1.json
+name: ar-aging-watcher
+displayName: 应收账款账龄监控
+description: 对接 ERP 抓取 AR 数据，按账龄分级识别催收优先级，自动起草催收函并标记法律风险账款。
+version: 1.0.0
+model: claude-opus-4-7
+trigger:
+  type: schedule
+  cron: 0 9 * * 1-5
+  timezone: Asia/Shanghai
+ownerPersona: finance-tax-advisor
+tools:
+- db_query
+- ar_aging_skill
+- feishu_send
+- email_draft
+humanInLoop: true
+humanGate: '> 90 天账款必须由财务 + 法务双签；考虑诉讼前由法律顾问介入。'
+dataSources:
+- name: ERP AR 明细
+  url: internal://erp/ar
+- name: 客户主数据
+  url: internal://crm/customers
+outputs:
+- type: feishu_card
+  channel: ${FEISHU_CHANNEL_ID}
+- type: knowledge_base_entry
+  namespace: finance-tax-advisor/ar-aging-watcher
+guardrails:
+- draft-only — agent 仅产生草稿，最终签发动作必须人工 confirm
+- source-attribution — 每条结论必须附数据源 URL 或表名 + 抓取时间戳
+- jurisdiction-transparency — 涉及法域时显式声明，跨境必须人工复核
+- no-pii-leak — 个人信息字段在外发前自动脱敏
+governance:
+  authz:
+    required_scopes:
+    - cookbook.ar-aging-watcher.run
+    - data.ar.read
+    - data.ar.write
+    trust_level: verified
+  dataClassification: L3
+  jurisdiction: CN
+  pii:
+    handling: mask-before-llm
+    double_check_on_send: true
+  audit:
+    level: high
+    retention_years: 10
+  egress_allowlist: []

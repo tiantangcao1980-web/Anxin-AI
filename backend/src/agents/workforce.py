@@ -254,6 +254,137 @@ class LegalWorkforce:
 
         logger.info(f"法务智能体团队初始化完成，共 {len(self.agents)} 个专业智能体")
 
+    async def process_task_governed(
+        self,
+        task_description: str,
+        *,
+        subject: dict[str, Any] | None = None,
+        action: str = "agent.workforce.process_task",
+        resource_classification: str = "L3",
+        resource_jurisdiction: str = "CN",
+        # 透传给 process_task 的全部参数
+        task_type: str | None = None,
+        context: dict[str, Any] | None = None,
+        session_id: str | None = None,
+        progress_callback: "WsCallback | None" = None,
+        ws_callback: "WsCallback | None" = None,
+    ) -> dict[str, Any]:
+        """治理包裹版 process_task —— DAG 编排入口的统一守门。
+
+        - ``subject=None`` → 完全跳过 PDP / 审计（行为同 ``process_task``）
+        - PDP DENY        → 抛 ``PermissionError``
+        - PDP STEP_UP     → 抛 ``PermissionError``（前端引导 MFA 重认证）
+        - PDP CONFIRM     → 正常跑 process_task；返回 dict 增加
+                              ``governance.require_confirm=True`` 标记；调用方应据此
+                              把结果当作 draft（不直接外发）
+        - PDP ALLOW       → 正常跑；返回 dict 增加 ``governance.authz_decision=ALLOW``
+
+        所有路径都写 ``workforce.execute`` 审计事件（成功 / 失败 / 时长）。
+
+        Subject 字段约定：
+          ``{"id", "role", "tenant_id", "clearance", "primary_jurisdiction",
+             "mfa_recent"?, "device_trust"?, "amount_cny"?}``
+        """
+        # 没传 subject — 透传到原 process_task（向后兼容）
+        if subject is None:
+            return await self.process_task(
+                task_description,
+                task_type=task_type, context=context, session_id=session_id,
+                progress_callback=progress_callback, ws_callback=ws_callback,
+            )
+
+        try:
+            from src.services.governance import audit as _audit
+            from src.services.governance.authz import Decision, decide
+        except ImportError:
+            return await self.process_task(
+                task_description,
+                task_type=task_type, context=context, session_id=session_id,
+                progress_callback=progress_callback, ws_callback=ws_callback,
+            )
+
+        resource = {
+            "type": "agent_dag",
+            "id": "workforce",
+            "classification": resource_classification,
+            "jurisdiction": resource_jurisdiction,
+        }
+        pdp_ctx = {
+            "trace_id": session_id,
+            "mfa_recent": bool(subject.get("mfa_recent")),
+            "device_trust": subject.get("device_trust", "managed"),
+            "business_hours": True,
+            "amount_cny": int(subject.get("amount_cny") or 0),
+        }
+        pdp_res = decide(subject=subject, action=action, resource=resource, context=pdp_ctx)
+        _audit.write_event({
+            "event_type": "authz.decide",
+            "actor": subject,
+            "action": action,
+            "resource": resource,
+            "decision": pdp_res.decision.value,
+            "decision_reasons": pdp_res.reasons,
+            "policy_snapshot_id": pdp_res.policy_snapshot_id,
+            "phase": "workforce_pre",
+            "trace_id": session_id,
+        })
+
+        if pdp_res.decision == Decision.DENY:
+            _audit.write_event({
+                "event_type": "workforce.execute",
+                "actor": subject, "action": action, "resource": resource,
+                "decision": "DENY", "outcome": "denied",
+                "trace_id": session_id,
+            })
+            raise PermissionError(f"workforce.process_task denied: {pdp_res.reasons}")
+        if pdp_res.decision == Decision.REQUIRE_STEP_UP:
+            _audit.write_event({
+                "event_type": "workforce.execute",
+                "actor": subject, "action": action, "resource": resource,
+                "decision": "REQUIRE_STEP_UP", "outcome": "step_up_required",
+                "trace_id": session_id,
+            })
+            raise PermissionError(f"workforce.process_task requires step-up: {pdp_res.reasons}")
+
+        # 跑真业务
+        started = time.time()
+        try:
+            result = await self.process_task(
+                task_description,
+                task_type=task_type, context=context, session_id=session_id,
+                progress_callback=progress_callback, ws_callback=ws_callback,
+            )
+            duration_ms = int((time.time() - started) * 1000)
+            # 注入治理元信息（前端 / 上层可识别）
+            if isinstance(result, dict):
+                result.setdefault("governance", {}).update({
+                    "authz_decision": pdp_res.decision.value,
+                    "policy_snapshot_id": pdp_res.policy_snapshot_id,
+                    "require_confirm": pdp_res.decision == Decision.REQUIRE_CONFIRM,
+                })
+            _audit.write_event({
+                "event_type": "workforce.execute",
+                "actor": subject, "action": action, "resource": resource,
+                "decision": pdp_res.decision.value,
+                "outcome": "draft-staged" if pdp_res.decision == Decision.REQUIRE_CONFIRM else "success",
+                "duration_ms": duration_ms,
+                "trace_id": session_id,
+                "policy_snapshot_id": pdp_res.policy_snapshot_id,
+            })
+            return result
+        except Exception as e:  # noqa: BLE001
+            duration_ms = int((time.time() - started) * 1000)
+            _audit.write_event({
+                "event_type": "workforce.execute",
+                "actor": subject, "action": action, "resource": resource,
+                "decision": pdp_res.decision.value,
+                "outcome": "failure",
+                "duration_ms": duration_ms,
+                "error": repr(e)[:500],
+                "trace_id": session_id,
+            })
+            raise
+
     async def process_task(
         self,
         task_description: str,

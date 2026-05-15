@@ -153,6 +153,59 @@ class BasePersonaAgent(BaseLegalAgent):
         # 退回 BaseLegalAgent.chat（真生产 LLM）
         return await self.chat(message=user)
 
+    async def _call_specialized_governed(
+        self,
+        agent: "BaseLegalAgent",
+        task: Dict[str, Any],
+        *,
+        action: str,
+        classification: str = "L3",
+        jurisdiction: str = "CN",
+    ) -> "AgentResponse":
+        """统一调用底层 specialized agent — 自动走治理 PDP + 审计。
+
+        从 task["context"] 提取 ``user_id / role / tenant_id / clearance / primary_jurisdiction``
+        构造 PDP subject；缺字段时降级为 ``subject=None``（行为同直接 .process()）。
+
+        - action: 如 ``"agent.legal_advisor.consult"``
+        - classification: 资源数据分级（L1..L5）
+        - jurisdiction: 资源法域
+
+        子类调用示例::
+
+            response = await self._call_specialized_governed(
+                self._get_advisor(), task,
+                action=f"agent.{self.persona_id}.consult",
+            )
+        """
+        ctx = (task.get("context") or {}) if isinstance(task, dict) else {}
+        if not ctx.get("user_id"):
+            # 缺关键 subject 字段 → 不强加治理（向后兼容）
+            return await agent.process(task)
+
+        subject = {
+            "id": str(ctx.get("user_id")),
+            "role": ctx.get("role") or "viewer",
+            "tenant_id": str(ctx.get("tenant_id") or ctx.get("org_id") or "unknown"),
+            "clearance": ctx.get("clearance") or "L3",
+            "primary_jurisdiction": ctx.get("primary_jurisdiction") or "CN",
+        }
+        resource = {
+            "type": "agent",
+            "id": type(agent).__name__,
+            "classification": classification,
+            "jurisdiction": jurisdiction,
+            "version": getattr(agent.config if hasattr(agent, "config") else None, "name", "0.0.0"),
+        }
+        context_extra = {
+            "trace_id": ctx.get("trace_id") or ctx.get("request_id"),
+            "mfa_recent": bool(ctx.get("mfa_recent")),
+        }
+        return await agent.process_governed(
+            task, subject=subject, action=action,
+            resource=resource, context=context_extra,
+        )
+
     async def _llm(self, prompt: str, system: Optional[str] = None) -> str:
         """`llm_client.complete(prompt, system=...)` 风格的兼容入口。
 
