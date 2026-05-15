@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """rag_ingest 路由（P13-A 多模态文档解析）。
 
 挂载点（``api/routes/__init__.py`` 用 ``prefix="/rag/ingest"`` 注册）::
@@ -21,7 +20,7 @@ from __future__ import annotations
 import asyncio
 import tempfile
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -38,7 +37,6 @@ from src.services.rag.ingest.multimodal import (
     IngestResult,
     MinerUIngestor,
 )
-
 
 router = APIRouter()
 
@@ -75,7 +73,7 @@ class _TaskRecord:
         self.status: IngestTaskStatus = IngestTaskStatus.PENDING
         self.file_name = file_name
         self.doc_type = doc_type
-        self.created_at = datetime.now(timezone.utc)
+        self.created_at = datetime.now(UTC)
         self.finished_at: datetime | None = None
         self.result: IngestResult | None = None
         self.error: str | None = None
@@ -150,7 +148,7 @@ async def _run_ingest(task_id: str, file_path: Path, doc_type: str) -> None:
         record.error = f"{type(exc).__name__}: {exc}"
         record.status = IngestTaskStatus.FAILED
     finally:
-        record.finished_at = datetime.now(timezone.utc)
+        record.finished_at = datetime.now(UTC)
         # 清理临时文件
         try:
             if file_path.exists():

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 抓取审计日志 — 90 天保留，独立于业务 audit_service。
 
@@ -12,9 +11,9 @@ from __future__ import annotations
 
 import asyncio
 from collections import deque
+from collections.abc import Awaitable, Callable
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import Awaitable, Callable
+from datetime import UTC, datetime, timedelta
 
 from src.services.fetch.models import FetchTier
 
@@ -79,7 +78,7 @@ class AuditLogger:
 
     def _evict_expired_locked(self) -> None:
         """删除超过 retention 的旧记录（已持锁）。"""
-        cutoff = datetime.now(timezone.utc) - self._retention
+        cutoff = datetime.now(UTC) - self._retention
         while self._buffer and self._buffer[0].request_ts < cutoff:
             self._buffer.popleft()
 

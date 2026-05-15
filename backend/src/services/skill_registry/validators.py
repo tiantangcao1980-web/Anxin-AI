@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 SkillRegistry 静态校验器
 
@@ -15,7 +14,6 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from src.services.skill_registry.models import Skill
-
 
 REQUIRED_FIELDS: tuple[str, ...] = ("name", "description")
 
@@ -88,7 +86,7 @@ def validate_all(skills: Iterable[Skill]) -> list[str]:
     # 4. 循环依赖（白/灰/黑三色 DFS）
     by_name = {s.name: s for s in items if s.name}
     WHITE, GRAY, BLACK = 0, 1, 2
-    color: dict[str, int] = {n: WHITE for n in by_name}
+    color: dict[str, int] = dict.fromkeys(by_name, WHITE)
     cycles: list[list[str]] = []
 
     def dfs(node: str, path: list[str]) -> None:

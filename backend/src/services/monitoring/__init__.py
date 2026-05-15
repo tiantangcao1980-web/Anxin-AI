@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 P19-A 后端可观测层入口
 
@@ -20,27 +19,27 @@ P19-A 后端可观测层入口
     )
 """
 
-from .sentry_setup import setup_sentry, sanitize_event
+from .error_classifier import ErrorClassifier, classify_error
+from .health_check import ComponentStatus, HealthChecker
 from .prometheus_metrics import (
+    AGENT_TASK_DURATION_SECONDS,
+    AGENT_TASKS_TOTAL,
+    DB_QUERY_DURATION_SECONDS,
+    FETCH_REQUESTS_TOTAL,
+    HTTP_REQUEST_DURATION_SECONDS,
+    HTTP_REQUESTS_TOTAL,
+    OAUTH_CALLBACK_TOTAL,
     REGISTRY,
-    record_http_request,
+    WEBHOOK_RECEIVED_TOTAL,
     record_agent_task,
+    record_db_query,
+    record_fetch_request,
+    record_http_request,
     record_oauth_callback,
     record_webhook,
-    record_fetch_request,
-    record_db_query,
-    HTTP_REQUESTS_TOTAL,
-    HTTP_REQUEST_DURATION_SECONDS,
-    AGENT_TASKS_TOTAL,
-    AGENT_TASK_DURATION_SECONDS,
-    OAUTH_CALLBACK_TOTAL,
-    WEBHOOK_RECEIVED_TOTAL,
-    FETCH_REQUESTS_TOTAL,
-    DB_QUERY_DURATION_SECONDS,
 )
-from .health_check import HealthChecker, ComponentStatus
-from .error_classifier import ErrorClassifier, classify_error
-from .slo_definitions import SLO_MATRIX, SLO
+from .sentry_setup import sanitize_event, setup_sentry
+from .slo_definitions import SLO, SLO_MATRIX
 
 __all__ = [
     "setup_sentry",

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 L1 纯 HTTP 抓取 — httpx + selectolax / lxml。
 

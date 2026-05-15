@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """ContentDirector persona —— 数据类。
 
 放在独立模块里，方便：
@@ -11,7 +10,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any
-
 
 # ---------------------------------------------------------------------------
 # 品牌档案

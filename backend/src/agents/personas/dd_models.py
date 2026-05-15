@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """尽调专家（due_diligence_expert）persona 的数据模型。
 
 设计原则：
@@ -16,7 +15,6 @@ from datetime import date, datetime
 from typing import Any
 
 from src.agents.personas.research_models import Citation
-
 
 # ---------------------------------------------------------------------------
 # 公司基础工商信息

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 安心智能助手 - 健康检查端点（P19-A 重构）
 
@@ -13,8 +12,8 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
-from typing import Any, Dict
+from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,7 +28,7 @@ _start_time = time.time()
 
 
 @router.get("/health", tags=["健康检查"])
-async def liveness() -> Dict[str, Any]:
+async def liveness() -> dict[str, Any]:
     """Liveness probe — 进程是否活着。
 
     不检查任何外部依赖。K8s liveness probe 应配置此端点：依赖故障不应触发
@@ -38,12 +37,12 @@ async def liveness() -> Dict[str, Any]:
     return {
         "status": "alive",
         "uptime_seconds": int(time.time() - _start_time),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
 @router.get("/health/ready", tags=["健康检查"])
-async def readiness(db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
+async def readiness(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """Readiness probe — 5 端组件就绪检查。
 
     返回:
@@ -65,7 +64,7 @@ async def readiness(db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
 async def detailed_health(
     db: AsyncSession = Depends(get_db),
     x_metrics_token: str = Header(default="", alias="X-Metrics-Token"),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """详细组件健康检查（admin only）。
 
     鉴权：X-Metrics-Token header 必须等于 settings.METRICS_AUTH_TOKEN。

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 BasePersonaAgent —— V3 user-facing persona 抽象基类
 
@@ -16,8 +15,9 @@ PersonaRegistry 在自动加载时只需要 import 子类模块，子类即注�
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -36,13 +36,13 @@ class PersonaInfo:
     display_name: str
     emoji: str
     description: str
-    capabilities: List[str] = field(default_factory=list)
-    backed_by_skills: List[str] = field(default_factory=list)
-    supported_apps: List[str] = field(default_factory=list)
-    backed_by_agents: List[str] = field(default_factory=list)
+    capabilities: list[str] = field(default_factory=list)
+    backed_by_skills: list[str] = field(default_factory=list)
+    supported_apps: list[str] = field(default_factory=list)
+    backed_by_agents: list[str] = field(default_factory=list)
     enabled: bool = True
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "persona_id": self.persona_id,
             "display_name": self.display_name,
@@ -83,17 +83,17 @@ class BasePersonaAgent(BaseLegalAgent):
     SYSTEM_PROMPT: str = ""
 
     # ----- 子类可选覆盖 -----
-    backed_by_skills: List[str] = []
-    supported_apps: List[str] = []
-    capabilities: List[str] = []
-    backed_by_agents: List[str] = []
+    backed_by_skills: list[str] = []
+    supported_apps: list[str] = []
+    capabilities: list[str] = []
+    backed_by_agents: list[str] = []
     enabled: bool = True
 
     def __init__(
         self,
         *,
         llm_client: Any | None = None,
-        llm_callable: Optional[Callable[..., Any]] = None,
+        llm_callable: Callable[..., Any] | None = None,
         skill_executor: Any | None = None,
         fetch_service: Any | None = None,
         kb_search: Any | None = None,
@@ -153,7 +153,7 @@ class BasePersonaAgent(BaseLegalAgent):
         # 退回 BaseLegalAgent.chat（真生产 LLM）
         return await self.chat(message=user)
 
-    async def _llm(self, prompt: str, system: Optional[str] = None) -> str:
+    async def _llm(self, prompt: str, system: str | None = None) -> str:
         """`llm_client.complete(prompt, system=...)` 风格的兼容入口。
 
         ContentDirectorAgent 等 persona 习惯用 ``self._llm(prompt, system=...)``，
@@ -194,7 +194,7 @@ class BasePersonaAgent(BaseLegalAgent):
         )
 
     @classmethod
-    def manifest(cls) -> Dict[str, Any]:
+    def manifest(cls) -> dict[str, Any]:
         """V3 merge: 持久化用的 persona manifest（dict 形式，兼容 V3 测试契约）。"""
         return {
             "persona_id": cls.persona_id,
@@ -211,7 +211,7 @@ class BasePersonaAgent(BaseLegalAgent):
     # ------------------------------------------------------------------
     # 兼容 specialized agent 的 process() 接口（由 coordinator 调用）
     # ------------------------------------------------------------------
-    async def process(self, task: Dict[str, Any]) -> AgentResponse:
+    async def process(self, task: dict[str, Any]) -> AgentResponse:
         """适配 `BaseLegalAgent.process()`，让 persona 也可以被 coordinator 编排。"""
         message = task.get("description") or task.get("message") or ""
         context = task.get("context") or {}
@@ -241,10 +241,10 @@ class BasePersonaAgent(BaseLegalAgent):
     async def handle_message(
         self,
         message: str,
-        user_id: Optional[str] = None,
-        llm_config: Optional[Any] = None,
-        history: Optional[List[Dict[str, Any]]] = None,
-        extra: Optional[Dict[str, Any]] = None,
+        user_id: str | None = None,
+        llm_config: Any | None = None,
+        history: list[dict[str, Any]] | None = None,
+        extra: dict[str, Any] | None = None,
     ) -> str:
         """处理用户消息（默认：直接走 chat）。
 

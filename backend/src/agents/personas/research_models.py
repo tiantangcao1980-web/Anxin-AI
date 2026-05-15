@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """市场研究员（P7-B）输出物的统一数据模型。
 
 设计原则：
@@ -16,7 +15,6 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 from uuid import uuid4
-
 
 # ---------------------------------------------------------------------------
 # 引文

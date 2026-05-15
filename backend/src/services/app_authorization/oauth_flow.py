@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 OAuthFlowService — 通用 OAuth 2.0 授权码流程编排（P4-A）
 
@@ -26,7 +25,7 @@ state 缓存策略
 from __future__ import annotations
 
 import secrets
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -285,7 +284,7 @@ class OAuthFlowService:
 
         auth.status = AppAuthorizationStatus.CONNECTED
         auth.error_message = None
-        auth.last_refresh_at = datetime.now(timezone.utc)
+        auth.last_refresh_at = datetime.now(UTC)
         if bundle.scopes:
             auth.scopes = bundle.scopes
 
@@ -378,7 +377,7 @@ class OAuthFlowService:
         result = await self.db.execute(stmt)
         auth = result.scalar_one_or_none()
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         if auth is None:
             auth = AppAuthorization(

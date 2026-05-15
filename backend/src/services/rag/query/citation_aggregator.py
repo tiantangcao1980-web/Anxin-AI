@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """引文聚合器（DeepTutor 风格）。
 
 把 :class:`RetrievedSegment` 转成结构化、可点击跳转的引文：
@@ -14,7 +13,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from src.services.rag.query.base import Modality, RetrievedSegment

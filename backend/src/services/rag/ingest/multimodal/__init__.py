@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """多模态文档解析（P13-A）。
 
 借鉴 HKUDS/RAG-Anything 的 MinerU + 模态路由分流设计：

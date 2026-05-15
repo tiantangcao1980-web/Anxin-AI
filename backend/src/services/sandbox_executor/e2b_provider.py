@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 sandbox_executor.e2b_provider —— E2B 云沙箱 Provider（占位）
 
@@ -19,7 +18,8 @@ E2B (https://e2b.dev) 是托管的 LLM-friendly 代码执行沙箱：
 
 from __future__ import annotations
 
-from typing import AsyncIterator, ClassVar, Optional
+from collections.abc import AsyncIterator
+from typing import ClassVar
 
 from src.services.sandbox_executor.base import BaseSandboxProvider
 from src.services.sandbox_executor.models import ExecResult, Sandbox, SandboxSpec
@@ -37,8 +37,8 @@ class E2BProvider(BaseSandboxProvider):
         self,
         sandbox: Sandbox,
         cmd: list[str],
-        stdin: Optional[bytes] = None,
-        timeout_sec: Optional[int] = None,
+        stdin: bytes | None = None,
+        timeout_sec: int | None = None,
     ) -> ExecResult:
         raise NotImplementedError("E2BProvider.exec: 后续按需实装")
 

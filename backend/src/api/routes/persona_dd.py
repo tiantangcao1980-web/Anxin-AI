@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """persona_dd 路由 — P9-D 尽调专家 persona 对外 API。
 
 挂载点（在 ``api/routes/__init__.py`` 用 ``prefix="/personas/dd"`` 注册）::
@@ -21,7 +20,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -42,8 +40,8 @@ from src.api.routes.schemas.persona_dd import (
     EvidenceAnalysisOut,
     GradeRiskIn,
     InvestigateCompanyIn,
-    LitigationRecordOut,
     ListReportsOut,
+    LitigationRecordOut,
     MonitorSentimentIn,
     RelationshipEdgeOut,
     RelationshipGraphIn,

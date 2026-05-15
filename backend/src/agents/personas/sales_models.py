@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """获客猎手 (lead_hunter) Persona 的数据模型。
 
 仅 dataclass，不依赖任何 ORM / FastAPI / 持久层。后端 service 会把这些
@@ -10,7 +9,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
-
 
 # ---------------------------------------------------------------------------
 # Lead 发掘

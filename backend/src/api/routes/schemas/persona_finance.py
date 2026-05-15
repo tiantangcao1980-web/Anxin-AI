@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """财税顾问 persona 路由 Pydantic schemas（P9-E）。
 
 与 ``src/agents/personas/finance_models.py`` 中的 dataclass 一一对应；
@@ -6,8 +5,6 @@
 """
 
 from __future__ import annotations
-
-from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 

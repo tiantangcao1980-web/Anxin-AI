@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 PairingService —— IM 配对授权业务门面（P3-B）
 
@@ -20,7 +19,7 @@ PairingService —— IM 配对授权业务门面（P3-B）
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from loguru import logger
@@ -32,7 +31,6 @@ from src.services.im_gateway.models import (
     PairingRequest,
     PairingStatus,
 )
-
 
 # 24 小时配对窗口（业务规则）
 PAIRING_WINDOW = timedelta(hours=24)
@@ -80,7 +78,7 @@ class PairingService:
         返回：
             刚 flush 的 ``PairingRequest`` 实例（含 ``id`` / ``expires_at``）。
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         request = PairingRequest(
             channel_id=channel_id,
             external_user_id=external_user_id,
@@ -122,7 +120,7 @@ class PairingService:
         elif request.status != PairingStatus.PENDING:
             raise PairingNotPendingError(request.status)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if self._is_expired(request, now):
             request.status = PairingStatus.EXPIRED
             await self.session.flush()
@@ -202,7 +200,7 @@ class PairingService:
         limit: int = 50,
     ) -> list[PairingRequest]:
         """列出未处理且未过期的 PENDING 请求（按 created_at 倒序）。"""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         stmt = (
             select(PairingRequest)
             .where(PairingRequest.status == PairingStatus.PENDING)
@@ -235,7 +233,7 @@ class PairingService:
 
         返回更新的行数。供 Celery beat 周期任务调用。
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         stmt = (
             update(PairingRequest)
             .where(PairingRequest.status == PairingStatus.PENDING)
@@ -281,7 +279,7 @@ class PairingService:
         # PostgreSQL 返回 tz-aware；SQLite 测试可能返回 naive，统一兼容
         expires_at = request.expires_at
         if expires_at.tzinfo is None:
-            expires_at = expires_at.replace(tzinfo=timezone.utc)
+            expires_at = expires_at.replace(tzinfo=UTC)
         return expires_at < now
 
     async def _send_approval_receipt(

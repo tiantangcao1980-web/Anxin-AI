@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """跨境电商助手 persona（P7-E）。
 
 定位：制造业出海全链路智能体 —— 从「想做出海」到「第一笔订单回款」之间的
@@ -29,7 +28,6 @@ from src.agents.personas.ecommerce_models import (
     SupplierVerification,
     VATGuidance,
 )
-
 
 # ---------------------------------------------------------------------------
 # 议价策略常量（暴露在模块级，方便测试 import 调阈值）

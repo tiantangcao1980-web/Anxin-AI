@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """rag_ingest 路由 Pydantic schemas（P13-A）。"""
 
 from __future__ import annotations

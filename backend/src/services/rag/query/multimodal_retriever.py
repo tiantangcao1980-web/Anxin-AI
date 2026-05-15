@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """多模态检索器。
 
 流程（参考 RAG-Anything 的 Multimodal Retrieval）：

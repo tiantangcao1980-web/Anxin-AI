@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """跨境电商助手 — 数据模型（P7-E）。
 
 本模块定义了 ``EcommerceAssistantAgent`` 在 6 大能力（选品 / 验商 / 议价 /

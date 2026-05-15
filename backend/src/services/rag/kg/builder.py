@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 :class:`LegalKGBuilder` —— 法律领域 KG 构建 orchestration
 
@@ -19,7 +18,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from loguru import logger
 

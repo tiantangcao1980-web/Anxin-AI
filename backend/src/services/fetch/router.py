@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 URL → FetchTier 路由 — FetchService 的「调度脑」。
 

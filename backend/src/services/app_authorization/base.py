@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 OAuth Provider 抽象基类（P4-A）
 
@@ -20,7 +19,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, ClassVar
 
 
@@ -103,7 +102,7 @@ class OAuthTokenBundle:
         # 1) expires_in → expires_at（仅当未显式传 expires_at 时折算）
         if self.expires_at is None and self.expires_in is not None:
             try:
-                self.expires_at = datetime.now(timezone.utc) + timedelta(
+                self.expires_at = datetime.now(UTC) + timedelta(
                     seconds=int(self.expires_in)
                 )
             except (TypeError, ValueError):

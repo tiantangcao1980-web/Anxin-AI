@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 SLO 定义（P19-A）
 
@@ -17,8 +16,7 @@ SLO 定义（P19-A）
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, asdict
-from typing import Dict, List
+from dataclasses import asdict, dataclass
 
 
 @dataclass(frozen=True)
@@ -34,7 +32,7 @@ class SLO:
     fast_burn_alert_hours: float = 1.0  # fast burn 告警窗口（消耗 2% 预算/h 触发）
     slow_burn_alert_hours: float = 6.0  # slow burn 告警窗口（消耗 5% 预算/6h 触发）
 
-    def to_dict(self) -> Dict[str, object]:
+    def to_dict(self) -> dict[str, object]:
         return asdict(self)
 
     def error_budget_per_window(self, total_requests: int) -> float:
@@ -95,11 +93,11 @@ SLO_OAUTH = SLO(
 
 
 # ===== 汇总（导入入口） =====
-SLO_LIST: List[SLO] = [SLO_AUTH, SLO_CHAT, SLO_TASKS, SLO_FETCH, SLO_OAUTH]
-SLO_MATRIX: Dict[str, SLO] = {s.name: s for s in SLO_LIST}
+SLO_LIST: list[SLO] = [SLO_AUTH, SLO_CHAT, SLO_TASKS, SLO_FETCH, SLO_OAUTH]
+SLO_MATRIX: dict[str, SLO] = {s.name: s for s in SLO_LIST}
 
 
-def list_slos() -> List[Dict[str, object]]:
+def list_slos() -> list[dict[str, object]]:
     """返回所有 SLO 的字典形态（admin dashboard 用）。"""
     return [s.to_dict() for s in SLO_LIST]
 

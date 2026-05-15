@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 HeadlessXClient — 反检测抓取服务的 Python HTTP 客户端。
 
@@ -11,8 +10,7 @@ from __future__ import annotations
 import base64
 import logging
 import time
-from contextlib import asynccontextmanager
-from typing import Any, AsyncIterator
+from typing import Any
 
 import httpx
 
@@ -73,7 +71,7 @@ class HeadlessXClient:
             await self._client.aclose()
             self._client = None
 
-    async def __aenter__(self) -> "HeadlessXClient":
+    async def __aenter__(self) -> HeadlessXClient:
         await self._get_client()
         return self
 

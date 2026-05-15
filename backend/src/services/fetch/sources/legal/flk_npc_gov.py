@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """国家法律法规数据库（flk.npc.gov.cn）数据源。
 
 公开站点，提供宪法/法律/行政法规/部门规章/地方法规等的检索 API。
@@ -14,9 +13,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Any, Awaitable, Callable, ClassVar, Optional
+from typing import Any, ClassVar
 from urllib.parse import urljoin
 from urllib.robotparser import RobotFileParser
 
@@ -95,8 +95,8 @@ class FlkNpcGovSource(BaseLegalSource):
 
     def __init__(
         self,
-        client: Optional[httpx.AsyncClient] = None,
-        rate_limiter: Optional[Callable[[], Awaitable[None]]] = None,
+        client: httpx.AsyncClient | None = None,
+        rate_limiter: Callable[[], Awaitable[None]] | None = None,
         timeout: float = 15.0,
     ) -> None:
         self._client = client
@@ -208,7 +208,7 @@ class FlkNpcGovSource(BaseLegalSource):
         return params
 
     @staticmethod
-    def _map_law_type(law_type: Optional[str]) -> str:
+    def _map_law_type(law_type: str | None) -> str:
         # 站点 type 取值: flfg=法律法规, xzfg=行政法规, sfjs=司法解释, ...
         mapping = {
             LawType.LAW.value: "flfg",
@@ -254,7 +254,7 @@ class FlkNpcGovSource(BaseLegalSource):
         return results
 
 
-def _parse_date(value: Any) -> Optional[date]:
+def _parse_date(value: Any) -> date | None:
     if not value:
         return None
     if isinstance(value, date):

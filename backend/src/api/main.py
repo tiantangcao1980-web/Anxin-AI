@@ -155,6 +155,7 @@ if settings.ANTIBOT_ENABLED:
 
 # ===== P19-A 可观测中间件（最先注册 → 最先执行 → 包住其他所有 middleware） =====
 from src.middleware.observability import ObservabilityMiddleware
+
 app.add_middleware(ObservabilityMiddleware)
 
 

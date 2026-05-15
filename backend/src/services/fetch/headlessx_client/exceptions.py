@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 HeadlessX 客户端异常类型
 

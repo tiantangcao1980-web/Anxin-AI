@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 抓取域名白名单 — 默认开放给 FetchService 的可信源。
 

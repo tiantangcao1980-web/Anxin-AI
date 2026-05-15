@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """飞书（Lark）OAuth 2.0 Provider — P4-B 真实现。
 
 实装了 ``BaseOAuthProvider`` 的 5 个方法，用于「安心智能助手」V3 中

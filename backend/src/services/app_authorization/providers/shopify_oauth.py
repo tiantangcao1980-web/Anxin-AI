@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Shopify OAuth 2.0 Provider（P4-E）。
 
 参考文档：
@@ -35,13 +34,12 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 from urllib.parse import urlencode
 
 import httpx
 from loguru import logger
-
 
 # ---------------------------------------------------------------------------
 # Base 类导入：优先用 P4-A 框架，缺失时本地 fallback
@@ -60,9 +58,9 @@ except ImportError:  # pragma: no cover - 测试 / 框架未合入时使用 fall
         """
 
         access_token: str
-        refresh_token: Optional[str] = None
-        expires_at: Optional[datetime] = None
-        scope: Optional[str] = None
+        refresh_token: str | None = None
+        expires_at: datetime | None = None
+        scope: str | None = None
         token_type: str = "Bearer"
         raw: dict[str, Any] = field(default_factory=dict)
 
@@ -85,7 +83,7 @@ except ImportError:  # pragma: no cover - 测试 / 框架未合入时使用 fall
             client_id: str,
             client_secret: str,
             redirect_uri: str,
-            http_client: Optional[httpx.AsyncClient] = None,
+            http_client: httpx.AsyncClient | None = None,
         ) -> None:
             self.client_id = client_id
             self.client_secret = client_secret
@@ -157,11 +155,11 @@ class ShopifyOAuthProvider(BaseOAuthProvider):
     def __init__(
         self,
         *,
-        client_id: Optional[str] = None,
-        client_secret: Optional[str] = None,
-        redirect_uri: Optional[str] = None,
-        http_client: Optional[httpx.AsyncClient] = None,
-        redis_client: Optional[Any] = None,
+        client_id: str | None = None,
+        client_secret: str | None = None,
+        redirect_uri: str | None = None,
+        http_client: httpx.AsyncClient | None = None,
+        redis_client: Any | None = None,
         api_version: str = DEFAULT_API_VERSION,
         **kwargs: Any,
     ) -> None:
@@ -216,9 +214,9 @@ class ShopifyOAuthProvider(BaseOAuthProvider):
         self,
         state: str,
         *,
-        scopes: Optional[list[str]] = None,
-        extra_params: Optional[dict[str, str]] = None,
-        shop: Optional[str] = None,
+        scopes: list[str] | None = None,
+        extra_params: dict[str, str] | None = None,
+        shop: str | None = None,
         **_kwargs: Any,
     ) -> str:
         """生成 Shopify 授权页 URL。
@@ -253,8 +251,8 @@ class ShopifyOAuthProvider(BaseOAuthProvider):
         self,
         code: str,
         *,
-        state: Optional[str] = None,  # noqa: ARG002 — 兼容签名
-        shop: Optional[str] = None,
+        state: str | None = None,  # noqa: ARG002 — 兼容签名
+        shop: str | None = None,
         **_kwargs: Any,
     ) -> OAuthTokenBundle:
         """用授权码换 access_token。
@@ -294,7 +292,7 @@ class ShopifyOAuthProvider(BaseOAuthProvider):
         self,
         access_token: str,
         *,
-        shop: Optional[str] = None,
+        shop: str | None = None,
         **_kwargs: Any,
     ) -> None:
         """撤销 Shopify access_token。
@@ -326,7 +324,7 @@ class ShopifyOAuthProvider(BaseOAuthProvider):
         self,
         access_token: str,
         *,
-        shop: Optional[str] = None,
+        shop: str | None = None,
         **_kwargs: Any,
     ) -> dict[str, Any]:
         """拉取当前店铺元数据（name / email / country / timezone / currency）。
@@ -379,7 +377,7 @@ class ShopifyOAuthProvider(BaseOAuthProvider):
 
         # ----- 抽出受保护的 hmac 值，并归一化 dict（list -> str） -----
         normalized: dict[str, str] = {}
-        provided_hmac: Optional[str] = None
+        provided_hmac: str | None = None
         for key, value in query_dict.items():
             v = value[0] if isinstance(value, (list, tuple)) else value
             if v is None:
@@ -481,9 +479,9 @@ class ShopifyOAuthProvider(BaseOAuthProvider):
             raise ValueError(f"Shopify 返回缺少 access_token 字段: {data}")
 
         expire_in = data.get("expires_in")
-        expires_at: Optional[datetime] = None
+        expires_at: datetime | None = None
         if isinstance(expire_in, (int, float)):
-            expires_at = datetime.now(timezone.utc) + timedelta(
+            expires_at = datetime.now(UTC) + timedelta(
                 seconds=int(expire_in) - 60  # 提前 60s 视为过期
             )
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 sandbox_executor.docker_provider —— DockerProvider（P5/P6 实装占位）
 
@@ -21,7 +20,8 @@ P3 阶段先确定接口形状，P5 真正接入 task_orchestrator 时再实装�
 
 from __future__ import annotations
 
-from typing import AsyncIterator, ClassVar, Optional
+from collections.abc import AsyncIterator
+from typing import ClassVar
 
 from src.services.sandbox_executor.base import BaseSandboxProvider
 from src.services.sandbox_executor.models import ExecResult, Sandbox, SandboxSpec
@@ -40,8 +40,8 @@ class DockerProvider(BaseSandboxProvider):
         self,
         sandbox: Sandbox,
         cmd: list[str],
-        stdin: Optional[bytes] = None,
-        timeout_sec: Optional[int] = None,
+        stdin: bytes | None = None,
+        timeout_sec: int | None = None,
     ) -> ExecResult:
         """P5/P6 实装：container.exec_run(cmd, stdin, demux=True)。"""
         raise NotImplementedError("DockerProvider.exec: P5/P6 实装")

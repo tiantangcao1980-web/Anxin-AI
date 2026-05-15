@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """DueDiligenceExpertPersona —— 「尽调专家 🔍」persona（P9-D）。
 
 定位：公司 / 项目 / 人物全维度尽职调查 — 工商 + 信用 + 诉讼 + 舆情。
@@ -22,12 +21,10 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import re
 import uuid
 from collections import OrderedDict, deque
-from dataclasses import asdict
 from datetime import date, datetime, timedelta
 from typing import Any
 
@@ -141,7 +138,7 @@ class DueDiligenceExpertPersona(BasePersonaAgent):
         self._litigation_source = litigation_source
 
         # 报告 LRU 缓存
-        self._report_cache: "OrderedDict[str, DueDiligenceReport]" = OrderedDict()
+        self._report_cache: OrderedDict[str, DueDiligenceReport] = OrderedDict()
 
     # ------------------------------------------------------------------
     # specialized agent lazy 构造

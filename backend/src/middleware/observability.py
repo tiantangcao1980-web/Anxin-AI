@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 ObservabilityMiddleware（P19-A）
 
@@ -15,7 +14,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from typing import Awaitable, Callable, Optional
+from collections.abc import Awaitable, Callable
 
 from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -34,7 +33,7 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
         self,
         app: ASGIApp,
         slow_threshold_seconds: float = SLOW_THRESHOLD_SECONDS,
-        skip_paths: Optional[tuple[str, ...]] = None,
+        skip_paths: tuple[str, ...] | None = None,
     ):
         super().__init__(app)
         self.slow_threshold_seconds = slow_threshold_seconds
@@ -57,8 +56,8 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
 
         t0 = time.perf_counter()
         status_code = 500  # 兜底（500 表示中间件链失败）
-        response: Optional[Response] = None
-        exc: Optional[BaseException] = None
+        response: Response | None = None
+        exc: BaseException | None = None
         try:
             response = await call_next(request)
             status_code = response.status_code

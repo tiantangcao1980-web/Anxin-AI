@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """法律顾问 persona（P9-B）输出物的统一数据模型。
 
 设计原则：
@@ -17,9 +16,8 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Any, Optional
+from typing import Any
 from uuid import uuid4
-
 
 # ---------------------------------------------------------------------------
 # 共用：法律引文
@@ -127,9 +125,9 @@ class LawSearchQuery:
     """
 
     keyword: str
-    law_type: Optional[str] = None
-    jurisdiction: Optional[str] = None
-    effective_after: Optional[str] = None  # ISO YYYY-MM-DD
+    law_type: str | None = None
+    jurisdiction: str | None = None
+    effective_after: str | None = None  # ISO YYYY-MM-DD
     limit: int = 20
 
     def to_dict(self) -> dict[str, Any]:
@@ -209,7 +207,7 @@ class RiskReport:
     risk_factors: list[RiskFactor] = field(default_factory=list)
     mitigation_suggestions: list[str] = field(default_factory=list)
     regulatory_basis: list[Citation] = field(default_factory=list)
-    jurisdiction: Optional[str] = None
+    jurisdiction: str | None = None
     report_id: str = field(default_factory=lambda: uuid4().hex)
     created_ts: float = field(default_factory=time.time)
     persona_id: str = "legal_advisor"
@@ -299,8 +297,8 @@ class RegulatoryUpdate:
 
     title: str
     issuing_authority: str = ""
-    issued_date: Optional[str] = None  # ISO YYYY-MM-DD
-    effective_date: Optional[str] = None  # ISO YYYY-MM-DD; None = 待生效
+    issued_date: str | None = None  # ISO YYYY-MM-DD
+    effective_date: str | None = None  # ISO YYYY-MM-DD; None = 待生效
     summary: str = ""
     impact_assessment: str = ""
     affected_domains: list[str] = field(default_factory=list)
@@ -308,10 +306,10 @@ class RegulatoryUpdate:
     update_id: str = field(default_factory=lambda: uuid4().hex)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "RegulatoryUpdate":
+    def from_dict(cls, data: dict[str, Any]) -> RegulatoryUpdate:
         """从 LLM JSON 输出构造（兼容字段缺失）。"""
 
-        def _iso(v: Any) -> Optional[str]:
+        def _iso(v: Any) -> str | None:
             if not v:
                 return None
             if isinstance(v, date):

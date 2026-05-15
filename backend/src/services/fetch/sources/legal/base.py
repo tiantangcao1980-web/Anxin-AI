@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """法律数据源抽象基类与合规护栏。
 
 所有 BaseLegalSource 的子类在 fetch / search / get_full_text 之前，
@@ -19,9 +18,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
-from typing import ClassVar, Optional
+from typing import ClassVar
 from urllib.parse import urlparse
-
 
 # ============== 合规白/黑名单 ==============
 
@@ -86,10 +84,10 @@ class LawSearchQuery:
     """法律检索请求参数。"""
 
     keyword: str
-    law_type: Optional[str] = None        # LawType 字符串值；None 表示不限
-    jurisdiction: Optional[str] = None    # 国家级 / 省级 / 市级；自由文本
-    date_from: Optional[date] = None
-    date_to: Optional[date] = None
+    law_type: str | None = None        # LawType 字符串值；None 表示不限
+    jurisdiction: str | None = None    # 国家级 / 省级 / 市级；自由文本
+    date_from: date | None = None
+    date_to: date | None = None
     limit: int = 20
     offset: int = 0
 
@@ -117,11 +115,11 @@ class LawSearchResult:
     title: str
     law_type: str                              # LawType 字符串值
     issuing_authority: str                     # 颁布机关
-    issued_date: Optional[date] = None
-    effective_date: Optional[date] = None
+    issued_date: date | None = None
+    effective_date: date | None = None
     status: str = LawStatus.UNKNOWN.value
     full_text_url: str = ""
-    summary: Optional[str] = None
+    summary: str | None = None
     extra: dict = field(default_factory=dict)  # 数据源特有字段（如案号、地区）
 
 

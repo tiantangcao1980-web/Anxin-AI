@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 L2 crawl4ai 抓取 — 包装现有 ``src.services.crawl4ai_service.crawl4ai_service``。
 

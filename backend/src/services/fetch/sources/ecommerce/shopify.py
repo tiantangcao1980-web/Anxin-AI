@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Shopify Admin API 数据源（真实 HTTP 接入，复用 P4-E OAuth）。
 
 参考文档
@@ -26,8 +25,8 @@ Shopify Admin API 用自定义头 ``X-Shopify-Access-Token``，不是标准 Bear
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 from loguru import logger
@@ -49,7 +48,7 @@ DEFAULT_API_VERSION = "2024-10"
 # Shopify 状态映射 → 统一态
 # ---------------------------------------------------------------------------
 # financial_status + fulfillment_status 联合判定订单整体状态
-_SHOPIFY_STATUS_MAP: dict[tuple[Optional[str], Optional[str]], str] = {
+_SHOPIFY_STATUS_MAP: dict[tuple[str | None, str | None], str] = {
     ("pending", None): "pending",
     ("paid", None): "paid",
     ("paid", "fulfilled"): "shipped",
@@ -59,7 +58,7 @@ _SHOPIFY_STATUS_MAP: dict[tuple[Optional[str], Optional[str]], str] = {
 }
 
 
-def _map_shopify_order_status(financial: Optional[str], fulfillment: Optional[str]) -> str:
+def _map_shopify_order_status(financial: str | None, fulfillment: str | None) -> str:
     """联合 financial_status + fulfillment_status 映射到统一态。
 
     映射策略（按优先级）：
@@ -111,9 +110,9 @@ class ShopifyEcommerceSource(BaseEcommerceSource):
     def __init__(
         self,
         *,
-        shop: Optional[str] = None,
+        shop: str | None = None,
         api_version: str = DEFAULT_API_VERSION,
-        http_client: Optional[httpx.AsyncClient] = None,
+        http_client: httpx.AsyncClient | None = None,
     ) -> None:
         self._shop_default = self._normalize_shop(shop) if shop else None
         self.api_version = api_version
@@ -125,9 +124,9 @@ class ShopifyEcommerceSource(BaseEcommerceSource):
     async def search_products(
         self,
         query: ProductSearchQuery,
-        oauth_token: Optional[str] = None,
+        oauth_token: str | None = None,
         *,
-        shop: Optional[str] = None,
+        shop: str | None = None,
     ) -> list[Product]:
         """``GET /admin/api/{ver}/products.json?title={kw}&limit={n}``。
 
@@ -153,10 +152,10 @@ class ShopifyEcommerceSource(BaseEcommerceSource):
     async def get_product(
         self,
         sku: str,
-        oauth_token: Optional[str] = None,
+        oauth_token: str | None = None,
         *,
-        shop: Optional[str] = None,
-    ) -> Optional[Product]:
+        shop: str | None = None,
+    ) -> Product | None:
         """按 product id 取单品（Shopify 的 sku 对外是 ``Product.id``）。"""
         token = self._ensure_token(oauth_token)
         store = self._resolve_shop(shop)
@@ -176,10 +175,10 @@ class ShopifyEcommerceSource(BaseEcommerceSource):
     async def list_orders(
         self,
         oauth_token: str,
-        since: Optional[datetime] = None,
+        since: datetime | None = None,
         limit: int = 50,
         *,
-        shop: Optional[str] = None,
+        shop: str | None = None,
     ) -> list[Order]:
         """``GET /admin/api/{ver}/orders.json?status=any&updated_at_min=...&limit=...``。"""
         token = self._ensure_token(oauth_token)
@@ -190,7 +189,7 @@ class ShopifyEcommerceSource(BaseEcommerceSource):
             "limit": max(1, min(limit, 250)),
         }
         if since is not None:
-            params["updated_at_min"] = since.astimezone(timezone.utc).isoformat()
+            params["updated_at_min"] = since.astimezone(UTC).isoformat()
 
         data = await self._get_json(url, token, params=params)
         items = data.get("orders", []) if isinstance(data, dict) else []
@@ -202,9 +201,9 @@ class ShopifyEcommerceSource(BaseEcommerceSource):
         qty: int,
         oauth_token: str,
         *,
-        shop: Optional[str] = None,
-        location_id: Optional[int] = None,
-        inventory_item_id: Optional[int] = None,
+        shop: str | None = None,
+        location_id: int | None = None,
+        inventory_item_id: int | None = None,
     ) -> bool:
         """更新库存 — 走 ``POST /inventory_levels/set.json``。
 
@@ -240,9 +239,9 @@ class ShopifyEcommerceSource(BaseEcommerceSource):
 
     async def health_check(
         self,
-        oauth_token: Optional[str] = None,
+        oauth_token: str | None = None,
         *,
-        shop: Optional[str] = None,
+        shop: str | None = None,
     ) -> bool:
         """探活：``GET /admin/api/{ver}/shop.json`` —— 同时校验 token + shop 有效性。
 
@@ -274,7 +273,7 @@ class ShopifyEcommerceSource(BaseEcommerceSource):
             s = s[len("http://") :]
         return s.rstrip("/")
 
-    def _resolve_shop(self, shop: Optional[str]) -> str:
+    def _resolve_shop(self, shop: str | None) -> str:
         """优先取方法级 ``shop`` kwarg，回退到构造时的默认值。
 
         两者都缺则抛 :class:`OAuthRequiredError` —— 因为 shop 同样是
@@ -308,7 +307,7 @@ class ShopifyEcommerceSource(BaseEcommerceSource):
         self,
         url: str,
         token: str,
-        params: Optional[dict[str, Any]] = None,
+        params: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         client = self._client()
         owns_client = self._http is None
@@ -424,10 +423,10 @@ class ShopifyEcommerceSource(BaseEcommerceSource):
             placed_at = (
                 datetime.fromisoformat(placed_at_str.replace("Z", "+00:00"))
                 if placed_at_str
-                else datetime.now(timezone.utc)
+                else datetime.now(UTC)
             )
         except (TypeError, ValueError, AttributeError):
-            placed_at = datetime.now(timezone.utc)
+            placed_at = datetime.now(UTC)
 
         customer = item.get("customer") or {}
         customer_name = None

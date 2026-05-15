@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 SkillRegistry —— 进程内运行时技能注册表（P5 真实装）
 
@@ -34,7 +33,7 @@ class SkillRegistry:
         candidates = registry.find_by_trigger(user_input, top_k=3)
     """
 
-    _instance: "SkillRegistry | None" = None
+    _instance: SkillRegistry | None = None
 
     def __init__(self) -> None:
         self._by_name: dict[str, Skill] = {}
@@ -48,7 +47,7 @@ class SkillRegistry:
     # 单例
     # ------------------------------------------------------------------
     @classmethod
-    def instance(cls) -> "SkillRegistry":
+    def instance(cls) -> SkillRegistry:
         """返回全局单例（懒初始化）。"""
         if cls._instance is None:
             cls._instance = cls()
@@ -211,7 +210,6 @@ class SkillRegistry:
             - 首次调用会启动 daemon 线程；测试时务必显式 ``stop_watching``。
             - 单元测试可直接调 ``_handle_fs_event`` 模拟事件，无需真起线程。
         """
-        from watchdog.events import FileSystemEventHandler  # 延迟导入
         from watchdog.observers import Observer
 
         if on_change is not None:

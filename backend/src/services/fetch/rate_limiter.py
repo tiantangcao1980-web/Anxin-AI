@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 per-domain QPS 限流 — 基于内存令牌桶。
 

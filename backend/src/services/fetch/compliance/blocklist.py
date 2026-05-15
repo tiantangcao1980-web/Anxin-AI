@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 抓取域名 / 路径硬黑名单 — 命中即拒绝（HTTP 403 + blocked_reason）。
 

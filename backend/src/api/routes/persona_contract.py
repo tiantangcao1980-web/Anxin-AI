@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """合同管家 persona 路由（P9-C）。
 
 挂载点（在 ``api/routes/__init__.py`` 用 ``prefix="/personas/contract"`` 注册）::
@@ -22,8 +21,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime, timezone
-from typing import Any, DefaultDict, List
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -55,7 +53,7 @@ router = APIRouter()
 # Persona 单例 + 进程内归档存储（按 user_id 隔离，仅本期使用）
 # ---------------------------------------------------------------------------
 _PERSONA = ContractStewardPersona()
-_ARCHIVE_STORE: DefaultDict[str, List[ArchiveResultOut]] = defaultdict(list)
+_ARCHIVE_STORE: defaultdict[str, list[ArchiveResultOut]] = defaultdict(list)
 
 
 def _get_persona() -> ContractStewardPersona:

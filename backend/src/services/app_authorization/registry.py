@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 OAuthProviderRegistry — 单例注册表（P4-A）
 
@@ -24,23 +23,21 @@ OAuthProviderRegistry — 单例注册表（P4-A）
 
 from __future__ import annotations
 
-from typing import Type
-
 from src.services.app_authorization.base import BaseOAuthProvider
 
 
 class OAuthProviderRegistry:
     """OAuth provider 单例注册表。"""
 
-    _default: "OAuthProviderRegistry | None" = None
+    _default: OAuthProviderRegistry | None = None
 
     def __init__(self) -> None:
-        self._providers: dict[str, Type[BaseOAuthProvider]] = {}
+        self._providers: dict[str, type[BaseOAuthProvider]] = {}
 
     # ------------------------------------------------------------------
     # 注册 / 路由
     # ------------------------------------------------------------------
-    def register(self, provider_cls: Type[BaseOAuthProvider]) -> Type[BaseOAuthProvider]:
+    def register(self, provider_cls: type[BaseOAuthProvider]) -> type[BaseOAuthProvider]:
         """注册一个 provider 类。重复注册同 id 会覆盖（便于热替换/测试）。"""
         pid = getattr(provider_cls, "provider_id", None)
         if not pid:
@@ -58,7 +55,7 @@ class OAuthProviderRegistry:
         """注销（仅测试用）。"""
         self._providers.pop(provider_id, None)
 
-    def get(self, provider_id: str) -> Type[BaseOAuthProvider]:
+    def get(self, provider_id: str) -> type[BaseOAuthProvider]:
         """按 ``provider_id`` 取出 provider 类，不存在抛 KeyError。"""
         if provider_id not in self._providers:
             raise KeyError(f"未注册的 OAuth provider: {provider_id}")
@@ -72,11 +69,11 @@ class OAuthProviderRegistry:
         """实例化 provider（无参构造，配置由 provider 自己读 settings）。"""
         return self.get(provider_id)()
 
-    def list_all(self) -> list[Type[BaseOAuthProvider]]:
+    def list_all(self) -> list[type[BaseOAuthProvider]]:
         """返回所有已注册 provider 的类列表（按 provider_id 排序）。"""
         return [self._providers[pid] for pid in sorted(self._providers.keys())]
 
-    def list_by_category(self, category: str) -> list[Type[BaseOAuthProvider]]:
+    def list_by_category(self, category: str) -> list[type[BaseOAuthProvider]]:
         """按 category 过滤 provider 列表。"""
         return [
             cls
@@ -88,7 +85,7 @@ class OAuthProviderRegistry:
     # 单例
     # ------------------------------------------------------------------
     @classmethod
-    def default(cls) -> "OAuthProviderRegistry":
+    def default(cls) -> OAuthProviderRegistry:
         """获取默认（全局）注册表实例（懒初始化）。"""
         if cls._default is None:
             cls._default = cls()
@@ -108,8 +105,8 @@ class OAuthProviderRegistry:
 
 
 def register_provider(
-    provider_cls: Type[BaseOAuthProvider],
-) -> Type[BaseOAuthProvider]:
+    provider_cls: type[BaseOAuthProvider],
+) -> type[BaseOAuthProvider]:
     """装饰器：把 provider 类注册到默认注册表。
 
     用法::

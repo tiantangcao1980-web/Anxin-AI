@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 应用授权 ORM 模型（P4-A）
 
@@ -91,7 +90,7 @@ class AppAuthorization(Base, TimestampMixin):
     )
 
     # 关联 token（一对一；删 authorization 自动删 token）
-    token: Mapped["AppToken | None"] = relationship(
+    token: Mapped[AppToken | None] = relationship(
         "AppToken",
         back_populates="authorization",
         uselist=False,

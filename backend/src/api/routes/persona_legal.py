@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """法律顾问（legal_advisor）persona 路由 —— P9-B。
 
 挂载点（在 ``api/routes/__init__.py`` 用 ``prefix="/personas/legal"`` 注册）::
@@ -40,8 +39,8 @@ from src.api.routes.schemas.persona_legal import (
     CitationOut,
     ComplianceIssueOut,
     ComplianceReportOut,
-    ConsultIn,
     ConsultationResultOut,
+    ConsultIn,
     LawSearchQueryOut,
     LegalBasisExplainOut,
     RegulatoryUpdateOut,

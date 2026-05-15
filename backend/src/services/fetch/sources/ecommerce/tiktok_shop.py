@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """TikTok Shop API 数据源 — mock + 接口契约（P6-D）。
 
 TikTok Shop 通过短视频/直播带货完成购买闭环，是 Z 世代主战场。真实接入：
@@ -13,8 +12,7 @@ P6-D 阶段全部 mock，返回 5 条短视频带货风格的假商品。
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 from .base import (
     BaseEcommerceSource,
@@ -157,7 +155,7 @@ class TikTokShopEcommerceSource(BaseEcommerceSource):
     async def search_products(
         self,
         query: ProductSearchQuery,
-        oauth_token: Optional[str] = None,
+        oauth_token: str | None = None,
     ) -> list[Product]:
         """Mock —— 5 条短视频带货商品；country 命中只返该国。
 
@@ -182,8 +180,8 @@ class TikTokShopEcommerceSource(BaseEcommerceSource):
     async def get_product(
         self,
         sku: str,
-        oauth_token: Optional[str] = None,
-    ) -> Optional[Product]:
+        oauth_token: str | None = None,
+    ) -> Product | None:
         """Mock —— product_id 命中即返。
 
         真实端点：``GET /product/202309/products/{product_id}``
@@ -196,14 +194,14 @@ class TikTokShopEcommerceSource(BaseEcommerceSource):
     async def list_orders(
         self,
         oauth_token: str,
-        since: Optional[datetime] = None,
+        since: datetime | None = None,
         limit: int = 50,
     ) -> list[Order]:
         """Mock —— 3 条假订单。
 
         真实端点：``POST /order/202309/orders/search``
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         base_since = since or (now - timedelta(days=3))
         return [
             Order(
@@ -240,7 +238,7 @@ class TikTokShopEcommerceSource(BaseEcommerceSource):
 
     async def health_check(
         self,
-        oauth_token: Optional[str] = None,
+        oauth_token: str | None = None,
     ) -> bool:
         """Mock —— App Key/Secret 齐 → True。
 

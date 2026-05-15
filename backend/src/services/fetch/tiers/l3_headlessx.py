@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 L3 反检测层 — HeadlessX 接入。
 
@@ -15,11 +14,9 @@ L3 反检测层 — HeadlessX 接入。
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from src.core.config import settings
 
-from ..ssrf_guard import SSRFError, validate_url
 from ..headlessx_client import (
     HeadlessXAuthError,
     HeadlessXClient,
@@ -30,6 +27,7 @@ from ..headlessx_client import (
     HeadlessXTimeoutError,
     RetryConfig,
 )
+from ..ssrf_guard import SSRFError, validate_url
 from .base import BaseTier, FetchRequest, FetchResponse, TierName
 
 logger = logging.getLogger(__name__)
@@ -59,7 +57,7 @@ class HeadlessXTier(BaseTier):
         """配置完整时才认为启用。"""
         return bool(self._base_url and self._api_key)
 
-    async def _ensure_client(self) -> Optional[HeadlessXClient]:
+    async def _ensure_client(self) -> HeadlessXClient | None:
         if self._client is not None:
             return self._client
         if not self.is_enabled:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """MarketResearcherAgent —— 「市场研究员 📊」persona（P7-B）。
 
 DeepTutor 风格的深度研究 agent：给制造业出题，agent 自己规划→检索→综合
@@ -36,7 +35,6 @@ from src.agents.personas.research_models import (
     ResearchStep,
     compute_confidence,
 )
-
 
 # ---------------------------------------------------------------------------
 # 常量
@@ -113,7 +111,7 @@ class MarketResearcherAgent(BasePersonaAgent):
         # web_search: 可选的「先搜后抓」入口（如 SerpAPI / Brave Search）
         # 不强求；deep_research 只要 fetch_service 也能跑（直接抓首页 + RSS）
         self.web_search = web_search
-        self._report_cache: "OrderedDict[str, ResearchReport]" = OrderedDict()
+        self._report_cache: OrderedDict[str, ResearchReport] = OrderedDict()
 
     # ------------------------------------------------------------------
     # 对外能力
