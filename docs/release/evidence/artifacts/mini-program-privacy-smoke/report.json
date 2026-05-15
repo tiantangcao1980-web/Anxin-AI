@@ -1,0 +1,10 @@
+{
+  "started_at": "2026-05-15T14:30:46.878Z",
+  "project_path": "/Volumes/安心科技02/Pproject/Anxin-AI/.claude/worktrees/musing-mcnulty-aa8eaf/mini-program/dist",
+  "cli": "/Applications/wechatwebdevtools.app/Contents/MacOS/cli",
+  "steps": [],
+  "status": "BLOCKED",
+  "blocker": "jscore 不可达（多半因 touristappid 游客模式 IDE 未编译项目）",
+  "hint": "请把 dist/project.config.json 的 appid 改为你账号下的真实 AppID（任意已注册的小程序 AppID 都可），再重跑 npm run smoke:privacy",
+  "error": "ping evaluate timeout(6000ms)"
+}

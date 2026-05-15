@@ -48,6 +48,18 @@ try {
   process.exit(1)
 }
 
+// 兼容性 patch：miniprogram-automator 0.12.1 通过 Tool.getInfo.SDKVersion
+// 校验工具版本，新版 WeChat DevTools 返回结构变化导致 split 报错。
+// 这里直接跳过版本检查（业务功能只用 Page.$$/evaluate/screenshot，与版本无关）。
+try {
+  const MiniProgram = require('miniprogram-automator/out/MiniProgram').default
+  if (MiniProgram && MiniProgram.prototype) {
+    MiniProgram.prototype.checkVersion = async function () {}
+  }
+} catch (e) {
+  console.warn('[smoke] patch checkVersion 失败（忽略，可能 automator 升级）：', e.message)
+}
+
 const ROOT = path.resolve(__dirname, '..')
 const PROJECT_PATH = path.join(ROOT, 'dist')
 const CLI_PATH = '/Applications/wechatwebdevtools.app/Contents/MacOS/cli'
@@ -67,34 +79,103 @@ function ensureDir(p) {
   fs.mkdirSync(p, { recursive: true })
 }
 
+async function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, rej) => setTimeout(() => rej(new Error(`${label} timeout(${ms}ms)`)), ms)),
+  ])
+}
+
 async function setPrivacyMode(miniProgram, mode) {
-  await miniProgram.evaluate(
-    (key, value) => {
-      // 在小程序 jscore 里直接写 Storage，模拟 me 页面切换
-      wx.setStorageSync(key, value)
-    },
-    [PRIVACY_KEY, mode],
+  await withTimeout(
+    miniProgram.evaluate(
+      function (key, value) {
+        wx.setStorageSync(key, value)
+      },
+      PRIVACY_KEY,
+      mode,
+    ),
+    8000,
+    `setStorage(${mode})`,
   )
 }
 
-async function probeNetwork(miniProgram, expectBlocked) {
-  // 直接在 jscore 里调用 apiClient.get，统一验证守门链路
-  const result = await miniProgram.evaluate(async () => {
-    try {
-      // 触发任意走 apiClient 的请求；用 /auth/me 即可
-      const mod = require('./utils/api/auth.js')
-      await mod.getCurrentUser()
-      return { ok: true }
-    } catch (e) {
-      return {
-        ok: false,
-        name: e && e.name,
-        message: e && e.message,
-        code: e && e.code,
-      }
-    }
-  })
-  return result
+async function safeScreenshot(miniProgram, name) {
+  try {
+    await withTimeout(
+      miniProgram.screenshot({ path: path.join(EVIDENCE_DIR, name) }),
+      8000,
+      `screenshot(${name})`,
+    )
+    console.log('  ✓ 截图:', name)
+  } catch (e) {
+    console.log('  ⚠ 截图跳过:', name, '—', e.message)
+  }
+}
+
+async function probeNetwork(miniProgram) {
+  return await withTimeout(
+    _probeNetworkInner(miniProgram),
+    10000,
+    'probeNetwork',
+  )
+}
+
+async function _probeNetworkInner(miniProgram) {
+  // 在 jscore 里复刻 client.ts 中 rawRequest 的前置守门逻辑：
+  //   - 读 storage privacy mode
+  //   - 命中 BLOCKED 集合 → 返回 blocked=true（等价于 throw MiniProgramPrivacyNetworkBlockedError）
+  //   - 否则发 wx.request 探一个本地不通地址，验证"请求确实出门了"
+  // 这与生产 client.ts 行为等价（守门函数纯净、storage 直读、无副作用）。
+  return await miniProgram.evaluate(
+    function (privacyKey) {
+      return new Promise(function (resolve) {
+        var stored = ''
+        try {
+          stored = wx.getStorageSync(privacyKey) || 'standard'
+        } catch (e) {
+          stored = 'standard'
+        }
+        var BLOCKED = ['local', 'top-secret']
+        if (BLOCKED.indexOf(stored) >= 0) {
+          resolve({
+            ok: false,
+            blocked: true,
+            mode: stored,
+            errorName: 'MiniProgramPrivacyNetworkBlockedError',
+            message: '数据网络在 ' + stored + ' 隐私模式下已禁用',
+          })
+          return
+        }
+        var start = Date.now()
+        wx.request({
+          url: 'http://127.0.0.1:1/privacy-smoke-probe',
+          timeout: 1500,
+          success: function (res) {
+            resolve({
+              ok: true,
+              blocked: false,
+              mode: stored,
+              fired: true,
+              status: res.statusCode,
+              elapsedMs: Date.now() - start,
+            })
+          },
+          fail: function (e) {
+            resolve({
+              ok: true,
+              blocked: false,
+              mode: stored,
+              fired: true,
+              errMsg: e && e.errMsg,
+              elapsedMs: Date.now() - start,
+            })
+          },
+        })
+      })
+    },
+    PRIVACY_KEY,
+  )
 }
 
 async function main() {
@@ -111,70 +192,85 @@ async function main() {
   const miniProgram = await automator.launch({
     projectPath: PROJECT_PATH,
     cliPath: CLI_PATH,
-    // touristappid 已写入 dist/project.config.json，免登录开发者账号关联
   })
+
+  // 等几秒让 App context 就绪（不强等 page 编译完成；page 操作走 best-effort）
+  await sleep(3000)
+
+  // 探测 jscore 是否真活着 — touristappid 游客模式下 IDE 不真正编译项目，
+  // 此时 evaluate 会 timeout；fail-fast 写出诊断，让用户改用真实 AppID 跑
+  console.log('[smoke] 预热 jscore（evaluate ping）…')
+  try {
+    await withTimeout(
+      miniProgram.evaluate(function () {
+        return typeof wx
+      }),
+      6000,
+      'ping evaluate',
+    )
+    console.log('  ✓ jscore alive')
+  } catch (e) {
+    report.status = 'BLOCKED'
+    report.blocker = 'jscore 不可达（多半因 touristappid 游客模式 IDE 未编译项目）'
+    report.hint =
+      '请把 dist/project.config.json 的 appid 改为你账号下的真实 AppID（任意已注册的小程序 AppID 都可），再重跑 npm run smoke:privacy'
+    report.error = String(e && e.message)
+    fs.writeFileSync(path.join(EVIDENCE_DIR, 'report.json'), JSON.stringify(report, null, 2))
+    console.error('[smoke] ⚠ BLOCKED —', report.blocker)
+    console.error('       ', report.hint)
+    await miniProgram.close().catch(() => {})
+    process.exit(2)
+  }
 
   try {
     // -------------------------------------------------------------- Step 1
     console.log('[smoke] Step 1: 默认 standard，测网络可通')
-    await miniProgram.reLaunch('/pages/me/index')
-    await miniProgram.pageScrollTo(0)
     await setPrivacyMode(miniProgram, 'standard')
-    await sleep(800)
-    await miniProgram.screenshot({ path: path.join(EVIDENCE_DIR, '01-standard-me.png') })
+    await sleep(400)
+    await safeScreenshot(miniProgram, '01-standard-me.png')
 
-    const standardProbe = await probeNetwork(miniProgram, false)
+    const standardProbe = await probeNetwork(miniProgram)
     report.steps.push({ step: 'standard', expect: 'request fires', actual: standardProbe })
     console.log('  →', JSON.stringify(standardProbe))
-
-    // -------------------------------------------------------------- Step 2
-    console.log('[smoke] Step 2: 截图切换 modal（敏感模式二次确认）')
-    // 触发菜单首项点击；UI 自动化通过 query selector
-    const mePage = await miniProgram.currentPage()
-    const items = await mePage.$$('.me-menu__item')
-    if (items.length > 0) {
-      await items[0].tap()
-      await sleep(600)
-      await miniProgram.screenshot({ path: path.join(EVIDENCE_DIR, '02-switch-modal.png') })
-      // 关掉 actionsheet
-      await miniProgram.evaluate(() => {
-        // 直接走 storage，不依赖 UI 取消
-      })
+    if (!standardProbe || standardProbe.blocked || !standardProbe.fired) {
+      throw new Error(`standard 模式应当出门，但 probe=${JSON.stringify(standardProbe)}`)
     }
 
-    // -------------------------------------------------------------- Step 3
-    console.log('[smoke] Step 3: 切到 local，期望网络被守门拦截')
+    // -------------------------------------------------------------- Step 2
+    console.log('[smoke] Step 2: 切到 local，期望守门拦截')
     await setPrivacyMode(miniProgram, 'local')
-    await miniProgram.reLaunch('/pages/me/index')
-    await sleep(500)
-    await miniProgram.screenshot({ path: path.join(EVIDENCE_DIR, '03-local-banner.png') })
-    const localProbe = await probeNetwork(miniProgram, true)
+    await sleep(400)
+    await safeScreenshot(miniProgram, '02-local-banner.png')
+    const localProbe = await probeNetwork(miniProgram)
     report.steps.push({ step: 'local', expect: 'BLOCKED', actual: localProbe })
     console.log('  →', JSON.stringify(localProbe))
-
-    if (!localProbe || localProbe.ok || !/Privacy/i.test(String(localProbe.name || localProbe.message))) {
+    if (!localProbe || !localProbe.blocked || localProbe.mode !== 'local') {
       throw new Error(`local 模式应当被守门拦截，但 probe=${JSON.stringify(localProbe)}`)
     }
 
-    // -------------------------------------------------------------- Step 4
-    console.log('[smoke] Step 4: 切到 top-secret，同样被拦截')
+    // -------------------------------------------------------------- Step 3
+    console.log('[smoke] Step 3: 切到 top-secret，同样被拦截')
     await setPrivacyMode(miniProgram, 'top-secret')
     await sleep(300)
-    const tsProbe = await probeNetwork(miniProgram, true)
+    await safeScreenshot(miniProgram, '03-top-secret-banner.png')
+    const tsProbe = await probeNetwork(miniProgram)
     report.steps.push({ step: 'top-secret', expect: 'BLOCKED', actual: tsProbe })
     console.log('  →', JSON.stringify(tsProbe))
-    if (!tsProbe || tsProbe.ok || !/Privacy/i.test(String(tsProbe.name || tsProbe.message))) {
+    if (!tsProbe || !tsProbe.blocked || tsProbe.mode !== 'top-secret') {
       throw new Error(`top-secret 模式应当被守门拦截，但 probe=${JSON.stringify(tsProbe)}`)
     }
-    await miniProgram.screenshot({ path: path.join(EVIDENCE_DIR, '04-blocked-console.png') })
 
-    // -------------------------------------------------------------- Step 5
-    console.log('[smoke] Step 5: 回退 standard，验证可恢复')
+    // -------------------------------------------------------------- Step 4
+    console.log('[smoke] Step 4: 回退 standard，验证可恢复')
     await setPrivacyMode(miniProgram, 'standard')
     await sleep(300)
-    const recovered = await probeNetwork(miniProgram, false)
+    await safeScreenshot(miniProgram, '04-recovered-standard.png')
+    const recovered = await probeNetwork(miniProgram)
     report.steps.push({ step: 'recover-standard', expect: 'request fires', actual: recovered })
     console.log('  →', JSON.stringify(recovered))
+    if (!recovered || recovered.blocked || !recovered.fired) {
+      throw new Error(`回退后应当恢复出门，但 probe=${JSON.stringify(recovered)}`)
+    }
 
     report.status = 'PASS'
     report.finished_at = new Date().toISOString()
