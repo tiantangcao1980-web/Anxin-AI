@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """模态路由分流（P13-A）。
 
 把 :class:`ParsedSegment` 列表按 ``modality`` 分流到不同的下游处理器：

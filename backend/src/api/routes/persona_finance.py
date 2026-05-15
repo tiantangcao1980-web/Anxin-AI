@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """财税顾问 persona 路由（P9-E）。
 
 挂载点（在 ``api/routes/__init__.py`` 用 ``prefix="/personas/finance"`` 注册）::

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """安心助理（anxin_assistant）persona 路由 —— P9-A。
 
 挂载点（在 ``api/routes/__init__.py`` 用 ``prefix="/personas/anxin"`` 注册）::

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Prometheus 业务指标注册中心（P19-A）
 
@@ -20,15 +19,15 @@ P19-C Prometheus / Grafana 直接 scrape `/metrics` 端点。
 from __future__ import annotations
 
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Iterator
 
 from prometheus_client import (
     CollectorRegistry,
     Counter,
     Histogram,
-    ProcessCollector,
     PlatformCollector,
+    ProcessCollector,
 )
 
 # 独立 registry，避免与第三方库冲突 + 便于测试 reset

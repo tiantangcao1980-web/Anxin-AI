@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 SSRF 防护 — 协议白名单 + IP 黑名单 + 域名黑名单 + DNS rebinding 防护。
 
@@ -23,7 +22,7 @@ from __future__ import annotations
 
 import ipaddress
 import socket
-from typing import Iterable
+from collections.abc import Iterable
 from urllib.parse import urlparse
 
 # ---------------------------------------------------------------------------

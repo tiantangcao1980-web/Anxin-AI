@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """MinerU 适配器（P13-A）。
 
 MinerU 是 OpenDataLab 出的 PDF 多模态解析工具：
@@ -34,7 +33,6 @@ from src.services.rag.ingest.multimodal.base import (
     ParsedSegment,
 )
 from src.services.rag.ingest.multimodal.layout_preserver import LayoutPreserver
-
 
 # 支持的扩展名（小写）
 _SUPPORTED_EXTENSIONS: set[str] = {

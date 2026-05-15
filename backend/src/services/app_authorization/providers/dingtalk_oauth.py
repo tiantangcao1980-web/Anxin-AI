@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """钉钉 OAuth 2.0 Provider（P4-C）。
 
 参考文档：
@@ -23,13 +22,12 @@ OAuth Provider（P4-B）的差异点：
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 from urllib.parse import urlencode
 
 import httpx
 from loguru import logger
-
 
 # ---------------------------------------------------------------------------
 # Base 类导入：优先用 P4-A 框架，缺失时本地 fallback
@@ -48,9 +46,9 @@ except ImportError:  # pragma: no cover - 测试 / 框架未合入时使用 fall
         """
 
         access_token: str
-        refresh_token: Optional[str] = None
-        expires_at: Optional[datetime] = None
-        scope: Optional[str] = None
+        refresh_token: str | None = None
+        expires_at: datetime | None = None
+        scope: str | None = None
         token_type: str = "Bearer"
         raw: dict[str, Any] = field(default_factory=dict)
 
@@ -73,7 +71,7 @@ except ImportError:  # pragma: no cover - 测试 / 框架未合入时使用 fall
             client_id: str,
             client_secret: str,
             redirect_uri: str,
-            http_client: Optional[httpx.AsyncClient] = None,
+            http_client: httpx.AsyncClient | None = None,
         ) -> None:
             self.client_id = client_id
             self.client_secret = client_secret
@@ -121,11 +119,11 @@ class DingTalkOAuthProvider(BaseOAuthProvider):
     def __init__(
         self,
         *,
-        client_id: Optional[str] = None,
-        client_secret: Optional[str] = None,
-        redirect_uri: Optional[str] = None,
-        http_client: Optional[httpx.AsyncClient] = None,
-        redis_client: Optional[Any] = None,
+        client_id: str | None = None,
+        client_secret: str | None = None,
+        redirect_uri: str | None = None,
+        http_client: httpx.AsyncClient | None = None,
+        redis_client: Any | None = None,
         **kwargs: Any,
     ) -> None:
         """构造钉钉 OAuth provider。
@@ -176,8 +174,8 @@ class DingTalkOAuthProvider(BaseOAuthProvider):
         self,
         state: str,
         *,
-        scopes: Optional[list[str]] = None,
-        extra_params: Optional[dict[str, str]] = None,
+        scopes: list[str] | None = None,
+        extra_params: dict[str, str] | None = None,
     ) -> str:
         """生成钉钉授权页 URL。
 
@@ -202,7 +200,7 @@ class DingTalkOAuthProvider(BaseOAuthProvider):
         self,
         code: str,
         *,
-        state: Optional[str] = None,  # noqa: ARG002 — 兼容签名，钉钉换 token 不传 state
+        state: str | None = None,  # noqa: ARG002 — 兼容签名，钉钉换 token 不传 state
     ) -> OAuthTokenBundle:
         """用授权码换取 ``accessToken`` / ``refreshToken``。"""
         body = {
@@ -320,9 +318,9 @@ class DingTalkOAuthProvider(BaseOAuthProvider):
             raise ValueError(f"钉钉返回缺少 accessToken 字段: {data}")
         refresh = data.get("refreshToken") or data.get("refresh_token")
         expire_in = data.get("expireIn") or data.get("expire_in")
-        expires_at: Optional[datetime] = None
+        expires_at: datetime | None = None
         if isinstance(expire_in, (int, float)):
-            expires_at = datetime.now(timezone.utc) + timedelta(
+            expires_at = datetime.now(UTC) + timedelta(
                 seconds=int(expire_in) - 60  # 提前 60s 视为过期，避免边界
             )
         return OAuthTokenBundle(

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """fetch 路由 Pydantic schemas（请求 / 响应 DTO）。"""
 
 from __future__ import annotations

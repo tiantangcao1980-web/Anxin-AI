@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 多组件健康检查 service（P19-A）
 
@@ -24,10 +23,11 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Awaitable, Callable, Dict, Optional
+from typing import Any
 
 import httpx
 from loguru import logger
@@ -47,11 +47,11 @@ class ComponentStatus(str, Enum):
 @dataclass
 class CheckResult:
     status: ComponentStatus
-    latency_ms: Optional[float] = None
-    error: Optional[str] = None
+    latency_ms: float | None = None
+    error: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
-        d: Dict[str, Any] = {"status": self.status.value}
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {"status": self.status.value}
         if self.latency_ms is not None:
             d["latency_ms"] = round(self.latency_ms, 1)
         if self.error:
@@ -63,7 +63,7 @@ async def _with_timeout(coro: Awaitable[CheckResult], name: str) -> CheckResult:
     """超时保护包装。"""
     try:
         return await asyncio.wait_for(coro, timeout=COMPONENT_TIMEOUT_SECONDS)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning(f"[health] {name} 检查超时 (>{COMPONENT_TIMEOUT_SECONDS}s)")
         return CheckResult(
             status=ComponentStatus.DOWN,
@@ -170,10 +170,10 @@ class HealthChecker:
 
     def __init__(
         self,
-        db: Optional[AsyncSession] = None,
-        redis_url: Optional[str] = None,
-        neo4j_uri: Optional[str] = None,
-        qdrant_url: Optional[str] = None,
+        db: AsyncSession | None = None,
+        redis_url: str | None = None,
+        neo4j_uri: str | None = None,
+        qdrant_url: str | None = None,
     ):
         # 缺省从 settings 读取
         try:
@@ -187,9 +187,9 @@ class HealthChecker:
             self.qdrant_url = qdrant_url or "http://localhost:6333"
         self.db = db
 
-    async def check_all(self) -> Dict[str, Any]:
+    async def check_all(self) -> dict[str, Any]:
         """并发检查所有组件。"""
-        tasks: Dict[str, Awaitable[CheckResult]] = {}
+        tasks: dict[str, Awaitable[CheckResult]] = {}
 
         if self.db is not None:
             tasks["postgres"] = _with_timeout(check_postgres(self.db), "postgres")
@@ -205,16 +205,16 @@ class HealthChecker:
 
         keys = list(tasks.keys())
         results = await asyncio.gather(*[tasks[k] for k in keys], return_exceptions=False)
-        components = {k: r.to_dict() for k, r in zip(keys, results)}
+        components = {k: r.to_dict() for k, r in zip(keys, results, strict=True)}
 
         overall = self._compute_overall(components)
         return {
             "overall": overall,
             "components": components,
-            "checked_at": datetime.now(timezone.utc).isoformat(),
+            "checked_at": datetime.now(UTC).isoformat(),
         }
 
-    def _compute_overall(self, components: Dict[str, Dict[str, Any]]) -> str:
+    def _compute_overall(self, components: dict[str, dict[str, Any]]) -> str:
         core_down = any(
             components.get(name, {}).get("status") == ComponentStatus.DOWN.value
             for name in self.CORE
@@ -235,7 +235,7 @@ async def _missing(name: str, reason: str) -> CheckResult:
 
 
 # 提供给单组件检查的便捷字典（测试用）
-SINGLE_CHECK_FUNCS: Dict[str, Callable[..., Awaitable[CheckResult]]] = {
+SINGLE_CHECK_FUNCS: dict[str, Callable[..., Awaitable[CheckResult]]] = {
     "postgres": check_postgres,
     "redis": check_redis,
     "neo4j": check_neo4j,

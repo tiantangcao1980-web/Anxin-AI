@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 fetch 路由 — P6-A 信息获取栈对外 API。
 

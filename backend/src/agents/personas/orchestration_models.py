@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 orchestration_models —— P9-A 安心助理 persona 编排相关数据类
 
@@ -24,8 +23,7 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
-
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # 意图分类
@@ -40,13 +38,13 @@ class IntentClassification:
     """
 
     primary_intent: str  # e.g. "legal_consult" / "contract_review" / "market_research"
-    target_personas: List[str] = field(default_factory=list)  # 推荐 persona_id（按相关性降序）
+    target_personas: list[str] = field(default_factory=list)  # 推荐 persona_id（按相关性降序）
     confidence: float = 0.0  # 0~1
     reasoning: str = ""
-    entities: Dict[str, List[str]] = field(default_factory=dict)
+    entities: dict[str, list[str]] = field(default_factory=dict)
     classifier: str = "fast_path"  # "fast_path" / "llm" / "hybrid"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "primary_intent": self.primary_intent,
             "target_personas": list(self.target_personas),
@@ -67,11 +65,11 @@ class RoutingDecision:
     """根据 IntentClassification 决定真正的执行流程。"""
 
     primary_persona: str
-    supporting_personas: List[str] = field(default_factory=list)
+    supporting_personas: list[str] = field(default_factory=list)
     execution_mode: str = "sequential"  # "sequential" / "parallel" / "branching"
     rationale: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "primary_persona": self.primary_persona,
             "supporting_personas": list(self.supporting_personas),
@@ -92,11 +90,11 @@ class SubTask:
     task_id: str
     description: str
     assigned_persona: str
-    depends_on: List[str] = field(default_factory=list)  # 其它 task_id
-    inputs: Dict[str, Any] = field(default_factory=dict)
+    depends_on: list[str] = field(default_factory=list)  # 其它 task_id
+    inputs: dict[str, Any] = field(default_factory=dict)
     expected_output: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "task_id": self.task_id,
             "description": self.description,
@@ -113,7 +111,7 @@ class ExecutionPlan:
 
     plan_id: str
     user_query: str
-    subtasks: List[SubTask] = field(default_factory=list)
+    subtasks: list[SubTask] = field(default_factory=list)
     total_estimated_seconds: int = 0
     execution_mode: str = "sequential"
     created_ts: float = field(default_factory=lambda: time.time())
@@ -122,10 +120,10 @@ class ExecutionPlan:
     def new(
         cls,
         user_query: str,
-        subtasks: Optional[List[SubTask]] = None,
+        subtasks: list[SubTask] | None = None,
         execution_mode: str = "sequential",
         total_estimated_seconds: int = 0,
-    ) -> "ExecutionPlan":
+    ) -> ExecutionPlan:
         return cls(
             plan_id=f"plan-{uuid.uuid4().hex[:12]}",
             user_query=user_query,
@@ -134,7 +132,7 @@ class ExecutionPlan:
             total_estimated_seconds=total_estimated_seconds,
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "plan_id": self.plan_id,
             "user_query": self.user_query,
@@ -155,14 +153,14 @@ class OrchestrationResult:
     """orchestrate() 的最终输出。"""
 
     plan: ExecutionPlan
-    subtask_results: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    subtask_results: dict[str, dict[str, Any]] = field(default_factory=dict)
     final_summary: str = ""
     duration_ms: int = 0
-    citations: List[Dict[str, Any]] = field(default_factory=list)
+    citations: list[dict[str, Any]] = field(default_factory=list)
     status: str = "ok"  # ok / partial / failed
-    failed_subtasks: List[str] = field(default_factory=list)
+    failed_subtasks: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "plan": self.plan.to_dict(),
             "subtask_results": {k: dict(v) for k, v in self.subtask_results.items()},
@@ -183,14 +181,14 @@ class OrchestrationResult:
 class GuidanceResponse:
     """用户问题模糊时，安心助理给出的引导建议。"""
 
-    suggested_personas: List[Dict[str, str]] = field(default_factory=list)
+    suggested_personas: list[dict[str, str]] = field(default_factory=list)
     # 每项: { persona_id, display_name, reason, sample_question }
-    follow_up_questions: List[str] = field(default_factory=list)
-    quick_actions: List[Dict[str, str]] = field(default_factory=list)
+    follow_up_questions: list[str] = field(default_factory=list)
+    quick_actions: list[dict[str, str]] = field(default_factory=list)
     # 每项: { label, persona_id, action }
     message: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "suggested_personas": [dict(p) for p in self.suggested_personas],
             "follow_up_questions": list(self.follow_up_questions),

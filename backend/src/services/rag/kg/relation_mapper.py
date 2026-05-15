@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 关系映射器
 
@@ -27,8 +26,7 @@
 from __future__ import annotations
 
 import hashlib
-import re
-from typing import Iterable
+from collections.abc import Iterable
 
 from src.services.rag.kg.base import (
     Entity,
@@ -39,7 +37,6 @@ from src.services.rag.kg.base import (
     Segment,
     SegmentLikeProtocol,
 )
-
 
 SEAL_MENTION_KEYWORDS = ("公章", "印章", "盖章", "签章")
 SIGNATURE_MENTION_KEYWORDS = ("签字", "签名", "落款")
@@ -158,10 +155,7 @@ class RelationMapper:
     ) -> list[Relation]:
         relations: list[Relation] = []
 
-        # 拿所有非文本 segment 与实体
-        non_text_segments = [
-            s for s in seg_list if s.modality and s.modality != Modality.TEXT.value
-        ]
+        # 拿所有非文本实体
         non_text_entities_by_modality: dict[str, list[Entity]] = {}
         for ent in entities:
             for m in ent.mentions:

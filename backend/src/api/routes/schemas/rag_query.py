@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """rag_query 路由 Pydantic schemas（P13-C VLM 增强 Query DTO）。"""
 
 from __future__ import annotations
@@ -6,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 from pydantic import BaseModel, Field
-
 
 # ============ 请求 ============
 

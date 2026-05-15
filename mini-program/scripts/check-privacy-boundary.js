@@ -8,7 +8,7 @@ function read(relativePath) {
 }
 
 function fail(message) {
-  console.error(message)
+  console.error(`mini-program privacy boundary: FAIL — ${message}`)
   process.exit(1)
 }
 
@@ -26,60 +26,60 @@ function assertOrder(source, before, after, context) {
   }
 }
 
-function sliceFrom(source, start, end) {
-  const startIndex = source.indexOf(start)
-  if (startIndex === -1) {
-    fail(`missing section ${start}`)
-  }
-  const endIndex = end ? source.indexOf(end, startIndex) : -1
-  return source.slice(startIndex, endIndex === -1 ? undefined : endIndex)
-}
-
-const api = read('src/services/api.ts')
-const profile = read('src/pages/profile/index.tsx')
-const indexPage = read('src/pages/index/index.tsx')
-const chatPage = read('src/pages/chat/index.tsx')
-
-assertIncludes(api, 'MiniProgramPrivacyNetworkBlockedError', 'api privacy boundary')
-assertIncludes(api, "'X-Privacy-Mode'", 'api privacy boundary')
-assertIncludes(api, "new Set<MiniProgramPrivacyMode>(['local', 'top-secret'])", 'api privacy boundary')
-
-const refreshToken = sliceFrom(api, 'async function refreshToken', 'export async function request')
-assertOrder(
-  refreshToken,
-  'assertMiniProgramDataNetworkAllowed(privacyMode)',
-  "const rt = Taro.getStorageSync('refresh_token')",
-  'refresh token privacy boundary',
-)
-assertOrder(
-  refreshToken,
-  'assertMiniProgramDataNetworkAllowed(privacyMode)',
-  'Taro.request({',
-  'refresh token privacy boundary',
+// ---------------------------------------------------------------------------
+// 1. privacy 模块本身存在并暴露必要 API
+// ---------------------------------------------------------------------------
+const privacy = read('src/utils/privacy/index.ts')
+assertIncludes(privacy, 'MiniProgramPrivacyNetworkBlockedError', 'privacy module')
+assertIncludes(privacy, 'assertMiniProgramDataNetworkAllowed', 'privacy module')
+assertIncludes(
+  privacy,
+  "DATA_NETWORK_BLOCKED: ReadonlySet<MiniProgramPrivacyMode> = new Set<MiniProgramPrivacyMode>([\n  'local',\n  'top-secret',\n])",
+  'privacy module fail-closed set',
 )
 
-const request = sliceFrom(api, 'export async function request')
+// ---------------------------------------------------------------------------
+// 2. utils/api/client.ts: rawRequest 在调用 Taro.request 前必须先 assert
+// ---------------------------------------------------------------------------
+const client = read('src/utils/api/client.ts')
+assertIncludes(client, "from '../privacy'", 'client.ts privacy import')
 assertOrder(
-  request,
+  client,
   'assertMiniProgramDataNetworkAllowed(privacyMode)',
-  "const token = Taro.getStorageSync('token')",
-  'request privacy boundary',
+  'await Taro.request({',
+  'client.ts rawRequest privacy guard',
 )
+assertIncludes(client, "'X-Privacy-Mode': privacyMode", 'client.ts privacy header')
+
+// ---------------------------------------------------------------------------
+// 3. utils/auth/refresh.ts: refresh 流程前置 assert
+// ---------------------------------------------------------------------------
+const refresh = read('src/utils/auth/refresh.ts')
+assertIncludes(refresh, "from '../privacy'", 'refresh.ts privacy import')
 assertOrder(
-  request,
+  refresh,
   'assertMiniProgramDataNetworkAllowed(privacyMode)',
-  'Taro.request({',
-  'request privacy boundary',
+  'await Taro.request({',
+  'refresh.ts privacy guard',
 )
 
+// ---------------------------------------------------------------------------
+// 4. utils/api/auth.ts: wxLogin 前置 assert
+// ---------------------------------------------------------------------------
+const authApi = read('src/utils/api/auth.ts')
+assertIncludes(authApi, "from '../privacy'", 'auth.ts privacy import')
 assertOrder(
-  profile,
+  authApi,
   'assertMiniProgramDataNetworkAllowed(currentMode)',
-  'const loginRes = await Taro.login()',
-  'profile login privacy boundary',
+  'await Taro.login()',
+  'auth.ts wxLogin privacy guard',
 )
-assertIncludes(profile, 'setStoredPrivacyMode(option.mode)', 'profile privacy settings')
-assertIncludes(indexPage, 'isMiniProgramPrivacyNetworkBlockedError', 'index privacy empty state')
-assertIncludes(chatPage, 'isMiniProgramPrivacyNetworkBlockedError', 'chat privacy error state')
 
-console.log('mini-program privacy boundary guard ok')
+// ---------------------------------------------------------------------------
+// 5. pages/me 必须提供隐私模式切换 UI，避免出现"机制可用但用户无入口"
+// ---------------------------------------------------------------------------
+const mePage = read('src/pages/me/index.tsx')
+assertIncludes(mePage, 'setStoredPrivacyMode', 'me page privacy switcher')
+assertIncludes(mePage, 'PRIVACY_OPTIONS', 'me page privacy switcher')
+
+console.log('mini-program privacy boundary guard: PASS')

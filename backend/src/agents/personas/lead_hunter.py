@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """获客猎手 (lead_hunter) Persona — P7-C 实装。
 
 定位：制造业 / B2B 跨境获客 + 销售跟进 + 商务沟通自动化。
@@ -35,7 +34,6 @@ from src.agents.personas.sales_models import (
     QuoteItem,
     QuoteTerms,
 )
-
 
 # ---------------------------------------------------------------------------
 # Lead Scoring 算法
@@ -217,7 +215,7 @@ _TOKEN_RE = re.compile(r"\{(\w+)\}")
 def _render(text: str, ctx: dict[str, str]) -> str:
     """轻量占位符替换：``{key}`` → ctx[key]，缺失时保留原 token。"""
 
-    def _sub(m: "re.Match[str]") -> str:
+    def _sub(m: re.Match[str]) -> str:
         return ctx.get(m.group(1), m.group(0))
 
     return _TOKEN_RE.sub(_sub, text)

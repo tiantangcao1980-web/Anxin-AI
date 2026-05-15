@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 P13-B 知识图谱核心数据契约
 
@@ -16,10 +15,10 @@ P13-B 知识图谱核心数据契约
 from __future__ import annotations
 
 import abc
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Any, Iterable, Protocol, runtime_checkable
-
+from typing import Any, Protocol, runtime_checkable
 
 # ---------------------------------------------------------------------------
 # Modality（与 P13-A 的多模态切片对齐）
@@ -66,7 +65,7 @@ class Segment:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_protocol(cls, seg: SegmentLikeProtocol) -> "Segment":
+    def from_protocol(cls, seg: SegmentLikeProtocol) -> Segment:
         return cls(
             segment_id=seg.segment_id,
             modality=str(seg.modality),
@@ -127,7 +126,7 @@ class Entity:
     properties: dict[str, Any] = field(default_factory=dict)
     confidence: float = 1.0
 
-    def merge(self, other: "Entity") -> "Entity":
+    def merge(self, other: Entity) -> Entity:
         """同名实体合并：合并 aliases / mentions / properties，confidence 取较大。"""
         if other.name != self.name and other.name not in self.aliases:
             self.aliases.append(other.name)

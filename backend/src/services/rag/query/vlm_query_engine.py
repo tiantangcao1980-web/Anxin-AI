@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """VLM 增强查询引擎。
 
 把 :class:`MultimodalRetriever` 的命中段附带的图（image / seal）
@@ -31,7 +30,6 @@ from src.services.rag.query.base import (
 )
 from src.services.rag.query.citation_aggregator import CitationAggregator
 from src.services.rag.query.multimodal_retriever import MultimodalRetriever
-
 
 # 默认系统提示
 DEFAULT_VLM_SYSTEM_PROMPT = """你是一位严谨的法律 / 财税 / 合同领域多模态助手。

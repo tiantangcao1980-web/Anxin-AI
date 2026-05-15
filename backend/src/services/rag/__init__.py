@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 RAG-Anything 风格的检索增强子系统
 

@@ -16,6 +16,7 @@
 import Taro from '@tarojs/taro'
 import { apiClient } from './client'
 import { tokenStorage, type StoredUser } from '../auth/token'
+import { assertMiniProgramDataNetworkAllowed, getStoredPrivacyMode } from '../privacy'
 
 export interface LoginResult {
   access_token: string
@@ -34,6 +35,10 @@ export interface PasswordLoginRequest {
  * 微信小程序登录：调 wx.login 拿 code，再换后端 token
  */
 export async function wechatMiniprogramLogin(): Promise<LoginResult> {
+  // 隐私模式 fail-closed：Taro.login 触发与微信后台通信，敏感模式禁止
+  const currentMode = getStoredPrivacyMode()
+  assertMiniProgramDataNetworkAllowed(currentMode)
+
   const loginRes = await Taro.login()
   if (!loginRes.code) {
     throw new Error('微信登录失败：未获取到 code')

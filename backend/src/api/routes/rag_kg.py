@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 rag_kg 路由 —— P13-B 跨模态知识图谱对外 API
 

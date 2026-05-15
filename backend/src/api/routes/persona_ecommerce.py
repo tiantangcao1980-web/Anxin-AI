@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """跨境电商助手 persona 路由（P7-E）。
 
 挂载点（在 ``api/routes/__init__.py`` 用 ``prefix="/personas/ecommerce"`` 注册）::
@@ -16,7 +15,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -260,5 +259,5 @@ async def dashboard(
             {"platform": "shopee", "listings": 15, "orders_30d": 22, "revenue_usd": 3_980.00},
             {"platform": "tiktok_shop", "listings": 12, "orders_30d": 18, "revenue_usd": 1_640.00},
         ],
-        last_updated=datetime.now(timezone.utc).isoformat(),
+        last_updated=datetime.now(UTC).isoformat(),
     )

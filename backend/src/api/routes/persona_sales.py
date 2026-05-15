@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """persona_sales 路由 — P7-C 获客猎手 persona 对外 API。
 
 挂载点（在 ``api/routes/__init__.py`` 用 ``prefix="/personas/sales"`` 注册）::
@@ -17,7 +16,6 @@ from __future__ import annotations
 
 import base64
 import threading
-from dataclasses import asdict
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -154,7 +152,7 @@ async def discover_leads(
     candidates_raw: list[dict[str, Any]] = [c.model_dump() for c in payload.candidates]
     leads = await _agent().discover_leads(criteria, candidates=candidates_raw)
     _put_leads(str(user.id), leads)
-    return DiscoverLeadsOut(items=[_lead_to_out(l) for l in leads], total=len(leads))
+    return DiscoverLeadsOut(items=[_lead_to_out(lead) for lead in leads], total=len(leads))
 
 
 @router.post("/draft-email", response_model=EmailDraftOut)
@@ -283,5 +281,5 @@ async def list_leads(
             if not tagged and not inferred:
                 continue
         filtered.append(lead)
-    filtered.sort(key=lambda l: l.score, reverse=True)
-    return ListLeadsOut(items=[_lead_to_out(l) for l in filtered], total=len(filtered))
+    filtered.sort(key=lambda lead: lead.score, reverse=True)
+    return ListLeadsOut(items=[_lead_to_out(lead) for lead in filtered], total=len(filtered))

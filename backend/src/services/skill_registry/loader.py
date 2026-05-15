@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 SkillLoader —— 从 SKILL.md 加载技能（P5 真实装版）
 

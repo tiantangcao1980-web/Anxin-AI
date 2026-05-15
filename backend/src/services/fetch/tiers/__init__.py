@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """FetchService 4 层 Tier 适配。
 
 - ``base.BaseTier`` 抽象

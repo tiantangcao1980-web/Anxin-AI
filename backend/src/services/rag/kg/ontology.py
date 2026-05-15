@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 法律领域本体（轻量级）
 
@@ -9,10 +8,9 @@
 from __future__ import annotations
 
 import re
-from typing import Iterable
+from collections.abc import Iterable
 
 from src.services.rag.kg.base import EntityType
-
 
 # ---------------------------------------------------------------------------
 # 当事人 / 主体

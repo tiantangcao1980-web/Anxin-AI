@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 FetchService — 信息获取栈 4 层门面（P6-A）。
 

@@ -10,15 +10,14 @@ Prometheus Metrics 端点
 
 from typing import Any, cast
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 from loguru import logger
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
 from src.core.database import get_db
 from src.models.webhook import WebhookReceived
-
-from src.core.config import settings
 
 router = APIRouter()
 
@@ -100,7 +99,10 @@ async def prometheus_metrics(db: AsyncSession = Depends(get_db)) -> Response:
     # P19-A: 追加业务级 prometheus_client 暴露（19 个 metric）
     if getattr(settings, "METRICS_ENABLED", True):
         try:
-            from src.services.monitoring.prometheus_metrics import CONTENT_TYPE_LATEST, render_exposition
+            from src.services.monitoring.prometheus_metrics import (
+                CONTENT_TYPE_LATEST,
+                render_exposition,
+            )
             return Response(
                 content="\n".join(lines) + "\n" + render_exposition().decode("utf-8"),
                 media_type=CONTENT_TYPE_LATEST,

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """信用中国（creditchina.gov.cn）公开企业信用查询数据源。
 
 仅查询公开企业信用：
@@ -14,9 +13,10 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Any, Awaitable, Callable, ClassVar, Optional
+from typing import Any, ClassVar
 from urllib.parse import urljoin
 
 import httpx
@@ -48,7 +48,7 @@ class CreditEntry:
 
     category: str   # "失信" / "行政处罚" / "经营异常"
     title: str
-    issued_at: Optional[date]
+    issued_at: date | None
     issuing_authority: str
     detail: dict[str, Any]
 
@@ -67,8 +67,8 @@ class CreditChinaSource(BaseLegalSource):
 
     def __init__(
         self,
-        client: Optional[httpx.AsyncClient] = None,
-        rate_limiter: Optional[Callable[[], Awaitable[None]]] = None,
+        client: httpx.AsyncClient | None = None,
+        rate_limiter: Callable[[], Awaitable[None]] | None = None,
         timeout: float = 15.0,
     ) -> None:
         self._client = client
@@ -198,7 +198,7 @@ class CreditChinaSource(BaseLegalSource):
         return out
 
 
-def _parse_date(value: Any) -> Optional[date]:
+def _parse_date(value: Any) -> date | None:
     if not value:
         return None
     if isinstance(value, date):

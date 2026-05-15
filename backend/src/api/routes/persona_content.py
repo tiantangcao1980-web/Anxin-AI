@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """ContentDirector persona 路由 —— V3 P7-D。
 
 挂载点（在 ``api/routes/__init__.py`` 用 ``prefix="/personas/content"`` 注册）::
@@ -43,7 +42,6 @@ from src.api.routes.schemas.persona_content import (
 )
 from src.core.deps import get_current_user_required
 from src.models.user import User
-
 
 router = APIRouter()
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Neo4j KG 写入器
 
@@ -18,7 +17,8 @@ Neo4j KG 写入器
 from __future__ import annotations
 
 import os
-from typing import Any, Callable, ContextManager, Iterable, Optional
+from collections.abc import Callable, Iterable
+from typing import Any, ContextManager
 
 from loguru import logger
 
@@ -28,7 +28,6 @@ from src.services.rag.kg.base import (
     Relation,
     RelationType,
 )
-
 
 SessionFactory = Callable[[], ContextManager[Any]]
 
@@ -73,7 +72,7 @@ class Neo4jKGWriter:
     def __init__(
         self,
         *,
-        session_factory: Optional[SessionFactory] = None,
+        session_factory: SessionFactory | None = None,
         driver: Any = None,
         batch_size: int = 200,
     ) -> None:
@@ -86,7 +85,7 @@ class Neo4jKGWriter:
             neo4j ``Driver`` 或 camel ``Neo4jGraph`` 实例（取后者的 ``.driver``）
         """
         if session_factory is not None:
-            self._session_factory: Optional[SessionFactory] = session_factory
+            self._session_factory: SessionFactory | None = session_factory
         elif driver is not None:
             real_driver = getattr(driver, "driver", driver)
             if real_driver is None or not hasattr(real_driver, "session"):

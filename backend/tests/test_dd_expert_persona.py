@@ -125,6 +125,8 @@ def test_persona_metadata_and_registry():
     from src.agents.personas.registry import PersonaRegistry
 
     reg = PersonaRegistry.instance()
+    # 兼容前置测试 reset_instance() 留下的空单例：autoload 幂等，会触发 bootstrap
+    reg.autoload()
     assert reg.has("due_diligence_expert")
 
 

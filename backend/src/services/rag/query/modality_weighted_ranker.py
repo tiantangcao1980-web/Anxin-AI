@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """模态加权排序器。
 
 默认权重：
@@ -23,7 +22,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from src.services.rag.query.base import Modality, RetrievedSegment
-
 
 DEFAULT_MODALITY_WEIGHTS: dict[Modality, float] = {
     Modality.TEXT: 1.00,

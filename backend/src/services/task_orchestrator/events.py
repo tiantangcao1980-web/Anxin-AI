@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 任务事件定义与 Redis Streams 持久化
 
@@ -16,12 +15,12 @@ from __future__ import annotations
 import asyncio
 import enum
 import json
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, AsyncIterator, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from loguru import logger
-
 
 # ---------------------------------------------------------------------------
 # 事件类型 / DTO
@@ -63,7 +62,7 @@ class TaskEvent:
     event_type: TaskEventType
     payload: dict[str, Any] = field(default_factory=dict)
     timestamp: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
     stream_id: str | None = None
 
@@ -80,7 +79,7 @@ class TaskEvent:
     @classmethod
     def from_redis_entry(
         cls, entry_id: str, fields: dict[bytes | str, bytes | str], task_id: str
-    ) -> "TaskEvent":
+    ) -> TaskEvent:
         """从 Redis Streams 条目还原 ``TaskEvent``。
 
         Redis Streams 条目格式: ``(b"<id>", {b"data": b"<json>"})``
@@ -96,9 +95,9 @@ class TaskEvent:
         data = json.loads(raw)
         ts_str = data.get("timestamp")
         try:
-            ts = datetime.fromisoformat(ts_str) if ts_str else datetime.now(timezone.utc)
+            ts = datetime.fromisoformat(ts_str) if ts_str else datetime.now(UTC)
         except ValueError:
-            ts = datetime.now(timezone.utc)
+            ts = datetime.now(UTC)
         try:
             etype = TaskEventType(data.get("event_type", TaskEventType.PROGRESS.value))
         except ValueError:

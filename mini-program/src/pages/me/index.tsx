@@ -15,6 +15,11 @@ import Taro from '@tarojs/taro'
 import { Screen } from '../../components/Layout'
 import { tokenStorage, type StoredUser } from '../../utils/auth/token'
 import { logout } from '../../utils/api/auth'
+import {
+  getStoredPrivacyMode,
+  setStoredPrivacyMode,
+  type MiniProgramPrivacyMode,
+} from '../../utils/privacy'
 import './index.scss'
 
 interface MenuItem {
@@ -22,15 +27,28 @@ interface MenuItem {
   emoji: string
   title: string
   description?: string
+  rightText?: string
   action: () => void | Promise<void>
+}
+
+const PRIVACY_OPTIONS: { mode: MiniProgramPrivacyMode; label: string; desc: string }[] = [
+  { mode: 'standard', label: '标准模式', desc: '联网使用全部功能' },
+  { mode: 'local', label: '本地模式', desc: '禁用数据网络，仅本地缓存' },
+  { mode: 'top-secret', label: '机密模式', desc: '禁用数据网络 + 不留痕' },
+]
+
+function privacyLabel(mode: MiniProgramPrivacyMode): string {
+  return PRIVACY_OPTIONS.find((o) => o.mode === mode)?.label || '标准模式'
 }
 
 export default function MePage() {
   const [user, setUser] = useState<StoredUser | null>(null)
   const [vipLevel] = useState<'free' | 'pro' | 'enterprise'>('free')
+  const [privacyMode, setPrivacyMode] = useState<MiniProgramPrivacyMode>('standard')
 
   useEffect(() => {
     setUser(tokenStorage.getUser())
+    setPrivacyMode(getStoredPrivacyMode())
   }, [])
 
   const handleClearCache = async () => {
@@ -71,6 +89,29 @@ export default function MePage() {
     })
   }
 
+  const handlePrivacyMode = async () => {
+    const res = await Taro.showActionSheet({
+      itemList: PRIVACY_OPTIONS.map((o) => `${o.label} · ${o.desc}`),
+    }).catch(() => null)
+    if (!res || res.tapIndex === undefined) return
+    const next = PRIVACY_OPTIONS[res.tapIndex]?.mode
+    if (!next || next === privacyMode) return
+
+    // 切到敏感模式前先告知后果
+    if (next !== 'standard') {
+      const confirm = await Taro.showModal({
+        title: `切换到「${PRIVACY_OPTIONS[res.tapIndex]?.label}」`,
+        content: '该模式下所有数据网络请求将被拒绝（包括 token 刷新、登录续期）。\n仅本地缓存功能可用。',
+        confirmText: '确认切换',
+        confirmColor: '#B45309',
+      })
+      if (!confirm.confirm) return
+    }
+    setStoredPrivacyMode(next)
+    setPrivacyMode(next)
+    Taro.showToast({ title: `已切换：${privacyLabel(next)}`, icon: 'none' })
+  }
+
   const handleFeedback = () => {
     Taro.showModal({
       title: '反馈渠道',
@@ -90,6 +131,13 @@ export default function MePage() {
   }
 
   const menu: MenuItem[] = [
+    {
+      key: 'privacy-mode',
+      emoji: '🛡️',
+      title: '隐私模式',
+      rightText: privacyLabel(privacyMode),
+      action: handlePrivacyMode,
+    },
     { key: 'clear', emoji: '🧹', title: '清除缓存', action: handleClearCache },
     { key: 'about', emoji: 'ℹ️', title: '关于安心', action: handleAbout },
     {
@@ -144,6 +192,16 @@ export default function MePage() {
         )}
       </View>
 
+      {/* 隐私模式横幅（仅敏感模式显示） */}
+      {privacyMode !== 'standard' ? (
+        <View className='me-privacy-banner'>
+          <Text className='me-privacy-banner__emoji'>🛡️</Text>
+          <Text className='me-privacy-banner__text'>
+            当前为「{privacyLabel(privacyMode)}」— 数据网络已禁用
+          </Text>
+        </View>
+      ) : null}
+
       {/* 菜单 */}
       <View className='me-menu'>
         {menu.map((item, idx) => (
@@ -154,6 +212,17 @@ export default function MePage() {
           >
             <Text className='me-menu__emoji'>{item.emoji}</Text>
             <Text className='me-menu__title'>{item.title}</Text>
+            {item.rightText ? (
+              <Text
+                className={`me-menu__right ${
+                  item.key === 'privacy-mode' && privacyMode !== 'standard'
+                    ? 'me-menu__right--alert'
+                    : ''
+                }`}
+              >
+                {item.rightText}
+              </Text>
+            ) : null}
             <Text className='me-menu__chevron'>›</Text>
           </View>
         ))}

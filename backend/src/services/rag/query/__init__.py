@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P13-C VLM 增强 Query 模块。
 
 公开 API：
@@ -15,26 +14,26 @@
 """
 
 from src.services.rag.query.base import (
+    KGBooster,
+    Modality,
+    ModalityExpander,
     MultimodalQueryRequest,
     RetrievedSegment,
-    VLMQueryResponse,
-    Modality,
     VectorSearcher,
-    KGBooster,
-    ModalityExpander,
     VLMClient,
+    VLMQueryResponse,
+)
+from src.services.rag.query.citation_aggregator import (
+    Citation,
+    CitationAggregator,
 )
 from src.services.rag.query.modality_weighted_ranker import (
-    ModalityWeightedRanker,
     DEFAULT_MODALITY_WEIGHTS,
     KEYWORD_WEIGHT_OVERRIDES,
+    ModalityWeightedRanker,
 )
 from src.services.rag.query.multimodal_retriever import MultimodalRetriever
 from src.services.rag.query.vlm_query_engine import VLMQueryEngine
-from src.services.rag.query.citation_aggregator import (
-    CitationAggregator,
-    Citation,
-)
 
 __all__ = [
     "MultimodalQueryRequest",

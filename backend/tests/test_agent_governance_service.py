@@ -263,6 +263,15 @@ async def test_issue_route_token_enforces_consumer_and_scope(db_session, test_or
         allowed_scopes=["browser:read"],
     )
 
+    route = (
+        await db_session.execute(
+            select(CapabilityRoute).where(
+                CapabilityRoute.org_id == test_organization.id,
+                CapabilityRoute.route_key == "limited-route",
+            )
+        )
+    ).scalar_one()
+
     bad_consumer = await service.issue_route_token(
         org_id=test_organization.id,
         route_key="limited-route",
@@ -276,7 +285,14 @@ async def test_issue_route_token_enforces_consumer_and_scope(db_session, test_or
         requested_scopes=["browser:write"],
     )
 
-    leases = (await db_session.execute(select(CapabilityRouteTokenLease))).scalars().all()
+    # 限定本测试创建的 route — 兼容前置测试因 service.commit() 漏过 db_session rollback 留下的残留
+    leases = (
+        await db_session.execute(
+            select(CapabilityRouteTokenLease).where(
+                CapabilityRouteTokenLease.route_id == route.id,
+            )
+        )
+    ).scalars().all()
 
     assert bad_consumer.allowed is False
     assert bad_consumer.reason_code == "consumer_not_allowed"

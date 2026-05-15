@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """市场研究员（market_researcher）persona 路由 —— P7-B。
 
 挂载点（在 ``api/routes/__init__.py`` 用 ``prefix="/personas/market"`` 注册）::

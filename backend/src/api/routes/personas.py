@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 personas 路由 —— V3 user-facing persona 对外 API（P7 系列）
 
@@ -21,12 +20,10 @@ specialized endpoints 时，**请放在自己专属的 ``/personas/<short>/``
 
 from __future__ import annotations
 
-from typing import List
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
 
-from src.agents.personas import PersonaRegistry, get_persona_registry
+from src.agents.personas import PersonaRegistry
 from src.api.routes.schemas.persona import (
     ChatRequest,
     ChatResponse,
@@ -46,7 +43,6 @@ from src.api.routes.schemas.persona import (
 )
 from src.core.deps import get_current_user_required
 from src.models.user import User
-
 
 router = APIRouter()
 

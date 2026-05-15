@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Notion OAuth 2.0 Provider — P4-D 真实现。
 
 实装 ``BaseOAuthProvider`` 的 5 个方法，对接 Notion 开放平台 OAuth：
@@ -161,7 +160,7 @@ class NotionOAuthProvider(BaseOAuthProvider):
         Notion ``/v1/oauth/token`` 与 ``/v1/oauth/revoke`` 强制要求该方式，
         client_secret **不可**放在 JSON body 里。
         """
-        creds = f"{self._client_id}:{self._client_secret}".encode("utf-8")
+        creds = f"{self._client_id}:{self._client_secret}".encode()
         return "Basic " + base64.b64encode(creds).decode("ascii")
 
     @staticmethod

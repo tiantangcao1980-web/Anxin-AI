@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TaskOrchestratorService —— 任务编排服务门面
 
@@ -30,7 +29,6 @@ from src.services.task_orchestrator.state_machine import (
     InvalidTransitionError,
     TaskStateMachine,
 )
-
 
 # ---------------------------------------------------------------------------
 # 默认事件 emitter：把 sync 调用桥接到 Redis Streams 异步发布

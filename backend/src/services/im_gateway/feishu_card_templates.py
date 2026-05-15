@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 飞书交互卡片（Interactive Card）模板
 

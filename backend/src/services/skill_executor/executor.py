@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 SkillExecutor —— 技能执行器（P5-A）
 
@@ -213,7 +212,7 @@ class SkillExecutor:
         return "\n".join(system_parts), "\n".join(user_parts)
 
 
-async def _maybe_await(value: "str | Awaitable[str]") -> str:
+async def _maybe_await(value: str | Awaitable[str]) -> str:
     """允许 ``llm_callable`` 同步或异步返回字符串。"""
     if asyncio.iscoroutine(value) or isinstance(value, asyncio.Future):
         return await value  # type: ignore[no-any-return]
@@ -233,7 +232,6 @@ def _default_llm_call(system_prompt: str, user_prompt: str) -> str:
     """
     try:
         # rag_service 已经持有一个 OpenAI 兼容的客户端
-        from src.core.config import settings
         from src.services.rag_service import _build_llm_client  # type: ignore[attr-defined]
 
         client = _build_llm_client()

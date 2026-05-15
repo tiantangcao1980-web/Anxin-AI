@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Sentry SDK 初始化
 
@@ -18,7 +17,7 @@ from __future__ import annotations
 
 import os
 import re
-from typing import Any, Dict, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -63,7 +62,7 @@ def _redact_value(key: str, value: Any) -> Any:
     return value
 
 
-def sanitize_event(event: Dict[str, Any], hint: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+def sanitize_event(event: dict[str, Any], hint: dict[str, Any] | None = None) -> dict[str, Any] | None:
     """Sentry before_send 钩子：过滤敏感字段。
 
     返回 None 表示丢弃事件；返回 event 表示放行（可被修改）。

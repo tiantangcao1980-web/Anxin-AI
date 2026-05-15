@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """FetchService 数据源插件目录。
 
 子目录约定：

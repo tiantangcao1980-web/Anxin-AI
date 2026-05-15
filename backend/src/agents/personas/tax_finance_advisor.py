@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """财税顾问 persona（P9-E）。
 
 定位：制造业财税一站式智能体 —— 包装 ``tax_compliance.py`` 与
@@ -25,7 +24,6 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
-from typing import Any
 
 from src.agents.legal_calculator import LegalCalculatorAgent
 from src.agents.personas.base_persona import BasePersonaAgent
@@ -42,7 +40,6 @@ from src.agents.personas.finance_models import (
 )
 from src.agents.personas.research_models import Citation
 from src.agents.tax_compliance import TaxComplianceAgent
-
 
 # ---------------------------------------------------------------------------
 # 中国境内常用税率（与税务总局公开口径对齐 — 仅供财税计算 mock 默认值）

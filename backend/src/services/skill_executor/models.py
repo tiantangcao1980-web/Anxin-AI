@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 SkillExecutor 数据模型 —— 进程内运行时对象，**不入库**。
 
@@ -10,7 +9,7 @@ from __future__ import annotations
 
 import enum
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -112,12 +111,12 @@ class SkillExecutionLog:
     def mark_success(self, output: str) -> None:
         self.status = SkillExecutionStatus.SUCCESS
         self.output = output
-        self.finished_at = datetime.now(timezone.utc)
+        self.finished_at = datetime.now(UTC)
 
     def mark_failed(self, error: str) -> None:
         self.status = SkillExecutionStatus.FAILED
         self.error = error
-        self.finished_at = datetime.now(timezone.utc)
+        self.finished_at = datetime.now(UTC)
 
     def to_dict(self) -> dict[str, Any]:
         return {

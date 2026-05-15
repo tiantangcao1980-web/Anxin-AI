@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 异步任务状态机
 
@@ -20,8 +19,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable, Union
+from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
+from typing import Any
 
 from src.services.task_orchestrator.events import TaskEvent, TaskEventType
 from src.services.task_orchestrator.models import Task, TaskStatus
@@ -83,7 +83,7 @@ ENTER_EVENT: dict[TaskStatus, TaskEventType] = {
 
 
 # 事件回调签名：可同步、可异步
-EventEmitter = Callable[[TaskEvent], Union[None, Awaitable[None]]]
+EventEmitter = Callable[[TaskEvent], None | Awaitable[None]]
 
 
 class TaskStateMachine:
@@ -142,7 +142,7 @@ class TaskStateMachine:
         if not self.can_transition(from_state, to_state):
             raise InvalidTransitionError(from_state, to_state)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         task.status = to_state
 
         # 时间戳钩子

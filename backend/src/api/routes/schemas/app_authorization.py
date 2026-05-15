@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """app_authorizations 路由 Pydantic schemas（请求 / 响应 DTO）。"""
 
 from __future__ import annotations
@@ -6,7 +5,6 @@ from __future__ import annotations
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
-
 
 # ---------------------------------------------------------------------------
 # Provider 元数据

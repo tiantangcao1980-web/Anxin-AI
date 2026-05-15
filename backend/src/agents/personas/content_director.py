@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """ContentDirectorAgent —— V3 P7-D「内容总监」 persona。
 
 定位：制造业品牌内容自动化（公众号 / 短视频脚本 / 海报 / banner / 包装）。
@@ -32,7 +31,6 @@ from src.agents.personas.content_models import (
     VideoScene,
     VideoScript,
 )
-
 
 # ---------------------------------------------------------------------------
 # Prompt 常量（独立出来便于测试 patch）
