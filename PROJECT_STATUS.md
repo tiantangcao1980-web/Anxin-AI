@@ -75,7 +75,7 @@
 - **桌面优先**：后续功能开发先聚焦桌面端本地可执行能力与治理门禁；移动端/小程序按 `mobile/`（Expo RN）+ `mini-program/`（Taro）双端独立推进。
 - **桌面 MVP 11a**：窗口 chrome、Quick Query、文件拖入 SQLCipher 离线队列、WebView drop、工作站配置/配置档 CRUD、运行状态 SQLCipher `app_settings` 镜像、Keychain 进程内 key cache、PrivacyContext 对齐、远控 host safe-probe 控制面已有代码/浏览器/本地门禁证据；仍缺 signed packaged runtime、macOS/Windows 截图/视频、快捷键 P95 < 200ms、托盘 drop P95 < 500ms、真实 local model、真实 approved connector 和真机远控证据。
 - **桌面同步 11b**：Rust-owned SQLCipher/keyring、本地/unsigned release packaged-profile smoke、packaged-binary sync code smoke、unsigned release loopback push/pull/conflict/retry 和跨设备续接代码级 rehearsal 已有；仍缺 signed/notarized packaged-profile、signed runtime 性能、共享预发后端 transcript、交互式 conflict/human-intervention UI transcript 和真机跨设备连续会话。
-- **移动/小程序路线**：2026-05 终止 `apps/uni-mobile/` UniApp 跨端方案；现有移动能力统一回到 `mobile/`（Expo + RN），小程序统一回到 `mini-program/`（Taro + React），两端各自的 code smoke、fake-fallback guard、隐私模式 no-network guard 已纳入 `commercial-readiness-gate.sh`。真实 iOS/Android、交互式微信开发者工具、共享预发账号证据仍缺。
+- **移动/小程序路线**：2026-05 终止短暂存在的 Vue 跨端实验目录；现有移动能力统一回到 `mobile/`（Expo + RN），小程序统一回到 `mini-program/`（Taro + React），两端各自的 code smoke、fake-fallback guard、隐私模式 no-network guard 已纳入 `commercial-readiness-gate.sh`。真实 iOS/Android、交互式微信开发者工具、共享预发账号证据仍缺。
 - **外部 API 策略**：支付、电签、LLM/embedding、MCP/Skills connector 等先保留 sandbox/live runner、contract test、env manifest 和脱敏 artifact 槽位；真实密钥、商户后台、签名身份和真机由外部输入后再联调。
 - **后端启动/登录可靠性**：PostgreSQL 旧库缺 `users.department` 等登录查询列时，启动兼容层已覆盖用户登录相关增量列；`init_db()` 失败现在会阻止 API 启动，不再带着坏 schema 继续运行到登录阶段才报错。
 

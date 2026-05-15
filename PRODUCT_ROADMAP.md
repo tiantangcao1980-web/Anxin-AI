@@ -124,7 +124,7 @@
 
 **技术栈**：Mobile (Expo RN) + Mini Program (Taro)。两端独立演进，共享 `frontend/src/lib/design-tokens.ts` 之外的端内派生 token（详见各端 `theme/` 或 `styles/`）。
 
-> 2026-05 路线调整：原 `apps/uni-mobile/` UniApp 跨端方案已终止。理由：与 Expo RN 和 Taro 产生维护重叠、DCloud 云打包/签名流程未跑通、跨端 token 漂移引入额外审计成本。未来若需 H5 移动端，将由 `frontend/` 通过响应式断点覆盖；若需新移动能力，进入 `mobile/`；若需小程序原生能力，进入 `mini-program/`。
+> 2026-05 路线调整：原跨端方案（早期短暂存在的 Vue 跨端目录）已终止 — 与 Expo RN 和 Taro 产生维护重叠、专用打包/签名流程未跑通、跨端 token 漂移引入额外审计成本。未来若需 H5 移动端，将由 `frontend/` 通过响应式断点覆盖；若需新移动能力，进入 `mobile/`；若需小程序原生能力，进入 `mini-program/`。完整历史见 [CHANGELOG](./CHANGELOG.md)。
 
 **已有代码级基座**：
 - ✅ `mobile/` Expo + RN：本地 smoke、fake fallback guard、隐私模式 no-network guard 已有
