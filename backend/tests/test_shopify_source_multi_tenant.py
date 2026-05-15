@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Shopify 数据源 — 多租户 shop 域名贯穿测试（P6-D）。
 
 验证：
@@ -12,7 +11,6 @@
 
 from __future__ import annotations
 
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -52,9 +50,7 @@ def _make_client() -> MagicMock:
 async def test_missing_shop_raises_oauth_required():
     src = ShopifyEcommerceSource(http_client=_make_client())
     with pytest.raises(OAuthRequiredError) as ei:
-        await src.search_products(
-            ProductSearchQuery(keyword="x"), oauth_token="shpat_xxx"
-        )
+        await src.search_products(ProductSearchQuery(keyword="x"), oauth_token="shpat_xxx")
     assert "shop" in str(ei.value).lower()
 
 
@@ -62,10 +58,12 @@ async def test_missing_shop_raises_oauth_required():
 async def test_default_shop_used_when_no_kwarg():
     client = _make_client()
     src = ShopifyEcommerceSource(shop="acme.myshopify.com", http_client=client)
-    await src.search_products(
-        ProductSearchQuery(keyword="x"), oauth_token="shpat_xxx"
+    await src.search_products(ProductSearchQuery(keyword="x"), oauth_token="shpat_xxx")
+    url = (
+        client.get.call_args.args[0]
+        if client.get.call_args.args
+        else client.get.call_args.kwargs["url"]
     )
-    url = client.get.call_args.args[0] if client.get.call_args.args else client.get.call_args.kwargs["url"]
     assert url.startswith("https://acme.myshopify.com/admin/api/")
 
 
@@ -79,7 +77,11 @@ async def test_shop_kwarg_overrides_default():
         oauth_token="shpat_xxx",
         shop="override.myshopify.com",
     )
-    url = client.get.call_args.args[0] if client.get.call_args.args else client.get.call_args.kwargs["url"]
+    url = (
+        client.get.call_args.args[0]
+        if client.get.call_args.args
+        else client.get.call_args.kwargs["url"]
+    )
     assert "override.myshopify.com" in url
     assert "default.myshopify.com" not in url
 
@@ -88,13 +90,13 @@ async def test_shop_kwarg_overrides_default():
 async def test_shop_normalization_strips_protocol_and_trailing_slash():
     client = _make_client()
     # 模拟从 OAuthTokenBundle.raw["shop"] 读出来可能带 https:// 前缀
-    src = ShopifyEcommerceSource(
-        shop="https://acme.myshopify.com/", http_client=client
+    src = ShopifyEcommerceSource(shop="https://acme.myshopify.com/", http_client=client)
+    await src.search_products(ProductSearchQuery(keyword="x"), oauth_token="shpat_xxx")
+    url = (
+        client.get.call_args.args[0]
+        if client.get.call_args.args
+        else client.get.call_args.kwargs["url"]
     )
-    await src.search_products(
-        ProductSearchQuery(keyword="x"), oauth_token="shpat_xxx"
-    )
-    url = client.get.call_args.args[0] if client.get.call_args.args else client.get.call_args.kwargs["url"]
     # 不应出现双 slash 或残留 https:// 前缀
     assert url == "https://acme.myshopify.com/admin/api/2024-10/products.json"
 
@@ -119,5 +121,9 @@ async def test_health_check_calls_shop_endpoint_with_token():
     src = ShopifyEcommerceSource(shop="acme.myshopify.com", http_client=client)
     ok = await src.health_check(oauth_token="shpat_xxx")
     assert ok is True
-    url = client.get.call_args.args[0] if client.get.call_args.args else client.get.call_args.kwargs["url"]
+    url = (
+        client.get.call_args.args[0]
+        if client.get.call_args.args
+        else client.get.call_args.kwargs["url"]
+    )
     assert url.endswith("/shop.json")

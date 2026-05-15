@@ -18,7 +18,9 @@ class LitigationStrategistAgent(BaseLegalAgent):
             name="诉讼策略Agent",
             role="资深诉讼律师",
             description="制定诉讼策略，评估案件风险，指导证据准备",
-            system_prompt=load_prompt("agents/litigation_strategist.txt", fallback=_FALLBACK_PROMPT),
+            system_prompt=load_prompt(
+                "agents/litigation_strategist.txt", fallback=_FALLBACK_PROMPT
+            ),
             tools=["case_search", "law_search", "evidence_analysis"],
         )
         super().__init__(config)
@@ -57,7 +59,5 @@ class LitigationStrategistAgent(BaseLegalAgent):
             agent_name=self.name,
             content=response,
             reasoning="基于案件分析方法论和诉讼实务经验",
-            actions=[
-                {"type": "strategy_report", "description": "生成诉讼策略分析报告"}
-            ]
+            actions=[{"type": "strategy_report", "description": "生成诉讼策略分析报告"}],
         )

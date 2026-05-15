@@ -31,14 +31,18 @@ class IMConnectionManager:
                 if websocket.application_state != WebSocketState.CONNECTED:
                     await websocket.accept()
                 await websocket.close(code=4029, reason="连接数超限")
-                logger.warning(f"[IM] 用户 {user_id} 连接数超限（当前 {len(current_conns)}），拒绝新连接")
+                logger.warning(
+                    f"[IM] 用户 {user_id} 连接数超限（当前 {len(current_conns)}），拒绝新连接"
+                )
                 return False
             if websocket.application_state != WebSocketState.CONNECTED:
                 await websocket.accept()
             if user_id not in self.active_connections:
                 self.active_connections[user_id] = []
             self.active_connections[user_id].append(websocket)
-            logger.info(f"[IM] 用户 {user_id} 已连接，当前设备数: {len(self.active_connections[user_id])}")
+            logger.info(
+                f"[IM] 用户 {user_id} 已连接，当前设备数: {len(self.active_connections[user_id])}"
+            )
             return True
 
     async def disconnect(self, user_id: str, websocket: WebSocket) -> None:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """跨境电商助手 7 个 API endpoint 集成测试（P7-E）。
 
 覆盖：
@@ -19,6 +18,7 @@ from __future__ import annotations
 from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler as _SQLiteTC
 
 if not hasattr(_SQLiteTC, "visit_JSONB"):
+
     def _visit_JSONB(self, type_, **kw):  # noqa: N802
         return self.visit_JSON(type_, **kw)
 
@@ -27,7 +27,6 @@ if not hasattr(_SQLiteTC, "visit_JSONB"):
 
 import pytest
 from httpx import AsyncClient
-
 
 PREFIX = "/api/v1/personas/ecommerce"
 

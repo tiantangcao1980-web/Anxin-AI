@@ -23,10 +23,14 @@ from src.services.payment_webhook_service import apply_payment_webhook
 
 def _rsa_key_pair() -> tuple[object, str]:
     private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    public_pem = private_key.public_key().public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    ).decode("utf-8")
+    public_pem = (
+        private_key.public_key()
+        .public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        .decode("utf-8")
+    )
     return private_key, public_pem
 
 
@@ -81,10 +85,16 @@ def _merchant_private_key_pem() -> str:
 
 
 class _FakeResponse:
-    def __init__(self, payload: dict, status_code: int = 200, raw_content: bytes | None = None, headers=None):
+    def __init__(
+        self, payload: dict, status_code: int = 200, raw_content: bytes | None = None, headers=None
+    ):
         self._payload = payload
         self.status_code = status_code
-        self.content = raw_content if raw_content is not None else (json.dumps(payload).encode("utf-8") if payload else b"")
+        self.content = (
+            raw_content
+            if raw_content is not None
+            else (json.dumps(payload).encode("utf-8") if payload else b"")
+        )
         self.text = self.content.decode("utf-8")
         self.headers = headers or {}
 
@@ -148,7 +158,9 @@ async def test_wechat_pay_provider_posts_native_order(monkeypatch):
 
         async def request(self, method, url, content=None, headers=None):
             captured.update({"method": method, "url": url, "content": content, "headers": headers})
-            return _wechat_response({"code_url": "weixin://wxpay/bizpayurl?pr=test"}, platform_private_key)
+            return _wechat_response(
+                {"code_url": "weixin://wxpay/bizpayurl?pr=test"}, platform_private_key
+            )
 
     monkeypatch.setattr(payment_service.httpx, "AsyncClient", FakeAsyncClient)
     monkeypatch.setattr(settings, "PAYMENT_NOTIFY_BASE_URL", "https://api.example.com")
@@ -205,7 +217,9 @@ async def test_wechat_pay_provider_refund_sends_original_total(monkeypatch):
 
         async def request(self, method, url, content=None, headers=None):
             captured.update({"method": method, "url": url, "content": content, "headers": headers})
-            return _wechat_response({"refund_id": "wx-refund-1", "status": "PROCESSING"}, platform_private_key)
+            return _wechat_response(
+                {"refund_id": "wx-refund-1", "status": "PROCESSING"}, platform_private_key
+            )
 
     monkeypatch.setattr(payment_service.httpx, "AsyncClient", FakeAsyncClient)
     monkeypatch.setattr(settings, "WECHAT_PAY_APP_ID", "wx-app")

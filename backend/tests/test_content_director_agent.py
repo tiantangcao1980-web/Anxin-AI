@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """ContentDirectorAgent —— 5 capability 单元测试。
 
 不依赖 DB / 路由层；用 mock LLM 客户端注入 agent。
@@ -19,7 +18,6 @@ from src.agents.personas.content_models import (
     PosterCopy,
     VideoScript,
 )
-
 
 # ---------------------------------------------------------------------------
 # 测试夹具
@@ -115,9 +113,27 @@ async def test_generate_video_script_clamps_duration_and_parses_scenes():
     payload = {
         "hook": "3 秒抓眼球",
         "scenes": [
-            {"scene_no": 1, "duration_sec": 3, "visual": "厂区航拍", "voiceover": "ACME 30 年", "on_screen_text": "ACME", "bgm_mood": "燃"},
-            {"scene_no": 2, "duration_sec": 15, "visual": "机床特写", "voiceover": "5 微米精度", "on_screen_text": "≤5μm"},
-            {"scene_no": 3, "duration_sec": 12, "visual": "客户握手", "voiceover": "全球 200+ 客户"},
+            {
+                "scene_no": 1,
+                "duration_sec": 3,
+                "visual": "厂区航拍",
+                "voiceover": "ACME 30 年",
+                "on_screen_text": "ACME",
+                "bgm_mood": "燃",
+            },
+            {
+                "scene_no": 2,
+                "duration_sec": 15,
+                "visual": "机床特写",
+                "voiceover": "5 微米精度",
+                "on_screen_text": "≤5μm",
+            },
+            {
+                "scene_no": 3,
+                "duration_sec": 12,
+                "visual": "客户握手",
+                "voiceover": "全球 200+ 客户",
+            },
         ],
         "cta": "私信代理咨询",
         "hashtags": ["#精密制造"],

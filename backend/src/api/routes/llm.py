@@ -19,8 +19,10 @@ router = APIRouter()
 
 # ============ Pydantic模型 ============
 
+
 class LLMConfigCreate(BaseModel):
     """创建LLM配置请求"""
+
     name: str = Field(..., description="配置名称")
     provider: str = Field(..., description="提供商")
     model_name: str = Field(..., description="模型名称")
@@ -43,6 +45,7 @@ class LLMConfigCreate(BaseModel):
 
 class LLMConfigUpdate(BaseModel):
     """更新LLM配置请求"""
+
     name: str | None = None
     description: str | None = None
     api_key: str | None = None
@@ -64,6 +67,7 @@ class LLMConfigUpdate(BaseModel):
 
 class LLMConfigResponse(BaseModel):
     """LLM配置响应"""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: str
@@ -91,8 +95,10 @@ class LLMConfigResponse(BaseModel):
     created_at: str
     updated_at: str
 
+
 class TestConnectionRequest(BaseModel):
     """测试连接请求"""
+
     provider: str
     api_key: str | None = None
     api_base_url: str
@@ -102,6 +108,7 @@ class TestConnectionRequest(BaseModel):
 
 class TestConnectionResponse(BaseModel):
     """测试连接响应"""
+
     success: bool
     message: str
     error: str | None = None
@@ -110,6 +117,7 @@ class TestConnectionResponse(BaseModel):
 
 class ProviderInfo(BaseModel):
     """提供商信息"""
+
     name: str
     base_url: str
     models: dict[str, list[str]]
@@ -127,12 +135,13 @@ LLMConfigListResponse = dict[str, Any]
 
 # ============ API端点 ============
 
+
 def _is_superuser(user: User) -> bool:
-    return bool(getattr(user, 'is_superuser', False))
+    return bool(getattr(user, "is_superuser", False))
 
 
 def _admin_org_id_or_403(user: User) -> str:
-    org_id = getattr(user, 'org_id', None)
+    org_id = getattr(user, "org_id", None)
     if not org_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -144,7 +153,7 @@ def _admin_org_id_or_403(user: User) -> str:
 def _can_access_config(config: LLMConfig, user: User) -> bool:
     if _is_superuser(user):
         return True
-    user_org = getattr(user, 'org_id', None)
+    user_org = getattr(user, "org_id", None)
     return bool(user_org) and str(config.org_id) == str(user_org)
 
 
@@ -155,11 +164,9 @@ async def _get_scoped_config_or_404(
 ) -> LLMConfig:
     config = await LLMService.get_config(db, config_id)
     if not config or not _can_access_config(config, user):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="配置不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="配置不存在")
     return config
+
 
 @router.get("/providers", response_model=dict[str, ProviderInfo])
 async def get_providers(user: User = Depends(get_current_user_required)) -> dict[str, ProviderInfo]:
@@ -187,8 +194,7 @@ async def get_provider_models(
     """获取指定提供商的模型列表"""
     if provider not in LLM_PROVIDER_CONFIGS:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"不支持的提供商: {provider}"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"不支持的提供商: {provider}"
         )
 
     config = LLM_PROVIDER_CONFIGS[provider]
@@ -199,7 +205,7 @@ async def get_provider_models(
         "base_url": config.get("base_url", ""),
         "api_key_required": config.get("api_key_required", True),
         "is_local": config.get("is_local", False),
-        "note": config.get("note")
+        "note": config.get("note"),
     }
 
 
@@ -214,10 +220,7 @@ async def create_config(
     if not _is_superuser(admin):
         payload["org_id"] = _admin_org_id_or_403(admin)
 
-    config = await LLMService.create_config(
-        db=db,
-        **payload
-    )
+    config = await LLMService.create_config(db=db, **payload)
 
     return _config_to_response(config)
 
@@ -236,12 +239,12 @@ async def list_configs(
     # S-104 修复 + 二次加固：
     # - 超级管理员：require_org_filter=False，可见全部配置
     # - 普通用户：require_org_filter=True，强制按 org_id 过滤；org_id 为空则返回空（fail-closed）
-    is_superuser = bool(getattr(user, 'is_superuser', False))
+    is_superuser = bool(getattr(user, "is_superuser", False))
     if is_superuser:
         org_id_filter = None
         require_org_filter = False
     else:
-        org_id_filter = getattr(user, 'org_id', None)
+        org_id_filter = getattr(user, "org_id", None)
         require_org_filter = True
 
     result = await LLMService.list_configs(
@@ -259,7 +262,7 @@ async def list_configs(
         "items": [_config_to_response(item) for item in result["items"]],
         "total": result["total"],
         "page": result["page"],
-        "page_size": result["page_size"]
+        "page_size": result["page_size"],
     }
 
 
@@ -273,14 +276,11 @@ async def get_default_config(
     config = await LLMService.get_default_config(
         db,
         config_type,
-        org_id=None if _is_superuser(user) else getattr(user, 'org_id', None),
+        org_id=None if _is_superuser(user) else getattr(user, "org_id", None),
         require_org_filter=not _is_superuser(user),
     )
     if not config:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="未找到默认配置"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="未找到默认配置")
 
     return _config_to_response(config)
 
@@ -309,10 +309,7 @@ async def update_config(
 
     config = await LLMService.update_config(db, config_id, **updates)
     if not config:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="配置不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="配置不存在")
 
     return _config_to_response(config)
 
@@ -327,10 +324,7 @@ async def delete_config(
     await _get_scoped_config_or_404(db, config_id, admin)
     success = await LLMService.delete_config(db, config_id)
     if not success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="配置不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="配置不存在")
 
     return {"success": True, "message": "配置已删除"}
 
@@ -346,14 +340,11 @@ async def set_default_config(
     config = await LLMService.set_default(
         db,
         config_id,
-        org_id=None if _is_superuser(admin) else getattr(admin, 'org_id', None),
+        org_id=None if _is_superuser(admin) else getattr(admin, "org_id", None),
         require_org_filter=not _is_superuser(admin),
     )
     if not config:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="配置不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="配置不存在")
 
     return _config_to_response(config)
 
@@ -368,10 +359,7 @@ async def toggle_active(
     await _get_scoped_config_or_404(db, config_id, admin)
     config = await LLMService.toggle_active(db, config_id)
     if not config:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="配置不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="配置不存在")
 
     return _config_to_response(config)
 
@@ -387,7 +375,7 @@ async def test_connection(
         api_key=data.api_key or "",
         api_base_url=data.api_base_url,
         model_name=data.model_name,
-        headers=data.headers or {}
+        headers=data.headers or {},
     )
 
     return TestConnectionResponse(**result)
@@ -410,13 +398,14 @@ async def test_config_connection(
         api_key=api_key,
         api_base_url=config.api_base_url or "",
         model_name=config.model_name,
-        headers=config.headers or {}
+        headers=config.headers or {},
     )
 
     return TestConnectionResponse(**result)
 
 
 # ============ 辅助函数 ============
+
 
 def _config_to_response(config: LLMConfig) -> LLMConfigResponse:
     """将配置对象转换为响应格式"""

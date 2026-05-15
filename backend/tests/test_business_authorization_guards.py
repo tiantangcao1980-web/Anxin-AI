@@ -50,7 +50,9 @@ async def outsider_user_with_client(db_session):
 
 
 @pytest.mark.asyncio
-async def test_approval_requires_current_approver(auth_client, db_session, test_user, outsider_user_with_client):
+async def test_approval_requires_current_approver(
+    auth_client, db_session, test_user, outsider_user_with_client
+):
     outsider_user, outsider_client = outsider_user_with_client
 
     approval = Approval(
@@ -66,17 +68,23 @@ async def test_approval_requires_current_approver(auth_client, db_session, test_
     db_session.add(approval)
     await db_session.flush()
 
-    forbidden = await outsider_client.put(f"/api/v1/approvals/{approval.id}/approve", json={"comment": "越权审批"})
+    forbidden = await outsider_client.put(
+        f"/api/v1/approvals/{approval.id}/approve", json={"comment": "越权审批"}
+    )
     assert forbidden.status_code == 200
     assert forbidden.json()["code"] == 403
 
-    allowed = await auth_client.put(f"/api/v1/approvals/{approval.id}/approve", json={"comment": "正常审批"})
+    allowed = await auth_client.put(
+        f"/api/v1/approvals/{approval.id}/approve", json={"comment": "正常审批"}
+    )
     assert allowed.status_code == 200
     assert allowed.json()["code"] == 200
 
 
 @pytest.mark.asyncio
-async def test_batch_approval_requires_current_approver(auth_client, db_session, test_user, outsider_user_with_client):
+async def test_batch_approval_requires_current_approver(
+    auth_client, db_session, test_user, outsider_user_with_client
+):
     outsider_user, outsider_client = outsider_user_with_client
 
     approval = Approval(
@@ -123,7 +131,9 @@ async def test_batch_approval_requires_current_approver(auth_client, db_session,
 
 
 @pytest.mark.asyncio
-async def test_list_approvals_scopes_non_admin_to_visible_records(auth_client, db_session, test_user, outsider_user_with_client):
+async def test_list_approvals_scopes_non_admin_to_visible_records(
+    auth_client, db_session, test_user, outsider_user_with_client
+):
     outsider_user, _outsider_client = outsider_user_with_client
 
     visible = Approval(
@@ -158,7 +168,9 @@ async def test_list_approvals_scopes_non_admin_to_visible_records(auth_client, d
 
 
 @pytest.mark.asyncio
-async def test_admin_role_is_org_scoped_for_approvals(admin_auth_client, db_session, test_admin, outsider_user_with_client):
+async def test_admin_role_is_org_scoped_for_approvals(
+    admin_auth_client, db_session, test_admin, outsider_user_with_client
+):
     outsider_user, _outsider_client = outsider_user_with_client
 
     same_org = Approval(
@@ -298,7 +310,9 @@ async def test_batch_approval_rejects_expired_items(auth_client, db_session, tes
 
 
 @pytest.mark.asyncio
-async def test_investigation_detail_requires_owner(auth_client, db_session, test_user, outsider_user_with_client):
+async def test_investigation_detail_requires_owner(
+    auth_client, db_session, test_user, outsider_user_with_client
+):
     outsider_user, outsider_client = outsider_user_with_client
 
     investigation = Investigation(
@@ -311,7 +325,9 @@ async def test_investigation_detail_requires_owner(auth_client, db_session, test
     db_session.add(investigation)
     await db_session.flush()
 
-    forbidden = await outsider_client.get(f"/api/v1/due-diligence/investigations/{investigation.id}")
+    forbidden = await outsider_client.get(
+        f"/api/v1/due-diligence/investigations/{investigation.id}"
+    )
     assert forbidden.status_code == 200
     assert forbidden.json()["code"] != 200
 
@@ -321,7 +337,9 @@ async def test_investigation_detail_requires_owner(auth_client, db_session, test
 
 
 @pytest.mark.asyncio
-async def test_review_rejects_duplicate_delegation_review(client, db_session, test_user, test_organization):
+async def test_review_rejects_duplicate_delegation_review(
+    client, db_session, test_user, test_organization
+):
     lawyer_user = User(
         id=str(uuid4()),
         email=f"dup-lawyer-{uuid4().hex[:8]}@example.com",

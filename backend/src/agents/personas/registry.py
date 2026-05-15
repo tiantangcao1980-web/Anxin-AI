@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 PersonaRegistry —— V3 user-facing persona 单例注册表
 
@@ -26,7 +25,7 @@ from __future__ import annotations
 
 import importlib
 import pkgutil
-from typing import TYPE_CHECKING, Dict, List, Optional, Type
+from typing import TYPE_CHECKING
 
 from loguru import logger
 
@@ -37,11 +36,11 @@ if TYPE_CHECKING:
 class PersonaRegistry:
     """全局单例 persona 注册表。"""
 
-    _instance: Optional["PersonaRegistry"] = None
+    _instance: PersonaRegistry | None = None
 
     def __init__(self) -> None:
-        self._classes: Dict[str, Type["BasePersonaAgent"]] = {}
-        self._instances: Dict[str, "BasePersonaAgent"] = {}
+        self._classes: dict[str, type[BasePersonaAgent]] = {}
+        self._instances: dict[str, BasePersonaAgent] = {}
         # 幂等 autoload 标志（实例级 → reset_instance 后随单例销毁自动复位）
         self._autoloaded: bool = False
 
@@ -49,7 +48,7 @@ class PersonaRegistry:
     # 单例
     # ------------------------------------------------------------------
     @classmethod
-    def instance(cls) -> "PersonaRegistry":
+    def instance(cls) -> PersonaRegistry:
         if cls._instance is None:
             cls._instance = cls()
             # 不在 instance() 中自动 bootstrap：会破坏依赖 reset_instance + 手动
@@ -77,7 +76,7 @@ class PersonaRegistry:
 
             routes_mod = sys.modules.get("src.api.routes.personas")
             if routes_mod is not None and hasattr(routes_mod, "_AUTOLOADED"):
-                setattr(routes_mod, "_AUTOLOADED", False)
+                routes_mod._AUTOLOADED = False
         except Exception:  # pragma: no cover - 防御
             pass
 
@@ -110,12 +109,10 @@ class PersonaRegistry:
     # ------------------------------------------------------------------
     # 注册 / 查询
     # ------------------------------------------------------------------
-    def register(self, persona_class: Type["BasePersonaAgent"]) -> None:
+    def register(self, persona_class: type[BasePersonaAgent]) -> None:
         persona_id = getattr(persona_class, "persona_id", "")
         if not persona_id:
-            raise ValueError(
-                f"无法注册 {persona_class.__name__}：缺少 persona_id 属性"
-            )
+            raise ValueError(f"无法注册 {persona_class.__name__}：缺少 persona_id 属性")
         existing = self._classes.get(persona_id)
         if existing is not None and existing is not persona_class:
             logger.warning(
@@ -145,10 +142,10 @@ class PersonaRegistry:
         self._instances.clear()
         self._autoloaded = False
 
-    def get_class(self, persona_id: str) -> Optional[Type["BasePersonaAgent"]]:
+    def get_class(self, persona_id: str) -> type[BasePersonaAgent] | None:
         return self._classes.get(persona_id)
 
-    def get(self, persona_id: str) -> Optional["BasePersonaAgent"]:
+    def get(self, persona_id: str) -> BasePersonaAgent | None:
         """lazy 实例化。"""
         if persona_id in self._instances:
             return self._instances[persona_id]
@@ -166,12 +163,12 @@ class PersonaRegistry:
     def has(self, persona_id: str) -> bool:
         return persona_id in self._classes
 
-    def list_classes(self) -> List[Type["BasePersonaAgent"]]:
+    def list_classes(self) -> list[type[BasePersonaAgent]]:
         return list(self._classes.values())
 
-    def list_all(self, *, only_enabled: bool = True) -> List["PersonaInfo"]:
+    def list_all(self, *, only_enabled: bool = True) -> list[PersonaInfo]:
         """列出所有 persona 元信息（不实例化）。"""
-        infos: List["PersonaInfo"] = []
+        infos: list[PersonaInfo] = []
         for cls in self._classes.values():
             info = cls.get_info()
             if only_enabled and not info.enabled:

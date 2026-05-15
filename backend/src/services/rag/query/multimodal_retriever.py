@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """多模态检索器。
 
 流程（参考 RAG-Anything 的 Multimodal Retrieval）：
@@ -144,9 +143,7 @@ class MultimodalRetriever:
             top_k=request.top_k,
             document_ids=request.document_ids,
         )
-        text_only = [
-            s for s in primary if Modality.coerce(s.modality) == Modality.TEXT
-        ]
+        text_only = [s for s in primary if Modality.coerce(s.modality) == Modality.TEXT]
         for seg in text_only:
             seg.breakdown.setdefault("base_score", seg.score)
             seg.breakdown.setdefault("final_score", seg.score)
@@ -160,9 +157,7 @@ class MultimodalRetriever:
             "vector_searcher": self.vector_searcher.__class__.__name__,
             "kg_booster": self.kg_booster.__class__.__name__ if self.kg_booster else None,
             "modality_expander": (
-                self.modality_expander.__class__.__name__
-                if self.modality_expander
-                else None
+                self.modality_expander.__class__.__name__ if self.modality_expander else None
             ),
             "candidate_multiplier": self.candidate_multiplier,
         }

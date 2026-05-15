@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P9-B: LegalAdvisorPersona 单元测试
 
 策略：
@@ -23,7 +22,6 @@ from src.agents.base import AgentResponse
 from src.agents.personas import LegalAdvisorPersona, PersonaRegistry
 from src.agents.personas.legal_models import (
     DEFAULT_DISCLAIMER,
-    Citation,
     LawSearchQuery,
 )
 
@@ -384,7 +382,7 @@ class TestRegulatoryUpdates:
     async def test_get_regulatory_updates_passes_domain_to_specialized(self, agent):
         agent._monitor.process.return_value = AgentResponse(
             agent_name="监管监测Agent",
-            content="```json\n{\"updates\":[]}\n```",
+            content='```json\n{"updates":[]}\n```',
         )
         await agent.get_regulatory_updates("数据合规", since_days=30)
         agent._monitor.process.assert_awaited_once()

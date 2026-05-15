@@ -11,7 +11,9 @@ def _detail(response):
 
 @pytest.mark.asyncio
 async def test_remote_control_status_is_explicitly_not_configured(auth_client):
-    response = await auth_client.get("/api/v1/sync/remote-control/status?desktop_device_id=desktop-a")
+    response = await auth_client.get(
+        "/api/v1/sync/remote-control/status?desktop_device_id=desktop-a"
+    )
 
     assert response.status_code == 200
     body = response.json()
@@ -228,7 +230,9 @@ async def test_remote_control_pairing_confirm_route_token_queue_cancel_and_audit
     assert command["route_consumer_id"] == pairing_id
     command_id = command["command_id"]
     stored_command = (
-        await db_session.execute(select(RemoteControlCommand).where(RemoteControlCommand.id == command_id))
+        await db_session.execute(
+            select(RemoteControlCommand).where(RemoteControlCommand.id == command_id)
+        )
     ).scalar_one()
     assert stored_command.payload["route_token"] == "[REDACTED]"
 
@@ -352,7 +356,9 @@ async def test_remote_control_desktop_host_claims_and_reports_execution_status(
     assert completed["completed_at"]
 
     stored_command = (
-        await db_session.execute(select(RemoteControlCommand).where(RemoteControlCommand.id == command_id))
+        await db_session.execute(
+            select(RemoteControlCommand).where(RemoteControlCommand.id == command_id)
+        )
     ).scalar_one()
     assert stored_command.result_summary == {"ok": True, "route_token": "[REDACTED]"}
 

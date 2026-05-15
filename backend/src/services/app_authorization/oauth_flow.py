@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 OAuthFlowService — 通用 OAuth 2.0 授权码流程编排（P4-A）
 
@@ -26,7 +25,7 @@ state 缓存策略
 from __future__ import annotations
 
 import secrets
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -226,9 +225,7 @@ class OAuthFlowService:
         """
         user_id = await self._state_cache.pop(provider_id, state)
         if user_id is None:
-            raise OAuthStateError(
-                f"OAuth state 校验失败或已过期 (provider={provider_id})"
-            )
+            raise OAuthStateError(f"OAuth state 校验失败或已过期 (provider={provider_id})")
 
         provider = self._build_provider(provider_id)
         callback_url = redirect_uri or self._default_redirect_uri(provider_id)
@@ -236,9 +233,7 @@ class OAuthFlowService:
         try:
             bundle = await provider.exchange_code(code=code, redirect_uri=callback_url)
         except Exception as e:
-            raise OAuthProviderError(
-                f"provider {provider_id} exchange_code 失败: {e}"
-            ) from e
+            raise OAuthProviderError(f"provider {provider_id} exchange_code 失败: {e}") from e
 
         return await self._upsert_authorization(
             user_id=user_id,
@@ -285,7 +280,7 @@ class OAuthFlowService:
 
         auth.status = AppAuthorizationStatus.CONNECTED
         auth.error_message = None
-        auth.last_refresh_at = datetime.now(timezone.utc)
+        auth.last_refresh_at = datetime.now(UTC)
         if bundle.scopes:
             auth.scopes = bundle.scopes
 
@@ -378,7 +373,7 @@ class OAuthFlowService:
         result = await self.db.execute(stmt)
         auth = result.scalar_one_or_none()
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         if auth is None:
             auth = AppAuthorization(

@@ -34,10 +34,7 @@ class TestFeedbackPipeline:
         mock_db = Mock()
         mock_episodic_memory = Mock()
 
-        pipeline = FeedbackPipeline(
-            db=mock_db,
-            episodic_memory=mock_episodic_memory
-        )
+        pipeline = FeedbackPipeline(db=mock_db, episodic_memory=mock_episodic_memory)
 
         return pipeline
 
@@ -47,7 +44,7 @@ class TestFeedbackPipeline:
             episode_id=TEST_EPISODE_ID,
             rating=5,
             comment="非常准确和及时",
-            session_id=TEST_SESSION_ID
+            session_id=TEST_SESSION_ID,
         )
 
         # Mock episodic memory update
@@ -63,10 +60,7 @@ class TestFeedbackPipeline:
         """测试反馈触发经验提取"""
         # 高评分反馈应该触发经验提取
         high_rating_feedback = UserFeedback(
-            episode_id=TEST_EPISODE_ID,
-            rating=5,
-            comment="处理得很好",
-            session_id=TEST_SESSION_ID
+            episode_id=TEST_EPISODE_ID, rating=5, comment="处理得很好", session_id=TEST_SESSION_ID
         )
 
         # Mock
@@ -78,10 +72,10 @@ class TestFeedbackPipeline:
                 "agents_involved": ["ContractAgent", "RiskAgent"],
                 "execution_trace": {
                     "agent_sequence": ["ContractAgent", "RiskAgent"],
-                    "parallel_groups": []
+                    "parallel_groups": [],
                 },
                 "user_rating": 5,
-                "result_summary": "发现3处风险条款"
+                "result_summary": "发现3处风险条款",
             }
         )
 
@@ -104,43 +98,40 @@ class TestExperienceExtractor:
         mock_db = Mock()
         mock_vector_store = Mock()
 
-        return ExperienceExtractor(
-            db=mock_db,
-            vector_store=mock_vector_store
-        )
+        return ExperienceExtractor(db=mock_db, vector_store=mock_vector_store)
 
     async def test_extract_success_pattern(self, extractor):
         """测试提取成功模式"""
         # Mock 获取成功案例
         extractor.db.query = Mock()
         extractor.db.filter = Mock()
-        extractor.db.all = Mock(return_value=[
-            {
-                "episode_id": "ep-001",
-                "task_type": TEST_TASK_TYPE,
-                "agents_involved": ["ContractAgent", "RiskAgent"],
-                "execution_trace": {
-                    "agent_sequence": ["ContractAgent", "RiskAgent"],
-                    "parallel_groups": []
+        extractor.db.all = Mock(
+            return_value=[
+                {
+                    "episode_id": "ep-001",
+                    "task_type": TEST_TASK_TYPE,
+                    "agents_involved": ["ContractAgent", "RiskAgent"],
+                    "execution_trace": {
+                        "agent_sequence": ["ContractAgent", "RiskAgent"],
+                        "parallel_groups": [],
+                    },
+                    "user_rating": 5,
                 },
-                "user_rating": 5
-            },
-            {
-                "episode_id": "ep-002",
-                "task_type": TEST_TASK_TYPE,
-                "agents_involved": ["ContractAgent", "RiskAgent"],
-                "execution_trace": {
-                    "agent_sequence": ["ContractAgent", "RiskAgent"],
-                    "parallel_groups": []
+                {
+                    "episode_id": "ep-002",
+                    "task_type": TEST_TASK_TYPE,
+                    "agents_involved": ["ContractAgent", "RiskAgent"],
+                    "execution_trace": {
+                        "agent_sequence": ["ContractAgent", "RiskAgent"],
+                        "parallel_groups": [],
+                    },
+                    "user_rating": 5,
                 },
-                "user_rating": 5
-            }
-        ])
+            ]
+        )
 
         patterns = await extractor.extract_from_success_cases(
-            task_type=TEST_TASK_TYPE,
-            min_rating=4,
-            limit=10
+            task_type=TEST_TASK_TYPE, min_rating=4, limit=10
         )
 
         assert len(patterns) > 0
@@ -152,20 +143,20 @@ class TestExperienceExtractor:
         # Mock 获取失败案例
         extractor.db.query = Mock()
         extractor.db.filter = Mock()
-        extractor.db.all = Mock(return_value=[
-            {
-                "episode_id": "ep-fail-001",
-                "task_type": TEST_TASK_TYPE,
-                "error_message": "API 调用超时",
-                "agents_involved": ["ContractAgent"],
-                "user_rating": 1
-            }
-        ])
+        extractor.db.all = Mock(
+            return_value=[
+                {
+                    "episode_id": "ep-fail-001",
+                    "task_type": TEST_TASK_TYPE,
+                    "error_message": "API 调用超时",
+                    "agents_involved": ["ContractAgent"],
+                    "user_rating": 1,
+                }
+            ]
+        )
 
         patterns = await extractor.extract_from_failure_cases(
-            task_type=TEST_TASK_TYPE,
-            max_rating=2,
-            limit=10
+            task_type=TEST_TASK_TYPE, max_rating=2, limit=10
         )
 
         assert len(patterns) > 0
@@ -175,10 +166,7 @@ class TestExperienceExtractor:
     async def test_pattern_confidence_calculation(self, extractor):
         """测试模式置信度计算"""
         # 多个相似的成功案例应该产生高置信度
-        test_cases = [
-            {"episode_id": f"ep-{i}", "user_rating": 5}
-            for i in range(10)
-        ]
+        test_cases = [{"episode_id": f"ep-{i}", "user_rating": 5} for i in range(10)]
 
         confidence = extractor._calculate_confidence(test_cases)
 
@@ -197,10 +185,7 @@ class TestPolicyOptimizer:
         mock_db = Mock()
         mock_vector_store = Mock()
 
-        return PolicyOptimizer(
-            db=mock_db,
-            vector_store=mock_vector_store
-        )
+        return PolicyOptimizer(db=mock_db, vector_store=mock_vector_store)
 
     async def test_optimize_agent_selection(self, optimizer):
         """测试优化代理选择"""
@@ -210,19 +195,14 @@ class TestPolicyOptimizer:
                 {
                     "agents_involved": ["ContractAgent", "RiskAgent"],
                     "user_rating": 5,
-                    "similarity_score": 0.9
+                    "similarity_score": 0.9,
                 },
-                {
-                    "agents_involved": ["ContractAgent"],
-                    "user_rating": 3,
-                    "similarity_score": 0.7
-                }
+                {"agents_involved": ["ContractAgent"], "user_rating": 3, "similarity_score": 0.7},
             ]
         )
 
         agents = await optimizer.optimize_agent_selection(
-            task_description=TEST_TASK_DESCRIPTION,
-            task_type=TEST_TASK_TYPE
+            task_description=TEST_TASK_DESCRIPTION, task_type=TEST_TASK_TYPE
         )
 
         assert isinstance(agents, list)
@@ -241,20 +221,18 @@ class TestPolicyOptimizer:
             return_value={
                 "pattern_id": "dag-opt-001",
                 "data": {
-                    "dependencies": [
-                        {"from": "ContractAgent", "to": "RiskAgent"}
-                    ],
+                    "dependencies": [{"from": "ContractAgent", "to": "RiskAgent"}],
                     "parallel_groups": [],
-                    "estimated_duration": 30
+                    "estimated_duration": 30,
                 },
-                "confidence": 0.9
+                "confidence": 0.9,
             }
         )
 
         dag = await optimizer.optimize_dag_structure(
             task_description=TEST_TASK_DESCRIPTION,
             task_type=TEST_TASK_TYPE,
-            agents=["ContractAgent", "RiskAgent"]
+            agents=["ContractAgent", "RiskAgent"],
         )
 
         assert isinstance(dag, DAGStructure)
@@ -268,14 +246,14 @@ class TestPolicyOptimizer:
                 "agents": ["ContractAgent", "RiskAgent"],
                 "avg_rating": 4.8,
                 "avg_duration": 25,
-                "success_rate": 0.95
+                "success_rate": 0.95,
             },
             {
                 "agents": ["ContractAgent"],
                 "avg_rating": 3.5,
                 "avg_duration": 15,
-                "success_rate": 0.7
-            }
+                "success_rate": 0.7,
+            },
         ]
 
         ranked = optimizer._rank_combinations(test_combinations)
@@ -296,10 +274,7 @@ class TestEvolutionWorkflow:
 
         # 1. 用户提交反馈
         feedback = UserFeedback(
-            episode_id=TEST_EPISODE_ID,
-            rating=5,
-            comment="非常准确",
-            session_id=TEST_SESSION_ID
+            episode_id=TEST_EPISODE_ID, rating=5, comment="非常准确", session_id=TEST_SESSION_ID
         )
         print("  1️⃣ 用户提交反馈")
 
@@ -319,10 +294,8 @@ class TestEvolutionWorkflow:
                 "task_description": TEST_TASK_DESCRIPTION,
                 "task_type": TEST_TASK_TYPE,
                 "agents_involved": ["ContractAgent", "RiskAgent"],
-                "execution_trace": {
-                    "agent_sequence": ["ContractAgent", "RiskAgent"]
-                },
-                "user_rating": 5
+                "execution_trace": {"agent_sequence": ["ContractAgent", "RiskAgent"]},
+                "user_rating": 5,
             }
         )
 
@@ -338,17 +311,14 @@ class TestEvolutionWorkflow:
                     "episode_id": TEST_EPISODE_ID,
                     "task_type": TEST_TASK_TYPE,
                     "agents_involved": ["ContractAgent", "RiskAgent"],
-                    "execution_trace": {
-                        "agent_sequence": ["ContractAgent", "RiskAgent"]
-                    },
-                    "user_rating": 5
+                    "execution_trace": {"agent_sequence": ["ContractAgent", "RiskAgent"]},
+                    "user_rating": 5,
                 }
             ]
         )
 
         patterns = await experience_extractor.extract_from_success_cases(
-            task_type=TEST_TASK_TYPE,
-            min_rating=4
+            task_type=TEST_TASK_TYPE, min_rating=4
         )
         print(f"  3️⃣ 提取模式: {len(patterns)} 个")
 
@@ -358,14 +328,13 @@ class TestEvolutionWorkflow:
                 {
                     "agents_involved": ["ContractAgent", "RiskAgent"],
                     "user_rating": 5,
-                    "similarity_score": 0.95
+                    "similarity_score": 0.95,
                 }
             ]
         )
 
         optimized_agents = await policy_optimizer.optimize_agent_selection(
-            task_description=TEST_TASK_DESCRIPTION,
-            task_type=TEST_TASK_TYPE
+            task_description=TEST_TASK_DESCRIPTION, task_type=TEST_TASK_TYPE
         )
         print(f"  4️⃣ 优化代理选择: {optimized_agents}")
 

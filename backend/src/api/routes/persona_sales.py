@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """persona_sales 路由 — P7-C 获客猎手 persona 对外 API。
 
 挂载点（在 ``api/routes/__init__.py`` 用 ``prefix="/personas/sales"`` 注册）::
@@ -17,7 +16,6 @@ from __future__ import annotations
 
 import base64
 import threading
-from dataclasses import asdict
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -219,9 +217,10 @@ async def generate_quote(
     docx_bytes = await _agent().generate_quote(lead, items, terms)
     subtotal = round(sum(it.line_total for it in items), 2)
     currency = items[0].currency
-    file_url = "data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64," + base64.b64encode(
-        docx_bytes
-    ).decode("ascii")
+    file_url = (
+        "data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,"
+        + base64.b64encode(docx_bytes).decode("ascii")
+    )
     return GenerateQuoteOut(
         file_url=file_url,
         bytes_size=len(docx_bytes),
@@ -237,9 +236,7 @@ async def sync_crm(
     user: User = Depends(get_current_user_required),
 ) -> CrmSyncOut:
     leads = [_candidate_to_lead(c) for c in payload.leads]
-    result = await _agent().sync_to_crm(
-        leads, crm=payload.crm, oauth_token=payload.oauth_token
-    )
+    result = await _agent().sync_to_crm(leads, crm=payload.crm, oauth_token=payload.oauth_token)
     return CrmSyncOut(**result)
 
 

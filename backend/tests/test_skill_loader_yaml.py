@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 P5-A: SkillLoader YAML 解析单元测试
 
@@ -28,7 +27,9 @@ def _write(path: Path, content: str) -> Path:
 
 class TestLoaderFullYAML:
     def test_full_frontmatter(self, tmp_path: Path) -> None:
-        f = _write(tmp_path / "SKILL.md", """
+        f = _write(
+            tmp_path / "SKILL.md",
+            """
             ---
             name: contract-review
             description: 合同审查与风险点识别
@@ -53,7 +54,8 @@ class TestLoaderFullYAML:
             # 合同审查 SKILL
 
             正文内容。
-            """)
+            """,
+        )
         skill = SkillLoader().load_from_file(f)
         assert skill.name == "contract-review"
         assert skill.version == "1.2.0"
@@ -68,7 +70,9 @@ class TestLoaderFullYAML:
         assert "正文内容" in skill.body
 
     def test_string_value_coerced_to_list(self, tmp_path: Path) -> None:
-        f = _write(tmp_path / "SKILL.md", """
+        f = _write(
+            tmp_path / "SKILL.md",
+            """
             ---
             name: x
             description: y
@@ -77,14 +81,17 @@ class TestLoaderFullYAML:
             ---
 
             body
-            """)
+            """,
+        )
         skill = SkillLoader().load_from_file(f)
         assert skill.triggers == ["单个字符串"]
         assert skill.personas == ["lawyer"]
 
     def test_field_aliases(self, tmp_path: Path) -> None:
         # 用 cowork 风格的 ``trigger``（单数）+ ``apps``
-        f = _write(tmp_path / "SKILL.md", """
+        f = _write(
+            tmp_path / "SKILL.md",
+            """
             ---
             name: alias-skill
             description: 字段别名兼容
@@ -95,13 +102,16 @@ class TestLoaderFullYAML:
             ---
 
             body
-            """)
+            """,
+        )
         skill = SkillLoader().load_from_file(f)
         assert skill.triggers == ["别名触发"]
         assert skill.requires_apps == ["feishu"]
 
     def test_nested_dict_in_frontmatter_does_not_crash(self, tmp_path: Path) -> None:
-        f = _write(tmp_path / "SKILL.md", """
+        f = _write(
+            tmp_path / "SKILL.md",
+            """
             ---
             name: nested
             description: 嵌套 dict 也不报错
@@ -115,19 +125,23 @@ class TestLoaderFullYAML:
             ---
 
             body
-            """)
+            """,
+        )
         skill = SkillLoader().load_from_file(f)
         assert skill.name == "nested"
 
     def test_disabled_via_frontmatter(self, tmp_path: Path) -> None:
-        f = _write(tmp_path / "SKILL.md", """
+        f = _write(
+            tmp_path / "SKILL.md",
+            """
             ---
             name: disabled-skill
             description: 显式禁用
             enabled: false
             ---
             body
-            """)
+            """,
+        )
         skill = SkillLoader().load_from_file(f)
         assert skill.enabled is False
 
@@ -139,17 +153,22 @@ class TestLoaderEdgeCases:
             SkillLoader().load_from_file(f)
 
     def test_missing_required_fields(self, tmp_path: Path) -> None:
-        f = _write(tmp_path / "SKILL.md", """
+        f = _write(
+            tmp_path / "SKILL.md",
+            """
             ---
             name: only-name
             ---
             body
-            """)
+            """,
+        )
         with pytest.raises(SkillParseError):
             SkillLoader().load_from_file(f)
 
     def test_invalid_yaml(self, tmp_path: Path) -> None:
-        f = _write(tmp_path / "SKILL.md", """
+        f = _write(
+            tmp_path / "SKILL.md",
+            """
             ---
             name: x
             description: y
@@ -157,7 +176,8 @@ class TestLoaderEdgeCases:
               - "未闭合
             ---
             body
-            """)
+            """,
+        )
         with pytest.raises(SkillParseError):
             SkillLoader().load_from_file(f)
 
@@ -166,33 +186,42 @@ class TestLoaderEdgeCases:
             SkillLoader().load_from_file("/tmp/__nope__skill__.md")
 
     def test_frontmatter_must_be_mapping(self, tmp_path: Path) -> None:
-        f = _write(tmp_path / "SKILL.md", """
+        f = _write(
+            tmp_path / "SKILL.md",
+            """
             ---
             - 1
             - 2
             ---
             body
-            """)
+            """,
+        )
         with pytest.raises(SkillParseError):
             SkillLoader().load_from_file(f)
 
 
 class TestLoadFromDirectory:
     def test_recursive_load(self, tmp_path: Path) -> None:
-        _write(tmp_path / "a" / "SKILL.md", """
+        _write(
+            tmp_path / "a" / "SKILL.md",
+            """
             ---
             name: a
             description: A
             ---
             body
-            """)
-        _write(tmp_path / "b" / "nested" / "SKILL.md", """
+            """,
+        )
+        _write(
+            tmp_path / "b" / "nested" / "SKILL.md",
+            """
             ---
             name: b
             description: B
             ---
             body
-            """)
+            """,
+        )
         # 一个坏文件应被跳过
         _write(tmp_path / "broken" / "SKILL.md", "no frontmatter")
 
@@ -201,13 +230,16 @@ class TestLoadFromDirectory:
         assert names == ["a", "b"]
 
     def test_lowercase_filename(self, tmp_path: Path) -> None:
-        _write(tmp_path / "x" / "skill.md", """
+        _write(
+            tmp_path / "x" / "skill.md",
+            """
             ---
             name: lower
             description: lower
             ---
             body
-            """)
+            """,
+        )
         skills = SkillLoader().load_from_directory(tmp_path)
         assert [s.name for s in skills] == ["lower"]
 

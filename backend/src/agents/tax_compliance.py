@@ -51,7 +51,5 @@ class TaxComplianceAgent(BaseLegalAgent):
             agent_name=self.name,
             content=response,
             reasoning="基于税收征管法及会计准则",
-            actions=[
-                {"type": "tax_advisory", "description": "出具财税合规意见"}
-            ]
+            actions=[{"type": "tax_advisory", "description": "出具财税合规意见"}],
         )

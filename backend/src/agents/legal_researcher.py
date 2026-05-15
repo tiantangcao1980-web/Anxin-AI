@@ -26,11 +26,15 @@ class LegalResearchAgent(BaseLegalAgent):
         )
         super().__init__(config)
 
-    async def deep_research(self, topic: str, context: dict[str, Any] | None = None) -> AgentResponse:
+    async def deep_research(
+        self, topic: str, context: dict[str, Any] | None = None
+    ) -> AgentResponse:
         """执行深度法律研究"""
         # 切换到深度提示词
         original_prompt = self.config.system_prompt
-        self.config.system_prompt = load_prompt("agents/legal_researcher_deep.txt", fallback=_FALLBACK_DEEP_RESEARCH_PROMPT)
+        self.config.system_prompt = load_prompt(
+            "agents/legal_researcher_deep.txt", fallback=_FALLBACK_DEEP_RESEARCH_PROMPT
+        )
 
         try:
             prompt = f"""
@@ -53,9 +57,7 @@ class LegalResearchAgent(BaseLegalAgent):
                 content=response,
                 reasoning="执行深度研究模式，结合多维法理分析与实时案例库",
                 citations=citations,
-                actions=[
-                    {"type": "deep_research_complete", "description": "深度法律研究已完成"}
-                ]
+                actions=[{"type": "deep_research_complete", "description": "深度法律研究已完成"}],
             )
         finally:
             # 还原提示词
@@ -95,9 +97,7 @@ class LegalResearchAgent(BaseLegalAgent):
             content=response,
             reasoning="基于法律法规数据库和判例库进行综合研究",
             citations=citations,
-            actions=[
-                {"type": "research_complete", "description": "法律研究完成"}
-            ]
+            actions=[{"type": "research_complete", "description": "法律研究完成"}],
         )
 
     def _extract_citations(self, response: str) -> list[dict[str, Any]]:
@@ -109,21 +109,25 @@ class LegalResearchAgent(BaseLegalAgent):
         import re
 
         # 匹配《法律名称》第X条
-        law_pattern = r'《([^》]+)》[第]*(\d+)[条款]'
+        law_pattern = r"《([^》]+)》[第]*(\d+)[条款]"
         for match in re.finditer(law_pattern, response):
-            citations.append({
-                "type": "law",
-                "name": match.group(1),
-                "article": match.group(2),
-            })
+            citations.append(
+                {
+                    "type": "law",
+                    "name": match.group(1),
+                    "article": match.group(2),
+                }
+            )
 
         # 匹配案号
-        case_pattern = r'\((\d{4})\)[^号]*号'
+        case_pattern = r"\((\d{4})\)[^号]*号"
         for match in re.finditer(case_pattern, response):
-            citations.append({
-                "type": "case",
-                "case_number": match.group(0),
-            })
+            citations.append(
+                {
+                    "type": "case",
+                    "case_number": match.group(0),
+                }
+            )
 
         return citations
 
@@ -145,11 +149,7 @@ class LegalResearchAgent(BaseLegalAgent):
 """
         response = await self.chat(prompt)
 
-        return {
-            "keywords": keywords,
-            "results": response,
-            "agent": self.name
-        }
+        return {"keywords": keywords, "results": response, "agent": self.name}
 
     async def analyze_case(self, case_number: str) -> dict[str, Any]:
         """分析判例"""
@@ -166,8 +166,4 @@ class LegalResearchAgent(BaseLegalAgent):
 """
         response = await self.chat(prompt)
 
-        return {
-            "case_number": case_number,
-            "analysis": response,
-            "agent": self.name
-        }
+        return {"case_number": case_number, "analysis": response, "agent": self.name}

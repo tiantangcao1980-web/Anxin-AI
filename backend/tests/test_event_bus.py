@@ -42,7 +42,9 @@ async def test_publish_adds_timestamp_and_serializes_payload() -> None:
 
 
 @pytest.mark.asyncio
-async def test_subscribe_registers_callback_and_starts_listener(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_subscribe_registers_callback_and_starts_listener(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     bus = EventBus()
     fake_pubsub = _FakePubSub()
     bus._pubsub = fake_pubsub

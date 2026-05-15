@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 P19-A Prometheus 业务 metric 测试
 
@@ -44,7 +43,9 @@ def _counter_value(counter, **labels):
 
 # ==================== 1. http_requests_total + duration ====================
 def test_record_http_request_increments_counter_and_observes_duration():
-    before = _counter_value(HTTP_REQUESTS_TOTAL, method="GET", endpoint="/api/v1/test", status="200")
+    before = _counter_value(
+        HTTP_REQUESTS_TOTAL, method="GET", endpoint="/api/v1/test", status="200"
+    )
     record_http_request("get", "/api/v1/test", 200, 0.123)
     after = _counter_value(HTTP_REQUESTS_TOTAL, method="GET", endpoint="/api/v1/test", status="200")
     assert after == before + 1
@@ -126,4 +127,5 @@ def test_exposition_includes_business_metrics():
 def test_registry_is_independent():
     """业务 metric 注册到独立 REGISTRY，不污染默认全局。"""
     from prometheus_client import REGISTRY as DEFAULT_REGISTRY
+
     assert REGISTRY is not DEFAULT_REGISTRY

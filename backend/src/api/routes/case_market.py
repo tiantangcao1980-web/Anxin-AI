@@ -49,6 +49,7 @@ def _extract_conflict_party_names(req: CaseRequest) -> list[str]:
 
 # ===== 请求模型 =====
 
+
 class PublishRequestBody(BaseModel):
     title: str = Field(..., min_length=5, max_length=200)
     description: str = Field(..., min_length=10)
@@ -74,6 +75,7 @@ class RatingBody(BaseModel):
 
 # ===== 需求方端 API =====
 
+
 @router.post("/requests")
 async def publish_request(
     body: PublishRequestBody,
@@ -85,7 +87,7 @@ async def publish_request(
     _reject_local_market_mode(request)
     req = CaseRequest(
         user_id=user.id,
-        org_id=getattr(user, 'org_id', None),
+        org_id=getattr(user, "org_id", None),
         title=body.title,
         description=body.description,
         legal_area=body.legal_area,
@@ -124,10 +126,12 @@ async def list_my_requests(
     count_q = select(func.count()).select_from(CaseRequest).where(CaseRequest.user_id == user.id)
     total = (await db.execute(count_q)).scalar() or 0
 
-    return UnifiedResponse.success(data={
-        "items": [_request_to_dict(r) for r in items],
-        "total": total,
-    })
+    return UnifiedResponse.success(
+        data={
+            "items": [_request_to_dict(r) for r in items],
+            "total": total,
+        }
+    )
 
 
 @router.get("/requests/{request_id}/bids")
@@ -192,6 +196,7 @@ async def accept_bid(
 
 # ===== 服务方端 API =====
 
+
 @router.get("/market")
 async def browse_market(
     request: Request,
@@ -228,9 +233,11 @@ async def browse_market(
         item.view_count = (item.view_count or 0) + 1
     await db.flush()
 
-    return UnifiedResponse.success(data={
-        "items": [_request_to_dict(r, anonymous=True) for r in items],
-    })
+    return UnifiedResponse.success(
+        data={
+            "items": [_request_to_dict(r, anonymous=True) for r in items],
+        }
+    )
 
 
 @router.post("/market/{request_id}/bid")
@@ -263,11 +270,12 @@ async def submit_bid(
         raise HTTPException(409, "您已经对此需求投标")
 
     from src.services.conflict_check_service import ConflictCheckService
+
     conflict_svc = ConflictCheckService(db)
     conflict_result = await conflict_svc.check_conflict(
         lawyer_id=user.id,
         party_names=_extract_conflict_party_names(req),
-        org_id=getattr(user, 'org_id', None),
+        org_id=getattr(user, "org_id", None),
     )
     if conflict_result.has_conflict:
         raise HTTPException(
@@ -338,6 +346,7 @@ async def rate_service(
 
 # ===== 辅助函数 =====
 
+
 def _request_to_dict(r: CaseRequest, anonymous: bool = False) -> dict[str, Any]:
     d: dict[str, Any] = {
         "id": str(r.id),
@@ -348,7 +357,7 @@ def _request_to_dict(r: CaseRequest, anonymous: bool = False) -> dict[str, Any]:
         "budget_min": r.budget_min,
         "budget_max": r.budget_max,
         "location": r.location,
-        "status": r.status.value if hasattr(r.status, 'value') else r.status,
+        "status": r.status.value if hasattr(r.status, "value") else r.status,
         "tags": r.tags,
         "view_count": r.view_count,
         "bid_count": r.bid_count,
@@ -368,7 +377,7 @@ def _bid_to_dict(b: LawyerBid) -> dict[str, Any]:
         "proposal": b.proposal,
         "quoted_price": b.quoted_price,
         "estimated_days": b.estimated_days,
-        "status": b.status.value if hasattr(b.status, 'value') else b.status,
+        "status": b.status.value if hasattr(b.status, "value") else b.status,
         "client_rating": b.client_rating,
         "lawyer_rating": b.lawyer_rating,
         "created_at": b.created_at.isoformat() if b.created_at else None,

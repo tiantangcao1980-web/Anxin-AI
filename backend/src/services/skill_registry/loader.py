@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 SkillLoader —— 从 SKILL.md 加载技能（P5 真实装版）
 
@@ -127,9 +126,7 @@ class SkillLoader:
         meta, body = _parse_frontmatter(text)
 
         if "name" not in meta or "description" not in meta:
-            raise SkillParseError(
-                f"{file_path}: frontmatter 缺少必需字段 name/description"
-            )
+            raise SkillParseError(f"{file_path}: frontmatter 缺少必需字段 name/description")
 
         # 字段兼容：trigger/triggers，apps/requires_apps
         triggers = meta.get("triggers")

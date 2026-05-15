@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """税务计算边界场景单元测试（P9-E）。
 
 聚焦数值边界与档位切换：
@@ -12,7 +11,6 @@ from __future__ import annotations
 from datetime import date
 
 import pytest
-
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.compiler import compiles
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """跨境电商 base 数据类合法性测试（P6-D）。
 
 仅校验 ``base.py`` 的纯数据类与抽象，不触达任何 source 实装。
@@ -13,7 +12,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -81,10 +80,19 @@ def test_product_dataclass_shape():
     assert p.raw == {}
     p.raw["foo"] = 1
     p2 = Product(
-        source="shopify", sku="SKU-002", title="t", description=None,
-        price=1.0, currency="USD", images=[],
-        inventory_qty=None, rating=None, review_count=None,
-        seller_name=None, seller_rating=None, url="",
+        source="shopify",
+        sku="SKU-002",
+        title="t",
+        description=None,
+        price=1.0,
+        currency="USD",
+        images=[],
+        inventory_qty=None,
+        rating=None,
+        review_count=None,
+        seller_name=None,
+        seller_rating=None,
+        url="",
     )
     assert p2.raw == {}, "raw 必须是 per-instance 而非共享引用"
 
@@ -97,7 +105,7 @@ def test_order_items_list():
         total_amount=88.0,
         currency="USD",
         status="paid",
-        placed_at=datetime.now(timezone.utc),
+        placed_at=datetime.now(UTC),
         items=[{"sku": "X", "title": "x", "qty": 2, "unit_price": 44.0}],
     )
     assert o.items[0]["qty"] == 2

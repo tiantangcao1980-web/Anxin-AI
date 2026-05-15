@@ -86,7 +86,12 @@ class PackManifest(BaseModel):
 _DEFAULT_PACKS_FILE = os.environ.get(
     "OFFLINE_PACKS_FILE",
     os.path.join(
-        os.path.dirname(__file__), "..", "..", "..", "..", "offline-packs.json",
+        os.path.dirname(__file__),
+        "..",
+        "..",
+        "..",
+        "..",
+        "offline-packs.json",
     ),
 )
 

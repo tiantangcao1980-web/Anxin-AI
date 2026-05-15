@@ -74,7 +74,10 @@ class SkillGovernanceService:
         self.db.add(proposal)
         await self.db.flush()
 
-        if normalized_current and await self.get_enabled_version(org_id=org_id, skill_name=normalized_skill) is None:
+        if (
+            normalized_current
+            and await self.get_enabled_version(org_id=org_id, skill_name=normalized_skill) is None
+        ):
             await self._upsert_enabled_version(
                 org_id=org_id,
                 skill_name=normalized_skill,
@@ -108,9 +111,7 @@ class SkillGovernanceService:
         proposal = await self._get_proposal(org_id=org_id, proposal_id=proposal_id)
         checked_at = now or _now()
         normalized_checks = {
-            _normalize(name): bool(passed)
-            for name, passed in checks.items()
-            if _normalize(name)
+            _normalize(name): bool(passed) for name, passed in checks.items() if _normalize(name)
         }
         if not normalized_checks:
             raise SkillEvolutionError("at least one eval check is required")
@@ -204,7 +205,9 @@ class SkillGovernanceService:
                 now=approved_at,
             )
             await self.db.flush()
-            raise SkillEvolutionError("skill evolution proposal must pass required eval checks before approval")
+            raise SkillEvolutionError(
+                "skill evolution proposal must pass required eval checks before approval"
+            )
 
         proposal.status = SkillEvolutionStatus.APPROVED.value
         proposal.approved_by = approver
@@ -246,7 +249,9 @@ class SkillGovernanceService:
                 now=released_at,
             )
             await self.db.flush()
-            raise SkillEvolutionError("skill evolution proposal must be approved before gray release")
+            raise SkillEvolutionError(
+                "skill evolution proposal must be approved before gray release"
+            )
         if percentage < 1 or percentage > 100:
             self._audit(
                 org_id=org_id,
@@ -311,7 +316,9 @@ class SkillGovernanceService:
                 now=rolled_back_at,
             )
             await self.db.flush()
-            raise SkillEvolutionError("only approved or released skill evolution proposals can be rolled back")
+            raise SkillEvolutionError(
+                "only approved or released skill evolution proposals can be rolled back"
+            )
 
         proposal.status = SkillEvolutionStatus.ROLLED_BACK.value
         proposal.rolled_back_at = rolled_back_at
@@ -341,7 +348,9 @@ class SkillGovernanceService:
         await self.db.flush()
         return proposal
 
-    async def is_skill_enabled(self, *, org_id: str, skill_name: str, version: str | None = None) -> bool:
+    async def is_skill_enabled(
+        self, *, org_id: str, skill_name: str, version: str | None = None
+    ) -> bool:
         enabled_version = await self.get_enabled_version(org_id=org_id, skill_name=skill_name)
         if enabled_version is None:
             return False
@@ -353,13 +362,17 @@ class SkillGovernanceService:
             return None
         return enabled.version
 
-    async def get_audit_events(self, *, org_id: str, limit: int = 100) -> list[SkillGovernanceAuditEvent]:
+    async def get_audit_events(
+        self, *, org_id: str, limit: int = 100
+    ) -> list[SkillGovernanceAuditEvent]:
         if limit <= 0:
             return []
         result = await self.db.execute(
             select(SkillGovernanceAuditEvent)
             .where(SkillGovernanceAuditEvent.org_id == org_id)
-            .order_by(SkillGovernanceAuditEvent.created_at.desc(), SkillGovernanceAuditEvent.id.desc())
+            .order_by(
+                SkillGovernanceAuditEvent.created_at.desc(), SkillGovernanceAuditEvent.id.desc()
+            )
             .limit(limit)
         )
         return list(reversed(result.scalars().all()))
@@ -375,7 +388,9 @@ class SkillGovernanceService:
         if normalized_skill:
             query = query.where(SkillConnectorConfig.skill_name == normalized_skill)
         result = await self.db.execute(
-            query.order_by(SkillConnectorConfig.skill_name.asc(), SkillConnectorConfig.connector_name.asc())
+            query.order_by(
+                SkillConnectorConfig.skill_name.asc(), SkillConnectorConfig.connector_name.asc()
+            )
         )
         return list(result.scalars().all())
 
@@ -551,7 +566,9 @@ class SkillGovernanceService:
         )
         return result.scalar_one_or_none()
 
-    async def _get_enabled_record(self, *, org_id: str, skill_name: str) -> SkillEnabledVersion | None:
+    async def _get_enabled_record(
+        self, *, org_id: str, skill_name: str
+    ) -> SkillEnabledVersion | None:
         result = await self.db.execute(
             select(SkillEnabledVersion).where(
                 SkillEnabledVersion.org_id == org_id,

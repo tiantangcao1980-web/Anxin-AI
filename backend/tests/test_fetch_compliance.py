@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """compliance 子模块单测：allowlist + blocklist + WeChat / 裁判文书拒绝。"""
 
 from __future__ import annotations
@@ -11,8 +10,7 @@ from src.services.fetch.compliance import (
     is_allowed,
     is_blocked,
 )
-from src.services.fetch.models import FetchRequest, FetchTier
-
+from src.services.fetch.models import FetchRequest
 
 # ---------- allowlist ----------
 

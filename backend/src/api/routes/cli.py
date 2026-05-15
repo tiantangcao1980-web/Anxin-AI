@@ -58,8 +58,10 @@ ALLOWED_SCOPES = {"read", "chat", "export"}
 
 # ===== 数据模型 =====
 
+
 class APIKeyCreateRequest(BaseModel):
     """创建 API Key"""
+
     name: str = Field(..., description="Key 名称（用于标识）")
     scopes: list[str] = Field(default=["read", "chat"], description="权限范围")
     expires_days: int = Field(default=90, le=90, description="有效期（天），最长90天")
@@ -67,6 +69,7 @@ class APIKeyCreateRequest(BaseModel):
 
 class APIKeyResponse(BaseModel):
     """API Key 响应（仅创建时返回明文）"""
+
     key_id: str
     api_key: str | None = None  # 仅创建时返回
     name: str
@@ -77,18 +80,21 @@ class APIKeyResponse(BaseModel):
 
 class CLICommandRequest(BaseModel):
     """CLI 命令请求"""
+
     command: str = Field(..., description="命令: consult/review/draft/search/template/status")
     args: dict[str, Any] = Field(default_factory=dict, description="命令参数")
 
 
 class CLIRouteTokenRequest(BaseModel):
     """CLI route-token 签发请求"""
+
     scope: str = Field(default="read", description="CLI 权限范围: read/chat/export")
     route_key: str | None = Field(default=None, description="可选 route key；默认 cli:{key_id}")
 
 
 class CLIRouteTokenResponse(BaseModel):
     """CLI route-token 签发响应"""
+
     success: bool
     required: bool
     route_key: str | None = None
@@ -100,6 +106,7 @@ class CLIRouteTokenResponse(BaseModel):
 
 class CLICommandResponse(BaseModel):
     """CLI 命令响应"""
+
     success: bool
     command: str
     result: Any = None
@@ -108,6 +115,7 @@ class CLICommandResponse(BaseModel):
 
 
 # ===== API Key 认证 =====
+
 
 async def verify_api_key(x_api_key: str = Header(..., alias="X-API-Key")) -> APIKeyRecord:
     """验证 API Key"""
@@ -176,6 +184,7 @@ async def create_api_key(
     key_id = uuid.uuid4().hex[:12]
 
     from datetime import timedelta
+
     expires_at = datetime.now(UTC) + timedelta(days=request.expires_days)
 
     scopes = _validate_requested_scopes(request.scopes, user)
@@ -206,7 +215,9 @@ async def create_api_key(
         extra_data={"source": "cli"},
     )
 
-    logger.info(f"[CLI] 创建 API Key: {key_id} ({request.name}), user={user.id}, 有效期 {request.expires_days} 天")
+    logger.info(
+        f"[CLI] 创建 API Key: {key_id} ({request.name}), user={user.id}, 有效期 {request.expires_days} 天"
+    )
 
     return APIKeyResponse(
         key_id=key_id,
@@ -227,13 +238,15 @@ async def list_api_keys(
     for key_data in _api_keys.values():
         if key_data["user_id"] != str(user.id):
             continue
-        keys.append(APIKeyResponse(
-            key_id=key_data["key_id"],
-            name=key_data["name"],
-            scopes=key_data["scopes"],
-            expires_at=key_data["expires_at"],
-            created_at=key_data["created_at"],
-        ))
+        keys.append(
+            APIKeyResponse(
+                key_id=key_data["key_id"],
+                name=key_data["name"],
+                scopes=key_data["scopes"],
+                expires_at=key_data["expires_at"],
+                created_at=key_data["created_at"],
+            )
+        )
     return {"status": "ok", "data": keys}
 
 
@@ -285,7 +298,9 @@ BLOCKED_COMMANDS = {"delete", "payment", "sign", "admin"}
 
 
 def cli_route_governance_required() -> bool:
-    return bool(settings.CLI_ROUTE_TOKEN_REQUIRED or settings.ENVIRONMENT.lower() in COMMERCIAL_ENVIRONMENTS)
+    return bool(
+        settings.CLI_ROUTE_TOKEN_REQUIRED or settings.ENVIRONMENT.lower() in COMMERCIAL_ENVIRONMENTS
+    )
 
 
 def _cli_route_scope(required_scope: str) -> str:
@@ -390,7 +405,9 @@ async def execute_command(
     # 安全检查1：阻止高危命令
     if command in BLOCKED_COMMANDS:
         error = f"命令 '{command}' 不允许通过 CLI 执行（安全限制）"
-        await _audit_cli_execute(db, http_request, key_data, command, status="failed", error_message=error)
+        await _audit_cli_execute(
+            db, http_request, key_data, command, status="failed", error_message=error
+        )
         return CLICommandResponse(
             success=False,
             command=command,
@@ -401,7 +418,9 @@ async def execute_command(
     required_scope = COMMAND_SCOPES.get(command, "read")
     if required_scope not in key_data["scopes"]:
         error = f"API Key 缺少 '{required_scope}' 权限"
-        await _audit_cli_execute(db, http_request, key_data, command, status="failed", error_message=error)
+        await _audit_cli_execute(
+            db, http_request, key_data, command, status="failed", error_message=error
+        )
         return CLICommandResponse(
             success=False,
             command=command,
@@ -569,16 +588,22 @@ async def _dispatch_command(command: str, args: dict[str, Any]) -> Any:
 
     elif command == "cost":
         from src.harness.cost_tracker import cost_tracker
+
         return cost_tracker.get_stats()
 
     elif command == "template":
         sub = args.get("sub", "list")
         if sub == "list":
             from src.agents.template_librarian import TEMPLATE_CATALOG
-            return [{"name": t["name"], "category": t["category"], "id": t["id"]} for t in TEMPLATE_CATALOG]
+
+            return [
+                {"name": t["name"], "category": t["category"], "id": t["id"]}
+                for t in TEMPLATE_CATALOG
+            ]
         elif sub == "download":
             template_id = args.get("id", "")
             from src.agents.template_librarian import TEMPLATE_CATALOG
+
             tpl = next((t for t in TEMPLATE_CATALOG if t["id"] == template_id), None)
             if tpl:
                 return {"template": tpl, "download_url": tpl.get("download_path")}

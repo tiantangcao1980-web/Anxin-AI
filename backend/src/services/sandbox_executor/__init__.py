@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 sandbox_executor —— V3 沙箱执行器骨架（P3-E）
 

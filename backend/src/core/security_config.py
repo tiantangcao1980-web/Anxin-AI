@@ -13,13 +13,15 @@ from enum import Enum
 
 # ===== 数据分类分级 =====
 
+
 class DataClassification(str, Enum):
     """数据敏感等级（参考 GB/T 35273）"""
-    PUBLIC = "public"              # 公开数据（法规条文、公开判例）
-    INTERNAL = "internal"          # 内部数据（系统配置、操作日志）
+
+    PUBLIC = "public"  # 公开数据（法规条文、公开判例）
+    INTERNAL = "internal"  # 内部数据（系统配置、操作日志）
     CONFIDENTIAL = "confidential"  # 机密数据（合同内容、案件详情）
-    SENSITIVE = "sensitive"        # 敏感数据（个人信息、支付信息）
-    TOP_SECRET = "top_secret"      # 绝密数据（密码哈希、API 密钥）
+    SENSITIVE = "sensitive"  # 敏感数据（个人信息、支付信息）
+    TOP_SECRET = "top_secret"  # 绝密数据（密码哈希、API 密钥）
 
 
 # 字段级数据分级映射
@@ -32,18 +34,15 @@ FIELD_CLASSIFICATION: dict[str, DataClassification] = {
     "id_card": DataClassification.SENSITIVE,
     "wechat_openid": DataClassification.SENSITIVE,
     "alipay_user_id": DataClassification.SENSITIVE,
-
     # 业务数据
     "contract_content": DataClassification.CONFIDENTIAL,
     "case_detail": DataClassification.CONFIDENTIAL,
     "original_description": DataClassification.CONFIDENTIAL,  # 找律师原始描述
-    "anonymous_summary": DataClassification.INTERNAL,          # 脱敏后的摘要
-
+    "anonymous_summary": DataClassification.INTERNAL,  # 脱敏后的摘要
     # 财务数据
     "payment_amount": DataClassification.CONFIDENTIAL,
     "bank_account": DataClassification.SENSITIVE,
     "credit_card": DataClassification.TOP_SECRET,
-
     # 法律数据
     "law_text": DataClassification.PUBLIC,
     "case_number": DataClassification.PUBLIC,
@@ -66,12 +65,12 @@ CORS_CONFIG = {
 }
 
 RATE_LIMIT_CONFIG = {
-    "default": "60/minute",           # 默认限流
-    "auth": "10/minute",               # 认证接口
-    "ai_generation": "20/minute",      # AI 生成（成本控制）
-    "file_upload": "10/minute",        # 文件上传
-    "investigation": "5/minute",       # 尽职调查（成本高）
-    "export": "10/minute",             # 导出操作
+    "default": "60/minute",  # 默认限流
+    "auth": "10/minute",  # 认证接口
+    "ai_generation": "20/minute",  # AI 生成（成本控制）
+    "file_upload": "10/minute",  # 文件上传
+    "investigation": "5/minute",  # 尽职调查（成本高）
+    "export": "10/minute",  # 导出操作
 }
 
 
@@ -95,13 +94,22 @@ AUDITABLE_ACTIONS = [
 # ===== 输入验证规则 =====
 
 INPUT_VALIDATION = {
-    "max_message_length": 10000,       # 单条消息最大字符
-    "max_document_size_mb": 50,        # 文档上传最大 MB
-    "max_batch_size": 100,             # 批量操作最大数量
+    "max_message_length": 10000,  # 单条消息最大字符
+    "max_document_size_mb": 50,  # 文档上传最大 MB
+    "max_batch_size": 100,  # 批量操作最大数量
     "allowed_file_types": [
-        ".pdf", ".doc", ".docx", ".txt", ".md",
-        ".xls", ".xlsx", ".csv",
-        ".jpg", ".jpeg", ".png", ".gif",
+        ".pdf",
+        ".doc",
+        ".docx",
+        ".txt",
+        ".md",
+        ".xls",
+        ".xlsx",
+        ".csv",
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
     ],
     "sql_injection_patterns": [
         r";\s*DROP\s+TABLE",
@@ -120,10 +128,10 @@ INPUT_VALIDATION = {
 # ===== 密钥管理 =====
 
 SECRET_KEY_ROTATION = {
-    "jwt_secret_rotation_days": 90,      # JWT 密钥轮换周期
-    "api_key_max_age_days": 365,         # API Key 最长有效期
-    "session_max_age_hours": 24,         # 会话最长时间
-    "refresh_token_max_age_days": 30,    # 刷新令牌有效期
+    "jwt_secret_rotation_days": 90,  # JWT 密钥轮换周期
+    "api_key_max_age_days": 365,  # API Key 最长有效期
+    "session_max_age_hours": 24,  # 会话最长时间
+    "refresh_token_max_age_days": 30,  # 刷新令牌有效期
 }
 
 

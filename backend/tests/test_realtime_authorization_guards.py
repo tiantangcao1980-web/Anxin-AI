@@ -92,7 +92,9 @@ async def outsider_auth_client(db_session, outsider_org_user):
 
 
 @pytest.mark.asyncio
-async def test_im_user_search_scoped_to_org(auth_client, db_session, same_org_peer, outsider_org_user):
+async def test_im_user_search_scoped_to_org(
+    auth_client, db_session, same_org_peer, outsider_org_user
+):
     response = await auth_client.get("/api/v1/im/users/search?q=%40example.com")
 
     assert response.status_code == 200
@@ -104,14 +106,27 @@ async def test_im_user_search_scoped_to_org(auth_client, db_session, same_org_pe
 
 
 @pytest.mark.asyncio
-async def test_rtc_room_requires_participant(auth_client, outsider_auth_client, rtc_conversation, monkeypatch):
+async def test_rtc_room_requires_participant(
+    auth_client, outsider_auth_client, rtc_conversation, monkeypatch
+):
     monkeypatch.setattr("src.api.routes.rtc.rtc_service.is_available", lambda: True)
-    monkeypatch.setattr("src.api.routes.rtc.rtc_service.create_room", AsyncMock(return_value={"name": "ok"}))
+    monkeypatch.setattr(
+        "src.api.routes.rtc.rtc_service.create_room", AsyncMock(return_value={"name": "ok"})
+    )
     monkeypatch.setattr("src.api.routes.rtc.rtc_service.generate_token", lambda **_: "rtc-token")
     monkeypatch.setattr("src.api.routes.rtc.rtc_service.delete_room", AsyncMock(return_value=True))
-    monkeypatch.setattr("src.api.routes.rtc.rtc_service.list_rooms", AsyncMock(return_value=[
-        {"name": f"call_{rtc_conversation.id}_12345", "sid": "sid-1", "num_participants": 2},
-    ]))
+    monkeypatch.setattr(
+        "src.api.routes.rtc.rtc_service.list_rooms",
+        AsyncMock(
+            return_value=[
+                {
+                    "name": f"call_{rtc_conversation.id}_12345",
+                    "sid": "sid-1",
+                    "num_participants": 2,
+                },
+            ]
+        ),
+    )
 
     allowed = await auth_client.post(
         "/api/v1/rtc/rooms",

@@ -17,6 +17,6 @@ def test_manual_deploy_script_runs_backend_migrations() -> None:
     deploy_script = (REPO_ROOT / "scripts" / "deploy.sh").read_text(encoding="utf-8")
 
     assert re.search(
-        r'if printf .*backend[\s\S]*?docker compose exec -T backend alembic upgrade head[\s\S]*?fi',
+        r"if printf .*backend[\s\S]*?docker compose exec -T backend alembic upgrade head[\s\S]*?fi",
         deploy_script,
     )

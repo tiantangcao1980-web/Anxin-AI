@@ -151,7 +151,9 @@ async def test_create_room_for_others_consultation_blocked(client, stranger, con
 
 
 @pytest.mark.asyncio
-async def test_lawyer_join_requires_matched_lawyer(client, user_a, lawyer_a, stranger, consultation_a_l):
+async def test_lawyer_join_requires_matched_lawyer(
+    client, user_a, lawyer_a, stranger, consultation_a_l
+):
     """律师认领接口仅放行 consultation.matched_lawyer_id"""
     # 用户 A 先创建房间
     create_resp = await client.post(

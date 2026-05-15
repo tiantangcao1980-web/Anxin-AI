@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """persona_dd 7 endpoint API 测试 (P9-D 尽调专家)。
 
 ⚠️ 设计说明：
@@ -52,7 +51,6 @@ from src.agents.personas.due_diligence_expert import DueDiligenceExpertPersona  
 from src.api.routes import persona_dd as persona_dd_module  # noqa: E402
 from src.api.routes.persona_dd import router as persona_dd_router  # noqa: E402
 from src.core.deps import get_current_user_required  # noqa: E402
-
 
 BASE = "/personas/dd"
 
@@ -159,9 +157,7 @@ async def test_analyze_evidence_endpoint_supports(client):
 
 @pytest.mark.asyncio
 async def test_analyze_evidence_endpoint_validates(client):
-    res = await client.post(
-        f"{BASE}/analyze-evidence", json={"document_text": "", "claim": ""}
-    )
+    res = await client.post(f"{BASE}/analyze-evidence", json={"document_text": "", "claim": ""})
     assert res.status_code == 422
 
 
@@ -191,9 +187,7 @@ async def test_monitor_sentiment_endpoint(client):
 
 @pytest.mark.asyncio
 async def test_relationship_graph_endpoint(client):
-    res = await client.post(
-        f"{BASE}/relationship-graph", json={"entity": "TestCo", "depth": 2}
-    )
+    res = await client.post(f"{BASE}/relationship-graph", json={"entity": "TestCo", "depth": 2})
     assert res.status_code == 200, res.text
     data = res.json()
     assert data["root_entity"] == "TestCo"
@@ -209,9 +203,7 @@ async def test_relationship_graph_endpoint(client):
 
 @pytest.mark.asyncio
 async def test_relationship_graph_validates_depth(client):
-    res = await client.post(
-        f"{BASE}/relationship-graph", json={"entity": "TestCo", "depth": 99}
-    )
+    res = await client.post(f"{BASE}/relationship-graph", json={"entity": "TestCo", "depth": 99})
     assert res.status_code == 422  # Field 上限 ≤ 3
 
 
@@ -239,9 +231,7 @@ async def test_grade_risk_via_report_id(client):
 
 @pytest.mark.asyncio
 async def test_grade_risk_unknown_report_returns_404(client):
-    res = await client.post(
-        f"{BASE}/grade-risk", json={"report_id": "dd-doesnotexist"}
-    )
+    res = await client.post(f"{BASE}/grade-risk", json={"report_id": "dd-doesnotexist"})
     assert res.status_code == 404
 
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """威科先行（wkinfo.com.cn）商业付费 API 客户端骨架。
 
 - 与 PkuLawSource 同模式：未配 ``WKINFO_API_KEY`` 时返回 mock + log warning
@@ -8,7 +7,7 @@
 from __future__ import annotations
 
 import logging
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 import httpx
 
@@ -48,9 +47,9 @@ class WkInfoSource(BaseLegalSource):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
-        client: Optional[httpx.AsyncClient] = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        client: httpx.AsyncClient | None = None,
         timeout: float = 20.0,
     ) -> None:
         settings = get_settings()

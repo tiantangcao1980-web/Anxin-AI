@@ -23,20 +23,22 @@ from loguru import logger
 
 class ChunkingStrategy(str, Enum):
     """分块策略"""
-    FIXED_SIZE = "fixed_size"           # 固定长度
-    PARAGRAPH = "paragraph"             # 按段落
-    SENTENCE = "sentence"               # 按句子
-    RECURSIVE = "recursive"             # 递归分块
-    LEGAL_ARTICLE = "legal_article"     # 法律条款（特殊处理）
+
+    FIXED_SIZE = "fixed_size"  # 固定长度
+    PARAGRAPH = "paragraph"  # 按段落
+    SENTENCE = "sentence"  # 按句子
+    RECURSIVE = "recursive"  # 递归分块
+    LEGAL_ARTICLE = "legal_article"  # 法律条款（特殊处理）
 
 
 @dataclass
 class TextChunk:
     """文本块"""
-    content: str                        # 块内容
-    index: int                          # 块索引
-    start_char: int                     # 起始字符位置
-    end_char: int                       # 结束字符位置
+
+    content: str  # 块内容
+    index: int  # 块索引
+    start_char: int  # 起始字符位置
+    end_char: int  # 结束字符位置
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -47,8 +49,8 @@ class TextChunk:
     def word_count(self) -> int:
         # 简单的中英文混合词数统计
         # 中文按字符计数，英文按空格分词
-        chinese_chars = len(re.findall(r'[\u4e00-\u9fff]', self.content))
-        english_words = len(re.findall(r'[a-zA-Z]+', self.content))
+        chinese_chars = len(re.findall(r"[\u4e00-\u9fff]", self.content))
+        english_words = len(re.findall(r"[a-zA-Z]+", self.content))
         return chinese_chars + english_words
 
     def to_dict(self) -> dict[str, Any]:
@@ -66,38 +68,43 @@ class TextChunk:
 @dataclass
 class ChunkingConfig:
     """分块配置"""
+
     strategy: ChunkingStrategy = ChunkingStrategy.RECURSIVE
-    chunk_size: int = 500               # 目标块大小（字符数）
-    chunk_overlap: int = 50             # 块间重叠（字符数）
-    min_chunk_size: int = 100           # 最小块大小
-    max_chunk_size: int = 1000          # 最大块大小
+    chunk_size: int = 500  # 目标块大小（字符数）
+    chunk_overlap: int = 50  # 块间重叠（字符数）
+    min_chunk_size: int = 100  # 最小块大小
+    max_chunk_size: int = 1000  # 最大块大小
 
     # 分隔符配置（按优先级排序）
-    separators: list[str] = field(default_factory=lambda: [
-        "\n\n\n",       # 多个空行
-        "\n\n",         # 段落
-        "\n",           # 换行
-        "。",           # 中文句号
-        "；",           # 中文分号
-        "！",           # 中文感叹号
-        "？",           # 中文问号
-        ".",            # 英文句号
-        ";",            # 英文分号
-        "!",            # 英文感叹号
-        "?",            # 英文问号
-        "，",           # 中文逗号
-        ",",            # 英文逗号
-        " ",            # 空格
-    ])
+    separators: list[str] = field(
+        default_factory=lambda: [
+            "\n\n\n",  # 多个空行
+            "\n\n",  # 段落
+            "\n",  # 换行
+            "。",  # 中文句号
+            "；",  # 中文分号
+            "！",  # 中文感叹号
+            "？",  # 中文问号
+            ".",  # 英文句号
+            ";",  # 英文分号
+            "!",  # 英文感叹号
+            "?",  # 英文问号
+            "，",  # 中文逗号
+            ",",  # 英文逗号
+            " ",  # 空格
+        ]
+    )
 
     # 法律文档特殊分隔符
-    legal_separators: list[str] = field(default_factory=lambda: [
-        r"第[一二三四五六七八九十百千]+条",     # 中文条款编号
-        r"第\d+条",                             # 数字条款编号
-        r"\d+\.",                               # 数字编号
-        r"\([一二三四五六七八九十]+\)",          # 中文括号编号
-        r"\(\d+\)",                             # 数字括号编号
-    ])
+    legal_separators: list[str] = field(
+        default_factory=lambda: [
+            r"第[一二三四五六七八九十百千]+条",  # 中文条款编号
+            r"第\d+条",  # 数字条款编号
+            r"\d+\.",  # 数字编号
+            r"\([一二三四五六七八九十]+\)",  # 中文括号编号
+            r"\(\d+\)",  # 数字括号编号
+        ]
+    )
 
     # 是否保留元数据
     keep_separator: bool = True
@@ -115,17 +122,17 @@ class ChunkingService:
         text: str,
         strategy: ChunkingStrategy | None = None,
         metadata: dict[str, Any] | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> list[TextChunk]:
         """
         对文本进行分块
-        
+
         Args:
             text: 要分块的文本
             strategy: 分块策略（可选，使用配置中的默认值）
             metadata: 附加到每个块的元数据
             **kwargs: 覆盖配置的参数
-            
+
         Returns:
             分块结果列表
         """
@@ -172,10 +179,12 @@ class ChunkingService:
             "add_start_index": self.config.add_start_index,
         }
         config_dict.update(kwargs)
-        return ChunkingConfig(**cast(Any, {
-            k: v for k, v in config_dict.items()
-            if k in ChunkingConfig.__dataclass_fields__
-        }))
+        return ChunkingConfig(
+            **cast(
+                Any,
+                {k: v for k, v in config_dict.items() if k in ChunkingConfig.__dataclass_fields__},
+            )
+        )
 
     def _chunk_by_fixed_size(
         self,
@@ -200,12 +209,14 @@ class ChunkingService:
 
             chunk_text = text[start:end].strip()
             if chunk_text:
-                chunks.append(TextChunk(
-                    content=chunk_text,
-                    index=index,
-                    start_char=start,
-                    end_char=end,
-                ))
+                chunks.append(
+                    TextChunk(
+                        content=chunk_text,
+                        index=index,
+                        start_char=start,
+                        end_char=end,
+                    )
+                )
                 index += 1
 
             # 计算下一个起始位置（考虑重叠）
@@ -221,7 +232,7 @@ class ChunkingService:
         config: ChunkingConfig,
     ) -> list[TextChunk]:
         """按段落分块"""
-        paragraphs = re.split(r'\n\s*\n', text)
+        paragraphs = re.split(r"\n\s*\n", text)
         chunks = []
         current_chunk = ""
         current_start = 0
@@ -236,12 +247,14 @@ class ChunkingService:
 
             # 如果当前块加上新段落超过最大长度，先保存当前块
             if current_chunk and len(current_chunk) + len(para) + 2 > config.max_chunk_size:
-                chunks.append(TextChunk(
-                    content=current_chunk,
-                    index=index,
-                    start_char=current_start,
-                    end_char=char_pos,
-                ))
+                chunks.append(
+                    TextChunk(
+                        content=current_chunk,
+                        index=index,
+                        start_char=current_start,
+                        end_char=char_pos,
+                    )
+                )
                 index += 1
                 current_chunk = ""
                 current_start = char_pos
@@ -249,12 +262,14 @@ class ChunkingService:
             # 如果单个段落超过最大长度，进行子分块
             if len(para) > config.max_chunk_size:
                 if current_chunk:
-                    chunks.append(TextChunk(
-                        content=current_chunk,
-                        index=index,
-                        start_char=current_start,
-                        end_char=char_pos,
-                    ))
+                    chunks.append(
+                        TextChunk(
+                            content=current_chunk,
+                            index=index,
+                            start_char=current_start,
+                            end_char=char_pos,
+                        )
+                    )
                     index += 1
                     current_chunk = ""
 
@@ -279,12 +294,14 @@ class ChunkingService:
 
         # 添加最后一个块
         if current_chunk:
-            chunks.append(TextChunk(
-                content=current_chunk,
-                index=index,
-                start_char=current_start,
-                end_char=char_pos,
-            ))
+            chunks.append(
+                TextChunk(
+                    content=current_chunk,
+                    index=index,
+                    start_char=current_start,
+                    end_char=char_pos,
+                )
+            )
 
         return chunks
 
@@ -295,7 +312,7 @@ class ChunkingService:
     ) -> list[TextChunk]:
         """按句子分块"""
         # 中英文句子分割
-        sentence_pattern = r'([^。！？.!?\n]+[。！？.!?]?)'
+        sentence_pattern = r"([^。！？.!?\n]+[。！？.!?]?)"
         sentences = re.findall(sentence_pattern, text)
 
         chunks = []
@@ -311,12 +328,14 @@ class ChunkingService:
 
             if len(current_chunk) + len(sentence) > config.chunk_size:
                 if current_chunk:
-                    chunks.append(TextChunk(
-                        content=current_chunk,
-                        index=index,
-                        start_char=current_start,
-                        end_char=char_pos,
-                    ))
+                    chunks.append(
+                        TextChunk(
+                            content=current_chunk,
+                            index=index,
+                            start_char=current_start,
+                            end_char=char_pos,
+                        )
+                    )
                     index += 1
                 current_chunk = sentence
                 current_start = char_pos
@@ -326,12 +345,14 @@ class ChunkingService:
             char_pos += len(sentence)
 
         if current_chunk:
-            chunks.append(TextChunk(
-                content=current_chunk,
-                index=index,
-                start_char=current_start,
-                end_char=char_pos,
-            ))
+            chunks.append(
+                TextChunk(
+                    content=current_chunk,
+                    index=index,
+                    start_char=current_start,
+                    end_char=char_pos,
+                )
+            )
 
         return chunks
 
@@ -342,14 +363,14 @@ class ChunkingService:
     ) -> list[TextChunk]:
         """
         按法律条款分块
-        
+
         专门针对法律文档优化：
         - 识别条款编号（第X条）
         - 保持条款完整性
         - 处理款、项结构
         """
         # 构建条款分割正则
-        article_pattern = r'(第[一二三四五六七八九十百千\d]+条[^\n]*)'
+        article_pattern = r"(第[一二三四五六七八九十百千\d]+条[^\n]*)"
 
         # 分割条款
         parts = re.split(article_pattern, text)
@@ -367,18 +388,20 @@ class ChunkingService:
                 continue
 
             # 检查是否是条款标题
-            is_article_header = bool(re.match(r'^第[一二三四五六七八九十百千\d]+条', part))
+            is_article_header = bool(re.match(r"^第[一二三四五六七八九十百千\d]+条", part))
 
             if is_article_header:
                 # 保存之前的块
                 if current_chunk:
-                    chunks.append(TextChunk(
-                        content=current_chunk,
-                        index=index,
-                        start_char=current_start,
-                        end_char=char_pos,
-                        metadata={"article": current_article},
-                    ))
+                    chunks.append(
+                        TextChunk(
+                            content=current_chunk,
+                            index=index,
+                            start_char=current_start,
+                            end_char=char_pos,
+                            metadata={"article": current_article},
+                        )
+                    )
                     index += 1
 
                 current_chunk = part
@@ -392,13 +415,15 @@ class ChunkingService:
                         current_chunk = combined
                     else:
                         # 内容太长，需要分块
-                        chunks.append(TextChunk(
-                            content=current_chunk,
-                            index=index,
-                            start_char=current_start,
-                            end_char=char_pos,
-                            metadata={"article": current_article},
-                        ))
+                        chunks.append(
+                            TextChunk(
+                                content=current_chunk,
+                                index=index,
+                                start_char=current_start,
+                                end_char=char_pos,
+                                metadata={"article": current_article},
+                            )
+                        )
                         index += 1
 
                         # 对长内容进行子分块
@@ -422,13 +447,15 @@ class ChunkingService:
 
         # 添加最后一个块
         if current_chunk:
-            chunks.append(TextChunk(
-                content=current_chunk,
-                index=index,
-                start_char=current_start,
-                end_char=char_pos,
-                metadata={"article": current_article},
-            ))
+            chunks.append(
+                TextChunk(
+                    content=current_chunk,
+                    index=index,
+                    start_char=current_start,
+                    end_char=char_pos,
+                    metadata={"article": current_article},
+                )
+            )
 
         return chunks
 
@@ -440,7 +467,7 @@ class ChunkingService:
     ) -> list[TextChunk]:
         """
         递归分块
-        
+
         使用多级分隔符递归分割文本，确保块大小适中。
         优先使用更大的分隔符（段落 > 句子 > 逗号 > 空格）
         """
@@ -448,12 +475,18 @@ class ChunkingService:
 
         # 如果文本足够短，直接返回
         if len(text) <= config.chunk_size:
-            return [TextChunk(
-                content=text.strip(),
-                index=0,
-                start_char=0,
-                end_char=len(text),
-            )] if text.strip() else []
+            return (
+                [
+                    TextChunk(
+                        content=text.strip(),
+                        index=0,
+                        start_char=0,
+                        end_char=len(text),
+                    )
+                ]
+                if text.strip()
+                else []
+            )
 
         # 尝试使用当前分隔符分割
         for i, separator in enumerate(separators):
@@ -481,14 +514,16 @@ class ChunkingService:
                         else:
                             # 保存当前块
                             if current_chunk:
-                                chunks.extend(self._finalize_chunk(
-                                    current_chunk, current_start, config, separators[i+1:]
-                                ))
+                                chunks.extend(
+                                    self._finalize_chunk(
+                                        current_chunk, current_start, config, separators[i + 1 :]
+                                    )
+                                )
 
                             # 如果单个分割仍然太大，递归处理
                             if len(split) > config.chunk_size:
                                 sub_chunks = self._chunk_recursive(
-                                    split, config, separators[i+1:]
+                                    split, config, separators[i + 1 :]
                                 )
                                 for sub_chunk in sub_chunks:
                                     sub_chunk.start_char += char_pos
@@ -503,9 +538,11 @@ class ChunkingService:
 
                     # 处理最后一个块
                     if current_chunk:
-                        chunks.extend(self._finalize_chunk(
-                            current_chunk, current_start, config, separators[i+1:]
-                        ))
+                        chunks.extend(
+                            self._finalize_chunk(
+                                current_chunk, current_start, config, separators[i + 1 :]
+                            )
+                        )
 
                     # 重新编号
                     for idx, chunk in enumerate(chunks):
@@ -525,7 +562,7 @@ class ChunkingService:
         """分割文本"""
         if keep_separator:
             # 保留分隔符
-            parts = re.split(f'({re.escape(separator)})', text)
+            parts = re.split(f"({re.escape(separator)})", text)
             # 将分隔符附加到前一个部分
             result = []
             for i, part in enumerate(parts):
@@ -551,12 +588,14 @@ class ChunkingService:
             return []
 
         if len(text) <= config.chunk_size:
-            return [TextChunk(
-                content=text,
-                index=0,
-                start_char=start_pos,
-                end_char=start_pos + len(text),
-            )]
+            return [
+                TextChunk(
+                    content=text,
+                    index=0,
+                    start_char=start_pos,
+                    end_char=start_pos + len(text),
+                )
+            ]
 
         # 如果还有分隔符可用，继续递归
         if remaining_separators:
@@ -571,17 +610,17 @@ class ChunkingService:
         title: str = "",
         doc_id: str = "",
         doc_type: str = "general",
-        **kwargs: Any
+        **kwargs: Any,
     ) -> list[TextChunk]:
         """
         对文档进行分块（高级接口）
-        
+
         Args:
             content: 文档内容
             title: 文档标题
             doc_id: 文档ID
             doc_type: 文档类型（general, law, contract, case）
-            
+
         Returns:
             分块结果
         """
@@ -601,12 +640,7 @@ class ChunkingService:
         }
 
         # 执行分块
-        chunks = self.chunk_text(
-            text=content,
-            strategy=strategy,
-            metadata=metadata,
-            **kwargs
-        )
+        chunks = self.chunk_text(text=content, strategy=strategy, metadata=metadata, **kwargs)
 
         # 添加额外的上下文信息
         total_chunks = len(chunks)
@@ -637,13 +671,13 @@ def chunk_text(
 ) -> list[dict[str, Any]]:
     """
     快速分块文本
-    
+
     Args:
         text: 要分块的文本
         chunk_size: 块大小
         chunk_overlap: 重叠大小
         strategy: 分块策略
-        
+
     Returns:
         分块结果（字典列表）
     """
@@ -664,14 +698,16 @@ def chunk_legal_document(
 ) -> list[dict[str, Any]]:
     """
     分块法律文档
-    
+
     专门针对法律文档优化的分块方法
     """
-    service = ChunkingService(ChunkingConfig(
-        strategy=ChunkingStrategy.LEGAL_ARTICLE,
-        chunk_size=800,
-        chunk_overlap=100,
-    ))
+    service = ChunkingService(
+        ChunkingConfig(
+            strategy=ChunkingStrategy.LEGAL_ARTICLE,
+            chunk_size=800,
+            chunk_overlap=100,
+        )
+    )
     chunks = service.chunk_document(
         content=content,
         title=title,

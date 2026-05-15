@@ -20,12 +20,16 @@ def _make_llm_config_mock():
 @pytest.mark.asyncio
 @patch("src.agents.base.get_llm_config_sync")
 @patch("src.agents.base.ModelFactory.create")
-async def test_process_uses_high_usability_draft_mode_when_key_info_missing(mock_model_factory, mock_llm_config):
+async def test_process_uses_high_usability_draft_mode_when_key_info_missing(
+    mock_model_factory, mock_llm_config
+):
     mock_llm_config.return_value = _make_llm_config_mock()
     mock_model_factory.return_value = MagicMock()
     agent = DocumentDraftAgent()
 
-    with patch.object(agent, "chat", new_callable=AsyncMock, return_value="# 服务合同\n\n## 第一条 合同标的\n...") as mock_chat:
+    with patch.object(
+        agent, "chat", new_callable=AsyncMock, return_value="# 服务合同\n\n## 第一条 合同标的\n..."
+    ) as mock_chat:
         task = {
             "description": "起草一份服务合同",
             "context": {
@@ -50,7 +54,9 @@ async def test_process_uses_high_usability_draft_mode_when_key_info_missing(mock
 @pytest.mark.asyncio
 @patch("src.agents.base.get_llm_config_sync")
 @patch("src.agents.base.ModelFactory.create")
-async def test_process_retries_with_targeted_repair_when_validation_fails(mock_model_factory, mock_llm_config):
+async def test_process_retries_with_targeted_repair_when_validation_fails(
+    mock_model_factory, mock_llm_config
+):
     mock_llm_config.return_value = _make_llm_config_mock()
     mock_model_factory.return_value = MagicMock()
     agent = DocumentDraftAgent()
@@ -58,7 +64,9 @@ async def test_process_retries_with_targeted_repair_when_validation_fails(mock_m
     first_output = "# 服务合同\n\n甲方：甲公司\n乙方：乙公司"
     repaired_output = "# 服务合同\n\n## 第一条 定义与解释\n1.1 ..."
 
-    with patch.object(agent, "chat", new_callable=AsyncMock, side_effect=[first_output, repaired_output]) as mock_chat:
+    with patch.object(
+        agent, "chat", new_callable=AsyncMock, side_effect=[first_output, repaired_output]
+    ) as mock_chat:
         result = await agent.process(
             {
                 "description": "起草一份服务合同",
@@ -79,12 +87,16 @@ async def test_process_retries_with_targeted_repair_when_validation_fails(mock_m
 @pytest.mark.asyncio
 @patch("src.agents.base.get_llm_config_sync")
 @patch("src.agents.base.ModelFactory.create")
-async def test_process_uses_doc_type_specific_missing_fields_for_contract(mock_model_factory, mock_llm_config):
+async def test_process_uses_doc_type_specific_missing_fields_for_contract(
+    mock_model_factory, mock_llm_config
+):
     mock_llm_config.return_value = _make_llm_config_mock()
     mock_model_factory.return_value = MagicMock()
     agent = DocumentDraftAgent()
 
-    with patch.object(agent, "chat", new_callable=AsyncMock, return_value="# 服务合同\n\n## 第一条 合同标的\n...") as mock_chat:
+    with patch.object(
+        agent, "chat", new_callable=AsyncMock, return_value="# 服务合同\n\n## 第一条 合同标的\n..."
+    ) as mock_chat:
         result = await agent.process(
             {
                 "description": "起草一份服务合同",
@@ -107,12 +119,19 @@ async def test_process_uses_doc_type_specific_missing_fields_for_contract(mock_m
 @pytest.mark.asyncio
 @patch("src.agents.base.get_llm_config_sync")
 @patch("src.agents.base.ModelFactory.create")
-async def test_process_appends_missing_sections_when_model_output_is_sparse(mock_model_factory, mock_llm_config):
+async def test_process_appends_missing_sections_when_model_output_is_sparse(
+    mock_model_factory, mock_llm_config
+):
     mock_llm_config.return_value = _make_llm_config_mock()
     mock_model_factory.return_value = MagicMock()
     agent = DocumentDraftAgent()
 
-    with patch.object(agent, "chat", new_callable=AsyncMock, return_value="# 服务合同\n\n## 第一条 合同标的\n乙方向甲方提供运维服务。"):
+    with patch.object(
+        agent,
+        "chat",
+        new_callable=AsyncMock,
+        return_value="# 服务合同\n\n## 第一条 合同标的\n乙方向甲方提供运维服务。",
+    ):
         result = await agent.process(
             {
                 "description": "起草一份服务合同",
@@ -132,12 +151,16 @@ async def test_process_appends_missing_sections_when_model_output_is_sparse(mock
 @pytest.mark.asyncio
 @patch("src.agents.base.get_llm_config_sync")
 @patch("src.agents.base.ModelFactory.create")
-async def test_process_uses_doc_type_specific_missing_fields_for_lawyer_letter(mock_model_factory, mock_llm_config):
+async def test_process_uses_doc_type_specific_missing_fields_for_lawyer_letter(
+    mock_model_factory, mock_llm_config
+):
     mock_llm_config.return_value = _make_llm_config_mock()
     mock_model_factory.return_value = MagicMock()
     agent = DocumentDraftAgent()
 
-    with patch.object(agent, "chat", new_callable=AsyncMock, return_value="# 律师函\n\n一、基本事实\n...") as mock_chat:
+    with patch.object(
+        agent, "chat", new_callable=AsyncMock, return_value="# 律师函\n\n一、基本事实\n..."
+    ) as mock_chat:
         result = await agent.process(
             {
                 "description": "向供应商发送律师函",
@@ -162,12 +185,16 @@ async def test_process_uses_doc_type_specific_missing_fields_for_lawyer_letter(m
 @pytest.mark.asyncio
 @patch("src.agents.base.get_llm_config_sync")
 @patch("src.agents.base.ModelFactory.create")
-async def test_process_uses_doc_type_specific_missing_fields_for_legal_opinion(mock_model_factory, mock_llm_config):
+async def test_process_uses_doc_type_specific_missing_fields_for_legal_opinion(
+    mock_model_factory, mock_llm_config
+):
     mock_llm_config.return_value = _make_llm_config_mock()
     mock_model_factory.return_value = MagicMock()
     agent = DocumentDraftAgent()
 
-    with patch.object(agent, "chat", new_callable=AsyncMock, return_value="# 法律意见书\n\n## 一、引言\n...") as mock_chat:
+    with patch.object(
+        agent, "chat", new_callable=AsyncMock, return_value="# 法律意见书\n\n## 一、引言\n..."
+    ) as mock_chat:
         result = await agent.process(
             {
                 "description": "出具一份并购交易法律意见书",
@@ -190,12 +217,19 @@ async def test_process_uses_doc_type_specific_missing_fields_for_legal_opinion(m
 @pytest.mark.asyncio
 @patch("src.agents.base.get_llm_config_sync")
 @patch("src.agents.base.ModelFactory.create")
-async def test_process_renders_structured_missing_fields_in_pending_section(mock_model_factory, mock_llm_config):
+async def test_process_renders_structured_missing_fields_in_pending_section(
+    mock_model_factory, mock_llm_config
+):
     mock_llm_config.return_value = _make_llm_config_mock()
     mock_model_factory.return_value = MagicMock()
     agent = DocumentDraftAgent()
 
-    with patch.object(agent, "chat", new_callable=AsyncMock, return_value="# 服务合同\n\n## 第一条 合同标的\n乙方向甲方提供运维服务。"):
+    with patch.object(
+        agent,
+        "chat",
+        new_callable=AsyncMock,
+        return_value="# 服务合同\n\n## 第一条 合同标的\n乙方向甲方提供运维服务。",
+    ):
         result = await agent.process(
             {
                 "description": "起草一份服务合同",
@@ -214,12 +248,16 @@ async def test_process_renders_structured_missing_fields_in_pending_section(mock
 @pytest.mark.asyncio
 @patch("src.agents.base.get_llm_config_sync")
 @patch("src.agents.base.ModelFactory.create")
-async def test_process_uses_weighted_completeness_for_high_severity_contract_gaps(mock_model_factory, mock_llm_config):
+async def test_process_uses_weighted_completeness_for_high_severity_contract_gaps(
+    mock_model_factory, mock_llm_config
+):
     mock_llm_config.return_value = _make_llm_config_mock()
     mock_model_factory.return_value = MagicMock()
     agent = DocumentDraftAgent()
 
-    with patch.object(agent, "chat", new_callable=AsyncMock, return_value="# 服务合同\n\n## 第一条 合同标的\n..."):
+    with patch.object(
+        agent, "chat", new_callable=AsyncMock, return_value="# 服务合同\n\n## 第一条 合同标的\n..."
+    ):
         result = await agent.process(
             {
                 "description": "起草一份服务合同",
@@ -242,7 +280,9 @@ async def test_process_uses_weighted_completeness_for_high_severity_contract_gap
 @pytest.mark.asyncio
 @patch("src.agents.base.get_llm_config_sync")
 @patch("src.agents.base.ModelFactory.create")
-async def test_process_prioritizes_high_severity_pending_items_in_repair_prompt(mock_model_factory, mock_llm_config):
+async def test_process_prioritizes_high_severity_pending_items_in_repair_prompt(
+    mock_model_factory, mock_llm_config
+):
     mock_llm_config.return_value = _make_llm_config_mock()
     mock_model_factory.return_value = MagicMock()
     agent = DocumentDraftAgent()
@@ -250,7 +290,9 @@ async def test_process_prioritizes_high_severity_pending_items_in_repair_prompt(
     first_output = "# 律师函\n\n一、基本事实\n乙方拖欠服务费。"
     repaired_output = "# 律师函\n\n一、基本事实\n...\n\n四、具体要求\n..."
 
-    with patch.object(agent, "chat", new_callable=AsyncMock, side_effect=[first_output, repaired_output]) as mock_chat:
+    with patch.object(
+        agent, "chat", new_callable=AsyncMock, side_effect=[first_output, repaired_output]
+    ) as mock_chat:
         await agent.process(
             {
                 "description": "向供应商发送律师函",
@@ -268,4 +310,6 @@ async def test_process_prioritizes_high_severity_pending_items_in_repair_prompt(
 
     second_prompt = mock_chat.await_args_list[1].args[0]
     assert "优先补齐的待确认事项" in second_prompt
-    assert second_prompt.index("履行要求与期限（优先级：high）") < second_prompt.index("法律后果提示（优先级：medium）")
+    assert second_prompt.index("履行要求与期限（优先级：high）") < second_prompt.index(
+        "法律后果提示（优先级：medium）"
+    )

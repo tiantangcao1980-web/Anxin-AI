@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """persona_dd 路由 Pydantic schemas（请求 / 响应 DTO）。
 
 P9-D 尽调专家 persona 对外 API 的 IO 类型；与 ``personas/dd_models.py``
@@ -11,7 +10,6 @@ from datetime import date, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
-
 
 # ---------------------------------------------------------------------------
 # 通用：引文（与 persona_market 共享语义；这里独立声明避免跨 module 耦合）

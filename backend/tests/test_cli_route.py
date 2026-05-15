@@ -55,7 +55,9 @@ async def test_cli_keys_create_and_list_round_trip(auth_client, db_session, test
             "created_at": payload["created_at"],
         }
     ]
-    audit_result = await db_session.execute(select(AuditLog).where(AuditLog.action == "cli.key.create"))
+    audit_result = await db_session.execute(
+        select(AuditLog).where(AuditLog.action == "cli.key.create")
+    )
     audit_log = audit_result.scalar_one()
     assert audit_log.user_id == test_user.id
     assert audit_log.resource_id == payload["key_id"]
@@ -191,8 +193,14 @@ async def test_cli_execute_accepts_db_backed_route_token(
         json={"command": "status", "args": {}},
     )
     audits = (
-        await db_session.execute(select(AgentAuditEvent).where(AgentAuditEvent.org_id == test_organization.id))
-    ).scalars().all()
+        (
+            await db_session.execute(
+                select(AgentAuditEvent).where(AgentAuditEvent.org_id == test_organization.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     assert response.status_code == 200
     body = response.json()
@@ -241,8 +249,14 @@ async def test_cli_route_token_endpoint_issues_key_bound_token(
         json={"command": "status", "args": {}},
     )
     audits = (
-        await db_session.execute(select(AgentAuditEvent).where(AgentAuditEvent.org_id == test_organization.id))
-    ).scalars().all()
+        (
+            await db_session.execute(
+                select(AgentAuditEvent).where(AgentAuditEvent.org_id == test_organization.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     assert token_response.status_code == 200
     assert token_body["success"] is True

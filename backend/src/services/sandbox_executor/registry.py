@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 sandbox_executor.registry —— SandboxProvider 注册表
 
@@ -14,8 +13,6 @@ sandbox_executor.registry —— SandboxProvider 注册表
 """
 
 from __future__ import annotations
-
-from typing import Type
 
 from loguru import logger
 
@@ -33,14 +30,14 @@ class SandboxProviderRegistry:
     类级单例风格：所有方法都是 classmethod。
     """
 
-    _registry: dict[str, Type[BaseSandboxProvider]] = {}
+    _registry: dict[str, type[BaseSandboxProvider]] = {}
 
     # ------------------------------------------------------------------
     # 注册
     # ------------------------------------------------------------------
 
     @classmethod
-    def register(cls, provider_class: Type[BaseSandboxProvider]) -> Type[BaseSandboxProvider]:
+    def register(cls, provider_class: type[BaseSandboxProvider]) -> type[BaseSandboxProvider]:
         """装饰器：把 Provider 类按 ``provider_type`` 注册进表。"""
         ptype = getattr(provider_class, "provider_type", "")
         if not ptype:
@@ -55,7 +52,7 @@ class SandboxProviderRegistry:
     # ------------------------------------------------------------------
 
     @classmethod
-    def get(cls, provider_type: str) -> Type[BaseSandboxProvider]:
+    def get(cls, provider_type: str) -> type[BaseSandboxProvider]:
         """根据 provider_type 取 Provider **类**（未实例化）。"""
         if provider_type not in cls._registry:
             available = ", ".join(sorted(cls._registry.keys())) or "<empty>"
@@ -70,7 +67,7 @@ class SandboxProviderRegistry:
         return provider_cls()
 
     @classmethod
-    def all(cls) -> dict[str, Type[BaseSandboxProvider]]:
+    def all(cls) -> dict[str, type[BaseSandboxProvider]]:
         """返回当前注册表的浅拷贝（调试用）。"""
         return dict(cls._registry)
 

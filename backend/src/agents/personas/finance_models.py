@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """财税顾问 persona — 数据模型（P9-E）。
 
 本模块定义 ``TaxFinanceAdvisorPersona`` 5 大能力（税计算 / 出口退税 /

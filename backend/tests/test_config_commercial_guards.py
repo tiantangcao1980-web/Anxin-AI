@@ -99,12 +99,16 @@ def test_stdio_mcp_requires_exact_command_line_for_args_in_staging(monkeypatch):
     monkeypatch.setattr(mcp_client_service.settings, "MCP_STDIO_ALLOWED_COMMAND_LINES", [])
     monkeypatch.setattr(mcp_client_service.settings, "MCP_STDIO_ALLOWED_ENV_KEYS", [])
 
-    with pytest.raises(mcp_client_service.McpConfigSecurityError, match="requires MCP_STDIO_ALLOWED_COMMAND_LINES"):
+    with pytest.raises(
+        mcp_client_service.McpConfigSecurityError, match="requires MCP_STDIO_ALLOWED_COMMAND_LINES"
+    ):
         mcp_client_service.validate_mcp_server_config(
             SimpleNamespace(type="stdio", command="uvx", args=["trusted-mcp"], env={})
         )
 
-    monkeypatch.setattr(mcp_client_service.settings, "MCP_STDIO_ALLOWED_COMMAND_LINES", ["uvx trusted-mcp"])
+    monkeypatch.setattr(
+        mcp_client_service.settings, "MCP_STDIO_ALLOWED_COMMAND_LINES", ["uvx trusted-mcp"]
+    )
     mcp_client_service.validate_mcp_server_config(
         SimpleNamespace(type="stdio", command="uvx", args=["trusted-mcp"], env={})
     )

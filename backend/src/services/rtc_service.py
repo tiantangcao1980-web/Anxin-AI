@@ -3,6 +3,7 @@ LiveKit RTC 服务
 
 管理音视频通话房间和 Token 签发。
 """
+
 from typing import Any, ClassVar
 
 from loguru import logger
@@ -26,6 +27,7 @@ class RTCService:
 
         try:
             from livekit import api as lk_api
+
             cls._api = lk_api.LiveKitAPI(settings.LIVEKIT_URL)
             return cls._api
         except ImportError:
@@ -81,9 +83,8 @@ class RTCService:
 
         try:
             from livekit import api as lk_api
-            room = await api.room.create_room(
-                lk_api.CreateRoomRequest(name=room_name)
-            )
+
+            room = await api.room.create_room(lk_api.CreateRoomRequest(name=room_name))
             logger.info(f"LiveKit 房间已创建: {room_name}")
             return {"name": room.name, "sid": room.sid}
         except Exception as e:
@@ -99,9 +100,8 @@ class RTCService:
 
         try:
             from livekit import api as lk_api
-            await api.room.delete_room(
-                lk_api.DeleteRoomRequest(room=room_name)
-            )
+
+            await api.room.delete_room(lk_api.DeleteRoomRequest(room=room_name))
             logger.info(f"LiveKit 房间已删除: {room_name}")
             return True
         except Exception as e:
@@ -117,6 +117,7 @@ class RTCService:
 
         try:
             from livekit import api as lk_api
+
             resp = await api.room.list_rooms(lk_api.ListRoomsRequest())
             return [
                 {
@@ -134,7 +135,9 @@ class RTCService:
     @classmethod
     def is_available(cls) -> bool:
         """检查 LiveKit 是否可用"""
-        return bool(settings.LIVEKIT_URL and settings.LIVEKIT_API_KEY and settings.LIVEKIT_API_SECRET)
+        return bool(
+            settings.LIVEKIT_URL and settings.LIVEKIT_API_KEY and settings.LIVEKIT_API_SECRET
+        )
 
 
 rtc_service = RTCService()

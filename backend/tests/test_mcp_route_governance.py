@@ -89,8 +89,14 @@ async def test_mcp_tool_call_uses_db_backed_route_token(monkeypatch, db_session,
         db=db_session,
     )
     audits = (
-        await db_session.execute(select(AgentAuditEvent).where(AgentAuditEvent.org_id == test_organization.id))
-    ).scalars().all()
+        (
+            await db_session.execute(
+                select(AgentAuditEvent).where(AgentAuditEvent.org_id == test_organization.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     assert result == {"tool_name": "search", "arguments": {"q": "合同风险"}}
     assert session.calls == [("search", {"q": "合同风险"})]
@@ -136,7 +142,9 @@ async def test_mcp_tool_call_rejects_route_token_for_different_connector(
 
 
 @pytest.mark.asyncio
-async def test_mcp_tool_call_fails_closed_after_route_revocation(monkeypatch, db_session, test_organization):
+async def test_mcp_tool_call_fails_closed_after_route_revocation(
+    monkeypatch, db_session, test_organization
+):
     from src.services import mcp_client_service
 
     monkeypatch.setattr(mcp_client_service.settings, "ENVIRONMENT", "production")
@@ -175,7 +183,9 @@ async def test_mcp_tool_call_fails_closed_after_route_revocation(monkeypatch, db
 
 
 @pytest.mark.asyncio
-async def test_mcp_tool_call_enforces_route_token_consumer(monkeypatch, db_session, test_organization):
+async def test_mcp_tool_call_enforces_route_token_consumer(
+    monkeypatch, db_session, test_organization
+):
     from src.services import mcp_client_service
 
     monkeypatch.setattr(mcp_client_service.settings, "ENVIRONMENT", "development")

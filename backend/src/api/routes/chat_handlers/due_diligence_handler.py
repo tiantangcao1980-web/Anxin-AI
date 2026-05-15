@@ -1,4 +1,5 @@
 """企业尽调强路由处理器"""
+
 from typing import Any
 
 from loguru import logger
@@ -30,10 +31,13 @@ async def handle_due_diligence(
     used_agent = "尽职调查Agent"
     company_name = dd_request.get("company_name")
 
-    await ctx.send("agent_thinking", {
-        "agent": used_agent,
-        "message": "正在识别调查对象并准备企业尽调结果...",
-    })
+    await ctx.send(
+        "agent_thinking",
+        {
+            "agent": used_agent,
+            "message": "正在识别调查对象并准备企业尽调结果...",
+        },
+    )
 
     if not company_name:
         response_text = (
@@ -47,6 +51,7 @@ async def handle_due_diligence(
                 format_due_diligence_chat_response,
                 get_company_info,
             )
+
             company_data = await get_company_info(company_name)
             response_text = format_due_diligence_chat_response(company_name, company_data)
         except Exception as dd_err:
@@ -56,6 +61,7 @@ async def handle_due_diligence(
     # 隐私还原
     if recovery_map:
         from src.services.pii_service import pii_service
+
         response_text = pii_service.restore(response_text, recovery_map)
         response_text += "\n\n*(注：本回复基于脱敏数据生成，敏感信息已在本地自动还原)*"
 
@@ -63,15 +69,20 @@ async def handle_due_diligence(
     await ctx.stream_response_tokens(response_text, used_agent)
 
     from src.services.chat_service import extract_citations
+
     ws_sources = extract_citations(response_text)
 
-    await ctx.send("done", {
-        "agent": used_agent,
-        "content": response_text,
-        "conversation_id": ctx.conversation_id,
-        "sources": [s.model_dump() for s in ws_sources],
-    })
-    await ctx.save_message("assistant", response_text, used_agent,
-                           citations=[s.model_dump() for s in ws_sources])
+    await ctx.send(
+        "done",
+        {
+            "agent": used_agent,
+            "content": response_text,
+            "conversation_id": ctx.conversation_id,
+            "sources": [s.model_dump() for s in ws_sources],
+        },
+    )
+    await ctx.save_message(
+        "assistant", response_text, used_agent, citations=[s.model_dump() for s in ws_sources]
+    )
 
     return response_text

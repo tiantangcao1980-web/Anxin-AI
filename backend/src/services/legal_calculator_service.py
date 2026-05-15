@@ -23,25 +23,67 @@ from loguru import logger
 
 # ========== 2024-2025 年各主要城市最低工资标准（月，元） ==========
 MINIMUM_WAGE: dict[str, int] = {
-    "北京": 2420, "上海": 2690, "深圳": 2360, "广州": 2300,
-    "杭州": 2280, "南京": 2280, "苏州": 2280, "成都": 2100,
-    "武汉": 2010, "重庆": 2100, "天津": 2180, "西安": 2160,
-    "长沙": 1930, "郑州": 2000, "青岛": 2100, "大连": 1980,
-    "厦门": 2030, "福州": 2030, "合肥": 2060, "济南": 2100,
-    "沈阳": 1910, "哈尔滨": 1860, "石家庄": 2200, "昆明": 1990,
-    "南昌": 1850, "贵阳": 1890, "南宁": 1810, "兰州": 1820,
-    "太原": 1980, "长春": 1880, "呼和浩特": 1980, "海口": 1830,
-    "银川": 1900, "西宁": 1880, "乌鲁木齐": 1900, "拉萨": 1850,
+    "北京": 2420,
+    "上海": 2690,
+    "深圳": 2360,
+    "广州": 2300,
+    "杭州": 2280,
+    "南京": 2280,
+    "苏州": 2280,
+    "成都": 2100,
+    "武汉": 2010,
+    "重庆": 2100,
+    "天津": 2180,
+    "西安": 2160,
+    "长沙": 1930,
+    "郑州": 2000,
+    "青岛": 2100,
+    "大连": 1980,
+    "厦门": 2030,
+    "福州": 2030,
+    "合肥": 2060,
+    "济南": 2100,
+    "沈阳": 1910,
+    "哈尔滨": 1860,
+    "石家庄": 2200,
+    "昆明": 1990,
+    "南昌": 1850,
+    "贵阳": 1890,
+    "南宁": 1810,
+    "兰州": 1820,
+    "太原": 1980,
+    "长春": 1880,
+    "呼和浩特": 1980,
+    "海口": 1830,
+    "银川": 1900,
+    "西宁": 1880,
+    "乌鲁木齐": 1900,
+    "拉萨": 1850,
     "默认": 2000,
 }
 
 # ========== 2023-2024 年各主要城市社平工资（月，元） ==========
 AVERAGE_WAGE: dict[str, int] = {
-    "北京": 13930, "上海": 13050, "深圳": 13730, "广州": 12100,
-    "杭州": 11600, "南京": 11500, "苏州": 11200, "成都": 9500,
-    "武汉": 9600, "重庆": 9100, "天津": 10200, "西安": 9200,
-    "长沙": 9300, "郑州": 8800, "青岛": 9500, "大连": 9200,
-    "厦门": 10500, "福州": 9800, "合肥": 9300, "济南": 9600,
+    "北京": 13930,
+    "上海": 13050,
+    "深圳": 13730,
+    "广州": 12100,
+    "杭州": 11600,
+    "南京": 11500,
+    "苏州": 11200,
+    "成都": 9500,
+    "武汉": 9600,
+    "重庆": 9100,
+    "天津": 10200,
+    "西安": 9200,
+    "长沙": 9300,
+    "郑州": 8800,
+    "青岛": 9500,
+    "大连": 9200,
+    "厦门": 10500,
+    "福州": 9800,
+    "合肥": 9300,
+    "济南": 9600,
     "默认": 10000,
 }
 
@@ -49,6 +91,7 @@ AVERAGE_WAGE: dict[str, int] = {
 @dataclass
 class CalculationResult:
     """计算结果"""
+
     calculator_name: str
     total_amount: float
     breakdown: list[dict[str, Any]] = field(default_factory=list)
@@ -160,38 +203,48 @@ class LegalCalculatorService:
 
         if termination_type == "N":
             total = base_amount
-            breakdown.append({
-                "item": f"经济补偿金 (N={n_months}个月)",
-                "amount": total,
-                "note": f"月工资 ¥{effective_salary:,.0f} × {n_months} 个月",
-            })
+            breakdown.append(
+                {
+                    "item": f"经济补偿金 (N={n_months}个月)",
+                    "amount": total,
+                    "note": f"月工资 ¥{effective_salary:,.0f} × {n_months} 个月",
+                }
+            )
         elif termination_type == "N+1":
             notice_pay = monthly_salary  # 代通知金按实际工资（不封顶）
             total = base_amount + notice_pay
-            breakdown.append({
-                "item": f"经济补偿金 (N={n_months}个月)",
-                "amount": base_amount,
-                "note": f"月工资 ¥{effective_salary:,.0f} × {n_months} 个月",
-            })
-            breakdown.append({
-                "item": "代通知金 (+1个月)",
-                "amount": notice_pay,
-                "note": f"按实际月工资 ¥{monthly_salary:,.0f}（代通知金不受三倍封顶）",
-            })
+            breakdown.append(
+                {
+                    "item": f"经济补偿金 (N={n_months}个月)",
+                    "amount": base_amount,
+                    "note": f"月工资 ¥{effective_salary:,.0f} × {n_months} 个月",
+                }
+            )
+            breakdown.append(
+                {
+                    "item": "代通知金 (+1个月)",
+                    "amount": notice_pay,
+                    "note": f"按实际月工资 ¥{monthly_salary:,.0f}（代通知金不受三倍封顶）",
+                }
+            )
         elif termination_type == "2N":
             total = base_amount * 2
-            breakdown.append({
-                "item": f"赔偿金 (2N={n_months * 2}个月)",
-                "amount": total,
-                "note": f"月工资 ¥{effective_salary:,.0f} × {n_months} × 2",
-            })
+            breakdown.append(
+                {
+                    "item": f"赔偿金 (2N={n_months * 2}个月)",
+                    "amount": total,
+                    "note": f"月工资 ¥{effective_salary:,.0f} × {n_months} × 2",
+                }
+            )
         else:
             total = base_amount
-            breakdown.append({
-                "item": f"经济补偿金 (N={n_months}个月)",
-                "amount": total,
-                "note": f"月工资 ¥{effective_salary:,.0f} × {n_months} 个月",
-            })
+            breakdown.append(
+                {
+                    "item": f"经济补偿金 (N={n_months}个月)",
+                    "amount": total,
+                    "note": f"月工资 ¥{effective_salary:,.0f} × {n_months} 个月",
+                }
+            )
 
         result = CalculationResult(
             calculator_name="经济补偿金计算器",
@@ -212,7 +265,9 @@ class LegalCalculatorService:
         if year_cap_applied:
             result.warnings.append("高薪员工补偿年限已封顶12年")
 
-        result.notes.append("月工资是指劳动者在劳动合同解除或终止前十二个月的平均工资（含奖金、津贴等）")
+        result.notes.append(
+            "月工资是指劳动者在劳动合同解除或终止前十二个月的平均工资（含奖金、津贴等）"
+        )
         result.notes.append("经济补偿金无需缴纳个人所得税的部分：当地上年职工平均工资3倍以内的数额")
 
         return result
@@ -242,9 +297,7 @@ class LegalCalculatorService:
         """
         breakdown: list[dict[str, Any]] = []
         fee: float
-        legal_basis = [
-            "《诉讼费用交纳办法》（国务院令第481号）"
-        ]
+        legal_basis = ["《诉讼费用交纳办法》（国务院令第481号）"]
 
         if case_type == "labor":
             # 劳动争议案件：每件10元
@@ -255,15 +308,19 @@ class LegalCalculatorService:
         elif case_type == "divorce":
             # 离婚案件：每件50-300元；涉及财产分割超20万的部分按0.5%
             fee = 300  # 取中间值
-            breakdown.append({"item": "离婚案件受理费", "amount": 300, "note": "每件50-300元（取300元）"})
+            breakdown.append(
+                {"item": "离婚案件受理费", "amount": 300, "note": "每件50-300元（取300元）"}
+            )
             if amount > 200000:
                 extra = (amount - 200000) * 0.005
                 fee += extra
-                breakdown.append({
-                    "item": "财产分割超20万部分",
-                    "amount": extra,
-                    "note": f"(¥{amount:,.0f} - ¥200,000) × 0.5%",
-                })
+                breakdown.append(
+                    {
+                        "item": "财产分割超20万部分",
+                        "amount": extra,
+                        "note": f"(¥{amount:,.0f} - ¥200,000) × 0.5%",
+                    }
+                )
             legal_basis.append("《诉讼费用交纳办法》第十三条第（二）项")
 
         elif case_type == "administrative":
@@ -274,18 +331,24 @@ class LegalCalculatorService:
         else:
             # 财产案件（含合同纠纷、侵权、IP 等）：阶梯费率
             fee = self._calc_property_case_fee(amount)
-            breakdown.append({
-                "item": "财产案件受理费",
-                "amount": fee,
-                "note": f"标的额 ¥{amount:,.0f} 的阶梯费率",
-            })
+            breakdown.append(
+                {
+                    "item": "财产案件受理费",
+                    "amount": fee,
+                    "note": f"标的额 ¥{amount:,.0f} 的阶梯费率",
+                }
+            )
             legal_basis.append("《诉讼费用交纳办法》第十三条第（一）项：财产案件阶梯费率")
 
         # 简易程序减半
         if is_simplified:
             fee = fee / 2
-            breakdown.append({"item": "简易程序减半", "amount": -fee, "note": "适用简易程序，受理费减半"})
-            legal_basis.append("《诉讼费用交纳办法》第十六条：适用简易程序审理的案件减半交纳案件受理费")
+            breakdown.append(
+                {"item": "简易程序减半", "amount": -fee, "note": "适用简易程序，受理费减半"}
+            )
+            legal_basis.append(
+                "《诉讼费用交纳办法》第十六条：适用简易程序审理的案件减半交纳案件受理费"
+            )
 
         result = CalculationResult(
             calculator_name="诉讼费计算器",
@@ -362,13 +425,28 @@ class LegalCalculatorService:
         """
         # 案由 → (时效年数, 法条依据)
         sol_map = {
-            "general": (3, "《民法典》第一百八十八条：向人民法院请求保护民事权利的诉讼时效期间为三年"),
-            "labor_arbitration": (1, "《劳动争议调解仲裁法》第二十七条：劳动争议申请仲裁的时效期间为一年"),
-            "personal_injury": (3, "《民法典》第一百八十八条：人身损害赔偿诉讼时效为三年（原《民法通则》1年已废止）"),
-            "product_liability": (2, "《民法典》第一百八十八条+第五百九十五条：产品质量诉讼时效2年"),
+            "general": (
+                3,
+                "《民法典》第一百八十八条：向人民法院请求保护民事权利的诉讼时效期间为三年",
+            ),
+            "labor_arbitration": (
+                1,
+                "《劳动争议调解仲裁法》第二十七条：劳动争议申请仲裁的时效期间为一年",
+            ),
+            "personal_injury": (
+                3,
+                "《民法典》第一百八十八条：人身损害赔偿诉讼时效为三年（原《民法通则》1年已废止）",
+            ),
+            "product_liability": (
+                2,
+                "《民法典》第一百八十八条+第五百九十五条：产品质量诉讼时效2年",
+            ),
             "environmental": (3, "《民法典》第一百八十八条：环境侵权诉讼时效三年"),
             "subrogation": (1, "《民法典》第五百四十一条：债权人撤销权自知道之日起一年内行使"),
-            "international_trade": (4, "《民法典》第五百九十四条：国际货物买卖合同和技术进出口合同诉讼时效为四年"),
+            "international_trade": (
+                4,
+                "《民法典》第五百九十四条：国际货物买卖合同和技术进出口合同诉讼时效为四年",
+            ),
             "insurance": (2, "《保险法》第二十六条：人寿保险5年，其他保险2年"),
         }
 
@@ -412,7 +490,11 @@ class LegalCalculatorService:
                 {"item": "时效期间", "amount": years, "note": f"{years}年"},
                 {"item": "起算日期", "amount": 0, "note": str(trigger)},
                 {"item": "届满日期", "amount": 0, "note": str(deadline)},
-                {"item": "剩余天数", "amount": remaining_days, "note": f"{'已过期' if expired else f'{remaining_days}天'}"},
+                {
+                    "item": "剩余天数",
+                    "amount": remaining_days,
+                    "note": f"{'已过期' if expired else f'{remaining_days}天'}",
+                },
             ],
             legal_basis=[
                 basis,
@@ -422,16 +504,24 @@ class LegalCalculatorService:
         )
 
         if expired:
-            result.warnings.append(f"⚠️ 诉讼时效已于 {deadline} 届满（超期 {abs(remaining_days)} 天），可能丧失胜诉权")
+            result.warnings.append(
+                f"⚠️ 诉讼时效已于 {deadline} 届满（超期 {abs(remaining_days)} 天），可能丧失胜诉权"
+            )
             result.warnings.append("但如果义务人同意履行，法院仍予支持；或可寻找中断/中止事由")
         elif urgent:
-            result.warnings.append(f"⚠️ 诉讼时效将于 {deadline} 届满（仅剩 {remaining_days} 天），请尽快采取法律行动")
+            result.warnings.append(
+                f"⚠️ 诉讼时效将于 {deadline} 届满（仅剩 {remaining_days} 天），请尽快采取法律行动"
+            )
             result.warnings.append("建议：立即发送催告函（保留证据）或提起诉讼/仲裁以中断时效")
 
         if is_interrupted:
-            result.notes.append(f"时效已发生中断（中断日期：{interruption_date}），从中断事由消除之日起重新计算")
+            result.notes.append(
+                f"时效已发生中断（中断日期：{interruption_date}），从中断事由消除之日起重新计算"
+            )
 
-        result.notes.append("最长保护期：自权利受到损害之日起超过20年的，法院不予保护（特殊情况可申请延长）")
+        result.notes.append(
+            "最长保护期：自权利受到损害之日起超过20年的，法院不予保护（特殊情况可申请延长）"
+        )
 
         return result
 
@@ -520,8 +610,16 @@ class LegalCalculatorService:
 
         # 一次性伤残补助金标准（月工资×月数）
         disability_months = {
-            1: 27, 2: 25, 3: 23, 4: 21,
-            5: 18, 6: 16, 7: 13, 8: 11, 9: 9, 10: 7,
+            1: 27,
+            2: 25,
+            3: 23,
+            4: 21,
+            5: 18,
+            6: 16,
+            7: 13,
+            8: 11,
+            9: 9,
+            10: 7,
         }
 
         if disability_level not in disability_months:
@@ -534,11 +632,13 @@ class LegalCalculatorService:
         months = disability_months[disability_level]
         lump_sum = monthly_salary * months
 
-        breakdown = [{
-            "item": f"{disability_level}级伤残补助金",
-            "amount": lump_sum,
-            "note": f"本人工资 ¥{monthly_salary:,.0f} × {months} 个月",
-        }]
+        breakdown = [
+            {
+                "item": f"{disability_level}级伤残补助金",
+                "amount": lump_sum,
+                "note": f"本人工资 ¥{monthly_salary:,.0f} × {months} 个月",
+            }
+        ]
 
         # 5-10级解除/终止合同时的一次性医疗补助金和就业补助金
         # 这些标准各省不同，这里给出通用参考
@@ -552,16 +652,20 @@ class LegalCalculatorService:
             med_amount = avg_wage * med_months
             emp_amount = avg_wage * emp_months
 
-            breakdown.append({
-                "item": "一次性工伤医疗补助金（参考值）",
-                "amount": med_amount,
-                "note": f"社平工资 ¥{avg_wage:,.0f} × {med_months} 个月（各省标准不同）",
-            })
-            breakdown.append({
-                "item": "一次性伤残就业补助金（参考值）",
-                "amount": emp_amount,
-                "note": f"社平工资 ¥{avg_wage:,.0f} × {emp_months} 个月（各省标准不同）",
-            })
+            breakdown.append(
+                {
+                    "item": "一次性工伤医疗补助金（参考值）",
+                    "amount": med_amount,
+                    "note": f"社平工资 ¥{avg_wage:,.0f} × {med_months} 个月（各省标准不同）",
+                }
+            )
+            breakdown.append(
+                {
+                    "item": "一次性伤残就业补助金（参考值）",
+                    "amount": emp_amount,
+                    "note": f"社平工资 ¥{avg_wage:,.0f} × {emp_months} 个月（各省标准不同）",
+                }
+            )
             total = lump_sum + med_amount + emp_amount
         else:
             total = lump_sum
@@ -577,12 +681,18 @@ class LegalCalculatorService:
         )
 
         if disability_level <= 4:
-            result.notes.append(f"{disability_level}级伤残保留劳动关系，按月领取伤残津贴（{[90, 85, 80, 75][disability_level-1]}%工资）")
+            result.notes.append(
+                f"{disability_level}级伤残保留劳动关系，按月领取伤残津贴（{[90, 85, 80, 75][disability_level-1]}%工资）"
+            )
         else:
-            result.notes.append("5-10级伤残解除/终止劳动合同时，由工伤保险基金支付医疗补助金，由用人单位支付就业补助金")
+            result.notes.append(
+                "5-10级伤残解除/终止劳动合同时，由工伤保险基金支付医疗补助金，由用人单位支付就业补助金"
+            )
             result.notes.append("⚠️ 医疗/就业补助金标准各省差异大，以上为参考值，请查阅当地规定")
 
-        result.notes.append("另外可主张的项目：医疗费（实报实销）、停工留薪期工资、护理费、交通食宿费等")
+        result.notes.append(
+            "另外可主张的项目：医疗费（实报实销）、停工留薪期工资、护理费、交通食宿费等"
+        )
 
         return result
 
@@ -608,7 +718,9 @@ class LegalCalculatorService:
             return CalculationResult(
                 calculator_name="未知计算器",
                 total_amount=0,
-                warnings=[f"不支持的计算器类型: {calc_type}，可用类型: {', '.join(dispatch.keys())}"],
+                warnings=[
+                    f"不支持的计算器类型: {calc_type}，可用类型: {', '.join(dispatch.keys())}"
+                ],
             )
 
         try:

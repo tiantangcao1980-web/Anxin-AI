@@ -42,7 +42,9 @@ def test_operation_broadcast_payload_is_json_serializable(collaboration_doc_id):
 
 
 @pytest.mark.asyncio
-async def test_offline_inserts_from_old_base_version_preserve_intent(db_session, collaboration_doc_id):
+async def test_offline_inserts_from_old_base_version_preserve_intent(
+    db_session, collaboration_doc_id
+):
     service = CollaborationService(db_session)
     service.manager.remove_session(collaboration_doc_id)
     service.manager.get_or_create_session(collaboration_doc_id, "甲乙")

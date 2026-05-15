@@ -22,11 +22,15 @@ from src.models.base import GUID, Base, TimestampMixin
 
 class LawyerCertification(Base, TimestampMixin):
     """律师执业证认证"""
+
     __tablename__ = "lawyer_certifications"
 
     lawyer_profile_id: Mapped[str] = mapped_column(
-        GUID(), ForeignKey("lawyer_profiles.id", ondelete="CASCADE"),
-        unique=True, nullable=False, comment="律师档案ID"
+        GUID(),
+        ForeignKey("lawyer_profiles.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+        comment="律师档案ID",
     )
     license_image_url: Mapped[str] = mapped_column(
         String(500), nullable=False, comment="执业证照片URL"
@@ -34,9 +38,7 @@ class LawyerCertification(Base, TimestampMixin):
     id_card_image_url: Mapped[str | None] = mapped_column(
         String(500), nullable=True, comment="身份证照片URL（可选）"
     )
-    license_issue_date: Mapped[date] = mapped_column(
-        Date, nullable=False, comment="执业证签发日期"
-    )
+    license_issue_date: Mapped[date] = mapped_column(Date, nullable=False, comment="执业证签发日期")
     license_expiry_date: Mapped[date] = mapped_column(
         Date, nullable=False, comment="执业证到期日期"
     )
@@ -46,11 +48,12 @@ class LawyerCertification(Base, TimestampMixin):
 
     # 审核状态
     status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="pending", comment="认证状态: pending/approved/rejected/expired"
+        String(20),
+        nullable=False,
+        default="pending",
+        comment="认证状态: pending/approved/rejected/expired",
     )
-    rejection_reason: Mapped[str | None] = mapped_column(
-        Text, nullable=True, comment="驳回原因"
-    )
+    rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True, comment="驳回原因")
     verified_by: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, comment="审核人ID"
     )
@@ -70,14 +73,20 @@ class LawyerCertification(Base, TimestampMixin):
 
 class LawyerServiceConfig(Base, TimestampMixin):
     """律师接单配置"""
+
     __tablename__ = "lawyer_service_configs"
 
     lawyer_profile_id: Mapped[str] = mapped_column(
-        GUID(), ForeignKey("lawyer_profiles.id", ondelete="CASCADE"),
-        unique=True, nullable=False, comment="律师档案ID"
+        GUID(),
+        ForeignKey("lawyer_profiles.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+        comment="律师档案ID",
     )
     service_types: Mapped[list[str] | None] = mapped_column(
-        JSON, default=list, comment='服务类型: ["instant_consultation","appointment","case_delegation"]'
+        JSON,
+        default=list,
+        comment='服务类型: ["instant_consultation","appointment","case_delegation"]',
     )
     auto_accept: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False, comment="是否自动接单"

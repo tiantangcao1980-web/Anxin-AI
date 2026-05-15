@@ -21,5 +21,7 @@ def test_load_prompt_returns_fallback_for_missing_file(tmp_path: Path, monkeypat
     monkeypatch.setattr(prompts, "_PROMPTS_DIR", tmp_path)
     prompts.invalidate_cache()
 
-    assert prompts.load_prompt("missing.txt", fallback="fallback {value}", value="ok") == "fallback ok"
+    assert (
+        prompts.load_prompt("missing.txt", fallback="fallback {value}", value="ok") == "fallback ok"
+    )
     assert prompts.load_prompt("missing.txt") == ""

@@ -19,22 +19,24 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # ===== 脱敏正则 =====
 
 # 中国手机号
-RE_PHONE = re.compile(r'1[3-9]\d{9}')
+RE_PHONE = re.compile(r"1[3-9]\d{9}")
 # 身份证号
-RE_ID_CARD = re.compile(r'[1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]')
+RE_ID_CARD = re.compile(
+    r"[1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]"
+)
 # 邮箱
-RE_EMAIL = re.compile(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}')
+RE_EMAIL = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
 # 银行卡号（16-19位数字）
-RE_BANK_CARD = re.compile(r'\b\d{16,19}\b')
+RE_BANK_CARD = re.compile(r"\b\d{16,19}\b")
 # 中文姓名模式（常见2-4字姓名，前面有"我叫""姓名""本人"等关键词）
-RE_CN_NAME = re.compile(r'(?:我叫|姓名[：:]?\s*|本人|我是)\s*([^\s,，。；;、]{2,4})')
+RE_CN_NAME = re.compile(r"(?:我叫|姓名[：:]?\s*|本人|我是)\s*([^\s,，。；;、]{2,4})")
 # 详细地址（包含省市区+具体地址）
-RE_ADDRESS = re.compile(r'[\u4e00-\u9fa5]{2,}(?:省|市|区|县|镇|村|路|街|号|栋|单元|室|楼)')
+RE_ADDRESS = re.compile(r"[\u4e00-\u9fa5]{2,}(?:省|市|区|县|镇|村|路|街|号|栋|单元|室|楼)")
 # 公司具体名称（在需要完全匿名时使用）
-RE_COMPANY = re.compile(r'[\u4e00-\u9fa5]{2,}(?:有限公司|股份有限公司|集团|科技|实业|贸易|咨询)')
+RE_COMPANY = re.compile(r"[\u4e00-\u9fa5]{2,}(?:有限公司|股份有限公司|集团|科技|实业|贸易|咨询)")
 
 
-def anonymize_text(text: str, level: str = 'standard') -> str:
+def anonymize_text(text: str, level: str = "standard") -> str:
     """
     文本脱敏
 
@@ -50,30 +52,30 @@ def anonymize_text(text: str, level: str = 'standard') -> str:
     result = text
 
     # 手机号 → 1xx****xxxx
-    result = RE_PHONE.sub(lambda m: m.group()[:3] + '****' + m.group()[-4:], result)
+    result = RE_PHONE.sub(lambda m: m.group()[:3] + "****" + m.group()[-4:], result)
 
     # 身份证 → 前6后4
-    result = RE_ID_CARD.sub(lambda m: m.group()[:6] + '********' + m.group()[-4:], result)
+    result = RE_ID_CARD.sub(lambda m: m.group()[:6] + "********" + m.group()[-4:], result)
 
     # 邮箱 → 首字母***@域名
-    result = RE_EMAIL.sub(lambda m: m.group()[0] + '***@' + m.group().split('@')[1], result)
+    result = RE_EMAIL.sub(lambda m: m.group()[0] + "***@" + m.group().split("@")[1], result)
 
     # 银行卡号 → 前4后4
-    result = RE_BANK_CARD.sub(lambda m: m.group()[:4] + '****' + m.group()[-4:], result)
+    result = RE_BANK_CARD.sub(lambda m: m.group()[:4] + "****" + m.group()[-4:], result)
 
     # 中文姓名 → X某
     def replace_name(m: re.Match[str]) -> str:
         full = m.group(0)
         name = m.group(1)
-        return full.replace(name, name[0] + '某')
+        return full.replace(name, name[0] + "某")
 
     result = RE_CN_NAME.sub(replace_name, result)
 
-    if level == 'strict':
+    if level == "strict":
         # 详细地址 → [某地]
-        result = RE_ADDRESS.sub('[某地]', result)
+        result = RE_ADDRESS.sub("[某地]", result)
         # 公司名称 → [某公司]
-        result = RE_COMPANY.sub('[某公司]', result)
+        result = RE_COMPANY.sub("[某公司]", result)
 
     return result
 
@@ -81,32 +83,32 @@ def anonymize_text(text: str, level: str = 'standard') -> str:
 # ===== 法律领域关键词映射 =====
 
 DOMAIN_KEYWORDS: dict[str, list[str]] = {
-    'contract': ['合同', '违约', '签约', '约定', '条款', '履行', '解约', '买卖', '租赁', '借款'],
-    'labor': ['劳动', '工资', '辞退', '社保', '加班', '竞业', '工伤', '劳务', '离职', '裁员'],
-    'ip': ['专利', '商标', '著作权', '版权', '侵权', '仿冒', '抄袭', '知识产权', '注册'],
-    'corporate': ['公司', '股权', '股东', '董事', '法人', '章程', '增资', '减资', '清算', '并购'],
-    'litigation': ['起诉', '被告', '原告', '法院', '判决', '上诉', '执行', '仲裁', '调解', '赔偿'],
-    'compliance': ['合规', '审查', '监管', '行政处罚', '许可证', '资质', '备案', '整改'],
-    'criminal': ['刑事', '犯罪', '拘留', '逮捕', '公安', '检察', '取保', '诈骗', '盗窃', '伤害'],
-    'real_estate': ['房产', '房屋', '拆迁', '土地', '产权', '过户', '物业', '业主'],
-    'family': ['离婚', '抚养', '财产分割', '婚姻', '继承', '遗产', '监护'],
-    'debt': ['债务', '欠款', '借贷', '催收', '担保', '抵押', '逾期', '坏账'],
+    "contract": ["合同", "违约", "签约", "约定", "条款", "履行", "解约", "买卖", "租赁", "借款"],
+    "labor": ["劳动", "工资", "辞退", "社保", "加班", "竞业", "工伤", "劳务", "离职", "裁员"],
+    "ip": ["专利", "商标", "著作权", "版权", "侵权", "仿冒", "抄袭", "知识产权", "注册"],
+    "corporate": ["公司", "股权", "股东", "董事", "法人", "章程", "增资", "减资", "清算", "并购"],
+    "litigation": ["起诉", "被告", "原告", "法院", "判决", "上诉", "执行", "仲裁", "调解", "赔偿"],
+    "compliance": ["合规", "审查", "监管", "行政处罚", "许可证", "资质", "备案", "整改"],
+    "criminal": ["刑事", "犯罪", "拘留", "逮捕", "公安", "检察", "取保", "诈骗", "盗窃", "伤害"],
+    "real_estate": ["房产", "房屋", "拆迁", "土地", "产权", "过户", "物业", "业主"],
+    "family": ["离婚", "抚养", "财产分割", "婚姻", "继承", "遗产", "监护"],
+    "debt": ["债务", "欠款", "借贷", "催收", "担保", "抵押", "逾期", "坏账"],
 }
 
 DOMAIN_LABELS: dict[str, str] = {
-    'contract': '合同纠纷',
-    'labor': '劳动争议',
-    'ip': '知识产权',
-    'corporate': '公司治理',
-    'litigation': '民事诉讼',
-    'compliance': '合规审查',
-    'criminal': '刑事案件',
-    'real_estate': '房产纠纷',
-    'family': '婚姻家庭',
-    'debt': '债务纠纷',
+    "contract": "合同纠纷",
+    "labor": "劳动争议",
+    "ip": "知识产权",
+    "corporate": "公司治理",
+    "litigation": "民事诉讼",
+    "compliance": "合规审查",
+    "criminal": "刑事案件",
+    "real_estate": "房产纠纷",
+    "family": "婚姻家庭",
+    "debt": "债务纠纷",
 }
 
-URGENCY_WEIGHTS = {'low': 0.5, 'medium': 1.0, 'high': 1.5, 'urgent': 2.0}
+URGENCY_WEIGHTS = {"low": 0.5, "medium": 1.0, "high": 1.5, "urgent": 2.0}
 _MATCHING_EXPOSURE_COUNTER: dict[str, int] = defaultdict(int)
 
 
@@ -126,7 +128,7 @@ def detect_legal_domain(text: str) -> tuple[str, float]:
             scores[domain] = score
 
     if not scores:
-        return 'other', 0.0
+        return "other", 0.0
 
     best = max(scores, key=scores.get)  # type: ignore
     total_hits = sum(scores.values())
@@ -137,15 +139,15 @@ def detect_legal_domain(text: str) -> tuple[str, float]:
 
 def extract_risk_level(text: str) -> str:
     """从描述中提取风险等级"""
-    high_risk = ['紧急', '严重', '巨额', '犯罪', '拘留', '逮捕', '重大', '恶意', '欺诈']
-    medium_risk = ['纠纷', '争议', '违约', '起诉', '赔偿', '投诉', '处罚']
+    high_risk = ["紧急", "严重", "巨额", "犯罪", "拘留", "逮捕", "重大", "恶意", "欺诈"]
+    medium_risk = ["纠纷", "争议", "违约", "起诉", "赔偿", "投诉", "处罚"]
 
     text_lower = text.lower()
     if any(kw in text_lower for kw in high_risk):
-        return 'high'
+        return "high"
     if any(kw in text_lower for kw in medium_risk):
-        return 'medium'
-    return 'low'
+        return "medium"
+    return "low"
 
 
 def extract_legal_elements(text: str) -> dict[str, Any]:
@@ -156,27 +158,27 @@ def extract_legal_elements(text: str) -> dict[str, Any]:
         包含主体、标的、争议焦点等法律要素
     """
     elements: dict[str, Any] = {
-        'parties_mentioned': [],
-        'amounts_mentioned': [],
-        'dates_mentioned': [],
-        'legal_basis': [],
-        'dispute_focus': '',
+        "parties_mentioned": [],
+        "amounts_mentioned": [],
+        "dates_mentioned": [],
+        "legal_basis": [],
+        "dispute_focus": "",
     }
 
     # 金额提取
-    amount_pattern = re.compile(r'(\d+(?:\.\d+)?)\s*(?:万|元|块|千|百万|亿)')
+    amount_pattern = re.compile(r"(\d+(?:\.\d+)?)\s*(?:万|元|块|千|百万|亿)")
     amounts = amount_pattern.findall(text)
-    elements['amounts_mentioned'] = [float(a) for a in amounts[:5]]
+    elements["amounts_mentioned"] = [float(a) for a in amounts[:5]]
 
     # 日期提取
-    date_pattern = re.compile(r'(\d{4})[年/.-](\d{1,2})[月/.-]?(\d{1,2})?')
+    date_pattern = re.compile(r"(\d{4})[年/.-](\d{1,2})[月/.-]?(\d{1,2})?")
     dates = date_pattern.findall(text)
-    elements['dates_mentioned'] = [f"{y}-{m}{'-' + d if d else ''}" for y, m, d in dates[:5]]
+    elements["dates_mentioned"] = [f"{y}-{m}{'-' + d if d else ''}" for y, m, d in dates[:5]]
 
     # 法律依据提取
-    law_pattern = re.compile(r'《([^》]+)》')
+    law_pattern = re.compile(r"《([^》]+)》")
     laws = law_pattern.findall(text)
-    elements['legal_basis'] = laws[:5]
+    elements["legal_basis"] = laws[:5]
 
     return elements
 
@@ -209,13 +211,13 @@ class LawyerMatchingService:
             }
         """
         # 1. 文本脱敏
-        anonymous = anonymize_text(description, level='standard')
+        anonymous = anonymize_text(description, level="standard")
 
         # 2. 领域识别
         detected_domain, confidence = detect_legal_domain(description)
         # 用户手动选择的优先级更高
-        final_domain = user_domain if user_domain and user_domain != 'other' else detected_domain
-        domain_label = DOMAIN_LABELS.get(final_domain, '综合法务')
+        final_domain = user_domain if user_domain and user_domain != "other" else detected_domain
+        domain_label = DOMAIN_LABELS.get(final_domain, "综合法务")
 
         # 3. 风险评估
         risk_level = extract_risk_level(description)
@@ -225,24 +227,29 @@ class LawyerMatchingService:
 
         # 5. 生成结构化摘要
         summary_parts = [f"[{domain_label}]"]
-        if risk_level == 'high':
-            summary_parts.append('[紧急]')
+        if risk_level == "high":
+            summary_parts.append("[紧急]")
         summary_parts.append(anonymous[:300])
-        if elements['amounts_mentioned']:
+        if elements["amounts_mentioned"]:
             summary_parts.append(f"\n涉及金额：约 {max(elements['amounts_mentioned'])} 万元")
-        if elements['legal_basis']:
+        if elements["legal_basis"]:
             summary_parts.append(f"\n相关法规：{'、'.join(elements['legal_basis'][:3])}")
 
-        anonymous_summary = ''.join(summary_parts)
+        anonymous_summary = "".join(summary_parts)
 
         # 6. 推荐律师专业方向
         specializations = [domain_label]
         # 如果检测到多个领域相关，加入次要方向
-        all_domains = {d: s for d, s in
-                       ((d, sum(1 for kw in kws if kw in description.lower()))
-                        for d, kws in DOMAIN_KEYWORDS.items()) if s > 0}
+        all_domains = {
+            d: s
+            for d, s in (
+                (d, sum(1 for kw in kws if kw in description.lower()))
+                for d, kws in DOMAIN_KEYWORDS.items()
+            )
+            if s > 0
+        }
         for d in sorted(all_domains, key=all_domains.get, reverse=True)[:3]:  # type: ignore
-            label = DOMAIN_LABELS.get(d, '')
+            label = DOMAIN_LABELS.get(d, "")
             if label and label not in specializations:
                 specializations.append(label)
 
@@ -253,14 +260,14 @@ class LawyerMatchingService:
             anonymous_summary = llm_summary
 
         return {
-            'anonymous_summary': anonymous_summary,
-            'legal_domain': final_domain,
-            'domain_label': domain_label,
-            'domain_confidence': confidence,
-            'risk_level': risk_level,
-            'legal_elements': elements,
-            'recommended_specializations': specializations,
-            'urgency_assessment': 'high' if risk_level == 'high' else 'normal',
+            "anonymous_summary": anonymous_summary,
+            "legal_domain": final_domain,
+            "domain_label": domain_label,
+            "domain_confidence": confidence,
+            "risk_level": risk_level,
+            "legal_elements": elements,
+            "recommended_specializations": specializations,
+            "urgency_assessment": "high" if risk_level == "high" else "normal",
         }
 
     async def _llm_analyze(
@@ -296,7 +303,7 @@ class LawyerMatchingService:
             result = await llm_service.chat(prompt, max_tokens=500)
             if result and len(result) > 20:
                 # 二次脱敏确保安全
-                return anonymize_text(result, level='strict')
+                return anonymize_text(result, level="strict")
         except Exception as e:
             logger.debug(f"LLM 分析不可用，使用规则引擎: {e}")
 
@@ -306,7 +313,7 @@ class LawyerMatchingService:
         self,
         db: AsyncSession,
         domain: str,
-        urgency: str = 'medium',
+        urgency: str = "medium",
         city: str | None = None,
         specializations: list[str] | None = None,
         limit: int = 10,
@@ -339,7 +346,7 @@ class LawyerMatchingService:
         if not all_lawyers:
             return []
 
-        domain_label = DOMAIN_LABELS.get(domain, '')
+        domain_label = DOMAIN_LABELS.get(domain, "")
         urgency_weight = URGENCY_WEIGHTS.get(urgency, 1.0)
 
         scored: list[tuple[Any, float]] = []
@@ -351,11 +358,16 @@ class LawyerMatchingService:
             specs = lp.specializations or []
             if isinstance(specs, str):
                 specs = [specs]
-            domain_match = any(
-                domain_label in s or domain in s or
-                (specializations and any(sp in s for sp in specializations))
-                for s in specs
-            ) if specs else False
+            domain_match = (
+                any(
+                    domain_label in s
+                    or domain in s
+                    or (specializations and any(sp in s for sp in specializations))
+                    for s in specs
+                )
+                if specs
+                else False
+            )
             score += 40 if domain_match else 10  # 未匹配也给基础分
 
             # 评分 (25分)
@@ -367,7 +379,7 @@ class LawyerMatchingService:
             score += min(5, (lp.total_cases or 0) / 20)
 
             # 紧急加权（紧急时优先在线律师）
-            if urgency in ('high', 'urgent') and lp.is_online:
+            if urgency in ("high", "urgent") and lp.is_online:
                 score += min(20, 10 * urgency_weight)
 
             scored.append((lp, round(score, 1)))
@@ -381,24 +393,24 @@ class LawyerMatchingService:
 
         return [
             {
-                'id': lp.id,
-                'real_name': lp.real_name,
-                'license_number': lp.license_number,
-                'law_firm': lp.law_firm,
-                'years_of_practice': lp.years_of_practice,
-                'city': lp.city,
-                'specializations': lp.specializations or [],
-                'bio': lp.bio,
-                'avatar_url': lp.avatar_url,
-                'rating': lp.rating,
-                'total_cases': lp.total_cases,
-                'success_cases': lp.success_cases,
-                'hourly_rate_min': lp.hourly_rate_min,
-                'hourly_rate_max': lp.hourly_rate_max,
-                'is_online': lp.is_online,
-                'is_verified': lp.is_verified,
-                'match_score': score,
-                'match_reason': '领域匹配' if domain_match else '综合推荐',
+                "id": lp.id,
+                "real_name": lp.real_name,
+                "license_number": lp.license_number,
+                "law_firm": lp.law_firm,
+                "years_of_practice": lp.years_of_practice,
+                "city": lp.city,
+                "specializations": lp.specializations or [],
+                "bio": lp.bio,
+                "avatar_url": lp.avatar_url,
+                "rating": lp.rating,
+                "total_cases": lp.total_cases,
+                "success_cases": lp.success_cases,
+                "hourly_rate_min": lp.hourly_rate_min,
+                "hourly_rate_max": lp.hourly_rate_max,
+                "is_online": lp.is_online,
+                "is_verified": lp.is_verified,
+                "match_score": score,
+                "match_reason": "领域匹配" if domain_match else "综合推荐",
             }
             for lp, score in selected
         ]

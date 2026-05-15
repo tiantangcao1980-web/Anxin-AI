@@ -20,6 +20,7 @@ from src.harness.tool_registry import RiskLevel, tool_registry
 
 class DataClassification(str, Enum):
     """数据敏感等级（与 security_config.py 对齐）"""
+
     PUBLIC = "public"
     INTERNAL = "internal"
     CONFIDENTIAL = "confidential"
@@ -29,6 +30,7 @@ class DataClassification(str, Enum):
 
 class PolicyDecision(str, Enum):
     """策略决定"""
+
     ALLOW = "allow"
     DENY = "deny"
     REQUIRE_APPROVAL = "require_approval"
@@ -37,6 +39,7 @@ class PolicyDecision(str, Enum):
 @dataclass
 class PolicyCheckResult:
     """权限检查结果"""
+
     decision: PolicyDecision
     reason: str
     tool_name: str | None = None
@@ -68,6 +71,7 @@ class PolicyContext:
 @dataclass
 class AgentPolicy:
     """单个 Agent 的策略配置"""
+
     agent_name: str
     # 允许的工具列表（None = 遵从 tool_registry 的 allowed_agents）
     allowed_tools: set[str] | None = None
@@ -172,124 +176,158 @@ class PolicyEngine:
         """注册默认 Agent 策略"""
 
         # 法律顾问：广泛权限但不可对外发送
-        self.set_policy(AgentPolicy(
-            agent_name="legal_advisor",
-            max_risk_level=RiskLevel.WRITE,
-            can_external_send=False,
-            denied_tools={"create_payment", "send_email"},
-        ))
+        self.set_policy(
+            AgentPolicy(
+                agent_name="legal_advisor",
+                max_risk_level=RiskLevel.WRITE,
+                can_external_send=False,
+                denied_tools={"create_payment", "send_email"},
+            )
+        )
 
         # 合同审查：只做审查不生成新合同
-        self.set_policy(AgentPolicy(
-            agent_name="contract_reviewer",
-            max_risk_level=RiskLevel.WRITE,
-            denied_tools={"create_payment", "send_email", "crawl_company_info"},
-        ))
+        self.set_policy(
+            AgentPolicy(
+                agent_name="contract_reviewer",
+                max_risk_level=RiskLevel.WRITE,
+                denied_tools={"create_payment", "send_email", "crawl_company_info"},
+            )
+        )
 
         # 合同管家：合同全生命周期
-        self.set_policy(AgentPolicy(
-            agent_name="contract_steward",
-            max_risk_level=RiskLevel.WRITE,
-            denied_tools={"create_payment", "send_email"},
-        ))
+        self.set_policy(
+            AgentPolicy(
+                agent_name="contract_steward",
+                max_risk_level=RiskLevel.WRITE,
+                denied_tools={"create_payment", "send_email"},
+            )
+        )
 
         # 尽调专家：需要外部数据采集
-        self.set_policy(AgentPolicy(
-            agent_name="due_diligence",
-            max_risk_level=RiskLevel.EXTERNAL_SEND,
-            can_external_send=True,
-            denied_tools={"create_payment", "send_email"},
-        ))
+        self.set_policy(
+            AgentPolicy(
+                agent_name="due_diligence",
+                max_risk_level=RiskLevel.EXTERNAL_SEND,
+                can_external_send=True,
+                denied_tools={"create_payment", "send_email"},
+            )
+        )
 
         # 证据分析：需要外部数据采集
-        self.set_policy(AgentPolicy(
-            agent_name="evidence_analyst",
-            max_risk_level=RiskLevel.EXTERNAL_SEND,
-            can_external_send=True,
-            denied_tools={"create_payment", "send_email", "draft_contract"},
-        ))
+        self.set_policy(
+            AgentPolicy(
+                agent_name="evidence_analyst",
+                max_risk_level=RiskLevel.EXTERNAL_SEND,
+                can_external_send=True,
+                denied_tools={"create_payment", "send_email", "draft_contract"},
+            )
+        )
 
         # 文书起草：可写但不可执行
-        self.set_policy(AgentPolicy(
-            agent_name="document_drafter",
-            max_risk_level=RiskLevel.WRITE,
-            denied_tools={"create_payment", "send_email", "crawl_company_info"},
-        ))
+        self.set_policy(
+            AgentPolicy(
+                agent_name="document_drafter",
+                max_risk_level=RiskLevel.WRITE,
+                denied_tools={"create_payment", "send_email", "crawl_company_info"},
+            )
+        )
 
         # 风险评估：只读分析
-        self.set_policy(AgentPolicy(
-            agent_name="risk_assessor",
-            max_risk_level=RiskLevel.READ_ONLY,
-            denied_tools={"create_payment", "send_email", "draft_contract", "draft_document"},
-        ))
+        self.set_policy(
+            AgentPolicy(
+                agent_name="risk_assessor",
+                max_risk_level=RiskLevel.READ_ONLY,
+                denied_tools={"create_payment", "send_email", "draft_contract", "draft_document"},
+            )
+        )
 
         # 合规专员：只读分析
-        self.set_policy(AgentPolicy(
-            agent_name="compliance_officer",
-            max_risk_level=RiskLevel.READ_ONLY,
-            denied_tools={"create_payment", "send_email", "draft_contract"},
-        ))
+        self.set_policy(
+            AgentPolicy(
+                agent_name="compliance_officer",
+                max_risk_level=RiskLevel.READ_ONLY,
+                denied_tools={"create_payment", "send_email", "draft_contract"},
+            )
+        )
 
         # 法律研究：只读
-        self.set_policy(AgentPolicy(
-            agent_name="legal_researcher",
-            max_risk_level=RiskLevel.READ_ONLY,
-            denied_tools={"create_payment", "send_email", "draft_contract", "draft_document"},
-        ))
+        self.set_policy(
+            AgentPolicy(
+                agent_name="legal_researcher",
+                max_risk_level=RiskLevel.READ_ONLY,
+                denied_tools={"create_payment", "send_email", "draft_contract", "draft_document"},
+            )
+        )
 
         # 共识管理：只读
-        self.set_policy(AgentPolicy(
-            agent_name="consensus_manager",
-            max_risk_level=RiskLevel.READ_ONLY,
-        ))
+        self.set_policy(
+            AgentPolicy(
+                agent_name="consensus_manager",
+                max_risk_level=RiskLevel.READ_ONLY,
+            )
+        )
 
         # 诉讼策略：可写文书
-        self.set_policy(AgentPolicy(
-            agent_name="litigation_strategist",
-            max_risk_level=RiskLevel.WRITE,
-            denied_tools={"create_payment", "send_email"},
-        ))
+        self.set_policy(
+            AgentPolicy(
+                agent_name="litigation_strategist",
+                max_risk_level=RiskLevel.WRITE,
+                denied_tools={"create_payment", "send_email"},
+            )
+        )
 
         # 知识产权：只读分析
-        self.set_policy(AgentPolicy(
-            agent_name="ip_specialist",
-            max_risk_level=RiskLevel.READ_ONLY,
-            denied_tools={"create_payment", "send_email", "draft_contract"},
-        ))
+        self.set_policy(
+            AgentPolicy(
+                agent_name="ip_specialist",
+                max_risk_level=RiskLevel.READ_ONLY,
+                denied_tools={"create_payment", "send_email", "draft_contract"},
+            )
+        )
 
         # 监管监控：外部访问
-        self.set_policy(AgentPolicy(
-            agent_name="regulatory_monitor",
-            max_risk_level=RiskLevel.EXTERNAL_SEND,
-            can_external_send=True,
-            denied_tools={"create_payment", "send_email", "draft_contract"},
-        ))
+        self.set_policy(
+            AgentPolicy(
+                agent_name="regulatory_monitor",
+                max_risk_level=RiskLevel.EXTERNAL_SEND,
+                can_external_send=True,
+                denied_tools={"create_payment", "send_email", "draft_contract"},
+            )
+        )
 
         # 税务/劳动合规：只读
         for name in ("tax_compliance", "labor_compliance"):
-            self.set_policy(AgentPolicy(
-                agent_name=name,
-                max_risk_level=RiskLevel.READ_ONLY,
-                denied_tools={"create_payment", "send_email", "draft_contract"},
-            ))
+            self.set_policy(
+                AgentPolicy(
+                    agent_name=name,
+                    max_risk_level=RiskLevel.READ_ONLY,
+                    denied_tools={"create_payment", "send_email", "draft_contract"},
+                )
+            )
 
         # 舆情分析：只读
-        self.set_policy(AgentPolicy(
-            agent_name="sentiment_agent",
-            max_risk_level=RiskLevel.READ_ONLY,
-        ))
+        self.set_policy(
+            AgentPolicy(
+                agent_name="sentiment_agent",
+                max_risk_level=RiskLevel.READ_ONLY,
+            )
+        )
 
         # 需求分析：只读
-        self.set_policy(AgentPolicy(
-            agent_name="requirement_analyst",
-            max_risk_level=RiskLevel.READ_ONLY,
-        ))
+        self.set_policy(
+            AgentPolicy(
+                agent_name="requirement_analyst",
+                max_risk_level=RiskLevel.READ_ONLY,
+            )
+        )
 
         # 审查员：只读
-        self.set_policy(AgentPolicy(
-            agent_name="review_checker",
-            max_risk_level=RiskLevel.READ_ONLY,
-        ))
+        self.set_policy(
+            AgentPolicy(
+                agent_name="review_checker",
+                max_risk_level=RiskLevel.READ_ONLY,
+            )
+        )
 
         logger.info(f"[PolicyEngine] 注册 {len(self._policies)} 个 Agent 策略")
 
@@ -365,10 +403,7 @@ class PolicyEngine:
                     agent_name=agent_name,
                 )
 
-            if (
-                tool_def.risk_level == RiskLevel.EXTERNAL_SEND
-                and not policy.can_external_send
-            ):
+            if tool_def.risk_level == RiskLevel.EXTERNAL_SEND and not policy.can_external_send:
                 self._log_audit(agent_name, tool_name, "DENY", "external send disabled")
                 return PolicyCheckResult(
                     decision=PolicyDecision.DENY,
@@ -379,14 +414,22 @@ class PolicyEngine:
 
             # 第三层：风险等级
             risk_order = [
-                RiskLevel.READ_ONLY, RiskLevel.WRITE, RiskLevel.EXECUTE,
-                RiskLevel.EXTERNAL_SEND, RiskLevel.HIGH_RISK,
+                RiskLevel.READ_ONLY,
+                RiskLevel.WRITE,
+                RiskLevel.EXECUTE,
+                RiskLevel.EXTERNAL_SEND,
+                RiskLevel.HIGH_RISK,
             ]
             tool_risk_idx = risk_order.index(tool_def.risk_level)
             max_risk_idx = risk_order.index(policy.max_risk_level)
 
             if tool_risk_idx > max_risk_idx:
-                self._log_audit(agent_name, tool_name, "DENY", f"风险等级超限: {tool_def.risk_level.value} > {policy.max_risk_level.value}")
+                self._log_audit(
+                    agent_name,
+                    tool_name,
+                    "DENY",
+                    f"风险等级超限: {tool_def.risk_level.value} > {policy.max_risk_level.value}",
+                )
                 return PolicyCheckResult(
                     decision=PolicyDecision.DENY,
                     reason=f"工具 {tool_name} 风险等级 {tool_def.risk_level.value} 超过 Agent {agent_name} 允许的 {policy.max_risk_level.value}",
@@ -400,7 +443,11 @@ class PolicyEngine:
 
         # 审批门控
         if tool_def.requires_approval:
-            if context and context.approval_state == "approved" and _is_valid_approver(context.approver_role):
+            if (
+                context
+                and context.approval_state == "approved"
+                and _is_valid_approver(context.approver_role)
+            ):
                 self._log_audit(agent_name, tool_name, "ALLOW", "approved high-risk tool")
                 return PolicyCheckResult(
                     decision=PolicyDecision.ALLOW,
@@ -439,7 +486,9 @@ class PolicyEngine:
             return None
 
         active_features = _active_feature_names(context.subscription_features)
-        if active_features is not None and not _feature_allows_tool(tool_def.name, tool_def.tags, active_features):
+        if active_features is not None and not _feature_allows_tool(
+            tool_def.name, tool_def.tags, active_features
+        ):
             self._log_audit(agent_name, tool_name, "DENY", "subscription feature denied")
             return PolicyCheckResult(
                 decision=PolicyDecision.DENY,
@@ -462,7 +511,10 @@ class PolicyEngine:
                 )
 
         if (context.privacy_mode or "").lower() in {"top_secret", "local_only", "offline"}:
-            if tool_def.risk_level in {RiskLevel.EXTERNAL_SEND, RiskLevel.HIGH_RISK} or "external" in tool_def.tags:
+            if (
+                tool_def.risk_level in {RiskLevel.EXTERNAL_SEND, RiskLevel.HIGH_RISK}
+                or "external" in tool_def.tags
+            ):
                 self._log_audit(agent_name, tool_name, "DENY", "privacy mode denied")
                 return PolicyCheckResult(
                     decision=PolicyDecision.DENY,
@@ -508,23 +560,25 @@ class PolicyEngine:
     ) -> None:
         """记录审计日志"""
         import time
-        self._audit_log.append({
-            "timestamp": time.time(),
-            "agent": agent_name,
-            "tool": tool_name,
-            "decision": decision,
-            "reason": reason,
-        })
+
+        self._audit_log.append(
+            {
+                "timestamp": time.time(),
+                "agent": agent_name,
+                "tool": tool_name,
+                "decision": decision,
+                "reason": reason,
+            }
+        )
         if len(self._audit_log) > self._max_audit:
-            self._audit_log = self._audit_log[-self._max_audit:]
+            self._audit_log = self._audit_log[-self._max_audit :]
 
     def get_stats(self) -> dict[str, Any]:
         """获取策略统计"""
         from collections import Counter
+
         decisions = Counter(log["decision"] for log in self._audit_log)
-        denied_tools = Counter(
-            log["tool"] for log in self._audit_log if log["decision"] == "DENY"
-        )
+        denied_tools = Counter(log["tool"] for log in self._audit_log if log["decision"] == "DENY")
         return {
             "total_checks": len(self._audit_log),
             "decisions": dict(decisions),

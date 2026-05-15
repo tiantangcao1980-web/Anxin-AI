@@ -195,12 +195,14 @@ class TimesheetService:
             total_minutes += user_minutes
             billable_minutes += user_billable
             total_amount += user_amount
-            by_user.append({
-                "user_id": row.user_id,
-                "minutes": user_minutes,
-                "billable_minutes": user_billable,
-                "amount": round(user_amount, 2),
-            })
+            by_user.append(
+                {
+                    "user_id": row.user_id,
+                    "minutes": user_minutes,
+                    "billable_minutes": user_billable,
+                    "amount": round(user_amount, 2),
+                }
+            )
 
         return {
             "total_minutes": total_minutes,

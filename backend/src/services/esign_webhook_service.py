@@ -212,11 +212,7 @@ def parse_esign_webhook_event(payload: dict[str, Any]) -> ESignWebhookEvent:
         raise ESignWebhookError("Missing contract_id or flow_id in e-sign webhook")
 
     target_status, provider_status = _map_contract_status(payload)
-    signed_date = (
-        _parse_signed_date(payload)
-        if target_status == ContractStatus.SIGNED
-        else None
-    )
+    signed_date = _parse_signed_date(payload) if target_status == ContractStatus.SIGNED else None
     return ESignWebhookEvent(
         contract_id=contract_id,
         flow_id=flow_id,
@@ -258,7 +254,11 @@ async def apply_esign_webhook(
         return {
             "contract_id": contract.id,
             "flow_id": contract.esign_flow_id,
-            "status": contract.status.value if isinstance(contract.status, ContractStatus) else contract.status,
+            "status": (
+                contract.status.value
+                if isinstance(contract.status, ContractStatus)
+                else contract.status
+            ),
             "provider_status": event.provider_status,
             "updated": False,
         }
@@ -277,9 +277,11 @@ async def apply_esign_webhook(
         contract.sign_date = event.signed_date or date.today()
 
     await AuditService(db).log(
-        action=AuditAction.CONTRACT_SIGN.value
-        if next_status == ContractStatus.SIGNED
-        else AuditAction.CONTRACT_STATUS_CHANGE.value,
+        action=(
+            AuditAction.CONTRACT_SIGN.value
+            if next_status == ContractStatus.SIGNED
+            else AuditAction.CONTRACT_STATUS_CHANGE.value
+        ),
         resource_type=ResourceType.CONTRACT.value,
         resource_id=contract.id,
         user=None,

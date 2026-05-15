@@ -27,7 +27,9 @@ def _require_org_id(user: User) -> str:
         raise HTTPException(status_code=403, detail="用户未关联组织，请联系管理员")
     return user.org_id
 
+
 # ===== Pydantic Schemas =====
+
 
 class AssistantConfigRequest(BaseModel):
     name: str = Field(default="安心智能助手助手", min_length=1, max_length=100)
@@ -42,22 +44,29 @@ class AssistantConfigRequest(BaseModel):
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     llm_config_id: str | None = None
 
+
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=5000)
     conversation_id: str | None = None
+
 
 class FeedbackRequest(BaseModel):
     conversation_id: str | None = None
     message_id: str | None = None
     rating: int = Field(..., ge=1, le=5)
     feedback_text: str | None = Field(None, max_length=1000)
-    feedback_type: str = Field(default="helpful", pattern=r"^(helpful|unhelpful|incorrect|offensive|other)$")
+    feedback_type: str = Field(
+        default="helpful", pattern=r"^(helpful|unhelpful|incorrect|offensive|other)$"
+    )
+
 
 class TestConnectionRequest(BaseModel):
     endpoint: str = Field(..., min_length=1, max_length=500)
     model: str | None = Field(None, max_length=200)
 
+
 # ===== 助手配置 =====
+
 
 @router.get("/config")
 async def get_assistant_config(
@@ -68,6 +77,7 @@ async def get_assistant_config(
     service = AIAssistantService(db)
     config = await service.get_or_create_config(_require_org_id(user))
     return UnifiedResponse.success(data=config)
+
 
 @router.post("/config")
 async def update_assistant_config(
@@ -82,6 +92,7 @@ async def update_assistant_config(
     config = await service.update_config(existing["id"], req.model_dump(exclude_none=True))
     return UnifiedResponse.success(data=config, message="配置已更新")
 
+
 @router.get("/agents")
 async def list_available_agents(
     user: User = Depends(get_current_user_required),
@@ -92,7 +103,9 @@ async def list_available_agents(
     agents = await service.get_available_agents()
     return UnifiedResponse.success(data=agents)
 
+
 # ===== 对话增强 =====
+
 
 @router.post("/summarize/{conversation_id}")
 async def generate_summary(
@@ -111,6 +124,7 @@ async def generate_summary(
         logger.error(f"生成对话摘要失败: {e}")
         return UnifiedResponse.error(code=500, message="摘要生成失败，请稍后重试")
 
+
 @router.get("/summaries")
 async def list_summaries(
     page: int = Query(1, ge=1),
@@ -124,7 +138,9 @@ async def list_summaries(
     summaries = await service.get_summaries(user.id, limit=page_size, offset=offset)
     return UnifiedResponse.success(data=summaries)
 
+
 # ===== 反馈 =====
+
 
 @router.post("/feedback")
 async def submit_feedback(
@@ -136,12 +152,15 @@ async def submit_feedback(
     service = AIAssistantService(db)
     # 获取组织的助手配置 ID
     config = await service.get_or_create_config(_require_org_id(user))
-    feedback = await service.submit_feedback({
-        "assistant_config_id": config["id"],
-        "user_id": user.id,
-        **req.model_dump(),
-    })
+    feedback = await service.submit_feedback(
+        {
+            "assistant_config_id": config["id"],
+            "user_id": user.id,
+            **req.model_dump(),
+        }
+    )
     return UnifiedResponse.success(data=feedback, message="感谢您的反馈")
+
 
 @router.get("/feedback/stats")
 async def get_feedback_stats(
@@ -155,7 +174,9 @@ async def get_feedback_stats(
     stats = await service.get_feedback_stats(config["id"], days=days)
     return UnifiedResponse.success(data=stats)
 
+
 # ===== 私有 LLM =====
+
 
 @router.get("/private-llm/detect")
 async def detect_local_llm(
@@ -165,6 +186,7 @@ async def detect_local_llm(
     service = PrivateLLMService()
     results = await service.detect_local_llm()
     return UnifiedResponse.success(data=results)
+
 
 @router.post("/private-llm/test")
 async def test_local_connection(
@@ -176,6 +198,7 @@ async def test_local_connection(
     result = await service.test_connection(req.endpoint, req.model)
     return UnifiedResponse.success(data=result)
 
+
 @router.get("/private-llm/models")
 async def get_recommended_models(
     user: User = Depends(get_current_user_required),
@@ -184,6 +207,7 @@ async def get_recommended_models(
     service = PrivateLLMService()
     models = service.get_recommended_models()
     return UnifiedResponse.success(data=models)
+
 
 @router.get("/private-llm/guide/{provider}")
 async def get_deployment_guide(

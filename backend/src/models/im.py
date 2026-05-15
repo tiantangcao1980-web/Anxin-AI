@@ -103,9 +103,7 @@ class IMParticipant(Base, TimestampMixin):
         server_default="member",
         comment="角色: owner|admin|member",
     )
-    nickname: Mapped[str | None] = mapped_column(
-        String(100), nullable=True, comment="群内昵称"
-    )
+    nickname: Mapped[str | None] = mapped_column(String(100), nullable=True, comment="群内昵称")
     is_muted: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="false", comment="是否免打扰"
     )
@@ -154,9 +152,7 @@ class IMMessage(Base, TimestampMixin):
         nullable=False,
         comment="发送者 ID",
     )
-    content: Mapped[str] = mapped_column(
-        Text, nullable=False, comment="消息内容"
-    )
+    content: Mapped[str] = mapped_column(Text, nullable=False, comment="消息内容")
     message_type: Mapped[str] = mapped_column(
         String(20),
         default="text",
@@ -188,9 +184,7 @@ class IMMessage(Base, TimestampMixin):
 
     # 关系
     conversation: Mapped["IMConversation"] = relationship(back_populates="messages")
-    reply_to: Mapped["IMMessage | None"] = relationship(
-        remote_side="IMMessage.id", lazy="selectin"
-    )
+    reply_to: Mapped["IMMessage | None"] = relationship(remote_side="IMMessage.id", lazy="selectin")
 
     __table_args__ = (
         Index("ix_im_messages_conversation_id", "conversation_id"),

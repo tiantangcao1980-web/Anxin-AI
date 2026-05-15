@@ -107,9 +107,13 @@ class BillingService:
         """
         base_conditions = [Invoice.org_id == org_id]
         if date_from:
-            base_conditions.append(Invoice.created_at >= datetime.combine(date_from, datetime.min.time()))
+            base_conditions.append(
+                Invoice.created_at >= datetime.combine(date_from, datetime.min.time())
+            )
         if date_to:
-            base_conditions.append(Invoice.created_at <= datetime.combine(date_to, datetime.max.time()))
+            base_conditions.append(
+                Invoice.created_at <= datetime.combine(date_to, datetime.max.time())
+            )
 
         # 按状态汇总
         stmt_status = (
@@ -135,11 +139,13 @@ class BillingService:
                 paid_amount += amount
             elif status_row.status in ("sent", "overdue"):
                 pending_amount += amount
-            by_status.append({
-                "status": status_row.status,
-                "count": status_row.count,
-                "amount": round(amount, 2),
-            })
+            by_status.append(
+                {
+                    "status": status_row.status,
+                    "count": status_row.count,
+                    "amount": round(amount, 2),
+                }
+            )
 
         # 按月汇总（仅已支付）
         paid_conditions = base_conditions + [Invoice.status == "paid"]
@@ -158,10 +164,12 @@ class BillingService:
 
         by_month: list[dict[str, Any]] = []
         for month_row in month_rows:
-            by_month.append({
-                "month": f"{int(month_row.year)}-{int(month_row.month):02d}",
-                "amount": round(float(month_row.amount), 2),
-            })
+            by_month.append(
+                {
+                    "month": f"{int(month_row.year)}-{int(month_row.month):02d}",
+                    "amount": round(float(month_row.amount), 2),
+                }
+            )
 
         return {
             "total_revenue": round(total_revenue, 2),

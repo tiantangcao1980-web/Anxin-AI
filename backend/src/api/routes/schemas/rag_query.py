@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """rag_query 路由 Pydantic schemas（P13-C VLM 增强 Query DTO）。"""
 
 from __future__ import annotations
@@ -7,7 +6,6 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-
 # ============ 请求 ============
 
 
@@ -15,9 +13,7 @@ class RagQueryIn(BaseModel):
     """多模态查询请求体。"""
 
     query: str = Field(..., min_length=1, max_length=2000, description="自然语言问题")
-    document_ids: list[str] | None = Field(
-        default=None, description="限定检索范围；None 表示全库"
-    )
+    document_ids: list[str] | None = Field(default=None, description="限定检索范围；None 表示全库")
     top_k: int = Field(default=10, ge=1, le=50, description="返回 segment 数上限")
     enable_vlm: bool = Field(default=True, description="是否调用 VLM 联合作答")
     modality_weights: dict[str, float] | None = Field(

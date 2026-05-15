@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 法律文书层级链构建：文档 → 章 → 节 → 条 → 款 → 项
 
@@ -27,8 +26,9 @@ P13-A 真实结构若略有出入，本模块按 ``level`` 字段做容错；缺
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Any, Iterable
+from typing import Any
 
 from src.services.rag.kg.base import (
     Entity,
@@ -41,7 +41,6 @@ from src.services.rag.kg.base import (
 )
 from src.services.rag.kg.ontology import ARTICLE_REGEX
 
-
 LEVEL_ORDER = ("document", "part", "chapter", "section", "article", "clause", "item")
 
 
@@ -51,7 +50,7 @@ class _Node:
     level: str
     title: str
     parent_id: str | None = None
-    children: list["_Node"] = field(default_factory=list)
+    children: list[_Node] = field(default_factory=list)
 
 
 class BelongsToChainBuilder:
@@ -125,9 +124,7 @@ class BelongsToChainBuilder:
         for raw in nodes:
             level = raw.get("level") or "article"
             title = raw.get("title") or raw.get("id") or ""
-            ent = self._make_level_entity(
-                title, level, document_id, node_id=raw.get("id")
-            )
+            ent = self._make_level_entity(title, level, document_id, node_id=raw.get("id"))
             entities.append(ent)
             relations.append(self._belongs(ent, parent_entity))
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P13-C: rag_query 路由 API 测试。
 
 ⚠️ 设计说明：
@@ -50,7 +49,6 @@ from src.services.rag.query import (  # noqa: E402
     RetrievedSegment,
     VLMQueryEngine,
 )
-
 
 BASE = "/api/v1/rag/query"
 

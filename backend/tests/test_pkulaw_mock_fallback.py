@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P6-C 北大法宝 — 未配 PKULAW_API_KEY 时返回 mock + log warning。"""
 
 from __future__ import annotations
@@ -12,9 +11,7 @@ from src.services.fetch.sources.legal import LawSearchQuery, PkuLawSource
 
 class TestPkuLawMockFallback:
     @pytest.mark.asyncio
-    async def test_search_returns_mock_when_no_key(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    async def test_search_returns_mock_when_no_key(self, caplog: pytest.LogCaptureFixture) -> None:
         # 显式覆盖 api_key 为空，模拟未配置
         src = PkuLawSource(api_key="")
         with caplog.at_level(logging.WARNING):
@@ -34,9 +31,7 @@ class TestPkuLawMockFallback:
         ), "应记录 PKULAW_API_KEY 未配置的 warning"
 
     @pytest.mark.asyncio
-    async def test_get_full_text_mock_when_no_key(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    async def test_get_full_text_mock_when_no_key(self, caplog: pytest.LogCaptureFixture) -> None:
         src = PkuLawSource(api_key="")
         with caplog.at_level(logging.WARNING):
             text = await src.get_full_text("any-law-id")

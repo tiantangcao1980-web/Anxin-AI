@@ -1,15 +1,11 @@
-# -*- coding: utf-8 -*-
 """P13-B EntityExtractor 单元测试。"""
 
 from __future__ import annotations
 
 import json
 
-import pytest
-
 from src.services.rag.kg.base import EntityType, Modality, Segment
 from src.services.rag.kg.entity_extractor import EntityExtractor, _make_entity_id
-
 
 # ---------------------------------------------------------------------------
 # 关键词 fallback

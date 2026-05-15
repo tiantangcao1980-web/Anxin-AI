@@ -13,7 +13,9 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 
 # Demo 版跳过：需要 Redis + PG + 真实支付/电签凭据
-pytestmark = pytest.mark.skip(reason="Infra-gated: needs Redis/PG + real payment/esign credentials for demo")
+pytestmark = pytest.mark.skip(
+    reason="Infra-gated: needs Redis/PG + real payment/esign credentials for demo"
+)
 
 from src.core.config import settings
 from src.core.security import create_access_token
@@ -77,7 +79,10 @@ async def test_payment_webhook_rejects_invalid_signature(client, monkeypatch):
     response = await client.post(
         "/api/v1/payments/webhook/wechat",
         content=b'{"order":"1"}',
-        headers={"X-Wechat-Signature": "bad-signature", "X-Webhook-Timestamp": str(int(time.time()))},
+        headers={
+            "X-Wechat-Signature": "bad-signature",
+            "X-Webhook-Timestamp": str(int(time.time())),
+        },
     )
 
     assert response.status_code == 403
@@ -126,15 +131,21 @@ async def test_wechat_payment_webhook_updates_order_status(client, db_session, m
     assert order.status == "paid"
     assert order.transaction_id == "wx-txn-1"
     assert order.paid_at is not None
-    idempotency_key = build_webhook_idempotency_key("wechat_pay", payload=json.loads(body), body=body)
+    idempotency_key = build_webhook_idempotency_key(
+        "wechat_pay", payload=json.loads(body), body=body
+    )
     records = (
-        await db_session.execute(
-            select(WebhookReceived).where(
-                WebhookReceived.scope == "wechat_pay",
-                WebhookReceived.idempotency_key == idempotency_key,
+        (
+            await db_session.execute(
+                select(WebhookReceived).where(
+                    WebhookReceived.scope == "wechat_pay",
+                    WebhookReceived.idempotency_key == idempotency_key,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(records) == 1
     assert records[0].scope == "wechat_pay"
     assert records[0].status == "processed"
@@ -189,15 +200,21 @@ async def test_wechat_payment_webhook_duplicate_body_is_idempotent(client, db_se
     assert second.status_code == 200
     await db_session.refresh(order)
     assert order.transaction_id == "manual-after-first"
-    idempotency_key = build_webhook_idempotency_key("wechat_pay", payload=json.loads(body), body=body)
+    idempotency_key = build_webhook_idempotency_key(
+        "wechat_pay", payload=json.loads(body), body=body
+    )
     records = (
-        await db_session.execute(
-            select(WebhookReceived).where(
-                WebhookReceived.scope == "wechat_pay",
-                WebhookReceived.idempotency_key == idempotency_key,
+        (
+            await db_session.execute(
+                select(WebhookReceived).where(
+                    WebhookReceived.scope == "wechat_pay",
+                    WebhookReceived.idempotency_key == idempotency_key,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(records) == 1
     assert records[0].status == "processed"
     assert records[0].retry_count == 0
@@ -226,15 +243,21 @@ async def test_webhook_handler_records_payment_business_failure(client, db_sessi
 
     assert response.status_code == 400
     assert "Missing order id" in response.json()["detail"]
-    idempotency_key = build_webhook_idempotency_key("wechat_pay", payload=json.loads(body), body=body)
+    idempotency_key = build_webhook_idempotency_key(
+        "wechat_pay", payload=json.loads(body), body=body
+    )
     records = (
-        await db_session.execute(
-            select(WebhookReceived).where(
-                WebhookReceived.scope == "wechat_pay",
-                WebhookReceived.idempotency_key == idempotency_key,
+        (
+            await db_session.execute(
+                select(WebhookReceived).where(
+                    WebhookReceived.scope == "wechat_pay",
+                    WebhookReceived.idempotency_key == idempotency_key,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(records) == 1
     assert records[0].status == "failed"
     assert records[0].retry_count == 1
@@ -331,7 +354,9 @@ async def test_esign_webhook_accepts_valid_signature(client, db_session, monkeyp
         }
     ).encode("utf-8")
     timestamp = str(int(time.time()))
-    signature = hmac.new(b"esign-secret", f"{timestamp}.".encode() + body, hashlib.sha256).hexdigest()
+    signature = hmac.new(
+        b"esign-secret", f"{timestamp}.".encode() + body, hashlib.sha256
+    ).hexdigest()
 
     response = await client.post(
         "/api/v1/esign/webhook",
@@ -350,13 +375,17 @@ async def test_esign_webhook_accepts_valid_signature(client, db_session, monkeyp
     assert contract.sign_date == date.today()
     idempotency_key = build_webhook_idempotency_key("esign", payload=json.loads(body), body=body)
     records = (
-        await db_session.execute(
-            select(WebhookReceived).where(
-                WebhookReceived.scope == "esign",
-                WebhookReceived.idempotency_key == idempotency_key,
+        (
+            await db_session.execute(
+                select(WebhookReceived).where(
+                    WebhookReceived.scope == "esign",
+                    WebhookReceived.idempotency_key == idempotency_key,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(records) == 1
     assert records[0].scope == "esign"
     assert records[0].status == "processed"
@@ -445,7 +474,9 @@ async def test_esign_flow_operations_require_flow_org_scope(
     sign_url_response = await outsider_auth_client.get(
         "/api/v1/esign/flows/provider-flow-xorg/sign-url/signer-1"
     )
-    cancel_response = await outsider_auth_client.post("/api/v1/esign/flows/provider-flow-xorg/cancel")
+    cancel_response = await outsider_auth_client.post(
+        "/api/v1/esign/flows/provider-flow-xorg/cancel"
+    )
 
     assert status_response.status_code == 404
     assert sign_url_response.status_code == 404
@@ -474,7 +505,9 @@ async def test_esign_webhook_resolves_contract_by_flow_id(client, db_session, mo
         }
     ).encode("utf-8")
     timestamp = str(int(time.time()))
-    signature = hmac.new(b"esign-secret", f"{timestamp}.".encode() + body, hashlib.sha256).hexdigest()
+    signature = hmac.new(
+        b"esign-secret", f"{timestamp}.".encode() + body, hashlib.sha256
+    ).hexdigest()
 
     response = await client.post(
         "/api/v1/esign/webhook",
@@ -545,13 +578,17 @@ async def test_esign_webhook_duplicate_body_is_idempotent(client, db_session, mo
     assert contract.sign_date is None
     idempotency_key = build_webhook_idempotency_key("esign", payload=json.loads(body), body=body)
     records = (
-        await db_session.execute(
-            select(WebhookReceived).where(
-                WebhookReceived.scope == "esign",
-                WebhookReceived.idempotency_key == idempotency_key,
+        (
+            await db_session.execute(
+                select(WebhookReceived).where(
+                    WebhookReceived.scope == "esign",
+                    WebhookReceived.idempotency_key == idempotency_key,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(records) == 1
     assert records[0].status == "processed"
     assert records[0].retry_count == 0
@@ -624,22 +661,24 @@ async def test_esign_webhook_event_id_is_idempotent_across_retry_bodies(
     assert contract.status == ContractStatus.APPROVED
     assert contract.sign_date is None
     records = (
-        await db_session.execute(
-            select(WebhookReceived).where(
-                WebhookReceived.scope == "esign",
-                WebhookReceived.idempotency_key == event_id,
+        (
+            await db_session.execute(
+                select(WebhookReceived).where(
+                    WebhookReceived.scope == "esign",
+                    WebhookReceived.idempotency_key == event_id,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(records) == 1
     assert records[0].status == "processed"
     assert records[0].retry_count == 0
 
 
 @pytest.mark.asyncio
-async def test_esignbao_official_webhook_verifies_tsign_headers(
-    client, db_session, monkeypatch
-):
+async def test_esignbao_official_webhook_verifies_tsign_headers(client, db_session, monkeypatch):
     monkeypatch.setattr(settings, "ESIGN_OFFICIAL_WEBHOOK_ENABLED", True)
     monkeypatch.setattr(settings, "ESIGN_BAO_APP_ID", "app-1")
     monkeypatch.setattr(settings, "ESIGN_BAO_APP_SECRET", "esignbao-secret")
@@ -690,9 +729,7 @@ async def test_esignbao_official_webhook_verifies_tsign_headers(
 
 
 @pytest.mark.asyncio
-async def test_fadada_official_webhook_verifies_fasc_headers(
-    client, db_session, monkeypatch
-):
+async def test_fadada_official_webhook_verifies_fasc_headers(client, db_session, monkeypatch):
     monkeypatch.setattr(settings, "ESIGN_OFFICIAL_WEBHOOK_ENABLED", True)
     monkeypatch.setattr(settings, "FADADA_APP_ID", "fadada-app-1")
     monkeypatch.setattr(settings, "FADADA_APP_SECRET", "fadada-secret")
@@ -774,7 +811,9 @@ async def test_esign_webhook_rejects_replay(client, db_session, monkeypatch):
         }
     ).encode("utf-8")
     timestamp = str(int(time.time()))
-    signature = hmac.new(b"esign-secret", f"{timestamp}.".encode() + body, hashlib.sha256).hexdigest()
+    signature = hmac.new(
+        b"esign-secret", f"{timestamp}.".encode() + body, hashlib.sha256
+    ).hexdigest()
     headers = {
         "Content-Type": "application/json",
         "X-ESign-Signature": signature,
@@ -790,7 +829,10 @@ async def test_esign_webhook_rejects_replay(client, db_session, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_oa_approval_uses_current_user_as_initiator(auth_client, test_user):
-    with patch("src.api.routes.integrations.oa_service.initiate_approval", new=AsyncMock(return_value="oa-1")) as mock_call:
+    with patch(
+        "src.api.routes.integrations.oa_service.initiate_approval",
+        new=AsyncMock(return_value="oa-1"),
+    ) as mock_call:
         response = await auth_client.post(
             "/api/v1/integrations/oa/approval/create",
             json={
@@ -807,7 +849,9 @@ async def test_oa_approval_uses_current_user_as_initiator(auth_client, test_user
 
 @pytest.mark.asyncio
 async def test_oa_notification_scopes_target_to_current_user(auth_client, test_user):
-    with patch("src.api.routes.integrations.oa_service.send_notification", new=AsyncMock(return_value=True)) as mock_call:
+    with patch(
+        "src.api.routes.integrations.oa_service.send_notification", new=AsyncMock(return_value=True)
+    ) as mock_call:
         response = await auth_client.post(
             "/api/v1/integrations/oa/notify",
             json={
@@ -824,7 +868,9 @@ async def test_oa_notification_scopes_target_to_current_user(auth_client, test_u
 
 @pytest.mark.asyncio
 async def test_oa_notification_ignores_admin_override_target(admin_auth_client, test_admin):
-    with patch("src.api.routes.integrations.oa_service.send_notification", new=AsyncMock(return_value=True)) as mock_call:
+    with patch(
+        "src.api.routes.integrations.oa_service.send_notification", new=AsyncMock(return_value=True)
+    ) as mock_call:
         response = await admin_auth_client.post(
             "/api/v1/integrations/oa/notify",
             json={
@@ -841,9 +887,16 @@ async def test_oa_notification_ignores_admin_override_target(admin_auth_client, 
 
 @pytest.mark.asyncio
 async def test_oa_user_sync_requires_org_admin(auth_client, admin_auth_client):
-    with patch("src.api.routes.integrations.oa_service.sync_org_structure", new=AsyncMock(return_value={"synced_count": 0})):
-        forbidden = await auth_client.post("/api/v1/integrations/oa/sync/users", json={"provider": "feishu"})
-        allowed = await admin_auth_client.post("/api/v1/integrations/oa/sync/users", json={"provider": "feishu"})
+    with patch(
+        "src.api.routes.integrations.oa_service.sync_org_structure",
+        new=AsyncMock(return_value={"synced_count": 0}),
+    ):
+        forbidden = await auth_client.post(
+            "/api/v1/integrations/oa/sync/users", json={"provider": "feishu"}
+        )
+        allowed = await admin_auth_client.post(
+            "/api/v1/integrations/oa/sync/users", json={"provider": "feishu"}
+        )
 
     assert forbidden.status_code == 403
     assert allowed.status_code == 200
@@ -851,7 +904,9 @@ async def test_oa_user_sync_requires_org_admin(auth_client, admin_auth_client):
 
 @pytest.mark.asyncio
 async def test_lic_status_requires_task_owner(auth_client, outsider_auth_client, test_user):
-    task = CrawlerTask(url="https://example.com", keyword="k", task_id="task-owner", owner_id=str(test_user.id))
+    task = CrawlerTask(
+        url="https://example.com", keyword="k", task_id="task-owner", owner_id=str(test_user.id)
+    )
     crawler_service.tasks[task.id] = task
     try:
         ok = await auth_client.get(f"/api/v1/lic/status/{task.id}")
@@ -881,6 +936,7 @@ def test_lic_runtime_url_validator_blocks_redirect_targets(monkeypatch):
 
     # Mock DNS 解析，避免依赖网络环境（VPN/代理可能返回私有 IP）
     import socket
+
     _real_getaddrinfo = socket.getaddrinfo
 
     def _fake_getaddrinfo(host, *args, **kwargs):
@@ -904,7 +960,10 @@ async def test_mcp_tools_require_platform_admin(client, auth_client, admin_auth_
     forbidden = await auth_client.get("/api/v1/mcp/tools")
     assert forbidden.status_code == 403
 
-    with patch("src.api.routes.mcp_routes.mcp_client_service.get_all_tools", new=AsyncMock(return_value=[{"name": "tool-a"}])):
+    with patch(
+        "src.api.routes.mcp_routes.mcp_client_service.get_all_tools",
+        new=AsyncMock(return_value=[{"name": "tool-a"}]),
+    ):
         allowed = await admin_auth_client.get("/api/v1/mcp/tools")
 
     assert allowed.status_code == 200
@@ -912,7 +971,9 @@ async def test_mcp_tools_require_platform_admin(client, auth_client, admin_auth_
 
 
 @pytest.mark.asyncio
-async def test_mcp_server_management_requires_system_admin(client, admin_auth_client, db_session, test_organization):
+async def test_mcp_server_management_requires_system_admin(
+    client, admin_auth_client, db_session, test_organization
+):
     org_admin = User(
         id=str(uuid4()),
         email=f"mcp-org-admin-{uuid4().hex[:8]}@example.com",
@@ -954,7 +1015,9 @@ async def test_mcp_server_create_writes_masked_audit_log(admin_auth_client, db_s
     payload = response.json()
     assert payload["env_keys"] == ["API_TOKEN"]
 
-    audit_result = await db_session.execute(select(AuditLog).where(AuditLog.action == "mcp.server.create"))
+    audit_result = await db_session.execute(
+        select(AuditLog).where(AuditLog.action == "mcp.server.create")
+    )
     audit_log = audit_result.scalar_one()
     assert audit_log.resource_id == payload["id"]
     assert audit_log.extra_data == {"source": "mcp"}
@@ -1014,7 +1077,9 @@ async def test_mcp_server_update_preserves_masked_env_when_omitted(admin_auth_cl
 
 
 @pytest.mark.asyncio
-async def test_mcp_server_create_rejects_unapproved_sse_in_staging(admin_auth_client, db_session, monkeypatch):
+async def test_mcp_server_create_rejects_unapproved_sse_in_staging(
+    admin_auth_client, db_session, monkeypatch
+):
     from src.services import mcp_client_service
 
     monkeypatch.setattr(mcp_client_service.settings, "ENVIRONMENT", "staging")
@@ -1041,7 +1106,9 @@ async def test_mcp_server_create_rejects_unapproved_sse_in_staging(admin_auth_cl
 
 
 @pytest.mark.asyncio
-async def test_admin_webhooks_expose_idempotency_records(auth_client, admin_auth_client, db_session):
+async def test_admin_webhooks_expose_idempotency_records(
+    auth_client, admin_auth_client, db_session
+):
     record = WebhookReceived(
         scope="wechat_pay",
         idempotency_key=f"evt-{uuid4().hex}",
@@ -1074,7 +1141,9 @@ async def test_admin_webhooks_expose_idempotency_records(auth_client, admin_auth
 
 
 @pytest.mark.asyncio
-async def test_admin_can_retry_failed_payment_webhook_record(auth_client, admin_auth_client, db_session):
+async def test_admin_can_retry_failed_payment_webhook_record(
+    auth_client, admin_auth_client, db_session
+):
     order = PaymentOrder(
         id=str(uuid4()),
         user_id=str(uuid4()),
@@ -1118,7 +1187,9 @@ async def test_admin_can_retry_failed_payment_webhook_record(auth_client, admin_
 
 
 @pytest.mark.asyncio
-async def test_admin_webhook_retry_keeps_failure_and_increments_retry_count(admin_auth_client, db_session):
+async def test_admin_webhook_retry_keeps_failure_and_increments_retry_count(
+    admin_auth_client, db_session
+):
     record = WebhookReceived(
         scope="wechat_pay",
         idempotency_key=f"evt-{uuid4().hex}",

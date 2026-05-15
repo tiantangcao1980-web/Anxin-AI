@@ -55,9 +55,7 @@ class ComplianceAgent(BaseLegalAgent):
             content=response,
             reasoning="基于现行法律法规和合规管理最佳实践",
             citations=[],
-            actions=[
-                {"type": "compliance_review", "description": "合规审核完成"}
-            ]
+            actions=[{"type": "compliance_review", "description": "合规审核完成"}],
         )
 
     async def check_compliance(
@@ -84,7 +82,7 @@ class ComplianceAgent(BaseLegalAgent):
             "area": area,
             "checklist": checklist_items,
             "assessment": response,
-            "agent": self.name
+            "agent": self.name,
         }
 
     async def generate_compliance_report(

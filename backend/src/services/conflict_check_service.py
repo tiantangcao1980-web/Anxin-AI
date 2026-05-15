@@ -76,9 +76,8 @@ class ConflictCheckService:
         if org_id:
             # 律所范围：扩大到同律所所有律师的案件
             from src.models.user import User
-            org_members = await self.db.execute(
-                select(User.id).where(User.org_id == org_id)
-            )
+
+            org_members = await self.db.execute(select(User.id).where(User.org_id == org_id))
             member_ids = [str(r[0]) for r in org_members.all()]
             if member_ids:
                 user_filter = Case.assignee_id.in_(member_ids)
@@ -99,7 +98,7 @@ class ConflictCheckService:
                         # 检查是否为对立方
                         conflict_info = {
                             "case_id": str(case.id),
-                            "case_title": getattr(case, 'title', ''),
+                            "case_title": getattr(case, "title", ""),
                             "historical_party": hist_party["name"],
                             "historical_role": hist_party.get("role", "unknown"),
                             "new_party": new_party,
@@ -130,8 +129,8 @@ class ConflictCheckService:
         parties = []
 
         # 从 case.description 或其他字段提取（简化实现）
-        title = getattr(case, 'title', '') or ''
-        description = getattr(case, 'description', '') or ''
+        title = getattr(case, "title", "") or ""
+        description = getattr(case, "description", "") or ""
 
         # 优先读取 Case.parties，支持 {"plaintiff": "...", "defendant": "..."}、
         # {"parties": [{"name": "..."}]} 和字符串列表等常见形态。
@@ -154,7 +153,7 @@ class ConflictCheckService:
                     parties.append({"name": item, "role": "party"})
 
         # 尝试从 extra_data/metadata 中读取结构化当事人信息
-        extra = getattr(case, 'extra_data', None) or {}
+        extra = getattr(case, "extra_data", None) or {}
         if isinstance(extra, dict):
             for party in extra.get("parties", []):
                 if isinstance(party, dict) and party.get("name"):
@@ -167,7 +166,10 @@ class ConflictCheckService:
             for segment in [title, description[:200]]:
                 # 匹配常见的公司名模式
                 import re
-                company_names = re.findall(r'[\u4e00-\u9fa5]{2,}(?:有限|股份|集团|科技|实业)公司', segment)
+
+                company_names = re.findall(
+                    r"[\u4e00-\u9fa5]{2,}(?:有限|股份|集团|科技|实业)公司", segment
+                )
                 for cn in company_names:
                     if cn not in [p["name"] for p in parties]:
                         parties.append({"name": cn, "role": "party"})

@@ -18,7 +18,9 @@ async def handle_a2ui_event(ctx: WebSocketContext, data: dict[str, Any]) -> bool
     a2ui_component_id = data.get("component_id", "")
     a2ui_payload = data.get("payload", {})
     a2ui_form_data = data.get("form_data", {})
-    logger.info(f"[A2UI Event] action={a2ui_action_id}, component={a2ui_component_id}, user={ctx.user_id}")
+    logger.info(
+        f"[A2UI Event] action={a2ui_action_id}, component={a2ui_component_id}, user={ctx.user_id}"
+    )
 
     # V2 安全修复（TASK-04 P0-2）：拒绝未认证用户的 action。
     # ctx.user_id 由 websocket_chat 的首包鉴权写入；理论上正常路径下不会为空，
@@ -30,6 +32,7 @@ async def handle_a2ui_event(ctx: WebSocketContext, data: dict[str, Any]) -> bool
 
     try:
         from src.services.a2ui_intent_handler import handle_a2ui_event as _handle_a2ui_evt
+
         a2ui_response = await _handle_a2ui_evt(
             action_id=a2ui_action_id,
             component_id=a2ui_component_id,
@@ -45,10 +48,13 @@ async def handle_a2ui_event(ctx: WebSocketContext, data: dict[str, Any]) -> bool
             await ctx.send(a2ui_response.get("type", "a2ui_message"), a2ui_response)
             await ctx.save_message("user", f"[用户操作] {a2ui_action_id}")
             await ctx.save_message("assistant", f"[A2UI 交互响应] {a2ui_action_id}", "A2UI Agent")
-            await ctx.send("done", {
-                "conversation_id": ctx.conversation_id,
-                "a2ui": True,
-            })
+            await ctx.send(
+                "done",
+                {
+                    "conversation_id": ctx.conversation_id,
+                    "a2ui": True,
+                },
+            )
             return True
         else:
             logger.warning(f"[A2UI] action '{a2ui_action_id}' 无匹配处理器，回退到对话流")

@@ -36,7 +36,9 @@ class RiskAssessmentAgent(BaseLegalAgent):
             context_info = "\n\n前置分析结果：\n"
             for t_id, result in dependent_results.items():
                 if isinstance(result, AgentResponse):
-                    context_info += f"- {result.agent_name} (任务 {t_id})：{result.content[:200]}...\n"
+                    context_info += (
+                        f"- {result.agent_name} (任务 {t_id})：{result.content[:200]}...\n"
+                    )
 
         # 构建评估提示，要求输出包含 A2UI 结构
         prompt = f"""
@@ -86,8 +88,9 @@ JSON 格式示例：
         # 提取 A2UI JSON
         import json
         import re
+
         a2ui_data = {}
-        json_match = re.search(r'```json\s*(\{.*?\})\s*```', response_text, re.DOTALL)
+        json_match = re.search(r"```json\s*(\{.*?\})\s*```", response_text, re.DOTALL)
         if not json_match:
             json_match = re.search(r'(\{.*"a2ui".*\})', response_text, re.DOTALL)
 
@@ -103,9 +106,7 @@ JSON 格式示例：
             content=response_text,
             reasoning="基于法律风险评估模型和 A2UI 动态渲染协议",
             metadata={"a2ui": a2ui_data},
-            actions=[
-                {"type": "risk_assessment", "description": "风险评估完成"}
-            ]
+            actions=[{"type": "risk_assessment", "description": "风险评估完成"}],
         )
 
     async def assess_transaction(self, transaction_info: dict[str, Any]) -> dict[str, Any]:
@@ -129,18 +130,13 @@ JSON 格式示例：
 """
         response = await self.chat(prompt)
 
-        return {
-            "transaction": transaction_info,
-            "assessment": response,
-            "agent": self.name
-        }
+        return {"transaction": transaction_info, "assessment": response, "agent": self.name}
 
     async def generate_risk_matrix(self, risks: list[dict[str, Any]]) -> str:
         """生成风险矩阵"""
-        risks_str = "\n".join([
-            f"- {r.get('name', '未知风险')}：{r.get('description', '')}"
-            for r in risks
-        ])
+        risks_str = "\n".join(
+            [f"- {r.get('name', '未知风险')}：{r.get('description', '')}" for r in risks]
+        )
 
         prompt = f"""
 请为以下风险生成风险矩阵：
@@ -190,8 +186,4 @@ JSON 格式示例：
         else:
             level = "low"
 
-        return {
-            "score": round(score, 2),
-            "level": level,
-            "factors": factors
-        }
+        return {"score": round(score, 2), "level": level, "factors": factors}

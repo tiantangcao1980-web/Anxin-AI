@@ -99,9 +99,7 @@ async def submit_certification(
     service = LawyerOnboardingService(db)
 
     # 查找用户的 LawyerProfile
-    result = await db.execute(
-        select(LawyerProfile).where(LawyerProfile.user_id == user.id)
-    )
+    result = await db.execute(select(LawyerProfile).where(LawyerProfile.user_id == user.id))
     profile = result.scalar_one_or_none()
     if not profile:
         return UnifiedResponse.error(400, "请先创建律师档案")
@@ -141,9 +139,7 @@ async def update_service_config(
     service = LawyerOnboardingService(db)
 
     # 查找用户的 LawyerProfile
-    result = await db.execute(
-        select(LawyerProfile).where(LawyerProfile.user_id == user.id)
-    )
+    result = await db.execute(select(LawyerProfile).where(LawyerProfile.user_id == user.id))
     profile = result.scalar_one_or_none()
     if not profile:
         return UnifiedResponse.error(400, "请先创建律师档案")

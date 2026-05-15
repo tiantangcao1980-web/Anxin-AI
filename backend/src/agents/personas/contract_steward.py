@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """合同管家 persona（P9-C）。
 
 定位：合同全生命周期入口 —— 起草 / 审查 / 风险识别 / 模板 / 版本对比 /
@@ -37,11 +36,10 @@ from __future__ import annotations
 
 import re
 import uuid
-from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from difflib import SequenceMatcher
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from src.agents.personas.base_persona import BasePersonaAgent
 from src.agents.personas.contract_models import (
@@ -54,7 +52,6 @@ from src.agents.personas.contract_models import (
     Template,
     VersionDiff,
 )
-
 
 # ---------------------------------------------------------------------------
 # Persona 实装
@@ -235,7 +232,7 @@ class ContractStewardPersona(BasePersonaAgent):
         suggested = self._recommend_clauses(contract_type)
 
         # 渲染 docx（衔接 P5-B docx skill）
-        docx_path: Optional[str] = None
+        docx_path: str | None = None
         if docx_skill is not None:
             try:
                 docx_path = await docx_skill.render_contract(
@@ -668,10 +665,8 @@ class ContractStewardPersona(BasePersonaAgent):
             end = positions[idx + 1][0] if idx + 1 < len(positions) else len(text)
             content = text[start:end].strip()
             # 去掉标题行本身保留正文
-            content = content[len(title):].strip()
-            sections.append(
-                {"title": title.strip(), "content": content, "optional": False}
-            )
+            content = content[len(title) :].strip()
+            sections.append({"title": title.strip(), "content": content, "optional": False})
         return sections
 
     @staticmethod
@@ -759,7 +754,9 @@ class ContractStewardPersona(BasePersonaAgent):
                     issue_type=str(raw.get("issue_type") or "ambiguous"),
                     severity=str(raw.get("level") or raw.get("severity") or "medium"),
                     description=str(raw.get("description", ""))[:500],
-                    suggested_revision=str(raw.get("suggested_text") or raw.get("suggestion") or ""),
+                    suggested_revision=str(
+                        raw.get("suggested_text") or raw.get("suggestion") or ""
+                    ),
                     location={"section": raw.get("clause") or raw.get("location", "")},
                 )
             )
@@ -799,7 +796,7 @@ class ContractStewardPersona(BasePersonaAgent):
         )
 
     @staticmethod
-    def _write_docx_placeholder(contract_type: str, full_text: str) -> Optional[str]:
+    def _write_docx_placeholder(contract_type: str, full_text: str) -> str | None:
         """无 docx skill 注入时，写一个最小 .docx 占位文件。
 
         目的：让前端「下载 docx」按钮有非空目标；并不依赖 python-docx

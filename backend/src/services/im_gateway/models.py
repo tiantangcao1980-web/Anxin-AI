@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 IM 网关 ORM 模型
 

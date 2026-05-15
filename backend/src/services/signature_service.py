@@ -12,15 +12,17 @@ from loguru import logger
 
 
 class SignStatus(Enum):
-    PENDING = "pending"   # 待签署/待阅读
-    SIGNED = "signed"     # 已签署/已确认
-    REJECTED = "rejected" # 已拒签
-    EXPIRED = "expired"   # 已过期
+    PENDING = "pending"  # 待签署/待阅读
+    SIGNED = "signed"  # 已签署/已确认
+    REJECTED = "rejected"  # 已拒签
+    EXPIRED = "expired"  # 已过期
+
 
 class SignType(Enum):
-    CONTRACT = "contract"           # 外部合同 (强校验)
-    POLICY_SIGN = "policy_sign"     # 规章制度签字 (强校验: 员工手册等)
-    NOTICE_READ = "notice_read"     # 公告阅知 (弱校验: 点击确认即可)
+    CONTRACT = "contract"  # 外部合同 (强校验)
+    POLICY_SIGN = "policy_sign"  # 规章制度签字 (强校验: 员工手册等)
+    NOTICE_READ = "notice_read"  # 公告阅知 (弱校验: 点击确认即可)
+
 
 class SignatureService:
 
@@ -37,7 +39,7 @@ class SignatureService:
         signers: list[dict[str, str]],
         initiator_id: str,
         sign_type: SignType = SignType.CONTRACT,
-        title: str = "文件签署任务"
+        title: str = "文件签署任务",
     ) -> dict[str, Any]:
         """
         发起单份/多方签约任务
@@ -63,9 +65,9 @@ class SignatureService:
                     "action": "CREATE",
                     "timestamp": datetime.now().isoformat(),
                     "actor": initiator_id,
-                    "detail": f"发起{title}，类型: {sign_type.value}"
+                    "detail": f"发起{title}，类型: {sign_type.value}",
                 }
-            ]
+            ],
         }
 
         self._tasks[task_id] = task_info
@@ -75,10 +77,10 @@ class SignatureService:
     async def create_batch_task(
         self,
         document_id: str,
-        signer_list: list[dict[str, str]], # 全体员工列表
+        signer_list: list[dict[str, str]],  # 全体员工列表
         initiator_id: str,
         sign_type: SignType,
-        title: str
+        title: str,
     ) -> dict[str, Any]:
         """
         发起批量分发任务 (如：全员签署员工手册)
@@ -98,7 +100,7 @@ class SignatureService:
         return {
             "batch_id": batch_id,
             "total_count": len(task_ids),
-            "message": f"已成功向 {len(task_ids)} 人发送 '{title}' 任务"
+            "message": f"已成功向 {len(task_ids)} 人发送 '{title}' 任务",
         }
 
     async def get_batch_progress(self, batch_id: str) -> dict[str, Any]:
@@ -123,10 +125,16 @@ class SignatureService:
             "total": total,
             "signed_count": signed,
             "pending_count": pending,
-            "completion_rate": f"{(signed/total)*100:.1f}%" if total > 0 else "0%"
+            "completion_rate": f"{(signed/total)*100:.1f}%" if total > 0 else "0%",
         }
 
-    async def mock_sign_action(self, task_id: str, signer_name: str, action: str = "agree", ip_address: str = "192.168.1.101") -> dict[str, Any]:
+    async def mock_sign_action(
+        self,
+        task_id: str,
+        signer_name: str,
+        action: str = "agree",
+        ip_address: str = "192.168.1.101",
+    ) -> dict[str, Any]:
         """
         【模拟】用户执行签署/阅知操作 (留痕核心)
         """
@@ -141,13 +149,15 @@ class SignatureService:
         action_name = "阅知确认" if task["type"] == SignType.NOTICE_READ.value else "电子签名"
 
         # 详细留痕：包含 IP、设备、时间精确到毫秒
-        task["audit_trail"].append({
-            "action": "SIGN" if action == "agree" else "REJECT",
-            "timestamp": datetime.now().isoformat(),
-            "actor": signer_name,
-            "ip": ip_address,
-            "detail": f"用户 {signer_name} 完成 {action_name}，IP: {ip_address}"
-        })
+        task["audit_trail"].append(
+            {
+                "action": "SIGN" if action == "agree" else "REJECT",
+                "timestamp": datetime.now().isoformat(),
+                "actor": signer_name,
+                "ip": ip_address,
+                "detail": f"用户 {signer_name} 完成 {action_name}，IP: {ip_address}",
+            }
+        )
 
         if action == "agree":
             # 模拟生成存证哈希
@@ -155,6 +165,7 @@ class SignatureService:
 
         logger.info(f"任务 {task_id} ({action_name}) 更新为: {new_status}")
         return task
+
 
 # 全局实例
 signature_service = SignatureService()

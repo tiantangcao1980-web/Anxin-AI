@@ -115,9 +115,7 @@ class ReviewCheckerAgent(BaseLegalAgent):
             content=response,
             reasoning="审查质量验证：法条准确性+覆盖完整性+等级合理性",
             metadata=verification,
-            actions=[
-                {"type": "verification_complete", "data": verification}
-            ],
+            actions=[{"type": "verification_complete", "data": verification}],
         )
 
     def _format_risks(self, risks: list[dict[str, Any]]) -> str:
@@ -137,11 +135,11 @@ class ReviewCheckerAgent(BaseLegalAgent):
     def _parse_verification(self, response: str) -> dict[str, Any]:
         """解析验证结果"""
         try:
-            code_block = re.search(r'```json\s*([\s\S]*?)\s*```', response)
+            code_block = re.search(r"```json\s*([\s\S]*?)\s*```", response)
             if code_block:
                 result = json.loads(code_block.group(1))
             else:
-                json_match = re.search(r'\{[\s\S]*\}', response)
+                json_match = re.search(r"\{[\s\S]*\}", response)
                 if json_match:
                     result = json.loads(json_match.group())
                 else:

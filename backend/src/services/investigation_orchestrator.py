@@ -47,6 +47,7 @@ class InvestigationOrchestrator:
         if self._workforce is None:
             try:
                 from src.agents.workforce import get_workforce
+
                 self._workforce = get_workforce()
             except ImportError:
                 logger.warning("无法加载 LegalWorkforce，将使用简化调查流程")
@@ -57,6 +58,7 @@ class InvestigationOrchestrator:
         if self._deep_research is None:
             try:
                 from src.services.deep_research_engine import deep_research_engine
+
                 self._deep_research = deep_research_engine
             except ImportError:
                 logger.warning("DeepResearchEngine 不可用")
@@ -67,6 +69,7 @@ class InvestigationOrchestrator:
         if self._forum is None:
             try:
                 from src.services.agent_forum import agent_forum
+
                 self._forum = agent_forum
             except ImportError:
                 logger.warning("AgentForum 不可用")
@@ -77,6 +80,7 @@ class InvestigationOrchestrator:
         if self._report_engine is None:
             try:
                 from src.services.report_engine import report_engine
+
                 self._report_engine = report_engine
             except ImportError:
                 logger.warning("ReportEngine 不可用")
@@ -87,6 +91,7 @@ class InvestigationOrchestrator:
         if self._data_store is None:
             try:
                 from src.services.investigation_data_store import investigation_data_store
+
                 self._data_store = investigation_data_store
             except ImportError:
                 logger.warning("InvestigationDataStore 不可用")
@@ -136,7 +141,9 @@ class InvestigationOrchestrator:
         recommendations = {}
         if user_id and self.data_store:
             try:
-                recommendations = await self.data_store.get_smart_recommendations(user_id, company_name)
+                recommendations = await self.data_store.get_smart_recommendations(
+                    user_id, company_name
+                )
             except Exception:
                 pass
 
@@ -152,12 +159,18 @@ class InvestigationOrchestrator:
             "message": f"开始对「{company_name}」的多维度协同调查{time_range_desc}",
             "stages": self._get_stages_config(enable_deep_research, enable_forum, enable_report),
             "recommendations": recommendations if recommendations else None,
-            "time_range": {"start": time_range_start, "end": time_range_end} if (time_range_start or time_range_end) else None,
+            "time_range": (
+                {"start": time_range_start, "end": time_range_end}
+                if (time_range_start or time_range_end)
+                else None
+            ),
         }
 
         # ===== 阶段零：缓存预检与热加载 =====
         if self.data_store:
-            cached_data, cache_status = await self._stage_cache_precheck(company_name, org_id=org_id)
+            cached_data, cache_status = await self._stage_cache_precheck(
+                company_name, org_id=org_id
+            )
             if cache_status:
                 yield {
                     "type": "cache_status",
@@ -202,8 +215,10 @@ class InvestigationOrchestrator:
             # 深度研究的搜索轮数可按用户偏好调整
             max_rounds = recommendations.get("max_search_rounds", 3) if recommendations else 3
             async for event in self._stage_deep_research(
-                company_name, max_rounds=max_rounds,
-                time_range_start=time_range_start, time_range_end=time_range_end,
+                company_name,
+                max_rounds=max_rounds,
+                time_range_start=time_range_start,
+                time_range_end=time_range_end,
                 org_id=org_id,
             ):
                 if event.get("_research_data"):
@@ -258,7 +273,14 @@ class InvestigationOrchestrator:
             async for event in self.report_engine_v2.generate_report_stream(
                 full_data, template_id=report_template, use_llm=True
             ):
-                yield {**event, "type": f"report_{event['type']}" if not event["type"].startswith("report_") else event["type"]}
+                yield {
+                    **event,
+                    "type": (
+                        f"report_{event['type']}"
+                        if not event["type"].startswith("report_")
+                        else event["type"]
+                    ),
+                }
 
         # ===== 持久化 =====
         investigation_id = await self._save_investigation(
@@ -415,7 +437,12 @@ class InvestigationOrchestrator:
         dims_to_fetch = all_dims - cached_dims
 
         if not dims_to_fetch:
-            yield {"type": "agent_result", "agent": "cache", "step": "all", "message": "所有维度数据已从缓存加载"}
+            yield {
+                "type": "agent_result",
+                "agent": "cache",
+                "step": "all",
+                "message": "所有维度数据已从缓存加载",
+            }
             yield {"_collected": collected_data}
             return
 
@@ -430,7 +457,12 @@ class InvestigationOrchestrator:
             if "basic_info" in result and "basic_info" in dims_to_fetch:
                 collected_data["basic_info"] = result["basic_info"]
                 yield {"type": "result", "step": "basic_info", "data": result["basic_info"]}
-                yield {"type": "agent_result", "agent": "due_diligence", "step": "basic_info", "data": result["basic_info"]}
+                yield {
+                    "type": "agent_result",
+                    "agent": "due_diligence",
+                    "step": "basic_info",
+                    "data": result["basic_info"],
+                }
 
             # Agent 2: 风险评估
             if "risk" in dims_to_fetch:
@@ -440,7 +472,12 @@ class InvestigationOrchestrator:
                 if "risk" in result:
                     collected_data["risk"] = result["risk"]
                     yield {"type": "result", "step": "risk", "data": result["risk"]}
-                    yield {"type": "agent_result", "agent": "risk_assessor", "step": "risk", "data": result["risk"]}
+                    yield {
+                        "type": "agent_result",
+                        "agent": "risk_assessor",
+                        "step": "risk",
+                        "data": result["risk"],
+                    }
 
             # Agent 3: 合规审查
             if "credit" in dims_to_fetch:
@@ -450,7 +487,12 @@ class InvestigationOrchestrator:
                 if "credit" in result:
                     collected_data["credit"] = result["credit"]
                     yield {"type": "result", "step": "credit", "data": result["credit"]}
-                    yield {"type": "agent_result", "agent": "compliance", "step": "credit", "data": result["credit"]}
+                    yield {
+                        "type": "agent_result",
+                        "agent": "compliance",
+                        "step": "credit",
+                        "data": result["credit"],
+                    }
 
             # 诉讼数据
             if "litigation" in dims_to_fetch:
@@ -574,21 +616,25 @@ class InvestigationOrchestrator:
         credit_risk = risk_data.get("credit_risk", 0)
         credit_rating = credit_data.get("credit_rating", "")
         if credit_risk > 70 and credit_rating in ("A", "AA", "AAA"):
-            conflicts.append({
-                "description": f"信用风险评分 {credit_risk} 与信用评级 {credit_rating} 存在矛盾",
-                "agents": ["risk_assessor", "compliance"],
-                "severity": "high",
-            })
+            conflicts.append(
+                {
+                    "description": f"信用风险评分 {credit_risk} 与信用评级 {credit_rating} 存在矛盾",
+                    "agents": ["risk_assessor", "compliance"],
+                    "severity": "high",
+                }
+            )
 
         # 检查 2: 经营风险与经营状态
         operation_risk = risk_data.get("operation_risk", 0)
         status = basic_info.get("status", "")
         if operation_risk < 30 and "异常" in status:
-            conflicts.append({
-                "description": f"经营风险评分 {operation_risk} 与经营状态「{status}」不一致",
-                "agents": ["due_diligence", "risk_assessor"],
-                "severity": "medium",
-            })
+            conflicts.append(
+                {
+                    "description": f"经营风险评分 {operation_risk} 与经营状态「{status}」不一致",
+                    "agents": ["due_diligence", "risk_assessor"],
+                    "severity": "medium",
+                }
+            )
 
         # 检查 3: 论坛共识与数据采集的风险等级是否一致
         forum_consensus = forum_data.get("consensus", {})
@@ -598,11 +644,13 @@ class InvestigationOrchestrator:
             risk_order = {"low": 0, "medium": 1, "high": 2}
             diff = abs(risk_order.get(forum_risk, 1) - risk_order.get(data_risk, 1))
             if diff >= 2:
-                conflicts.append({
-                    "description": f"论坛共识风险等级 ({forum_risk}) 与数据采集结果 ({data_risk}) 差异较大",
-                    "agents": ["forum", "data_collection"],
-                    "severity": "high",
-                })
+                conflicts.append(
+                    {
+                        "description": f"论坛共识风险等级 ({forum_risk}) 与数据采集结果 ({data_risk}) 差异较大",
+                        "agents": ["forum", "data_collection"],
+                        "severity": "high",
+                    }
+                )
 
         return conflicts
 
@@ -639,7 +687,9 @@ class InvestigationOrchestrator:
         # 综合信心
         forum_confidence = forum_consensus.get("confidence", 0.5)
         research_confidence = research_data.get("confidence", 0.5)
-        overall_confidence = (forum_confidence + research_confidence) / 2 if research_data else forum_confidence
+        overall_confidence = (
+            (forum_confidence + research_confidence) / 2 if research_data else forum_confidence
+        )
         if not forum_data and not research_data:
             overall_confidence = 0.85 if not conflicts else 0.72
 
@@ -652,8 +702,13 @@ class InvestigationOrchestrator:
             "risk_score": round(avg_risk, 1),
             "confidence": round(overall_confidence, 2),
             "debate_summary": self._generate_consensus_summary(
-                company_name, collected_data, conflicts, risk_level, avg_risk,
-                forum_data, research_data,
+                company_name,
+                collected_data,
+                conflicts,
+                risk_level,
+                avg_risk,
+                forum_data,
+                research_data,
             ),
             "key_conclusions": key_conclusions[:5],
             "action_items": action_items[:5],
@@ -687,7 +742,9 @@ class InvestigationOrchestrator:
         if basic.get("status"):
             parts.append(f"企业当前经营状态为「{basic['status']}」。")
 
-        lit_count = int(litigation.get("plaintiff_cases", 0)) + int(litigation.get("defendant_cases", 0))
+        lit_count = int(litigation.get("plaintiff_cases", 0)) + int(
+            litigation.get("defendant_cases", 0)
+        )
         if lit_count > 0:
             parts.append(f"涉诉案件共 {lit_count} 起。")
 
@@ -716,9 +773,7 @@ class InvestigationOrchestrator:
                 return [str(agent) for agent in agents]
         return ["due_diligence", "risk_assessor", "compliance"]
 
-    def _get_stages_config(
-        self, deep_research: bool, forum: bool, report: bool
-    ) -> list[str]:
+    def _get_stages_config(self, deep_research: bool, forum: bool, report: bool) -> list[str]:
         stages = ["collection"]
         if deep_research:
             stages.append("deep_research")
@@ -729,9 +784,7 @@ class InvestigationOrchestrator:
             stages.append("report")
         return stages
 
-    def _get_completed_stages(
-        self, deep_research: bool, forum: bool, report: bool
-    ) -> list[str]:
+    def _get_completed_stages(self, deep_research: bool, forum: bool, report: bool) -> list[str]:
         return self._get_stages_config(deep_research, forum, report)
 
     # ========== 持久化 ==========
@@ -802,6 +855,7 @@ class InvestigationOrchestrator:
                 if user_id:
                     try:
                         from src.services.auto_dream import auto_dream_engine
+
                         auto_dream_engine.record_activity(user_id, "investigation")
                     except Exception:
                         pass

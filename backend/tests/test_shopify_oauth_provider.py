@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Shopify OAuth Provider 单元测试（P4-E）。
 
 覆盖 7 个用例：
@@ -113,15 +112,11 @@ async def test_authorize_url_format_per_shop() -> None:
 
     qs = parse_qs(parsed.query)
     assert qs["client_id"] == ["shopify_api_key_test"]
-    assert qs["redirect_uri"] == [
-        "https://anxin.example/oauth/callback/shopify"
-    ]
+    assert qs["redirect_uri"] == ["https://anxin.example/oauth/callback/shopify"]
     assert qs["state"] == ["state-xyz"]
     assert qs["grant_options[]"] == ["per-user"]
     # scope 逗号分隔，5 项默认
-    assert qs["scope"] == [
-        "read_products,write_products,read_orders,write_orders,read_customers"
-    ]
+    assert qs["scope"] == ["read_products,write_products,read_orders,write_orders,read_customers"]
 
     # 兼容传入 https:// 前缀
     url2 = await provider.authorize_url(
@@ -174,7 +169,7 @@ async def test_exchange_code_persists_shop_in_raw() -> None:
     assert isinstance(bundle, OAuthTokenBundle)
     assert bundle.access_token == "shpat_offline_001"
     assert bundle.refresh_token is None  # offline 永不过期、无 RT
-    assert bundle.expires_at is None     # offline 无 expires_in
+    assert bundle.expires_at is None  # offline 无 expires_in
     assert bundle.scope == "read_products,write_orders"
     assert bundle.token_type == "Bearer"
 
@@ -184,9 +179,7 @@ async def test_exchange_code_persists_shop_in_raw() -> None:
     assert bundle.raw["access_token"] == "shpat_offline_001"
 
     # URL & body 校验
-    assert captured["url"] == (
-        "https://acme.myshopify.com/admin/oauth/access_token"
-    )
+    assert captured["url"] == ("https://acme.myshopify.com/admin/oauth/access_token")
     assert captured["body"] == {
         "client_id": "shopify_api_key_test",
         "client_secret": "shopify_api_secret_test",
@@ -217,12 +210,7 @@ def test_hmac_verification_correct_secret() -> None:
     # legacy ``signature`` 字段应被跳过、不影响校验
     signed_with_signature = dict(signed)
     signed_with_signature["signature"] = "legacy-noise"
-    assert (
-        ShopifyOAuthProvider.verify_callback_hmac(
-            signed_with_signature, secret
-        )
-        is True
-    )
+    assert ShopifyOAuthProvider.verify_callback_hmac(signed_with_signature, secret) is True
 
 
 # ===========================================================================
@@ -247,15 +235,10 @@ def test_hmac_verification_tampered_query_rejected() -> None:
     # ② 篡改 code
     tampered2 = dict(signed)
     tampered2["code"] = "stolen_code"
-    assert (
-        ShopifyOAuthProvider.verify_callback_hmac(tampered2, secret) is False
-    )
+    assert ShopifyOAuthProvider.verify_callback_hmac(tampered2, secret) is False
 
     # ③ 用错 secret（密钥泄漏后被 rotate 的场景）
-    assert (
-        ShopifyOAuthProvider.verify_callback_hmac(signed, "wrong_secret")
-        is False
-    )
+    assert ShopifyOAuthProvider.verify_callback_hmac(signed, "wrong_secret") is False
 
     # ④ 缺 hmac 字段
     no_hmac = {k: v for k, v in signed.items() if k != "hmac"}
@@ -296,13 +279,9 @@ async def test_revoke_uses_x_shopify_access_token_header() -> None:
     )
     assert result is None
 
-    assert captured["url"] == (
-        "https://acme.myshopify.com/admin/api/2024-10/oauth/revoke.json"
-    )
+    assert captured["url"] == ("https://acme.myshopify.com/admin/api/2024-10/oauth/revoke.json")
     # 关键断言 — Shopify 自定义鉴权头
-    assert captured["headers"].get("X-Shopify-Access-Token") == (
-        "shpat_offline_001"
-    )
+    assert captured["headers"].get("X-Shopify-Access-Token") == ("shpat_offline_001")
     # 反向断言 — 不应有 Authorization: Bearer
     assert "Authorization" not in captured["headers"]
 
@@ -368,12 +347,8 @@ async def test_get_user_info_returns_shop_meta() -> None:
     assert shop_meta["currency"] == "USD"
 
     # URL 含 api_version；鉴权头正确
-    assert captured["url"] == (
-        "https://acme.myshopify.com/admin/api/2024-10/shop.json"
-    )
-    assert captured["headers"].get("X-Shopify-Access-Token") == (
-        "shpat_offline_001"
-    )
+    assert captured["url"] == ("https://acme.myshopify.com/admin/api/2024-10/shop.json")
+    assert captured["headers"].get("X-Shopify-Access-Token") == ("shpat_offline_001")
     assert "Authorization" not in captured["headers"]
 
     # 缺 shop 抛错

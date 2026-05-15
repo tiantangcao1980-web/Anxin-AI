@@ -62,7 +62,7 @@ class RequirementAnalystAgent(BaseLegalAgent):
     ) -> dict[str, Any]:
         """
         快速分析需求完整度
-        
+
         Returns:
             结构化需求分析结果，包含 is_complete、summary、guidance_questions 等
         """
@@ -131,7 +131,7 @@ class RequirementAnalystAgent(BaseLegalAgent):
         try:
             return cast(dict[str, Any], json.loads(text))
         except (json.JSONDecodeError, TypeError):
-            match = re.search(r'(\{.*\})', text, re.DOTALL)
+            match = re.search(r"(\{.*\})", text, re.DOTALL)
             if match:
                 try:
                     return cast(dict[str, Any], json.loads(match.group(1)))

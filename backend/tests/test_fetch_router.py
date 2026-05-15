@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """URL → Tier 路由规则单测（纯函数，无 IO）。"""
 
 from __future__ import annotations

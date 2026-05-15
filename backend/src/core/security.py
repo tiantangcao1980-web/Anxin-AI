@@ -20,6 +20,7 @@ class RateLimitBackendUnavailable(RuntimeError):  # noqa: N818
 
 class TokenPayload(BaseModel):
     """Token载荷"""
+
     sub: str  # user_id
     exp: datetime
     type: str = "access"
@@ -28,6 +29,7 @@ class TokenPayload(BaseModel):
 
 class TokenData(BaseModel):
     """Token数据"""
+
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
@@ -36,6 +38,7 @@ class TokenData(BaseModel):
 
 class TokenPair(BaseModel):
     """Token对"""
+
     access_token: str
     refresh_token: str
     access_expires_in: int
@@ -61,20 +64,16 @@ def get_password_hash(password: str) -> str:
 def _generate_jti(user_id: str) -> str:
     """生成JWT ID"""
     import uuid
+
     return hashlib.sha256(f"{user_id}:{uuid.uuid4()}".encode()).hexdigest()[:32]
 
 
-def create_access_token(
-    user_id: str,
-    expires_delta: timedelta | None = None
-) -> str:
+def create_access_token(user_id: str, expires_delta: timedelta | None = None) -> str:
     """创建访问Token"""
     if expires_delta:
         expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.now(UTC) + timedelta(
-            minutes=settings.JWT_EXPIRE_MINUTES
-        )
+        expire = datetime.now(UTC) + timedelta(minutes=settings.JWT_EXPIRE_MINUTES)
 
     jti = _generate_jti(user_id)
 
@@ -124,10 +123,7 @@ def create_token_pair(user_id: str) -> TokenPair:
     access_expires = settings.JWT_EXPIRE_MINUTES
     refresh_expires_days = 7
 
-    access_token = create_access_token(
-        user_id,
-        expires_delta=timedelta(minutes=access_expires)
-    )
+    access_token = create_access_token(user_id, expires_delta=timedelta(minutes=access_expires))
     refresh_token = create_refresh_token(user_id, expires_days=refresh_expires_days)
 
     return TokenPair(
@@ -141,11 +137,7 @@ def create_token_pair(user_id: str) -> TokenPair:
 def decode_token(token: str) -> TokenPayload | None:
     """解码Token"""
     try:
-        payload = jwt.decode(
-            token,
-            settings.JWT_SECRET_KEY,
-            algorithms=[settings.JWT_ALGORITHM]
-        )
+        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
         return TokenPayload(**payload)
     except JWTError:
         return None
@@ -210,6 +202,7 @@ class TokenBlacklist:
         """获取Redis客户端"""
         if self._redis is None:
             import redis.asyncio as redis
+
             self._redis = redis.from_url(  # type: ignore[no-untyped-call]
                 settings.REDIS_URL,
                 encoding="utf-8",
@@ -224,11 +217,11 @@ class TokenBlacklist:
     async def add_to_blacklist(self, token: str, reason: str = "logout") -> bool:
         """
         将Token加入黑名单
-        
+
         Args:
             token: JWT Token
             reason: 加入黑名单的原因
-            
+
         Returns:
             是否成功
         """
@@ -311,7 +304,7 @@ class TokenBlacklist:
     async def revoke_all_user_tokens(self, user_id: str) -> bool:
         """
         撤销用户所有Token（通过用户级别的黑名单标记）
-        
+
         注意：这需要在验证Token时同时检查用户级别的撤销标记
         """
         try:
@@ -319,11 +312,7 @@ class TokenBlacklist:
             key = f"{self.KEY_PREFIX}:user:{user_id}"
 
             # 设置用户级别的撤销时间戳
-            await redis_client.set(
-                key,
-                datetime.now(UTC).isoformat(),
-                ex=7 * 24 * 3600  # 7天
-            )
+            await redis_client.set(key, datetime.now(UTC).isoformat(), ex=7 * 24 * 3600)  # 7天
 
             logger.info(f"已撤销用户所有Token: user_id={user_id}")
             return True
@@ -354,10 +343,10 @@ def get_token_blacklist() -> TokenBlacklist:
 async def refresh_access_token(refresh_token: str) -> TokenPair | None:
     """
     使用刷新Token获取新的Token对
-    
+
     Args:
         refresh_token: 刷新Token
-        
+
     Returns:
         新的Token对，失败返回None
     """
@@ -383,11 +372,11 @@ async def refresh_access_token(refresh_token: str) -> TokenPair | None:
 async def revoke_token(token: str, reason: str = "logout") -> bool:
     """
     撤销Token
-    
+
     Args:
         token: 要撤销的Token
         reason: 撤销原因
-        
+
     Returns:
         是否成功
     """
@@ -395,17 +384,14 @@ async def revoke_token(token: str, reason: str = "logout") -> bool:
     return await blacklist.add_to_blacklist(token, reason)
 
 
-async def verify_token_with_blacklist(
-    token: str,
-    token_type: str = "access"
-) -> str | None:
+async def verify_token_with_blacklist(token: str, token_type: str = "access") -> str | None:
     """
     验证Token（包含黑名单检查）
-    
+
     Args:
         token: JWT Token
         token_type: Token类型
-        
+
     Returns:
         用户ID，验证失败返回None
     """
@@ -456,6 +442,7 @@ class RateLimiter:
         """获取Redis客户端"""
         if self._redis is None:
             import redis.asyncio as redis
+
             self._redis = redis.from_url(  # type: ignore[no-untyped-call]
                 settings.REDIS_URL,
                 encoding="utf-8",
@@ -477,13 +464,13 @@ class RateLimiter:
     ) -> tuple[bool, int, int]:
         """
         检查并更新请求频率
-        
+
         Args:
             identifier: 标识符（如用户ID、IP地址）
             endpoint: 端点标识
             limit: 限制次数
             window: 时间窗口（秒）
-            
+
         Returns:
             (是否允许, 当前请求数, 剩余配额)
         """
@@ -563,12 +550,12 @@ class RateLimiter:
     ) -> int:
         """
         获取当前使用量
-        
+
         Args:
             identifier: 标识符
             endpoint: 端点标识
             window: 时间窗口（秒）
-            
+
         Returns:
             当前请求数
         """
@@ -594,11 +581,11 @@ class RateLimiter:
     async def reset(self, identifier: str, endpoint: str = "global") -> bool:
         """
         重置限流计数
-        
+
         Args:
             identifier: 标识符
             endpoint: 端点标识
-            
+
         Returns:
             是否成功
         """

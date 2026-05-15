@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """尽调专家（due_diligence_expert）persona 的数据模型。
 
 设计原则：
@@ -17,7 +16,6 @@ from typing import Any
 
 from src.agents.personas.research_models import Citation
 
-
 # ---------------------------------------------------------------------------
 # 公司基础工商信息
 # ---------------------------------------------------------------------------
@@ -29,13 +27,13 @@ class CompanyBasicInfo:
 
     name: str
     legal_representative: str
-    registered_capital: float          # 单位：万元
+    registered_capital: float  # 单位：万元
     establishment_date: date
     business_scope: str
     industry: str
     address: str
-    unified_credit_code: str           # 18 位 USCC
-    status: str                        # "存续" / "注销" / "吊销" / "迁出" / "停业"
+    unified_credit_code: str  # 18 位 USCC
+    status: str  # "存续" / "注销" / "吊销" / "迁出" / "停业"
 
 
 # ---------------------------------------------------------------------------
@@ -98,8 +96,8 @@ class DueDiligenceReport:
     """完整尽调报告（公司 / 项目 / 人物三态共用）。"""
 
     target: str
-    target_type: str                   # "company" / "person" / "project"
-    investigation_depth: str           # "quick" / "standard" / "deep"
+    target_type: str  # "company" / "person" / "project"
+    investigation_depth: str  # "quick" / "standard" / "deep"
     basic_info: CompanyBasicInfo | None = None
     shareholders: list[dict[str, Any]] = field(default_factory=list)
     key_personnel: list[dict[str, Any]] = field(default_factory=list)
@@ -107,12 +105,12 @@ class DueDiligenceReport:
     credit_flags: list[CreditFlag] = field(default_factory=list)
     intellectual_properties: list[dict[str, Any]] = field(default_factory=list)
     public_news_count: int = 0
-    overall_risk_level: str = "unknown"   # low / medium / high / critical / unknown
+    overall_risk_level: str = "unknown"  # low / medium / high / critical / unknown
     summary: str = ""
     recommendations: list[str] = field(default_factory=list)
     generated_at: datetime = field(default_factory=datetime.utcnow)
     citations: list[Citation] = field(default_factory=list)
-    report_id: str = ""                # 由调用方/服务层填写，用于缓存键
+    report_id: str = ""  # 由调用方/服务层填写，用于缓存键
 
 
 # ---------------------------------------------------------------------------
@@ -133,11 +131,11 @@ class EvidenceAnalysis:
     document_summary: str
     claim: str
     supports_claim: bool
-    confidence: float                  # 0-1
+    confidence: float  # 0-1
     supporting_excerpts: list[str] = field(default_factory=list)
     contradicting_excerpts: list[str] = field(default_factory=list)
     inconsistencies: list[str] = field(default_factory=list)
-    authenticity_score: float = 0.5    # 0-1, 文档真实性
+    authenticity_score: float = 0.5  # 0-1, 文档真实性
     forgery_indicators: list[str] = field(default_factory=list)
 
 
@@ -153,13 +151,13 @@ class SentimentReport:
     target: str
     period_start: date
     period_end: date
-    overall_sentiment: str             # positive / neutral / negative / mixed
-    sentiment_score: float             # -1 到 +1
-    volume: int = 0                    # 提及次数
+    overall_sentiment: str  # positive / neutral / negative / mixed
+    sentiment_score: float  # -1 到 +1
+    volume: int = 0  # 提及次数
     by_source: dict[str, dict[str, Any]] = field(default_factory=dict)
     top_topics: list[dict[str, Any]] = field(default_factory=list)
     notable_events: list[dict[str, Any]] = field(default_factory=list)
-    trend: str = "stable"              # improving / stable / deteriorating
+    trend: str = "stable"  # improving / stable / deteriorating
 
 
 # ---------------------------------------------------------------------------
@@ -171,7 +169,7 @@ class SentimentReport:
 class RelationshipNode:
     id: str
     name: str
-    type: str                          # person / company / asset
+    type: str  # person / company / asset
     attributes: dict[str, Any] = field(default_factory=dict)
 
 
@@ -192,7 +190,7 @@ class RelationshipEdge:
     to_id: str
     relationship: str
     confidence: float = 0.8
-    source: str = ""                   # 数据出处（"qichacha" / "litigation" / ...）
+    source: str = ""  # 数据出处（"qichacha" / "litigation" / ...）
 
 
 @dataclass
@@ -215,8 +213,8 @@ class RelationshipGraph:
 class RiskGrade:
     """综合风险等级（参考标普 / 穆迪信用等级体系）。"""
 
-    grade: str                         # AAA / AA / A / BBB / BB / B / C / D
-    score: float                       # 0-100，越高越好
+    grade: str  # AAA / AA / A / BBB / BB / B / C / D
+    score: float  # 0-100，越高越好
     breakdown: dict[str, float] = field(default_factory=dict)
     rationale: str = ""
     red_flags: list[str] = field(default_factory=list)

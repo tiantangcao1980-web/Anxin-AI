@@ -26,11 +26,16 @@ from starlette.responses import JSONResponse, Response
 
 from src.core.config import settings
 
-_SKIP_PATHS = frozenset({
-    "/health", "/docs", "/redoc", "/openapi.json",
-    "/api/v1/auth/security-config",
-    "/api/v1/auth/security-challenge",
-})
+_SKIP_PATHS = frozenset(
+    {
+        "/health",
+        "/docs",
+        "/redoc",
+        "/openapi.json",
+        "/api/v1/auth/security-config",
+        "/api/v1/auth/security-challenge",
+    }
+)
 
 
 class RiskScoringMiddleware(BaseHTTPMiddleware):
@@ -43,6 +48,7 @@ class RiskScoringMiddleware(BaseHTTPMiddleware):
     async def _get_redis(self) -> Any:
         if self._redis is None:
             import redis.asyncio as aioredis
+
             self._redis = aioredis.from_url(  # type: ignore[no-untyped-call]
                 settings.REDIS_URL, encoding="utf-8", decode_responses=True
             )
@@ -51,8 +57,10 @@ class RiskScoringMiddleware(BaseHTTPMiddleware):
     def _get_identifier(self, request: Request) -> str:
         """获取请求标识（用于行为分析）"""
         forwarded = request.headers.get("x-forwarded-for")
-        ip = forwarded.split(",")[0].strip() if forwarded else (
-            request.client.host if request.client else "unknown"
+        ip = (
+            forwarded.split(",")[0].strip()
+            if forwarded
+            else (request.client.host if request.client else "unknown")
         )
         client_id = request.headers.get("x-client-id", "")
         return f"{ip}:{client_id}" if client_id else ip
@@ -185,7 +193,9 @@ class RiskScoringMiddleware(BaseHTTPMiddleware):
                     headers={"Retry-After": "60"},
                 )
 
-            if total_score >= challenge_threshold and getattr(settings, "ANTIBOT_POW_ENABLED", False):
+            if total_score >= challenge_threshold and getattr(
+                settings, "ANTIBOT_POW_ENABLED", False
+            ):
                 # 检查是否已携带有效的挑战解答
                 challenge_id = request.headers.get("x-challenge-id")
                 challenge_solution = request.headers.get("x-challenge-solution")

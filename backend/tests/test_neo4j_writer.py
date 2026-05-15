@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
 """P13-B Neo4jKGWriter 单元测试（mock session）。"""
 
 from __future__ import annotations
 
-import os
 from contextlib import contextmanager
 from unittest.mock import MagicMock
 
@@ -21,7 +19,6 @@ from src.services.rag.kg.neo4j_writer import (
     _safe_label,
     _stringify_properties,
 )
-
 
 # ---------------------------------------------------------------------------
 # 辅助：Mock session 工厂
@@ -144,9 +141,7 @@ def test_write_kg_payload_stringifies_complex_properties(mock_session_factory):
     writer.write_kg(kg)
 
     # 找到节点写入那一次
-    node_calls = [
-        params for cypher, params in session.runs if "MERGE (e:Entity" in cypher
-    ]
+    node_calls = [params for cypher, params in session.runs if "MERGE (e:Entity" in cypher]
     assert node_calls
     nodes = node_calls[0]["nodes"]
     # ent_b 的 properties 含 list，应原样保留

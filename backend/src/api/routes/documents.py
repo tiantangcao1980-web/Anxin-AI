@@ -21,6 +21,7 @@ router = APIRouter()
 
 class DocumentResponse(BaseModel):
     """文档响应"""
+
     id: str
     name: str
     doc_type: str
@@ -30,7 +31,7 @@ class DocumentResponse(BaseModel):
     version: int
     ai_summary: str | None = None
     ai_metadata: dict[str, Any] | None = None
-    extracted_text: str | None = None # 支持在线编辑
+    extracted_text: str | None = None  # 支持在线编辑
     tags: list[str] | None = None
     created_at: datetime
     updated_at: datetime
@@ -38,6 +39,7 @@ class DocumentResponse(BaseModel):
 
 class DocumentListResponse(BaseModel):
     """文档列表响应"""
+
     items: list[DocumentResponse]
     total: int
     page: int
@@ -46,6 +48,7 @@ class DocumentListResponse(BaseModel):
 
 class DocumentUpdate(BaseModel):
     """更新文档元数据"""
+
     name: str | None = None
     description: str | None = None
     tags: list[str] | None = None
@@ -53,12 +56,14 @@ class DocumentUpdate(BaseModel):
 
 class DocumentContentUpdate(BaseModel):
     """更新文档内容"""
+
     content: str
     change_summary: str | None = None
 
 
 class TextDocumentCreate(BaseModel):
     """创建文本文档"""
+
     name: str
     content: str
     doc_type: str = "other"
@@ -69,14 +74,16 @@ class TextDocumentCreate(BaseModel):
 
 class DocumentGenerateRequest(BaseModel):
     """文档生成请求"""
+
     doc_type: str
     scenario: str
-    requirements: dict[str, Any] # 动态参数
+    requirements: dict[str, Any]  # 动态参数
     case_id: str | None = None
 
 
 class ParagraphGenerateRequest(BaseModel):
     """补写段落生成请求"""
+
     doc_type: str
     document_title: str
     current_content: str
@@ -85,6 +92,7 @@ class ParagraphGenerateRequest(BaseModel):
 
 class ParagraphGenerateResponse(BaseModel):
     """补写段落生成响应"""
+
     title: str
     content: str
 
@@ -121,7 +129,7 @@ async def list_documents(
                 version=d.version,
                 ai_summary=d.ai_summary,
                 ai_metadata=None,
-                extracted_text=d.extracted_text, # 返回文本内容
+                extracted_text=d.extracted_text,  # 返回文本内容
                 tags=d.tags,
                 created_at=d.created_at,
                 updated_at=d.updated_at,
@@ -130,7 +138,7 @@ async def list_documents(
         ],
         total=total,
         page=page,
-        page_size=page_size
+        page_size=page_size,
     )
     return UnifiedResponse.success(data=data)
 
@@ -155,6 +163,7 @@ async def upload_document(
     parsed_tags = None
     if tags:
         import json
+
         try:
             parsed_tags = json.loads(tags)
         except Exception:
@@ -215,7 +224,7 @@ async def create_text_document(
         file_size=document.file_size,
         mime_type=document.mime_type,
         version=document.version,
-        extracted_text=document.extracted_text, # 这里应该有了
+        extracted_text=document.extracted_text,  # 这里应该有了
         tags=document.tags,
         created_at=document.created_at,
         updated_at=document.updated_at,
@@ -387,7 +396,7 @@ async def update_document_content(
         content=update.content,
         org_id=user.org_id,
         updated_by=user.id if user else None,
-        change_summary=update.change_summary
+        change_summary=update.change_summary,
     )
 
     if not document:
@@ -402,7 +411,7 @@ async def update_document_content(
         mime_type=document.mime_type,
         version=document.version,
         ai_summary=document.ai_summary,
-            ai_metadata=None,
+        ai_metadata=None,
         extracted_text=document.extracted_text,
         tags=document.tags,
         created_at=document.created_at,

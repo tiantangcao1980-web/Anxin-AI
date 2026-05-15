@@ -106,7 +106,9 @@ mode 判断规则：
 
         # ===== 需要补充信息 =====
         if missing and clarification:
-            return await self._ask_for_details(calc_type, clarification, missing, description, context)
+            return await self._ask_for_details(
+                calc_type, clarification, missing, description, context
+            )
 
         # ===== 计算 + 分析模式 =====
         calc_result = legal_calculator_service.calculate(calc_type, params)
@@ -255,13 +257,13 @@ mode 判断规则：
 
     def _parse_json(self, text: str) -> dict[str, Any]:
         """从 LLM 输出中提取 JSON"""
-        match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', text, re.DOTALL)
+        match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", text, re.DOTALL)
         if match:
             parsed = json.loads(match.group(1))
             if isinstance(parsed, dict):
                 return parsed
             raise ValueError("JSON 根节点不是对象")
-        match = re.search(r'\{.*\}', text, re.DOTALL)
+        match = re.search(r"\{.*\}", text, re.DOTALL)
         if match:
             parsed = json.loads(match.group(0))
             if isinstance(parsed, dict):

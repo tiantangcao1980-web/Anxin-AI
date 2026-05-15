@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 P13-B 知识图谱核心数据契约
 
@@ -16,10 +15,10 @@ P13-B 知识图谱核心数据契约
 from __future__ import annotations
 
 import abc
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Any, Iterable, Protocol, runtime_checkable
-
+from typing import Any, Protocol, runtime_checkable
 
 # ---------------------------------------------------------------------------
 # Modality（与 P13-A 的多模态切片对齐）
@@ -66,7 +65,7 @@ class Segment:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_protocol(cls, seg: SegmentLikeProtocol) -> "Segment":
+    def from_protocol(cls, seg: SegmentLikeProtocol) -> Segment:
         return cls(
             segment_id=seg.segment_id,
             modality=str(seg.modality),
@@ -83,29 +82,29 @@ class Segment:
 class EntityType(str, Enum):
     """法律领域实体类型（11 种）。"""
 
-    LEGAL_PARTY = "legal_party"          # 合同当事人（甲方/乙方/丙方/抬头）
-    LEGAL_TERM = "legal_term"            # 法律术语
-    OBLIGATION = "obligation"            # 义务条款
-    RIGHT = "right"                      # 权利条款
-    REGULATION = "regulation"            # 法规引用（《民法典》第 N 条等）
-    AMOUNT = "amount"                    # 金额
-    DATE = "date"                        # 日期
-    SEAL = "seal"                        # 公章
-    SIGNATURE = "signature"              # 签字
-    TABLE_DATA = "table_data"            # 表格数据点
-    GENERIC = "generic"                  # 兜底
+    LEGAL_PARTY = "legal_party"  # 合同当事人（甲方/乙方/丙方/抬头）
+    LEGAL_TERM = "legal_term"  # 法律术语
+    OBLIGATION = "obligation"  # 义务条款
+    RIGHT = "right"  # 权利条款
+    REGULATION = "regulation"  # 法规引用（《民法典》第 N 条等）
+    AMOUNT = "amount"  # 金额
+    DATE = "date"  # 日期
+    SEAL = "seal"  # 公章
+    SIGNATURE = "signature"  # 签字
+    TABLE_DATA = "table_data"  # 表格数据点
+    GENERIC = "generic"  # 兜底
 
 
 class RelationType(str, Enum):
     """实体关系类型（7 种）。"""
 
-    BELONGS_TO = "belongs_to"            # 第二条 → 第一章 → 文档
-    OBLIGES = "obliges"                  # 甲方 → 付款义务
-    REFERENCES = "references"            # 引用法规
-    ATTACHED_TO = "attached_to"          # 公章 → 合同
-    SAME_AS = "same_as"                  # 别名等价
-    DEPICTS = "depicts"                  # 图片 → 描述
-    CONTAINS = "contains"                # 表格 → 数据点
+    BELONGS_TO = "belongs_to"  # 第二条 → 第一章 → 文档
+    OBLIGES = "obliges"  # 甲方 → 付款义务
+    REFERENCES = "references"  # 引用法规
+    ATTACHED_TO = "attached_to"  # 公章 → 合同
+    SAME_AS = "same_as"  # 别名等价
+    DEPICTS = "depicts"  # 图片 → 描述
+    CONTAINS = "contains"  # 表格 → 数据点
 
 
 # ---------------------------------------------------------------------------
@@ -127,7 +126,7 @@ class Entity:
     properties: dict[str, Any] = field(default_factory=dict)
     confidence: float = 1.0
 
-    def merge(self, other: "Entity") -> "Entity":
+    def merge(self, other: Entity) -> Entity:
         """同名实体合并：合并 aliases / mentions / properties，confidence 取较大。"""
         if other.name != self.name and other.name not in self.aliases:
             self.aliases.append(other.name)

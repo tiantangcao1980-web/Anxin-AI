@@ -2,7 +2,6 @@
 用户服务
 """
 
-
 from typing import Any
 
 from loguru import logger
@@ -58,21 +57,19 @@ class UserService:
         self.db.add(user)
         await self.db.flush()
 
-        logger.info(f"用户创建成功: {email}, type={user_type}, role={role}, client={primary_client}")
+        logger.info(
+            f"用户创建成功: {email}, type={user_type}, role={role}, client={primary_client}"
+        )
         return user
 
     async def get_user(self, user_id: str) -> User | None:
         """获取用户"""
-        result = await self.db.execute(
-            select(User).where(User.id == user_id)
-        )
+        result = await self.db.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
 
     async def get_user_by_email(self, email: str) -> User | None:
         """根据邮箱获取用户"""
-        result = await self.db.execute(
-            select(User).where(User.email == email)
-        )
+        result = await self.db.execute(select(User).where(User.email == email))
         return result.scalar_one_or_none()
 
     async def authenticate(self, email: str, password: str) -> User | None:
@@ -105,7 +102,7 @@ class UserService:
                 "name": user.name,
                 "role": user.role,
                 "email_verified": user.email_verified,
-            }
+            },
         }
 
     async def update_user(
@@ -149,16 +146,12 @@ class UserService:
     # OAuth 第三方登录查找方法
     async def get_by_wechat_openid(self, openid: str) -> User | None:
         """根据微信 openid 查找用户"""
-        result = await self.db.execute(
-            select(User).where(User.wechat_openid == openid)
-        )
+        result = await self.db.execute(select(User).where(User.wechat_openid == openid))
         return result.scalar_one_or_none()
 
     async def get_by_alipay_uid(self, uid: str) -> User | None:
         """根据支付宝 user_id 查找用户"""
-        result = await self.db.execute(
-            select(User).where(User.alipay_user_id == uid)
-        )
+        result = await self.db.execute(select(User).where(User.alipay_user_id == uid))
         return result.scalar_one_or_none()
 
     # 组织相关
@@ -182,9 +175,7 @@ class UserService:
 
     async def get_organization(self, org_id: str) -> Organization | None:
         """获取组织"""
-        result = await self.db.execute(
-            select(Organization).where(Organization.id == org_id)
-        )
+        result = await self.db.execute(select(Organization).where(Organization.id == org_id))
         return result.scalar_one_or_none()
 
     async def list_org_users(self, org_id: str) -> list[User]:

@@ -97,12 +97,14 @@ async def list_tasks(
         page=page,
         page_size=page_size,
     )
-    return UnifiedResponse.success(data={
-        "items": [task_to_response(t) for t in tasks],
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-    })
+    return UnifiedResponse.success(
+        data={
+            "items": [task_to_response(t) for t in tasks],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        }
+    )
 
 
 @router.post("/")
@@ -202,13 +204,16 @@ async def delete_task(
 
 # ===== 看板操作 =====
 
+
 class StatusTransitionRequest(BaseModel):
     """状态转换"""
+
     status: str
 
 
 class BatchUpdateRequest(BaseModel):
     """批量更新"""
+
     updates: list[dict[str, Any]]  # [{"task_id": "xxx", "status": "in_progress", "sort_order": 0}]
 
 

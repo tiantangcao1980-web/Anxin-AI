@@ -99,6 +99,7 @@ class ComplianceService:
             result = await llm_service.chat(prompt, max_tokens=800)
             if result:
                 import json
+
                 try:
                     parsed = json.loads(result)
                     if isinstance(parsed, list):
@@ -141,13 +142,18 @@ class ComplianceService:
     ) -> str:
         """渲染 HTML 合规报告"""
         grade_color = {
-            "A": "#34C759", "B": "#007AFF", "C": "#FF9500", "D": "#FF3B30",
+            "A": "#34C759",
+            "B": "#007AFF",
+            "C": "#FF9500",
+            "D": "#FF3B30",
         }.get(grade, "#8E8E93")
 
         risk_rows = ""
         for item in non_compliant:
             level = item.get("risk_level", "low")
-            level_color = {"high": "#FF3B30", "medium": "#FF9500", "low": "#007AFF"}.get(level, "#8E8E93")
+            level_color = {"high": "#FF3B30", "medium": "#FF9500", "low": "#007AFF"}.get(
+                level, "#8E8E93"
+            )
             level_label = {"high": "高风险", "medium": "中风险", "low": "低风险"}.get(level, "未知")
             risk_rows += f"""
             <tr>
@@ -226,8 +232,11 @@ th {{ background: #F2F2F7; padding: 10px 8px; text-align: left; font-weight: 600
                 for level in ("high", "medium", "low")
             },
             "summary": f"合规评分{'提升' if delta > 0 else '下降' if delta < 0 else '持平'} {abs(delta)} 分"
-                + (f"，高风险项{'减少' if current_risks.get('high', 0) < previous_risks.get('high', 0) else '增加'}"
-                   if current_risks.get('high', 0) != previous_risks.get('high', 0) else ""),
+            + (
+                f"，高风险项{'减少' if current_risks.get('high', 0) < previous_risks.get('high', 0) else '增加'}"
+                if current_risks.get("high", 0) != previous_risks.get("high", 0)
+                else ""
+            ),
         }
 
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 app_authorizations 路由 —— P4-A 通用应用授权框架
 
@@ -41,7 +40,6 @@ from src.services.app_authorization import (
     OAuthProviderRegistry,
     OAuthStateError,
 )
-
 
 router = APIRouter()
 

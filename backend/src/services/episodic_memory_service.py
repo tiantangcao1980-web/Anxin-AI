@@ -32,7 +32,7 @@ class EpisodicMemoryService:
         plan: list[dict[str, Any]],
         final_result: dict[str, Any],
         user_feedback: dict[str, Any] | None = None,
-        metadata: dict[str, Any] | None = None
+        metadata: dict[str, Any] | None = None,
     ) -> str | None:
         """
         添加一条情景记忆
@@ -52,14 +52,14 @@ class EpisodicMemoryService:
         # 序列化复杂对象，确保 Qdrant payload 兼容性
 
         payload = {
-            "memory_id": memory_id, # 显式存储 ID 到 payload
+            "memory_id": memory_id,  # 显式存储 ID 到 payload
             "original_task": task_description,
             "plan_json": json.dumps(plan, ensure_ascii=False),
             "result_summary": result_summary,
             "timestamp": datetime.now().isoformat(),
             "type": "case_execution",
-            "user_rating": 0, # 默认 0 分
-            "user_comment": ""
+            "user_rating": 0,  # 默认 0 分
+            "user_comment": "",
         }
 
         if user_feedback:
@@ -71,16 +71,9 @@ class EpisodicMemoryService:
 
         content_to_vectorize = f"Task: {task_description}\nResult: {result_summary}"
 
-        document = {
-            "id": memory_id,
-            "content": content_to_vectorize,
-            "metadata": payload
-        }
+        document = {"id": memory_id, "content": content_to_vectorize, "metadata": payload}
 
-        count = await self.vector_store.add_documents(
-            self.COLLECTION_NAME,
-            [document]
-        )
+        count = await self.vector_store.add_documents(self.COLLECTION_NAME, [document])
 
         if count > 0:
             logger.info(f"已保存情景记忆: {memory_id}")
@@ -88,10 +81,7 @@ class EpisodicMemoryService:
         return None
 
     async def retrieve_similar_cases(
-        self,
-        task_description: str,
-        top_k: int = 3,
-        score_threshold: float = 0.7
+        self, task_description: str, top_k: int = 3, score_threshold: float = 0.7
     ) -> list[dict[str, Any]]:
         """
         检索相似的历史案件
@@ -105,8 +95,8 @@ class EpisodicMemoryService:
         results = await self.vector_store.search(
             collection_name=self.COLLECTION_NAME,
             query=task_description,
-            top_k=top_k * 2, # 多取一些用于重排序
-            score_threshold=score_threshold
+            top_k=top_k * 2,  # 多取一些用于重排序
+            score_threshold=score_threshold,
         )
 
         memories = []
@@ -126,15 +116,17 @@ class EpisodicMemoryService:
             except Exception:
                 pass
 
-            memories.append({
-                "memory_id": meta.get("memory_id"),
-                "task": meta.get("original_task"),
-                "plan": plan,
-                "result_summary": meta.get("result_summary"),
-                "timestamp": meta.get("timestamp"),
-                "rating": rating,
-                "similarity_score": res.get("score")
-            })
+            memories.append(
+                {
+                    "memory_id": meta.get("memory_id"),
+                    "task": meta.get("original_task"),
+                    "plan": plan,
+                    "result_summary": meta.get("result_summary"),
+                    "timestamp": meta.get("timestamp"),
+                    "rating": rating,
+                    "similarity_score": res.get("score"),
+                }
+            )
 
         # 按 (评分 * 相似度) 排序，优先推荐高分且相似的
         memories.sort(key=lambda x: (x["rating"] or 3) * x["similarity_score"], reverse=True)
@@ -160,9 +152,9 @@ class EpisodicMemoryService:
                 payload={
                     "user_rating": rating,
                     "user_comment": comment,
-                    "last_feedback_at": datetime.now().isoformat()
+                    "last_feedback_at": datetime.now().isoformat(),
                 },
-                points=[point_id]
+                points=[point_id],
             )
             logger.info(f"已更新记忆反馈: {memory_id}, 评分: {rating}")
             return True
@@ -217,9 +209,7 @@ class EpisodicMemoryService:
             "metadata": payload,
         }
 
-        count = await self.vector_store.add_documents(
-            self.COLLECTION_NAME, [document]
-        )
+        count = await self.vector_store.add_documents(self.COLLECTION_NAME, [document])
         if count > 0:
             logger.info(f"已保存需求发掘路径: {path_id}, intent={intent}, rating={final_rating}")
             return path_id
@@ -298,12 +288,8 @@ class EpisodicMemoryService:
             "total_paths": total,
             "avg_rating": round(sum(ratings) / len(ratings), 1) if ratings else 0,
             "avg_rounds": round(sum(rounds) / total, 1),
-            "most_asked_questions": [
-                {"question": q, "count": c} for q, c in most_asked[:10]
-            ],
-            "most_filled_slots": [
-                {"slot": s, "count": c} for s, c in most_filled[:10]
-            ],
+            "most_asked_questions": [{"question": q, "count": c} for q, c in most_asked[:10]],
+            "most_filled_slots": [{"slot": s, "count": c} for s, c in most_filled[:10]],
             "suggested_slot_order": [s for s, _ in most_filled],
         }
 

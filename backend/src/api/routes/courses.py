@@ -2,7 +2,6 @@
 司法学院课程路由
 """
 
-
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
@@ -95,12 +94,14 @@ async def list_courses(
     progress_list = await service.list_user_progress(user.id)
     progress_map = {cp.course_id: cp.progress for cp in progress_list}
 
-    return UnifiedResponse.success(data={
-        "items": [course_to_response(c, progress_map.get(c.id, 0)) for c in courses],
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-    })
+    return UnifiedResponse.success(
+        data={
+            "items": [course_to_response(c, progress_map.get(c.id, 0)) for c in courses],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        }
+    )
 
 
 @router.post("/")
@@ -136,7 +137,9 @@ async def get_course(
     if not course:
         return UnifiedResponse.error(code=404, message="课程不存在")
     progress = await service.get_progress(user.id, course_id)
-    return UnifiedResponse.success(data=course_to_response(course, progress.progress if progress else 0))
+    return UnifiedResponse.success(
+        data=course_to_response(course, progress.progress if progress else 0)
+    )
 
 
 @router.put("/{course_id}")
@@ -148,7 +151,16 @@ async def update_course(
 ) -> dict[str, Any]:
     service = CourseService(db)
     update_data = {}
-    for field in ["title", "instructor", "category", "duration", "lessons", "description", "level", "tags"]:
+    for field in [
+        "title",
+        "instructor",
+        "category",
+        "duration",
+        "lessons",
+        "description",
+        "level",
+        "tags",
+    ]:
         val = getattr(data, field, None)
         if val is not None:
             update_data[field] = val
@@ -173,11 +185,13 @@ async def update_progress(
         progress=data.progress,
         completed_lessons=data.completed_lessons,
     )
-    return UnifiedResponse.success(data={
-        "courseId": course_id,
-        "progress": cp.progress,
-        "completedLessons": cp.completed_lessons or [],
-    })
+    return UnifiedResponse.success(
+        data={
+            "courseId": course_id,
+            "progress": cp.progress,
+            "completedLessons": cp.completed_lessons or [],
+        }
+    )
 
 
 @router.delete("/{course_id}")

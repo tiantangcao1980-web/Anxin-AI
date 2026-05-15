@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """rag_query 路由 —— P13-C VLM 增强 Query 对外 API。
 
 挂载于 ``/api/v1/rag/query`` (在 ``api/routes/__init__.py`` 中 ``include_router``)::
@@ -29,10 +28,8 @@ from src.core.deps import get_current_user_required
 from src.models.user import User
 from src.services.rag.query import (
     MultimodalQueryRequest,
-    MultimodalRetriever,
     VLMQueryEngine,
 )
-
 
 router = APIRouter()
 

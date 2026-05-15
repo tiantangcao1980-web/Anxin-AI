@@ -7,7 +7,7 @@ from datetime import datetime
 import pytest
 
 # Add project root to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.agents.workforce import get_workforce
 from src.services.episodic_memory_service import EpisodicMemoryService
@@ -51,7 +51,7 @@ async def test_comprehensive_flow():
     matched_skills = skill_service.match_skills(case_description)
     print(f"匹配到的技能: {[s.name for s in matched_skills]}")
 
-    has_asset_tracing = any(s.name == 'asset-tracing' for s in matched_skills)
+    has_asset_tracing = any(s.name == "asset-tracing" for s in matched_skills)
     if has_asset_tracing:
         print("[PASS] 成功匹配 'asset-tracing' 技能")
     else:
@@ -67,11 +67,11 @@ async def test_comprehensive_flow():
         duration = (datetime.now() - start_time).total_seconds()
         print(f"[INFO] 任务耗时: {duration:.2f}秒")
         print("\n[RESPONSE] Agent 响应摘要:")
-        final_result = response.get('final_result', '')
+        final_result = response.get("final_result", "")
         print(final_result[:200] + "..." if len(final_result) > 200 else final_result)
 
         # Verify Memory ID
-        memory_id = response.get('memory_id')
+        memory_id = response.get("memory_id")
         if memory_id:
             print(f"[PASS] 成功生成情景记忆 ID: {memory_id}")
         else:
@@ -87,13 +87,15 @@ async def test_comprehensive_flow():
     if memory_id:
         print("\n[TEST 3] 反馈闭环 (Feedback Loop)")
         try:
-            await memory_service.update_feedback(memory_id, rating=5, comment="分析非常透彻，资产线索很有用！")
+            await memory_service.update_feedback(
+                memory_id, rating=5, comment="分析非常透彻，资产线索很有用！"
+            )
             print("[PASS] 反馈提交成功 (Rating: 5)")
 
             # Verify retrieval
             print("   验证记忆检索...")
             similar = await memory_service.retrieve_similar_cases("拖欠货款 资产线索")
-            found = any(m['id'] == memory_id for m in similar)
+            found = any(m["id"] == memory_id for m in similar)
             if found:
                 print(f"[PASS] 成功检索到刚刚存储的记忆 (ID: {memory_id})")
             else:
@@ -120,6 +122,7 @@ async def test_comprehensive_flow():
         print(f"[FAIL] 简报生成失败: {str(e)}")
 
     print("\n[DONE] 全功能测试完成！")
+
 
 if __name__ == "__main__":
     asyncio.run(test_comprehensive_flow())

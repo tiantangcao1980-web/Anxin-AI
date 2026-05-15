@@ -135,25 +135,30 @@ class WebSearchService:
 
         results = []
         for item in data.get("results", []):
-            results.append({
-                "title": item.get("title", ""),
-                "snippet": item.get("content", ""),
-                "url": item.get("url", ""),
-                "relevance": item.get("score", 0.5),
-                "source": "tavily",
-                "published_date": item.get("published_date", ""),
-            })
+            results.append(
+                {
+                    "title": item.get("title", ""),
+                    "snippet": item.get("content", ""),
+                    "url": item.get("url", ""),
+                    "relevance": item.get("score", 0.5),
+                    "source": "tavily",
+                    "published_date": item.get("published_date", ""),
+                }
+            )
 
         # 如果有 Tavily 的 AI 回答，也加入
         answer = data.get("answer")
         if answer:
-            results.insert(0, {
-                "title": "AI 综合分析",
-                "snippet": answer,
-                "url": "",
-                "relevance": 0.95,
-                "source": "tavily_answer",
-            })
+            results.insert(
+                0,
+                {
+                    "title": "AI 综合分析",
+                    "snippet": answer,
+                    "url": "",
+                    "relevance": 0.95,
+                    "source": "tavily_answer",
+                },
+            )
 
         return results
 
@@ -192,13 +197,15 @@ class WebSearchService:
 
         results = []
         for item in data.get("webPages", {}).get("value", []):
-            results.append({
-                "title": item.get("name", ""),
-                "snippet": item.get("snippet", ""),
-                "url": item.get("url", ""),
-                "relevance": 0.6,
-                "source": "bing",
-            })
+            results.append(
+                {
+                    "title": item.get("name", ""),
+                    "snippet": item.get("snippet", ""),
+                    "url": item.get("url", ""),
+                    "relevance": 0.6,
+                    "source": "bing",
+                }
+            )
         return results
 
     async def _search_duckduckgo(
@@ -230,24 +237,28 @@ class WebSearchService:
         # Abstract
         abstract = data.get("Abstract")
         if abstract:
-            results.append({
-                "title": data.get("Heading", query),
-                "snippet": abstract,
-                "url": data.get("AbstractURL", ""),
-                "relevance": 0.7,
-                "source": "duckduckgo",
-            })
+            results.append(
+                {
+                    "title": data.get("Heading", query),
+                    "snippet": abstract,
+                    "url": data.get("AbstractURL", ""),
+                    "relevance": 0.7,
+                    "source": "duckduckgo",
+                }
+            )
 
         # RelatedTopics
         for topic in data.get("RelatedTopics", [])[:max_results]:
             if isinstance(topic, dict) and "Text" in topic:
-                results.append({
-                    "title": topic.get("Text", "")[:100],
-                    "snippet": topic.get("Text", ""),
-                    "url": topic.get("FirstURL", ""),
-                    "relevance": 0.5,
-                    "source": "duckduckgo",
-                })
+                results.append(
+                    {
+                        "title": topic.get("Text", "")[:100],
+                        "snippet": topic.get("Text", ""),
+                        "url": topic.get("FirstURL", ""),
+                        "relevance": 0.5,
+                        "source": "duckduckgo",
+                    }
+                )
 
         return results
 
@@ -283,13 +294,15 @@ class WebSearchService:
 
         results = []
         for i, r in enumerate(data.get("results", [])[:max_results]):
-            results.append({
-                "title": r.get("title", ""),
-                "snippet": r.get("content", ""),
-                "url": r.get("url", ""),
-                "relevance": 1.0 - (i * 0.05),
-                "source": f"searxng:{r.get('engine', '')}",
-            })
+            results.append(
+                {
+                    "title": r.get("title", ""),
+                    "snippet": r.get("content", ""),
+                    "url": r.get("url", ""),
+                    "relevance": 1.0 - (i * 0.05),
+                    "source": f"searxng:{r.get('engine', '')}",
+                }
+            )
         return results
 
     # ========== Open-WebSearch 免费降级 ==========
@@ -322,13 +335,15 @@ class WebSearchService:
 
         results = []
         for i, r in enumerate(data.get("results", [])[:max_results]):
-            results.append({
-                "title": r.get("title", ""),
-                "snippet": r.get("snippet", r.get("description", "")),
-                "url": r.get("url", ""),
-                "relevance": 0.6 - (i * 0.03),
-                "source": f"open_websearch:{r.get('engine', '')}",
-            })
+            results.append(
+                {
+                    "title": r.get("title", ""),
+                    "snippet": r.get("snippet", r.get("description", "")),
+                    "url": r.get("url", ""),
+                    "relevance": 0.6 - (i * 0.03),
+                    "source": f"open_websearch:{r.get('engine', '')}",
+                }
+            )
         return results
 
 

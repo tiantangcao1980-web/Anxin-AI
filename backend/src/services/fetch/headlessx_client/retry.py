@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 HeadlessX 客户端重试策略。
 
@@ -17,7 +16,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
-from typing import Awaitable, Callable, TypeVar
+from collections.abc import Awaitable, Callable
+from typing import TypeVar
 
 from .exceptions import (
     HeadlessXAuthError,
@@ -68,7 +68,7 @@ class RetryConfig:
         """
         if retry_after is not None and retry_after > 0:
             return min(retry_after, self.max_delay)
-        delay = min(self.base_delay * (2 ** attempt), self.max_delay)
+        delay = min(self.base_delay * (2**attempt), self.max_delay)
         # 抖动避免 thundering herd
         jitter_amount = delay * self.jitter * random.random()
         return delay + jitter_amount
@@ -90,7 +90,7 @@ async def with_retry(
     for attempt in range(cfg.max_attempts):
         try:
             return await fn()
-        except NON_RETRYABLE as exc:
+        except NON_RETRYABLE:
             # 立即放弃 — 上层处理
             raise
         except RETRYABLE as exc:

@@ -6,7 +6,11 @@ def test_deduplicate_keeps_highest_relevance_for_same_url():
 
     results = service.deduplicate(
         [
-            {"url": "https://www.court.gov.cn/case?utm_source=news", "title": "低分", "relevance": 0.2},
+            {
+                "url": "https://www.court.gov.cn/case?utm_source=news",
+                "title": "低分",
+                "relevance": 0.2,
+            },
             {"url": "https://court.gov.cn/case", "title": "高分", "relevance": 0.9},
         ]
     )

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P13-C VLM 增强 Query - 基础类型。
 
 定义：
@@ -31,7 +30,7 @@ class Modality(str, Enum):
     SEAL = "seal"  # 公章 / 印鉴
 
     @classmethod
-    def coerce(cls, raw: str | "Modality") -> "Modality":
+    def coerce(cls, raw: str | Modality) -> Modality:
         """将字符串安全转换为枚举值；未知模态降级为 TEXT。"""
         if isinstance(raw, cls):
             return raw
@@ -123,8 +122,7 @@ class VectorSearcher(Protocol):
         query: str,
         top_k: int,
         document_ids: list[str] | None,
-    ) -> list[RetrievedSegment]:
-        ...
+    ) -> list[RetrievedSegment]: ...
 
 
 @runtime_checkable
@@ -139,8 +137,7 @@ class KGBooster(Protocol):
         *,
         query: str,
         segments: list[RetrievedSegment],
-    ) -> dict[str, float]:
-        ...
+    ) -> dict[str, float]: ...
 
 
 @runtime_checkable
@@ -154,8 +151,7 @@ class ModalityExpander(Protocol):
         self,
         *,
         segments: list[RetrievedSegment],
-    ) -> list[RetrievedSegment]:
-        ...
+    ) -> list[RetrievedSegment]: ...
 
 
 @runtime_checkable

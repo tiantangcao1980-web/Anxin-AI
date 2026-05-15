@@ -18,6 +18,7 @@ async def test_signature_flow():
     assert updated_task["status"] == SignStatus.SIGNED.value
     assert len(updated_task["audit_trail"]) == 2
 
+
 @pytest.mark.asyncio
 async def test_contract_steward_check():
     agent = ContractStewardAgent()
@@ -25,14 +26,14 @@ async def test_contract_steward_check():
     # Mock LLM check
     async def mock_chat(msg):
         return '{"alerts": [{"type": "expiration", "message": "Contract expiring soon"}]}'
+
     agent.chat = mock_chat
 
     # 模拟还有10天到期
     metadata = {"expiration_date": "2026-02-15"}
 
-    response = await agent.process({
-        "action": "check_status",
-        "context": {"contract_metadata": metadata}
-    })
+    response = await agent.process(
+        {"action": "check_status", "context": {"contract_metadata": metadata}}
+    )
 
     assert "Contract expiring soon" in response.content

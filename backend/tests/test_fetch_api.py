@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """fetch 路由 4 endpoint 集成测试 — 全部 mock，不发真实网络请求。"""
 
 from __future__ import annotations
@@ -26,16 +25,16 @@ def _mock_ssrf_dns():
 
 
 def _mock_response(url: str, **overrides) -> FetchResponse:
-    base = dict(
-        request=FetchRequest(url=url),
-        status_code=200,
-        headers={},
-        body=b"<html>ok</html>",
-        text="<html>ok</html>",
-        tier_used=FetchTier.L1_HTTP,
-        duration_ms=12,
-        extracted={"_text": "ok"},
-    )
+    base = {
+        "request": FetchRequest(url=url),
+        "status_code": 200,
+        "headers": {},
+        "body": b"<html>ok</html>",
+        "text": "<html>ok</html>",
+        "tier_used": FetchTier.L1_HTTP,
+        "duration_ms": 12,
+        "extracted": {"_text": "ok"},
+    }
     base.update(overrides)
     return FetchResponse(**base)
 
@@ -135,12 +134,15 @@ async def test_get_audit_admin_succeeds(admin_auth_client: AsyncClient) -> None:
         "tier_L3_HEADLESSX": 0,
         "tier_L4_OFFICIAL_API": 0,
     }
-    with patch(
-        "src.api.routes.fetch.fetch_service.get_audit_logs",
-        new=AsyncMock(return_value=fake_records),
-    ), patch(
-        "src.api.routes.fetch.fetch_service.get_audit_stats",
-        new=AsyncMock(return_value=fake_stats),
+    with (
+        patch(
+            "src.api.routes.fetch.fetch_service.get_audit_logs",
+            new=AsyncMock(return_value=fake_records),
+        ),
+        patch(
+            "src.api.routes.fetch.fetch_service.get_audit_stats",
+            new=AsyncMock(return_value=fake_stats),
+        ),
     ):
         resp = await admin_auth_client.get("/api/v1/fetch/audit")
     assert resp.status_code == 200

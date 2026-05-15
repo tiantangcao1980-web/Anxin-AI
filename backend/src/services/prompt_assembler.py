@@ -47,16 +47,22 @@ class PromptAssembler:
         if filled_slots:
             slot_lines = []
             for slot in filled_slots:
-                source = {"input": "用户提供", "profile": "历史记录", "clarification": "补充确认"}.get(
-                    slot.get("source", ""), "用户提供"
+                source = {
+                    "input": "用户提供",
+                    "profile": "历史记录",
+                    "clarification": "补充确认",
+                }.get(slot.get("source", ""), "用户提供")
+                slot_lines.append(
+                    f"  - {slot.get('label', '')}: {slot.get('value', '')}（{source}）"
                 )
-                slot_lines.append(f"  - {slot.get('label', '')}: {slot.get('value', '')}（{source}）")
             context_blocks.append("[已收集的需求信息]\n" + "\n".join(slot_lines))
 
         # 用户画像上下文
         sophistication = profile.get("legal_sophistication", "intermediate")
         if sophistication == "novice":
-            context_blocks.append("[用户特征] 用户可能对法律不太熟悉，请用通俗语言解释，避免过多术语。")
+            context_blocks.append(
+                "[用户特征] 用户可能对法律不太熟悉，请用通俗语言解释，避免过多术语。"
+            )
         elif sophistication == "expert":
             context_blocks.append("[用户特征] 用户是法律专业人士，可直接使用术语和法条引用。")
 
@@ -74,9 +80,7 @@ class PromptAssembler:
         enhanced_prompt = "\n".join(parts)
 
         # === 3. 计算就绪度评分 ===
-        score = self._calculate_readiness(
-            user_input, filled_slots, missing_elements, history
-        )
+        score = self._calculate_readiness(user_input, filled_slots, missing_elements, history)
 
         quality_notes = []
         if filled_slots:
@@ -141,10 +145,18 @@ class PromptAssembler:
                     history_intents.add(kw_group)
 
         # 检测主题跳转（用户历史一直在谈 A，突然切到 B）
-        if current_intents and history_intents and not current_intents.intersection(history_intents):
+        if (
+            current_intents
+            and history_intents
+            and not current_intents.intersection(history_intents)
+        ):
             intent_names = {
-                "contract": "合同相关", "labor": "劳动人事", "litigation": "诉讼",
-                "ip": "知识产权", "drafting": "文书起草", "compliance": "合规",
+                "contract": "合同相关",
+                "labor": "劳动人事",
+                "litigation": "诉讼",
+                "ip": "知识产权",
+                "drafting": "文书起草",
+                "compliance": "合规",
                 "tax": "财税",
             }
             old_topic = "、".join(intent_names.get(i, i) for i in history_intents)
@@ -166,8 +178,25 @@ class PromptAssembler:
 
         # 检测角色矛盾（先说自己是雇主，又说自己是员工）
         role_signals = {
-            "employer": [r"我是老板", r"我是雇主", r"公司方面", r"我是.*HR", r"公司HR", r"人事部", r"想辞退", r"要开除"],
-            "employee": [r"我被.*辞退", r"被公司辞退", r"我的工资", r"我是员工", r"老板不给", r"拖欠我", r"我被开除"],
+            "employer": [
+                r"我是老板",
+                r"我是雇主",
+                r"公司方面",
+                r"我是.*HR",
+                r"公司HR",
+                r"人事部",
+                r"想辞退",
+                r"要开除",
+            ],
+            "employee": [
+                r"我被.*辞退",
+                r"被公司辞退",
+                r"我的工资",
+                r"我是员工",
+                r"老板不给",
+                r"拖欠我",
+                r"我被开除",
+            ],
         }
         current_role = None
         history_role = None

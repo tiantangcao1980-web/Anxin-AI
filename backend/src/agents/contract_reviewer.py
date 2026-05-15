@@ -45,9 +45,12 @@ class ContractReviewAgent(BaseLegalAgent):
                 max_articles=8,
             )
             if rag_context:
-                rag_context = AgentRAGService.build_rag_prompt_section(rag_context, task_type="review")
+                rag_context = AgentRAGService.build_rag_prompt_section(
+                    rag_context, task_type="review"
+                )
         except Exception as e:
             import logging
+
             logging.getLogger(__name__).debug(f"RAG检索跳过: {e}")
 
         # 构建审查提示
@@ -84,10 +87,8 @@ class ContractReviewAgent(BaseLegalAgent):
             content=response,
             reasoning="基于民法典合同编及相关法律法规进行三层系统性审查",
             citations=review_result.get("citations", []),
-            actions=[
-                {"type": "review_complete", "data": review_result}
-            ],
-            metadata=review_result
+            actions=[{"type": "review_complete", "data": review_result}],
+            metadata=review_result,
         )
 
     def _get_type_specific_guide(self, contract_type: str) -> str:
@@ -114,12 +115,12 @@ class ContractReviewAgent(BaseLegalAgent):
         try:
             # 尝试从响应中提取JSON（支持```json包裹的格式）
             # 先尝试 ```json ... ``` 格式
-            code_block = re.search(r'```json\s*([\s\S]*?)\s*```', response)
+            code_block = re.search(r"```json\s*([\s\S]*?)\s*```", response)
             if code_block:
                 result = json.loads(code_block.group(1))
             else:
                 # 直接匹配最外层 JSON 对象
-                json_match = re.search(r'\{[\s\S]*\}', response)
+                json_match = re.search(r"\{[\s\S]*\}", response)
                 if json_match:
                     result = json.loads(json_match.group())
                 else:

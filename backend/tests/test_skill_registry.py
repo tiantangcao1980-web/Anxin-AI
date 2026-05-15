@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 P5-A: SkillRegistry 单元测试
 
@@ -35,7 +34,9 @@ def registry() -> SkillRegistry:
 
 @pytest.fixture
 def skills_dir(tmp_path: Path) -> Path:
-    _write(tmp_path / "contract-review" / "SKILL.md", """
+    _write(
+        tmp_path / "contract-review" / "SKILL.md",
+        """
         ---
         name: contract-review
         description: 合同审查
@@ -47,8 +48,11 @@ def skills_dir(tmp_path: Path) -> Path:
           - lawyer
         ---
         body A
-        """)
-    _write(tmp_path / "doc-summary" / "SKILL.md", """
+        """,
+    )
+    _write(
+        tmp_path / "doc-summary" / "SKILL.md",
+        """
         ---
         name: doc-summary
         description: 文档摘要
@@ -61,8 +65,11 @@ def skills_dir(tmp_path: Path) -> Path:
           - lawyer
         ---
         body B
-        """)
-    _write(tmp_path / "research" / "deep" / "SKILL.md", """
+        """,
+    )
+    _write(
+        tmp_path / "research" / "deep" / "SKILL.md",
+        """
         ---
         name: deep-research
         description: 深度研究
@@ -71,7 +78,8 @@ def skills_dir(tmp_path: Path) -> Path:
           - 深度研究
         ---
         body C
-        """)
+        """,
+    )
     return tmp_path
 
 
@@ -84,20 +92,26 @@ class TestLoadDirectory:
         assert registry.get("deep-research").category == "research"
 
     def test_non_recursive_only_top_level(self, registry: SkillRegistry, tmp_path: Path) -> None:
-        _write(tmp_path / "SKILL.md", """
+        _write(
+            tmp_path / "SKILL.md",
+            """
             ---
             name: top
             description: top-level
             ---
             body
-            """)
-        _write(tmp_path / "child" / "SKILL.md", """
+            """,
+        )
+        _write(
+            tmp_path / "child" / "SKILL.md",
+            """
             ---
             name: child
             description: child
             ---
             body
-            """)
+            """,
+        )
         n = registry.load_directory(tmp_path, recursive=False)
         assert n == 1
         assert "top" in registry
@@ -178,14 +192,17 @@ class TestWatchDirectory:
     """直接调 ``_handle_fs_event`` 模拟事件，无需起 watchdog 线程。"""
 
     def test_modified_event_reloads(self, registry: SkillRegistry, tmp_path: Path) -> None:
-        f = _write(tmp_path / "SKILL.md", """
+        f = _write(
+            tmp_path / "SKILL.md",
+            """
             ---
             name: w
             description: 初始版本
             version: 1.0.0
             ---
             v1
-            """)
+            """,
+        )
         registry.load_directory(tmp_path)
         assert registry.get("w").description == "初始版本"
 
@@ -197,14 +214,17 @@ class TestWatchDirectory:
         registry._watch_handlers.append(cb)
 
         # 改文件 → 触发 modified 事件
-        _write(f, """
+        _write(
+            f,
+            """
             ---
             name: w
             description: 新版本
             version: 1.0.1
             ---
             v2
-            """)
+            """,
+        )
         registry._handle_fs_event("modified", str(f))
 
         assert registry.get("w").description == "新版本"
@@ -212,13 +232,16 @@ class TestWatchDirectory:
         assert events == [("modified", "w")]
 
     def test_deleted_event_removes(self, registry: SkillRegistry, tmp_path: Path) -> None:
-        f = _write(tmp_path / "SKILL.md", """
+        f = _write(
+            tmp_path / "SKILL.md",
+            """
             ---
             name: gone
             description: x
             ---
             body
-            """)
+            """,
+        )
         registry.load_directory(tmp_path)
         assert "gone" in registry
         f.unlink()

@@ -77,7 +77,9 @@ async def test_esignbao_provider_uses_signed_official_headers(monkeypatch):
             return None
 
         async def request(self, method, url, content=None, headers=None):
-            calls.append({"method": method, "url": url, "content": content or b"", "headers": headers or {}})
+            calls.append(
+                {"method": method, "url": url, "content": content or b"", "headers": headers or {}}
+            )
             path = urlparse(url).path
             if path == "/api/v2/signflows/createFlowOneStep":
                 return _FakeResponse({"code": 0, "data": {"flowId": "flow-1"}})
@@ -93,12 +95,16 @@ async def test_esignbao_provider_uses_signed_official_headers(monkeypatch):
                             "flowId": "flow-1",
                             "thirdOrderNo": "contract-1",
                             "flowStatus": "completed",
-                            "signers": [{"accountId": "signer-1", "signerName": "张三", "signStatus": "2"}],
+                            "signers": [
+                                {"accountId": "signer-1", "signerName": "张三", "signStatus": "2"}
+                            ],
                         },
                     }
                 )
             if path == "/v1/signflows/flow-1/documents":
-                return _FakeResponse({"code": 0, "data": {"downloadUrl": "https://esign.example/download.pdf"}})
+                return _FakeResponse(
+                    {"code": 0, "data": {"downloadUrl": "https://esign.example/download.pdf"}}
+                )
             if path == "/v1/signflows/flow-1/revoke":
                 return _FakeResponse({"code": 0, "data": {}})
             raise AssertionError(f"unexpected e签宝 URL: {url}")
@@ -166,7 +172,9 @@ async def test_fadada_provider_uses_fasc_v51_signed_form_calls(monkeypatch):
             if path.endswith("/sign-task/create"):
                 return _FakeResponse({"code": "100000", "data": {"signTaskId": "task-1"}})
             if path.endswith("/sign-task/actor/get-url"):
-                return _FakeResponse({"code": "100000", "data": {"actorSignTaskUrl": "https://fadada.example/sign"}})
+                return _FakeResponse(
+                    {"code": "100000", "data": {"actorSignTaskUrl": "https://fadada.example/sign"}}
+                )
             if path.endswith("/sign-task/app/get-detail"):
                 return _FakeResponse(
                     {
@@ -177,7 +185,11 @@ async def test_fadada_provider_uses_fasc_v51_signed_form_calls(monkeypatch):
                             "signTaskStatus": "completed",
                             "actors": [
                                 {
-                                    "actor": {"actorId": "actor-1", "actorType": "person", "actorName": "李四"},
+                                    "actor": {
+                                        "actorId": "actor-1",
+                                        "actorType": "person",
+                                        "actorName": "李四",
+                                    },
                                     "actorSignStatus": "signed",
                                 }
                             ],
@@ -185,7 +197,9 @@ async def test_fadada_provider_uses_fasc_v51_signed_form_calls(monkeypatch):
                     }
                 )
             if path.endswith("/sign-task/owner/get-download-url"):
-                return _FakeResponse({"code": "100000", "data": {"downloadUrl": "https://fadada.example/file.pdf"}})
+                return _FakeResponse(
+                    {"code": "100000", "data": {"downloadUrl": "https://fadada.example/file.pdf"}}
+                )
             if path.endswith("/sign-task/cancel"):
                 return _FakeResponse({"code": "100000", "data": {}})
             raise AssertionError(f"unexpected 法大大 URL: {url}")

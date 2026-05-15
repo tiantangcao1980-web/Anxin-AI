@@ -1,4 +1,3 @@
-
 from datetime import datetime
 from typing import Any
 
@@ -17,6 +16,7 @@ router = APIRouter()
 # Schemas - 通知
 # ============================================================
 
+
 class NotificationSchema(BaseModel):
     id: str
     type: str
@@ -29,20 +29,24 @@ class NotificationSchema(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class NotificationResponse(BaseModel):
     data: list[NotificationSchema]
     total: int
+
 
 # ============================================================
 # Schemas - 通知偏好
 # ============================================================
 
+
 class PreferenceItem(BaseModel):
-    channel: str       # site, email, wechat, sms
-    event_type: str    # approval, chat, case, system, contract, lawyer
+    channel: str  # site, email, wechat, sms
+    event_type: str  # approval, chat, case, system, contract, lawyer
     enabled: bool
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class PreferenceSchema(BaseModel):
     id: str
@@ -54,15 +58,19 @@ class PreferenceSchema(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class PreferencesUpdateRequest(BaseModel):
     preferences: list[PreferenceItem]
+
 
 class PreferencesResponse(BaseModel):
     data: list[PreferenceSchema]
 
+
 # ============================================================
 # Routes - 通知
 # ============================================================
+
 
 @router.get("/", response_model=NotificationResponse)
 async def get_notifications(
@@ -70,7 +78,7 @@ async def get_notifications(
     unread_only: bool = False,
     event_type: str | None = None,
     current_user: User = Depends(get_current_user_required),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> NotificationResponse:
     """获取当前用户的通知列表，支持按事件类型筛选"""
     notifications = await NotificationService.get_user_notifications(
@@ -83,40 +91,37 @@ async def get_notifications(
 
     return NotificationResponse(
         data=[NotificationSchema.model_validate(notification) for notification in notifications],
-        total=len(notifications)
+        total=len(notifications),
     )
 
 
 @router.get("/unread-count")
 async def get_unread_count(
-    current_user: User = Depends(get_current_user_required),
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user_required), db: AsyncSession = Depends(get_db)
 ) -> dict[str, int]:
     """获取当前用户未读通知总数（轻量接口）"""
     count = await NotificationService.get_unread_count(db, current_user.id)
     return {"count": count}
 
+
 @router.post("/{notification_id}/read", response_model=NotificationSchema)
 async def mark_as_read(
     notification_id: str,
     current_user: User = Depends(get_current_user_required),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> NotificationSchema:
     """
     标记通知为已读
     """
     notification = await NotificationService.mark_as_read(db, notification_id, current_user.id)
     if not notification:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Notification not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found")
     return NotificationSchema.model_validate(notification)
+
 
 @router.post("/read-all", response_model=dict[str, Any])
 async def mark_all_as_read(
-    current_user: User = Depends(get_current_user_required),
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user_required), db: AsyncSession = Depends(get_db)
 ) -> dict[str, Any]:
     """
     标记所有通知为已读
@@ -124,31 +129,30 @@ async def mark_all_as_read(
     count = await NotificationService.mark_all_as_read(db, current_user.id)
     return {"message": "success", "count": count}
 
+
 @router.delete("/{notification_id}", response_model=dict[str, Any])
 async def delete_notification(
     notification_id: str,
     current_user: User = Depends(get_current_user_required),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """
     删除通知
     """
     success = await NotificationService.delete_notification(db, notification_id, current_user.id)
     if not success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Notification not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found")
     return {"message": "success"}
+
 
 # ============================================================
 # Routes - 通知偏好
 # ============================================================
 
+
 @router.get("/preferences", response_model=PreferencesResponse)
 async def get_preferences(
-    current_user: User = Depends(get_current_user_required),
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user_required), db: AsyncSession = Depends(get_db)
 ) -> PreferencesResponse:
     """
     获取当前用户的通知偏好设置
@@ -163,7 +167,7 @@ async def get_preferences(
 async def update_preferences(
     body: PreferencesUpdateRequest,
     current_user: User = Depends(get_current_user_required),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> PreferencesResponse:
     """
     批量更新用户通知偏好设置

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """ContentDirector persona 路由 —— V3 P7-D。
 
 挂载点（在 ``api/routes/__init__.py`` 用 ``prefix="/personas/content"`` 注册）::
@@ -43,7 +42,6 @@ from src.api.routes.schemas.persona_content import (
 )
 from src.core.deps import get_current_user_required
 from src.models.user import User
-
 
 router = APIRouter()
 
@@ -120,7 +118,9 @@ async def wechat_article(
             length=body.length,
         )
     except RuntimeError as exc:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+        ) from exc
     return ArticleDraftOut(**draft.to_dict())
 
 
@@ -149,7 +149,9 @@ async def video_script(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except RuntimeError as exc:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+        ) from exc
     return VideoScriptOut(**script.to_dict())
 
 

@@ -19,7 +19,9 @@ class LLMRouteAuthorizationError(PermissionError):
 
 
 def llm_route_governance_required() -> bool:
-    return bool(settings.LLM_ROUTE_TOKEN_REQUIRED or settings.ENVIRONMENT.lower() in COMMERCIAL_ENVIRONMENTS)
+    return bool(
+        settings.LLM_ROUTE_TOKEN_REQUIRED or settings.ENVIRONMENT.lower() in COMMERCIAL_ENVIRONMENTS
+    )
 
 
 def llm_route_consumer_for_user(user_id: str) -> str:
@@ -83,8 +85,7 @@ async def authorize_llm_route(
     ]
     if missing:
         raise LLMRouteAuthorizationError(
-            "LLM route token required before model call; missing "
-            + ", ".join(sorted(missing))
+            "LLM route token required before model call; missing " + ", ".join(sorted(missing))
         )
 
     from src.services.agent_governance_service import AgentGovernanceService

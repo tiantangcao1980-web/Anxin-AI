@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 App Authorization 模块（P4-A）
 

@@ -65,7 +65,9 @@ async def outsider_client(db_session):
 
 
 @pytest.mark.asyncio
-async def test_contract_attachment_service_lifecycle(db_session, tmp_path: Path, attachment_contract):
+async def test_contract_attachment_service_lifecycle(
+    db_session, tmp_path: Path, attachment_contract
+):
     storage = LocalObjectStorageService(tmp_path)
     service = ContractService(db_session, object_storage=storage)
 
@@ -83,7 +85,9 @@ async def test_contract_attachment_service_lifecycle(db_session, tmp_path: Path,
     assert attachment.file_size == len("补充协议内容".encode())
     assert await storage.get(attachment.object_key) == "补充协议内容".encode()
 
-    listed = await service.list_attachments(attachment_contract.id, org_id=attachment_contract.org_id)
+    listed = await service.list_attachments(
+        attachment_contract.id, org_id=attachment_contract.org_id
+    )
     assert [item.id for item in listed] == [attachment.id]
 
     loaded, content = await service.get_attachment_content(
@@ -108,7 +112,10 @@ async def test_contract_attachment_service_lifecycle(db_session, tmp_path: Path,
     )
     assert deleted.id == attachment.id
     assert await storage.exists(attachment.object_key) is False
-    assert await service.list_attachments(attachment_contract.id, org_id=attachment_contract.org_id) == []
+    assert (
+        await service.list_attachments(attachment_contract.id, org_id=attachment_contract.org_id)
+        == []
+    )
 
 
 @pytest.mark.asyncio
@@ -200,7 +207,9 @@ async def test_contract_attachment_api_blocks_cross_org_access(
     assert outsider_upload.status_code == 200
     assert outsider_upload.json()["code"] == 404
 
-    outsider_list = await outsider_client.get(f"/api/v1/contracts/{attachment_contract.id}/attachments")
+    outsider_list = await outsider_client.get(
+        f"/api/v1/contracts/{attachment_contract.id}/attachments"
+    )
     assert outsider_list.status_code == 200
     assert outsider_list.json()["code"] == 404
 

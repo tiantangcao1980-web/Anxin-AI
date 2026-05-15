@@ -15,6 +15,7 @@ from src.models.base import GUID, Base, TimestampMixin, ValueEnum
 
 class MessageRole(str, enum.Enum):
     """æ¶æ¯è§è²"""
+
     USER = "user"
     ASSISTANT = "assistant"
     SYSTEM = "system"
@@ -39,12 +40,8 @@ class Conversation(Base, TimestampMixin):
     last_message_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # å¤é®
-    user_id: Mapped[str | None] = mapped_column(
-        GUID(), ForeignKey("users.id", ondelete="CASCADE")
-    )
-    case_id: Mapped[str | None] = mapped_column(
-        GUID(), ForeignKey("cases.id", ondelete="SET NULL")
-    )
+    user_id: Mapped[str | None] = mapped_column(GUID(), ForeignKey("users.id", ondelete="CASCADE"))
+    case_id: Mapped[str | None] = mapped_column(GUID(), ForeignKey("cases.id", ondelete="SET NULL"))
 
     # 收藏
     is_starred: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -96,6 +93,4 @@ class Message(Base, TimestampMixin):
     )
 
     # å³ç³»
-    conversation: Mapped["Conversation"] = relationship(
-        "Conversation", back_populates="messages"
-    )
+    conversation: Mapped["Conversation"] = relationship("Conversation", back_populates="messages")

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """ContentDirector persona —— 数据类。
 
 放在独立模块里，方便：
@@ -11,7 +10,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any
-
 
 # ---------------------------------------------------------------------------
 # 品牌档案
@@ -27,7 +25,9 @@ class BrandProfile:
     tagline: str
     primary_color: str  # 形如 "#1E3A8A"
     secondary_colors: list[str] = field(default_factory=list)
-    fonts: dict[str, str] = field(default_factory=dict)  # {"heading": "Inter", "body": "PingFang SC"}
+    fonts: dict[str, str] = field(
+        default_factory=dict
+    )  # {"heading": "Inter", "body": "PingFang SC"}
     tone: str = "专业"  # 专业 / 活泼 / 极简 / 温情 / 硬核
     voice: list[str] = field(default_factory=list)  # 用词正向关键词，例："匠心" / "可靠"
     forbidden_words: list[str] = field(default_factory=list)  # 违禁词（绝对不能出现）

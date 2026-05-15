@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P13-C: ModalityWeightedRanker 单元测试。
 
 覆盖：

@@ -45,8 +45,10 @@ def _reject_local_lawyer_mode(request: Request) -> None:
 
 # ===== 请求/响应模型 =====
 
+
 class CreateConsultationRequest(BaseModel):
     """发起咨询请求"""
+
     description: str = Field(..., min_length=10, max_length=5000, description="问题描述")
     legal_domain: str | None = Field(None, description="法律领域（可选，AI 会自动识别）")
     urgency: str = Field("medium", description="紧急程度: low/medium/high/urgent")
@@ -54,6 +56,7 @@ class CreateConsultationRequest(BaseModel):
 
 class LawyerProfileResponse(BaseModel):
     """律师公开信息（不含敏感数据）"""
+
     id: str
     real_name: str
     license_number: str
@@ -74,12 +77,14 @@ class LawyerProfileResponse(BaseModel):
 
 class CreateDelegationRequest(BaseModel):
     """一键委托"""
+
     title: str = Field(..., min_length=2, max_length=200)
     description: str | None = None
     service_type: str = Field("instant", description="即时咨询/预约咨询/案件委托")
 
 
 # ===== 用户端接口 =====
+
 
 @router.post("/consultations")
 async def create_consultation(
@@ -112,7 +117,9 @@ async def create_consultation(
     await db.commit()
     await db.refresh(consultation)
 
-    logger.info(f"用户 {user.id} 发起咨询请求 {consultation.id}，领域={analysis['domain_label']}，风险={analysis['risk_level']}")
+    logger.info(
+        f"用户 {user.id} 发起咨询请求 {consultation.id}，领域={analysis['domain_label']}，风险={analysis['risk_level']}"
+    )
 
     return {
         "consultation_id": consultation.id,
@@ -211,6 +218,7 @@ async def create_delegation(
 
 # ===== 律师公开接口 =====
 
+
 @router.get("/lawyers")
 async def list_lawyers(
     request: Request,
@@ -239,9 +247,7 @@ async def list_lawyers(
         }
 
     # 通用列表查询
-    query = select(LawyerProfile).where(
-        LawyerProfile.is_verified == True
-    )
+    query = select(LawyerProfile).where(LawyerProfile.is_verified == True)
     if city:
         query = query.where(LawyerProfile.city == city)
     if min_rating > 0:
@@ -284,6 +290,7 @@ async def list_lawyers(
 
 # ===== 入驻律师接口 =====
 
+
 @router.get("/hall")
 async def lawyer_hall(
     user: User = Depends(get_current_user_required),
@@ -291,18 +298,17 @@ async def lawyer_hall(
 ) -> dict[str, Any]:
     """接单大厅 — 入驻律师查看待接单的匿名咨询"""
     # 验证是入驻律师
-    profile = await db.execute(
-        select(LawyerProfile).where(LawyerProfile.user_id == user.id)
-    )
+    profile = await db.execute(select(LawyerProfile).where(LawyerProfile.user_id == user.id))
     lawyer_profile = profile.scalar_one_or_none()
     if not lawyer_profile:
         raise HTTPException(status_code=403, detail="仅入驻律师可访问接单大厅")
 
     # 查询待匹配的咨询（仅展示匿名摘要）
     result = await db.execute(
-        select(Consultation).where(
-            Consultation.status == ConsultationStatus.PENDING.value
-        ).order_by(Consultation.created_at.desc()).limit(50)
+        select(Consultation)
+        .where(Consultation.status == ConsultationStatus.PENDING.value)
+        .order_by(Consultation.created_at.desc())
+        .limit(50)
     )
     consultations = result.scalars().all()
 
@@ -328,9 +334,7 @@ async def accept_consultation(
 ) -> dict[str, str]:
     """律师接单"""
     # 验证是入驻律师
-    profile = await db.execute(
-        select(LawyerProfile).where(LawyerProfile.user_id == user.id)
-    )
+    profile = await db.execute(select(LawyerProfile).where(LawyerProfile.user_id == user.id))
     if not profile.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="仅入驻律师可接单")
 
@@ -354,6 +358,7 @@ async def accept_consultation(
 
 class CreateReviewRequest(BaseModel):
     """提交评价"""
+
     rating: int = Field(..., ge=1, le=5, description="评分 1-5 星")
     content: str | None = Field(None, max_length=2000, description="评价内容")
     tags: list[str] | None = Field(None, description="标签列表")
@@ -364,6 +369,7 @@ class CreateReviewRequest(BaseModel):
 
 class ReplyReviewRequest(BaseModel):
     """律师回复评价"""
+
     content: str = Field(..., min_length=1, max_length=2000, description="回复内容")
 
 
@@ -376,6 +382,7 @@ async def list_lawyer_reviews(
 ) -> dict[str, Any]:
     """获取律师评价列表"""
     from src.services.review_service import ReviewService
+
     service = ReviewService(db)
     data = await service.list_reviews(
         lawyer_profile_id=profile_id,
@@ -394,6 +401,7 @@ async def create_lawyer_review(
 ) -> dict[str, Any]:
     """提交律师评价"""
     from src.services.review_service import ReviewService
+
     service = ReviewService(db)
     try:
         review = await service.create_review(
@@ -424,6 +432,7 @@ async def reply_to_review(
 ) -> dict[str, Any]:
     """律师回复评价"""
     from src.services.review_service import ReviewService
+
     service = ReviewService(db)
     try:
         review = await service.reply_to_review(
@@ -449,6 +458,7 @@ async def get_lawyer_review_stats(
 ) -> dict[str, Any]:
     """获取律师评价统计"""
     from src.services.review_service import ReviewService
+
     service = ReviewService(db)
     data = await service.get_review_stats(lawyer_profile_id=profile_id)
     return data

@@ -4,7 +4,6 @@
 方案管理 / 订阅 / 退款 / 报表
 """
 
-
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
@@ -32,7 +31,9 @@ router = APIRouter(prefix="/billing", tags=["计费系统"])
 class CreatePlanRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=100, description="方案名称")
     code: str = Field(
-        ..., min_length=1, max_length=50,
+        ...,
+        min_length=1,
+        max_length=50,
         pattern=r"^[a-z][a-z0-9_]*$",
         description="方案代码（小写字母开头，仅含小写字母/数字/下划线）",
     )
@@ -55,9 +56,7 @@ class CreatePlanRequest(BaseModel):
 class UpdatePlanRequest(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=100)
     description: str | None = Field(None, max_length=1000)
-    billing_mode: str | None = Field(
-        None, pattern=r"^(per_consultation|monthly|yearly|hourly)$"
-    )
+    billing_mode: str | None = Field(None, pattern=r"^(per_consultation|monthly|yearly|hourly)$")
     base_price: float | None = Field(None, ge=0)
     original_price: float | None = Field(None, ge=0)
     features: list[dict[str, Any]] | None = None
@@ -156,7 +155,11 @@ async def create_subscription(
     """创建订阅"""
     service = SubscriptionService(db)
     target_org_id = req.org_id or user.org_id
-    if req.org_id and str(req.org_id) != str(user.org_id) and user.role not in {"super_admin", "admin"}:
+    if (
+        req.org_id
+        and str(req.org_id) != str(user.org_id)
+        and user.role not in {"super_admin", "admin"}
+    ):
         return UnifiedResponse.error(403, "无权为其他组织创建订阅")
     try:
         data = await service.create_subscription(
@@ -259,6 +262,7 @@ async def list_refunds(
 
     # 管理员可看全部，普通用户只看自己的
     from src.core.deps import has_permission
+
     is_admin = has_permission(user.role, Permission.MANAGE_REFUNDS)
     user_id = None if is_admin else user.id
 
@@ -327,10 +331,12 @@ async def get_revenue_report(
     sub_service = SubscriptionService(db)
     sub_stats = await sub_service.get_subscription_stats()
 
-    return UnifiedResponse.success({
-        "subscription_stats": sub_stats,
-        "refund_stats": refund_stats,
-    })
+    return UnifiedResponse.success(
+        {
+            "subscription_stats": sub_stats,
+            "refund_stats": refund_stats,
+        }
+    )
 
 
 @router.get("/reports/subscriptions")
@@ -359,12 +365,14 @@ async def get_my_features(
     service = SubscriptionService(db)
     features = await service.get_effective_features(user.id, client_type)
     sub = await service.get_active_by_client(user.id, client_type)
-    return UnifiedResponse.success({
-        "features": features,
-        "subscription_status": sub.status if sub else "free",
-        "trial_ends_at": sub.trial_ends_at.isoformat() if sub and sub.trial_ends_at else None,
-        "client_type": client_type,
-    })
+    return UnifiedResponse.success(
+        {
+            "features": features,
+            "subscription_status": sub.status if sub else "free",
+            "trial_ends_at": sub.trial_ends_at.isoformat() if sub and sub.trial_ends_at else None,
+            "client_type": client_type,
+        }
+    )
 
 
 @router.get("/v2/can-access")
@@ -405,10 +413,12 @@ async def create_trial_subscription(
     if not sub:
         return UnifiedResponse.error(code=409, message="您已有活跃订阅或试用计划未配置")
     await db.commit()
-    return UnifiedResponse.success({
-        "message": "试用订阅已创建，享受 3 天云端体验！",
-        "trial_ends_at": sub.trial_ends_at.isoformat() if sub.trial_ends_at else None,
-    })
+    return UnifiedResponse.success(
+        {
+            "message": "试用订阅已创建，享受 3 天云端体验！",
+            "trial_ends_at": sub.trial_ends_at.isoformat() if sub.trial_ends_at else None,
+        }
+    )
 
 
 class V2SubscribeRequest(BaseModel):
@@ -437,39 +447,44 @@ async def create_v2_subscription(
     # 检查是否已有活跃订阅
     existing = await service.get_active_by_client(user.id, body.client_type)
     if existing and existing.status == "active":
-        return UnifiedResponse.error(code=409, message="您在该客户端已有活跃订阅，请先取消或等待到期")
+        return UnifiedResponse.error(
+            code=409, message="您在该客户端已有活跃订阅，请先取消或等待到期"
+        )
 
     # 查找方案
     from src.models.billing import BillingPlan
+
     plan = await db.get(BillingPlan, body.plan_id)
     if not plan or not plan.is_active:
         return UnifiedResponse.error(code=404, message="方案不存在或已下架")
 
     # 校验 client_type 匹配
-    plan_client = getattr(plan, 'client_type', 'needer') or 'needer'
-    if plan_client != 'both' and plan_client != body.client_type:
+    plan_client = getattr(plan, "client_type", "needer") or "needer"
+    if plan_client != "both" and plan_client != body.client_type:
         return UnifiedResponse.error(code=400, message="该方案不适用于您选择的客户端类型")
 
     # 计算金额
     if body.billing_cycle == "yearly":
-        amount = (getattr(plan, 'base_price', 0) or 0) * 12 * 0.8  # 年付 8 折
+        amount = (getattr(plan, "base_price", 0) or 0) * 12 * 0.8  # 年付 8 折
     else:
-        amount = getattr(plan, 'base_price', 0) or 0
+        amount = getattr(plan, "base_price", 0) or 0
 
     # 创建订阅
     result = await service.create_subscription(
         user_id=user.id,
         plan_id=body.plan_id,
-        org_id=getattr(user, 'org_id', None),
+        org_id=getattr(user, "org_id", None),
         client_type=body.client_type,
     )
 
     sub_data = result.get("subscription", {})
     sub_id = sub_data.get("id")
 
-    return UnifiedResponse.success(data={
-        "subscription_id": sub_id,
-        "payment_order": result.get("payment_order"),
-        "amount": amount,
-        "message": f"订阅创建成功，请完成 ¥{amount:.0f} 的支付",
-    })
+    return UnifiedResponse.success(
+        data={
+            "subscription_id": sub_id,
+            "payment_order": result.get("payment_order"),
+            "amount": amount,
+            "message": f"订阅创建成功，请完成 ¥{amount:.0f} 的支付",
+        }
+    )

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Amazon SP-API mock source 测试（P6-D）。
 
 验证 mock 阶段的契约稳定：
@@ -13,7 +12,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -38,9 +37,7 @@ from src.services.fetch.sources.ecommerce.base import (  # noqa: E402
 @pytest.mark.asyncio
 async def test_search_products_returns_5_mock():
     src = AmazonSPEcommerceSource()
-    results = await src.search_products(
-        ProductSearchQuery(keyword="earbuds", limit=20)
-    )
+    results = await src.search_products(ProductSearchQuery(keyword="earbuds", limit=20))
     assert len(results) == 5
     asins = {p.sku for p in results}
     assert asins == {f"B0CMOCK00{i}" for i in range(1, 6)}
@@ -49,9 +46,7 @@ async def test_search_products_returns_5_mock():
 @pytest.mark.asyncio
 async def test_search_products_full_fields_present():
     src = AmazonSPEcommerceSource()
-    results = await src.search_products(
-        ProductSearchQuery(keyword="x", limit=20)
-    )
+    results = await src.search_products(ProductSearchQuery(keyword="x", limit=20))
     p = results[0]
     assert p.source == "amazon_sp"
     assert p.sku.startswith("B0CMOCK")
@@ -68,9 +63,7 @@ async def test_search_products_full_fields_present():
 @pytest.mark.asyncio
 async def test_search_products_respects_limit():
     src = AmazonSPEcommerceSource()
-    results = await src.search_products(
-        ProductSearchQuery(keyword="x", limit=2)
-    )
+    results = await src.search_products(ProductSearchQuery(keyword="x", limit=2))
     assert len(results) == 2
 
 
@@ -90,7 +83,7 @@ async def test_list_orders_returns_three_with_status_diversity():
     src = AmazonSPEcommerceSource()
     orders = await src.list_orders(
         oauth_token="lwa_token_xxx",
-        since=datetime(2026, 4, 1, tzinfo=timezone.utc),
+        since=datetime(2026, 4, 1, tzinfo=UTC),
         limit=50,
     )
     assert len(orders) == 3

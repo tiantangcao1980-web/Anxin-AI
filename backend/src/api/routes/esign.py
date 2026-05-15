@@ -85,7 +85,11 @@ def _get_provider_or_503() -> ESignProvider:
 def _esign_contract_audit_value(contract: Contract) -> dict[str, object | None]:
     return {
         "contract_id": contract.id,
-        "status": contract.status.value if isinstance(contract.status, ContractStatus) else str(contract.status),
+        "status": (
+            contract.status.value
+            if isinstance(contract.status, ContractStatus)
+            else str(contract.status)
+        ),
         "flow_id": contract.esign_flow_id,
         "provider": contract.esign_provider,
         "org_id": str(contract.org_id) if contract.org_id else None,
@@ -110,11 +114,13 @@ async def _parse_webhook_payload(request: Request, body: bytes) -> dict[str, Any
         raise ValueError("webhook body must be a JSON object")
     return payload
 
+
 # ========== 请求/响应模型 ==========
 
 
 class SignerInput(BaseModel):
     """创建签署流程时的签署人输入"""
+
     name: str = Field(..., description="签署人姓名/企业名称")
     id_number: str | None = Field(None, description="身份证号/统一社会信用代码")
     mobile: str | None = Field(None, description="手机号码")
@@ -125,6 +131,7 @@ class SignerInput(BaseModel):
 
 class CreateFlowRequest(BaseModel):
     """创建签署流程请求"""
+
     contract_id: str = Field(..., description="合同ID")
     title: str = Field(..., description="签署流程标题")
     signers: list[SignerInput] = Field(..., min_length=1, description="签署人列表")
@@ -134,6 +141,7 @@ class CreateFlowRequest(BaseModel):
 
 class FlowResponse(BaseModel):
     """签署流程响应"""
+
     flow_id: str
     contract_id: str
     status: str
@@ -144,6 +152,7 @@ class FlowResponse(BaseModel):
 
 class FlowStatusResponse(BaseModel):
     """签署流程状态响应"""
+
     flow_id: str
     contract_id: str
     status: str
@@ -155,6 +164,7 @@ class FlowStatusResponse(BaseModel):
 
 class SignUrlResponse(BaseModel):
     """签署链接响应"""
+
     flow_id: str
     signer_id: str
     sign_url: str
@@ -162,6 +172,7 @@ class SignUrlResponse(BaseModel):
 
 class WebhookPayload(BaseModel):
     """Webhook 回调载荷（通用格式，各提供商格式不同）"""
+
     model_config = ConfigDict(populate_by_name=True)
 
     flow_id: str | None = None
@@ -203,14 +214,16 @@ async def create_sign_flow(
     # 构造签署人列表
     signers = []
     for s in req.signers:
-        signers.append(SignerInfo(
-            name=s.name,
-            id_number=s.id_number,
-            mobile=s.mobile,
-            email=s.email,
-            sign_type=SignType(s.sign_type),
-            sign_order=s.sign_order,
-        ))
+        signers.append(
+            SignerInfo(
+                name=s.name,
+                id_number=s.id_number,
+                mobile=s.mobile,
+                email=s.email,
+                sign_type=SignType(s.sign_type),
+                sign_order=s.sign_order,
+            )
+        )
 
     provider = _get_provider_or_503()
     try:
@@ -291,11 +304,17 @@ async def list_flows(
     """列出签署流程"""
     org_id = _require_user_org_id(user)
     provider = _get_provider_or_503()
-    contract_query = select(Contract).where(Contract.org_id == org_id, Contract.esign_flow_id.is_not(None))
+    contract_query = select(Contract).where(
+        Contract.org_id == org_id, Contract.esign_flow_id.is_not(None)
+    )
     if contract_id:
         contract_query = contract_query.where(Contract.id == contract_id)
     contract_result = await db.execute(contract_query)
-    allowed_flows = {contract.esign_flow_id for contract in contract_result.scalars().all() if contract.esign_flow_id}
+    allowed_flows = {
+        contract.esign_flow_id
+        for contract in contract_result.scalars().all()
+        if contract.esign_flow_id
+    }
 
     if isinstance(provider, MockESignProvider):
         flows: list[dict[str, Any]] = []
@@ -307,15 +326,17 @@ async def list_flows(
                 continue
             if status_filter and flow_data["status"] != status_filter:
                 continue
-            flows.append({
-                "flow_id": flow_data["flow_id"],
-                "contract_id": flow_data["contract_id"],
-                "title": flow_data.get("title", ""),
-                "status": flow_data["status"],
-                "created_at": flow_data["created_at"],
-                "expires_at": flow_data.get("expires_at"),
-                "signer_count": len(flow_data.get("signers_status", [])),
-            })
+            flows.append(
+                {
+                    "flow_id": flow_data["flow_id"],
+                    "contract_id": flow_data["contract_id"],
+                    "title": flow_data.get("title", ""),
+                    "status": flow_data["status"],
+                    "created_at": flow_data["created_at"],
+                    "expires_at": flow_data.get("expires_at"),
+                    "signer_count": len(flow_data.get("signers_status", [])),
+                }
+            )
         return {"flows": flows, "total": len(flows)}
 
     # 其他提供商暂未实现列表接口
@@ -362,14 +383,16 @@ async def get_flow_status(
 
     signers: list[dict[str, str | None]] = []
     for s in result.signers_status:
-        signers.append({
-            "signer_id": s.signer_id,
-            "name": s.name,
-            "sign_type": s.sign_type.value,
-            "status": s.status.value,
-            "signed_at": s.signed_at.isoformat() if s.signed_at else None,
-            "reject_reason": s.reject_reason,
-        })
+        signers.append(
+            {
+                "signer_id": s.signer_id,
+                "name": s.name,
+                "sign_type": s.sign_type.value,
+                "status": s.status.value,
+                "signed_at": s.signed_at.isoformat() if s.signed_at else None,
+                "reject_reason": s.reject_reason,
+            }
+        )
 
     return FlowStatusResponse(
         flow_id=result.flow_id,

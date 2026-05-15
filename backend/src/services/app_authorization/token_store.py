@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TokenStore — Fernet 加密的 token 持久化工具（P4-A）
 
@@ -76,7 +75,7 @@ class TokenStore:
     # 工厂
     # ------------------------------------------------------------------
     @classmethod
-    def from_settings(cls) -> "TokenStore":
+    def from_settings(cls) -> TokenStore:
         """从 ``core.config.settings`` 读取 key 并构造实例。
 
         支持单 key 或多 key（逗号分隔，用于 key rotation）。
@@ -110,9 +109,7 @@ class TokenStore:
         AppAuthorization.status = error。
         """
         if not isinstance(blob, (bytes, bytearray, memoryview)):
-            raise TypeError(
-                f"decrypt 入参必须是 bytes-like，得到 {type(blob).__name__}"
-            )
+            raise TypeError(f"decrypt 入参必须是 bytes-like，得到 {type(blob).__name__}")
         return self._fernet.decrypt(bytes(blob)).decode("utf-8")
 
     def encrypt_optional(self, token: str | None) -> bytes | None:

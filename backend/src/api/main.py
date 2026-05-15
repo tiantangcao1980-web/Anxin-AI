@@ -31,6 +31,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # P19-A: Sentry 初始化（DSN 缺失则 noop）
     try:
         from src.services.monitoring import setup_sentry
+
         setup_sentry()
     except Exception as e:
         logger.warning(f"Sentry 初始化失败（不影响启动）: {e}")
@@ -95,6 +96,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # 关闭图数据库连接
     try:
         from src.services.graph_service import graph_service
+
         await graph_service.close()
     except Exception as e:
         logger.warning(f"关闭图数据库连接失败: {e}")
@@ -131,30 +133,35 @@ if settings.ANTIBOT_ENABLED:
     # Phase 3: 风控评分（最后执行，综合所有信号）— 最先注册
     if settings.ANTIBOT_RISK_SCORING_ENABLED:
         from src.middleware.risk_scoring import RiskScoringMiddleware
+
         app.add_middleware(RiskScoringMiddleware)
         logger.info("反Bot: 风控评分引擎已启用")
 
     # Phase 2: 客户端情报
     if settings.ANTIBOT_FINGERPRINT_ENABLED:
         from src.middleware.client_intel import ClientIntelMiddleware
+
         app.add_middleware(ClientIntelMiddleware)
         logger.info("反Bot: 客户端情报分析已启用")
 
     # Phase 1: HMAC 签名
     if settings.ANTIBOT_HMAC_ENABLED:
         from src.middleware.hmac_signature import HMACSignatureMiddleware
+
         app.add_middleware(HMACSignatureMiddleware)
         logger.info(f"反Bot: HMAC 签名验证已启用 (enforce={settings.ANTIBOT_HMAC_ENFORCE})")
 
     # Phase 1: WAF（较早执行，拦截明显攻击）
     if settings.ANTIBOT_WAF_ENABLED:
         from src.middleware.waf import WAFMiddleware
+
         app.add_middleware(WAFMiddleware)
         logger.info(f"反Bot: WAF 已启用 (log_only={settings.ANTIBOT_WAF_LOG_ONLY})")
 
 
 # ===== P19-A 可观测中间件（最先注册 → 最先执行 → 包住其他所有 middleware） =====
 from src.middleware.observability import ObservabilityMiddleware
+
 app.add_middleware(ObservabilityMiddleware)
 
 
@@ -173,12 +180,15 @@ async def add_security_headers(
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
+
 # 注册路由
 app.include_router(api_router, prefix="/api/v1")
 
 
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
     """请求参数验证失败 — 返回可读的中文错误"""
     errors = []
     for err in exc.errors():
@@ -220,12 +230,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 @app.get("/")
 async def root() -> dict[str, str]:
     """根路径"""
-    return {
-        "name": "Anxin AI",
-        "version": "0.1.0",
-        "status": "running",
-        "docs": "/docs"
-    }
+    return {"name": "Anxin AI", "version": "0.1.0", "status": "running", "docs": "/docs"}
 
 
 app.include_router(health_router)

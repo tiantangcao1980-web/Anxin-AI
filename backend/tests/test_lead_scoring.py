@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """LeadScoring 5 因子算法边界测试 (P7-C)。
 
 覆盖：
@@ -12,8 +11,6 @@
 from __future__ import annotations
 
 import math
-
-import pytest
 
 from src.agents.personas.lead_hunter import LeadScoring
 from src.agents.personas.sales_models import Contact, Lead, LeadDiscoveryCriteria

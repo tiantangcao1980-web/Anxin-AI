@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 class DocumentType(str, enum.Enum):
     """ææ¡£ç±»å"""
+
     CONTRACT = "contract"  # åå
     AGREEMENT = "agreement"  # åè®®
     LEGAL_OPINION = "legal_opinion"  # æ³å¾æè§ä¹?
@@ -65,18 +66,14 @@ class Document(Base, TimestampMixin):
     org_id: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("organizations.id", ondelete="CASCADE")
     )
-    case_id: Mapped[str | None] = mapped_column(
-        GUID(), ForeignKey("cases.id", ondelete="SET NULL")
-    )
+    case_id: Mapped[str | None] = mapped_column(GUID(), ForeignKey("cases.id", ondelete="SET NULL"))
     created_by: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("users.id", ondelete="SET NULL")
     )
 
     # å³ç³»
     case: Mapped[Optional["Case"]] = relationship("Case", back_populates="documents")
-    created_by_user: Mapped[Optional["User"]] = relationship(
-        "User", back_populates="documents"
-    )
+    created_by_user: Mapped[Optional["User"]] = relationship("User", back_populates="documents")
     versions: Mapped[list["DocumentVersion"]] = relationship(
         "DocumentVersion", back_populates="document", cascade="all, delete-orphan"
     )

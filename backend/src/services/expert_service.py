@@ -2,7 +2,6 @@
 律师精英服务
 """
 
-
 from typing import Any
 
 from sqlalchemy import func, select

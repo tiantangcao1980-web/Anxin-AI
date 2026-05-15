@@ -81,12 +81,14 @@ async def list_experts(
         page=page,
         page_size=page_size,
     )
-    return UnifiedResponse.success(data={
-        "items": [expert_to_response(e) for e in experts],
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-    })
+    return UnifiedResponse.success(
+        data={
+            "items": [expert_to_response(e) for e in experts],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        }
+    )
 
 
 @router.post("/")

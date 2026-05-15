@@ -50,6 +50,7 @@ def _commercial_environment() -> bool:
 
 class OrderResponse(BaseModel):
     """订单响应"""
+
     id: str
     order_type: str
     amount: float
@@ -69,6 +70,7 @@ class OrderResponse(BaseModel):
 
 class OrderListResponse(BaseModel):
     """订单列表响应"""
+
     items: list[OrderResponse]
     total: int
 
@@ -104,6 +106,7 @@ def _payment_audit_value(order: PaymentOrderModel) -> dict[str, object]:
         "provider": order.payment_provider,
         "related_id": order.related_id,
     }
+
 
 # ========== 接口 ==========
 
@@ -258,7 +261,9 @@ async def refund_order(
 ) -> OrderResponse:
     """对已支付的订单发起退款。"""
     previous_order = await db.get(PaymentOrderModel, order_id)
-    previous_status = previous_order.status if previous_order and previous_order.user_id == user.id else None
+    previous_status = (
+        previous_order.status if previous_order and previous_order.user_id == user.id else None
+    )
     service = RefundService(db)
     try:
         refund = await service.refund(
@@ -456,7 +461,9 @@ async def alipay_webhook(
         ):
             raise HTTPException(status_code=403, detail="支付宝回调签名验证失败")
 
-    idempotency_key = str(payload.get("notify_id") or build_webhook_idempotency_key(scope, payload=payload, body=body))
+    idempotency_key = str(
+        payload.get("notify_id") or build_webhook_idempotency_key(scope, payload=payload, body=body)
+    )
     try:
         await handle_verified_webhook(
             db,

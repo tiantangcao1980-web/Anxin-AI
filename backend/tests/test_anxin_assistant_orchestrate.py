@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P9-A: AnxinAssistantAgent.orchestrate 三种执行模式测试。
 
 覆盖：
@@ -234,11 +233,10 @@ class TestBranching:
         _ensure_stub("ecommerce_assistant", "跨境电商助手", "走 B")
 
         # 让条件判定（assigned=anxin_assistant）返回选中 market_researcher 的 JSON
-        cond_json = (
-            '```json\n{"chosen_branch":"market_researcher","reason":"是大公司"}\n```'
-        )
-        with patch.object(agent, "chat", new=AsyncMock(return_value=cond_json)), patch.object(
-            agent, "_summarize", new=AsyncMock(return_value="# 总结")
+        cond_json = '```json\n{"chosen_branch":"market_researcher","reason":"是大公司"}\n```'
+        with (
+            patch.object(agent, "chat", new=AsyncMock(return_value=cond_json)),
+            patch.object(agent, "_summarize", new=AsyncMock(return_value="# 总结")),
         ):
             plan = ExecutionPlan.new(
                 user_query="如果是大公司就调研，否则议价",
@@ -279,9 +277,10 @@ class TestBranching:
         _ensure_stub("market_researcher", "市场研究员", "走 A")
 
         # 条件判定 chat 抛错
-        with patch.object(
-            agent, "chat", new=AsyncMock(side_effect=RuntimeError("cond err"))
-        ), patch.object(agent, "_summarize", new=AsyncMock(return_value="x")):
+        with (
+            patch.object(agent, "chat", new=AsyncMock(side_effect=RuntimeError("cond err"))),
+            patch.object(agent, "_summarize", new=AsyncMock(return_value="x")),
+        ):
             plan = ExecutionPlan.new(
                 user_query="如果...",
                 subtasks=[

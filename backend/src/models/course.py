@@ -15,11 +15,14 @@ if TYPE_CHECKING:
 
 class Course(Base, TimestampMixin):
     """课程表"""
+
     __tablename__ = "courses"
 
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     instructor: Mapped[str | None] = mapped_column(String(100))
-    category: Mapped[str] = mapped_column(String(50), default="regulation")  # regulation, case_study, practice, exam
+    category: Mapped[str] = mapped_column(
+        String(50), default="regulation"
+    )  # regulation, case_study, practice, exam
     duration: Mapped[str | None] = mapped_column(String(50))
     lessons: Mapped[int] = mapped_column(Integer, default=0)
     description: Mapped[str | None] = mapped_column(Text)
@@ -38,6 +41,7 @@ class Course(Base, TimestampMixin):
 
 class CourseProgress(Base, TimestampMixin):
     """课程学习进度表"""
+
     __tablename__ = "course_progress"
 
     user_id: Mapped[str] = mapped_column(

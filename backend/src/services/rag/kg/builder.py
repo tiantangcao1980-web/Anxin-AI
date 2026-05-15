@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 :class:`LegalKGBuilder` —— 法律领域 KG 构建 orchestration
 
@@ -19,7 +18,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from loguru import logger
 
@@ -66,9 +66,7 @@ class LegalKGBuilder(KGBuilder):
         relations = self.mapper.map(entities, seg_list)
 
         # 3. 层级链
-        chain_entities, chain_relations = self.chain_builder.build(
-            document_id, structure, seg_list
-        )
+        chain_entities, chain_relations = self.chain_builder.build(document_id, structure, seg_list)
         entities = entities + chain_entities
         relations = relations + chain_relations
 

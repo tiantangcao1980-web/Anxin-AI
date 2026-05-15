@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 P16-C webhook fail-closed 测试
 
@@ -19,7 +18,6 @@ import hashlib
 import hmac
 import time
 from typing import Any
-from unittest.mock import AsyncMock
 
 import pytest
 
@@ -177,7 +175,7 @@ def _make_signed_payload(secret: str, scope_unused: str = "") -> tuple[bytes, st
     """构造一对 (body, signature, timestamp)，让 WebhookSecurity.verify 能通过。"""
     body = b'{"event":"order.paid"}'
     ts = str(int(time.time()))
-    payload = f"{ts}.".encode("utf-8") + body
+    payload = f"{ts}.".encode() + body
     sig = hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
     return body, sig, ts
 

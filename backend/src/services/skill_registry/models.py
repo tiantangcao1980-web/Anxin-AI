@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Skill 运行时对象（dataclass）
 

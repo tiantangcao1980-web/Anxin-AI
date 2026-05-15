@@ -18,8 +18,10 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/legal-backend
-  FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/legal-frontend
+  # 镜像命名与仓库 Anxin-AI 对齐；旧 legal-backend / legal-frontend 包属于
+  # 已归档的仓库，新仓库无写入权限，会以 403 Forbidden 失败。
+  BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/anxin-ai-backend
+  FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/anxin-ai-frontend
 
 jobs:
   publish:

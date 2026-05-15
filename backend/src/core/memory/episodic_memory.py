@@ -37,7 +37,7 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
         "document_generation": "文档生成",
         "legal_consultation": "法律咨询",
         "due_diligence": "尽职调查",
-        "clause_optimization": "条款优化"
+        "clause_optimization": "条款优化",
     }
 
     def __init__(self, vector_store: Any = None, db: Any = None) -> None:
@@ -80,7 +80,7 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
         result_summary: str,
         user_rating: int = 0,
         user_feedback: str = "",
-        metadata: dict[str, Any] | None = None
+        metadata: dict[str, Any] | None = None,
     ) -> str | None:
         """
         添加情景记忆 (案例)
@@ -124,12 +124,12 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
                 "is_successful": is_successful,
                 "execution_time": execution_time,
                 "agent_count": len(agents_involved),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             },
             "is_successful": is_successful,
             "learned_patterns": [],  # 后续由经验提取器填充
             "created_at": datetime.now().isoformat(),
-            "accessed_at": datetime.now().isoformat()
+            "accessed_at": datetime.now().isoformat(),
         }
 
         # 添加到向量存储
@@ -137,28 +137,21 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
         document: dict[str, Any] = {
             "id": episode_id,
             "content": content_to_vectorize,
-            "metadata": payload
+            "metadata": payload,
         }
 
-        count = await vector_store.add_documents(
-            self.COLLECTION_NAME,
-            [document]
-        )
+        count = await vector_store.add_documents(self.COLLECTION_NAME, [document])
 
         if count > 0:
             self._log_info(
-                f"已添加情景记忆: {episode_id} "
-                f"(评分: {user_rating}, 成功: {is_successful})"
+                f"已添加情景记忆: {episode_id} " f"(评分: {user_rating}, 成功: {is_successful})"
             )
             return episode_id
 
         return None
 
     async def search(
-        self,
-        query: str,
-        top_k: int = 5,
-        filters: dict[str, Any] | None = None
+        self, query: str, top_k: int = 5, filters: dict[str, Any] | None = None
     ) -> list[dict[str, Any]]:
         """
         搜索情景记忆
@@ -176,10 +169,7 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
 
         # 执行向量搜索
         results = await vector_store.search(
-            collection_name=self.COLLECTION_NAME,
-            query=query,
-            top_k=top_k * 2,
-            score_threshold=0.6
+            collection_name=self.COLLECTION_NAME, query=query, top_k=top_k * 2, score_threshold=0.6
         )
 
         # 过滤和排序
@@ -195,7 +185,10 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
                     continue
 
                 # 成功状态过滤
-                if "is_successful" in filters and meta.get("is_successful") != filters["is_successful"]:
+                if (
+                    "is_successful" in filters
+                    and meta.get("is_successful") != filters["is_successful"]
+                ):
                     continue
 
                 # 最低评分过滤
@@ -214,30 +207,32 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
             except Exception:
                 pass
 
-            episodes.append({
-                "episode_id": meta.get("episode_id"),
-                "session_id": meta.get("session_id"),
-                "task_description": meta.get("task_description"),
-                "task_type": meta.get("task_type"),
-                "agents_involved": meta.get("agents_involved", []),
-                "execution_trace": execution_trace,
-                "reasoning_chain": meta.get("reasoning_chain", []),
-                "result_summary": meta.get("result_summary"),
-                "user_rating": meta.get("user_rating", 0),
-                "user_feedback": meta.get("user_feedback", ""),
-                "success_metrics": meta.get("success_metrics", {}),
-                "is_successful": meta.get("is_successful", False),
-                "similarity_score": res.get("score")
-            })
+            episodes.append(
+                {
+                    "episode_id": meta.get("episode_id"),
+                    "session_id": meta.get("session_id"),
+                    "task_description": meta.get("task_description"),
+                    "task_type": meta.get("task_type"),
+                    "agents_involved": meta.get("agents_involved", []),
+                    "execution_trace": execution_trace,
+                    "reasoning_chain": meta.get("reasoning_chain", []),
+                    "result_summary": meta.get("result_summary"),
+                    "user_rating": meta.get("user_rating", 0),
+                    "user_feedback": meta.get("user_feedback", ""),
+                    "success_metrics": meta.get("success_metrics", {}),
+                    "is_successful": meta.get("is_successful", False),
+                    "similarity_score": res.get("score"),
+                }
+            )
 
         # 重排序: 优先高分、高相似度的成功案例
         episodes.sort(
             key=lambda e: (
-                e["similarity_score"] * 0.5 +
-                (e["user_rating"] / 5) * 0.3 +
-                (1 if e["is_successful"] else 0) * 0.2
+                e["similarity_score"] * 0.5
+                + (e["user_rating"] / 5) * 0.3
+                + (1 if e["is_successful"] else 0) * 0.2
             ),
-            reverse=True
+            reverse=True,
         )
 
         # 更新访问时间
@@ -257,10 +252,7 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
         return results[0] if results else None
 
     async def update_feedback(
-        self,
-        episode_id: str,
-        user_rating: int,
-        user_feedback: str = ""
+        self, episode_id: str, user_rating: int, user_feedback: str = ""
     ) -> bool:
         """
         更新用户反馈
@@ -277,8 +269,7 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
 
         # TODO: 实现更新逻辑
         self._log_info(
-            f"更新反馈: {episode_id}, "
-            f"评分: {user_rating}, 反馈: {user_feedback[:50]}..."
+            f"更新反馈: {episode_id}, " f"评分: {user_rating}, 反馈: {user_feedback[:50]}..."
         )
         return True
 
@@ -307,6 +298,7 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
         await self.ensure_initialized()
         try:
             from src.services.vector_store import VectorStoreService
+
             vs = VectorStoreService()
             await vs.delete_documents(
                 collection_name=self.COLLECTION_NAME,
@@ -356,9 +348,7 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
         pass
 
     async def get_successful_patterns(
-        self,
-        task_type: str,
-        top_k: int = 10
+        self, task_type: str, top_k: int = 10
     ) -> list[dict[str, Any]]:
         """
         获取特定任务类型的成功模式
@@ -366,11 +356,7 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
         results = await self.search(
             query=task_type,
             top_k=top_k,
-            filters={
-                "task_type": task_type,
-                "is_successful": True,
-                "min_rating": 4
-            }
+            filters={"task_type": task_type, "is_successful": True, "min_rating": 4},
         )
         return results
 
@@ -382,7 +368,7 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
             "total_episodes": 0,
             "successful_rate": 0.0,
             "average_rating": 0.0,
-            "by_task_type": {}
+            "by_task_type": {},
         }
 
     def _require_vector_store(self) -> Any:

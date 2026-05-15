@@ -26,9 +26,7 @@ class LawyerOnboardingService:
     # 档案管理
     # ------------------------------------------------------------------
 
-    async def create_or_update_profile(
-        self, user_id: str, data: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def create_or_update_profile(self, user_id: str, data: dict[str, Any]) -> dict[str, Any]:
         """创建或更新律师档案，自动将 user.role 设为 platform_lawyer"""
 
         result = await self.db.execute(
@@ -46,18 +44,23 @@ class LawyerOnboardingService:
 
         # 可更新字段
         updatable = [
-            "real_name", "license_number", "law_firm", "years_of_practice",
-            "city", "province", "specializations", "bio",
-            "hourly_rate_min", "hourly_rate_max",
+            "real_name",
+            "license_number",
+            "law_firm",
+            "years_of_practice",
+            "city",
+            "province",
+            "specializations",
+            "bio",
+            "hourly_rate_min",
+            "hourly_rate_max",
         ]
         for field in updatable:
             if field in data:
                 setattr(profile, field, data[field])
 
         # 自动升级角色为 platform_lawyer
-        user_result = await self.db.execute(
-            select(User).where(User.id == user_id)
-        )
+        user_result = await self.db.execute(select(User).where(User.id == user_id))
         user = user_result.scalar_one_or_none()
         if user and user.role not in ("platform_lawyer", "admin", "super_admin"):
             user.role = "platform_lawyer"
@@ -84,9 +87,7 @@ class LawyerOnboardingService:
 
         # 查找已有认证记录
         result = await self.db.execute(
-            select(LawyerCertification).where(
-                LawyerCertification.lawyer_profile_id == profile_id
-            )
+            select(LawyerCertification).where(LawyerCertification.lawyer_profile_id == profile_id)
         )
         cert = result.scalar_one_or_none()
 
@@ -222,9 +223,7 @@ class LawyerOnboardingService:
 
             # 更新 LawyerProfile
             result = await self.db.execute(
-                select(LawyerProfile).where(
-                    LawyerProfile.id == cert.lawyer_profile_id
-                )
+                select(LawyerProfile).where(LawyerProfile.id == cert.lawyer_profile_id)
             )
             profile = result.scalar_one_or_none()
             if profile:
@@ -239,10 +238,7 @@ class LawyerOnboardingService:
         await self.db.commit()
         await self.db.refresh(cert)
 
-        logger.info(
-            f"认证审核: cert={cert_id}, approved={approved}, "
-            f"approver={approver_id}"
-        )
+        logger.info(f"认证审核: cert={cert_id}, approved={approved}, " f"approver={approver_id}")
         return cert.to_dict()
 
     async def get_pending_certifications(
@@ -263,10 +259,10 @@ class LawyerOnboardingService:
 
         # 分页
         rows = (
-            await self.db.execute(
-                base_query.offset((page - 1) * page_size).limit(page_size)
-            )
-        ).scalars().all()
+            (await self.db.execute(base_query.offset((page - 1) * page_size).limit(page_size)))
+            .scalars()
+            .all()
+        )
 
         items: list[dict[str, Any]] = []
         for cert in rows:
@@ -276,22 +272,26 @@ class LawyerOnboardingService:
             )
             profile = profile_result.scalar_one_or_none()
 
-            user_result = await self.db.execute(
-                select(User).where(User.id == profile.user_id)
-            ) if profile else None
+            user_result = (
+                await self.db.execute(select(User).where(User.id == profile.user_id))
+                if profile
+                else None
+            )
             user = user_result.scalar_one_or_none() if user_result else None
 
-            items.append({
-                **cert.to_dict(),
-                "lawyer_name": profile.real_name if profile else None,
-                "license_number": profile.license_number if profile else None,
-                "law_firm": profile.law_firm if profile else None,
-                "specializations": profile.specializations if profile else [],
-                "years_of_practice": profile.years_of_practice if profile else None,
-                "province": profile.province if profile else None,
-                "city": profile.city if profile else None,
-                "user_email": user.email if user else None,
-            })
+            items.append(
+                {
+                    **cert.to_dict(),
+                    "lawyer_name": profile.real_name if profile else None,
+                    "license_number": profile.license_number if profile else None,
+                    "law_firm": profile.law_firm if profile else None,
+                    "specializations": profile.specializations if profile else [],
+                    "years_of_practice": profile.years_of_practice if profile else None,
+                    "province": profile.province if profile else None,
+                    "city": profile.city if profile else None,
+                    "user_email": user.email if user else None,
+                }
+            )
 
         return {
             "items": items,
@@ -304,15 +304,11 @@ class LawyerOnboardingService:
     # 接单设置
     # ------------------------------------------------------------------
 
-    async def update_service_config(
-        self, profile_id: str, data: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def update_service_config(self, profile_id: str, data: dict[str, Any]) -> dict[str, Any]:
         """创建或更新接单设置"""
 
         result = await self.db.execute(
-            select(LawyerServiceConfig).where(
-                LawyerServiceConfig.lawyer_profile_id == profile_id
-            )
+            select(LawyerServiceConfig).where(LawyerServiceConfig.lawyer_profile_id == profile_id)
         )
         config = result.scalar_one_or_none()
 
@@ -321,8 +317,12 @@ class LawyerOnboardingService:
             self.db.add(config)
 
         updatable = [
-            "service_types", "auto_accept", "max_concurrent_cases",
-            "response_time_hours", "working_hours", "min_case_amount",
+            "service_types",
+            "auto_accept",
+            "max_concurrent_cases",
+            "response_time_hours",
+            "working_hours",
+            "min_case_amount",
         ]
         for field in updatable:
             if field in data:
@@ -359,12 +359,14 @@ class LawyerOnboardingService:
 
         # 1. 本月接单数（已匹配给该律师的咨询）
         month_cases_q = select(func.count()).select_from(
-            select(Consultation).where(
+            select(Consultation)
+            .where(
                 and_(
                     Consultation.matched_lawyer_id == user_id,
                     Consultation.matched_at >= current_month_start,
                 )
-            ).subquery()
+            )
+            .subquery()
         )
         month_cases = (await self.db.execute(month_cases_q)).scalar() or 0
 
@@ -380,12 +382,14 @@ class LawyerOnboardingService:
 
         # 3. 待处理咨询数量
         pending_q = select(func.count()).select_from(
-            select(Consultation).where(
+            select(Consultation)
+            .where(
                 and_(
                     Consultation.matched_lawyer_id == user_id,
                     Consultation.status == "in_progress",
                 )
-            ).subquery()
+            )
+            .subquery()
         )
         pending_count = (await self.db.execute(pending_q)).scalar() or 0
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 sandbox_executor.models —— 沙箱执行相关的数据模型
 
@@ -17,10 +16,9 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
-
 
 # ---------------------------------------------------------------------------
 # 枚举
@@ -30,19 +28,19 @@ from pydantic import BaseModel, Field
 class SandboxStatus(str, Enum):
     """沙箱生命周期状态。"""
 
-    PENDING = "pending"          # 已创建 spec，未实际拉起
+    PENDING = "pending"  # 已创建 spec，未实际拉起
     PROVISIONING = "provisioning"  # 拉镜像 / 起容器中
-    RUNNING = "running"          # 可接受 exec
-    TERMINATED = "terminated"    # 正常清理完毕
-    FAILED = "failed"            # 启动或运行失败
+    RUNNING = "running"  # 可接受 exec
+    TERMINATED = "terminated"  # 正常清理完毕
+    FAILED = "failed"  # 启动或运行失败
 
 
 class NetworkPolicyMode(str, Enum):
     """沙箱网络出站策略。"""
 
-    NONE = "none"            # 完全断网（最安全，默认）
+    NONE = "none"  # 完全断网（最安全，默认）
     ALLOWLIST = "allowlist"  # 仅放行 allowed_hosts 中的域名/IP
-    FULL = "full"            # 完全放开（仅本地开发用）
+    FULL = "full"  # 完全放开（仅本地开发用）
 
 
 # ---------------------------------------------------------------------------
@@ -62,7 +60,9 @@ class NetworkPolicy(BaseModel):
     """出站网络策略。"""
 
     mode: NetworkPolicyMode = NetworkPolicyMode.NONE
-    allowed_hosts: list[str] = Field(default_factory=list, description="ALLOWLIST 模式下放行的域名/IP")
+    allowed_hosts: list[str] = Field(
+        default_factory=list, description="ALLOWLIST 模式下放行的域名/IP"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -76,7 +76,9 @@ class SandboxSpec(BaseModel):
     Provider 根据该 spec 决定如何拉起隔离环境。
     """
 
-    image: str = Field(default="python:3.11-slim", description="容器镜像或运行时标识；LocalProvider 忽略")
+    image: str = Field(
+        default="python:3.11-slim", description="容器镜像或运行时标识；LocalProvider 忽略"
+    )
     env_vars: dict[str, str] = Field(default_factory=dict, description="注入到沙箱内的环境变量")
     mounts: dict[str, str] = Field(
         default_factory=dict,
@@ -101,7 +103,9 @@ class Sandbox(BaseModel):
     status: SandboxStatus = SandboxStatus.PENDING
     created_at: datetime = Field(default_factory=datetime.utcnow)
     spec: SandboxSpec
-    metadata: dict[str, Any] = Field(default_factory=dict, description="Provider 私有状态，如 container_id / workdir")
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Provider 私有状态，如 container_id / workdir"
+    )
 
 
 # ---------------------------------------------------------------------------

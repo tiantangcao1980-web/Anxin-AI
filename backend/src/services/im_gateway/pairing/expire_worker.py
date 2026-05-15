@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 IM 配对授权过期清理 worker（Celery beat 定时任务）
 
@@ -15,13 +14,11 @@ from __future__ import annotations
 
 import asyncio
 
-from celery.schedules import crontab
 from loguru import logger
 
 from src.core.database import async_session_maker
 from src.services.im_gateway.pairing.service import PairingService
 from src.services.task_orchestrator.celery_app import celery_app
-
 
 # 每 10 分钟一次（足够覆盖 24h 配对窗口的过期 SLA）
 PAIRING_CLEANUP_SCHEDULE_SECONDS = 10 * 60

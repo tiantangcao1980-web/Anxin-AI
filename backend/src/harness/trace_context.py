@@ -17,9 +17,10 @@ from loguru import logger
 @dataclass
 class SpanRecord:
     """单个操作的记录"""
+
     span_id: str
     parent_span_id: str | None
-    operation: str          # 如 "coordinator.analyze", "agent.contract_reviewer.chat"
+    operation: str  # 如 "coordinator.analyze", "agent.contract_reviewer.chat"
     agent_name: str | None = None
     tool_name: str | None = None
     start_time: float = 0.0
@@ -39,6 +40,7 @@ class SpanRecord:
 @dataclass
 class TraceContext:
     """一次请求的完整追踪上下文"""
+
     trace_id: str
     user_id: str | None = None
     conversation_id: str | None = None
@@ -131,7 +133,8 @@ class TraceContext:
             "total_cost_usd": round(self.total_cost_usd, 6),
             "error_spans": [
                 {"operation": s.operation, "error": s.error_msg}
-                for s in self.spans if s.status == "error"
+                for s in self.spans
+                if s.status == "error"
             ],
             "agent_spans": [
                 {
@@ -141,7 +144,8 @@ class TraceContext:
                     "tokens": s.token_usage,
                     "status": s.status,
                 }
-                for s in self.spans if s.agent_name
+                for s in self.spans
+                if s.agent_name
             ],
         }
 

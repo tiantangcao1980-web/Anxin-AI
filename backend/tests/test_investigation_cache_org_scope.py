@@ -102,8 +102,7 @@ async def test_dimensions_and_invalidation_only_touch_requested_org(
 
     assert invalidated == 2
     assert (
-        await store.get_cached_data("目标企业", "litigation", org_id=test_organization.id)
-        is None
+        await store.get_cached_data("目标企业", "litigation", org_id=test_organization.id) is None
     )
     assert await store.get_cached_data("目标企业", "litigation", org_id=other_org.id) == {
         "case": "org-b"

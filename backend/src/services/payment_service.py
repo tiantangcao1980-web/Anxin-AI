@@ -36,23 +36,26 @@ from src.services.official_webhook_security import (
 
 class OrderType(str, Enum):
     """订单类型"""
-    CONSULTATION_FEE = "consultation_fee"        # 咨询费
-    DELEGATION_DEPOSIT = "delegation_deposit"    # 委托保证金
-    SUBSCRIPTION = "subscription"                # 订阅费
-    CONTRACT_SIGNING = "contract_signing"        # 合同签署费
+
+    CONSULTATION_FEE = "consultation_fee"  # 咨询费
+    DELEGATION_DEPOSIT = "delegation_deposit"  # 委托保证金
+    SUBSCRIPTION = "subscription"  # 订阅费
+    CONTRACT_SIGNING = "contract_signing"  # 合同签署费
 
 
 class PaymentStatusEnum(str, Enum):
     """支付状态"""
-    PENDING = "pending"      # 待支付
-    PAID = "paid"            # 已支付
-    FAILED = "failed"        # 支付失败
-    REFUNDED = "refunded"    # 已退款
-    CLOSED = "closed"        # 已关闭
+
+    PENDING = "pending"  # 待支付
+    PAID = "paid"  # 已支付
+    FAILED = "failed"  # 支付失败
+    REFUNDED = "refunded"  # 已退款
+    CLOSED = "closed"  # 已关闭
 
 
 class PaymentProviderType(str, Enum):
     """支付渠道"""
+
     MOCK = "mock"
     WECHAT_PAY = "wechat_pay"
     ALIPAY = "alipay"
@@ -63,6 +66,7 @@ class PaymentProviderType(str, Enum):
 
 class PaymentOrder(BaseModel):
     """支付订单"""
+
     order_id: str = Field(description="订单号")
     amount: float = Field(description="金额（元）", gt=0)
     status: PaymentStatusEnum = Field(default=PaymentStatusEnum.PENDING)
@@ -70,13 +74,12 @@ class PaymentOrder(BaseModel):
     qr_code: str | None = Field(default=None, description="二维码数据（Base64或URL）")
     provider: PaymentProviderType = Field(description="支付渠道")
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    expires_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC) + timedelta(minutes=30)
-    )
+    expires_at: datetime = Field(default_factory=lambda: datetime.now(UTC) + timedelta(minutes=30))
 
 
 class PaymentStatus(BaseModel):
     """支付状态查询结果"""
+
     order_id: str
     status: PaymentStatusEnum
     paid_at: datetime | None = None
@@ -85,6 +88,7 @@ class PaymentStatus(BaseModel):
 
 class RefundResult(BaseModel):
     """退款结果"""
+
     refund_id: str
     status: str  # success / pending / failed
     amount: float
@@ -96,18 +100,17 @@ class PaymentProviderConfigError(RuntimeError):
 
 class CreateOrderRequest(BaseModel):
     """创建订单请求"""
+
     type: OrderType = Field(description="订单类型")
     amount: float = Field(description="金额（元）", gt=0, le=1_000_000)
     description: str = Field(description="订单描述", max_length=256)
     related_id: str | None = Field(default=None, description="关联业务ID（咨询ID/委托ID等）")
-    provider: PaymentProviderType = Field(
-        default=PaymentProviderType.MOCK,
-        description="支付渠道"
-    )
+    provider: PaymentProviderType = Field(default=PaymentProviderType.MOCK, description="支付渠道")
 
 
 class RefundRequest(BaseModel):
     """退款请求"""
+
     amount: float | None = Field(default=None, description="退款金额，为空则全额退款", gt=0)
     reason: str = Field(default="用户申请退款", description="退款原因", max_length=256)
     idempotency_key: str | None = Field(
@@ -244,7 +247,9 @@ class MockPaymentProvider(PaymentProvider):
 
 
 def _amount_to_cents(amount: float) -> int:
-    return int((Decimal(str(amount)) * Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    return int(
+        (Decimal(str(amount)) * Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    )
 
 
 def _provider_order_id(order_id: str) -> str:
@@ -344,15 +349,18 @@ class WeChatPayProvider(PaymentProvider):
     def _authorization(self, method: str, path_with_query: str, body: bytes) -> str:
         timestamp = str(int(datetime.now(UTC).timestamp()))
         nonce = secrets.token_hex(16)
-        message = b"\n".join(
-            [
-                method.upper().encode("utf-8"),
-                path_with_query.encode("utf-8"),
-                timestamp.encode("utf-8"),
-                nonce.encode("utf-8"),
-                body,
-            ]
-        ) + b"\n"
+        message = (
+            b"\n".join(
+                [
+                    method.upper().encode("utf-8"),
+                    path_with_query.encode("utf-8"),
+                    timestamp.encode("utf-8"),
+                    nonce.encode("utf-8"),
+                    body,
+                ]
+            )
+            + b"\n"
+        )
         signature = self.private_key.sign(
             message,
             padding.PKCS1v15(),
@@ -360,7 +368,7 @@ class WeChatPayProvider(PaymentProvider):
         )
         signature_b64 = base64.b64encode(signature).decode("ascii")
         return (
-            'WECHATPAY2-SHA256-RSA2048 '
+            "WECHATPAY2-SHA256-RSA2048 "
             f'mchid="{self.mch_id}",nonce_str="{nonce}",signature="{signature_b64}",'
             f'timestamp="{timestamp}",serial_no="{self.serial_no}"'
         )
@@ -494,7 +502,9 @@ class WeChatPayProvider(PaymentProvider):
         raw_status = str(data.get("status") or "").upper()
         status = "success" if raw_status == "SUCCESS" else "pending"
         return RefundResult(
-            refund_id=str(data.get("refund_id") or data.get("out_refund_no") or f"rf_{provider_order_id[:29]}"),
+            refund_id=str(
+                data.get("refund_id") or data.get("out_refund_no") or f"rf_{provider_order_id[:29]}"
+            ),
             status=status,
             amount=amount,
         )
@@ -625,7 +635,9 @@ class AlipayProvider(PaymentProvider):
         )
 
     async def query_order(self, order_id: str) -> PaymentStatus:
-        data = await self._call("alipay.trade.query", {"out_trade_no": _provider_order_id(order_id)})
+        data = await self._call(
+            "alipay.trade.query", {"out_trade_no": _provider_order_id(order_id)}
+        )
         status = _parse_alipay_status(data.get("trade_status"))
         return PaymentStatus(
             order_id=order_id,
@@ -664,7 +676,9 @@ class AlipayProvider(PaymentProvider):
 # ========== 工厂函数 ==========
 
 
-ProviderClass: TypeAlias = type[MockPaymentProvider] | type[WeChatPayProvider] | type[AlipayProvider]
+ProviderClass: TypeAlias = (
+    type[MockPaymentProvider] | type[WeChatPayProvider] | type[AlipayProvider]
+)
 
 _provider_instances: dict[str, PaymentProvider] = {}
 
@@ -680,7 +694,9 @@ def get_payment_provider(provider_name: str | None = None) -> PaymentProvider:
     raw_provider_name = provider_name or os.getenv("PAYMENT_PROVIDER")
     provider_name = (raw_provider_name or "mock").lower()
     if settings.ENVIRONMENT.lower() in {"production", "staging"} and provider_name == "mock":
-        raise PaymentProviderConfigError("staging/production 环境必须配置真实 PAYMENT_PROVIDER，禁止使用 Mock 支付渠道。")
+        raise PaymentProviderConfigError(
+            "staging/production 环境必须配置真实 PAYMENT_PROVIDER，禁止使用 Mock 支付渠道。"
+        )
 
     # 单例模式：同一进程内复用实例
     if provider_name in _provider_instances:
@@ -694,7 +710,9 @@ def get_payment_provider(provider_name: str | None = None) -> PaymentProvider:
 
     provider_cls = providers.get(provider_name)
     if provider_cls is None:
-        raise PaymentProviderConfigError(f"未知支付渠道 '{provider_name}'，请配置 wechat_pay 或 alipay。")
+        raise PaymentProviderConfigError(
+            f"未知支付渠道 '{provider_name}'，请配置 wechat_pay 或 alipay。"
+        )
 
     _provider_instances[provider_name] = provider_cls()
     logger.info(f"支付渠道已初始化: {provider_cls.__name__}")

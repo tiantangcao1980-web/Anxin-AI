@@ -41,7 +41,9 @@ class SyncLog(Base, TimestampMixin):
     payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     version: Mapped[int] = mapped_column(BigInteger, nullable=False)
     client_version: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
-    client_timestamp: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    client_timestamp: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
 
 class RemoteControlPairing(Base, TimestampMixin):
@@ -54,16 +56,24 @@ class RemoteControlPairing(Base, TimestampMixin):
         UniqueConstraint("org_id", "id", name="uq_remote_control_pairings_org_id"),
     )
 
-    org_id: Mapped[str] = mapped_column(GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
-    user_id: Mapped[str] = mapped_column(GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    org_id: Mapped[str] = mapped_column(
+        GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[str] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
     mobile_device_id: Mapped[str] = mapped_column(String(128), nullable=False)
     desktop_device_id: Mapped[str] = mapped_column(String(128), nullable=False)
     requested_scopes: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     privacy_mode: Mapped[str] = mapped_column(String(40), nullable=False, default="hybrid")
-    status: Mapped[str] = mapped_column(String(40), nullable=False, default="pending_desktop_confirmation")
+    status: Mapped[str] = mapped_column(
+        String(40), nullable=False, default="pending_desktop_confirmation"
+    )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    confirmed_by: Mapped[str | None] = mapped_column(GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    confirmed_by: Mapped[str | None] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revoked_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
@@ -78,9 +88,15 @@ class RemoteControlCommand(Base, TimestampMixin):
         Index("ix_remote_control_commands_desktop_status", "desktop_device_id", "status"),
     )
 
-    org_id: Mapped[str] = mapped_column(GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
-    user_id: Mapped[str] = mapped_column(GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    pairing_id: Mapped[str] = mapped_column(GUID(), ForeignKey("remote_control_pairings.id", ondelete="RESTRICT"), nullable=False)
+    org_id: Mapped[str] = mapped_column(
+        GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[str] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    pairing_id: Mapped[str] = mapped_column(
+        GUID(), ForeignKey("remote_control_pairings.id", ondelete="RESTRICT"), nullable=False
+    )
     desktop_device_id: Mapped[str] = mapped_column(String(128), nullable=False)
     command_type: Mapped[str] = mapped_column(String(80), nullable=False)
     payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
@@ -111,8 +127,12 @@ class RemoteControlAuditEvent(Base):
         Index("ix_remote_control_audit_events_action_status", "action", "status"),
     )
 
-    org_id: Mapped[str] = mapped_column(GUID(), ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False)
-    user_id: Mapped[str | None] = mapped_column(GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    org_id: Mapped[str] = mapped_column(
+        GUID(), ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False
+    )
+    user_id: Mapped[str | None] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     pairing_id: Mapped[str | None] = mapped_column(GUID(), nullable=True)
     command_id: Mapped[str | None] = mapped_column(GUID(), nullable=True)
     actor_type: Mapped[str] = mapped_column(String(50), nullable=False, default="user")

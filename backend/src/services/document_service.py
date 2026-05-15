@@ -56,6 +56,7 @@ class DocumentService:
         extracted_text = None
         try:
             from src.services.document_parser import parse_contract_document
+
             parse_result = await parse_contract_document(file_content=file_content, file_name=name)
             if parse_result and parse_result.get("text"):
                 extracted_text = parse_result["text"]
@@ -65,7 +66,11 @@ class DocumentService:
 
         document = Document(
             name=name,
-            doc_type=DocumentType(doc_type) if doc_type in [e.value for e in DocumentType] else DocumentType.OTHER,
+            doc_type=(
+                DocumentType(doc_type)
+                if doc_type in [e.value for e in DocumentType]
+                else DocumentType.OTHER
+            ),
             description=description,
             file_path=stored.object_key,
             storage_backend=stored.backend,
@@ -176,13 +181,19 @@ class DocumentService:
         for version in version_result.scalars().all():
             storage_targets.add(
                 (
-                    version.storage_backend or document.storage_backend or self.object_storage.backend,
+                    version.storage_backend
+                    or document.storage_backend
+                    or self.object_storage.backend,
                     version.object_key or version.file_path,
                 )
             )
 
         for backend, object_key in storage_targets:
-            storage = self.object_storage if backend == self.object_storage.backend else get_object_storage(backend)
+            storage = (
+                self.object_storage
+                if backend == self.object_storage.backend
+                else get_object_storage(backend)
+            )
             await storage.delete(object_key)
 
         await self.db.delete(document)
@@ -200,17 +211,17 @@ class DocumentService:
         tags: list[str] | None = None,
     ) -> Document:
         """创建在线文本文档"""
-        content_bytes = content.encode('utf-8')
+        content_bytes = content.encode("utf-8")
         return await self.upload_document(
             name=name,
             file_content=content_bytes,
-            mime_type="text/markdown", # 默认为 Markdown
+            mime_type="text/markdown",  # 默认为 Markdown
             doc_type=doc_type,
             org_id=org_id,
             case_id=case_id,
             created_by=created_by,
             description=description,
-            tags=tags
+            tags=tags,
         )
 
     async def update_document_content(
@@ -219,7 +230,7 @@ class DocumentService:
         content: str,
         org_id: str | None = None,
         updated_by: str | None = None,
-        change_summary: str | None = None
+        change_summary: str | None = None,
     ) -> Document | None:
         """更新文档内容（创建新版本）"""
         document = await self.get_document(document_id, org_id=org_id)
@@ -235,13 +246,13 @@ class DocumentService:
             object_key=document.object_key,
             file_size=document.file_size,
             file_hash=document.file_hash,
-            created_by=document.created_by, # 这里简化，实际应记录谁创建了这个版本
-            change_summary="Before update"
+            created_by=document.created_by,  # 这里简化，实际应记录谁创建了这个版本
+            change_summary="Before update",
         )
         self.db.add(old_version)
 
         # 2. 更新当前文档
-        content_bytes = content.encode('utf-8')
+        content_bytes = content.encode("utf-8")
         file_hash = hashlib.sha256(content_bytes).hexdigest()
         file_size = len(content_bytes)
 
@@ -264,7 +275,7 @@ class DocumentService:
         document.file_hash = file_hash
         document.version += 1
         document.updated_at = datetime.now()
-        document.extracted_text = content # 更新缓存的文本内容
+        document.extracted_text = content  # 更新缓存的文本内容
 
         await self.db.flush()
         return document
@@ -330,7 +341,7 @@ class DocumentService:
                 context={
                     "document_id": document_id,
                     "doc_type": document.doc_type.value,
-                }
+                },
             )
 
             final_result = result.get("final_result", {})
@@ -339,7 +350,8 @@ class DocumentService:
             if isinstance(final_result, str):
                 import json
                 import re
-                json_match = re.search(r'\{[\s\S]*\}', final_result)
+
+                json_match = re.search(r"\{[\s\S]*\}", final_result)
                 if json_match:
                     try:
                         final_result = json.loads(json_match.group())

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """ContractStewardPersona —— 6 capability 单元测试（P9-C）。
 
 不依赖 DB / 路由层；用 mock specialized agent 注入 persona。
@@ -28,7 +27,6 @@ from src.agents.personas.contract_models import (
     VersionDiff,
 )
 from src.agents.personas.contract_steward import ContractStewardPersona
-
 
 # ---------------------------------------------------------------------------
 # 测试夹具
@@ -276,13 +274,9 @@ async def test_review_contract_critical_routes_to_reject():
 async def test_review_contract_perspective_validation():
     p = ContractStewardPersona()
     with pytest.raises(ValueError):
-        await p.review_contract(
-            document_text="x", perspective="enemy", reviewer=_MockReviewer()
-        )
+        await p.review_contract(document_text="x", perspective="enemy", reviewer=_MockReviewer())
     with pytest.raises(ValueError):
-        await p.review_contract(
-            document_text="", perspective="buyer", reviewer=_MockReviewer()
-        )
+        await p.review_contract(document_text="", perspective="buyer", reviewer=_MockReviewer())
 
 
 # ---------------------------------------------------------------------------
@@ -308,9 +302,7 @@ async def test_identify_risks_with_investigator():
 @pytest.mark.asyncio
 async def test_identify_risks_blacklist_forces_critical():
     p = ContractStewardPersona()
-    text = (
-        "甲方有权单方面任意终止本合同。乙方应保证最低销售额每年不低于 1000 万。"
-    )
+    text = "甲方有权单方面任意终止本合同。乙方应保证最低销售额每年不低于 1000 万。"
     analysis = await p.identify_risks(text, investigator=_MockInvestigator(meta={}))
     assert analysis.overall_risk_level == "critical"
     assert "保证最低销售额" in analysis.blacklist_clauses

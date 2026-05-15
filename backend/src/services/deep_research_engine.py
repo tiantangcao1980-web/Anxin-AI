@@ -26,10 +26,13 @@ from loguru import logger
 
 # ===== 搜索结果节点 =====
 
+
 class SearchResult:
     """单条搜索结果"""
 
-    def __init__(self, source: str, title: str, content: str, url: str = "", relevance: float = 0.0):
+    def __init__(
+        self, source: str, title: str, content: str, url: str = "", relevance: float = 0.0
+    ):
         self.source = source
         self.title = title
         self.content = content
@@ -105,6 +108,7 @@ class ResearchState:
 
 # ===== 深度研究引擎 =====
 
+
 class DeepResearchEngine:
     """
     迭代式深度研究引擎
@@ -114,10 +118,10 @@ class DeepResearchEngine:
     自动生成优化的后续查询，直到信息充分或达到最大轮数。
     """
 
-    MAX_REFLECTIONS = 5          # 最大反思轮数（从 3 提升到 5）
-    MIN_CONFIDENCE = 0.88        # 提前终止的信心阈值（从 0.85 提升到 0.88）
-    SEARCH_TIMEOUT = 20.0        # 单次搜索超时（秒）
-    MAX_RESULTS_PER_SOURCE = 8   # 每个数据源最多返回条数
+    MAX_REFLECTIONS = 5  # 最大反思轮数（从 3 提升到 5）
+    MIN_CONFIDENCE = 0.88  # 提前终止的信心阈值（从 0.85 提升到 0.88）
+    SEARCH_TIMEOUT = 20.0  # 单次搜索超时（秒）
+    MAX_RESULTS_PER_SOURCE = 8  # 每个数据源最多返回条数
 
     # 更丰富的研究维度
     DEFAULT_DIMENSIONS = [
@@ -141,6 +145,7 @@ class DeepResearchEngine:
         if self._llm_agent is None:
             try:
                 from src.agents.workforce import get_workforce
+
                 wf = get_workforce()
                 self._llm_agent = (
                     wf.agents.get("due_diligence")
@@ -156,6 +161,7 @@ class DeepResearchEngine:
         if self._web_searcher is None:
             try:
                 from src.services.web_search_service import web_search_service
+
                 self._web_searcher = web_search_service
             except ImportError:
                 logger.warning("WebSearchService 不可用")
@@ -166,6 +172,7 @@ class DeepResearchEngine:
         if self._data_store is None:
             try:
                 from src.services.investigation_data_store import investigation_data_store
+
                 self._data_store = investigation_data_store
             except ImportError:
                 pass
@@ -218,14 +225,20 @@ class DeepResearchEngine:
 
         time_range_desc = ""
         if time_range_start or time_range_end:
-            time_range_desc = f"（时间范围：{time_range_start or '最早'} ~ {time_range_end or '至今'}）"
+            time_range_desc = (
+                f"（时间范围：{time_range_start or '最早'} ~ {time_range_end or '至今'}）"
+            )
 
         yield {
             "type": "research_start",
             "message": f"开始对「{company_name}」的深度研究{time_range_desc}",
             "dimensions": research_dimensions,
             "max_rounds": max_rounds,
-            "time_range": {"start": time_range_start, "end": time_range_end} if (time_range_start or time_range_end) else None,
+            "time_range": (
+                {"start": time_range_start, "end": time_range_end}
+                if (time_range_start or time_range_end)
+                else None
+            ),
         }
 
         # ===== 轮次循环：search → reflect → refine =====
@@ -241,9 +254,10 @@ class DeepResearchEngine:
 
             # —— 搜索阶段 ——
             round_results = await self._execute_search_round(
-                state.current_queries, company_name,
-                time_range_start=getattr(state, '_time_range_start', None),
-                time_range_end=getattr(state, '_time_range_end', None),
+                state.current_queries,
+                company_name,
+                time_range_start=getattr(state, "_time_range_start", None),
+                time_range_end=getattr(state, "_time_range_end", None),
                 org_id=org_id,
             )
             state.all_results.extend(round_results)
@@ -257,9 +271,7 @@ class DeepResearchEngine:
             }
 
             # —— 反思阶段 ——
-            reflection = await self._reflect_on_results(
-                state, research_dimensions, round_num
-            )
+            reflection = await self._reflect_on_results(state, research_dimensions, round_num)
             state.reflections.append(reflection)
             state.confidence = reflection.confidence
 
@@ -376,7 +388,9 @@ class DeepResearchEngine:
         # 先检查缓存
         if use_cache and self.data_store:
             cached = await self.data_store.get_cached_data(
-                company_name, "web_search", query_text=query,
+                company_name,
+                "web_search",
+                query_text=query,
                 max_age_seconds=43200,  # Web 搜索缓存 12 小时
                 org_id=org_id,
             )
@@ -386,13 +400,15 @@ class DeepResearchEngine:
                 for item in cached_items:
                     if not isinstance(item, dict):
                         continue
-                    results.append(SearchResult(
-                        source=self._coerce_str(item.get("source"), "cache"),
-                        title=self._coerce_str(item.get("title")),
-                        content=self._coerce_str(item.get("content")),
-                        url=self._coerce_str(item.get("url")),
-                        relevance=self._coerce_float(item.get("relevance"), 0.6),
-                    ))
+                    results.append(
+                        SearchResult(
+                            source=self._coerce_str(item.get("source"), "cache"),
+                            title=self._coerce_str(item.get("title")),
+                            content=self._coerce_str(item.get("content")),
+                            url=self._coerce_str(item.get("url")),
+                            relevance=self._coerce_float(item.get("relevance"), 0.6),
+                        )
+                    )
                 if results:
                     return results
 
@@ -405,8 +421,13 @@ class DeepResearchEngine:
             # 提取年份信息附加到查询
             try:
                 from datetime import datetime as _dt
+
                 start_year = _dt.strptime(time_range_start, "%Y-%m-%d").year
-                end_year = _dt.strptime(time_range_end, "%Y-%m-%d").year if time_range_end else _dt.now().year
+                end_year = (
+                    _dt.strptime(time_range_end, "%Y-%m-%d").year
+                    if time_range_end
+                    else _dt.now().year
+                )
                 if start_year == end_year:
                     effective_query = f"{query} {start_year}年"
                 else:
@@ -417,7 +438,11 @@ class DeepResearchEngine:
         # 数据源 1：Web 搜索（通用 + 新闻 + 法律专项）
         if self.web_searcher:
             search_tasks: list[Awaitable[list[SearchResult]]] = [
-                self._safe_web_search(effective_query, max_results=self.MAX_RESULTS_PER_SOURCE, time_range=web_time_range),
+                self._safe_web_search(
+                    effective_query,
+                    max_results=self.MAX_RESULTS_PER_SOURCE,
+                    time_range=web_time_range,
+                ),
             ]
             # 新闻搜索
             if any(kw in query for kw in ["舆情", "新闻", "负面", "事件"]):
@@ -428,9 +453,11 @@ class DeepResearchEngine:
 
             # 历史搜索时，额外按年份分段搜索，挖掘更多历史数据
             if time_range_start:
-                search_tasks.extend(self._build_historical_search_tasks(
-                    query, company_name, time_range_start, time_range_end
-                ))
+                search_tasks.extend(
+                    self._build_historical_search_tasks(
+                        query, company_name, time_range_start, time_range_end
+                    )
+                )
 
             all_web = await asyncio.gather(*search_tasks, return_exceptions=True)
             for batch in all_web:
@@ -452,30 +479,35 @@ class DeepResearchEngine:
                     for kr in kb_results:
                         if not isinstance(kr, dict):
                             continue
-                        results.append(SearchResult(
-                            source="knowledge_base",
-                            title=self._coerce_str(kr.get("title"), "知识库文档"),
-                            content=self._coerce_str(kr.get("content")),
-                            relevance=self._coerce_float(kr.get("score"), 0.5),
-                        ))
+                        results.append(
+                            SearchResult(
+                                source="knowledge_base",
+                                title=self._coerce_str(kr.get("title"), "知识库文档"),
+                                content=self._coerce_str(kr.get("content")),
+                                relevance=self._coerce_float(kr.get("score"), 0.5),
+                            )
+                        )
         except Exception as e:
             logger.debug(f"知识库搜索失败: {e}")
 
         # 数据源 3：工商数据源
         try:
             from src.services.due_diligence_service import due_diligence_service
+
             if company_name in query:
                 real_data = await asyncio.wait_for(
                     due_diligence_service._fetch_real_company_data(company_name),
                     timeout=self.SEARCH_TIMEOUT,
                 )
                 if real_data:
-                    results.append(SearchResult(
-                        source="business_registry",
-                        title=f"{company_name} 工商登记信息",
-                        content=json.dumps(real_data, ensure_ascii=False),
-                        relevance=0.95,
-                    ))
+                    results.append(
+                        SearchResult(
+                            source="business_registry",
+                            title=f"{company_name} 工商登记信息",
+                            content=json.dumps(real_data, ensure_ascii=False),
+                            relevance=0.95,
+                        )
+                    )
         except Exception as e:
             logger.debug(f"工商数据获取失败: {e}")
 
@@ -483,20 +515,38 @@ class DeepResearchEngine:
         if results:
             try:
                 from src.services.search_dedup_service import search_dedup_service
-                result_dicts = [r.to_dict() if hasattr(r, 'to_dict') else {"title": r.title, "snippet": r.content, "url": getattr(r, 'url', ''), "relevance": r.relevance, "source": r.source} for r in results]
+
+                result_dicts = [
+                    (
+                        r.to_dict()
+                        if hasattr(r, "to_dict")
+                        else {
+                            "title": r.title,
+                            "snippet": r.content,
+                            "url": getattr(r, "url", ""),
+                            "relevance": r.relevance,
+                            "source": r.source,
+                        }
+                    )
+                    for r in results
+                ]
                 deduped = search_dedup_service.deduplicate(result_dicts)
                 # 重建 SearchResult 列表
                 new_results: list[SearchResult] = []
                 for d in deduped:
                     if not isinstance(d, dict):
                         continue
-                    new_results.append(SearchResult(
-                        source=self._coerce_str(d.get("source")),
-                        title=self._coerce_str(d.get("title")),
-                        content=self._coerce_str(d.get("snippet"), self._coerce_str(d.get("content"))),
-                        url=self._coerce_str(d.get("url")),
-                        relevance=self._coerce_float(d.get("relevance"), 0.5),
-                    ))
+                    new_results.append(
+                        SearchResult(
+                            source=self._coerce_str(d.get("source")),
+                            title=self._coerce_str(d.get("title")),
+                            content=self._coerce_str(
+                                d.get("snippet"), self._coerce_str(d.get("content"))
+                            ),
+                            url=self._coerce_str(d.get("url")),
+                            relevance=self._coerce_float(d.get("relevance"), 0.5),
+                        )
+                    )
                 original_count = len(results)
                 results = new_results
                 if original_count != len(results):
@@ -518,7 +568,9 @@ class DeepResearchEngine:
 
         return results
 
-    async def _safe_web_search(self, query: str, max_results: int = 8, time_range: str | None = None) -> list[SearchResult]:
+    async def _safe_web_search(
+        self, query: str, max_results: int = 8, time_range: str | None = None
+    ) -> list[SearchResult]:
         """安全封装的 Web 搜索"""
         searcher = self.web_searcher
         if searcher is None:
@@ -532,7 +584,9 @@ class DeepResearchEngine:
                 SearchResult(
                     source="web_search",
                     title=self._coerce_str(wr.get("title")),
-                    content=self._coerce_str(wr.get("snippet"), self._coerce_str(wr.get("content"))),
+                    content=self._coerce_str(
+                        wr.get("snippet"), self._coerce_str(wr.get("content"))
+                    ),
                     url=self._coerce_str(wr.get("url")),
                     relevance=self._coerce_float(wr.get("relevance"), 0.5),
                 )
@@ -557,7 +611,9 @@ class DeepResearchEngine:
                 SearchResult(
                     source="news",
                     title=self._coerce_str(nr.get("title")),
-                    content=self._coerce_str(nr.get("snippet"), self._coerce_str(nr.get("content"))),
+                    content=self._coerce_str(
+                        nr.get("snippet"), self._coerce_str(nr.get("content"))
+                    ),
                     url=self._coerce_str(nr.get("url")),
                     relevance=self._coerce_float(nr.get("relevance"), 0.6),
                 )
@@ -582,7 +638,9 @@ class DeepResearchEngine:
                 SearchResult(
                     source="legal_database",
                     title=self._coerce_str(lr.get("title")),
-                    content=self._coerce_str(lr.get("snippet"), self._coerce_str(lr.get("content"))),
+                    content=self._coerce_str(
+                        lr.get("snippet"), self._coerce_str(lr.get("content"))
+                    ),
                     url=self._coerce_str(lr.get("url")),
                     relevance=self._coerce_float(lr.get("relevance"), 0.7),
                 )
@@ -618,10 +676,12 @@ class DeepResearchEngine:
         )
 
         time_range_hint = ""
-        if getattr(state, '_time_range_start', None):
+        if getattr(state, "_time_range_start", None):
             start = state._time_range_start
-            end = getattr(state, '_time_range_end', None) or "至今"
-            time_range_hint = f"\n时间范围要求：{start} ~ {end}（请重点关注该时间段内的历史事件和变化）"
+            end = getattr(state, "_time_range_end", None) or "至今"
+            time_range_hint = (
+                f"\n时间范围要求：{start} ~ {end}（请重点关注该时间段内的历史事件和变化）"
+            )
 
         prompt = f"""你是一位资深的企业尽职调查研究员。请审视以下搜索结果并进行反思分析。
 
@@ -650,9 +710,9 @@ class DeepResearchEngine:
             response_text = str(response)
 
             # 解析反思结果
-            cleaned = re.sub(r'```(?:json)?\s*', '', response_text).strip()
-            cleaned = re.sub(r'```\s*$', '', cleaned).strip()
-            json_match = re.search(r'\{[\s\S]*\}', cleaned)
+            cleaned = re.sub(r"```(?:json)?\s*", "", response_text).strip()
+            cleaned = re.sub(r"```\s*$", "", cleaned).strip()
+            json_match = re.search(r"\{[\s\S]*\}", cleaned)
 
             if json_match:
                 data = json.loads(json_match.group())
@@ -674,9 +734,7 @@ class DeepResearchEngine:
             summary="反思阶段异常，使用默认后续查询",
         )
 
-    async def _optimize_keywords(
-        self, queries: list[str], company_name: str
-    ) -> list[str]:
+    async def _optimize_keywords(self, queries: list[str], company_name: str) -> list[str]:
         """
         关键词优化器（灵感：BettaFish InsightEngine 的 keyword_optimizer）
         对后续搜索查询进行优化，提升召回率和精度
@@ -707,9 +765,9 @@ class DeepResearchEngine:
                 system_prompt_override="你是搜索关键词优化专家。请直接返回 JSON 数组。",
             )
             response_text = str(response)
-            cleaned = re.sub(r'```(?:json)?\s*', '', response_text).strip()
-            cleaned = re.sub(r'```\s*$', '', cleaned).strip()
-            json_match = re.search(r'\[[\s\S]*\]', cleaned)
+            cleaned = re.sub(r"```(?:json)?\s*", "", response_text).strip()
+            cleaned = re.sub(r"```\s*$", "", cleaned).strip()
+            json_match = re.search(r"\[[\s\S]*\]", cleaned)
             if json_match:
                 optimized = json.loads(json_match.group())
                 if isinstance(optimized, list) and optimized:
@@ -730,7 +788,9 @@ class DeepResearchEngine:
 
         try:
             start = datetime.strptime(time_range_start, "%Y-%m-%d")
-            end = datetime.strptime(time_range_end, "%Y-%m-%d") if time_range_end else datetime.now()
+            end = (
+                datetime.strptime(time_range_end, "%Y-%m-%d") if time_range_end else datetime.now()
+            )
             days_span = (end - start).days
 
             if days_span <= 1:
@@ -767,7 +827,9 @@ class DeepResearchEngine:
         tasks: list[Awaitable[list[SearchResult]]] = []
         try:
             start = datetime.strptime(time_range_start, "%Y-%m-%d")
-            end = datetime.strptime(time_range_end, "%Y-%m-%d") if time_range_end else datetime.now()
+            end = (
+                datetime.strptime(time_range_end, "%Y-%m-%d") if time_range_end else datetime.now()
+            )
 
             start_year = start.year
             end_year = end.year
@@ -806,17 +868,14 @@ class DeepResearchEngine:
         except (TypeError, ValueError):
             return default
 
-    async def _generate_final_summary(
-        self, state: ResearchState, dimensions: list[str]
-    ) -> str:
+    async def _generate_final_summary(self, state: ResearchState, dimensions: list[str]) -> str:
         """生成最终研究综合摘要"""
         agent = self.llm_agent
         if not agent:
             return f"对「{state.company_name}」的深度研究完成，共 {state.round_num} 轮搜索，获取 {len(state.all_results)} 条结果。"
 
         results_summary = "\n".join(
-            f"[{r.source}] {r.title}: {r.content[:300]}"
-            for r in state.all_results[:30]
+            f"[{r.source}] {r.title}: {r.content[:300]}" for r in state.all_results[:30]
         )
 
         reflections_summary = "\n".join(

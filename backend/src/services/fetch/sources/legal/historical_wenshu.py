@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """已落库历史裁判文书的 read-only 查询服务。
 
 合规设计：
@@ -23,12 +22,12 @@ from __future__ import annotations
 
 import logging
 from datetime import date
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncConnection
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from .base import (
     BaseLegalSource,
@@ -37,7 +36,6 @@ from .base import (
     LawSearchResult,
     LawStatus,
     LawType,
-    assert_url_compliant,
 )
 
 logger = logging.getLogger(__name__)
@@ -45,6 +43,7 @@ logger = logging.getLogger(__name__)
 
 # 允许的表名字符集（白名单），杜绝 SQL 注入
 import re as _re
+
 _SAFE_TABLE_NAME = _re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
 
 
@@ -133,8 +132,8 @@ class HistoricalWenshuSource(BaseLegalSource):
     async def search_by_filters(
         self,
         keyword: str,
-        court_level: Optional[str] = None,
-        year: Optional[int] = None,
+        court_level: str | None = None,
+        year: int | None = None,
         limit: int = 20,
     ) -> list[LawSearchResult]:
         """便利方法：search(keyword, court_level, year)。"""
@@ -185,7 +184,7 @@ class HistoricalWenshuSource(BaseLegalSource):
             summary,
         ) = row
         # judgment_date 在 sqlite 里可能是 str
-        jd: Optional[date] = None
+        jd: date | None = None
         if isinstance(judgment_date, date):
             jd = judgment_date
         elif judgment_date:

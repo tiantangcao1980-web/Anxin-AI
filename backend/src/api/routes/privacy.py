@@ -232,9 +232,7 @@ async def _fake_export_worker(job_id: str) -> None:
         await asyncio.sleep(0.2)
         job["status"] = "completed"
         job["download_url"] = f"/api/v1/privacy/export/{job_id}/download"  # 占位
-        job["expires_at"] = (
-            datetime.now(UTC) + timedelta(days=7)
-        ).isoformat()
+        job["expires_at"] = (datetime.now(UTC) + timedelta(days=7)).isoformat()
     except Exception as e:  # noqa: BLE001
         job["status"] = "failed"
         job["error"] = str(e)

@@ -20,6 +20,7 @@ router = APIRouter()
 
 class CaseCreate(BaseModel):
     """创建案件"""
+
     title: str
     case_type: str
     description: str | None = None
@@ -30,6 +31,7 @@ class CaseCreate(BaseModel):
 
 class CaseUpdate(BaseModel):
     """更新案件"""
+
     title: str | None = None
     case_type: str | None = None
     description: str | None = None
@@ -40,6 +42,7 @@ class CaseUpdate(BaseModel):
 
 class CaseResponse(BaseModel):
     """案件响应"""
+
     id: str
     case_number: str | None = None
     title: str
@@ -55,6 +58,7 @@ class CaseResponse(BaseModel):
 
 class CaseListResponse(BaseModel):
     """案件列表响应"""
+
     items: list[CaseResponse]
     total: int
     page: int
@@ -63,6 +67,7 @@ class CaseListResponse(BaseModel):
 
 class CaseEventResponse(BaseModel):
     """案件事件响应"""
+
     id: str
     event_type: str
     title: str
@@ -73,6 +78,7 @@ class CaseEventResponse(BaseModel):
 
 class CaseDocumentResponse(BaseModel):
     """案件文档响应"""
+
     id: str
     name: str
     doc_type: str
@@ -83,11 +89,13 @@ class CaseDocumentResponse(BaseModel):
 
 class LinkDocumentRequest(BaseModel):
     """关联文档请求"""
+
     document_id: str
 
 
 class LegalBriefingResponse(BaseModel):
     """案件简报响应"""
+
     briefing: str
     key_points: list[str]
     risk_list: list[dict[str, Any]]
@@ -153,7 +161,7 @@ async def list_cases(
         ],
         total=total,
         page=page,
-        page_size=page_size
+        page_size=page_size,
     )
     return UnifiedResponse.success(data=data)
 
@@ -192,8 +200,8 @@ async def create_case(
     return UnifiedResponse.success(data=data)
 
 
-
 # ============ 固定路径路由 — 必须在 /{case_id} 之前 ============
+
 
 @router.get("/statistics/overview")
 async def get_cases_statistics(
@@ -217,17 +225,19 @@ async def get_recent_events(
     events = await service.get_recent_events(org_id=_require_org_id(user), limit=limit)
     data = []
     for event, case in events:
-        data.append({
-            "id": event.id,
-            "case_id": case.id,
-            "case_number": case.case_number,
-            "case_title": case.title,
-            "event_type": event.event_type,
-            "title": event.title,
-            "description": event.description,
-            "event_time": event.event_time,
-            "created_at": event.created_at,
-        })
+        data.append(
+            {
+                "id": event.id,
+                "case_id": case.id,
+                "case_number": case.case_number,
+                "case_title": case.title,
+                "event_type": event.event_type,
+                "title": event.title,
+                "description": event.description,
+                "event_time": event.event_time,
+                "created_at": event.created_at,
+            }
+        )
     return UnifiedResponse.success(data=data)
 
 
@@ -255,11 +265,12 @@ async def get_compliance_score(
 
 # ============ 动态路径路由 ============
 
+
 @router.get("/{case_id}")
 async def get_case(
     case_id: str,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_required)
+    user: User = Depends(get_current_user_required),
 ) -> Any:
     """获取案件详情"""
     service = CaseService(db)
@@ -335,7 +346,7 @@ async def update_case(
 async def delete_case(
     case_id: str,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_required)
+    user: User = Depends(get_current_user_required),
 ) -> dict[str, Any]:
     """删除案件"""
     service = CaseService(db)
@@ -354,7 +365,7 @@ async def delete_case(
 async def get_case_timeline(
     case_id: str,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_required)
+    user: User = Depends(get_current_user_required),
 ) -> dict[str, Any]:
     """获取案件时间线"""
     service = CaseService(db)
@@ -384,7 +395,7 @@ async def get_case_timeline(
 async def analyze_case(
     case_id: str,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_required)
+    user: User = Depends(get_current_user_required),
 ) -> dict[str, Any]:
     """AI分析案件"""
     service = CaseService(db)
@@ -405,7 +416,7 @@ async def analyze_case(
 async def generate_case_briefing(
     case_id: str,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_required)
+    user: User = Depends(get_current_user_required),
 ) -> dict[str, Any]:
     """生成案件简报 (Legal Briefing)"""
     service = CaseService(db)
@@ -420,9 +431,15 @@ async def generate_case_briefing(
     documents = await service.get_case_documents(case_id, org_id=org_id)
 
     # 构建上下文
-    context = f"案件标题: {case.title}\n案件类型: {case.case_type.value}\n描述: {case.description}\n"
-    context += "\n[关键时间节点]:\n" + "\n".join([f"- {e.event_time.date()}: {e.title}" for e in timeline])
-    context += "\n[关键文档]:\n" + "\n".join([f"- {d.name}: {d.ai_summary or '暂无摘要'}" for d in documents])
+    context = (
+        f"案件标题: {case.title}\n案件类型: {case.case_type.value}\n描述: {case.description}\n"
+    )
+    context += "\n[关键时间节点]:\n" + "\n".join(
+        [f"- {e.event_time.date()}: {e.title}" for e in timeline]
+    )
+    context += "\n[关键文档]:\n" + "\n".join(
+        [f"- {d.name}: {d.ai_summary or '暂无摘要'}" for d in documents]
+    )
 
     # 调用 Workforce 生成简报
     workforce = get_workforce()
@@ -446,16 +463,16 @@ async def generate_case_briefing(
         # 这里为了演示，我们假设 LLM 返回了 Markdown，我们直接返回 Text
         # 前端负责渲染 Markdown
 
-        return UnifiedResponse.success(data={
-            "briefing": briefing_text,
-            "generated_at": datetime.now()
-        })
+        return UnifiedResponse.success(
+            data={"briefing": briefing_text, "generated_at": datetime.now()}
+        )
 
     except Exception as e:
         return UnifiedResponse.error(code=500, message=f"生成简报失败: {str(e)}")
 
 
 # ============ 文档关联 ============
+
 
 @router.get("/{case_id}/documents")
 async def get_case_documents(
@@ -478,7 +495,7 @@ async def get_case_documents(
         CaseDocumentResponse(
             id=doc.id,
             name=doc.name,
-            doc_type=doc.doc_type.value if hasattr(doc.doc_type, 'value') else str(doc.doc_type),
+            doc_type=doc.doc_type.value if hasattr(doc.doc_type, "value") else str(doc.doc_type),
             file_size=doc.file_size or 0,
             ai_summary=doc.ai_summary,
             created_at=doc.created_at,

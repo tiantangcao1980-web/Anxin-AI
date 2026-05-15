@@ -14,6 +14,7 @@ from src.core.memory.episodic_memory import EnhancedEpisodicMemoryService
 
 class Pattern(BaseModel):
     """经验模式"""
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     pattern_id: str
@@ -25,6 +26,7 @@ class Pattern(BaseModel):
     created_at: datetime
     usage_count: int = 0
     success_rate: float = 0.0
+
 
 class ExperienceExtractor:
     """
@@ -115,9 +117,11 @@ class ExperienceExtractor:
                     "agents_used": episode.get("agents_involved", []),
                     "execution_time": episode.get("success_metrics", {}).get("execution_time", 0),
                     "agent_sequence": episode.get("execution_trace", {}).get("agent_sequence", []),
-                    "parallel_groups": episode.get("execution_trace", {}).get("parallel_groups", []),
+                    "parallel_groups": episode.get("execution_trace", {}).get(
+                        "parallel_groups", []
+                    ),
                 },
-                created_at=datetime.now()
+                created_at=datetime.now(),
             )
             patterns.append(dag_pattern)
 
@@ -133,7 +137,7 @@ class ExperienceExtractor:
                     "reasoning_steps": episode.get("reasoning_chain", []),
                     "key_decisions": episode.get("execution_trace", {}).get("decisions", []),
                 },
-                created_at=datetime.now()
+                created_at=datetime.now(),
             )
             patterns.append(reasoning_pattern)
 
@@ -160,7 +164,7 @@ class ExperienceExtractor:
                     "agents_used": episode.get("agents_involved", []),
                     "avoid_patterns": [],  # TODO: 提取应避免的模式
                 },
-                created_at=datetime.now()
+                created_at=datetime.now(),
             )
             patterns.append(failure_pattern)
 
@@ -185,7 +189,7 @@ class ExperienceExtractor:
                     "task_type": episode["task_type"],
                     "success": episode.get("is_successful", False),
                 },
-                created_at=datetime.now()
+                created_at=datetime.now(),
             )
             patterns.append(collaboration_pattern)
 
@@ -196,7 +200,7 @@ class ExperienceExtractor:
         pattern_type: str | None = None,
         task_type: str | None = None,
         min_confidence: float = 0.5,
-        limit: int = 10
+        limit: int = 10,
     ) -> list[Pattern]:
         """
         获取已提取的模式
@@ -239,7 +243,9 @@ class ExperienceExtractor:
                 pattern.usage_count += 1
                 # 更新成功率 (指数移动平均)
                 alpha = 0.1
-                pattern.success_rate = (alpha * (1 if success else 0) + (1 - alpha) * pattern.success_rate)
+                pattern.success_rate = (
+                    alpha * (1 if success else 0) + (1 - alpha) * pattern.success_rate
+                )
                 break
 
     async def get_pattern_stats(self) -> dict[str, Any]:
@@ -263,7 +269,7 @@ class ExperienceExtractor:
             "total_patterns": total,
             "avg_confidence": avg_confidence,
             "by_type": pattern_types,
-            "most_used": sorted(self._patterns, key=lambda p: p.usage_count, reverse=True)[:5]
+            "most_used": sorted(self._patterns, key=lambda p: p.usage_count, reverse=True)[:5],
         }
 
     def _calculate_confidence(self, cases: list[dict[str, Any]]) -> float:
@@ -283,7 +289,8 @@ class ExperienceExtractor:
         """兼容旧测试：从成功案例集合中提取模式。"""
         cases = self.db.all() if self.db and hasattr(self.db, "all") else []
         filtered = [
-            case for case in cases
+            case
+            for case in cases
             if case.get("task_type") == task_type and case.get("user_rating", 0) >= min_rating
         ][:limit]
         if not filtered:
@@ -314,7 +321,8 @@ class ExperienceExtractor:
         """兼容旧测试：从失败案例集合中提取模式。"""
         cases = self.db.all() if self.db and hasattr(self.db, "all") else []
         filtered = [
-            case for case in cases
+            case
+            for case in cases
             if case.get("task_type") == task_type and case.get("user_rating", 5) <= max_rating
         ][:limit]
         if not filtered:

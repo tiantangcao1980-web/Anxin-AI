@@ -24,6 +24,7 @@ class ScenarioTemplate(TypedDict):
     recommendations: list[str]
     assessment_suffix: NotRequired[str]
 
+
 # 预设场景模板
 SCENARIO_TEMPLATES: dict[str, ScenarioTemplate] = {
     "customer_default": {
@@ -37,8 +38,11 @@ SCENARIO_TEMPLATES: dict[str, ScenarioTemplate] = {
             {"event": "员工薪资发放延迟风险", "probability": 0.3, "severity": "medium"},
         ],
         "risk_delta": {
-            "operation_risk": 25, "litigation_risk": 15,
-            "credit_risk": 30, "compliance_risk": 5, "relation_risk": 20,
+            "operation_risk": 25,
+            "litigation_risk": 15,
+            "credit_risk": 30,
+            "compliance_risk": 5,
+            "relation_risk": 20,
         },
         "recommendations": [
             "立即启动应收账款催收程序，必要时提起诉讼",
@@ -51,14 +55,21 @@ SCENARIO_TEMPLATES: dict[str, ScenarioTemplate] = {
         "name": "监管处罚",
         "description": "因合规问题被监管部门处以重大行政处罚",
         "impact_chain": [
-            {"event": "收到行政处罚决定书，罚款 50-200 万元", "probability": 0.9, "severity": "high"},
+            {
+                "event": "收到行政处罚决定书，罚款 50-200 万元",
+                "probability": 0.9,
+                "severity": "high",
+            },
             {"event": "企业信用评级下调", "probability": 0.7, "severity": "medium"},
             {"event": "相关资质或许可证被暂扣", "probability": 0.4, "severity": "critical"},
             {"event": "负面舆情扩散，品牌声誉受损", "probability": 0.6, "severity": "medium"},
         ],
         "risk_delta": {
-            "operation_risk": 15, "litigation_risk": 10,
-            "credit_risk": 20, "compliance_risk": 40, "relation_risk": 15,
+            "operation_risk": 15,
+            "litigation_risk": 10,
+            "credit_risk": 20,
+            "compliance_risk": 40,
+            "relation_risk": 15,
         },
         "recommendations": [
             "立即组织内部合规审查，识别整改要点",
@@ -77,8 +88,11 @@ SCENARIO_TEMPLATES: dict[str, ScenarioTemplate] = {
             {"event": "竞业限制执行风险，商业秘密泄露隐患", "probability": 0.3, "severity": "high"},
         ],
         "risk_delta": {
-            "operation_risk": 30, "litigation_risk": 10,
-            "credit_risk": 5, "compliance_risk": 5, "relation_risk": 10,
+            "operation_risk": 30,
+            "litigation_risk": 10,
+            "credit_risk": 5,
+            "compliance_risk": 5,
+            "relation_risk": 10,
         },
         "recommendations": [
             "启动继任者计划，确保核心岗位备份",
@@ -97,8 +111,11 @@ SCENARIO_TEMPLATES: dict[str, ScenarioTemplate] = {
             {"event": "行业竞争格局重新洗牌", "probability": 0.4, "severity": "medium"},
         ],
         "risk_delta": {
-            "operation_risk": 20, "litigation_risk": 5,
-            "credit_risk": 10, "compliance_risk": 25, "relation_risk": 10,
+            "operation_risk": 20,
+            "litigation_risk": 5,
+            "credit_risk": 10,
+            "compliance_risk": 25,
+            "relation_risk": 10,
         },
         "recommendations": [
             "密切关注政策动态，提前布局合规调整",
@@ -159,7 +176,7 @@ class ScenarioSimulationService:
             "risk_after": risk_after,
             "recommendations": template["recommendations"],
             "overall_assessment": f"该场景将使 {company_name} 的风险等级变为{overall}。"
-                + template.get("assessment_suffix", ""),
+            + template.get("assessment_suffix", ""),
         }
 
     async def simulate_stream(

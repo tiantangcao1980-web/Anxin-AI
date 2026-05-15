@@ -19,27 +19,30 @@ if TYPE_CHECKING:
 
 class SessionStatus(str, enum.Enum):
     """协作会话状态"""
-    ACTIVE = "active"          # 活跃
-    PAUSED = "paused"          # 暂停
-    CLOSED = "closed"          # 已关闭
+
+    ACTIVE = "active"  # 活跃
+    PAUSED = "paused"  # 暂停
+    CLOSED = "closed"  # 已关闭
 
 
 class CollaboratorRole(str, enum.Enum):
     """协作角色"""
-    OWNER = "owner"            # 所有者
-    EDITOR = "editor"          # 编辑者
-    VIEWER = "viewer"          # 查看者
-    COMMENTER = "commenter"    # 评论者
+
+    OWNER = "owner"  # 所有者
+    EDITOR = "editor"  # 编辑者
+    VIEWER = "viewer"  # 查看者
+    COMMENTER = "commenter"  # 评论者
 
 
 class EditOperation(str, enum.Enum):
     """编辑操作类型"""
-    INSERT = "insert"          # 插入
-    DELETE = "delete"          # 删除
-    REPLACE = "replace"        # 替换
-    FORMAT = "format"          # 格式化
-    COMMENT = "comment"        # 评论
-    CURSOR = "cursor"          # 光标移动
+
+    INSERT = "insert"  # 插入
+    DELETE = "delete"  # 删除
+    REPLACE = "replace"  # 替换
+    FORMAT = "format"  # 格式化
+    COMMENT = "comment"  # 评论
+    CURSOR = "cursor"  # 光标移动
 
 
 class DocumentSession(Base, TimestampMixin):
@@ -89,9 +92,7 @@ class DocumentSession(Base, TimestampMixin):
 
     # 关系
     document: Mapped["Document"] = relationship("Document", back_populates="sessions")
-    creator: Mapped[Optional["User"]] = relationship(
-        "User", foreign_keys=[created_by]
-    )
+    creator: Mapped[Optional["User"]] = relationship("User", foreign_keys=[created_by])
     collaborators: Mapped[list["DocumentCollaborator"]] = relationship(
         "DocumentCollaborator", back_populates="session", cascade="all, delete-orphan"
     )
@@ -120,7 +121,9 @@ class DocumentCollaborator(Base, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     # 光标位置
-    cursor_position: Mapped[dict[str, Any] | None] = mapped_column(JSONB)  # {line, column, selection}
+    cursor_position: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB
+    )  # {line, column, selection}
 
     # 时间
     joined_at: Mapped[datetime] = mapped_column(
@@ -138,9 +141,7 @@ class DocumentCollaborator(Base, TimestampMixin):
     session_id: Mapped[str] = mapped_column(
         GUID(), ForeignKey("document_sessions.id", ondelete="CASCADE"), nullable=False
     )
-    user_id: Mapped[str | None] = mapped_column(
-        GUID(), ForeignKey("users.id", ondelete="SET NULL")
-    )
+    user_id: Mapped[str | None] = mapped_column(GUID(), ForeignKey("users.id", ondelete="SET NULL"))
 
     # 关系
     session: Mapped["DocumentSession"] = relationship(
@@ -158,13 +159,13 @@ class DocumentEdit(Base, TimestampMixin):
     __tablename__ = "document_edits"
 
     # 编辑信息
-    operation: Mapped[EditOperation] = mapped_column(
-        ValueEnum(EditOperation), nullable=False
-    )
+    operation: Mapped[EditOperation] = mapped_column(ValueEnum(EditOperation), nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
 
     # 编辑内容
-    position: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)  # {start, end, line, column}
+    position: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False
+    )  # {start, end, line, column}
     content: Mapped[str | None] = mapped_column(Text)  # 插入/替换的内容
     old_content: Mapped[str | None] = mapped_column(Text)  # 被删除/替换的内容
 
@@ -189,9 +190,7 @@ class DocumentEdit(Base, TimestampMixin):
     )
 
     # 关系
-    session: Mapped["DocumentSession"] = relationship(
-        "DocumentSession", back_populates="edits"
-    )
+    session: Mapped["DocumentSession"] = relationship("DocumentSession", back_populates="edits")
     collaborator: Mapped[Optional["DocumentCollaborator"]] = relationship(
         "DocumentCollaborator", back_populates="edits"
     )
@@ -199,6 +198,7 @@ class DocumentEdit(Base, TimestampMixin):
 
 class DocumentSnapshot(Base, TimestampMixin):
     """文档版本快照"""
+
     __tablename__ = "document_snapshots"
 
     session_id: Mapped[str] = mapped_column(
@@ -217,7 +217,5 @@ class DocumentSnapshot(Base, TimestampMixin):
     byte_size: Mapped[int] = mapped_column(Integer, default=0)
 
     # 关系
-    session: Mapped["DocumentSession"] = relationship(
-        "DocumentSession", back_populates="snapshots"
-    )
+    session: Mapped["DocumentSession"] = relationship("DocumentSession", back_populates="snapshots")
     creator: Mapped[Optional["User"]] = relationship("User", foreign_keys=[created_by])

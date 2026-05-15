@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P9-B: persona_legal 路由 6 endpoint API 测试。
 
 覆盖：
@@ -18,6 +17,7 @@ from __future__ import annotations
 from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler as _SQLiteTC
 
 if not hasattr(_SQLiteTC, "visit_JSONB"):
+
     def _visit_JSONB(self, type_, **kw):  # noqa: N802
         return self.visit_JSON(type_, **kw)
 
@@ -33,7 +33,6 @@ from httpx import AsyncClient
 from src.agents.base import AgentResponse
 from src.agents.personas.legal_advisor import LegalAdvisorPersona
 from src.api.routes import persona_legal as routes_legal
-
 
 PREFIX = "/api/v1/personas/legal"
 

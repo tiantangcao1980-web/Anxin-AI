@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """DueDiligenceExpertPersona 关系图谱算法测试 (P9-D)。
 
 覆盖：
@@ -15,14 +14,13 @@ import pytest
 
 from src.agents.personas.dd_models import (
     RelationshipEdge,
-    RelationshipGraph,
     RelationshipNode,
 )
 from src.agents.personas.due_diligence_expert import (
-    DueDiligenceExpertPersona,
     _MAX_GRAPH_DEPTH,
     _MAX_NODES_PER_LEVEL,
     _MAX_NODES_TOTAL,
+    DueDiligenceExpertPersona,
 )
 
 
@@ -77,9 +75,7 @@ async def test_graph_finds_risk_paths_from_root():
     g = await persona.build_relationship_graph("RiskyCo", depth=3)
     # mock _fetch_neighbors 会按 hash 派发部分 high-risk 节点；不强求 risk_paths
     # 一定非空（不同输入 hash 不同），但若有 high-risk 节点，则必须找出至少一条
-    high_risk_ids = {
-        n.id for n in g.nodes if n.attributes.get("risk_level") == "high"
-    }
+    high_risk_ids = {n.id for n in g.nodes if n.attributes.get("risk_level") == "high"}
     if high_risk_ids:
         assert g.risk_paths, "存在 high-risk 节点时应至少找到一条 risk_path"
         for path in g.risk_paths:
@@ -118,9 +114,7 @@ async def test_find_risk_paths_static_topology():
         RelationshipEdge(from_id="person:alice", to_id="company:bad", relationship="owns"),
         RelationshipEdge(from_id="company:root", to_id="company:good", relationship="invests_in"),
     ]
-    paths = DueDiligenceExpertPersona._find_risk_paths(
-        "company:root", edges, nodes_by_id
-    )
+    paths = DueDiligenceExpertPersona._find_risk_paths("company:root", edges, nodes_by_id)
     assert len(paths) == 1
     assert paths[0] == ["company:root", "person:alice", "company:bad"]
 

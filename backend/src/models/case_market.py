@@ -22,21 +22,23 @@ from src.models.base import GUID, Base, TimestampMixin, ValueEnum
 
 class RequestStatus(str, enum.Enum):
     """需求状态"""
-    DRAFT = "draft"             # 草稿
-    PUBLISHED = "published"     # 已发布（律师可见）
-    MATCHED = "matched"         # 已匹配（有律师接单）
-    IN_PROGRESS = "in_progress" # 服务进行中
-    COMPLETED = "completed"     # 已完成
-    CANCELLED = "cancelled"     # 已取消
-    EXPIRED = "expired"         # 已过期
+
+    DRAFT = "draft"  # 草稿
+    PUBLISHED = "published"  # 已发布（律师可见）
+    MATCHED = "matched"  # 已匹配（有律师接单）
+    IN_PROGRESS = "in_progress"  # 服务进行中
+    COMPLETED = "completed"  # 已完成
+    CANCELLED = "cancelled"  # 已取消
+    EXPIRED = "expired"  # 已过期
 
 
 class BidStatus(str, enum.Enum):
     """投标状态"""
-    PENDING = "pending"         # 待审核
-    ACCEPTED = "accepted"       # 已接受
-    REJECTED = "rejected"       # 已拒绝
-    WITHDRAWN = "withdrawn"     # 律师撤回
+
+    PENDING = "pending"  # 待审核
+    ACCEPTED = "accepted"  # 已接受
+    REJECTED = "rejected"  # 已拒绝
+    WITHDRAWN = "withdrawn"  # 律师撤回
 
 
 class CaseRequest(Base, TimestampMixin):
@@ -45,6 +47,7 @@ class CaseRequest(Base, TimestampMixin):
 
     需求方在 /app 端发起，选择"允许向律师推送"后进入案源市场。
     """
+
     __tablename__ = "case_requests"
 
     # 发布者
@@ -105,6 +108,7 @@ class LawyerBid(Base, TimestampMixin):
 
     律师在 /pro 端看到案源后提交报价和方案。
     """
+
     __tablename__ = "lawyer_bids"
 
     # 关联
@@ -121,9 +125,7 @@ class LawyerBid(Base, TimestampMixin):
     estimated_days: Mapped[int | None] = mapped_column(Integer)  # 预计完成天数
 
     # 状态
-    status: Mapped[BidStatus] = mapped_column(
-        ValueEnum(BidStatus), default=BidStatus.PENDING
-    )
+    status: Mapped[BidStatus] = mapped_column(ValueEnum(BidStatus), default=BidStatus.PENDING)
 
     # 需求方评价
     client_rating: Mapped[int | None] = mapped_column(Integer)  # 1-5

@@ -65,6 +65,7 @@ class EntryIdsRequest(BaseModel):
 
 class InvoiceItem(BaseModel):
     """发票明细项"""
+
     description: str = Field(..., min_length=1, max_length=500, description="明细描述")
     hours: float = Field(..., gt=0, description="工时小时数")
     rate: float = Field(..., ge=0, description="费率（元/小时）")
@@ -100,13 +101,15 @@ async def list_teams(
     teams = await service.list_teams(_require_org_id(user))
     total = len(teams)
     start = (page - 1) * page_size
-    items = teams[start: start + page_size]
-    return UnifiedResponse.success(data={
-        "items": items,
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-    })
+    items = teams[start : start + page_size]
+    return UnifiedResponse.success(
+        data={
+            "items": items,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        }
+    )
 
 
 @router.post("/teams")
@@ -214,13 +217,15 @@ async def list_timesheet(
     )
     total = len(entries)
     start = (page - 1) * page_size
-    items = entries[start: start + page_size]
-    return UnifiedResponse.success(data={
-        "items": items,
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-    })
+    items = entries[start : start + page_size]
+    return UnifiedResponse.success(
+        data={
+            "items": items,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        }
+    )
 
 
 @router.post("/timesheet")
@@ -314,13 +319,15 @@ async def list_invoices(
     invoices = await service.list_invoices(org_id=_require_org_id(user), status=status)
     total = len(invoices)
     start = (page - 1) * page_size
-    items = invoices[start: start + page_size]
-    return UnifiedResponse.success(data={
-        "items": items,
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-    })
+    items = invoices[start : start + page_size]
+    return UnifiedResponse.success(
+        data={
+            "items": items,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        }
+    )
 
 
 @router.post("/invoices")

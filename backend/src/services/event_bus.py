@@ -79,6 +79,7 @@ class EventBus:
             event = dict(message)
             if "timestamp" not in event:
                 import time
+
                 event["timestamp"] = time.time()
 
             payload = json.dumps(event, ensure_ascii=False)

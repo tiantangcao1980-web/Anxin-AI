@@ -28,6 +28,7 @@ from src.services.crawler_service import CrawlerTask, crawler_service
 
 router = APIRouter()
 
+
 class CrawlRequest(BaseModel):
     url: str | None = "https://example.com/legal-case"
     keyword: str
@@ -47,7 +48,9 @@ def _validate_crawl_url(raw_url: str | None) -> str:
     allowed_hosts = normalize_legal_whitelist(settings.LIC_ALLOWED_HOSTS)
     if hostname in {"localhost", "127.0.0.1", "::1"} or hostname.endswith(".local"):
         raise HTTPException(status_code=403, detail="禁止抓取本地或内网地址")
-    if allowed_hosts and not any(hostname == allowed or hostname.endswith(f".{allowed}") for allowed in allowed_hosts):
+    if allowed_hosts and not any(
+        hostname == allowed or hostname.endswith(f".{allowed}") for allowed in allowed_hosts
+    ):
         raise HTTPException(status_code=403, detail="该域名不在允许抓取列表中")
 
     try:
@@ -77,11 +80,12 @@ def _can_access_task(task: dict[str, Any] | None, user: User) -> bool:
         return True
     return str(task.get("owner_id")) == str(user.id)
 
+
 @router.post("/crawl")
 async def start_crawl(
     request: CrawlRequest,
     background_tasks: BackgroundTasks,
-    user: User = Depends(get_current_user_required)
+    user: User = Depends(get_current_user_required),
 ) -> dict[str, Any]:
     """启动抓取任务"""
     safe_url = _validate_crawl_url(request.url)
@@ -94,19 +98,19 @@ async def start_crawl(
     )
     return UnifiedResponse.success(message="任务已启动", data={"task_id": request.task_id})
 
+
 @router.post("/evolve")
 async def trigger_self_evolution(
-    background_tasks: BackgroundTasks,
-    user: User = Depends(get_current_user_required)
+    background_tasks: BackgroundTasks, user: User = Depends(get_current_user_required)
 ) -> dict[str, Any]:
     """手动触发法律法规自进化爬取"""
     result = await crawler_service.crawl_latest_laws()
     return UnifiedResponse.success(data=result, message="自进化爬取任务已启动")
 
+
 @router.get("/status/{task_id}")
 async def get_crawl_status(
-    task_id: str,
-    user: User = Depends(get_current_user_required)
+    task_id: str, user: User = Depends(get_current_user_required)
 ) -> dict[str, Any]:
     """查询抓取进度"""
     status = crawler_service.get_task_status(task_id)
@@ -115,6 +119,7 @@ async def get_crawl_status(
     if not _can_access_task(status, user):
         return UnifiedResponse.error(code=403, message="无权查看该任务")
     return UnifiedResponse.success(data=status)
+
 
 @router.websocket("/ws/{task_id}")
 async def websocket_lic(
@@ -155,13 +160,15 @@ async def websocket_lic(
     ) -> None:
         if tid == task_id:
             try:
-                await websocket.send_json({
-                    "type": "lic_progress",
-                    "status": status,
-                    "progress": progress,
-                    "message": message,
-                    "task_id": tid
-                })
+                await websocket.send_json(
+                    {
+                        "type": "lic_progress",
+                        "status": status,
+                        "progress": progress,
+                        "message": message,
+                        "task_id": tid,
+                    }
+                )
             except Exception as e:
                 logger.debug(f"发送进度通知失败 (连接可能已断开): {e}")
 
@@ -171,13 +178,15 @@ async def websocket_lic(
         # 发送当前状态（如果任务已经在运行）
         if task_id in crawler_service.tasks:
             task_state: CrawlerTask = crawler_service.tasks[task_id]
-            await websocket.send_json({
-                "type": "lic_progress",
-                "status": task_state.status,
-                "progress": task_state.progress,
-                "message": task_state.message,
-                "task_id": task_id
-            })
+            await websocket.send_json(
+                {
+                    "type": "lic_progress",
+                    "status": task_state.status,
+                    "progress": task_state.progress,
+                    "message": task_state.message,
+                    "task_id": task_id,
+                }
+            )
 
         while True:
             # 保持连接，接收心跳或任何数据

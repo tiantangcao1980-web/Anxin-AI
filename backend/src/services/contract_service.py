@@ -62,6 +62,7 @@ class ContractService:
         """延迟导入 workforce，避免循环依赖"""
         if self._workforce is None:
             from src.agents.workforce import get_workforce
+
             self._workforce = get_workforce()
         return self._workforce
 
@@ -158,12 +159,12 @@ class ContractService:
     ) -> JSONDict:
         """
         AI审查合同
-        
+
         Args:
             contract_id: 合同ID
             contract_text: 合同文本内容
             reviewed_by: 审核人ID
-            
+
         Returns:
             审查结果
         """
@@ -401,8 +402,10 @@ class ContractService:
         org_id: str | None = None,
     ) -> bool:
         """标记风险已解决"""
-        query = select(ContractRisk).join(Contract, Contract.id == ContractRisk.contract_id).where(
-            ContractRisk.id == risk_id
+        query = (
+            select(ContractRisk)
+            .join(Contract, Contract.id == ContractRisk.contract_id)
+            .where(ContractRisk.id == risk_id)
         )
         if contract_id:
             query = query.where(ContractRisk.contract_id == contract_id)
@@ -442,7 +445,8 @@ class ContractService:
 
         # 获取接受的风险记录，按 original_text 在文本中出现的位置倒序排列（从后往前替换避免位移问题）
         accepted_risks = [
-            r for r in contract.risks
+            r
+            for r in contract.risks
             if r.id in accepted_risk_ids and r.original_text and r.suggested_text
         ]
 
@@ -462,7 +466,7 @@ class ContractService:
             suggested_text = risk.suggested_text
             if original_text is None or suggested_text is None:
                 continue
-            modified = modified[:pos] + suggested_text + modified[pos + len(original_text):]
+            modified = modified[:pos] + suggested_text + modified[pos + len(original_text) :]
             risk.is_resolved = True
             risk.resolution_note = "用户已接受修改建议"
 
@@ -518,15 +522,17 @@ class ContractService:
         for tag, old_start, old_end, new_start, new_end in matcher.get_opcodes():
             if tag == "equal":
                 continue
-            changes.append({
-                "type": tag,
-                "old_start": old_start + 1,
-                "old_end": old_end,
-                "new_start": new_start + 1,
-                "new_end": new_end,
-                "old_text": "\n\n".join(old_parts[old_start:old_end]),
-                "new_text": "\n\n".join(new_parts[new_start:new_end]),
-            })
+            changes.append(
+                {
+                    "type": tag,
+                    "old_start": old_start + 1,
+                    "old_end": old_end,
+                    "new_start": new_start + 1,
+                    "new_end": new_end,
+                    "old_text": "\n\n".join(old_parts[old_start:old_end]),
+                    "new_text": "\n\n".join(new_parts[new_start:new_end]),
+                }
+            )
 
         return {
             "contract_id": contract.id,
@@ -582,22 +588,22 @@ class ContractService:
         description: str | None = None,
     ) -> None:
         existing = await self.db.scalar(
-            select(func.count(ContractVersion.id)).where(
-                ContractVersion.contract_id == contract.id
-            )
+            select(func.count(ContractVersion.id)).where(ContractVersion.contract_id == contract.id)
         )
         if existing:
             return
 
         text = contract.original_text or contract.modified_text or ""
-        self.db.add(ContractVersion(
-            contract_id=contract.id,
-            version=1,
-            text=text,
-            source="baseline",
-            description=description,
-            created_by=actor_id,
-        ))
+        self.db.add(
+            ContractVersion(
+                contract_id=contract.id,
+                version=1,
+                text=text,
+                source="baseline",
+                description=description,
+                created_by=actor_id,
+            )
+        )
         contract.version = max(contract.version or 1, 1)
         await self.db.flush()
 

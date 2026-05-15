@@ -36,8 +36,7 @@ def create_agent_server() -> Any:
         from livekit.agents import Agent, AgentServer, AgentSession, JobContext
     except ImportError:
         logger.error(
-            "LiveKit Agents 未安装，请执行:\n"
-            "  pip install livekit-agents livekit-plugins-aliyun"
+            "LiveKit Agents 未安装，请执行:\n" "  pip install livekit-agents livekit-plugins-aliyun"
         )
         sys.exit(1)
 
@@ -49,7 +48,9 @@ def create_agent_server() -> Any:
 
     server = AgentServer()
     rtc_session = cast(
-        Callable[[Callable[[JobContext], Awaitable[None]]], Callable[[JobContext], Awaitable[None]]],
+        Callable[
+            [Callable[[JobContext], Awaitable[None]]], Callable[[JobContext], Awaitable[None]]
+        ],
         server.rtc_session(agent_name="anxin-transcriber"),
     )
 
@@ -99,6 +100,7 @@ def _get_stt_engine() -> Any | None:
     if os.environ.get("DASHSCOPE_API_KEY"):
         try:
             from livekit.plugins import aliyun
+
             logger.info("使用阿里云百炼 Paraformer 实时 ASR")
             return aliyun.STT(model="paraformer-realtime-v2")
         except ImportError:
@@ -108,6 +110,7 @@ def _get_stt_engine() -> Any | None:
     if os.environ.get("DEEPGRAM_API_KEY"):
         try:
             from livekit.agents import inference
+
             logger.info("使用 Deepgram ASR")
             return inference.STT(model="deepgram/nova-3-general")
         except ImportError:
@@ -121,6 +124,7 @@ async def _push_to_assistant(conversation_id: str, text: str) -> None:
     """将转录文本推送到 AI 旁听助手"""
     try:
         from src.services.meeting_assistant_service import meeting_assistant
+
         await meeting_assistant.on_message(
             conversation_id=conversation_id,
             sender_id="voice_participant",
@@ -133,5 +137,6 @@ async def _push_to_assistant(conversation_id: str, text: str) -> None:
 
 if __name__ == "__main__":
     from livekit.agents import cli
+
     server = create_agent_server()
     cli.run_app(server)

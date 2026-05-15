@@ -1,4 +1,5 @@
 """工作台确认/动作处理器"""
+
 from typing import Any
 
 from loguru import logger
@@ -22,11 +23,16 @@ async def handle_workspace_message(
         confirmation_id = data.get("confirmation_id", "")
         selected_ids = data.get("selected_ids", [])
         custom_text = data.get("custom_text", "")
-        logger.info(f"收到工作台确认: {confirmation_id}, 选项: {selected_ids}, 自定义: {custom_text[:50] if custom_text else ''}")
-        await ctx.send("workspace_confirmation_ack", {
-            "confirmation_id": confirmation_id,
-            "status": "received",
-        })
+        logger.info(
+            f"收到工作台确认: {confirmation_id}, 选项: {selected_ids}, 自定义: {custom_text[:50] if custom_text else ''}"
+        )
+        await ctx.send(
+            "workspace_confirmation_ack",
+            {
+                "confirmation_id": confirmation_id,
+                "status": "received",
+            },
+        )
 
         # 合并预设选项和自定义输入
         parts = []
@@ -53,10 +59,13 @@ async def handle_workspace_message(
         logger.info(f"收到工作台动作: {action_id}, payload: {payload}")
 
         if action_id == "start_processing" and payload:
-            await ctx.send("agent_thinking", {
-                "agent": "协调调度Agent",
-                "message": "收到确认，正在启动智能体协作...",
-            })
+            await ctx.send(
+                "agent_thinking",
+                {
+                    "agent": "协调调度Agent",
+                    "message": "收到确认，正在启动智能体协作...",
+                },
+            )
 
             content = ctx.last_user_content or "请根据之前的需求分析结果开始处理"
             data["original_content"] = ctx.last_user_content

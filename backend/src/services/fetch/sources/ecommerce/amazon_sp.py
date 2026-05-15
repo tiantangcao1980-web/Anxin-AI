@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Amazon Selling Partner API（SP-API）数据源 — mock + 接口契约（P6-D）。
 
 为什么 mock？
@@ -27,8 +26,7 @@ P7+（"出海全链路"阶段）。
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 from .base import (
     BaseEcommerceSource,
@@ -164,7 +162,7 @@ class AmazonSPEcommerceSource(BaseEcommerceSource):
     async def search_products(
         self,
         query: ProductSearchQuery,
-        oauth_token: Optional[str] = None,
+        oauth_token: str | None = None,
     ) -> list[Product]:
         """Mock —— 永远返回 5 条假商品（按 limit 截断），keyword 写进 raw 备查。
 
@@ -181,8 +179,8 @@ class AmazonSPEcommerceSource(BaseEcommerceSource):
     async def get_product(
         self,
         sku: str,
-        oauth_token: Optional[str] = None,
-    ) -> Optional[Product]:
+        oauth_token: str | None = None,
+    ) -> Product | None:
         """Mock —— ASIN 命中假数据集即返回，否则 None。
 
         真实端点：``GET /catalog/v2022-04-01/items/{asin}?marketplaceIds={id}``
@@ -195,7 +193,7 @@ class AmazonSPEcommerceSource(BaseEcommerceSource):
     async def list_orders(
         self,
         oauth_token: str,
-        since: Optional[datetime] = None,
+        since: datetime | None = None,
         limit: int = 50,
     ) -> list[Order]:
         """Mock —— 永远返回 3 条假订单。
@@ -203,7 +201,7 @@ class AmazonSPEcommerceSource(BaseEcommerceSource):
         真实端点：``GET /orders/v0/orders?MarketplaceIds={id}&CreatedAfter={iso}``
         """
         # 故意不调 _ensure_token —— mock 阶段允许联调；真实接入要求 token 必传
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         base_since = since or (now - timedelta(days=7))
         return [
             Order(
@@ -240,7 +238,7 @@ class AmazonSPEcommerceSource(BaseEcommerceSource):
 
     async def health_check(
         self,
-        oauth_token: Optional[str] = None,
+        oauth_token: str | None = None,
     ) -> bool:
         """Mock —— 只要 LWA 三件套都配齐，返回 True；否则 False。
 

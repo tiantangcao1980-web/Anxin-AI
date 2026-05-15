@@ -23,19 +23,20 @@ from src.models.sentiment import (
 
 
 class _SentimentAnalysisAgentProtocol(Protocol):
-    async def analyze_sentiment(self, content: str, keywords: list[str] | None = None) -> dict[str, Any]:
-        ...
+    async def analyze_sentiment(
+        self, content: str, keywords: list[str] | None = None
+    ) -> dict[str, Any]: ...
 
-    async def assess_risk(self, content: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
-        ...
+    async def assess_risk(
+        self, content: str, context: dict[str, Any] | None = None
+    ) -> dict[str, Any]: ...
 
     async def generate_report(
         self,
         records: list[dict[str, Any]],
         period: str = "daily",
         focus_keywords: list[str] | None = None,
-    ) -> dict[str, Any]:
-        ...
+    ) -> dict[str, Any]: ...
 
 
 def SentimentAnalysisAgent() -> _SentimentAnalysisAgentProtocol:  # noqa: N802
@@ -235,11 +236,8 @@ class SentimentService:
                 risk_score=risk_score,
                 monitor_id=monitor_id,
                 org_id=org_id,
-                ai_analysis={
-                    "sentiment": sentiment_result,
-                    "risk": risk_result
-                },
-                **kwargs
+                ai_analysis={"sentiment": sentiment_result, "risk": risk_result},
+                **kwargs,
             )
             result["record_id"] = record.id
 
@@ -269,10 +267,22 @@ class SentimentService:
             content=content,
             title=kwargs.get("title"),
             source=source,
-            source_type=SourceType(source_type) if source_type in [e.value for e in SourceType] else SourceType.OTHER,
-            sentiment_type=SentimentType(sentiment_type) if sentiment_type in [e.value for e in SentimentType] else SentimentType.NEUTRAL,
+            source_type=(
+                SourceType(source_type)
+                if source_type in [e.value for e in SourceType]
+                else SourceType.OTHER
+            ),
+            sentiment_type=(
+                SentimentType(sentiment_type)
+                if sentiment_type in [e.value for e in SentimentType]
+                else SentimentType.NEUTRAL
+            ),
             sentiment_score=sentiment_score,
-            risk_level=RiskLevel(risk_level) if risk_level in [e.value for e in RiskLevel] else RiskLevel.LOW,
+            risk_level=(
+                RiskLevel(risk_level)
+                if risk_level in [e.value for e in RiskLevel]
+                else RiskLevel.LOW
+            ),
             risk_score=risk_score,
             risk_factors=kwargs.get("risk_factors"),
             ai_analysis=kwargs.get("ai_analysis"),
@@ -419,9 +429,7 @@ class SentimentService:
 
     async def get_alert(self, alert_id: str) -> SentimentAlert | None:
         """获取预警详情"""
-        result = await self.db.execute(
-            select(SentimentAlert).where(SentimentAlert.id == alert_id)
-        )
+        result = await self.db.execute(select(SentimentAlert).where(SentimentAlert.id == alert_id))
         return result.scalar_one_or_none()
 
     async def list_alerts(
@@ -475,10 +483,7 @@ class SentimentService:
         return alert
 
     async def handle_alert(
-        self,
-        alert_id: str,
-        handled_by: str,
-        handle_note: str | None = None
+        self, alert_id: str, handled_by: str, handle_note: str | None = None
     ) -> SentimentAlert | None:
         """处理预警"""
         alert = await self.get_alert(alert_id)
@@ -559,10 +564,7 @@ class SentimentService:
             day_result = await self.db.execute(day_query)
             day_count = day_result.scalar() or 0
 
-            daily_trend.append({
-                "date": date_start.strftime("%Y-%m-%d"),
-                "count": day_count
-            })
+            daily_trend.append({"date": date_start.strftime("%Y-%m-%d"), "count": day_count})
 
         return {
             "period": f"{days}天",
@@ -590,9 +592,7 @@ class SentimentService:
 
         # 获取记录
         records, total = await self.list_records(
-            org_id=org_id,
-            start_date=start_date,
-            page_size=100
+            org_id=org_id, start_date=start_date, page_size=100
         )
 
         # 转换为字典列表
@@ -609,9 +609,7 @@ class SentimentService:
 
         # 调用Agent生成报告
         report = await self.agent.generate_report(
-            records=records_data,
-            period=period,
-            focus_keywords=focus_keywords
+            records=records_data, period=period, focus_keywords=focus_keywords
         )
 
         return report

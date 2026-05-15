@@ -132,7 +132,14 @@ def test_release_evidence_validation_rejects_complete_with_empty_artifact_refere
 
 def test_release_evidence_validation_accepts_existing_artifact_reference(tmp_path):
     repo_root = Path(__file__).resolve().parents[2]
-    artifact = repo_root / "docs" / "release" / "evidence" / "artifacts" / "validator-existing-artifact-test.json"
+    artifact = (
+        repo_root
+        / "docs"
+        / "release"
+        / "evidence"
+        / "artifacts"
+        / "validator-existing-artifact-test.json"
+    )
     artifact.write_text('{"ok": true}\n', encoding="utf-8")
     evidence = tmp_path / "payment.md"
     try:

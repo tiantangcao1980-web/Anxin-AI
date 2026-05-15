@@ -81,7 +81,14 @@ def test_skill_governance_tables_are_org_scoped_and_secret_free():
         "gray_percentage",
         "rolled_back_at",
     } <= proposal_columns
-    assert {"org_id", "skill_name", "version", "status", "proposal_id", "enabled_at"} <= enabled_columns
+    assert {
+        "org_id",
+        "skill_name",
+        "version",
+        "status",
+        "proposal_id",
+        "enabled_at",
+    } <= enabled_columns
     assert {
         "org_id",
         "proposal_id",
@@ -105,7 +112,8 @@ def test_skill_governance_tables_are_org_scoped_and_secret_free():
     ]
     assert any(
         constraint.name == "uq_skill_connector_configs_org_skill_connector"
-        and {column.name for column in constraint.columns} == {"org_id", "skill_name", "connector_name"}
+        and {column.name for column in constraint.columns}
+        == {"org_id", "skill_name", "connector_name"}
         for constraint in connector_unique_constraints
     )
 
@@ -135,7 +143,9 @@ def test_skill_governance_relationships_use_composite_org_scoped_foreign_keys():
             and {column.name for column in constraint.columns} == {org_column, scoped_column}
         ]
         assert composite_constraints, f"{model.__name__} lacks a composite org-scoped FK"
-        assert referred_table in {element.column.table.name for element in composite_constraints[0].elements}
+        assert referred_table in {
+            element.column.table.name for element in composite_constraints[0].elements
+        }
 
 
 def test_skill_governance_audit_events_are_append_only():
@@ -235,7 +245,11 @@ def test_cross_org_skill_governance_links_fail_database_integrity():
 
 def test_skill_governance_migration_has_upgrade_downgrade_and_no_secret_columns():
     migration = (
-        _repo_root() / "backend" / "alembic" / "versions" / "041_add_skill_governance_persistence.py"
+        _repo_root()
+        / "backend"
+        / "alembic"
+        / "versions"
+        / "041_add_skill_governance_persistence.py"
     ).read_text(encoding="utf-8")
     connector_migration = (
         _repo_root() / "backend" / "alembic" / "versions" / "044_add_skill_connector_configs.py"

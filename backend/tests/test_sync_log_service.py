@@ -54,12 +54,16 @@ async def test_sync_push_persists_log_and_pull_returns_incremental(db_session, t
     assert result["server_version"] == 2
 
     stored = (
-        await db_session.execute(
-            select(SyncLog)
-            .where(SyncLog.user_id == test_user.id)
-            .order_by(SyncLog.version.asc())
+        (
+            await db_session.execute(
+                select(SyncLog)
+                .where(SyncLog.user_id == test_user.id)
+                .order_by(SyncLog.version.asc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert [(row.entity_id, row.version, row.device_id) for row in stored] == [
         ("doc-1", 1, "desktop-a"),
         ("doc-2", 2, "desktop-a"),

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """ContentDirector persona 路由 —— Pydantic schemas。"""
 
 from __future__ import annotations
@@ -6,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 from pydantic import BaseModel, Field
-
 
 # ---------------------------------------------------------------------------
 # 品牌档案

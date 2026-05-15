@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P9-A: AnxinAssistantAgent.decompose_task / guide_user 测试。
 
 覆盖：

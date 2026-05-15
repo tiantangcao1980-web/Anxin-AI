@@ -28,12 +28,16 @@ def _commercial_environment() -> bool:
 
 
 def _missing_config_message(provider: str, env_names: list[str]) -> str:
-    return f"{provider} 未配置 {', '.join(env_names)}，staging/production 环境禁止使用模拟 OA 集成。"
+    return (
+        f"{provider} 未配置 {', '.join(env_names)}，staging/production 环境禁止使用模拟 OA 集成。"
+    )
 
 
 def _require_non_mock_capability(provider: str, capability: str) -> None:
     if _commercial_environment():
-        raise OAProviderConfigError(f"{provider} {capability} 尚未接入真实 API，staging/production 环境禁止返回模拟结果。")
+        raise OAProviderConfigError(
+            f"{provider} {capability} 尚未接入真实 API，staging/production 环境禁止返回模拟结果。"
+        )
 
 
 def _string_value(data: Mapping[str, Any], key: str, default: str = "") -> str:
@@ -55,18 +59,23 @@ class OAProviderType(Enum):
     FEISHU = "feishu"
     DINGTALK = "dingtalk"
     WECOM = "wecom"
-    GENERIC = "generic" # 通用/自定义
+    GENERIC = "generic"  # 通用/自定义
+
 
 class BaseOAProvider(ABC):
     """OA提供商基类"""
 
     @abstractmethod
-    async def send_notification(self, user_id: str, title: str, content: str, url: str | None = None) -> bool:
+    async def send_notification(
+        self, user_id: str, title: str, content: str, url: str | None = None
+    ) -> bool:
         """发送通知消息"""
         pass
 
     @abstractmethod
-    async def create_approval_instance(self, template_id: str, initiator_id: str, form_data: dict[str, object]) -> str:
+    async def create_approval_instance(
+        self, template_id: str, initiator_id: str, form_data: dict[str, object]
+    ) -> str:
         """创建审批实例，返回实例ID"""
         pass
 
@@ -80,6 +89,7 @@ class BaseOAProvider(ABC):
         """同步部门用户"""
         pass
 
+
 class FeishuProvider(BaseOAProvider):
     """
     飞书集成实现
@@ -91,6 +101,7 @@ class FeishuProvider(BaseOAProvider):
 
     def __init__(self) -> None:
         import os
+
         self.app_id = os.getenv("FEISHU_APP_ID", "")
         self.app_secret = os.getenv("FEISHU_APP_SECRET", "")
         self.base_url = "https://open.feishu.cn/open-apis"
@@ -99,16 +110,20 @@ class FeishuProvider(BaseOAProvider):
     async def _get_token(self) -> str:
         """获取 tenant_access_token（带缓存）"""
         import time
+
         if self._token_cache and time.time() < self._token_cache["expires_at"]:
             return self._token_cache["token"]
 
         if not self.app_id or not self.app_secret:
             if _commercial_environment():
-                raise OAProviderConfigError(_missing_config_message("Feishu", ["FEISHU_APP_ID", "FEISHU_APP_SECRET"]))
+                raise OAProviderConfigError(
+                    _missing_config_message("Feishu", ["FEISHU_APP_ID", "FEISHU_APP_SECRET"])
+                )
             logger.warning("[Feishu] app_id/app_secret 未配置，使用模拟模式")
             return "mock_token"
 
         import httpx
+
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
                 f"{self.base_url}/auth/v3/tenant_access_token/internal",
@@ -120,13 +135,16 @@ class FeishuProvider(BaseOAProvider):
             self._token_cache = {"token": token, "expires_at": time.time() + expires_in - 300}
             return token
 
-    async def send_notification(self, user_id: str, title: str, content: str, url: str | None = None) -> bool:
+    async def send_notification(
+        self, user_id: str, title: str, content: str, url: str | None = None
+    ) -> bool:
         token = await self._get_token()
         if token == "mock_token":
             logger.info(f"[Feishu/Mock] 发送消息给 {user_id}: {title}")
             return True
 
         import httpx
+
         elements: list[dict[str, object]] = [
             {"tag": "div", "text": {"content": content, "tag": "lark_md"}},
         ]
@@ -135,23 +153,38 @@ class FeishuProvider(BaseOAProvider):
             "elements": elements,
         }
         if url:
-            elements.append({
-                "tag": "action",
-                "actions": [{"tag": "button", "text": {"content": "查看详情", "tag": "plain_text"}, "url": url, "type": "primary"}],
-            })
+            elements.append(
+                {
+                    "tag": "action",
+                    "actions": [
+                        {
+                            "tag": "button",
+                            "text": {"content": "查看详情", "tag": "plain_text"},
+                            "url": url,
+                            "type": "primary",
+                        }
+                    ],
+                }
+            )
 
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
                 f"{self.base_url}/im/v1/messages?receive_id_type=user_id",
                 headers={"Authorization": f"Bearer {token}"},
-                json={"receive_id": user_id, "content": json.dumps(card_payload), "msg_type": "interactive"},
+                json={
+                    "receive_id": user_id,
+                    "content": json.dumps(card_payload),
+                    "msg_type": "interactive",
+                },
             )
             ok = resp.status_code < 400
             if not ok:
                 logger.warning(f"[Feishu] 发送消息失败: {resp.text}")
             return ok
 
-    async def create_approval_instance(self, template_id: str, initiator_id: str, form_data: dict[str, object]) -> str:
+    async def create_approval_instance(
+        self, template_id: str, initiator_id: str, form_data: dict[str, object]
+    ) -> str:
         token = await self._get_token()
         if token == "mock_token":
             instance_id = f"feishu_approval_{initiator_id}_{int(__import__('time').time())}"
@@ -159,11 +192,16 @@ class FeishuProvider(BaseOAProvider):
             return instance_id
 
         import httpx
+
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
                 f"{self.base_url}/approval/v4/instances",
                 headers={"Authorization": f"Bearer {token}"},
-                json={"approval_code": template_id, "user_id": initiator_id, "form": json.dumps(form_data)},
+                json={
+                    "approval_code": template_id,
+                    "user_id": initiator_id,
+                    "form": json.dumps(form_data),
+                },
             )
             data = resp.json()
             payload = _mapping_value(data, "data")
@@ -179,6 +217,7 @@ class FeishuProvider(BaseOAProvider):
             return [{"id": "mock_u1", "name": "Feishu User 1"}]
 
         import httpx
+
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(
                 f"{self.base_url}/contact/v3/users?department_id={dept_id}&page_size=50",
@@ -207,6 +246,7 @@ class DingTalkProvider(BaseOAProvider):
 
     def __init__(self) -> None:
         import os
+
         self.app_key = os.getenv("DINGTALK_APP_KEY", "")
         self.app_secret = os.getenv("DINGTALK_APP_SECRET", "")
         self.agent_id = os.getenv("DINGTALK_AGENT_ID", "")
@@ -215,16 +255,20 @@ class DingTalkProvider(BaseOAProvider):
 
     async def _get_token(self) -> str:
         import time
+
         if self._token_cache and time.time() < self._token_cache["expires_at"]:
             return self._token_cache["token"]
 
         if not self.app_key or not self.app_secret:
             if _commercial_environment():
-                raise OAProviderConfigError(_missing_config_message("DingTalk", ["DINGTALK_APP_KEY", "DINGTALK_APP_SECRET"]))
+                raise OAProviderConfigError(
+                    _missing_config_message("DingTalk", ["DINGTALK_APP_KEY", "DINGTALK_APP_SECRET"])
+                )
             logger.warning("[DingTalk] appkey/appsecret 未配置，使用模拟模式")
             return "mock_token"
 
         import httpx
+
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(
                 f"{self.base_url}/gettoken?appkey={self.app_key}&appsecret={self.app_secret}"
@@ -235,14 +279,20 @@ class DingTalkProvider(BaseOAProvider):
             self._token_cache = {"token": token, "expires_at": time.time() + expires_in - 300}
             return token
 
-    async def send_notification(self, user_id: str, title: str, content: str, url: str | None = None) -> bool:
+    async def send_notification(
+        self, user_id: str, title: str, content: str, url: str | None = None
+    ) -> bool:
         token = await self._get_token()
         if token == "mock_token":
             logger.info(f"[DingTalk/Mock] 发送消息给 {user_id}: {title}")
             return True
 
         import httpx
-        msg = {"msgtype": "markdown", "markdown": {"title": title, "text": f"### {title}\n\n{content}"}}
+
+        msg = {
+            "msgtype": "markdown",
+            "markdown": {"title": title, "text": f"### {title}\n\n{content}"},
+        }
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
                 f"{self.base_url}/topapi/message/corpconversation/asyncsend_v2?access_token={token}",
@@ -251,7 +301,9 @@ class DingTalkProvider(BaseOAProvider):
             data = resp.json()
             return _number_value(data, "errcode", -1) == 0
 
-    async def create_approval_instance(self, template_id: str, initiator_id: str, form_data: dict[str, object]) -> str:
+    async def create_approval_instance(
+        self, template_id: str, initiator_id: str, form_data: dict[str, object]
+    ) -> str:
         token = await self._get_token()
         if token == "mock_token":
             instance_id = f"dingtalk_proc_{initiator_id}_{int(__import__('time').time())}"
@@ -259,10 +311,15 @@ class DingTalkProvider(BaseOAProvider):
             return instance_id
 
         import httpx
+
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
                 f"{self.base_url}/topapi/processinstance/create?access_token={token}",
-                json={"process_code": template_id, "originator_user_id": initiator_id, "form_component_values": form_data},
+                json={
+                    "process_code": template_id,
+                    "originator_user_id": initiator_id,
+                    "form_component_values": form_data,
+                },
             )
             data = resp.json()
             return _string_value(data, "process_instance_id", "dingtalk_err")
@@ -287,6 +344,7 @@ class WeComProvider(BaseOAProvider):
 
     def __init__(self) -> None:
         import os
+
         self.corp_id = os.getenv("WECOM_CORP_ID", "")
         self.corp_secret = os.getenv("WECOM_CORP_SECRET", "")
         self.agent_id = os.getenv("WECOM_AGENT_ID", "")
@@ -295,16 +353,20 @@ class WeComProvider(BaseOAProvider):
 
     async def _get_token(self) -> str:
         import time
+
         if self._token_cache and time.time() < self._token_cache["expires_at"]:
             return self._token_cache["token"]
 
         if not self.corp_id or not self.corp_secret:
             if _commercial_environment():
-                raise OAProviderConfigError(_missing_config_message("WeCom", ["WECOM_CORP_ID", "WECOM_CORP_SECRET"]))
+                raise OAProviderConfigError(
+                    _missing_config_message("WeCom", ["WECOM_CORP_ID", "WECOM_CORP_SECRET"])
+                )
             logger.warning("[WeCom] corpid/corpsecret 未配置，使用模拟模式")
             return "mock_token"
 
         import httpx
+
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(
                 f"{self.base_url}/gettoken?corpid={self.corp_id}&corpsecret={self.corp_secret}"
@@ -315,25 +377,34 @@ class WeComProvider(BaseOAProvider):
             self._token_cache = {"token": token, "expires_at": time.time() + expires_in - 300}
             return token
 
-    async def send_notification(self, user_id: str, title: str, content: str, url: str | None = None) -> bool:
+    async def send_notification(
+        self, user_id: str, title: str, content: str, url: str | None = None
+    ) -> bool:
         token = await self._get_token()
         if token == "mock_token":
             logger.info(f"[WeCom/Mock] 发送消息给 {user_id}: {title}")
             return True
 
         import httpx
+
         msg = {
             "touser": user_id,
             "msgtype": "textcard",
             "agentid": int(self.agent_id or 0),
-            "textcard": {"title": title, "description": content[:512], "url": url or "https://anxinai.com"},
+            "textcard": {
+                "title": title,
+                "description": content[:512],
+                "url": url or "https://anxinai.com",
+            },
         }
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(f"{self.base_url}/message/send?access_token={token}", json=msg)
             data = resp.json()
             return _number_value(data, "errcode", -1) == 0
 
-    async def create_approval_instance(self, template_id: str, initiator_id: str, form_data: dict[str, object]) -> str:
+    async def create_approval_instance(
+        self, template_id: str, initiator_id: str, form_data: dict[str, object]
+    ) -> str:
         token = await self._get_token()
         if token == "mock_token":
             instance_id = f"wecom_sp_{initiator_id}_{int(__import__('time').time())}"
@@ -341,10 +412,15 @@ class WeComProvider(BaseOAProvider):
             return instance_id
 
         import httpx
+
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
                 f"{self.base_url}/oa/applyevent?access_token={token}",
-                json={"creator_userid": initiator_id, "template_id": template_id, "apply_data": {"contents": form_data}},
+                json={
+                    "creator_userid": initiator_id,
+                    "template_id": template_id,
+                    "apply_data": {"contents": form_data},
+                },
             )
             data = resp.json()
             return _string_value(data, "sp_no", "wecom_err")
@@ -357,13 +433,14 @@ class WeComProvider(BaseOAProvider):
         _require_non_mock_capability("WeCom", "组织架构同步")
         return [{"id": "mock_w1", "name": "模拟企微用户"}]
 
+
 class OAIntegrationService:
 
     def __init__(self) -> None:
         self.providers: dict[str, BaseOAProvider] = {
             OAProviderType.FEISHU.value: FeishuProvider(),
             OAProviderType.DINGTALK.value: DingTalkProvider(),
-            OAProviderType.WECOM.value: WeComProvider()
+            OAProviderType.WECOM.value: WeComProvider(),
         }
         # 默认提供商，可通过配置切换
         self.default_provider_name = OAProviderType.FEISHU.value
@@ -373,21 +450,28 @@ class OAIntegrationService:
         name = provider_name or self.default_provider_name
         return self.providers.get(name, self.providers[OAProviderType.FEISHU.value])
 
-    async def send_notification(self, user_id: str, title: str, content: str, provider: str | None = None) -> bool:
+    async def send_notification(
+        self, user_id: str, title: str, content: str, provider: str | None = None
+    ) -> bool:
         """统一发送通知接口"""
         return await self.get_provider(provider).send_notification(user_id, title, content)
 
-    async def initiate_approval(self, title: str, details: dict[str, object], initiator_id: str, provider: str | None = None) -> str:
+    async def initiate_approval(
+        self, title: str, details: dict[str, object], initiator_id: str, provider: str | None = None
+    ) -> str:
         """统一发起审批接口"""
         # 实际场景中这里需要根据业务类型映射到OA的模板ID
         template_id = "generic_approval_template"
-        return await self.get_provider(provider).create_approval_instance(template_id, initiator_id, details)
+        return await self.get_provider(provider).create_approval_instance(
+            template_id, initiator_id, details
+        )
 
     async def sync_org_structure(self, provider: str | None = None) -> dict[str, object]:
         """同步组织架构"""
         # 模拟同步根部门
         users = await self.get_provider(provider).sync_department_users("root")
         return {"synced_count": len(users), "users": users}
+
 
 # 全局实例
 oa_service = OAIntegrationService()

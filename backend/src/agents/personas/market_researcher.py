@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """MarketResearcherAgent —— 「市场研究员 📊」persona（P7-B）。
 
 DeepTutor 风格的深度研究 agent：给制造业出题，agent 自己规划→检索→综合
@@ -36,7 +35,6 @@ from src.agents.personas.research_models import (
     ResearchStep,
     compute_confidence,
 )
-
 
 # ---------------------------------------------------------------------------
 # 常量
@@ -113,7 +111,7 @@ class MarketResearcherAgent(BasePersonaAgent):
         # web_search: 可选的「先搜后抓」入口（如 SerpAPI / Brave Search）
         # 不强求；deep_research 只要 fetch_service 也能跑（直接抓首页 + RSS）
         self.web_search = web_search
-        self._report_cache: "OrderedDict[str, ResearchReport]" = OrderedDict()
+        self._report_cache: OrderedDict[str, ResearchReport] = OrderedDict()
 
     # ------------------------------------------------------------------
     # 对外能力
@@ -199,8 +197,7 @@ class MarketResearcherAgent(BasePersonaAgent):
             }
         """
         question = (
-            f"分析「{industry}」行业近 {lookback_days} 天的趋势："
-            "政策 / 技术 / 资本 / 市场"
+            f"分析「{industry}」行业近 {lookback_days} 天的趋势：" "政策 / 技术 / 资本 / 市场"
         )
         report = await self.deep_research(
             question=question,
@@ -280,9 +277,7 @@ class MarketResearcherAgent(BasePersonaAgent):
                 query=q,
                 rationale=synth.get("rationale", ""),
                 findings=citations,
-                next_questions=synth.get("next_questions", [])[
-                    :_MAX_NEXT_QUESTIONS_PER_STEP
-                ],
+                next_questions=synth.get("next_questions", [])[:_MAX_NEXT_QUESTIONS_PER_STEP],
                 duration_ms=int((time.perf_counter() - step_started) * 1000),
             )
             report.steps.append(step)
@@ -413,10 +408,7 @@ class MarketResearcherAgent(BasePersonaAgent):
                 hits = self.web_search(query, 5)
                 if hasattr(hits, "__await__"):
                     hits = await hits
-                urls = [
-                    h.get("url") if isinstance(h, dict) else str(h)
-                    for h in (hits or [])
-                ]
+                urls = [h.get("url") if isinstance(h, dict) else str(h) for h in (hits or [])]
                 urls = [u for u in urls if u and u.startswith("http")]
                 if urls:
                     return urls[:5]
@@ -449,9 +441,7 @@ class MarketResearcherAgent(BasePersonaAgent):
             user_parts.append(
                 f"[{i}] 来源={c.source} url={c.url}\n  标题={c.title}\n  片段={c.excerpt[:200]}"
             )
-        user_parts.append(
-            "\n请输出 JSON: {summary, rationale, next_questions: [..最多 2 个..]}"
-        )
+        user_parts.append("\n请输出 JSON: {summary, rationale, next_questions: [..最多 2 个..]}")
         raw = await self.run_llm(self.SYSTEM_PROMPT, "\n".join(user_parts))
         # LLM 可能回非严格 JSON；做宽松解析
         return self._parse_synth_response(raw)
@@ -498,12 +488,7 @@ class MarketResearcherAgent(BasePersonaAgent):
         if mod_name in sys.modules:
             return sys.modules[mod_name].FetchRequest  # type: ignore[attr-defined]
 
-        path = (
-            pathlib.Path(__file__).resolve().parents[2]
-            / "services"
-            / "fetch"
-            / "models.py"
-        )
+        path = pathlib.Path(__file__).resolve().parents[2] / "services" / "fetch" / "models.py"
         if not path.exists():
             from dataclasses import dataclass
 

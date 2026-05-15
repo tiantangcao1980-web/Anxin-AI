@@ -206,17 +206,21 @@ async def _list_audit_events_for_approval(
     limit: int,
 ) -> list[AgentAuditEvent]:
     rows = (
-        await db.execute(
-            select(AgentAuditEvent)
-            .where(
-                AgentAuditEvent.org_id == approval.org_id,
-                AgentAuditEvent.resource_type == "agent_approval",
-                AgentAuditEvent.resource_id == approval.id,
+        (
+            await db.execute(
+                select(AgentAuditEvent)
+                .where(
+                    AgentAuditEvent.org_id == approval.org_id,
+                    AgentAuditEvent.resource_type == "agent_approval",
+                    AgentAuditEvent.resource_id == approval.id,
+                )
+                .order_by(AgentAuditEvent.created_at.desc())
+                .limit(limit)
             )
-            .order_by(AgentAuditEvent.created_at.desc())
-            .limit(limit)
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return list(rows)
 
 
@@ -233,12 +237,16 @@ def _approval_scope_query(user: User) -> Any:
     )
 
 
-async def _get_scoped_approval(db: AsyncSession, *, approval_id: str, user: User) -> AgentApproval | None:
+async def _get_scoped_approval(
+    db: AsyncSession, *, approval_id: str, user: User
+) -> AgentApproval | None:
     query = _approval_scope_query(user).where(AgentApproval.id == approval_id)
     return (await db.execute(query)).scalar_one_or_none()
 
 
-def _response_for_decision(decision: AgentApprovalDecision, *, success_message: str) -> RouteResponse:
+def _response_for_decision(
+    decision: AgentApprovalDecision, *, success_message: str
+) -> RouteResponse:
     payload = _decision_to_payload(decision)
     if decision.allowed:
         return UnifiedResponse.success(data=payload, message=success_message)
@@ -250,7 +258,11 @@ def _response_for_decision(decision: AgentApprovalDecision, *, success_message: 
 
 
 def _error_code_for_reason(reason_code: str) -> int:
-    if reason_code in {"unknown_agent_approval", "unknown_capability_route", "unknown_workspace_artifact"}:
+    if reason_code in {
+        "unknown_agent_approval",
+        "unknown_capability_route",
+        "unknown_workspace_artifact",
+    }:
         return 404
     if reason_code in {"approver_role_not_allowed", "approval_route_mismatch"}:
         return 403
@@ -267,7 +279,9 @@ async def create_agent_approval(
 ) -> RouteResponse:
     org_id = _org_id_for(user)
     if not org_id:
-        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+        return UnifiedResponse.error(
+            code=403, message="Current user is not attached to an organization."
+        )
 
     service = AgentApprovalService(db)
     decision = await service.request_approval(
@@ -298,12 +312,16 @@ async def list_agent_approvals(
     total_query = select(func.count()).select_from(scoped.subquery())
     total = (await db.execute(total_query)).scalar_one()
     rows = (
-        await db.execute(
-            scoped.order_by(AgentApproval.created_at.desc())
-            .offset((page - 1) * page_size)
-            .limit(page_size)
+        (
+            await db.execute(
+                scoped.order_by(AgentApproval.created_at.desc())
+                .offset((page - 1) * page_size)
+                .limit(page_size)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return UnifiedResponse.success(
         data={
             "items": [_approval_to_payload(approval) for approval in rows],
@@ -314,7 +332,9 @@ async def list_agent_approvals(
     )
 
 
-@router.get("/pending/count", response_model=UnifiedResponse, summary="Count pending agent approvals")
+@router.get(
+    "/pending/count", response_model=UnifiedResponse, summary="Count pending agent approvals"
+)
 async def count_pending_agent_approvals(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_required),
@@ -324,7 +344,11 @@ async def count_pending_agent_approvals(
     return UnifiedResponse.success(data={"pending": total})
 
 
-@router.get("/capability-routes", response_model=UnifiedResponse, summary="List organization capability routes")
+@router.get(
+    "/capability-routes",
+    response_model=UnifiedResponse,
+    summary="List organization capability routes",
+)
 async def list_capability_routes(
     status: str | None = Query(default=None, max_length=30),
     route_type: str | None = Query(default=None, max_length=60),
@@ -333,9 +357,13 @@ async def list_capability_routes(
 ) -> RouteResponse:
     org_id = _org_id_for(user)
     if not org_id:
-        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+        return UnifiedResponse.error(
+            code=403, message="Current user is not attached to an organization."
+        )
     if not _can_manage_capability_routes(user):
-        return UnifiedResponse.error(code=403, message="Current role cannot manage organization capability routes.")
+        return UnifiedResponse.error(
+            code=403, message="Current role cannot manage organization capability routes."
+        )
 
     routes = await AgentGovernanceService(db).list_capability_routes(
         org_id=org_id,
@@ -363,9 +391,13 @@ async def update_capability_route_policy(
 ) -> RouteResponse:
     org_id = _org_id_for(user)
     if not org_id:
-        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+        return UnifiedResponse.error(
+            code=403, message="Current user is not attached to an organization."
+        )
     if not _can_manage_capability_routes(user):
-        return UnifiedResponse.error(code=403, message="Current role cannot manage organization capability routes.")
+        return UnifiedResponse.error(
+            code=403, message="Current role cannot manage organization capability routes."
+        )
 
     fields = body.model_fields_set
     update_kwargs: dict[str, Any] = {}
@@ -403,7 +435,9 @@ async def update_capability_route_policy(
     await db.commit()
     if result.allowed:
         return UnifiedResponse.success(data=payload, message="Capability route policy updated.")
-    return UnifiedResponse.error(code=_error_code_for_reason(result.reason_code), message=result.human_message, data=payload)
+    return UnifiedResponse.error(
+        code=_error_code_for_reason(result.reason_code), message=result.human_message, data=payload
+    )
 
 
 @router.get("/{approval_id}", response_model=UnifiedResponse, summary="Get agent approval")
@@ -414,11 +448,17 @@ async def get_agent_approval(
 ) -> RouteResponse:
     approval = await _get_scoped_approval(db, approval_id=approval_id, user=user)
     if approval is None:
-        return UnifiedResponse.error(code=404, message="Agent approval does not exist or is not visible.")
+        return UnifiedResponse.error(
+            code=404, message="Agent approval does not exist or is not visible."
+        )
     return UnifiedResponse.success(data=_approval_to_payload(approval))
 
 
-@router.get("/{approval_id}/audit-events", response_model=UnifiedResponse, summary="List agent approval audit events")
+@router.get(
+    "/{approval_id}/audit-events",
+    response_model=UnifiedResponse,
+    summary="List agent approval audit events",
+)
 async def list_agent_approval_audit_events(
     approval_id: str,
     limit: int = Query(default=50, ge=1, le=100),
@@ -427,7 +467,9 @@ async def list_agent_approval_audit_events(
 ) -> RouteResponse:
     approval = await _get_scoped_approval(db, approval_id=approval_id, user=user)
     if approval is None:
-        return UnifiedResponse.error(code=404, message="Agent approval does not exist or is not visible.")
+        return UnifiedResponse.error(
+            code=404, message="Agent approval does not exist or is not visible."
+        )
 
     rows = await _list_audit_events_for_approval(db, approval=approval, limit=limit)
 
@@ -439,7 +481,11 @@ async def list_agent_approval_audit_events(
     )
 
 
-@router.get("/{approval_id}/audit-export", response_model=UnifiedResponse, summary="Export agent approval audit artifact")
+@router.get(
+    "/{approval_id}/audit-export",
+    response_model=UnifiedResponse,
+    summary="Export agent approval audit artifact",
+)
 async def export_agent_approval_audit_artifact(
     approval_id: str,
     limit: int = Query(default=500, ge=1, le=500),
@@ -448,7 +494,9 @@ async def export_agent_approval_audit_artifact(
 ) -> RouteResponse:
     approval = await _get_scoped_approval(db, approval_id=approval_id, user=user)
     if approval is None:
-        return UnifiedResponse.error(code=404, message="Agent approval does not exist or is not visible.")
+        return UnifiedResponse.error(
+            code=404, message="Agent approval does not exist or is not visible."
+        )
 
     rows = await _list_audit_events_for_approval(db, approval=approval, limit=limit)
 
@@ -464,7 +512,11 @@ async def export_agent_approval_audit_artifact(
     )
 
 
-@router.get("/{approval_id}/artifacts", response_model=UnifiedResponse, summary="List agent workspace artifacts")
+@router.get(
+    "/{approval_id}/artifacts",
+    response_model=UnifiedResponse,
+    summary="List agent workspace artifacts",
+)
 async def list_agent_workspace_artifacts(
     approval_id: str,
     limit: int = Query(default=50, ge=1, le=100),
@@ -473,7 +525,9 @@ async def list_agent_workspace_artifacts(
 ) -> RouteResponse:
     approval = await _get_scoped_approval(db, approval_id=approval_id, user=user)
     if approval is None:
-        return UnifiedResponse.error(code=404, message="Agent approval does not exist or is not visible.")
+        return UnifiedResponse.error(
+            code=404, message="Agent approval does not exist or is not visible."
+        )
 
     artifacts = await AgentApprovalService(db).list_workspace_artifacts(
         org_id=approval.org_id,
@@ -488,7 +542,11 @@ async def list_agent_workspace_artifacts(
     )
 
 
-@router.post("/{approval_id}/artifacts", response_model=UnifiedResponse, summary="Record agent workspace artifact")
+@router.post(
+    "/{approval_id}/artifacts",
+    response_model=UnifiedResponse,
+    summary="Record agent workspace artifact",
+)
 async def record_agent_workspace_artifact(
     approval_id: str,
     body: AgentWorkspaceArtifactBody,
@@ -497,7 +555,9 @@ async def record_agent_workspace_artifact(
 ) -> RouteResponse:
     org_id = _org_id_for(user)
     if not org_id:
-        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+        return UnifiedResponse.error(
+            code=403, message="Current user is not attached to an organization."
+        )
 
     result = await AgentApprovalService(db).add_workspace_artifact(
         org_id=org_id,
@@ -516,12 +576,16 @@ async def record_agent_workspace_artifact(
         "approval_id": result.approval_id,
         "status": result.status,
         "audit_event_id": result.audit_event_id,
-        "artifact": _workspace_artifact_to_payload(result.artifact) if result.artifact is not None else None,
+        "artifact": (
+            _workspace_artifact_to_payload(result.artifact) if result.artifact is not None else None
+        ),
     }
     await db.commit()
     if result.allowed:
         return UnifiedResponse.success(data=payload, message="Agent workspace artifact recorded.")
-    return UnifiedResponse.error(code=_error_code_for_reason(result.reason_code), message=result.human_message, data=payload)
+    return UnifiedResponse.error(
+        code=_error_code_for_reason(result.reason_code), message=result.human_message, data=payload
+    )
 
 
 @router.patch(
@@ -538,9 +602,16 @@ async def revise_agent_workspace_artifact(
 ) -> RouteResponse:
     org_id = _org_id_for(user)
     if not org_id:
-        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+        return UnifiedResponse.error(
+            code=403, message="Current user is not attached to an organization."
+        )
 
-    if body.artifact_type is None and body.title is None and body.content is None and body.metadata is None:
+    if (
+        body.artifact_type is None
+        and body.title is None
+        and body.content is None
+        and body.metadata is None
+    ):
         return UnifiedResponse.error(
             code=400,
             message="At least one artifact field must be provided.",
@@ -565,12 +636,16 @@ async def revise_agent_workspace_artifact(
         "approval_id": result.approval_id,
         "status": result.status,
         "audit_event_id": result.audit_event_id,
-        "artifact": _workspace_artifact_to_payload(result.artifact) if result.artifact is not None else None,
+        "artifact": (
+            _workspace_artifact_to_payload(result.artifact) if result.artifact is not None else None
+        ),
     }
     await db.commit()
     if result.allowed:
         return UnifiedResponse.success(data=payload, message="Agent workspace artifact updated.")
-    return UnifiedResponse.error(code=_error_code_for_reason(result.reason_code), message=result.human_message, data=payload)
+    return UnifiedResponse.error(
+        code=_error_code_for_reason(result.reason_code), message=result.human_message, data=payload
+    )
 
 
 @router.get(
@@ -586,7 +661,9 @@ async def export_agent_workspace_artifacts(
 ) -> RouteResponse:
     approval = await _get_scoped_approval(db, approval_id=approval_id, user=user)
     if approval is None:
-        return UnifiedResponse.error(code=404, message="Agent approval does not exist or is not visible.")
+        return UnifiedResponse.error(
+            code=404, message="Agent approval does not exist or is not visible."
+        )
 
     artifacts = await AgentApprovalService(db).list_workspace_artifacts(
         org_id=approval.org_id,
@@ -605,7 +682,9 @@ async def export_agent_workspace_artifacts(
     )
 
 
-@router.post("/{approval_id}/approve", response_model=UnifiedResponse, summary="Approve agent approval")
+@router.post(
+    "/{approval_id}/approve", response_model=UnifiedResponse, summary="Approve agent approval"
+)
 async def approve_agent_approval(
     approval_id: str,
     body: AgentApprovalDecisionBody | None = None,
@@ -621,7 +700,9 @@ async def approve_agent_approval(
     )
 
 
-@router.post("/{approval_id}/reject", response_model=UnifiedResponse, summary="Reject agent approval")
+@router.post(
+    "/{approval_id}/reject", response_model=UnifiedResponse, summary="Reject agent approval"
+)
 async def reject_agent_approval(
     approval_id: str,
     body: AgentApprovalDecisionBody | None = None,
@@ -647,7 +728,9 @@ async def _decide_agent_approval(
 ) -> RouteResponse:
     org_id = _org_id_for(user)
     if not org_id:
-        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+        return UnifiedResponse.error(
+            code=403, message="Current user is not attached to an organization."
+        )
     service = AgentApprovalService(db)
     result = await service.decide_approval(
         org_id=org_id,
@@ -661,7 +744,9 @@ async def _decide_agent_approval(
     return _response_for_decision(result, success_message=f"Agent approval {result.status}.")
 
 
-@router.post("/{approval_id}/revoke", response_model=UnifiedResponse, summary="Revoke agent approval")
+@router.post(
+    "/{approval_id}/revoke", response_model=UnifiedResponse, summary="Revoke agent approval"
+)
 async def revoke_agent_approval(
     approval_id: str,
     body: AgentApprovalRevokeBody,
@@ -670,7 +755,9 @@ async def revoke_agent_approval(
 ) -> RouteResponse:
     org_id = _org_id_for(user)
     if not org_id:
-        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+        return UnifiedResponse.error(
+            code=403, message="Current user is not attached to an organization."
+        )
     service = AgentApprovalService(db)
     result = await service.revoke_approval(
         org_id=org_id,
@@ -683,7 +770,11 @@ async def revoke_agent_approval(
     return _response_for_decision(result, success_message="Agent approval revoked.")
 
 
-@router.post("/{approval_id}/workspace-control", response_model=UnifiedResponse, summary="Control high-risk agent workspace")
+@router.post(
+    "/{approval_id}/workspace-control",
+    response_model=UnifiedResponse,
+    summary="Control high-risk agent workspace",
+)
 async def control_agent_approval_workspace(
     approval_id: str,
     body: AgentApprovalWorkspaceControlBody,
@@ -692,7 +783,9 @@ async def control_agent_approval_workspace(
 ) -> RouteResponse:
     org_id = _org_id_for(user)
     if not org_id:
-        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+        return UnifiedResponse.error(
+            code=403, message="Current user is not attached to an organization."
+        )
     service = AgentApprovalService(db)
     result = await service.control_workspace(
         org_id=org_id,
@@ -706,7 +799,9 @@ async def control_agent_approval_workspace(
     return _response_for_decision(result, success_message="Agent workspace control accepted.")
 
 
-@router.post("/validate", response_model=UnifiedResponse, summary="Validate high-risk agent approval")
+@router.post(
+    "/validate", response_model=UnifiedResponse, summary="Validate high-risk agent approval"
+)
 async def validate_agent_approval(
     body: AgentApprovalValidateBody,
     db: AsyncSession = Depends(get_db),
@@ -714,7 +809,9 @@ async def validate_agent_approval(
 ) -> RouteResponse:
     org_id = _org_id_for(user)
     if not org_id:
-        return UnifiedResponse.error(code=403, message="Current user is not attached to an organization.")
+        return UnifiedResponse.error(
+            code=403, message="Current user is not attached to an organization."
+        )
     service = AgentApprovalService(db)
     result = await service.validate_approval(
         org_id=org_id,

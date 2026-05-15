@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """合同管家 persona 路由 Pydantic schemas（P9-C）。
 
 与 ``src/agents/personas/contract_models.py`` 中 dataclass 一一对应。

@@ -19,18 +19,21 @@ def _max_access_level_for_role(role: str) -> int:
         return 2
     return 1
 
+
 class DataStoreRequest(BaseModel):
-    category: str # core_asset, knowledge, management, archive
+    category: str  # core_asset, knowledge, management, archive
     key: str
     data: dict[str, Any]
     access_level: int = 2
     encrypt: bool = True
+
 
 class DataResponse(BaseModel):
     id: str
     key: str
     category: str
     content: dict[str, Any]
+
 
 @router.post("/store", summary="存储核心数据")
 async def store_data(
@@ -55,9 +58,10 @@ async def store_data(
         data=req.data,
         owner_id=str(user.id),
         access_level=level_enum,
-        encrypt=req.encrypt
+        encrypt=req.encrypt,
     )
     return result
+
 
 @router.get("/retrieve/{record_id}", summary="读取核心数据")
 async def retrieve_data(
@@ -74,6 +78,7 @@ async def retrieve_data(
         raise HTTPException(status_code=403, detail="Access denied") from e
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
+
 
 @router.get("/list", summary="列出数据资产")
 async def list_data(

@@ -1,4 +1,3 @@
-
 import enum
 from typing import TYPE_CHECKING
 
@@ -13,6 +12,7 @@ if TYPE_CHECKING:
 
 class NotificationChannel(str, enum.Enum):
     """通知渠道"""
+
     SITE = "site"
     EMAIL = "email"
     WECHAT = "wechat"
@@ -21,6 +21,7 @@ class NotificationChannel(str, enum.Enum):
 
 class NotificationEventType(str, enum.Enum):
     """通知事件类型"""
+
     APPROVAL = "approval"
     CHAT = "chat"
     CASE = "case"
@@ -35,13 +36,10 @@ class Notification(Base, TimestampMixin):
     __tablename__ = "notifications"
 
     user_id: Mapped[str] = mapped_column(
-        GUID(),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
-    type: Mapped[str] = mapped_column(String(50), nullable=False) # urgent, warning, info, success
+    type: Mapped[str] = mapped_column(String(50), nullable=False)  # urgent, warning, info, success
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -63,20 +61,13 @@ class NotificationPreference(Base, TimestampMixin):
     )
 
     user_id: Mapped[str] = mapped_column(
-        GUID(),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
-    channel: Mapped[str] = mapped_column(
-        String(20),
-        nullable=False
-    )  # site, email, wechat, sms
+    channel: Mapped[str] = mapped_column(String(20), nullable=False)  # site, email, wechat, sms
 
     event_type: Mapped[str] = mapped_column(
-        String(50),
-        nullable=False
+        String(50), nullable=False
     )  # approval, chat, case, system, contract, lawyer
 
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
