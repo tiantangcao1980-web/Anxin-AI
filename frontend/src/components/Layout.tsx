@@ -18,8 +18,9 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { NotificationCenter } from './NotificationCenter'
 import { UserProfile } from './UserProfile'
+import { WelcomeGuide } from './WelcomeGuide'
 import { notificationsApi } from '../lib/api'
-import { useIMStore, useNotificationStore } from '@/lib/store'
+import { useAuthStore, useIMStore, useNotificationStore } from '@/lib/store'
 import { usePermission } from '@/hooks/usePermission'
 
 import { icons } from '@/lib/icons'
@@ -223,6 +224,23 @@ export default function Layout() {
   const [showNotifications, setShowNotifications] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [headerActionLabels, setHeaderActionLabels] = useState(readHeaderActionLabels)
+
+  // V3 首登引导：未看过 8 大业务域 WelcomeGuide 且已登录时弹出
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const hasSeenWelcome = useAuthStore((s) => s.hasSeenWelcome)
+  const markWelcomeSeen = useAuthStore((s) => s.markWelcomeSeen)
+  const [showWelcome, setShowWelcome] = useState(false)
+  useEffect(() => {
+    if (isAuthenticated && !hasSeenWelcome) {
+      // 延迟 600ms 弹出，避免与登录跳转动画打架
+      const timer = setTimeout(() => setShowWelcome(true), 600)
+      return () => clearTimeout(timer)
+    }
+  }, [isAuthenticated, hasSeenWelcome])
+  const handleCloseWelcome = useCallback(() => {
+    setShowWelcome(false)
+    markWelcomeSeen()
+  }, [markWelcomeSeen])
 
   const toggleHeaderActionLabels = useCallback(() => {
     setHeaderActionLabels((prev) => {
@@ -463,6 +481,9 @@ export default function Layout() {
           onToggleHeaderActionLabels={toggleHeaderActionLabels}
         />
       )}
+
+      {/* V3 首登 8 大业务域引导 — 仅首次登录后弹出一次（hasSeenWelcome 持久化在 auth-storage） */}
+      {showWelcome && <WelcomeGuide onClose={handleCloseWelcome} />}
     </div>
   )
 }
