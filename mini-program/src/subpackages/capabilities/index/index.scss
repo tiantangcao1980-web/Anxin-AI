@@ -1,15 +1,18 @@
+// 2026-05: P3 批量迁移到 design-tokens 变量
+@import '../../../styles/design-tokens.scss';
+
 // 能力中心入口页（P21-D）
-// 暖色 #D4A574 主色，对齐 mini-program 既有 profile 风格
+// 暖色 $color-brand-primary 主色，对齐 mini-program 既有 profile 风格
 .caps-index {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: $color-background;
   box-sizing: border-box;
   padding-bottom: 32rpx;
 }
 
 .caps-header {
   padding: 32rpx 32rpx 16rpx;
-  background: linear-gradient(135deg, #D4A574 0%, #B8864E 100%);
+  background: linear-gradient(135deg, $color-brand-primary 0%, $color-brand-primary-dark 100%);
   color: #fff;
 }
 .caps-heading {
@@ -113,10 +116,10 @@
 .caps-badge-text {
   font-size: 20rpx;
   font-weight: 600;
-  color: #B8864E;
+  color: $color-brand-primary-dark;
   line-height: 1;
 }
-.caps-badge--warning .caps-badge-text { color: #b45309; }
+.caps-badge--warning .caps-badge-text { color: $color-warning; }
 .caps-badge--success .caps-badge-text { color: #065f46; }
 
 .caps-empty {

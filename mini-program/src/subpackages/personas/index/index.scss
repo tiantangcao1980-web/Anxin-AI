@@ -1,5 +1,8 @@
+// 2026-05: P3 批量迁移到 design-tokens 变量
+@import '../../../styles/design-tokens.scss';
+
 /* P21-C 智能体工作台列表页样式
- * 主色 #D4A574（琥珀），辅以柔和米色背景
+ * 主色 $color-brand-primary（琥珀），辅以柔和米色背景
  */
 
 .personas-page {
@@ -107,7 +110,7 @@
   top: 8rpx;
   bottom: 8rpx;
   width: 8rpx;
-  background: #d4a574;
+  background: $color-brand-primary;
   border-radius: 4rpx;
 }
 
@@ -206,7 +209,7 @@
 }
 
 .card-cta {
-  background: linear-gradient(135deg, #d4a574 0%, #e0b88a 100%);
+  background: linear-gradient(135deg, $color-brand-primary 0%, #e0b88a 100%);
   border-radius: 30rpx;
   padding: 14rpx 0;
   display: flex;

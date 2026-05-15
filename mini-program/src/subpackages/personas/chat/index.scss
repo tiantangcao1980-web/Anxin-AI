@@ -1,3 +1,6 @@
+// 2026-05: P3 批量迁移到 design-tokens 变量
+@import '../../../styles/design-tokens.scss';
+
 .persona-chat {
   display: flex;
   flex-direction: column;
@@ -56,7 +59,7 @@
 }
 
 .nav-mode.cloud {
-  background: #d4a574;
+  background: $color-brand-primary;
   color: #fff;
 }
 
@@ -84,7 +87,7 @@
     flex-direction: row-reverse;
 
     .bubble {
-      background: linear-gradient(135deg, #d4a574 0%, #e0b88a 100%);
+      background: linear-gradient(135deg, $color-brand-primary 0%, #e0b88a 100%);
       margin-right: 16rpx;
       margin-left: 80rpx;
     }
@@ -140,7 +143,7 @@
 .cursor {
   display: inline-block;
   margin-left: 4rpx;
-  color: #d4a574;
+  color: $color-brand-primary;
   animation: blink 0.9s infinite;
   font-weight: bold;
 }
@@ -227,7 +230,7 @@
 
 .send-btn {
   padding: 14rpx 32rpx;
-  background: linear-gradient(135deg, #d4a574 0%, #e0b88a 100%);
+  background: linear-gradient(135deg, $color-brand-primary 0%, #e0b88a 100%);
   border-radius: 32rpx;
   color: #fff;
   font-size: 26rpx;
