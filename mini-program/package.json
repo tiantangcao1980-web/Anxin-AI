@@ -20,6 +20,7 @@
     "check-size": "node scripts/check-bundle-size.js",
     "check-navigation-boundary": "node scripts/check-navigation-boundary.js",
     "check-privacy-boundary": "node scripts/check-privacy-boundary.js",
+    "smoke:privacy": "node scripts/privacy-mode-smoke.js",
     "typecheck": "tsc --noEmit --skipLibCheck --noUnusedLocals false",
     "predev:h5": "npm run generate-icons",
     "dev:h5": "npm run build:h5 -- --watch"
@@ -46,6 +47,7 @@
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "babel-preset-taro": "4.2.x",
+    "miniprogram-automator": "^0.12.1",
     "sass": "^1.62.0",
     "typescript": "^5.1.0"
   },
