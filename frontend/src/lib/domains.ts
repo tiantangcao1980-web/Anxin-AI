@@ -164,15 +164,35 @@ export const DOMAIN_BY_ID: Record<DomainId, DomainMeta> = DOMAINS.reduce(
   {} as Record<DomainId, DomainMeta>,
 )
 
-/** 从路径推断所属业务域（用于面包屑 / 状态栏） */
+/**
+ * 从路径推断所属业务域（用于面包屑 / 状态栏 / DomainBreadcrumb）。
+ *
+ * 匹配优先级：
+ *   1) 直接前缀命中 DOMAINS[].defaultPath
+ *   2) Layout ModuleSidebar 已声明的 V2→V3 过渡映射（与 Layout.tsx moduleSidebarConfig 同步）
+ *   3) 兜底返回 null（页面应当 fallback 到不显示域指示器）
+ */
 export function inferDomainFromPath(pathname: string): DomainMeta | null {
-  // 简单前缀匹配；未来如有路由聚合，可改成路由配置驱动
+  // (1) 直接前缀匹配
   const direct = DOMAINS.find((d) => pathname.startsWith(d.defaultPath))
   if (direct) return direct
-  // 老路径兜底映射（V2 → V3 过渡期）
-  if (pathname.startsWith('/contract') || pathname.startsWith('/find-lawyer'))
+
+  // (2) 与 Layout.tsx moduleSidebarConfig 的 9 个二级导航入口对齐
+  //     —— 任何此处的修改必须同步 Layout.tsx 中的 item.domain 字段
+  if (
+    pathname.startsWith('/contract') ||
+    pathname.startsWith('/find-lawyer') ||
+    pathname.startsWith('/management') ||
+    pathname.startsWith('/cases') ||
+    pathname.startsWith('/firm') ||
+    pathname.startsWith('/lawyer-dashboard')
+  ) {
     return DOMAIN_BY_ID.legal
+  }
   if (pathname.startsWith('/knowledge')) return DOMAIN_BY_ID.legal
   if (pathname.startsWith('/monitoring')) return DOMAIN_BY_ID.growth
+  if (pathname.startsWith('/agent-approvals')) return DOMAIN_BY_ID.compliance
+  if (pathname.startsWith('/documents')) return DOMAIN_BY_ID.content
+  if (pathname.startsWith('/acquisition')) return DOMAIN_BY_ID.growth
   return null
 }

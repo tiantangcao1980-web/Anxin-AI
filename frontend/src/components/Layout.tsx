@@ -26,6 +26,7 @@ import { usePermission } from '@/hooks/usePermission'
 import { icons } from '@/lib/icons'
 import { iconSize, buttonStyle, heading, sidebarNav } from '@/lib/design-tokens'
 import { DOMAIN_BY_ID, type DomainId } from '@/lib/domains'
+import { DomainBreadcrumb } from '@/components/ui/DomainBreadcrumb'
 import { ModeSwitcher } from '@/components/mode-switcher/ModeSwitcher'
 import { SyncStatus } from '@/components/mode-switcher/SyncStatus'
 import { MobileNavBar } from '@/components/mobile/MobileNavBar'
@@ -132,12 +133,18 @@ function ModuleSidebar({ currentPath, onNavigate }: { currentPath: string; onNav
       style={{ width: collapsed ? 56 : 220 }}
     >
       {/* 模块标题 */}
-      <div className="flex items-center gap-2.5 px-3 h-12 border-b border-border shrink-0">
-        <TitleIcon className="w-5 h-5 text-primary shrink-0" />
+      <div className="flex flex-col px-3 py-2 border-b border-border shrink-0 gap-1 min-h-[3rem] justify-center">
+        <div className="flex items-center gap-2.5">
+          <TitleIcon className="w-5 h-5 text-primary shrink-0" />
+          {!collapsed && (
+            <span className={`${sidebarNav.title} whitespace-nowrap`}>
+              {currentModule.title}
+            </span>
+          )}
+        </div>
+        {/* V3 业务域面包屑 — 仅在展开态显示，告诉用户"你在哪个业务域" */}
         {!collapsed && (
-          <span className={`${sidebarNav.title} whitespace-nowrap`}>
-            {currentModule.title}
-          </span>
+          <DomainBreadcrumb pathname={currentPath} compact className="pl-7" />
         )}
       </div>
 
