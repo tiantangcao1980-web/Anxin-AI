@@ -160,6 +160,28 @@ export default {
           conclusion: "hsl(var(--node-conclusion))",
           other: "hsl(var(--node-other))",
         },
+        // 8 大业务域语义色（V3）
+        // 用法：bg-domain-legal, text-domain-legal, bg-domain-legal-surface
+        // 用途：模块入口、面包屑徽章、Dashboard 业务分区
+        // 禁忌：禁止用于主行动按钮 / 链接默认色 / 表单聚焦色（这些走 primary）
+        domain: {
+          legal: "hsl(var(--domain-legal))",
+          "legal-surface": "hsl(var(--domain-legal-surface))",
+          finance: "hsl(var(--domain-finance))",
+          "finance-surface": "hsl(var(--domain-finance-surface))",
+          tax: "hsl(var(--domain-tax))",
+          "tax-surface": "hsl(var(--domain-tax-surface))",
+          compliance: "hsl(var(--domain-compliance))",
+          "compliance-surface": "hsl(var(--domain-compliance-surface))",
+          operations: "hsl(var(--domain-operations))",
+          "operations-surface": "hsl(var(--domain-operations-surface))",
+          growth: "hsl(var(--domain-growth))",
+          "growth-surface": "hsl(var(--domain-growth-surface))",
+          content: "hsl(var(--domain-content))",
+          "content-surface": "hsl(var(--domain-content-surface))",
+          global: "hsl(var(--domain-global))",
+          "global-surface": "hsl(var(--domain-global-surface))",
+        },
       },
       // 排版系统 (DesignDNA §3 — 字距随字号反向缩放)
       fontSize: {

@@ -351,6 +351,20 @@ export const graphCanvasColors = {
   particle: '#818cf8',
 } as const
 
+// ===== 业务域色板 (V3 — 8 大业务域) =====
+// 用法：domainColor.legal.bg + domainColor.legal.text 拼出徽章/卡片样式
+// 完整元数据（图标、入口路径等）见 `@/lib/domains`
+export const domainColor = {
+  legal:      { bg: 'bg-domain-legal-surface',      text: 'text-domain-legal',      ring: 'ring-domain-legal/30' },
+  finance:    { bg: 'bg-domain-finance-surface',    text: 'text-domain-finance',    ring: 'ring-domain-finance/30' },
+  tax:        { bg: 'bg-domain-tax-surface',        text: 'text-domain-tax',        ring: 'ring-domain-tax/30' },
+  compliance: { bg: 'bg-domain-compliance-surface', text: 'text-domain-compliance', ring: 'ring-domain-compliance/30' },
+  operations: { bg: 'bg-domain-operations-surface', text: 'text-domain-operations', ring: 'ring-domain-operations/30' },
+  growth:     { bg: 'bg-domain-growth-surface',     text: 'text-domain-growth',     ring: 'ring-domain-growth/30' },
+  content:    { bg: 'bg-domain-content-surface',    text: 'text-domain-content',    ring: 'ring-domain-content/30' },
+  global:     { bg: 'bg-domain-global-surface',     text: 'text-domain-global',     ring: 'ring-domain-global/30' },
+} as const
+
 // ===== 编辑器色板 =====
 export const editorPalette = {
   text: [

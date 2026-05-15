@@ -1,34 +1,117 @@
-// 小程序语义设计 token。
+// 小程序语义设计 token (V3 — 跨端对齐 frontend/mobile)
 // Web/桌面 canonical token 仍在 frontend/src/lib/design-tokens.ts；
 // 这里记录小程序当前平台映射，避免页面继续散写 hex/rpx。
+// 详见 docs/design/ui-audit-and-upgrade-2026-05.md
 
+// ===== 品牌色 =====
 $color-brand-primary: #D4A574;
 $color-brand-primary-light: #E8C9A8;
 $color-brand-primary-dark: #B8864E;
 $color-brand-gradient: linear-gradient(135deg, $color-brand-primary 0%, $color-brand-primary-dark 100%);
 
-$color-text-primary: #333333;
-$color-text-secondary: #666666;
-$color-text-tertiary: #999999;
-$color-text-disabled: #CCCCCC;
+// ===== 文本（语义化层级） =====
+$color-text-primary: #1C1A18;
+$color-text-secondary: #5F564E;
+$color-text-tertiary: #8E867D;
+$color-text-disabled: #B5AFA7;
 $color-text-inverse: #FFFFFF;
 
-$color-background: #F5F5F5;
+// ===== 表面 / 边框 =====
+$color-background: #FAF8F5;
 $color-surface: #FFFFFF;
-$color-surface-subtle: #F9F9F9;
-$color-border: #EEEEEE;
-$color-border-subtle: #F0F0F0;
-$color-skeleton: #F0F0F0;
+$color-surface-subtle: #F5F2EE;
+$color-border: #E5E0DA;
+$color-border-subtle: #EFEBE5;
+$color-skeleton: #F0EBE4;
 
 $color-brand-tint: rgba(212, 165, 116, 0.1);
 $color-inverse-weak: rgba(255, 255, 255, 0.8);
 $color-inverse-muted: rgba(255, 255, 255, 0.6);
 $color-inverse-surface: rgba(255, 255, 255, 0.3);
 
-$shadow-card: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
-$shadow-avatar: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
-$shadow-bubble: 0 1px 4rpx rgba(0, 0, 0, 0.06);
+// ===== 状态色 (V3 新增) =====
+$color-success: #15803D;
+$color-success-soft: #E6F8EC;
+$color-warning: #B45309;
+$color-warning-soft: #FFF1DC;
+$color-danger: #DC2626;
+$color-danger-soft: #FFE5E3;
+$color-info: #1F6FD4;
+$color-info-soft: #E0EAF8;
 
+// ===== AI 语义色 (V3 新增) =====
+$color-ai: #7C5CFF;
+$color-ai-surface: rgba(124, 92, 255, 0.08);
+$color-ai-thinking: #A78BFA;
+$color-ai-thinking-surface: rgba(167, 139, 250, 0.10);
+$color-ai-suggestion: #34A853;
+$color-ai-suggestion-surface: rgba(52, 168, 83, 0.10);
+$color-ai-citation: #3F8FE0;
+$color-ai-citation-surface: rgba(63, 143, 224, 0.10);
+
+// ===== 风险三档 (V3 新增) =====
+$color-risk-high: #E04848;
+$color-risk-high-surface: #FBECEC;
+$color-risk-medium: #E2A311;
+$color-risk-medium-surface: #FCF3DA;
+$color-risk-low: #8E867D;
+$color-risk-low-surface: #F2EFEA;
+
+// ===== 8 大业务域色 (V3 新增) =====
+$color-domain-legal: #5C7F3E;
+$color-domain-legal-surface: #EBF1E2;
+$color-domain-finance: #1F6FD4;
+$color-domain-finance-surface: #E0EAF8;
+$color-domain-tax: #E2A311;
+$color-domain-tax-surface: #FCF3DA;
+$color-domain-compliance: #E84F2E;
+$color-domain-compliance-surface: #FCE6DF;
+$color-domain-operations: #7D4FCC;
+$color-domain-operations-surface: #ECE3F8;
+$color-domain-growth: #17AAC3;
+$color-domain-growth-surface: #DCF3F6;
+$color-domain-content: #DE3F88;
+$color-domain-content-surface: #FBE0EC;
+$color-domain-global: #1768A1;
+$color-domain-global-surface: #DDEBF4;
+
+// ===== 字号层级 (V3 新增 — 解决小程序标题/正文层级压缩) =====
+$font-display: 40rpx;    // Hero / 首页大标题
+$font-h1: 36rpx;         // 一级页面标题
+$font-h2: 32rpx;         // 区块标题
+$font-h3: 30rpx;         // 卡片标题
+$font-body: 28rpx;       // 正文
+$font-body-sm: 26rpx;    // 次要正文
+$font-caption: 24rpx;    // 时间戳、弱标签
+$font-micro: 22rpx;      // 徽章
+
+// ===== 阴影 =====
+$shadow-card: 0 2rpx 12rpx rgba(28, 26, 24, 0.06);
+$shadow-avatar: 0 2rpx 8rpx rgba(28, 26, 24, 0.08);
+$shadow-bubble: 0 1px 4rpx rgba(28, 26, 24, 0.06);
+$shadow-float: 0 8rpx 32rpx rgba(28, 26, 24, 0.12);
+
+// ===== 节奏 =====
 $radius-card: 16rpx;
 $radius-pill: 9999rpx;
+$radius-badge: 8rpx;
 $touch-target-min: 88rpx; // 44px equivalent on a 750rpx design width
+
+// ===== 业务域徽章工具类 =====
+@each $name in (legal, finance, tax, compliance, operations, growth, content, global) {
+  .domain-badge--#{$name} {
+    color: var(--color-domain-#{$name});
+    background: var(--color-domain-#{$name}-surface);
+  }
+}
+
+.domain-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 4rpx 14rpx;
+  border-radius: $radius-pill;
+  font-size: $font-micro;
+  font-weight: 500;
+  line-height: 1.4;
+}

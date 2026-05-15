@@ -4,12 +4,18 @@
 
 @layer base {
   /* ============================================================
-   * 安心法务 — 统一色彩系统 v3 (琥珀橙)
+   * 安心智能助手 — 统一色彩系统 v3 (琥珀橙 + 8 大业务域)
    *
    * 设计哲学（参考 Apple HIG / Linear / Vercel / Stripe）:
    * - 浅色模式：纯净白底 + 琥珀橙品牌色 + 微妙灰色层次
    * - 深色模式：分层深灰（非纯黑）+ 降饱和暖橙 + 柔和边界
    * - 品牌感：温暖 · 守护 · 专业
+   *
+   * V3 扩展（2026-05）：
+   * 在保留琥珀橙主色的基础上，新增 8 大业务域语义色，
+   * 用于 Dashboard 模块入口、面包屑徽章、域内分类强调。
+   * 业务域色 **不替代** 品牌色，仅承担「分类」职责。
+   * 详见 docs/design/ui-audit-and-upgrade-2026-05.md §5。
    * ============================================================ */
 
   :root {
@@ -132,6 +138,29 @@
     --node-query: 220 9% 46%;
     --node-conclusion: 280 68% 60%;
     --node-other: 220 9% 42%;
+
+    /* --- 8 大业务域语义色 (V3, DESIGN.md §业务域) ---
+     * 仅用于：模块入口卡片、Dashboard 业务域分区、面包屑徽章、域内辅助强调
+     * 禁止用于：主行动按钮、链接默认色、表单聚焦色（这些仍走 --primary）
+     */
+    --domain-legal:       100 32% 38%;  /* 法务   暖橄榄绿 */
+    --domain-finance:     217 78% 48%;  /* 财务   稳重蓝   */
+    --domain-tax:          42 88% 48%;  /* 税务   金箔黄   */
+    --domain-compliance:    8 80% 52%;  /* 合规   警示橙红 */
+    --domain-operations:  270 60% 52%;  /* 经营   王者紫   */
+    --domain-growth:      188 78% 42%;  /* 获客   情报青   */
+    --domain-content:     335 75% 56%;  /* 内容   桃红     */
+    --domain-global:      205 80% 35%;  /* 出海   深海蓝   */
+
+    /* 业务域低饱和底色（用于卡片背景 / hover 面） */
+    --domain-legal-surface:       100 32% 96%;
+    --domain-finance-surface:     217 78% 96%;
+    --domain-tax-surface:          42 88% 95%;
+    --domain-compliance-surface:    8 80% 96%;
+    --domain-operations-surface:  270 60% 96%;
+    --domain-growth-surface:      188 78% 95%;
+    --domain-content-surface:     335 75% 96%;
+    --domain-global-surface:      205 80% 95%;
 
     /* --- 动效令牌 --- */
     --duration-instant: 50ms;
@@ -257,6 +286,26 @@
     --node-query: 220 10% 60%;
     --node-conclusion: 280 60% 72%;
     --node-other: 220 8% 55%;
+
+    /* --- 8 大业务域语义色（深色降饱和、提亮度）--- */
+    --domain-legal:       100 28% 60%;
+    --domain-finance:     217 70% 65%;
+    --domain-tax:          42 80% 62%;
+    --domain-compliance:    8 75% 65%;
+    --domain-operations:  270 55% 68%;
+    --domain-growth:      188 70% 58%;
+    --domain-content:     335 68% 68%;
+    --domain-global:      205 70% 58%;
+
+    /* 业务域低饱和底色（深色：用更深更暖的底） */
+    --domain-legal-surface:       100 24% 14%;
+    --domain-finance-surface:     217 35% 16%;
+    --domain-tax-surface:          42 40% 14%;
+    --domain-compliance-surface:    8 35% 15%;
+    --domain-operations-surface:  270 30% 16%;
+    --domain-growth-surface:      188 35% 13%;
+    --domain-content-surface:     335 30% 15%;
+    --domain-global-surface:      205 35% 14%;
 
     /* --- 阴影系统（深色：环阴影 + 黑色投影双层，Linear / Raycast 风格）--- */
     --shadow-0: none;

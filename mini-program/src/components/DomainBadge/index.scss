@@ -1,0 +1,28 @@
+// DomainBadge / DomainStripe 样式
+// 颜色由 inline style 注入（来自 design-tokens.ts 的 domain 表）
+
+.domain-badge {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 4rpx 14rpx;
+  border-radius: 9999rpx;
+  font-size: 22rpx;
+  font-weight: 500;
+  line-height: 1.4;
+
+  &__icon {
+    font-size: 22rpx;
+    margin-right: 6rpx;
+  }
+  &__label {
+    font-size: 22rpx;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+}
+
+.domain-stripe {
+  width: 100%;
+  height: 6rpx;
+}
