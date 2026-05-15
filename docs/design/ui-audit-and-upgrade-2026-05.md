@@ -121,14 +121,87 @@
 
 - 全量业务页迁移到域色（800+ tsx）— 仅在 Layout 模块入口/Dashboard 做示范
 - Mobile/Mini Program 暗色全覆盖（需要逐页验证）
-- UniApp 业务页 hex 替换（先把 tokens 改对，再扫页面）
+- ~~UniApp 业务页 hex 替换~~ — 路线已终止，整目录删除
 - 桌面 Tauri 独立 token 层（目前继承 Web 即可）
-- 删除/合并旧 `mobile/src/constants/colors.ts`（避免影响 V2 老页面）
+- 删除/合并旧 `mobile/src/constants/colors.ts`（避免影响 V2 老页面 — 2026-05 已加双调色板守护断言，可观察一段后再决定）
 
 ## 8. 风险
 
 | 风险 | 概率 | 缓解 |
 |----|----|----|
 | Tailwind 引入新 utility 增大 CSS 体积 | 低 | 新 token 总计 < 80 行，gzip 后 < 1 KB |
-| UniApp 主色切换导致测试快照失效 | 中 | 改完检查 `tokens.test.ts`，期望值同步更新 |
+| ~~UniApp 主色切换导致测试快照失效~~ | — | 路线已终止 |
 | 业务域色在长文本背景下对比度不足 | 中 | 仅用于 badge/icon/strip，禁止用作大面积底 |
+
+---
+
+## 9. 全谱实施记录（2026-05-15 / 2026-05-16）
+
+> 本节记录两轮共 6 步执行的完整状态，按时间倒序。
+> 远程分支 `claude/epic-heyrovsky-c3ac36` 已同步 17 个 commit。
+
+### 第二轮（2026-05-16）
+
+| 步骤 | 范围 | Commit | 状态 |
+|---|---|---|---|
+| **R2-P1** | commercial-readiness-gate `--quick`：product-status consistency 修复 | `4892a81d` | ✅ |
+| **R2-P2** | 本文档全谱小结同步 | (this commit) | ✅ |
+| **R2-P3** | 待执行 — frontend `DomainBreadcrumb` 组件 + 挂 Layout | TBD | ⏳ |
+
+### 第一轮（2026-05-15）
+
+| 步骤 | 范围 | Commit | 状态 |
+|---|---|---|---|
+| **R1-P1** | `apps/uni-mobile/` 整路线清除 + 反向断链断言 | `b0ec56b1` | ✅ -11,670 行 |
+| **R1-P2** | V3 8 大业务域 token + DomainBadge 三端组件 | `888ddc85` | ✅ +1,058 行 |
+| **R1-P3** | 业务页落地 V3 业务域可视化（Login / me / find-lawyer / contracts / cases / mini-program home） | `f7a3f394` | ✅ +243/-112 |
+| **R1-P4** | mobile V2 占位 Tab 删除（profile/index/chat/collaboration/tasks-legacy） | `28c0ffb8` | ✅ -1,632 行 |
+| **R1-P5** | 三端 vitest 守护断言（V3 token + V2 反向断链 + UniApp 反向断链） | `36d89175`, `d4de640d` | ✅ 49 断言 |
+| **R1-P6** | mini-program SCSS hex → token 累计 62% 迁移（131+95 of 367） | `494b7fbe`, `a4427541` | ✅ 含扩展 14 个新 token |
+| **R1-P7** | V2/V3 双调色板调和 + WelcomeGuide V3 化 + 接入首登 | `82aa031d`, `7cea58bb`, `8ee59c28` | ✅ |
+| **R1-P8** | find-lawyer.tsx (875 行) styles → createStyles 支持 dark mode | `7e0b369a` | ✅ |
+| **R1-P9** | Layout ModuleSidebar 按业务域分组 + active stripe + inactive dot | `7600196f` | ✅ |
+
+### 累计测试覆盖（2026-05-16 最终）
+
+| 端 | 测试 | 通过率 | 增量 |
+|---|---|---|---|
+| Backend | 72/72 | 100% | 维持 |
+| Frontend Web | 103/103 | 100% | +16 (Round-1 新增) |
+| Mobile (Expo RN) | 59/59 | 100% | +22 (跨调色板 + brand-consistency + colors) |
+| Mini Program (Taro) | 18/18 | 100% | +18 (此前 0 测试) |
+| **合计** | **252/252** | **100%** | **+56 断言** |
+
+### 累计影响（-12,945 行净减）
+
+| 维度 | 数值 |
+|---|---|
+| Commits | 17 |
+| Files changed | ~120 |
+| Insertions | +2,712 |
+| Deletions | -15,657 |
+| 净影响 | **-12,945** |
+| 新建组件 | 5（DomainBadge × 3 端 + DomainGrid + DomainStripe） |
+| 新建测试文件 | 7（mobile colors/brand × 2 + mini-program tokens/personaSeeds/brand × 3 + frontend domains/brand × 2） |
+| 跨端守护断言 | 49 |
+
+### 跨端 V3 设计系统矩阵（最终状态）
+
+| 端 | 主色 token | 8 域 token | DomainBadge | DomainStripe | DomainGrid | 暗色 | 守护断言 |
+|---|---|---|---|---|---|---|---|
+| Web Frontend | ✅ | ✅ 浅+深 | ✅ | ✅ | ✅ | ✅ | 16 |
+| Mobile (Expo RN) | ✅ | ✅ | ✅ | ✅ | — (用 grid 渲染替代) | 🟡 部分页面 | 22 |
+| Mini Program (Taro) | ✅ | ✅ | ✅ | ✅ | — | ❌ (受限) | 18 |
+| Desktop (Tauri 继承 Web) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 继承 |
+
+### 业务页消费 V3 域元素一览
+
+| 端 | 文件 | 用了什么 |
+|---|---|---|
+| Frontend | `pages/Login.tsx` | `DOMAINS` 元数据 + 4×2 域徽章 grid |
+| Frontend | `components/Layout.tsx` | navGroups accent 域色 underline + ModuleSidebar 域色 stripe/dot |
+| Frontend | `components/WelcomeGuide.tsx` | `<DomainGrid />` 全 8 域引导 + 首登挂载 |
+| Mobile | `app/(tabs)/me.tsx` | `<DomainBadge />` × 8 |
+| Mobile | `app/find-lawyer/cases/contracts.tsx` | `<DomainStripe domain="legal" />` |
+| Mobile | `app/(tabs)/investigation/knowledge.tsx` | `<DomainStripe />` |
+| Mini Program | `pages/index/index.tsx` | `<DomainBadge />` × 8 |
