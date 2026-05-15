@@ -20,9 +20,9 @@ import { useV3Theme } from '@/theme'
  *   3. 能力    -> capabilities.tsx    5 个能力中心（待 P17-D）
  *   4. 我      -> me.tsx              账号 / 订阅 / 推送 / 登出
  *
- * V2 老 tab（chat / collaboration / investigation / knowledge / profile / index）
- * 暂保留在文件系统中，通过 `href: null` 从底部栏隐藏，避免 P17-B/C/D 还没接入时
- * 误触老页面。可通过 router.push 直链访问。
+ * 2026-05 清理：V2 老 Tab（index / chat / collaboration / profile / tasks-legacy）
+ * 已物理删除。仍保留的 V2 残留页（investigation / knowledge）作为 smoke 守护对象
+ * 暂时通过 `href: null` 隐藏，等 P17-B/C/D 验收后再决定迁移或删除。
  */
 export default function TabLayout() {
   const t = useV3Theme()
@@ -85,13 +85,9 @@ export default function TabLayout() {
         }}
       />
 
-      {/* ===== V2 老页面：保留文件但从底部 tab 隐藏，避免破坏 router 路径 ===== */}
-      <Tabs.Screen name="index" options={{ href: null }} />
-      <Tabs.Screen name="chat" options={{ href: null }} />
-      <Tabs.Screen name="collaboration" options={{ href: null }} />
+      {/* ===== V2 残留 Tab：仍在文件系统中、被 smoke 脚本引用，暂从底部栏隐藏 ===== */}
       <Tabs.Screen name="investigation" options={{ href: null }} />
       <Tabs.Screen name="knowledge" options={{ href: null }} />
-      <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   )
 }
