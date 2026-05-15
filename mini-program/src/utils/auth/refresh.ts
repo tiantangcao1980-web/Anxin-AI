@@ -9,6 +9,7 @@
 import Taro from '@tarojs/taro'
 import { tokenStorage } from './token'
 import { resolveBaseUrl } from '../api/baseUrl'
+import { assertMiniProgramDataNetworkAllowed, getStoredPrivacyMode } from '../privacy'
 
 let inflight: Promise<string> | null = null
 
@@ -16,6 +17,10 @@ export async function refreshAccessToken(): Promise<string> {
   if (inflight) return inflight
   inflight = (async () => {
     try {
+      // 隐私模式 fail-closed：refresh 也是数据网络，敏感模式下禁止出门
+      const privacyMode = getStoredPrivacyMode()
+      assertMiniProgramDataNetworkAllowed(privacyMode)
+
       const rt = tokenStorage.getRefreshToken()
       if (!rt) throw new Error('NO_REFRESH_TOKEN')
 
@@ -24,7 +29,10 @@ export async function refreshAccessToken(): Promise<string> {
         method: 'POST',
         data: { refresh_token: rt },
         timeout: 10_000,
-        header: { 'Content-Type': 'application/json' },
+        header: {
+          'Content-Type': 'application/json',
+          'X-Privacy-Mode': privacyMode,
+        },
       })
 
       // 兼容扁平 / ApiResponse 包装
