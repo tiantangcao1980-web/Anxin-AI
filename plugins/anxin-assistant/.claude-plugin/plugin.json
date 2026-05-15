@@ -1,0 +1,35 @@
+{
+  "$schema": "https://anthropic.com/schemas/plugin/v1.json",
+  "name": "anxin-assistant",
+  "displayName": "🤖 安心助理",
+  "description": "通用入口与任务编排 — 综合协调 域 Persona 插件。",
+  "version": "1.0.0",
+  "author": "Anxin Tech",
+  "license": "Apache-2.0",
+  "language": "zh-CN",
+  "category": "operations",
+  "domain": "综合协调",
+  "requiresColdStart": true,
+  "practiceProfile": "CLAUDE.md",
+  "userInvocableSlash": "/anxin-assistant:<skill>",
+  "skills": [
+    {
+        "name": "cold-start-interview",
+        "path": "skills/cold-start-interview/SKILL.md"
+    },
+    {
+        "name": "intent-route",
+        "path": "skills/intent-route/SKILL.md"
+    },
+    {
+        "name": "task-decompose",
+        "path": "skills/task-decompose/SKILL.md"
+    },
+    {
+        "name": "consensus-vote",
+        "path": "skills/consensus-vote/SKILL.md"
+    }
+],
+  "agents": [],
+  "connectors": ["feishu", "dingtalk", "wechat-work"]
+}

@@ -312,7 +312,7 @@ class CaseService:
 5. 预计时间线与关键节点建议
 """
 
-        result = cast(JSONDict, await workforce.process_task(
+        result = cast(JSONDict, await workforce.process_task_governed(
             task_description=task_description,
             task_type="case_analysis",
             context={

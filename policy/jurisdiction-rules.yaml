@@ -1,0 +1,123 @@
+# Jurisdiction Rules — 跨境数据流动 + 法域守门
+# Doctrine: docs/governance/DATA-BOUNDARY.md
+# PDP: backend/src/services/governance/authz.py
+
+schema_version: 1
+
+# 默认法域
+default_jurisdiction: CN
+
+# 支持的法域 + 主管法规
+jurisdictions:
+  CN:
+    name: 中国大陆
+    primary_law: ["《数据安全法》", "《个人信息保护法》", "《网络安全法》"]
+    cross_border_authority: "国家网信办 (CAC)"
+  HK:
+    name: 香港
+    primary_law: ["PDPO"]
+  SG:
+    name: 新加坡
+    primary_law: ["PDPA"]
+  EU:
+    name: 欧盟
+    primary_law: ["GDPR", "Data Act"]
+  UK:
+    name: 英国
+    primary_law: ["UK GDPR", "DPA 2018"]
+  US:
+    name: 美国
+    primary_law: ["State laws (CCPA, etc.)", "HIPAA (health)", "GLBA (finance)"]
+  CA:
+    name: 加拿大
+    primary_law: ["PIPEDA"]
+
+# 跨境矩阵
+cross_border:
+  # CN ↔ HK：个人信息出境标准合同 (SCC) 备案；重要数据走 CAC 安全评估
+  - source: CN
+    dest: HK
+    rule: REQUIRE_CONFIRM
+    requires: ["pipl_scc_filed"]
+    note: "PIPL § 38；CAC 标准合同已备案"
+  - source: HK
+    dest: CN
+    rule: ALLOW
+    note: "回流无限制"
+
+  # CN → 全球
+  - source: CN
+    dest: SG
+    rule: REQUIRE_CONFIRM
+    requires: ["pipl_scc_filed"]
+  - source: CN
+    dest: EU
+    rule: REQUIRE_STEP_UP
+    requires: ["pipl_scc_filed", "cac_assessment_passed", "ec_adequacy_or_scc"]
+  - source: CN
+    dest: US
+    rule: REQUIRE_STEP_UP
+    requires: ["pipl_scc_filed", "us_recipient_acceptance"]
+    note: "美方接收方需签署符合 PIPL § 39 的合同"
+  - source: CN
+    dest: "*"
+    rule: REQUIRE_CONFIRM
+    requires: ["pipl_scc_filed"]
+
+  # EU → CN：GDPR Art. 46 SCC / BCR
+  - source: EU
+    dest: CN
+    rule: REQUIRE_STEP_UP
+    requires: ["gdpr_scc_2021", "tia_assessment_passed"]
+    note: "GDPR Art. 46；中国不在 EU adequacy 名单"
+  - source: EU
+    dest: UK
+    rule: ALLOW
+    note: "UK GDPR adequacy"
+  - source: EU
+    dest: US
+    rule: REQUIRE_CONFIRM
+    requires: ["dpf_or_scc"]
+    note: "EU-US Data Privacy Framework"
+
+  # US → CN
+  - source: US
+    dest: CN
+    rule: REQUIRE_CONFIRM
+    requires: ["sectoral_law_compliance"]
+    note: "州法 / HIPAA / GLBA / ITAR / EAR 视行业"
+
+  # 全球 → CN：回流默认允许
+  - source: "*"
+    dest: CN
+    rule: ALLOW
+    note: "数据回流到 CN 无 PIPL 限制；境外法可能有"
+
+# 类目守门 — 部分数据类目跨境强禁
+prohibited_cross_border:
+  - category: "重要数据 (Important Data)"
+    note: "未通过 CAC 安全评估前不出境"
+    enforce: DENY
+  - category: "国家秘密"
+    enforce: DENY
+  - category: "人脸识别 / 生物特征"
+    requires: ["pipl_separate_consent", "pipl_scc_filed"]
+    enforce: REQUIRE_STEP_UP
+  - category: "医疗健康"
+    requires: ["hippa_or_pipl_special_consent"]
+    enforce: REQUIRE_STEP_UP
+  - category: "未成年人个人信息"
+    requires: ["guardian_consent"]
+    enforce: REQUIRE_STEP_UP
+
+# 应急路径
+incident_response:
+  cn_outbound_breach:
+    sla_hours: 24
+    notify: ["CAC", "internal_security", "legal"]
+  eu_breach:
+    sla_hours: 72
+    notify: ["eu_dpa", "data_subjects", "internal_security"]
+  us_state_breach:
+    sla_hours: 72
+    notify: ["state_ag", "affected_residents"]

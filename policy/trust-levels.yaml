@@ -1,0 +1,95 @@
+# Trust Levels — skill / cookbook / connector 来源信任矩阵
+# Doctrine: docs/governance/TRUST-LEVELS.md
+# Loader: backend/src/services/governance/trust.py
+
+schema_version: 1
+
+# 三级信任
+levels:
+  verified:
+    description: 官方 / Anthropic / 双签 PR 合并；自动安装；按 access-matrix 调用
+    require_signature: true
+    auto_install: true
+    confirm_on_call: false       # 仍服从 access-matrix 的全局 confirm
+    connector_write: allow
+    network_egress: allow
+    revoke_authority: ["security_committee"]
+    min_reviewers: 2
+
+  community:
+    description: 通过 builder-hub 提交 + 至少 1 reviewer；安装前提示
+    require_signature: true
+    auto_install: false
+    confirm_on_call: true        # 调用永远 confirm
+    connector_write: confirm
+    network_egress: allowlist    # 只允许 plugin.json 声明的域名
+    revoke_authority: ["any_maintainer"]
+    min_reviewers: 1
+
+  untrusted:
+    description: 任意第三方；默认禁止；显式 --trust-untrusted 才能安装
+    require_signature: false
+    auto_install: false
+    confirm_on_call: true
+    connector_write: deny        # 永远禁止外发 / 写
+    network_egress: deny
+    revoke_authority: ["any_user"]   # 用户自己可移除
+    min_reviewers: 0
+
+# 注册表 allowlist
+registries:
+  anxin-ai-official:
+    url: https://anxinai.com/marketplace
+    default_level: verified
+    gpg_key_fingerprint: "ANXIN-OFFICIAL-2026"
+  anthropic-skills:
+    url: https://github.com/anthropics/skills
+    default_level: verified
+    gpg_key_fingerprint: "ANTHROPIC-OFFICIAL"
+  anxin-community:
+    url: https://anxinai.com/community-skills
+    default_level: community
+    gpg_key_fingerprint: "ANXIN-COMMUNITY-2026"
+
+# 升 / 降级路径
+escalation:
+  promote:
+    untrusted_to_community:
+      requires:
+        - "skill-scan: 0 hard-fail"
+        - "1 reviewer signature"
+        - "license is Apache-2.0 | MIT | BSD"
+    community_to_verified:
+      requires:
+        - "90 day clean track record"
+        - "2 reviewer signatures"
+        - "security_lead approval"
+  demote:
+    verified_to_community:
+      triggers:
+        - "any security incident"
+        - "user-reported abuse"
+      decision_window_hours: 24
+    any_to_revoked:
+      triggers:
+        - "confirmed CVE"
+        - "data leak incident"
+      decision_window_hours: 4
+
+# Hard-fail scan rules（任一命中即拒绝安装）
+hard_fail_scan_rules:
+  - hidden-content/zero-width
+  - hidden-content/font-size-0
+  - hidden-content/white-on-white
+  - prompt-injection/ignore-previous
+  - prompt-injection/role-override
+  - prompt-injection/data-exfil
+  - tool-scope/excessive-write
+  - license/incompatible
+
+# Warn scan rules（允许但提示）
+warn_scan_rules:
+  - freshness/stale-30d
+  - tool-scope/network-egress
+  - size/oversized
+  - frontmatter/missing-fields

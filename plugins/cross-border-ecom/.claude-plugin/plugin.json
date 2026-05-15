@@ -1,0 +1,44 @@
+{
+  "$schema": "https://anthropic.com/schemas/plugin/v1.json",
+  "name": "cross-border-ecom",
+  "displayName": "🌍 跨境电商助手",
+  "description": "选品 / 独立站 / Amazon / VAT — 出海跨境 域 Persona 插件。",
+  "version": "1.0.0",
+  "author": "Anxin Tech",
+  "license": "Apache-2.0",
+  "language": "zh-CN",
+  "category": "cross-border",
+  "domain": "出海跨境",
+  "requiresColdStart": true,
+  "practiceProfile": "CLAUDE.md",
+  "userInvocableSlash": "/cross-border-ecom:<skill>",
+  "skills": [
+    {
+        "name": "cold-start-interview",
+        "path": "skills/cold-start-interview/SKILL.md"
+    },
+    {
+        "name": "product-source",
+        "path": "skills/product-source/SKILL.md"
+    },
+    {
+        "name": "factory-audit",
+        "path": "skills/factory-audit/SKILL.md"
+    },
+    {
+        "name": "amazon-listing",
+        "path": "skills/amazon-listing/SKILL.md"
+    },
+    {
+        "name": "vat-filing",
+        "path": "skills/vat-filing/SKILL.md"
+    }
+],
+  "agents": [
+    {
+        "name": "cross-border-pricing-radar",
+        "path": "agents/cross-border-pricing-radar.md"
+    }
+],
+  "connectors": ["feishu", "dingtalk", "wechat-work"]
+}

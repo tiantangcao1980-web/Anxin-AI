@@ -1,0 +1,141 @@
+# Data Classification — 5 级数据分级
+# Doctrine: docs/governance/DATA-BOUNDARY.md
+# Classifier: backend/src/services/governance/data_classifier.py
+
+schema_version: 1
+
+# ────────────────────────────────────────────────────────────────────
+# 5 级矩阵
+# ────────────────────────────────────────────────────────────────────
+levels:
+  L1:
+    name: public
+    description: 已公开的数据，无任何限制
+    write_to_llm: allow
+    write_to_shared_kb: allow
+    cross_tenant: allow
+    encryption_at_rest: optional
+    retention_days: -1            # 永久
+    examples:
+      - 国家法律法规
+      - 政府公告
+      - 公开判决书
+      - 上市公司公告
+
+  L2:
+    name: internal
+    description: 仅限本租户内部使用
+    write_to_llm: allow
+    write_to_shared_kb: allow
+    cross_tenant: deny
+    encryption_at_rest: aes256
+    retention_days: 1825          # 5 年
+    examples:
+      - 内部 SOP
+      - 文档模板
+      - 内部周报 / OKR
+      - 培训材料
+
+  L3:
+    name: confidential
+    description: 商业敏感；默认走本地 LLM
+    write_to_llm: prefer_local    # 默认本地模型；外网模型需 confirm
+    write_to_shared_kb: same_tenant_only
+    cross_tenant: deny
+    encryption_at_rest: aes256_kms
+    retention_days: 2555          # 7 年
+    require_clearance: L3
+    examples:
+      - 合同正文
+      - 客户名单
+      - 未公开财报
+      - 价格谈判记录
+      - 应收账款表
+      - 发票明细
+
+  L4:
+    name: restricted
+    description: 含个人敏感信息 / 银行账号；写 LLM 前必脱敏
+    write_to_llm: mask_first
+    write_to_shared_kb: deny
+    cross_tenant: deny
+    encryption_at_rest: aes256_kms + sqlcipher
+    retention_days: 2555
+    require_clearance: L4
+    require_mfa: true
+    examples:
+      - 个人身份证号 / 护照
+      - 银行卡号 / 流水
+      - 客户尽调底稿
+      - 跨境支付明细
+      - 员工工资条
+      - 医疗记录
+
+  L5:
+    name: privileged
+    description: 律师 / 客户特权通讯；永不入共享 KB；不入 LLM 训练
+    write_to_llm: deny_default    # 仅本地 LLM + 显式 opt-in
+    write_to_shared_kb: deny
+    cross_tenant: deny
+    cross_user: deny              # 同租户跨用户也禁止
+    encryption_at_rest: vault_per_pair
+    retention_days: 3650          # 10 年
+    require_clearance: L5
+    require_mfa: true
+    require_step_up: true
+    examples:
+      - 律师函
+      - 律师备忘
+      - 谈判策略文档
+      - 商业秘密配方 / 代码
+      - 法定监管报告底稿
+
+# ────────────────────────────────────────────────────────────────────
+# 数据 → 默认分级（启发式）
+# ────────────────────────────────────────────────────────────────────
+default_classification:
+  # 按 persona 命名空间
+  "plugins/legal-advisor/data/*": L3
+  "plugins/contract-steward/data/*": L3
+  "plugins/contract-steward/privileged/*": L5
+  "plugins/dd-expert/data/*": L4
+  "plugins/finance-tax-advisor/data/*": L3
+  "plugins/finance-tax-advisor/ar/*": L3
+  "plugins/finance-tax-advisor/invoice/*": L3
+  "plugins/finance-tax-advisor/payroll/*": L4
+
+  # 按文件名 hint
+  "*.attorney-client.*": L5
+  "*PRIVILEGED*": L5
+  "*WORK-PRODUCT*": L5
+  "*payroll*": L4
+  "*passport*": L4
+
+# ────────────────────────────────────────────────────────────────────
+# Clearance 矩阵 — 用户 clearance 必须 ≥ 资源 classification 才能读
+# ────────────────────────────────────────────────────────────────────
+clearance_by_role:
+  super_admin: L5
+  org_admin: L4
+  admin: L4
+  compliance_officer: L5      # 审计需要看到所有分级
+  lead_counsel: L5
+  legal_member: L4
+  finance_member: L4
+  growth_member: L2
+  cross_border_member: L3     # 海外业务可能涉及客户支付
+  viewer: L2
+  guest: L1
+
+# ────────────────────────────────────────────────────────────────────
+# 升级 / 降级 — 数据生命周期变更
+# ────────────────────────────────────────────────────────────────────
+reclassification:
+  # 降级要走审批
+  downgrade:
+    requires: ["compliance_officer", "lead_counsel"]
+    audit_event: data.reclassify.downgrade
+  # 升级随时
+  upgrade:
+    requires: []
+    audit_event: data.reclassify.upgrade

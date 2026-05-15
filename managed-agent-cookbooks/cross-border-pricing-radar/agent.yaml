@@ -1,0 +1,56 @@
+schema: https://anthropic.com/schemas/managed-agent/v1.json
+name: cross-border-pricing-radar
+displayName: 跨境定价雷达
+description: 每 30 分钟抓取 Amazon / Shopify / eBay 竞品定价，与本店 SKU 对比，触发自动调价建议或 BuyBox 失守预警。
+version: 1.0.0
+model: claude-opus-4-7
+trigger:
+  type: schedule
+  cron: '*/30 * * * *'
+  timezone: Asia/Shanghai
+ownerPersona: cross-border-ecom
+tools:
+- http_fetch
+- amazon_sp_api
+- shopify_api
+- pricing_skill
+- feishu_send
+humanInLoop: true
+humanGate: 调价幅度 > 10% 必须人工 confirm；BuyBox 失守自动开启 24h 观察期再调价。
+dataSources:
+- name: Amazon SP-API
+  url: https://sellingpartnerapi-na.amazon.com
+- name: Shopify Admin API
+  url: https://{shop}.myshopify.com/admin/api/2024-04/
+- name: eBay Browse API
+  url: https://api.ebay.com/buy/browse/v1/
+outputs:
+- type: feishu_card
+  channel: ${FEISHU_CHANNEL_ID}
+- type: knowledge_base_entry
+  namespace: cross-border-ecom/cross-border-pricing-radar
+guardrails:
+- draft-only — agent 仅产生草稿，最终签发动作必须人工 confirm
+- source-attribution — 每条结论必须附数据源 URL 或表名 + 抓取时间戳
+- jurisdiction-transparency — 涉及法域时显式声明，跨境必须人工复核
+- no-pii-leak — 个人信息字段在外发前自动脱敏
+governance:
+  authz:
+    required_scopes:
+    - cookbook.cross-border-pricing-radar.run
+    - connector.amazon-sp.read
+    - connector.shopify.read
+    trust_level: verified
+  dataClassification: L2
+  jurisdiction: global
+  pii:
+    handling: mask-before-llm
+    double_check_on_send: true
+  audit:
+    level: medium
+    retention_years: 5
+  egress_allowlist:
+  - sellingpartnerapi-na.amazon.com
+  - sellingpartnerapi-eu.amazon.com
+  - '*.myshopify.com'
+  - api.ebay.com

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://anthropic.com/schemas/plugin/v1.json",
+  "name": "lead-hunter",
+  "displayName": "🎯 获客猎手",
+  "description": "线索 + 评分 + 触达 + Vibe Selling — 增长获客 域 Persona 插件。",
+  "version": "1.0.0",
+  "author": "Anxin Tech",
+  "license": "Apache-2.0",
+  "language": "zh-CN",
+  "category": "growth",
+  "domain": "增长获客",
+  "requiresColdStart": true,
+  "practiceProfile": "CLAUDE.md",
+  "userInvocableSlash": "/lead-hunter:<skill>",
+  "skills": [
+    {
+        "name": "cold-start-interview",
+        "path": "skills/cold-start-interview/SKILL.md"
+    },
+    {
+        "name": "lead-source",
+        "path": "skills/lead-source/SKILL.md"
+    },
+    {
+        "name": "lead-score",
+        "path": "skills/lead-score/SKILL.md"
+    },
+    {
+        "name": "email-outreach",
+        "path": "skills/email-outreach/SKILL.md"
+    },
+    {
+        "name": "quote-generate",
+        "path": "skills/quote-generate/SKILL.md"
+    }
+],
+  "agents": [],
+  "connectors": ["feishu", "dingtalk", "wechat-work"]
+}

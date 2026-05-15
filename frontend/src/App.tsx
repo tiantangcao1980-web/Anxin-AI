@@ -122,6 +122,11 @@ const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'))
 const AdminUsers = lazy(() => import('@/pages/admin/AdminUsers'))
 const AdminRoles = lazy(() => import('@/pages/admin/AdminRoles'))
 const AdminAudit = lazy(() => import('@/pages/admin/AdminAudit'))
+const AdminGovernance = lazy(() => import('@/pages/admin/AdminGovernance'))
+const AdminGovernancePolicy = lazy(() => import('@/pages/admin/AdminGovernancePolicy'))
+const AdminGovernanceAudit = lazy(() => import('@/pages/admin/AdminGovernanceAudit'))
+const AdminGovernanceTickets = lazy(() => import('@/pages/admin/AdminGovernanceTickets'))
+const AdminGovernanceRevoked = lazy(() => import('@/pages/admin/AdminGovernanceRevoked'))
 const AdminBasic = lazy(() => import('@/pages/admin/AdminBasic'))
 const AdminAIConfig = lazy(() => import('@/pages/admin/AdminAIConfig'))
 const AdminIntegrations = lazy(() => import('@/pages/admin/AdminIntegrations'))
@@ -347,6 +352,11 @@ function App() {
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="roles" element={<AdminRoles />} />
                 <Route path="audit" element={<AdminAudit />} />
+                <Route path="governance" element={<AdminGovernance />} />
+                <Route path="governance/policy" element={<AdminGovernancePolicy />} />
+                <Route path="governance/audit" element={<AdminGovernanceAudit />} />
+                <Route path="governance/tickets" element={<AdminGovernanceTickets />} />
+                <Route path="governance/revoked" element={<AdminGovernanceRevoked />} />
                 <Route path="basic" element={<AdminBasic />} />
                 <Route path="ai-config" element={<AdminAIConfig />} />
                 <Route path="integrations" element={<AdminIntegrations />} />

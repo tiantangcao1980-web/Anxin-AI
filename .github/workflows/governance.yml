@@ -1,0 +1,156 @@
+name: Governance
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    paths:
+      - 'policy/**'
+      - 'docs/governance/**'
+      - 'plugins/**'
+      - 'managed-agent-cookbooks/**'
+      - 'backend/src/services/governance/**'
+      - 'backend/src/models/governance.py'
+      - 'backend/src/agents/base.py'
+      - 'backend/src/agents/personas/base_persona.py'
+      - 'backend/tests/test_governance_*.py'
+      - 'frontend/src/hooks/useGovernanceWS.*'
+      - 'frontend/src/pages/admin/AdminGovernance*.tsx'
+      - 'frontend/src/pages/admin/adminGovernanceModel.*'
+      - 'scripts/governance-lint.py'
+      - 'scripts/audit-reconcile.py'
+      - 'scripts/audit-replay.py'
+      - 'scripts/access-matrix-diff.py'
+      - 'scripts/claude-plugin-validate.py'
+      - 'scripts/sync-plugins-to-backend.py'
+      - '.claude-plugin/**'
+      - '.github/workflows/governance.yml'
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  policy-and-plugin-lint:
+    name: Policy + Plugin Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install minimal deps
+        run: pip install pyyaml
+
+      - name: Plugin marketplace + skill structure
+        run: python3 scripts/claude-plugin-validate.py
+
+      - name: Governance policy + frontmatter lint
+        run: python3 scripts/governance-lint.py
+
+      - name: Backend plugin index is up-to-date
+        run: python3 scripts/sync-plugins-to-backend.py --check
+
+      - name: Access-matrix diff (PR only)
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "::group::access-matrix changes vs ${{ github.base_ref }}"
+          python3 scripts/access-matrix-diff.py --base "origin/${{ github.base_ref }}" || true
+          echo "::endgroup::"
+
+  governance-backend-tests:
+    name: Backend Pytest (governance suite)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install backend deps for governance tests
+        working-directory: backend
+        run: |
+          pip install --upgrade pip
+          # 仅安装治理 pytest 必需依赖；不安装完整 requirements 避免 CI 体积膨胀
+          pip install \
+              pytest pytest-asyncio \
+              sqlalchemy aiosqlite pyyaml loguru \
+              "pydantic>=2" httpx
+
+      - name: Run governance pytest
+        working-directory: backend
+        env:
+          PYTHONPATH: "."
+        run: |
+          python -m pytest \
+            tests/test_governance_authz.py \
+            tests/test_governance_confirm_inbox.py \
+            tests/test_governance_phase5.py \
+            tests/test_governance_agent_wrap.py \
+            tests/test_governance_im_sender.py \
+            -q --no-header --maxfail=3
+
+  governance-frontend-tests:
+    name: Frontend Vitest (governance helpers)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+
+      - name: Run governance Vitest
+        working-directory: frontend
+        run: |
+          npx vitest run \
+            src/hooks/useGovernanceWS.test.ts \
+            src/pages/admin/adminGovernanceModel.test.ts
+
+  audit-fingerprint-check:
+    name: Audit JSONL Fingerprint Self-Check
+    runs-on: ubuntu-latest
+    # 只在 main 上跑（PR 没有 .claude/audit 数据）
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install minimal deps
+        run: pip install pyyaml
+
+      - name: Verify fingerprints on any committed audit JSONL
+        run: |
+          if [ -d .claude/audit ] && ls .claude/audit/*.jsonl >/dev/null 2>&1; then
+            python3 scripts/audit-reconcile.py --since 1970-01-01 --json > /tmp/recon.json
+            cat /tmp/recon.json
+            BAD=$(python3 -c 'import json; r=json.load(open("/tmp/recon.json")); print(r.get("fingerprint_invalid",0)+r.get("fingerprint_drift",0))')
+            if [ "$BAD" != "0" ]; then
+              echo "::error::audit JSONL fingerprint 失败 (bad=$BAD)"
+              exit 1
+            fi
+            echo "audit fingerprint OK"
+          else
+            echo "no .claude/audit/*.jsonl committed; skip"
+          fi
