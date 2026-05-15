@@ -15,7 +15,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Stack } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import { Colors } from '@/constants/colors'
 import { Layout } from '@/constants/layout'
 import { api } from '@/services/api'
 import { useStackHeaderOptions, useTheme } from '@/lib/theme'
@@ -117,6 +116,8 @@ export default function FindLawyerScreen() {
   const [actionError, setActionError] = useState<string | null>(null)
   const headerOptions = useStackHeaderOptions({ title: '找律师' })
   const theme = useTheme()
+  // styles 跟随 theme.isDark 自动重建 — dark mode 下文本 / 背景 / border 自动切换
+  const styles = useMemo(() => createStyles(theme), [theme])
 
   const selectedLawyer = useMemo(
     () => lawyers.find((lawyer) => lawyer.id === selectedLawyerId) ?? null,
@@ -247,11 +248,11 @@ export default function FindLawyerScreen() {
   const renderConsultationHeader = () => (
     <View>
       <View style={styles.searchContainer}>
-        <Ionicons name="location-outline" size={16} color={Colors.textSecondary} />
+        <Ionicons name="location-outline" size={16} color={theme.textSecondary} />
         <TextInput
           style={styles.searchInput}
           placeholder="输入城市（选填）"
-          placeholderTextColor={Colors.textMuted}
+          placeholderTextColor={theme.textMuted}
           value={city}
           onChangeText={setCity}
           returnKeyType="search"
@@ -286,7 +287,7 @@ export default function FindLawyerScreen() {
       <View style={styles.flowPanel}>
         <View style={styles.flowHeader}>
           <View style={styles.flowIcon}>
-            <Ionicons name="shield-checkmark-outline" size={22} color={Colors.primary} />
+            <Ionicons name="shield-checkmark-outline" size={22} color={theme.primary} />
           </View>
           <View style={styles.flowHeaderText}>
             <Text style={styles.flowTitle}>匿名咨询匹配</Text>
@@ -297,7 +298,7 @@ export default function FindLawyerScreen() {
         <TextInput
           style={styles.descriptionInput}
           placeholder="请描述企业或个人遇到的问题，例如合同违约、员工离职争议、税务处罚、股权纠纷等..."
-          placeholderTextColor={Colors.textMuted}
+          placeholderTextColor={theme.textMuted}
           value={description}
           onChangeText={setDescription}
           multiline
@@ -327,7 +328,7 @@ export default function FindLawyerScreen() {
 
         {consultationError && (
           <View style={styles.errorBanner}>
-            <Ionicons name="warning-outline" size={16} color={Colors.error} />
+            <Ionicons name="warning-outline" size={16} color={theme.error} />
             <Text style={styles.errorText}>{consultationError}</Text>
           </View>
         )}
@@ -341,9 +342,9 @@ export default function FindLawyerScreen() {
           onPress={handleCreateConsultation}
         >
           {submittingConsultation ? (
-            <ActivityIndicator size="small" color={Colors.white} />
+            <ActivityIndicator size="small" color={theme.white} />
           ) : (
-            <Ionicons name="sparkles-outline" size={16} color={Colors.white} />
+            <Ionicons name="sparkles-outline" size={16} color={theme.white} />
           )}
           <Text style={styles.primaryButtonText}>
             {submittingConsultation ? 'AI 分析中...' : '生成匿名摘要并匹配'}
@@ -353,7 +354,7 @@ export default function FindLawyerScreen() {
         {consultation && (
           <View style={styles.anonymousSummaryCard}>
             <View style={styles.summaryHeader}>
-              <Ionicons name="document-text-outline" size={18} color={Colors.primary} />
+              <Ionicons name="document-text-outline" size={18} color={theme.primary} />
               <Text style={styles.summaryTitle}>AI 匿名摘要</Text>
             </View>
             <Text style={styles.summaryBody}>{consultation.anonymous_summary}</Text>
@@ -381,9 +382,9 @@ export default function FindLawyerScreen() {
                 onPress={handleCreateAnonymousRoom}
               >
                 {creatingRoom ? (
-                  <ActivityIndicator size="small" color={Colors.text} />
+                  <ActivityIndicator size="small" color={theme.text} />
                 ) : (
-                  <Ionicons name="chatbubbles-outline" size={16} color={Colors.text} />
+                  <Ionicons name="chatbubbles-outline" size={16} color={theme.text} />
                 )}
                 <Text style={styles.secondaryActionText}>匿名咨询</Text>
               </TouchableOpacity>
@@ -396,9 +397,9 @@ export default function FindLawyerScreen() {
                 onPress={handleCreateDelegation}
               >
                 {delegating ? (
-                  <ActivityIndicator size="small" color={Colors.white} />
+                  <ActivityIndicator size="small" color={theme.white} />
                 ) : (
-                  <Ionicons name="checkmark-circle-outline" size={16} color={Colors.white} />
+                  <Ionicons name="checkmark-circle-outline" size={16} color={theme.white} />
                 )}
                 <Text style={styles.primaryActionText}>尝试委托</Text>
               </TouchableOpacity>
@@ -408,14 +409,14 @@ export default function FindLawyerScreen() {
 
         {actionMessage && (
           <View style={styles.successBanner}>
-            <Ionicons name="checkmark-circle-outline" size={16} color={Colors.success} />
+            <Ionicons name="checkmark-circle-outline" size={16} color={theme.success} />
             <Text style={styles.successText}>{actionMessage}</Text>
           </View>
         )}
 
         {actionError && (
           <View style={styles.errorBanner}>
-            <Ionicons name="information-circle-outline" size={16} color={Colors.error} />
+            <Ionicons name="information-circle-outline" size={16} color={theme.error} />
             <Text style={styles.errorText}>{actionError}</Text>
           </View>
         )}
@@ -449,13 +450,13 @@ export default function FindLawyerScreen() {
             <Text style={styles.name}>{item.real_name}</Text>
             {selected && (
               <View style={styles.selectedBadge}>
-                <Ionicons name="checkmark" size={11} color={Colors.white} />
+                <Ionicons name="checkmark" size={11} color={theme.white} />
                 <Text style={styles.selectedBadgeText}>已选</Text>
               </View>
             )}
             {item.rating !== null && item.rating !== undefined && item.rating > 0 && (
               <View style={styles.ratingBox}>
-                <Ionicons name="star" size={12} color={Colors.warning} />
+                <Ionicons name="star" size={12} color={theme.warning} />
                 <Text style={styles.rating}>{item.rating.toFixed(1)}</Text>
               </View>
             )}
@@ -491,19 +492,19 @@ export default function FindLawyerScreen() {
   const renderEmpty = () =>
     loading && lawyers.length === 0 ? (
       <View style={styles.centered}>
-        <ActivityIndicator color={Colors.primary} size="large" />
+        <ActivityIndicator color={theme.primary} size="large" />
       </View>
     ) : error ? (
       <View style={styles.emptyContainer}>
-        <Ionicons name="cloud-offline-outline" size={56} color={Colors.error} />
-        <Text style={[styles.emptyText, { color: Colors.error }]}>{error}</Text>
+        <Ionicons name="cloud-offline-outline" size={56} color={theme.error} />
+        <Text style={[styles.emptyText, { color: theme.error }]}>{error}</Text>
         <TouchableOpacity style={styles.retryBtn} onPress={() => loadPage(1, true)}>
           <Text style={styles.retryBtnText}>点击重试</Text>
         </TouchableOpacity>
       </View>
     ) : (
       <View style={styles.emptyContainer}>
-        <Ionicons name="people-outline" size={56} color={Colors.textMuted} />
+        <Ionicons name="people-outline" size={56} color={theme.textMuted} />
         <Text style={styles.emptyText}>暂无匹配律师</Text>
         <Text style={styles.emptySubText}>可以调整领域、城市，或先提交匿名咨询等待平台接单</Text>
       </View>
@@ -530,7 +531,7 @@ export default function FindLawyerScreen() {
           ListFooterComponent={
             loadingMore ? (
               <View style={styles.footerLoading}>
-                <ActivityIndicator color={Colors.primary} />
+                <ActivityIndicator color={theme.primary} />
               </View>
             ) : null
           }
@@ -541,7 +542,7 @@ export default function FindLawyerScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor={Colors.primary}
+              tintColor={theme.primary}
             />
           }
           onEndReached={onEndReached}
@@ -571,8 +572,13 @@ function priceLabel(lawyer: LawyerProfile) {
   return '价格面议'
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+/**
+ * 动态 styles 工厂：接收 useTheme() 返回的 palette（含 dark mode 切换的 isDark 字段），
+ * 让所有 StyleSheet.create 出的样式自动响应系统暗色。
+ * 调用方式：render 中 `const styles = useMemo(() => createStyles(theme), [theme])`
+ */
+const createStyles = (t: ReturnType<typeof useTheme>) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: t.background },
   flex: { flex: 1 },
   centered: {
     minHeight: 180,
@@ -586,24 +592,24 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.background,
+    backgroundColor: t.background,
     marginTop: Layout.spacing.md,
     paddingHorizontal: Layout.spacing.md,
     paddingVertical: Layout.spacing.sm + 2,
     borderRadius: Layout.borderRadius.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
+    borderColor: t.border,
     gap: Layout.spacing.sm,
   },
-  searchInput: { flex: 1, fontSize: Layout.fontSize.sm, color: Colors.text, padding: 0 },
+  searchInput: { flex: 1, fontSize: Layout.fontSize.sm, color: t.text, padding: 0 },
   searchBtn: {
     minHeight: Layout.touchTarget.min,
     justifyContent: 'center',
     paddingHorizontal: Layout.spacing.md,
-    backgroundColor: Colors.primary,
+    backgroundColor: t.primary,
     borderRadius: Layout.borderRadius.sm,
   },
-  searchBtnText: { color: Colors.white, fontSize: Layout.fontSize.sm, fontWeight: '600' },
+  searchBtnText: { color: t.white, fontSize: Layout.fontSize.sm, fontWeight: '600' },
   tabScroll: { marginTop: Layout.spacing.md, maxHeight: 44 },
   tabRow: { flexDirection: 'row', gap: Layout.spacing.sm },
   tab: {
@@ -611,18 +617,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: Layout.spacing.md,
     borderRadius: Layout.borderRadius.full,
-    backgroundColor: Colors.background,
+    backgroundColor: t.background,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
+    borderColor: t.border,
   },
-  tabActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  tabText: { fontSize: Layout.fontSize.sm, color: Colors.textSecondary },
-  tabTextActive: { color: Colors.white, fontWeight: '700' },
+  tabActive: { backgroundColor: t.primary, borderColor: t.primary },
+  tabText: { fontSize: Layout.fontSize.sm, color: t.textSecondary },
+  tabTextActive: { color: t.white, fontWeight: '700' },
   flowPanel: {
-    backgroundColor: Colors.background,
+    backgroundColor: t.background,
     borderRadius: Layout.borderRadius.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
+    borderColor: t.border,
     padding: Layout.spacing.md,
     marginTop: Layout.spacing.md,
     gap: Layout.spacing.md,
@@ -636,21 +642,21 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: Colors.primary + '18',
+    backgroundColor: t.primary + '18',
     alignItems: 'center',
     justifyContent: 'center',
   },
   flowHeaderText: { flex: 1 },
-  flowTitle: { fontSize: Layout.fontSize.lg, fontWeight: '700', color: Colors.text },
-  flowSubtitle: { fontSize: Layout.fontSize.xs, color: Colors.textSecondary, marginTop: 2 },
+  flowTitle: { fontSize: Layout.fontSize.lg, fontWeight: '700', color: t.text },
+  flowSubtitle: { fontSize: Layout.fontSize.xs, color: t.textSecondary, marginTop: 2 },
   descriptionInput: {
     minHeight: 128,
     borderRadius: Layout.borderRadius.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
+    borderColor: t.border,
+    backgroundColor: t.surface,
     padding: Layout.spacing.md,
-    color: Colors.text,
+    color: t.text,
     fontSize: Layout.fontSize.sm,
     lineHeight: 20,
   },
@@ -666,58 +672,58 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: Layout.borderRadius.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
+    borderColor: t.border,
     paddingHorizontal: Layout.spacing.sm,
     paddingVertical: Layout.spacing.sm,
-    backgroundColor: Colors.surface,
+    backgroundColor: t.surface,
   },
-  urgencyChipActive: { borderColor: Colors.primary, backgroundColor: Colors.primary + '12' },
-  urgencyLabel: { fontSize: Layout.fontSize.sm, color: Colors.text, fontWeight: '700' },
-  urgencyLabelActive: { color: Colors.primaryDark },
-  urgencyDesc: { fontSize: Layout.fontSize.xs, color: Colors.textSecondary, marginTop: 2 },
-  urgencyDescActive: { color: Colors.primaryDark },
+  urgencyChipActive: { borderColor: t.primary, backgroundColor: t.primary + '12' },
+  urgencyLabel: { fontSize: Layout.fontSize.sm, color: t.text, fontWeight: '700' },
+  urgencyLabelActive: { color: t.primaryDark },
+  urgencyDesc: { fontSize: Layout.fontSize.xs, color: t.textSecondary, marginTop: 2 },
+  urgencyDescActive: { color: t.primaryDark },
   primaryButton: {
     minHeight: Layout.touchTarget.min,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Layout.spacing.sm,
-    backgroundColor: Colors.primary,
+    backgroundColor: t.primary,
     borderRadius: Layout.borderRadius.md,
     paddingVertical: Layout.spacing.md,
   },
   primaryButtonDisabled: { opacity: 0.5 },
-  primaryButtonText: { color: Colors.white, fontSize: Layout.fontSize.md, fontWeight: '700' },
+  primaryButtonText: { color: t.white, fontSize: Layout.fontSize.md, fontWeight: '700' },
   anonymousSummaryCard: {
     borderRadius: Layout.borderRadius.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.primaryLight,
-    backgroundColor: Colors.primary + '10',
+    borderColor: t.primaryLight,
+    backgroundColor: t.primary + '10',
     padding: Layout.spacing.md,
     gap: Layout.spacing.sm,
   },
   summaryHeader: { flexDirection: 'row', alignItems: 'center', gap: Layout.spacing.sm },
-  summaryTitle: { fontSize: Layout.fontSize.sm, fontWeight: '700', color: Colors.text },
-  summaryBody: { fontSize: Layout.fontSize.sm, color: Colors.text, lineHeight: 20 },
+  summaryTitle: { fontSize: Layout.fontSize.sm, fontWeight: '700', color: t.text },
+  summaryBody: { fontSize: Layout.fontSize.sm, color: t.text, lineHeight: 20 },
   summaryChips: { flexDirection: 'row', flexWrap: 'wrap', gap: Layout.spacing.sm },
   summaryChip: {
     minHeight: 32,
     paddingHorizontal: Layout.spacing.sm,
     paddingVertical: 6,
     borderRadius: Layout.borderRadius.full,
-    backgroundColor: Colors.background,
-    color: Colors.textSecondary,
+    backgroundColor: t.background,
+    color: t.textSecondary,
     fontSize: Layout.fontSize.xs,
     overflow: 'hidden',
   },
   selectedPanel: {
     borderRadius: Layout.borderRadius.md,
-    backgroundColor: Colors.surface,
+    backgroundColor: t.surface,
     padding: Layout.spacing.md,
     gap: Layout.spacing.sm,
   },
-  selectedTitle: { fontSize: Layout.fontSize.md, fontWeight: '700', color: Colors.text },
-  selectedMeta: { fontSize: Layout.fontSize.xs, color: Colors.textSecondary },
+  selectedTitle: { fontSize: Layout.fontSize.md, fontWeight: '700', color: t.text },
+  selectedMeta: { fontSize: Layout.fontSize.xs, color: t.textSecondary },
   actionRow: { flexDirection: 'row', gap: Layout.spacing.sm },
   secondaryActionButton: {
     flex: 1,
@@ -727,9 +733,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Layout.spacing.xs,
     borderRadius: Layout.borderRadius.md,
-    backgroundColor: Colors.background,
+    backgroundColor: t.background,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
+    borderColor: t.border,
   },
   primaryActionButton: {
     flex: 1,
@@ -739,31 +745,31 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Layout.spacing.xs,
     borderRadius: Layout.borderRadius.md,
-    backgroundColor: Colors.primary,
+    backgroundColor: t.primary,
   },
   actionDisabled: { opacity: 0.45 },
-  secondaryActionText: { fontSize: Layout.fontSize.sm, fontWeight: '700', color: Colors.text },
-  primaryActionText: { fontSize: Layout.fontSize.sm, fontWeight: '700', color: Colors.white },
+  secondaryActionText: { fontSize: Layout.fontSize.sm, fontWeight: '700', color: t.text },
+  primaryActionText: { fontSize: Layout.fontSize.sm, fontWeight: '700', color: t.white },
   errorBanner: {
     minHeight: Layout.touchTarget.min,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Layout.spacing.sm,
-    backgroundColor: Colors.error + '12',
+    backgroundColor: t.error + '12',
     borderRadius: Layout.borderRadius.md,
     padding: Layout.spacing.md,
   },
-  errorText: { flex: 1, color: Colors.error, fontSize: Layout.fontSize.sm, lineHeight: 20 },
+  errorText: { flex: 1, color: t.error, fontSize: Layout.fontSize.sm, lineHeight: 20 },
   successBanner: {
     minHeight: Layout.touchTarget.min,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Layout.spacing.sm,
-    backgroundColor: Colors.success + '12',
+    backgroundColor: t.success + '12',
     borderRadius: Layout.borderRadius.md,
     padding: Layout.spacing.md,
   },
-  successText: { flex: 1, color: Colors.text, fontSize: Layout.fontSize.sm, lineHeight: 20 },
+  successText: { flex: 1, color: t.text, fontSize: Layout.fontSize.sm, lineHeight: 20 },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -771,29 +777,29 @@ const styles = StyleSheet.create({
     marginTop: Layout.spacing.lg,
     marginBottom: Layout.spacing.sm,
   },
-  sectionTitle: { fontSize: Layout.fontSize.sm, color: Colors.textSecondary, fontWeight: '700' },
-  sectionMeta: { fontSize: Layout.fontSize.xs, color: Colors.textMuted },
+  sectionTitle: { fontSize: Layout.fontSize.sm, color: t.textSecondary, fontWeight: '700' },
+  sectionMeta: { fontSize: Layout.fontSize.xs, color: t.textMuted },
   card: {
     flexDirection: 'row',
-    backgroundColor: Colors.background,
+    backgroundColor: t.background,
     borderRadius: Layout.borderRadius.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
+    borderColor: t.border,
     padding: Layout.spacing.md,
     marginBottom: Layout.spacing.sm,
     gap: Layout.spacing.md,
   },
-  cardSelected: { borderColor: Colors.primary, backgroundColor: Colors.primary + '08' },
+  cardSelected: { borderColor: t.primary, backgroundColor: t.primary + '08' },
   avatarBox: { position: 'relative' },
   avatarPlaceholder: {
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: Colors.primary + '18',
+    backgroundColor: t.primary + '18',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarLetter: { fontSize: Layout.fontSize.xl, fontWeight: '700', color: Colors.primaryDark },
+  avatarLetter: { fontSize: Layout.fontSize.xl, fontWeight: '700', color: t.primaryDark },
   onlineDot: {
     position: 'absolute',
     right: 0,
@@ -801,44 +807,44 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: Colors.success,
+    backgroundColor: t.success,
     borderWidth: 2,
-    borderColor: Colors.background,
+    borderColor: t.background,
   },
   cardMain: { flex: 1, minWidth: 0 },
   nameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Layout.spacing.xs },
-  name: { fontSize: Layout.fontSize.md, fontWeight: '700', color: Colors.text },
+  name: { fontSize: Layout.fontSize.md, fontWeight: '700', color: t.text },
   selectedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
-    backgroundColor: Colors.primary,
+    backgroundColor: t.primary,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: Layout.borderRadius.full,
   },
-  selectedBadgeText: { fontSize: 11, color: Colors.white, fontWeight: '700' },
+  selectedBadgeText: { fontSize: 11, color: t.white, fontWeight: '700' },
   ratingBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
-    backgroundColor: Colors.warning + '15',
+    backgroundColor: t.warning + '15',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: Layout.borderRadius.full,
   },
-  rating: { fontSize: 11, color: Colors.warning, fontWeight: '700' },
-  firm: { fontSize: Layout.fontSize.xs, color: Colors.textSecondary, marginTop: 2 },
+  rating: { fontSize: 11, color: t.warning, fontWeight: '700' },
+  firm: { fontSize: Layout.fontSize.xs, color: t.textSecondary, marginTop: 2 },
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Layout.spacing.xs, marginTop: Layout.spacing.sm },
   tag: {
-    backgroundColor: Colors.surface,
+    backgroundColor: t.surface,
     paddingHorizontal: Layout.spacing.sm,
     paddingVertical: 3,
     borderRadius: Layout.borderRadius.sm,
   },
-  tagText: { fontSize: 11, color: Colors.textSecondary },
+  tagText: { fontSize: 11, color: t.textSecondary },
   metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginTop: Layout.spacing.sm },
-  meta: { fontSize: 11, color: Colors.textMuted },
+  meta: { fontSize: 11, color: t.textMuted },
   bottomRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -846,8 +852,8 @@ const styles = StyleSheet.create({
     gap: Layout.spacing.sm,
     marginTop: Layout.spacing.sm,
   },
-  priceText: { flex: 1, fontSize: 11, color: Colors.textSecondary },
-  matchText: { fontSize: 11, color: Colors.primaryDark, fontWeight: '600' },
+  priceText: { flex: 1, fontSize: 11, color: t.textSecondary },
+  matchText: { fontSize: 11, color: t.primaryDark, fontWeight: '600' },
   footerLoading: { paddingVertical: Layout.spacing.md },
   emptyContainer: {
     minHeight: 220,
@@ -855,10 +861,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Layout.spacing.lg,
   },
-  emptyText: { fontSize: Layout.fontSize.md, color: Colors.textSecondary, marginTop: Layout.spacing.md },
+  emptyText: { fontSize: Layout.fontSize.md, color: t.textSecondary, marginTop: Layout.spacing.md },
   emptySubText: {
     fontSize: Layout.fontSize.sm,
-    color: Colors.textMuted,
+    color: t.textMuted,
     marginTop: Layout.spacing.xs,
     textAlign: 'center',
     lineHeight: 20,
@@ -868,8 +874,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: Layout.spacing.md,
     paddingHorizontal: Layout.spacing.lg,
-    backgroundColor: Colors.primary,
+    backgroundColor: t.primary,
     borderRadius: Layout.borderRadius.md,
   },
-  retryBtnText: { color: Colors.white, fontSize: Layout.fontSize.sm, fontWeight: '700' },
+  retryBtnText: { color: t.white, fontSize: Layout.fontSize.sm, fontWeight: '700' },
 })
