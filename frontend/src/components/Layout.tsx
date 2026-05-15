@@ -25,6 +25,7 @@ import { usePermission } from '@/hooks/usePermission'
 
 import { icons } from '@/lib/icons'
 import { iconSize, buttonStyle, heading, sidebarNav } from '@/lib/design-tokens'
+import { DOMAIN_BY_ID, type DomainId } from '@/lib/domains'
 import { ModeSwitcher } from '@/components/mode-switcher/ModeSwitcher'
 import { SyncStatus } from '@/components/mode-switcher/SyncStatus'
 import { MobileNavBar } from '@/components/mobile/MobileNavBar'
@@ -66,6 +67,8 @@ interface SidebarItem {
   label: string
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
   feature?: string
+  /** V3 业务域归属 — 渲染时左侧显示对应域色 4px 条 + 域 dot；详见 @/lib/domains */
+  domain?: DomainId
 }
 
 const moduleSidebarConfig: { id: string; title: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>>; paths: string[]; items: SidebarItem[] }[] = [
@@ -75,11 +78,11 @@ const moduleSidebarConfig: { id: string; title: string; icon: React.ComponentTyp
     icon: icons.CollaborationGroup,
     paths: ['/case-center', '/management', '/documents', '/agent-approvals', '/find-lawyer', '/firm', '/lawyer-dashboard', '/acquisition'],
     items: [
-      { path: '/case-center', label: '案件中心', icon: icons.Cases, feature: 'case_management' },
-      { path: '/management', label: '管理中心', icon: icons.ShieldCheck, feature: 'contract_management' },
-      { path: '/agent-approvals', label: 'AI审批', icon: icons.ShieldAlert, feature: 'approval_workflow' },
-      { path: '/find-lawyer', label: '律师精英', icon: icons.Scale, feature: 'lawyer_matching' },
-      { path: '/documents', label: '智能文档', icon: icons.FileText, feature: 'document_management' },
+      { path: '/case-center', label: '案件中心', icon: icons.Cases, feature: 'case_management', domain: 'legal' },
+      { path: '/management', label: '管理中心', icon: icons.ShieldCheck, feature: 'contract_management', domain: 'legal' },
+      { path: '/agent-approvals', label: 'AI审批', icon: icons.ShieldAlert, feature: 'approval_workflow', domain: 'compliance' },
+      { path: '/find-lawyer', label: '律师精英', icon: icons.Scale, feature: 'lawyer_matching', domain: 'legal' },
+      { path: '/documents', label: '智能文档', icon: icons.FileText, feature: 'document_management', domain: 'content' },
     ],
   },
   {
@@ -88,8 +91,8 @@ const moduleSidebarConfig: { id: string; title: string; icon: React.ComponentTyp
     icon: icons.DueDiligence,
     paths: ['/investigation', '/monitoring'],
     items: [
-      { path: '/investigation', label: '尽职调查', icon: icons.BarChart3 },
-      { path: '/monitoring', label: '舆情监测', icon: icons.Signal },
+      { path: '/investigation', label: '尽职调查', icon: icons.BarChart3, domain: 'growth' },
+      { path: '/monitoring', label: '舆情监测', icon: icons.Signal, domain: 'growth' },
     ],
   },
   {
@@ -98,8 +101,8 @@ const moduleSidebarConfig: { id: string; title: string; icon: React.ComponentTyp
     icon: icons.KnowledgeGroup,
     paths: ['/knowledge-base', '/knowledge-graph'],
     items: [
-      { path: '/knowledge-base', label: '知识库', icon: icons.Database },
-      { path: '/knowledge-graph', label: '知识图谱', icon: icons.KnowledgeGraph },
+      { path: '/knowledge-base', label: '知识库', icon: icons.Database, domain: 'legal' },
+      { path: '/knowledge-graph', label: '知识图谱', icon: icons.KnowledgeGraph, domain: 'legal' },
     ],
   },
 ]
@@ -139,26 +142,48 @@ function ModuleSidebar({ currentPath, onNavigate }: { currentPath: string; onNav
       </div>
 
       {/* 导航列表 */}
-      <nav className="flex-1 py-2 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 py-2 space-y-0.5 overflow-y-auto" aria-label={`${currentModule.title} 二级导航`}>
         {visibleItems.map((item) => {
           // 精确匹配：避免 /due-diligence 匹配所有 /due-diligence/* 子路径
           const hasSubItems = visibleItems.some(other => other.path !== item.path && other.path.startsWith(item.path + '/'))
           const isActive = hasSubItems ? currentPath === item.path : (currentPath === item.path || currentPath.startsWith(item.path + '/'))
           const Icon = item.icon
+          const domainMeta = item.domain ? DOMAIN_BY_ID[item.domain] : null
           return (
             <button
               key={item.path}
               onClick={() => onNavigate(item.path)}
-              className={`w-full flex items-center gap-2.5 mx-1.5 px-2.5 py-2 rounded-lg ${sidebarNav.itemText} transition-colors ${
+              className={`relative w-full flex items-center gap-2.5 mx-1.5 px-2.5 py-2 rounded-lg ${sidebarNav.itemText} transition-colors ${
                 isActive
                   ? sidebarNav.itemActive
                   : sidebarNav.itemDefault
               }`}
-              title={collapsed ? item.label : undefined}
+              title={collapsed ? `${item.label}${domainMeta ? ` · ${domainMeta.label}` : ''}` : undefined}
+              aria-label={domainMeta ? `${item.label}（${domainMeta.label}域）` : item.label}
               style={{ width: `calc(100% - ${collapsed ? '8px' : '12px'})` }}
             >
+              {/* V3 业务域视觉锚点 — active 态显示左侧 2px 域色 stripe */}
+              {domainMeta && isActive ? (
+                <span
+                  aria-hidden
+                  className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r"
+                  style={{ backgroundColor: `hsl(var(--${domainMeta.cssVar}))` }}
+                />
+              ) : null}
               <Icon className="w-4.5 h-4.5 shrink-0" />
-              {!collapsed && <span className="whitespace-nowrap">{item.label}</span>}
+              {!collapsed && (
+                <>
+                  <span className="whitespace-nowrap flex-1 text-left">{item.label}</span>
+                  {/* 域 dot — inactive 态在右侧显示 4px 域色圆点，作为分类提示 */}
+                  {domainMeta && !isActive ? (
+                    <span
+                      aria-hidden
+                      className="h-1 w-1 rounded-full shrink-0 opacity-70"
+                      style={{ backgroundColor: `hsl(var(--${domainMeta.cssVar}))` }}
+                    />
+                  ) : null}
+                </>
+              )}
             </button>
           )
         })}
