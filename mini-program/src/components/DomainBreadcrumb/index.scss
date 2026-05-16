@@ -1,0 +1,53 @@
+// DomainBreadcrumb 样式 — 颜色由 inline style 注入（design-tokens.ts 的 domain 表）
+
+@import '../../styles/design-tokens.scss';
+
+.domain-breadcrumb {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8rpx;
+
+  &--compact {
+    gap: 6rpx;
+  }
+
+  &__iconbox {
+    width: 32rpx;
+    height: 32rpx;
+    border-radius: 8rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__icon {
+    font-size: 22rpx;
+    line-height: 1;
+  }
+
+  &__dot {
+    width: 10rpx;
+    height: 10rpx;
+    border-radius: 50%;
+  }
+
+  &__label {
+    font-size: $font-caption;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+
+  &__sep {
+    color: $color-text-disabled;
+    font-size: $font-caption;
+    margin: 0 2rpx;
+  }
+
+  &__module {
+    color: $color-text-tertiary;
+    font-size: $font-caption;
+    font-weight: 400;
+    line-height: 1.4;
+  }
+}
