@@ -15,6 +15,7 @@ import { Colors } from '@/constants/colors'
 import { Layout } from '@/constants/layout'
 import { api } from '@/services/api'
 import { DomainStripe } from '@/components/DomainBadge'
+import { DomainBreadcrumb } from '@/components/DomainBreadcrumb'
 
 /**
  * 法律智库 Tab —— 法规 / 模板 / 判例三视图合一。
@@ -113,8 +114,11 @@ export default function KnowledgeScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* V3 法务域视觉锚点 — 4pt 高暖橄榄绿彩条 */}
+      {/* V3 法务域视觉锚点 — 4pt 高暖橄榄绿彩条 + 紧凑面包屑 */}
       <DomainStripe domain="legal" />
+      <View style={{ paddingHorizontal: 16, paddingVertical: 8 }}>
+        <DomainBreadcrumb domain="legal" compact />
+      </View>
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.content}
