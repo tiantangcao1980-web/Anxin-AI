@@ -382,6 +382,23 @@ export default function Layout() {
           {/* 右侧：系统功能 + 用户区 */}
           <div className="ml-auto flex items-center gap-1 sm:gap-1.5 md:gap-2">
             <div className="flex items-center gap-1 rounded-xl p-1">
+              {/* V3 8 大业务域永久入口 — 跳到 /domains 索引页 */}
+              <button
+                onClick={() => navigate('/domains')}
+                aria-label="业务域总览"
+                title="业务域总览（8 大业务）"
+                className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-medium transition-colors md:h-10 md:w-auto md:text-sm ${
+                  headerActionLabels ? 'md:gap-1.5 md:px-3' : 'md:px-2'
+                } ${
+                  currentPath === '/domains'
+                    ? 'text-primary bg-primary/10'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                }`}
+                aria-current={currentPath === '/domains' ? 'page' : undefined}
+              >
+                <icons.LayoutGrid className="h-4 w-4 shrink-0" />
+                {headerActionLabels && <span className="hidden whitespace-nowrap md:inline">业务域</span>}
+              </button>
               <button
                 onClick={() => navigate('/messages')}
                 aria-label="消息"
