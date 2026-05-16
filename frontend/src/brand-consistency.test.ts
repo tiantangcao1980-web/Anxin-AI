@@ -95,4 +95,37 @@ describe('frontend · V3 品牌一致性 (cross-source scan)', () => {
     expect(css).toMatch(/安心智能助手/)
     expect(css).not.toMatch(/^[^\n]*安心法务/m)
   })
+
+  // ===== V3 路由 & 顶栏入口守护（防止 DomainHomePage / Layout 入口被回退）=====
+
+  it('App.tsx 必须注册 /domains 路由 → DomainHomePage', () => {
+    const app = fs.readFileSync(path.join(SRC_DIR, 'App.tsx'), 'utf-8')
+    // 懒加载声明
+    expect(app).toMatch(/lazy\(\(\)\s*=>\s*import\(['"]@\/pages\/DomainHomePage['"]\)\)/)
+    // 路由注册
+    expect(app).toMatch(/<Route\s+path=["']domains["']\s+element=/)
+  })
+
+  it('Layout.tsx 必须含 /domains 顶栏入口按钮', () => {
+    const layout = fs.readFileSync(
+      path.join(SRC_DIR, 'components', 'Layout.tsx'),
+      'utf-8',
+    )
+    // 跳转到 /domains
+    expect(layout).toMatch(/navigate\(['"]\/domains['"]\)/)
+    // 用 LayoutGrid 图标
+    expect(layout).toMatch(/icons\.LayoutGrid/)
+    // 有"业务域"相关 aria 文案
+    expect(layout).toMatch(/业务域/)
+  })
+
+  it('DomainHomePage 必须 import DomainGrid + DOMAINS 元数据', () => {
+    const page = fs.readFileSync(
+      path.join(SRC_DIR, 'pages', 'DomainHomePage.tsx'),
+      'utf-8',
+    )
+    expect(page).toMatch(/from\s*['"]@\/components\/ui\/domain['"]/)
+    expect(page).toMatch(/from\s*['"]@\/lib\/domains['"]/)
+    expect(page).toMatch(/<DomainGrid/)
+  })
 })
