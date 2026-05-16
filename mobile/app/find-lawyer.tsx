@@ -19,6 +19,7 @@ import { Layout } from '@/constants/layout'
 import { api } from '@/services/api'
 import { useStackHeaderOptions, useTheme } from '@/lib/theme'
 import { DomainStripe } from '@/components/DomainBadge'
+import { DomainBreadcrumb } from '@/components/DomainBreadcrumb'
 
 /**
  * 找律师 —— 移动端匿名咨询转化链路。
@@ -516,8 +517,11 @@ export default function FindLawyerScreen() {
       edges={['bottom']}
     >
       <Stack.Screen options={headerOptions} />
-      {/* V3 法务域视觉锚点 — 4pt 高彩条 */}
+      {/* V3 法务域视觉锚点 — 4pt 高彩条 + 紧凑面包屑 */}
       <DomainStripe domain="legal" />
+      <View style={{ paddingHorizontal: 16, paddingVertical: 8 }}>
+        <DomainBreadcrumb domain="legal" compact />
+      </View>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { api } from '@/services/api'
 import { useStackHeaderOptions, useTheme } from '@/lib/theme'
 import { DomainStripe } from '@/components/DomainBadge'
+import { DomainBreadcrumb } from '@/components/DomainBreadcrumb'
 
 /**
  * 合同管理 —— 接入真实 `/contracts/` 后端 API。
@@ -198,8 +199,11 @@ export default function ContractsScreen() {
       edges={['bottom']}
     >
       <Stack.Screen options={headerOptions} />
-      {/* V3 法务域视觉锚点 */}
+      {/* V3 法务域视觉锚点 + 紧凑面包屑 */}
       <DomainStripe domain="legal" />
+      <View style={{ paddingHorizontal: 16, paddingVertical: 8 }}>
+        <DomainBreadcrumb domain="legal" compact />
+      </View>
 
       <KeyboardAvoidingView
         style={styles.flex}
