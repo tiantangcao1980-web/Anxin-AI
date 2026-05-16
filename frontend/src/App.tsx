@@ -78,6 +78,7 @@ const AcquisitionDashboard = lazy(() => import('@/pages/AcquisitionDashboard'))
 const LawyerOnboarding = lazy(() => import('@/pages/LawyerOnboarding'))
 const LawyerDashboard = lazy(() => import('@/pages/LawyerDashboard'))
 const Pricing = lazy(() => import('@/pages/Pricing'))
+const DomainHomePage = lazy(() => import('@/pages/DomainHomePage'))
 const MySubscription = lazy(() => import('@/pages/MySubscription'))
 const PrivateLLMSetup = lazy(() => import('@/pages/PrivateLLMSetup'))
 const SyncConflicts = lazy(() => import('@/pages/SyncConflicts'))
@@ -473,6 +474,8 @@ function App() {
 
                 {/* ===== 计费系统 ===== */}
                 <Route path="pricing" element={<ProtectedRoute feature="pricing"><Pricing /></ProtectedRoute>} />
+                {/* V3 8 大业务域永久索引页（与 WelcomeGuide modal 互为补充） */}
+                <Route path="domains" element={<ProtectedRoute><DomainHomePage /></ProtectedRoute>} />
                 <Route path="my-subscription" element={<ProtectedRoute feature="my_subscription"><MySubscription /></ProtectedRoute>} />
 
                 {/* ===== AI 配置已迁移到治理后台 ===== */}
