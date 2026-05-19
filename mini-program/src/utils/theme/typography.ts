@@ -28,6 +28,7 @@ export const lineHeight = {
   relaxed: 1.75,
 } as const
 
+// 2026-05 Reset: 删除 -apple-system / BlinkMacSystemFont / Helvetica Neue
+// (ui-design skill FORBIDDEN FONTS)，改为中文系统字体优先
 export const fontFamily =
-  "-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', " +
-  "'Microsoft YaHei', 'Source Han Sans SC', sans-serif"
+  "'PingFang SC', 'Microsoft YaHei', 'Source Han Sans SC', 'Noto Sans SC', sans-serif"

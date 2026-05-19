@@ -31,8 +31,10 @@ $shadow-card: 0 4rpx 16rpx rgba(29, 33, 41, 0.06);
 $shadow-elevated: 0 8rpx 32rpx rgba(29, 33, 41, 0.10);
 
 page {
-  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC',
-    'Helvetica Neue', 'Microsoft YaHei', 'Source Han Sans SC', sans-serif;
+  // 2026-05 Reset: 删除 -apple-system / BlinkMacSystemFont / Helvetica Neue
+  // (ui-design skill FORBIDDEN FONTS)，改为中文系统字体优先
+  font-family: 'PingFang SC', 'Microsoft YaHei', 'Source Han Sans SC',
+    'Noto Sans SC', sans-serif;
   font-size: 28rpx;
   color: $ink-900;
   background-color: $bg;

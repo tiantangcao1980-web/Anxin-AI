@@ -300,7 +300,7 @@ export function KnowledgeGraphExplorer() {
     // 文字 —— 基于像素宽度智能截断，替代朴素 slice(0,12)
     if (showLabels && globalScale > 0.5) {
       const fontSize = Math.max(10 / globalScale, 3)
-      const labelFont = `600 ${fontSize}px "Inter", "SF Pro", system-ui, sans-serif`
+      const labelFont = `600 ${fontSize}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`
       lastFontRef2D.current = setFontIfChanged(ctx, labelFont, lastFontRef2D.current)
       ctx.textAlign = 'center'
       ctx.textBaseline = 'top'

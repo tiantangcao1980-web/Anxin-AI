@@ -191,7 +191,7 @@ export function CrossModalGraph({
     // 标签
     if (globalScale > 0.7) {
       const fontSize = Math.max(10 / globalScale, 3)
-      ctx.font = `600 ${fontSize}px "Inter", system-ui, sans-serif`
+      ctx.font = `600 ${fontSize}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'top'
       ctx.fillStyle = isDark ? '#e2e8f0' : '#1f2937'
@@ -239,7 +239,7 @@ export function CrossModalGraph({
     // 标签（缩放够大才画）
     if (globalScale > 1.1 && l.label) {
       const fontSize = Math.max(8 / globalScale, 2.5)
-      ctx.font = `500 ${fontSize}px "Inter", system-ui, sans-serif`
+      ctx.font = `500 ${fontSize}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       ctx.fillStyle = isDark ? 'rgba(226,232,240,0.85)' : 'rgba(51,65,85,0.85)'
