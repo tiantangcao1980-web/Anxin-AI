@@ -177,22 +177,37 @@ services:
     networks:
       - legal-network
     restart: unless-stopped
+    healthcheck:
+      # LiveKit 暴露 /healthz；用 TCP 探测避免 alpine 镜像无 wget/curl
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/7880 && echo -e 'GET /healthz HTTP/1.1\\r\\nHost: x\\r\\nConnection: close\\r\\n\\r\\n' >&3 && head -n 1 <&3 | grep -q '200'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   # ==================== 搜索引擎（SearXNG）====================
 
   searxng:
-    image: searxng/searxng:latest
+    # [SEC-S2.2] 固定版本，禁止 :latest 漂移
+    image: searxng/searxng:2025.1.13-bd8c0bf
     container_name: anxin-searxng
     hostname: searxng
     volumes:
       - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
     environment:
-      - SEARXNG_SECRET=anxin-searxng-secret-2026
+      # [SEC] SEARXNG_SECRET 必须通过 env 提供（生产环境）；此默认仅用于本地开发
+      - SEARXNG_SECRET=${SEARXNG_SECRET:-anxin-searxng-dev-only-secret}
     expose:
       - "8080"
     networks:
       - legal-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:8080/healthz | grep -q OK || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   # ==================== 监控（Sprint 6.1）====================
 

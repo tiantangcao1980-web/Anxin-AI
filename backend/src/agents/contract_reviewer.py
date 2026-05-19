@@ -5,6 +5,7 @@
 import json
 from typing import Any, cast
 
+from src.agents._prompt_safety import USER_INPUT_BOUNDARY, wrap_user_input
 from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
 from src.services.agent_rag_service import AgentRAGService
@@ -50,8 +51,10 @@ class ContractReviewAgent(BaseLegalAgent):
             import logging
             logging.getLogger(__name__).debug(f"RAG检索跳过: {e}")
 
-        # 构建审查提示
-        prompt = f"""请对以下合同进行全面、系统的专业审查：
+        # 构建审查提示（合同正文用 <contract_text> 标签隔离防注入）
+        prompt = f"""{USER_INPUT_BOUNDARY}
+
+请对以下合同进行全面、系统的专业审查：
 
 【合同类型】：{contract_type}
 {rag_context}
@@ -59,7 +62,7 @@ class ContractReviewAgent(BaseLegalAgent):
 {type_specific_guide}
 
 【合同文本】：
-{description}
+{wrap_user_input(description, label='contract_text')}
 
 请严格按照系统提示中的三层审查框架（效力审查→核心条款→特殊条款）逐一检查，
 并以规定的JSON格式输出完整审查结果。要求：
@@ -153,9 +156,11 @@ class ContractReviewAgent(BaseLegalAgent):
 
     async def quick_review(self, contract_text: str) -> dict[str, Any]:
         """快速审查合同（简化版）"""
-        prompt = f"""请快速审查以下合同，识别最重要的风险点：
+        prompt = f"""{USER_INPUT_BOUNDARY}
 
-{contract_text[:8000]}
+请快速审查以下合同，识别最重要的风险点：
+
+{wrap_user_input(contract_text[:8000], label='contract_text')}
 
 请以JSON格式输出，包含：
 1. "summary": 50字以内的总体评价

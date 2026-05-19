@@ -492,6 +492,17 @@ class Settings(BaseSettings):
                     "WEBHOOK_PROCESSING_LOCK_BACKEND 必须显式设置为 'redis'（当前 'auto'，"
                     "可能退化到本地锁，无分布式幂等保证）"
                 )
+            # [SEC-S2.3] CORS：生产环境禁止 localhost / 通配
+            localhost_origins = [
+                o for o in self.CORS_ORIGINS
+                if "localhost" in o or "127.0.0.1" in o or o == "*"
+            ]
+            if localhost_origins:
+                problems.append(
+                    f"CORS_ORIGINS 包含开发用源 {localhost_origins}。"
+                    "生产环境必须通过 env 覆盖为真实域名列表（如 https://anxinai.com）。"
+                    "Tauri 桌面端如需访问，请使用 tauri://localhost / https://tauri.localhost 而非 http://localhost。"
+                )
             if problems:
                 raise ValueError(
                     f"[{self.ENVIRONMENT}] 安全配置不合规，禁止启动：\n  - "

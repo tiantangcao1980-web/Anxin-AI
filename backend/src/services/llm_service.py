@@ -45,26 +45,46 @@ class LLMService:
 
     @classmethod
     def _get_encryption_key(cls) -> str:
-        """获取加密密钥"""
+        """获取加密密钥。
+
+        生产/预发环境必须显式设置 ``LLM_ENCRYPTION_KEY``，否则会 raise
+        以防止"重启后所有已加密 API key 解密失败"的静默事故。
+        开发环境允许自动生成（仅本进程有效）。
+        """
         if cls._encryption_key is None:
-            # 优先从settings获取
             if settings.LLM_ENCRYPTION_KEY:
                 cls._encryption_key = settings.LLM_ENCRYPTION_KEY
+            elif settings.ENVIRONMENT in {"production", "staging"}:
+                raise RuntimeError(
+                    "[SEC-S2.3] 生产/预发环境必须设置 LLM_ENCRYPTION_KEY 环境变量。"
+                    "未设置会导致重启后所有已加密的 LLM API key 无法解密。"
+                    "生成方式：python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'"
+                )
             else:
-                # 自动生成（注意：重启后会变化，导致无法解密已保存的密钥）
+                # 仅开发环境允许自动生成（本进程有效，重启失效）
                 cls._encryption_key = Fernet.generate_key().decode()
-                logger.warning("LLM_ENCRYPTION_KEY 未设置，已自动生成。生产环境建议在.env中设置固定密钥。")
+                logger.warning(
+                    "[dev] LLM_ENCRYPTION_KEY 未设置，已为本进程自动生成。"
+                    "生产环境必须在 .env 中显式配置。"
+                )
         return cls._encryption_key
 
     @classmethod
     def _get_fernet(cls) -> Fernet:
-        """获取加密器"""
+        """获取加密器。
+
+        密钥格式无效时：开发环境回退到生成新 key（旧加密数据无法解密但服务可启动）；
+        生产环境直接抛错以暴露问题。
+        """
         if cls._fernet is None:
             try:
                 key = cls._get_encryption_key()
                 cls._fernet = Fernet(key.encode())
             except Exception:
-                # 如果密钥无效，生成新的
+                if settings.ENVIRONMENT in {"production", "staging"}:
+                    raise
+                # 仅开发环境回退
+                logger.warning("[dev] LLM_ENCRYPTION_KEY 格式无效，生成临时 key（仅开发环境）")
                 cls._encryption_key = Fernet.generate_key().decode()
                 cls._fernet = Fernet(cls._encryption_key.encode())
                 logger.warning("加密密钥无效，已重新生成。")
