@@ -4,6 +4,7 @@
 
 from typing import Any
 
+from src.agents._prompt_safety import USER_INPUT_BOUNDARY, wrap_user_input
 from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
 
@@ -52,7 +53,7 @@ class EvidenceAnalystAgent(BaseLegalAgent):
         prompt = f"""
 请对以下多模态证据材料进行分析：
 
-任务目标：{description}
+任务目标：{wrap_user_input(description, label='description')}
 
 证据材料内容（包含预处理后的文本）：
 {combined_evidence_text}

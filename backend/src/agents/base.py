@@ -489,6 +489,16 @@ class BaseLegalAgent(ABC):
                 except Exception:
                     pass
 
+            # ===== [SEC-S7] LLM Prompt 注入边界声明（最后注入，紧贴 user message）=====
+            # 在所有 Agent 的 system_prompt 末尾追加统一边界声明，
+            # 让 LLM 把 user message 中的内容视作数据而非指令。
+            # 与 _prompt_safety.wrap_user_input 的标签隔离协同形成 defense-in-depth。
+            try:
+                from src.agents._prompt_safety import USER_INPUT_BOUNDARY
+                system_prompt += f"\n\n{USER_INPUT_BOUNDARY}"
+            except Exception:
+                pass
+
             # 防护：确保 user 消息不为空（API 会拒绝空消息）
             if not message or not message.strip():
                 logger.warning(f"Agent {self.name}: 收到空的用户消息，使用默认提示")

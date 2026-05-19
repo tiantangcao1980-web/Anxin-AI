@@ -4,6 +4,7 @@
 
 from typing import Any
 
+from src.agents._prompt_safety import USER_INPUT_BOUNDARY, wrap_user_input
 from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
 from src.services.signature_service import SignType
@@ -74,6 +75,6 @@ class LaborComplianceAgent(BaseLegalAgent):
     async def _general_consult(self, description: str, context: dict[str, Any]) -> AgentResponse:
         """通用咨询"""
         # ... (保留原有的 LLM 回答逻辑)
-        prompt = f"请针对：{description} 提供合规建议。背景：{context}"
+        prompt = f"请针对：{wrap_user_input(description, label='description')} 提供合规建议。背景：{context}"
         content = await self.chat(prompt)
         return AgentResponse(agent_name=self.name, content=content)

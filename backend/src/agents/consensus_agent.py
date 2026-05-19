@@ -6,6 +6,7 @@ import json
 import re
 from typing import Any
 
+from src.agents._prompt_safety import USER_INPUT_BOUNDARY, wrap_user_input
 from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
 
@@ -36,7 +37,7 @@ class ConsensusAgent(BaseLegalAgent):
             for r in agent_results if isinstance(r, AgentResponse)
         ])
 
-        prompt = f"任务背景：{description}\n\n以下是各智能体的分析结果，请进行冲突审查并给出最终共识结论：\n\n{results_str}"
+        prompt = f"任务背景：{wrap_user_input(description, label='description')}\n\n以下是各智能体的分析结果，请进行冲突审查并给出最终共识结论：\n\n{results_str}"
 
         response_text = await self.chat(prompt)
 

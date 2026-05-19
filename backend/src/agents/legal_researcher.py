@@ -5,6 +5,7 @@
 import json
 from typing import Any
 
+from src.agents._prompt_safety import USER_INPUT_BOUNDARY, wrap_user_input
 from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
 
@@ -71,7 +72,7 @@ class LegalResearchAgent(BaseLegalAgent):
         prompt = f"""
 请对以下法律问题进行研究：
 
-研究问题：{description}
+研究问题：{wrap_user_input(description, label='description')}
 {context_text}
 
 请提供：

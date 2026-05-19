@@ -5,6 +5,7 @@
 from datetime import datetime
 from typing import Any
 
+from src.agents._prompt_safety import USER_INPUT_BOUNDARY, wrap_user_input
 from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
 
@@ -33,7 +34,7 @@ class SentimentAnalysisAgent(BaseLegalAgent):
         prompt = f"""
 请分析以下舆情信息：
 
-内容：{description}
+内容：{wrap_user_input(description, label='description')}
 {context_text}
 
 请提供：
@@ -73,7 +74,7 @@ class SentimentAnalysisAgent(BaseLegalAgent):
 请对以下内容进行情感分析：
 
 内容：
-{content}
+{wrap_user_input(content, label='content')}
 
 关注关键词：{keywords_str}
 
@@ -123,7 +124,7 @@ class SentimentAnalysisAgent(BaseLegalAgent):
 请评估以下舆情的法律风险：
 
 舆情内容：
-{content}
+{wrap_user_input(content, label='content')}
 
 {context_str}
 

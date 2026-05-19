@@ -4,6 +4,7 @@
 
 from typing import Any
 
+from src.agents._prompt_safety import USER_INPUT_BOUNDARY, wrap_user_input
 from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
 
@@ -32,7 +33,7 @@ class TaxComplianceAgent(BaseLegalAgent):
 请进行财税合规分析：
 
 任务描述：
-{description}
+{wrap_user_input(description, label='description')}
 
 相关财务/税务背景数据：
 {financial_data}

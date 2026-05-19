@@ -5,6 +5,7 @@
 from dataclasses import dataclass
 from typing import Any
 
+from src.agents._prompt_safety import USER_INPUT_BOUNDARY, wrap_user_input
 from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
 from src.services.agent_rag_service import AgentRAGService
@@ -250,7 +251,7 @@ class DocumentDraftAgent(BaseLegalAgent):
         scenario: str,
         requirements: dict[str, Any],
     ) -> dict[str, bool]:
-        combined_text = f"{description} {scenario}"
+        combined_text = f"{wrap_user_input(description, label='description')} {scenario}"
         parties_present = any(
             key in requirements
             for key in ["client", "target", "plaintiff", "defendant", "party_a", "party_b"]
@@ -540,7 +541,7 @@ class DocumentDraftAgent(BaseLegalAgent):
 
 发函方：{sender}
 收函方：{recipient}
-主要内容：{content}
+主要内容：{wrap_user_input(content, label='content')}
 
 请使用正式的法律函件格式。
 """
@@ -568,7 +569,7 @@ class DocumentDraftAgent(BaseLegalAgent):
 {claims}
 
 事实与理由：
-{facts}
+{wrap_user_input(facts, label='facts')}
 
 请按照起诉状的标准格式生成。
 """
