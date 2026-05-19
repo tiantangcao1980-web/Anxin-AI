@@ -73,23 +73,8 @@ $color-risk-medium-surface: #FCF3DA;
 $color-risk-low: #8E867D;
 $color-risk-low-surface: #F2EFEA;
 
-// ===== 8 大业务域色 (V3 新增) =====
-$color-domain-legal: #5C7F3E;
-$color-domain-legal-surface: #EBF1E2;
-$color-domain-finance: #1F6FD4;
-$color-domain-finance-surface: #E0EAF8;
-$color-domain-tax: #E2A311;
-$color-domain-tax-surface: #FCF3DA;
-$color-domain-compliance: #E84F2E;
-$color-domain-compliance-surface: #FCE6DF;
-$color-domain-operations: #7D4FCC;
-$color-domain-operations-surface: #ECE3F8;
-$color-domain-growth: #17AAC3;
-$color-domain-growth-surface: #DCF3F6;
-$color-domain-content: #DE3F88;
-$color-domain-content-surface: #FBE0EC;
-$color-domain-global: #1768A1;
-$color-domain-global-surface: #DDEBF4;
+// 2026-05 Reset: 删除 8 域 × 2 = 16 个 $color-domain-* 变量（含违禁紫 #7D4FCC）。
+// 业务域可视化改用 序号 + 衬线域名 + 字距层次，详见 docs/design/v3-prototype-editorial.html。
 
 // ===== 字号层级 (V3 新增 — 解决小程序标题/正文层级压缩) =====
 $font-display: 40rpx;    // Hero / 首页大标题
@@ -113,21 +98,5 @@ $radius-pill: 9999rpx;
 $radius-badge: 8rpx;
 $touch-target-min: 88rpx; // 44px equivalent on a 750rpx design width
 
-// ===== 业务域徽章工具类 =====
-@each $name in (legal, finance, tax, compliance, operations, growth, content, global) {
-  .domain-badge--#{$name} {
-    color: var(--color-domain-#{$name});
-    background: var(--color-domain-#{$name}-surface);
-  }
-}
-
-.domain-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6rpx;
-  padding: 4rpx 14rpx;
-  border-radius: $radius-pill;
-  font-size: $font-micro;
-  font-weight: 500;
-  line-height: 1.4;
-}
+// 2026-05 Reset: 删除 .domain-badge--{legal..global} 工具类（依赖已删的 --color-domain-*）。
+// .domain-badge 类同样删除 — 新的 DomainBadge 组件使用衬线 + 边框 + 字距层次。

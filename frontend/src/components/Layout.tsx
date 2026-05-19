@@ -25,7 +25,7 @@ import { usePermission } from '@/hooks/usePermission'
 
 import { icons } from '@/lib/icons'
 import { iconSize, buttonStyle, heading, sidebarNav } from '@/lib/design-tokens'
-import { DOMAIN_BY_ID, type DomainId } from '@/lib/domains'
+// 2026-05 Reset: 删除 DOMAIN_BY_ID / DomainId 引用（曾用于侧栏域色 stripe/dot）。
 import { DomainBreadcrumb } from '@/components/ui/DomainBreadcrumb'
 import { ModeSwitcher } from '@/components/mode-switcher/ModeSwitcher'
 import { SyncStatus } from '@/components/mode-switcher/SyncStatus'
@@ -45,16 +45,14 @@ interface NavChild {
 
 // 四大业务域 — 全部为直达链接，点击进入模块首页（各模块有自己的左侧导航栏）
 // 顶部四大业务域（与 PRD / 全端导航保持同步）。
-// 「智能调查」对应 /investigation 工作台，舆情监测是其中一个子入口。
 //
-// V3 视觉映射 (2026-05)：每个 group 关联到 8 大业务域之一，
-// 在导航 hover/active 时显示对应域色，作为 V2 4 大业务域 → V3 8 大业务域过渡期的视觉锚点。
-// `accent` 字段值是 DomainId（见 `@/lib/domains`），用于读取 CSS 变量 `--domain-<id>`。
-const navGroups: { id: string; label: string; path: string; accent?: string }[] = [
-  { id: 'ai-legal',      label: 'AI 智能助手', path: '/chat',           accent: 'operations' }, // 跨域统筹
-  { id: 'collaboration', label: '智能协作',    path: '/case-center',    accent: 'legal'      }, // 法务为主
-  { id: 'investigation', label: '智能调查',    path: '/investigation',  accent: 'growth'     }, // 调研获客
-  { id: 'knowledge',     label: '法律智库',    path: '/knowledge-base', accent: 'legal'      }, // 法务知识
+// 2026-05 Reset: 删除 `accent` 字段（曾用于 active 态显示业务域色 underline）。
+// 现在 active 态用单一品牌琥珀橙 underline（1px），不区分域色。
+const navGroups: { id: string; label: string; path: string }[] = [
+  { id: 'ai-legal',      label: 'AI 智能助手', path: '/chat'           },
+  { id: 'collaboration', label: '智能协作',    path: '/case-center'    },
+  { id: 'investigation', label: '智能调查',    path: '/investigation'  },
+  { id: 'knowledge',     label: '法律智库',    path: '/knowledge-base' },
 ]
 
 // 系统功能（右侧图标按钮）— 任务中心已整合进案件中心
@@ -68,8 +66,8 @@ interface SidebarItem {
   label: string
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
   feature?: string
-  /** V3 业务域归属 — 渲染时左侧显示对应域色 4px 条 + 域 dot；详见 @/lib/domains */
-  domain?: DomainId
+  // 2026-05 Reset: 删除 domain 字段（曾用于显示业务域色 stripe/dot）。
+  // 业务域识别改由 DomainBreadcrumb（顶栏 micro UPPERCASE）承担，sidebar 只用 primary 1px active 线。
 }
 
 const moduleSidebarConfig: { id: string; title: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>>; paths: string[]; items: SidebarItem[] }[] = [
@@ -79,11 +77,11 @@ const moduleSidebarConfig: { id: string; title: string; icon: React.ComponentTyp
     icon: icons.CollaborationGroup,
     paths: ['/case-center', '/management', '/documents', '/agent-approvals', '/find-lawyer', '/firm', '/lawyer-dashboard', '/acquisition'],
     items: [
-      { path: '/case-center', label: '案件中心', icon: icons.Cases, feature: 'case_management', domain: 'legal' },
-      { path: '/management', label: '管理中心', icon: icons.ShieldCheck, feature: 'contract_management', domain: 'legal' },
-      { path: '/agent-approvals', label: 'AI审批', icon: icons.ShieldAlert, feature: 'approval_workflow', domain: 'compliance' },
-      { path: '/find-lawyer', label: '律师精英', icon: icons.Scale, feature: 'lawyer_matching', domain: 'legal' },
-      { path: '/documents', label: '智能文档', icon: icons.FileText, feature: 'document_management', domain: 'content' },
+      { path: '/case-center', label: '案件中心', icon: icons.Cases, feature: 'case_management' },
+      { path: '/management', label: '管理中心', icon: icons.ShieldCheck, feature: 'contract_management' },
+      { path: '/agent-approvals', label: 'AI审批', icon: icons.ShieldAlert, feature: 'approval_workflow' },
+      { path: '/find-lawyer', label: '律师精英', icon: icons.Scale, feature: 'lawyer_matching' },
+      { path: '/documents', label: '智能文档', icon: icons.FileText, feature: 'document_management' },
     ],
   },
   {
@@ -92,8 +90,8 @@ const moduleSidebarConfig: { id: string; title: string; icon: React.ComponentTyp
     icon: icons.DueDiligence,
     paths: ['/investigation', '/monitoring'],
     items: [
-      { path: '/investigation', label: '尽职调查', icon: icons.BarChart3, domain: 'growth' },
-      { path: '/monitoring', label: '舆情监测', icon: icons.Signal, domain: 'growth' },
+      { path: '/investigation', label: '尽职调查', icon: icons.BarChart3 },
+      { path: '/monitoring', label: '舆情监测', icon: icons.Signal },
     ],
   },
   {
@@ -102,8 +100,8 @@ const moduleSidebarConfig: { id: string; title: string; icon: React.ComponentTyp
     icon: icons.KnowledgeGroup,
     paths: ['/knowledge-base', '/knowledge-graph'],
     items: [
-      { path: '/knowledge-base', label: '知识库', icon: icons.Database, domain: 'legal' },
-      { path: '/knowledge-graph', label: '知识图谱', icon: icons.KnowledgeGraph, domain: 'legal' },
+      { path: '/knowledge-base', label: '知识库', icon: icons.Database },
+      { path: '/knowledge-graph', label: '知识图谱', icon: icons.KnowledgeGraph },
     ],
   },
 ]
@@ -155,7 +153,6 @@ function ModuleSidebar({ currentPath, onNavigate }: { currentPath: string; onNav
           const hasSubItems = visibleItems.some(other => other.path !== item.path && other.path.startsWith(item.path + '/'))
           const isActive = hasSubItems ? currentPath === item.path : (currentPath === item.path || currentPath.startsWith(item.path + '/'))
           const Icon = item.icon
-          const domainMeta = item.domain ? DOMAIN_BY_ID[item.domain] : null
           return (
             <button
               key={item.path}
@@ -165,31 +162,21 @@ function ModuleSidebar({ currentPath, onNavigate }: { currentPath: string; onNav
                   ? sidebarNav.itemActive
                   : sidebarNav.itemDefault
               }`}
-              title={collapsed ? `${item.label}${domainMeta ? ` · ${domainMeta.label}` : ''}` : undefined}
-              aria-label={domainMeta ? `${item.label}（${domainMeta.label}域）` : item.label}
+              title={collapsed ? item.label : undefined}
+              aria-label={item.label}
               style={{ width: `calc(100% - ${collapsed ? '8px' : '12px'})` }}
             >
-              {/* V3 业务域视觉锚点 — active 态显示左侧 2px 域色 stripe */}
-              {domainMeta && isActive ? (
+              {/* 2026-05 Reset: 删除业务域色 stripe/dot 视觉锚点。
+                  active 态用单一品牌琥珀橙 1px 左线（克制不抢镜） */}
+              {isActive ? (
                 <span
                   aria-hidden
-                  className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r"
-                  style={{ backgroundColor: `hsl(var(--${domainMeta.cssVar}))` }}
+                  className="absolute left-0 top-1.5 bottom-1.5 w-px bg-primary"
                 />
               ) : null}
               <Icon className="w-4.5 h-4.5 shrink-0" />
               {!collapsed && (
-                <>
-                  <span className="whitespace-nowrap flex-1 text-left">{item.label}</span>
-                  {/* 域 dot — inactive 态在右侧显示 4px 域色圆点，作为分类提示 */}
-                  {domainMeta && !isActive ? (
-                    <span
-                      aria-hidden
-                      className="h-1 w-1 rounded-full shrink-0 opacity-70"
-                      style={{ backgroundColor: `hsl(var(--${domainMeta.cssVar}))` }}
-                    />
-                  ) : null}
-                </>
+                <span className="whitespace-nowrap flex-1 text-left">{item.label}</span>
               )}
             </button>
           )
@@ -366,12 +353,12 @@ export default function Layout() {
                   aria-current={active ? 'page' : undefined}
                 >
                   {group.label}
-                  {/* V3 业务域色 underline — 仅 active 态显示，避免视觉噪音 */}
-                  {active && group.accent ? (
+                  {/* 2026-05 Reset: 删除业务域色 underline。
+                      active 态用单一品牌琥珀橙 1px underline（克制） */}
+                  {active ? (
                     <span
                       aria-hidden
-                      className="absolute left-3.5 right-3.5 bottom-1 h-0.5 rounded-full"
-                      style={{ backgroundColor: `hsl(var(--domain-${group.accent}))` }}
+                      className="absolute left-3.5 right-3.5 bottom-1 h-px bg-primary"
                     />
                   ) : null}
                 </button>

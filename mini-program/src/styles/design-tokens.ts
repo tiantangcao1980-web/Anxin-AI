@@ -31,15 +31,16 @@ export const aiSemantic = {
   citation:   { color: '#3F8FE0', surface: 'rgba(63,143,224,0.10)' },
 } as const
 
-// ===== 8 大业务域 =====
-export const domain = {
-  legal:      { color: '#5C7F3E', surface: '#EBF1E2', labelZh: '法务',     labelEn: 'Legal' },
-  finance:    { color: '#1F6FD4', surface: '#E0EAF8', labelZh: '财务',     labelEn: 'Finance' },
-  tax:        { color: '#E2A311', surface: '#FCF3DA', labelZh: '税务',     labelEn: 'Tax' },
-  compliance: { color: '#E84F2E', surface: '#FCE6DF', labelZh: '合规',     labelEn: 'Compliance' },
-  operations: { color: '#7D4FCC', surface: '#ECE3F8', labelZh: '经营管理', labelEn: 'Operations' },
-  growth:     { color: '#17AAC3', surface: '#DCF3F6', labelZh: '调研获客', labelEn: 'Growth' },
-  content:    { color: '#DE3F88', surface: '#FBE0EC', labelZh: '内容产出', labelEn: 'Content' },
-  global:     { color: '#1768A1', surface: '#DDEBF4', labelZh: '出海跨境', labelEn: 'Global' },
+// 2026-05 Reset: 删除 8 个 domain.* 高饱和色（含违禁紫色 #7D4FCC）。
+// 仅保留业务域元数据，不带 color/surface 字段。
+export const domainMeta = {
+  legal:      { labelZh: '法务',     labelEn: 'Legal' },
+  finance:    { labelZh: '财务',     labelEn: 'Finance' },
+  tax:        { labelZh: '税务',     labelEn: 'Tax' },
+  compliance: { labelZh: '合规',     labelEn: 'Compliance' },
+  operations: { labelZh: '经营管理', labelEn: 'Operations' },
+  growth:     { labelZh: '调研获客', labelEn: 'Growth' },
+  content:    { labelZh: '内容产出', labelEn: 'Content' },
+  global:     { labelZh: '出海跨境', labelEn: 'Global' },
 } as const
-export type DomainId = keyof typeof domain
+export type DomainId = keyof typeof domainMeta

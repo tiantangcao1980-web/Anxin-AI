@@ -1,28 +1,29 @@
-// DomainBadge / DomainStripe 样式
-// 颜色由 inline style 注入（来自 design-tokens.ts 的 domain 表）
+// DomainBadge (Reset · Editorial Luxury) — 仅文字 micro UPPERCASE
+// 2026-05 Reset: 删除域色、域 surface 底色、emoji 字号；只保留文字层次
+
+@import '../../styles/design-tokens.scss';
 
 .domain-badge {
   display: inline-flex;
   flex-direction: row;
   align-items: center;
-  padding: 4rpx 14rpx;
-  border-radius: 9999rpx;
-  font-size: 22rpx;
-  font-weight: 500;
-  line-height: 1.4;
+  gap: 0;
 
-  &__icon {
-    font-size: 22rpx;
-    margin-right: 6rpx;
-  }
-  &__label {
-    font-size: 22rpx;
+  &__en {
+    font-size: 20rpx;
     font-weight: 500;
-    line-height: 1.4;
+    letter-spacing: 3.2rpx; // ~0.16em on 20rpx
+    text-transform: uppercase;
+    color: $color-text-secondary;
   }
-}
 
-.domain-stripe {
-  width: 100%;
-  height: 6rpx;
+  &__sep {
+    font-size: 20rpx;
+    color: $color-text-disabled;
+  }
+
+  &__zh {
+    font-size: 24rpx;
+    color: $color-text-primary;
+  }
 }

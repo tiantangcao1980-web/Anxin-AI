@@ -1,53 +1,36 @@
-// DomainBreadcrumb 样式 — 颜色由 inline style 注入（design-tokens.ts 的 domain 表）
-
+// DomainBreadcrumb (Reset · Editorial Luxury) — 纯文字 micro UPPERCASE
 @import '../../styles/design-tokens.scss';
 
 .domain-breadcrumb {
   display: inline-flex;
   flex-direction: row;
   align-items: center;
-  gap: 8rpx;
+  gap: 0;
 
-  &--compact {
-    gap: 6rpx;
-  }
-
-  &__iconbox {
-    width: 32rpx;
-    height: 32rpx;
-    border-radius: 8rpx;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  &__icon {
-    font-size: 22rpx;
-    line-height: 1;
-  }
-
-  &__dot {
-    width: 10rpx;
-    height: 10rpx;
-    border-radius: 50%;
-  }
-
-  &__label {
-    font-size: $font-caption;
+  &__en {
+    font-size: 20rpx;
     font-weight: 500;
-    line-height: 1.4;
+    letter-spacing: 3.2rpx;
+    text-transform: uppercase;
+    color: $color-text-secondary;
   }
 
   &__sep {
+    font-size: 20rpx;
     color: $color-text-disabled;
-    font-size: $font-caption;
-    margin: 0 2rpx;
+  }
+
+  &__zh {
+    font-size: 24rpx;
+    color: $color-text-primary;
   }
 
   &__module {
-    color: $color-text-tertiary;
-    font-size: $font-caption;
-    font-weight: 400;
-    line-height: 1.4;
+    font-size: 24rpx;
+    color: $color-text-secondary;
+    max-width: 360rpx;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 }

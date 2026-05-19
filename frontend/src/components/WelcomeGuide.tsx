@@ -1,27 +1,25 @@
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import { ArrowRight, X } from 'lucide-react'
 
-import { icons } from '@/lib/icons'
-import { heading } from '@/lib/design-tokens'
-import { DomainGrid } from '@/components/ui/domain'
+import { DOMAINS } from '@/lib/domains'
 
 interface WelcomeGuideProps {
   onClose: () => void
-  /** 兼容旧 API：第一版用 onSelectView(viewId) 跳转，现在 DomainGrid 自带 Link 跳转，
-   *  保留参数以避免破坏调用方签名，但仅在 fallback "开始使用" 按钮上使用 */
+  /** 兼容旧 API */
   onSelectView?: (view: string) => void
 }
 
 /**
- * WelcomeGuide — 首次登录欢迎引导 modal (V3)
+ * WelcomeGuide — 首次登录欢迎引导 (V3 · Editorial Luxury · Reset)
  *
- * 2026-05 升级：从 V2 时代的 6 大功能模块（智能对话 / 案件管理 / 司法学院 ...）
- * 改造为 V3 8 大业务域 DomainGrid，与 Login 页跨端视觉对齐。
- *
- * 设计哲学：
- * - 不再列举"功能"（V2 视角），而是列举"业务域"（V3 视角）
- * - 每个域卡片是 Link，点击直接跳到对应入口路径（由 @/lib/domains 提供）
- * - 底部 fallback 按钮提供"先用 AI 对话试试"快速入口
+ * 2026-05 Reset 说明：
+ *   原版用 DomainGrid 渲染 8 张高饱和卡片 + 大幅域色 surface 底色，
+ *   违反 ui-design skill 与 DESIGN.md §1 哲学，已重写为：
+ *     - 编辑部目录式（serif Display 标题 + 8 行域名录 + 单 CTA）
+ *     - 单一品牌琥珀橙仅出现在 CTA 按钮
+ *     - 域名用衬线字体（Noto Serif SC）
+ *     - 序号 01–08 标号
  */
 export function WelcomeGuide({ onClose, onSelectView }: WelcomeGuideProps) {
   const navigate = useNavigate()
@@ -29,72 +27,82 @@ export function WelcomeGuide({ onClose, onSelectView }: WelcomeGuideProps) {
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-md z-modal flex items-center justify-center p-6">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="relative bg-background rounded-3xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative bg-background max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-border shadow-elev-4"
       >
         {/* Close */}
         <button
           onClick={onClose}
           aria-label="关闭"
-          className="absolute top-5 right-5 z-10 p-2 hover:bg-muted rounded-full transition-colors"
+          className="absolute top-5 right-5 z-10 p-2 hover:bg-surface-2 transition-colors"
         >
-          <icons.X className="w-5 h-5 text-muted-foreground" />
+          <X className="w-5 h-5 text-muted-foreground stroke-[1.5]" />
         </button>
 
         {/* Header */}
-        <div className="px-8 py-6 border-b border-border flex items-center gap-4">
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.1, type: 'spring', stiffness: 200 }}
-            className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center shadow-md flex-shrink-0"
-          >
-            <icons.Sparkles className="w-7 h-7 text-primary-foreground" />
-          </motion.div>
-          <div className="flex-1">
-            <h1 className={heading.page}>欢迎使用安心智能助手</h1>
-            <p className="text-muted-foreground text-sm mt-0.5">
-              全链路 AI 经营助理 · 一个 App 搞定企业 8 大业务
-            </p>
+        <header className="px-10 py-10 border-b border-border">
+          <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground mb-3">
+            Welcome · 欢迎使用
           </div>
+          <h1 className="font-serif text-[40px] leading-[1.1] tracking-[-0.04em] font-medium text-foreground">
+            安心智能助手
+          </h1>
+          <p className="font-serif italic text-[18px] leading-[1.4] text-foreground/80 mt-3 max-w-[40ch]">
+            全链路 AI 经营助理 — 一个 App 搞定企业 8 大业务。
+          </p>
+        </header>
+
+        {/* 8 行编辑部目录 */}
+        <div className="px-10 py-8">
+          <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground mb-4">
+            Domains · 选择一个领域开始
+          </div>
+          <ol className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-px">
+            {DOMAINS.map((d, i) => (
+              <li key={d.id}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigate(d.defaultPath)
+                    if (onSelectView) onSelectView(d.id)
+                    onClose()
+                  }}
+                  className="group flex items-baseline gap-4 py-4 w-full text-left border-b border-border/60 hover:bg-surface-2/40 -mx-3 px-3 transition-colors"
+                >
+                  <span className="font-serif text-[22px] tracking-tight text-muted-foreground w-10 shrink-0">
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-serif text-[20px] leading-tight text-foreground">{d.label}</div>
+                    <div className="text-[13px] text-muted-foreground mt-1">{d.tagline}</div>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-foreground group-hover:translate-x-0.5 transition-all stroke-[1.5]" aria-hidden />
+                </button>
+              </li>
+            ))}
+          </ol>
         </div>
 
-        {/* 8 大业务域 grid（DomainCard 自带跳转） */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
-          <DomainGrid
-            className="mb-5"
-            meta={{
-              // 给"AI 智能助手"对应的「经营管理」域加 "推荐" 徽章作为默认入口提示
-              operations: { badge: '推荐入口' },
+        {/* Footer CTA */}
+        <footer className="px-10 py-6 border-t border-border bg-surface-2/30 flex items-center justify-between gap-4">
+          <div className="text-[13px] text-muted-foreground leading-relaxed">
+            不确定从哪里开始？
+            <span className="font-serif italic text-foreground/80"> 让 AI 引导你 — </span>
+            它会根据你的问题决定该走哪条流程。
+          </div>
+          <button
+            onClick={() => {
+              if (onSelectView) onSelectView('chat')
+              navigate('/chat')
+              onClose()
             }}
-          />
-
-          {/* 快速开始 fallback */}
-          <div className="bg-muted rounded-2xl p-4 lg:p-5">
-            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
-              <div>
-                <h3 className="font-medium text-foreground mb-1 lg:mb-1.5 text-sm lg:text-base">
-                  不确定从哪里开始？
-                </h3>
-                <p className="text-xs lg:text-sm text-muted-foreground">
-                  直接打开 AI 智能对话，告诉它你的业务问题，它会把你引导到合适的业务域。
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  if (onSelectView) onSelectView('chat')
-                  navigate('/chat')
-                  onClose()
-                }}
-                className="w-full lg:w-auto px-5 lg:px-6 py-2.5 lg:py-3 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 active:scale-95 transition-[background-color,transform] flex items-center justify-center gap-2 font-medium shadow-sm text-sm"
-              >
-                打开 AI 对话
-                <icons.ArrowRight className="w-4 h-4 lg:w-5 lg:h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
+            className="shrink-0 inline-flex items-center gap-2 bg-primary hover:bg-primary-700 text-primary-foreground px-5 py-2.5 text-[14px] font-medium tracking-wide transition-colors"
+          >
+            <span>打开 AI 对话</span>
+            <ArrowRight className="w-4 h-4 stroke-[1.75]" />
+          </button>
+        </footer>
       </motion.div>
     </div>
   )

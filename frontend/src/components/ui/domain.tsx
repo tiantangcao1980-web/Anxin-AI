@@ -1,104 +1,94 @@
 /**
- * domain.tsx — 业务域可视化原子组件
+ * domain.tsx — 业务域可视化原子组件 (V3 · Editorial Luxury · Reset)
+ *
+ * 2026-05 Reset 说明：
+ *   原版用 8 个高饱和色 + surface 底色 + 域色 stripe 实现 Badge/Stripe/Card/Grid。
+ *   该方案违反 ui-design skill 多条硬性禁令 + DESIGN.md §1 设计哲学，已重写为
+ *   Editorial Luxury 风格：
+ *     - 衬线域名（Noto Serif SC）
+ *     - 序号 01–08（serif num display）
+ *     - Lucide 单色图标（1.5px stroke / text-foreground/70）
+ *     - 1px hairline 边框分隔
+ *     - 字距 0.16em + UPPERCASE 编辑级 caption
+ *     - 单色调，仅 active 项可用 primary 琥珀橙 1px 左线点缀
  *
  * 用法：
- *   import { DomainBadge, DomainCard, DomainStripe } from '@/components/ui/domain'
- *   <DomainBadge domain="legal" />
- *   <DomainCard domain="finance" title="财务驾驶舱" description="..." onClick={...} />
- *   <DomainStripe domain="compliance" /> {/* 顶部 4px 高彩条，用于域内页面标识 *}
+ *   <DomainBadge domain="legal" />            // micro UPPERCASE 「LEGAL · 法务」
+ *   <DomainCard domain="finance" />            // 序号 + 衬线域名 + 描述 + → 图标
+ *   <DomainGrid />                             // 8 行编辑部目录
+ *
+ *   旧 DomainStripe 已不再需要（业务子页头部用 micro UPPERCASE breadcrumb 替代）
+ *   旧 DomainStripe 导出仍保留为 no-op shim，避免破坏已有调用方
  *
  * 设计约束：
- * - 仅承担「分类标识」，不承担「行动召唤」
- * - 主行动按钮 / 焦点环 / 链接默认色仍走 --primary（琥珀橙）
- * - 与 Risk badge / Status badge 互不重叠（风险是状态，域是分类）
+ *   - 禁止用色彩区分 8 个业务域
+ *   - 主行动按钮 / 链接默认色 / 焦点环仍走 --primary（琥珀橙）
+ *   - 与 risk-* / status-* 不重叠（风险是状态，域是分类）
  */
 
 import * as React from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 
-import { DOMAIN_BY_ID, type DomainId, type DomainMeta } from '@/lib/domains'
+import { DOMAIN_BY_ID, DOMAINS, type DomainId, type DomainMeta } from '@/lib/domains'
 import { cn } from './utils'
 
-// ===== DomainBadge =====
-// 小尺寸徽章，用于面包屑、表头、卡片角标
+// ===== DomainBadge — micro UPPERCASE tracking 编辑级徽章 =====
+// 用于：面包屑、表头、卡片角标
 export interface DomainBadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   domain: DomainId
-  /** 是否显示图标（默认 true） */
-  showIcon?: boolean
-  /** 紧凑模式：仅图标，靠 a11y title 提示文本 */
-  iconOnly?: boolean
-  /** 尺寸 */
-  size?: 'sm' | 'md'
+  /** 是否显示英文 labelEn 前缀（如 "LEGAL · 法务"），默认 false 仅显示中文 */
+  showEnglish?: boolean
 }
 
 export function DomainBadge({
   domain,
-  showIcon = true,
-  iconOnly = false,
-  size = 'sm',
+  showEnglish = false,
   className,
   ...rest
 }: DomainBadgeProps) {
   const meta = DOMAIN_BY_ID[domain]
-  const Icon = meta.icon
-  const iconSize = size === 'sm' ? 'w-3 h-3' : 'w-3.5 h-3.5'
   return (
     <span
       data-slot="domain-badge"
       data-domain={domain}
       className={cn(
-        'inline-flex items-center gap-1 rounded-full font-medium',
-        size === 'sm'
-          ? 'px-2 py-0.5 text-[11px]'
-          : 'px-2.5 py-1 text-xs',
-        meta.surfaceClass,
-        meta.colorClass,
+        'inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground',
         className,
       )}
-      title={iconOnly ? meta.label : undefined}
-      aria-label={iconOnly ? meta.label : undefined}
+      aria-label={`业务域：${meta.label}`}
       {...rest}
     >
-      {showIcon ? <Icon className={iconSize} /> : null}
-      {iconOnly ? null : meta.label}
+      {showEnglish ? (
+        <>
+          <span>{meta.labelEn}</span>
+          <span className="text-foreground/30" aria-hidden>·</span>
+        </>
+      ) : null}
+      <span className="normal-case tracking-normal text-foreground/70">{meta.label}</span>
     </span>
   )
 }
 
-// ===== DomainStripe =====
-// 4px 高的顶部彩条，用于域内页面顶部识别（不抢镜）
-export function DomainStripe({
-  domain,
-  className,
-  ...rest
-}: { domain: DomainId } & React.HTMLAttributes<HTMLDivElement>) {
-  const meta = DOMAIN_BY_ID[domain]
-  return (
-    <div
-      data-slot="domain-stripe"
-      data-domain={domain}
-      role="presentation"
-      className={cn('h-1 w-full', className)}
-      style={{ backgroundColor: `hsl(var(--${meta.cssVar}))` }}
-      {...rest}
-    />
-  )
+// ===== DomainStripe — 2026-05 Reset 后保留为 no-op =====
+// 旧版渲染 4pt 高业务域彩条，违反「不强调 AI 感 / 不像 SaaS 控制台」原则。
+// 业务子页头部现用 micro UPPERCASE breadcrumb（DomainBadge 即可）替代彩条识别。
+// 保留导出仅为兼容老调用点，render 任何 DOM。
+export function DomainStripe(_props: { domain: DomainId } & React.HTMLAttributes<HTMLDivElement>) {
+  return null
 }
 
-// ===== DomainCard =====
-// Dashboard 业务域入口卡片
+// ===== DomainCard — Editorial Luxury 卡片 =====
+// 序号 (01–08 serif) + 衬线域名 H3 + caption 描述 + → 图标
 export interface DomainCardProps {
   domain: DomainId
-  /** 入口名（默认取 meta.label） */
-  title?: string
-  /** 一句话定位（默认取 meta.tagline） */
-  description?: string
-  /** 跳转路径（默认取 meta.defaultPath） */
+  /** 自定义入口路径（默认走 meta.defaultPath） */
   href?: string
-  /** 右上角徽章文本，如「新功能」「Beta」 */
+  /** 序号字串，默认从 DOMAINS 顺序计算 */
+  index?: string
+  /** 「推荐入口」「敬请期待」一类 micro UPPERCASE 标签 */
   badge?: string
-  /** 数字徽标（如未读数） */
+  /** 数字徽标（如未读数）— Reset 后采用 muted-foreground 极低视觉权重 */
   count?: number
   className?: string
   onClick?: () => void
@@ -106,9 +96,8 @@ export interface DomainCardProps {
 
 export function DomainCard({
   domain,
-  title,
-  description,
   href,
+  index,
   badge,
   count,
   className,
@@ -117,97 +106,79 @@ export function DomainCard({
   const meta: DomainMeta = DOMAIN_BY_ID[domain]
   const Icon = meta.icon
   const finalHref = href ?? meta.defaultPath
+  // 序号：使用 DOMAINS 的实际位置，固定两位
+  const indexStr = index ?? String(DOMAINS.findIndex((d) => d.id === domain) + 1).padStart(2, '0')
 
   const inner = (
     <>
-      {/* 顶部彩条 */}
-      <span
-        aria-hidden
-        className="absolute inset-x-0 top-0 h-1 rounded-t-2xl"
-        style={{ backgroundColor: `hsl(var(--${meta.cssVar}))` }}
-      />
+      {/* 顶部：序号 + 可选 badge */}
+      <div className="flex items-baseline justify-between mb-3">
+        <span className="font-serif text-2xl tracking-tight text-muted-foreground">{indexStr}</span>
+        {badge ? (
+          <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+            {badge}
+          </span>
+        ) : null}
+      </div>
 
-      <div className="flex items-start gap-3">
-        <span
-          aria-hidden
-          className={cn(
-            'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
-            meta.surfaceClass,
-          )}
-        >
-          <Icon className={cn('h-5 w-5', meta.colorClass)} />
-        </span>
+      {/* 主标题：衬线域名 + Lucide 图标 */}
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h3 className="truncate text-[15px] font-medium text-foreground">
-              {title ?? meta.label}
-            </h3>
-            {badge ? (
-              <span
-                className={cn(
-                  'rounded-full px-1.5 py-0.5 text-[10px] font-medium',
-                  meta.surfaceClass,
-                  meta.colorClass,
-                )}
-              >
-                {badge}
-              </span>
-            ) : null}
-            {typeof count === 'number' && count > 0 ? (
-              <span className="ml-auto rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                {count > 99 ? '99+' : count}
-              </span>
-            ) : null}
-          </div>
-          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-            {description ?? meta.tagline}
+          <h3 className="font-serif text-[20px] leading-tight tracking-tight text-foreground">
+            {meta.label}
+          </h3>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground line-clamp-2">
+            {meta.tagline}
           </p>
         </div>
-        <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+        <Icon className="h-4 w-4 mt-1 shrink-0 text-foreground/60 stroke-[1.5]" aria-hidden />
+      </div>
+
+      {/* 底部：可选 count + → */}
+      <div className="mt-4 pt-3 flex items-center justify-between border-t border-border/40">
+        <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground/70">
+          {meta.labelEn}
+        </span>
+        {typeof count === 'number' && count > 0 ? (
+          <span className="text-xs text-muted-foreground">
+            {count > 99 ? '99+' : count}
+          </span>
+        ) : (
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-foreground group-hover:translate-x-0.5 transition-all stroke-[1.5]" aria-hidden />
+        )}
       </div>
     </>
   )
 
-  // 共用样式
   const baseClass = cn(
-    'group relative block overflow-hidden rounded-2xl border border-border/40 bg-card p-4 pt-5',
-    'shadow-elev-1 transition-all duration-200 ease-standard',
-    'hover:-translate-y-0.5 hover:shadow-elev-3 hover:border-border-strong',
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+    'group relative block bg-card border border-border/60 px-5 py-4',
+    'transition-colors duration-200 ease-standard',
+    'hover:bg-surface-2/40 hover:border-border-strong',
+    'focus-visible:outline-none focus-visible:border-primary',
     className,
   )
 
   if (onClick) {
     return (
-      <button
-        type="button"
-        data-slot="domain-card"
-        data-domain={domain}
-        className={cn(baseClass, 'text-left w-full')}
-        onClick={onClick}
-      >
+      <button type="button" data-slot="domain-card" data-domain={domain}
+        className={cn(baseClass, 'text-left w-full')} onClick={onClick}>
         {inner}
       </button>
     )
   }
   return (
-    <Link
-      to={finalHref}
-      data-slot="domain-card"
-      data-domain={domain}
-      className={baseClass}
-    >
+    <Link to={finalHref} data-slot="domain-card" data-domain={domain} className={baseClass}>
       {inner}
     </Link>
   )
 }
 
-// ===== DomainGrid =====
-// 8 大业务域一次性渲染（响应式 1/2/4 列）
+// ===== DomainGrid — 编辑部目录式 8 行 =====
+// 不是 4×2 卡片墙；是编辑级目录列表，一行一域。
 export interface DomainGridProps {
-  /** 仅显示某几个域；不传则显示全部 */
+  /** 仅显示某几个域 */
   only?: readonly DomainId[]
-  /** 域 → 额外数据（如未读数、徽章）的映射 */
+  /** 域 → 额外数据 */
   meta?: Partial<Record<DomainId, { count?: number; badge?: string; href?: string }>>
   className?: string
 }
@@ -215,24 +186,26 @@ export interface DomainGridProps {
 export function DomainGrid({ only, meta, className }: DomainGridProps) {
   const list = only && only.length > 0
     ? only.map((id) => DOMAIN_BY_ID[id])
-    : Object.values(DOMAIN_BY_ID)
+    : DOMAINS
   return (
-    <div
+    <ol
       data-slot="domain-grid"
       className={cn(
-        'grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
+        // 默认单列编辑部目录；空间充裕时双列
+        'grid gap-px sm:grid-cols-2 lg:grid-cols-2',
         className,
       )}
     >
       {list.map((d) => (
-        <DomainCard
-          key={d.id}
-          domain={d.id}
-          href={meta?.[d.id]?.href}
-          count={meta?.[d.id]?.count}
-          badge={meta?.[d.id]?.badge}
-        />
+        <li key={d.id}>
+          <DomainCard
+            domain={d.id}
+            href={meta?.[d.id]?.href}
+            count={meta?.[d.id]?.count}
+            badge={meta?.[d.id]?.badge}
+          />
+        </li>
       ))}
-    </div>
+    </ol>
   )
 }

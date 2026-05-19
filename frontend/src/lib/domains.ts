@@ -1,16 +1,20 @@
 /**
- * domains.ts — 8 大业务域元数据中心 (V3)
+ * domains.ts — 8 大业务域元数据中心 (V3 · Editorial Luxury)
  *
- * 安心 AI 智能助手覆盖 8 大业务域（法务/财务/税务/合规/经营管理/调研获客/内容产出/出海跨境）。
- * 本文件是唯一的「业务域真相源」，所有 Dashboard 入口、面包屑徽章、模块顶栏
- * 都应从此读取，避免散落硬编码。
+ * 2026-05 Reset 说明：
+ *   早期版本在此处暴露了 color / colorClass / surfaceClass / cssVar 字段，
+ *   配套 8 个高饱和度业务域色 (含违禁紫色 #7D4FCC)。该方案违反 ui-design skill
+ *   多条硬性禁令 + 项目 DESIGN.md「不像 SaaS 控制台 / 不强调 AI 感」原则，
+ *   已在 Reset 中全量删除。
  *
- * 设计原则：
- * - 业务域色 ≠ 品牌色：主行动按钮 / 链接 / 焦点环仍走 `--primary`（琥珀橙）
- * - 业务域色用于「分类标识」：模块入口卡片、面包屑、Tab 角标、域内强调
- * - 与 risk-* / status-* token 互不重叠：风险是「状态」，域是「分类」
+ *   新方向：业务域不用颜色区分，改用：
+ *     - 衬线域名（Noto Serif SC）+ 字号 / 字距层次
+ *     - 序号 01–08（serif num display）
+ *     - Lucide 单色线性图标（1.5px stroke）
  *
- * 单一真相源：DESIGN.md §业务域 + docs/design/ui-audit-and-upgrade-2026-05.md §5
+ *   详见：docs/design/v3-prototype-editorial.html
+ *
+ * 单一真相源：DESIGN.md §业务域
  */
 
 import type { LucideIcon } from 'lucide-react'
@@ -37,122 +41,35 @@ export type DomainId =
 
 export interface DomainMeta {
   id: DomainId
-  /** 中文短名（导航/徽章用） */
+  /** 中文短名（导航 / 序号目录 / 衬线大字） */
   label: string
-  /** 英文短名（dev tools / a11y label / 国际化兜底） */
+  /** 英文短名（dev tools / a11y / micro UPPERCASE tracking） */
   labelEn: string
-  /** 一句话定位 */
+  /** 一句话定位（衬线副标 / 列表 caption） */
   tagline: string
   /** 默认入口路径 */
   defaultPath: string
-  /** Lucide 图标组件 */
+  /** Lucide 图标（单色 1.5px stroke）— 不上品牌色 / 不上业务域色 */
   icon: LucideIcon
-  /** 业务域色 Tailwind class —— 文本/边框/图标用 */
-  colorClass: string
-  /** 业务域低饱和底色 class —— 卡片背景 / hover 面用 */
-  surfaceClass: string
-  /** 业务域色对应的 CSS 变量名（不含 `--`） */
-  cssVar: string
 }
 
 /**
  * 8 大业务域注册表。
+ *
  * 新增业务域时同步更新：
- *   1. `frontend/src/index.css`           — `--domain-<id>` CSS 变量（浅/深双模式）
- *   2. `frontend/tailwind.config.js`      — `colors.domain.<id>` 暴露
- *   3. 本文件                              — 这里追加一项
- *   4. `mobile/src/theme/colors.ts`        — `domain.<id>` 字段
- *   5. `mini-program/src/styles/design-tokens.scss` — `$color-domain-<id>`
+ *   1. 本文件追加一项
+ *   2. mobile/src/theme/colors.ts 的 domainMeta
+ *   3. mini-program/src/styles/design-tokens.ts 的 domainMeta
  */
 export const DOMAINS: readonly DomainMeta[] = [
-  {
-    id: 'legal',
-    label: '法务',
-    labelEn: 'Legal',
-    tagline: '合同审查 · 案件管理 · 法律顾问',
-    defaultPath: '/case-center',
-    icon: Scale,
-    colorClass: 'text-domain-legal',
-    surfaceClass: 'bg-domain-legal-surface',
-    cssVar: 'domain-legal',
-  },
-  {
-    id: 'finance',
-    label: '财务',
-    labelEn: 'Finance',
-    tagline: '记账 · 对账 · 报销 · 资金看板',
-    defaultPath: '/finance',
-    icon: Calculator,
-    colorClass: 'text-domain-finance',
-    surfaceClass: 'bg-domain-finance-surface',
-    cssVar: 'domain-finance',
-  },
-  {
-    id: 'tax',
-    label: '税务',
-    labelEn: 'Tax',
-    tagline: '申报 · 税务筹划 · 政策跟踪',
-    defaultPath: '/tax',
-    icon: Landmark,
-    colorClass: 'text-domain-tax',
-    surfaceClass: 'bg-domain-tax-surface',
-    cssVar: 'domain-tax',
-  },
-  {
-    id: 'compliance',
-    label: '合规',
-    labelEn: 'Compliance',
-    tagline: '风控 · 内审 · 监管红线',
-    defaultPath: '/compliance-check',
-    icon: ShieldCheck,
-    colorClass: 'text-domain-compliance',
-    surfaceClass: 'bg-domain-compliance-surface',
-    cssVar: 'domain-compliance',
-  },
-  {
-    id: 'operations',
-    label: '经营管理',
-    labelEn: 'Operations',
-    tagline: 'KPI · 决策驾驶舱 · 战略推演',
-    defaultPath: '/dashboard',
-    icon: LineChart,
-    colorClass: 'text-domain-operations',
-    surfaceClass: 'bg-domain-operations-surface',
-    cssVar: 'domain-operations',
-  },
-  {
-    id: 'growth',
-    label: '调研获客',
-    labelEn: 'Growth',
-    tagline: '市场调研 · 线索挖掘 · 舆情监测',
-    defaultPath: '/investigation',
-    icon: Compass,
-    colorClass: 'text-domain-growth',
-    surfaceClass: 'bg-domain-growth-surface',
-    cssVar: 'domain-growth',
-  },
-  {
-    id: 'content',
-    label: '内容产出',
-    labelEn: 'Content',
-    tagline: '文案 · 视频脚本 · 营销素材',
-    defaultPath: '/content',
-    icon: PenLine,
-    colorClass: 'text-domain-content',
-    surfaceClass: 'bg-domain-content-surface',
-    cssVar: 'domain-content',
-  },
-  {
-    id: 'global',
-    label: '出海跨境',
-    labelEn: 'Global',
-    tagline: '国际化 · 海外合规 · 本地化',
-    defaultPath: '/global',
-    icon: Globe2,
-    colorClass: 'text-domain-global',
-    surfaceClass: 'bg-domain-global-surface',
-    cssVar: 'domain-global',
-  },
+  { id: 'legal',      label: '法务',     labelEn: 'Legal',      tagline: '合同审查 · 案件管理 · 法律顾问',     defaultPath: '/case-center',      icon: Scale },
+  { id: 'finance',    label: '财务',     labelEn: 'Finance',    tagline: '记账 · 对账 · 报销 · 资金看板',        defaultPath: '/finance',          icon: Calculator },
+  { id: 'tax',        label: '税务',     labelEn: 'Tax',        tagline: '申报 · 税务筹划 · 政策跟踪',          defaultPath: '/tax',              icon: Landmark },
+  { id: 'compliance', label: '合规',     labelEn: 'Compliance', tagline: '风控 · 内审 · 监管红线',              defaultPath: '/compliance-check', icon: ShieldCheck },
+  { id: 'operations', label: '经营管理', labelEn: 'Operations', tagline: 'KPI · 决策驾驶舱 · 战略推演',          defaultPath: '/dashboard',        icon: LineChart },
+  { id: 'growth',     label: '调研获客', labelEn: 'Growth',     tagline: '市场调研 · 线索挖掘 · 舆情监测',       defaultPath: '/investigation',    icon: Compass },
+  { id: 'content',    label: '内容产出', labelEn: 'Content',    tagline: '文案 · 视频脚本 · 营销素材',           defaultPath: '/content',          icon: PenLine },
+  { id: 'global',     label: '出海跨境', labelEn: 'Global',     tagline: '国际化 · 海外合规 · 本地化',           defaultPath: '/global',           icon: Globe2 },
 ] as const
 
 /** 按 id 快速查询 */
@@ -165,20 +82,18 @@ export const DOMAIN_BY_ID: Record<DomainId, DomainMeta> = DOMAINS.reduce(
 )
 
 /**
- * 从路径推断所属业务域（用于面包屑 / 状态栏 / DomainBreadcrumb）。
+ * 从路径推断所属业务域（用于 DomainBreadcrumb / 顶栏标记）。
  *
- * 匹配优先级：
- *   1) 直接前缀命中 DOMAINS[].defaultPath
- *   2) Layout ModuleSidebar 已声明的 V2→V3 过渡映射（与 Layout.tsx moduleSidebarConfig 同步）
- *   3) 兜底返回 null（页面应当 fallback 到不显示域指示器）
+ * 仅返回元数据 — 不返回颜色相关字段（Reset 后已删除）。
+ *
+ * 路径映射必须与 Layout.tsx moduleSidebarConfig 的 item.domain 字段同步。
  */
 export function inferDomainFromPath(pathname: string): DomainMeta | null {
   // (1) 直接前缀匹配
   const direct = DOMAINS.find((d) => pathname.startsWith(d.defaultPath))
   if (direct) return direct
 
-  // (2) 与 Layout.tsx moduleSidebarConfig 的 9 个二级导航入口对齐
-  //     —— 任何此处的修改必须同步 Layout.tsx 中的 item.domain 字段
+  // (2) Layout moduleSidebarConfig 9 个二级导航入口映射
   if (
     pathname.startsWith('/contract') ||
     pathname.startsWith('/find-lawyer') ||

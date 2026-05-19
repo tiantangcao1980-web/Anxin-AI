@@ -422,95 +422,66 @@ export default function Login() {
 
  return (
  <div className="min-h-screen flex bg-background">
- {/* ===== 左侧品牌展示区（无渐变，适配深浅色模式） ===== */}
- <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden flex-col justify-between p-12 bg-muted/50 dark:bg-muted/20 border-r border-border/30">
- {/* 装饰元素 — 几何圆环 */}
- <div className="absolute inset-0 pointer-events-none">
- <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full border-[3px] border-primary/10 dark:border-primary/5" />
- <div className="absolute -top-8 -right-8 w-48 h-48 rounded-full border-[2px] border-primary/8 dark:border-primary/4" />
- <div className="absolute -bottom-20 -left-20 w-72 h-72 rounded-full border-[3px] border-primary/8 dark:border-primary/4" />
- <div className="absolute top-1/3 right-1/4 w-3 h-3 rounded-full bg-primary/20 dark:bg-primary/10" />
- <div className="absolute top-2/3 left-1/5 w-2 h-2 rounded-full bg-primary/15 dark:bg-primary/8" />
- <div className="absolute bottom-1/4 right-1/3 w-4 h-4 rounded-full bg-primary/10 dark:bg-primary/5" />
+ {/*
+   ===== 左侧 7 col 标题区 (Editorial Luxury) =====
+   2026-05 Reset:
+   - 删除原 8 域高饱和徽章网格、几何装饰圆环、3 大支柱高饱和图标卡
+   - 改为 Editorial 排版：serif Display + serif H1 + body 引言 + 8 域 serif 编号目录
+   - 单一品牌琥珀橙仅出现在右侧 CTA 按钮上
+ */}
+ <div className="hidden lg:flex lg:w-7/12 relative flex-col justify-between px-16 xl:px-24 pt-32 pb-16 bg-background">
+   {/* 顶部：序号 + EST tracker */}
+   <div className="space-y-16">
+     <div className="flex items-center gap-3">
+       <span className="font-serif text-[28px] leading-none text-foreground">安</span>
+       <div className="h-px w-12 bg-muted-foreground/40"></div>
+       <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+         Anxin Intelligence · Est 2026
+       </span>
+     </div>
+
+     {/* serif 主标题 */}
+     <div>
+       <h1 className="font-serif text-[48px] leading-[1.1] tracking-[-0.04em] font-medium text-foreground">
+         安心智能助手
+       </h1>
+       <p className="font-serif text-[32px] leading-[1.2] tracking-[-0.02em] font-medium mt-6 text-foreground/80 max-w-[18ch]">
+         为企业老板而做的 AI 工作台
+       </p>
+     </div>
+
+     {/* body 长引言 */}
+     <p className="text-[15px] leading-[1.85] text-foreground/80 max-w-[42ch]">
+       一个 App 搞定企业 8 大业务 — 法务、财务、税务、合规、经营管理、调研获客、内容产出、出海跨境。
+       不是仪表板，不是工具集合 —
+       <span className="font-serif italic"> 是把判断、风险、证据放在每一个画面优先位置的工作台。</span>
+     </p>
+   </div>
+
+   {/* 底部：8 域编辑级目录（无色块、无图标卡、无饱和度） */}
+   <div className="pt-24">
+     <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground mb-4">
+       Index · 业务域目录
+     </div>
+     <ol className="grid grid-cols-2 sm:grid-cols-4 gap-x-8 gap-y-3 text-[13px] text-foreground/80">
+       {DOMAINS.map((d, i) => (
+         <li key={d.id}>
+           <span className="font-serif text-muted-foreground mr-2">
+             {String(i + 1).padStart(2, '0')}
+           </span>
+           {d.label}
+         </li>
+       ))}
+     </ol>
+     <div className="mt-8 pt-4 border-t border-border flex items-center justify-between text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+       <span>© 2026 · 安心科技</span>
+       <span>专业 / 克制 / 长期</span>
+     </div>
+   </div>
  </div>
 
- <div className="relative z-10">
- {/* Logo */}
- <div className="flex items-center gap-3 mb-12">
- <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-sm">
- <icons.Legal className={`${iconSize.lg} text-primary-foreground`} />
- </div>
- <div>
- <h1 className={`${heading.page} text-foreground text-2xl`}>安心智能助手</h1>
- <p className="text-sm text-muted-foreground">面向中国成长型企业的全链路 AI 经营助理</p>
- </div>
- </div>
-
- {/* 特性列表 — V3 三大支柱 */}
- <div className="space-y-6 mb-10">
- {[
- { Icon: icons.Brain, title:'多智能体协作', desc:'22 个 personas × 21 个专业智能体，覆盖企业 8 大业务域' },
- { Icon: icons.Shield, title:'全流程风控',   desc:'实时监控合同、合规、税务、出海等红线，三档风险分级提示' },
- { Icon: icons.Zap,    title:'效率提升 10 倍', desc:'合同审查、报表起草、尽调报告、营销文案自动产出' },
- ].map((feature, i) => (
- <motion.div
- key={feature.title}
- initial={{ opacity: 0, x: -30 }}
- animate={{ opacity: 1, x: 0 }}
- transition={{ delay: 0.2 + i * 0.15 }}
- className="flex items-start gap-4"
- >
- <div className="w-10 h-10 bg-primary/10 dark:bg-primary/15 rounded-lg flex items-center justify-center flex-shrink-0">
- <feature.Icon className={`${iconSize.md} text-primary`} />
- </div>
- <div>
- <h3 className="text-foreground font-medium">{feature.title}</h3>
- <p className="text-muted-foreground text-sm mt-1">{feature.desc}</p>
- </div>
- </motion.div>
- ))}
- </div>
-
- {/* 8 大业务域展示 — V3 产品定位的视觉锚点 */}
- <motion.div
- initial={{ opacity: 0, y: 16 }}
- animate={{ opacity: 1, y: 0 }}
- transition={{ delay: 0.6 }}
- aria-label="安心 AI 覆盖的 8 大业务域"
- >
- <p className="text-xs font-medium text-muted-foreground mb-3 tracking-wide">
- 一个 App，搞定企业 8 大业务
- </p>
- <div className="grid grid-cols-4 gap-2">
- {DOMAINS.map((d, i) => {
- const Icon = d.icon
- return (
- <motion.div
- key={d.id}
- initial={{ opacity: 0, scale: 0.92 }}
- animate={{ opacity: 1, scale: 1 }}
- transition={{ delay: 0.7 + i * 0.04 }}
- className={`flex flex-col items-center gap-1.5 rounded-xl border border-border/40 px-2 py-3 ${d.surfaceClass}`}
- title={d.tagline}
- >
- <Icon className={`h-4 w-4 ${d.colorClass}`} />
- <span className="text-[11px] text-foreground/80 leading-tight text-center">
- {d.label}
- </span>
- </motion.div>
- )
- })}
- </div>
- </motion.div>
- </div>
-
- <p className="relative z-10 text-muted-foreground/50 text-xs">
- &copy; 2026 安心智能助手 &middot; 法务 · 财务 · 税务 · 合规 · 经营 · 获客 · 内容 · 出海
- </p>
- </div>
-
- {/* ===== 右侧表单区 ===== */}
- <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
+ {/* ===== 右侧 5 col 表单区 (Editorial Luxury) ===== */}
+ <div className="flex-1 lg:w-5/12 flex items-center justify-center p-6 lg:p-12 bg-surface-1 lg:border-l lg:border-border">
  <motion.div
  initial={{ opacity: 0, y: 20 }}
  animate={{ opacity: 1, y: 0 }}
