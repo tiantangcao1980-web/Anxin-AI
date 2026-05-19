@@ -3,8 +3,8 @@
  *
  * 2026-05 Reset 说明：
  *   早期版本在此处暴露了 color / colorClass / surfaceClass / cssVar 字段，
- *   配套 8 个高饱和度业务域色 (含违禁紫色 #7D4FCC)。该方案违反 ui-design skill
- *   多条硬性禁令 + 项目 DESIGN.md「不像 SaaS 控制台 / 不强调 AI 感」原则，
+ *   配套 8 个高饱和度业务域色（含违禁紫色，被 ui-design skill FORBIDDEN COLORS 命中）。
+ *   该方案违反 ui-design skill 多条硬性禁令 + DESIGN.md「不像 SaaS 控制台 / 不强调 AI 感」，
  *   已在 Reset 中全量删除。
  *
  *   新方向：业务域不用颜色区分，改用：

@@ -3,7 +3,7 @@
  * DomainBadge — 业务域可视化原子组件 (Taro · V3 · Editorial Luxury · Reset)
  *
  * 2026-05 Reset 说明：
- *   旧版用 8 个高饱和域色 + emoji 作图标（⚖️💰🏛️🛡️📊🧭✍️🌐）。
+ *   旧版用 8 个高饱和域色 + emoji 作图标（emoji 列表见 git 历史）。
  *   emoji 作产品图标违反 ui-design skill 硬性禁令；域色违反 DESIGN.md §1 哲学。
  *   新版完全删除 emoji 和域色，仅 micro UPPERCASE tracking 文字。
  *

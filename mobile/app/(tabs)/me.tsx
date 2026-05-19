@@ -32,9 +32,9 @@ import { Screen } from '@/components/Layout'
 import { useV3Theme } from '@/theme'
 import { useAuthStore } from '@/lib/store'
 import { logout as v3Logout } from '@/lib/api/auth'
-import { DomainBadge } from '@/components/DomainBadge'
-import type { DomainId } from '@/theme/colors'
+import { domainMeta, type DomainId } from '@/theme/colors'
 
+// 2026-05 Reset: 8 域名录改为 Editorial 编号列表（不用 DomainBadge 网格）
 const DOMAIN_IDS: DomainId[] = [
   'legal',
   'finance',
@@ -148,14 +148,24 @@ export default function MeTabScreen() {
         </View>
       </View>
 
-      {/* V3 8 大业务域展示带 — 与 frontend Login 跨端视觉对齐 */}
+      {/* V3 8 大业务域 — Editorial 编号目录（Reset 后单色版） */}
       <View style={styles.domainSection}>
-        <Text style={[styles.domainTitle, { color: t.colors.textSecondary }]}>
-          一个 App，搞定企业 8 大业务
+        <Text style={[styles.domainTrackerLabel, { color: t.colors.textSecondary }]}>
+          INDEX · 八大业务
         </Text>
-        <View style={styles.domainGrid}>
-          {DOMAIN_IDS.map((id) => (
-            <DomainBadge key={id} domain={id} style={styles.domainBadgeItem} />
+        <View style={styles.domainList}>
+          {DOMAIN_IDS.map((id, i) => (
+            <View key={id} style={[styles.domainRow, { borderBottomColor: t.colors.divider }]}>
+              <Text style={[styles.domainNum, { color: t.colors.textSecondary }]}>
+                {String(i + 1).padStart(2, '0')}
+              </Text>
+              <Text style={[styles.domainLabel, { color: t.colors.text }]}>
+                {domainMeta[id].labelZh}
+              </Text>
+              <Text style={[styles.domainLabelEn, { color: t.colors.textMuted }]}>
+                {domainMeta[id].labelEn}
+              </Text>
+            </View>
           ))}
         </View>
       </View>
@@ -262,22 +272,39 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   domainSection: {
-    marginBottom: 16,
+    marginBottom: 24,
   },
-  domainTitle: {
-    fontSize: 12,
+  domainTrackerLabel: {
+    fontSize: 11,
     fontWeight: '500',
     marginBottom: 12,
-    letterSpacing: 0.2,
+    letterSpacing: 1.8, // ~0.16em on 11px
+    textTransform: 'uppercase',
   },
-  domainGrid: {
+  domainList: {
+    // 8 行编辑级目录
+  },
+  domainRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    alignItems: 'baseline',
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  domainBadgeItem: {
-    marginRight: 6,
-    marginBottom: 6,
+  domainNum: {
+    fontSize: 13,
+    fontWeight: '500',
+    width: 28,
+    fontVariant: ['tabular-nums'],
+  },
+  domainLabel: {
+    fontSize: 15,
+    flex: 1,
+  },
+  domainLabelEn: {
+    fontSize: 11,
+    fontWeight: '500',
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
   },
   menuGroup: {
     borderRadius: 16,

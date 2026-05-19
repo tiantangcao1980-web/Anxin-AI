@@ -79,7 +79,7 @@ export const palette = {
   confidenceLow: '#8E867D',
 } as const
 
-// 2026-05 Reset: 删除 8 个 domain.* 高饱和色（含违禁紫色 #7D4FCC）。
+// 2026-05 Reset: 删除 8 个 domain.* 高饱和色（含被 ui-design FORBIDDEN COLORS 命中的紫色）。
 // 业务域元数据（id / labelZh / labelEn）改为 metaOnly 形式，不带 color/surface：
 export const domainMeta = {
   legal:      { labelZh: '法务',     labelEn: 'Legal' },

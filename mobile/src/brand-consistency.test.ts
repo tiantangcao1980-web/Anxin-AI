@@ -70,7 +70,7 @@ describe('mobile · V3 品牌一致性 (cross-source scan)', () => {
       path.join(APP_DIR, '(tabs)', 'me.tsx'),
       'utf-8',
     )
-    expect(meTab).toMatch(/全链路|8 大业务|搞定企业|制造业/)
+    expect(meTab).toMatch(/全链路|8 大业务|搞定企业|制造业|八大业务/)
   })
 
   it('settings.tsx 关于页文案已 V3 化（不含 V2 法务平台字样）', () => {
@@ -80,5 +80,29 @@ describe('mobile · V3 品牌一致性 (cross-source scan)', () => {
     )
     expect(settings).not.toContain('安心智慧法务平台')
     expect(settings).toMatch(/全链路|8 大业务/)
+  })
+
+  it('【Reset】mobile 业务页源码不得出现 emoji 字面值作 UI 图标', () => {
+    const emojiRe = /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u
+    const targets = [
+      path.join(SRC_DIR, 'components', 'DomainBadge.tsx'),
+      path.join(SRC_DIR, 'components', 'DomainBreadcrumb.tsx'),
+      path.join(APP_DIR, '(tabs)', 'me.tsx'),
+    ]
+    for (const file of targets) {
+      if (!fs.existsSync(file)) continue
+      const text = fs.readFileSync(file, 'utf-8')
+      expect(emojiRe.test(text)).toBe(false)
+    }
+  })
+
+  it('【Reset】mobile/src/theme/colors.ts 不得回归 8 域专属 hex 色码（含违禁紫）', () => {
+    const file = path.join(SRC_DIR, 'theme', 'colors.ts')
+    const text = fs.readFileSync(file, 'utf-8')
+    // 排除与 warning(#E2A311) / info(#1F6FD4) 状态色重叠的值
+    const forbidden = ['#5C7F3E', '#E84F2E', '#7D4FCC', '#17AAC3', '#DE3F88', '#1768A1']
+    for (const hex of forbidden) {
+      expect(text.toUpperCase()).not.toContain(hex.toUpperCase())
+    }
   })
 })

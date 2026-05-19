@@ -104,16 +104,40 @@
   }
 }
 
-// 8 大业务域徽章带（与 frontend Login 跨端对齐）
-.home-domain-badges {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
+// 2026-05 Reset: 8 大业务域改为 Editorial 编号目录（不是徽章网格）
+.home-domain-index {
   padding: 0 32rpx 16rpx;
+  display: flex;
+  flex-direction: column;
 
-  & > * {
-    margin-right: 12rpx;
-    margin-bottom: 12rpx;
+  &__row {
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    padding: 16rpx 0;
+    border-bottom: 1rpx solid $color-border-subtle;
+  }
+
+  &__num {
+    font-size: $font-caption;
+    font-weight: 500;
+    color: $color-text-secondary;
+    width: 56rpx;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__label {
+    flex: 1;
+    font-size: $font-h3;
+    color: $color-text-primary;
+  }
+
+  &__en {
+    font-size: 20rpx;
+    font-weight: 500;
+    letter-spacing: 3.2rpx;
+    text-transform: uppercase;
+    color: $color-text-tertiary;
   }
 }
 

@@ -1,36 +1,32 @@
 // -*- coding: utf-8 -*-
-// Mobile DomainBreadcrumb 守护测试
+// Mobile DomainBreadcrumb 守护测试 (Reset 后)
 //
-// 注意：本测试不直接 import DomainBreadcrumb.tsx 源码 — 它会间接拉入
-// @expo/vector-icons，而该包在 node-only vitest 环境下有 ESM 解析坑。
-// 改用：纯字符串/数据层守护（domain 元数据 + 源码文本断言）。
-// runtime 渲染由 Expo Go / iOS Simulator smoke 覆盖。
+// 2026-05 Reset：组件改为纯文字 micro UPPERCASE 版（无 Ionicons / 无域色）。
+// 守护点改为：metadata 可用 + Reset 反向断言（无 color/surface/Ionicons 字面值）。
 
 import { describe, expect, it } from 'vitest'
-import { domain, type DomainId } from '../theme/colors'
+import { domainMeta, type DomainId } from '../theme/colors'
 
-describe('mobile · DomainBreadcrumb 守护', () => {
-  it('所有 8 个 DomainId 都有 mobile domain 元数据可用', () => {
+describe('mobile · DomainBreadcrumb 守护 (Reset)', () => {
+  it('所有 8 个 DomainId 都有 domainMeta 可用', () => {
     const ids: DomainId[] = [
       'legal', 'finance', 'tax', 'compliance',
       'operations', 'growth', 'content', 'global',
     ]
     for (const id of ids) {
-      expect(domain[id]).toBeDefined()
-      expect(domain[id].color).toMatch(/^#[0-9A-Fa-f]{6}$/)
-      expect(domain[id].surface).toMatch(/^#[0-9A-Fa-f]{6}$/)
-      expect(domain[id].labelZh).toBeTruthy()
+      expect(domainMeta[id]).toBeDefined()
+      expect(domainMeta[id].labelZh).toBeTruthy()
+      expect(domainMeta[id].labelEn).toBeTruthy()
     }
   })
 
-  it('DomainBreadcrumb.tsx 源码顶部声明与 frontend 视觉对齐', async () => {
-    const fs = await import('node:fs/promises')
-    const path = await import('node:path')
-    const text = await fs.readFile(
-      path.resolve(__dirname, 'DomainBreadcrumb.tsx'),
-      'utf-8',
-    )
-    expect(text).toMatch(/frontend\/src\/components\/ui\/DomainBreadcrumb/)
+  it('【Reset】domainMeta 不再含 color / surface 字段', () => {
+    const ids: DomainId[] = ['legal', 'finance', 'tax', 'compliance', 'operations', 'growth', 'content', 'global']
+    for (const id of ids) {
+      const metaAny = domainMeta[id] as unknown as Record<string, unknown>
+      expect(metaAny.color).toBeUndefined()
+      expect(metaAny.surface).toBeUndefined()
+    }
   })
 
   it('DomainBreadcrumb.tsx 导出 compact / moduleName 两种用法', async () => {
@@ -45,17 +41,17 @@ describe('mobile · DomainBreadcrumb 守护', () => {
     expect(text).toMatch(/export\s+function\s+DomainBreadcrumb/)
   })
 
-  it('DomainBreadcrumb.tsx 覆盖 Ionicons 映射的全 8 个 DomainId', async () => {
+  it('【Reset】DomainBreadcrumb.tsx 不再 import Ionicons / 不再用 meta.color/surface', async () => {
     const fs = await import('node:fs/promises')
     const path = await import('node:path')
     const text = await fs.readFile(
       path.resolve(__dirname, 'DomainBreadcrumb.tsx'),
       'utf-8',
     )
-    const ids = ['legal', 'finance', 'tax', 'compliance', 'operations', 'growth', 'content', 'global']
-    for (const id of ids) {
-      // 形如 "legal:      'scale-outline'," 的字面值，确保每个 id 都映射到了 Ionicons 名
-      expect(text).toMatch(new RegExp(`${id}:\\s*'[a-z-]+'`))
-    }
+    // 仅扫 import / JSX 实际 code 中的 token 引用；注释里描述旧版的历史段落不受检查
+    expect(text).not.toMatch(/import[^;]*@expo\/vector-icons/)
+    expect(text).not.toMatch(/scale-outline|calculator-outline/) // 旧 Ionicons 映射
+    expect(text).not.toMatch(/meta\.color\b/)    // 旧版用 meta.color
+    expect(text).not.toMatch(/meta\.surface\b/)  // 旧版用 meta.surface
   })
 })

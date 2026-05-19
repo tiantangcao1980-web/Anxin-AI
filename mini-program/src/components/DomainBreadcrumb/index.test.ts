@@ -1,32 +1,31 @@
-// Mini Program DomainBreadcrumb 守护测试
-// 不直接 import 组件源码（会拉入 @tarojs/components，node 环境解析坑），
-// 改用字符串/数据层守护。
+// Mini-program DomainBreadcrumb 守护 (Reset 后)
+//
+// 2026-05 Reset：组件改为纯文字 micro UPPERCASE 版（无 emoji / 无域色）。
+// 守护点：domainMeta 可用 + 反向断言（无 color/surface/emoji 字面值）。
 
 import { describe, expect, it } from 'vitest'
-import { domain, type DomainId } from '@/styles/design-tokens'
+import { domainMeta, type DomainId } from '@/styles/design-tokens'
 
-describe('mini-program · DomainBreadcrumb 守护', () => {
-  it('所有 8 个 DomainId 都有 domain 元数据可用', () => {
+describe('mini-program · DomainBreadcrumb 守护 (Reset)', () => {
+  it('所有 8 个 DomainId 都有 domainMeta 可用', () => {
     const ids: DomainId[] = [
       'legal', 'finance', 'tax', 'compliance',
       'operations', 'growth', 'content', 'global',
     ]
     for (const id of ids) {
-      expect(domain[id]).toBeDefined()
-      expect(domain[id].color).toMatch(/^#[0-9A-Fa-f]{6}$/)
-      expect(domain[id].surface).toMatch(/^#[0-9A-Fa-f]{6}$/)
-      expect(domain[id].labelZh).toBeTruthy()
+      expect(domainMeta[id]).toBeDefined()
+      expect(domainMeta[id].labelZh).toBeTruthy()
+      expect(domainMeta[id].labelEn).toBeTruthy()
     }
   })
 
-  it('源码顶部明确与 frontend / mobile 视觉对齐', async () => {
-    const fs = await import('node:fs/promises')
-    const path = await import('node:path')
-    const text = await fs.readFile(
-      path.resolve(__dirname, 'index.tsx'),
-      'utf-8',
-    )
-    expect(text).toMatch(/frontend\s*\/\s*mobile DomainBreadcrumb/)
+  it('【Reset】domainMeta 不再含 color / surface 字段', () => {
+    const ids: DomainId[] = ['legal', 'finance', 'tax', 'compliance', 'operations', 'growth', 'content', 'global']
+    for (const id of ids) {
+      const metaAny = domainMeta[id] as unknown as Record<string, unknown>
+      expect(metaAny.color).toBeUndefined()
+      expect(metaAny.surface).toBeUndefined()
+    }
   })
 
   it('源码导出 compact / moduleName 两种用法', async () => {
@@ -41,18 +40,17 @@ describe('mini-program · DomainBreadcrumb 守护', () => {
     expect(text).toMatch(/export\s+default\s+function\s+DomainBreadcrumb/)
   })
 
-  it('DOMAIN_EMOJI 映射覆盖全 8 个 DomainId', async () => {
+  it('【Reset】源码不再有 DOMAIN_EMOJI 映射、不再有域色 inline style', async () => {
     const fs = await import('node:fs/promises')
     const path = await import('node:path')
     const text = await fs.readFile(
       path.resolve(__dirname, 'index.tsx'),
       'utf-8',
     )
-    const ids = ['legal', 'finance', 'tax', 'compliance', 'operations', 'growth', 'content', 'global']
-    for (const id of ids) {
-      // 形如 "legal: '⚖️'" 的字面值
-      expect(text).toMatch(new RegExp(`${id}:\\s*'`))
-    }
+    expect(text).not.toMatch(/DOMAIN_EMOJI/)
+    expect(text).not.toMatch(/meta\.color\b/)
+    expect(text).not.toMatch(/meta\.surface\b/)
+    expect(text).not.toMatch(/backgroundColor:\s*meta/)
   })
 
   it('SCSS 引用 design-tokens.scss', async () => {

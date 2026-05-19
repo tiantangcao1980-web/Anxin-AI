@@ -31,7 +31,7 @@ export const aiSemantic = {
   citation:   { color: '#3F8FE0', surface: 'rgba(63,143,224,0.10)' },
 } as const
 
-// 2026-05 Reset: 删除 8 个 domain.* 高饱和色（含违禁紫色 #7D4FCC）。
+// 2026-05 Reset: 删除 8 个 domain.* 高饱和色（含被 ui-design FORBIDDEN COLORS 命中的紫色）。
 // 仅保留业务域元数据，不带 color/surface 字段。
 export const domainMeta = {
   legal:      { labelZh: '法务',     labelEn: 'Legal' },
