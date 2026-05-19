@@ -487,28 +487,34 @@ export default function Login() {
  animate={{ opacity: 1, y: 0 }}
  className="w-full max-w-md"
  >
- {/* 移动端 Logo */}
- <div className="lg:hidden flex items-center gap-2 mb-8 justify-center">
- <div className={`w-10 h-10 bg-primary ${radius.card} flex items-center justify-center`}>
- <icons.Legal className={`${iconSize.md} text-primary-foreground`} />
- </div>
- <h1 className={heading.page}>安心智能助手</h1>
+ {/* 移动端 Logo (Reset · Editorial Luxury) */}
+ {/* 不用 V2 橙底天平方块；改为衬线 "安" + micro tracker，与 desktop 左栏顶部呼应 */}
+ <div className="lg:hidden flex items-center gap-3 mb-10 justify-center">
+   <span className="font-serif text-[28px] leading-none text-foreground">安</span>
+   <div className="h-px w-8 bg-muted-foreground/40" />
+   <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+     Anxin · Est 2026
+   </span>
  </div>
 
- {/* Tab 切换（忘记密码模式时隐藏） */}
+ {/* Tab 切换 (Reset · Editorial underline 风格) */}
+ {/* 旧版 bg-muted 圆角胶囊背景 → 改为 underline 编辑级 tab */}
  {mode !=='forgot' && mode !=='verify' ? (
- <div className={`flex gap-1 mb-8 bg-muted p-1 ${radius.card}`}>
+ <div className="flex border-b border-border mb-8">
  {(['login','register'] as const).map((tab) => (
  <button
  key={tab}
  onClick={() => setMode(tab)}
- className={`flex-1 py-2.5 ${radius.button} text-sm font-medium transition-colors ${
+ className={`relative px-5 py-3 text-sm font-medium transition-colors ${
  mode === tab
- ?'bg-background text-foreground shadow-sm'
+ ?'text-foreground'
  :'text-muted-foreground hover:text-foreground'
  }`}
  >
- {tab ==='login' ?'登录' :'注册'}
+ {tab ==='login' ?'登 录' :'注 册'}
+ {mode === tab && (
+   <span aria-hidden className="absolute left-5 right-5 -bottom-px h-px bg-primary" />
+ )}
  </button>
  ))}
  </div>
