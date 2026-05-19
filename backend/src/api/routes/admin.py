@@ -940,6 +940,39 @@ async def get_system_config(
     )
 
 
+# [SEC-S1.3] 敏感字段：只能通过环境变量 / 挂载文件配置，禁止通过此 API 设置
+# Why：API 写入 settings 内存对象不持久化（重启即失效）且无加密；
+#      管理员账户被攻陷即可窃取并伪造支付/电签签名。
+_FORBIDDEN_SECRET_FIELDS = {
+    "esign": {"app_secret", "webhook_secret"},
+    "fadada": {"app_secret"},
+    "wechat_pay": {"merchant_private_key", "api_v3_key", "webhook_secret"},
+    "alipay": {"private_key", "webhook_secret"},
+}
+
+
+def _reject_secret_fields_in_body(body: "UpdateSystemConfigRequest") -> None:
+    """如果 body 中包含敏感字段，立即拒绝并指引正确配置方式。"""
+    offenders: list[str] = []
+    for provider, secrets in _FORBIDDEN_SECRET_FIELDS.items():
+        section = getattr(body, provider, None)
+        if not section:
+            continue
+        for key in secrets:
+            if section.get(key):
+                offenders.append(f"{provider}.{key}")
+    if offenders:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "敏感凭据不允许通过 API 修改："
+                f"{', '.join(offenders)}。"
+                "请通过环境变量（.env）或挂载的密钥文件配置，并重启服务生效。"
+                "API 写入不持久化且无加密，已禁用此路径。"
+            ),
+        )
+
+
 @router.put("/system/config", response_model=SystemConfigResponse, summary="更新系统配置")
 async def update_system_config(
     body: UpdateSystemConfigRequest,
@@ -947,8 +980,16 @@ async def update_system_config(
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ) -> SystemConfigResponse:
-    """更新系统配置（运行时修改，重启后恢复默认；敏感字段空字符串=保留原值）"""
+    """更新系统配置（运行时修改，重启后恢复默认）。
+
+    敏感凭据（app_secret / private_key / webhook_secret 等）必须通过
+    环境变量或挂载文件配置，此 API 仅接受非敏感字段（app_id / api_url /
+    public_key / official_webhook_enabled 等）。
+    """
     from src.core.config import settings
+
+    # [SEC-S1.3] 在任何写入前先拒绝敏感字段
+    _reject_secret_fields_in_body(body)
 
     old_config = {
         "rate_limit_per_minute": settings.RATE_LIMIT_PER_MINUTE,
@@ -969,57 +1010,41 @@ async def update_system_config(
             raise HTTPException(status_code=400, detail="密码最小长度不能低于4位")
         settings.PASSWORD_MIN_LENGTH = body.password_min_length
 
-    # E签宝 配置（敏感字段：空字符串 = 保留原值；非空 = 覆盖）
+    # E签宝 配置：仅非敏感字段
     if body.esign is not None:
         e = body.esign
         if "app_id" in e:
             settings.ESIGN_BAO_APP_ID = (e["app_id"] or None)
-        if e.get("app_secret"):
-            settings.ESIGN_BAO_APP_SECRET = e["app_secret"]
         if "api_url" in e and e["api_url"]:
             settings.ESIGN_BAO_API_URL = e["api_url"]
-        if e.get("webhook_secret"):
-            settings.ESIGN_WEBHOOK_SECRET = e["webhook_secret"]
         if "official_webhook_enabled" in e:
             settings.ESIGN_OFFICIAL_WEBHOOK_ENABLED = bool(e["official_webhook_enabled"])
 
-    # 法大大 配置
+    # 法大大 配置：仅非敏感字段
     if body.fadada is not None:
         f = body.fadada
         if "app_id" in f:
             settings.FADADA_APP_ID = (f["app_id"] or None)
-        if f.get("app_secret"):
-            settings.FADADA_APP_SECRET = f["app_secret"]
         if "api_url" in f and f["api_url"]:
             settings.FADADA_API_URL = f["api_url"]
 
-    # 微信支付 配置
+    # 微信支付 配置：仅非敏感字段
     if body.wechat_pay is not None:
         w = body.wechat_pay
         if "app_id" in w:
             settings.WECHAT_PAY_APP_ID = (w["app_id"] or None)
         if "mch_id" in w:
             settings.WECHAT_PAY_MCH_ID = (w["mch_id"] or None)
-        if w.get("merchant_private_key"):
-            settings.WECHAT_PAY_MERCHANT_PRIVATE_KEY = w["merchant_private_key"]
-        if w.get("api_v3_key"):
-            settings.WECHAT_PAY_API_V3_KEY = w["api_v3_key"]
-        if w.get("webhook_secret"):
-            settings.WECHAT_PAY_WEBHOOK_SECRET = w["webhook_secret"]
         if "official_webhook_enabled" in w:
             settings.WECHAT_PAY_OFFICIAL_WEBHOOK_ENABLED = bool(w["official_webhook_enabled"])
 
-    # 支付宝 配置
+    # 支付宝 配置：仅非敏感字段（public_key 为公钥，非密钥）
     if body.alipay is not None:
         a = body.alipay
         if "app_id" in a:
             settings.ALIPAY_APP_ID = a["app_id"] or ""
-        if a.get("private_key"):
-            settings.ALIPAY_PRIVATE_KEY = a["private_key"]
         if a.get("public_key"):
             settings.ALIPAY_PUBLIC_KEY = a["public_key"]
-        if a.get("webhook_secret"):
-            settings.ALIPAY_WEBHOOK_SECRET = a["webhook_secret"]
         if "official_webhook_enabled" in a:
             settings.ALIPAY_OFFICIAL_WEBHOOK_ENABLED = bool(a["official_webhook_enabled"])
 

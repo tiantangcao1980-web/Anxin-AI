@@ -4,7 +4,7 @@ import prodConfig from './prod'
 
 export default defineConfig(async (merge) => {
   const baseConfig: UserConfigExport = {
-    projectName: 'anxin-legal-miniprogram',
+    projectName: 'anxin-ai-miniprogram',
     date: '2026-3-28',
     designWidth: 750,
     deviceRatio: {

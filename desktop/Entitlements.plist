@@ -29,7 +29,7 @@
     <!-- Associated Domains (Deep Link / Universal Links) -->
     <key>com.apple.developer.associated-domains</key>
     <array>
-        <string>applinks:anxin-legal.com</string>
+        <string>applinks:anxinai.com</string>
     </array>
 </dict>
 </plist>

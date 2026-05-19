@@ -35,7 +35,7 @@
       "tooltip": "安心智能助手"
     },
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' http://localhost:* https://localhost:* ws://localhost:* wss://localhost:* https://*.anxin-legal.com wss://*.anxin-legal.com; img-src 'self' data: blob: https://*.anxin-legal.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self'; media-src 'self' blob: mediastream:"
+      "csp": "default-src 'self'; connect-src 'self' http://localhost:* https://localhost:* ws://localhost:* wss://localhost:* https://*.anxinai.com wss://*.anxinai.com; img-src 'self' data: blob: https://*.anxinai.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self'; media-src 'self' blob: mediastream:"
     }
   },
   "bundle": {
@@ -62,7 +62,7 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://api.anxin-legal.com/api/v1/updates/{{target}}/{{arch}}/{{current_version}}"
+        "https://api.anxinai.com/api/v1/updates/{{target}}/{{arch}}/{{current_version}}"
       ],
       "pubkey": ""
     }

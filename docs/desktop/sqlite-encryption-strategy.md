@@ -58,6 +58,6 @@ Do not silently maintain both frontend-owned `tauri-plugin-sql` writes and Rust-
 ## macOS Keychain Prompt Notes
 
 - The password dialog is the macOS login Keychain asking whether the current executable may read the single SQLCipher DB key named by the `com.anxin.assistant.desktop` service. It is not a per-entity password requirement.
-- Debug, direct `target/debug/anxin-legal-desktop`, rebuilt unsigned `.app`, and release `.app` binaries can look like different clients to Keychain. That can make macOS ask again after rebuilds or when switching between direct binary and app bundle.
+- Debug, direct `target/debug/anxin-ai-desktop`, rebuilt unsigned `.app`, and release `.app` binaries can look like different clients to Keychain. That can make macOS ask again after rebuilds or when switching between direct binary and app bundle.
 - Signed/notarized release builds should have a stable code identity. After a trusted build is authorized, ordinary entity reads/writes should reuse the process cache and should not keep reopening the Keychain dialog during that app run.
 - For repeatable smoke tests, keep using isolated `ANXIN_DESKTOP_KEYRING_SERVICE` values. For purely synthetic unit tests, `ANXIN_DESKTOP_SQLCIPHER_KEY_HEX` remains the explicit bypass so tests do not depend on the user's login Keychain.

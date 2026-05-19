@@ -80,7 +80,7 @@ resolve_path() {
 
 APP_PATH="$(resolve_path "$APP_PATH")"
 OUT_PATH="$(resolve_path "$OUT_PATH")"
-BINARY_PATH="$APP_PATH/Contents/MacOS/anxin-legal-desktop"
+BINARY_PATH="$APP_PATH/Contents/MacOS/anxin-ai-desktop"
 
 command -v sqlite3 >/dev/null
 command -v node >/dev/null

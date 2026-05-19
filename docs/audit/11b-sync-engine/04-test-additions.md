@@ -94,7 +94,7 @@ bash scripts/desktop-release-runtime-smoke.sh --out docs/release/evidence/artifa
 # passed; release binary self-test, packaged sync code smoke, packaged sync loopback smoke, runtime startup, and WebView page-load handshake passed
 
 cd desktop && cargo tauri build --debug --no-bundle --ci
-# built desktop/target/debug/anxin-legal-desktop
+# built desktop/target/debug/anxin-ai-desktop
 
 bash scripts/desktop-installed-profile-smoke.sh --out /tmp/anxin-desktop-installed-profile-smoke.json
 # installed-profile smoke ok: migrated=true, keyring=true, encryptedReopen=true

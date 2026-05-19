@@ -1122,7 +1122,7 @@ def _desktop_release_runtime_unsigned_payload() -> dict:
         },
         "artifacts": {
             "release_app": "desktop/target/release/bundle/macos/安心智能助手.app",
-            "release_binary": "desktop/target/release/bundle/macos/安心智能助手.app/Contents/MacOS/anxin-legal-desktop",
+            "release_binary": "desktop/target/release/bundle/macos/安心智能助手.app/Contents/MacOS/anxin-ai-desktop",
             "release_dmg": "desktop/target/release/bundle/dmg/安心智能助手_1.0.0_aarch64.dmg",
             "ui_log": "docs/release/evidence/artifacts/desktop-release-runtime-ui-smoke-unsigned-20260509.log",
         },
@@ -1197,7 +1197,7 @@ def _desktop_release_packaged_profile_payload() -> dict:
         },
         "artifacts": {
             "release_app": "desktop/target/release/bundle/macos/安心智能助手.app",
-            "release_binary": "desktop/target/release/bundle/macos/安心智能助手.app/Contents/MacOS/anxin-legal-desktop",
+            "release_binary": "desktop/target/release/bundle/macos/安心智能助手.app/Contents/MacOS/anxin-ai-desktop",
         },
         "firstLaunch": launch,
         "secondLaunch": launch,

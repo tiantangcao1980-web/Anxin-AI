@@ -111,7 +111,7 @@ run_step() {
 }
 
 latest_desktop_crash_report() {
-  ls -t "${HOME}/Library/Logs/DiagnosticReports"/anxin-legal-desktop-*.ips 2>/dev/null | head -n 1 || true
+  ls -t "${HOME}/Library/Logs/DiagnosticReports"/anxin-ai-desktop-*.ips 2>/dev/null | head -n 1 || true
 }
 
 persist_failure_log() {
@@ -334,7 +334,7 @@ if [ "$SKIP_TAURI_BUILD" -eq 0 ]; then
     run_step "desktop app bundle binary self-test" \
       bash -lc '
         cd desktop
-        bundle_bin="target/debug/bundle/macos/安心智能助手.app/Contents/MacOS/anxin-legal-desktop"
+        bundle_bin="target/debug/bundle/macos/安心智能助手.app/Contents/MacOS/anxin-ai-desktop"
         [ -x "$bundle_bin" ]
         "$bundle_bin" --self-test | node -e '\''
           let input = "";
@@ -352,7 +352,7 @@ if [ "$SKIP_TAURI_BUILD" -eq 0 ]; then
               "local_artifacts",
             ];
             const missing = requiredTables.filter((table) => !report.required_tables_present.includes(table));
-            if (report.app !== "anxin-legal-desktop") throw new Error("unexpected app id");
+            if (report.app !== "anxin-ai-desktop") throw new Error("unexpected app id");
             if (report.local_db_url !== "sqlcipher:anxin_local.db") throw new Error("unexpected local db url");
             if (report.migration_count !== 1) throw new Error("unexpected migration count");
             if (!report.sync_retry_schema_present) throw new Error("sync retry schema missing");
@@ -368,7 +368,7 @@ if [ "$SKIP_TAURI_BUILD" -eq 0 ]; then
     run_step "desktop app bundle runtime startup smoke" \
       bash -lc '
         cd desktop
-        bundle_bin="target/debug/bundle/macos/安心智能助手.app/Contents/MacOS/anxin-legal-desktop"
+        bundle_bin="target/debug/bundle/macos/安心智能助手.app/Contents/MacOS/anxin-ai-desktop"
         [ -x "$bundle_bin" ]
         runtime_log="$(mktemp "${TMPDIR:-/tmp}/anxin-desktop-runtime-smoke.XXXXXX")"
         "$bundle_bin" --runtime-smoke >"$runtime_log" 2>&1 &
@@ -406,7 +406,7 @@ if [ "$SKIP_TAURI_BUILD" -eq 0 ]; then
     run_step "desktop app bundle UI load smoke" \
       bash -lc '
         cd desktop
-        bundle_bin="target/debug/bundle/macos/安心智能助手.app/Contents/MacOS/anxin-legal-desktop"
+        bundle_bin="target/debug/bundle/macos/安心智能助手.app/Contents/MacOS/anxin-ai-desktop"
         [ -x "$bundle_bin" ]
         ui_log="$(mktemp "${TMPDIR:-/tmp}/anxin-desktop-ui-smoke.XXXXXX")"
         "$bundle_bin" --runtime-ui-smoke >"$ui_log" 2>&1 &
@@ -483,7 +483,7 @@ NODE
     run_step "desktop debug binary self-test" \
       bash -lc '
         cd desktop
-        ./target/debug/anxin-legal-desktop --self-test | node -e '\''
+        ./target/debug/anxin-ai-desktop --self-test | node -e '\''
         let input = "";
         process.stdin.on("data", (chunk) => { input += chunk; });
         process.stdin.on("end", () => {
@@ -499,7 +499,7 @@ NODE
             "local_artifacts",
           ];
           const missing = requiredTables.filter((table) => !report.required_tables_present.includes(table));
-          if (report.app !== "anxin-legal-desktop") throw new Error("unexpected app id");
+          if (report.app !== "anxin-ai-desktop") throw new Error("unexpected app id");
           if (report.local_db_url !== "sqlcipher:anxin_local.db") throw new Error("unexpected local db url");
           if (report.migration_count !== 1) throw new Error("unexpected migration count");
           if (!report.sync_retry_schema_present) throw new Error("sync retry schema missing");

@@ -1,12 +1,12 @@
 [package]
-name = "anxin-legal-desktop"
+name = "anxin-ai-desktop"
 version = "1.0.0"
-description = "安心智能助手桌面客户端"
-authors = ["Anxin Legal Team"]
+description = "Anxin AI 安心智能助手桌面客户端"
+authors = ["Anxin AI Team"]
 edition = "2021"
 
 [lib]
-name = "anxin_legal_desktop_lib"
+name = "anxin_ai_desktop_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]

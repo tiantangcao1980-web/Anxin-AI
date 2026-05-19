@@ -84,7 +84,7 @@ class CreditChinaSource(BaseLegalSource):
         if self._client is None:
             self._client = httpx.AsyncClient(
                 timeout=self._timeout,
-                headers={"User-Agent": "AnxinLegal-FetchService/1.0 (+compliance@anxin)"},
+                headers={"User-Agent": "AnxinAI-FetchService/1.0 (+compliance@anxin)"},
             )
         return self._client
 

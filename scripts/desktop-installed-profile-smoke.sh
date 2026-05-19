@@ -64,7 +64,7 @@ second_json="$tmp_dir/second.json"
 plain_read_err="$tmp_dir/plaintext-read.err"
 service="com.anxin.legal.desktop.installed-smoke.$(date +%s).$$"
 user="sqlcipher-db-key-v1"
-bin="$PROJECT_ROOT/desktop/target/debug/anxin-legal-desktop"
+bin="$PROJECT_ROOT/desktop/target/debug/anxin-ai-desktop"
 
 cleanup() {
   if [ -x "$bin" ]; then

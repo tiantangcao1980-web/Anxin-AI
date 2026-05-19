@@ -72,7 +72,7 @@ class PkuLawSource(BaseLegalSource):
 
     def _headers(self) -> dict[str, str]:
         h = {
-            "User-Agent": "AnxinLegal-FetchService/1.0",
+            "User-Agent": "AnxinAI-FetchService/1.0",
             "Accept": "application/json",
         }
         if self._api_key:
