@@ -1,165 +1,181 @@
-# V3 UI 升级 · 视觉评审清单
+# V3 UI 升级 · 视觉评审清单（Reset 版）
 
 > 对应 PR [#9](https://github.com/tiantangcao1980-web/Anxin-AI/pull/9)
-> 日期：2026-05-17
-> 范围：所有 V3 8 大业务域可视化产出（5 个原子组件 + 4 个落地页面）
->
-> 设计师按表勾选 / 提改进意见。每项含「验收标准」+「如需改动的工程估时」让协作决策有依据。
+> 日期：2026-05-17 首版 → 2026-05-20 Reset 重写
+> 设计方向：**Editorial Luxury**（克制的奢华 · 编辑级排版）
+> Aesthetic Direction 决策记录见 `docs/design/ui-audit-and-upgrade-2026-05.md` §Reset
 
-## 0. 评审入口（推荐顺序）
+---
+
+## ⚠️ 重要 · Reset 公告（先看）
+
+首版 PR 落地了「8 大业务域 × 8 种高饱和色拼盘 + emoji 图标 + Inter 字体」方案，
+被用户严厉批评后用 `ui-design` skill 重新做了 Design Specification，
+全量 Reset 到 **Editorial Luxury** 方向：
+
+- ❌ 删除 8 域高饱和色（含被 ui-design `FORBIDDEN COLORS` 命中的紫色）
+- ❌ 删除所有 emoji 作 UI 图标（ui-design `FORBIDDEN`）
+- ❌ 删除 Inter / system-ui / -apple-system / Helvetica Neue 字体（ui-design `FORBIDDEN FONTS`）
+- ✅ 业务域改用「序号 + 衬线域名 + 字距层次」区分，不用色彩
+- ✅ 单一品牌琥珀橙仅出现在 CTA 按钮 / active 1px 左线
+- ✅ 衬线大字（Noto Serif SC）承载 Editorial 气质
+- ✅ Lucide 单色线性图标替代所有 emoji
+
+详细 Reset 清单：commit `7a69bd47` (Phase 1-3) + `e55819c3` (Phase 4-6) + `b2436e52` (FORBIDDEN FONTS 残留清理)
+
+---
+
+## 0. 评审入口（按重要性排序）
 
 | 步骤 | 看哪里 | 怎么看 |
 |---|---|---|
-| 0.1 | 8 域色板 | `frontend/src/index.css` `--domain-*` CSS 变量 + 本文 §1 swatches |
-| 0.2 | Login 8 域徽章网格 | `npm run dev` → `http://localhost:3001/login` |
-| 0.3 | DomainHomePage 永久索引 | 登录后访问 `/domains` |
-| 0.4 | WelcomeGuide 首登 modal | 登录后清 localStorage 重登触发 |
-| 0.5 | Layout 顶栏 + 侧栏视觉锚点 | 登录后随便点导航看 active 态 |
-| 0.6 | 业务子页 DomainStripe + DomainBreadcrumb | 进入 `/find-lawyer` / `/case-center` 等 |
+| 0.1 | **独立 Prototype HTML**（最直观）| `docs/design/v3-prototype-editorial.html` 直接 `open` 或起 http server。三屏切换：Login / 业务域目录 / 业务子页 |
+| 0.2 | Login 页实景 | `cd frontend && npm run dev` → `http://localhost:3001/login` |
+| 0.3 | DomainHomePage `/domains` | 登录后访问 `/domains`（Layout 顶栏 LayoutGrid 图标也可直达）|
+| 0.4 | WelcomeGuide modal | 登录后清 `localStorage.removeItem('auth-storage')` 重登触发 |
+| 0.5 | Layout 顶栏 + 侧栏 | 任意登录态页面 |
+| 0.6 | 业务子页 | `/find-lawyer` / `/case-center` 等 |
 
 ---
 
-## 1. 8 大业务域色板（核心决策）
+## 1. 调色板（核心决策）
 
-每个色值都是 HSL，浅色 / 深色双模式。Hex 是用 [hsl-to-hex](https://hslpicker.com) 转换的等效值，供设计师直观比对。
+✅ **单一品牌锚点 + 暖灰阶梯**（替代上轮 8 色高饱和拼盘）
 
-| Domain | 浅色 HSL | 浅色 Hex | 深色 HSL | 深色 Hex | 语义建议 | □ 验收 |
-|---|---|---|---|---|---|---|
-| 法务 Legal | `100 32% 38%` | `#5C7F3E` | `100 28% 60%` | `#85B477` | 暖橄榄绿 / 沉稳·克制·可信 | ☐ |
-| 财务 Finance | `217 78% 48%` | `#1F6FD4` | `217 70% 65%` | `#5C95E4` | 稳重蓝 / 数字精确感 | ☐ |
-| 税务 Tax | `42 88% 48%` | `#E2A311` | `42 80% 62%` | `#EBC459` | 金箔黄 / 价值·合规 | ☐ |
-| 合规 Compliance | `8 80% 52%` | `#E84F2E` | `8 75% 65%` | `#EE8166` | 警示橙红 / 红线意识 | ☐ |
-| 经营管理 Operations | `270 60% 52%` | `#7D4FCC` | `270 55% 68%` | `#A688D9` | 王者紫 / 战略·统筹 | ☐ |
-| 调研获客 Growth | `188 78% 42%` | `#17AAC3` | `188 70% 58%` | `#48C2D5` | 情报青 / 调研·洞察 | ☐ |
-| 内容产出 Content | `335 75% 56%` | `#DE3F88` | `335 68% 68%` | `#E677A6` | 桃红 / 创作·活力 | ☐ |
-| 出海跨境 Global | `205 80% 35%` | `#1768A1` | `205 70% 58%` | `#418FCB` | 深海蓝 / 远洋·全球 | ☐ |
+| 角色 | HSL | Hex | 用途 | □ 验收 |
+|---|---|---|---|---|
+| 品牌主色 | `25 95% 53%` | `#F08A2A` | CTA / 激活态 / 唯一彩色锚点 | ☐ |
+| 品牌深色 | `15 80% 38%` | `#B0501C` | hover / pressed | ☐ |
+| 品牌极浅 | `33 100% 97%` | `#FFF8F0` | active 微提示底 | ☐ |
+| 纸张暖白 | `30 14% 98%` | `#FAF8F5` | 页面背景 | ☐ |
+| Surface 1 | `0 0% 100%` | `#FFFFFF` | 主面 | ☐ |
+| 暖墨文本 | `20 14% 10%` | `#1C1815` | 主文本 | ☐ |
+| 次墨文本 | `20 14% 30%` | `#524742` | 次文本 | ☐ |
+| 弱墨文本 | `20 9% 46%` | `#7A7068` | 弱说明 / micro tracker | ☐ |
+| 发丝边 | `30 13% 91%` | `#ECE7E0` | 标准边框 | ☐ |
+| 墨绿（success）| `142 30% 38%` | `#4B7C5A` | 通过 / 成功 — 低饱和墨色 | ☐ |
+| 降饱和琥珀（warning）| `38 70% 48%` | `#D08A1C` | 提醒 / 中风险 | ☐ |
+| 墨红（destructive）| `0 50% 45%` | `#B33A3A` | 错误 / 高风险 | ☐ |
+| AI 紫（仅 AI 生成态）| `262 60% 48%` | `#604ECC` | DESIGN.md §2 保留，**不参与业务域分类** | ☐ |
 
-### 设计师必答
-- [ ] **每个域的色相**是否符合业务语义？（若不符 → 改 `frontend/src/index.css` 即可全端生效，估时 5 min/域）
-- [ ] **浅色饱和度**在卡片底色场景对比度够吗？（若不够 → 调浅一档，估时 5 min/域）
-- [ ] **深色模式**亮度提升够吗？文本可读吗？
-- [ ] **8 个域之间的色相区分度**是否足够？（特别是 Finance 蓝 vs Global 深海蓝、Compliance 红橙 vs Tax 金黄）
-
----
-
-## 2. 设计约束（已硬编码到 token 注释 + 测试守护）
-
-| 约束 | 实施 | □ 设计师确认 |
-|---|---|---|
-| 业务域色 **不替代** 品牌琥珀橙 | `--primary` (hsl 25 95% 53%) 保留 | ☐ |
-| 主行动按钮 / 链接 / 焦点环走 `--primary` | Login 登录按钮、所有 active 文字 | ☐ |
-| 业务域色仅做「分类标识」 | Badge / Stripe / Card / Grid / Breadcrumb / underline / dot | ☐ |
-| 与风险三档（`--risk-high/medium/low`）不重叠 | 风险是「状态」，域是「分类」 | ☐ |
+### 设计师必答（调色板）
+- [ ] 暖灰 + 单一琥珀橙的 Editorial Luxury 方向是否符合预期？
+- [ ] 状态色（success / warning / destructive）的「墨色低饱和」是否够辨识？
+- [ ] 字面对比度（暖墨 #1C1815 on 纸张暖白 #FAF8F5 = 12.5:1）是否 WCAG AAA 合格？
 
 ---
 
-## 3. 5 个原子组件视觉决策点
+## 2. 字体系统（核心决策）
 
-### 3.1 DomainBadge（最高频复用）
-| 决策点 | 当前 | 改动估时 |
-|---|---|---|
-| 圆角 | `9999px`（pill 全圆角）| 改 `rounded-full` → `rounded-md`，10 min |
-| 内边距 | sm: `2px 8px` / md: `4px 10px` | 各端独立调，30 min |
-| 字号 | sm: 11px / md: 12px | 三端 token 调，15 min |
-| Icon 字号 | sm: 12px / md: 14px | 三端独立，15 min |
-| 是否始终带 icon | 默认带，可关 | 默认值改 `showIcon=false`，5 min |
+✅ **中文系统字体优先 + Editorial Serif**（替代上轮 Inter 等违禁字体）
 
-### 3.2 DomainStripe（顶部 4pt 彩条）
-| 决策点 | 当前 | 改动估时 |
+| 角色 | 字体栈 | 用途 |
 |---|---|---|
-| 高度 | 4px（web）/ 4pt（mobile）/ 6rpx（mini）| 三端独立调，15 min |
-| 颜色 | 100% 域色饱和 | 改半透明 `opacity: 0.85`，5 min |
+| Sans（主 UI）| `PingFang SC` / `Microsoft YaHei` / `Noto Sans SC` / `sans-serif` | 正文、按钮、表单 |
+| Serif（Editorial）| `Noto Serif SC` / `Source Han Serif SC` / `Songti SC` / `STSong` / `SimSun` / `serif` | Display / H1 大标题、业务域名、文档预览 |
+| Mono | `JetBrains Mono` / `SF Mono` / `Menlo` / `monospace` | 合同 diff / 数字 / 代码 |
 
-### 3.3 DomainCard（仅 Web）
-| 决策点 | 当前 | 改动估时 |
-|---|---|---|
-| 高度 | 自适应（含 title + tagline + count + chevron）| 改固定高度，15 min |
-| Hover 态 | `translate-y -0.5 + shadow-elev-3` | 调整 hover 抬升幅度，10 min |
-| 圆角 | `rounded-2xl` (16px) | 调整圆角，5 min |
+### 字号层级（Editorial 大跨度）
+| 角色 | px | line-height | letter-spacing | family | weight |
+|---|---|---|---|---|---|
+| Display | 48 | 1.1 | -0.04em | serif | 500 |
+| H1 | 32 | 1.2 | -0.02em | serif | 500 |
+| H2 | 24 | 1.3 | -0.01em | sans | 500 |
+| H3 | 18 | 1.4 | -0.005em | sans | 600 |
+| Body | 15 | 1.65 | 0 | sans | 400 |
+| Caption | 13 | 1.5 | 0.01em | sans | 400 |
+| **Micro** | **11** | **1.4** | **0.16em** | sans | **500** UPPERCASE |
 
-### 3.4 DomainGrid（仅 Web · DomainCard 4 列响应式）
-| 决策点 | 当前 | 改动估时 |
-|---|---|---|
-| 列数断点 | `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4` | 调整断点，5 min |
-| 卡片间距 | `gap-3` (12px) | 三端独立调，10 min |
+❌ 禁用：`Inter` / `Roboto` / `Arial` / `Helvetica` / `Helvetica Neue` / `system-ui` / `-apple-system` / `BlinkMacSystemFont`
 
-### 3.5 DomainBreadcrumb
-| 决策点 | 当前 | 改动估时 |
-|---|---|---|
-| 默认模式 icon 框 | `5×5 rounded-md`（web）/ `20×20 rounded-md`（mobile）| 三端独立调，15 min |
-| compact 模式圆点 | 1.5×1.5（web）/ 6pt（mobile）/ 10rpx（mini）| 三端独立调，15 min |
-| moduleName 分隔符 | `·`（中点）| 改 `›` 或 `›`，3 min |
+### 设计师必答（字体）
+- [ ] 衬线字体（Noto Serif SC）作 Display + H1 + 业务域名 — 是否带出"中信书店 × 律师事务所大堂"的气质？
+- [ ] Micro tracker（0.16em UPPERCASE）在中文标签上是否合理？
 
 ---
 
-## 4. 4 个落地页面视觉决策点
+## 3. 业务域可视化（最重要 — 上轮被批评的核心点）
 
-### 4.1 Login 页 — 左侧 8 域徽章网格
-**位置**：`frontend/src/pages/Login.tsx:472-501`
+✅ **Editorial 编号目录**（替代上轮 8 色高饱和卡片墙）
 
-| 决策点 | 当前 | 改动估时 |
-|---|---|---|
-| 网格布局 | 4×2 | 改 2×4 或 8×1，5 min |
-| 卡片样式 | 域 surface 底色 + icon + label | 加 hover 态，10 min |
-| 入口区文案 | "一个 App，搞定企业 8 大业务" | 改文案，2 min |
+### 区分手段（克制）
+- 序号 `01`–`08`（serif 数字 tabular-nums）
+- 衬线域名（H2/H3 字号层次）
+- Lucide 单色线性图标（1.5px stroke）
+- 1px hairline 边界（hover 时浅琥珀底）
+- active 项 1px primary 左线
 
-### 4.2 WelcomeGuide modal — 首登 8 域引导
-**位置**：`frontend/src/components/WelcomeGuide.tsx`
+### 业务域元数据（无 color/surface 字段）
+| 序号 | 域 | English | Lucide 图标 | tagline |
+|---|---|---|---|---|
+| 01 | 法务 | Legal | `Scale` | 合同审查 · 案件管理 · 法律顾问 |
+| 02 | 财务 | Finance | `Calculator` | 记账 · 对账 · 报销 · 资金看板 |
+| 03 | 税务 | Tax | `Landmark` | 申报 · 税务筹划 · 政策跟踪 |
+| 04 | 合规 | Compliance | `ShieldCheck` | 风控 · 内审 · 监管红线 |
+| 05 | 经营管理 | Operations | `LineChart` | KPI · 决策驾驶舱 · 战略推演 |
+| 06 | 调研获客 | Growth | `Compass` | 市场调研 · 线索挖掘 · 舆情监测 |
+| 07 | 内容产出 | Content | `PenLine` | 文案 · 视频脚本 · 营销素材 |
+| 08 | 出海跨境 | Global | `Globe2` | 国际化 · 海外合规 · 本地化 |
 
-| 决策点 | 当前 | 改动估时 |
-|---|---|---|
-| 触发时机 | 登录后 600ms 延迟弹出 | 改延迟 / 改触发条件（如首次进 /domains），10 min |
-| 关闭行为 | 关闭后 `hasSeenWelcome=true` 持久化 | 增加"以后不再提示"checkbox，15 min |
-| 标题文案 | "欢迎使用安心智能助手" | — |
-| 副标 | "全链路 AI 经营助理 · 一个 App 搞定企业 8 大业务" | — |
-| 推荐域徽章 | operations 标 "推荐入口" | 改默认推荐域，2 min |
+### 设计师必答（业务域）
+- [ ] **8 域不用色彩区分** — 仅用序号 + 衬线名 + Lucide 图标，是否可接受？
+- [ ] Lucide 图标的选择（Scale 法务 / Compass 获客 / Globe2 出海 ...）是否准确？
+- [ ] 8 域中文名命名是否准确？
 
-### 4.3 DomainHomePage `/domains` — 永久 8 域索引
-**位置**：`frontend/src/pages/DomainHomePage.tsx`
+---
 
-| 决策点 | 当前 | 改动估时 |
-|---|---|---|
-| 顶部 | `<DomainGrid />` 全 8 域 | — |
-| 中部"常用模块" | 按域分组，每域列 1-5 个子页 link | 调整每域子页列表，10 min |
-| 占位域（finance/tax/global）| 显示"敬请期待" + 60% opacity | 改占位文案 / 加 mock placeholder，10 min |
-| 底部 | 品牌定位字符串 | — |
+## 4. 落地页面（4 个）
+
+### 4.1 Login 页
+- 7+5 不对称 grid
+- 左：serif Display + H1 + body 引言 + 8 域 serif 编号目录 + 底部 micro tracker
+- 右：表单（邮箱/密码 + 单一琥珀橙 CTA + OR + 微信/支付宝 ghost）
+
+### 4.2 `/domains` DomainHomePage
+- 编辑部目录式 4+8 双栏
+- 左：8 业务域 serif 名录（01–08 序号 + 衬线 H2 + tagline）
+- 右：当前选中域的子页列（Lucide + 衬线名 + caption + 进入 CTA）
+
+### 4.3 WelcomeGuide modal（首登）
+- 编辑级目录式 modal
+- header: serif Display + serif italic 副标
+- 主体: 8 行域名录（2 列 grid）
+- footer: 单一「打开 AI 对话」CTA
 
 ### 4.4 Layout 顶栏 + 侧栏
-**位置**：`frontend/src/components/Layout.tsx`
+- 顶栏 4 大 nav active = 1px primary underline（**非 4 种业务域色**）
+- 侧栏 active = 1px primary 左线 + primary-50 微底（**非业务域 stripe + dot**）
+- 顶栏 `LayoutGrid` 图标按钮直达 `/domains`
 
-| 决策点 | 当前 | 改动估时 |
-|---|---|---|
-| 顶栏 `/domains` 入口按钮 | LayoutGrid 图标 + active 态 primary 高亮 | 改图标 / 位置，5 min |
-| 4 大 nav active underline | 2px 域色 rounded-full 紧贴底部 | 改高度 / 偏移，5 min |
-| 侧栏 active stripe | 2px 域色 rounded-r 紧贴左边 | 改宽度 / 颜色饱和，5 min |
-| 侧栏 inactive dot | 1×1 域色 70% opacity 右侧 | 改大小 / 位置，5 min |
-| 侧栏标题区 DomainBreadcrumb | compact 模式（圆点 + 域名）| 改默认变体，5 min |
+### 设计师必答（落地页）
+- [ ] Login 7+5 不对称是否合理？是否需要 50/50？
+- [ ] DomainHomePage 编辑部目录是否易扫读？
+- [ ] WelcomeGuide modal 是否过于"出版物"风格？应不应该更友好？
+- [ ] Layout active 态的 1px primary 是否过细难看？
 
 ---
 
-## 5. Mobile / Mini Program 端视觉差异
+## 5. 跨端实现差异
 
-| 端 | DomainBadge 实现 | 与 Web 视觉差异 |
-|---|---|---|
-| Web | lucide-react SVG | 基准 |
-| Mobile (Expo) | Ionicons | 图标风格略不同（Outline vs lucide stroke）|
-| Mini Program (Taro) | **Emoji** | 受小程序限制无 SVG，emoji 颜色由 OS 主题决定，不受域色控制 |
+| 端 | DomainBadge 实现 |
+|---|---|
+| Web | Lucide SVG（与图标同源）|
+| Mobile (Expo RN) | 纯文字 micro UPPERCASE（无图标，文字承担识别）|
+| Mini Program (Taro) | 纯文字（Taro 受限不便用 SVG，但**不再用 emoji**）|
 
-### 设计师必答
-- [ ] Mini Program emoji 版本可接受吗？还是要换成 Taro 内置图标库（部分覆盖 8 域）？
-- [ ] Mobile Ionicons 图标在 Light / Dark 模式下颜色都正常吗？
+### 设计师必答（跨端）
+- [ ] Mobile / Mini Program 端**仅文字**版本可接受吗？还是要加 SVG 图标？
 
 ---
 
 ## 6. 验收签字栏
 
-设计师评审完成后填写：
-
-| 项 | 设计师姓名 | 日期 | 状态 |
+| 项 | 设计师 | 日期 | 状态 |
 |---|---|---|---|
-| 8 域色板 | ☐ | YYYY-MM-DD | ☐ Pass / ☐ Need rework |
-| 5 原子组件 | ☐ | YYYY-MM-DD | ☐ Pass / ☐ Need rework |
-| 4 落地页面 | ☐ | YYYY-MM-DD | ☐ Pass / ☐ Need rework |
-| 跨端视觉一致性 | ☐ | YYYY-MM-DD | ☐ Pass / ☐ Need rework |
+| 调色板（暖灰 + 单一琥珀橙）| | YYYY-MM-DD | ☐ Pass / ☐ Need rework |
+| 字体（系统字体 + Noto Serif SC）| | YYYY-MM-DD | ☐ Pass / ☐ Need rework |
+| 业务域可视化（编号目录式）| | YYYY-MM-DD | ☐ Pass / ☐ Need rework |
+| Login / DomainHomePage / WelcomeGuide / Layout | | YYYY-MM-DD | ☐ Pass / ☐ Need rework |
+| 跨端一致性 | | YYYY-MM-DD | ☐ Pass / ☐ Need rework |
 
-如有 "Need rework" 项，请在 PR #9 留 review comment + 具体改动建议。
+如有 "Need rework"，请在 PR #9 留 review comment + 具体改动建议。
