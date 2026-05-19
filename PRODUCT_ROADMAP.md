@@ -46,7 +46,7 @@
 │     - 本地 LLM 集成（私有化场景）                                    │
 │     - 目标用户：日常重度使用的律师、企业法务                           │
 │                                                                  │
-│  📱 移动端/小程序 (Mobile + Mini Program, uni-app)                  │
+│  📱 移动端/小程序 (Mobile (Expo) + Mini Program (Taro))             │
 │     - 外出办公场景（出庭/会见/差旅）                                  │
 │     - 快速 AI 咨询 + 案件状态查看 + 消息审批                          │
 │     - 语音输入 + 拍照识别                                           │
@@ -115,27 +115,28 @@
 
 ---
 
-### 2.3 移动端/小程序（桌面收口后按 uni-app 推进）
+### 2.3 移动端/小程序（桌面收口后双端推进）
+
+> **2026-05-20 路线纠正**：**uni-app 技术链路已彻底放弃**（原跨端目录及相关脚本/evidence
+> 全部删除）。移动端能力回归 `mobile/`（Expo + React Native）+ `mini-program/`（Taro + React）
+> 双端独立方案，不再尝试统一框架。
 
 **核心场景**：
 - 律师出庭、会见客户、差旅期间的 AI 查询
 - 管理者随时查看案件进展、审批状态
 - 语音输入 + 拍照识别证据材料
 
-**技术栈**：uni-app + TypeScript。旧 `mobile/` Expo 与 `mini-program/` Taro 目录保留为 legacy/回归参考，后续新移动能力优先进入 `apps/uni-mobile/`。
-
-**已有代码级基座**：
-- ✅ `apps/uni-mobile/` 首版基座：typecheck、契约测试、H5 build、WeChat Mini Program build 已通过
-- ✅ legacy mobile/mini 本地 smoke、fake fallback guard、隐私模式 no-network guard 已有
-- ✅ cross-device continuation code rehearsal 已证明后端/桌面 adapter/uni-app sync client 的代码级续接
-- ⏳ DCloud App 云打包/签名、真实 iOS/Android、交互式微信开发者工具和共享预发账号跨设备连续会话仍待补
+**技术栈**：
+- `mobile/`：Expo 52 + React Native 0.76 + TypeScript（iOS / Android 原生）
+- `mini-program/`：Taro 3.6 + React + TypeScript（微信小程序）
 
 **待实现**：
-- [ ] uni-app 移动端专用布局（底部 Tab 导航、44px 触摸目标、safe-area）
-- [ ] 语音输入集成（浏览器 Web Speech API + 原生 fallback）
-- [ ] 拍照识别（原生相机插件）
-- [ ] 推送通知（APNs / FCM）
-- [ ] DCloud App 云打包 / iOS TestFlight / Android 渠道 / 微信小程序体验版验收
+- [ ] mobile/ 移动端专用布局（底部 Tab 导航、44px 触摸目标、safe-area）
+- [ ] mini-program/ 小程序布局对齐 mobile/ 视觉
+- [ ] 语音输入集成（Web Speech API + 原生 fallback / 微信小程序录音 API）
+- [ ] 拍照识别（Expo Camera / 微信小程序相机 API）
+- [ ] 推送通知（APNs / FCM / 微信订阅消息）
+- [ ] EAS Build / TestFlight / Android 渠道 / 微信小程序体验版验收
 
 ---
 
@@ -154,9 +155,10 @@
 - [ ] 自动更新上线
 - [ ] 用户反馈闭环（内嵌反馈面板 → 后端 AIAssistantFeedback）
 
-### M3（M2 + 8 周）：uni-app 移动端/小程序 Beta
-- [ ] uni-app iOS / Android / H5 / 微信小程序 UI 适配
-- [ ] DCloud 云打包、TestFlight、Android 渠道和微信体验版
+### M3（M2 + 8 周）：移动端 / 小程序 Beta
+- [ ] mobile/ (Expo + RN) iOS / Android UI 适配
+- [ ] mini-program/ (Taro) 微信小程序 UI 适配
+- [ ] EAS Build / TestFlight / Android 渠道和微信体验版
 - [ ] 核心场景（AI 查询、案件查看、消息、桌面续接）
 
 ### M4（M3 + 4 周）：多端闭环

@@ -1,4 +1,7 @@
 # TASK-11c 移动端 + 小程序 + 设计系统跨平台校验
+> ⚠️ **2026-05-20 路线纠正**：本文档涉及的 uni-app / apps/uni-mobile 技术链路已**彻底放弃**。
+> 当前移动端路线 = mobile/ (Expo + RN) + mini-program/ (Taro)，详见 PROJECT_STATUS.md 和 PRODUCT_ROADMAP.md。
+> 以下内容保留为历史决策上下文，不代表当前实施方向。
 
 > 波次 4 · 工时估 4-5 天
 > 前置依赖：任务 0（密钥治理 SOP）、任务 1（认证 + token 存储 → 移动端 / 小程序登录链路依赖）、任务 11b（同步引擎 → 跨设备会话延续直接依赖）

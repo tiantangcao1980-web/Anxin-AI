@@ -1,4 +1,7 @@
 # OpenSpec — 商业交付总规范
+> ⚠️ **2026-05-20 路线纠正**：本文档涉及的 uni-app / apps/uni-mobile 技术链路已**彻底放弃**。
+> 当前移动端路线 = mobile/ (Expo + RN) + mini-program/ (Taro)，详见 PROJECT_STATUS.md 和 PRODUCT_ROADMAP.md。
+> 以下内容保留为历史决策上下文，不代表当前实施方向。
 
 > 日期：2026-05-08
 > 范围：将安心智能助手从当前 V2 架构骨架推进到可商业交付候选版。

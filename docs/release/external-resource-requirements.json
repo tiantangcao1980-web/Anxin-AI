@@ -623,108 +623,6 @@
       ]
     },
     {
-      "id": "mobile.uni_app_release",
-      "priority": "P0",
-      "lane": "mobile-mini-device",
-      "title": "uni-app mobile and mini-program release resources",
-      "status": "external_input_required",
-      "items": [
-        {
-          "id": "dcloud_account_appid",
-          "label": "DCloud account, uni-app AppID, and cloud build access",
-          "type": "account",
-          "account_refs": [
-            "DCloud account label",
-            "uni-app app id label"
-          ],
-          "secret": true,
-          "required_for": [
-            "DCloud App cloud build",
-            "uniPush or native plugin setup"
-          ]
-        },
-        {
-          "id": "ios_signing",
-          "label": "Apple Developer Team, Bundle ID, signing certificates, provisioning profiles, and TestFlight access",
-          "type": "account",
-          "account_refs": [
-            "Apple Developer Team label",
-            "Bundle ID",
-            "TestFlight role"
-          ],
-          "secret": true,
-          "required_for": [
-            "iOS device smoke",
-            "TestFlight evidence"
-          ]
-        },
-        {
-          "id": "android_signing",
-          "label": "Android package name, keystore, signing strategy, and target store account",
-          "type": "account",
-          "account_refs": [
-            "Android package name",
-            "keystore label",
-            "target store label"
-          ],
-          "secret": true,
-          "required_for": [
-            "Android device smoke",
-            "release build evidence"
-          ]
-        },
-        {
-          "id": "wechat_mini_program",
-          "label": "WeChat Mini Program AppID/AppSecret, developer permission, and legal domain admin access",
-          "type": "account",
-          "account_refs": [
-            "Mini Program AppID label",
-            "developer role label"
-          ],
-          "secret": true,
-          "required_for": [
-            "wx.login code2session",
-            "request/upload/download/web-view domain evidence"
-          ]
-        },
-        {
-          "id": "device_and_test_accounts",
-          "label": "iOS/Android devices, WeChat DevTools interactive run, staging backend URL, and redacted test account roles",
-          "type": "device_artifact",
-          "device_refs": [
-            "iOS device transcript",
-            "Android device transcript",
-            "WeChat DevTools or real-device transcript"
-          ],
-          "artifact_fields": [
-            "platforms[].build_hash",
-            "platforms[].device",
-            "backend_environment",
-            "tester_role",
-            "screenshot_refs",
-            "log_refs"
-          ],
-          "secret": false,
-          "required_for": [
-            "mobile-device-smoke Status: complete"
-          ]
-        }
-      ],
-      "commands_after_receipt": [
-        "bash scripts/mobile-device-smoke.sh --out docs/release/evidence/artifacts/mobile-mini-code-smoke-YYYYMMDD.json --manual-template-out docs/release/evidence/artifacts/mobile-device-manual-template-YYYYMMDD.json",
-        "bash scripts/uni-mobile-migration-guard.sh",
-        "bash scripts/uni-mobile-smoke.sh --out docs/release/evidence/artifacts/uni-mobile-base-smoke-YYYYMMDD.json"
-      ],
-      "completion_evidence": [
-        "iOS device or TestFlight smoke",
-        "Android device smoke",
-        "WeChat DevTools interactive or real-device smoke",
-        "DCloud App cloud build or official package transcript",
-        "wx.login to code2session with no session_key leak",
-        "desktop/web/mobile cross-device continuation"
-      ]
-    },
-    {
       "id": "ai.llm_embedding_connectors",
       "priority": "P1",
       "lane": "enterprise-agent-governance",
@@ -810,6 +708,65 @@
         "redacted connector configuration evidence",
         "capability policy and audit evidence",
         "security owner approval for any provider exception"
+      ]
+    },
+    {
+      "id": "mobile.expo_native_release",
+      "priority": "P0",
+      "lane": "mobile-mini-device",
+      "title": "Mobile native release resources (Expo EAS Build + WeChat Mini Program)",
+      "status": "external_input_required",
+      "items": [
+        {
+          "id": "expo_token",
+          "label": "Expo / EAS account token (for EAS Build CI)",
+          "type": "env",
+          "env_names": [
+            "EXPO_TOKEN"
+          ],
+          "secret": true,
+          "template_required": true,
+          "required_for": [
+            "mobile-mini-device"
+          ]
+        },
+        {
+          "id": "eas_project_id",
+          "label": "EAS Build project id",
+          "type": "env",
+          "env_names": [
+            "EAS_PROJECT_ID"
+          ],
+          "secret": false,
+          "template_required": true,
+          "required_for": [
+            "mobile-mini-device"
+          ]
+        },
+        {
+          "id": "wechat_mp_appid",
+          "label": "WeChat Mini Program AppID",
+          "type": "env",
+          "env_names": [
+            "WECHAT_MP_APPID"
+          ],
+          "secret": false,
+          "template_required": true,
+          "required_for": [
+            "mobile-mini-device"
+          ]
+        }
+      ],
+      "commands_after_receipt": [
+        "cd mobile && eas build --platform all --profile preview",
+        "cd mini-program && npm run build:weapp",
+        "Upload mini-program via WeChat DevTools and produce experience-version QR + screenshot"
+      ],
+      "completion_evidence": [
+        "real iOS TestFlight or EAS Build artifact",
+        "real Android EAS Build artifact",
+        "WeChat Mini Program experience-version QR + interactive screenshots",
+        "cross-device continuation transcript on real device"
       ]
     }
   ]

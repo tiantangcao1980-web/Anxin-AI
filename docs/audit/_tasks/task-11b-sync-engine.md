@@ -1,4 +1,7 @@
 # TASK-11b 桌面同步引擎（实质从零实现）
+> ⚠️ **2026-05-20 路线纠正**：本文档涉及的 uni-app / apps/uni-mobile 技术链路已**彻底放弃**。
+> 当前移动端路线 = mobile/ (Expo + RN) + mini-program/ (Taro)，详见 PROJECT_STATUS.md 和 PRODUCT_ROADMAP.md。
+> 以下内容保留为历史决策上下文，不代表当前实施方向。
 
 > 波次 4 · 工时估 7-10 天（实质从零）
 > 前置依赖：任务 0（密钥治理 SOP）、任务 1（认证 + token 存储确定 → 同步接口要 Bearer Token）、任务 6（对象存储抽象层 → 文件 records 落地）

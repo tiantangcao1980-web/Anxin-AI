@@ -161,29 +161,23 @@
       "status": "pending_device_evidence",
       "evidence": [
         "scripts/mobile-device-smoke.sh",
-        "scripts/uni-mobile-smoke.sh",
         "docs/release/evidence/mobile-device-smoke.md",
         "docs/release/evidence/artifacts/mobile-device-host-probe-20260508.json",
         "docs/release/evidence/artifacts/mobile-device-manual-template-20260508.json",
         "docs/release/evidence/artifacts/mobile-mini-code-smoke-20260508.json",
         "docs/release/evidence/artifacts/mobile-mini-code-smoke-20260509.json",
-        "docs/release/evidence/artifacts/uni-mobile-base-smoke-20260509.json",
         "docs/release/external-inputs-checklist.md",
         "docs/release/external-resource-handoff.md",
         "docs/release/external-resource-requirements.json",
         "docs/release/third-party-api-preparation.md",
-        "docs/mobile/uni-app-migration-plan.md",
-        "scripts/uni-mobile-migration-guard.sh",
         "mobile/README.md",
         "mini-program/README.md"
       ],
       "verification": [
-        "bash scripts/uni-mobile-migration-guard.sh",
         "bash scripts/mobile-device-smoke.sh --out docs/release/evidence/artifacts/mobile-mini-code-smoke-YYYYMMDD.json --manual-template-out docs/release/evidence/artifacts/mobile-device-manual-template-YYYYMMDD.json",
-        "bash scripts/uni-mobile-smoke.sh --out docs/release/evidence/artifacts/uni-mobile-base-smoke-YYYYMMDD.json",
         "device/DevTools transcripts with screenshots/log artifact references"
       ],
-      "current_result": "Local mobile/mini code smoke was refreshed on 2026-05-09, including mobile Vitest 8 files / 37 tests, mobile TypeScript, result-surface and lawyer-conversion guards, Expo config/SDK/Metro guard, Expo doctor 17/17, production npm audit 0 after targeted overrides for @babel/plugin-transform-modules-systemjs and fast-uri, mini-program TypeScript, privacy/navigation boundary guards, Taro WeChat build, WeChat DevTools CLI project smoke, refresh-auth guards, mobile/mini privacy network guard, fake-fallback guard, and mini-program design token guard; artifact mobile-mini-code-smoke-20260509.json records release_evidence_complete=false. Mobile investigation and knowledge search submissions render in-page result summaries, find-lawyer creates real consultation/chat/delegation paths, desktop-control stays safe-probe only without claiming desktop execution, and mini-program local/top-secret mode fails closed before Taro.request/Taro.login. 2026-05-09 routing decision: future mobile App and Mini Program feature work moves to uni-app; current Expo/Taro surfaces are legacy references and will be cleaned module-by-module only after equivalent uni-app capability, tests, and device/DevTools evidence exist. uni-app base now exists at apps/uni-mobile with migration guard, typecheck, 12 contract tests, production npm audit 0, H5 build, and WeChat Mini Program build passing via uni-mobile-base-smoke-20260509.json. Status remains pending until real iOS app-run, Android, interactive WeChat DevTools/device evidence, DCloud cloud build/signing evidence, mobile remote-control host callback, and cross-device continuation are attached."
+      "current_result": "[已放弃 2026-05-20: uni-app 链路相关内容] Local mobile/mini code smoke was refreshed on 2026-05-09, including mobile Vitest 8 files / 37 tests, mobile TypeScript, result-surface and lawyer-conversion guards, Expo config/SDK/Metro guard, Expo doctor 17/17, production npm audit 0 after targeted overrides for @babel/plugin-transform-modules-systemjs and fast-uri, mini-program TypeScript, privacy/navigation boundary guards, Taro WeChat build, WeChat DevTools CLI project smoke, refresh-auth guards, mobile/mini privacy network guard, fake-fallback guard, and mini-program design token guard; artifact mobile-mini-code-smoke-20260509.json records release_evidence_complete=false. Mobile investigation and knowledge search submissions render in-page result summaries, find-lawyer creates real consultation/chat/delegation paths, desktop-control stays safe-probe only without claiming desktop execution, and mini-program local/top-secret mode fails closed before Taro.request/Taro.login. 2026-05-09 routing decision: future mobile App and Mini Program feature work moves to uni-app; current Expo/Taro surfaces are legacy references and will be cleaned module-by-module only after equivalent uni-app capability, tests, and device/DevTools evidence exist. uni-app base now exists at apps/uni-mobile with migration guard, typecheck, 12 contract tests, production npm audit 0, H5 build, and WeChat Mini Program build passing via uni-mobile-base-smoke-20260509.json. Status remains pending until real iOS app-run, Android, interactive WeChat DevTools/device evidence, DCloud cloud build/signing evidence, mobile remote-control host callback, and cross-device continuation are attached."
     },
     {
       "id": "enterprise-agent-governance",

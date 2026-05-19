@@ -75,18 +75,17 @@ def test_commercial_gate_runs_workstation_settings_e2e():
     assert "e2e/settings-workstation.spec.ts --project=chromium --project=mobile" in script
 
 
-def test_commercial_gate_runs_uni_mobile_migration_guard():
+def test_commercial_gate_no_longer_references_uni_mobile():
+    """[S7] uni-app 技术链路已彻底放弃，commercial gate 不应再引用 uni-mobile 任何步骤。"""
     repo_root = Path(__file__).resolve().parents[2]
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
-    smoke_script = (repo_root / "scripts" / "uni-mobile-smoke.sh").read_text(encoding="utf-8")
-    guard_script = (repo_root / "scripts" / "uni-mobile-migration-guard.sh").read_text(encoding="utf-8")
 
-    assert "scripts/uni-mobile-migration-guard.sh" in script
-    assert 'require_command "uni-mobile migration guard"' in script
-    assert 'run_step "uni-mobile migration guard"' in smoke_script
-    assert "mobile/README.md" in guard_script
-    assert "mini-program/README.md" in guard_script
-    assert "apps/uni-mobile/src/services/api.ts" in guard_script
+    assert "scripts/uni-mobile-migration-guard.sh" not in script
+    assert "scripts/uni-mobile-smoke.sh" not in script
+    assert 'require_command "uni-mobile' not in script
+    # 两个专属脚本已物理删除
+    assert not (repo_root / "scripts" / "uni-mobile-migration-guard.sh").exists()
+    assert not (repo_root / "scripts" / "uni-mobile-smoke.sh").exists()
 
 
 def test_commercial_gate_requires_product_status_consistency_guard():
@@ -99,7 +98,7 @@ def test_commercial_gate_requires_product_status_consistency_guard():
     assert "PRODUCT_ROADMAP.md" in guard_script
     assert "PROJECT_STATUS.md" in guard_script
     assert "Mobile Edition, Tauri iOS/Android" in guard_script
-    assert "Mobile + Mini Program, uni-app" in guard_script
+    # [S7] uni-app 已放弃，product-status guard 不再断言 uni-app 矩阵
 
 
 def test_commercial_gate_runs_agent_approval_workspace_e2e():

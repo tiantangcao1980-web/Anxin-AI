@@ -1,4 +1,7 @@
 # 安心智能助手 — 项目开发与优化计划书（修订版）
+> ⚠️ **2026-05-20 路线纠正**：本文档涉及的 uni-app / apps/uni-mobile 技术链路已**彻底放弃**。
+> 当前移动端路线 = mobile/ (Expo + RN) + mini-program/ (Taro)，详见 PROJECT_STATUS.md 和 PRODUCT_ROADMAP.md。
+> 以下内容保留为历史决策上下文，不代表当前实施方向。
 
 > 版本：v2.0（2026-05-04）
 > 制定基础：基于本人对 18 处具体代码点位的逐一核查 + PROJECT_STATUS / PRODUCT_ROADMAP / DESIGN.md 的对齐

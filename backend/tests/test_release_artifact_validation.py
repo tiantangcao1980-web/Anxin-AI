@@ -425,68 +425,6 @@ def test_release_artifact_validation_accepts_external_unavailable_wechat_devtool
     assert result.returncode == 0, result.stdout
 
 
-def test_release_artifact_validation_accepts_uni_mobile_base_smoke(tmp_path):
-    repo_root = Path(__file__).resolve().parents[2]
-    artifact = tmp_path / "uni-mobile-base-smoke.json"
-    artifact.write_text(
-        json.dumps(
-            {
-                "generated_at": "2026-05-09T00:00:00Z",
-                "mode": "uni_mobile_base_smoke",
-                "status": "passed",
-                "release_evidence_complete": False,
-                "checks": {
-                    "migration_guard": "passed",
-                    "typecheck": "passed",
-                    "contract_tests": "passed",
-                    "production_npm_audit": "passed",
-                    "build_h5": "passed",
-                    "build_mp_weixin": "passed",
-                },
-                "scope": {"base": "apps/uni-mobile"},
-                "completion_note": "Code-level supporting evidence only; device evidence remains pending.",
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    result = _validate(repo_root, artifact)
-
-    assert result.returncode == 0, result.stdout
-
-
-def test_release_artifact_validation_rejects_incomplete_uni_mobile_base_smoke(tmp_path):
-    repo_root = Path(__file__).resolve().parents[2]
-    artifact = tmp_path / "uni-mobile-base-smoke-bad.json"
-    artifact.write_text(
-        json.dumps(
-            {
-                "generated_at": "2026-05-09T00:00:00Z",
-                "mode": "uni_mobile_base_smoke",
-                "status": "passed",
-                "release_evidence_complete": True,
-                "checks": {
-                    "migration_guard": "failed",
-                    "typecheck": "passed",
-                    "contract_tests": "passed",
-                    "production_npm_audit": "passed",
-                    "build_h5": "failed",
-                    "build_mp_weixin": "passed",
-                },
-                "scope": {"base": "mobile"},
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    result = _validate(repo_root, artifact)
-
-    assert result.returncode == 1
-    assert "release_evidence_complete=false" in result.stdout
-    assert "build_h5 must be passed" in result.stdout
-    assert "scope.base must be apps/uni-mobile" in result.stdout
-
-
 def test_release_artifact_validation_accepts_cross_device_continuation_code_smoke(tmp_path):
     repo_root = Path(__file__).resolve().parents[2]
     artifact = tmp_path / "cross-device-continuation-code-smoke.json"
@@ -501,19 +439,17 @@ def test_release_artifact_validation_accepts_cross_device_continuation_code_smok
                 "checks": {
                     "backend_sync_service_continuation": "passed",
                     "frontend_desktop_sync_adapter": "passed",
-                    "uni_mobile_sync_client_contract": "passed",
                 },
                 "covered_flow": [
                     "desktop pushes conversation and first message to backend SyncService",
                     "web and mobile pull the same conversation/message set without duplicate entity ids",
-                    "uni-mobile pushes a reply against the latest server version",
+                    "mobile pushes a reply against the latest server version",
                     "desktop pulls the mobile reply incrementally without lost rows",
                 ],
                 "scope": {
                     "backend": "backend/src/services/sync_service.py",
                     "desktop": "frontend/src/lib/api-adapter.ts",
-                    "future_mobile": "apps/uni-mobile/src/services/sync.ts",
-                    "legacy_mobile": "mobile/ and mini-program/ remain reference-only until migration evidence closes",
+                    "mobile": "mobile/src/services/sync.ts",
                     "evidence_level": "code_level_rehearsal",
                 },
                 "pending_external_evidence": [
@@ -552,11 +488,10 @@ def test_release_artifact_validation_rejects_incomplete_cross_device_continuatio
                 "checks": {
                     "backend_sync_service_continuation": "passed",
                     "frontend_desktop_sync_adapter": "failed",
-                    "uni_mobile_sync_client_contract": "passed",
                 },
                 "covered_flow": ["desktop push"],
                 "scope": {
-                    "future_mobile": "mobile/src/services/api.ts",
+                    "mobile": "mobile/src/services/api.ts",
                     "evidence_level": "runtime_complete",
                 },
                 "pending_external_evidence": ["signed_notarized_desktop_package"],
@@ -573,7 +508,6 @@ def test_release_artifact_validation_rejects_incomplete_cross_device_continuatio
     assert "runtime_evidence_complete=false" in result.stdout
     assert "frontend_desktop_sync_adapter must be passed" in result.stdout
     assert "must include covered_flow steps" in result.stdout
-    assert "scope.future_mobile must be apps/uni-mobile/src/services/sync.ts" in result.stdout
     assert "missing pending external evidence markers" in result.stdout
 
 

@@ -371,35 +371,9 @@ def _validate_mobile_mini_code_smoke(path: Path, payload: dict[str, Any], failur
             )
 
 
-def _validate_uni_mobile_base_smoke(path: Path, payload: dict[str, Any], failures: list[str]) -> None:
-    if payload.get("mode") != "uni_mobile_base_smoke":
-        return
-    if payload.get("release_evidence_complete") is not False:
-        failures.append(f"{path}: uni-mobile base smoke must set release_evidence_complete=false")
-    if payload.get("status") != "passed":
-        failures.append(f"{path}: uni-mobile base smoke must have status=passed")
-
-    checks = payload.get("checks")
-    if not isinstance(checks, dict):
-        failures.append(f"{path}: uni-mobile base smoke must include checks object")
-        return
-    for check_name in (
-        "migration_guard",
-        "typecheck",
-        "contract_tests",
-        "production_npm_audit",
-        "build_h5",
-        "build_mp_weixin",
-    ):
-        if checks.get(check_name) != "passed":
-            failures.append(f"{path}: uni-mobile base smoke {check_name} must be passed")
-
-    scope = payload.get("scope")
-    if not isinstance(scope, dict):
-        failures.append(f"{path}: uni-mobile base smoke must include scope")
-    else:
-        if scope.get("base") != "apps/uni-mobile":
-            failures.append(f"{path}: uni-mobile base smoke scope.base must be apps/uni-mobile")
+# [S7] uni-app 技术链路已彻底放弃，原 _validate_uni_mobile_base_smoke
+#      及其 dispatcher 调用已移除。如有遗留旧 uni-mobile artifact，
+#      validate 会跳过（mode 不匹配任何已知 validator）。
 
 
 def _validate_cross_device_continuation_code_smoke(
@@ -423,7 +397,7 @@ def _validate_cross_device_continuation_code_smoke(
     for check_name in (
         "backend_sync_service_continuation",
         "frontend_desktop_sync_adapter",
-        "uni_mobile_sync_client_contract",
+        # [S7] uni_mobile_sync_client_contract 已移除，uni-app 链路放弃
     ):
         if checks.get(check_name) != "passed":
             failures.append(f"{path}: cross-device continuation code smoke {check_name} must be passed")
@@ -436,10 +410,7 @@ def _validate_cross_device_continuation_code_smoke(
     if not isinstance(scope, dict):
         failures.append(f"{path}: cross-device continuation code smoke must include scope")
     else:
-        if scope.get("future_mobile") != "apps/uni-mobile/src/services/sync.ts":
-            failures.append(
-                f"{path}: cross-device continuation code smoke scope.future_mobile must be apps/uni-mobile/src/services/sync.ts"
-            )
+        # [S7] uni-app 已放弃；scope.future_mobile 字段不再强制要求 uni-mobile 路径
         if scope.get("evidence_level") != "code_level_rehearsal":
             failures.append(
                 f"{path}: cross-device continuation code smoke scope.evidence_level must be code_level_rehearsal"
@@ -1427,7 +1398,7 @@ def validate_json_artifact(path: Path) -> ValidationResult:
     _validate_rag_failure_diagnostics(path, payload, failures)
     _validate_mobile_device_manual_template(path, payload, failures)
     _validate_mobile_mini_code_smoke(path, payload, failures)
-    _validate_uni_mobile_base_smoke(path, payload, failures)
+    # [S7] _validate_uni_mobile_base_smoke 已删除（uni-app 链路放弃）
     _validate_cross_device_continuation_code_smoke(path, payload, failures)
     _validate_agent_governance_code_smoke(path, payload, failures)
     _validate_agent_connector_local_rehearsal(path, payload, failures)
