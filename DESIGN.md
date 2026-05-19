@@ -3,6 +3,28 @@
 > 单一设计真相源。`docs/design-system.md` 保留实现说明与历史背景；当两者冲突时，以本文件为准。
 > 适用范围：`frontend/` Web 主界面优先，随后同步到 `mobile/` 与 `mini-program/`。
 
+---
+
+## ⚠️ 2026-05 Reset 公告（必读）
+
+PR #9 上轮 V3 升级落地了「8 业务域 × 8 高饱和色拼盘 + emoji 图标 + Inter 字体」方案，
+违反 `ui-design` skill 多条硬性禁令（FORBIDDEN COLORS / FORBIDDEN FONTS / NEVER USE EMOJI），
+也违反本文件 §1 写的「不像 SaaS 控制台 / 不强调 AI 感」原则。
+
+**2026-05 Reset 后的设计方向**：
+- **Aesthetic Direction**：**Editorial Luxury**（克制的奢华 · 编辑级排版）
+- **业务域可视化**：不用色彩区分（见 §10）。用序号 01–08 + 衬线域名 + Lucide 图标 + 字距层次
+- **品牌色**：单一琥珀橙 `--primary` 仅出现在 CTA / 1px active 线 / 焦点环
+- **字体**：中文系统字体（PingFang SC / Microsoft YaHei / Noto Sans SC）+ Editorial Serif（Noto Serif SC）
+- **图标**：Lucide（Web）/ Ionicons（RN 平台 API） — 全单色线性，**禁用 emoji 作 UI 图标**
+
+详细 Reset 记录：[docs/design/ui-audit-and-upgrade-2026-05.md](docs/design/ui-audit-and-upgrade-2026-05.md)
+独立 Prototype：[docs/design/v3-prototype-editorial.html](docs/design/v3-prototype-editorial.html)
+
+下文 §1-§9 的内容仍是设计真相源，但 §3 字体表与 §10（新增）覆盖了 Reset 后的最终决策；如有冲突以 Reset 章节为准。
+
+---
+
 ## 1. Visual Theme & Atmosphere
 
 安心智能助手的界面不是通用 SaaS 控制台，也不是刻意强调“AI 感”的炫技产品。它应该像一间被精心整理过的专业法律工作室：光线柔和、秩序清晰、层级克制，始终把判断、风险和证据放在视觉优先级的前面。品牌气质要传达“可信赖的专业协作伙伴”，而不是“高刺激的技术平台”。这意味着页面需要保留足够的留白和呼吸感，但不能松散；要有明显的结构边界，但不能显得刻板或官僚；要让用户感受到系统正在高效工作，但不能用过量动画和色彩制造噪声。
@@ -66,23 +88,26 @@
 
 ## 3. Typography Rules
 
-### Font Families
-- **Primary Sans**: `"Inter", "PingFang SC", "Microsoft YaHei UI", "Noto Sans SC", system-ui, sans-serif`
-- **Secondary Serif**: `"Source Han Serif SC", "Songti SC", "STSong", serif`，仅用于打印文档或正式文书预览。
-- **Monospace**: `"JetBrains Mono", "SF Mono", "Fira Code", Consolas, monospace`
+### Font Families (Reset 后)
+- **Primary Sans**: `"PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`
+  - ❌ 禁用 `Inter` / `Roboto` / `Arial` / `Helvetica` / `Helvetica Neue` / `system-ui` / `-apple-system` / `BlinkMacSystemFont`（`ui-design` skill FORBIDDEN FONTS）
+- **Secondary Serif**: `"Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", "SimSun", serif`
+  - Reset 后**升级为 Display + H1 + 业务域名 + 文档预览的主担字体**（承载 Editorial Luxury 气质）
+- **Monospace**: `"JetBrains Mono", "SF Mono", "Menlo", "Monaco", "Consolas", monospace`
 
-### Hierarchy Table
+### Hierarchy Table (Reset 后 — Editorial Luxury)
 
 | Role | Font | Size | Weight | Line Height | Letter Spacing | Notes |
 |------|------|------|--------|-------------|----------------|-------|
-| Display Hero | Primary Sans | 40px | 500 | 1.2 | -0.03em | 仅首页/品牌展示 |
-| Page Title | Primary Sans | 32px | 500 | 1.25 | -0.02em | 一级页面标题 |
-| Section Title | Primary Sans | 24px | 500 | 1.3 | -0.01em | 区块标题 |
-| Panel Title | Primary Sans | 20px | 500 | 1.35 | -0.01em | 卡片/面板标题 |
+| Display Hero | **Secondary Serif** | 48px | 500 | 1.1 | -0.04em | Login / DomainHomePage / WelcomeGuide |
+| Page Title (H1) | **Secondary Serif** | 32px | 500 | 1.2 | -0.02em | 业务子页主标题、业务域名 |
+| Section Title (H2) | Primary Sans | 24px | 500 | 1.3 | -0.01em | 区块标题 |
+| Panel Title (H3) | Primary Sans | 18px | 600 | 1.4 | -0.005em | 卡片/面板标题 |
 | Lead Body | Primary Sans | 16px | 400 | 1.75 | 0 | 长文本、AI 回复 |
-| Body | Primary Sans | 14px | 400 | 1.65 | 0 | 标准正文 |
+| Body | Primary Sans | 15px | 400 | 1.65 | 0 | 标准正文 |
 | Small Body | Primary Sans | 13px | 400 | 1.6 | 0 | 表格、说明 |
-| Caption | Primary Sans | 12px | 400 | 1.5 | 0.01em | 时间戳、弱标签 |
+| Caption | Primary Sans | 13px | 400 | 1.5 | 0.01em | 时间戳、弱标签 |
+| **Micro tracker** | **Primary Sans** | **11px** | **500** | **1.4** | **0.16em** UPPERCASE | Editorial 标志细节 — 「LEGAL · 01」「INDEX · 业务域目录」类元信息 |
 | Data Emphasis | Primary Sans | 14px | 500 | 1.5 | 0 | 指标和数值 |
 | Code / Token | Monospace | 12px | 500 | 1.5 | 0 | 标识符、命令、日志 |
 
@@ -348,6 +373,71 @@
 - 这个标题是否真的需要 `font-bold`？
 - 这个间距和圆角是否落在定义尺度内？
 
+## 10. 业务域可视化（V3 Reset 后核心规范）
+
+V3 安心智能助手覆盖 8 大业务域：法务 / 财务 / 税务 / 合规 / 经营管理 / 调研获客 / 内容产出 / 出海跨境。
+
+### 10.1 核心原则
+> **业务域不用色彩区分。** 单一品牌琥珀橙作为唯一彩色锚点，不扩散到 8 个域。
+
+理由（综合 `ui-design` skill + DESIGN.md §1）：
+- 8 个高饱和度业务域色形成「通用 SaaS dashboard 拼盘」，违反 §1「不像 SaaS 控制台 / 不强调 AI 感」
+- 紫色族业务域色（曾用于"经营管理"）违反 `ui-design` skill FORBIDDEN COLORS
+- 业务域是「分类」，不是「状态」；状态色 (`--success/--warning/--destructive`) 才需要色彩
+
+### 10.2 区分手段（克制 → Editorial）
+| 手段 | 用法 |
+|------|------|
+| **序号 01–08** | serif tabular-nums，承载「目录感」 |
+| **衬线域名** | Secondary Serif 字体（Noto Serif SC），H1/H2 字号 |
+| **Lucide 单色图标** | `Scale` / `Calculator` / `Landmark` / `ShieldCheck` / `LineChart` / `Compass` / `PenLine` / `Globe2`。1.5px stroke，单色 `text-foreground/70` |
+| **Micro tracker** | `LABELEN · 01` 形如「LEGAL · 01」，0.16em UPPERCASE tracking |
+| **字距 + 字号层次** | 取代色彩层次 |
+
+❌ **禁止用** 8 种颜色卡片墙、emoji 图标、域色 stripe、域色 dot、域色 underline。
+
+### 10.3 业务域元数据真相源
+唯一注册表：[`frontend/src/lib/domains.ts`](frontend/src/lib/domains.ts)
+- `DOMAINS: readonly DomainMeta[]` — 按固定顺序 (legal → global) 暴露
+- `DomainMeta` 字段：`id / label / labelEn / tagline / defaultPath / icon`（**无 color/surface/cssVar**）
+- `inferDomainFromPath(pathname)` — 由路径推断业务域
+
+跨端同步：
+- `mobile/src/theme/colors.ts` → `domainMeta`（仅 labelZh/labelEn）
+- `mini-program/src/styles/design-tokens.ts` → `domainMeta`（同上）
+
+### 10.4 落地组件（5 个原子）
+| 组件 | 文件 | 用途 |
+|------|------|------|
+| `<DomainBadge>` | `components/ui/domain.tsx` | micro UPPERCASE 文字「LEGAL · 法务」 |
+| `<DomainStripe>` | 同上 | Reset 后保留为 no-op shim（旧版 4pt 彩条已废除） |
+| `<DomainCard>` | 同上 | 序号 + 衬线名 + tagline + Lucide + → 图标，1px hairline 边 |
+| `<DomainGrid>` | 同上 | 编辑级 2 列目录（**不是** 4×2 卡片墙） |
+| `<DomainBreadcrumb>` | `components/ui/DomainBreadcrumb.tsx` | 纯文字 micro UPPERCASE「LEGAL · 法务 · 合同审查」 |
+
+### 10.5 落地页面
+| 页面 | 关键设计 |
+|------|----------|
+| Login (`/login`) | 7+5 不对称 grid · 左侧 serif Display + 8 域 serif 编号目录 |
+| DomainHomePage (`/domains`) | 4+8 编辑部双栏 · 左 8 业务域 serif 名录 · 右当前域子页列 |
+| WelcomeGuide modal | 首登触发 · 编辑部目录式 8 行 · 单 CTA「打开 AI 对话」 |
+| Layout 顶栏 | active = 1px primary underline（**非业务域色** underline）|
+| Layout 侧栏 | active = 1px primary 左线（**非业务域** stripe / dot）|
+| 业务子页 | `<DomainBreadcrumb>` + 序号 + 衬线 H1，**不要** `<DomainStripe>` 4pt 彩条 |
+
+### 10.6 守护断言（防回归）
+跨端 vitest 已对以下违规行为加反向断链 fail：
+- 任何 `--domain-*` CSS 变量
+- 任何 `colors.domain.*` Tailwind utility
+- 任何 8 域专属 hex 在 token 文件
+- 紫色族 hue 260-290 在 design token 变量
+- `Inter` / `system-ui` / `-apple-system` / `Helvetica` / `Roboto` 等 FORBIDDEN FONTS
+- emoji 字面值在业务组件源码
+
+详细 95+ 条断言：`frontend/src/brand-consistency.test.ts` + `mobile/src/brand-consistency.test.ts` + `mini-program/src/styles/design-tokens.test.ts` 等
+
+---
+
 ## Changelog
 
 | Date | Change | Reason | Scope |
@@ -361,3 +451,4 @@
 | 2026-04-15 | Batch 4 硬编码清理 | 硬编码标题 24→0；p-6 padding 34→0；按钮 rounded-lg→rounded-2xl（主要按钮）；tracking-tight→heading tokens | 25+ files |
 | 2026-04-15 | 新增统一状态组件 | EmptyState/LoadingState/ErrorState 三组统一 UI 状态组件，替代 72+122+142 文件各自为政的实现 | src/components/common/ |
 | 2026-04-15 | Batch 5 桌面端 MVP | Tauri 全局快捷键 Cmd+Shift+Space；参考 ClawX/Qclaw 呼出式交互；多端产品路线图 PRODUCT_ROADMAP.md | desktop/ + PRODUCT_ROADMAP.md |
+| 2026-05-20 | **Editorial Luxury Reset** | 按 `ui-design` skill 标准全量 Reset：删 8 域高饱和色（含违禁紫色）+ 删 Inter/system-ui FORBIDDEN FONTS + 删 emoji 图标。Aesthetic Direction 确认为 Editorial Luxury。8 业务域改用 序号+衬线+Lucide 区分。新增 §10 业务域可视化规范 + 95+ 跨端反向断链守护。 | 三端 token + 5 原子组件 + 4 落地页 + DESIGN.md + ui-audit doc |
