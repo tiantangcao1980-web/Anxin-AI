@@ -75,6 +75,9 @@ def test_persona_auto_registered():
     from src.agents.personas.registry import PersonaRegistry
 
     reg = PersonaRegistry.instance()
+    # 全运行时如其它测试调过 reset_instance()，这里显式 autoload 恢复 registry
+    if not reg.has("tax_finance_advisor"):
+        reg.autoload()
     assert reg.has("tax_finance_advisor")
 
 

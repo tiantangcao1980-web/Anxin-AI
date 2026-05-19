@@ -276,7 +276,16 @@ async def test_issue_route_token_enforces_consumer_and_scope(db_session, test_or
         requested_scopes=["browser:write"],
     )
 
-    leases = (await db_session.execute(select(CapabilityRouteTokenLease))).scalars().all()
+    # 按 org_id 过滤，避免与全运行时其它测试在同 SQLite memory DB 中的 lease 残留冲突
+    # （test_session 是 StaticPool + 共享 in-memory DB；其它测试虽各自 rollback，但
+    # 若 autoflush 时序不对仍可能跨测试可见）
+    leases = (
+        await db_session.execute(
+            select(CapabilityRouteTokenLease).where(
+                CapabilityRouteTokenLease.org_id == test_organization.id
+            )
+        )
+    ).scalars().all()
 
     assert bad_consumer.allowed is False
     assert bad_consumer.reason_code == "consumer_not_allowed"

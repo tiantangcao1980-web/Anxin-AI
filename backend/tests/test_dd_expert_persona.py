@@ -121,10 +121,13 @@ def test_persona_metadata_and_registry():
     assert "evidence_analyst" in persona.backed_by_agents
     assert "sentiment_agent" in persona.backed_by_agents
 
-    # 自动注册
+    # 自动注册（在全运行时如其它测试 reset_instance() 污染了单例，
+    # 这里显式 autoload 以恢复 registry 状态）
     from src.agents.personas.registry import PersonaRegistry
 
     reg = PersonaRegistry.instance()
+    if not reg.has("due_diligence_expert"):
+        reg.autoload()
     assert reg.has("due_diligence_expert")
 
 
