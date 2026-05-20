@@ -83,7 +83,7 @@ resolve_path() {
 APP_PATH="$(resolve_path "$APP_PATH")"
 OUT_PATH="$(resolve_path "$OUT_PATH")"
 UI_LOG_OUT_PATH="$(resolve_path "$UI_LOG_OUT_PATH")"
-BINARY_PATH="$APP_PATH/Contents/MacOS/anxin-legal-desktop"
+BINARY_PATH="$APP_PATH/Contents/MacOS/anxin-ai-desktop"
 DMG_DIR="$PROJECT_ROOT/desktop/target/release/bundle/dmg"
 
 TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/anxin-release-runtime-smoke.XXXXXX")"
@@ -151,7 +151,7 @@ required = {
 }
 present = set(report.get("required_tables_present") or [])
 missing = sorted(required - present)
-if report.get("app") != "anxin-legal-desktop":
+if report.get("app") != "anxin-ai-desktop":
     raise SystemExit("unexpected app id")
 if report.get("local_db_url") != "sqlcipher:anxin_local.db":
     raise SystemExit("unexpected local db url")

@@ -15,6 +15,7 @@ from typing import Any, cast
 
 from loguru import logger
 
+from src.agents._prompt_safety import USER_INPUT_BOUNDARY, wrap_user_input
 from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
 from src.services.scenario_templates import (
@@ -1273,7 +1274,11 @@ class CoordinatorAgent(BaseLegalAgent):
                 return cached_result
 
         try:
-            prompt = f"用户输入：{description}\n\n请分析意图（只输出JSON）："
+            prompt = (
+                f"{USER_INPUT_BOUNDARY}\n\n"
+                f"请分析下列用户输入的意图（只输出 JSON）：\n"
+                f"{wrap_user_input(description, label='description')}"
+            )
 
             # 使用 system_prompt_override + max_tokens 限制，加速意图分类响应
             response_text = await self.chat(

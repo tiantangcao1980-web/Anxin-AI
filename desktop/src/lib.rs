@@ -79,7 +79,7 @@ pub fn desktop_runtime_self_test() -> DesktopRuntimeSelfTest {
     ];
 
     DesktopRuntimeSelfTest {
-        app: "anxin-legal-desktop",
+        app: "anxin-ai-desktop",
         local_db_url: services::local_db::LOCAL_DB_URL,
         migration_count: migrations.len(),
         migration_versions: migrations
@@ -527,7 +527,7 @@ mod tests {
     fn runtime_self_test_reports_local_db_contract() {
         let report = desktop_runtime_self_test();
 
-        assert_eq!(report.app, "anxin-legal-desktop");
+        assert_eq!(report.app, "anxin-ai-desktop");
         assert_eq!(report.local_db_url, "sqlcipher:anxin_local.db");
         assert_eq!(report.migration_count, 1);
         assert_eq!(report.migration_versions, vec![1]);

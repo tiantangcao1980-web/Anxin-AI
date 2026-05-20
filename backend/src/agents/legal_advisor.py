@@ -4,6 +4,7 @@
 
 from typing import Any
 
+from src.agents._prompt_safety import USER_INPUT_BOUNDARY, wrap_user_input
 from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
 
@@ -34,7 +35,7 @@ class LegalAdvisorAgent(BaseLegalAgent):
 请对以下法律问题提供专业咨询：
 
 问题描述：
-{description}
+{wrap_user_input(description, label='description')}
 
 背景信息：
 {context.get('background', '无')}

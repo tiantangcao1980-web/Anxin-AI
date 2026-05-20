@@ -276,18 +276,16 @@ async def test_issue_route_token_enforces_consumer_and_scope(db_session, test_or
         requested_scopes=["browser:write"],
     )
 
-    # G4 (2026-05-14): 只看本测试 route_key=limited-route 的 lease, 避免被
-    # 之前测试遗留的同 db_session 的其它 lease 污染断言.
-    from src.models import CapabilityRoute
-    route_id = (await db_session.execute(
-        select(CapabilityRoute.id).where(
-            CapabilityRoute.org_id == test_organization.id,
-            CapabilityRoute.route_key == "limited-route",
+    # 按 org_id 过滤，避免与全运行时其它测试在同 SQLite memory DB 中的 lease 残留冲突
+    # （test_session 是 StaticPool + 共享 in-memory DB；其它测试虽各自 rollback，但
+    # 若 autoflush 时序不对仍可能跨测试可见）
+    leases = (
+        await db_session.execute(
+            select(CapabilityRouteTokenLease).where(
+                CapabilityRouteTokenLease.org_id == test_organization.id
+            )
         )
-    )).scalar_one()
-    leases = (await db_session.execute(
-        select(CapabilityRouteTokenLease).where(CapabilityRouteTokenLease.route_id == route_id)
-    )).scalars().all()
+    ).scalars().all()
 
     assert bad_consumer.allowed is False
     assert bad_consumer.reason_code == "consumer_not_allowed"

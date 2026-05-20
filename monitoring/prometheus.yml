@@ -1,30 +1,40 @@
-# Prometheus 配置 — 安心智能助手监控
+# Prometheus 配置 — Anxin AI 安心智能助手监控
+#
+# 服务发现：所有 target 使用 docker-compose 中的 service 名作为 hostname，
+# 容器在 legal-network 中互相 DNS 可达。
+#
+# 升级时检查：backend port (BACKEND_PORT in config.py), metrics_path
+# (backend/src/api/routes/metrics.py @router.get("/metrics") 挂在
+# /api/v1 prefix 下 → 实际路径 /api/v1/metrics)。
+
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
 scrape_configs:
-  # FastAPI 后端指标
+  # FastAPI 后端业务指标（prometheus_client + 自定义 collector）
+  # 实际端口 8001（uvicorn --port 8001），路径 /api/v1/metrics
   - job_name: 'anxin-backend'
     metrics_path: '/api/v1/metrics'
     static_configs:
-      - targets: ['backend:8005']
+      - targets: ['backend:8001']
         labels:
           service: 'anxin-api'
 
-  # PostgreSQL 指标（需要 postgres_exporter）
-  - job_name: 'postgres'
-    static_configs:
-      - targets: ['postgres:5432']
-        labels:
-          service: 'postgres'
+  # PostgreSQL 指标：需先部署 postgres_exporter（默认端口 9187）
+  # 未部署前注释掉以避免 "no such target" 噪声日志
+  # - job_name: 'postgres'
+  #   static_configs:
+  #     - targets: ['postgres_exporter:9187']
+  #       labels:
+  #         service: 'postgres'
 
-  # Redis 指标
-  - job_name: 'redis'
-    static_configs:
-      - targets: ['redis:6379']
-        labels:
-          service: 'redis'
+  # Redis 指标：需先部署 redis_exporter（默认端口 9121）
+  # - job_name: 'redis'
+  #   static_configs:
+  #     - targets: ['redis_exporter:9121']
+  #       labels:
+  #         service: 'redis'
 
   # Prometheus 自身
   - job_name: 'prometheus'

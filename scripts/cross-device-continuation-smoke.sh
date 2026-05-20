@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Code-level cross-device conversation continuation rehearsal.
 #
-# This proves the local sync contracts across backend, desktop web adapter, and
-# the new uni-app base. It does not prove signed desktop packages, real mobile
-# devices, WeChat DevTools interaction, DCloud cloud build/signing, or a shared
-# staging account session.
+# This proves the local sync contracts across backend and desktop web adapter.
+# It does not prove signed desktop packages, real mobile devices, WeChat
+# DevTools interaction, DCloud cloud build/signing, or a shared staging account
+# session.
+#
+# [S7 2026-05-20] uni-app sync client contract step removed (uni-app abandoned).
 
 set -euo pipefail
 
@@ -20,7 +22,6 @@ Options:
 Checks:
   - backend SyncService cross-device no-lost/no-duplicate continuation test
   - frontend desktop sync adapter Vitest slice
-  - uni-app sync client contract tests
 EOF
 }
 
@@ -78,8 +79,7 @@ run_step "backend cross-device SyncService continuation" \
 run_step "frontend desktop sync adapter" \
   bash -lc "cd frontend && npm test -- api-adapter.sync.test.ts"
 
-run_step "uni-mobile sync client contract" \
-  bash -lc "cd apps/uni-mobile && npm test -- src/services/sync.test.ts src/services/api.test.ts"
+# [S7] uni-mobile sync client contract 步骤已移除（uni-app 链路放弃）
 
 if [ -n "$OUT_PATH" ]; then
   python3 - "$OUT_PATH" <<'PY'
@@ -98,19 +98,17 @@ report = {
     "checks": {
         "backend_sync_service_continuation": "passed",
         "frontend_desktop_sync_adapter": "passed",
-        "uni_mobile_sync_client_contract": "passed",
     },
     "covered_flow": [
         "desktop pushes conversation and first message to backend SyncService",
         "web and mobile pull the same conversation/message set without duplicate entity ids",
-        "uni-mobile pushes a reply against the latest server version",
+        "mobile pushes a reply against the latest server version",
         "desktop pulls the mobile reply incrementally without lost rows",
     ],
     "scope": {
         "backend": "backend/src/services/sync_service.py",
         "desktop": "frontend/src/lib/api-adapter.ts",
-        "future_mobile": "apps/uni-mobile/src/services/sync.ts",
-        "legacy_mobile": "mobile/ and mini-program/ remain reference-only until migration evidence closes",
+        "mobile": "mobile/src/services/sync.ts",
         "evidence_level": "code_level_rehearsal",
     },
     "pending_external_evidence": [

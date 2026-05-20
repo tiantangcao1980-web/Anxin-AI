@@ -1,4 +1,7 @@
 # TASK-11c PRD vs 代码现实差分
+> ⚠️ **2026-05-20 路线纠正**：本文档涉及的 uni-app / apps/uni-mobile 技术链路已**彻底放弃**。
+> 当前移动端路线 = mobile/ (Expo + RN) + mini-program/ (Taro)，详见 PROJECT_STATUS.md 和 PRODUCT_ROADMAP.md。
+> 以下内容保留为历史决策上下文，不代表当前实施方向。
 
 > 日期：2026-05-07
 > 范围：移动端、小程序、跨平台设计 token、移动错误态和真机验收。

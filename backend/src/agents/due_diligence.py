@@ -4,6 +4,7 @@
 
 from typing import Any
 
+from src.agents._prompt_safety import USER_INPUT_BOUNDARY, wrap_user_input
 from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
 
@@ -33,7 +34,7 @@ class DueDiligenceAgent(BaseLegalAgent):
         prompt = f"""
 请对以下企业进行尽职调查：
 
-调查需求：{description}
+调查需求：{wrap_user_input(description, label='description')}
 目标企业：{company_name or '请从描述中识别'}
 
 请从以下维度进行全面调查：

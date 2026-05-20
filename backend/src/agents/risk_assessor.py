@@ -4,6 +4,7 @@
 
 from typing import Any
 
+from src.agents._prompt_safety import USER_INPUT_BOUNDARY, wrap_user_input
 from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
 
@@ -44,7 +45,7 @@ class RiskAssessmentAgent(BaseLegalAgent):
         prompt = f"""
 请对以下事项进行法律风险评估：
 
-评估对象：{description}
+评估对象：{wrap_user_input(description, label='description')}
 {context_text}
 {context_info}
 

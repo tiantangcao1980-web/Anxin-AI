@@ -134,7 +134,7 @@ async def test_cross_device_conversation_continuation_has_no_lost_or_duplicate_r
 
     mobile_push = await service.push(
         user_id=test_user.id,
-        device_id="uni-mobile-a",
+        device_id="mobile-a",
         last_sync_version=desktop_push["server_version"],
         records=[
             _sync_record(
@@ -162,7 +162,7 @@ async def test_cross_device_conversation_continuation_has_no_lost_or_duplicate_r
         entity_types=["message"],
     )
     assert [record["entity_id"] for record in desktop_resume["records"]] == ["msg-mobile-1"]
-    assert desktop_resume["records"][0]["device_id"] == "uni-mobile-a"
+    assert desktop_resume["records"][0]["device_id"] == "mobile-a"
     assert desktop_resume["records"][0]["data"]["conversation_id"] == "conv-cross-1"
 
 

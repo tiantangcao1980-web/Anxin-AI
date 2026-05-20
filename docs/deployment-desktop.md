@@ -236,7 +236,7 @@ A: Tauri 在运行时拒绝任何未签名的更新包，自动更新**功能性
 A: 私钥不进仓库；集中存放在 1Password/Bitwarden 企业保险库，仅 release 管理员有权访问。CI 只读 secret。
 
 **Q: macOS 为什么弹出“想要使用钥匙串中的机密信息”**
-A: 这是系统 Keychain 在保护本机 SQLCipher 数据库主密钥，不是每个业务实体都要求输入密码。调试二进制、直接运行 `target/debug/anxin-legal-desktop`、未签名 `.app` 或每次重建后的 unsigned bundle，都会让 macOS 重新判断“这是不是同一个可信 App”，所以比正式签名包更容易弹窗。代码层已缓存本进程内的 SQLCipher key，避免同一轮启动里每次查询都读 Keychain；商业发布仍必须用稳定 Developer ID 签名和 notarization，让 Keychain 授权绑定到稳定应用身份。
+A: 这是系统 Keychain 在保护本机 SQLCipher 数据库主密钥，不是每个业务实体都要求输入密码。调试二进制、直接运行 `target/debug/anxin-ai-desktop`、未签名 `.app` 或每次重建后的 unsigned bundle，都会让 macOS 重新判断“这是不是同一个可信 App”，所以比正式签名包更容易弹窗。代码层已缓存本进程内的 SQLCipher key，避免同一轮启动里每次查询都读 Keychain；商业发布仍必须用稳定 Developer ID 签名和 notarization，让 Keychain 授权绑定到稳定应用身份。
 
 ---
 

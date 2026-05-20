@@ -4,6 +4,7 @@
 
 from typing import Any
 
+from src.agents._prompt_safety import USER_INPUT_BOUNDARY, wrap_user_input
 from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
 
@@ -33,7 +34,7 @@ class ComplianceAgent(BaseLegalAgent):
         prompt = f"""
 请对以下事项进行合规审核：
 
-审核事项：{description}
+审核事项：{wrap_user_input(description, label='description')}
 审核领域：{compliance_area or '综合合规'}
 
 请提供：

@@ -1,5 +1,5 @@
 # ============================================================
-# AI法务智能体系统 - Git 忽略规则
+# Anxin AI 安心智能助手 - Git 忽略规则
 # ============================================================
 
 # ==================== Python ====================
@@ -14,6 +14,16 @@ build/
 *.egg
 backend/.venv/
 backend/venv/
+
+# ==================== 本地数据库 / 调试产物 ====================
+*.db
+*.sqlite
+*.sqlite3
+backend/local_test.db
+backend/debug_*.py
+backend/verify_*.py
+backend/check_system_integrity.py
+backend/create_test_db.py
 
 # ==================== Node.js ====================
 /frontend/node_modules/

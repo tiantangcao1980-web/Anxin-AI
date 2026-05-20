@@ -16,6 +16,7 @@ import json
 import re
 from typing import Any, cast
 
+from src.agents._prompt_safety import USER_INPUT_BOUNDARY, wrap_user_input
 from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 
 _SYSTEM_PROMPT = """你是一位资深的法律审查质量控制专家，负责验证合同审查结论的准确性和完整性。
@@ -85,7 +86,7 @@ class ReviewCheckerAgent(BaseLegalAgent):
         prompt = f"""请验证以下合同审查结果的质量：
 
 【调查阶段发现】：
-- 任务说明：{description}
+- 任务说明：{wrap_user_input(description, label='description')}
 - 合同类型：{investigation.get('contract_type', '未知')}
 - 缺失要素：{json.dumps(investigation.get('missing_elements', []), ensure_ascii=False)}
 - 初步风险：{json.dumps(investigation.get('preliminary_risks', []), ensure_ascii=False)}

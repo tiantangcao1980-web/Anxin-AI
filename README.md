@@ -117,7 +117,7 @@ bash scripts/deploy-managed-agent.sh regulation-monitor --local
 │         桌面工作站（Tauri 2 + Rust）                         │
 │  系统托盘 · 全局快捷键 · 本地 LLM · SQLCipher 加密 · 远控     │
 ├────────────────────────────────────────────────────────────┤
-│   移动端（Expo RN）  ·  UniApp 跨端  ·  微信小程序（Taro）    │
+│   移动端（Expo RN）  ·  微信小程序（Taro）                  │
 │   桌面远控配对授权 · 离线缓存 · 推送通知 · 生物识别            │
 ├────────────────────────────────────────────────────────────┤
 │         Web 端（React 18 + Vite + Tailwind）                │
@@ -150,7 +150,7 @@ bash scripts/deploy-managed-agent.sh regulation-monitor --local
 | **对象存储** | MinIO（S3 兼容） |
 | **Web 前端** | React 18 · Vite 7 · TypeScript 5 · Tailwind 3 · shadcn/Radix · Zustand · Tiptap |
 | **桌面** | Tauri 2 · Rust (Edition 2021) · SQLCipher · OS Keyring |
-| **移动** | Expo 52 · React Native 0.76（`mobile/`） + UniApp Vue3（`apps/uni-mobile/`） |
+| **移动** | Expo 52 · React Native 0.76（`mobile/`） |
 | **小程序** | Taro 3.6 + React |
 | **音视频** | LiveKit |
 | **可观测** | Sentry · Prometheus · Grafana · OpenTelemetry |
@@ -223,7 +223,7 @@ bash scripts/commercial-readiness-gate.sh --quick
 | api-design | REST / WS / SSE 设计 |
 | backend-standard | FastAPI 三层架构 |
 | database-standard | Schema / ORM / 迁移 / 多租户 |
-| frontend-standard | React / RN / Taro / UniApp 四端 |
+| frontend-standard | React / RN (Expo) / Taro 三端 |
 | testing-standard | 单元 / 集成 / E2E / AI 评测 |
 | security-standard | 密钥 / 鉴权 / 注入 / 隐私 / 治理 |
 | comment-convention | **中文注释规范**（强制） |

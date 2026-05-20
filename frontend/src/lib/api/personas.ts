@@ -4,8 +4,10 @@
  * 通用 endpoint REST 封装，沿用 P3-C / P5-F 的"真 API + Mock 双轨"模式。
  *
  * 通过环境变量 `VITE_PERSONAS_MOCK=true` 切换到 mock 适配层
- * （在后端 P7 5 个 persona 已实装、其余 5 个法务 persona 仍未实装时
- * 仍可前端联调）。
+ * （V3 P9 已实装：全部 10 个 persona 后端就绪 — anxin_assistant / legal_advisor /
+ * contract_steward / due_diligence_expert / tax_finance_advisor +
+ * operations_manager / market_researcher / lead_hunter /
+ * content_director / ecommerce_assistant。mock 主要用于离线开发联调）。
  *
  * 后端契约：参见 `backend/src/api/routes/personas.py`
  *   - GET    /api/v1/personas                        列出
@@ -20,7 +22,7 @@ import { getTokenStorage } from '@/lib/platform/storage'
 
 // ===== 类型（与后端 schemas/persona.py 对齐） =====
 
-/** 后端已实装 5 个 persona + 待规划 5 个法务 persona */
+/** V3 已实装 10 个 persona（5 法务 + 5 增长域） */
 export type PersonaId =
   | 'anxin_assistant'
   | 'legal_advisor'

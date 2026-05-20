@@ -19,6 +19,7 @@ import json
 import re
 from typing import Any
 
+from src.agents._prompt_safety import USER_INPUT_BOUNDARY, wrap_user_input
 from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
 from src.services.legal_calculator_service import legal_calculator_service
@@ -52,7 +53,7 @@ class LegalCalculatorAgent(BaseLegalAgent):
         analysis_prompt = f"""请分析以下用户需求，判断服务模式并提取信息。
 
 用户描述：
-{description}
+{wrap_user_input(description, label='description')}
 
 补充信息：
 {json.dumps(context.get('filled_slots', {}), ensure_ascii=False, default=str) if context.get('filled_slots') else '无'}
@@ -123,7 +124,7 @@ mode 判断规则：
 
 {markdown_result}
 
-用户原始需求：{description}
+用户原始需求：{wrap_user_input(description, label='description')}
 
 请提供一份完整的法务分析报告，要求：
 
@@ -172,7 +173,7 @@ mode 判断规则：
 
         prompt = f"""你是资深法务分析师，请对以下法律问题提供全面深度分析。
 
-用户描述：{description}
+用户描述：{wrap_user_input(description, label='description')}
 {topics_hint}
 
 请从以下角度提供完整分析：
@@ -222,7 +223,7 @@ mode 判断规则：
         # 先给一个初步分析框架，再追问
         prompt = f"""用户想了解{label}相关问题，但信息还不完整。
 
-用户描述：{description}
+用户描述：{wrap_user_input(description, label='description')}
 缺少的信息：{', '.join(missing)}
 
 请先给出：

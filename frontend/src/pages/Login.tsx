@@ -479,16 +479,16 @@ export default function Login() {
  </div>
  <div>
  <h1 className={`${heading.page} text-foreground text-2xl`}>安心智能助手</h1>
- <p className="text-sm text-muted-foreground">超级安心智能助手系统</p>
+ <p className="text-sm text-muted-foreground">全链路超级 AI 智能助手系统</p>
  </div>
  </div>
 
- {/* 特性列表 */}
+ {/* 特性列表 — V3 全链路定位：覆盖法务、财税、合规、市场、获客、内容、出海等多角色 */}
  <div className="space-y-6 mb-12">
  {[
- { Icon: icons.Brain, title:'多智能体协作', desc:'6大专业智能体团队协同处理法律事务' },
- { Icon: icons.Shield, title:'全流程风控', desc:'AI实时监控合同风险、诉讼风险' },
- { Icon: icons.Zap, title:'效率提升10倍', desc:'自动化合同审查、文书起草、尽调报告' },
+ { Icon: icons.Brain, title:'多智能体协作', desc:'10+ 专业智能体协同覆盖业务全流程' },
+ { Icon: icons.Shield, title:'全流程风控', desc:'AI 实时监控合规、合同、商业与运营风险' },
+ { Icon: icons.Zap, title:'效率提升10倍', desc:'自动化合同审查、文书起草、市场研究、出海运营' },
  ].map((feature, i) => (
  <motion.div
  key={feature.title}
@@ -532,7 +532,7 @@ export default function Login() {
  </div>
 
  <p className="relative z-10 text-muted-foreground/50 text-xs">
- &copy; 2026 安心智能助手 &middot; 赋能法律行业智能化
+ &copy; 2026 安心智能助手 &middot; 赋能企业全链路智能化
  </p>
  </div>
 

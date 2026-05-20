@@ -489,6 +489,43 @@ class Settings(BaseSettings):
                 # 开发环境自动生成密钥
                 self.JWT_SECRET_KEY = secrets.token_urlsafe(32)
 
+        # [SEC-S1.4] 生产环境强制安全档：fail-closed + WAF 拦截模式 + DEV_MODE 关闭
+        if self.ENVIRONMENT in {"production", "staging"}:
+            problems: list[str] = []
+            if self.DEV_MODE:
+                problems.append("DEV_MODE 必须为 false（当前为 true，会绕过认证）")
+            if not self.AUTH_REDIS_FAIL_CLOSED:
+                problems.append(
+                    "AUTH_REDIS_FAIL_CLOSED 必须为 true（当前 false，"
+                    "Redis 不可用时会 fail-open 放过过期 token）"
+                )
+            if self.ANTIBOT_ENABLED and self.ANTIBOT_WAF_ENABLED and self.ANTIBOT_WAF_LOG_ONLY:
+                problems.append(
+                    "ANTIBOT_WAF_LOG_ONLY 必须为 false（当前 true，WAF 仅日志不拦截）"
+                )
+            if self.WEBHOOK_PROCESSING_LOCK_BACKEND == "auto":
+                problems.append(
+                    "WEBHOOK_PROCESSING_LOCK_BACKEND 必须显式设置为 'redis'（当前 'auto'，"
+                    "可能退化到本地锁，无分布式幂等保证）"
+                )
+            # [SEC-S2.3] CORS：生产环境禁止 localhost / 通配
+            localhost_origins = [
+                o for o in self.CORS_ORIGINS
+                if "localhost" in o or "127.0.0.1" in o or o == "*"
+            ]
+            if localhost_origins:
+                problems.append(
+                    f"CORS_ORIGINS 包含开发用源 {localhost_origins}。"
+                    "生产环境必须通过 env 覆盖为真实域名列表（如 https://anxinai.com）。"
+                    "Tauri 桌面端如需访问，请使用 tauri://localhost / https://tauri.localhost 而非 http://localhost。"
+                )
+            if problems:
+                raise ValueError(
+                    f"[{self.ENVIRONMENT}] 安全配置不合规，禁止启动：\n  - "
+                    + "\n  - ".join(problems)
+                    + "\n请通过环境变量修正后重启。"
+                )
+
     def is_production(self) -> bool:
         """判断是否为生产环境"""
         return self.ENVIRONMENT == "production"

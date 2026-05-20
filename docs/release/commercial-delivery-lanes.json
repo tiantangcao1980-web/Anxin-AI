@@ -270,21 +270,16 @@
         "docs/release/evidence/artifacts/mobile-ios-simulator-expo-go-smoke-20260508.log",
         "docs/release/evidence/artifacts/mobile-mini-code-smoke-20260508.json",
         "docs/release/evidence/artifacts/mobile-mini-code-smoke-20260509.json",
-        "docs/release/evidence/artifacts/uni-mobile-base-smoke-20260509.json",
         "docs/release/external-resource-handoff.md",
         "docs/release/external-resource-requirements.json",
         "docs/release/third-party-api-preparation.md",
-        "docs/mobile/uni-app-migration-plan.md",
         "mobile/README.md",
         "mini-program/README.md",
         "scripts/mobile-device-smoke.sh",
-        "scripts/uni-mobile-smoke.sh",
-        "scripts/uni-mobile-migration-guard.sh",
         "scripts/mobile-ios-simulator-smoke.sh"
       ],
       "local_commands": [
         "bash scripts/mobile-device-smoke.sh --out docs/release/evidence/artifacts/mobile-mini-code-smoke-YYYYMMDD.json --manual-template-out docs/release/evidence/artifacts/mobile-device-manual-template-YYYYMMDD.json",
-        "bash scripts/uni-mobile-smoke.sh --out docs/release/evidence/artifacts/uni-mobile-base-smoke-YYYYMMDD.json",
         "bash scripts/mobile-ios-simulator-smoke.sh --out docs/release/evidence/artifacts/mobile-ios-simulator-expo-go-smoke-YYYYMMDD.json --log-out docs/release/evidence/artifacts/mobile-ios-simulator-expo-go-smoke-YYYYMMDD.log",
         "Record iOS device transcript with screenshots/log artifact references",
         "Record Android device transcript with screenshots/log artifact references",
@@ -293,14 +288,13 @@
       "external_inputs": [
         "iOS test build and device or TestFlight run",
         "Android test build and device",
-        "DCloud/uni-app account, app id, cloud build access, and package signing inputs",
         "WeChat Mini Program AppID/AppSecret plus legal domain admin access",
         "WeChat DevTools or real-device environment",
         "staging backend environment",
         "redacted test account role"
       ],
       "current_blockers": [
-        "Local code-level smoke was refreshed on 2026-05-09 with mobile Vitest 8 files / 37 tests, mobile TypeScript, mobile result-surface/lawyer-conversion guards, Expo config/SDK/Metro guard, Expo doctor 17/17, production npm audit 0, mini-program TypeScript/privacy/navigation/Taro build/DevTools guards, and artifact mobile-mini-code-smoke-20260509.json. The uni-app base now exists in apps/uni-mobile with unified API/privacy/auth/wechat/desktop-control/tokens scaffolding, migration guard, typecheck, 12 contract tests, production npm audit 0, H5 build, WeChat Mini Program build, and artifact uni-mobile-base-smoke-20260509.json. The current Expo/Taro clients remain legacy references; real/official iOS device stories, Android, interactive WeChat DevTools/device, DCloud cloud build/signing evidence, mobile remote-control cross-device host callback, and cross-device continuation evidence are not attached."
+        "[2026-05-20 路线纠正] uni-app 链路放弃。移动/小程序商业发布证据回归 mobile/Expo + mini-program/Taro 双端独立：real iOS device / TestFlight evidence、real Android device / EAS Build evidence、interactive WeChat DevTools or 真机微信小程序 evidence、EAS Build cloud sign credentials、cross-device continuation 真机演练 — 均待补。"
       ],
       "completion_gate": [
         "docs/release/evidence/mobile-device-smoke.md has Status: complete",

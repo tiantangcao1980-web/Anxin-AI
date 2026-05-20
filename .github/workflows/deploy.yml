@@ -228,6 +228,37 @@ jobs:
 
           cd "$DEPLOY_PATH"
 
+          # ---------- [S3.2] 记录回滚目标 ----------
+          # 在拉取新代码前快照当前 commit，部署失败时自动 reset 回该 commit
+          PREVIOUS_COMMIT="$(git rev-parse HEAD)"
+          echo "回滚目标 commit: $PREVIOUS_COMMIT"
+
+          rollback_deploy() {
+            local reason="$1"
+            echo ""
+            echo "================================================"
+            echo "  ❌ 部署失败：$reason"
+            echo "  🔁 自动回滚到 $PREVIOUS_COMMIT"
+            echo "================================================"
+            if ! git reset --hard "$PREVIOUS_COMMIT"; then
+              echo "🚨 git reset 失败！需要人工介入"
+              return 99
+            fi
+            # 恢复 .env 备份（如尚未恢复）
+            for f in $ENV_FILES; do
+              if [ -f "${f}.deploy-backup" ]; then
+                mv "${f}.deploy-backup" "$f"
+              fi
+            done
+            DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose build $SERVICES || true
+            docker compose up -d --no-deps --force-recreate $SERVICES || true
+            echo "回滚后容器状态："
+            for svc in $SERVICES; do
+              docker compose ps $svc --format 'table {{.Service}}\t{{.Status}}' || true
+            done
+            return 1
+          }
+
           # ---------- 拉取最新代码 ----------
           echo ""
           echo "[1/5] 拉取最新代码..."
@@ -349,8 +380,9 @@ jobs:
           echo "  时间: $(date '+%Y-%m-%d %H:%M:%S')"
           echo "================================================"
 
-          # 如果有失败的服务，以非零退出码结束，让 GitHub Actions 标记为失败
+          # [S3.2] 如果有失败的服务，自动回滚到 PREVIOUS_COMMIT 再以非零退出
           if [ -n "$FAILED" ]; then
+            rollback_deploy "服务健康检查失败:$FAILED"
             exit 1
           fi
           REMOTE_SCRIPT

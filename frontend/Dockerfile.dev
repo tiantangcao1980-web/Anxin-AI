@@ -1,7 +1,7 @@
-# AI法务智能体系统 - 前端开发 Dockerfile
+# Anxin AI 安心智能助手 - 前端开发 Dockerfile
 # 支持 HMR 热更新，修改代码后浏览器自动刷新
 
-FROM node:20-alpine
+FROM node:20.18-alpine
 
 WORKDIR /app
 

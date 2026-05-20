@@ -1,4 +1,7 @@
 # Desktop Runtime Smoke Evidence
+> ⚠️ **2026-05-20 路线纠正**：本文档涉及的 uni-app / apps/uni-mobile 技术链路已**彻底放弃**。
+> 当前移动端路线 = mobile/ (Expo + RN) + mini-program/ (Taro)，详见 PROJECT_STATUS.md 和 PRODUCT_ROADMAP.md。
+> 以下内容保留为历史决策上下文，不代表当前实施方向。
 
 Status: pending
 Owner: Desktop release owner TBD
@@ -38,16 +41,16 @@ bash scripts/desktop-release-package.sh --dry-run \
 bash scripts/desktop-release-runtime-smoke.sh \
   --out docs/release/evidence/artifacts/desktop-release-runtime-unsigned-smoke-YYYYMMDD.json \
   --ui-log-out docs/release/evidence/artifacts/desktop-release-runtime-ui-smoke-unsigned-YYYYMMDD.log
-desktop/target/debug/bundle/macos/安心智能助手.app/Contents/MacOS/anxin-legal-desktop --sync-code-smoke
-desktop/target/release/bundle/macos/安心智能助手.app/Contents/MacOS/anxin-legal-desktop --sync-loopback-smoke
+desktop/target/debug/bundle/macos/安心智能助手.app/Contents/MacOS/anxin-ai-desktop --sync-code-smoke
+desktop/target/release/bundle/macos/安心智能助手.app/Contents/MacOS/anxin-ai-desktop --sync-loopback-smoke
 bash scripts/desktop-release-profile-smoke.sh \
   --out docs/release/evidence/artifacts/desktop-release-profile-unsigned-smoke-YYYYMMDD.json
 cd frontend && npm run test -- api-adapter.sync.test.ts sync-conflict-utils.test.ts
 cd desktop && cargo test
 cd desktop && cargo tauri build --debug --no-bundle --ci
 cd desktop && cargo tauri build --debug --ci --bundles app --no-sign
-cd desktop && ./target/debug/anxin-legal-desktop --self-test
-cd desktop && ./target/debug/bundle/macos/安心智能助手.app/Contents/MacOS/anxin-legal-desktop --self-test
+cd desktop && ./target/debug/anxin-ai-desktop --self-test
+cd desktop && ./target/debug/bundle/macos/安心智能助手.app/Contents/MacOS/anxin-ai-desktop --self-test
 sqlite3 /tmp/anxin-smoke.db < desktop/migrations/001_offline_queue.sql
 bash scripts/desktop-sqlite-security-gate.sh
 bash scripts/cross-device-continuation-smoke.sh \

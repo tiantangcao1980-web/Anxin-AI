@@ -1,4 +1,7 @@
 # TASK-11a 桌面端 MVP 三件套（窗口外观 + 全局快捷键快速问答 + 拖拽分析）
+> ⚠️ **2026-05-20 路线纠正**：本文档涉及的 uni-app / apps/uni-mobile 技术链路已**彻底放弃**。
+> 当前移动端路线 = mobile/ (Expo + RN) + mini-program/ (Taro)，详见 PROJECT_STATUS.md 和 PRODUCT_ROADMAP.md。
+> 以下内容保留为历史决策上下文，不代表当前实施方向。
 
 > 波次 4 · 工时估 5-7 天
 > 前置依赖：任务 0（密钥治理 SOP 完成）、任务 1（认证 + token 存储确定）、任务 11b（同步引擎，拖拽落地的文件需要有去处）

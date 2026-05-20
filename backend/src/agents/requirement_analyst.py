@@ -14,6 +14,7 @@ from typing import Any, cast
 
 from loguru import logger
 
+from src.agents._prompt_safety import USER_INPUT_BOUNDARY, wrap_user_input
 from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
 
@@ -38,7 +39,11 @@ class RequirementAnalystAgent(BaseLegalAgent):
         description = task.get("description", "")
         context = task.get("context", {})
 
-        prompt = f"用户输入：{description}"
+        prompt = (
+            f"{USER_INPUT_BOUNDARY}\n\n"
+            f"请分析下列用户需求：\n"
+            f"{wrap_user_input(description, label='description')}"
+        )
 
         if context.get("has_attachments"):
             prompt += "\n\n[注意：用户已上传附件文件]"
@@ -66,7 +71,11 @@ class RequirementAnalystAgent(BaseLegalAgent):
         Returns:
             结构化需求分析结果，包含 is_complete、summary、guidance_questions 等
         """
-        prompt = f"用户输入：{user_input}"
+        prompt = (
+            f"{USER_INPUT_BOUNDARY}\n\n"
+            f"请分析下列用户需求：\n"
+            f"{wrap_user_input(user_input, label='description')}"
+        )
         if has_attachments:
             prompt += "\n\n[注意：用户已上传附件文件]"
 

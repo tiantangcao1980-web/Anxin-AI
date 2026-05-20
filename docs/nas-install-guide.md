@@ -25,7 +25,7 @@
 ### A.2 使用 Portainer Stack（更灵活，需已装 Portainer）
 
 1. Portainer → Stacks → Add stack
-2. 名称填 `anxin-legal`
+2. 名称填 `anxin-ai`
 3. "Build method" 选 `Web editor`，贴入 `docker-compose.nas.yml`
 4. "Environment variables" 按 `.env.nas.example` 逐条录入
 5. Deploy，等容器 healthy
@@ -38,7 +38,7 @@
 2. 选 **YAML 导入**
 3. 粘贴 `docker-compose.nas.yml`
 4. 在环境变量面板覆盖 `.env` 参数
-5. 确认存储路径（建议挂到 `/share/Public/anxin-legal`）
+5. 确认存储路径（建议挂到 `/share/Public/anxin-ai`）
 6. 创建并启动
 
 ---
@@ -46,8 +46,8 @@
 ## 方案 C · 通用 Linux / macOS（Docker Desktop）
 
 ```bash
-git clone https://github.com/<你的仓库>/anxin-legal.git
-cd anxin-legal
+git clone https://github.com/<你的仓库>/anxin-ai.git
+cd anxin-ai
 cp .env.nas.example .env
 # 编辑 .env 替换密码与 JWT_SECRET
 docker compose -f docker-compose.nas.yml up -d
@@ -93,7 +93,7 @@ docker compose -f docker-compose.nas.yml logs -f backend
 **数据备份**
 ```bash
 # Volumes：postgres_data / redis_data / chroma_data / neo4j_data
-docker run --rm -v anxin-legal_postgres_data:/src -v $PWD:/dst alpine \
+docker run --rm -v anxin-ai_postgres_data:/src -v $PWD:/dst alpine \
   tar czf /dst/postgres-$(date +%F).tar.gz -C /src .
 ```
 
@@ -103,7 +103,7 @@ docker run --rm -v anxin-legal_postgres_data:/src -v $PWD:/dst alpine \
 docker compose -f docker-compose.nas.yml pull
 docker compose -f docker-compose.nas.yml up -d
 ```
-默认 `image: ghcr.io/anxin/legal-backend:latest`，pull 即滚动更新。
+默认 `image: ghcr.io/anxin/anxin-ai-backend:latest`，pull 即滚动更新。
 建议发版后再拉 `:latest`，或 pin 到 `:v1.2.3` 手动升级。
 
 ## 下一步

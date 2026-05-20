@@ -5,12 +5,9 @@ def test_commercial_gate_surfaces_artifact_validator_warnings():
     repo_root = Path(__file__).resolve().parents[2]
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
 
-    assert (
-        'artifact_validation_output="$(python3 scripts/validate-release-artifacts.py 2>&1)"'
-        in script
-    )
+    assert 'artifact_validation_output="$(python3 scripts/validate-release-artifacts.py 2>&1)"' in script
     assert 'add_warning "${line#WARN: }"' in script
-    assert "FAIL:\\ *)" in script
+    assert 'FAIL:\\ *)' in script
 
 
 def test_commercial_gate_requires_desktop_network_surface_gate():
@@ -27,10 +24,7 @@ def test_commercial_gate_requires_desktop_window_chrome_gate():
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
 
     assert '"scripts/desktop-window-chrome-gate.sh"' in script
-    assert (
-        'desktop_window_chrome_output="$(bash scripts/desktop-window-chrome-gate.sh 2>&1)"'
-        in script
-    )
+    assert 'desktop_window_chrome_output="$(bash scripts/desktop-window-chrome-gate.sh 2>&1)"' in script
     assert 'require_command "desktop window chrome gate"' in script
 
 
@@ -51,9 +45,8 @@ def test_commercial_gate_requires_desktop_mvp_local_gate():
     assert "native-notification-test" in gate_script
     assert "desktop/src/commands/file_drop.rs" in gate_script
     assert "frontend/src/components/desktop/DesktopWorkstationPanel.tsx" in gate_script
-    # Phase A 归档: docs/audit/11a-desktop-mvp/ → docs/archive/legacy-spine-sources/audit/11a-desktop-mvp/
-    assert "docs/archive/legacy-spine-sources/audit/11a-desktop-mvp/00-prd-reality-gap.md" in gate_script
-    assert "docs/archive/legacy-spine-sources/audit/11a-desktop-mvp/05-followups.md" in gate_script
+    assert "docs/audit/11a-desktop-mvp/00-prd-reality-gap.md" in gate_script
+    assert "docs/audit/11a-desktop-mvp/05-followups.md" in gate_script
 
 
 def test_commercial_gate_does_not_depend_on_removed_code_index_tool():
@@ -82,35 +75,30 @@ def test_commercial_gate_runs_workstation_settings_e2e():
     assert "e2e/settings-workstation.spec.ts --project=chromium --project=mobile" in script
 
 
-def test_commercial_gate_runs_uni_mobile_migration_guard():
+def test_commercial_gate_no_longer_references_uni_mobile():
+    """[S7] uni-app 技术链路已彻底放弃，commercial gate 不应再引用 uni-mobile 任何步骤。"""
     repo_root = Path(__file__).resolve().parents[2]
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
-    smoke_script = (repo_root / "scripts" / "uni-mobile-smoke.sh").read_text(encoding="utf-8")
-    guard_script = (repo_root / "scripts" / "uni-mobile-migration-guard.sh").read_text(
-        encoding="utf-8"
-    )
 
-    assert "scripts/uni-mobile-migration-guard.sh" in script
-    assert 'require_command "uni-mobile migration guard"' in script
-    assert 'run_step "uni-mobile migration guard"' in smoke_script
-    assert "mobile/README.md" in guard_script
-    assert "mini-program/README.md" in guard_script
-    assert "apps/uni-mobile/src/services/api.ts" in guard_script
+    assert "scripts/uni-mobile-migration-guard.sh" not in script
+    assert "scripts/uni-mobile-smoke.sh" not in script
+    assert 'require_command "uni-mobile' not in script
+    # 两个专属脚本已物理删除
+    assert not (repo_root / "scripts" / "uni-mobile-migration-guard.sh").exists()
+    assert not (repo_root / "scripts" / "uni-mobile-smoke.sh").exists()
 
 
 def test_commercial_gate_requires_product_status_consistency_guard():
     repo_root = Path(__file__).resolve().parents[2]
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
-    guard_script = (repo_root / "scripts" / "validate-product-status-consistency.cjs").read_text(
-        encoding="utf-8"
-    )
+    guard_script = (repo_root / "scripts" / "validate-product-status-consistency.cjs").read_text(encoding="utf-8")
 
     assert '"scripts/validate-product-status-consistency.cjs"' in script
     assert "node scripts/validate-product-status-consistency.cjs" in script
     assert "PRODUCT_ROADMAP.md" in guard_script
     assert "PROJECT_STATUS.md" in guard_script
     assert "Mobile Edition, Tauri iOS/Android" in guard_script
-    assert "Mobile + Mini Program, uni-app" in guard_script
+    # [S7] uni-app 已放弃，product-status guard 不再断言 uni-app 矩阵
 
 
 def test_commercial_gate_runs_agent_approval_workspace_e2e():
@@ -183,10 +171,7 @@ def test_commercial_gate_runs_approved_connector_local_rehearsal():
 
     assert '"scripts/agent-connector-rehearsal.sh"' in script
     assert 'require_command "approved connector local rehearsal"' in script
-    assert (
-        "scripts/agent-connector-rehearsal.sh --out /tmp/anxin-agent-connector-rehearsal-gate.json"
-        in script
-    )
+    assert "scripts/agent-connector-rehearsal.sh --out /tmp/anxin-agent-connector-rehearsal-gate.json" in script
 
 
 def test_commercial_gate_runs_cross_process_revocation_local_rehearsal():
@@ -207,10 +192,7 @@ def test_commercial_gate_runs_cross_device_continuation_smoke():
 
     assert '"scripts/cross-device-continuation-smoke.sh"' in script
     assert 'require_command "cross-device continuation code smoke"' in script
-    assert (
-        "scripts/cross-device-continuation-smoke.sh --out /tmp/anxin-cross-device-continuation-gate.json"
-        in script
-    )
+    assert "scripts/cross-device-continuation-smoke.sh --out /tmp/anxin-cross-device-continuation-gate.json" in script
 
 
 def test_commercial_gate_runs_cli_route_governance_tests():
@@ -251,10 +233,7 @@ def test_commercial_gate_requires_agent_governance_release_evidence():
     repo_root = Path(__file__).resolve().parents[2]
     script = (repo_root / "scripts" / "commercial-readiness-gate.sh").read_text(encoding="utf-8")
 
-    assert (
-        "docs/release/evidence/agent-governance-smoke.md|enterprise agent governance smoke"
-        in script
-    )
+    assert "docs/release/evidence/agent-governance-smoke.md|enterprise agent governance smoke" in script
 
 
 def test_commercial_gate_requires_agent_governance_smoke_script():
