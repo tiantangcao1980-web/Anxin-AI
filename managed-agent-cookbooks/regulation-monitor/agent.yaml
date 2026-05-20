@@ -1,0 +1,52 @@
+schema: https://anthropic.com/schemas/managed-agent/v1.json
+name: regulation-monitor
+displayName: 中国法规监控
+description: 每日扫描人大、国务院、市场监管总局公告，识别影响业务的新法规，自动生成合规变更摘要推送到飞书。
+version: 1.0.0
+model: claude-opus-4-7
+trigger:
+  type: schedule
+  cron: 0 8 * * *
+  timezone: Asia/Shanghai
+ownerPersona: legal-advisor
+tools:
+- http_fetch
+- feishu_send
+- knowledge_base_write
+humanInLoop: true
+humanGate: 推送前由值班律师 confirm；生效日 ≤ 30 天的强制提醒。
+dataSources:
+- name: 人大法规库
+  url: http://www.npc.gov.cn/npc/c2/
+- name: 国务院公报
+  url: https://www.gov.cn/zhengce/
+- name: 市场监督管理总局
+  url: https://www.samr.gov.cn/zw/zfxxgk/
+outputs:
+- type: feishu_card
+  channel: ${FEISHU_CHANNEL_ID}
+- type: knowledge_base_entry
+  namespace: legal-advisor/regulation-monitor
+guardrails:
+- draft-only — agent 仅产生草稿，最终签发动作必须人工 confirm
+- source-attribution — 每条结论必须附数据源 URL 或表名 + 抓取时间戳
+- jurisdiction-transparency — 涉及法域时显式声明，跨境必须人工复核
+- no-pii-leak — 个人信息字段在外发前自动脱敏
+governance:
+  authz:
+    required_scopes:
+    - cookbook.regulation-monitor.run
+    - data.legal.read
+    trust_level: verified
+  dataClassification: L2
+  jurisdiction: CN
+  pii:
+    handling: mask-before-llm
+    double_check_on_send: true
+  audit:
+    level: high
+    retention_years: 10
+  egress_allowlist:
+  - www.npc.gov.cn
+  - www.gov.cn
+  - www.samr.gov.cn

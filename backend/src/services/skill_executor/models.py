@@ -45,6 +45,17 @@ class ExecutionContext:
     locale: str = "zh-CN"
     extra: dict[str, Any] = field(default_factory=dict)
     request_id: str | None = None
+    # ── governance 字段（PDP / audit 必要输入） ────────────────────────
+    role: str | None = None
+    """RBAC 角色，对应 policy/access-matrix.yaml § roles。空 → 跳过 PDP。"""
+    clearance: str = "L2"
+    """主体数据访问 clearance，L1..L5。"""
+    primary_jurisdiction: str = "CN"
+    """主体首要法域，跨境数据访问会触发额外守门。"""
+    mfa_recent: bool = False
+    """近期 MFA 是否仍有效，决定是否触发 STEP_UP。"""
+    device_trust: str = "managed"
+    """trusted / managed / byod。"""
 
     def to_prompt_block(self) -> str:
         """渲染成 markdown 片段，注入到 system prompt。"""

@@ -223,7 +223,7 @@ class ContractService:
 
             try:
                 result = await asyncio.wait_for(
-                    self.workforce.process_task(
+                    self.workforce.process_task_governed(
                         task_description=task_description,
                         task_type="contract_review",
                         context={

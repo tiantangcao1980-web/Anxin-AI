@@ -980,7 +980,7 @@ class ChatService:
                 )
 
             else:  # general
-                result = await self.workforce.process_task(
+                result = await self.workforce.process_task_governed(
                     task_description=content,
                     context={
                         "conversation_id": ctx.conversation.id,

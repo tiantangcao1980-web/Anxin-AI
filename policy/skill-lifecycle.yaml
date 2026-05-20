@@ -1,0 +1,102 @@
+# Skill Lifecycle — 状态机 + 各状态守门阈值
+# Doctrine: docs/governance/SKILL-LIFECYCLE.md
+# Enforce:  backend/src/services/governance/skill_lifecycle.py
+# Lint:     scripts/governance-lint.py
+
+schema_version: 1
+
+# 5 状态
+states:
+  - DRAFT
+  - REVIEW
+  - PUBLISHED
+  - DEPRECATED
+  - REVOKED
+  - REJECTED          # 一次性流入状态
+
+# 合法迁移
+transitions:
+  - from: DRAFT
+    to: REVIEW
+    actor: author
+    gates: [frontmatter_complete, governance_lint_pass, unit_test_coverage_min]
+  - from: REVIEW
+    to: PUBLISHED
+    actor: reviewer
+    gates: [reviewer_dual_sign, builder_hub_scan_clean, shadow_run_clean]
+  - from: REVIEW
+    to: REJECTED
+    actor: reviewer
+    gates: [reject_reason_provided]
+  - from: REJECTED
+    to: DRAFT
+    actor: author
+    gates: []
+  - from: PUBLISHED
+    to: DEPRECATED
+    actor: maintainer
+    gates: [successor_skill_declared, deprecation_window_set]
+  - from: PUBLISHED
+    to: REVOKED
+    actor: security_committee
+    gates: [revoke_reason_provided, incident_logged]
+  - from: DEPRECATED
+    to: REVOKED
+    actor: maintainer
+    gates: [deprecation_window_expired_or_zero_traffic]
+
+# 阈值
+thresholds:
+  unit_test_coverage_min: 0.80           # ≥ 80%
+  shadow_run_hours: 24                   # REVIEW → PUBLISHED 前 shadow 24h
+  shadow_max_error_rate: 0.05            # shadow 失败率 ≤ 5%
+  deprecation_window_weeks: 12           # DEPRECATED → REVOKED 缓冲
+  revoke_decision_window_hours: 4
+  reviewer_dual_sign_min: 2
+
+# 版本规则
+semver:
+  major_bump_triggers:
+    - "新增 required 输入字段"
+    - "删除 / 重命名输出字段"
+    - "改变 access-level"
+    - "改变 data-classification"
+  minor_bump_triggers:
+    - "新增 optional 输入字段"
+    - "新增可选输出字段"
+    - "新增可选 trigger"
+  patch_bump_triggers:
+    - "bug fix"
+    - "文档 / prompt 微调"
+
+# 撤回行为
+revoke:
+  publish_to: ".claude/builder-hub/revoked.json"
+  notify: ["feishu_security_channel", "audit_log", "all_tenant_admins"]
+  client_action: deny_call
+
+# Frontmatter 必填字段（governance-lint 强制）
+required_frontmatter:
+  base:
+    - name
+    - description
+    - version
+    - user-invocable
+  governance:
+    - access-level                  # team | practice | firm
+    - data-classification           # L1..L5
+    - jurisdiction                  # CN | EU | US | global
+    - required-scopes               # 调用必须持有的 scope 列表
+    - tool-allowlist                # 显式工具白名单（policy 还会做二次校验）
+    - lifecycle-stage               # DRAFT | REVIEW | PUBLISHED | DEPRECATED | REVOKED
+    - audit-level                   # low | medium | high
+  optional:
+    - pii-handling                  # mask-before-llm | keep-raw | reject
+    - network-egress                # deny | allowlist | open
+    - successor-skill               # DEPRECATED 时必填
+    - privileged                    # 是否为律师 / 客户特权范畴
+    - argument-hint
+    - triggers
+    - output-format
+    - requires-research
+    - requires-practice-profile

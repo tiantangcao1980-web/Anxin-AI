@@ -40,6 +40,16 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: '治理 Dashboard',
+    items: [
+      { path: '/admin/governance', label: '治理总览', icon: icons.Shield },
+      { path: '/admin/governance/policy', label: 'Policy 快照', icon: icons.FileText },
+      { path: '/admin/governance/audit', label: '审计时间线', icon: icons.Clock },
+      { path: '/admin/governance/tickets', label: '待 Confirm', icon: icons.Bell },
+      { path: '/admin/governance/revoked', label: '生命周期', icon: icons.AlertCircle },
+    ],
+  },
+  {
     label: '平台配置',
     items: [
       { path: '/admin/basic', label: '平台基础', icon: icons.Settings },

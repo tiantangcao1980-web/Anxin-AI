@@ -10,50 +10,42 @@
 
 ## 🧭 当前权威导航
 
-> 文档采用 **Spine（人类主干）+ Wiki（AI 接手副本）+ 三大单一真相源** 三层结构。
-
-### 五大 Spine（人类协作主干，长文权威）
-
-| 文档 | 用途 |
-|------|------|
-| [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) | **需求 / 商业定义 / 红线 / NOT-doing 清单** |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | **系统架构 / 6 层模型 / 多平台 / 三态运行 / 关键流程** |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | **历史 + P0-P21 + 里程碑 + 风险登记册** |
-| [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) | **当前批次 T1-T10 + 6 lane 并行 + 48h 冲刺 + 执行规范** |
-| [docs/RELEASE_GATE.md](docs/RELEASE_GATE.md) | **5 维评测 / lane 测试 / 门禁命令 / 证据清单 / Go-NoGo** |
-
-### LLM Wiki（AI 智能体 30 秒接手）
-
 | 入口 | 用途 |
-|------|------|
-| [docs/wiki/README.md](docs/wiki/README.md) | Wiki 入口 + 30 秒识别表 + 9 份高密度文档索引 |
-| [docs/wiki/03-current-state.md](docs/wiki/03-current-state.md) | 当前状态 + P0/P1/P2 优先级（最高频更新） |
-| [docs/wiki/08-ai-onboarding-flow.md](docs/wiki/08-ai-onboarding-flow.md) | 5 步接手流 + 场景剧本 |
-
-### 三大单一真相源
-
-| 入口 | 用途 |
-|------|------|
-| [AGENTS.md](AGENTS.md) | **Agent 行为单一真相源**：22 智能体红线 / 路由 / 反 slop / 协作 |
-| [DESIGN.md](DESIGN.md) | **视觉设计单一真相源**：design token / Icon / 配色 / 排版 |
-| [docs/standards/](docs/standards/) | **工程规范**：13 份（命名 / 文档 / Git / 代码 / API / DB / 前/后端 / 测试 / 安全 / 注释 / Review） |
-
-### 总入口与领域文档
-
-| 入口 | 用途 |
-|------|------|
-| [docs/00-project-execution-map.md](docs/00-project-execution-map.md) | **总入口**：完整推进环节 + Spine/Wiki/归档结构图 |
-| [docs/01-core-docs.md](docs/01-core-docs.md) | 三大核心层索引（需求 / 架构 / 开发计划） |
-| [docs/audit/harness/README.md](docs/audit/harness/README.md) | 六层框架（Model/Harness/Context/Traces/Eval/Ops）持续审计 |
-| [docs/audit/ui-ux-audit-2026-05-08.md](docs/audit/ui-ux-audit-2026-05-08.md) | UI/UX 审计差异清单（P9-P13 前置门槛） |
-| [docs/context-architecture.md](docs/context-architecture.md) | Context 三层架构（AGENTS.md / skills/ / memory） |
-| [docs/v3/](docs/v3/) | 运维参考（observability / CI / capability-matrix / skills-inventory / personas） |
-| [docs/release/](docs/release/) | 证据物料 / runbook / external-* / checklist JSON |
-| [docs/adr/](docs/adr/) | 架构决策记录 |
-| [docs/archive/](docs/archive/) | 历史源文档归档（仅供溯源） |
+|---|---|
+| [docs/00-project-execution-map.md](docs/00-project-execution-map.md) | **当前权威导航总入口**（任务起点） |
+| [AI-ASSISTANT-PLAYBOOK.md](AI-ASSISTANT-PLAYBOOK.md) | **AI 工作助理方法论** — 移植自 Anthropic claude-for-legal / financial-services |
+| [CONNECTORS.md](CONNECTORS.md) | 100+ MCP 与第三方数据源目录 |
+| [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json) | 10 个 persona 插件市场注册表 |
+| [plugins/](plugins/) | 10 个 persona 插件源码 |
+| [managed-agent-cookbooks/](managed-agent-cookbooks/) | 4 个无人值守 cookbook（法规 / 续约 / AR / 跨境定价） |
+| [docs/standards/](docs/standards/) | 13 份开发规范（命名 / 文档 / Git / 代码 / API / DB / 前端 / 后端 / 测试 / 安全） |
+| [docs/v3/](docs/v3/) | V3 智能助手实施细节（架构 / 路线图 / 10 personas） |
+| [docs/openspec/](docs/openspec/) | 平台合同 + 商业交付 + 测试规范 |
+| [docs/audit/](docs/audit/) | 当前执行计划 + 12 域审计 + 16 个 TASK |
+| [docs/release/](docs/release/) | 发布证据 + 回滚预案 |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 贡献指南 + 新人第一周清单 |
 | [SECURITY.md](SECURITY.md) | 安全策略 + 漏洞报告流程 |
 | [CHANGELOG.md](CHANGELOG.md) | 变更日志 |
+
+### 🚀 60 秒上手 Anxin AI Plugin
+
+```bash
+# 1. 在 Claude Code 注册本仓库为插件市场
+/plugin marketplace add /Volumes/安心科技02/Pproject/Anxin-AI
+
+# 2. 安装感兴趣的 persona
+/plugin install legal-advisor@anxin-ai
+/plugin install contract-steward@anxin-ai
+/plugin install market-researcher@anxin-ai
+
+# 3. 第一次使用前必跑冷启动访谈（生成 CLAUDE.md 执业画像）
+/legal-advisor:cold-start-interview
+
+# 4. 部署无人值守 cookbook（可选）
+bash scripts/deploy-managed-agent.sh regulation-monitor --local
+```
+
+完整方法论 → [AI-ASSISTANT-PLAYBOOK.md](AI-ASSISTANT-PLAYBOOK.md)。
 
 ---
 
@@ -86,7 +78,7 @@
 | **P6** 信息获取栈 | FetchService 4 层（HTTP / crawl4ai / HeadlessX / 官方 API） + 5 法律源 + 5 电商源 | ✅ |
 | **P7** 5 个业务 persona | 流程管家 / 市场研究员 / 获客猎手 / 内容总监 / 跨境电商助手 | ✅ |
 
-详见 [docs/ROADMAP.md](docs/ROADMAP.md)（P0-P7 已交付段）。
+详见 [docs/v3/v3-delivery-summary.md](docs/v3/v3-delivery-summary.md)。
 
 ### V3 进行中与排期
 
@@ -143,7 +135,7 @@
 └────────────────────────────────────────────────────────────┘
 ```
 
-详见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+详见 [docs/v3/architecture.md](docs/v3/architecture.md) + [docs/architecture-v2.md](docs/architecture-v2.md)。
 
 ---
 
@@ -152,7 +144,7 @@
 | 层 | 选型 |
 |---|---|
 | **后端** | Python 3.11+ · FastAPI · SQLAlchemy 2.0 async · Pydantic 2 · Alembic |
-| **AI** | OpenAI / Anthropic / 通义 / 混元 / DeepSeek / Ollama · 自研 Harness 层（六层 Agent 架构）· MCP |
+| **AI** | OpenAI / Anthropic / 通义 / 混元 / DeepSeek / Ollama · CAMEL-AI · MCP |
 | **向量 / 图** | Qdrant 1.12 · Neo4j 5.15 |
 | **任务 / 缓存** | Celery · Redis 7 |
 | **对象存储** | MinIO（S3 兼容） |

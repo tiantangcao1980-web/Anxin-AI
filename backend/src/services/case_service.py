@@ -71,15 +71,9 @@ class CaseService:
         case = Case(
             title=title,
             case_number=case_number,
-            case_type=(
-                CaseType(case_type) if case_type in [e.value for e in CaseType] else CaseType.OTHER
-            ),
+            case_type=CaseType(case_type) if case_type in [e.value for e in CaseType] else CaseType.OTHER,
             description=description,
-            priority=(
-                CasePriority(priority)
-                if priority in [e.value for e in CasePriority]
-                else CasePriority.MEDIUM
-            ),
+            priority=CasePriority(priority) if priority in [e.value for e in CasePriority] else CasePriority.MEDIUM,
             status=CaseStatus.PENDING,
             org_id=org_id,
             created_by=created_by,
@@ -132,11 +126,7 @@ class CaseService:
             logger.warning(f"忽略非法 case_id: {case_id}")
             return None
 
-        query = (
-            select(Case)
-            .options(selectinload(Case.events), selectinload(Case.documents))
-            .where(Case.id == case_id)
-        )
+        query = select(Case).options(selectinload(Case.events), selectinload(Case.documents)).where(Case.id == case_id)
         if org_id:
             query = query.where(Case.org_id == org_id)
 
@@ -299,9 +289,7 @@ class CaseService:
         doc_summaries = []
         if case.documents:
             for doc in case.documents[:5]:  # 限制文档数量
-                doc_summaries.append(
-                    f"- 文档名称: {doc.name}, 类型: {doc.doc_type}, 摘要: {doc.ai_summary or '暂无'}"
-                )
+                doc_summaries.append(f"- 文档名称: {doc.name}, 类型: {doc.doc_type}, 摘要: {doc.ai_summary or '暂无'}")
 
         task_description = f"""
 请作为专业法务专家团队，分析以下案件并给出深度意见：
@@ -324,18 +312,15 @@ class CaseService:
 5. 预计时间线与关键节点建议
 """
 
-        result = cast(
-            JSONDict,
-            await workforce.process_task(
-                task_description=task_description,
-                task_type="case_analysis",
-                context={
-                    "case_id": case_id,
-                    "org_id": case.org_id,
-                    "case_type": case.case_type.value,
-                },
-            ),
-        )
+        result = cast(JSONDict, await workforce.process_task_governed(
+            task_description=task_description,
+            task_type="case_analysis",
+            context={
+                "case_id": case_id,
+                "org_id": case.org_id,
+                "case_type": case.case_type.value,
+            }
+        ))
 
         # 保存分析结果
         final_result = result.get("final_result", {})
@@ -350,7 +335,7 @@ class CaseService:
             title="AI 智能分析完成",
             description="系统已生成多智能体协作分析报告",
             event_data=cast(JSONDict, final_payload),
-            created_by=user_id,
+            created_by=user_id
         )
 
         return result
@@ -373,7 +358,7 @@ class CaseService:
         result = await self.db.execute(
             select(Document).where(
                 Document.id == document_id,
-                *([Document.org_id == org_id] if org_id else []),
+                *( [Document.org_id == org_id] if org_id else [] ),
             )
         )
         doc = result.scalar_one_or_none()
@@ -407,7 +392,10 @@ class CaseService:
         from src.models.document import Document
 
         result = await self.db.execute(
-            select(Document).where(Document.id == document_id, Document.case_id == case_id)
+            select(Document).where(
+                Document.id == document_id,
+                Document.case_id == case_id
+            )
         )
         doc = result.scalar_one_or_none()
         if not doc:
@@ -436,12 +424,13 @@ class CaseService:
     ) -> list[Any]:
         """获取案件关联的文档列表"""
         from src.models.document import Document
-
         conditions: list[ColumnElement[bool]] = [Document.case_id == case_id]
         if org_id:
             conditions.append(Document.org_id == org_id)
         result = await self.db.execute(
-            select(Document).where(and_(*conditions)).order_by(Document.created_at.desc())
+            select(Document)
+            .where(and_(*conditions))
+            .order_by(Document.created_at.desc())
         )
         return list(result.scalars().all())
 
@@ -451,11 +440,12 @@ class CaseService:
     ) -> JSONDict:
         """获取案件统计信息"""
         from sqlalchemy import String, cast
-
         # 按状态统计 — 数据库列是 VARCHAR，存储大写枚举名
         status_stats: dict[str, int] = {}
         for status in CaseStatus:
-            query = select(func.count(Case.id)).where(cast(Case.status, String) == status.name)
+            query = select(func.count(Case.id)).where(
+                cast(Case.status, String) == status.name
+            )
             if org_id:
                 query = query.where(Case.org_id == org_id)
             result = await self.db.execute(query)
@@ -475,7 +465,9 @@ class CaseService:
         # 按优先级统计
         priority_stats: dict[str, int] = {}
         for priority in CasePriority:
-            query = select(func.count(Case.id)).where(cast(Case.priority, String) == priority.name)
+            query = select(func.count(Case.id)).where(
+                cast(Case.priority, String) == priority.name
+            )
             if org_id:
                 query = query.where(Case.org_id == org_id)
             result = await self.db.execute(query)
@@ -496,11 +488,17 @@ class CaseService:
         workload_data: list[JSONDict] = []
         for assignee_id, user_name, count in assignee_result.all():
             if assignee_id:
-                workload_data.append(
-                    {"id": str(assignee_id), "name": user_name or "Unknown", "count": count}
-                )
+                workload_data.append({
+                    "id": str(assignee_id),
+                    "name": user_name or "Unknown",
+                    "count": count
+                })
             else:
-                workload_data.append({"id": "unassigned", "name": "未分配", "count": count})
+                workload_data.append({
+                    "id": "unassigned",
+                    "name": "未分配",
+                    "count": count
+                })
 
         # 总数
         total_query = select(func.count(Case.id))
@@ -535,28 +533,28 @@ class CaseService:
         base_score = 100
 
         from sqlalchemy import String, cast
-
         # 1. 扣分项：高风险案件
         high_risk_query = select(func.count(Case.id)).where(
             Case.org_id == org_id,
             Case.risk_score >= 80,
-            cast(Case.status, String) != CaseStatus.COMPLETED.name,
+            cast(Case.status, String) != CaseStatus.COMPLETED.name
         )
         high_risk_count = (await self.db.execute(high_risk_query)).scalar() or 0
-        base_score -= high_risk_count * 5
+        base_score -= (high_risk_count * 5)
 
         # 2. 扣分项：逾期案件
         overdue_query = select(func.count(Case.id)).where(
             Case.org_id == org_id,
             Case.deadline < datetime.now(),
-            cast(Case.status, String) != CaseStatus.COMPLETED.name,
+            cast(Case.status, String) != CaseStatus.COMPLETED.name
         )
         overdue_count = (await self.db.execute(overdue_query)).scalar() or 0
-        base_score -= overdue_count * 3
+        base_score -= (overdue_count * 3)
 
         # 3. 扣分项：未结案件过多
         pending_query = select(func.count(Case.id)).where(
-            Case.org_id == org_id, cast(Case.status, String) != CaseStatus.COMPLETED.name
+            Case.org_id == org_id,
+            cast(Case.status, String) != CaseStatus.COMPLETED.name
         )
         pending_count = (await self.db.execute(pending_query)).scalar() or 0
         if pending_count > 50:
@@ -569,10 +567,14 @@ class CaseService:
         metrics: dict[str, str] = {
             "doc_compliance": "95%",
             "risk_control": f"{max(0, 100 - high_risk_count * 10)}%",
-            "process_norm": "88%",
+            "process_norm": "88%"
         }
 
-        return {"score": final_score, "metrics": metrics, "trend": 5}  # Mock trend
+        return {
+            "score": final_score,
+            "metrics": metrics,
+            "trend": 5 # Mock trend
+        }
 
     async def get_alerts(self, org_id: str) -> list[JSONDict]:
         """获取系统预警 (截止日期、高风险等)"""
@@ -580,12 +582,10 @@ class CaseService:
 
         # 1. 即将到期的案件 (7天内)
         from datetime import timedelta
-
         deadline_threshold = datetime.now() + timedelta(days=7)
 
         from sqlalchemy import String as SqlString
         from sqlalchemy import cast
-
         deadline_query = (
             select(Case)
             .where(
@@ -593,7 +593,7 @@ class CaseService:
                 Case.deadline.isnot(None),
                 Case.deadline <= deadline_threshold,
                 cast(Case.status, SqlString) != CaseStatus.COMPLETED.name,
-                cast(Case.status, SqlString) != CaseStatus.CLOSED.name,
+                cast(Case.status, SqlString) != CaseStatus.CLOSED.name
             )
             .order_by(Case.deadline)
             .limit(5)
@@ -604,26 +604,20 @@ class CaseService:
             if case.deadline is None:
                 continue
             try:
-                dl = (
-                    case.deadline
-                    if isinstance(case.deadline, datetime)
-                    else datetime.combine(case.deadline, datetime.min.time())
-                )
+                dl = case.deadline if isinstance(case.deadline, datetime) else datetime.combine(case.deadline, datetime.min.time())
                 # 统一为 naive datetime 比较
                 dl_naive = dl.replace(tzinfo=None) if dl.tzinfo else dl
                 days_left = (dl_naive.date() - datetime.now().date()).days
             except Exception:
                 days_left = 0
-            alerts.append(
-                {
-                    "id": f"deadline-{case.id}",
-                    "type": "urgent" if days_left <= 3 else "warning",
-                    "title": "案件即将到期",
-                    "content": f"案件 {case.case_number} ({case.title}) 将于 {dl_naive.strftime('%Y年%m月%d日')} 截止",
-                    "time": f"{days_left}天后" if days_left > 0 else "今天",
-                    "created_at": datetime.now(),  # Mock for sorting
-                }
-            )
+            alerts.append({
+                "id": f"deadline-{case.id}",
+                "type": "urgent" if days_left <= 3 else "warning",
+                "title": "案件即将到期",
+                "content": f"案件 {case.case_number} ({case.title}) 将于 {dl_naive.strftime('%Y年%m月%d日')} 截止",
+                "time": f"{days_left}天后" if days_left > 0 else "今天",
+                "created_at": datetime.now() # Mock for sorting
+            })
 
         # 2. 高风险案件
         risk_query = (
@@ -631,7 +625,7 @@ class CaseService:
             .where(
                 Case.org_id == org_id,
                 Case.risk_score >= 0.8,
-                cast(Case.status, SqlString) != CaseStatus.COMPLETED.name,
+                cast(Case.status, SqlString) != CaseStatus.COMPLETED.name
             )
             .limit(5)
         )
@@ -639,15 +633,13 @@ class CaseService:
 
         for case in risk_cases:
             risk_score = case.risk_score or 0.0
-            alerts.append(
-                {
-                    "id": f"risk-{case.id}",
-                    "type": "urgent",
-                    "title": "高风险案件提醒",
-                    "content": f"案件 {case.title} 风险评分高达 {int(risk_score * 100)}分",
-                    "time": "需立即关注",
-                    "created_at": datetime.now(),
-                }
-            )
+            alerts.append({
+                "id": f"risk-{case.id}",
+                "type": "urgent",
+                "title": "高风险案件提醒",
+                "content": f"案件 {case.title} 风险评分高达 {int(risk_score * 100)}分",
+                "time": "需立即关注",
+                "created_at": datetime.now()
+            })
 
         return alerts

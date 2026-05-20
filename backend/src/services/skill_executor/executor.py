@@ -121,6 +121,77 @@ class SkillExecutor:
                 metadata={"missing_apps": missing},
             )
 
+        # governance PDP（仅当 context.role 提供时启用；保持向后兼容）─────
+        pdp_metadata: dict[str, Any] = {}
+        if context.role:
+            try:
+                from src.services.governance import audit as _audit
+                from src.services.governance.authz import Decision, decide
+            except ImportError:
+                # governance 模块不可用 → 不阻断既有流程
+                decide = None  # type: ignore[assignment]
+            if decide is not None:
+                subject = {
+                    "id": context.user_id,
+                    "role": context.role,
+                    "tenant_id": context.org_id or "unknown",
+                    "clearance": context.clearance,
+                    "primary_jurisdiction": context.primary_jurisdiction,
+                }
+                action = f"skill.{context.persona}.{skill_name}".replace(" ", "-")
+                resource = {
+                    "type": "skill",
+                    "id": f"/{context.persona}:{skill_name}",
+                    "classification": (skill.extras.get("data_classification") if hasattr(skill, "extras") else None) or "L2",
+                    "jurisdiction": (skill.extras.get("jurisdiction") if hasattr(skill, "extras") else None) or "CN",
+                    "version": getattr(skill, "version", "0.0.0"),
+                }
+                pdp_context = {
+                    "trace_id": context.request_id,
+                    "mfa_recent": context.mfa_recent,
+                    "device_trust": context.device_trust,
+                    "business_hours": True,
+                }
+                pdp_res = decide(subject=subject, action=action, resource=resource, context=pdp_context)
+                pdp_metadata = {
+                    "decision": pdp_res.decision.value,
+                    "decision_reasons": pdp_res.reasons,
+                    "policy_snapshot_id": pdp_res.policy_snapshot_id,
+                }
+                _audit.write_event({
+                    "event_type": "authz.decide",
+                    "actor": subject,
+                    "action": action,
+                    "resource": resource,
+                    "decision": pdp_res.decision.value,
+                    "decision_reasons": pdp_res.reasons,
+                    "policy_snapshot_id": pdp_res.policy_snapshot_id,
+                    "phase": "skill_executor_pre",
+                    "trace_id": context.request_id,
+                })
+                if pdp_res.decision == Decision.DENY:
+                    log.status = SkillExecutionStatus.SKIPPED
+                    log.error = "authz: DENY"
+                    return SkillResult(
+                        skill_name=skill_name,
+                        status=SkillExecutionStatus.SKIPPED,
+                        error="authz: DENY",
+                        metadata={**pdp_metadata, "authz": "DENY"},
+                    )
+                if pdp_res.decision == Decision.REQUIRE_STEP_UP:
+                    log.status = SkillExecutionStatus.SKIPPED
+                    log.error = "authz: REQUIRE_STEP_UP"
+                    return SkillResult(
+                        skill_name=skill_name,
+                        status=SkillExecutionStatus.SKIPPED,
+                        error="authz: REQUIRE_STEP_UP",
+                        metadata={**pdp_metadata, "authz": "REQUIRE_STEP_UP"},
+                    )
+                # REQUIRE_CONFIRM → 标记到 metadata，调用方应感知并走草稿/inbox 流程；
+                # 当前 executor 仍允许产出 draft（不调写 / 外发动作）
+                if pdp_res.decision == Decision.REQUIRE_CONFIRM:
+                    pdp_metadata["authz"] = "REQUIRE_CONFIRM"
+
         # 真正执行
         started = time.perf_counter()
         try:
@@ -128,22 +199,64 @@ class SkillExecutor:
             output = await _maybe_await(self.llm_callable(system_prompt, user_prompt))
             duration = int((time.perf_counter() - started) * 1000)
             log.mark_success(output)
+            # 审计 skill.execute（仅当启用了 PDP 时）
+            if context.role:
+                try:
+                    from src.services.governance import audit as _audit
+                    _audit.write_event({
+                        "event_type": "skill.execute",
+                        "actor": {
+                            "id": context.user_id,
+                            "role": context.role,
+                            "tenant_id": context.org_id or "unknown",
+                        },
+                        "action": f"skill.{context.persona}.{skill_name}",
+                        "resource": {
+                            "type": "skill",
+                            "id": f"/{context.persona}:{skill_name}",
+                            "version": getattr(skill, "version", "0.0.0"),
+                        },
+                        "decision": pdp_metadata.get("decision"),
+                        "outcome": "draft-staged" if pdp_metadata.get("authz") == "REQUIRE_CONFIRM" else "success",
+                        "duration_ms": duration,
+                        "trace_id": context.request_id,
+                        "policy_snapshot_id": pdp_metadata.get("policy_snapshot_id"),
+                    })
+                except ImportError:
+                    pass
             return SkillResult(
                 skill_name=skill_name,
                 status=SkillExecutionStatus.SUCCESS,
                 output=output,
                 duration_ms=duration,
-                metadata={"persona": context.persona, "version": skill.version},
+                metadata={"persona": context.persona, "version": skill.version, **pdp_metadata},
             )
         except Exception as exc:  # 捕获 LLM 调用一切异常
             duration = int((time.perf_counter() - started) * 1000)
             logger.exception("skill 执行失败: %s", skill_name)
             log.mark_failed(str(exc))
+            if context.role:
+                try:
+                    from src.services.governance import audit as _audit
+                    _audit.write_event({
+                        "event_type": "skill.execute",
+                        "actor": {"id": context.user_id, "role": context.role, "tenant_id": context.org_id or "unknown"},
+                        "action": f"skill.{context.persona}.{skill_name}",
+                        "resource": {"type": "skill", "id": f"/{context.persona}:{skill_name}"},
+                        "decision": pdp_metadata.get("decision"),
+                        "outcome": "failure",
+                        "error": str(exc)[:500],
+                        "duration_ms": duration,
+                        "trace_id": context.request_id,
+                    })
+                except ImportError:
+                    pass
             return SkillResult(
                 skill_name=skill_name,
                 status=SkillExecutionStatus.FAILED,
                 error=str(exc),
                 duration_ms=duration,
+                metadata=pdp_metadata,
             )
 
     # ------------------------------------------------------------------

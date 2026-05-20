@@ -335,7 +335,7 @@ class DocumentService:
 """
 
         try:
-            result = await workforce.process_task(
+            result = await workforce.process_task_governed(
                 task_description=analysis_prompt,
                 task_type="document_analysis",
                 context={

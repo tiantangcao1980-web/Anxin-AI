@@ -1,0 +1,152 @@
+# PII Redaction — 个人信息识别 + 脱敏规则
+# Doctrine: docs/governance/DATA-BOUNDARY.md § 三、PII 脱敏
+# Classifier: backend/src/services/governance/data_classifier.py
+
+schema_version: 1
+
+# ────────────────────────────────────────────────────────────────────
+# PII 类型 → 识别 + 脱敏策略
+# ────────────────────────────────────────────────────────────────────
+types:
+  cn_id_card:
+    description: 中国大陆居民身份证号
+    regex: '\b\d{17}[\dXx]\b'
+    extra_check: cn_id_checksum   # 校验码二次确认
+    mask_strategy: keep_head_tail
+    mask_params: { head: 3, tail: 4, fill: "*" }
+    example: "110105********1234"
+    classification: L4
+
+  cn_mobile:
+    description: 中国大陆手机号
+    regex: '\b1[3-9]\d{9}\b'
+    mask_strategy: keep_head_tail
+    mask_params: { head: 3, tail: 4, fill: "*" }
+    example: "138****1234"
+    classification: L4
+
+  cn_landline:
+    description: 中国大陆固话
+    regex: '\b0\d{2,3}-?\d{7,8}\b'
+    mask_strategy: keep_head_tail
+    mask_params: { head: 4, tail: 4, fill: "*" }
+    classification: L3
+
+  bank_card:
+    description: 银行卡号 (Luhn 校验)
+    regex: '\b\d{15,19}\b'
+    extra_check: luhn_checksum
+    mask_strategy: keep_head_tail
+    mask_params: { head: 4, tail: 4, fill: "*" }
+    example: "6222********1234"
+    classification: L4
+
+  email:
+    description: 电子邮箱 (RFC 5322 简化)
+    regex: '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b'
+    mask_strategy: email_local_partial
+    example: "t***@example.com"
+    classification: L3
+
+  cn_passport:
+    description: 中国大陆护照号
+    regex: '\b[EeGgPp]\d{8}\b'
+    mask_strategy: keep_head_tail
+    mask_params: { head: 1, tail: 4, fill: "*" }
+    classification: L4
+
+  cn_plate:
+    description: 中国车牌号
+    regex: '[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼][A-Z][A-Z0-9]{5,6}'
+    mask_strategy: keep_head_tail
+    mask_params: { head: 2, tail: 1, fill: "*" }
+    classification: L3
+
+  us_ssn:
+    description: 美国社会安全号
+    regex: '\b\d{3}-\d{2}-\d{4}\b'
+    mask_strategy: keep_tail
+    mask_params: { tail: 4, fill: "*" }
+    classification: L4
+
+  eu_iban:
+    description: 欧盟 IBAN 账号
+    regex: '\b[A-Z]{2}\d{2}[A-Z0-9]{4}\d{7}([A-Z0-9]?){0,16}\b'
+    extra_check: iban_checksum
+    mask_strategy: keep_head_tail
+    mask_params: { head: 4, tail: 4, fill: "*" }
+    classification: L4
+
+  cvv:
+    description: 信用卡 CVV — **整段拒绝**，永不写入
+    regex: '\b\d{3,4}\b'
+    extra_check: context_card_number_within_20_chars   # 仅在卡号附近
+    mask_strategy: reject              # 不脱敏，直接拒绝（拦截到就 raise）
+    classification: L5
+
+  gps_high_precision:
+    description: 高精度 GPS 坐标
+    regex: '\b-?\d{1,3}\.\d{4,}\s*,\s*-?\d{1,3}\.\d{4,}\b'
+    mask_strategy: gps_round
+    mask_params: { precision: 2 }      # 降到 0.01
+    example: "31.23,121.47"
+    classification: L4
+
+  cn_social_credit_code:
+    description: 统一社会信用代码 (法人 / 组织机构)
+    regex: '\b[0-9A-HJ-NPQRTUWXY]{18}\b'
+    extra_check: cn_uscc_checksum
+    mask_strategy: keep_head_tail
+    mask_params: { head: 4, tail: 4, fill: "*" }
+    classification: L3
+
+  cn_tax_id:
+    description: 中国税号 (15-20 位)
+    regex: '\b\d{15,20}\b'
+    mask_strategy: keep_head_tail
+    mask_params: { head: 4, tail: 4, fill: "*" }
+    classification: L3
+
+# ────────────────────────────────────────────────────────────────────
+# 行为策略
+# ────────────────────────────────────────────────────────────────────
+policies:
+  pre_llm:
+    description: 写入 LLM Prompt 前
+    default: mask
+    require_marker: true              # 替换为 <PII:type=...>masked</PII> 形式
+
+  pre_external_send:
+    description: 外发动作前（飞书 / 邮件 / 短信 / 推送）
+    default: mask
+    double_check: true                # 二次扫描；命中即拒发
+
+  pre_shared_kb_write:
+    description: 写入共享知识库前
+    default: mask                     # L4 必脱敏；L5 永不入共享
+    raise_on_l5: true
+
+  audit_log:
+    description: 写入审计日志前
+    default: hash_only                # 只写 sha256；原文不入日志
+
+# ────────────────────────────────────────────────────────────────────
+# 例外（per-skill opt-in keep-raw）
+# ────────────────────────────────────────────────────────────────────
+keep_raw_exceptions:
+  - skill: "/dd-expert:company-dd"
+    reason: "KYC 验证；需对身份证号原文比对"
+    requires_dual_signoff: true
+    audit_event: pii.keep_raw.dd
+  - skill: "/finance-tax-advisor:tax-compliance"
+    reason: "增值税专票必须含完整税号"
+    audit_event: pii.keep_raw.tax
+
+# ────────────────────────────────────────────────────────────────────
+# 还原（unmask）
+# ────────────────────────────────────────────────────────────────────
+unmask:
+  default_authority: ["super_admin", "compliance_officer"]
+  audit_event: pii.unmask
+  require_step_up: true
+  max_per_session: 10                 # 单会话最多 10 次还原

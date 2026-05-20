@@ -1,0 +1,39 @@
+{
+  "$schema": "https://anthropic.com/schemas/plugin/v1.json",
+  "name": "content-director",
+  "displayName": "✍️ 内容总监",
+  "description": "公众号 / 短视频 / 海报 / 落地页 — 增长获客 域 Persona 插件。",
+  "version": "1.0.0",
+  "author": "Anxin Tech",
+  "license": "Apache-2.0",
+  "language": "zh-CN",
+  "category": "growth",
+  "domain": "增长获客",
+  "requiresColdStart": true,
+  "practiceProfile": "CLAUDE.md",
+  "userInvocableSlash": "/content-director:<skill>",
+  "skills": [
+    {
+        "name": "cold-start-interview",
+        "path": "skills/cold-start-interview/SKILL.md"
+    },
+    {
+        "name": "wechat-article",
+        "path": "skills/wechat-article/SKILL.md"
+    },
+    {
+        "name": "short-video-script",
+        "path": "skills/short-video-script/SKILL.md"
+    },
+    {
+        "name": "poster-design",
+        "path": "skills/poster-design/SKILL.md"
+    },
+    {
+        "name": "landing-page",
+        "path": "skills/landing-page/SKILL.md"
+    }
+],
+  "agents": [],
+  "connectors": ["feishu", "dingtalk", "wechat-work"]
+}

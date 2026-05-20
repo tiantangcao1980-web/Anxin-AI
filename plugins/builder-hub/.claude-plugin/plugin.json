@@ -1,0 +1,42 @@
+{
+  "$schema": "https://anthropic.com/schemas/plugin/v1.json",
+  "name": "builder-hub",
+  "displayName": "🧩 Builder Hub",
+  "description": "Anxin AI 社区 skill 发布 / 发现 / 安装的信任层。所有第三方 skill 在安装前必须通过隐藏内容扫描 / prompt 注入检测 / 来源核验三道关卡。",
+  "version": "1.0.0",
+  "author": "Anxin Tech",
+  "license": "Apache-2.0",
+  "language": "zh-CN",
+  "category": "ecosystem",
+  "domain": "工具治理",
+  "requiresColdStart": false,
+  "skills": [
+    { "name": "skill-installer", "path": "skills/skill-installer/SKILL.md" },
+    { "name": "skill-scan",      "path": "skills/skill-scan/SKILL.md" },
+    { "name": "skill-publish",   "path": "skills/skill-publish/SKILL.md" }
+  ],
+  "allowlistedRegistries": [
+    {
+      "name": "anxin-ai-official",
+      "url": "https://anxinai.com/marketplace",
+      "trustLevel": "verified"
+    },
+    {
+      "name": "anthropic-skills",
+      "url": "https://github.com/anthropics/skills",
+      "trustLevel": "verified"
+    }
+  ],
+  "scanRules": [
+    "hidden-content/zero-width",
+    "hidden-content/font-size-0",
+    "hidden-content/white-on-white",
+    "prompt-injection/ignore-previous",
+    "prompt-injection/role-override",
+    "prompt-injection/data-exfil",
+    "tool-scope/excessive-write",
+    "tool-scope/network-egress",
+    "license/incompatible",
+    "freshness/stale-30d"
+  ]
+}

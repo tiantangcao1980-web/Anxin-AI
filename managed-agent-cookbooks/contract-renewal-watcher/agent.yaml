@@ -1,0 +1,49 @@
+schema: https://anthropic.com/schemas/managed-agent/v1.json
+name: contract-renewal-watcher
+displayName: 合同续约监控
+description: 扫描进入 60 天到期窗口的合同，评估涨幅 / 谈判筹码 / 续约风险，生成续约建议。
+version: 1.0.0
+model: claude-opus-4-7
+trigger:
+  type: schedule
+  cron: 0 9 * * 1
+  timezone: Asia/Shanghai
+ownerPersona: contract-steward
+tools:
+- db_query
+- contract_review_skill
+- feishu_send
+- email_draft
+humanInLoop: true
+humanGate: 续约函与价格变更必须由合同负责人 + 法务双签；> 100 万走老板审批。
+dataSources:
+- name: ERP 合同表
+  url: internal://erp/contracts
+- name: DMS 合同文件
+  url: internal://dms/contracts
+outputs:
+- type: feishu_card
+  channel: ${FEISHU_CHANNEL_ID}
+- type: knowledge_base_entry
+  namespace: contract-steward/contract-renewal-watcher
+guardrails:
+- draft-only — agent 仅产生草稿，最终签发动作必须人工 confirm
+- source-attribution — 每条结论必须附数据源 URL 或表名 + 抓取时间戳
+- jurisdiction-transparency — 涉及法域时显式声明，跨境必须人工复核
+- no-pii-leak — 个人信息字段在外发前自动脱敏
+governance:
+  authz:
+    required_scopes:
+    - cookbook.contract-renewal-watcher.run
+    - data.contract.read
+    - data.contract.write
+    trust_level: verified
+  dataClassification: L3
+  jurisdiction: CN
+  pii:
+    handling: mask-before-llm
+    double_check_on_send: true
+  audit:
+    level: high
+    retention_years: 10
+  egress_allowlist: []
