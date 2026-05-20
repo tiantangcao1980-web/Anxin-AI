@@ -7,8 +7,7 @@
  * - 剩余 <2h 红色,2-6h 琥珀色,>6h 默认色
  */
 
-import { Clock } from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import { cn } from '@/components/ui/utils'
 
 interface CountdownBadgeProps {
@@ -66,7 +65,7 @@ export function CountdownBadge({ expiresAt, nowMs, className }: CountdownBadgePr
       )}
       title={`过期时间:${new Date(expiresAt).toLocaleString('zh-CN')}`}
     >
-      <Clock className="size-3" />
+      <icons.Clock className="size-3" />
       {remaining.text}
     </span>
   )

@@ -5,8 +5,7 @@
  * （由调用方传 status="none" 渲染，便于卡片"无授权"场景统一）。
  */
 
-import { AlertCircle, CheckCircle2, Clock3, Slash } from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/components/ui/utils'
 
@@ -60,10 +59,10 @@ export function ConnectedBadge({ status, className }: ConnectedBadgeProps) {
   const cfg = STATUS_MAP[status]
   return (
     <Badge variant="outline" className={cn(cfg.className, className)}>
-      {cfg.icon === 'check' && <CheckCircle2 className="size-3" />}
-      {cfg.icon === 'clock' && <Clock3 className="size-3" />}
-      {cfg.icon === 'slash' && <Slash className="size-3" />}
-      {cfg.icon === 'alert' && <AlertCircle className="size-3" />}
+      {cfg.icon === 'check' && <icons.CheckCircle2 className="size-3" />}
+      {cfg.icon === 'clock' && <icons.Clock3 className="size-3" />}
+      {cfg.icon === 'slash' && <icons.Slash className="size-3" />}
+      {cfg.icon === 'alert' && <icons.AlertCircle className="size-3" />}
       <span>{cfg.label}</span>
     </Badge>
   )

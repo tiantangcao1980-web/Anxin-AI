@@ -611,6 +611,78 @@ class SubscriptionService:
         allowed = features.get("modes", ["local"])
         return mode.lower() in [m.lower() for m in allowed]
 
+    async def check_user_token_quota(
+        self,
+        user_id: str,
+        *,
+        upcoming_tokens: int = 0,
+        client_type: str = "needer",
+    ) -> dict[str, Any]:
+        """T6 二阶段: cost_tracker 与 subscription_service 串联检查.
+
+        在 LLM 调用前/对话开始前调用, 由 subscription_service 读取生效配额,
+        再委托 cost_tracker.check_user_quota 做累计判断.
+
+        支持 admin 一键豁免:
+          - 环境变量 ``HARNESS_COST_QUOTA_DISABLED=true`` 全局豁免 (灾难回滚)
+          - subscription.features_override["quota_overridden"] = True 单用户豁免 (admin 客服补救)
+
+        Args:
+            user_id: 用户 ID
+            upcoming_tokens: 即将消耗的 token 估值 (prompt + 预留 completion)
+            client_type: needer / lawyer / firm 等
+
+        Returns:
+            {
+                "allowed": bool,
+                "used": int,
+                "quota": int,
+                "remaining": int,
+                "exempted": bool,
+                "reason": str | None,
+            }
+        """
+        import os
+
+        from src.harness.cost_tracker import cost_tracker
+
+        # 全局 kill-switch (运维灾难回滚)
+        if os.environ.get("HARNESS_COST_QUOTA_DISABLED", "false").lower() in {"true", "1", "yes"}:
+            return {
+                "allowed": True,
+                "used": cost_tracker.get_user_tokens(user_id),
+                "quota": 0,
+                "remaining": 0,
+                "exempted": True,
+                "reason": "HARNESS_COST_QUOTA_DISABLED=true (global override)",
+            }
+
+        features = await self.get_effective_features(user_id, client_type)
+
+        # 单用户豁免 (admin 客服补救)
+        if features.get("quota_overridden") is True:
+            return {
+                "allowed": True,
+                "used": cost_tracker.get_user_tokens(user_id),
+                "quota": 0,
+                "remaining": 0,
+                "exempted": True,
+                "reason": "features_override.quota_overridden=true (admin override)",
+            }
+
+        quota = int(features.get("ai_quota_tokens", 0) or 0)
+        allowed, used, remaining = cost_tracker.check_user_quota(
+            user_id, quota_tokens=quota, upcoming_tokens=upcoming_tokens,
+        )
+        return {
+            "allowed": allowed,
+            "used": used,
+            "quota": quota,
+            "remaining": remaining,
+            "exempted": False,
+            "reason": None if allowed else f"用户 {user_id} 累计 {used} tokens + 即将 {upcoming_tokens} > 配额 {quota}",
+        }
+
     async def create_trial(
         self,
         user_id: str,

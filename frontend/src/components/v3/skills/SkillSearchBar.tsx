@@ -4,8 +4,7 @@
  * 左侧 search input；右侧 persona Select（"全部角色" + 已知 personas + 任意当前数据中出现的额外 personas）
  */
 
-import { Search, X } from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -47,7 +46,7 @@ export function SkillSearchBar({
   return (
     <div className={cn('flex flex-wrap items-center gap-2', className)}>
       <div className="relative min-w-0 flex-1">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <icons.Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
@@ -61,7 +60,7 @@ export function SkillSearchBar({
             className="absolute right-2 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-label="清空搜索"
           >
-            <X className="size-3.5" />
+            <icons.X className="size-3.5" />
           </button>
         )}
       </div>

@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { ChevronDown, Brain, Check, Loader2, AlertCircle } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 
 export type ThinkingStepStatus = 'pending' | 'running' | 'done' | 'error'
@@ -21,9 +21,9 @@ interface ThinkingChainProps {
 
 const STATUS_ICON: Record<ThinkingStepStatus, ReactNode> = {
   pending: <div className="size-2 rounded-pill bg-foreground-disabled" />,
-  running: <Loader2 className="size-3.5 text-ai-thinking animate-spin" />,
-  done: <Check className="size-3.5 text-ai-suggestion" />,
-  error: <AlertCircle className="size-3.5 text-destructive" />,
+  running: <icons.Loader2 className="size-3.5 text-ai-thinking animate-spin" />,
+  done: <icons.Check className="size-3.5 text-ai-suggestion" />,
+  error: <icons.AlertCircle className="size-3.5 text-destructive" />,
 }
 
 export function ThinkingChain({
@@ -54,7 +54,7 @@ export function ThinkingChain({
         )}
         aria-expanded={open}
       >
-        <Brain
+        <icons.Brain
           className={cn(
             'size-3.5 text-ai-thinking',
             streaming && 'animate-ai-pulse',
@@ -66,7 +66,7 @@ export function ThinkingChain({
         {totalMs > 0 && !streaming && (
           <span className="text-foreground-tertiary">· {(totalMs / 1000).toFixed(1)}s</span>
         )}
-        <ChevronDown
+        <icons.ChevronDown
           className={cn(
             'ml-auto size-3.5 transition-transform duration-fast ease-standard',
             open && 'rotate-180',

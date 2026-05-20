@@ -10,8 +10,7 @@
  */
 
 import { useCallback, useRef, useState } from 'react'
-import { CheckCircle2, FileText, Loader2, Upload, XCircle } from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 
@@ -27,9 +26,9 @@ const STATUS_LABELS: Record<IngestStatus, string> = {
 }
 
 function statusIcon(status: IngestStatus) {
-  if (status === 'completed') return <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-  if (status === 'failed') return <XCircle className="h-4 w-4 text-destructive" />
-  return <Loader2 className="h-4 w-4 animate-spin text-primary" />
+  if (status === 'completed') return <icons.CheckCircle2 className="h-4 w-4 text-emerald-600" />
+  if (status === 'failed') return <icons.XCircle className="h-4 w-4 text-destructive" />
+  return <icons.Loader2 className="h-4 w-4 animate-spin text-primary" />
 }
 
 export function IngestUploader() {
@@ -78,7 +77,7 @@ export function IngestUploader() {
         }`}
       >
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-          <Upload className="h-7 w-7" />
+          <icons.Upload className="h-7 w-7" />
         </div>
         <div className="space-y-1">
           <p className="text-base font-medium text-foreground">
@@ -91,7 +90,7 @@ export function IngestUploader() {
         <Button
           size="sm"
           onClick={() => inputRef.current?.click()}
-          iconLeft={<Upload className="h-4 w-4" />}
+          iconLeft={<icons.Upload className="h-4 w-4" />}
         >
           选择文件
         </Button>
@@ -119,7 +118,7 @@ export function IngestUploader() {
             >
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted/60">
-                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <icons.FileText className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">

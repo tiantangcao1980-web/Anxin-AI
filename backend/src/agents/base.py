@@ -17,11 +17,27 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 import httpx
-from camel.agents import ChatAgent  # noqa: F401 - legacy patch target for tests
-from camel.models import ModelFactory  # noqa: F401 - legacy patch target for tests
-from camel.types import ModelPlatformType, ModelType
 from loguru import logger
 from pydantic import BaseModel, Field
+
+
+# === 历史兼容占位符 ===
+# 项目早期依赖 CAMEL-AI（``camel.agents.ChatAgent`` / ``camel.models.ModelFactory``），
+# 已在 2026-05 全量剥离。少量遗留单测仍使用 ``@patch('src.agents.base.ChatAgent')``
+# 和 ``@patch('src.agents.base.ModelFactory.create')`` 作为打桩点；这些桩在测试中
+# 被 ``MagicMock`` 替换，运行期不会被生产代码触达。
+# 当 tests/test_workforce.py、tests/test_document_drafter_quality.py 迁移到真实
+# 调用点之后，可安全删除以下两个占位符。
+class ChatAgent:  # pragma: no cover - legacy patch target only
+    """Deprecated CAMEL-AI 兼容占位符；生产路径不再使用。"""
+
+
+class ModelFactory:  # pragma: no cover - legacy patch target only
+    """Deprecated CAMEL-AI 兼容占位符；生产路径不再使用。"""
+
+    @classmethod
+    def create(cls, *args: Any, **kwargs: Any) -> None:
+        return None
 
 from src.core.config import settings
 from src.core.llm_helper import get_llm_config_sync
@@ -58,7 +74,6 @@ _task_llm_route_context_var: contextvars.ContextVar[dict[str, Any] | None] = con
 
 class AgentConfig(BaseModel):
     """智能体配置"""
-
     name: str
     role: str
     description: str
@@ -70,7 +85,6 @@ class AgentConfig(BaseModel):
 
 class AgentResponse(BaseModel):
     """智能体响应"""
-
     agent_name: str
     content: str
     reasoning: str | None = None
@@ -82,9 +96,9 @@ class AgentResponse(BaseModel):
 class BaseLegalAgent(ABC):
     """
     法务智能体基类 (v2 性能优化版)
-
+    
     所有法务智能体都继承此类，提供统一的接口和基础功能。
-
+    
     v2 优化：
     - 类级别共享 httpx 连接池，避免每次 chat() 重建连接
     - chat() 新增 system_prompt_override / enable_reflection 参数
@@ -108,16 +122,10 @@ class BaseLegalAgent(ABC):
     async def get_http_client(cls) -> httpx.AsyncClient:
         """获取类级别共享的 httpx 客户端（带连接池）"""
         # 注意：始终在基类上读写 _shared_http_client，避免每个子类各创建一个连接池
-        if (
-            BaseLegalAgent._shared_http_client is None
-            or BaseLegalAgent._shared_http_client.is_closed
-        ):
+        if BaseLegalAgent._shared_http_client is None or BaseLegalAgent._shared_http_client.is_closed:
             async with BaseLegalAgent._client_lock:
                 # 双重检查锁
-                if (
-                    BaseLegalAgent._shared_http_client is None
-                    or BaseLegalAgent._shared_http_client.is_closed
-                ):
+                if BaseLegalAgent._shared_http_client is None or BaseLegalAgent._shared_http_client.is_closed:
                     _max_conn = settings.AGENT_HTTP_MAX_CONNECTIONS
                     _keepalive_conn = settings.AGENT_HTTP_KEEPALIVE_CONNECTIONS
                     BaseLegalAgent._shared_http_client = httpx.AsyncClient(
@@ -152,7 +160,6 @@ class BaseLegalAgent(ABC):
         self.role = config.role
         self.system_prompt = config.system_prompt
         self.client: Any | None = None
-        self.agent: Any | None = None  # Deprecated camel agent
         self.llm_config: Any | None = None
         self.model_name: str | None = None
         self._init_agent()
@@ -172,31 +179,18 @@ class BaseLegalAgent(ABC):
         except Exception as e:
             logger.error(f"智能体 {self.name} 初始化失败: {e}")
             import traceback
-
             logger.error(traceback.format_exc())
             self.llm_config = None
             self.model_name = None
-
-    def _get_platform_type(self, provider: str) -> ModelPlatformType:
-        """根据提供商获取CAMEL平台类型 (Unused, 保留兼容)"""
-        platform_map = {
-            "openai": ModelPlatformType.OPENAI,
-            "anthropic": ModelPlatformType.ANTHROPIC,
-        }
-        return platform_map.get(provider, ModelPlatformType.OPENAI)
-
-    def _get_model_type(self, provider: str, model_name: str) -> ModelType:
-        """根据提供商和模型名称获取CAMEL模型类型 (Unused, 保留兼容)"""
-        return ModelType.GPT_4O
 
     @abstractmethod
     async def process(self, task: dict[str, Any]) -> AgentResponse:
         """
         处理任务
-
+        
         Args:
             task: 任务信息，可包含 llm_config 用于动态配置
-
+            
         Returns:
             AgentResponse: 处理结果
         """
@@ -224,12 +218,14 @@ class BaseLegalAgent(ABC):
         if api_key and not api_key.startswith("sk-") and len(api_key) > 20:
             try:
                 from src.services.llm_service import LLMService
-
                 api_key = LLMService.decrypt_api_key(api_key)
             except Exception:
                 pass
 
-        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
 
         base_url = api_base_url.rstrip("/")
 
@@ -315,16 +311,16 @@ class BaseLegalAgent(ABC):
     ) -> JSONDict:
         """
         带指数退避重试的 LLM 调用
-
+        
         Args:
             url: API 端点
             headers: 请求头
             payload: 请求体
             stream: 是否使用流式模式
-
+            
         Returns:
             API 响应 JSON
-
+            
         Raises:
             Exception: 所有重试失败后抛出
         """
@@ -346,9 +342,7 @@ class BaseLegalAgent(ABC):
 
         retryer = AsyncRetrying(
             stop=stop_after_attempt(self.MAX_RETRIES),
-            wait=wait_exponential(
-                multiplier=self.RETRY_BASE_DELAY, min=1, max=self.RETRY_MAX_DELAY
-            ),
+            wait=wait_exponential(multiplier=self.RETRY_BASE_DELAY, min=1, max=self.RETRY_MAX_DELAY),
             retry=retry_if_exception_type(Exception),
             reraise=True,
         )
@@ -378,9 +372,7 @@ class BaseLegalAgent(ABC):
                     if not should_retry(e):
                         raise  # Reraise immediately, bypass tenacity retry
 
-                    logger.warning(
-                        f"API调用异常: {e}，正在尝试重试 (当前尝试 {attempt.retry_state.attempt_number}/{self.MAX_RETRIES})"
-                    )
+                    logger.warning(f"API调用异常: {e}，正在尝试重试 (当前尝试 {attempt.retry_state.attempt_number}/{self.MAX_RETRIES})")
                     raise  # Reraise so tenacity catches it and retries
 
         raise RuntimeError("API调用失败：重试器未返回结果")
@@ -398,33 +390,60 @@ class BaseLegalAgent(ABC):
             return str(name) if name else None
         return None
 
-    def _check_mcp_tool_policy(self, tool_name: str) -> Any:
-        from src.harness.policy_engine import policy_engine
+    async def _check_mcp_tool_policy(
+        self,
+        tool_name: str,
+        *,
+        db: Any | None = None,
+        org_id: str | None = None,
+        requested_by: str | None = None,
+    ) -> tuple[bool, dict[str, Any]]:
+        """权限检查 (走 harness.policy_enforcement, 享受异常隔离 + env-var kill switch + A6 自动审批工单)。
 
-        return policy_engine.check_tool_access(self.name, tool_name)
+        默认 enforce=True (1 周 warn-only 观察期已过); 紧急回滚走环境变量
+        HARNESS_POLICY_ENFORCE=false 仍可单点降级 (需手动改 check_tool_call 调用)。
 
-    def _filter_mcp_tools_for_policy(self, tools: list[JSONDict]) -> list[JSONDict]:
-        from src.harness.policy_engine import PolicyDecision
+        A6 (2026-05-14): 传入 db + org_id 后, REQUIRE_APPROVAL 决策会自动调
+        agent_approval_service.request_approval 创建审批工单, pending 状态
+        在 enforce 模式下阻断主路径, 等待人工 approve.
 
+        返回 (allowed, info_dict)。allowed=False 时 info["reason"] 含拒绝原因。
+        """
+        from src.harness.policy_enforcement import check_tool_call
+
+        return await check_tool_call(
+            self.name, tool_name,
+            enforce=True,
+            db=db, org_id=org_id, requested_by=requested_by,
+        )
+
+    async def _filter_mcp_tools_for_policy(self, tools: list[JSONDict]) -> list[JSONDict]:
+        """LLM 上下文前置过滤: 只把 ALLOW 工具展示给 LLM, 减少诱导越权。
+
+        注: 前置过滤不需要审批工单 (这一轮只是给 LLM 看, 没真正执行), 因此
+        不传 db/org_id, REQUIRE_APPROVAL 走 warn-only 路径放行展示, 实际执行
+        时 _execute_tool 内的二次判权再走完整审批流。
+        """
         allowed_tools: list[JSONDict] = []
         for tool in tools:
             tool_name = self._extract_tool_name(tool)
             if not tool_name:
                 logger.warning(f"Agent {self.name}: 跳过无名称 MCP 工具")
                 continue
-            decision = self._check_mcp_tool_policy(tool_name)
-            if decision.decision == PolicyDecision.ALLOW:
+            allowed, info = await self._check_mcp_tool_policy(tool_name)
+            if allowed:
                 allowed_tools.append(tool)
             else:
                 logger.warning(
-                    f"Agent {self.name}: MCP 工具 {tool_name} 被策略拒绝: {decision.reason}"
+                    f"Agent {self.name}: MCP 工具 {tool_name} 被策略拒绝: {info.get('reason', 'unknown')}"
                 )
         return allowed_tools
 
     @staticmethod
     def _tool_policy_denial(tool_name: str, reason: str) -> str:
         return (
-            f"[工具调用被拒绝] {tool_name}: {reason}。" "请基于已有信息回答，不要尝试绕过工具权限。"
+            f"[工具调用被拒绝] {tool_name}: {reason}。"
+            "请基于已有信息回答，不要尝试绕过工具权限。"
         )
 
     async def chat(
@@ -441,14 +460,14 @@ class BaseLegalAgent(ABC):
     ) -> str:
         """
         对话接口 (v2 优化版)
-
+        
         优化点：
         1. 新增 system_prompt_override 参数，避免重建客户端切换 Prompt
         2. 新增 enable_reflection 参数，默认关闭反思（仅复杂任务开启）
         3. 使用共享连接池，不再每次创建新 httpx.AsyncClient
         4. Tool Calling 支持并行执行
         5. 增加指数退避重试
-
+        
         Args:
             message: 用户消息
             user_id: 用户ID（可选，用于加载偏好）
@@ -459,9 +478,7 @@ class BaseLegalAgent(ABC):
         """
         try:
             # 广播思考状态
-            await self.broadcast_status(
-                "thinking", f"{self.name} 正在思考...", {"message_preview": message[:50]}
-            )
+            await self.broadcast_status("thinking", f"{self.name} 正在思考...", {"message_preview": message[:50]})
 
             # 确定 system prompt（优先使用 override，不修改实例状态）
             system_prompt = system_prompt_override or self.system_prompt
@@ -470,7 +487,6 @@ class BaseLegalAgent(ABC):
             if user_id:
                 try:
                     from src.services.preference_service import preference_service
-
                     suffix = await preference_service.get_agent_system_prompt_suffix(user_id)
                     system_prompt += suffix
                 except Exception as e:
@@ -480,15 +496,12 @@ class BaseLegalAgent(ABC):
             # 从知识库检索相关法条，注入到 system_prompt 中
             try:
                 from src.services.agent_rag_service import AgentRAGService
-
                 rag_context = await AgentRAGService.get_legal_context(
                     query=message[:1000],
                     max_articles=5,
                 )
                 if rag_context:
-                    rag_section = AgentRAGService.build_rag_prompt_section(
-                        rag_context, task_type="general"
-                    )
+                    rag_section = AgentRAGService.build_rag_prompt_section(rag_context, task_type="general")
                     system_prompt += f"\n\n{rag_section}"
                     logger.debug(f"[Harness] RAG 注入 {len(rag_context)} 条法律知识到 {self.name}")
             except Exception as rag_err:
@@ -499,10 +512,7 @@ class BaseLegalAgent(ABC):
             if user_id:
                 try:
                     from src.services.experience_engine import experience_engine
-
-                    exp_ctx = experience_engine.build_experience_context(
-                        user_id, message, max_tokens=200
-                    )
+                    exp_ctx = experience_engine.build_experience_context(user_id, message, max_tokens=200)
                     if exp_ctx:
                         system_prompt += f"\n\n[用户历史偏好与经验]\n{exp_ctx}"
                 except Exception:
@@ -524,43 +534,35 @@ class BaseLegalAgent(ABC):
             active_config = await self._resolve_active_llm_config(llm_config)
 
             # 最终校验：如果仍然无效，返回提示
-            _final_key = getattr(active_config, "api_key", "") if active_config else ""
+            _final_key = getattr(active_config, 'api_key', '') if active_config else ''
             if not self._has_valid_api_key(active_config):
                 logger.warning(f"Agent {self.name}: 没有有效的 API Key，请在设置页面配置 LLM 模型")
-                return (
-                    "尚未配置有效的大语言模型 API Key。\n\n"
-                    "请按以下步骤操作：\n"
-                    "1. 点击左侧菜单 **设置**\n"
-                    "2. 进入 **模型配置 (LLM)** 标签\n"
-                    "3. 编辑您的模型配置，输入有效的 API Key\n"
-                    "4. 保存后重新发送消息即可"
-                )
+                return ("尚未配置有效的大语言模型 API Key。\n\n"
+                        "请按以下步骤操作：\n"
+                        "1. 点击左侧菜单 **设置**\n"
+                        "2. 进入 **模型配置 (LLM)** 标签\n"
+                        "3. 编辑您的模型配置，输入有效的 API Key\n"
+                        "4. 保存后重新发送消息即可")
 
             # Debug logging — 不记录任何密钥片段
-            provider = getattr(active_config, "provider", "N/A")
-            base_url_str = getattr(active_config, "api_base_url", "N/A")
-            logger.info(
-                f"Agent {self.name} using config: Provider={provider}, API Base={base_url_str}, Key={'configured' if _final_key else 'missing'}"
-            )
+            provider = getattr(active_config, 'provider', 'N/A')
+            base_url_str = getattr(active_config, 'api_base_url', 'N/A')
+            logger.info(f"Agent {self.name} using config: Provider={provider}, API Base={base_url_str}, Key={'configured' if _final_key else 'missing'}")
 
-            effective_llm_route_context = (
-                llm_route_context or _task_llm_route_context_var.get(None) or {}
-            )
+            effective_llm_route_context = llm_route_context or _task_llm_route_context_var.get(None) or {}
             await self._authorize_llm_route(effective_llm_route_context)
 
             # 准备请求参数
             url, headers, model_name = self._prepare_llm_request(active_config)
 
             # --- MCP Tools Integration ---
-            effective_mcp_route_context = (
-                mcp_route_context or _task_mcp_route_context_var.get(None) or {}
-            )
+            effective_mcp_route_context = mcp_route_context or _task_mcp_route_context_var.get(None) or {}
             try:
                 available_tools = await mcp_client_service.get_all_tools()
             except Exception as e:
                 logger.warning(f"获取 MCP 工具失败: {e}")
                 available_tools = []
-            available_tools = self._filter_mcp_tools_for_policy(available_tools)
+            available_tools = await self._filter_mcp_tools_for_policy(available_tools)
 
             max_turns = 5  # Prevent infinite loops
             current_turn = 0
@@ -574,15 +576,8 @@ class BaseLegalAgent(ABC):
                 current_turn += 1
 
                 # 某些模型对 temperature 有严格限制（如 kimi-k2.5 只允许 temperature=1）
-                temperature = (
-                    getattr(active_config, "temperature", None) or self.config.temperature or 0.7
-                )
-                if model_name and (
-                    "k2" in model_name
-                    or "thinking" in model_name
-                    or "o1" in model_name
-                    or "o3" in model_name
-                ):
+                temperature = getattr(active_config, 'temperature', None) or self.config.temperature or 0.7
+                if model_name and ("k2" in model_name or "thinking" in model_name or "o1" in model_name or "o3" in model_name):
                     temperature = 1.0  # 推理型模型强制 temperature=1
 
                 if is_local_api:
@@ -621,20 +616,32 @@ class BaseLegalAgent(ABC):
                 # 使用带重试的 LLM 调用
                 data = await self._call_llm_with_retry(url, headers, payload)
 
-                # ===== Harness: 捕获 token 用量并记录成本 =====
+                # ===== Harness: 捕获 token 用量并记录成本 (T6: 本地 LLM 无 usage 时按字符估算) =====
                 try:
-                    usage = data.get("usage")
-                    if usage:
-                        from src.harness.cost_tracker import cost_tracker
+                    usage = data.get("usage") or {}
+                    from src.harness.cost_tracker import cost_tracker
 
-                        cost_tracker.record(
-                            model=model_name or "unknown",
-                            provider=provider or "unknown",
-                            prompt_tokens=usage.get("prompt_tokens", 0),
-                            completion_tokens=usage.get("completion_tokens", 0),
-                            agent_name=self.name,
-                            operation=f"agent.{self.name}.chat.turn_{current_turn}",
-                        )
+                    # 优先用 API 返回的真值; 缺失时由 record_with_estimate 按字符估算
+                    prompt_tokens_raw = usage.get("prompt_tokens")
+                    completion_tokens_raw = usage.get("completion_tokens")
+
+                    # 估算用的文本来源 (本地 LLM 路径)
+                    # prompt_text = system_prompt + 所有 history + 当前 message 的拼接
+                    prompt_text_for_estimate = system_prompt + "\n" + message
+                    # completion 取本轮 LLM 实际响应内容 (后面解析得到 content; 这里先用 raw)
+                    completion_text_for_estimate = str(data)[:8000] if not completion_tokens_raw else ""
+
+                    cost_tracker.record_with_estimate(
+                        model=model_name or "unknown",
+                        provider=provider or "unknown",
+                        prompt_text=prompt_text_for_estimate if prompt_tokens_raw is None else "",
+                        completion_text=completion_text_for_estimate,
+                        prompt_tokens=prompt_tokens_raw,
+                        completion_tokens=completion_tokens_raw,
+                        agent_name=self.name,
+                        operation=f"agent.{self.name}.chat.turn_{current_turn}",
+                        user_id=user_id,
+                    )
                 except Exception as _cost_err:
                     logger.debug(f"成本追踪跳过: {_cost_err}")  # 不影响主流程但记录日志
 
@@ -677,9 +684,7 @@ class BaseLegalAgent(ABC):
 
                 if tool_calls:
                     logger.info(f"Executing {len(tool_calls)} tool calls...")
-                    await self.broadcast_status(
-                        "tool_use", f"{self.name} 正在使用工具...", {"tool_count": len(tool_calls)}
-                    )
+                    await self.broadcast_status("tool_use", f"{self.name} 正在使用工具...", {"tool_count": len(tool_calls)})
 
                     # 并行执行所有 Tool Calls
                     async def _execute_tool(tc: JSONDict) -> ChatMessage:
@@ -688,13 +693,23 @@ class BaseLegalAgent(ABC):
                         fn_name = fn["name"]
                         fn_args_str = fn["arguments"]
                         try:
-                            from src.harness.policy_engine import PolicyDecision
-
-                            decision = self._check_mcp_tool_policy(fn_name)
-                            if decision.decision != PolicyDecision.ALLOW:
-                                tool_output = self._tool_policy_denial(fn_name, decision.reason)
+                            # A6: 把 db + org_id 透传给 policy_enforcement, REQUIRE_APPROVAL 自动建工单
+                            _route_ctx = effective_mcp_route_context or {}
+                            allowed, policy_info = await self._check_mcp_tool_policy(
+                                fn_name,
+                                db=_route_ctx.get("db"),
+                                org_id=_route_ctx.get("org_id"),
+                                requested_by=_route_ctx.get("user_id") or _route_ctx.get("requested_by"),
+                            )
+                            if not allowed:
+                                reason = policy_info.get("reason", "权限策略拒绝")
+                                tool_output = self._tool_policy_denial(fn_name, reason)
+                                # A6: 若已自动创建审批工单, 在 tool_output 里告知 user
+                                _ap_id = policy_info.get("approval_id")
+                                if _ap_id:
+                                    tool_output += f"\n\n该操作需要人工审批, 已自动创建工单 {_ap_id}, 审批通过后请重试。"
                                 logger.warning(
-                                    f"Tool execution denied for {fn_name}: {decision.reason}"
+                                    f"Tool execution denied for {fn_name}: {reason} approval={_ap_id}"
                                 )
                                 return {
                                     "role": "tool",
@@ -712,7 +727,11 @@ class BaseLegalAgent(ABC):
                         except Exception as e:
                             logger.error(f"Tool execution failed for {fn_name}: {e}")
                             tool_output = f"[工具调用失败] {fn_name}: {str(e)}。请基于已有信息回答，不要编造数据。"
-                        return {"role": "tool", "tool_call_id": call_id, "content": tool_output}
+                        return {
+                            "role": "tool",
+                            "tool_call_id": call_id,
+                            "content": tool_output
+                        }
 
                     tool_results: list[ChatMessage | BaseException]
                     if effective_mcp_route_context.get("db") is not None:
@@ -730,13 +749,11 @@ class BaseLegalAgent(ABC):
 
                     for tr in tool_results:
                         if isinstance(tr, BaseException):
-                            messages.append(
-                                {
-                                    "role": "tool",
-                                    "tool_call_id": "error",
-                                    "content": f"Tool execution error: {str(tr)}",
-                                }
-                            )
+                            messages.append({
+                                "role": "tool",
+                                "tool_call_id": "error",
+                                "content": f"Tool execution error: {str(tr)}"
+                            })
                         else:
                             messages.append(tr)
 
@@ -744,27 +761,21 @@ class BaseLegalAgent(ABC):
                     continue
                 else:
                     # 条件触发反思机制（仅在 enable_reflection=True 且尚未反思时）
-                    if (
-                        enable_reflection
-                        and not reflection_done
-                        and current_turn == 1
-                        and len(str(content)) > 200
-                    ):
+                    if (enable_reflection
+                            and not reflection_done
+                            and current_turn == 1
+                            and len(str(content)) > 200):
                         reflection_done = True
                         reflection_prompt = (
                             f"请检查上述回答。如果你是{self.role}，你认为这个回答在法律专业性、"
                             f"风险提示或完整性上有什么遗漏吗？如果没有，请直接复述原回答；如果有，请修正。"
                         )
                         messages.append({"role": "user", "content": reflection_prompt})
-                        await self.broadcast_status(
-                            "reflection", f"{self.name} 正在反思...", {"reason": "Self-Correction"}
-                        )
+                        await self.broadcast_status("reflection", f"{self.name} 正在反思...", {"reason": "Self-Correction"})
                         continue
 
                     # Final response
-                    await self.broadcast_status(
-                        "finished", f"{self.name} 回复完成", {"response_preview": str(content)[:50]}
-                    )
+                    await self.broadcast_status("finished", f"{self.name} 回复完成", {"response_preview": str(content)[:50]})
                     return content
 
             return "Task limit reached without final answer."
@@ -772,17 +783,8 @@ class BaseLegalAgent(ABC):
         except Exception as e:
             # MOCK MODE
             error_str = str(e)
-            is_auth_error = (
-                "Incorrect API key provided" in error_str
-                or "401" in error_str
-                or "认证" in error_str
-            )
-            is_conn_error = (
-                "ConnectError" in error_str
-                or "Timeout" in error_str
-                or "timed out" in error_str
-                or "Connection refused" in error_str
-            )
+            is_auth_error = "Incorrect API key provided" in error_str or "401" in error_str or "认证" in error_str
+            is_conn_error = "ConnectError" in error_str or "Timeout" in error_str or "timed out" in error_str or "Connection refused" in error_str
 
             active_config = llm_config or _task_llm_config_var.get(None) or self.llm_config
             api_key = getattr(active_config, "api_key", "") if active_config else ""
@@ -790,14 +792,8 @@ class BaseLegalAgent(ABC):
 
             is_dummy_key = "dummy" in api_key or not api_key
 
-            if (
-                is_auth_error
-                or (is_conn_error and is_dummy_key)
-                or (is_dummy_key and "api.openai.com" in api_base_url)
-            ):
-                logger.warning(
-                    f"API调用失败或使用测试Key ({error_str})，使用模拟响应 (Mock Mode) - Agent: {self.name}"
-                )
+            if is_auth_error or (is_conn_error and is_dummy_key) or (is_dummy_key and "api.openai.com" in api_base_url):
+                logger.warning(f"API调用失败或使用测试Key ({error_str})，使用模拟响应 (Mock Mode) - Agent: {self.name}")
                 return self._get_mock_response(message)
 
             logger.error(f"对话失败: {e}")
@@ -815,15 +811,15 @@ class BaseLegalAgent(ABC):
     ) -> asyncio.Queue[str | None]:
         """
         流式对话接口 — 真正的 token-by-token 流式输出
-
+        
         返回一个 asyncio.Queue，调用方可以从中逐步读取 token。
         队列中的特殊值 None 表示流结束。
-
+        
         Args:
             message: 用户消息
             llm_config: 动态 LLM 配置
             system_prompt_override: 临时覆盖 system prompt
-
+            
         Returns:
             asyncio.Queue: token 队列
         """
@@ -840,23 +836,14 @@ class BaseLegalAgent(ABC):
                     await queue.put(None)
                     return
 
-                effective_llm_route_context = (
-                    llm_route_context or _task_llm_route_context_var.get(None) or {}
-                )
+                effective_llm_route_context = llm_route_context or _task_llm_route_context_var.get(None) or {}
                 await self._authorize_llm_route(effective_llm_route_context)
 
                 url, headers, model_name = self._prepare_llm_request(active_config)
 
                 # 推理型模型强制 temperature=1
-                temperature = (
-                    getattr(active_config, "temperature", None) or self.config.temperature or 0.7
-                )
-                if model_name and (
-                    "k2" in model_name
-                    or "thinking" in model_name
-                    or "o1" in model_name
-                    or "o3" in model_name
-                ):
+                temperature = getattr(active_config, 'temperature', None) or self.config.temperature or 0.7
+                if model_name and ("k2" in model_name or "thinking" in model_name or "o1" in model_name or "o3" in model_name):
                     temperature = 1.0
 
                 # 防护：确保 user 消息不为空
@@ -910,8 +897,7 @@ class BaseLegalAgent(ABC):
                         content = str(data)
                     # 模拟流式输出：按句分块推送
                     import re
-
-                    chunks = re.split(r"(?<=[。！？\n])", content)
+                    chunks = re.split(r'(?<=[。！？\n])', content)
                     for chunk in chunks:
                         if chunk:
                             await queue.put(chunk)
@@ -1009,6 +995,7 @@ class BaseLegalAgent(ABC):
         # 4. 通用回复
         return f"【Mock响应】我已收到您的问题：{message}。由于正在使用测试API Key，无法调用真实模型进行回答。请配置有效的OPENAI_API_KEY。"
 
+
     async def broadcast_status(
         self,
         status: str,
@@ -1018,12 +1005,11 @@ class BaseLegalAgent(ABC):
         """广播Agent状态到事件总线"""
         try:
             from src.services.event_bus import event_bus
-
             event_data = {
                 "agent": self.name,
                 "status": status,
                 "message": message,
-                "payload": payload or {},
+                "payload": payload or {}
             }
             await event_bus.publish("agent_events", event_data)
         except Exception as e:
@@ -1035,5 +1021,5 @@ class BaseLegalAgent(ABC):
             "name": self.name,
             "role": self.role,
             "description": self.config.description,
-            "tools": self.config.tools,
+            "tools": self.config.tools
         }

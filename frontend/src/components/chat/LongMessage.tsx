@@ -15,6 +15,7 @@ import { icons } from '@/lib/icons'
 import { proseStyle } from '@/lib/design-tokens'
 import { useChatStore } from '@/lib/store'
 import { isDocumentGeneration, cleanCanvasContent } from './canvasUtils'
+import { ApprovalLinkInline, extractApprovalIds } from './ApprovalLinkInline'
 
 const FOLD_THRESHOLD = 500  // 超过此长度自动折叠
 const PREVIEW_LENGTH = 300  // 折叠状态下显示的字数
@@ -219,14 +220,35 @@ export function LongMessage({ content, isHistorical, onOpenInWorkspace }: LongMe
     )
   }
 
+  // I3 (2026-05-14): 提取审批工单 id, 若有则渲染顶部 chip 链, 用户可一键跳转 admin 审批面板
+  const approvalIds = extractApprovalIds(content)
+
+  const renderApprovalBanner = () => {
+    if (approvalIds.length === 0) return null
+    return (
+      <div className="flex flex-wrap items-center gap-1.5 mb-2 text-xs">
+        <span className="text-muted-foreground">🔐 涉及审批工单:</span>
+        {approvalIds.map(id => (
+          <ApprovalLinkInline key={id} approvalId={id} />
+        ))}
+      </div>
+    )
+  }
+
   // 长文本：可折叠
   if (charCount > FOLD_THRESHOLD) {
-    return <FoldableContent content={content} defaultFolded={isHistorical || charCount > 1500} />
+    return (
+      <>
+        {renderApprovalBanner()}
+        <FoldableContent content={content} defaultFolded={isHistorical || charCount > 1500} />
+      </>
+    )
   }
 
   // 短消息：直接渲染
   return (
     <div className={proseStyle.chat}>
+      {renderApprovalBanner()}
       <ReactMarkdown>{content}</ReactMarkdown>
     </div>
   )

@@ -5,8 +5,7 @@
  * sticky 布局；移动端自动 fallback 到顶部水平 chip 列表（响应式）。
  */
 
-import { Layers } from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import { cn } from '@/components/ui/utils'
 
 import type { SkillCategory } from '@/lib/api/skills'
@@ -58,7 +57,7 @@ export function SkillCategorySidebar({
       {/* 桌面端：纵向列表 */}
       <div className="hidden rounded-xl border border-border/60 bg-card p-2 lg:block">
         <div className="flex items-center gap-2 px-2 pb-2 text-xs font-medium text-muted-foreground">
-          <Layers className="size-3.5" />
+          <icons.Layers className="size-3.5" />
           技能分组
         </div>
         <nav className="flex flex-col gap-0.5">

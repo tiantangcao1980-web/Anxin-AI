@@ -73,7 +73,7 @@
 | **协作编辑** | Tiptap + Yjs | 2.27 / 13.6 | 实时多人编辑 |
 | **后端框架** | FastAPI | 0.109+ | 异步 Web API |
 | **ORM** | SQLAlchemy 2.0 Async | 2.0+ | 数据库 ORM |
-| **多智能体** | CAMEL-AI | 0.2.0 | Agent 框架 |
+| **多智能体** | 自研 Harness 层 | v1 | 六层 Agent 框架（Model/Harness/Context/Traces/Eval/Ops） |
 | **LLM 集成** | OpenAI / Anthropic / 通义千问 | 多版本 | 大语言模型 |
 | **Embedding** | sentence-transformers | 2.3 | 本地向量编码 |
 | **文档处理** | PyPDF / python-docx / reportlab | 多版本 | 文件解析与导出 |

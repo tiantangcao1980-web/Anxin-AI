@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
-import { X } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import { cn } from '@/lib/utils'
 
@@ -121,7 +121,7 @@ export function SplitView({
                 )}
                 aria-label="关闭详情"
               >
-                <X className="size-4" />
+                <icons.X className="size-4" />
               </Dialog.Close>
             </header>
             <div className="h-[calc(100%-52px)] overflow-auto scroll-momentum p-4">{detail}</div>

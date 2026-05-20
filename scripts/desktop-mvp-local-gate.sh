@@ -224,42 +224,42 @@ checks = {
         "桌面文件拖入分析 P0-3",
         "桌面主窗口 WebView 文件 drop",
     ],
-    "docs/release/commercial-delivery-readiness.md": [
+    "docs/archive/legacy-spine-sources/release/commercial-delivery-readiness.md": [
         "桌面端补充：`Cmd/Ctrl+Shift+Space`",
         "桌面本地模型默认配置",
         "桌面本机通知",
         "桌面端补充：文件拖入分析",
     ],
-    "docs/audit/11a-desktop-mvp/00-prd-reality-gap.md": [
+    "docs/archive/legacy-spine-sources/audit/11a-desktop-mvp/00-prd-reality-gap.md": [
         "Desktop MVP",
         "P0-1",
         "P0-8",
         "signed packaged runtime",
     ],
-    "docs/audit/11a-desktop-mvp/01-prd-coverage.md": [
+    "docs/archive/legacy-spine-sources/audit/11a-desktop-mvp/01-prd-coverage.md": [
         "PRD Coverage",
         "P0-1 desktop window chrome",
         "P0-8 workstation configuration write surface",
     ],
-    "docs/audit/11a-desktop-mvp/02-issues.md": [
+    "docs/archive/legacy-spine-sources/audit/11a-desktop-mvp/02-issues.md": [
         "DSK-001",
         "DSK-009",
         "Release Interpretation",
     ],
-    "docs/audit/11a-desktop-mvp/03-fixes.md": [
+    "docs/archive/legacy-spine-sources/audit/11a-desktop-mvp/03-fixes.md": [
         "Quick Query",
         "File Drop Analysis Queue",
         "default local model persistence",
         "native notification bridge",
         "Remote-Control Host",
     ],
-    "docs/audit/11a-desktop-mvp/04-test-additions.md": [
+    "docs/archive/legacy-spine-sources/audit/11a-desktop-mvp/04-test-additions.md": [
         "desktop-mvp-local-gate.sh",
         "quickQueryModel.test.ts",
         "native notification local-only",
         "Not Covered Locally",
     ],
-    "docs/audit/11a-desktop-mvp/05-followups.md": [
+    "docs/archive/legacy-spine-sources/audit/11a-desktop-mvp/05-followups.md": [
         "Remaining P0",
         "Evidence Owners",
         "Release Risk",

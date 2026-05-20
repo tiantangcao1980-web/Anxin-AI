@@ -23,8 +23,7 @@ dependencies = [
     # 缓存与任务队列
     "redis>=5.0.1",
     "celery>=5.3.6",
-    # 多智能体框架
-    "camel-ai>=0.2.14,!=0.2.72",
+    # 多智能体框架（自有 Harness 层；CAMEL-AI 已于 2026-05 全量剥离）
     "mcp>=1.0.0",
     "jsonschema>=4.0.0",
     # 向量数据库
@@ -48,9 +47,8 @@ dependencies = [
     "openai>=1.12.0",
     "anthropic>=0.18.0",
     "tiktoken>=0.7.0",
-    # P16-D: litellm 受 camel-ai (<0.2.72 或 >0.2.72) 共同约束，所有可用 camel-ai 版本均锁
-    # litellm<=1.83.6 或不兼容 1.83.7+，无法在不引入 pre-release 情况下升级；
-    # GHSA-xqmj-j6mv-4862 列入残留漏洞清单。详见 docs/v3/P16_DEPENDENCY_UPGRADE.md。
+    # litellm：CAMEL-AI 剥离后已无版本耦合约束，仅保留最低基线。
+    # GHSA-xqmj-j6mv-4862 残留漏洞清单详见 docs/v3/P16_DEPENDENCY_UPGRADE.md。
     "litellm>=1.82.0",
     # 工具
     "pydantic>=2.5.3",

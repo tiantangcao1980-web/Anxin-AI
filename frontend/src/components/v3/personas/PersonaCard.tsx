@@ -7,8 +7,7 @@
  * 底部：skills/apps 徽章计数 + "进入工作台" CTA
  */
 
-import { ArrowRight, CheckCircle2, Clock3, Hammer, Plug } from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -58,7 +57,7 @@ export function PersonaCard({ persona, onEnter }: Props) {
                 variant="outline"
                 className="border-emerald-300/60 bg-emerald-500/10 text-[10px] text-emerald-700 dark:border-emerald-700/50 dark:text-emerald-300"
               >
-                <CheckCircle2 className="mr-1 size-3" />
+                <icons.CheckCircle2 className="mr-1 size-3" />
                 已实装
               </Badge>
             ) : (
@@ -66,7 +65,7 @@ export function PersonaCard({ persona, onEnter }: Props) {
                 variant="outline"
                 className="border-amber-300/60 bg-amber-500/10 text-[10px] text-amber-700 dark:border-amber-700/50 dark:text-amber-300"
               >
-                <Clock3 className="mr-1 size-3" />
+                <icons.Clock3 className="mr-1 size-3" />
                 规划中
               </Badge>
             )}
@@ -114,7 +113,7 @@ export function PersonaCard({ persona, onEnter }: Props) {
           className="gap-1 text-[10px] text-muted-foreground"
           title={persona.backed_by_skills.join(', ')}
         >
-          <Hammer className="size-3 opacity-60" />
+          <icons.Hammer className="size-3 opacity-60" />
           {persona.backed_by_skills.length} 技能
         </Badge>
         <Badge
@@ -122,7 +121,7 @@ export function PersonaCard({ persona, onEnter }: Props) {
           className="gap-1 text-[10px] text-muted-foreground"
           title={persona.supported_apps.join(', ')}
         >
-          <Plug className="size-3 opacity-60" />
+          <icons.Plug className="size-3 opacity-60" />
           {persona.supported_apps.length} 应用
         </Badge>
       </div>
@@ -131,7 +130,7 @@ export function PersonaCard({ persona, onEnter }: Props) {
       <div className="mt-auto flex items-center justify-end pt-2">
         <Button size="sm" variant="default" onClick={onEnter} className="gap-1">
           进入工作台
-          <ArrowRight className="size-3.5" />
+          <icons.ArrowRight className="size-3.5" />
         </Button>
       </div>
     </Card>

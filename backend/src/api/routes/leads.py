@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.database import get_db
 from src.core.deps import get_current_user_required
 from src.core.responses import UnifiedResponse
-from src.core.schemas import CamelModel
+from src.core.schemas import APIModel
 from src.models.lead import Lead
 from src.models.user import User
 from src.services.lead_service import LeadService
@@ -19,7 +19,7 @@ from src.services.lead_service import LeadService
 router = APIRouter()
 
 
-class LeadCreate(CamelModel):
+class LeadCreate(APIModel):
     client_name: str = Field(..., min_length=1, max_length=100, description="客户名称")
     contact_info: str | None = Field(None, max_length=500, description="联系方式")
     source: str | None = Field(None, max_length=100, description="来源渠道")
@@ -31,7 +31,7 @@ class LeadCreate(CamelModel):
     assignee: str | None = Field(None, description="负责人")
 
 
-class LeadUpdate(CamelModel):
+class LeadUpdate(APIModel):
     client_name: str | None = Field(None, min_length=1, max_length=100, description="客户名称")
     contact_info: str | None = Field(None, max_length=500, description="联系方式")
     source: str | None = Field(None, max_length=100, description="来源渠道")
@@ -48,7 +48,7 @@ class FollowUpCreate(BaseModel):
     type: str  # 电话, 面谈, 邮件, 微信
 
 
-class LeadResponse(CamelModel):
+class LeadResponse(APIModel):
     id: str
     client_name: str
     contact_info: str | None = None

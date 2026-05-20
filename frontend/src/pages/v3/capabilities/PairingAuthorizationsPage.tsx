@@ -12,8 +12,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
-import { Inbox, RefreshCcw, ShieldCheck, Users } from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import { Button } from '@/components/ui/button'
 
 import { BindingRow } from '@/components/v3/pairing/BindingRow'
@@ -90,7 +89,7 @@ export default function PairingAuthorizationsPage() {
           onClick={handleRefresh}
           disabled={isRefreshing}
         >
-          <RefreshCcw className={isRefreshing ? 'animate-spin' : ''} />
+          <icons.RefreshCcw className={isRefreshing ? 'animate-spin' : ''} />
           刷新
         </Button>
       </header>
@@ -116,7 +115,7 @@ export default function PairingAuthorizationsPage() {
           </div>
         ) : visiblePending.length === 0 ? (
           <EmptyState
-            icon={Inbox}
+            icon={icons.Inbox}
             title="暂无待审请求"
             description="当有人通过 IM 渠道请求与你的智能体配对时,请求将出现在这里。"
           />
@@ -150,14 +149,14 @@ export default function PairingAuthorizationsPage() {
           </div>
         ) : bindings.length === 0 ? (
           <EmptyState
-            icon={Users}
+            icon={icons.Users}
             title="无已授权用户"
             description="你授权配对请求后,用户将显示在此处。"
           />
         ) : (
           <div className="space-y-2">
             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <ShieldCheck className="size-3" />
+              <icons.ShieldCheck className="size-3" />
               共 {bindings.length} 位已授权用户
             </div>
             {bindings.map((b) => (

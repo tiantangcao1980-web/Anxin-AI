@@ -1,6 +1,8 @@
 # 安心智能助手 DESIGN.md
 
-> 单一设计真相源。`docs/design-system.md` 保留实现说明与历史背景；当两者冲突时，以本文件为准。
+> **单一设计真相源**（视觉令牌 / 排版 / 组件外观 / 布局 / 动效 / Icon 体系）。
+> 工程实现规则（命名 / 状态管理 / API / 路由 / 测试）见 [`docs/standards/frontend-standard.md`](docs/standards/frontend-standard.md)。
+> `docs/design-system.md` 保留实现说明与历史背景；当三者冲突时，**本文件为准**。
 > 适用范围：`frontend/` Web 主界面优先，随后同步到 `mobile/` 与 `mini-program/`。
 
 ## 1. Visual Theme & Atmosphere
@@ -203,6 +205,7 @@
 - 节点、图例、数据系列必须映射到统一扩展 token：`entity`, `law`, `document`, `conclusion`, `query`
 - 禁止在组件内部直接写 hex 作为长期设计值
 
+<a id="icon-system"></a>
 ### Icon System
 
 **Primary Icon Library**

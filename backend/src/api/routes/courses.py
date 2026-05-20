@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.database import get_db
 from src.core.deps import get_current_user_required
 from src.core.responses import UnifiedResponse
-from src.core.schemas import CamelModel
+from src.core.schemas import APIModel
 from src.models.course import Course
 from src.models.user import User
 from src.services.course_service import CourseService
@@ -18,7 +18,7 @@ from src.services.course_service import CourseService
 router = APIRouter()
 
 
-class CourseCreate(CamelModel):
+class CourseCreate(APIModel):
     title: str
     instructor: str | None = None
     category: str = "regulation"
@@ -29,7 +29,7 @@ class CourseCreate(CamelModel):
     tags: list[str] | None = None
 
 
-class CourseUpdate(CamelModel):
+class CourseUpdate(APIModel):
     title: str | None = None
     instructor: str | None = None
     category: str | None = None
@@ -40,12 +40,12 @@ class CourseUpdate(CamelModel):
     tags: list[str] | None = None
 
 
-class ProgressUpdate(CamelModel):
+class ProgressUpdate(APIModel):
     progress: int
     completed_lessons: list[int] | None = None
 
 
-class CourseResponse(CamelModel):
+class CourseResponse(APIModel):
     id: str
     title: str
     instructor: str | None = None

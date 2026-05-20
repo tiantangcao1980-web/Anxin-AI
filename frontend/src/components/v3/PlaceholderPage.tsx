@@ -6,7 +6,8 @@
  */
 
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, Sparkles, type LucideIcon } from 'lucide-react'
+import { icons } from '@/lib/icons'
+import type { LucideIcon } from '@/lib/icons'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -29,7 +30,7 @@ export function PlaceholderPage({
   title,
   description,
   plannedFeatures,
-  icon: Icon = Sparkles,
+  icon: Icon = icons.Sparkles,
   beta = false,
 }: PlaceholderPageProps) {
   const navigate = useNavigate()
@@ -83,7 +84,7 @@ export function PlaceholderPage({
             回到智能对话，了解安心智能助手当前已支持的功能。
           </p>
         </div>
-        <Button onClick={() => navigate('/chat')} iconRight={<ArrowRight className="h-4 w-4" />}>
+        <Button onClick={() => navigate('/chat')} iconRight={<icons.ArrowRight className="h-4 w-4" />}>
           回到聊天
         </Button>
       </div>

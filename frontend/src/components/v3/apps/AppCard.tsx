@@ -7,8 +7,7 @@
  */
 
 import { useState } from 'react'
-import { Check, ExternalLink, Plus, RefreshCw, Unplug } from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { cn } from '@/components/ui/utils'
@@ -85,7 +84,7 @@ export function AppCard({
               onClick={(e) => e.stopPropagation()}
             >
               开发者文档
-              <ExternalLink className="size-2.5" />
+              <icons.ExternalLink className="size-2.5" />
             </a>
           )}
         </div>
@@ -109,7 +108,7 @@ export function AppCard({
         {isConnected ? (
           <>
             <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400">
-              <Check className="size-3" />
+              <icons.Check className="size-3" />
               已连接
             </span>
             <div className="flex items-center gap-1">
@@ -121,7 +120,7 @@ export function AppCard({
                   onClick={() => onRefresh(provider, authorization)}
                   title="刷新令牌"
                 >
-                  <RefreshCw className="size-3" />
+                  <icons.RefreshCw className="size-3" />
                 </Button>
               )}
               <Button
@@ -130,7 +129,7 @@ export function AppCard({
                 className="h-7 px-2 text-xs text-muted-foreground hover:text-red-600"
                 onClick={() => authorization && onDisconnect(provider, authorization)}
               >
-                <Unplug className="size-3" />
+                <icons.Unplug className="size-3" />
                 断开
               </Button>
             </div>
@@ -142,7 +141,7 @@ export function AppCard({
             className="ml-auto h-7 px-3 text-xs"
             onClick={() => onConnect(provider)}
           >
-            <Plus className="size-3" />
+            <icons.Plus className="size-3" />
             添加账户
           </Button>
         )}

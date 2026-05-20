@@ -18,7 +18,7 @@
  */
 
 import { useState } from 'react'
-import { Loader2, PlayCircle } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -105,7 +105,7 @@ export function PersonaCapabilityRunner({ persona }: Props) {
           className="w-full gap-1"
           size="sm"
         >
-          {pending ? <Loader2 className="size-3.5 animate-spin" /> : <PlayCircle className="size-3.5" />}
+          {pending ? <icons.Loader2 className="size-3.5 animate-spin" /> : <icons.PlayCircle className="size-3.5" />}
           {pending ? '执行中…' : '触发并发送到对话'}
         </Button>
       </section>

@@ -6,16 +6,7 @@
  */
 
 import { useMemo, useState } from 'react'
-import {
-  AlertCircle,
-  CheckCircle2,
-  ChevronDown,
-  ChevronRight,
-  CircleDot,
-  PlayCircle,
-  Wrench,
-} from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import { cn } from '@/components/ui/utils'
 
 import type { AgentTask, TaskEvent, TaskEventType } from '@/lib/api/agentTasks'
@@ -26,7 +17,7 @@ interface TaskTimelineProps {
 }
 
 interface EventStyle {
-  icon: typeof CircleDot
+  icon: typeof icons.CircleDot
   iconClass: string
   cardClass: string
   title: string
@@ -34,38 +25,38 @@ interface EventStyle {
 
 const EVENT_STYLE: Record<TaskEventType, EventStyle> = {
   status_changed: {
-    icon: PlayCircle,
+    icon: icons.PlayCircle,
     iconClass: 'text-slate-500',
     cardClass: 'border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40',
     title: '状态变更',
   },
   progress: {
-    icon: CircleDot,
+    icon: icons.CircleDot,
     iconClass: 'text-slate-400',
     cardClass: 'border-slate-200 bg-muted/40 dark:border-slate-800',
     title: '进度更新',
   },
   tool_call: {
-    icon: Wrench,
+    icon: icons.Wrench,
     iconClass: 'text-blue-500',
     cardClass: 'border-blue-200 bg-blue-50 dark:border-blue-900/60 dark:bg-blue-500/10',
     title: '工具调用',
   },
   tool_result: {
-    icon: Wrench,
+    icon: icons.Wrench,
     iconClass: 'text-emerald-500',
     cardClass:
       'border-emerald-200 bg-emerald-50 dark:border-emerald-900/60 dark:bg-emerald-500/10',
     title: '工具返回',
   },
   error: {
-    icon: AlertCircle,
+    icon: icons.AlertCircle,
     iconClass: 'text-red-500',
     cardClass: 'border-red-200 bg-red-50 dark:border-red-900/60 dark:bg-red-500/10',
     title: '错误',
   },
   done: {
-    icon: CheckCircle2,
+    icon: icons.CheckCircle2,
     iconClass: 'text-emerald-600',
     cardClass:
       'border-emerald-300 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-500/15',
@@ -91,7 +82,7 @@ function CollapsibleJson({ data, label }: { data: unknown; label: string }) {
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
       >
-        {open ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+        {open ? <icons.ChevronDown className="size-3" /> : <icons.ChevronRight className="size-3" />}
         <span>{label}</span>
       </button>
       {open && (

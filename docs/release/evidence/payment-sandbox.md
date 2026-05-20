@@ -1,9 +1,13 @@
 # Payment Sandbox Evidence
 
-Status: pending
+Status: deferred
+Deferred-Reason: 产品方向调整 (2026-05-14) — 商业化支付不作为核心功能 PMF 验证的阻断项, 推迟到 PMF 验证后启动
+Deferred-Until: PMF 验证完成 (预计 2026 Q3)
 Owner: TBD
 Environment: staging/sandbox
 Date range: TBD
+
+> **降级说明**: 见 [docs/DEVELOPMENT_PLAN.md §2.1 P8.D](../../DEVELOPMENT_PLAN.md) 与 [PROJECT_STATUS.md Phase F](../../../PROJECT_STATUS.md). 当前阶段使用 mock 支付通道, 不阻断 release gate. 商业化阶段恢复 Status: pending 后继续按本文件 Required Scope 采集证据。
 
 > Do not paste merchant private keys, API v3 keys, platform certificates, access tokens, or raw customer PII into this file. Store secrets only in the approved secret manager and reference redacted log/artifact IDs here.
 

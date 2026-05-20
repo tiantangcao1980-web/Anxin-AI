@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useMemo } from 'react'
-import { Bot, RefreshCcw, Search } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { useNavigate } from 'react-router-dom'
 
 import { Badge } from '@/components/ui/badge'
@@ -64,7 +64,7 @@ export default function AgentsPage() {
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <Bot className="size-6" />
+            <icons.Bot className="size-6" />
           </div>
           <div>
             <h1 className="text-xl font-semibold tracking-tight text-foreground">
@@ -83,7 +83,7 @@ export default function AgentsPage() {
             onClick={() => loadPersonas()}
             disabled={loading}
           >
-            <RefreshCcw className={loading ? 'animate-spin' : ''} />
+            <icons.RefreshCcw className={loading ? 'animate-spin' : ''} />
             刷新
           </Button>
         </div>
@@ -105,7 +105,7 @@ export default function AgentsPage() {
       {/* 搜索 + filter */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative min-w-[260px] flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <icons.Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={searchQuery}
             onChange={(e) => setSearch(e.target.value)}

@@ -49,7 +49,15 @@ interface SentimentDashboardProps {
  }
 }
 
-const PIE_COLORS = ['#34C759','#8E8E93','#FF3B30']
+// UI Fix (2026-05-14): 改用 design-tokens 取代硬编码 iOS hex (recharts 无法吃 CSS variable, 仍用 hex 但走 token)
+import { graphNodeColors } from '@/lib/design-tokens'
+
+// 正面 / 中立 / 负面 三态 (与下方 Line dataKey="positive"/"neutral"/"negative" 顺序对齐)
+const SENTIMENT_POSITIVE = graphNodeColors.law      // 绿色, 表达"健康"
+const SENTIMENT_NEUTRAL = graphNodeColors.other     // 灰色, 中性
+const SENTIMENT_NEGATIVE = graphNodeColors.lawyer   // 警示橙
+
+const PIE_COLORS = [SENTIMENT_POSITIVE, SENTIMENT_NEUTRAL, SENTIMENT_NEGATIVE]
 
 /** 基于调查数据生成上下文化的舆情概览 */
 function deriveOverview(data?: SentimentDashboardProps['investigationData']): SentimentOverview {
@@ -315,9 +323,9 @@ export function SentimentDashboard({ companyName, onEntityClick, investigationDa
  <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
  <Tooltip />
  <Legend />
- <Line type="monotone" dataKey="positive" name="正面" stroke="#34C759" strokeWidth={2} dot={false} />
- <Line type="monotone" dataKey="neutral" name="中立" stroke="#8E8E93" strokeWidth={2} dot={false} />
- <Line type="monotone" dataKey="negative" name="负面" stroke="#FF3B30" strokeWidth={2} dot={false} />
+ <Line type="monotone" dataKey="positive" name="正面" stroke={SENTIMENT_POSITIVE} strokeWidth={2} dot={false} />
+ <Line type="monotone" dataKey="neutral" name="中立" stroke={SENTIMENT_NEUTRAL} strokeWidth={2} dot={false} />
+ <Line type="monotone" dataKey="negative" name="负面" stroke={SENTIMENT_NEGATIVE} strokeWidth={2} dot={false} />
  </LineChart>
  </ResponsiveContainer>
  </div>

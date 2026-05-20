@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.database import get_db
 from src.core.deps import Permission, require_permission
 from src.core.responses import UnifiedResponse
-from src.core.schemas import CamelModel
+from src.core.schemas import APIModel
 from src.models.user import User
 from src.services.asset_service import AssetService
 
@@ -28,23 +28,21 @@ def _as_date(value: Any) -> date | None:
     return cast(date | None, value)
 
 
-class AssetCreate(CamelModel):
+class AssetCreate(APIModel):
     name: str
     type: str
     original_value: float
     current_value: float
     acquisition_date: date | None = None
 
-
-class AssetUpdate(CamelModel):
+class AssetUpdate(APIModel):
     name: str | None = None
     type: str | None = None
     original_value: float | None = None
     current_value: float | None = None
     acquisition_date: date | None = None
 
-
-class AssetResponse(CamelModel):
+class AssetResponse(APIModel):
     id: str
     name: str
     type: str
@@ -52,35 +50,30 @@ class AssetResponse(CamelModel):
     current_value: float
     acquisition_date: date | None = None
 
-
 @router.get("/")
 async def list_assets(
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(require_permission(Permission.READ_ASSETS)),
+    user: User = Depends(require_permission(Permission.READ_ASSETS))
 ) -> dict[str, Any]:
     service = AssetService(db)
     org_id = _require_org_id(user)
     assets = await service.list_assets(org_id)
-    return UnifiedResponse.success(
-        data=[
-            AssetResponse(
-                id=a.id,
-                name=a.name,
-                type=a.asset_type,
-                original_value=a.original_value,
-                current_value=a.current_value,
-                acquisition_date=_as_date(a.acquisition_date),
-            )
-            for a in assets
-        ]
-    )
-
+    return UnifiedResponse.success(data=[
+        AssetResponse(
+            id=a.id,
+            name=a.name,
+            type=a.asset_type,
+            original_value=a.original_value,
+            current_value=a.current_value,
+            acquisition_date=_as_date(a.acquisition_date),
+        ) for a in assets
+    ])
 
 @router.post("/")
 async def create_asset(
     data: AssetCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(require_permission(Permission.WRITE_ASSETS)),
+    user: User = Depends(require_permission(Permission.WRITE_ASSETS))
 ) -> dict[str, Any]:
     service = AssetService(db)
     org_id = _require_org_id(user)
@@ -91,26 +84,23 @@ async def create_asset(
         current_value=data.current_value,
         acquisition_date=data.acquisition_date,
         org_id=org_id,
-        created_by=user.id,
+        created_by=user.id
     )
-    return UnifiedResponse.success(
-        data=AssetResponse(
-            id=asset.id,
-            name=asset.name,
-            type=asset.asset_type,
-            original_value=asset.original_value,
-            current_value=asset.current_value,
-            acquisition_date=_as_date(asset.acquisition_date),
-        )
-    )
-
+    return UnifiedResponse.success(data=AssetResponse(
+        id=asset.id,
+        name=asset.name,
+        type=asset.asset_type,
+        original_value=asset.original_value,
+        current_value=asset.current_value,
+        acquisition_date=_as_date(asset.acquisition_date),
+    ))
 
 @router.put("/{asset_id}")
 async def update_asset(
     asset_id: str,
     data: AssetUpdate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(require_permission(Permission.WRITE_ASSETS)),
+    user: User = Depends(require_permission(Permission.WRITE_ASSETS))
 ) -> dict[str, Any]:
     service = AssetService(db)
     org_id = _require_org_id(user)
@@ -126,23 +116,20 @@ async def update_asset(
     if not asset:
         return UnifiedResponse.error(code=404, message="资产不存在或无权限访问")
 
-    return UnifiedResponse.success(
-        data=AssetResponse(
-            id=asset.id,
-            name=asset.name,
-            type=asset.asset_type,
-            original_value=asset.original_value,
-            current_value=asset.current_value,
-            acquisition_date=_as_date(asset.acquisition_date),
-        )
-    )
-
+    return UnifiedResponse.success(data=AssetResponse(
+        id=asset.id,
+        name=asset.name,
+        type=asset.asset_type,
+        original_value=asset.original_value,
+        current_value=asset.current_value,
+        acquisition_date=_as_date(asset.acquisition_date),
+    ))
 
 @router.delete("/{asset_id}")
 async def delete_asset(
     asset_id: str,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(require_permission(Permission.DELETE_ASSETS)),
+    user: User = Depends(require_permission(Permission.DELETE_ASSETS))
 ) -> dict[str, Any]:
     service = AssetService(db)
     org_id = _require_org_id(user)

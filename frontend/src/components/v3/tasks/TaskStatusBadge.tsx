@@ -2,8 +2,7 @@
  * TaskStatusBadge — 8 种 status 的语义色彩徽章
  */
 
-import { AlertTriangle } from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/components/ui/utils'
 
@@ -66,7 +65,7 @@ export function TaskStatusBadge({ status, className }: TaskStatusBadgeProps) {
   const cfg = STATUS_MAP[status]
   return (
     <Badge variant="outline" className={cn(cfg.className, className)}>
-      {cfg.icon === 'warning' && <AlertTriangle className="size-3" />}
+      {cfg.icon === 'warning' && <icons.AlertTriangle className="size-3" />}
       {cfg.pulse && (
         <span className="relative flex size-1.5 items-center justify-center">
           <span className="absolute inline-flex size-full animate-ping rounded-full bg-blue-400 opacity-75" />

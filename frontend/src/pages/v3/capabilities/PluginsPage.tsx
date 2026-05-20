@@ -2,13 +2,13 @@
  * PluginsPage.tsx — V3 插件（占位）
  */
 
-import { Puzzle } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { PlaceholderPage } from '@/components/v3/PlaceholderPage'
 
 export default function PluginsPage() {
   return (
     <PlaceholderPage
-      icon={Puzzle}
+      icon={icons.Puzzle}
       title="插件"
       description="通过插件接入外部系统与数据源，构建你的法务工作台"
       plannedFeatures={[

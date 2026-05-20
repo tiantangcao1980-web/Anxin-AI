@@ -222,10 +222,12 @@ def test_release_evidence_templates_list_live_runtime_flags_and_retry_rows():
 
 def test_external_handoff_docs_list_live_runtime_flags():
     repo_root = Path(__file__).resolve().parents[2]
+    # Phase A 归档: 48-hour-commercial-delivery-plan.md → archive/legacy-spine-sources/release/
+    # 当前 RELEASE_GATE.md / DEVELOPMENT_PLAN.md 是 Spine 单一真相源
     docs = {
         "handoff": repo_root / "docs" / "release" / "external-resource-handoff.md",
         "runbook": repo_root / "docs" / "release" / "evidence-collection-runbook.md",
-        "plan": repo_root / "docs" / "release" / "48-hour-commercial-delivery-plan.md",
+        "plan": repo_root / "docs" / "archive" / "legacy-spine-sources" / "release" / "48-hour-commercial-delivery-plan.md",
         "inputs": repo_root / "docs" / "release" / "external-inputs-checklist.md",
     }
     required_flags = (

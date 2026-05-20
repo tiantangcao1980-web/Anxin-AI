@@ -40,7 +40,7 @@ def test_release_worktree_inventory_classifies_dirty_paths(tmp_path):
                 "?? docs/DEPLOYMENT_DESKTOP.md",
                 "?? docs/00-project-execution-map.md",
                 "?? docs/references/agentic-platform-benchmark-2026-05-08.md",
-                " M docs/strategy/product-architecture-and-requirements-2026-05-08.md",
+                " M docs/REQUIREMENTS.md",
                 ' M "docs/archive/legacy-root-docs/\\346\\227\\247\\346\\226\\207\\346\\241\\243.md"',
                 "?? docs/design/cross-platform-token-drift.md",
                 "?? frontend/package-lock.json",
@@ -70,8 +70,9 @@ def test_release_worktree_inventory_classifies_dirty_paths(tmp_path):
         "docs/references/agentic-platform-benchmark-2026-05-08.md"
         in payload["categories"]["release_delivery"]
     )
+    # Phase A6 (2026-05-14): docs/strategy/* 已归档, REQUIREMENTS.md 上位
     assert (
-        "docs/strategy/product-architecture-and-requirements-2026-05-08.md"
+        "docs/REQUIREMENTS.md"
         in payload["categories"]["release_delivery"]
     )
     assert "docs/archive/legacy-root-docs/旧文档.md" in payload["categories"]["release_delivery"]

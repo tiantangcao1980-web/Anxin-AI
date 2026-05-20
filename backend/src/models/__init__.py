@@ -74,6 +74,8 @@ from src.models.notification import (
 )
 from src.models.payment import PaymentOrder as PaymentOrderModel
 from src.models.review import LawyerReview
+from src.models.incident import Incident  # T5 (CREAO Slice 1)
+from src.models.user_token_usage import UserTokenUsage  # A4 (cost_tracker persistence)
 from src.models.sentiment import (
     AlertLevel,
     AlertType,
@@ -227,4 +229,7 @@ __all__ = [
     "InvestigationSnapshot",
     "SearchCache",
     "UserInvestigationPreference",
+    # Harness incidents
+    "Incident",
+    "UserTokenUsage",
 ]

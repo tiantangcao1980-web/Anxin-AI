@@ -1,8 +1,8 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
-import { ErrorState } from '@/components/common/ErrorState'
-import { LoadingState } from '@/components/common/LoadingState'
+// J (Phase J, 2026-05-14): common/ → ui-unified/ 迁移 (ADR 003 Phase 2)
+import { ErrorState, LoadingState } from '@/components/ui-unified'
 import { PageContainer } from '@/components/ui/PageContainer'
 import {
   agentApprovalsApi,

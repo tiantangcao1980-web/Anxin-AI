@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { Loader2, RefreshCcw, Send } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -78,7 +78,7 @@ export function PersonaChatPanel({ persona }: Props) {
           onClick={() => clearThread(persona.persona_id)}
           disabled={thread.history.length === 0 || pending}
         >
-          <RefreshCcw className="size-3" />
+          <icons.RefreshCcw className="size-3" />
           清空
         </Button>
       </div>
@@ -98,7 +98,7 @@ export function PersonaChatPanel({ persona }: Props) {
         ))}
         {pending && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Loader2 className="size-3 animate-spin" />
+            <icons.Loader2 className="size-3 animate-spin" />
             {persona.display_name} 正在思考……
           </div>
         )}
@@ -121,7 +121,7 @@ export function PersonaChatPanel({ persona }: Props) {
             disabled={!input.trim() || pending}
             className="h-10 gap-1"
           >
-            {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
+            {pending ? <icons.Loader2 className="size-3.5 animate-spin" /> : <icons.Send className="size-3.5" />}
             发送
           </Button>
         </div>

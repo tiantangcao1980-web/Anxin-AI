@@ -5,9 +5,9 @@
 
 import { CenterLayout, type CenterTab } from '@/components/ui/CenterLayout'
 import { useTabUrlSync } from '@/hooks/useTabUrlSync'
-import Cases from '@/pages/Cases'
-import Leads from '@/pages/Leads'
-import Tasks from '@/pages/Tasks'
+// I2 (2026-05-14, ADR 003): tab 内容子组件迁出 pages/, 集中到 components/center-tabs/
+import { CaseManagement as Cases } from '@/components/case-management/CaseManagement'
+import { Leads, Tasks } from '@/components/center-tabs'
 
 const tabs: CenterTab[] = [
   { id: 'cases', label: '我的案件', icon: 'Briefcase' },

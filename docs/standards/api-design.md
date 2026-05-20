@@ -171,7 +171,7 @@ async def send(req: ChatRequest, mode: PrivacyMode = Depends(get_privacy_mode)):
         raise BizException(2003, "本地模式不可用：需要云端能力")
 ```
 
-详见 [docs/architecture-v2.md](../architecture-v2.md) 三态模式。
+详见 [docs/ARCHITECTURE.md](../ARCHITECTURE.md) §4 三态模式。
 
 ## 10. 智能体治理六层校验（V3）
 

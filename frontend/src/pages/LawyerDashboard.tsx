@@ -15,7 +15,7 @@ import { PageContainer, PageSection } from '@/components/ui/PageContainer'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ErrorState } from '@/components/common'
+import { ErrorState } from '@/components/ui-unified'
 import { StatCard as UnifiedStatCard, StatGrid, StatCardSkeleton } from '@/components/ui-unified'
 import {
   LineChart,

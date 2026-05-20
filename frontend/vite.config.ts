@@ -41,17 +41,29 @@ export default defineConfig(({ mode }) => {
             if (id.includes('/node_modules/@radix-ui/')) {
               return 'vendor-radix'
             }
-            // Three.js + 3D 图谱（~800KB，仅知识图谱页面使用）
-            if (id.includes('/node_modules/three/') || id.includes('/node_modules/three-spritetext/') || id.includes('/node_modules/react-force-graph')) {
-              return 'vendor-three'
+            // Three.js core (~600KB, 仅知识图谱页面)
+            if (id.includes('/node_modules/three/')) {
+              return 'vendor-three-core'
             }
-            // recharts + d3（~350KB，仅仪表板类页面使用）
-            if (id.includes('/node_modules/recharts') || id.includes('/node_modules/d3-')) {
+            // react-force-graph + three-spritetext (~700KB, 仅知识图谱页面)
+            if (id.includes('/node_modules/three-spritetext/') || id.includes('/node_modules/react-force-graph')) {
+              return 'vendor-three-graph'
+            }
+            // recharts (~350KB, 仅仪表板类页面)
+            if (id.includes('/node_modules/recharts')) {
               return 'vendor-recharts'
             }
-            // Tiptap 编辑器 + Yjs 协作（~250KB，仅协作编辑页面使用）
-            if (id.includes('/node_modules/@tiptap/') || id.includes('/node_modules/yjs/') || id.includes('/node_modules/y-') || id.includes('/node_modules/prosemirror')) {
-              return 'vendor-editor'
+            // d3 (~150KB, recharts 依赖 + KG 内部使用)
+            if (id.includes('/node_modules/d3-')) {
+              return 'vendor-d3'
+            }
+            // Tiptap 编辑器 (~250KB, 仅协作编辑页面)
+            if (id.includes('/node_modules/@tiptap/') || id.includes('/node_modules/prosemirror')) {
+              return 'vendor-tiptap'
+            }
+            // Yjs 协作 (~150KB, 仅协作编辑页面)
+            if (id.includes('/node_modules/yjs/') || id.includes('/node_modules/y-')) {
+              return 'vendor-yjs'
             }
             // Markdown 渲染（~80KB）
             if (['react-markdown', 'remark-', 'rehype-', 'unified', 'mdast-', 'hast-', 'micromark', 'unist-'].some(pkg => id.includes(`/node_modules/${pkg}`))) {
@@ -73,9 +85,13 @@ export default defineConfig(({ mode }) => {
             if (id.includes('/node_modules/reactflow/') || id.includes('/node_modules/@reactflow/')) {
               return 'vendor-reactflow'
             }
-            // LiveKit 音视频（仅通话页面使用）
+            // LiveKit 客户端 (~350KB, 仅通话页面)
+            if (id.includes('/node_modules/livekit-client/')) {
+              return 'vendor-livekit-client'
+            }
+            // LiveKit React 组件 + 其他 livekit 包 (~200KB)
             if (id.includes('/node_modules/livekit-') || id.includes('/node_modules/@livekit/')) {
-              return 'vendor-livekit'
+              return 'vendor-livekit-components'
             }
             // uuid + date-fns 等工具库
             if (['uuid', 'date-fns'].some(pkg => id.includes(`/node_modules/${pkg}/`))) {

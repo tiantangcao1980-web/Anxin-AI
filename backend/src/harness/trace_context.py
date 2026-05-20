@@ -108,6 +108,29 @@ class TraceContext:
         self.total_completion_tokens += completion_tokens
         self.total_cost_usd += cost_usd
 
+    def record_policy_decision(self, decision_info: dict[str, Any]) -> None:
+        """A7 (2026-05-14): 把 policy_enforcement.check_tool_call 的 decision_dict
+        累积到当前 trace 的 _policy_info 列表, 用于 admin 审计 + 追溯被拒/审批的工具调用.
+
+        decision_info schema (来自 policy_enforcement):
+          {
+            "agent": str, "tool": str, "enforce_mode": bool,
+            "decision": "allow"|"deny"|"require_approval"|"policy_error",
+            "reason": str, "enforced": bool,
+            "approval_id": str?, "approval_status": str?,
+          }
+        """
+        if not isinstance(decision_info, dict):
+            return
+        if not hasattr(self, "_policy_info"):
+            self._policy_info = []
+        # 仅记录非 ALLOW 的事件 (allow 太多, 写满 trace 没有审计价值)
+        if decision_info.get("decision") and decision_info.get("decision") != "allow":
+            self._policy_info.append({
+                "ts": time.time(),
+                **decision_info,
+            })
+
     @property
     def total_tokens(self) -> int:
         return self.total_prompt_tokens + self.total_completion_tokens
@@ -147,6 +170,8 @@ class TraceContext:
                 for s in self.spans
                 if s.agent_name
             ],
+            # A7: policy 决策审计 (仅含 deny / require_approval / policy_error)
+            "_policy_info": list(getattr(self, "_policy_info", [])),
         }
 
 

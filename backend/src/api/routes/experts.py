@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.database import get_db
 from src.core.deps import get_current_user_required
 from src.core.responses import UnifiedResponse
-from src.core.schemas import CamelModel
+from src.core.schemas import APIModel
 from src.models.expert import Expert
 from src.models.user import User
 from src.services.expert_service import ExpertService
@@ -18,7 +18,7 @@ from src.services.expert_service import ExpertService
 router = APIRouter()
 
 
-class ExpertCreate(CamelModel):
+class ExpertCreate(APIModel):
     name: str
     title: str | None = None
     specialty: list[str] | None = None
@@ -29,7 +29,7 @@ class ExpertCreate(CamelModel):
     achievements: list[str] | None = None
 
 
-class ExpertUpdate(CamelModel):
+class ExpertUpdate(APIModel):
     name: str | None = None
     title: str | None = None
     specialty: list[str] | None = None
@@ -40,7 +40,7 @@ class ExpertUpdate(CamelModel):
     achievements: list[str] | None = None
 
 
-class ExpertResponse(CamelModel):
+class ExpertResponse(APIModel):
     id: str
     name: str
     title: str | None = None

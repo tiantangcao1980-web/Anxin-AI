@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.database import get_db
 from src.core.deps import get_current_user_required
 from src.core.responses import UnifiedResponse
-from src.core.schemas import CamelModel
+from src.core.schemas import APIModel
 from src.models.task import Task
 from src.models.user import User
 from src.services.task_service import TaskService
@@ -22,7 +22,7 @@ router = APIRouter()
 ADMIN_TASK_ROLES = {"admin", "super_admin", "org_admin", "partner"}
 
 
-class TaskCreate(CamelModel):
+class TaskCreate(APIModel):
     title: str
     description: str | None = None
     status: str = "todo"
@@ -33,7 +33,7 @@ class TaskCreate(CamelModel):
     tags: list[str] | None = None
 
 
-class TaskUpdate(CamelModel):
+class TaskUpdate(APIModel):
     title: str | None = None
     description: str | None = None
     status: str | None = None
@@ -44,7 +44,7 @@ class TaskUpdate(CamelModel):
     tags: list[str] | None = None
 
 
-class TaskResponse(CamelModel):
+class TaskResponse(APIModel):
     id: str
     title: str
     description: str | None = None

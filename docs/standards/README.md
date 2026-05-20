@@ -56,10 +56,19 @@
 
 | 本目录 | 其他文档 |
 |---|---|
+| **工程规则**（HOW） | [../../DESIGN.md](../../DESIGN.md) — **视觉设计单一真相源**（颜色 / 排版 / 组件 / Icon / 布局） |
+| **工程规则**（HOW） | [../../AGENTS.md](../../AGENTS.md) — **运行时 Agent 行为单一真相源**（红线 / 路由 / 协作） |
 | **HOW**（如何工作） | [../00-project-execution-map.md](../00-project-execution-map.md) — 当前权威导航（WHAT） |
 | 规范 | [../openspec/](../openspec/) — 交付合同（DELIVERABLE） |
 | 规范 | [../v3/](../v3/) — V3 智能助手实施细节 |
 | 规范 | [../adr/](../adr/) — 架构决策记录 |
+
+**三大单一真相源分工**：
+- `AGENTS.md` — 运行时 AI Agent 行为（22 个智能体怎么协作、红线在哪、反 slop 规则）
+- `DESIGN.md` — 视觉设计（颜色 token、字号、组件外观、Icon、布局节奏、动效）
+- `docs/standards/` — 工程实现（命名、Git、API、测试、跨端一致性）
+
+冲突时按上述顺序仲裁：行为 > 视觉 > 实现。
 
 ## 违规处理
 

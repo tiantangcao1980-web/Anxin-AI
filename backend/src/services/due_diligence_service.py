@@ -43,10 +43,10 @@ class InvestigationRateLimiter:
     """
 
     # 默认限制（可通过 settings 覆盖）
-    MAX_QUERIES_PER_HOUR = 20  # 每用户每小时最大查询数
-    MAX_QUERIES_PER_DAY = 50  # 每用户每天最大查询数
+    MAX_QUERIES_PER_HOUR = 20      # 每用户每小时最大查询数
+    MAX_QUERIES_PER_DAY = 50       # 每用户每天最大查询数
     MAX_SAME_COMPANY_PER_HOUR = 5  # 同一企业每小时最大查询数
-    GLOBAL_MAX_PER_MINUTE = 10  # 全局每分钟最大查询数（保护外部数据源）
+    GLOBAL_MAX_PER_MINUTE = 10     # 全局每分钟最大查询数（保护外部数据源）
 
     def __init__(self) -> None:
         # {user_id: [(timestamp, company_name), ...]}
@@ -56,7 +56,9 @@ class InvestigationRateLimiter:
         # {user_id: block_until_timestamp}
         self._blocked_users: dict[str, float] = {}
 
-    def check_and_record(self, user_id: str, company_name: str) -> dict[str, Any]:
+    def check_and_record(
+        self, user_id: str, company_name: str
+    ) -> dict[str, Any]:
         """
         检查查询是否允许，并记录。
 
@@ -85,7 +87,9 @@ class InvestigationRateLimiter:
         self._user_queries[user_id] = [
             (ts, cn) for ts, cn in self._user_queries[user_id] if ts > day_ago
         ]
-        self._global_queries = [(ts, cn) for ts, cn in self._global_queries if ts > minute_ago]
+        self._global_queries = [
+            (ts, cn) for ts, cn in self._global_queries if ts > minute_ago
+        ]
 
         user_history = self._user_queries[user_id]
 
@@ -103,9 +107,7 @@ class InvestigationRateLimiter:
         if hour_count >= self.MAX_QUERIES_PER_HOUR:
             # 触发限速，临时封禁10分钟
             self._blocked_users[user_id] = now + 600
-            logger.warning(
-                f"用户 {user_id} 触发小时查询限制 ({hour_count}/{self.MAX_QUERIES_PER_HOUR})"
-            )
+            logger.warning(f"用户 {user_id} 触发小时查询限制 ({hour_count}/{self.MAX_QUERIES_PER_HOUR})")
             return {
                 "allowed": False,
                 "reason": f"每小时查询上限为 {self.MAX_QUERIES_PER_HOUR} 次，请10分钟后重试",
@@ -115,9 +117,7 @@ class InvestigationRateLimiter:
 
         # 检查每天限制
         if len(user_history) >= self.MAX_QUERIES_PER_DAY:
-            logger.warning(
-                f"用户 {user_id} 触发每日查询限制 ({len(user_history)}/{self.MAX_QUERIES_PER_DAY})"
-            )
+            logger.warning(f"用户 {user_id} 触发每日查询限制 ({len(user_history)}/{self.MAX_QUERIES_PER_DAY})")
             return {
                 "allowed": False,
                 "reason": f"每日查询上限为 {self.MAX_QUERIES_PER_DAY} 次，请明天再试",
@@ -169,12 +169,8 @@ _rate_limiter = InvestigationRateLimiter()
 
 _DUE_DILIGENCE_QUERY_PATTERNS = [
     re.compile(r"(尽职调查|尽调|背景调查|企业调查|公司调查)"),
-    re.compile(
-        r"(调查|查一下|查下|查查|看看|核查|评估|分析).{0,8}(公司|企业|供应商|合作方|交易对手|对方主体|对方)"
-    ),
-    re.compile(
-        r"(工商信息|股权结构|诉讼记录|失信记录|经营异常|行政处罚|信用记录|关联企业|关联关系)"
-    ),
+    re.compile(r"(调查|查一下|查下|查查|看看|核查|评估|分析).{0,8}(公司|企业|供应商|合作方|交易对手|对方主体|对方)"),
+    re.compile(r"(工商信息|股权结构|诉讼记录|失信记录|经营异常|行政处罚|信用记录|关联企业|关联关系)"),
     re.compile(r"(供应商|合作方|交易对手).{0,12}(可靠|靠谱|风险|背景|信用)"),
 ]
 
@@ -190,44 +186,17 @@ _REGULATORY_QUERY_PATTERNS = [
 ]
 
 _COMPANY_NAME_PATTERNS = [
-    re.compile(
-        r"([A-Za-z0-9\u4e00-\u9fa5（）()·\-.]{2,60}?(?:有限责任公司|股份有限公司|集团有限公司|有限公司|集团|公司|企业))"
-    ),
+    re.compile(r"([A-Za-z0-9\u4e00-\u9fa5（）()·\-.]{2,60}?(?:有限责任公司|股份有限公司|集团有限公司|有限公司|集团|公司|企业))"),
 ]
 
 _COMPANY_PLACEHOLDERS = {
-    "一家公司",
-    "一间公司",
-    "一家企业",
-    "一间企业",
-    "这个公司",
-    "这家公司",
-    "那个公司",
-    "那家公司",
-    "某公司",
-    "某企业",
-    "目标公司",
-    "合作公司",
-    "合作企业",
-    "供应商公司",
-    "企业公司",
-    "公司",
-    "企业",
-    "对方公司",
-    "对方企业",
+    "一家公司", "一间公司", "一家企业", "一间企业", "这个公司", "这家公司",
+    "那个公司", "那家公司", "某公司", "某企业", "目标公司", "合作公司",
+    "合作企业", "供应商公司", "企业公司", "公司", "企业", "对方公司", "对方企业",
 }
 
 _KNOWN_COMPANY_ALIASES = (
-    "腾讯",
-    "阿里巴巴",
-    "阿里",
-    "字节跳动",
-    "京东",
-    "百度",
-    "美团",
-    "拼多多",
-    "小米",
-    "华为",
+    "腾讯", "阿里巴巴", "阿里", "字节跳动", "京东", "百度", "美团", "拼多多", "小米", "华为",
 )
 
 _LEADING_REQUEST_PREFIX = re.compile(
@@ -253,14 +222,10 @@ def detect_company_due_diligence_request(message: str) -> dict[str, Any]:
     if not text:
         return {"matched": False, "company_name": None, "reason": "empty"}
 
-    if "公司法" in text and not any(
-        pattern.search(text) for pattern in _DUE_DILIGENCE_QUERY_PATTERNS[:2]
-    ):
+    if "公司法" in text and not any(pattern.search(text) for pattern in _DUE_DILIGENCE_QUERY_PATTERNS[:2]):
         return {"matched": False, "company_name": None, "reason": "company_law_question"}
 
-    matched_pattern = next(
-        (pattern.pattern for pattern in _DUE_DILIGENCE_QUERY_PATTERNS if pattern.search(text)), None
-    )
+    matched_pattern = next((pattern.pattern for pattern in _DUE_DILIGENCE_QUERY_PATTERNS if pattern.search(text)), None)
     if not matched_pattern:
         return {"matched": False, "company_name": None, "reason": "no_due_diligence_signal"}
 
@@ -276,12 +241,7 @@ def classify_investigation_request(message: str) -> dict[str, Any]:
     """Classify investigation-adjacent requests into deterministic routing buckets."""
     text = (message or "").strip()
     if not text:
-        return {
-            "intent": "general_search",
-            "company_name": None,
-            "confidence": 0.0,
-            "reason": "empty",
-        }
+        return {"intent": "general_search", "company_name": None, "confidence": 0.0, "reason": "empty"}
 
     company_name = extract_company_name_from_text(text)
     due = detect_company_due_diligence_request(text)
@@ -394,17 +354,11 @@ def format_due_diligence_chat_response(company_name: str, data: dict[str, Any]) 
     }
     overall_label = risk_labels.get(str(overall_rating).lower(), str(overall_rating))
 
-    total_cases = int(litigation.get("plaintiff_cases", 0) or 0) + int(
-        litigation.get("defendant_cases", 0) or 0
-    )
+    total_cases = int(litigation.get("plaintiff_cases", 0) or 0) + int(litigation.get("defendant_cases", 0) or 0)
     execution_cases = int(litigation.get("execution_cases", 0) or 0)
     dishonest_records = int(litigation.get("dishonest_records", 0) or 0)
-    risk_points = [
-        str(item).strip() for item in (risk.get("risk_points") or []) if str(item).strip()
-    ]
-    recommendations = [
-        str(item).strip() for item in (risk.get("recommendations") or []) if str(item).strip()
-    ]
+    risk_points = [str(item).strip() for item in (risk.get("risk_points") or []) if str(item).strip()]
+    recommendations = [str(item).strip() for item in (risk.get("recommendations") or []) if str(item).strip()]
     credit_rating = credit.get("credit_rating") or "待核验"
     data_source = basic_info.get("data_source") or "调查服务"
 
@@ -421,10 +375,8 @@ def format_due_diligence_chat_response(company_name: str, data: dict[str, Any]) 
         "2. 风险结论",
         f"- 综合风险等级：{overall_label}",
         f"- 诉讼相关案件数：{total_cases}",
-        f"- 被执行案件数：{execution_cases}"
-        + ("（来源：中国执行信息公开网）" if execution_cases else ""),
-        f"- 失信被执行人记录：{dishonest_records}"
-        + ("（来源：全国法院失信被执行人名单）" if dishonest_records else ""),
+        f"- 被执行案件数：{execution_cases}" + ("（来源：中国执行信息公开网）" if execution_cases else ""),
+        f"- 失信被执行人记录：{dishonest_records}" + ("（来源：全国法院失信被执行人名单）" if dishonest_records else ""),
         f"- 信用评级：{credit_rating}",
         f"- 风险分项：经营 {risk.get('operation_risk', 'N/A')} / 诉讼 {risk.get('litigation_risk', 'N/A')} / 信用 {risk.get('credit_risk', 'N/A')} / 合规 {risk.get('compliance_risk', 'N/A')} / 关联 {risk.get('relation_risk', 'N/A')}",
         "",
@@ -440,20 +392,16 @@ def format_due_diligence_chat_response(company_name: str, data: dict[str, Any]) 
     if recommendations:
         summary_lines.extend([f"- {item}" for item in recommendations[:3]])
     else:
-        summary_lines.extend(
-            [
-                "- 补充核查最新工商登记与年报信息。",
-                "- 重点核查涉诉、被执行和行政处罚记录。",
-                "- 如用于交易或合作决策，建议进一步做股权穿透和实控人关联排查。",
-            ]
-        )
+        summary_lines.extend([
+            "- 补充核查最新工商登记与年报信息。",
+            "- 重点核查涉诉、被执行和行政处罚记录。",
+            "- 如用于交易或合作决策，建议进一步做股权穿透和实控人关联排查。",
+        ])
 
-    summary_lines.extend(
-        [
-            "",
-            f"说明：本次摘要的数据来源标记为“{data_source}”。若其中包含 AI 推断字段，请在正式决策前以工商、裁判文书、执行信息等公开记录再次核验。",
-        ]
-    )
+    summary_lines.extend([
+        "",
+        f"说明：本次摘要的数据来源标记为“{data_source}”。若其中包含 AI 推断字段，请在正式决策前以工商、裁判文书、执行信息等公开记录再次核验。",
+    ])
 
     return "\n".join(summary_lines)
 
@@ -470,7 +418,6 @@ class DueDiligenceService:
         """延迟导入 workforce，避免循环依赖"""
         if self._workforce is None:
             from src.agents.workforce import get_workforce
-
             self._workforce = get_workforce()
         return self._workforce
 
@@ -479,7 +426,6 @@ class DueDiligenceService:
         """获取一个轻量 Agent 实例，用于直接 LLM 调用（绕过 workforce 管道）"""
         if self._llm_agent is None:
             from src.agents.workforce import get_workforce
-
             wf = get_workforce()
             # 优先用尽职调查Agent，否则取任何可用 agent
             self._llm_agent = wf.agents.get("due_diligence") or wf.agents.get("legal_advisor")
@@ -500,7 +446,6 @@ class DueDiligenceService:
         # 优先尝试 Crawl4AI（反检测能力更强）
         try:
             from src.services.crawl4ai_service import crawl4ai_service
-
             c4_result = await crawl4ai_service.crawl_url(
                 f"https://zxgk.court.gov.cn/zhixing/?pName={company_name}",
                 timeout=20,
@@ -509,13 +454,10 @@ class DueDiligenceService:
                 content = c4_result["content"]
                 # 从 Markdown 内容中提取执行案件数
                 import re
-
-                case_matches = re.findall(r"(\d+)\s*(?:件|条|项)", content)
+                case_matches = re.findall(r'(\d+)\s*(?:件|条|项)', content)
                 if case_matches:
                     result["execution_cases"] = int(case_matches[0])
-                    logger.info(
-                        f"Crawl4AI 获取执行信息成功: {company_name}, {result['execution_cases']} 件"
-                    )
+                    logger.info(f"Crawl4AI 获取执行信息成功: {company_name}, {result['execution_cases']} 件")
                     return result
         except Exception as c4e:
             logger.debug(f"Crawl4AI 执行信息获取失败: {c4e}")
@@ -535,15 +477,13 @@ class DueDiligenceService:
         # 优先尝试 Crawl4AI
         try:
             from src.services.crawl4ai_service import crawl4ai_service
-
             credit_url = f"https://www.creditchina.gov.cn/xinyongxinxixiangqing/xyDetail.html?searchState=1&entityType=1&keyword={company_name}"
             c4_result = await crawl4ai_service.crawl_url(credit_url, timeout=20)
             if c4_result.get("success") and c4_result.get("content"):
                 content = c4_result["content"]
                 import re
-
                 # 提取行政处罚数
-                penalty_match = re.findall(r"行政处罚[^0-9]*(\d+)", content)
+                penalty_match = re.findall(r'行政处罚[^0-9]*(\d+)', content)
                 if penalty_match:
                     result["penalties"] = int(penalty_match[0])
                 # 检测黑名单
@@ -552,9 +492,7 @@ class DueDiligenceService:
                 if "守信红名单" in content or "红名单" in content:
                     result["red_list"] = True
                 if result["penalties"] > 0 or result["black_list"]:
-                    logger.info(
-                        f"Crawl4AI 信用中国数据成功: {company_name}, 处罚={result['penalties']}"
-                    )
+                    logger.info(f"Crawl4AI 信用中国数据成功: {company_name}, 处罚={result['penalties']}")
                     return result
         except Exception as c4e:
             logger.debug(f"Crawl4AI 信用中国获取失败: {c4e}")
@@ -589,12 +527,10 @@ class DueDiligenceService:
                     result["case_count"] = 1
 
                 if result["case_count"] > 0:
-                    result["cases"].append(
-                        {
-                            "title": f"{company_name} 相关裁判文书公开页线索",
-                            "url": "https://wenshu.court.gov.cn/",
-                        }
-                    )
+                    result["cases"].append({
+                        "title": f"{company_name} 相关裁判文书公开页线索",
+                        "url": "https://wenshu.court.gov.cn/",
+                    })
                     logger.info(f"裁判文书网合规抓取命中线索: {company_name}")
         except Exception as e:
             logger.debug(f"裁判文书网合规抓取失败: {e}")
@@ -654,11 +590,7 @@ class DueDiligenceService:
                 )
                 if resp.status_code == 200:
                     data = resp.json()
-                    items = (
-                        data.get("data", {}).get("list", [])
-                        if isinstance(data.get("data"), dict)
-                        else []
-                    )
+                    items = data.get("data", {}).get("list", []) if isinstance(data.get("data"), dict) else []
                     if items:
                         item = items[0]
                         result = {
@@ -687,7 +619,7 @@ class DueDiligenceService:
                     # 爱企查返回 HTML，尝试提取 JSON 数据
                     text = resp.text
                     # 搜索页面可能包含结构化数据
-                    json_match = re.search(r"window\.pageData\s*=\s*(\{[\s\S]*?\});", text)
+                    json_match = re.search(r'window\.pageData\s*=\s*(\{[\s\S]*?\});', text)
                     if json_match:
                         page_data = json.loads(json_match.group(1))
                         items = page_data.get("result", {}).get("resultList", [])
@@ -737,9 +669,7 @@ class DueDiligenceService:
                                         "unified_credit_code": item.get("uniscId", ""),
                                         "company_type": item.get("entType", ""),
                                     }
-                                    logger.info(
-                                        f"国家企业信用信息公示系统数据获取成功: {company_name}"
-                                    )
+                                    logger.info(f"国家企业信用信息公示系统数据获取成功: {company_name}")
                                     return result
                     except (json.JSONDecodeError, KeyError):
                         pass
@@ -931,7 +861,6 @@ class DueDiligenceService:
         # 用真实采集的数据重新计算风险评分，替代 LLM 估算
         try:
             from src.services.risk_scoring_engine import risk_scoring_engine
-
             llm_risk = result.get("risk", {})  # 保留 LLM 结果作为补充
             data_driven_risk = risk_scoring_engine.compute_risk_scores(
                 basic_info=result.get("basic_info", {}),
@@ -1011,11 +940,11 @@ class DueDiligenceService:
 
         try:
             # 去掉 markdown 代码块标记
-            cleaned = re.sub(r"```(?:json)?\s*", "", response).strip()
-            cleaned = re.sub(r"```\s*$", "", cleaned).strip()
+            cleaned = re.sub(r'```(?:json)?\s*', '', response).strip()
+            cleaned = re.sub(r'```\s*$', '', cleaned).strip()
 
             # 尝试提取 JSON
-            json_match = re.search(r"\{[\s\S]*\}", cleaned)
+            json_match = re.search(r'\{[\s\S]*\}', cleaned)
             if json_match:
                 parsed = json.loads(json_match.group())
                 # 合并解析结果与默认值
@@ -1044,46 +973,73 @@ class DueDiligenceService:
         """
         logger.info(f"开始企业调查: {company_name}, 类型: {investigation_type}")
 
-        # 根据调查类型确定需要执行的任务
-        tasks: list[tuple[str, Any]] = []
+        # T7: 创建 task_engine 状态机记录
+        from src.harness.task_engine import TaskState, task_engine, TaskContract
+        task_record = task_engine.create_task(
+            description=f"企业尽调: {company_name[:60]} ({investigation_type})",
+            route="due_diligence",
+            agent_name="due_diligence",
+            contract=TaskContract(
+                goal=f"完成 {company_name} 的 {investigation_type} 类型尽调",
+                success_criteria=["返回 results 子字典", "生成 report"],
+                output_format="json",
+                timeout_seconds=300,
+            ),
+        )
+        task_engine.transition(task_record.task_id, TaskState.RUNNING)
 
-        if investigation_type in ["comprehensive", "basic"]:
-            tasks.append(("basic_info", self._get_basic_info(company_name)))
+        try:
+            # 根据调查类型确定需要执行的任务
+            tasks: list[tuple[str, Any]] = []
 
-        if investigation_type in ["comprehensive", "litigation"]:
-            tasks.append(("litigation", self._get_litigation_info(company_name)))
+            if investigation_type in ["comprehensive", "basic"]:
+                tasks.append(("basic_info", self._get_basic_info(company_name)))
 
-        if investigation_type in ["comprehensive", "credit"]:
-            tasks.append(("credit", self._get_credit_info(company_name)))
+            if investigation_type in ["comprehensive", "litigation"]:
+                tasks.append(("litigation", self._get_litigation_info(company_name)))
 
-        if investigation_type == "comprehensive":
-            tasks.append(("risk", self._assess_risks(company_name)))
-            tasks.append(("relations", self._get_company_relations(company_name)))
+            if investigation_type in ["comprehensive", "credit"]:
+                tasks.append(("credit", self._get_credit_info(company_name)))
 
-        # 并行执行所有任务
-        results: JSONDict = {}
-        if tasks:
-            task_results = await asyncio.gather(
-                *[task[1] for task in tasks], return_exceptions=True
+            if investigation_type == "comprehensive":
+                tasks.append(("risk", self._assess_risks(company_name)))
+                tasks.append(("relations", self._get_company_relations(company_name)))
+
+            # 并行执行所有任务
+            results: JSONDict = {}
+            if tasks:
+                task_results = await asyncio.gather(
+                    *[task[1] for task in tasks],
+                    return_exceptions=True
+                )
+
+                for (name, _), result in zip(tasks, task_results, strict=False):
+                    if isinstance(result, Exception):
+                        logger.error(f"任务 {name} 失败: {result}")
+                        results[name] = {"error": str(result)}
+                        # 记录到 task artifacts 便于追溯
+                        task_engine.save_artifact(task_record.task_id, f"error_{name}", str(result))
+                    else:
+                        results[name] = result
+
+            # 生成综合报告
+            report = await self._generate_report(company_name, results, investigation_type)
+
+            task_engine.transition(
+                task_record.task_id, TaskState.COMPLETED, result={"investigation_type": investigation_type}
             )
 
-            for (name, _), result in zip(tasks, task_results, strict=False):
-                if isinstance(result, Exception):
-                    logger.error(f"任务 {name} 失败: {result}")
-                    results[name] = {"error": str(result)}
-                else:
-                    results[name] = result
-
-        # 生成综合报告
-        report = await self._generate_report(company_name, results, investigation_type)
-
-        return {
-            "company_name": company_name,
-            "investigation_type": investigation_type,
-            "timestamp": datetime.now().isoformat(),
-            "results": results,
-            "report": report,
-        }
+            return {
+                "company_name": company_name,
+                "investigation_type": investigation_type,
+                "task_id": task_record.task_id,
+                "timestamp": datetime.now().isoformat(),
+                "results": results,
+                "report": report,
+            }
+        except Exception as exc:
+            task_engine.transition(task_record.task_id, TaskState.FAILED, error_msg=str(exc))
+            raise
 
     async def _get_basic_info(self, company_name: str) -> dict[str, Any]:
         """获取企业基本信息"""
@@ -1102,22 +1058,19 @@ class DueDiligenceService:
 
 请以JSON格式返回结果。""",
             task_type="due_diligence",
-            context={"company_name": company_name, "task": "basic_info"},
+            context={"company_name": company_name, "task": "basic_info"}
         )
 
-        return self._parse_agent_result(
-            result,
-            {
-                "name": company_name,
-                "legal_representative": "",
-                "registered_capital": "",
-                "established_date": "",
-                "business_scope": "",
-                "address": "",
-                "company_type": "",
-                "status": "正常",
-            },
-        )
+        return self._parse_agent_result(result, {
+            "name": company_name,
+            "legal_representative": "",
+            "registered_capital": "",
+            "established_date": "",
+            "business_scope": "",
+            "address": "",
+            "company_type": "",
+            "status": "正常",
+        })
 
     async def _get_litigation_info(self, company_name: str) -> dict[str, Any]:
         """获取诉讼信息"""
@@ -1131,20 +1084,17 @@ class DueDiligenceService:
 
 请以JSON格式返回，包含 plaintiff_cases, defendant_cases, major_cases, execution_cases, dishonest_records 字段。""",
             task_type="due_diligence",
-            context={"company_name": company_name, "task": "litigation"},
+            context={"company_name": company_name, "task": "litigation"}
         )
 
-        return self._parse_agent_result(
-            result,
-            {
-                "plaintiff_cases": 0,
-                "defendant_cases": 0,
-                "major_cases": [],
-                "execution_cases": 0,
-                "dishonest_records": 0,
-                "risk_level": "low",
-            },
-        )
+        return self._parse_agent_result(result, {
+            "plaintiff_cases": 0,
+            "defendant_cases": 0,
+            "major_cases": [],
+            "execution_cases": 0,
+            "dishonest_records": 0,
+            "risk_level": "low",
+        })
 
     async def _get_credit_info(self, company_name: str) -> dict[str, Any]:
         """获取信用信息"""
@@ -1159,20 +1109,17 @@ class DueDiligenceService:
 
 请以JSON格式返回结果。""",
             task_type="due_diligence",
-            context={"company_name": company_name, "task": "credit"},
+            context={"company_name": company_name, "task": "credit"}
         )
 
-        return self._parse_agent_result(
-            result,
-            {
-                "administrative_penalties": 0,
-                "tax_violations": 0,
-                "environmental_penalties": 0,
-                "abnormal_operations": 0,
-                "serious_violations": 0,
-                "credit_rating": "B",
-            },
-        )
+        return self._parse_agent_result(result, {
+            "administrative_penalties": 0,
+            "tax_violations": 0,
+            "environmental_penalties": 0,
+            "abnormal_operations": 0,
+            "serious_violations": 0,
+            "credit_rating": "B",
+        })
 
     async def _assess_risks(self, company_name: str) -> dict[str, Any]:
         """风险评估"""
@@ -1189,22 +1136,19 @@ class DueDiligenceService:
 
 请以JSON格式返回，包含各项评分和建议。""",
             task_type="risk_assessment",
-            context={"company_name": company_name},
+            context={"company_name": company_name}
         )
 
-        return self._parse_agent_result(
-            result,
-            {
-                "operation_risk": 30,
-                "litigation_risk": 20,
-                "credit_risk": 25,
-                "compliance_risk": 20,
-                "relation_risk": 15,
-                "overall_rating": "low",
-                "risk_points": [],
-                "recommendations": [],
-            },
-        )
+        return self._parse_agent_result(result, {
+            "operation_risk": 30,
+            "litigation_risk": 20,
+            "credit_risk": 25,
+            "compliance_risk": 20,
+            "relation_risk": 15,
+            "overall_rating": "low",
+            "risk_points": [],
+            "recommendations": [],
+        })
 
     async def _get_company_relations(self, company_name: str) -> dict[str, Any]:
         """获取企业关联关系"""
@@ -1218,19 +1162,16 @@ class DueDiligenceService:
 
 请以JSON格式返回，用于构建企业关系图谱。""",
             task_type="due_diligence",
-            context={"company_name": company_name, "task": "relations"},
+            context={"company_name": company_name, "task": "relations"}
         )
 
-        return self._parse_agent_result(
-            result,
-            {
-                "shareholders": [],
-                "investments": [],
-                "branches": [],
-                "key_persons": [],
-                "actual_controller": None,
-            },
-        )
+        return self._parse_agent_result(result, {
+            "shareholders": [],
+            "investments": [],
+            "branches": [],
+            "key_persons": [],
+            "actual_controller": None,
+        })
 
     async def _generate_report(
         self,
@@ -1261,16 +1202,13 @@ class DueDiligenceService:
             task_type="due_diligence",
         )
 
-        return self._parse_agent_result(
-            result,
-            {
-                "overview": f"关于{company_name}的尽职调查报告",
-                "findings": [],
-                "risk_alerts": [],
-                "recommendations": [],
-                "conclusion": "",
-            },
-        )
+        return self._parse_agent_result(result, {
+            "overview": f"关于{company_name}的尽职调查报告",
+            "findings": [],
+            "risk_alerts": [],
+            "recommendations": [],
+            "conclusion": "",
+        })
 
     def _parse_agent_result(
         self,
@@ -1289,7 +1227,7 @@ class DueDiligenceService:
 
             if isinstance(final_result, str):
                 # 尝试提取 JSON
-                json_match = re.search(r"\{[\s\S]*\}", final_result)
+                json_match = re.search(r'\{[\s\S]*\}', final_result)
                 if json_match:
                     parsed = json.loads(json_match.group())
                     return {**default, **parsed}
@@ -1310,73 +1248,59 @@ class DueDiligenceService:
         edges = []
 
         # 中心节点（目标企业）
-        nodes.append(
-            {
-                "id": "center",
-                "name": company_name,
-                "type": "target",
-                "level": 0,
-            }
-        )
+        nodes.append({
+            "id": "center",
+            "name": company_name,
+            "type": "target",
+            "level": 0,
+        })
 
         # 股东节点
         for i, shareholder in enumerate(relations.get("shareholders", [])):
             node_id = f"shareholder_{i}"
-            nodes.append(
-                {
-                    "id": node_id,
-                    "name": shareholder.get("name", f"股东{i+1}"),
-                    "type": "shareholder",
-                    "level": 1,
-                }
-            )
-            edges.append(
-                {
-                    "source": node_id,
-                    "target": "center",
-                    "relation": "股东",
-                    "label": shareholder.get("ratio", ""),
-                }
-            )
+            nodes.append({
+                "id": node_id,
+                "name": shareholder.get("name", f"股东{i+1}"),
+                "type": "shareholder",
+                "level": 1,
+            })
+            edges.append({
+                "source": node_id,
+                "target": "center",
+                "relation": "股东",
+                "label": shareholder.get("ratio", ""),
+            })
 
         # 投资节点
         for i, investment in enumerate(relations.get("investments", [])):
             node_id = f"investment_{i}"
-            nodes.append(
-                {
-                    "id": node_id,
-                    "name": investment.get("name", f"被投资企业{i+1}"),
-                    "type": "investment",
-                    "level": 1,
-                }
-            )
-            edges.append(
-                {
-                    "source": "center",
-                    "target": node_id,
-                    "relation": "投资",
-                    "label": investment.get("ratio", ""),
-                }
-            )
+            nodes.append({
+                "id": node_id,
+                "name": investment.get("name", f"被投资企业{i+1}"),
+                "type": "investment",
+                "level": 1,
+            })
+            edges.append({
+                "source": "center",
+                "target": node_id,
+                "relation": "投资",
+                "label": investment.get("ratio", ""),
+            })
 
         # 关键人员节点
         for i, person in enumerate(relations.get("key_persons", [])):
             node_id = f"person_{i}"
-            nodes.append(
-                {
-                    "id": node_id,
-                    "name": person.get("name", f"高管{i+1}"),
-                    "type": "person",
-                    "level": 1,
-                }
-            )
-            edges.append(
-                {
-                    "source": node_id,
-                    "target": "center",
-                    "relation": person.get("position", "高管"),
-                }
-            )
+            nodes.append({
+                "id": node_id,
+                "name": person.get("name", f"高管{i+1}"),
+                "type": "person",
+                "level": 1,
+            })
+            edges.append({
+                "source": node_id,
+                "target": "center",
+                "relation": person.get("position", "高管"),
+            })
 
         return {
             "nodes": nodes,
@@ -1406,7 +1330,7 @@ MOCK_COMPANY_DATA = {
             "relation_risk": 25,
             "overall_rating": "medium",
             "risk_points": ["反垄断合规风险", "跨境监管风险"],
-        },
+        }
     },
     "腾讯": {
         "basic_info": {
@@ -1426,15 +1350,14 @@ MOCK_COMPANY_DATA = {
             "compliance_risk": 35,
             "relation_risk": 20,
             "overall_rating": "low",
-        },
-    },
+        }
+    }
 }
 
 
 def _deterministic_hash(s: str, mod: int = 100) -> int:
     """基于字符串生成确定性的数值（同一输入总是返回相同结果）"""
     import hashlib
-
     h = int(hashlib.md5(s.encode("utf-8")).hexdigest(), 16)
     return h % mod
 
@@ -1481,14 +1404,10 @@ def _generate_deterministic_company_data(company_name: str) -> dict[str, Any]:
 
     # 城市推断
     city_map = {
-        "北京": "北京市海淀区",
-        "上海": "上海市浦东新区",
-        "广州": "广州市天河区",
-        "深圳": "深圳市南山区",
-        "杭州": "杭州市余杭区",
-        "成都": "成都市高新区",
-        "武汉": "武汉市东湖高新区",
-        "南京": "南京市雨花台区",
+        "北京": "北京市海淀区", "上海": "上海市浦东新区",
+        "广州": "广州市天河区", "深圳": "深圳市南山区",
+        "杭州": "杭州市余杭区", "成都": "成都市高新区",
+        "武汉": "武汉市东湖高新区", "南京": "南京市雨花台区",
     }
     address = "北京市朝阳区"
     for city, addr in city_map.items():
@@ -1610,9 +1529,7 @@ async def get_company_info(company_name: str, max_retries: int = 3) -> dict[str,
             await asyncio.sleep(wait_seconds)
 
     # 3 次全部失败
-    error_message = (
-        f"AI 调查失败（已重试 {max_retries} 次），请检查 LLM 服务是否可用（企业: {company_name}）"
-    )
+    error_message = f"AI 调查失败（已重试 {max_retries} 次），请检查 LLM 服务是否可用（企业: {company_name}）"
     if last_error:
         raise Exception(error_message) from last_error
     raise Exception(error_message)

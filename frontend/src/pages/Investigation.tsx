@@ -7,10 +7,7 @@
 
 import { useState, useCallback } from'react'
 import { useParams, useNavigate } from'react-router-dom'
-import {
- Search, ArrowLeft, Clock, TrendingUp, Building2,
- Shield, Scale, FileCheck, Network, FileText, Cpu, BarChart3
-} from'lucide-react'
+import { icons } from '@/lib/icons'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from'@/components/ui/tabs'
 import { PageContainer } from'@/components/ui/PageContainer'
 import { dueDiligenceApi, type InvestigationStreamEvent } from'@/lib/api'
@@ -46,13 +43,13 @@ const EMPTY_DATA: InvestigationData = {
 
 // 内联子视图 Tab 配置
 const detailTabs = [
- { id:'overview', label:'调查概览', icon: BarChart3 },
- { id:'risk', label:'风险评估', icon: Shield },
- { id:'litigation', label:'诉讼分析', icon: Scale },
- { id:'compliance', label:'信用合规', icon: FileCheck },
- { id:'graph', label:'关系图谱', icon: Network },
- { id:'simulation', label:'风险推演', icon: Cpu },
- { id:'report', label:'调查报告', icon: FileText },
+ { id:'overview', label:'调查概览', icon: icons.BarChart3 },
+ { id:'risk', label:'风险评估', icon: icons.Shield },
+ { id:'litigation', label:'诉讼分析', icon: icons.Scale },
+ { id:'compliance', label:'信用合规', icon: icons.FileCheck },
+ { id:'graph', label:'关系图谱', icon: icons.Network },
+ { id:'simulation', label:'风险推演', icon: icons.Cpu },
+ { id:'report', label:'调查报告', icon: icons.FileText },
 ] as const
 
 // 模拟历史搜索
@@ -83,7 +80,7 @@ function SearchView({ onSelect }: { onSelect: (id: string, name: string) => void
  <p className="mt-1 text-body text-foreground-tertiary">输入企业名称，AI 自动搜索爬取并生成全维度调查报告</p>
  </div>
  <div className="relative max-w-2xl">
- <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground-tertiary" />
+ <icons.Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground-tertiary" />
  <input
  type="text"
  placeholder="输入企业名称开始调查..."
@@ -99,7 +96,7 @@ function SearchView({ onSelect }: { onSelect: (id: string, name: string) => void
  {/* 历史搜索 */}
  <div className="space-y-2">
  <h2 className="text-caption font-medium text-foreground-tertiary flex items-center gap-1.5 uppercase tracking-caption">
- <Clock className="h-3.5 w-3.5" />
+ <icons.Clock className="h-3.5 w-3.5" />
  最近搜索
  </h2>
  <div className="space-y-2">
@@ -110,7 +107,7 @@ function SearchView({ onSelect }: { onSelect: (id: string, name: string) => void
  className="w-full flex items-center justify-between p-3 bg-card border border-border rounded-dd_lg shadow-elev-1 hover:border-primary/30 hover:shadow-elev-2 active:scale-[0.99] transition-[transform,border-color,box-shadow] duration-fast ease-standard text-left focus-visible:outline-none focus-visible:shadow-focus-ring"
  >
  <div className="flex items-center gap-3">
- <Building2 className="h-4 w-4 text-muted-foreground" />
+ <icons.Building2 className="h-4 w-4 text-muted-foreground" />
  <span className="text-sm font-medium">{item.name}</span>
  </div>
  <span className="text-xs text-muted-foreground">{item.time}</span>
@@ -122,7 +119,7 @@ function SearchView({ onSelect }: { onSelect: (id: string, name: string) => void
  {/* 热点推荐 */}
  <div className="space-y-2">
  <h2 className="text-caption font-medium text-foreground-tertiary flex items-center gap-1.5 uppercase tracking-caption">
- <TrendingUp className="h-3.5 w-3.5" />
+ <icons.TrendingUp className="h-3.5 w-3.5" />
  热点推荐
  </h2>
  <div className="space-y-2">
@@ -133,13 +130,13 @@ function SearchView({ onSelect }: { onSelect: (id: string, name: string) => void
  className="w-full flex items-center justify-between p-3 bg-card border border-border rounded-dd_lg shadow-elev-1 hover:border-primary/30 hover:shadow-elev-2 active:scale-[0.99] transition-[transform,border-color,box-shadow] duration-fast ease-standard text-left focus-visible:outline-none focus-visible:shadow-focus-ring"
  >
  <div className="flex items-center gap-3">
- <Building2 className="h-4 w-4 text-primary" />
+ <icons.Building2 className="h-4 w-4 text-primary" />
  <div>
  <span className="text-sm font-medium">{item.name}</span>
  <p className="text-xs text-muted-foreground">{item.reason}</p>
  </div>
  </div>
- {item.trend ==='up' && <TrendingUp className="h-4 w-4 text-destructive" />}
+ {item.trend ==='up' && <icons.TrendingUp className="h-4 w-4 text-destructive" />}
  </button>
  ))}
  </div>
@@ -265,7 +262,7 @@ function DetailView({ companyName, onBack }: { companyName: string; onBack: () =
  onClick={handleBack}
  className="p-1.5 rounded-lg hover:bg-muted transition-colors"
  >
- <ArrowLeft className="h-5 w-5" />
+ <icons.ArrowLeft className="h-5 w-5" />
  </button>
  <div className="flex-1">
  <h1 className={heading.card}>{companyName}</h1>

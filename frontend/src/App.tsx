@@ -135,6 +135,7 @@ const AdminFirm = lazy(() => import('@/pages/admin/AdminFirm'))
 const AdminEnterprise = lazy(() => import('@/pages/admin/AdminEnterprise'))
 const AdminAcquisition = lazy(() => import('@/pages/admin/AdminAcquisition'))
 const AdminHarness = lazy(() => import('@/pages/admin/AdminHarness'))
+const AdminIncidents = lazy(() => import('@/pages/admin/AdminIncidents'))
 
 function CollaborationRedirect() {
   const { sessionId } = useParams()
@@ -361,6 +362,7 @@ function App() {
                 <Route path="firm" element={<AdminFirm />} />
                 <Route path="enterprise" element={<AdminEnterprise />} />
                 <Route path="acquisition" element={<AdminAcquisition />} />
+                <Route path="incidents" element={<AdminIncidents />} />
               </Route>
 
               {/* ===== V2 架构：服务方端（律师/律所独立布局） ===== */}
@@ -371,13 +373,33 @@ function App() {
                 <Route path="contracts" element={<ManagementCenter />} />
                 <Route path="documents" element={<DocumentWorkbench />} />
                 <Route path="chat" element={<Chat />} />
-                <Route path="messages" element={<Messages />} />
-                <Route path="knowledge" element={<KnowledgeBase />} />
-                <Route path="investigation" element={<Investigation />} />
+                {/* G3 (2026-05-14): /pro/messages 走 hybrid_or_cloud + IM 网关能力协商 */}
+                <Route path="messages" element={
+                  <ModeGate required="hybrid_or_cloud" feature="即时通讯" featureKey="im_messaging">
+                    <Messages />
+                  </ModeGate>
+                } />
+                {/* G3: /pro/knowledge 走 local_ok_with_download + 法律智库能力协商 */}
+                <Route path="knowledge" element={
+                  <ModeGate required="local_ok_with_download" feature="法律智库" featureKey="legal_knowledge_base">
+                    <KnowledgeBase />
+                  </ModeGate>
+                } />
+                {/* G3: /pro/investigation 走 hybrid_or_cloud + 尽调能力协商 */}
+                <Route path="investigation" element={
+                  <ModeGate required="hybrid_or_cloud" feature="尽职调查" featureKey="due_diligence">
+                    <Investigation />
+                  </ModeGate>
+                } />
                 <Route path="onboarding" element={<LawyerOnboarding />} />
                 <Route path="subscription" element={<MySubscription />} />
                 <Route path="settings" element={<Settings />} />
-                <Route path="market" element={<CaseMarket />} />
+                {/* G3: /pro/market 走 hybrid_or_cloud + 案源市场能力协商 */}
+                <Route path="market" element={
+                  <ModeGate required="hybrid_or_cloud" feature="案源市场" featureKey="case_market">
+                    <CaseMarket />
+                  </ModeGate>
+                } />
               </Route>
 
               {/* 受保护的业务路由 — Layout 由 VITE_V3_NAV 切换（默认旧 Layout） */}
@@ -405,7 +427,7 @@ function App() {
                 {/* V2: 找律师需要云端数据库支持 */}
                 <Route path="find-lawyer" element={
                   <ProtectedRoute feature="lawyer_matching">
-                    <ModeGate required="hybrid_or_cloud" feature="找律师">
+                    <ModeGate required="hybrid_or_cloud" feature="找律师" featureKey="lawyer_matching">
                       <FindLawyer />
                     </ModeGate>
                   </ProtectedRoute>
@@ -414,21 +436,21 @@ function App() {
                 {/* ===== 舆情监测 — V2: 必须云端/混合模式（爬虫+NLP） ===== */}
                 <Route path="monitoring" element={
                   <ProtectedRoute feature="due_diligence">
-                    <ModeGate required="hybrid_or_cloud" feature="舆情监测">
+                    <ModeGate required="hybrid_or_cloud" feature="舆情监测" featureKey="sentiment_monitor">
                       <MonitoringCenter />
                     </ModeGate>
                   </ProtectedRoute>
                 } />
                 <Route path="investigation" element={
                   <ProtectedRoute feature="due_diligence">
-                    <ModeGate required="hybrid_or_cloud" feature="尽职调查">
+                    <ModeGate required="hybrid_or_cloud" feature="尽职调查" featureKey="due_diligence">
                       <Investigation />
                     </ModeGate>
                   </ProtectedRoute>
                 } />
                 <Route path="investigation/:companyId" element={
                   <ProtectedRoute feature="due_diligence">
-                    <ModeGate required="hybrid_or_cloud" feature="尽职调查">
+                    <ModeGate required="hybrid_or_cloud" feature="尽职调查" featureKey="due_diligence">
                       <Investigation />
                     </ModeGate>
                   </ProtectedRoute>
@@ -437,14 +459,14 @@ function App() {
                 {/* ===== 法律智库 — V2: 本地可用但需先下载数据包 ===== */}
                 <Route path="knowledge-graph" element={
                   <ProtectedRoute feature="knowledge_graph">
-                    <ModeGate required="local_ok_with_download" feature="知识图谱">
+                    <ModeGate required="local_ok_with_download" feature="知识图谱" featureKey="knowledge_graph">
                       <KnowledgeGraph />
                     </ModeGate>
                   </ProtectedRoute>
                 } />
                 <Route path="knowledge-base" element={
                   <ProtectedRoute feature="knowledge_base">
-                    <ModeGate required="local_ok_with_download" feature="法律智库">
+                    <ModeGate required="local_ok_with_download" feature="法律智库" featureKey="legal_knowledge_base">
                       <KnowledgeBase />
                     </ModeGate>
                   </ProtectedRoute>
@@ -453,7 +475,7 @@ function App() {
                 {/* ===== IM 即时通讯 — V2: 必须云端/混合（需 WebSocket 转发） ===== */}
                 <Route path="messages" element={
                   <ProtectedRoute feature="im_messaging">
-                    <ModeGate required="hybrid_or_cloud" feature="即时通讯">
+                    <ModeGate required="hybrid_or_cloud" feature="即时通讯" featureKey="im_messaging">
                       <Messages />
                     </ModeGate>
                   </ProtectedRoute>
@@ -497,7 +519,7 @@ function App() {
                 {/* V2：案源市场（需求方发布，本页根据 primary_client 自动切换视图） */}
                 <Route path="market" element={
                   <ProtectedRoute feature="lawyer_matching">
-                    <ModeGate required="hybrid_or_cloud" feature="案源市场">
+                    <ModeGate required="hybrid_or_cloud" feature="案源市场" featureKey="case_market">
                       <CaseMarket />
                     </ModeGate>
                   </ProtectedRoute>

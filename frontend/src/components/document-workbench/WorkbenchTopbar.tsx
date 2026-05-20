@@ -1,5 +1,5 @@
 import { useRef, useCallback } from 'react'
-import { Upload, Share2, History, Download, PanelRightClose, PanelRightOpen } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { useActiveWorkbenchDocument } from './hooks/useActiveWorkbenchDocument'
 import { useDocumentWorkbenchStore } from './hooks/useDocumentWorkbenchStore'
 import { documentsApi } from '@/lib/api'
@@ -81,15 +81,15 @@ export function WorkbenchTopbar({ entryMode, showRightPanel, onToggleRightPanel 
           onChange={handleUpload}
         />
         <button type="button" onClick={() => fileInputRef.current?.click()} className={btnClass}>
-          <Upload className="h-3.5 w-3.5" />
+          <icons.Upload className="h-3.5 w-3.5" />
           上传
         </button>
         <button type="button" onClick={handleExport} className={btnClass}>
-          <Download className="h-3.5 w-3.5" />
+          <icons.Download className="h-3.5 w-3.5" />
           导出
         </button>
         <button type="button" onClick={() => toast.info('分享功能即将上线')} className={btnClass}>
-          <Share2 className="h-3.5 w-3.5" />
+          <icons.Share2 className="h-3.5 w-3.5" />
           分享
         </button>
         <button
@@ -102,9 +102,9 @@ export function WorkbenchTopbar({ entryMode, showRightPanel, onToggleRightPanel 
           }`}
         >
           {showRightPanel ? (
-            <PanelRightClose className="h-3.5 w-3.5" />
+            <icons.PanelRightClose className="h-3.5 w-3.5" />
           ) : (
-            <PanelRightOpen className="h-3.5 w-3.5" />
+            <icons.PanelRightOpen className="h-3.5 w-3.5" />
           )}
           版本
         </button>

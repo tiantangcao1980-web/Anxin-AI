@@ -1,0 +1,71 @@
+name: Self-Heal Loop (O2)
+
+# 触发：每 30 分钟扫一次 trace_clusters；也支持手动 dispatch
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      cluster_id:
+        description: "指定 cluster_id 单跑（留空=扫全表）"
+        required: false
+      dry_run:
+        description: "干跑（不创建 issue / PR）"
+        type: boolean
+        default: true
+
+permissions:
+  issues: write          # 创建 issue
+  pull-requests: write   # 创建 draft PR
+  contents: write        # 写 auto/ 分支
+  # 故意不给 actions / packages
+
+jobs:
+  scan-and-dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+
+      - name: Install deps
+        run: |
+          pip install -r backend/requirements*.txt 2>/dev/null || true
+          pip install pytest
+
+      - name: Run severity scan + dispatch (DRY-RUN by default)
+        env:
+          DRY_RUN: ${{ inputs.dry_run || 'true' }}
+          CLUSTER_ID: ${{ inputs.cluster_id }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          echo "::notice::Self-heal scan starting (dry_run=$DRY_RUN)"
+          cd backend
+          # 占位：真接入需要从 PostgreSQL 读 trace_clusters
+          # 当前阶段仅做单元自检 + 决策 dry-run 输出
+          python -c "
+          from scripts.self_heal.severity import ClusterSignal, score_cluster
+          from scripts.self_heal.dispatcher import decide
+          import os, json
+          # demo: 单条信号
+          sig = ClusterSignal(cluster_id='demo', occurrence_per_hour=10, affected_users=5,
+                              routes=['chat'], error_class='llm')
+          d = decide(sig)
+          print(json.dumps({'severity': d.severity, 'assignee': d.assignee, 'reason': d.reason,
+                            'max_iter': d.max_iterations}, ensure_ascii=False, indent=2))
+          if os.environ.get('DRY_RUN', 'true').lower() == 'true':
+              print('DRY-RUN: 不创建 issue/PR')
+          "
+
+      - name: Self-test (severity + dispatcher 单元自检)
+        run: |
+          cd backend
+          python -m pytest tests/test_self_heal.py tests/test_trace_to_test_converter.py -q
+
+  # ⚠️ 真实"跑 agent loop → 发 PR"job 留给后续 PR 接入。
+  # 当前只做"扫描 + 决策 + 自检"。任何非 dry-run 的实际 issue/PR 创建必须先有：
+  #   1. T1 的 trace_clusters 表已落盘
+  #   2. H1 P0 followup 全部完成（policy_engine 接入主路径）
+  #   3. O1 4 reviewer gate 已上线

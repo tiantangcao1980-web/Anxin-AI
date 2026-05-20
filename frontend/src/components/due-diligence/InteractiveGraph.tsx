@@ -38,17 +38,21 @@ interface InteractiveGraphProps {
  showKnowledgeLink?: boolean
 }
 
+// UI Fix (2026-05-14): 改用 design-tokens.graphNodeColors 取代硬编码 iOS hex
+// canvas 绘图 fallback 仍用 hex (CSS variable 无法被 canvas API 解析)
+import { graphNodeColors } from '@/lib/design-tokens'
+
 const TYPE_COLORS: Record<string, string> = {
- target:'#007AFF',
- company:'#007AFF',
- shareholder:'#34C759',
- person:'#34C759',
- subsidiary:'#5856D6',
- investment:'#FF9500',
- government:'#8E8E93',
- law:'#FF3B30',
- case:'#AF52DE',
- default:'#007AFF',
+ target: graphNodeColors.case,
+ company: graphNodeColors.case,
+ shareholder: graphNodeColors.law,
+ person: graphNodeColors.law,
+ subsidiary: graphNodeColors.organization,
+ investment: graphNodeColors.lawyer,
+ government: graphNodeColors.other,
+ law: graphNodeColors.law,
+ case: graphNodeColors.case,
+ default: graphNodeColors.case,
 }
 
 const TYPE_LABELS: Record<string, string> = {

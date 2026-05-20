@@ -32,14 +32,12 @@ from src.core.config import settings
 
 class SignType(str, Enum):
     """签署方类型"""
-
     PERSONAL = "personal"
     COMPANY = "company"
 
 
 class FlowStatus(str, Enum):
     """签署流程状态"""
-
     CREATED = "created"
     SIGNING = "signing"
     COMPLETED = "completed"
@@ -50,7 +48,6 @@ class FlowStatus(str, Enum):
 
 class SignerStatus(str, Enum):
     """单个签署人状态"""
-
     PENDING = "pending"
     SIGNED = "signed"
     REJECTED = "rejected"
@@ -59,7 +56,6 @@ class SignerStatus(str, Enum):
 
 class SignerInfo(BaseModel):
     """签署人信息"""
-
     signer_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str = Field(..., description="签署人姓名/企业名称")
     id_number: str | None = Field(None, description="身份证号/统一社会信用代码")
@@ -71,7 +67,6 @@ class SignerInfo(BaseModel):
 
 class SignerStatusInfo(BaseModel):
     """签署人状态信息"""
-
     signer_id: str
     name: str
     sign_type: SignType
@@ -82,7 +77,6 @@ class SignerStatusInfo(BaseModel):
 
 class SignFlowResult(BaseModel):
     """创建签署流程结果"""
-
     flow_id: str
     contract_id: str
     sign_urls: dict[str, str] = Field(default_factory=dict, description="signer_id -> sign_url")
@@ -93,7 +87,6 @@ class SignFlowResult(BaseModel):
 
 class SignFlowStatus(BaseModel):
     """签署流程状态详情"""
-
     flow_id: str
     contract_id: str
     status: FlowStatus
@@ -227,16 +220,14 @@ class MockESignProvider(ESignProvider):
         for signer in signers:
             sign_url = f"https://mock-esign.example.com/sign/{flow_id}/{signer.signer_id}"
             sign_urls[signer.signer_id] = sign_url
-            signers_status.append(
-                {
-                    "signer_id": signer.signer_id,
-                    "name": signer.name,
-                    "sign_type": signer.sign_type.value,
-                    "status": SignerStatus.PENDING.value,
-                    "signed_at": None,
-                    "reject_reason": None,
-                }
-            )
+            signers_status.append({
+                "signer_id": signer.signer_id,
+                "name": signer.name,
+                "sign_type": signer.sign_type.value,
+                "status": SignerStatus.PENDING.value,
+                "signed_at": None,
+                "reject_reason": None,
+            })
 
         self._flows[flow_id] = {
             "flow_id": flow_id,
@@ -303,16 +294,14 @@ class MockESignProvider(ESignProvider):
             if signer_status != SignerStatus.SIGNED:
                 all_signed = False
 
-            signers_status_list.append(
-                SignerStatusInfo(
-                    signer_id=s["signer_id"],
-                    name=s["name"],
-                    sign_type=SignType(s["sign_type"]),
-                    status=signer_status,
-                    signed_at=signed_at,
-                    reject_reason=s.get("reject_reason"),
-                )
-            )
+            signers_status_list.append(SignerStatusInfo(
+                signer_id=s["signer_id"],
+                name=s["name"],
+                sign_type=SignType(s["sign_type"]),
+                status=signer_status,
+                signed_at=signed_at,
+                reject_reason=s.get("reject_reason"),
+            ))
 
         # 更新流程状态
         if all_signed and flow["signers_status"]:
@@ -450,29 +439,19 @@ def _content_md5(body: bytes) -> str:
     return base64.b64encode(hashlib.md5(body).digest()).decode("ascii")
 
 
-def _esignbao_signature(
-    method: str, path_with_query: str, body: bytes, app_secret: str
-) -> tuple[str, str]:
-    content_type = (
-        "application/json; charset=UTF-8" if method.upper() not in {"GET", "DELETE"} else ""
-    )
+def _esignbao_signature(method: str, path_with_query: str, body: bytes, app_secret: str) -> tuple[str, str]:
+    content_type = "application/json; charset=UTF-8" if method.upper() not in {"GET", "DELETE"} else ""
     content_md5 = _content_md5(body) if method.upper() not in {"GET", "DELETE"} else ""
-    string_to_sign = (
-        "\n".join(
-            [
-                method.upper(),
-                "*/*",
-                content_md5,
-                content_type,
-                "",
-            ]
-        )
-        + "\n"
-        + path_with_query
-    )
-    digest = hmac.new(
-        app_secret.encode("utf-8"), string_to_sign.encode("utf-8"), hashlib.sha256
-    ).digest()
+    string_to_sign = "\n".join(
+        [
+            method.upper(),
+            "*/*",
+            content_md5,
+            content_type,
+            "",
+        ]
+    ) + "\n" + path_with_query
+    digest = hmac.new(app_secret.encode("utf-8"), string_to_sign.encode("utf-8"), hashlib.sha256).digest()
     return base64.b64encode(digest).decode("ascii"), content_md5
 
 
@@ -482,9 +461,7 @@ def _fadada_sorted_params(params: dict[str, str]) -> str:
 
 def _fadada_signature(params: dict[str, str], timestamp: str, app_secret: str) -> str:
     sign_text = hashlib.sha256(_fadada_sorted_params(params).encode("utf-8")).hexdigest().lower()
-    temporary_key = hmac.new(
-        app_secret.encode("utf-8"), timestamp.encode("utf-8"), hashlib.sha256
-    ).digest()
+    temporary_key = hmac.new(app_secret.encode("utf-8"), timestamp.encode("utf-8"), hashlib.sha256).digest()
     return hmac.new(temporary_key, sign_text.encode("utf-8"), hashlib.sha256).hexdigest().lower()
 
 
@@ -501,16 +478,11 @@ class ESignBaoProvider(ESignProvider):
 
     def __init__(self) -> None:
         self.app_id: str = settings.ESIGN_BAO_APP_ID or os.getenv("ESIGN_BAO_APP_ID") or ""
-        self.app_secret: str = (
-            settings.ESIGN_BAO_APP_SECRET or os.getenv("ESIGN_BAO_APP_SECRET") or ""
-        )
-        self.api_url: str = (
-            settings.ESIGN_BAO_API_URL
-            or os.getenv(
-                "ESIGN_BAO_API_URL",
-                "https://smlopenapi.esign.cn",
-            )
-        ).rstrip("/")
+        self.app_secret: str = settings.ESIGN_BAO_APP_SECRET or os.getenv("ESIGN_BAO_APP_SECRET") or ""
+        self.api_url: str = (settings.ESIGN_BAO_API_URL or os.getenv(
+            "ESIGN_BAO_API_URL",
+            "https://smlopenapi.esign.cn",
+        )).rstrip("/")
         self.create_path: str = settings.ESIGN_BAO_CREATE_FLOW_PATH
         self.start_path: str = settings.ESIGN_BAO_START_FLOW_PATH
         self.sign_url_path: str = settings.ESIGN_BAO_SIGN_URL_PATH
@@ -525,7 +497,9 @@ class ESignBaoProvider(ESignProvider):
 
     def _check_config(self) -> None:
         if not self.app_id or not self.app_secret:
-            raise ESignProviderConfigError("e签宝配置缺失: ESIGN_BAO_APP_ID, ESIGN_BAO_APP_SECRET")
+            raise ESignProviderConfigError(
+                "e签宝配置缺失: ESIGN_BAO_APP_ID, ESIGN_BAO_APP_SECRET"
+            )
 
     async def _request(
         self,
@@ -559,9 +533,7 @@ class ESignBaoProvider(ESignProvider):
                 headers=headers,
             )
         if response.status_code >= 400:
-            raise ESignProviderAPIError(
-                f"e签宝 API 调用失败: {response.status_code} {response.text}"
-            )
+            raise ESignProviderAPIError(f"e签宝 API 调用失败: {response.status_code} {response.text}")
         if expect_binary:
             return response.content
         if not response.content:
@@ -569,9 +541,7 @@ class ESignBaoProvider(ESignProvider):
         payload = response.json()
         code = str(payload.get("code", "0"))
         if code not in {"0", "200", "SUCCESS", "success"}:
-            raise ESignProviderAPIError(
-                f"e签宝 API 业务失败: {_provider_error_message('e签宝', payload)}"
-            )
+            raise ESignProviderAPIError(f"e签宝 API 业务失败: {_provider_error_message('e签宝', payload)}")
         return payload
 
     def _build_create_payload(
@@ -621,30 +591,17 @@ class ESignBaoProvider(ESignProvider):
             for index, signer in enumerate(raw_signers):
                 if not isinstance(signer, dict):
                     continue
-                signer_id = str(
-                    _first_value(signer, "accountId", "signerAccountId", "signerId", "id") or index
-                )
+                signer_id = str(_first_value(signer, "accountId", "signerAccountId", "signerId", "id") or index)
                 signers.append(
                     SignerStatusInfo(
                         signer_id=signer_id,
-                        name=str(
-                            _first_value(signer, "name", "signerName", "accountName") or signer_id
-                        ),
-                        sign_type=(
-                            SignType.COMPANY
-                            if str(_first_value(signer, "signType", "type") or "").lower()
-                            in {"company", "org", "2"}
-                            else SignType.PERSONAL
-                        ),
-                        status=_signer_status_from_provider(
-                            _first_value(signer, "signStatus", "status", "result")
-                        ),
-                        signed_at=_parse_datetime(
-                            _first_value(signer, "signedAt", "signTime", "signed_time")
-                        ),
-                        reject_reason=_first_value(
-                            signer, "rejectReason", "resultDescription", "reason"
-                        ),
+                        name=str(_first_value(signer, "name", "signerName", "accountName") or signer_id),
+                        sign_type=SignType.COMPANY
+                        if str(_first_value(signer, "signType", "type") or "").lower() in {"company", "org", "2"}
+                        else SignType.PERSONAL,
+                        status=_signer_status_from_provider(_first_value(signer, "signStatus", "status", "result")),
+                        signed_at=_parse_datetime(_first_value(signer, "signedAt", "signTime", "signed_time")),
+                        reject_reason=_first_value(signer, "rejectReason", "resultDescription", "reason"),
                     )
                 )
         status = _normalize_flow_status(
@@ -652,21 +609,12 @@ class ESignBaoProvider(ESignProvider):
         )
         return SignFlowStatus(
             flow_id=str(_first_value(flow_data, "flowId", "signFlowId") or flow_id),
-            contract_id=str(
-                _first_value(flow_data, "thirdOrderNo", "businessId", "contractId") or ""
-            ),
+            contract_id=str(_first_value(flow_data, "thirdOrderNo", "businessId", "contractId") or ""),
             status=status,
             signers_status=signers,
-            created_at=_parse_datetime(
-                _first_value(flow_data, "createTime", "createdAt", "created_at")
-            )
-            or datetime.now(),
-            updated_at=_parse_datetime(
-                _first_value(flow_data, "updateTime", "updatedAt", "updated_at")
-            ),
-            completed_at=_parse_datetime(
-                _first_value(flow_data, "finishTime", "completedAt", "completed_at")
-            ),
+            created_at=_parse_datetime(_first_value(flow_data, "createTime", "createdAt", "created_at")) or datetime.now(),
+            updated_at=_parse_datetime(_first_value(flow_data, "updateTime", "updatedAt", "updated_at")),
+            completed_at=_parse_datetime(_first_value(flow_data, "finishTime", "completedAt", "completed_at")),
         )
 
     async def create_sign_flow(
@@ -677,9 +625,7 @@ class ESignBaoProvider(ESignProvider):
         document_url: str | None = None,
         expire_hours: int = 72,
     ) -> SignFlowResult:
-        payload = self._build_create_payload(
-            contract_id, title, signers, document_url, expire_hours
-        )
+        payload = self._build_create_payload(contract_id, title, signers, document_url, expire_hours)
         response = await self._request("POST", self.create_path, json_body=payload)
         data = _data(response)
         flow_id = str(_first_value(data, "flowId", "signFlowId", "flow_id") or "")
@@ -692,9 +638,7 @@ class ESignBaoProvider(ESignProvider):
             try:
                 sign_urls[signer.signer_id] = await self.get_sign_url(flow_id, signer.signer_id)
             except ESignProviderAPIError:
-                logger.warning(
-                    f"e签宝签署链接获取失败，保留流程创建结果: flow_id={flow_id}, signer={signer.signer_id}"
-                )
+                logger.warning(f"e签宝签署链接获取失败，保留流程创建结果: flow_id={flow_id}, signer={signer.signer_id}")
         now = datetime.now()
         return SignFlowResult(
             flow_id=flow_id,
@@ -736,9 +680,7 @@ class ESignBaoProvider(ESignProvider):
             try:
                 return base64.b64decode(content)
             except Exception as exc:
-                raise ESignProviderAPIError(
-                    "e签宝已签文件响应缺少有效下载地址或 base64 内容。"
-                ) from exc
+                raise ESignProviderAPIError("e签宝已签文件响应缺少有效下载地址或 base64 内容。") from exc
         raise ESignProviderAPIError("e签宝已签文件响应缺少下载地址。")
 
     async def cancel_flow(self, flow_id: str, reason: str = "") -> bool:
@@ -766,20 +708,17 @@ class FaDaDaProvider(ESignProvider):
     def __init__(self) -> None:
         self.app_id: str = settings.FADADA_APP_ID or os.getenv("FADADA_APP_ID") or ""
         self.app_secret: str = settings.FADADA_APP_SECRET or os.getenv("FADADA_APP_SECRET") or ""
-        self.api_url: str = (
-            settings.FADADA_API_URL
-            or os.getenv(
-                "FADADA_API_URL",
-                "https://api.fadada.com/api/v5",
-            )
-        ).rstrip("/")
-        self.access_token: str = (
-            settings.FADADA_ACCESS_TOKEN or os.getenv("FADADA_ACCESS_TOKEN") or ""
-        )
+        self.api_url: str = (settings.FADADA_API_URL or os.getenv(
+            "FADADA_API_URL",
+            "https://api.fadada.com/api/v5",
+        )).rstrip("/")
+        self.access_token: str = settings.FADADA_ACCESS_TOKEN or os.getenv("FADADA_ACCESS_TOKEN") or ""
 
     def _check_config(self) -> None:
         if not self.app_id or not self.app_secret:
-            raise ESignProviderConfigError("法大大配置缺失: FADADA_APP_ID, FADADA_APP_SECRET")
+            raise ESignProviderConfigError(
+                "法大大配置缺失: FADADA_APP_ID, FADADA_APP_SECRET"
+            )
 
     def _headers(self, biz_content: str | None, access_token: str | None) -> dict[str, str]:
         self._check_config()
@@ -820,17 +759,13 @@ class FaDaDaProvider(ESignProvider):
                 headers=headers,
             )
         if response.status_code >= 400:
-            raise ESignProviderAPIError(
-                f"法大大 API 调用失败: {response.status_code} {response.text}"
-            )
+            raise ESignProviderAPIError(f"法大大 API 调用失败: {response.status_code} {response.text}")
         if expect_binary:
             return response.content
         payload = response.json() if response.content else {}
         code = str(payload.get("code", "100000"))
         if code not in {"100000", "0", "200", "SUCCESS", "success"}:
-            raise ESignProviderAPIError(
-                f"法大大 API 业务失败: {_provider_error_message('法大大', payload)}"
-            )
+            raise ESignProviderAPIError(f"法大大 API 业务失败: {_provider_error_message('法大大', payload)}")
         return payload
 
     async def _get_access_token(self) -> str:
@@ -889,9 +824,7 @@ class FaDaDaProvider(ESignProvider):
         token = await self._get_access_token()
         response = await self._request(
             settings.FADADA_CREATE_TASK_PATH,
-            biz_content=self._build_create_payload(
-                contract_id, title, signers, document_url, expire_hours
-            ),
+            biz_content=self._build_create_payload(contract_id, title, signers, document_url, expire_hours),
             access_token=token,
         )
         data = _data(response)
@@ -903,9 +836,7 @@ class FaDaDaProvider(ESignProvider):
             try:
                 sign_urls[signer.signer_id] = await self.get_sign_url(flow_id, signer.signer_id)
             except ESignProviderAPIError:
-                logger.warning(
-                    f"法大大签署链接获取失败，保留任务创建结果: flow_id={flow_id}, signer={signer.signer_id}"
-                )
+                logger.warning(f"法大大签署链接获取失败，保留任务创建结果: flow_id={flow_id}, signer={signer.signer_id}")
         now = datetime.now()
         return SignFlowResult(
             flow_id=flow_id,
@@ -953,11 +884,9 @@ class FaDaDaProvider(ESignProvider):
                     SignerStatusInfo(
                         signer_id=signer_id,
                         name=str(_first_value(actor, "actorName", "name") or signer_id),
-                        sign_type=(
-                            SignType.COMPANY
-                            if str(_first_value(actor, "actorType", "type") or "").lower() == "corp"
-                            else SignType.PERSONAL
-                        ),
+                        sign_type=SignType.COMPANY
+                        if str(_first_value(actor, "actorType", "type") or "").lower() == "corp"
+                        else SignType.PERSONAL,
                         status=_signer_status_from_provider(
                             _first_value(signer, "signStatus", "actorSignStatus", "status")
                         ),
@@ -967,15 +896,10 @@ class FaDaDaProvider(ESignProvider):
                 )
         return SignFlowStatus(
             flow_id=str(_first_value(data, "signTaskId", "taskId") or flow_id),
-            contract_id=str(
-                _first_value(data, "transReferenceId", "contractId", "businessId") or ""
-            ),
-            status=_normalize_flow_status(
-                _first_value(data, "signTaskStatus", "status", "taskStatus")
-            ),
+            contract_id=str(_first_value(data, "transReferenceId", "contractId", "businessId") or ""),
+            status=_normalize_flow_status(_first_value(data, "signTaskStatus", "status", "taskStatus")),
             signers_status=signers,
-            created_at=_parse_datetime(_first_value(data, "createTime", "createdAt"))
-            or datetime.now(),
+            created_at=_parse_datetime(_first_value(data, "createTime", "createdAt")) or datetime.now(),
             updated_at=_parse_datetime(_first_value(data, "updateTime", "updatedAt")),
             completed_at=_parse_datetime(_first_value(data, "finishTime", "completedAt")),
         )
@@ -988,9 +912,7 @@ class FaDaDaProvider(ESignProvider):
             access_token=token,
         )
         data = _data(response)
-        download_url = _first_value(
-            data, "downloadUrl", "docDownloadUrl", "ownerDownloadUrl", "url"
-        )
+        download_url = _first_value(data, "downloadUrl", "docDownloadUrl", "ownerDownloadUrl", "url")
         if not download_url:
             raise ESignProviderAPIError("法大大已签文件响应缺少下载地址。")
         async with httpx.AsyncClient(timeout=30) as client:
@@ -1012,6 +934,124 @@ class FaDaDaProvider(ESignProvider):
 # ========== 工厂函数 ==========
 
 
+# ========== 政务电子签章 Provider Placeholder (2026-05-14) ==========
+#
+# 产品方向调整: 当前阶段把"商业化电子签 (e签宝/法大大)"降为后续阶段, 优先
+# 接入广东省政务签章平台:
+#   - GDCA (广东省数字证书认证中心 / 数安时代): https://gdca.com.cn
+#     · 政务标配, 政府采购智慧云 / 公共资源交易 / 施工图审查均已接入
+#     · 法定 CA 资质 (国密 / RSA 双算法), 出具的电子签具有同等法律效力
+#   - 粤商通 / 粤企签 (数字广东运营): https://www.digitalgd.com.cn/construction/business/yst/
+#     · 1094+ 涉企政务服务事项 + 158 类电子证照, 高新企业认定等流程已数字化
+#     · 移动数字证书 + 授权刷脸双重锁定, 证书云端存储
+#
+# 这两个 Provider 暂以 placeholder 形式预留, 真实接入需要:
+#   1. 业务方申请政务平台合作 (GDCA 商务对接 / 粤商通需企业实名认证)
+#   2. 拿到测试环境 endpoint + appId/appSecret/CA 证书
+#   3. 阅读各自的 API 文档完善 _call_api 实现 (签名算法 / 数据封装均不同)
+#   4. 提供生产证书 + 公网回调 URL
+#
+# Placeholder 行为: 调用任何方法立即 raise ESignProviderConfigError 提示"待接入",
+# 不发任何 HTTP 请求, 也不返回 mock 数据 — 避免在政务场景被误用为可用.
+
+
+class GdcaProvider(ESignProvider):
+    """广东省 GDCA 政务电子签章 Provider — Placeholder (待接入)。
+
+    商务对接渠道:
+      - GDCA 客服: https://www.gdca.com.cn/customer_service/
+      - 商务热线: 95105813
+      - API 文档需 NDA 后由 GDCA 提供, 暂无公开开发者门户
+
+    法律效力: 《电子签名法》+《广东省电子签名管理办法》
+    数据驻留: 全部签章数据在 GDCA 政务云内, 不出粤
+    """
+
+    PROVIDER_NAME = "gdca"
+
+    def __init__(self) -> None:
+        self.app_id = os.getenv("GDCA_APP_ID", "")
+        self.app_secret = os.getenv("GDCA_APP_SECRET", "")
+        self.endpoint = os.getenv("GDCA_API_ENDPOINT", "")
+        self.ca_cert_path = os.getenv("GDCA_CA_CERT_PATH", "")
+        if not all([self.app_id, self.app_secret, self.endpoint]):
+            logger.warning(
+                "[GDCA] Provider 初始化但凭据未配置 — placeholder 状态, "
+                "调用任何方法将报错. 请联系 GDCA 商务获取测试凭据."
+            )
+
+    def _raise_not_configured(self) -> None:
+        raise ESignProviderConfigError(
+            "GDCA 政务签章 Provider 尚未接入 — 见 "
+            "docs/integrations/guangdong-gov-signature.md 中的接入清单"
+        )
+
+    async def create_sign_flow(
+        self, contract_id, title, signers, document_url=None, expire_hours=72,
+    ):  # type: ignore[override]
+        self._raise_not_configured()
+
+    async def get_sign_url(self, flow_id, signer_id):  # type: ignore[override]
+        self._raise_not_configured()
+
+    async def get_flow_status(self, flow_id):  # type: ignore[override]
+        self._raise_not_configured()
+
+    async def download_signed_doc(self, flow_id):  # type: ignore[override]
+        self._raise_not_configured()
+
+    async def cancel_flow(self, flow_id, reason=""):  # type: ignore[override]
+        self._raise_not_configured()
+
+
+class YueQiQianProvider(ESignProvider):
+    """粤企签 (粤商通体系内) 移动政务电子签 Provider — Placeholder (待接入)。
+
+    商务对接渠道:
+      - 粤商通: https://www.digitalgd.com.cn/construction/business/yst/
+      - 数字广东客服: 12345 (转粤商通专线)
+      - 企业实名认证后才能申请开发者权限
+
+    适用场景: 高新企业认定 / 涉企政务办理 / 跨部门审批文件签发
+    用户认证: 微信小程序刷脸 + 法人手机号验证, UX 比传统 CA 更轻
+    """
+
+    PROVIDER_NAME = "yueqishang"
+
+    def __init__(self) -> None:
+        self.app_id = os.getenv("YUEQIQIAN_APP_ID", "")
+        self.app_secret = os.getenv("YUEQIQIAN_APP_SECRET", "")
+        self.endpoint = os.getenv("YUEQIQIAN_API_ENDPOINT", "")
+        if not all([self.app_id, self.app_secret, self.endpoint]):
+            logger.warning(
+                "[YueQiQian] Provider 初始化但凭据未配置 — placeholder 状态, "
+                "调用任何方法将报错. 请联系数字广东获取测试凭据."
+            )
+
+    def _raise_not_configured(self) -> None:
+        raise ESignProviderConfigError(
+            "粤企签政务签章 Provider 尚未接入 — 见 "
+            "docs/integrations/guangdong-gov-signature.md 中的接入清单"
+        )
+
+    async def create_sign_flow(
+        self, contract_id, title, signers, document_url=None, expire_hours=72,
+    ):  # type: ignore[override]
+        self._raise_not_configured()
+
+    async def get_sign_url(self, flow_id, signer_id):  # type: ignore[override]
+        self._raise_not_configured()
+
+    async def get_flow_status(self, flow_id):  # type: ignore[override]
+        self._raise_not_configured()
+
+    async def download_signed_doc(self, flow_id):  # type: ignore[override]
+        self._raise_not_configured()
+
+    async def cancel_flow(self, flow_id, reason=""):  # type: ignore[override]
+        self._raise_not_configured()
+
+
 # 单例缓存
 _provider_instance: ESignProvider | None = None
 
@@ -1022,8 +1062,14 @@ def get_esign_provider() -> ESignProvider:
 
     根据环境变量 ESIGN_PROVIDER 决定使用哪个提供商：
     - "mock" (默认): 开发/测试用 Mock 实现
-    - "esignbao": e签宝
-    - "fadada": 法大大
+    - "gdca": 广东省 GDCA 政务电子签 (placeholder, 待接入)
+    - "yueqishang" / "yueqiqian": 粤企签 / 粤商通体系 (placeholder, 待接入)
+    - "esignbao": e签宝 (商业化阶段)
+    - "fadada": 法大大 (商业化阶段)
+
+    产品策略 (2026-05-14 调整):
+      - 当前阶段以核心功能验证为主, 签约场景优先接入政务平台 (GDCA / 粤企签)
+      - e签宝 / 法大大 等商业化渠道降为后续阶段, 待商业化 PMF 后再启用
 
     Returns:
         ESignProvider 实例
@@ -1035,22 +1081,26 @@ def get_esign_provider() -> ESignProvider:
 
     provider_name = os.getenv("ESIGN_PROVIDER", "mock").lower()
     if settings.ENVIRONMENT.lower() in {"production", "staging"} and provider_name == "mock":
-        raise ESignProviderConfigError(
-            "staging/production 环境必须配置真实 ESIGN_PROVIDER，禁止使用 Mock 电子签章渠道。"
-        )
+        raise ESignProviderConfigError("staging/production 环境必须配置真实 ESIGN_PROVIDER，禁止使用 Mock 电子签章渠道。")
 
-    if provider_name == "esignbao":
+    if provider_name == "gdca":
+        _provider_instance = GdcaProvider()
+        logger.info("电子签章提供商: GDCA 广东政务签 (placeholder, 待接入)")
+    elif provider_name in ("yueqishang", "yueqiqian", "yuesangtong"):
+        _provider_instance = YueQiQianProvider()
+        logger.info("电子签章提供商: 粤企签 / 粤商通 (placeholder, 待接入)")
+    elif provider_name == "esignbao":
         _provider_instance = ESignBaoProvider()
-        logger.info("电子签章提供商: e签宝")
+        logger.info("电子签章提供商: e签宝 (商业化阶段)")
     elif provider_name == "fadada":
         _provider_instance = FaDaDaProvider()
-        logger.info("电子签章提供商: 法大大")
+        logger.info("电子签章提供商: 法大大 (商业化阶段)")
     elif provider_name == "mock":
         _provider_instance = MockESignProvider()
         logger.info("电子签章提供商: Mock（开发模式）")
     else:
         raise ESignProviderConfigError(
-            f"未知电子签章渠道 '{provider_name}'，请配置 esignbao 或 fadada。"
+            f"未知电子签章渠道 '{provider_name}', 支持: gdca / yueqishang / esignbao / fadada / mock"
         )
 
     return _provider_instance

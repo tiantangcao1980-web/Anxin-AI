@@ -33,14 +33,12 @@ def _require_cache_org_id(user: User) -> str | None:
 
 class CompanyInvestigateRequest(BaseModel):
     """企业调查请求"""
-
     company_name: str
     investigation_type: str = "comprehensive"  # comprehensive, litigation, credit, basic
 
 
 class InvestigationResponse(BaseModel):
     """调查响应"""
-
     company_name: str
     investigation_type: str
     timestamp: str
@@ -50,7 +48,6 @@ class InvestigationResponse(BaseModel):
 
 class CompanyBasicInfo(BaseModel):
     """企业基本信息"""
-
     name: str
     legal_representative: str | None = None
     registered_capital: str | None = None
@@ -63,7 +60,6 @@ class CompanyBasicInfo(BaseModel):
 
 class RiskAssessment(BaseModel):
     """风险评估"""
-
     operation_risk: int = 0
     litigation_risk: int = 0
     credit_risk: int = 0
@@ -83,7 +79,7 @@ async def investigate_company(
 ) -> dict[str, Any]:
     """
     企业综合尽职调查
-
+    
     支持多种调查类型：
     - comprehensive: 综合调查（全面）
     - litigation: 诉讼调查
@@ -122,7 +118,6 @@ async def stream_investigate_company(
 
         # ---------- 检查预置数据（秒回） ----------
         from src.services.due_diligence_service import MOCK_COMPANY_DATA
-
         if company_name in MOCK_COMPANY_DATA:
             company_data = MOCK_COMPANY_DATA[company_name]
             for step in ["basic_info", "litigation", "credit", "risk"]:
@@ -169,7 +164,7 @@ async def stream_investigate_company(
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-        },
+        }
     )
 
 
@@ -252,8 +247,7 @@ async def get_company_litigation(
     data = {
         "company_name": company_name,
         "summary": {
-            "total_cases": litigation.get("plaintiff_cases", 0)
-            + litigation.get("defendant_cases", 0),
+            "total_cases": litigation.get("plaintiff_cases", 0) + litigation.get("defendant_cases", 0),
             "as_plaintiff": litigation.get("plaintiff_cases", 0),
             "as_defendant": litigation.get("defendant_cases", 0),
             "execution_cases": litigation.get("execution_cases", 0),
@@ -292,22 +286,18 @@ async def get_company_graph(
 
     for i, sh in enumerate(shareholders):
         node_id = f"sh_{i}"
-        nodes.append(
-            {
-                "id": node_id,
-                "name": sh["name"],
-                "type": "shareholder",
-                "level": 1,
-            }
-        )
-        edges.append(
-            {
-                "source": node_id,
-                "target": "center",
-                "relation": "股东",
-                "label": sh["ratio"],
-            }
-        )
+        nodes.append({
+            "id": node_id,
+            "name": sh["name"],
+            "type": "shareholder",
+            "level": 1,
+        })
+        edges.append({
+            "source": node_id,
+            "target": "center",
+            "relation": "股东",
+            "label": sh["ratio"],
+        })
 
     # 添加模拟投资
     investments = [
@@ -317,22 +307,18 @@ async def get_company_graph(
 
     for i, inv in enumerate(investments):
         node_id = f"inv_{i}"
-        nodes.append(
-            {
-                "id": node_id,
-                "name": inv["name"],
-                "type": "investment",
-                "level": 1,
-            }
-        )
-        edges.append(
-            {
-                "source": "center",
-                "target": node_id,
-                "relation": "投资",
-                "label": inv["ratio"],
-            }
-        )
+        nodes.append({
+            "id": node_id,
+            "name": inv["name"],
+            "type": "investment",
+            "level": 1,
+        })
+        edges.append({
+            "source": "center",
+            "target": node_id,
+            "relation": "投资",
+            "label": inv["ratio"],
+        })
 
     # 添加高管
     executives = [
@@ -342,21 +328,17 @@ async def get_company_graph(
 
     for i, ex in enumerate(executives):
         node_id = f"ex_{i}"
-        nodes.append(
-            {
-                "id": node_id,
-                "name": ex["name"],
-                "type": "person",
-                "level": 1,
-            }
-        )
-        edges.append(
-            {
-                "source": node_id,
-                "target": "center",
-                "relation": ex["position"],
-            }
-        )
+        nodes.append({
+            "id": node_id,
+            "name": ex["name"],
+            "type": "person",
+            "level": 1,
+        })
+        edges.append({
+            "source": node_id,
+            "target": "center",
+            "relation": ex["position"],
+        })
 
     data = {
         "company_name": company_name,
@@ -368,7 +350,7 @@ async def get_company_graph(
             "shareholders": len(shareholders),
             "investments": len(investments),
             "executives": len(executives),
-        },
+        }
     }
     return UnifiedResponse.success(data=data)
 
@@ -385,36 +367,30 @@ async def search_companies(
 
     # 模拟搜索结果
     if "阿里" in keyword or "alibaba" in keyword.lower():
-        results.append(
-            {
-                "name": "阿里巴巴集团控股有限公司",
-                "credit_code": "91330100MA2CL7YK8X",
-                "legal_representative": "蔡崇信",
-                "status": "正常",
-            }
-        )
+        results.append({
+            "name": "阿里巴巴集团控股有限公司",
+            "credit_code": "91330100MA2CL7YK8X",
+            "legal_representative": "蔡崇信",
+            "status": "正常",
+        })
 
     if "腾讯" in keyword or "tencent" in keyword.lower():
-        results.append(
-            {
-                "name": "腾讯控股有限公司",
-                "credit_code": "91440300708461136T",
-                "legal_representative": "马化腾",
-                "status": "正常",
-            }
-        )
+        results.append({
+            "name": "腾讯控股有限公司",
+            "credit_code": "91440300708461136T",
+            "legal_representative": "马化腾",
+            "status": "正常",
+        })
 
     # 添加通用模拟结果
     if len(results) < limit:
         for i in range(min(3, limit - len(results))):
-            results.append(
-                {
-                    "name": f"{keyword}科技有限公司",
-                    "credit_code": f"9144030070846{1000+i}",
-                    "legal_representative": "张三",
-                    "status": "正常",
-                }
-            )
+            results.append({
+                "name": f"{keyword}科技有限公司",
+                "credit_code": f"9144030070846{1000+i}",
+                "legal_representative": "张三",
+                "status": "正常",
+            })
 
     data = {
         "keyword": keyword,
@@ -426,10 +402,8 @@ async def search_companies(
 
 # ===== 多 Agent 协同调查 (阶段二) =====
 
-
 class OrchestratedInvestigateRequest(BaseModel):
     """增强版协同调查请求"""
-
     company_name: str
     investigation_type: str = "comprehensive"
     enable_deep_research: bool = True
@@ -438,7 +412,7 @@ class OrchestratedInvestigateRequest(BaseModel):
     report_template: str = "comprehensive"
     # 历史时间范围：支持用户选择搜索过去N个月/年的数据
     time_range_start: str | None = None  # ISO 格式 "2023-01-01"
-    time_range_end: str | None = None  # ISO 格式 "2024-12-31"，默认今天
+    time_range_end: str | None = None    # ISO 格式 "2024-12-31"，默认今天
 
 
 @router.post("/company/orchestrated-stream")
@@ -453,7 +427,6 @@ async def orchestrated_stream_investigate(
     async def generate_stream() -> AsyncIterator[str]:
         try:
             from src.services.investigation_orchestrator import investigation_orchestrator
-
             async for event in investigation_orchestrator.orchestrate_investigation(
                 company_name=request.company_name,
                 investigation_type=request.investigation_type,
@@ -491,7 +464,6 @@ async def deep_investigate_stream(
     async def generate_stream() -> AsyncIterator[str]:
         try:
             from src.services.investigation_orchestrator import investigation_orchestrator
-
             async for event in investigation_orchestrator.orchestrate_investigation_v2(
                 company_name=request.company_name,
                 investigation_type=request.investigation_type,
@@ -520,7 +492,6 @@ async def deep_investigate_stream(
 
 # ===== 调查历史 =====
 
-
 @router.get("/investigations")
 async def list_investigations(
     page: int = Query(1, ge=1),
@@ -533,7 +504,6 @@ async def list_investigations(
         from sqlalchemy import desc, select
 
         from src.models.investigation import Investigation
-
         stmt = (
             select(Investigation)
             .where(Investigation.user_id == str(user.id))
@@ -558,7 +528,6 @@ async def get_investigation(
     """获取单条调查详情"""
     try:
         from src.models.investigation import Investigation
-
         result = await db.get(Investigation, investigation_id)
         if result and str(result.user_id) == str(user.id):
             return UnifiedResponse.success(data=result.to_dict())
@@ -569,14 +538,10 @@ async def get_investigation(
 
 # ===== 调查报告 (阶段四) =====
 
-
 class ReportRequest(BaseModel):
     """报告生成请求"""
-
     format: str = "html"  # html / json
-    template_id: str = (
-        "comprehensive"  # comprehensive / risk_focus / executive / litigation / credit / compliance
-    )
+    template_id: str = "comprehensive"  # comprehensive / risk_focus / executive / litigation / credit / compliance
     use_llm: bool = False  # 是否使用 LLM 增强章节内容
 
 
@@ -650,7 +615,6 @@ async def list_report_templates(
     """列出所有可用报告模板"""
     try:
         from src.services.report_engine import report_engine
-
         templates = report_engine.list_templates()
         return UnifiedResponse.success(data=templates)
     except Exception as e:
@@ -694,10 +658,8 @@ async def generate_report_stream(
 
 # ===== 风险场景推演 (阶段四) =====
 
-
 class SimulationRequest(BaseModel):
     """场景推演请求"""
-
     scenario_id: str
     company_name: str
     current_risk: dict[str, Any] | None = None
@@ -712,7 +674,6 @@ async def simulate_scenario(
     """执行风险场景推演"""
     try:
         from src.services.scenario_simulation import scenario_simulation_service
-
         result = await scenario_simulation_service.simulate_scenario(
             scenario_id=request.scenario_id,
             company_name=request.company_name,
@@ -735,7 +696,6 @@ async def simulate_scenario_stream(
     async def generate_stream() -> AsyncIterator[str]:
         try:
             from src.services.scenario_simulation import scenario_simulation_service
-
             async for event in scenario_simulation_service.simulate_stream(
                 scenario_id=request.scenario_id,
                 company_name=request.company_name,
@@ -759,7 +719,6 @@ async def list_simulation_scenarios(
     """列出可用的推演场景"""
     try:
         from src.services.scenario_simulation import scenario_simulation_service
-
         scenarios = scenario_simulation_service.list_scenarios()
         return UnifiedResponse.success(data=scenarios)
     except Exception as e:
@@ -767,7 +726,6 @@ async def list_simulation_scenarios(
 
 
 # ===== 时间序列快照 =====
-
 
 @router.get("/snapshots/{company_name}")
 async def get_company_snapshots(
@@ -778,7 +736,6 @@ async def get_company_snapshots(
     """获取企业历史快照列表"""
     try:
         from src.services.investigation_data_store import investigation_data_store
-
         snapshots = await investigation_data_store.get_snapshots(
             company_name=company_name,
             limit=limit,
@@ -799,7 +756,6 @@ async def get_risk_trend(
     """获取企业风险趋势数据（用于折线图）"""
     try:
         from src.services.investigation_data_store import investigation_data_store
-
         trend = await investigation_data_store.get_risk_trend(
             company_name=company_name,
             limit=limit,
@@ -820,10 +776,7 @@ async def compare_snapshots(
     """对比两个快照的差异"""
     try:
         from src.services.investigation_data_store import investigation_data_store
-
-        result = await investigation_data_store.compare_snapshots(
-            snapshot_a, snapshot_b, user_id=str(user.id)
-        )
+        result = await investigation_data_store.compare_snapshots(snapshot_a, snapshot_b, user_id=str(user.id))
         if result.get("error") == "无权访问指定快照":
             return UnifiedResponse.error(code=403, message="无权访问指定快照")
         return UnifiedResponse.success(data=result)
@@ -833,7 +786,6 @@ async def compare_snapshots(
 
 # ===== 缓存管理 =====
 
-
 @router.get("/cache/{company_name}")
 async def get_cache_status(
     company_name: str,
@@ -842,7 +794,6 @@ async def get_cache_status(
     """获取某企业各维度的缓存状态"""
     try:
         from src.services.investigation_data_store import investigation_data_store
-
         org_id = _require_cache_org_id(user)
         dimensions = await investigation_data_store.get_cached_dimensions(
             company_name,
@@ -866,7 +817,6 @@ async def invalidate_cache(
     """使某企业的缓存失效（强制下次调查重新抓取）"""
     try:
         from src.services.investigation_data_store import investigation_data_store
-
         org_id = _require_cache_org_id(user)
         count = await investigation_data_store.invalidate_cache(
             company_name,
@@ -883,7 +833,6 @@ async def invalidate_cache(
 
 # ===== 用户偏好 =====
 
-
 @router.get("/preferences")
 async def get_user_preferences(
     user: User = Depends(get_current_user_required),
@@ -891,7 +840,6 @@ async def get_user_preferences(
     """获取当前用户的调查偏好"""
     try:
         from src.services.investigation_data_store import investigation_data_store
-
         pref = await investigation_data_store.get_user_preference(str(user.id))
         return UnifiedResponse.success(data=pref)
     except Exception as e:
@@ -907,7 +855,6 @@ async def get_smart_recommendations(
     """获取基于用户偏好的智能推荐"""
     try:
         from src.services.investigation_data_store import investigation_data_store
-
         rec = await investigation_data_store.get_smart_recommendations(
             user_id=str(user.id),
             company_name=company_name,
@@ -919,7 +866,6 @@ async def get_smart_recommendations(
 
 # ===== 记忆系统 API (AutoDream + MemoryLayer + CitationTracker) =====
 
-
 @router.get("/memory/status")
 async def get_memory_status(
     user: User = Depends(get_current_user_required),
@@ -928,14 +874,12 @@ async def get_memory_status(
     result: dict[str, Any] = {}
     try:
         from src.services.auto_dream import auto_dream_engine
-
         result["dream"] = auto_dream_engine.get_dream_status(str(user.id))
     except Exception:
         result["dream"] = {"status": "unavailable"}
 
     try:
         from src.services.memory_layer import memory_layer
-
         profile = await memory_layer.get_user_profile(str(user.id))
         result["profile"] = {
             "confidence": profile.get("confidence", 0),
@@ -958,7 +902,6 @@ async def trigger_dream(
     """手动触发做梦（记忆巩固）"""
     try:
         from src.services.auto_dream import auto_dream_engine
-
         result = await auto_dream_engine.trigger_dream(str(user.id), force=force)
         return UnifiedResponse.success(data=result)
     except Exception as e:
@@ -972,7 +915,6 @@ async def get_user_legal_profile(
     """获取用户法律画像"""
     try:
         from src.services.memory_layer import memory_layer
-
         profile = await memory_layer.get_user_profile(str(user.id))
         return UnifiedResponse.success(data=profile)
     except Exception as e:
@@ -988,7 +930,6 @@ async def get_enriched_context(
     """获取增强上下文（用于注入 system prompt）"""
     try:
         from src.services.memory_layer import memory_layer
-
         context = await memory_layer.build_enriched_context(
             user_id=str(user.id),
             session_id=session_id,
@@ -1007,7 +948,6 @@ async def get_upcoming_events(
     """获取即将到来的法律时效事件"""
     try:
         from src.services.memory_layer import memory_layer
-
         events = await memory_layer.get_upcoming_events(str(user.id), days)
         return UnifiedResponse.success(data=events)
     except Exception:
@@ -1023,7 +963,6 @@ async def extract_citations(
     """从文本中提取法律引文并追踪"""
     try:
         from src.services.citation_tracker import citation_tracker
-
         result = await citation_tracker.track_and_enrich(text, auto_sink_to_graph=auto_sink)
         return UnifiedResponse.success(data=result)
     except Exception as e:
@@ -1032,10 +971,8 @@ async def extract_citations(
 
 # ===== 上下文压缩 API =====
 
-
 class CompressRequest(BaseModel):
     """压缩请求"""
-
     messages: list[dict[str, Any]]
     max_context_tokens: int = 200000
 
@@ -1045,23 +982,18 @@ async def compress_context(
     req: CompressRequest,
     user: User = Depends(get_current_user_required),
 ) -> dict[str, Any]:
-    """对话上下文渐进式压缩"""
+    """对话上下文渐进式压缩 (T3 收口: 通过 context_engine 集中调用)"""
     try:
-        from src.services.context_compressor import context_compressor
-
-        tier = context_compressor.should_compress(req.messages, req.max_context_tokens)
+        from src.harness.context_engine import context_engine
+        tier = context_engine.should_compress(req.messages, req.max_context_tokens)
         if tier is None:
             return UnifiedResponse.success(data={"action": "no_compression_needed"})
 
-        compressed, stats = await context_compressor.compress(
-            req.messages, tier, req.max_context_tokens
-        )
-        return UnifiedResponse.success(
-            data={
-                "compressed_messages": compressed,
-                "stats": stats,
-            }
-        )
+        compressed, stats = await context_engine.compress(req.messages, tier, req.max_context_tokens)
+        return UnifiedResponse.success(data={
+            "compressed_messages": compressed,
+            "stats": stats,
+        })
     except Exception as e:
         return UnifiedResponse.error(message=str(e))
 
@@ -1070,21 +1002,18 @@ async def compress_context(
 async def get_compression_stats(
     user: User = Depends(get_current_user_required),
 ) -> dict[str, Any]:
-    """获取上下文压缩统计"""
+    """获取上下文压缩统计 (T3 收口: 通过 context_engine 集中调用)"""
     try:
-        from src.services.context_compressor import context_compressor
-
-        return UnifiedResponse.success(data=context_compressor.get_stats())
+        from src.harness.context_engine import context_engine
+        return UnifiedResponse.success(data=context_engine.get_stats())
     except Exception:
         return UnifiedResponse.success(data={})
 
 
 # ===== 经验积累 API =====
 
-
 class ExtractExperienceRequest(BaseModel):
     """经验提取请求"""
-
     messages: list[dict[str, Any]]
 
 
@@ -1096,14 +1025,11 @@ async def extract_experiences(
     """从会话中提取经验模式"""
     try:
         from src.services.experience_engine import experience_engine
-
         extracted = await experience_engine.extract_from_session(str(user.id), req.messages)
-        return UnifiedResponse.success(
-            data={
-                "extracted_count": len(extracted),
-                "experiences": [e.to_dict() for e in extracted],
-            }
-        )
+        return UnifiedResponse.success(data={
+            "extracted_count": len(extracted),
+            "experiences": [e.to_dict() for e in extracted],
+        })
     except Exception as e:
         return UnifiedResponse.error(message=str(e))
 
@@ -1118,8 +1044,9 @@ async def search_experiences(
     """搜索相关经验"""
     try:
         from src.services.experience_engine import experience_engine
-
-        results = await experience_engine.search_experiences(str(user.id), query, category, top_k)
+        results = await experience_engine.search_experiences(
+            str(user.id), query, category, top_k
+        )
         return UnifiedResponse.success(data=results)
     except Exception:
         return UnifiedResponse.success(data=[])
@@ -1133,7 +1060,6 @@ async def confirm_experience(
     """确认经验有效"""
     try:
         from src.services.experience_engine import experience_engine
-
         success = experience_engine.confirm_experience(str(user.id), experience_id)
         return UnifiedResponse.success(data={"confirmed": success})
     except Exception as e:
@@ -1149,7 +1075,6 @@ async def contradict_experience(
     """标记经验矛盾"""
     try:
         from src.services.experience_engine import experience_engine
-
         success = experience_engine.contradict_experience(str(user.id), experience_id, evidence)
         return UnifiedResponse.success(data={"contradicted": success})
     except Exception as e:
@@ -1163,7 +1088,6 @@ async def get_experience_stats(
     """获取经验统计"""
     try:
         from src.services.experience_engine import experience_engine
-
         return UnifiedResponse.success(data=experience_engine.get_stats(str(user.id)))
     except Exception:
         return UnifiedResponse.success(data={})

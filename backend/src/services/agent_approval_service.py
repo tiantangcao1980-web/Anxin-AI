@@ -18,14 +18,7 @@ APPROVED_STATUS = "approved"
 REJECTED_STATUS = "rejected"
 REVOKED_STATUS = "revoked"
 EXPIRED_STATUS = "expired"
-SENSITIVE_PAYLOAD_FRAGMENTS = (
-    "token",
-    "secret",
-    "password",
-    "credential",
-    "api_key",
-    "private_key",
-)
+SENSITIVE_PAYLOAD_FRAGMENTS = ("token", "secret", "password", "credential", "api_key", "private_key")
 LOCAL_RUNTIME_REHEARSAL_MODE = "local_rehearsal"
 WORKSPACE_RUNTIME_ACTIONS = ("pause", "takeover", "terminate")
 
@@ -191,9 +184,7 @@ class AgentApprovalService:
                 now=decided_at,
             )
             await self.db.flush()
-            return AgentApprovalDecision(
-                False, "unknown_agent_approval", "Approval does not exist.", audit_event_id=event.id
-            )
+            return AgentApprovalDecision(False, "unknown_agent_approval", "Approval does not exist.", audit_event_id=event.id)
 
         normalized_role = decider_role.strip().lower()
         if normalized_role not in AUTHORIZED_APPROVER_ROLES:
@@ -287,9 +278,7 @@ class AgentApprovalService:
                 now=revoked_at,
             )
             await self.db.flush()
-            return AgentApprovalDecision(
-                False, "unknown_agent_approval", "Approval does not exist.", audit_event_id=event.id
-            )
+            return AgentApprovalDecision(False, "unknown_agent_approval", "Approval does not exist.", audit_event_id=event.id)
 
         normalized_role = revoker_role.strip().lower()
         if normalized_role not in AUTHORIZED_APPROVER_ROLES:
@@ -383,9 +372,7 @@ class AgentApprovalService:
                 now=controlled_at,
             )
             await self.db.flush()
-            return AgentApprovalDecision(
-                False, "unknown_agent_approval", "Approval does not exist.", audit_event_id=event.id
-            )
+            return AgentApprovalDecision(False, "unknown_agent_approval", "Approval does not exist.", audit_event_id=event.id)
 
         normalized_role = actor_role.strip().lower()
         if normalized_role not in AUTHORIZED_APPROVER_ROLES:
@@ -437,9 +424,7 @@ class AgentApprovalService:
             )
 
         if action == "observe":
-            snapshot = await self._workspace_observe_snapshot(
-                approval=approval, observed_at=controlled_at
-            )
+            snapshot = await self._workspace_observe_snapshot(approval=approval, observed_at=controlled_at)
             event = self._audit_approval(
                 approval=approval,
                 action=control_action,
@@ -552,29 +537,21 @@ class AgentApprovalService:
         if approval is None:
             return []
         rows = (
-            (
-                await self.db.execute(
-                    select(AgentAuditEvent)
-                    .where(
-                        AgentAuditEvent.org_id == org_id,
-                        AgentAuditEvent.resource_type == "agent_workspace_artifact",
-                        AgentAuditEvent.resource_id == approval.id,
-                        AgentAuditEvent.action.in_(
-                            ["agent_workspace.artifact.add", "agent_workspace.artifact.update"]
-                        ),
-                        AgentAuditEvent.status == "success",
-                    )
-                    .order_by(AgentAuditEvent.created_at.asc())
-                    .limit(1000)
+            await self.db.execute(
+                select(AgentAuditEvent)
+                .where(
+                    AgentAuditEvent.org_id == org_id,
+                    AgentAuditEvent.resource_type == "agent_workspace_artifact",
+                    AgentAuditEvent.resource_id == approval.id,
+                    AgentAuditEvent.action.in_(["agent_workspace.artifact.add", "agent_workspace.artifact.update"]),
+                    AgentAuditEvent.status == "success",
                 )
+                .order_by(AgentAuditEvent.created_at.asc())
+                .limit(1000)
             )
-            .scalars()
-            .all()
-        )
-        artifacts = _fold_workspace_artifact_events(rows)
-        artifacts.sort(
-            key=lambda artifact: artifact.updated_at or artifact.created_at, reverse=True
-        )
+        ).scalars().all()
+        artifacts = _fold_workspace_artifact_events(list(rows))
+        artifacts.sort(key=lambda artifact: artifact.updated_at or artifact.created_at, reverse=True)
         return artifacts[:limit]
 
     async def add_workspace_artifact(
@@ -801,14 +778,10 @@ class AgentApprovalService:
         snapshot = {
             "approval_id": approval.id,
             "artifact_id": existing.id,
-            "artifact_type": _required(
-                artifact_type or existing.artifact_type, "artifact_type"
-            ).lower(),
+            "artifact_type": _required(artifact_type or existing.artifact_type, "artifact_type").lower(),
             "title": _required(title or existing.title, "title"),
-            "content": _sanitize_payload(content if content is not None else existing.content)
-            or {},
-            "metadata": _sanitize_payload(metadata if metadata is not None else existing.metadata)
-            or {},
+            "content": _sanitize_payload(content if content is not None else existing.content) or {},
+            "metadata": _sanitize_payload(metadata if metadata is not None else existing.metadata) or {},
         }
         event = self._audit_approval(
             approval=approval,
@@ -864,12 +837,7 @@ class AgentApprovalService:
                 now=checked_at,
             )
             await self.db.flush()
-            return AgentApprovalDecision(
-                False,
-                "missing_agent_approval",
-                "Missing high-risk action approval.",
-                audit_event_id=event.id,
-            )
+            return AgentApprovalDecision(False, "missing_agent_approval", "Missing high-risk action approval.", audit_event_id=event.id)
 
         approval = await self._get_approval(org_id=org_id, approval_id=approval_id)
         if approval is None:
@@ -882,9 +850,7 @@ class AgentApprovalService:
                 now=checked_at,
             )
             await self.db.flush()
-            return AgentApprovalDecision(
-                False, "unknown_agent_approval", "Approval does not exist.", audit_event_id=event.id
-            )
+            return AgentApprovalDecision(False, "unknown_agent_approval", "Approval does not exist.", audit_event_id=event.id)
 
         route = await self._resolve_route(org_id=org_id, route_key=route_key, route_id=route_id)
         denial = self._approval_execution_denial(
@@ -967,23 +933,17 @@ class AgentApprovalService:
             limit=20,
         )
         audit_events = (
-            (
-                await self.db.execute(
-                    select(AgentAuditEvent)
-                    .where(
-                        AgentAuditEvent.org_id == approval.org_id,
-                        AgentAuditEvent.resource_id == approval.id,
-                        AgentAuditEvent.resource_type.in_(
-                            ["agent_approval", "agent_workspace_artifact"]
-                        ),
-                    )
-                    .order_by(AgentAuditEvent.created_at.desc())
-                    .limit(50)
+            await self.db.execute(
+                select(AgentAuditEvent)
+                .where(
+                    AgentAuditEvent.org_id == approval.org_id,
+                    AgentAuditEvent.resource_id == approval.id,
+                    AgentAuditEvent.resource_type.in_(["agent_approval", "agent_workspace_artifact"]),
                 )
+                .order_by(AgentAuditEvent.created_at.desc())
+                .limit(50)
             )
-            .scalars()
-            .all()
-        )
+        ).scalars().all()
         return {
             "observed_at": observed_at.isoformat(),
             "approval": _approval_snapshot(approval),
@@ -1032,9 +992,7 @@ class AgentApprovalService:
                 return "approval_route_mismatch"
         return None
 
-    def _approval_workspace_control_denial(
-        self, *, approval: AgentApproval, now: datetime
-    ) -> str | None:
+    def _approval_workspace_control_denial(self, *, approval: AgentApproval, now: datetime) -> str | None:
         if _approval_expired(approval, now):
             approval.status = EXPIRED_STATUS
             approval.resolved_at = now
@@ -1211,9 +1169,7 @@ def _route_snapshot(route: CapabilityRoute) -> dict[str, str]:
 
 def _local_runtime_rehearsal_enabled(approval: AgentApproval) -> bool:
     runtime_config = _workspace_runtime_config(approval)
-    mode = (
-        str(runtime_config.get("mode") or runtime_config.get("control_mode") or "").strip().lower()
-    )
+    mode = str(runtime_config.get("mode") or runtime_config.get("control_mode") or "").strip().lower()
     return mode == LOCAL_RUNTIME_REHEARSAL_MODE
 
 
@@ -1231,11 +1187,7 @@ def _workspace_runtime_config(approval: AgentApproval) -> dict[str, Any]:
 
 
 def _workspace_runtime_controls(approval: AgentApproval) -> dict[str, str]:
-    runtime_state = (
-        "available_local_rehearsal"
-        if _local_runtime_rehearsal_enabled(approval)
-        else "runtime_not_integrated"
-    )
+    runtime_state = "available_local_rehearsal" if _local_runtime_rehearsal_enabled(approval) else "runtime_not_integrated"
     return {"observe": "available", **dict.fromkeys(WORKSPACE_RUNTIME_ACTIONS, runtime_state)}
 
 
@@ -1271,9 +1223,7 @@ def _artifact_from_event(event: AgentAuditEvent) -> AgentWorkspaceArtifact:
     content_value = snapshot.get("content")
     metadata_value = snapshot.get("metadata")
     content = cast(dict[str, Any], content_value) if isinstance(content_value, dict) else {}
-    artifact_metadata = (
-        cast(dict[str, Any], metadata_value) if isinstance(metadata_value, dict) else {}
-    )
+    artifact_metadata = cast(dict[str, Any], metadata_value) if isinstance(metadata_value, dict) else {}
     return AgentWorkspaceArtifact(
         id=event.id,
         approval_id=str(snapshot.get("approval_id") or event.resource_id or ""),
@@ -1293,14 +1243,8 @@ def _merge_workspace_artifact_update(
     snapshot = event.resource_snapshot or {}
     metadata_value = snapshot.get("metadata")
     content_value = snapshot.get("content")
-    content = (
-        cast(dict[str, Any], content_value) if isinstance(content_value, dict) else artifact.content
-    )
-    artifact_metadata = (
-        cast(dict[str, Any], metadata_value)
-        if isinstance(metadata_value, dict)
-        else artifact.metadata
-    )
+    content = cast(dict[str, Any], content_value) if isinstance(content_value, dict) else artifact.content
+    artifact_metadata = cast(dict[str, Any], metadata_value) if isinstance(metadata_value, dict) else artifact.metadata
     return AgentWorkspaceArtifact(
         id=artifact.id,
         approval_id=artifact.approval_id,
@@ -1328,9 +1272,7 @@ def _fold_workspace_artifact_events(events: list[AgentAuditEvent]) -> list[Agent
             metadata = event.metadata_json or {}
             artifact_id = str(snapshot.get("artifact_id") or metadata.get("artifact_id") or "")
             if artifact_id and artifact_id in artifacts:
-                artifacts[artifact_id] = _merge_workspace_artifact_update(
-                    artifacts[artifact_id], event
-                )
+                artifacts[artifact_id] = _merge_workspace_artifact_update(artifacts[artifact_id], event)
     return list(artifacts.values())
 
 
@@ -1378,10 +1320,7 @@ def _sanitize_value(key: str, value: Any) -> Any:
     if _is_sensitive_key(key):
         return "[redacted]"
     if isinstance(value, dict):
-        return {
-            str(child_key): _sanitize_value(str(child_key), child_value)
-            for child_key, child_value in value.items()
-        }
+        return {str(child_key): _sanitize_value(str(child_key), child_value) for child_key, child_value in value.items()}
     if isinstance(value, list):
         return [_sanitize_value(key, item) for item in value]
     return value

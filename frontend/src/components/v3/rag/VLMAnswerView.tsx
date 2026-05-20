@@ -10,8 +10,7 @@
  * 注意：本组件只渲染答案对象，不依赖 store。
  */
 
-import { Loader2 } from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import type { Modality, VLMQueryResponse } from '@/lib/api/rag'
 import { MODALITIES, modalityVisual } from './modalityStyle'
 
@@ -26,7 +25,7 @@ export function VLMAnswerView({ answer, loading, error }: VLMAnswerViewProps) {
     return (
       <div className="flex h-full min-h-[240px] items-center justify-center rounded-2xl border border-border/40 bg-surface-1">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> VLM 正在多模态推理…
+          <icons.Loader2 className="h-4 w-4 animate-spin" /> VLM 正在多模态推理…
         </div>
       </div>
     )

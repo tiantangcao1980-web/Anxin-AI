@@ -4,8 +4,7 @@
  * 每个 skill 显示为一个小徽章；超过 max 时折叠 "+N"。
  */
 
-import { Wrench } from 'lucide-react'
-
+import { icons } from '@/lib/icons'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/components/ui/utils'
 
@@ -31,7 +30,7 @@ export function PersonaSkillsBadges({ skills, max = 8, className }: Props) {
           className="gap-1 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
           title={s}
         >
-          <Wrench className="size-3 opacity-60" />
+          <icons.Wrench className="size-3 opacity-60" />
           {s}
         </Badge>
       ))}

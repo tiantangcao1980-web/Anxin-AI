@@ -51,8 +51,9 @@ def test_commercial_gate_requires_desktop_mvp_local_gate():
     assert "native-notification-test" in gate_script
     assert "desktop/src/commands/file_drop.rs" in gate_script
     assert "frontend/src/components/desktop/DesktopWorkstationPanel.tsx" in gate_script
-    assert "docs/audit/11a-desktop-mvp/00-prd-reality-gap.md" in gate_script
-    assert "docs/audit/11a-desktop-mvp/05-followups.md" in gate_script
+    # Phase A 归档: docs/audit/11a-desktop-mvp/ → docs/archive/legacy-spine-sources/audit/11a-desktop-mvp/
+    assert "docs/archive/legacy-spine-sources/audit/11a-desktop-mvp/00-prd-reality-gap.md" in gate_script
+    assert "docs/archive/legacy-spine-sources/audit/11a-desktop-mvp/05-followups.md" in gate_script
 
 
 def test_commercial_gate_does_not_depend_on_removed_code_index_tool():

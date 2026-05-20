@@ -25,11 +25,9 @@ from loguru import logger
 
 # ===== 报告模板定义 =====
 
-
 @dataclass
 class ChapterTemplate:
     """章节模板"""
-
     id: str
     title: str
     description: str
@@ -41,7 +39,6 @@ class ChapterTemplate:
 @dataclass
 class ReportTemplate:
     """报告模板"""
-
     id: str
     name: str
     description: str
@@ -57,63 +54,15 @@ REPORT_TEMPLATES: dict[str, ReportTemplate] = {
         description="全面深入的企业尽职调查报告，涵盖所有维度",
         total_word_budget=5000,
         chapters=[
-            ChapterTemplate(
-                "executive_summary",
-                "执行摘要",
-                "概述调查结论和核心发现",
-                500,
-                data_keys=["risk", "consensus"],
-            ),
-            ChapterTemplate(
-                "company_profile",
-                "企业概况",
-                "企业基本信息与经营状态",
-                600,
-                data_keys=["basic_info"],
-            ),
-            ChapterTemplate(
-                "risk_assessment", "风险评估", "五维度风险评分与分析", 800, data_keys=["risk"]
-            ),
-            ChapterTemplate(
-                "litigation_analysis",
-                "诉讼分析",
-                "涉诉记录与司法风险",
-                700,
-                data_keys=["litigation"],
-            ),
-            ChapterTemplate(
-                "credit_compliance", "信用合规", "信用评级与合规审查", 600, data_keys=["credit"]
-            ),
-            ChapterTemplate(
-                "relationship_analysis",
-                "关联关系",
-                "股权穿透与关联网络",
-                500,
-                data_keys=["basic_info", "risk"],
-            ),
-            ChapterTemplate(
-                "forum_debate",
-                "多专家论证",
-                "多专家分析过程与辩论记录",
-                600,
-                required=False,
-                data_keys=["forum", "conflicts"],
-            ),
-            ChapterTemplate(
-                "deep_research",
-                "深度研究发现",
-                "迭代式研究的关键发现",
-                400,
-                required=False,
-                data_keys=["research"],
-            ),
-            ChapterTemplate(
-                "recommendations",
-                "结论与建议",
-                "综合结论和行动建议",
-                500,
-                data_keys=["risk", "consensus"],
-            ),
+            ChapterTemplate("executive_summary", "执行摘要", "概述调查结论和核心发现", 500, data_keys=["risk", "consensus"]),
+            ChapterTemplate("company_profile", "企业概况", "企业基本信息与经营状态", 600, data_keys=["basic_info"]),
+            ChapterTemplate("risk_assessment", "风险评估", "五维度风险评分与分析", 800, data_keys=["risk"]),
+            ChapterTemplate("litigation_analysis", "诉讼分析", "涉诉记录与司法风险", 700, data_keys=["litigation"]),
+            ChapterTemplate("credit_compliance", "信用合规", "信用评级与合规审查", 600, data_keys=["credit"]),
+            ChapterTemplate("relationship_analysis", "关联关系", "股权穿透与关联网络", 500, data_keys=["basic_info", "risk"]),
+            ChapterTemplate("forum_debate", "多专家论证", "多专家分析过程与辩论记录", 600, required=False, data_keys=["forum", "conflicts"]),
+            ChapterTemplate("deep_research", "深度研究发现", "迭代式研究的关键发现", 400, required=False, data_keys=["research"]),
+            ChapterTemplate("recommendations", "结论与建议", "综合结论和行动建议", 500, data_keys=["risk", "consensus"]),
         ],
     ),
     "risk_focus": ReportTemplate(
@@ -123,20 +72,10 @@ REPORT_TEMPLATES: dict[str, ReportTemplate] = {
         total_word_budget=3000,
         chapters=[
             ChapterTemplate("executive_summary", "执行摘要", "风险概述", 400, data_keys=["risk"]),
-            ChapterTemplate(
-                "risk_assessment", "风险评估详情", "详细的五维度风险分析", 1000, data_keys=["risk"]
-            ),
-            ChapterTemplate(
-                "litigation_analysis", "诉讼风险", "涉诉记录分析", 600, data_keys=["litigation"]
-            ),
+            ChapterTemplate("risk_assessment", "风险评估详情", "详细的五维度风险分析", 1000, data_keys=["risk"]),
+            ChapterTemplate("litigation_analysis", "诉讼风险", "涉诉记录分析", 600, data_keys=["litigation"]),
             ChapterTemplate("risk_trends", "风险趋势", "风险演变趋势预测", 500, data_keys=["risk"]),
-            ChapterTemplate(
-                "recommendations",
-                "风险应对建议",
-                "风险缓释策略",
-                500,
-                data_keys=["risk", "consensus"],
-            ),
+            ChapterTemplate("recommendations", "风险应对建议", "风险缓释策略", 500, data_keys=["risk", "consensus"]),
         ],
     ),
     "executive": ReportTemplate(
@@ -145,23 +84,9 @@ REPORT_TEMPLATES: dict[str, ReportTemplate] = {
         description="面向管理层的精简尽调报告",
         total_word_budget=1500,
         chapters=[
-            ChapterTemplate(
-                "executive_summary",
-                "调查结论",
-                "核心结论与建议",
-                500,
-                data_keys=["risk", "consensus"],
-            ),
-            ChapterTemplate(
-                "key_findings", "关键发现", "重点风险项", 500, data_keys=["risk", "litigation"]
-            ),
-            ChapterTemplate(
-                "action_items",
-                "行动建议",
-                "立即需要采取的措施",
-                500,
-                data_keys=["risk", "consensus"],
-            ),
+            ChapterTemplate("executive_summary", "调查结论", "核心结论与建议", 500, data_keys=["risk", "consensus"]),
+            ChapterTemplate("key_findings", "关键发现", "重点风险项", 500, data_keys=["risk", "litigation"]),
+            ChapterTemplate("action_items", "行动建议", "立即需要采取的措施", 500, data_keys=["risk", "consensus"]),
         ],
     ),
     "litigation": ReportTemplate(
@@ -171,18 +96,10 @@ REPORT_TEMPLATES: dict[str, ReportTemplate] = {
         total_word_budget=3000,
         chapters=[
             ChapterTemplate("summary", "概述", "诉讼风险概况", 400, data_keys=["litigation"]),
-            ChapterTemplate(
-                "case_analysis", "案件分析", "主要案件详细分析", 1000, data_keys=["litigation"]
-            ),
-            ChapterTemplate(
-                "execution_risk", "执行风险", "被执行与失信记录", 600, data_keys=["litigation"]
-            ),
-            ChapterTemplate(
-                "litigation_trends", "诉讼趋势", "涉诉趋势与预测", 500, data_keys=["litigation"]
-            ),
-            ChapterTemplate(
-                "recommendations", "应对建议", "诉讼风险应对策略", 500, data_keys=["risk"]
-            ),
+            ChapterTemplate("case_analysis", "案件分析", "主要案件详细分析", 1000, data_keys=["litigation"]),
+            ChapterTemplate("execution_risk", "执行风险", "被执行与失信记录", 600, data_keys=["litigation"]),
+            ChapterTemplate("litigation_trends", "诉讼趋势", "涉诉趋势与预测", 500, data_keys=["litigation"]),
+            ChapterTemplate("recommendations", "应对建议", "诉讼风险应对策略", 500, data_keys=["risk"]),
         ],
     ),
     "credit": ReportTemplate(
@@ -193,9 +110,7 @@ REPORT_TEMPLATES: dict[str, ReportTemplate] = {
         chapters=[
             ChapterTemplate("summary", "概述", "信用合规概况", 400, data_keys=["credit"]),
             ChapterTemplate("credit_rating", "信用评级", "信用评级分析", 600, data_keys=["credit"]),
-            ChapterTemplate(
-                "compliance_check", "合规审查", "行政处罚与违规记录", 800, data_keys=["credit"]
-            ),
+            ChapterTemplate("compliance_check", "合规审查", "行政处罚与违规记录", 800, data_keys=["credit"]),
             ChapterTemplate("recommendations", "合规建议", "合规改善建议", 500, data_keys=["risk"]),
         ],
     ),
@@ -206,18 +121,10 @@ REPORT_TEMPLATES: dict[str, ReportTemplate] = {
         total_word_budget=3000,
         chapters=[
             ChapterTemplate("summary", "审计概述", "合规审计范围和结论", 400, data_keys=["credit"]),
-            ChapterTemplate(
-                "regulatory_check", "监管合规", "监管要求符合性审查", 700, data_keys=["credit"]
-            ),
-            ChapterTemplate(
-                "penalty_records", "处罚记录", "行政处罚详情", 600, data_keys=["credit"]
-            ),
-            ChapterTemplate(
-                "compliance_gaps", "合规缺口", "发现的合规问题", 700, data_keys=["credit", "risk"]
-            ),
-            ChapterTemplate(
-                "improvement_plan", "整改建议", "合规改善计划", 600, data_keys=["risk"]
-            ),
+            ChapterTemplate("regulatory_check", "监管合规", "监管要求符合性审查", 700, data_keys=["credit"]),
+            ChapterTemplate("penalty_records", "处罚记录", "行政处罚详情", 600, data_keys=["credit"]),
+            ChapterTemplate("compliance_gaps", "合规缺口", "发现的合规问题", 700, data_keys=["credit", "risk"]),
+            ChapterTemplate("improvement_plan", "整改建议", "合规改善计划", 600, data_keys=["risk"]),
         ],
     ),
 }
@@ -330,9 +237,9 @@ class ReportEngine:
         planned = []
         for chapter in template.chapters:
             # 检查是否有所需数据
-            has_data = (
-                any(data.get(key) for key in chapter.data_keys) if chapter.data_keys else True
-            )
+            has_data = any(
+                data.get(key) for key in chapter.data_keys
+            ) if chapter.data_keys else True
 
             if chapter.required or has_data:
                 planned.append(chapter)
@@ -490,9 +397,7 @@ class ReportEngine:
             return "fail" if avg > 60 else "warning" if avg > 35 else "pass"
 
         if chapter_id in ("litigation_analysis", "case_analysis", "execution_risk"):
-            total = int(litigation.get("plaintiff_cases", 0)) + int(
-                litigation.get("defendant_cases", 0)
-            )
+            total = int(litigation.get("plaintiff_cases", 0)) + int(litigation.get("defendant_cases", 0))
             return "fail" if total > 5 else "warning" if total > 0 else "pass"
 
         if chapter_id in ("credit_compliance", "credit_rating", "compliance_check"):
@@ -510,16 +415,7 @@ class ReportEngine:
     def _gen_executive_summary(self, company_name: str, data: dict[str, Any]) -> str:
         risk = data.get("risk", {})
         consensus = data.get("consensus", {})
-        scores = [
-            risk.get(k, 0)
-            for k in (
-                "operation_risk",
-                "litigation_risk",
-                "credit_risk",
-                "compliance_risk",
-                "relation_risk",
-            )
-        ]
+        scores = [risk.get(k, 0) for k in ("operation_risk", "litigation_risk", "credit_risk", "compliance_risk", "relation_risk")]
         avg_risk = sum(scores) / len(scores) if scores else 0
         risk_label = "高风险" if avg_risk > 60 else "中风险" if avg_risk > 35 else "低风险"
 
@@ -542,14 +438,10 @@ class ReportEngine:
     def _gen_company_profile(self, company_name: str, data: dict[str, Any]) -> str:
         basic = data.get("basic_info", {})
         fields = [
-            ("name", "企业名称"),
-            ("legal_representative", "法定代表人"),
-            ("registered_capital", "注册资本"),
-            ("established_date", "成立日期"),
-            ("status", "经营状态"),
-            ("business_scope", "经营范围"),
-            ("address", "注册地址"),
-            ("company_type", "企业类型"),
+            ("name", "企业名称"), ("legal_representative", "法定代表人"),
+            ("registered_capital", "注册资本"), ("established_date", "成立日期"),
+            ("status", "经营状态"), ("business_scope", "经营范围"),
+            ("address", "注册地址"), ("company_type", "企业类型"),
             ("credit_code", "统一社会信用代码"),
         ]
         lines = []
@@ -562,10 +454,8 @@ class ReportEngine:
     def _gen_risk_assessment(self, company_name: str, data: dict[str, Any]) -> str:
         risk = data.get("risk", {})
         dimensions = [
-            ("operation_risk", "经营风险"),
-            ("litigation_risk", "诉讼风险"),
-            ("credit_risk", "信用风险"),
-            ("compliance_risk", "合规风险"),
+            ("operation_risk", "经营风险"), ("litigation_risk", "诉讼风险"),
+            ("credit_risk", "信用风险"), ("compliance_risk", "合规风险"),
             ("relation_risk", "关联风险"),
         ]
         lines = [f"「{company_name}」五维风险评估：\n"]
@@ -799,11 +689,13 @@ class ReportEngine:
 
         sections = []
         for chapter in chapters:
-            content = self._template_generate_chapter(chapter, investigation_data, company_name)
-            status = self._assess_chapter_status(chapter.id, investigation_data)
-            sections.append(
-                ReportSection(id=chapter.id, title=chapter.title, content=content, status=status)
+            content = self._template_generate_chapter(
+                chapter, investigation_data, company_name
             )
+            status = self._assess_chapter_status(chapter.id, investigation_data)
+            sections.append(ReportSection(
+                id=chapter.id, title=chapter.title, content=content, status=status
+            ))
         return sections
 
     def render_html(self, sections: list[ReportSection], company_name: str) -> str:
@@ -839,9 +731,9 @@ class ReportEngine:
             "</head>",
             "<body>",
             '<div class="report-header">',
-            f"<h1>{company_name}</h1>",
+            f'<h1>{company_name}</h1>',
             '<div class="subtitle">企业尽职调查报告</div>',
-            f'<div class="meta">安心智能法律服务平台 · AI 辅助生成 · {now}</div>',
+            f'<div class="meta">安心智能助手 · AI 辅助生成 · {now}</div>',
             "</div>",
         ]
 
@@ -851,9 +743,7 @@ class ReportEngine:
         for i, section in enumerate(sections, 1):
             status_tag = ""
             if section.status in status_labels:
-                status_tag = (
-                    f' <span class="status-{section.status}">{status_labels[section.status]}</span>'
-                )
+                status_tag = f' <span class="status-{section.status}">{status_labels[section.status]}</span>'
             html_parts.append(
                 f'<div class="toc-item"><span>{i}. {section.title}</span>{status_tag}</div>'
             )
@@ -871,16 +761,14 @@ class ReportEngine:
             html_parts.append(f"<pre>{section.content}</pre>")
             html_parts.append("</div>")
 
-        html_parts.extend(
-            [
-                '<div class="footer">',
-                "<p>本报告由安心智能法律服务平台 AI 辅助生成，仅供参考</p>",
-                "<p>报告中的数据和分析基于公开信息，建议在正式决策前进行核实</p>",
-                f"<p>生成时间：{now}</p>",
-                "</div>",
-                "</body></html>",
-            ]
-        )
+        html_parts.extend([
+            '<div class="footer">',
+            "<p>本报告由安心智能助手 AI 辅助生成，仅供参考</p>",
+            "<p>报告中的数据和分析基于公开信息，建议在正式决策前进行核实</p>",
+            f"<p>生成时间：{now}</p>",
+            "</div>",
+            "</body></html>",
+        ])
 
         return "\n".join(html_parts)
 

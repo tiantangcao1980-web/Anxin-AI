@@ -364,40 +364,87 @@ class BatchDocumentService:
         if not job:
             raise ValueError(f"任务不存在: {job_id}")
 
-        job.status = "processing"
-        template_def = DOCUMENT_TEMPLATES[job.template_type]
-        template_text = template_def["template"]
-        defaults = template_def.get("defaults", {})
+        # T7: 创建 task_engine 状态机记录
+        from src.harness.task_engine import TaskState, task_engine, TaskContract
+        task_record = task_engine.create_task(
+            description=f"批量文档生成: {job.template_type} × {job.total} 份",
+            route="document_drafting",
+            agent_name="batch_document",
+            contract=TaskContract(
+                goal=f"批量生成 {job.total} 份 {job.template_type} 文档",
+                success_criteria=[f"completed >= {job.total} * 0.9"],
+                output_format="markdown",
+                timeout_seconds=600,
+            ),
+        )
+        task_engine.transition(task_record.task_id, TaskState.RUNNING)
+        # 把 task_id 挂回 job 便于路由层透出
+        try:
+            setattr(job, "task_id", task_record.task_id)
+        except Exception:
+            pass
 
-        for item in job.items:
-            try:
-                item.status = "generating"
+        try:
+            job.status = "processing"
+            template_def = DOCUMENT_TEMPLATES[job.template_type]
+            template_text = template_def["template"]
+            defaults = template_def.get("defaults", {})
 
-                # 合并参数：默认值 → 公共上下文 → 个体信息
-                params: dict[str, Any] = {**defaults}
-                params.update(job.common_context)
-                params.update(item.recipient_info)
+            failed_count = 0
+            for item in job.items:
+                try:
+                    item.status = "generating"
 
-                # 填充日期
-                if not params.get("date"):
-                    params["date"] = date.today().strftime("%Y年%m月%d日")
+                    # 合并参数：默认值 → 公共上下文 → 个体信息
+                    params: dict[str, Any] = {**defaults}
+                    params.update(job.common_context)
+                    params.update(item.recipient_info)
 
-                # 渲染模板
-                content = template_text
-                for key, value in params.items():
-                    content = content.replace(f"{{{key}}}", str(value))
+                    # 填充日期
+                    if not params.get("date"):
+                        params["date"] = date.today().strftime("%Y年%m月%d日")
 
-                item.content = content
-                item.status = "done"
-                job.completed += 1
+                    # 渲染模板
+                    content = template_text
+                    for key, value in params.items():
+                        content = content.replace(f"{{{key}}}", str(value))
 
-            except Exception as e:
-                item.status = "error"
-                item.error = str(e)
-                logger.error(f"批量生成失败 [{item.recipient_name}]: {e}")
+                    item.content = content
+                    item.status = "done"
+                    job.completed += 1
 
-        job.status = "done"
-        return job
+                except Exception as e:
+                    item.status = "error"
+                    item.error = str(e)
+                    failed_count += 1
+                    logger.error(f"批量生成失败 [{item.recipient_name}]: {e}")
+                    task_engine.save_artifact(
+                        task_record.task_id, f"error_{item.recipient_name}", str(e)
+                    )
+
+            job.status = "done"
+
+            # 全部失败视为任务失败, 否则计完成
+            if job.total > 0 and failed_count == job.total:
+                task_engine.transition(
+                    task_record.task_id,
+                    TaskState.FAILED,
+                    error_msg=f"全部 {job.total} 份生成失败",
+                )
+            else:
+                task_engine.transition(
+                    task_record.task_id,
+                    TaskState.COMPLETED,
+                    result={
+                        "total": job.total,
+                        "completed": job.completed,
+                        "failed": failed_count,
+                    },
+                )
+            return job
+        except Exception as exc:
+            task_engine.transition(task_record.task_id, TaskState.FAILED, error_msg=str(exc))
+            raise
 
     def get_job(self, job_id: str) -> BatchJob | None:
         """获取任务状态"""

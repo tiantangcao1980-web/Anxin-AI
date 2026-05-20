@@ -9,7 +9,7 @@
 
 import { useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
-import { Menu, Scale } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { SidebarV3 } from './SidebarV3'
 
 export default function LayoutV3() {
@@ -33,11 +33,11 @@ export default function LayoutV3() {
             className="h-9 w-9 flex items-center justify-center rounded-md hover:bg-muted"
             aria-label="打开菜单"
           >
-            <Menu className="h-5 w-5" />
+            <icons.Menu className="h-5 w-5" />
           </button>
           <div className="flex items-center gap-2">
             <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <Scale className="h-3.5 w-3.5" />
+              <icons.Scale className="h-3.5 w-3.5" />
             </div>
             <span className="text-sm font-semibold">安心智能助手</span>
           </div>

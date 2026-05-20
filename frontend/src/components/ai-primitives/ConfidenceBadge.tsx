@@ -1,4 +1,4 @@
-import { ShieldCheck, ShieldAlert, ShieldQuestion } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 
 export type ConfidenceLevel = 'high' | 'medium' | 'low'
@@ -11,21 +11,21 @@ interface ConfidenceBadgeProps {
   className?: string
 }
 
-const CONFIG: Record<ConfidenceLevel, { text: string; cls: string; Icon: typeof ShieldCheck }> = {
+const CONFIG: Record<ConfidenceLevel, { text: string; cls: string; Icon: typeof icons.ShieldCheck }> = {
   high: {
     text: '高置信',
     cls: 'bg-confidence-high/10 text-confidence-high ring-confidence-high/20',
-    Icon: ShieldCheck,
+    Icon: icons.ShieldCheck,
   },
   medium: {
     text: '中置信',
     cls: 'bg-confidence-medium/10 text-confidence-medium ring-confidence-medium/20',
-    Icon: ShieldAlert,
+    Icon: icons.ShieldAlert,
   },
   low: {
     text: '需复核',
     cls: 'bg-confidence-low/10 text-confidence-low ring-confidence-low/20',
-    Icon: ShieldQuestion,
+    Icon: icons.ShieldQuestion,
   },
 }
 

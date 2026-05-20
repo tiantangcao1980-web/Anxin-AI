@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, Loader2, PlayCircle, XCircle } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -118,7 +118,7 @@ export function SkillExecuteDialog({
             />
             {parseError && (
               <p className="mt-1 flex items-center gap-1 text-[11px] text-red-600">
-                <XCircle className="size-3" />
+                <icons.XCircle className="size-3" />
                 {parseError}
               </p>
             )}
@@ -141,9 +141,9 @@ export function SkillExecuteDialog({
                   )}
                 >
                   {result.ok ? (
-                    <CheckCircle2 className="size-3.5" />
+                    <icons.CheckCircle2 className="size-3.5" />
                   ) : (
-                    <XCircle className="size-3.5" />
+                    <icons.XCircle className="size-3.5" />
                   )}
                   {result.ok ? '成功' : '失败'}
                 </span>
@@ -168,12 +168,12 @@ export function SkillExecuteDialog({
           <Button onClick={run} disabled={!!parseError || running || !skill}>
             {running ? (
               <>
-                <Loader2 className="size-4 animate-spin" />
+                <icons.Loader2 className="size-4 animate-spin" />
                 运行中
               </>
             ) : (
               <>
-                <PlayCircle className="size-4" />
+                <icons.PlayCircle className="size-4" />
                 运行
               </>
             )}

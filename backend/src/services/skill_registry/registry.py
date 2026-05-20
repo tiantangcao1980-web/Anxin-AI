@@ -23,6 +23,10 @@ from src.services.skill_registry.models import Skill
 logger = logging.getLogger(__name__)
 
 
+class SkillValidationError(ValueError):
+    """E5 (2026-05-14): skill 注册时 required_tools 校验未通过 (strict 模式)。"""
+
+
 class SkillRegistry:
     """单例运行时技能注册表。
 
@@ -64,9 +68,34 @@ class SkillRegistry:
     # 注册 / 查询
     # ------------------------------------------------------------------
     def register(self, skill: Skill) -> None:
-        """注册一条技能（同名覆盖）。"""
+        """注册一条技能（同名覆盖）。
+
+        E5 (2026-05-14): 运行时 gate — 如果 skill.required_tools 中有任何
+        工具未在 harness.tool_registry 注册, 则:
+          - HARNESS_SKILL_STRICT_TOOLS=true → 抛 SkillValidationError 拒绝加载
+          - 默认 (false) → 记 WARNING, 自动 disable 该 skill (enabled=False)
+        触发词召回 (find_by_trigger) 已经过滤 disabled, 因此自动 disable 效果是
+        skill 文件保留 + 不会被 LLM 看到, 不会引起未注册工具的运行时错误.
+        """
         if not skill.name:
             raise ValueError("Skill.name 不能为空")
+
+        # E5: required_tools 运行时校验
+        if skill.required_tools:
+            missing = skill.validate_required_tools()
+            if missing:
+                import os
+                strict = os.environ.get("HARNESS_SKILL_STRICT_TOOLS", "false").lower() in {"true", "1", "yes"}
+                if strict:
+                    raise SkillValidationError(
+                        f"skill {skill.name}: required_tools 中 {missing} 未在 tool_registry 注册"
+                    )
+                logger.warning(
+                    "skill_registry: %s 声明的工具 %s 未在 tool_registry 注册, 自动 disable",
+                    skill.name, missing,
+                )
+                skill.enabled = False
+
         if skill.name in self._by_name:
             old = self._by_name[skill.name]
             if old.version != skill.version:
