@@ -365,7 +365,7 @@ class TestCaseServiceAIAnalysis:
         """测试AI分析案件"""
         # Mock智能体团队
         mock_workforce = MagicMock()
-        mock_workforce.process_task = AsyncMock(
+        mock_workforce.process_task_governed = AsyncMock(
             return_value={
                 "task": "案件分析",
                 "analysis": {"agents": ["legal_advisor", "risk_assessor"]},
@@ -384,7 +384,7 @@ class TestCaseServiceAIAnalysis:
 
         assert result is not None
         assert "final_result" in result
-        mock_workforce.process_task.assert_called_once()
+        mock_workforce.process_task_governed.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_analyze_case_not_found(self, db_session: AsyncSession):
