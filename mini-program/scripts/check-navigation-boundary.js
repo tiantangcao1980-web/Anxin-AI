@@ -4,7 +4,7 @@ const path = require('path')
 const projectRoot = path.resolve(__dirname, '..')
 const pageFiles = [
   'src/pages/index/index.tsx',
-  'src/pages/profile/index.tsx',
+  'src/pages/me/index.tsx',
 ]
 
 const forbiddenPatterns = [

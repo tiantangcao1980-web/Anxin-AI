@@ -14,6 +14,7 @@
 import Taro from '@tarojs/taro'
 import { tokenStorage } from '../auth/token'
 import { refreshAccessToken } from '../auth/refresh'
+import { assertMiniProgramDataNetworkAllowed, getStoredPrivacyMode } from '../privacy'
 import { resolveBaseUrl } from './baseUrl'
 
 const DEFAULT_TIMEOUT = 30_000
@@ -87,9 +88,14 @@ async function rawRequest<T>(opts: RequestOptions): Promise<T> {
     skipAuthRefresh = false,
   } = opts
 
+  // 隐私模式 fail-closed：local / top-secret 模式禁止任何数据网络请求
+  const privacyMode = getStoredPrivacyMode()
+  assertMiniProgramDataNetworkAllowed(privacyMode)
+
   const token = tokenStorage.getAccessToken()
   const finalHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
+    'X-Privacy-Mode': privacyMode,
     ...(headers || {}),
   }
   if (token && !finalHeaders.Authorization) {
@@ -98,7 +104,7 @@ async function rawRequest<T>(opts: RequestOptions): Promise<T> {
 
   const fullUrl = buildUrl(url, query)
 
-  let res: Taro.request.SuccessCallbackResult<unknown>
+  let res: Taro.request.SuccessCallbackResult<string | Record<string, unknown>>
   try {
     res = await Taro.request({
       url: fullUrl,

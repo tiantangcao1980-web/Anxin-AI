@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """DueDiligenceExpertPersona 5 capability 单元测试 (P9-D)。
 
 设计：
@@ -15,11 +16,13 @@ from unittest.mock import AsyncMock
 import pytest
 
 from src.agents.personas.dd_models import (
+    CompanyBasicInfo,
     CreditFlag,
     DueDiligenceReport,
     LitigationRecord,
 )
 from src.agents.personas.due_diligence_expert import DueDiligenceExpertPersona
+
 
 # ---------------------------------------------------------------------------
 # 工厂：返回带 mock specialized agent + mock P6-C 源的 persona
@@ -51,8 +54,12 @@ def _build_persona(
     )
     sentiment_agent = SimpleNamespace()
 
-    credit_source = SimpleNamespace(search=AsyncMock(return_value=credit_results or []))
-    litigation_source = SimpleNamespace(search=AsyncMock(return_value=litigation_results or []))
+    credit_source = SimpleNamespace(
+        search=AsyncMock(return_value=credit_results or [])
+    )
+    litigation_source = SimpleNamespace(
+        search=AsyncMock(return_value=litigation_results or [])
+    )
 
     return DueDiligenceExpertPersona(
         dd_agent=dd_agent,
@@ -118,9 +125,8 @@ def test_persona_metadata_and_registry():
     from src.agents.personas.registry import PersonaRegistry
 
     reg = PersonaRegistry.instance()
-    # 上游 fixture 可能 reset_instance() 清空注册表，但 class 已 import 过、
-    # __init_subclass__ 不会再次触发；通过 __subclasses__() 兜底重注册。
-    reg._bootstrap_from_subclasses()
+    # 兼容前置测试 reset_instance() 留下的空单例：autoload 幂等，会触发 bootstrap
+    reg.autoload()
     assert reg.has("due_diligence_expert")
 
 
@@ -133,7 +139,9 @@ def test_persona_metadata_and_registry():
 async def test_investigate_company_quick_skips_litigation():
     persona = _build_persona(
         credit_results=[_law_search_result(title="A 失信被执行人")],
-        litigation_results=[_law_search_result(title="L 案", role="defendant", amount=2_000_000)],
+        litigation_results=[
+            _law_search_result(title="L 案", role="defendant", amount=2_000_000)
+        ],
     )
     rep = await persona.investigate_company("某公司", "quick")
     # quick 档不查诉讼

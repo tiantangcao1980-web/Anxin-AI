@@ -70,6 +70,28 @@
   }
 }
 
+.me-privacy-banner {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin: 0 32rpx 24rpx;
+  padding: 24rpx 28rpx;
+  background-color: #FFF7ED;
+  border: 2rpx solid #FED7AA;
+  border-radius: 20rpx;
+
+  &__emoji {
+    font-size: 32rpx;
+    margin-right: 16rpx;
+  }
+  &__text {
+    flex: 1;
+    font-size: 24rpx;
+    color: #B45309;
+    font-weight: 500;
+  }
+}
+
 .me-menu {
   background-color: #FFFFFF;
   margin: 0 32rpx 32rpx;
@@ -96,6 +118,15 @@
     flex: 1;
     font-size: 28rpx;
     color: #1D2129;
+  }
+  &__right {
+    font-size: 24rpx;
+    color: #86909C;
+    margin-right: 12rpx;
+    &--alert {
+      color: #B45309;
+      font-weight: 600;
+    }
   }
   &__chevron {
     font-size: 32rpx;

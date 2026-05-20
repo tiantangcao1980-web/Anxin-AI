@@ -152,7 +152,7 @@ async def discover_leads(
     candidates_raw: list[dict[str, Any]] = [c.model_dump() for c in payload.candidates]
     leads = await _agent().discover_leads(criteria, candidates=candidates_raw)
     _put_leads(str(user.id), leads)
-    return DiscoverLeadsOut(items=[_lead_to_out(l) for l in leads], total=len(leads))
+    return DiscoverLeadsOut(items=[_lead_to_out(lead) for lead in leads], total=len(leads))
 
 
 @router.post("/draft-email", response_model=EmailDraftOut)
@@ -280,5 +280,5 @@ async def list_leads(
             if not tagged and not inferred:
                 continue
         filtered.append(lead)
-    filtered.sort(key=lambda l: l.score, reverse=True)
-    return ListLeadsOut(items=[_lead_to_out(l) for l in filtered], total=len(filtered))
+    filtered.sort(key=lambda lead: lead.score, reverse=True)
+    return ListLeadsOut(items=[_lead_to_out(lead) for lead in filtered], total=len(filtered))

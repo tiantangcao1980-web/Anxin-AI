@@ -13,9 +13,7 @@ from src.services.agent_governance_service import AgentGovernanceService
 
 
 @pytest.mark.asyncio
-async def test_route_token_lease_persists_hash_only_and_validates_after_service_restart(
-    db_session, test_organization
-):
+async def test_route_token_lease_persists_hash_only_and_validates_after_service_restart(db_session, test_organization):
     service = AgentGovernanceService(db_session)
     await service.create_capability_route(
         org_id=test_organization.id,
@@ -39,25 +37,13 @@ async def test_route_token_lease_persists_hash_only_and_validates_after_service_
     )
 
     leases = (
-        (
-            await db_session.execute(
-                select(CapabilityRouteTokenLease).where(
-                    CapabilityRouteTokenLease.org_id == test_organization.id
-                )
-            )
+        await db_session.execute(
+            select(CapabilityRouteTokenLease).where(CapabilityRouteTokenLease.org_id == test_organization.id)
         )
-        .scalars()
-        .all()
-    )
+    ).scalars().all()
     audits = (
-        (
-            await db_session.execute(
-                select(AgentAuditEvent).where(AgentAuditEvent.org_id == test_organization.id)
-            )
-        )
-        .scalars()
-        .all()
-    )
+        await db_session.execute(select(AgentAuditEvent).where(AgentAuditEvent.org_id == test_organization.id))
+    ).scalars().all()
 
     assert issued.allowed is True
     assert issued.token is not None
@@ -73,9 +59,7 @@ async def test_route_token_lease_persists_hash_only_and_validates_after_service_
 
 @pytest.mark.asyncio
 async def test_route_revocation_refreshes_stale_worker_session_across_processes(tmp_path):
-    engine = create_async_engine(
-        f"sqlite+aiosqlite:///{tmp_path / 'agent-governance.db'}", echo=False
-    )
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'agent-governance.db'}", echo=False)
     session_factory = async_sessionmaker(engine, expire_on_commit=False, autoflush=False)
     org_id = str(uuid4())
     route_key = "approved-materials"
@@ -142,27 +126,19 @@ async def test_route_revocation_refreshes_stale_worker_session_across_processes(
         async with session_factory() as verifier_session:
             lease = (
                 await verifier_session.execute(
-                    select(CapabilityRouteTokenLease).where(
-                        CapabilityRouteTokenLease.org_id == org_id
-                    )
+                    select(CapabilityRouteTokenLease).where(CapabilityRouteTokenLease.org_id == org_id)
                 )
             ).scalar_one()
             route = (
-                await verifier_session.execute(
-                    select(CapabilityRoute).where(CapabilityRoute.org_id == org_id)
-                )
+                await verifier_session.execute(select(CapabilityRoute).where(CapabilityRoute.org_id == org_id))
             ).scalar_one()
             audits = (
-                (
-                    await verifier_session.execute(
-                        select(AgentAuditEvent)
-                        .where(AgentAuditEvent.org_id == org_id)
-                        .order_by(AgentAuditEvent.created_at.asc(), AgentAuditEvent.id.asc())
-                    )
+                await verifier_session.execute(
+                    select(AgentAuditEvent)
+                    .where(AgentAuditEvent.org_id == org_id)
+                    .order_by(AgentAuditEvent.created_at.asc(), AgentAuditEvent.id.asc())
                 )
-                .scalars()
-                .all()
-            )
+            ).scalars().all()
 
         assert issued.allowed is True
         assert issued.token is not None
@@ -217,9 +193,7 @@ async def test_route_token_validation_is_org_scoped(db_session, test_organizatio
 
 
 @pytest.mark.asyncio
-async def test_revoked_capability_route_fails_next_validation_and_audits(
-    db_session, test_organization
-):
+async def test_revoked_capability_route_fails_next_validation_and_audits(db_session, test_organization):
     service = AgentGovernanceService(db_session)
     await service.create_capability_route(
         org_id=test_organization.id,
@@ -253,22 +227,16 @@ async def test_revoked_capability_route_fails_next_validation_and_audits(
 
     lease = (
         await db_session.execute(
-            select(CapabilityRouteTokenLease).where(
-                CapabilityRouteTokenLease.org_id == test_organization.id
-            )
+            select(CapabilityRouteTokenLease).where(CapabilityRouteTokenLease.org_id == test_organization.id)
         )
     ).scalar_one()
     audits = (
-        (
-            await db_session.execute(
-                select(AgentAuditEvent)
-                .where(AgentAuditEvent.org_id == test_organization.id)
-                .order_by(AgentAuditEvent.created_at)
-            )
+        await db_session.execute(
+            select(AgentAuditEvent)
+            .where(AgentAuditEvent.org_id == test_organization.id)
+            .order_by(AgentAuditEvent.created_at)
         )
-        .scalars()
-        .all()
-    )
+    ).scalars().all()
 
     assert before.allowed is True
     assert revocation.revoked is True
@@ -295,6 +263,15 @@ async def test_issue_route_token_enforces_consumer_and_scope(db_session, test_or
         allowed_scopes=["browser:read"],
     )
 
+    route = (
+        await db_session.execute(
+            select(CapabilityRoute).where(
+                CapabilityRoute.org_id == test_organization.id,
+                CapabilityRoute.route_key == "limited-route",
+            )
+        )
+    ).scalar_one()
+
     bad_consumer = await service.issue_route_token(
         org_id=test_organization.id,
         route_key="limited-route",
@@ -308,20 +285,14 @@ async def test_issue_route_token_enforces_consumer_and_scope(db_session, test_or
         requested_scopes=["browser:write"],
     )
 
-    # 按 org 过滤：共享 sqlite 内存库 + StaticPool 下，前序测试 flush 的 lease
-    # 偶尔会在事务边界外可见（autoflush=False + 同连接），此处只校验"本测试
-    # 创建的 org 下没有 lease"，符合断言意图。
+    # 限定本测试创建的 route — 兼容前置测试因 service.commit() 漏过 db_session rollback 留下的残留
     leases = (
-        (
-            await db_session.execute(
-                select(CapabilityRouteTokenLease).where(
-                    CapabilityRouteTokenLease.org_id == test_organization.id
-                )
+        await db_session.execute(
+            select(CapabilityRouteTokenLease).where(
+                CapabilityRouteTokenLease.route_id == route.id,
             )
         )
-        .scalars()
-        .all()
-    )
+    ).scalars().all()
 
     assert bad_consumer.allowed is False
     assert bad_consumer.reason_code == "consumer_not_allowed"
@@ -397,9 +368,7 @@ async def test_expired_route_token_fails_closed(db_session, test_organization):
 
 
 @pytest.mark.asyncio
-async def test_update_capability_route_policy_sanitizes_policy_and_revokes_leases(
-    db_session, test_organization
-):
+async def test_update_capability_route_policy_sanitizes_policy_and_revokes_leases(db_session, test_organization):
     service = AgentGovernanceService(db_session)
     await service.create_capability_route(
         org_id=test_organization.id,
@@ -448,22 +417,16 @@ async def test_update_capability_route_policy_sanitizes_policy_and_revokes_lease
     ).scalar_one()
     lease = (
         await db_session.execute(
-            select(CapabilityRouteTokenLease).where(
-                CapabilityRouteTokenLease.org_id == test_organization.id
-            )
+            select(CapabilityRouteTokenLease).where(CapabilityRouteTokenLease.org_id == test_organization.id)
         )
     ).scalar_one()
     audits = (
-        (
-            await db_session.execute(
-                select(AgentAuditEvent)
-                .where(AgentAuditEvent.org_id == test_organization.id)
-                .order_by(AgentAuditEvent.created_at)
-            )
+        await db_session.execute(
+            select(AgentAuditEvent)
+            .where(AgentAuditEvent.org_id == test_organization.id)
+            .order_by(AgentAuditEvent.created_at)
         )
-        .scalars()
-        .all()
-    )
+    ).scalars().all()
 
     assert changed.allowed is True
     assert changed.revoked_lease_count == 1
