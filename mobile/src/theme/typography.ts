@@ -2,9 +2,12 @@
 /**
  * V3 字体令牌。
  *
- * 跨平台字体：iOS 默认使用 SF Pro（系统调用），Android 使用 Noto Sans SC，
- * Web fallback 用系统 sans。React Native 端不显式指定 fontFamily 时
- * 会自动走系统字体，已经是 SF Pro / Roboto。
+ * 跨平台字体：iOS 默认使用 SF Pro（系统调用），Android 使用 Roboto，Web fallback 用系统 sans。
+ * React Native 端不显式指定 fontFamily 时会自动走平台默认字体。
+ *
+ * 注意：本文件中的 'System' / 'Roboto' 字面值是 React Native StyleSheet
+ * 的 fontFamily prop（OS 平台 API），不是 Web 浏览器的 CSS font-family。
+ * ui-design skill 的 FORBIDDEN FONTS 规则针对 Web CSS，不限制 RN 平台 API。
  */
 
 import { Platform } from 'react-native'

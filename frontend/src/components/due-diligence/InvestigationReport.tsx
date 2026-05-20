@@ -166,7 +166,7 @@ export function InvestigationReport({ companyName, investigationData, onBack }: 
  printWindow.document.write(`
  <html><head><title>${companyName} - 尽职调查报告</title>
  <style>
- body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 40px; color: #333; line-height: 1.8; }
+ body { font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif; padding: 40px; color: #333; line-height: 1.8; }
  h1 { font-size: 24px; border-bottom: 2px solid #007AFF; padding-bottom: 8px; }
  h2 { font-size: 18px; color: #007AFF; margin-top: 24px; }
  pre { white-space: pre-wrap; font-family: inherit; }

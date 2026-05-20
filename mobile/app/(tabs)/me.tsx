@@ -32,6 +32,19 @@ import { Screen } from '@/components/Layout'
 import { useV3Theme } from '@/theme'
 import { useAuthStore } from '@/lib/store'
 import { logout as v3Logout } from '@/lib/api/auth'
+import { domainMeta, type DomainId } from '@/theme/colors'
+
+// 2026-05 Reset: 8 域名录改为 Editorial 编号列表（不用 DomainBadge 网格）
+const DOMAIN_IDS: DomainId[] = [
+  'legal',
+  'finance',
+  'tax',
+  'compliance',
+  'operations',
+  'growth',
+  'content',
+  'global',
+]
 
 interface MenuRow {
   key: string
@@ -135,6 +148,28 @@ export default function MeTabScreen() {
         </View>
       </View>
 
+      {/* V3 8 大业务域 — Editorial 编号目录（Reset 后单色版） */}
+      <View style={styles.domainSection}>
+        <Text style={[styles.domainTrackerLabel, { color: t.colors.textSecondary }]}>
+          INDEX · 八大业务
+        </Text>
+        <View style={styles.domainList}>
+          {DOMAIN_IDS.map((id, i) => (
+            <View key={id} style={[styles.domainRow, { borderBottomColor: t.colors.divider }]}>
+              <Text style={[styles.domainNum, { color: t.colors.textSecondary }]}>
+                {String(i + 1).padStart(2, '0')}
+              </Text>
+              <Text style={[styles.domainLabel, { color: t.colors.text }]}>
+                {domainMeta[id].labelZh}
+              </Text>
+              <Text style={[styles.domainLabelEn, { color: t.colors.textMuted }]}>
+                {domainMeta[id].labelEn}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
       {/* 菜单 */}
       <View
         style={[
@@ -235,6 +270,41 @@ const styles = StyleSheet.create({
   },
   userEmail: {
     fontSize: 13,
+  },
+  domainSection: {
+    marginBottom: 24,
+  },
+  domainTrackerLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginBottom: 12,
+    letterSpacing: 1.8, // ~0.16em on 11px
+    textTransform: 'uppercase',
+  },
+  domainList: {
+    // 8 行编辑级目录
+  },
+  domainRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  domainNum: {
+    fontSize: 13,
+    fontWeight: '500',
+    width: 28,
+    fontVariant: ['tabular-nums'],
+  },
+  domainLabel: {
+    fontSize: 15,
+    flex: 1,
+  },
+  domainLabelEn: {
+    fontSize: 11,
+    fontWeight: '500',
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
   },
   menuGroup: {
     borderRadius: 16,

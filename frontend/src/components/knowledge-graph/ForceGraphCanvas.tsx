@@ -312,7 +312,7 @@ export const ForceGraphCanvas = forwardRef<ForceGraphCanvasHandle, Props>(functi
 
     // 类型首字（白色）—— 字体缓存避免每帧重复 ctx.font 赋值
     const charSize = Math.max(r * 0.9, 5)
-    const charFont = `bold ${charSize}px "Inter", "SF Pro", system-ui, sans-serif`
+    const charFont = `bold ${charSize}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`
     lastFontRef.current = setFontIfChanged(ctx, charFont, lastFontRef.current)
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
@@ -322,7 +322,7 @@ export const ForceGraphCanvas = forwardRef<ForceGraphCanvasHandle, Props>(functi
     // 名称标签 —— 基于像素宽度智能截断，替代朴素 slice(0,10)
     if (showLabels && globalScale > 0.4) {
       const fontSize = Math.max(10 / globalScale, 3)
-      const labelFont = `600 ${fontSize}px "Inter", "SF Pro", system-ui, sans-serif`
+      const labelFont = `600 ${fontSize}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`
       lastFontRef.current = setFontIfChanged(ctx, labelFont, lastFontRef.current)
       ctx.textAlign = 'center'
       ctx.textBaseline = 'top'
@@ -354,7 +354,7 @@ export const ForceGraphCanvas = forwardRef<ForceGraphCanvasHandle, Props>(functi
     const mx = (src.x + tgt.x) / 2
     const my = (src.y + tgt.y) / 2
     const fontSize = Math.max(8 / globalScale, 2.5)
-    const linkFont = `500 ${fontSize}px "Inter", system-ui, sans-serif`
+    const linkFont = `500 ${fontSize}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`
 
     linkLastFontRef.current = setFontIfChanged(ctx, linkFont, linkLastFontRef.current)
     ctx.textAlign = 'center'

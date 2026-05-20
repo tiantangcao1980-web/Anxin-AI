@@ -407,6 +407,7 @@ export const icons = {
   MapPin: MapPin,
   Landmark: Landmark,
   LayoutDashboard: LayoutDashboard,
+  LayoutGrid: LayoutGrid,  // V3 /domains 入口图标
   Network: Network,
 
   // ===== 编辑器 =====

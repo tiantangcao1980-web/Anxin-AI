@@ -1,3 +1,6 @@
+// 2026-05: P3 批量迁移到 design-tokens 变量
+@import '../../../styles/design-tokens.scss';
+
 .detail-page {
   display: flex;
   flex-direction: column;
@@ -23,7 +26,7 @@
 }
 
 .back-btn {
-  background: #d4a574;
+  background: $color-brand-primary;
   color: #fff;
   padding: 16rpx 48rpx;
   border-radius: 32rpx;
@@ -32,7 +35,7 @@
 
 /* hero */
 .hero {
-  background: linear-gradient(160deg, #fffaf3 0%, #fdf3e0 100%);
+  background: linear-gradient(160deg, #fffaf3 0%, $color-warning-pale 100%);
   padding: 40rpx 32rpx 36rpx;
   display: flex;
   flex-direction: column;
@@ -60,7 +63,7 @@
 .hero-name {
   font-size: 40rpx;
   font-weight: 600;
-  color: #2a2a2a;
+  color: $color-surface-dark;
   margin-bottom: 12rpx;
 }
 
@@ -78,7 +81,7 @@
 
 .tag-plan {
   background: #fdebcf;
-  color: #b07a26;
+  color: $color-warning-strong;
 }
 
 .hero-desc {
@@ -93,7 +96,7 @@
 .tab-bar {
   display: flex;
   background: #fff;
-  border-bottom: 1rpx solid #efe9e1;
+  border-bottom: 1rpx solid $color-surface-warm-2;
   padding: 0 24rpx;
   position: sticky;
   top: 0;
@@ -117,14 +120,14 @@
 .tab-underline {
   width: 0;
   height: 4rpx;
-  background: #d4a574;
+  background: $color-brand-primary;
   border-radius: 2rpx;
   margin-top: 8rpx;
   transition: width 200ms;
 }
 
 .tab-item.active .tab-label {
-  color: #d4a574;
+  color: $color-brand-primary;
   font-weight: 600;
 }
 
@@ -157,7 +160,7 @@
 .cap-num {
   font-size: 24rpx;
   font-weight: 600;
-  color: #d4a574;
+  color: $color-brand-primary;
   margin-right: 20rpx;
   margin-top: 2rpx;
   width: 48rpx;
@@ -189,7 +192,7 @@
 
 .skill-chip {
   background: #f3eee6;
-  color: #6b5236;
+  color: $color-warning;
 }
 
 .agent-chip {
@@ -198,8 +201,8 @@
 }
 
 .app-chip {
-  background: #fdf3e0;
-  color: #b07a26;
+  background: $color-warning-pale;
+  color: $color-warning-strong;
 }
 
 .sub-title {
@@ -212,7 +215,7 @@
 .helper-text {
   width: 100%;
   font-size: 22rpx;
-  color: #a89580;
+  color: $color-text-tertiary;
   margin-top: 16rpx;
   line-height: 1.5;
 }
@@ -249,7 +252,7 @@
 
 .ai-bubble {
   background: #f5f2ed;
-  color: #2a2a2a;
+  color: $color-surface-dark;
   align-self: flex-start;
   max-width: 92%;
   display: flex;
@@ -273,12 +276,12 @@
   left: 0;
   right: 0;
   background: #fff;
-  border-top: 1rpx solid #efe9e1;
+  border-top: 1rpx solid $color-surface-warm-2;
   padding: 16rpx 32rpx calc(16rpx + env(safe-area-inset-bottom));
 }
 
 .cta-btn {
-  background: linear-gradient(135deg, #d4a574 0%, #e0b88a 100%);
+  background: linear-gradient(135deg, $color-brand-primary 0%, $color-brand-primary-light 100%);
   border-radius: 36rpx;
   padding: 22rpx 0;
   display: flex;

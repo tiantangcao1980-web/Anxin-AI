@@ -17,6 +17,7 @@ import { getTokenStorage } from'@/lib/platform/storage'
 import { useAuthStore } from'@/lib/store'
 import { saveAuthToken } from'@/lib/tauri-bridge'
 import { iconSize, radius, buttonStyle, heading, inputStyle, statusColor } from'@/lib/design-tokens'
+import { DOMAINS } from'@/lib/domains'
 
 declare global {
  interface Window {
@@ -45,7 +46,6 @@ export default function Login() {
  sms_enabled: false,
  oauth_wechat_enabled: false,
  oauth_alipay_enabled: false,
- oidc_enabled: false,
  captcha_enabled: false,
  captcha_provider:'',
  captcha_site_key:'',
@@ -64,16 +64,8 @@ export default function Login() {
  useEffect(() => {
  fetch('/api/v1/auth/features').then(r => r.json()).then(d => {
  const data = d.data || d
- setFeatures(prev => ({ ...prev, ...data }))
+ setFeatures(data)
  }).catch(() => {})
- // OIDC 单独探测：metadata 返回 200 表示后端已配 OIDC_ISSUER + CLIENT_ID
- fetch('/api/v1/auth/oidc/metadata')
- .then(r => {
- if (r.ok) {
- setFeatures(prev => ({ ...prev, oidc_enabled: true }))
- }
- })
- .catch(() => {})
  }, [])
 
  const captchaRequired = Boolean(
@@ -414,35 +406,6 @@ export default function Login() {
  }
  }
 
- const handleOidc = async () => {
- // 拉取 IdP 元数据 + 跳到授权页（implicit flow）
- // 生产建议改 Authorization Code + PKCE；当前先把通路打通。
- try {
- const resp = await fetch(`/api/v1/auth/oidc/metadata`)
- if (!resp.ok) {
- const body = await resp.json().catch(() => ({}))
- toast.error(`SSO 暂不可用：${body.detail || resp.statusText}`)
- return
- }
- const meta = await resp.json()
- const nonce = crypto.randomUUID()
- sessionStorage.setItem('oidc_nonce', nonce)
- const redirectUri = `${window.location.origin}/login/oidc/callback`
- const params = new URLSearchParams({
- client_id: meta.client_id,
- response_type: 'id_token',
- scope: 'openid email profile',
- redirect_uri: redirectUri,
- nonce,
- state: encodeURIComponent(window.location.pathname + window.location.search),
- })
- const authorizeUrl = `${meta.issuer.replace(/\/$/, '')}/authorize?${params}`
- window.location.href = authorizeUrl
- } catch (err) {
- toast.error(`SSO 调用失败：${(err as Error).message}`)
- }
- }
-
  // 输入框通用样式 — 基于 design-tokens inputStyle.search，增加左图标 padding
  const inputCls =
  `${inputStyle.search} pl-10 py-2.5 focus:border-transparent`
@@ -459,112 +422,99 @@ export default function Login() {
 
  return (
  <div className="min-h-screen flex bg-background">
- {/* ===== 左侧品牌展示区（无渐变，适配深浅色模式） ===== */}
- <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden flex-col justify-between p-12 bg-muted/50 dark:bg-muted/20 border-r border-border/30">
- {/* 装饰元素 — 几何圆环 */}
- <div className="absolute inset-0 pointer-events-none">
- <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full border-[3px] border-primary/10 dark:border-primary/5" />
- <div className="absolute -top-8 -right-8 w-48 h-48 rounded-full border-[2px] border-primary/8 dark:border-primary/4" />
- <div className="absolute -bottom-20 -left-20 w-72 h-72 rounded-full border-[3px] border-primary/8 dark:border-primary/4" />
- <div className="absolute top-1/3 right-1/4 w-3 h-3 rounded-full bg-primary/20 dark:bg-primary/10" />
- <div className="absolute top-2/3 left-1/5 w-2 h-2 rounded-full bg-primary/15 dark:bg-primary/8" />
- <div className="absolute bottom-1/4 right-1/3 w-4 h-4 rounded-full bg-primary/10 dark:bg-primary/5" />
+ {/*
+   ===== 左侧 7 col 标题区 (Editorial Luxury) =====
+   2026-05 Reset:
+   - 删除原 8 域高饱和徽章网格、几何装饰圆环、3 大支柱高饱和图标卡
+   - 改为 Editorial 排版：serif Display + serif H1 + body 引言 + 8 域 serif 编号目录
+   - 单一品牌琥珀橙仅出现在右侧 CTA 按钮上
+ */}
+ <div className="hidden lg:flex lg:w-7/12 relative flex-col justify-between px-16 xl:px-24 pt-32 pb-16 bg-background">
+   {/* 顶部：序号 + EST tracker */}
+   <div className="space-y-16">
+     <div className="flex items-center gap-3">
+       <span className="font-serif text-[28px] leading-none text-foreground">安</span>
+       <div className="h-px w-12 bg-muted-foreground/40"></div>
+       <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+         Anxin Intelligence · Est 2026
+       </span>
+     </div>
+
+     {/* serif 主标题 */}
+     <div>
+       <h1 className="font-serif text-[48px] leading-[1.1] tracking-[-0.04em] font-medium text-foreground">
+         安心智能助手
+       </h1>
+       <p className="font-serif text-[32px] leading-[1.2] tracking-[-0.02em] font-medium mt-6 text-foreground/80 max-w-[18ch]">
+         为企业老板而做的 AI 工作台
+       </p>
+     </div>
+
+     {/* body 长引言 */}
+     <p className="text-[15px] leading-[1.85] text-foreground/80 max-w-[42ch]">
+       一个 App 搞定企业 8 大业务 — 法务、财务、税务、合规、经营管理、调研获客、内容产出、出海跨境。
+       不是仪表板，不是工具集合 —
+       <span className="font-serif italic"> 是把判断、风险、证据放在每一个画面优先位置的工作台。</span>
+     </p>
+   </div>
+
+   {/* 底部：8 域编辑级目录（无色块、无图标卡、无饱和度） */}
+   <div className="pt-24">
+     <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground mb-4">
+       Index · 业务域目录
+     </div>
+     <ol className="grid grid-cols-2 sm:grid-cols-4 gap-x-8 gap-y-3 text-[13px] text-foreground/80">
+       {DOMAINS.map((d, i) => (
+         <li key={d.id}>
+           <span className="font-serif text-muted-foreground mr-2">
+             {String(i + 1).padStart(2, '0')}
+           </span>
+           {d.label}
+         </li>
+       ))}
+     </ol>
+     <div className="mt-8 pt-4 border-t border-border flex items-center justify-between text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+       <span>© 2026 · 安心科技</span>
+       <span>专业 / 克制 / 长期</span>
+     </div>
+   </div>
  </div>
 
- <div className="relative z-10">
- {/* Logo */}
- <div className="flex items-center gap-3 mb-12">
- <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-sm">
- <icons.Legal className={`${iconSize.lg} text-primary-foreground`} />
- </div>
- <div>
- <h1 className={`${heading.page} text-foreground text-2xl`}>安心智能助手</h1>
- <p className="text-sm text-muted-foreground">全链路超级 AI 智能助手系统</p>
- </div>
- </div>
-
- {/* 特性列表 — V3 全链路定位：覆盖法务、财税、合规、市场、获客、内容、出海等多角色 */}
- <div className="space-y-6 mb-12">
- {[
- { Icon: icons.Brain, title:'多智能体协作', desc:'10+ 专业智能体协同覆盖业务全流程' },
- { Icon: icons.Shield, title:'全流程风控', desc:'AI 实时监控合规、合同、商业与运营风险' },
- { Icon: icons.Zap, title:'效率提升10倍', desc:'自动化合同审查、文书起草、市场研究、出海运营' },
- ].map((feature, i) => (
- <motion.div
- key={feature.title}
- initial={{ opacity: 0, x: -30 }}
- animate={{ opacity: 1, x: 0 }}
- transition={{ delay: 0.2 + i * 0.15 }}
- className="flex items-start gap-4"
- >
- <div className="w-10 h-10 bg-primary/10 dark:bg-primary/15 rounded-lg flex items-center justify-center flex-shrink-0">
- <feature.Icon className={`${iconSize.md} text-primary`} />
- </div>
- <div>
- <h3 className="text-foreground font-medium">{feature.title}</h3>
- <p className="text-muted-foreground text-sm mt-1">{feature.desc}</p>
- </div>
- </motion.div>
- ))}
- </div>
-
- {/* 形象角色占位区 — 待设计完成后替换 */}
- <div className="flex gap-4 items-end">
- <motion.div
- initial={{ opacity: 0, y: 20 }}
- animate={{ opacity: 1, y: 0 }}
- transition={{ delay: 0.6 }}
- className="w-28 h-36 bg-primary/5 dark:bg-primary/10 rounded-2xl border-2 border-dashed border-primary/20 dark:border-primary/15 flex flex-col items-center justify-center gap-2"
- >
- <icons.User className="w-8 h-8 text-primary/30 dark:text-primary/20" />
- <span className="text-[10px] text-muted-foreground/60">形象角色 1</span>
- </motion.div>
- <motion.div
- initial={{ opacity: 0, y: 20 }}
- animate={{ opacity: 1, y: 0 }}
- transition={{ delay: 0.75 }}
- className="w-24 h-32 bg-primary/5 dark:bg-primary/10 rounded-2xl border-2 border-dashed border-primary/20 dark:border-primary/15 flex flex-col items-center justify-center gap-2"
- >
- <icons.Bot className="w-7 h-7 text-primary/30 dark:text-primary/20" />
- <span className="text-[10px] text-muted-foreground/60">形象角色 2</span>
- </motion.div>
- </div>
- </div>
-
- <p className="relative z-10 text-muted-foreground/50 text-xs">
- &copy; 2026 安心智能助手 &middot; 赋能企业全链路智能化
- </p>
- </div>
-
- {/* ===== 右侧表单区 ===== */}
- <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
+ {/* ===== 右侧 5 col 表单区 (Editorial Luxury) ===== */}
+ <div className="flex-1 lg:w-5/12 flex items-center justify-center p-6 lg:p-12 bg-surface-1 lg:border-l lg:border-border">
  <motion.div
  initial={{ opacity: 0, y: 20 }}
  animate={{ opacity: 1, y: 0 }}
  className="w-full max-w-md"
  >
- {/* 移动端 Logo */}
- <div className="lg:hidden flex items-center gap-2 mb-8 justify-center">
- <div className={`w-10 h-10 bg-primary ${radius.card} flex items-center justify-center`}>
- <icons.Legal className={`${iconSize.md} text-primary-foreground`} />
- </div>
- <h1 className={heading.page}>安心智能助手</h1>
+ {/* 移动端 Logo (Reset · Editorial Luxury) */}
+ {/* 不用 V2 橙底天平方块；改为衬线 "安" + micro tracker，与 desktop 左栏顶部呼应 */}
+ <div className="lg:hidden flex items-center gap-3 mb-10 justify-center">
+   <span className="font-serif text-[28px] leading-none text-foreground">安</span>
+   <div className="h-px w-8 bg-muted-foreground/40" />
+   <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+     Anxin · Est 2026
+   </span>
  </div>
 
- {/* Tab 切换（忘记密码模式时隐藏） */}
+ {/* Tab 切换 (Reset · Editorial underline 风格) */}
+ {/* 旧版 bg-muted 圆角胶囊背景 → 改为 underline 编辑级 tab */}
  {mode !=='forgot' && mode !=='verify' ? (
- <div className={`flex gap-1 mb-8 bg-muted p-1 ${radius.card}`}>
+ <div className="flex border-b border-border mb-8">
  {(['login','register'] as const).map((tab) => (
  <button
  key={tab}
  onClick={() => setMode(tab)}
- className={`flex-1 py-2.5 ${radius.button} text-sm font-medium transition-colors ${
+ className={`relative px-5 py-3 text-sm font-medium transition-colors ${
  mode === tab
- ?'bg-background text-foreground shadow-sm'
+ ?'text-foreground'
  :'text-muted-foreground hover:text-foreground'
  }`}
  >
- {tab ==='login' ?'登录' :'注册'}
+ {tab ==='login' ?'登 录' :'注 册'}
+ {mode === tab && (
+   <span aria-hidden className="absolute left-5 right-5 -bottom-px h-px bg-primary" />
+ )}
  </button>
  ))}
  </div>
@@ -1001,8 +951,8 @@ export default function Login() {
  )}
  </AnimatePresence>
 
- {/* 第三方登录 — 第三方 OAuth 或企业 SSO */}
- {(features.oauth_wechat_enabled || features.oauth_alipay_enabled || features.oidc_enabled) && (<><div className="relative my-6">
+ {/* 第三方登录 — 根据后台功能开关动态显示 */}
+ {(features.oauth_wechat_enabled || features.oauth_alipay_enabled) && (<><div className="relative my-6">
  <div className="absolute inset-0 flex items-center">
  <div className="w-full border-t border-border" />
  </div>
@@ -1035,20 +985,6 @@ export default function Login() {
  <path d="M21.422 15.358c-1.573-.537-3.282-1.159-3.282-1.159s.908-2.059 1.178-3.483c.27-1.424.162-2.485-.432-2.98-.594-.494-1.314-.243-1.908.269-.594.512-1.575 1.871-2.25 3.06a23.819 23.819 0 0 1-5.283-1.455c1.581-2.898 2.55-5.864 2.55-5.864H7.872V2.36h4.895V1H7.872V0H6.78v1H1.943v1.36H6.78v1.386H3.116v1.36h7.443s-.733 2.234-2.037 4.582c-2.258-.82-4.448-1.348-5.61-1.05-1.02.261-1.648.868-1.92 1.588-.82 2.17.905 4.323 3.6 4.323 1.806 0 3.532-1.087 4.895-2.8.902.427 1.893.82 2.957 1.182-.61.77-1.208 1.596-1.766 2.467C8.76 18.4 6.273 21 3.612 21c-.6 0-1.122-.164-1.5-.476 0 0-.48-.388-.6-1.17 0 0-.012.025.312.49.324.466.894.702 1.62.702 1.99 0 4.185-1.754 5.82-3.943.546-.731 1.061-1.51 1.545-2.319 2.273.676 4.89 1.293 4.89 1.293S13.8 18.6 13.8 20.16c0 1.56 1.11 2.04 1.74 2.16.63.12 2.4.12 3.36-.96.96-1.08.84-2.4.84-2.4s.024.18-.144.588c-.168.408-.528.9-1.08 1.152-.552.252-1.284.12-1.284.12s-.36-.06-.36-.48c0-.42.816-1.932 1.884-3.504.564-.828 1.152-1.572 1.74-2.232 1.344.432 2.172.636 2.172.636l.78-1.884zM5.493 13.83c-1.962 0-2.868-1.362-2.484-2.598.384-1.236 1.566-1.65 2.424-1.476.858.174 2.502.696 3.858 1.266-1.134 1.698-2.448 2.808-3.798 2.808z" />
  </svg>
  支付宝登录
- </button>
- )}
- {features.oidc_enabled && (
- <button
- type="button"
- onClick={() => void handleOidc()}
- className={`${buttonStyle.ghost} col-span-2 flex items-center justify-center gap-2 py-2.5 border border-border hover:bg-muted`}
- data-testid="oidc-login-btn"
- >
- <svg className={iconSize.md} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
- <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
- <path d="M7 11V7a5 5 0 0 1 10 0v4" />
- </svg>
- 企业 SSO 登录（OIDC）
  </button>
  )}
  </div></>)}

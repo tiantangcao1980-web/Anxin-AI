@@ -4,12 +4,18 @@
 
 @layer base {
   /* ============================================================
-   * 安心智能助手 — 统一色彩系统 v3 (琥珀橙)
+   * 安心智能助手 — 统一色彩系统 v3 (琥珀橙 + 8 大业务域)
    *
    * 设计哲学（参考 Apple HIG / Linear / Vercel / Stripe）:
    * - 浅色模式：纯净白底 + 琥珀橙品牌色 + 微妙灰色层次
    * - 深色模式：分层深灰（非纯黑）+ 降饱和暖橙 + 柔和边界
    * - 品牌感：温暖 · 守护 · 专业
+   *
+   * V3 扩展（2026-05）：
+   * 在保留琥珀橙主色的基础上，新增 8 大业务域语义色，
+   * 用于 Dashboard 模块入口、面包屑徽章、域内分类强调。
+   * 业务域色 **不替代** 品牌色，仅承担「分类」职责。
+   * 详见 docs/design/ui-audit-and-upgrade-2026-05.md §5。
    * ============================================================ */
 
   :root {
@@ -132,6 +138,16 @@
     --node-query: 220 9% 46%;
     --node-conclusion: 280 68% 60%;
     --node-other: 220 9% 42%;
+
+    /* ─────────────────────────────────────────────────────────────
+     * 2026-05 Reset 公告（保留为历史教训）：
+     * 此处曾存在 8 个 --domain-* 高饱和色 + 8 个 --domain-*-surface 浅底色。
+     * 该方案违反 ui-design skill 多条硬性禁令（紫色 #7D4FCC / 通用 SaaS 拼盘）
+     * 及 DESIGN.md §1「不像 SaaS 控制台 / 不强调 AI 感」原则，已全量删除。
+     * 业务域可视化改用：序号 (01–08 serif) + 衬线域名 + Lucide 图标 + 字距层次，
+     * 不用色彩分类。详见 docs/design/v3-prototype-editorial.html。
+     * brand-consistency.test.ts 已加反向断言禁止任何 --domain-* 回归。
+     * ───────────────────────────────────────────────────────────── */
 
     /* --- 动效令牌 --- */
     --duration-instant: 50ms;
@@ -258,6 +274,8 @@
     --node-conclusion: 280 60% 72%;
     --node-other: 220 8% 55%;
 
+    /* 2026-05 Reset: 删除 8 个深色 --domain-* + surface（同浅色块原因） */
+
     /* --- 阴影系统（深色：环阴影 + 黑色投影双层，Linear / Raycast 风格）--- */
     --shadow-0: none;
     --shadow-1: 0 0 0 1px rgba(255,255,255,0.05);
@@ -291,7 +309,10 @@
     height: 100%;
   }
   html {
-    font-family: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+    /* 2026-05 Reset: 删除 Inter (ui-design skill FORBIDDEN FONT)。
+       中文优先（PingFang/YaHei/Noto Sans SC 均为系统/Web 字体），
+       generic sans-serif 兜底（不写具体英文字体名，避免触发 forbidden 列表） */
+    font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
   }
   body {
     @apply bg-background text-foreground antialiased;

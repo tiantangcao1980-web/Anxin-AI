@@ -18,12 +18,15 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { NotificationCenter } from './NotificationCenter'
 import { UserProfile } from './UserProfile'
+import { WelcomeGuide } from './WelcomeGuide'
 import { notificationsApi } from '../lib/api'
-import { useIMStore, useNotificationStore } from '@/lib/store'
+import { useAuthStore, useIMStore, useNotificationStore } from '@/lib/store'
 import { usePermission } from '@/hooks/usePermission'
 
 import { icons } from '@/lib/icons'
 import { iconSize, buttonStyle, heading, sidebarNav } from '@/lib/design-tokens'
+// 2026-05 Reset: 删除 DOMAIN_BY_ID / DomainId 引用（曾用于侧栏域色 stripe/dot）。
+import { DomainBreadcrumb } from '@/components/ui/DomainBreadcrumb'
 import { ModeSwitcher } from '@/components/mode-switcher/ModeSwitcher'
 import { SyncStatus } from '@/components/mode-switcher/SyncStatus'
 import { MobileNavBar } from '@/components/mobile/MobileNavBar'
@@ -42,12 +45,14 @@ interface NavChild {
 
 // 四大业务域 — 全部为直达链接，点击进入模块首页（各模块有自己的左侧导航栏）
 // 顶部四大业务域（与 PRD / 全端导航保持同步）。
-// 「智能调查」对应 /investigation 工作台，舆情监测是其中一个子入口。
+//
+// 2026-05 Reset: 删除 `accent` 字段（曾用于 active 态显示业务域色 underline）。
+// 现在 active 态用单一品牌琥珀橙 underline（1px），不区分域色。
 const navGroups: { id: string; label: string; path: string }[] = [
-  { id: 'ai-legal', label: 'AI 智能助手', path: '/chat' },
-  { id: 'collaboration', label: '智能协作', path: '/case-center' },
-  { id: 'investigation', label: '智能调查', path: '/investigation' },
-  { id: 'knowledge', label: '法律智库', path: '/knowledge-base' },
+  { id: 'ai-legal',      label: 'AI 智能助手', path: '/chat'           },
+  { id: 'collaboration', label: '智能协作',    path: '/case-center'    },
+  { id: 'investigation', label: '智能调查',    path: '/investigation'  },
+  { id: 'knowledge',     label: '法律智库',    path: '/knowledge-base' },
 ]
 
 // 系统功能（右侧图标按钮）— 任务中心已整合进案件中心
@@ -61,6 +66,8 @@ interface SidebarItem {
   label: string
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
   feature?: string
+  // 2026-05 Reset: 删除 domain 字段（曾用于显示业务域色 stripe/dot）。
+  // 业务域识别改由 DomainBreadcrumb（顶栏 micro UPPERCASE）承担，sidebar 只用 primary 1px active 线。
 }
 
 const moduleSidebarConfig: { id: string; title: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>>; paths: string[]; items: SidebarItem[] }[] = [
@@ -124,17 +131,23 @@ function ModuleSidebar({ currentPath, onNavigate }: { currentPath: string; onNav
       style={{ width: collapsed ? 56 : 220 }}
     >
       {/* 模块标题 */}
-      <div className="flex items-center gap-2.5 px-3 h-12 border-b border-border shrink-0">
-        <TitleIcon className="w-5 h-5 text-primary shrink-0" />
+      <div className="flex flex-col px-3 py-2 border-b border-border shrink-0 gap-1 min-h-[3rem] justify-center">
+        <div className="flex items-center gap-2.5">
+          <TitleIcon className="w-5 h-5 text-primary shrink-0" />
+          {!collapsed && (
+            <span className={`${sidebarNav.title} whitespace-nowrap`}>
+              {currentModule.title}
+            </span>
+          )}
+        </div>
+        {/* V3 业务域面包屑 — 仅在展开态显示，告诉用户"你在哪个业务域" */}
         {!collapsed && (
-          <span className={`${sidebarNav.title} whitespace-nowrap`}>
-            {currentModule.title}
-          </span>
+          <DomainBreadcrumb pathname={currentPath} compact className="pl-7" />
         )}
       </div>
 
       {/* 导航列表 */}
-      <nav className="flex-1 py-2 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 py-2 space-y-0.5 overflow-y-auto" aria-label={`${currentModule.title} 二级导航`}>
         {visibleItems.map((item) => {
           // 精确匹配：避免 /due-diligence 匹配所有 /due-diligence/* 子路径
           const hasSubItems = visibleItems.some(other => other.path !== item.path && other.path.startsWith(item.path + '/'))
@@ -144,16 +157,27 @@ function ModuleSidebar({ currentPath, onNavigate }: { currentPath: string; onNav
             <button
               key={item.path}
               onClick={() => onNavigate(item.path)}
-              className={`w-full flex items-center gap-2.5 mx-1.5 px-2.5 py-2 rounded-lg ${sidebarNav.itemText} transition-colors ${
+              className={`relative w-full flex items-center gap-2.5 mx-1.5 px-2.5 py-2 rounded-lg ${sidebarNav.itemText} transition-colors ${
                 isActive
                   ? sidebarNav.itemActive
                   : sidebarNav.itemDefault
               }`}
               title={collapsed ? item.label : undefined}
+              aria-label={item.label}
               style={{ width: `calc(100% - ${collapsed ? '8px' : '12px'})` }}
             >
+              {/* 2026-05 Reset: 删除业务域色 stripe/dot 视觉锚点。
+                  active 态用单一品牌琥珀橙 1px 左线（克制不抢镜） */}
+              {isActive ? (
+                <span
+                  aria-hidden
+                  className="absolute left-0 top-1.5 bottom-1.5 w-px bg-primary"
+                />
+              ) : null}
               <Icon className="w-4.5 h-4.5 shrink-0" />
-              {!collapsed && <span className="whitespace-nowrap">{item.label}</span>}
+              {!collapsed && (
+                <span className="whitespace-nowrap flex-1 text-left">{item.label}</span>
+              )}
             </button>
           )
         })}
@@ -219,6 +243,23 @@ export default function Layout() {
   const [showNotifications, setShowNotifications] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [headerActionLabels, setHeaderActionLabels] = useState(readHeaderActionLabels)
+
+  // V3 首登引导：未看过 8 大业务域 WelcomeGuide 且已登录时弹出
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const hasSeenWelcome = useAuthStore((s) => s.hasSeenWelcome)
+  const markWelcomeSeen = useAuthStore((s) => s.markWelcomeSeen)
+  const [showWelcome, setShowWelcome] = useState(false)
+  useEffect(() => {
+    if (isAuthenticated && !hasSeenWelcome) {
+      // 延迟 600ms 弹出，避免与登录跳转动画打架
+      const timer = setTimeout(() => setShowWelcome(true), 600)
+      return () => clearTimeout(timer)
+    }
+  }, [isAuthenticated, hasSeenWelcome])
+  const handleCloseWelcome = useCallback(() => {
+    setShowWelcome(false)
+    markWelcomeSeen()
+  }, [markWelcomeSeen])
 
   const toggleHeaderActionLabels = useCallback(() => {
     setHeaderActionLabels((prev) => {
@@ -297,25 +338,54 @@ export default function Layout() {
           </button>
 
           {/* 中间：四大业务域直达链接（点击进入模块首页，模块内有左侧导航栏） */}
-          <nav className="hidden lg:flex items-center gap-1 flex-1">
-            {navGroups.map((group) => (
-              <button
-                key={group.id}
-                onClick={() => handleNavClick(group.path)}
-                className={`px-3.5 py-2 rounded-lg text-base font-medium transition-colors ${
-                  isModuleActive(group.id, currentPath)
-                    ? 'text-primary'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-                }`}
-              >
-                {group.label}
-              </button>
-            ))}
+          <nav className="hidden lg:flex items-center gap-1 flex-1" aria-label="主导航">
+            {navGroups.map((group) => {
+              const active = isModuleActive(group.id, currentPath)
+              return (
+                <button
+                  key={group.id}
+                  onClick={() => handleNavClick(group.path)}
+                  className={`relative px-3.5 py-2 rounded-lg text-base font-medium transition-colors ${
+                    active
+                      ? 'text-primary'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                  }`}
+                  aria-current={active ? 'page' : undefined}
+                >
+                  {group.label}
+                  {/* 2026-05 Reset: 删除业务域色 underline。
+                      active 态用单一品牌琥珀橙 1px underline（克制） */}
+                  {active ? (
+                    <span
+                      aria-hidden
+                      className="absolute left-3.5 right-3.5 bottom-1 h-px bg-primary"
+                    />
+                  ) : null}
+                </button>
+              )
+            })}
           </nav>
 
           {/* 右侧：系统功能 + 用户区 */}
           <div className="ml-auto flex items-center gap-1 sm:gap-1.5 md:gap-2">
             <div className="flex items-center gap-1 rounded-xl p-1">
+              {/* V3 8 大业务域永久入口 — 跳到 /domains 索引页 */}
+              <button
+                onClick={() => navigate('/domains')}
+                aria-label="业务域总览"
+                title="业务域总览（8 大业务）"
+                className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-medium transition-colors md:h-10 md:w-auto md:text-sm ${
+                  headerActionLabels ? 'md:gap-1.5 md:px-3' : 'md:px-2'
+                } ${
+                  currentPath === '/domains'
+                    ? 'text-primary bg-primary/10'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                }`}
+                aria-current={currentPath === '/domains' ? 'page' : undefined}
+              >
+                <icons.LayoutGrid className="h-4 w-4 shrink-0" />
+                {headerActionLabels && <span className="hidden whitespace-nowrap md:inline">业务域</span>}
+              </button>
               <button
                 onClick={() => navigate('/messages')}
                 aria-label="消息"
@@ -447,6 +517,9 @@ export default function Layout() {
           onToggleHeaderActionLabels={toggleHeaderActionLabels}
         />
       )}
+
+      {/* V3 首登 8 大业务域引导 — 仅首次登录后弹出一次（hasSeenWelcome 持久化在 auth-storage） */}
+      {showWelcome && <WelcomeGuide onClose={handleCloseWelcome} />}
     </div>
   )
 }

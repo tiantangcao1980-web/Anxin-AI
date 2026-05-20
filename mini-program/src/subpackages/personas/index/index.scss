@@ -1,5 +1,8 @@
+// 2026-05: P3 批量迁移到 design-tokens 变量
+@import '../../../styles/design-tokens.scss';
+
 /* P21-C 智能体工作台列表页样式
- * 主色 #D4A574（琥珀），辅以柔和米色背景
+ * 主色 $color-brand-primary（琥珀），辅以柔和米色背景
  */
 
 .personas-page {
@@ -13,13 +16,13 @@
 .search-bar {
   padding: 20rpx 24rpx 12rpx;
   background: #fff;
-  border-bottom: 1rpx solid #efe9e1;
+  border-bottom: 1rpx solid $color-surface-warm-2;
 }
 
 .search-input-wrapper {
   display: flex;
   align-items: center;
-  background: #f1ede6;
+  background: $color-surface-warm;
   border-radius: 36rpx;
   padding: 0 24rpx;
   height: 72rpx;
@@ -28,7 +31,7 @@
 .search-icon {
   font-size: 28rpx;
   margin-right: 16rpx;
-  color: #a89580;
+  color: $color-text-tertiary;
 }
 
 .search-input {
@@ -40,7 +43,7 @@
 
 .search-clear {
   font-size: 32rpx;
-  color: #a89580;
+  color: $color-text-tertiary;
   padding-left: 16rpx;
 }
 
@@ -95,7 +98,7 @@
 .group-title {
   font-size: 32rpx;
   font-weight: 600;
-  color: #2a2a2a;
+  color: $color-surface-dark;
   position: relative;
   padding-left: 18rpx;
 }
@@ -107,13 +110,13 @@
   top: 8rpx;
   bottom: 8rpx;
   width: 8rpx;
-  background: #d4a574;
+  background: $color-brand-primary;
   border-radius: 4rpx;
 }
 
 .group-count {
   font-size: 22rpx;
-  color: #a89580;
+  color: $color-text-tertiary;
 }
 
 /* 网格 */
@@ -160,7 +163,7 @@
 .card-name {
   font-size: 30rpx;
   font-weight: 600;
-  color: #2a2a2a;
+  color: $color-surface-dark;
   margin-bottom: 8rpx;
 }
 
@@ -185,7 +188,7 @@
 
 .card-cap {
   font-size: 20rpx;
-  color: #a89580;
+  color: $color-text-tertiary;
 }
 
 .card-tag {
@@ -201,12 +204,12 @@
 }
 
 .tag-plan {
-  background: #fdf3e0;
-  color: #b07a26;
+  background: $color-warning-pale;
+  color: $color-warning-strong;
 }
 
 .card-cta {
-  background: linear-gradient(135deg, #d4a574 0%, #e0b88a 100%);
+  background: linear-gradient(135deg, $color-brand-primary 0%, $color-brand-primary-light 100%);
   border-radius: 30rpx;
   padding: 14rpx 0;
   display: flex;

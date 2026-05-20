@@ -1,14 +1,17 @@
+// 2026-05: P3 批量迁移到 design-tokens 变量
+@import '../../../styles/design-tokens.scss';
+
 .st-page {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #f5f5f5;
+  background: $color-background;
 }
 
 .st-tabs {
   display: flex;
   background: #fff;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid $color-skeleton;
   padding: 0 16rpx;
 }
 .st-tab {
@@ -31,7 +34,7 @@
 }
 .st-tab--active .st-tab-label,
 .st-tab--active .st-tab-count {
-  color: #D4A574;
+  color: $color-brand-primary;
   font-weight: 600;
 }
 .st-tab--active::after {
@@ -41,7 +44,7 @@
   left: 30%;
   right: 30%;
   height: 4rpx;
-  background: #D4A574;
+  background: $color-brand-primary;
   border-radius: 2rpx;
 }
 
@@ -123,18 +126,18 @@
   border-radius: 20rpx;
 }
 .st-status-text { font-size: 20rpx; font-weight: 500; }
-.st-status--active { background: #d1fae5; }
-.st-status--active .st-status-text { color: #065f46; }
-.st-status--paused { background: #f3f4f6; }
-.st-status--paused .st-status-text { color: #4b5563; }
-.st-status--failed { background: #fee2e2; }
-.st-status--failed .st-status-text { color: #b91c1c; }
+.st-status--active { background: $color-success-tint; }
+.st-status--active .st-status-text { color: $color-success-strong; }
+.st-status--paused { background: $color-surface-3; }
+.st-status--paused .st-status-text { color: $color-text-secondary; }
+.st-status--failed { background: $color-danger-soft; }
+.st-status--failed .st-status-text { color: $color-danger-strong; }
 
 .st-footer {
   padding: 32rpx 0 24rpx;
 }
 .st-create-btn {
-  background: #D4A574;
+  background: $color-brand-primary;
   color: #fff;
   font-size: 28rpx;
   border-radius: 48rpx;

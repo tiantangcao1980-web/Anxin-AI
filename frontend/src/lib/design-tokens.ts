@@ -351,6 +351,9 @@ export const graphCanvasColors = {
   particle: '#818cf8',
 } as const
 
+// 2026-05 Reset: 删除 domainColor 预设（8 个域 × 3 个 class），原因同 index.css。
+// 业务域可视化改用 序号 + 衬线域名 + 字距层次。
+
 // ===== 编辑器色板 =====
 export const editorPalette = {
   text: [

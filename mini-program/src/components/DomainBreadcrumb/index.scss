@@ -1,0 +1,36 @@
+// DomainBreadcrumb (Reset · Editorial Luxury) — 纯文字 micro UPPERCASE
+@import '../../styles/design-tokens.scss';
+
+.domain-breadcrumb {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0;
+
+  &__en {
+    font-size: 20rpx;
+    font-weight: 500;
+    letter-spacing: 3.2rpx;
+    text-transform: uppercase;
+    color: $color-text-secondary;
+  }
+
+  &__sep {
+    font-size: 20rpx;
+    color: $color-text-disabled;
+  }
+
+  &__zh {
+    font-size: 24rpx;
+    color: $color-text-primary;
+  }
+
+  &__module {
+    font-size: 24rpx;
+    color: $color-text-secondary;
+    max-width: 360rpx;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}

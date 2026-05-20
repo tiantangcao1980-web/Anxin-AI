@@ -1,3 +1,6 @@
+// 2026-05: P3 批量迁移到 design-tokens 变量
+@import '../../../styles/design-tokens.scss';
+
 .persona-chat {
   display: flex;
   flex-direction: column;
@@ -11,7 +14,7 @@
   align-items: center;
   background: #fff;
   padding: 16rpx 16rpx 16rpx 12rpx;
-  border-bottom: 1rpx solid #efe9e1;
+  border-bottom: 1rpx solid $color-surface-warm-2;
   gap: 12rpx;
 }
 
@@ -40,7 +43,7 @@
 .nav-name {
   font-size: 30rpx;
   font-weight: 600;
-  color: #2a2a2a;
+  color: $color-surface-dark;
 }
 
 .nav-mode {
@@ -51,12 +54,12 @@
 }
 
 .nav-mode.local {
-  background: #f1ede6;
-  color: #6b5236;
+  background: $color-surface-warm;
+  color: $color-warning;
 }
 
 .nav-mode.cloud {
-  background: #d4a574;
+  background: $color-brand-primary;
   color: #fff;
 }
 
@@ -64,8 +67,8 @@
   padding: 6rpx 18rpx;
   border-radius: 20rpx;
   font-size: 22rpx;
-  background: #f1ede6;
-  color: #6b5236;
+  background: $color-surface-warm;
+  color: $color-warning;
 }
 
 /* 消息流 */
@@ -84,7 +87,7 @@
     flex-direction: row-reverse;
 
     .bubble {
-      background: linear-gradient(135deg, #d4a574 0%, #e0b88a 100%);
+      background: linear-gradient(135deg, $color-brand-primary 0%, $color-brand-primary-light 100%);
       margin-right: 16rpx;
       margin-left: 80rpx;
     }
@@ -121,7 +124,7 @@
 }
 
 .avatar-user {
-  background: #fdf3e0;
+  background: $color-warning-pale;
 }
 
 .bubble {
@@ -140,7 +143,7 @@
 .cursor {
   display: inline-block;
   margin-left: 4rpx;
-  color: #d4a574;
+  color: $color-brand-primary;
   animation: blink 0.9s infinite;
   font-weight: bold;
 }
@@ -163,7 +166,7 @@
 /* capability chips */
 .cap-chips {
   background: #fff;
-  border-top: 1rpx solid #efe9e1;
+  border-top: 1rpx solid $color-surface-warm-2;
   padding: 16rpx 0;
 }
 
@@ -180,8 +183,8 @@
 
 .cap-chip {
   display: inline-block;
-  background: #fdf3e0;
-  color: #b07a26;
+  background: $color-warning-pale;
+  color: $color-warning-strong;
   font-size: 22rpx;
   padding: 12rpx 22rpx;
   border-radius: 24rpx;
@@ -191,7 +194,7 @@
 /* 输入区 */
 .input-area {
   background: #fff;
-  border-top: 1rpx solid #efe9e1;
+  border-top: 1rpx solid $color-surface-warm-2;
   padding-bottom: env(safe-area-inset-bottom);
 }
 
@@ -206,12 +209,12 @@
   width: 64rpx;
   height: 64rpx;
   border-radius: 50%;
-  background: #f1ede6;
+  background: $color-surface-warm;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 40rpx;
-  color: #6b5236;
+  color: $color-warning;
   flex-shrink: 0;
 }
 
@@ -222,12 +225,12 @@
   border-radius: 32rpx;
   padding: 0 24rpx;
   font-size: 28rpx;
-  color: #2a2a2a;
+  color: $color-surface-dark;
 }
 
 .send-btn {
   padding: 14rpx 32rpx;
-  background: linear-gradient(135deg, #d4a574 0%, #e0b88a 100%);
+  background: linear-gradient(135deg, $color-brand-primary 0%, $color-brand-primary-light 100%);
   border-radius: 32rpx;
   color: #fff;
   font-size: 26rpx;

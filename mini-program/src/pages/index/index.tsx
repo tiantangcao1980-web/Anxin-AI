@@ -15,6 +15,8 @@ import Taro, { usePullDownRefresh } from '@tarojs/taro'
 
 import { Screen } from '../../components/Layout'
 import PersonaCard from '../../components/PersonaCard'
+// 2026-05 Reset: 删除 DomainBadge 网格，改为 Editorial 编号目录（domainMeta 直接消费）
+import { domainMeta, type DomainId } from '../../styles/design-tokens'
 import { listPersonas } from '../../utils/api/personas'
 import { tokenStorage } from '../../utils/auth/token'
 import {
@@ -149,6 +151,23 @@ export default function HomePage() {
               onClick={() => handlePromptTap(p)}
             >
               <Text className='home-prompts__text'>{p.text}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* V3 · Editorial 编号目录 — 8 大业务域单色展示（Reset 后无色块） */}
+      <View className='home-section'>
+        <View className='home-section__head'>
+          <Text className='home-section__title'>覆盖企业 8 大业务</Text>
+          <Text className='home-section__sub'>一个 App，全链路搞定</Text>
+        </View>
+        <View className='home-domain-index'>
+          {(['legal','finance','tax','compliance','operations','growth','content','global'] as DomainId[]).map((d, i) => (
+            <View key={d} className='home-domain-index__row'>
+              <Text className='home-domain-index__num'>{String(i + 1).padStart(2, '0')}</Text>
+              <Text className='home-domain-index__label'>{domainMeta[d].labelZh}</Text>
+              <Text className='home-domain-index__en'>{domainMeta[d].labelEn}</Text>
             </View>
           ))}
         </View>

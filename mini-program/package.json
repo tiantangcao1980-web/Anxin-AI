@@ -20,42 +20,38 @@
     "check-size": "node scripts/check-bundle-size.js",
     "check-navigation-boundary": "node scripts/check-navigation-boundary.js",
     "check-privacy-boundary": "node scripts/check-privacy-boundary.js",
-    "smoke:privacy": "node scripts/privacy-mode-smoke.js",
-    "test": "vitest run",
     "typecheck": "tsc --noEmit --skipLibCheck --noUnusedLocals false",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
     "predev:h5": "npm run generate-icons",
     "dev:h5": "npm run build:h5 -- --watch"
   },
   "dependencies": {
-    "@tarojs/components": "4.2.x",
-    "@tarojs/helper": "4.2.x",
-    "@tarojs/plugin-framework-react": "4.2.x",
-    "@tarojs/plugin-html": "4.2.x",
-    "@tarojs/plugin-platform-h5": "4.2.x",
-    "@tarojs/plugin-platform-weapp": "4.2.x",
-    "@tarojs/react": "4.2.x",
-    "@tarojs/runtime": "4.2.x",
-    "@tarojs/shared": "4.2.x",
-    "@tarojs/taro": "4.2.x",
+    "@tarojs/components": "3.6.x",
+    "@tarojs/helper": "3.6.x",
+    "@tarojs/plugin-framework-react": "3.6.x",
+    "@tarojs/plugin-platform-weapp": "3.6.x",
+    "@tarojs/plugin-platform-h5": "3.6.x",
+    "@tarojs/react": "3.6.x",
+    "@tarojs/runtime": "3.6.x",
+    "@tarojs/shared": "3.6.x",
+    "@tarojs/taro": "3.6.x",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "@tarojs/plugin-html": "3.6.x"
   },
   "devDependencies": {
-    "@babel/preset-react": "^7.28.5",
     "@babel/runtime": "^7.21.0",
-    "@tarojs/cli": "4.2.x",
-    "@tarojs/webpack5-runner": "4.2.x",
+    "@tarojs/cli": "3.6.x",
+    "@tarojs/webpack5-runner": "3.6.x",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
-    "babel-preset-taro": "4.2.x",
-    "miniprogram-automator": "^0.12.1",
-    "sass": "^1.62.0",
     "typescript": "^5.1.0",
-    "vitest": "^4.1.6"
+    "sass": "^1.62.0",
+    "babel-preset-taro": "3.6.x",
+    "vitest": "^1.6.1"
   },
   "overrides": {
-    "webpack": "5.89.0",
-    "swiper": "^12.1.2",
-    "lodash-es": "^4.17.23"
+    "webpack": "5.89.0"
   }
 }

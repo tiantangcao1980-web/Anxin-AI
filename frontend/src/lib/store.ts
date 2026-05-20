@@ -271,10 +271,13 @@ interface AuthState {
   user: User | null
   token: string | null
   isAuthenticated: boolean
+  /** V3 onboarding：用户是否看过 8 大业务域欢迎引导（首登触发 WelcomeGuide） */
+  hasSeenWelcome: boolean
   setUser: (user: User | null) => void
   setToken: (token: string | null) => void
   login: (user: User, token: string) => void
   logout: () => void
+  markWelcomeSeen: () => void
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -283,6 +286,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: getAccessTokenSnapshot(),
       isAuthenticated: false,
+      hasSeenWelcome: false,
       setUser: (user) => set({ user, isAuthenticated: !!user }),
       setToken: (token) => {
         setAccessTokenSnapshot(token)
@@ -294,8 +298,10 @@ export const useAuthStore = create<AuthState>()(
       },
       logout: () => {
         void getTokenStorage().clearAuth()
+        // 注意：logout 不重置 hasSeenWelcome — 同设备已看过的用户不重复打扰
         set({ user: null, token: null, isAuthenticated: false })
       },
+      markWelcomeSeen: () => set({ hasSeenWelcome: true }),
     }),
     {
       name: 'auth-storage',
@@ -303,6 +309,7 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated,
+        hasSeenWelcome: state.hasSeenWelcome,
       }),
     }
   )

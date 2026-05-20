@@ -38,7 +38,7 @@
 
 - **后端**：`auth` `persona` `chat` `rag` `harness` `payment` `esign` `im`
 - **前端**：`chat` `admin` `pro` `editor` `a2ui` `design`
-- **端**：`desktop` `mobile` `mini-program` `uni-mobile`
+- **端**：`desktop` `mobile` `mini-program`
 - **基础设施**：`docker` `nginx` `monitoring` `deps`
 - **跨域**：`repo` `docs` `ci` `release`
 

@@ -1,18 +1,24 @@
+// 首页样式
+// 2026-05 迁移：所有颜色硬编码 hex → design-tokens 变量
+// Token 来源：src/styles/design-tokens.scss
+
+@import '../../styles/design-tokens.scss';
+
 .home-hero {
   padding: 48rpx 32rpx 32rpx;
-  background: linear-gradient(135deg, #FBF3E8 0%, #FFFFFF 60%);
+  background: linear-gradient(135deg, $color-brand-primary-light 0%, $color-surface 60%);
 
   &__greeting {
     display: block;
-    font-size: 48rpx;
+    font-size: $font-display;
     font-weight: 600;
-    color: #1D2129;
+    color: $color-text-primary;
     margin-bottom: 8rpx;
   }
   &__sub {
     display: block;
-    font-size: 26rpx;
-    color: #4E5969;
+    font-size: $font-body;
+    color: $color-text-secondary;
   }
 }
 
@@ -24,13 +30,13 @@
   margin-bottom: 32rpx;
 
   &__item {
-    background-color: #FFFFFF;
+    background-color: $color-surface;
     border-radius: 24rpx;
     padding: 24rpx 12rpx;
     display: flex;
     flex-direction: column;
     align-items: center;
-    box-shadow: 0 2rpx 8rpx rgba(29, 33, 41, 0.04);
+    box-shadow: $shadow-card;
   }
   &__emoji {
     font-size: 48rpx;
@@ -38,13 +44,13 @@
     margin-bottom: 12rpx;
   }
   &__name {
-    font-size: 26rpx;
-    color: #1D2129;
+    font-size: $font-body;
+    color: $color-text-primary;
     font-weight: 500;
   }
   &__desc {
-    font-size: 20rpx;
-    color: #86909C;
+    font-size: $font-micro;
+    color: $color-text-tertiary;
     margin-top: 4rpx;
     text-align: center;
   }
@@ -62,13 +68,13 @@
     margin-bottom: 20rpx;
   }
   &__title {
-    font-size: 34rpx;
+    font-size: $font-h2;
     font-weight: 600;
-    color: #1D2129;
+    color: $color-text-primary;
   }
   &__sub {
-    font-size: 24rpx;
-    color: #86909C;
+    font-size: $font-caption;
+    color: $color-text-tertiary;
   }
 }
 
@@ -85,16 +91,53 @@
   flex-wrap: wrap;
 
   &__chip {
-    background-color: #FFFFFF;
-    border: 2rpx solid #E5E6EB;
-    border-radius: 999rpx;
+    background-color: $color-surface;
+    border: 2rpx solid $color-border;
+    border-radius: $radius-pill;
     padding: 14rpx 28rpx;
     margin-right: 16rpx;
     margin-bottom: 16rpx;
   }
   &__text {
-    font-size: 24rpx;
-    color: #4E5969;
+    font-size: $font-caption;
+    color: $color-text-secondary;
+  }
+}
+
+// 2026-05 Reset: 8 大业务域改为 Editorial 编号目录（不是徽章网格）
+.home-domain-index {
+  padding: 0 32rpx 16rpx;
+  display: flex;
+  flex-direction: column;
+
+  &__row {
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    padding: 16rpx 0;
+    border-bottom: 1rpx solid $color-border-subtle;
+  }
+
+  &__num {
+    font-size: $font-caption;
+    font-weight: 500;
+    color: $color-text-secondary;
+    width: 56rpx;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__label {
+    flex: 1;
+    font-size: $font-h3;
+    color: $color-text-primary;
+  }
+
+  &__en {
+    font-size: 20rpx;
+    font-weight: 500;
+    letter-spacing: 3.2rpx;
+    text-transform: uppercase;
+    color: $color-text-tertiary;
   }
 }
 
@@ -103,7 +146,7 @@
   text-align: center;
 
   &__text {
-    font-size: 22rpx;
-    color: #C9CDD4;
+    font-size: $font-micro;
+    color: $color-text-disabled;
   }
 }

@@ -74,7 +74,10 @@ export default function SettingsScreen() {
         ])
         break
       case 'about':
-        Alert.alert('关于安心智能助手', '安心智慧法务平台\n版本 v1.0.0\n\n让法律服务更简单')
+        Alert.alert(
+          '关于安心智能助手',
+          '安心智能助手 · 全链路 AI 经营助理\n版本 v1.0.0\n\n一个 App 搞定企业 8 大业务：法务 · 财务 · 税务 · 合规 · 经营 · 获客 · 内容 · 出海'
+        )
         break
       default:
         break

@@ -1,8 +1,11 @@
+// 2026-05: P3 批量迁移到 design-tokens 变量
+@import '../../../styles/design-tokens.scss';
+
 .sk-page {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #f5f5f5;
+  background: $color-background;
 }
 
 .sk-header {
@@ -11,19 +14,19 @@
   justify-content: space-between;
   padding: 24rpx;
   background: #fff;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid $color-skeleton;
 }
 .sk-summary {
   font-size: 26rpx;
   color: #666;
 }
 .sk-summary-num {
-  color: #D4A574;
+  color: $color-brand-primary;
   font-weight: 700;
   font-size: 32rpx;
 }
 .sk-upload-btn {
-  background: #D4A574;
+  background: $color-brand-primary;
   color: #fff;
   font-size: 24rpx;
   padding: 8rpx 24rpx;
@@ -56,7 +59,7 @@
   display: flex;
   align-items: center;
   padding: 24rpx 20rpx;
-  background: #fafafa;
+  background: $color-surface-2;
 }
 .sk-group-title {
   font-size: 28rpx;
@@ -81,7 +84,7 @@
   display: flex;
   align-items: center;
   padding: 20rpx;
-  border-top: 1px solid #f5f5f5;
+  border-top: 1px solid $color-background;
 }
 .sk-item-body {
   flex: 1;
@@ -101,7 +104,7 @@
 }
 .sk-item-deps {
   font-size: 20rpx;
-  color: #B8864E;
+  color: $color-brand-primary-dark;
   margin-top: 4rpx;
 }
 .sk-switch {

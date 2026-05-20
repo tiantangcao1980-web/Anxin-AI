@@ -1,8 +1,11 @@
+// 2026-05: P3 批量迁移到 design-tokens 变量
+@import '../../../styles/design-tokens.scss';
+
 .pa-page {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #f5f5f5;
+  background: $color-background;
 }
 
 .pa-seg {
@@ -22,7 +25,7 @@
   border-radius: 28rpx;
 }
 .pa-seg-item--active {
-  background: #D4A574;
+  background: $color-brand-primary;
   color: #fff;
   font-weight: 600;
 }
@@ -85,7 +88,7 @@
 }
 .pa-card-group {
   font-size: 22rpx;
-  color: #B8864E;
+  color: $color-brand-primary-dark;
   margin-bottom: 4rpx;
 }
 .pa-card-time {
@@ -94,11 +97,11 @@
 }
 .pa-card-cd {
   font-size: 20rpx;
-  color: #4b5563;
+  color: $color-text-secondary;
   margin-top: 4rpx;
 }
 .pa-card-cd--warn {
-  color: #b91c1c;
+  color: $color-danger-strong;
   font-weight: 600;
 }
 
@@ -114,12 +117,12 @@
   text-align: center;
 }
 .pa-btn-text { font-size: 24rpx; font-weight: 600; }
-.pa-btn--ok { background: #D4A574; }
+.pa-btn--ok { background: $color-brand-primary; }
 .pa-btn--ok .pa-btn-text { color: #fff; }
-.pa-btn--no { background: #f3f4f6; }
+.pa-btn--no { background: $color-surface-3; }
 .pa-btn--no .pa-btn-text { color: #666; }
 .pa-btn--more {
-  background: #f3f4f6;
+  background: $color-surface-3;
   margin-left: 16rpx;
   padding: 16rpx 24rpx;
 }

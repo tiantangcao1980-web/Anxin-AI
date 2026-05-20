@@ -1,0 +1,699 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>V3 安心智能助手 · Editorial Luxury Prototype</title>
+
+  <!-- Tailwind CDN（仅 prototype 用，生产走配置版） -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Noto Serif SC + Noto Sans SC（替代被禁用的 Inter） -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Lucide 图标（替代 emoji） -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            bg:           'hsl(30 14% 98%)',
+            'surface-1':  'hsl(0 0% 100%)',
+            'surface-2':  'hsl(30 14% 96%)',
+            'surface-3':  'hsl(32 18% 95%)',
+            ink:          'hsl(20 14% 10%)',
+            'ink-2':      'hsl(20 14% 30%)',
+            'ink-3':      'hsl(20 9% 46%)',
+            'ink-disabled': 'hsl(20 7% 72%)',
+            border:       'hsl(30 13% 91%)',
+            'border-strong': 'hsl(30 12% 84%)',
+            primary:      'hsl(25 95% 53%)',
+            'primary-deep': 'hsl(15 80% 38%)',
+            'primary-50': 'hsl(33 100% 97%)',
+            success:      'hsl(142 30% 38%)',
+            warning:      'hsl(38 70% 48%)',
+            destructive:  'hsl(0 50% 45%)',
+            ai:           'hsl(262 60% 48%)',
+          },
+          fontFamily: {
+            sans:  ['"PingFang SC"', '"Microsoft YaHei"', '"Noto Sans SC"', 'sans-serif'],
+            serif: ['"Noto Serif SC"', '"Source Han Serif SC"', '"Songti SC"', '"STSong"', 'serif'],
+            mono:  ['"JetBrains Mono"', '"SF Mono"', '"Menlo"', 'monospace'],
+          },
+          fontSize: {
+            'display': ['48px', { lineHeight: '1.1', letterSpacing: '-0.04em', fontWeight: '500' }],
+            'h1':      ['32px', { lineHeight: '1.2', letterSpacing: '-0.02em', fontWeight: '500' }],
+            'h2':      ['24px', { lineHeight: '1.3', letterSpacing: '-0.01em', fontWeight: '500' }],
+            'h3':      ['18px', { lineHeight: '1.4', letterSpacing: '-0.005em', fontWeight: '600' }],
+            'body':    ['15px', { lineHeight: '1.65', letterSpacing: '0',      fontWeight: '400' }],
+            'caption': ['13px', { lineHeight: '1.5',  letterSpacing: '0.01em', fontWeight: '400' }],
+            'micro':   ['11px', { lineHeight: '1.4',  letterSpacing: '0.16em', fontWeight: '500' }],
+          },
+          letterSpacing: {
+            'editorial': '0.16em',
+          },
+        },
+      },
+    }
+  </script>
+
+  <style>
+    html, body { background: hsl(30 14% 98%); color: hsl(20 14% 10%); }
+    html { font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif; }
+    .editorial-tracker { letter-spacing: 0.16em; text-transform: uppercase; }
+    .hairline { box-shadow: inset 0 -1px 0 0 hsl(30 13% 91%); }
+    .num-display {
+      font-family: "Noto Serif SC", serif;
+      font-weight: 500;
+      font-feature-settings: "tnum" 1, "lnum" 1;
+    }
+    /* 选区暖琥珀 */
+    ::selection { background: hsl(33 100% 92%); color: hsl(20 14% 10%); }
+    /* 滚动条克制 */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: hsl(20 9% 70% / 0.25); border-radius: 8px; }
+    /* 软阴影 — 暖色基底 */
+    .shadow-paper {
+      box-shadow:
+        0 1px 0 0 hsl(30 13% 91% / 1),
+        0 12px 32px -16px hsl(20 14% 10% / 0.08);
+    }
+    /* 屏切换 */
+    .screen { display: none; }
+    .screen.active { display: block; }
+    .tab-link[aria-current="page"] {
+      color: hsl(20 14% 10%);
+      box-shadow: inset 0 -1px 0 0 hsl(25 95% 53%);
+    }
+    /* sidebar active 1px primary 左线 */
+    .nav-item[aria-current="page"] {
+      color: hsl(20 14% 10%);
+      font-weight: 500;
+      background: hsl(33 100% 97%);
+      box-shadow: inset 2px 0 0 0 hsl(25 95% 53%);
+    }
+    /* domain list active 同样模式 */
+    .domain-row[aria-current="page"] {
+      color: hsl(20 14% 10%);
+      box-shadow: inset 2px 0 0 0 hsl(25 95% 53%);
+      background: linear-gradient(to right, hsl(33 100% 97%) 0%, transparent 60%);
+    }
+    /* 输入框克制 */
+    .input {
+      width: 100%;
+      background: transparent;
+      border: 0;
+      border-bottom: 1px solid hsl(30 13% 91%);
+      padding: 12px 4px;
+      font-size: 15px;
+      color: hsl(20 14% 10%);
+      outline: none;
+      transition: border-color 200ms ease;
+    }
+    .input::placeholder { color: hsl(20 7% 72%); }
+    .input:focus { border-bottom-color: hsl(25 95% 53%); }
+    .btn-primary {
+      background: hsl(25 95% 53%);
+      color: white;
+      padding: 14px 24px;
+      font-size: 15px;
+      font-weight: 500;
+      border-radius: 2px;
+      transition: background 180ms ease;
+      letter-spacing: 0.02em;
+    }
+    .btn-primary:hover { background: hsl(15 80% 38%); }
+    .btn-ghost {
+      background: transparent;
+      color: hsl(20 14% 30%);
+      padding: 10px 16px;
+      font-size: 14px;
+      border: 1px solid hsl(30 13% 91%);
+      border-radius: 2px;
+      transition: all 180ms ease;
+    }
+    .btn-ghost:hover { border-color: hsl(20 14% 30%); color: hsl(20 14% 10%); }
+
+    /* 顶部切屏 bar — 仅 prototype 用，不在真实产品中 */
+    .proto-bar {
+      background: rgba(252, 250, 247, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid hsl(30 13% 91%);
+    }
+  </style>
+</head>
+<body class="font-sans antialiased text-ink">
+
+  <!-- ====================== Prototype 顶栏（非产品 UI） ====================== -->
+  <header class="proto-bar fixed top-0 left-0 right-0 z-50 h-12 flex items-center px-6">
+    <div class="flex items-center gap-3">
+      <span class="text-[11px] tracking-editorial uppercase text-ink-3">V3 · Editorial Luxury · Prototype</span>
+    </div>
+    <nav class="ml-auto flex items-center gap-1 text-caption" role="tablist" aria-label="Prototype 屏幕切换">
+      <button class="tab-link px-3 py-1.5 text-ink-3 hover:text-ink transition-colors" data-target="screen-login" aria-current="page">登录</button>
+      <button class="tab-link px-3 py-1.5 text-ink-3 hover:text-ink transition-colors" data-target="screen-home">业务域目录</button>
+      <button class="tab-link px-3 py-1.5 text-ink-3 hover:text-ink transition-colors" data-target="screen-detail">业务子页</button>
+    </nav>
+  </header>
+
+  <main class="pt-12">
+
+    <!-- ====================== Screen 1 · Login ====================== -->
+    <section id="screen-login" class="screen active min-h-screen">
+      <div class="max-w-[1400px] mx-auto grid grid-cols-12 min-h-[calc(100vh-3rem)]">
+
+        <!-- 左侧 7 col 标题区 -->
+        <div class="col-span-12 lg:col-span-7 px-8 lg:px-16 xl:px-24 pt-20 lg:pt-32 pb-16 flex flex-col justify-between">
+          <!-- 顶部 EST -->
+          <div class="space-y-12 lg:space-y-16">
+            <div class="flex items-center gap-3">
+              <span class="num-display text-[28px] leading-none">安</span>
+              <div class="h-px w-12 bg-ink-3/40"></div>
+              <span class="editorial-tracker text-micro text-ink-3">Anxin Intelligence · Est 2026</span>
+            </div>
+
+            <div>
+              <h1 class="font-serif text-display text-ink">
+                安心智能助手
+              </h1>
+              <p class="font-serif text-h1 mt-6 text-ink-2 max-w-[18ch]">
+                为企业老板而做的 AI 工作台
+              </p>
+            </div>
+
+            <p class="text-body text-ink-2 max-w-[42ch] leading-[1.85]">
+              一个 App 搞定企业 8 大业务 — 法务、财务、税务、合规、经营管理、调研获客、
+              内容产出、出海跨境。不是仪表板，不是工具集合 —
+              <span class="font-serif italic">是把判断、风险、证据放在每一个画面优先位置的工作台。</span>
+            </p>
+          </div>
+
+          <!-- 底部目录 -->
+          <div class="pt-16 lg:pt-24">
+            <div class="editorial-tracker text-micro text-ink-3 mb-4">Index · 业务域目录</div>
+            <ol class="grid grid-cols-2 sm:grid-cols-4 gap-x-8 gap-y-3 text-caption text-ink-2">
+              <li><span class="num-display text-ink-3 mr-2">01</span> 法务</li>
+              <li><span class="num-display text-ink-3 mr-2">02</span> 财务</li>
+              <li><span class="num-display text-ink-3 mr-2">03</span> 税务</li>
+              <li><span class="num-display text-ink-3 mr-2">04</span> 合规</li>
+              <li><span class="num-display text-ink-3 mr-2">05</span> 经营管理</li>
+              <li><span class="num-display text-ink-3 mr-2">06</span> 调研获客</li>
+              <li><span class="num-display text-ink-3 mr-2">07</span> 内容产出</li>
+              <li><span class="num-display text-ink-3 mr-2">08</span> 出海跨境</li>
+            </ol>
+            <div class="hairline mt-8 pt-4 flex items-center justify-between text-micro text-ink-3 editorial-tracker">
+              <span>© 2026 · 安心科技</span>
+              <span>专业 / 克制 / 长期</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右侧 5 col 表单区 -->
+        <aside class="col-span-12 lg:col-span-5 bg-surface-1 hairline relative flex items-center px-8 lg:px-16 xl:px-20 py-16 lg:py-0">
+          <!-- 垂直 hairline 与左栏分隔 -->
+          <div class="hidden lg:block absolute left-0 top-12 bottom-12 w-px bg-border"></div>
+
+          <div class="w-full max-w-[360px] mx-auto">
+            <div class="editorial-tracker text-micro text-ink-3 mb-3">Sign in · 登录</div>
+            <h2 class="font-serif text-h1 text-ink mb-1">欢迎回来</h2>
+            <p class="text-caption text-ink-3 mb-12">请使用你的工作邮箱登录</p>
+
+            <form class="space-y-7" onsubmit="event.preventDefault()">
+              <div>
+                <label class="editorial-tracker text-micro text-ink-3 block mb-2">邮箱</label>
+                <input type="email" class="input" placeholder="name@company.com" autocomplete="email" />
+              </div>
+              <div>
+                <label class="editorial-tracker text-micro text-ink-3 block mb-2 flex items-center justify-between">
+                  <span>密码</span>
+                  <a href="#" class="text-caption normal-case tracking-normal text-ink-3 hover:text-primary transition-colors">忘记密码</a>
+                </label>
+                <input type="password" class="input" placeholder="••••••••" autocomplete="current-password" />
+              </div>
+
+              <button type="submit" class="btn-primary w-full mt-10 flex items-center justify-center gap-2 group">
+                <span>登 录</span>
+                <i data-lucide="arrow-right" class="w-4 h-4 group-hover:translate-x-0.5 transition-transform"></i>
+              </button>
+
+              <div class="flex items-center gap-4 pt-2">
+                <div class="flex-1 h-px bg-border"></div>
+                <span class="editorial-tracker text-micro text-ink-3">Or</span>
+                <div class="flex-1 h-px bg-border"></div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <button type="button" class="btn-ghost flex items-center justify-center gap-2">
+                  <i data-lucide="message-circle" class="w-4 h-4"></i>
+                  <span>微信</span>
+                </button>
+                <button type="button" class="btn-ghost flex items-center justify-center gap-2">
+                  <i data-lucide="credit-card" class="w-4 h-4"></i>
+                  <span>支付宝</span>
+                </button>
+              </div>
+            </form>
+
+            <p class="text-caption text-ink-3 mt-12 leading-relaxed">
+              首次使用？<a href="#" class="text-ink hover:text-primary transition-colors border-b border-ink hover:border-primary">申请试用</a>
+              ·
+              <a href="#" class="text-ink-3 hover:text-ink transition-colors">用户协议</a>
+            </p>
+          </div>
+        </aside>
+
+      </div>
+    </section>
+
+    <!-- ====================== Screen 2 · /domains Home (编辑部目录式) ====================== -->
+    <section id="screen-home" class="screen min-h-screen">
+      <div class="max-w-[1400px] mx-auto px-8 lg:px-16 xl:px-24 py-12 lg:py-20">
+
+        <!-- 顶部 masthead -->
+        <header class="hairline pb-10 mb-12 flex items-end justify-between">
+          <div>
+            <div class="editorial-tracker text-micro text-ink-3 mb-3">Index · 业务域目录</div>
+            <h1 class="font-serif text-display text-ink">业务域</h1>
+            <p class="text-body text-ink-2 mt-4 max-w-[40ch]">
+              选择一个领域开始 — 或继续上次进入的工作流。
+            </p>
+          </div>
+          <div class="hidden lg:flex items-center gap-6 text-caption text-ink-3">
+            <span class="editorial-tracker text-micro">2026 / 05 / 18</span>
+            <span class="font-serif italic">第 28 卷</span>
+          </div>
+        </header>
+
+        <!-- 双栏 4+8 -->
+        <div class="grid grid-cols-12 gap-12">
+
+          <!-- 左栏 4 col 8 业务域目录 -->
+          <nav class="col-span-12 lg:col-span-4" aria-label="业务域目录">
+            <div class="editorial-tracker text-micro text-ink-3 mb-6">Domains · 八大领域</div>
+            <ol class="space-y-px">
+              <li><a href="#" class="domain-row group flex items-baseline gap-4 py-4 px-3 -mx-3 hairline transition-all hover:bg-surface-2/60" aria-current="page">
+                <span class="num-display text-h2 text-ink-3 w-10 shrink-0">01</span>
+                <div class="flex-1 min-w-0">
+                  <div class="font-serif text-h2">法务</div>
+                  <div class="text-caption text-ink-3 mt-1">合同审查 · 案件管理 · 律师协作</div>
+                </div>
+                <i data-lucide="arrow-right" class="w-4 h-4 text-ink-3 group-hover:text-ink group-hover:translate-x-0.5 transition-all"></i>
+              </a></li>
+              <li><a href="#" class="domain-row group flex items-baseline gap-4 py-4 px-3 -mx-3 hairline transition-all hover:bg-surface-2/60">
+                <span class="num-display text-h2 text-ink-3 w-10 shrink-0">02</span>
+                <div class="flex-1 min-w-0">
+                  <div class="font-serif text-h2 text-ink-2">财务</div>
+                  <div class="text-caption text-ink-3 mt-1">记账 · 对账 · 资金看板</div>
+                </div>
+                <i data-lucide="arrow-right" class="w-4 h-4 text-ink-3 opacity-0 group-hover:opacity-100 transition-all"></i>
+              </a></li>
+              <li><a href="#" class="domain-row group flex items-baseline gap-4 py-4 px-3 -mx-3 hairline transition-all hover:bg-surface-2/60">
+                <span class="num-display text-h2 text-ink-3 w-10 shrink-0">03</span>
+                <div class="flex-1 min-w-0">
+                  <div class="font-serif text-h2 text-ink-2">税务</div>
+                  <div class="text-caption text-ink-3 mt-1">申报 · 税务筹划 · 政策跟踪</div>
+                </div>
+                <i data-lucide="arrow-right" class="w-4 h-4 text-ink-3 opacity-0 group-hover:opacity-100 transition-all"></i>
+              </a></li>
+              <li><a href="#" class="domain-row group flex items-baseline gap-4 py-4 px-3 -mx-3 hairline transition-all hover:bg-surface-2/60">
+                <span class="num-display text-h2 text-ink-3 w-10 shrink-0">04</span>
+                <div class="flex-1 min-w-0">
+                  <div class="font-serif text-h2 text-ink-2">合规</div>
+                  <div class="text-caption text-ink-3 mt-1">风控 · 内审 · 监管红线</div>
+                </div>
+                <i data-lucide="arrow-right" class="w-4 h-4 text-ink-3 opacity-0 group-hover:opacity-100 transition-all"></i>
+              </a></li>
+              <li><a href="#" class="domain-row group flex items-baseline gap-4 py-4 px-3 -mx-3 hairline transition-all hover:bg-surface-2/60">
+                <span class="num-display text-h2 text-ink-3 w-10 shrink-0">05</span>
+                <div class="flex-1 min-w-0">
+                  <div class="font-serif text-h2 text-ink-2">经营管理</div>
+                  <div class="text-caption text-ink-3 mt-1">KPI · 决策驾驶舱 · 战略推演</div>
+                </div>
+                <i data-lucide="arrow-right" class="w-4 h-4 text-ink-3 opacity-0 group-hover:opacity-100 transition-all"></i>
+              </a></li>
+              <li><a href="#" class="domain-row group flex items-baseline gap-4 py-4 px-3 -mx-3 hairline transition-all hover:bg-surface-2/60">
+                <span class="num-display text-h2 text-ink-3 w-10 shrink-0">06</span>
+                <div class="flex-1 min-w-0">
+                  <div class="font-serif text-h2 text-ink-2">调研获客</div>
+                  <div class="text-caption text-ink-3 mt-1">市场调研 · 线索挖掘 · 舆情</div>
+                </div>
+                <i data-lucide="arrow-right" class="w-4 h-4 text-ink-3 opacity-0 group-hover:opacity-100 transition-all"></i>
+              </a></li>
+              <li><a href="#" class="domain-row group flex items-baseline gap-4 py-4 px-3 -mx-3 hairline transition-all hover:bg-surface-2/60">
+                <span class="num-display text-h2 text-ink-3 w-10 shrink-0">07</span>
+                <div class="flex-1 min-w-0">
+                  <div class="font-serif text-h2 text-ink-2">内容产出</div>
+                  <div class="text-caption text-ink-3 mt-1">文案 · 视频脚本 · 营销素材</div>
+                </div>
+                <i data-lucide="arrow-right" class="w-4 h-4 text-ink-3 opacity-0 group-hover:opacity-100 transition-all"></i>
+              </a></li>
+              <li><a href="#" class="domain-row group flex items-baseline gap-4 py-4 px-3 -mx-3 transition-all hover:bg-surface-2/60">
+                <span class="num-display text-h2 text-ink-3 w-10 shrink-0">08</span>
+                <div class="flex-1 min-w-0">
+                  <div class="font-serif text-h2 text-ink-2">出海跨境</div>
+                  <div class="text-caption text-ink-3 mt-1">国际化 · 海外合规 · 本地化</div>
+                </div>
+                <i data-lucide="arrow-right" class="w-4 h-4 text-ink-3 opacity-0 group-hover:opacity-100 transition-all"></i>
+              </a></li>
+            </ol>
+          </nav>
+
+          <!-- 右栏 8 col 当前域子页 -->
+          <article class="col-span-12 lg:col-span-8">
+            <div class="lg:sticky lg:top-24">
+              <div class="flex items-baseline gap-4 mb-3">
+                <span class="editorial-tracker text-micro text-ink-3">Legal · 01</span>
+                <span class="text-micro text-ink-disabled">06 模块 · 已启用</span>
+              </div>
+              <h2 class="font-serif text-display text-ink mb-4">法务</h2>
+              <p class="font-serif italic text-h3 text-ink-2 max-w-[40ch] mb-12">
+                "把合同与判决放回视觉中心 — 让 AI 退到背后做事。"
+              </p>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-1">
+                <a href="#" class="group flex items-start gap-4 py-5 hairline transition-colors hover:bg-surface-2/40 -mx-3 px-3">
+                  <i data-lucide="folder-open" class="w-5 h-5 text-ink-2 mt-1 shrink-0 stroke-[1.5]"></i>
+                  <div class="flex-1">
+                    <div class="font-serif text-h3 text-ink">案件中心</div>
+                    <div class="text-caption text-ink-3 mt-1">案件全生命周期 · 团队协作</div>
+                  </div>
+                </a>
+                <a href="#" class="group flex items-start gap-4 py-5 hairline transition-colors hover:bg-surface-2/40 -mx-3 px-3">
+                  <i data-lucide="file-search" class="w-5 h-5 text-ink-2 mt-1 shrink-0 stroke-[1.5]"></i>
+                  <div class="flex-1">
+                    <div class="font-serif text-h3 text-ink">合同审查</div>
+                    <div class="text-caption text-ink-3 mt-1">条款风险 · 三档分级提示</div>
+                  </div>
+                </a>
+                <a href="#" class="group flex items-start gap-4 py-5 hairline transition-colors hover:bg-surface-2/40 -mx-3 px-3">
+                  <i data-lucide="scale" class="w-5 h-5 text-ink-2 mt-1 shrink-0 stroke-[1.5]"></i>
+                  <div class="flex-1">
+                    <div class="font-serif text-h3 text-ink">律师精英</div>
+                    <div class="text-caption text-ink-3 mt-1">匿名咨询 · 推荐匹配</div>
+                  </div>
+                </a>
+                <a href="#" class="group flex items-start gap-4 py-5 hairline transition-colors hover:bg-surface-2/40 -mx-3 px-3">
+                  <i data-lucide="library" class="w-5 h-5 text-ink-2 mt-1 shrink-0 stroke-[1.5]"></i>
+                  <div class="flex-1">
+                    <div class="font-serif text-h3 text-ink">知识库</div>
+                    <div class="text-caption text-ink-3 mt-1">法规 · 判例 · 文书模板</div>
+                  </div>
+                </a>
+                <a href="#" class="group flex items-start gap-4 py-5 hairline transition-colors hover:bg-surface-2/40 -mx-3 px-3">
+                  <i data-lucide="shield-check" class="w-5 h-5 text-ink-2 mt-1 shrink-0 stroke-[1.5]"></i>
+                  <div class="flex-1">
+                    <div class="font-serif text-h3 text-ink">合规自检</div>
+                    <div class="text-caption text-ink-3 mt-1">企业风控点核查清单</div>
+                  </div>
+                </a>
+                <a href="#" class="group flex items-start gap-4 py-5 transition-colors hover:bg-surface-2/40 -mx-3 px-3">
+                  <i data-lucide="file-pen-line" class="w-5 h-5 text-ink-2 mt-1 shrink-0 stroke-[1.5]"></i>
+                  <div class="flex-1">
+                    <div class="font-serif text-h3 text-ink">文书生成</div>
+                    <div class="text-caption text-ink-3 mt-1">AI 起草 · 模板库</div>
+                  </div>
+                </a>
+              </div>
+
+              <div class="mt-12 pt-8 hairline flex items-center justify-between">
+                <a href="#" class="editorial-tracker text-micro text-ink-3 hover:text-primary transition-colors flex items-center gap-2">
+                  <span>所有法务模块</span>
+                  <i data-lucide="arrow-up-right" class="w-3 h-3"></i>
+                </a>
+                <button class="btn-primary flex items-center gap-2">
+                  <span>新建审查任务</span>
+                  <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+          </article>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================== Screen 3 · 业务子页（合同审查）====================== -->
+    <section id="screen-detail" class="screen min-h-screen">
+      <div class="max-w-[1400px] mx-auto grid grid-cols-12 min-h-[calc(100vh-3rem)]">
+
+        <!-- 左侧 sidebar -->
+        <aside class="hidden lg:flex col-span-3 xl:col-span-2 flex-col px-6 xl:px-8 py-10 bg-surface-1 border-r border-border">
+          <div class="editorial-tracker text-micro text-ink-3 mb-6">Legal · 01</div>
+          <nav class="space-y-px -mx-3" aria-label="法务模块">
+            <a href="#" class="nav-item flex items-center gap-3 px-3 py-2.5 text-caption text-ink-3 hover:text-ink transition-colors">
+              <i data-lucide="folder-open" class="w-4 h-4 stroke-[1.5]"></i><span>案件中心</span>
+            </a>
+            <a href="#" class="nav-item flex items-center gap-3 px-3 py-2.5 text-caption" aria-current="page">
+              <i data-lucide="file-search" class="w-4 h-4 stroke-[1.75]"></i><span>合同审查</span>
+            </a>
+            <a href="#" class="nav-item flex items-center gap-3 px-3 py-2.5 text-caption text-ink-3 hover:text-ink transition-colors">
+              <i data-lucide="scale" class="w-4 h-4 stroke-[1.5]"></i><span>律师精英</span>
+            </a>
+            <a href="#" class="nav-item flex items-center gap-3 px-3 py-2.5 text-caption text-ink-3 hover:text-ink transition-colors">
+              <i data-lucide="library" class="w-4 h-4 stroke-[1.5]"></i><span>知识库</span>
+            </a>
+            <a href="#" class="nav-item flex items-center gap-3 px-3 py-2.5 text-caption text-ink-3 hover:text-ink transition-colors">
+              <i data-lucide="shield-check" class="w-4 h-4 stroke-[1.5]"></i><span>合规自检</span>
+            </a>
+            <a href="#" class="nav-item flex items-center gap-3 px-3 py-2.5 text-caption text-ink-3 hover:text-ink transition-colors">
+              <i data-lucide="file-pen-line" class="w-4 h-4 stroke-[1.5]"></i><span>文书生成</span>
+            </a>
+          </nav>
+
+          <div class="mt-auto pt-12 editorial-tracker text-micro text-ink-3 leading-relaxed">
+            <p>切换业务域 →</p>
+            <a href="#" class="text-ink hover:text-primary mt-2 inline-flex items-center gap-1 normal-case tracking-normal text-caption">
+              <span>八大领域</span>
+              <i data-lucide="arrow-right" class="w-3 h-3"></i>
+            </a>
+          </div>
+        </aside>
+
+        <!-- 主内容 -->
+        <div class="col-span-12 lg:col-span-9 xl:col-span-10 px-8 lg:px-12 xl:px-16 py-10 lg:py-12">
+
+          <!-- 页面头部 -->
+          <header class="hairline pb-8 mb-10 flex items-end justify-between">
+            <div>
+              <div class="editorial-tracker text-micro text-ink-3 mb-2 flex items-center gap-2">
+                <span>Legal</span>
+                <span class="text-ink-disabled">·</span>
+                <span>合同审查</span>
+              </div>
+              <h1 class="font-serif text-display text-ink">合同审查</h1>
+              <p class="text-body text-ink-2 mt-3 max-w-[52ch]">
+                上传合同 — AI 标注风险 — 团队审阅 — 客户签收。
+                <span class="font-serif italic">条款风险三档分级，决策证据始终可追溯。</span>
+              </p>
+            </div>
+            <div class="hidden lg:flex items-center gap-3">
+              <button class="btn-ghost flex items-center gap-2">
+                <i data-lucide="upload" class="w-4 h-4 stroke-[1.5]"></i>
+                <span>导入合同</span>
+              </button>
+              <button class="btn-primary flex items-center gap-2">
+                <i data-lucide="plus" class="w-4 h-4 stroke-[1.75]"></i>
+                <span>新建审查</span>
+              </button>
+            </div>
+          </header>
+
+          <!-- toolbar -->
+          <div class="flex items-center justify-between mb-8">
+            <nav class="flex items-center gap-1" aria-label="状态筛选">
+              <button class="tab-link px-3 py-1.5 text-caption" aria-current="page">全部 <span class="text-ink-3">142</span></button>
+              <button class="tab-link px-3 py-1.5 text-caption text-ink-3 hover:text-ink">待审 <span>23</span></button>
+              <button class="tab-link px-3 py-1.5 text-caption text-ink-3 hover:text-ink">审中 <span>18</span></button>
+              <button class="tab-link px-3 py-1.5 text-caption text-ink-3 hover:text-ink">已审 <span>96</span></button>
+              <button class="tab-link px-3 py-1.5 text-caption text-ink-3 hover:text-ink">已归档 <span>5</span></button>
+            </nav>
+            <div class="flex items-center gap-3">
+              <div class="relative">
+                <i data-lucide="search" class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-3 stroke-[1.5]"></i>
+                <input class="pl-8 pr-3 py-1.5 text-caption bg-surface-2/60 border border-transparent hover:border-border focus:border-ink-3 transition-colors rounded-sm outline-none w-48" placeholder="搜索合同名 / 客户 / 编号" />
+              </div>
+              <button class="btn-ghost text-caption flex items-center gap-2 py-1.5">
+                <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>
+                <span>排序</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 合同条目列表 -->
+          <ol class="space-y-px">
+            <li>
+              <a href="#" class="group flex items-start gap-6 py-6 px-3 -mx-3 hairline transition-colors hover:bg-surface-1">
+                <span class="num-display text-caption text-ink-3 w-8 shrink-0 pt-1">001</span>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-baseline gap-3 flex-wrap">
+                    <h3 class="font-serif text-h3 text-ink">深圳市某科技公司 · 设备采购协议（2026-05 版）</h3>
+                    <span class="editorial-tracker text-micro text-ink-3">RC-2026-0518-003</span>
+                  </div>
+                  <div class="text-caption text-ink-3 mt-2 flex items-center gap-4 flex-wrap">
+                    <span class="inline-flex items-center gap-1.5">
+                      <i data-lucide="user" class="w-3 h-3"></i>
+                      李霁明 · 法务总监
+                    </span>
+                    <span class="inline-flex items-center gap-1.5">
+                      <i data-lucide="building-2" class="w-3 h-3"></i>
+                      华南制造分公司
+                    </span>
+                    <span class="inline-flex items-center gap-1.5">
+                      <i data-lucide="clock" class="w-3 h-3"></i>
+                      4 小时前
+                    </span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-6 shrink-0">
+                  <div class="text-right">
+                    <div class="editorial-tracker text-micro text-destructive">高风险 · 3</div>
+                    <div class="text-caption text-ink-3 mt-0.5">条款 · 1 处需人工</div>
+                  </div>
+                  <i data-lucide="arrow-right" class="w-4 h-4 text-ink-3 group-hover:text-ink group-hover:translate-x-0.5 transition-all"></i>
+                </div>
+              </a>
+            </li>
+
+            <li>
+              <a href="#" class="group flex items-start gap-6 py-6 px-3 -mx-3 hairline transition-colors hover:bg-surface-1">
+                <span class="num-display text-caption text-ink-3 w-8 shrink-0 pt-1">002</span>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-baseline gap-3 flex-wrap">
+                    <h3 class="font-serif text-h3 text-ink">广州物流园区 · 仓储租赁补充协议</h3>
+                    <span class="editorial-tracker text-micro text-ink-3">RC-2026-0517-021</span>
+                  </div>
+                  <div class="text-caption text-ink-3 mt-2 flex items-center gap-4 flex-wrap">
+                    <span class="inline-flex items-center gap-1.5"><i data-lucide="user" class="w-3 h-3"></i>张文澜</span>
+                    <span class="inline-flex items-center gap-1.5"><i data-lucide="building-2" class="w-3 h-3"></i>华南仓储</span>
+                    <span class="inline-flex items-center gap-1.5"><i data-lucide="clock" class="w-3 h-3"></i>昨天</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-6 shrink-0">
+                  <div class="text-right">
+                    <div class="editorial-tracker text-micro text-warning">中风险 · 2</div>
+                    <div class="text-caption text-ink-3 mt-0.5">条款 · 待发起复审</div>
+                  </div>
+                  <i data-lucide="arrow-right" class="w-4 h-4 text-ink-3 group-hover:text-ink group-hover:translate-x-0.5 transition-all"></i>
+                </div>
+              </a>
+            </li>
+
+            <li>
+              <a href="#" class="group flex items-start gap-6 py-6 px-3 -mx-3 hairline transition-colors hover:bg-surface-1">
+                <span class="num-display text-caption text-ink-3 w-8 shrink-0 pt-1">003</span>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-baseline gap-3 flex-wrap">
+                    <h3 class="font-serif text-h3 text-ink">东莞制造 · 跨境贸易服务框架协议（中英双语）</h3>
+                    <span class="editorial-tracker text-micro text-ink-3">RC-2026-0517-014</span>
+                  </div>
+                  <div class="text-caption text-ink-3 mt-2 flex items-center gap-4 flex-wrap">
+                    <span class="inline-flex items-center gap-1.5"><i data-lucide="user" class="w-3 h-3"></i>Linda Su</span>
+                    <span class="inline-flex items-center gap-1.5"><i data-lucide="globe" class="w-3 h-3"></i>跨境业务部</span>
+                    <span class="inline-flex items-center gap-1.5"><i data-lucide="clock" class="w-3 h-3"></i>2 天前</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-6 shrink-0">
+                  <div class="text-right">
+                    <div class="editorial-tracker text-micro text-success">已审 · 通过</div>
+                    <div class="text-caption text-ink-3 mt-0.5">39 条 · 0 缺漏</div>
+                  </div>
+                  <i data-lucide="arrow-right" class="w-4 h-4 text-ink-3 group-hover:text-ink group-hover:translate-x-0.5 transition-all"></i>
+                </div>
+              </a>
+            </li>
+
+            <li>
+              <a href="#" class="group flex items-start gap-6 py-6 px-3 -mx-3 hairline transition-colors hover:bg-surface-1">
+                <span class="num-display text-caption text-ink-3 w-8 shrink-0 pt-1">004</span>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-baseline gap-3 flex-wrap">
+                    <h3 class="font-serif text-h3 text-ink">某零部件供应商 · 长期框架补充（涉外特别条款）</h3>
+                    <span class="editorial-tracker text-micro text-ink-3">RC-2026-0516-008</span>
+                  </div>
+                  <div class="text-caption text-ink-3 mt-2 flex items-center gap-4 flex-wrap">
+                    <span class="inline-flex items-center gap-1.5"><i data-lucide="user" class="w-3 h-3"></i>陈砚秋</span>
+                    <span class="inline-flex items-center gap-1.5"><i data-lucide="building-2" class="w-3 h-3"></i>采购部</span>
+                    <span class="inline-flex items-center gap-1.5"><i data-lucide="clock" class="w-3 h-3"></i>3 天前</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-6 shrink-0">
+                  <div class="text-right">
+                    <div class="editorial-tracker text-micro text-warning">中风险 · 1</div>
+                    <div class="text-caption text-ink-3 mt-0.5">已分配给律所外审</div>
+                  </div>
+                  <i data-lucide="arrow-right" class="w-4 h-4 text-ink-3 group-hover:text-ink group-hover:translate-x-0.5 transition-all"></i>
+                </div>
+              </a>
+            </li>
+
+            <li>
+              <a href="#" class="group flex items-start gap-6 py-6 px-3 -mx-3 transition-colors hover:bg-surface-1">
+                <span class="num-display text-caption text-ink-3 w-8 shrink-0 pt-1">005</span>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-baseline gap-3 flex-wrap">
+                    <h3 class="font-serif text-h3 text-ink">武汉营销代理 · 服务期 24 个月续约</h3>
+                    <span class="editorial-tracker text-micro text-ink-3">RC-2026-0515-002</span>
+                  </div>
+                  <div class="text-caption text-ink-3 mt-2 flex items-center gap-4 flex-wrap">
+                    <span class="inline-flex items-center gap-1.5"><i data-lucide="user" class="w-3 h-3"></i>周斯远</span>
+                    <span class="inline-flex items-center gap-1.5"><i data-lucide="building-2" class="w-3 h-3"></i>市场部</span>
+                    <span class="inline-flex items-center gap-1.5"><i data-lucide="clock" class="w-3 h-3"></i>4 天前</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-6 shrink-0">
+                  <div class="text-right">
+                    <div class="editorial-tracker text-micro text-success">已审 · 通过</div>
+                    <div class="text-caption text-ink-3 mt-0.5">已发起对方签收</div>
+                  </div>
+                  <i data-lucide="arrow-right" class="w-4 h-4 text-ink-3 group-hover:text-ink group-hover:translate-x-0.5 transition-all"></i>
+                </div>
+              </a>
+            </li>
+          </ol>
+
+          <!-- 底部分页 -->
+          <footer class="mt-12 pt-6 hairline flex items-center justify-between text-caption text-ink-3">
+            <span class="editorial-tracker text-micro">显示 1 – 5 · 共 142 条</span>
+            <div class="flex items-center gap-1">
+              <button class="btn-ghost px-3 py-1 text-caption" disabled aria-disabled="true">
+                <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+              </button>
+              <button class="px-3 py-1 text-caption text-ink font-medium" aria-current="page">1</button>
+              <button class="px-3 py-1 text-caption text-ink-3 hover:text-ink">2</button>
+              <button class="px-3 py-1 text-caption text-ink-3 hover:text-ink">3</button>
+              <span class="text-ink-disabled px-1">…</span>
+              <button class="px-3 py-1 text-caption text-ink-3 hover:text-ink">29</button>
+              <button class="btn-ghost px-3 py-1 text-caption">
+                <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </footer>
+
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // 屏幕切换
+    const tabs = document.querySelectorAll('.tab-link[data-target]');
+    const screens = document.querySelectorAll('.screen');
+    tabs.forEach(t => t.addEventListener('click', () => {
+      tabs.forEach(x => x.removeAttribute('aria-current'));
+      t.setAttribute('aria-current', 'page');
+      const target = t.dataset.target;
+      screens.forEach(s => s.classList.toggle('active', s.id === target));
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }));
+
+    // Lucide 初始化
+    if (window.lucide) window.lucide.createIcons();
+  </script>
+</body>
+</html>
