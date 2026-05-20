@@ -127,7 +127,9 @@ def test_commercial_delivery_checklist_rejects_complete_item_with_pending_eviden
     result = _validate(repo_root, checklist)
 
     assert result.returncode == 1
-    assert "Status: pending" in result.stderr
+    # [S8] vigorous-wiles 把 payment-sandbox.md 状态从 pending → deferred（产品方向调整）
+    # validator 现在拒绝 complete item 引用 deferred/pending evidence，两种状态都断言
+    assert ("Status: pending" in result.stderr) or ("Status: deferred" in result.stderr)
 
 
 def test_commercial_delivery_checklist_requires_external_handoff_for_pending_items(tmp_path):
