@@ -1,0 +1,101 @@
+# =====================================================================
+# Helm values · 生产环境（私有化客户）
+#
+# 安装：
+#   helm install anxin deploy/enterprise-onprem/helm/anxin-enterprise \
+#     --namespace anxin --create-namespace \
+#     -f deploy/enterprise-onprem/helm/anxin-enterprise/values-production.yaml \
+#     --set postgres.password=$(openssl rand -base64 24) \
+#     --set redis.password=$(openssl rand -base64 24) \
+#     --set backend.jwtSecret=$(openssl rand -base64 32) \
+#     --set backend.secretKey=$(openssl rand -base64 32)
+#
+# 强密码 / 密钥用 --set 而不入 values 文件，避免误提交到 git。
+# 更强保护：用 sealed-secrets / external-secrets-operator 注入。
+# =====================================================================
+
+global:
+  imageRegistry: ghcr.io/anxin
+  environment: production
+  airgap: false
+
+backend:
+  enabled: true
+  replicas: 3
+  resources:
+    requests: { cpu: 1000m, memory: 2Gi }
+    limits:   { cpu: 4000m, memory: 8Gi }
+  authRedisFailClosed: "true"
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 65534
+    fsGroup: 65534
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities: { drop: ["ALL"] }
+    readOnlyRootFilesystem: false
+
+worker:
+  enabled: true
+  replicas: 4
+  resources:
+    requests: { cpu: 1000m, memory: 2Gi }
+    limits:   { cpu: 4000m, memory: 8Gi }
+
+postgres:
+  inCluster:
+    enabled: true
+    storage:
+      size: 200Gi
+      storageClass: ""  # 用客户默认 StorageClass（SSD 优先）
+  resources:
+    requests: { cpu: 1000m, memory: 4Gi }
+
+redis:
+  inCluster:
+    enabled: true
+    storage:
+      size: 20Gi
+
+minio:
+  enabled: true
+  storage:
+    size: 1Ti
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: anxin.your-company.example
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: anxin-tls
+      hosts: [anxin.your-company.example]
+  annotations:
+    # 强制 HTTPS + HSTS
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+
+observability:
+  prometheus:
+    enabled: false  # 接客户已有 Prometheus
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+
+networkPolicy:
+  enabled: true
+  egressAllowedCidrs: []  # 默认 DNS + 同 ns，按需追加
+
+podSecurity:
+  level: restricted
+
+# LDAP / IM 同步默认关闭，按需开启
+ldapSync:
+  enabled: false
+imSync:
+  enabled: false

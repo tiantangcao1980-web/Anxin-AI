@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /site
+Allow: /site/
+Disallow: /admin/
+Disallow: /chat
+Disallow: /cases
+Disallow: /contracts
+Disallow: /documents
+Disallow: /pro/
+Disallow: /api/
+
+Sitemap: https://anxin.ai/sitemap.xml

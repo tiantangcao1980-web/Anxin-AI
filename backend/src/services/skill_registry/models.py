@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 
 @dataclass(slots=True)
@@ -52,6 +53,10 @@ class Skill:
     # T10: SKILL.md 声明的工具白名单 — 配合 harness.tool_registry 校验, 防止 skill
     # 引用未注册或拼错的工具名. 解析自 frontmatter `required_tools` 字段。
     required_tools: list[str] = field(default_factory=list)
+
+    # P5-沙箱：来自 frontmatter 的 ``sandbox`` 块原始字典；
+    # 缺省 None 表示 T0 prompt-only。由 ``skill_sandbox.SandboxManifest`` 解析。
+    sandbox_raw: dict[str, Any] | None = None
 
     # ------------------------------------------------------------------
     # 工具方法
@@ -100,6 +105,7 @@ class Skill:
             "author": self.author,
             "file_path": str(self.file_path) if self.file_path else None,
             "body_length": len(self.body),
+            "sandbox_tier": (self.sandbox_raw or {}).get("tier") if self.sandbox_raw else None,
         }
 
     def validate_required_tools(self, tool_registry: object | None = None) -> list[str]:

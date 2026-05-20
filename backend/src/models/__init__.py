@@ -40,6 +40,14 @@ from src.models.contract import Contract, ContractAttachment, ContractClause, Co
 from src.models.conversation import Conversation, Message
 from src.models.course import Course, CourseProgress
 from src.models.document import Document, DocumentVersion
+from src.models.enterprise_directory import (
+    Department,
+    DepartmentMembership,
+    Position,
+    RoleBinding,
+    UserGroup,
+    UserGroupMember,
+)
 from src.models.expert import Expert
 from src.models.feature_flag import FeatureFlag
 from src.models.firm_management import CaseAssignment, Invoice, Team, TeamMember, TimeEntry
@@ -229,7 +237,14 @@ __all__ = [
     "InvestigationSnapshot",
     "SearchCache",
     "UserInvestigationPreference",
-    # Harness incidents
+    # Harness incidents（vigorous-wiles）
     "Incident",
     "UserTokenUsage",
+    # 企业内网集群（festive-rosalind T4 — 组织/部门/成员）
+    "Department",
+    "DepartmentMembership",
+    "UserGroup",
+    "UserGroupMember",
+    "Position",
+    "RoleBinding",
 ]

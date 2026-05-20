@@ -18,6 +18,10 @@ sandbox_executor —— V3 沙箱执行器骨架（P3-E）
 
 from src.services.sandbox_executor.base import BaseSandboxProvider
 from src.services.sandbox_executor.config import get_sandbox_settings
+from src.services.sandbox_executor.docker_provider import (
+    DockerNotAvailable,
+    DockerProvider,
+)
 from src.services.sandbox_executor.local_provider import LocalProvider
 from src.services.sandbox_executor.models import (
     ExecResult,
@@ -32,6 +36,8 @@ from src.services.sandbox_executor.registry import SandboxProviderRegistry
 
 __all__ = [
     "BaseSandboxProvider",
+    "DockerNotAvailable",
+    "DockerProvider",
     "ExecResult",
     "LocalProvider",
     "NetworkPolicy",

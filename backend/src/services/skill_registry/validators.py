@@ -33,6 +33,16 @@ def validate_skill(skill: Skill) -> list[str]:
     if skill.dependencies and skill.name in skill.dependencies:
         errors.append(f"自依赖：{skill.name} 在 dependencies 中引用自己")
 
+    # 沙箱 manifest 静态校验（只在声明了 sandbox 块时启用）
+    if skill.sandbox_raw is not None:
+        try:
+            # lazy import 避免循环依赖
+            from src.services.skill_sandbox.manifest import SandboxManifest
+
+            SandboxManifest.from_frontmatter({"sandbox": skill.sandbox_raw})
+        except Exception as exc:
+            errors.append(f"sandbox manifest 非法: {exc}")
+
     # trigger 内部去重检查（同一 skill 内重复 trigger 是配置错误）
     seen: dict[str, int] = {}
     for trig in skill.triggers:

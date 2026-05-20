@@ -1,0 +1,19 @@
+apiVersion: v2
+name: anxin-enterprise
+description: 安心智能助手 · K8s 私有化部署 Helm Chart（企业内网集群）
+type: application
+version: 0.1.0
+appVersion: "v3"
+
+keywords:
+  - anxin-ai
+  - enterprise
+  - on-prem
+  - airgap
+
+home: https://anxin.ai
+sources:
+  - https://github.com/anxin/anxin-ai
+
+annotations:
+  category: AI

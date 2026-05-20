@@ -1,0 +1,55 @@
+{{- if .Values.ldapSync.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "anxin.fullname" . }}-ldap-sync
+  labels:
+    {{- include "anxin.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ldap-sync
+spec:
+  schedule: {{ .Values.ldapSync.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            {{- include "anxin.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: ldap-sync
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: ldap-sync
+              image: {{ printf "%s/%s:%s" .Values.global.imageRegistry .Values.ldapSync.image.repository .Values.ldapSync.image.tag }}
+              command:
+                - python
+                - scripts/ldap_sync_loop.py
+                - --once
+                - --org-id
+                - {{ required "ldapSync.orgId is required when ldapSync.enabled=true" .Values.ldapSync.orgId | quote }}
+                - --strategy
+                - {{ .Values.ldapSync.conflictStrategy | quote }}
+              env:
+                - name: LDAP_URL
+                  value: {{ .Values.ldapSync.config.url | quote }}
+                - name: LDAP_BIND_DN
+                  value: {{ .Values.ldapSync.config.bindDn | quote }}
+                - name: LDAP_BIND_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "anxin.fullname" . }}-secrets
+                      key: LDAP_BIND_PASSWORD
+                - name: LDAP_USER_BASE_DN
+                  value: {{ .Values.ldapSync.config.userBaseDn | quote }}
+                - name: LDAP_DEPT_BASE_DN
+                  value: {{ .Values.ldapSync.config.deptBaseDn | quote }}
+                - name: DATABASE_URL
+                  value: postgresql://anxin:$(POSTGRES_PASSWORD)@{{ include "anxin.fullname" . }}-postgres:5432/anxin_enterprise
+                - name: POSTGRES_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "anxin.fullname" . }}-secrets
+                      key: POSTGRES_PASSWORD
+{{- end }}

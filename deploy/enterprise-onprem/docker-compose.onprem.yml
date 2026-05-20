@@ -1,0 +1,141 @@
+# =====================================================================
+# 安心智能助手 · 企业私有化 / 内网 all-in-one Compose
+#
+# 适用：客户内网单台 host，~8GB RAM / 4 vCPU 起。
+# 文档：deploy/enterprise-onprem/README.md
+# 设计：docs/v3/enterprise-cluster-design.md §5
+#
+# 启动：
+#   cp deploy/enterprise-onprem/.env.onprem.example .env
+#   docker compose -f deploy/enterprise-onprem/docker-compose.onprem.yml up -d
+#   docker compose exec backend alembic upgrade head
+#
+# 与 docker-compose.nas.yml 的差异：
+#   - backend / worker 双进程（celery + LDAP 同步 cron）
+#   - postgres 调大 shared_buffers
+#   - 默认带 ldap-sync 容器（cron 触发）
+#   - 不暴露任何端口到 0.0.0.0；只 nginx 监听 80/443
+#   - 强制 ENVIRONMENT=production + DEV_MODE=false
+# =====================================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: anxin_enterprise
+      POSTGRES_USER: anxin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?missing}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=512MB"
+      - "-c"
+      - "max_connections=200"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "anxin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?missing}"]
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?missing}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?missing}
+    volumes:
+      - ./data/minio:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  backend:
+    image: ghcr.io/anxin/legal-backend:${BACKEND_TAG:-latest}
+    restart: always
+    env_file:
+      - ../../.env
+    environment:
+      ENVIRONMENT: production
+      DEV_MODE: "false"
+      RUNTIME_MODE: enterprise-onprem
+      DATABASE_URL: postgresql://anxin:${POSTGRES_PASSWORD}@postgres:5432/anxin_enterprise
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      STORAGE_BACKEND: minio
+      MINIO_ENDPOINT: http://minio:9000
+      AUTH_REDIS_FAIL_CLOSED: "true"
+      # T1 skill 签名公钥：发布方 → base64 公钥（多个逗号分隔）
+      SKILL_SANDBOX_PUBLISHER_KEYS: ${SKILL_SANDBOX_PUBLISHER_KEYS:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./data/skills:/app/skills
+      - ./logs:/app/logs
+
+  worker:
+    image: ghcr.io/anxin/legal-backend:${BACKEND_TAG:-latest}
+    restart: always
+    command: ["celery", "-A", "src.services.task_orchestrator.celery_app", "worker", "-l", "info", "-Q", "agent_tasks"]
+    env_file:
+      - ../../.env
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql://anxin:${POSTGRES_PASSWORD}@postgres:5432/anxin_enterprise
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+    depends_on:
+      backend:
+        condition: service_started
+
+  # LDAP/AD 同步定时任务（cron 在容器内启）
+  ldap-sync:
+    image: ghcr.io/anxin/legal-backend:${BACKEND_TAG:-latest}
+    restart: always
+    command: ["python", "scripts/ldap_sync_loop.py"]
+    env_file:
+      - ../../.env
+    environment:
+      LDAP_URL: ${LDAP_URL:-}
+      LDAP_BIND_DN: ${LDAP_BIND_DN:-}
+      LDAP_BIND_PASSWORD: ${LDAP_BIND_PASSWORD:-}
+      LDAP_USER_BASE_DN: ${LDAP_USER_BASE_DN:-}
+      LDAP_DEPT_BASE_DN: ${LDAP_DEPT_BASE_DN:-}
+      LDAP_SYNC_INTERVAL_SEC: ${LDAP_SYNC_INTERVAL_SEC:-300}
+      DATABASE_URL: postgresql://anxin:${POSTGRES_PASSWORD}@postgres:5432/anxin_enterprise
+    depends_on:
+      backend:
+        condition: service_started
+    profiles: ["ldap"]   # 默认不启动，开启时加 --profile ldap
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - backend

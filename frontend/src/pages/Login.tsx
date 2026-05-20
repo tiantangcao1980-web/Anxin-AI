@@ -45,6 +45,7 @@ export default function Login() {
  sms_enabled: false,
  oauth_wechat_enabled: false,
  oauth_alipay_enabled: false,
+ oidc_enabled: false,
  captcha_enabled: false,
  captcha_provider:'',
  captcha_site_key:'',
@@ -63,8 +64,16 @@ export default function Login() {
  useEffect(() => {
  fetch('/api/v1/auth/features').then(r => r.json()).then(d => {
  const data = d.data || d
- setFeatures(data)
+ setFeatures(prev => ({ ...prev, ...data }))
  }).catch(() => {})
+ // OIDC 单独探测：metadata 返回 200 表示后端已配 OIDC_ISSUER + CLIENT_ID
+ fetch('/api/v1/auth/oidc/metadata')
+ .then(r => {
+ if (r.ok) {
+ setFeatures(prev => ({ ...prev, oidc_enabled: true }))
+ }
+ })
+ .catch(() => {})
  }, [])
 
  const captchaRequired = Boolean(
@@ -402,6 +411,35 @@ export default function Login() {
  }
  } catch {
  toast.error(`${provider ==='wechat' ?'微信' :'支付宝'}登录暂不可用`)
+ }
+ }
+
+ const handleOidc = async () => {
+ // 拉取 IdP 元数据 + 跳到授权页（implicit flow）
+ // 生产建议改 Authorization Code + PKCE；当前先把通路打通。
+ try {
+ const resp = await fetch(`/api/v1/auth/oidc/metadata`)
+ if (!resp.ok) {
+ const body = await resp.json().catch(() => ({}))
+ toast.error(`SSO 暂不可用：${body.detail || resp.statusText}`)
+ return
+ }
+ const meta = await resp.json()
+ const nonce = crypto.randomUUID()
+ sessionStorage.setItem('oidc_nonce', nonce)
+ const redirectUri = `${window.location.origin}/login/oidc/callback`
+ const params = new URLSearchParams({
+ client_id: meta.client_id,
+ response_type: 'id_token',
+ scope: 'openid email profile',
+ redirect_uri: redirectUri,
+ nonce,
+ state: encodeURIComponent(window.location.pathname + window.location.search),
+ })
+ const authorizeUrl = `${meta.issuer.replace(/\/$/, '')}/authorize?${params}`
+ window.location.href = authorizeUrl
+ } catch (err) {
+ toast.error(`SSO 调用失败：${(err as Error).message}`)
  }
  }
 
@@ -963,8 +1001,8 @@ export default function Login() {
  )}
  </AnimatePresence>
 
- {/* 第三方登录 — 根据后台功能开关动态显示 */}
- {(features.oauth_wechat_enabled || features.oauth_alipay_enabled) && (<><div className="relative my-6">
+ {/* 第三方登录 — 第三方 OAuth 或企业 SSO */}
+ {(features.oauth_wechat_enabled || features.oauth_alipay_enabled || features.oidc_enabled) && (<><div className="relative my-6">
  <div className="absolute inset-0 flex items-center">
  <div className="w-full border-t border-border" />
  </div>
@@ -997,6 +1035,20 @@ export default function Login() {
  <path d="M21.422 15.358c-1.573-.537-3.282-1.159-3.282-1.159s.908-2.059 1.178-3.483c.27-1.424.162-2.485-.432-2.98-.594-.494-1.314-.243-1.908.269-.594.512-1.575 1.871-2.25 3.06a23.819 23.819 0 0 1-5.283-1.455c1.581-2.898 2.55-5.864 2.55-5.864H7.872V2.36h4.895V1H7.872V0H6.78v1H1.943v1.36H6.78v1.386H3.116v1.36h7.443s-.733 2.234-2.037 4.582c-2.258-.82-4.448-1.348-5.61-1.05-1.02.261-1.648.868-1.92 1.588-.82 2.17.905 4.323 3.6 4.323 1.806 0 3.532-1.087 4.895-2.8.902.427 1.893.82 2.957 1.182-.61.77-1.208 1.596-1.766 2.467C8.76 18.4 6.273 21 3.612 21c-.6 0-1.122-.164-1.5-.476 0 0-.48-.388-.6-1.17 0 0-.012.025.312.49.324.466.894.702 1.62.702 1.99 0 4.185-1.754 5.82-3.943.546-.731 1.061-1.51 1.545-2.319 2.273.676 4.89 1.293 4.89 1.293S13.8 18.6 13.8 20.16c0 1.56 1.11 2.04 1.74 2.16.63.12 2.4.12 3.36-.96.96-1.08.84-2.4.84-2.4s.024.18-.144.588c-.168.408-.528.9-1.08 1.152-.552.252-1.284.12-1.284.12s-.36-.06-.36-.48c0-.42.816-1.932 1.884-3.504.564-.828 1.152-1.572 1.74-2.232 1.344.432 2.172.636 2.172.636l.78-1.884zM5.493 13.83c-1.962 0-2.868-1.362-2.484-2.598.384-1.236 1.566-1.65 2.424-1.476.858.174 2.502.696 3.858 1.266-1.134 1.698-2.448 2.808-3.798 2.808z" />
  </svg>
  支付宝登录
+ </button>
+ )}
+ {features.oidc_enabled && (
+ <button
+ type="button"
+ onClick={() => void handleOidc()}
+ className={`${buttonStyle.ghost} col-span-2 flex items-center justify-center gap-2 py-2.5 border border-border hover:bg-muted`}
+ data-testid="oidc-login-btn"
+ >
+ <svg className={iconSize.md} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+ <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+ <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+ </svg>
+ 企业 SSO 登录（OIDC）
  </button>
  )}
  </div></>)}

@@ -149,6 +149,12 @@ class SkillLoader:
         if author is not None:
             author = str(author).strip() or None
 
+        sandbox_raw = meta.get("sandbox")
+        if sandbox_raw is not None and not isinstance(sandbox_raw, dict):
+            raise SkillParseError(
+                f"{file_path}: frontmatter.sandbox 必须是 mapping，得到 {type(sandbox_raw).__name__}"
+            )
+
         return Skill(
             name=str(meta["name"]).strip(),
             description=str(meta["description"]).strip(),
@@ -168,6 +174,7 @@ class SkillLoader:
             ),
             enabled=_coerce_bool(meta.get("enabled"), default=True),
             author=author,
+            sandbox_raw=sandbox_raw,
         )
 
     def load_from_directory(self, root: str | Path) -> list[Skill]:

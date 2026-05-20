@@ -1,0 +1,97 @@
+# =====================================================================
+# Helm values · AirGap（完全断网 / 物理隔离）
+#
+# 配套阅读：deploy/enterprise-onprem/AIRGAP.md
+#
+# 安装前确认：
+#   - 客户内网 Harbor 已 docker load 完毕镜像
+#   - 模型已下载到本地推理 endpoint（LLM_BASE_URL 内网地址）
+#   - Skill 签名公钥已分发（SKILL_SANDBOX_PUBLISHER_KEYS）
+#   - chrony / ntpd 已部署，时钟同步正常
+#
+# 区别于 production：
+#   - global.airgap=true，后端关 Sentry / OTA / 远端遥测
+#   - imageRegistry 指向客户内网 Harbor
+#   - 默认禁用 imSync（飞书 / 钉钉 走公网，airgap 用不了）
+#   - networkPolicy 强制 + egressAllowedCidrs 只放客户内网 LLM
+# =====================================================================
+
+global:
+  imageRegistry: harbor.internal.example/anxin   # 客户内网 Harbor
+  environment: production
+  airgap: true                                    # !!!
+
+backend:
+  enabled: true
+  replicas: 2
+  resources:
+    requests: { cpu: 1000m, memory: 2Gi }
+    limits:   { cpu: 4000m, memory: 8Gi }
+  authRedisFailClosed: "true"
+  # T1 Skill 签名公钥：airgap 部署前必须配，否则 T1 全部 fail-closed
+  skillSandboxPublisherKeys: "anxin-platform=REPLACE_ME_BASE64"
+
+worker:
+  enabled: true
+  replicas: 2
+
+postgres:
+  inCluster:
+    enabled: true
+    storage:
+      size: 500Gi
+
+redis:
+  inCluster:
+    enabled: true
+    storage:
+      size: 20Gi
+
+minio:
+  enabled: true
+  storage:
+    size: 2Ti
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: anxin.internal.example
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: anxin-tls
+      hosts: [anxin.internal.example]
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+
+observability:
+  prometheus: { enabled: false }   # 接客户 SOC
+  serviceMonitor: { enabled: true }
+
+# 严格出站策略：仅允许内网 LLM endpoint + DNS
+networkPolicy:
+  enabled: true
+  egressAllowedCidrs:
+    - "10.0.0.0/8"      # 内网
+    - "172.16.0.0/12"
+    - "192.168.0.0/16"
+
+podSecurity:
+  level: restricted
+
+# AirGap 下 LDAP 走客户内网；IM 走公网，默认关
+ldapSync:
+  enabled: true
+  schedule: "*/10 * * * *"
+  orgId: "REPLACE_ME"
+  conflictStrategy: ldap-wins
+  config:
+    url: "ldaps://ad.internal.example:636"
+    bindDn: "CN=anxin-sync,OU=Service,DC=internal,DC=example"
+    userBaseDn: "OU=Users,DC=internal,DC=example"
+    deptBaseDn: "OU=Departments,DC=internal,DC=example"
+imSync:
+  enabled: false
